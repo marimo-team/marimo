@@ -1064,6 +1064,17 @@ class CustomProvider(OpenAIClientMixin, PydanticProvider["Provider"]):
         from pydantic_ai.models import infer_model
         from pydantic_ai.models.openai import OpenAIChatModel
 
+        if (
+            self._provider_name == "deepseek"
+            and self.model == "deepseek-flash"
+        ):
+            # Remove once pydantic/pydantic-ai#8353 fixes this model's profile.
+            return OpenAIChatModel(
+                model_name=self.model,
+                provider=self.provider,
+                profile=self.provider.model_profile("deepseek-v4-flash"),
+            )
+
         try:
             return infer_model(
                 f"{self._provider_name}:{self.model}",

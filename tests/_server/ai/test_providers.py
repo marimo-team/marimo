@@ -2,6 +2,7 @@
 
 import asyncio
 import hashlib
+import json
 import os
 from collections.abc import AsyncIterator
 from pathlib import Path
@@ -1104,6 +1105,101 @@ def test_custom_provider_inherits_profile_from_base_url() -> None:
     else:
         assert profile.openai_chat_thinking_field == "reasoning_content"
         assert profile.openai_chat_send_back_thinking_parts == "field"
+
+
+@pytest.mark.requires("openai", "pydantic_ai")
+@pytest.mark.parametrize(
+    ("provider_name", "model_name", "base_url", "tool_choice"),
+    [
+        ("deepseek", "deepseek-flash", "https://api.deepseek.com", "auto"),
+        (
+            "deepseek_official",
+            "deepseek-flash",
+            "https://api.deepseek.com/v1/",
+            "auto",
+        ),
+        ("deepseek", "deepseek-v4-flash", "https://api.deepseek.com", "auto"),
+        ("deepseek", "deepseek-chat", "https://api.deepseek.com", "required"),
+        (
+            "custom",
+            "deepseek-flash",
+            "https://my.internal.llm/v1",
+            "required",
+        ),
+    ],
+)
+async def test_custom_provider_structured_completion_tool_choice(
+    provider_name: str,
+    model_name: str,
+    base_url: str,
+    tool_choice: str,
+) -> None:
+    import httpx
+    from openai import AsyncOpenAI
+
+    requests: list[dict[str, str]] = []
+
+    def respond(request: httpx.Request) -> httpx.Response:
+        body = json.loads(request.content)
+        requests.append(
+            {"model": body["model"], "tool_choice": body["tool_choice"]}
+        )
+        return httpx.Response(
+            200,
+            json={
+                "id": "response",
+                "object": "chat.completion",
+                "created": 0,
+                "model": model_name,
+                "choices": [
+                    {
+                        "index": 0,
+                        "finish_reason": "tool_calls",
+                        "message": {
+                            "role": "assistant",
+                            "tool_calls": [
+                                {
+                                    "id": "completion",
+                                    "type": "function",
+                                    "function": {
+                                        "name": body["tools"][0]["function"][
+                                            "name"
+                                        ],
+                                        "arguments": '{"code": "print(1)"}',
+                                    },
+                                }
+                            ],
+                        },
+                    }
+                ],
+            },
+        )
+
+    async with (
+        httpx.AsyncClient(
+            transport=httpx.MockTransport(respond)
+        ) as http_client,
+        AsyncOpenAI(
+            api_key="test-key", base_url=base_url, http_client=http_client
+        ) as client,
+    ):
+        with patch.object(
+            CustomProvider, "get_openai_client", return_value=client
+        ):
+            provider = CustomProvider(
+                AiModelId.from_model(f"{provider_name}/{model_name}"),
+                AnyProviderConfig(api_key="test-key", base_url=base_url),
+            )
+        agent = provider._create_structured_completion_agent(
+            name="completion",
+            max_tokens=None,
+            system_prompt="Generate Python code.",
+            output_type=CellCompletion,
+        )
+        result = await agent.run("Print 1")
+
+    assert result.output == CellCompletion(code="print(1)")
+    assert requests == [{"model": model_name, "tool_choice": tool_choice}]
 
 
 @pytest.mark.requires("pydantic_ai")
