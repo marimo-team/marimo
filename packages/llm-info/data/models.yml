@@ -300,20 +300,6 @@ openai:
     limits: {context: 1050000, output: 128000}
 
 google:
-  - name: Nano Banana 2.1
-    model: gemini-nano-banana-2.1
-    description: ""
-    roles: [chat, edit]
-    capabilities: [thinking]
-    input_types: [text, image, pdf]
-    output_types: [text, image]
-    release_date: 2026-10-06
-    cost: {input: 1.5, output: 30}
-    reasoning_options:
-      - type: effort
-        values: [minimal, medium, high]
-    limits: {context: 131072, output: 32768}
-
   - name: Gemini 4 Argon
     model: gemini-4-argon
     description: "Reasoning model for complex software engineering, mathematical and scientific problem solving, and autonomous multi-step agents"
@@ -523,66 +509,6 @@ google:
     limits: {context: 1000000, output: 128000}
 
 bedrock:
-  - name: Claude Haiku 5.5
-    model: anthropic.claude-haiku-5-5
-    description: ""
-    roles: [chat, edit]
-    capabilities: [thinking, tool_calling]
-    input_types: [text, image, pdf]
-    output_types: [text]
-    release_date: 2026-10-07
-    cost: {input: 0.1, output: 0.5}
-    reasoning_options:
-      - type: toggle
-      - type: effort
-        values: [low, medium, high, xhigh, max]
-    limits: {context: 1000000, output: 128000}
-
-  - name: Claude Haiku 5.5 (AU)
-    model: au.anthropic.claude-haiku-5-5
-    description: ""
-    roles: [chat, edit]
-    capabilities: [thinking, tool_calling]
-    input_types: [text, image, pdf]
-    output_types: [text]
-    release_date: 2026-10-07
-    cost: {input: 0.11, output: 0.55}
-    reasoning_options:
-      - type: toggle
-      - type: effort
-        values: [low, medium, high, xhigh, max]
-    limits: {context: 1000000, output: 128000}
-
-  - name: Claude Haiku 5.5 (EU)
-    model: eu.anthropic.claude-haiku-5-5
-    description: ""
-    roles: [chat, edit]
-    capabilities: [thinking, tool_calling]
-    input_types: [text, image, pdf]
-    output_types: [text]
-    release_date: 2026-10-07
-    cost: {input: 0.11, output: 0.55}
-    reasoning_options:
-      - type: toggle
-      - type: effort
-        values: [low, medium, high, xhigh, max]
-    limits: {context: 1000000, output: 128000}
-
-  - name: Claude Haiku 5.5 (JP)
-    model: jp.anthropic.claude-haiku-5-5
-    description: ""
-    roles: [chat, edit]
-    capabilities: [thinking, tool_calling]
-    input_types: [text, image, pdf]
-    output_types: [text]
-    release_date: 2026-10-07
-    cost: {input: 0.11, output: 0.55}
-    reasoning_options:
-      - type: toggle
-      - type: effort
-        values: [low, medium, high, xhigh, max]
-    limits: {context: 1000000, output: 128000}
-
   - name: Claude Haiku 5.5 (Global)
     model: global.anthropic.claude-haiku-5-5
     description: "Small, fast model for high-volume, cost-sensitive work such as summarization, subagents, and browser use"
@@ -780,35 +706,6 @@ bedrock:
       - type: effort
         values: [none, low, medium, high, xhigh, max]
     limits: {context: 1050000, output: 128000}
-
-  - name: Claude Fable 5 (Global)
-    model: global.anthropic.claude-fable-5
-    description: "Anthropic's Mythos-class model built for demanding reasoning, coding, and long-horizon agentic work"
-    roles: [chat, edit]
-    capabilities: [thinking, tool_calling]
-    input_types: [text, image, pdf]
-    output_types: [text]
-    release_date: 2026-06-09
-    cost: {input: 10, output: 50}
-    reasoning_options:
-      - type: effort
-        values: [low, medium, high, xhigh, max]
-    limits: {context: 1000000, output: 128000}
-
-  - name: Claude Sonnet 5 (Global)
-    model: global.anthropic.claude-sonnet-5
-    description: "Anthropic's Sonnet model, built for planning, tool use, and autonomous multi-step work at Sonnet pricing"
-    roles: [chat, edit]
-    capabilities: [thinking, tool_calling]
-    input_types: [text, image, pdf]
-    output_types: [text]
-    release_date: 2026-06-30
-    cost: {input: 2, output: 10}
-    reasoning_options:
-      - type: toggle
-      - type: effort
-        values: [low, medium, high, xhigh, max]
-    limits: {context: 1000000, output: 128000}
 
   - name: Claude Fable 5 (Global)
     model: global.anthropic.claude-fable-5
@@ -1221,7 +1118,7 @@ azure:
 ollama:
   - name: MiniMax-M3.1-Flash
     model: minimax-m3.1-flash
-    description: ""
+    description: "Multimodal model from MiniMax for coding, computer use, and complex multi-step agent workflows"
     roles: [chat, edit]
     capabilities: [thinking, tool_calling]
     input_types: [text, image]
@@ -1235,7 +1132,7 @@ ollama:
 
   - name: Beam 1.0 501B A23B
     model: beam
-    description: ""
+    description: "Open-weight reasoning model from Reflection for coding and long-running agent workflows, with 501B total and 23B active parameters"
     roles: [chat, edit]
     capabilities: [thinking, tool_calling]
     input_types: [text]
@@ -1730,21 +1627,9 @@ wandb:
     limits: {context: 131072, output: 131072}
 
 opencode-go:
-  - name: Iceman Contributor Free
-    model: iceman-contributor-free
-    description: ""
-    roles: [chat, edit]
-    capabilities: [thinking, tool_calling]
-    input_types: [text]
-    output_types: [text]
-    release_date: 2026-10-24
-    cost: {input: 0, output: 0}
-    reasoning_options: []
-    limits: {context: 262144, output: 131072}
-
   - name: Kimi K3.1 Pro
     model: kimi-k3.1-pro
-    description: ""
+    description: "Open-weight multimodal reasoning model from Moonshot AI for long-horizon coding, financial research, and agentic knowledge work"
     roles: [chat, edit]
     capabilities: [thinking, tool_calling]
     input_types: [text, image]
@@ -1758,7 +1643,7 @@ opencode-go:
 
   - name: MiniMax M3.1 Flash
     model: minimax-m3.1-flash
-    description: ""
+    description: "Multimodal model from MiniMax for coding, computer use, and complex multi-step agent workflows"
     roles: [chat, edit]
     capabilities: [thinking, tool_calling]
     input_types: [text, image]
@@ -1772,7 +1657,7 @@ opencode-go:
 
   - name: Gemini 4 Argon
     model: gemini-4-argon
-    description: ""
+    description: "Reasoning model for complex software engineering, mathematical and scientific problem solving, and autonomous multi-step agents"
     roles: [chat, edit]
     capabilities: [thinking, tool_calling]
     input_types: [text, image, pdf]
