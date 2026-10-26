@@ -7,7 +7,10 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { userConfigAtom } from "@/core/config/config";
 import { defaultUserConfig } from "@/core/config/config-schema";
 import { getDefaultHotkey } from "@/core/hotkeys/hotkeys";
-import { KeyboardShortcuts, keyboardShortcutsAtom } from "../keyboard-shortcuts";
+import {
+  KeyboardShortcuts,
+  keyboardShortcutsAtom,
+} from "../keyboard-shortcuts";
 
 const saveUserConfig = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
 vi.mock("@/core/network/requests", () => ({
@@ -37,10 +40,14 @@ describe("shortcut recorder keyboard navigation", () => {
     });
     act(() => edit.focus());
     fireEvent.click(edit, { detail: 0 });
-    const recorder = screen.getByPlaceholderText(getDefaultHotkey("cell.run").name);
+    const recorder = screen.getByPlaceholderText(
+      getDefaultHotkey("cell.run").name,
+    );
     expect(recorder).toHaveFocus();
     expect(fireEvent.keyDown(recorder, { key: "Tab" })).toBe(true);
-    expect(fireEvent.keyDown(recorder, { key: "Tab", shiftKey: true })).toBe(true);
+    expect(fireEvent.keyDown(recorder, { key: "Tab", shiftKey: true })).toBe(
+      true,
+    );
     expect(recorder).toBeInTheDocument();
     expect(saveUserConfig).not.toHaveBeenCalled();
     const reset = screen.getByRole("button", { name: /^Reset to default:/ });

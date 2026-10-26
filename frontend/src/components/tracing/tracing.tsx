@@ -187,11 +187,7 @@ const TraceBlock: React.FC<{
     >
       <pre className="font-mono font-semibold">{traceTitle}</pre>
       {isExpanded && (
-        <TraceBlockBody
-          run={run}
-          chartPosition={chartPosition}
-          theme={theme}
-        />
+        <TraceBlockBody run={run} chartPosition={chartPosition} theme={theme} />
       )}
     </div>
   );

@@ -9,7 +9,10 @@ import type { CellEditor } from "@/components/editor/cell/code/cell-editor";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { SCRATCH_CELL_ID } from "@/core/cells/ids";
 import { ScratchPad } from "./scratchpad";
-import { historyVisibleAtom, scratchpadHistoryAtom } from "./scratchpad-history";
+import {
+  historyVisibleAtom,
+  scratchpadHistoryAtom,
+} from "./scratchpad-history";
 
 const state = vi.hoisted(() => ({
   editor: null as EditorView | null,
@@ -49,7 +52,9 @@ vi.mock("@/components/editor/cell/code/cell-editor", () => ({
       const view = new EditorView({
         parent: parent.current ?? undefined,
         extensions: [
-          EditorView.contentAttributes.of({ "aria-label": "Scratchpad editor" }),
+          EditorView.contentAttributes.of({
+            "aria-label": "Scratchpad editor",
+          }),
         ],
       });
       state.editor = view;
@@ -78,7 +83,9 @@ it("focuses the editor after recalling history", () => {
   act(() => recall.focus());
   fireEvent.click(recall, { detail: 0 });
   expect(recall).not.toBeInTheDocument();
-  expect(screen.getByRole("textbox", { name: "Scratchpad editor" })).toHaveFocus();
+  expect(
+    screen.getByRole("textbox", { name: "Scratchpad editor" }),
+  ).toHaveFocus();
   expect(state.editor?.state.doc.toString()).toBe("print(42)");
   expect(state.updateCellCode).toHaveBeenCalledExactlyOnceWith({
     cellId: SCRATCH_CELL_ID,
