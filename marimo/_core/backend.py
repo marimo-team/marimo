@@ -142,12 +142,12 @@ class Status:
 
 @dataclass(frozen=True)
 class Produced:
-    """Console or display output from an execution.
+    """An item produced by an execution.
 
     Reusing an item ID replaces its previous value.
     """
 
-    item: protocol.Console | protocol.Display
+    item: protocol.Console | protocol.Display | protocol.Variable
 
 
 @dataclass(frozen=True)

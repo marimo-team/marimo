@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+import dataclasses
+
 import pytest
 from msgspec.structs import replace
 
@@ -89,23 +91,52 @@ def describe(changes: list[Change]) -> list[str]:
     return out
 
 
+def variable(execution_id: str = "e1") -> protocol.Variable:
+    return protocol.Variable(
+        execution_id=protocol.ExecutionId(execution_id),
+        id=protocol.ItemId("v1"),
+        name="x",
+        preview="1",
+        revision=protocol.Revision(protocol.ExecutionId(execution_id), 0),
+        type="int",
+    )
+
+
 def test_a_cell_result_outlives_its_run_until_the_next_replaces_it() -> None:
     executions = Executions()
     executions.begin(run("r1"), "first")
     executions.observe(planned("r1", ("e1", "a")), RUNTIME)
+    bound = variable()
+    assert executions.observe(be.Produced(bound), RUNTIME) == [bound]
     complete(executions, "e1")
     done = executions.observe(
         be.Done(protocol.RunId("r1"), "succeeded"), RUNTIME
     )
     assert describe(done) == ["run r1"]
     assert executions.active() is None
-    assert describe(executions._records()) == ["run r1", "execution e1"]
+    assert describe(executions._records()) == [
+        "run r1",
+        "execution e1",
+        "variable v1",
+    ]
     assert executions.request_id(protocol.RunId("r1")) == "first"
     assert executions.snapshot_request(protocol.RunId("r1")) is None
+
+    before = executions.current(protocol.CellId("a"))
+    assert before is not None
+    updated = replace(
+        bound, preview="2", revision=replace(bound.revision, update=1)
+    )
+    assert executions.observe(be.Produced(updated), RUNTIME) == [updated]
+    assert executions.current(protocol.CellId("a")) == dataclasses.replace(
+        before, variables=(updated,)
+    )
+    assert before.variables == (bound,)
 
     executions.begin(run("r2"), "second")
     replaced = executions.observe(planned("r2", ("e2", "a")), RUNTIME)
     assert describe(replaced) == [
+        "variable.removed v1",
         "execution.removed e1",
         "released r1",
         "execution e2",
@@ -113,12 +144,14 @@ def test_a_cell_result_outlives_its_run_until_the_next_replaces_it() -> None:
     executions.release(protocol.RunId("r1"))
     assert executions.run(protocol.RunId("r1")) is None
     assert describe(executions._records()) == ["run r2", "execution e2"]
+    assert executions.observe(be.Produced(updated), RUNTIME) == []
 
 
 def test_scratch_work_leaves_with_its_run() -> None:
     executions = Executions()
     executions.begin(run("r1"), "request")
     executions.observe(planned("r1", ("e1", None)), RUNTIME)
+    assert executions.observe(be.Produced(variable()), RUNTIME) == []
     produced = executions.observe(
         be.Produced(
             protocol.Console(
@@ -268,7 +301,9 @@ def test_removing_a_cell_drops_its_result_or_disowns_active_work() -> None:
 
 def test_restored_executions_are_current_until_replaced() -> None:
     document = Document([DocumentCell("c1", "42")], {})
-    retained = retained_execution(run_id="old-run")
+    retained = dataclasses.replace(
+        retained_execution(run_id="old-run"), variables=(variable("restored"),)
+    )
     executions = Executions.restore(
         {protocol.CellId("c1"): retained}, cells=document
     )
@@ -276,11 +311,13 @@ def test_restored_executions_are_current_until_replaced() -> None:
     assert describe(executions._records()) == [
         "execution restored",
         "console restored-output",
+        "variable v1",
     ]
     executions.begin(run("r1"), "request")
     changes = executions.observe(planned("r1", ("e1", "c1")), RUNTIME)
     assert describe(changes) == [
         "console.removed restored-output",
+        "variable.removed v1",
         "execution.removed restored",
         "execution e1",
     ]
@@ -297,6 +334,8 @@ def test_restored_executions_are_current_until_replaced() -> None:
         ("no-outcome", "outcome"),
         ("output-owner", "belong to their execution"),
         ("duplicate-output", "unique"),
+        ("variable-owner", "belong to their execution"),
+        ("duplicate-item", "unique"),
     ],
 )
 def test_restore_rejects_inconsistent_executions(
@@ -323,6 +362,15 @@ def test_restore_rejects_inconsistent_executions(
         retained = CellExecution(
             execution,
             (replace(outputs[0], execution_id=protocol.ExecutionId("other")),),
+        )
+    elif invalid == "variable-owner":
+        retained = dataclasses.replace(
+            retained, variables=(variable("other"),)
+        )
+    elif invalid == "duplicate-item":
+        retained = dataclasses.replace(
+            retained,
+            variables=(replace(variable("restored"), id=outputs[0].id),),
         )
     else:
         retained = CellExecution(execution, outputs * 2)
