@@ -511,8 +511,7 @@ def test_duckdb_discovery_depth(
             schemas_enabled
         )
         assert (
-            any("information_schema.tables" in sql for sql in queries)
-            == tables_enabled
+            any("duckdb_tables()" in sql for sql in queries) == tables_enabled
         )
         assert sum("duckdb_columns()" in sql for sql in queries) == int(
             details_enabled
@@ -813,7 +812,10 @@ def test_duckdb_keeps_tables_when_column_discovery_fails(failure: str) -> None:
                         "Column metadata unavailable"
                     )
                 if failure == "placeholder":
-                    return [("memory", "main", "example", "__", "INTEGER")]
+                    oid = connection.execute(
+                        "SELECT oid FROM duckdb_schemas() WHERE database_name = 'memory' AND schema_name = 'main'"
+                    ).fetchone()[0]
+                    return [("memory", oid, "example", "__", "INTEGER")]
                 return []
             return query(sql, params)
 
@@ -840,3 +842,90 @@ def test_duckdb_keeps_tables_when_column_discovery_fails(failure: str) -> None:
             )
         ]
         assert describe.call_count == int(failure == "placeholder")
+
+
+@pytest.mark.skipif(not HAS_DUCKDB, reason="DuckDB not installed")
+@pytest.mark.parametrize("include_tables", [False, True])
+def test_duckdb_nested_schema_discovery(include_tables: bool) -> None:
+    import duckdb
+
+    from marimo._sql.utils import is_duckdb_v2
+
+    if not is_duckdb_v2():
+        pytest.skip("Nested schemas require DuckDB 2")
+    with duckdb.connect() as connection:
+        for parent in ("finance", "other", "finance.reports"):
+            connection.execute(f"CREATE SCHEMA {quote_qualified_name(parent)}")
+        for parent, dtype in (("finance", "INTEGER"), ("other", "VARCHAR")):
+            connection.execute(
+                f"CREATE SCHEMA {quote_qualified_name(parent, 'reports')}"
+            )
+            connection.execute(
+                f"CREATE TABLE {quote_qualified_name(parent, 'reports', 'sales')} (amount {dtype})"
+            )
+            connection.execute(
+                f"CREATE VIEW {quote_qualified_name(parent, 'reports', 'summary')} AS SELECT * FROM {quote_qualified_name(parent, 'reports', 'sales')}"
+            )
+        connection.execute(
+            'CREATE TABLE "finance.reports".sales (literal BOOLEAN)'
+        )
+        engine = DuckDBEngine(connection)
+        databases = engine.get_databases(
+            include_schemas=True,
+            include_tables=include_tables,
+            include_table_details=True,
+        )
+        schemas = {
+            s.name: s
+            for db in databases
+            if db.name == "memory"
+            for s in db.schemas
+        }
+        assert set(schemas) == {"finance", "other", "finance.reports", "main"}
+        assert schemas["finance"].child_schemas_resolved == include_tables
+        assert schemas["finance"].tables == []
+        for parent, dtype in (("finance", "INTEGER"), ("other", "VARCHAR")):
+            children = (
+                schemas[parent].child_schemas
+                if include_tables
+                else engine.get_schemas(
+                    database="memory",
+                    schema_path=[parent],
+                    include_tables=True,
+                    include_table_details=True,
+                )
+            )
+            assert len(children) == 1
+            assert children[0].name == "reports"
+            assert [(t.name, t.type) for t in children[0].tables] == [
+                ("sales", "table"),
+                ("summary", "view"),
+            ]
+            assert all(
+                t.columns[0].external_type == dtype for t in children[0].tables
+            )
+            for name in ("sales", "summary"):
+                details = engine.get_table_details(
+                    database_name="memory",
+                    schema_name="reports",
+                    schema_path=[parent, "reports"],
+                    table_name=name,
+                )
+                assert details is not None
+                assert details.columns[0].external_type == dtype
+        literal = engine.get_tables_in_schema(
+            database="memory",
+            schema="finance.reports",
+            schema_path=["finance.reports"],
+            include_table_details=True,
+        )
+        assert literal[0].columns[0].name == "literal"
+        assert (
+            engine.get_tables_in_schema(
+                database="memory",
+                schema="reports",
+                schema_path=["missing", "reports"],
+                include_table_details=True,
+            )
+            == []
+        )
