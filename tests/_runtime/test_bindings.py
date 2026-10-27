@@ -547,13 +547,11 @@ async def test_preview_cannot_overwrite_an_update_during_rendering(
 def isolated_duckdb() -> Iterator[None]:
     import duckdb
 
-    previous = duckdb.default_connection()
-    with duckdb.connect() as connection:
-        duckdb.set_default_connection(connection)
-        try:
-            yield
-        finally:
-            duckdb.set_default_connection(previous)
+    duckdb.begin()
+    try:
+        yield
+    finally:
+        duckdb.rollback()
 
 
 @pytest.mark.usefixtures("isolated_duckdb")
