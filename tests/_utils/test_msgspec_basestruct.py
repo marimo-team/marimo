@@ -1,6 +1,9 @@
+import json
 import typing as t
 
 import msgspec
+import pytest
+from pydantic import TypeAdapter, ValidationError
 
 from marimo._ai._tools.tools.cells import (
     GetCellOutputArgs,
@@ -33,6 +36,8 @@ from marimo._ai._tools.tools.tables_and_variables import (
     TablesAndVariablesArgs,
     TablesAndVariablesOutput,
 )
+from marimo._core.protocol import ExecutionId, Revision
+from marimo._messaging.notification import VariableValue
 
 TOOL_IO_CLASSES = [
     GetCellRuntimeDataArgs,
@@ -100,3 +105,38 @@ def test_tool_msgspec_structs_expose_pydantic_hook() -> None:
         "These msgspec.Structs referenced by tools must use BaseStruct as their base class: "
         + ", ".join(offenders)
     )
+
+
+@pytest.mark.parametrize("tool_io_class", TOOL_IO_CLASSES)
+def test_tool_io_exposes_pydantic_schema(tool_io_class: type) -> None:
+    TypeAdapter(tool_io_class).json_schema()
+
+
+def test_variable_value_revision_round_trip() -> None:
+    adapter = TypeAdapter(VariableValue)
+    value = VariableValue(
+        name="x",
+        value="1",
+        datatype="int",
+        execution_id="execution-1",
+        revision=Revision(execution=ExecutionId("execution-1"), update=2),
+    )
+    expected = {
+        "name": "x",
+        "value": "1",
+        "datatype": "int",
+        "execution_id": "execution-1",
+        "revision": {"execution": "execution-1", "update": 2},
+    }
+
+    assert adapter.validate_python(value) is value
+    assert adapter.validate_json(json.dumps(expected)) == value
+    assert adapter.dump_python(value, mode="json") == expected
+    assert json.loads(adapter.dump_json(value)) == expected
+
+    invalid = {
+        **expected,
+        "revision": {"execution": "execution-1", "update": -1},
+    }
+    with pytest.raises(ValidationError, match="Expected `int` >= 0"):
+        adapter.validate_json(json.dumps(invalid))

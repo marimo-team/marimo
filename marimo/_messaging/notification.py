@@ -6,6 +6,7 @@ from __future__ import annotations
 import re
 import time
 from typing import (
+    Annotated,
     Any,
     ClassVar,
     Literal,
@@ -48,7 +49,7 @@ from marimo._types.ids import (
     VariableName,
     WidgetModelId,
 )
-from marimo._utils.msgspec_basestruct import BaseStruct
+from marimo._utils.msgspec_basestruct import BaseStruct, MsgspecSchema
 from marimo._utils.platform import is_pyodide, is_windows
 
 LOGGER = loggers.marimo_logger()
@@ -717,7 +718,7 @@ class VariableValue(BaseStruct):
     value: str | None
     datatype: str | None
     execution_id: str | None = None
-    revision: Revision | None = None
+    revision: Annotated[Revision, MsgspecSchema] | None = None
 
 
 class VariablesNotification(Notification, tag="variables"):
