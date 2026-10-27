@@ -39,9 +39,7 @@ function abortable<T>(
   });
 }
 
-export function createWasmNotebookBackend(
-  bridge: WasmNotebookBridge,
-): NotebookBackend {
+export function createWasmNotebookBackend(bridge: WasmNotebookBridge) {
   const client = NotebookClient.unstable_over((call) => bridge.call(call), {
     notebookId: bridge.notebookId,
   });
@@ -103,5 +101,5 @@ export function createWasmNotebookBackend(
       }
       return client;
     },
-  };
+  } satisfies NotebookBackend;
 }

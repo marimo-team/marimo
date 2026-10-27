@@ -13,11 +13,14 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 from marimo._ast.app_config import _AppConfig
+from marimo._ast.cell import CellConfig
 from marimo._config.config import DEFAULT_CONFIG
 from marimo._core.calls import EditCall, dispatch
+from marimo._messaging.notebook import CreateCell, Transaction
 from marimo._messaging.notification import (
     ModelLifecycleNotification,
     ModelOpen,
+    NotebookDocumentTransactionNotification,
     VariableDeclarationNotification,
     VariablesNotification,
 )
@@ -31,9 +34,10 @@ from marimo._runtime.commands import (
     ModelCommand,
     ModelUpdateMessage,
 )
+from marimo._runtime.layout.layout import LayoutConfig
 from marimo._session.model import SessionMode
 from marimo._session.notebook import AppFileManager
-from marimo._types.ids import WidgetModelId
+from marimo._types.ids import CellId_t, WidgetModelId
 
 
 @pytest.fixture
@@ -347,7 +351,8 @@ async def test_live_notifications_reach_each_subscription_until_it_closes(
     assert ops(second)[-2:] == ["variables", "variables"]
     bridge.notebook.unsubscribe("second")
     assert bridge.session.consumers == [
-        bridge.session.session_view.add_raw_notification
+        bridge.session.session_view.add_raw_notification,
+        bridge._on_message,
     ]
 
 
@@ -459,3 +464,89 @@ async def test_save_serializes_writes_and_checks_revision_after_waiting(
     assert len(writes) == 2
     assert "x = 2" in writes[1]
     assert notebook.saved_etag == notebook.document.etag
+
+
+async def test_editor_transactions_config_layout_and_reload(bridge):
+    events = await snapshot(bridge)
+    messages = []
+    bridge.session.consumers.append(messages.append)
+    cell_id = events[1]["data"]["cell"]["id"]
+    await bridge.notebook.transaction(
+        json.dumps(
+            {
+                "changes": [
+                    {"type": "set-code", "cellId": cell_id, "code": "x = 9"},
+                    {"type": "set-name", "cellId": cell_id, "name": "example"},
+                    {
+                        "type": "create-cell",
+                        "cellId": "new",
+                        "code": "y = 2",
+                        "name": "_",
+                        "config": {},
+                    },
+                    {"type": "reorder-cells", "cellIds": ["new", cell_id]},
+                ]
+            }
+        )
+    )
+    assert not messages  # Do not echo old typing into the editor.
+    await bridge.save_app_config(json.dumps({"config": {"width": "full"}}))
+    layout = {"type": "slides", "data": {"slides": [[cell_id]]}}
+    await bridge.notebook.set_layout(json.dumps(layout))
+    path = bridge.session.app_manager.filename
+
+    async def persist(contents, filename):
+        from pathlib import Path
+
+        await asyncio.to_thread(Path(filename).write_text, contents)
+
+    bridge.notebook.set_persistence(persist)
+    assert (await send(bridge, save_call(bridge)))["status"] == 200
+    restored = AppFileManager(path)
+    assert list(restored.app.cell_manager.codes()) == ["y = 2", "x = 9"]
+    assert list(restored.app.cell_manager.names()) == ["_", "example"]
+    assert restored.app.config.width == "full"
+    assert restored.read_layout_config() == LayoutConfig(**layout)
+    await bridge.notebook.transaction(
+        json.dumps(
+            {
+                "changes": [
+                    {"type": "delete-cell", "cellId": "new"},
+                ]
+            }
+        )
+    )
+    assert list(bridge.session.app_manager.app.cell_manager.codes()) == [
+        "x = 9"
+    ]
+
+
+async def test_save_includes_kernel_document_edits(bridge):
+    await snapshot(bridge)
+    persist = AsyncMock()
+    bridge.notebook.set_persistence(persist)
+    bridge.session._on_message(
+        serialize_kernel_message(
+            NotebookDocumentTransactionNotification(
+                transaction=Transaction(
+                    changes=(
+                        CreateCell(
+                            cell_id=CellId_t("kernel-cell"),
+                            code="y = 8",
+                            name="_",
+                            config=CellConfig(),
+                        ),
+                    ),
+                    source="kernel",
+                )
+            )
+        )
+    )
+    assert (await send(bridge, save_call(bridge)))["status"] == 200
+    contents, _filename = persist.call_args.args
+    assert "y = 8" in contents
+    assert list(bridge.session.app_manager.app.cell_manager.codes()) == [
+        "x = 1",
+        "y = 8",
+    ]
+    assert bridge.session._queue_manager.control_queue.empty()

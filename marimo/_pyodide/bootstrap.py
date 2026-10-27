@@ -2,7 +2,6 @@
 # ruff: noqa: E402
 from __future__ import annotations
 
-import json
 from typing import TYPE_CHECKING
 
 from marimo._runtime._wasm import ensure_wasm_runtime_bootstrapped
@@ -19,10 +18,8 @@ from marimo._runtime.commands import (
 )
 from marimo._runtime.patches import extract_docstring_from_header
 from marimo._server.app_defaults import AppDefaults
-from marimo._server.models.models import SaveNotebookRequest
 from marimo._session.model import SessionMode
 from marimo._session.notebook import AppFileManager
-from marimo._utils.parse_dataclass import parse_raw
 
 if TYPE_CHECKING:
     from marimo._config.config import MarimoConfig
@@ -121,21 +118,3 @@ def create_session(
     bridge = PyodideBridge(session)
 
     return session, bridge
-
-
-def save_file(
-    request: str,
-    filename: str,
-) -> None:
-    """
-    Save the app to the given filename.
-
-    Args:
-        request: serialized/stringified SaveNotebookRequest
-        filename: the filename of the app
-
-    This function is called by the WebAssembly frontend.
-    """
-    parsed = parse_raw(json.loads(request), SaveNotebookRequest)
-    app_file_manager = AppFileManager(filename=filename)
-    app_file_manager.save(parsed)

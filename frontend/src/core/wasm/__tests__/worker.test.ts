@@ -77,6 +77,7 @@ async function startWorker(subscribing = Promise.resolve()) {
       },
     ),
     unsubscribe: (id: string) => subscribers.delete(id),
+    set_persistence: vi.fn(),
     destroy: vi.fn(),
   };
   const bridge = { notebook, destroy: vi.fn() };
