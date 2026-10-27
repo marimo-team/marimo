@@ -417,6 +417,7 @@ export function useNotebookSession(opts: {
         : runtimeManager.getWsURL(sessionId).toString(),
     // SSE uses headers for auth. WebSockets carry the token in the URL.
     headers: () => runtimeManager.headers(),
+    notebookUrl: (notebookId) => runtimeManager.getNotebookURL(notebookId),
     // Only the host's transports read the URL, so static and WASM never wait.
     waitUntilReady: async () => {
       if (!runtimeManager.isSameOrigin) {

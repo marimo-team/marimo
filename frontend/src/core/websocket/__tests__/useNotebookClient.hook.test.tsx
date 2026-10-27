@@ -59,6 +59,7 @@ function setup(
     transportType: "websocket" as const,
     url: () => "ws://localhost/ws",
     headers: () => ({}),
+    notebookUrl: (id: string) => new URL(`http://localhost/notebooks/${id}`),
     waitUntilReady: async () => undefined,
     checkHealth: async () => true,
     onNotification: vi.fn(),

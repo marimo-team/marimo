@@ -38,6 +38,19 @@ async function resolve(url: StreamUrl): Promise<URL | undefined> {
   }
 }
 
+/** Send each request with the runtime's headers, read before each request. */
+export function withHeaders(
+  headers: () => Record<string, string>,
+): typeof globalThis.fetch {
+  return (input, init) => {
+    const sent = new Headers(init?.headers);
+    for (const [name, value] of Object.entries(headers())) {
+      sent.set(name, value);
+    }
+    return globalThis.fetch(input, { ...init, headers: sent });
+  };
+}
+
 /** A resume cursor and replica belong to the session that produced them. */
 function withSessionIdentity(
   url: StreamUrl,
@@ -129,13 +142,7 @@ export function sessionSse(
   return withSessionIdentity(url, (target) =>
     sse(target, {
       parseData: jsonParseWithSpecialChar,
-      fetch: (input, init) => {
-        const sent = new Headers(init?.headers);
-        for (const [name, value] of Object.entries(headers())) {
-          sent.set(name, value);
-        }
-        return globalThis.fetch(input, { ...init, headers: sent });
-      },
+      fetch: withHeaders(headers),
       stop: (frame) =>
         frame.event === "close"
           ? stopOn(frame.data as { code?: number; reason?: string })

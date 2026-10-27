@@ -1,10 +1,17 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import type { StreamUrl } from "@marimo-team/client";
+import { NotebookClient, type StreamUrl } from "@marimo-team/client";
+import type { NotebookId } from "@marimo-team/client/protocol";
 import type { NotebookBackend } from "../host/backend";
 import { PyodideBridge } from "../wasm/bridge";
 import { isWasm } from "../wasm/utils";
-import { idle, pyodide, sessionSse, websocket } from "./transports/notebook";
+import {
+  idle,
+  pyodide,
+  sessionSse,
+  websocket,
+  withHeaders,
+} from "./transports/notebook";
 
 /** How the editor follows its notebook. */
 export interface EditorBackendOptions {
@@ -14,6 +21,8 @@ export interface EditorBackendOptions {
   url: StreamUrl;
   /** The runtime's headers, read before each request. */
   headers: () => Record<string, string>;
+  /** The host URL of a notebook the stream reported. */
+  notebookUrl: (notebookId: NotebookId) => URL;
 }
 
 /** Commands for a notebook the editor cannot change through its backend. */
@@ -51,6 +60,9 @@ export function createEditorBackend(
       options.transportType === "sse"
         ? sessionSse(options.url, options.headers)
         : websocket(options.url),
-    notebook: uneditable,
+    notebook: (id) =>
+      new NotebookClient(options.notebookUrl(id), {
+        fetch: withHeaders(options.headers),
+      }),
   };
 }

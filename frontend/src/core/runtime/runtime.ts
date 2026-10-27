@@ -1,5 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
+import type { NotebookId } from "@marimo-team/client/protocol";
 import { Deferred } from "@/utils/Deferred";
 import { Logger } from "@/utils/Logger";
 import { KnownQueryParams } from "../constants";
@@ -167,6 +168,18 @@ export class RuntimeManager {
     // The page URL can still carry access_token (merged in from the
     // current page's params, before auth cleanup strips it); never
     // forward it — a token in the URL leaks into proxy/server logs.
+    url.searchParams.delete(KnownQueryParams.accessToken);
+    return url;
+  }
+
+  /**
+   * The host API URL of a notebook, below which its operations are served.
+   * Requests send auth in headers (see `headers()`), never in the URL.
+   */
+  public getNotebookURL(notebookId: NotebookId): URL {
+    const url = this.formatHttpURL({
+      path: `/api/marimo/v1/notebooks/${encodeURIComponent(notebookId)}`,
+    });
     url.searchParams.delete(KnownQueryParams.accessToken);
     return url;
   }

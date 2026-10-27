@@ -30,6 +30,7 @@ export function useNotebookClient(options: Options): NotebookClient {
   const controller = useMemo(() => createNotebookClient(store), [store]);
   const url = useEvent(options.url);
   const headers = useEvent(options.headers);
+  const notebookUrl = useEvent(options.notebookUrl);
   const waitUntilReady = useEvent(options.waitUntilReady);
   const checkHealth = useEvent(options.checkHealth);
   const onNotification = useEvent(options.onNotification);
@@ -57,6 +58,7 @@ export function useNotebookClient(options: Options): NotebookClient {
           return url();
         },
         headers,
+        notebookUrl,
       }),
       signal: lifetime.signal,
       checkHealth,
@@ -77,6 +79,7 @@ export function useNotebookClient(options: Options): NotebookClient {
     transportType,
     url,
     headers,
+    notebookUrl,
     waitUntilReady,
     checkHealth,
     onNotification,

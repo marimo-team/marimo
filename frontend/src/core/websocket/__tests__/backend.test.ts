@@ -22,6 +22,8 @@ describe("createEditorBackend", () => {
     transportType: "websocket" as const,
     url: () => "ws://localhost/ws",
     headers: () => ({}),
+    notebookUrl: (id: string) =>
+      new URL(`http://localhost/api/marimo/v1/notebooks/${id}`),
   };
 
   it.each([
@@ -57,5 +59,53 @@ describe("createEditorBackend", () => {
       ).toBe(true),
     );
     events.close();
+  });
+
+  it("edits a reported notebook on its host with the session's headers", async () => {
+    const fetch = vi.fn(
+      async (_input: RequestInfo | URL, _init?: RequestInit) =>
+        new Response(
+          JSON.stringify({ type: "conflict", title: "Conflict", status: 409 }),
+          {
+            status: 409,
+            headers: { "Content-Type": "application/problem+json" },
+          },
+        ),
+    );
+    vi.stubGlobal("fetch", fetch);
+    const backend = createEditorBackend({
+      ...options,
+      headers: () => ({
+        Authorization: "Bearer editor-token",
+        "Marimo-Server-Token": "server-token",
+      }),
+    });
+    const result = await backend
+      .notebook("n1")
+      .edit([], { idempotencyKey: "edit-1" });
+    expect(result).toMatchObject({ ok: false, status: 409 });
+    const [[input, init]] = fetch.mock.calls;
+    expect(String(input)).toBe(
+      "http://localhost/api/marimo/v1/notebooks/n1/edits",
+    );
+    const headers = new Headers(init?.headers);
+    expect(init?.method).toBe("POST");
+    expect(headers.get("Authorization")).toBe("Bearer editor-token");
+    expect(headers.get("Marimo-Server-Token")).toBe("server-token");
+    expect(headers.get("Idempotency-Key")).toBe("edit-1");
+  });
+
+  it.each([
+    ["a static notebook", { ...options, static: true }, false],
+    ["WASM", options, true],
+  ] as const)("does not edit %s", async (_name, chosen, isWasm) => {
+    wasm.enabled = isWasm;
+    const fetch = vi.fn();
+    vi.stubGlobal("fetch", fetch);
+    const result = await createEditorBackend(chosen)
+      .notebook("n1")
+      .edit([], { idempotencyKey: "edit-1" });
+    expect(result).toMatchObject({ ok: false, status: 501 });
+    expect(fetch).not.toHaveBeenCalled();
   });
 });
