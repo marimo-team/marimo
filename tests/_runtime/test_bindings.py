@@ -8,11 +8,14 @@ from typing import TYPE_CHECKING
 
 import pytest
 
+from marimo._core.protocol import ExecutionId, Revision
+from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.notification import (
     ExecutionNotification,
     VariableValue,
     VariableValuesNotification,
 )
+from marimo._runtime import runtime
 from marimo._runtime.commands import (
     DeleteCellCommand,
     ExecuteCellsCommand,
@@ -426,7 +429,7 @@ async def test_queued_imports_use_the_latest_nested_result(
         for m in messages
         if isinstance(m, VariableValuesNotification)
         for v in m.variables
-        if v.name == "value"
+        if v.name == "value" and v.value is not None
     ]
     assert len(values) == 2
     assert values[0].execution_id != values[1].execution_id
@@ -468,3 +471,194 @@ async def test_rejected_imports_discard_their_carried_revision(
     assert (
         bound(mocked_kernel.stream.parsed_operations)["math"].revision != old
     )
+
+
+async def test_preview_can_wait_for_a_state_setter(
+    mocked_kernel: MockedKernel,
+) -> None:
+    kernel = mocked_kernel.k
+    kernel.reactive_execution_mode = "lazy"
+    await run(
+        kernel,
+        a="import marimo as mo",
+        b="get, set_value = mo.state(0)",
+        c="""
+class _Preview:
+    __slots__ = ()
+
+    def __str__(self):
+        thread = mo.Thread(target=lambda: set_value(1))
+        thread.start()
+        thread.join(timeout=1)
+        return "blocked" if thread.is_alive() else "done"
+
+x = _Preview()
+""",
+    )
+    assert (
+        variables(mocked_kernel.stream.parsed_operations)["x"].value == "done"
+    )
+
+
+async def test_preview_cannot_overwrite_an_update_during_rendering(
+    mocked_kernel: MockedKernel,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    kernel = mocked_kernel.k
+    kernel.reactive_execution_mode = "lazy"
+    await run(
+        kernel, a="import marimo as mo", b="get, set_value = mo.state(0)"
+    )
+    old = bound(mocked_kernel.stream.parsed_operations)["get"]
+    mocked_kernel.stream.messages.clear()
+    create_preview = runtime.create_variable_value
+    rendered = False
+
+    def render(name: str, value: object) -> VariableValue:
+        nonlocal rendered
+        preview = create_preview(name, value)
+        if name == "get":
+            preview.value = str(kernel.globals["get"]())
+            if not rendered:
+                rendered = True
+                # The update must be visible before formatting can run user code.
+                assert bound(mocked_kernel.stream.parsed_operations)[
+                    "get"
+                ].revision == Revision(ExecutionId(old.execution_id), 1)
+                kernel.globals["set_value"](2)
+        return preview
+
+    monkeypatch.setattr(runtime, "create_variable_value", render)
+    kernel.globals["set_value"](1)
+    assert variables(mocked_kernel.stream.parsed_operations)[
+        "get"
+    ] == VariableValue(
+        name="get",
+        value="2",
+        datatype="State",
+        execution_id=old.execution_id,
+        revision=Revision(ExecutionId(old.execution_id), 2),
+    )
+
+
+@pytest.mark.skipif(
+    not DependencyManager.duckdb.has() or not DependencyManager.sqlglot.has(),
+    reason="SQL dependencies not installed",
+)
+@pytest.mark.parametrize("kind", ["TABLE", "VIEW", "TEMP TABLE"])
+@pytest.mark.parametrize("qualified", [False, True])
+async def test_sql_bindings_record_inputs_and_replacement(
+    mocked_kernel: MockedKernel, kind: str, qualified: bool
+) -> None:
+    kernel = mocked_kernel.k
+    kernel.reactive_execution_mode = "lazy"
+    await run(kernel, a="import duckdb")
+    leaf = f"revision_{kind.lower().replace(' ', '_')}"
+    name = f"main.{leaf}" if qualified else leaf
+    producer = (
+        f"duckdb.sql('CREATE OR REPLACE {kind} {name} AS SELECT 1 AS x')"
+    )
+    reader = f"df = duckdb.sql('SELECT * FROM {name}').fetchall()"
+    await run(kernel, b=producer, c=reader)
+    messages = mocked_kernel.stream.parsed_operations
+    values = bound(messages)
+    table = values[name]
+    assert table == VariableValue(
+        name=name,
+        value=None,
+        datatype=kind.rsplit(maxsplit=1)[-1].lower(),
+        execution_id=completed(messages)["b"].execution_id,
+        revision=Revision(
+            ExecutionId(completed(messages)["b"].execution_id), 0
+        ),
+    )
+    assert completed(messages)["c"].depends_on == {
+        "duckdb": values["duckdb"].revision,
+        name: table.revision,
+    }
+    await run(kernel, b=producer.replace("SELECT 1", "SELECT 2"))
+    assert (
+        bound(mocked_kernel.stream.parsed_operations)[name].revision
+        != table.revision
+    )
+    assert kernel.globals["df"] == [(1,)]
+
+
+@pytest.mark.skipif(
+    not DependencyManager.duckdb.has() or not DependencyManager.sqlglot.has(),
+    reason="SQL dependencies not installed",
+)
+async def test_sql_bindings_only_include_existing_objects(
+    mocked_kernel: MockedKernel,
+) -> None:
+    kernel = mocked_kernel.k
+    kernel.reactive_execution_mode = "lazy"
+    await run(
+        kernel,
+        a="import duckdb",
+        b="""
+duckdb.sql('CREATE TABLE revision_exists AS SELECT 1 AS x')
+if False:
+    duckdb.sql('CREATE TABLE revision_skipped AS SELECT 1 AS x')
+raise RuntimeError('partial execution')
+duckdb.sql('CREATE TABLE revision_failed AS SELECT 1 AS x')
+""",
+    )
+    assert set(bound(mocked_kernel.stream.parsed_operations)) == {
+        "duckdb",
+        "revision_exists",
+    }
+    await kernel.delete_cell(DeleteCellCommand(cell_id=CellId_t("b")))
+    mocked_kernel.stream.messages.clear()
+    await run(kernel, c="duckdb.sql('SELECT * FROM revision_exists')")
+    assert (
+        completed(mocked_kernel.stream.parsed_operations)["c"].depends_on[
+            "revision_exists"
+        ]
+        is None
+    )
+
+
+@pytest.mark.skipif(
+    not DependencyManager.duckdb.has() or not DependencyManager.sqlglot.has(),
+    reason="SQL dependencies not installed",
+)
+async def test_sql_qualified_bindings_do_not_collide(
+    mocked_kernel: MockedKernel,
+) -> None:
+    kernel = mocked_kernel.k
+    kernel.reactive_execution_mode = "lazy"
+    await run(
+        kernel,
+        a="import duckdb",
+        b="duckdb.sql('CREATE SCHEMA IF NOT EXISTS revision_left')",
+        c="duckdb.sql('CREATE SCHEMA IF NOT EXISTS revision_right')",
+        d="duckdb.sql('CREATE TABLE revision_left.t AS SELECT 1 AS x')",
+        e="duckdb.sql('CREATE TABLE revision_right.t AS SELECT 2 AS x')",
+        f="rows = duckdb.sql('SELECT * FROM revision_left.t').fetchall()",
+    )
+    messages = mocked_kernel.stream.parsed_operations
+    values = bound(messages)
+    assert completed(messages)["f"].depends_on == {
+        name: values[name].revision
+        for name in ("duckdb", "revision_left", "revision_left.t")
+    }
+    assert kernel.globals["rows"] == [(1,)]
+    assert (
+        values["revision_right.t"].execution_id
+        == completed(messages)["e"].execution_id
+    )
+
+    await run(kernel, g="duckdb.sql('DROP TABLE revision_left.t')")
+    mocked_kernel.stream.messages.clear()
+    await run(
+        kernel,
+        f="rows = duckdb.sql('SELECT * FROM revision_left.t').fetchall()",
+    )
+    assert completed(mocked_kernel.stream.parsed_operations)[
+        "f"
+    ].depends_on == {
+        "duckdb": values["duckdb"].revision,
+        "revision_left": values["revision_left"].revision,
+        "revision_left.t": None,
+    }

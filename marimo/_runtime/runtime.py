@@ -67,6 +67,7 @@ from marimo._messaging.notification import (
     UIElementMessageNotification,
     VariableDeclarationNotification,
     VariablesNotification,
+    VariableValue,
     VariableValuesNotification,
 )
 from marimo._messaging.notification_utils import (
@@ -162,6 +163,11 @@ from marimo._secrets.load_dotenv import (
 )
 from marimo._session.model import SessionMode
 from marimo._session.queue import QueueType
+from marimo._sql.bindings import (
+    SQLBinding,
+    existing_sql_bindings,
+    get_sql_bindings,
+)
 from marimo._sql.engines.types import (
     EngineCatalog,
     QueryEngine,
@@ -470,6 +476,7 @@ class Binding:
     execution_id: str
     revision: Revision
     imported: object = _NOT_IMPORTED
+    sql: SQLBinding | None = None
 
 
 def _get_attached_catalogs() -> set[str]:
@@ -1111,7 +1118,12 @@ class Kernel:
                 if name in exclude_defs:
                     continue
 
-                self._bindings.pop(name, None)
+                binding_name = (
+                    variable.sql_ref.qualified_name
+                    if variable.sql_ref is not None
+                    else name
+                )
+                self._bindings.pop(binding_name, None)
 
                 if variable.kind == "table" and DependencyManager.duckdb.has():
                     import duckdb
@@ -1576,13 +1588,49 @@ class Kernel:
         if get_context().is_embedded() or get_mode() != "edit":
             return None
         with self._state_lock:
-            return {
-                name: binding.revision
-                if name in self.globals
-                and (binding := self._bindings.get(name))
-                else None
-                for name in sorted(cell.refs)
-            }
+            sql_bindings = (
+                [
+                    binding.sql
+                    for binding in self._bindings.values()
+                    if binding.sql is not None
+                ]
+                if cell.sql_refs
+                else []
+            )
+        existing_sql = set(existing_sql_bindings(sql_bindings))
+        with self._state_lock:
+            inputs: dict[str, Revision | None] = {}
+            for name in sorted(cell.refs):
+                sql_ref = cell.sql_refs.get(name)
+                matches = (
+                    {
+                        bound_name: binding
+                        for bound_name, binding in self._bindings.items()
+                        if binding.sql is not None
+                        and binding.sql in existing_sql
+                        and binding.sql.matches(sql_ref)
+                    }
+                    if sql_ref is not None
+                    else {}
+                )
+                inputs.update(
+                    (name, binding.revision)
+                    for name, binding in matches.items()
+                )
+                if not any(
+                    binding.sql is not None
+                    and binding.sql.kind in ("table", "view")
+                    for binding in matches.values()
+                ):
+                    binding = self._bindings.get(name)
+                    inputs[name] = (
+                        binding.revision
+                        if binding is not None
+                        and binding.sql is None
+                        and name in self.globals
+                        else None
+                    )
+            return inputs
 
     def _imported_values(self, cell: CellImpl) -> dict[str, ImportedValue]:
         with self._state_lock:
@@ -1608,6 +1656,12 @@ class Kernel:
             return
         current = EXECUTION_CTX.get()
         assert current is not None
+        sql_bindings = get_sql_bindings(cell)
+        python_names = {
+            name
+            for name in cell.defs
+            if cell.variable_data[name][-1].language == "python"
+        }
         with self._state_lock:
             # A nested run may have produced a newer import while this cell
             # was queued. Its live binding takes precedence over the carry.
@@ -1619,7 +1673,7 @@ class Kernel:
             )
             for name in cell.deleted_refs - self.globals.keys():
                 self._bindings.pop(name, None)
-            for name in cell.defs.intersection(self.globals):
+            for name in python_names.intersection(self.globals):
                 value = self.globals[name]
                 previous = (
                     previous_imports.get(name) if name in imports else None
@@ -1635,20 +1689,70 @@ class Kernel:
                     revision,
                     value if name in imports else _NOT_IMPORTED,
                 )
-            self._publish_variables(cell.defs)
+            for sql_binding in sql_bindings:
+                self._bindings[sql_binding.name] = Binding(
+                    cell.cell_id,
+                    current.id,
+                    Revision(ExecutionId(current.id), 0),
+                    sql=sql_binding,
+                )
+            previews = self._publish_bindings(
+                python_names | {binding.name for binding in sql_bindings}
+            )
+        self._publish_variable_previews(previews)
 
-    def _publish_variables(self, names: Iterable[str]) -> None:
-        values = []
-        for name in sorted(names):
-            value = create_variable_value(name, self.globals.get(name))
-            if (binding := self._bindings.get(name)) is not None:
-                value.execution_id = binding.execution_id
-                value.revision = binding.revision
-            values.append(value)
+    def _publish_bindings(
+        self, names: Iterable[str]
+    ) -> dict[str, tuple[object, Binding | None]]:
+        # Called under _state_lock: readers must not see an unpublished revision.
+        previews = {
+            name: (self.globals.get(name), self._bindings.get(name))
+            for name in sorted(names)
+        }
+        values = [
+            VariableValue(
+                name=name,
+                value=None,
+                datatype=binding.sql.kind if binding.sql else None,
+                execution_id=binding.execution_id,
+                revision=binding.revision,
+            )
+            for name, (_, binding) in previews.items()
+            if binding is not None
+        ]
         if values:
             broadcast_notification(
                 VariableValuesNotification(variables=values), self.stream
             )
+        return previews
+
+    def _publish_variable_previews(
+        self, previews: dict[str, tuple[object, Binding | None]]
+    ) -> None:
+        # Formatting can run user code, including waiting for a state setter
+        # on another thread. Never hold the state lock while rendering.
+        values = {
+            name: create_variable_value(name, value)
+            for name, (value, binding) in previews.items()
+            if binding is None or binding.sql is None
+        }
+        with self._state_lock:
+            current = []
+            for name, value in values.items():
+                obj, binding = previews[name]
+                if (
+                    self._bindings.get(name) is not binding
+                    or self.globals.get(name) is not obj
+                ):
+                    continue
+                if binding is not None:
+                    value.execution_id = binding.execution_id
+                    value.revision = binding.revision
+                current.append(value)
+            if current:
+                broadcast_notification(
+                    VariableValuesNotification(variables=current), self.stream
+                )
 
     def _update_variables(self, names: Iterable[str]) -> None:
         if get_context().is_embedded() or get_mode() != "edit":
@@ -1668,10 +1772,11 @@ class Kernel:
                     binding, revision=revision
                 )
                 revisions[name] = revision
-            self._publish_variables(revisions)
+            previews = self._publish_bindings(revisions)
             current = EXECUTION_CTX.get()
             if current is not None and current.attempt is not None:
                 current.attempt.advance_inputs(revisions)
+        self._publish_variable_previews(previews)
 
     def _propagate_kernel_errors(
         self,
