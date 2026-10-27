@@ -15,7 +15,7 @@ from click.testing import CliRunner
 from inline_snapshot import snapshot
 
 from marimo._cli.cli import main as cli_main
-from marimo._cli.pair import commands
+from marimo._cli.pair import client, commands
 from marimo._cli.pair.client import (
     AmbiguousNotebookError,
     ExecutionResult,
@@ -24,6 +24,7 @@ from marimo._cli.pair.client import (
     NotebookUnsupportedError,
     PairError,
     PairInputError,
+    SandboxGoneError,
     StaleNotebookError,
 )
 
@@ -1538,3 +1539,35 @@ def test_legacy_launcher_flag_still_generates_cli_prompt(agent: str) -> None:
     assert result.exit_code == 0
     assert "pair --help" in result.output
     assert "skill" not in result.output
+
+
+class _FakeResponse:
+    """Just enough of http.client.HTTPResponse for _raise_for_status."""
+
+    def __init__(
+        self, status: int, payload: dict[str, Any] | None = None
+    ) -> None:
+        self.status = status
+        self._body = json.dumps(payload).encode() if payload else b""
+
+    def read(self) -> bytes:
+        return self._body
+
+    def close(self) -> None:
+        pass
+
+
+def test_status_410_reports_a_gone_sandbox() -> None:
+    """molab answers 410 when it deletes a notebook, filesystem included.
+
+    That is not a bad URL or a bad token, and telling the user to check the URL
+    sends them looking in the wrong place.
+    """
+    with pytest.raises(SandboxGoneError):
+        client._raise_for_status(_FakeResponse(410))
+
+
+def test_status_503_reports_a_restarting_sandbox() -> None:
+    with pytest.raises(PairError) as raised:
+        client._raise_for_status(_FakeResponse(503))
+    assert "503" in str(raised.value)
