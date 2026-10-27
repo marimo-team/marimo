@@ -1067,9 +1067,7 @@ def test_normalize_base_url(
         pytest.param(
             "https://openrouter.ai/api/v1/", "openrouter", id="openrouter"
         ),
-        # Hosts not discovered from pydantic-ai's providers -> no match, so we
-        # fall back to the generic OpenAI provider (preserving prior behavior).
-        # `api.openai.com` is LiteLLM's client-derived default, which we skip.
+        # Unknown and shared OpenAI endpoints retain the generic fallback.
         pytest.param("https://my.internal.llm/v1", None, id="unknown_host"),
         pytest.param("https://api.openai.com/v1", None, id="openai_host"),
         pytest.param(None, None, id="no_base_url"),
@@ -1079,6 +1077,23 @@ def test_infer_provider_name_from_base_url(
     base_url: str | None, expected: str | None
 ) -> None:
     assert _infer_provider_name_from_base_url(base_url) == expected
+
+
+@pytest.mark.requires("openai", "pydantic_ai")
+def test_custom_provider_keeps_openai_api_key_auth() -> None:
+    from pydantic_ai.providers.openai import (
+        OpenAIProvider as PydanticOpenAI,
+    )
+
+    provider = CustomProvider(
+        AiModelId.from_model("my_provider/gpt-4"),
+        AnyProviderConfig(
+            api_key="test-key", base_url="https://api.openai.com/v1"
+        ),
+    )
+
+    assert type(provider.provider) is PydanticOpenAI
+    assert provider.provider.client.api_key == "test-key"
 
 
 @pytest.mark.requires("pydantic_ai")
