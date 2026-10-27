@@ -3,7 +3,8 @@
 
 Host bearer requests must come from loopback and address a loopback name
 on the server's port. The bearer token comes from the host discovery record.
-The notebook event socket also accepts the editor's authentication.
+The notebook event socket and operations also accept the editor's
+authentication.
 """
 
 from __future__ import annotations
@@ -20,7 +21,7 @@ from starlette.websockets import WebSocket
 
 from marimo import _loggers
 from marimo._server.host import HOST_API_PATH
-from marimo._server.host.api import build_app, editor_events_route
+from marimo._server.host.api import build_app, editor_routes
 from marimo._server.host.notebook_api import problem
 
 if TYPE_CHECKING:
@@ -42,7 +43,7 @@ class HostApiMiddleware:
         self.app = app
         self.prefix = base_url + HOST_API_PATH
         self.host_app = build_app()
-        self.editor_socket = editor_events_route(base_url)
+        self.editor_routes = editor_routes(base_url)
 
     async def __call__(
         self, scope: Scope, receive: Receive, send: Send
@@ -63,9 +64,7 @@ class HostApiMiddleware:
             response = problem(
                 404, "not-found", "App sessions do not expose a host catalog"
             )
-        elif self.editor_socket.matches(scope)[
-            0
-        ] is Match.FULL and not _bearer_matches(
+        elif self._for_editor(scope) and not _bearer_matches(
             request.headers.get("Authorization"), context.token
         ):
             # Let the editor middleware load the cookie before authenticating.
@@ -122,6 +121,12 @@ class HostApiMiddleware:
 
     def _is_host_path(self, path: str) -> bool:
         return path == self.prefix or path.startswith(self.prefix + "/")
+
+    def _for_editor(self, scope: Scope) -> bool:
+        return any(
+            route.matches(scope)[0] is Match.FULL
+            for route in self.editor_routes
+        )
 
 
 async def _respond(
