@@ -1,6 +1,8 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import gc
+import weakref
 from unittest.mock import Mock
 
 import pytest
@@ -10,6 +12,7 @@ from marimo._plugins.ui._impl.from_panel import (
     _extract_holoviews_settings,
     panel,
 )
+from marimo._runtime.commands import DeleteCellCommand
 from marimo._runtime.runtime import Kernel
 from tests.conftest import ExecReqProvider
 
@@ -98,6 +101,179 @@ slider = mo.ui.panel(slider)
         # The extension URL must be a virtual file path; absolute or data:
         # URLs would let raw-HTML attackers load arbitrary JavaScript.
         assert "@file/" in text
+
+    @staticmethod
+    async def test_rerun_cleans_previous_panel_view(
+        k: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        from panel.io.state import state
+
+        await k.run(
+            [
+                exec_req.get_with_id(
+                    "panel_cell",
+                    """
+import marimo as mo
+import panel as pn
+
+slider = pn.widgets.IntSlider(start=0, end=10, value=5)
+panel_element = mo.ui.panel(slider)
+panel_ref = panel_element._ref
+""",
+                )
+            ]
+        )
+        first_ref = k.globals["panel_ref"]
+        assert first_ref in state._views
+
+        await k.run(
+            [
+                exec_req.get_with_id(
+                    "panel_cell",
+                    """
+import marimo as mo
+import panel as pn
+
+slider = pn.widgets.IntSlider(start=0, end=10, value=6)
+panel_element = mo.ui.panel(slider)
+panel_ref = panel_element._ref
+""",
+                )
+            ]
+        )
+
+        assert first_ref not in state._views
+        assert k.globals["panel_ref"] in state._views
+
+    @staticmethod
+    async def test_rerun_garbage_collects_old_document_and_pane(
+        k: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        from panel.io.state import state
+
+        await k.run(
+            [
+                exec_req.get_with_id(
+                    "panel_cell",
+                    """
+import marimo as mo
+import panel as pn
+
+slider = pn.widgets.IntSlider(start=0, end=10, value=5)
+panel_element = mo.ui.panel(slider)
+panel_ref = panel_element._ref
+""",
+                )
+            ]
+        )
+        first_ref = k.globals["panel_ref"]
+        assert first_ref in state._views
+        old_pane = weakref.ref(state._views[first_ref][0])
+        old_doc = weakref.ref(state._views[first_ref][2])
+
+        await k.run(
+            [
+                exec_req.get_with_id(
+                    "panel_cell",
+                    """
+import marimo as mo
+import panel as pn
+
+slider = pn.widgets.IntSlider(start=0, end=10, value=6)
+panel_element = mo.ui.panel(slider)
+panel_ref = panel_element._ref
+""",
+                )
+            ]
+        )
+
+        gc.collect()
+        assert first_ref not in state._views
+        assert old_pane() is None
+        assert old_doc() is None
+
+    @staticmethod
+    async def test_cell_deletion_removes_panel_view(
+        k: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        from panel.io.state import state
+
+        cell = exec_req.get_with_id(
+            "panel_cell",
+            """
+import marimo as mo
+import panel as pn
+
+slider = pn.widgets.IntSlider(start=0, end=10, value=5)
+panel_element = mo.ui.panel(slider)
+panel_ref = panel_element._ref
+""",
+        )
+        await k.run([cell])
+        panel_ref = k.globals["panel_ref"]
+        assert panel_ref in state._views
+
+        await k.delete_cell(DeleteCellCommand(cell_id=cell.cell_id))
+        assert panel_ref not in state._views
+
+    @staticmethod
+    async def test_cleanup_preserves_shared_widget(
+        k: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        imports = exec_req.get("import panel as pn\nimport marimo as mo")
+        widget = exec_req.get("slider = pn.widgets.IntSlider(value=3)")
+        first = exec_req.get("first = mo.ui.panel(slider)")
+        second = exec_req.get("second = mo.ui.panel(slider)")
+        await k.run([imports, widget, first, second])
+        assert not k.errors
+        slider = k.globals["slider"]
+        second_ref = k.globals["second"]._ref
+
+        await k.run([first])
+        assert not k.errors
+        first_ref = k.globals["first"]._ref
+        slider.value = 7
+        assert {
+            ref: model.value for ref, (model, _) in slider._models.items()
+        } == {first_ref: 7, second_ref: 7}
+
+        await k.delete_cell(DeleteCellCommand(cell_id=first.cell_id))
+        slider.value = 8
+        assert {
+            ref: model.value for ref, (model, _) in slider._models.items()
+        } == {second_ref: 8}
+        await k.delete_cell(DeleteCellCommand(cell_id=second.cell_id))
+
+    @staticmethod
+    async def test_multiple_panels_in_single_cell(
+        k: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        from panel.io.state import state
+
+        cell = exec_req.get_with_id(
+            "multi_cell",
+            """
+import marimo as mo
+import panel as pn
+
+p1 = mo.ui.panel(pn.widgets.IntSlider(value=1))
+p2 = mo.ui.panel(pn.widgets.IntSlider(value=2))
+refs = [p1._ref, p2._ref]
+""",
+        )
+        await k.run([cell])
+        first_refs = list(k.globals["refs"])
+        assert all(ref in state._views for ref in first_refs)
+
+        # Re-run cell
+        await k.run([cell])
+        second_refs = list(k.globals["refs"])
+        assert all(ref not in state._views for ref in first_refs)
+        assert all(ref in state._views for ref in second_refs)
+
+        # Delete cell
+        await k.delete_cell(DeleteCellCommand(cell_id=cell.cell_id))
+        assert all(ref not in state._views for ref in second_refs)
 
 
 @pytest.mark.skipif(not HAS_HOLOVIEWS, reason="holoviews not installed")
