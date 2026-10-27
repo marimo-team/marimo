@@ -198,6 +198,7 @@ export class DefaultWasmController implements WasmController {
           if task is not None:
             await asyncio.gather(task, return_exceptions=True)
           if bridge is not None:
+            bridge.close()
             bridge.session = None
           task = None
           kernel_task = None

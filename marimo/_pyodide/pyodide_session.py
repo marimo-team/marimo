@@ -88,6 +88,7 @@ if TYPE_CHECKING:
 
     from marimo._ast.cell import CellConfig
     from marimo._messaging.types import KernelMessage
+    from marimo._pyodide.notebook import PyodideNotebook
     from marimo._runtime.context.types import RuntimeContext
     from marimo._session.notebook.file_manager import AppFileManager
     from marimo._types.ids import CellId_t
@@ -140,6 +141,7 @@ class PyodideSession:
         self._queue_manager = AsyncQueueManager()
         self.session_consumer = on_write
         self.session_view = SessionView()
+        self.instantiated = False
         self._initial_user_config = user_config
         self._enqueue_control_request = make_control_enqueuer(
             self._queue_manager.control_queue,
@@ -245,6 +247,19 @@ class PyodideBridge:
     ):
         self.session = session
         self.file_system = OSFileSystem()
+        self._notebook: PyodideNotebook | None = None
+
+    @property
+    def notebook(self) -> PyodideNotebook:
+        if self._notebook is None:
+            from marimo._pyodide.notebook import PyodideNotebook
+
+            self._notebook = PyodideNotebook(self.session)
+        return self._notebook
+
+    def close(self) -> None:
+        if self._notebook is not None:
+            self._notebook.close()
 
     def put_control_request(self, request: str) -> None:
         parsed = parse_command(request)
@@ -281,10 +296,14 @@ class PyodideBridge:
     def save(self, request: str) -> None:
         parsed = self._parse(request, SaveNotebookRequest)
         self.session.app_manager.save(parsed)
+        if self._notebook is not None:
+            self._notebook.refresh(saved=True)
 
     def save_app_config(self, request: str) -> None:
         parsed = self._parse(request, SaveAppConfigurationRequest)
         self.session.app_manager.save_app_config(parsed.config)
+        if self._notebook is not None:
+            self._notebook.refresh(saved=True)
 
     def save_user_config(self, request: str) -> None:
         parsed = self._parse(request, SaveUserConfigurationRequest)

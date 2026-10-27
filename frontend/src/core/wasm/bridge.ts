@@ -11,6 +11,7 @@ import { reloadSafe } from "@/utils/reload-safe";
 import { generateUUID } from "@/utils/uuid";
 import { createModuleWorker } from "@/utils/worker";
 import { notebookIsRunningAtom } from "../cells/cells";
+import { createWasmNotebookBackend } from "../host/wasm";
 import type { ClientCommand } from "../kernel/messages";
 import { getInitialAppMode } from "../mode";
 import { API } from "../network/api";
@@ -67,6 +68,7 @@ export class PyodideBridge implements RunRequests, EditRequests {
   private rpc!: ReturnType<typeof getWorkerRPC<WorkerSchema>>;
   private saveRpc: SaveWorker | undefined;
   private pendingSessionSave: Promise<unknown> = Promise.resolve();
+  private notebookConsumers = new Map<string, (event: unknown) => void>();
   private interruptBuffer?: Uint8Array;
   private messageConsumer:
     | ((message: MessageEvent<string>) => void)
@@ -116,6 +118,10 @@ export class PyodideBridge implements RunRequests, EditRequests {
     // Create the RPC
     this.rpc = getWorkerRPC<WorkerSchema>(worker);
     this.rpc.send.bootstrap(runtimeConfig);
+
+    this.rpc.addMessageListener("notebookEvent", ({ id, event }) => {
+      this.notebookConsumers.get(id)?.(JSON.parse(event));
+    });
 
     // Listeners
     this.rpc.addMessageListener("ready", () => {
@@ -211,6 +217,36 @@ export class PyodideBridge implements RunRequests, EditRequests {
   ) {
     this.messageConsumer = consumer;
     this.rpc.proxy.send.consumerReady({});
+  }
+
+  public async createNotebookBackend() {
+    await this.initialized.promise;
+    const { id } = await this.rpc.proxy.request.notebookInfo();
+    return createWasmNotebookBackend({
+      notebookId: id,
+      subscribe: async (cursor, emit) => {
+        await this.initialized.promise;
+        const id = generateUUID();
+        this.notebookConsumers.set(id, emit);
+        const close = () => {
+          this.notebookConsumers.delete(id);
+          void this.rpc.proxy.request
+            .notebookUnsubscribe(id)
+            .catch(Logger.error);
+        };
+        try {
+          await this.rpc.proxy.request.notebookSubscribe({ id, cursor });
+          return close;
+        } catch (error) {
+          close();
+          throw error;
+        }
+      },
+      call: async (call) => {
+        await this.initialized.promise;
+        return this.rpc.proxy.request.notebookCall(call);
+      },
+    });
   }
 
   public sendRename: EditRequests["sendRename"] = async ({ filename }) => {

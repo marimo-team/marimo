@@ -4,7 +4,10 @@ import NodeFs from "node:fs";
 import NodeUrl from "node:url";
 import { afterEach, describe, expect, expectTypeOf, it, vi } from "vitest";
 import { z } from "zod";
-import { NotebookClient } from "../notebook/client.ts";
+import {
+  NotebookClient,
+  type unstable_NotebookCall,
+} from "../notebook/client.ts";
 import type { OperationsBelow } from "../request.ts";
 import type * as Protocol from "../protocol.ts";
 
@@ -198,5 +201,109 @@ describe("NotebookClient", () => {
       "runtime.run": "run",
       "runtime.interrupt": "interrupt",
     } as const).toExtend<Record<NotebookOperationId, keyof NotebookClient>>();
+  });
+});
+
+/** A notebook client whose calls `reply` answers. */
+function over(reply: (call: unstable_NotebookCall) => unknown) {
+  const send = vi.fn(async (call: unstable_NotebookCall) => reply(call));
+  const notebook = NotebookClient.unstable_over(send, { notebookId: "n1" });
+  return { notebook, send };
+}
+
+describe("NotebookClient.unstable_over", () => {
+  it("sends each method as its call", async () => {
+    const response = readFixture("edit-response.json");
+    const { notebook, send } = over(() => ({ status: 200, body: response }));
+    const { changes } = readFixture("edit.json") as Protocol.EditRequest;
+
+    expect(await notebook.edit(changes)).toEqual({
+      ok: true,
+      status: 200,
+      data: response,
+    });
+    expect(send).toHaveBeenLastCalledWith({
+      operation: "notebook.edit",
+      params: { notebook_id: "n1" },
+      headers: { "idempotency-key": expect.stringMatching(/^[\da-f-]{36}$/) },
+      body: { changes },
+    });
+
+    await notebook.save({
+      ifMatch: "etag-1",
+      decisions: { environment: "keep" },
+      idempotencyKey: "retry-1",
+    });
+    expect(send).toHaveBeenLastCalledWith({
+      operation: "notebook.save",
+      params: { notebook_id: "n1" },
+      headers: { "idempotency-key": "retry-1", "if-match": "etag-1" },
+      body: { decisions: { environment: "keep" } },
+    });
+  });
+
+  it("names every path parameter and returns problems as values", async () => {
+    const problem = {
+      type: "tag:marimo.io,2026:host/not-found",
+      title: "Not found",
+      status: 404,
+    };
+    const { notebook, send } = over(() => ({ status: 404, body: problem }));
+    expect(await notebook.interrupt("r1", { idempotencyKey: "k" })).toEqual({
+      ok: false,
+      status: 404,
+      problem,
+    });
+    expect(send).toHaveBeenCalledWith({
+      operation: "runtime.interrupt",
+      params: { notebook_id: "n1", run_id: "r1" },
+      headers: { "idempotency-key": "k" },
+      body: undefined,
+    });
+  });
+
+  it("throws on replies the protocol does not describe", async () => {
+    await expect(over(() => ({})).notebook.open()).rejects.toBeInstanceOf(
+      z.ZodError,
+    );
+    await expect(
+      over(() => ({ status: 200, body: { unexpected: true } })).notebook.open(),
+    ).rejects.toBeInstanceOf(z.ZodError);
+  });
+
+  it("stops waiting on abort without sending again", async () => {
+    let answer!: (reply: unknown) => void;
+    const { notebook, send } = over(
+      () => new Promise((resolve) => (answer = resolve)),
+    );
+    const controller = new AbortController();
+    const editing = notebook.edit([], { signal: controller.signal });
+    controller.abort();
+    await expect(editing).rejects.toBe(controller.signal.reason);
+    answer({ status: 200, body: readFixture("edit-response.json") });
+    await expect(notebook.edit([], { signal: controller.signal })).rejects.toBe(
+      controller.signal.reason,
+    );
+    expect(send).toHaveBeenCalledOnce();
+  });
+
+  it("types each call from the operations table", () => {
+    expectTypeOf<unstable_NotebookCall["operation"]>().toEqualTypeOf<
+      OperationsBelow<"/notebooks/{notebook_id}">
+    >();
+    expectTypeOf<
+      unstable_NotebookCall<"runtime.interrupt">["params"]
+    >().toEqualTypeOf<{
+      readonly notebook_id: string;
+      readonly run_id: string;
+    }>();
+    expectTypeOf<unstable_NotebookCall<"notebook.save">["headers"]>().toExtend<{
+      readonly "idempotency-key": string;
+      readonly "if-match"?: string;
+    }>();
+    expectTypeOf<
+      unstable_NotebookCall<"runtime.stop">["body"]
+    >().toEqualTypeOf<undefined>();
+    expectTypeOf(over(() => ({})).notebook).not.toHaveProperty("url");
   });
 });

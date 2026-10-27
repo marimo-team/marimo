@@ -11,6 +11,7 @@ export type { CatalogKind, NotebookKind } from "./kinds.ts";
 export {
   NotebookClient,
   type NotebookClientOptions,
+  type unstable_NotebookCall,
 } from "./notebook/client.ts";
 export {
   NotebookEvents,

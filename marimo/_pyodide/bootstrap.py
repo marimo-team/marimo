@@ -51,6 +51,7 @@ def instantiate(
     """
 
     app = session.app_manager.app
+    session.instantiated = True
     execution_requests = tuple(
         ExecuteCellCommand(
             cell_id=cell_data.cell_id,

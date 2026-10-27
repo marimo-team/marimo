@@ -1,5 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
+import type { unstable_NotebookCall } from "@marimo-team/client";
 import type { PyodideInterface } from "pyodide";
 import {
   createRPC,
@@ -81,7 +82,53 @@ const bridgeReady = new Deferred<SerializedBridge>();
 let started = false;
 
 // Handle RPC requests
+const notebookSubscriptions = new Map<string, Promise<void>>();
+async function getNotebook() {
+  const bridge = await bridgeReady.promise;
+  return bridge.notebook;
+}
+
 const requestHandler = createRPCRequestHandler({
+  notebookInfo: async () => {
+    const notebook = await getNotebook();
+    try {
+      return { id: notebook.id };
+    } finally {
+      notebook.destroy();
+    }
+  },
+  notebookSubscribe: (request: { id: string; cursor: string | null }) => {
+    const subscribing = (async () => {
+      const notebook = await getNotebook();
+      try {
+        await notebook.subscribe(request.id, request.cursor, (event) => {
+          rpc.send.notebookEvent({ id: request.id, event });
+        });
+      } finally {
+        notebook.destroy();
+      }
+    })();
+    notebookSubscriptions.set(request.id, subscribing);
+    return subscribing.finally(() => notebookSubscriptions.delete(request.id));
+  },
+  notebookUnsubscribe: async (id: string) => {
+    // An RPC timeout can close a reader while its subscription is still opening.
+    await notebookSubscriptions.get(id)?.catch(() => undefined);
+    const notebook = await getNotebook();
+    try {
+      notebook.unsubscribe(id);
+    } finally {
+      notebook.destroy();
+    }
+  },
+  notebookCall: async (call: unstable_NotebookCall): Promise<unknown> => {
+    const notebook = await getNotebook();
+    try {
+      return JSON.parse(await notebook.call(JSON.stringify(call)));
+    } finally {
+      notebook.destroy();
+    }
+  },
   /**
    * Start the session
    */
@@ -335,6 +382,7 @@ const requestHandler = createRPCRequestHandler({
 export type WorkerSchema = RPCSchema<
   {
     messages: {
+      notebookEvent: { id: string; event: string };
       // Emitted when the worker is ready
       ready: {};
       // Emitted when the kernel sends a message

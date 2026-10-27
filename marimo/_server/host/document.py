@@ -44,6 +44,7 @@ if TYPE_CHECKING:
     from collections.abc import Iterable
 
     from marimo._core.document import Document
+    from marimo._messaging.notebook import NotebookDocument
     from marimo._session.notebook import AppFileManager
     from marimo._session.session import Session
 
@@ -122,7 +123,21 @@ def apply_to_session(session: Session, document: Document) -> None:
     deletes or disables is gone before any run the deletion causes. The
     app config is the session's own and is left alone.
     """
-    current = session.document
+    transaction, command = apply_to_document(session.document, document)
+    if transaction is None:
+        return
+    session.notify(
+        NotebookDocumentTransactionNotification(transaction=transaction),
+        from_consumer_id=None,
+    )
+    if command is not None:
+        session.put_control_request(command, from_consumer_id=None)
+
+
+def apply_to_document(
+    current: NotebookDocument, document: Document
+) -> tuple[Transaction | None, EditCellsCommand | None]:
+    """Apply host cells to the editor document and return the kernel update."""
     changes: list[DocumentChange] = []
     codes: dict[CellId_t, str] = {}
     configs: dict[CellId_t, dict[str, Any]] = {}
@@ -169,14 +184,11 @@ def apply_to_session(session: Session, document: Document) -> None:
     if current.cell_ids != order:
         changes.append(ReorderCells(cell_ids=tuple(order)))
     if not changes:
-        return
+        return None, None
     applied = current.apply(Transaction(changes=tuple(changes), source="host"))
-    session.notify(
-        NotebookDocumentTransactionNotification(transaction=applied),
-        from_consumer_id=None,
+    command = (
+        EditCellsCommand(codes=codes, configs=configs, delete_ids=deleted)
+        if codes or configs or deleted
+        else None
     )
-    if codes or configs or deleted:
-        session.put_control_request(
-            EditCellsCommand(codes=codes, configs=configs, delete_ids=deleted),
-            from_consumer_id=None,
-        )
+    return applied, command
