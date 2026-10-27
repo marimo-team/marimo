@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import base64
 import sys
+import weakref
 from dataclasses import dataclass
 from typing import (
     TYPE_CHECKING,
@@ -18,6 +19,7 @@ from marimo._runtime.cell_lifecycle_item import CellLifecycleItem
 from marimo._runtime.context import safe_get_context
 from marimo._runtime.functions import Function
 from marimo._runtime.virtual_file.virtual_file import VirtualFile
+from marimo._types.ids import CellId_t
 
 if TYPE_CHECKING:
     from panel.viewable import Viewable
@@ -42,8 +44,9 @@ class SendToWidgetArgs:
 class _PanelLifecycleItem(CellLifecycleItem):
     """Cleans up Panel/Bokeh documents when owning cell re-runs or is deleted."""
 
-    def __init__(self, ref: str) -> None:
+    def __init__(self, ref: str, cell_id: CellId_t | None = None) -> None:
         self.ref = ref
+        self.cell_id = cell_id
 
     def __hash__(self) -> int:
         return hash(self.ref)
@@ -57,7 +60,26 @@ class _PanelLifecycleItem(CellLifecycleItem):
         del context
 
     def dispose(self, context: RuntimeContext, deletion: bool) -> bool:
-        del context, deletion
+        del deletion
+        if (
+            self.cell_id is not None
+            and self.cell_id in context.graph.cells
+            and getattr(context, "lazy", False)
+        ):
+            kernel = getattr(context, "_kernel", None)
+            is_deleted = (
+                kernel is not None and self.cell_id not in kernel.cell_metadata
+            )
+            if not is_deleted:
+                cell = context.graph.cells[self.cell_id]
+                # In lazy execution mode, an ancestor re-run invalidates descendants
+                # and triggers disposal, but the descendant's output is still displayed
+                # and it has not been re-run. Retain the view until the cell actually runs or is deleted.
+                if cell.runtime_state != "queued" and (
+                    cell.stale or cell.output is not None
+                ):
+                    return False
+
         from panel.io.document import _cleanup_doc
         from panel.io.state import state
 
@@ -219,7 +241,9 @@ def render_component(
     root = obj._render_model(doc, comm)
     ref = root.ref["id"]
     if (ctx := safe_get_context()) is not None:
-        ctx.cell_lifecycle_registry.add(_PanelLifecycleItem(ref))
+        ctx.cell_lifecycle_registry.add(
+            _PanelLifecycleItem(ref, cell_id=ctx.cell_id)
+        )
     obj._comms[ref] = (comm, comm)
     add_to_doc(root, doc, True)
     (docs_json, [render_item]) = standalone_docs_json_and_render_items(
@@ -365,6 +389,12 @@ class panel(UIElement[T, T]):
             )
             extension_url = extension_vfile.url
 
+        weak_self = weakref.ref(self)
+
+        def handle_msg(msg: SendToWidgetArgs) -> None:
+            if (inst := weak_self()) is not None:
+                inst._handle_msg(msg)
+
         super().__init__(
             component_name="marimo-panel",
             initial_value=cast(T, {}),
@@ -379,7 +409,7 @@ class panel(UIElement[T, T]):
                 Function(
                     name="send_to_widget",
                     arg_cls=SendToWidgetArgs,
-                    function=self._handle_msg,
+                    function=handle_msg,
                 ),
             ),
         )

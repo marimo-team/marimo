@@ -275,6 +275,51 @@ refs = [p1._ref, p2._ref]
         await k.delete_cell(DeleteCellCommand(cell_id=cell.cell_id))
         assert all(ref not in state._views for ref in second_refs)
 
+    @staticmethod
+    async def test_lazy_ancestor_rerun_preserves_descendant(
+        lazy_kernel: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        from panel.io.state import state
+
+        k = lazy_kernel
+        ancestor = exec_req.get_with_id("ancestor", "x = 1")
+        descendant = exec_req.get_with_id(
+            "descendant",
+            """
+import marimo as mo
+import panel as pn
+
+slider = pn.widgets.IntSlider(value=x)
+p = mo.ui.panel(slider)
+ref = p._ref
+p
+""",
+        )
+        await k.run([ancestor, descendant])
+        assert not k.errors
+        descendant_ref = k.globals["ref"]
+        assert descendant_ref in state._views
+
+        # Re-run ancestor in lazy mode.
+        # Descendant should become stale, but its view must NOT be disposed yet.
+        ancestor_update = exec_req.get_with_id("ancestor", "x = 2")
+        await k.run([ancestor_update])
+        assert not k.errors
+
+        assert descendant_ref in state._views
+
+        # Now explicitly re-run descendant.
+        # Old view should now be cleaned up and new view registered.
+        await k.run([descendant])
+        assert not k.errors
+        assert descendant_ref not in state._views
+        new_ref = k.globals["ref"]
+        assert new_ref in state._views
+
+        # Delete descendant
+        await k.delete_cell(DeleteCellCommand(cell_id=descendant.cell_id))
+        assert new_ref not in state._views
+
 
 @pytest.mark.skipif(not HAS_HOLOVIEWS, reason="holoviews not installed")
 class TestHoloViewsSettings:
@@ -371,3 +416,68 @@ class TestPanelWithHoloViews:
         # but we can verify the object was created successfully
         assert wrapped is not None
         assert isinstance(wrapped, panel)
+
+    @staticmethod
+    async def test_bare_holoviews_output_cleanup(
+        k: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        from panel.io.state import state
+
+        imports = exec_req.get(
+            "import holoviews as hv\nhv.extension('bokeh', logo=False)"
+        )
+        await k.run([imports])
+        assert not k.errors
+
+        baseline = set(state._views)
+        plot_cell = exec_req.get_with_id("plot_cell", "hv.Curve([1, 2, 3])")
+        await k.run([plot_cell])
+        assert not k.errors
+
+        plot_views = set(state._views) - baseline
+        assert len(plot_views) == 1
+        first_ref = next(iter(plot_views))
+        old_pane = weakref.ref(state._views[first_ref][0])
+        old_root = weakref.ref(state._views[first_ref][1])
+        old_doc = weakref.ref(state._views[first_ref][2])
+
+        other_cell = exec_req.get_with_id("other_cell", "hv.Curve([4, 5, 6])")
+        await k.run([other_cell])
+        assert not k.errors
+        other_views = set(state._views) - baseline - {first_ref}
+        assert len(other_views) == 1
+        other_ref = next(iter(other_views))
+        assert other_ref in state._views
+
+        # Rerun plot_cell: old view, doc, root, and pane are cleaned up and collected
+        await k.run([plot_cell])
+        assert not k.errors
+        gc.collect()
+
+        assert first_ref not in state._views
+        assert old_pane() is None
+        assert old_root() is None
+        assert old_doc() is None
+        # other_cell's render remains intact and usable
+        assert other_ref in state._views
+
+        new_plot_views = set(state._views) - baseline - {other_ref}
+        assert len(new_plot_views) == 1
+        second_ref = next(iter(new_plot_views))
+        second_pane = weakref.ref(state._views[second_ref][0])
+        second_root = weakref.ref(state._views[second_ref][1])
+        second_doc = weakref.ref(state._views[second_ref][2])
+
+        # Delete plot_cell: second view, doc, root, and pane are cleaned up and collected
+        await k.delete_cell(DeleteCellCommand(cell_id=plot_cell.cell_id))
+        gc.collect()
+
+        assert second_ref not in state._views
+        assert second_pane() is None
+        assert second_root() is None
+        assert second_doc() is None
+        assert other_ref in state._views
+
+        # Delete other_cell: cleans up remaining view
+        await k.delete_cell(DeleteCellCommand(cell_id=other_cell.cell_id))
+        assert set(state._views) == baseline
