@@ -102,9 +102,9 @@ describe("WASM notebook backend", () => {
   it("sends edits as calls with the retry key and validates replies", async () => {
     const { bridge, reply } = worker();
     const backend = createWasmNotebookBackend(bridge);
-    expect(await backend.client.edit([], { idempotencyKey: "edit-7" })).toEqual(
-      reply,
-    );
+    expect(
+      await backend.notebook("n1").edit([], { idempotencyKey: "edit-7" }),
+    ).toEqual(reply);
     expect(bridge.call).toHaveBeenCalledWith({
       operation: "notebook.edit",
       params: { notebook_id: "n1" },
@@ -117,13 +117,15 @@ describe("WASM notebook backend", () => {
       status: 403,
     };
     bridge.call.mockResolvedValue({ status: 403, body: problem });
-    expect(await backend.client.edit([])).toEqual({
+    expect(await backend.notebook("n1").edit([])).toEqual({
       ok: false,
       status: 403,
       problem,
     });
     bridge.call.mockResolvedValue({ status: 200, body: {} });
-    await expect(backend.client.edit([])).rejects.toThrow(/Invalid input/);
+    await expect(backend.notebook("n1").edit([])).rejects.toThrow(
+      /Invalid input/,
+    );
   });
 
   it("cancels waiting for an accepted edit and permits retry with the same key", async () => {
@@ -132,7 +134,7 @@ describe("WASM notebook backend", () => {
     bridge.call.mockReturnValue(pending.promise);
     const backend = createWasmNotebookBackend(bridge);
     const controller = new AbortController();
-    const editing = backend.client.edit([], {
+    const editing = backend.notebook("n1").edit([], {
       signal: controller.signal,
       idempotencyKey: "edit-8",
     });
@@ -140,12 +142,12 @@ describe("WASM notebook backend", () => {
     controller.abort();
     await expect(editing).rejects.toBe(controller.signal.reason);
     pending.resolve(wire);
-    expect(await backend.client.edit([], { idempotencyKey: "edit-8" })).toEqual(
-      reply,
-    );
+    expect(
+      await backend.notebook("n1").edit([], { idempotencyKey: "edit-8" }),
+    ).toEqual(reply);
     expect(bridge.call.mock.calls[0]).toEqual(bridge.call.mock.calls[1]);
     await expect(
-      backend.client.edit([], { signal: controller.signal }),
+      backend.notebook("n1").edit([], { signal: controller.signal }),
     ).rejects.toBe(controller.signal.reason);
     expect(bridge.call).toHaveBeenCalledTimes(2);
   });

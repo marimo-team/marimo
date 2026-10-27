@@ -129,7 +129,7 @@ describe("static notebook backend", () => {
 
   it("advertises no mutations and returns a protocol failure for direct edits", async () => {
     const backend = createStaticNotebookBackend(snapshot());
-    expect(await backend.client.edit([])).toEqual({
+    expect(await backend.notebook(snapshot().notebook.id).edit([])).toEqual({
       ok: false,
       status: 501,
       problem: {
@@ -154,7 +154,9 @@ describe("static notebook backend", () => {
     expect(open).not.toHaveBeenCalled();
     expect(message).not.toHaveBeenCalled();
     await expect(
-      backend.client.edit([], { signal: before.signal }),
+      backend
+        .notebook(snapshot().notebook.id)
+        .edit([], { signal: before.signal }),
     ).rejects.toBe(before.signal.reason);
     const during = new AbortController();
     message.mockImplementation(() => during.abort());

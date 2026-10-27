@@ -51,7 +51,7 @@ export function createStaticNotebookBackend(
           message(frame);
         }
       }),
-    client: {
+    notebook: () => ({
       edit: async (_changes, options) => {
         options?.signal?.throwIfAborted();
         return {
@@ -65,6 +65,6 @@ export function createStaticNotebookBackend(
           },
         };
       },
-    },
+    }),
   };
 }

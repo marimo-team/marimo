@@ -75,7 +75,6 @@ import {
 import { useStorageActions } from "../storage/state";
 import { useVariablesActions } from "../variables/state";
 import type { VariableName } from "../variables/types";
-import { isWasm } from "../wasm/utils";
 import { WebSocketClosedReason, ConnectionState } from "./types";
 
 const SUPPORTS_LAZY_KERNELS = true;
@@ -418,8 +417,9 @@ export function useNotebookSession(opts: {
         : runtimeManager.getWsURL(sessionId).toString(),
     // SSE uses headers for auth. WebSockets carry the token in the URL.
     headers: () => runtimeManager.headers(),
+    // Only the host's transports read the URL, so static and WASM never wait.
     waitUntilReady: async () => {
-      if (!isStaticNotebook() && !isWasm() && !runtimeManager.isSameOrigin) {
+      if (!runtimeManager.isSameOrigin) {
         await runtimeManager.waitForHealthy();
       }
     },

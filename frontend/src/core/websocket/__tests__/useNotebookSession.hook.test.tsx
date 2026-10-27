@@ -21,8 +21,8 @@ import {
   vi,
 } from "vitest";
 
-vi.mock("../transports/notebook", () => ({
-  createNotebookTransport: vi.fn(),
+vi.mock("../backend", () => ({
+  createEditorBackend: vi.fn(),
 }));
 
 vi.mock("@/core/runtime/config", async () => {
@@ -51,7 +51,7 @@ import { generateSessionId } from "../../kernel/session";
 import { RuntimeManager } from "../../runtime/runtime";
 import { WebSocketClosedReason, ConnectionState } from "../types";
 import { classifyCloseEvent } from "../connection-state";
-import { createNotebookTransport } from "../transports/notebook";
+import { createEditorBackend } from "../backend";
 import { useNotebookSession } from "../useNotebookSession";
 import { type NotebookTransport, StreamStopped } from "@marimo-team/client";
 
@@ -85,7 +85,10 @@ type FakeTransport = ReturnType<typeof makeTransport>;
 
 /** Use a fake transport for the next session the hook follows. */
 function withTransport(fake: FakeTransport = makeTransport()) {
-  vi.mocked(createNotebookTransport).mockReturnValue(fake.transport);
+  vi.mocked(createEditorBackend).mockReturnValue({
+    transport: fake.transport,
+    notebook: () => ({ edit: vi.fn() }),
+  });
   return fake;
 }
 
