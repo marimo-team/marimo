@@ -52,6 +52,7 @@ import { RuntimeManager } from "../../runtime/runtime";
 import { WebSocketClosedReason, ConnectionState } from "../types";
 import { classifyCloseEvent } from "../connection-state";
 import { createEditorBackend } from "../backend";
+import { fakeBackend } from "../../host/__tests__/fixtures";
 import { useNotebookSession } from "../useNotebookSession";
 import { type NotebookTransport, StreamStopped } from "@marimo-team/client";
 
@@ -85,10 +86,9 @@ type FakeTransport = ReturnType<typeof makeTransport>;
 
 /** Use a fake transport for the next session the hook follows. */
 function withTransport(fake: FakeTransport = makeTransport()) {
-  vi.mocked(createEditorBackend).mockReturnValue({
-    transport: fake.transport,
-    notebook: () => ({ edit: vi.fn() }),
-  });
+  vi.mocked(createEditorBackend).mockImplementation(({ checkHealth }) =>
+    fakeBackend({ transport: fake.transport, checkHealth }),
+  );
   return fake;
 }
 

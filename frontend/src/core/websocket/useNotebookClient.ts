@@ -1,6 +1,5 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { StreamStopped } from "@marimo-team/client";
 import { useStore } from "jotai";
 import { useEffect, useMemo } from "react";
 import useEvent from "react-use-event-hook";
@@ -15,75 +14,57 @@ import {
 import { notebookClientAtom } from "./state";
 import { createEditorBackend, type EditorBackendOptions } from "./backend";
 
-type Options = Omit<EditorBackendOptions, "url"> & {
-  /** The session route, read before each connection. */
-  url: () => string;
-  /** Wait until the host can accept a connection. */
-  waitUntilReady: () => Promise<void>;
-  checkHealth: () => Promise<boolean>;
+type Options = EditorBackendOptions & {
   onNotification: (notification: NotificationPayload) => void;
 };
 
 export function useNotebookClient(options: Options): NotebookClient {
   const store = useStore();
   const { static: isStatic, transportType } = options;
-  const controller = useMemo(() => createNotebookClient(store), [store]);
+  const client = useMemo(() => createNotebookClient(store), [store]);
   const url = useEvent(options.url);
   const headers = useEvent(options.headers);
   const notebookUrl = useEvent(options.notebookUrl);
   const waitUntilReady = useEvent(options.waitUntilReady);
   const checkHealth = useEvent(options.checkHealth);
   const onNotification = useEvent(options.onNotification);
-
-  useEffect(() => {
-    const lifetime = new AbortController();
-    let needsInitialReadiness = true;
-    store.set(notebookClientAtom, controller.client);
-    controller.connect({
-      backend: createEditorBackend({
+  // Opens nothing until the client follows it.
+  const backend = useMemo(
+    () =>
+      createEditorBackend({
         static: isStatic,
         transportType,
-        url: async () => {
-          if (needsInitialReadiness) {
-            // Explicit retries check current health, even if startup failed.
-            needsInitialReadiness = false;
-            try {
-              await waitUntilReady();
-            } catch (error) {
-              throw new StreamStopped("Healthy connection never made", {
-                cause: error,
-              });
-            }
-          }
-          return url();
-        },
+        url,
         headers,
         notebookUrl,
+        waitUntilReady,
+        checkHealth,
       }),
-      signal: lifetime.signal,
+    [
+      isStatic,
+      transportType,
+      url,
+      headers,
+      notebookUrl,
+      waitUntilReady,
       checkHealth,
+    ],
+  );
+
+  useEffect(() => {
+    store.set(notebookClientAtom, client);
+    const disconnect = client.connect(backend, {
       // The host validates the envelope, not the native notification contents.
       onNotification: (notification) =>
         onNotification({ data: notification as NotificationMessage }),
     });
     return () => {
-      lifetime.abort();
-      if (store.get(notebookClientAtom) === controller.client) {
+      disconnect();
+      if (store.get(notebookClientAtom) === client) {
         store.set(notebookClientAtom, null);
       }
     };
-  }, [
-    controller,
-    store,
-    isStatic,
-    transportType,
-    url,
-    headers,
-    notebookUrl,
-    waitUntilReady,
-    checkHealth,
-    onNotification,
-  ]);
+  }, [client, backend, store, onNotification]);
 
-  return controller.client;
+  return client;
 }
