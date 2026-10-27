@@ -5,7 +5,7 @@ import asyncio
 import threading
 import time
 from collections.abc import Callable
-from typing import Any, Generic, Protocol, TypeVar
+from typing import Generic, Protocol, TypeVar
 
 from marimo import _loggers
 from marimo._session.queue import QueueType
@@ -27,7 +27,7 @@ class Distributor(Protocol, Generic[T_co]):
         """Add a consumer to the distributor."""
         ...
 
-    def start(self) -> Any:
+    def start(self) -> Disposable | threading.Thread:
         """Start the distributor."""
         ...
 
