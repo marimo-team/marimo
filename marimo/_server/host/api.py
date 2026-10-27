@@ -44,6 +44,7 @@ from marimo._server.host.notebook_api import (
     _context,
     _decode,
     _mutation,
+    editor_notebook_routes,
     notebook_routes,
     problem,
 )
@@ -56,6 +57,7 @@ if TYPE_CHECKING:
 
     from anyio import CancelScope
     from starlette.requests import HTTPConnection, Request
+    from starlette.routing import BaseRoute
 
     from marimo._core.notebook import Notebook
     from marimo._core.stream import RoutedEvent
@@ -191,12 +193,15 @@ async def _notebook_events(request: Request) -> Response:
     )
 
 
-def editor_events_route(base_url: str = "") -> WebSocketRoute:
-    """Expose the notebook event socket through editor authentication."""
-    return WebSocketRoute(
-        f"{base_url}{HOST_API_PATH}/notebooks/{{notebook_id}}/events/ws",
-        _editor_events_ws,
-    )
+def editor_routes(base_url: str = "") -> list[BaseRoute]:
+    """Expose the notebook event socket and operations to the editor."""
+    prefix = f"{base_url}{HOST_API_PATH}"
+    return [
+        WebSocketRoute(
+            f"{prefix}/notebooks/{{notebook_id}}/events/ws", _editor_events_ws
+        ),
+        *editor_notebook_routes(prefix),
+    ]
 
 
 async def _editor_events_ws(websocket: WebSocket) -> None:

@@ -124,8 +124,8 @@ class SkewProtectionMiddleware:
         request = Request(scope)
         state = AppState.from_app(request.app)
 
-        # If not POST request, then skip
-        if request.method != "POST":
+        # Only requests that change state need the token
+        if request.method in ("GET", "HEAD", "OPTIONS"):
             return await self.app(scope, receive, send)
         # Skip the login form submission. The login page is a server-rendered
         # plain HTML form and does not attach the server token header.

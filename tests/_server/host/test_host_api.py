@@ -288,22 +288,23 @@ def test_latin1_superscripts_are_not_a_port(port: str) -> None:
         ("Bearer", 401),
         ("Bearer ", 401),
         ("Basic record-token", 401),
-        ("bearer  record-token ", 202),
+        # An empty update reaches the route only with the host's bearer.
+        ("bearer  record-token ", 400),
     ],
 )
 async def test_malformed_bearers_are_401_problems(
     harness: Harness, authorization: str, status: int
 ) -> None:
+    # The notebook record answers only the host's bearer, never the editor.
     response = await finished(
         harness.app,
-        "PUT",
-        f"/notebooks/{harness.notebook_id}/runtime",
-        headers={"Authorization": authorization, "Idempotency-Key": "start"},
+        "PATCH",
+        f"/notebooks/{harness.notebook_id}",
+        headers={"Authorization": authorization, "Idempotency-Key": "update"},
         body=b"{}",
     )
     assert response.status == status
-    if status != 202:
-        assert response.headers["content-type"] == "application/problem+json"
+    assert response.headers["content-type"] == "application/problem+json"
 
 
 # A bare integer is a cursor from a host before this one.
@@ -2175,7 +2176,7 @@ def test_websocket_rejects_invalid_authentication(
         ("notebooks.example:1234", ("192.0.2.1", 50000), 403),
     ],
 )
-def test_editor_authentication_is_limited_to_the_event_socket(
+def test_editor_authentication_is_limited_to_notebook_events_and_operations(
     harness: Harness,
     base_url: str,
     credential: str,
@@ -2231,16 +2232,120 @@ def test_editor_authentication_is_limited_to_the_event_socket(
                 },
             }
         assert harness.backend().calls == []
-        for endpoint in (path, f"{path}/events"):
-            assert (
-                client.get(f"{endpoint}{query}").status_code == rejected_status
+        edited = client.post(
+            f"{path}/edits{query}",
+            headers={
+                "Idempotency-Key": "editor-1",
+                "Marimo-Server-Token": "skew-id-1",
+            },
+            content=edit_body(
+                {
+                    "kind": "put_cell",
+                    "base_etag": None,
+                    "cell": {"id": "fresh", "code": "z = 3"},
+                }
+            ),
+        )
+        assert edited.status_code == 200, edited.text
+        assert set(edited.json()["cells"]) == {"fresh"}
+        for method, endpoint in (
+            ("GET", f"{path}/events"),
+            ("PATCH", path),
+            ("POST", f"{base_url}{HOST_API_PATH}/notebooks"),
+        ):
+            response = client.request(
+                method, f"{endpoint}{query}", json={"path": "other.py"}
             )
+            assert response.status_code == rejected_status
         with pytest.raises(WebSocketDisconnect) as exc:
             with client.websocket_connect(
                 f"ws://{authority}{base_url}{HOST_API_PATH}/events/ws{query}"
             ):
                 pytest.fail("Editor credentials authorized another socket")
         assert exc.value.code == 1008
+
+
+@pytest.mark.parametrize(
+    ("method", "operation"),
+    [("POST", "/edits"), ("PUT", "/runtime"), ("DELETE", "/runtime")],
+)
+@pytest.mark.parametrize(
+    ("query", "headers"),
+    [
+        # A cross-site form cannot send the server token.
+        ("?access_token=fake-token", {}),
+        ("", {"Marimo-Server-Token": "skew-id-1"}),
+    ],
+)
+def test_editor_operations_need_credentials_and_the_server_token(
+    harness: Harness,
+    method: str,
+    operation: str,
+    query: str,
+    headers: dict[str, str],
+) -> None:
+    client = TestClient(
+        with_client_address(harness.app, ("192.0.2.1", 50000)),
+        base_url="http://notebooks.example:1234",
+    )
+    path = f"{HOST_API_PATH}/notebooks/{harness.notebook_id}{operation}"
+    response = client.request(
+        method,
+        f"{path}{query}",
+        headers={**headers, "Idempotency-Key": "editor-1"},
+        content=b"{}",
+    )
+    assert response.status_code == 401
+    assert harness.backends == {}
+
+
+@pytest.mark.parametrize("base_url", ["", "/app"])
+@pytest.mark.parametrize(
+    ("method", "operation", "origin", "status"),
+    [
+        ("POST", "/edits", "http://editor.example", 200),
+        ("PUT", "/runtime", "http://editor.example", 200),
+        ("DELETE", "/runtime", "http://editor.example", 200),
+        ("PUT", "/runtime", "http://other.example", 400),
+        ("GET", "/edits", "http://editor.example", 403),
+        ("PATCH", "", "http://editor.example", 403),
+    ],
+)
+def test_editor_operation_preflights(
+    harness: Harness,
+    base_url: str,
+    method: str,
+    operation: str,
+    origin: str,
+    status: int,
+) -> None:
+    app = create_starlette_app(
+        base_url=base_url, allow_origins=("http://editor.example",)
+    )
+    get_starlette_server_state_init(
+        session_manager=harness.app.state.session_manager, base_url=base_url
+    ).apply(app.state)
+    app.state.host_context = harness.app.state.host_context
+    with TestClient(
+        with_client_address(app, ("192.0.2.1", 50000)),
+        base_url="http://notebooks.example:1234",
+    ) as client:
+        path = f"{base_url}{HOST_API_PATH}/notebooks/{harness.notebook_id}"
+        response = client.options(
+            f"{path}{operation}",
+            headers={
+                "Origin": origin,
+                "Access-Control-Request-Method": method,
+                "Access-Control-Request-Headers": (
+                    "content-type,idempotency-key,marimo-server-token"
+                ),
+            },
+        )
+    assert (
+        response.status_code,
+        response.headers.get("access-control-allow-origin"),
+    ) == (status, origin if status == 200 else None)
+    assert harness.backends == {}
 
 
 @pytest.mark.parametrize("token", ["wrong", TOKEN])

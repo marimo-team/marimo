@@ -140,3 +140,32 @@ def notebook_routes() -> list[Route]:
         Route(kind.PATH, _endpoint(kind), methods=[kind.METHOD])
         for kind in CALLS
     ]
+
+
+def editor_notebook_routes(prefix: str) -> list[Route]:
+    """Serve each notebook operation below `prefix` to the editor."""
+    return [
+        Route(
+            prefix + kind.PATH,
+            _editor_endpoint(_endpoint(kind)),
+            methods=[kind.METHOD],
+        )
+        for kind in CALLS
+    ]
+
+
+def _editor_endpoint(
+    serve: Callable[[Request], Awaitable[Response]],
+) -> Callable[[Request], Awaitable[Response]]:
+    async def handle(request: Request) -> Response:
+        # The editor's middleware has already authenticated the request.
+        scopes = request.auth.scopes
+        if "edit" in scopes:
+            return await serve(request)
+        if scopes:
+            return problem(
+                403, "forbidden", "This editor cannot edit notebooks"
+            )
+        return problem(401, "unauthorized", "Sign in to the editor")
+
+    return handle
