@@ -45,44 +45,70 @@ export const useCellRangeSelection = <TData>({
     },
   );
 
-  const handleCellsKeyDown = useEvent((e: React.KeyboardEvent<HTMLElement>) => {
-    switch (e.key) {
-      case "c":
-        if (Events.isMetaOrCtrl(e)) {
-          handleCopy();
-        }
-        break;
-      case "ArrowDown":
-        e.preventDefault();
-        navigate(e, "down");
-        break;
-      case "ArrowUp":
-        e.preventDefault();
-        navigate(e, "up");
-        break;
-      case "ArrowLeft":
-        e.preventDefault();
-        navigate(e, "left");
-        break;
-      case "ArrowRight":
-        e.preventDefault();
-        navigate(e, "right");
-        break;
-      case "Enter":
-        e.preventDefault();
-        actions.toggleCurrentRowSelection(table);
-        break;
-      case "Escape":
-        actions.clearSelection();
-        break;
-      case "a":
-        if (e.metaKey || e.ctrlKey) {
-          e.preventDefault();
-          actions.selectAllCells(table);
-        }
-        break;
-    }
+  const handleCellFocus = useEvent((cell: Cell<TData, unknown>) => {
+    actions.setFocusedCell({
+      cellId: cell.id,
+      rowId: cell.row.id,
+      columnId: cell.column.id,
+    });
   });
+
+  const handleCellsKeyDown = useEvent(
+    (e: React.KeyboardEvent<HTMLElement>, cell: Cell<TData, unknown>) => {
+      if (e.defaultPrevented || isInteractiveTarget(e)) {
+        return;
+      }
+      switch (e.key) {
+        case "c":
+          if (Events.isMetaOrCtrl(e)) {
+            handleCopy();
+          }
+          break;
+        case "ArrowDown":
+          e.preventDefault();
+          navigate(e, "down");
+          break;
+        case "ArrowUp":
+          e.preventDefault();
+          navigate(e, "up");
+          break;
+        case "ArrowLeft":
+          e.preventDefault();
+          navigate(e, "left");
+          break;
+        case "ArrowRight":
+          e.preventDefault();
+          navigate(e, "right");
+          break;
+        case "Enter":
+        case " ":
+          e.preventDefault();
+          updateSelection(
+            {
+              cellId: cell.id,
+              rowId: cell.row.id,
+              columnId: cell.column.id,
+            },
+            false,
+          );
+          if (table.options.enableCellSelection) {
+            cell.toggleSelected?.();
+          } else if (cell.row.getCanSelect()) {
+            cell.row.toggleSelected();
+          }
+          break;
+        case "Escape":
+          actions.clearSelection();
+          break;
+        case "a":
+          if (e.metaKey || e.ctrlKey) {
+            e.preventDefault();
+            actions.selectAllCells(table);
+          }
+          break;
+      }
+    },
+  );
 
   const handleCellMouseDown = useEvent(
     (e: React.MouseEvent, cell: Cell<TData, unknown>) => {
@@ -122,6 +148,7 @@ export const useCellRangeSelection = <TData>({
     handleCellMouseOver,
     handleCopy,
     handleCellsKeyDown,
+    handleCellFocus,
     updateSelection,
     clearSelection: actions.clearSelection,
   };
@@ -148,7 +175,7 @@ const CONTENT_WRAPPER_MARIMO_TAGS: ReadonlySet<string> = new Set([
  * shadow host (e.g. `<marimo-lazy>`), hiding any genuinely interactive
  * descendants rendered inside the shadow tree.
  */
-export function isInteractiveTarget(e: React.MouseEvent): boolean {
+export function isInteractiveTarget(e: React.SyntheticEvent): boolean {
   const path: readonly EventTarget[] =
     typeof e.nativeEvent?.composedPath === "function"
       ? e.nativeEvent.composedPath()

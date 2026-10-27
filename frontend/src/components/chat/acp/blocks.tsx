@@ -337,6 +337,7 @@ export const PlansBlock = (props: { data: PlanNotificationEvent[] }) => {
           >
             <input
               type="checkbox"
+              aria-label={item.content}
               checked={item.status === "completed"}
               readOnly={true}
               className="accent-primary h-4 w-4 rounded border border-muted-foreground/30"

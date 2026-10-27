@@ -66,6 +66,7 @@ const SecretsPanel: React.FC = () => {
           <div className="flex justify-start h-8 border-b">
             <button
               type="button"
+              aria-label="Add environment variable"
               className="border-r px-2 m-0 h-full hover:bg-accent hover:text-accent-foreground"
               onClick={() =>
                 openModal(

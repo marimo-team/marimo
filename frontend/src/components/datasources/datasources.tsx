@@ -284,6 +284,7 @@ export const DataSources: React.FC = () => {
         {hasSearch && (
           <button
             type="button"
+            aria-label="Clear table search"
             className="float-right border-b px-2 m-0 h-full hover:bg-accent hover:text-accent-foreground"
             onClick={() => setSearchValue("")}
           >

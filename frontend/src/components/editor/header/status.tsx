@@ -85,15 +85,38 @@ const RunningIcon = () => {
     ? "Scratchpad is running"
     : "Jump to running cell";
 
+  const icon = (
+    <HourglassIcon className="running-app-icon" size={30} strokeWidth={1} />
+  );
+
+  if (scratchpadOnly) {
+    return (
+      <Tooltip content={tooltip} side="right">
+        <span
+          className={topLeftStatus}
+          data-testid="loading-indicator"
+          // Execution progress is advisory status, not a form result.
+          // eslint-disable-next-line jsx-a11y/prefer-tag-over-role
+          role="status"
+          aria-label={tooltip}
+        >
+          {icon}
+        </span>
+      </Tooltip>
+    );
+  }
+
   return (
     <Tooltip content={tooltip} side="right">
-      <div
-        className={topLeftStatus}
+      <button
+        type="button"
+        aria-label={tooltip}
+        className={cn(topLeftStatus, "bg-transparent border-0 p-0")}
         data-testid="loading-indicator"
-        onClick={scratchpadOnly ? undefined : notebookScrollToRunning}
+        onClick={notebookScrollToRunning}
       >
-        <HourglassIcon className="running-app-icon" size={30} strokeWidth={1} />
-      </div>
+        {icon}
+      </button>
     </Tooltip>
   );
 };

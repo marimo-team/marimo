@@ -248,21 +248,22 @@ export const replaceTracebackFilenames = (domNode: DOMNode) => {
             <Tooltip content={tooltipContent}>
               <button
                 type="button"
+                aria-label={
+                  debuggerEnabled ? "Toggle breakpoint" : "Insert breakpoint"
+                }
                 className="ml-1 p-1 rounded-sm hover:bg-muted transition-colors inline"
+                onClick={() => {
+                  if (debuggerEnabled && !isStaticNotebook()) {
+                    toggleBreakpoint(info.cellId, info.lineNumber);
+                    return;
+                  }
+                  const view = getCellEditorView(info.cellId);
+                  if (view) {
+                    insertDebuggerAtLine(view, info.lineNumber);
+                  }
+                }}
               >
-                <BugPlayIcon
-                  onClick={() => {
-                    if (debuggerEnabled && !isStaticNotebook()) {
-                      toggleBreakpoint(info.cellId, info.lineNumber);
-                      return;
-                    }
-                    const view = getCellEditorView(info.cellId);
-                    if (view) {
-                      insertDebuggerAtLine(view, info.lineNumber);
-                    }
-                  }}
-                  className="h-3 w-3"
-                />
+                <BugPlayIcon className="h-3 w-3" />
               </button>
             </Tooltip>
           )}
@@ -272,7 +273,8 @@ export const replaceTracebackFilenames = (domNode: DOMNode) => {
   }
   if (info?.kind === "file") {
     return (
-      <div
+      <button
+        type="button"
         className="inline-block cursor-pointer text-destructive hover:underline"
         onClick={() => {
           getRequestClient().openFile({
@@ -282,7 +284,7 @@ export const replaceTracebackFilenames = (domNode: DOMNode) => {
         }}
       >
         <span className="nb">"{info.filePath}"</span>
-      </div>
+      </button>
     );
   }
 };

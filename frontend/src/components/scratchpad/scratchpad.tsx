@@ -123,6 +123,7 @@ export const ScratchPad: React.FC = () => {
           insert: item,
         },
       });
+      ev.focus();
     }
   });
 
@@ -136,11 +137,23 @@ export const ScratchPad: React.FC = () => {
       <div className="absolute inset-0 z-100 bg-background p-3 border-none overflow-auto">
         <div className="overflow-auto flex flex-col gap-3">
           {history.map((item) => (
+            // The Recall code button provides keyboard access without making the code preview a button.
+            // react-doctor-disable-next-line react-doctor/click-events-have-key-events, react-doctor/no-static-element-interactions
             <div
               key={item}
-              className="border rounded-md hover:shadow-sm cursor-pointer hover:border-input overflow-hidden"
+              className="relative border rounded-md hover:shadow-sm cursor-pointer hover:border-input overflow-hidden"
               onClick={() => handleSelectHistoryItem(item)}
             >
+              <button
+                type="button"
+                className="sr-only focus:not-sr-only focus:absolute focus:right-1 focus:top-1 focus:z-10 focus:bg-background focus:px-2 focus:py-1 focus:outline focus:outline-ring"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleSelectHistoryItem(item);
+                }}
+              >
+                Recall code
+              </button>
               <Suspense>
                 <LazyAnyLanguageCodeMirror
                   language="python"
