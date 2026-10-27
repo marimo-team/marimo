@@ -866,7 +866,9 @@ def _known_provider_base_urls() -> dict[str, str]:
             )
             continue
         normalized = _normalize_base_url(base_url)
-        if normalized:
+        # OpenAI API keys and ChatGPT OAuth share a URL, so it cannot
+        # identify which provider to use. Preserve the generic OpenAI fallback.
+        if normalized and normalized != "api.openai.com":
             mapping.setdefault(normalized, name)
     return mapping
 
