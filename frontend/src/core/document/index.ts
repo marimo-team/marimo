@@ -1,5 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
+/** The editable document, its drafts, and its synchronization with the host. */
+
 export {
   DocumentProvider,
   useCellCode,
@@ -10,12 +12,4 @@ export {
   useDocumentEdit,
   useDocumentSync,
 } from "./hooks";
-export { createDocumentModel } from "./model";
-export type {
-  DocumentEdit,
-  DocumentEditor,
-  DocumentModel,
-  DocumentSyncStatus,
-  EditableCell,
-  EditableDocument,
-} from "./model";
+export { createDocumentModel, type DocumentModel } from "./model";

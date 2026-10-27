@@ -1,5 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
+/** A notebook's events and commands, from a host or a stand-in for one. */
+
 import type { NotebookClient, NotebookTransport } from "@marimo-team/client";
 import type { NotebookId } from "@marimo-team/client/protocol";
 

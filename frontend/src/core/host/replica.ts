@@ -1,5 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
+/** What a backend's stream has confirmed about a notebook, kept in atoms. */
+
 import { Logger } from "@/utils/Logger";
 import {
   createNotebookReducer,
@@ -27,9 +29,9 @@ type EditorEvent = NotebookEvent<(typeof TYPES)[number]>;
 /** A native marimo notification, passed through without interpretation. */
 const MarimoMessage = z.object({ marimo: z.unknown() });
 
-/** A connection to a notebook on a marimo host. */
-export interface NotebookClient {
-  /** Client connection status, independent of application session readiness. */
+/** A notebook as its backend's stream reports it, kept current while connected. */
+export interface NotebookReplica {
+  /** Connection status, independent of application session readiness. */
   readonly connectionAtom: Atom<ConnectionStatus>;
   /** Identity and capabilities, available while the stream is connected and ready. */
   readonly notebookAtom: Atom<NotebookOutput | null>;
@@ -42,7 +44,7 @@ export interface NotebookClient {
    */
   readonly documentAtom: Atom<Document | null>;
   /**
-   * The backend this client follows, or null while not connected.
+   * The backend this replica follows, or null while not connected.
    *
    * Its commands reach the host that confirmed `documentAtom`. A temporary
    * disconnection keeps it. Connecting again or disconnecting replaces it.
@@ -53,7 +55,7 @@ export interface NotebookClient {
   /**
    * Follow a backend, replacing any current connection.
    *
-   * The returned function ends this connection and clears the client's state.
+   * The returned function ends this connection and clears the replica.
    * It does nothing once another connection has replaced this one.
    */
   connect(
@@ -98,10 +100,10 @@ function statusAfter(error: unknown): ConnectionStatus {
   return disconnected;
 }
 
-/** Create a client without opening a connection. */
-export function createNotebookClient(
+/** Create a replica without connecting it. */
+export function createNotebookReplica(
   store: ReturnType<typeof createStore>,
-): NotebookClient {
+): NotebookReplica {
   // `useNotebookSession` copies this into the editor's shared `connectionAtom`,
   // which gates features until MO-8051 derives availability separately.
   const connectionAtom = atom<ConnectionStatus>({
@@ -128,7 +130,7 @@ export function createNotebookClient(
       : attachments.initial,
   );
   const backendAtom = atom<NotebookBackend | null>(null);
-  /** The connection this client follows. Connecting again ends it. */
+  /** The connection this replica follows. Connecting again ends it. */
   let current: { end(): void; reconnect(): Promise<void> } | undefined;
 
   function setStatus(status: ConnectionStatus) {

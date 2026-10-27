@@ -1,6 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import type { Document } from "../host/resources/document";
+import type { Document } from "../host";
 import * as Protocol from "@marimo-team/client/protocol";
 
 /** The fields a client edits. Null code means the host withheld source. */

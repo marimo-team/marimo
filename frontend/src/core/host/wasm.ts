@@ -1,5 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
+/** A backend for the notebook running in the WASM worker. */
+
 import {
   NotebookClient,
   StreamStopped,

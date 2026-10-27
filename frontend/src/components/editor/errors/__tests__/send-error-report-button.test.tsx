@@ -25,7 +25,7 @@ import {
 } from "@/core/cells/error-report";
 import { pairConfigAtom } from "@/core/config/pair";
 import { notebookStateFromSession } from "@/core/cells/session";
-import { createNotebookClient } from "@/core/host/notebook-client";
+import { createNotebookReplica } from "@/core/host/replica";
 import type { MarimoError, OutputMessage } from "@/core/kernel/messages";
 import {
   type StableSessionId,
@@ -33,7 +33,7 @@ import {
 } from "@/core/kernel/session";
 import { API } from "@/core/network/api";
 import { connectionAtom } from "@/core/network/connection";
-import { notebookClientAtom } from "@/core/websocket/state";
+import { notebookReplicaAtom } from "@/core/websocket/state";
 import { ConnectionState } from "@/core/websocket/types";
 import { Deferred } from "@/utils/Deferred";
 import { HTTPError } from "@/utils/errors";
@@ -97,8 +97,8 @@ function renderButton({
   const store = createStore();
   store.set(connectionAtom, { state: ConnectionState.OPEN });
   store.set(pairConfigAtom, { ...PAIR_CONFIG, hostEnabled: preview });
-  store.set(notebookClientAtom, {
-    ...createNotebookClient(store),
+  store.set(notebookReplicaAtom, {
+    ...createNotebookReplica(store),
     connectionAtom: atom({ state: ConnectionState.OPEN }),
     attachmentsAtom,
   });

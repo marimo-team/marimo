@@ -7,7 +7,7 @@ import {
 } from "@marimo-team/client";
 import { createStore } from "jotai/vanilla";
 import { afterEach, describe, expect, it, onTestFinished, vi } from "vitest";
-import { createNotebookClient } from "../../../host/notebook-client";
+import { createNotebookReplica } from "../../../host/replica";
 import { fakeBackend, fixtureMessages } from "../../../host/__tests__/fixtures";
 import { ConnectionState } from "../../../host/connection";
 import { Deferred } from "@/utils/Deferred";
@@ -296,7 +296,7 @@ describe.each(["websocket", "sse"] as const)(
         const url = vi.fn(() => target);
         const connection = network(transportType, url);
         const store = createStore();
-        const client = createNotebookClient(store);
+        const client = createNotebookReplica(store);
         onTestFinished(
           client.connect(connection.backend, { onNotification: vi.fn() }),
         );
@@ -358,7 +358,7 @@ describe.each(["websocket", "sse"] as const)(
       let target = `${base}?session_id=s1&file=a.py&access_token=a`;
       const connection = network(transportType, () => target);
       const store = createStore();
-      const client = createNotebookClient(store);
+      const client = createNotebookReplica(store);
       onTestFinished(
         client.connect(connection.backend, { onNotification: vi.fn() }),
       );

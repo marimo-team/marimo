@@ -11,7 +11,7 @@ import { reloadSafe } from "@/utils/reload-safe";
 import { generateUUID } from "@/utils/uuid";
 import { createModuleWorker } from "@/utils/worker";
 import { notebookIsRunningAtom } from "../cells/cells";
-import { createWasmNotebookBackend } from "../host/wasm";
+import { createWasmNotebookBackend } from "../host";
 import type { ClientCommand } from "../kernel/messages";
 import { getInitialAppMode } from "../mode";
 import { API } from "../network/api";

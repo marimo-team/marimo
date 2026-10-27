@@ -1,12 +1,12 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import type { ConnectionStatus as HostConnectionStatus } from "../host/connection";
+import type { ConnectionStatus as HostConnectionStatus } from "../host";
 import type { NotificationMessageData } from "../kernel/messages";
 
 export {
   ConnectionState,
   ConnectionClosedReason as WebSocketClosedReason,
-} from "../host/connection";
+} from "../host";
 
 export type ConnectionPhase =
   | NotificationMessageData<"startup-progress">["phase"]

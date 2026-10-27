@@ -1,8 +1,10 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
+/** The backend the editor follows, chosen once for its mode. */
+
 import { NotebookClient, StreamStopped } from "@marimo-team/client";
 import type { NotebookId } from "@marimo-team/client/protocol";
-import type { NotebookBackend } from "../host/backend";
+import type { NotebookBackend } from "../host";
 import { PyodideBridge } from "../wasm/bridge";
 import { isWasm } from "../wasm/utils";
 import {

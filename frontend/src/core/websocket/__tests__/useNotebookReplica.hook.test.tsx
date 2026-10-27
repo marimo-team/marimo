@@ -8,10 +8,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { NotebookTransport } from "@marimo-team/client";
 import { ConnectionState } from "../types";
 import { createEditorBackend } from "../backend";
-import { useNotebookClient } from "../useNotebookClient";
+import { useNotebookReplica } from "../useNotebookReplica";
 import { fakeBackend, fixtureMessages } from "../../host/__tests__/fixtures";
 import { agentAttachmentsAtom } from "../../attachments/state";
-import { notebookClientAtom } from "../state";
+import { notebookReplicaAtom } from "../state";
 
 vi.mock("../backend", () => ({ createEditorBackend: vi.fn() }));
 
@@ -56,7 +56,7 @@ function setup(strict = false) {
   const wrapper = ({ children }: PropsWithChildren) => (
     <Provider store={store}>{children}</Provider>
   );
-  const hook = renderHook((props) => useNotebookClient(props), {
+  const hook = renderHook((props) => useNotebookReplica(props), {
     initialProps: options,
     reactStrictMode: strict,
     wrapper,
@@ -68,7 +68,7 @@ beforeEach(() => {
   vi.mocked(createEditorBackend).mockReset();
 });
 
-describe("useNotebookClient", () => {
+describe("useNotebookReplica", () => {
   it("exposes host presence to the UI without waiting for kernel-ready", async () => {
     const fake = makeTransport();
     vi.mocked(createEditorBackend).mockReturnValue(
@@ -76,7 +76,7 @@ describe("useNotebookClient", () => {
     );
     const { result, store, unmount } = setup();
     await act(async () => Promise.resolve());
-    expect(store.get(notebookClientAtom)).toBe(result.current);
+    expect(store.get(notebookReplicaAtom)).toBe(result.current);
     const [connection] = fake.opened;
     act(() => {
       connection.open();
@@ -92,7 +92,7 @@ describe("useNotebookClient", () => {
       },
     ]);
     unmount();
-    expect(store.get(notebookClientAtom)).toBeNull();
+    expect(store.get(notebookReplicaAtom)).toBeNull();
     expect(store.get(agentAttachmentsAtom)).toEqual([]);
   });
 

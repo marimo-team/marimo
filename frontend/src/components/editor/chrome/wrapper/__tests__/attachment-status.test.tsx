@@ -16,14 +16,14 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { toast } from "@/components/ui/use-toast";
 import type { Attachment } from "@/core/attachments/state";
 import { pairConfigAtom } from "@/core/config/pair";
-import { createNotebookClient } from "@/core/host/notebook-client";
+import { createNotebookReplica } from "@/core/host/replica";
 import {
   type StableSessionId,
   stableSessionIdAtom,
 } from "@/core/kernel/session";
 import { API } from "@/core/network/api";
 import { connectionAtom } from "@/core/network/connection";
-import { notebookClientAtom } from "@/core/websocket/state";
+import { notebookReplicaAtom } from "@/core/websocket/state";
 import { ConnectionState } from "@/core/websocket/types";
 import { Deferred } from "@/utils/Deferred";
 import { AttachmentStatus } from "../footer-items/attachment-status";
@@ -45,8 +45,8 @@ function renderStatus(attachments: Attachment[] = [AGENT], preview = true) {
   const store = createStore();
   store.set(connectionAtom, { state: ConnectionState.OPEN });
   store.set(pairConfigAtom, { ...PAIR_CONFIG, hostEnabled: preview });
-  store.set(notebookClientAtom, {
-    ...createNotebookClient(store),
+  store.set(notebookReplicaAtom, {
+    ...createNotebookReplica(store),
     connectionAtom: atom({ state: ConnectionState.OPEN }),
     attachmentsAtom,
   });
