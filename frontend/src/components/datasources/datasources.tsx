@@ -78,6 +78,7 @@ import {
   areChildSchemasResolved,
   areSchemasResolved,
   areTablesResolved,
+  fullyQualifiedTableName,
   isSchemaless,
   schemaSubtreeMatchesSearch,
   shouldExpandDatabaseForSearch,
@@ -636,7 +637,7 @@ const SchemaNode: React.FC<SchemaNodeProps> = (props) => {
   const [prevSearchValue, setPrevSearchValue] = React.useState(searchValue);
   const [prevExpandForSearch, setPrevExpandForSearch] =
     React.useState(expandForSearch);
-  const uniqueValue = JSON.stringify([databaseName, ...schemaPath]);
+  const uniqueValue = JSON.stringify(["schema", databaseName, ...schemaPath]);
   const childSchemas = schema.child_schemas ?? [];
 
   // Re-sync when the query changes or when newly resolved data turns this
@@ -1094,9 +1095,7 @@ const DatasetColumnItem: React.FC<{
               column={column}
               onAddColumnChart={handleAddColumn}
               preview={columnsPreviews.get(
-                sqlTableContext
-                  ? `${sqlTableContext.database}.${sqlTableContext.schema}.${table.name}:${column.name}`
-                  : `${table.name}:${column.name}`,
+                `${fullyQualifiedTableName(sqlTableContext, table.name)}:${column.name}`,
               )}
               sqlTableContext={sqlTableContext}
             />
