@@ -252,7 +252,11 @@ class CachedLifecycle:
         from marimo._save.manifest import record_cache_event
 
         record_cache_event(
-            self._loader, attempt.key, cell_id, self._graph, saved=True
+            self._loader,
+            attempt.key,
+            cell_id,
+            self._graph,
+            saved=not attempt.hit,
         )
 
     def invalidate_stub_definers(self, glbls: MutableGlobals) -> set[CellId_t]:
