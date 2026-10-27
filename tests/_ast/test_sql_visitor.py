@@ -543,6 +543,20 @@ def test_find_sql_defs_duckdb_not_available() -> None:
 
 
 class TestSQLRefsConvertName:
+    def test_catalog_only_preserves_constructor_identity(self) -> None:
+        catalog = SQLRef(table="t", catalog="db")
+        schema = SQLRef(table="t", schema="db")
+        parsed = SQLRef.from_parts(["db", "t"])
+        assert (catalog.schema, catalog.catalog, catalog.parts) == (
+            None,
+            "db",
+            ("db", "t"),
+        )
+        assert schema == parsed
+        assert catalog != schema
+        assert catalog == SQLRef(table="t", catalog="db")
+        assert len({catalog, schema, parsed}) == 2
+
     def test_simple(self) -> None:
         ref = SQLRef(table="test_table")
         assert ref.qualified_name == "test_table"
@@ -1265,3 +1279,25 @@ class TestFindSQLRefs:
             SQLRef(table="table1"),
             SQLRef(table="table2"),
         }
+
+
+@pytest.mark.skipif(
+    not HAS_SQLGLOT or not HAS_DUCKDB, reason="SQL dependencies required"
+)
+@pytest.mark.parametrize(
+    "parts",
+    [
+        ["finance", "reports", "sales"],
+        ["memory", "finance", "reports", "sales"],
+        ["memory", "finance", "reports", "quarterly", "sales"],
+        ["finance.reports", "sales"],
+    ],
+)
+def test_nested_sql_identifier_paths(parts: list[str]) -> None:
+    from marimo._sql.sql_quoting import quote_qualified_name
+
+    name = quote_qualified_name(*parts)
+    ref = SQLRef.from_parts(parts)
+    assert find_sql_refs(f"SELECT * FROM {name}") == {ref}
+    assert find_sql_defs(f"CREATE TABLE {name} (id INT)").tables == [ref]
+    assert SQLRef.from_qualified_name(ref.qualified_name) == ref
