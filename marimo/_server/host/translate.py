@@ -86,7 +86,9 @@ class RunTranslator:
                 return []
             if notification.phase == "running":
                 return [be.Started(execution.id)]
-            return self._conclude(execution)
+            return self._conclude(
+                execution, depends_on=notification.depends_on
+            )
 
         execution = self._executions.get(notification.execution_id or "")
         if execution is None:
@@ -145,6 +147,7 @@ class RunTranslator:
         *,
         error: protocol.Error | None = None,
         interrupted: bool = False,
+        depends_on: dict[str, protocol.Revision | None] | None = None,
     ) -> list[be.Message]:
         if execution.ended:
             return []
@@ -160,7 +163,9 @@ class RunTranslator:
         elif interrupted or execution.errors:
             execution.outcome = protocol.InterruptedOutcome()
         execution.ended = True
-        out: list[be.Message] = [be.Completed(execution.id, execution.outcome)]
+        out: list[be.Message] = [
+            be.Completed(execution.id, execution.outcome, depends_on or {})
+        ]
         self._failed |= isinstance(execution.outcome, protocol.ErrorOutcome)
         self.interrupted |= isinstance(
             execution.outcome, protocol.InterruptedOutcome

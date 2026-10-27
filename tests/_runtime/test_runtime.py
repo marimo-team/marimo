@@ -324,12 +324,12 @@ class TestExecution:
             notify_frontend=False,
         )
 
-        [notification] = [
+        notifications = [
             m
             for m in mocked_kernel.stream.parsed_operations
             if isinstance(m, VariableValuesNotification)
         ]
-        assert [(v.name, v.value) for v in notification.variables] == [
+        assert [(v.name, v.value) for v in notifications[-1].variables] == [
             ("array", "[5]")
         ]
 

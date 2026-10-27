@@ -2062,6 +2062,15 @@ components:
           - type: string
           - type: 'null'
           default: null
+        depends_on:
+          anyOf:
+          - additionalProperties:
+              anyOf:
+              - $ref: '#/components/schemas/Revision'
+              - type: 'null'
+            type: object
+          - type: 'null'
+          default: null
         execution_id:
           type: string
         op:
@@ -4789,6 +4798,22 @@ components:
     RequestId:
       format: request-id
       type: string
+    Revision:
+      properties:
+        execution:
+          description: Identifies an execution. Unique within the host.
+          minLength: 1
+          type: string
+        update:
+          description: How many times the value has been updated since it was produced.
+            Zero at binding.
+          minimum: 0
+          type: integer
+      required:
+      - execution
+      - update
+      title: Revision
+      type: object
     RunningNotebooksResponse:
       properties:
         files:
@@ -6290,8 +6315,18 @@ components:
           anyOf:
           - type: string
           - type: 'null'
+        execution_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
         name:
           type: string
+        revision:
+          anyOf:
+          - $ref: '#/components/schemas/Revision'
+          - type: 'null'
+          default: null
         value:
           anyOf:
           - type: string
