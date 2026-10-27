@@ -39,6 +39,9 @@ function abortable<T>(
 export function createWasmNotebookBackend(
   bridge: WasmNotebookBridge,
 ): NotebookBackend {
+  const client = NotebookClient.unstable_over((call) => bridge.call(call), {
+    notebookId: bridge.notebookId,
+  });
   return {
     transport: async ({ cursor, signal }, { open, message }) => {
       if (signal.aborted) {
@@ -85,8 +88,6 @@ export function createWasmNotebookBackend(
         signal.removeEventListener("abort", abort);
       }
     },
-    client: NotebookClient.unstable_over((call) => bridge.call(call), {
-      notebookId: bridge.notebookId,
-    }),
+    notebook: () => client,
   };
 }

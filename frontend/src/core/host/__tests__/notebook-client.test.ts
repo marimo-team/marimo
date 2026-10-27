@@ -6,8 +6,9 @@ import { createStore } from "jotai";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { Deferred } from "@/utils/Deferred";
 import { ConnectionState } from "../../websocket/types";
+import type { NotebookBackend } from "../backend";
 import type { ConnectionStatus } from "../connection";
-import { createNotebookClient, type NotebookClient } from "../notebook-client";
+import { createNotebookClient } from "../notebook-client";
 import { fixtureEvents, fixtureMessages } from "./fixtures";
 
 /** One connection the fake transport opened. */
@@ -22,7 +23,14 @@ interface Attempt {
   stop(status?: ConnectionStatus): void;
 }
 
-function setup(edit?: NotebookClient["edit"]) {
+type Commands = ReturnType<NotebookBackend["notebook"]>;
+/** A backend edit with the notebook it was sent to. */
+type Edit = (
+  id: string,
+  ...args: Parameters<Commands["edit"]>
+) => ReturnType<Commands["edit"]>;
+
+function setup(edit = vi.fn<Edit>()) {
   const attempts: Attempt[] = [];
   const transport: NotebookTransport = ({ cursor, signal }, handlers) =>
     new Promise((resolve, reject) => {
@@ -40,11 +48,15 @@ function setup(edit?: NotebookClient["edit"]) {
   const onNotification = vi.fn();
   const checkHealth = vi.fn(async () => true);
   const store = createStore();
-  const controller = createNotebookClient(store, { edit });
+  const backend: NotebookBackend = {
+    transport,
+    notebook: (id) => ({ edit: (...args) => edit(id, ...args) }),
+  };
+  const controller = createNotebookClient(store);
   const client = controller.client;
   const connect = (signal: AbortSignal) =>
     controller.connect({
-      transport,
+      backend,
       signal,
       checkHealth,
       onNotification: (notification) => onNotification({ data: notification }),
@@ -99,7 +111,7 @@ const notebook = {
 
 describe("NotebookClient lifetime", () => {
   it("keeps an edit's target and request identity across a stream reset", async () => {
-    const edit = vi.fn<NotebookClient["edit"]>().mockResolvedValue({
+    const edit = vi.fn<Edit>().mockResolvedValue({
       ok: false,
       status: 409,
       problem: { type: "conflict", title: "conflict", status: 409 },
@@ -127,7 +139,7 @@ describe("NotebookClient lifetime", () => {
     expect(edit).toHaveBeenCalledTimes(2);
   });
 
-  it("rejects aborted edits and reports a missing edit adapter", async () => {
+  it("rejects aborted edits and reports edits before connecting", async () => {
     const { client } = setup();
     const controller = lifetime();
     await expect(

@@ -7,8 +7,6 @@ import {
   type StreamUrl,
 } from "@marimo-team/client";
 import { jsonParseWithSpecialChar } from "@/utils/json/json-parser";
-import { PyodideBridge } from "../../wasm/bridge";
-import { isWasm } from "../../wasm/utils";
 import { classifyCloseEvent } from "../connection-state";
 
 /** The server can be slow to accept when many notebooks are open. */
@@ -38,6 +36,19 @@ async function resolve(url: StreamUrl): Promise<URL | undefined> {
     }
     return undefined;
   }
+}
+
+/** Send each request with the runtime's headers, read before each request. */
+export function withHeaders(
+  headers: () => Record<string, string>,
+): typeof globalThis.fetch {
+  return (input, init) => {
+    const sent = new Headers(init?.headers);
+    for (const [name, value] of Object.entries(headers())) {
+      sent.set(name, value);
+    }
+    return globalThis.fetch(input, { ...init, headers: sent });
+  };
 }
 
 /** A resume cursor and replica belong to the session that produced them. */
@@ -131,13 +142,7 @@ export function sessionSse(
   return withSessionIdentity(url, (target) =>
     sse(target, {
       parseData: jsonParseWithSpecialChar,
-      fetch: (input, init) => {
-        const sent = new Headers(init?.headers);
-        for (const [name, value] of Object.entries(headers())) {
-          sent.set(name, value);
-        }
-        return globalThis.fetch(input, { ...init, headers: sent });
-      },
+      fetch: withHeaders(headers),
       stop: (frame) =>
         frame.event === "close"
           ? stopOn(frame.data as { code?: number; reason?: string })
@@ -147,7 +152,7 @@ export function sessionSse(
 }
 
 /** A connection that opens and delivers nothing, for static notebooks. */
-const idle: NotebookTransport = ({ signal }, { open }) =>
+export const idle: NotebookTransport = ({ signal }, { open }) =>
   new Promise((settle) => {
     open();
     signal.addEventListener("abort", () => settle(), { once: true });
@@ -182,32 +187,4 @@ export function pyodide(
       });
       signal.addEventListener("abort", () => settle(), { once: true });
     });
-}
-
-/** How the editor follows its notebook. */
-export interface NotebookTransportOptions {
-  static: boolean;
-  transportType: "websocket" | "sse";
-  /** The session route, read before each connection. */
-  url: StreamUrl;
-  /** The runtime's headers, read before each request. */
-  headers: () => Record<string, string>;
-}
-
-/** Choose the transport for the editor's notebook. */
-export function createNotebookTransport(
-  options: NotebookTransportOptions,
-): NotebookTransport {
-  if (options.static) {
-    return idle;
-  }
-  if (isWasm()) {
-    return pyodide((consumer) =>
-      PyodideBridge.INSTANCE.attachMessageConsumer(consumer),
-    );
-  }
-  if (options.transportType === "sse") {
-    return sessionSse(options.url, options.headers);
-  }
-  return websocket(options.url);
 }

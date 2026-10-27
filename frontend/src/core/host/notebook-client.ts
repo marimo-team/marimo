@@ -5,7 +5,6 @@ import {
   createNotebookReducer,
   type NotebookEvent,
   NotebookEvents,
-  type NotebookTransport,
   type Result,
   StreamStopped,
 } from "@marimo-team/client";
@@ -18,6 +17,7 @@ import type {
 } from "@marimo-team/client/protocol";
 import { type Atom, atom, type createStore } from "jotai/vanilla";
 import { z } from "zod";
+import type { NotebookBackend } from "./backend";
 import {
   ConnectionClosedReason,
   ConnectionState,
@@ -60,10 +60,10 @@ export interface NotebookClient {
   reconnect(): Promise<void>;
 }
 
-/** The transport and application callbacks needed to follow a notebook. */
+/** The backend and application callbacks needed to follow a notebook. */
 export interface NotebookConnection {
-  /** Opens one connection to the notebook's stream. */
-  transport: NotebookTransport;
+  /** Follows the notebook's stream and sends its commands. */
+  backend: NotebookBackend;
   /** Abort to close the stream and clear the client's state. */
   signal: AbortSignal;
   /** Check whether the host is reachable before an explicit reconnect. */
@@ -103,14 +103,8 @@ function statusAfter(error: unknown): ConnectionStatus {
   return disconnected;
 }
 
-/**
- * Create a client without opening a connection.
- * The session supplies edits authenticated for the same host as its stream.
- */
-export function createNotebookClient(
-  store: ReturnType<typeof createStore>,
-  { edit }: { edit?: NotebookClient["edit"] } = {},
-) {
+/** Create a client without opening a connection. */
+export function createNotebookClient(store: ReturnType<typeof createStore>) {
   // `useNotebookSession` copies this into the editor's shared `connectionAtom`,
   // which gates features until MO-8051 derives availability separately.
   const connectionAtom = atom<ConnectionStatus>({
@@ -137,6 +131,7 @@ export function createNotebookClient(
       : attachments.initial,
   );
   let reconnect: (() => Promise<void>) | undefined;
+  let backend: NotebookBackend | undefined;
   const client: NotebookClient = {
     connectionAtom,
     notebookAtom,
@@ -147,7 +142,7 @@ export function createNotebookClient(
       if (currentId !== null && currentId !== notebookId) {
         throw new Error("The notebook changed before the edit was sent");
       }
-      if (edit === undefined) {
+      if (backend === undefined) {
         return {
           ok: false,
           status: 501,
@@ -158,7 +153,7 @@ export function createNotebookClient(
           },
         };
       }
-      return edit(notebookId, changes, options);
+      return backend.notebook(notebookId).edit(changes, options);
     },
     attachmentsAtom,
     reconnect: async () => reconnect?.(),
@@ -170,7 +165,7 @@ export function createNotebookClient(
   }
 
   function connect({
-    transport,
+    backend: connected,
     signal,
     checkHealth,
     onNotification,
@@ -178,6 +173,8 @@ export function createNotebookClient(
     if (signal.aborted) {
       return;
     }
+    backend = connected;
+    const { transport } = connected;
     let events: NotebookEvents<(typeof TYPES)[number]> | undefined;
     let checkingHealth = false;
     // Whether the replica still holds the state the last cursor describes.
@@ -283,6 +280,9 @@ export function createNotebookClient(
       "abort",
       () => {
         reconnect = undefined;
+        if (backend === connected) {
+          backend = undefined;
+        }
         store.set(streamAtom, reducer.initial);
         setStatus({ state: ConnectionState.NOT_STARTED });
       },

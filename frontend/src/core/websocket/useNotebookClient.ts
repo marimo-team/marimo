@@ -13,12 +13,9 @@ import {
   type NotebookClient,
 } from "../host/notebook-client";
 import { notebookClientAtom } from "./state";
-import {
-  createNotebookTransport,
-  type NotebookTransportOptions,
-} from "./transports/notebook";
+import { createEditorBackend, type EditorBackendOptions } from "./backend";
 
-type Options = Omit<NotebookTransportOptions, "url"> & {
+type Options = Omit<EditorBackendOptions, "url"> & {
   /** The session route, read before each connection. */
   url: () => string;
   /** Wait until the host can accept a connection. */
@@ -33,6 +30,7 @@ export function useNotebookClient(options: Options): NotebookClient {
   const controller = useMemo(() => createNotebookClient(store), [store]);
   const url = useEvent(options.url);
   const headers = useEvent(options.headers);
+  const notebookUrl = useEvent(options.notebookUrl);
   const waitUntilReady = useEvent(options.waitUntilReady);
   const checkHealth = useEvent(options.checkHealth);
   const onNotification = useEvent(options.onNotification);
@@ -42,7 +40,7 @@ export function useNotebookClient(options: Options): NotebookClient {
     let needsInitialReadiness = true;
     store.set(notebookClientAtom, controller.client);
     controller.connect({
-      transport: createNotebookTransport({
+      backend: createEditorBackend({
         static: isStatic,
         transportType,
         url: async () => {
@@ -60,6 +58,7 @@ export function useNotebookClient(options: Options): NotebookClient {
           return url();
         },
         headers,
+        notebookUrl,
       }),
       signal: lifetime.signal,
       checkHealth,
@@ -80,6 +79,7 @@ export function useNotebookClient(options: Options): NotebookClient {
     transportType,
     url,
     headers,
+    notebookUrl,
     waitUntilReady,
     checkHealth,
     onNotification,

@@ -8,13 +8,19 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { NotebookTransport } from "@marimo-team/client";
 import { ConnectionState } from "../types";
 import { Deferred } from "@/utils/Deferred";
-import { createNotebookTransport } from "../transports/notebook";
+import type { NotebookBackend } from "../../host/backend";
+import { createEditorBackend } from "../backend";
 import { useNotebookClient } from "../useNotebookClient";
 import { fixtureMessages } from "../../host/__tests__/fixtures";
 import { agentAttachmentsAtom } from "../../attachments/state";
 import { notebookClientAtom } from "../state";
 
-vi.mock("../transports/notebook", () => ({ createNotebookTransport: vi.fn() }));
+vi.mock("../backend", () => ({ createEditorBackend: vi.fn() }));
+
+/** A backend that follows `transport` and cannot edit. */
+function backend(transport: NotebookTransport): NotebookBackend {
+  return { transport, notebook: () => ({ edit: vi.fn() }) };
+}
 
 /** A transport whose connections the test drives. */
 function makeTransport() {
@@ -53,6 +59,7 @@ function setup(
     transportType: "websocket" as const,
     url: () => "ws://localhost/ws",
     headers: () => ({}),
+    notebookUrl: (id: string) => new URL(`http://localhost/notebooks/${id}`),
     waitUntilReady: async () => undefined,
     checkHealth: async () => true,
     onNotification: vi.fn(),
@@ -70,7 +77,7 @@ function setup(
 }
 
 beforeEach(() => {
-  vi.mocked(createNotebookTransport).mockReset();
+  vi.mocked(createEditorBackend).mockReset();
 });
 
 describe("useNotebookClient", () => {
@@ -78,16 +85,15 @@ describe("useNotebookClient", () => {
     "rechecks health after failed startup (healthy: %s)",
     async (healthy) => {
       const fake = makeTransport();
-      vi.mocked(createNotebookTransport).mockImplementation(
-        ({ url }) =>
-          async (attempt, handlers) => {
-            if (typeof url === "function") {
-              await url();
-            }
-            if (!attempt.signal.aborted) {
-              return fake.transport(attempt, handlers);
-            }
-          },
+      vi.mocked(createEditorBackend).mockImplementation(({ url }) =>
+        backend(async (attempt, handlers) => {
+          if (typeof url === "function") {
+            await url();
+          }
+          if (!attempt.signal.aborted) {
+            return fake.transport(attempt, handlers);
+          }
+        }),
       );
       const waitUntilReady = vi
         .fn()
@@ -125,14 +131,13 @@ describe("useNotebookClient", () => {
   it("waits for initial readiness without reviving an unmounted connection", async () => {
     const ready = new Deferred<void>();
     const resolvedUrl = vi.fn();
-    vi.mocked(createNotebookTransport).mockImplementation(
-      ({ url }) =>
-        async () => {
-          if (typeof url === "function") {
-            await url();
-            resolvedUrl();
-          }
-        },
+    vi.mocked(createEditorBackend).mockImplementation(({ url }) =>
+      backend(async () => {
+        if (typeof url === "function") {
+          await url();
+          resolvedUrl();
+        }
+      }),
     );
     const { result, store, unmount } = setup(false, {
       waitUntilReady: () => ready.promise,
@@ -152,7 +157,7 @@ describe("useNotebookClient", () => {
 
   it("exposes host presence to the UI without waiting for kernel-ready", async () => {
     const fake = makeTransport();
-    vi.mocked(createNotebookTransport).mockReturnValue(fake.transport);
+    vi.mocked(createEditorBackend).mockReturnValue(backend(fake.transport));
     const { result, store, unmount } = setup();
     await act(async () => Promise.resolve());
     expect(store.get(notebookClientAtom)).toBe(result.current);
@@ -177,7 +182,7 @@ describe("useNotebookClient", () => {
 
   it("uses current callbacks and URL providers without reconnecting on a rerender", async () => {
     const fake = makeTransport();
-    vi.mocked(createNotebookTransport).mockReturnValue(fake.transport);
+    vi.mocked(createEditorBackend).mockReturnValue(backend(fake.transport));
     const { rerender, options, unmount } = setup();
     await act(async () => Promise.resolve());
     const onNotification = vi.fn();
@@ -187,8 +192,8 @@ describe("useNotebookClient", () => {
     expect(onNotification).toHaveBeenCalledExactlyOnceWith({
       data: { op: "reconnected" },
     });
-    expect(createNotebookTransport).toHaveBeenCalledOnce();
-    const [{ url }] = vi.mocked(createNotebookTransport).mock.calls[0];
+    expect(createEditorBackend).toHaveBeenCalledOnce();
+    const [{ url }] = vi.mocked(createEditorBackend).mock.calls[0];
     expect(String(await (url as () => Promise<string>)())).toBe(
       "ws://redirected/ws",
     );
@@ -197,10 +202,10 @@ describe("useNotebookClient", () => {
 
   it("closes every stream under Strict Mode and only follows the active lifetime", async () => {
     const fakes: ReturnType<typeof makeTransport>[] = [];
-    vi.mocked(createNotebookTransport).mockImplementation(() => {
+    vi.mocked(createEditorBackend).mockImplementation(() => {
       const next = makeTransport();
       fakes.push(next);
-      return next.transport;
+      return backend(next.transport);
     });
     const { result, store, options, unmount } = setup(true);
     await act(async () => Promise.resolve());
