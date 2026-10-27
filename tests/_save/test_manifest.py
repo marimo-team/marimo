@@ -588,6 +588,35 @@ class TestRecording:
         assert all(is_manifest_name(key) for key in keys)
 
     @staticmethod
+    async def test_repeated_cell_hit_does_not_rewrite_manifest(
+        tmp_path: Path,
+        exec_req: ExecReqProvider,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        request = exec_req.get("x = 42")
+        with _notebook_kernel(tmp_path, cache_cells=True) as (k, _, _):
+            await k.run([request])
+
+        with _recorded_puts(monkeypatch) as keys:
+            with _notebook_kernel(tmp_path, cache_cells=True) as (
+                k,
+                notebook,
+                cache_dir,
+            ):
+                await k.run([request])
+                assert not k.stderr.messages
+                assert k.globals["x"] == 42
+                assert keys == [manifest_name(notebook)]
+                recorded = _manifest(notebook, cache_dir)
+                keys.clear()
+
+                await k.run([request])
+                assert not k.stderr.messages
+                assert k.globals["x"] == 42
+                assert keys == []
+                assert _manifest(notebook, cache_dir) == recorded
+
+    @staticmethod
     async def test_teardown_writes_what_a_failed_flush_left_pending(
         tmp_path: Path,
         exec_req: ExecReqProvider,
