@@ -33,13 +33,13 @@ class Snapshot:
 
     cells: dict[str, protocol.Cell]
     executions: dict[str, protocol.Execution]
-    variables: tuple[protocol.Variable, ...]
+    variables: dict[str, protocol.Variable]
 
     @classmethod
     def decode(cls, records: list[dict[str, Any]]) -> Snapshot:
         cells: dict[str, protocol.Cell] = {}
         executions: dict[str, protocol.Execution] = {}
-        variables: list[protocol.Variable] = []
+        variables: dict[str, protocol.Variable] = {}
         for record in records:
             event = record.get("event")
             raw = msgspec.json.encode(record.get("data"))
@@ -52,12 +52,17 @@ class Snapshot:
                 ).execution
                 executions[execution.id] = execution
             elif event == "variable":
-                variables.append(
-                    msgspec.json.decode(
-                        raw, type=protocol.VariableMessage
-                    ).variable
-                )
-        return cls(cells, executions, tuple(variables))
+                variable = msgspec.json.decode(
+                    raw, type=protocol.VariableMessage
+                ).variable
+                variables[variable.id] = variable
+            elif event == "cell.removed":
+                cells.pop(record["data"]["id"], None)
+            elif event == "execution.removed":
+                executions.pop(record["data"]["id"], None)
+            elif event == "variable.removed":
+                variables.pop(record["data"]["id"], None)
+        return cls(cells, executions, variables)
 
     def latest(self, cell_id: str) -> protocol.Execution | None:
         """The cell's completed execution, if it has one."""
@@ -100,12 +105,12 @@ class Snapshot:
         self, name: str, revision: protocol.Revision | None
     ) -> Outdated | None:
         if revision is None:
-            bound = any(v.name == name for v in self.variables)
+            bound = any(v.name == name for v in self.variables.values())
             return "replaced" if bound else None
         variable = next(
             (
                 v
-                for v in self.variables
+                for v in self.variables.values()
                 if v.name == name
                 and v.revision.execution == revision.execution
             ),
@@ -118,17 +123,24 @@ class Snapshot:
         return self._reason(self.executions[variable.execution_id])
 
 
-async def snapshot(app: Starlette, notebook_id: str) -> Snapshot:
-    """Connect as a new client and read the notebook's state."""
+async def read_events(
+    app: Starlette, notebook_id: str, *, cursor: str | None = None
+) -> list[dict[str, Any]]:
+    """Read a snapshot or replay through its ready boundary, then disconnect."""
+    headers = AUTH if cursor is None else {**AUTH, "Last-Event-ID": cursor}
     response, task, disconnect = request(
-        app, "GET", f"/notebooks/{notebook_id}/events", headers=AUTH
+        app, "GET", f"/notebooks/{notebook_id}/events", headers=headers
     )
     try:
         await wait_for(response, lambda r: "ready" in r.names())
     finally:
         disconnect()
         await asyncio.wait_for(task, 5)
-    ready = response.names().index("ready")
-    return Snapshot.decode(
-        [r for r in response.records if "event" in r][:ready]
-    )
+    records = [r for r in response.records if "event" in r]
+    ready = next(i for i, r in enumerate(records) if r["event"] == "ready")
+    return records[: ready + 1]
+
+
+async def snapshot(app: Starlette, notebook_id: str) -> Snapshot:
+    """Connect as a new client and read the notebook's state."""
+    return Snapshot.decode(await read_events(app, notebook_id))
