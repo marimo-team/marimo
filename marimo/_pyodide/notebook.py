@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -11,6 +12,7 @@ import msgspec
 from marimo._core import protocol
 from marimo._core.calls import OperationCall, dispatch
 from marimo._core.document import Document
+from marimo._core.errors import Conflict, Invalid
 from marimo._core.executions import Executions
 from marimo._core.host import Host
 from marimo._core.ids import mint
@@ -27,9 +29,10 @@ from marimo._pyodide.kernel_ready import kernel_ready
 from marimo._server.host import document as documents
 from marimo._server.host.events import notification_event, serialize_event
 from marimo._session.model import SessionMode
+from marimo._session.notebook.writer import NotebookWriter, cells_to_ir
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Mapping, Sequence
+    from collections.abc import Awaitable, Callable, Mapping, Sequence
 
     from marimo._core.stream import Sink
     from marimo._messaging.notification import NotificationMessage
@@ -71,7 +74,9 @@ class PyodideNotebook:
         self._session = session
         self._subscriptions: dict[str, Callable[[], None]] = {}
         self._closed = False
-        self.host = Host(operations=("notebook.edit",))
+        self._save_lock = asyncio.Lock()
+        self._persist: Callable[[str, str], Awaitable[None]] | None = None
+        self.host = Host(operations=("notebook.edit", "notebook.save"))
         project_id = mint(protocol.ProjectId, "p")
         self.id = mint(protocol.NotebookId, "n")
         self.host.update_project(
@@ -92,7 +97,7 @@ class PyodideNotebook:
                 name=Path(filename).name if filename else "Untitled",
                 path=None,
                 updated_at=None,
-                operations=("notebook.edit",)
+                operations=("notebook.edit", "notebook.save")
                 if session.mode is SessionMode.EDIT
                 else (),
             ),
@@ -220,6 +225,11 @@ class PyodideNotebook:
             self._session.put_control_request(update)
         return result
 
+    def set_persistence(
+        self, persist: Callable[[str, str], Awaitable[None]]
+    ) -> None:
+        self._persist = persist
+
     async def save(
         self,
         notebook_id: str,
@@ -228,7 +238,33 @@ class PyodideNotebook:
         decisions: Mapping[str, str],
         request_id: str,
     ) -> protocol.EditResponse:
-        raise NotImplementedError("Worker saves are not exposed yet")
+        notebook = await self.host.notebook(notebook_id)
+        async with self._save_lock:
+            if decisions:
+                raise Invalid("Worker saves do not require decisions")
+            if self._persist is None:
+                raise Conflict("Notebook persistence is unavailable")
+            if if_match is not None:
+                notebook.require_revision(if_match)
+            revision = notebook.document
+            manager = self._session.app_manager
+            path = Path(manager.filename or "notebook.py")
+            ir = cells_to_ir(
+                (documents.to_notebook_cell(cell) for cell in revision),
+                revision.app_config,
+                header=manager.app._app._header,
+            )
+            try:
+                contents = NotebookWriter().write_ir(
+                    path, notebook=ir, persist=False
+                )
+                await self._persist(contents, str(path))
+            except Exception as e:
+                raise Conflict(f"The notebook cannot be saved: {e}") from e
+            document = notebook.mark_saved(
+                revision.etag, request_id=request_id
+            )
+            return protocol.EditResponse(document=document, cells={})
 
     def close(self) -> None:
         self._closed = True
