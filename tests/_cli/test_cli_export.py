@@ -36,6 +36,7 @@ from tests._server.templates.utils import (
 from tests.mocks import (
     _sanitize_version,
     delete_lines_with_files,
+    fake_async_playwright,
     simplify_images,
     simplify_plotly,
     snapshotter,
@@ -2060,6 +2061,67 @@ class TestExportPDF:
         assert "Exporting PDF: rendering PDF via WebPDF..." in result.output
         assert "Exporting PDF: done." in result.output
         assert mock_run_app.await_count == 1
+
+
+def test_thumbnail_screenshots_from_a_selector_loop(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from marimo._cli.export import thumbnail
+    from marimo._utils.marimo_path import MarimoPath
+
+    loops: dict[str, asyncio.AbstractEventLoop] = {}
+
+    def record(name: str) -> Any:
+        async def side_effect(*_: object, **__: object) -> Any:
+            loops[name] = asyncio.get_running_loop()
+            return mock.DEFAULT
+
+        return side_effect
+
+    playwright = mock.MagicMock()
+    launch = playwright.chromium.launch = mock.AsyncMock(
+        side_effect=record("launch")
+    )
+    page = launch.return_value.new_context.return_value.new_page.return_value
+    page.screenshot.side_effect = record("screenshot")
+    async_api = mock.MagicMock()
+    async_api.async_playwright = fake_async_playwright(playwright)
+    monkeypatch.setitem(sys.modules, "playwright.async_api", async_api)
+    (tmp_path / "_static").mkdir()
+    monkeypatch.setattr(thumbnail, "marimo_package_path", lambda: tmp_path)
+    monkeypatch.setattr(
+        thumbnail,
+        "_render_html",
+        mock.AsyncMock(side_effect=record("render"), return_value="<html>"),
+    )
+    notebook = tmp_path / "notebook.py"
+    notebook.write_text("import marimo\n")
+
+    with asyncio.Runner(loop_factory=asyncio.SelectorEventLoop) as runner:
+        runner.run(
+            thumbnail._generate_thumbnails(
+                notebooks=[MarimoPath(notebook)],
+                width=1200,
+                height=630,
+                scale=1,
+                timeout_ms=0,
+                output=tmp_path / "thumbnail.png",
+                overwrite=True,
+                include_code=False,
+                execute=False,
+                notebook_args=(),
+                continue_on_error=False,
+                sandbox=None,
+            )
+        )
+        # Sessions render on the caller's loop. Playwright objects only work
+        # on the loop that started their driver.
+        assert loops["render"] is runner.get_loop()
+        assert loops["screenshot"] is loops["launch"]
+
+    page.screenshot.assert_awaited_once_with(
+        path=str(tmp_path / "thumbnail.png"), full_page=False
+    )
 
 
 @pytest.mark.skipif(
