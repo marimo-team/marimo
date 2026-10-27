@@ -2299,6 +2299,55 @@ def test_editor_operations_need_credentials_and_the_server_token(
     assert harness.backends == {}
 
 
+@pytest.mark.parametrize("base_url", ["", "/app"])
+@pytest.mark.parametrize(
+    ("method", "operation", "origin", "status"),
+    [
+        ("POST", "/edits", "http://editor.example", 200),
+        ("PUT", "/runtime", "http://editor.example", 200),
+        ("DELETE", "/runtime", "http://editor.example", 200),
+        ("PUT", "/runtime", "http://other.example", 400),
+        ("GET", "/edits", "http://editor.example", 403),
+        ("PATCH", "", "http://editor.example", 403),
+    ],
+)
+def test_editor_operation_preflights(
+    harness: Harness,
+    base_url: str,
+    method: str,
+    operation: str,
+    origin: str,
+    status: int,
+) -> None:
+    app = create_starlette_app(
+        base_url=base_url, allow_origins=("http://editor.example",)
+    )
+    get_starlette_server_state_init(
+        session_manager=harness.app.state.session_manager, base_url=base_url
+    ).apply(app.state)
+    app.state.host_context = harness.app.state.host_context
+    with TestClient(
+        with_client_address(app, ("192.0.2.1", 50000)),
+        base_url="http://notebooks.example:1234",
+    ) as client:
+        path = f"{base_url}{HOST_API_PATH}/notebooks/{harness.notebook_id}"
+        response = client.options(
+            f"{path}{operation}",
+            headers={
+                "Origin": origin,
+                "Access-Control-Request-Method": method,
+                "Access-Control-Request-Headers": (
+                    "content-type,idempotency-key,marimo-server-token"
+                ),
+            },
+        )
+    assert (
+        response.status_code,
+        response.headers.get("access-control-allow-origin"),
+    ) == (status, origin if status == 200 else None)
+    assert harness.backends == {}
+
+
 @pytest.mark.parametrize("token", ["wrong", TOKEN])
 def test_event_socket_query_requires_the_editor_token(
     harness: Harness, token: str

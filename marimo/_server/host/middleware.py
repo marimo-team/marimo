@@ -123,6 +123,14 @@ class HostApiMiddleware:
         return path == self.prefix or path.startswith(self.prefix + "/")
 
     def _for_editor(self, scope: Scope) -> bool:
+        if scope.get("method") == "OPTIONS":
+            # Match the operation requested by the CORS preflight.
+            scope = {
+                **scope,
+                "method": HTTPConnection(scope).headers.get(
+                    "Access-Control-Request-Method", ""
+                ),
+            }
         return any(
             route.matches(scope)[0] is Match.FULL
             for route in self.editor_routes
