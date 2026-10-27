@@ -52,7 +52,10 @@ import { RuntimeManager } from "../../runtime/runtime";
 import { WebSocketClosedReason, ConnectionState } from "../types";
 import { classifyCloseEvent } from "../../transports/connection-state";
 import { createEditorBackend } from "../backend";
-import { fakeBackend } from "../../notebook/replica/__tests__/fixtures";
+import {
+  fakeBackend,
+  fixtureMessages,
+} from "../../notebook/replica/__tests__/fixtures";
 import { useNotebookSession } from "../useNotebookSession";
 import { type NotebookTransport, StreamStopped } from "@marimo-team/client";
 
@@ -142,7 +145,10 @@ function makeRuntimeManager(
   return runtime;
 }
 
-function renderConnectionHook(store: ReturnType<typeof createStore>) {
+function renderConnectionHook(
+  store: ReturnType<typeof createStore>,
+  { reactStrictMode = false } = {},
+) {
   const wrapper: React.FC<React.PropsWithChildren> = ({ children }) => (
     <JotaiProvider store={store}>
       <ErrorBoundary fallback={null}>{children}</ErrorBoundary>
@@ -155,7 +161,7 @@ function renderConnectionHook(store: ReturnType<typeof createStore>) {
         autoInstantiate: false,
         setCells: vi.fn(),
       }),
-    { wrapper },
+    { wrapper, reactStrictMode },
   );
 }
 
@@ -225,6 +231,34 @@ describe("useNotebookSession.reconnect()", () => {
       code: WebSocketClosedReason.KERNEL_DISCONNECTED,
       reason: "kernel not found",
     });
+  });
+});
+
+describe("useNotebookSession document model", () => {
+  it("keeps drafts while the connection drops and discards them when the session ends", async () => {
+    const fake = withTransport();
+    vi.mocked(useRuntimeManager).mockReturnValue(makeRuntimeManager());
+    const store = createStore();
+    const { result, unmount } = renderConnectionHook(store, {
+      reactStrictMode: true,
+    });
+    await started();
+    act(() => {
+      connection(fake).open();
+      fixtureMessages("notebook-events.sse").forEach(connection(fake).receive);
+    });
+    const model = result.current.documentModel;
+    const code = () => store.get(model.documentAtom)?.cells.get("c1")?.code;
+    act(() => store.set(model.editAtom, (tx) => tx.setCode("c1", "local")));
+    expect(code()).toBe("local");
+
+    await act(async () => connection(fake).drop());
+    expect(result.current.documentModel).toBe(model);
+    expect(code()).toBe("local");
+
+    unmount();
+    expect(code()).toBeUndefined();
+    await expect(model.flush()).rejects.toThrow("not started");
   });
 });
 

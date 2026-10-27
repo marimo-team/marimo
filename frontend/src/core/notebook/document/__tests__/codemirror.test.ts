@@ -84,14 +84,14 @@ function setup({
 } = {}) {
   const store = createStore();
   const source = atom(initial);
-  const controller = new AbortController();
-  lifetimes.push(controller);
   const model = createDocumentModel({
     store,
     documentAtom: source,
     backendAtom: atom(fakeBackend({ edit: () => new Promise(() => {}) })),
-    signal: controller.signal,
   });
+  const controller = new AbortController();
+  lifetimes.push(controller);
+  model.start({ signal: controller.signal });
   const editor = (text = doc) => {
     const view = new EditorView({
       state: EditorState.create({

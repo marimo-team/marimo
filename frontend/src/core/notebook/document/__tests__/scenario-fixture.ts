@@ -15,8 +15,8 @@ function createSession(initial: Document, controller: AbortController) {
     store,
     documentAtom: notebook.documentAtom,
     backendAtom: notebook.backendAtom,
-    signal: controller.signal,
   });
+  model.start({ signal: controller.signal });
   return {
     user: createUser(store, model),
     host: control,

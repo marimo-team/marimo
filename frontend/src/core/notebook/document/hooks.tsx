@@ -12,8 +12,8 @@ const DocumentContext = createContext<DocumentModel | null>(null);
 
 /**
  * Expose a session-owned model to React. Construct the model with the same store
- * as the enclosing Jotai Provider. The session owner controls its AbortSignal;
- * mounting or unmounting this provider does not change the model's lifetime.
+ * as the enclosing Jotai Provider. The session owner starts it; mounting or
+ * unmounting this provider does not change the model's lifetime.
  *
  * ```tsx
  * <Provider store={store}>
