@@ -99,6 +99,14 @@ describe("WASM notebook backend", () => {
     ).rejects.toBeInstanceOf(StreamStopped);
   });
 
+  it("refuses commands for any notebook but the worker's", () => {
+    const { bridge } = worker();
+    expect(() => createWasmNotebookBackend(bridge).notebook("n2")).toThrow(
+      "serves notebook n1, not n2",
+    );
+    expect(bridge.call).not.toHaveBeenCalled();
+  });
+
   it("sends edits as calls with the retry key and validates replies", async () => {
     const { bridge, reply } = worker();
     const backend = createWasmNotebookBackend(bridge);

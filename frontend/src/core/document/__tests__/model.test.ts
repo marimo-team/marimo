@@ -5,8 +5,10 @@ import type * as Protocol from "@marimo-team/client/protocol";
 import { atom, createStore } from "jotai/vanilla";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Deferred } from "@/utils/Deferred";
+import type { NotebookBackend } from "../../host/backend";
 import type { Document } from "../../host/resources/document";
-import { createDocumentModel, type DocumentHost } from "../model";
+import { createDocumentModel } from "../model";
+import { type FakeEdit, fakeBackend } from "../../host/__tests__/fixtures";
 import { cell, document, withCells } from "./fixtures";
 
 function response(confirmed: Document): Result<Protocol.EditResponseOutput> {
@@ -30,11 +32,11 @@ async function expectAbort(promise: Promise<unknown>, reason: Error) {
 interface SentEdit {
   notebookId: Protocol.NotebookId;
   changes: readonly Protocol.Change[];
-  idempotencyKey: string;
-  signal: AbortSignal;
+  idempotencyKey?: string;
+  signal?: AbortSignal;
 }
 
-function setup() {
+function setup({ connected = true } = {}) {
   const store = createStore();
   const source = atom<Document | null>(document());
   const unmounted = vi.fn();
@@ -45,21 +47,24 @@ function setup() {
     replies.push(reply);
     return reply.promise;
   });
-  const host: DocumentHost = {
-    documentAtom: source,
+  const backend = fakeBackend({
     edit: (notebookId, changes, options) =>
       sent({ notebookId, changes, ...options }),
-  };
+  });
+  const backendAtom = atom<NotebookBackend | null>(connected ? backend : null);
   const controller = new AbortController();
   lifetimes.push(controller);
   const model = createDocumentModel({
     store,
-    notebook: host,
+    documentAtom: source,
+    backendAtom,
     signal: controller.signal,
   });
   return {
     store,
     source,
+    backend,
+    backendAtom,
     model,
     sent,
     replies,
@@ -88,11 +93,12 @@ describe("document synchronization", () => {
     const controller = new AbortController();
     const reason = new Error("Session ended");
     controller.abort(reason);
-    const edit = vi.fn<DocumentHost["edit"]>();
+    const edit = vi.fn<FakeEdit>();
     expect(() =>
       createDocumentModel({
         store,
-        notebook: { documentAtom: source, edit },
+        documentAtom: source,
+        backendAtom: atom(fakeBackend({ edit })),
         signal: controller.signal,
       }),
     ).toThrow(reason);
@@ -152,7 +158,34 @@ describe("document synchronization", () => {
     await vi.advanceTimersByTimeAsync(0);
     store.set(source, document("n2"));
     await rejected;
-    expect(sent.mock.calls[0][0].signal.aborted).toBe(true);
+    expect(sent.mock.calls[0][0].signal?.aborted).toBe(true);
     expect(status()).toMatchObject({ status: "error", retryable: false });
+  });
+
+  it("aborts an in-flight edit when the backend changes and never sends it to the new one", async () => {
+    const { store, backendAtom, sent, edit, model } = setup();
+    edit("local");
+    const rejected = expectFailure(model.flush(), "notebook changed");
+    await vi.advanceTimersByTimeAsync(0);
+    const other = vi.fn<FakeEdit>();
+    store.set(backendAtom, fakeBackend({ edit: other }));
+    await rejected;
+    expect(sent).toHaveBeenCalledOnce();
+    expect(sent.mock.calls[0][0].signal?.aborted).toBe(true);
+    expect(other).not.toHaveBeenCalled();
+  });
+
+  it("keeps edits as drafts until a backend is connected", async () => {
+    const { store, backend, backendAtom, sent, edit, status, value } = setup({
+      connected: false,
+    });
+    edit("local");
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(status()).toEqual({ status: "unavailable" });
+    expect(value()?.code).toBe("local");
+
+    store.set(backendAtom, backend);
+    await vi.advanceTimersByTimeAsync(400);
+    expect(sent).toHaveBeenCalledOnce();
   });
 });

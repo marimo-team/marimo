@@ -13,7 +13,8 @@ function createSession(initial: Document, controller: AbortController) {
   const { notebook, control } = createTestNotebook(store, initial);
   const model = createDocumentModel({
     store,
-    notebook,
+    documentAtom: notebook.documentAtom,
+    backendAtom: notebook.backendAtom,
     signal: controller.signal,
   });
   return {

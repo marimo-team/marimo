@@ -6,8 +6,8 @@ import { atom, type createStore } from "jotai/vanilla";
 import { vi } from "vitest";
 import { Deferred } from "@/utils/Deferred";
 import { invariant } from "@/utils/invariant";
+import { type FakeEdit, fakeBackend } from "../../host/__tests__/fixtures";
 import type { Document } from "../../host/resources/document";
-import type { DocumentHost } from "../model";
 import { createTestHost, type EditRequest } from "./test-host";
 
 export interface PendingRequest extends EditRequest {
@@ -33,19 +33,25 @@ export function createTestNotebook(
       documents.push(update);
     }
   }
-  const edit = vi.fn<DocumentHost["edit"]>((notebookId, changes, options) => {
-    options.signal.throwIfAborted();
+  const edit = vi.fn<FakeEdit>((notebookId, changes, options) => {
+    const signal = options?.signal;
+    const idempotencyKey = options?.idempotencyKey;
+    invariant(
+      signal !== undefined && idempotencyKey !== undefined,
+      "The test host answers edits that carry a key and a signal",
+    );
+    signal.throwIfAborted();
     const reply = new Deferred<Result<Protocol.EditResponseOutput>>();
     let outcome: Result<Protocol.EditResponseOutput> | undefined;
-    const abort = () => reply.reject(options.signal.reason);
-    const finish = () => options.signal.removeEventListener("abort", abort);
-    options.signal.addEventListener("abort", abort, { once: true });
+    const abort = () => reply.reject(signal.reason);
+    const finish = () => signal.removeEventListener("abort", abort);
+    signal.addEventListener("abort", abort, { once: true });
     void reply.promise.then(finish, finish);
     const request: PendingRequest = {
       notebookId,
       changes: structuredClone(changes),
-      idempotencyKey: options.idempotencyKey,
-      signal: options.signal,
+      idempotencyKey,
+      signal,
       process() {
         invariant(outcome === undefined, "Request was already processed");
         // Cancellation of the client's wait does not roll back a server commit.
@@ -74,7 +80,11 @@ export function createTestNotebook(
     }
     return reply.promise;
   });
-  const notebook = { documentAtom: source, edit } satisfies DocumentHost;
+  const notebook = {
+    documentAtom: source,
+    backendAtom: atom(fakeBackend({ edit })),
+    edit,
+  };
   return {
     notebook,
     control: {

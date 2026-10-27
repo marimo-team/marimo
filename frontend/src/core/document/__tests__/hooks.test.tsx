@@ -15,11 +15,10 @@ import {
   useCellOrder,
   useDocumentEdit,
   useDocumentSync,
-  type DocumentHost,
 } from "..";
 import { cell, CONFIG, document, withCells } from "./fixtures";
+import { type FakeEdit, fakeBackend } from "../../host/__tests__/fixtures";
 
-type HostEdit = DocumentHost["edit"];
 const lifetimes: AbortController[] = [];
 
 afterEach(() => {
@@ -28,7 +27,7 @@ afterEach(() => {
 
 function setup(
   initial: Document | null = document(),
-  edit: HostEdit = () => new Promise(() => {}),
+  edit: FakeEdit = () => new Promise(() => {}),
 ) {
   const store = createStore();
   const source = atom(initial);
@@ -38,7 +37,8 @@ function setup(
   lifetimes.push(controller);
   const model = createDocumentModel({
     store,
-    notebook: { documentAtom: source, edit },
+    documentAtom: source,
+    backendAtom: atom(fakeBackend({ edit })),
     signal: controller.signal,
   });
   const wrapper = ({ children }: PropsWithChildren) => (
@@ -53,14 +53,14 @@ describe("document hooks", () => {
   it("flushes edits through the model and aborts work when the session ends", async () => {
     const accepted = withCells(document(), { c1: cell("c1", "local") });
     const edit = vi
-      .fn<HostEdit>()
+      .fn<FakeEdit>()
       .mockResolvedValueOnce({
         ok: true,
         status: 200,
         data: { document: accepted.revision, cells: {} },
       })
       .mockImplementation(
-        () => new Deferred<Awaited<ReturnType<HostEdit>>>().promise,
+        () => new Deferred<Awaited<ReturnType<FakeEdit>>>().promise,
       );
     const { store, source, wrapper, controller } = setup(document(), edit);
     const { result, unmount } = renderHook(
@@ -98,7 +98,7 @@ describe("document hooks", () => {
       await rejected;
     });
     expect(edit).toHaveBeenCalledTimes(2);
-    expect(edit.mock.calls[1][2].signal.aborted).toBe(true);
+    expect(edit.mock.calls[1][2]?.signal?.aborted).toBe(true);
   });
 
   it("publishes compound edits atomically without changing host records", () => {
