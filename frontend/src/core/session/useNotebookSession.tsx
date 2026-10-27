@@ -2,12 +2,13 @@
 
 import { invalidatePackageData } from "@/core/packages/package-data";
 import { useAtom, useAtomValue, useSetAtom, useStore } from "jotai";
-import { useLayoutEffect } from "react";
+import { useEffect, useLayoutEffect, useMemo } from "react";
 import { useErrorBoundary } from "react-error-boundary";
 import { toast } from "@/components/ui/use-toast";
 import { getNotebook, useCellActions } from "@/core/cells/cells";
 import { applyTransactionChanges } from "@/core/cells/document-changes";
 import { AUTOCOMPLETER } from "@/core/codemirror/completion/Autocompleter";
+import { createDocumentModel } from "@/core/notebook/document";
 import type {
   NotificationMessageData,
   NotificationPayload,
@@ -440,6 +441,22 @@ export function useNotebookSession(opts: {
     },
   });
 
+  const documentModel = useMemo(
+    () =>
+      createDocumentModel({
+        store,
+        documentAtom: replica.documentAtom,
+        backendAtom: replica.backendAtom,
+      }),
+    [store, replica],
+  );
+  // Edits outlive reconnects and end with the session.
+  useEffect(() => {
+    const controller = new AbortController();
+    documentModel.start({ signal: controller.signal });
+    return () => controller.abort();
+  }, [documentModel]);
+
   // Subscribe before passive connection setup: static/WASM transports can emit synchronously.
   useLayoutEffect(() => {
     const updateConnection = () => {
@@ -485,5 +502,5 @@ export function useNotebookSession(opts: {
     updateStartupProgress,
   ]);
 
-  return { replica, connection, reconnect: replica.reconnect };
+  return { replica, documentModel, connection, reconnect: replica.reconnect };
 }

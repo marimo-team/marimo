@@ -32,14 +32,14 @@ function setup(
   const source = atom(initial);
   const detached = vi.fn();
   source.onMount = () => detached;
-  const controller = new AbortController();
-  lifetimes.push(controller);
   const model = createDocumentModel({
     store,
     documentAtom: source,
     backendAtom: atom(fakeBackend({ edit })),
-    signal: controller.signal,
   });
+  const controller = new AbortController();
+  lifetimes.push(controller);
+  model.start({ signal: controller.signal });
   const wrapper = ({ children }: PropsWithChildren) => (
     <Provider store={store}>
       <DocumentProvider model={model}>{children}</DocumentProvider>

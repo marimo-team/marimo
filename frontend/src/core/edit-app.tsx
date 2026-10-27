@@ -34,6 +34,7 @@ import {
   useCellActions,
 } from "./cells/cells";
 import type { AppConfig, UserConfig } from "./config/config-schema";
+import { DocumentProvider } from "./notebook/document";
 import { RuntimeState } from "./kernel/RuntimeState";
 import { getSessionId } from "./kernel/session";
 import { useTogglePresenting } from "./layout/useTogglePresenting";
@@ -83,7 +84,7 @@ export const EditApp: React.FC<AppProps> = ({
     };
   }, [sendComponentValues]);
 
-  const { connection, reconnect } = useNotebookSession({
+  const { connection, reconnect, documentModel } = useNotebookSession({
     autoInstantiate: userConfig.runtime.auto_instantiate,
     setCells: (cells, layout) => {
       setCells(cells);
@@ -174,7 +175,7 @@ export const EditApp: React.FC<AppProps> = ({
   );
 
   return (
-    <>
+    <DocumentProvider model={documentModel}>
       <SandboxController onReconnect={reconnect} />
       <AppContainer
         connection={connection}
@@ -228,6 +229,6 @@ export const EditApp: React.FC<AppProps> = ({
           />
         </TooltipProvider>
       )}
-    </>
+    </DocumentProvider>
   );
 };
