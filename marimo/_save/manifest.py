@@ -14,6 +14,8 @@ too. It is pure and kernel-free, so the CLI can read it without a runtime.
 
 from __future__ import annotations
 
+import contextlib
+import copy
 import hashlib
 import json
 import os
@@ -27,7 +29,8 @@ from marimo import _loggers
 from marimo._utils.paths import normalize_path
 
 if TYPE_CHECKING:
-    from collections.abc import Collection
+    from collections.abc import Collection, Iterator
+    from contextlib import AbstractContextManager
 
     from marimo._runtime.context.types import RuntimeContext
     from marimo._runtime.dataflow.topology import GraphTopology
@@ -188,7 +191,7 @@ def load_manifest(store: Store, key: str) -> CacheManifest | None:
         CorruptManifestError: If the stored bytes are not a manifest.
         UnsupportedManifestVersionError: If they come from a newer marimo.
     """
-    data = store.get(key)
+    data = store.read(key)
     if not data:
         return None
     return CacheManifest.from_bytes(data)
@@ -283,24 +286,73 @@ def flush_dirty_manifests(ctx: RuntimeContext) -> None:
 
 
 def flush_cache_manifest(ctx: RuntimeContext, store: Store) -> bool:
-    """Merge `store`'s records into its on-disk manifest and write it back.
-
-    Returns whether a manifest was written. A session that produced no
-    persistent entry writes nothing, so reading a cache never creates one.
-    """
+    """Merge records into each tier and return whether no retry is needed."""
     records = ctx.cache.manifest_records.get(store)
     if not records or not ctx.filename:
         return False
 
     key = manifest_name(ctx.filename)
+    settled = True
+    for tier in _manifest_stores(store):
+        try:
+            with _manifest_lock(tier, key):
+                if not _merge_records(records, ctx.filename, key, tier):
+                    settled = False
+        except Exception:
+            LOGGER.warning(
+                "Could not write cache manifest %s", key, exc_info=True
+            )
+            settled = False
+    return settled
+
+
+def _manifest_stores(store: Store) -> Iterator[Store]:
+    from marimo._save.loaders.lazy import LazyStore, WasmLazyStore
+    from marimo._save.stores.tiered import TieredStore
+
+    if isinstance(store, TieredStore):
+        for tier in store.stores:
+            yield from _manifest_stores(tier)
+    elif isinstance(store, LazyStore) and not isinstance(store, WasmLazyStore):
+        for inner in _manifest_stores(store._inner):
+            if inner is store._inner:
+                yield store
+                continue
+            # Keep the wrapper's shared sets of keys for export.
+            wrapped = copy.copy(store)
+            wrapped._inner = inner
+            yield wrapped
+    else:
+        yield store
+
+
+def _manifest_lock(store: Store, key: str) -> AbstractContextManager[None]:
+    from marimo._save.loaders.lazy import LazyStore
+    from marimo._save.stores.file import FileStore
+    from marimo._utils.file_lock import file_lock
+
+    while isinstance(store, LazyStore):
+        store = store._inner
+    if isinstance(store, FileStore):
+        path = store.save_path / key
+        path.parent.mkdir(parents=True, exist_ok=True)
+        return file_lock(path.with_name(f"{path.name}.lock"), blocking=True)
+    return contextlib.nullcontext()
+
+
+def _merge_records(
+    records: dict[str, dict[str, set[str]]],
+    notebook: str,
+    key: str,
+    store: Store,
+) -> bool:
     try:
         manifest = load_manifest(store, key) or CacheManifest()
     except UnsupportedManifestVersionError as e:
         # A rewrite under the older schema drops whatever the newer one
         # holds, including the marker that tells a reader to stay away.
         LOGGER.warning("Leaving cache manifest %s alone: %s", key, e)
-        ctx.cache.manifest_dirty.discard(store)
-        return False
+        return True
     except ManifestError as e:
         # Bytes that parse as no manifest at all record nothing that can be
         # acted on, so replacing them costs nothing.
@@ -308,13 +360,9 @@ def flush_cache_manifest(ctx: RuntimeContext, store: Store) -> bool:
         manifest = CacheManifest()
 
     manifest.merge(CacheManifest(nodes=records))
-    manifest.notebook = _notebook_ref(ctx.filename, store)
+    manifest.notebook = _notebook_ref(notebook, store)
     manifest.written_at = _utc_now()
-    try:
-        written = store.put(key, manifest.to_bytes())
-    except Exception as e:
-        LOGGER.warning("Could not write cache manifest %s: %s", key, e)
-        return False
+    written = store.put(key, manifest.to_bytes())
     if not written:
         # A store can decline a write by its return value rather than raise.
         LOGGER.warning("Could not write cache manifest %s", key)

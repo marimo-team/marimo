@@ -43,6 +43,13 @@ class TieredStore(Store):
 
         return None
 
+    def read(self, key: str) -> bytes | None:
+        for store in self.stores:
+            value = store.read(key)
+            if value is not None:
+                return value
+        return None
+
     def put(self, key: str, value: bytes) -> bool:
         """Put a value in all stores."""
         success = False

@@ -8,22 +8,33 @@ import copy
 import json
 import os
 import shutil
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
+from threading import Event
 from typing import TYPE_CHECKING, Any
+from unittest.mock import MagicMock, patch
+from urllib.error import HTTPError, URLError
 
 import pytest
 
 from marimo._config.config import DEFAULT_CONFIG
+from marimo._runtime.context import get_context
+from marimo._save.loaders.lazy import LazyStore, WasmLazyStore
 from marimo._save.manifest import (
     MANIFEST_VERSION,
     CacheManifest,
     CorruptManifestError,
     UnsupportedManifestVersionError,
+    flush_cache_manifest,
+    flush_dirty_manifests,
     is_manifest_name,
     load_manifest,
     manifest_name,
 )
+from marimo._save.stores.dict_store import DictStore
 from marimo._save.stores.file import FileStore
+from marimo._save.stores.rest import RestStore
+from marimo._save.stores.tiered import TieredStore
 from tests._runtime._helpers.factories import default_app_metadata
 from tests._runtime._helpers.session import mocked_kernel_session
 
@@ -826,14 +837,14 @@ class TestRecording:
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         """Bookkeeping about a cache must never break the run it happens in."""
-        original_get = FileStore.get
+        original_read = Path.read_bytes
 
-        def refuse_manifest(self: FileStore, key: str) -> bytes | None:
-            if is_manifest_name(key):
-                raise PermissionError(f"unreadable: {key}")
-            return original_get(self, key)
+        def refuse_manifest(self: Path) -> bytes:
+            if is_manifest_name(self.name):
+                raise PermissionError(f"unreadable: {self.name}")
+            return original_read(self)
 
-        monkeypatch.setattr(FileStore, "get", refuse_manifest)
+        monkeypatch.setattr(Path, "read_bytes", refuse_manifest)
 
         with _notebook_kernel(tmp_path) as (k, notebook, cache_dir):
             await k.run(
@@ -891,3 +902,261 @@ class TestRecording:
             # The entry is on disk. Nothing in the notebook records it.
             assert list((cache_dir / "scratch").iterdir())
             assert not (cache_dir / manifest_name(notebook)).exists()
+
+
+class TestManifestFlush:
+    @staticmethod
+    @pytest.mark.parametrize("wasm", [False, True])
+    @pytest.mark.parametrize("status", [200, 404, 403, 503])
+    def test_http_manifest_read(wasm: bool, status: int) -> None:
+        store: Store = (
+            WasmLazyStore(DictStore())
+            if wasm
+            else RestStore(
+                base_url="https://example.invalid", api_key="test-key"
+            )
+        )
+        manifest = CacheManifest(nodes={"node": {"block": {"C_old"}}})
+        response = MagicMock()
+        response.__enter__.return_value = response
+        response.status = 200
+        response.read.return_value = manifest.to_bytes()
+        key = "nb-0123456789abcdef.json"
+        with patch("urllib.request.urlopen", return_value=response) as request:
+            if status != 200:
+                request.side_effect = HTTPError(
+                    "https://example.invalid", status, "Unavailable", {}, None
+                )
+            if status in (200, 404):
+                loaded = load_manifest(store, key)
+                if status == 404:
+                    assert loaded is None
+                else:
+                    assert loaded is not None
+                    assert loaded.nodes == manifest.nodes
+                    if wasm:
+                        assert store.export_keys() == [key]
+            else:
+                with pytest.raises(HTTPError):
+                    load_manifest(store, key)
+                assert store.get(key) is None
+
+    @staticmethod
+    @pytest.mark.parametrize("wrapped", [False, True])
+    def test_each_tier_retains_its_history(
+        tmp_path: Path, wrapped: bool
+    ) -> None:
+        fast = FileStore(str(tmp_path / "fast"))
+        slow = FileStore(str(tmp_path / "slow"))
+        store: Store = TieredStore([fast, TieredStore([slow])])
+        if wrapped:
+            store = LazyStore(LazyStore(store))
+        with _notebook_kernel(tmp_path, store=store) as (_, notebook, _):
+            key = manifest_name(notebook)
+            for tier, entry in [(fast, "C_fast"), (slow, "C_slow")]:
+                tier.put(
+                    key,
+                    CacheManifest(
+                        nodes={"node": {"block": {entry}}}
+                    ).to_bytes(),
+                )
+            ctx = get_context()
+            ctx.cache.manifest_records[store] = {"node": {"block": {"C_new"}}}
+            ctx.cache.manifest_dirty.add(store)
+
+            flush_dirty_manifests(ctx)
+
+            for tier, entry in [(fast, "C_fast"), (slow, "C_slow")]:
+                manifest = load_manifest(tier, key)
+                assert manifest is not None
+                assert manifest.nodes == {"node": {"block": {entry, "C_new"}}}
+            assert not ctx.cache.manifest_dirty
+            if wrapped:
+                assert store.export_keys() == [key]
+
+    @staticmethod
+    @pytest.mark.parametrize("failure", [403, 503, "connection", "write"])
+    def test_failed_read_preserves_history_until_retry(
+        tmp_path: Path, failure: int | str
+    ) -> None:
+        remote = RestStore(
+            base_url="https://example.invalid", api_key="test-key"
+        )
+        local = FileStore(str(tmp_path / "local"))
+        store = LazyStore(TieredStore([remote, local]))
+        with _notebook_kernel(tmp_path, store=store) as (_, notebook, _):
+            key = manifest_name(notebook)
+            history = CacheManifest(
+                nodes={"node": {"block": {"C_remote"}}}
+            ).to_bytes()
+            remote_data = {key: history}
+            local.put(
+                key,
+                CacheManifest(
+                    nodes={"node": {"block": {"C_local"}}}
+                ).to_bytes(),
+            )
+            ctx = get_context()
+            ctx.cache.manifest_records[store] = {"node": {"block": {"C_new"}}}
+            ctx.cache.manifest_dirty.add(store)
+            failing = True
+
+            def urlopen(request: Any, **_kwargs: Any) -> MagicMock:
+                if (
+                    failing
+                    and failure == "write"
+                    and request.get_method() == "PUT"
+                ):
+                    raise URLError("Connection failed")
+                if (
+                    request.get_method() == "GET"
+                    and failing
+                    and failure != "write"
+                ):
+                    if isinstance(failure, int):
+                        raise HTTPError(
+                            request.full_url, failure, "Unavailable", {}, None
+                        )
+                    raise URLError("Connection failed")
+                response = MagicMock()
+                response.status = 200
+                response.__enter__.return_value = response
+                if request.get_method() == "PUT":
+                    remote_data[key] = request.data
+                else:
+                    response.read.return_value = remote_data[key]
+                return response
+
+            with patch("urllib.request.urlopen", side_effect=urlopen):
+                flush_dirty_manifests(ctx)
+                assert remote_data[key] == history
+                local_manifest = load_manifest(local, key)
+                assert local_manifest is not None
+                assert local_manifest.nodes == {
+                    "node": {"block": {"C_local", "C_new"}}
+                }
+                assert store in ctx.cache.manifest_dirty
+
+                failing = False
+                flush_dirty_manifests(ctx)
+
+            assert CacheManifest.from_bytes(remote_data[key]).nodes == {
+                "node": {"block": {"C_remote", "C_new"}}
+            }
+            assert not ctx.cache.manifest_dirty
+
+    @staticmethod
+    def test_newer_tier_is_untouched_while_another_updates(
+        tmp_path: Path,
+    ) -> None:
+        newer = FileStore(str(tmp_path / "newer"))
+        current = FileStore(str(tmp_path / "current"))
+        store = TieredStore([newer, current])
+        payload = json.dumps(
+            {
+                "version": MANIFEST_VERSION + 1,
+                "nodes": {"future": {"block": ["C_old"]}},
+            }
+        ).encode()
+        with _notebook_kernel(tmp_path, store=store) as (_, notebook, _):
+            key = manifest_name(notebook)
+            newer.put(key, payload)
+            ctx = get_context()
+            ctx.cache.manifest_records[store] = {"node": {"block": {"C_new"}}}
+            ctx.cache.manifest_dirty.add(store)
+
+            flush_dirty_manifests(ctx)
+
+            assert newer.read(key) == payload
+            manifest = load_manifest(current, key)
+            assert manifest is not None
+            assert manifest.nodes == {"node": {"block": {"C_new"}}}
+            assert not ctx.cache.manifest_dirty
+
+    @staticmethod
+    def test_wasm_checks_all_inner_tiers_before_http(tmp_path: Path) -> None:
+        first, second = DictStore(), DictStore()
+        store = WasmLazyStore(TieredStore([first, second]))
+        with _notebook_kernel(tmp_path, store=store) as (_, notebook, _):
+            key = manifest_name(notebook)
+            second.put(
+                key,
+                CacheManifest(nodes={"node": {"block": {"C_old"}}}).to_bytes(),
+            )
+            ctx = get_context()
+            ctx.cache.manifest_records[store] = {"node": {"block": {"C_new"}}}
+            ctx.cache.manifest_dirty.add(store)
+
+            with patch(
+                "urllib.request.urlopen", side_effect=URLError("Offline")
+            ) as request:
+                flush_dirty_manifests(ctx)
+            request.assert_not_called()
+
+            for tier in (first, second):
+                manifest = load_manifest(tier, key)
+                assert manifest is not None
+                assert manifest.nodes == {
+                    "node": {"block": {"C_old", "C_new"}}
+                }
+            assert not ctx.cache.manifest_dirty
+            assert store.export_keys() == [key]
+
+    @staticmethod
+    def test_concurrent_flushes_keep_both_writers(
+        tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        path = str(tmp_path / "cache")
+        first = LazyStore(FileStore(path))
+        second = LazyStore(FileStore(path))
+        first_read = Event()
+        second_started = Event()
+        second_read = Event()
+        release = Event()
+        original_read = FileStore.read
+
+        def read(self: FileStore, key: str) -> bytes | None:
+            data = original_read(self, key)
+            if self is first._inner:
+                first_read.set()
+                assert release.wait(5)
+            elif self is second._inner:
+                second_read.set()
+            return data
+
+        with _notebook_kernel(tmp_path) as (_, notebook, _):
+            ctx = get_context()
+            ctx.cache.manifest_records[first] = {
+                "node": {"block": {"C_first"}}
+            }
+            ctx.cache.manifest_records[second] = {
+                "node": {"block": {"C_second"}}
+            }
+            key = manifest_name(notebook)
+            first.put(
+                key,
+                CacheManifest(nodes={"node": {"block": {"C_old"}}}).to_bytes(),
+            )
+            monkeypatch.setattr(FileStore, "read", read)
+
+            def flush_second() -> bool:
+                second_started.set()
+                return flush_cache_manifest(ctx, second)
+
+            with ThreadPoolExecutor(max_workers=2) as pool:
+                a = pool.submit(flush_cache_manifest, ctx, first)
+                try:
+                    assert first_read.wait(5)
+                    b = pool.submit(flush_second)
+                    assert second_started.wait(5)
+                    assert not second_read.wait(0.1)
+                finally:
+                    release.set()
+                assert a.result(timeout=5)
+                assert b.result(timeout=5)
+
+            manifest = load_manifest(FileStore(path), key)
+            assert manifest is not None
+            assert manifest.nodes == {
+                "node": {"block": {"C_old", "C_first", "C_second"}}
+            }
