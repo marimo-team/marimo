@@ -28,6 +28,8 @@ from marimo._types.ids import CellId_t
 from tests._runtime._helpers.session import mocked_kernel_session
 
 if TYPE_CHECKING:
+    from collections.abc import Iterator
+
     from marimo._config.config import ExecutionType
     from marimo._messaging.notification import NotificationMessage
     from marimo._runtime.runtime import Kernel
@@ -541,6 +543,20 @@ async def test_preview_cannot_overwrite_an_update_during_rendering(
     )
 
 
+@pytest.fixture
+def isolated_duckdb() -> Iterator[None]:
+    import duckdb
+
+    previous = duckdb.default_connection()
+    with duckdb.connect() as connection:
+        duckdb.set_default_connection(connection)
+        try:
+            yield
+        finally:
+            duckdb.set_default_connection(previous)
+
+
+@pytest.mark.usefixtures("isolated_duckdb")
 @pytest.mark.skipif(
     not DependencyManager.duckdb.has() or not DependencyManager.sqlglot.has(),
     reason="SQL dependencies not installed",
@@ -584,6 +600,7 @@ async def test_sql_bindings_record_inputs_and_replacement(
     assert kernel.globals["df"] == [(1,)]
 
 
+@pytest.mark.usefixtures("isolated_duckdb")
 @pytest.mark.skipif(
     not DependencyManager.duckdb.has() or not DependencyManager.sqlglot.has(),
     reason="SQL dependencies not installed",
@@ -619,6 +636,7 @@ duckdb.sql('CREATE TABLE revision_failed AS SELECT 1 AS x')
     )
 
 
+@pytest.mark.usefixtures("isolated_duckdb")
 @pytest.mark.skipif(
     not DependencyManager.duckdb.has() or not DependencyManager.sqlglot.has(),
     reason="SQL dependencies not installed",
