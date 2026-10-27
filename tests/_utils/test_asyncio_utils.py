@@ -1,16 +1,27 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
+import gc
+import sys
 import threading
+from typing import TYPE_CHECKING, Any, TypeVar
 
 import pytest
 
 from marimo._utils.asyncio_utils import (
+    ProactorLoop,
     cancel_and_wait,
     fire_and_forget,
     run_coroutine_blocking,
+    run_on_proactor_loop,
     supervised_task,
 )
+
+if TYPE_CHECKING:
+    from collections.abc import Coroutine
+
+T = TypeVar("T")
 
 
 async def test_supervised_task_runs_and_returns_result() -> None:
@@ -187,3 +198,108 @@ async def test_run_coroutine_blocking_nests() -> None:
         return 1 + run_coroutine_blocking(inner())
 
     assert run_coroutine_blocking(outer()) == 3
+
+
+def _run_on_selector_loop(coro: Coroutine[Any, Any, T]) -> T:
+    # marimo runs sessions on a SelectorEventLoop, which cannot spawn
+    # subprocesses on Windows.
+    with asyncio.Runner(loop_factory=asyncio.SelectorEventLoop) as runner:
+        return runner.run(coro)
+
+
+def test_run_on_proactor_loop_spawns_subprocesses() -> None:
+    @run_on_proactor_loop
+    async def child_exit_code(code: int) -> int:
+        process = await asyncio.create_subprocess_exec(
+            sys.executable, "-c", f"raise SystemExit({code})"
+        )
+        return await process.wait()
+
+    async def main() -> int:
+        return await child_exit_code(3)
+
+    assert _run_on_selector_loop(main()) == 3
+
+
+def test_proactor_loop_keeps_entered_contexts_across_runs() -> None:
+    events: list[str] = []
+
+    @contextlib.asynccontextmanager
+    async def browser():
+        try:
+            yield asyncio.get_running_loop()
+        finally:
+            events.append("closed")
+
+    async def running_loop() -> asyncio.AbstractEventLoop:
+        return asyncio.get_running_loop()
+
+    async def main() -> None:
+        async with ProactorLoop() as loop:
+            browser_loop = await loop.enter_async_context(browser())
+            # Playwright objects only work on the loop that created them.
+            assert await loop.run(running_loop()) is browser_loop
+            assert events == []
+
+    _run_on_selector_loop(main())
+    assert events == ["closed"]
+    assert "marimo-proactor-loop" not in {
+        thread.name for thread in threading.enumerate()
+    }
+
+
+@pytest.mark.skipif(
+    sys.platform != "win32", reason="Only Windows runs `coro` on a worker loop"
+)
+def test_cancelled_proactor_loop_run_unwinds_and_discards_its_error() -> None:
+    started = threading.Event()
+    cleanup: list[str] = []
+    unhandled: list[str] = []
+
+    async def browse() -> None:
+        started.set()
+        try:
+            await asyncio.sleep(60)
+        finally:
+            # Like `browser.close()` after Ctrl+C has ended the browser.
+            await asyncio.sleep(0.05)
+            cleanup.append("closed")
+            raise RuntimeError(
+                "Target page, context or browser has been closed"
+            )
+
+    async def main() -> list[str]:
+        asyncio.get_running_loop().set_exception_handler(
+            lambda _loop, context: unhandled.append(context["message"])
+        )
+        async with ProactorLoop() as loop:
+            run = asyncio.ensure_future(loop.run(browse()))
+            await asyncio.to_thread(started.wait)
+            run.cancel()
+            with pytest.raises(asyncio.CancelledError):
+                await run
+            return list(cleanup)
+
+    assert _run_on_selector_loop(main()) == ["closed"]
+    # An unretrieved outcome is reported when its future is collected.
+    gc.collect()
+    assert unhandled == []
+
+
+@pytest.mark.skipif(
+    sys.platform != "win32", reason="Only Windows starts a worker loop"
+)
+def test_proactor_loop_raises_when_its_worker_loop_cannot_start(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def broken_loop() -> asyncio.AbstractEventLoop:
+        raise OSError("no self-pipe")
+
+    monkeypatch.setattr(asyncio, "ProactorEventLoop", broken_loop)
+
+    async def main() -> None:
+        async with ProactorLoop():
+            pass
+
+    with pytest.raises(OSError, match="no self-pipe"):
+        _run_on_selector_loop(main())
