@@ -31,6 +31,7 @@ from marimo._runtime.commands import (
     ExecuteCellsCommand,
     ExecuteScratchpadCommand,
     ExecuteStaleCellsCommand,
+    InstallPackagesCommand,
     InvokeFunctionCommand,
     ModelCommand,
     RenameNotebookCommand,
@@ -88,6 +89,7 @@ class KernelRequestHandlers:
             ExecuteScratchpadCommand, self._handle_execute_scratchpad
         )
         router.register(ExecuteStaleCellsCommand, self._handle_execute_stale)
+        router.register(InstallPackagesCommand, self._handle_install)
         router.register(InvokeFunctionCommand, self._handle_function_call)
         router.register(DebugCellCommand, self._handle_pdb_request)
         router.register(RenameNotebookCommand, self._handle_rename)
@@ -212,6 +214,12 @@ class KernelRequestHandlers:
     ) -> None:
         with self._run_context(), http_request_context(request.request):
             await self._kernel.run_stale_cells()
+
+    async def _handle_install(self, request: InstallPackagesCommand) -> None:
+        with self._run_context():
+            await self._kernel.packages_callbacks.install_missing_packages(
+                request
+            )
 
     async def _handle_set_ui_element_value(
         self, request: UpdateUIElementCommand
