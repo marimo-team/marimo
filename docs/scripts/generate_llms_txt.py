@@ -15,7 +15,7 @@ Run this after `html_to_markdown.py` so the `.md` files exist:
 """
 
 # /// script
-# requires-python = ">=3.10"
+# requires-python = ">=3.11"
 # dependencies = ["mkdocs>=1.6.1"]
 # ///
 

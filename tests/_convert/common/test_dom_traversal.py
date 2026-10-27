@@ -18,6 +18,34 @@ from marimo._convert.common.dom_traversal import (
 
 
 class TestHTMLAttributeReplacer:
+    def test_preserves_source_around_replaced_tags(self) -> None:
+        html = (
+            '<!DOCTYPE html>\r\n<svg viewBox="0 0 20 20">'
+            "<text><![CDATA[A < B & C]]></text></svg>\n"
+            '<pre>&lt;img src="public/image.png"&gt; &amp; &#39;</pre>\n'
+            '<script>const s = "<img src=public/image.png>";</script>'
+            '<img src="public/image.png" alt="&amp;quot;" />\n'
+            '<IMG SRC="https://example.com/image.png">'
+            '<img\nsrc="public/image.png">'
+        )
+        result = replace_html_attributes(
+            html,
+            allowed_tags={"img"},
+            allowed_attributes={"src"},
+            replacer_fn=lambda value: (
+                "data:image/png;base64,PNG"
+                if value == "public/image.png"
+                else None
+            ),
+        )
+        assert result == html.replace(
+            '<img src="public/image.png" alt="&amp;quot;" />',
+            '<img src="data:image/png;base64,PNG" alt="&amp;quot;" />',
+        ).replace(
+            '<img\nsrc="public/image.png">',
+            '<img src="data:image/png;base64,PNG">',
+        )
+
     def test_simple_replacement(self) -> None:
         """Test basic attribute replacement."""
         html = '<img src="test.png">'

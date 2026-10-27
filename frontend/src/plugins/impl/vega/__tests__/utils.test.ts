@@ -1,7 +1,22 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { describe, expect, it } from "vitest";
-import { getContainerWidth } from "../utils";
+import { getContainerWidth, getVegaFieldTypes } from "../utils";
+
+describe("getVegaFieldTypes", () => {
+  it("preserves date strings unless the caller requests date parsing", () => {
+    expect(getVegaFieldTypes({ day: "date", timestamp: "datetime" })).toEqual({
+      day: "string",
+      timestamp: "date",
+    });
+    expect(
+      getVegaFieldTypes(
+        { day: "date", timestamp: "datetime" },
+        { parseDates: true },
+      ),
+    ).toEqual({ day: "date", timestamp: "date" });
+  });
+});
 
 describe("getContainerWidth", () => {
   it('should return "container" when spec width is "container"', () => {

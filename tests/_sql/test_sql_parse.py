@@ -14,8 +14,23 @@ from marimo._sql.parse import (
     parse_sql,
     replace_brackets_with_quotes,
 )
+from marimo._sql.utils import is_duckdb_v2
 
 HAS_DUCKDB = DependencyManager.duckdb.has()
+
+
+@pytest.mark.skipif(not HAS_DUCKDB, reason="DuckDB not installed")
+@pytest.mark.parametrize(
+    ("version", "expected"),
+    [("1.5.6", False), ("2.0.0.dev2610011535", True), ("2.0.0", True)],
+)
+def test_is_duckdb_v2(
+    monkeypatch: pytest.MonkeyPatch, version: str, expected: bool
+):
+    import duckdb
+
+    monkeypatch.setattr(duckdb, "__version__", version)
+    assert is_duckdb_v2() is expected
 
 
 def test_sql_parse_result_with_errors():
@@ -192,14 +207,14 @@ class TestDuckDBInvalidQueries:
             ("SELECT * FROM table WHERE", ["syntax", "error"]),
             ("SELECT * FROM table ORDER", ["syntax", "error"]),
             ("INSERT INTO", ["syntax", "error"]),
-            ("UPDATE", ["syntax", "error"]),
-            ("DELETE", ["syntax", "error"]),
+            ("UPDATE users SET", ["syntax", "error"]),
+            ("DELETE FROM", ["syntax", "error"]),
             # Unclosed parentheses
             ("SELECT COUNT(*", ["syntax", "error"]),
             # Unclosed quotes
             # ("SELECT 'unclosed string", ["syntax", "error"]), # DuckDB does not raise errors for this case
             # # Invalid function call
-            ("SELECT COUNT(DISTINCT)", ["syntax", "error"]),
+            ("SELECT COUNT(DISTINCT FROM users)", ["syntax", "error"]),
             # # Malformed CASE statement
             ("SELECT CASE WHEN FROM table", ["syntax", "error"]),
             # # Incomplete JOIN
@@ -310,6 +325,26 @@ FRM table"""
         assert error.line == 3
         assert error.column >= 0
 
+    @pytest.mark.parametrize(
+        "query",
+        [
+            "SELECT 'é'; SELECT * FRM users",
+            "SELECT '😀'; SELECT * FRM users",
+            "SELECT 'é😀';\nSELECT * FRM users",
+            "SELECT 'é😀', {value};\nSELECT * FRM users",
+            "SELECT 'é😀', {value} FRM users",
+            "SELECT 'é😀', {value} FRM users WHERE id = {other}",
+            "SELECT 'é😀'\nFRM users",
+        ],
+    )
+    def test_unicode_error_position(self, query: str):
+        result, error = parse_sql(query, "duckdb")
+        prefix = query[: query.index("users")]
+        expected_line = prefix.count("\n") + 1
+        line_prefix = prefix.rsplit("\n", 1)[-1]
+        expected_column = len(line_prefix.encode("utf-16-le")) // 2
+        self.assert_line_column(result, error, expected_line, expected_column)
+
     def test_error_position_after_offset(self):
         """Test position calculation with offset."""
         query = """SELECT id FRM users"""
@@ -401,9 +436,6 @@ FRM users"""
         result, error = parse_sql(query_with_brackets, "duckdb")
         self.assert_line_column(result, error, expected_line, expected_column)
 
-    @pytest.mark.xfail(
-        reason="There is an incorrect calculation for column position"
-    )
     def test_brackets_on_error_line(self):
         # Brackets on error line
         query_error_line = """SELECT name,
@@ -418,6 +450,29 @@ id FRM users"""
         result, error = parse_sql(query_error_line_with_brackets, "duckdb")
         self.assert_line_column(
             result, error, expected_line, expected_column + 2
+        )
+
+    @pytest.mark.parametrize(
+        "query",
+        [
+            "SELECT {a}, {b}, {c}, {d}, {e};\nSELECT {value} FRM users",
+            "SELECT 'é😀', {a},\n{id} FRM users",
+            "SELECT {a}, {b}, {c}, {d}, {e} FRM users, {other}",
+            "SELECT {a\n} FRM users",
+            "SELECT {a\n+ b} FRM users",
+            "SELECT {a\n}, {b} FRM users",
+            "SELECT {a\n+ 😀} FRM users",
+        ],
+    )
+    def test_bracket_positions_after_replacements(self, query: str):
+        result, error = parse_sql(query, "duckdb")
+        prefix = query[: query.index("users")]
+        line_prefix = prefix.rsplit("\n", 1)[-1]
+        self.assert_line_column(
+            result,
+            error,
+            prefix.count("\n") + 1,
+            len(line_prefix.encode("utf-16-le")) // 2,
         )
 
     def test_multiline_brackets_after_error(self):

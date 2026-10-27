@@ -14,15 +14,15 @@
     "./providers.json": "./data/generated/providers.json"
   },
   "scripts": {
-    "codegen": "node --experimental-transform-types src/generate.ts",
-    "sync-models": "node --experimental-transform-types src/sync-models.ts",
+    "codegen": "node --experimental-strip-types src/generate.ts",
+    "sync-models": "node --experimental-strip-types src/sync-models.ts",
     "test": "vitest",
     "build": "echo 'No build step'"
   },
   "devDependencies": {
     "@marimo-team/tsconfig": "workspace:*",
-    "yaml": "^2.9.0",
+    "yaml": "^2.9.1",
     "vitest": "^4.1.11",
-    "zod": "^4.5.4"
+    "zod": "^4.6.5"
   }
 }

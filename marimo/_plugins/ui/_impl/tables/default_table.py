@@ -130,13 +130,31 @@ class DefaultTableManager(TableManager[JsonTableData]):
             ).to_parquet()
         return self._as_table_manager().to_parquet()
 
+    def _padded_columns(self) -> dict[str, Sequence[Any]]:
+        """Column-oriented data with every column padded to the row count.
+
+        Shorter columns are padded with `None`, the same way the table is
+        rendered and exported, so row indices are valid for every column.
+        """
+        num_rows = self.get_num_rows()
+        return {
+            col: (
+                values
+                if len(values) == num_rows
+                else list(values) + [None] * (num_rows - len(values))
+            )
+            for col, values in cast(
+                dict[str, Sequence[Any]], self.data
+            ).items()
+        }
+
     def select_rows(self, indices: list[int]) -> DefaultTableManager:
         if isinstance(self.data, dict):
             # Column major data
             if self.is_column_oriented:
                 new_data: dict[Any, Any] = {
-                    key: [cast(list[JSONType], value)[i] for i in indices]
-                    for key, value in self.data.items()
+                    key: [value[i] for i in indices]
+                    for key, value in self._padded_columns().items()
                 }
                 return DefaultTableManager(new_data)
             else:
@@ -171,16 +189,15 @@ class DefaultTableManager(TableManager[JsonTableData]):
             and isinstance(self.data, dict)
             and all(isinstance(v, list) for v in self.data.values())
         ):
+            columns = self._padded_columns()
             for row_id, column_name in cells:
-                column = self.data[column_name]
-                if isinstance(column, Sequence):
-                    selected_cells.append(
-                        TableCell(
-                            row=row_id,
-                            column=column_name,
-                            value=column[int(row_id)],
-                        )
+                selected_cells.append(
+                    TableCell(
+                        row=row_id,
+                        column=column_name,
+                        value=columns[column_name][int(row_id)],
                     )
+                )
         elif isinstance(self.data, dict):
             rows_of_dict = list(self.data.items())
             for row_id, column_name in cells:
@@ -249,20 +266,14 @@ class DefaultTableManager(TableManager[JsonTableData]):
     def search(self, query: str) -> DefaultTableManager:
         query = query.lower()
         if isinstance(self.data, dict) and self.is_column_oriented:
+            columns = self._padded_columns()
             mask: list[bool] = [
-                any(
-                    query in str(cast(list[Any], self.data[key])[row]).lower()
-                    for key in self.data
-                )
+                any(query in str(columns[key][row]).lower() for key in columns)
                 for row in range(self.get_num_rows() or 0)
             ]
             results = {
-                key: [
-                    cast(list[Any], value)[i]
-                    for i, match in enumerate(mask)
-                    if match
-                ]
-                for key, value in self.data.items()
+                key: [value[i] for i, match in enumerate(mask) if match]
+                for key, value in columns.items()
             }
             return DefaultTableManager(cast(JsonTableData, results))
         return DefaultTableManager(
@@ -398,9 +409,8 @@ class DefaultTableManager(TableManager[JsonTableData]):
 
         if isinstance(self.data, dict) and self.is_column_oriented:
             # Column-oriented: sort indices, then reorder all columns
-            data_dict = cast(dict[str, list[Any]], self.data)
-            first_column = next(iter(data_dict.values()))
-            num_rows = len(first_column)
+            num_rows = self.get_num_rows()
+            data_dict = self._padded_columns()
             indices = list(range(num_rows))
 
             # Apply sorts in reverse order for stable multi-column sorting

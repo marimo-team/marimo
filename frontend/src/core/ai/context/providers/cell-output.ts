@@ -80,16 +80,16 @@ function isMediaMimetype(
 }
 
 export class CellOutputContextProvider extends AIContextProvider<CellOutputContextItem> {
-  readonly title = "Cell Outputs";
-  readonly mentionPrefix = "@";
-  readonly contextType = "cell-output";
+  public readonly title = "Cell Outputs";
+  public readonly mentionPrefix = "@";
+  public readonly contextType = "cell-output";
   private store: JotaiStore;
-  constructor(store: JotaiStore) {
+  public constructor(store: JotaiStore) {
     super();
     this.store = store;
   }
 
-  getItems(): CellOutputContextItem[] {
+  public getItems(): CellOutputContextItem[] {
     const notebook = this.store.get(notebookAtom);
     const items: CellOutputContextItem[] = [];
 
@@ -116,7 +116,7 @@ export class CellOutputContextProvider extends AIContextProvider<CellOutputConte
     return items;
   }
 
-  formatCompletion(item: CellOutputContextItem): Completion {
+  public formatCompletion(item: CellOutputContextItem): Completion {
     const { cellOutput: data, cellName, cellCode } = item.data;
 
     return {
@@ -224,7 +224,7 @@ export class CellOutputContextProvider extends AIContextProvider<CellOutputConte
     };
   }
 
-  formatContext(item: CellOutputContextItem): string {
+  public formatContext(item: CellOutputContextItem): string {
     const { cellOutput: data, cellName, cellId, cellCode } = item.data;
 
     const contextData = {
@@ -253,7 +253,7 @@ export class CellOutputContextProvider extends AIContextProvider<CellOutputConte
   }
 
   /** Get attachments for cell output items that have shouldDownloadImage=true */
-  override async getAttachments(
+  public override async getAttachments(
     items: CellOutputContextItem[],
   ): Promise<FileUIPart[]> {
     const cellId = items[0].data.cellId;

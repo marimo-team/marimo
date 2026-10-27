@@ -200,7 +200,7 @@ def _(BeautifulSoup, alt, client, dataset_dropdown, df, ell, mo, requests):
             return f"Failed to execute code: {code}"
 
 
-    @ell.simple(model="gpt-4-turbo", client=client)
+    @ell.simple(model="gpt-5.6-sol", client=client)
     def rag(content: str, question: str):
         """
         Given some content, answer a question about it.
@@ -240,7 +240,7 @@ def _(BeautifulSoup, alt, client, dataset_dropdown, df, ell, mo, requests):
 @app.cell
 def _(TOOLS, client, df, ell, get_dataset, mo):
     @ell.complex(
-        model="gpt-4-turbo",
+        model="gpt-5.6-sol",
         tools=TOOLS,
         client=client,
     )

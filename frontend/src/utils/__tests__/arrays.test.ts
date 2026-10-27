@@ -16,6 +16,41 @@ import {
 } from "../arrays";
 
 describe("arrays", () => {
+  describe.each([
+    ["intersection", Arrays.intersection, [3, 3, 2], [Number.NaN]],
+    ["difference", Arrays.difference, [1], [1]],
+  ] as const)("%s", (_name, operation, expected, expectedWithNaN) => {
+    it("preserves order and duplicates without mutating readonly inputs", () => {
+      const values = Object.freeze([3, 1, 3, 2]);
+      const other = Object.freeze([2, 3, 3]);
+      expect(operation(values, other)).toEqual(expected);
+      expect(values).toEqual([3, 1, 3, 2]);
+      expect(other).toEqual([2, 3, 3]);
+    });
+
+    it("uses the same equality as array membership, including NaN", () => {
+      expect(operation([Number.NaN, 1], [Number.NaN])).toEqual(expectedWithNaN);
+    });
+
+    it("handles an empty source", () => {
+      expect(operation([], [1])).toEqual([]);
+    });
+  });
+
+  it("handles empty membership lists", () => {
+    expect(Arrays.intersection([1, 1, 2], [])).toEqual([]);
+    expect(Arrays.difference([1, 1, 2], [])).toEqual([1, 1, 2]);
+  });
+
+  it("compares objects by identity", () => {
+    const shared = { id: 1 };
+    const distinct = { id: 1 };
+    expect(Arrays.intersection([shared, distinct], [shared])).toEqual([shared]);
+    expect(Arrays.difference([shared, distinct], [shared])).toEqual([distinct]);
+    expect(Arrays.intersection([shared, distinct], [shared])[0]).toBe(shared);
+    expect(Arrays.difference([shared, distinct], [shared])[0]).toBe(distinct);
+  });
+
   describe("arrayDelete", () => {
     it("should delete an element at the specified index", () => {
       expect(arrayDelete([1, 2, 3], 1)).toEqual([1, 3]);

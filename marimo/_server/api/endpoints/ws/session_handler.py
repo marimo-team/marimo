@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import abc
 import asyncio
+from contextlib import asynccontextmanager
 from typing import TYPE_CHECKING
 
 from marimo import _loggers
@@ -16,7 +17,9 @@ from marimo._messaging.notification import (
     NotificationMessage,
     ReconnectedNotification,
 )
-from marimo._messaging.serde import serialize_kernel_message
+from marimo._messaging.serde import (
+    serialize_kernel_message,
+)
 from marimo._server.api.endpoints.ws.ws_kernel_ready import (
     build_kernel_ready,
     is_rtc_available,
@@ -29,10 +32,10 @@ from marimo._server.codes import WebSocketCloseReason, WebSocketCodes
 from marimo._session.consumer import SessionConsumer
 from marimo._session.model import ConnectionState, SessionMode
 from marimo._types.ids import ConsumerId
+from marimo._utils.asyncio_utils import cancel_and_wait
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
-    from typing import Any
+    from collections.abc import AsyncIterator
 
     from starlette.requests import HTTPConnection
 
@@ -60,9 +63,8 @@ class SessionHandler(SessionConsumer, abc.ABC):
     Owns the transport-agnostic session lifecycle: connecting (new, resume,
     reconnect, kiosk), the kernel-ready handshake, message replay, and
     TTL-based session close on disconnect. Subclasses implement the small
-    transport surface (`_request_close`, `_is_transport_connected`,
-    `_cancel_message_loop`) and their own message loop that drains
-    `message_queue`.
+    transport surface (`_request_close`, `_is_transport_connected`) and
+    deliver notifications through the host stream.
     """
 
     def __init__(
@@ -77,11 +79,9 @@ class SessionHandler(SessionConsumer, abc.ABC):
         self.params = params
         self.mode = mode
         self.doc_manager = doc_manager
-        self.status: ConnectionState
+        self.status = ConnectionState.CONNECTING
+        self._session: Session | None = None
         self.cancel_close_handle: asyncio.TimerHandle | None = None
-        # Messages from the kernel are put in this queue
-        # to be sent to the frontend
-        self.message_queue: asyncio.Queue[KernelMessage] = asyncio.Queue()
         self._consumer_id = ConsumerId(params.session_id)
 
     @property
@@ -101,13 +101,23 @@ class SessionHandler(SessionConsumer, abc.ABC):
     def _is_transport_connected(self) -> bool:
         """Whether the transport can still deliver messages."""
 
-    @abc.abstractmethod
-    def _cancel_message_loop(self) -> None:
-        """Stop the message loop that drains `message_queue`."""
-
     # Shared session lifecycle
 
-    def _connect_session(
+    @asynccontextmanager
+    async def _connection_lifetime(
+        self, connection: HTTPConnection
+    ) -> AsyncIterator[asyncio.Task[tuple[Session, ConnectionType]]]:
+        """Own attachment through startup, progress delivery, and streaming."""
+        startup = asyncio.create_task(self._connect_session(connection))
+        try:
+            yield startup
+        finally:
+            try:
+                await cancel_and_wait(startup)
+            finally:
+                self._on_disconnect()
+
+    async def _connect_session(
         self, connection: HTTPConnection
     ) -> tuple[Session, ConnectionType]:
         """Connect this handler to a session (new, resume, reconnect, ...).
@@ -117,12 +127,34 @@ class SessionHandler(SessionConsumer, abc.ABC):
             WebSocketDisconnect: If the connection is rejected; carries the
                 close code and reason.
         """
-        return SessionConnector(
-            manager=self.manager,
-            handler=self,
-            params=self.params,
-            connection=connection,
-        ).connect()
+        startup = asyncio.create_task(
+            SessionConnector(
+                manager=self.manager,
+                handler=self,
+                params=self.params,
+                connection=connection,
+            ).connect()
+        )
+        disconnected = asyncio.create_task(self._wait_for_disconnect())
+        try:
+            done, _ = await asyncio.wait(
+                (startup, disconnected), return_when=asyncio.FIRST_COMPLETED
+            )
+            if disconnected in done:
+                await disconnected
+                await cancel_and_wait(startup)
+                raise asyncio.CancelledError
+            return await startup
+        finally:
+            await cancel_and_wait(disconnected)
+            await cancel_and_wait(startup)
+
+    async def _prepare_session(self, session: Session) -> None:
+        """Prepare a selected session before delivering its initial state."""
+
+    @abc.abstractmethod
+    async def _wait_for_disconnect(self) -> None:
+        """Notice a closed transport even while a session is starting."""
 
     def _is_viewer(
         self, session: Session, connection_type: ConnectionType
@@ -133,8 +165,9 @@ class SessionHandler(SessionConsumer, abc.ABC):
             is_main_consumer=session.room.main_consumer is self,
         )
 
+    @abc.abstractmethod
     def notify(self, notification: KernelMessage) -> None:
-        self.message_queue.put_nowait(notification)
+        """Deliver a private session notification through the host stream."""
 
     def _serialize_and_notify(self, notification: NotificationMessage) -> None:
         self.notify(serialize_kernel_message(notification))
@@ -225,6 +258,7 @@ class SessionHandler(SessionConsumer, abc.ABC):
                     description="You have reconnected to an existing session.",
                 )
             )
+            self._replay_previous_session(session)
             return
 
         self._write_kernel_ready_from_session_view(session, self.params.kiosk)
@@ -271,34 +305,26 @@ class SessionHandler(SessionConsumer, abc.ABC):
         self._replay_previous_session(session)
 
     def _replay_previous_session(self, session: Session) -> None:
-        """Replay the previous session view."""
-        notifications = session.session_view.notifications
-        if len(notifications) == 0:
-            LOGGER.debug("No notifications to replay")
-            return
-        LOGGER.debug(f"Replaying {len(notifications)} notifications")
+        """Replay retained state to this client."""
+        notifications = session.session_view.snapshot_notifications()
+        LOGGER.debug("Replaying %s notifications", len(notifications))
         for notif in notifications:
             LOGGER.debug("Replaying notification %s", notif)
             self._serialize_and_notify(notif)
 
-    def _on_disconnect(
-        self,
-        e: Exception,
-        cleanup_fn: Callable[[], Any],
-    ) -> None:
+    def _on_disconnect(self) -> None:
+        session = self._session
+        if session is None:
+            return
         LOGGER.debug(
-            "Connection closed for session %s with exception %s, type %s",
+            "Connection closed for session %s",
             self.params.session_id,
-            str(e),
-            type(e),
         )
 
         # Change the status
         self.status = ConnectionState.CLOSED
         # Disconnect the consumer
-        session = self.manager.get_session(self.params.session_id)
-        if session:
-            session.disconnect_consumer(self)
+        session.disconnect_consumer(self)
 
         # When the connection is closed, we wait session.ttl_seconds before
         # closing the session. This prevents the session from being closed
@@ -311,16 +337,22 @@ class SessionHandler(SessionConsumer, abc.ABC):
             or self.mode == SessionMode.RUN
         )
         if should_ttl_close:
+            connection_generation = session.connection_generation
 
             def _close() -> None:
+                live = self.manager.get_session(self.params.session_id)
+                # A later connection owns its own full retention window,
+                # including while it is disconnected again.
+                if (
+                    live is None
+                    or live is not session
+                    or live.connection_generation != connection_generation
+                ):
+                    return
                 if self.status != ConnectionState.OPEN:
                     # Guard: if another consumer has taken over, the session
                     # is alive.
-                    live = self.manager.get_session(self.params.session_id)
-                    if (
-                        live is not None
-                        and live.connection_state() == ConnectionState.OPEN
-                    ):
+                    if live.connection_state() == ConnectionState.OPEN:
                         LOGGER.debug(
                             "Session %s has active consumer, skipping TTL close",
                             self.params.session_id,
@@ -330,27 +362,18 @@ class SessionHandler(SessionConsumer, abc.ABC):
                         "Closing session %s (TTL EXPIRED)",
                         self.params.session_id,
                     )
-                    # wait until TTL is expired before calling the cleanup
-                    # function
-                    cleanup_fn()
                     self.manager.close_session(self.params.session_id)
 
-            if session is not None:
-                cancellation_handle = asyncio.get_running_loop().call_later(
-                    session.ttl_seconds, _close
-                )
-                self.cancel_close_handle = cancellation_handle
-            else:
-                _close()
-        else:
-            cleanup_fn()
+            self.cancel_close_handle = asyncio.get_running_loop().call_later(
+                session.ttl_seconds, _close
+            )
 
     def on_attach(self, session: Session, event_bus: SessionEventBus) -> None:
-        del session
         del event_bus
-        return
+        self._session = session
 
     def on_detach(self) -> None:
+        self._session = None
         # If the transport is open, send a close message
         is_connected = (
             self.status == ConnectionState.OPEN
@@ -360,8 +383,6 @@ class SessionHandler(SessionConsumer, abc.ABC):
             self._request_close(
                 WebSocketCodes.NORMAL_CLOSE, WebSocketCloseReason.SHUTDOWN
             )
-
-        self._cancel_message_loop()
 
     def connection_state(self) -> ConnectionState:
         return self.status

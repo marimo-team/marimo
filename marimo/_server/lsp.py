@@ -3,17 +3,20 @@ from __future__ import annotations
 
 import asyncio
 import os
+import secrets
+import shutil
 import signal
 import socket
 import subprocess
 import time
 from abc import ABC, abstractmethod
+from functools import cached_property
 from pathlib import Path
 from typing import Any, Literal, cast
 
 from marimo import _loggers
 from marimo._config.config import MarimoConfig
-from marimo._config.manager import MarimoConfigReader
+from marimo._config.manager import MarimoConfigManager
 from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.notification import AlertNotification
@@ -36,6 +39,11 @@ LOGGER = _loggers.marimo_logger()
 class LspServer(ABC):
     port: int
     id: str
+
+    @cached_property
+    def auth_token(self) -> str:
+        # This credential stays between the proxy and its child process.
+        return secrets.token_urlsafe(32)
 
     @abstractmethod
     async def start(self) -> AlertNotification | None:
@@ -111,6 +119,7 @@ class BaseLspServer(LspServer):
                 stderr=subprocess.DEVNULL if is_windows() else subprocess.PIPE,
                 stdin=None,
                 text=True,
+                env={**os.environ, "MARIMO_LSP_TOKEN": self.auth_token},
                 # Create a new process group so we can kill the entire
                 # tree (parent + children) on shutdown. Without this,
                 # child processes (e.g. copilot language-server.cjs)
@@ -260,7 +269,7 @@ class BaseLspServer(LspServer):
         try:
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             sock.settimeout(timeout_ms / 1000)
-            result = sock.connect_ex(("localhost", self.port))
+            result = sock.connect_ex(("127.0.0.1", self.port))
             sock.close()
             return result == 0
         except Exception:
@@ -619,12 +628,9 @@ class PyLspServer(BaseLspServer):
         return [
             sys.executable,
             "-m",
-            "pylsp",
-            "--ws",
-            "-v",
+            "marimo._server._pylsp",
             "--port",
             str(self.port),
-            "--check-parent-process",
             "--log-file",
             str(self.log_file),
         ]
@@ -691,13 +697,13 @@ class TyServer(BaseLspServer):
 
     async def start(self) -> AlertNotification | None:
         # ty is not required, so we don't want to alert or fail if it is not installed
-        if not DependencyManager.ty.has():
+        if not (DependencyManager.ty.has() or DependencyManager.which("ty")):
             LOGGER.debug("ty is not installed. Skipping LSP server.")
             return None
         return await super().start()
 
     def validate_requirements(self) -> str | Literal[True]:
-        if not DependencyManager.ty.has():
+        if not (DependencyManager.ty.has() or DependencyManager.which("ty")):
             return "ty is missing. Install it with `pip install ty`."
 
         if not DependencyManager.which("node"):
@@ -706,12 +712,21 @@ class TyServer(BaseLspServer):
         return True
 
     def get_command(self) -> list[str]:
-        from ty.__main__ import find_ty_bin  # type: ignore
-
         lsp_bin = marimo_package_path() / "_lsp" / "index.cjs"
 
         # Use typed format to avoid quoting issues: ty:<binary_path>
-        ty_command = f"ty:{find_ty_bin()}"
+        try:
+            from ty.__main__ import find_ty_bin  # type: ignore
+
+            ty_command = f"ty:{find_ty_bin()}"
+        except ImportError:
+            # Tools installed with `uv tool install` are only on PATH.
+            ty_bin = shutil.which("ty")
+            if ty_bin is None:
+                raise FileNotFoundError(
+                    "ty executable not found on PATH"
+                ) from None
+            ty_command = f"ty:{ty_bin}"
 
         return [
             "node",
@@ -811,7 +826,7 @@ class CompositeLspServer(LspServer):
 
     def __init__(
         self,
-        config_reader: MarimoConfigReader,
+        config_reader: MarimoConfigManager,
         min_port: int,
     ) -> None:
         self.config_reader = config_reader

@@ -76,13 +76,13 @@ export class EditNotebookTool implements AiTool<
   EditNotebookInput,
   ToolOutputBase
 > {
-  readonly name = "edit_notebook_tool";
-  readonly description = description;
-  readonly schema = editNotebookSchema;
-  readonly outputSchema = toolOutputBaseSchema;
-  readonly mode: CopilotMode[] = ["agent"];
+  public readonly name = "edit_notebook_tool";
+  public readonly description = description;
+  public readonly schema = editNotebookSchema;
+  public readonly outputSchema = toolOutputBaseSchema;
+  public readonly mode: CopilotMode[] = ["agent"];
 
-  handler = async (
+  public handler = async (
     { edit }: EditNotebookInput,
     toolContext: ToolNotebookContext,
   ): Promise<ToolOutputBase> => {
@@ -94,19 +94,17 @@ export class EditNotebookTool implements AiTool<
         const cellId = position.cellId as CellId | undefined;
 
         if (!cellId) {
-          throw new ToolExecutionError(
-            "Cell ID is required for update_cell",
-            "CELL_ID_REQUIRED_FOR_UPDATE_CELL",
-            true,
-            "Provide a cell ID to update",
-          );
+          throw new ToolExecutionError("Cell ID is required for update_cell", {
+            code: "CELL_ID_REQUIRED_FOR_UPDATE_CELL",
+            isRetryable: true,
+            suggestedFix: "Provide a cell ID to update",
+          });
         } else if (!code) {
-          throw new ToolExecutionError(
-            "Code is required for update_cell",
-            "CODE_REQUIRED_FOR_UPDATE_CELL",
-            true,
-            "Provide the new code to update the cell",
-          );
+          throw new ToolExecutionError("Code is required for update_cell", {
+            code: "CODE_REQUIRED_FOR_UPDATE_CELL",
+            isRetryable: true,
+            suggestedFix: "Provide the new code to update the cell",
+          });
         }
 
         const notebook = store.get(notebookAtom);
@@ -157,18 +155,22 @@ export class EditNotebookTool implements AiTool<
             if (!cellId) {
               throw new ToolExecutionError(
                 "Cell ID is required for add_cell with relative position",
-                "TOOL_ERROR",
-                true,
-                "Provide a cell ID to add the cell before",
+                {
+                  code: "TOOL_ERROR",
+                  isRetryable: true,
+                  suggestedFix: "Provide a cell ID to add the cell before",
+                },
               );
             }
 
             if (position.before === undefined) {
               throw new ToolExecutionError(
                 "Before is required for add_cell with relative position",
-                "TOOL_ERROR",
-                true,
-                `Provide a boolean value for before, true to add before cell ${cellId}, false to add after the cell`,
+                {
+                  code: "TOOL_ERROR",
+                  isRetryable: true,
+                  suggestedFix: `Provide a boolean value for before, true to add before cell ${cellId}, false to add after the cell`,
+                },
               );
             }
 
@@ -181,9 +183,12 @@ export class EditNotebookTool implements AiTool<
             if (!position.columnIndex) {
               throw new ToolExecutionError(
                 "Column index is required for add_cell with column_end position",
-                "TOOL_ERROR",
-                true,
-                "Provide a column index to add the cell at the end of",
+                {
+                  code: "TOOL_ERROR",
+                  isRetryable: true,
+                  suggestedFix:
+                    "Provide a column index to add the cell at the end of",
+                },
               );
             }
 
@@ -218,12 +223,11 @@ export class EditNotebookTool implements AiTool<
         const cellId = position.cellId as CellId | undefined;
 
         if (!cellId) {
-          throw new ToolExecutionError(
-            "Cell ID is required for delete_cell",
-            "CELL_ID_REQUIRED_FOR_DELETE_CELL",
-            true,
-            "Provide a cell ID to delete",
-          );
+          throw new ToolExecutionError("Cell ID is required for delete_cell", {
+            code: "CELL_ID_REQUIRED_FOR_DELETE_CELL",
+            isRetryable: true,
+            suggestedFix: "Provide a cell ID to delete",
+          });
         }
 
         const notebook = store.get(notebookAtom);
@@ -255,12 +259,11 @@ export class EditNotebookTool implements AiTool<
   private validateCellIdExists(cellId: CellId, notebook: NotebookState) {
     const cellIds = notebook.cellIds;
     if (!cellIds.getColumns().some((column) => column.idSet.has(cellId))) {
-      throw new ToolExecutionError(
-        "Cell not found",
-        "CELL_NOT_FOUND",
-        false,
-        "Check which cells exist in the notebook",
-      );
+      throw new ToolExecutionError("Cell not found", {
+        code: "CELL_NOT_FOUND",
+        isRetryable: false,
+        suggestedFix: "Check which cells exist in the notebook",
+      });
     }
   }
 
@@ -272,12 +275,12 @@ export class EditNotebookTool implements AiTool<
     const columns = cellIds.getColumns();
 
     if (columnIndex < 0 || columnIndex >= columns.length) {
-      throw new ToolExecutionError(
-        "Column index is out of range",
-        "COLUMN_INDEX_OUT_OF_RANGE",
-        true,
-        "Choose a column index between 0 and the number of columns in the notebook (0-based)",
-      );
+      throw new ToolExecutionError("Column index is out of range", {
+        code: "COLUMN_INDEX_OUT_OF_RANGE",
+        isRetryable: true,
+        suggestedFix:
+          "Choose a column index between 0 and the number of columns in the notebook (0-based)",
+      });
     }
     return columns[columnIndex].id;
   }
@@ -289,12 +292,11 @@ export class EditNotebookTool implements AiTool<
     const cellHandles = notebook.cellHandles;
     const cellHandle = cellHandles[cellId].current;
     if (!cellHandle?.editorView) {
-      throw new ToolExecutionError(
-        "Cell editor not found",
-        "CELL_EDITOR_NOT_FOUND",
-        false,
-        "Internal error, ask the user to report this error",
-      );
+      throw new ToolExecutionError("Cell editor not found", {
+        code: "CELL_EDITOR_NOT_FOUND",
+        isRetryable: false,
+        suggestedFix: "Internal error, ask the user to report this error",
+      });
     }
     return cellHandle.editorView;
   }

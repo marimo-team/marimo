@@ -29,6 +29,7 @@ from marimo._messaging.types import (
 )
 from marimo._session.queue import QueueType
 from marimo._types.ids import CellId_t
+from marimo._utils.signals import SigintHandler
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Iterator
@@ -129,7 +130,9 @@ class ThreadSafeStream(Stream):
         self.input_queue = input_queue
 
     def write(self, data: KernelMessage) -> None:
-        with self.stream_lock:
+        # The interrupt handler also writes to this stream. Finish the send
+        # and release the lock before allowing it to run.
+        with SigintHandler.defer(), self.stream_lock:
             try:
                 self.pipe.send(data)
             except OSError as e:
@@ -391,7 +394,11 @@ class ThreadSafeStderr(Stderr):
         self._stream.flush_console()
 
     def _write_with_mimetype(
-        self, data: str, mimetype: ConsoleMimeType
+        self,
+        data: str,
+        mimetype: ConsoleMimeType,
+        *,
+        code: str | None = None,
     ) -> int:
         assert self._stream.cell_id is not None
         if not isinstance(data, str):
@@ -413,6 +420,7 @@ class ThreadSafeStderr(Stderr):
                     cell_id=self._stream.cell_id,
                     data=data,
                     mimetype=mimetype,
+                    code=code,
                 )
             )
             self._stream.console_msg_cv.notify()

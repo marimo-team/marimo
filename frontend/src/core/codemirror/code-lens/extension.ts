@@ -56,12 +56,12 @@ class LensHoverController {
   private showTimer: number | undefined;
   private hideTimer: number | undefined;
 
-  constructor(view: EditorView) {
+  public constructor(view: EditorView) {
     this.view = view;
   }
 
   /** Pointer entered a lens icon */
-  enterLens(spec: CodeLensSpec, icon: HTMLElement): void {
+  public enterLens(spec: CodeLensSpec, icon: HTMLElement): void {
     this.clearTimers();
     dismissEditorHoverTooltips(this.view, icon);
     const hovered = this.view.state.field(codeLensHoverField, false);
@@ -76,7 +76,7 @@ class LensHoverController {
   }
 
   /** Pointer left a lens icon or the popover */
-  leave(): void {
+  public leave(): void {
     this.clearTimers();
     this.hideTimer = window.setTimeout(() => {
       this.hideTimer = undefined;
@@ -85,19 +85,19 @@ class LensHoverController {
   }
 
   /** Pointer entered the popover */
-  enterPopover(): void {
+  public enterPopover(): void {
     window.clearTimeout(this.hideTimer);
     this.hideTimer = undefined;
   }
 
-  hide(): void {
+  public hide(): void {
     this.clearTimers();
     if (this.view.state.field(codeLensHoverField, false)) {
       this.view.dispatch({ effects: setHoveredLens.of(null) });
     }
   }
 
-  destroy(): void {
+  public destroy(): void {
     this.clearTimers();
   }
 
@@ -135,18 +135,18 @@ function dismissEditorHoverTooltips(
 class CodeLensWidget extends WidgetType {
   private readonly spec: CodeLensSpec;
 
-  constructor(spec: CodeLensSpec) {
+  public constructor(spec: CodeLensSpec) {
     super();
     this.spec = spec;
   }
 
-  override eq(other: CodeLensWidget): boolean {
+  public override eq(other: CodeLensWidget): boolean {
     // `pos` is captured by the DOM hover/click handlers, so a reused widget
     // whose anchor moved must not be treated as equal
     return specEquals(this.spec, other.spec);
   }
 
-  override toDOM(view: EditorView): HTMLElement {
+  public override toDOM(view: EditorView): HTMLElement {
     const { spec } = this;
     const element = document.createElement("span");
     element.className = "mo-code-lens";
@@ -188,7 +188,7 @@ class CodeLensWidget extends WidgetType {
     return element;
   }
 
-  override ignoreEvent(): boolean {
+  public override ignoreEvent(): boolean {
     // The widget handles its own events
     return true;
   }
@@ -281,7 +281,7 @@ class CodeLensPlugin {
   private readonly debounceMs = 300;
   private readonly scheduleUpdate: DebouncedFunc<() => void>;
 
-  constructor(view: EditorView, cellId: CellId, includeCache: boolean) {
+  public constructor(view: EditorView, cellId: CellId, includeCache: boolean) {
     this.view = view;
     this.cellId = cellId;
     this.includeCache = includeCache;
@@ -297,7 +297,7 @@ class CodeLensPlugin {
     this.scheduleUpdate();
   }
 
-  update(update: ViewUpdate) {
+  public update(update: ViewUpdate) {
     // Recompute on edits, and when the cell's language changes (e.g. Python ->
     // SQL) so stale Python-only icons are cleared even if the text is unchanged
     const adapterChanged =
@@ -308,7 +308,7 @@ class CodeLensPlugin {
     }
   }
 
-  destroy() {
+  public destroy() {
     this.scheduleUpdate.cancel();
     for (const unsubscribe of this.unsubscribes) {
       unsubscribe();

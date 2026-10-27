@@ -4,12 +4,12 @@ from __future__ import annotations
 import dataclasses
 import datetime
 import json
-import sys
 import types
 from enum import Enum
 from typing import (
     Any,
     Literal,
+    NotRequired,
     Optional,
     TypeVar,
     Union,
@@ -21,11 +21,6 @@ from typing import (
 
 import msgspec
 import msgspec.json
-
-if sys.version_info >= (3, 11):
-    from typing import NotRequired
-else:
-    from typing_extensions import NotRequired
 
 T = TypeVar("T")
 

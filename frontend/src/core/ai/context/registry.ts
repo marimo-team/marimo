@@ -36,35 +36,35 @@ export abstract class AIContextProvider<
   T extends AIContextItem = AIContextItem,
 > {
   /** Human-readable title for this context type */
-  abstract readonly title: string;
+  public abstract readonly title: string;
 
   /** Prefix used for mentions (e.g., "@" for variables, "#" for files) */
-  abstract readonly mentionPrefix: "@" | "#";
+  public abstract readonly mentionPrefix: "@" | "#";
 
   /** Context type identifier used in ContextLocatorId */
-  abstract readonly contextType: string;
+  public abstract readonly contextType: string;
 
   /** Get all available items of this context type */
-  abstract getItems(): T[];
+  public abstract getItems(): T[];
 
   /** Format the context for inclusion in AI prompt */
-  abstract formatContext(item: T): string;
+  public abstract formatContext(item: T): string;
 
   /** Format completion */
-  abstract formatCompletion(item: T): Completion;
+  public abstract formatCompletion(item: T): Completion;
 
   /** Get attachments for context items (optional, async) */
-  async getAttachments(_items: T[]): Promise<FileUIPart[]> {
+  public async getAttachments(_items: T[]): Promise<FileUIPart[]> {
     // Default implementation returns no attachments
     return [];
   }
 
-  asURI(id: string): ContextLocatorId {
+  public asURI(id: string): ContextLocatorId {
     return `${this.contextType}://${id}` as ContextLocatorId;
   }
 
   /** Parse context IDs from input text using the provider's mention prefix */
-  parseContextIds(input: string): ContextLocatorId[] {
+  public parseContextIds(input: string): ContextLocatorId[] {
     // Match @type://id, e.g., @data://users
     const regex = new RegExp(
       `${this.mentionPrefix}([\\w-]+):\\/\\/([\\w./-]+)`,
@@ -112,7 +112,7 @@ export class AIContextRegistry<T extends AIContextItem> {
   /**
    * Register a new context provider
    */
-  register<U extends AIContextItem>(
+  public register<U extends AIContextItem>(
     provider: AIContextProvider<U>,
     // oxlint-disable-next-line typescript/prefer-return-this-type
   ): AIContextRegistry<U | T> {
@@ -123,28 +123,28 @@ export class AIContextRegistry<T extends AIContextItem> {
   /**
    * Get all registered providers
    */
-  getProviders(): Set<AIContextProvider<T>> {
+  public getProviders(): Set<AIContextProvider<T>> {
     return this.providers;
   }
 
   /**
    * Get a specific provider by type
    */
-  getProvider(type: string): AIContextProvider | undefined {
+  public getProvider(type: string): AIContextProvider | undefined {
     return [...this.providers].find(
       (provider) => provider.contextType === type,
     );
   }
 
   @Memoize()
-  getAllItems(): T[] {
+  public getAllItems(): T[] {
     return [...this.providers].flatMap((provider) => provider.getItems());
   }
 
   /**
    * Parse context IDs from input across all providers
    */
-  parseAllContextIds(input: string): ContextLocatorId[] {
+  public parseAllContextIds(input: string): ContextLocatorId[] {
     return [...this.providers].flatMap((provider) =>
       provider.parseContextIds(input),
     );
@@ -167,7 +167,7 @@ export class AIContextRegistry<T extends AIContextItem> {
   /**
    * Resolve only the requested context items, querying each matching provider
    */
-  resolveItems(contextIds: ContextLocatorId[]): T[] {
+  public resolveItems(contextIds: ContextLocatorId[]): T[] {
     if (contextIds.length === 0) {
       return [];
     }
@@ -215,14 +215,14 @@ export class AIContextRegistry<T extends AIContextItem> {
   /**
    * Get context information for mentioned items
    */
-  getContextInfo(contextIds: ContextLocatorId[]): T[] {
+  public getContextInfo(contextIds: ContextLocatorId[]): T[] {
     return this.resolveItems(contextIds);
   }
 
   /**
    * Format context for AI prompt inclusion
    */
-  formatContextForAI(contextIds: ContextLocatorId[]): string {
+  public formatContextForAI(contextIds: ContextLocatorId[]): string {
     const contextInfo = this.resolveItems(contextIds);
 
     if (contextInfo.length === 0) {
@@ -240,7 +240,7 @@ export class AIContextRegistry<T extends AIContextItem> {
   /**
    * Get attachments for mentioned items
    */
-  async getAttachmentsForContext(
+  public async getAttachmentsForContext(
     contextIds: ContextLocatorId[],
   ): Promise<FileUIPart[]> {
     const contextInfo = this.resolveItems(contextIds);

@@ -3,9 +3,8 @@ from __future__ import annotations
 
 import dataclasses
 import datetime
-import sys
 import types
-from collections.abc import Mapping, Sequence as CollectionSequence
+from collections.abc import Mapping, Sequence
 from decimal import Decimal
 from enum import Enum
 from typing import (
@@ -13,24 +12,18 @@ from typing import (
     ClassVar,
     ForwardRef,
     Literal,
-    Optional,
+    NotRequired,
+    Optional,  # noqa: UP035
     Union,
     get_args,
     get_origin,
     get_type_hints,
 )
 
-from marimo._utils.case import to_camel_case
-
-if sys.version_info >= (3, 11):
-    from typing import NotRequired
-else:
-    from typing_extensions import NotRequired
-
-from typing import Sequence  # noqa: UP035
-
 import msgspec
 import msgspec.json
+
+from marimo._utils.case import to_camel_case
 
 _UNION_ORIGINS = (Union, types.UnionType)
 
@@ -116,11 +109,7 @@ class PythonTypeToOpenAPI:
                         ]
                     )
                 }
-        elif (
-            origin is list
-            or origin is CollectionSequence
-            or origin is Sequence
-        ):
+        elif origin is list or origin is Sequence:
             if py_type in processed_classes:
                 ref = processed_classes[py_type]
                 return {"$ref": f"#/components/schemas/{ref}"}

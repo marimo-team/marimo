@@ -42,28 +42,28 @@ describe("useVisibleCellIds", () => {
     mutationObserveSpy = vi.fn();
 
     global.IntersectionObserver = class MockIntersectionObserver {
-      constructor(
+      public constructor(
         callback: IntersectionObserverCallback,
         _options?: IntersectionObserverInit,
       ) {
         intersectionCallback = callback;
       }
-      observe = observeSpy;
-      unobserve = vi.fn();
-      disconnect = intersectionDisconnectSpy;
-      root = null;
-      rootMargin = "";
-      thresholds = [0];
-      takeRecords = vi.fn(() => []);
+      public observe = observeSpy;
+      public unobserve = vi.fn();
+      public disconnect = intersectionDisconnectSpy;
+      public root = null;
+      public rootMargin = "";
+      public thresholds = [0];
+      public takeRecords = vi.fn(() => []);
     } as unknown as typeof IntersectionObserver;
 
     global.MutationObserver = class MockMutationObserver {
-      constructor(callback: MutationCallback) {
+      public constructor(callback: MutationCallback) {
         mutationCallback = callback;
       }
-      observe = mutationObserveSpy;
-      disconnect = mutationDisconnectSpy;
-      takeRecords = vi.fn(() => []);
+      public observe = mutationObserveSpy;
+      public disconnect = mutationDisconnectSpy;
+      public takeRecords = vi.fn(() => []);
     } as unknown as typeof MutationObserver;
   });
 

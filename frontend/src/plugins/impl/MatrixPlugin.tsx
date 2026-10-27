@@ -23,11 +23,11 @@ interface Data {
 }
 
 export class MatrixPlugin implements IPlugin<T, Data> {
-  tagName = "marimo-matrix";
+  public tagName = "marimo-matrix";
 
-  cssStyles = [matrixCss];
+  public cssStyles = [matrixCss];
 
-  validator = z.object({
+  public validator = z.object({
     initialValue: z.array(z.array(z.number())),
     label: z.string().nullable(),
     minValue: z.array(z.array(z.number())).nullish(),
@@ -42,7 +42,7 @@ export class MatrixPlugin implements IPlugin<T, Data> {
     disabled: z.array(z.array(z.boolean())),
   });
 
-  render(props: IPluginProps<T, Data>): JSX.Element {
+  public render(props: IPluginProps<T, Data>): JSX.Element {
     return (
       <MatrixComponent
         {...props.data}

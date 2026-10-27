@@ -13,7 +13,12 @@ export type HTMLElementNotDerivedFromRef<T = HTMLElement> = T & {
 };
 
 export function isRefObject<T>(target: unknown): target is RefObject<T | null> {
-  return target !== null && typeof target === "object" && "current" in target;
+  return (
+    target !== null &&
+    typeof target === "object" &&
+    !("addEventListener" in target) &&
+    "current" in target
+  );
 }
 
 export function useEventListener<K extends keyof DocumentEventMap>(
@@ -57,8 +62,7 @@ export function useEventListener(
       return;
     }
 
-    // oxlint-disable-next-line typescript/no-explicit-any
-    const eventListener = (event: any) => savedListener.current(event);
+    const eventListener = (event: Event) => savedListener.current(event);
     target.addEventListener(type, eventListener, options);
 
     return () => {

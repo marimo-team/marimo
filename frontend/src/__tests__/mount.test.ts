@@ -7,7 +7,9 @@ import { kioskModeAtom } from "@/core/mode";
 import { connectionAtom } from "@/core/network/connection";
 import { store } from "@/core/state/jotai";
 import { isStaticNotebook } from "@/core/static/static-state";
-import { WebSocketState } from "@/core/websocket/types";
+import { ConnectionState } from "@/core/websocket/types";
+import { pairConfigAtom } from "@/core/config/pair";
+import { PAIR_CONFIG } from "./fixtures/pair-config";
 import { mount, visibleForTesting } from "../mount";
 
 // Mock React DOM
@@ -57,7 +59,7 @@ describe("mount", () => {
     store.set(layoutStateAtom, initialLayoutState());
     store.set(kioskModeAtom, false);
     // Reset connection atom to initial state
-    store.set(connectionAtom, { state: WebSocketState.NOT_STARTED });
+    store.set(connectionAtom, { state: ConnectionState.NOT_STARTED });
   });
 
   afterEach(() => {
@@ -82,6 +84,22 @@ describe("mount", () => {
       mockElement,
     );
 
+  it("hydrates the server's Pair configuration", () => {
+    const error = mountRead({ pairConfig: PAIR_CONFIG });
+
+    expect(error).toBeUndefined();
+    expect(store.get(pairConfigAtom)).toEqual(PAIR_CONFIG);
+  });
+
+  it("clears Pair configuration when the server omits it", () => {
+    store.set(pairConfigAtom, PAIR_CONFIG);
+
+    const error = mountRead();
+
+    expect(error).toBeUndefined();
+    expect(store.get(pairConfigAtom)).toBeUndefined();
+  });
+
   describe("connection state initialization", () => {
     it("should set connection to CONNECTING when runtimeConfig has lazy=false", () => {
       mount(
@@ -93,7 +111,7 @@ describe("mount", () => {
       );
 
       const connection = store.get(connectionAtom);
-      expect(connection.state).toBe(WebSocketState.CONNECTING);
+      expect(connection.state).toBe(ConnectionState.CONNECTING);
     });
 
     it("should keep connection as NOT_STARTED when runtimeConfig has lazy=true", () => {
@@ -106,7 +124,7 @@ describe("mount", () => {
       );
 
       const connection = store.get(connectionAtom);
-      expect(connection.state).toBe(WebSocketState.NOT_STARTED);
+      expect(connection.state).toBe(ConnectionState.NOT_STARTED);
     });
 
     it("should keep connection as NOT_STARTED when no runtimeConfig is provided", () => {
@@ -119,7 +137,7 @@ describe("mount", () => {
       );
 
       const connection = store.get(connectionAtom);
-      expect(connection.state).toBe(WebSocketState.NOT_STARTED);
+      expect(connection.state).toBe(ConnectionState.NOT_STARTED);
     });
 
     it("should keep connection as NOT_STARTED for static notebooks even with lazy=false", () => {
@@ -137,7 +155,7 @@ describe("mount", () => {
       );
 
       const connection = store.get(connectionAtom);
-      expect(connection.state).toBe(WebSocketState.NOT_STARTED);
+      expect(connection.state).toBe(ConnectionState.NOT_STARTED);
     });
   });
 

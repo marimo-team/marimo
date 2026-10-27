@@ -28,7 +28,7 @@ const datasetTableCompletionsAtom = atom((get) => {
 class SQLCompletionStore {
   private cache: LRUCache<DataSourceConnection, CachedSchema>;
 
-  constructor() {
+  public constructor() {
     this.cache = new LRUCache(10, {
       create: (connection) => this.getConnectionSchema(connection),
     });
@@ -121,7 +121,7 @@ class SQLCompletionStore {
    * Returns the raw dialect of the connection passed from the backend,
    * or null if the connection is not found
    */
-  getInternalDialect(connectionName: ConnectionName): string | null {
+  public getInternalDialect(connectionName: ConnectionName): string | null {
     const connection = this.getConnection(connectionName);
     if (!connection) {
       return null;
@@ -133,7 +133,7 @@ class SQLCompletionStore {
    * Get the inferred SQL dialect for a connection
    * If the connection is not found, return the standard SQL dialect.
    */
-  getDialect(connectionName: ConnectionName): SQLDialect {
+  public getDialect(connectionName: ConnectionName): SQLDialect {
     const connection = this.getConnection(connectionName);
     if (!connection) {
       return ModifiedStandardSQL;
@@ -141,7 +141,7 @@ class SQLCompletionStore {
     return guessDialect(connection);
   }
 
-  getCompletionSource(connectionName: ConnectionName): SQLConfig | null {
+  public getCompletionSource(connectionName: ConnectionName): SQLConfig | null {
     const connection = this.getConnection(connectionName);
     if (!connection) {
       return null;

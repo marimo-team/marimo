@@ -1,15 +1,23 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { render } from "@testing-library/react";
-import { Provider } from "jotai";
+import { fireEvent, render, screen } from "@testing-library/react";
+import { createStore, Provider } from "jotai";
 import type React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MockRequestClient } from "@/__mocks__/requests";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import type { SQLTableContext } from "@/core/datasets/data-source-connections";
 import type { DataTable, DataTableColumn } from "@/core/kernel/messages";
 import { requestClientAtom } from "@/core/network/requests";
 import { store } from "@/core/state/jotai";
 import { DatasetColumnPreview } from "../column-preview";
+
+const { createNewCell } = vi.hoisted(() => ({ createNewCell: vi.fn() }));
+
+vi.mock("@/core/cells/cells", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/core/cells/cells")>()),
+  useCellActions: () => ({ createNewCell }),
+}));
 
 const wrapper = ({ children }: { children: React.ReactNode }) => (
   <Provider store={store}>{children}</Provider>
@@ -93,5 +101,58 @@ describe("DatasetColumnPreview fullyQualifiedTableName", () => {
         fullyQualifiedTableName: "top.nested.deep.users",
       }),
     );
+  });
+});
+
+describe("DatasetColumnPreview chart actions", () => {
+  it("identifies each column and inserts its corresponding chart", () => {
+    const store = createStore();
+    store.set(requestClientAtom, MockRequestClient.create());
+    const columns: DataTableColumn[] = [
+      {
+        name: "email",
+        type: "string",
+        external_type: "str",
+        sample_values: [],
+      },
+      { name: "age", type: "integer", external_type: "int", sample_values: [] },
+    ];
+    render(
+      <Provider store={store}>
+        <TooltipProvider>
+          {columns.map((column) => (
+            <DatasetColumnPreview
+              key={column.name}
+              table={{ ...table, source_type: "local", engine: null }}
+              column={column}
+              onAddColumnChart={vi.fn()}
+              preview={{
+                table_name: table.name,
+                column_name: column.name,
+                chart_code: `chart_${column.name}`,
+                chart_spec: null,
+                error: null,
+                missing_packages: null,
+                stats: {},
+              }}
+            />
+          ))}
+        </TooltipProvider>
+      </Provider>,
+    );
+
+    for (const column of columns) {
+      fireEvent.click(
+        screen.getByRole("button", {
+          name: `Add chart to notebook for ${column.name}`,
+        }),
+      );
+      expect(createNewCell).toHaveBeenLastCalledWith({
+        code: `chart_${column.name}`,
+        before: false,
+        cellId: "__end__",
+      });
+    }
+    expect(createNewCell).toHaveBeenCalledTimes(2);
   });
 });

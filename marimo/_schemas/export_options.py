@@ -1,7 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Literal, get_args
 
 from marimo._convert.markdown.flavor.base import MarkdownFlavorName
@@ -42,10 +42,18 @@ class MarkdownExportOptions:
 
 
 @dataclass(frozen=True, kw_only=True)
+class WASMRuntimeConfig:
+    pyodide_index_url: str | None = None
+    pyodide_lockfile_url: str | None = None
+    pypi_index_url: str | None = None
+
+
+@dataclass(frozen=True, kw_only=True)
 class WASMExportOptions:
     mode: WASMMode
     show_code: bool
     asset_url: str | None = None
+    runtime: WASMRuntimeConfig = field(default_factory=WASMRuntimeConfig)
 
 
 @dataclass(frozen=True, kw_only=True)

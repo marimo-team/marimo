@@ -1,4 +1,5 @@
 /* Copyright 2026 Marimo. All rights reserved. */
+import { withPackageInvalidation } from "../packages/package-data";
 import { getRuntimeManager } from "../runtime/config";
 import { isStaticNotebook } from "../static/static-state";
 import { PyodideBridge } from "../wasm/bridge";
@@ -20,5 +21,5 @@ export function resolveRequestClient(): EditRequests & RunRequests {
       getRuntimeManager(),
     );
   }
-  return createErrorToastingRequests(base);
+  return withPackageInvalidation(createErrorToastingRequests(base));
 }

@@ -25,6 +25,7 @@ export interface components {
     NotebookCellConfig: {
       column?: number | null;
       disabled?: boolean | null;
+      expand_output?: boolean | null;
       hide_code?: boolean | null;
     };
     /**

@@ -9,7 +9,7 @@ import type { JsonString } from "@/utils/json/base64";
 import { Logger } from "../../../utils/Logger";
 
 export class ReadonlyWasmController extends DefaultWasmController {
-  override async bootstrap(opts: {
+  public override async bootstrap(opts: {
     version: string;
     pyodideVersion: string;
   }): Promise<PyodideInterface> {
@@ -17,7 +17,10 @@ export class ReadonlyWasmController extends DefaultWasmController {
     return pyodide;
   }
 
-  override async mountFilesystem(opts: { code: string; filename: string }) {
+  public override async mountFilesystem(opts: {
+    code: string;
+    filename: string;
+  }) {
     const { code, filename } = opts;
     // Write file
     try {
@@ -34,7 +37,7 @@ export class ReadonlyWasmController extends DefaultWasmController {
     return { code, filename };
   }
 
-  override async startSession(opts: {
+  public override async startSession(opts: {
     code: string;
     filename: string | null;
     onMessage: (message: JsonString<NotificationPayload>) => void;

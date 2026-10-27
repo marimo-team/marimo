@@ -1,0 +1,36 @@
+name: Host protocol
+
+on:
+  pull_request:
+    paths:
+      - "protocols/**"
+      - "marimo/_core/protocol.py"
+      - "tests/_core/test_protocol.py"
+      - "tests/_lint/test_host_protocol_codegen.py"
+      - "tests/_lint/test_host_protocol_overlays.py"
+      - "pyproject.toml"
+      - "Makefile"
+      - ".github/workflows/test_host_protocol.yaml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: host-protocol-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
+      - name: Check Python model generation and portable fixtures
+        run: make host-protocol-check
+      - name: Check generated Python bindings against fixtures
+        run: uv run --group test pytest tests/_core/test_protocol.py tests/_lint/test_host_protocol_codegen.py tests/_lint/test_host_protocol_overlays.py
+      - name: Lint protocol tooling
+        run: |
+          uv run ruff check protocols
+          uv run ruff format --check protocols

@@ -9,9 +9,11 @@ import {
 } from "rpc-anywhere";
 import type { SaveNotebookRequest } from "@/core/network/types";
 import { decodeUtf8 } from "@/utils/strings";
+import { Deferred } from "../../../utils/Deferred";
 import { prettyError } from "../../../utils/errors";
 import { Logger } from "../../../utils/Logger";
 import type { ParentSchema } from "../rpc";
+import type { WasmRuntimeConfig } from "../runtime-config";
 import { TRANSPORT_ID } from "./constants";
 import { WasmFileSystem } from "./fs";
 import { getController } from "./getController";
@@ -25,18 +27,20 @@ declare const self: Window & {
   pyodide: PyodideInterface;
 };
 
+const runtimeConfig = new Deferred<WasmRuntimeConfig>();
+
 // Initialize
 async function loadPyodideAndPackages() {
   try {
     // Import pyodide
-    const marimoVersion = getMarimoVersion();
-    const pyodideVersion = getPyodideVersion(marimoVersion);
+    const config = await runtimeConfig.promise;
+    const pyodideVersion = getPyodideVersion(config.version);
 
     // Bootstrap the controller
-    const controller = await getController(marimoVersion);
+    const controller = await getController(config.version);
     self.controller = controller;
     self.pyodide = await controller.bootstrap({
-      version: marimoVersion,
+      ...config,
       pyodideVersion: pyodideVersion,
     });
 
@@ -100,9 +104,6 @@ const rpc = createRPC<SaveWorkerSchema, ParentSchema>({
   requestHandler,
 });
 
-rpc.send("ready", {});
+rpc.addMessageListener("bootstrap", (config) => runtimeConfig.resolve(config));
 
-function getMarimoVersion() {
-  // Worker name is "<version>" or "<version>::<capability>" — see bridge.ts.
-  return self.name.split("::")[0];
-}
+rpc.send("ready", {});

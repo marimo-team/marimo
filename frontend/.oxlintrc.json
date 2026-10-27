@@ -24,6 +24,7 @@
   },
   "rules": {
     // === Marimo custom rules ===
+    "marimo/host-imports": "error",
     "marimo/add-event-listener-object": "error",
     "marimo/remove-event-listener-object": "error",
     "marimo/prefer-object-params": "warn",
@@ -58,7 +59,6 @@
     "no-underscore-dangle": "off",
     "react/exhaustive-effect-dependencies": "off",
     "react/forbid-component-props": "off",
-    "react/immutability": "off",
     "react/incompatible-library": "off",
     "react/jsx-no-literals": "off",
     "react/no-unstable-nested-components": ["error", { "allowAsProps": true }],
@@ -67,14 +67,10 @@
     "react/rule-suppression": "off",
     "react/set-state-in-effect": "off",
     "react/todo": "off",
-    "typescript/explicit-member-accessibility": "off",
-    "vitest/no-conditional-expect": "off",
     "vitest/no-standalone-expect": [
       "error",
       { "additionalTestBlockFunctions": ["beforeEach"] }
     ],
-    "vitest/prefer-snapshot-hint": "off",
-
     // === Core rules ===
     "no-var": "error",
     "no-console": "error",
@@ -82,7 +78,6 @@
     "no-inner-declarations": "error",
     "no-useless-constructor": "error",
 
-    "no-redeclare": "off",
     "no-empty": "warn",
     "no-cond-assign": "warn",
     "prefer-const": "error",
@@ -93,12 +88,6 @@
     "array-callback-return": "warn",
     "no-new": "off",
     "no-bitwise": "off",
-    // TODO: re-enable
-    "no-control-regex": "warn",
-    // TODO: re-enable
-    "no-unsafe-optional-chaining": "warn",
-    // TODO: re-enable
-    "no-unused-expressions": "warn",
     // TODO: re-enable
     "no-unused-vars": "warn",
 
@@ -131,10 +120,9 @@
     "react/jsx-pascal-case": "error",
     "react/no-multi-comp": "off",
     "react/jsx-filename-extension": "off",
-    // TODO: re-enable as error
-    "react/jsx-no-useless-fragment": "warn",
-    "react/jsx-no-target-blank": "warn",
-    "react/jsx-no-comment-textnodes": "warn",
+    "react/jsx-no-useless-fragment": "error",
+    "react/jsx-no-target-blank": "error",
+    "react/jsx-no-comment-textnodes": "error",
     "react/self-closing-comp": "error",
 
     // === React Hooks ===
@@ -142,16 +130,14 @@
     "react-hooks/exhaustive-deps": "warn",
 
     // === JSX A11y ===
-    // TODO: re-enable all of these as error
+    // TODO: re-enable the remaining rules as error
     "jsx-a11y/click-events-have-key-events": "off",
-    "jsx-a11y/heading-has-content": "off",
-    "jsx-a11y/iframe-has-title": "warn",
+    "jsx-a11y/iframe-has-title": "error",
     "jsx-a11y/media-has-caption": "off",
     "jsx-a11y/no-autofocus": "off",
     "jsx-a11y/no-noninteractive-tabindex": "warn",
     "jsx-a11y/no-static-element-interactions": "off",
     "jsx-a11y/prefer-tag-over-role": "warn",
-    "jsx-a11y/role-has-required-aria-props": "warn",
 
     "react/no-danger": "off",
 

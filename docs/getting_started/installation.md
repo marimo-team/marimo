@@ -1,44 +1,45 @@
 ---
-description: "Install marimo with pip, uv, or conda. Set up a virtual environment and get started with the reactive Python notebook."
+description: "Install marimo with pip, uv, Pixi, or conda. Use a project manager or set up your own environment to get started."
 ---
 
 # Installation
 
-Before installing marimo, we recommend creating and activating a Python
-[virtual environment](https://docs.python.org/3/tutorial/venv.html#creating-virtual-environments).
+You can install marimo alongside your notebook's packages using any major Python
+package manager. With pip or Conda, you'll first need to create and activate a
+[virtual environment](../guides/package_management/projects.md#use-an-existing-environment)
+or [Conda
+environment](https://docs.conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html#creating-an-environment-with-commands).
+Project managers such as uv and Pixi handle this setup automatically when you
+launch marimo from your project with `uv run` or `pixi run`.
 
-??? note "Setting up a virtual environment"
-
-    Python uses virtual environments to minimize conflicts among packages.
-    Here's a quickstart for `pip` users. If you use `conda`, please use a [`conda`
-    environment](https://conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html#creating-an-environment-with-commands)
-    instead.
-
-    Run the following in the terminal:
-
-    - create an environment with `python -m venv marimo-env`
-    - activate the environment:
-      - macOS/Unix: `source marimo-env/bin/activate`
-      - Windows: `marimo-env\Scripts\activate`
-
-    _Make sure the environment is activated before installing marimo and when
-    using marimo._ Install other packages you may need, such as numpy, pandas, matplotlib,
-    and altair, in this environment. When you're done, deactivate the environment
-    with `deactivate` in the terminal.
-
-    Learn more from the [official Python tutorial](https://docs.python.org/3/tutorial/venv.html#creating-virtual-environments).
-
-/// admonition | Using uv?
+//// admonition | Try a standalone notebook
     type: tip
 
-[uv](https://docs.astral.sh/uv/) is a next-generation Python package
-installer and manager that is 10-100x faster than pip, and also makes it easy
-to install Python and manage projects. Create a [uv
-project](https://docs.astral.sh/uv/guides/projects/) with `uv init`; this
-creates and manages a virtual environment for you behind-the-scenes. For
-detailed information on using marimo with `uv`, see our [uv
-guide](../guides/package_management/using_uv.md).
+[uv](https://docs.astral.sh/uv/) and [Pixi](https://pixi.prefix.dev/) can manage
+Python and install marimo for you without setting up a project. To try a notebook
+with its own dependencies:
+
+/// tab | uv
+
+```bash
+uvx marimo edit --sandbox notebook.py
+```
+
 ///
+
+/// tab | Pixi
+
+```bash
+pixi exec marimo edit --sandbox=pixi notebook.py
+```
+
+///
+
+To add marimo to an existing codebase, see
+[working in projects](../guides/package_management/projects.md).
+See [package management](../guides/package_management/index.md) to compare
+projects and notebook sandboxes.
+////
 
 /// admonition | Use our editor extensions
     type: tip
@@ -71,6 +72,8 @@ marimo tutorial intro
 
 /// tab | install with uv
 
+From your project directory (run `uv init` first for a new project):
+
 ```bash
 uv add marimo
 ```
@@ -79,6 +82,22 @@ To check if the install worked, run
 
 ```bash
 uv run marimo tutorial intro
+```
+
+///
+
+/// tab | install with Pixi
+
+From your project directory (run `pixi init --format pyproject` first for a new project):
+
+```bash
+pixi add --pypi marimo
+```
+
+To check if the install worked, run
+
+```bash
+pixi run marimo tutorial intro
 ```
 
 ///

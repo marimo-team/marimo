@@ -48,6 +48,22 @@ def get_store(current_path: str | None = None) -> Store:
     return _get_store_from_config(_store_config(config))
 
 
+def configured_cache_store(current_path: str | None = None) -> Store | None:
+    """The store `cache.store` configures, or `None` when it is unset.
+
+    Unlike `get_store`, an absent configuration returns `None` rather than
+    the default store, so a caller can tell an explicit choice apart from
+    the default.
+    """
+    from marimo._config.manager import get_default_config_manager
+
+    config = get_default_config_manager(current_path=current_path).get_config()
+    store_config = _store_config(config)
+    if store_config is None:
+        return None
+    return _get_store_from_config(store_config)
+
+
 def cache_store_is_untrusted(current_path: str | None = None) -> bool:
     """Whether `cache.store` came from a layer that travels with the code."""
     # NB. only the overrides are inspected, because a store can reach the user
@@ -106,5 +122,6 @@ __all__ = [
     "StoreKey",
     "StoreType",
     "TieredStore",
+    "configured_cache_store",
     "get_store",
 ]

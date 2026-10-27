@@ -15,9 +15,9 @@ interface Data {
 }
 
 export class MimeRendererPlugin implements IStatelessPlugin<Data> {
-  tagName = "marimo-mime-renderer";
+  public tagName = "marimo-mime-renderer";
 
-  validator = z.object({
+  public validator = z.object({
     mime: z.string().transform((val) => val as OutputMessage["mimetype"]),
     data: z
       .union([
@@ -29,7 +29,7 @@ export class MimeRendererPlugin implements IStatelessPlugin<Data> {
       .transform((val) => val as OutputMessage["data"]),
   });
 
-  render({ data }: IStatelessPluginProps<Data>): JSX.Element {
+  public render({ data }: IStatelessPluginProps<Data>): JSX.Element {
     if (!data.data) {
       return <div />;
     }

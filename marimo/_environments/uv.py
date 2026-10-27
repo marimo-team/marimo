@@ -189,6 +189,42 @@ def uv(
     return completed
 
 
+async def uv_async(
+    args: Sequence[str],
+    *,
+    env: Mapping[str, str] | None = None,
+    cwd: str | None = None,
+    timeout: float | None = None,
+    on_output: Callable[[str], None] | None = None,
+    on_command: Callable[[Sequence[str]], None] | None = None,
+) -> subprocess.CompletedProcess[str]:
+    """Await a uv command, retaining typed errors and cancellation cleanup."""
+    from marimo._environments.process import run_command
+
+    command = [find_uv_bin(), *args]
+    if on_command is not None:
+        on_command(command)
+    try:
+        completed = await run_command(
+            command,
+            env=env,
+            cwd=cwd,
+            timeout=timeout,
+            on_stderr=(lambda line: _stream_output(line, on_output))
+            if on_output is not None
+            else None,
+        )
+    except OSError as error:
+        if cwd is not None:
+            os.stat(cwd)  # noqa: ASYNC240
+        if isinstance(error, FileNotFoundError):
+            raise UvNotFoundError() from error
+        raise
+    if completed.returncode != 0:
+        raise _refine(completed)
+    return completed
+
+
 def uv_stream(
     args: Sequence[str],
     on_output: Callable[[str], None],
@@ -249,22 +285,7 @@ def uv_stream(
         for line in iter(process.stderr.readline, b""):
             stderr_lines.append(line)
             decoded = line.decode("utf-8", errors="replace")
-            # The terminal tee is best effort: a kernel replaces sys.stderr
-            # with a redirect whose `buffer` may be None, and nothing here
-            # may stop the stream or deadlock uv.
-            try:
-                buffer = getattr(sys.stderr, "buffer", None)
-                if buffer is not None:
-                    buffer.write(line)
-                    buffer.flush()
-                else:
-                    sys.stderr.write(decoded)
-            except Exception:
-                pass
-            try:
-                on_output(decoded)
-            except Exception:
-                LOGGER.exception("Failed to stream uv output")
+            _stream_output(decoded, on_output)
         returncode = process.wait()
     except BaseException:
         kill_subprocess(process, start_new_session=True)
@@ -282,6 +303,23 @@ def uv_stream(
     if completed.returncode != 0:
         raise _refine(completed)
     return completed
+
+
+def _stream_output(line: str, on_output: Callable[[str], None]) -> None:
+    # Kernel stderr may be redirected; reporting must never stop pipe reads.
+    try:
+        buffer = getattr(sys.stderr, "buffer", None)
+        if buffer is not None:
+            buffer.write(line.encode("utf-8"))
+            buffer.flush()
+        else:
+            sys.stderr.write(line)
+    except Exception:
+        pass
+    try:
+        on_output(line)
+    except Exception:
+        LOGGER.exception("Failed to stream uv output")
 
 
 def script_command_env() -> dict[str, str]:

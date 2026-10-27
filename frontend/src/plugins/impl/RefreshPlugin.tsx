@@ -51,9 +51,9 @@ const zodTimestring = z.string().superRefine((s, ctx) => {
 });
 
 export class RefreshPlugin implements IPlugin<Value, Data> {
-  tagName = "marimo-refresh";
+  public tagName = "marimo-refresh";
 
-  validator = z.object({
+  public validator = z.object({
     options: z
       .array(z.union([zodTimestring, z.number().min(MIN_INTERVAL)]))
       .default([]),
@@ -63,7 +63,7 @@ export class RefreshPlugin implements IPlugin<Value, Data> {
     label: z.string().nullable(),
   });
 
-  render(props: IPluginProps<Value, Data>): JSX.Element {
+  public render(props: IPluginProps<Value, Data>): JSX.Element {
     return <RefreshComponent {...props} />;
   }
 }
@@ -119,6 +119,7 @@ const RefreshComponent = ({ setValue, data }: IPluginProps<Value, Data>) => {
     <Labeled label={data.label}>
       <span className="inline-flex items-center text-secondary-foreground rounded shadow-sm-solid">
         <Button
+          aria-label="Refresh"
           data-testid="marimo-plugin-refresh-button"
           variant="secondary"
           size="icon"

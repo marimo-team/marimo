@@ -7,7 +7,7 @@ import { memoizeLastValue } from "@/utils/once";
 import { waitForKernelToBeInstantiated } from "../kernel/state";
 import type { RuntimeManager } from "../runtime/runtime";
 import { store } from "../state/jotai";
-import { WebSocketState } from "../websocket/types";
+import { ConnectionState } from "../websocket/types";
 import { connectionAtom, waitForConnectionOpen } from "./connection";
 import type { EditRequests, RunRequests } from "./types";
 
@@ -93,6 +93,9 @@ const ACTIONS: Record<keyof AllRequests, Action> = {
   saveUserConfig: "throwError",
   sendShutdown: "throwError",
   getPackageList: "throwError",
+  getSandbox: "serverOnly",
+  updateManifest: "serverOnly",
+  syncSandbox: "serverOnly",
   getDependencyTree: "throwError",
   addPackage: "throwError",
   removePackage: "throwError",
@@ -156,7 +159,7 @@ export function createLazyRequests(
 ): AllRequests {
   // Memoize the init call, just once per runtime manager
   const initOnce = memoizeLastValue(async (runtimeManager: RuntimeManager) => {
-    store.set(connectionAtom, { state: WebSocketState.CONNECTING });
+    store.set(connectionAtom, { state: ConnectionState.CONNECTING });
     await runtimeManager.init();
   });
 

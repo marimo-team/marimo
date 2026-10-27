@@ -1,6 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Any, cast
 
@@ -9,6 +10,18 @@ from marimo._config.config import PartialMarimoConfig
 from marimo._utils.toml import toml_reader
 
 LOGGER = _loggers.marimo_logger()
+
+
+class ConfigReader(ABC):
+    """Read explicitly supplied settings without filling in defaults.
+
+    Sources parse and normalize their own values. Precedence and computed
+    defaults are handled separately by the configuration manager.
+    """
+
+    @abstractmethod
+    def read(self) -> PartialMarimoConfig:
+        """Read a sparse, unmasked configuration from this source."""
 
 
 def read_marimo_config(path: str) -> PartialMarimoConfig:
@@ -121,9 +134,12 @@ def allowlist_script_config(
     return pyproject_dict
 
 
-# Settings that an untrusted-origin config layer must not set. Both take effect
-# before any cell runs, so a layer that sets one decides something the operator
-# never agreed to:
+# We typically do not strip pyproject configuration keys on the basis that a
+# malicious project can provide behavior as bad as, if not worse than, our options.
+# However, we are reserving these keys for potential TOFU-style trust anchors.
+# Reporters, do not read into this as a security guarantee for stripping
+# project options. See https://docs.marimo.io/security/#project-files for
+# more discussion.
 #
 #   signing              trusting a key is a code-execution grant, because a
 #                        cache restore is `pickle.loads`
@@ -133,6 +149,7 @@ def allowlist_script_config(
 _UNTRUSTED_MARIMO_KEYS: tuple[tuple[str, ...], ...] = (
     ("signing",),
     ("cache", "verification"),
+    ("cache", "loader"),
 )
 
 # `cache.store` is not a trust anchor on its own: the verifying loaders check

@@ -48,9 +48,12 @@ function createLineDecoration(
 
 class CurrentLineHighlighter implements PluginValue {
   private unsubscribe: () => void;
-  decorations: DecorationSet;
+  public decorations: DecorationSet;
 
-  constructor(view: EditorView, lineObservable: Observable<number | null>) {
+  public constructor(
+    view: EditorView,
+    lineObservable: Observable<number | null>,
+  ) {
     this.decorations = createLineDecoration(view.state, lineObservable.get());
     this.unsubscribe = lineObservable.sub((line) => {
       this.decorations = createLineDecoration(view.state, line);
@@ -59,11 +62,11 @@ class CurrentLineHighlighter implements PluginValue {
     });
   }
 
-  update(update: ViewUpdate) {
+  public update(update: ViewUpdate) {
     this.decorations = this.decorations.map(update.changes);
   }
 
-  destroy() {
+  public destroy() {
     this.unsubscribe();
   }
 }
@@ -88,7 +91,7 @@ export function debuggerLineHighlighter(
 // --- Breakpoint gutter ------------------------------------------------------
 
 class BreakpointMarker extends GutterMarker {
-  override toDOM() {
+  public override toDOM() {
     const dot = document.createElement("div");
     dot.className = "cm-breakpoint-marker";
     return dot;
@@ -130,7 +133,10 @@ function buildBreakpointMarkers(state: EditorState): RangeSet<GutterMarker> {
 class BreakpointSync implements PluginValue {
   private unsubscribe: () => void;
 
-  constructor(view: EditorView, observable: Observable<ReadonlySet<number>>) {
+  public constructor(
+    view: EditorView,
+    observable: Observable<ReadonlySet<number>>,
+  ) {
     const apply = (lines: ReadonlySet<number>) => {
       view.dispatch({ effects: setBreakpointLines.of(lines) });
     };
@@ -144,7 +150,7 @@ class BreakpointSync implements PluginValue {
     this.unsubscribe = observable.sub(apply);
   }
 
-  destroy() {
+  public destroy() {
     this.unsubscribe();
   }
 }

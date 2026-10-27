@@ -23,6 +23,8 @@ marimo currently supports the following agents:
 
 Claude Code Agent that uses your [Claude Code CLI subscription](https://docs.claude.com/en/docs/claude-code/overview) to help you with coding tasks.
 
+The Claude ACP adapter requires Node.js 22 or later. Sign in through the Claude CLI before you connect from marimo.
+
 **Installation and login:**
 
 ```bash
@@ -38,13 +40,13 @@ claude
 === "macOS/Linux"
 
     ```bash
-    npx stdio-to-ws "npx @zed-industries/claude-code-acp" --port 3017
+    npx stdio-to-ws "npx @agentclientprotocol/claude-agent-acp" --port 3017
     ```
 
 === "Windows"
 
     ```bash
-    npx stdio-to-ws "cmd /c npx @zed-industries/claude-code-acp" --port 3017
+    npx stdio-to-ws "cmd /c npx @agentclientprotocol/claude-agent-acp" --port 3017
     ```
 
 ### Gemini Agent

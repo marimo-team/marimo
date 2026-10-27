@@ -1,0 +1,483 @@
+/* Copyright 2026 Marimo. All rights reserved. */
+
+import { invalidatePackageData } from "@/core/packages/package-data";
+import { useAtom, useAtomValue, useSetAtom, useStore } from "jotai";
+import { useLayoutEffect } from "react";
+import { useErrorBoundary } from "react-error-boundary";
+import { toast } from "@/components/ui/use-toast";
+import { getNotebook, useCellActions } from "@/core/cells/cells";
+import { applyTransactionChanges } from "@/core/cells/document-changes";
+import { AUTOCOMPLETER } from "@/core/codemirror/completion/Autocompleter";
+import type {
+  NotificationMessageData,
+  NotificationPayload,
+} from "@/core/kernel/messages";
+import { useNotebookClient } from "@/core/websocket/useNotebookClient";
+import { renderHTML } from "@/plugins/core/RenderHTML";
+import {
+  handleWidgetMessage,
+  WIDGET_REGISTRY,
+} from "@/plugins/impl/anywidget/registry";
+import { logNever } from "@/utils/assertNever";
+import { prettyError } from "@/utils/errors";
+import { safeExtractSetUIElementMessageBuffers } from "@/utils/json/base64";
+import { Logger } from "@/utils/Logger";
+import { reloadSafe } from "@/utils/reload-safe";
+import { useAlertActions } from "../alerts/state";
+import { cacheInfoAtom } from "../cache/requests";
+import { SCRATCH_CELL_ID } from "../cells/ids";
+import { useRunsActions } from "../cells/runs";
+import { focusAndScrollCellOutputIntoView } from "../cells/scrollCellIntoView";
+import {
+  resyncBreakpoints,
+  setActiveLine,
+} from "../codemirror/cells/debugger-state";
+import type { CellData } from "../cells/types";
+import { capabilitiesAtom } from "../config/capabilities";
+import { connectionTransportTypeAtom, useSetAppConfig } from "../config/config";
+import { useDataSourceActions } from "../datasets/data-source-connections";
+import { invalidateDataSourceDiscovery } from "../datasets/data-source-discovery";
+import type { ConnectionName } from "../datasets/engines";
+import {
+  DiscoverDataSources,
+  PreviewSQLSchemaList,
+  PreviewSQLTable,
+  PreviewSQLTableList,
+  ValidateSQL,
+} from "../datasets/request-registry";
+import { useDatasetsActions } from "../datasets/state";
+import { UI_ELEMENT_REGISTRY } from "../dom/uiregistry";
+import { kernelStartupErrorAtom, useBannersActions } from "../errors/state";
+import { FUNCTIONS_REGISTRY } from "../functions/FunctionRegistry";
+import {
+  handleCellNotificationeration,
+  handleKernelReady,
+  handleRemoveUIElements,
+} from "../kernel/handlers";
+import { queryParamHandlers } from "../kernel/queryParamHandlers";
+import {
+  type SessionId,
+  type StableSessionId,
+  stableSessionIdAtom,
+} from "../kernel/session";
+import { initialRunCompletedAtom, kernelStateAtom } from "../kernel/state";
+import { type LayoutState, useLayoutActions } from "../layout/state";
+import { kioskModeAtom } from "../mode";
+import { connectionAtom, startupProgressAtom } from "../network/connection";
+import type { RequestId } from "../network/DeferredRequestRegistry";
+import { useRuntimeManager } from "../runtime/config";
+import { SECRETS_REGISTRY } from "../secrets/request-registry";
+import { isStaticNotebook } from "../static/static-state";
+import {
+  DownloadStorage,
+  ListStorageEntries,
+} from "../storage/request-registry";
+import { useStorageActions } from "../storage/state";
+import { useVariablesActions } from "../variables/state";
+import type { VariableName } from "../variables/types";
+import { isWasm } from "../wasm/utils";
+import { WebSocketClosedReason, ConnectionState } from "./types";
+
+const SUPPORTS_LAZY_KERNELS = true;
+
+function getExistingCells(): CellData[] | undefined {
+  if (!SUPPORTS_LAZY_KERNELS) {
+    return undefined;
+  }
+
+  // Remove scratch pad
+  return Object.values(getNotebook().cellData).filter(
+    (cell) => cell.id !== SCRATCH_CELL_ID,
+  );
+}
+
+/** Coordinate session startup and apply notifications to the editor. */
+export function useNotebookSession(opts: {
+  sessionId: SessionId;
+  autoInstantiate: boolean;
+  setCells: (cells: CellData[], layout: LayoutState) => void;
+}) {
+  const { autoInstantiate, sessionId, setCells } = opts;
+  const { showBoundary } = useErrorBoundary();
+
+  const { handleCellMessage } = useCellActions();
+  const actionsWithoutMiddleware = useCellActions({ skipMiddleware: true });
+
+  const handleDocumentTransaction = (
+    transaction: NotificationMessageData<"notebook-document-transaction">["transaction"],
+  ) => {
+    applyTransactionChanges(
+      transaction.changes,
+      actionsWithoutMiddleware,
+      () => getNotebook().cellIds.inOrderIds,
+    );
+  };
+  const { addCellNotification } = useRunsActions();
+  const setKernelState = useSetAtom(kernelStateAtom);
+  const setInitialRunCompleted = useSetAtom(initialRunCompletedAtom);
+  const setAppConfig = useSetAppConfig();
+  const { setVariables, setMetadata } = useVariablesActions();
+  const { addColumnPreview } = useDatasetsActions();
+  const { addDatasets, filterDatasetsFromVariables } = useDatasetsActions();
+  const { addDataSourceConnection, filterDataSourcesFromVariables } =
+    useDataSourceActions();
+  const { setLayoutData } = useLayoutActions();
+  const [connection, setConnection] = useAtom(connectionAtom);
+  const updateStartupProgress = useSetAtom(startupProgressAtom);
+  const { addBanner } = useBannersActions();
+  const {
+    addMissingPackageAlert,
+    updateEnvironment,
+    setEnvironment,
+    addStartupLog,
+  } = useAlertActions();
+  const setKioskMode = useSetAtom(kioskModeAtom);
+  const setStableSessionId = useSetAtom(stableSessionIdAtom);
+  const setCapabilities = useSetAtom(capabilitiesAtom);
+  const runtimeManager = useRuntimeManager();
+  const transportType = useAtomValue(connectionTransportTypeAtom);
+  const setCacheInfo = useSetAtom(cacheInfoAtom);
+  const setKernelStartupError = useSetAtom(kernelStartupErrorAtom);
+  const {
+    setNamespaces: setStorageNamespaces,
+    filterFromVariables: filterStorageFromVariables,
+  } = useStorageActions();
+
+  const handleNotification = (msg: NotificationPayload) => {
+    switch (msg.data.op) {
+      case "reload":
+        reloadSafe();
+        return;
+      case "startup-progress": {
+        const { phase } = msg.data;
+        updateStartupProgress(msg.data);
+        setConnection((previous) =>
+          previous.state === ConnectionState.OPEN ||
+          (previous.state === ConnectionState.CONNECTING &&
+            previous.phase === phase)
+            ? previous
+            : { state: ConnectionState.CONNECTING, phase },
+        );
+        return;
+      }
+      case "kernel-ready": {
+        setKernelStartupError(null);
+        setConnection({ state: ConnectionState.OPEN });
+        setInitialRunCompleted(
+          Boolean(msg.data.resumed || msg.data.auto_instantiated),
+        );
+        const existingCells = getExistingCells();
+
+        handleKernelReady(msg.data, {
+          autoInstantiate,
+          setCells,
+          setLayoutData,
+          setAppConfig,
+          setCapabilities,
+          setKernelState,
+          onError: showBoundary,
+          existingCells,
+        });
+        if (!msg.data.resumed) {
+          // A freshly started kernel may expose a different environment
+          // (e.g. new env vars); re-run discovery instead of reusing stale
+          // suggestions from the previous kernel instance.
+          invalidateDataSourceDiscovery();
+        }
+        setKioskMode(msg.data.kiosk);
+        setStableSessionId(
+          (msg.data.stable_session_id as StableSessionId | null | undefined) ??
+            null,
+        );
+        // A freshly started kernel has no breakpoints of its own; re-push
+        // the client's set so they still apply, and clear the stale
+        // highlighted line from the previous kernel instance.
+        setActiveLine(null);
+        resyncBreakpoints();
+        return;
+      }
+
+      case "completed-run":
+        setInitialRunCompleted(true);
+        return;
+      case "execution":
+        return;
+      case "interrupted":
+        return;
+
+      case "kernel-startup-error":
+        // Full error received via message before websocket close
+        setKernelStartupError(msg.data.error);
+        return;
+
+      case "send-ui-element-message": {
+        const uiElement = msg.data.ui_element;
+        if (uiElement) {
+          const buffers = safeExtractSetUIElementMessageBuffers(msg.data);
+          UI_ELEMENT_REGISTRY.broadcastMessage(
+            uiElement,
+            msg.data.message,
+            buffers,
+          );
+        }
+        return;
+      }
+
+      case "model-lifecycle":
+        handleWidgetMessage(WIDGET_REGISTRY, msg.data);
+        return;
+
+      case "remove-ui-elements":
+        handleRemoveUIElements(msg.data);
+        return;
+
+      case "completion-result":
+        AUTOCOMPLETER.resolve(msg.data.completion_id, msg.data);
+        return;
+      case "function-call-result":
+        FUNCTIONS_REGISTRY.resolve(msg.data.function_call_id, msg.data);
+        return;
+      case "cell-op": {
+        handleCellNotificationeration(msg.data, handleCellMessage);
+        const cellData = getNotebook().cellData[msg.data.cell_id];
+        if (!cellData) {
+          return;
+        }
+        addCellNotification({
+          cellNotification: msg.data,
+          code: cellData.code,
+        });
+        return;
+      }
+
+      case "variables":
+        const variableNames = msg.data.variables.map((v) => v.name);
+        setVariables(
+          msg.data.variables.map((v) => ({
+            name: v.name,
+            declaredBy: v.declared_by,
+            usedBy: v.used_by,
+          })),
+        );
+        filterDatasetsFromVariables(variableNames);
+        filterDataSourcesFromVariables(variableNames);
+        filterStorageFromVariables(variableNames);
+        return;
+      case "variable-values":
+        setMetadata(
+          msg.data.variables.map((v) => ({
+            name: v.name as VariableName,
+            dataType: v.datatype,
+            value: v.value,
+          })),
+        );
+        return;
+      case "alert":
+        toast({
+          title: msg.data.title,
+          description: renderHTML({
+            html: msg.data.description,
+          }),
+          variant: msg.data.variant,
+        });
+        return;
+      case "banner":
+        addBanner(msg.data);
+        return;
+      case "missing-package-alert":
+        addMissingPackageAlert({
+          ...msg.data,
+          kind: "missing",
+        });
+        return;
+      case "environment-operation":
+        if (
+          msg.data.source === "kernel" &&
+          msg.data.status.kind !== "running"
+        ) {
+          invalidatePackageData();
+        }
+        updateEnvironment(msg.data);
+        return;
+      case "environment-state":
+        setEnvironment(msg.data);
+        if (msg.data.source === "kernel") {
+          invalidatePackageData();
+        }
+        return;
+      case "startup-logs":
+        addStartupLog({
+          content: msg.data.content,
+          status: msg.data.status,
+        });
+        return;
+      case "query-params-append":
+        queryParamHandlers.append(msg.data);
+        return;
+
+      case "query-params-set":
+        queryParamHandlers.set(msg.data);
+        return;
+
+      case "query-params-delete":
+        queryParamHandlers.delete(msg.data);
+        return;
+
+      case "query-params-clear":
+        queryParamHandlers.clear();
+        return;
+
+      case "datasets":
+        addDatasets(msg.data);
+        return;
+      case "data-column-preview":
+        addColumnPreview(msg.data);
+        return;
+      case "sql-table-preview":
+        PreviewSQLTable.resolve(msg.data.request_id, msg.data);
+        return;
+      case "sql-table-list-preview":
+        PreviewSQLTableList.resolve(msg.data.request_id, msg.data);
+        return;
+      case "sql-schema-list-preview":
+        PreviewSQLSchemaList.resolve(msg.data.request_id, msg.data);
+        return;
+      case "validate-sql-result":
+        ValidateSQL.resolve(msg.data.request_id as RequestId, msg.data);
+        return;
+      case "data-source-discovery-result":
+        DiscoverDataSources.resolve(msg.data.request_id as RequestId, msg.data);
+        return;
+      case "secret-keys-result":
+        SECRETS_REGISTRY.resolve(msg.data.request_id, msg.data);
+        return;
+      case "cache-info":
+        setCacheInfo(msg.data);
+        return;
+      case "cache-cleared":
+        // Cache cleared, could refresh cache info if needed
+        return;
+      case "data-source-connections":
+        addDataSourceConnection({
+          connections: msg.data.connections.map((conn) => ({
+            ...conn,
+            name: conn.name as ConnectionName,
+          })),
+        });
+        return;
+      case "storage-namespaces":
+        setStorageNamespaces(msg.data);
+        return;
+      case "storage-entries":
+        ListStorageEntries.resolve(msg.data.request_id as RequestId, msg.data);
+        return;
+      case "storage-download-ready":
+        DownloadStorage.resolve(msg.data.request_id as RequestId, msg.data);
+        return;
+
+      case "reconnected":
+        setKernelStartupError(null);
+        setConnection({ state: ConnectionState.OPEN });
+        return;
+
+      case "focus-cell":
+        focusAndScrollCellOutputIntoView(msg.data.cell_id);
+        return;
+      case "active-line":
+        setActiveLine(
+          msg.data.line == null
+            ? null
+            : { cellId: msg.data.cell_id, line: msg.data.line },
+        );
+        return;
+      case "notebook-document-transaction":
+        handleDocumentTransaction(msg.data.transaction);
+        return;
+      case "consumer-capabilities":
+        setKioskMode(!msg.data.consumer_capabilities.edit);
+        return;
+      default:
+        logNever(msg.data);
+    }
+  };
+
+  const store = useStore();
+  const onMessageError = (error: unknown) => {
+    toast({
+      title: "Failed to handle message",
+      description: prettyError(error),
+      variant: "danger",
+    });
+  };
+  const notebook = useNotebookClient({
+    static: isStaticNotebook(),
+    transportType,
+    url: () =>
+      transportType === "sse"
+        ? runtimeManager.getSseURL(sessionId).toString()
+        : runtimeManager.getWsURL(sessionId).toString(),
+    // SSE uses headers for auth. WebSockets carry the token in the URL.
+    headers: () => runtimeManager.headers(),
+    waitUntilReady: async () => {
+      if (!isStaticNotebook() && !isWasm() && !runtimeManager.isSameOrigin) {
+        await runtimeManager.waitForHealthy();
+      }
+    },
+    checkHealth: () => runtimeManager.reconcileFromHealth(),
+    onNotification: (notification) => {
+      try {
+        handleNotification(notification);
+      } catch (error) {
+        Logger.error("Failed to handle notification", notification, error);
+        onMessageError(error);
+      }
+    },
+  });
+
+  // Subscribe before passive connection setup: static/WASM transports can emit synchronously.
+  useLayoutEffect(() => {
+    const updateConnection = () => {
+      const status = store.get(notebook.connectionAtom);
+      if (status.state === ConnectionState.NOT_STARTED) {
+        return;
+      }
+      if (status.state === ConnectionState.OPEN) {
+        updateStartupProgress(null);
+        return; // kernel-ready, not the socket, establishes session readiness.
+      }
+      if (status.state === ConnectionState.CONNECTING) {
+        setKernelStartupError(null);
+      }
+      setConnection((previous) => {
+        if (
+          status.state === ConnectionState.CLOSED &&
+          status.code === WebSocketClosedReason.KERNEL_STARTUP_ERROR &&
+          (previous.state === ConnectionState.CONNECTING ||
+            previous.state === ConnectionState.CLOSED)
+        ) {
+          return { ...status, phase: previous.phase };
+        }
+        if (
+          status.state === ConnectionState.CONNECTING &&
+          (previous.state === ConnectionState.OPEN ||
+            (previous.state === ConnectionState.CONNECTING &&
+              previous.phase === "reconnecting"))
+        ) {
+          return { ...status, phase: "reconnecting" };
+        }
+        return status;
+      });
+    };
+    const unsubscribe = store.sub(notebook.connectionAtom, updateConnection);
+    updateConnection();
+    return unsubscribe;
+  }, [
+    notebook,
+    store,
+    setConnection,
+    setKernelStartupError,
+    updateStartupProgress,
+  ]);
+
+  return { notebook, connection, reconnect: notebook.reconnect };
+}

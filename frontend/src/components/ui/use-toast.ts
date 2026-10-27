@@ -161,6 +161,14 @@ function dispatch(action: Action) {
   });
 }
 
+export function clearToasts() {
+  for (const timeout of toastTimeouts.values()) {
+    clearTimeout(timeout);
+  }
+  toastTimeouts.clear();
+  dispatch({ type: "REMOVE_TOAST" });
+}
+
 type Toast = Omit<ToasterToast, "id">;
 
 function toast({

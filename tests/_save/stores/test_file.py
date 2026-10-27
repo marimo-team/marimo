@@ -127,3 +127,22 @@ class TestDefaultSavePath:
 
         assert path == Path("__marimo__", "cache")
         assert caplog.text == ""
+
+    def test_local_dirs_does_not_resolve_the_default_path(self) -> None:
+        """Asking where entries live creates nothing and probes nothing."""
+        store = FileStore()
+
+        directories = store.local_dirs()
+
+        assert store._resolved_save_path is None
+        # Outside a kernel the notebook directory reads as the working one.
+        assert directories == [Path.cwd() / "__marimo__" / "cache"]
+
+    def test_local_dirs_reports_the_configured_path(self, tmp_path) -> None:
+        store = FileStore(tmp_path / "test_store")
+        assert store.local_dirs() == [tmp_path / "test_store"]
+        assert not (tmp_path / "test_store").exists()
+
+    def test_a_store_knows_whether_it_was_given_a_path(self, tmp_path) -> None:
+        assert FileStore().uses_default_path
+        assert not FileStore(tmp_path / "test_store").uses_default_path

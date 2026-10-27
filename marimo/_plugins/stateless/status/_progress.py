@@ -90,6 +90,9 @@ class _Progress(Html):
                     "Progress indicators cannot be updated after exiting "
                     "the context manager that created them. "
                 )
+            text_changed = (title is not None and title != self.title) or (
+                subtitle is not None and subtitle != self.subtitle
+            )
             self.current += increment
             if title is not None:
                 self.title = title
@@ -97,7 +100,10 @@ class _Progress(Html):
                 self.subtitle = subtitle
 
             self._text = self._get_text()
-        self.debounced_flush()
+        if text_changed:
+            output.flush()
+        else:
+            self.debounced_flush()
 
     @debounce(0.15)
     def debounced_flush(self) -> None:
@@ -309,8 +315,8 @@ class progress_bar(Generic[S]):
         arguments `increment` (defaults to `1`), `title`,
         and `subtitle`.
 
-        For performance reasons, the progress bar is only updated in the UI
-        every 150ms.
+        For performance reasons, numeric progress updates are rate limited to
+        once every 150ms. Title and subtitle changes appear immediately.
 
     Args:
         collection (Union[Collection[S], Iterator[S], AsyncIterable[S]], optional): Optional collection to iterate over.

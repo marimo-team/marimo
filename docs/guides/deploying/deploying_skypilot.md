@@ -7,6 +7,14 @@
 
 marimo notebooks work exceptionally well with SkyPilot because they are stored as pure Python scripts and can be run both interactively and as batch jobs. With marimo's built-in `uv` integration, your notebooks are fully reproducible across different environments.
 
+<div style="text-align: center">
+  <iframe width="100%" style="aspect-ratio: 16/9; max-width: 800px"
+  src="https://www.youtube.com/embed/JCVzYz8PrRQ"
+  title="YouTube video player" loading="lazy" frameborder="0" allow="accelerometer; autoplay;
+  clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+  referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+</div>
+
 ## Interactive Development
 
 For interactive development with marimo on a SkyPilot cluster, you can launch a cluster and connect to it with SSH port forwarding.
@@ -37,7 +45,7 @@ uvx marimo edit --sandbox demo.py --port 8080 --token-password=supersecret
 ```
 
 !!! note "Sandboxed environments"
-    The `uvx` command runs marimo without installing it in your environment, and the `--sandbox` flag ensures that notebook dependencies are installed in a separate environment. This makes your development fully reproducible and isolated. See [inlining dependencies](../package_management/inlining_dependencies.md) for more on creating reproducible notebooks.
+    The `uvx` command runs marimo without installing it in your environment, and the `--sandbox` flag ensures that notebook dependencies are installed in a separate environment. This makes your development fully reproducible and isolated. See [inlining dependencies](../package_management/sandboxes.md) for more on creating reproducible notebooks.
 
 You can now access your marimo notebook at `localhost:8080` in your local browser and authenticate with the password you set.
 

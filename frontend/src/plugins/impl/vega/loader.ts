@@ -16,6 +16,26 @@ const previousNumberParser = typeParsers.number;
 const previousDateParser = typeParsers.date;
 const previousBooleanParser = typeParsers.boolean;
 
+const NUMBER_MIDDLEWARE: Middleware = () => {
+  const parseNumber = (value: string) => {
+    if (value === "inf" || value === "+inf") {
+      return Number.POSITIVE_INFINITY;
+    }
+    if (value === "-inf") {
+      return Number.NEGATIVE_INFINITY;
+    }
+    return previousNumberParser(value);
+  };
+
+  typeParsers.integer = parseNumber;
+  typeParsers.number = parseNumber;
+
+  return () => {
+    typeParsers.integer = previousIntegerParser;
+    typeParsers.number = previousNumberParser;
+  };
+};
+
 const BIG_INT_MIDDLEWARE: Middleware = () => {
   // Custom parser to:
   // - handle BigInt
@@ -159,6 +179,8 @@ export async function vegaLoadData<T = object>(
   const middleware: Middleware[] = [DATE_MIDDLEWARE];
   if (handleBigIntAndNumberLike) {
     middleware.push(BIG_INT_MIDDLEWARE);
+  } else {
+    middleware.push(NUMBER_MIDDLEWARE);
   }
 
   let unsubscribes: Unsubscribe[] = [];
@@ -216,7 +238,7 @@ export async function vegaLoadData<T = object>(
 
     // Apply middleware
     unsubscribes = middleware.map((m) => m());
-    // Always set parse to auto for csv data, to be able to parse dates and floats
+    // CSV defaults to inference when no explicit column types are available.
     const results = isCsv
       ? // csv -> json
         read(csvOrJsonData, {

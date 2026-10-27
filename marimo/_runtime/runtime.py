@@ -40,6 +40,7 @@ from marimo._entrypoints.registry import EntryPointRegistry
 from marimo._lint.validate_graph import check_for_errors
 from marimo._messaging.cell_output import CellChannel
 from marimo._messaging.context import (
+    RUN_ID_CTX,
     run_id_context,
 )
 from marimo._messaging.errors import (
@@ -106,6 +107,7 @@ from marimo._runtime.commands import (
     CommandMessage,
     CreateNotebookCommand,
     DeleteCellCommand,
+    EditCellsCommand,
     ExecuteCellCommand,
     ExecuteStaleCellsCommand,
     InvokeFunctionCommand,
@@ -126,6 +128,7 @@ from marimo._runtime.context.kernel_context import (
 )
 from marimo._runtime.context.utils import get_mode
 from marimo._runtime.control_flow import MarimoInterrupt
+from marimo._runtime.execution import ExecutionAttempt
 from marimo._runtime.input_override import getpass_override
 from marimo._runtime.kernel_request_handlers import KernelRequestHandlers
 from marimo._runtime.packages.module_registry import ModuleRegistry
@@ -167,6 +170,7 @@ from marimo._sql.sql_quoting import (
 from marimo._tracer import attach_trace_context, kernel_tracer
 from marimo._types.ids import CellId_t, UIElementId, VariableName
 from marimo._types.lifespan import Lifespan
+from marimo._utils.asyncio_utils import run_coroutine_blocking
 from marimo._utils.lifespans import Lifespans
 from marimo._utils.paths import normalize_path
 from marimo._utils.platform import is_pyodide
@@ -446,6 +450,8 @@ class CellMetadata:
     """
 
     config: CellConfig = dataclasses.field(default_factory=CellConfig)
+    # Retain validated source even when a syntax error prevents registration.
+    code: str | None = None
 
 
 def _get_attached_catalogs() -> set[str]:
@@ -650,9 +656,9 @@ class Kernel:
         import getpass
 
         getpass.getpass = getpass_override
-        # Webbrowser may not be set (e.g. docker container) or stubbed/broken
-        # (e.g. in pyodide). Set default to just inject an iframe of the
-        # expected page to output.
+        # Route webbrowser.open() to an iframe in the cell output when the
+        # browser cannot launch or the module is a stub (Pyodide).
+        # Browser discovery runs on first use, never at startup.
         patches.patch_webbrowser()
         # micropip only patched in non-pyodide environments.
         if not is_pyodide():
@@ -667,6 +673,9 @@ class Kernel:
         )
         if lifespan.has_lifespans():
             self._lifespan = lifespan(None)
+        # A kernel can be torn down without ever being instantiated, and
+        # exiting a lifespan that was never entered raises.
+        self._lifespan_entered = False
 
     @property
     def stream(self) -> Stream:
@@ -711,9 +720,10 @@ class Kernel:
         # manually clear kernel memory.
         self._module.__dict__.clear()
 
-        # Teardown lifespans
-        if self._lifespan is not None:
-            asyncio.run(self._lifespan.__aexit__(None, None, None))
+        # Teardown lifespans. NB. teardown can run inside an event loop,
+        # where `asyncio.run` raises.
+        if self._lifespan is not None and self._lifespan_entered:
+            run_coroutine_blocking(self._lifespan.__aexit__(None, None, None))
 
     def lazy(self) -> bool:
         return self.reactive_execution_mode == "lazy"
@@ -871,6 +881,7 @@ class Kernel:
             cell.configure(self.cell_metadata[cell_id].config)
         elif cell_id not in self.cell_metadata:
             self.cell_metadata[cell_id] = CellMetadata()
+        self.cell_metadata[cell_id].code = cell.code
 
         self.graph.register_cell(cell_id, cell)
         if stale:
@@ -1078,9 +1089,7 @@ class Kernel:
                     try:
                         duckdb.execute(f"DROP TABLE IF EXISTS {qualified}")
                     except Exception as e:
-                        LOGGER.warning(
-                            "Failed to drop table %s: %s", name, str(e)
-                        )
+                        LOGGER.warning("Failed to drop table %s: %s", name, e)
             elif variable.kind == "view" and DependencyManager.duckdb.has():
                 import duckdb
 
@@ -1092,9 +1101,7 @@ class Kernel:
                     try:
                         duckdb.execute(f"DROP VIEW IF EXISTS {qualified}")
                     except Exception as e:
-                        LOGGER.warning(
-                            "Failed to drop view %s: %s", name, str(e)
-                        )
+                        LOGGER.warning("Failed to drop view %s: %s", name, e)
             elif variable.kind == "catalog" and DependencyManager.duckdb.has():
                 import duckdb
 
@@ -1102,9 +1109,7 @@ class Kernel:
                     identifier = quote_sql_identifier(name)
                     duckdb.execute(f"DETACH DATABASE IF EXISTS {identifier}")
                 except Exception as e:
-                    LOGGER.warning(
-                        "Failed to detach catalog %s: %s", name, str(e)
-                    )
+                    LOGGER.warning("Failed to detach catalog %s: %s", name, e)
             else:
                 if name in self.globals:
                     del self.globals[name]
@@ -1175,6 +1180,7 @@ class Kernel:
         In contrast to deleting a cell, which fully scrubs the cell
         from the kernel and graph.
         """
+        self.autoreload_manager.forget_cell(cell_id)
         if cell_id not in self.errors:
             self._invalidate_cell_state(cell_id, deletion=True)
             return self.graph.delete_cell(cell_id)
@@ -1252,8 +1258,19 @@ class Kernel:
 
         # Register and delete cells
         for er in execution_requests:
+            # Edit-only batches must also retire source that a later run
+            # could otherwise replay from the pending initialization cache.
+            pending = self._uninstantiated_execution_requests.pop(
+                er.cell_id, None
+            )
+            self.cell_metadata.setdefault(
+                er.cell_id, CellMetadata()
+            ).code = er.code
             old_children, error = self._maybe_register_cell(
-                er.cell_id, er.code, stale=er.cell_id in cells_starting_stale
+                er.cell_id,
+                er.code,
+                stale=er.cell_id in cells_starting_stale
+                or pending is not None,
             )
             cells_that_were_children_of_mutated_cells |= old_children
             if error is None:
@@ -1262,7 +1279,9 @@ class Kernel:
                 syntax_errors[er.cell_id] = error
 
         for dr in deletion_requests:
+            self._uninstantiated_execution_requests.pop(dr.cell_id, None)
             if dr.cell_id not in cells_before_mutation:
+                self.cell_metadata.pop(dr.cell_id, None)
                 continue
             cells_that_were_children_of_mutated_cells |= self._delete_cell(
                 dr.cell_id
@@ -1368,6 +1387,7 @@ class Kernel:
             self._invalidate_cell_state(cid, exclude_defs=keep_alive_defs)
 
         self.errors = all_errors
+        submitted_code = {er.cell_id: er.code for er in execution_requests}
         for cid in self.errors:
             cell = self.graph.cells.get(cid, None)
             if (
@@ -1386,11 +1406,17 @@ class Kernel:
                 # On syntax errors, we don't have a cell object.
                 CellNotificationUtils.broadcast_stale(cell_id=cid, stale=False)
 
-            CellNotificationUtils.broadcast_error(
-                data=self.errors[cid],
-                clear_console=True,
-                cell_id=cid,
+            execution = ExecutionAttempt.plan(
+                cid, submitted_code.get(cid, cell.code if cell else "")
             )
+            with execution.activate():
+                CellNotificationUtils.broadcast_error(
+                    data=self.errors[cid],
+                    clear_console=True,
+                    cell_id=cid,
+                    code=self.cell_metadata[cid].code,
+                )
+            execution.finish()
 
         # Always broadcast Variables message after graph mutation to ensure
         # frontend has the latest dependency information
@@ -1445,7 +1471,7 @@ class Kernel:
     async def _run_cells(self, cell_ids: set[CellId_t]) -> None:
         """Run cells and any state updates they trigger"""
 
-        with run_id_context():
+        with run_id_context(RUN_ID_CTX.get(None)):
             # This patch is an attempt to mitigate problems caused by the fact
             # that in run mode, kernels run in threads and share the same
             # sys.modules. Races can still happen, but this should help in most
@@ -1683,6 +1709,105 @@ class Kernel:
         self.mutate_graph(execution_requests, deletion_requests)
         await self.run(execution_requests)
 
+    @kernel_tracer.start_as_current_span("edit_cells")
+    async def edit_cells(self, request: EditCellsCommand) -> None:
+        """Apply a notebook edit to the graph, then run what follows from it.
+
+        Changed code is registered as stale, not run. The kernel only
+        takes code for cells it has: a cell it has never seen arrives
+        with the run that first carries it, and code pending from an
+        instantiation without a run is replaced in place. Deletions and
+        configs then apply together, and only their consequences run:
+        cells that depended on a deleted cell, and under autorun, stale
+        cells the edit enabled.
+        """
+        edits: list[ExecuteCellCommand] = []
+        for cell_id, code in request.codes.items():
+            command = ExecuteCellCommand(cell_id=cell_id, code=code)
+            if cell_id in self.graph.cells:
+                edits.append(command)
+            elif cell_id in self._uninstantiated_execution_requests:
+                self._uninstantiated_execution_requests[cell_id] = command
+        if edits:
+            self.mutate_graph(
+                edits,
+                deletion_requests=[],
+                cells_starting_stale={edit.cell_id for edit in edits},
+            )
+        deletions = [
+            DeleteCellCommand(cell_id=cell_id)
+            for cell_id in request.delete_ids
+        ]
+        cells_to_run = self.mutate_graph([], deletions) if deletions else set()
+        stale_cells = self._configure_cells(request.configs)
+        if self.reactive_execution_mode == "autorun":
+            cells_to_run |= stale_cells
+        if cells_to_run:
+            await self._run_cells(cells_to_run)
+
+    def prepare_execution_requests(
+        self,
+        execution_requests: Sequence[ExecuteCellCommand],
+        *,
+        run_cell_ids: set[CellId_t] | None = None,
+        deletion_requests: Sequence[DeleteCellCommand] = (),
+    ) -> list[ExecuteCellCommand]:
+        """Include pending ancestors before graph mutation, without executing.
+
+        Mutation batches may register cells without running them. Only the
+        requested run targets contribute implicit ancestors; edits and
+        deletions override pending source. Pending requests are consumed by
+        `mutate_graph`, once their replacement is applied.
+        """
+        requests = list(execution_requests)
+        if (
+            not requests
+            or not self._uninstantiated_execution_requests
+            or (run_cell_ids is not None and not run_cell_ids)
+        ):
+            return requests
+
+        requested_ids = {request.cell_id for request in requests}
+        deleted_ids = {request.cell_id for request in deletion_requests}
+        pending = {
+            cid: request
+            for cid, request in self._uninstantiated_execution_requests.items()
+            if cid not in requested_ids and cid not in deleted_ids
+        }
+        if not pending:
+            return requests
+        # Registered but unrun cells can bridge a run target to pending
+        # ancestors. Reuse compiled cells for read-only dependency analysis;
+        # replacements and deletions supersede old source.
+        cells = {
+            cid: cell
+            for cid, cell in self.graph.cells.items()
+            if cid not in requested_ids and cid not in deleted_ids
+        }
+        # SQL edge resolution is order-sensitive. Analyze the same
+        # request-before-ancestor order that mutate_graph will receive.
+        source_requests = {
+            request.cell_id: request
+            for request in [*requests, *pending.values()]
+        }
+        for request in source_requests.values():
+            if request.cell_id in cells:
+                continue
+            cell = self.graph.cells.get(request.cell_id)
+            if cell is None or cell.code != request.code:
+                try:
+                    cell = compile_cell(request.code, cell_id=request.cell_id)
+                except Exception:  # noqa: S112
+                    # Graph mutation reports compilation failures.
+                    continue
+            cells[request.cell_id] = cell
+        roots = requested_ids if run_cell_ids is None else run_cell_ids
+        ancestors = dataflow.get_ancestors_from_cells(cells, roots)
+        requests.extend(
+            request for cid, request in pending.items() if cid in ancestors
+        )
+        return requests
+
     @kernel_tracer.start_as_current_span("run")
     async def run(
         self, execution_requests: Sequence[ExecuteCellCommand]
@@ -1701,63 +1826,11 @@ class Kernel:
         async def _run_with_uninstantiated_requests(
             execution_requests: Sequence[ExecuteCellCommand],
         ) -> None:
-            if not self._uninstantiated_execution_requests:
-                await self._run_cells(
-                    self.mutate_graph(execution_requests, deletion_requests=[])
-                )
-                return
-
-            execution_requests_cell_ids = {
-                er.cell_id for er in execution_requests
-            }
-            graph = dataflow.DirectedGraph()
-            # cells in execution_requests that should be initially marked as
-            # stale:
-            cells_starting_stale: set[CellId_t] = set()
-            for cid, er in list(
-                self._uninstantiated_execution_requests.items()
-            ):
-                if cid in execution_requests_cell_ids:
-                    # Running a previously uninstantiated cell; just remove
-                    # it from our cache of uninstantiated execution requests.
-                    cells_starting_stale.add(cid)
-                    del self._uninstantiated_execution_requests[cid]
-                    continue
-
-                try:
-                    cell = compile_cell(er.code, cell_id=er.cell_id)
-                except Exception:  # noqa: S112
-                    # The cell was not parsable.
-                    continue
-                graph.register_cell(cell_id=cid, cell=cell)
-
-            # Collect uninstantiated ancestors
-            ancestors: set[CellId_t] = set()
-            for er in execution_requests:
-                try:
-                    cell = compile_cell(er.code, cell_id=er.cell_id)
-                # Unparsable requests cannot contribute graph ancestors.
-                except Exception:  # noqa: S112
-                    continue
-                graph.register_cell(cell_id=er.cell_id, cell=cell)
-                ancestors |= graph.ancestors(er.cell_id)
-
-            # We run all uninstantiated ancestors of the requested cells
-            previously_uninstantiated_requests: list[ExecuteCellCommand] = []
-            for ancestor_cid in ancestors:
-                if ancestor_cid in self._uninstantiated_execution_requests:
-                    previously_uninstantiated_requests.append(
-                        self._uninstantiated_execution_requests[ancestor_cid]
-                    )
-                    cells_starting_stale.add(ancestor_cid)
-                    del self._uninstantiated_execution_requests[ancestor_cid]
-
+            requests = self.prepare_execution_requests(execution_requests)
             await self._run_cells(
                 self.mutate_graph(
-                    list(execution_requests)
-                    + previously_uninstantiated_requests,
+                    requests,
                     deletion_requests=[],
-                    cells_starting_stale=cells_starting_stale,
                 )
             )
 
@@ -1774,6 +1847,7 @@ class Kernel:
                     data=[MarimoInterruptionError()],
                     clear_console=False,
                     cell_id=request.cell_id,
+                    code=request.code,
                 )
 
                 # TODO(akshayka): This hack is needed because the FE
@@ -1817,6 +1891,16 @@ class Kernel:
 
     @kernel_tracer.start_as_current_span("run_scratchpad")
     async def run_scratchpad(self, code: str) -> None:
+        execution = ExecutionAttempt.plan(SCRATCH_CELL_ID, code)
+        with execution.activate():
+            try:
+                await self._run_scratchpad(code, execution)
+            finally:
+                execution.finish()
+
+    async def _run_scratchpad(
+        self, code: str, execution: ExecutionAttempt
+    ) -> None:
         roots = {SCRATCH_CELL_ID}
 
         # If cannot compile, don't run
@@ -1824,9 +1908,9 @@ class Kernel:
         if error:
             # Surface the diagnostic on stderr so SSE clients (e.g. the
             # /api/kernel/execute CLI path) see it — compile errors
-            # never hit ``write_traceback``, so without this the error
-            # only reaches the ``CellNotification`` side channel and
-            # the SSE ``done`` event drops it.
+            # never hit `write_traceback`, so without this the error
+            # only reaches the `CellNotification` side channel and
+            # the SSE `done` event drops it.
             CellNotificationUtils.broadcast_console_output(
                 channel=CellChannel.STDERR,
                 mimetype="text/plain",
@@ -1838,6 +1922,7 @@ class Kernel:
                 data=[error],
                 clear_console=False,
                 cell_id=SCRATCH_CELL_ID,
+                code=code,
             )
             CellNotificationUtils.broadcast_status(
                 cell_id=SCRATCH_CELL_ID,
@@ -1869,6 +1954,7 @@ class Kernel:
             execution_type=self.execution_type,
             execution_context=self._install_execution_context,
             hooks=scratchpad_hooks,
+            executions={SCRATCH_CELL_ID: execution},
             user_config=self.user_config,
         )
 
@@ -1911,24 +1997,30 @@ class Kernel:
 
         Cells that are enabled (via config) but stale are run as a side-effect.
         """
-        # Stale cells that are enabled will need to be run.
+        stale_cells = self._configure_cells(request.configs)
+        if stale_cells and self.reactive_execution_mode == "autorun":
+            await self._run_cells(stale_cells)
+
+    def _configure_cells(
+        self, configs: dict[CellId_t, dict[str, Any]]
+    ) -> set[CellId_t]:
+        """Apply cell configs and return the stale cells they enabled."""
         stale_cells: set[CellId_t] = set()
-        for cell_id, config in request.configs.items():
-            # store the config, regardless of whether we've seen the cell yet
-            self.cell_metadata[cell_id] = CellMetadata(
-                config=CellConfig.from_dict(config)
-            )
+        for cell_id, config in configs.items():
+            metadata = self.cell_metadata.setdefault(cell_id, CellMetadata())
+            previous = metadata.config
+            merged = CellConfig.from_dict(previous.asdict())
+            merged.configure(config)
+            metadata.config = merged
             cell = self.graph.cells.get(cell_id)
             if cell is None:
                 continue
             cell.configure(config)
-            if not cell.config.disabled:
-                stale_cells = self.graph.enable_cell(cell_id)
-            elif cell.config.disabled:
+            if cell.config.disabled:
                 self.graph.disable_cell(cell_id)
-
-        if stale_cells and self.reactive_execution_mode == "autorun":
-            await self._run_cells(stale_cells)
+            else:
+                stale_cells |= self.graph.enable_cell(cell_id)
+        return stale_cells
 
     @kernel_tracer.start_as_current_span("set_user_config")
     def set_user_config(self, request: UpdateUserConfigCommand) -> None:
@@ -2078,10 +2170,12 @@ class Kernel:
             }
             variable_values: list[VariableValue] = []
             for name in bound_names:
-                # TODO update variable values even for namespaces? lenses? etc
-                variable_values.append(
-                    create_variable_value(name=name, value=value)
-                )
+                if name in self.globals:
+                    variable_values.append(
+                        create_variable_value(
+                            name=name, value=self.globals[name]
+                        )
+                    )
                 try:
                     # subtracting self.graph.definitions[name]: never rerun the
                     # cell that created the name
@@ -2281,8 +2375,11 @@ class Kernel:
         During instantiation, UIElements can check for an initial value
         with `get_initial_value`
         """
-        if self._lifespan is not None:
+        # A lifespan can only be entered once, but a kernel can be asked to
+        # instantiate again.
+        if self._lifespan is not None and not self._lifespan_entered:
             await self._lifespan.__aenter__()
+            self._lifespan_entered = True
 
         self.load_dotenv()
 
@@ -2628,14 +2725,13 @@ def _create_streams(
 
 def _install_subprocess_handlers(
     kernel: Kernel,
-    user_config: MarimoConfig,
     interrupt_queue: QueueType[bool] | None,
 ) -> None:
     # Subprocess kernels don't share state with the host, so they need
     # their own formatter import hooks and signal handlers.
     from marimo._output.formatters.formatters import register_formatters
 
-    register_formatters(theme=user_config["display"]["theme"])
+    register_formatters()
 
     signal.signal(signal.SIGINT, handlers.construct_interrupt_handler())
 
@@ -2717,11 +2813,7 @@ def launch_kernel(
                 kernel.start_out_of_band_worker(completion_queue)
 
             if is_subprocess:
-                # Read theme from kernel.user_config — create_kernel may have
-                # mutated it for run mode (autorun + auto_reload off).
-                _install_subprocess_handlers(
-                    kernel, kernel.user_config, interrupt_queue
-                )
+                _install_subprocess_handlers(kernel, interrupt_queue)
 
             # The control loop is asynchronous so that (a) user code can use
             # top-level await, and (b) background asyncio tasks created by

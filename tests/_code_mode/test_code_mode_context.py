@@ -14,18 +14,28 @@ from inline_snapshot import snapshot
 
 from marimo._ast.cell import CellConfig
 from marimo._ast.cell_id import CellIdGenerator
+from marimo._ast.compiler import compile_cell
 from marimo._code_mode._context import AsyncCodeModeContext
+from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.notebook.document import (
     NotebookCell,
     NotebookDocument,
     notebook_document_context,
 )
 from marimo._messaging.notification import (
+    EnvironmentOperationNotification,
     NotebookDocumentTransactionNotification,
+    OperationRunning,
 )
-from marimo._runtime.commands import ExecuteCellCommand
+from marimo._runtime import dataflow
+from marimo._runtime.commands import (
+    CreateNotebookCommand,
+    DeleteCellCommand,
+    ExecuteCellCommand,
+    UpdateUIElementCommand,
+)
 from marimo._runtime.packages.package_manager import PackageDescription
-from marimo._runtime.runtime import Kernel
+from marimo._runtime.runtime import CellMetadata, Kernel
 from marimo._types.ids import CellId_t
 
 
@@ -73,6 +83,52 @@ def _graph_codes(k: Kernel) -> dict[str, str]:
 
 
 class TestAddCell:
+    @pytest.mark.parametrize(
+        ("name", "expected_name"),
+        [
+            (None, ""),
+            ("", ""),
+            ("load_data", "load_data"),
+            ("_private", "_private"),
+            ("K", "K"),
+            ("résumé", "résumé"),
+            ("match", "match"),
+        ],
+    )
+    async def test_accepts_valid_name(
+        self, k: Kernel, name: str | None, expected_name: str
+    ) -> None:
+        with _ctx(k) as ctx:
+            async with ctx as nb:
+                nb.create_cell("x = 1", name=name)
+
+            create = next(
+                op for op in _tx_ops(k) if op["type"] == "create-cell"
+            )
+            assert create["name"] == expected_name
+
+    @pytest.mark.parametrize(
+        ("name", "message"),
+        [
+            ("Load data", "valid, non-keyword Python identifiers"),
+            ("class", "valid, non-keyword Python identifiers"),
+            ("segment-change", "valid, non-keyword Python identifiers"),
+            ("123_cell", "valid, non-keyword Python identifiers"),
+            ("_", "reserved for unnamed cells"),
+            ("__", "reserved for unnamed cells"),
+            ("K", "NFKC-normalized"),
+        ],
+    )
+    async def test_rejects_invalid_name(
+        self, k: Kernel, name: str, message: str
+    ) -> None:
+        with _ctx(k) as ctx:
+            async with ctx as nb:
+                with pytest.raises(ValueError, match=message):
+                    nb.create_cell("x = 1", name=name)
+
+            assert not k.graph.cells
+
     async def test_add_into_empty(self, k: Kernel) -> None:
         with _ctx(k) as ctx:
             _clear_messages(k)
@@ -97,6 +153,7 @@ class TestAddCell:
                             "column": None,
                             "disabled": False,
                             "hide_code": True,
+                            "expand_output": False,
                         },
                         "before": None,
                         "after": None,
@@ -104,6 +161,15 @@ class TestAddCell:
                     {"type": "reorder-cells", "cellIds": ("qhHd",)},
                 ]
             )
+
+    async def test_add_with_expand_output(self, k: Kernel) -> None:
+        with _ctx(k) as ctx:
+            async with ctx as nb:
+                cid = nb.create_cell("x = 1", expand_output=True)
+                nb.run_cell(cid)
+
+            assert k.cell_metadata[cid].config.expand_output is True
+            assert k.graph.cells[cid].config.expand_output is True
 
     async def test_add_appends_by_default(self, k: Kernel) -> None:
         await k.run(
@@ -247,6 +313,53 @@ class TestDeleteCell:
 
 
 class TestUpdateCell:
+    @pytest.mark.parametrize(
+        "name", [None, "", "analysis_summary", "K", "résumé", "match"]
+    )
+    async def test_accepts_valid_name(
+        self, k: Kernel, name: str | None
+    ) -> None:
+        await k.run([ExecuteCellCommand(cell_id=CellId_t("0"), code="x = 1")])
+
+        with _ctx(k) as ctx:
+            _clear_messages(k)
+            async with ctx as nb:
+                nb.edit_cell("0", name=name)
+
+            name_ops = [op for op in _tx_ops(k) if op["type"] == "set-name"]
+            if name is None:
+                assert not name_ops
+            else:
+                assert name_ops == [
+                    {"type": "set-name", "cellId": "0", "name": name}
+                ]
+
+    @pytest.mark.parametrize(
+        ("name", "message"),
+        [
+            ("Analysis summary", "valid, non-keyword Python identifiers"),
+            ("for", "valid, non-keyword Python identifiers"),
+            ("analysis-summary", "valid, non-keyword Python identifiers"),
+            ("1st_cell", "valid, non-keyword Python identifiers"),
+            ("_", "reserved for unnamed cells"),
+            ("__", "reserved for unnamed cells"),
+            ("K", "NFKC-normalized"),
+        ],
+    )
+    async def test_rejects_invalid_name(
+        self, k: Kernel, name: str, message: str
+    ) -> None:
+        await k.run([ExecuteCellCommand(cell_id=CellId_t("0"), code="x = 1")])
+
+        with _ctx(k) as ctx:
+            _clear_messages(k)
+            async with ctx as nb:
+                with pytest.raises(ValueError, match=message):
+                    nb.edit_cell("0", name=name)
+
+            assert _graph_codes(k) == {"0": "x = 1"}
+            assert not _tx_ops(k)
+
     async def test_update_code(self, k: Kernel) -> None:
         await k.run([ExecuteCellCommand(cell_id=CellId_t("0"), code="x = 1")])
         assert k.globals["x"] == 1
@@ -323,10 +436,106 @@ class TestUpdateCell:
                         "column": None,
                         "disabled": False,
                         "hideCode": True,
+                        "expandOutput": False,
                     },
                     {"type": "reorder-cells", "cellIds": ("0",)},
                 ]
             )
+
+    async def test_update_expand_output(self, k: Kernel) -> None:
+        await k.run([ExecuteCellCommand(cell_id=CellId_t("0"), code="x = 1")])
+
+        with _ctx(k) as ctx:
+            _clear_messages(k)
+
+            async with ctx as nb:
+                nb.edit_cell("0", expand_output=True)
+
+            assert k.cell_metadata["0"].config.expand_output is True
+            assert k.graph.cells["0"].config.expand_output is True
+            assert _tx_ops(k) == snapshot(
+                [
+                    {
+                        "type": "set-config",
+                        "cellId": "0",
+                        "column": None,
+                        "disabled": False,
+                        "hideCode": False,
+                        "expandOutput": True,
+                    },
+                    {"type": "reorder-cells", "cellIds": ("0",)},
+                ]
+            )
+
+    async def test_update_preserves_expand_output(self, k: Kernel) -> None:
+        """Editing another config field leaves expand_output untouched."""
+        await k.run([ExecuteCellCommand(cell_id=CellId_t("0"), code="x = 1")])
+
+        with _ctx(k) as ctx:
+            async with ctx as nb:
+                nb.edit_cell("0", expand_output=True)
+
+        with _ctx(k) as ctx:
+            async with ctx as nb:
+                nb.edit_cell("0", hide_code=True)
+
+        assert k.cell_metadata["0"].config.expand_output is True
+        assert k.cell_metadata["0"].config.hide_code is True
+
+    async def test_update_collapse_output(self, k: Kernel) -> None:
+        """expand_output=False turns off a previously expanded output."""
+        await k.run([ExecuteCellCommand(cell_id=CellId_t("0"), code="x = 1")])
+
+        with _ctx(k) as ctx:
+            async with ctx as nb:
+                nb.edit_cell("0", expand_output=True)
+
+        with _ctx(k) as ctx:
+            async with ctx as nb:
+                nb.edit_cell("0", expand_output=False)
+
+        assert k.cell_metadata["0"].config.expand_output is False
+        assert k.graph.cells["0"].config.expand_output is False
+
+    async def test_update_config_of_pending_create(self, k: Kernel) -> None:
+        """Editing a cell created in the same batch keeps its create config.
+
+        The create is still queued, so the cell has no entry in
+        `cell_metadata` to merge against yet.
+        """
+        with _ctx(k) as ctx:
+            async with ctx as nb:
+                cid = nb.create_cell("x = 1", hide_code=True, disabled=True)
+                nb.edit_cell(cid, expand_output=True)
+
+        cfg = k.cell_metadata[cid].config
+        assert cfg.expand_output is True
+        assert cfg.hide_code is True
+        assert cfg.disabled is True
+
+        # And in the other direction: an unrelated edit must not reset
+        # a config field the create set.
+        with _ctx(k) as ctx:
+            async with ctx as nb:
+                other = nb.create_cell("y = 1", expand_output=True)
+                nb.edit_cell(other, hide_code=False)
+
+        cfg = k.cell_metadata[other].config
+        assert cfg.expand_output is True
+        assert cfg.hide_code is False
+
+    async def test_two_config_edits_in_one_batch(self, k: Kernel) -> None:
+        """A second edit merges into the first edit's queued config."""
+        await k.run([ExecuteCellCommand(cell_id=CellId_t("0"), code="x = 1")])
+
+        with _ctx(k) as ctx:
+            async with ctx as nb:
+                nb.edit_cell("0", hide_code=True)
+                nb.edit_cell("0", expand_output=True)
+
+        cfg = k.cell_metadata["0"].config
+        assert cfg.hide_code is True
+        assert cfg.expand_output is True
 
     async def test_update_code_skips_formatting_when_disabled(
         self, k: Kernel
@@ -823,6 +1032,7 @@ class TestPackages:
     async def test_add_and_remove_in_same_batch(self, k: Kernel) -> None:
         """add and remove can coexist in the same batch, executed in order."""
         with _ctx(k) as ctx:
+            _clear_messages(k)
             pm = k.packages_callbacks.package_manager
             assert pm is not None
 
@@ -830,7 +1040,7 @@ class TestPackages:
 
             async def track_install(package: str, **_kwargs: object) -> bool:
                 call_order.append(("add", package))
-                return True
+                return package != "missing-package"
 
             async def track_uninstall(package: str, **_kwargs: object) -> bool:
                 call_order.append(("remove", package))
@@ -843,8 +1053,51 @@ class TestPackages:
                 async with ctx as nb:
                     nb.packages.add("polars")
                     nb.packages.remove("pandas")
+                    nb.packages.add("numpy", "missing-package")
 
-            assert call_order == [("add", "polars"), ("remove", "pandas")]
+            assert call_order == [
+                ("add", "polars"),
+                ("remove", "pandas"),
+                ("add", "numpy"),
+                ("add", "missing-package"),
+            ]
+            notifications = [
+                notification
+                for notification in k.stream.operations
+                if isinstance(notification, EnvironmentOperationNotification)
+            ]
+            assert [
+                (
+                    notification.action,
+                    notification.packages,
+                    msgspec.to_builtins(notification.status)["kind"],
+                )
+                for notification in notifications
+                if not isinstance(notification.status, OperationRunning)
+            ] == snapshot(
+                [
+                    (
+                        "install",
+                        {"polars": "succeeded"},
+                        "succeeded",
+                    ),
+                    ("remove", {"pandas": "succeeded"}, "succeeded"),
+                    (
+                        "install",
+                        {"numpy": "succeeded", "missing-package": "failed"},
+                        "failed",
+                    ),
+                ]
+            )
+            assert len({n.operation_id for n in notifications}) == 3
+            assert all(
+                n.action in ("install", "remove") for n in notifications
+            )
+            assert any(
+                n.logs
+                == {"missing-package": "Failed to install missing-package\n"}
+                for n in notifications
+            )
 
     async def test_exception_discards_package_ops(self, k: Kernel) -> None:
         """If an exception occurs, queued package ops are discarded."""
@@ -952,7 +1205,9 @@ async def test_package_summary_reports_unsuccessful_outcomes(
     restart_required: bool,
 ) -> None:
     from marimo._messaging.notification import (
-        InstallingPackageAlertNotification,
+        EnvironmentOperationNotification,
+        OperationFailed,
+        OperationRestartRequired,
     )
 
     with _ctx(k) as ctx:
@@ -983,11 +1238,29 @@ async def test_package_summary_reports_unsuccessful_outcomes(
             alerts = [
                 n
                 for n in k.stream.operations
-                if isinstance(n, InstallingPackageAlertNotification)
+                if isinstance(n, EnvironmentOperationNotification)
             ]
-            assert alerts[-1].packages == {
-                "boltons": "restart-required" if restart_required else "failed"
-            }
+            operation_id = alerts[0].operation_id
+            assert operation_id is not None
+            assert {alert.operation_id for alert in alerts} == {operation_id}
+            outcome = "restart-required" if restart_required else "failed"
+            assert alerts[-1] == EnvironmentOperationNotification(
+                action="install",
+                source="kernel",
+                logs={},
+                log_mode="append",
+                packages={"boltons": outcome},
+                operation_id=operation_id,
+                status=(
+                    OperationRestartRequired(
+                        reason="Dependency changes are saved; restart the kernel to apply them."
+                    )
+                    if restart_required
+                    else OperationFailed(
+                        error="Could not apply changes to boltons. See operation logs for details."
+                    )
+                ),
+            )
 
 
 class TestAutorunStaleState:
@@ -1064,6 +1337,43 @@ class TestAutorunStaleState:
 class TestDocumentKernelDivergence:
     """Tests for cells that exist in the document but not in the kernel graph."""
 
+    @pytest.mark.parametrize("operation", ["run", "edit", "configure"])
+    async def test_run_doc_only_dependencies(
+        self, k: Kernel, operation: str
+    ) -> None:
+        imports = NotebookCell(
+            id=CellId_t("imports"),
+            code="import math",
+            name="",
+            config=CellConfig(hide_code=True, expand_output=True),
+        )
+        calculation = NotebookCell(
+            id=CellId_t("calculation"),
+            code="result = math.sqrt(4)",
+            name="",
+            config=CellConfig(),
+        )
+        unrelated = NotebookCell(
+            id=CellId_t("unrelated"),
+            code="raise RuntimeError('must not run')",
+            name="",
+            config=CellConfig(),
+        )
+        with _ctx(k, extra_doc_cells=[calculation, imports, unrelated]) as ctx:
+            async with ctx as nb:
+                if operation == "edit":
+                    nb.edit_cell("calculation", code="result = math.sqrt(9)")
+                elif operation == "configure":
+                    nb.edit_cell("calculation", hide_code=True)
+                nb.run_cell("calculation")
+                nb.run_cell("imports")
+
+        assert k.globals["result"] == (3 if operation == "edit" else 2)
+        assert set(k.graph.cells) == {"imports", "calculation"}
+        if operation != "run":
+            assert k.graph.cells["imports"].config == imports.config
+        assert "unrelated" not in k.cell_metadata
+
     async def test_delete_doc_only_cell(self, k: Kernel) -> None:
         """Deleting a cell that is in the document but not the kernel
         graph should succeed without KeyError."""
@@ -1077,18 +1387,42 @@ class TestDocumentKernelDivergence:
         # The ghost cell should not appear in the graph.
         assert "ghost" not in k.graph.cells
 
-    async def test_edit_and_run_doc_only_cell(self, k: Kernel) -> None:
+    @pytest.mark.parametrize("disabled", [False, True])
+    @pytest.mark.parametrize("edit", ["code", "config", "both"])
+    async def test_edit_and_run_doc_only_cell(
+        self, k: Kernel, disabled: bool, edit: str
+    ) -> None:
         """A cell present only in the document can be edited and run,
         bringing it into the kernel graph."""
         ghost = NotebookCell(
-            id=CellId_t("ghost"), code="z = 0", name="", config=CellConfig()
+            id=CellId_t("ghost"),
+            code="z = 0",
+            name="",
+            config=CellConfig(
+                disabled=disabled, hide_code=True, expand_output=True, column=2
+            ),
         )
         with _ctx(k, extra_doc_cells=[ghost]) as ctx:
             async with ctx as nb:
-                nb.edit_cell("ghost", code="z = 42")
+                nb.edit_cell(
+                    "ghost",
+                    code=None if edit == "config" else "z = 42",
+                    hide_code=None if edit == "code" else False,
+                )
                 nb.run_cell("ghost")
 
-        assert k.globals["z"] == 42
+        expected_config = CellConfig(
+            disabled=disabled,
+            hide_code=edit == "code",
+            expand_output=True,
+            column=2,
+        )
+        assert k.graph.cells["ghost"].config == expected_config
+        assert k.cell_metadata["ghost"].config == expected_config
+        if disabled:
+            assert "z" not in k.globals
+        else:
+            assert k.globals["z"] == (0 if edit == "config" else 42)
 
     async def test_create_cell_no_collision_with_doc_only_ids(
         self, k: Kernel
@@ -1113,6 +1447,272 @@ class TestDocumentKernelDivergence:
         assert new_id not in {c.id for c in doc_only}
 
 
+class TestPendingExecutionRequests:
+    @pytest.mark.skipif(
+        not DependencyManager.duckdb.has(), reason="requires duckdb"
+    )
+    async def test_preparation_preserves_sql_mutation_order(
+        self, k: Kernel
+    ) -> None:
+        import duckdb
+
+        queries = {
+            "schema": "CREATE SCHEMA schema1",
+            "table": "CREATE TABLE schema1.t1 (i INTEGER)",
+            "select": "SELECT * FROM schema1.t1",
+        }
+        k._uninstantiated_execution_requests = {
+            CellId_t(cid): ExecuteCellCommand(
+                cell_id=CellId_t(cid), code=f"mo.sql({query!r})"
+            )
+            for cid, query in queries.items()
+        }
+        k._uninstantiated_execution_requests[CellId_t("unrelated")] = (
+            ExecuteCellCommand(
+                cell_id=CellId_t("unrelated"),
+                code="raise RuntimeError('must not run')",
+            )
+        )
+        request = ExecuteCellCommand(
+            cell_id=CellId_t("select"),
+            code='mo.sql("SELECT i FROM schema1.t1")',
+        )
+        queries["select"] = "SELECT i FROM schema1.t1"
+        prepared = k.prepare_execution_requests([request])
+        assert [r.cell_id for r in prepared] == ["select", "schema", "table"]
+
+        cells_to_run = k.mutate_graph(prepared, deletion_requests=[])
+        assert k.graph.ancestors(CellId_t("select")) == {"schema", "table"}
+        assert set(k._uninstantiated_execution_requests) == {"unrelated"}
+        # Execute SQL in the scheduler's order to catch an omitted schema or
+        # a table scheduled before its schema, without shared database state.
+        with duckdb.connect() as connection:
+            for cid in dataflow.topological_sort(k.graph, cells_to_run):
+                connection.execute(queries[cid])
+            assert (
+                connection.execute("SELECT * FROM schema1.t1").fetchall() == []
+            )
+
+    @staticmethod
+    async def _open_notebook(k: Kernel) -> list[NotebookCell]:
+        cells = [
+            NotebookCell(
+                id=CellId_t(cid), code=code, name="", config=CellConfig()
+            )
+            for cid, code in (
+                ("root", "x = 1"),
+                ("child", "y = x + 1"),
+                ("unrelated", "raise RuntimeError('must not run')"),
+            )
+        ]
+        await k.instantiate(
+            CreateNotebookCommand(
+                execution_requests=tuple(
+                    ExecuteCellCommand(cell_id=c.id, code=c.code)
+                    for c in cells
+                ),
+                cell_ids=tuple(c.id for c in cells),
+                set_ui_element_value_request=UpdateUIElementCommand.from_ids_and_values(
+                    []
+                ),
+                auto_run=False,
+            )
+        )
+        return cells
+
+    @pytest.mark.parametrize("existing_target", [False, True])
+    async def test_preparation_reuses_compiled_cells_without_runtime_changes(
+        self, k: Kernel, existing_target: bool
+    ) -> None:
+        await self._open_notebook(k)
+        await k.run(
+            [ExecuteCellCommand(cell_id=CellId_t("child"), code="y = x + 1")]
+        )
+        root = k.graph.cells["root"]
+        root.configure({"disabled": True})
+        root.set_stale(True, broadcast=False)
+        state_before = {
+            cid: (cell.runtime_state, cell.stale, cell.config.asdict())
+            for cid, cell in k.graph.cells.items()
+        }
+        notifications_before = list(k.stream.operations)
+        pending_before = dict(k._uninstantiated_execution_requests)
+        request = ExecuteCellCommand(
+            cell_id=CellId_t("child" if existing_target else "final"),
+            code="y = x + 1" if existing_target else "z = y + 1",
+        )
+        with patch(
+            "marimo._runtime.runtime.compile_cell", wraps=compile_cell
+        ) as compile_spy:
+            assert k.prepare_execution_requests([request]) == [request]
+        compiled_ids = [
+            call.kwargs["cell_id"] for call in compile_spy.call_args_list
+        ]
+        expected_ids = ["unrelated"]
+        if not existing_target:
+            expected_ids.append("final")
+        assert sorted(compiled_ids) == sorted(expected_ids)
+        assert {
+            cid: (cell.runtime_state, cell.stale, cell.config.asdict())
+            for cid, cell in k.graph.cells.items()
+        } == state_before
+        assert k.stream.operations == notifications_before
+        assert k._uninstantiated_execution_requests == pending_before
+
+    @pytest.mark.parametrize(
+        "bridge_change", ["unchanged", "replace", "invalid", "delete"]
+    )
+    async def test_preparation_uses_effective_batch_source(
+        self, k: Kernel, bridge_change: str
+    ) -> None:
+        await self._open_notebook(k)
+        k.mutate_graph(
+            [ExecuteCellCommand(cell_id=CellId_t("child"), code="y = x + 2")],
+            deletion_requests=[],
+        )
+        requests = [
+            ExecuteCellCommand(cell_id=CellId_t("final"), code="z = y + 1")
+        ]
+        deletions: list[DeleteCellCommand] = []
+        if bridge_change in ("replace", "invalid"):
+            requests.append(
+                ExecuteCellCommand(
+                    cell_id=CellId_t("child"),
+                    code="y = 5" if bridge_change == "replace" else "y =",
+                )
+            )
+        elif bridge_change == "delete":
+            deletions.append(DeleteCellCommand(cell_id=CellId_t("child")))
+
+        pending_before = dict(k._uninstantiated_execution_requests)
+        prepared = k.prepare_execution_requests(
+            requests,
+            run_cell_ids={CellId_t("final")},
+            deletion_requests=deletions,
+        )
+        expected = list(requests)
+        if bridge_change == "unchanged":
+            expected.append(pending_before[CellId_t("root")])
+        assert prepared == expected
+        assert k._uninstantiated_execution_requests == pending_before
+        assert _graph_codes(k) == {"child": "y = x + 2"}
+
+    @pytest.mark.parametrize("execution_path", ["ui", "code_mode"])
+    async def test_pending_ancestor_behind_registered_unrun_cell(
+        self, any_kernel: Kernel, execution_path: str
+    ) -> None:
+        k = any_kernel
+        cells = await self._open_notebook(k)
+        with _ctx(k, extra_doc_cells=cells) as ctx:
+            async with ctx as nb:
+                nb.edit_cell("child", code="y = x + 2")
+                final_id = nb.create_cell("z = y + 1")
+        assert "y" not in k.globals
+
+        if execution_path == "ui":
+            await k.run(
+                [ExecuteCellCommand(cell_id=final_id, code="z = y + 1")]
+            )
+        else:
+            pending_cells = [c for c in cells if c.id not in k.graph.cells]
+            with _ctx(k, extra_doc_cells=pending_cells) as ctx:
+                async with ctx as nb:
+                    nb.edit_cell(str(final_id), code="z = y + 2")
+                    nb.run_cell(str(final_id))
+
+        assert {name: k.globals[name] for name in ("x", "y", "z")} == {
+            "x": 1,
+            "y": 3,
+            "z": 4 if execution_path == "ui" else 5,
+        }
+        assert set(k._uninstantiated_execution_requests) == {"unrelated"}
+
+    @pytest.mark.parametrize("explicit_ancestor", [False, True])
+    @pytest.mark.parametrize("disabled", [False, True])
+    async def test_run_preserves_newer_ancestor_metadata(
+        self, any_kernel: Kernel, explicit_ancestor: bool, disabled: bool
+    ) -> None:
+        k = any_kernel
+        cells = await self._open_notebook(k)
+        config = CellConfig(
+            disabled=disabled, hide_code=True, expand_output=True, column=2
+        )
+        k.cell_metadata[CellId_t("root")] = CellMetadata(config=config)
+        with _ctx(k, extra_doc_cells=cells) as ctx:
+            async with ctx as nb:
+                nb.edit_cell("child", code="y = x + 2")
+                nb.run_cell("child")
+                if explicit_ancestor:
+                    nb.run_cell("root")
+
+        assert k.cell_metadata["root"].config == config
+        assert k.graph.cells["root"].config == config
+        if disabled:
+            assert "x" not in k.globals
+            assert "y" not in k.globals
+        else:
+            assert k.globals["y"] == 3
+
+    async def test_mixed_run_discovers_pending_ancestor(
+        self, any_kernel: Kernel
+    ) -> None:
+        k = any_kernel
+        cells = await self._open_notebook(k)
+        with _ctx(k, extra_doc_cells=cells) as ctx:
+            async with ctx as nb:
+                nb.edit_cell("child", code="y = x + 2")
+                nb.run_cell("child")
+        assert k.globals["y"] == 3
+        assert set(k._uninstantiated_execution_requests) == {"unrelated"}
+        assert "unrelated" not in k.graph.cells
+
+    @pytest.mark.parametrize("run_edited_cell", [False, True])
+    async def test_later_run_does_not_replay_old_source(
+        self, any_kernel: Kernel, run_edited_cell: bool
+    ) -> None:
+        k = any_kernel
+        cells = await self._open_notebook(k)
+        with _ctx(k, extra_doc_cells=cells) as ctx:
+            async with ctx as nb:
+                nb.edit_cell("root", code="x = 10")
+                if run_edited_cell:
+                    nb.run_cell("root")
+                    nb.run_cell("child")
+        if not run_edited_cell:
+            assert "x" not in k.globals
+        await k.run(
+            [ExecuteCellCommand(cell_id=CellId_t("child"), code="y = x + 1")]
+        )
+        assert k.globals["x"] == 10
+        assert k.globals["y"] == 11
+        assert k.graph.cells["root"].code == "x = 10"
+        assert set(k._uninstantiated_execution_requests) == {"unrelated"}
+
+    async def test_later_run_does_not_restore_deleted_pending_cell(
+        self, any_kernel: Kernel
+    ) -> None:
+        k = any_kernel
+        cells = await self._open_notebook(k)
+        k.cell_metadata[CellId_t("root")] = CellMetadata(
+            config=CellConfig(disabled=True, hide_code=True, column=2)
+        )
+        with _ctx(k, extra_doc_cells=cells) as ctx:
+            async with ctx as nb:
+                nb.delete_cell("root")
+        assert "root" not in k.cell_metadata
+        await k.run(
+            [ExecuteCellCommand(cell_id=CellId_t("child"), code="y = x + 1")]
+        )
+        assert "root" not in k.graph.cells
+        assert "x" not in k.globals
+        assert "y" not in k.globals
+        await k.run(
+            [ExecuteCellCommand(cell_id=CellId_t("root"), code="x = 42")]
+        )
+        assert k.cell_metadata["root"].config == CellConfig()
+        assert k.globals["x"] == 42
+
+
 class TestErrorReporting:
     async def test_print_summary_does_not_duplicate_errors(
         self, k: Kernel, capsys: pytest.CaptureFixture[str]
@@ -1130,3 +1730,41 @@ class TestErrorReporting:
         captured = capsys.readouterr()
         assert "created and ran" in captured.out
         assert "error in cell" not in captured.err
+
+
+async def test_config_edit_retains_unregistered_error_source(
+    k: Kernel,
+) -> None:
+    source = "x = ("
+    cid = CellId_t("broken")
+    await k.run([ExecuteCellCommand(cell_id=cid, code=source)])
+    assert cid not in k.graph.cells
+    assert k.cell_metadata[cid].code == source
+    cell = NotebookCell(id=cid, code=source, name="", config=CellConfig())
+    with _ctx(k, extra_doc_cells=[cell]) as ctx:
+        async with ctx as nb:
+            nb.edit_cell(str(cid), hide_code=True)
+    assert k.cell_metadata[cid].code == source
+    assert k.cell_metadata[cid].config.hide_code is True
+
+
+async def test_config_edit_retains_semantic_error_source(k: Kernel) -> None:
+    source = "duplicate = 1"
+    cid = CellId_t("first")
+    await k.run(
+        [
+            ExecuteCellCommand(cell_id=cid, code=source),
+            ExecuteCellCommand(
+                cell_id=CellId_t("second"), code="duplicate = 2"
+            ),
+        ]
+    )
+    assert cid in k.errors
+    with _ctx(k) as ctx:
+        async with ctx as nb:
+            nb.edit_cell(str(cid), hide_code=True)
+    await k.run(
+        [ExecuteCellCommand(cell_id=CellId_t("third"), code="unrelated = 3")]
+    )
+    assert cid in k.errors
+    assert k.cell_metadata[cid].code == source

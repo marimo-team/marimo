@@ -6,15 +6,15 @@ export class ProgressState {
   private total: number | "indeterminate";
   private listeners = new Set<ProgressListener>();
 
-  constructor(total: number | "indeterminate") {
+  public constructor(total: number | "indeterminate") {
     this.total = total;
   }
 
-  static indeterminate(): ProgressState {
+  public static indeterminate(): ProgressState {
     return new ProgressState("indeterminate");
   }
 
-  addTotal(total: number) {
+  public addTotal(total: number) {
     if (this.total === "indeterminate") {
       this.total = total;
     } else {
@@ -26,7 +26,7 @@ export class ProgressState {
   /**
    * Update the progress by the given increment.
    */
-  increment(increment: number) {
+  public increment(increment: number) {
     this.progress += increment;
     this.notifyListeners();
   }
@@ -34,7 +34,7 @@ export class ProgressState {
   /**
    * Get the progress as a percentage (0-100)
    */
-  getProgress(): number | "indeterminate" {
+  public getProgress(): number | "indeterminate" {
     if (this.total === "indeterminate") {
       return "indeterminate";
     }
@@ -45,7 +45,7 @@ export class ProgressState {
    * Subscribe to progress updates.
    * Returns an unsubscribe function.
    */
-  subscribe(listener: ProgressListener): () => void {
+  public subscribe(listener: ProgressListener): () => void {
     this.listeners.add(listener);
     return () => {
       this.listeners.delete(listener);

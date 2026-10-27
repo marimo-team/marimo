@@ -8,12 +8,12 @@ export class MessageBuffer<T> {
   private buffer: T[];
   private started = false;
   private onMessage: (data: T) => void;
-  constructor(onMessage: (data: T) => void) {
+  public constructor(onMessage: (data: T) => void) {
     this.onMessage = onMessage;
     this.buffer = [];
   }
 
-  push = (data: T) => {
+  public push = (data: T) => {
     if (this.started) {
       this.onMessage(data);
     } else {
@@ -24,7 +24,7 @@ export class MessageBuffer<T> {
   /**
    * Start processing messages
    */
-  start = () => {
+  public start = () => {
     this.started = true;
     // Flush the buffer
     this.buffer.forEach((data) => this.onMessage(data));

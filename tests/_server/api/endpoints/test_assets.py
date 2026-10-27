@@ -17,6 +17,8 @@ from marimo._server.api.endpoints.assets import (
     DEFAULT_NOTEBOOK_NAME,
     _inject_service_worker,
 )
+from marimo._server.host.bridge import SessionBridge
+from marimo._server.host.context import HostContext
 from marimo._server.workspace import (
     DirectoryWorkspace,
     EmptyWorkspace,
@@ -32,6 +34,7 @@ from tests._server.mocks import (
     with_workspace,
     workspace_scope,
 )
+from tests._server.templates.utils import parse_mount_config
 
 if TYPE_CHECKING:
     from starlette.testclient import TestClient
@@ -127,7 +130,10 @@ def test_index_strips_access_token_query_param(client: TestClient) -> None:
     response = client.get("/?access_token=fake-token", follow_redirects=False)
     assert response.status_code == 303, response.text
     assert response.headers["location"] == "/"
-    assert response.headers.get("referrer-policy") == "same-origin"
+    assert (
+        response.headers.get("referrer-policy")
+        == "strict-origin-when-cross-origin"
+    )
     assert response.headers.get("x-content-type-options") == "nosniff"
     # The session cookie must be set so the redirect target is authenticated
     # without the query param.
@@ -211,7 +217,10 @@ def test_index_unauthenticated_redirect_preserves_next(
 def test_index_response_has_security_headers(client: TestClient) -> None:
     response = client.get("/", headers=token_header())
     assert response.status_code == 200, response.text
-    assert response.headers.get("referrer-policy") == "same-origin"
+    assert (
+        response.headers.get("referrer-policy")
+        == "strict-origin-when-cross-origin"
+    )
     assert response.headers.get("x-content-type-options") == "nosniff"
 
 
@@ -971,3 +980,27 @@ def test_serve_static_allowed_files(client: TestClient) -> None:
         assert response.status_code in (200, 404), (
             f"Unexpected status {response.status_code} for {name!r}"
         )
+
+
+@pytest.mark.parametrize("remote_url", [None, "https://remote.example"])
+@pytest.mark.parametrize("cataloged", [True, False])
+def test_index_does_not_provision_a_notebook(
+    client: TestClient, remote_url: str | None, cataloged: bool
+) -> None:
+    state = AppState.from_app(cast(Any, client.app))
+    bridge = SessionBridge(state.session_manager)
+    bridge.index.refresh()
+    (original_id,) = bridge.host.notebooks
+    if not cataloged:
+        bridge.index.forget(original_id)
+    initial_notebooks = dict(bridge.host.notebooks)
+    client.app.state.host_context = HostContext(
+        bridge=bridge, token="host-token", port=1234
+    )  # type: ignore[union-attr]
+    client.app.state.remote_url = remote_url  # type: ignore[union-attr]
+    response = client.get("/", headers=token_header())
+    assert response.status_code == 200
+    config = parse_mount_config(response.text)
+    assert "notebookId" not in config
+    assert bridge.host.notebooks == initial_notebooks
+    assert not state.session_manager.sessions

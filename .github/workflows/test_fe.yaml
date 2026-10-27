@@ -30,6 +30,7 @@ jobs:
             frontend:
               - 'frontend/**'
               - 'packages/**'
+              - 'protocols/host/**'
               - 'pnpm-workspace.yaml'
 
   lint_frontend:
@@ -148,6 +149,9 @@ jobs:
       - name: 📋 Register tsc problem matcher
         run: echo "::add-matcher::${{ github.workspace }}/.github/problemMatchers/tsc.json"
 
+      - name: 🔎 Check host protocol bindings
+        run: pnpm --dir ../packages/client codegen:check
+
       - name: 🔎 Type check
         id: typecheck
         env:
@@ -174,6 +178,10 @@ jobs:
       - name: 🧪 Test llm-info
         working-directory: ${{ github.workspace }}
         run: pnpm --dir packages/llm-info test -- --run
+
+      - name: 🧪 Test @marimo-team/client
+        working-directory: ${{ github.workspace }}
+        run: pnpm --dir packages/client test -- --run
 
       - name: 📊 Report coverage
         # Runs even when tests fail (reportOnFailure writes the summary anyway).

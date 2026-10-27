@@ -543,11 +543,35 @@ class TestApp:
             assert __x__ == 0
             return
 
+        @app.cell(expand_output=True)
+        def _() -> None:
+            return
+
         cell_manager = app._cell_manager
         configs = tuple(cell_manager.configs())
         assert configs[0].disabled
         assert configs[0].column is not None
         assert configs[1].hide_code
+        assert not configs[1].expand_output
+        assert configs[2].expand_output
+
+    @staticmethod
+    def test_top_level_cell_config() -> None:
+        # Codegen emits `expand_output` for top-level cells too, so the
+        # decorators must accept it -- otherwise the flag is dropped when the
+        # notebook is imported or run as a script.
+        app = App()
+
+        @app.function(expand_output=True)
+        def add(a: int, b: int) -> int:
+            return a + b
+
+        @app.class_definition(expand_output=True)
+        class Struct: ...
+
+        configs = tuple(app._cell_manager.configs())
+        assert configs[0].expand_output
+        assert configs[1].expand_output
 
     @staticmethod
     def test_conditional_definition() -> None:
@@ -630,6 +654,142 @@ class TestApp:
 
         assert defs["x"] == 0
         assert defs["y"] == 1
+
+    @staticmethod
+    async def test_run_async_from_running_event_loop() -> None:
+        """An async app can be run from inside a running event loop.
+
+        Regression test for #9572 / #9646: the script runner used to call
+        `asyncio.run` unconditionally, which raises when a loop is already
+        running on the calling thread.
+        """
+        app = App()
+
+        @app.cell
+        async def __() -> tuple[Any, int]:
+            import asyncio
+
+            await asyncio.sleep(0.01)
+            x = 0
+            return (
+                asyncio,
+                x,
+            )
+
+        @app.cell
+        def __(x: int) -> tuple[int]:
+            y = x + 1
+            return (y,)
+
+        _, defs = app.run()
+
+        assert defs["x"] == 0
+        assert defs["y"] == 1
+
+    @staticmethod
+    async def test_run_async_from_running_event_loop_preserves_context() -> (
+        None
+    ):
+        """The caller's thread-local runtime context survives the offload."""
+        from marimo._runtime.context.types import runtime_context_installed
+
+        app = App()
+
+        @app.cell
+        async def __() -> tuple[Any, int]:
+            import asyncio
+
+            await asyncio.sleep(0)
+            x = 1
+            return (asyncio, x)
+
+        assert not runtime_context_installed()
+        _, defs = app.run()
+        assert defs["x"] == 1
+        # The script context is ephemeral; the worker thread must not leak
+        # one back onto the calling thread.
+        assert not runtime_context_installed()
+
+    @staticmethod
+    async def test_run_async_from_running_event_loop_propagates_error() -> (
+        None
+    ):
+        """Cell errors still surface unwrapped when the run is offloaded."""
+        app = App()
+
+        @app.cell
+        async def __() -> tuple[Any]:
+            import asyncio
+
+            await asyncio.sleep(0)
+            raise ValueError("boom")
+            return (asyncio,)
+
+        with pytest.raises(ValueError, match="boom"):
+            app.run()
+
+    @staticmethod
+    async def test_embed_async_app_outside_notebook() -> None:
+        """`await app.embed()` works for an async app run as a script.
+
+        Outside a notebook `embed()` delegates to `App.run()`, so it hit the
+        same nested-event-loop failure (#9572).
+        """
+        app = App()
+
+        @app.cell
+        async def __() -> tuple[Any, int]:
+            import asyncio
+
+            await asyncio.sleep(0)
+            x = 2
+            return (asyncio, x)
+
+        result = await app.embed()
+
+        assert result.defs["x"] == 2
+
+    @staticmethod
+    async def test_run_async_app_nested_in_async_app() -> None:
+        """An async app can run another async app from one of its cells.
+
+        This is the shape reported in #9646: a notebook that runs another
+        notebook while its own event loop is live.
+        """
+        inner_app = App()
+
+        @inner_app.cell
+        async def __() -> tuple[Any, int]:
+            import asyncio
+
+            await asyncio.sleep(0)
+            inner = 21
+            return (asyncio, inner)
+
+        parent = App()
+
+        @parent.cell
+        async def __() -> tuple[Any]:
+            import asyncio
+
+            await asyncio.sleep(0)
+            return (asyncio,)
+
+        @parent.cell
+        def __() -> tuple[Any]:
+            # Overridden below; stands in for the `import notebook` cell of
+            # a real notebook.
+            child = None
+            return (child,)
+
+        @parent.cell
+        def __(child: Any) -> tuple[int]:
+            outer = child.run()[1]["inner"] * 2
+            return (outer,)
+
+        _, defs = parent.run(defs={"child": inner_app})
+
+        assert defs["outer"] == 42
 
     @staticmethod
     def test_run_mo_stop() -> None:
@@ -1770,9 +1930,9 @@ class TestAppComposition:
         assert is_external_cell_id(setup_cell_ids[0])
 
 
-class TestInternalAppWithData:
-    """`InternalApp.with_data` rewrites the cell list from the
-    frontend's snapshot during the save round-trip. It must mutate the
+class TestInternalAppApplyData:
+    """`InternalApp.apply_data` rewrites the cell list from the
+    frontend's snapshot during the editor's save. It must mutate the
     existing cell manager in place — Session holds
     `app.cell_manager.document` as a property, so swapping in a fresh
     manager would orphan `session.document`.
@@ -1793,7 +1953,7 @@ class TestInternalAppWithData:
         names = list(cell_manager.names())
         configs = list(cell_manager.configs())
 
-        internal_app.with_data(
+        internal_app.apply_data(
             cell_ids=cell_ids,
             codes=[c + "  # edited" for c in codes],
             names=names,
@@ -1817,7 +1977,7 @@ class TestInternalAppWithData:
         names = list(internal_app.cell_manager.names())
         configs = list(internal_app.cell_manager.configs())
 
-        internal_app.with_data(
+        internal_app.apply_data(
             cell_ids=cell_ids,
             codes=[c + "  # edited" for c in codes],
             names=names,
@@ -1839,7 +1999,7 @@ class TestInternalAppWithData:
         original_compiled = internal_app.cell_manager._compiled_cells[cell_id]
         assert original_compiled is not None
 
-        internal_app.with_data(
+        internal_app.apply_data(
             cell_ids=[cell_id],
             codes=["x = 2  # renamed-only-here"],
             names=["__"],
@@ -1858,7 +2018,7 @@ class TestInternalAppWithData:
         internal_app, cell_id = self._seed_single()
         compiled = internal_app.cell_manager._compiled_cells
 
-        internal_app.with_data(
+        internal_app.apply_data(
             cell_ids=["new"],
             codes=["y = 2"],
             names=["__"],
@@ -1880,7 +2040,7 @@ class TestInternalAppWithData:
         internal_app = InternalApp(app)
         cell_id = next(iter(internal_app.cell_manager.cell_ids()))
 
-        internal_app.with_data(
+        internal_app.apply_data(
             cell_ids=[cell_id],
             codes=["x = 99"],
             names=["renamed"],
@@ -1909,7 +2069,7 @@ class TestInternalAppWithData:
         doc = internal_app.cell_manager.document
         before = doc.get_cell_version(cell_id)
 
-        internal_app.with_data(
+        internal_app.apply_data(
             cell_ids=[cell_id],
             codes=[doc.get_cell(cell_id).code],
             names=["__"],
@@ -1923,7 +2083,7 @@ class TestInternalAppWithData:
         doc = internal_app.cell_manager.document
         before = doc.get_cell_version(cell_id)
 
-        internal_app.with_data(
+        internal_app.apply_data(
             cell_ids=[cell_id],
             codes=["x = 2"],
             names=["__"],
@@ -1936,7 +2096,7 @@ class TestInternalAppWithData:
         internal_app, cell_id = self._seed_single()
         doc = internal_app.cell_manager.document
 
-        internal_app.with_data(
+        internal_app.apply_data(
             cell_ids=[cell_id, "new"],
             codes=["x = 1", "y = 2"],
             names=["__", "__"],
@@ -1951,7 +2111,7 @@ class TestInternalAppWithData:
         internal_app, cell_id = self._seed_single()
 
         # Drop the original cell.
-        internal_app.with_data(
+        internal_app.apply_data(
             cell_ids=["other"],
             codes=["y = 2"],
             names=["__"],
@@ -1967,19 +2127,19 @@ class TestInternalAppWithData:
         internal_app, cell_id = self._seed_single()
         internal_app.cell_manager.unparsable = True
 
-        internal_app.with_data(
+        internal_app.apply_data(
             cell_ids=[cell_id],
             codes=["x = 2"],
             names=["__"],
             configs=[CellConfig()],
         )
 
-        # with_data rebuilds from parsable textual fields, so unparsable
+        # apply_data rebuilds from parsable textual fields, so unparsable
         # resets to the rebuilt manager's value (False).
         assert internal_app.cell_manager.unparsable is False
 
     def test_noop_save_does_not_bump_document_version(self) -> None:
-        # with_data routes through apply(); a save with identical content
+        # apply_data routes through apply(), so a save with identical content
         # produces an empty transaction, which leaves the document version
         # unchanged (consistent with SetCode no-op staying stable).
         internal_app, cell_id = self._seed_single()
@@ -1987,7 +2147,7 @@ class TestInternalAppWithData:
         cell = doc.get_cell(cell_id)
         before = doc.version
 
-        internal_app.with_data(
+        internal_app.apply_data(
             cell_ids=[cell_id],
             codes=[cell.code],
             names=[cell.name],

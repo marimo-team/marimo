@@ -10,7 +10,7 @@ import { connectionAtom } from "@/core/network/connection";
 import { useRequestClient } from "@/core/network/requests";
 import type { UsageResponse } from "@/core/network/types";
 import { isWasm } from "@/core/wasm/utils";
-import { WebSocketState } from "@/core/websocket/types";
+import { ConnectionState } from "@/core/websocket/types";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import { useInterval } from "@/hooks/useInterval";
 import { cn } from "@/utils/cn";
@@ -29,7 +29,7 @@ export const MachineStats: React.FC = () => {
     if (isWasm()) {
       return null;
     }
-    if (connection.state !== WebSocketState.OPEN) {
+    if (connection.state !== ConnectionState.OPEN) {
       return null;
     }
     return getUsageStats();

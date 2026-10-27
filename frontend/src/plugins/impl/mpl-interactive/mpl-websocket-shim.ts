@@ -10,14 +10,14 @@
  *   - onopen / onmessage / onclose callbacks
  */
 export class MplCommWebSocket {
-  readyState: number = WebSocket.OPEN;
+  public readyState: number = WebSocket.OPEN;
   private sendFn: (msg: unknown) => void;
 
-  onopen: (() => void) | null = null;
-  onmessage: ((evt: MessageEvent) => void) | null = null;
-  onclose: (() => void) | null = null;
+  public onopen: (() => void) | null = null;
+  public onmessage: ((evt: MessageEvent) => void) | null = null;
+  public onclose: (() => void) | null = null;
 
-  constructor(sendFn: (msg: unknown) => void) {
+  public constructor(sendFn: (msg: unknown) => void) {
     this.sendFn = sendFn;
   }
 
@@ -27,7 +27,7 @@ export class MplCommWebSocket {
    * socket instance stays bound to mpl.js (which wires `onopen`/`onmessage`
    * onto it at construction); only the comm behind it changes.
    */
-  setSendHandler(sendFn: (msg: unknown) => void): void {
+  public setSendHandler(sendFn: (msg: unknown) => void): void {
     this.sendFn = sendFn;
   }
 
@@ -35,14 +35,14 @@ export class MplCommWebSocket {
    * Called by mpl.js to send a message to the backend.
    * mpl.js always sends JSON strings.
    */
-  send(data: string): void {
+  public send(data: string): void {
     this.sendFn(JSON.parse(data));
   }
 
   /**
    * Called when the backend pushes a JSON message via the model custom event.
    */
-  receiveJson(data: unknown): void {
+  public receiveJson(data: unknown): void {
     this.onmessage?.(
       new MessageEvent("message", { data: JSON.stringify(data) }),
     );
@@ -51,7 +51,7 @@ export class MplCommWebSocket {
   /**
    * Called when the backend pushes binary data (PNG render) via model custom event.
    */
-  receiveBinary(buffer: DataView): void {
+  public receiveBinary(buffer: DataView): void {
     const ab = buffer.buffer.slice(
       buffer.byteOffset,
       buffer.byteOffset + buffer.byteLength,
@@ -60,7 +60,7 @@ export class MplCommWebSocket {
     this.onmessage?.(new MessageEvent("message", { data: blob }));
   }
 
-  close(): void {
+  public close(): void {
     this.readyState = WebSocket.CLOSED;
     this.onclose?.();
   }

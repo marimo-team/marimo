@@ -318,8 +318,8 @@ class MarimoIslandGenerator:
         self._stubs: list[MarimoIslandStub] = []
         self._config = _AppConfig()
         self._dependencies: list[str] = []
-        # When constructed via ``from_file``, this records the notebook
-        # source path so cells see ``__file__`` / ``mo.notebook_dir()``
+        # When constructed via `from_file`, this records the notebook
+        # source path so cells see `__file__` / `mo.notebook_dir()`
         # resolve to the notebook rather than to the host process.
         self._source_filename: str | None = None
 
@@ -345,9 +345,9 @@ class MarimoIslandGenerator:
         file_manager = load_notebook(filename)
 
         generator = MarimoIslandGenerator()
-        # Resolve at capture time so a chdir between ``from_file`` and
-        # ``build`` doesn't change which absolute path cells see for
-        # ``__file__`` / ``mo.notebook_dir()``.
+        # Resolve at capture time so a chdir between `from_file` and
+        # `build` doesn't change which absolute path cells see for
+        # `__file__` / `mo.notebook_dir()`.
         generator._source_filename = os.path.abspath(filename)
         stubs = []
         for cell_data in file_manager.app.cell_manager.cell_data():
@@ -532,8 +532,8 @@ class MarimoIslandGenerator:
             <link href="{font_url}" rel="stylesheet" />
             <link
                 rel="stylesheet"
-                href="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.css"
-                integrity="sha384-wcIxkf4k558AjM3Yz3BBFQUbk/zgIYC2R0QpeeYb+TwlBVMrlgLqwRjRtGZiK7ww"
+                href="https://cdn.jsdelivr.net/npm/katex@0.18.5/dist/katex.min.css"
+                integrity="sha384-2dNi/m6JtSiviznrOIZ5fTiZ5As0In2QwkuXSgoqcQtCNplvJAbt+jveeN+8en73"
                 crossorigin="anonymous"
             />
         """.strip()

@@ -57,8 +57,19 @@ Use `--no-continue-on-error` to stop at the first failure.
 
 ## Sandboxed execution
 
-To execute in a sandboxed environment, pass `--sandbox`:
+To execute in a sandboxed environment, install
+[uv](https://docs.astral.sh/uv/getting-started/installation/) or
+[pixi](https://pixi.prefix.dev/latest/installation/), then pass `--sandbox`:
 
 ```bash
 marimo export session notebook.py --sandbox
 ```
+
+`--sandbox` defaults to uv. Use `--sandbox uv` or `--sandbox pixi` (equivalently,
+`--sandbox=uv` or `--sandbox=pixi`) to select
+the backend explicitly; only the selected tool needs to be installed.
+Use `--no-sandbox` to disable sandboxing and dependency prompts.
+
+Each notebook executes in a separate process using its inline dependencies,
+whether you export a single file or a directory. Up-to-date snapshots are
+skipped before checking for the backend or preparing the notebook environment.

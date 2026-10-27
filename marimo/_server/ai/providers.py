@@ -2,10 +2,11 @@
 from __future__ import annotations
 
 import functools
+import hashlib
 import inspect
 import os
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import (
     TYPE_CHECKING,
     Generic,
@@ -45,6 +46,7 @@ from marimo._server.models.completion import UIMessage as ServerUIMessage
 from marimo._utils.assert_never import log_never
 from marimo._utils.http import HTTPStatus
 from marimo._utils.typing import override
+from marimo._version import __version__
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator, Sequence
@@ -405,6 +407,7 @@ class PydanticProvider(ABC, Generic[ProviderT_co]):
         additional_tools: list[ToolDefinition],
         span_info: SpanInfo,
         enable_capabilities: bool = True,
+        thinking: ThinkingLevel | None = None,
     ) -> str:
         """Return a string response from the given messages."""
 
@@ -426,6 +429,9 @@ class PydanticProvider(ABC, Generic[ProviderT_co]):
             result = await agent.run(
                 user_prompt=None,
                 message_history=VercelAIAdapter.load_messages(messages),
+                model_settings={"thinking": thinking}
+                if thinking is not None
+                else None,
             )
 
         return str(result.output)
@@ -1058,6 +1064,17 @@ class CustomProvider(OpenAIClientMixin, PydanticProvider["Provider"]):
         from pydantic_ai.models import infer_model
         from pydantic_ai.models.openai import OpenAIChatModel
 
+        if (
+            self._provider_name == "deepseek"
+            and self.model == "deepseek-flash"
+        ):
+            # Remove once pydantic/pydantic-ai#8353 fixes this model's profile.
+            return OpenAIChatModel(
+                model_name=self.model,
+                provider=self.provider,
+                profile=self.provider.model_profile("deepseek-v4-flash"),
+            )
+
         try:
             return infer_model(
                 f"{self._provider_name}:{self.model}",
@@ -1225,9 +1242,25 @@ class BedrockProvider(PydanticProvider["PydanticBedrock"]):
 
 
 def get_completion_provider(
-    config: AnyProviderConfig, model: str
+    config: AnyProviderConfig, model: str, *, session_id: str | None = None
 ) -> PydanticProvider[Provider]:
     model_id = AiModelId.from_model(model)
+
+    if model_id.provider == "opencode-go":
+        headers = {
+            "User-Agent": f"marimo/{__version__}",
+            "x-opencode-client": "marimo",
+        }
+        if session_id:
+            # Keep client-supplied IDs bounded and safe for HTTP headers.
+            headers["x-opencode-session"] = hashlib.sha256(
+                session_id.encode("utf-8")
+            ).hexdigest()
+        # Preserve default casing: the SDK merges its own headers by key.
+        header_names = {name.lower(): name for name in headers}
+        for name, value in (config.extra_headers or {}).items():
+            headers[header_names.get(name.lower(), name)] = value
+        config = replace(config, extra_headers=headers)
 
     if model_id.provider == "anthropic":
         return AnthropicProvider(

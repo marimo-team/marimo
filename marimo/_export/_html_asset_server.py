@@ -10,8 +10,7 @@ from typing import TYPE_CHECKING, Any, cast
 if TYPE_CHECKING:
     from pathlib import Path
     from types import TracebackType
-
-    from typing_extensions import Self
+    from typing import Self
 
 
 class _HtmlAssetRequestHandler(SimpleHTTPRequestHandler):

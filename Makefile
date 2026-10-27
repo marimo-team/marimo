@@ -30,7 +30,7 @@ install-all: fe py
 # ✓ Check if all required tools are installed
 check-prereqs:
 	@command -v pnpm >/dev/null 2>&1 || { echo "pnpm is required. See https://pnpm.io/installation"; exit 1; }
-	@pnpm -v | grep -vq "^[0-9]\." || { echo "pnpm v10+ is required. Current version: $(shell pnpm -v)"; exit 1; }
+	@pnpm -v | grep -vq "^[0-9]\." || { echo "pnpm v12+ is required. Current version: $(shell pnpm -v)"; exit 1; }
 	@command -v uv >/dev/null 2>&1 || { echo "uv is required. See https://docs.astral.sh/uv/getting-started/installation/"; exit 1; }
 	@command -v node >/dev/null 2>&1 || { echo "Node.js is required. See https://nodejs.org/en/download/"; exit 1; }
 	@node -v | grep -q "v2[0-9]" || { echo "Node.js v20+ is required. Current version: $(shell node -v)"; exit 1; }
@@ -124,6 +124,19 @@ fe-codegen:
 	uv run --isolated --python=3.12 --with-editable . marimo development openapi > packages/openapi/api.yaml
 	pnpm run codegen
 	pnpm format packages/openapi/
+
+.PHONY: host-protocol-codegen
+# Generate host protocol Python bindings
+host-protocol-codegen:
+	uv run --no-config --locked --script protocols/host/generate.py --include-experimental
+
+.PHONY: host-protocol-check
+# Check host model generation and portable protocol fixtures
+host-protocol-check:
+	@tmp=$$(mktemp -d); trap 'rm -rf "$$tmp"' EXIT; \
+		uv run --no-config --locked --script protocols/host/generate.py --output-dir "$$tmp"
+	uv run --no-config --locked --script protocols/host/generate.py --include-experimental --check
+	uv run --locked --project protocols/host/conformance pytest -c protocols/host/conformance/pyproject.toml protocols/host/conformance protocols/host/experimental
 
 .PHONY: fe-plugin-schema
 # 🔄 Generate frontend plugin API schema

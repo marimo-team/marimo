@@ -1,8 +1,57 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import contextlib
 import signal
-from typing import Any
+import threading
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Iterator
+    from types import FrameType
+    from typing import ClassVar
+
+
+class SigintHandler:
+    """Defer and coalesce SIGINT callbacks without changing OS signal state."""
+
+    # Shared so handlers forwarding to marimo's handler also respect deferral.
+    _pending: ClassVar[
+        list[tuple[SigintHandler, int, FrameType | None]] | None
+    ] = None
+
+    def __init__(
+        self, handler: Callable[[int, FrameType | None], None]
+    ) -> None:
+        self._handler = handler
+
+    def __call__(self, signum: int, frame: FrameType | None) -> None:
+        pending = self._pending
+        if pending is not None:
+            pending[:] = [(self, signum, frame)]
+        else:
+            self._handler(signum, frame)
+
+    @classmethod
+    @contextlib.contextmanager
+    def defer(cls) -> Iterator[None]:
+        """Replay a pending signal after the outermost main-thread scope."""
+        # Signal handlers run on the main thread; worker writes cannot reenter.
+        if threading.current_thread() is not threading.main_thread():
+            yield
+            return
+
+        previous = cls._pending
+        pending: list[tuple[SigintHandler, int, FrameType | None]] = []
+        try:
+            cls._pending = pending
+            yield
+        finally:
+            # Restore before replay: the handler can raise or write again.
+            cls._pending = previous
+            if pending:
+                handler, signum, frame = pending[0]
+                handler(signum, frame)
 
 
 def restore_signals() -> None:

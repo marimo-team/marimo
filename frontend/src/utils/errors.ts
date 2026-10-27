@@ -68,9 +68,9 @@ function safeJSONParse(message: string): unknown {
  * kept as `cause` so `prettyError` can surface its `detail`.
  */
 export class HTTPError extends Error {
-  readonly status: number;
+  public readonly status: number;
 
-  constructor(status: number, statusText: string, body?: unknown) {
+  public constructor(status: number, statusText: string, body?: unknown) {
     super(statusText, { cause: body });
     this.name = "HTTPError";
     this.status = status;
@@ -78,7 +78,7 @@ export class HTTPError extends Error {
 }
 
 export class CellNotInitializedError extends Error {
-  constructor(
+  public constructor(
     message = "The cell containing this UI element has not been run yet. Please run the cell first.",
   ) {
     super(message);
@@ -87,7 +87,7 @@ export class CellNotInitializedError extends Error {
 }
 
 export class FunctionNotFoundError extends Error {
-  constructor(
+  public constructor(
     message = "This UI element could not reach its function on the kernel. Try re-running the cell.",
   ) {
     super(message);
@@ -96,7 +96,7 @@ export class FunctionNotFoundError extends Error {
 }
 
 export class NoKernelConnectedError extends Error {
-  constructor(message = "Not yet connected to a kernel.") {
+  public constructor(message = "Not yet connected to a kernel.") {
     super(message);
     this.name = "NoKernelConnectedError";
   }

@@ -1,1 +1,1 @@
-Refer to `skills/SKILL.md` for adding descriptions to models.
+Refer to `skills/SKILL.md` for catalog descriptions and metadata enrichment.

@@ -82,6 +82,7 @@ class SetConfig(msgspec.Struct, frozen=True, tag="set-config", rename="camel"):
     column: int | None
     disabled: bool
     hide_code: bool
+    expand_output: bool
 
 
 DocumentChange = (
@@ -99,7 +100,7 @@ DocumentChange = (
 # ------------------------------------------------------------------
 
 TransactionSource = Literal[
-    "frontend", "kernel", "code-mode", "file-watch", "cell-manager"
+    "frontend", "kernel", "code-mode", "file-watch", "cell-manager", "host"
 ]
 
 

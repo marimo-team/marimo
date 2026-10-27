@@ -25,15 +25,15 @@ interface Data {
 type T = string;
 
 export class TabsPlugin implements IPlugin<T, Data> {
-  tagName = "marimo-tabs";
+  public tagName = "marimo-tabs";
 
-  validator = z.object({
+  public validator = z.object({
     tabs: z.array(z.string()),
     label: z.string().nullable(),
     orientation: z.enum(["horizontal", "vertical"]).default("horizontal"),
   });
 
-  render(props: IPluginProps<T, Data>): JSX.Element {
+  public render(props: IPluginProps<T, Data>): JSX.Element {
     return (
       <TabComponent
         {...props.data}

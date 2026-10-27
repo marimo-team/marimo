@@ -45,12 +45,12 @@ interface UIElementEntry {
  */
 export class UIElementRegistry {
   // maps UIElement objectIds to entries.
-  entries: Map<UIElementId, UIElementEntry>;
+  public entries: Map<UIElementId, UIElementEntry>;
 
   /**
    * Shared instance of UIElementRegistry since this must be a singleton.
    */
-  static get INSTANCE(): UIElementRegistry {
+  public static get INSTANCE(): UIElementRegistry {
     const KEY = "_marimo_private_UIElementRegistry";
     if (!window[KEY]) {
       window[KEY] = new UIElementRegistry();
@@ -62,11 +62,11 @@ export class UIElementRegistry {
     this.entries = new Map();
   }
 
-  has(objectId: UIElementId): boolean {
+  public has(objectId: UIElementId): boolean {
     return this.entries.has(objectId);
   }
 
-  set(objectId: UIElementId, value: ValueType): void {
+  public set(objectId: UIElementId, value: ValueType): void {
     if (this.entries.has(objectId)) {
       Logger.debug(
         "UIElementRegistry overwriting entry for objectId.",
@@ -86,7 +86,7 @@ export class UIElementRegistry {
    * @param objectId - id of the UIElement
    * @param instance - the HTMLElement that the UIElement wraps
    */
-  registerInstance(objectId: UIElementId, instance: HTMLElement) {
+  public registerInstance(objectId: UIElementId, instance: HTMLElement) {
     const entry = this.entries.get(objectId);
     if (entry === undefined) {
       this.entries.set(objectId, {
@@ -109,7 +109,7 @@ export class UIElementRegistry {
    * @param instance - the HTMLElement to remove
    *
    */
-  removeInstance(objectId: UIElementId, instance: HTMLElement) {
+  public removeInstance(objectId: UIElementId, instance: HTMLElement) {
     const entry = this.entries.get(objectId);
     // The UIElement can be removed from the registry before all
     // instances are removed: UIElement removal is triggered
@@ -129,7 +129,7 @@ export class UIElementRegistry {
    *
    * @param cellId - stringified cellId
    */
-  removeElementsByCell(cellId: CellId) {
+  public removeElementsByCell(cellId: CellId) {
     const objectIds = [...this.entries.keys()].filter((objectId) =>
       objectId.startsWith(`${cellId}-`),
     );
@@ -145,12 +145,12 @@ export class UIElementRegistry {
    * @param objectId - id of the UIElement
    * @returns the value for `objectId`, or `undefined` if the object was not found.
    */
-  lookupValue(objectId: UIElementId): ValueType {
+  public lookupValue(objectId: UIElementId): ValueType {
     const entry = this.entries.get(objectId);
     return entry === undefined ? undefined : entry.value;
   }
 
-  broadcastMessage(
+  public broadcastMessage(
     objectId: UIElementId,
     message: unknown,
     buffers: readonly DataView[],
@@ -202,7 +202,7 @@ export class UIElementRegistry {
    * @param objectId - id of the UIElement
    * @param value - value to broadcast
    */
-  broadcastValueUpdate(
+  public broadcastValueUpdate(
     initiator: HTMLElement,
     objectId: UIElementId,
     value: ValueType,

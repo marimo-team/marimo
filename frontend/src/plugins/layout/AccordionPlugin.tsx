@@ -27,15 +27,15 @@ interface Data {
 }
 
 export class AccordionPlugin implements IStatelessPlugin<Data> {
-  tagName = "marimo-accordion";
+  public tagName = "marimo-accordion";
 
-  validator = z.object({
+  public validator = z.object({
     labels: z.array(z.string()),
     multiple: z.boolean(),
     expanded: z.array(z.string()).default([]),
   });
 
-  render(props: IStatelessPluginProps<Data>): JSX.Element {
+  public render(props: IStatelessPluginProps<Data>): JSX.Element {
     return (
       <AccordionComponent {...props.data}>{props.children}</AccordionComponent>
     );

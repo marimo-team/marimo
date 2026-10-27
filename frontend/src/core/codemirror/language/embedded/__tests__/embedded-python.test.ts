@@ -2,13 +2,17 @@
 
 import type { CompletionContext } from "@codemirror/autocomplete";
 import { python } from "@codemirror/lang-python";
+import { StreamLanguage } from "@codemirror/language";
+import { stexMath } from "@codemirror/legacy-modes/mode/stex";
 import { EditorState } from "@codemirror/state";
-import type { InlineContext } from "@lezer/markdown";
-import { beforeEach, describe, expect, it } from "vitest";
+import { classHighlighter, highlightTree } from "@lezer/highlight";
+import { parser as markdownParser } from "@lezer/markdown";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { cellId, variableName } from "@/__tests__/branded";
 import { store } from "@/core/state/jotai";
 import { variablesAtom } from "@/core/variables/state";
 import { parsePython, variableCompletionSource } from "../embedded-python";
+import { parseLatex } from "../latex";
 
 const IS_ACTIVE = () => true;
 
@@ -17,35 +21,139 @@ describe("parsePython", () => {
     const pythonParser = python().language.parser;
     const config = parsePython(pythonParser, IS_ACTIVE);
 
-    expect(config.defineNodes).toBeDefined();
-    if (config.defineNodes) {
-      expect(config.defineNodes).toHaveLength(2);
-      // @ts-expect-error - we know that the defineNodes are NodeSpec
-      expect(config.defineNodes[0].name).toBe("Python");
-      // @ts-expect-error - we know that the defineNodes are NodeSpec
-      expect(config.defineNodes[1].name).toBe("PythonMark");
+    expect(config.defineNodes).toMatchObject([
+      { name: "Python" },
+      { name: "PythonMark" },
+    ]);
+  });
+
+  const cases = [
+    "{math.exp(3)}",
+    '${math.exp(3) + len("$}")} $',
+    "${math.exp(3)} + {math.sin(3)}$",
+    "${math.exp(3)}$",
+    "$$ {math.exp(3)} $$",
+    String.raw`\({math.exp(3)}\)`,
+    String.raw`\[{math.exp(3)}\]`,
+    String.raw`\\({math.exp(3)}\\)`,
+    String.raw`\\[{math.exp(3)}\\]`,
+    String.raw`$\frac{{{math.exp(3)}}}{{2}}$`,
+    String.raw`$\{math.exp(3)}$`,
+    '${ {"}": math.exp(3)} }$',
+    "${math.exp(3):{width}.{precision}f}$",
+  ];
+
+  function highlightedProperties(doc: string, prefix: string) {
+    const parser = markdownParser.configure([
+      parseLatex(StreamLanguage.define(stexMath).parser),
+      parsePython(python().language.parser, () => prefix.includes("f")),
+    ]);
+    const properties: string[] = [];
+    highlightTree(parser.parse(doc), classHighlighter, (from, to, classes) => {
+      if (classes.split(" ").includes("tok-propertyName")) {
+        properties.push(doc.slice(from, to));
+      }
+    });
+    return properties;
+  }
+
+  it.each(["f", "rf", "fr"])(
+    "highlights interpolation with %s strings",
+    (prefix) => {
+      for (const doc of cases) {
+        expect(highlightedProperties(doc, prefix)).toEqual(
+          doc.includes("math.sin") ? ["exp", "sin"] : ["exp"],
+        );
+      }
+    },
+  );
+
+  it.each(["", "r"])("does not interpolate %s strings", (prefix) => {
+    for (const doc of cases) {
+      expect(highlightedProperties(doc, prefix)).toEqual([]);
     }
   });
 
-  it("should not parse double curly braces", () => {
+  it("parses replacement boundaries once for a paragraph with many interpolations", () => {
     const pythonParser = python().language.parser;
-    const config = parsePython(pythonParser, IS_ACTIVE);
-
-    // Create a mock context
-    const mockContext = {
-      slice: (from: number, to: number) => {
-        if (from === 5 && to === 6) {
-          return "{";
-        }
-        return "";
-      },
-      addDelimiter: () => -1,
-    } as unknown as InlineContext;
-
-    // Test with double curly braces
-    const result = config.parseInline![0].parse(mockContext, 123, 6); // 123 is OPEN_BRACE
-    expect(result).toBe(-1);
+    const parse = vi.spyOn(pythonParser, "parse");
+    try {
+      const doc = "{math.exp(3)} ".repeat(1000);
+      const parser = markdownParser.configure([
+        parseLatex(StreamLanguage.define(stexMath).parser),
+        parsePython(pythonParser, IS_ACTIVE),
+      ]);
+      const properties: string[] = [];
+      highlightTree(
+        parser.parse(doc),
+        classHighlighter,
+        (from, to, classes) => {
+          if (classes.split(" ").includes("tok-propertyName")) {
+            properties.push(doc.slice(from, to));
+          }
+        },
+      );
+      expect(properties).toEqual(Array.from({ length: 1000 }, () => "exp"));
+      expect(parse).toHaveBeenCalledTimes(1);
+    } finally {
+      parse.mockRestore();
+    }
   });
+
+  it("preserves raw backslashes between replacements", () => {
+    expect(
+      highlightedProperties(String.raw`{math.exp(3)} \N{math.sin(3)}`, "rf"),
+    ).toEqual(["exp", "sin"]);
+  });
+
+  it("finds replacements after triple quotes in markdown text", () => {
+    expect(
+      highlightedProperties('{math.exp(3)} """ {math.sin(3)}', "f"),
+    ).toEqual(["exp", "sin"]);
+  });
+
+  it("keeps replacement positions local to each paragraph", () => {
+    expect(
+      highlightedProperties("${math.exp(3)}$\n\n${math.sin(3)}$", "rf"),
+    ).toEqual(["exp", "sin"]);
+  });
+
+  it("preserves LaTeX highlighting around Python replacements", () => {
+    const doc = String.raw`$\frac{{{math.exp(3)}}}{{2}} + \alpha$`;
+    const parser = markdownParser.configure([
+      parseLatex(StreamLanguage.define(stexMath).parser),
+      parsePython(python().language.parser, IS_ACTIVE),
+    ]);
+    const highlighted: string[] = [];
+    highlightTree(parser.parse(doc), classHighlighter, (from, to) => {
+      highlighted.push(doc.slice(from, to));
+    });
+    expect(highlighted).toEqual(
+      expect.arrayContaining(["\\frac", "exp", "\\alpha"]),
+    );
+  });
+
+  it.each(["${math.exp(3)$", "${math.exp(3)", "${{math.exp(3)}$"])(
+    "does not treat incomplete or escaped braces as replacements: %s",
+    (doc) => {
+      expect(highlightedProperties(doc, "f")).toEqual([]);
+    },
+  );
+
+  it.each(["f", "rf", "fr"])(
+    "keeps doubled braces literal in %s strings",
+    (prefix) => {
+      for (const doc of [
+        "{{math.exp(3)}}",
+        "${{math.exp(3)}}$",
+        "$ {{{{math.exp(3)}}}} $",
+        String.raw`$\{{math.exp(3)}}$`,
+        String.raw`$\frac{{1}}{{2}}$`,
+      ]) {
+        expect(highlightedProperties(doc, prefix)).toEqual([]);
+      }
+    },
+  );
 });
 
 describe("variableCompletionSource", () => {
@@ -76,10 +184,10 @@ describe("variableCompletionSource", () => {
     const context: Partial<CompletionContext> = {
       pos: 8,
       explicit: false,
-      matchBefore: (expr: RegExp) => ({ from: 7, to: 8, text: "v" }),
+      matchBefore: (_expr: RegExp) => ({ from: 7, to: 8, text: "v" }),
       state,
       aborted: false,
-      tokenBefore: (types: readonly string[]) => null,
+      tokenBefore: (_types: readonly string[]) => null,
     };
 
     const result = variableCompletionSource(context as CompletionContext);
@@ -96,10 +204,10 @@ describe("variableCompletionSource", () => {
     const context: Partial<CompletionContext> = {
       pos: 7,
       explicit: false,
-      matchBefore: (expr: RegExp) => ({ from: 6, to: 7, text: "v" }),
+      matchBefore: (_expr: RegExp) => ({ from: 6, to: 7, text: "v" }),
       state,
       aborted: false,
-      tokenBefore: (types: readonly string[]) => null,
+      tokenBefore: (_types: readonly string[]) => null,
     };
 
     const result = variableCompletionSource(context as CompletionContext);
@@ -114,10 +222,10 @@ describe("variableCompletionSource", () => {
     const context: Partial<CompletionContext> = {
       pos: 13,
       explicit: false,
-      matchBefore: (expr: RegExp) => ({ from: 12, to: 13, text: "v" }),
+      matchBefore: (_expr: RegExp) => ({ from: 12, to: 13, text: "v" }),
       state,
       aborted: false,
-      tokenBefore: (types: readonly string[]) => null,
+      tokenBefore: (_types: readonly string[]) => null,
     };
 
     const result = variableCompletionSource(context as CompletionContext);
@@ -135,7 +243,7 @@ describe("variableCompletionSource", () => {
       matchBefore: () => null,
       state,
       aborted: false,
-      tokenBefore: (types: readonly string[]) => null,
+      tokenBefore: (_types: readonly string[]) => null,
     };
 
     const result = variableCompletionSource(context as CompletionContext);
@@ -150,10 +258,10 @@ describe("variableCompletionSource", () => {
     const context: Partial<CompletionContext> = {
       pos: 9,
       explicit: false,
-      matchBefore: (expr: RegExp) => ({ from: 8, to: 9, text: "v" }),
+      matchBefore: (_expr: RegExp) => ({ from: 8, to: 9, text: "v" }),
       state,
       aborted: false,
-      tokenBefore: (types: readonly string[]) => null,
+      tokenBefore: (_types: readonly string[]) => null,
     };
 
     const result = variableCompletionSource(context as CompletionContext);

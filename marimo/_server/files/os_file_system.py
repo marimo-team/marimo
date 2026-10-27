@@ -277,18 +277,18 @@ class OSFileSystem(FileSystem):
         # picking a unique name and writing to it.
         full_path = _claim_unique_path(parent / name)
 
-        tmp = tempfile.NamedTemporaryFile(
-            dir=full_path.parent,
-            prefix=full_path.name + ".",
-            suffix=".part",
-            delete=False,
-        )
-        tmp_path = tmp.name
+        tmp_path: str | None = None
         try:
-            # Sync writes are bounded to one chunk between awaits, so event
-            # loop blockage stays small without pulling in aiofiles.
-            written = 0
-            with tmp:
+            with tempfile.NamedTemporaryFile(
+                dir=full_path.parent,
+                prefix=full_path.name + ".",
+                suffix=".part",
+                delete=False,
+            ) as tmp:
+                tmp_path = tmp.name
+                # Sync writes are bounded to one chunk between awaits, so event
+                # loop blockage stays small without pulling in aiofiles.
+                written = 0
                 while chunk := await source.read(_STREAM_CHUNK_SIZE):
                     written += len(chunk)
                     if written > MAX_UPLOAD_BYTES:
@@ -297,11 +297,17 @@ class OSFileSystem(FileSystem):
                             f"{MAX_UPLOAD_BYTES} bytes"
                         )
                     tmp.write(chunk)
+            assert tmp_path is not None
             os.replace(tmp_path, full_path)
         except BaseException:
             # Both paths may or may not exist depending on where we failed;
             # FileNotFoundError on either is expected.
-            for p in (tmp_path, str(full_path)):
+            paths = (
+                [str(full_path)]
+                if tmp_path is None
+                else [tmp_path, str(full_path)]
+            )
+            for p in paths:
                 try:
                     os.unlink(p)
                 except FileNotFoundError:

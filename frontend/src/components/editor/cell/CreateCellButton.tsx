@@ -1,6 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 import { DatabaseIcon, DiamondPlusIcon, PlusIcon } from "lucide-react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Button } from "@/components/editor/inputs/Inputs";
 import { MinimalHotkeys } from "@/components/shortcuts/renderShortcut";
 import {
@@ -17,7 +17,7 @@ import {
   getConnectionTooltip,
   isAppInteractionDisabled,
 } from "@/core/websocket/connection-utils";
-import type { WebSocketState } from "@/core/websocket/types";
+import type { ConnectionState } from "@/core/websocket/types";
 import { cn } from "@/utils/cn";
 import { Tooltip } from "../../ui/tooltip";
 import { MarkdownIcon, PythonIcon } from "./code/icons";
@@ -28,7 +28,7 @@ export const CreateCellButton = ({
   tooltipContent,
   oneClickShortcut,
 }: {
-  connectionState: WebSocketState;
+  connectionState: ConnectionState;
   tooltipContent: React.ReactNode;
   onClick: ((opts: { code: string; hideCode?: boolean }) => void) | undefined;
   oneClickShortcut: "shift" | "mod";
@@ -36,7 +36,8 @@ export const CreateCellButton = ({
   const { createNewCell, addSetupCellIfDoesntExist } = useCellActions();
   const shortcut = `${oneClickShortcut}-Click`;
   const [open, setOpen] = useState(false);
-  const [justOpened, setJustOpened] = useState(false);
+  // Time the dropdown last opened, to ignore the click that opened it
+  const openedAt = useRef(0);
 
   const baseTooltipContent =
     getConnectionTooltip(connectionState) || tooltipContent;
@@ -83,9 +84,7 @@ export const CreateCellButton = ({
 
   const openDropdown = () => {
     setOpen(true);
-    setJustOpened(true);
-    // Allow interactions after a brief delay to prevent the dropdown items immediately being clicked
-    setTimeout(() => setJustOpened(false), 200);
+    openedAt.current = Date.now();
   };
 
   // We use onPointerDownCapture (not onPointerDown) to intercept events in
@@ -121,15 +120,14 @@ export const CreateCellButton = ({
   const handleOpenChange = (isOpen: boolean) => {
     setOpen(isOpen);
     if (isOpen) {
-      setJustOpened(true);
-      // Allow interactions after a brief delay
-      setTimeout(() => setJustOpened(false), 200);
+      openedAt.current = Date.now();
     }
   };
 
   const handleFirstItemClick = (e: React.MouseEvent) => {
-    // Hack to prevent the first item from being clicked when the dropdown is opened
-    if (justOpened) {
+    // Hack to prevent the first item from being clicked when the dropdown is
+    // opened: allow interactions only after a brief delay
+    if (Date.now() - openedAt.current < 200) {
       e.preventDefault();
       e.stopPropagation();
       return;

@@ -13,7 +13,7 @@ import { Functions } from "@/utils/functions";
 import { MarkdownIcon, PythonIcon } from "./icons";
 
 interface LanguageTogglesProps {
-  editorView: EditorView | null;
+  editorViewRef: React.RefObject<EditorView | null>;
   code: string;
   currentLanguageAdapter: LanguageAdapter["type"] | undefined;
   onAfterToggle: () => void;
@@ -25,7 +25,7 @@ interface LanguageTogglesProps {
 }
 
 export const LanguageToggles: React.FC<LanguageTogglesProps> = ({
-  editorView,
+  editorViewRef,
   code,
   currentLanguageAdapter,
   onAfterToggle,
@@ -43,7 +43,7 @@ export const LanguageToggles: React.FC<LanguageTogglesProps> = ({
   return (
     <div className={className}>
       <LanguageToggle
-        editorView={editorView}
+        editorViewRef={editorViewRef}
         currentLanguageAdapter={currentLanguageAdapter}
         canSwitchToLanguage={canUseSQL && currentLanguageAdapter === "python"}
         icon={
@@ -58,7 +58,7 @@ export const LanguageToggles: React.FC<LanguageTogglesProps> = ({
         onAfterToggle={onAfterToggle}
       />
       <LanguageToggle
-        editorView={editorView}
+        editorViewRef={editorViewRef}
         currentLanguageAdapter={currentLanguageAdapter}
         canSwitchToLanguage={
           canUseMarkdown && currentLanguageAdapter === "python"
@@ -75,7 +75,7 @@ export const LanguageToggles: React.FC<LanguageTogglesProps> = ({
         onAfterToggle={onAfterToggle}
       />
       <LanguageToggle
-        editorView={editorView}
+        editorViewRef={editorViewRef}
         currentLanguageAdapter={currentLanguageAdapter}
         canSwitchToLanguage={true}
         icon={
@@ -95,7 +95,7 @@ export const LanguageToggles: React.FC<LanguageTogglesProps> = ({
 
 interface Props {
   className?: string;
-  editorView: EditorView | null;
+  editorViewRef: React.RefObject<EditorView | null>;
   canSwitchToLanguage: boolean;
   currentLanguageAdapter: LanguageAdapter["type"] | undefined;
   toType: LanguageAdapter["type"];
@@ -105,7 +105,7 @@ interface Props {
 }
 
 export const LanguageToggle: React.FC<Props> = ({
-  editorView,
+  editorViewRef,
   currentLanguageAdapter,
   canSwitchToLanguage,
   icon,
@@ -114,6 +114,7 @@ export const LanguageToggle: React.FC<Props> = ({
   onAfterToggle,
 }) => {
   const handleClick = () => {
+    const editorView = editorViewRef.current;
     if (!editorView) {
       return;
     }

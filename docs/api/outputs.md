@@ -4,8 +4,8 @@
 
 !!! note "Cell outputs"
     Every cell in a marimo notebook can have a visual **output**. When editing,
-    outputs are displayed above cells. When running a notebook as an app,
-    its UI is an arrangement of outputs.
+    outputs are displayed below cells by default. When running a notebook as an
+    app, its UI is an arrangement of outputs.
 
     A cell's output is by default its last expression. You can also create outputs
     programmatically, using `mo.output.replace()` and `mo.output.append()`.

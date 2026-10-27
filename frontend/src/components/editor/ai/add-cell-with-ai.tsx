@@ -29,6 +29,7 @@ import useEvent from "react-use-event-hook";
 import { DefaultChatTransport } from "ai";
 import { z } from "zod";
 import { AIModelDropdown } from "@/components/ai/ai-model-dropdown";
+import { PairWithAgentButton } from "@/components/editor/actions/pair-with-agent";
 import {
   AddContextButton,
   AttachFileButton,
@@ -105,9 +106,9 @@ export const AddCellWithAI: React.FC<{
   const runtimeManager = useRuntimeManager();
 
   const inputRef = useRef<ReactCodeMirrorRef>(null);
-  const submissionController = useRef(
-    new StagedCellSubmissionController(),
-  ).current;
+  const [submissionController] = useState(
+    () => new StagedCellSubmissionController(),
+  );
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { files, addFiles, removeFile } = useFileState();
@@ -124,6 +125,7 @@ export const AddCellWithAI: React.FC<{
           );
           const body = {
             ...completionBody,
+            id: options.id,
             code: "",
             prompt: "", // Don't need prompt since we are using messages
             language: language,
@@ -300,6 +302,7 @@ export const AddCellWithAI: React.FC<{
           showAddCustomModelDocs={true}
         />
         {languageDropdown}
+        <PairWithAgentButton />
       </div>
       <div className="flex flex-row items-center">
         {files.length > 0 && (

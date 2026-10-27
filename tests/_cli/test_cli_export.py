@@ -23,6 +23,7 @@ from marimo._dependencies.dependencies import DependencyManager
 from marimo._export.local_modules import _ruff_import_graph
 from marimo._export.local_wheels import _local_wheel_path
 from marimo._output.utils import uri_decode_component
+from marimo._schemas.export_options import WASMRuntimeConfig
 from marimo._session.state.serialize import get_session_cache_file
 from marimo._utils import async_path
 from marimo._utils.paths import marimo_package_path
@@ -243,7 +244,11 @@ class TestExportHTML:
         assert '<marimo-code hidden=""></marimo-code>' in html
 
     @staticmethod
-    def test_cli_export_html_wasm(tmp_path: Path) -> None:
+    @pytest.mark.parametrize("single_file", [False, True])
+    @pytest.mark.parametrize("mode", ["run", "edit"])
+    def test_cli_export_html_wasm(
+        tmp_path: Path, single_file: bool, mode: str
+    ) -> None:
         notebook = tmp_path / "notebook.py"
         _write_minimal_wasm_notebook(
             notebook,
@@ -258,21 +263,306 @@ class TestExportHTML:
             "html-wasm",
             str(notebook),
             "--mode",
-            "edit",
+            mode,
             "--output",
             str(out_dir),
+            *(["--single-file"] if single_file else []),
         )
         _assert_success(p)
         html = Path(out_dir / "index.html").read_text()
         assert "{ filename }" not in html
-        assert '"mode": "edit"' in html
         assert '<marimo-code hidden=""></marimo-code>' not in html
         assert "<marimo-wasm" in html
         assert '"showAppCode": false' in html
-        assert Path(out_dir / ".nojekyll").exists()
+        if single_file:
+            assert list(out_dir.iterdir()) == [out_dir / "index.html"]
+            assert "cdn.jsdelivr.net/npm/@marimo-team/frontend@" in html
+            assert 'src="./' not in html
+            assert 'href="./' not in html
+            assert "This file must be served" not in html
+        else:
+            assert Path(out_dir / ".nojekyll").exists()
+            assert "This file must be served" in html
         mount_config = parse_mount_config((out_dir / "index.html").read_text())
-        assert mount_config["mode"] == "edit"
+        assert mount_config["mode"] == ("edit" if mode == "edit" else "read")
         assert mount_config["layout"] == {"type": "slides", "data": {}}
+
+    @staticmethod
+    @pytest.mark.parametrize(
+        ("source_args", "expected_sources"),
+        [
+            ((), WASMRuntimeConfig()),
+            (
+                (
+                    "--pyodide-index-url",
+                    "https://mirror.example/pyodide/",
+                    "--pypi-index-url",
+                    "https://mirror.example/simple/",
+                ),
+                WASMRuntimeConfig(
+                    pyodide_index_url="https://mirror.example/pyodide/",
+                    pypi_index_url="https://mirror.example/simple/",
+                ),
+            ),
+        ],
+    )
+    def test_cli_export_html_wasm_offline(
+        tmp_path: Path,
+        source_args: tuple[str, ...],
+        expected_sources: WASMRuntimeConfig,
+    ) -> None:
+        notebook = tmp_path / "notebook.py"
+        _write_minimal_wasm_notebook(notebook, '    "hello"\n    return\n')
+        out_dir = tmp_path / "out"
+        runtime = WASMRuntimeConfig(
+            pyodide_index_url="./pyodide/",
+            pyodide_lockfile_url="./lockfile/test.json",
+            pypi_index_url="./packages/index/",
+        )
+
+        async def bundle(
+            code: str,
+            output_dir: Path,
+            *,
+            sources: WASMRuntimeConfig,
+            local_wheel_paths: tuple[Path, ...],
+        ):
+            assert output_dir == out_dir
+            assert sources == expected_sources
+            assert local_wheel_paths == ()
+            return code, runtime
+
+        with (
+            mock.patch(
+                "marimo._export.offline.bundle_wasm_runtime",
+                side_effect=bundle,
+            ) as bundler,
+            mock.patch(
+                "marimo._cli.export.commands.check_offline_export_browser",
+                new_callable=mock.AsyncMock,
+            ) as browser_check,
+            mock.patch.object(
+                DependencyManager.playwright, "has", return_value=True
+            ),
+        ):
+            result = _run_export(
+                "html-wasm",
+                str(notebook),
+                "--output",
+                str(out_dir),
+                "--offline",
+                *source_args,
+            )
+        _assert_success(result)
+        browser_check.assert_awaited_once_with()
+        bundler.assert_called_once()
+        html = (out_dir / "index.html").read_text()
+        assert 'data-pyodide-index-url="./pyodide/"' in html
+        assert 'data-pyodide-lockfile-url="./lockfile/test.json"' in html
+        assert 'data-pypi-index-url="./packages/index/"' in html
+
+    @staticmethod
+    @pytest.mark.parametrize(
+        "source_flag", ["--pyodide-index-url", "--pypi-index-url"]
+    )
+    def test_cli_export_html_wasm_sources_require_offline(
+        tmp_path: Path, source_flag: str
+    ) -> None:
+        notebook = tmp_path / "notebook.py"
+        _write_minimal_wasm_notebook(notebook, '    "hello"\n    return\n')
+        out_dir = tmp_path / "out"
+        result = _run_export(
+            "html-wasm",
+            str(notebook),
+            "--output",
+            str(out_dir),
+            "--no-sandbox",
+            source_flag,
+            "https://mirror.example/",
+        )
+        assert result.exit_code == 2
+        assert "require --offline" in result.output
+        assert not out_dir.exists()
+
+    @staticmethod
+    @pytest.mark.parametrize(
+        ("url", "message"),
+        [
+            ("./pyodide/", "Expected an http(s) URL"),
+            ("file:///tmp/pyodide/", "Expected an http(s) URL"),
+            ("http://[::1/simple/", "Expected an http(s) URL"),
+            (
+                "https://user:secret-token@mirror.example/simple/",
+                "Credentials in the URL are not supported",
+            ),
+            (
+                "https://mirror.example/simple/?token=secret-token",
+                "Expected a URL without a query or fragment",
+            ),
+        ],
+    )
+    def test_cli_export_html_wasm_rejects_invalid_source_urls(
+        tmp_path: Path, url: str, message: str
+    ) -> None:
+        notebook = tmp_path / "notebook.py"
+        _write_minimal_wasm_notebook(notebook, '    "hello"\n    return\n')
+        out_dir = tmp_path / "out"
+        result = _run_export(
+            "html-wasm",
+            str(notebook),
+            "--output",
+            str(out_dir),
+            "--offline",
+            "--no-sandbox",
+            "--pypi-index-url",
+            url,
+        )
+        assert result.exit_code == 2
+        assert message in result.output
+        assert "secret-token" not in result.output
+        assert not out_dir.exists()
+
+    @staticmethod
+    @pytest.mark.parametrize("playwright_installed", [False, True])
+    def test_cli_offline_requires_browser_before_export(
+        tmp_path: Path, playwright_installed: bool
+    ) -> None:
+        notebook = tmp_path / "notebook.py"
+        _write_minimal_wasm_notebook(notebook, '    "hello"\n    return\n')
+        out_dir = tmp_path / "out"
+        with (
+            mock.patch.object(
+                DependencyManager.playwright,
+                "has",
+                return_value=playwright_installed,
+            ),
+            mock.patch(
+                "marimo._cli.export.commands.check_offline_export_browser",
+                new_callable=mock.AsyncMock,
+                side_effect=RuntimeError("Executable doesn't exist"),
+            ) as browser_check,
+            mock.patch(
+                "marimo._cli.export.commands.get_playwright_chromium_setup_commands",
+                return_value=["python -m playwright install chromium"],
+            ),
+            mock.patch("marimo._cli.export.commands.export_wasm") as export,
+        ):
+            result = _run_export(
+                "html-wasm",
+                str(notebook),
+                "--output",
+                str(out_dir),
+                "--offline",
+                "--no-sandbox",
+            )
+        assert result.exit_code == 1
+        assert "python -m playwright install chromium" in result.output
+        assert not out_dir.exists()
+        export.assert_not_called()
+        if playwright_installed:
+            browser_check.assert_awaited_once_with()
+            assert "Chromium could not start" in result.output
+            assert "Executable doesn't exist" in result.output
+        else:
+            browser_check.assert_not_awaited()
+            assert "Playwright is required" in result.output
+
+    @staticmethod
+    def test_failed_wasm_export_preserves_existing_wheels(
+        tmp_path: Path,
+    ) -> None:
+        notebook = tmp_path / "notebook.py"
+        _write_minimal_wasm_notebook(notebook, '    "hello"\n    return\n')
+        out_dir = tmp_path / "out"
+        previous = out_dir / "public/wheels/previous-1.0-py3-none-any.whl"
+        previous.parent.mkdir(parents=True)
+        previous.write_bytes(b"previous wheel")
+        with mock.patch(
+            "marimo._cli.export.commands.export_wasm",
+            side_effect=RuntimeError("export failed"),
+        ):
+            result = _run_export(
+                "html-wasm", str(notebook), "--output", str(out_dir)
+            )
+        assert result.exit_code != 0
+        assert previous.read_bytes() == b"previous wheel"
+
+    @staticmethod
+    def test_cli_export_html_wasm_single_file_dev_version(
+        tmp_path: Path,
+    ) -> None:
+        notebook = tmp_path / "notebook.py"
+        _write_minimal_wasm_notebook(notebook, '    "hello"\n    return\n')
+        output = tmp_path / "notebook.html"
+        with mock.patch("marimo._templates.__version__", "0.24.2.dev123"):
+            result = _run_export(
+                "html-wasm",
+                str(notebook),
+                "--single-file",
+                "--no-sandbox",
+                "-o",
+                str(output),
+            )
+        _assert_success(result)
+        html = output.read_text()
+        assert (
+            "https://cdn.jsdelivr.net/npm/@marimo-team/frontend@0.24.2-dev123/dist/"
+            in html
+        )
+        assert "frontend@0.24.2.dev123" not in html
+
+    @staticmethod
+    @pytest.mark.parametrize(
+        "resource", ["module", "wheel", "cloudflare", "offline"]
+    )
+    def test_cli_export_html_wasm_single_file_requires_directory(
+        tmp_path: Path, resource: str
+    ) -> None:
+        notebook = tmp_path / "notebook.py"
+        _write_minimal_wasm_notebook(
+            notebook, "    import helper\n    return\n"
+        )
+        if resource == "module":
+            (tmp_path / "helper.py").write_text("value = 1\n")
+        elif resource == "wheel":
+            wheel = tmp_path / "helper-1.0.0-py3-none-any.whl"
+            wheel.touch()
+            notebook.write_text(
+                '# /// script\n# dependencies = ["helper @ ./helper-1.0.0-py3-none-any.whl"]\n# ///\n'
+                + notebook.read_text()
+            )
+        output = tmp_path / "out" / "notebook.html"
+        result = _run_export(
+            "html-wasm",
+            str(notebook),
+            "--single-file",
+            "--no-sandbox",
+            "-o",
+            str(output),
+            *(["--include-cloudflare"] if resource == "cloudflare" else []),
+            *(["--offline"] if resource == "offline" else []),
+        )
+        assert result.exit_code == 2
+        assert "--single-file" in result.output
+        assert not output.parent.exists()
+
+    @staticmethod
+    def test_cli_export_html_wasm_single_file_execute(tmp_path: Path) -> None:
+        notebook = tmp_path / "notebook.py"
+        _write_minimal_wasm_notebook(notebook, '    "hello"\n    return\n')
+        output = tmp_path / "out" / "notebook.html"
+        result = _run_export(
+            "html-wasm",
+            str(notebook),
+            "--single-file",
+            "--execute",
+            "--no-sandbox",
+            "-o",
+            str(output),
+        )
+        _assert_success(result)
+        assert list(output.parent.iterdir()) == [output]
+        assert parse_mount_config(output.read_text())["session"] is not None
 
     @staticmethod
     def test_cli_export_html_wasm_packages_local_modules(

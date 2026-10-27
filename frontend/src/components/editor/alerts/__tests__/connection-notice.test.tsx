@@ -1,0 +1,393 @@
+/* Copyright 2026 Marimo. All rights reserved. */
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
+import { createStore, Provider } from "jotai";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { MockNotebook } from "@/__mocks__/notebook";
+import type { EnvironmentOperation } from "@/core/alerts/environment";
+import { alertAtom, getPackageAlert } from "@/core/alerts/state";
+import { notebookAtom } from "@/core/cells/cells";
+import { CellId } from "@/core/cells/ids";
+import { AppConfigSchema } from "@/core/config/config-schema";
+import { kernelStartupErrorAtom } from "@/core/errors/state";
+import { connectionAtom } from "@/core/network/connection";
+import { sandboxAtom, sandboxSyncAtom } from "@/core/packages/sandbox-state";
+import { WebSocketClosedReason, ConnectionState } from "@/core/websocket/types";
+import { chromeAtom } from "../../chrome/state";
+import { runtimeDetailsExpandedAtom } from "../../chrome/panels/runtime-details-state";
+import { ConnectionNotice } from "../connection-notice";
+
+beforeEach(() => vi.useFakeTimers());
+afterEach(() => vi.useRealTimers());
+
+function mount({
+  existingCells = false,
+  onRetry = vi.fn(),
+  canOpenPackages = true,
+} = {}) {
+  const store = createStore();
+  store.set(sandboxAtom, {
+    backend: "pixi",
+    manifest: "",
+    filename: "notebook.py",
+  });
+  store.set(connectionAtom, {
+    state: ConnectionState.CONNECTING,
+    phase: "preparing-environment",
+  });
+  if (existingCells) {
+    store.set(
+      notebookAtom,
+      MockNotebook.notebookState({
+        cellData: { [CellId.create()]: { code: "1 + 1" } },
+      }),
+    );
+  }
+  render(
+    <Provider store={store}>
+      <ConnectionNotice
+        appConfig={AppConfigSchema.parse({})}
+        onRetry={onRetry}
+        canOpenPackages={canOpenPackages}
+      />
+    </Provider>,
+  );
+  return store;
+}
+
+it("shows both stages in an empty notebook, checks them off, then dismisses Ready", () => {
+  const store = mount();
+  act(() => vi.advanceTimersByTime(500));
+  const steps = within(
+    screen.getByRole("list", { name: "Notebook startup stages" }),
+  );
+  expect(steps.getByText("Preparing environment")).toBeInTheDocument();
+  expect(steps.getByText("Start kernel")).toBeInTheDocument();
+  act(() =>
+    store.set(connectionAtom, {
+      state: ConnectionState.CONNECTING,
+      phase: "starting-kernel",
+    }),
+  );
+  expect(steps.getByText("Environment prepared")).toBeInTheDocument();
+  expect(steps.getByText("Starting kernel")).toBeInTheDocument();
+  act(() => store.set(connectionAtom, { state: ConnectionState.OPEN }));
+  expect(
+    screen.getByRole("heading", { name: "Your notebook is ready" }),
+  ).toBeInTheDocument();
+  expect(steps.getByText("Kernel started")).toBeInTheDocument();
+  act(() => vi.advanceTimersByTime(1000));
+  expect(screen.getByRole("status")).toHaveTextContent(
+    "Your notebook is ready",
+  );
+  act(() => vi.advanceTimersByTime(1000));
+  expect(
+    screen.queryByRole("region", { name: "Notebook startup" }),
+  ).not.toBeInTheDocument();
+});
+
+it("uses the shared kernel stage for an ordinary connection and dismisses it when connected", () => {
+  const store = mount();
+  act(() => {
+    store.set(sandboxAtom, null);
+    store.set(connectionAtom, { state: ConnectionState.CONNECTING });
+  });
+  act(() => vi.advanceTimersByTime(500));
+  const stages = within(
+    screen.getByRole("list", {
+      name: "Notebook startup stages",
+    }),
+  );
+  expect(stages.getAllByRole("listitem")).toHaveLength(1);
+  expect(stages.getByText("Starting kernel")).toBeVisible();
+  act(() => store.set(connectionAtom, { state: ConnectionState.OPEN }));
+  expect(screen.queryByRole("region", { name: "Notebook startup" })).toBeNull();
+});
+
+it("shows connection status until a sandbox reports its startup phase", () => {
+  const store = mount();
+  act(() => store.set(connectionAtom, { state: ConnectionState.CONNECTING }));
+  act(() => vi.advanceTimersByTime(500));
+  expect(screen.getByRole("heading", { name: "Connecting…" })).toBeVisible();
+  expect(screen.queryByRole("list")).not.toBeInTheDocument();
+
+  act(() =>
+    store.set(connectionAtom, {
+      state: ConnectionState.CLOSED,
+      code: WebSocketClosedReason.KERNEL_STARTUP_ERROR,
+      reason: "Kernel startup failed",
+    }),
+  );
+  expect(
+    screen.getByRole("heading", { name: "Kernel failed to start" }),
+  ).toBeVisible();
+  expect(screen.queryByRole("list")).not.toBeInTheDocument();
+
+  act(() =>
+    store.set(connectionAtom, {
+      state: ConnectionState.CONNECTING,
+      phase: "preparing-environment",
+    }),
+  );
+  act(() => vi.advanceTimersByTime(500));
+  expect(screen.getByRole("list")).toHaveTextContent("Preparing environment");
+});
+
+it("shows kernel startup while sandbox metadata is loading, then adds environment preparation", () => {
+  const store = mount();
+  const sandbox = store.get(sandboxAtom);
+  act(() => store.set(sandboxAtom, null));
+  act(() => vi.advanceTimersByTime(500));
+  expect(screen.getByText("Starting kernel")).toBeVisible();
+  expect(screen.getAllByRole("listitem")).toHaveLength(1);
+
+  act(() => store.set(sandboxAtom, sandbox));
+  const stages = within(screen.getByRole("list"));
+  expect(stages.getByText("Preparing environment")).toBeVisible();
+  expect(stages.getByText("Start kernel")).toBeVisible();
+});
+
+it("shows ordinary environment preparation failures in the kernel stage", () => {
+  const store = mount();
+  act(() => store.set(sandboxAtom, null));
+  act(() => vi.advanceTimersByTime(500));
+  expect(screen.getByText("Starting kernel")).toBeVisible();
+  expect(screen.getAllByRole("listitem")).toHaveLength(1);
+  act(() => {
+    store.set(
+      kernelStartupErrorAtom,
+      "Configured Python environment is missing",
+    );
+    store.set(connectionAtom, {
+      state: ConnectionState.CLOSED,
+      phase: "preparing-environment",
+      code: WebSocketClosedReason.KERNEL_STARTUP_ERROR,
+      reason: "Kernel startup failed",
+    });
+  });
+  expect(screen.getByRole("listitem")).toHaveTextContent(
+    "Kernel failed to start",
+  );
+  expect(screen.getByRole("status")).toHaveTextContent(
+    "Kernel failed to start",
+  );
+  expect(screen.getByLabelText("Error details")).toHaveTextContent(
+    "Configured Python environment is missing",
+  );
+});
+
+it("reports the inline disclosure as expanded only when Packages and runtime details are open", () => {
+  const store = mount({ existingCells: true });
+  act(() => {
+    store.set(chromeAtom, (value) => ({
+      ...value,
+      isSidebarOpen: true,
+      selectedPanel: "packages",
+    }));
+    store.set(runtimeDetailsExpandedAtom, false);
+  });
+  act(() => vi.advanceTimersByTime(500));
+  const toggle = screen.getByRole("button", { name: /Open Packages/ });
+  expect(toggle).toHaveAttribute("aria-expanded", "false");
+  fireEvent.click(toggle);
+  expect(toggle).toHaveAttribute("aria-expanded", "true");
+  act(() => store.set(runtimeDetailsExpandedAtom, false));
+  expect(toggle).toHaveAttribute("aria-expanded", "false");
+  act(() => {
+    store.set(runtimeDetailsExpandedAtom, true);
+    store.set(chromeAtom, (value) => ({ ...value, isSidebarOpen: false }));
+  });
+  expect(toggle).toHaveAttribute("aria-expanded", "false");
+});
+
+it("opens Packages from the minimal inline status when cells exist", () => {
+  const store = mount({ existingCells: true });
+  act(() => vi.advanceTimersByTime(500));
+  expect(screen.queryByRole("list")).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: /Open Packages/ }));
+  expect(store.get(chromeAtom)).toMatchObject({
+    isSidebarOpen: true,
+    selectedPanel: "packages",
+  });
+  act(() => store.set(connectionAtom, { state: ConnectionState.OPEN }));
+  expect(screen.getByRole("status")).toHaveTextContent(/^Ready$/);
+});
+
+it("uses an inline notice for an existing ordinary notebook, opens collapsed details, and offers retry on failure", () => {
+  const onRetry = vi.fn();
+  const store = mount({ existingCells: true, onRetry });
+  act(() => {
+    store.set(sandboxAtom, null);
+    store.set(connectionAtom, { state: ConnectionState.CONNECTING });
+    store.set(runtimeDetailsExpandedAtom, false);
+  });
+  act(() => vi.advanceTimersByTime(500));
+  const statusRow = screen.getByRole("region", {
+    name: "Notebook startup",
+  }).parentElement;
+  fireEvent.click(screen.getByRole("button", { name: /Open Packages/ }));
+  expect(store.get(chromeAtom)).toMatchObject({
+    isSidebarOpen: true,
+    selectedPanel: "packages",
+  });
+  expect(store.get(runtimeDetailsExpandedAtom)).toBe(true);
+  act(() =>
+    store.set(connectionAtom, {
+      state: ConnectionState.CLOSED,
+      code: WebSocketClosedReason.KERNEL_STARTUP_ERROR,
+      reason: "Kernel startup failed",
+    }),
+  );
+  expect(
+    screen.getByRole("button", {
+      name: /Kernel failed to start Open Packages/,
+    }),
+  ).toBeVisible();
+  fireEvent.click(screen.getByRole("button", { name: "Try again" }));
+  expect(onRetry).toHaveBeenCalledOnce();
+  act(() => store.set(connectionAtom, { state: ConnectionState.OPEN }));
+  expect(screen.queryByRole("region", { name: "Notebook startup" })).toBeNull();
+  expect(statusRow).not.toBeInTheDocument();
+});
+
+it.each([
+  { existingCells: false, sandbox: false },
+  { existingCells: true, sandbox: false },
+  { existingCells: false, sandbox: true },
+  { existingCells: true, sandbox: true },
+])(
+  "keeps errors in the notebook without chrome (cells=$existingCells, sandbox=$sandbox)",
+  ({ existingCells, sandbox }) => {
+    const onRetry = vi.fn();
+    const store = mount({ existingCells, onRetry, canOpenPackages: false });
+    act(() => {
+      if (!sandbox) {
+        store.set(sandboxAtom, null);
+      }
+      store.set(connectionAtom, {
+        state: ConnectionState.CONNECTING,
+        phase: "starting-kernel",
+      });
+    });
+    act(() => vi.advanceTimersByTime(500));
+    expect(screen.getByText("Starting kernel")).toBeVisible();
+    expect(screen.getByRole("status")).toHaveTextContent("Starting kernel…");
+    expect(screen.queryByRole("button")).not.toBeInTheDocument();
+
+    act(() => {
+      store.set(kernelStartupErrorAtom, "Could not import the runtime");
+      store.set(connectionAtom, {
+        state: ConnectionState.CLOSED,
+        phase: "starting-kernel",
+        code: WebSocketClosedReason.KERNEL_STARTUP_ERROR,
+        reason: "Kernel startup failed",
+      });
+    });
+    expect(screen.getByLabelText("Error details")).toHaveTextContent(
+      "Could not import the runtime",
+    );
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "Kernel failed to start",
+    );
+    expect(
+      screen.queryByRole("button", { name: /Open Packages/ }),
+    ).not.toBeInTheDocument();
+    if (!sandbox) {
+      fireEvent.click(screen.getByRole("button", { name: "Try again" }));
+    }
+    expect(onRetry).toHaveBeenCalledTimes(sandbox ? 0 : 1);
+  },
+);
+
+it("does not flash Ready for a startup that finished before the notice appeared", () => {
+  const store = mount({ existingCells: true });
+  act(() => vi.advanceTimersByTime(200));
+  act(() => store.set(connectionAtom, { state: ConnectionState.OPEN }));
+  expect(screen.queryByRole("status")).not.toBeInTheDocument();
+  act(() => vi.advanceTimersByTime(2000));
+  expect(screen.queryByRole("status")).not.toBeInTheDocument();
+});
+
+it("replaces Ready with a new attempt and never dismisses a failure", () => {
+  const store = mount();
+  act(() => vi.advanceTimersByTime(500));
+  act(() => store.set(connectionAtom, { state: ConnectionState.OPEN }));
+  act(() => vi.advanceTimersByTime(1000));
+  act(() =>
+    store.set(connectionAtom, {
+      state: ConnectionState.CONNECTING,
+      phase: "starting-kernel",
+    }),
+  );
+  act(() => vi.advanceTimersByTime(500));
+  expect(screen.getByText("Starting kernel")).toBeInTheDocument();
+  act(() =>
+    store.set(connectionAtom, {
+      state: ConnectionState.CLOSED,
+      code: WebSocketClosedReason.KERNEL_STARTUP_ERROR,
+      phase: "starting-kernel",
+      reason: "Kernel startup failed",
+    }),
+  );
+  act(() => vi.advanceTimersByTime(10_000));
+  expect(screen.getByRole("status")).toHaveTextContent(
+    "Kernel failed to start",
+  );
+});
+
+it("shows a sync as a single operation, without pretending to restart the kernel", () => {
+  const store = mount({ existingCells: true });
+  act(() => {
+    store.set(connectionAtom, { state: ConnectionState.OPEN });
+    store.set(sandboxSyncAtom, { kind: "running" });
+  });
+  act(() => vi.advanceTimersByTime(500));
+  expect(screen.getByRole("status")).toHaveTextContent("Syncing sandbox");
+  expect(screen.queryByRole("list")).not.toBeInTheDocument();
+  act(() => store.set(sandboxSyncAtom, { kind: "succeeded" }));
+  expect(screen.getByRole("status")).toHaveTextContent("Environment synced");
+});
+
+it("restores syncing in the existing status and stays quiet for a completed snapshot", () => {
+  const store = mount({ existingCells: true });
+  const operation: EnvironmentOperation = {
+    operation_id: "sync",
+    action: "sync",
+    source: "kernel",
+    status: { kind: "succeeded" },
+    packages: {},
+    logs: { environment: "Sync complete\n" },
+  };
+  const restore = (status: EnvironmentOperation["status"]) =>
+    store.set(alertAtom, (value) => ({
+      ...value,
+      environments: {
+        ...value.environments,
+        kernel: {
+          restart_required: false,
+          operations: [{ ...operation, status }],
+        },
+      },
+    }));
+  act(() => {
+    store.set(connectionAtom, { state: ConnectionState.OPEN });
+    restore({ kind: "succeeded" });
+  });
+  act(() => vi.advanceTimersByTime(2000));
+  expect(screen.queryByRole("status")).not.toBeInTheDocument();
+
+  act(() => restore({ kind: "running" }));
+  act(() => vi.advanceTimersByTime(500));
+  expect(screen.getByRole("status")).toHaveTextContent("Syncing sandbox");
+  expect(getPackageAlert(store.get(alertAtom))).toBeNull();
+  for (const [status, title] of [
+    [{ kind: "failed", error: "Dependency conflict" }, "Sandbox sync failed"],
+    [
+      { kind: "restart-required", reason: "Restart the kernel" },
+      "Sandbox restart required",
+    ],
+    [{ kind: "cancelled" }, "Sandbox sync failed"],
+  ] as const) {
+    act(() => restore(status));
+    expect(screen.getByRole("status")).toHaveTextContent(title);
+  }
+});

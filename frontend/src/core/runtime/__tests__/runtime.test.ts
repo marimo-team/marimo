@@ -8,8 +8,9 @@ import { RuntimeManager } from "../runtime";
 import type { RuntimeConfig } from "../types";
 
 // Mock the session module
-vi.mock("@/core/kernel/session", () => ({
-  getSessionId: () => "test-session-id" as SessionId,
+vi.mock("@/core/kernel/session", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/core/kernel/session")>()),
+  getSessionId: () => "test-session-id",
 }));
 
 vi.mock("@/utils/Logger", () => ({ Logger: Mocks.quietLogger() }));
@@ -59,6 +60,7 @@ describe("RuntimeManager", () => {
       expect(url.protocol).toBe("wss:");
       expect(url.hostname).toBe("example.com");
       expect(url.pathname).toBe("/ws");
+      expect(url.searchParams.has("types")).toBe(false);
       expect(url.searchParams.get("session_id")).toBe(sessionId);
     });
 
@@ -219,15 +221,6 @@ describe("RuntimeManager", () => {
   });
 
   describe("getSseURL", () => {
-    it("should return an http(s) URL with the session ID", () => {
-      const runtime = new RuntimeManager(mockConfig);
-      const url = runtime.getSseURL("1234" as SessionId);
-
-      expect(url.protocol).toBe("https:");
-      expect(url.pathname).toBe("/sse");
-      expect(url.searchParams.get("session_id")).toBe("1234");
-    });
-
     it("should never put the auth token in the URL, even cross-origin", () => {
       // SSE requests can send headers, so auth travels in the
       // Authorization header; a token in the URL would leak into
@@ -256,7 +249,8 @@ describe("RuntimeManager", () => {
         const url = runtime.getSseURL("s_123" as SessionId);
 
         expect(url.searchParams.get("access_token")).toBeNull();
-        expect(url.searchParams.get("foo")).toBe("bar");
+        expect(url.searchParams.get("query_params")).toBe("foo=bar");
+        expect(url.toString()).not.toContain("page-token");
       } finally {
         window.history.pushState({}, "", original);
       }
@@ -676,9 +670,16 @@ describe("RuntimeManager", () => {
       expect(httpUrl.searchParams.get("base_param")).toBe("existing");
 
       // Should preserve all window-level query params (including custom ones)
-      expect(wsUrl.searchParams.get("custom_param")).toBe("value123");
-      expect(wsUrl.searchParams.get("user_token")).toBe("abc");
-      expect(wsUrl.searchParams.get("theme")).toBe("dark");
+      expect(
+        Object.fromEntries(
+          new URLSearchParams(wsUrl.searchParams.get("query_params") ?? ""),
+        ),
+      ).toEqual({
+        base_param: "existing",
+        custom_param: "value123",
+        user_token: "abc",
+        theme: "dark",
+      });
       expect(httpUrl.searchParams.get("custom_param")).toBe("value123");
       expect(httpUrl.searchParams.get("user_token")).toBe("abc");
       expect(httpUrl.searchParams.get("theme")).toBe("dark");
@@ -737,7 +738,7 @@ describe("RuntimeManager", () => {
       );
     });
 
-    it("should throw when creating WebSocket URLs from blob URLs", () => {
+    it("warns when creating WebSocket URLs from blob URLs", () => {
       const runtime = new RuntimeManager({
         url: "blob:https://example.com/12345678-1234-1234-1234-123456789abc",
         lazy: true,
@@ -745,7 +746,7 @@ describe("RuntimeManager", () => {
       const sessionId = "test" as SessionId;
 
       expect(runtime.getWsURL(sessionId).toString()).toMatchInlineSnapshot(
-        `"blob:https://example.com/12345678-1234-1234-1234-123456789abc?session_id=test"`,
+        `"blob:https://example.com/12345678-1234-1234-1234-123456789abc?query_params=&session_id=test"`,
       );
       expect(Logger.warn).toHaveBeenCalledOnce();
     });

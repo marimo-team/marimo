@@ -51,7 +51,7 @@ export class MarimoIslandElement extends HTMLElement {
   public static readonly editorTagName = ISLAND_TAG_NAMES.CODE_EDITOR;
   public static readonly styleNamespace = ISLAND_CSS_CLASSES.NAMESPACE;
 
-  constructor() {
+  public constructor() {
     super();
     this.classList.add(MarimoIslandElement.styleNamespace);
   }
@@ -59,7 +59,7 @@ export class MarimoIslandElement extends HTMLElement {
   /**
    * Gets the app ID from the element's data attribute
    */
-  get appId(): string {
+  public get appId(): string {
     const appId = this.getAttribute(ISLAND_DATA_ATTRIBUTES.APP_ID);
     invariant(appId, "Missing data-app-id attribute");
     return appId;
@@ -68,7 +68,7 @@ export class MarimoIslandElement extends HTMLElement {
   /**
    * Whether this island is reactive (has code sent to Python for execution)
    */
-  get isReactive(): boolean {
+  public get isReactive(): boolean {
     return this.getAttribute(ISLAND_DATA_ATTRIBUTES.REACTIVE) === "true";
   }
 
@@ -76,7 +76,7 @@ export class MarimoIslandElement extends HTMLElement {
    * Gets the cell ID by looking up the cell index in the notebook state.
    * Returns undefined for non-reactive islands (they have no corresponding cell).
    */
-  get cellId(): CellId | undefined {
+  public get cellId(): CellId | undefined {
     if (!this.isReactive) {
       return undefined;
     }
@@ -95,7 +95,7 @@ export class MarimoIslandElement extends HTMLElement {
   /**
    * Gets the code for this island cell
    */
-  get code(): string {
+  public get code(): string {
     return extractIslandCodeFromEmbed(this);
   }
 
@@ -115,7 +115,7 @@ export class MarimoIslandElement extends HTMLElement {
    * which can happen inside a React render cycle. Rendering
    * synchronously from there causes "unmount during render" warnings.
    */
-  connectedCallback(): void {
+  public connectedCallback(): void {
     const connectionGeneration = ++this.connectionGeneration;
     this.addEventListener(
       ISLAND_SOURCE_CHANGED_EVENT,
@@ -296,7 +296,7 @@ export class MarimoIslandElement extends HTMLElement {
   /**
    * Cleanup when element is removed from DOM
    */
-  disconnectedCallback(): void {
+  public disconnectedCallback(): void {
     this.removeEventListener(
       ISLAND_SOURCE_CHANGED_EVENT,
       this.handleSourceChanged,

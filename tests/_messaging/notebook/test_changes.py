@@ -54,6 +54,7 @@ class TestChangesFrozen:
             column=None,
             disabled=False,
             hide_code=True,
+            expand_output=False,
         )
         with pytest.raises(AttributeError):
             op.hide_code = False  # type: ignore[misc]

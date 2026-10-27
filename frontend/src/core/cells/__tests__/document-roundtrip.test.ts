@@ -178,6 +178,22 @@ function documentSnapshot(state: NotebookState) {
 }
 
 describe("document round-trip", () => {
+  it("applies a server transaction that deletes every cell", () => {
+    setup("a", "b");
+    applyTransactionChanges(
+      [
+        ...replica.cellIds.inOrderIds.map((cellId) => ({
+          type: "delete-cell" as const,
+          cellId,
+        })),
+        { type: "reorder-cells", cellIds: [] },
+      ],
+      replicaActions,
+      () => replica.cellIds.inOrderIds,
+    );
+    expect(documentSnapshot(replica)).toEqual([]);
+  });
+
   it("initial setup converges", () => {
     setup("a", "b", "c");
     expect(documentSnapshot(primary)).toEqual(documentSnapshot(replica));

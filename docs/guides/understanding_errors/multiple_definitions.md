@@ -16,7 +16,7 @@ is a loop variable (`i`), a dataframe (`df`), or a plot (`fig`, `ax`).
 ??? Tip "Watch our YouTube explainer"
 
     <div align="center">
-    <iframe width="700" height="393" src="https://www.youtube.com/embed/5TzAADGRfxU?si=ZtwQoAzEUL2UABNq" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+    <iframe width="700" height="393" src="https://www.youtube.com/embed/5TzAADGRfxU?si=ZtwQoAzEUL2UABNq" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" loading="lazy" allowfullscreen></iframe>
     </div>
 
 ## Why can't I redefine variables?

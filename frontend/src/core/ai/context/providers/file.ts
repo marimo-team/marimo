@@ -38,14 +38,14 @@ const DEFAULT_FILE_SEARCH_CONFIG: FileSearchConfig = {
 };
 
 export class FileContextProvider extends AIContextProvider<FileContextItem> {
-  readonly title = "Files";
-  readonly mentionPrefix = "#";
-  readonly contextType = "file";
+  public readonly title = "Files";
+  public readonly mentionPrefix = "#";
+  public readonly contextType = "file";
 
   private apiRequests: EditRequests & RunRequests;
   private config: FileSearchConfig;
 
-  constructor(
+  public constructor(
     apiRequests: EditRequests & RunRequests,
     config: FileSearchConfig = DEFAULT_FILE_SEARCH_CONFIG,
   ) {
@@ -58,7 +58,7 @@ export class FileContextProvider extends AIContextProvider<FileContextItem> {
    * Create a dynamic completion source for file mentions
    * This bypasses the standard registry system to enable dynamic searching
    */
-  createCompletionSource(): CompletionSource {
+  public createCompletionSource(): CompletionSource {
     return async (
       context: CompletionContext,
     ): Promise<CompletionResult | null> => {
@@ -176,13 +176,13 @@ export class FileContextProvider extends AIContextProvider<FileContextItem> {
     }
   }
 
-  getItems(): FileContextItem[] {
+  public getItems(): FileContextItem[] {
     // Files are fetched dynamically, so return empty array
     // This provider relies on dynamic fetching via createCompletionSource()
     return [];
   }
 
-  formatCompletion(item: FileContextItem): Completion {
+  public formatCompletion(item: FileContextItem): Completion {
     const { data, name } = item;
     const icon = data.isDirectory ? "📁" : "📄";
 
@@ -254,7 +254,7 @@ export class FileContextProvider extends AIContextProvider<FileContextItem> {
     };
   }
 
-  formatContext(item: FileContextItem): string {
+  public formatContext(item: FileContextItem): string {
     const { data, name } = item;
     return contextToXml({
       type: this.contextType,

@@ -4,13 +4,21 @@ import { Tooltip } from "radix-ui";
 
 const TooltipProvider = Tooltip.Provider;
 
-import { act, render, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { Provider } from "jotai";
+import { useState } from "react";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { SetupMocks } from "@/__mocks__/common";
-import type { DownloadAsArgs } from "@/components/data-table/schemas";
+import type { DownloadAsFunction } from "@/components/data-table/schemas";
 import type { FieldTypesWithExternalType } from "@/components/data-table/types";
 import { store } from "@/core/state/jotai";
+import { Deferred } from "@/utils/Deferred";
 import {
   type GetDataUrl,
   type GetRowIds,
@@ -19,6 +27,10 @@ import {
 
 // Default to normal (non-static) mode; individual tests flip this on.
 const mockIsStatic = vi.fn().mockReturnValue(false);
+vi.mock("@/utils/download", () => ({
+  downloadByURL: vi.fn(),
+  withLoadingToast: vi.fn(async (_title, callback) => callback()),
+}));
 vi.mock("@/core/static/static-state", async (importOriginal) => {
   const actual =
     await importOriginal<typeof import("@/core/static/static-state")>();
@@ -30,9 +42,15 @@ beforeAll(() => {
 });
 
 describe("LoadingDataTableComponent", () => {
-  it("keeps data columns when inferred types include a row header", async () => {
+  it("keeps data columns and routes each export to its RPC", async () => {
     const host = document.createElement("div");
     const data = JSON.stringify([{ index: "first", value: 1 }]);
+    const downloadAs = vi
+      .fn()
+      .mockResolvedValue({ url: "export", filename: "table.csv" });
+    const downloadGeoJSON = vi
+      .fn()
+      .mockResolvedValue({ url: "export", filename: "table.geojson" });
 
     render(
       <Provider store={store}>
@@ -43,7 +61,7 @@ describe("LoadingDataTableComponent", () => {
             pagination={false}
             pageSize={10}
             selection={null}
-            showDownload={false}
+            showDownload={true}
             showFilters={false}
             showColumnSummaries={false}
             showDataTypes={false}
@@ -68,7 +86,22 @@ describe("LoadingDataTableComponent", () => {
               cell_styles: null,
               cell_hover_texts: null,
             })}
-            download_as={vi.fn() as DownloadAsArgs}
+            download_as={downloadAs}
+            download_geojson={downloadGeoJSON}
+            get_export_metadata={vi.fn().mockResolvedValue({
+              geometry_columns: [
+                { name: "value", encoding: "objects", crs: "EPSG:4326" },
+              ],
+              primary_geometry_column: "value",
+              default_geometry_column: "value",
+              formats: {
+                geojson: {
+                  available: true,
+                  reason: null,
+                  missing_packages: [],
+                },
+              },
+            })}
             get_column_summaries={vi.fn()}
             get_data_url={vi.fn() as GetDataUrl}
             get_row_ids={vi.fn() as GetRowIds}
@@ -83,6 +116,110 @@ describe("LoadingDataTableComponent", () => {
         screen.getByRole("columnheader", { name: "value" }),
       ).toBeInTheDocument();
     });
+    fireEvent.click(screen.getByTestId("export-button"));
+    await screen.findByRole("dialog", { name: "Export table" });
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: "Download GeoJSON" }),
+      ).toBeEnabled(),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Download GeoJSON" }));
+    await waitFor(() =>
+      expect(downloadGeoJSON).toHaveBeenCalledWith({
+        format: "geojson",
+        geometry_column: "value",
+      }),
+    );
+    expect(downloadAs).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Download CSV" }));
+    await waitFor(() =>
+      expect(downloadAs).toHaveBeenCalledWith({ format: "csv" }),
+    );
+    expect(downloadGeoJSON).toHaveBeenCalledTimes(1);
+  });
+
+  it("refreshes export metadata when a dataframe transform changes the data", async () => {
+    const host = document.createElement("div");
+    const metadataFor = (name: string) => ({
+      geometry_columns: [{ name, encoding: "objects", crs: "EPSG:4326" }],
+      primary_geometry_column: name,
+      default_geometry_column: name,
+      formats: {
+        parquet: { available: true, reason: null, missing_packages: [] },
+      },
+    });
+    const getExportMetadata = vi
+      .fn()
+      .mockResolvedValueOnce(metadataFor("before"))
+      .mockResolvedValueOnce(metadataFor("after"));
+    const view = (data: string) => (
+      <Provider store={store}>
+        <TooltipProvider>
+          <LoadingDataTableComponent
+            label={null}
+            totalRows={1}
+            pagination={false}
+            pageSize={10}
+            selection={null}
+            showDownload={true}
+            showFilters={false}
+            showColumnSummaries={false}
+            showDataTypes={false}
+            showPageSizeSelector={false}
+            showColumnExplorer={false}
+            showRowExplorer={false}
+            showChartBuilder={false}
+            rowHeaders={[]}
+            fieldTypes={undefined}
+            totalColumns={1}
+            maxColumns="all"
+            hasStableRowId={false}
+            lazy={false}
+            host={host}
+            showSearch={false}
+            value={[]}
+            setValue={vi.fn()}
+            data={data}
+            search={vi.fn().mockResolvedValue({
+              data,
+              total_rows: 1,
+              cell_styles: null,
+              cell_hover_texts: null,
+            })}
+            download_as={vi.fn()}
+            download_geojson={vi.fn()}
+            get_export_metadata={getExportMetadata}
+            get_column_summaries={vi.fn()}
+            get_data_url={vi.fn() as GetDataUrl}
+            get_row_ids={vi.fn() as GetRowIds}
+            get_size_bytes={vi.fn().mockResolvedValue({ size_bytes: null })}
+          />
+        </TooltipProvider>
+      </Provider>
+    );
+    const { rerender } = render(
+      view(JSON.stringify([{ before: "POINT (1 2)" }])),
+    );
+    await waitFor(() =>
+      expect(
+        screen.getByRole("columnheader", { name: "before" }),
+      ).toBeInTheDocument(),
+    );
+    fireEvent.click(screen.getByTestId("export-button"));
+    await waitFor(() =>
+      expect(screen.getByTestId("export-summary-parquet")).toHaveTextContent(
+        "before",
+      ),
+    );
+
+    rerender(view(JSON.stringify([{ after: "POINT (3 4)" }])));
+
+    await waitFor(() =>
+      expect(screen.getByTestId("export-summary-parquet")).toHaveTextContent(
+        "after",
+      ),
+    );
+    expect(getExportMetadata).toHaveBeenCalledTimes(2);
   });
 
   it("does not log duplicate keys when a pivot becomes empty", async () => {
@@ -122,7 +259,9 @@ describe("LoadingDataTableComponent", () => {
       showSearch: false,
       value: [] as (number | string | { rowId: string; columnName?: string })[],
       setValue: vi.fn(),
-      download_as: vi.fn() as DownloadAsArgs,
+      download_as: vi.fn() as DownloadAsFunction,
+      download_geojson: vi.fn(),
+      get_export_metadata: vi.fn(),
       get_column_summaries: vi.fn(),
       get_data_url: vi.fn() as GetDataUrl,
       get_row_ids: vi.fn() as GetRowIds,
@@ -263,7 +402,9 @@ describe("LoadingDataTableComponent", () => {
       showSearch: true,
       value: [] as (number | string | { rowId: string; columnName?: string })[],
       setValue,
-      download_as: vi.fn() as DownloadAsArgs,
+      download_as: vi.fn() as DownloadAsFunction,
+      download_geojson: vi.fn(),
+      get_export_metadata: vi.fn(),
       get_column_summaries: vi.fn().mockResolvedValue({
         data: null,
         stats: {},
@@ -324,7 +465,7 @@ describe("LoadingDataTableComponent", () => {
   });
 });
 
-describe("static notebook control suppression", () => {
+describe("table pagination and static notebook control suppression", () => {
   const fieldTypes: FieldTypesWithExternalType = [
     ["id", ["integer", "integer"]],
     ["name", ["string", "string"]],
@@ -379,7 +520,9 @@ describe("static notebook control suppression", () => {
         cell_styles: null,
         cell_hover_texts: null,
       }),
-      download_as: vi.fn() as DownloadAsArgs,
+      download_as: vi.fn() as DownloadAsFunction,
+      download_geojson: vi.fn(),
+      get_export_metadata: vi.fn(),
       get_column_summaries: vi.fn().mockResolvedValue({
         data: null,
         stats: {},
@@ -395,6 +538,120 @@ describe("static notebook control suppression", () => {
 
   beforeEach(() => {
     mockIsStatic.mockReturnValue(false);
+  });
+
+  it("requests only the first page with the new configured page size", async () => {
+    const props = makeProps();
+    const view = (pageSize: number) => (
+      <Wrapper>
+        <LoadingDataTableComponent {...props} pageSize={pageSize} />
+      </Wrapper>
+    );
+    const { rerender } = render(view(PAGE_SIZE));
+    await waitFor(() =>
+      expect(screen.getByTestId("next-page-button")).toBeEnabled(),
+    );
+    fireEvent.click(screen.getByTestId("next-page-button"));
+    await waitFor(() =>
+      expect(props.search).toHaveBeenLastCalledWith(
+        expect.objectContaining({ page_number: 1, page_size: PAGE_SIZE }),
+      ),
+    );
+    await waitFor(() =>
+      expect(screen.getByTestId("next-page-button")).toBeEnabled(),
+    );
+    props.search.mockClear();
+
+    rerender(view(5));
+    await waitFor(() => expect(props.search).toHaveBeenCalled());
+    expect(
+      props.search.mock.calls.every(
+        ([request]) => request.page_number === 0 && request.page_size === 5,
+      ),
+    ).toBe(true);
+  });
+
+  it("preserves a new page size when a pending response changes the row count in the same batch", async () => {
+    const props = makeProps();
+    const Harness = () => {
+      const [pageSize, setPageSize] = useState(PAGE_SIZE);
+      return (
+        <Wrapper>
+          <button type="button" onClick={() => setPageSize(5)}>
+            Change configured page size
+          </button>
+          <LoadingDataTableComponent {...props} pageSize={pageSize} />
+        </Wrapper>
+      );
+    };
+    render(<Harness />);
+    await waitFor(() =>
+      expect(screen.getByTestId("next-page-button")).toBeEnabled(),
+    );
+    const response = {
+      data: firstPage,
+      total_rows: 25,
+      cell_styles: null,
+      cell_hover_texts: null,
+    };
+    const pendingPage = new Deferred<typeof response>();
+    props.search.mockReturnValueOnce(pendingPage.promise);
+    fireEvent.click(screen.getByTestId("next-page-button"));
+    await waitFor(() =>
+      expect(props.search).toHaveBeenLastCalledWith(
+        expect.objectContaining({ page_number: 1, page_size: PAGE_SIZE }),
+      ),
+    );
+    props.search.mockClear();
+
+    await act(async () => {
+      pendingPage.resolve(response);
+      // Settle the table-loading promises without committing the queued render.
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      fireEvent.click(
+        screen.getByRole("button", { name: "Change configured page size" }),
+      );
+    });
+
+    await waitFor(() => expect(props.search).toHaveBeenCalled());
+    expect(props.search).toHaveBeenLastCalledWith(
+      expect.objectContaining({ page_number: 0, page_size: 5 }),
+    );
+  });
+
+  it("returns to the first page when a refreshed result changes the row count", async () => {
+    const props = makeProps();
+    const view = () => (
+      <Wrapper>
+        <LoadingDataTableComponent {...props} />
+      </Wrapper>
+    );
+    const { rerender } = render(view());
+    await waitFor(() =>
+      expect(screen.getByTestId("next-page-button")).toBeEnabled(),
+    );
+    fireEvent.click(screen.getByTestId("next-page-button"));
+    await waitFor(() =>
+      expect(props.search).toHaveBeenLastCalledWith(
+        expect.objectContaining({ page_number: 1 }),
+      ),
+    );
+    await waitFor(() =>
+      expect(screen.getByTestId("next-page-button")).toBeEnabled(),
+    );
+    props.search = vi.fn().mockResolvedValue({
+      data: firstPage,
+      total_rows: 25,
+      cell_styles: null,
+      cell_hover_texts: null,
+    });
+
+    rerender(view());
+    await waitFor(() =>
+      expect(props.search).toHaveBeenLastCalledWith(
+        expect.objectContaining({ page_number: 0, page_size: PAGE_SIZE }),
+      ),
+    );
   });
 
   it("renders kernel-dependent controls in normal mode", async () => {

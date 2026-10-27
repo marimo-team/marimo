@@ -10,8 +10,7 @@ from marimo import _loggers
 
 if TYPE_CHECKING:
     from types import TracebackType
-
-    from typing_extensions import Self
+    from typing import Self
 
 LOGGER = _loggers.marimo_logger()
 
@@ -87,7 +86,7 @@ class AsyncBackgroundTask(ABC):
                 await asyncio.wait_for(
                     self._shutdown_event.wait(), timeout=timeout
                 )
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 self.task.cancel()
                 try:
                     await self.task
@@ -103,7 +102,7 @@ class AsyncBackgroundTask(ABC):
             self.running = False
             return
 
-        # Reuse the task's loop — a fresh loop via ``asyncio.run`` would
+        # Reuse the task's loop — a fresh loop via `asyncio.run` would
         # error with "future attached to a different event loop".
         task_loop = self.task.get_loop()
 

@@ -14,6 +14,7 @@ import {
   renderCellValue,
 } from "../columns";
 import { getMimeValues, isMimeValue, MimeCell } from "../mime-cell";
+import { buildHighlightPattern } from "../search-highlight";
 import type { FieldTypesWithExternalType } from "../types";
 import { uniformSample } from "../uniformSample";
 import { UrlDetector } from "../url-detector";
@@ -240,6 +241,7 @@ describe("generateColumns", () => {
     // "age" is a number column — should auto right-align
     // oxlint-disable-next-line typescript/no-explicit-any
     const cell = (columns[1].cell as any)({
+      table: { options: { meta: {} } },
       column: {
         columnDef: columns[1],
       },
@@ -251,6 +253,7 @@ describe("generateColumns", () => {
     // "name" is a string column — should remain left-aligned
     // oxlint-disable-next-line typescript/no-explicit-any
     const nameCell = (columns[0].cell as any)({
+      table: { options: { meta: {} } },
       column: {
         columnDef: columns[0],
       },
@@ -271,6 +274,7 @@ describe("generateColumns", () => {
     // "age" is numeric but explicitly set to left
     // oxlint-disable-next-line typescript/no-explicit-any
     const cell = (columns[1].cell as any)({
+      table: { options: { meta: {} } },
       column: {
         columnDef: columns[1],
       },
@@ -311,6 +315,7 @@ describe("generateColumns", () => {
     // Assuming getCellStyleClass is a function that returns a class name
     // oxlint-disable-next-line typescript/no-explicit-any
     const cell = (columns[0].cell as any)({
+      table: { options: { meta: {} } },
       column: {
         columnDef: columns[0],
       },
@@ -1268,6 +1273,76 @@ describe("renderCellValue with datetime values", () => {
       }).not.toThrow();
     });
   });
+
+  it("should render the column format for datetime strings", () => {
+    const mockColumn = {
+      ...createMockColumn(),
+      getColumnFormatting: () => "Date",
+      applyColumnFormatting: () => "FORMATTED",
+    } as unknown as Column<unknown>;
+
+    const selectCell = vi.fn();
+    const result = renderCellValue({
+      column: mockColumn,
+      renderValue: () => "2024-06-14 12:34:20",
+      getValue: () => "2024-06-14 12:34:20",
+      selectCell,
+      cellStyles: "cell-styles",
+    });
+    const { container } = render(
+      <I18nProvider locale="en-US">
+        <TooltipProvider>{result}</TooltipProvider>
+      </I18nProvider>,
+    );
+    expect(container.textContent).toContain("FORMATTED");
+    expect(container.textContent).not.toContain("2024-06-14 12:34:20");
+
+    const wrapper = container.querySelector(".cell-styles");
+    expect(wrapper).not.toBeNull();
+    wrapper?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    expect(selectCell).toHaveBeenCalledTimes(1);
+  });
+
+  it("should render the column format for Date instances", () => {
+    const mockColumn = {
+      ...createMockColumn(),
+      getColumnFormatting: () => "Date",
+      applyColumnFormatting: () => "FORMATTED",
+    } as unknown as Column<unknown>;
+    const value = new Date("2024-06-14T12:34:20Z");
+
+    const result = renderCellValue({
+      column: mockColumn,
+      renderValue: () => value,
+      getValue: () => value,
+      selectCell: undefined,
+      cellStyles: "",
+    });
+    const { container } = render(
+      <I18nProvider locale="en-US">
+        <TooltipProvider>{result}</TooltipProvider>
+      </I18nProvider>,
+    );
+    expect(container.textContent).toContain("FORMATTED");
+  });
+
+  it("should keep the raw string when no column format is set", () => {
+    const mockColumn = createMockColumn();
+
+    const result = renderCellValue({
+      column: mockColumn,
+      renderValue: () => "2024-06-14",
+      getValue: () => "2024-06-14",
+      selectCell: undefined,
+      cellStyles: "",
+    });
+    const { container } = render(
+      <I18nProvider locale="en-US">
+        <TooltipProvider>{result}</TooltipProvider>
+      </I18nProvider>,
+    );
+    expect(container.textContent).toContain("2024-06-14");
+  });
 });
 
 test("column_widths sets fixed size and meta.width", () => {
@@ -1288,4 +1363,104 @@ test("column_widths sets fixed size and meta.width", () => {
   expect(a?.meta?.width).toBe(120);
   expect(b?.size).toBeUndefined();
   expect(b?.meta?.width).toBeUndefined();
+});
+
+describe("renderCellValue with highlightPattern", () => {
+  const createColumn = (
+    dataType: "string" | "number" | "boolean" | "date",
+    dtype = "object",
+  ) =>
+    ({
+      id: "col",
+      columnDef: { meta: { dataType, dtype } },
+      getColumnFormatting: () => undefined,
+      getColumnWrapping: () => undefined,
+      applyColumnFormatting: (value: unknown) => value,
+    }) as unknown as Column<unknown>;
+
+  const renderCell = (
+    column: Column<unknown>,
+    value: unknown,
+    highlightQuery: string,
+  ) =>
+    render(
+      <I18nProvider locale="en-US">
+        <TooltipProvider>
+          {renderCellValue({
+            column,
+            renderValue: () => value,
+            getValue: () => value,
+            selectCell: undefined,
+            cellStyles: "",
+            highlightPattern: buildHighlightPattern(highlightQuery),
+          })}
+        </TooltipProvider>
+      </I18nProvider>,
+    );
+
+  const markTexts = (container: HTMLElement) =>
+    [...container.querySelectorAll("mark")].map((m) => m.textContent);
+
+  it("marks a match in a string cell", () => {
+    const { container } = renderCell(
+      createColumn("string"),
+      "Alice Smith",
+      "smi",
+    );
+    expect(markTexts(container)).toEqual(["Smi"]);
+  });
+
+  it("marks only the middle text when the string has edge whitespace", () => {
+    const { container } = renderCell(createColumn("string"), "  a b  ", " ");
+    expect(markTexts(container)).toEqual([" "]);
+    const edgeMarkers = container.querySelectorAll("span[aria-label]");
+    expect(edgeMarkers).toHaveLength(2);
+    for (const marker of edgeMarkers) {
+      expect(marker.querySelector("mark")).toBeNull();
+    }
+  });
+
+  it("marks a match in the locale display of a number", () => {
+    const { container } = renderCell(createColumn("number"), 1234.5, "234");
+    expect(markTexts(container)).toEqual(["234"]);
+    expect(container.textContent).toBe("1,234.5");
+  });
+
+  it("does not mark a number when the locale display hides the raw match", () => {
+    const { container } = renderCell(createColumn("number"), 1234, "1234");
+    expect(markTexts(container)).toEqual([]);
+    expect(container.textContent).toBe("1,234");
+  });
+
+  it("marks a boolean cell", () => {
+    const { container } = renderCell(createColumn("boolean"), false, "false");
+    expect(markTexts(container)).toEqual(["False"]);
+  });
+
+  it("marks a date cell by its display string", () => {
+    const { container } = renderCell(
+      createColumn("date", "date"),
+      new Date(2026, 0, 15),
+      "2026",
+    );
+    expect(markTexts(container)).toEqual(["2026"]);
+  });
+
+  it("renders no mark for an empty query", () => {
+    for (const [column, value] of [
+      [createColumn("string"), "Alice"],
+      [createColumn("number"), 12],
+      [createColumn("boolean"), false],
+      [createColumn("date", "date"), new Date(2026, 0, 15)],
+    ] as const) {
+      const { container } = renderCell(column, value, "");
+      expect(markTexts(container)).toEqual([]);
+    }
+  });
+
+  it("renders no mark in the trigger of a long-string popout", () => {
+    const value = "x".repeat(60);
+    const { container } = renderCell(createColumn("string"), value, "xxx");
+    expect(markTexts(container)).toEqual([]);
+  });
 });

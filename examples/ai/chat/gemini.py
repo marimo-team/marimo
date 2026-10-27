@@ -54,7 +54,7 @@ def _(input_key, mo, os_key):
 def _(key, mo):
     chatbot = mo.ui.chat(
        mo.ai.llm.google(
-            "gemini-2.5-flash",
+            "gemini-3.8-flash",
             system_message="You are a helpful assistant.",
             api_key=key,
        ),

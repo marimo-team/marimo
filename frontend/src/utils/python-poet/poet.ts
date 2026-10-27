@@ -25,12 +25,12 @@ function asString(value: string | PythonCode): string {
 }
 
 export class Variable implements PythonCode {
-  name: string;
-  constructor(name: string) {
+  public name: string;
+  public constructor(name: string) {
     this.name = name;
   }
 
-  toCode(): string {
+  public toCode(): string {
     return this.name;
   }
 }
@@ -43,16 +43,16 @@ interface LiteralOptions {
 export class Literal implements PythonCode {
   public readonly value: unknown;
   public readonly opts: LiteralOptions;
-  constructor(value: unknown, opts: LiteralOptions = {}) {
+  public constructor(value: unknown, opts: LiteralOptions = {}) {
     this.value = value;
     this.opts = opts;
   }
 
-  static from(value: unknown, opts: LiteralOptions = {}): Literal {
+  public static from(value: unknown, opts: LiteralOptions = {}): Literal {
     return new Literal(value, opts);
   }
 
-  toCode(): string {
+  public toCode(): string {
     const EMPTY_VALUE = "";
     const { removeNull = false, removeUndefined = true } = this.opts;
 
@@ -122,12 +122,12 @@ export class VariableDeclaration implements PythonCode {
   public name: string;
   public value: string | PythonCode;
 
-  constructor(name: string, value: string | PythonCode) {
+  public constructor(name: string, value: string | PythonCode) {
     this.name = name;
     this.value = value;
   }
 
-  toCode(): string {
+  public toCode(): string {
     const right = asString(this.value);
     if (right.includes("\n")) {
       return `${this.name} = (\n${indent(right)}\n)`;
@@ -140,12 +140,12 @@ export class FunctionArg implements PythonCode {
   public name: string;
   public value: string | PythonCode;
 
-  constructor(name: string, value: string | PythonCode) {
+  public constructor(name: string, value: string | PythonCode) {
     this.name = name;
     this.value = value;
   }
 
-  toCode(): string {
+  public toCode(): string {
     return `${this.name}=${asString(this.value)}`;
   }
 }
@@ -155,7 +155,7 @@ export class FunctionCall implements PythonCode {
   public name: string;
   public multiLine: boolean;
 
-  constructor(
+  public constructor(
     name: string,
     args: PythonCode[] | Record<string, PythonCode>,
     multiLine = false,
@@ -165,7 +165,7 @@ export class FunctionCall implements PythonCode {
     this.args = objectToArgs(args);
   }
 
-  toCode(): string {
+  public toCode(): string {
     if (this.multiLine) {
       if (this.args.length === 0) {
         return `${this.name}()`;
@@ -178,11 +178,11 @@ export class FunctionCall implements PythonCode {
     return `${this.name}(${this.args.map(asString).join(", ")})`;
   }
 
-  addArg(...args: PythonCode[]): FunctionCall {
+  public addArg(...args: PythonCode[]): FunctionCall {
     return new FunctionCall(this.name, [...this.args, ...args], this.multiLine);
   }
 
-  chain(
+  public chain(
     name: string,
     args: PythonCode[] | Record<string, PythonCode>,
   ): FunctionCall {

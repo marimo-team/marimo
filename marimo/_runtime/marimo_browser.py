@@ -1,8 +1,6 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-import webbrowser
-
 from marimo._runtime.context import get_context
 from marimo._runtime.context.types import ContextNotInitializedError
 
@@ -75,19 +73,3 @@ def browser_open_fallback(
             )
         )
     return True
-
-
-def build_browser_fallback() -> type[webbrowser.BaseBrowser]:
-    """
-    Dynamically create the class since BaseBrowser does not exist in
-    pyodide.
-    """
-
-    # Construct like this to limit stack frames.
-    MarimoBrowser = type(
-        "MarimoBrowser",
-        (webbrowser.BaseBrowser,),
-        {"open": staticmethod(browser_open_fallback)},
-    )
-
-    return MarimoBrowser

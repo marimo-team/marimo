@@ -17,6 +17,7 @@ from click.core import ParameterSource
 import marimo._cli.cli_validators as validators
 from marimo import _loggers
 from marimo._ast import codegen
+from marimo._cli.cache.commands import cache
 from marimo._cli.config.commands import config
 from marimo._cli.convert.commands import convert
 from marimo._cli.development.commands import development
@@ -26,7 +27,7 @@ from marimo._cli.errors import (
 )
 from marimo._cli.export.commands import export
 from marimo._cli.files.file_path import validate_name
-from marimo._cli.help_formatter import ColoredCommand, ColoredGroup, RunCommand
+from marimo._cli.help_formatter import ColoredGroup, SandboxCommand
 from marimo._cli.pair.commands import pair
 from marimo._cli.parse_args import parse_args
 from marimo._cli.parser_ux import show_compact_usage_error
@@ -145,6 +146,13 @@ token_password_message = (
     "Use a specific token for authentication. "
     "This enables session-based authentication. "
     "A random token will be generated if not set. "
+    "Pass -q before to this flag to suppress the "
+    "connection message and keep the token out of logs. "
+)
+
+token_password_file_message = (
+    "Path to file containing token password, or '-' for stdin. "
+    "Mutually exclusive with --token-password. "
 )
 
 sandbox_message = (
@@ -283,36 +291,7 @@ class _OptionalValueOption(click.Option):
             self.flag_value = opt_flag_value
 
 
-def _normalize_sandbox_args(args: list[str]) -> list[str]:
-    """Give a bare `--sandbox` its backwards-compatible uv value.
-
-    Click options cannot reliably accept both an optional value and a
-    following positional argument. Normalize the bare spelling before Click
-    parses it. Explicit backends use `--sandbox=pixi`; following paths named
-    `uv` or `pixi` and arguments after `--` remain positional arguments.
-    """
-    normalized = list(args)
-    try:
-        limit = normalized.index("--")
-    except ValueError:
-        limit = len(normalized)
-    for index, token in enumerate(normalized[:limit]):
-        if token == "--sandbox":
-            normalized[index] = "--sandbox=uv"
-    return normalized
-
-
-class _SandboxCommand(ColoredCommand):
-    def parse_args(self, ctx: click.Context, args: list[str]) -> list[str]:
-        return super().parse_args(ctx, _normalize_sandbox_args(args))
-
-
-class _SandboxRunCommand(RunCommand):
-    def parse_args(self, ctx: click.Context, args: list[str]) -> list[str]:
-        return super().parse_args(ctx, _normalize_sandbox_args(args))
-
-
-@main.command(cls=_SandboxCommand, help=edit_help_msg)
+@main.command(cls=SandboxCommand, help=edit_help_msg)
 @click.option(
     "-p",
     "--port",
@@ -355,7 +334,7 @@ class _SandboxRunCommand(RunCommand):
     "--token-password-file",
     default=None,
     type=str,
-    help="Path to file containing token password, or '-' for stdin. Mutually exclusive with --token-password.",
+    help=token_password_file_message,
 )
 @click.option(
     "--base-url",
@@ -505,8 +484,13 @@ def edit(
     name: str | None,
     args: tuple[str, ...],
 ) -> None:
-    from marimo._cli.sandbox import SandboxMode, resolve_sandbox
+    from marimo._cli.sandbox import (
+        ensure_server_environment,
+        require_sandbox_backend,
+        resolve_sandbox,
+    )
 
+    stdin_notebook = None
     pass_on_stdin = token_password_file == "-"
     # We support unix-style piping, e.g. cat notebook.py | marimo edit
     if (
@@ -519,6 +503,7 @@ def edit(
             "notebook.py", "py", stdin_contents, temp_dir
         )
         name = path.absolute_name
+        stdin_notebook = name
 
     if prompt_run_in_docker_container(name, trusted=trusted):
         from marimo._cli.run_docker import run_in_docker
@@ -550,6 +535,19 @@ def edit(
             else:
                 check_app_correctness(name)
         elif not is_dir:
+            # A new notebook has no inline metadata, so the sandbox choice
+            # comes from the flags alone. Check the backend first so a
+            # missing uv/pixi does not leave an empty file behind.
+            new_notebook_backend = resolve_sandbox(
+                sandbox=sandbox, no_sandbox=no_sandbox, name=None
+            )
+            if new_notebook_backend is not None:
+                from marimo._environments.errors import EnvironmentManagerError
+
+                try:
+                    require_sandbox_backend(new_notebook_backend)
+                except EnvironmentManagerError as error:
+                    raise MarimoCLIRuntimeError(str(error)) from error
             # write empty file
             try:
                 with open(name, "w", encoding="utf-8"):
@@ -568,33 +566,10 @@ def edit(
     # We check this after name validation, because this will convert
     # URLs into local file paths
 
-    # Resolve sandbox mode: None, SandboxMode.SINGLE, or SandboxMode.MULTI
-    sandbox_mode, sandbox_backend = resolve_sandbox(
+    sandbox_backend = resolve_sandbox(
         sandbox=sandbox, no_sandbox=no_sandbox, name=name
     )
-
-    # Single-file sandbox: the server runs from the script environment
-    if sandbox_mode is SandboxMode.SINGLE:
-        from marimo._cli.sandbox import run_in_sandbox
-
-        sys.exit(
-            run_in_sandbox(
-                sys.argv[1:],
-                name=name,
-                extras=["lsp"],
-                backend=sandbox_backend,
-            )
-        )
-
-    # Multi-file sandbox: use IPC kernels with per-notebook sandboxed venvs
-    if sandbox_mode is SandboxMode.MULTI:
-        # Enable script metadata management for sandboxed notebooks
-        os.environ["MARIMO_MANAGE_SCRIPT_METADATA"] = "true"
-        GLOBAL_SETTINGS.MANAGE_SCRIPT_METADATA = True
-        os.environ["MARIMO_SANDBOX_MODE"] = "multi"
-        GLOBAL_SETTINGS.SANDBOX_MODE = "multi"
-        os.environ["MARIMO_SANDBOX_BACKEND"] = sandbox_backend
-        GLOBAL_SETTINGS.SANDBOX_BACKEND = sandbox_backend
+    ensure_server_environment(sandbox_backend, stdin_notebook=stdin_notebook)
 
     # Check shared memory availability early (required for edit mode to
     # communicate between the server process and kernel subprocess)
@@ -654,7 +629,7 @@ def edit(
         server_startup_command=server_startup_command,
         asset_url=asset_url,
         timeout=timeout,
-        sandbox_mode=sandbox_mode,
+        sandbox=sandbox_backend,
         startup_tip=choose_startup_tip(click.get_current_context()),
     )
 
@@ -693,7 +668,7 @@ new_help_msg = "\n".join(
 )
 
 
-@main.command(cls=_SandboxCommand, help=new_help_msg)
+@main.command(cls=SandboxCommand, help=new_help_msg)
 @click.option(
     "-p",
     "--port",
@@ -736,7 +711,7 @@ new_help_msg = "\n".join(
     "--token-password-file",
     default=None,
     type=str,
-    help="Path to file containing token password, or '-' for stdin. Mutually exclusive with --token-password.",
+    help=token_password_file_message,
 )
 @click.option(
     "--base-url",
@@ -788,18 +763,10 @@ def new(
     timeout: float | None,
     prompt: str | None,
 ) -> None:
-    if sandbox and not no_sandbox:
-        from marimo._cli.sandbox import backend_from_flag, run_in_sandbox
+    from marimo._cli.sandbox import ensure_server_environment, resolve_sandbox
 
-        # TODO: consider adding recommended as well
-        sys.exit(
-            run_in_sandbox(
-                sys.argv[1:],
-                name=None,
-                extras=["lsp"],
-                backend=backend_from_flag(sandbox),
-            )
-        )
+    sandbox_backend = resolve_sandbox(sandbox, no_sandbox, name=None)
+    ensure_server_environment(sandbox_backend)
 
     workspace: NotebookWorkspace | None = None
 
@@ -877,6 +844,7 @@ def new(
         redirect_console_to_browser=True,
         ttl_seconds=None,
         timeout=timeout,
+        sandbox=sandbox_backend,
         startup_tip=choose_startup_tip(click.get_current_context()),
     )
 
@@ -1008,7 +976,7 @@ def _create_run_workspace(
 
 
 @main.command(
-    cls=_SandboxRunCommand,
+    cls=SandboxCommand,
     help="""Run a notebook as an app in read-only mode.
 
 If NAME is a url, the notebook will be downloaded to a temporary file.
@@ -1062,7 +1030,7 @@ Example:
     "--token-password-file",
     default=None,
     type=str,
-    help="Path to file containing token password, or '-' for stdin. Mutually exclusive with --token-password.",
+    help=token_password_file_message,
 )
 @click.option(
     "--include-code",
@@ -1206,8 +1174,6 @@ def run(
     args: tuple[str, ...],
 ) -> None:
     from marimo._cli.sandbox import (
-        SandboxMode,
-        backend_from_flag,
         resolve_sandbox,
         run_in_sandbox,
     )
@@ -1285,31 +1251,17 @@ def run(
 
     # We check this after name validation, because this will convert
     # URLs into local file paths
-    if is_multi:
-        # Gallery mode: use MULTI sandbox (IPC kernels) or None
-        sandbox_mode = (
-            SandboxMode.MULTI if sandbox and not no_sandbox else None
-        )
-        sandbox_backend = backend_from_flag(sandbox)
-    else:
-        sandbox_mode, sandbox_backend = resolve_sandbox(
-            sandbox=sandbox, no_sandbox=no_sandbox, name=validated_paths[0]
-        )
-        if sandbox_mode is SandboxMode.SINGLE:
-            sys.exit(
-                run_in_sandbox(
-                    sys.argv[1:],
-                    name=validated_paths[0],
-                    backend=sandbox_backend,
-                )
+    sandbox_backend = resolve_sandbox(
+        sandbox, no_sandbox, None if is_multi else validated_paths[0]
+    )
+    if sandbox_backend and not is_multi:
+        sys.exit(
+            run_in_sandbox(
+                sys.argv[1:],
+                name=validated_paths[0],
+                backend=sandbox_backend,
             )
-
-    # Multi-file sandbox: use IPC kernels with per-notebook sandboxed venvs
-    if sandbox_mode is SandboxMode.MULTI:
-        # Kernel launches read the backend from the global; without
-        # this, `marimo run --sandbox=pixi` would launch uv kernels.
-        os.environ["MARIMO_SANDBOX_BACKEND"] = sandbox_backend
-        GLOBAL_SETTINGS.SANDBOX_BACKEND = sandbox_backend
+        )
 
     workspace = _create_run_workspace(validated_paths, watch=watch)
 
@@ -1340,7 +1292,7 @@ def run(
         redirect_console_to_browser=redirect_console_to_browser,
         server_startup_command=server_startup_command,
         asset_url=asset_url,
-        sandbox_mode=sandbox_mode,
+        sandbox=sandbox_backend,
         startup_tip=choose_startup_tip(click.get_current_context()),
         show_tracebacks=show_tracebacks,
         execute_opengraph_generators=execute_opengraph_generators,
@@ -1430,7 +1382,7 @@ Recommended sequence:
     "--token-password-file",
     default=None,
     type=str,
-    help="Path to file containing token password, or '-' for stdin. Mutually exclusive with --token-password.",
+    help=token_password_file_message,
 )
 @click.option(
     "--skew-protection/--no-skew-protection",
@@ -1634,16 +1586,16 @@ def check(
         lint_config=lint_config,
     )
 
+    # Get counts from linter (fix happens automatically during streaming)
+    fixed = linter.fixed_count
+    total_issues = linter.issues_count
+
     if formatter == "json":
         # JSON output - let linter handle the collection and formatting
         result = linter.get_json_result()
         # Always output to stdout for JSON, regardless of errors
         click.echo(json.dumps(result), err=False)
     else:
-        # Get counts from linter (fix happens automatically during streaming)
-        fixed = linter.fixed_count
-        total_issues = linter.issues_count
-
         # Final summary
         if fixed > 0:
             click.echo(f"Updated {fixed} file{'s' if fixed > 1 else ''}.")
@@ -1658,6 +1610,7 @@ def check(
 
 main.command()(convert)
 main.add_command(export)
+main.add_command(cache)
 main.add_command(config)
 main.add_command(development)
 main.add_command(pair)

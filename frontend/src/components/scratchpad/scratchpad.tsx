@@ -135,9 +135,9 @@ export const ScratchPad: React.FC = () => {
     return (
       <div className="absolute inset-0 z-100 bg-background p-3 border-none overflow-auto">
         <div className="overflow-auto flex flex-col gap-3">
-          {history.map((item, index) => (
+          {history.map((item) => (
             <div
-              key={index}
+              key={item}
               className="border rounded-md hover:shadow-sm cursor-pointer hover:border-input overflow-hidden"
               onClick={() => handleSelectHistoryItem(item)}
             >

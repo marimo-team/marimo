@@ -5,8 +5,6 @@ from typing import TYPE_CHECKING
 
 from marimo import _loggers
 from marimo._runtime import output
-from marimo._runtime.context.utils import running_in_notebook
-from marimo._utils.flatten import contains_instance
 
 if TYPE_CHECKING:
     from marimo._ast.cell import CellImpl
@@ -17,31 +15,28 @@ LOGGER = _loggers.marimo_logger()
 
 
 # Imports are cached before notebook execution; mount in the importing cell.
+# marimo-lens decides whether the notebook needs a Lens.
 def mount_lens(
     cell: CellImpl, ctx: PostExecutionHookContext, result: RunResult
 ) -> None:
-    if (
-        not result.success()
-        or not running_in_notebook()
-        or cell.namespace_to_variable("marimo") is None
-    ):
+    del ctx
+    if not result.success() or cell.namespace_to_variable("marimo") is None:
         return
 
     try:
         try:
-            from marimo_lens import Lens  # type: ignore[import-not-found]
-        except ModuleNotFoundError as exc:
+            from marimo_lens import (  # type: ignore[import-not-found]
+                automatic_lens,
+            )
+        except ImportError as exc:
+            # Also covers a marimo-lens release without automatic_lens.
             if exc.name != "marimo_lens":
                 raise
             return
 
-        if any(
-            contains_instance(other.output, Lens)
-            for other in ctx.graph.cells.values()
-        ):
+        lens = automatic_lens()
+        if lens is None:
             return
-
-        lens = Lens()
         cell.set_output((cell.output, lens))
         if result.output is not None:
             output.append(result.output)

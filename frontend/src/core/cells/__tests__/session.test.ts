@@ -46,10 +46,17 @@ describe("notebookStateFromSession", () => {
 
   const createNotebookCell = (
     id: string,
-    code: string | null = null,
-    name: string | null = null,
-    config: NotebookCell["config"] | null = null,
-    code_hash: string | null = null,
+    {
+      code = null,
+      name = null,
+      config = null,
+      code_hash = null,
+    }: {
+      code?: string | null;
+      name?: string | null;
+      config?: NotebookCell["config"] | null;
+      code_hash?: string | null;
+    } = {},
   ): NotebookCell => ({
     id,
     code,
@@ -59,6 +66,7 @@ describe("notebookStateFromSession", () => {
       column: config?.column ?? null,
       disabled: config?.disabled ?? null,
       hide_code: config?.hide_code ?? null,
+      expand_output: config?.expand_output ?? null,
     },
   });
 
@@ -86,7 +94,7 @@ describe("notebookStateFromSession", () => {
 
     it("logs error when session and notebook have different cells", () => {
       const session = createSession([createSessionCell("cell-1")]);
-      const notebook = createNotebook([createNotebookCell("cell-2")]);
+      const notebook = createNotebook([createNotebookCell("cell-2", {})]);
 
       const result = notebookStateFromSession(session, notebook);
 
@@ -173,12 +181,61 @@ describe("notebookStateFromSession", () => {
         channel: "marimo-error",
         data: [
           {
-            type: "unknown",
+            type: "exception",
+            exception_type: "ValueError",
             msg: "Something went wrong",
+            raising_cell: null,
+            traceback: "Traceback line 1",
           },
         ],
         mimetype: "application/vnd.marimo+error",
         timestamp: 0,
+      });
+    });
+
+    it("restores matching code from the session", () => {
+      const code = "raise ValueError('cached failure')";
+      const session = createSession([
+        createSessionCell(
+          "cell-1",
+          [
+            {
+              type: "error",
+              ename: "ValueError",
+              evalue: "cached failure",
+              traceback: ["Traceback\n", "ValueError: cached failure"],
+              code,
+            },
+          ],
+          [
+            {
+              type: "stream",
+              name: "stderr",
+              text: "ValueError: cached <failure>",
+              mimetype: "application/vnd.marimo+traceback",
+              traceback_format: "text",
+              code,
+            },
+          ],
+        ),
+      ]);
+      const state = notebookStateFromSession(session, null);
+      invariant(state, "state is null");
+      expect(state.cellRuntime[CELL_1].output).toMatchObject({
+        code,
+        data: [
+          {
+            type: "exception",
+            exception_type: "ValueError",
+            msg: "cached failure",
+            traceback: "Traceback\nValueError: cached failure",
+          },
+        ],
+      });
+      expect(state.cellRuntime[CELL_1].consoleOutputs[0].code).toBe(code);
+      expect(state.cellRuntime[CELL_1].consoleOutputs[0]).toMatchObject({
+        traceback_format: "text",
+        data: "ValueError: cached <failure>",
       });
     });
 
@@ -278,7 +335,10 @@ describe("notebookStateFromSession", () => {
   describe("notebook only scenarios", () => {
     it("creates state from notebook with single cell", () => {
       const notebook = createNotebook([
-        createNotebookCell("cell-1", "print('hello')", "my_cell"),
+        createNotebookCell("cell-1", {
+          code: "print('hello')",
+          name: "my_cell",
+        }),
       ]);
       const result = notebookStateFromSession(null, notebook);
 
@@ -298,6 +358,7 @@ describe("notebookStateFromSession", () => {
           hide_code: false,
           disabled: false,
           column: null,
+          expand_output: false,
         },
         serializedEditorState: null,
       });
@@ -305,10 +366,15 @@ describe("notebookStateFromSession", () => {
 
     it("creates state from notebook with custom config", () => {
       const notebook = createNotebook([
-        createNotebookCell("cell-1", "code", "name", {
-          hide_code: true,
-          disabled: true,
-          column: 1,
+        createNotebookCell("cell-1", {
+          code: "code",
+          name: "name",
+          config: {
+            hide_code: true,
+            disabled: true,
+            column: 1,
+            expand_output: true,
+          },
         }),
       ]);
       const result = notebookStateFromSession(null, notebook);
@@ -319,6 +385,7 @@ describe("notebookStateFromSession", () => {
         hide_code: true,
         disabled: true,
         column: 1,
+        expand_output: true,
       });
     });
 
@@ -350,6 +417,7 @@ describe("notebookStateFromSession", () => {
           hide_code: false,
           disabled: false,
           column: null,
+          expand_output: false,
         },
         serializedEditorState: null,
       });
@@ -386,6 +454,7 @@ describe("notebookStateFromSession", () => {
           hide_code: false,
           disabled: false,
           column: null,
+          expand_output: false,
         },
         serializedEditorState: null,
       });
@@ -409,7 +478,10 @@ describe("notebookStateFromSession", () => {
         ),
       ]);
       const notebook = createNotebook([
-        createNotebookCell("cell-1", "print('hello')", "my_cell"),
+        createNotebookCell("cell-1", {
+          code: "print('hello')",
+          name: "my_cell",
+        }),
       ]);
       const result = notebookStateFromSession(session, notebook);
 
@@ -426,6 +498,7 @@ describe("notebookStateFromSession", () => {
           hide_code: false,
           disabled: false,
           column: null,
+          expand_output: false,
         },
         serializedEditorState: null,
       });
@@ -439,8 +512,8 @@ describe("notebookStateFromSession", () => {
         createSessionCell("cell-2"),
       ]);
       const notebook = createNotebook([
-        createNotebookCell("cell-2"),
-        createNotebookCell("cell-1"),
+        createNotebookCell("cell-2", {}),
+        createNotebookCell("cell-1", {}),
       ]);
 
       const result = notebookStateFromSession(session, notebook);
@@ -458,8 +531,8 @@ describe("notebookStateFromSession", () => {
         createSessionCell("cell-2"),
       ]);
       const notebook = createNotebook([
-        createNotebookCell("cell-1"),
-        createNotebookCell("cell-2"),
+        createNotebookCell("cell-1", {}),
+        createNotebookCell("cell-2", {}),
       ]);
 
       const result = notebookStateFromSession(session, notebook);
@@ -613,12 +686,42 @@ describe("notebookStateFromSession", () => {
       };
       // Create notebook cells with code values 'a' through 'f'
       const notebookCells = [
-        createNotebookCell("cell-a", "a", null, null, hashes.a),
-        createNotebookCell("cell-b", "b", null, null, hashes.b),
-        createNotebookCell("cell-c", "c", null, null, hashes.c),
-        createNotebookCell("cell-d", "d", null, null, hashes.d),
-        createNotebookCell("cell-e", "e", null, null, hashes.e),
-        createNotebookCell("cell-f", "f", null, null, hashes.f),
+        createNotebookCell("cell-a", {
+          code: "a",
+          name: null,
+          config: null,
+          code_hash: hashes.a,
+        }),
+        createNotebookCell("cell-b", {
+          code: "b",
+          name: null,
+          config: null,
+          code_hash: hashes.b,
+        }),
+        createNotebookCell("cell-c", {
+          code: "c",
+          name: null,
+          config: null,
+          code_hash: hashes.c,
+        }),
+        createNotebookCell("cell-d", {
+          code: "d",
+          name: null,
+          config: null,
+          code_hash: hashes.d,
+        }),
+        createNotebookCell("cell-e", {
+          code: "e",
+          name: null,
+          config: null,
+          code_hash: hashes.e,
+        }),
+        createNotebookCell("cell-f", {
+          code: "f",
+          name: null,
+          config: null,
+          code_hash: hashes.f,
+        }),
       ];
       // Create session cells with matching code_hashes
       const sessionCells = [
@@ -731,11 +834,36 @@ describe("notebookStateFromSession", () => {
 
       // Notebook has cells with code 'a', 'c', 'z', 'e', 'g'
       const notebookCells = [
-        createNotebookCell("cell-a", "a", null, null, hashes.a),
-        createNotebookCell("cell-c", "c", null, null, hashes.c),
-        createNotebookCell("cell-z", "z", null, null, hashes.z),
-        createNotebookCell("cell-e", "e", null, null, hashes.e),
-        createNotebookCell("cell-g", "g", null, null, hashes.g),
+        createNotebookCell("cell-a", {
+          code: "a",
+          name: null,
+          config: null,
+          code_hash: hashes.a,
+        }),
+        createNotebookCell("cell-c", {
+          code: "c",
+          name: null,
+          config: null,
+          code_hash: hashes.c,
+        }),
+        createNotebookCell("cell-z", {
+          code: "z",
+          name: null,
+          config: null,
+          code_hash: hashes.z,
+        }),
+        createNotebookCell("cell-e", {
+          code: "e",
+          name: null,
+          config: null,
+          code_hash: hashes.e,
+        }),
+        createNotebookCell("cell-g", {
+          code: "g",
+          name: null,
+          config: null,
+          code_hash: hashes.g,
+        }),
       ];
 
       const session = createSession(sessionCells);
@@ -852,15 +980,24 @@ describe("notebookStateFromSession", () => {
 
       // Notebook has cells: cell-1 (1 / 0, no hash), cell-2 (mo.md("Hello"), hash=moMd), cell-3 (slider, hash=slider)
       const notebookCells = [
-        createNotebookCell("cell-1", "1 / 0", null, null, null), // no hash
-        createNotebookCell("cell-2", 'mo.md("Hello")', null, null, hashes.moMd),
-        createNotebookCell(
-          "cell-3",
-          "x = mo.ui.slider(0, 10)",
-          null,
-          null,
-          hashes.slider,
-        ),
+        createNotebookCell("cell-1", {
+          code: "1 / 0",
+          name: null,
+          config: null,
+          code_hash: null,
+        }), // no hash
+        createNotebookCell("cell-2", {
+          code: 'mo.md("Hello")',
+          name: null,
+          config: null,
+          code_hash: hashes.moMd,
+        }),
+        createNotebookCell("cell-3", {
+          code: "x = mo.ui.slider(0, 10)",
+          name: null,
+          config: null,
+          code_hash: hashes.slider,
+        }),
       ];
 
       const session = createSession(sessionCells);

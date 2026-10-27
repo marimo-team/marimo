@@ -17,16 +17,16 @@ export interface TableContextItem extends AIContextItem {
 }
 
 export class TableContextProvider extends AIContextProvider<TableContextItem> {
-  readonly title = "Tables";
-  readonly mentionPrefix = "@";
-  readonly contextType = "data";
+  public readonly title = "Tables";
+  public readonly mentionPrefix = "@";
+  public readonly contextType = "data";
   private tablesMap: DatasetTablesMap;
-  constructor(tablesMap: DatasetTablesMap) {
+  public constructor(tablesMap: DatasetTablesMap) {
     super();
     this.tablesMap = tablesMap;
   }
 
-  getItems(): TableContextItem[] {
+  public getItems(): TableContextItem[] {
     return [...this.tablesMap.entries()].map(([tableName, table]) => ({
       uri: this.asURI(tableName),
       name: tableName,
@@ -36,7 +36,7 @@ export class TableContextProvider extends AIContextProvider<TableContextItem> {
     }));
   }
 
-  formatContext(item: TableContextItem): string {
+  public formatContext(item: TableContextItem): string {
     const { data } = item;
     const { columns, source, num_rows, num_columns, name, variable_name } =
       data;
@@ -90,7 +90,7 @@ export class TableContextProvider extends AIContextProvider<TableContextItem> {
     });
   }
 
-  formatCompletion(item: TableContextItem): Completion {
+  public formatCompletion(item: TableContextItem): Completion {
     const tableName = item.data.name;
     const table = item.data;
     return {

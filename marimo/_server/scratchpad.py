@@ -11,6 +11,7 @@ from uuid import uuid4
 from marimo._ai._tools.types import CodeExecutionResult
 from marimo._code_mode.screenshot_meta import (
     SCREENSHOT_AUTH_TOKEN_KEY,
+    SCREENSHOT_FILE_KEY,
     SCREENSHOT_SERVER_URL_KEY,
 )
 from marimo._messaging.cell_output import CellChannel
@@ -35,11 +36,11 @@ if TYPE_CHECKING:
     from marimo._messaging.notebook.document import NotebookCell
     from marimo._messaging.types import KernelMessage
     from marimo._session.session import Session
+    from marimo._types.encodable import Encodable
 
 EXECUTION_TIMEOUT = (
     30.0  # seconds — used only by wait(); stream() has no timeout
 )
-
 # Channel name constants for SSE events
 _CHANNEL_MAP = {
     CellChannel.STDOUT: "stdout",
@@ -102,8 +103,11 @@ class ScratchCellListener(EventAwareExtension):
         super().__init__()
         self._queue: asyncio.Queue[CellNotification | None] = asyncio.Queue()
         self._run_id = run_id
+        self._scratch_started = False
+        self._completed = False
         self.timed_out = False
         self.child_error_summaries: list[str] = []
+        self.stderr: list[str] = []
 
     def on_notification_sent(
         self, session: Session, notification: KernelMessage
@@ -111,13 +115,14 @@ class ScratchCellListener(EventAwareExtension):
         del session
         msg = deserialize_kernel_message(notification)
 
-        # Completion sentinel: the ``CompletedRunNotification`` tagged
+        # Completion sentinel: the `CompletedRunNotification` tagged
         # with OUR run_id means the scratchpad's full cascade (including
-        # any ``state_updates`` flushed after the scratch cell goes
-        # idle) has settled. ``CompletedRun``s with other ids belong to
+        # any `state_updates` flushed after the scratch cell goes
+        # idle) has settled. `CompletedRun`s with other ids belong to
         # unrelated commands — skip them.
         if isinstance(msg, CompletedRunNotification):
             if msg.run_id == self._run_id:
+                self._completed = True
                 self._queue.put_nowait(None)
             return
 
@@ -125,12 +130,25 @@ class ScratchCellListener(EventAwareExtension):
             return
 
         if msg.cell_id == SCRATCH_CELL_ID:
+            self._scratch_started = True
             self._queue.put_nowait(msg)
         else:
+            # Ignore notifications from an execution that was already active
+            # when this listener was attached. Child cells run by _code_mode
+            # cannot execute before the scratch cell itself starts.
+            if not self._scratch_started:
+                return
             if msg.console is not None:
                 # Stream console output from cells run by _code_mode
                 # during this scratchpad execution.
                 self._queue.put_nowait(msg)
+
+        # Keep the existing SSE grace period for trailing console output, but
+        # freeze structured diagnostics at this request's completion boundary.
+        if self._completed:
+            return
+
+        if msg.cell_id != SCRATCH_CELL_ID:
             if (
                 msg.output is not None
                 and msg.output.channel == CellChannel.MARIMO_ERROR
@@ -149,9 +167,33 @@ class ScratchCellListener(EventAwareExtension):
                         getattr(err, "exception_type", None)
                         or type(err).__name__
                     )
+                    raw_detail = getattr(err, "msg", "")
+                    detail = str(raw_detail or "").strip()
+                    empty_detail = f"This cell raised an exception: {exc_type}"
+                    if detail == empty_detail:
+                        detail = ""
+                    if detail == exc_type or detail.startswith(f"{exc_type}:"):
+                        diagnostic = detail
+                    elif detail:
+                        diagnostic = f"{exc_type}: {detail}"
+                    else:
+                        diagnostic = exc_type
                     self.child_error_summaries.append(
-                        f"cell '{msg.cell_id}' raised {exc_type}"
+                        f"cell '{msg.cell_id}' raised {diagnostic}"
                     )
+
+        if msg.console is not None:
+            console_outputs = (
+                msg.console if isinstance(msg.console, list) else [msg.console]
+            )
+            # `wait()` consumes queued notifications without formatting them,
+            # so retain stderr in notification order for the structured tool
+            # result.
+            self.stderr.extend(
+                str(output.data)
+                for output in console_outputs
+                if output is not None and output.channel == CellChannel.STDERR
+            )
 
     async def stream(self) -> AsyncGenerator[str, None]:
         """Yield SSE-formatted stdout/stderr events until execution completes.
@@ -195,7 +237,7 @@ class ScratchCellListener(EventAwareExtension):
                 msg = await asyncio.wait_for(
                     self._queue.get(), timeout=remaining
                 )
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 self.timed_out = True
                 return
             if msg is None:
@@ -205,6 +247,48 @@ class ScratchCellListener(EventAwareExtension):
 
 
 # -- Helpers ------------------------------------------------------------------
+
+
+def build_scratchpad_request(
+    session: Session,
+    request: Request,
+    *,
+    server_url: str,
+    auth_token: str,
+) -> HTTPRequest:
+    """Build kernel request metadata for scratchpad execution.
+
+    Args:
+        session (Session): Notebook that owns the scratchpad.
+        request (Request): HTTP request to serialize.
+        server_url (str): Trusted URL for screenshot callbacks.
+        auth_token (str): Token for screenshot callbacks.
+    """
+    http_req = HTTPRequest.from_request(request)
+    http_req.meta.update(
+        scratchpad_request_metadata(
+            session, server_url=server_url, auth_token=auth_token
+        )
+    )
+    return http_req
+
+
+def scratchpad_request_metadata(
+    session: Session, *, server_url: str, auth_token: str
+) -> dict[str, Encodable]:
+    """Return server metadata for scratchpad screenshot callbacks.
+
+    Args:
+        session (Session): Session that owns the scratchpad.
+        server_url (str): Trusted URL for screenshot callbacks.
+        auth_token (str): Token for screenshot callbacks.
+    """
+    return {
+        SCREENSHOT_SERVER_URL_KEY: server_url,
+        SCREENSHOT_AUTH_TOKEN_KEY: auth_token,
+        SCREENSHOT_FILE_KEY: session.app_file_manager.path
+        or session.initialization_id,
+    }
 
 
 def snapshot_for_scratchpad(
@@ -306,7 +390,7 @@ def extract_result(
             continue
         if out.channel == CellChannel.STDOUT:
             stdout.append(str(out.data))
-        elif out.channel == CellChannel.STDERR:
+        elif out.channel == CellChannel.STDERR and listener is None:
             stderr.append(str(out.data))
 
     errors: list[str] = []
@@ -318,11 +402,17 @@ def extract_result(
 
     # Include child cell error summaries.
     if listener:
+        stderr.extend(listener.stderr)
         errors.extend(listener.child_error_summaries)
 
     return CodeExecutionResult(
         success=len(errors) == 0,
         output=output_data,
+        output_mimetype=(
+            cell_notif.output.mimetype
+            if cell_notif.output is not None
+            else None
+        ),
         stdout=stdout,
         stderr=stderr,
         errors=errors,
@@ -339,9 +429,9 @@ async def run_scratchpad_code(
     timeout: float = EXECUTION_TIMEOUT,
 ) -> CodeExecutionResult:
     """Drive the kernel scratchpad on behalf of code-mode"""
-    http_req = HTTPRequest.from_request(request)
-    http_req.meta[SCREENSHOT_SERVER_URL_KEY] = server_url
-    http_req.meta[SCREENSHOT_AUTH_TOKEN_KEY] = auth_token
+    http_req = build_scratchpad_request(
+        session, request, server_url=server_url, auth_token=auth_token
+    )
 
     session.instantiate(
         InstantiateNotebookRequest(object_ids=[], values=[], auto_run=False),

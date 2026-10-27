@@ -38,7 +38,7 @@ jobs:
     runs-on: ubuntu-24.04
     container:
       # Keep this tag in sync with EXPECTED_PLAYWRIGHT_VERSION below.
-      image: mcr.microsoft.com/playwright:v1.62.1-noble
+      image: mcr.microsoft.com/playwright:v1.64.0-noble
     permissions:
       contents: read
       id-token: write # required for Doppler OIDC
@@ -104,7 +104,7 @@ jobs:
       - name: 🎭 Verify Playwright image version
         working-directory: ./frontend
         env:
-          EXPECTED_PLAYWRIGHT_VERSION: 1.62.1
+          EXPECTED_PLAYWRIGHT_VERSION: 1.64.0
         run: |
           ACTUAL_PLAYWRIGHT_VERSION=$(pnpm exec playwright --version)
           ACTUAL_PLAYWRIGHT_VERSION=${ACTUAL_PLAYWRIGHT_VERSION#Version }
@@ -118,6 +118,15 @@ jobs:
         run: pnpm playwright test
         env:
           VITE_MARIMO_VERSION: ${{ env.MARIMO_VERSION }}
+
+      - name: 🎭 Verify code-mode screenshots with Chromium
+        # Python and JavaScript Playwright releases can differ. Install the
+        # browser revision expected by Python instead of using the image's.
+        run: |
+          uv run --group test --with playwright==1.63.0 python -m playwright install chromium
+          uv run --group test --with playwright==1.63.0 pytest tests/_code_mode/test_screenshot_integration.py
+        env:
+          MARIMO_TEST_SCREENSHOTS: "1"
 
       # - name: ☁️ Google Auth
       #   uses: google-github-actions/auth@c200f3691d83b41bf9bbd8638997a462592937ed # v2

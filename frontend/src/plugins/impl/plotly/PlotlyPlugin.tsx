@@ -55,17 +55,14 @@ type T =
   | undefined;
 
 export class PlotlyPlugin implements IPlugin<T, Data> {
-  tagName = "marimo-plotly";
+  public tagName = "marimo-plotly";
 
-  validator = z.object({
-    figure: z
-      .object({})
-      .passthrough()
-      .transform((spec) => spec as unknown as Figure),
-    config: z.object({}).passthrough(),
+  public validator = z.object({
+    figure: z.looseObject({}).transform((spec) => spec as unknown as Figure),
+    config: z.looseObject({}),
   });
 
-  render(props: IPluginProps<T, Data>): JSX.Element {
+  public render(props: IPluginProps<T, Data>): JSX.Element {
     return (
       <PlotlyComponent
         {...props.data}

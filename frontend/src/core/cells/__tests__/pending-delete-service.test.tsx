@@ -194,9 +194,10 @@ describe("pending-delete-service", () => {
       wrapper,
     });
     expect(result.current.isPending).toBe(true);
-    if (result.current.isPending) {
-      expect(result.current.shouldConfirmDelete).toBe(false);
-      expect("confirm" in result.current).toBe(false);
+    if (!result.current.isPending) {
+      throw new Error("Expected cell deletion to be pending");
     }
+    expect(result.current.shouldConfirmDelete).toBe(false);
+    expect("confirm" in result.current).toBe(false);
   });
 });

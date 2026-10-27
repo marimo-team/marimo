@@ -25,7 +25,6 @@ from starlette.background import BackgroundTask
 from starlette.middleware.base import (
     BaseHTTPMiddleware,
     DispatchFunction,
-    RequestResponseEndpoint,
 )
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response, StreamingResponse
@@ -45,7 +44,7 @@ from marimo._utils.print import print_tabbed
 if TYPE_CHECKING:
     from starlette.datastructures import State
     from starlette.requests import HTTPConnection
-    from starlette.types import ASGIApp, Receive, Scope, Send
+    from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 LOGGER = _loggers.marimo_logger()
 
@@ -173,11 +172,11 @@ class SkewProtectionMiddleware:
         return await self.app(scope, receive, send)
 
 
-class OpenTelemetryMiddleware(BaseHTTPMiddleware):
-    def __init__(
-        self, app: ASGIApp, dispatch: DispatchFunction | None = None
-    ) -> None:
-        super().__init__(app, dispatch)
+class OpenTelemetryMiddleware:
+    """Keep the request span current until the response finishes streaming."""
+
+    def __init__(self, app: ASGIApp) -> None:
+        self.app = app
 
         self._tracing_enabled = is_tracing_enabled()
         if not self._tracing_enabled:
@@ -191,16 +190,19 @@ class OpenTelemetryMiddleware(BaseHTTPMiddleware):
         self.Status = Status
         self.StatusCode = StatusCode
 
-    async def dispatch(
+    async def __call__(
         self,
-        request: Request,
-        call_next: RequestResponseEndpoint,
-    ) -> Response:
-        if not self._tracing_enabled:
-            return await call_next(request)
+        scope: Scope,
+        receive: Receive,
+        send: Send,
+    ) -> None:
+        if not self._tracing_enabled or scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
 
         from opentelemetry.propagate import extract
 
+        request = Request(scope)
         ctx = extract(carrier=request.headers)
 
         with server_tracer.start_as_current_span(
@@ -212,14 +214,18 @@ class OpenTelemetryMiddleware(BaseHTTPMiddleware):
                 "http.target": request.url.path or "",
             },
         ) as span:
+
+            async def send_with_status(message: Message) -> None:
+                if message["type"] == "http.response.start":
+                    span.set_attribute("http.status_code", message["status"])
+                await send(message)
+
             try:
-                response = await call_next(request)
-                span.set_attribute("http.status_code", response.status_code)
+                await self.app(scope, receive, send_with_status)
                 span.set_status(self.Status(self.StatusCode.OK))
             except Exception as e:
                 span.set_status(self.Status(self.StatusCode.ERROR, str(e)))
                 raise
-            return response
 
 
 @dataclass
@@ -373,12 +379,14 @@ class ProxyMiddleware:
         | None = None,
         *,
         require_auth: bool = True,
+        websocket_headers: dict[str, str] | None = None,
     ) -> None:
         self.app = app
         self.path = proxy_path.rstrip("/")
         self.target_url = target_url
         self.path_rewrite = path_rewrite
         self.require_auth = require_auth
+        self.websocket_headers = websocket_headers
         self.connection_error_handler = (
             connection_error_handler
             if connection_error_handler
@@ -576,7 +584,9 @@ class ProxyMiddleware:
 
                 for attempt in range(max_retries):
                     try:
-                        ws_client = await connect(ws_url)
+                        ws_client = await connect(
+                            ws_url, additional_headers=self.websocket_headers
+                        )
                         LOGGER.debug(f"Successfully connected to {ws_url}")
                         return ws_client
                     except Exception as e:
@@ -719,15 +729,15 @@ class TimeoutMiddleware(BaseHTTPMiddleware):
             now = time.time()
             if now >= timeout_at:
                 print_tabbed("Timeout due to inactivity")
-                self.shutdown()
+                await self.shutdown()
                 break
 
             # Sleep until 1s after the next potential activity timeout
             await asyncio.sleep(timeout_at - now + 1)
 
-    def shutdown(self) -> None:
+    async def shutdown(self) -> None:
         manager = self.app_state.session_manager
 
-        manager.shutdown()
+        await manager.shutdown()
         if self.app_state.server:
             close_uvicorn(self.app_state.server)

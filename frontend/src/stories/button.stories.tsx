@@ -78,6 +78,7 @@ export const Loading = {
 export const TrashIcon = {
   render: () => (
     <Button
+      aria-label="Delete"
       variant="ghost"
       size="icon"
       className="hover:bg-transparent hover:border-input"

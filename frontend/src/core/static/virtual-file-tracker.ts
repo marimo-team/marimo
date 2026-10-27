@@ -13,7 +13,7 @@ export class VirtualFileTracker {
   /**
    * Shared instance of VirtualFileTracker since this must be a singleton.
    */
-  static get INSTANCE(): VirtualFileTracker {
+  public static get INSTANCE(): VirtualFileTracker {
     const KEY = "_marimo_private_VirtualFileTracker";
     if (!window[KEY]) {
       window[KEY] = new VirtualFileTracker();
@@ -21,13 +21,13 @@ export class VirtualFileTracker {
     return window[KEY] as VirtualFileTracker;
   }
 
-  virtualFiles = new Map<CellId, Set<string>>();
+  public virtualFiles = new Map<CellId, Set<string>>();
 
   private constructor() {
     // Private
   }
 
-  track(message: Pick<CellMessage, "cell_id" | "output">): void {
+  public track(message: Pick<CellMessage, "cell_id" | "output">): void {
     const output = message.output;
     const cellId = message.cell_id;
     if (!output) {
@@ -48,7 +48,7 @@ export class VirtualFileTracker {
     }
   }
 
-  filenames(): string[] {
+  public filenames(): string[] {
     const set = new Set<string>();
     for (const files of this.virtualFiles.values()) {
       files.forEach((file) => set.add(file));
@@ -57,7 +57,7 @@ export class VirtualFileTracker {
     return [...set];
   }
 
-  removeForCellId(cellId: CellId): void {
+  public removeForCellId(cellId: CellId): void {
     this.virtualFiles.delete(cellId);
   }
 }

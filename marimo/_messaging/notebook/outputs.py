@@ -10,8 +10,8 @@ each layer's concerns crisp.
 
 The snapshot is *frozen* at the start of a scratchpad invocation.  It
 will not reflect outputs produced by `ctx.run_cell` calls in the same
-batch — agents that need fresh outputs should re-enter
-`cm.get_context()`.
+batch — callers that need fresh output snapshots must start a new
+code-mode invocation.
 """
 
 from __future__ import annotations

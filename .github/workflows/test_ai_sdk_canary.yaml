@@ -1,0 +1,44 @@
+name: AI SDK Upstream Canary
+
+on:
+  schedule:
+    - cron: '37 1 * * 1'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  PYDANTIC_AI_NO_BANNER: '1'
+
+jobs:
+  upstream:
+    name: Chat protocol / newest upstream pydantic-ai
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: ./.github/actions/install
+      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
+        with:
+          python-version: '3.13'
+          enable-cache: true
+      - name: Check newest upstream release
+        id: protocol
+        shell: bash
+        run: |
+          requirement=$(uv run --no-project --python 3.13 --with packaging python scripts/check_ai_sdk_compatibility.py --requirement upstream)
+          # Bypass the repository's release-age policy and refresh the package index
+          # so cached environments do not hide a newly published release.
+          uv run --no-config --no-project --python 3.13 --refresh-package pydantic-ai-slim --refresh-package pydantic-graph --with-editable . --with "$requirement" python scripts/check_ai_sdk_compatibility.py
+      - name: Report dependency rollout requirement
+        if: failure() && steps.protocol.outcome == 'failure'
+        shell: bash
+        run: |
+          message="When updating pydantic-ai to resolve this compatibility failure, Molab dependencies must also be upgraded."
+          echo "::warning::$message"
+          printf '%s\n' "$message" >> "$GITHUB_STEP_SUMMARY"

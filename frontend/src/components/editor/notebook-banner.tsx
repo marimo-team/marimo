@@ -41,6 +41,7 @@ export const NotebookBanner: React.FC<Props> = ({ width }) => {
               {banner.title}
             </span>
             <Button
+              aria-label={`Dismiss ${banner.title}`}
               data-testid="remove-banner-button"
               variant="text"
               size="icon"

@@ -161,7 +161,7 @@ test("file area single", async ({ page }) => {
 test("multiselect", async ({ page }) => {
   const helper = pageHelper(page);
   await helper.selectBasicComponent("multiselect");
-  let element = page.locator("marimo-multiselect div svg").last();
+  const element = page.locator("marimo-multiselect div svg").last();
 
   // Verify is visible
   await expect(element).toBeVisible();
@@ -172,9 +172,8 @@ test("multiselect", async ({ page }) => {
   await page.getByText("b", { exact: true }).click();
   // Verify output
   await helper.verifyOutput("b");
-  // Select option
-  element = page.locator("marimo-multiselect div svg").last();
-  await element.click();
+  // Multiple selection keeps the options open after selecting an item.
+  await expect(page.getByText("c", { exact: true })).toBeVisible();
   await page.getByText("c", { exact: true }).click();
   // Verify output
   await helper.verifyOutput("b, c");

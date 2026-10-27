@@ -6,7 +6,6 @@ import re
 from typing import Any
 from urllib.request import urlopen
 
-from marimo._config.config import Theme
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._loggers import marimo_logger
 from marimo._messaging.mimetypes import METADATA_KEY, KnownMimeType, MimeBundle
@@ -112,11 +111,6 @@ class AltairFormatter(FormatterFactory):
                 get_chart_mimetype(spec_format="vega-lite"),
                 chart_to_json(chart=chart, validate=False),
             )
-
-    def apply_theme(self, theme: Theme) -> None:
-        del theme
-        # We don't need to apply this here because the theme is set in the
-        # vega-lite component
 
 
 def _format_png_mimebundle(

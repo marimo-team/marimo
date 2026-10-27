@@ -7,7 +7,6 @@ from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, patch
 
 import pytest
-from inline_snapshot import snapshot
 
 from marimo._config.config import SqlOutputType
 from marimo._dependencies.dependencies import Dependency, DependencyManager
@@ -331,6 +330,38 @@ def test_invalid_sql(
     with pytest.raises(MarimoSQLException) as exc_info:
         sql("SELECT *", engine=sqlite_engine)
     assert isinstance(exc_info.value.__cause__, sqlalchemy.exc.StatementError)
+
+
+@pytest.mark.skipif(not HAS_DUCKDB, reason="DuckDB not installed")
+def test_sql_preserves_structured_error_details(
+    duckdb_connection: duckdb.DuckDBPyConnection,
+) -> None:
+    """mo.sql must not drop hint/sql_line/sql_col from engine-reported
+    MarimoSQLException (issue #10987)."""
+    from marimo._sql.engines.duckdb import DuckDBEngine
+    from marimo._sql.error_utils import MarimoSQLException
+
+    original_execute = DuckDBEngine.execute
+
+    def raising_execute(_engine: object, query: str) -> object:
+        raise MarimoSQLException(
+            message="boom",
+            sql_statement=query,
+            sql_line=3,
+            sql_col=12,
+            hint="try CAST",
+        )
+
+    DuckDBEngine.execute = raising_execute  # type: ignore[method-assign]
+    try:
+        with pytest.raises(MarimoSQLException) as exc_info:
+            sql("SELECT * FROM t", engine=duckdb_connection)
+        assert exc_info.value.sql_line == 3
+        assert exc_info.value.sql_col == 12
+        assert exc_info.value.hint == "try CAST"
+        assert exc_info.value.sql_statement == "SELECT * FROM t"
+    finally:
+        DuckDBEngine.execute = original_execute  # type: ignore[method-assign]
 
 
 # TODO
@@ -659,25 +690,14 @@ logical_plan
         """Test extract_explain_content with a DuckDB relation."""
         import duckdb
 
-        conn = duckdb.connect(":memory:")
-        conn.sql("CREATE TABLE t AS SELECT * FROM range(5) tbl(id)")
-        relation = conn.sql("EXPLAIN SELECT * FROM t")
-        result = extract_explain_content(relation)
+        with duckdb.connect(":memory:") as conn:
+            conn.sql("CREATE TABLE t AS SELECT * FROM range(5) tbl(id)")
+            query = "EXPLAIN SELECT * FROM t"
+            expected = conn.execute(query).fetchone()
+            assert expected is not None
+            result = extract_explain_content(conn.sql(query))
 
-        assert result == snapshot("""\
-physical_plan
-┌───────────────────────────┐
-│          SEQ_SCAN         │
-│    ────────────────────   │
-│    Table: memory.main.t   │
-│   Type: Sequential Scan   │
-│      Projections: id      │
-│                           │
-│          ~5 rows          │
-└───────────────────────────┘
-""")
-
-        conn.close()
+        assert result == f"{expected[0]}\n{expected[1]}"
 
     def test_extract_explain_content_fallback(self):
         """Test extract_explain_content fallback for non-DataFrame objects."""

@@ -13,6 +13,9 @@
 #     "vega-datasets==0.9.0",
 # ]
 # ///
+
+from pathlib import Path
+
 from typing import Callable, Coroutine
 from fastapi import FastAPI, Request, Response, Depends, HTTPException, status
 from fastapi.responses import RedirectResponse
@@ -32,18 +35,16 @@ load_dotenv()
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-ui_dir = os.path.join(os.path.dirname(__file__), "..", "..", "ui")
-templates_dir = os.path.join(os.path.dirname(__file__), "templates")
+ui_dir = Path(__file__).parent.parent.parent.joinpath("ui").resolve()
+templates_dir = Path(__file__).parent.joinpath("templates").resolve()
 
 server = marimo.create_asgi_app()
 app_names: list[str] = []
 
-for filename in sorted(os.listdir(ui_dir)):
-    if filename.endswith(".py"):
-        app_name = os.path.splitext(filename)[0]
-        app_path = os.path.join(ui_dir, filename)
-        server = server.with_app(path=f"/{app_name}", root=app_path)
-        app_names.append(app_name)
+for filename in sorted(ui_dir.glob("*.py")):
+    server = server.with_app(path=f"/{filename.stem}", root=str(filename))
+    app_names.append(filename.stem)
+
 
 # Create a FastAPI app
 app = FastAPI()
@@ -84,7 +85,7 @@ async def auth_middleware(
 
 @app.get("/login")
 async def get_login(request: Request):
-    return templates.TemplateResponse("login.html", {"request": request})
+    return templates.TemplateResponse(request, "login.html")
 
 
 @app.post("/login")
@@ -99,7 +100,9 @@ async def post_login(
         return RedirectResponse(url="/", status_code=status.HTTP_302_FOUND)
     logger.warning(f"Failed login attempt for user {username}")
     return templates.TemplateResponse(
-        "login.html", {"request": request, "error": "Invalid credentials"}
+        request,
+        "login.html",
+        {"error": "Invalid credentials"},
     )
 
 
@@ -114,7 +117,9 @@ async def logout(request: Request):
 @app.get("/")
 async def home(request: Request, username: str = Depends(get_current_user)):
     return templates.TemplateResponse(
-        "home.html", {"request": request, "username": username, "app_names": app_names}
+        request,
+        "home.html",
+        {"username": username, "app_names": app_names},
     )
 
 
@@ -127,8 +132,9 @@ async def root():
 async def http_exception_handler(request: Request, exc: HTTPException):
     logger.error(f"HTTP error occurred: {exc.detail}")
     return templates.TemplateResponse(
+        request,
         "error.html",
-        {"request": request, "detail": exc.detail},
+        {"detail": exc.detail},
         status_code=exc.status_code,
     )
 

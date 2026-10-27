@@ -12,6 +12,104 @@ from marimo._plugins import ui
 HAS_PANDAS = DependencyManager.pandas.has()
 
 
+@pytest.mark.parametrize("widget", [ui.date, ui.date_range])
+@pytest.mark.parametrize(
+    ("start", "stop"),
+    [
+        (datetime.datetime(2024, 1, 1, 12), None),
+        (None, datetime.datetime(2024, 1, 31, 12)),
+        (
+            datetime.datetime(2024, 1, 1, 12),
+            datetime.datetime(2024, 1, 31, 12),
+        ),
+        (datetime.datetime(2024, 1, 1, 12), datetime.date(2024, 1, 31)),
+        ("2024-01-01", datetime.datetime(2024, 1, 31, 12)),
+    ],
+)
+def test_date_datetime_bounds(widget, start, stop) -> None:
+    picker = widget(start=start, stop=stop)
+    first = datetime.date(2024, 1, 1)
+    last = datetime.date(2024, 1, 31)
+    assert (picker.start, picker.stop) == (
+        first if start is not None else datetime.date.min,
+        last if stop is not None else datetime.date.max,
+    )
+    if widget is ui.date:
+        assert picker.value == (first if start is not None else last)
+    else:
+        assert picker.value == (
+            first if start is not None else last,
+            last if stop is not None else first,
+        )
+    assert picker._args.args == {
+        "start": first.isoformat() if start is not None else "0001-01-01",
+        "stop": last.isoformat() if stop is not None else "9999-12-31",
+        "full-width": False,
+        "disabled": False,
+    }
+
+
+@pytest.mark.parametrize("widget", [ui.date, ui.date_range])
+@pytest.mark.parametrize(
+    "value",
+    [
+        datetime.datetime(2024, 1, 1, 12),
+        datetime.datetime(
+            2024,
+            1,
+            1,
+            23,
+            tzinfo=datetime.timezone(datetime.timedelta(hours=-8)),
+        ),
+    ],
+)
+def test_date_datetime_value(widget, value) -> None:
+    expected = datetime.date(2024, 1, 1)
+    picker = widget(value=value if widget is ui.date else (value, value))
+    assert picker.value == (
+        expected if widget is ui.date else (expected, expected)
+    )
+
+    # Bounds and values are compared by date, regardless of time of day.
+    picker = widget(
+        start=datetime.datetime(2024, 1, 1, 18),
+        stop=datetime.datetime(2024, 1, 1, 6),
+        value=value if widget is ui.date else (value, value),
+    )
+    assert picker.value == (
+        expected if widget is ui.date else (expected, expected)
+    )
+
+    with pytest.raises(ValueError, match="The default value"):
+        widget(
+            start="2024-01-02",
+            value=value if widget is ui.date else (value, value),
+        )
+
+
+@pytest.mark.skipif(not HAS_PANDAS, reason="pandas not installed")
+@pytest.mark.parametrize("widget", [ui.date, ui.date_range])
+def test_date_pandas_timestamps(widget) -> None:
+    import pandas as pd
+
+    series = pd.Series(
+        [pd.Timestamp("2024-01-01 12:00"), pd.Timestamp("2024-01-31 18:00")]
+    )
+    first, last = datetime.date(2024, 1, 1), datetime.date(2024, 1, 31)
+    picker = widget(start=series.min(), stop=series.max())
+    assert (picker.start, picker.stop, picker.value) == (
+        first,
+        last,
+        first if widget is ui.date else (first, last),
+    )
+    picker = widget(
+        value=series.max()
+        if widget is ui.date
+        else (series.min(), series.max())
+    )
+    assert picker.value == (last if widget is ui.date else (first, last))
+
+
 def test_date() -> None:
     date = ui.date()
     today = date.value
@@ -22,6 +120,9 @@ def test_date() -> None:
 
     date = ui.date(value="2024-01-01")
     assert date.value == datetime.date(2024, 1, 1)
+
+    date = ui.date(value="2024-1-2")
+    assert date.value == datetime.date(2024, 1, 2)
 
     date = ui.date(value="2024-01-01")
     date._update("2024-01-02")
@@ -108,6 +209,9 @@ def test_date_range() -> None:
     # Test initialization with specific values
     dr = ui.date_range(value=("2024-01-01", "2024-01-31"))
     assert dr.value == (datetime.date(2024, 1, 1), datetime.date(2024, 1, 31))
+
+    dr = ui.date_range(value=("2024-1-2", "2024-1-3"))
+    assert dr.value == (datetime.date(2024, 1, 2), datetime.date(2024, 1, 3))
 
     # Test updating the value
     dr._update(("2024-02-01", "2024-02-29"))

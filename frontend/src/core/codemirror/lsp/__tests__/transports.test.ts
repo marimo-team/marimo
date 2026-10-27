@@ -17,38 +17,38 @@ vi.mock("../../../runtime/config", () => ({
 
 /** Minimal stand-in for the browser WebSocket used by `WebSocketTransport`. */
 class FakeWebSocket {
-  static readonly instances: FakeWebSocket[] = [];
-  static readonly OPEN = 1;
+  public static readonly instances: FakeWebSocket[] = [];
+  public static readonly OPEN = 1;
 
-  readyState = 0;
-  readonly url: string;
+  public readyState = 0;
+  public readonly url: string;
   private readonly listeners = new Map<string, Set<(event: unknown) => void>>();
 
-  constructor(url: string) {
+  public constructor(url: string) {
     this.url = url;
     FakeWebSocket.instances.push(this);
   }
 
-  addEventListener(type: string, listener: (event: unknown) => void) {
+  public addEventListener(type: string, listener: (event: unknown) => void) {
     const listeners = this.listeners.get(type) ?? new Set();
     listeners.add(listener);
     this.listeners.set(type, listeners);
   }
 
-  send() {
+  public send() {
     // no-op
   }
 
-  close() {
+  public close() {
     this.readyState = 3;
   }
 
-  open() {
+  public open() {
     this.readyState = FakeWebSocket.OPEN;
     this.emit("open", {});
   }
 
-  receive(message: unknown) {
+  public receive(message: unknown) {
     this.emit("message", { data: JSON.stringify(message) });
   }
 

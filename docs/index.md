@@ -83,7 +83,7 @@ reproducibility, maintainability, composability, and shareability.
 - 🐍 **git-friendly:** stored as `.py` files
 - 🛢️ **designed for data**: query dataframes, databases, warehouses, and lakehouses [with SQL](guides/working_with_data/sql.md); filter and search [dataframes](guides/working_with_data/dataframes.md)
 - 🤖 **AI-native**: [pair with AI agents](https://marimo.io/pair) like Claude Code, or use our editor's [built-in AI features](guides/editor_features/ai_completion/)
-- 🔬 **reproducible:** [no hidden state](guides/reactivity.md), deterministic execution, [built-in package management](guides/editor_features/package_management.md)
+- 🔬 **reproducible:** [no hidden state](guides/reactivity.md), deterministic execution, [built-in package management](guides/package_management/installing_packages.md)
 - 🏃 **executable:** [execute as a Python script](guides/scripts.md), parameterized by CLI args
 - 🛜 **shareable**: [deploy as an interactive web app](guides/apps.md) or [slides](guides/apps.md#slides-layout), [run in the browser via WASM](guides/wasm.md)
 - 🧩 **reusable:** [import functions and classes](guides/reusing_functions.md) from one notebook to another
@@ -163,11 +163,11 @@ Your notebooks are still pure Python, even if they use SQL.
 dynamic stories that depend on Python data.
 
 **Built-in package management.** marimo has built-in support for all major
-package managers, letting you [install packages on import](guides/editor_features/package_management.md). marimo can even
+package managers, letting you [install packages on import](guides/package_management/installing_packages.md). marimo can even
 [serialize package
-requirements](guides/package_management/inlining_dependencies.md)
+requirements](guides/package_management/sandboxes.md)
 in notebook files, and auto install them in
-isolated venv sandboxes.
+isolated environments.
 
 **Deterministic execution order.** Notebooks are executed in a deterministic
 order, based on variable references instead of cells' positions on the page.

@@ -1,6 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 """CLI tests for the marimo check command."""
 
+import json
 import tempfile
 
 from click.testing import CliRunner
@@ -199,3 +200,64 @@ if __name__ == "__main__":
             "invalid-syntax" in result.output
             or "error" in result.output.lower()
         )
+
+    def test_check_command_json_strict_clean_notebook(self):
+        """JSON + strict on a clean notebook should exit 0 with valid JSON."""
+        runner = CliRunner()
+
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".py", delete=False
+        ) as f:
+            f.write("""
+import marimo
+
+__generated_with = "0.1.0"
+app = marimo.App()
+
+@app.cell
+def _():
+    x = 1
+    return (x,)
+
+if __name__ == "__main__":
+    app.run()
+""")
+            f.flush()
+
+            result = runner.invoke(
+                check, [f.name, "--strict", "--format", "json"]
+            )
+
+            assert result.exit_code == 0, result.output
+            payload = json.loads(result.output)
+            assert payload["issues"] == []
+            assert payload["summary"]["total_issues"] == 0
+            assert payload["summary"]["errored"] is False
+
+    def test_check_command_json_strict_with_issues(self):
+        """JSON + strict should still fail when there are lint issues."""
+        runner = CliRunner()
+
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".py", delete=False
+        ) as f:
+            f.write("""
+import marimo
+
+app = marimo.App()
+
+@app.cell
+def _():
+    y = 2
+    return (y,)
+""")
+            f.flush()
+
+            result = runner.invoke(
+                check, [f.name, "--strict", "--format", "json"]
+            )
+
+            assert result.exit_code == 1, result.output
+            payload = json.loads(result.output)
+            assert payload["summary"]["total_issues"] > 0
+            assert len(payload["issues"]) > 0

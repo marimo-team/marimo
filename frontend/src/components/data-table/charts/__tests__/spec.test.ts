@@ -29,10 +29,12 @@ describe("getAxisEncoding", () => {
         aggregate: "sum",
         timeUnit: undefined,
       },
-      { binned: true, step: 10 },
-      COUNT_FIELD,
-      true,
-      ChartType.BAR,
+      {
+        binValues: { binned: true, step: 10 },
+        label: COUNT_FIELD,
+        stack: true,
+        chartType: ChartType.BAR,
+      },
     );
 
     expect(result).toEqual({
@@ -52,10 +54,12 @@ describe("getAxisEncoding", () => {
         aggregate: "mean",
         timeUnit: undefined,
       },
-      undefined,
-      "Average Price",
-      false,
-      ChartType.BAR,
+      {
+        binValues: undefined,
+        label: "Average Price",
+        stack: false,
+        chartType: ChartType.BAR,
+      },
     );
 
     expect(result).toEqual({
@@ -69,30 +73,35 @@ describe("getAxisEncoding", () => {
     });
   });
 
-  it("should return correct encoding for temporal field with timeUnit", () => {
-    const result = getAxisEncoding(
-      {
-        field: "date",
-        selectedDataType: "temporal",
-        aggregate: NONE_VALUE,
-        timeUnit: "yearmonth",
-      },
-      undefined,
-      "Date",
-      undefined,
-      ChartType.LINE,
-    );
+  it.each(["yearmonth", "hours", "yearmonthdatehours"] as const)(
+    "should preserve the %s time unit in temporal axis encodings",
+    (timeUnit) => {
+      const result = getAxisEncoding(
+        {
+          field: "date",
+          selectedDataType: "temporal",
+          aggregate: NONE_VALUE,
+          timeUnit,
+        },
+        {
+          binValues: undefined,
+          label: "Date",
+          stack: undefined,
+          chartType: ChartType.LINE,
+        },
+      );
 
-    expect(result).toEqual({
-      field: "date",
-      type: "temporal",
-      bin: undefined,
-      title: "Date",
-      stack: undefined,
-      aggregate: undefined,
-      timeUnit: "yearmonth",
-    });
-  });
+      expect(result).toEqual({
+        field: "date",
+        type: "temporal",
+        bin: undefined,
+        title: "Date",
+        stack: undefined,
+        aggregate: undefined,
+        timeUnit,
+      });
+    },
+  );
 
   it("should return correct encoding for categorical field", () => {
     const result = getAxisEncoding(
@@ -102,10 +111,12 @@ describe("getAxisEncoding", () => {
         aggregate: NONE_VALUE,
         timeUnit: undefined,
       },
-      undefined,
-      "Category",
-      true,
-      ChartType.BAR,
+      {
+        binValues: undefined,
+        label: "Category",
+        stack: true,
+        chartType: ChartType.BAR,
+      },
     );
 
     expect(result).toEqual({
@@ -126,10 +137,12 @@ describe("getAxisEncoding", () => {
         aggregate: "sum",
         timeUnit: undefined,
       },
-      undefined,
-      "Value",
-      false,
-      ChartType.BAR,
+      {
+        binValues: undefined,
+        label: "Value",
+        stack: false,
+        chartType: ChartType.BAR,
+      },
     );
 
     expect((result as { bin?: unknown }).bin).toBeUndefined();
@@ -143,10 +156,12 @@ describe("getAxisEncoding", () => {
         aggregate: "sum",
         timeUnit: undefined,
       },
-      undefined,
-      undefined,
-      false,
-      ChartType.BAR,
+      {
+        binValues: undefined,
+        label: undefined,
+        stack: false,
+        chartType: ChartType.BAR,
+      },
     );
 
     expect((result as { title?: string }).title).toBeUndefined();
@@ -161,24 +176,21 @@ describe("getAxisEncoding", () => {
           aggregate: agg,
           timeUnit: undefined,
         },
-        undefined,
-        "Value",
-        false,
-        ChartType.BAR,
+        {
+          binValues: undefined,
+          label: "Value",
+          stack: false,
+          chartType: ChartType.BAR,
+        },
       );
 
       const expectedAggregate = (result as { aggregate?: string }).aggregate;
 
-      // For aggregations that are not valid for string data types, we should return undefined
-      if (
-        agg === NONE_VALUE ||
-        agg === BIN_AGGREGATION ||
-        !STRING_AGGREGATION_FNS.includes(agg)
-      ) {
-        expect(expectedAggregate).toBeUndefined();
-      } else if (STRING_AGGREGATION_FNS.includes(agg)) {
-        expect(expectedAggregate).toEqual(agg);
-      }
+      const isStringAggregation =
+        agg !== NONE_VALUE &&
+        agg !== BIN_AGGREGATION &&
+        STRING_AGGREGATION_FNS.includes(agg);
+      expect(expectedAggregate).toBe(isStringAggregation ? agg : undefined);
     }
   });
 
@@ -191,10 +203,12 @@ describe("getAxisEncoding", () => {
           aggregate: agg,
           timeUnit: undefined,
         },
-        undefined,
-        "Date",
-        false,
-        ChartType.BAR,
+        {
+          binValues: undefined,
+          label: "Date",
+          stack: false,
+          chartType: ChartType.BAR,
+        },
       );
 
       const expectedAggregate = (result as { aggregate?: string }).aggregate;
@@ -211,10 +225,12 @@ describe("getAxisEncoding", () => {
           sort: sort as "ascending" | "descending",
           aggregate: NONE_VALUE,
         },
-        undefined,
-        "Value",
-        false,
-        ChartType.BAR,
+        {
+          binValues: undefined,
+          label: "Value",
+          stack: false,
+          chartType: ChartType.BAR,
+        },
       );
 
       const expectedSort = (result as { sort?: string }).sort;
@@ -1011,10 +1027,12 @@ describe("Special character escaping in specs", () => {
         aggregate: "sum",
         timeUnit: undefined,
       },
-      undefined,
-      "Value",
-      false,
-      ChartType.BAR,
+      {
+        binValues: undefined,
+        label: "Value",
+        stack: false,
+        chartType: ChartType.BAR,
+      },
     );
 
     invariant("field" in result, "field should be defined");
@@ -1029,10 +1047,12 @@ describe("Special character escaping in specs", () => {
         aggregate: "mean",
         timeUnit: undefined,
       },
-      undefined,
-      "Data",
-      false,
-      ChartType.BAR,
+      {
+        binValues: undefined,
+        label: "Data",
+        stack: false,
+        chartType: ChartType.BAR,
+      },
     );
 
     invariant("field" in result, "field should be defined");
@@ -1047,10 +1067,12 @@ describe("Special character escaping in specs", () => {
         aggregate: NONE_VALUE,
         timeUnit: "yearmonth",
       },
-      undefined,
-      "Timestamp",
-      false,
-      ChartType.LINE,
+      {
+        binValues: undefined,
+        label: "Timestamp",
+        stack: false,
+        chartType: ChartType.LINE,
+      },
     );
 
     invariant("field" in result, "field should be defined");
@@ -1065,10 +1087,12 @@ describe("Special character escaping in specs", () => {
         aggregate: "sum",
         timeUnit: undefined,
       },
-      undefined,
-      "Result",
-      false,
-      ChartType.BAR,
+      {
+        binValues: undefined,
+        label: "Result",
+        stack: false,
+        chartType: ChartType.BAR,
+      },
     );
 
     invariant("field" in result, "field should be defined");

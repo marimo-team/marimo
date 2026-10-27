@@ -145,11 +145,11 @@ const TraceBlock: React.FC<{
   isMostRecentRun: boolean;
   chartPosition: ChartPosition;
   theme: ResolvedTheme;
-}> = ({ run, isMostRecentRun, chartPosition, isExpanded, theme }) => {
+}> = ({ run, isMostRecentRun, chartPosition, isExpanded: expanded, theme }) => {
   const setExpandedRuns = useSetAtom(expandedRunsAtom);
   // We prefer the user's last click, but if they haven't clicked on this run,
   // we expand the most recent run by default, otherwise we collapse it.
-  isExpanded = isExpanded ?? isMostRecentRun;
+  const isExpanded = expanded ?? isMostRecentRun;
 
   const onToggleExpanded = () => {
     setExpandedRuns((prev) => {

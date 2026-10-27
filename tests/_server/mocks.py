@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, Any, cast
 
 from marimo._config.manager import (
     MarimoConfigManager,
-    UserConfigManager,
+    UserConfigStore,
     get_default_config_manager,
 )
 from marimo._server.config import StarletteServerStateInit
@@ -45,7 +45,7 @@ def get_starlette_server_state_init(
         headless=False,
         quiet=False,
         session_manager=session_manager or get_mock_session_manager(),
-        config_manager=MarimoConfigManager(UserConfigManager()),
+        config_manager=MarimoConfigManager(UserConfigStore()),
         remote_url=None,
         mcp_server_enabled=False,
         skew_protection=False,
@@ -56,10 +56,9 @@ def get_starlette_server_state_init(
 def get_mock_session_manager(
     mode: SessionMode = SessionMode.EDIT,
 ) -> SessionManager:
-    temp_file = tempfile.NamedTemporaryFile(suffix=".py", delete=False)
-
-    temp_file.write(
-        b"""
+    with tempfile.NamedTemporaryFile(suffix=".py", delete=False) as temp_file:
+        temp_file.write(
+            b"""
 import marimo
 
 __generated_with = "0.0.1"
@@ -75,14 +74,13 @@ def __():
 if __name__ == "__main__":
     app.run()
 """
-    )
-
-    temp_file.close()
+        )
+        temp_file_path = temp_file.name
 
     lsp_server = NoopLspServer()
 
     sm = SessionManager(
-        workspace=SingleFileWorkspace.from_path(MarimoPath(temp_file.name)),
+        workspace=SingleFileWorkspace.from_path(MarimoPath(temp_file_path)),
         mode=mode,
         quiet=False,
         include_code=True,
@@ -146,7 +144,11 @@ def with_session(
                 with client.websocket_connect(
                     f"/ws?session_id={session_id}", headers=headers
                 ) as websocket:
-                    data = websocket.receive_text()
+                    from tests._server.api.endpoints.ws_helpers import (
+                        receive_until,
+                    )
+
+                    data = receive_until("kernel-ready", websocket)
                     assert data
                     if "temp_marimo_file" in func.__code__.co_varnames:
                         func(
@@ -183,7 +185,11 @@ def with_websocket_session(
                 with client.websocket_connect(
                     f"/ws?session_id={session_id}", headers=headers
                 ) as websocket:
-                    data = websocket.receive_text()
+                    from tests._server.api.endpoints.ws_helpers import (
+                        receive_until,
+                    )
+
+                    data = receive_until("kernel-ready", websocket)
                     assert data
 
                     func(client, websocket)
@@ -220,7 +226,11 @@ def with_read_session(
                 with client.websocket_connect(
                     f"/ws?session_id={session_id}", headers=headers
                 ) as websocket:
-                    data = websocket.receive_text()
+                    from tests._server.api.endpoints.ws_helpers import (
+                        receive_until,
+                    )
+
+                    data = receive_until("kernel-ready", websocket)
                     assert data
                     # Just change the mode here, otherwise our tests will run,
                     # in threads

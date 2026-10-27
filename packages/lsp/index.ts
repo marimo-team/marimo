@@ -1,4 +1,5 @@
 /* oxlint-disable no-console -- LSP server uses console for logging */
+import { timingSafeEqual } from "node:crypto";
 import { appendFile, mkdir, writeFile } from "node:fs/promises";
 import type { IncomingMessage } from "node:http";
 import { dirname } from "node:path";
@@ -138,10 +139,14 @@ function handleWebSocketConnection(
     return;
   }
 
+  // The bridge authenticates connections; the stdio server needs no credential.
+  const env = { ...process.env };
+  delete env.MARIMO_LSP_TOKEN;
   const jsonRpcConnection = createServerProcess(
     languageServerCommand.join(" "),
     languageServerCommand[0],
     languageServerCommand.slice(1),
+    { env },
   );
 
   if (!jsonRpcConnection) {
@@ -163,15 +168,41 @@ function handleWebSocketConnection(
   });
 }
 
+export function createWebSocketServer(
+  port: number,
+  token: string,
+): WebSocketServer {
+  if (!token) {
+    throw new Error("MARIMO_LSP_TOKEN must be set");
+  }
+  const expectedToken = Buffer.from(token);
+  return new WebSocketServer({
+    host: "127.0.0.1",
+    port,
+    perMessageDeflate: false,
+    // Only marimo's authenticated proxy may connect. Browsers cannot supply
+    // this private credential, including from a DNS-rebound origin.
+    verifyClient: ({ req }, done) => {
+      const value = req.headers["marimo-lsp-token"];
+      const suppliedToken = Buffer.from(typeof value === "string" ? value : "");
+      const authorized =
+        req.headers.origin === undefined &&
+        suppliedToken.length === expectedToken.length &&
+        timingSafeEqual(suppliedToken, expectedToken);
+      done(authorized, 403, "Forbidden");
+    },
+  });
+}
+
 function startWebSocketServer(
   port: number,
   languageServerCommand: string[],
   logger: Logger,
 ): void {
-  const webSocketServer = new WebSocketServer({
+  const webSocketServer = createWebSocketServer(
     port,
-    perMessageDeflate: false,
-  });
+    process.env.MARIMO_LSP_TOKEN || "",
+  );
 
   webSocketServer.on("error", (error) => {
     logger.error("WebSocket server error:", error);
@@ -253,4 +284,6 @@ async function main(): Promise<void> {
   startWebSocketServer(serverPort, languageServerCommand, logger);
 }
 
-void main();
+if (require.main === module) {
+  void main();
+}

@@ -57,7 +57,7 @@ def _is_orderable_value(value: Any) -> bool:
     # Check for ISO format datetime strings (sent from frontend via JSON)
     if isinstance(value, str):
         try:
-            datetime.datetime.fromisoformat(value.replace("Z", "+00:00"))
+            datetime.datetime.fromisoformat(value)
             return True
         except (ValueError, AttributeError):
             pass
@@ -78,9 +78,7 @@ def _parse_datetime_bound(value: Any) -> Any:
 
     if isinstance(value, str):
         try:
-            return datetime.datetime.fromisoformat(
-                value.replace("Z", "+00:00")
-            )
+            return datetime.datetime.fromisoformat(value)
         except (ValueError, AttributeError):
             pass
 
@@ -123,9 +121,7 @@ def _is_orderable_axis(arr: Any, bound_value: Any) -> bool:
             # Check for ISO format datetime strings (sent from frontend via JSON)
             if isinstance(bound_value, str):
                 try:
-                    datetime.datetime.fromisoformat(
-                        bound_value.replace("Z", "+00:00")
-                    )
+                    datetime.datetime.fromisoformat(bound_value)
                     return True
                 except (ValueError, AttributeError):
                     pass
@@ -139,9 +135,9 @@ def _to_numeric_coord(value: Any) -> float | None:
 
     def _to_utc_timestamp(dt: datetime.datetime) -> float:
         if dt.tzinfo is None:
-            dt = dt.replace(tzinfo=datetime.timezone.utc)
+            dt = dt.replace(tzinfo=datetime.UTC)
         else:
-            dt = dt.astimezone(datetime.timezone.utc)
+            dt = dt.astimezone(datetime.UTC)
         return dt.timestamp()
 
     if isinstance(value, (int, float)):
@@ -153,7 +149,7 @@ def _to_numeric_coord(value: Any) -> float | None:
             datetime.datetime.combine(
                 value,
                 datetime.time(),
-                tzinfo=datetime.timezone.utc,
+                tzinfo=datetime.UTC,
             )
         )
     if isinstance(value, str):
@@ -165,7 +161,7 @@ def _to_numeric_coord(value: Any) -> float | None:
                 datetime.datetime.combine(
                     parsed,
                     datetime.time(),
-                    tzinfo=datetime.timezone.utc,
+                    tzinfo=datetime.UTC,
                 )
             )
     return None

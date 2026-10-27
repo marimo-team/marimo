@@ -21,15 +21,15 @@ interface Data {
 }
 
 export class JsonOutputPlugin implements IStatelessPlugin<Data> {
-  tagName = "marimo-json-output";
+  public tagName = "marimo-json-output";
 
-  validator = z.object({
+  public validator = z.object({
     name: z.string().nullish(),
     jsonData: z.unknown(),
     valueTypes: z.enum(["json", "python"]).default("python"),
   });
 
-  render({ data }: IStatelessPluginProps<Data>): JSX.Element {
+  public render({ data }: IStatelessPluginProps<Data>): JSX.Element {
     // `false` defaults to no text label
     const name = data.name === undefined ? false : data.name || "";
     return (

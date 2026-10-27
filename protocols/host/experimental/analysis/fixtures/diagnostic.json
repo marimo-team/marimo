@@ -1,0 +1,16 @@
+{
+  "kind": "multiple-definitions",
+  "message": "Multiple cells define x",
+  "source": "marimo",
+  "severity": "error",
+  "range": {
+    "start": {"line": 0, "character": 0},
+    "end": {"line": 0, "character": 1}
+  },
+  "name": null,
+  "traceback": null,
+  "related": [
+    {"cell_id": "c1", "range": null, "message": "Defines x"},
+    {"cell_id": "c2", "range": null, "message": "Defines x"}
+  ]
+}

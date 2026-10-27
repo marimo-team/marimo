@@ -23,6 +23,31 @@ export const maxFractionalDigits = memoizeLastValue((locale: string) => {
   return 0;
 });
 
+const getScientificFormatter = memoizeLastValue(
+  (locale: string, maximumFractionDigits = 1) =>
+    new Intl.NumberFormat(locale, {
+      minimumFractionDigits: 1,
+      maximumFractionDigits,
+      notation: "scientific",
+    }),
+);
+
+const getRoundedFormatter = memoizeLastValue(
+  (locale: string, maximumFractionDigits = 2) =>
+    new Intl.NumberFormat(locale, {
+      minimumFractionDigits: 0,
+      maximumFractionDigits,
+    }),
+);
+
+const getEngineeringFormatter = memoizeLastValue(
+  (locale: string) =>
+    new Intl.NumberFormat(locale, {
+      notation: "engineering",
+      maximumSignificantDigits: 3,
+    }),
+);
+
 /** Decimal places needed to display `n` without float noise. */
 export function countFractionDigits(n: number): number {
   if (!Number.isFinite(n) || n === 0) {
@@ -50,6 +75,7 @@ export function fractionDigitsForSlider(
   step?: number,
   steps?: readonly number[] | null,
   origin?: number,
+  values?: readonly number[],
 ): number {
   const originDigits = origin == null ? 0 : countFractionDigits(origin);
 
@@ -68,14 +94,12 @@ export function fractionDigitsForSlider(
     );
   }
 
-  if (step == null) {
-    // Preserve the range slider's legacy two-decimal display when no step is
-    // supplied. Radix still accepts this as its default step configuration.
-    return Math.max(2, originDigits);
-  }
-
-  if (!Number.isFinite(step) || step <= 0) {
-    return Math.max(2, originDigits);
+  if (step == null || !Number.isFinite(step) || step <= 0) {
+    return Math.max(
+      2,
+      originDigits,
+      ...(values ?? []).map(countFractionDigits),
+    );
   }
 
   return Math.max(originDigits, countFractionDigits(step));
@@ -145,11 +169,18 @@ export function prettyScientificNumber(
   // Determine if the number should be in scientific notation
   const absValue = Math.abs(value);
   if (absValue < 1e-2 || absValue >= 1e6) {
-    return new Intl.NumberFormat(opts.locale, {
-      minimumFractionDigits: 1,
-      maximumFractionDigits: 1,
-      notation: "scientific",
-    })
+    // Scientific notation counts digits after the decimal in the mantissa.
+    const digits =
+      opts.maximumFractionDigits === undefined
+        ? 1
+        : Math.max(
+            1,
+            Math.min(
+              maxFractionalDigits(opts.locale),
+              opts.maximumFractionDigits + Math.floor(Math.log10(absValue)),
+            ),
+          );
+    return getScientificFormatter(opts.locale, digits)
       .format(value)
       .toLowerCase();
   }
@@ -157,12 +188,9 @@ export function prettyScientificNumber(
   const { shouldRound, locale } = opts;
 
   if (shouldRound || opts.maximumFractionDigits !== undefined) {
-    // Keep the caller-provided precision when one is available. The legacy
-    // shouldRound mode still defaults to two fractional digits.
-    return new Intl.NumberFormat(locale, {
-      minimumFractionDigits: 0,
-      maximumFractionDigits: opts.maximumFractionDigits ?? 2,
-    }).format(value);
+    return getRoundedFormatter(locale, opts.maximumFractionDigits ?? 2).format(
+      value,
+    );
   }
 
   // Don't round
@@ -199,12 +227,7 @@ export function prettyEngineeringNumber(value: number, locale: string): string {
     return specialCase;
   }
 
-  const [mant, exp] = new Intl.NumberFormat(locale, {
-    notation: "engineering",
-    maximumSignificantDigits: 3,
-  })
-    .format(value)
-    .split("E");
+  const [mant, exp] = getEngineeringFormatter(locale).format(value).split("E");
 
   if (exp in prefixes) {
     return mant + prefixes[exp as keyof typeof prefixes];

@@ -1,8 +1,10 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import asyncio
 import sys
 import threading
+from contextlib import contextmanager
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import TYPE_CHECKING
@@ -11,7 +13,7 @@ import pytest
 import uvicorn
 from starlette.testclient import TestClient
 
-from marimo._config.manager import MarimoConfigManager, UserConfigManager
+from marimo._config.manager import MarimoConfigManager, UserConfigStore
 from marimo._config.utils import CONFIG_FILENAME
 from marimo._server.api.deps import AppState
 from marimo._server.config import StarletteServerStateInit
@@ -25,8 +27,37 @@ from tests._server.mocks import get_mock_session_manager
 if TYPE_CHECKING:
     from collections.abc import Generator, Iterator
 
+    from websockets.sync.server import Server as WebSocketServer
+
 # Module-level app only for client_with_lifespans fixture
 _module_app = create_starlette_app(base_url="", enable_auth=True)
+
+
+@contextmanager
+def serve_in_thread(server: WebSocketServer) -> Iterator[None]:
+    error: BaseException | None = None
+
+    def serve() -> None:
+        nonlocal error
+        try:
+            server.serve_forever()
+        except BaseException as exc:
+            error = exc
+
+    thread = threading.Thread(target=serve)
+    thread.start()
+    try:
+        yield
+    finally:
+        try:
+            server.shutdown()
+        finally:
+            thread.join(timeout=5)
+            assert not thread.is_alive(), (
+                "WebSocket server thread did not stop"
+            )
+            if error is not None:
+                raise error
 
 
 def get_kernel_tasks(
@@ -41,20 +72,20 @@ def get_kernel_tasks(
     return kernel_tasks
 
 
-def join_kernel_thread_tasks(session_manager: SessionManager) -> None:
+async def join_kernel_thread_tasks(session_manager: SessionManager) -> None:
     # Kernels started in run mode run in their own threads; if these kernels
     # execute code, they may patch and restore their own main modules.
     # To ensure that this fixture correctly restores the original saved
     # main module, we wait for threads to finish before restoring the module.
     kernel_tasks = get_kernel_tasks(session_manager)
-    session_manager.shutdown()
+    await session_manager.shutdown()
     for task in kernel_tasks:
         # At least some tests are flaky with processes (edit tasks)
         # not joining for a long time; orphaned edit tasks
         # won't affect other tests, but they are somewhat concerning
         # ...
         if isinstance(task, threading.Thread):
-            task.join()
+            await asyncio.to_thread(task.join)
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -70,12 +101,12 @@ def client_with_lifespans() -> Generator[TestClient, None, None]:
 
 
 @pytest.fixture
-def user_config_manager() -> Iterator[UserConfigManager]:
+def user_config_manager() -> Iterator[UserConfigStore]:
     tmp = TemporaryDirectory()
     config_path = Path(tmp.name) / CONFIG_FILENAME
     config_path.write_text("")
 
-    class TestUserConfigManager(UserConfigManager):
+    class TestUserConfigManager(UserConfigStore):
         def __init__(self) -> None:
             super().__init__()
 
@@ -88,7 +119,7 @@ def user_config_manager() -> Iterator[UserConfigManager]:
 
 
 @pytest.fixture
-def client(user_config_manager: UserConfigManager) -> Iterator[TestClient]:
+def client(user_config_manager: UserConfigStore) -> Iterator[TestClient]:
     main = sys.modules["__main__"]
 
     # Create fresh app for this test to avoid shared state issues
@@ -117,12 +148,12 @@ def client(user_config_manager: UserConfigManager) -> Iterator[TestClient]:
     yield client
 
     try:
-        join_kernel_thread_tasks(client.app.state.session_manager)
+        asyncio.run(join_kernel_thread_tasks(client.app.state.session_manager))
     finally:
         sys.modules["__main__"] = main
 
 
-def get_session_config_manager(client: TestClient) -> UserConfigManager:
+def get_session_config_manager(client: TestClient) -> MarimoConfigManager:
     """Assumes only one active session."""
     sessions = list(
         AppState.from_app(client.app).session_manager.sessions.values()
@@ -131,5 +162,5 @@ def get_session_config_manager(client: TestClient) -> UserConfigManager:
     return sessions[0].config_manager  # type: ignore
 
 
-def get_user_config_manager(client: TestClient) -> UserConfigManager:
+def get_user_config_manager(client: TestClient) -> MarimoConfigManager:
     return client.app.state.config_manager  # type: ignore

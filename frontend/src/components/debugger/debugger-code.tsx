@@ -162,6 +162,7 @@ export const DebuggerControls: React.FC<{
     <div className="flex">
       <Tooltip content="Next line">
         <Button
+          aria-label="Next line"
           variant="text"
           size="icon"
           data-testid="debugger-next-button"
@@ -173,6 +174,7 @@ export const DebuggerControls: React.FC<{
       </Tooltip>
       <Tooltip content="Continue execution">
         <Button
+          aria-label="Continue execution"
           variant="text"
           size="icon"
           data-testid="debugger-continue-button"
@@ -187,6 +189,7 @@ export const DebuggerControls: React.FC<{
       </Tooltip>
       <Tooltip content="Print stack trace">
         <Button
+          aria-label="Print stack trace"
           variant="text"
           size="icon"
           data-testid="debugger-stack-button"
@@ -198,6 +201,7 @@ export const DebuggerControls: React.FC<{
       </Tooltip>
       <Tooltip content="Help">
         <Button
+          aria-label="Debugger help"
           variant="text"
           size="icon"
           data-testid="debugger-help-button"
@@ -210,6 +214,7 @@ export const DebuggerControls: React.FC<{
       {onClear && (
         <Tooltip content="Quit and clear">
           <Button
+            aria-label="Quit and clear debugger"
             variant="text"
             size="icon"
             data-testid="debugger-clear-button"

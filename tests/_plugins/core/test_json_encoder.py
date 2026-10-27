@@ -6,7 +6,6 @@ import datetime
 import fractions
 import json
 import pathlib
-import sys
 import uuid
 from collections import namedtuple
 from dataclasses import dataclass
@@ -461,9 +460,6 @@ def test_enum_via_sanitize_json_bigint() -> None:
     assert "__objclass__" not in encoded
 
 
-@pytest.mark.skipif(
-    sys.version_info < (3, 11), reason="StrEnum not supported in Python 3.10"
-)
 def test_str_enum() -> None:
     from enum import StrEnum
 

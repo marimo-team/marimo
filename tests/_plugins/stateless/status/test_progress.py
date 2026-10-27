@@ -13,6 +13,8 @@ from marimo._plugins.stateless.status._progress import (
     spinner,
 )
 from marimo._runtime.context.types import runtime_context_installed
+from marimo._types.ids import CellId_t
+from tests.conftest import MockedKernel
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator
@@ -138,6 +140,45 @@ def test_update_progress_closed(mock_flush: Any) -> None:
     with pytest.raises(RuntimeError):
         progress.update_progress()
     mock_flush.assert_called_once()
+
+
+@pytest.mark.parametrize("kind", ["progress_bar", "spinner"])
+@pytest.mark.parametrize("field", ["title", "subtitle"])
+def test_rapid_text_updates(
+    mocked_kernel: MockedKernel, kind: str, field: str
+) -> None:
+    with mocked_kernel.k._install_execution_context(cell_id=CellId_t("0")):
+        with patch("time.time", return_value=time.time()):
+            indicator: progress_bar[int] | spinner = (
+                progress_bar(total=5) if kind == "progress_bar" else spinner()
+            )
+            with indicator as status:
+                for text in ["first", "second", "third"]:
+                    status.update(
+                        title=text if field == "title" else None,
+                        subtitle=text if field == "subtitle" else None,
+                    )
+                outputs = [
+                    msg.output.data
+                    for msg in mocked_kernel.stream.cell_notifications
+                    if msg.output is not None
+                ]
+                assert f"data-{field}='&quot;third&quot;'" in outputs[-1]
+
+
+@pytest.mark.parametrize(
+    ("title", "subtitle"), [(None, None), ("fixed", None), (None, "fixed")]
+)
+@patch("marimo._runtime.output._output.flush")
+def test_numeric_updates_remain_rate_limited(
+    mock_flush: Any, title: str | None, subtitle: str | None
+) -> None:
+    with patch("time.time", return_value=time.time()):
+        with progress_bar(total=100, title=title, subtitle=subtitle) as bar:
+            bar.update(title=title, subtitle=subtitle)
+            mock_flush.reset_mock()
+            bar.update(title=title, subtitle=subtitle)
+            mock_flush.assert_not_called()
 
 
 def test_spinner_without_context():

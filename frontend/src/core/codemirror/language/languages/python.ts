@@ -157,7 +157,7 @@ const pylspClient = once((lspConfig: LSPConfig) => {
   return notebookClient;
 });
 
-const tyLspClient = once((_: LSPConfig) => {
+const tyLspClient = once((_config: LSPConfig) => {
   // oxlint-disable-next-line prefer-const -- reassigned after closure capture
   let resyncCallback: (() => Promise<void>) | undefined;
 
@@ -176,7 +176,7 @@ const tyLspClient = once((_: LSPConfig) => {
   const notebookClient = new NotebookLanguageServerClient(
     new LanguageServerClient({
       ...lspClientOpts,
-      getWorkspaceConfiguration: (_) => [{ disableLanguageServices: true }],
+      getWorkspaceConfiguration: () => [{ disableLanguageServices: true }],
     }),
     {},
   );
@@ -226,7 +226,7 @@ const pyreflyClient = once(
   },
 );
 
-const pyrightClient = once((_: LSPConfig) => {
+const pyrightClient = once((_config: LSPConfig) => {
   // oxlint-disable-next-line prefer-const -- reassigned after closure capture
   let resyncCallback: (() => Promise<void>) | undefined;
 
@@ -261,31 +261,37 @@ const pyrightClient = once((_: LSPConfig) => {
 export class PythonLanguageAdapter implements LanguageAdapter<{}> {
   private parser = new PythonParser();
 
-  readonly type = "python";
-  readonly defaultCode = this.parser.defaultCode;
-  readonly defaultMetadata = this.parser.defaultMetadata;
+  public readonly type = "python";
+  public readonly defaultCode = this.parser.defaultCode;
+  public readonly defaultMetadata = this.parser.defaultMetadata;
 
-  transformIn(code: string): [string, number, {}] {
+  public transformIn(code: string): [string, number, {}] {
     const result = this.parser.transformIn(code);
     return [result.code, result.offset, result.metadata];
   }
 
-  transformOut(code: string, metadata: {}): [string, number] {
+  public transformOut(code: string, metadata: {}): [string, number] {
     const result = this.parser.transformOut(code, metadata);
     return [result.code, result.offset];
   }
 
-  isSupported(code: string): boolean {
+  public isSupported(code: string): boolean {
     return this.parser.isSupported(code);
   }
 
-  getExtension(
-    cellId: CellId,
-    completionConfig: CompletionConfig,
-    hotkeys: HotkeyProvider,
-    placeholderType: PlaceholderType,
-    lspConfig: LSPConfig & { diagnostics: DiagnosticsConfig },
-  ): Extension[] {
+  public getExtension({
+    cellId,
+    completionConfig,
+    hotkeys,
+    placeholderType,
+    lspConfig,
+  }: {
+    cellId: CellId;
+    completionConfig: CompletionConfig;
+    hotkeys: HotkeyProvider;
+    placeholderType: PlaceholderType;
+    lspConfig: LSPConfig & { diagnostics: DiagnosticsConfig };
+  }): Extension[] {
     const getCompletionsExtension = () => {
       const autocompleteOptions = {
         // We remove the default keymap because we use our own which

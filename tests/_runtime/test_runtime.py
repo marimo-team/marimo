@@ -10,6 +10,7 @@ from contextlib import ExitStack
 from typing import TYPE_CHECKING, Any, cast
 from unittest.mock import MagicMock, Mock, patch
 
+import msgspec
 import pytest
 
 from marimo._ast.variables import is_mangled_local
@@ -28,6 +29,7 @@ from marimo._messaging.errors import (
 from marimo._messaging.notification import (
     CellNotification,
     VariablesNotification,
+    VariableValuesNotification,
 )
 from marimo._messaging.serde import deserialize_kernel_message
 from marimo._plugins.ui._core.ids import IDProvider
@@ -35,10 +37,12 @@ from marimo._plugins.ui._core.ui_element import UIElement
 from marimo._runtime.commands import (
     CreateNotebookCommand,
     DeleteCellCommand,
+    EditCellsCommand,
     ExecuteCellCommand,
     UpdateCellConfigCommand,
     UpdateUIElementCommand,
 )
+from marimo._runtime.context import get_context
 from marimo._runtime.dataflow import EdgeWithVar
 from marimo._runtime.runtime import (
     Kernel,
@@ -298,6 +302,36 @@ class TestExecution:
             assert k.graph.cells[er.cell_id].stale
             await k.run([er])
         assert k.globals["x"] == 6
+
+    async def test_set_ui_element_value_previews_bound_names(
+        self, mocked_kernel: MockedKernel, exec_req: ExecReqProvider
+    ) -> None:
+        k = mocked_kernel.k
+        await k.run(
+            [
+                exec_req.get(code="import marimo as mo"),
+                exec_req.get(
+                    code="array = mo.ui.array([mo.ui.slider(0, 10, value=1)])"
+                ),
+            ]
+        )
+        mocked_kernel.stream.messages.clear()
+
+        await k.set_ui_element_value(
+            UpdateUIElementCommand.from_ids_and_values(
+                [(k.globals["array"][0]._id, 5)]
+            ),
+            notify_frontend=False,
+        )
+
+        [notification] = [
+            m
+            for m in mocked_kernel.stream.parsed_operations
+            if isinstance(m, VariableValuesNotification)
+        ]
+        assert [(v.name, v.value) for v in notification.variables] == [
+            ("array", "[5]")
+        ]
 
     async def test_set_ui_element_value_lensed_with_state(
         self, any_kernel: Kernel, exec_req: ExecReqProvider
@@ -1689,19 +1723,18 @@ except NameError:
         assert "C" not in k.globals
         stream = MockStream(k.stream)
         stderr = MockStderr(k.stderr)
+        errors = [
+            m["output"]["data"][0]["msg"]
+            for m in stream.operations
+            if m.get("output") and m["output"]["channel"] == "marimo-error"
+        ]
         if k.execution_type == "strict":
-            assert (
-                "name `R` is referenced before definition."
-                in stream.operations[-4]["output"]["data"][0]["msg"]
-            )
-            assert (
-                "This cell wasn't run"
-                in stream.operations[-1]["output"]["data"][0]["msg"]
-            )
+            assert "name `R` is referenced before definition." in errors[0]
+            assert "This cell wasn't run" in errors[-1]
         else:
             assert (
                 "Name `C` is not defined. It was expected to be defined in"
-                in stream.operations[-2]["output"]["data"][0]["msg"]
+                in errors[-1]
             )
             assert "NameError" in stderr.messages[0]
             assert "NameError" in stderr.messages[-1]
@@ -1713,9 +1746,9 @@ except NameError:
         # Has no errors
         assert not k.errors
         stream = MockStream(mocked_kernel.stream)
-        (m1, m2, m3, m4) = stream.operations
-        assert all(m["op"] == "cell-op" for m in stream.operations)
-        assert all(m["cell_id"] == SCRATCH_CELL_ID for m in stream.operations)
+        messages = [m for m in stream.operations if m["op"] == "cell-op"]
+        (m1, m2, m3, m4) = messages
+        assert all(m["cell_id"] == SCRATCH_CELL_ID for m in messages)
         assert m1["status"] == "queued"
         assert m2["status"] == "running"
         assert m3["status"] is None
@@ -1723,6 +1756,22 @@ except NameError:
         assert m4["status"] == "idle"
         # Does not pollute globals
         assert "x" not in k.globals
+
+    @staticmethod
+    async def test_run_scratch_owns_lifecycle_items(
+        mocked_kernel: MockedKernel,
+    ) -> None:
+        # The scratchpad cell is not in the notebook graph, yet it owns what
+        # it creates.
+        k = mocked_kernel.k
+        await k.run_scratchpad(
+            "from marimo._output.data import data as mo_data\n"
+            'vfile = mo_data.any_data(b"hello", ext="txt")'
+        )
+        assert not mocked_kernel.stderr.messages, mocked_kernel.stderr
+        ctx = get_context()
+        assert SCRATCH_CELL_ID in ctx.cell_lifecycle_registry.registry
+        assert len(ctx.virtual_file_registry.registry) == 1
 
     @staticmethod
     async def test_run_scratch_with_other_globals(
@@ -1743,8 +1792,9 @@ except NameError:
         # Has no errors
         assert not k.errors
         stream = MockStream(mocked_kernel.stream)
-        messages = stream.operations
-        output_message = messages[-2]
+        output_message = next(
+            m for m in reversed(stream.operations) if m.get("output")
+        )
         assert (
             output_message["output"]["data"] == "<pre class='text-xs'>20</pre>"
         )
@@ -1771,8 +1821,9 @@ except NameError:
         # Has no errors
         assert not k.errors
         stream = MockStream(mocked_kernel.stream)
-        messages = stream.operations
-        output_message = messages[-2]
+        output_message = next(
+            m for m in reversed(stream.operations) if m.get("output")
+        )
         assert (
             output_message["output"]["data"] == "<pre class='text-xs'>20</pre>"
         )
@@ -2049,11 +2100,21 @@ except NameError:
         assert (
             len(cell_notifications) == 4
         )  # queued -> running -> output -> idle
-        for cell_notification in cell_notifications:
-            if cell_notification.status == "idle":
-                assert cell_notification.run_id is None
-            else:
-                assert cell_notification.run_id is not None
+        assert cell_notifications[0].run_id is not None
+        assert (
+            len({notification.run_id for notification in cell_notifications})
+            == 1
+        )
+        assert cell_notifications[1].execution_id is not None
+        assert (
+            len(
+                {
+                    notification.execution_id
+                    for notification in cell_notifications[1:]
+                }
+            )
+            == 1
+        )
 
     async def test_serialization_hint_cleared_only_on_demotion(
         self, mocked_kernel: MockedKernel, exec_req: ExecReqProvider
@@ -2180,6 +2241,49 @@ except NameError:
         assert "b" not in k.globals
         assert "c" in k.globals
         assert "d" not in k.globals
+
+    async def test_edit_cells_registers_code_without_running(
+        self, any_kernel: Kernel
+    ) -> None:
+        k = any_kernel
+        await k.run([ExecuteCellCommand(cell_id="0", code="x = 1")])
+
+        await k.edit_cells(
+            EditCellsCommand(
+                codes={"0": "x = 2", "1": "y = 3"}, configs={}, delete_ids=[]
+            )
+        )
+
+        cell = k.graph.cells["0"]
+        assert cell.code == "x = 2"
+        assert cell.stale
+        assert "y" not in k.globals
+        # A cell the kernel has never seen arrives with its first run.
+        assert "1" not in k.graph.cells
+
+    async def test_edit_cells_replaces_pending_code(
+        self, any_kernel: Kernel
+    ) -> None:
+        k = any_kernel
+        await k.instantiate(
+            CreateNotebookCommand(
+                execution_requests=(
+                    ExecuteCellCommand(cell_id="0", code="x = 0"),
+                ),
+                cell_ids=("0",),
+                set_ui_element_value_request=UpdateUIElementCommand.from_ids_and_values(
+                    []
+                ),
+                auto_run=False,
+            )
+        )
+
+        await k.edit_cells(
+            EditCellsCommand(codes={"0": "x = 5"}, configs={}, delete_ids=[])
+        )
+
+        assert k._uninstantiated_execution_requests["0"].code == "x = 5"
+        assert not k.graph.cells
 
     async def test_sync_graph_uninstantiated_request_cleanup(
         self, any_kernel: Kernel
@@ -3229,6 +3333,77 @@ class TestDisable:
         assert not k.graph.cells[er_2.cell_id].disabled_transitively
         assert k.graph.cells[er_2.cell_id].runtime_state == "idle"
 
+    async def test_partial_config_update_preserves_disabled(
+        self, any_kernel: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        """Config updates are partial: omitted keys keep their value.
+
+        Regression test: toggling `expand_output` on a disabled cell used to
+        drop `disabled` from the cell's stored metadata, so the cell ran the
+        next time it was registered.
+        """
+        k = any_kernel
+        er_1 = exec_req.get("x = 0")
+        await k.run([er_1])
+
+        await k.set_cell_config(
+            UpdateCellConfigCommand(configs={er_1.cell_id: {"disabled": True}})
+        )
+        await k.set_cell_config(
+            UpdateCellConfigCommand(
+                configs={er_1.cell_id: {"expand_output": True}}
+            )
+        )
+        assert k.cell_metadata[er_1.cell_id].config.disabled
+        assert k.cell_metadata[er_1.cell_id].config.expand_output
+
+        # editing the cell's code re-registers it, restoring the stored config
+        await k.run([exec_req.get_with_id(er_1.cell_id, "x = 1")])
+        assert k.graph.cells[er_1.cell_id].config.disabled
+        assert k.graph.cells[er_1.cell_id].config.expand_output
+        assert "x" not in k.globals
+
+    async def test_enable_many_cells_runs_all_stale_cells(
+        self, any_kernel: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        """Enabling several cells at once re-runs every stale one."""
+        k = any_kernel
+        await k.run(
+            [
+                er_1 := exec_req.get("x = 0"),
+                er_2 := exec_req.get("y = 0"),
+            ]
+        )
+        configs = {
+            er_1.cell_id: {"disabled": True},
+            er_2.cell_id: {"disabled": True},
+        }
+        await k.set_cell_config(UpdateCellConfigCommand(configs=configs))
+
+        # make both cells stale while disabled
+        await k.run(
+            [
+                er_1 := exec_req.get_with_id(er_1.cell_id, "x = 1"),
+                er_2 := exec_req.get_with_id(er_2.cell_id, "y = 1"),
+            ]
+        )
+        assert k.graph.get_stale() == {er_1.cell_id, er_2.cell_id}
+
+        # re-enable both in a single request
+        await k.set_cell_config(
+            UpdateCellConfigCommand(
+                configs={
+                    er_1.cell_id: {"disabled": False},
+                    er_2.cell_id: {"disabled": False},
+                }
+            )
+        )
+        if k.lazy():
+            await k.run([er_1, er_2])
+        assert k.globals["x"] == 1
+        assert k.globals["y"] == 1
+        assert not k.graph.get_stale()
+
 
 class TestAsyncIO:
     @staticmethod
@@ -3613,26 +3788,33 @@ class TestSQL:
             if part
         )
 
-        await k.run(
-            [
-                ExecuteCellCommand(
-                    cell_id=CellId_t("0"), code="import marimo as mo"
-                ),
-                ExecuteCellCommand(
-                    cell_id=CellId_t("1"),
-                    code=(
-                        f"mo.sql('CREATE OR REPLACE TABLE {qualified_name} "
-                        "AS SELECT 1 AS a')"
+        try:
+            await k.run(
+                [
+                    ExecuteCellCommand(
+                        cell_id=CellId_t("0"), code="import marimo as mo"
                     ),
-                ),
-            ]
-        )
-        assert not k.errors
-        assert table_exists()
+                    ExecuteCellCommand(
+                        cell_id=CellId_t("1"),
+                        code=(
+                            "mo.sql('CREATE OR REPLACE TABLE "
+                            f"{qualified_name} AS SELECT 1 AS a')"
+                        ),
+                    ),
+                ]
+            )
+            assert not k.errors
+            assert table_exists()
 
-        # Deleting the defining cell triggers cleanup of the in-memory table.
-        await k.delete_cell(DeleteCellCommand(cell_id=CellId_t("1")))
-        assert not table_exists()
+            # Deleting the defining cell triggers cleanup of the in-memory
+            # table.
+            await k.delete_cell(DeleteCellCommand(cell_id=CellId_t("1")))
+            assert not table_exists()
+        finally:
+            if resolved_schema != "main":
+                duckdb.execute(
+                    f'DROP SCHEMA IF EXISTS memory."{resolved_schema}" CASCADE'
+                )
 
     async def test_sql_table_on_attached_catalog_is_not_dropped(
         self, k: Kernel
@@ -4088,6 +4270,70 @@ class TestStateTransitions:
 
 
 class TestErrorHandling:
+    @pytest.mark.parametrize(
+        "code",
+        [
+            "raise ValueError('failed snapshot')",
+            "x =",
+            "from marimo._runtime.control_flow import MarimoInterrupt; raise MarimoInterrupt()",
+        ],
+    )
+    async def test_error_captures_source_code(
+        self,
+        mocked_kernel: MockedKernel,
+        exec_req: ExecReqProvider,
+        code: str,
+    ) -> None:
+        request = exec_req.get(code)
+        await mocked_kernel.k.run([request])
+        error_op = _filter_to_error_ops(
+            mocked_kernel.stream.cell_notifications
+        )[0]
+        assert error_op.output is not None
+        assert error_op.output.code == code
+        if code.startswith("raise ValueError"):
+            error = _parse_error_output(error_op)[0]
+            assert isinstance(error, MarimoExceptionRaisedError)
+            assert error.traceback is not None
+            assert "failed snapshot" in error.traceback
+
+        await mocked_kernel.k.run(
+            [ExecuteCellCommand(cell_id=request.cell_id, code="42")]
+        )
+        assert error_op.output.code == code
+
+        newer_code = "raise ValueError('newer failure')"
+        await mocked_kernel.k.run(
+            [ExecuteCellCommand(cell_id=request.cell_id, code=newer_code)]
+        )
+        latest_error = _filter_to_error_ops(
+            mocked_kernel.stream.cell_notifications
+        )[-1]
+        assert latest_error.output is not None
+        assert latest_error.output.code == newer_code
+        assert error_op.output.code == code
+
+    async def test_cancelled_descendant_captures_own_code(
+        self, mocked_kernel: MockedKernel, exec_req: ExecReqProvider
+    ) -> None:
+        await mocked_kernel.k.run(
+            [
+                exec_req.get("x = 0; raise ValueError('ancestor failure')"),
+                child := exec_req.get("x + 1"),
+            ]
+        )
+        error_ops = _filter_to_error_ops(
+            mocked_kernel.stream.cell_notifications
+        )
+        child_op = next(op for op in error_ops if op.cell_id == child.cell_id)
+        assert child_op.output is not None
+        assert child_op.output.code == child.code
+        assert child_op.console == []
+        error = _parse_error_output(child_op)[0]
+        assert isinstance(error, MarimoExceptionRaisedError)
+        assert error.traceback is None
+        assert error.raising_cell is not None
+
     async def test_error_handling(
         self, mocked_kernel: MockedKernel, exec_req: ExecReqProvider
     ) -> None:
@@ -4116,6 +4362,8 @@ class TestErrorHandling:
         assert len(errors) == 1
         assert isinstance(errors[0], MarimoInternalError)
         assert errors[0].msg.startswith("An internal error occurred: ")
+        assert error_cell_notification[0].output is not None
+        assert error_cell_notification[0].output.code is msgspec.UNSET
 
         # Verify no traceback leaks via console output
         for op in cell_notifications:

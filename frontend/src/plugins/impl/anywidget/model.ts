@@ -64,11 +64,11 @@ export class Model<T extends ModelState> implements AnyModel<T> {
    * (`widget_manager.get_model`). Assigned by the registry module at
    * import time to avoid an import cycle.
    */
-  static _modelManager: {
+  public static _modelManager: {
     getModel(model_id: WidgetModelId): Promise<Model<any>>;
   };
 
-  constructor(data: T, comm: MarimoComm<T>, signal?: AbortSignal) {
+  public constructor(data: T, comm: MarimoComm<T>, signal?: AbortSignal) {
     this.#data = data;
     this.#comm = comm;
     this.#dirtyFields = new Set();
@@ -84,7 +84,7 @@ export class Model<T extends ModelState> implements AnyModel<T> {
    * Internal marimo API - not part of AnyWidget AFM.
    * Access via getMarimoInternal().
    */
-  [marimoSymbol]: MarimoInternalApi<T> = {
+  public [marimoSymbol]: MarimoInternalApi<T> = {
     updateAndEmitDiffs: (value: T) => this.#updateAndEmitDiffs(value),
     emitCustomMessage: (
       message: CustomMessage,
@@ -92,7 +92,7 @@ export class Model<T extends ModelState> implements AnyModel<T> {
     ) => this.#emitCustomMessage(message, buffers),
   };
 
-  off(eventName?: string | null, callback?: EventHandler | null): void {
+  public off(eventName?: string | null, callback?: EventHandler | null): void {
     if (!eventName) {
       this.#listeners = {};
       return;
@@ -106,7 +106,7 @@ export class Model<T extends ModelState> implements AnyModel<T> {
     this.#listeners[eventName]?.delete(callback);
   }
 
-  send(
+  public send(
     content: any,
     callbacks?: any,
     buffers?: ArrayBuffer[] | ArrayBufferView[],
@@ -121,7 +121,7 @@ export class Model<T extends ModelState> implements AnyModel<T> {
       .then(() => callbacks?.());
   }
 
-  widget_manager = {
+  public widget_manager = {
     async get_model<TT extends ModelState>(
       model_id: WidgetModelId,
     ): Promise<AnyModel<TT>> {
@@ -135,18 +135,18 @@ export class Model<T extends ModelState> implements AnyModel<T> {
     },
   };
 
-  get<K extends keyof T>(key: K): T[K] {
+  public get<K extends keyof T>(key: K): T[K] {
     return this.#data[key];
   }
 
-  set<K extends keyof T>(key: K, value: T[K]): void {
+  public set<K extends keyof T>(key: K, value: T[K]): void {
     this.#data = { ...this.#data, [key]: value };
     this.#dirtyFields.add(key);
     this.#emit(`change:${key as K & string}`, value);
     this.#emitAnyChange();
   }
 
-  save_changes(): void {
+  public save_changes(): void {
     if (this.#dirtyFields.size === 0) {
       return;
     }
@@ -169,7 +169,7 @@ export class Model<T extends ModelState> implements AnyModel<T> {
    * `addEventListener({ signal })`) and is what `modelProxy` uses to
    * scope listeners to view / binding lifetimes.
    */
-  on(
+  public on(
     eventName: string,
     callback: EventHandler,
     options?: { signal?: AbortSignal },

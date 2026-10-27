@@ -158,6 +158,24 @@ def _needs_trailing_blank_line(mod: ast.Module, code: str) -> bool:
     return last_stmt.end_lineno == code_lines
 
 
+def _can_strip_bare_return(cell: CellImpl) -> bool:
+    """Returns True if a bare return can be safely omitted (ruff-compatible)."""
+    # Comment only case
+    if not cell.mod.body:
+        return False
+    # If the user has explicit \n, then we leave it
+    if cell.code.rstrip(" \t") != cell.code.rstrip(" \t\r\n"):
+        return False
+    # A single function/class def would trigger toplevel reclassification
+    return not (
+        len(cell.mod.body) == 1
+        and isinstance(
+            cell.mod.body[0],
+            (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef),
+        )
+    )
+
+
 def to_decorator(
     config: CellConfig | None,
     fn: Decorators = "cell",
@@ -181,12 +199,21 @@ def format_markdown(cell: CellImpl) -> str:
     # tokenize.
     tokens = tokenize.tokenize(io.BytesIO(cell.code.encode("utf-8")).readline)
     tag = ""
-    # Comment capture
-    comments = {
-        "prefix": "",
-        "suffix": "",
-    }
-    key: str | None = "prefix"
+    # Anything outside the `mo.md(...)` call (comments, and the whitespace
+    # around them) is kept verbatim, so track where the call starts and ends
+    # in the source rather than rebuilding it from tokens, which drop
+    # whitespace.
+    line_starts = [0]
+    for match in re.finditer(r"\r\n|\r|\n", cell.code):
+        line_starts.append(match.end())
+
+    def offset(position: tuple[int, int]) -> int:
+        row, col = position
+        return line_starts[row - 1] + col
+
+    call_start = 0
+    call_end = len(cell.code)
+    depth = 0
     tokenizes_fstring = sys.version_info >= (3, 12)
     start_tokens = (
         (tokenize.STRING, tokenize.FSTRING_START)
@@ -206,11 +233,14 @@ def format_markdown(cell: CellImpl) -> str:
                     start = start[1:]
             fstring = "f" in tag.lower()
         elif tok.string == "mo":
-            key = None
+            call_start = offset(tok.start)
+            depth = 0
+        elif tok.string == "(":
+            depth += 1
         elif tok.string == ")":
-            key = "suffix"
-        elif key in comments and tok.type != tokenize.ENCODING:
-            comments[key] += tok.string
+            depth -= 1
+            if depth == 0:
+                call_end = offset(tok.end)
 
     if fstring:
         # We can blanket replace, because cell.markdown is not set
@@ -220,7 +250,7 @@ def format_markdown(cell: CellImpl) -> str:
 
     # We always use """ as per front end.
     body = construct_markdown_call(markdown, '"""', tag)
-    return "".join([comments["prefix"], body, comments["suffix"]])
+    return "".join([cell.code[:call_start], body, cell.code[call_end:]])
 
 
 def construct_markdown_call(markdown: str, quote: str, tag: str) -> str:
@@ -363,19 +393,20 @@ def to_functiondef(
     elif body := indent_text(cell.code):
         definition_body.append(body)
 
-    returns = format_tuple_elements(
-        "return (...)",
-        defs,
-        indent=True,
-        allowed_naked=True,
-        # maybe consider "return Edges(...)"
-        # Such that the return type can simply be 'Edges'
-    )
-    # Add blank line before return for ruff compatibility when last statement
-    # is an import, function def, or class def
-    if _needs_trailing_blank_line(cell.mod, cell.code):
-        definition_body.append("")
-    definition_body.append(returns)
+    if defs or not _can_strip_bare_return(cell):
+        returns = format_tuple_elements(
+            "return (...)",
+            defs,
+            indent=True,
+            allowed_naked=True,
+            # maybe consider "return Edges(...)"
+            # Such that the return type can simply be 'Edges'
+        )
+        # Add blank line before return for ruff compatibility when last statement
+        # is an import, function def, or class def
+        if _needs_trailing_blank_line(cell.mod, cell.code):
+            definition_body.append("")
+        definition_body.append(returns)
     return "\n".join(definition_body)
 
 
@@ -560,9 +591,9 @@ def generate_filecontents(
 ) -> str:
     """Translates a sequences of codes (cells) to a Python file"""
 
-    # Normalize internal cell names. Empty names would emit ``def ():``
+    # Normalize internal cell names. Empty names would emit `def ():`
     # (invalid Python) and fall back to the unparsable-cell path;
-    # ``"__"`` is a legacy internal marker.
+    # `"__"` is a legacy internal marker.
     for idx, name in enumerate(names):
         if name == "__" or not name:
             names[idx] = DEFAULT_CELL_NAME

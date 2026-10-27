@@ -22,7 +22,7 @@ Before using marimo's Text-To-Notebook AI feature, you should know:
 5. You can revoke consent at any time by modifying ~/.marimo/state.toml
 """
 
-TERMS_LAST_UPDATED = datetime.datetime(2025, 4, 1)
+TERMS_LAST_UPDATED = datetime.date(2025, 4, 1)
 
 
 def text_to_notebook(prompt: str) -> str:
@@ -96,7 +96,5 @@ def _should_show_terms(last_accepted_at: str | None) -> bool:
     """
     if not last_accepted_at:
         return True
-    last_accepted_date = datetime.datetime.strptime(
-        last_accepted_at, "%Y-%m-%d"
-    )
+    last_accepted_date = datetime.date.fromisoformat(last_accepted_at)
     return last_accepted_date < TERMS_LAST_UPDATED

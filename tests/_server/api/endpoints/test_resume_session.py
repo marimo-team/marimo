@@ -1,16 +1,28 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import json
 import os
 import time
 from contextlib import contextmanager
 from typing import TYPE_CHECKING
 
-from marimo._config.manager import UserConfigManager
+import pytest
+
+from marimo._config.manager import MarimoConfigManager
 from marimo._messaging.notification import (
     CellNotification,
+    EnvironmentOperation,
+    EnvironmentOperationNotification,
+    EnvironmentOperationStatus,
+    EnvironmentState,
+    EnvironmentStateNotification,
     KernelReadyNotification,
+    OperationFailed,
+    OperationRunning,
+    OperationSucceeded,
 )
+from marimo._messaging.serde import serialize_kernel_message
 from marimo._server.workspace import DirectoryWorkspace
 from marimo._session import Session
 from marimo._types.ids import SessionId
@@ -19,6 +31,7 @@ from tests._server.api.endpoints.ws_helpers import (
     assert_kernel_ready_response,
     create_response,
     headers,
+    receive_notification,
 )
 from tests._server.mocks import get_session_manager, workspace_scope
 
@@ -38,7 +51,7 @@ def _create_ws_url(session_id: str) -> str:
 
 def test_refresh_session(client: TestClient) -> None:
     with client.websocket_connect(_create_ws_url("123")) as websocket:
-        data = websocket.receive_json()
+        data = receive_notification(websocket)
         print(data)
         assert_kernel_ready_response(data, create_response({}))
 
@@ -58,10 +71,10 @@ def test_refresh_session(client: TestClient) -> None:
     # We should resume the current session
     with client.websocket_connect(_create_ws_url("456")) as websocket:
         # First message is the kernel reconnected
-        data = websocket.receive_json()
+        data = receive_notification(websocket)
         assert data == {"op": "reconnected", "data": {"op": "reconnected"}}
         # Resume the session
-        data = websocket.receive_json()
+        data = receive_notification(websocket)
         assert_kernel_ready_response(
             data,
             create_response(
@@ -90,10 +103,10 @@ def test_refresh_session(client: TestClient) -> None:
     # We should not resume the current session with the new values
     with client.websocket_connect(_create_ws_url("789")) as websocket:
         # First message is the kernel reconnected
-        data = websocket.receive_json()
+        data = receive_notification(websocket)
         assert data == {"op": "reconnected", "data": {"op": "reconnected"}}
         # Resume the session
-        data = websocket.receive_json()
+        data = receive_notification(websocket)
         assert_kernel_ready_response(
             data,
             create_response(
@@ -138,7 +151,7 @@ def test_refresh_resumes_directory_workspace_session(
         with client.websocket_connect(
             "/ws?session_id=dir1&file=example.py&access_token=fake-token"
         ) as websocket:
-            data = websocket.receive_json()
+            data = receive_notification(websocket)
             assert data["op"] == "kernel-ready"
             assert data["data"]["resumed"] is False
 
@@ -146,9 +159,9 @@ def test_refresh_resumes_directory_workspace_session(
         with client.websocket_connect(
             "/ws?session_id=dir2&file=example.py&access_token=fake-token"
         ) as websocket:
-            data = websocket.receive_json()
+            data = receive_notification(websocket)
             assert data == {"op": "reconnected", "data": {"op": "reconnected"}}
-            data = websocket.receive_json()
+            data = receive_notification(websocket)
             assert data["op"] == "kernel-ready"
             assert data["data"]["resumed"] is True
 
@@ -164,7 +177,7 @@ def test_save_session(client: TestClient) -> None:
         .filename
     )
     with client.websocket_connect(_create_ws_url("123")) as websocket:
-        data = websocket.receive_json()
+        data = receive_notification(websocket)
         assert_kernel_ready_response(data, create_response({}))
         # Send save request
         client.post(
@@ -198,10 +211,10 @@ def test_save_session(client: TestClient) -> None:
     # We should resume the current session
     with client.websocket_connect(_create_ws_url("456")) as websocket:
         # First message is the kernel reconnected
-        data = websocket.receive_json()
+        data = receive_notification(websocket)
         assert data == {"op": "reconnected", "data": {"op": "reconnected"}}
         # Resume the session
-        data = websocket.receive_json()
+        data = receive_notification(websocket)
         assert_kernel_ready_response(
             data,
             create_response(
@@ -238,7 +251,7 @@ def test_save_session(client: TestClient) -> None:
 
 def test_save_config(client: TestClient) -> None:
     with client.websocket_connect(_create_ws_url("123")) as websocket:
-        data = websocket.receive_json()
+        data = receive_notification(websocket)
         assert_kernel_ready_response(data, create_response({}))
         # Send save request
         client.post(
@@ -264,7 +277,7 @@ def test_save_config(client: TestClient) -> None:
 
 def test_restart_session(client: TestClient) -> None:
     with client.websocket_connect(_create_ws_url("123")) as websocket:
-        data = websocket.receive_json()
+        data = receive_notification(websocket)
         assert_kernel_ready_response(data, create_response({}))
 
     # Restart the session
@@ -282,7 +295,7 @@ def test_restart_session(client: TestClient) -> None:
     # We start a new session
     with client.websocket_connect(_create_ws_url("456")) as websocket:
         # First message is the kernel reconnected
-        data = websocket.receive_json()
+        data = receive_notification(websocket)
         assert_kernel_ready_response(
             data,
             create_response({}),
@@ -301,8 +314,10 @@ def test_resume_session_after_file_change(client: TestClient) -> None:
     # directly, so no watcher is needed.
 
     with client.websocket_connect(_create_ws_url("123")) as websocket:
-        data = websocket.receive_json()
+        data = receive_notification(websocket)
         assert_kernel_ready_response(data, create_response({}))
+        for op in ("environment-state", "environment-state"):
+            assert receive_notification(websocket)["op"] == op
 
         session = get_session(client, SessionId("123"))
         assert session
@@ -322,14 +337,15 @@ def test_resume_session_after_file_change(client: TestClient) -> None:
         with open(filename, "w") as f:
             f.write(new_content)
 
-        # Directly trigger the file change handler (synchronous) instead
-        # of relying on the async file watcher, which is inherently racy.
-        result = session_manager._file_change_coordinator._handle_file_change_locked(
-            os.path.abspath(filename), session
+        # Trigger the change on the server loop, without racing a watcher.
+        result = websocket.portal.call(
+            session_manager._file_change_coordinator._handle_file_change_locked,
+            os.path.abspath(filename),
+            session,
         )
         assert result.handled
 
-        data = websocket.receive_json()
+        data = receive_notification(websocket)
         assert data["op"] == "notebook-document-transaction"
         tx = data["data"]["transaction"]
         # Transaction should contain the new cell and reorder.
@@ -341,23 +357,122 @@ def test_resume_session_after_file_change(client: TestClient) -> None:
     # Resume session with new ID (simulates refresh)
     with client.websocket_connect(_create_ws_url("456")) as websocket:
         # First message is the kernel reconnected
-        data = websocket.receive_json()
+        data = receive_notification(websocket)
         assert data == {"op": "reconnected", "data": {"op": "reconnected"}}
 
         # Check for KernelReady message
-        data = websocket.receive_json()
+        data = receive_notification(websocket)
         assert parse_raw(data["data"], KernelReadyNotification)
 
         # Banner notification (session replay)
-        data = websocket.receive_json()
+        data = receive_notification(websocket)
         assert data["op"] == "banner"
 
 
 @contextmanager
-def without_autorun_on_save(config: UserConfigManager):
+def without_autorun_on_save(config: MarimoConfigManager):
     prev_config = config.get_config()
     try:
         config.save_config({"runtime": {"watcher_on_save": "lazy"}})
         yield
     finally:
         config.save_config(prev_config)
+
+
+@pytest.mark.parametrize("connection_id", ["123", "456"])
+@pytest.mark.parametrize(
+    "outcome",
+    [
+        OperationRunning(),
+        OperationSucceeded(),
+        OperationFailed(error="Offline"),
+    ],
+)
+def test_environment_restored_after_disconnect(
+    client: TestClient,
+    connection_id: str,
+    outcome: EnvironmentOperationStatus,
+) -> None:
+    with client:
+        with client.websocket_connect(_create_ws_url("123")) as websocket:
+            assert_kernel_ready_response(receive_notification(websocket))
+            for source in ("kernel", "server"):
+                assert receive_notification(websocket) == {
+                    "op": "environment-state",
+                    "data": {
+                        "op": "environment-state",
+                        "source": source,
+                        "state": {"restart_required": False, "operations": []},
+                    },
+                }
+            session = get_session(client, SessionId("123"))
+            assert session is not None
+            progress = EnvironmentOperationNotification(
+                action="install",
+                source="kernel",
+                operation_id="install",
+                status=OperationRunning(),
+                packages={"numpy": "running"},
+                logs={"numpy": "Downloading\n"},
+                log_mode="replace",
+            )
+            websocket.portal.call(
+                lambda: session.notify(progress, from_consumer_id=None)
+            )
+
+        # Work can finish while no consumer is attached.
+        assert client.portal is not None
+        client.portal.call(
+            session.notify,
+            EnvironmentOperationNotification(
+                action="install",
+                source="kernel",
+                operation_id="install",
+                status=outcome,
+                packages={
+                    "numpy": "succeeded"
+                    if isinstance(outcome, OperationSucceeded)
+                    else "running"
+                },
+                logs={"numpy": "Latest\n"},
+                log_mode="append",
+            ),
+            None,
+        )
+        expected = EnvironmentStateNotification(
+            source="kernel",
+            state=EnvironmentState(
+                restart_required=False,
+                operations=[
+                    EnvironmentOperation(
+                        action="install",
+                        operation_id="install",
+                        source="kernel",
+                        status=outcome,
+                        packages={
+                            "numpy": "succeeded"
+                            if isinstance(outcome, OperationSucceeded)
+                            else "running"
+                        },
+                        logs={"numpy": "Downloading\nLatest\n"},
+                    )
+                ],
+            ),
+        )
+        with client.websocket_connect(
+            _create_ws_url(connection_id)
+        ) as websocket:
+            assert receive_notification(websocket)["op"] == "reconnected"
+            if connection_id != "123":
+                assert receive_notification(websocket)["op"] == "kernel-ready"
+                assert receive_notification(websocket)["op"] == "banner"
+            else:
+                assert receive_notification(websocket)["op"] == "alert"
+            assert receive_notification(websocket)["data"] == json.loads(
+                serialize_kernel_message(expected)
+            )
+            assert receive_notification(websocket)["data"] == {
+                "op": "environment-state",
+                "source": "server",
+                "state": {"restart_required": False, "operations": []},
+            }

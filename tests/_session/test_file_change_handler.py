@@ -9,7 +9,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from marimo import __version__, _loggers
+from marimo import __version__
 from marimo._ast.cell import CellConfig
 from marimo._ast.cell_manager import CellManager
 from marimo._config.manager import get_default_config_manager
@@ -833,14 +833,8 @@ async def test_file_change_coordinator_skips_conflict_markers(
         )
     )
 
-    logger = _loggers.marimo_logger()
-    previous_propagate = logger.propagate
-    try:
-        logger.propagate = True
-        with caplog.at_level("WARNING"):
-            result = await coordinator.handle_change(test_file, mock_session)
-    finally:
-        logger.propagate = previous_propagate
+    with caplog.at_level("WARNING"):
+        result = await coordinator.handle_change(test_file, mock_session)
 
     assert not result.handled
     assert result.error is None

@@ -38,6 +38,14 @@ CHEAP_DISCOVERY_DATABASES = {
 _NO_WASM_DUCKDB_RESULT = object()
 
 
+def is_duckdb_v2() -> bool:
+    """Whether the installed DuckDB uses version 2 or later, including previews."""
+    import duckdb
+    from packaging.version import Version
+
+    return Version(duckdb.__version__).major >= 2
+
+
 def is_cheap_dialect(dialect: str) -> bool:
     """Whether schema/table discovery is cheap for the given SQL dialect.
 
@@ -288,11 +296,7 @@ def convert_to_output(
             DependencyManager.pandas.require("to convert this data")
 
     if DependencyManager.pandas.has():
-        try:
-            return to_pandas()
-        except Exception as e:
-            LOGGER.warning("Failed to convert dataframe", exc_info=e)
-            return None
+        return to_pandas()
 
     raise_df_import_error("polars[pyarrow]")
 

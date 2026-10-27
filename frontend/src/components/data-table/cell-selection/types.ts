@@ -30,7 +30,7 @@ export interface CellSelectionCell {
 }
 
 // These are additional properties add to the table instance in createTable
-export interface CellSelectionInstance<TData extends RowData> {
+export interface CellSelectionInstance {
   setCellSelection?: (updater: Updater<CellSelectionState>) => void;
 
   resetCellSelection?(defaultValue?: CellSelectionState): void;
@@ -44,7 +44,7 @@ declare module "@tanstack/react-table" {
     TData extends RowData,
   > extends CellSelectionOptions {}
 
-  interface Table<TData extends RowData> extends CellSelectionInstance<TData> {}
+  interface Table<TData extends RowData> extends CellSelectionInstance {}
 
   interface Cell<TData extends RowData, TValue> extends CellSelectionCell {}
 }

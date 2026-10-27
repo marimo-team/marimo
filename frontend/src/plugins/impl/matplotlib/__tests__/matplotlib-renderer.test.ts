@@ -228,8 +228,8 @@ function stubSyncImage() {
   vi.stubGlobal(
     "Image",
     class {
-      onload: (() => void) | null = null;
-      set src(_value: string) {
+      public onload: (() => void) | null = null;
+      public set src(_value: string) {
         this.onload?.();
       }
     },

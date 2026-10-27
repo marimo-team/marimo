@@ -314,7 +314,7 @@ async def _write_to_pty(
         while True:
             try:
                 data = await websocket.receive_text()
-                LOGGER.debug("Received: %s", repr(data))
+                LOGGER.debug("Received: %r", data)
 
                 # Check if this is a resize message
                 if await _maybe_handle_resize(

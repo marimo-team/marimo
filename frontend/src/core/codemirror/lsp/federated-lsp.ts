@@ -18,12 +18,12 @@ export class FederatedLanguageServerClient implements ILanguageServerClient {
   private readonly clients: ILanguageServerClient[] = [];
   public readonly documentUri: string;
 
-  constructor(clients: ILanguageServerClient[]) {
+  public constructor(clients: ILanguageServerClient[]) {
     this.clients = clients;
     this.documentUri = getLspDocumentUri();
   }
 
-  onNotification(
+  public onNotification(
     listener: (n: {
       jsonrpc: "2.0";
       id?: null | undefined;
@@ -43,7 +43,7 @@ export class FederatedLanguageServerClient implements ILanguageServerClient {
     };
   }
 
-  get clientCapabilities(): LSP.ClientCapabilities | undefined {
+  public get clientCapabilities(): LSP.ClientCapabilities | undefined {
     const capabilities = this.clients
       .map((client) => {
         if (client.clientCapabilities) {
@@ -59,34 +59,34 @@ export class FederatedLanguageServerClient implements ILanguageServerClient {
     return mergeDictsIgnoreFalsey<LSP.ClientCapabilities>(capabilities);
   }
 
-  get ready(): boolean {
+  public get ready(): boolean {
     return this.clients.some((client) => client.ready);
   }
 
-  set ready(value: boolean) {
+  public set ready(value: boolean) {
     this.clients.forEach((client) => {
       client.ready = value;
     });
   }
 
-  get capabilities(): LSP.ServerCapabilities | null {
+  public get capabilities(): LSP.ServerCapabilities | null {
     const capabilities = this.clients
       .map((client) => client.capabilities)
       .filter((c): c is LSP.ServerCapabilities => c !== null);
     return mergeDictsIgnoreFalsey<LSP.ServerCapabilities>(capabilities);
   }
 
-  set capabilities(value: LSP.ServerCapabilities) {
+  public set capabilities(value: LSP.ServerCapabilities) {
     this.clients.forEach((client) => {
       client.capabilities = value;
     });
   }
 
-  get initializePromise(): Promise<void> {
+  public get initializePromise(): Promise<void> {
     return this.clients[0].initializePromise;
   }
 
-  set initializePromise(value: Promise<void>) {
+  public set initializePromise(value: Promise<void>) {
     this.clients.forEach((client) => {
       client.initializePromise = value;
     });
@@ -104,19 +104,19 @@ export class FederatedLanguageServerClient implements ILanguageServerClient {
     return this.clients.filter((client) => client.hasCapability(method));
   }
 
-  hasCapability(method: string): boolean {
+  public hasCapability(method: string): boolean {
     return this.clients.some((client) => client.hasCapability(method));
   }
 
-  async initialize(): Promise<void> {
+  public async initialize(): Promise<void> {
     await Promise.all(this.clients.map((client) => client.initialize()));
   }
 
-  async close(): Promise<void> {
+  public async close(): Promise<void> {
     await Promise.all(this.clients.map((client) => client.close()));
   }
 
-  async textDocumentDidChange(
+  public async textDocumentDidChange(
     params: LSP.DidChangeTextDocumentParams,
   ): Promise<void> {
     await Promise.all(
@@ -124,7 +124,7 @@ export class FederatedLanguageServerClient implements ILanguageServerClient {
     );
   }
 
-  async completionItemResolve(
+  public async completionItemResolve(
     item: LSP.CompletionItem,
   ): Promise<LSP.CompletionItem> {
     const client = this.firstWithMethod("textDocument/completion");
@@ -134,7 +134,7 @@ export class FederatedLanguageServerClient implements ILanguageServerClient {
     return item;
   }
 
-  async textDocumentCodeAction(
+  public async textDocumentCodeAction(
     params: LSP.CodeActionParams,
   ): Promise<(LSP.Command | LSP.CodeAction)[] | null> {
     const client = this.firstWithMethod("textDocument/codeAction");
@@ -144,12 +144,14 @@ export class FederatedLanguageServerClient implements ILanguageServerClient {
     return null;
   }
 
-  async codeActionResolve(action: LSP.CodeAction): Promise<LSP.CodeAction> {
+  public async codeActionResolve(
+    action: LSP.CodeAction,
+  ): Promise<LSP.CodeAction> {
     const client = this.firstWithMethod("textDocument/codeAction");
     return client ? client.codeActionResolve(action) : action;
   }
 
-  async textDocumentRename(
+  public async textDocumentRename(
     params: LSP.RenameParams,
   ): Promise<LSP.WorkspaceEdit | null> {
     const client = this.firstWithMethod("textDocument/rename");
@@ -159,7 +161,7 @@ export class FederatedLanguageServerClient implements ILanguageServerClient {
     return null;
   }
 
-  async textDocumentPrepareRename(
+  public async textDocumentPrepareRename(
     params: LSP.PrepareRenameParams,
   ): Promise<LSP.PrepareRenameResult | null> {
     const client = this.firstWithMethod("textDocument/prepareRename");
@@ -169,7 +171,7 @@ export class FederatedLanguageServerClient implements ILanguageServerClient {
     return null;
   }
 
-  async textDocumentSignatureHelp(
+  public async textDocumentSignatureHelp(
     params: LSP.SignatureHelpParams,
   ): Promise<LSP.SignatureHelp | null> {
     const client = this.firstWithMethod("textDocument/signatureHelp");
@@ -180,7 +182,7 @@ export class FederatedLanguageServerClient implements ILanguageServerClient {
   }
 
   // Merge completions from all clients
-  async textDocumentCompletion(
+  public async textDocumentCompletion(
     params: LSP.CompletionParams,
   ): Promise<LSP.CompletionList | LSP.CompletionItem[] | null> {
     const clients = this.clientsWithMethod("textDocument/completion");
@@ -191,7 +193,7 @@ export class FederatedLanguageServerClient implements ILanguageServerClient {
     return mergeCompletions(results);
   }
 
-  async textDocumentDefinition(
+  public async textDocumentDefinition(
     params: LSP.DefinitionParams,
   ): Promise<LSP.Definition | LSP.LocationLink[] | null> {
     const client = this.firstWithMethod("textDocument/definition");
@@ -201,7 +203,7 @@ export class FederatedLanguageServerClient implements ILanguageServerClient {
     return null;
   }
 
-  async textDocumentDidOpen(
+  public async textDocumentDidOpen(
     params: LSP.DidOpenTextDocumentParams,
   ): Promise<boolean> {
     const results = await Promise.all(
@@ -211,7 +213,7 @@ export class FederatedLanguageServerClient implements ILanguageServerClient {
     return results.some((result) => result !== false);
   }
 
-  async textDocumentDidClose(
+  public async textDocumentDidClose(
     params: LSP.DidCloseTextDocumentParams,
   ): Promise<void> {
     await Promise.all(
@@ -219,7 +221,7 @@ export class FederatedLanguageServerClient implements ILanguageServerClient {
     );
   }
 
-  async textDocumentWillSave(
+  public async textDocumentWillSave(
     params: LSP.WillSaveTextDocumentParams,
   ): Promise<void> {
     await Promise.all(
@@ -227,7 +229,7 @@ export class FederatedLanguageServerClient implements ILanguageServerClient {
     );
   }
 
-  async textDocumentWillSaveWaitUntil(
+  public async textDocumentWillSaveWaitUntil(
     params: LSP.WillSaveTextDocumentParams,
   ): Promise<LSP.TextEdit[] | null> {
     // This blocks the save, so query concurrently rather than paying the sum of
@@ -247,7 +249,7 @@ export class FederatedLanguageServerClient implements ILanguageServerClient {
     return null;
   }
 
-  async textDocumentDidSave(
+  public async textDocumentDidSave(
     params: LSP.DidSaveTextDocumentParams,
   ): Promise<void> {
     await Promise.all(
@@ -255,7 +257,7 @@ export class FederatedLanguageServerClient implements ILanguageServerClient {
     );
   }
 
-  async textDocumentHover(params: LSP.HoverParams): Promise<LSP.Hover> {
+  public async textDocumentHover(params: LSP.HoverParams): Promise<LSP.Hover> {
     for (const client of this.clients) {
       if (!client.hasCapability("textDocument/hover")) {
         continue;

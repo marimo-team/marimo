@@ -11,7 +11,7 @@ export class LRUCache<K, V> {
   private cache = new Map<K, V>();
   private options: LRUCacheOptions<K, V>;
 
-  constructor(maxSize: number, options: LRUCacheOptions<K, V> = {}) {
+  public constructor(maxSize: number, options: LRUCacheOptions<K, V> = {}) {
     this.maxSize = maxSize;
     this.options = options;
   }

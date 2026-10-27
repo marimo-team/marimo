@@ -18,15 +18,15 @@ interface Data {
 }
 
 export class CheckboxPlugin implements IPlugin<T, Data> {
-  tagName = "marimo-checkbox";
+  public tagName = "marimo-checkbox";
 
-  validator = z.object({
+  public validator = z.object({
     initialValue: z.boolean(),
     label: z.string().nullable(),
     disabled: z.boolean().optional(),
   });
 
-  render(props: IPluginProps<T, Data>): JSX.Element {
+  public render(props: IPluginProps<T, Data>): JSX.Element {
     return <CheckboxComponent {...props} />;
   }
 }
@@ -46,7 +46,7 @@ const CheckboxComponent = ({
   const id = useId();
 
   return (
-    <Labeled label={data.label} align="right" id={id}>
+    <Labeled label={data.label} align="right" controlId={id}>
       <Checkbox
         data-testid="marimo-plugin-checkbox"
         checked={value}

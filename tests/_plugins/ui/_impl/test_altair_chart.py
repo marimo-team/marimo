@@ -215,18 +215,10 @@ class TestAltairChart:
                     datetime.date(2020, 1, 10),
                 ],
                 "date_column_utc": [
-                    datetime.datetime(
-                        2019, 12, 29, tzinfo=datetime.timezone.utc
-                    ),
-                    datetime.datetime(
-                        2020, 1, 1, tzinfo=datetime.timezone.utc
-                    ),
-                    datetime.datetime(
-                        2020, 1, 8, tzinfo=datetime.timezone.utc
-                    ),
-                    datetime.datetime(
-                        2020, 1, 10, tzinfo=datetime.timezone.utc
-                    ),
+                    datetime.datetime(2019, 12, 29, tzinfo=datetime.UTC),
+                    datetime.datetime(2020, 1, 1, tzinfo=datetime.UTC),
+                    datetime.datetime(2020, 1, 8, tzinfo=datetime.UTC),
+                    datetime.datetime(2020, 1, 10, tzinfo=datetime.UTC),
                 ],
                 "datetime_column": [
                     datetime.datetime(2019, 12, 29),
@@ -282,11 +274,11 @@ class TestAltairChart:
             "signal_channel_2": {
                 "date_column_utc": [
                     datetime.datetime(
-                        2019, 12, 29, tzinfo=datetime.timezone.utc
+                        2019, 12, 29, tzinfo=datetime.UTC
                     ).timestamp()
                     * 1000,
                     datetime.datetime(
-                        2020, 1, 1, tzinfo=datetime.timezone.utc
+                        2020, 1, 1, tzinfo=datetime.UTC
                     ).timestamp()
                     * 1000,
                 ]
@@ -365,12 +357,8 @@ class TestAltairChart:
         create_dataframes(
             {
                 "datetime_column_utc": [
-                    datetime.datetime.fromtimestamp(
-                        10000, datetime.timezone.utc
-                    ),
-                    datetime.datetime.fromtimestamp(
-                        20000, datetime.timezone.utc
-                    ),
+                    datetime.datetime.fromtimestamp(10000, datetime.UTC),
+                    datetime.datetime.fromtimestamp(20000, datetime.UTC),
                 ],
                 "datetime_column": [
                     datetime.datetime(2019, 12, 29),
@@ -396,7 +384,7 @@ class TestAltairChart:
                                     2,
                                     46,
                                     40,
-                                    tzinfo=datetime.timezone.utc,
+                                    tzinfo=datetime.UTC,
                                 ).isoformat()
                             ],
                             "vlPoint": [1],
@@ -420,7 +408,7 @@ class TestAltairChart:
                                     1,
                                     46,
                                     40,
-                                    tzinfo=datetime.timezone.utc,
+                                    tzinfo=datetime.UTC,
                                 ).isoformat(),
                                 datetime.datetime(
                                     1970,
@@ -429,7 +417,7 @@ class TestAltairChart:
                                     1,
                                     46,
                                     40,
-                                    tzinfo=datetime.timezone.utc,
+                                    tzinfo=datetime.UTC,
                                 ).isoformat(),
                             ]
                         }
@@ -452,7 +440,7 @@ class TestAltairChart:
                                     1,
                                     0,
                                     40,
-                                    tzinfo=datetime.timezone.utc,
+                                    tzinfo=datetime.UTC,
                                 ).isoformat(),
                                 datetime.datetime(
                                     1970,
@@ -461,7 +449,7 @@ class TestAltairChart:
                                     1,
                                     1,
                                     40,
-                                    tzinfo=datetime.timezone.utc,
+                                    tzinfo=datetime.UTC,
                                 ).isoformat(),
                             ]
                         }
@@ -498,10 +486,10 @@ class TestAltairChart:
                         "select_interval": {
                             "datetime_column": [
                                 datetime.datetime(
-                                    2019, 12, 29, tzinfo=datetime.timezone.utc
+                                    2019, 12, 29, tzinfo=datetime.UTC
                                 ).isoformat(),
                                 datetime.datetime(
-                                    2020, 1, 1, tzinfo=datetime.timezone.utc
+                                    2020, 1, 1, tzinfo=datetime.UTC
                                 ).isoformat(),
                             ]
                         }
@@ -520,12 +508,8 @@ class TestAltairChart:
         create_dataframes(
             {
                 "datetime_column_utc": [
-                    datetime.datetime.fromtimestamp(
-                        10000, datetime.timezone.utc
-                    ),
-                    datetime.datetime.fromtimestamp(
-                        20000, datetime.timezone.utc
-                    ),
+                    datetime.datetime.fromtimestamp(10000, datetime.UTC),
+                    datetime.datetime.fromtimestamp(20000, datetime.UTC),
                 ],
                 "datetime_column": [
                     datetime.datetime.fromtimestamp(10000),
@@ -621,10 +605,10 @@ class TestAltairChart:
                         "select_interval": {
                             "datetime_column": [
                                 datetime.datetime(
-                                    2019, 12, 29, tzinfo=datetime.timezone.utc
+                                    2019, 12, 29, tzinfo=datetime.UTC
                                 ).isoformat(),
                                 datetime.datetime(
-                                    2020, 1, 1, tzinfo=datetime.timezone.utc
+                                    2020, 1, 1, tzinfo=datetime.UTC
                                 ).isoformat(),
                             ]
                         }
@@ -773,17 +757,18 @@ def test_get_dataframe() -> None:
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
 def test_get_dataframe_csv() -> None:
     import altair as alt
-    import pandas as pd
     import polars as pl
 
     data = "https://cdn.jsdelivr.net/npm/vega-datasets@v1.29.0/data/stocks.csv"
-    fake_payload = b"symbol,price\nMSFT,39.81\nAAPL,28.13\n"
+    expected = pl.DataFrame(
+        {"symbol": ["MSFT", "AAPL"], "price": [39.81, 28.13]}
+    )
     with unittest.mock.patch(
-        "urllib.request.urlopen",
-        return_value=io.BytesIO(fake_payload),
-    ):
+        "polars.read_csv", return_value=expected
+    ) as read_csv:
         chart = altair_chart(alt.Chart(data).mark_point().encode(x="values:Q"))
-        assert isinstance(chart.dataframe, (pd.DataFrame, pl.DataFrame))
+        read_csv.assert_called_once_with(data)
+        assert chart.dataframe is expected
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")

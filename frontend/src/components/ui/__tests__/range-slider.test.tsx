@@ -81,6 +81,21 @@ describe("RangeSlider", () => {
     expect(queryByText("1.500000000000001")).toBeNull();
   });
 
+  it("retains value precision when no step is supplied", () => {
+    const { getByText } = render(
+      <RangeSlider
+        aria-label="Range"
+        min={0}
+        max={10}
+        value={[1.2345, 1.500000000000001]}
+        valueMap={(value) => value}
+      />,
+    );
+
+    expect(getByText("1.2345")).toBeDefined();
+    expect(getByText("1.5")).toBeDefined();
+  });
+
   it("preserves precision from finer-grained steps", () => {
     const { getAllByText, queryByText } = render(
       <RangeSlider
@@ -96,6 +111,22 @@ describe("RangeSlider", () => {
     expect(getAllByText("1.234")).toHaveLength(1);
     expect(getAllByText("1.235")).toHaveLength(1);
     expect(queryByText("1.23")).toBeNull();
+  });
+
+  it("preserves precision for small tooltip values", () => {
+    const { getByText } = render(
+      <RangeSlider
+        aria-label="Range"
+        min={0}
+        max={0.01}
+        step={0.00001}
+        value={[0.00123, 0.0012400000000000002]}
+        valueMap={(value) => value}
+      />,
+    );
+
+    expect(getByText("1.23e-3")).toBeDefined();
+    expect(getByText("1.24e-3")).toBeDefined();
   });
 
   it("infers precision from custom mapped steps", () => {

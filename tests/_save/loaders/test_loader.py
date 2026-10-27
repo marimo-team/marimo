@@ -611,7 +611,7 @@ class TestLazyLoader(ABCTestLoader):
     @pytest.mark.skipif(
         not DependencyManager.has("polars"), reason="polars required"
     )
-    @pytest.mark.parametrize("stored_version", [None, 5])
+    @pytest.mark.parametrize("stored_version", [None, 5, 6])
     def test_polars_cache_versions_reuse_values(
         self, stored_version: int | None
     ) -> None:
@@ -632,7 +632,9 @@ class TestLazyLoader(ABCTestLoader):
         restored = loader.cache_attempt({"frame"}, cache.key, set())
         assert restored.hit
         assert restored.defs["frame"].equals(frame)
-        assert restored.meta["version"] == (6 if stored_version is None else 5)
+        assert restored.meta["version"] == (
+            MARIMO_CACHE_VERSION if stored_version is None else stored_version
+        )
 
     @pytest.mark.skipif(
         not DependencyManager.has("pandas"), reason="pandas required"
@@ -706,3 +708,86 @@ class TestLazyLoader(ABCTestLoader):
         assert isinstance(loaded.defs["s"], pd.Series)
         pd.testing.assert_series_equal(loaded.defs["s"], s)
         pd.testing.assert_series_equal(loaded.meta["return"], s)
+
+    @pytest.mark.skipif(
+        not DependencyManager.has("pandas"), reason="pandas required"
+    )
+    def test_pandas_mixed_dtype_falls_back_to_pickle(self) -> None:
+        """An object column that mixes ints and strings fails in Arrow, so
+        the frame is pickled and a cache hit restores it intact."""
+        import pandas as pd
+
+        pytest.importorskip("pyarrow")
+        loader = self.instance()
+        df = pd.DataFrame({"mixed": [1, "two"]})
+        cache = Cache(
+            defs={"df": df},
+            hash="pd_mixed_hash",
+            cache_type="Pure",
+            stateful_refs=set(),
+            hit=False,
+            meta={"version": MARIMO_CACHE_VERSION, "return": df},
+        )
+        assert loader.save_cache(cache)
+        loader.flush()
+
+        blob_names = sorted(
+            p.name
+            for p in Path(self.store.save_path).rglob("*")
+            if p.is_file() and p.suffix != ".jsonl"
+        )
+        assert blob_names == ["df.pickle", "return.pickle"], blob_names
+
+        cache_path = loader.build_path(key("pd_mixed_hash", "Pure"))
+        decoded = msgspec.json.decode(
+            self.store.get(str(cache_path)), type=CacheSchema
+        )
+        assert decoded.defs["df"].unserializable_type is None
+        assert decoded.meta.return_value.unserializable_type is None
+
+        loaded = loader.load_cache(key("pd_mixed_hash", "Pure"))
+        assert loaded is not None
+        pd.testing.assert_frame_equal(loaded.defs["df"], df)
+        pd.testing.assert_frame_equal(loaded.meta["return"], df)
+
+    def test_typed_serializer_failure_falls_back_to_pickle(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """When the typed serializer chosen for a value raises, the value is
+        pickled under a `.pickle` key and restores intact."""
+        import marimo._save.loaders.lazy as lazy_module
+        from marimo._save.stubs.lazy_stub import BLOB_SERIALIZERS
+
+        def _reject(obj: object) -> bytes:
+            raise TypeError(f"cannot encode {type(obj).__name__}")
+
+        monkeypatch.setitem(BLOB_SERIALIZERS, "npy", _reject)
+        monkeypatch.setattr(
+            lazy_module,
+            "maybe_update_lazy_stub",
+            lambda value: "npy" if isinstance(value, list) else "pickle",
+        )
+        loader = self.instance()
+        value = [1, "two"]
+        cache = Cache(
+            defs={"v": value},
+            hash="typed_fallback_hash",
+            cache_type="Pure",
+            stateful_refs=set(),
+            hit=False,
+            meta={"version": MARIMO_CACHE_VERSION, "return": value},
+        )
+        assert loader.save_cache(cache)
+        loader.flush()
+
+        blob_names = sorted(
+            p.name
+            for p in Path(self.store.save_path).rglob("*")
+            if p.is_file() and p.suffix != ".jsonl"
+        )
+        assert blob_names == ["return.pickle", "v.pickle"], blob_names
+
+        loaded = loader.load_cache(key("typed_fallback_hash", "Pure"))
+        assert loaded is not None
+        assert loaded.defs["v"] == value
+        assert loaded.meta["return"] == value

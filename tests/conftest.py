@@ -40,8 +40,7 @@ if TYPE_CHECKING:
     import threading
     from collections.abc import Callable, Generator
     from types import ModuleType, TracebackType
-
-    from typing_extensions import Self
+    from typing import Self
 
     from marimo._runtime.runtime import Kernel
 
@@ -471,7 +470,7 @@ def session_view() -> Generator[SessionView, None, None]:
     yield sv
 
     # Test all operations can be serialized/deserialized
-    for operation in sv.notifications:
+    for operation in sv.snapshot_notifications():
         assert_serialize_roundtrip(operation)
 
 

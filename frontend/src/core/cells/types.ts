@@ -27,6 +27,7 @@ export function createCell({
       hide_code: false,
       disabled: false,
       column: null,
+      expand_output: false,
     },
     name: name,
     code: code,
@@ -42,6 +43,7 @@ export function createCellConfig(config?: Partial<CellConfig>): CellConfig {
     hide_code: false,
     disabled: false,
     column: null,
+    expand_output: false,
     ...config,
   };
 }
@@ -93,7 +95,7 @@ export interface CellRuntimeState {
   /** TOC outline */
   outline: Outline | null;
   /** messages encoding the cell's console outputs. */
-  consoleOutputs: WithResponse<OutputMessage>[];
+  consoleOutputs: ConsoleOutputMessage[];
   /** current status of the cell */
   status: RuntimeState;
   /** whether the cell has stale inputs*/
@@ -127,4 +129,13 @@ export type WithResponse<T> = T & {
    * after sending the message to the kernel.
    */
   response?: string;
+};
+
+/**
+ * A console output as held by the frontend. The id is assigned when the
+ * output arrives and never changes, so it can identify the output while
+ * neighboring outputs collapse, truncate, or receive a stdin response.
+ */
+export type ConsoleOutputMessage = WithResponse<OutputMessage> & {
+  id?: number;
 };

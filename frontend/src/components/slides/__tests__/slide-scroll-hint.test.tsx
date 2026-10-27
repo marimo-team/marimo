@@ -76,12 +76,12 @@ describe("SlideScrollContainer", () => {
     vi.stubGlobal(
       "ResizeObserver",
       class MockResizeObserver {
-        callback: ResizeObserverCallback;
-        observe = vi.fn();
-        unobserve = vi.fn();
-        disconnect = vi.fn();
+        public callback: ResizeObserverCallback;
+        public observe = vi.fn();
+        public unobserve = vi.fn();
+        public disconnect = vi.fn();
 
-        constructor(callback: ResizeObserverCallback) {
+        public constructor(callback: ResizeObserverCallback) {
           this.callback = callback;
           resizeObservers.push(this);
         }
@@ -90,9 +90,9 @@ describe("SlideScrollContainer", () => {
     vi.stubGlobal(
       "MutationObserver",
       class MockMutationObserver {
-        observe = vi.fn();
-        disconnect = vi.fn();
-        takeRecords = vi.fn(() => []);
+        public observe = vi.fn();
+        public disconnect = vi.fn();
+        public takeRecords = vi.fn(() => []);
       },
     );
   });

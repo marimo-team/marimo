@@ -14,6 +14,7 @@ from marimo import _loggers
 from marimo._server.api.deps import AppState
 from marimo._server.api.utils import parse_request
 from marimo._server.files.directory_scanner import DirectoryScanner
+from marimo._server.host.lifespan import ensure_host
 from marimo._server.models.home import (
     MarimoFile,
     OpenTutorialRequest,
@@ -297,6 +298,8 @@ async def tutorial(
     app_state.session_manager.workspace.register_allowed_path(
         path.absolute_name
     )
+    context = await ensure_host(request.app)
+    context.bridge.index.register_open_notebook(path.absolute_name)
 
     return MarimoFile(
         name=os.path.basename(path.absolute_name),

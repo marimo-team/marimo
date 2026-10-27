@@ -10,10 +10,10 @@ from urllib.parse import urlparse
 import uvicorn
 
 from marimo._cli.print import echo
-from marimo._cli.sandbox import SandboxMode
 from marimo._config.config import PartialMarimoConfig
 from marimo._config.manager import get_default_config_manager
 from marimo._config.settings import GLOBAL_SETTINGS
+from marimo._environments.sandbox import Backend
 from marimo._mcp.setup import McpType, setup_mcp_server
 from marimo._messaging.notification import StartupLogsNotification
 from marimo._runtime.commands import SerializedCLIArgs
@@ -22,6 +22,7 @@ from marimo._server.api import lifespans
 from marimo._server.config import (
     StarletteServerStateInit,
 )
+from marimo._server.host.lifespan import host as host_lifespan
 from marimo._server.lsp import CompositeLspServer, NoopLspServer
 from marimo._server.main import create_starlette_app
 from marimo._server.registry import LIFESPAN_REGISTRY
@@ -211,7 +212,7 @@ def start(
     server_startup_command: str | None = None,
     asset_url: str | None = None,
     timeout: float | None = None,
-    sandbox_mode: SandboxMode | None = None,
+    sandbox: Backend | None = None,
     startup_tip: CliTip | None = None,
     show_tracebacks: bool | None = None,
     execute_opengraph_generators: bool = False,
@@ -221,8 +222,8 @@ def start(
     """
     import packaging.version
 
-    # In single-file sandbox mode, uv becomes our direct parent. So we
-    # watch the outer CLI's PID, terminating if the CLI terminates.
+    # Sandboxed run commands put a launcher between the CLI and server.
+    # Watch the outer CLI's PID, terminating if the CLI terminates.
     ancestor_pid_env = os.environ.get("MARIMO_ANCESTOR_PID")
     if ancestor_pid_env:
         try:
@@ -282,14 +283,22 @@ def start(
             "trusted directories and authentication controls."
         )
 
+    if sandbox is not None:
+        os.environ["MARIMO_SANDBOX_BACKEND"] = sandbox
+        GLOBAL_SETTINGS.SANDBOX_BACKEND = sandbox
+        if mode == SessionMode.EDIT:
+            os.environ["MARIMO_MANAGE_SCRIPT_METADATA"] = "true"
+            GLOBAL_SETTINGS.MANAGE_SCRIPT_METADATA = True
+            os.environ["MARIMO_SANDBOX_MODE"] = "multi"
+            GLOBAL_SETTINGS.SANDBOX_MODE = "multi"
+
     if GLOBAL_SETTINGS.MANAGE_SCRIPT_METADATA:
+        backend = sandbox or GLOBAL_SETTINGS.SANDBOX_BACKEND
+        package_manager: Backend = "pixi" if backend == "pixi" else "uv"
         config_reader = config_reader.with_overrides(
             {
-                # Currently, only uv is supported for managing script metadata
-                # If this changes, instead we should only update the config
-                # if the user's package manager does not support sandboxes.
                 "package_management": {
-                    "manager": "uv",
+                    "manager": package_manager,
                 }
             }
         )
@@ -321,7 +330,7 @@ def start(
         auth_token=auth_token,
         redirect_console_to_browser=redirect_console_to_browser,
         watch=watch,
-        sandbox_mode=sandbox_mode,
+        sandbox=sandbox is not None,
         isolate_apps=isolate_apps,
         execute_opengraph_generators=execute_opengraph_generators,
     )
@@ -338,6 +347,7 @@ def start(
         lifespans.tool_manager,
         lifespans.server_registry,
         lifespans.reap_subprocesses,
+        host_lifespan,
         *LIFESPAN_REGISTRY.get_all(),
     ]
 

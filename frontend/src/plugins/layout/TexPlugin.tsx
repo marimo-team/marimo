@@ -15,11 +15,11 @@ import type {
  * LaTeX.
  */
 export class TexPlugin implements IStatelessPlugin<{}> {
-  tagName = "marimo-tex";
+  public tagName = "marimo-tex";
 
-  validator = z.object({});
+  public validator = z.object({});
 
-  render(props: IStatelessPluginProps<{}>): JSX.Element {
+  public render(props: IStatelessPluginProps<{}>): JSX.Element {
     return (
       <TexComponent
         host={props.host}

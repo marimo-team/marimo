@@ -5,7 +5,7 @@ import { describe, expect, it, vi } from "vitest";
 import { ReadonlyWasmController } from "../controller";
 
 class TestController extends ReadonlyWasmController {
-  setPyodide(pyodide: PyodideInterface) {
+  public setPyodide(pyodide: PyodideInterface) {
     this.pyodide = pyodide;
   }
 }

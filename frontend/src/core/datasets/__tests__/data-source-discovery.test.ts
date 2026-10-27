@@ -1,8 +1,10 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { requestId } from "@/__tests__/branded";
+import type { DataSourceDiscoveryResult } from "@/core/kernel/messages";
 import { connectionAtom } from "@/core/network/connection";
 import { store } from "@/core/state/jotai";
-import { WebSocketState } from "@/core/websocket/types";
+import { ConnectionState } from "@/core/websocket/types";
 import {
   fetchDataSourceDiscovery,
   invalidateDataSourceDiscovery,
@@ -30,7 +32,7 @@ describe("fetchDataSourceDiscovery", () => {
   beforeEach(() => {
     // Discovery waits for the session's websocket connection to be open
     // before requesting, so it doesn't race a still-connecting session.
-    store.set(connectionAtom, { state: WebSocketState.OPEN });
+    store.set(connectionAtom, { state: ConnectionState.OPEN });
   });
 
   afterEach(() => {
@@ -41,7 +43,7 @@ describe("fetchDataSourceDiscovery", () => {
   it("shares a single in-flight request across concurrent callers", async () => {
     const request = vi
       .spyOn(DiscoverDataSources, "request")
-      .mockResolvedValue({ request_id: "request-id", sources: [] });
+      .mockResolvedValue({ request_id: requestId("request-id"), sources: [] });
 
     await Promise.all([
       fetchDataSourceDiscovery(),
@@ -55,7 +57,7 @@ describe("fetchDataSourceDiscovery", () => {
   it("re-runs discovery after the cache is invalidated", async () => {
     const request = vi
       .spyOn(DiscoverDataSources, "request")
-      .mockResolvedValue({ request_id: "request-id", sources: [] });
+      .mockResolvedValue({ request_id: requestId("request-id"), sources: [] });
 
     await fetchDataSourceDiscovery();
     invalidateDataSourceDiscovery();
@@ -68,7 +70,10 @@ describe("fetchDataSourceDiscovery", () => {
     const request = vi
       .spyOn(DiscoverDataSources, "request")
       .mockRejectedValueOnce(new Error("boom"))
-      .mockResolvedValueOnce({ request_id: "request-id", sources: [] });
+      .mockResolvedValueOnce({
+        request_id: requestId("request-id"),
+        sources: [],
+      });
 
     await expect(fetchDataSourceDiscovery()).rejects.toThrow("boom");
     await expect(fetchDataSourceDiscovery()).resolves.toEqual([]);
@@ -77,16 +82,18 @@ describe("fetchDataSourceDiscovery", () => {
 
   it("does not clear a newer cache entry when an invalidated request fails", async () => {
     let rejectFirstRequest: ((error: Error) => void) | undefined;
-    const firstRequest = new Promise<{
-      request_id: string;
-      sources: DetectedDataSource[];
-    }>((_resolve, reject) => {
-      rejectFirstRequest = reject;
-    });
+    const firstRequest = new Promise<DataSourceDiscoveryResult>(
+      (_resolve, reject) => {
+        rejectFirstRequest = reject;
+      },
+    );
     const request = vi
       .spyOn(DiscoverDataSources, "request")
       .mockReturnValueOnce(firstRequest)
-      .mockResolvedValueOnce({ request_id: "request-id", sources: [] });
+      .mockResolvedValueOnce({
+        request_id: requestId("request-id"),
+        sources: [],
+      });
 
     const staleResult = fetchDataSourceDiscovery().catch((error) => error);
     await vi.waitFor(() => expect(request).toHaveBeenCalledTimes(1));
@@ -116,7 +123,7 @@ describe("fetchDataSourceDiscovery", () => {
       }),
     ];
     vi.spyOn(DiscoverDataSources, "request").mockResolvedValue({
-      request_id: "request-id",
+      request_id: requestId("request-id"),
       sources,
     });
 
@@ -178,8 +185,8 @@ describe("isDetectedSourceConnected", () => {
   });
   const emptySnapshot = {
     dialects: [] as string[],
-    storageProtocols: [] as string[],
-    storageBackendTypes: [] as string[],
+    storageProtocols: new Set<string>(),
+    storageBackendTypes: new Set<string>(),
   };
 
   it("does not hide a source when nothing is connected", () => {
@@ -235,7 +242,7 @@ describe("isDetectedSourceConnected", () => {
     expect(
       isDetectedSourceConnected(s3, {
         ...emptySnapshot,
-        storageProtocols: ["s3"],
+        storageProtocols: new Set(["s3"]),
       }),
     ).toBe(true);
   });
@@ -255,7 +262,7 @@ describe("isDetectedSourceConnected", () => {
     expect(
       isDetectedSourceConnected(hf, {
         ...emptySnapshot,
-        storageBackendTypes: ["huggingface"],
+        storageBackendTypes: new Set(["huggingface"]),
       }),
     ).toBe(true);
   });

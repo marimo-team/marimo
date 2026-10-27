@@ -13,7 +13,7 @@ export class TinyRouter {
     pathFunction: MatchFunction<ParamData>;
   }[];
 
-  constructor(templates: string[]) {
+  public constructor(templates: string[]) {
     this.routes = templates.map((template) => {
       return {
         template,
@@ -22,7 +22,9 @@ export class TinyRouter {
     });
   }
 
-  match(location: Location): [Match<ParamData>, template: string] | false {
+  public match(
+    location: Location,
+  ): [Match<ParamData>, template: string] | false {
     for (const { pathFunction, template } of this.routes) {
       const match =
         pathFunction(location.hash) || pathFunction(location.pathname);

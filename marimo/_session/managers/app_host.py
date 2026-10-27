@@ -25,7 +25,7 @@ if TYPE_CHECKING:
     import threading
 
     from marimo._ast.cell import CellConfig
-    from marimo._config.manager import MarimoConfigReader
+    from marimo._config.manager import MarimoConfigManager
     from marimo._runtime.commands import AppMetadata
     from marimo._session.app_host.host import AppHost
     from marimo._types.ids import CellId_t
@@ -161,7 +161,7 @@ class AppHostKernelManager(KernelManager):
         mode: SessionMode,
         configs: dict[CellId_t, CellConfig],
         app_metadata: AppMetadata,
-        config_manager: MarimoConfigReader,
+        config_manager: MarimoConfigManager,
         redirect_console_to_browser: bool,
     ) -> None:
         self._app_host = app_host
@@ -175,7 +175,7 @@ class AppHostKernelManager(KernelManager):
 
         self.kernel_task: ProcessLike | threading.Thread | None = None
 
-    def start_kernel(self) -> None:
+    async def start_kernel(self) -> None:
         response = self._app_host.create_kernel(
             session_id=self._session_id,
             configs=self._configs,

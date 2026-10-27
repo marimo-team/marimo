@@ -69,6 +69,10 @@ export type ListPackagesResponse = schemas["ListPackagesResponse"];
 export type DependencyTreeResponse = schemas["DependencyTreeResponse"];
 export type DependencyTreeNode = schemas["DependencyTreeNode"];
 
+export type SandboxRequest = schemas["SandboxRequest"];
+export type SandboxResponse = schemas["SandboxResponse"];
+export type UpdateManifestRequest = schemas["UpdateManifestRequest"];
+export type SyncSandboxResponse = schemas["SyncSandboxResponse"];
 export type PackageOperationResponse = schemas["PackageOperationResponse"];
 export type InstantiateNotebookRequest = schemas["InstantiateNotebookRequest"];
 export type MarimoConfig = schemas["MarimoConfig"];
@@ -246,6 +250,9 @@ export interface EditRequests {
   autoExportAsMarkdown: (request: AutoExportAsMarkdownRequest) => Promise<null>;
   autoExportAsIPYNB: (request: AutoExportAsIPYNBRequest) => Promise<null>;
   updateCellOutputs: (request: UpdateCellOutputsRequest) => Promise<null>;
+  getSandbox: (request: SandboxRequest) => Promise<SandboxResponse>;
+  updateManifest: (request: UpdateManifestRequest) => Promise<SandboxResponse>;
+  syncSandbox: (request: SandboxRequest) => Promise<SyncSandboxResponse>;
   // Package requests
   getPackageList: () => Promise<ListPackagesResponse>;
   getDependencyTree: () => Promise<DependencyTreeResponse>;

@@ -1,0 +1,179 @@
+/* Copyright 2026 Marimo. All rights reserved. */
+import { useAtom, useAtomValue } from "jotai";
+import { ArrowRightIcon, ChevronRightIcon } from "lucide-react";
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { hasCellsAtom } from "@/core/cells/cells";
+import type { AppConfig } from "@/core/config/config-schema";
+import { connectionAtom } from "@/core/network/connection";
+import { useConnectionNotice } from "@/core/network/useConnectionNotice";
+import { sandboxAtom } from "@/core/packages/sandbox-state";
+import { ConnectionState } from "@/core/websocket/types";
+import { useInterval } from "@/hooks/useInterval";
+import { cn } from "@/utils/cn";
+import { runtimeDetailsExpandedAtom } from "../chrome/panels/runtime-details-state";
+import { chromeAtom, useChromeActions } from "../chrome/state";
+import { VerticalLayoutWrapper } from "../renderers/vertical-layout/vertical-layout-wrapper";
+import { ConnectionDetails } from "./connection-details";
+import { ConnectionStatusIcon, hasStartupStages } from "./startup-progress";
+
+export const ConnectionNotice = ({
+  appConfig,
+  onRetry,
+  canOpenPackages = true,
+}: {
+  appConfig: AppConfig;
+  onRetry: () => void;
+  canOpenPackages?: boolean;
+}) => {
+  const notice = useConnectionNotice();
+  const connection = useAtomValue(connectionAtom);
+  const hasCells = useAtomValue(hasCellsAtom);
+  const sandbox = useAtomValue(sandboxAtom);
+  const [detailsExpanded, setDetailsExpanded] = useAtom(
+    runtimeDetailsExpandedAtom,
+  );
+  const chrome = useAtomValue(chromeAtom);
+  const packagesOpen =
+    (chrome.isSidebarOpen && chrome.selectedPanel === "packages") ||
+    (chrome.isDeveloperPanelOpen &&
+      chrome.selectedDeveloperPanelTab === "packages");
+  const { openApplication } = useChromeActions();
+
+  // Reconnection uses the footer indicator while existing cells stay visible.
+  const reconnecting =
+    connection.state === ConnectionState.CONNECTING &&
+    connection.phase === "reconnecting";
+
+  const openDetails = () => {
+    setDetailsExpanded(true);
+    openApplication("packages");
+  };
+
+  if (!notice && !sandbox?.backend) {
+    return null;
+  }
+
+  if (hasCells && canOpenPackages) {
+    const title =
+      notice?.ready && notice.kind === "startup" ? "Ready" : notice?.title;
+    return (
+      <VerticalLayoutWrapper
+        appConfig={appConfig}
+        // Sandboxes retain this row for subsequent environment syncs.
+        className="shrink-0 h-12 pb-0 sm:pb-0 print:hidden"
+        innerClassName="pb-0 sm:pb-0 pr-4"
+      >
+        {notice && !reconnecting && (
+          <section
+            aria-label="Notebook startup"
+            className="flex items-center gap-4"
+          >
+            <button
+              type="button"
+              onClick={openDetails}
+              aria-label={`${title} Open Packages`}
+              aria-expanded={packagesOpen && detailsExpanded}
+              className="flex h-6 items-center gap-2 whitespace-nowrap text-xs text-muted-foreground hover:text-foreground rounded focus-visible:outline-2 focus-visible:outline-ring"
+            >
+              <ConnectionStatusIcon notice={notice} />
+              <output>{title}</output>
+              <ChevronRightIcon className="size-3" aria-hidden={true} />
+            </button>
+            {!notice.pending && !notice.ready && !notice.sandbox && (
+              <Button variant="text" size="xs" onClick={onRetry}>
+                Try again
+              </Button>
+            )}
+          </section>
+        )}
+      </VerticalLayoutWrapper>
+    );
+  }
+
+  if (!notice) {
+    return null;
+  }
+
+  const showSteps = hasStartupStages(notice);
+  return (
+    <VerticalLayoutWrapper
+      appConfig={appConfig}
+      className="shrink-0 pb-0 sm:pb-0 print:hidden"
+      innerClassName="pb-0 sm:pb-0 pr-4"
+    >
+      <section
+        aria-label="Notebook startup"
+        className={cn(
+          "text-muted-foreground max-w-md mx-auto px-4",
+          hasCells ? "mt-4 mb-8" : "mt-16 sm:mt-24",
+        )}
+      >
+        {!canOpenPackages && showSteps && (
+          <output className="sr-only">{notice.title}</output>
+        )}
+        <ConnectionDetails
+          notice={notice}
+          surface={canOpenPackages ? "notebook" : "sidebar"}
+        />
+        <div className={showSteps ? "mt-8" : "ml-6.5"}>
+          <div
+            className={cn(
+              "flex flex-wrap items-center gap-x-6 gap-y-3",
+              showSteps ? "border-t border-border/60 pt-4" : "mt-5",
+            )}
+          >
+            {canOpenPackages &&
+              !notice.ready &&
+              !packagesOpen &&
+              (notice.sandbox || notice.pending) && (
+                <Button
+                  variant="text"
+                  size="xs"
+                  className={cn(
+                    "p-0 text-xs gap-1.5",
+                    showSteps ? "h-6" : "h-auto",
+                  )}
+                  onClick={openDetails}
+                >
+                  {notice.pending ? "View setup details" : "Open Packages"}
+                  <ArrowRightIcon className="size-3" aria-hidden={true} />
+                </Button>
+              )}
+            {!notice.pending && !notice.sandbox && (
+              <Button variant="outline" size="xs" onClick={onRetry}>
+                Try again
+              </Button>
+            )}
+            {notice.pending && (
+              <div className={showSteps ? "ml-auto" : undefined}>
+                <StartupElapsedTime />
+              </div>
+            )}
+          </div>
+        </div>
+      </section>
+    </VerticalLayoutWrapper>
+  );
+};
+
+function StartupElapsedTime() {
+  const [startedAt] = useState(Date.now);
+  const [seconds, setSeconds] = useState(0);
+  useInterval(() => setSeconds(Math.floor((Date.now() - startedAt) / 1000)), {
+    delayMs: 1000,
+    whenVisible: true,
+  });
+  const duration =
+    seconds < 60
+      ? `${seconds}s`
+      : `${Math.floor(seconds / 60)}m ${seconds % 60}s`;
+  return (
+    <span
+      className="text-xs text-muted-foreground/70 tabular-nums"
+      aria-live="off"
+    >
+      Elapsed {duration}
+    </span>
+  );
+}

@@ -51,7 +51,7 @@ def _alternate_spelling(fp: str) -> str:
 class TestSigningPolicyFromConfig:
     def test_empty_config_defaults(self) -> None:
         policy = SigningPolicy.from_config({})
-        assert policy.verification == "on"
+        assert policy.verification == "off"
         assert policy.trusted_signers == frozenset()
         assert policy.signer is None
         # The machine-key path is frozen at construction, not read live later.

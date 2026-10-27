@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import os
 import time
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import pytest
@@ -943,7 +943,7 @@ def test_to_numeric_coord_normalizes_naive_datetimes_to_utc() -> None:
 
         naive_dt = datetime(2024, 1, 2, 3, 4, 5)
         utc_string = "2024-01-02T03:04:05Z"
-        aware_dt = datetime(2024, 1, 2, 3, 4, 5, tzinfo=timezone.utc)
+        aware_dt = datetime(2024, 1, 2, 3, 4, 5, tzinfo=UTC)
 
         assert _to_numeric_coord(naive_dt) == _to_numeric_coord(utc_string)
         assert _to_numeric_coord(naive_dt) == _to_numeric_coord(aware_dt)

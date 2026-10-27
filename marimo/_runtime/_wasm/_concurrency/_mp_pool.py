@@ -21,8 +21,7 @@ from marimo._runtime._wasm._concurrency._wait import (
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterable
-
-    from typing_extensions import Self
+    from typing import Self
 
 
 class AsyncPoolResult:

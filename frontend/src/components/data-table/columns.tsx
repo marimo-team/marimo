@@ -6,14 +6,14 @@ import { Popover as PopoverPrimitive } from "radix-ui";
 const PopoverClose = PopoverPrimitive.Close;
 
 import type { Column, ColumnDef } from "@tanstack/react-table";
-import { formatDate, isValid } from "date-fns";
+import { isValid } from "date-fns";
 import { useRef } from "react";
 import { useLocale, useNumberFormatter } from "react-aria";
 import { WithLocale } from "@/core/i18n/with-locale";
 import type { DataType } from "@/core/kernel/messages";
 import type { CalculateTopKRows } from "@/plugins/impl/DataTablePlugin";
 import { cn } from "@/utils/cn";
-import { type DateFormat, exactDateTime, getDateFormat } from "@/utils/dates";
+import { exactDateTime } from "@/utils/dates";
 import { Events } from "@/utils/events";
 import { Logger } from "@/utils/Logger";
 import { Maps } from "@/utils/maps";
@@ -41,6 +41,7 @@ import {
   isNumericType,
 } from "./types";
 import { SentinelCell, WhitespaceMarkers } from "./sentinel-cell";
+import { highlightMatches } from "./search-highlight";
 import { detectSentinel, splitLeadingTrailingWhitespace } from "./utils";
 import { uniformSample } from "./uniformSample";
 import { MarkdownUrlDetector, UrlDetector } from "./url-detector";
@@ -135,6 +136,7 @@ export function generateColumns<T>({
 }): ColumnDef<T>[] {
   // Row-headers are typically index columns
   const rowHeadersSet = new Set(rowHeaders.map(([columnName]) => columnName));
+  const wrappedColumnsSet = new Set(wrappedColumns);
 
   const typesByColumn = Maps.keyBy(fieldTypes, (entry) => entry[0]);
 
@@ -277,7 +279,7 @@ export function generateColumns<T>({
       );
     },
 
-    cell: ({ column, renderValue, getValue, cell }) => {
+    cell: ({ column, renderValue, getValue, cell, table }) => {
       function selectCell() {
         if (selection !== "single-cell" && selection !== "multi-cell") {
           return;
@@ -287,7 +289,7 @@ export function generateColumns<T>({
       }
 
       const justify = getJustify(key);
-      const wrapped = wrappedColumns?.includes(key);
+      const wrapped = wrappedColumnsSet.has(key);
       const isCellSelected = cell?.getIsSelected?.() || false;
       const canSelectCell =
         (selection === "single-cell" || selection === "multi-cell") &&
@@ -309,6 +311,7 @@ export function generateColumns<T>({
         getValue,
         selectCell,
         cellStyles,
+        highlightPattern: table.options.meta?.highlightPattern,
       });
 
       // Row headers are bold
@@ -583,25 +586,25 @@ function renderDate({
   value,
   dataType,
   dtype,
-  format,
+  displayValue,
   locale,
+  highlightPattern,
 }: {
   value: Date;
   dataType?: DataType;
   dtype?: string;
-  format?: DateFormat | null;
+  displayValue?: string;
   locale: string;
+  highlightPattern?: RegExp;
 }): React.ReactNode {
   const type = dataType === "date" ? "date" : "datetime";
   const timezone = extractTimezone(dtype);
 
-  const exactValue = format
-    ? formatDate(value, format)
-    : exactDateTime(value, timezone, locale);
+  const exactValue = displayValue ?? exactDateTime(value, timezone, locale);
 
   return (
     <DatePopover date={value} type={type}>
-      {exactValue}
+      {highlightMatches(exactValue, highlightPattern)}
     </DatePopover>
   );
 }
@@ -612,12 +615,14 @@ export function renderCellValue<TData, TValue>({
   getValue,
   selectCell,
   cellStyles,
+  highlightPattern,
 }: {
   column: Column<TData, TValue>;
   renderValue: () => TValue | null;
   getValue: () => TValue;
   selectCell?: () => void;
   cellStyles?: string;
+  highlightPattern?: RegExp;
 }) {
   const value = getValue();
   const format = column.getColumnFormatting?.();
@@ -626,6 +631,28 @@ export function renderCellValue<TData, TValue>({
   const dtype = column.columnDef.meta?.dtype;
 
   const isWrapped = column.getColumnWrapping?.() === "wrap";
+
+  const textCell = (text: string) => (
+    <div onClick={selectCell} className={cellStyles}>
+      {highlightMatches(text, highlightPattern)}
+    </div>
+  );
+  const dateCell = (date: Date, displayValue?: string) => (
+    <div onClick={selectCell} className={cellStyles}>
+      <WithLocale>
+        {(locale) =>
+          renderDate({
+            value: date,
+            dataType,
+            dtype,
+            displayValue,
+            locale,
+            highlightPattern,
+          })
+        }
+      </WithLocale>
+    </div>
+  );
 
   // Sentinel values (null, whitespace, NaN, Infinity, NaT) rendered specially.
   // Empty strings are left as-is
@@ -640,23 +667,12 @@ export function renderCellValue<TData, TValue>({
 
   if (dataType === "datetime" && typeof value === "string") {
     try {
-      if (!isValid(value)) {
-        return (
-          <div onClick={selectCell} className={cellStyles}>
-            {value}
-          </div>
-        );
+      const date = new Date(value);
+      if (!format || !isValid(date)) {
+        return textCell(value);
       }
 
-      const date = new Date(value);
-      const format = getDateFormat(value);
-      return (
-        <WithLocale>
-          {(locale) =>
-            renderDate({ value: date, dataType, dtype, format, locale })
-          }
-        </WithLocale>
-      );
+      return dateCell(date, String(column.applyColumnFormatting(value)));
     } catch (error) {
       Logger.error("Error parsing datetime, fallback to string", error);
     }
@@ -672,10 +688,9 @@ export function renderCellValue<TData, TValue>({
     }
 
     // e.g. 2010-10-07 17:15:00
-    return (
-      <WithLocale>
-        {(locale) => renderDate({ value, dataType, dtype, locale })}
-      </WithLocale>
+    return dateCell(
+      value,
+      format ? String(column.applyColumnFormatting(value)) : undefined,
     );
   }
 
@@ -721,7 +736,7 @@ export function renderCellValue<TData, TValue>({
           className={cn(cellStyles, isWrapped && COLUMN_WRAPPING_STYLES)}
         >
           <WhitespaceMarkers value={leading} />
-          <UrlDetector parts={parts} />
+          <UrlDetector parts={parts} highlightPattern={highlightPattern} />
           <WhitespaceMarkers value={trailing} />
         </div>
       );
@@ -747,11 +762,7 @@ export function renderCellValue<TData, TValue>({
   }
 
   if (format) {
-    return (
-      <div onClick={selectCell} className={cellStyles}>
-        {column.applyColumnFormatting(value)}
-      </div>
-    );
+    return textCell(String(column.applyColumnFormatting(value)));
   }
 
   // Format to the correct locale
@@ -761,26 +772,19 @@ export function renderCellValue<TData, TValue>({
         <LocaleNumber
           value={value}
           minFractionDigits={column.columnDef.meta?.minFractionDigits}
+          highlightPattern={highlightPattern}
         />
       </div>
     );
   }
 
   if (typeof value === "boolean") {
-    return (
-      <div onClick={selectCell} className={cellStyles}>
-        {value ? "True" : "False"}
-      </div>
-    );
+    return textCell(value ? "True" : "False");
   }
 
   if (isPrimitiveOrNullish(value)) {
     const rendered = renderValue();
-    return (
-      <div onClick={selectCell} className={cellStyles}>
-        {rendered == null ? "" : String(rendered)}
-      </div>
-    );
+    return textCell(rendered == null ? "" : String(rendered));
   }
 
   const mimeValues = getMimeValues(value);
@@ -818,14 +822,16 @@ export function renderCellValue<TData, TValue>({
 export const LocaleNumber = ({
   value,
   minFractionDigits,
+  highlightPattern,
 }: {
   value: number;
   minFractionDigits?: number;
+  highlightPattern?: RegExp;
 }) => {
   const { locale } = useLocale();
   const format = useNumberFormatter({
     minimumFractionDigits: minFractionDigits,
     maximumFractionDigits: maxFractionalDigits(locale),
   });
-  return format.format(value);
+  return highlightMatches(format.format(value), highlightPattern);
 };

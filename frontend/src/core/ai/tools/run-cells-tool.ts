@@ -54,10 +54,10 @@ export class RunStaleCellsTool implements AiTool<
   EmptyToolInput,
   RunStaleCellsOutput
 > {
-  readonly name = "run_stale_cells_tool";
-  readonly description = description;
-  readonly schema = z.object({});
-  readonly outputSchema = toolOutputBaseSchema.extend({
+  public readonly name = "run_stale_cells_tool";
+  public readonly description = description;
+  public readonly schema = z.object({});
+  public readonly outputSchema = toolOutputBaseSchema.extend({
     cellsToOutput: z
       .record(
         z.string(),
@@ -72,15 +72,15 @@ export class RunStaleCellsTool implements AiTool<
       )
       .optional(),
   }) satisfies z.ZodType<RunStaleCellsOutput>;
-  readonly mode: CopilotMode[] = ["agent"];
+  public readonly mode: CopilotMode[] = ["agent"];
 
   private readonly postExecutionDelay: number;
 
-  constructor(opts?: { postExecutionDelay?: number }) {
+  public constructor(opts?: { postExecutionDelay?: number }) {
     this.postExecutionDelay = opts?.postExecutionDelay ?? POST_EXECUTION_DELAY;
   }
 
-  handler = async (
+  public handler = async (
     _args: EmptyToolInput,
     toolContext: ToolNotebookContext,
   ): Promise<RunStaleCellsOutput> => {

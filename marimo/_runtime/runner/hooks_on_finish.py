@@ -33,6 +33,8 @@ def _send_interrupt_errors(ctx: OnFinishHookContext) -> None:
                 # reflect a previous run and should be cleared
                 clear_console=True,
                 cell_id=cid,
+                execution_id=ctx.execution_ids.get(cid),
+                code=ctx.graph.cells[cid].code,
             )
 
 
@@ -83,10 +85,29 @@ def _send_cancellation_errors(ctx: OnFinishHookContext) -> None:
                 # reflect a previous run and should be cleared
                 clear_console=True,
                 cell_id=cid,
+                execution_id=ctx.execution_ids.get(cid),
+                code=cell.code,
             )
+
+
+@kernel_tracer.start_as_current_span("flush_cache_manifests")
+def _flush_cache_manifests(ctx: OnFinishHookContext) -> None:
+    """Write out the cache entries this run recorded.
+
+    Once per run rather than once per entry. A manifest names every key the
+    notebook produced, and is rewritten whole.
+    """
+    del ctx
+    from marimo._runtime.context import safe_get_context
+    from marimo._save.manifest import flush_dirty_manifests
+
+    context = safe_get_context()
+    if context is not None:
+        flush_dirty_manifests(context)
 
 
 ON_FINISH_HOOKS: list[OnFinishHook] = [
     _send_interrupt_errors,
     _send_cancellation_errors,
+    _flush_cache_manifests,
 ]

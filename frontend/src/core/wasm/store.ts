@@ -41,7 +41,7 @@ const urlFileStore: FileStore = {
 };
 
 export const domElementFileStore: FileStore = {
-  saveFile(contents: string) {
+  saveFile(_contents: string) {
     // Do nothing
   },
   readFile() {
@@ -54,7 +54,7 @@ export const domElementFileStore: FileStore = {
 };
 
 const remoteDefaultFileStore: FileStore = {
-  saveFile(contents: string) {
+  saveFile(_contents: string) {
     // Do nothing
   },
   readFile() {
@@ -79,7 +79,7 @@ export const mountConfigFileStore: FileStore = {
 };
 
 const emptyFileStore: FileStore = {
-  saveFile(contents: string) {
+  saveFile(_contents: string) {
     // Do nothing
   },
   readFile() {
@@ -99,19 +99,19 @@ const emptyFileStore: FileStore = {
 
 export class CompositeFileStore implements FileStore {
   private stores: FileStore[];
-  constructor(stores: FileStore[]) {
+  public constructor(stores: FileStore[]) {
     this.stores = stores;
   }
 
-  insert(index: number, store: FileStore) {
+  public insert(index: number, store: FileStore) {
     this.stores.splice(index, 0, store);
   }
 
-  saveFile(contents: string) {
+  public saveFile(contents: string) {
     this.stores.forEach((store) => store.saveFile(contents));
   }
 
-  readFile() {
+  public readFile() {
     for (const store of this.stores) {
       const contents = store.readFile();
       if (contents) {

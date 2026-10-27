@@ -95,17 +95,17 @@ function errorContextName(entry: CellErrorEntry): string {
 
 const errorsTxt = new PluralWord("error", "errors");
 export class ErrorContextProvider extends AIContextProvider<ErrorContextItem> {
-  readonly title = "Errors";
-  readonly mentionPrefix = "@";
-  readonly contextType = "error";
+  public readonly title = "Errors";
+  public readonly mentionPrefix = "@";
+  public readonly contextType = "error";
   private store: JotaiStore;
 
-  constructor(store: JotaiStore) {
+  public constructor(store: JotaiStore) {
     super();
     this.store = store;
   }
 
-  getItems(): ErrorContextItem[] {
+  public getItems(): ErrorContextItem[] {
     const errors = getCellErrorEntries(this.store);
 
     if (errors.length === 0) {
@@ -141,7 +141,7 @@ export class ErrorContextProvider extends AIContextProvider<ErrorContextItem> {
     return items;
   }
 
-  formatCompletion(item: ErrorContextItem): Completion {
+  public formatCompletion(item: ErrorContextItem): Completion {
     if (item.data.type === "all-errors") {
       const errorCount = item.data.errors.length;
       return {
@@ -201,7 +201,7 @@ export class ErrorContextProvider extends AIContextProvider<ErrorContextItem> {
     };
   }
 
-  formatContext(item: ErrorContextItem): string {
+  public formatContext(item: ErrorContextItem): string {
     const entries =
       item.data.type === "all-errors" ? item.data.errors : [item.data.error];
 

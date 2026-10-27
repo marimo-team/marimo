@@ -10,14 +10,20 @@ from __future__ import annotations
 
 import asyncio
 from dataclasses import dataclass
+from functools import partial
+from itertools import groupby
 from typing import TYPE_CHECKING, Literal, Union
 
 from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._messaging.notification import (
-    InstallingPackageAlertNotification,
+    EnvironmentAction,
     PackageStatusType,
 )
 from marimo._messaging.notification_utils import broadcast_notification
+from marimo._runtime.packages.operations import (
+    EnvironmentOperationReporter,
+    environment_operation,
+)
 from marimo._runtime.packages.package_manager import (
     PackageDescription,
     PackageManager,
@@ -187,125 +193,87 @@ class Packages:
             pm.alert_not_installed()
             return [PackageResult.failed(op) for op in ops]
 
-        source: Literal["kernel", "server"] = "kernel"
-        statuses: PackageStatusType = {}
-        for op in ops:
-            if isinstance(op, _AddPackage):
-                statuses[op.package] = "queued"
-
-        if statuses:
-            broadcast_notification(
-                InstallingPackageAlertNotification(
-                    packages=statuses, source=source
-                ),
-                stream=self._ctx._kernel.stream,
-            )
-
         filename = self._ctx._kernel.app_metadata.filename
         manage_metadata = (
             GLOBAL_SETTINGS.MANAGE_SCRIPT_METADATA is True
             and filename is not None
         )
-
         results: PackageResultList = []
-        for op in ops:
-            if isinstance(op, _AddPackage):
-                success = await self._run_add(
-                    op, pm, statuses, source, manage_metadata
-                )
-            else:
-                success = await self._run_remove(op, pm, manage_metadata)
-            if success:
-                results.append(PackageResult.succeeded(op))
-            elif pm.restart_required:
-                results.append(PackageResult.restart_required(op))
-            else:
-                results.append(PackageResult.failed(op))
+        # Group adjacent actions so progress stays in package alerts without
+        # reordering an add/remove/add sequence.
+        for installing, group in groupby(
+            ops, key=lambda op: isinstance(op, _AddPackage)
+        ):
+            batch = list(group)
+            statuses: PackageStatusType = {
+                op.package: "queued" for op in batch
+            }
+            action: EnvironmentAction = "install" if installing else "remove"
+            with environment_operation(
+                action,
+                statuses,
+                "kernel",
+                partial(
+                    broadcast_notification, stream=self._ctx._kernel.stream
+                ),
+            ) as operation:
+                for op in batch:
+                    success = await self._run_operation(
+                        op, pm, operation, manage_metadata
+                    )
+                    if success:
+                        results.append(PackageResult.succeeded(op))
+                    elif pm.restart_required:
+                        results.append(PackageResult.restart_required(op))
+                    else:
+                        results.append(PackageResult.failed(op))
 
         return results
 
-    async def _run_add(
+    async def _run_operation(
         self,
-        op: _AddPackage,
+        op: PackageOp,
         pm: PackageManager,
-        statuses: PackageStatusType,
-        source: Literal["kernel", "server"],
+        operation: EnvironmentOperationReporter,
         manage_metadata: bool,
     ) -> bool:
         pkg = op.package
-        statuses[pkg] = "installing"
-        broadcast_notification(
-            InstallingPackageAlertNotification(
-                packages=statuses, source=source
-            ),
-            stream=self._ctx._kernel.stream,
+        installing = isinstance(op, _AddPackage)
+        operation.packages[pkg] = "running"
+        operation.update(
+            {pkg: f"{'Installing' if installing else 'Removing'} {pkg}...\n"},
+            replace=True,
         )
-        broadcast_notification(
-            InstallingPackageAlertNotification(
-                packages=statuses,
-                logs={pkg: f"Installing {pkg}...\n"},
-                log_status="start",
-                source=source,
-            ),
-            stream=self._ctx._kernel.stream,
-        )
-
-        def log_callback(log_line: str) -> None:
-            broadcast_notification(
-                InstallingPackageAlertNotification(
-                    packages=statuses,
-                    logs={pkg: log_line},
-                    log_status="append",
-                    source=source,
-                ),
-                stream=self._ctx._kernel.stream,
+        if installing:
+            success = await pm.install(
+                pkg,
+                version=None,
+                log_callback=lambda line: operation.update({pkg: line}),
             )
-
-        success = await pm.install(
-            pkg, version=None, log_callback=log_callback
-        )
+        else:
+            success = await pm.uninstall(pkg)
         if success:
-            statuses[pkg] = "installed"
-            final_log = f"Successfully installed {pkg}\n"
+            operation.packages[pkg] = "succeeded"
             filename = self._ctx._kernel.app_metadata.filename
             if manage_metadata and filename is not None:
                 await asyncio.to_thread(
                     pm.update_notebook_script_metadata,
                     filepath=filename,
-                    packages_to_add=split_packages(pkg),
+                    **(
+                        {"packages_to_add": split_packages(pkg)}
+                        if installing
+                        else {"packages_to_remove": split_packages(pkg)}
+                    ),
                     upgrade=False,
                 )
+            message = f"Successfully {'installed' if installing else 'removed'} {pkg}\n"
         elif pm.restart_required:
-            statuses[pkg] = "restart-required"
-            final_log = f"Dependency changes saved for {pkg}; restart the kernel to use them.\n"
+            operation.packages[pkg] = "restart-required"
+            message = f"Dependency changes saved for {pkg}; restart the kernel to use them.\n"
         else:
-            statuses[pkg] = "failed"
-            final_log = f"Failed to install {pkg}\n"
-
-        broadcast_notification(
-            InstallingPackageAlertNotification(
-                packages=statuses,
-                logs={pkg: final_log},
-                log_status="done",
-                source=source,
-            ),
-            stream=self._ctx._kernel.stream,
-        )
-        return success
-
-    async def _run_remove(
-        self,
-        op: _RemovePackage,
-        pm: PackageManager,
-        manage_metadata: bool,
-    ) -> bool:
-        success = await pm.uninstall(op.package)
-        filename = self._ctx._kernel.app_metadata.filename
-        if success and manage_metadata and filename is not None:
-            await asyncio.to_thread(
-                pm.update_notebook_script_metadata,
-                filepath=filename,
-                packages_to_remove=split_packages(op.package),
-                upgrade=False,
+            operation.packages[pkg] = "failed"
+            message = (
+                f"Failed to {'install' if installing else 'remove'} {pkg}\n"
             )
+        operation.update({pkg: message})
         return success

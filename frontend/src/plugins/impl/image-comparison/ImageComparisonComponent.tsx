@@ -19,7 +19,7 @@ function truncateSrc(src: string): string {
   return src.length > MAX_LENGTH ? `${src.slice(0, MAX_LENGTH)}…` : src;
 }
 
-const ImageComparisonComponent: React.FC<ImageComparisonData> = ({
+const ImageComparisonContent: React.FC<ImageComparisonData> = ({
   beforeSrc,
   afterSrc,
   value,
@@ -31,17 +31,13 @@ const ImageComparisonComponent: React.FC<ImageComparisonData> = ({
     () => new Set(),
   );
 
-  React.useEffect(() => {
-    setFailedSrcs(new Set());
-  }, [beforeSrc, afterSrc]);
-
   const handleError = React.useCallback((src: string) => {
-    setFailedSrcs((prev) => new Set(prev).add(src));
+    setFailedSrcs((previous) => new Set(previous).add(src));
   }, []);
 
   const containerStyle: React.CSSProperties = {
     width: width || "100%",
-    height: height || (direction === "vertical" ? "400px" : "auto"),
+    height: height || "auto",
     maxWidth: "100%",
     // The slider derives its height entirely from its (loaded) images, so a
     // broken/slow-loading source would otherwise collapse it to nothing and
@@ -104,6 +100,11 @@ const ImageComparisonComponent: React.FC<ImageComparisonData> = ({
       </ImgComparisonSlider>
     </div>
   );
+};
+
+const ImageComparisonComponent: React.FC<ImageComparisonData> = (props) => {
+  const sourceKey = JSON.stringify([props.beforeSrc, props.afterSrc]);
+  return <ImageComparisonContent key={sourceKey} {...props} />;
 };
 
 export default ImageComparisonComponent;

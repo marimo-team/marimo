@@ -176,10 +176,15 @@ class CachedLifecycle:
             # TODO(dmadisetti): Attempt to restore UI elements as well.
             # Currently the UIElement class has UIDs that are session-specific.
             ui_live = self._restored_ui_defs(attempt, glbls)
-            if not ui_live:
+            # A cell with no definitions and an unpicklable last expression
+            # restores a placeholder as its output. The caller would get the
+            # placeholder back, so the cell runs live instead.
+            stub_output = _is_unhashable_stub(attempt.meta.get("return"))
+            if not ui_live and not stub_output:
                 self._restored_keys[cell_id] = str(
                     self._loader.build_path(attempt.key)
                 )
+                self._record(cell_id, attempt)
                 return Skip(
                     result=RunResult(
                         output=attempt.meta.get("return"), exception=None
@@ -187,8 +192,8 @@ class CachedLifecycle:
                 )
 
             LOGGER.debug(
-                "Cache hit for %s defines UI elements; running "
-                "live to register them with this session",
+                "Cache hit for %s defines UI elements or a placeholder "
+                "output, so it runs live",
                 cell_id,
             )
             self._attempts.pop(cell_id, None)
@@ -236,10 +241,35 @@ class CachedLifecycle:
                 self._restored_keys[cell_id] = str(
                     self._loader.build_path(attempt.key)
                 )
+                self._record(cell_id, attempt)
         except BaseException as e:
             # Best-effort: save failures (incl. CacheException, which
             # extends BaseException) must never break the teardown chain.
             LOGGER.warning("Cache save failed for %s: %s", cell_id, e)
+
+    def _record(self, cell_id: CellId_t, attempt: Cache) -> None:
+        """Record the entry under the cell it caches."""
+        from marimo._save.manifest import record_cache_event
+
+        record_cache_event(
+            self._loader, attempt.key, cell_id, self._graph, saved=True
+        )
+
+    def invalidate_stub_definers(self, glbls: MutableGlobals) -> set[CellId_t]:
+        """Invalidate and return the cells that still define a stub.
+
+        A cell already invalidated is left out, so one that keeps restoring
+        a stub is not rerun forever.
+        """
+        stale = {
+            cell_id
+            for cell_id, cell in self._graph.cells.items()
+            if cell_id not in self._invalidated
+            and self._defines_stub(cell, glbls)
+        }
+        for cell_id in stale:
+            self._invalidate(cell_id)
+        return stale
 
     @staticmethod
     def _defines_stub(cell: CellImpl, glbls: MutableGlobals) -> bool:

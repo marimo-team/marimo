@@ -8,6 +8,7 @@ import { EditorState, type Extension } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { DuckDBDialect } from "@marimo-team/codemirror-sql/dialects";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { requestId } from "@/__tests__/branded";
 import type { CellId } from "@/core/cells/ids";
 import type {
   CompletionConfig,
@@ -41,12 +42,14 @@ const adapter = new SQLLanguageAdapter();
 const TEST_ENGINE = "test_engine" as ConnectionName;
 
 const TEST_EXTENSION_ARGS = [
-  {} as CellId,
-  {} as CompletionConfig,
-  {} as HotkeyProvider,
-  {} as PlaceholderType,
-  {} as LSPConfig & {
-    diagnostics: DiagnosticsConfig;
+  {
+    cellId: {} as CellId,
+    completionConfig: {} as CompletionConfig,
+    hotkeys: {} as HotkeyProvider,
+    placeholderType: {} as PlaceholderType,
+    lspConfig: {} as LSPConfig & {
+      diagnostics: DiagnosticsConfig;
+    },
   },
 ] as const;
 
@@ -929,15 +932,15 @@ describe("SQL analysis features", () => {
 
   it("reports semantic diagnostics as warnings", async () => {
     const adapter = new SQLLanguageAdapter();
-    const extensions = adapter.getExtension(
-      {} as CellId,
-      {} as CompletionConfig,
-      {} as HotkeyProvider,
-      {} as PlaceholderType,
-      {
+    const extensions = adapter.getExtension({
+      cellId: {} as CellId,
+      completionConfig: {} as CompletionConfig,
+      hotkeys: {} as HotkeyProvider,
+      placeholderType: {} as PlaceholderType,
+      lspConfig: {
         diagnostics: { sql_linter: true },
       } as LSPConfig & { diagnostics: DiagnosticsConfig },
-    );
+    });
     const state = EditorState.create({
       doc: "SELECT missing FROM users",
       extensions: [languageMetadataField.init(() => metadata), ...extensions],
@@ -962,15 +965,15 @@ describe("SQL analysis features", () => {
 
   it("does not report unknown tables", async () => {
     const adapter = new SQLLanguageAdapter();
-    const extensions = adapter.getExtension(
-      {} as CellId,
-      {} as CompletionConfig,
-      {} as HotkeyProvider,
-      {} as PlaceholderType,
-      {
+    const extensions = adapter.getExtension({
+      cellId: {} as CellId,
+      completionConfig: {} as CompletionConfig,
+      hotkeys: {} as HotkeyProvider,
+      placeholderType: {} as PlaceholderType,
+      lspConfig: {
         diagnostics: { sql_linter: true },
       } as LSPConfig & { diagnostics: DiagnosticsConfig },
-    );
+    });
     const state = EditorState.create({
       doc: "SELECT missing FROM users; SELECT * FROM unknown_table",
       extensions: [languageMetadataField.init(() => metadata), ...extensions],
@@ -1106,7 +1109,7 @@ describe("CustomSqlParser", () => {
     const request = vi.spyOn(ValidateSQL, "request").mockResolvedValue({
       error: null,
       parse_result: { success: false, errors: [error] },
-      request_id: "request-id",
+      request_id: requestId("request-id"),
       validate_result: null,
     });
     const state = EditorState.create({
@@ -1150,7 +1153,7 @@ describe("CustomSqlParser", () => {
     vi.spyOn(ValidateSQL, "request").mockResolvedValue({
       error: null,
       parse_result: { success: false, errors: [error] },
-      request_id: "request-id",
+      request_id: requestId("request-id"),
       validate_result: null,
     });
     const state = EditorState.create({
@@ -1194,7 +1197,7 @@ describe("CustomSqlParser", () => {
     const request = vi.spyOn(ValidateSQL, "request").mockResolvedValue({
       error: null,
       parse_result: { success: false, errors: [error] },
-      request_id: "request-id",
+      request_id: requestId("request-id"),
       validate_result: null,
     });
     const state = createNamedConnectionState({

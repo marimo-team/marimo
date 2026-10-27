@@ -37,10 +37,10 @@ export function useInstallPackages(): {
         showPackageRestartToast();
       } else if (response.success) {
         showAddPackageToast(packages);
+        onSuccess?.();
       } else {
         showAddPackageToast(packages, response.error);
       }
-      onSuccess?.();
     } catch (error) {
       Logger.error(error);
     } finally {

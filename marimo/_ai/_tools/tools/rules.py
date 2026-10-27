@@ -57,7 +57,7 @@ class GetMarimoRules(ToolBase[EmptyArgs, GetMarimoRulesOutput]):
                 LOGGER.warning(
                     "Failed to read bundled marimo rules from %s: %s",
                     MARIMO_RULES_PATH,
-                    str(e),
+                    e,
                 )
                 # Fall through to fetch from URL
 
@@ -78,7 +78,7 @@ class GetMarimoRules(ToolBase[EmptyArgs, GetMarimoRulesOutput]):
             LOGGER.warning(
                 "Failed to fetch marimo rules from %s: %s",
                 MARIMO_RULES_URL,
-                str(e),
+                e,
             )
 
             return GetMarimoRulesOutput(

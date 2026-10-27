@@ -3,14 +3,14 @@
 # requires-python = ">=3.12"
 # dependencies = [
 #     "marimo",
-#     "matplotlib==3.10.9",
-#     "numpy==2.2.4",
+#     "matplotlib",
+#     "numpy",
 # ]
 # ///
 
 import marimo
 
-__generated_with = "0.23.6"
+__generated_with = "0.25.2"
 app = marimo.App()
 
 
@@ -19,13 +19,11 @@ def _(mo):
     mo.md("""
     # Plotting
     """)
-    return
 
 
 @app.cell(hide_code=True)
 def _(check_dependencies):
     check_dependencies()
-    return
 
 
 @app.cell(hide_code=True)
@@ -37,7 +35,6 @@ def _(mo):
     This tutorial gives examples using matplotlib; other libraries are
     used similarly.
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -45,7 +42,6 @@ def _(mo):
     mo.md("""
     ## Matplotlib
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -60,13 +56,11 @@ def _(mo):
     plt.plot([1, 2])
     ```
     """)
-    return
 
 
 @app.cell
 def _(plt):
     plt.plot([1, 2])
-    return
 
 
 @app.cell(hide_code=True)
@@ -80,7 +74,6 @@ def _(mo):
     plt.gca()
     ```
     """)
-    return
 
 
 @app.cell
@@ -89,13 +82,11 @@ def _(plt):
     # ... do some work ...
     # make plt.gca() the last line of the cell
     plt.gca()
-    return
 
 
 @app.cell(hide_code=True)
 def _(mo, plt_show_explainer):
     mo.accordion(plt_show_explainer)
-    return
 
 
 @app.cell(hide_code=True)
@@ -104,7 +95,6 @@ def _(mo):
     **A new figure every cell.** Every cell starts with an empty figure for
     the imperative `pyplot` API.
     """)
-    return
 
 
 @app.cell
@@ -118,13 +108,11 @@ def _(plt, x):
     plt.plot(x, x)
     plt.plot(x, x**2)
     plt.gca()
-    return
 
 
 @app.cell
 def _(plt, x):
     plt.plot(x, x**3)
-    return
 
 
 @app.cell(hide_code=True)
@@ -133,7 +121,6 @@ def _(mo):
     To build a figure over multiple cells, use the object-oriented API and
     create your own axis:
     """)
-    return
 
 
 @app.cell
@@ -149,7 +136,6 @@ def _(plt, x):
 def _(axis, x):
     axis.plot(x, x**3)
     axis
-    return
 
 
 @app.cell(hide_code=True)
@@ -159,7 +145,6 @@ def _(mo):
 
     Draw plots interactively by parametrizing them with UI elements.
     """)
-    return
 
 
 @app.cell
@@ -200,7 +185,6 @@ def _(exponent, mo, plot_power):
         {mo.as_html(plot_power(exponent.value))}
         """
     )
-    return
 
 
 @app.cell(hide_code=True)
@@ -213,7 +197,6 @@ def _(mo):
     (shift-drag). Use `fig.value.get_mask(x, y)` to get a boolean mask
     of the selected points.
     """)
-    return
 
 
 @app.cell
@@ -229,7 +212,6 @@ def _(mo, np, plt):
 def _(XY, scatter_fig):
     _mask = scatter_fig.value.get_mask(XY[:, 0], XY[:, 1])
     XY[_mask]
-    return
 
 
 @app.cell(hide_code=True)
@@ -237,7 +219,6 @@ def _(mo):
     mo.md("""
     ## Other libraries
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -255,7 +236,6 @@ def _(mo):
     If you would like another library to be integrated into marimo, please
     get in touch.
     """)
-    return
 
 
 @app.cell(hide_code=True)

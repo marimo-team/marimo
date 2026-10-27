@@ -212,7 +212,7 @@ const Form = ({
   // wrapped plugin; this buffered value is in contrast to the actual
   // value of the plugin, which is the value of the wrapped plugin when
   // the submit button was last clicked/activated.
-  const [internalValue, setInternalValue] = useState<T>(
+  const [internalValue, setInternalValue] = useState<T>(() =>
     UI_ELEMENT_REGISTRY.lookupValue(elementId),
   );
 

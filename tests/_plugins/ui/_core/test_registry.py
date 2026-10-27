@@ -271,3 +271,40 @@ def test_owner_registry_delete_removes_function_namespace(
     assert ctx.function_registry.get_function(object_id, "function") is None
     with pytest.raises(KeyError):
         ctx.ui_element_registry.get_object(object_id)
+
+
+def test_reregister_removes_old_functions(executing_kernel: Kernel) -> None:
+    del executing_kernel
+    ctx = get_context()
+    registry = ctx.ui_element_registry
+    old_element = ui.text()
+    replacement = ui.text()
+    object_id = old_element._id
+    old_function = Function(
+        name="old_function",
+        arg_cls=EmptyArgs,
+        function=lambda _args: None,
+    )
+    ctx.function_registry.register(namespace=object_id, function=old_function)
+
+    # The old element is still alive when a new instance reuses its ID.
+    registry.register(object_id, replacement)
+
+    assert registry.get_object(object_id) is replacement
+    assert (
+        ctx.function_registry.get_function(object_id, "old_function") is None
+    )
+
+    new_function = Function(
+        name="new_function",
+        arg_cls=EmptyArgs,
+        function=lambda _args: None,
+    )
+    ctx.function_registry.register(namespace=object_id, function=new_function)
+    registry.delete(object_id, id(old_element))
+
+    assert registry.get_object(object_id) is replacement
+    assert (
+        ctx.function_registry.get_function(object_id, "new_function")
+        is new_function
+    )

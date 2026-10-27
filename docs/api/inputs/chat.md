@@ -75,7 +75,7 @@ import marimo as mo
 
 chat = mo.ui.chat(
     mo.ai.llm.openai(
-        "gpt-4",
+        "gpt-5.6-sol",
         system_message="You are a helpful assistant.",
     ),
     show_configuration_controls=True
@@ -288,7 +288,7 @@ import marimo as mo
 
 mo.ui.chat(
     mo.ai.llm.anthropic(
-        "claude-3-5-sonnet-20240620",
+        "claude-sonnet-5-5",
         system_message="You are a helpful assistant.",
         api_key="sk-ant-...",
     ),
@@ -305,7 +305,7 @@ import marimo as mo
 
 mo.ui.chat(
     mo.ai.llm.google(
-        "gemini-1.5-pro-latest",
+        "gemini-3.8-flash",
         system_message="You are a helpful assistant.",
         api_key="AI..",
     ),

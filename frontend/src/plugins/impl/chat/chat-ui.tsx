@@ -24,7 +24,7 @@ import {
   Trash2Icon,
   X,
 } from "lucide-react";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { z } from "zod";
 import {
   describeChatAbortReason,
@@ -163,7 +163,9 @@ export const Chatbot: React.FC<Props> = (props) => {
 
   // Use a ref to avoid stale closure in the fetch callback
   const configRef = useRef<ChatConfig>(config);
-  configRef.current = config;
+  useLayoutEffect(() => {
+    configRef.current = config;
+  }, [config]);
 
   // For frontend-managed streaming, create a controller to enqueue chunks to.
   const frontendStreamControllerRef =
@@ -411,9 +413,8 @@ export const Chatbot: React.FC<Props> = (props) => {
     });
   }, [messages.length, scrollContainerRef]);
 
-  const codemirrorView = codeMirrorInputRef.current?.view;
-
   const resetInput = () => {
+    const codemirrorView = codeMirrorInputRef.current?.view;
     // Clear input immediately by directly manipulating the editor
     // There is some delay if we use setInput("") only
     if (codemirrorView) {
@@ -440,6 +441,7 @@ export const Chatbot: React.FC<Props> = (props) => {
     >
       <div className="absolute top-0 right-0 flex justify-end z-10 border border-(--slate-6) bg-inherit rounded-bl-lg">
         <Button
+          aria-label="Reset chat"
           variant="text"
           size="icon"
           disabled={messages.length === 0}
@@ -470,7 +472,7 @@ export const Chatbot: React.FC<Props> = (props) => {
 
           return (
             <div
-              key={`${message.id}-${index}`}
+              key={message.id}
               className={cn(
                 "flex flex-col group gap-2",
                 message.role === "user" ? "items-end" : "items-start",
@@ -566,6 +568,7 @@ export const Chatbot: React.FC<Props> = (props) => {
             onSelect={(prompt) => {
               setInput(prompt);
               requestAnimationFrame(() => {
+                const codemirrorView = codeMirrorInputRef.current?.view;
                 codemirrorView?.focus();
                 moveToEndOfEditor(codemirrorView);
               });
@@ -862,6 +865,7 @@ const PromptsPopover: React.FC<{
 
       <PopoverContent side="right" align="end" className="min-w-80 px-2">
         <PromptVariablesForm
+          key={selectedPrompt}
           prompt={selectedPrompt}
           onClose={() => setIsPopoverOpen(false)}
           onSelect={onSelect}
@@ -876,9 +880,7 @@ const PromptVariablesForm: React.FC<{
   onClose: () => void;
   onSelect: (prompt: string) => void;
 }> = ({ prompt, onClose, onSelect }) => {
-  const [variables, setVariables] = useState<{ [key: string]: string }>({});
-
-  useEffect(() => {
+  const [variables, setVariables] = useState<{ [key: string]: string }>(() => {
     const variableRegex = /{{(\w+)}}/g;
     const matches = [...prompt.matchAll(variableRegex)];
     const initialVariables = matches.reduce<{ [key: string]: string }>(
@@ -888,8 +890,8 @@ const PromptVariablesForm: React.FC<{
       },
       {},
     );
-    setVariables(initialVariables);
-  }, [prompt]);
+    return initialVariables;
+  });
 
   const handleVariableChange = (variable: string, value: string) => {
     setVariables((prev) => ({ ...prev, [variable]: value }));

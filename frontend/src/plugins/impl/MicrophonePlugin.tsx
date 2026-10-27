@@ -18,13 +18,13 @@ interface Data {
 }
 
 export class MicrophonePlugin implements IPlugin<Value, Data> {
-  tagName = "marimo-microphone";
+  public tagName = "marimo-microphone";
 
-  validator = z.object({
+  public validator = z.object({
     label: z.string().nullish(),
   });
 
-  render(props: IPluginProps<Value, Data>): JSX.Element {
+  public render(props: IPluginProps<Value, Data>): JSX.Element {
     return <Microphone {...props} />;
   }
 }

@@ -135,7 +135,7 @@ class Cmd:
                 ),
                 timeout=self.timeout,
             )
-        except asyncio.TimeoutError:
+        except TimeoutError:
             process.kill()
             await process.communicate()
             pytest.fail(f"Timeout: {self.command}")

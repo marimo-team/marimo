@@ -26,7 +26,9 @@ from marimo._plugins.ui._impl.dataframes.transforms.types import (
 )
 from marimo._plugins.ui._impl.table import (
     DownloadAsArgs,
+    DownloadAsOptions,
     DownloadAsResponse,
+    DownloadGeoJSONArgs,
     GetSizeBytesResponse,
     SearchTableArgs,
     SearchTableResponse,
@@ -34,6 +36,12 @@ from marimo._plugins.ui._impl.table import (
     TableSearchError,
 )
 from marimo._plugins.ui._impl.tables.format import FormatMapping
+from marimo._plugins.ui._impl.tables.geometry_export import (
+    ExportMetadata,
+    GeometryExportError,
+    get_export_metadata,
+    has_geometry_columns,
+)
 from marimo._plugins.ui._impl.tables.table_manager import (
     FieldTypes,
     TableManager,
@@ -230,6 +238,16 @@ class dataframe(UIElement[dict[str, Any], DataFrameType]):
                     function=self._download_as,
                 ),
                 Function(
+                    name="download_geojson",
+                    arg_cls=DownloadGeoJSONArgs,
+                    function=self._download_geojson,
+                ),
+                Function(
+                    name="get_export_metadata",
+                    arg_cls=EmptyArgs,
+                    function=self._get_export_metadata,
+                ),
+                Function(
                     name="get_size_bytes",
                     arg_cls=EmptyArgs,
                     function=self._get_size_bytes,
@@ -347,14 +365,28 @@ class dataframe(UIElement[dict[str, Any], DataFrameType]):
             total_rows=result.get_num_rows(force=True) or 0,
         )
 
+    def _get_export_metadata(self, args: EmptyArgs) -> ExportMetadata:
+        del args
+        return get_export_metadata(get_table_manager(self._value))
+
     def _download_as(self, args: DownloadAsArgs) -> DownloadAsResponse:
+        return self._download(args)
+
+    def _download_geojson(
+        self, args: DownloadGeoJSONArgs
+    ) -> DownloadAsResponse:
+        return self._download(args)
+
+    def _download(
+        self, args: DownloadAsArgs | DownloadGeoJSONArgs
+    ) -> DownloadAsResponse:
         """Download the transformed dataframe in the specified format.
 
         Downloads the dataframe with all current transformations applied.
 
         Args:
-            args (DownloadAsArgs): Arguments specifying the download format.
-                format must be one of 'csv', 'tsv', 'json', or 'parquet'.
+            args (DownloadAsArgs | DownloadGeoJSONArgs): Arguments specifying
+                the download format and optional export settings.
 
         Returns:
             DownloadAsResponse: URL and filename for the downloaded file.
@@ -363,24 +395,44 @@ class dataframe(UIElement[dict[str, Any], DataFrameType]):
             ValueError: If format is not supported.
         """
         df = self._value
-        manager = self._get_cached_table_manager(df, self._limit)
+        if args.format in ("parquet", "geojson"):
+            full_manager = get_table_manager(df)
+            manager = (
+                full_manager
+                if has_geometry_columns(full_manager)
+                else self._get_cached_table_manager(df, self._limit)
+            )
+        else:
+            manager = self._get_cached_table_manager(df, self._limit)
 
         bound_filename = get_bound_name(self._id)
 
-        url, filename = download_as(
-            manager,
-            args.format,
-            options=DownloadOptions(
-                delimited=DelimitedOptions(
-                    encoding=self._download_csv_encoding,
-                    separator=self._download_csv_separator,
-                ),
-                json=JsonOptions(
-                    ensure_ascii=self._download_json_ensure_ascii
-                ),
+        widget_defaults = DownloadOptions(
+            delimited=DelimitedOptions(
+                encoding=self._download_csv_encoding,
+                separator=self._download_csv_separator,
             ),
-            filename=bound_filename,
+            json=JsonOptions(ensure_ascii=self._download_json_ensure_ascii),
         )
+        options = (args.options or DownloadAsOptions()).resolve(
+            widget_defaults
+        )
+
+        try:
+            url, filename = download_as(
+                manager,
+                args.format,
+                options=options,
+                filename=bound_filename,
+                geometry_column=args.geometry_column,
+            )
+        except GeometryExportError as e:
+            return DownloadAsResponse(
+                error=str(e),
+                code=e.code,
+                column=e.column,
+                missing_packages=e.missing_packages,
+            )
         return DownloadAsResponse(url=url, filename=filename)
 
     def _apply_filters_query_sort(

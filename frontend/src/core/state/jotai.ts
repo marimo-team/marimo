@@ -42,7 +42,7 @@ export function useJotaiEffect<T>(
   const store = useStore();
   useEffect(() => {
     let prevValue = store.get(atom);
-    store.sub(atom, () => {
+    return store.sub(atom, () => {
       const value = store.get(atom);
       effect(value, prevValue);
       prevValue = value;

@@ -4,7 +4,7 @@ from __future__ import annotations
 import json
 import os
 import urllib.error
-from datetime import datetime
+from datetime import date, datetime
 from typing import TYPE_CHECKING, Any, cast
 
 from marimo import _loggers
@@ -105,10 +105,8 @@ def _update_with_latest_version(state: MarimoCLIState) -> MarimoCLIState:
     # We only update the state once a day
     now = datetime.now()
     if state.last_checked_at:
-        last_checked_date = datetime.strptime(
-            state.last_checked_at, DATE_FORMAT
-        )
-        if _is_same_day(last_checked_date, now):
+        last_checked_date = date.fromisoformat(state.last_checked_at)
+        if last_checked_date == now.date():
             # Same day, so do nothing
             return state
 
@@ -145,10 +143,6 @@ def _fetch_data_from_url(url: str) -> dict[str, Any]:
             f"Timeout ({FETCH_TIMEOUT}s) while checking for version updates"
         )
         raise
-
-
-def _is_same_day(date1: datetime, date2: datetime) -> bool:
-    return date1.date() == date2.date()
 
 
 def update_notices(response: dict[str, Any]) -> list[str]:

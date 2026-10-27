@@ -12,21 +12,20 @@ import React, { type JSX } from "react";
 const LazyVegaComponent = React.lazy(() => import("./vega-component"));
 
 export class VegaPlugin implements IPlugin<VegaComponentState, Data> {
-  tagName = "marimo-vega";
+  public tagName = "marimo-vega";
 
-  validator = z.object({
+  public validator = z.object({
     spec: z
-      .object({})
-      .passthrough()
+      .looseObject({})
       .transform((spec) => spec as unknown as VegaLiteSpec),
     chartSelection: z
       .union([z.boolean(), z.literal("point"), z.literal("interval")])
       .default(true),
     fieldSelection: z.union([z.boolean(), z.array(z.string())]).default(true),
-    embedOptions: z.object({}).passthrough().default({}),
+    embedOptions: z.looseObject({}).default({}),
   });
 
-  render(props: IPluginProps<VegaComponentState, Data>): JSX.Element {
+  public render(props: IPluginProps<VegaComponentState, Data>): JSX.Element {
     return (
       <LazyVegaComponent
         value={props.value}

@@ -7,7 +7,12 @@ import { parseOutline } from "../dom/outline";
 import type { CellMessage, OutputMessage } from "../kernel/messages";
 import type { RuntimeState } from "../network/types";
 import { collapseConsoleOutputs } from "./collapseConsoleOutputs";
-import type { CellRuntimeState } from "./types";
+import type { CellRuntimeState, ConsoleOutputMessage } from "./types";
+
+// Ids increase with position, so the last output holds the maximum.
+function nextConsoleOutputId(outputs: ConsoleOutputMessage[]): number {
+  return (outputs.at(-1)?.id ?? 0) + 1;
+}
 
 export function transitionCell(
   cell: CellRuntimeState,
@@ -133,6 +138,7 @@ export function transitionCell(
           mimetype: output.mimetype,
           data: output.data,
           timestamp: output.timestamp,
+          id: output.id,
           response: output.response ?? "",
         };
       }
@@ -146,8 +152,13 @@ export function transitionCell(
     // messageConsole is an output that needs to be appended to the
     // existing console outputs.
     consoleOutputs = Array.isArray(messageConsole)
-      ? collapseConsoleOutputs(messageConsole)
-      : collapseConsoleOutputs([...consoleOutputs, messageConsole]);
+      ? collapseConsoleOutputs(
+          messageConsole.map((output, i) => ({ ...output, id: i + 1 })),
+        )
+      : collapseConsoleOutputs([
+          ...consoleOutputs,
+          { ...messageConsole, id: nextConsoleOutputId(consoleOutputs) },
+        ]);
   }
   nextCell.consoleOutputs = consoleOutputs;
   // Derive outline from output

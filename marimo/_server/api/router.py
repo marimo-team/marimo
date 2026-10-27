@@ -26,11 +26,13 @@ from marimo._server.api.endpoints.home import router as home_router
 from marimo._server.api.endpoints.login import router as login_router
 from marimo._server.api.endpoints.lsp import router as lsp_router
 from marimo._server.api.endpoints.packages import router as packages_router
+from marimo._server.api.endpoints.pair import pair_router
 from marimo._server.api.endpoints.secrets import router as secrets_router
 from marimo._server.api.endpoints.sql import router as sql_router
 from marimo._server.api.endpoints.storage import router as storage_router
 from marimo._server.api.endpoints.terminal import router as terminal_router
 from marimo._server.api.endpoints.ws_endpoint import router as ws_router
+from marimo._server.host.api import editor_events_route
 from marimo._server.router import APIRouter
 
 if TYPE_CHECKING:
@@ -71,6 +73,7 @@ def build_routes(base_url: str = "") -> list[BaseRoute]:
         storage_router, prefix="/api/storage", name="storage"
     )
     app_router.include_router(ai_router, prefix="/api/ai", name="ai")
+    app_router.include_router(pair_router, prefix="/api/pair", name="pair")
     app_router.include_router(home_router, prefix="/api/home", name="home")
     app_router.include_router(login_router, prefix="/auth", name="auth")
     app_router.include_router(
@@ -83,6 +86,8 @@ def build_routes(base_url: str = "") -> list[BaseRoute]:
         packages_router, prefix="/api/packages", name="packages"
     )
     app_router.include_router(lsp_router, prefix="/api/lsp", name="lsp")
+    # Register before the catch-all mount shared by health, ws, and assets.
+    app_router.routes.append(editor_events_route(base_url))
     app_router.include_router(health_router, name="health")
     app_router.include_router(ws_router, name="ws")
     app_router.include_router(assets_router, name="assets")

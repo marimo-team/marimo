@@ -327,14 +327,16 @@ app._unparsable_cell(
         assert generate(
             "x = 1",
             "named_cell",
-            CellConfig(disabled=True, hide_code=True, column=1),
+            CellConfig(
+                disabled=True, hide_code=True, column=1, expand_output=True
+            ),
         ) == snapshot(
             '''\
 app._unparsable_cell(
     r"""
     x = 1
     """,
-    column=1, disabled=True, hide_code=True, name="named_cell"
+    column=1, disabled=True, hide_code=True, expand_output=True, name="named_cell"
 )\
 '''
         )
@@ -874,9 +876,7 @@ class TestToFunctionDef:
         code = "y + 1"
         cell = compile_cell(code)
         fndef = codegen.to_functiondef(cell, "foo")
-        expected = "\n".join(
-            ["@app.cell", "def foo(y):", "    y + 1", "    return"]
-        )
+        expected = "\n".join(["@app.cell", "def foo(y):", "    y + 1"])
         assert fndef == expected
 
     def test_tofunctiondef_empty_cells(self) -> None:
@@ -904,10 +904,53 @@ class TestToFunctionDef:
         code = "print(y)"
         cell = compile_cell(code)
         fndef = codegen.to_functiondef(cell, "foo")
-        expected = "\n".join(
-            ["@app.cell", "def foo(y):", "    print(y)", "    return"]
-        )
+        expected = "\n".join(["@app.cell", "def foo(y):", "    print(y)"])
         assert fndef == expected
+
+    def test_bare_return_stripped_unused_def(self) -> None:
+        # cell defines x, but x is not referenced by any other cell
+        # (used_refs=set()) -> defs=() -> bare return stripped
+        code = "x = 1"
+        cell = compile_cell(code)
+        fndef = codegen.to_functiondef(cell, "foo", used_refs=set())
+        assert "return" not in fndef
+        expected = "\n".join(["@app.cell", "def foo():", "    x = 1"])
+        assert fndef == expected
+
+    def test_bare_return_kept_single_trailing_newline(self) -> None:
+        # cell.code ends with \n → blank line before return → keep return
+        code = "x = 1\n"
+        cell = compile_cell(code)
+        fndef = codegen.to_functiondef(cell, "foo", used_refs=set())
+        assert fndef.endswith("    return")
+
+    def test_bare_return_kept_multiple_trailing_newlines(self) -> None:
+        # cell.code ends with \n\n → multiple blank lines before return → keep return
+        code = "x = 1\n\n"
+        cell = compile_cell(code)
+        fndef = codegen.to_functiondef(cell, "foo", used_refs=set())
+        assert fndef.endswith("    return")
+
+    def test_bare_return_kept_only_comments(self) -> None:
+        # only comments, no AST statements → keep return (function must have a body)
+        code = "# just a comment"
+        cell = compile_cell(code)
+        fndef = codegen.to_functiondef(cell, "foo")
+        assert fndef.endswith("    return")
+
+    def test_bare_return_kept_empty_cell(self) -> None:
+        # empty cell → keep return (function must have a body)
+        code = ""
+        cell = compile_cell(code)
+        fndef = codegen.to_functiondef(cell, "foo")
+        assert fndef.endswith("    return")
+
+    def test_bare_return_kept_single_funcdef(self) -> None:
+        # single function def → keep return to prevent toplevel reclassification
+        code = "def helper():\n    pass"
+        cell = compile_cell(code)
+        fndef = codegen.to_functiondef(cell, "foo", used_refs=set())
+        assert "    return" in fndef
 
     def test_tofunctiondef_refs_and_defs(self) -> None:
         code = "\n".join(["y = x", "z = x", "z = w + y"])
@@ -948,17 +991,40 @@ class TestToFunctionDef:
     def test_with_all_config(self) -> None:
         code = "x = 0"
         cell = compile_cell(code)
-        cell = cell.configure(CellConfig(disabled=True, hide_code=True))
+        cell = cell.configure(
+            CellConfig(disabled=True, hide_code=True, expand_output=True)
+        )
         fndef = codegen.to_functiondef(cell, "foo")
         expected = "\n".join(
             [
-                "@app.cell(disabled=True, hide_code=True)",
+                "@app.cell(disabled=True, hide_code=True, expand_output=True)",
                 "def foo():",
                 "    x = 0",
                 "    return (x,)",
             ]
         )
         assert fndef == expected
+
+    def test_with_expand_output(self) -> None:
+        code = "x = 0"
+        cell = compile_cell(code)
+        cell = cell.configure(CellConfig(expand_output=True))
+        fndef = codegen.to_functiondef(cell, "foo")
+        expected = "\n".join(
+            [
+                "@app.cell(expand_output=True)",
+                "def foo():",
+                "    x = 0",
+                "    return (x,)",
+            ]
+        )
+        assert fndef == expected
+
+    def test_expand_output_omitted_when_false(self) -> None:
+        code = "x = 0"
+        cell = compile_cell(code)
+        cell = cell.configure(CellConfig(expand_output=False))
+        assert codegen.to_functiondef(cell, "foo").startswith("@app.cell\n")
 
     def test_dotted_names_filtered_from_signature(self) -> None:
         """Test that dotted names (like SQL schema.table references) are filtered out from function signatures."""
@@ -1007,7 +1073,6 @@ class TestToFunctionDef:
                     "@app.cell",
                     "def cell2(cars_df, empty):",
                     "    result = cars_df.filter(lambda x: x > 0); empty",
-                    "    return",
                 ]
             )
             in expected
@@ -1629,17 +1694,17 @@ def test_needs_trailing_blank_line(code: str, expected: bool) -> None:
 @pytest.mark.parametrize(
     ("code", "expected_pattern", "unexpected_pattern"),
     [
-        # Import only - blank line before return
+        # Import only - return stripped (no blank line added)
         (
             "import datetime",
+            "    import datetime",
             "    import datetime\n\n    return",
-            None,
         ),
-        # Import then assignment - no blank line
+        # Import then assignment - return stripped (last stmt is assignment)
         (
             "import datetime\nx = 1",
+            "    import datetime\n    x = 1",
             "    import datetime\n    x = 1\n    return",
-            None,
         ),
         # Function def - blank line before return
         (
@@ -1653,11 +1718,11 @@ def test_needs_trailing_blank_line(code: str, expected: bool) -> None:
             "    # comment\n    return",
             "    # comment\n\n    return",
         ),
-        # Multiline import - blank line before return
+        # Multiline import - return stripped (no blank line added)
         (
             "from module import (\n    a,\n    b,\n)",
+            "    from module import (\n        a,\n        b,\n    )",
             "    )\n\n    return",
-            None,
         ),
     ],
     ids=[
@@ -2195,8 +2260,7 @@ def _(x):
 
 @app.cell
 def _(foo):
-    foo()
-    return\
+    foo()\
 """
         )
 
@@ -2240,3 +2304,39 @@ def _strip_header_footer(source: str) -> str:
     code_start = source.index(header)
     code_end = source.index('if __name__ == "__main__":')
     return source[code_start + len(header) : code_end].strip()
+
+
+@pytest.mark.parametrize(
+    ("code", "expected"),
+    [
+        # Already formatted: identity
+        ('mo.md(r"""\nA\n""")', 'mo.md(r"""\nA\n""")'),
+        # Inline comment after the call keeps its leading whitespace (#10976)
+        (
+            'mo.md(r"""\nA\n""")  # noqa: E501',
+            'mo.md(r"""\nA\n""")  # noqa: E501',
+        ),
+        # Comments on their own lines, before and after
+        (
+            '# lead\n\nmo.md(r"""\nA\n""")\n# trail',
+            '# lead\n\nmo.md(r"""\nA\n""")\n# trail',
+        ),
+        # Reformatting the call preserves the inline comment
+        (
+            'mo.md(\n    r"""\n    A\n    """\n)  # noqa: E501',
+            'mo.md(r"""\nA\n""")  # noqa: E501',
+        ),
+        # Non-ASCII content does not shift the comment position
+        (
+            'mo.md(r"""\nÄé\n""")  # noqa: É',
+            'mo.md(r"""\nÄé\n""")  # noqa: É',
+        ),
+        # Parentheses around the call are kept
+        ('(mo.md("x"))', '(mo.md("""\nx\n"""))'),
+        ('mo.md(("x"))', 'mo.md("""\nx\n""")'),
+    ],
+)
+def test_format_markdown_preserves_surrounding_source(
+    code: str, expected: str
+) -> None:
+    assert codegen.format_markdown(compile_cell(code)) == expected

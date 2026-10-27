@@ -2,7 +2,11 @@
 from __future__ import annotations
 
 import unittest
+from dataclasses import asdict
 
+import pytest
+
+from marimo._cli.pair.prompts import load_prompt_templates
 from marimo._schemas.session import (
     VERSION,
     Cell,
@@ -15,6 +19,35 @@ from marimo._server.templates.api import (
     render_static_notebook,
 )
 from tests._server.templates.utils import parse_mount_config
+
+
+@pytest.mark.parametrize(
+    ("editable", "command"),
+    [(True, "uv run marimo"), (False, "uvx marimo@latest")],
+)
+def test_pair_cli_config_is_unconditional(
+    monkeypatch: pytest.MonkeyPatch,
+    editable: bool,
+    command: str,
+) -> None:
+    monkeypatch.setattr(
+        "marimo._cli.pair.prompts.is_editable", lambda _: editable
+    )
+    html = render_notebook(
+        code="import marimo\napp = marimo.App()", mode="edit"
+    )
+    assert parse_mount_config(html)["pairConfig"] == {
+        "command": command,
+        "templates": asdict(load_prompt_templates()),
+        "hostEnabled": True,
+    }
+
+
+def test_read_mode_disables_agent_aware_ui() -> None:
+    html = render_notebook(
+        code="import marimo\napp = marimo.App()", mode="read"
+    )
+    assert parse_mount_config(html)["pairConfig"]["hostEnabled"] is False
 
 
 class TestRenderNotebook(unittest.TestCase):

@@ -1,38 +1,17 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-// TODO: rename to ConnectionState
-export const WebSocketState = {
-  NOT_STARTED: "NOT_STARTED",
-  CONNECTING: "CONNECTING",
-  OPEN: "OPEN",
-  CLOSING: "CLOSING",
-  CLOSED: "CLOSED",
-} as const;
+import type { ConnectionStatus as HostConnectionStatus } from "../host/connection";
+import type { NotificationMessageData } from "../kernel/messages";
 
-export type WebSocketState =
-  (typeof WebSocketState)[keyof typeof WebSocketState];
+export {
+  ConnectionState,
+  ConnectionClosedReason as WebSocketClosedReason,
+} from "../host/connection";
 
-export const WebSocketClosedReason = {
-  KERNEL_DISCONNECTED: "KERNEL_DISCONNECTED",
-  KERNEL_STARTUP_ERROR: "KERNEL_STARTUP_ERROR",
-} as const;
+export type ConnectionPhase =
+  | NotificationMessageData<"startup-progress">["phase"]
+  | "reconnecting";
 
-export type WebSocketClosedReason =
-  (typeof WebSocketClosedReason)[keyof typeof WebSocketClosedReason];
-
-export type ConnectionStatus =
-  | {
-      state: typeof WebSocketState.CLOSED;
-      code: WebSocketClosedReason;
-      /**
-       * Human-readable reason for closing the connection.
-       */
-      reason: string;
-    }
-  | {
-      state:
-        | typeof WebSocketState.CONNECTING
-        | typeof WebSocketState.OPEN
-        | typeof WebSocketState.CLOSING
-        | typeof WebSocketState.NOT_STARTED;
-    };
+export type ConnectionStatus = HostConnectionStatus & {
+  phase?: ConnectionPhase;
+};

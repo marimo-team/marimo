@@ -29,9 +29,9 @@ interface Data {
 }
 
 export class RangeSliderPlugin implements IPlugin<T, Data> {
-  tagName = "marimo-range-slider";
+  public tagName = "marimo-range-slider";
 
-  validator = z.object({
+  public validator = z.object({
     initialValue: z.array(z.number()),
     label: z.string().nullable(),
     start: z.number(),
@@ -45,7 +45,7 @@ export class RangeSliderPlugin implements IPlugin<T, Data> {
     disabled: z.boolean().optional(),
   });
 
-  render(props: IPluginProps<T, Data>): JSX.Element {
+  public render(props: IPluginProps<T, Data>): JSX.Element {
     const valueMap = (sliderValue: number): number => {
       if (props.data.steps && props.data.steps.length > 0) {
         return props.data.steps[sliderValue];
@@ -87,10 +87,15 @@ const RangeSliderComponent = ({
 }: RangeSliderProps): JSX.Element => {
   const id = useId();
   const { locale } = useLocale();
-  const fractionDigits = fractionDigitsForSlider(step, steps, start);
 
   // Hold internal value
   const [internalValue, setInternalValue] = useState(value);
+  const fractionDigits = fractionDigitsForSlider(
+    step,
+    steps,
+    start,
+    internalValue.map(valueMap),
+  );
 
   // Update internal value on prop change
   useEffect(() => {
@@ -102,7 +107,7 @@ const RangeSliderComponent = ({
   const sliderElement = (
     <Labeled
       label={label}
-      id={id}
+      controlId={id}
       align={orientation === "horizontal" ? "left" : "top"}
       className={cn(fullWidth && "my-1 w-full")}
       fullWidth={fullWidth}

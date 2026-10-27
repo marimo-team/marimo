@@ -42,16 +42,16 @@ class LineTimerWidget extends WidgetType {
 
   private readonly startedAtMs: number;
 
-  constructor(startedAtMs: number) {
+  public constructor(startedAtMs: number) {
     super();
     this.startedAtMs = startedAtMs;
   }
 
-  override eq(other: LineTimerWidget): boolean {
+  public override eq(other: LineTimerWidget): boolean {
     return other.startedAtMs === this.startedAtMs;
   }
 
-  override toDOM(): HTMLElement {
+  public override toDOM(): HTMLElement {
     const el = document.createElement("span");
     el.className = "cm-line-timer";
     el.setAttribute("aria-hidden", "true");
@@ -68,7 +68,7 @@ class LineTimerWidget extends WidgetType {
     return el;
   }
 
-  override destroy(dom: HTMLElement): void {
+  public override destroy(dom: HTMLElement): void {
     const interval = LineTimerWidget.intervals.get(dom);
     if (interval !== undefined) {
       window.clearInterval(interval);
@@ -76,7 +76,7 @@ class LineTimerWidget extends WidgetType {
     }
   }
 
-  override ignoreEvent(): boolean {
+  public override ignoreEvent(): boolean {
     return true;
   }
 }
@@ -112,9 +112,9 @@ function createTimingDecorations(
 
 class ActiveLineTimer implements PluginValue {
   private unsubscribe: () => void;
-  decorations: DecorationSet;
+  public decorations: DecorationSet;
 
-  constructor(
+  public constructor(
     view: EditorView,
     infoObservable: Observable<ActiveLineInfo | null>,
   ) {
@@ -129,11 +129,11 @@ class ActiveLineTimer implements PluginValue {
     });
   }
 
-  update(update: ViewUpdate) {
+  public update(update: ViewUpdate) {
     this.decorations = this.decorations.map(update.changes);
   }
 
-  destroy() {
+  public destroy() {
     this.unsubscribe();
   }
 }

@@ -1,7 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-from marimo._ast.variables import demangle_locals_in_text
+from marimo._ast.variables import demangle_locals_in_text, unmangle_local
 
 
 def test_demangle_in_name_error_message() -> None:
@@ -40,6 +40,19 @@ def test_demangle_handles_uuid_cell_id() -> None:
         )
         == "NameError: name '_a' is not defined"
     )
+
+
+def test_unmangle_local_handles_uuid_cell_id() -> None:
+    # A cell hashes to the same digest wherever it is compiled only if the
+    # name survives mangling identically, so hyphenated ids must unmangle.
+    name, cell = unmangle_local("_cell_c9bf9e57-1685-4c89-bafb-1234abcd_a")
+    assert name == "_a"
+    assert cell == "c9bf9e57-1685-4c89-bafb-1234abcd"
+
+
+def test_unmangle_local_leaves_an_unmangled_name_alone() -> None:
+    assert unmangle_local("_a") == ("_a", "")
+    assert unmangle_local("value") == ("value", "")
 
 
 def test_demangle_handles_single_underscore_local() -> None:

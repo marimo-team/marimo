@@ -8,6 +8,7 @@ import {
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import type { PreviewColumn } from "@/plugins/impl/DataTablePlugin";
 import { ColumnExplorerPanel } from "../column-explorer-panel/column-explorer";
 import type { FieldTypesWithExternalType } from "../types";
 
@@ -36,11 +37,13 @@ const TEST_COLUMNS: ColumnDef<Row>[] = [
 interface HarnessProps {
   totalColumns?: number;
   initiallyHidden?: readonly string[];
+  previewColumn?: PreviewColumn;
 }
 
 function PanelHarness({
   totalColumns = 3,
   initiallyHidden = EMPTY_HIDDEN_COLUMNS,
+  previewColumn = vi.fn().mockResolvedValue({}),
 }: HarnessProps) {
   const table = useReactTable<Row>({
     data: [],
@@ -55,7 +58,7 @@ function PanelHarness({
   });
   return (
     <ColumnExplorerPanel
-      previewColumn={vi.fn().mockResolvedValue({})}
+      previewColumn={previewColumn}
       fieldTypes={FIELD_TYPES}
       totalRows={3}
       totalColumns={totalColumns}
@@ -121,6 +124,29 @@ describe("ColumnExplorerPanel search", () => {
     expect(screen.queryByText("customer_name")).not.toBeInTheDocument();
     expect(screen.queryByText("cust_age")).not.toBeInTheDocument();
     expect(screen.queryByText("order_total")).not.toBeInTheDocument();
+  });
+});
+
+describe("ColumnExplorerPanel chart actions", () => {
+  it("names chart actions for each expanded column", async () => {
+    const previewColumn = vi.fn<PreviewColumn>().mockResolvedValue({
+      chart_code: "chart_code",
+      chart_spec: null,
+      error: null,
+      missing_packages: null,
+      stats: null,
+    });
+    renderPanel({ previewColumn });
+    fireEvent.click(screen.getByText("cust_age"));
+
+    for (const column of ["customer_name", "cust_age"]) {
+      expect(
+        await screen.findByRole("button", {
+          name: `Add chart to notebook for ${column}`,
+        }),
+      ).toBeInTheDocument();
+      expect(previewColumn).toHaveBeenCalledWith({ column });
+    }
   });
 });
 

@@ -40,7 +40,7 @@ You can customize the following settings:
 - Completion (auto-completion, AI copilot, etc.)
 - Display (theme, font size, output placement, etc.)
 - Autosave
-- [Package management](../editor_features/package_management.md#package-management)
+- [Package management](../package_management/installing_packages.md)
 - Server settings
 - [VIM keybindings](../editor_features/overview.md#vim-keybindings)
 - Formatting settings
@@ -92,7 +92,7 @@ default_width = "full"
 default_sql_output = "native"
 ```
 
-You can override any user configuration setting in this way. To find these settings run `marimo config show`.
+You can override most user configuration settings in this way. To find these settings run `marimo config show`.
 
 ### Additional file browser roots
 
@@ -109,6 +109,13 @@ cannot be set through notebook script metadata.
 
 !!! note "Overridden settings"
     Settings overridden in `pyproject.toml` or script metadata cannot be changed through the marimo editor's settings menu. Any changes made to overridden settings in the editor will not take effect.
+
+!!! warning "Settings that repositories cannot override"
+    A `pyproject.toml`, a notebook's script metadata, and a `.marimo.toml` inside
+    a project directory all travel with the code, so whoever wrote the repository
+    controls them. marimo reads `signing` and `cache.verification` from your user
+    configuration only, and ignores them in all three, because those two settings
+    decide [whose cached code you unpickle](../../api/caching.md#cache-signing-and-trust).
 
 ### Script metadata configuration
 
@@ -130,6 +137,10 @@ You can also configure marimo settings directly in your notebook files using scr
 
     **Script config > pyproject.toml config > user config**
 
+    The ordering covers the settings those layers are allowed to set. `signing`
+    and `cache.verification` come from user configuration whatever any other
+    layer says.
+
 ## Environment variables
 
 marimo supports the following environment variables for advanced configuration:
@@ -140,6 +151,7 @@ marimo supports the following environment variables for advanced configuration:
 | `MARIMO_STD_STREAM_MAX_BYTES` (deprecated, use `pyproject.toml`) | Maximum size of standard stream (stdout/stderr) output that marimo will display. Outputs larger than this will be truncated. | 1,000,000 (1MB) |
 | `MARIMO_SKIP_UPDATE_CHECK`    | If set to "1", marimo will skip checking for updates when starting.                                                          | Not set         |
 | `MARIMO_SQL_DEFAULT_LIMIT`    | Default limit for SQL query results. If not set, no limit is applied.                                                        | Not set         |
+| `MARIMO_RUNTIME_ON_CELL_CHANGE` | Override `runtime.on_cell_change` in edit mode: `lazy` marks dependent cells stale; `autorun` automatically runs them. Takes precedence over user, project, and script configuration. Has no effect with `marimo run`, which always uses `autorun`. | Not set |
 | `MARIMO_SESSION_COOKIE_SECURE` | If set to `true`/`1`, marks the session cookie as `Secure` so browsers only send it over HTTPS. Enable when serving marimo behind TLS.        | `false`         |
 | `MARIMO_SESSION_SECRET` | Secret used to sign the session cookie. Defaults to a random value generated per server process, so sessions are invalidated on restart. Set to a stable value (e.g. `openssl rand -hex 32`) to keep sessions across restarts or replicas. | Random per process |
 | `MARIMO_SERVER_TRANSPORT` | Experimental. The transport for streaming kernel messages to the browser: `websocket` or `sse`. Use `sse` when deploying behind proxies or services that do not support WebSockets. | `websocket`     |

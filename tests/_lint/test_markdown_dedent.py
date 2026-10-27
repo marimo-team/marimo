@@ -93,3 +93,71 @@ if __name__ == "__main__":
     assert len(mf007_errors) == 0, (
         "Should not flag correctly dedented markdown"
     )
+
+
+def test_markdown_dedent_inline_comment_no_false_positive():
+    """An inline comment after the call must not trigger the rule (#10976)."""
+    code = '''
+import marimo
+
+__generated_with = "0.17.0"
+app = marimo.App()
+
+
+@app.cell
+def _():
+    import marimo as mo
+    return (mo,)
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    A
+    """)  # noqa: E501
+    return
+
+
+if __name__ == "__main__":
+    app.run()
+'''
+    notebook = parse_notebook(code, filepath="notebook.py")
+    errors = lint_notebook(notebook, code)
+
+    mf007_errors = [e for e in errors if e.code == "MF007"]
+    assert len(mf007_errors) == 0
+
+
+def test_markdown_dedent_inline_comment_still_detects_indent():
+    """An inline comment must not mask markdown that really needs dedenting."""
+    code = '''
+import marimo
+
+__generated_with = "0.17.0"
+app = marimo.App()
+
+
+@app.cell
+def _():
+    import marimo as mo
+    return (mo,)
+
+
+@app.cell
+def _(mo):
+    mo.md(
+        r"""
+        A
+        """
+    )  # noqa: E501
+    return
+
+
+if __name__ == "__main__":
+    app.run()
+'''
+    notebook = parse_notebook(code, filepath="notebook.py")
+    errors = lint_notebook(notebook, code)
+
+    mf007_errors = [e for e in errors if e.code == "MF007"]
+    assert len(mf007_errors) == 1

@@ -16,9 +16,9 @@ describe("useResizeObserver", () => {
   it("should call observe when ref is provided", () => {
     const observeSpy = vi.fn();
     global.ResizeObserver = class MockedResizeObserver {
-      observe = observeSpy;
-      unobserve = vi.fn();
-      disconnect = vi.fn();
+      public observe = observeSpy;
+      public unobserve = vi.fn();
+      public disconnect = vi.fn();
     };
 
     renderHook(() =>
@@ -33,9 +33,9 @@ describe("useResizeObserver", () => {
   it("should not call observe when ref is not provided", () => {
     const observeSpy = vi.fn();
     global.ResizeObserver = class MockedResizeObserver {
-      observe = observeSpy;
-      unobserve = vi.fn();
-      disconnect = vi.fn();
+      public observe = observeSpy;
+      public unobserve = vi.fn();
+      public disconnect = vi.fn();
     };
 
     renderHook(() =>
@@ -50,9 +50,9 @@ describe("useResizeObserver", () => {
   it("should not call observe when skipped", () => {
     const observeSpy = vi.fn();
     global.ResizeObserver = class MockedResizeObserver {
-      observe = observeSpy;
-      unobserve = vi.fn();
-      disconnect = vi.fn();
+      public observe = observeSpy;
+      public unobserve = vi.fn();
+      public disconnect = vi.fn();
     };
 
     renderHook(() =>
@@ -68,9 +68,9 @@ describe("useResizeObserver", () => {
   it("disconnect should be called once unmounted", () => {
     const disconnectSpy = vi.fn();
     global.ResizeObserver = class MockedResizeObserver {
-      observe = vi.fn();
-      unobserve = vi.fn();
-      disconnect = disconnectSpy;
+      public observe = vi.fn();
+      public unobserve = vi.fn();
+      public disconnect = disconnectSpy;
     };
 
     const { unmount } = renderHook(() =>

@@ -284,7 +284,7 @@ export class MatplotlibRenderer {
   /** The devicePixelRatio the canvas buffer was last sized with. */
   #backingDpr = 1;
 
-  constructor(
+  public constructor(
     container: HTMLDivElement,
     options: { state: MatplotlibState; signal: AbortSignal },
   ) {
@@ -396,7 +396,7 @@ export class MatplotlibRenderer {
     mq.addEventListener("change", onChange, { once: true, signal });
   }
 
-  update(state: MatplotlibState): void {
+  public update(state: MatplotlibState): void {
     const prev = this.#state;
     this.#state = state;
 

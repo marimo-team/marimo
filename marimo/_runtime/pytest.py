@@ -7,6 +7,7 @@ import re
 import sys
 import types
 from dataclasses import dataclass
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
 
 from marimo._ast.pytest import MARIMO_TEST_STUB_NAME
@@ -15,14 +16,13 @@ from marimo._cli.print import bold, green
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._runtime.capture import capture_stdout
 from marimo._runtime.context import safe_get_context
+from marimo._runtime.reload.autoreload import is_user_module
 from marimo._runtime.runtime import notebook_location
 
 MARIMO_TEST_BLOCK_REGEX = re.compile(rf"{MARIMO_TEST_STUB_NAME}_\d+[(?::)\.]+")
 
 
 if TYPE_CHECKING:
-    from pathlib import Path
-
     import pytest
     from _pytest.nodes import Collector, Item, Node
 
@@ -182,6 +182,7 @@ class ReplaceStubPlugin:
         defs: set[str] | None = None,
         lcls: dict[str, Any] | None = None,
         global_defs: set[str] | None = None,
+        notebook_path: str | None = None,
     ) -> None:
         if lcls is None:
             lcls = globals()
@@ -190,6 +191,9 @@ class ReplaceStubPlugin:
 
         self.lcls = lcls
         self.defs = defs
+        self._notebook = (
+            Path(os.path.abspath(notebook_path)) if notebook_path else None
+        )
         # Notebook-global names (setup + top-level defs). Together with `defs`
         # they bound which fixtures stay visible during live collection; any
         # fixture outside this scope belongs to a sibling cell and is hidden to
@@ -220,6 +224,24 @@ class ReplaceStubPlugin:
         module = _live_module_cls().from_parent(parent, path=module_path)
         module._set_globals(self._live_module_globals())
         return module
+
+    def pytest_ignore_collect(self, collection_path: Path) -> bool | None:
+        """Offer pytest nothing but the notebook and the directories leading
+        to it.
+
+        Pytest lists every directory from its anchor down to the notebook and
+        would otherwise collect, then discard, each neighbouring entry. A
+        shared temp directory on that path changes under it mid-scan, and a
+        neighbour that vanishes before pytest stats it fails the whole run.
+        """
+        if self._notebook is None:
+            return None
+        if (
+            collection_path == self._notebook
+            or collection_path in self._notebook.parents
+        ):
+            return None
+        return True
 
     def _live_owner(self, item: Item) -> str | None:
         """Name of the module-level object (function/class) owning `item`."""
@@ -358,7 +380,9 @@ def run_pytest(
     # Ideally, --import-mode=importlib would be a great flag- however the
     # method is too brittle to handle absolute paths. As such, we default to
     # the normal behavior (in which pytest alters the system path).
-    plugin = ReplaceStubPlugin(defs, lcls, global_defs=global_defs)
+    plugin = ReplaceStubPlugin(
+        defs, lcls, global_defs=global_defs, notebook_path=notebook_path
+    )
     try:
         # pytest in wasm doesn't seem to set environment variables correctly.
         # This work around is to prevent collision with non-wasm testing.
@@ -382,9 +406,16 @@ def run_pytest(
             )
     finally:
         del os.environ["MARIMO_PYTEST_WASM"]
-        # Note, in pytester, there are also exceptions for zope and readline.
-        # However, those deps should already be in module_snapshot, since
-        # dependencies are required before the given cell runs.
+        # Evict only project-local modules pytest imported during the run
+        # (conftest, helpers) so edits are picked up next run. Installed
+        # packages are kept: they do not change between runs, and
+        # re-executing them repeats one-shot import side effects such as
+        # native operator registration.
+        module_snapshot.update(
+            (name, module)
+            for name, module in sys.modules.items()
+            if name not in module_snapshot and not is_user_module(module)
+        )
         sys.modules.clear()
         sys.modules.update(module_snapshot)
         sys.path[:] = path_snapshot

@@ -62,6 +62,29 @@ describe("RangeSliderPlugin", () => {
     expect(getByText("1.234, 1.235")).toBeDefined();
   });
 
+  it("retains value precision when no step is supplied", () => {
+    const plugin = new RangeSliderPlugin();
+    const props = createProps([1.2345, 1.500000000000001], {
+      step: undefined,
+    });
+
+    const { getByText } = render(plugin.render(props));
+
+    expect(getByText("1.2345, 1.5")).toBeDefined();
+  });
+
+  it("preserves precision for small displayed values", () => {
+    const plugin = new RangeSliderPlugin();
+    const props = createProps([0.00123, 0.0012400000000000002], {
+      stop: 0.01,
+      step: 0.00001,
+    });
+
+    const { getByText } = render(plugin.render(props));
+
+    expect(getByText("1.23e-3, 1.24e-3")).toBeDefined();
+  });
+
   it("infers precision from custom steps", () => {
     const plugin = new RangeSliderPlugin();
     const props = createProps([0, 1], {

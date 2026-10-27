@@ -6,18 +6,19 @@
     "build": "turbo build",
     "codegen": "turbo run codegen",
     "lint": "pnpm run -r lint",
-    "dev": "pnpm run --filter @marimo-team/frontend dev"
+    "dev": "pnpm run --filter @marimo-team/frontend dev",
+    "sync-katex-css": "pnpm --dir frontend sync-katex-css"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^7.0.1",
     "@typescript/native-preview": "7.0.0-dev.20260324.1",
-    "oxfmt": "^0.64.0",
-    "turbo": "^2.10.12",
+    "oxfmt": "^0.68.0",
+    "turbo": "^2.11.2",
     "vitest": "^4.1.11"
   },
   "engines": {
-    "node": ">=22.12.0",
-    "pnpm": ">=10.34.5"
+    "node": ">=22.18.0",
+    "pnpm": ">=12.10.1"
   },
-  "packageManager": "pnpm@10.34.5"
+  "packageManager": "pnpm@12.10.1"
 }

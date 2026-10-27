@@ -1,8 +1,9 @@
 /* Copyright 2026 Marimo. All rights reserved. */
-import { type JSX, useEffect, useId, useMemo, useState } from "react";
+import { type JSX, useId, useMemo } from "react";
 import { useLocale } from "react-aria";
 import { z } from "zod";
 import { NumberField } from "@/components/ui/number-field";
+import { useInternalStateWithSync } from "@/hooks/useInternalStateWithSync";
 import { cn } from "@/utils/cn";
 import { clamp } from "@/utils/math";
 import {
@@ -31,9 +32,9 @@ interface Data {
 }
 
 export class SliderPlugin implements IPlugin<T, Data> {
-  tagName = "marimo-slider";
+  public tagName = "marimo-slider";
 
-  validator = z.object({
+  public validator = z.object({
     initialValue: z.number(),
     label: z.string().nullable(),
     start: z.number(),
@@ -48,7 +49,7 @@ export class SliderPlugin implements IPlugin<T, Data> {
     disabled: z.boolean().optional(),
   });
 
-  render(props: IPluginProps<T, Data>): JSX.Element {
+  public render(props: IPluginProps<T, Data>): JSX.Element {
     // Create the valueMap function
     const valueMap = (sliderValue: number): number => {
       const { steps } = props.data;
@@ -152,16 +153,14 @@ const SliderComponent = ({
   disabled,
 }: SliderProps): JSX.Element => {
   const id = useId();
+  const labelId = useId();
   const { locale } = useLocale();
 
   // Hold internal value
-  const [internalValue, setInternalValue] = useState(value);
-  // Update internal value on prop change
-  useEffect(() => {
-    // TODO: Replace this synchronization with a controlled-state primitive.
-    // oxlint-disable-next-line react/no-deriving-state-in-effects -- Synchronize the editable buffer when the controlled value changes.
-    setInternalValue(value);
-  }, [value]);
+  const [internalValue, setInternalValue] = useInternalStateWithSync(
+    value,
+    Object.is,
+  );
 
   const stepsConfig = useMemo(() => computeStepsConfig(steps), [steps]);
 
@@ -224,7 +223,8 @@ const SliderComponent = ({
   const sliderElement = (
     <Labeled
       label={label}
-      id={id}
+      controlId={id}
+      labelId={labelId}
       align={orientation === "horizontal" ? "left" : "top"}
       fullWidth={fullWidth}
       className={cn(fullWidth && "my-1 w-full")}
@@ -238,6 +238,8 @@ const SliderComponent = ({
       >
         <Slider
           id={id}
+          aria-labelledby={label ? labelId : undefined}
+          aria-label={label ? undefined : "Slider"}
           className={cn(
             "relative flex items-center select-none",
             !fullWidth && "data-[orientation=horizontal]:w-36 ",

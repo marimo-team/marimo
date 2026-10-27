@@ -1,10 +1,8 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import Any
 
-
-def is_hashable(*values: Any) -> bool:
+def is_hashable(*values: object) -> bool:
     """
     Check if all values passed in are hashable.
     """

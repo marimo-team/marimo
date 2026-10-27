@@ -206,7 +206,7 @@ This yields a snippet like the one below:
 
 Embedded notebooks run in the browser via WebAssembly, so your notebook must be
 [WebAssembly-compatible](wasm.md). We also recommend creating these notebooks
-[with `--sandbox`](package_management/inlining_dependencies.md) to make sure
+[with `--sandbox`](package_management/sandboxes.md) to make sure
 their dependencies get installed.
 
 

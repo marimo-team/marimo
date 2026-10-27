@@ -67,6 +67,55 @@ class TestASGIAppBuilder(unittest.TestCase):
         # Restore __main__ in case a kernel thread modified it
         sys.modules["__main__"] = self._saved_main
 
+    def test_mounted_apps_have_independent_host_notebooks(self) -> None:
+        from tests._server.host.drive import socket_snapshot
+        from tests._server.host.test_editor_websocket import (
+            receive_notification,
+        )
+
+        builder = create_asgi_app(quiet=True)
+        app = (
+            builder.with_app(path="/one", root=self.app1)
+            .with_app(path="/two", root=self.app2)
+            .build()
+        )
+        managers = [
+            child.state.session_manager
+            for child in builder._app_cache.values()
+        ]
+        with TestClient(app) as client:
+            try:
+                with (
+                    client.websocket_connect(
+                        "/one/ws?session_id=visitor"
+                    ) as one,
+                    client.websocket_connect(
+                        "/two/ws?session_id=visitor"
+                    ) as two,
+                ):
+                    snapshots = [socket_snapshot(ws) for ws in (one, two)]
+                    for ws in (one, two):
+                        receive_notification(ws, "kernel-ready")
+                    ids = [
+                        next(
+                            e["data"]["notebook"]["id"]
+                            for e in events
+                            if e["event"] == "notebook"
+                        )
+                        for events in snapshots
+                    ]
+                    assert ids[0] != ids[1]
+                    for events in snapshots:
+                        assert all(
+                            e["data"]["cell"]["code"] is None
+                            for e in events
+                            if e["event"] == "cell"
+                        )
+            finally:
+                assert client.portal is not None
+                for manager in managers:
+                    client.portal.call(join_kernel_thread_tasks, manager)
+
     def test_create_asgi_app(self) -> None:
         builder = create_asgi_app(quiet=True, include_code=True)
         assert isinstance(builder, ASGIAppBuilder)

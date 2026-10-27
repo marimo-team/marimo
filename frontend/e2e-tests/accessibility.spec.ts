@@ -57,9 +57,9 @@ test("reduces motion in the marimo namespace", async ({ page }) => {
   expect(cssTimeToMilliseconds(styles.animationDuration)).toBeLessThanOrEqual(
     0.01,
   );
-  expect(cssTimeToMilliseconds(styles.transitionDuration)).toBeLessThanOrEqual(
-    0.01,
-  );
+  // Exactly 0: a non-zero duration would give every element an implicit
+  // `transition: all`, breaking libraries that measure synchronously (#10949).
+  expect(cssTimeToMilliseconds(styles.transitionDuration)).toBe(0);
   expect(cssTimeToMilliseconds(styles.animationDelay)).toBe(0);
   expect(cssTimeToMilliseconds(styles.transitionDelay)).toBe(0);
   expect(styles.animationIterationCount).toBe("1");

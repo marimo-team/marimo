@@ -7,9 +7,12 @@ import { userConfigAtom } from "@/core/config/config";
 import { parseUserConfig } from "@/core/config/config-schema";
 import { initialModeAtom } from "@/core/mode";
 import { store } from "@/core/state/jotai";
+import type { DataURLString } from "@/utils/json/base64";
 import { Model } from "../model";
 import type { Host } from "../host";
-import type { ModelState } from "../types";
+import type { ModelState, WidgetModelId } from "../types";
+import { WidgetRuntime } from "../runtime";
+import { Deferred } from "@/utils/Deferred";
 import { visibleForTesting } from "../widget-binding";
 
 const { WidgetDefRegistry, WidgetBinding } = visibleForTesting;
@@ -30,13 +33,14 @@ const createTestHost = (): Host => ({
 function createBinding<T extends ModelState>(
   widgetDef: AnyWidget<T>,
   model: Model<T>,
-  options: { controller?: AbortController } = {},
+  options: { controller?: AbortController; onDestroy?: () => void } = {},
 ) {
   return WidgetBinding.create({
     widgetDef,
     model,
     createHost: createTestHost,
     controller: options.controller,
+    onDestroy: options.onDestroy,
   });
 }
 
@@ -123,6 +127,25 @@ describe("WidgetDefRegistry", () => {
     promise2.catch(() => undefined);
   });
 
+  it("does not evict a replacement when an invalidated import fails", async () => {
+    const oldImport = getModule(
+      registry,
+      "http://localhost/old.js",
+      "replaced",
+    );
+    registry.invalidate("replaced");
+    const newImport = registry.getModule({
+      jsUrl: "data:text/javascript,export default {}",
+      jsHash: "replaced",
+      kernelAuthored: true,
+    });
+    await expect(oldImport).rejects.toThrow(/untrusted/i);
+    await newImport;
+    expect(getModule(registry, "http://localhost/new.js", "replaced")).toBe(
+      newImport,
+    );
+  });
+
   describe("URL validation", () => {
     it.each([
       // Attack vector: raw <marimo-anywidget data-js-url=...> in markdown
@@ -148,9 +171,225 @@ describe("WidgetDefRegistry", () => {
       ).rejects.not.toThrow(/untrusted/i);
     });
   });
+
+  describe("static module URLs", () => {
+    afterEach(() => {
+      delete window.__MARIMO_STATIC__;
+      vi.restoreAllMocks();
+    });
+
+    it("releases the generated URL when a static module fails to import", async () => {
+      window.__MARIMO_STATIC__ = {
+        files: {
+          "/@file/widget.js":
+            "data:text/javascript;base64,ZXhwb3J0IHt9" as DataURLString,
+        },
+      };
+      const create = vi
+        .spyOn(URL, "createObjectURL")
+        .mockReturnValue("blob:widget-module");
+      const revoke = vi
+        .spyOn(URL, "revokeObjectURL")
+        .mockImplementation(() => undefined);
+
+      await expect(
+        getModule(registry, "./@file/widget.js", "static-module"),
+      ).rejects.toThrow(/blob:/);
+
+      expect(create).toHaveBeenCalledOnce();
+      expect(revoke).toHaveBeenCalledExactlyOnceWith("blob:widget-module");
+    });
+
+    it("does not revoke active modules when their cache entry is invalidated", async () => {
+      window.__MARIMO_STATIC__ = {
+        files: {
+          "/@file/widget.js":
+            "data:text/javascript;base64,ZXhwb3J0IHt9" as DataURLString,
+        },
+      };
+      const oldUrl = "data:text/javascript,export const version = 1";
+      const newUrl = "data:text/javascript,export const version = 2";
+      vi.spyOn(URL, "createObjectURL")
+        .mockReturnValueOnce(oldUrl)
+        .mockReturnValueOnce(newUrl);
+      const revoke = vi
+        .spyOn(URL, "revokeObjectURL")
+        .mockImplementation(() => undefined);
+      const oldLifetime = new AbortController();
+      const newLifetime = new AbortController();
+      const options = { jsUrl: "./@file/widget.js", jsHash: "invalidated" };
+      const oldImport = registry.getModule({
+        ...options,
+        lifetime: oldLifetime.signal,
+      });
+      registry.invalidate(options.jsHash);
+      const newImport = registry.getModule({
+        ...options,
+        lifetime: newLifetime.signal,
+      });
+      await Promise.all([oldImport, newImport]);
+      expect(revoke).not.toHaveBeenCalled();
+      oldLifetime.abort();
+      await vi.waitFor(() =>
+        expect(revoke).toHaveBeenCalledExactlyOnceWith(oldUrl),
+      );
+      const siblingLifetime = new AbortController();
+      expect(
+        registry.getModule({ ...options, lifetime: siblingLifetime.signal }),
+      ).toBe(newImport);
+      newLifetime.abort();
+      siblingLifetime.abort();
+      await vi.waitFor(() => expect(revoke).toHaveBeenLastCalledWith(newUrl));
+    });
+
+    it("waits for a canceled import to settle before revoking its URL", async () => {
+      window.__MARIMO_STATIC__ = {
+        files: {
+          "/@file/widget.js":
+            "data:text/javascript;base64,ZXhwb3J0IHt9" as DataURLString,
+        },
+      };
+      const moduleUrl = "data:text/javascript,export const pending = true";
+      vi.spyOn(URL, "createObjectURL").mockReturnValue(moduleUrl);
+      const revoke = vi
+        .spyOn(URL, "revokeObjectURL")
+        .mockImplementation(() => undefined);
+      const lifetime = new AbortController();
+      const pending = registry.getModule({
+        jsUrl: "./@file/widget.js",
+        jsHash: "pending",
+        lifetime: lifetime.signal,
+      });
+      lifetime.abort();
+      expect(revoke).not.toHaveBeenCalled();
+      await pending;
+      expect(revoke).toHaveBeenCalledExactlyOnceWith(moduleUrl);
+    });
+
+    it("does not revoke an unchanged URL for a missing static file", async () => {
+      window.__MARIMO_STATIC__ = { files: {} };
+      const revoke = vi
+        .spyOn(URL, "revokeObjectURL")
+        .mockImplementation(() => undefined);
+
+      await expect(
+        getModule(registry, "./@file/missing.js", "missing-module"),
+      ).rejects.toThrow(/http:/);
+
+      expect(revoke).not.toHaveBeenCalled();
+    });
+
+    it("keeps a shared module URL until the last widget generation is destroyed", async () => {
+      window.__MARIMO_STATIC__ = {
+        files: {
+          "/@file/widget.js":
+            "data:text/javascript;base64,ZXhwb3J0IHt9" as DataURLString,
+        },
+      };
+      // Node cannot import blob URLs; a data URL exercises successful loading.
+      const moduleUrl = `data:text/javascript,${encodeURIComponent(
+        "export default { initialize: () => ({ moduleUrl: import.meta.url }) }",
+      )}`;
+      vi.spyOn(URL, "createObjectURL").mockReturnValue(moduleUrl);
+      const revoke = vi
+        .spyOn(URL, "revokeObjectURL")
+        .mockImplementation(() => undefined);
+
+      const createRuntime = (id: string) => {
+        const runtime = new WidgetRuntime(id as WidgetModelId, {
+          timeout: 50,
+          isEditMode: () => true,
+          createHost: createTestHost,
+          onModelTimeout: vi.fn(),
+        });
+        runtime.setModel(new Model({}, createMockComm()));
+        runtime.setSpec({ url: "./@file/widget.js", hash: "static-success" });
+        return runtime;
+      };
+      const first = createRuntime("first");
+      const second = createRuntime("second");
+      const widgets = await Promise.all([
+        first.getWidget(),
+        second.getWidget(),
+      ]);
+      expect(widgets.map((widget) => widget.exports)).toEqual([
+        { moduleUrl },
+        { moduleUrl },
+      ]);
+      expect(URL.createObjectURL).toHaveBeenCalledOnce();
+      expect(revoke).not.toHaveBeenCalled();
+
+      first.dispose();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(revoke).not.toHaveBeenCalled();
+
+      second.dispose();
+      await vi.waitFor(() => {
+        expect(revoke).toHaveBeenCalledExactlyOnceWith(moduleUrl);
+      });
+
+      // A later generation reuses the evaluated module rather than
+      // re-running its top-level side effects, and does not revoke again.
+      const third = createRuntime("third");
+      const widget = await third.getWidget();
+      expect(widget.exports).toEqual({ moduleUrl });
+      expect(URL.createObjectURL).toHaveBeenCalledOnce();
+      third.dispose();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(revoke).toHaveBeenCalledOnce();
+    });
+  });
 });
 
 describe("WidgetBinding", () => {
+  it("releases module resources after asynchronous generation cleanup", async () => {
+    const cleanup = new Deferred<void>();
+    const onDestroy = vi.fn();
+    const binding = await createBinding(
+      { initialize: () => () => cleanup.promise },
+      new Model({}, createMockComm()),
+      { onDestroy },
+    );
+    const destroying = binding.destroy();
+    expect(onDestroy).not.toHaveBeenCalled();
+    cleanup.resolve();
+    await destroying;
+    await binding.destroy();
+    expect(onDestroy).toHaveBeenCalledOnce();
+  });
+
+  it("retains module resources until canceled initialization and late cleanup settle", async () => {
+    const initialize = new Deferred<() => Promise<void>>();
+    const cleanup = new Deferred<void>();
+    const controller = new AbortController();
+    const onDestroy = vi.fn();
+    const pending = createBinding(
+      { initialize: () => initialize.promise },
+      new Model({}, createMockComm()),
+      { controller, onDestroy },
+    );
+    controller.abort();
+    await expect(pending).rejects.toThrow(/binding destroyed/);
+    expect(onDestroy).not.toHaveBeenCalled();
+    initialize.resolve(() => cleanup.promise);
+    await Promise.resolve();
+    expect(onDestroy).not.toHaveBeenCalled();
+    cleanup.resolve();
+    await vi.waitFor(() => expect(onDestroy).toHaveBeenCalledOnce());
+  });
+
+  it("releases module resources when initialization fails", async () => {
+    const onDestroy = vi.fn();
+    await expect(
+      createBinding(
+        { initialize: () => Promise.reject(new Error("initialize failed")) },
+        new Model({}, createMockComm()),
+        { onDestroy },
+      ),
+    ).rejects.toThrow("initialize failed");
+    await vi.waitFor(() => expect(onDestroy).toHaveBeenCalledOnce());
+  });
+
   it("should run initialize exactly once and expose exports", async () => {
     const model = new Model<ModelState>({ count: 0 }, createMockComm());
     const exports = { setValue: vi.fn() };

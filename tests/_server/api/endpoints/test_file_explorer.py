@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING, cast
 import pytest
 
 from marimo._utils.platform import is_windows
+from tests._server.api.endpoints.ws_helpers import receive_notification
 from tests._server.mocks import (
     get_session_manager,
     token_header,
@@ -19,7 +20,7 @@ if TYPE_CHECKING:
     from starlette.testclient import TestClient
 
     from marimo._config.config import PartialMarimoConfig
-    from marimo._config.manager import UserConfigManager
+    from marimo._config.manager import UserConfigStore
 
 HEADERS = {
     **token_header("fake-token"),
@@ -366,7 +367,7 @@ def test_update_file_with_session(client: TestClient) -> None:
         "/ws?session_id=test-session&access_token=fake-token"
     ) as websocket:
         # Receive kernel ready message
-        data = websocket.receive_json()
+        data = receive_notification(websocket)
         assert data["op"] == "kernel-ready"
 
         # Verify file watcher was attached when session was created
@@ -678,7 +679,7 @@ def test_download_requires_auth(client: TestClient) -> None:
 
 
 def test_download_disabled_by_config(
-    client: TestClient, user_config_manager: UserConfigManager
+    client: TestClient, user_config_manager: UserConfigStore
 ) -> None:
     user_config_manager.save_config(
         cast(

@@ -115,6 +115,21 @@ describe("ImageComparisonComponent", () => {
     }
   });
 
+  it.each(["horizontal", "vertical"] as const)(
+    "lets the container grow to the images when no height is given (%s)",
+    (direction) => {
+      const { container } = render(
+        <ImageComparisonComponent {...baseProps} direction={direction} />,
+      );
+
+      // A fixed height would crop tall images and leave the output's expand
+      // button with nothing to reveal.
+      const slider = container.querySelector("img-comparison-slider");
+      expect(slider).toBeTruthy();
+      expect(slider?.parentElement?.style.height).toBe("auto");
+    },
+  );
+
   it("leaves images unstyled when no dimensions are given", () => {
     const { getAllByAltText } = render(
       <ImageComparisonComponent {...baseProps} />,

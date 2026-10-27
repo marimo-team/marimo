@@ -243,4 +243,4 @@ kubectl delete marimo my-notebook
 - [marimo-operator on GitHub](https://github.com/marimo-team/marimo-operator)
 - [SkyPilot deployment](./deploying_skypilot.md) - For multi-cloud VM deployment without Kubernetes
 - [Docker deployment](./deploying_docker.md) - For container basics
-- [Inlining dependencies](../package_management/inlining_dependencies.md) - For reproducible notebooks
+- [Inlining dependencies](../package_management/sandboxes.md) - For reproducible notebooks

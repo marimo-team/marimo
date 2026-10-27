@@ -14,7 +14,7 @@ import { requestClientAtom } from "@/core/network/requests";
 import type { EnvironmentInfo } from "@/core/network/types";
 import { filenameAtom } from "@/core/saving/file-state";
 import { store } from "@/core/state/jotai";
-import { WebSocketState } from "@/core/websocket/types";
+import { ConnectionState } from "@/core/websocket/types";
 import * as copyModule from "@/utils/copy";
 import { FeedbackModal } from "../feedback-button";
 
@@ -53,7 +53,7 @@ describe("FeedbackModal issue reporting", () => {
     localStorage.clear();
     store.set(requestClientAtom, MockRequestClient.create());
     store.set(viewStateAtom, { mode: "edit", cellAnchor: null });
-    store.set(connectionAtom, { state: WebSocketState.OPEN });
+    store.set(connectionAtom, { state: ConnectionState.OPEN });
     store.set(filenameAtom, "/project/example.py");
   });
 
@@ -156,7 +156,7 @@ describe("FeedbackModal issue reporting", () => {
   });
 
   it("disables include code and explains why when disconnected", async () => {
-    store.set(connectionAtom, { state: WebSocketState.CONNECTING });
+    store.set(connectionAtom, { state: ConnectionState.CONNECTING });
     store.set(
       requestClientAtom,
       MockRequestClient.create({
@@ -207,5 +207,99 @@ describe("FeedbackModal issue reporting", () => {
       expect(href).toContain("&env=");
       expect(href).toContain(encodeURIComponent('"marimo": "1.2.3"'));
     });
+  });
+
+  it("shows partial environment details when the request client is missing", async () => {
+    store.set(requestClientAtom, null);
+    render(<FeedbackModal onClose={vi.fn()} />, { wrapper });
+
+    await screen.findByText("Environment details");
+    expect(
+      screen.getByText("Server environment information unavailable"),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText("Loading environment details…"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Retry" }),
+    ).not.toBeInTheDocument();
+
+    const link = screen.getByRole("link", { name: "Open GitHub issue" });
+    const href = link.getAttribute("href") ?? "";
+    expect(href).toContain("&env=");
+    expect(href).toContain(encodeURIComponent("Environment Collection Error"));
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Copy environment JSON" }),
+    );
+    await waitFor(() =>
+      expect(copyModule.copyToClipboard).toHaveBeenCalledWith(
+        expect.stringContaining("Environment Collection Error"),
+      ),
+    );
+  });
+
+  it("disables source collection when the request client is missing", async () => {
+    localStorage.setItem(
+      "marimo:issue-report:include-code",
+      JSON.stringify(true),
+    );
+    store.set(connectionAtom, { state: ConnectionState.CONNECTING });
+    store.set(requestClientAtom, null);
+    render(<FeedbackModal onClose={vi.fn()} />, { wrapper });
+
+    await screen.findByText("Environment details");
+    expect(
+      screen.getByRole("checkbox", { name: "Include notebook code" }),
+    ).toBeDisabled();
+    expect(
+      screen.getByText("Notebook source is unavailable."),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText("Connect the notebook to include its source."),
+    ).not.toBeInTheDocument();
+    const link = screen.getByRole("link", { name: "Open GitHub issue" });
+    expect(link.getAttribute("href") ?? "").not.toContain("reproduction-code=");
+  });
+
+  it("preserves partial diagnostics when the environment request throws", async () => {
+    store.set(
+      requestClientAtom,
+      MockRequestClient.create({
+        getEnvironmentInfo: vi.fn().mockImplementation(() => {
+          throw new Error("offline");
+        }),
+      }),
+    );
+    render(<FeedbackModal onClose={vi.fn()} />, { wrapper });
+
+    await screen.findByText("Server environment information unavailable");
+    expect(screen.getByRole("button", { name: "Retry" })).toBeInTheDocument();
+    expect(
+      screen.getByText(/Environment Collection Error/),
+    ).toBeInTheDocument();
+  });
+
+  it("replaces partial diagnostics after a successful environment retry", async () => {
+    const getEnvironmentInfo = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("offline"))
+      .mockResolvedValueOnce(environment);
+    store.set(
+      requestClientAtom,
+      MockRequestClient.create({ getEnvironmentInfo }),
+    );
+    render(<FeedbackModal onClose={vi.fn()} />, { wrapper });
+
+    await screen.findByText("Server environment information unavailable");
+    fireEvent.click(screen.getByRole("button", { name: "Retry" }));
+
+    await screen.findByText(/"marimo": "1.2.3"/);
+    expect(
+      screen.queryByText("Server environment information unavailable"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Retry" }),
+    ).not.toBeInTheDocument();
   });
 });

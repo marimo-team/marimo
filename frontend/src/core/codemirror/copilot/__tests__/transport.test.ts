@@ -8,24 +8,24 @@ vi.mock("@/utils/Logger", () => ({
 }));
 
 class FakeWebSocket {
-  static readonly OPEN = 1;
-  static readonly CLOSED = 3;
-  static readonly instances: FakeWebSocket[] = [];
+  public static readonly OPEN = 1;
+  public static readonly CLOSED = 3;
+  public static readonly instances: FakeWebSocket[] = [];
 
-  readonly sent: string[] = [];
-  readyState = 0;
-  readonly url: string;
+  public readonly sent: string[] = [];
+  public readyState = 0;
+  public readonly url: string;
   private readonly listeners = new Map<
     string,
     Set<(event: Record<string, never>) => void>
   >();
 
-  constructor(url: string) {
+  public constructor(url: string) {
     this.url = url;
     FakeWebSocket.instances.push(this);
   }
 
-  addEventListener(
+  public addEventListener(
     type: string,
     listener: (event: Record<string, never>) => void,
   ) {
@@ -34,21 +34,21 @@ class FakeWebSocket {
     this.listeners.set(type, listeners);
   }
 
-  send(frame: string) {
+  public send(frame: string) {
     this.sent.push(frame);
   }
 
-  close() {
+  public close() {
     this.readyState = FakeWebSocket.CLOSED;
     this.emit("close");
   }
 
-  open() {
+  public open() {
     this.readyState = FakeWebSocket.OPEN;
     this.emit("open");
   }
 
-  fail() {
+  public fail() {
     this.emit("error");
   }
 

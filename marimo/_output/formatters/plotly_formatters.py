@@ -4,7 +4,6 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from marimo._config.config import Theme
 from marimo._messaging.cell_output import CellChannel
 from marimo._messaging.mimetypes import KnownMimeType
 from marimo._messaging.notification_utils import CellNotificationUtils
@@ -98,8 +97,3 @@ class PlotlyFormatter(FormatterFactory):
                 args={"figure": json, "config": resolved_config},
             )
         )
-
-    def apply_theme(self, theme: Theme) -> None:
-        import plotly.io as pio  # type: ignore
-
-        pio.templates.default = "plotly_dark" if theme == "dark" else "plotly"

@@ -10,7 +10,6 @@ Standard implementations (QueueManagerImpl, KernelManagerImpl):
 
 IPC implementations (IPCQueueManagerImpl, IPCKernelManagerImpl):
     Launch kernel as subprocess with ZeroMQ IPC.
-    Each notebook gets its own sandboxed virtual environment.
 """
 
 from marimo._session.managers.ipc import (

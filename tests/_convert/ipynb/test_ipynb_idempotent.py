@@ -109,7 +109,8 @@ class TestSetupCell:
 
 
 class TestCellConfig:
-    """Cell configuration (hide_code, disabled) should survive round-trip."""
+    """Cell configuration (hide_code, disabled, expand_output) should
+    survive round-trip."""
 
     def test_roundtrip(self) -> None:
         assert_roundtrip("cell_config.py")
@@ -121,6 +122,10 @@ class TestCellConfig:
     def test_disabled_in_output(self) -> None:
         result = roundtrip(FIXTURES_PY / "cell_config.py")
         assert "@app.cell(disabled=True)" in result
+
+    def test_expand_output_in_output(self) -> None:
+        result = roundtrip(FIXTURES_PY / "cell_config.py")
+        assert "@app.cell(expand_output=True)" in result
 
 
 class TestMarkdownStringPrefix:

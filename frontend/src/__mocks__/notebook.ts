@@ -36,6 +36,7 @@ export const MockNotebook = {
           hide_code: false,
           disabled: false,
           column: null,
+          expand_output: false,
           ...data.config,
         },
         edited: false,

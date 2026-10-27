@@ -13,7 +13,7 @@ import {
   VisibilityToggleButton,
 } from "@/components/editor/file-tree/tree-actions";
 import { CopyClipboardIcon } from "@/components/icons/copy-icon";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Command, CommandInput, CommandItem } from "@/components/ui/command";
 import { Tooltip } from "@/components/ui/tooltip";
 import { maybeAddMarimoImport } from "@/core/cells/add-missing-import";
@@ -702,7 +702,40 @@ const SchemaNode: React.FC<SchemaNodeProps> = (props) => {
   );
 };
 
-const TableList: React.FC<{
+// Kept outside the component because the React Compiler does not yet
+// support try/finally inside component bodies.
+async function loadTableList(
+  sqlTableContext: SQLTableContext,
+  addTableList: ReturnType<typeof useDataSourceActions>["addTableList"],
+  setLoading: (loading: boolean) => void,
+) {
+  setLoading(true);
+  try {
+    const { engine, database, schema, schemaPath } = sqlTableContext;
+    const previewTableList = await PreviewSQLTableList.request({
+      engine: engine,
+      database: database,
+      schema: schema,
+      schemaPath: schemaPath ?? [],
+    });
+
+    if (!previewTableList?.tables) {
+      throw new Error("No tables available");
+    }
+
+    addTableList({
+      tables: previewTableList.tables,
+      sqlTableContext: sqlTableContext,
+    });
+  } finally {
+    setLoading(false);
+  }
+}
+
+/**
+ * This is exported for testing purposes only.
+ */
+export const TableList: React.FC<{
   tables: DataTable[];
   sqlTableContext?: SQLTableContext;
   searchValue?: string;
@@ -731,26 +764,7 @@ const TableList: React.FC<{
   // resets tablesResolved to false).
   const { isPending, error } = useAsyncData(async () => {
     if (!tablesResolved && sqlTableContext) {
-      setTablesLoading(true);
-
-      const { engine, database, schema, schemaPath } = sqlTableContext;
-      const previewTableList = await PreviewSQLTableList.request({
-        engine: engine,
-        database: database,
-        schema: schema,
-        schemaPath: schemaPath ?? [],
-      });
-
-      if (!previewTableList?.tables) {
-        setTablesLoading(false);
-        throw new Error("No tables available");
-      }
-
-      addTableList({
-        tables: previewTableList.tables,
-        sqlTableContext: sqlTableContext,
-      });
-      setTablesLoading(false);
+      await loadTableList(sqlTableContext, addTableList, setTablesLoading);
     }
   }, [tablesResolved, sqlTableContext]);
 
@@ -964,6 +978,7 @@ const DatasetTableItem: React.FC<{
         {renderRowsByColumns()}
         <Tooltip content="Add table to notebook" delayDuration={400}>
           <Button
+            aria-label={`Add table ${table.name} to notebook`}
             className="group-hover:inline-flex hidden"
             variant="text"
             size="icon"
@@ -1054,19 +1069,16 @@ const DatasetColumnItem: React.FC<{
           {isIndexed &&
             renderItemSubtext({ tooltipContent: "Indexed", content: "IDX" })}
         </div>
-        <Tooltip content="Copy column name" delayDuration={400}>
-          <Button
-            variant="text"
-            size="icon"
-            className="group-hover:opacity-100 opacity-0 hover:bg-muted text-muted-foreground hover:text-foreground"
-          >
-            <CopyClipboardIcon
-              tooltip={false}
-              value={column.name}
-              className="h-3 w-3"
-            />
-          </Button>
-        </Tooltip>
+        <CopyClipboardIcon
+          tooltip="Copy column name"
+          value={column.name}
+          ariaLabel={`Copy column name ${column.name}`}
+          className="h-3 w-3"
+          buttonClassName={cn(
+            buttonVariants({ variant: "text", size: "icon" }),
+            "group-hover:opacity-100 opacity-0 hover:bg-muted text-muted-foreground hover:text-foreground",
+          )}
+        />
         <span className="text-xs text-muted-foreground">
           {column.external_type}
         </span>

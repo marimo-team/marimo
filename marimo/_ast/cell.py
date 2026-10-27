@@ -47,6 +47,11 @@ class CellConfig(msgspec.Struct):
     # If True, the cell is hidden from the editor.
     hide_code: bool = False
 
+    # If True, the cell's output is shown in full in the editor; otherwise the
+    # output is clamped to a fixed height, with an option to expand it. Does
+    # not apply to console output, which is clamped independently.
+    expand_output: bool = False
+
     @classmethod
     def from_dict(
         cls, kwargs: dict[str, Any], warn: bool = True
@@ -85,6 +90,16 @@ class CellConfig(msgspec.Struct):
 
 CellConfigKeys = frozenset(
     {field.name for field in msgspec.structs.fields(CellConfig)}
+)
+
+# Config keys whose values are plain booleans; useful for formats that
+# serialize cell config as strings (e.g. markdown tag attributes).
+CellConfigBooleanKeys = frozenset(
+    {
+        field.name
+        for field in msgspec.structs.fields(CellConfig)
+        if field.type is bool
+    }
 )
 
 

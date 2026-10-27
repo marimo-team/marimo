@@ -322,7 +322,7 @@ export function useAsyncData<T>(
   const [nonce, setNonce] = useState(0);
   const [result, setResult] = useState<
     PendingResult<T> | LoadingResult<T> | ErrorResult<T> | SuccessResult<T>
-  >(Result.pending());
+  >(() => Result.pending());
 
   const asProps =
     typeof loaderOrProps === "function"
@@ -339,12 +339,12 @@ export function useAsyncData<T>(
         keepPrevious = true;
       },
     };
+    // Activity can restart this effect without changing dependencies, so
+    // loading state must follow the request lifecycle.
     setResult((prevResult) => {
-      // If we have previous data, show reloading state
       if (prevResult.status === "success" || prevResult.status === "loading") {
         return Result.loading(prevResult.data);
       }
-      // Otherwise, show initial loading state
       return Result.pending();
     });
     fetchStable(context)

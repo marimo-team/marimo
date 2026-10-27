@@ -3,36 +3,47 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
+import sys
 import threading
 from functools import partial
 from typing import TYPE_CHECKING, Any
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from marimo._messaging.notification import AlertNotification
+from marimo._environments import backends
+from marimo._environments.environment import Environment, ProcessPlan
+from marimo._environments.sandbox import BackendAdapter
+from marimo._messaging.notification import (
+    AlertNotification,
+    StartupProgressNotification,
+)
 from marimo._messaging.serde import serialize_kernel_message
-from marimo._server.api.endpoints.ws.sse_handler import SSESessionHandler
 from marimo._server.api.endpoints.ws.ws_connection_validator import (
     ConnectionParams,
 )
 from marimo._server.api.endpoints.ws.ws_session_connector import (
     ConnectionType,
 )
+from marimo._server.host.session import SessionEventStream
 from marimo._server.sse import format_close_event, format_sse_event
 from marimo._session.managers.ipc import KernelStartupError
 from marimo._session.model import ConnectionState, SessionMode
 from marimo._types.ids import SessionId
 from tests._server.api.endpoints.ws_helpers import (
+    QUERY_PARAMS_CASES,
     assert_kernel_ready_response,
     create_response,
 )
 from tests._server.mocks import get_session_manager
 
 if TYPE_CHECKING:
+    from pathlib import Path
+    from typing import Self
+
     from starlette.applications import Starlette
     from starlette.testclient import TestClient
-    from typing_extensions import Self
 
 SSE_QUERY = "session_id=123&access_token=fake-token"
 OTHER_SSE_QUERY = "session_id=456&access_token=fake-token"
@@ -99,6 +110,21 @@ class SSETestConnection:
         """The next SSE record: {"event": ..., "data": ...} or a comment."""
         return await asyncio.wait_for(self._events.get(), timeout)
 
+    async def next_notification(self) -> dict[str, str]:
+        """Skip host model events when asserting session lifecycle notifications."""
+        while True:
+            record = await self.next_event()
+            if record["event"] in ("close", "comment"):
+                return record
+            if record["event"] == "marimo":
+                notification = json.loads(record["data"])["marimo"]
+                return {
+                    "event": "message",
+                    "data": json.dumps(
+                        {"op": notification["op"], "data": notification}
+                    ),
+                }
+
     def has_pending_events(self) -> bool:
         return not self._events.empty()
 
@@ -124,18 +150,25 @@ class SSETestConnection:
 
 def _parse_record(record: str) -> dict[str, str]:
     event = "message"
+    event_id = None
     data_lines: list[str] = []
     comments: list[str] = []
     for line in record.split("\n"):
         if line.startswith(":"):
             comments.append(line[1:].strip())
+        elif line.startswith("id:"):
+            event_id = line[len("id:") :].strip()
         elif line.startswith("event:"):
             event = line[len("event:") :].strip()
         elif line.startswith("data:"):
             data_lines.append(line[len("data:") :].removeprefix(" "))
     if comments and not data_lines:
         return {"event": "comment", "data": "\n".join(comments)}
-    return {"event": event, "data": "\n".join(data_lines)}
+    return {
+        "event": event,
+        "data": "\n".join(data_lines),
+        **({"id": event_id} if event_id is not None else {}),
+    }
 
 
 def _connect(
@@ -149,14 +182,14 @@ def _connect(
 async def _expect_close(
     connection: SSETestConnection, code: int, reason: str
 ) -> None:
-    event = await connection.next_event()
+    event = await connection.next_notification()
     assert event["event"] == "close"
     assert json.loads(event["data"]) == {"code": code, "reason": reason}
 
 
 async def test_sse_kernel_ready(client: TestClient) -> None:
     async with _connect(client) as connection:
-        event = await connection.next_event()
+        event = await connection.next_notification()
         assert connection.status == 200
         assert connection.headers["content-type"].startswith(
             "text/event-stream"
@@ -165,6 +198,18 @@ async def test_sse_kernel_ready(client: TestClient) -> None:
         message = json.loads(event["data"])
         assert message["op"] == "kernel-ready"
         assert_kernel_ready_response(message)
+
+
+@pytest.mark.parametrize(("query", "expected"), QUERY_PARAMS_CASES)
+async def test_sse_query_params(
+    client: TestClient, query: str, expected: dict[str, str | list[str]]
+) -> None:
+    async with _connect(client, f"{SSE_QUERY}&{query}") as connection:
+        event = await connection.next_notification()
+        assert_kernel_ready_response(json.loads(event["data"]))
+        session = get_session_manager(client).get_session("123")
+        assert session is not None
+        assert session._kernel_manager.app_metadata.query_params == expected
 
 
 async def test_sse_requires_session_id(client: TestClient) -> None:
@@ -186,7 +231,7 @@ async def test_sse_authenticates_with_bearer_header(
         "session_id=123",
         headers={"Authorization": "Bearer fake-token"},
     ) as connection:
-        event = await connection.next_event()
+        event = await connection.next_notification()
         assert json.loads(event["data"])["op"] == "kernel-ready"
 
 
@@ -248,7 +293,7 @@ async def test_sse_allows_unauthenticated_when_auth_disabled(
     # Trusted environments (e.g. --no-token) disable marimo's own auth
     client.app.state.enable_auth = False
     async with _connect(client, "session_id=123") as connection:
-        event = await connection.next_event()
+        event = await connection.next_notification()
         assert json.loads(event["data"])["op"] == "kernel-ready"
 
 
@@ -266,7 +311,7 @@ async def test_sse_hides_code_when_include_code_false(
     session_manager.mode = SessionMode.RUN
     session_manager.include_code = False
     async with _connect(client) as connection:
-        event = await connection.next_event()
+        event = await connection.next_notification()
         message = json.loads(event["data"])
         assert message["op"] == "kernel-ready"
         assert message["data"]["codes"] == [""]  # hidden
@@ -276,18 +321,114 @@ async def test_sse_hides_code_when_include_code_false(
 
 async def test_sse_kernel_startup_error(client: TestClient) -> None:
     with patch.object(
-        SSESessionHandler,
+        SessionEventStream,
         "_connect_session",
         side_effect=KernelStartupError("boom"),
     ):
         async with _connect(client) as connection:
-            event = await connection.next_event()
+            event = await connection.next_notification()
             message = json.loads(event["data"])
             assert message["op"] == "kernel-startup-error"
             assert message["data"]["error"] == "boom"
             await _expect_close(
                 connection, 1011, "MARIMO_KERNEL_STARTUP_ERROR"
             )
+
+
+@pytest.mark.parametrize("outcome", ["ready", "error", "disconnect"])
+async def test_sandbox_progress_during_preparation(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    outcome: str,
+) -> None:
+    preparing = asyncio.Event()
+    release = asyncio.Event()
+    cleaned_up = asyncio.Event()
+    python = (
+        sys.executable
+        if outcome == "ready"
+        else str(tmp_path / "missing-python")
+    )
+    environment = Environment(python, sys.prefix, "unchanged")
+
+    async def prepare_environment(*_args: Any, **_kwargs: Any) -> Environment:
+        preparing.set()
+        try:
+            await release.wait()
+            return environment
+        finally:
+            cleaned_up.set()
+
+    # Control sandbox preparation while exercising real kernel startup.
+    # A missing interpreter triggers a launch failure after preparation succeeds.
+    adapter = MagicMock(spec=BackendAdapter)
+    adapter.name = backends.current_backend()
+    adapter.sync_async.side_effect = prepare_environment
+    adapter.launch.return_value = ProcessPlan(
+        (python, "-m", "marimo._ipc.launch_kernel"), os.environ.copy()
+    )
+    monkeypatch.setattr(backends, "adapter_for", lambda *_: adapter)
+    manager = get_session_manager(client)
+    manager.sandbox = True
+    if outcome == "disconnect":
+        manager.ttl_seconds = 0
+
+    async with _connect(client) as connection:
+        event = await connection.next_notification()
+        assert json.loads(event["data"]) == {
+            "op": "startup-progress",
+            "data": {
+                "op": "startup-progress",
+                "phase": "preparing-environment",
+                "logs": "",
+                "log_mode": "replace",
+            },
+        }
+        running = json.loads((await connection.next_notification())["data"])
+        assert running["op"] == "environment-operation"
+        assert running["data"]["action"] == "prepare"
+        assert running["data"]["status"] == {"kind": "running"}
+        assert not manager.sessions
+        await asyncio.wait_for(preparing.wait(), timeout=5)
+        if outcome == "disconnect":
+            connection.disconnect()
+            await asyncio.wait_for(cleaned_up.wait(), timeout=5)
+        else:
+            release.set()
+            completed = json.loads(
+                (await connection.next_notification())["data"]
+            )
+            assert (
+                completed["data"]["operation_id"]
+                == running["data"]["operation_id"]
+            )
+            assert completed["data"]["status"] == {"kind": "succeeded"}
+            event = await connection.next_notification()
+            assert json.loads(event["data"]) == {
+                "op": "startup-progress",
+                "data": {
+                    "op": "startup-progress",
+                    "phase": "starting-kernel",
+                    "logs": "",
+                    "log_mode": "replace",
+                },
+            }
+            event = await connection.next_notification()
+            message = json.loads(event["data"])
+            if outcome == "ready":
+                assert_kernel_ready_response(message)
+            else:
+                assert message["op"] == "kernel-startup-error"
+                assert (
+                    "Failed to start kernel subprocess"
+                    in message["data"]["error"]
+                )
+                await _expect_close(
+                    connection, 1011, "MARIMO_KERNEL_STARTUP_ERROR"
+                )
+    if outcome != "ready":
+        assert not manager.sessions
 
 
 async def test_sse_kiosk_without_session(client: TestClient) -> None:
@@ -297,13 +438,13 @@ async def test_sse_kiosk_without_session(client: TestClient) -> None:
 
 async def test_sse_disconnect_and_reconnect(client: TestClient) -> None:
     async with _connect(client) as connection:
-        event = await connection.next_event()
+        event = await connection.next_notification()
         assert json.loads(event["data"])["op"] == "kernel-ready"
     # Reconnect with the same session id
     async with _connect(client) as connection:
-        event = await connection.next_event()
+        event = await connection.next_notification()
         assert json.loads(event["data"])["op"] == "reconnected"
-        event = await connection.next_event()
+        event = await connection.next_notification()
         assert json.loads(event["data"])["op"] == "alert"
 
 
@@ -311,10 +452,10 @@ async def test_sse_second_connection_joins_as_viewer(
     client: TestClient,
 ) -> None:
     async with _connect(client) as connection:
-        event = await connection.next_event()
+        event = await connection.next_notification()
         assert json.loads(event["data"])["op"] == "kernel-ready"
         async with _connect(client, OTHER_SSE_QUERY) as viewer:
-            event = await viewer.next_event()
+            event = await viewer.next_notification()
             message = json.loads(event["data"])
             assert message["op"] == "kernel-ready"
             assert_kernel_ready_response(
@@ -323,17 +464,20 @@ async def test_sse_second_connection_joins_as_viewer(
 
 
 async def test_sse_heartbeat(client: TestClient) -> None:
-    with_heartbeat = partial(SSESessionHandler, heartbeat_seconds=0.01)
+    with_heartbeat = partial(SessionEventStream, heartbeat_seconds=0.01)
     with patch(
-        "marimo._server.api.endpoints.ws_endpoint.SSESessionHandler",
+        "marimo._server.api.endpoints.ws_endpoint.SessionEventStream",
         with_heartbeat,
     ):
         async with _connect(client) as connection:
-            event = await connection.next_event()
+            while True:
+                event = await connection.next_notification()
+                if event["event"] != "comment":
+                    break
             assert json.loads(event["data"])["op"] == "kernel-ready"
             # Drain until the first heartbeat comment arrives
             for _ in range(20):
-                event = await connection.next_event()
+                event = await connection.next_notification()
                 if event["event"] == "comment":
                     break
             assert event == {"event": "comment", "data": "keep-alive"}
@@ -344,7 +488,7 @@ async def test_sse_heartbeat(client: TestClient) -> None:
 
 def _make_handler(
     request: MagicMock, *, mode: SessionMode = SessionMode.RUN
-) -> SSESessionHandler:
+) -> SessionEventStream:
     params = ConnectionParams(
         session_id=SessionId("s1"),
         file_key="test.py",
@@ -352,11 +496,14 @@ def _make_handler(
         auto_instantiate=False,
         rtc_enabled=False,
     )
-    handler = SSESessionHandler(
-        request=request,
-        manager=MagicMock(),
+    handler = SessionEventStream(
+        connection=request,
+        notebook=None,
+        bridge=MagicMock(),
+        types=None,
+        cursor=None,
+        manager=MagicMock(mode=mode),
         params=params,
-        mode=mode,
         doc_manager=MagicMock(),
         heartbeat_seconds=60,
     )
@@ -364,8 +511,18 @@ def _make_handler(
     # Bypass SessionConnector; unit tests drive the handler directly
     session = MagicMock()
     session.room.main_consumer = handler
-    handler._connect_session = MagicMock(  # type: ignore[method-assign]
-        return_value=(session, ConnectionType.NEW)
+    session.ttl_seconds = 120
+    session.disconnect_consumer.side_effect = lambda consumer: (
+        consumer.on_detach()
+    )
+    handler.manager.get_session.return_value = session
+
+    async def connect(_request: Any) -> tuple[Any, ConnectionType]:
+        handler.on_attach(session, MagicMock())
+        return session, ConnectionType.NEW
+
+    handler._connect_session = AsyncMock(  # type: ignore[method-assign]
+        side_effect=connect
     )
     return handler
 
@@ -383,15 +540,15 @@ async def test_stream_sends_messages_and_close_event() -> None:
     request._receive = _never_receive()
     handler = _make_handler(request)
 
-    stream = handler.stream()
+    stream = handler.sse()
     handler.notify(
         serialize_kernel_message(
             AlertNotification(title="hello", description="world")
         )
     )
     first = await asyncio.wait_for(stream.__anext__(), timeout=10)
-    assert first.startswith("data: ")
-    assert json.loads(first[len("data: ") :].strip())["op"] == "alert"
+    assert first.startswith("event: marimo\n")
+    assert json.loads(_parse_record(first)["data"])["marimo"]["op"] == "alert"
 
     # Detaching from the session requests a SHUTDOWN close
     handler.on_detach()
@@ -408,12 +565,35 @@ async def test_stream_does_not_connect_until_iterated() -> None:
     request._receive = _never_receive()
     handler = _make_handler(request)
 
-    stream = handler.stream()
+    stream = handler.sse()
     await asyncio.sleep(0)
     handler._connect_session.assert_not_called()
 
     await stream.aclose()
     handler._connect_session.assert_not_called()
+
+
+async def test_disconnect_during_startup_progress_detaches_session() -> None:
+    request = MagicMock()
+    request._receive = _never_receive()
+    handler = _make_handler(request)
+    session = handler.manager.get_session.return_value
+    handler.notify(
+        serialize_kernel_message(
+            StartupProgressNotification(
+                phase="starting-kernel", logs="", log_mode="replace"
+            )
+        )
+    )
+
+    stream = handler.sse()
+    assert "startup-progress" in await anext(stream)
+    await asyncio.sleep(0)  # Complete attachment while the yield is suspended.
+    await stream.aclose()
+
+    session.disconnect_consumer.assert_called_once_with(handler)
+    assert handler.connection_state() == ConnectionState.CLOSED
+    assert not handler._is_transport_connected()
 
 
 async def test_stream_flushes_pending_messages_before_close() -> None:
@@ -434,10 +614,16 @@ async def test_stream_flushes_pending_messages_before_close() -> None:
     )
     handler.on_detach()
 
-    events = [event async for event in handler.stream()]
+    events = [event async for event in handler.sse()]
     assert len(events) == 3
-    assert json.loads(events[0][len("data: ") :])["data"]["title"] == "one"
-    assert json.loads(events[1][len("data: ") :])["data"]["title"] == "two"
+    assert (
+        json.loads(_parse_record(events[0])["data"])["marimo"]["title"]
+        == "one"
+    )
+    assert (
+        json.loads(_parse_record(events[1])["data"])["marimo"]["title"]
+        == "two"
+    )
     assert events[2] == format_close_event(1000, "MARIMO_SHUTDOWN")
 
 
@@ -452,7 +638,7 @@ async def test_stream_ends_on_client_disconnect() -> None:
     handler.manager.get_session.return_value = None
     handler.manager.ttl_seconds = None
 
-    events = [event async for event in handler.stream()]
+    events = [event async for event in handler.sse()]
     assert events == []
     assert handler.connection_state() == ConnectionState.CLOSED
 
@@ -481,12 +667,12 @@ async def test_check_status_update_runs_off_the_event_loop(
     # Returns immediately, while the check is still running on a thread
     handler._check_status_update()
     assert await asyncio.wait_for(asyncio.to_thread(started.wait, 10), 20)
-    assert handler.message_queue.empty()
+    assert handler._events.empty()
 
     # Once the check completes, the alert is delivered onto the queue
     release.set()
-    message = await asyncio.wait_for(handler.message_queue.get(), timeout=10)
-    assert b"Update available" in bytes(message)
+    message = await asyncio.wait_for(handler._events.get(), timeout=10)
+    assert "Update available" in message.event.data.marimo.title
 
 
 async def test_stream_heartbeat_without_messages() -> None:
@@ -495,7 +681,7 @@ async def test_stream_heartbeat_without_messages() -> None:
     handler = _make_handler(request)
     handler.heartbeat_seconds = 0.01
 
-    stream = handler.stream()
+    stream = handler.sse()
     first = await asyncio.wait_for(stream.__anext__(), timeout=10)
     assert first == ": keep-alive\n\n"
     handler._request_close(1000, "MARIMO_SHUTDOWN")
@@ -520,3 +706,61 @@ def test_format_close_event() -> None:
     assert format_close_event(1000, "MARIMO_SHUTDOWN") == (
         'event: close\ndata: {"code": 1000, "reason": "MARIMO_SHUTDOWN"}\n\n'
     )
+
+
+@pytest.mark.parametrize("mode", [SessionMode.EDIT, SessionMode.RUN])
+async def test_sse_host_snapshot_and_cursor_replay(
+    client: TestClient, mode: SessionMode
+) -> None:
+    manager = get_session_manager(client)
+    manager.mode = mode
+    manager.include_code = False
+    query = SSE_QUERY + "&types=notebook,cell,custom,marimo"
+    async with _connect(client, query) as connection:
+        snapshot = []
+        while True:
+            record = await connection.next_event()
+            snapshot.append(record)
+            if record["event"] == "ready":
+                cursor = record["id"]
+                break
+        cells = [
+            json.loads(r["data"])["cell"]
+            for r in snapshot
+            if r["event"] == "cell"
+        ]
+        assert cells
+        assert cells[0]["code"] == (
+            None if mode == SessionMode.RUN else "import marimo as mo"
+        )
+        # Finish the session handshake before disconnecting.
+        await connection.next_notification()
+    context = client.app.state.host_context
+    session = manager.get_session(SessionId("123"))
+    assert session is not None
+    notebook = context.bridge.notebook_for_session(session)
+    assert notebook is not None
+    notebook.emit("test.missed", {"value": 1})
+    async with _connect(
+        client, query, {"Last-Event-ID": cursor}
+    ) as connection:
+        first = await connection.next_event()
+        assert first["event"] == "custom"
+        assert json.loads(first["data"])["custom"]["data"] == {"value": 1}
+        assert (await connection.next_event())["event"] == "ready"
+    async with _connect(client, query + "&cursor=stale") as connection:
+        assert (await connection.next_event())["event"] == "reset"
+        assert (await connection.next_event())["event"] == "notebook"
+
+
+@pytest.mark.parametrize(
+    "options", ["cursor=", "types=invalid", "run_id=unknown"]
+)
+async def test_sse_rejects_invalid_subscription_before_startup(
+    client: TestClient, options: str
+) -> None:
+    async with _connect(client, SSE_QUERY + "&" + options) as connection:
+        record = await connection.next_event()
+        assert record["event"] == "close"
+        assert json.loads(record["data"])["code"] == 1008
+    assert not get_session_manager(client).sessions

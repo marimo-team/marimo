@@ -368,11 +368,10 @@ describe("schema validation", () => {
       operator: ">=",
       value: 18,
     });
-    expect(result.success).toBe(true);
-    if (result.success) {
-      expect(result.data.type).toBe("condition");
-      expect(result.data.negate).toBe(false);
-    }
+    expect(result).toMatchObject({
+      success: true,
+      data: { type: "condition", negate: false },
+    });
   });
 
   it("FilterConditionSchema defaults type and negate", () => {
@@ -381,11 +380,10 @@ describe("schema validation", () => {
       operator: "==",
       value: 5,
     });
-    expect(result.success).toBe(true);
-    if (result.success) {
-      expect(result.data.type).toBe("condition");
-      expect(result.data.negate).toBe(false);
-    }
+    expect(result).toMatchObject({
+      success: true,
+      data: { type: "condition", negate: false },
+    });
   });
 
   it("FilterConditionSchema accepts negate=true", () => {
@@ -395,10 +393,10 @@ describe("schema validation", () => {
       value: 5,
       negate: true,
     });
-    expect(result.success).toBe(true);
-    if (result.success) {
-      expect(result.data.negate).toBe(true);
-    }
+    expect(result).toMatchObject({
+      success: true,
+      data: { negate: true },
+    });
   });
 
   it("FilterGroupSchema accepts valid group", () => {
@@ -440,12 +438,14 @@ describe("schema validation", () => {
 
   it("FilterGroupSchema defaults fields", () => {
     const result = FilterGroupSchema.safeParse({});
-    expect(result.success).toBe(true);
-    if (result.success) {
-      expect(result.data.type).toBe("group");
-      expect(result.data.operator).toBe("and");
-      expect(result.data.children).toEqual([]);
-      expect(result.data.negate).toBe(false);
-    }
+    expect(result).toMatchObject({
+      success: true,
+      data: {
+        type: "group",
+        operator: "and",
+        children: [],
+        negate: false,
+      },
+    });
   });
 });

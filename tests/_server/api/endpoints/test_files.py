@@ -13,6 +13,7 @@ import msgspec
 import pytest
 
 from marimo._utils.platform import is_windows
+from tests._server.api.endpoints.ws_helpers import receive_notification
 from tests._server.mocks import (
     get_session_manager,
     token_header,
@@ -400,7 +401,7 @@ def test_copy_file(client: TestClient) -> None:
     assert filename_copy in response.text
 
     def _assert_contents():
-        file_contents = open(copied_file).read()
+        file_contents = Path(copied_file).read_text()
         assert "import marimo as mo" in file_contents
         assert 'marimo.App(width="full"' in file_contents
 
@@ -556,7 +557,7 @@ def test_rename_propagates(
 
     variables = {}
     while len(variables) < 2:
-        data = websocket.receive_json()
+        data = receive_notification(websocket)
         if data["op"] == "variable-values":
             for var in data["data"]["variables"]:
                 variables[var["name"]] = var["value"]
@@ -582,7 +583,7 @@ def test_rename_propagates(
 
     variables = {}
     while len(variables) < 2:
-        data = websocket.receive_json()
+        data = receive_notification(websocket)
         if data["op"] == "variable-values":
             for var in data["data"]["variables"]:
                 variables[var["name"]] = var["value"]

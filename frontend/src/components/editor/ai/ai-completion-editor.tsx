@@ -124,7 +124,9 @@ export const AiCompletionEditor: React.FC<Props> = ({
       new DefaultChatTransport<CompletionUIMessage>({
         api: runtimeManager.getAiURL("completion").toString(),
         headers: () => runtimeManager.headers(),
-        prepareSendMessagesRequest: ({ body }) => ({ body: body ?? {} }),
+        prepareSendMessagesRequest: ({ body, id }) => ({
+          body: { ...body, id },
+        }),
       }),
     [runtimeManager],
   );
@@ -406,6 +408,7 @@ export const AiCompletionEditor: React.FC<Props> = ({
               </div>
             </Tooltip>
             <Button
+              aria-label="Discard AI completion"
               data-testid="decline-completion-button"
               variant="text"
               size="icon"

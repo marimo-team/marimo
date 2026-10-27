@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import signal
-from typing import TYPE_CHECKING, Literal, cast
+from pathlib import Path
+from typing import TYPE_CHECKING, Literal
 from unittest import mock
 
 import pytest
@@ -13,8 +14,8 @@ from marimo._config.config import (
     merge_default_config,
 )
 from marimo._config.manager import (
-    MarimoConfigReader,
-    MarimoConfigReaderWithOverrides,
+    MarimoConfigManager,
+    get_default_config_manager,
 )
 from marimo._loggers import get_log_directory
 from marimo._messaging.notification import AlertNotification
@@ -32,7 +33,6 @@ from marimo._utils.platform import is_windows
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
-    from pathlib import Path
 
 
 @pytest.fixture
@@ -91,6 +91,10 @@ async def test_base_lsp_server_start_stop(
     assert alert is None
     mock_popen.assert_called_once()
     assert (
+        mock_popen.call_args.kwargs["env"]["MARIMO_LSP_TOKEN"]
+        == server.auth_token
+    )
+    assert (
         server.is_running() is True
     )  # Process exists and is running (returncode is None)
 
@@ -110,6 +114,59 @@ async def test_base_lsp_server_start_stop(
     # Verify wait was called with timeout for graceful shutdown
     mock_process.wait.assert_called_once_with(timeout=2)
     assert server.process is None
+
+
+@pytest.mark.parametrize(
+    "server_type",
+    [
+        PyLspServer,
+        CopilotLspServer,
+        BasedpyrightServer,
+        TyServer,
+        PyreflyServer,
+    ],
+)
+async def test_lsp_launch_keeps_token_out_of_argv(
+    server_type: type[BaseLspServer],
+    tmp_path: Path,
+    mock_popen: mock.MagicMock,
+):
+    server = server_type(port=8000)
+    lsp_dir = tmp_path / "_lsp"
+    lsp_dir.mkdir()
+    (lsp_dir / "index.cjs").touch()
+    ty_module = mock.MagicMock()
+    ty_module.find_ty_bin.return_value = "/path/to/ty"
+    pyrefly_module = mock.MagicMock()
+    pyrefly_module.get_pyrefly_bin.return_value = "/path/to/pyrefly"
+
+    # Stub installed dependencies, but exercise each real get_command()
+    # and the actual argv passed to Popen.
+    with (
+        mock.patch("marimo._server.lsp.DependencyManager"),
+        mock.patch(
+            "marimo._server.lsp.marimo_package_path", return_value=tmp_path
+        ),
+        mock.patch.dict(
+            "sys.modules",
+            {"ty.__main__": ty_module, "pyrefly.__main__": pyrefly_module},
+        ),
+        mock.patch.object(server, "validate_requirements", return_value=True),
+        mock.patch.object(server, "_wait_until_ready", return_value=True),
+        mock.patch.object(server, "_signal_process_tree"),
+    ):
+        try:
+            assert await server.start() is None
+            mock_popen.assert_called_once()
+            command = mock_popen.call_args.args[0]
+            assert command
+            assert all(server.auth_token not in arg for arg in command)
+            assert (
+                mock_popen.call_args.kwargs["env"]["MARIMO_LSP_TOKEN"]
+                == server.auth_token
+            )
+        finally:
+            server.stop()
 
 
 async def test_base_lsp_server_stop_force_kill_on_timeout(
@@ -222,12 +279,9 @@ async def test_pylsp_server():
     assert server.get_command() == [
         sys.executable,
         "-m",
-        "pylsp",
-        "--ws",
-        "-v",
+        "marimo._server._pylsp",
         "--port",
         "8000",
-        "--check-parent-process",
         "--log-file",
         str(get_log_directory() / "pylsp.log"),
     ]
@@ -355,16 +409,13 @@ def test_copilot_server_node_version_validation():
 def test_composite_server():
     def as_reader(
         completion_config: CompletionConfig, config: LanguageServersConfig
-    ) -> MarimoConfigReader:
-        return cast(
-            MarimoConfigReader,
-            MarimoConfigReaderWithOverrides(
-                {
-                    "completion": completion_config,
-                    "language_servers": config,
-                    "experimental": {"lsp": True},
-                },
-            ),
+    ) -> MarimoConfigManager:
+        return get_default_config_manager(current_path=None).with_overrides(
+            {
+                "completion": completion_config,
+                "language_servers": config,
+                "experimental": {"lsp": True},
+            }
         )
 
     with mock.patch("marimo._server.lsp.DependencyManager") as mock_dm:
@@ -567,8 +618,12 @@ def test_ty_server_uses_typed_format():
     mock_ty_module = mock.MagicMock()
     mock_ty_module.find_ty_bin.return_value = "/path/to/ty/binary"
 
-    with mock.patch.dict(
-        "sys.modules", {"ty": mock_ty_module, "ty.__main__": mock_ty_module}
+    with (
+        mock.patch.dict(
+            "sys.modules",
+            {"ty": mock_ty_module, "ty.__main__": mock_ty_module},
+        ),
+        mock.patch("shutil.which", return_value="/global/bin/ty"),
     ):
         server = TyServer(port=8000)
         command = server.get_command()
@@ -605,6 +660,92 @@ def test_ty_server_handles_spaces_in_path():
         # Should use typed format and preserve the path with spaces
         assert lsp_command == "ty:/path/with spaces/ty"
         assert "/path/with spaces/ty" in lsp_command
+
+
+@pytest.mark.parametrize("installed", [False, True])
+@pytest.mark.parametrize("on_path", [False, True])
+@pytest.mark.parametrize("node_available", [False, True])
+async def test_ty_server_availability(
+    installed: bool, on_path: bool, node_available: bool
+) -> None:
+    server = TyServer(port=8000)
+    with (
+        mock.patch(
+            "marimo._server.lsp.DependencyManager.ty.has",
+            return_value=installed,
+        ),
+        mock.patch(
+            "shutil.which",
+            side_effect={
+                "ty": "/global/bin/ty" if on_path else None,
+                "node": "/bin/node" if node_available else None,
+            }.get,
+        ),
+        mock.patch.object(
+            BaseLspServer, "start", new_callable=mock.AsyncMock
+        ) as start,
+    ):
+        validation = server.validate_requirements()
+        if not (installed or on_path):
+            assert (
+                validation
+                == "ty is missing. Install it with `pip install ty`."
+            )
+        elif not node_available:
+            assert (
+                validation
+                == "node.js binary is missing. Install node at https://nodejs.org/."
+            )
+        else:
+            assert validation is True
+
+        await server.start()
+        assert start.await_count == int(installed or on_path)
+
+
+def test_ty_server_missing_binary() -> None:
+    server = TyServer(port=8000)
+    with (
+        mock.patch.dict("sys.modules", {"ty": None, "ty.__main__": None}),
+        mock.patch("shutil.which", return_value=None),
+        pytest.raises(
+            FileNotFoundError, match="ty executable not found on PATH"
+        ),
+    ):
+        server.get_command()
+
+
+async def test_ty_server_starts_with_binary_on_path(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    mock_popen: mock.MagicMock,
+):
+    bin_dir = tmp_path / "global tools"
+    bin_dir.mkdir()
+    binary = bin_dir / ("ty.exe" if is_windows() else "ty")
+    binary.touch(mode=0o755)
+    monkeypatch.setenv("PATH", str(bin_dir))
+    server = TyServer(port=8000)
+
+    with (
+        mock.patch.dict("sys.modules", {"ty": None, "ty.__main__": None}),
+        mock.patch(
+            "marimo._server.lsp.DependencyManager.which",
+            return_value=True,
+        ),
+        mock.patch.object(server, "_wait_until_ready", return_value=True),
+        mock.patch.object(server, "_signal_process_tree"),
+    ):
+        try:
+            assert await server.start() is None
+            mock_popen.assert_called_once()
+            command = mock_popen.call_args.args[0]
+            lsp_command = command[command.index("--lsp") + 1]
+            server_type, _, executable = lsp_command.partition(":")
+            assert server_type == "ty"
+            assert Path(executable) == binary
+        finally:
+            server.stop()
 
 
 def test_any_lsp_server_running():

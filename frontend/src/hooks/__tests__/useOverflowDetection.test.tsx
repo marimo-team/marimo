@@ -10,23 +10,23 @@ const mockObserve = vi.fn();
 const mockDisconnect = vi.fn();
 
 global.ResizeObserver = class MockResizeObserver {
-  callback: ResizeObserverCallback;
+  public callback: ResizeObserverCallback;
 
-  constructor(callback: ResizeObserverCallback) {
+  public constructor(callback: ResizeObserverCallback) {
     this.callback = callback;
   }
 
-  observe(target: Element) {
+  public observe(target: Element) {
     mockObserve(target);
     // Simulate initial observation callback
     this.callback([], this);
   }
 
-  unobserve() {
+  public unobserve() {
     // noop
   }
 
-  disconnect() {
+  public disconnect() {
     mockDisconnect();
   }
 };

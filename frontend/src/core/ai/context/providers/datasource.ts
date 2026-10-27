@@ -46,13 +46,16 @@ export interface DatasourceContextItem extends AIContextItem {
 const CONTEXT_TYPE = "datasource";
 
 export class DatasourceContextProvider extends AIContextProvider<DatasourceContextItem> {
-  readonly title = "Datasource";
-  readonly mentionPrefix = "@";
-  readonly contextType = CONTEXT_TYPE;
+  public readonly title = "Datasource";
+  public readonly mentionPrefix = "@";
+  public readonly contextType = CONTEXT_TYPE;
   private connectionsMap: ConnectionsMap;
   private dataframes: DataTable[];
 
-  constructor(connectionsMap: ConnectionsMap, tablesMap: DatasetTablesMap) {
+  public constructor(
+    connectionsMap: ConnectionsMap,
+    tablesMap: DatasetTablesMap,
+  ) {
     super();
     this.connectionsMap = connectionsMap;
     this.dataframes = [...tablesMap.values()].filter(
@@ -60,7 +63,7 @@ export class DatasourceContextProvider extends AIContextProvider<DatasourceConte
     );
   }
 
-  getItems(): DatasourceContextItem[] {
+  public getItems(): DatasourceContextItem[] {
     return [...this.connectionsMap.values()]
       .map((connection): DatasourceContextItem | null => {
         let description = "Database schema.";
@@ -92,11 +95,15 @@ export class DatasourceContextProvider extends AIContextProvider<DatasourceConte
       .filter(Boolean);
   }
 
-  formatContext(item: DatasourceContextItem): string {
+  public formatContext(item: DatasourceContextItem): string {
     const data = item.data;
     // Remove certain fields that are not needed in the context
-    const { name, display_name, source, ...filteredDatasource } =
-      data.connection;
+    const {
+      name,
+      display_name: _displayName,
+      source: _source,
+      ...filteredDatasource
+    } = data.connection;
 
     let datasource = filteredDatasource;
     const isInternalEngine = INTERNAL_SQL_ENGINES.has(name as ConnectionName);
@@ -117,7 +124,7 @@ export class DatasourceContextProvider extends AIContextProvider<DatasourceConte
     });
   }
 
-  formatCompletion(item: DatasourceContextItem): Completion {
+  public formatCompletion(item: DatasourceContextItem): Completion {
     const datasource = item.data;
 
     const dataConnection = datasource.connection;

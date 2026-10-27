@@ -208,13 +208,19 @@ export class RemoteCursorMarker implements LayerMarker {
   private name: string;
   private colorClassName: string;
 
-  constructor(
-    left: number,
-    top: number,
-    height: number,
-    name: string,
-    colorClassName: string,
-  ) {
+  public constructor({
+    left,
+    top,
+    height,
+    name,
+    colorClassName,
+  }: {
+    left: number;
+    top: number;
+    height: number;
+    name: string;
+    colorClassName: string;
+  }) {
     this.left = left;
     this.top = top;
     this.height = height;
@@ -222,18 +228,18 @@ export class RemoteCursorMarker implements LayerMarker {
     this.colorClassName = colorClassName;
   }
 
-  draw(): HTMLElement {
+  public draw(): HTMLElement {
     const elt = document.createElement("div");
     this.adjust(elt);
     return elt;
   }
 
-  update(elt: HTMLElement): boolean {
+  public update(elt: HTMLElement): boolean {
     this.adjust(elt);
     return true;
   }
 
-  adjust(element: HTMLElement) {
+  public adjust(element: HTMLElement) {
     element.style.left = `${this.left}px`;
     element.style.top = `${this.top}px`;
     element.style.height = `${this.height}px`;
@@ -241,7 +247,7 @@ export class RemoteCursorMarker implements LayerMarker {
     element.style.setProperty("--rtc-name", `"${this.name}"`);
   }
 
-  eq(other: RemoteCursorMarker): boolean {
+  public eq(other: RemoteCursorMarker): boolean {
     return (
       this.left === other.left &&
       this.top === other.top &&
@@ -271,13 +277,13 @@ export class RemoteCursorMarker implements LayerMarker {
     const baseLeft = left - view.scrollDOM.scrollLeft;
     const baseTop = rect.top - view.scrollDOM.scrollTop;
     return [
-      new RemoteCursorMarker(
-        absolutePosition.left - baseLeft,
-        absolutePosition.top - baseTop,
-        absolutePosition.bottom - absolutePosition.top,
-        displayName,
+      new RemoteCursorMarker({
+        left: absolutePosition.left - baseLeft,
+        top: absolutePosition.top - baseTop,
+        height: absolutePosition.bottom - absolutePosition.top,
+        name: displayName,
         colorClassName,
-      ),
+      }),
     ];
   }
 
@@ -364,7 +370,7 @@ export interface CursorPosition {
 }
 
 export class AwarenessPlugin implements PluginValue {
-  sub: Subscription;
+  public sub: Subscription;
   public view: EditorView;
   public doc: LoroDoc;
   public user: UserState;
@@ -373,14 +379,23 @@ export class AwarenessPlugin implements PluginValue {
   private scopeId: ScopeId;
   private getUserId?: () => Uid;
 
-  constructor(
+  public constructor(
     view: EditorView,
-    doc: LoroDoc,
-    user: UserState,
-    awareness: Awareness<AwarenessState>,
-    getTextFromDoc: (doc: LoroDoc) => LoroText,
-    scopeId: ScopeId,
-    getUserId?: () => Uid,
+    {
+      doc,
+      user,
+      awareness,
+      getTextFromDoc,
+      scopeId,
+      getUserId,
+    }: {
+      doc: LoroDoc;
+      user: UserState;
+      awareness: Awareness<AwarenessState>;
+      getTextFromDoc: (doc: LoroDoc) => LoroText;
+      scopeId: ScopeId;
+      getUserId?: () => Uid;
+    },
   ) {
     this.view = view;
     this.doc = doc;
@@ -421,7 +436,7 @@ export class AwarenessPlugin implements PluginValue {
     });
   }
 
-  update(update: ViewUpdate): void {
+  public update(update: ViewUpdate): void {
     if (!update.selectionSet && !update.focusChanged && !update.docChanged) {
       return;
     }
@@ -450,7 +465,7 @@ export class AwarenessPlugin implements PluginValue {
     }
   }
 
-  destroy(): void {
+  public destroy(): void {
     this.sub?.();
     this.awareness.setLocalState({
       type: "delete",
@@ -460,13 +475,13 @@ export class AwarenessPlugin implements PluginValue {
   }
 }
 export class RemoteAwarenessPlugin implements PluginValue {
-  _awarenessListener?: AwarenessListener;
+  public _awarenessListener?: AwarenessListener;
   public view: EditorView;
   public doc: LoroDoc;
   public awareness: Awareness<AwarenessState>;
   private scopeId: ScopeId;
 
-  constructor(
+  public constructor(
     view: EditorView,
     doc: LoroDoc,
     awareness: Awareness<AwarenessState>,
@@ -493,7 +508,7 @@ export class RemoteAwarenessPlugin implements PluginValue {
     this.awareness.addListener(listener);
   }
 
-  destroy(): void {
+  public destroy(): void {
     if (this._awarenessListener) {
       this.awareness.removeListener(this._awarenessListener);
     }

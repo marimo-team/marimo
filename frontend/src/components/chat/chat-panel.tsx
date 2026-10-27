@@ -64,6 +64,10 @@ import { cn } from "@/utils/cn";
 import { Logger } from "@/utils/Logger";
 import { AIModelDropdown } from "../ai/ai-model-dropdown";
 import { useOpenSettingsToTab } from "../app-config/state";
+import {
+  PairWithAgentBanner,
+  PairWithAgentButton,
+} from "../editor/actions/pair-with-agent";
 import { PairWithAgentModal } from "../editor/actions/pair-with-agent-modal";
 import { PromptInput } from "../editor/ai/add-cell-with-ai";
 import {
@@ -146,23 +150,35 @@ interface ChatHeaderProps {
   onNewChat: () => void;
   activeChatId: ChatId | undefined;
   setActiveChat: (id: ChatId | null) => void;
+  onDeleteChats: (id: ChatId | null) => void;
+  isLoading: boolean;
 }
 
 const ChatHeader: React.FC<ChatHeaderProps> = ({
   onNewChat,
   activeChatId,
   setActiveChat,
+  onDeleteChats,
+  isLoading,
 }) => {
   const { handleClick } = useOpenSettingsToTab();
 
   return (
     <div className="flex border-b px-2 py-1 justify-between shrink-0 items-center">
       <Tooltip content="New chat">
-        <Button variant="text" size="icon" onClick={onNewChat}>
+        <Button
+          aria-label="New chat"
+          variant="text"
+          size="icon"
+          onClick={onNewChat}
+        >
           <PlusIcon className="h-4 w-4" />
         </Button>
       </Tooltip>
       <div className="flex items-center gap-2">
+        <Tooltip content="Connect your agent">
+          <PairWithAgentButton className="mr-1" label="Connect" />
+        </Tooltip>
         <MCPStatusIndicator />
         <Tooltip content="AI Settings">
           <Button
@@ -177,6 +193,8 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
         <ChatHistoryPopover
           activeChatId={activeChatId}
           setActiveChat={setActiveChat}
+          onDeleteChats={onDeleteChats}
+          isLoading={isLoading}
         />
       </div>
     </div>
@@ -493,7 +511,7 @@ const PairWithAgentCallout: React.FC<{
       onClick={onPairWithAgent}
     >
       <SparklesIcon className="h-3.5 w-3.5 shrink-0" />
-      <span>Work on this notebook with your own agent</span>
+      <span>Connect your own agent to this notebook</span>
       <ArrowRightIcon className="h-3 w-3 shrink-0" />
     </Button>
   );
@@ -509,13 +527,17 @@ const ChatPanel = () => {
         title="Chat with AI"
         description="No AI provider configured or Chat model not selected"
         action={
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => handleClick("ai", "ai-providers")}
-          >
-            Edit AI settings
-          </Button>
+          <div className="flex flex-col gap-3">
+            <Button
+              variant="outline"
+              size="sm"
+              className="self-start"
+              onClick={() => handleClick("ai", "ai-providers")}
+            >
+              Edit AI settings
+            </Button>
+            <PairWithAgentBanner />
+          </div>
         }
         icon={<BotMessageSquareIcon />}
       />
@@ -699,14 +721,10 @@ const ChatPanelBody = () => {
   );
 
   const isLoading = status === "submitted" || status === "streaming";
-  // Read via a ref so the queue-vs-send decision stays correct even when it is
-  // made after an `await` (e.g. resolving @-context), by which point the render
-  // closure's `isLoading` may be stale.
-  const isLoadingRef = useRef(isLoading);
-  isLoadingRef.current = isLoading;
-
+  // useEvent reads the latest loading state, even when called after an await
+  // (e.g. resolving @-context) that outlives the original render's closure.
   const submitOrQueue = useEvent((parts: ChatMessagePart[]) => {
-    if (isLoadingRef.current || hasQueuedRef.current) {
+    if (isLoading || hasQueuedRef.current) {
       enqueueUserMessage(parts);
     } else {
       sendUserMessage(parts);
@@ -825,6 +843,27 @@ const ChatPanelBody = () => {
     setNewThreadInput("");
     clearQueuedMessages();
     clearFiles();
+  });
+
+  const handleDeleteChats = useEvent((id: ChatId | null) => {
+    if (id === null || id === activeChatId) {
+      handleNewChat();
+    }
+    setChatState((prev) => {
+      const chats = new Map(prev.chats);
+      if (id === null) {
+        chats.clear();
+      } else {
+        chats.delete(id);
+      }
+      return {
+        chats,
+        activeChatId:
+          prev.activeChatId && chats.has(prev.activeChatId)
+            ? prev.activeChatId
+            : null,
+      };
+    });
   });
 
   const handlePairWithAgent = useEvent(() => {
@@ -986,6 +1025,8 @@ const ChatPanelBody = () => {
           onNewChat={handleNewChat}
           activeChatId={activeChat?.id}
           setActiveChat={setActiveChat}
+          onDeleteChats={handleDeleteChats}
+          isLoading={isLoading}
         />
       </TooltipProvider>
 

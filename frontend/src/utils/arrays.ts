@@ -55,6 +55,16 @@ export function arrayShallowEquals<T>(a: T[], b: T[]): boolean {
 export const Arrays = {
   // oxlint-disable-next-line typescript/no-explicit-any
   EMPTY: [] as any,
+  /** Keep values present in both arrays, preserving the first array's order and duplicates. */
+  intersection<T>(values: readonly T[], included: readonly T[]): T[] {
+    const includedSet = new Set(included);
+    return values.filter((value) => includedSet.has(value));
+  },
+  /** Remove values present in the second array, preserving order and duplicates. */
+  difference<T>(values: readonly T[], excluded: readonly T[]): T[] {
+    const excludedSet = new Set(excluded);
+    return values.filter((value) => !excludedSet.has(value));
+  },
   zip: <T, U>(a: T[], b: U[]): [T, U][] => {
     invariant(a.length === b.length, "Arrays must be the same length");
     return a.map((item, i) => [item, b[i]]);

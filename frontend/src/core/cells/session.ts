@@ -56,7 +56,7 @@ function mergeSessionAndNotebookCells(
     return {
       cellIds,
       sessionCellData: new Map(
-        cellIds.map((id, idx) => [id, null] as [CellId, SessionCell | null]),
+        cellIds.map((id) => [id, null] as [CellId, SessionCell | null]),
       ),
       notebookCellData: new Map(
         cellIds.map(
@@ -149,6 +149,7 @@ function createEmptyNotebookCell(): NotebookCell {
       column: null,
       disabled: false,
       hide_code: false,
+      expand_output: false,
     },
   };
 }
@@ -177,6 +178,7 @@ function createCellDataFromNotebook(
       column: notebookCell.config?.column ?? null,
       disabled: notebookCell.config?.disabled ?? false,
       hide_code: notebookCell.config?.hide_code ?? false,
+      expand_output: notebookCell.config?.expand_output ?? false,
     },
     serializedEditorState: null,
   };
@@ -204,8 +206,20 @@ function createCellRuntimeFromSession(
         channel: "marimo-error",
         data: [
           {
-            type: "unknown",
+            type: "exception",
+            exception_type: primaryOutput.ename,
             msg: primaryOutput.evalue,
+            raising_cell: null,
+            traceback:
+              primaryOutput.traceback.length === 0
+                ? null
+                : primaryOutput.traceback
+                    .map((line, index, lines) =>
+                      index < lines.length - 1 && !line.endsWith("\n")
+                        ? `${line}\n`
+                        : line,
+                    )
+                    .join(""),
           },
         ],
         mimetype: "application/vnd.marimo+error",
@@ -221,6 +235,9 @@ function createCellRuntimeFromSession(
         timestamp: DEFAULT_TIMESTAMP,
       };
     }
+    if (runtimeState.output && primaryOutput.code !== undefined) {
+      runtimeState.output.code = primaryOutput.code;
+    }
   }
 
   const consoleOutputs = sessionCell.console || [];
@@ -235,7 +252,13 @@ function createCellRuntimeFromSession(
           channel: "media",
           data: consoleOutput.data,
           mimetype: consoleOutput.mimetype,
+          ...(consoleOutput.traceback_format === undefined
+            ? {}
+            : { traceback_format: consoleOutput.traceback_format }),
           timestamp: DEFAULT_TIMESTAMP,
+          ...(consoleOutput.code === undefined
+            ? {}
+            : { code: consoleOutput.code }),
         };
       }
       // Handle StreamOutput (type: "stream")
@@ -243,7 +266,13 @@ function createCellRuntimeFromSession(
         channel: consoleOutput.name === "stderr" ? "stderr" : "stdout",
         data: consoleOutput.text,
         mimetype: consoleOutput.mimetype ?? "text/plain",
+        ...(consoleOutput.traceback_format === undefined
+          ? {}
+          : { traceback_format: consoleOutput.traceback_format }),
         timestamp: DEFAULT_TIMESTAMP,
+        ...(consoleOutput.code === undefined
+          ? {}
+          : { code: consoleOutput.code }),
       };
     }),
   };

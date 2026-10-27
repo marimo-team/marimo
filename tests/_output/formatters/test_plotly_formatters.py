@@ -1,16 +1,53 @@
 from __future__ import annotations
 
+import copy
 import json
 
 import pytest
 
+from marimo._config.config import DEFAULT_CONFIG
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._output.formatters.formatters import register_formatters
 from marimo._output.formatters.plotly_formatters import PlotlyFormatter
 from marimo._output.formatting import get_formatter
+from tests._runtime._helpers.session import mocked_kernel_session
+from tests.conftest import ExecReqProvider
 
 HAS_DEPS = DependencyManager.plotly.has()
 HAS_ANYWIDGET = DependencyManager.anywidget.has()
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="plotly not installed")
+async def test_plotly_template_ignores_dark_theme(
+    exec_req: ExecReqProvider, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A dark notebook theme leaves the plotly default template untouched."""
+    import plotly.io as pio
+
+    monkeypatch.setattr(pio.templates, "default", "plotly")
+
+    user_config = copy.deepcopy(DEFAULT_CONFIG)
+    user_config["display"]["theme"] = "dark"
+
+    with mocked_kernel_session(user_config=user_config) as tk:
+        register_formatters()
+
+        await tk.kernel.run(
+            [
+                exec_req.get(
+                    """
+                    import marimo as mo
+                    import plotly.io as pio
+
+                    theme = mo.app_meta().theme
+                    template = pio.templates.default
+                    """
+                )
+            ]
+        )
+
+        assert tk.kernel.globals["theme"] == "dark"
+        assert tk.kernel.globals["template"] == "plotly"
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="plotly not installed")

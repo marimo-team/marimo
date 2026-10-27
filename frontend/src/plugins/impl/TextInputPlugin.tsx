@@ -1,7 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { AtSignIcon, GlobeIcon, LockIcon } from "lucide-react";
-import { type JSX, useRef, useState } from "react";
+import { type JSX, useId, useRef, useState } from "react";
 import { z } from "zod";
 import {
   DebouncedInput,
@@ -33,9 +33,9 @@ interface Data {
 const MASK_PLACEHOLDER = "\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022";
 
 export class TextInputPlugin implements IPlugin<T, Data> {
-  tagName = "marimo-text";
+  public tagName = "marimo-text";
 
-  validator = z.object({
+  public validator = z.object({
     initialValue: z.string(),
     placeholder: z.string(),
     label: z.string().nullable(),
@@ -48,7 +48,7 @@ export class TextInputPlugin implements IPlugin<T, Data> {
     passwordHasValue: z.boolean().optional(),
   });
 
-  render(props: IPluginProps<T, Data>): JSX.Element {
+  public render(props: IPluginProps<T, Data>): JSX.Element {
     // Force remount on cell re-run so masked state resets cleanly
     const remountKey =
       props.data.kind === "password"
@@ -73,6 +73,7 @@ interface TextComponentProps extends Data {
 }
 
 const TextComponent = (props: TextComponentProps) => {
+  const inputId = useId();
   // Before first real keystroke: show masked placeholder, suppress setValue.
   // After first keystroke: normal password field.
   const initiallyMasked =
@@ -125,6 +126,7 @@ const TextComponent = (props: TextComponentProps) => {
   if (props.debounce === true) {
     input = (
       <OnBlurredInput
+        id={inputId}
         data-testid="marimo-plugin-text-input"
         type={props.kind}
         icon={icon[props.kind]}
@@ -143,6 +145,7 @@ const TextComponent = (props: TextComponentProps) => {
   } else if (typeof props.debounce === "number") {
     input = (
       <DebouncedInput
+        id={inputId}
         data-testid="marimo-plugin-text-input"
         type={props.kind}
         icon={icon[props.kind]}
@@ -163,6 +166,7 @@ const TextComponent = (props: TextComponentProps) => {
   } else {
     input = (
       <Input
+        id={inputId}
         data-testid="marimo-plugin-text-input"
         type={props.kind}
         icon={icon[props.kind]}
@@ -182,7 +186,11 @@ const TextComponent = (props: TextComponentProps) => {
   }
 
   return (
-    <Labeled label={props.label} fullWidth={props.fullWidth}>
+    <Labeled
+      controlId={inputId}
+      label={props.label}
+      fullWidth={props.fullWidth}
+    >
       {input}
     </Labeled>
   );

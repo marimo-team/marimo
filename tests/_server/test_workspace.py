@@ -45,14 +45,15 @@ class TestNotebookWorkspace(unittest.TestCase):
     def setUp(self):
         # Create a temporary directory
         self.test_dir = tempfile.mkdtemp()
-        # Create temporary files
-        self.test_file1 = tempfile.NamedTemporaryFile(
+        # Keep file objects on self because tests use their `.name` paths
+        # after setup; each handle is closed immediately after writing.
+        self.test_file1 = tempfile.NamedTemporaryFile(  # noqa: SIM115
             delete=False, dir=self.test_dir, suffix=".py"
         )
-        self.test_file2 = tempfile.NamedTemporaryFile(
+        self.test_file2 = tempfile.NamedTemporaryFile(  # noqa: SIM115
             delete=False, dir=self.test_dir, suffix=".py"
         )
-        self.test_file_3 = tempfile.NamedTemporaryFile(
+        self.test_file_3 = tempfile.NamedTemporaryFile(  # noqa: SIM115
             delete=False, dir=self.test_dir, suffix=".md"
         )
         # Write to the temporary files
@@ -66,7 +67,7 @@ class TestNotebookWorkspace(unittest.TestCase):
         # Create a nested directory and file
         self.nested_dir = os.path.join(self.test_dir, "nested")
         os.mkdir(self.nested_dir)
-        self.nested_file = tempfile.NamedTemporaryFile(
+        self.nested_file = tempfile.NamedTemporaryFile(  # noqa: SIM115
             delete=False, dir=self.nested_dir, suffix=".py"
         )
         self.nested_file.write(file_contents.encode())
