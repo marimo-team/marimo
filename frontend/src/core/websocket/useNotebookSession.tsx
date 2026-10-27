@@ -12,7 +12,7 @@ import type {
   NotificationMessageData,
   NotificationPayload,
 } from "@/core/kernel/messages";
-import { useNotebookClient } from "@/core/websocket/useNotebookClient";
+import { useNotebookReplica } from "@/core/websocket/useNotebookReplica";
 import { renderHTML } from "@/plugins/core/RenderHTML";
 import {
   handleWidgetMessage,
@@ -408,7 +408,7 @@ export function useNotebookSession(opts: {
       variant: "danger",
     });
   };
-  const notebook = useNotebookClient({
+  const replica = useNotebookReplica({
     static: isStaticNotebook(),
     transportType,
     url: () =>
@@ -438,7 +438,7 @@ export function useNotebookSession(opts: {
   // Subscribe before passive connection setup: static/WASM transports can emit synchronously.
   useLayoutEffect(() => {
     const updateConnection = () => {
-      const status = store.get(notebook.connectionAtom);
+      const status = store.get(replica.connectionAtom);
       if (status.state === ConnectionState.NOT_STARTED) {
         return;
       }
@@ -469,16 +469,16 @@ export function useNotebookSession(opts: {
         return status;
       });
     };
-    const unsubscribe = store.sub(notebook.connectionAtom, updateConnection);
+    const unsubscribe = store.sub(replica.connectionAtom, updateConnection);
     updateConnection();
     return unsubscribe;
   }, [
-    notebook,
+    replica,
     store,
     setConnection,
     setKernelStartupError,
     updateStartupProgress,
   ]);
 
-  return { notebook, connection, reconnect: notebook.reconnect };
+  return { replica, connection, reconnect: replica.reconnect };
 }

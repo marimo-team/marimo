@@ -1,6 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import type { CloseDecision } from "../host/connection";
+import type { CloseDecision } from "../host";
 import { Logger } from "@/utils/Logger";
 import { ConnectionState, WebSocketClosedReason } from "./types";
 

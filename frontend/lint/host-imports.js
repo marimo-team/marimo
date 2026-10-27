@@ -2,7 +2,7 @@
 
 import NodePath from "node:path";
 
-function isTest(path) {
+export function isTest(path) {
   return (
     path.includes(`${NodePath.sep}__tests__${NodePath.sep}`) ||
     /\.(test|spec)(\.[cm]?[jt]sx?)?$/.test(path)
@@ -52,37 +52,39 @@ export const hostImports = {
           "Host code may import only host modules, @marimo-team/client, jotai/vanilla, zod, and Logger.",
       });
     }
-    return {
-      ImportDeclaration(node) {
-        check(node.source, node);
-      },
-      ExportNamedDeclaration(node) {
-        if (node.source) {
-          check(node.source, node);
-        }
-      },
-      ExportAllDeclaration(node) {
-        check(node.source, node);
-      },
-      ImportExpression(node) {
-        check(node.source, node);
-      },
-      TSImportType(node) {
-        check(node.source, node);
-      },
-      TSImportEqualsDeclaration(node) {
-        if (node.moduleReference.type === "TSExternalModuleReference") {
-          check(node.moduleReference.expression, node);
-        }
-      },
-      CallExpression(node) {
-        if (
-          node.callee.type === "Identifier" &&
-          node.callee.name === "require"
-        ) {
-          check(node.arguments[0], node);
-        }
-      },
-    };
+    return importVisitors(check);
   },
 };
+
+/** Call `check` with the source of every import, export from, and require. */
+export function importVisitors(check) {
+  return {
+    ImportDeclaration(node) {
+      check(node.source, node);
+    },
+    ExportNamedDeclaration(node) {
+      if (node.source) {
+        check(node.source, node);
+      }
+    },
+    ExportAllDeclaration(node) {
+      check(node.source, node);
+    },
+    ImportExpression(node) {
+      check(node.source, node);
+    },
+    TSImportType(node) {
+      check(node.source, node);
+    },
+    TSImportEqualsDeclaration(node) {
+      if (node.moduleReference.type === "TSExternalModuleReference") {
+        check(node.moduleReference.expression, node);
+      }
+    },
+    CallExpression(node) {
+      if (node.callee.type === "Identifier" && node.callee.name === "require") {
+        check(node.arguments[0], node);
+      }
+    },
+  };
+}

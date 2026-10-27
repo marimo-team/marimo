@@ -1,6 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { hostImports } from "./host-imports.js";
+import { moduleEntry } from "./module-entry.js";
 
 /**
  * Custom oxlint plugin with marimo-specific lint rules.
@@ -331,6 +332,7 @@ const plugin = {
   },
   rules: {
     "host-imports": hostImports,
+    "module-entry": moduleEntry,
     "add-event-listener-object": addEventListenerObject,
     "remove-event-listener-object": removeEventListenerObject,
     "prefer-object-params": preferObjectParams,

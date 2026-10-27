@@ -5,7 +5,7 @@ import { createStore } from "jotai/vanilla";
 import { afterEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import { Deferred } from "@/utils/Deferred";
 import { ConnectionState } from "../../host/connection";
-import { createNotebookClient } from "../../host/notebook-client";
+import { createNotebookReplica } from "../../host/replica";
 import { createEditorBackend } from "../backend";
 
 const wasm = vi.hoisted(() => ({ enabled: false, consumer: vi.fn() }));
@@ -132,7 +132,7 @@ describe("the session backend's startup", () => {
         .mockRejectedValue(new Error("Startup gave up"));
       const checkHealth = vi.fn().mockResolvedValue(healthy);
       const store = createStore();
-      const client = createNotebookClient(store);
+      const client = createNotebookReplica(store);
       onTestFinished(
         client.connect(
           createEditorBackend({ ...options, waitUntilReady, checkHealth }),
@@ -164,7 +164,7 @@ describe("the session backend's startup", () => {
     const ready = new Deferred<void>();
     const waitUntilReady = vi.fn(() => ready.promise);
     const backend = createEditorBackend({ ...options, waitUntilReady });
-    const client = createNotebookClient(createStore());
+    const client = createNotebookReplica(createStore());
     // Strict Mode connects, disconnects, and connects again.
     client.connect(backend, { onNotification: vi.fn() })();
     onTestFinished(client.connect(backend, { onNotification: vi.fn() }));
@@ -180,7 +180,7 @@ describe("the session backend's startup", () => {
     const opened = sockets();
     const ready = new Deferred<void>();
     const store = createStore();
-    const client = createNotebookClient(store);
+    const client = createNotebookReplica(store);
     const disconnect = client.connect(
       createEditorBackend({ ...options, waitUntilReady: () => ready.promise }),
       { onNotification: vi.fn() },

@@ -7,7 +7,7 @@ import { afterEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import { Deferred } from "@/utils/Deferred";
 import { ConnectionState } from "../../websocket/types";
 import type { ConnectionStatus } from "../connection";
-import { createNotebookClient } from "../notebook-client";
+import { createNotebookReplica } from "../replica";
 import { fakeBackend, fixtureEvents, fixtureMessages } from "./fixtures";
 
 /** One connection the fake transport opened. */
@@ -41,7 +41,7 @@ function setup() {
   const checkHealth = vi.fn(async () => true);
   const store = createStore();
   const backend = fakeBackend({ transport, checkHealth });
-  const client = createNotebookClient(store);
+  const client = createNotebookReplica(store);
   /** Follow the backend until `signal` aborts. */
   const connect = (signal: AbortSignal) => {
     const disconnect = client.connect(backend, {
@@ -98,7 +98,7 @@ const notebook = {
   updated_at: null,
 };
 
-describe("NotebookClient lifetime", () => {
+describe("NotebookReplica lifetime", () => {
   it("ends the previous connection when it connects again", async () => {
     const { attempts, backend, client, opened, store } = setup();
     const first = client.connect(backend, { onNotification: vi.fn() });
@@ -418,7 +418,7 @@ describe("NotebookClient lifetime", () => {
   });
 });
 
-describe("NotebookClient attachments", () => {
+describe("NotebookReplica attachments", () => {
   const [browser, agent] = fixtureEvents("notebook-events.sse").flatMap(
     (event) => (event.event === "attachment" ? [event.data.attachment] : []),
   );

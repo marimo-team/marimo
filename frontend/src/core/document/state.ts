@@ -6,7 +6,7 @@ import {
   type createStore,
   type WritableAtom,
 } from "jotai/vanilla";
-import type { Document } from "../host/resources/document";
+import type { Document } from "../host";
 import * as Protocol from "@marimo-team/client/protocol";
 import {
   acknowledge,

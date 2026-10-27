@@ -25,6 +25,7 @@
   "rules": {
     // === Marimo custom rules ===
     "marimo/host-imports": "error",
+    "marimo/module-entry": "error",
     "marimo/add-event-listener-object": "error",
     "marimo/remove-event-listener-object": "error",
     "marimo/prefer-object-params": "warn",

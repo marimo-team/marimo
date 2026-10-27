@@ -2,8 +2,7 @@
 
 import type * as Protocol from "@marimo-team/client/protocol";
 import type { Atom, createStore } from "jotai/vanilla";
-import type { NotebookBackend } from "../host/backend";
-import type { Document } from "../host/resources/document";
+import type { Document, NotebookBackend } from "../host";
 import { createDocumentState, type DocumentState } from "./state";
 import { createDocumentSync, type DocumentSyncStatus } from "./sync";
 
