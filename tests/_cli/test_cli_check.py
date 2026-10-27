@@ -2,11 +2,80 @@
 """CLI tests for the marimo check command."""
 
 import json
+import subprocess
+import sys
 import tempfile
+from pathlib import Path
 
+import pytest
 from click.testing import CliRunner
 
+from marimo._ast.cell import CellConfig
+from marimo._ast.codegen import generate_filecontents
 from marimo._cli.cli import check
+
+
+@pytest.mark.parametrize(
+    ("code", "config", "exit_code"),
+    [
+        pytest.param(
+            "if True:\n\n    def f():\n        pass",
+            CellConfig(),
+            0,
+            id="nested_function",
+        ),
+        pytest.param(
+            "if True:\n\n    async def f():\n        pass",
+            CellConfig(),
+            0,
+            id="nested_async_function",
+        ),
+        pytest.param(
+            "if True:\n\n    class Foo:\n        pass",
+            CellConfig(),
+            0,
+            id="nested_class",
+        ),
+        pytest.param(
+            "if True:\n\n    def f():\n        pass\n\n# trailing comment",
+            CellConfig(),
+            0,
+            id="trailing_comment",
+        ),
+        pytest.param("a =", CellConfig(), 1, id="unparsable"),
+        pytest.param(
+            "a =",
+            CellConfig(disabled=True, hide_code=True),
+            1,
+            id="unparsable_with_config",
+        ),
+    ],
+)
+def test_fix_preserves_ruff_formatting(
+    tmp_path: Path, code: str, config: CellConfig, exit_code: int
+) -> None:
+    path = tmp_path / "notebook.py"
+    path.write_text(generate_filecontents([code], ["_"], [config]))
+    subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "ruff",
+            "format",
+            "--isolated",
+            "--line-length=79",
+            str(path),
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    formatted = path.read_text()
+
+    result = CliRunner().invoke(check, [str(path), "--fix"])
+
+    assert result.exit_code == exit_code, result.output
+    assert path.read_text() == formatted
 
 
 class TestLintCLI:

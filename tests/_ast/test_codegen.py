@@ -274,7 +274,7 @@ app._unparsable_cell(
     r"""
     x = 1
     """,
-    name="my_cell"
+    name="my_cell",
 )\
 '''
         )
@@ -336,7 +336,11 @@ app._unparsable_cell(
     r"""
     x = 1
     """,
-    column=1, disabled=True, hide_code=True, expand_output=True, name="named_cell"
+    column=1,
+    disabled=True,
+    hide_code=True,
+    expand_output=True,
+    name="named_cell",
 )\
 '''
         )
