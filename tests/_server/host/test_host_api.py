@@ -148,13 +148,10 @@ def harness(
 
     monkeypatch.setattr(bridge, "_make_backend", make)
     bridge.index.refresh()
-    app.state.host_context = HostContext(
-        bridge=bridge,
-        token=TOKEN,
-        port=PORT,
-        receipt_seconds=30,
-        clock=lambda: harness.now,
-    )
+    context = HostContext(bridge=bridge, token=TOKEN, port=PORT)
+    context.mutations.receipt_seconds = 30
+    context.mutations.clock = lambda: harness.now
+    app.state.host_context = context
     return harness
 
 
@@ -337,6 +334,21 @@ async def test_an_empty_cursor_is_a_400_problem(harness: Harness) -> None:
     )
     assert response.status == 400
     assert response.json()["type"].endswith("/invalid-request")
+
+
+async def test_a_call_reads_only_its_own_parts(harness: Harness) -> None:
+    nid = await harness.running()
+    stopped = await finished(
+        harness.app,
+        "DELETE",
+        f"/notebooks/{nid}/runtime",
+        # A header cannot stand in for a path parameter, and a call without
+        # a body ignores the one it is sent.
+        headers={**key("stop"), "Notebook-Id": "missing", "Params": "{}"},
+        body=b"not json",
+    )
+    assert stopped.status == 202, stopped.body
+    assert stopped.json()["notebook_id"] == nid
 
 
 async def test_a_nul_byte_in_a_path_is_a_400_problem(harness: Harness) -> None:
@@ -762,7 +774,7 @@ async def test_slow_restart_keeps_its_receipt(harness: Harness) -> None:
 
     # The receipt's 30-second window must not begin during shutdown/startup.
     harness.now = 100
-    harness.app.state.host_context.expire()
+    harness.app.state.host_context.mutations.expire()
     notebook.observe(be.Exited(runtime_id_of(notebook)))
     notebook.observe(be.Running(runtime_id_of(notebook), "0.25.0"))
     calls = list(harness.backend().calls)
@@ -816,7 +828,7 @@ async def test_lifecycle_receipts_expire_after_terminal_events(
     assert accepted.status == 202
     for now in (100, 200):
         harness.now = now
-        context.expire()
+        context.mutations.expire()
         calls = list(harness.backend().calls)
         replayed = await finished(
             harness.app, method, path, headers=key("lifecycle")
@@ -837,7 +849,7 @@ async def test_lifecycle_receipts_expire_after_terminal_events(
     assert harness.host._stream._listeners == listeners
     calls = list(harness.backend().calls)
     harness.now = 229
-    context.expire()
+    context.mutations.expire()
     replayed = await finished(
         harness.app, method, path, headers=key("lifecycle")
     )
@@ -847,7 +859,7 @@ async def test_lifecycle_receipts_expire_after_terminal_events(
         calls,
     )
     harness.now = 230
-    assert context.remembered("lifecycle") is None
+    assert context.mutations.remembered("lifecycle") is None
 
 
 @pytest.mark.parametrize(
@@ -882,7 +894,7 @@ async def test_stop_settles_superseded_lifecycle_receipts(
     assert harness.host._stream._listeners == listeners
     calls = list(harness.backend().calls)
     harness.now = 229
-    context.expire()
+    context.mutations.expire()
     for request_id, verb, url, response in [
         ("pending", method, pending_path, accepted),
         ("stop-1", "DELETE", path, stops[0]),
@@ -898,7 +910,7 @@ async def test_stop_settles_superseded_lifecycle_receipts(
         )
     harness.now = 230
     assert [
-        context.remembered(request_id)
+        context.mutations.remembered(request_id)
         for request_id in ("pending", "stop-1", "stop-2")
     ] == [None, None, None]
 
@@ -949,7 +961,10 @@ async def test_synchronous_lifecycle_completion(
         calls,
     )
     harness.now = 30
-    assert harness.app.state.host_context.remembered("immediate") is None
+    assert (
+        harness.app.state.host_context.mutations.remembered("immediate")
+        is None
+    )
 
 
 async def test_noop_and_rejected_lifecycle_requests_release_their_listeners(
@@ -968,10 +983,10 @@ async def test_noop_and_rejected_lifecycle_requests_release_their_listeners(
         harness.app, "PUT", path, headers=key("invalid"), body=b"{"
     )
     assert rejected.status == 400
-    assert context.remembered("invalid") is None
+    assert context.mutations.remembered("invalid") is None
     assert harness.host._stream._listeners == listeners
     harness.now = 30
-    assert context.remembered("existing") is None
+    assert context.mutations.remembered("existing") is None
 
 
 async def test_run_filter_over_http(harness: Harness) -> None:
@@ -1404,6 +1419,9 @@ async def test_operations_the_host_does_not_offer_are_501(
     host.update_project(project)
     host.add_notebook(harness.host.notebooks[notebook.id], make_notebook)
     harness.bridge.host = host
+    harness.app.state.host_context = HostContext(
+        bridge=harness.bridge, token=TOKEN, port=PORT
+    )
     response = await finished(
         harness.app,
         "PUT",

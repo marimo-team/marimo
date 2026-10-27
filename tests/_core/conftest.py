@@ -6,10 +6,11 @@ from __future__ import annotations
 import asyncio
 from typing import TYPE_CHECKING
 
+import msgspec
 import pytest
 
 from marimo._core import backend as be, protocol, protocol_events
-from marimo._core.document import Document, code_hash
+from marimo._core.document import Document, DocumentCell, code_hash
 from marimo._core.executions import CellExecution, Executions
 from marimo._core.host import Host
 from marimo._core.notebook import Notebook
@@ -17,7 +18,7 @@ from marimo._core.run_log import RetentionPolicy
 from marimo._core.stream import RoutedEvent, Sink, event_name
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
+    from collections.abc import Mapping, Sequence
 
 OPERATIONS = ["notebook.create", "runtime.start", "runtime.run"]
 
@@ -171,6 +172,64 @@ def log(host: Host) -> list[RoutedEvent]:
     events: list[RoutedEvent] = []
     host.subscribe(events.append, notebook_id="n1")
     return events
+
+
+class RecordingBridge:
+    """A notebook bridge that counts edits and can hold one in flight."""
+
+    def __init__(self, host: Host) -> None:
+        self.host = host
+        self.edits = 0
+        self.started = asyncio.Event()
+        self.release = asyncio.Event()
+        self.release.set()
+        self.preconditions: list[Sequence[str] | None] = []
+
+    async def edit(
+        self,
+        notebook_id: str,
+        changes: Sequence[protocol.Change],
+        *,
+        request_id: str,
+    ) -> protocol.EditResponse:
+        self.edits += 1
+        self.started.set()
+        await self.release.wait()
+        notebook = await self.host.notebook(notebook_id)
+        return notebook.edit(changes, request_id=request_id)
+
+    async def save(
+        self,
+        notebook_id: str,
+        *,
+        if_match: Sequence[str] | None,
+        decisions: Mapping[str, str],
+        request_id: str,
+    ) -> protocol.EditResponse:
+        del decisions
+        self.preconditions.append(if_match)
+        notebook = await self.host.notebook(notebook_id)
+        return notebook.edit((), request_id=request_id)
+
+
+@pytest.fixture
+async def bridge() -> RecordingBridge:
+    host = Host(
+        operations=(
+            "notebook.edit",
+            "notebook.save",
+            "runtime.start",
+            "runtime.run",
+        )
+    )
+    host.update_project(project())
+    await add_notebook(
+        host,
+        msgspec.structs.replace(record(), operations=tuple(host.operations)),
+        ScriptedBackend(),
+        document=Document([DocumentCell(protocol.CellId("c1"), "x = 1")], {}),
+    )
+    return RecordingBridge(host)
 
 
 def names(events: list[RoutedEvent]) -> list[str]:
