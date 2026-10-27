@@ -34,7 +34,6 @@ class _Execution:
     id: protocol.ExecutionId
     cell_id: str
     ended: bool = False
-    reported: bool = False
     outcome: protocol.Outcome = field(
         default_factory=lambda: protocol.ValueOutcome(None)
     )
@@ -86,7 +85,7 @@ class RunTranslator:
             if execution is None or execution.ended:
                 return []
             if notification.phase == "running":
-                return [be.Status(execution.id, "running")]
+                return [be.Started(execution.id)]
             return self._conclude(execution)
 
         execution = self._executions.get(notification.execution_id or "")
@@ -114,13 +113,12 @@ class RunTranslator:
                         mimetype=str(output.mimetype), data=text
                     )
                 )
-                execution.reported = True
                 out.append(be.Concluded(execution.id, execution.outcome))
         return out
 
     def _plan(self, notification: ExecutionNotification) -> be.Planned:
         execution = _Execution(
-            protocol.ExecutionId(f"{self.run_id}-{len(self._executions) + 1}"),
+            protocol.ExecutionId(notification.execution_id),
             notification.cell_id,
         )
         self._executions[notification.execution_id] = execution
@@ -150,7 +148,6 @@ class RunTranslator:
     ) -> list[be.Message]:
         if execution.ended:
             return []
-        previous = execution.outcome
         exceptions = [
             e
             for e in execution.errors
@@ -163,10 +160,7 @@ class RunTranslator:
         elif interrupted or execution.errors:
             execution.outcome = protocol.InterruptedOutcome()
         execution.ended = True
-        out: list[be.Message] = []
-        if not execution.reported or execution.outcome != previous:
-            out.append(be.Concluded(execution.id, execution.outcome))
-        out.append(be.Status(execution.id, "completed"))
+        out: list[be.Message] = [be.Completed(execution.id, execution.outcome)]
         self._failed |= isinstance(execution.outcome, protocol.ErrorOutcome)
         self.interrupted |= isinstance(
             execution.outcome, protocol.InterruptedOutcome
@@ -190,7 +184,7 @@ class RunTranslator:
             out.append(
                 self._plan(
                     ExecutionNotification(
-                        execution_id="unsubmitted",
+                        execution_id=f"{self.run_id}-unsubmitted",
                         cell_id=SCRATCH_CELL_ID,
                         run_id=self.run_id,
                         phase="planned",

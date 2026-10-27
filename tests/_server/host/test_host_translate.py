@@ -8,12 +8,13 @@ from dirty_equals import IsStr
 from inline_snapshot import snapshot
 
 from marimo._core.backend import (
+    Completed,
     Concluded,
     Done,
     Planned,
     PlannedExecution,
     Produced,
-    Status,
+    Started,
 )
 from marimo._core.document import code_hash
 from marimo._core.protocol import (
@@ -88,7 +89,7 @@ def test_a_run_that_prints_and_shows_a_value() -> None:
                 run_id=RunId("r1"),
                 executions=(
                     PlannedExecution(
-                        id=ExecutionId("r1-1"),
+                        id=ExecutionId("scratch"),
                         cell_id=None,
                         code_hash=code_hash("3 * 3"),
                         code="3 * 3",
@@ -96,10 +97,10 @@ def test_a_run_that_prints_and_shows_a_value() -> None:
                     ),
                 ),
             ),
-            Status(execution_id=ExecutionId("r1-1"), status="running"),
+            Started(execution_id=ExecutionId("scratch")),
             Produced(
                 item=Console(
-                    execution_id=ExecutionId("r1-1"),
+                    execution_id=ExecutionId("scratch"),
                     id=IsStr(),
                     name="stdout",
                     seq=0,
@@ -107,14 +108,19 @@ def test_a_run_that_prints_and_shows_a_value() -> None:
                 )
             ),
             Concluded(
-                execution_id=ExecutionId("r1-1"),
+                execution_id=ExecutionId("scratch"),
                 outcome=ValueOutcome(
                     display=DisplayData(
                         data="<pre>9</pre>", mimetype="text/html"
                     )
                 ),
             ),
-            Status(execution_id=ExecutionId("r1-1"), status="completed"),
+            Completed(
+                execution_id=ExecutionId("scratch"),
+                outcome=ValueOutcome(
+                    DisplayData(data="<pre>9</pre>", mimetype="text/html")
+                ),
+            ),
             Done(run_id=RunId("r1"), outcome="succeeded"),
         ]
     )
@@ -155,8 +161,8 @@ def test_an_exception_ends_the_run_in_error() -> None:
 
     assert t.finish() == snapshot(
         [
-            Concluded(
-                execution_id=ExecutionId("r1-1"),
+            Completed(
+                execution_id=ExecutionId("scratch"),
                 outcome=ErrorOutcome(
                     error=Error(
                         source="marimo",
@@ -176,7 +182,6 @@ ZeroDivisionError: division by zero
                     )
                 ),
             ),
-            Status(execution_id=ExecutionId("r1-1"), status="completed"),
             Done(run_id=RunId("r1"), outcome="failed"),
         ]
     )
@@ -196,11 +201,10 @@ def test_an_interruption_ends_the_run_interrupted(
 
     assert t.finish() == snapshot(
         [
-            Concluded(
-                execution_id=ExecutionId("r1-1"),
+            Completed(
+                execution_id=ExecutionId("scratch"),
                 outcome=InterruptedOutcome(),
             ),
-            Status(execution_id=ExecutionId("r1-1"), status="completed"),
             Done(run_id=RunId("r1"), outcome="interrupted"),
         ]
     )
@@ -224,7 +228,7 @@ def test_console_items_number_in_order_and_lose_highlighting() -> None:
         [
             Produced(
                 item=Console(
-                    execution_id=ExecutionId("r1-1"),
+                    execution_id=ExecutionId("scratch"),
                     id=IsStr(),
                     name="stdout",
                     seq=0,
@@ -233,7 +237,7 @@ def test_console_items_number_in_order_and_lose_highlighting() -> None:
             ),
             Produced(
                 item=Console(
-                    execution_id=ExecutionId("r1-1"),
+                    execution_id=ExecutionId("scratch"),
                     id=IsStr(),
                     name="stderr",
                     seq=1,
@@ -267,7 +271,7 @@ def test_late_output_keeps_its_evaluation_when_a_cell_runs_again() -> None:
                 execution_id=identity,
             )
         )
-    assert ids[0] != ids[1]
+    assert ids == ["first", "second"]
     assert translator.finish() == [Done(RunId("r1"), "succeeded")]
     [output] = translator.feed(
         CellNotification(
@@ -279,6 +283,22 @@ def test_late_output_keeps_its_evaluation_when_a_cell_runs_again() -> None:
     )
     assert isinstance(output, Produced)
     assert output.item.execution_id == ids[0]
+
+
+def test_unsubmitted_runs_have_distinct_executions() -> None:
+    executions = []
+    for run_id in ("r1", "r2"):
+        translator = RunTranslator(RunId(run_id), "print('never ran')")
+        translator.interrupted = True
+        planned, completed, done = translator.finish()
+        assert isinstance(planned, Planned)
+        [execution] = planned.executions
+        executions.append(execution.id)
+        assert (completed, done) == (
+            Completed(execution.id, InterruptedOutcome()),
+            Done(RunId(run_id), "interrupted"),
+        )
+    assert len(set(executions)) == 2
 
 
 @pytest.mark.parametrize(
@@ -327,7 +347,6 @@ def test_skipped_cells_report_their_error_after_becoming_idle(
         )
     )
     messages.extend(translator.finish())
-    assert isinstance(messages[0], Concluded)
+    assert isinstance(messages[0], Completed)
     assert isinstance(messages[0].outcome, outcome_type)
-    assert messages[1] == Status(ExecutionId("r1-1"), "completed")
-    assert messages[2] == Done(RunId("r1"), run_outcome)  # type: ignore[arg-type]
+    assert messages[1] == Done(RunId("r1"), run_outcome)  # type: ignore[arg-type]

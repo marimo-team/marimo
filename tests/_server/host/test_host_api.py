@@ -1000,9 +1000,8 @@ async def test_run_filter_over_http(harness: Harness) -> None:
         )
     )
     notebook.observe(
-        be.Concluded(protocol.ExecutionId("e1"), protocol.ValueOutcome(None))
+        be.Completed(protocol.ExecutionId("e1"), protocol.ValueOutcome(None))
     )
-    notebook.observe(be.Status(protocol.ExecutionId("e1"), "completed"))
     notebook.observe(be.Done(first.id, "succeeded"))
     notebook.run("2", request_id="second")
     response, task, disconnect = request(
@@ -1088,7 +1087,7 @@ async def test_scratch_runs_over_http(harness: Harness) -> None:
     notebook.observe(
         be.Planned(run_id, (be.PlannedExecution("e1", None, "hash", "3 * 3"),))
     )
-    notebook.observe(be.Status("e1", "running"))
+    notebook.observe(be.Started("e1"))
     running = await finished(app, "POST", runs, headers=key("r1"), body=body)
     assert running.json()["status"] == "running"
     reused = await finished(
@@ -1110,8 +1109,7 @@ async def test_scratch_runs_over_http(harness: Harness) -> None:
     assert interrupted.status == 202
     assert harness.backend().calls[-1] == ("interrupt", run_id)
 
-    notebook.observe(be.Concluded("e1", protocol.InterruptedOutcome()))
-    notebook.observe(be.Status("e1", "completed"))
+    notebook.observe(be.Completed("e1", protocol.InterruptedOutcome()))
     notebook.observe(be.Done(run_id, "interrupted"))
     completed = await finished(app, "POST", runs, headers=key("r1"), body=body)
     assert completed.json()["status"] == "completed"
@@ -1152,15 +1150,14 @@ async def test_request_receipts_expire_independently_of_results(
     notebook.observe(
         be.Planned(run_id, (be.PlannedExecution(eid, cell_id, "hash", "42"),))
     )
-    notebook.observe(be.Status(eid, "running"))
+    notebook.observe(be.Started(eid))
     harness.now = 100
     active = await finished(
         harness.app, "POST", path, headers=key("run"), body=body
     )
     assert active.json()["id"] == run_id
     assert active.json()["status"] == "running"
-    notebook.observe(be.Concluded(eid, protocol.ValueOutcome(None)))
-    notebook.observe(be.Status(eid, "completed"))
+    notebook.observe(be.Completed(eid, protocol.ValueOutcome(None)))
     notebook.observe(be.Done(run_id, "succeeded"))
     harness.now = 129
     harness.host.expire()

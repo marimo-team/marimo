@@ -208,7 +208,7 @@ async def test_interrupt_waits_for_the_kernel_result(
     await observed.wait_for(be.Done)
 
     assert session.interrupts == 1
-    concluded = [m for m in observed.messages if isinstance(m, be.Concluded)]
+    concluded = [m for m in observed.messages if isinstance(m, be.Completed)]
     assert concluded[-1].outcome == (
         protocol.InterruptedOutcome()
         if takes_effect
@@ -296,8 +296,8 @@ async def test_external_scratch_is_adopted_before_compilation(
             run_id="browser",
         )
     )
-    assert observed.messages[-1] == be.Status(execution.id, "running")
-    assert observed.kinds() == ["Scheduled", "Planned", "Status"]
+    assert observed.messages[-1] == be.Started(execution.id)
+    assert observed.kinds() == ["Scheduled", "Planned", "Started"]
     session.broadcast(CompletedRunNotification(run_id="browser"))
     assert observed.messages[-1] == be.Done(
         protocol.RunId("browser"), "succeeded"
@@ -331,7 +331,7 @@ async def test_canceling_a_queued_run_preserves_other_execution(
         await observed.wait_for(be.Done)
         assert session.interrupts == 0
         [outcome] = [
-            m.outcome for m in observed.messages if isinstance(m, be.Concluded)
+            m.outcome for m in observed.messages if isinstance(m, be.Completed)
         ]
         assert outcome == protocol.InterruptedOutcome()
 
@@ -357,7 +357,7 @@ async def test_submission_failure_is_an_error(
     b.run(protocol.RunId("failed"), "42")
     await observed.wait_for(be.Done)
     [outcome] = [
-        m.outcome for m in observed.messages if isinstance(m, be.Concluded)
+        m.outcome for m in observed.messages if isinstance(m, be.Completed)
     ]
     assert outcome == protocol.ErrorOutcome(
         protocol.Error(

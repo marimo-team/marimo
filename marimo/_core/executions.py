@@ -21,13 +21,14 @@ if TYPE_CHECKING:
 
 @dataclass(frozen=True)
 class CellExecution:
-    """A completed cell execution with its console and display outputs.
+    """A completed cell execution with its outputs and bound variables.
 
     Its source may be older than the cell's current source.
     """
 
     execution: protocol.Execution
     outputs: tuple[protocol.Console | protocol.Display, ...] = ()
+    variables: tuple[protocol.Variable, ...] = ()
 
 
 @dataclass
@@ -44,11 +45,14 @@ class _Run:
 
 @dataclass
 class _Result:
-    """A current execution and its outputs."""
+    """A current execution and its items."""
 
     execution: protocol.Execution
     outputs: dict[protocol.ItemId, protocol.Console | protocol.Display] = (
         field(default_factory=dict)
+    )
+    variables: dict[protocol.ItemId, protocol.Variable] = field(
+        default_factory=dict
     )
 
 
@@ -56,7 +60,12 @@ class _Result:
 class Removed:
     """A current record that a transition removed."""
 
-    record_type: type[protocol.Execution | protocol.Console | protocol.Display]
+    record_type: type[
+        protocol.Execution
+        | protocol.Console
+        | protocol.Display
+        | protocol.Variable
+    ]
     id: str
     run_id: protocol.RunId | None
 
@@ -72,7 +81,11 @@ class Released:
 
 
 Record = (
-    protocol.Run | protocol.Execution | protocol.Console | protocol.Display
+    protocol.Run
+    | protocol.Execution
+    | protocol.Console
+    | protocol.Display
+    | protocol.Variable
 )
 Change = Record | Removed | Released
 
@@ -98,12 +111,12 @@ class Executions:
     ) -> Executions:
         """Restore completed executions for cells in the document.
 
-        Execution and output IDs must be unique. Each output must belong
+        Execution and item IDs must be unique. Each item must belong
         to its containing execution.
         """
         known = {cell.id for cell in cells}
         restored = cls()
-        output_ids: set[protocol.ItemId] = set()
+        item_ids: set[protocol.ItemId] = set()
         for cell_id, retained in deepcopy(dict(executions)).items():
             execution = retained.execution
             if execution.cell_id != cell_id:
@@ -115,6 +128,7 @@ class Executions:
                     f"result for cell {cell_id} not in the document"
                 )
             outputs = sorted(retained.outputs, key=lambda item: item.seq)
+            items = [*outputs, *retained.variables]
             if execution.status != "completed":
                 raise ValueError(
                     "initial results must be completed executions"
@@ -123,19 +137,17 @@ class Executions:
                 raise ValueError("initial results must have an outcome")
             if execution.id in restored._results:
                 raise ValueError("initial execution ids must be unique")
-            if any(item.execution_id != execution.id for item in outputs):
-                raise ValueError(
-                    "result outputs must belong to their execution"
-                )
-            if len({item.id for item in outputs}) != len(outputs):
-                raise ValueError("result output ids must be unique")
-            if output_ids.intersection(item.id for item in outputs):
-                raise ValueError(
-                    "result output ids must be unique across cells"
-                )
-            output_ids.update(item.id for item in outputs)
+            if any(item.execution_id != execution.id for item in items):
+                raise ValueError("result items must belong to their execution")
+            if len({item.id for item in items}) != len(items):
+                raise ValueError("result item ids must be unique")
+            if item_ids.intersection(item.id for item in items):
+                raise ValueError("result item ids must be unique across cells")
+            item_ids.update(item.id for item in items)
             restored._results[execution.id] = _Result(
-                execution, {item.id: item for item in outputs}
+                execution,
+                {item.id: item for item in outputs},
+                {item.id: item for item in retained.variables},
             )
             restored._cells[cell_id] = execution.id
         return restored
@@ -153,7 +165,11 @@ class Executions:
         if current is None or current.execution.status != "completed":
             return None
         return deepcopy(
-            CellExecution(current.execution, tuple(current.outputs.values()))
+            CellExecution(
+                current.execution,
+                tuple(current.outputs.values()),
+                tuple(current.variables.values()),
+            )
         )
 
     def run(self, run_id: protocol.RunId) -> protocol.Run | None:
@@ -180,7 +196,10 @@ class Executions:
                 *(
                     item
                     for result in self._results.values()
-                    for item in result.outputs.values()
+                    for item in (
+                        *result.outputs.values(),
+                        *result.variables.values(),
+                    )
                 ),
             ]
         )
@@ -253,13 +272,37 @@ class Executions:
                     )
             case be.Planned(run_id=run_id, executions=planned):
                 changes.extend(self._observe_planned(run_id, planned, runtime))
-            case be.Status(execution_id=execution_id, status=status):
-                changes.extend(self._observe_status(execution_id, status))
+            case be.Started(execution_id=execution_id):
+                changes.extend(self._observe_started(execution_id))
+            case be.Completed(
+                execution_id=execution_id,
+                outcome=outcome,
+                depends_on=depends_on,
+            ):
+                if (
+                    result := self._results.get(execution_id)
+                ) is not None and result.execution.status != "completed":
+                    changes.append(
+                        self._set_execution(
+                            replace(
+                                result.execution,
+                                status="completed",
+                                outcome=outcome,
+                                depends_on=dict(depends_on),
+                                completed_at=utcnow(),
+                            )
+                        )
+                    )
             case be.Produced(item=item):
                 if (
                     result := self._results.get(item.execution_id)
                 ) is not None:
-                    result.outputs[item.id] = item
+                    if isinstance(item, protocol.Variable):
+                        if result.execution.cell_id is None:
+                            return []
+                        result.variables[item.id] = item
+                    else:
+                        result.outputs[item.id] = item
                     changes.append(item)
             case be.Concluded(execution_id=execution_id, outcome=outcome):
                 if (
@@ -402,33 +445,24 @@ class Executions:
             )
         return changes
 
-    def _observe_status(
-        self, execution_id: protocol.ExecutionId, status: protocol.Lifecycle
+    def _observe_started(
+        self, execution_id: protocol.ExecutionId
     ) -> list[Change]:
         changes: list[Change] = []
         result = self._results.get(execution_id)
         if result is None:
             return []
         execution = result.execution
-        if execution.status in (status, "completed"):
+        if execution.status != "queued":
             return []
         now = utcnow()
-        if status == "running":
-            execution = replace(execution, status=status, started_at=now)
-            assert execution.run_id is not None
-            run = self._runs[execution.run_id].run
-            if run.status == "queued":
-                changes.append(
-                    self._set_run(
-                        replace(run, status="running", started_at=now)
-                    )
-                )
-        elif status == "completed":
-            if execution.outcome is None:
-                raise ValueError("a completed execution must have an outcome")
-            execution = replace(execution, status=status, completed_at=now)
-        else:
-            execution = replace(execution, status=status)
+        execution = replace(execution, status="running", started_at=now)
+        assert execution.run_id is not None
+        run = self._runs[execution.run_id].run
+        if run.status == "queued":
+            changes.append(
+                self._set_run(replace(run, status="running", started_at=now))
+            )
         changes.append(self._set_execution(execution))
         return changes
 
@@ -492,7 +526,7 @@ class Executions:
     def _remove_execution(
         self, execution_id: protocol.ExecutionId
     ) -> list[Removed]:
-        """Remove an execution and its outputs, outputs first."""
+        """Remove an execution and its items, items first."""
         result = self._results[execution_id]
         run_id = result.execution.run_id
         changes: list[Removed] = [
@@ -501,7 +535,7 @@ class Executions:
                 item.id,
                 run_id,
             )
-            for item in result.outputs.values()
+            for item in (*result.outputs.values(), *result.variables.values())
         ]
         changes.append(Removed(protocol.Execution, execution_id, run_id))
         self._forget_result(execution_id)

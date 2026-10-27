@@ -184,8 +184,7 @@ async def test_idle_host_expires_results_and_stops_maintenance(
         notebook.observe(
             be.Planned(run_id, (be.PlannedExecution(eid, None, "hash", "42"),))
         )
-        notebook.observe(be.Concluded(eid, protocol.ValueOutcome(None)))
-        notebook.observe(be.Status(eid, "completed"))
+        notebook.observe(be.Completed(eid, protocol.ValueOutcome(None)))
         notebook.observe(be.Done(run_id, "succeeded"))
         removed = asyncio.Event()
         host.subscribe(
