@@ -260,6 +260,31 @@ async def test_validate_auth_with_missing_password_in_basic_auth(
     assert validate_auth(conn) is False
 
 
+@pytest.mark.parametrize(
+    ("headers", "query"),
+    [
+        ({"Authorization": "Bearer \xe9"}, []),
+        (
+            {
+                "Authorization": f"Basic {base64.b64encode('u:é'.encode()).decode()}"
+            },
+            [],
+        ),
+        ({}, [("access_token", "é")]),
+    ],
+)
+async def test_validate_auth_rejects_non_ascii_credentials(
+    app: Starlette, headers: dict[str, str], query: list[tuple[str, str]]
+):
+    conn = create_connection(app)
+    # Run all middleware
+    await app.build_middleware_stack()(conn.scope, mock_receive, mock_send)
+    conn._headers = Headers(headers)
+    conn._query_params = QueryParams(query)
+
+    assert validate_auth(conn) is False
+
+
 async def test_validate_auth_with_no_auth(app: Starlette):
     conn = create_connection(app)
     # Run all middleware
