@@ -14,7 +14,6 @@ export { createDocumentModel } from "./model";
 export type {
   DocumentEdit,
   DocumentEditor,
-  DocumentHost,
   DocumentModel,
   DocumentSyncStatus,
   EditableCell,

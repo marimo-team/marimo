@@ -88,6 +88,13 @@ export function createWasmNotebookBackend(
         signal.removeEventListener("abort", abort);
       }
     },
-    notebook: () => client,
+    notebook: (id) => {
+      if (id !== bridge.notebookId) {
+        throw new Error(
+          `The worker serves notebook ${bridge.notebookId}, not ${id}`,
+        );
+      }
+      return client;
+    },
   };
 }

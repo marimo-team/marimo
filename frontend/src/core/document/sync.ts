@@ -2,12 +2,10 @@
 
 import { idempotencyKey, type Result } from "@marimo-team/client";
 import type * as Protocol from "@marimo-team/client/protocol";
-import { atom, type createStore } from "jotai/vanilla";
-import type { NotebookClient } from "../host/notebook-client";
+import { type Atom, atom, type createStore } from "jotai/vanilla";
+import type { NotebookBackend } from "../host/backend";
+import type { Document } from "../host/resources/document";
 import type { DocumentState, DocumentSubmission } from "./state";
-
-/** The notebook state and operation needed by document editing. */
-export type DocumentHost = Pick<NotebookClient, "documentAtom" | "edit">;
 
 export type DocumentSyncStatus =
   | {
@@ -27,6 +25,8 @@ export type DocumentSyncStatus =
 
 interface Submission {
   readonly submission: DocumentSubmission;
+  /** The backend that confirmed the submission's base. */
+  readonly backend: NotebookBackend;
   readonly idempotencyKey: string;
   readonly startedAt: number;
   readonly controller: AbortController;
@@ -74,20 +74,22 @@ function delay(ms: number, signal: AbortSignal): Promise<void> {
 /** Own submission scheduling; follow the existing source without opening a stream. */
 export function createDocumentSync({
   store,
-  notebook,
+  documentAtom: source,
+  backendAtom,
   state,
   signal,
 }: {
   store: ReturnType<typeof createStore>;
-  notebook: DocumentHost;
+  documentAtom: Atom<Document | null>;
+  backendAtom: Atom<NotebookBackend | null>;
   state: DocumentState;
   signal: AbortSignal;
 }) {
   signal.throwIfAborted();
-  const source = notebook.documentAtom;
   const statusAtom = atom<DocumentSyncStatus>({ status: "idle" });
   const observed = atom((get) => ({
     document: get(source),
+    backend: get(backendAtom),
     pending: get(state.pendingAtom),
     changes: get(state.changesAtom),
   }));
@@ -117,8 +119,9 @@ export function createDocumentSync({
       const current = store.get(source);
       if (
         active &&
-        current &&
-        current.revision.notebook_id !== active.submission.notebookId
+        (store.get(backendAtom) !== active.backend ||
+          (current &&
+            current.revision.notebook_id !== active.submission.notebookId))
       ) {
         active.controller.abort(
           new Error("The notebook changed during synchronization"),
@@ -129,7 +132,7 @@ export function createDocumentSync({
       }
       clearTimer();
       const changes = store.get(state.changesAtom);
-      if (changes === null) {
+      if (changes === null || store.get(backendAtom) === null) {
         store.set(statusAtom, { status: "unavailable" });
       } else if (changes.length === 0) {
         // Release unsent reversals instead of keeping an invisible override.
@@ -170,14 +173,12 @@ export function createDocumentSync({
         signal.throwIfAborted();
         request.controller.signal.throwIfAborted();
         result = await abortable(
-          notebook.edit(
-            request.submission.notebookId,
-            request.submission.changes,
-            {
+          request.backend
+            .notebook(request.submission.notebookId)
+            .edit(request.submission.changes, {
               idempotencyKey: request.idempotencyKey,
               signal: controller.signal,
-            },
-          ),
+            }),
           controller.signal,
         );
       } catch (error) {
@@ -248,7 +249,12 @@ export function createDocumentSync({
           throw new Error("The notebook changed during synchronization");
         }
         if (active === null) {
-          if (current === null || store.get(state.changesAtom) === null) {
+          const backend = store.get(backendAtom);
+          if (
+            current === null ||
+            backend === null ||
+            store.get(state.changesAtom) === null
+          ) {
             throw unavailable();
           }
           const submission = store.set(state.submitAtom);
@@ -257,6 +263,7 @@ export function createDocumentSync({
           }
           active = {
             submission,
+            backend,
             idempotencyKey: idempotencyKey(),
             startedAt: Date.now(),
             controller: new AbortController(),

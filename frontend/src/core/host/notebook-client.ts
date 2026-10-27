@@ -5,16 +5,9 @@ import {
   createNotebookReducer,
   type NotebookEvent,
   NotebookEvents,
-  type Result,
   StreamStopped,
 } from "@marimo-team/client";
-import type {
-  Attachment,
-  Change,
-  EditResponseOutput,
-  NotebookId,
-  NotebookOutput,
-} from "@marimo-team/client/protocol";
+import type { Attachment, NotebookOutput } from "@marimo-team/client/protocol";
 import { type Atom, atom, type createStore } from "jotai/vanilla";
 import { z } from "zod";
 import type { NotebookBackend } from "./backend";
@@ -48,12 +41,13 @@ export interface NotebookClient {
    * retains the last document. Partial updates are not exposed.
    */
   readonly documentAtom: Atom<Document | null>;
-  /** Apply an edit to the notebook captured by the caller, even across a reset. */
-  edit(
-    notebookId: NotebookId,
-    changes: readonly Change[],
-    options: { readonly idempotencyKey: string; readonly signal: AbortSignal },
-  ): Promise<Result<EditResponseOutput>>;
+  /**
+   * The backend this client follows, or null while not connected.
+   *
+   * Its commands reach the host that confirmed `documentAtom`. A temporary
+   * disconnection keeps it. Connecting again or disconnecting replaces it.
+   */
+  readonly backendAtom: Atom<NotebookBackend | null>;
   /** Live attachments, empty until the stream is ready or while disconnected. */
   readonly attachmentsAtom: Atom<readonly Attachment[]>;
   /**
@@ -133,7 +127,7 @@ export function createNotebookClient(
       ? get(streamAtom).resources.attachments
       : attachments.initial,
   );
-  let backend: NotebookBackend | undefined;
+  const backendAtom = atom<NotebookBackend | null>(null);
   /** The connection this client follows. Connecting again ends it. */
   let current: { end(): void; reconnect(): Promise<void> } | undefined;
 
@@ -152,25 +146,7 @@ export function createNotebookClient(
     connectionAtom,
     notebookAtom,
     documentAtom,
-    edit: async (notebookId, changes, options) => {
-      options.signal.throwIfAborted();
-      const currentId = store.get(streamAtom).notebookId;
-      if (currentId !== null && currentId !== notebookId) {
-        throw new Error("The notebook changed before the edit was sent");
-      }
-      if (backend === undefined) {
-        return {
-          ok: false,
-          status: 501,
-          problem: {
-            type: "tag:marimo.io,2026:host/unsupported-operation",
-            title: "Document editing is unavailable on this connection",
-            status: 501,
-          },
-        };
-      }
-      return backend.notebook(notebookId).edit(changes, options);
-    },
+    backendAtom,
     attachmentsAtom,
     connect,
     reconnect: async () => current?.reconnect(),
@@ -184,7 +160,7 @@ export function createNotebookClient(
     const lifetime = new AbortController();
     const { signal } = lifetime;
     const checkHealth = connected.checkHealth ?? (async () => true);
-    backend = connected;
+    store.set(backendAtom, connected);
     const { transport } = connected;
     let events: NotebookEvents<(typeof TYPES)[number]> | undefined;
     let checkingHealth = false;
@@ -294,7 +270,7 @@ export function createNotebookClient(
         lifetime.abort();
         if (current === connection) {
           current = undefined;
-          backend = undefined;
+          store.set(backendAtom, null);
         }
         clear({ state: ConnectionState.NOT_STARTED });
       },

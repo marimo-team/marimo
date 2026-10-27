@@ -24,6 +24,7 @@ import { SCHEMA_CACHE } from "../../codemirror/language/languages/sql/completion
 import type { Document } from "../../host/resources/document";
 import { cellCodeBinding } from "../codemirror";
 import { createDocumentModel } from "../model";
+import { fakeBackend } from "../../host/__tests__/fixtures";
 import { cell, document, withCells } from "./fixtures";
 
 const views: EditorView[] = [];
@@ -87,7 +88,8 @@ function setup({
   lifetimes.push(controller);
   const model = createDocumentModel({
     store,
-    notebook: { documentAtom: source, edit: () => new Promise(() => {}) },
+    documentAtom: source,
+    backendAtom: atom(fakeBackend({ edit: () => new Promise(() => {}) })),
     signal: controller.signal,
   });
   const editor = (text = doc) => {
