@@ -38,6 +38,8 @@ INTERNAL_DUCKDB_ENGINE = cast(VariableName, "__marimo_duckdb")
 
 @dataclass(frozen=True)
 class _CatalogSchema:
+    """DuckDB schema metadata with an OID and ordered path within a database."""
+
     database: str
     oid: int
     path: tuple[str, ...]
@@ -408,6 +410,7 @@ class DuckDBEngine(SQLConnection[Optional["duckdb.DuckDBPyConnection"]]):
         include_table_details: bool,
         schema_path: list[str] | None = None,
     ) -> list[DataTable]:
+        """List tables and views in a schema, optionally loading their columns."""
         catalog_schema = self._find_schema(
             database, tuple(schema_path or [schema])
         )
