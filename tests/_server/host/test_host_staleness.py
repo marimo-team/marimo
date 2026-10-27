@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING, Any
 import pytest
 from msgspec.structs import replace
 
+from marimo._dependencies.dependencies import DependencyManager
 from marimo._runtime.commands import UpdateUIElementCommand
 from tests._server.host.drive import finished, wait_for
 from tests._server.host.live import key, open_host
@@ -216,6 +217,48 @@ async def test_edits_and_reruns_outdate_dependents(tmp_path: Path) -> None:
         assert await c.outdated() == {"z": "replaced"}
 
         await c.run("z")
+        assert await c.outdated() == {}
+
+
+@pytest.mark.skipif(
+    not (
+        DependencyManager.duckdb.has()
+        and DependencyManager.sqlglot.has()
+        and DependencyManager.polars.has()
+    ),
+    reason="SQL dependencies not installed",
+)
+@pytest.mark.parametrize("kind", ["TABLE", "VIEW", "TEMP TABLE"])
+@pytest.mark.parametrize("name", ["revision_source", "main.revision_source"])
+async def test_sql_results_follow_their_binding_revisions(
+    tmp_path: Path, kind: str, name: str
+) -> None:
+    producer = f"mo.sql('CREATE OR REPLACE {kind} {name} AS SELECT 1 AS x')"
+    async with client(
+        tmp_path,
+        on_cell_change="lazy",
+        mo="import marimo as mo",
+        table=producer,
+        reader=f"df = mo.sql('SELECT * FROM {name}')",
+    ) as c:
+        await c.run("mo", "table", "reader")
+        initial = await c.snapshot()
+        variables = {v.name: v for v in initial.variables.values()}
+        assert set(variables) == {"mo", name, "df"}
+        reader = initial.latest(c.cells["reader"])
+        assert reader is not None
+        assert reader.depends_on == {
+            key: variables[key].revision for key in ("mo", name)
+        }
+        assert await c.outdated() == {}
+
+        await c.edit("table", producer.replace("SELECT 1", "SELECT 2"))
+        assert await c.outdated() == {"table": "edited", "reader": "edited"}
+
+        await c.run("table")
+        assert await c.outdated() == {"reader": "replaced"}
+
+        await c.run("reader")
         assert await c.outdated() == {}
 
 
