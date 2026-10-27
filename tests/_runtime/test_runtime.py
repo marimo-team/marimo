@@ -3785,6 +3785,63 @@ class TestSQL:
                     f'DROP SCHEMA IF EXISTS memory."{resolved_schema}" CASCADE'
                 )
 
+    async def test_nested_sql_table_reactivity_and_cleanup(
+        self, k: Kernel
+    ) -> None:
+        import duckdb
+
+        from marimo._sql.utils import is_duckdb_v2
+
+        if not is_duckdb_v2():
+            pytest.skip("Nested schemas require DuckDB 2")
+        try:
+            await k.run(
+                [
+                    ExecuteCellCommand(
+                        cell_id=CellId_t("0"), code="import marimo as mo"
+                    ),
+                    ExecuteCellCommand(
+                        cell_id=CellId_t("4"),
+                        code="result = mo.sql('SELECT * FROM memory.nested_test.reports.sales', output=False)",
+                    ),
+                    ExecuteCellCommand(
+                        cell_id=CellId_t("3"),
+                        code="mo.sql('CREATE TABLE nested_test.reports.sales AS SELECT 1 AS amount')",
+                    ),
+                    ExecuteCellCommand(
+                        cell_id=CellId_t("2"),
+                        code="mo.sql('CREATE SCHEMA nested_test.reports')",
+                    ),
+                    ExecuteCellCommand(
+                        cell_id=CellId_t("1"),
+                        code="mo.sql('CREATE SCHEMA nested_test')",
+                    ),
+                ]
+            )
+            assert not k.errors
+            assert "result" in k.globals
+            assert k.globals["result"].to_dict(as_series=False) == {
+                "amount": [1]
+            }
+            await k.run(
+                [
+                    ExecuteCellCommand(
+                        cell_id=CellId_t("3"),
+                        code="mo.sql('CREATE TABLE nested_test.reports.sales AS SELECT 2 AS amount')",
+                    )
+                ]
+            )
+            assert not k.errors
+            assert k.globals["result"].to_dict(as_series=False) == {
+                "amount": [2]
+            }
+            await k.delete_cell(DeleteCellCommand(cell_id=CellId_t("3")))
+            assert duckdb.execute(
+                "SELECT count(*) FROM duckdb_tables() WHERE table_name = 'sales' AND schema_name = 'reports'"
+            ).fetchone() == (0,)
+        finally:
+            duckdb.execute("DROP SCHEMA IF EXISTS memory.nested_test CASCADE")
+
     async def test_sql_table_on_attached_catalog_is_not_dropped(
         self, k: Kernel
     ) -> None:

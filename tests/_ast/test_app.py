@@ -2298,3 +2298,63 @@ class TestAppKernelRunnerRegistry:
         registry.remove_runner(app)
         registry.remove_runner(other)
         assert not registry._runners
+
+
+@pytest.mark.skipif(
+    not DependencyManager.duckdb.has() or not DependencyManager.sqlglot.has(),
+    reason="SQL dependencies required",
+)
+def test_app_clone_preserves_sql_namespace_dependencies() -> None:
+    app = App()
+
+    @app.cell
+    def root():
+        import marimo as mo
+
+        mo.sql("CREATE SCHEMA finance")
+
+    @app.cell
+    def child(mo):
+        mo.sql("CREATE SCHEMA finance.reports")
+
+    @app.cell
+    def table(mo):
+        mo.sql("CREATE TABLE finance.reports.sales AS SELECT 1 AS amount")
+
+    def parent_names(notebook: App) -> dict[str, set[str]]:
+        internal = InternalApp(notebook)
+        names = {
+            cell_id: cell.name
+            for cell_id, cell in internal.cell_manager.valid_cells()
+        }
+        return {
+            names[cell_id]: {names[parent] for parent in parents}
+            for cell_id, parents in internal.graph.parents.items()
+        }
+
+    cloned = app.clone()
+    assert (
+        parent_names(app)
+        == parent_names(cloned)
+        == {
+            "root": set(),
+            "child": {"root"},
+            "table": {"root", "child"},
+        }
+    )
+    original_cells = {
+        cell.name: cell._cell
+        for _, cell in InternalApp(app).cell_manager.valid_cells()
+    }
+    cloned_cells = {
+        cell.name: cell._cell
+        for _, cell in InternalApp(cloned).cell_manager.valid_cells()
+    }
+    for name in ("child", "table"):
+        original_refs = original_cells[name].sql_namespace_refs
+        cloned_refs = cloned_cells[name].sql_namespace_refs
+        assert original_refs
+        assert cloned_refs == original_refs
+        assert cloned_refs is not original_refs
+        cloned_refs.clear()
+        assert original_refs

@@ -795,3 +795,73 @@ async def test_traceback_keeps_source_captured_before_await(
     )
     await runner.run(request.cell_id)
     assert writer.call_args.kwargs["code"] == "original_source = 1"
+
+
+@pytest.mark.skipif(
+    not DependencyManager.duckdb.has() or not DependencyManager.sqlglot.has(),
+    reason="SQL dependencies required",
+)
+async def test_stopped_schema_parent_cancels_later_ddl_run(
+    k: Kernel, exec_req: ExecReqProvider
+) -> None:
+    import duckdb
+
+    try:
+        await k.run(
+            [
+                exec_req.get("import marimo as mo"),
+                exec_req.get_with_id(
+                    "schema",
+                    "mo.stop(True); mo.sql('CREATE SCHEMA runner_stopped_schema')",
+                ),
+                exec_req.get_with_id("trigger", "trigger = 1"),
+                exec_req.get_with_id(
+                    "ddl",
+                    "mo.sql('CREATE TABLE runner_stopped_schema.sales (amount INT)')\nobserved = trigger",
+                ),
+            ]
+        )
+        assert k.graph.cells["ddl"].run_result_status == "cancelled"
+
+        await k.run([exec_req.get_with_id("trigger", "trigger = 2")])
+
+        assert k.graph.cells["ddl"].run_result_status == "cancelled"
+        assert "observed" not in k.globals
+        assert duckdb.execute(
+            "SELECT count(*) FROM duckdb_tables() WHERE schema_name = 'runner_stopped_schema'"
+        ).fetchone() == (0,)
+    finally:
+        duckdb.execute("DROP SCHEMA IF EXISTS runner_stopped_schema CASCADE")
+
+
+@pytest.mark.skipif(
+    not DependencyManager.duckdb.has() or not DependencyManager.sqlglot.has(),
+    reason="SQL dependencies required",
+)
+async def test_available_python_relation_from_failed_sql_parent_can_run(
+    k: Kernel, exec_req: ExecReqProvider
+) -> None:
+    await k.run(
+        [
+            exec_req.get("import duckdb"),
+            exec_req.get_with_id(
+                "producer",
+                "df = duckdb.sql('SELECT 7 AS amount')\nraise ValueError('after defining df')",
+            ),
+            exec_req.get_with_id("trigger", "trigger = 1"),
+            exec_req.get_with_id(
+                "consumer",
+                "rows = duckdb.sql('SELECT * FROM df').fetchall()\nobserved = trigger",
+            ),
+        ]
+    )
+    assert k.graph.cells["producer"].language == "sql"
+    assert k.graph.cells["producer"].run_result_status == "exception"
+    assert "df" in k.globals
+    assert k.graph.cells["consumer"].run_result_status == "cancelled"
+
+    await k.run([exec_req.get_with_id("trigger", "trigger = 2")])
+
+    assert k.graph.cells["consumer"].run_result_status == "success"
+    assert k.globals["rows"] == [(7,)]
+    assert k.globals["observed"] == 2

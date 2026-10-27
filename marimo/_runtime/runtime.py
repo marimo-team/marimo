@@ -827,7 +827,7 @@ class Kernel:
         cell_id: CellId_t,
         cell: CellImpl,
         stale: bool,
-    ) -> None:
+    ) -> dataflow.GraphMutationResult:
         if cell_id in self.cell_metadata:
             # If we already have a config for this cell id, restore it
             # This can happen when a cell was previously deactivated (due to a
@@ -838,7 +838,7 @@ class Kernel:
             self.cell_metadata[cell_id] = CellMetadata()
         self.cell_metadata[cell_id].code = cell.code
 
-        self.graph.register_cell(cell_id, cell)
+        mutation = self.graph.register_cell(cell_id, cell)
         if stale:
             self.graph.cells[cell_id].set_stale(stale=True, broadcast=False)
         # leaky abstraction: the graph doesn't know about stale modules, so
@@ -847,6 +847,7 @@ class Kernel:
         LOGGER.debug("registered cell %s", cell_id)
         LOGGER.debug("parents: %s", self.graph.parents[cell_id])
         LOGGER.debug("children: %s", self.graph.children[cell_id])
+        return mutation
 
     def _try_compiling_cell(
         self, cell_id: CellId_t, code: str, carried_imports: list[ImportData]
@@ -913,24 +914,26 @@ class Kernel:
         code: str,
         carried_imports: list[ImportData],
         stale: bool,
-    ) -> Error | None:
+    ) -> tuple[dataflow.GraphMutationResult, Error | None]:
         """Attempt to register a cell with given id and code.
 
         Precondition: a cell with the supplied id must not already exist in the
         graph.
 
-        If cell was unable to be registered, returns an Error object.
+        Returns graph mutation effects and any compile error.
         """
         cell, error = self._try_compiling_cell(cell_id, code, carried_imports)
 
-        if cell is not None:
+        mutation = (
             self._register_cell(cell_id, cell, stale)
-
-        return error
+            if cell is not None
+            else dataflow.GraphMutationResult()
+        )
+        return mutation, error
 
     def _maybe_register_cell(
         self, cell_id: CellId_t, code: str, stale: bool
-    ) -> tuple[set[CellId_t], Error | None]:
+    ) -> tuple[dataflow.GraphMutationResult, Error | None]:
         """Register a cell (given by id, code) if not already registered.
 
         If a cell with id `cell_id` is already registered but with different
@@ -938,13 +941,12 @@ class Kernel:
         same id but different code is registered.
 
         Returns:
-        - a set of ids for cells that were previously children of `cell_id`
-          but are no longer children of `cell_id` after registration;
-          only non-empty when `cell-id` was already registered but with
-          different code.
+        - graph mutation effects requiring invalidation outside the new
+          cell's current children, which are covered by its execution.
         - an `Error` if the cell couldn't be registered, `None` otherwise
         """
-        previous_children: set[CellId_t] = set()
+        deletion = dataflow.GraphMutationResult()
+        registration = dataflow.GraphMutationResult()
         error = None
         if not self.graph.is_cell_cached(cell_id, code):
             previous_cell = self.graph.cells.get(cell_id, None)
@@ -968,9 +970,9 @@ class Kernel:
 
             if previous_cell is not None:
                 LOGGER.debug("Deleting cell %s", cell_id)
-                previous_children = self._deactivate_cell(cell_id)
+                deletion = self._deactivate_cell(cell_id)
 
-            error = self._try_registering_cell(
+            registration, error = self._try_registering_cell(
                 cell_id, code, carried_imports=carried_imports, stale=stale
             )
             if error is not None and previous_cell is not None:
@@ -1005,11 +1007,12 @@ class Kernel:
             self.graph.children,
         )
 
-        # We only return cells that were previously children of cell_id
-        # but are no longer children of the newly registered cell; these
-        # returned cells are stale.
+        # Current children are invalidated through the registered cell's execution.
         children = self.graph.children.get(cell_id, set())
-        return previous_children - children, error
+        affected_cells = (
+            deletion.affected_cells | registration.affected_cells
+        ) - children
+        return dataflow.GraphMutationResult(affected_cells), error
 
     def _delete_variables(
         self,
@@ -1091,7 +1094,9 @@ class Kernel:
             )
         broadcast_notification(RemoveUIElementsNotification(cell_id=cell_id))
 
-    def _deactivate_cell(self, cell_id: CellId_t) -> set[CellId_t]:
+    def _deactivate_cell(
+        self, cell_id: CellId_t
+    ) -> dataflow.GraphMutationResult:
         """Deactivate: remove from graph, invalidate state, but keep metadata
 
         Keeps the cell's config, in case we see the same cell again.
@@ -1109,10 +1114,9 @@ class Kernel:
             # Its defs may overlap with defs of a non-errored cell, so we MUST
             # NOT delete/cleanup its defs from the kernel (i.e., an errored
             # cell shouldn't invalidate state of another cell).
-            self.graph.delete_cell(cell_id)
-            return set()
+            return self.graph.delete_cell(cell_id)
 
-    def _delete_cell(self, cell_id: CellId_t) -> set[CellId_t]:
+    def _delete_cell(self, cell_id: CellId_t) -> dataflow.GraphMutationResult:
         """Delete a cell from the kernel and the graph.
 
         Deletion from the kernel involves removing cell's defs and
@@ -1170,7 +1174,7 @@ class Kernel:
 
         # The set of cells that need to be re-run due to cells being
         # deleted/re-registered.
-        cells_that_were_children_of_mutated_cells: set[CellId_t] = set()
+        cells_affected_by_mutation: set[CellId_t] = set()
 
         # Cells that were unable to be added to the graph due to syntax errors
         syntax_errors: dict[CellId_t, Error] = {}
@@ -1185,13 +1189,13 @@ class Kernel:
             self.cell_metadata.setdefault(
                 er.cell_id, CellMetadata()
             ).code = er.code
-            old_children, error = self._maybe_register_cell(
+            mutation, error = self._maybe_register_cell(
                 er.cell_id,
                 er.code,
                 stale=er.cell_id in cells_starting_stale
                 or pending is not None,
             )
-            cells_that_were_children_of_mutated_cells |= old_children
+            cells_affected_by_mutation.update(mutation.affected_cells)
             if error is None:
                 registered_cell_ids.add(er.cell_id)
             else:
@@ -1202,9 +1206,8 @@ class Kernel:
             if dr.cell_id not in cells_before_mutation:
                 self.cell_metadata.pop(dr.cell_id, None)
                 continue
-            cells_that_were_children_of_mutated_cells |= self._delete_cell(
-                dr.cell_id
-            )
+            mutation = self._delete_cell(dr.cell_id)
+            cells_affected_by_mutation.update(mutation.affected_cells)
         cells_in_graph = set(self.graph.cells.keys())
 
         # Check for semantic errors, like multiple definition errors, cycle
@@ -1289,7 +1292,7 @@ class Kernel:
         # run request but now have errors; these cells' descendants
         # will need to be run. Handles the case where a cell was cached (cell's
         # code didn't change), so its previous children were not added to
-        # cells_that_were_children_of_mutated_cells
+        # cells_affected_by_mutation
         cells_transitioned_to_error = (
             cells_with_errors_after_mutation
             - cells_with_errors_before_mutation
@@ -1360,7 +1363,7 @@ class Kernel:
         stale_cells = (
             set(
                 itertools.chain(
-                    cells_that_were_children_of_mutated_cells,
+                    cells_affected_by_mutation,
                     set().union(
                         *[
                             self.graph.children[cid]

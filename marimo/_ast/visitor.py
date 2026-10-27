@@ -248,6 +248,7 @@ class ScopedVisitor(ast.NodeVisitor):
         # ie, self._refs maps each name to RefData for each block it was
         # defined in
         self._refs: dict[Name, list[RefData]] = {}
+        self.sql_namespace_refs: set[SQLRef] = set()
         # Function (node, name, block stack) -> None
         self._on_def = on_def if on_def is not None else lambda *_: None
         # Function (node) -> None
@@ -789,7 +790,8 @@ class ScopedVisitor(ast.NodeVisitor):
 
                 # Accumulate defined names across all statements in this SQL block
                 # so that later statements don't create refs to tables defined in earlier statements
-                defined_names: set[str] = set()
+                defined_relations: set[str] = set()
+                defined_namespaces: set[str] = set()
 
                 has_sqlglot = DependencyManager.sqlglot.has()
 
@@ -818,28 +820,50 @@ class ScopedVisitor(ast.NodeVisitor):
                             _table.table,
                             VariableData("table", sql_ref=_table),
                         )
-                        defined_names.add(_table.qualified_name)
+                        defined_relations.add(_table.qualified_name)
                     for _view in sql_defs.views:
                         self._define(
                             None,
                             _view.table,
                             VariableData("view", sql_ref=_view),
                         )
-                        defined_names.add(_view.qualified_name)
+                        defined_relations.add(_view.qualified_name)
                     for _schema in sql_defs.schemas:
-                        self._define(None, _schema, VariableData("schema"))
-                        defined_names.add(_schema)
+                        schema_ref = SQLRef.from_qualified_name(_schema)
+                        self._define(
+                            None,
+                            schema_ref.table,
+                            VariableData("schema", sql_ref=schema_ref),
+                        )
+                        defined_namespaces.add(schema_ref.qualified_name)
                     for _catalog in sql_defs.catalogs:
                         self._define(None, _catalog, VariableData("catalog"))
-                        defined_names.add(_catalog)
+                        defined_namespaces.add(SQLRef(_catalog).qualified_name)
+
+                    for definition in [
+                        *sql_defs.tables,
+                        *sql_defs.views,
+                        *(
+                            SQLRef.from_qualified_name(schema)
+                            for schema in sql_defs.schemas
+                        ),
+                    ]:
+                        if not definition.qualifiers:
+                            continue
+                        parent = SQLRef(
+                            table=definition.qualifiers[-1],
+                            qualifiers=definition.qualifiers[:-1],
+                            kind="schema",
+                        )
+                        if parent.qualified_name not in defined_namespaces:
+                            self.sql_namespace_refs.add(parent)
 
                     if has_sqlglot:
                         sql_refs = find_sql_refs_cached(statement_sql)
 
                         for ref in sql_refs:
                             name = ref.qualified_name
-                            # Cells that define the same name aren't cycles, so we skip them
-                            if name in defined_names:
+                            if name in defined_relations:
                                 continue
                             self._add_ref(
                                 None, name, deleted=False, sql_ref=ref

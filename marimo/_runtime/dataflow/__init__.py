@@ -13,7 +13,11 @@ from marimo._runtime.dataflow.topology import (
     GraphTopology,
     MutableGraphTopology,
 )
-from marimo._runtime.dataflow.types import Edge, EdgeWithVar
+from marimo._runtime.dataflow.types import (
+    Edge,
+    EdgeWithVar,
+    GraphMutationResult,
+)
 from marimo._types.ids import CellId_t
 
 if TYPE_CHECKING:
@@ -287,6 +291,7 @@ __all__ = [
     "DirectedGraph",
     "Edge",
     "EdgeWithVar",
+    "GraphMutationResult",
     "get_cycles",
     "get_import_block_relatives",
     "induced_subgraph",

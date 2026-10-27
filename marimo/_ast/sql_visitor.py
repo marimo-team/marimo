@@ -276,7 +276,9 @@ def find_sql_defs(sql_statement: str) -> SQLDefs:
                             reffed_catalogs.append(parts[0])
                     elif is_schema:
                         # only add the schema name
-                        created_schemas.append(parts[-1])
+                        created_schemas.append(
+                            SQLRef.from_parts(parts).qualified_name
+                        )
                         # add the catalog if exist
                         if len(parts) == 2:
                             reffed_catalogs.append(parts[0])
@@ -333,6 +335,7 @@ def find_sql_defs(sql_statement: str) -> SQLDefs:
 class SQLRef:
     table: str
     qualifiers: tuple[str, ...]
+    kind: Literal["table", "schema"]
     _catalog_only: bool = field(repr=False)
 
     def __init__(
@@ -342,8 +345,10 @@ class SQLRef:
         catalog: str | None = None,
         *,
         qualifiers: tuple[str, ...] | None = None,
+        kind: Literal["table", "schema"] = "table",
     ) -> None:
         object.__setattr__(self, "table", table)
+        object.__setattr__(self, "kind", kind)
         object.__setattr__(
             self,
             "_catalog_only",
@@ -403,107 +408,72 @@ class SQLRef:
 
         return ".".join(quote_part(part.lower()) for part in self.parts)
 
+    def split_catalog(
+        self, catalogs: frozenset[str]
+    ) -> tuple[str | None, tuple[str, ...]]:
+        parts = tuple(part.lower() for part in self.parts)
+        has_namespace = len(parts) > 1 or self.kind == "schema"
+        if has_namespace and (
+            self._catalog_only or parts[0] in catalogs | {"memory", "temp"}
+        ):
+            return parts[0], parts[1:]
+        return None, parts
+
     def matches_hierarchical_ref(
-        self, name: str, ref: str, kind: SQLTypes = "any"
+        self,
+        name: str,
+        definition: SQLRef,
+        kind: SQLTypes = "any",
+        *,
+        catalogs: frozenset[str] = frozenset(),
     ) -> bool:
-        """
-        Determine if a hierarchical reference string matches a SQLRef.
-
-        Args:
-            name: The name to match against (could be catalog, schema, or table).
-            ref: The fully qualified reference string (e.g., "schema.table", "catalog.schema.table").
-            kind: The kind of reference ("table", "view", "schema", "catalog").
-
-        Returns:
-            True if the reference matches the SQLRef's structure and values, False otherwise.
-        """
-        ref = ref.lower()
+        own_parts = tuple(part.lower() for part in self.parts)
         name = name.lower()
-        parts = ref.split(".")
-        num_parts = len(parts)
-
-        if num_parts == 0:
-            return False
-
         if kind == "catalog":
-            if self.catalog is not None:
-                return name == self.catalog == parts[0]
-            # Fallback to schema if catalog is None
-            kind = "schema"
+            namespace = own_parts if self.kind == "schema" else own_parts[:-1]
+            return (
+                bool(namespace)
+                and name == namespace[0] == definition.parts[0].lower()
+            )
 
+        own_catalog, own_path = self.split_catalog(catalogs)
+        ref_catalog, parts = (
+            definition.split_catalog(catalogs)
+            if definition.qualifiers
+            else (None, (definition.table.lower(),))
+        )
+        if (
+            self.kind == "schema"
+            or kind == "schema"
+            or (self.qualifiers and definition.qualifiers)
+        ) and (own_catalog or "memory") != (ref_catalog or "memory"):
+            return False
         if kind == "schema":
-            if num_parts < 3:
-                return name == self.schema == parts[0]
-            return name == self.schema == parts[1]
+            namespace = own_path if self.kind == "schema" else own_path[:-1]
+            return namespace[: len(parts)] == parts
+        if self.kind == "schema":
+            return False
+        if kind == "any" and name != own_parts[-1]:
+            return name in own_parts[:-1]
 
-        # Otherwise, kind is "table" or "view", and we should check the ordering
-        # and return accordingly
-        if num_parts == 1:
-            # Only table name provided
-            return name == self.table == parts[0] and kind in (
-                "table",
-                "view",
-                "any",
-            )
-
-        if num_parts == 2:
-            # Format: schema.table or catalog.table
-            # sqlglot cannot differentiate between schema and catalog
-            # so we check if the qualifier matches either
-            qualifier, table = parts
-            # Try matching as schema or catalog
-            if (self.schema, self.catalog) == (None, None):
-                return name == self.table == table and kind in (
-                    "table",
-                    "view",
-                    "any",
-                )
-            if qualifier not in (self.schema, self.catalog):
-                return False
-
-            return name in (
-                self.catalog,
-                self.schema,
-                self.table,
-            ) and kind in (
-                "table",
-                "view",
-                "catalog",
-                "schema",
-                "any",
-            )
-
-        if num_parts == 3:
-            # Format: catalog.schema.table
-            catalog, schema, table = parts
-            if self.catalog:
-                if catalog != self.catalog:
-                    return False
-                if schema != self.schema:
-                    return name == self.catalog and kind in ("catalog", "any")
-            elif self.schema:
-                if schema != self.schema:
-                    return False
-                return name == self.schema and kind in ("schema", "any")
-            return name in (
-                self.catalog,
-                self.schema,
-                self.table,
-            ) and kind in (
-                "table",
-                "view",
-                "catalog",
-                "schema",
-                "any",
-            )
-
-        return False
+        if own_catalog is not None and len(own_path) == 1:
+            own_path = ("main", *own_path)
+        if ref_catalog is not None and len(parts) == 1:
+            parts = ("main", *parts)
+        if self.qualifiers and definition.qualifiers:
+            return name == own_parts[-1] and own_path == parts
+        return name == own_parts[-1]
 
     def contains_hierarchical_ref(self, ref: str, kind: str) -> bool:
         if kind in ("table", "view"):
-            return ref == self.table
-        if kind == "catalog":
-            return ref == self.catalog or ref == self.schema
+            if self.kind == "schema":
+                return False
+            return ref.lower() == self.table.lower()
+        if kind in ("catalog", "schema"):
+            namespace = (
+                self.parts if self.kind == "schema" else self.qualifiers
+            )
+            return ref.lower() in (part.lower() for part in namespace)
         return False
 
 
