@@ -158,7 +158,7 @@ and loading rules.
 
 ## Environment variables
 
-Every configuration leaf listed by `marimo config describe` can be set through
+Every configuration option listed by `marimo config describe` can be set through
 an environment variable. Prefix its path with `MARIMO_`, replace dots
 with underscores, and uppercase the result. For example:
 
@@ -184,31 +184,9 @@ applies. Run `marimo config show` to check your environment configuration, or ad
 `--show-sources` to see which environment variables supplied the effective values.
 Environment overrides are not saved to configuration files.
 
-Existing environment settings now use their configuration paths:
-
-| Previous environment variable | Configuration option | Environment variable |
-| --- | --- | --- |
-| `MARIMO_SKIP_UPDATE_CHECK` | `server.skip_update_check` | `MARIMO_SERVER_SKIP_UPDATE_CHECK` |
-| `MARIMO_SQL_DEFAULT_LIMIT` | `runtime.sql_default_limit` | `MARIMO_RUNTIME_SQL_DEFAULT_LIMIT` |
-| `MARIMO_SESSION_COOKIE_SECURE` | `server.session_cookie_secure` | `MARIMO_SERVER_SESSION_COOKIE_SECURE` |
-| `MARIMO_SESSION_SECRET` | `server.session_secret` | `MARIMO_SERVER_SESSION_SECRET` |
-
-The previous names are no longer read. The session secret is hidden in configuration
-output; set it in trusted user configuration or through the environment. Session
-cookie settings take effect when the server starts.
-
-marimo also supports the following environment variables for advanced configuration:
-
-| Environment Variable          | Description                                                                                                                  | Default Value   |
-| ----------------------------- | ---------------------------------------------------------------------------------------------------------------------------- | --------------- |
-| `MARIMO_RUNTIME_OUTPUT_MAX_BYTES`      | Maximum size of output that marimo will display. Outputs larger than this will be truncated.                                 | 8,000,000 (8MB) |
-| `MARIMO_RUNTIME_STD_STREAM_MAX_BYTES`  | Maximum size of standard stream (stdout/stderr) output that marimo will display. Outputs larger than this will be truncated. | 1,000,000 (1MB) |
-| `MARIMO_SERVER_SKIP_UPDATE_CHECK`    | If set to "1", marimo will skip checking for updates when starting.                                                          | Not set         |
-| `MARIMO_RUNTIME_SQL_DEFAULT_LIMIT`    | Default limit for SQL query results. If not set, no limit is applied.                                                        | Not set         |
-| `MARIMO_RUNTIME_ON_CELL_CHANGE` | Override `runtime.on_cell_change` in edit mode: `lazy` marks dependent cells stale; `autorun` automatically runs them. Takes precedence over user, project, and script configuration. Has no effect with `marimo run`, which always uses `autorun`. | Not set |
-| `MARIMO_SERVER_SESSION_COOKIE_SECURE` | If set to `true`/`1`, marks the session cookie as `Secure` so browsers only send it over HTTPS. Enable when serving marimo behind TLS.        | `false`         |
-| `MARIMO_SERVER_SESSION_SECRET` | Secret used to sign the session cookie. Defaults to a random value generated per server process, so sessions are invalidated on restart. Set to a stable value (e.g. `openssl rand -hex 32`) to keep sessions across restarts or replicas. | Random per process |
-| `MARIMO_SERVER_TRANSPORT` | Experimental. The transport for streaming kernel messages to the browser: `websocket` or `sse`. Use `sse` when deploying behind proxies or services that do not support WebSockets. | `websocket`     |
+The session secret is hidden in configuration output; set it in trusted user
+configuration or through the environment. Session cookie settings take effect
+when the server starts.
 
 ### Tips
 
