@@ -2,7 +2,37 @@
 
 import NodeFs from "node:fs";
 import NodeUrl from "node:url";
+import type { NotebookTransport } from "@marimo-team/client";
 import * as Protocol from "@marimo-team/client/protocol";
+import { vi } from "vitest";
+import type { NotebookBackend } from "../backend";
+
+type Commands = ReturnType<NotebookBackend["notebook"]>;
+
+/** A backend command, with the notebook it was sent to. */
+export type FakeEdit = (
+  notebookId: Protocol.NotebookId,
+  ...args: Parameters<Commands["edit"]>
+) => ReturnType<Commands["edit"]>;
+
+/** A backend over `transport` whose edits go to `edit`. */
+export function fakeBackend({
+  transport = async () => undefined,
+  edit = vi.fn<FakeEdit>(),
+  checkHealth,
+}: {
+  transport?: NotebookTransport;
+  edit?: FakeEdit;
+  checkHealth?: () => Promise<boolean>;
+} = {}): NotebookBackend {
+  return {
+    transport,
+    notebook: (notebookId) => ({
+      edit: (...args) => edit(notebookId, ...args),
+    }),
+    checkHealth,
+  };
+}
 
 /** Read the protocol's portable examples as transport messages. */
 export function fixtureMessages(name: string) {

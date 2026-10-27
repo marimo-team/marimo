@@ -1,6 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { NotebookClient, type StreamUrl } from "@marimo-team/client";
+import { NotebookClient, StreamStopped } from "@marimo-team/client";
 import type { NotebookId } from "@marimo-team/client/protocol";
 import type { NotebookBackend } from "../host/backend";
 import { PyodideBridge } from "../wasm/bridge";
@@ -18,11 +18,45 @@ export interface EditorBackendOptions {
   static: boolean;
   transportType: "websocket" | "sse";
   /** The session route, read before each connection. */
-  url: StreamUrl;
+  url: () => string;
   /** The runtime's headers, read before each request. */
   headers: () => Record<string, string>;
   /** The host URL of a notebook the stream reported. */
   notebookUrl: (notebookId: NotebookId) => URL;
+  /** Wait until the host can accept the first connection. */
+  waitUntilReady: () => Promise<void>;
+  /** Whether the host is reachable before an explicit reconnect. */
+  checkHealth: () => Promise<boolean>;
+}
+
+/**
+ * Read the session route once the host has started.
+ *
+ * Every connection waits for the same startup. Once it settles, even by
+ * giving up, connections read the route directly. An explicit reconnect
+ * checks the host's health instead.
+ */
+function afterStartup({
+  url,
+  waitUntilReady,
+}: Pick<EditorBackendOptions, "url" | "waitUntilReady">) {
+  let startup: Promise<void> | undefined;
+  let settled = false;
+  return async () => {
+    if (!settled) {
+      startup ??= waitUntilReady().finally(() => {
+        settled = true;
+      });
+      try {
+        await startup;
+      } catch (error) {
+        throw new StreamStopped("Healthy connection never made", {
+          cause: error,
+        });
+      }
+    }
+    return url();
+  };
 }
 
 /** Commands for a notebook the editor cannot change through its backend. */
@@ -55,14 +89,16 @@ export function createEditorBackend(
       notebook: uneditable,
     };
   }
+  const url = afterStartup(options);
   return {
     transport:
       options.transportType === "sse"
-        ? sessionSse(options.url, options.headers)
-        : websocket(options.url),
+        ? sessionSse(url, options.headers)
+        : websocket(url),
     notebook: (id) =>
       new NotebookClient(options.notebookUrl(id), {
         fetch: withHeaders(options.headers),
       }),
+    checkHealth: options.checkHealth,
   };
 }

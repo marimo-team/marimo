@@ -3,13 +3,17 @@
 
 import { type NotebookTransport, StreamStopped } from "@marimo-team/client";
 import { createStore } from "jotai";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import { Deferred } from "@/utils/Deferred";
 import { ConnectionState } from "../../websocket/types";
-import type { NotebookBackend } from "../backend";
 import type { ConnectionStatus } from "../connection";
 import { createNotebookClient } from "../notebook-client";
-import { fixtureEvents, fixtureMessages } from "./fixtures";
+import {
+  type FakeEdit,
+  fakeBackend,
+  fixtureEvents,
+  fixtureMessages,
+} from "./fixtures";
 
 /** One connection the fake transport opened. */
 interface Attempt {
@@ -23,14 +27,7 @@ interface Attempt {
   stop(status?: ConnectionStatus): void;
 }
 
-type Commands = ReturnType<NotebookBackend["notebook"]>;
-/** A backend edit with the notebook it was sent to. */
-type Edit = (
-  id: string,
-  ...args: Parameters<Commands["edit"]>
-) => ReturnType<Commands["edit"]>;
-
-function setup(edit = vi.fn<Edit>()) {
+function setup(edit = vi.fn<FakeEdit>()) {
   const attempts: Attempt[] = [];
   const transport: NotebookTransport = ({ cursor, signal }, handlers) =>
     new Promise((resolve, reject) => {
@@ -48,19 +45,15 @@ function setup(edit = vi.fn<Edit>()) {
   const onNotification = vi.fn();
   const checkHealth = vi.fn(async () => true);
   const store = createStore();
-  const backend: NotebookBackend = {
-    transport,
-    notebook: (id) => ({ edit: (...args) => edit(id, ...args) }),
-  };
-  const controller = createNotebookClient(store);
-  const client = controller.client;
-  const connect = (signal: AbortSignal) =>
-    controller.connect({
-      backend,
-      signal,
-      checkHealth,
+  const backend = fakeBackend({ transport, edit, checkHealth });
+  const client = createNotebookClient(store);
+  /** Follow the backend until `signal` aborts. */
+  const connect = (signal: AbortSignal) => {
+    const disconnect = client.connect(backend, {
       onNotification: (notification) => onNotification({ data: notification }),
     });
+    signal.addEventListener("abort", disconnect, { once: true });
+  };
   let next = 0;
   /** Wait for the next connection, and open it. */
   const opened = async () => {
@@ -71,6 +64,7 @@ function setup(edit = vi.fn<Edit>()) {
   };
   return {
     attempts,
+    backend,
     client,
     connect,
     onNotification,
@@ -110,8 +104,25 @@ const notebook = {
 };
 
 describe("NotebookClient lifetime", () => {
+  it("ends the previous connection when it connects again", async () => {
+    const { attempts, backend, client, opened, store } = setup();
+    const first = client.connect(backend, { onNotification: vi.fn() });
+    const { receive } = await opened();
+    fixtureMessages("notebook-events.sse").forEach(receive);
+    const second = client.connect(backend, { onNotification: vi.fn() });
+    onTestFinished(second);
+    expect(attempts[0].signal.aborted).toBe(true);
+    expect(store.get(client.documentAtom)).toBeNull();
+    await opened();
+    first();
+    expect(attempts[1].signal.aborted).toBe(false);
+    expect(store.get(client.connectionAtom)).toEqual({
+      state: ConnectionState.OPEN,
+    });
+  });
+
   it("keeps an edit's target and request identity across a stream reset", async () => {
-    const edit = vi.fn<Edit>().mockResolvedValue({
+    const edit = vi.fn<FakeEdit>().mockResolvedValue({
       ok: false,
       status: 409,
       problem: { type: "conflict", title: "conflict", status: 409 },

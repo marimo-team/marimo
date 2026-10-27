@@ -46,7 +46,7 @@ function renderStatus(attachments: Attachment[] = [AGENT], preview = true) {
   store.set(connectionAtom, { state: ConnectionState.OPEN });
   store.set(pairConfigAtom, { ...PAIR_CONFIG, hostEnabled: preview });
   store.set(notebookClientAtom, {
-    ...createNotebookClient(store).client,
+    ...createNotebookClient(store),
     connectionAtom: atom({ state: ConnectionState.OPEN }),
     attachmentsAtom,
   });

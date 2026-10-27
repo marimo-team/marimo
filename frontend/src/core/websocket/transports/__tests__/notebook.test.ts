@@ -8,7 +8,7 @@ import {
 import { createStore } from "jotai/vanilla";
 import { afterEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import { createNotebookClient } from "../../../host/notebook-client";
-import { fixtureMessages } from "../../../host/__tests__/fixtures";
+import { fakeBackend, fixtureMessages } from "../../../host/__tests__/fixtures";
 import { ConnectionState } from "../../../host/connection";
 import { Deferred } from "@/utils/Deferred";
 import { pyodide, sessionSse, websocket } from "../notebook";
@@ -76,7 +76,7 @@ function network(transportType: "websocket" | "sse", url: StreamUrl) {
     transportType === "websocket"
       ? websocket(url)
       : sessionSse(url, () => ({}));
-  const backend = { transport, notebook: () => ({ edit: vi.fn() }) };
+  const backend = fakeBackend({ transport });
   let index = 0;
   return {
     backend,
@@ -296,15 +296,10 @@ describe.each(["websocket", "sse"] as const)(
         const url = vi.fn(() => target);
         const connection = network(transportType, url);
         const store = createStore();
-        const { client, connect } = createNotebookClient(store);
-        const lifetime = new AbortController();
-        onTestFinished(() => lifetime.abort());
-        connect({
-          backend: connection.backend,
-          signal: lifetime.signal,
-          checkHealth: async () => true,
-          onNotification: vi.fn(),
-        });
+        const client = createNotebookClient(store);
+        onTestFinished(
+          client.connect(connection.backend, { onNotification: vi.fn() }),
+        );
         const first = await connection.opened();
         const snapshot = fixtureMessages("notebook-events.sse");
         snapshot.forEach(first.receive);
@@ -363,15 +358,10 @@ describe.each(["websocket", "sse"] as const)(
       let target = `${base}?session_id=s1&file=a.py&access_token=a`;
       const connection = network(transportType, () => target);
       const store = createStore();
-      const { client, connect } = createNotebookClient(store);
-      const lifetime = new AbortController();
-      onTestFinished(() => lifetime.abort());
-      connect({
-        backend: connection.backend,
-        signal: lifetime.signal,
-        checkHealth: async () => true,
-        onNotification: vi.fn(),
-      });
+      const client = createNotebookClient(store);
+      onTestFinished(
+        client.connect(connection.backend, { onNotification: vi.fn() }),
+      );
       const first = await connection.opened();
       fixtureMessages("notebook-events.sse").forEach(first.receive);
       await vi.waitFor(() =>
