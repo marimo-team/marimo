@@ -102,10 +102,13 @@ def get_ai_config(config: MarimoConfig) -> AiConfig:
 
 
 def get_provider_config(model: str, config: MarimoConfig) -> AnyProviderConfig:
+    def secret_resolver(key: str) -> str | None:
+        return get_secret_value(key, config)
+
     return AnyProviderConfig.for_model(
         model,
         get_ai_config(config),
-        secret_resolver=lambda key: get_secret_value(key, config),
+        secret_resolver=secret_resolver,
     )
 
 
@@ -130,7 +133,9 @@ async def list_provider_models(*, request: Request) -> Response:
     config = app_state.app_config_manager.get_config(hide_secrets=False)
     ai_config = get_ai_config(config)
     provider_name = request.path_params["provider_name"]
-    secret_resolver = lambda key: get_secret_value(key, config)
+
+    def secret_resolver(key: str) -> str | None:
+        return get_secret_value(key, config)
     if provider_name in (ai_config.get("custom_providers") or {}):
         provider = AnyProviderConfig.for_custom_provider(
             ai_config, provider_name, secret_resolver=secret_resolver
