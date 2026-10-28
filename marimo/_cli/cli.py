@@ -296,7 +296,7 @@ class _OptionalValueOption(click.Option):
     "-p",
     "--port",
     default=None,
-    type=int,
+    type=click.IntRange(min=0, max=65535),
     help="Port to attach to.",
 )
 @click.option(
@@ -673,7 +673,7 @@ new_help_msg = "\n".join(
     "-p",
     "--port",
     default=None,
-    type=int,
+    type=click.IntRange(min=0, max=65535),
     help="Port to attach to.",
 )
 @click.option(
@@ -992,7 +992,7 @@ Example:
     "-p",
     "--port",
     default=None,
-    type=int,
+    type=click.IntRange(min=0, max=65535),
     help="Port to attach to.",
 )
 @click.option(
@@ -1344,7 +1344,7 @@ Recommended sequence:
     "-p",
     "--port",
     default=None,
-    type=int,
+    type=click.IntRange(min=0, max=65535),
     help="Port to attach to.",
 )
 @click.option(

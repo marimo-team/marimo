@@ -55,6 +55,36 @@ HAS_ZMQ = DependencyManager.zmq.has()
 
 DIR_PATH = os.path.dirname(os.path.realpath(__file__))
 
+
+@pytest.mark.parametrize("command", ["edit", "new", "run", "tutorial"])
+@pytest.mark.parametrize("port", ["-1", "65536", "70000"])
+def test_port_option_rejects_out_of_range_values(
+    command: str, port: str, tmp_path: Path
+) -> None:
+    """An invalid --port must fail parsing instead of reaching uvicorn's bind()."""
+    notebook = tmp_path / "notebook.py"
+    notebook.write_text("import marimo\n", encoding="utf-8")
+
+    result = CliRunner().invoke(
+        cli_main, [command, str(notebook), "--port", port]
+    )
+
+    assert result.exit_code == 2, result.output
+    assert "is not in the range 0<=x<=65535" in result.output
+
+
+@pytest.mark.parametrize("command", ["edit", "new", "run", "tutorial"])
+def test_port_option_stays_an_integer_range(command: str) -> None:
+    port_type = next(
+        param.type
+        for param in cli_main.commands[command].params
+        if param.name == "port"
+    )
+    assert isinstance(port_type, click.IntRange)
+    assert port_type.min == 0
+    assert port_type.max == 65535
+
+
 # Match the CLI's default IPv4 binding so probes don't try IPv6 first.
 DEFAULT_HOST = "127.0.0.1"
 
