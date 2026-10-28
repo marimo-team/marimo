@@ -61,19 +61,22 @@ def existing_sql_bindings(
 
     try:
         current = duckdb.sql("SELECT current_database(), current_schema()")
-        assert current is not None
+        if current is None:
+            return []
         rows = current.fetchall()
         database, schema = rows[0] if rows else ("memory", "main")
         database, schema = database.lower(), schema.lower()
         catalog_result = duckdb.sql(
             "SELECT database_name FROM duckdb_databases()"
         )
-        assert catalog_result is not None
+        if catalog_result is None:
+            return []
         catalogs = {row[0].lower() for row in catalog_result.fetchall()}
         schema_result = duckdb.sql(
             "SELECT database_name, schema_name FROM duckdb_schemas()"
         )
-        assert schema_result is not None
+        if schema_result is None:
+            return []
         schemas = {
             tuple(part.lower() for part in row)
             for row in schema_result.fetchall()
@@ -84,7 +87,8 @@ def existing_sql_bindings(
             "SELECT database_name, schema_name, view_name, 'view' "
             "FROM duckdb_views()"
         )
-        assert relation_result is not None
+        if relation_result is None:
+            return []
         relations = {
             tuple(part.lower() for part in row)
             for row in relation_result.fetchall()

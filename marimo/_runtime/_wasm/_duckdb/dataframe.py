@@ -119,9 +119,11 @@ def _read_json_objects_path(
         f"SELECT * FROM {function_name}({', '.join(query_args)})",
         params=[path, *(value for _, value in option_items)],
     )
-    assert relation is not None
+    if relation is None:
+        raise ValueError("DuckDB JSON reader returned no relation")
     dataframe = relation.df()
-    assert isinstance(dataframe, pd.DataFrame)
+    if not isinstance(dataframe, pd.DataFrame):
+        raise TypeError("DuckDB JSON reader did not return a pandas DataFrame")
     return dataframe
 
 
