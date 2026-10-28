@@ -12,7 +12,6 @@ import type { UserConfig } from "@/core/config/config-schema";
 import type {
   ListPackagesResponse,
   PackageOperationResponse,
-  NotebookDocumentTransactionRequest,
   SaveNotebookRequest,
 } from "@/core/network/types";
 import { decodeUtf8 } from "@/utils/strings";
@@ -302,14 +301,6 @@ const requestHandler = createRPCRequestHandler({
     };
   },
 
-  documentTransaction: async (request: NotebookDocumentTransactionRequest) => {
-    const notebook = await getNotebook();
-    try {
-      await notebook.transaction(JSON.stringify(request));
-    } finally {
-      notebook.destroy();
-    }
-  },
   setNotebookLayout: async (layout: SaveNotebookRequest["layout"]) => {
     const notebook = await getNotebook();
     try {

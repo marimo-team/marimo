@@ -260,6 +260,32 @@ describe("useNotebookSession document model", () => {
     expect(code()).toBeUndefined();
     await expect(model.flush()).rejects.toThrow("not started");
   });
+
+  it("follows the host document into the notebook's cells", async () => {
+    const fake = withTransport();
+    vi.mocked(useRuntimeManager).mockReturnValue(makeRuntimeManager());
+    const store = createStore();
+    const { result, unmount } = renderConnectionHook(store);
+    await started();
+    act(() => {
+      connection(fake).open();
+      fixtureMessages("notebook-events.sse").forEach(connection(fake).receive);
+    });
+
+    let notebook = store.get(notebookAtom);
+    expect(notebook.cellIds.inOrderIds).toEqual(["c1", "c3", "k7f2"]);
+    expect(notebook.cellData[cellId("k7f2")]).toMatchObject({
+      code: "y = x * 2",
+      config: { hide_code: true },
+    });
+
+    const model = result.current.documentModel;
+    act(() => store.set(model.editAtom, (tx) => tx.setCode("c3", "x = 42")));
+    notebook = store.get(notebookAtom);
+    expect(notebook.cellData[cellId("c3")].code).toBe("x = 42");
+
+    unmount();
+  });
 });
 
 describe("useNotebookSession messages", () => {

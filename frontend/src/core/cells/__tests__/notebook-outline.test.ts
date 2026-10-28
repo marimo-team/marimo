@@ -1,7 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { createStore } from "jotai";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { MockNotebook } from "@/__mocks__/notebook";
 import { cellId } from "@/__tests__/branded";
 import {
@@ -10,7 +10,6 @@ import {
   notebookOutline,
   notebookReducer,
 } from "../cells";
-import { exportedForTesting } from "../document-changes";
 import type { Outline } from "../outline";
 
 const first = cellId("first");
@@ -39,10 +38,6 @@ function setup() {
   );
   return { store, actions };
 }
-
-afterEach(() => {
-  exportedForTesting.cancelPendingChanges();
-});
 
 describe("notebookOutline", () => {
   it("does not notify outline subscribers when cell code changes", () => {

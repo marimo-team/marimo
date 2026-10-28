@@ -1,10 +1,11 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { type Atom, createStore } from "jotai";
-import { bench, describe, expect, vi } from "vitest";
+import { bench, describe, expect } from "vitest";
 import { MockNotebook } from "@/__mocks__/notebook";
 import { cellId } from "@/__tests__/branded";
 import {
+  type CellActions,
   cellDataAtom,
   cellErrorsAtom,
   cellHandleAtom,
@@ -18,20 +19,11 @@ import {
   notebookReducer,
 } from "@/core/cells/cells";
 import type { CellData } from "@/core/cells/types";
-import type { CellAction } from "@/core/cells/document-changes";
 import { layoutStateAtom } from "@/core/layout/state";
 import { lastSavedNotebookAtom, needsSaveAtom } from "@/core/saving/state";
+import type { DispatchedActionOf } from "@/utils/createReducer";
 
-// Keep action-to-document conversion, but exclude the network queue and timers.
-// Otherwise a throughput benchmark queues millions of artificial keystrokes.
-vi.mock("@/core/cells/document-changes", async (importOriginal) => {
-  const actual =
-    await importOriginal<typeof import("@/core/cells/document-changes")>();
-  return {
-    ...actual,
-    documentTransactionMiddleware: actual.toDocumentChanges,
-  };
-});
+type CellAction = DispatchedActionOf<CellActions>;
 
 const options = { time: 500, warmupTime: 200, iterations: 100 };
 const code = Array.from({ length: 20 }, (_, i) => `value_${i} = ${i}`).join(
