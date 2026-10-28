@@ -109,6 +109,119 @@ def get_provider_config(model: str, config: MarimoConfig) -> AnyProviderConfig:
     )
 
 
+@router.get("/models/{provider_name}")
+@requires("edit")
+async def list_provider_models(*, request: Request) -> Response:
+    """List models for a supported provider without modifying configuration."""
+    import ssl
+
+    from starlette.responses import JSONResponse
+
+    try:
+        import httpx
+    except ImportError:
+        raise HTTPException(
+            status_code=503,
+            detail="Model discovery requires the optional httpx dependency.",
+        ) from None
+
+    app_state = AppState(request)
+    app_state.require_current_session()
+    config = app_state.app_config_manager.get_config(hide_secrets=False)
+    ai_config = get_ai_config(config)
+    provider_name = request.path_params["provider_name"]
+    secret_resolver = lambda key: get_secret_value(key, config)
+    if provider_name in (ai_config.get("custom_providers") or {}):
+        provider = AnyProviderConfig.for_custom_provider(
+            ai_config, provider_name, secret_resolver=secret_resolver
+        )
+    elif provider_name == "openrouter":
+        provider = AnyProviderConfig.for_openrouter(
+            ai_config, secret_resolver=secret_resolver
+        )
+    else:
+        raise HTTPException(
+            status_code=404, detail="Model discovery is not available."
+        )
+    base_url = provider.base_url
+    if not base_url:
+        raise HTTPException(
+            status_code=400, detail="A saved provider base URL is required."
+        )
+    from urllib.parse import urlsplit
+
+    target = urlsplit(base_url)
+    if (
+        target.scheme not in ("http", "https")
+        or not target.hostname
+        or target.username is not None
+        or target.password is not None
+        or target.query
+        or target.fragment
+    ):
+        raise HTTPException(
+            status_code=400, detail="Invalid provider base URL."
+        )
+    headers = dict(provider.extra_headers or {})
+    if provider.api_key:
+        headers["Authorization"] = f"Bearer {provider.api_key}"
+    try:
+        verify: bool | ssl.SSLContext = provider.ssl_verify is not False
+        if verify and (provider.ca_bundle_path or provider.client_pem):
+            context = ssl.create_default_context(cafile=provider.ca_bundle_path)
+            if provider.client_pem:
+                context.load_cert_chain(provider.client_pem)
+            verify = context
+        async with httpx.AsyncClient(
+            timeout=20.0, verify=verify, follow_redirects=False
+        ) as client:
+            upstream = await client.get(
+                f"{base_url.rstrip('/')}/models", headers=headers
+            )
+        if upstream.status_code in (401, 403):
+            raise HTTPException(
+                status_code=400,
+                detail="Provider rejected the configured credentials or access.",
+            )
+        if not upstream.is_success:
+            raise HTTPException(
+                status_code=502,
+                detail="Provider model catalog request failed.",
+            )
+        payload = upstream.json()
+    except httpx.TimeoutException:
+        raise HTTPException(
+            status_code=504, detail="Provider model discovery timed out."
+        ) from None
+    except (httpx.RequestError, ValueError, OSError):
+        raise HTTPException(
+            status_code=502,
+            detail="Unable to load the provider model catalog.",
+        ) from None
+
+    entries = payload.get("data") if isinstance(payload, dict) else None
+    if not isinstance(entries, list):
+        raise HTTPException(
+            status_code=502, detail="Provider returned an invalid model catalog."
+        )
+    models: dict[str, dict[str, str]] = {}
+    for entry in entries:
+        if not isinstance(entry, dict):
+            continue
+        model_id = entry.get("id")
+        if not isinstance(model_id, str) or not model_id.strip():
+            continue
+        name = entry.get("name")
+        models[model_id] = {
+            "id": model_id,
+            "name": name if isinstance(name, str) and name else model_id,
+        }
+    return JSONResponse(
+        {"models": sorted(models.values(), key=lambda model: model["id"])},
+        headers={"Cache-Control": "no-store"},
+    )
+
+
 @router.post("/completion")
 @requires("edit")
 async def ai_completion(
