@@ -945,7 +945,15 @@ class TestDuckDBWasmMoSqlIntegration:
                 ]
             )
 
-        assert executing_kernel.globals["result"] is None
+        result = executing_kernel.globals["result"]
+        if is_duckdb_v2():
+            import duckdb
+
+            assert isinstance(result, duckdb.DuckDBPyRelation)
+            assert result.columns == ["Count"]
+            assert result.fetchall() == [(2,)]
+        else:
+            assert result is None
         assert executing_kernel.globals["rows"] == [
             ("ford", 25),
             ("toyota", 18),

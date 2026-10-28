@@ -9,6 +9,7 @@ from unittest import mock
 
 import pytest
 
+from marimo._config.config import SqlOutputType
 from marimo._data.models import Database, DataTable, DataTableColumn, Schema
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._sql.engines.duckdb import DuckDBEngine
@@ -16,6 +17,7 @@ from marimo._sql.engines.types import EngineCatalog, QueryEngine
 from marimo._sql.get_engines import engine_to_data_source_connection
 from marimo._sql.sql import sql
 from marimo._sql.sql_quoting import quote_qualified_name
+from marimo._sql.utils import is_duckdb_v2
 from marimo._types.ids import VariableName
 
 HAS_DUCKDB = DependencyManager.duckdb.has()
@@ -952,3 +954,68 @@ def test_duckdb_nested_schema_discovery(include_tables: bool) -> None:
             )
             == []
         )
+
+
+@pytest.mark.requires("duckdb", "pandas", "polars", "pyarrow")
+@pytest.mark.parametrize(
+    "output_format", ["native", "polars", "lazy-polars", "pandas"]
+)
+def test_duckdb_command_results(output_format: SqlOutputType) -> None:
+    import duckdb
+    import pandas as pd
+    import polars as pl
+
+    def assert_rows(result: object, expected: list[tuple[int]]) -> None:
+        if output_format == "native":
+            assert isinstance(result, duckdb.DuckDBPyRelation)
+            assert result.columns == ["Count"]
+            assert result.fetchall() == expected
+        elif output_format == "pandas":
+            assert isinstance(result, pd.DataFrame)
+            assert list(result.columns) == ["Count"]
+            assert list(result.itertuples(index=False, name=None)) == expected
+        else:
+            if output_format == "lazy-polars":
+                assert isinstance(result, pl.LazyFrame)
+                result = result.collect()
+            assert isinstance(result, pl.DataFrame)
+            assert result.columns == ["Count"]
+            assert result.rows() == expected
+
+    with (
+        duckdb.connect() as connection,
+        mock.patch.object(
+            DuckDBEngine, "sql_output_format", return_value=output_format
+        ),
+    ):
+        connection.execute("CREATE SEQUENCE command_counter")
+        commands = [
+            (
+                (
+                    "CREATE TABLE command_result AS "
+                    "SELECT nextval('command_counter') AS value FROM range(2)"
+                ),
+                2,
+            ),
+            ("INSERT INTO command_result VALUES (3)", 1),
+        ]
+        for query, count in commands:
+            result = sql(query, engine=connection, output=False)
+            if is_duckdb_v2():
+                assert_rows(result, [(count,)])
+            else:
+                assert result is None
+        assert_rows(
+            sql(
+                'INSERT INTO command_result VALUES (17) RETURNING value AS "Count"',
+                engine=connection,
+                output=False,
+            ),
+            [(17,)],
+        )
+        assert connection.execute(
+            "SELECT value FROM command_result ORDER BY value"
+        ).fetchall() == [(1,), (2,), (3,), (17,)]
+        assert connection.execute(
+            "SELECT currval('command_counter')"
+        ).fetchall() == [(2,)]
