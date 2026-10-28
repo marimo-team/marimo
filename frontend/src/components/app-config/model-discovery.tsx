@@ -39,7 +39,9 @@ export function ModelDiscovery({
   onSelect,
   disabled = false,
 }: ModelDiscoveryProps) {
-  const [models, setModels] = useState<z.infer<typeof CatalogSchema>["models"]>([]);
+  const [models, setModels] = useState<z.infer<typeof CatalogSchema>["models"]>(
+    [],
+  );
   const [query, setQuery] = useState("");
   const [selection, setSelection] = useState("");
   const [loading, setLoading] = useState(false);
@@ -102,7 +104,9 @@ export function ModelDiscovery({
           504: "The provider request timed out.",
         };
         if (!controller.signal.aborted) {
-          setError(`HTTP ${response.status}: ${SAFE_ERRORS.has(detail) ? detail : (fallback[response.status] ?? "Model discovery failed.")}`);
+          setError(
+            `HTTP ${response.status}: ${SAFE_ERRORS.has(detail) ? detail : (fallback[response.status] ?? "Model discovery failed.")}`,
+          );
         }
         return;
       }
@@ -115,7 +119,9 @@ export function ModelDiscovery({
       setLoaded(true);
     } catch {
       if (!controller.signal.aborted) {
-        setError("Unable to load a valid catalog. Check the connection and retry.");
+        setError(
+          "Unable to load a valid catalog. Check the connection and retry.",
+        );
       }
     } finally {
       if (!controller.signal.aborted) {
@@ -125,32 +131,65 @@ export function ModelDiscovery({
   };
 
   return (
-    <div className="flex flex-col gap-2" data-testid={`model-discovery-${provider}`}>
-      <Button type="button" variant="outline" size="xs" className="self-start"
-        disabled={disabled || loading || isWasm()} onClick={load}>
+    <div
+      className="flex flex-col gap-2"
+      data-testid={`model-discovery-${provider}`}
+    >
+      <Button
+        type="button"
+        variant="outline"
+        size="xs"
+        className="self-start"
+        disabled={disabled || loading || isWasm()}
+        onClick={load}
+      >
         {loading ? "Loading models…" : "Load available models"}
       </Button>
-      {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
+      {error && (
+        <p role="alert" className="text-sm text-destructive">
+          {error}
+        </p>
+      )}
       {loaded && (
         <>
           <p role="status" className="text-sm text-muted-secondary">
             {filtered.length} matching / {models.length} catalog models.
-            {onSelect ? " Select a model to fill the Model field; click Add to save." : " Preview only; nothing is saved."}
+            {onSelect
+              ? " Select a model to fill the Model field; click Add to save."
+              : " Preview only; nothing is saved."}
           </p>
-          <Input aria-label={`Search ${label} models`} placeholder="Search models…" value={query}
-            onChange={(event) => { setQuery(event.target.value); setSelection(""); }}
-            onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); } }} />
+          <Input
+            aria-label={`Search ${label} models`}
+            placeholder="Search models…"
+            value={query}
+            onChange={(event) => {
+              setQuery(event.target.value);
+              setSelection("");
+            }}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                event.preventDefault();
+              }
+            }}
+          />
           {filtered.length === 0 && <p role="status">No models found</p>}
-          <NativeSelect aria-label={`${label} catalog model`} value={selection}
+          <NativeSelect
+            aria-label={`${label} catalog model`}
+            value={selection}
             disabled={disabled || loading || filtered.length === 0}
             onChange={(event) => {
               const id = event.target.value;
               setSelection(id);
               setQuery(id);
               onSelect?.(id);
-            }}>
+            }}
+          >
             <option value="">Choose a model</option>
-            {filtered.map((model) => <option key={model.id} value={model.id}>{model.name} — {model.id}</option>)}
+            {filtered.map((model) => (
+              <option key={model.id} value={model.id}>
+                {model.name} — {model.id}
+              </option>
+            ))}
           </NativeSelect>
         </>
       )}

@@ -168,7 +168,9 @@ async def list_provider_models(*, request: Request) -> Response:
     try:
         verify: bool | ssl.SSLContext = provider.ssl_verify is not False
         if verify and (provider.ca_bundle_path or provider.client_pem):
-            context = ssl.create_default_context(cafile=provider.ca_bundle_path)
+            context = ssl.create_default_context(
+                cafile=provider.ca_bundle_path
+            )
             if provider.client_pem:
                 context.load_cert_chain(provider.client_pem)
             verify = context
@@ -202,7 +204,8 @@ async def list_provider_models(*, request: Request) -> Response:
     entries = payload.get("data") if isinstance(payload, dict) else None
     if not isinstance(entries, list):
         raise HTTPException(
-            status_code=502, detail="Provider returned an invalid model catalog."
+            status_code=502,
+            detail="Provider returned an invalid model catalog.",
         )
     models: dict[str, dict[str, str]] = {}
     for entry in entries:
