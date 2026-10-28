@@ -6,7 +6,6 @@ from typing import Any, Literal
 import msgspec
 
 from marimo._ast.cell import CellConfig
-from marimo._messaging.notebook.changes import DocumentChange
 from marimo._runtime.commands import (
     ClearCacheCommand,
     CodeCompletionCommand,
@@ -252,10 +251,6 @@ class ReadCodeResponse(msgspec.Struct, rename="camel"):
 
 class RenameNotebookRequest(msgspec.Struct, rename="camel"):
     filename: str
-
-
-class NotebookDocumentTransactionRequest(msgspec.Struct, rename="camel"):
-    changes: list[DocumentChange]
 
 
 class FocusCellRequest(msgspec.Struct, rename="camel"):

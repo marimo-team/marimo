@@ -612,47 +612,6 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  "/api/document/transaction": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    post: {
-      parameters: {
-        query?: never;
-        header: {
-          "Marimo-Session-Id": string;
-        };
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: {
-        content: {
-          "application/json": components["schemas"]["NotebookDocumentTransactionRequest"];
-        };
-      };
-      responses: {
-        /** @description Apply a document transaction */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": components["schemas"]["SuccessResponse"];
-          };
-        };
-      };
-    };
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
   "/api/documentation/snippets": {
     parameters: {
       query?: never;
@@ -6290,18 +6249,6 @@ export interface components {
       /** @enum {unknown} */
       op: "notebook-document-transaction";
       transaction: components["schemas"]["Transaction"];
-    };
-    /** NotebookDocumentTransactionRequest */
-    NotebookDocumentTransactionRequest: {
-      changes: (
-        | components["schemas"]["CreateCell"]
-        | components["schemas"]["DeleteCell"]
-        | components["schemas"]["MoveCell"]
-        | components["schemas"]["ReorderCells"]
-        | components["schemas"]["SetCode"]
-        | components["schemas"]["SetName"]
-        | components["schemas"]["SetConfig"]
-      )[];
     };
     NotificationMessage:
       | components["schemas"]["CellNotification"]

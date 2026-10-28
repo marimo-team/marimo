@@ -4170,33 +4170,6 @@ components:
       - transaction
       title: NotebookDocumentTransactionNotification
       type: object
-    NotebookDocumentTransactionRequest:
-      properties:
-        changes:
-          items:
-            anyOf:
-            - $ref: '#/components/schemas/CreateCell'
-            - $ref: '#/components/schemas/DeleteCell'
-            - $ref: '#/components/schemas/MoveCell'
-            - $ref: '#/components/schemas/ReorderCells'
-            - $ref: '#/components/schemas/SetCode'
-            - $ref: '#/components/schemas/SetName'
-            - $ref: '#/components/schemas/SetConfig'
-            discriminator:
-              mapping:
-                create-cell: '#/components/schemas/CreateCell'
-                delete-cell: '#/components/schemas/DeleteCell'
-                move-cell: '#/components/schemas/MoveCell'
-                reorder-cells: '#/components/schemas/ReorderCells'
-                set-code: '#/components/schemas/SetCode'
-                set-config: '#/components/schemas/SetConfig'
-                set-name: '#/components/schemas/SetName'
-              propertyName: type
-          type: array
-      required:
-      - changes
-      title: NotebookDocumentTransactionRequest
-      type: object
     NotificationMessage:
       anyOf:
       - $ref: '#/components/schemas/CellNotification'
@@ -6771,26 +6744,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/SuccessResponse'
           description: Preview a list of tables in an SQL schema
-  /api/document/transaction:
-    post:
-      parameters:
-      - in: header
-        name: Marimo-Session-Id
-        required: true
-        schema:
-          type: string
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/NotebookDocumentTransactionRequest'
-      responses:
-        200:
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/SuccessResponse'
-          description: Apply a document transaction
   /api/documentation/snippets:
     get:
       parameters:
