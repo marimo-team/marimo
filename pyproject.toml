@@ -90,7 +90,8 @@ marimo_markdown_converter = "marimo._utils.docs:MarkdownConverter"
 
 [project.optional-dependencies]
 sql = [
-    "duckdb>=1.0.0",           # SQL cells
+    # DuckDB 2.0 requires relation API compatibility work.
+    "duckdb>=1.0.0,<2",        # SQL cells
     "polars[pyarrow]>=1.9.0",  # SQL output back in Python
     # 30.7.0 pins sqlglotc to the matching SQLGlot version.
     "sqlglot[c]>=30.7.0"       # SQL cells parsing;
@@ -143,7 +144,7 @@ dev = [
     "opentelemetry-exporter-otlp-proto-grpc~=1.28.0",
     # For SQL. duckdb has no cp315 wheels as of 2026-10; drop the marker when
     # published.
-    "duckdb>=1.0.0; python_version < '3.15'",
+    "duckdb>=1.0.0,<2; python_version < '3.15'",
     "sqlglot[c]>=30.7.0",
     # Stubs for optional dataframe backends
     "pyarrow-stubs",
@@ -215,7 +216,7 @@ test-optional = [
     "pandas>=1.5.3",
     "hvplot~=0.11.3",
     "geopandas>=1.1.0",
-    "duckdb>=1.0.0",
+    "duckdb>=1.0.0,<2",
     "ibis-framework[duckdb]>=10.3.0",
     # For testing mo.image
     # 12.3 is the first release with cp315 wheels.
@@ -256,7 +257,7 @@ typecheck = [
     "panel>=1.5.3",
     "polars>=1.9.0",
     "pytest>=9.1.1",
-    "duckdb>=1.0.0",
+    "duckdb>=1.0.0,<2",
     "narwhals>=2.0.0",
     "matplotlib>=3.8.0",
     "sqlglot[c]>=30.7.0",
