@@ -97,16 +97,21 @@ form
 
 ```python {.marimo hide_code="true"}
 form = (
-    mo.md('''
+    mo.md("""
     **Just how great is markdown?**
 
     {markdown_is_awesome}
 
     {marimo_is_amazing}
-''')
+""")
     .batch(
-        markdown_is_awesome=mo.ui.text(label="How much do you like markdown?", placeholder="It is pretty swell 🌊"),
-        marimo_is_amazing=mo.ui.slider(label="How much do you like marimo?", start=0, stop=11, value=11),
+        markdown_is_awesome=mo.ui.text(
+            label="How much do you like markdown?",
+            placeholder="It is pretty swell 🌊",
+        ),
+        marimo_is_amazing=mo.ui.slider(
+            label="How much do you like marimo?", start=0, stop=11, value=11
+        ),
     )
     .form(show_clear_button=True, bordered=False)
 )
