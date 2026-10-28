@@ -201,11 +201,7 @@ class RuntimeConfig(Config, kw_only=True):
         list[str] | UnsetType,
         Meta(
             description=(
-                "Paths to `.env` files, replacing the default project or notebook "
-                "`.env`. An empty list disables loading default .env file. Relative "
-                "paths in project settings and script metadata use the project "
-                "directory, or the notebook's directory when there is no project. "
-                "Use absolute paths in user settings."
+                "Override .env discovery with a list of files to load. Use an empty list to skip .env loading entirely. In project settings and script metadata, paths are relative to the project folder, or the notebook's folder if there is no project. In user settings, paths must be absolute."
             ),
             extra={"sensitive": True},
         ),
