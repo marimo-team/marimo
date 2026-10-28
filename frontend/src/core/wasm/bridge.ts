@@ -42,6 +42,7 @@ import type {
 } from "../network/types";
 import { filenameAtom } from "../saving/file-state";
 import { store } from "../state/jotai";
+import { notebookReplicaAtom } from "../websocket/state";
 import { PyodideRouter } from "./router";
 import { getWorkerRPC, type PersistNotebookRequest } from "./rpc";
 import { getWasmRuntimeConfig } from "./runtime-config";
@@ -225,11 +226,8 @@ export class PyodideBridge implements RunRequests, EditRequests {
 
   public async createNotebookBackend() {
     await this.initialized.promise;
-    const { id } = await this.rpc.proxy.request.notebookInfo();
     return createWasmNotebookBackend({
-      notebookId: id,
       subscribe: async (cursor, emit, signal) => {
-        await this.initialized.promise;
         signal.throwIfAborted();
         const id = generateUUID();
         this.notebookConsumers.set(id, emit);
@@ -249,10 +247,7 @@ export class PyodideBridge implements RunRequests, EditRequests {
           throw error;
         }
       },
-      call: async (call) => {
-        await this.initialized.promise;
-        return this.rpc.proxy.request.notebookCall(call);
-      },
+      call: (call) => this.rpc.proxy.request.notebookCall(call),
     });
   }
 
@@ -272,9 +267,13 @@ export class PyodideBridge implements RunRequests, EditRequests {
   };
 
   private async saveHostNotebook() {
-    const backend = await this.createNotebookBackend();
-    const { id } = await this.rpc.proxy.request.notebookInfo();
-    const result = await backend.notebook(id).save();
+    const replica = store.get(notebookReplicaAtom);
+    const notebook = replica && store.get(replica.notebookAtom);
+    const backend = replica && store.get(replica.backendAtom);
+    if (!notebook || !backend) {
+      throw new Error("The notebook is not connected");
+    }
+    const result = await backend.notebook(notebook.id).save();
     if (!result.ok) {
       throw new Error(result.problem.detail ?? result.problem.title);
     }

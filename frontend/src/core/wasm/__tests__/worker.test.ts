@@ -121,10 +121,13 @@ async function startWorker(subscribing = Promise.resolve()) {
 }
 
 it("delivers startup notifications after a delayed first subscription, without rerunning on resubscribe", async () => {
-  const { controller, init, event, pyodide } = await startWorker();
+  const { controller, init, notebook, event, pyodide } = await startWorker();
   try {
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(rpc.send.initialized).toHaveBeenCalledOnce();
+    expect(notebook.set_persistence).toHaveBeenCalledExactlyOnceWith(
+      expect.any(Function),
+    );
     expect(pyodide.loadPackagesFromImports).toHaveResolved();
     expect(init).not.toHaveBeenCalled();
 
@@ -138,6 +141,7 @@ it("delivers startup notifications after a delayed first subscription, without r
     await handlers.requests.notebookSubscribe({ id: "second", cursor: null });
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(init).toHaveBeenCalledOnce();
+    expect(notebook.set_persistence).toHaveBeenCalledOnce();
   } finally {
     await controller.stopSession();
   }

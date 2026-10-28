@@ -11,7 +11,6 @@ import type { NotebookBackend } from "./backend";
 
 /** The worker owns the notebook; this interface only carries commands and events. */
 export interface WasmNotebookBridge {
-  readonly notebookId: string;
   subscribe(
     cursor: string | null,
     emit: (event: unknown) => void,
@@ -39,10 +38,9 @@ function abortable<T>(
   });
 }
 
-export function createWasmNotebookBackend(bridge: WasmNotebookBridge) {
-  const client = NotebookClient.unstable_over((call) => bridge.call(call), {
-    notebookId: bridge.notebookId,
-  });
+export function createWasmNotebookBackend(
+  bridge: WasmNotebookBridge,
+): NotebookBackend {
   return {
     transport: async ({ cursor, signal }, { open, message }) => {
       if (signal.aborted) {
@@ -93,13 +91,7 @@ export function createWasmNotebookBackend(bridge: WasmNotebookBridge) {
         signal.removeEventListener("abort", abort);
       }
     },
-    notebook: (id) => {
-      if (id !== bridge.notebookId) {
-        throw new Error(
-          `The worker serves notebook ${bridge.notebookId}, not ${id}`,
-        );
-      }
-      return client;
-    },
-  } satisfies NotebookBackend;
+    notebook: (notebookId) =>
+      NotebookClient.unstable_over((call) => bridge.call(call), { notebookId }),
+  };
 }

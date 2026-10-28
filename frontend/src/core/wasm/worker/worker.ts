@@ -80,25 +80,10 @@ const notebookSubscriptions = new Map<
 >();
 async function getNotebook() {
   const session = await sessionReady.promise;
-  const notebook = session.bridge.notebook;
-  notebook.set_persistence(async (contents, filename) => {
-    // Keep file operations in the execution worker from syncing stale source.
-    self.pyodide.FS.writeFile(filename, contents);
-    self.pyodide.FS.writeFile(WasmFileSystem.NOTEBOOK_FILENAME, contents);
-    await rpc.proxy.request.persistNotebook({ filename, contents });
-  });
-  return notebook;
+  return session.bridge.notebook;
 }
 
 const requestHandler = createRPCRequestHandler({
-  notebookInfo: async () => {
-    const notebook = await getNotebook();
-    try {
-      return { id: notebook.id };
-    } finally {
-      notebook.destroy();
-    }
-  },
   notebookSubscribe: (request: { id: string; cursor: string | null }) => {
     let canceled = false;
     const subscribing = (async () => {
@@ -180,6 +165,17 @@ const requestHandler = createRPCRequestHandler({
         queryParameters: opts.queryParameters,
         userConfig: opts.userConfig,
       });
+      const notebook = session.bridge.notebook;
+      try {
+        notebook.set_persistence(async (contents, filename) => {
+          // Keep file operations in the execution worker from syncing stale source.
+          self.pyodide.FS.writeFile(filename, contents);
+          self.pyodide.FS.writeFile(WasmFileSystem.NOTEBOOK_FILENAME, contents);
+          await rpc.proxy.request.persistNotebook({ filename, contents });
+        });
+      } finally {
+        notebook.destroy();
+      }
       sessionReady.resolve(session);
       rpc.send.initializingMessage({
         message: "Initializing notebook...",
