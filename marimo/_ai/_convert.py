@@ -195,8 +195,7 @@ AnthropicParts = Union[
 def _create_anthropic_message(
     role: Literal["user", "assistant"], content: list[AnthropicParts]
 ) -> MessageParam:
-    # Anthropic 2.x defines MessageParam as a union of role-specific TypedDicts.
-    # Literal roles let mypy validate each dictionary against the matching type.
+    # Mypy cannot distinguish the role-specific TypedDicts without this condition.
     if role == "assistant":
         return {"role": "assistant", "content": content}
     return {"role": "user", "content": content}
