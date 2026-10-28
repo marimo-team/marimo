@@ -122,6 +122,32 @@ describe("document synchronization", () => {
     expect(mounted).not.toHaveBeenCalled();
   });
 
+  it("starts again after a subscriber aborts during startup", async () => {
+    const store = createStore();
+    const model = createDocumentModel({
+      store,
+      documentAtom: atom(document()),
+      backendAtom: atom(null),
+    });
+    const controller = new AbortController();
+    lifetimes.push(controller);
+    const unsubscribe = store.sub(model.documentAtom, () => {
+      if (store.get(model.documentAtom)) {
+        controller.abort();
+      }
+    });
+    model.start({ signal: controller.signal });
+    unsubscribe();
+    expect(controller.signal.aborted).toBe(true);
+    expect(store.get(model.documentAtom)).toBeNull();
+    await expect(model.flush()).rejects.toThrow("not started");
+
+    const next = new AbortController();
+    lifetimes.push(next);
+    model.start({ signal: next.signal });
+    expect(store.get(model.documentAtom)?.cells.get("c1")?.code).toBe("x = 1");
+  });
+
   it("starts again without the drafts of a stopped run", () => {
     const { store, model, controller, edit, value } = setup();
     expect(() => model.start({ signal: new AbortController().signal })).toThrow(

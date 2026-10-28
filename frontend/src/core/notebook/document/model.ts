@@ -91,10 +91,12 @@ export function createDocumentModel({
         state,
         signal,
       });
+      const stop = () => store.set(runningAtom, null);
+      signal.addEventListener("abort", stop, { once: true });
       store.set(runningAtom, { state, sync });
-      signal.addEventListener("abort", () => store.set(runningAtom, null), {
-        once: true,
-      });
+      if (signal.aborted) {
+        stop();
+      }
     },
   };
 }
