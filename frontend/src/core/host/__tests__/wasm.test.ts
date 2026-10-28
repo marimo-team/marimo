@@ -80,6 +80,7 @@ describe("WASM notebook backend", () => {
     expect(bridge.subscribe).toHaveBeenCalledWith(
       "previous-4",
       expect.any(Function),
+      controller.signal,
     );
     controller.abort();
     await done;

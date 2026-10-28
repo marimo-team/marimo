@@ -176,6 +176,7 @@ class PyodideSession:
 
     def put_control_request(self, request: commands.CommandMessage) -> None:
         self._enqueue_control_request(request)
+        self.session_view.add_control_request(request)
 
     def put_completion_request(
         self, request: commands.CodeCompletionCommand

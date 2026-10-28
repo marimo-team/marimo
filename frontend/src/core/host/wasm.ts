@@ -15,6 +15,7 @@ export interface WasmNotebookBridge {
   subscribe(
     cursor: string | null,
     emit: (event: unknown) => void,
+    signal: AbortSignal,
   ): Promise<() => void>;
   /** Deliver a call to the worker and resolve with its status and body. */
   call(call: unstable_NotebookCall): Promise<unknown>;
@@ -65,11 +66,15 @@ export function createWasmNotebookBackend(
         await abortable(
           () =>
             bridge
-              .subscribe(cursor, (event) => {
-                if (!signal.aborted) {
-                  message(event);
-                }
-              })
+              .subscribe(
+                cursor,
+                (event) => {
+                  if (!signal.aborted) {
+                    message(event);
+                  }
+                },
+                signal,
+              )
               .then((close) => {
                 unsubscribe = close;
                 if (signal.aborted) {
