@@ -486,7 +486,8 @@ def _get_attached_catalogs() -> set[str]:
 
     try:
         result = duckdb.sql("SELECT database_name FROM duckdb_databases()")
-        assert result is not None
+        if result is None:
+            return set()
         return {row[0].lower() for row in result.fetchall()}
     except Exception:
         return set()

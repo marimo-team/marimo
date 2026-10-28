@@ -113,14 +113,17 @@ class DuckDBEngine(SQLConnection[Optional["duckdb.DuckDBPyConnection"]]):
             # Arrow PyCapsule path on older DuckDB or when pyarrow is missing.
             # batch_size of 100k bounds peak memory at ~10x less than DuckDB's
             # 1M default while keeping per-batch overhead negligible.
-            try:
-                import polars as pl
+            import polars as pl
 
+            try:
                 result = relation.pl(batch_size=100_000, lazy=True)
-                assert isinstance(result, pl.LazyFrame)
-                return result
             except (TypeError, ImportError, ModuleNotFoundError):
                 return to_polars().lazy()
+            if not isinstance(result, pl.LazyFrame):
+                raise TypeError(
+                    "DuckDB did not return a lazy Polars DataFrame"
+                )
+            return result
 
         return convert_to_output(
             sql_output_format=sql_output_format,

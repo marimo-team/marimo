@@ -187,7 +187,8 @@ def get_column_preview_for_duckdb(
                     f"SELECT {column_name} FROM {fully_qualified_table_name}",
                     connection=None,
                 )
-                assert relation is not None
+                if relation is None:
+                    raise ValueError("DuckDB returned no column-preview data")
                 # Rendering can inspect the data again while its Arrow stream
                 # is open, so release the DuckDB connection before rendering.
                 chart_spec = _get_chart_spec(

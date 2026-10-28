@@ -73,8 +73,7 @@ def get_sql_stats(
         """
 
     relation = wrapped_sql(stats_query, connection=None)
-    assert relation is not None
-    rows = relation.fetchall()
+    rows = relation.fetchall() if relation is not None else []
     stats_result: tuple[int, ...] | None = rows[0] if rows else None
     if stats_result is None:
         raise ValueError(
