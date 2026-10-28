@@ -122,13 +122,9 @@ def mock_pyodide() -> Generator[MagicMock, None, None]:
 async def pyodide_session(
     pyodide_app_file: Path,
 ) -> AsyncGenerator[PyodideSession, None]:
-    def _on_write(msg: KernelMessage) -> None:
-        pass
-
     session = PyodideSession(
         app=AppFileManager(filename=str(pyodide_app_file)),
         mode=SessionMode.EDIT,
-        on_write=_on_write,
         app_metadata=AppMetadata(
             query_params={},
             cli_args={},
@@ -759,6 +755,28 @@ async def test_pyodide_session_on_message(
 
     mock_consumer1.assert_called_once_with(test_msg)
     mock_consumer2.assert_called_once_with(test_msg)
+
+
+async def test_pyodide_session_on_message_isolates_consumers(
+    pyodide_session: PyodideSession,
+) -> None:
+    """A failing or departing consumer does not keep the message from others."""
+    received: list[str] = []
+
+    def failing(_msg: KernelMessage) -> None:
+        raise RuntimeError("receiver is gone")
+
+    def departing(_msg: KernelMessage) -> None:
+        received.append("departing")
+        pyodide_session.consumers.remove(departing)
+
+    pyodide_session.consumers = [
+        failing,
+        departing,
+        lambda _msg: received.append("last"),
+    ]
+    pyodide_session._on_message(b"{}")
+    assert received == ["departing", "last"]
 
 
 async def test_pyodide_session_put_completion_request(

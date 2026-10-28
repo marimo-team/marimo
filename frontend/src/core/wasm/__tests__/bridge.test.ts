@@ -51,7 +51,6 @@ vi.mock("@/core/wasm/rpc", () => ({
         readNotebook: mockReadNotebook,
         saveNotebook: mockSaveNotebook,
       },
-      send: { consumerReady: vi.fn() },
     },
     addMessageListener: (event: string, cb: () => void) => {
       rpcListeners[event] = cb;

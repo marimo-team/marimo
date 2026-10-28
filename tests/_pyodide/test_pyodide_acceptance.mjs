@@ -300,7 +300,13 @@ json.dumps(result)
     const notebook = pyodide.runPython("bridge.notebook");
     const frames = [];
     try {
-      await notebook.subscribe("acceptance", null, (raw) => frames.push(JSON.parse(raw)));
+      // Host events only. Notifications follow them on the same stream.
+      await notebook.subscribe("acceptance", null, (raw) => {
+        const frame = JSON.parse(raw);
+        if (frame.event !== "marimo") {
+          frames.push(frame);
+        }
+      });
       assert.equal(frames.at(-1).event, "ready");
       const cell = frames.find((frame) => frame.event === "cell").data.cell;
       const call = JSON.stringify({

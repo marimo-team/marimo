@@ -128,7 +128,6 @@ class PyodideSession:
         self,
         app: AppFileManager,
         mode: SessionMode,
-        on_write: Callable[[KernelMessage], None],
         app_metadata: AppMetadata,
         user_config: MarimoConfig,
     ) -> None:
@@ -139,7 +138,6 @@ class PyodideSession:
         self.mode = mode
         self.app_metadata = app_metadata
         self._queue_manager = AsyncQueueManager()
-        self.session_consumer = on_write
         self.session_view = SessionView()
         self.instantiated = False
         self._initial_user_config = user_config
@@ -148,14 +146,19 @@ class PyodideSession:
             self._queue_manager.set_ui_element_queue,
         )
 
+        # Notebook subscriptions add themselves to receive notifications.
         self.consumers: list[Callable[[KernelMessage], None]] = [
-            lambda msg: self.session_consumer(msg),
-            lambda msg: self.session_view.add_raw_notification(msg),
+            self.session_view.add_raw_notification,
         ]
 
     def _on_message(self, msg: KernelMessage) -> None:
-        for consumer in self.consumers:
-            consumer(msg)
+        # A consumer may unsubscribe during delivery, and one that fails
+        # must not keep the notification from the others.
+        for consumer in list(self.consumers):
+            try:
+                consumer(msg)
+            except Exception:
+                LOGGER.exception("A notification consumer failed")
 
     async def start(self) -> None:
         self.kernel_task = _launch_pyodide_kernel(

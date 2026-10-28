@@ -142,7 +142,8 @@ export class DefaultWasmController implements WasmController {
     queryParameters: Record<string, string | string[]>;
     code: string;
     filename: string | null;
-    onMessage: (message: JsonString<NotificationPayload>) => void;
+    /** Receives every notification, for callers that do not follow the notebook's events. */
+    onMessage?: (message: JsonString<NotificationPayload>) => void;
     userConfig: UserConfig;
   }): Promise<SerializedBridge> {
     const sessionGeneration = this.sessionGeneration;

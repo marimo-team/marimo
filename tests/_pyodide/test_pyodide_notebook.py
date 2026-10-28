@@ -13,6 +13,11 @@ if TYPE_CHECKING:
 from marimo._ast.app_config import _AppConfig
 from marimo._config.config import DEFAULT_CONFIG
 from marimo._core.calls import EditCall, dispatch
+from marimo._messaging.notification import (
+    VariableDeclarationNotification,
+    VariablesNotification,
+)
+from marimo._messaging.serde import serialize_kernel_message
 from marimo._pyodide.bootstrap import instantiate
 from marimo._pyodide.pyodide_session import PyodideBridge, PyodideSession
 from marimo._runtime.commands import (
@@ -37,7 +42,6 @@ def _():
     session = PyodideSession(
         AppFileManager(str(filename)),
         SessionMode.EDIT,
-        lambda _: None,
         AppMetadata(
             query_params={},
             cli_args={},
@@ -51,12 +55,25 @@ def _():
     bridge.close()
 
 
-async def snapshot(bridge, subscription="reader", cursor=None):
+async def snapshot(
+    bridge, subscription="reader", cursor=None, notifications=None
+):
+    """Follow host events, and marimo notifications into `notifications`."""
     events = []
-    await bridge.notebook.subscribe(
-        subscription, cursor, lambda raw: events.append(json.loads(raw))
-    )
+
+    def receive(raw):
+        event = json.loads(raw)
+        if event["event"] != "marimo":
+            events.append(event)
+        elif notifications is not None:
+            notifications.append(event["data"]["marimo"])
+
+    await bridge.notebook.subscribe(subscription, cursor, receive)
     return events
+
+
+def ops(notifications):
+    return [notification["op"] for notification in notifications]
 
 
 async def send(bridge, call):
@@ -225,3 +242,57 @@ async def test_invalid_calls(bridge):
     assert json.loads(await bridge.notebook.call("{"))["status"] == 400
     other = {**request, "params": {"notebook_id": "elsewhere"}}
     assert (await send(bridge, other))["status"] == 404
+
+
+async def test_kernel_ready_follows_the_snapshot(bridge):
+    frames = []
+    await bridge.notebook.subscribe(
+        "reader", None, lambda raw: frames.append(json.loads(raw))
+    )
+    kinds = [frame["event"] for frame in frames]
+    assert kinds[:4] == ["notebook", "cell", "document", "ready"]
+    assert set(kinds[4:]) == {"marimo"}
+    kernel_ready = frames[4]["data"]["marimo"]
+    assert kernel_ready["op"] == "kernel-ready"
+    assert kernel_ready["codes"] == ["x = 1"]
+    assert kernel_ready["resumed"] is False
+
+
+async def test_a_later_subscription_resumes_with_retained_notifications(
+    bridge,
+):
+    session = bridge.session
+    session.instantiated = True
+    variables = VariablesNotification(
+        variables=[
+            VariableDeclarationNotification(
+                name="x", declared_by=[], used_by=[]
+            )
+        ]
+    )
+    session._on_message(serialize_kernel_message(variables))
+    notifications = []
+    await snapshot(bridge, notifications=notifications)
+    assert ops(notifications)[0] == "kernel-ready"
+    assert notifications[0]["resumed"] is True
+    assert "variables" in ops(notifications)
+
+
+async def test_live_notifications_reach_each_subscription_until_it_closes(
+    bridge,
+):
+    first, second = [], []
+    await snapshot(bridge, "first", notifications=first)
+    await snapshot(bridge, "second", notifications=second)
+    variables = VariablesNotification(variables=[])
+    bridge.session._on_message(serialize_kernel_message(variables))
+    assert ops(first)[-1] == ops(second)[-1] == "variables"
+    bridge.notebook.unsubscribe("first")
+    count = len(first)
+    bridge.session._on_message(serialize_kernel_message(variables))
+    assert len(first) == count
+    assert ops(second)[-2:] == ["variables", "variables"]
+    bridge.notebook.unsubscribe("second")
+    assert bridge.session.consumers == [
+        bridge.session.session_view.add_raw_notification
+    ]

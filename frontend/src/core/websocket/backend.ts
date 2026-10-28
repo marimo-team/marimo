@@ -9,7 +9,6 @@ import { PyodideBridge } from "../wasm/bridge";
 import { isWasm } from "../wasm/utils";
 import {
   idle,
-  pyodide,
   sessionSse,
   websocket,
   withHeaders,
@@ -61,6 +60,36 @@ function afterStartup({
   };
 }
 
+/**
+ * Follow the notebook running in the WASM worker.
+ *
+ * The worker's backend exists once the worker has started, so the first
+ * connection creates it. Commands are only for a notebook its stream reported.
+ */
+function wasm(): NotebookBackend {
+  let backend: Promise<NotebookBackend> | undefined;
+  let started: NotebookBackend | undefined;
+  return {
+    transport: async (attempt, handlers) => {
+      backend ??= PyodideBridge.INSTANCE.createNotebookBackend();
+      try {
+        started = await backend;
+      } catch (error) {
+        throw new StreamStopped("The WASM notebook did not start", {
+          cause: error,
+        });
+      }
+      return started.transport(attempt, handlers);
+    },
+    notebook: (id) => {
+      if (started === undefined) {
+        throw new Error("The WASM notebook has not started");
+      }
+      return started.notebook(id);
+    },
+  };
+}
+
 /** Commands for a notebook the editor cannot change through its backend. */
 function uneditable(): ReturnType<NotebookBackend["notebook"]> {
   return {
@@ -84,12 +113,7 @@ export function createEditorBackend(
     return { transport: idle, notebook: uneditable };
   }
   if (isWasm()) {
-    return {
-      transport: pyodide((consumer) =>
-        PyodideBridge.INSTANCE.attachMessageConsumer(consumer),
-      ),
-      notebook: uneditable,
-    };
+    return wasm();
   }
   const url = afterStartup(options);
   return {

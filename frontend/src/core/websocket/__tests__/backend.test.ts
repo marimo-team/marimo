@@ -1,22 +1,23 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { NotebookEvents } from "@marimo-team/client";
+import { NotebookEvents, StreamStopped } from "@marimo-team/client";
 import { createStore } from "jotai/vanilla";
 import { afterEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import { Deferred } from "@/utils/Deferred";
 import { ConnectionState } from "../../host/connection";
+import { type FakeEdit, fakeBackend } from "../../host/__tests__/fixtures";
 import { createNotebookReplica } from "../../host/replica";
 import { createEditorBackend } from "../backend";
 
-const wasm = vi.hoisted(() => ({ enabled: false, consumer: vi.fn() }));
+const wasm = vi.hoisted(() => ({ enabled: false, create: vi.fn() }));
 vi.mock("../../wasm/utils", () => ({ isWasm: () => wasm.enabled }));
 vi.mock("../../wasm/bridge", () => ({
-  PyodideBridge: { INSTANCE: { attachMessageConsumer: wasm.consumer } },
+  PyodideBridge: { INSTANCE: { createNotebookBackend: wasm.create } },
 }));
 
 afterEach(() => {
   wasm.enabled = false;
-  wasm.consumer.mockReset();
+  wasm.create.mockReset();
   vi.unstubAllGlobals();
 });
 
@@ -55,6 +56,8 @@ describe("createEditorBackend", () => {
     ["the default", options, "socket"],
   ] as const)("follows %s", async (_name, chosen, expected) => {
     wasm.enabled = expected === "wasm";
+    const worker = vi.fn(() => new Promise<void>(() => undefined));
+    wasm.create.mockResolvedValue(fakeBackend({ transport: worker }));
     const fetch = vi.fn(() => new Promise<Response>(() => undefined));
     const opened = sockets();
     vi.stubGlobal("fetch", fetch);
@@ -62,9 +65,8 @@ describe("createEditorBackend", () => {
     await vi.waitFor(() =>
       expect(
         {
-          idle:
-            events.status === "connected" && !wasm.consumer.mock.calls.length,
-          wasm: wasm.consumer.mock.calls.length === 1,
+          idle: events.status === "connected" && !wasm.create.mock.calls.length,
+          wasm: worker.mock.calls.length === 1,
           fetch: fetch.mock.calls.length === 1,
           socket: opened.length === 1,
         }[expected],
@@ -107,18 +109,44 @@ describe("createEditorBackend", () => {
     expect(headers.get("Idempotency-Key")).toBe("edit-1");
   });
 
-  it.each([
-    ["a static notebook", { ...options, static: true }, false],
-    ["WASM", options, true],
-  ] as const)("does not edit %s", async (_name, chosen, isWasm) => {
-    wasm.enabled = isWasm;
+  it("does not edit a static notebook", async () => {
     const fetch = vi.fn();
     vi.stubGlobal("fetch", fetch);
-    const result = await createEditorBackend(chosen)
+    const result = await createEditorBackend({ ...options, static: true })
       .notebook("n1")
       .edit([], { idempotencyKey: "edit-1" });
     expect(result).toMatchObject({ ok: false, status: 501 });
     expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("edits the WASM notebook through the worker once its stream starts", async () => {
+    wasm.enabled = true;
+    const edit = vi.fn<FakeEdit>();
+    const transport = vi.fn(async () => undefined);
+    wasm.create.mockResolvedValue(fakeBackend({ transport, edit }));
+    const backend = createEditorBackend(options);
+    expect(wasm.create).not.toHaveBeenCalled();
+    expect(() => backend.notebook("n1")).toThrow("has not started");
+
+    const attempt = { cursor: null, signal: new AbortController().signal };
+    const handlers = { open: vi.fn(), message: vi.fn() };
+    await backend.transport(attempt, handlers);
+    await backend.transport(attempt, handlers);
+    expect(wasm.create).toHaveBeenCalledOnce();
+    expect(transport).toHaveBeenCalledWith(attempt, handlers);
+    await backend.notebook("n1").edit([], { idempotencyKey: "edit-1" });
+    expect(edit).toHaveBeenCalledWith("n1", [], { idempotencyKey: "edit-1" });
+  });
+
+  it("stops following WASM when the worker does not start", async () => {
+    wasm.enabled = true;
+    wasm.create.mockRejectedValue(new Error("Initialization failed"));
+    await expect(
+      createEditorBackend(options).transport(
+        { cursor: null, signal: new AbortController().signal },
+        { open: vi.fn(), message: vi.fn() },
+      ),
+    ).rejects.toBeInstanceOf(StreamStopped);
   });
 });
 

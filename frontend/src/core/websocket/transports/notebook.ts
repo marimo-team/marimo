@@ -157,34 +157,3 @@ export const idle: NotebookTransport = ({ signal }, { open }) =>
     open();
     signal.addEventListener("abort", () => settle(), { once: true });
   });
-
-/**
- * Follow the notebook running in the WASM worker.
- *
- * The worker sends marimo notifications as `{ data: notification }`, which
- * arrive as `marimo` events.
- */
-export function pyodide(
-  attach: (consumer: (message: MessageEvent<string>) => void) => void,
-): NotebookTransport {
-  return ({ signal }, { open, message }) =>
-    new Promise((settle) => {
-      open();
-      attach(({ data }) => {
-        if (signal.aborted) {
-          return;
-        }
-        const value = jsonParseWithSpecialChar(data);
-        // The worker sends notifications without the host's event envelope.
-        message(
-          typeof value === "object" &&
-            value !== null &&
-            !("event" in value) &&
-            "data" in value
-            ? { event: "marimo", data: { marimo: value.data } }
-            : value,
-        );
-      });
-      signal.addEventListener("abort", () => settle(), { once: true });
-    });
-}

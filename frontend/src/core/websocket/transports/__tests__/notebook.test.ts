@@ -11,7 +11,7 @@ import { createNotebookReplica } from "../../../host/replica";
 import { fakeBackend, fixtureMessages } from "../../../host/__tests__/fixtures";
 import { ConnectionState } from "../../../host/connection";
 import { Deferred } from "@/utils/Deferred";
-import { pyodide, sessionSse, websocket } from "../notebook";
+import { sessionSse, websocket } from "../notebook";
 
 const encoder = new TextEncoder();
 
@@ -403,43 +403,3 @@ describe.each(["websocket", "sse"] as const)(
     });
   },
 );
-
-describe("pyodide", () => {
-  it("delivers worker notifications as marimo events and host events as they are", async () => {
-    let consumer: ((message: MessageEvent<string>) => void) | undefined;
-    const events = new NotebookEvents(
-      pyodide((next) => {
-        consumer = next;
-      }),
-      { types: ["notebook", "marimo"] },
-    );
-    const received = collect(events);
-    await vi.waitFor(() => expect(consumer).toBeDefined());
-    const send = (data: string) =>
-      consumer?.(new MessageEvent("message", { data }));
-    send('{"data":{"op":"kernel-ready"}}');
-    send('{"event":"marimo","id":"3","data":{"marimo":{"op":"reconnected"}}}');
-    expect(received).toMatchInlineSnapshot(`
-      [
-        {
-          "data": {
-            "marimo": {
-              "op": "kernel-ready",
-            },
-          },
-          "event": "marimo",
-        },
-        {
-          "data": {
-            "marimo": {
-              "op": "reconnected",
-            },
-          },
-          "event": "marimo",
-          "id": "3",
-        },
-      ]
-    `);
-    events.close();
-  });
-});
