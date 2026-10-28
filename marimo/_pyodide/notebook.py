@@ -19,15 +19,21 @@ from marimo._core.operations import Mutations, problem
 from marimo._messaging.notification import (
     NotebookDocumentTransactionNotification,
 )
-from marimo._messaging.serde import serialize_kernel_message
+from marimo._messaging.serde import (
+    deserialize_kernel_message,
+    serialize_kernel_message,
+)
+from marimo._pyodide.kernel_ready import kernel_ready
 from marimo._server.host import document as documents
-from marimo._server.host.events import serialize_event
+from marimo._server.host.events import notification_event, serialize_event
 from marimo._session.model import SessionMode
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Mapping, Sequence
 
     from marimo._core.stream import Sink
+    from marimo._messaging.notification import NotificationMessage
+    from marimo._messaging.types import KernelMessage
     from marimo._pyodide.pyodide_session import PyodideSession
 
 
@@ -131,15 +137,40 @@ class PyodideNotebook:
             raise RuntimeError("The notebook is closed")
         self.refresh()
         self.unsubscribe(subscription_id)
-        # Snapshot and subscription are established in the same event-loop turn.
+
+        def notify(notification: NotificationMessage) -> None:
+            emit(serialize_event(notification_event(self.id, notification)))
+
+        def consume(message: KernelMessage) -> None:
+            notify(deserialize_kernel_message(message))
+
+        # Snapshot and subscriptions are established in the same event-loop turn.
         initial = self.host.events(cursor, notebook_id=self.id)
-        self._subscriptions[subscription_id] = self.host.subscribe(
+        unsubscribe = self.host.subscribe(
             lambda event: emit(serialize_event(event)),
             notebook_id=self.id,
         )
+        session = self._session
+        session.consumers.append(consume)
+
+        def close() -> None:
+            unsubscribe()
+            session.consumers.remove(consume)
+
+        self._subscriptions[subscription_id] = close
         try:
             for event in initial:
                 emit(serialize_event(event))
+            # As on a server connection, kernel-ready and the session's
+            # retained notifications follow the snapshot.
+            view = session.session_view
+            notify(
+                kernel_ready(
+                    session.app_manager, view if session.instantiated else None
+                )
+            )
+            for notification in view.snapshot_notifications():
+                notify(notification)
         except BaseException:
             self.unsubscribe(subscription_id)
             raise

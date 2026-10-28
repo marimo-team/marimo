@@ -9,14 +9,11 @@ import {
   type RPCSchema,
 } from "rpc-anywhere";
 import type { UserConfig } from "@/core/config/config-schema";
-import type { NotificationPayload } from "@/core/kernel/messages";
 import type {
   ListPackagesResponse,
   PackageOperationResponse,
   SaveNotebookRequest,
 } from "@/core/network/types";
-import type { JsonString } from "@/utils/json/base64";
-import { once } from "@/utils/once";
 import { decodeUtf8 } from "@/utils/strings";
 import { Deferred } from "../../../utils/Deferred";
 import { prettyError } from "../../../utils/errors";
@@ -28,7 +25,6 @@ import { TRANSPORT_ID } from "./constants";
 import { WasmFileSystem } from "./fs";
 import { getController } from "./getController";
 import { getPyodideVersion } from "./getPyodideVersion";
-import { MessageBuffer } from "./message-buffer";
 import { t } from "./tracer";
 import type {
   BridgePayload,
@@ -73,11 +69,6 @@ async function loadPyodideAndPackages() {
   }
 }
 
-const messageBuffer = new MessageBuffer(
-  (message: JsonString<NotificationPayload>) => {
-    rpc.send.kernelMessage({ message });
-  },
-);
 const bridgeReady = new Deferred<SerializedBridge>();
 let started = false;
 
@@ -155,12 +146,6 @@ const requestHandler = createRPCRequestHandler({
       const startSession = t.wrapAsync(
         self.controller.startSession.bind(self.controller),
       );
-      const initializeOnce = once(() => {
-        rpc.send.initializingMessage({
-          message: "Initializing notebook...",
-        });
-        rpc.send.initialized({});
-      });
       rpc.send.initializingMessage({
         message: "Loading notebook and dependencies...",
       });
@@ -169,12 +154,12 @@ const requestHandler = createRPCRequestHandler({
         filename: opts.filename,
         queryParameters: opts.queryParameters,
         userConfig: opts.userConfig,
-        onMessage: (msg) => {
-          initializeOnce();
-          messageBuffer.push(msg);
-        },
       });
       bridgeReady.resolve(bridge);
+      rpc.send.initializingMessage({
+        message: "Initializing notebook...",
+      });
+      rpc.send.initialized({});
       workerInitSpan.end("ok");
     } catch (error) {
       rpc.send.initializedError({
@@ -385,8 +370,6 @@ export type WorkerSchema = RPCSchema<
       notebookEvent: { id: string; event: string };
       // Emitted when the worker is ready
       ready: {};
-      // Emitted when the kernel sends a message
-      kernelMessage: { message: JsonString<NotificationPayload> };
       // Emitted when the Pyodide is initialized
       initialized: {};
       // Emitted when the Pyodide is initializing, with new messages
@@ -408,13 +391,6 @@ const rpc = createRPC<WorkerSchema, ParentSchema>({
 rpc.addMessageListener("bootstrap", (config) => runtimeConfig.resolve(config));
 
 rpc.send("ready", {});
-
-/// Listeners
-// When the consumer is ready, start the message buffer
-rpc.addMessageListener("consumerReady", async () => {
-  await pyodideReadyPromise; // Make sure loading is done
-  messageBuffer.start();
-});
 
 const namesThatRequireSync = new Set<keyof RawBridge>([
   "save",

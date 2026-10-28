@@ -70,9 +70,6 @@ export class PyodideBridge implements RunRequests, EditRequests {
   private pendingSessionSave: Promise<unknown> = Promise.resolve();
   private notebookConsumers = new Map<string, (event: unknown) => void>();
   private interruptBuffer?: Uint8Array;
-  private messageConsumer:
-    | ((message: MessageEvent<string>) => void)
-    | undefined;
 
   public initialized = new Deferred<void>();
 
@@ -158,9 +155,6 @@ export class PyodideBridge implements RunRequests, EditRequests {
       store.set(wasmInitStateAtom, { kind: "error", message: error });
       this.initialized.reject(new Error(error));
     });
-    this.rpc.addMessageListener("kernelMessage", ({ message }) => {
-      this.messageConsumer?.(new MessageEvent("message", { data: message }));
-    });
   }
 
   private async startSession() {
@@ -210,13 +204,6 @@ export class PyodideBridge implements RunRequests, EditRequests {
         "Not running in a secure context; interrupts are not available.",
       );
     }
-  }
-
-  public attachMessageConsumer(
-    consumer: (message: MessageEvent<string>) => void,
-  ) {
-    this.messageConsumer = consumer;
-    this.rpc.proxy.send.consumerReady({});
   }
 
   public async createNotebookBackend() {

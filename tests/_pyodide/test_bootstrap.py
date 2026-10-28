@@ -8,6 +8,8 @@ import pytest
 
 from marimo._config.config import DEFAULT_CONFIG
 from marimo._messaging.msgspec_encoder import encode_json_str
+from marimo._messaging.notification import VariablesNotification
+from marimo._messaging.serde import serialize_kernel_message
 from marimo._pyodide.bootstrap import create_session, save_file
 from marimo._pyodide.pyodide_session import PyodideSession
 from marimo._server.models.models import SaveNotebookRequest
@@ -197,3 +199,34 @@ async def test_message_callback_format(
     parsed = json.loads(received_messages[0])
     assert parsed["op"] == "kernel-ready"
     assert isinstance(parsed["data"], dict)
+
+
+async def test_message_callback_receives_later_notifications(
+    mock_app_file: Path,
+) -> None:
+    received: list[str] = []
+    session, _ = create_session(
+        filename=str(mock_app_file),
+        query_params={},
+        message_callback=received.append,
+        user_config=DEFAULT_CONFIG,
+    )
+    session._on_message(
+        serialize_kernel_message(VariablesNotification(variables=[]))
+    )
+    assert [json.loads(message)["op"] for message in received] == [
+        "kernel-ready",
+        "variables",
+    ]
+
+
+async def test_create_session_without_message_callback(
+    mock_app_file: Path,
+) -> None:
+    session, _ = create_session(
+        filename=str(mock_app_file),
+        query_params={},
+        message_callback=None,
+        user_config=DEFAULT_CONFIG,
+    )
+    assert session.consumers == [session.session_view.add_raw_notification]

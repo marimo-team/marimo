@@ -40,7 +40,7 @@ export class ReadonlyWasmController extends DefaultWasmController {
   public override async startSession(opts: {
     code: string;
     filename: string | null;
-    onMessage: (message: JsonString<NotificationPayload>) => void;
+    onMessage?: (message: JsonString<NotificationPayload>) => void;
   }): Promise<SerializedBridge> {
     const bridge = super.startSession({
       queryParameters: {},

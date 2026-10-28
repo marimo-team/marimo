@@ -340,16 +340,15 @@ if __name__ == "__main__":
     app.run()
 """
 
-def create_wasm_concurrency_session(notebook_path, callback_name):
+async def create_wasm_concurrency_session(notebook_path, callback_name):
     os.makedirs(os.path.dirname(notebook_path), exist_ok=True)
     with open(notebook_path, "w") as f:
         f.write(WASM_CONCURRENCY_NOTEBOOK)
 
-    session, bridge = create_session(
-        notebook_path,
-        {},
-        getattr(js, callback_name),
-        {},
+    session, bridge = create_session(notebook_path, {}, None, {})
+    # Notifications arrive on the notebook stream, after its snapshot.
+    await bridge.notebook.subscribe(
+        "concurrency-matrix", None, getattr(js, callback_name)
     )
     session_task = None
 
@@ -369,8 +368,8 @@ def create_wasm_concurrency_session(notebook_path, callback_name):
 }
 
 function createSession(pyodide, notebookPath, callbackName) {
-  return pyodide.runPython(`
-create_wasm_concurrency_session(
+  return pyodide.runPythonAsync(`
+await create_wasm_concurrency_session(
     ${JSON.stringify(notebookPath)},
     ${JSON.stringify(callbackName)},
 )
@@ -388,9 +387,9 @@ async function waitUntil(condition, label, timeoutName, fallback) {
 }
 
 function sessionNotification(message) {
-  // Pyodide session callbacks receive an envelope with the notification payload
-  // in `data`.
-  return JSON.parse(message).data;
+  // The notebook stream carries notifications as marimo events.
+  const frame = JSON.parse(message);
+  return frame.event === "marimo" ? frame.data.marimo : {};
 }
 
 async function waitForKernelReady(messages, label) {
@@ -483,7 +482,7 @@ async function main() {
   assertMatrixSupportFilesCompile(pyodide, matrixSupportFiles);
   installSessionFactory(pyodide);
 
-  const [bridge, init, stopSession] = createSession(
+  const [bridge, init, stopSession] = await createSession(
     pyodide,
     "/home/pyodide/wasm_concurrency_matrix_notebook.py",
     "marimoWasmConcurrencyMessageCallback",
@@ -601,7 +600,7 @@ with concurrent.futures.ProcessPoolExecutor(max_workers=2) as executor:
   const liveStopExitedPath =
     "/home/pyodide/wasm_concurrency_live_stop_exited.json";
   removePythonFiles(pyodide, [liveStopStartedPath, liveStopExitedPath]);
-  const [liveStopBridge, liveStopInit, liveStopSessionStop] = createSession(
+  const [liveStopBridge, liveStopInit, liveStopSessionStop] = await createSession(
     pyodide,
     "/home/pyodide/wasm_concurrency_live_stop_notebook.py",
     "marimoWasmConcurrencyLiveStopMessageCallback",
@@ -679,7 +678,7 @@ live_thread.start()
   const postStopResultPath =
     "/home/pyodide/wasm_concurrency_post_stop_context.json";
   removePythonFiles(pyodide, [postStopResultPath]);
-  const [postStopBridge, postStopInit, postStopSessionStop] = createSession(
+  const [postStopBridge, postStopInit, postStopSessionStop] = await createSession(
     pyodide,
     "/home/pyodide/wasm_concurrency_post_stop_notebook.py",
     "marimoWasmConcurrencyPostStopMessageCallback",

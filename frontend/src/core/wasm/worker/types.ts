@@ -69,7 +69,8 @@ export interface WasmController {
     code: string;
     filename: string | null;
     userConfig: UserConfig;
-    onMessage: (message: JsonString<NotificationPayload>) => void;
+    /** Receives every notification, for callers that do not follow the notebook's events. */
+    onMessage?: (message: JsonString<NotificationPayload>) => void;
   }): Promise<SerializedBridge>;
 }
 
