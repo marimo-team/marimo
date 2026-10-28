@@ -136,6 +136,7 @@ async def list_provider_models(*, request: Request) -> Response:
 
     def secret_resolver(key: str) -> str | None:
         return get_secret_value(key, config)
+
     if provider_name in (ai_config.get("custom_providers") or {}):
         provider = AnyProviderConfig.for_custom_provider(
             ai_config, provider_name, secret_resolver=secret_resolver
