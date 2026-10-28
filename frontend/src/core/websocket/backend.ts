@@ -92,17 +92,16 @@ function wasm(): NotebookBackend {
 
 /** Commands for a notebook the editor cannot change through its backend. */
 function uneditable(): ReturnType<NotebookBackend["notebook"]> {
-  return {
-    edit: async () => ({
-      ok: false,
+  const unsupported: NotebookClient["save"] = async () => ({
+    ok: false,
+    status: 501,
+    problem: {
+      type: "tag:marimo.io,2026:host/unsupported-operation",
+      title: "Document mutations are unavailable on this connection",
       status: 501,
-      problem: {
-        type: "tag:marimo.io,2026:host/unsupported-operation",
-        title: "Document editing is unavailable on this connection",
-        status: 501,
-      },
-    }),
-  };
+    },
+  });
+  return { edit: () => unsupported(), save: unsupported };
 }
 
 /** Choose the backend for the editor's notebook. */

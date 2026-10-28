@@ -5,7 +5,11 @@ import { createStore } from "jotai/vanilla";
 import { afterEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import { Deferred } from "@/utils/Deferred";
 import { ConnectionState } from "../../host/connection";
-import { type FakeEdit, fakeBackend } from "../../host/__tests__/fixtures";
+import {
+  type FakeEdit,
+  type FakeSave,
+  fakeBackend,
+} from "../../host/__tests__/fixtures";
 import { createNotebookReplica } from "../../host/replica";
 import { createEditorBackend } from "../backend";
 
@@ -119,11 +123,12 @@ describe("createEditorBackend", () => {
     expect(fetch).not.toHaveBeenCalled();
   });
 
-  it("edits the WASM notebook through the worker once its stream starts", async () => {
+  it("routes WASM commands through the worker once its stream starts", async () => {
     wasm.enabled = true;
     const edit = vi.fn<FakeEdit>();
+    const save = vi.fn<FakeSave>();
     const transport = vi.fn(async () => undefined);
-    wasm.create.mockResolvedValue(fakeBackend({ transport, edit }));
+    wasm.create.mockResolvedValue(fakeBackend({ transport, edit, save }));
     const backend = createEditorBackend(options);
     expect(wasm.create).not.toHaveBeenCalled();
     expect(() => backend.notebook("n1")).toThrow("has not started");
@@ -136,6 +141,8 @@ describe("createEditorBackend", () => {
     expect(transport).toHaveBeenCalledWith(attempt, handlers);
     await backend.notebook("n1").edit([], { idempotencyKey: "edit-1" });
     expect(edit).toHaveBeenCalledWith("n1", [], { idempotencyKey: "edit-1" });
+    await backend.notebook("n2").save({ idempotencyKey: "save-1" });
+    expect(save).toHaveBeenCalledWith("n2", { idempotencyKey: "save-1" });
   });
 
   it("stops following WASM when the worker does not start", async () => {
