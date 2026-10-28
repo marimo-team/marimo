@@ -5,15 +5,16 @@ import { getWorkerRPC } from "@/core/wasm/rpc";
 import { Deferred } from "@/utils/Deferred";
 import { throwNotImplemented } from "@/utils/functions";
 import { Logger } from "@/utils/Logger";
+import { jsonParseWithSpecialChar } from "@/utils/json/json-parser";
 import { generateUUID } from "@/utils/uuid";
 import { initialNotebookState, notebookAtom } from "../cells/cells";
-import type { ClientCommand } from "../kernel/messages";
+import type { ClientCommand, NotificationMessage } from "../kernel/messages";
 import type { EditRequests, RunRequests } from "../network/types";
 import { store as defaultStore } from "../state/jotai";
 import { getMarimoExportContext } from "../static/export-context";
 import { createMarimoFile, parseMarimoIslandApps } from "./parse";
 import { islandsInitializedAtom, islandsPendingInitialRunsAtom } from "./state";
-import type { IslandsKernelMessage, WorkerSchema } from "./worker/worker";
+import type { WorkerSchema } from "./worker/worker";
 import type { WorkerFactory } from "./worker-factory";
 import { DefaultWorkerFactory } from "./worker-factory";
 
@@ -52,14 +53,14 @@ interface AppSession {
  * @example
  * ```ts
  * const bridge = new IslandsPyodideBridge();
- * bridge.consumeMessages(message => console.log(message));
+ * bridge.consumeNotifications((notification) => console.log(notification.op));
  * await bridge.initializeApps();
  * ```
  */
 export class IslandsPyodideBridge implements RunRequests, EditRequests {
   private rpc: ReturnType<typeof getWorkerRPC<WorkerSchema>>;
-  private messageConsumer:
-    | ((message: IslandsKernelMessage) => void)
+  private notificationConsumer:
+    | ((notification: NotificationMessage, sessionGeneration: number) => void)
     | undefined;
   private readonly store: typeof defaultStore;
   private readonly root: Document | Element;
@@ -110,14 +111,24 @@ export class IslandsPyodideBridge implements RunRequests, EditRequests {
       },
     );
 
-    this.rpc.addMessageListener("kernelMessage", (message) => {
-      // A stopped session can still have messages in transit after the next
-      // app takes ownership of the shared frontend state.
-      if (!this.activeSessionGenerations.has(message.sessionGeneration)) {
-        return;
-      }
-      this.messageConsumer?.(message);
-    });
+    this.rpc.addMessageListener(
+      "notebookEvent",
+      ({ event, sessionGeneration }) => {
+        // A stopped session can still have events in transit after the next
+        // app takes ownership of the shared frontend state.
+        if (!this.activeSessionGenerations.has(sessionGeneration)) {
+          return;
+        }
+        // Islands follow only the notebook's marimo notifications.
+        const frame = jsonParseWithSpecialChar(event) as {
+          event: string;
+          data: { marimo?: NotificationMessage };
+        };
+        if (frame.event === "marimo" && frame.data.marimo) {
+          this.notificationConsumer?.(frame.data.marimo, sessionGeneration);
+        }
+      },
+    );
   }
 
   public async initializeApps(): Promise<void> {
@@ -246,14 +257,14 @@ export class IslandsPyodideBridge implements RunRequests, EditRequests {
     await this.rpc.proxy.request.startSession(opts);
   }
 
-  /**
-   * Sets up a consumer for kernel messages
-   */
-  public consumeMessages(
-    consumer: (message: IslandsKernelMessage) => void,
+  /** Receive each running session's marimo notifications. */
+  public consumeNotifications(
+    consumer: (
+      notification: NotificationMessage,
+      sessionGeneration: number,
+    ) => void,
   ): void {
-    this.messageConsumer = consumer;
-    this.rpc.proxy.send.consumerReady({});
+    this.notificationConsumer = consumer;
   }
 
   // ============================================================================

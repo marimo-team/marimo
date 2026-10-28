@@ -8,14 +8,11 @@ import {
   createWorkerParentTransport,
   type RPCSchema,
 } from "rpc-anywhere";
-import type { NotificationPayload } from "@/core/kernel/messages";
 import type { ParentSchema } from "@/core/wasm/rpc";
 import { shouldLoadDuckDBPackages } from "@/core/wasm/utils";
 import { TRANSPORT_ID } from "@/core/wasm/worker/constants";
 import { getPyodideVersion } from "@/core/wasm/worker/getPyodideVersion";
-import { MessageBuffer } from "@/core/wasm/worker/message-buffer";
 import type { RawBridge, SerializedBridge } from "@/core/wasm/worker/types";
-import type { JsonString } from "@/utils/json/base64";
 import { Logger } from "@/utils/Logger";
 import { prettyError } from "../../../utils/errors";
 import { invariant } from "../../../utils/invariant";
@@ -45,14 +42,11 @@ async function loadPyodideAndPackages() {
 }
 
 const pyodideReadyPromise = loadPyodideAndPackages();
-export interface IslandsKernelMessage {
-  message: JsonString<NotificationPayload>;
+/** An event of one session's notebook stream. */
+export interface IslandsNotebookEvent {
+  event: string;
   sessionGeneration: number;
 }
-
-const messageBuffer = new MessageBuffer<IslandsKernelMessage>((payload) => {
-  rpc.send.kernelMessage(payload);
-});
 interface SessionRequest {
   code: string;
   appId: string;
@@ -62,6 +56,8 @@ interface SessionRequest {
 let activeSession:
   | (Omit<SessionRequest, "code"> & { bridge: SerializedBridge })
   | undefined;
+/** Every running session's bridge, kept while the worker follows its notebook. */
+const sessions = new Set<SerializedBridge>();
 let sessionQueue = Promise.resolve();
 
 async function startSession(
@@ -79,18 +75,12 @@ async function startSession(
       code: opts.code,
       filename: `app-${opts.appId}.py`,
     });
-    const nextBridge = await self.controller.startSession({
-      ...notebook,
-      onMessage: (message) => {
-        messageBuffer.push({
-          message,
-          sessionGeneration: opts.sessionGeneration,
-        });
-      },
-    });
-    if (activeSession) {
-      (nextBridge as unknown as PyProxy).destroy();
-    } else {
+    const nextBridge = await self.controller.startSession(notebook);
+    sessions.add(nextBridge);
+    // Follow before the session instantiates. Each subscription begins with
+    // its own kernel-ready and the session's retained notifications.
+    await follow(nextBridge, opts.sessionGeneration);
+    if (!activeSession) {
       activeSession = {
         appId: opts.appId,
         bridge: nextBridge,
@@ -107,10 +97,27 @@ async function startSession(
 }
 
 async function stopActiveSession(): Promise<void> {
-  const session = activeSession;
+  // Stopping closes every session and its notebook subscriptions.
   await self.controller.stopSession();
   activeSession = undefined;
-  (session?.bridge as unknown as PyProxy | undefined)?.destroy();
+  for (const bridge of sessions) {
+    (bridge as unknown as PyProxy).destroy();
+  }
+  sessions.clear();
+}
+
+async function follow(
+  bridge: SerializedBridge,
+  sessionGeneration: number,
+): Promise<void> {
+  const notebook = bridge.notebook;
+  try {
+    await notebook.subscribe(`island-${sessionGeneration}`, null, (event) => {
+      rpc.send.notebookEvent({ event, sessionGeneration });
+    });
+  } finally {
+    notebook.destroy();
+  }
 }
 
 function enqueueSession<T>(operation: () => Promise<T>): Promise<T> {
@@ -243,8 +250,8 @@ export type WorkerSchema = RPCSchema<
     messages: {
       // Emitted when the worker is ready
       ready: {};
-      // Emitted when the kernel sends a message
-      kernelMessage: IslandsKernelMessage;
+      // Emitted for each event of a session's notebook stream
+      notebookEvent: IslandsNotebookEvent;
       // Emitted when the Pyodide is initialized
       initialized: {};
       // Emitted when the Pyodide fails to initialize
@@ -262,13 +269,6 @@ const rpc = createRPC<WorkerSchema, ParentSchema>({
 });
 
 rpc.send("ready", {});
-
-/// Listeners
-// When the consumer is ready, start the message buffer
-rpc.addMessageListener("consumerReady", async () => {
-  await pyodideReadyPromise; // Make sure loading is done
-  messageBuffer.start();
-});
 
 function getMarimoVersion() {
   return self.name; // We store the version in the worker name

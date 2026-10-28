@@ -54,7 +54,6 @@ function startSession(controller: TestController, code: string) {
   return controller.startSession({
     code,
     filename: `${code}.py`,
-    onMessage: vi.fn(),
   });
 }
 

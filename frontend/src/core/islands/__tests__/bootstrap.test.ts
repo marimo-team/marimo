@@ -6,17 +6,17 @@ import { RuntimeState } from "@/core/kernel/RuntimeState";
 import { initializeIslands } from "../bootstrap";
 import type { IslandsPyodideBridge } from "../bridge";
 import { islandsHydratedAtom, islandsPendingInitialRunsAtom } from "../state";
-import type { IslandsKernelMessage } from "../worker/worker";
+import type { NotificationMessage } from "@/core/kernel/messages";
 
-function completedRun(sessionGeneration: number): IslandsKernelMessage {
-  return {
-    sessionGeneration,
-    message: JSON.stringify({
-      op: "completed-run",
-      data: { op: "completed-run", run_id: null },
-    }) as IslandsKernelMessage["message"],
-  };
-}
+type Consumer = (
+  notification: NotificationMessage,
+  sessionGeneration: number,
+) => void;
+
+const completedRun = {
+  op: "completed-run",
+  run_id: null,
+} as NotificationMessage;
 
 describe("initializeIslands", () => {
   afterEach(vi.restoreAllMocks);
@@ -26,9 +26,9 @@ describe("initializeIslands", () => {
     root.innerHTML =
       '<marimo-island data-app-id="app-1" data-reactive="true"></marimo-island>';
 
-    let consumeMessage: ((message: IslandsKernelMessage) => void) | undefined;
+    let consumeMessage: Consumer | undefined;
     const bridge = {
-      consumeMessages: (consumer: (message: IslandsKernelMessage) => void) => {
+      consumeNotifications: (consumer: Consumer) => {
         consumeMessage = consumer;
       },
       sendComponentValues: vi.fn(),
@@ -48,14 +48,14 @@ describe("initializeIslands", () => {
     expect(store.get(islandsHydratedAtom)).toBe(false);
     store.set(islandsPendingInitialRunsAtom, new Set([1, 2]));
 
-    consumeMessage?.(completedRun(1));
+    consumeMessage?.(completedRun, 1);
     expect(store.get(islandsHydratedAtom)).toBe(false);
 
-    consumeMessage?.(completedRun(1));
-    consumeMessage?.(completedRun(0));
+    consumeMessage?.(completedRun, 1);
+    consumeMessage?.(completedRun, 0);
     expect(store.get(islandsHydratedAtom)).toBe(false);
 
-    consumeMessage?.(completedRun(2));
+    consumeMessage?.(completedRun, 2);
     expect(store.get(islandsHydratedAtom)).toBe(true);
   });
 });

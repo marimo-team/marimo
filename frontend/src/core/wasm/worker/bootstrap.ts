@@ -2,8 +2,6 @@
 import { loadPyodide, type PyodideInterface } from "pyodide";
 import type { PyCallable, PyProxy } from "pyodide/ffi";
 import type { UserConfig } from "@/core/config/config-schema";
-import type { NotificationPayload } from "@/core/kernel/messages";
-import type { JsonString } from "@/utils/json/base64";
 import { invariant } from "../../../utils/invariant";
 import { Logger } from "../../../utils/Logger";
 import { WasmFileSystem } from "./fs";
@@ -142,21 +140,10 @@ export class DefaultWasmController implements WasmController {
     queryParameters: Record<string, string | string[]>;
     code: string;
     filename: string | null;
-    /** Receives every notification, for callers that do not follow the notebook's events. */
-    onMessage?: (message: JsonString<NotificationPayload>) => void;
     userConfig: UserConfig;
   }): Promise<SerializedBridge> {
     const sessionGeneration = this.sessionGeneration;
-    const { code, filename, onMessage, queryParameters, userConfig } = opts;
-    // We pass down a messenger object to the code
-    // This is used to have synchronous communication between the JS and Python code
-    // Previously, we used a queue, but this would not properly flush the queue
-    // during processing of a cell's code.
-    //
-    // This adds a messenger object to the global scope (import js; js.messenger.callback)
-    self.messenger = {
-      callback: onMessage,
-    };
+    const { code, filename, queryParameters, userConfig } = opts;
     self.query_params = queryParameters;
     self.user_config = userConfig;
 
@@ -170,14 +157,12 @@ export class DefaultWasmController implements WasmController {
       import js
       from marimo._pyodide.bootstrap import create_session, instantiate
 
-      assert js.messenger, "messenger is not defined"
       assert js.query_params, "query_params is not defined"
 
       def create_session_resources():
         session, bridge = create_session(
           filename="${nbFilename}",
           query_params=js.query_params.to_py(),
-          message_callback=js.messenger.callback,
           user_config=js.user_config.to_py(),
         )
         session_task = None
