@@ -208,6 +208,29 @@ def test_duckdb_engine_get_databases_no_conn() -> None:
 
 
 @pytest.mark.skipif(not HAS_DUCKDB, reason="duckdb not installed")
+@pytest.mark.parametrize("use_connection", [True, False])
+def test_default_catalog_discovery(use_connection: bool) -> None:
+    import duckdb
+
+    with duckdb.connect() as connection:
+        engine = DuckDBEngine(connection if use_connection else None)
+        query_connection = connection if use_connection else duckdb
+
+        assert engine.get_default_database() == "memory"
+        assert query_connection.sql("SELECT 42").fetchall() == [(42,)]
+        assert engine.get_default_schema() == "main"
+        assert query_connection.sql("SELECT 42").fetchall() == [(42,)]
+        assert [
+            schema.name
+            for schema in engine.get_schemas(
+                database=None,
+                include_tables=False,
+                include_table_details=False,
+            )
+        ] == ["main"]
+
+
+@pytest.mark.skipif(not HAS_DUCKDB, reason="duckdb not installed")
 def test_get_current_database_schema() -> None:
     import duckdb
 
