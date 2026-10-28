@@ -23,7 +23,6 @@ function worker() {
   const reply = { ok: true, status: 200, data: { document, cells: {} } };
   const wire = { status: 200, body: reply.data };
   const bridge = {
-    notebookId: "n1",
     subscribe: vi.fn(
       async (_cursor: string | null, emit: (event: unknown) => void) => {
         listeners.add(emit);
@@ -80,6 +79,7 @@ describe("WASM notebook backend", () => {
     expect(bridge.subscribe).toHaveBeenCalledWith(
       "previous-4",
       expect.any(Function),
+      controller.signal,
     );
     controller.abort();
     await done;
@@ -99,64 +99,68 @@ describe("WASM notebook backend", () => {
     ).rejects.toBeInstanceOf(StreamStopped);
   });
 
-  it("refuses commands for any notebook but the worker's", () => {
-    const { bridge } = worker();
-    expect(() => createWasmNotebookBackend(bridge).notebook("n2")).toThrow(
-      "serves notebook n1, not n2",
-    );
-    expect(bridge.call).not.toHaveBeenCalled();
-  });
+  it.each(["edit", "save"] as const)(
+    "sends %s calls with the retry key and validates replies",
+    async (operation) => {
+      const { bridge, reply } = worker();
+      const notebook = createWasmNotebookBackend(bridge).notebook("n1");
+      const command =
+        operation === "edit"
+          ? notebook.edit.bind(notebook, [])
+          : notebook.save.bind(notebook);
+      expect(await command({ idempotencyKey: `${operation}-7` })).toEqual(
+        reply,
+      );
+      expect(bridge.call).toHaveBeenCalledWith({
+        operation: `notebook.${operation}`,
+        params: { notebook_id: "n1" },
+        headers: { "idempotency-key": `${operation}-7` },
+        body: operation === "edit" ? { changes: [] } : {},
+      });
+      const problem = {
+        type: "tag:marimo.io,2026:host/forbidden",
+        title: "Forbidden",
+        status: 403,
+      };
+      bridge.call.mockResolvedValue({ status: 403, body: problem });
+      expect(await command()).toEqual({
+        ok: false,
+        status: 403,
+        problem,
+      });
+      bridge.call.mockResolvedValue({ status: 200, body: {} });
+      await expect(command()).rejects.toThrow(/Invalid input/);
+    },
+  );
 
-  it("sends edits as calls with the retry key and validates replies", async () => {
-    const { bridge, reply } = worker();
-    const backend = createWasmNotebookBackend(bridge);
-    expect(
-      await backend.notebook("n1").edit([], { idempotencyKey: "edit-7" }),
-    ).toEqual(reply);
-    expect(bridge.call).toHaveBeenCalledWith({
-      operation: "notebook.edit",
-      params: { notebook_id: "n1" },
-      headers: { "idempotency-key": "edit-7" },
-      body: { changes: [] },
-    });
-    const problem = {
-      type: "tag:marimo.io,2026:host/forbidden",
-      title: "Forbidden",
-      status: 403,
-    };
-    bridge.call.mockResolvedValue({ status: 403, body: problem });
-    expect(await backend.notebook("n1").edit([])).toEqual({
-      ok: false,
-      status: 403,
-      problem,
-    });
-    bridge.call.mockResolvedValue({ status: 200, body: {} });
-    await expect(backend.notebook("n1").edit([])).rejects.toThrow(
-      /Invalid input/,
-    );
-  });
-
-  it("cancels waiting for an accepted edit and permits retry with the same key", async () => {
-    const { bridge, reply, wire } = worker();
-    const pending = new Deferred<unknown>();
-    bridge.call.mockReturnValue(pending.promise);
-    const backend = createWasmNotebookBackend(bridge);
-    const controller = new AbortController();
-    const editing = backend.notebook("n1").edit([], {
-      signal: controller.signal,
-      idempotencyKey: "edit-8",
-    });
-    await vi.waitFor(() => expect(bridge.call).toHaveBeenCalledOnce());
-    controller.abort();
-    await expect(editing).rejects.toBe(controller.signal.reason);
-    pending.resolve(wire);
-    expect(
-      await backend.notebook("n1").edit([], { idempotencyKey: "edit-8" }),
-    ).toEqual(reply);
-    expect(bridge.call.mock.calls[0]).toEqual(bridge.call.mock.calls[1]);
-    await expect(
-      backend.notebook("n1").edit([], { signal: controller.signal }),
-    ).rejects.toBe(controller.signal.reason);
-    expect(bridge.call).toHaveBeenCalledTimes(2);
-  });
+  it.each(["edit", "save"] as const)(
+    "cancels waiting for an accepted %s and permits retry with the same key",
+    async (operation) => {
+      const { bridge, reply, wire } = worker();
+      const pending = new Deferred<unknown>();
+      bridge.call.mockReturnValue(pending.promise);
+      const notebook = createWasmNotebookBackend(bridge).notebook("n1");
+      const command =
+        operation === "edit"
+          ? notebook.edit.bind(notebook, [])
+          : notebook.save.bind(notebook);
+      const controller = new AbortController();
+      const pendingCommand = command({
+        signal: controller.signal,
+        idempotencyKey: `${operation}-8`,
+      });
+      await vi.waitFor(() => expect(bridge.call).toHaveBeenCalledOnce());
+      controller.abort();
+      await expect(pendingCommand).rejects.toBe(controller.signal.reason);
+      pending.resolve(wire);
+      expect(await command({ idempotencyKey: `${operation}-8` })).toEqual(
+        reply,
+      );
+      expect(bridge.call.mock.calls[0]).toEqual(bridge.call.mock.calls[1]);
+      await expect(command({ signal: controller.signal })).rejects.toBe(
+        controller.signal.reason,
+      );
+      expect(bridge.call).toHaveBeenCalledTimes(2);
+    },
+  );
 });

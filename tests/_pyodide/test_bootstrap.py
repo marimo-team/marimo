@@ -1,32 +1,17 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-import json
 from typing import TYPE_CHECKING, Any
 
 import pytest
 
 from marimo._config.config import DEFAULT_CONFIG
-from marimo._messaging.msgspec_encoder import encode_json_str
-from marimo._messaging.notification import VariablesNotification
-from marimo._messaging.serde import serialize_kernel_message
-from marimo._pyodide.bootstrap import create_session, save_file
+from marimo._pyodide.bootstrap import create_session
 from marimo._pyodide.pyodide_session import PyodideSession
-from marimo._server.models.models import SaveNotebookRequest
 from marimo._session.model import SessionMode
-from marimo._types.ids import CellId_t
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
     from pathlib import Path
-
-
-@pytest.fixture
-def mock_message_callback() -> Callable[[str], None]:
-    def callback(message: str) -> None:
-        pass
-
-    return callback
 
 
 FILE_CONTENTS = """
@@ -66,13 +51,11 @@ def mock_app_file_with_script_config(tmp_path: Path) -> Path:
 
 
 async def test_create_session_with_default_config(
-    mock_message_callback: Callable[[str], None],
     mock_app_file: Path,
 ) -> None:
     session, _ = create_session(
         filename=str(mock_app_file),
         query_params={},
-        message_callback=mock_message_callback,
         user_config=DEFAULT_CONFIG,
     )
 
@@ -81,13 +64,11 @@ async def test_create_session_with_default_config(
 
 
 async def test_create_session_with_script_config(
-    mock_message_callback: Callable[[str], None],
     mock_app_file_with_script_config: Path,
 ) -> None:
     session, _ = create_session(
         filename=str(mock_app_file_with_script_config),
         query_params={},
-        message_callback=mock_message_callback,
         user_config=DEFAULT_CONFIG,
     )
 
@@ -96,7 +77,6 @@ async def test_create_session_with_script_config(
 
 
 async def test_create_session_with_invalid_script_config(
-    mock_message_callback: Callable[[str], None],
     tmp_path: Path,
 ) -> None:
     # Create a file with invalid config
@@ -113,7 +93,6 @@ async def test_create_session_with_invalid_script_config(
     session, _ = create_session(
         filename=str(filename),
         query_params={},
-        message_callback=mock_message_callback,
         user_config=DEFAULT_CONFIG,
     )
 
@@ -125,13 +104,11 @@ async def test_create_session_with_invalid_script_config(
 
 
 async def test_instantiate(
-    mock_message_callback: Callable[[str], None],
     mock_app_file: Path,
 ) -> None:
     session, _ = create_session(
         filename=str(mock_app_file),
         query_params={},
-        message_callback=mock_message_callback,
         user_config=DEFAULT_CONFIG,
     )
 
@@ -156,77 +133,3 @@ async def test_instantiate(
     assert len(captured_request.execution_requests) == 1
     assert captured_request.execution_requests[0].code == '"Hello"'
     assert captured_request.auto_run is True
-
-
-def test_save_file(
-    mock_app_file: Path,
-) -> None:
-    # Create a save request
-    request = SaveNotebookRequest(
-        codes=["print('hello')"],
-        names=["cell-1"],
-        configs=[{}],
-        cell_ids=[CellId_t("cell-1")],
-        layout=None,
-        filename=str(mock_app_file),
-    )
-
-    # Save the file
-    save_file(
-        request=encode_json_str(request),
-        filename=str(mock_app_file),
-    )
-
-    # Verify the file was saved correctly
-    saved_content = mock_app_file.read_text()
-    assert "print('hello')" in saved_content
-
-
-async def test_message_callback_format(
-    mock_app_file: Path,
-) -> None:
-    """Test that message_callback receives properly formatted JSON."""
-    received_messages: list[str] = []
-
-    _session, _ = create_session(
-        filename=str(mock_app_file),
-        query_params={},
-        message_callback=lambda text: received_messages.append(text),
-        user_config=DEFAULT_CONFIG,
-    )
-
-    assert len(received_messages) >= 1
-    parsed = json.loads(received_messages[0])
-    assert parsed["op"] == "kernel-ready"
-    assert isinstance(parsed["data"], dict)
-
-
-async def test_message_callback_receives_later_notifications(
-    mock_app_file: Path,
-) -> None:
-    received: list[str] = []
-    session, _ = create_session(
-        filename=str(mock_app_file),
-        query_params={},
-        message_callback=received.append,
-        user_config=DEFAULT_CONFIG,
-    )
-    session._on_message(
-        serialize_kernel_message(VariablesNotification(variables=[]))
-    )
-    assert [json.loads(message)["op"] for message in received] == [
-        "kernel-ready",
-        "variables",
-    ]
-
-
-async def test_create_session_without_message_callback(
-    mock_app_file: Path,
-) -> None:
-    session, _ = create_session(
-        filename=str(mock_app_file),
-        query_params={},
-        message_callback=None,
-        user_config=DEFAULT_CONFIG,
-    )
-    assert session.consumers == [session.session_view.add_raw_notification]

@@ -1,15 +1,13 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 import { loadPyodide, type PyodideInterface } from "pyodide";
 import type { PyCallable, PyProxy } from "pyodide/ffi";
-import type { UserConfig } from "@/core/config/config-schema";
-import type { NotificationPayload } from "@/core/kernel/messages";
-import type { JsonString } from "@/utils/json/base64";
 import { invariant } from "../../../utils/invariant";
+import { once } from "../../../utils/once";
 import { Logger } from "../../../utils/Logger";
 import { WasmFileSystem } from "./fs";
 import { getMarimoWheel } from "./getMarimoWheel";
 import { t } from "./tracer";
-import type { SerializedBridge, WasmController } from "./types";
+import type { SerializedBridge, WasmController, WasmSession } from "./types";
 import { shouldLoadDuckDBPackages } from "../utils";
 
 const MAKE_SNAPSHOT = false;
@@ -45,7 +43,7 @@ export class DefaultWasmController implements WasmController {
   protected pyodide: PyodideInterface | null = null;
   private packageLoadQueue = Promise.resolve();
   private sessionGeneration = 0;
-  private activeSessionStops = new Set<PyCallable>();
+  private sessions = new Set<WasmSession>();
 
   public get requirePyodide() {
     invariant(this.pyodide, "Pyodide not loaded");
@@ -138,29 +136,15 @@ export class DefaultWasmController implements WasmController {
     });
   }
 
-  public async startSession(opts: {
-    queryParameters: Record<string, string | string[]>;
-    code: string;
-    filename: string | null;
-    /** Receives every notification, for callers that do not follow the notebook's events. */
-    onMessage?: (message: JsonString<NotificationPayload>) => void;
-    userConfig: UserConfig;
-  }): Promise<SerializedBridge> {
+  public async prepareSession(
+    opts: Parameters<WasmController["prepareSession"]>[0],
+  ): Promise<WasmSession> {
     const sessionGeneration = this.sessionGeneration;
-    const { code, filename, onMessage, queryParameters, userConfig } = opts;
-    // We pass down a messenger object to the code
-    // This is used to have synchronous communication between the JS and Python code
-    // Previously, we used a queue, but this would not properly flush the queue
-    // during processing of a cell's code.
-    //
-    // This adds a messenger object to the global scope (import js; js.messenger.callback)
-    self.messenger = {
-      callback: onMessage,
-    };
+    const { code, filename, queryParameters, userConfig } = opts;
     self.query_params = queryParameters;
     self.user_config = userConfig;
 
-    const span = t.startSpan("startSession.runPython");
+    const span = t.startSpan("prepareSession.runPython");
     const nbFilename = filename || WasmFileSystem.NOTEBOOK_FILENAME;
     const sessionResources = this.requirePyodide.runPython(
       `
@@ -170,14 +154,12 @@ export class DefaultWasmController implements WasmController {
       import js
       from marimo._pyodide.bootstrap import create_session, instantiate
 
-      assert js.messenger, "messenger is not defined"
       assert js.query_params, "query_params is not defined"
 
       def create_session_resources():
         session, bridge = create_session(
           filename="${nbFilename}",
           query_params=js.query_params.to_py(),
-          message_callback=js.messenger.callback,
           user_config=js.user_config.to_py(),
         )
         session_task = None
@@ -237,45 +219,65 @@ export class DefaultWasmController implements WasmController {
     } finally {
       packagesProxy.destroy();
     }
-    this.activeSessionStops.add(stopSession);
-
-    // Fire and forget:
-    // Load notebook dependencies and instantiate the session
-    // We don't want to wait for this to finish,
-    // so we can show the initial code immediately giving
-    // a sense of responsiveness.
+    let stopped = false;
+    let stopping: Promise<void> | undefined;
+    const releaseInit = once(() => initSession.destroy());
+    const isStopped = () =>
+      stopped || sessionGeneration !== this.sessionGeneration;
+    // Load in parallel with subscription setup; only start() executes cells.
     const dependenciesReady = this.packageLoadQueue.then(() => {
-      if (sessionGeneration !== this.sessionGeneration) {
+      if (isStopped()) {
         return;
       }
       return this.loadNotebookDeps(code, foundPackages);
     });
     this.packageLoadQueue = dependenciesReady.catch(() => undefined);
-    void dependenciesReady
-      .then(() => {
-        if (sessionGeneration !== this.sessionGeneration) {
-          return;
+    const session: WasmSession = {
+      bridge: bridgeProxy as unknown as SerializedBridge,
+      start: once(async () => {
+        try {
+          if (isStopped()) {
+            return;
+          }
+          await dependenciesReady;
+          if (!isStopped()) {
+            initSession(userConfig.runtime.auto_instantiate);
+          }
+        } catch (error) {
+          if (!isStopped()) {
+            throw error;
+          }
+        } finally {
+          releaseInit();
         }
-        return initSession(userConfig.runtime.auto_instantiate);
-      })
-      .catch((error: unknown) => {
-        Logger.error("Failed to load notebook dependencies", error);
-      })
-      .finally(() => initSession.destroy());
-
-    return bridgeProxy as unknown as SerializedBridge;
+      }),
+      stop: () => {
+        stopped = true;
+        releaseInit();
+        stopping ??= (async () => {
+          await stopSession();
+          stopSession.destroy();
+          bridgeProxy.destroy();
+          this.sessions.delete(session);
+        })().catch((error: unknown) => {
+          stopping = undefined;
+          throw error;
+        });
+        return stopping;
+      },
+    };
+    this.sessions.add(session);
+    return session;
   }
 
   public async stopSession(): Promise<void> {
     this.sessionGeneration += 1;
-    const stops = [...this.activeSessionStops];
+    const sessions = [...this.sessions];
     let hasFailure = false;
     let firstFailure: unknown;
-    for (const stop of stops) {
+    for (const session of sessions) {
       try {
-        await stop();
-        this.activeSessionStops.delete(stop);
-        stop.destroy();
+        await session.stop();
       } catch (error) {
         if (!hasFailure) {
           hasFailure = true;

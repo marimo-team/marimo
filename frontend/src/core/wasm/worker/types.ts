@@ -2,11 +2,7 @@
 import type { PyodideInterface } from "pyodide";
 import type { WasmRuntimeConfig } from "../runtime-config";
 import type { UserConfig } from "@/core/config/config-schema";
-import type {
-  ClientCommand,
-  NotificationPayload,
-} from "@/core/kernel/messages";
-import type { JsonString } from "@/utils/json/base64";
+import type { ClientCommand } from "@/core/kernel/messages";
 import type {
   CodeCompletionRequest,
   CopyNotebookRequest,
@@ -34,7 +30,6 @@ import type {
   FormatCellsRequest,
   FormatResponse,
   SaveAppConfigurationRequest,
-  SaveNotebookRequest,
   SaveUserConfigurationRequest,
   Snippets,
 } from "../../network/types";
@@ -58,20 +53,21 @@ export interface WasmController {
     code: string;
     filename: string | null;
   }): Promise<{ code: string; filename: string }>;
-  /**
-   * Start the session
-   * @param opts.code - The code to start with
-   * @param opts.fallbackCode - The code to fallback to
-   * @param opts.filename - The filename to start with
-   */
-  startSession(opts: {
+  /** Prepare a session and load its dependencies without executing cells. */
+  prepareSession(opts: {
     queryParameters: Record<string, string | string[]>;
     code: string;
     filename: string | null;
     userConfig: UserConfig;
-    /** Receives every notification, for callers that do not follow the notebook's events. */
-    onMessage?: (message: JsonString<NotificationPayload>) => void;
-  }): Promise<SerializedBridge>;
+  }): Promise<WasmSession>;
+}
+
+export interface WasmSession {
+  readonly bridge: SerializedBridge;
+  /** Start once dependencies are ready. Repeated calls share the same start. */
+  start(): Promise<void>;
+  /** Prevent a pending start and release the session and its bridge. */
+  stop(): Promise<void>;
 }
 
 export interface RawBridge {
@@ -82,7 +78,6 @@ export interface RawBridge {
   read_snippets(): Promise<Snippets>;
   get_environment_info(): Promise<EnvironmentInfo>;
   format(request: FormatCellsRequest): Promise<FormatResponse>;
-  save(request: SaveNotebookRequest): Promise<string>;
   copy(request: CopyNotebookRequest): Promise<string>;
   save_app_config(request: SaveAppConfigurationRequest): Promise<string>;
   save_user_config(request: SaveUserConfigurationRequest): Promise<null>;
@@ -115,13 +110,12 @@ export type BridgePayload<T extends keyof RawBridge> = T extends keyof RawBridge
   : undefined;
 
 export type SerializedBridge = {
-  [P in Exclude<keyof RawBridge, "save">]: RawBridge[P] extends (
+  [P in keyof RawBridge]: RawBridge[P] extends (
     payload: string,
   ) => Promise<unknown>
     ? (payload: string) => Promise<string>
     : RawBridge[P];
 } & {
-  save(payload: string): Promise<void>;
   notebook: {
     readonly id: string;
     subscribe(
@@ -131,6 +125,11 @@ export type SerializedBridge = {
     ): Promise<void>;
     unsubscribe(id: string): void;
     call(call: string): Promise<string>;
+    transaction(request: string): Promise<void>;
+    set_layout(layout: string): Promise<void>;
+    set_persistence(
+      persist: (contents: string, filename: string) => Promise<void>,
+    ): void;
     destroy(): void;
   };
 };

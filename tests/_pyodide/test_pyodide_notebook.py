@@ -1,8 +1,10 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import asyncio
 import json
 from typing import TYPE_CHECKING
+from unittest.mock import AsyncMock
 
 import msgspec
 import pytest
@@ -11,9 +13,14 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 from marimo._ast.app_config import _AppConfig
+from marimo._ast.cell import CellConfig
 from marimo._config.config import DEFAULT_CONFIG
 from marimo._core.calls import EditCall, dispatch
+from marimo._messaging.notebook import CreateCell, Transaction
 from marimo._messaging.notification import (
+    ModelLifecycleNotification,
+    ModelOpen,
+    NotebookDocumentTransactionNotification,
     VariableDeclarationNotification,
     VariablesNotification,
 )
@@ -24,9 +31,13 @@ from marimo._runtime.commands import (
     AppMetadata,
     CreateNotebookCommand,
     EditCellsCommand,
+    ModelCommand,
+    ModelUpdateMessage,
 )
+from marimo._runtime.layout.layout import LayoutConfig
 from marimo._session.model import SessionMode
 from marimo._session.notebook import AppFileManager
+from marimo._types.ids import CellId_t, WidgetModelId
 
 
 @pytest.fixture
@@ -113,7 +124,10 @@ async def test_snapshot_edit_and_retry(bridge):
         "document",
         "ready",
     ]
-    assert events[0]["data"]["notebook"]["operations"] == ["notebook.edit"]
+    assert events[0]["data"]["notebook"]["operations"] == [
+        "notebook.edit",
+        "notebook.save",
+    ]
     request = edit(events)
     response = await send(bridge, request)
     assert response["status"] == 200
@@ -226,7 +240,7 @@ async def test_permissions_and_unsupported_operations(bridge):
     request = edit(events)
     assert (await send(bridge, request))["status"] == 403
     save = {**request, "operation": "notebook.save", "body": {}}
-    assert (await send(bridge, save))["status"] == 501
+    assert (await send(bridge, save))["status"] == 403
 
 
 async def test_invalid_calls(bridge):
@@ -278,6 +292,49 @@ async def test_a_later_subscription_resumes_with_retained_notifications(
     assert "variables" in ops(notifications)
 
 
+async def test_resubscription_preserves_frontend_widget_updates(bridge):
+    model_id = WidgetModelId("widget-1")
+    await snapshot(bridge)
+    bridge.session._on_message(
+        serialize_kernel_message(
+            ModelLifecycleNotification(
+                model_id=model_id,
+                message=ModelOpen(
+                    state={"value": 1}, buffer_paths=[], buffers=[]
+                ),
+            )
+        )
+    )
+    bridge.session.put_control_request(
+        ModelCommand(
+            model_id=model_id,
+            message=ModelUpdateMessage(state={"value": 7}, buffer_paths=[]),
+            buffers=[],
+        )
+    )
+    bridge.notebook.unsubscribe("reader")
+    notifications = []
+    await snapshot(bridge, notifications=notifications)
+
+    assert [
+        notification
+        for notification in notifications
+        if notification["op"] == "model-lifecycle"
+    ] == [
+        {
+            "op": "model-lifecycle",
+            "model_id": model_id,
+            "message": {
+                "method": "open",
+                "state": {"value": 7},
+                "buffer_paths": [],
+                "buffers": [],
+                "esm_spec": None,
+            },
+        }
+    ]
+
+
 async def test_live_notifications_reach_each_subscription_until_it_closes(
     bridge,
 ):
@@ -294,5 +351,202 @@ async def test_live_notifications_reach_each_subscription_until_it_closes(
     assert ops(second)[-2:] == ["variables", "variables"]
     bridge.notebook.unsubscribe("second")
     assert bridge.session.consumers == [
-        bridge.session.session_view.add_raw_notification
+        bridge.session.session_view.add_raw_notification,
+        bridge._on_message,
     ]
+
+
+def save_call(bridge, key="save-1", if_match=None):
+    headers = {"idempotency-key": key}
+    if if_match is not None:
+        headers["if-match"] = if_match
+    return {
+        "operation": "notebook.save",
+        "params": {"notebook_id": bridge.notebook.id},
+        "headers": headers,
+        "body": {},
+    }
+
+
+async def test_save_keeps_newer_edits_and_kernel_updates(bridge):
+    events = await snapshot(bridge)
+    instantiate(bridge.session, auto_instantiate=False)
+    queue = bridge.session._queue_manager.control_queue
+    queue.get_nowait()
+    await send(bridge, edit(events))
+    queue.get_nowait()
+    notebook = await bridge.notebook.host.notebook(bridge.notebook.id)
+    saved_revision = notebook.document.etag
+    started, release = asyncio.Event(), asyncio.Event()
+    writes = []
+
+    async def persist(contents, _filename):
+        writes.append(contents)
+        started.set()
+        await release.wait()
+
+    bridge.notebook.set_persistence(persist)
+    request = save_call(bridge)
+    saving = asyncio.create_task(send(bridge, request))
+    await started.wait()
+    # A second subscriber observes the updated cell's current etag.
+    await send(
+        bridge, edit(await snapshot(bridge, "editor"), "x = 3", "edit-2")
+    )
+    update = queue.get_nowait()
+    assert isinstance(update, EditCellsCommand)
+    assert list(update.codes.values()) == ["x = 3"]
+    release.set()
+    reply = await saving
+    assert reply["status"] == 200
+    assert reply["body"]["document"]["saved_etag"] == saved_revision
+    assert notebook.document.etag != notebook.saved_etag
+    assert list(bridge.session.app_manager.app.cell_manager.codes()) == [
+        "x = 3"
+    ]
+    assert len(writes) == 1
+    assert "x = 2" in writes[0]
+    assert "x = 3" not in writes[0]
+    assert queue.empty()
+    # A lost reply retries the same save, rather than saving the newer document.
+    assert await send(bridge, request) == reply
+    assert len(writes) == 1
+
+
+async def test_failed_save_stays_dirty_and_can_retry(bridge):
+    events = await snapshot(bridge)
+    await send(bridge, edit(events))
+    notebook = await bridge.notebook.host.notebook(bridge.notebook.id)
+    saved = notebook.saved_etag
+    persist = AsyncMock(side_effect=OSError("storage full"))
+    bridge.notebook.set_persistence(persist)
+    request = save_call(bridge)
+    count = len(events)
+    failed = await send(bridge, request)
+    assert failed["status"] == 409
+    assert "storage full" in failed["body"]["detail"]
+    assert notebook.saved_etag == saved != notebook.document.etag
+    assert len(events) == count
+    persist.side_effect = None
+    assert (await send(bridge, request))["status"] == 200
+    assert notebook.saved_etag == notebook.document.etag
+    assert persist.await_count == 2
+
+
+async def test_save_serializes_writes_and_checks_revision_after_waiting(
+    bridge,
+):
+    events = await snapshot(bridge)
+    notebook = await bridge.notebook.host.notebook(bridge.notebook.id)
+    original = notebook.document.etag
+    started, release = asyncio.Event(), asyncio.Event()
+    writes = []
+
+    async def persist(contents, _filename):
+        writes.append(contents)
+        started.set()
+        await release.wait()
+
+    bridge.notebook.set_persistence(persist)
+    first = asyncio.create_task(send(bridge, save_call(bridge)))
+    await started.wait()
+    stale = asyncio.create_task(
+        send(bridge, save_call(bridge, "stale", original))
+    )
+    await send(bridge, edit(events))
+    second = asyncio.create_task(send(bridge, save_call(bridge, "save-2")))
+    await asyncio.sleep(0)
+    assert len(writes) == 1
+    release.set()
+    assert (await first)["status"] == 200
+    assert (await stale)["status"] == 409
+    assert (await second)["status"] == 200
+    assert len(writes) == 2
+    assert "x = 2" in writes[1]
+    assert notebook.saved_etag == notebook.document.etag
+
+
+async def test_editor_transactions_config_layout_and_reload(bridge):
+    events = await snapshot(bridge)
+    messages = []
+    bridge.session.consumers.append(messages.append)
+    cell_id = events[1]["data"]["cell"]["id"]
+    await bridge.notebook.transaction(
+        json.dumps(
+            {
+                "changes": [
+                    {"type": "set-code", "cellId": cell_id, "code": "x = 9"},
+                    {"type": "set-name", "cellId": cell_id, "name": "example"},
+                    {
+                        "type": "create-cell",
+                        "cellId": "new",
+                        "code": "y = 2",
+                        "name": "_",
+                        "config": {},
+                    },
+                    {"type": "reorder-cells", "cellIds": ["new", cell_id]},
+                ]
+            }
+        )
+    )
+    assert not messages  # Do not echo old typing into the editor.
+    await bridge.save_app_config(json.dumps({"config": {"width": "full"}}))
+    layout = {"type": "slides", "data": {"slides": [[cell_id]]}}
+    await bridge.notebook.set_layout(json.dumps(layout))
+    path = bridge.session.app_manager.filename
+
+    async def persist(contents, filename):
+        from pathlib import Path
+
+        await asyncio.to_thread(Path(filename).write_text, contents)
+
+    bridge.notebook.set_persistence(persist)
+    assert (await send(bridge, save_call(bridge)))["status"] == 200
+    restored = AppFileManager(path)
+    assert list(restored.app.cell_manager.codes()) == ["y = 2", "x = 9"]
+    assert list(restored.app.cell_manager.names()) == ["_", "example"]
+    assert restored.app.config.width == "full"
+    assert restored.read_layout_config() == LayoutConfig(**layout)
+    await bridge.notebook.transaction(
+        json.dumps(
+            {
+                "changes": [
+                    {"type": "delete-cell", "cellId": "new"},
+                ]
+            }
+        )
+    )
+    assert list(bridge.session.app_manager.app.cell_manager.codes()) == [
+        "x = 9"
+    ]
+
+
+async def test_save_includes_kernel_document_edits(bridge):
+    await snapshot(bridge)
+    persist = AsyncMock()
+    bridge.notebook.set_persistence(persist)
+    bridge.session._on_message(
+        serialize_kernel_message(
+            NotebookDocumentTransactionNotification(
+                transaction=Transaction(
+                    changes=(
+                        CreateCell(
+                            cell_id=CellId_t("kernel-cell"),
+                            code="y = 8",
+                            name="_",
+                            config=CellConfig(),
+                        ),
+                    ),
+                    source="kernel",
+                )
+            )
+        )
+    )
+    assert (await send(bridge, save_call(bridge)))["status"] == 200
+    contents, _filename = persist.call_args.args
+    assert "y = 8" in contents
+    assert list(bridge.session.app_manager.app.cell_manager.codes()) == [
+        "x = 1",
+        "y = 8",
+    ]
+    assert bridge.session._queue_manager.control_queue.empty()

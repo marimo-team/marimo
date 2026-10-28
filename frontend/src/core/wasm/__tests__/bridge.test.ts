@@ -8,16 +8,36 @@ const {
   mockBridge,
   mockNotebookReadFile,
   mockReadNotebook,
-  mockSaveNotebook,
+  mockWriteNotebook,
+  mockNotebookCall,
+  mockSetNotebookLayout,
+  mockFlush,
+  parentRequests,
   mockBootstrap,
   rpcListeners,
+  mockNotebookSubscribe,
+  mockNotebookUnsubscribe,
 } = vi.hoisted(() => ({
   mockBridge: vi.fn(),
   mockNotebookReadFile: vi.fn(),
   mockReadNotebook: vi.fn(),
-  mockSaveNotebook: vi.fn(),
+  mockWriteNotebook: vi.fn(),
+  mockNotebookCall: vi.fn(),
+  mockSetNotebookLayout: vi.fn(),
+  mockFlush: vi.fn(),
+  parentRequests: {} as {
+    persistNotebook?: (snapshot: {
+      filename: string;
+      contents: string;
+    }) => Promise<void>;
+  },
   mockBootstrap: vi.fn(),
-  rpcListeners: {} as Record<string, () => void>,
+  rpcListeners: {} as Record<
+    string,
+    (message?: { id: string; event: string }) => void
+  >,
+  mockNotebookSubscribe: vi.fn(),
+  mockNotebookUnsubscribe: vi.fn(),
 }));
 
 // Mock browser globals before any imports
@@ -41,21 +61,31 @@ class MockURL extends URL {
 vi.stubGlobal("URL", MockURL);
 
 vi.mock("@/core/wasm/rpc", () => ({
-  getWorkerRPC: () => ({
-    send: { bootstrap: mockBootstrap },
-    proxy: {
-      request: {
-        bridge: mockBridge,
-        startSession: vi.fn(),
-        readFile: vi.fn(),
-        readNotebook: mockReadNotebook,
-        saveNotebook: mockSaveNotebook,
+  getWorkerRPC: (_worker: Worker, handlers?: typeof parentRequests) => {
+    Object.assign(parentRequests, handlers);
+    return {
+      send: { bootstrap: mockBootstrap },
+      proxy: {
+        request: {
+          bridge: mockBridge,
+          startSession: vi.fn(),
+          readFile: vi.fn(),
+          readNotebook: mockReadNotebook,
+          writeNotebook: mockWriteNotebook,
+          notebookSubscribe: mockNotebookSubscribe,
+          notebookUnsubscribe: mockNotebookUnsubscribe,
+          notebookCall: mockNotebookCall,
+          setNotebookLayout: mockSetNotebookLayout,
+        },
       },
-    },
-    addMessageListener: (event: string, cb: () => void) => {
-      rpcListeners[event] = cb;
-    },
-  }),
+      addMessageListener: (
+        event: string,
+        cb: (typeof rpcListeners)[string],
+      ) => {
+        rpcListeners[event] = cb;
+      },
+    };
+  },
 }));
 
 vi.mock("@/core/meta/globals", () => ({
@@ -71,14 +101,25 @@ vi.mock("@/core/wasm/store", () => ({
   notebookFileStore: { readFile: mockNotebookReadFile, saveFile: vi.fn() },
 }));
 
+vi.mock("@/core/cells/document-changes", () => ({
+  flushDocumentChanges: mockFlush,
+  documentTransactionMiddleware: vi.fn(),
+}));
+
 // Import after all mocks are set up
 import { store } from "@/core/state/jotai";
 import { initialModeAtom } from "@/core/mode";
+import { fixtureEvents } from "@/core/host/__tests__/fixtures";
+import { createNotebookReplica } from "@/core/host";
+import { notebookReplicaAtom } from "@/core/websocket/state";
+import { createEditorBackend } from "@/core/websocket/backend";
+import { fallbackFileStore, notebookFileStore } from "../store";
 import { getWasmWorkerName, PyodideBridge } from "../bridge";
 
-// Access INSTANCE once at module level so the constructor runs (and
-// addMessageListener populates rpcListeners) before any test executes.
-void PyodideBridge.INSTANCE;
+beforeEach(() => {
+  Reflect.deleteProperty(window, "_marimo_private_PyodideBridge");
+  void PyodideBridge.INSTANCE;
+});
 
 describe("PyodideBridge.readCode", () => {
   beforeEach(() => {
@@ -160,6 +201,7 @@ describe("PyodideBridge.exportAsScript", () => {
 });
 
 describe("PyodideBridge.sendSave", () => {
+  let disconnect: () => void;
   const request = {
     cellIds: [cellId("cell-1")],
     codes: ['value = "NEW"'],
@@ -170,51 +212,173 @@ describe("PyodideBridge.sendSave", () => {
     persist: true,
   };
 
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.clearAllMocks();
     store.set(initialModeAtom, "edit");
     rpcListeners.initialized();
-    mockSaveNotebook.mockResolvedValue(null);
-    mockReadNotebook.mockResolvedValue(
-      "import marimo\napp = marimo.App()\n# NEW",
+    mockFlush.mockResolvedValue(undefined);
+    mockWriteNotebook.mockResolvedValue(undefined);
+    mockNotebookUnsubscribe.mockResolvedValue(undefined);
+    const document = fixtureEvents("notebook-events.sse").find(
+      (event) => event.event === "document",
+    )?.data.document;
+    mockNotebookCall.mockResolvedValue({
+      status: 200,
+      body: { document, cells: {} },
+    });
+    mockNotebookSubscribe.mockImplementation(async ({ id }) => {
+      for (const event of fixtureEvents("notebook-events.sse")) {
+        rpcListeners.notebookEvent({ id, event: JSON.stringify(event) });
+      }
+    });
+    const replica = createNotebookReplica(store);
+    store.set(notebookReplicaAtom, replica);
+    const backend = createEditorBackend({
+      static: false,
+      transportType: "sse",
+      url: () => "http://localhost/",
+      headers: () => ({}),
+      notebookUrl: (id) => new URL(`http://localhost/notebooks/${id}`),
+      waitUntilReady: async () => undefined,
+      checkHealth: async () => true,
+    });
+    disconnect = replica.connect(backend, { onNotification: vi.fn() });
+    await vi.waitFor(() =>
+      expect(store.get(replica.notebookAtom)?.id).toBe("n1"),
     );
   });
 
   afterEach(() => {
+    disconnect();
+    store.set(notebookReplicaAtom, null);
     store.set(initialModeAtom, undefined);
   });
 
-  it("waits for the session save before generating exports", async () => {
-    const mainSave = new Deferred<void>();
-    mockSaveNotebook
-      .mockResolvedValueOnce(null)
-      .mockReturnValueOnce(mainSave.promise);
-
-    await PyodideBridge.INSTANCE.sendSave(request);
-    expect(mockSaveNotebook).toHaveBeenCalledTimes(2);
-    expect(mockSaveNotebook).toHaveBeenNthCalledWith(1, request);
-    expect(mockSaveNotebook).toHaveBeenNthCalledWith(2, request);
-
-    const markdown = PyodideBridge.INSTANCE.exportAsMarkdown({
-      download: false,
-    });
-    const script = PyodideBridge.INSTANCE.exportAsScript({
-      download: false,
-    });
-    await Promise.resolve();
-    expect(mockBridge).not.toHaveBeenCalled();
-
-    mainSave.resolve();
-    await Promise.all([markdown, script]);
-    expect(mockBridge).toHaveBeenCalledWith({
-      functionName: "export_markdown",
-      payload: { download: false },
-    });
-    expect(mockBridge).toHaveBeenCalledWith({
-      functionName: "export_script",
-      payload: { download: false },
-    });
+  it("saves through the connected backend using the stream's notebook ID", async () => {
+    const bridge = PyodideBridge.INSTANCE;
+    const createBackend = vi.spyOn(bridge, "createNotebookBackend");
+    await bridge.sendSave(request);
+    expect(createBackend).not.toHaveBeenCalled();
+    expect(mockNotebookCall).toHaveBeenCalledWith(
+      expect.objectContaining({
+        operation: "notebook.save",
+        params: { notebook_id: "n1" },
+        body: {},
+      }),
+    );
   });
+
+  it.each(["unmounted", "not ready", "disconnected"])(
+    "does not save when the notebook is %s",
+    async (state) => {
+      if (state === "unmounted") {
+        store.set(notebookReplicaAtom, null);
+      } else if (state === "not ready") {
+        store.set(notebookReplicaAtom, createNotebookReplica(store));
+      } else {
+        disconnect();
+      }
+      await expect(PyodideBridge.INSTANCE.sendSave(request)).rejects.toThrow(
+        "The notebook is not connected",
+      );
+      expect(mockNotebookCall).not.toHaveBeenCalled();
+    },
+  );
+
+  it("flushes edits before asking the host to save without an editor snapshot", async () => {
+    const flushed = new Deferred<void>();
+    mockFlush.mockReturnValueOnce(flushed.promise);
+    const saving = PyodideBridge.INSTANCE.sendSave(request);
+    await Promise.resolve();
+    expect(mockNotebookCall).not.toHaveBeenCalled();
+    flushed.resolve();
+    await saving;
+    expect(mockSetNotebookLayout).toHaveBeenCalledWith(null);
+    expect(mockNotebookCall).toHaveBeenCalledWith(
+      expect.objectContaining({ operation: "notebook.save", body: {} }),
+    );
+    expect(mockWriteNotebook).not.toHaveBeenCalled();
+  });
+
+  it("does not save when flushing fails", async () => {
+    mockFlush.mockRejectedValueOnce(new Error("unsynchronized edit"));
+    await expect(PyodideBridge.INSTANCE.sendSave(request)).rejects.toThrow(
+      "unsynchronized edit",
+    );
+    expect(mockNotebookCall).not.toHaveBeenCalled();
+  });
+
+  it("reports host persistence failures", async () => {
+    mockNotebookCall.mockResolvedValueOnce({
+      status: 409,
+      body: {
+        type: "tag:marimo.io,2026:host/conflict",
+        title: "Conflict",
+        status: 409,
+        detail: "storage full",
+      },
+    });
+    await expect(PyodideBridge.INSTANCE.sendSave(request)).rejects.toThrow(
+      "storage full",
+    );
+  });
+
+  it("persists exactly the host's content before acknowledging storage", async () => {
+    const durable = new Deferred<void>();
+    const snapshot = { filename: "notebook.py", contents: "# host revision" };
+    mockWriteNotebook.mockReturnValueOnce(durable.promise);
+    const writing = parentRequests.persistNotebook!(snapshot);
+    await Promise.resolve();
+    expect(mockWriteNotebook).toHaveBeenCalledWith(snapshot);
+    expect(notebookFileStore.saveFile).not.toHaveBeenCalled();
+    durable.resolve();
+    await writing;
+    expect(notebookFileStore.saveFile).toHaveBeenCalledWith(snapshot.contents);
+    expect(fallbackFileStore.saveFile).toHaveBeenCalledWith(snapshot.contents);
+  });
+
+  it("propagates storage failure without updating the URL", async () => {
+    mockWriteNotebook.mockRejectedValueOnce(new Error("IndexedDB failed"));
+    await expect(
+      parentRequests.persistNotebook!({
+        filename: "notebook.py",
+        contents: "# host",
+      }),
+    ).rejects.toThrow("IndexedDB failed");
+    expect(notebookFileStore.saveFile).not.toHaveBeenCalled();
+  });
+});
+
+it("cancels a pending notebook subscription before its RPC response", async () => {
+  vi.clearAllMocks();
+  store.set(initialModeAtom, "read");
+  rpcListeners.initialized();
+  const pending = new Deferred<void>();
+  mockNotebookSubscribe.mockReturnValue(pending.promise);
+  mockNotebookUnsubscribe.mockResolvedValue(undefined);
+  const controller = new AbortController();
+  try {
+    const backend = await PyodideBridge.INSTANCE.createNotebookBackend();
+    const following = backend.transport(
+      { cursor: null, signal: controller.signal },
+      { open: vi.fn(), message: vi.fn() },
+    );
+    await vi.waitFor(() =>
+      expect(mockNotebookSubscribe).toHaveBeenCalledOnce(),
+    );
+    const [{ id }] = mockNotebookSubscribe.mock.calls[0];
+    controller.abort();
+    await following;
+    expect(mockNotebookUnsubscribe.mock.calls).toEqual([[id]]);
+
+    pending.resolve();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(mockNotebookUnsubscribe.mock.calls).toEqual([[id]]);
+  } finally {
+    controller.abort();
+    pending.resolve();
+    store.set(initialModeAtom, undefined);
+  }
 });
 
 describe("getWasmWorkerName", () => {

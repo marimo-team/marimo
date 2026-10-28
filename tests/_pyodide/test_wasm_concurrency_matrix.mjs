@@ -345,7 +345,7 @@ async def create_wasm_concurrency_session(notebook_path, callback_name):
     with open(notebook_path, "w") as f:
         f.write(WASM_CONCURRENCY_NOTEBOOK)
 
-    session, bridge = create_session(notebook_path, {}, None, {})
+    session, bridge = create_session(notebook_path, {}, {})
     # Notifications arrive on the notebook stream, after its snapshot.
     await bridge.notebook.subscribe(
         "concurrency-matrix", None, getattr(js, callback_name)
