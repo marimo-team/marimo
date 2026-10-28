@@ -95,11 +95,6 @@ The available options are:
 - `polars`: Returns an eager Polars DataFrame
 - `auto`: Automatically chooses based on installed packages (first tries `polars` then `pandas`)
 
-With DuckDB 2.0, commands such as `CREATE TABLE ... AS SELECT` and `INSERT`
-without `RETURNING` return a result containing a `Count` column. marimo returns
-this result in the configured output format. DuckDB 1.x returns `None` for
-these commands. Statements with `RETURNING` return their data on both versions.
-
 For best performance with large datasets, we recommend using `native` to avoid loading the entire result set into memory and to more easily chain SQL cells together. By default, only the first 10 rows are displayed in the UI to prevent memory issues.
 
 ???+ tip "Set a default"
