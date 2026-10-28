@@ -37,10 +37,32 @@
   },
   "data": [
     {
-      "name": "data-6f2678becc24b5ff9fbec3e85cf09cd0"
+      "name": "source_0"
     },
     {
-      "name": "data_0"
+      "name": "data_1",
+      "values": [
+        {
+          "category": "A",
+          "count": 25,
+          "percentage": 0.25
+        },
+        {
+          "category": "B",
+          "count": 25,
+          "percentage": 0.25
+        },
+        {
+          "category": "C",
+          "count": 25,
+          "percentage": 0.25
+        },
+        {
+          "category": "D",
+          "count": 25,
+          "percentage": 0.25
+        }
+      ]
     },
     {
       "name": "data_2",
@@ -48,31 +70,6 @@
         {
           "category": "A",
           "count": 25,
-          "percentage": 0.25
-        },
-        {
-          "category": "B",
-          "count": 25,
-          "percentage": 0.25
-        },
-        {
-          "category": "C",
-          "count": 25,
-          "percentage": 0.25
-        },
-        {
-          "category": "D",
-          "count": 25,
-          "percentage": 0.25
-        }
-      ]
-    },
-    {
-      "name": "data_3",
-      "values": [
-        {
-          "category": "A",
-          "count": 25,
           "count_end": 25.0,
           "count_start": 0.0
         },
@@ -97,7 +94,7 @@
       ]
     },
     {
-      "name": "data_0_y_domain_category",
+      "name": "source_0_y_domain_category",
       "values": [
         {
           "category": "A",
@@ -146,7 +143,7 @@
         }
       },
       "from": {
-        "data": "data_3"
+        "data": "data_2"
       },
       "name": "layer_0_marks",
       "style": [
@@ -187,7 +184,7 @@
         }
       },
       "from": {
-        "data": "data_2"
+        "data": "data_1"
       },
       "name": "layer_1_marks",
       "style": [
@@ -202,15 +199,15 @@
       "domain": {
         "fields": [
           {
-            "data": "data_3",
+            "data": "data_2",
             "field": "count_start"
           },
           {
-            "data": "data_3",
+            "data": "data_2",
             "field": "count_end"
           },
           {
-            "data": "data_2",
+            "data": "data_1",
             "field": "count"
           }
         ]
@@ -228,7 +225,7 @@
     },
     {
       "domain": {
-        "data": "data_0_y_domain_category",
+        "data": "source_0_y_domain_category",
         "field": "category",
         "sort": {
           "field": "sort_field",

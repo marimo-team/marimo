@@ -187,8 +187,11 @@ def get_column_preview_for_duckdb(
                     f"SELECT {column_name} FROM {fully_qualified_table_name}",
                     connection=None,
                 )
+                assert relation is not None
+                # Rendering can inspect the data again while its Arrow stream
+                # is open, so release the DuckDB connection before rendering.
                 chart_spec = _get_chart_spec(
-                    column_data=relation,
+                    column_data=relation.to_arrow_table(),
                     column_type=column_type,
                     column_name=column_name,
                     chart_builder=get_chart_builder(
