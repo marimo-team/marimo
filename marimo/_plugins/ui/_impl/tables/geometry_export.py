@@ -637,7 +637,8 @@ def _prepare_geographic_export(
             column=primary,
         )
     if manager.data.implementation.is_duckdb():
-        assert source.schema is not None
+        if source.schema is None:
+            raise RuntimeError("DuckDB geometry source has no schema")
         manager = _duckdb_to_arrow_manager(manager, source.schema)
     return manager, source, primary
 

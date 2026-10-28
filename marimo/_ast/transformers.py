@@ -64,7 +64,8 @@ def clean_to_modules(
     >>> ...
     >>> </block>
     """
-    assert len(block.items) == 1, "Unexpected with block structure."
+    if len(block.items) != 1:
+        raise RuntimeError("Unexpected with block structure.")
     (with_block,) = block.items
     initializer: ast.AST = with_block.context_expr
     if with_block.optional_vars:
@@ -99,9 +100,8 @@ def get_hashable_ast(
     args = set(fn.__code__.co_varnames)
     function_ast = ast_parse(textwrap.dedent("".join(code)))
     body = function_ast.body.pop()
-    assert isinstance(body, (ast.FunctionDef, ast.AsyncFunctionDef)), (
-        "Expected a function definition"
-    )
+    if not isinstance(body, (ast.FunctionDef, ast.AsyncFunctionDef)):
+        raise RuntimeError("Expected a function definition")
 
     # Insert decorator calls as expression statements so they affect the hash.
     # This ensures changes to decorator parameters invalidate the cache.
@@ -127,7 +127,8 @@ def get_hashable_ast(
     ast.fix_missing_locations(extracted)
     module = RemoveReturns().visit(extracted)
     module = MangleArguments(args).visit(module)
-    assert isinstance(module, ast.Module), "Expected a module"
+    if not isinstance(module, ast.Module):
+        raise RuntimeError("Expected a module")
     return module
 
 
@@ -217,7 +218,8 @@ class ExtractWithBlock(ast.NodeTransformer):
         on_line = []
         previous = None
 
-        assert isinstance(node, list), "Unexpected block structure."
+        if not isinstance(node, list):
+            raise RuntimeError("Unexpected block structure.")
         parent = None
         for n in node:
             # There's a chance that the block is first evaluated somewhere in a

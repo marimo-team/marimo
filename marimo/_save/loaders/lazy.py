@@ -1479,7 +1479,10 @@ class LazyLoader(BasePersistenceLoader):
             # by `_put_or_mark_unserializable` are reflected in the manifest,
             # and (when signing) every blob hash has been collected.
             if signing:
-                assert signer is not None
+                if signer is None:
+                    raise RuntimeError(
+                        "Cache signing is enabled without a signer"
+                    )
                 base_schema = CacheSchema(
                     hash=cache.hash,
                     cache_type=cache_type_enum,

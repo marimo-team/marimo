@@ -353,7 +353,7 @@ exclude = [
     "marimo/_static/export_demos/wasm-intro.py",
     "marimo/_test_utils/_tutorials",
     "marimo/_test_utils/codegen_data",
-    "marimo/_tutorials",
+    "marimo/_tutorials/[!_]*.py",
     "scripts",
     "protocols/**/.venv",
     "tests/_ast/app_data",
@@ -455,7 +455,7 @@ extend-select = [
     # "D401", # First line of docstring should be in imperative mood
     "PGH004", # Use specific rule codes when using noqa
     "RUF006", # Store a reference to the return value of asyncio.create_task
-    # "S101", # Checks use `assert` outside the test cases, test cases should be added into the exclusions
+    "S101", # No assert statements in production code
     "T201",   # No print statements
     "D4",  # pydocstyle Docstring Content Issues
     "D207",  # Docstring is under-indented
@@ -473,7 +473,8 @@ extend-select = [
 convention = "google"
 
 [tool.ruff.lint.per-file-ignores]
-"**/{tests}/*" = ["ANN201", "ANN202", "T201", "D", "F841", "PLW1514"]
+"**/{tests}/*" = ["S101", "ANN201", "ANN202", "T201", "D", "F841", "PLW1514"]
+"protocols/**/conformance/**" = ["S101"]
 "dagger/*" = ["TID252"]
 "protocols/host/generate.py" = ["T201"]
 "protocols/host/conformance/test_*.py" = ["ANN201", "ANN202", "T201", "D", "F841", "PLW1514"]

@@ -507,7 +507,8 @@ class IPCKernelManagerImpl(KernelManager):
 
             def drain_output(stream: Literal["stdout", "stderr"]) -> None:
                 pipe = process.stderr if stream == "stderr" else process.stdout
-                assert pipe is not None
+                if pipe is None:
+                    raise RuntimeError("Process output pipe is not available")
                 with pipe:
                     for line in iter(pipe.readline, b""):
                         if stream == "stderr":
@@ -540,8 +541,10 @@ class IPCKernelManagerImpl(KernelManager):
             expected_lines = 2 if plan_launched else 1
 
             def exchange_handshake() -> list[str]:
-                assert process.stdin is not None
-                assert process.stdout is not None
+                if process.stdin is None:
+                    raise RuntimeError("Process stdin pipe is not available")
+                if process.stdout is None:
+                    raise RuntimeError("Process stdout pipe is not available")
                 with process.stdin:
                     process.stdin.write(kernel_args.encode_json())
                     process.stdin.flush()

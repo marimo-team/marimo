@@ -220,7 +220,8 @@ class SessionEventStream(SessionHandler):
     async def start(self) -> None:
         """Deliver the host stream over a WebSocket."""
         websocket = self.connection
-        assert isinstance(websocket, WebSocket)
+        if not isinstance(websocket, WebSocket):
+            raise RuntimeError("Expected a WebSocket connection")
         await websocket.accept()
         try:
             async with aclosing(self.stream()) as events:

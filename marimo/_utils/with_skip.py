@@ -29,7 +29,8 @@ class SkipContext(ABC):
             frame = maybe_frame.f_back
         else:
             raise RuntimeError("Unable to establish current frame.")
-        assert frame is not None
+        if frame is None:
+            raise RuntimeError("Unable to establish current frame")
         # Hold on to the previous trace.
         self._old_trace = frame.f_trace
         # Setting the frametrace, will cause the function to be run on _every_

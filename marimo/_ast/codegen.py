@@ -414,11 +414,13 @@ def to_top_functiondef(
         allowed_refs = BUILTINS
     toplevel_var = cell.toplevel_variable
 
-    assert toplevel_var, "Cell is not a top-level function"
+    if not toplevel_var:
+        raise RuntimeError("Cell is not a top-level function")
     if cell.code:
-        assert toplevel_var.kind in ("function", "class"), (
-            "Unexpected cell kind, please report an issue to github.com/marimo-team/marimo"
-        )
+        if toplevel_var.kind not in ("function", "class"):
+            raise RuntimeError(
+                "Unexpected cell kind, please report an issue to github.com/marimo-team/marimo"
+            )
         if toplevel_var.kind == "class":
             decorator = to_decorator(cell.config, fn="class_definition")
         else:
@@ -471,7 +473,8 @@ def serialize_cell(
             code=status.code, config=status.cell_config, name=status.name
         )
     cell = status._cell
-    assert cell is not None
+    if cell is None:
+        raise RuntimeError("Cell is not initialized")
     if status.is_cell:
         return to_functiondef(
             cell,
@@ -574,7 +577,7 @@ def _extract_header_comments(ir: NotebookSerializationV1) -> str | None:
 
                 return wrap_block(pyproject)
             return None
-    except (yaml.YAMLError, AssertionError):
+    except (yaml.YAMLError, TypeError):
         pass
     return ir.header.value
 

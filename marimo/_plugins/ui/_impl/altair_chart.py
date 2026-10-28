@@ -783,7 +783,8 @@ class altair_chart(UIElement[ChartSelection, ChartDataType]):
             selected_df = chart.apply_selection(cars)
             ```
         """
-        assert assert_can_narwhalify(df)
+        if not assert_can_narwhalify(df):
+            raise TypeError("Expected a dataframe supported by Narwhals")
         return _filter_dataframe(
             df, selection=self.selections, binned_fields=self._binned_fields
         )

@@ -279,9 +279,8 @@ class ExecuteCellsRequest(msgspec.Struct, rename="camel"):
 
     # Validate same length
     def __post_init__(self) -> None:
-        assert len(self.cell_ids) == len(self.codes), (
-            "Mismatched cell_ids and codes"
-        )
+        if len(self.cell_ids) != len(self.codes):
+            raise ValueError("Mismatched cell_ids and codes")
 
 
 class SaveNotebookRequest(msgspec.Struct, rename="camel"):
@@ -302,15 +301,12 @@ class SaveNotebookRequest(msgspec.Struct, rename="camel"):
 
     # Validate same length
     def __post_init__(self) -> None:
-        assert len(self.cell_ids) == len(self.codes), (
-            "Mismatched cell_ids and codes"
-        )
-        assert len(self.cell_ids) == len(self.names), (
-            "Mismatched cell_ids and names"
-        )
-        assert len(self.cell_ids) == len(self.configs), (
-            "Mismatched cell_ids and configs"
-        )
+        if len(self.cell_ids) != len(self.codes):
+            raise ValueError("Mismatched cell_ids and codes")
+        if len(self.cell_ids) != len(self.names):
+            raise ValueError("Mismatched cell_ids and names")
+        if len(self.cell_ids) != len(self.configs):
+            raise ValueError("Mismatched cell_ids and configs")
 
 
 class CopyNotebookRequest(msgspec.Struct, rename="camel"):

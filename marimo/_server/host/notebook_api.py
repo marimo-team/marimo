@@ -31,7 +31,8 @@ _Body = TypeVar("_Body", bound=msgspec.Struct)
 
 def _context(request: HTTPConnection) -> HostContext:
     context = getattr(request.app.state, "host_context", None)
-    assert context is not None, "HostApiMiddleware admits requests only then"
+    if context is None:
+        raise RuntimeError("HostApiMiddleware admits requests only then")
     return context  # type: ignore[no-any-return]
 
 

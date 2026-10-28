@@ -29,11 +29,13 @@ class RestartableTask:
     def stop(self) -> None:
         # Stop the task and set the stopped flag
         self.stopped = True
-        assert self.task is not None
+        if self.task is None:
+            raise RuntimeError("Task has not been started")
         self.task.cancel()
 
     def restart(self) -> None:
         # Cancel the current task, which will cause
         # the while loop to start a new task
-        assert self.task is not None
+        if self.task is None:
+            raise RuntimeError("Task has not been started")
         self.task.cancel()

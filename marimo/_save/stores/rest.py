@@ -16,8 +16,10 @@ class RestStore(Store):
         self, *, base_url: str, api_key: str, project_id: str | None = None
     ) -> None:
         super().__init__()
-        assert api_key, "api_key is required"
-        assert base_url, "base_url is required"
+        if not api_key:
+            raise ValueError("api_key is required")
+        if not base_url:
+            raise ValueError("base_url is required")
 
         self.base_url = base_url
         self.api_key = api_key

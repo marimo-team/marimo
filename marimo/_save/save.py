@@ -303,8 +303,10 @@ class _cache_call(CacheContext, Generic[P, R]):
         """
         # Build base block if needed (for external/late binding)
         if self.base_block is None:
-            assert self._external, UNEXPECTED_FAILURE_BOILERPLATE
-            assert self.__wrapped__ is not None, UNEXPECTED_FAILURE_BOILERPLATE
+            if not self._external:
+                raise RuntimeError(UNEXPECTED_FAILURE_BOILERPLATE)
+            if self.__wrapped__ is None:
+                raise RuntimeError(UNEXPECTED_FAILURE_BOILERPLATE)
             graph = graph_from_scope(self.scope)
             cell_id = get_cell_id_from_scope(self.__wrapped__, self.scope)
             self.base_block = self._build_base_block(
@@ -360,7 +362,8 @@ class _cache_call(CacheContext, Generic[P, R]):
             **kwargs_copy,
             **(self._bound or {}),
         }
-        assert self._loader is not None, UNEXPECTED_FAILURE_BOILERPLATE
+        if self._loader is None:
+            raise RuntimeError(UNEXPECTED_FAILURE_BOILERPLATE)
         attempt = content_cache_attempt_from_base(
             self.base_block,
             scope,
@@ -651,7 +654,8 @@ class _cache_call_async(_cache_call[P, R]):
         This is called by a single task even when multiple concurrent
         callers request the same computation.
         """
-        assert self.__wrapped__ is not None, UNEXPECTED_FAILURE_BOILERPLATE
+        if self.__wrapped__ is None:
+            raise RuntimeError(UNEXPECTED_FAILURE_BOILERPLATE)
         failed = False
         self._last_hash = attempt.hash
         try:
@@ -712,7 +716,8 @@ class _cache_context(SkipContext, CacheContext):
         """Record the entry under the cell holding the block."""
         if self._cache is None or self._cell_id is None:
             return
-        assert self._graph is not None, UNEXPECTED_FAILURE_BOILERPLATE
+        if self._graph is None:
+            raise RuntimeError(UNEXPECTED_FAILURE_BOILERPLATE)
 
         from marimo._save.manifest import record_cache_event
 
@@ -868,7 +873,8 @@ class _cache_context(SkipContext, CacheContext):
         try:
             # Backfill the loaded values into global scope.
             if self._cache.hit:
-                assert self._frame is not None, UNEXPECTED_FAILURE_BOILERPLATE
+                if self._frame is None:
+                    raise RuntimeError(UNEXPECTED_FAILURE_BOILERPLATE)
                 self._cache.restore(self._frame.f_locals)
                 self._record()
                 # Return true to suppress the SkipWithBlock exception.

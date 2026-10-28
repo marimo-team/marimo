@@ -248,9 +248,10 @@ class PackagesCallbacks:
 
         Runs cells affected by successful installation.
         """
-        assert self.package_manager is not None, (
-            "Cannot install packages without a package manager"
-        )
+        if self.package_manager is None:
+            raise RuntimeError(
+                "Cannot install packages without a package manager"
+            )
         if (
             request.manager != self.package_manager.name
             and GLOBAL_SETTINGS.SANDBOX_MODE is None

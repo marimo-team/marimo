@@ -322,7 +322,8 @@ class ThreadSafeStdout(Stdout):
     def _write_with_mimetype(
         self, data: str, mimetype: ConsoleMimeType
     ) -> int:
-        assert self._stream.cell_id is not None
+        if self._stream.cell_id is None:
+            raise RuntimeError("Stream has no active cell")
         if not isinstance(data, str):
             raise TypeError(
                 f"write() argument must be a str, not {type(data).__name__}"
@@ -400,7 +401,8 @@ class ThreadSafeStderr(Stderr):
         *,
         code: str | None = None,
     ) -> int:
-        assert self._stream.cell_id is not None
+        if self._stream.cell_id is None:
+            raise RuntimeError("Stream has no active cell")
         if not isinstance(data, str):
             raise TypeError(
                 f"write() argument must be a str, not {type(data).__name__}"
@@ -455,7 +457,8 @@ class ThreadSafeStdin(Stdin):
         self, prompt: str = "", password: bool = False
     ) -> str:
         """Read input from the standard in stream, with an optional prompt."""
-        assert self._stream.cell_id is not None
+        if self._stream.cell_id is None:
+            raise RuntimeError("Stream has no active cell")
         if not isinstance(prompt, str):
             raise TypeError(
                 f"prompt must be a str, not {type(prompt).__name__}"

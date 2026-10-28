@@ -188,8 +188,10 @@ def _extract_const_string(args: list[ast.expr]) -> str:
     ):
         # But we only match if there is 1 entry.
         (inner,) = inner.values  # type: ignore[attr-defined]
-    assert isinstance(inner, ast.Constant)
-    assert isinstance(inner.value, str)
+    if not isinstance(inner, ast.Constant):
+        raise ValueError("Expected a string constant")
+    if not isinstance(inner.value, str):
+        raise ValueError("Expected a string constant")
     return inner.value
 
 
@@ -215,11 +217,12 @@ def _extract_markdown(tree: ast.Module) -> str | None:
             return None
         if not isinstance(value, ast.Call):
             return None
-        assert value.func.value.id == "mo"  # type: ignore[attr-defined]
+        if value.func.value.id != "mo":  # type: ignore[attr-defined]
+            raise ValueError("Expected a call to mo.md")
         if not value.args:  # Handle mo.md() with no arguments
             return None
         md_lines = _extract_const_string(value.args).split("\n")
-    except (AssertionError, AttributeError, ValueError):
+    except (AttributeError, ValueError):
         # No reason to explicitly catch exceptions if we can't parse out
         # markdown. Just handle it as a code block.
         return None

@@ -39,7 +39,8 @@ class UIElementRegistry:
             # here
             self.delete(object_id, id(self._objects[object_id]()))
         self._objects[object_id] = weakref.ref(ui_element)
-        assert execution_context is not None
+        if execution_context is None:
+            raise RuntimeError("UI element has no execution context")
         self._constructing_cells[object_id] = execution_context.cell_id
         # bindings must be lazily registered, since there aren't any
         # bindings at UIElement object creation time
@@ -120,7 +121,8 @@ class UIElementRegistry:
         if object_id not in self._objects:
             raise KeyError(f"UIElement with id {object_id} not found")
         obj = self._objects[object_id]()
-        assert obj is not None
+        if obj is None:
+            raise RuntimeError("UI element has been garbage collected")
         return obj
 
     def get_cell(self, object_id: UIElementId) -> CellId_t:

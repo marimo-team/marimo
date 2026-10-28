@@ -35,7 +35,8 @@ async def read_snippets(config: MarimoConfig) -> Snippets:
 
     for file in read_snippet_filenames_from_config(config):
         app = load_app(file)
-        assert app is not None
+        if app is None:
+            raise RuntimeError("Snippet could not be loaded as a marimo app")
         sections: list[SnippetSection] = []
         title = ""
 

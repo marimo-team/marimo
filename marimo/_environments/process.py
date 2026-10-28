@@ -53,8 +53,10 @@ async def run_command(
         cwd=cwd,
         start_new_session=True,
     ) as process:
-        assert process.stdout is not None
-        assert process.stderr is not None
+        if process.stdout is None:
+            raise RuntimeError("Process stdout pipe is not available")
+        if process.stderr is None:
+            raise RuntimeError("Process stderr pipe is not available")
         stderr_pipe = process.stderr
 
         def read_stderr() -> str:

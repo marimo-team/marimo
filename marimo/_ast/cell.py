@@ -394,7 +394,8 @@ class CellImpl:
         except ContextNotInitializedError:
             return
 
-        assert self.cell_id is not None
+        if self.cell_id is None:
+            raise RuntimeError("Cell ID is not initialized")
         CellNotificationUtils.broadcast_status(
             cell_id=self.cell_id, status=status, stream=stream
         )
@@ -513,7 +514,8 @@ class Cell:
         """
         if hasattr(self, "_is_coro_cached"):
             return self._is_coro_cached
-        assert self._app is not None
+        if self._app is None:
+            raise RuntimeError("Cell is not bound to an app")
         from marimo._runtime.runner import by_refs
 
         # Currently expensive since `graph` triggers _maybe_initialize on the
@@ -679,7 +681,8 @@ class Cell:
                 `output` is the cell's last expression and `defs` is a `Mapping`
                 from the cell's defined names to their values.
         """
-        assert self._app is not None
+        if self._app is None:
+            raise RuntimeError("Cell is not bound to an app")
 
         # Inject setup cell definitions so that we do not rerun the setup cell.
         # With an exception for tests that should act as if it's in runtime.
@@ -705,7 +708,8 @@ class Cell:
     def __call__(self, *args: Any, **kwargs: Any) -> Any:
         from marimo._ast.toplevel import TopLevelExtraction
 
-        assert self._app is not None
+        if self._app is None:
+            raise RuntimeError("Cell is not bound to an app")
         # Definitions on a module level are not part of the signature, and as
         # such, should not be provided with the call.
 

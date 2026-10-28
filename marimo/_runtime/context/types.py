@@ -182,7 +182,10 @@ class RuntimeContext(abc.ABC):
     def remove_child(self, runtime_context: RuntimeContext) -> None:
         self.children.remove(runtime_context)
         runtime_context.virtual_file_registry.shutdown()
-        assert runtime_context not in self.children
+        if runtime_context in self.children:
+            raise RuntimeError(
+                "Runtime context is still registered as a child after teardown"
+            )
 
     @contextmanager
     def install(self) -> Iterator[None]:

@@ -227,7 +227,8 @@ def download_as(
             manager, geometry_column, options.json.ensure_ascii
         )
     if artifact is None:
-        assert fmt.serialize is not None
+        if fmt.serialize is None:
+            raise RuntimeError("Dataframe format has no serializer")
         artifact = fmt.serialize(manager, options)
     vfile = mo_data.any_data(artifact, ext=fmt.extension)
     base_name = filename if filename is not None else "download"

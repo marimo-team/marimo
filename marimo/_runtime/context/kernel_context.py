@@ -142,7 +142,8 @@ class KernelRuntimeContext(RuntimeContext):
 
     @property
     def app(self) -> InternalApp:
-        assert self._app is not None
+        if self._app is None:
+            raise RuntimeError("Cell is not bound to an app")
         return self._app
 
 

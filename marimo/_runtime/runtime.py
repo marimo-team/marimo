@@ -874,7 +874,8 @@ class Kernel:
             ...
         """
         ctx = get_context()
-        assert isinstance(ctx, KernelRuntimeContext)
+        if not isinstance(ctx, KernelRuntimeContext):
+            raise RuntimeError("Expected a kernel runtime context")
         ctx.execution_context = (
             exec_ctx := ExecutionContext(cell_id, setting_element_value)
         )
@@ -1395,7 +1396,8 @@ class Kernel:
         for cid, error in syntax_errors.items():
             # No chance of collision because cells with syntax errors are not
             # in the graph, so can't be in semantic errors
-            assert cid not in all_errors
+            if cid in all_errors:
+                raise RuntimeError("Cell already has a semantic error")
             all_errors[cid] = (error,)
 
         LOGGER.debug(
@@ -1655,7 +1657,8 @@ class Kernel:
         if not ctx.should_broadcast_data:
             return
         current = EXECUTION_CTX.get()
-        assert current is not None
+        if current is None:
+            raise RuntimeError("No active execution context")
         sql_bindings = get_sql_bindings(cell)
         python_names = {
             name

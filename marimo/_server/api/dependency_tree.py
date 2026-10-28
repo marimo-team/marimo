@@ -64,7 +64,10 @@ def parse_uv_tree(text: str) -> DependencyTreeNode:
                 break
             tag_text = content[start + 1 : end]
             kind, value = tag_text.split(":", 1)
-            assert kind == "extra" or kind == "group"
+            if not (kind == "extra" or kind == "group"):
+                raise ValueError(
+                    "Dependency tag kind must be 'extra' or 'group'"
+                )
             tags.append(DependencyTag(kind=kind, value=value.strip()))
             content = content[:start].strip()
 

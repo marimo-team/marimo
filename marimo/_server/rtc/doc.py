@@ -57,9 +57,8 @@ class LoroDocManager:
         """Create a new loro doc."""
         from loro import LoroDoc, LoroText
 
-        assert len(cell_ids) == len(codes), (
-            "cell_ids and codes must be the same length"
-        )
+        if len(cell_ids) != len(codes):
+            raise ValueError("cell_ids and codes must be the same length")
 
         async with self.loro_docs_lock:
             if file_key in self.loro_docs:
