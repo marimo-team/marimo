@@ -1,7 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import type { PyodideInterface } from "pyodide";
-import type { PyProxy } from "pyodide/ffi";
 import {
   createRPC,
   createRPCRequestHandler,
@@ -56,8 +55,6 @@ interface SessionRequest {
 let activeSession:
   | (Omit<SessionRequest, "code"> & { bridge: SerializedBridge })
   | undefined;
-/** Every running session's bridge, kept while the worker follows its notebook. */
-const sessions = new Set<SerializedBridge>();
 let sessionQueue = Promise.resolve();
 
 async function startSession(
@@ -75,15 +72,22 @@ async function startSession(
       code: opts.code,
       filename: `app-${opts.appId}.py`,
     });
-    const nextBridge = await self.controller.startSession(notebook);
-    sessions.add(nextBridge);
+    const session = await self.controller.prepareSession(notebook);
     // Follow before the session instantiates. Each subscription begins with
     // its own kernel-ready and the session's retained notifications.
-    await follow(nextBridge, opts.sessionGeneration);
+    try {
+      await follow(session.bridge, opts.sessionGeneration);
+    } catch (error) {
+      await session.stop();
+      throw error;
+    }
+    void session.start().catch((error: unknown) => {
+      rpc.send.initializedError({ error: prettyError(error) });
+    });
     if (!activeSession) {
       activeSession = {
         appId: opts.appId,
-        bridge: nextBridge,
+        bridge: session.bridge,
         sessionGeneration: opts.sessionGeneration,
       };
     }
@@ -100,10 +104,6 @@ async function stopActiveSession(): Promise<void> {
   // Stopping closes every session and its notebook subscriptions.
   await self.controller.stopSession();
   activeSession = undefined;
-  for (const bridge of sessions) {
-    (bridge as unknown as PyProxy).destroy();
-  }
-  sessions.clear();
 }
 
 async function follow(

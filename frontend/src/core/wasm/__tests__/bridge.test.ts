@@ -11,6 +11,9 @@ const {
   mockSaveNotebook,
   mockBootstrap,
   rpcListeners,
+  mockNotebookInfo,
+  mockNotebookSubscribe,
+  mockNotebookUnsubscribe,
 } = vi.hoisted(() => ({
   mockBridge: vi.fn(),
   mockNotebookReadFile: vi.fn(),
@@ -18,6 +21,9 @@ const {
   mockSaveNotebook: vi.fn(),
   mockBootstrap: vi.fn(),
   rpcListeners: {} as Record<string, () => void>,
+  mockNotebookInfo: vi.fn(),
+  mockNotebookSubscribe: vi.fn(),
+  mockNotebookUnsubscribe: vi.fn(),
 }));
 
 // Mock browser globals before any imports
@@ -50,6 +56,9 @@ vi.mock("@/core/wasm/rpc", () => ({
         readFile: vi.fn(),
         readNotebook: mockReadNotebook,
         saveNotebook: mockSaveNotebook,
+        notebookInfo: mockNotebookInfo,
+        notebookSubscribe: mockNotebookSubscribe,
+        notebookUnsubscribe: mockNotebookUnsubscribe,
       },
     },
     addMessageListener: (event: string, cb: () => void) => {
@@ -215,6 +224,39 @@ describe("PyodideBridge.sendSave", () => {
       payload: { download: false },
     });
   });
+});
+
+it("cancels a pending notebook subscription before its RPC response", async () => {
+  vi.clearAllMocks();
+  store.set(initialModeAtom, "read");
+  rpcListeners.initialized();
+  const pending = new Deferred<void>();
+  mockNotebookInfo.mockResolvedValue({ id: "n1" });
+  mockNotebookSubscribe.mockReturnValue(pending.promise);
+  mockNotebookUnsubscribe.mockResolvedValue(undefined);
+  const controller = new AbortController();
+  try {
+    const backend = await PyodideBridge.INSTANCE.createNotebookBackend();
+    const following = backend.transport(
+      { cursor: null, signal: controller.signal },
+      { open: vi.fn(), message: vi.fn() },
+    );
+    await vi.waitFor(() =>
+      expect(mockNotebookSubscribe).toHaveBeenCalledOnce(),
+    );
+    const [{ id }] = mockNotebookSubscribe.mock.calls[0];
+    controller.abort();
+    await following;
+    expect(mockNotebookUnsubscribe.mock.calls).toEqual([[id]]);
+
+    pending.resolve();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(mockNotebookUnsubscribe.mock.calls).toEqual([[id]]);
+  } finally {
+    controller.abort();
+    pending.resolve();
+    store.set(initialModeAtom, undefined);
+  }
 });
 
 describe("getWasmWorkerName", () => {

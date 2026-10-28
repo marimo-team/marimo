@@ -8,6 +8,7 @@ import { Deferred } from "@/utils/Deferred";
 import { throwNotImplemented } from "@/utils/functions";
 import { Logger } from "@/utils/Logger";
 import { reloadSafe } from "@/utils/reload-safe";
+import { once } from "@/utils/once";
 import { generateUUID } from "@/utils/uuid";
 import { createModuleWorker } from "@/utils/worker";
 import { notebookIsRunningAtom } from "../cells/cells";
@@ -211,16 +212,19 @@ export class PyodideBridge implements RunRequests, EditRequests {
     const { id } = await this.rpc.proxy.request.notebookInfo();
     return createWasmNotebookBackend({
       notebookId: id,
-      subscribe: async (cursor, emit) => {
+      subscribe: async (cursor, emit, signal) => {
         await this.initialized.promise;
+        signal.throwIfAborted();
         const id = generateUUID();
         this.notebookConsumers.set(id, emit);
-        const close = () => {
+        const close = once(() => {
+          signal.removeEventListener("abort", close);
           this.notebookConsumers.delete(id);
           void this.rpc.proxy.request
             .notebookUnsubscribe(id)
             .catch(Logger.error);
-        };
+        });
+        signal.addEventListener("abort", close, { once: true });
         try {
           await this.rpc.proxy.request.notebookSubscribe({ id, cursor });
           return close;

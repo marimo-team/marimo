@@ -29,7 +29,7 @@ import { t } from "./tracer";
 import type {
   BridgePayload,
   RawBridge,
-  SerializedBridge,
+  WasmSession,
   WasmController,
 } from "./types";
 import { shouldLoadDuckDBPackages } from "../utils";
@@ -69,14 +69,17 @@ async function loadPyodideAndPackages() {
   }
 }
 
-const bridgeReady = new Deferred<SerializedBridge>();
+const sessionReady = new Deferred<WasmSession>();
 let started = false;
 
 // Handle RPC requests
-const notebookSubscriptions = new Map<string, Promise<void>>();
+const notebookSubscriptions = new Map<
+  string,
+  { promise: Promise<void>; cancel(): void }
+>();
 async function getNotebook() {
-  const bridge = await bridgeReady.promise;
-  return bridge.notebook;
+  const session = await sessionReady.promise;
+  return session.bridge.notebook;
 }
 
 const requestHandler = createRPCRequestHandler({
@@ -89,22 +92,36 @@ const requestHandler = createRPCRequestHandler({
     }
   },
   notebookSubscribe: (request: { id: string; cursor: string | null }) => {
+    let canceled = false;
     const subscribing = (async () => {
-      const notebook = await getNotebook();
+      const session = await sessionReady.promise;
+      const notebook = session.bridge.notebook;
       try {
         await notebook.subscribe(request.id, request.cursor, (event) => {
           rpc.send.notebookEvent({ id: request.id, event });
         });
+        if (!canceled) {
+          void session.start().catch((error: unknown) => {
+            rpc.send.initializedError({ error: prettyError(error) });
+          });
+        }
       } finally {
         notebook.destroy();
       }
     })();
-    notebookSubscriptions.set(request.id, subscribing);
+    notebookSubscriptions.set(request.id, {
+      promise: subscribing,
+      cancel: () => {
+        canceled = true;
+      },
+    });
     return subscribing.finally(() => notebookSubscriptions.delete(request.id));
   },
   notebookUnsubscribe: async (id: string) => {
     // An RPC timeout can close a reader while its subscription is still opening.
-    await notebookSubscriptions.get(id)?.catch(() => undefined);
+    const pending = notebookSubscriptions.get(id);
+    pending?.cancel();
+    await pending?.promise.catch(() => undefined);
     const notebook = await getNotebook();
     try {
       notebook.unsubscribe(id);
@@ -143,19 +160,19 @@ const requestHandler = createRPCRequestHandler({
         code: opts.code,
         filename: opts.filename,
       });
-      const startSession = t.wrapAsync(
-        self.controller.startSession.bind(self.controller),
+      const prepareSession = t.wrapAsync(
+        self.controller.prepareSession.bind(self.controller),
       );
       rpc.send.initializingMessage({
         message: "Loading notebook and dependencies...",
       });
-      const bridge = await startSession({
+      const session = await prepareSession({
         code: opts.code,
         filename: opts.filename,
         queryParameters: opts.queryParameters,
         userConfig: opts.userConfig,
       });
-      bridgeReady.resolve(bridge);
+      sessionReady.resolve(session);
       rpc.send.initializingMessage({
         message: "Initializing notebook...",
       });
@@ -286,7 +303,7 @@ const requestHandler = createRPCRequestHandler({
    */
   saveNotebook: async (opts: SaveNotebookRequest) => {
     await pyodideReadyPromise; // Make sure loading is done
-    const bridge = await bridgeReady.promise;
+    const { bridge } = await sessionReady.promise;
     await bridge.save(JSON.stringify(opts));
   },
 
@@ -334,7 +351,7 @@ const requestHandler = createRPCRequestHandler({
     }
 
     // Perform the function call to the Python bridge
-    const bridge = await bridgeReady.promise;
+    const { bridge } = await sessionReady.promise;
 
     // Serialize the payload
     const payloadString =

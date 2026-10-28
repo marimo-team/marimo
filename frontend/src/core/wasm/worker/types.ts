@@ -54,18 +54,21 @@ export interface WasmController {
     code: string;
     filename: string | null;
   }): Promise<{ code: string; filename: string }>;
-  /**
-   * Start the session
-   * @param opts.code - The code to start with
-   * @param opts.fallbackCode - The code to fallback to
-   * @param opts.filename - The filename to start with
-   */
-  startSession(opts: {
+  /** Prepare a session and load its dependencies without executing cells. */
+  prepareSession(opts: {
     queryParameters: Record<string, string | string[]>;
     code: string;
     filename: string | null;
     userConfig: UserConfig;
-  }): Promise<SerializedBridge>;
+  }): Promise<WasmSession>;
+}
+
+export interface WasmSession {
+  readonly bridge: SerializedBridge;
+  /** Start once dependencies are ready. Repeated calls share the same start. */
+  start(): Promise<void>;
+  /** Prevent a pending start and release the session and its bridge. */
+  stop(): Promise<void>;
 }
 
 export interface RawBridge {

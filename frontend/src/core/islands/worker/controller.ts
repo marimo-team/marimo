@@ -3,7 +3,7 @@ import type { PyodideInterface } from "pyodide";
 import { defaultUserConfig } from "@/core/config/config-schema";
 import { DefaultWasmController } from "@/core/wasm/worker/bootstrap";
 import { WasmFileSystem } from "@/core/wasm/worker/fs";
-import type { SerializedBridge } from "@/core/wasm/worker/types";
+import type { WasmSession } from "@/core/wasm/worker/types";
 import { Logger } from "../../../utils/Logger";
 
 export class ReadonlyWasmController extends DefaultWasmController {
@@ -35,17 +35,15 @@ export class ReadonlyWasmController extends DefaultWasmController {
     return { code, filename };
   }
 
-  public override async startSession(opts: {
+  public override async prepareSession(opts: {
     code: string;
     filename: string | null;
-  }): Promise<SerializedBridge> {
-    const bridge = super.startSession({
+  }): Promise<WasmSession> {
+    return super.prepareSession({
       queryParameters: {},
       code: opts.code,
       filename: opts.filename,
       userConfig: defaultUserConfig(),
     });
-
-    return bridge;
   }
 }

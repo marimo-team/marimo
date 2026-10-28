@@ -14,6 +14,8 @@ from marimo._ast.app_config import _AppConfig
 from marimo._config.config import DEFAULT_CONFIG
 from marimo._core.calls import EditCall, dispatch
 from marimo._messaging.notification import (
+    ModelLifecycleNotification,
+    ModelOpen,
     VariableDeclarationNotification,
     VariablesNotification,
 )
@@ -24,9 +26,12 @@ from marimo._runtime.commands import (
     AppMetadata,
     CreateNotebookCommand,
     EditCellsCommand,
+    ModelCommand,
+    ModelUpdateMessage,
 )
 from marimo._session.model import SessionMode
 from marimo._session.notebook import AppFileManager
+from marimo._types.ids import WidgetModelId
 
 
 @pytest.fixture
@@ -276,6 +281,49 @@ async def test_a_later_subscription_resumes_with_retained_notifications(
     assert ops(notifications)[0] == "kernel-ready"
     assert notifications[0]["resumed"] is True
     assert "variables" in ops(notifications)
+
+
+async def test_resubscription_preserves_frontend_widget_updates(bridge):
+    model_id = WidgetModelId("widget-1")
+    await snapshot(bridge)
+    bridge.session._on_message(
+        serialize_kernel_message(
+            ModelLifecycleNotification(
+                model_id=model_id,
+                message=ModelOpen(
+                    state={"value": 1}, buffer_paths=[], buffers=[]
+                ),
+            )
+        )
+    )
+    bridge.session.put_control_request(
+        ModelCommand(
+            model_id=model_id,
+            message=ModelUpdateMessage(state={"value": 7}, buffer_paths=[]),
+            buffers=[],
+        )
+    )
+    bridge.notebook.unsubscribe("reader")
+    notifications = []
+    await snapshot(bridge, notifications=notifications)
+
+    assert [
+        notification
+        for notification in notifications
+        if notification["op"] == "model-lifecycle"
+    ] == [
+        {
+            "op": "model-lifecycle",
+            "model_id": model_id,
+            "message": {
+                "method": "open",
+                "state": {"value": 7},
+                "buffer_paths": [],
+                "buffers": [],
+                "esm_spec": None,
+            },
+        }
+    ]
 
 
 async def test_live_notifications_reach_each_subscription_until_it_closes(
