@@ -7,7 +7,7 @@ from collections.abc import Callable
 from typing import Any, cast
 
 
-def is_callable_method(obj: Any, attr: str) -> bool:
+def is_callable_method(obj: object, attr: str) -> bool:
     """Check if an attribute is a real callable method on an object.
 
     Uses `inspect.getattr_static` so that attributes synthesized by
