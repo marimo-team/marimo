@@ -262,6 +262,51 @@ async def test_sql_results_follow_their_binding_revisions(
         assert await c.outdated() == {}
 
 
+@pytest.mark.parametrize(
+    "deletion", ["del x", "del x\nraise ValueError('failed')"]
+)
+async def test_deleted_bindings_outdate_existing_readers(
+    tmp_path: Path, deletion: str
+) -> None:
+    async with client(
+        tmp_path,
+        on_cell_change="lazy",
+        x="x = 1\nkept = 2\nx",
+        y="y = x + 1",
+        delete=deletion,
+    ) as c:
+        await c.run("x", "y")
+        before = await c.snapshot()
+        x = next(v for v in before.variables.values() if v.name == "x")
+        assert await c.outdated() == {}
+
+        await c.run(
+            "delete", outcome="failed" if "raise" in deletion else "succeeded"
+        )
+        after = await c.snapshot()
+        assert after.variables == {
+            key: value
+            for key, value in before.variables.items()
+            if key != x.id
+        }
+        assert after.latest(c.cells["x"]) == before.latest(c.cells["x"])
+        assert after.latest(c.cells["y"]) == before.latest(c.cells["y"])
+        assert (await c.outdated())["y"] == "replaced"
+        removed = next(
+            i
+            for i, r in enumerate(c.events.records)
+            if r.get("event") == "variable.removed" and r["data"]["id"] == x.id
+        )
+        completed = next(
+            i
+            for i, r in enumerate(c.events.records)
+            if r.get("event") == "execution"
+            and r["data"]["execution"]["cell_id"] == c.cells["delete"]
+            and r["data"]["execution"]["status"] == "completed"
+        )
+        assert removed < completed
+
+
 async def test_autorun_leaves_every_result_current(tmp_path: Path) -> None:
     async with client(
         tmp_path, on_cell_change="autorun", x="x = 1", y="y = x + 1"

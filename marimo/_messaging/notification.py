@@ -732,15 +732,24 @@ class VariablesNotification(Notification, tag="variables"):
     variables: list[VariableDeclarationNotification]
 
 
+class VariableRemoval(BaseStruct):
+    """A binding removed from the runtime's namespace."""
+
+    name: str
+    execution_id: str
+
+
 class VariableValuesNotification(Notification, tag="variable-values"):
     """Current variable values.
 
     Attributes:
         variables: Variables with current values and types.
+        removed: Bindings that no longer exist, identified by their producer.
     """
 
     name: ClassVar[str] = "variable-values"
     variables: list[VariableValue]
+    removed: list[VariableRemoval] = msgspec.field(default_factory=list)
 
 
 class DatasetsNotification(Notification, tag="datasets"):

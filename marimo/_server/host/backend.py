@@ -394,6 +394,13 @@ class SessionBackend(SessionConsumer):
 
     def _handle_notification(self, message: NotificationMessage) -> None:
         if isinstance(message, VariableValuesNotification):
+            for removed in message.removed:
+                self._observe(
+                    be.Unbound(
+                        protocol.ExecutionId(removed.execution_id),
+                        removed.name,
+                    )
+                )
             for value in message.variables:
                 if value.execution_id is None or value.revision is None:
                     continue

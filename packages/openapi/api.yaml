@@ -6306,6 +6306,18 @@ components:
     VariableName:
       format: variable-name
       type: string
+    VariableRemoval:
+      description: A binding removed from the runtime's namespace.
+      properties:
+        execution_id:
+          type: string
+        name:
+          type: string
+      required:
+      - name
+      - execution_id
+      title: VariableRemoval
+      type: object
     VariableValue:
       description: "Variable value and type for variables panel.\n\n    Attributes:\n\
         \        name: Variable name.\n        value: String representation of value.\n\
@@ -6339,11 +6351,17 @@ components:
       type: object
     VariableValuesNotification:
       description: "Current variable values.\n\n    Attributes:\n        variables:\
-        \ Variables with current values and types."
+        \ Variables with current values and types.\n        removed: Bindings that\
+        \ no longer exist, identified by their producer."
       properties:
         op:
           enum:
           - variable-values
+        removed:
+          default: []
+          items:
+            $ref: '#/components/schemas/VariableRemoval'
+          type: array
         variables:
           items:
             $ref: '#/components/schemas/VariableValue'

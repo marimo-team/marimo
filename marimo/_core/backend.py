@@ -161,6 +161,14 @@ class Produced:
 
 
 @dataclass(frozen=True)
+class Unbound:
+    """A variable removed from the namespace, identified by its producer."""
+
+    execution_id: protocol.ExecutionId
+    name: str
+
+
+@dataclass(frozen=True)
 class Concluded:
     """An execution outcome, final when the execution completes."""
 
@@ -190,6 +198,7 @@ Message = (
     | Started
     | Completed
     | Produced
+    | Unbound
     | Concluded
     | Done
 )

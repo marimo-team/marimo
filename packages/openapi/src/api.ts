@@ -7608,6 +7608,14 @@ export interface components {
     /** Format: variable-name */
     VariableName: TypedString<"VariableName">;
     /**
+     * VariableRemoval
+     * @description A binding removed from the runtime's namespace.
+     */
+    VariableRemoval: {
+      execution_id: string;
+      name: string;
+    };
+    /**
      * VariableValue
      * @description Variable value and type for variables panel.
      *
@@ -7631,10 +7639,13 @@ export interface components {
      *
      *         Attributes:
      *             variables: Variables with current values and types.
+     *             removed: Bindings that no longer exist, identified by their producer.
      */
     VariableValuesNotification: {
       /** @enum {unknown} */
       op: "variable-values";
+      /** @default [] */
+      removed?: components["schemas"]["VariableRemoval"][];
       variables: components["schemas"]["VariableValue"][];
     };
     /**
