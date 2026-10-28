@@ -6,12 +6,9 @@ from typing import TYPE_CHECKING, Any
 import pytest
 
 from marimo._config.config import DEFAULT_CONFIG
-from marimo._messaging.msgspec_encoder import encode_json_str
-from marimo._pyodide.bootstrap import create_session, save_file
+from marimo._pyodide.bootstrap import create_session
 from marimo._pyodide.pyodide_session import PyodideSession
-from marimo._server.models.models import SaveNotebookRequest
 from marimo._session.model import SessionMode
-from marimo._types.ids import CellId_t
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -136,27 +133,3 @@ async def test_instantiate(
     assert len(captured_request.execution_requests) == 1
     assert captured_request.execution_requests[0].code == '"Hello"'
     assert captured_request.auto_run is True
-
-
-def test_save_file(
-    mock_app_file: Path,
-) -> None:
-    # Create a save request
-    request = SaveNotebookRequest(
-        codes=["print('hello')"],
-        names=["cell-1"],
-        configs=[{}],
-        cell_ids=[CellId_t("cell-1")],
-        layout=None,
-        filename=str(mock_app_file),
-    )
-
-    # Save the file
-    save_file(
-        request=encode_json_str(request),
-        filename=str(mock_app_file),
-    )
-
-    # Verify the file was saved correctly
-    saved_content = mock_app_file.read_text()
-    assert "print('hello')" in saved_content

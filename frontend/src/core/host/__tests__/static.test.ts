@@ -127,19 +127,25 @@ describe("static notebook backend", () => {
     expect(events.at(-1)).toEqual({ event: "ready", id: "static", data: {} });
   });
 
-  it("advertises no mutations and returns a protocol failure for direct edits", async () => {
-    const backend = createStaticNotebookBackend(snapshot());
-    expect(await backend.notebook(snapshot().notebook.id).edit([])).toEqual({
-      ok: false,
-      status: 501,
-      problem: {
-        type: "tag:marimo.io,2026:host/unsupported-operation",
-        title: "Unsupported operation",
+  it.each(["edit", "save"] as const)(
+    "rejects direct %s commands",
+    async (operation) => {
+      const backend = createStaticNotebookBackend(snapshot());
+      const client = backend.notebook(snapshot().notebook.id);
+      const result =
+        operation === "edit" ? await client.edit([]) : await client.save();
+      expect(result).toEqual({
+        ok: false,
         status: 501,
-        detail: "Static notebooks do not support editing",
-      },
-    });
-  });
+        problem: {
+          type: "tag:marimo.io,2026:host/unsupported-operation",
+          title: "Unsupported operation",
+          status: 501,
+          detail: "Static notebooks do not support mutations",
+        },
+      });
+    },
+  );
 
   it("respects cancellation before opening, during delivery, and for commands", async () => {
     const backend = createStaticNotebookBackend(snapshot());

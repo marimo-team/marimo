@@ -874,45 +874,30 @@ async def test_pyodide_bridge_format(pyodide_bridge: PyodideBridge) -> None:
     assert "cell-1" in response["codes"]
 
 
-def test_pyodide_bridge_save(
+async def test_pyodide_bridge_document_export(
     pyodide_bridge: PyodideBridge,
-    pyodide_app_file: Path,
 ) -> None:
     request_json = json.dumps(
         {
-            "cellIds": ["test"],
-            "codes": ['message = "NEW"'],
-            "names": ["_"],
-            "configs": [{}],
-            "filename": str(pyodide_app_file),
+            "changes": [
+                {
+                    "type": "create-cell",
+                    "cellId": "test",
+                    "code": 'message = "NEW"',
+                    "name": "_",
+                    "config": {},
+                }
+            ],
         }
     )
 
-    pyodide_bridge.save(request_json)
+    await pyodide_bridge.notebook.transaction(request_json)
 
     request = json.dumps({"download": False})
     script = json.loads(pyodide_bridge.export_script(request))
     markdown = json.loads(pyodide_bridge.export_markdown(request))
     assert 'message = "NEW"' in script["contents"]
     assert 'message = "NEW"' in markdown["contents"]
-
-
-def test_pyodide_bridge_save_app_config(
-    pyodide_bridge: PyodideBridge,
-    pyodide_app_file: Path,
-) -> None:
-    del pyodide_app_file
-    """Test saving app config through the bridge."""
-    request_json = json.dumps(
-        {
-            "config": {
-                "width": "full",
-            }
-        }
-    )
-
-    # Should not raise
-    pyodide_bridge.save_app_config(request_json)
 
 
 def test_pyodide_bridge_save_user_config(

@@ -15,20 +15,28 @@ export type FakeEdit = (
   ...args: Parameters<Commands["edit"]>
 ) => ReturnType<Commands["edit"]>;
 
-/** A backend over `transport` whose edits go to `edit`. */
+export type FakeSave = (
+  notebookId: Protocol.NotebookId,
+  ...args: Parameters<Commands["save"]>
+) => ReturnType<Commands["save"]>;
+
+/** A backend over `transport` whose commands go to `edit` and `save`. */
 export function fakeBackend({
   transport = async () => undefined,
   edit = vi.fn<FakeEdit>(),
+  save = vi.fn<FakeSave>(),
   checkHealth,
 }: {
   transport?: NotebookTransport;
   edit?: FakeEdit;
+  save?: FakeSave;
   checkHealth?: () => Promise<boolean>;
 } = {}): NotebookBackend {
   return {
     transport,
     notebook: (notebookId) => ({
       edit: (...args) => edit(notebookId, ...args),
+      save: (...args) => save(notebookId, ...args),
     }),
     checkHealth,
   };

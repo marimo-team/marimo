@@ -251,7 +251,6 @@ expected_methods = [
     "read_code",
     "read_snippets",
     "format",
-    "save",
     "save_app_config",
     "save_user_config",
     "rename_file",
@@ -329,6 +328,23 @@ json.dumps(result)
       assert.deepEqual(JSON.parse(await notebook.call(call)), reply);
       assert.equal(frames.length, count);
       assert.equal(pyodide.runPython("list(session.app_manager.app.cell_manager.codes())[0]"), "x = 7");
+      notebook.set_persistence(async (contents, filename) => {
+        await Promise.resolve();
+        pyodide.FS.writeFile(filename, contents);
+      });
+      const save = JSON.stringify({
+        operation: "notebook.save",
+        params: { notebook_id: cell.notebook_id },
+        headers: { "idempotency-key": "wasm-acceptance-save" },
+        body: {},
+      });
+      const saved = JSON.parse(await notebook.call(save));
+      assert.equal(saved.status, 200);
+      assert.equal(saved.body.document.etag, saved.body.document.saved_etag);
+      assert.match(
+        pyodide.FS.readFile("/home/pyodide/test_notebook.py", { encoding: "utf8" }),
+        /x = 7/,
+      );
       notebook.unsubscribe("acceptance");
     } finally {
       notebook.destroy();
