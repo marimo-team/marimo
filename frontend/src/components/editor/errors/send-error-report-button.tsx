@@ -5,7 +5,7 @@ import { SendIcon } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
-  agentAttachmentsAtom,
+  useNotebookAttachments,
   attachmentLabel,
 } from "@/core/attachments/state";
 import { agentToast } from "@/core/attachments/toast";
@@ -20,7 +20,7 @@ export function SendErrorReportButton({
   getContent: () => unknown;
 }) {
   const hostEnabled = useAtomValue(pairConfigAtom)?.hostEnabled;
-  const agents = useAtomValue(agentAttachmentsAtom);
+  const agents = useNotebookAttachments("agent");
   const stableSessionId = useAtomValue(stableSessionIdAtom);
   const [sending, setSending] = useState(false);
 

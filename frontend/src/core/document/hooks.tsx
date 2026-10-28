@@ -46,7 +46,7 @@ function useDocumentModel() {
 }
 
 /** Null while the document is unavailable; an empty array for an empty document. */
-export function useCellOrder() {
+export function useNotebookCellOrder() {
   const { documentAtom } = useDocumentModel();
   return useAtomValue(useMemo(() => selectOrder(documentAtom), [documentAtom]));
 }
@@ -62,17 +62,17 @@ function useCellField<K extends keyof EditableCell>(id: CellId, field: K) {
 }
 
 /** Undefined for an absent cell; null when the host withholds its source. */
-export function useCellCode(id: CellId) {
+export function useNotebookCellCode(id: CellId) {
   return useCellField(id, "code");
 }
 
 /** Undefined when the cell or document is unavailable. */
-export function useCellName(id: CellId) {
+export function useNotebookCellName(id: CellId) {
   return useCellField(id, "name");
 }
 
 /** Undefined when the cell or document is unavailable. */
-export function useCellConfig(id: CellId) {
+export function useNotebookCellConfig(id: CellId) {
   return useCellField(id, "config");
 }
 
@@ -81,10 +81,10 @@ export function useCellConfig(id: CellId) {
  * Stable until the cell id or document model changes.
  *
  * ```tsx
- * const extension = useCellCodeExtension(cellId);
+ * const extension = useNotebookCellCodeExtension(cellId);
  * ```
  */
-export function useCellCodeExtension(id: CellId) {
+export function useNotebookCellCodeExtension(id: CellId) {
   const model = useDocumentModel();
   const store = useStore();
   return useMemo(
@@ -97,11 +97,11 @@ export function useCellCodeExtension(id: CellId) {
  * A stable edit function. Synchronous callbacks publish atomically or roll back.
  *
  * ```ts
- * const edit = useDocumentEdit();
+ * const edit = useNotebookDocumentEdit();
  * edit((tx) => tx.setCode(cellId, code));
  * ```
  */
-export function useDocumentEdit() {
+export function useNotebookDocumentEdit() {
   return useSetAtom(useDocumentModel().editAtom);
 }
 
@@ -111,7 +111,7 @@ export function useDocumentEdit() {
  * Rejections retain local edits; retry explicitly resubmits them. Requests
  * with an unknown outcome reuse their original key within the retry window.
  */
-export function useDocumentSync() {
+export function useNotebookDocumentSync() {
   const model = useDocumentModel();
   const status = useAtomValue(model.syncStatusAtom);
   return { status, flush: model.flush, retry: model.retry };

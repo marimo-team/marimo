@@ -5,3 +5,9 @@ import type { NotebookReplica } from "../host";
 
 /** The replica owned by the mounted notebook session. */
 export const notebookReplicaAtom = atom<NotebookReplica | null>(null);
+
+/** Attachments visible to this session, empty while no notebook is available. */
+export const notebookAttachmentsAtom = atom((get) => {
+  const replica = get(notebookReplicaAtom);
+  return replica ? get(replica.attachmentsAtom) : [];
+});

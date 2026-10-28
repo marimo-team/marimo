@@ -9,12 +9,12 @@ import type { Document } from "../../host/resources/document";
 import {
   createDocumentModel,
   DocumentProvider,
-  useCellCode,
-  useCellConfig,
-  useCellName,
-  useCellOrder,
-  useDocumentEdit,
-  useDocumentSync,
+  useNotebookCellCode,
+  useNotebookCellConfig,
+  useNotebookCellName,
+  useNotebookCellOrder,
+  useNotebookDocumentEdit,
+  useNotebookDocumentSync,
 } from "..";
 import { cell, CONFIG, document, withCells } from "./fixtures";
 import { type FakeEdit, fakeBackend } from "../../host/__tests__/fixtures";
@@ -65,9 +65,9 @@ describe("document hooks", () => {
     const { store, source, wrapper, controller } = setup(document(), edit);
     const { result, unmount } = renderHook(
       () => ({
-        code: useCellCode("c1"),
-        edit: useDocumentEdit(),
-        sync: useDocumentSync(),
+        code: useNotebookCellCode("c1"),
+        edit: useNotebookDocumentEdit(),
+        sync: useNotebookDocumentSync(),
       }),
       { wrapper, reactStrictMode: true },
     );
@@ -108,13 +108,13 @@ describe("document hooks", () => {
     const { result } = renderHook(
       () => {
         const value = {
-          code: useCellCode("c1"),
-          name: useCellName("c1"),
-          config: useCellConfig("c1"),
-          order: useCellOrder(),
+          code: useNotebookCellCode("c1"),
+          name: useNotebookCellName("c1"),
+          config: useNotebookCellConfig("c1"),
+          order: useNotebookCellOrder(),
         };
         seen(value);
-        return { ...value, edit: useDocumentEdit() };
+        return { ...value, edit: useNotebookDocumentEdit() };
       },
       { wrapper },
     );
@@ -162,23 +162,23 @@ describe("document hooks", () => {
     const onOrder = vi.fn();
     const onEdit = vi.fn();
     function Code() {
-      onCode(useCellCode("c1"));
+      onCode(useNotebookCellCode("c1"));
       return null;
     }
     function Name() {
-      onName(useCellName("c1"));
+      onName(useNotebookCellName("c1"));
       return null;
     }
     function Config() {
-      onConfig(useCellConfig("c1"));
+      onConfig(useNotebookCellConfig("c1"));
       return null;
     }
     function Order() {
-      onOrder(useCellOrder());
+      onOrder(useNotebookCellOrder());
       return null;
     }
     function Edit() {
-      onEdit(useDocumentEdit());
+      onEdit(useNotebookDocumentEdit());
       return null;
     }
     render(
@@ -191,7 +191,8 @@ describe("document hooks", () => {
       </>,
       { wrapper },
     );
-    const edit: ReturnType<typeof useDocumentEdit> = onEdit.mock.calls[0][0];
+    const edit: ReturnType<typeof useNotebookDocumentEdit> =
+      onEdit.mock.calls[0][0];
     const clear = () =>
       [onCode, onName, onConfig, onOrder, onEdit].forEach((fn) =>
         fn.mockClear(),
@@ -246,8 +247,8 @@ describe("document hooks", () => {
     const { wrapper } = setup();
     const { result, rerender } = renderHook(
       (id) => ({
-        code: useCellCode(id),
-        edit: useDocumentEdit(),
+        code: useNotebookCellCode(id),
+        edit: useNotebookDocumentEdit(),
       }),
       { wrapper, initialProps: "c1" },
     );
@@ -264,11 +265,11 @@ describe("document hooks", () => {
     const { store, source, wrapper } = setup(null);
     const { result } = renderHook(
       () => ({
-        order: useCellOrder(),
-        code: useCellCode("c1"),
-        name: useCellName("c1"),
-        config: useCellConfig("c1"),
-        edit: useDocumentEdit(),
+        order: useNotebookCellOrder(),
+        code: useNotebookCellCode("c1"),
+        name: useNotebookCellName("c1"),
+        config: useNotebookCellConfig("c1"),
+        edit: useNotebookDocumentEdit(),
       }),
       { wrapper },
     );
@@ -309,8 +310,8 @@ describe("document hooks", () => {
   it("preserves drafts across Strict Mode remounts until the session ends", () => {
     const { wrapper, controller, detached } = setup();
     const useProbe = () => ({
-      code: useCellCode("c1"),
-      edit: useDocumentEdit(),
+      code: useNotebookCellCode("c1"),
+      edit: useNotebookDocumentEdit(),
     });
     const first = renderHook(useProbe, { wrapper, reactStrictMode: true });
     const edit = first.result.current.edit;
@@ -340,7 +341,10 @@ describe("document hooks", () => {
     );
     const seen = vi.fn();
     function Probe() {
-      seen({ code: useCellCode("c1"), edit: useDocumentEdit() });
+      seen({
+        code: useNotebookCellCode("c1"),
+        edit: useNotebookDocumentEdit(),
+      });
       return null;
     }
     const tree = ({ store, model }: typeof first) => (
@@ -351,7 +355,7 @@ describe("document hooks", () => {
       </Provider>
     );
     const { rerender } = render(tree(first));
-    const oldEdit: ReturnType<typeof useDocumentEdit> =
+    const oldEdit: ReturnType<typeof useNotebookDocumentEdit> =
       seen.mock.calls.at(-1)![0].edit;
     act(() => oldEdit((tx) => tx.setCode("c1", "first draft")));
     rerender(tree(second));
@@ -359,7 +363,7 @@ describe("document hooks", () => {
     expect(first.detached).toHaveBeenCalledOnce();
     const latest: {
       code: string | null | undefined;
-      edit: ReturnType<typeof useDocumentEdit>;
+      edit: ReturnType<typeof useNotebookDocumentEdit>;
     } = seen.mock.calls.at(-1)![0];
     expect(latest.code).toBe("second source");
     expect(latest.edit).not.toBe(oldEdit);
@@ -381,6 +385,8 @@ describe("document hooks", () => {
   });
 
   it("requires a document provider", () => {
-    expect(() => renderHook(useDocumentEdit)).toThrow("DocumentProvider");
+    expect(() => renderHook(useNotebookDocumentEdit)).toThrow(
+      "DocumentProvider",
+    );
   });
 });

@@ -10,7 +10,7 @@ import { ConnectionState } from "../types";
 import { createEditorBackend } from "../backend";
 import { useNotebookReplica } from "../useNotebookReplica";
 import { fakeBackend, fixtureMessages } from "../../host/__tests__/fixtures";
-import { agentAttachmentsAtom } from "../../attachments/state";
+import { useNotebookAttachments } from "../../attachments/state";
 import { notebookReplicaAtom } from "../state";
 
 vi.mock("../backend", () => ({ createEditorBackend: vi.fn() }));
@@ -75,6 +75,17 @@ describe("useNotebookReplica", () => {
       fakeBackend({ transport: fake.transport }),
     );
     const { result, store, unmount } = setup();
+    const attachments = renderHook(
+      () => ({
+        all: useNotebookAttachments(),
+        agents: useNotebookAttachments("agent"),
+      }),
+      {
+        wrapper: ({ children }: PropsWithChildren) => (
+          <Provider store={store}>{children}</Provider>
+        ),
+      },
+    );
     await act(async () => Promise.resolve());
     expect(store.get(notebookReplicaAtom)).toBe(result.current);
     const [connection] = fake.opened;
@@ -82,7 +93,7 @@ describe("useNotebookReplica", () => {
       connection.open();
       fixtureMessages("notebook-events.sse").forEach(connection.receive);
     });
-    expect(store.get(agentAttachmentsAtom)).toEqual([
+    expect(attachments.result.current.agents).toEqual([
       {
         id: "a2",
         notebook_id: "n1",
@@ -91,9 +102,16 @@ describe("useNotebookReplica", () => {
         since: "2026-10-01T09:20:03Z",
       },
     ]);
+    expect(attachments.result.current.all).toEqual(
+      store.get(result.current.attachmentsAtom),
+    );
+    expect(attachments.result.current.all.length).toBeGreaterThan(
+      attachments.result.current.agents.length,
+    );
     unmount();
     expect(store.get(notebookReplicaAtom)).toBeNull();
-    expect(store.get(agentAttachmentsAtom)).toEqual([]);
+    expect(attachments.result.current).toEqual({ all: [], agents: [] });
+    attachments.unmount();
   });
 
   it("uses current callbacks and URL providers without reconnecting on a rerender", async () => {

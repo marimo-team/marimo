@@ -4,12 +4,12 @@
 
 export {
   DocumentProvider,
-  useCellCode,
-  useCellCodeExtension,
-  useCellConfig,
-  useCellName,
-  useCellOrder,
-  useDocumentEdit,
-  useDocumentSync,
+  useNotebookCellCode,
+  useNotebookCellCodeExtension,
+  useNotebookCellConfig,
+  useNotebookCellName,
+  useNotebookCellOrder,
+  useNotebookDocumentEdit,
+  useNotebookDocumentSync,
 } from "./hooks";
 export { createDocumentModel, type DocumentModel } from "./model";
