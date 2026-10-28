@@ -144,7 +144,6 @@ const ACTIONS: Record<keyof AllRequests, Action> = {
   downloadStorage: "waitForConnectionOpen",
 
   // Sync operations that wait for connection
-  sendDocumentTransaction: "waitForConnectionOpen",
   sendCodeCompletionRequest: "waitForConnectionOpen",
 };
 

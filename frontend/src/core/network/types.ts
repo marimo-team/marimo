@@ -117,8 +117,6 @@ export interface FileCreateInput {
 }
 export type UpdateUIElementRequest = schemas["UpdateUIElementRequest"];
 export type ModelRequest = schemas["ModelRequest"];
-export type NotebookDocumentTransactionRequest =
-  schemas["NotebookDocumentTransactionRequest"];
 export type UpdateUserConfigRequest = schemas["UpdateUserConfigRequest"];
 export type ShutdownSessionRequest = schemas["ShutdownSessionRequest"];
 export type Snippet = schemas["Snippet"];
@@ -179,9 +177,6 @@ export interface EditRequests {
   saveAppConfig: (request: SaveAppConfigurationRequest) => Promise<null>;
   saveCellConfig: (request: SetCellConfigRequest) => Promise<null>;
   sendRestart: () => Promise<null>;
-  sendDocumentTransaction: (
-    request: NotebookDocumentTransactionRequest,
-  ) => Promise<null>;
   sendInstallMissingPackages: (
     request: InstallPackagesRequest,
   ) => Promise<null>;

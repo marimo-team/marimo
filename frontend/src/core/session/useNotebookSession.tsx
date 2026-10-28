@@ -6,13 +6,9 @@ import { useEffect, useLayoutEffect, useMemo } from "react";
 import { useErrorBoundary } from "react-error-boundary";
 import { toast } from "@/components/ui/use-toast";
 import { getNotebook, useCellActions } from "@/core/cells/cells";
-import { applyTransactionChanges } from "@/core/cells/document-changes";
 import { AUTOCOMPLETER } from "@/core/codemirror/completion/Autocompleter";
 import { createDocumentModel } from "@/core/notebook/document";
-import type {
-  NotificationMessageData,
-  NotificationPayload,
-} from "@/core/kernel/messages";
+import type { NotificationPayload } from "@/core/kernel/messages";
 import { useNotebookReplica } from "@/core/session/useNotebookReplica";
 import { renderHTML } from "@/plugins/core/RenderHTML";
 import {
@@ -76,6 +72,7 @@ import {
 import { useStorageActions } from "../storage/state";
 import { useVariablesActions } from "../variables/state";
 import type { VariableName } from "../variables/types";
+import { activeDocumentModelAtom } from "./active-notebook";
 import { WebSocketClosedReason, ConnectionState } from "./types";
 
 const SUPPORTS_LAZY_KERNELS = true;
@@ -101,17 +98,7 @@ export function useNotebookSession(opts: {
   const { showBoundary } = useErrorBoundary();
 
   const { handleCellMessage } = useCellActions();
-  const actionsWithoutMiddleware = useCellActions({ skipMiddleware: true });
-
-  const handleDocumentTransaction = (
-    transaction: NotificationMessageData<"notebook-document-transaction">["transaction"],
-  ) => {
-    applyTransactionChanges(
-      transaction.changes,
-      actionsWithoutMiddleware,
-      () => getNotebook().cellIds.inOrderIds,
-    );
-  };
+  const { reconcileDocument } = useCellActions({ skipMiddleware: true });
   const { addCellNotification } = useRunsActions();
   const setKernelState = useSetAtom(kernelStateAtom);
   const setInitialRunCompleted = useSetAtom(initialRunCompletedAtom);
@@ -396,7 +383,7 @@ export function useNotebookSession(opts: {
         );
         return;
       case "notebook-document-transaction":
-        handleDocumentTransaction(msg.data.transaction);
+        // Edits reach the notebook through the host document.
         return;
       case "consumer-capabilities":
         setKioskMode(!msg.data.consumer_capabilities.edit);
@@ -450,12 +437,28 @@ export function useNotebookSession(opts: {
       }),
     [store, replica],
   );
-  // Edits outlive reconnects and end with the session.
+  // Edits outlive reconnects and end with the session. The notebook's cells
+  // follow the document for as long as the session is mounted.
   useEffect(() => {
     const controller = new AbortController();
     documentModel.start({ signal: controller.signal });
-    return () => controller.abort();
-  }, [documentModel]);
+    store.set(activeDocumentModelAtom, documentModel);
+    const follow = () => {
+      const document = store.get(documentModel.documentAtom);
+      if (document !== null) {
+        reconcileDocument(document);
+      }
+    };
+    const unsubscribe = store.sub(documentModel.documentAtom, follow);
+    follow();
+    return () => {
+      unsubscribe();
+      controller.abort();
+      if (store.get(activeDocumentModelAtom) === documentModel) {
+        store.set(activeDocumentModelAtom, null);
+      }
+    };
+  }, [documentModel, store, reconcileDocument]);
 
   // Subscribe before passive connection setup: static/WASM transports can emit synchronously.
   useLayoutEffect(() => {
