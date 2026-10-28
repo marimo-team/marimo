@@ -363,15 +363,7 @@ const CellEditorInternal = ({
       return composeRtcEditorConfig(code, extensions, undefined);
     }
 
-    const rtc = realTimeCollaboration(
-      cellId,
-      (code) => {
-        // It's not really a formatting change,
-        // but this means it won't be marked as stale
-        cellActions.updateCellCode({ cellId, code, formattingChange: true });
-      },
-      initialCode,
-    );
+    const rtc = realTimeCollaboration(cellId, initialCode);
     return composeRtcEditorConfig(code, extensions, rtc);
   };
 
