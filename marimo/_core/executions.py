@@ -304,6 +304,18 @@ class Executions:
                     else:
                         result.outputs[item.id] = item
                     changes.append(item)
+            case be.Unbound(execution_id=execution_id, name=name):
+                if (result := self._results.get(execution_id)) is not None:
+                    for item in tuple(result.variables.values()):
+                        if item.name == name:
+                            del result.variables[item.id]
+                            changes.append(
+                                Removed(
+                                    protocol.Variable,
+                                    item.id,
+                                    result.execution.run_id,
+                                )
+                            )
             case be.Concluded(execution_id=execution_id, outcome=outcome):
                 if (
                     result := self._results.get(execution_id)

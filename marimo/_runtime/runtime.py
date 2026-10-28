@@ -66,6 +66,7 @@ from marimo._messaging.notification import (
     RemoveUIElementsNotification,
     UIElementMessageNotification,
     VariableDeclarationNotification,
+    VariableRemoval,
     VariablesNotification,
     VariableValue,
     VariableValuesNotification,
@@ -1670,8 +1671,7 @@ class Kernel:
                 if cell.import_workspace.is_import_block
                 else set()
             )
-            for name in cell.deleted_refs - self.globals.keys():
-                self._bindings.pop(name, None)
+            self._unbind_variables(cell.deleted_refs - self.globals.keys())
             for name in python_names.intersection(self.globals):
                 value = self.globals[name]
                 previous = (
@@ -1699,6 +1699,19 @@ class Kernel:
                 python_names | {binding.name for binding in sql_bindings}
             )
         self._publish_variable_previews(previews)
+
+    def _unbind_variables(self, names: Iterable[str]) -> None:
+        # Called under _state_lock, like _publish_bindings.
+        removed = [
+            VariableRemoval(name=name, execution_id=binding.execution_id)
+            for name in sorted(names)
+            if (binding := self._bindings.pop(name, None)) is not None
+        ]
+        if removed:
+            broadcast_notification(
+                VariableValuesNotification(variables=[], removed=removed),
+                self.stream,
+            )
 
     def _publish_bindings(
         self, names: Iterable[str]

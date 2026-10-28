@@ -263,13 +263,18 @@ export function useNotebookSession(opts: {
         filterStorageFromVariables(variableNames);
         return;
       case "variable-values":
-        setMetadata(
-          msg.data.variables.map((v) => ({
+        setMetadata([
+          ...(msg.data.removed ?? []).map((v) => ({
+            name: v.name as VariableName,
+            dataType: undefined,
+            value: undefined,
+          })),
+          ...msg.data.variables.map((v) => ({
             name: v.name as VariableName,
             dataType: v.datatype,
             value: v.value,
           })),
-        );
+        ]);
         return;
       case "alert":
         toast({
