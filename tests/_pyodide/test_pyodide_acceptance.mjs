@@ -210,11 +210,13 @@ print("Test notebook created at /home/pyodide/test_notebook.py")
 import json
 import asyncio
 
-# Collect messages sent by the session
+# Collect the notifications the session sends on its notebook stream
 messages = []
 
-def message_callback(msg):
-    messages.append(msg)
+def receive(raw):
+    event = json.loads(raw)
+    if event["event"] == "marimo":
+        messages.append(event["data"]["marimo"])
 
 # Import and create session
 from marimo._pyodide.bootstrap import create_session, instantiate
@@ -226,9 +228,9 @@ def init(auto_instantiate=True):
 session, bridge = create_session(
     filename="/home/pyodide/test_notebook.py",
     query_params={},
-    message_callback=message_callback,
     user_config={},
 )
+await bridge.notebook.subscribe("messages", None, receive)
 
 # Run the session
 init(session)
@@ -278,7 +280,7 @@ if missing_methods:
 # Sleep until we get two messages (one after kernel-ready)
 while len(messages) < 2:
     await asyncio.sleep(0.1)
-message_ops = [json.loads(msg)["op"] for msg in messages]
+message_ops = [msg["op"] for msg in messages]
 
 print("Messages received:", message_ops);
 kernel_ready_received = "kernel-ready" in message_ops

@@ -10,11 +10,6 @@ from marimo._runtime._wasm import ensure_wasm_runtime_bootstrapped
 ensure_wasm_runtime_bootstrapped()
 
 from marimo._config.config import merge_config
-from marimo._messaging.serde import (
-    deserialize_kernel_message,
-    serialize_kernel_message,
-)
-from marimo._pyodide.kernel_ready import kernel_ready
 from marimo._runtime.commands import (
     AppMetadata,
     CreateNotebookCommand,
@@ -30,10 +25,7 @@ from marimo._session.notebook import AppFileManager
 from marimo._utils.parse_dataclass import parse_raw
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
-
     from marimo._config.config import MarimoConfig
-    from marimo._messaging.types import KernelMessage
     from marimo._pyodide.pyodide_session import PyodideBridge, PyodideSession
 
 
@@ -72,7 +64,6 @@ def instantiate(
 def create_session(
     filename: str,
     query_params: SerializedQueryParams,
-    message_callback: Callable[[str], None] | None,
     user_config: MarimoConfig,
 ) -> tuple[PyodideSession, PyodideBridge]:
     """
@@ -81,9 +72,6 @@ def create_session(
     Args:
         filename: The filename of the app.
         query_params: The query parameters from the URL.
-        message_callback: Receives every notification as JSON, starting with
-            kernel-ready, or None when the caller follows the notebook's
-            event stream instead.
         user_config: The user configuration.
 
     Returns:
@@ -92,13 +80,6 @@ def create_session(
     This function is called by the WebAssembly frontend.
     """
     ensure_wasm_runtime_bootstrapped()
-
-    def write_kernel_message(notification: KernelMessage) -> None:
-        assert message_callback is not None
-        data_json_str = notification.decode("utf-8")
-        name = deserialize_kernel_message(notification).name
-        text = f'{{"op": "{name}", "data": {data_json_str}}}'
-        message_callback(text)
 
     # Lazy import to decrease startup time
     from marimo._config.config import merge_default_config
@@ -119,13 +100,6 @@ def create_session(
     )
     app = app_file_manager.app
 
-    if message_callback is not None:
-        # We want this message to be performant, so any expensive operations
-        # should be after this message is sent
-        write_kernel_message(
-            serialize_kernel_message(kernel_ready(app_file_manager, None))
-        )
-
     from marimo._pyodide.pyodide_session import PyodideBridge, PyodideSession
 
     session = PyodideSession(
@@ -144,8 +118,6 @@ def create_session(
         user_config,
     )
 
-    if message_callback is not None:
-        session.consumers.append(write_kernel_message)
     bridge = PyodideBridge(session)
 
     return session, bridge

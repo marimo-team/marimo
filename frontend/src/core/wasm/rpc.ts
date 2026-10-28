@@ -11,7 +11,6 @@ import { TRANSPORT_ID } from "./worker/constants";
 
 export type ParentSchema = RPCSchema<{
   messages: {
-    consumerReady: {};
     bootstrap: WasmRuntimeConfig;
   };
 }>;

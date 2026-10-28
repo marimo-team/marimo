@@ -2,11 +2,7 @@
 import type { PyodideInterface } from "pyodide";
 import type { WasmRuntimeConfig } from "../runtime-config";
 import type { UserConfig } from "@/core/config/config-schema";
-import type {
-  ClientCommand,
-  NotificationPayload,
-} from "@/core/kernel/messages";
-import type { JsonString } from "@/utils/json/base64";
+import type { ClientCommand } from "@/core/kernel/messages";
 import type {
   CodeCompletionRequest,
   CopyNotebookRequest,
@@ -69,8 +65,6 @@ export interface WasmController {
     code: string;
     filename: string | null;
     userConfig: UserConfig;
-    /** Receives every notification, for callers that do not follow the notebook's events. */
-    onMessage?: (message: JsonString<NotificationPayload>) => void;
   }): Promise<SerializedBridge>;
 }
 
