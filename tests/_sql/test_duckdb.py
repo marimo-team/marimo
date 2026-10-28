@@ -837,7 +837,7 @@ def test_duckdb_keeps_tables_when_column_discovery_fails(failure: str) -> None:
                 if failure == "placeholder":
                     oid = connection.execute(
                         "SELECT oid FROM duckdb_schemas() WHERE database_name = 'memory' AND schema_name = 'main'"
-                    ).fetchone()[0]
+                    ).fetchall()[0][0]
                     return [("memory", oid, "example", "__", "INTEGER")]
                 return []
             return query(sql, params)

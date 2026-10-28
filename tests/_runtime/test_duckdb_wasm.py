@@ -18,6 +18,7 @@ from marimo._runtime._wasm._duckdb.sources import (
     remote_file_source_from_table,
 )
 from marimo._sql.engines.duckdb import DuckDBEngine
+from marimo._sql.utils import is_duckdb_v2
 from tests.conftest import ExecReqProvider, mock_pyodide
 
 pytestmark = pytest.mark.requires("duckdb", "pandas", "sqlglot")
@@ -347,7 +348,10 @@ def _query_parity_cases() -> list[QueryParityCase]:
     geojson = RemoteFixture(
         "https://example.com/a.geojson",
         ".geojson",
-        b'{"type":"FeatureCollection","features":[]}',
+        (
+            b'{"type":"FeatureCollection","features":['
+            b'{"type":"Feature","properties":{"name":"marimo"},"geometry":null}]}'
+        ),
     )
     text = RemoteFixture("https://example.com/a.txt", ".txt", b"hello")
     blob = RemoteFixture("https://example.com/a.bin", ".bin", b"\x00\x01")
@@ -491,7 +495,7 @@ def _query_parity_cases() -> list[QueryParityCase]:
         ),
         QueryParityCase(
             "geojson-reader",
-            f"SELECT type FROM read_json_auto('{geojson.url}')",
+            f"SELECT * FROM read_json_auto('{geojson.url}')",
             (geojson,),
         ),
         QueryParityCase(
@@ -767,7 +771,10 @@ class TestDuckDBWasmQueryPatch:
             mock_pyodide(),
             patch(
                 "marimo._runtime._wasm._fetch.fetch_url_bytes",
-                return_value=b'{"type":"FeatureCollection","features":[]}',
+                return_value=(
+                    b'{"type":"FeatureCollection","features":['
+                    b'{"type":"Feature","properties":{"name":"marimo"},"geometry":null}]}'
+                ),
             ),
         ):
             patch_result = patch_duckdb_query_for_wasm(
@@ -778,9 +785,23 @@ class TestDuckDBWasmQueryPatch:
         assert (
             patch_result.query == "SELECT * FROM __marimo_wasm_duckdb_remote_0"
         )
-        assert _records(next(iter(patch_result.tables.values()))) == [
-            {"type": "FeatureCollection", "features": []}
-        ]
+        expected = (
+            [{"geometry": None, "name": "marimo"}]
+            if is_duckdb_v2()
+            else [
+                {
+                    "type": "FeatureCollection",
+                    "features": [
+                        {
+                            "type": "Feature",
+                            "properties": {"name": "marimo"},
+                            "geometry": None,
+                        }
+                    ],
+                }
+            ]
+        )
+        assert _records(next(iter(patch_result.tables.values()))) == expected
 
     @staticmethod
     def test_avoids_reserved_table_names() -> None:

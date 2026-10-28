@@ -693,7 +693,7 @@ logical_plan
         with duckdb.connect(":memory:") as conn:
             conn.sql("CREATE TABLE t AS SELECT * FROM range(5) tbl(id)")
             query = "EXPLAIN SELECT * FROM t"
-            expected = conn.execute(query).fetchone()
+            expected = conn.execute(query).fetchall()[0]
             assert expected is not None
             result = extract_explain_content(conn.sql(query))
 

@@ -104,7 +104,7 @@ def _try_wasm_duckdb(
 def wrapped_sql(
     query: str,
     connection: duckdb.DuckDBPyConnection | None,
-) -> duckdb.DuckDBPyRelation:
+) -> duckdb.DuckDBPyRelation | None:
     DependencyManager.duckdb.require("to execute sql")
     import duckdb
 
@@ -117,6 +117,7 @@ def wrapped_sql(
     if connection is None:
         connection = cast(duckdb.DuckDBPyConnection, duckdb)
 
+    relation: duckdb.DuckDBPyRelation | None
     try:
         ctx = get_context()
     except ContextNotInitializedError:
@@ -125,7 +126,7 @@ def wrapped_sql(
             # No WASM rewrite was needed; use DuckDB's normal SQL path.
             relation = connection.sql(query=query)
         else:
-            relation = cast(duckdb.DuckDBPyRelation, result)
+            relation = cast("duckdb.DuckDBPyRelation | None", result)
     else:
         install_connection = (
             ctx.execution_context.with_connection
@@ -147,7 +148,7 @@ def wrapped_sql(
                     {"query": query, "connection": connection},
                 )
             else:
-                relation = cast(duckdb.DuckDBPyRelation, result)
+                relation = cast("duckdb.DuckDBPyRelation | None", result)
 
     return relation
 
