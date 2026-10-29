@@ -320,8 +320,8 @@ export function documentEditMiddleware(
   next: NotebookState,
   action: CellAction,
 ): void {
-  // The kernel's cells and the document replace the notebook, not edit it.
-  if (action.type === "setCells" || action.type === "reconcileDocument") {
+  // The document replaces the notebook's cells, so following it is no edit.
+  if (action.type === "reconcileDocument") {
     return;
   }
   if (prev.cellIds === next.cellIds && prev.cellData === next.cellData) {

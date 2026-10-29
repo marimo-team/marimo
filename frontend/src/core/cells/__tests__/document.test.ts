@@ -353,9 +353,13 @@ describe("documentEditMiddleware", () => {
     expect(calls).toEqual([["updateConfig", c, { column: null }]]);
   });
 
-  it("ignores the kernel's cells, the document, and runtime state", () => {
+  it("ignores the document and the kernel's run state", () => {
     actions.prepareForRun({ cellId: a });
-    actions.setCells([state.cellData[a]]);
+    actions.setLastRun({
+      lastCodeRun: { [a]: "a = 0" },
+      lastExecutionTime: {},
+    });
+    actions.resetCellRuntimes();
     actions.reconcileDocument(documentOf([cell(a)]));
 
     expect(calls).toEqual([]);

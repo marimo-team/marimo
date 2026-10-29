@@ -11,11 +11,7 @@ import { Spinner } from "@/components/icons/spinner";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/utils/cn";
 import { CellsRenderer } from "../components/editor/renderers/cells-renderer";
-import {
-  hasCellsAtom,
-  notebookIsRunningAtom,
-  useCellActions,
-} from "./cells/cells";
+import { hasCellsAtom, notebookIsRunningAtom } from "./cells/cells";
 import type { AppConfig } from "./config/config-schema";
 import { DocumentProvider } from "./notebook/document";
 import { RuntimeState } from "./kernel/RuntimeState";
@@ -41,7 +37,6 @@ const canPaintRunAppAtom = atom(
 );
 
 export const RunApp: React.FC<AppProps> = ({ appConfig, hideHeader }) => {
-  const { setCells } = useCellActions();
   const { sendComponentValues } = useRequestClient();
 
   // Initialize RuntimeState event-listeners
@@ -54,7 +49,6 @@ export const RunApp: React.FC<AppProps> = ({ appConfig, hideHeader }) => {
 
   const { connection, reconnect, documentModel } = useNotebookSession({
     autoInstantiate: true,
-    setCells: setCells,
     sessionId: getSessionId(),
   });
 

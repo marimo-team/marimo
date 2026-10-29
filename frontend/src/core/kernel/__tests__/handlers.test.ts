@@ -1,7 +1,8 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 import { describe, expect, it, vi } from "vitest";
 import { cellId } from "@/__tests__/branded";
-import { buildCellData, buildLayoutState } from "../handlers";
+import { createCell } from "@/core/cells/types";
+import { buildLayoutState } from "../handlers";
 import type { NotificationMessageData } from "../messages";
 import { queryParamHandlers } from "../queryParamHandlers";
 
@@ -63,145 +64,6 @@ describe("queryParamHandlers", () => {
   });
 });
 
-describe("buildCellData", () => {
-  it("should build cell data from kernel-ready data", () => {
-    const kernelReadyData: NotificationMessageData<"kernel-ready"> = {
-      cell_ids: [cellId("cell1"), cellId("cell2")],
-      codes: ["x = 1", "y = 2"],
-      names: ["__", "__"],
-      configs: [
-        { disabled: false, hide_code: false },
-        { disabled: false, hide_code: false },
-      ],
-      layout: null,
-      resumed: false,
-      ui_values: {},
-      last_executed_code: {},
-      last_execution_time: {},
-      app_config: {
-        width: "normal",
-        app_title: null,
-        layout_file: null,
-        css_file: null,
-        auto_download: [],
-      },
-      kiosk: false,
-      capabilities: {
-        terminal: false,
-      },
-      auto_instantiated: false,
-      consumer_capabilities: { edit: true, interact: true },
-    };
-
-    const cells = buildCellData(kernelReadyData);
-
-    expect(cells).toMatchInlineSnapshot(`
-      [
-        {
-          "code": "x = 1",
-          "config": {
-            "disabled": false,
-            "hide_code": false,
-          },
-          "edited": false,
-          "id": "cell1",
-          "lastCodeRun": null,
-          "lastExecutionTime": null,
-          "name": "__",
-          "serializedEditorState": null,
-        },
-        {
-          "code": "y = 2",
-          "config": {
-            "disabled": false,
-            "hide_code": false,
-          },
-          "edited": false,
-          "id": "cell2",
-          "lastCodeRun": null,
-          "lastExecutionTime": null,
-          "name": "__",
-          "serializedEditorState": null,
-        },
-      ]
-    `);
-  });
-
-  it("should mark cells as edited when code differs from last executed code", () => {
-    const kernelReadyData: NotificationMessageData<"kernel-ready"> = {
-      cell_ids: [cellId("cell1"), cellId("cell2")],
-      codes: ["x = 1", "y = 3"],
-      names: ["__", "__"],
-      configs: [
-        { disabled: false, hide_code: false },
-        { disabled: false, hide_code: false },
-      ],
-      layout: null,
-      resumed: false,
-      ui_values: {},
-      last_executed_code: {
-        cell1: "x = 1",
-        cell2: "y = 2",
-      },
-      last_execution_time: {
-        cell1: 1_234_567_890,
-        cell2: 1_234_567_891,
-      },
-      app_config: {
-        width: "normal",
-        app_title: null,
-        layout_file: null,
-        css_file: null,
-        auto_download: [],
-      },
-      kiosk: false,
-      capabilities: {
-        terminal: false,
-      },
-      auto_instantiated: false,
-      consumer_capabilities: { edit: true, interact: true },
-    };
-
-    const cells = buildCellData(kernelReadyData);
-
-    expect(cells[0].edited).toBe(false);
-    expect(cells[1].edited).toBe(true);
-    expect(cells[0].lastCodeRun).toBe("x = 1");
-    expect(cells[1].lastCodeRun).toBe("y = 2");
-  });
-
-  it("should handle empty cell data", () => {
-    const kernelReadyData: NotificationMessageData<"kernel-ready"> = {
-      cell_ids: [],
-      codes: [],
-      names: [],
-      configs: [],
-      layout: null,
-      resumed: false,
-      ui_values: {},
-      last_executed_code: {},
-      last_execution_time: {},
-      app_config: {
-        width: "normal",
-        app_title: null,
-        layout_file: null,
-        css_file: null,
-        auto_download: [],
-      },
-      kiosk: false,
-      capabilities: {
-        terminal: false,
-      },
-      auto_instantiated: false,
-      consumer_capabilities: { edit: true, interact: true },
-    };
-
-    const cells = buildCellData(kernelReadyData);
-
-    expect(cells).toMatchInlineSnapshot("[]");
-  });
-});
-
 describe("buildLayoutState", () => {
   it("should build default layout state when no layout is provided", () => {
     const kernelReadyData: NotificationMessageData<"kernel-ready"> = {
@@ -229,7 +91,7 @@ describe("buildLayoutState", () => {
       consumer_capabilities: { edit: true, interact: true },
     };
 
-    const cells = buildCellData(kernelReadyData);
+    const cells = [createCell({ id: cellId("cell1") })];
     const mockSetLayoutData = vi.fn();
     const layoutState = buildLayoutState(
       kernelReadyData,
@@ -278,7 +140,10 @@ describe("buildLayoutState", () => {
       consumer_capabilities: { edit: true, interact: true },
     };
 
-    const cells = buildCellData(kernelReadyData);
+    const cells = [
+      createCell({ id: cellId("cell1") }),
+      createCell({ id: cellId("cell2") }),
+    ];
     const mockSetLayoutData = vi.fn();
     const layoutState = buildLayoutState(
       kernelReadyData,
