@@ -17,7 +17,7 @@ import msgspec
 
 from marimo import _loggers as loggers
 from marimo._ast.app_config import _AppConfig
-from marimo._ast.cell import CellConfig, RuntimeStateType
+from marimo._ast.cell import RuntimeStateType
 from marimo._core.protocol import Revision
 from marimo._data._external_storage.models import (
     StorageEntry,
@@ -439,11 +439,7 @@ class KernelReadyNotification(Notification, tag="kernel-ready"):
     """Kernel ready for execution. First notification sent at startup.
 
     Attributes:
-        cell_ids: Cell IDs in order.
-        codes: Source code for each cell.
-        names: Cell names/titles.
         layout: Notebook layout config.
-        configs: Per-cell configuration.
         resumed: Whether resumed from previous session.
         ui_values: Previous UI element values if resumed.
         last_executed_code: Last executed code per cell if resumed.
@@ -457,11 +453,7 @@ class KernelReadyNotification(Notification, tag="kernel-ready"):
     """
 
     name: ClassVar[str] = "kernel-ready"
-    cell_ids: tuple[CellId_t, ...]
-    codes: tuple[str, ...]
-    names: tuple[str, ...]
     layout: LayoutConfig | None
-    configs: tuple[CellConfig, ...]
     resumed: bool
     ui_values: dict[str, JSONType] | None
     last_executed_code: dict[CellId_t, str] | None

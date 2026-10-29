@@ -44,7 +44,9 @@ async def test_connect_kiosk_with_session(client: TestClient) -> None:
     with client.websocket_connect(
         "/ws?session_id=123", headers=_HEADERS
     ) as websocket:
-        notebook_id = notebook_id_of(socket_snapshot(websocket))
+        snapshot = socket_snapshot(websocket)
+        notebook_id = notebook_id_of(snapshot)
+        cells = [e["data"]["cell"] for e in snapshot if e["event"] == "cell"]
         editor_ready = receive_notification(websocket)
         assert_kernel_ready_response(editor_ready)
 
@@ -90,19 +92,19 @@ async def test_connect_kiosk_with_session(client: TestClient) -> None:
             # incremental document endpoint during recovery.
             filename = client.app.state.session_manager.workspace.get_unique_file_key()
             assert filename
-            replacement_code = editor_ready["data"]["codes"][0] + "\n# saved"
+            replacement_code = cells[0]["code"] + "\n# saved"
             response = client.post(
                 "/api/kernel/save",
                 headers=HEADERS,
                 json={
-                    "cellIds": editor_ready["data"]["cell_ids"],
+                    "cellIds": [cell["id"] for cell in cells],
                     "filename": filename,
                     "codes": [
                         replacement_code,
-                        *editor_ready["data"]["codes"][1:],
+                        *(cell["code"] for cell in cells[1:]),
                     ],
-                    "names": editor_ready["data"]["names"],
-                    "configs": editor_ready["data"]["configs"],
+                    "names": [cell["name"] for cell in cells],
+                    "configs": [cell["config"] for cell in cells],
                 },
             )
             assert response.status_code == 200, response.text

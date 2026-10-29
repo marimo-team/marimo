@@ -67,10 +67,6 @@ describe("queryParamHandlers", () => {
 describe("buildLayoutState", () => {
   it("should build default layout state when no layout is provided", () => {
     const kernelReadyData: NotificationMessageData<"kernel-ready"> = {
-      cell_ids: [cellId("cell1")],
-      codes: ["x = 1"],
-      names: ["__"],
-      configs: [{ disabled: false, hide_code: false }],
       layout: null,
       resumed: false,
       ui_values: {},
@@ -110,13 +106,6 @@ describe("buildLayoutState", () => {
 
   it("should build layout state with vertical layout", () => {
     const kernelReadyData: NotificationMessageData<"kernel-ready"> = {
-      cell_ids: [cellId("cell1"), cellId("cell2")],
-      codes: ["x = 1", "y = 2"],
-      names: ["__", "__"],
-      configs: [
-        { disabled: false, hide_code: false },
-        { disabled: false, hide_code: false },
-      ],
       layout: {
         type: "vertical",
         data: [],

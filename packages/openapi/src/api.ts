@@ -5581,11 +5581,7 @@ export interface components {
      * @description Kernel ready for execution. First notification sent at startup.
      *
      *         Attributes:
-     *             cell_ids: Cell IDs in order.
-     *             codes: Source code for each cell.
-     *             names: Cell names/titles.
      *             layout: Notebook layout config.
-     *             configs: Per-cell configuration.
      *             resumed: Whether resumed from previous session.
      *             ui_values: Previous UI element values if resumed.
      *             last_executed_code: Last executed code per cell if resumed.
@@ -5602,9 +5598,6 @@ export interface components {
       /** @default false */
       auto_instantiated?: boolean;
       capabilities: components["schemas"]["KernelCapabilitiesNotification"];
-      cell_ids: components["schemas"]["CellId"][];
-      codes: string[];
-      configs: components["schemas"]["CellConfig"][];
       consumer_capabilities: components["schemas"]["ConsumerCapabilities"];
       kiosk: boolean;
       last_executed_code: {
@@ -5614,7 +5607,6 @@ export interface components {
         [key: string]: number;
       } | null;
       layout: components["schemas"]["LayoutConfig"] | null;
-      names: string[];
       /** @enum {unknown} */
       op: "kernel-ready";
       resumed: boolean;

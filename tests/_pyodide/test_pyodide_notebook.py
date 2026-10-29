@@ -268,7 +268,7 @@ async def test_kernel_ready_follows_the_snapshot(bridge):
     assert set(kinds[4:]) == {"marimo"}
     kernel_ready = frames[4]["data"]["marimo"]
     assert kernel_ready["op"] == "kernel-ready"
-    assert kernel_ready["codes"] == ["x = 1"]
+    assert "codes" not in kernel_ready
     assert kernel_ready["resumed"] is False
 
 
