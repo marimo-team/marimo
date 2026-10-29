@@ -81,7 +81,7 @@ export const EditApp: React.FC<AppProps> = ({
     return () => {
       RuntimeState.INSTANCE.stop();
     };
-  }, []);
+  }, [sendComponentValues]);
 
   const { connection, reconnect } = useNotebookSession({
     autoInstantiate: userConfig.runtime.auto_instantiate,

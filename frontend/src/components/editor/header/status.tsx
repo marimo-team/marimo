@@ -61,20 +61,17 @@ const DisconnectedIcon: React.FC<{ onReconnect?: () => void }> = ({
         disabled ? "App disconnected" : "App disconnected — click to reconnect"
       }
     >
-      {/* Wrapper span keeps the tooltip reachable when the button is
-          disabled — a disabled <button> swallows pointer events. */}
-      <span tabIndex={disabled ? 0 : -1}>
-        <button
-          type="button"
-          className={cn(topLeftStatus, "bg-transparent border-0 p-0")}
-          aria-label={disabled ? "App disconnected" : "Reconnect to app"}
-          data-testid="disconnected-indicator"
-          onClick={onReconnect}
-          disabled={disabled}
-        >
-          <UnlinkIcon className="w-[25px] h-[25px] text-(--red-11)" />
-        </button>
-      </span>
+      <button
+        type="button"
+        className={cn(topLeftStatus, "bg-transparent border-0 p-0")}
+        aria-label={disabled ? "App disconnected" : "Reconnect to app"}
+        data-testid="disconnected-indicator"
+        onClick={onReconnect}
+        // Keep the tooltip reachable by keyboard when reconnection is unavailable.
+        aria-disabled={disabled}
+      >
+        <UnlinkIcon className="w-[25px] h-[25px] text-(--red-11)" />
+      </button>
     </Tooltip>
   );
 };

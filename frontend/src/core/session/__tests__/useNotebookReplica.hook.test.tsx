@@ -111,6 +111,27 @@ describe("useNotebookReplica", () => {
     expect(attachments.result.current.all.length).toBeGreaterThan(
       attachments.result.current.agents.length,
     );
+    const agents = attachments.result.current.agents;
+    const browser = attachments.result.current.all.find(
+      (attachment) => attachment.kind === "browser",
+    )!;
+    act(() =>
+      connection.receive({
+        event: "attachment",
+        data: { attachment: { ...browser, name: "Firefox" } },
+      }),
+    );
+    expect(attachments.result.current.agents).toBe(agents);
+
+    const renamedAgent = { ...agents[0], name: "Renamed agent" };
+    act(() =>
+      connection.receive({
+        event: "attachment",
+        data: { attachment: renamedAgent },
+      }),
+    );
+    expect(attachments.result.current.agents).toEqual([renamedAgent]);
+
     unmount();
     expect(store.get(activeNotebookReplicaAtom)).toBeNull();
     expect(attachments.result.current).toEqual({ all: [], agents: [] });
