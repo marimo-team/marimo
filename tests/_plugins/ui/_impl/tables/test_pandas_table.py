@@ -315,7 +315,7 @@ class TestPandasTableManager(unittest.TestCase):
 
     def test_to_csv_complex(self) -> None:
         complex_data = self.get_complex_data()
-        # Nested index reprs should not wrap differently across pandas versions.
+        # Cap the width to ensure different pandas versions do not churn snapshots
         with pd.option_context("display.width", 1000):
             data = complex_data.to_csv()
         assert isinstance(data, bytes)
