@@ -852,8 +852,6 @@ def _known_provider_base_urls() -> dict[str, str]:
     known service (e.g. `https://api.deepseek.com`) points to the correct provider.
     """
     responses, chat = _openai_compatible_provider_names()
-    # Moonshot sets its URL in __init__, but discovery below creates providers
-    # without running __init__, so its default must be supplied explicitly.
     mapping: dict[str, str] = {"api.moonshot.ai": "moonshotai"}
     # Sorted so that, if two providers normalize alike, the first wins.
     for name in sorted(responses | chat):
