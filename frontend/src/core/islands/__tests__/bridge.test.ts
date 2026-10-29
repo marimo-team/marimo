@@ -396,6 +396,48 @@ describe("IslandsPyodideBridge", () => {
       expect(consumeMessage.mock.calls).toEqual([notification]);
     });
 
+    it("forwards the managed session's host events to the notebook stream", async () => {
+      await initializeSingleApp();
+      const handlers = { open: vi.fn(), message: vi.fn() };
+      void bridge.notebookBackend.transport(
+        { signal: new AbortController().signal, cursor: null },
+        handlers,
+      );
+      expect(handlers.open).toHaveBeenCalledOnce();
+
+      const cell = { event: "cell", id: "1", data: { cell: { id: "c1" } } };
+      sendNotebookEvent(1, cell);
+      sendNotebookEvent(2, { event: "ready", id: "2", data: {} });
+      sendKernelMessage(1);
+
+      expect(handlers.message.mock.calls).toEqual([[cell]]);
+      expect(() => bridge.notebookBackend.notebook("n1")).toThrow(
+        "Islands do not edit",
+      );
+    });
+
+    it("resets the notebook stream when the managed session is replaced or stopped", async () => {
+      await initializeSingleApp();
+      const handlers = { open: vi.fn(), message: vi.fn() };
+      void bridge.notebookBackend.transport(
+        { signal: new AbortController().signal, cursor: null },
+        handlers,
+      );
+
+      mockSingleApp("generated app 2");
+      await bridge.initializeApps();
+      const ready = { event: "ready", id: "2", data: {} };
+      sendNotebookEvent(1, { event: "ready", id: "1", data: {} });
+      sendNotebookEvent(2, ready);
+      await bridge.stopSession("app-1");
+
+      expect(handlers.message.mock.calls).toEqual([
+        [{ event: "reset", data: {} }],
+        [ready],
+        [{ event: "reset", data: {} }],
+      ]);
+    });
+
     it("holds controls until the first app session is ready", async () => {
       setSingleApp();
 

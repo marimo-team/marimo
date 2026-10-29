@@ -6,6 +6,7 @@ import { useEffect, useLayoutEffect, useMemo } from "react";
 import { useErrorBoundary } from "react-error-boundary";
 import { toast } from "@/components/ui/use-toast";
 import { getNotebook, useCellActions } from "@/core/cells/cells";
+import { followDocument } from "@/core/cells/document";
 import { AUTOCOMPLETER } from "@/core/codemirror/completion/Autocompleter";
 import { createDocumentModel } from "@/core/notebook/document";
 import type { NotificationPayload } from "@/core/kernel/messages";
@@ -97,8 +98,7 @@ export function useNotebookSession(opts: {
   const { autoInstantiate, sessionId, setCells } = opts;
   const { showBoundary } = useErrorBoundary();
 
-  const { handleCellMessage } = useCellActions();
-  const { reconcileDocument } = useCellActions({ skipMiddleware: true });
+  const { handleCellMessage, reconcileDocument } = useCellActions();
   const { addCellNotification } = useRunsActions();
   const setKernelState = useSetAtom(kernelStateAtom);
   const setInitialRunCompleted = useSetAtom(initialRunCompletedAtom);
@@ -443,16 +443,13 @@ export function useNotebookSession(opts: {
     const controller = new AbortController();
     documentModel.start({ signal: controller.signal });
     store.set(activeDocumentModelAtom, documentModel);
-    const follow = () => {
-      const document = store.get(documentModel.documentAtom);
-      if (document !== null) {
-        reconcileDocument(document);
-      }
-    };
-    const unsubscribe = store.sub(documentModel.documentAtom, follow);
-    follow();
+    followDocument({
+      store,
+      model: documentModel,
+      reconcile: reconcileDocument,
+      signal: controller.signal,
+    });
     return () => {
-      unsubscribe();
       controller.abort();
       if (store.get(activeDocumentModelAtom) === documentModel) {
         store.set(activeDocumentModelAtom, null);
