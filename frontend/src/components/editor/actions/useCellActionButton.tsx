@@ -39,6 +39,7 @@ import { aiCompletionCellAtom } from "@/core/ai/state";
 import { maybeAddMarimoImport } from "@/core/cells/add-missing-import";
 import { hasOnlyOneCellAtom, useCellActions } from "@/core/cells/cells";
 import { type CellId, SETUP_CELL_ID } from "@/core/cells/ids";
+import { useNotebookDocumentEdit } from "@/core/notebook/document";
 import type { CellData } from "@/core/cells/types";
 import { formatEditorViews } from "@/core/codemirror/format";
 import {
@@ -85,7 +86,6 @@ export function useCellActionButtons({ cell, closePopover }: Props) {
   const {
     createNewCell: createCell,
     updateCellConfig,
-    updateCellName,
     moveCell,
     sendToTop,
     sendToBottom,
@@ -93,6 +93,7 @@ export function useCellActionButtons({ cell, closePopover }: Props) {
     clearCellOutput,
     markUntouched,
   } = useCellActions();
+  const edit = useNotebookDocumentEdit();
   const splitCell = useSplitCellCallback();
   const runCell = useRunCell(cell?.cellId);
   const hasOnlyOneCell = useAtomValue(hasOnlyOneCellAtom);
@@ -406,7 +407,7 @@ export function useCellActionButtons({ cell, closePopover }: Props) {
                     }
                   }}
                   onChange={(newName) =>
-                    updateCellName({ cellId, name: newName })
+                    edit((tx) => tx.setName(cellId, newName))
                   }
                 />
               </div>
@@ -417,7 +418,7 @@ export function useCellActionButtons({ cell, closePopover }: Props) {
           <NameCellInput
             placeholder={"cell name"}
             value={name}
-            onChange={(newName) => updateCellName({ cellId, name: newName })}
+            onChange={(newName) => edit((tx) => tx.setName(cellId, newName))}
             onEnterKey={() => closePopover?.()}
           />
         ),

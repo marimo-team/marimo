@@ -853,19 +853,6 @@ const {
       },
     });
   },
-  updateCellName: (state, action: { cellId: CellId; name: string }) => {
-    const { cellId, name } = action;
-    return updateCellData({
-      state,
-      cellId,
-      cellReducer: (cell) => {
-        return {
-          ...cell,
-          name: name,
-        };
-      },
-    });
-  },
   updateCellConfig: (
     state,
     action: { cellId: CellId; config: Partial<CellConfig> },

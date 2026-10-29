@@ -1751,11 +1751,6 @@ describe("cell reducer", () => {
     expect(scrollToBottom).toHaveBeenCalled();
   });
 
-  it("can update cell name", () => {
-    actions.updateCellName({ cellId: firstCellId, name: "Test Cell" });
-    expect(state.cellData[firstCellId].name).toBe("Test Cell");
-  });
-
   it("can fold and unfold all cells", () => {
     actions.foldAll();
     expect(foldAllBulk).toHaveBeenCalled();
