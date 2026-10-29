@@ -41,7 +41,7 @@ import { viewStateAtom } from "./mode";
 import { useRequestClient } from "./network/requests";
 import { useFilename } from "./saving/filename";
 import { lastSavedNotebookAtom } from "./saving/state";
-import { useNotebookSession } from "./websocket/useNotebookSession";
+import { useNotebookSession } from "./session/useNotebookSession";
 
 interface AppProps {
   /**
@@ -81,7 +81,7 @@ export const EditApp: React.FC<AppProps> = ({
     return () => {
       RuntimeState.INSTANCE.stop();
     };
-  }, []);
+  }, [sendComponentValues]);
 
   const { connection, reconnect } = useNotebookSession({
     autoInstantiate: userConfig.runtime.auto_instantiate,

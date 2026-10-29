@@ -1,6 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { hostImports } from "./host-imports.js";
+import { replicaImports } from "./replica-imports.js";
 import { moduleEntry } from "./module-entry.js";
 
 /**
@@ -331,7 +331,7 @@ const plugin = {
     name: "marimo",
   },
   rules: {
-    "host-imports": hostImports,
+    "replica-imports": replicaImports,
     "module-entry": moduleEntry,
     "add-event-listener-object": addEventListenerObject,
     "remove-event-listener-object": removeEventListenerObject,

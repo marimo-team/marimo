@@ -6,7 +6,7 @@ import {
   type ConnectionPhase,
   WebSocketClosedReason,
   ConnectionState,
-} from "@/core/websocket/types";
+} from "@/core/session/types";
 import { connectionAtom } from "./connection";
 
 export interface ConnectionNotice {

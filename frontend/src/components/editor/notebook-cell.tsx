@@ -59,7 +59,7 @@ import {
   shouldHidePublishedCell,
 } from "../../core/cells/utils";
 import type { UserConfig } from "../../core/config/config-schema";
-import { isAppInteractionDisabled } from "../../core/websocket/connection-utils";
+import { isAppInteractionDisabled } from "../../core/session/connection-utils";
 import { useCellRenderCount } from "../../hooks/useCellRenderCount";
 import type { Theme } from "../../theme/useTheme";
 import { Functions } from "../../utils/functions";

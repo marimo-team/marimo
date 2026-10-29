@@ -11,7 +11,7 @@ import { AppConfigSchema } from "@/core/config/config-schema";
 import { kernelStartupErrorAtom } from "@/core/errors/state";
 import { connectionAtom } from "@/core/network/connection";
 import { sandboxAtom, sandboxSyncAtom } from "@/core/packages/sandbox-state";
-import { WebSocketClosedReason, ConnectionState } from "@/core/websocket/types";
+import { WebSocketClosedReason, ConnectionState } from "@/core/session/types";
 import { chromeAtom } from "../../chrome/state";
 import { runtimeDetailsExpandedAtom } from "../../chrome/panels/runtime-details-state";
 import { ConnectionNotice } from "../connection-notice";

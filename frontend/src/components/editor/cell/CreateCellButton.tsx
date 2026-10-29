@@ -16,8 +16,8 @@ import { MARKDOWN_INITIAL_HIDE_CODE } from "@/core/codemirror/language/languages
 import {
   getConnectionTooltip,
   isAppInteractionDisabled,
-} from "@/core/websocket/connection-utils";
-import type { ConnectionState } from "@/core/websocket/types";
+} from "@/core/session/connection-utils";
+import type { ConnectionState } from "@/core/session/types";
 import { cn } from "@/utils/cn";
 import { Tooltip } from "../../ui/tooltip";
 import { MarkdownIcon, PythonIcon } from "./code/icons";

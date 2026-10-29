@@ -21,8 +21,8 @@ import { RuntimeState } from "./kernel/RuntimeState";
 import { getSessionId } from "./kernel/session";
 import { connectionAtom } from "./network/connection";
 import { useRequestClient } from "./network/requests";
-import { isAppConnecting } from "./websocket/connection-utils";
-import { useNotebookSession } from "./websocket/useNotebookSession";
+import { isAppConnecting } from "./session/connection-utils";
+import { useNotebookSession } from "./session/useNotebookSession";
 
 interface AppProps {
   appConfig: AppConfig;
@@ -49,7 +49,7 @@ export const RunApp: React.FC<AppProps> = ({ appConfig, hideHeader }) => {
     return () => {
       RuntimeState.INSTANCE.stop();
     };
-  }, []);
+  }, [sendComponentValues]);
 
   const { connection, reconnect } = useNotebookSession({
     autoInstantiate: true,

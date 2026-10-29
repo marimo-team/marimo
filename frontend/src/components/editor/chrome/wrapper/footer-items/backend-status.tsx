@@ -14,7 +14,7 @@ import {
   isAppConnected,
   isAppConnecting,
   isAppNotStarted,
-} from "@/core/websocket/connection-utils";
+} from "@/core/session/connection-utils";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import { useInterval } from "@/hooks/useInterval";
 import { Strings } from "@/utils/strings";

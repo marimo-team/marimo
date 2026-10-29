@@ -25,7 +25,7 @@ import {
 import { useInstallPackages } from "@/core/packages/useInstallPackage";
 import { sandboxAtom, sandboxSyncAtom } from "@/core/packages/sandbox-state";
 import { store } from "@/core/state/jotai";
-import { ConnectionState } from "@/core/websocket/types";
+import { ConnectionState } from "@/core/session/types";
 import PackagesPanel from "../packages-panel";
 import { PanelSectionProvider } from "../panel-context";
 import { RuntimeStatusToggle } from "../runtime-status-toggle";

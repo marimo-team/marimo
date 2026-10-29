@@ -4,11 +4,8 @@ import { useAtomValue } from "jotai";
 import { SendIcon } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import {
-  agentAttachmentsAtom,
-  attachmentLabel,
-} from "@/core/attachments/state";
-import { agentToast } from "@/core/attachments/toast";
+import { attachmentLabel, useNotebookAttachments } from "@/core/notebook";
+import { agentToast } from "@/components/editor/agent-toast";
 import { pairConfigAtom } from "@/core/config/pair";
 import { stableSessionIdAtom } from "@/core/kernel/session";
 import { API } from "@/core/network/api";
@@ -20,7 +17,7 @@ export function SendErrorReportButton({
   getContent: () => unknown;
 }) {
   const hostEnabled = useAtomValue(pairConfigAtom)?.hostEnabled;
-  const agents = useAtomValue(agentAttachmentsAtom);
+  const agents = useNotebookAttachments("agent");
   const stableSessionId = useAtomValue(stableSessionIdAtom);
   const [sending, setSending] = useState(false);
 

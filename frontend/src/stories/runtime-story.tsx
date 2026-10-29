@@ -30,7 +30,7 @@ import { requestClientAtom } from "@/core/network/requests";
 import { createStaticRequests } from "@/core/network/requests-static";
 import { sandboxActionsAtom, sandboxAtom } from "@/core/packages/sandbox-state";
 import { filenameAtom } from "@/core/saving/file-state";
-import { WebSocketClosedReason, ConnectionState } from "@/core/websocket/types";
+import { WebSocketClosedReason, ConnectionState } from "@/core/session/types";
 import { HTTPError } from "@/utils/errors";
 
 const manifest = `requires-python = ">=3.13"
