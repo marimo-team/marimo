@@ -152,6 +152,16 @@
   },
   "overrides": [
     {
+      // Clock-dependent labels already read the current time during render.
+      "files": [
+        "src/components/data-table/date-popover.tsx",
+        "src/components/editor/cell/CellStatus.tsx"
+      ],
+      "rules": {
+        "react/purity": "warn"
+      }
+    },
+    {
       "files": [
         "**/__mocks__/**",
         "**/vite.config.*",
