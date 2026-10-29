@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import pickle
 import tempfile
+import textwrap
 from pathlib import Path
 from typing import TYPE_CHECKING
 from unittest import mock
@@ -15,6 +16,7 @@ if TYPE_CHECKING:
 
     from marimo._save.hash import HashKey
 
+from marimo._ast.load import load_app
 from marimo._save.cache import MARIMO_CACHE_VERSION, Cache
 from marimo._save.loaders.lazy import (
     LazyLoader,
@@ -32,6 +34,7 @@ from marimo._save.stubs.lazy_stub import (
     Item,
     Meta,
 )
+from tests._runtime._helpers.session import mocked_kernel_session
 
 
 class TestDictStore:
@@ -698,6 +701,55 @@ class TestFlushAll:
 
 
 class TestCacheStateResolution:
+    async def test_embedded_notebooks_share_only_their_session_cache(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        monkeypatch.chdir(tmp_path)
+        monkeypatch.setattr("marimo._save.loaders.is_pyodide", lambda: True)
+        monkeypatch.setattr(WasmLazyStore, "_http_get", lambda *args: None)
+
+        notebook = tmp_path / "child.py"
+        notebook.write_text(
+            textwrap.dedent(
+                """
+                import marimo
+                app = marimo.App()
+
+                @app.cell
+                def _():
+                    seed = 0
+                    return (seed,)
+
+                @app.cell
+                def _(seed):
+                    import marimo as mo
+
+                    with mo.persistent_cache("shared") as cached:
+                        value = {"values": [seed]}
+                    was_hit = cached.hit
+                    return value, was_hit
+                """
+            )
+        )
+
+        for _ in range(2):
+            with mocked_kernel_session() as tk:
+                results = []
+                for seed in (1, 2, 1, 2):
+                    app = load_app(notebook)
+                    assert app is not None
+                    result = await app.embed(defs={"seed": seed})
+                    assert not tk.stderr.messages
+                    results.append(
+                        (result.defs["value"], result.defs["was_hit"])
+                    )
+                assert results == [
+                    ({"values": [1]}, False),
+                    ({"values": [2]}, False),
+                    ({"values": [1]}, True),
+                    ({"values": [2]}, True),
+                ]
+
     def test_resolves_to_root_context(self) -> None:
         """Child contexts (embedded apps) share the root's cache state."""
         from types import SimpleNamespace
