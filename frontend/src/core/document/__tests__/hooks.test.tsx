@@ -7,15 +7,14 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { Deferred } from "@/utils/Deferred";
 import type { Document } from "../../host/resources/document";
 import {
-  createDocumentModel,
-  DocumentProvider,
   useNotebookCellCode,
   useNotebookCellConfig,
   useNotebookCellName,
   useNotebookCellOrder,
   useNotebookDocumentEdit,
   useNotebookDocumentSync,
-} from "..";
+} from "@/core/notebook";
+import { createDocumentModel, DocumentProvider } from "..";
 import { cell, CONFIG, document, withCells } from "./fixtures";
 import { type FakeEdit, fakeBackend } from "../../host/__tests__/fixtures";
 

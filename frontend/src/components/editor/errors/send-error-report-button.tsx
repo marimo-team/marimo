@@ -4,10 +4,8 @@ import { useAtomValue } from "jotai";
 import { SendIcon } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import {
-  useNotebookAttachments,
-  attachmentLabel,
-} from "@/core/attachments/state";
+import { attachmentLabel } from "@/core/attachments/state";
+import { useNotebookAttachments } from "@/core/notebook";
 import { agentToast } from "@/core/attachments/toast";
 import { pairConfigAtom } from "@/core/config/pair";
 import { stableSessionIdAtom } from "@/core/kernel/session";

@@ -10,7 +10,7 @@ import { ConnectionState } from "../types";
 import { createEditorBackend } from "../backend";
 import { useNotebookReplica } from "../useNotebookReplica";
 import { fakeBackend, fixtureMessages } from "../../host/__tests__/fixtures";
-import { useNotebookAttachments } from "../../attachments/state";
+import { useNotebookAttachments } from "@/core/notebook";
 import { notebookReplicaAtom } from "../state";
 
 vi.mock("../backend", () => ({ createEditorBackend: vi.fn() }));
