@@ -86,3 +86,32 @@ The export runs [uv](https://docs.astral.sh/uv/getting-started/installation/),
 a Python package manager, to detect local modules, so install it on the machine
 that runs the export. Point uv at the same index, for example with
 [`UV_DEFAULT_INDEX`](https://docs.astral.sh/uv/reference/environment/#uv_default_index).
+
+## Publish to deed.page
+
+[deed.page](https://deed.page) is a static host that publishes files with one
+HTTP request and no account. A single-file export is small enough to publish
+directly:
+
+```bash
+marimo export html-wasm notebook.py --single-file -o notebook.html
+curl -T notebook.html "https://deed.page/v1/sites?slug=my-notebook-7k2q"
+```
+
+Choose your own slug. The JSON response includes the site `url`, for example
+`https://my-notebook-7k2q.deed.page/`, and a `token` that is shown only once.
+Save the token: you need it to update or delete the site.
+
+```bash
+# update
+curl -T notebook.html "https://deed.page/v1/sites/my-notebook-7k2q" \
+  -H "Authorization: Bearer $DEEDPAGE_TOKEN"
+# delete
+curl -X DELETE "https://deed.page/v1/sites/my-notebook-7k2q" \
+  -H "Authorization: Bearer $DEEDPAGE_TOKEN"
+```
+
+Free sites are limited to 25 MB and show a small deed.page badge. A directory
+export (`-o dist`) includes marimo's frontend assets and can exceed that limit,
+so use `--single-file` on the free plan. See the
+[deed.page docs](https://deed.page/docs) for limits and larger uploads.
