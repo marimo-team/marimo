@@ -12,6 +12,7 @@ from marimo._utils.files import async_expand_file_patterns
 if TYPE_CHECKING:
     from collections.abc import Callable
 
+    from marimo._ast.type_inference import TypeInferenceMode
     from marimo._config.config import LintConfig
 
 
@@ -64,6 +65,8 @@ def run_check(
     ignore_scripts: bool = False,
     formatter: str = "full",
     lint_config: LintConfig | None = None,
+    infer_types: TypeInferenceMode | None = "off",
+    line_length: int | None = 79,
 ) -> Linter:
     """Run linting checks on files matching patterns (CLI entry point).
 
@@ -78,6 +81,8 @@ def run_check(
         ignore_scripts: Whether to ignore files not recognizable as marimo notebooks
         formatter: Output format for diagnostics ("full" or "json")
         lint_config: Optional lint rule selection config
+        infer_types: Inference backend, or None to use notebook configuration.
+        line_length: Parameter line width, or None to use notebook configuration.
 
     Returns:
         Linter with per-file status and diagnostics
@@ -92,6 +97,8 @@ def run_check(
         ignore_scripts=ignore_scripts,
         formatter=formatter,
         lint_config=lint_config,
+        infer_types=infer_types,
+        line_length=line_length,
     )
     linter.run_streaming(files_to_check)
     return linter

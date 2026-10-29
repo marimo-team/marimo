@@ -5368,6 +5368,8 @@ export interface components {
      *         - `line_length`: max line length
      */
     FormattingConfig: {
+      /** @enum {unknown} */
+      infer_types?: "jedi" | "off";
       line_length: number;
     };
     /**

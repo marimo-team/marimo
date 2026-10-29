@@ -32,6 +32,7 @@ if TYPE_CHECKING:
     from collections.abc import Iterable, Mapping
     from pathlib import Path
 
+    from marimo._ast.type_inference import TypeInferenceMode
     from marimo._messaging.notebook.document import NotebookCell
 
 LOGGER = _loggers.marimo_logger()
@@ -83,6 +84,8 @@ class NotebookWriter:
         notebook: NotebookSerializationV1,
         persist: bool,
         previous_path: Path | None = None,
+        infer_types: TypeInferenceMode = "off",
+        line_length: int = 79,
     ) -> str:
         """Serialize `notebook` for `path` and, if `persist`, write it.
 
@@ -131,7 +134,9 @@ class NotebookWriter:
                 valid=notebook.valid,
                 filename=str(path),
             )
-            contents = handler.serialize(notebook)
+            contents = handler.serialize(
+                notebook, infer_types=infer_types, line_length=line_length
+            )
 
             if persist:
                 if self.content_matches_last_save(contents):

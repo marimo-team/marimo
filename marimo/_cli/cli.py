@@ -1584,6 +1584,8 @@ def check(
         ignore_scripts=ignore_scripts,
         formatter=formatter,
         lint_config=lint_config,
+        infer_types=None,
+        line_length=None,
     )
 
     # Get counts from linter (fix happens automatically during streaming)
