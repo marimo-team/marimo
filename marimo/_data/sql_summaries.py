@@ -150,7 +150,7 @@ def get_column_type(
     if is_duckdb_v2():
         table_name = fully_qualified_table_name
         rows = execute_duckdb_sql(
-            "SELECT type FROM pragma_table_info(?) WHERE name = ?",
+            "SELECT type FROM pragma_table_info(?) WHERE name = ? LIMIT 1",
             [fully_qualified_table_name, column_name],
         ).fetchall()
     elif "." in fully_qualified_table_name:
@@ -165,6 +165,7 @@ def get_column_type(
         AND table_schema = $2
         AND table_catalog = $3
         AND column_name = $4
+        LIMIT 1
         """
         rows = execute_duckdb_sql(
             column_info_query,
@@ -178,6 +179,7 @@ def get_column_type(
         FROM information_schema.columns
         WHERE table_name = $1
         AND column_name = $2
+        LIMIT 1
         """
         rows = execute_duckdb_sql(
             column_info_query,

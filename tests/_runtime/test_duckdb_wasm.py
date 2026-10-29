@@ -348,6 +348,11 @@ def _query_parity_cases() -> list[QueryParityCase]:
     geojson = RemoteFixture(
         "https://example.com/a.geojson",
         ".geojson",
+        b'{"type":"FeatureCollection","features":[]}',
+    )
+    populated_geojson = RemoteFixture(
+        "https://example.com/populated.geojson",
+        ".geojson",
         (
             b'{"type":"FeatureCollection","features":['
             b'{"type":"Feature","properties":{"name":"marimo"},"geometry":null}]}'
@@ -497,6 +502,11 @@ def _query_parity_cases() -> list[QueryParityCase]:
             "geojson-reader",
             f"SELECT * FROM read_json_auto('{geojson.url}')",
             (geojson,),
+        ),
+        QueryParityCase(
+            "populated-geojson-reader",
+            f"SELECT * FROM read_json_auto('{populated_geojson.url}')",
+            (populated_geojson,),
         ),
         QueryParityCase(
             "text-and-blob",
@@ -767,6 +777,30 @@ class TestDuckDBWasmQueryPatch:
 
     @staticmethod
     def test_rewrites_direct_geojson_literal() -> None:
+        with (
+            mock_pyodide(),
+            patch(
+                "marimo._runtime._wasm._fetch.fetch_url_bytes",
+                return_value=b'{"type":"FeatureCollection","features":[]}',
+            ),
+        ):
+            patch_result = patch_duckdb_query_for_wasm(
+                "FROM 'https://example.com/a.geojson'",
+            )
+
+        assert patch_result is not None
+        assert (
+            patch_result.query == "SELECT * FROM __marimo_wasm_duckdb_remote_0"
+        )
+        expected = (
+            []
+            if is_duckdb_v2()
+            else [{"type": "FeatureCollection", "features": []}]
+        )
+        assert _records(next(iter(patch_result.tables.values()))) == expected
+
+    @staticmethod
+    def test_rewrites_populated_geojson_literal() -> None:
         with (
             mock_pyodide(),
             patch(

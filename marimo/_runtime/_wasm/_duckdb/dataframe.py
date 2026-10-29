@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import os
 import tempfile
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 from urllib.parse import urlparse
 
 if TYPE_CHECKING:
@@ -108,7 +108,6 @@ def _read_json_objects_path(
     path: str, options: Mapping[str, Any], function_name: str
 ) -> pd.DataFrame:
     import duckdb
-    import pandas as pd
 
     # DuckDB exposes JSON-object readers as SQL table functions, not Python
     # module methods, so invoke the table function with bound parameters.
@@ -121,10 +120,7 @@ def _read_json_objects_path(
     )
     if relation is None:
         raise ValueError("DuckDB JSON reader returned no relation")
-    dataframe = relation.df()
-    if not isinstance(dataframe, pd.DataFrame):
-        raise TypeError("DuckDB JSON reader did not return a pandas DataFrame")
-    return dataframe
+    return cast("pd.DataFrame", relation.df())  # type: ignore[redundant-cast]
 
 
 def read_text_dataframe(data: bytes, url: str) -> pd.DataFrame:
