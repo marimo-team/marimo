@@ -345,14 +345,6 @@ export class PyodideBridge implements RunRequests, EditRequests {
     return response as FormatResponse;
   };
 
-  public sendDeleteCell: EditRequests["sendDeleteCell"] = async (request) => {
-    await this.putControlRequest({
-      type: "delete-cell",
-      ...request,
-    });
-    return null;
-  };
-
   public sendInstallMissingPackages: EditRequests["sendInstallMissingPackages"] =
     async (request) => {
       this.putControlRequest({

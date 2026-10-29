@@ -53,7 +53,6 @@ describe("createLazyRequests", () => {
       sendInstantiate: vi.fn().mockResolvedValue({ instantiated: true }),
       sendFunctionRequest: vi.fn().mockResolvedValue({ result: "data" }),
       sendRestart: vi.fn().mockResolvedValue({ restarted: true }),
-      sendDeleteCell: vi.fn().mockResolvedValue({ deleted: true }),
       sendInterrupt: vi.fn().mockResolvedValue({ interrupted: true }),
       sendPdb: vi.fn().mockResolvedValue({ pdb: true }),
       sendRunScratchpad: vi.fn().mockResolvedValue({ run: true }),
@@ -320,7 +319,6 @@ describe("createLazyRequests", () => {
         cellIds: [cellId("cell1")],
         codes: ["code"],
       });
-      await lazyRequests.sendDeleteCell({ cellId: cellId("cell2") });
       await lazyRequests.sendInstantiate({
         objectIds: [uiElementId("obj1")],
         values: [],
@@ -328,7 +326,7 @@ describe("createLazyRequests", () => {
 
       // Init should only be called once
       expect(mockInit).toHaveBeenCalledTimes(1);
-      expect(mockGetRuntimeManager).toHaveBeenCalledTimes(3);
+      expect(mockGetRuntimeManager).toHaveBeenCalledTimes(2);
     });
   });
 });

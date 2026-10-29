@@ -142,14 +142,6 @@ export function createNetworkRequests(): EditRequests & RunRequests {
         })
         .then(handleResponseReturnNull);
     },
-    sendDeleteCell: (request) => {
-      return getClient()
-        .POST("/api/kernel/delete", {
-          body: request,
-          params: getParams(),
-        })
-        .then(handleResponseReturnNull);
-    },
     sendCodeCompletionRequest: async (request) => {
       await waitForConnectionOpen();
       return getClient()

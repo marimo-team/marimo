@@ -353,7 +353,6 @@ def generate_server_api_schema() -> dict[str, Any]:
         models.CodeCompletionRequest,
         models.CopyNotebookRequest,
         models.DebugCellRequest,
-        models.DeleteCellRequest,
         models.DiscoverDataSourcesRequest,
         models.ExecuteScratchpadRequest,
         models.FormatCellsRequest,

@@ -1,12 +1,11 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { historyField } from "@codemirror/commands";
+import type * as Protocol from "@marimo-team/client/protocol";
 import { type Atom, atom, useAtom, useAtomValue } from "jotai";
 import { atomFamily, selectAtom, splitAtom } from "jotai/utils";
 import { createRef, type ReducerWithoutAction } from "react";
 import type { CellHandle } from "@/components/editor/notebook-cell";
-import type { EditableDocument } from "@/core/notebook/document";
-import type { CollapsibleTree } from "@/utils/id-tree";
+import type { EditableDocument, Placement } from "@/core/notebook/document";
 import {
   type CellColumnId,
   type CellIndex,
@@ -31,7 +30,7 @@ import { createDeepEqualAtom, store } from "../state/jotai";
 import { isWasm } from "../wasm/utils";
 import { prepareCellForExecution, transitionCell } from "./cell";
 import { applyDocument, documentEditMiddleware } from "./document";
-import { CellId, SCRATCH_CELL_ID, SETUP_CELL_ID } from "./ids";
+import { CellId, SCRATCH_CELL_ID } from "./ids";
 import { type CellLog, getCellLogsForMessage } from "./logs";
 import {
   focusAndScrollCellIntoView,
@@ -55,17 +54,21 @@ import {
   notebookQueueOrRunningCount,
 } from "./utils";
 
+/** A deleted cell as it was, with where it went in the document. */
+export interface DeletedCell {
+  cell: Protocol.CellInput;
+  placement: Placement;
+  /** The editor's state at deletion, so undo brings its history back. */
+  serializedEditorState: SerializedEditorState | null;
+}
+
 /**
- * History entry for undoing a cell deletion.
+ * History entry for undoing one deletion, of one or more cells.
  */
 export interface UndoDeleteEntry {
   type: "delete";
-  name: string;
-  serializedEditorState: SerializedEditorState;
-  column: CellColumnId;
-  index: CellIndex;
-  isSetupCell: boolean;
-  config: CellConfig;
+  /** In document order. Each cell is placed after the one before it. */
+  cells: DeletedCell[];
 }
 
 /**
@@ -565,128 +568,29 @@ const {
       cellIds: state.cellIds.compact(),
     };
   },
-  deleteCell: (state, action: { cellId: CellId }) => {
-    const cellId = action.cellId;
-
-    // Can't delete the last cell, across all columns
-    if (state.cellIds.hasOnlyOneId()) {
+  /**
+   * Put moved cells back where they were.
+   *
+   * TODO(MO-8028): Move to `undoDeleteCellAtom` with the order family.
+   */
+  undoMoveCells: (state, action: UndoMoveEntry) => {
+    const { cellIds, placements } = action;
+    if (
+      cellIds.length === 0 ||
+      placements.length !== cellIds.length ||
+      cellIds.some((id) => !state.cellData[id])
+    ) {
       return state;
     }
-
-    let column: CollapsibleTree<CellId>;
-    try {
-      column = state.cellIds.findWithId(cellId);
-    } catch (error) {
-      // Expected for kernel-only cells or out-of-order transactions.
-      Logger.warn("Skipping delete for missing cellId", {
-        cellId,
-        error,
-      });
-      return state;
-    }
-
-    const cellIndex = column.indexOfOrThrow(cellId);
-    const focusIndex = cellIndex === 0 ? 1 : cellIndex - 1;
-    let scrollKey: CellId | null = null;
-    if (column.length > 1) {
-      scrollKey = column.atOrThrow(focusIndex);
-    }
-
-    const editorView = state.cellHandles[cellId].current?.editorView;
-    const serializedEditorState = editorView?.state.toJSON({
-      history: historyField,
-    });
-    if (serializedEditorState) {
-      serializedEditorState.doc = state.cellData[cellId].code;
-    }
-
-    // release the granular atom(s) created for this cell
-    releaseCellAtoms(cellId);
-    const prevData = state.cellData[cellId];
+    const toRestore = cellIds.map((id, i) => ({
+      id,
+      columnId: placements[i].columnId,
+      index: placements[i].index,
+    }));
     return {
       ...state,
-      cellIds: state.cellIds.deleteById(cellId),
-      history: [
-        ...state.history,
-        {
-          type: "delete",
-          name: prevData.name,
-          serializedEditorState: serializedEditorState,
-          column: column.id,
-          index: cellIndex,
-          isSetupCell: cellId === SETUP_CELL_ID,
-          config: prevData.config,
-        },
-      ],
-      scrollKey: scrollKey,
-    };
-  },
-  undoDeleteCell: (state) => {
-    if (state.history.length === 0) {
-      return state;
-    }
-
-    const last = state.history[state.history.length - 1];
-
-    if (last.type === "move") {
-      const { cellIds, placements } = last;
-      if (
-        cellIds.length === 0 ||
-        placements.length !== cellIds.length ||
-        cellIds.some((id) => !state.cellData[id])
-      ) {
-        return { ...state, history: state.history.slice(0, -1) };
-      }
-      const toRestore = cellIds.map((id, i) => ({
-        id,
-        columnId: placements[i].columnId,
-        index: placements[i].index,
-      }));
-      return {
-        ...state,
-        cellIds: state.cellIds.placeCells(toRestore),
-        history: state.history.slice(0, -1),
-        scrollKey: cellIds[0] ?? null,
-      };
-    }
-
-    const {
-      name,
-      serializedEditorState = { doc: "" },
-      column,
-      index,
-      isSetupCell,
-      config,
-    } = last;
-
-    const cellId = isSetupCell ? SETUP_CELL_ID : CellId.create();
-    const undoCell = createCell({
-      id: cellId,
-      name,
-      code: serializedEditorState.doc,
-      edited: serializedEditorState.doc.trim().length > 0,
-      serializedEditorState,
-      config,
-    });
-
-    return {
-      ...state,
-      cellIds: state.cellIds.insertId(cellId, column, index),
-      cellData: {
-        ...state.cellData,
-        [cellId]: undoCell,
-      },
-      cellRuntime: {
-        ...state.cellRuntime,
-        [cellId]: createCellRuntimeState(),
-      },
-      cellHandles: {
-        ...state.cellHandles,
-        [cellId]: createRef(),
-      },
-      history: state.history.slice(0, -1),
-      // Scroll to the newly created cell
-      scrollKey: cellId,
+      cellIds: state.cellIds.placeCells(toRestore),
+      scrollKey: cellIds[0] ?? null,
     };
   },
   clearSerializedEditorState: (state, action: { cellId: CellId }) => {

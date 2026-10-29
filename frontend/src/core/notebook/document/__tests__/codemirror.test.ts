@@ -63,6 +63,8 @@ function languages(id: CellId) {
       createCell: vi.fn(),
       moveToNextCell: vi.fn(),
       addSetupCell: vi.fn(),
+      deleteCells: vi.fn(),
+      undoDeleteCell: vi.fn(),
       onRun: vi.fn(),
       deleteCell: vi.fn(),
       afterToggleMarkdown: vi.fn(),
