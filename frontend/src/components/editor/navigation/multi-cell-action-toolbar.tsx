@@ -36,12 +36,12 @@ import {
   notebookAtom,
   useCellActions,
 } from "@/core/cells/cells";
+import { useNotebookDocumentEdit } from "@/core/notebook/document";
 import type { CellId } from "@/core/cells/ids";
 import { usePendingDeleteService } from "@/core/cells/pending-delete-service";
 import { formatEditorViews } from "@/core/codemirror/format";
 import { userConfigAtom } from "@/core/config/config";
 import type { HotkeyAction } from "@/core/hotkeys/hotkeys";
-import { useRequestClient } from "@/core/network/requests";
 import type { CellConfig } from "@/core/network/types";
 import { store } from "@/core/state/jotai";
 import { useEventListener } from "@/hooks/useEventListener";
@@ -112,20 +112,15 @@ const CellStateDropdown: React.FC<{
 };
 
 export function useMultiCellActionButtons(cellIds: CellId[]) {
-  const {
-    updateCellConfig,
-    moveCell,
-    clearCellOutput,
-    sendToTop,
-    sendToBottom,
-  } = useCellActions();
+  const { moveCell, clearCellOutput, sendToTop, sendToBottom } =
+    useCellActions();
+  const edit = useNotebookDocumentEdit();
   const deleteCell = useDeleteManyCellsCallback();
   const hasOnlyOneCell = useAtomValue(hasOnlyOneCellAtom);
   const selectionActions = useCellSelectionActions();
   const runCells = useRunCells();
   const pendingDeleteService = usePendingDeleteService();
   const userConfig = useAtomValue(userConfigAtom);
-  const { saveCellConfig } = useRequestClient();
 
   const selectedCount = cellIds.length;
 
@@ -205,16 +200,12 @@ export function useMultiCellActionButtons(cellIds: CellId[]) {
   });
 
   const toggleSelectedCellsProperty = useEvent(
-    async (cellIds: CellId[], property: keyof CellConfig, value: boolean) => {
-      const configs: Record<CellId, Partial<CellConfig>> = {};
-      cellIds.forEach((cellId) => {
-        configs[cellId] = { [property]: value };
-      });
-
-      await saveCellConfig({ configs });
-
-      cellIds.forEach((cellId) => {
-        updateCellConfig({ cellId, config: configs[cellId] });
+    (cellIds: CellId[], property: keyof CellConfig, value: boolean) => {
+      edit((tx) => {
+        for (const cellId of cellIds) {
+          const config: Partial<CellConfig> = { [property]: value };
+          tx.updateConfig(cellId, config);
+        }
       });
     },
   );

@@ -312,13 +312,15 @@ describe("cell reducer", () => {
     });
     const newCellId = state.cellIds.getColumns()[0].atOrThrow(1);
 
-    // Set config to hidden and disabled
-    actions.updateCellConfig({
-      cellId: newCellId,
-      config: { hide_code: true, disabled: true },
-    });
-    expect(state.cellData[newCellId].config.hide_code).toBe(true);
-    expect(state.cellData[newCellId].config.disabled).toBe(true);
+    // The document hides and disables the cell
+    state.cellData[newCellId] = {
+      ...state.cellData[newCellId],
+      config: {
+        ...state.cellData[newCellId].config,
+        hide_code: true,
+        disabled: true,
+      },
+    };
 
     // Delete the cell
     actions.deleteCell({ cellId: newCellId });
@@ -1270,33 +1272,6 @@ describe("cell reducer", () => {
     expect(cell.status).toBe("idle");
     expect(cell.lastCodeRun).toBe("import marimo as mo");
     expect(cell.edited).toBe(false);
-  });
-
-  it("can update a cells config", () => {
-    const firstCellId = cells[0].id;
-    let cell = cells[0];
-    // Starts empty
-    expect(cell.config).toEqual({
-      disabled: false,
-      hide_code: false,
-      column: null,
-      expand_output: false,
-    });
-
-    actions.updateCellConfig({
-      cellId: firstCellId,
-      config: { disabled: true },
-    });
-    cell = cells[0];
-    expect(cell.config.disabled).toBe(true);
-
-    // Revert
-    actions.updateCellConfig({
-      cellId: firstCellId,
-      config: { disabled: false },
-    });
-    cell = cells[0];
-    expect(cell.config.disabled).toBe(false);
   });
 
   it("can run a stopped cell", () => {
@@ -3085,11 +3060,11 @@ describe("cell reducer", () => {
       const newCellId =
         state.cellIds.inOrderIds[state.cellIds.inOrderIds.length - 1];
 
-      // Update the cell config to hide code
-      actions.updateCellConfig({
-        cellId: newCellId,
-        config: { hide_code: true },
-      });
+      // The document hides the cell's code
+      state.cellData[newCellId] = {
+        ...state.cellData[newCellId],
+        config: { ...state.cellData[newCellId].config, hide_code: true },
+      };
 
       // Cell should be untouched and have hide_code config
       expect(state.untouchedNewCells.has(newCellId)).toBe(true);
@@ -3206,11 +3181,12 @@ describe("cell reducer", () => {
       expect(state.untouchedNewCells.has(cellId)).toBe(false);
       expect(exportedForTesting.isCellCodeHidden(state, cellId)).toBe(false);
 
-      // 2. Convert to markdown: set hide_code and mark as untouched
-      actions.updateCellConfig({
-        cellId,
-        config: { hide_code: true },
-      });
+      // 2. Convert to markdown: the document hides the code, and the cell
+      // is marked untouched
+      state.cellData[cellId] = {
+        ...state.cellData[cellId],
+        config: { ...state.cellData[cellId].config, hide_code: true },
+      };
       actions.markUntouched({ cellId });
 
       // Code should NOT be hidden because cell is untouched (user can edit)

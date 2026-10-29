@@ -11,6 +11,7 @@ import { DelayMount } from "@/components/utils/delay-mount";
 import { aiCompletionCellAtom } from "@/core/ai/state";
 import { maybeAddMarimoImport } from "@/core/cells/add-missing-import";
 import { getNotebook, useCellActions } from "@/core/cells/cells";
+import { useNotebookDocumentEdit } from "@/core/notebook/document";
 import { SETUP_CELL_ID } from "@/core/cells/ids";
 import { usePendingDeleteService } from "@/core/cells/pending-delete-service";
 import type { CellData, CellRuntimeState } from "@/core/cells/types";
@@ -36,7 +37,6 @@ import { autoInstantiateAtom, isAiFeatureEnabled } from "@/core/config/config";
 import type { UserConfig } from "@/core/config/config-schema";
 import { OverridingHotkeyProvider } from "@/core/hotkeys/hotkeys";
 import { connectionAtom } from "@/core/network/connection";
-import { useRequestClient } from "@/core/network/requests";
 import { canUseRtc, isRtcEnabled } from "@/core/rtc/state";
 import { useSaveNotebook } from "@/core/saving/save-component";
 import { isAppConnecting } from "@/core/session/connection-utils";
@@ -135,7 +135,7 @@ const CellEditorInternal = ({
   const deleteCell = useDeleteCellCallback();
   const { saveOrNameNotebook } = useSaveNotebook();
   const pendingDeleteService = usePendingDeleteService();
-  const { saveCellConfig } = useRequestClient();
+  const edit = useNotebookDocumentEdit();
 
   const loading = status === "running" || status === "queued";
   const cellActions = useCellActions();
@@ -175,9 +175,7 @@ const CellEditorInternal = ({
   const toggleHideCode = useEvent(() => {
     // Use cellConfig.hide_code instead of hidden, since it may be temporarily shown
     const nextHidden = !cellConfig.hide_code;
-    // Fire-and-forget save
-    void saveCellConfig({ configs: { [cellId]: { hide_code: nextHidden } } });
-    cellActions.updateCellConfig({ cellId, config: { hide_code: nextHidden } });
+    edit((tx) => tx.updateConfig(cellId, { hide_code: nextHidden }));
     return nextHidden;
   });
 
@@ -190,13 +188,9 @@ const CellEditorInternal = ({
     });
     // Code stays visible until the user blurs the cell
     if (!cellConfig.hide_code && MARKDOWN_INITIAL_HIDE_CODE) {
-      void saveCellConfig({
-        configs: { [cellId]: { hide_code: MARKDOWN_INITIAL_HIDE_CODE } },
-      });
-      cellActions.updateCellConfig({
-        cellId,
-        config: { hide_code: MARKDOWN_INITIAL_HIDE_CODE },
-      });
+      edit((tx) =>
+        tx.updateConfig(cellId, { hide_code: MARKDOWN_INITIAL_HIDE_CODE }),
+      );
       cellActions.markUntouched({ cellId });
     }
   });

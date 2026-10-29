@@ -5993,16 +5993,6 @@ components:
       - configs
       title: UpdateCellConfigCommand
       type: object
-    UpdateCellConfigRequest:
-      properties:
-        configs:
-          additionalProperties:
-            type: object
-          type: object
-      required:
-      - configs
-      title: UpdateCellConfigRequest
-      type: object
     UpdateCellOutputsRequest:
       properties:
         cellIdsToOutput:
@@ -7605,26 +7595,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/SuccessResponse'
           description: Run the scratchpad
-  /api/kernel/set_cell_config:
-    post:
-      parameters:
-      - in: header
-        name: Marimo-Session-Id
-        required: true
-        schema:
-          type: string
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/UpdateCellConfigRequest'
-      responses:
-        200:
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/SuccessResponse'
-          description: Set the configuration of a cell
   /api/kernel/set_model_value:
     post:
       parameters:

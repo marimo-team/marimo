@@ -175,14 +175,6 @@ export function createNetworkRequests(): EditRequests & RunRequests {
         })
         .then(handleResponseReturnNull);
     },
-    saveCellConfig: (request) => {
-      return getClient()
-        .POST("/api/kernel/set_cell_config", {
-          body: request,
-          params: getParams(),
-        })
-        .then(handleResponseReturnNull);
-    },
     sendFunctionRequest: (request) => {
       return getClient()
         .POST("/api/kernel/function_call", {

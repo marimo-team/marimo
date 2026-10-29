@@ -54,7 +54,6 @@ import {
   autoInstantiateAtom,
 } from "@/core/config/config";
 import { kioskModeAtom } from "@/core/mode";
-import { useRequestClient } from "@/core/network/requests";
 import type { CellConfig, RuntimeState } from "@/core/network/types";
 import { canLinkToCell, createCellLink } from "@/utils/cell-urls";
 import { copyToClipboard } from "@/utils/copy";
@@ -85,7 +84,6 @@ interface Props {
 export function useCellActionButtons({ cell, closePopover }: Props) {
   const {
     createNewCell: createCell,
-    updateCellConfig,
     moveCell,
     sendToTop,
     sendToBottom,
@@ -105,7 +103,6 @@ export function useCellActionButtons({ cell, closePopover }: Props) {
   const autoInstantiate = useAtomValue(autoInstantiateAtom);
   const kioskMode = useAtomValue(kioskModeAtom);
   const appWidth = useAtomValue(appWidthAtom);
-  const { saveCellConfig } = useRequestClient();
 
   if (!cell || kioskMode) {
     return [];
@@ -121,16 +118,13 @@ export function useCellActionButtons({ cell, closePopover }: Props) {
     status,
   } = cell;
 
-  const toggleDisabled = async () => {
-    const newConfig = { disabled: !config.disabled };
-    await saveCellConfig({ configs: { [cellId]: newConfig } });
-    updateCellConfig({ cellId, config: newConfig });
+  const toggleDisabled = () => {
+    edit((tx) => tx.updateConfig(cellId, { disabled: !config.disabled }));
   };
 
-  const toggleHideCode = async () => {
+  const toggleHideCode = () => {
     const newConfig: Partial<CellConfig> = { hide_code: !config.hide_code };
-    await saveCellConfig({ configs: { [cellId]: newConfig } });
-    updateCellConfig({ cellId, config: newConfig });
+    edit((tx) => tx.updateConfig(cellId, newConfig));
     const editorView = getEditorView();
     // If we're hiding the code, we should blur the editor
     // otherwise, we should focus it
@@ -229,13 +223,11 @@ export function useCellActionButtons({ cell, closePopover }: Props) {
           });
           // Code stays visible until the user blurs the cell
           if (!config.hide_code && MARKDOWN_INITIAL_HIDE_CODE) {
-            await saveCellConfig({
-              configs: { [cellId]: { hide_code: MARKDOWN_INITIAL_HIDE_CODE } },
-            });
-            updateCellConfig({
-              cellId,
-              config: { hide_code: MARKDOWN_INITIAL_HIDE_CODE },
-            });
+            edit((tx) =>
+              tx.updateConfig(cellId, {
+                hide_code: MARKDOWN_INITIAL_HIDE_CODE,
+              }),
+            );
             markUntouched({ cellId });
           }
         },

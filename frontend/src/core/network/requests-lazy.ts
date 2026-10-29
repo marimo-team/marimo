@@ -55,7 +55,6 @@ const ACTIONS: Record<keyof AllRequests, Action> = {
   sendDeleteCell: "startConnection",
   sendRunScratchpad: "startConnection",
   saveAppConfig: "startConnection",
-  saveCellConfig: "startConnection",
   discoverDataSources: "startConnection",
 
   // Export operations start a connection

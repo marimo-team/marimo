@@ -403,14 +403,6 @@ export class PyodideBridge implements RunRequests, EditRequests {
     return null;
   };
 
-  public saveCellConfig: EditRequests["saveCellConfig"] = async (request) => {
-    await this.putControlRequest({
-      type: "update-cell-config",
-      ...request,
-    });
-    return null;
-  };
-
   public sendRestart = async (): Promise<null> => {
     // Save first
     const code = await this.readCode();

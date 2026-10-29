@@ -853,22 +853,6 @@ const {
       },
     });
   },
-  updateCellConfig: (
-    state,
-    action: { cellId: CellId; config: Partial<CellConfig> },
-  ) => {
-    const { cellId, config } = action;
-    return updateCellData({
-      state,
-      cellId,
-      cellReducer: (cell) => {
-        return {
-          ...cell,
-          config: createCellConfig({ ...cell.config, ...config }),
-        };
-      },
-    });
-  },
   prepareForRun: (state, action: { cellId: CellId }) => {
     const newState = updateCellRuntimeState({
       state,

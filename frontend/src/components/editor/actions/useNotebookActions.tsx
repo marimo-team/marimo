@@ -64,6 +64,7 @@ import {
   undoLabelAtom,
   useCellActions,
 } from "@/core/cells/cells";
+import { useNotebookDocumentEdit } from "@/core/notebook/document";
 import { disabledCellIds } from "@/core/cells/utils";
 import { capabilitiesAtom } from "@/core/config/capabilities";
 import { aiEnabledAtom, useResolvedMarimoConfig } from "@/core/config/config";
@@ -77,7 +78,6 @@ import { createShareableLink } from "@/core/wasm/share";
 import { isWasm } from "@/core/wasm/utils";
 import { useDetectedDataSources } from "@/hooks/useDataSourceDiscovery";
 import { copyToClipboard } from "@/utils/copy";
-import { Objects } from "@/utils/objects";
 import { Strings } from "@/utils/strings";
 import { newNotebookURL } from "@/utils/urls";
 import { useRunAllCells } from "../cell/useRunCells";
@@ -127,7 +127,6 @@ export function useNotebookActions({
   const aiEnabled = useAtomValue(aiEnabledAtom);
 
   const {
-    updateCellConfig,
     undoDeleteCell,
     clearAllCellOutputs,
     addSetupCellIfDoesntExist,
@@ -142,7 +141,8 @@ export function useNotebookActions({
   const { handleClick: openSettings } = useOpenSettingsToTab();
   const setKeyboardShortcutsOpen = useSetAtom(keyboardShortcutsAtom);
   const setExportOptions = useSetAtom(exportOptionsAtom);
-  const { readCode, saveCellConfig } = useRequestClient();
+  const { readCode } = useRequestClient();
+  const edit = useNotebookDocumentEdit();
   const detectedDatabaseSources = useDetectedDataSources("database");
   const detectedStorageSources = useDetectedDataSources("storage");
   const addDetectedDataSource = useAddDetectedDataSource();
@@ -449,18 +449,13 @@ export function useNotebookActions({
       icon: <ZapIcon size={14} strokeWidth={1.5} />,
       label: "Enable all cells",
       hidden: !hasDisabledCells || kioskMode,
-      handle: async () => {
-        const notebook = getNotebook();
-        const ids = disabledCellIds(notebook);
-        const newConfigs = Objects.fromEntries(
-          ids.map((cellId) => [cellId, { disabled: false }]),
-        );
-        // send to BE
-        await saveCellConfig({ configs: newConfigs });
-        // update on FE
-        for (const cellId of ids) {
-          updateCellConfig({ cellId, config: { disabled: false } });
-        }
+      handle: () => {
+        const ids = disabledCellIds(getNotebook());
+        edit((tx) => {
+          for (const cellId of ids) {
+            tx.updateConfig(cellId, { disabled: false });
+          }
+        });
       },
     },
 
