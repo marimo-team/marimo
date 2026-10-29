@@ -2,7 +2,7 @@
 
 import type { EditorState } from "@codemirror/state";
 import type { EditorView } from "@codemirror/view";
-import { getCellCode, prepareCellCodeUpdate } from "./cell-code";
+import { getCellCode } from "./cell-code";
 import { languageAdapterState } from "./extension";
 import { languageMetadataField } from "./metadata";
 
@@ -25,21 +25,6 @@ export function getEditorCodeAsPython(
     editorText.slice(fromPos, toPos),
     metadata,
   )[0];
-}
-
-/**
- * Update the editor code from Python code
- * Preserve the current editor mode when it supports the incoming code.
- */
-export function updateEditorCodeFromPython(
-  editor: EditorView,
-  pythonCode: string,
-): string {
-  const update = prepareCellCodeUpdate(editor.state, pythonCode);
-  if (update) {
-    editor.dispatch(update);
-  }
-  return editor.state.doc.toString();
 }
 
 /**
