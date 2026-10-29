@@ -154,10 +154,10 @@ class TestPandasTableManager(unittest.TestCase):
                     end=pd.Timestamp("2017-01-04"),
                 ),
                 "delta": [
-                    pd.to_timedelta(["1 days 06:05:01.00003"]),
-                    pd.to_timedelta(["1 days 06:05:01.00003", "15.5us"]),
+                    pd.to_timedelta(["1 days 06:05:01.000030001"]),
+                    pd.to_timedelta(["1 days 06:05:01.000030001", "15.5us"]),
                     pd.to_timedelta(
-                        ["1 days 06:05:01.00003", "15.5us", "nan"]
+                        ["1 days 06:05:01.000030001", "15.5us", "nan"]
                     ),
                 ],
                 "none": [
@@ -315,7 +315,9 @@ class TestPandasTableManager(unittest.TestCase):
 
     def test_to_csv_complex(self) -> None:
         complex_data = self.get_complex_data()
-        data = complex_data.to_csv()
+        # Nested index reprs should not wrap differently across pandas versions.
+        with pd.option_context("display.width", 1000):
+            data = complex_data.to_csv()
         assert isinstance(data, bytes)
         snapshot("pandas.csv", _normalize_pandas_dtypes(data.decode("utf-8")))
 
