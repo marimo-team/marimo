@@ -37,7 +37,8 @@ import { Label } from "@/components/ui/label";
 import { toast } from "@/components/ui/use-toast";
 import { aiCompletionCellAtom } from "@/core/ai/state";
 import { maybeAddMarimoImport } from "@/core/cells/add-missing-import";
-import { hasOnlyOneCellAtom, useCellActions } from "@/core/cells/cells";
+import { hasOnlyOneCellAtom } from "@/core/cells/cells";
+import { useCellActions } from "@/core/cells/actions";
 import { type CellId, SETUP_CELL_ID } from "@/core/cells/ids";
 import { useNotebookDocumentEdit } from "@/core/notebook/document";
 import type { CellData } from "@/core/cells/types";
@@ -83,13 +84,13 @@ interface Props {
 
 export function useCellActionButtons({ cell, closePopover }: Props) {
   const {
-    createNewCell: createCell,
     moveCell,
     sendToTop,
     sendToBottom,
     addColumnBreakpoint,
     clearCellOutput,
     markUntouched,
+    createCell,
   } = useCellActions();
   const edit = useNotebookDocumentEdit();
   const splitCell = useSplitCellCallback();
@@ -216,7 +217,7 @@ export function useCellActionButtons({ cell, closePopover }: Props) {
           if (!editorView) {
             return;
           }
-          maybeAddMarimoImport({ autoInstantiate, createNewCell: createCell });
+          maybeAddMarimoImport({ autoInstantiate, createCell });
           switchLanguage(editorView, {
             language: "markdown",
             keepCodeAsIs: false,
@@ -259,7 +260,7 @@ export function useCellActionButtons({ cell, closePopover }: Props) {
               }
               maybeAddMarimoImport({
                 autoInstantiate,
-                createNewCell: createCell,
+                createCell,
               });
               switchLanguage(editorView, {
                 language: "sql",
@@ -281,7 +282,7 @@ export function useCellActionButtons({ cell, closePopover }: Props) {
         ),
         label: "Create cell above",
         hotkey: "cell.createAbove",
-        handle: () => createCell({ cellId, before: true }),
+        handle: () => createCell({ before: cellId }),
         hidden: isSetupCell,
         redundant: true,
       },
@@ -294,7 +295,7 @@ export function useCellActionButtons({ cell, closePopover }: Props) {
         ),
         label: "Create cell below",
         hotkey: "cell.createBelow",
-        handle: () => createCell({ cellId, before: false }),
+        handle: () => createCell({ after: cellId }),
         redundant: true,
       },
       {

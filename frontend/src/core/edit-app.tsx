@@ -31,8 +31,8 @@ import {
   hasCellsAtom,
   notebookIsRunningAtom,
   numColumnsAtom,
-  useCellActions,
 } from "./cells/cells";
+import { useCellActions } from "./cells/actions";
 import type { AppConfig, UserConfig } from "./config/config-schema";
 import { RuntimeState } from "./kernel/RuntimeState";
 import { useTogglePresenting } from "./layout/useTogglePresenting";

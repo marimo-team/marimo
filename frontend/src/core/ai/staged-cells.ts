@@ -14,11 +14,8 @@ import {
   notebookCellsCompletionSchema,
 } from "./completion-output";
 import { maybeAddMarimoImport } from "../cells/add-missing-import";
-import {
-  type CreateNewCellAction,
-  getCellEditorView,
-  useCellActions,
-} from "../cells/cells";
+import { getCellEditorView } from "../cells/cells";
+import { type CreateCell, useCellActions } from "../cells/actions";
 import { prepareCellCodeUpdate } from "../codemirror/language/cell-code";
 import type { JotaiStore } from "../state/jotai";
 import type { EditType } from "./tools/edit-notebook-tool";
@@ -98,18 +95,13 @@ interface UpdateStagedCellAction {
 /** Manage staged cells without assuming which AI workflow owns them. */
 export function useStagedCells(store: JotaiStore) {
   const { addStagedCell, removeStagedCell } = useStagedAICellsActions();
-  const { createNewCell, updateCellCode } = useCellActions();
+  const { updateCellCode, createCell } = useCellActions();
   const deleteCellCallback = useDeleteCellCallback();
 
   const createStagedCell = (code: string): CellId => {
     const newCellId = CellId.create();
     addStagedCell({ cellId: newCellId, edit: { type: "add_cell" } });
-    createNewCell({
-      cellId: "__end__",
-      code,
-      before: false,
-      newCellId: newCellId,
-    });
+    createCell({ code, id: newCellId });
     return newCellId;
   };
 
@@ -150,7 +142,7 @@ export function useStagedCells(store: JotaiStore) {
 /** Owns the lifecycle of cells created by one structured completion flow. */
 export function useStagedCellGeneration(store: JotaiStore) {
   const stagedCellActions = useStagedCells(store);
-  const { createNewCell } = useCellActions();
+  const { createCell } = useCellActions();
   const ownedGeneration = useRef<OwnedStagedGeneration | null>(null);
   // Ownership lives in a ref, so subscribe to its backing atoms to rerender
   // consumers when completion or per-cell acceptance changes.
@@ -178,7 +170,7 @@ export function useStagedCellGeneration(store: JotaiStore) {
       status: "in_progress",
       reconciler: new StagedCellReconciler({
         ...stagedCellActions,
-        createNewCell,
+        createCell,
       }),
     };
     store.set(stagedGenerationAtom, {
@@ -300,7 +292,7 @@ interface StagedCellReconcilerActions {
   deleteStagedCell: (cellId: CellId) => void;
   removeStagedCell: (cellId: CellId) => void;
   addStagedCell: (payload: { cellId: CellId; edit: Edit }) => void;
-  createNewCell: (opts: CreateNewCellAction) => void;
+  createCell: CreateCell;
 }
 
 class StagedCellReconciler {
@@ -389,7 +381,7 @@ class StagedCellReconciler {
 
     const cellId = maybeAddMarimoImport({
       autoInstantiate: false,
-      createNewCell: this.actions.createNewCell,
+      createCell: this.actions.createCell,
       fromCellId: this.createdCells[0]?.cellId,
       before: true,
     });

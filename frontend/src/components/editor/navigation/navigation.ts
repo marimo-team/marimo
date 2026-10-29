@@ -13,7 +13,8 @@ import { mergeProps, useFocusWithin, useKeyboard } from "react-aria";
 import { DATA_FOR_CELL_ID } from "@/components/data-table/cell-utils";
 import { aiCompletionCellAtom } from "@/core/ai/state";
 import { maybeAddMarimoImport } from "@/core/cells/add-missing-import";
-import { cellIdsAtom, notebookAtom, useCellActions } from "@/core/cells/cells";
+import { cellIdsAtom, notebookAtom } from "@/core/cells/cells";
+import { useCellActions } from "@/core/cells/actions";
 import { useNotebookDocumentEdit } from "@/core/notebook/document";
 import { useCellFocusActions } from "@/core/cells/focus";
 import type { CellId } from "@/core/cells/ids";
@@ -192,6 +193,7 @@ export function useCellNavigationProps(
   const edit = useNotebookDocumentEdit();
   const setAiCompletionCell = useSetAtom(aiCompletionCellAtom);
   const actions = useCellActions();
+  const { createCell, moveToNextCell } = useCellActions();
   const store = useStore();
   const temporarilyShownCodeActions = useTemporarilyShownCodeActions();
   const runCells = useRunCells();
@@ -376,21 +378,21 @@ export function useCellNavigationProps(
         "cell.runAndNewBelow": addSingleHandler((cellIds) => {
           runCells(cellIds);
           const lastCellId = cellIds[cellIds.length - 1];
-          actions.moveToNextCell({ cellId: lastCellId, before: false });
+          moveToNextCell({ cellId: lastCellId, before: false });
           return true;
         }),
         "cell.runAndNewAbove": addSingleHandler((cellIds) => {
           runCells(cellIds);
           const firstCellId = cellIds[0];
-          actions.moveToNextCell({ cellId: firstCellId, before: true });
+          moveToNextCell({ cellId: firstCellId, before: true });
           return true;
         }),
         "cell.createAbove": (cellId) => {
-          actions.createNewCell({ cellId, before: true });
+          createCell({ before: cellId });
           return true;
         },
         "cell.createBelow": (cellId) => {
-          actions.createNewCell({ cellId, before: false });
+          createCell({ after: cellId });
           return true;
         },
         "cell.moveUp": addSingleHandler((cellIds) => {
@@ -535,14 +537,14 @@ export function useCellNavigationProps(
           if (Events.hasModifier(evt)) {
             return false;
           }
-          actions.createNewCell({ cellId, before: true, autoFocus: true });
+          createCell({ before: cellId });
           return true;
         },
         "command.createCellAfter": (cellId) => {
           if (Events.hasModifier(evt)) {
             return false;
           }
-          actions.createNewCell({ cellId, before: false, autoFocus: true });
+          createCell({ after: cellId });
           return true;
         },
         "command.createSqlCellAfter": (cellId) => {
@@ -551,14 +553,12 @@ export function useCellNavigationProps(
           }
           maybeAddMarimoImport({
             autoInstantiate: true,
-            createNewCell: actions.createNewCell,
+            createCell: createCell,
             fromCellId: cellId,
             before: true,
           });
-          actions.createNewCell({
-            cellId,
-            before: false,
-            autoFocus: true,
+          createCell({
+            after: cellId,
             code: LanguageAdapters.sql.defaultCode,
           });
           return true;
@@ -627,11 +627,11 @@ export function useCellNavigationProps(
             return true;
           },
           o: () => {
-            actions.createNewCell({ cellId, before: false, autoFocus: true });
+            createCell({ after: cellId });
             return true;
           },
           "shift+o": () => {
-            actions.createNewCell({ cellId, before: true, autoFocus: true });
+            createCell({ before: cellId });
             return true;
           },
           u: () => {

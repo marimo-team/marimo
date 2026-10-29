@@ -2,7 +2,8 @@
 
 import { useDeleteCellCallback } from "@/components/editor/cell/useDeleteCell";
 import { outputIsStale } from "@/core/cells/cell";
-import { useCellActions, useCellIds } from "@/core/cells/cells";
+import { useCellIds } from "@/core/cells/cells";
+import { useCellActions } from "@/core/cells/actions";
 import type { CellId } from "@/core/cells/ids";
 import type { CellColumnId } from "@/utils/id-tree";
 import { useEffect, useRef, useState } from "react";
@@ -229,7 +230,7 @@ export const SlidesMinimap = ({
   onSlideClick,
 }: SlidesMinimapProps) => {
   const cellIds = useCellIds();
-  const { moveCellToIndex, createNewCell } = useCellActions();
+  const { moveCellToIndex, createCell } = useCellActions();
   const deleteCell = useDeleteCellCallback();
   const containerRef = useRef<HTMLDivElement>(null);
   const visibleIds = useVisibleCellIds(containerRef);
@@ -240,7 +241,10 @@ export const SlidesMinimap = ({
   const dimensions = computeThumbnailDimensions(thumbnailWidth);
 
   const insertCell = (cellId: CellId, before: boolean) => {
-    createNewCell({ cellId, before, code: "", autoFocus: false });
+    createCell({
+      ...(before ? { before: cellId } : { after: cellId }),
+      focus: false,
+    });
   };
 
   useEffect(() => {

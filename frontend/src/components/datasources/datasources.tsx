@@ -17,7 +17,8 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { Command, CommandInput, CommandItem } from "@/components/ui/command";
 import { Tooltip } from "@/components/ui/tooltip";
 import { maybeAddMarimoImport } from "@/core/cells/add-missing-import";
-import { cellIdsAtom, useCellActions } from "@/core/cells/cells";
+import { cellIdsAtom } from "@/core/cells/cells";
+import { useCellActions } from "@/core/cells/actions";
 import { useLastFocusedCellId } from "@/core/cells/focus";
 import { autoInstantiateAtom } from "@/core/config/config";
 import {
@@ -849,13 +850,13 @@ const DatasetTableItem: React.FC<{
 
   const autoInstantiate = useAtomValue(autoInstantiateAtom);
   const lastFocusedCellId = useLastFocusedCellId();
-  const { createNewCell } = useCellActions();
+  const { createCell } = useCellActions();
   const addCodeToNewCell = useAddCodeToNewCell();
 
   const handleAddTable = () => {
     maybeAddMarimoImport({
       autoInstantiate,
-      createNewCell,
+      createCell,
       fromCellId: lastFocusedCellId,
     });
     const getCode = () => {

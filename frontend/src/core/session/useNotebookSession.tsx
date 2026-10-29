@@ -5,7 +5,11 @@ import { useAtom, useAtomValue, useSetAtom, useStore } from "jotai";
 import { useEffect, useLayoutEffect, useMemo } from "react";
 import { useErrorBoundary } from "react-error-boundary";
 import { toast } from "@/components/ui/use-toast";
-import { getNotebook, notebookAtom, useCellActions } from "@/core/cells/cells";
+import {
+  getNotebook,
+  notebookAtom,
+  useReducerActions,
+} from "@/core/cells/cells";
 import { followDocument } from "@/core/cells/document";
 import { AUTOCOMPLETER } from "@/core/codemirror/completion/Autocompleter";
 import { createDocumentModel } from "@/core/notebook/document";
@@ -91,7 +95,7 @@ export function useNotebookSession(opts: {
     reconcileDocument,
     setLastRun,
     resetCellRuntimes,
-  } = useCellActions();
+  } = useReducerActions();
   const { addCellNotification } = useRunsActions();
   const setKernelState = useSetAtom(kernelStateAtom);
   const setInitialRunCompleted = useSetAtom(initialRunCompletedAtom);

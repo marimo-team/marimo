@@ -53,7 +53,7 @@ import {
   type CopilotMode,
   FRONTEND_TOOL_REGISTRY,
 } from "@/core/ai/tools/registry";
-import { useCellActions } from "@/core/cells/cells";
+import { useCellActions } from "@/core/cells/actions";
 import { aiAtom, aiModelConfiguredAtom } from "@/core/config/config";
 import { DEFAULT_AI_MODEL } from "@/core/config/config-schema";
 import { useRequestClient } from "@/core/network/requests";
@@ -582,10 +582,10 @@ const ChatPanelBody = () => {
   const store = useStore();
 
   const { addStagedCell } = useStagedAICellsActions();
-  const { createNewCell, prepareForRun } = useCellActions();
+  const { prepareForRun, createCell } = useCellActions();
   const toolContext: ToolNotebookContext = {
     addStagedCell,
-    createNewCell,
+    createCell,
     prepareForRun,
     sendRun,
     store,

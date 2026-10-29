@@ -7,12 +7,8 @@ import {
   cellGraphsAtom,
   isVariableAffectedBySelectedCell,
 } from "@/components/editor/chrome/wrapper/minimap-state";
-import {
-  useCellActions,
-  useCellData,
-  useCellIds,
-  useCellRuntime,
-} from "@/core/cells/cells";
+import { useCellData, useCellIds, useCellRuntime } from "@/core/cells/cells";
+import { useCellActions } from "@/core/cells/actions";
 import { cellFocusAtom, useCellFocusActions } from "@/core/cells/focus";
 import type { CellId } from "@/core/cells/ids";
 import { useVariables } from "@/core/variables/state";

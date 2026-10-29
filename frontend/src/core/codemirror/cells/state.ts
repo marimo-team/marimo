@@ -1,7 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { Facet } from "@codemirror/state";
-import type { CellActions } from "@/core/cells/cells";
+import type { CellActions } from "@/core/cells/actions";
 import type { CellId } from "@/core/cells/ids";
 
 export interface CodemirrorCellActions extends CellActions {

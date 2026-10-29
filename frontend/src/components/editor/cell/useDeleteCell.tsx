@@ -3,11 +3,8 @@
 import useEvent from "react-use-event-hook";
 import { UndoButton } from "@/components/buttons/undo-button";
 import { toast } from "@/components/ui/use-toast";
-import {
-  hasOnlyOneCellAtom,
-  notebookAtom,
-  useCellActions,
-} from "@/core/cells/cells";
+import { hasOnlyOneCellAtom, notebookAtom } from "@/core/cells/cells";
+import { useCellActions } from "@/core/cells/actions";
 import type { CellId } from "@/core/cells/ids";
 import { useRequestClient } from "@/core/network/requests";
 import { store } from "@/core/state/jotai";

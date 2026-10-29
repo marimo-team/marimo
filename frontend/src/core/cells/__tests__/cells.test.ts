@@ -4,6 +4,7 @@ import { python } from "@codemirror/lang-python";
 import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { createStore } from "jotai";
+import { createRef } from "react";
 import {
   afterAll,
   beforeAll,
@@ -17,11 +18,12 @@ import {
 import { MockNotebook } from "@/__mocks__/notebook";
 import { cellId } from "@/__tests__/branded";
 import type { CellHandle } from "@/components/editor/notebook-cell";
-import { CellId, SCRATCH_CELL_ID, SETUP_CELL_ID } from "@/core/cells/ids";
+import { CellId, SETUP_CELL_ID } from "@/core/cells/ids";
 import { foldAllBulk, unfoldAllBulk } from "@/core/codemirror/editing/commands";
 import { adaptiveLanguageConfiguration } from "@/core/codemirror/language/extension";
 import { OverridingHotkeyProvider } from "@/core/hotkeys/hotkeys";
 import type { OutputMessage } from "@/core/kernel/messages";
+import type { CellConfig } from "@/core/network/types";
 import {
   type CollapsibleTree,
   MultiColumn,
@@ -39,7 +41,12 @@ import {
   scrollToBottom,
   scrollToTop,
 } from "../scrollCellIntoView";
-import type { CellData } from "../types";
+import {
+  type CellData,
+  createCell,
+  createCellConfig,
+  createCellRuntimeState,
+} from "../types";
 
 vi.mock("@/core/codemirror/editing/commands", () => ({
   foldAllBulk: vi.fn(),
@@ -120,8 +127,7 @@ describe("cell reducer", () => {
   let cells: ReturnType<typeof flattenTopLevelNotebookCells>;
   let firstCellId: CellId;
 
-  const actions = createActions((action) => {
-    state = reducer(state, action);
+  const mountEditors = () => {
     for (const [cellIdString, handle] of Object.entries(state.cellHandles)) {
       // @ts-expect-error - Typescript Object.entries doesn't know that keys are CellId
       const cid: CellId = cellIdString;
@@ -135,7 +141,87 @@ describe("cell reducer", () => {
       }
     }
     cells = flattenTopLevelNotebookCells(state);
+  };
+  const actions = createActions((action) => {
+    state = reducer(state, action);
+    mountEditors();
   });
+
+  /** Put a cell into the notebook the way the document would. */
+  function seedCell({
+    cellId,
+    before,
+    code = "",
+    name,
+    config,
+    newCellId,
+    hideCode,
+    autoFocus = true,
+  }: {
+    cellId: CellId | "__end__" | { type: "__end__"; columnId: CellColumnId };
+    before: boolean;
+    code?: string;
+    name?: string;
+    config?: CellConfig;
+    newCellId?: CellId;
+    hideCode?: boolean;
+    autoFocus?: boolean;
+  }): CellId {
+    let column: CollapsibleTree<CellId>;
+    let cellIndex: number;
+    if (cellId === "__end__") {
+      column = state.cellIds.atOrThrow(0);
+      cellIndex = column.length;
+    } else if (typeof cellId === "string") {
+      column = state.cellIds.findWithId(cellId);
+      cellIndex = column.topLevelIds.indexOf(cellId);
+    } else {
+      column = state.cellIds.get(cellId.columnId) ?? state.cellIds.atOrThrow(0);
+      cellIndex = column.length;
+    }
+    const id = newCellId ?? CellId.create();
+    state = {
+      ...state,
+      cellIds: state.cellIds.insertId(
+        id,
+        column.id,
+        before ? cellIndex : cellIndex + 1,
+      ),
+      cellData: {
+        ...state.cellData,
+        [id]: createCell({
+          id,
+          code,
+          name,
+          config: createCellConfig({
+            ...config,
+            ...(hideCode != null && { hide_code: hideCode }),
+          }),
+          edited: Boolean(code),
+        }),
+      },
+      cellRuntime: { ...state.cellRuntime, [id]: createCellRuntimeState() },
+      cellHandles: { ...state.cellHandles, [id]: createRef() },
+      scrollKey: autoFocus ? id : null,
+      untouchedNewCells:
+        hideCode && autoFocus
+          ? new Set([...state.untouchedNewCells, id])
+          : state.untouchedNewCells,
+    };
+    mountEditors();
+    return id;
+  }
+
+  function seedSetupCell(code: string) {
+    const first = state.cellIds.atOrThrow(0).at(0);
+    seedCell({
+      cellId: first ?? "__end__",
+      before: first !== undefined,
+      code,
+      name: SETUP_CELL_ID,
+      newCellId: SETUP_CELL_ID,
+    });
+  }
 
   let i = 0;
   const originalCreate = CellId.create.bind(CellId);
@@ -151,7 +237,7 @@ describe("cell reducer", () => {
 
     state = initialNotebookState();
     state.cellIds = MultiColumn.from([]);
-    actions.createNewCell({ cellId: "__end__", before: false });
+    seedCell({ cellId: "__end__", before: false });
     firstCellId = state.cellIds.inOrderIds[0];
   });
 
@@ -159,70 +245,8 @@ describe("cell reducer", () => {
     CellId.create = originalCreate;
   });
 
-  it("can add a cell after another cell", () => {
-    actions.createNewCell({
-      cellId: firstCellId,
-      before: false,
-    });
-    expect(formatCells(state)).toMatchInlineSnapshot(`
-      "
-      [0] ''
-
-      [1] ''
-      "
-    `);
-  });
-
-  it("can add a cell to the end with code", () => {
-    actions.createNewCell({
-      cellId: "__end__",
-      code: "import numpy as np",
-      before: false,
-    });
-    expect(formatCells(state)).toMatchInlineSnapshot(`
-      "
-      [0] ''
-
-      [1] 'import numpy as np'
-      "
-    `);
-
-    // Cell should be added to the end and edited
-    expect(cells[1].code).toBe("import numpy as np");
-    expect(cells[1].edited).toBe(true);
-    expect(cells[1].lastCodeRun).toBe(null);
-  });
-
-  it("can add a cell before another cell", () => {
-    actions.createNewCell({
-      cellId: firstCellId,
-      before: true,
-    });
-    expect(formatCells(state)).toMatchInlineSnapshot(`
-      "
-      [1] ''
-
-      [0] ''
-      "
-    `);
-  });
-
-  it("can add a cell with name and config", () => {
-    actions.createNewCell({
-      cellId: firstCellId,
-      before: false,
-      code: "x = 1",
-      name: "My Cell",
-      config: { hide_code: true, disabled: false },
-    });
-    const newCellId = state.cellIds.inOrderIds[1];
-    expect(state.cellData[newCellId].name).toBe("My Cell");
-    expect(state.cellData[newCellId].config.hide_code).toBe(true);
-    expect(state.cellData[newCellId].config.disabled).toBe(false);
-  });
-
   it("can delete a Python cell and undo delete", () => {
-    actions.createNewCell({
+    seedCell({
       cellId: firstCellId,
       before: false,
     });
@@ -250,7 +274,7 @@ describe("cell reducer", () => {
   });
 
   it("can delete a SQL cell and undo delete", () => {
-    actions.createNewCell({
+    seedCell({
       cellId: firstCellId,
       before: false,
       code: `df = mo.sql("""SELECT * FROM table""")`,
@@ -278,7 +302,7 @@ describe("cell reducer", () => {
 
   it("can delete a Markdown cell and undo delete", () => {
     const text = "The quick brown fox jumps over the lazy dog.";
-    actions.createNewCell({
+    seedCell({
       cellId: firstCellId,
       before: false,
       code: `mo.md(r"""${text}""")`,
@@ -305,7 +329,7 @@ describe("cell reducer", () => {
   });
 
   it("undo delete restores cell config (hide_code, disabled)", () => {
-    actions.createNewCell({
+    seedCell({
       cellId: firstCellId,
       before: false,
       code: "x = 1",
@@ -350,7 +374,7 @@ describe("cell reducer", () => {
   });
 
   it("can move a cell", () => {
-    actions.createNewCell({
+    seedCell({
       cellId: firstCellId,
       before: false,
     });
@@ -464,11 +488,11 @@ describe("cell reducer", () => {
   });
 
   it("can drag and drop a cell", () => {
-    actions.createNewCell({
+    seedCell({
       cellId: firstCellId,
       before: false,
     });
-    actions.createNewCell({
+    seedCell({
       cellId: cellId("1"),
       before: false,
     });
@@ -514,11 +538,11 @@ describe("cell reducer", () => {
   });
 
   it("can move a cell to an exact index within a column", () => {
-    actions.createNewCell({
+    seedCell({
       cellId: firstCellId,
       before: false,
     });
-    actions.createNewCell({
+    seedCell({
       cellId: cellId("1"),
       before: false,
     });
@@ -542,11 +566,11 @@ describe("cell reducer", () => {
   });
 
   it("can move a cell to an exact index across columns", () => {
-    actions.createNewCell({
+    seedCell({
       cellId: firstCellId,
       before: false,
     });
-    actions.createNewCell({
+    seedCell({
       cellId: cellId("1"),
       before: false,
     });
@@ -575,11 +599,11 @@ describe("cell reducer", () => {
   });
 
   it("moveCellToIndex is a no-op when moving to the same position", () => {
-    actions.createNewCell({
+    seedCell({
       cellId: firstCellId,
       before: false,
     });
-    actions.createNewCell({
+    seedCell({
       cellId: cellId("1"),
       before: false,
     });
@@ -597,7 +621,7 @@ describe("cell reducer", () => {
   });
 
   it("moveCellToIndex is a no-op for an invalid columnId", () => {
-    actions.createNewCell({
+    seedCell({
       cellId: firstCellId,
       before: false,
     });
@@ -614,11 +638,11 @@ describe("cell reducer", () => {
   });
 
   it("can move multiple cells relative to target", () => {
-    actions.createNewCell({
+    seedCell({
       cellId: firstCellId,
       before: false,
     });
-    actions.createNewCell({
+    seedCell({
       cellId: cellId("1"),
       before: false,
     });
@@ -650,11 +674,11 @@ describe("cell reducer", () => {
   });
 
   it("can undo cut-paste (move with previousPlacements)", () => {
-    actions.createNewCell({
+    seedCell({
       cellId: firstCellId,
       before: false,
     });
-    actions.createNewCell({
+    seedCell({
       cellId: cellId("1"),
       before: false,
     });
@@ -713,11 +737,11 @@ describe("cell reducer", () => {
   });
 
   it("undo order: cut-paste then delete — first undo restores delete, second undo undoes move", () => {
-    actions.createNewCell({
+    seedCell({
       cellId: firstCellId,
       before: false,
     });
-    actions.createNewCell({
+    seedCell({
       cellId: cellId("1"),
       before: false,
     });
@@ -1169,7 +1193,7 @@ describe("cell reducer", () => {
       formattingChange: false,
     });
     // Add cell
-    actions.createNewCell({
+    seedCell({
       cellId: firstCellId,
       before: false,
     });
@@ -1679,8 +1703,8 @@ describe("cell reducer", () => {
   });
 
   it("can send a cell to the top", () => {
-    actions.createNewCell({ cellId: firstCellId, before: false });
-    actions.createNewCell({ cellId: cellId("1"), before: false });
+    seedCell({ cellId: firstCellId, before: false });
+    seedCell({ cellId: cellId("1"), before: false });
     actions.sendToTop({ cellId: cellId("2") });
     expect(formatCells(state)).toMatchInlineSnapshot(`
       "
@@ -1694,8 +1718,8 @@ describe("cell reducer", () => {
   });
 
   it("can send a cell to the bottom", () => {
-    actions.createNewCell({ cellId: firstCellId, before: false });
-    actions.createNewCell({ cellId: cellId("1"), before: false });
+    seedCell({ cellId: firstCellId, before: false });
+    seedCell({ cellId: cellId("1"), before: false });
     actions.sendToBottom({ cellId: firstCellId });
     expect(formatCells(state)).toMatchInlineSnapshot(`
       "
@@ -1709,8 +1733,8 @@ describe("cell reducer", () => {
   });
 
   it("can focus cells", () => {
-    actions.createNewCell({ cellId: firstCellId, before: false });
-    actions.createNewCell({ cellId: cellId("1"), before: false });
+    seedCell({ cellId: firstCellId, before: false });
+    seedCell({ cellId: cellId("1"), before: false });
 
     actions.focusCell({ cellId: cellId("1"), where: "before" });
     expect(focusAndScrollCellIntoView).toHaveBeenCalledWith(
@@ -1754,13 +1778,13 @@ describe("cell reducer", () => {
   });
 
   it("can collapse and expand cells", () => {
-    actions.createNewCell({ cellId: firstCellId, before: false });
-    actions.createNewCell({
+    seedCell({ cellId: firstCellId, before: false });
+    seedCell({
       cellId: cellId("1"),
       before: false,
       code: "# Header",
     });
-    actions.createNewCell({
+    seedCell({
       cellId: cellId("2"),
       before: false,
       code: "## Subheader",
@@ -1782,13 +1806,13 @@ describe("cell reducer", () => {
   });
 
   it("can collapse and expand all cells in multiple columns", () => {
-    actions.createNewCell({ cellId: firstCellId, before: false });
-    actions.createNewCell({
+    seedCell({ cellId: firstCellId, before: false });
+    seedCell({
       cellId: cellId("1"),
       before: false,
       code: "# First Column Header",
     });
-    actions.createNewCell({
+    seedCell({
       cellId: cellId("2"),
       before: false,
       code: "## First Column Subheader",
@@ -1796,12 +1820,12 @@ describe("cell reducer", () => {
 
     actions.addColumnBreakpoint({ cellId: cellId("2") });
 
-    actions.createNewCell({
+    seedCell({
       cellId: cellId("3"),
       before: false,
       code: "# Second Column Header",
     });
-    actions.createNewCell({
+    seedCell({
       cellId: cellId("4"),
       before: false,
       code: "## Second Column Subheader",
@@ -1849,18 +1873,18 @@ describe("cell reducer", () => {
   });
 
   it("can collapse and expand nested cells in one call", () => {
-    actions.createNewCell({ cellId: firstCellId, before: false });
-    actions.createNewCell({
+    seedCell({ cellId: firstCellId, before: false });
+    seedCell({
       cellId: cellId("1"),
       before: false,
       code: "# Header",
     });
-    actions.createNewCell({
+    seedCell({
       cellId: cellId("2"),
       before: false,
       code: "## Subheader",
     });
-    actions.createNewCell({
+    seedCell({
       cellId: cellId("3"),
       before: false,
       code: "### Subsubheader",
@@ -1904,18 +1928,18 @@ describe("cell reducer", () => {
   });
 
   it("can collapse all cells when nested heading ranges end at the same cell", () => {
-    actions.createNewCell({ cellId: firstCellId, before: false });
-    actions.createNewCell({
+    seedCell({ cellId: firstCellId, before: false });
+    seedCell({
       cellId: cellId("1"),
       before: false,
       code: "# Header",
     });
-    actions.createNewCell({
+    seedCell({
       cellId: cellId("2"),
       before: false,
       code: "## Subheader",
     });
-    actions.createNewCell({
+    seedCell({
       cellId: cellId("3"),
       before: false,
       code: "### Subsubheader",
@@ -1969,23 +1993,23 @@ describe("cell reducer", () => {
   });
 
   it("can collapse all cells when a deep chain is followed by a later section", () => {
-    actions.createNewCell({ cellId: firstCellId, before: false });
-    actions.createNewCell({
+    seedCell({ cellId: firstCellId, before: false });
+    seedCell({
       cellId: cellId("1"),
       before: false,
       code: "# Header",
     });
-    actions.createNewCell({
+    seedCell({
       cellId: cellId("2"),
       before: false,
       code: "## Section A",
     });
-    actions.createNewCell({
+    seedCell({
       cellId: cellId("3"),
       before: false,
       code: "### Sub of A",
     });
-    actions.createNewCell({
+    seedCell({
       cellId: cellId("4"),
       before: false,
       code: "## Section B",
@@ -2048,8 +2072,8 @@ describe("cell reducer", () => {
   });
 
   it("can show hidden cells", () => {
-    actions.createNewCell({ cellId: firstCellId, before: false });
-    actions.createNewCell({ cellId: cellId("1"), before: false });
+    seedCell({ cellId: firstCellId, before: false });
+    seedCell({ cellId: cellId("1"), before: false });
     actions.collapseCell({ cellId: firstCellId });
 
     actions.showCellIfHidden({ cellId: cellId("1") });
@@ -2059,7 +2083,7 @@ describe("cell reducer", () => {
   });
 
   it("can split and undo split cells", () => {
-    actions.createNewCell({
+    seedCell({
       cellId: firstCellId,
       before: false,
       code: "line1\nline2",
@@ -2126,9 +2150,9 @@ describe("cell reducer", () => {
   });
 
   it("can add a column breakpoint", () => {
-    actions.createNewCell({ cellId: firstCellId, before: false });
-    actions.createNewCell({ cellId: cellId("1"), before: false });
-    actions.createNewCell({ cellId: cellId("2"), before: false });
+    seedCell({ cellId: firstCellId, before: false });
+    seedCell({ cellId: cellId("1"), before: false });
+    seedCell({ cellId: cellId("2"), before: false });
 
     expect(state.cellIds.getColumns().length).toBe(1);
     expect(formatCells(state)).toMatchInlineSnapshot(`
@@ -2173,16 +2197,16 @@ describe("cell reducer", () => {
 
   it("cannot add a column breakpoint before the first cell", () => {
     expect(state.cellIds.getColumns().length).toBe(1);
-    actions.createNewCell({ cellId: firstCellId, before: false });
-    actions.createNewCell({ cellId: cellId("1"), before: false });
+    seedCell({ cellId: firstCellId, before: false });
+    seedCell({ cellId: cellId("1"), before: false });
     actions.addColumnBreakpoint({ cellId: firstCellId });
     expect(state.cellIds.getColumns().length).toBe(1);
   });
 
   it("can delete a column", () => {
-    actions.createNewCell({ cellId: firstCellId, before: false });
-    actions.createNewCell({ cellId: cellId("1"), before: false });
-    actions.createNewCell({ cellId: cellId("2"), before: false });
+    seedCell({ cellId: firstCellId, before: false });
+    seedCell({ cellId: cellId("1"), before: false });
+    seedCell({ cellId: cellId("2"), before: false });
     actions.addColumnBreakpoint({ cellId: cellId("2") });
 
     expect(state.cellIds.getColumns().length).toBe(2);
@@ -2226,8 +2250,8 @@ describe("cell reducer", () => {
   });
 
   it("deleting the last column does nothing", () => {
-    actions.createNewCell({ cellId: firstCellId, before: false });
-    actions.createNewCell({ cellId: cellId("1"), before: false });
+    seedCell({ cellId: firstCellId, before: false });
+    seedCell({ cellId: cellId("1"), before: false });
 
     const initialState = { ...state };
 
@@ -2238,9 +2262,9 @@ describe("cell reducer", () => {
   });
 
   it("can drop a cell over another cell", () => {
-    actions.createNewCell({ cellId: firstCellId, before: false });
-    actions.createNewCell({ cellId: cellId("1"), before: false });
-    actions.createNewCell({ cellId: cellId("2"), before: false });
+    seedCell({ cellId: firstCellId, before: false });
+    seedCell({ cellId: cellId("1"), before: false });
+    seedCell({ cellId: cellId("2"), before: false });
 
     expect(formatCells(state)).toMatchInlineSnapshot(`
       "
@@ -2273,8 +2297,8 @@ describe("cell reducer", () => {
   });
 
   it("can drop a cell over a new column", () => {
-    actions.createNewCell({ cellId: firstCellId, before: false });
-    actions.createNewCell({ cellId: cellId("1"), before: false });
+    seedCell({ cellId: firstCellId, before: false });
+    seedCell({ cellId: cellId("1"), before: false });
 
     expect(state.cellIds.getColumns().length).toBe(1);
     expect(formatCells(state)).toMatchInlineSnapshot(`
@@ -2311,9 +2335,9 @@ describe("cell reducer", () => {
   });
 
   it("can drop a column over another column", () => {
-    actions.createNewCell({ cellId: firstCellId, before: false });
-    actions.createNewCell({ cellId: cellId("1"), before: false });
-    actions.createNewCell({ cellId: cellId("2"), before: false });
+    seedCell({ cellId: firstCellId, before: false });
+    seedCell({ cellId: cellId("1"), before: false });
+    seedCell({ cellId: cellId("2"), before: false });
     actions.addColumnBreakpoint({ cellId: cellId("2") });
 
     expect(state.cellIds.getColumns().length).toBe(2);
@@ -2364,8 +2388,8 @@ describe("cell reducer", () => {
 
   it("can compact columns", () => {
     // Create initial state with 3 columns, including an empty one
-    actions.createNewCell({ cellId: firstCellId, before: false });
-    actions.createNewCell({ cellId: cellId("1"), before: false });
+    seedCell({ cellId: firstCellId, before: false });
+    seedCell({ cellId: cellId("1"), before: false });
     actions.addColumnBreakpoint({ cellId: cellId("1") });
     actions.addColumnBreakpoint({ cellId: cellId("2") });
     actions.dropOverNewColumn({ cellId: cellId("2") });
@@ -2504,7 +2528,7 @@ describe("cell reducer", () => {
 
   it("can clear output of all cells", () => {
     // Create multiple cells with output
-    actions.createNewCell({ cellId: firstCellId, before: false });
+    seedCell({ cellId: firstCellId, before: false });
     const secondCellId = state.cellIds.atOrThrow(FIRST_COLUMN).atOrThrow(1);
 
     // Add output to both cells
@@ -2551,71 +2575,9 @@ describe("cell reducer", () => {
     expect(state.cellRuntime[secondCellId].consoleOutputs).toEqual([]);
   });
 
-  it("skips creating new cell if code exists and skipIfCodeExists is true", () => {
-    // Add initial cell with code
-    actions.updateCellCode({
-      cellId: firstCellId,
-      code: "import numpy as np",
-      formattingChange: false,
-    });
-
-    // Try to create new cell with same code and skipIfCodeExists
-    actions.createNewCell({
-      cellId: "__end__",
-      code: "import numpy as np",
-      before: false,
-      skipIfCodeExists: true,
-    });
-
-    // Should still only have one cell
-    expect(state.cellIds.inOrderIds.length).toBe(1);
-    expect(formatCells(state)).toMatchInlineSnapshot(`
-      "
-      [0] 'import numpy as np'
-      "
-    `);
-
-    // Verify we can still add cell with different code
-    actions.createNewCell({
-      cellId: "__end__",
-      code: "import pandas as pd",
-      before: false,
-      skipIfCodeExists: true,
-    });
-
-    expect(state.cellIds.inOrderIds.length).toBe(2);
-    expect(formatCells(state)).toMatchInlineSnapshot(`
-      "
-      [0] 'import numpy as np'
-
-      [1] 'import pandas as pd'
-      "
-    `);
-  });
-
-  it("can create and noop-update a setup cell", () => {
-    // Create the setup cell
-    actions.addSetupCellIfDoesntExist({ code: "# Setup code" });
-
-    // Check that setup cell was created
-    expect(state.cellData[SETUP_CELL_ID].id).toBe(SETUP_CELL_ID);
-    expect(state.cellData[SETUP_CELL_ID].name).toBe("setup");
-    expect(state.cellData[SETUP_CELL_ID].code).toBe("# Setup code");
-    expect(state.cellData[SETUP_CELL_ID].edited).toBe(true);
-    expect(state.cellIds.inOrderIds).toContain(SETUP_CELL_ID);
-
-    // Update the setup cell
-    actions.addSetupCellIfDoesntExist({ code: "# Updated setup code" });
-
-    // Check that the setup cell did not change, since it already exists
-    expect(state.cellData[SETUP_CELL_ID].code).toBe("# Setup code");
-    expect(state.cellData[SETUP_CELL_ID].edited).toBe(true);
-    expect(state.cellIds.inOrderIds).toContain(SETUP_CELL_ID);
-  });
-
   it("can delete and undelete the setup cell", () => {
     // Create the setup cell
-    actions.addSetupCellIfDoesntExist({ code: "# Setup code" });
+    seedSetupCell("# Setup code");
 
     // Check that setup cell was created
     expect(state.cellData[SETUP_CELL_ID].id).toBe(SETUP_CELL_ID);
@@ -2645,27 +2607,9 @@ describe("cell reducer", () => {
     expect(state.scrollKey).toBe(SETUP_CELL_ID);
   });
 
-  it("can delete and then create a new setup cell", () => {
-    // Create the setup cell
-    actions.addSetupCellIfDoesntExist({ code: "# Setup code" });
-
-    // Delete the setup cell
-    actions.deleteCell({ cellId: SETUP_CELL_ID });
-
-    // Create a new setup cell
-    actions.addSetupCellIfDoesntExist({ code: "# New code" });
-
-    // Check that the new setup cell was created
-    expect(state.cellData[SETUP_CELL_ID].id).toBe(SETUP_CELL_ID);
-    expect(state.cellData[SETUP_CELL_ID].name).toBe("setup");
-    expect(state.cellData[SETUP_CELL_ID].code).toBe("# New code");
-    expect(state.cellData[SETUP_CELL_ID].edited).toBe(true);
-    expect(state.cellIds.inOrderIds).toContain(SETUP_CELL_ID);
-  });
-
   it("can clear all outputs", () => {
     // Add a cell and give it output
-    actions.createNewCell({
+    seedCell({
       cellId: firstCellId,
       before: false,
     });
@@ -2693,202 +2637,14 @@ describe("cell reducer", () => {
     expect(state.cellRuntime[cell2Id].output).toBeNull();
   });
 
-  describe("moveToNextCell", () => {
-    let cell1Id: CellId;
-    let cell2Id: CellId;
-    let cell3Id: CellId;
-
-    beforeEach(() => {
-      // Create a few cells to work with
-      actions.createNewCell({ cellId: "__end__", before: false });
-      actions.createNewCell({ cellId: "__end__", before: false });
-
-      cell1Id = state.cellIds.inOrderIds[0];
-      cell2Id = state.cellIds.inOrderIds[1];
-      cell3Id = state.cellIds.inOrderIds[2];
-    });
-
-    it("creates new cell when moving after last cell with noCreate=false", () => {
-      const initialCellCount = state.cellIds.inOrderIds.length;
-
-      actions.moveToNextCell({
-        cellId: cell3Id,
-        before: false,
-        noCreate: false,
-      });
-
-      expect(state.cellIds.inOrderIds.length).toBe(initialCellCount + 1);
-    });
-
-    it("creates new cell when moving before first cell with noCreate=false", () => {
-      const initialCellCount = state.cellIds.inOrderIds.length;
-
-      actions.moveToNextCell({
-        cellId: cell1Id,
-        before: true,
-        noCreate: false,
-      });
-
-      expect(state.cellIds.inOrderIds.length).toBe(initialCellCount + 1);
-    });
-
-    it("does not create new cell when moving after last cell with noCreate=true", () => {
-      const initialCellCount = state.cellIds.inOrderIds.length;
-      const initialState = { ...state };
-
-      actions.moveToNextCell({
-        cellId: cell3Id,
-        before: false,
-        noCreate: true,
-      });
-
-      // Should not create a new cell
-      expect(state.cellIds.inOrderIds.length).toBe(initialCellCount);
-      // Should not crash or throw an error
-      expect(state.cellIds.inOrderIds).toEqual(initialState.cellIds.inOrderIds);
-    });
-
-    it("does not create new cell when moving before first cell with noCreate=true", () => {
-      const initialCellCount = state.cellIds.inOrderIds.length;
-      const initialState = { ...state };
-
-      actions.moveToNextCell({ cellId: cell1Id, before: true, noCreate: true });
-
-      // Should not create a new cell
-      expect(state.cellIds.inOrderIds.length).toBe(initialCellCount);
-      // Should not crash or throw an error
-      expect(state.cellIds.inOrderIds).toEqual(initialState.cellIds.inOrderIds);
-    });
-
-    it("focuses next cell when moving within bounds", () => {
-      const focusSpy = vi.mocked(focusAndScrollCellIntoView);
-      focusSpy.mockClear();
-
-      actions.moveToNextCell({
-        cellId: cell1Id,
-        before: false,
-        noCreate: true,
-      });
-
-      expect(focusSpy).toHaveBeenCalledWith({
-        cellId: cell2Id,
-        cell: state.cellHandles[cell2Id],
-        isCodeHidden: false,
-        codeFocus: "top",
-        variableName: undefined,
-      });
-    });
-
-    it("focuses previous cell when moving backward within bounds", () => {
-      const focusSpy = vi.mocked(focusAndScrollCellIntoView);
-      focusSpy.mockClear();
-
-      actions.moveToNextCell({ cellId: cell2Id, before: true, noCreate: true });
-
-      expect(focusSpy).toHaveBeenCalledWith({
-        cellId: cell1Id,
-        cell: state.cellHandles[cell1Id],
-        isCodeHidden: false,
-        codeFocus: "bottom",
-        variableName: undefined,
-      });
-    });
-
-    it("does not move focus from scratch cell", () => {
-      const focusSpy = vi.mocked(focusAndScrollCellIntoView);
-      focusSpy.mockClear();
-      const initialState = { ...state };
-
-      actions.moveToNextCell({
-        cellId: SCRATCH_CELL_ID,
-        before: false,
-        noCreate: false,
-      });
-
-      expect(focusSpy).not.toHaveBeenCalled();
-      expect(state.cellIds.inOrderIds).toEqual(initialState.cellIds.inOrderIds);
-    });
-  });
-
   describe("untouched cells functionality", () => {
     it("starts with empty untouchedNewCells set", () => {
       expect(state.untouchedNewCells).toEqual(new Set());
     });
 
-    it("can create a new cell with hideCode option", () => {
-      const initialCellCount = state.cellIds.inOrderIds.length;
-
-      actions.createNewCell({
-        cellId: "__end__",
-        before: false,
-        hideCode: true,
-      });
-
-      expect(state.cellIds.inOrderIds.length).toBe(initialCellCount + 1);
-      const newCellId =
-        state.cellIds.inOrderIds[state.cellIds.inOrderIds.length - 1];
-      expect(state.untouchedNewCells.has(newCellId)).toBe(true);
-    });
-
-    it("adds interactively-created hidden cell with boilerplate code to untouchedNewCells", () => {
-      // Markdown cells are created with hideCode and non-empty default code
-      // (e.g. `mo.md(r"""\n""")`). They are user-initiated, so their editor
-      // should be shown until first blur.
-      actions.createNewCell({
-        cellId: "__end__",
-        before: false,
-        code: 'mo.md(r"""\n""")',
-        hideCode: true,
-        autoFocus: true,
-      });
-
-      const newCellId =
-        state.cellIds.inOrderIds[state.cellIds.inOrderIds.length - 1];
-      expect(state.untouchedNewCells.has(newCellId)).toBe(true);
-    });
-
-    it("does not add programmatically-created hidden cell with code to untouchedNewCells", () => {
-      // Cells created by the kernel (e.g. via code_mode) carry code and
-      // autoFocus=false; their hide_code must take effect immediately.
-      actions.createNewCell({
-        cellId: "__end__",
-        before: false,
-        code: "x = 1",
-        hideCode: true,
-        autoFocus: false,
-      });
-
-      const newCellId =
-        state.cellIds.inOrderIds[state.cellIds.inOrderIds.length - 1];
-      expect(state.untouchedNewCells.has(newCellId)).toBe(false);
-    });
-
-    it("does not add cell to untouchedNewCells when hideCode is false", () => {
-      actions.createNewCell({
-        cellId: "__end__",
-        before: false,
-        hideCode: false,
-      });
-
-      const newCellId =
-        state.cellIds.inOrderIds[state.cellIds.inOrderIds.length - 1];
-      expect(state.untouchedNewCells.has(newCellId)).toBe(false);
-    });
-
-    it("does not add cell to untouchedNewCells when hideCode is undefined", () => {
-      actions.createNewCell({
-        cellId: "__end__",
-        before: false,
-      });
-
-      const newCellId =
-        state.cellIds.inOrderIds[state.cellIds.inOrderIds.length - 1];
-      expect(state.untouchedNewCells.has(newCellId)).toBe(false);
-    });
-
     it("can mark a cell as touched", () => {
       // Create a cell with hideCode
-      actions.createNewCell({
+      seedCell({
         cellId: "__end__",
         before: false,
         hideCode: true,
@@ -2906,7 +2662,7 @@ describe("cell reducer", () => {
 
     it("markTouched is idempotent", () => {
       // Create a cell with hideCode
-      actions.createNewCell({
+      seedCell({
         cellId: "__end__",
         before: false,
         hideCode: true,
@@ -2936,17 +2692,17 @@ describe("cell reducer", () => {
 
     it("can handle multiple untouched cells", () => {
       // Create multiple cells with hideCode
-      actions.createNewCell({
+      seedCell({
         cellId: "__end__",
         before: false,
         hideCode: true,
       });
-      actions.createNewCell({
+      seedCell({
         cellId: "__end__",
         before: false,
         hideCode: true,
       });
-      actions.createNewCell({
+      seedCell({
         cellId: "__end__",
         before: false,
         hideCode: false,
@@ -2971,12 +2727,12 @@ describe("cell reducer", () => {
 
     it("preserves untouched state when cells are moved", () => {
       // Create cells with hideCode
-      actions.createNewCell({
+      seedCell({
         cellId: "__end__",
         before: false,
         hideCode: true,
       });
-      actions.createNewCell({
+      seedCell({
         cellId: "__end__",
         before: false,
         hideCode: true,
@@ -3005,7 +2761,7 @@ describe("cell reducer", () => {
       // It is easier to leave it, so `undo` works as expected.
 
       // Create a cell with hideCode
-      actions.createNewCell({
+      seedCell({
         cellId: "__end__",
         before: false,
         hideCode: true,
@@ -3024,7 +2780,7 @@ describe("cell reducer", () => {
 
     it("restores untouched state when cell deletion is undone", () => {
       // Create a cell with hideCode
-      actions.createNewCell({
+      seedCell({
         cellId: "__end__",
         before: false,
         hideCode: true,
@@ -3051,7 +2807,7 @@ describe("cell reducer", () => {
 
     it("untouched cell behavior with hide_code config", () => {
       // Create a cell with hideCode and hide_code config
-      actions.createNewCell({
+      seedCell({
         cellId: "__end__",
         before: false,
         hideCode: true,
@@ -3083,7 +2839,7 @@ describe("cell reducer", () => {
 
     it("can mark an existing cell as untouched", () => {
       // Create a cell without hideCode (not in untouchedNewCells)
-      actions.createNewCell({
+      seedCell({
         cellId: "__end__",
         before: false,
         hideCode: false,
@@ -3101,7 +2857,7 @@ describe("cell reducer", () => {
 
     it("markUntouched is idempotent", () => {
       // Create a cell without hideCode
-      actions.createNewCell({
+      seedCell({
         cellId: "__end__",
         before: false,
         hideCode: false,
@@ -3121,7 +2877,7 @@ describe("cell reducer", () => {
 
     it("markUntouched does not affect already untouched cells", () => {
       // Create a cell with hideCode (already in untouchedNewCells)
-      actions.createNewCell({
+      seedCell({
         cellId: "__end__",
         before: false,
         hideCode: true,
@@ -3139,7 +2895,7 @@ describe("cell reducer", () => {
 
     it("markTouched and markUntouched can toggle cell state", () => {
       // Create a cell without hideCode
-      actions.createNewCell({
+      seedCell({
         cellId: "__end__",
         before: false,
         hideCode: false,
@@ -3167,7 +2923,7 @@ describe("cell reducer", () => {
     it("markUntouched works for markdown cell conversion scenario", () => {
       // Simulates converting a Python cell to Markdown
       // 1. Create a regular cell (no hideCode)
-      actions.createNewCell({
+      seedCell({
         cellId: "__end__",
         before: false,
         hideCode: false,
@@ -3208,7 +2964,7 @@ describe("cell reducer", () => {
       const { cellDataAtom, cellRuntimeAtom, cellHandleAtom } =
         exportedForTesting;
 
-      actions.createNewCell({ cellId: firstCellId, before: false });
+      seedCell({ cellId: firstCellId, before: false });
       const newCellId = state.cellIds.inOrderIds[1];
 
       const dataAtom1 = cellDataAtom(newCellId);
@@ -3229,7 +2985,7 @@ describe("cell reducer", () => {
       const { cellDataAtom, cellRuntimeAtom, cellHandleAtom } =
         exportedForTesting;
 
-      actions.createNewCell({ cellId: firstCellId, before: false });
+      seedCell({ cellId: firstCellId, before: false });
       const newCellId = state.cellIds.inOrderIds[1];
 
       // Access to create cache entries

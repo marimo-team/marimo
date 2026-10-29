@@ -55,21 +55,29 @@
     --background: light-dark(hsl(0deg 0% 100%), hsl(150deg 7.7% 10.2%));
     --foreground: light-dark(hsl(222.2deg 47.4% 11.2%), hsl(155deg 7% 93%));
     --muted: light-dark(hsl(210deg 40% 96.1%), hsl(180deg 14% 1%));
-    --muted-foreground: light-dark(hsl(215.4deg 16.3% 46.9%),
-        hsl(155deg 5% 68.3%));
+    --muted-foreground: light-dark(
+      hsl(215.4deg 16.3% 46.9%),
+      hsl(155deg 5% 68.3%)
+    );
     --popover: light-dark(hsl(0deg 0% 100%), hsl(151deg 5.5% 15.2%));
-    --popover-foreground: light-dark(hsl(222.2deg 47.4% 11.2%),
-        hsl(155deg 5% 68.3%));
+    --popover-foreground: light-dark(
+      hsl(222.2deg 47.4% 11.2%),
+      hsl(155deg 5% 68.3%)
+    );
     --card: light-dark(hsl(0deg 0% 100%), hsl(151deg 5.5% 15.2%));
-    --card-foreground: light-dark(hsl(222.2deg 47.4% 11.2%),
-        hsl(155deg 5% 76.3%));
+    --card-foreground: light-dark(
+      hsl(222.2deg 47.4% 11.2%),
+      hsl(155deg 5% 76.3%)
+    );
     --border: light-dark(hsl(214.3deg 31.8% 91.4%), hsl(153deg 3.7% 24.2%));
     --input: light-dark(hsl(0deg 0% 64%), hsl(154deg 3.3% 28.7%));
     --primary: light-dark(hsl(208deg 93.5% 47.4%), hsl(192deg 59.8% 39%));
     --primary-foreground: light-dark(hsl(210deg 40% 98%), hsl(190deg 80% 84%));
     --secondary: light-dark(hsl(210deg 40% 96.1%), hsl(155deg 7% 93%));
-    --secondary-foreground: light-dark(hsl(222.2deg 47.4% 11.2%),
-        hsl(151deg 5.5% 15.2%));
+    --secondary-foreground: light-dark(
+      hsl(222.2deg 47.4% 11.2%),
+      hsl(151deg 5.5% 15.2%)
+    );
     --accent: light-dark(hsl(209deg 100% 96.5%), hsl(192deg 56.6% 26.5%));
     --accent-foreground: light-dark(hsl(211deg 90% 42%), hsl(190deg 80% 84%));
     --ring: hsl(215deg 20.2% 65.1%);
@@ -101,8 +109,10 @@
 
     /* Base shadows. */
     --base-shadow: light-dark(hsl(0deg 0% 85% / 40%), hsla(0deg 0% 36% / 60%));
-    --base-shadow-darker: light-dark(hsl(0deg 0% 50% / 40%),
-        hsl(0deg 0% 50% / 60%));
+    --base-shadow-darker: light-dark(
+      hsl(0deg 0% 50% / 40%),
+      hsl(0deg 0% 50% / 60%)
+    );
     --base-shadow-opacity: 5%;
 
     /* Codemirror editor */
@@ -214,40 +224,64 @@
   --shadow-xxs: 0px 0px 2px 0px var(--base-shadow-darker);
 
   /* oxfmt-ignore: definition needs to be oneline or breaks variants */
-  --shadow-xs: 1px 1px 2px 0px var(--base-shadow), 0px 0px 2px 0px hsl(0deg 0% 25% / var(--base-shadow-opacity));
+  --shadow-xs:
+    1px 1px 2px 0px var(--base-shadow),
+    0px 0px 2px 0px hsl(0deg 0% 25% / var(--base-shadow-opacity));
 
   /* oxfmt-ignore: definition needs to be oneline or breaks variants */
-  --shadow-sm: 2px 2px 2px 0px var(--base-shadow), 0px 0px 2px 0px hsl(0deg 0% 25% / var(--base-shadow-opacity));
+  --shadow-sm:
+    2px 2px 2px 0px var(--base-shadow),
+    0px 0px 2px 0px hsl(0deg 0% 25% / var(--base-shadow-opacity));
 
   /* oxfmt-ignore: definition needs to be oneline or breaks variants */
-  --shadow-md: 4px 4px 4px 0px var(--base-shadow), 0 0px 4px 0px hsl(0deg 0% 60% / var(--base-shadow-opacity));
+  --shadow-md:
+    4px 4px 4px 0px var(--base-shadow),
+    0 0px 4px 0px hsl(0deg 0% 60% / var(--base-shadow-opacity));
 
   /* oxfmt-ignore: definition needs to be oneline or breaks variants */
-  --shadow-lg: 5px 6px 4px 0px var(--base-shadow), 0 0px 4px 0px hsl(0deg 0% 75% / var(--base-shadow-opacity));
+  --shadow-lg:
+    5px 6px 4px 0px var(--base-shadow),
+    0 0px 4px 0px hsl(0deg 0% 75% / var(--base-shadow-opacity));
 
   /* oxfmt-ignore: definition needs to be oneline or breaks variants */
-  --shadow-xl: 8px 9px 4px 0px var(--base-shadow), 0 0px 6px 0px hsl(0deg 0% 85% / var(--base-shadow-opacity));
+  --shadow-xl:
+    8px 9px 4px 0px var(--base-shadow),
+    0 0px 6px 0px hsl(0deg 0% 85% / var(--base-shadow-opacity));
 
   /* oxfmt-ignore: definition needs to be oneline or breaks variants */
-  --shadow-2xl: 10px 12px 10px 0px var(--base-shadow), 0 0px 8px 0px hsl(0deg 0% 90% / var(--base-shadow-opacity));
+  --shadow-2xl:
+    10px 12px 10px 0px var(--base-shadow),
+    0 0px 8px 0px hsl(0deg 0% 90% / var(--base-shadow-opacity));
 
   /* oxfmt-ignore: definition needs to be oneline or breaks variants */
-  --shadow-xs-solid: 1px 1px 0px 0px var(--base-shadow-darker), 0px 0px 2px 0px hsl(0deg 0% 50% / 20%);
+  --shadow-xs-solid:
+    1px 1px 0px 0px var(--base-shadow-darker),
+    0px 0px 2px 0px hsl(0deg 0% 50% / 20%);
 
   /* oxfmt-ignore: definition needs to be oneline or breaks variants */
-  --shadow-sm-solid: 2px 2px 0px 0px var(--base-shadow-darker), 0px 0px 2px 0px hsl(0deg 0% 50% / 20%);
+  --shadow-sm-solid:
+    2px 2px 0px 0px var(--base-shadow-darker),
+    0px 0px 2px 0px hsl(0deg 0% 50% / 20%);
 
   /* oxfmt-ignore: definition needs to be oneline or breaks variants */
-  --shadow-md-solid: 4px 4px 0px 0px var(--base-shadow-darker), 0 0px 2px 0px hsl(0deg 0% 60% / 50%);
+  --shadow-md-solid:
+    4px 4px 0px 0px var(--base-shadow-darker),
+    0 0px 2px 0px hsl(0deg 0% 60% / 50%);
 
   /* oxfmt-ignore: definition needs to be oneline or breaks variants */
-  --shadow-lg-solid: 5px 6px 0px 0px var(--base-shadow-darker), 0 0px 4px 0px hsl(0deg 0% 75% / 50%);
+  --shadow-lg-solid:
+    5px 6px 0px 0px var(--base-shadow-darker),
+    0 0px 4px 0px hsl(0deg 0% 75% / 50%);
 
   /* oxfmt-ignore: definition needs to be oneline or breaks variants */
-  --shadow-xl-solid: 7px 8px 0px 0px var(--base-shadow-darker), 0 0px 4px 0px hsl(0deg 0% 85% / 50%);
+  --shadow-xl-solid:
+    7px 8px 0px 0px var(--base-shadow-darker),
+    0 0px 4px 0px hsl(0deg 0% 85% / 50%);
 
   /* oxfmt-ignore: definition needs to be oneline or breaks variants */
-  --shadow-2xl-solid: 10px 12px 0px 0px var(--base-shadow-darker), 0 0px 8px 0px hsl(0deg 0% 90% / 50%);
+  --shadow-2xl-solid:
+    10px 12px 0px 0px var(--base-shadow-darker),
+    0 0px 8px 0px hsl(0deg 0% 90% / 50%);
 
   /* Solid shadows with lighter shade color */
 

@@ -10,7 +10,8 @@ import { Button } from "@/components/ui/button";
 import { DelayMount } from "@/components/utils/delay-mount";
 import { aiCompletionCellAtom } from "@/core/ai/state";
 import { maybeAddMarimoImport } from "@/core/cells/add-missing-import";
-import { getNotebook, useCellActions } from "@/core/cells/cells";
+import { getNotebook } from "@/core/cells/cells";
+import { useCellActions } from "@/core/cells/actions";
 import { useNotebookDocumentEdit } from "@/core/notebook/document";
 import { SETUP_CELL_ID } from "@/core/cells/ids";
 import { usePendingDeleteService } from "@/core/cells/pending-delete-service";
@@ -184,7 +185,7 @@ const CellEditorInternal = ({
   const afterToggleMarkdown = useEvent(() => {
     maybeAddMarimoImport({
       autoInstantiate,
-      createNewCell: cellActions.createNewCell,
+      createCell: cellActions.createCell,
     });
     // Code stays visible until the user blurs the cell
     if (!cellConfig.hide_code && MARKDOWN_INITIAL_HIDE_CODE) {
@@ -198,7 +199,7 @@ const CellEditorInternal = ({
   const afterToggleSQL = useEvent(() => {
     maybeAddMarimoImport({
       autoInstantiate,
-      createNewCell: cellActions.createNewCell,
+      createCell: cellActions.createCell,
     });
   });
 
@@ -218,11 +219,9 @@ const CellEditorInternal = ({
         saveNotebook: saveOrNameNotebook,
         createManyBelow: (cells) => {
           for (const code of cells.toReversed()) {
-            cellActions.createNewCell({
+            cellActions.createCell({
+              after: cellId,
               code,
-              before: false,
-              cellId: cellId,
-              // If the code already exists, skip creation
               skipIfCodeExists: true,
             });
           }
@@ -231,7 +230,7 @@ const CellEditorInternal = ({
           const notebook = getNotebook();
           // No setup cell yet: create one with this code at the top.
           if (!notebook.cellIds.setupCellExists()) {
-            cellActions.addSetupCellIfDoesntExist({ code });
+            cellActions.addSetupCell({ code });
             return;
           }
           // Setup cell exists: append the pasted code to it. Prefer updating

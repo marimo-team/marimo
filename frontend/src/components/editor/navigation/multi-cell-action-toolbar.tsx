@@ -34,8 +34,8 @@ import {
   getCellEditorView,
   hasOnlyOneCellAtom,
   notebookAtom,
-  useCellActions,
 } from "@/core/cells/cells";
+import { useCellActions } from "@/core/cells/actions";
 import { useNotebookDocumentEdit } from "@/core/notebook/document";
 import type { CellId } from "@/core/cells/ids";
 import { usePendingDeleteService } from "@/core/cells/pending-delete-service";

@@ -42,7 +42,6 @@ import {
   type CellData,
   type CellRuntimeState,
   createCell,
-  createCellConfig,
   createCellRuntimeState,
   isEdited,
 } from "./types";
@@ -162,40 +161,6 @@ export function initialNotebookState(): NotebookState {
   });
 }
 
-/** The target cell ID to create a new cell relative to. Can be:
- * - A CellId string for an existing cell
- * - "__end__" to append at the end of the first column
- * - {type: "__end__", columnId} to append at the end of a specific column
- */
-export type CellPosition =
-  | CellId
-  | "__end__"
-  | { type: "__end__"; columnId: CellColumnId };
-
-export interface CreateNewCellAction {
-  cellId: CellPosition;
-  /** Whether to insert before (true) or after (false) the target cell */
-  before: boolean;
-  /** Initial code content for the new cell */
-  code?: string;
-  /** Optional name for the new cell */
-  name?: string;
-  /** Optional cell configuration */
-  config?: CellConfig;
-  /** The last executed code for the new cell */
-  lastCodeRun?: string;
-  /** Timestamp of the last execution */
-  lastExecutionTime?: number;
-  /** Optional custom ID for the new cell. Auto-generated if not provided */
-  newCellId?: CellId;
-  /** Whether to focus the new cell after creation */
-  autoFocus?: boolean;
-  /** If true, skip creation if code already exists */
-  skipIfCodeExists?: boolean;
-  /** Hide the code in the new cell. This will be initially shown until the cell is blurred for the first time. */
-  hideCode?: boolean;
-}
-
 /**
  * Actions and reducer for the notebook state.
  */
@@ -206,85 +171,6 @@ const {
   useActions,
   valueAtom: notebookAtom,
 } = createReducerAndAtoms(initialNotebookState, {
-  createNewCell: (state, action: CreateNewCellAction) => {
-    const {
-      cellId,
-      before,
-      code,
-      name,
-      config,
-      lastCodeRun = null,
-      lastExecutionTime = null,
-      autoFocus = true,
-      skipIfCodeExists = false,
-      hideCode = undefined,
-    } = action;
-
-    let columnId: CellColumnId;
-    let cellIndex: number;
-
-    // If skipIfCodeExists is true, check if the code already exists in the notebook
-    if (skipIfCodeExists) {
-      for (const cellId of state.cellIds.inOrderIds) {
-        if (state.cellData[cellId]?.code === code) {
-          return state;
-        }
-      }
-    }
-
-    if (cellId === "__end__") {
-      const column = state.cellIds.atOrThrow(0);
-      columnId = column.id;
-      cellIndex = column.length;
-    } else if (typeof cellId === "string") {
-      const column = state.cellIds.findWithId(cellId);
-      columnId = column.id;
-      cellIndex = column.topLevelIds.indexOf(cellId);
-    } else if (cellId.type === "__end__") {
-      const column =
-        state.cellIds.get(cellId.columnId) || state.cellIds.atOrThrow(0);
-      columnId = column.id;
-      cellIndex = column.length;
-    } else {
-      throw new Error("Invalid cellId");
-    }
-
-    const newCellId = action.newCellId || CellId.create();
-    const insertionIndex = before ? cellIndex : cellIndex + 1;
-
-    return {
-      ...state,
-      cellIds: state.cellIds.insertId(newCellId, columnId, insertionIndex),
-      cellData: {
-        ...state.cellData,
-        [newCellId]: createCell({
-          id: newCellId,
-          code,
-          name,
-          lastCodeRun,
-          config: createCellConfig({
-            ...config,
-            ...(hideCode != null && { hide_code: hideCode }),
-          }),
-          lastExecutionTime,
-          edited: Boolean(code) && code !== lastCodeRun,
-        }),
-      },
-      cellRuntime: {
-        ...state.cellRuntime,
-        [newCellId]: createCellRuntimeState(),
-      },
-      cellHandles: {
-        ...state.cellHandles,
-        [newCellId]: createRef(),
-      },
-      scrollKey: autoFocus ? newCellId : null,
-      untouchedNewCells:
-        hideCode && autoFocus
-          ? new Set([...state.untouchedNewCells, newCellId])
-          : state.untouchedNewCells,
-    };
-  },
   moveCell: (
     state,
     action: {
@@ -991,97 +877,6 @@ const {
     }
     return { ...state, cellRuntime };
   },
-  /**
-   * Move focus to next cell
-   *
-   * Creates a new cell if the current cell is the last one in the array.
-   *
-   * If needed, scrolls newly created or focused cell into view.
-   *
-   * Replicates Shift+Enter functionality of Jupyter
-   */
-  moveToNextCell: (
-    state,
-    action: { cellId: CellId; before: boolean; noCreate?: boolean },
-  ) => {
-    const { cellId, before, noCreate = false } = action;
-
-    // Can't move focus of scratch cell
-    if (cellId === SCRATCH_CELL_ID) {
-      return state;
-    }
-
-    const column = state.cellIds.findWithId(cellId);
-    const index = column.indexOfOrThrow(cellId);
-    const nextCellIndex = before ? index - 1 : index + 1;
-
-    const isPastLastCell = nextCellIndex === column.length;
-    const isBeforeFirstCell = nextCellIndex === -1;
-
-    // Create a new cell at the end and set scrollKey to focus it
-    if (isPastLastCell && !noCreate) {
-      const newCellId = CellId.create();
-      return {
-        ...state,
-        cellIds: state.cellIds.insertId(newCellId, column.id, nextCellIndex),
-        cellData: {
-          ...state.cellData,
-          [newCellId]: createCell({ id: newCellId }),
-        },
-        cellRuntime: {
-          ...state.cellRuntime,
-          [newCellId]: createCellRuntimeState(),
-        },
-        cellHandles: {
-          ...state.cellHandles,
-          [newCellId]: createRef(),
-        },
-        scrollKey: newCellId,
-      };
-    }
-
-    if (isBeforeFirstCell && !noCreate) {
-      const newCellId = CellId.create();
-      return {
-        ...state,
-        cellIds: state.cellIds.insertId(newCellId, column.id, 0),
-        cellData: {
-          ...state.cellData,
-          [newCellId]: createCell({ id: newCellId }),
-        },
-        cellRuntime: {
-          ...state.cellRuntime,
-          [newCellId]: createCellRuntimeState(),
-        },
-        cellHandles: {
-          ...state.cellHandles,
-          [newCellId]: createRef(),
-        },
-        scrollKey: newCellId,
-      };
-    }
-
-    if ((isPastLastCell || isBeforeFirstCell) && noCreate) {
-      // Trying to move past the last cell or before the first cell
-      // with noCreate=true - do nothing
-      return state;
-    }
-
-    if (nextCellIndex >= 0 && nextCellIndex < column.length) {
-      // Move to valid cell within bounds
-      const nextCellId = column.atOrThrow(nextCellIndex);
-      // Just focus, no state change
-      focusAndScrollCellIntoView({
-        cellId: nextCellId,
-        cell: state.cellHandles[nextCellId],
-        isCodeHidden: isCellCodeHidden(state, nextCellId),
-        codeFocus: before ? "bottom" : "top",
-        variableName: undefined,
-      });
-    }
-
-    return state;
-  },
   markTouched: (state, action: { cellId: CellId }) => {
     const { cellId } = action;
 
@@ -1400,44 +1195,6 @@ const {
     return {
       ...state,
       cellRuntime: newCellRuntime,
-    };
-  },
-  addSetupCellIfDoesntExist: (state, action: { code?: string }) => {
-    const { code } = action;
-
-    if (state.cellIds.setupCellExists()) {
-      // Just focus on the existing setup cell
-      return {
-        ...state,
-        scrollKey: SETUP_CELL_ID,
-      };
-    }
-
-    return {
-      ...state,
-      cellIds: state.cellIds.insertId(
-        SETUP_CELL_ID,
-        state.cellIds.atOrThrow(0).id,
-        0,
-      ),
-      cellData: {
-        ...state.cellData,
-        [SETUP_CELL_ID]: createCell({
-          id: SETUP_CELL_ID,
-          name: SETUP_CELL_ID,
-          code,
-          edited: Boolean(code),
-        }),
-      },
-      cellRuntime: {
-        ...state.cellRuntime,
-        [SETUP_CELL_ID]: createCellRuntimeState(),
-      },
-      cellHandles: {
-        ...state.cellHandles,
-        [SETUP_CELL_ID]: createRef(),
-      },
-      scrollKey: SETUP_CELL_ID,
     };
   },
 });
@@ -1847,20 +1604,13 @@ export function createTracebackInfoAtom(
   });
 }
 
-/**
- * Use this hook to dispatch cell actions. This hook will not cause a re-render
- * when cells change.
- */
-export function useCellActions(
-  options: { skipMiddleware?: boolean } = {},
-): CellActions {
-  return useActions(options);
+/** The reducer's actions. Components use `useCellActions` from `./actions`. */
+export function useReducerActions(): ReducerCellActions {
+  return useActions();
 }
 
-/**
- * Map of cell actions
- */
-export type CellActions = ReturnType<typeof createActions>;
+/** The actions the reducer still handles. */
+export type ReducerCellActions = ReturnType<typeof createActions>;
 
 /**
  * This is exported for testing purposes only.
