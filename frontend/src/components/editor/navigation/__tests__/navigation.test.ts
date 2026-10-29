@@ -3,15 +3,31 @@
 
 import type { EditorView } from "@codemirror/view";
 import { act, renderHook } from "@testing-library/react";
-import { Provider } from "jotai";
 import React, { createRef } from "react";
-import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  afterAll,
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
 import { Mocks } from "@/__mocks__/common";
+import { DocumentWrapper, mockDocumentModel } from "@/__mocks__/document";
 import { MockNotebook } from "@/__mocks__/notebook";
 import { MockRequestClient } from "@/__mocks__/requests";
 import { aiCompletionCellAtom } from "@/core/ai/state";
 import type { CellActions } from "@/core/cells/cells";
 import { notebookAtom } from "@/core/cells/cells";
+import type { CellId } from "@/core/cells/ids";
+import type { DocumentModel } from "@/core/notebook/document";
+import {
+  cell,
+  CONFIG,
+  document as documentOf,
+  withCells,
+} from "@/core/notebook/document/__tests__/fixtures";
 import { LanguageAdapters } from "@/core/codemirror/language/LanguageAdapters";
 import { signatureHintField } from "@/core/codemirror/completion/signature-hint";
 import {
@@ -93,6 +109,8 @@ const mockUseCellClipboard = vi.mocked(
   await import("../clipboard"),
 ).useCellClipboard;
 
+afterEach(() => stopModel());
+
 afterAll(() => {
   vi.resetAllMocks();
 });
@@ -107,11 +125,17 @@ import {
   useIsCellSelected,
 } from "../selection";
 
+// The document the hooks edit, with cellId3's code hidden
+let model: DocumentModel;
+let stopModel = () => {};
+const hideCodeOf = (id: CellId) =>
+  store.get(model.documentAtom)?.cells.get(id)?.config.hide_code;
+
 // Shared render helper
 const renderWithProvider = <T>(hook: () => T) => {
   return renderHook(hook, {
     wrapper: ({ children }) =>
-      React.createElement(Provider, { store }, children),
+      React.createElement(DocumentWrapper, { store, model }, children),
   });
 };
 
@@ -133,7 +157,6 @@ const mockCellActions = MockNotebook.cellActions({
   moveCell: vi.fn(),
   sendToTop: vi.fn(),
   sendToBottom: vi.fn(),
-  updateCellConfig: vi.fn(),
   markTouched: vi.fn(),
   deleteCell: vi.fn(),
   undoDeleteCell: vi.fn(),
@@ -207,6 +230,23 @@ describe("useCellNavigationProps", () => {
       },
     });
     store.set(notebookAtom, notebookState);
+    stopModel();
+    ({ model, stop: stopModel } = mockDocumentModel(
+      store,
+      withCells(
+        documentOf(),
+        {
+          c1: null,
+          c2: null,
+          [cellId1]: cell(cellId1, ""),
+          [cellId2]: cell(cellId2, ""),
+          [cellId3]: cell(cellId3, "", {
+            config: { ...CONFIG, hide_code: true },
+          }),
+        },
+        [cellId1, cellId2, cellId3],
+      ),
+    ));
 
     // Clear AI completion state
     store.set(aiCompletionCellAtom, null);
@@ -1167,15 +1207,7 @@ describe("useCellNavigationProps", () => {
         result.current.onKeyDown?.(mockEvent);
       });
 
-      expect(mockRequestClient.saveCellConfig).toHaveBeenCalledWith({
-        configs: {
-          [cellId1]: { hide_code: true },
-        },
-      });
-      expect(mockCellActions.updateCellConfig).toHaveBeenCalledWith({
-        cellId: cellId1,
-        config: { hide_code: true },
-      });
+      expect(hideCodeOf(cellId1)).toBe(true);
       expect(mockEvent.preventDefault).toHaveBeenCalled();
     });
 
@@ -1190,15 +1222,7 @@ describe("useCellNavigationProps", () => {
         result.current.onKeyDown?.(mockEvent);
       });
 
-      expect(mockRequestClient.saveCellConfig).toHaveBeenCalledWith({
-        configs: {
-          [cellId3]: { hide_code: false },
-        },
-      });
-      expect(mockCellActions.updateCellConfig).toHaveBeenCalledWith({
-        cellId: cellId3,
-        config: { hide_code: false },
-      });
+      expect(hideCodeOf(cellId3)).toBe(false);
     });
 
     it("should toggle hide code for multiple selected cells", () => {
@@ -1220,20 +1244,8 @@ describe("useCellNavigationProps", () => {
         result.current.onKeyDown?.(mockEvent);
       });
 
-      expect(mockRequestClient.saveCellConfig).toHaveBeenCalledWith({
-        configs: {
-          [cellId1]: { hide_code: true },
-          [cellId2]: { hide_code: true },
-        },
-      });
-      expect(mockCellActions.updateCellConfig).toHaveBeenCalledWith({
-        cellId: cellId1,
-        config: { hide_code: true },
-      });
-      expect(mockCellActions.updateCellConfig).toHaveBeenCalledWith({
-        cellId: cellId2,
-        config: { hide_code: true },
-      });
+      expect(hideCodeOf(cellId1)).toBe(true);
+      expect(hideCodeOf(cellId2)).toBe(true);
     });
   });
 

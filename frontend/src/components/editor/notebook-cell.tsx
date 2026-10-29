@@ -222,7 +222,6 @@ export type CellComponentActions = Pick<
   | "collapseCell"
   | "expandCell"
   | "moveToNextCell"
-  | "updateCellConfig"
   | "clearSerializedEditorState"
   | "setStdinResponse"
   | "clearCellConsoleOutput"

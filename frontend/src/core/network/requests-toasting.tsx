@@ -33,7 +33,6 @@ export function createErrorToastingRequests(
     sendCodeCompletionRequest: "Failed to complete code",
     saveUserConfig: "Failed to save user config",
     saveAppConfig: "Failed to save app config",
-    saveCellConfig: "Failed to save cell config",
     sendStdin: "Failed to send stdin",
     readCode: "Failed to read code",
     readSnippets: "Failed to fetch snippets",

@@ -1,10 +1,10 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { useCallback } from "react";
-import { getNotebook, useCellActions } from "@/core/cells/cells";
+import { getNotebook } from "@/core/cells/cells";
 import type { CellId } from "@/core/cells/ids";
 import { MarkdownLanguageAdapter } from "@/core/codemirror/language/languages/markdown";
-import { useRequestClient } from "@/core/network/requests";
+import { useNotebookDocumentEdit } from "@/core/notebook/document";
 import type { CellConfig } from "@/core/network/types";
 import { Objects } from "@/utils/objects";
 
@@ -21,11 +21,10 @@ const cellCodeKind = (code: string): CellCodeKind =>
  * cell of the given kind.
  */
 export const useSetCodeVisibility = () => {
-  const { updateCellConfig } = useCellActions();
-  const { saveCellConfig } = useRequestClient();
+  const edit = useNotebookDocumentEdit();
 
   return useCallback(
-    async (hidden: boolean, kind: CellCodeKind) => {
+    (hidden: boolean, kind: CellCodeKind) => {
       const notebook = getNotebook();
 
       const newConfigs: Record<CellId, Partial<CellConfig>> = {};
@@ -46,12 +45,12 @@ export const useSetCodeVisibility = () => {
         return;
       }
 
-      await saveCellConfig({ configs: newConfigs });
-
-      for (const [cellId, config] of entries) {
-        updateCellConfig({ cellId, config });
-      }
+      edit((tx) => {
+        for (const [cellId, config] of entries) {
+          tx.updateConfig(cellId, config);
+        }
+      });
     },
-    [updateCellConfig, saveCellConfig],
+    [edit],
   );
 };

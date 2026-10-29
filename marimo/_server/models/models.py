@@ -28,7 +28,6 @@ from marimo._runtime.commands import (
     SetBreakpointsCommand,
     StorageDownloadCommand,
     StorageListEntriesCommand,
-    UpdateCellConfigCommand,
     UpdateUIElementCommand,
     UpdateUserConfigCommand,
     ValidateSQLCommand,
@@ -200,11 +199,6 @@ class InstallPackagesRequest(InstallPackagesCommand, tag=False):
         return InstallPackagesCommand(
             manager=self.manager, versions=self.versions, source=self.source
         )
-
-
-class UpdateCellConfigRequest(UpdateCellConfigCommand, tag=False):
-    def as_command(self) -> UpdateCellConfigCommand:
-        return UpdateCellConfigCommand(configs=self.configs)
 
 
 class CodeCompletionRequest(CodeCompletionCommand, tag=False):

@@ -384,7 +384,6 @@ def generate_server_api_schema() -> dict[str, Any]:
         models.SaveUserConfigurationRequest,
         models.StdinRequest,
         models.SuccessResponse,
-        models.UpdateCellConfigRequest,
         models.FocusCellRequest,
         session_requests.UpdateUIElementValuesRequest,
         models.UpdateUIElementRequest,

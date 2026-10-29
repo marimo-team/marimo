@@ -24,7 +24,6 @@ from marimo._server.models.models import (
     InstallPackagesRequest,
     StdinRequest,
     SuccessResponse,
-    UpdateCellConfigRequest,
 )
 from marimo._server.router import APIRouter
 from marimo._utils.formatter import DefaultFormatter
@@ -163,32 +162,6 @@ async def format_cell(request: Request) -> FormatResponse:
         raise ModuleNotFoundError(
             "Server does not have a formatter. Please install ruff"
         ) from None
-
-
-@router.post("/set_cell_config")
-@requires("edit")
-async def set_cell_config(request: Request) -> BaseResponse:
-    """
-    parameters:
-        - in: header
-          name: Marimo-Session-Id
-          schema:
-            type: string
-          required: true
-    requestBody:
-        content:
-            application/json:
-                schema:
-                    $ref: "#/components/schemas/UpdateCellConfigRequest"
-    responses:
-        200:
-            description: Set the configuration of a cell
-            content:
-                application/json:
-                    schema:
-                        $ref: "#/components/schemas/SuccessResponse"
-    """
-    return await dispatch_control_request(request, UpdateCellConfigRequest)
 
 
 @router.post("/stdin")

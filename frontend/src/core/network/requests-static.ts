@@ -52,7 +52,6 @@ export function createStaticRequests(): EditRequests & RunRequests {
     sendCodeCompletionRequest: throwNotInEditMode,
     saveUserConfig: throwNotInEditMode,
     saveAppConfig: throwNotInEditMode,
-    saveCellConfig: throwNotInEditMode,
     sendStdin: throwNotInEditMode,
     readCode: throwNotInEditMode,
     readSnippets: throwNotInEditMode,
