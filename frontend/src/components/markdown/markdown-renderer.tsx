@@ -161,6 +161,10 @@ const sanitizeSchema = {
     ...defaultSchema.attributes,
     "*": [...(defaultSchema.attributes?.["*"] ?? []), "className"],
   },
+  protocols: {
+    ...defaultSchema.protocols,
+    href: [...(defaultSchema.protocols?.href ?? []), "zotero"],
+  },
 };
 
 // Keep Streamdown's other rehype plugins (raw, harden) so scripts and unsafe
