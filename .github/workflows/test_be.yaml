@@ -222,7 +222,9 @@ jobs:
 
       - name: Test with optional dependencies
         run: |
-          uv run --group test-optional --with 'duckdb<2' pytest \
+          uv sync --group test-optional
+          uv pip install --python .venv 'duckdb<2'
+          uv run --no-sync pytest \
             -v \
             tests/ \
             -k "not test_cli" \
