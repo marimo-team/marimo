@@ -317,6 +317,8 @@ class NarwhalsTableManager(
 
     def drop_columns(self, columns: list[str]) -> TableManager[Any]:
         if self.data.implementation.is_duckdb() and self._geometry_columns:
+            if not set(columns).intersection(self.data.columns):
+                return self
             return self.select_columns(
                 [name for name in self.data.columns if name not in columns]
             )

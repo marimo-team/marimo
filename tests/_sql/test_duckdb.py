@@ -53,7 +53,7 @@ def duckdb_connection() -> Generator[duckdb.DuckDBPyConnection, None, None]:
         (3, 'Charlie');
         """
     )
-    sql("INSERT INTO test (id, name) VALUES (4, 'Rose')", engine=conn)
+    conn.execute("INSERT INTO test (id, name) VALUES (4, 'Rose')").fetchall()
     yield conn
     conn.execute("DROP TABLE test")
     conn.close()
@@ -158,6 +158,8 @@ def test_duckdb_engine_get_databases(
 @pytest.mark.skipif(not HAS_DUCKDB, reason="DuckDB not installed")
 def test_duckdb_engine_get_databases_no_conn() -> None:
     """Test DuckDBEngine get_databases method."""
+    import duckdb
+
     engine = DuckDBEngine(None, engine_name=None)
     initial_databases = engine.get_databases(
         include_schemas=False,
@@ -173,18 +175,18 @@ def test_duckdb_engine_get_databases_no_conn() -> None:
     assert engine.get_default_database() == "memory"
     assert engine.get_default_schema() == "main"
 
-    engine.execute(
+    duckdb.execute(
         "CREATE TABLE test (id INTEGER PRIMARY KEY, name VARCHAR(255))"
-    )
+    ).fetchall()
     try:
-        engine.execute(
+        duckdb.execute(
             """
             INSERT INTO test VALUES
             (1, 'Alice'),
             (2, 'Bob'),
             (3, 'Charlie');
             """
-        )
+        ).fetchall()
         databases = engine.get_databases(
             include_schemas=True,
             include_tables=True,
@@ -206,7 +208,7 @@ def test_duckdb_engine_get_databases_no_conn() -> None:
             ),
         ]
     finally:
-        engine.execute("DROP TABLE test")
+        duckdb.execute("DROP TABLE test").fetchall()
 
 
 @pytest.mark.skipif(not HAS_DUCKDB, reason="duckdb not installed")
@@ -244,15 +246,17 @@ def test_get_current_database_schema() -> None:
     assert duckdb_engine.get_default_database() == "memory"
     assert duckdb_engine.get_default_schema() == "main"
 
-    sql("CREATE SCHEMA test_schema;", engine=engine)
-    sql("CREATE TABLE test_schema.test_table (id INTEGER);", engine=engine)
-    sql("USE test_schema;", engine=engine)
+    engine.execute("CREATE SCHEMA test_schema;").fetchall()
+    engine.execute(
+        "CREATE TABLE test_schema.test_table (id INTEGER);"
+    ).fetchall()
+    engine.execute("USE test_schema;").fetchall()
 
     assert duckdb_engine.get_default_database() == "memory"
     assert duckdb_engine.get_default_schema() == "test_schema"
 
-    sql("DROP TABLE test_schema.test_table;", engine=engine)
-    sql("DROP SCHEMA test_schema;", engine=engine)
+    engine.execute("DROP TABLE test_schema.test_table;").fetchall()
+    engine.execute("DROP SCHEMA test_schema;").fetchall()
 
 
 @pytest.mark.skipif(
