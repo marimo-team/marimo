@@ -11,7 +11,7 @@ import { showCodeInRunModeAtom } from "@/core/meta/state";
 import { connectionAtom } from "@/core/network/connection";
 import { requestClientAtom } from "@/core/network/requests";
 import { resolveRequestClient } from "@/core/network/resolve";
-import { ConnectionState } from "@/core/websocket/types";
+import { ConnectionState } from "@/core/session/types";
 import { MultiColumn } from "@/utils/id-tree";
 import type { Milliseconds, Seconds } from "@/utils/time";
 import { CellArray } from "../../../components/editor/renderers/cell-array";

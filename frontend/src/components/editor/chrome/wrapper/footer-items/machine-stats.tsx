@@ -10,7 +10,7 @@ import { connectionAtom } from "@/core/network/connection";
 import { useRequestClient } from "@/core/network/requests";
 import type { UsageResponse } from "@/core/network/types";
 import { isWasm } from "@/core/wasm/utils";
-import { ConnectionState } from "@/core/websocket/types";
+import { ConnectionState } from "@/core/session/types";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import { useInterval } from "@/hooks/useInterval";
 import { cn } from "@/utils/cn";

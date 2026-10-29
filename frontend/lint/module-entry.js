@@ -1,10 +1,14 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import NodePath from "node:path";
-import { importVisitors, isTest } from "./host-imports.js";
+import { importVisitors, isTest } from "./replica-imports.js";
 
 /** Directories under `src/` that other code imports only through `index.ts`. */
-const MODULES = ["core/host", "core/document"];
+const MODULES = [
+  "core/notebook",
+  "core/notebook/replica",
+  "core/notebook/document",
+];
 
 /** Keep each module's files private to it, behind its entry point. */
 export const moduleEntry = {
@@ -27,7 +31,11 @@ export const moduleEntry = {
         : name.startsWith("@/")
           ? NodePath.resolve(src, name.slice(2))
           : null;
-      if (target === null || isTest(target)) {
+      if (
+        target === null ||
+        isTest(target) ||
+        MODULES.some((module) => target === NodePath.resolve(src, module))
+      ) {
         return;
       }
       for (const module of MODULES) {

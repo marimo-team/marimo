@@ -20,8 +20,8 @@ import { SaveComponent } from "@/core/saving/save-component";
 import {
   getConnectionTooltip,
   isAppInteractionDisabled,
-} from "@/core/websocket/connection-utils";
-import { ConnectionState } from "@/core/websocket/types";
+} from "@/core/session/connection-utils";
+import { ConnectionState } from "@/core/session/types";
 import { cn } from "@/utils/cn";
 import { Functions } from "@/utils/functions";
 import {

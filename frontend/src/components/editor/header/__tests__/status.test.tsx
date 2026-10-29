@@ -11,7 +11,7 @@ import {
   type ConnectionStatus,
   WebSocketClosedReason,
   ConnectionState,
-} from "@/core/websocket/types";
+} from "@/core/session/types";
 import { StatusOverlay } from "../status";
 
 function renderOverlay(

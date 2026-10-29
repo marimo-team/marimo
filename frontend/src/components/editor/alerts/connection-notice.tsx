@@ -8,7 +8,7 @@ import type { AppConfig } from "@/core/config/config-schema";
 import { connectionAtom } from "@/core/network/connection";
 import { useConnectionNotice } from "@/core/network/useConnectionNotice";
 import { sandboxAtom } from "@/core/packages/sandbox-state";
-import { ConnectionState } from "@/core/websocket/types";
+import { ConnectionState } from "@/core/session/types";
 import { useInterval } from "@/hooks/useInterval";
 import { cn } from "@/utils/cn";
 import { runtimeDetailsExpandedAtom } from "../chrome/panels/runtime-details-state";

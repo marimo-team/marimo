@@ -5,9 +5,9 @@ import type { createStore } from "jotai";
 import {
   isAppConnected,
   isAppConnecting,
-} from "@/core/websocket/connection-utils";
+} from "@/core/session/connection-utils";
 import { connectionAtom } from "../../network/connection";
-import { ConnectionState } from "../../websocket/types";
+import { ConnectionState } from "../../session/types";
 
 /**
  * State effect for updating readonly status based on connection

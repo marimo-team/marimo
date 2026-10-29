@@ -2,7 +2,7 @@
 import { useEffect, useRef } from "react";
 import type { UserConfig } from "../config/config-schema";
 import type { CellConfig } from "../network/types";
-import { type ConnectionStatus, ConnectionState } from "../websocket/types";
+import { type ConnectionStatus, ConnectionState } from "../session/types";
 
 export function useAutoSave(opts: {
   codes: string[];

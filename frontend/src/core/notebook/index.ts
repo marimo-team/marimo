@@ -2,7 +2,11 @@
 
 /** React hooks for the current notebook. */
 
-export { useNotebookAttachments } from "../attachments/state";
+export {
+  useNotebookAttachments,
+  attachmentLabel,
+  type Attachment,
+} from "./attachments";
 export {
   useNotebookCellCode,
   useNotebookCellCodeExtension,
@@ -11,4 +15,4 @@ export {
   useNotebookCellOrder,
   useNotebookDocumentEdit,
   useNotebookDocumentSync,
-} from "../document";
+} from "./document";

@@ -7,7 +7,7 @@ import { memoizeLastValue } from "@/utils/once";
 import { waitForKernelToBeInstantiated } from "../kernel/state";
 import type { RuntimeManager } from "../runtime/runtime";
 import { store } from "../state/jotai";
-import { ConnectionState } from "../websocket/types";
+import { ConnectionState } from "../session/types";
 import { connectionAtom, waitForConnectionOpen } from "./connection";
 import type { EditRequests, RunRequests } from "./types";
 

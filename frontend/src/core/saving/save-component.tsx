@@ -34,7 +34,7 @@ import { layoutStateAtom } from "../layout/state";
 import { kioskModeAtom } from "../mode";
 import { connectionAtom } from "../network/connection";
 import { useRequestClient } from "../network/requests";
-import { ConnectionState } from "../websocket/types";
+import { ConnectionState } from "../session/types";
 import { isWasm } from "../wasm/utils";
 import { filenameAtom } from "./file-state";
 import { useFilename, useUpdateFilename } from "./filename";

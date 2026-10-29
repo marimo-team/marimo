@@ -26,7 +26,7 @@ import { requestClientAtom } from "@/core/network/requests";
 import { filenameAtom } from "@/core/saving/file-state";
 import { store } from "@/core/state/jotai";
 import { isWasm } from "@/core/wasm/utils";
-import { ConnectionState } from "@/core/websocket/types";
+import { ConnectionState } from "@/core/session/types";
 import {
   DEFAULT_EXPORT_OPTIONS,
   exportOptionsAtom,

@@ -14,7 +14,7 @@ import { generateUUID } from "@/utils/uuid";
 import { createModuleWorker } from "@/utils/worker";
 import { notebookIsRunningAtom } from "../cells/cells";
 import { flushDocumentChanges } from "../cells/document-changes";
-import { createWasmNotebookBackend } from "../host";
+import { createWasmNotebookBackend } from "../transports/wasm";
 import type { ClientCommand } from "../kernel/messages";
 import { getInitialAppMode } from "../mode";
 import { API } from "../network/api";
@@ -42,7 +42,7 @@ import type {
 } from "../network/types";
 import { filenameAtom } from "../saving/file-state";
 import { store } from "../state/jotai";
-import { notebookReplicaAtom } from "../websocket/state";
+import { notebookReplicaAtom } from "../session/state";
 import { PyodideRouter } from "./router";
 import { getWorkerRPC, type PersistNotebookRequest } from "./rpc";
 import { getWasmRuntimeConfig } from "./runtime-config";

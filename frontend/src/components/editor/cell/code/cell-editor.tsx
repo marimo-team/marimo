@@ -41,7 +41,7 @@ import { connectionAtom } from "@/core/network/connection";
 import { useRequestClient } from "@/core/network/requests";
 import { canUseRtc, isRtcEnabled } from "@/core/rtc/state";
 import { useSaveNotebook } from "@/core/saving/save-component";
-import { isAppConnecting } from "@/core/websocket/connection-utils";
+import { isAppConnecting } from "@/core/session/connection-utils";
 import type { Theme } from "@/theme/useTheme";
 import { cn } from "@/utils/cn";
 import { invariant } from "@/utils/invariant";

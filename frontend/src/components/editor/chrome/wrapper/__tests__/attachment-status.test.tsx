@@ -14,7 +14,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { PAIR_CONFIG } from "@/__tests__/fixtures/pair-config";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { toast } from "@/components/ui/use-toast";
-import type { Attachment } from "@/core/attachments/state";
+import type { Attachment } from "@/core/notebook/attachments";
 import { pairConfigAtom } from "@/core/config/pair";
 import {
   type StableSessionId,
@@ -22,7 +22,7 @@ import {
 } from "@/core/kernel/session";
 import { API } from "@/core/network/api";
 import { connectionAtom } from "@/core/network/connection";
-import { ConnectionState } from "@/core/websocket/types";
+import { ConnectionState } from "@/core/session/types";
 import { Deferred } from "@/utils/Deferred";
 import { AttachmentStatus } from "../footer-items/attachment-status";
 
@@ -30,9 +30,9 @@ vi.mock("@/components/ui/use-toast", () => ({ toast: vi.fn() }));
 vi.mock("@/core/network/api", () => ({ API: { post: vi.fn() } }));
 
 const attachmentsAtom = atom<Attachment[]>([]);
-vi.mock("@/core/websocket/state", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("@/core/websocket/state")>()),
-  notebookAttachmentsAtom: atom((get) => get(attachmentsAtom)),
+vi.mock("@/core/session/state", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/core/session/state")>()),
+  notebookReplicaAtom: atom(() => ({ attachmentsAtom })),
 }));
 
 const AGENT: Attachment = {

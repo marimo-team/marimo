@@ -9,7 +9,7 @@ import { getAppConfig } from "../config/config";
 import { KnownQueryParams } from "../constants";
 import { connectionAtom } from "../network/connection";
 import { useRequestClient } from "../network/requests";
-import { ConnectionState } from "../websocket/types";
+import { ConnectionState } from "../session/types";
 import { filenameAtom } from "./file-state";
 
 export function useFilename() {

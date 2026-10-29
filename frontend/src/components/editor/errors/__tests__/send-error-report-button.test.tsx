@@ -16,7 +16,7 @@ import { cellId } from "@/__tests__/branded";
 import { PAIR_CONFIG } from "@/__tests__/fixtures/pair-config";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { toast } from "@/components/ui/use-toast";
-import type { Attachment } from "@/core/attachments/state";
+import type { Attachment } from "@/core/notebook/attachments";
 import { exportedForTesting, notebookAtom } from "@/core/cells/cells";
 import {
   type CellOutputMessage,
@@ -32,7 +32,7 @@ import {
 } from "@/core/kernel/session";
 import { API } from "@/core/network/api";
 import { connectionAtom } from "@/core/network/connection";
-import { ConnectionState } from "@/core/websocket/types";
+import { ConnectionState } from "@/core/session/types";
 import { Deferred } from "@/utils/Deferred";
 import { HTTPError } from "@/utils/errors";
 import { MarimoErrorOutput } from "../../output/MarimoErrorOutput";
@@ -49,9 +49,9 @@ vi.mock("@/components/editor/chrome/wrapper/useOpenAiAssistant", () => ({
 const CELL_ID = cellId("test-cell");
 const STABLE_ID = "stable/test" as StableSessionId;
 const attachmentsAtom = atom<Attachment[]>([]);
-vi.mock("@/core/websocket/state", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("@/core/websocket/state")>()),
-  notebookAttachmentsAtom: atom((get) => get(attachmentsAtom)),
+vi.mock("@/core/session/state", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/core/session/state")>()),
+  notebookReplicaAtom: atom(() => ({ attachmentsAtom })),
 }));
 
 const AGENT: Attachment = {

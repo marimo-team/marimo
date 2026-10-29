@@ -15,9 +15,12 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { type Attachment, attachmentLabel } from "@/core/attachments/state";
-import { useNotebookAttachments } from "@/core/notebook";
-import { agentToast } from "@/core/attachments/toast";
+import {
+  type Attachment,
+  attachmentLabel,
+  useNotebookAttachments,
+} from "@/core/notebook";
+import { agentToast } from "@/components/editor/agent-toast";
 import { pairConfigAtom } from "@/core/config/pair";
 import { stableSessionIdAtom } from "@/core/kernel/session";
 import { API } from "@/core/network/api";

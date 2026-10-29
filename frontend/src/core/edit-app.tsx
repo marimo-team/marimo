@@ -41,7 +41,7 @@ import { viewStateAtom } from "./mode";
 import { useRequestClient } from "./network/requests";
 import { useFilename } from "./saving/filename";
 import { lastSavedNotebookAtom } from "./saving/state";
-import { useNotebookSession } from "./websocket/useNotebookSession";
+import { useNotebookSession } from "./session/useNotebookSession";
 
 interface AppProps {
   /**

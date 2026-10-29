@@ -109,10 +109,10 @@ vi.mock("@/core/cells/document-changes", () => ({
 // Import after all mocks are set up
 import { store } from "@/core/state/jotai";
 import { initialModeAtom } from "@/core/mode";
-import { fixtureEvents } from "@/core/host/__tests__/fixtures";
-import { createNotebookReplica } from "@/core/host";
-import { notebookReplicaAtom } from "@/core/websocket/state";
-import { createEditorBackend } from "@/core/websocket/backend";
+import { fixtureEvents } from "@/core/notebook/replica/__tests__/fixtures";
+import { createNotebookReplica } from "@/core/notebook/replica";
+import { notebookReplicaAtom } from "@/core/session/state";
+import { createEditorBackend } from "@/core/session/backend";
 import { fallbackFileStore, notebookFileStore } from "../store";
 import { getWasmWorkerName, PyodideBridge } from "../bridge";
 

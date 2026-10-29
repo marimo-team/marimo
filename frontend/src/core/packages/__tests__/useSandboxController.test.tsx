@@ -17,7 +17,7 @@ import type {
 } from "@/core/network/types";
 import { filenameAtom } from "@/core/saving/file-state";
 import { store } from "@/core/state/jotai";
-import { ConnectionState } from "@/core/websocket/types";
+import { ConnectionState } from "@/core/session/types";
 import { HTTPError } from "@/utils/errors";
 import { packageDataVersionAtom } from "../package-data";
 import {
