@@ -21,11 +21,24 @@ vi.mock("../vega/loader", () => ({
 vi.mock("../data-editor/glide-data-editor", async () => {
   const React = await import("react");
   return {
-    default: (props: { data: EditorRow[] }) =>
+    default: (props: { data: EditorRow[]; columnFields: unknown }) =>
       React.createElement(
-        "pre",
-        { "data-testid": "editor-data" },
-        JSON.stringify(props.data),
+        React.Fragment,
+        null,
+        React.createElement(
+          "pre",
+          { "data-testid": "editor-data" },
+          JSON.stringify(props.data),
+        ),
+        React.createElement(
+          "pre",
+          { "data-testid": "editor-fields" },
+          JSON.stringify(
+            props.columnFields instanceof Map
+              ? [...props.columnFields]
+              : props.columnFields,
+          ),
+        ),
       ),
   };
 });
@@ -60,6 +73,19 @@ describe("DataEditorPlugin", () => {
     });
 
     expect(result.fieldTypes).toEqual([["geom", ["unknown", "geometry"]]]);
+  });
+
+  it("parses dropdown column types", () => {
+    const result = DataEditorPlugin.validator.parse({
+      initialValue: { edits: [] },
+      label: null,
+      data: [],
+      fieldTypes: null,
+      editableColumns: "all",
+      columnTypes: { status: ["open", "closed"] },
+    });
+
+    expect(result.columnTypes).toEqual({ status: ["open", "closed"] });
   });
 
   it("keeps the geometry field type", () => {
@@ -105,6 +131,69 @@ describe("DataEditorPlugin", () => {
         JSON.stringify([{ name: "latest" }]),
       );
     });
+  });
+
+  it("normalizes explicitly configured boolean columns", async () => {
+    const data = DataEditorPlugin.validator.parse({
+      initialValue: { edits: [] },
+      label: null,
+      data: [{ active: "No" }, { active: "YES" }],
+      fieldTypes: null,
+      columnNames: ["active"],
+      columnTypes: { active: "boolean" },
+      editableColumns: "all",
+    });
+    render(renderPlugin(data, { edits: [] }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("editor-data")).toHaveTextContent(
+        JSON.stringify([{ active: false }, { active: true }]),
+      );
+    });
+  });
+
+  it("keeps numeric-looking dropdown values as option strings", async () => {
+    // Vega's CSV auto-parse turns "1" into 1 when no field types are sent.
+    mocks.loadData.mockResolvedValueOnce([{ level: 1 }, { level: 2 }]);
+    const data = DataEditorPlugin.validator.parse({
+      initialValue: { edits: [] },
+      label: null,
+      data: "data.csv",
+      fieldTypes: null,
+      columnNames: ["level"],
+      columnTypes: { level: ["1", "2", "3"] },
+      editableColumns: "all",
+    });
+    render(renderPlugin(data, { edits: [] }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("editor-data")).toHaveTextContent(
+        JSON.stringify([{ level: "1" }, { level: "2" }]),
+      );
+    });
+  });
+
+  it("treats dropdown columns as strings over a numeric field type", async () => {
+    mocks.loadData.mockResolvedValueOnce([]);
+    const data = DataEditorPlugin.validator.parse({
+      initialValue: { edits: [] },
+      label: null,
+      data: "data.csv",
+      fieldTypes: [["status", ["integer", "int64"]]],
+      columnNames: ["status"],
+      columnTypes: { status: ["open", "closed"] },
+      editableColumns: "all",
+    });
+    render(renderPlugin(data, { edits: [] }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("editor-fields").textContent).toContain(
+        '"string"',
+      );
+    });
+    expect(screen.getByTestId("editor-fields").textContent).not.toContain(
+      '"integer"',
+    );
   });
 
   it("applies edit updates after data has loaded", async () => {

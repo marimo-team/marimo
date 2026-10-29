@@ -8,8 +8,10 @@ import {
 import type { DataType } from "@/core/kernel/messages";
 import { logNever } from "@/utils/assertNever";
 import { Logger } from "@/utils/Logger";
+import { normalizeBoolean } from "./column-types";
 import type {
   ColumnEdit,
+  ColumnType,
   EditorRow,
   Edits,
   ModifiedGridColumn,
@@ -64,7 +66,12 @@ export function getColumnHeaderIcon(fieldType: DataType): GridColumnIcon {
 export function isValidCellValue(
   dataType: DataType | undefined,
   value: unknown,
+  columnType?: ColumnType,
 ): boolean {
+  if (Array.isArray(columnType)) {
+    return typeof value === "string" && columnType.includes(value);
+  }
+
   switch (dataType) {
     case "number":
       return Number.isFinite(Number(value));
@@ -175,7 +182,8 @@ export function pasteCells(options: {
           }
 
           const column = columns[targetColIdx];
-          const columnType = column.dataType;
+          const dataType = column.dataType;
+          const columnType = column.configuredType;
           const editable =
             editableColumnSet === null || editableColumnSet.has(column.title);
 
@@ -186,10 +194,16 @@ export function pasteCells(options: {
           // Convert the value based on the cell type
           let convertedValue: unknown = cellValue;
 
-          switch (columnType) {
+          if (Array.isArray(columnType)) {
+            if (!isValidCellValue(dataType, cellValue, columnType)) {
+              continue;
+            }
+          }
+
+          switch (dataType) {
             case "integer": {
               const numValue = Number(cellValue);
-              if (!isValidCellValue(columnType, cellValue)) {
+              if (!isValidCellValue(dataType, cellValue, columnType)) {
                 continue;
               }
               convertedValue = Number.isSafeInteger(numValue)
@@ -199,17 +213,24 @@ export function pasteCells(options: {
             }
             case "number": {
               const numValue = Number(cellValue);
-              if (!isValidCellValue(columnType, numValue)) {
+              if (!isValidCellValue(dataType, numValue, columnType)) {
                 continue;
               }
               convertedValue = numValue;
               break;
             }
-            case "boolean": {
-              const boolValue = cellValue.toLowerCase();
-              convertedValue = boolValue === "true" || boolValue === "1";
+            case "boolean":
+              if (column.configuredType !== "boolean") {
+                convertedValue =
+                  cellValue.toLowerCase() === "true" || cellValue === "1";
+                break;
+              }
+              try {
+                convertedValue = normalizeBoolean(cellValue, column.title);
+              } catch {
+                continue;
+              }
               break;
-            }
             case "string":
             case "date":
             case "datetime":
@@ -218,7 +239,7 @@ export function pasteCells(options: {
             case "unknown":
               break;
             default:
-              logNever(columnType);
+              logNever(dataType);
               continue;
           }
 

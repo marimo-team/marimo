@@ -13,6 +13,10 @@ import DataEditor, {
   type Item,
   type Rectangle,
 } from "@glideapps/glide-data-grid";
+import {
+  DropdownCell as DropdownCellRenderer,
+  type DropdownCellType,
+} from "@glideapps/glide-data-grid-cells";
 import { CopyIcon, TrashIcon } from "lucide-react";
 import React, { useCallback, useMemo, useRef, useState } from "react";
 import useEvent from "react-use-event-hook";
@@ -39,18 +43,29 @@ import { toast } from "@/components/ui/use-toast";
 import type { DataType } from "@/core/kernel/messages";
 import { logNever } from "@/utils/assertNever";
 import { Events } from "@/utils/events";
+import { normalizeBoolean } from "./column-types";
 import { AddColumnSub, RenameColumnSub } from "./components";
 import { GlideDataEditorPortal } from "./glide-portal";
 import {
   BulkEdit,
+  type ColumnTypes,
   type EditorRow,
   type Edits,
   type ModifiedGridColumn,
 } from "./types";
 
+function getEditedValue(newValue: EditableGridCell): unknown {
+  if (newValue.kind !== GridCellKind.Custom) {
+    return newValue.data;
+  }
+  const data = newValue.data as { kind?: unknown; value?: unknown };
+  return data.kind === "dropdown-cell" ? data.value : newValue.data;
+}
+
 interface GlideDataEditorProps {
   data: EditorRow[];
   columnFields: FieldTypes;
+  columnTypes: ColumnTypes;
   editableColumns: string[] | "all";
   onAddEdits: (edits: Edits["edits"]) => void;
 }
@@ -58,6 +73,7 @@ interface GlideDataEditorProps {
 export const GlideDataEditor = ({
   data,
   columnFields,
+  columnTypes,
   editableColumns,
   onAddEdits,
 }: GlideDataEditorProps) => {
@@ -94,6 +110,7 @@ export const GlideDataEditor = ({
         style: "normal",
         kind: getColumnKind(fieldType),
         dataType: fieldType,
+        configuredType: columnTypes.get(columnName),
         hasMenu: true,
         themeOverride: editable
           ? undefined
@@ -104,7 +121,7 @@ export const GlideDataEditor = ({
     }
 
     return columns;
-  }, [columnFields, columnWidths, editableColumnSet, theme]);
+  }, [columnFields, columnTypes, columnWidths, editableColumnSet, theme]);
 
   const getCellContent = useCallback(
     (cell: Item): GridCell => {
@@ -116,8 +133,27 @@ export const GlideDataEditor = ({
       const editable =
         editableColumnSet === null || editableColumnSet.has(columns[col].title);
 
+      const configuredType = columns[col].configuredType;
+      if (Array.isArray(configuredType)) {
+        const value = typeof dataItem === "string" ? dataItem : "";
+        return {
+          kind: GridCellKind.Custom,
+          allowOverlay: editable,
+          readonly: !editable,
+          copyData: value,
+          data: {
+            kind: "dropdown-cell",
+            value,
+            allowedValues: configuredType,
+          },
+        } satisfies DropdownCellType;
+      }
+
       if (columnKind === GridCellKind.Boolean) {
-        const value = Boolean(dataItem);
+        const value =
+          columns[col].configuredType === "boolean"
+            ? normalizeBoolean(dataItem, columns[col].title)
+            : Boolean(dataItem);
         return {
           kind: GridCellKind.Boolean,
           allowOverlay: false,
@@ -153,8 +189,19 @@ export const GlideDataEditor = ({
       const column = columns[col];
       const key = column.title;
 
-      // Deletes are not handled by validateCell, so we need to handle them here
-      let newData = newValue.data;
+      // Deletes are not handled by validateCell, so we need to handle them here.
+      // Custom dropdown cells carry their selected value inside their data.
+      let newData = getEditedValue(newValue);
+      if (Array.isArray(column.configuredType)) {
+        if (
+          typeof newData !== "string" ||
+          !column.configuredType.includes(newData)
+        ) {
+          return;
+        }
+      } else if (column.configuredType === "boolean") {
+        newData = normalizeBoolean(newData, key);
+      }
       if (
         (column.dataType === "number" || column.dataType === "integer") &&
         (newValue.data === undefined || newValue.data === "")
@@ -180,10 +227,12 @@ export const GlideDataEditor = ({
       const [col, _row] = cell;
       const key = columns[col].title;
 
-      const columnType = columnFields.get(key);
-      return isValidCellValue(columnType, newValue.data);
+      const dataType = columnFields.get(key);
+      const configuredType = columnTypes.get(key);
+      const value = getEditedValue(newValue);
+      return isValidCellValue(dataType, value, configuredType);
     },
-    [columnFields, columns],
+    [columnFields, columns, columnTypes],
   );
 
   // Hack to emit copy event as these events aren't triggered automatically in shadow DOM
@@ -229,6 +278,9 @@ export const GlideDataEditor = ({
     const newRow: EditorRow = Object.fromEntries(
       columns.map((column) => {
         const dataType = column.dataType;
+        if (column.configuredType === "boolean") {
+          return [column.title, false];
+        }
         switch (dataType) {
           case "boolean":
             return [column.title, false];
@@ -243,7 +295,12 @@ export const GlideDataEditor = ({
           case "string":
           case "geometry":
           case "unknown":
-            return [column.title, ""];
+            return [
+              column.title,
+              Array.isArray(column.configuredType)
+                ? column.configuredType[0]
+                : "",
+            ];
           default:
             logNever(dataType);
             return [column.title, ""];
@@ -444,6 +501,7 @@ export const GlideDataEditor = ({
           // @ts-expect-error glide-data-grid stale RefObject typing
           portalElementRef={portalElementRef}
           getCellContent={getCellContent}
+          customRenderers={[DropdownCellRenderer]}
           columns={columns}
           gridSelection={selection}
           onGridSelectionChange={setSelection}

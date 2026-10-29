@@ -3,6 +3,8 @@ from __future__ import annotations
 
 import ast
 import datetime
+import math
+import numbers
 from copy import deepcopy
 from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation
@@ -24,6 +26,7 @@ from marimo import _loggers
 from marimo._data.models import DataType
 from marimo._output.rich_help import mddoc
 from marimo._plugins.ui._core.ui_element import UIElement
+from marimo._plugins.ui._impl.tables.default_table import DefaultTableManager
 from marimo._plugins.ui._impl.tables.utils import get_table_manager
 from marimo._utils.assert_never import log_never
 from marimo._utils.deprecated import deprecated
@@ -35,6 +38,12 @@ if TYPE_CHECKING:
 
     from narwhals.dtypes import DType
     from typing_extensions import TypeIs
+
+    from marimo._plugins.ui._impl.tables.table_manager import (
+        FieldType,
+        FieldTypes,
+        TableManager,
+    )
 
 
 class PositionalEdit(TypedDict):
@@ -101,6 +110,8 @@ RowOrientedData = list[dict[str, Any]]
 ColumnOrientedData = dict[str, list[Any]]
 Scalar = str | int | float | bool | None
 ScalarData = list[Scalar]
+ColumnType = Literal["boolean"] | list[str]
+ColumnTypes = dict[str, ColumnType]
 _DEFAULT_SCALAR_COLUMN = "value"
 _TYPE_INFERENCE_SAMPLE_SIZE = 10
 _MAX_SAFE_INTEGER = Decimal(2**53 - 1)
@@ -183,6 +194,10 @@ def _infer_conversion_examples_from_columns(
     return values
 
 
+class _InvalidColumnTypeValueError(ValueError):
+    pass
+
+
 @dataclass
 class _EditableTable:
     data: RowOrientedData | ColumnOrientedData
@@ -190,6 +205,7 @@ class _EditableTable:
     row_count: int
     conversion_examples: dict[str, Any]
     dtypes: dict[str, DType]
+    column_types: ColumnTypes
 
     @classmethod
     def from_rows(
@@ -197,6 +213,7 @@ class _EditableTable:
         data: RowOrientedData,
         schema: nw.Schema | None,
         column_names: Sequence[str] | None,
+        column_types: ColumnTypes | None = None,
     ) -> _EditableTable:
         column_order: list[str] = []
         column_set: set[str] = set()
@@ -225,6 +242,7 @@ class _EditableTable:
             len(data),
             _infer_conversion_examples_from_rows(data),
             dtypes,
+            dict(column_types or {}),
         )
 
     @classmethod
@@ -232,6 +250,7 @@ class _EditableTable:
         cls,
         data: ColumnOrientedData,
         schema: nw.Schema | None,
+        column_types: ColumnTypes | None = None,
     ) -> _EditableTable:
         column_order = list(data)
         if schema is not None:
@@ -246,7 +265,25 @@ class _EditableTable:
             row_count,
             _infer_conversion_examples_from_columns(data, row_count),
             dtypes,
+            dict(column_types or {}),
         )
+
+    def normalize_configured_columns(self) -> None:
+        for column, column_type in self.column_types.items():
+            if column not in self.column_names:
+                raise ValueError(f"Column {column} is not in the data")
+            if column_type != "boolean":
+                continue
+            if isinstance(self.data, list):
+                for row in self.data:
+                    row[column] = _normalize_boolean(row.get(column), column)
+            else:
+                self.data[column] = [
+                    _normalize_boolean(value, column)
+                    for value in self.data.get(column, [])
+                ]
+            self.conversion_examples[column] = False
+            self.dtypes[column] = nw.Boolean()
 
     def apply(self, edits: DataEdits) -> None:
         for edit in edits["edits"]:
@@ -279,6 +316,14 @@ class _EditableTable:
         row_idx = edit["rowIdx"]
         if row_idx < 0:
             return
+        configured_type = self.column_types.get(column_id)
+        if isinstance(configured_type, list):
+            value = edit["value"]
+            if not isinstance(value, str) or value not in configured_type:
+                raise _InvalidColumnTypeValueError(
+                    f"Invalid value for column {column_id!r}: {value!r}; "
+                    f"expected one of {configured_type!r}"
+                )
         if column_id not in self.column_names:
             self.column_names.append(column_id)
             self.conversion_examples[column_id] = None
@@ -307,11 +352,14 @@ class _EditableTable:
             if dtype is not None
             else self.conversion_examples.get(column_id)
         )
-        converted_value = _convert_value(
-            edit["value"],
-            conversion_value,
-            dtype,
-        )
+        if configured_type == "boolean":
+            converted_value = _normalize_boolean(edit["value"], column_id)
+        elif isinstance(configured_type, list):
+            converted_value = edit["value"]
+        else:
+            converted_value = _convert_value(
+                edit["value"], conversion_value, dtype
+            )
         if isinstance(self.data, list):
             self.data[row_idx][column_id] = converted_value
         else:
@@ -382,6 +430,7 @@ class _EditableTable:
                 self.data.pop(old_name, None)
             self.conversion_examples.pop(old_name, None)
             self.dtypes.pop(old_name, None)
+            self.column_types.pop(old_name, None)
             return
 
         assert edit_type == "rename"
@@ -412,6 +461,63 @@ class _EditableTable:
         dtype = self.dtypes.pop(old_name, None)
         if dtype is not None:
             self.dtypes[new_column_name] = dtype
+        configured_type = self.column_types.pop(old_name, None)
+        if configured_type is not None:
+            self.column_types[new_column_name] = configured_type
+
+
+def _column_values(
+    data: ScalarData | RowOrientedData | ColumnOrientedData | IntoDataFrame,
+    column: str,
+) -> list[Any]:
+    if isinstance(data, list):
+        if all(isinstance(row, dict) for row in data):
+            return [cast(dict[str, Any], row).get(column) for row in data]
+        return list(data) if column == _DEFAULT_SCALAR_COLUMN else []
+    if isinstance(data, dict):
+        return list(data.get(column, []))
+
+    frame = nw.from_native(data, eager_only=True)
+    return frame.get_column(column).to_list()
+
+
+def _validate_column_types(
+    data: ScalarData | RowOrientedData | ColumnOrientedData | IntoDataFrame,
+    column_names: Sequence[str],
+    column_types: ColumnTypes,
+) -> ColumnTypes:
+    validated: ColumnTypes = {}
+    for column, configured_type in column_types.items():
+        if column not in column_names:
+            raise ValueError(f"Column {column} is not in the data")
+        if configured_type == "boolean":
+            validated[column] = configured_type
+            continue
+        if not isinstance(configured_type, list):
+            raise ValueError(
+                f"Invalid column type for column {column!r}: expected "
+                "'boolean' or a list of strings"
+            )
+        if not configured_type:
+            raise ValueError(
+                f"Dropdown options for column {column!r} must not be empty"
+            )
+        if any(not isinstance(option, str) for option in configured_type):
+            raise ValueError(
+                f"Dropdown options for column {column!r} must all be strings"
+            )
+        if len(set(configured_type)) != len(configured_type):
+            raise ValueError(
+                f"Dropdown options for column {column!r} must be unique"
+            )
+        for value in _column_values(data, column):
+            if not isinstance(value, str) or value not in configured_type:
+                raise ValueError(
+                    f"Invalid initial value for column {column!r}: "
+                    f"{value!r}; expected one of {configured_type!r}"
+                )
+        validated[column] = list(configured_type)
+    return validated
 
 
 @deprecated(
@@ -474,6 +580,19 @@ class data_editor(
         editor = mo.ui.data_editor(data=data, label="Edit Data")
         ```
 
+        Configure checkbox and dropdown columns:
+
+        ```python
+        data = [{"task": "Review", "done": "yes", "priority": "high"}]
+        editor = mo.ui.data_editor(
+            data=data,
+            column_types={
+                "done": "boolean",
+                "priority": ["low", "medium", "high"],
+            },
+        )
+        ```
+
     Attributes:
         value (ScalarData | RowOrientedData | ColumnOrientedData | IntoDataFrame): The current state of the edited data.
         data (ScalarData | RowOrientedData | ColumnOrientedData | IntoDataFrame): The original data passed to the editor.
@@ -485,6 +604,10 @@ class data_editor(
         on_change (Optional[Callable]): Optional callback to run when this element's value changes.
         editable_columns (Union[list[str], Literal["all"]]): A list of column names to be editable.
             If "all", all columns are editable. Pass an empty list to make all columns read-only. Defaults to "all".
+        column_types (Optional[dict[str, Union[Literal["boolean"], list[str]]]]):
+            Overrides the editor type for selected columns. Use `"boolean"` for
+            checkboxes, or a non-empty list of unique strings for a dropdown;
+            the first dropdown option is used for new rows.
 
     Deprecated:
         pagination (bool): Whether to enable pagination.
@@ -513,6 +636,7 @@ class data_editor(
         ]
         | None = None,
         editable_columns: list[str] | Literal["all"] = "all",
+        column_types: ColumnTypes | None = None,
         column_sizing_mode: Literal["auto", "fit"] | None = None,
         pagination: bool | None = None,
         page_size: int | None = None,
@@ -535,7 +659,6 @@ class data_editor(
         self._edits: DataEdits | None = None
         column_names = table_manager.get_column_names()
         self._column_names = column_names
-        field_types = table_manager.get_field_types()
 
         if isinstance(editable_columns, list):
             for col in editable_columns:
@@ -544,6 +667,22 @@ class data_editor(
         elif editable_columns is None:
             editable_columns = []
 
+        validated_column_types = _validate_column_types(
+            data, column_names, column_types or {}
+        )
+        validation_data = (
+            deepcopy(data) if isinstance(data, (list, dict)) else data
+        )
+        apply_edits(
+            validation_data,
+            {"edits": []},
+            column_names=column_names,
+            column_types=validated_column_types,
+        )
+        self._column_types = validated_column_types
+        field_types = _editor_field_types(
+            table_manager, column_names, validated_column_types
+        )
         super().__init__(
             component_name=data_editor._name,
             label=label,
@@ -553,6 +692,7 @@ class data_editor(
                 "field-types": field_types or None,
                 "column-names": column_names,
                 "editable-columns": editable_columns,
+                "column-types": validated_column_types,
                 "column-sizing-mode": "auto",
             },
             on_change=on_change,
@@ -575,7 +715,12 @@ class data_editor(
         data = self._data
         if isinstance(data, (list, dict)):
             data = deepcopy(data)
-        return apply_edits(data, value, column_names=self._column_names)
+        return apply_edits(
+            data,
+            value,
+            column_names=self._column_names,
+            column_types=self._column_types,
+        )
 
     def __hash__(self) -> int:
         return id(self)
@@ -587,18 +732,30 @@ def apply_edits(
     schema: nw.Schema | None = None,
     *,
     column_names: Sequence[str] | None = None,
+    column_types: ColumnTypes | None = None,
 ) -> ScalarData | RowOrientedData | ColumnOrientedData | IntoDataFrame:
-    if len(edits["edits"]) == 0:
+    if len(edits["edits"]) == 0 and not column_types:
         return data
     if isinstance(data, list):
-        return _apply_edits_list(data, edits, schema, column_names)
+        return _apply_edits_list(
+            data, edits, schema, column_names, column_types
+        )
     elif isinstance(data, dict):
-        table = _EditableTable.from_columns(data, schema)
+        table = _EditableTable.from_columns(data, schema, column_types)
+        table.normalize_configured_columns()
         table.apply(edits)
         return data
 
     try:
-        return _apply_edits_dataframe(data, edits, schema)
+        return _apply_edits_dataframe(data, edits, schema, column_types)
+    except _InvalidColumnTypeValueError:
+        raise
+    except ValueError as e:
+        if column_types:
+            raise
+        raise ValueError(
+            f"Data editor does not support this type of data: {type(data)}"
+        ) from e
     except Exception as e:
         raise ValueError(
             f"Data editor does not support this type of data: {type(data)}"
@@ -610,6 +767,7 @@ def _apply_edits_list(
     edits: DataEdits,
     schema: nw.Schema | None,
     column_names: Sequence[str] | None,
+    column_types: ColumnTypes | None,
 ) -> ScalarData | RowOrientedData:
     is_empty_scalar_data = (
         not data
@@ -618,7 +776,10 @@ def _apply_edits_list(
     )
     if not is_empty_scalar_data and all(isinstance(row, dict) for row in data):
         rows = cast(RowOrientedData, data)
-        table = _EditableTable.from_rows(rows, schema, column_names)
+        table = _EditableTable.from_rows(
+            rows, schema, column_names, column_types
+        )
+        table.normalize_configured_columns()
         table.apply(edits)
         return rows
 
@@ -634,7 +795,10 @@ def _apply_edits_list(
         else _DEFAULT_SCALAR_COLUMN
     )
     rows = [{scalar_column: value} for value in data]
-    table = _EditableTable.from_rows(rows, schema, [scalar_column])
+    table = _EditableTable.from_rows(
+        rows, schema, [scalar_column], column_types
+    )
+    table.normalize_configured_columns()
     table.apply(edits)
 
     if table.column_names == [scalar_column]:
@@ -643,14 +807,18 @@ def _apply_edits_list(
 
 
 def _apply_edits_dataframe(
-    native_df: IntoDataFrame, edits: DataEdits, schema: nw.Schema | None
+    native_df: IntoDataFrame,
+    edits: DataEdits,
+    schema: nw.Schema | None,
+    column_types: ColumnTypes | None,
 ) -> IntoDataFrame:
     df = nw.from_native(native_df, eager_only=True)
     column_oriented = df.to_dict(as_series=False)
     schema = schema or cast(nw.Schema, df.schema)
 
     # TODO: We should try to find more performant methods of bulk edits for dataframes
-    table = _EditableTable.from_columns(column_oriented, schema)
+    table = _EditableTable.from_columns(column_oriented, schema, column_types)
+    table.normalize_configured_columns()
     table.apply(edits)
     new_native_df = nw.from_dict(
         column_oriented, backend=nw.get_native_namespace(df)
@@ -667,6 +835,81 @@ def _convert_list(value: Any) -> list[Any]:
         return parsed if isinstance(parsed, list) else list(parsed)
     except (TypeError, ValueError, SyntaxError):
         return value.split(",")
+
+
+def _editor_field_types(
+    table_manager: TableManager[Any],
+    column_names: list[str],
+    column_types: ColumnTypes,
+) -> FieldTypes:
+    field_types = table_manager.get_field_types()
+    if not field_types and isinstance(table_manager, DefaultTableManager):
+        # Without explicit types the frontend guesses each column's type
+        # from CSV text, which turns strings such as "01" into numbers.
+        rows = DefaultTableManager._normalize_data(table_manager.data)
+        if rows:
+            field_types = [
+                (column, _infer_field_type([row.get(column) for row in rows]))
+                for column in column_names
+            ]
+    return [
+        (column, ("string", "str"))
+        if isinstance(column_types.get(column), list)
+        else (column, field_type)
+        for column, field_type in field_types
+    ]
+
+
+def _infer_field_type(values: list[Any]) -> tuple[FieldType, str]:
+    present = [value for value in values if value is not None]
+    value_types = {type(value) for value in present}
+    external_type = (
+        next(iter(value_types)).__name__ if len(value_types) == 1 else "object"
+    )
+    if not present:
+        return "string", external_type
+    if all(isinstance(value, bool) for value in present):
+        return "boolean", external_type
+    if all(
+        isinstance(value, numbers.Integral) and not isinstance(value, bool)
+        for value in present
+    ):
+        return "integer", external_type
+    if all(
+        isinstance(value, (numbers.Real, Decimal))
+        and not isinstance(value, bool)
+        for value in present
+    ):
+        return "number", external_type
+    if all(isinstance(value, datetime.datetime) for value in present):
+        return "datetime", external_type
+    if all(
+        isinstance(value, datetime.date)
+        and not isinstance(value, datetime.datetime)
+        for value in present
+    ):
+        return "date", external_type
+    if all(isinstance(value, datetime.time) for value in present):
+        return "time", external_type
+    return "string", external_type
+
+
+def _normalize_boolean(value: Any, column: str) -> bool:
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, Decimal):
+        if value.is_finite():
+            return bool(value)
+    elif isinstance(value, (int, float)):
+        if math.isfinite(value):
+            return bool(value)
+    elif isinstance(value, str):
+        normalized = value.strip().lower()
+        if normalized in {"true", "t", "yes", "y", "1"}:
+            return True
+        if normalized in {"false", "f", "no", "n", "0", ""}:
+            return False
+    raise ValueError(f"Invalid boolean value {value!r} for column {column!r}")
 
 
 def _convert_by_dtype(value: Any, dtype: DType) -> tuple[bool, Any]:
