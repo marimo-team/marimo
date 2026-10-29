@@ -186,16 +186,24 @@ async def test_export_failure_identifies_launcher_without_payload_or_credentials
 @pytest.mark.parametrize("signal_name", ["SIGTERM", "SIGHUP"])
 async def test_export_termination_at_completion(signal_name: str) -> None:
     signum = getattr(signal, signal_name)
-    previous = signal.getsignal(signum)
-    with pytest.raises(SystemExit) as error:
-        with _export_termination_signals():
-            signal.raise_signal(signum)
+    default_handler = (
+        signal.default_int_handler
+        if signum == signal.SIGINT
+        else signal.SIG_DFL
+    )
+    previous = signal.signal(signum, default_handler)
+    try:
+        with pytest.raises(SystemExit) as error:
+            with _export_termination_signals():
+                signal.raise_signal(signum)
 
-    assert error.value.code == 128 + signum
-    assert signal.getsignal(signum) == previous
-    # Let the queued callback run after the scope closes. It must not cancel
-    # subsequent work in the task that owned the export.
-    await asyncio.sleep(0)
+        assert error.value.code == 128 + signum
+        assert signal.getsignal(signum) == default_handler
+        # Let the queued callback run after the scope closes. It must not cancel
+        # subsequent work in the task that owned the export.
+        await asyncio.sleep(0)
+    finally:
+        signal.signal(signum, previous)
 
 
 @pytest.mark.skipif(os.name == "nt", reason="POSIX termination signals")
@@ -257,6 +265,14 @@ import asyncio, json, signal, subprocess, sys
 from marimo._cli.export._common import _export_termination_signals
 from marimo._environments.process import run_command
 
+signum = getattr(signal, sys.argv[1])
+default_handler = (
+    signal.default_int_handler
+    if signum == signal.SIGINT
+    else signal.SIG_DFL
+)
+signal.signal(signum, default_handler)
+
 processes = []
 execute_child = subprocess.Popen._execute_child
 
@@ -264,7 +280,7 @@ def interrupted_spawn(self, *args, **kwargs):
     execute_child(self, *args, **kwargs)
     processes.append(self)
     # Deliver termination after spawning, before Popen returns to its owner.
-    signal.raise_signal(getattr(signal, sys.argv[1]))
+    signal.raise_signal(signum)
 
 subprocess.Popen._execute_child = interrupted_spawn
 
