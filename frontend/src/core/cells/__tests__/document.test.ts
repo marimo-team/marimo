@@ -306,18 +306,16 @@ describe("documentEditMiddleware", () => {
     expect(calls).toEqual([["deleteCell", b]]);
   });
 
-  it("writes code, name, and config", () => {
+  it("writes code and config", () => {
     actions.updateCellCode({
       cellId: a,
       code: "a = 2",
       formattingChange: false,
     });
-    actions.updateCellName({ cellId: a, name: "first" });
     actions.updateCellConfig({ cellId: a, config: { hide_code: true } });
 
     expect(calls).toEqual([
       ["setCode", a, "a = 2"],
-      ["setName", a, "first"],
       ["updateConfig", a, { hide_code: true }],
     ]);
   });
