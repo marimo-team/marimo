@@ -17,9 +17,15 @@ import {
 import type { CellIndex } from "@/utils/id-tree";
 import {
   addSetupCellAtom,
+  collapseAllCellsAtom,
+  collapseCellAtom,
   createCellAtom,
   deleteCellsAtom,
+  expandAllCellsAtom,
+  expandCellAtom,
+  focusCellAtom,
   moveToNextCellAtom,
+  showCellIfHiddenAtom,
   undoDeleteCellAtom,
 } from "../actions";
 import {
@@ -30,6 +36,7 @@ import {
   notebookReducer,
 } from "../cells";
 import { followDocument } from "../document";
+import { collapsedAtom, layoutAtom } from "../layout";
 import { type CellId, SCRATCH_CELL_ID, SETUP_CELL_ID } from "../ids";
 import { focusAndScrollCellIntoView } from "../scrollCellIntoView";
 
@@ -91,6 +98,19 @@ function setup(cells?: Record<string, Protocol.Cell | null>) {
       };
       return view;
     },
+    /** Give a cell's output a heading, as the kernel's outline would. */
+    heading: (id: string, level: number) =>
+      store.set(notebookAtom, (state) => ({
+        ...state,
+        cellRuntime: {
+          ...state.cellRuntime,
+          [id]: {
+            ...state.cellRuntime[id as never],
+            outline: { items: [{ name: `H${level}`, level, by: { id } }] },
+          },
+        },
+      })),
+    visible: () => store.get(layoutAtom).columns[0].visible,
     /** Apply a reducer action, as `useReducerActions()` does. */
     dispatch: (action: Parameters<typeof notebookReducer>[1]) =>
       store.set(notebookAtom, (state) => notebookReducer(state, action)),
@@ -471,5 +491,103 @@ describe("undoDeleteCellAtom", () => {
     store.set(undoDeleteCellAtom);
 
     expect(order()).toEqual([c1, c2]);
+  });
+});
+
+describe("folding", () => {
+  it("folds a header's section and unfolds it, focusing the header", () => {
+    const { store, notebook, visible, heading } = setup({
+      c3: cell("c3", "z = 3"),
+    });
+    heading(c1, 1);
+
+    store.set(collapseCellAtom, { cellId: c1 });
+    expect(visible()).toEqual([c1]);
+    expect(store.get(layoutAtom).columns[0].folds.get(c1)).toEqual([c2, c3]);
+    expect(notebook().scrollKey).toBe(c1);
+
+    store.set(expandCellAtom, { cellId: c1 });
+    expect(visible()).toEqual([c1, c2, c3]);
+    expect(store.get(collapsedAtom).size).toBe(0);
+  });
+
+  it("creates after a folded header below its fold and opens the section", () => {
+    const { store, order, visible, heading } = setup({
+      c3: cell("c3", "z = 3"),
+    });
+    heading(c1, 1);
+    store.set(collapseCellAtom, { cellId: c1 });
+
+    const id = store.set(createCellAtom, { after: c1, code: "w = 4" });
+
+    // The section runs to the next heading, so the new cell is in it.
+    expect(order()).toEqual([c1, c2, c3, id]);
+    expect(visible()).toEqual([c1, c2, c3, id]);
+    expect(store.get(collapsedAtom).size).toBe(0);
+  });
+
+  it("leaves a fold closed over a cell created without focus", () => {
+    const { store, order, visible, heading } = setup({
+      c3: cell("c3", "z = 3"),
+    });
+    heading(c1, 1);
+    store.set(collapseCellAtom, { cellId: c1 });
+
+    const id = store.set(createCellAtom, {
+      after: c1,
+      code: "w = 4",
+      focus: false,
+    });
+
+    expect(order()).toEqual([c1, c2, c3, id]);
+    expect(visible()).toEqual([c1]);
+  });
+
+  it("does not fold a cell without a heading", () => {
+    const { store, visible } = setup();
+
+    store.set(collapseCellAtom, { cellId: c1 });
+
+    expect(visible()).toEqual([c1, c2]);
+    expect(store.get(collapsedAtom).size).toBe(0);
+  });
+
+  it("folds and unfolds every section", () => {
+    const { store, visible, heading } = setup({ c3: cell("c3", "z = 3") });
+    heading(c1, 1);
+    heading(c2, 2);
+
+    store.set(collapseAllCellsAtom);
+    expect(visible()).toEqual([c1]);
+    expect([...store.get(collapsedAtom)]).toEqual([c1, c2]);
+
+    store.set(expandAllCellsAtom);
+    expect(visible()).toEqual([c1, c2, c3]);
+  });
+
+  it("unfolds whatever hides a cell", () => {
+    const { store, visible, heading } = setup({ c3: cell("c3", "z = 3") });
+    heading(c1, 1);
+    heading(c2, 2);
+    store.set(collapseAllCellsAtom);
+
+    store.set(showCellIfHiddenAtom, { cellId: c3 });
+
+    expect(visible()).toEqual([c1, c2, c3]);
+    expect(store.get(collapsedAtom).size).toBe(0);
+  });
+
+  it("moves focus over folded cells", () => {
+    const { store, heading } = setup({ c3: cell("c3", "z = 3") });
+    heading(c2, 1);
+    store.set(collapseCellAtom, { cellId: c2 });
+
+    store.set(focusCellAtom, { cellId: c1, where: "after" });
+    expect(focusAndScrollCellIntoView).toHaveBeenLastCalledWith(
+      expect.objectContaining({ cellId: c2, codeFocus: "top" }),
+    );
+
+    store.set(moveToNextCellAtom, { cellId: c2, before: false, create: false });
+    expect(focusAndScrollCellIntoView).toHaveBeenCalledTimes(1);
   });
 });

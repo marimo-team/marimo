@@ -14,6 +14,12 @@ import { DATA_FOR_CELL_ID } from "@/components/data-table/cell-utils";
 import { aiCompletionCellAtom } from "@/core/ai/state";
 import { maybeAddMarimoImport } from "@/core/cells/add-missing-import";
 import { cellIdsAtom, notebookAtom } from "@/core/cells/cells";
+import {
+  columnOf,
+  type LayoutColumn,
+  layoutAtom,
+  visibleNeighbor,
+} from "@/core/cells/layout";
 import { useCellActions } from "@/core/cells/actions";
 import { useNotebookDocumentEdit } from "@/core/notebook/document";
 import { useCellFocusActions } from "@/core/cells/focus";
@@ -40,7 +46,6 @@ import type { HotkeyAction } from "@/core/hotkeys/hotkeys";
 import { parseShortcut } from "@/core/hotkeys/shortcuts";
 import { useSaveNotebook } from "@/core/saving/save-component";
 import { Events } from "@/utils/events";
-import type { CollapsibleTree } from "@/utils/id-tree";
 import type { CellActionsDropdownHandle } from "../cell/cell-actions";
 import { useDeleteManyCellsCallback } from "../cell/useDeleteCell";
 import { useRunCells } from "../cell/useRunCells";
@@ -268,12 +273,13 @@ export function useCellNavigationProps(
         // Move left across columns
         ArrowLeft: () => {
           if (canMoveX) {
-            const notebook = store.get(notebookAtom);
-            const column = notebook.cellIds.findWithId(cellId);
-            const columnIndex = notebook.cellIds.indexOf(column);
-            const leftColumn = notebook.cellIds.at(columnIndex - 1);
+            const layout = store.get(layoutAtom);
+            const columnIndex = layout.columns.indexOf(
+              columnOf(layout, cellId),
+            );
+            const leftColumn = layout.columns[columnIndex - 1];
 
-            if (leftColumn && leftColumn.length > 0) {
+            if (leftColumn && leftColumn.visible.length > 0) {
               const leftCellId = findClosestAdjacentCell(cellId, leftColumn);
               actions.focusCell({ cellId: leftCellId, where: "exact" });
 
@@ -286,12 +292,13 @@ export function useCellNavigationProps(
         // Move right across columns
         ArrowRight: () => {
           if (canMoveX) {
-            const notebook = store.get(notebookAtom);
-            const column = notebook.cellIds.findWithId(cellId);
-            const columnIndex = notebook.cellIds.indexOf(column);
-            const rightColumn = notebook.cellIds.at(columnIndex + 1);
+            const layout = store.get(layoutAtom);
+            const columnIndex = layout.columns.indexOf(
+              columnOf(layout, cellId),
+            );
+            const rightColumn = layout.columns[columnIndex + 1];
 
-            if (rightColumn && rightColumn.length > 0) {
+            if (rightColumn && rightColumn.visible.length > 0) {
               const rightCellId = findClosestAdjacentCell(cellId, rightColumn);
               actions.focusCell({ cellId: rightCellId, where: "exact" });
 
@@ -307,7 +314,11 @@ export function useCellNavigationProps(
           const allCellIds = store.get(cellIdsAtom);
           selectionActions.extend({ cellId, allCellIds });
           // Select to where focus is going
-          const beforeCellId = allCellIds.findWithId(cellId).before(cellId);
+          const beforeCellId = visibleNeighbor(
+            store.get(layoutAtom),
+            cellId,
+            -1,
+          );
           if (beforeCellId) {
             selectionActions.extend({ cellId: beforeCellId, allCellIds });
           }
@@ -321,7 +332,7 @@ export function useCellNavigationProps(
           const allCellIds = store.get(cellIdsAtom);
           selectionActions.extend({ cellId, allCellIds });
           // Select to where focus is going
-          const afterCellId = allCellIds.findWithId(cellId).after(cellId);
+          const afterCellId = visibleNeighbor(store.get(layoutAtom), cellId, 1);
           if (afterCellId) {
             selectionActions.extend({ cellId: afterCellId, allCellIds });
           }
@@ -398,10 +409,8 @@ export function useCellNavigationProps(
         "cell.moveUp": addSingleHandler((cellIds) => {
           // If moving up, make sure the first cell is not at the top of the notebook
           const firstCellId = cellIds[0];
-          const notebook = store.get(notebookAtom);
-          const isFirst =
-            notebook.cellIds.findWithId(firstCellId).first() === firstCellId;
-          if (isFirst) {
+          const layout = store.get(layoutAtom);
+          if (columnOf(layout, firstCellId).visible[0] === firstCellId) {
             return false;
           }
 
@@ -413,10 +422,8 @@ export function useCellNavigationProps(
         "cell.moveDown": addSingleHandler((cellIds) => {
           // If moving down, make sure the last cell is not at the bottom of the notebook
           const lastCellId = cellIds[cellIds.length - 1];
-          const notebook = store.get(notebookAtom);
-          const isLast =
-            notebook.cellIds.findWithId(lastCellId).last() === lastCellId;
-          if (isLast) {
+          const layout = store.get(layoutAtom);
+          if (columnOf(layout, lastCellId).visible.at(-1) === lastCellId) {
             return false;
           }
 
@@ -770,18 +777,18 @@ export function useCellEditorNavigationProps(
 
 function findClosestAdjacentCell(
   currentCellId: CellId,
-  adjacentColumn: CollapsibleTree<CellId>,
+  adjacentColumn: LayoutColumn,
 ): CellId {
   const current = document.getElementById(HTMLCellId.create(currentCellId));
 
   if (!current) {
     // fallback to first
-    return adjacentColumn.first();
+    return adjacentColumn.visible[0];
   }
 
   const currentRect = current.getBoundingClientRect();
   // first to to either overlap or contain the current cell's top edge
-  for (const candidateId of adjacentColumn.topLevelIds) {
+  for (const candidateId of adjacentColumn.visible) {
     const candidate = document.getElementById(HTMLCellId.create(candidateId));
     if (candidate) {
       const candidateRect = candidate.getBoundingClientRect();
@@ -795,7 +802,7 @@ function findClosestAdjacentCell(
   }
 
   // no aligned cells (column beyond other), jump to last element
-  return adjacentColumn.last();
+  return adjacentColumn.visible[adjacentColumn.visible.length - 1];
 }
 
 export function closeSignatureHelp(view: EditorView) {

@@ -81,9 +81,10 @@ export function getUndoLabel(state: NotebookState): string {
 /**
  * Get the status of the descendants of the given cell.
  */
-export function getDescendantsStatus(state: NotebookState, cellId: CellId) {
-  const column = state.cellIds.findWithId(cellId);
-  const descendants = column.getDescendants(cellId);
+export function getDescendantsStatus(
+  state: NotebookState,
+  descendants: readonly CellId[],
+) {
   const stale = descendants.some(
     (id) => state.cellRuntime[id]?.staleInputs || state.cellData[id]?.edited,
   );

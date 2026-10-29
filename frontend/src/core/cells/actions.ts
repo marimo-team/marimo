@@ -9,12 +9,15 @@ import { scrollAndHighlightCell } from "@/components/editor/links/cell-link";
 import type { DocumentModel, EditableDocument } from "@/core/notebook/document";
 import type { CellColumnId } from "@/utils/id-tree";
 import { Logger } from "@/utils/Logger";
+import { clamp } from "@/utils/math";
 import type { SerializedEditorState } from "../codemirror/types";
+import { canCollapseOutline } from "../dom/outline";
 import type { CellConfig } from "../network/types";
 import { store } from "../state/jotai";
 import { activeDocumentModelAtom } from "../session/active-notebook";
 import {
   type DeletedCell,
+  isCellCodeHidden,
   notebookAtom,
   notebookReducer,
   releaseCellAtoms,
@@ -22,7 +25,18 @@ import {
 } from "./cells";
 import { resolveColumns } from "./columns";
 import { CellId, SCRATCH_CELL_ID, SETUP_CELL_ID } from "./ids";
-import { focusAndScrollCellIntoView } from "./scrollCellIntoView";
+import {
+  collapsedAtom,
+  columnOf,
+  foldOf,
+  foldsHiding,
+  layoutAtom,
+} from "./layout";
+import {
+  focusAndScrollCellIntoView,
+  scrollToBottom,
+  scrollToTop,
+} from "./scrollCellIntoView";
 
 export interface CreateCellOptions {
   /** Place the cell after this one. */
@@ -92,7 +106,25 @@ export const createCellAtom = atom(
     let placement: { after?: CellId; before?: CellId } = {};
     let column: number | null = null;
     if (options.after) {
-      placement = { after: options.after };
+      // A folded header hides the cells after it, so a cell placed after
+      // the header goes after its fold. Any section that holds the anchor
+      // holds the new cell too, so when it is to be focused, those open.
+      const layout = get(layoutAtom);
+      const fold = foldOf(layout, options.after);
+      placement = { after: fold?.at(-1) ?? options.after };
+      const sections = foldsHiding(layout, options.after);
+      if (fold) {
+        sections.push(options.after);
+      }
+      if (focus && sections.length > 0) {
+        set(collapsedAtom, (collapsed) => {
+          const next = new Set(collapsed);
+          for (const header of sections) {
+            next.delete(header);
+          }
+          return next;
+        });
+      }
     } else if (options.before) {
       const tree = cellIds.findWithId(options.before);
       const index = cellIds.indexOf(tree);
@@ -151,26 +183,136 @@ export const moveToNextCellAtom = atom(
     if (cellId === SCRATCH_CELL_ID) {
       return;
     }
-    const notebook = get(notebookAtom);
-    const column = notebook.cellIds.findWithId(cellId);
-    const index = column.indexOfOrThrow(cellId);
+    const { visible } = columnOf(get(layoutAtom), cellId);
+    const index = visible.indexOf(cellId);
     const nextIndex = before ? index - 1 : index + 1;
-    if (nextIndex < 0 || nextIndex >= column.length) {
+    if (index === -1 || nextIndex < 0 || nextIndex >= visible.length) {
       if (create) {
         set(createCellAtom, before ? { before: cellId } : { after: cellId });
       }
       return;
     }
-    const nextCellId = column.atOrThrow(nextIndex);
-    const cell = notebook.cellData[nextCellId];
-    focusAndScrollCellIntoView({
-      cellId: nextCellId,
-      cell: notebook.cellHandles[nextCellId],
-      isCodeHidden:
-        Boolean(cell.config.hide_code) &&
-        !notebook.untouchedNewCells.has(nextCellId),
-      codeFocus: before ? "bottom" : "top",
-      variableName: undefined,
+    focusOnPage(get, visible[nextIndex], before ? "bottom" : "top");
+  },
+);
+
+/** Focus a cell on the page, scrolling to it. */
+function focusOnPage(
+  get: Getter,
+  cellId: CellId,
+  codeFocus: "top" | "bottom" | undefined,
+): void {
+  const notebook = get(notebookAtom);
+  focusAndScrollCellIntoView({
+    cellId,
+    cell: notebook.cellHandles[cellId],
+    isCodeHidden: isCellCodeHidden(notebook, cellId),
+    codeFocus,
+    variableName: undefined,
+  });
+}
+
+/** Focus the visible cell before, after, or at `cellId` within its column. */
+export const focusCellAtom = atom(
+  null,
+  (
+    get,
+    _set,
+    { cellId, where }: { cellId: CellId; where: "before" | "after" | "exact" },
+  ): void => {
+    const { visible } = columnOf(get(layoutAtom), cellId);
+    const index = visible.indexOf(cellId);
+    if (index === -1) {
+      return;
+    }
+    const offset = where === "before" ? -1 : where === "after" ? 1 : 0;
+    const target = clamp(index + offset, 0, visible.length - 1);
+    focusOnPage(get, visible[target], where === "after" ? "top" : "bottom");
+  },
+);
+
+/** Focus the first visible cell of the first column. */
+export const focusTopCellAtom = atom(null, (get): void => {
+  const first = get(layoutAtom).columns[0]?.visible[0];
+  if (first === undefined) {
+    return;
+  }
+  focusOnPage(get, first, undefined);
+  scrollToTop();
+});
+
+/** Focus the last visible cell of the last column. */
+export const focusBottomCellAtom = atom(null, (get): void => {
+  const last = get(layoutAtom).columns.at(-1)?.visible.at(-1);
+  if (last === undefined) {
+    return;
+  }
+  focusOnPage(get, last, undefined);
+  scrollToBottom();
+});
+
+// Folding ---------------------------------------------------------------------
+//
+// A folded header hides the cells of its section. Which headers are folded is
+// editor state; the section each one hides derives from the outlines.
+
+/** Fold the section under `cellId`, if its output has a heading. */
+export const collapseCellAtom = atom(
+  null,
+  (get, set, { cellId }: { cellId: CellId }): void => {
+    if (!canCollapseOutline(get(notebookAtom).cellRuntime[cellId]?.outline)) {
+      return;
+    }
+    set(collapsedAtom, (collapsed) => new Set([...collapsed, cellId]));
+    focusWhenMounted(set, cellId);
+  },
+);
+
+/** Unfold the section under `cellId`. */
+export const expandCellAtom = atom(
+  null,
+  (_get, set, { cellId }: { cellId: CellId }): void => {
+    set(collapsedAtom, (collapsed) => {
+      const next = new Set(collapsed);
+      next.delete(cellId);
+      return next;
+    });
+    focusWhenMounted(set, cellId);
+  },
+);
+
+/** Fold every section in the notebook. */
+export const collapseAllCellsAtom = atom(null, (get, set): void => {
+  const { cellIds, cellRuntime } = get(notebookAtom);
+  set(
+    collapsedAtom,
+    new Set(
+      cellIds.inOrderIds.filter((id) =>
+        canCollapseOutline(cellRuntime[id]?.outline),
+      ),
+    ),
+  );
+});
+
+/** Unfold every section. */
+export const expandAllCellsAtom = atom(null, (_get, set): void => {
+  set(collapsedAtom, new Set());
+});
+
+/** Unfold whatever hides `cellId`, so it is on the page. */
+export const showCellIfHiddenAtom = atom(
+  null,
+  (get, set, { cellId }: { cellId: CellId }): void => {
+    const hiding = foldsHiding(get(layoutAtom), cellId);
+    if (hiding.length === 0) {
+      return;
+    }
+    set(collapsedAtom, (collapsed) => {
+      const next = new Set(collapsed);
+      for (const header of hiding) {
+        next.delete(header);
+      }
+      return next;
     });
   },
 );
@@ -245,9 +387,10 @@ export const deleteCellsAtom = atom(
       };
     });
 
-    // Focus the nearest survivor in the column, looking up before down.
+    // Focus the nearest visible survivor in the column, looking up before down.
     const first = deleting[0].id as CellId;
-    const ids = notebook.cellIds.findWithId(first).inOrderIds;
+    const column = columnOf(get(layoutAtom), first);
+    const ids = column.visible.includes(first) ? column.visible : column.ids;
     const at = ids.indexOf(first);
     const scrollKey =
       ids.slice(0, at).findLast((id) => !gone.has(id)) ??
@@ -376,6 +519,14 @@ export function useCellActions() {
   const addSetupCell = useSetAtom(addSetupCellAtom);
   const deleteCells = useSetAtom(deleteCellsAtom);
   const undoDeleteCell = useSetAtom(undoDeleteCellAtom);
+  const focusCell = useSetAtom(focusCellAtom);
+  const focusTopCell = useSetAtom(focusTopCellAtom);
+  const focusBottomCell = useSetAtom(focusBottomCellAtom);
+  const collapseCell = useSetAtom(collapseCellAtom);
+  const expandCell = useSetAtom(expandCellAtom);
+  const collapseAllCells = useSetAtom(collapseAllCellsAtom);
+  const expandAllCells = useSetAtom(expandAllCellsAtom);
+  const showCellIfHidden = useSetAtom(showCellIfHiddenAtom);
   return useMemo(
     () => ({
       ...operations,
@@ -384,10 +535,18 @@ export function useCellActions() {
       addSetupCell,
       deleteCells,
       undoDeleteCell,
+      focusCell,
+      focusTopCell,
+      focusBottomCell,
+      collapseCell,
+      expandCell,
+      collapseAllCells,
+      expandAllCells,
+      showCellIfHidden,
     }),
-    // The reducer's actions are stable for the store's lifetime.
+    // The reducer's actions and the atom setters are stable for the store's lifetime.
     // oxlint-disable-next-line react-hooks/exhaustive-deps
-    [createCell, moveToNextCell, addSetupCell, deleteCells, undoDeleteCell],
+    [],
   );
 }
 
