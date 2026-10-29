@@ -152,12 +152,12 @@ export function ModelDiscovery({
       )}
       {loaded && (
         <>
-          <p role="status" className="text-sm text-muted-secondary">
+          <output className="text-sm text-muted-secondary">
             {filtered.length} matching / {models.length} catalog models.
             {onSelect
               ? " Select a model to fill the Model field; click Add to save."
               : " Preview only; nothing is saved."}
-          </p>
+          </output>
           <Input
             aria-label={`Search ${label} models`}
             placeholder="Search models…"
@@ -172,7 +172,7 @@ export function ModelDiscovery({
               }
             }}
           />
-          {filtered.length === 0 && <p role="status">No models found</p>}
+          {filtered.length === 0 && <output>No models found</output>}
           <NativeSelect
             aria-label={`${label} catalog model`}
             value={selection}
