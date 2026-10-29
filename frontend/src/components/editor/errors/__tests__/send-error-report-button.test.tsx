@@ -49,9 +49,9 @@ vi.mock("@/components/editor/chrome/wrapper/useOpenAiAssistant", () => ({
 const CELL_ID = cellId("test-cell");
 const STABLE_ID = "stable/test" as StableSessionId;
 const attachmentsAtom = atom<Attachment[]>([]);
-vi.mock("@/core/session/state", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("@/core/session/state")>()),
-  notebookReplicaAtom: atom(() => ({ attachmentsAtom })),
+vi.mock("@/core/session/active-notebook", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/core/session/active-notebook")>()),
+  activeNotebookReplicaAtom: atom(() => ({ attachmentsAtom })),
 }));
 
 const AGENT: Attachment = {

@@ -21,9 +21,9 @@ it.each([
   ["components/editor.tsx", "@/core/notebook/attachments", true],
   ["core/notebook/index.ts", "./attachments", false],
   ["core/notebook/index.ts", "./document/hooks", true],
-  ["core/session/state.ts", "@/core/notebook/replica", false],
-  ["core/session/state.ts", "../notebook/replica", false],
-  ["core/session/state.ts", "@/core/notebook/document", false],
+  ["core/session/active-notebook.ts", "@/core/notebook/replica", false],
+  ["core/session/active-notebook.ts", "../notebook/replica", false],
+  ["core/session/active-notebook.ts", "@/core/notebook/document", false],
   ["core/notebook/replica/replica.ts", "./resources/document", false],
   [
     "core/notebook/replica/replica.ts",
@@ -32,9 +32,13 @@ it.each([
   ],
   ["core/session/__tests__/a.test.ts", "../../notebook/replica/replica", false],
   ["core/session/fixtures.ts", "../notebook/replica/__tests__/fixtures", false],
-  ["core/session/state.ts", "@/core/notebook/replica/replica", true],
-  ["core/session/state.ts", "../notebook/replica/resources/document", true],
-  ["core/session/state.ts", "../notebook/document/hooks", true],
+  ["core/session/active-notebook.ts", "@/core/notebook/replica/replica", true],
+  [
+    "core/session/active-notebook.ts",
+    "../notebook/replica/resources/document",
+    true,
+  ],
+  ["core/session/active-notebook.ts", "../notebook/document/hooks", true],
 ])("from %s, importing %s reports %s", (file, source, expected) => {
   expect(reports(file, source)).toBe(expected);
 });

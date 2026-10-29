@@ -14,7 +14,7 @@ import {
   fixtureMessages,
 } from "../../notebook/replica/__tests__/fixtures";
 import { useNotebookAttachments } from "@/core/notebook";
-import { notebookReplicaAtom } from "../state";
+import { activeNotebookReplicaAtom } from "../active-notebook";
 
 vi.mock("../backend", () => ({ createEditorBackend: vi.fn() }));
 
@@ -90,7 +90,7 @@ describe("useNotebookReplica", () => {
       },
     );
     await act(async () => Promise.resolve());
-    expect(store.get(notebookReplicaAtom)).toBe(result.current);
+    expect(store.get(activeNotebookReplicaAtom)).toBe(result.current);
     const [connection] = fake.opened;
     act(() => {
       connection.open();
@@ -112,7 +112,7 @@ describe("useNotebookReplica", () => {
       attachments.result.current.agents.length,
     );
     unmount();
-    expect(store.get(notebookReplicaAtom)).toBeNull();
+    expect(store.get(activeNotebookReplicaAtom)).toBeNull();
     expect(attachments.result.current).toEqual({ all: [], agents: [] });
     attachments.unmount();
   });

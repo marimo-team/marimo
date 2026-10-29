@@ -14,7 +14,7 @@ import {
 } from "../../notebook/replica/__tests__/fixtures";
 import { ConnectionState } from "../../notebook/replica/connection";
 import { Deferred } from "@/utils/Deferred";
-import { sessionSse, websocket } from "../notebook";
+import { sessionSse, websocket } from "../server";
 
 const encoder = new TextEncoder();
 

@@ -150,10 +150,3 @@ export function sessionSse(
     }),
   );
 }
-
-/** A connection that opens and delivers nothing, for static notebooks. */
-export const idle: NotebookTransport = ({ signal }, { open }) =>
-  new Promise((settle) => {
-    open();
-    signal.addEventListener("abort", () => settle(), { once: true });
-  });

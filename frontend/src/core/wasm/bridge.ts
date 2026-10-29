@@ -42,7 +42,7 @@ import type {
 } from "../network/types";
 import { filenameAtom } from "../saving/file-state";
 import { store } from "../state/jotai";
-import { notebookReplicaAtom } from "../session/state";
+import { activeNotebookReplicaAtom } from "../session/active-notebook";
 import { PyodideRouter } from "./router";
 import { getWorkerRPC, type PersistNotebookRequest } from "./rpc";
 import { getWasmRuntimeConfig } from "./runtime-config";
@@ -267,7 +267,7 @@ export class PyodideBridge implements RunRequests, EditRequests {
   };
 
   private async saveHostNotebook() {
-    const replica = store.get(notebookReplicaAtom);
+    const replica = store.get(activeNotebookReplicaAtom);
     const notebook = replica && store.get(replica.notebookAtom);
     const backend = replica && store.get(replica.backendAtom);
     if (!notebook || !backend) {

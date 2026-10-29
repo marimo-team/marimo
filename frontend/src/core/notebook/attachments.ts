@@ -3,13 +3,13 @@
 import { atom, useAtomValue } from "jotai";
 import { useMemo } from "react";
 import type { Attachment } from "@marimo-team/client/protocol";
-import { notebookReplicaAtom } from "../session/state";
+import { activeNotebookReplicaAtom } from "../session/active-notebook";
 
 export type { Attachment } from "@marimo-team/client/protocol";
 
 /** Attachments visible to this session, empty while no notebook is available. */
 export const notebookAttachmentsAtom = atom((get) => {
-  const replica = get(notebookReplicaAtom);
+  const replica = get(activeNotebookReplicaAtom);
   return replica ? get(replica.attachmentsAtom) : [];
 });
 

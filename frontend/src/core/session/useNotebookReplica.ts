@@ -13,7 +13,7 @@ import {
   createNotebookReplica,
   type NotebookReplica,
 } from "../notebook/replica";
-import { notebookReplicaAtom } from "./state";
+import { activeNotebookReplicaAtom } from "./active-notebook";
 import { createEditorBackend, type EditorBackendOptions } from "./backend";
 
 type Options = EditorBackendOptions & {
@@ -54,7 +54,7 @@ export function useNotebookReplica(options: Options): NotebookReplica {
   );
 
   useEffect(() => {
-    store.set(notebookReplicaAtom, replica);
+    store.set(activeNotebookReplicaAtom, replica);
     const disconnect = replica.connect(backend, {
       // The host validates the envelope, not the native notification contents.
       onNotification: (notification) =>
@@ -62,8 +62,8 @@ export function useNotebookReplica(options: Options): NotebookReplica {
     });
     return () => {
       disconnect();
-      if (store.get(notebookReplicaAtom) === replica) {
-        store.set(notebookReplicaAtom, null);
+      if (store.get(activeNotebookReplicaAtom) === replica) {
+        store.set(activeNotebookReplicaAtom, null);
       }
     };
   }, [replica, backend, store, onNotification]);

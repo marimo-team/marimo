@@ -30,9 +30,9 @@ vi.mock("@/components/ui/use-toast", () => ({ toast: vi.fn() }));
 vi.mock("@/core/network/api", () => ({ API: { post: vi.fn() } }));
 
 const attachmentsAtom = atom<Attachment[]>([]);
-vi.mock("@/core/session/state", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("@/core/session/state")>()),
-  notebookReplicaAtom: atom(() => ({ attachmentsAtom })),
+vi.mock("@/core/session/active-notebook", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/core/session/active-notebook")>()),
+  activeNotebookReplicaAtom: atom(() => ({ attachmentsAtom })),
 }));
 
 const AGENT: Attachment = {

@@ -111,7 +111,7 @@ import { store } from "@/core/state/jotai";
 import { initialModeAtom } from "@/core/mode";
 import { fixtureEvents } from "@/core/notebook/replica/__tests__/fixtures";
 import { createNotebookReplica } from "@/core/notebook/replica";
-import { notebookReplicaAtom } from "@/core/session/state";
+import { activeNotebookReplicaAtom } from "@/core/session/active-notebook";
 import { createEditorBackend } from "@/core/session/backend";
 import { fallbackFileStore, notebookFileStore } from "../store";
 import { getWasmWorkerName, PyodideBridge } from "../bridge";
@@ -232,7 +232,7 @@ describe("PyodideBridge.sendSave", () => {
       }
     });
     const replica = createNotebookReplica(store);
-    store.set(notebookReplicaAtom, replica);
+    store.set(activeNotebookReplicaAtom, replica);
     const backend = createEditorBackend({
       static: false,
       transportType: "sse",
@@ -250,7 +250,7 @@ describe("PyodideBridge.sendSave", () => {
 
   afterEach(() => {
     disconnect();
-    store.set(notebookReplicaAtom, null);
+    store.set(activeNotebookReplicaAtom, null);
     store.set(initialModeAtom, undefined);
   });
 
@@ -272,9 +272,9 @@ describe("PyodideBridge.sendSave", () => {
     "does not save when the notebook is %s",
     async (state) => {
       if (state === "unmounted") {
-        store.set(notebookReplicaAtom, null);
+        store.set(activeNotebookReplicaAtom, null);
       } else if (state === "not ready") {
-        store.set(notebookReplicaAtom, createNotebookReplica(store));
+        store.set(activeNotebookReplicaAtom, createNotebookReplica(store));
       } else {
         disconnect();
       }

@@ -7,12 +7,8 @@ import type { NotebookId } from "@marimo-team/client/protocol";
 import type { NotebookBackend } from "../notebook/replica";
 import { PyodideBridge } from "../wasm/bridge";
 import { isWasm } from "../wasm/utils";
-import {
-  idle,
-  sessionSse,
-  websocket,
-  withHeaders,
-} from "../transports/notebook";
+import { sessionSse, websocket, withHeaders } from "../transports/server";
+import { idle } from "../transports/static";
 
 /** How the editor follows its notebook. */
 export interface EditorBackendOptions {

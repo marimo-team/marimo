@@ -2,7 +2,7 @@
 
 /** A backend that serves a document snapshot without a host. */
 
-import type { NotebookClient } from "@marimo-team/client";
+import type { NotebookClient, NotebookTransport } from "@marimo-team/client";
 import type * as Protocol from "@marimo-team/client/protocol";
 import type { NotebookBackend } from "../notebook/replica";
 
@@ -75,3 +75,10 @@ export function createStaticNotebookBackend(
     },
   };
 }
+
+/** A connection that opens and delivers nothing, for static notebooks. */
+export const idle: NotebookTransport = ({ signal }, { open }) =>
+  new Promise((settle) => {
+    open();
+    signal.addEventListener("abort", () => settle(), { once: true });
+  });
