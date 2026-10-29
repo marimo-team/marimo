@@ -13,7 +13,6 @@ import {
 } from "@/utils/id-tree";
 import { invariant } from "@/utils/invariant";
 import { Logger } from "@/utils/Logger";
-import { clamp } from "@/utils/math";
 import { Objects } from "@/utils/objects";
 import { extractAllTracebackInfo, type TracebackInfo } from "@/utils/traceback";
 import { createReducerAndAtoms } from "../../utils/createReducer";
@@ -22,7 +21,7 @@ import { editorMountScheduler } from "../codemirror/editor-mount-scheduler";
 import { prepareCellCodeUpdate } from "../codemirror/language/cell-code";
 import { splitEditor } from "../codemirror/language/utils";
 import type { SerializedEditorState } from "../codemirror/types";
-import { findCollapseRange, mergeOutlines } from "../dom/outline";
+import { mergeOutlines } from "../dom/outline";
 import type { CellMessage } from "../kernel/messages";
 import { isErrorMime } from "../mime";
 import type { CellConfig } from "../network/types";
@@ -32,11 +31,7 @@ import { prepareCellForExecution, transitionCell } from "./cell";
 import { applyDocument, documentEditMiddleware } from "./document";
 import { CellId, SCRATCH_CELL_ID } from "./ids";
 import { type CellLog, getCellLogsForMessage } from "./logs";
-import {
-  focusAndScrollCellIntoView,
-  scrollToBottom,
-  scrollToTop,
-} from "./scrollCellIntoView";
+import { focusAndScrollCellIntoView } from "./scrollCellIntoView";
 import {
   type CellData,
   type CellRuntimeState,
@@ -408,74 +403,6 @@ const {
       ...state,
       cellIds: state.cellIds.moveColumn(action.column, action.overColumn),
     };
-  },
-  focusCell: (
-    state,
-    action: { cellId: CellId; where: "before" | "after" | "exact" },
-  ) => {
-    const column = state.cellIds.findWithId(action.cellId);
-    if (column.length === 0) {
-      return state;
-    }
-
-    const { cellId, where } = action;
-    const index = column.indexOfOrThrow(cellId);
-
-    let focusIndex: number;
-    if (where === "before") {
-      focusIndex = clamp(index - 1, 0, column.length - 1);
-    } else if (where === "after") {
-      focusIndex = clamp(index + 1, 0, column.length - 1);
-    } else {
-      focusIndex = index;
-    }
-    const focusCellId = column.atOrThrow(focusIndex);
-    // can scroll immediately, without setting scrollKey in state, because
-    // CellArray won't need to re-render
-    focusAndScrollCellIntoView({
-      cellId: focusCellId,
-      cell: state.cellHandles[focusCellId],
-      isCodeHidden: isCellCodeHidden(state, focusCellId),
-      codeFocus: where === "after" ? "top" : "bottom",
-      variableName: undefined,
-    });
-    return state;
-  },
-  focusTopCell: (state) => {
-    // TODO: focus the existing column, not the first column
-    const column = state.cellIds.getColumns().at(0);
-    if (column === undefined || column.length === 0) {
-      return state;
-    }
-
-    const cellId = column.first();
-    focusAndScrollCellIntoView({
-      cellId: cellId,
-      cell: state.cellHandles[cellId],
-      isCodeHidden: isCellCodeHidden(state, cellId),
-      codeFocus: undefined,
-      variableName: undefined,
-    });
-    scrollToTop();
-    return state;
-  },
-  focusBottomCell: (state) => {
-    // TODO: focus the existing column, not the last column
-    const column = state.cellIds.getColumns().at(-1);
-    if (column === undefined || column.length === 0) {
-      return state;
-    }
-
-    const cellId = column.last();
-    focusAndScrollCellIntoView({
-      cellId: cellId,
-      cell: state.cellHandles[cellId],
-      isCodeHidden: isCellCodeHidden(state, cellId),
-      codeFocus: undefined,
-      variableName: undefined,
-    });
-    scrollToBottom();
-    return state;
   },
   sendToTop: (state, action: { cellId: CellId; scroll?: boolean }) => {
     const column = state.cellIds.findWithId(action.cellId);
@@ -855,108 +782,6 @@ const {
       cellLogs: [],
     };
   },
-  collapseCell: (state, action: { cellId: CellId }) => {
-    const { cellId } = action;
-    const column = state.cellIds.findWithId(cellId);
-
-    // Get all the top-level outlines
-    const outlines = column.topLevelIds.map((id) => {
-      const cell = state.cellRuntime[id];
-      return cell.outline;
-    });
-
-    // Find the start/end of the collapsed range
-    const startIndex = column.indexOfOrThrow(cellId);
-    const range = findCollapseRange(startIndex, outlines);
-    if (!range) {
-      return state;
-    }
-    const endCellId = column.atOrThrow(range[1]);
-
-    return {
-      ...state,
-      // Collapse the range
-      cellIds: state.cellIds.transformWithCellId(cellId, (column) =>
-        column.collapse(cellId, endCellId),
-      ),
-      scrollKey: cellId,
-    };
-  },
-  expandCell: (state, action: { cellId: CellId }) => {
-    const { cellId } = action;
-    return {
-      ...state,
-      cellIds: state.cellIds.transformWithCellId(cellId, (column) =>
-        column.expand(cellId),
-      ),
-      scrollKey: cellId,
-    };
-  },
-  collapseAllCells: (state) => {
-    return {
-      ...state,
-      cellIds: state.cellIds.transformAll((column) => {
-        // Get all the top-level outlines
-        const outlines = column.topLevelIds.map((id) => {
-          const cell = state.cellRuntime[id];
-          return cell.outline;
-        });
-
-        // Find the start/end of the collapsed ranges
-        const nodes = [...column.nodes];
-        const visibleEndByOriginalEnd = new Map<CellIndex, CellIndex>();
-        const reversedCollapseRanges = [];
-
-        // Iterate in reverse order (bottom-up) to process children first
-        let i = nodes.length - 1;
-        while (i >= 0) {
-          const range = findCollapseRange(i, outlines);
-          if (range) {
-            const startIndex = i;
-            const originalEnd = range[1];
-            const endIndex =
-              visibleEndByOriginalEnd.get(originalEnd) ?? originalEnd;
-
-            // After this section collapses, its heading represents this
-            // endpoint for any enclosing section that shares it.
-            visibleEndByOriginalEnd.set(originalEnd, startIndex);
-
-            // Add the range to the list of ranges
-            const cellId = column.atOrThrow(startIndex);
-            const until = column.atOrThrow(endIndex);
-            reversedCollapseRanges.push({ id: cellId, until });
-          } else {
-            reversedCollapseRanges.push(null);
-          }
-          i--;
-        }
-
-        const collapseRanges = reversedCollapseRanges.toReversed();
-        return column.collapseAll(collapseRanges);
-      }),
-    };
-  },
-  expandAllCells: (state) => {
-    return {
-      ...state,
-      cellIds: state.cellIds.transformAll((column) => column.expandAll()),
-    };
-  },
-  showCellIfHidden: (state, action: { cellId: CellId }) => {
-    const { cellId } = action;
-    const column = state.cellIds.findWithId(cellId);
-    const prev = column;
-    const result = column.findAndExpandDeep(cellId);
-
-    if (result.equals(prev)) {
-      return state;
-    }
-
-    return {
-      ...state,
-      cellIds: state.cellIds.transformWithCellId(cellId, () => result),
-    };
-  },
   splitCell: (state, action: { cellId: CellId }) => {
     const { cellId } = action;
     const column = state.cellIds.findWithId(cellId);
@@ -1108,7 +933,10 @@ const {
 // strictly type the dispatched actions without creating a circular dependency.
 addMiddleware(documentEditMiddleware);
 
-function isCellCodeHidden(state: NotebookState, cellId: CellId): boolean {
+export function isCellCodeHidden(
+  state: NotebookState,
+  cellId: CellId,
+): boolean {
   return (
     Boolean(state.cellData[cellId].config.hide_code) &&
     !state.untouchedNewCells.has(cellId)

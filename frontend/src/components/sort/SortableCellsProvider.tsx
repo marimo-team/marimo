@@ -25,6 +25,8 @@ import { Arrays } from "@/utils/arrays";
 import type { CellColumnId, MultiColumn } from "@/utils/id-tree";
 import { invariant } from "@/utils/invariant";
 import { getNotebook } from "../../core/cells/cells";
+import { findColumn, layoutAtom } from "../../core/cells/layout";
+import { store } from "../../core/state/jotai";
 import { useCellActions } from "../../core/cells/actions";
 import { useEvent } from "../../hooks/useEvent";
 
@@ -136,16 +138,15 @@ const SortableCellsProviderInternal = ({
       invariant(isColumnId(overId), `Expected column id. Got: ${overId}`);
 
       // If column is empty, we can drop on it
-      const notebook = getNotebook();
-      const column = notebook.cellIds.get(overId);
+      const column = findColumn(store.get(layoutAtom), overId);
       invariant(column, `Expected column. Got: ${overId}`);
-      if (column && column.topLevelIds.length === 0) {
+      if (column.visible.length === 0) {
         // Return the column
         return [{ id: overId }];
       }
 
       // If the column is not empty, we only consider the cells in the same column
-      const cellIdSet = new Set(column.topLevelIds);
+      const cellIdSet = new Set(column.visible);
       const collisions = closestCenter({
         ...args,
         droppableContainers: args.droppableContainers.filter(
