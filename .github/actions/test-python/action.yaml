@@ -73,11 +73,18 @@ runs:
         || { ec=$?; [ $ec -eq 5 ] && exit 0 || exit $ec; }
 
     # Test with optional dependencies
+    - name: Install optional dependencies
+      if: ${{ inputs.dependencies == 'core,optional' }}
+      shell: bash
+      run: |
+        uv sync --python ${{ inputs.python-version }} --group test-optional
+        uv pip install --python .venv 'duckdb<2'
+
     - name: Test changed with optional dependencies
       if: ${{ inputs.dependencies == 'core,optional' }}
       shell: bash
       run: |
-        uv run --python ${{ inputs.python-version }} --group test-optional --with 'duckdb<2' pytest tests/ \
+        uv run --no-sync pytest tests/ \
           -v \
           ${{ !contains(github.event.pull_request.labels.*.name, 'test-serial') && '-n auto' || '-p no:xdist' }} \
           -k "not test_cli" \
