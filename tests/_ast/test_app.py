@@ -711,6 +711,59 @@ class TestApp:
         assert not runtime_context_installed()
 
     @staticmethod
+    @pytest.mark.parametrize("execution", ["sync", "async", "running-loop"])
+    @pytest.mark.parametrize("phase", ["writes", "manifest"])
+    def test_run_tears_down_context_after_interrupted_flush(
+        monkeypatch: pytest.MonkeyPatch, execution: str, phase: str
+    ) -> None:
+        import asyncio
+
+        from marimo._runtime.context.types import (
+            runtime_context_installed,
+            teardown_context,
+        )
+        from marimo._save import loaders, manifest
+
+        app = App()
+        if execution == "sync":
+
+            @app.cell
+            def _():
+                x = 1
+                return (x,)
+
+        else:
+
+            @app.cell
+            async def _():
+                import asyncio
+
+                await asyncio.sleep(0)
+                x = 1
+                return (x,)
+
+        def interrupt(*_args: Any) -> None:
+            raise KeyboardInterrupt("interrupted flush")
+
+        if phase == "writes":
+            monkeypatch.setattr(loaders, "flush_active_caches", interrupt)
+        else:
+            monkeypatch.setattr(manifest, "flush_dirty_manifests", interrupt)
+
+        async def run() -> None:
+            app.run()
+
+        try:
+            with pytest.raises(KeyboardInterrupt, match="interrupted flush"):
+                if execution == "running-loop":
+                    asyncio.run(run())
+                else:
+                    app.run()
+            assert not runtime_context_installed()
+        finally:
+            teardown_context()
+
+    @staticmethod
     async def test_run_async_from_running_event_loop_propagates_error() -> (
         None
     ):

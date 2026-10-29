@@ -340,14 +340,13 @@ class AppScriptRunner:
             from marimo._save.loaders import flush_active_caches
             from marimo._save.manifest import flush_dirty_manifests
 
-            # NB. joins background blob writes; without this, cache entries
-            # can drop at interpreter exit.
-            flush_active_caches()
-            # A script has no kernel run to finish, so nothing else writes
-            # the manifest of the entries this run recorded.
-            if (context := safe_get_context()) is not None:
-                flush_dirty_manifests(context)
-            if cache is not None:
-                cache.hash_memo = outer_hash_memo
-            if installed_script_context:
-                teardown_context()
+            try:
+                # Join background blob writes before flushing the manifest.
+                flush_active_caches()
+                if (context := safe_get_context()) is not None:
+                    flush_dirty_manifests(context)
+            finally:
+                if cache is not None:
+                    cache.hash_memo = outer_hash_memo
+                if installed_script_context:
+                    teardown_context()

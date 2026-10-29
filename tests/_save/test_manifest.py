@@ -10,7 +10,7 @@ import os
 import shutil
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
-from threading import Event
+from threading import Barrier
 from typing import TYPE_CHECKING, Any
 from unittest.mock import MagicMock, patch
 from urllib.error import HTTPError, URLError
@@ -588,6 +588,35 @@ class TestRecording:
         assert all(is_manifest_name(key) for key in keys)
 
     @staticmethod
+    async def test_repeated_cell_hit_does_not_rewrite_manifest(
+        tmp_path: Path,
+        exec_req: ExecReqProvider,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        request = exec_req.get("x = 42")
+        with _notebook_kernel(tmp_path, cache_cells=True) as (k, _, _):
+            await k.run([request])
+
+        with _recorded_puts(monkeypatch) as keys:
+            with _notebook_kernel(tmp_path, cache_cells=True) as (
+                k,
+                notebook,
+                cache_dir,
+            ):
+                await k.run([request])
+                assert not k.stderr.messages
+                assert k.globals["x"] == 42
+                assert keys == [manifest_name(notebook)]
+                recorded = _manifest(notebook, cache_dir)
+                keys.clear()
+
+                await k.run([request])
+                assert not k.stderr.messages
+                assert k.globals["x"] == 42
+                assert keys == []
+                assert _manifest(notebook, cache_dir) == recorded
+
+    @staticmethod
     async def test_teardown_writes_what_a_failed_flush_left_pending(
         tmp_path: Path,
         exec_req: ExecReqProvider,
@@ -1106,23 +1135,26 @@ class TestManifestFlush:
     def test_concurrent_flushes_keep_both_writers(
         tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
+        from marimo._utils.file_lock import file_lock
+
         path = str(tmp_path / "cache")
         first = LazyStore(FileStore(path))
         second = LazyStore(FileStore(path))
-        first_read = Event()
-        second_started = Event()
-        second_read = Event()
-        release = Event()
         original_read = FileStore.read
+        original_put = FileStore.put
+
+        def assert_locked(key: str) -> None:
+            with pytest.raises(BlockingIOError):
+                with file_lock(Path(path) / f"{key}.lock", blocking=False):
+                    pass
 
         def read(self: FileStore, key: str) -> bytes | None:
-            data = original_read(self, key)
-            if self is first._inner:
-                first_read.set()
-                assert release.wait(5)
-            elif self is second._inner:
-                second_read.set()
-            return data
+            assert_locked(key)
+            return original_read(self, key)
+
+        def put(self: FileStore, key: str, value: bytes) -> bool:
+            assert_locked(key)
+            return original_put(self, key, value)
 
         with _notebook_kernel(tmp_path) as (_, notebook, _):
             ctx = get_context()
@@ -1137,23 +1169,23 @@ class TestManifestFlush:
                 key,
                 CacheManifest(nodes={"node": {"block": {"C_old"}}}).to_bytes(),
             )
-            monkeypatch.setattr(FileStore, "read", read)
+            start = Barrier(2)
 
-            def flush_second() -> bool:
-                second_started.set()
-                return flush_cache_manifest(ctx, second)
+            def flush(store: Store) -> bool:
+                start.wait(timeout=30)
+                return flush_cache_manifest(ctx, store)
 
-            with ThreadPoolExecutor(max_workers=2) as pool:
-                a = pool.submit(flush_cache_manifest, ctx, first)
-                try:
-                    assert first_read.wait(5)
-                    b = pool.submit(flush_second)
-                    assert second_started.wait(5)
-                    assert not second_read.wait(0.1)
-                finally:
-                    release.set()
-                assert a.result(timeout=5)
-                assert b.result(timeout=5)
+            with (
+                monkeypatch.context() as patcher,
+                ThreadPoolExecutor(max_workers=2) as pool,
+            ):
+                patcher.setattr(FileStore, "read", read)
+                patcher.setattr(FileStore, "put", put)
+                writers = [
+                    pool.submit(flush, store) for store in (first, second)
+                ]
+                for writer in writers:
+                    assert writer.result(timeout=30)
 
             manifest = load_manifest(FileStore(path), key)
             assert manifest is not None
