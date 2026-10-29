@@ -2,12 +2,8 @@
 
 import type { EditorState } from "@codemirror/state";
 import type { EditorView } from "@codemirror/view";
-import { replaceEditorContent } from "../replace-editor-content";
-import {
-  languageAdapterFromCode,
-  languageAdapterState,
-  switchLanguage,
-} from "./extension";
+import { getCellCode, prepareCellCodeUpdate } from "./cell-code";
+import { languageAdapterState } from "./extension";
 import { languageMetadataField } from "./metadata";
 
 /**
@@ -19,42 +15,31 @@ export function getEditorCodeAsPython(
   fromPos?: number,
   toPos?: number,
 ): string {
+  if (fromPos === undefined) {
+    return getCellCode(editor.state);
+  }
   const languageAdapter = editor.state.field(languageAdapterState);
   const metadata = editor.state.field(languageMetadataField);
   const editorText = editor.state.doc.toString();
-  if (fromPos !== undefined) {
-    return languageAdapter.transformOut(
-      editorText.slice(fromPos, toPos),
-      metadata,
-    )[0];
-  }
-  return languageAdapter.transformOut(editorText, metadata)[0];
+  return languageAdapter.transformOut(
+    editorText.slice(fromPos, toPos),
+    metadata,
+  )[0];
 }
 
 /**
  * Update the editor code from Python code
- * Handles when the editor is showing a different language (e.g. markdown)
+ * Preserve the current editor mode when it supports the incoming code.
  */
 export function updateEditorCodeFromPython(
   editor: EditorView,
   pythonCode: string,
 ): string {
-  const currentAdapter = editor.state.field(languageAdapterState);
-  const correctAdapter = languageAdapterFromCode(pythonCode);
-
-  // If the language type changed (e.g., markdown → python), switch adapters
-  if (correctAdapter.type !== currentAdapter.type) {
-    switchLanguage(editor, {
-      language: correctAdapter.type,
-      keepCodeAsIs: true,
-    });
+  const update = prepareCellCodeUpdate(editor.state, pythonCode);
+  if (update) {
+    editor.dispatch(update);
   }
-
-  const languageAdapter = editor.state.field(languageAdapterState);
-  const [code] = languageAdapter.transformIn(pythonCode);
-  // Use replaceEditorContent which preserves cursor position when focused
-  replaceEditorContent(editor, code);
-  return code;
+  return editor.state.doc.toString();
 }
 
 /**
