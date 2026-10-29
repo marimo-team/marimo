@@ -17,7 +17,6 @@ from marimo._server.api.utils import (
 from marimo._server.models.models import (
     BaseResponse,
     CodeCompletionRequest,
-    DeleteCellRequest,
     FocusCellRequest,
     FormatCellsRequest,
     FormatResponse,
@@ -59,32 +58,6 @@ async def code_complete(request: Request) -> BaseResponse:
                         $ref: "#/components/schemas/SuccessResponse"
     """
     return await dispatch_control_request(request, cls=CodeCompletionRequest)
-
-
-@router.post("/delete")
-@requires("edit")
-async def delete_cell(request: Request) -> BaseResponse:
-    """
-    parameters:
-        - in: header
-          name: Marimo-Session-Id
-          schema:
-            type: string
-          required: true
-    requestBody:
-        content:
-            application/json:
-                schema:
-                    $ref: "#/components/schemas/DeleteCellRequest"
-    responses:
-        200:
-            description: Delete a cell
-            content:
-                application/json:
-                    schema:
-                        $ref: "#/components/schemas/SuccessResponse"
-    """
-    return await dispatch_control_request(request, DeleteCellRequest)
 
 
 @router.post("/focus_cell")

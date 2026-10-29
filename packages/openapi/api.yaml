@@ -1450,14 +1450,6 @@ components:
       - cellId
       title: DeleteCellCommand
       type: object
-    DeleteCellRequest:
-      properties:
-        cellId:
-          $ref: '#/components/schemas/CellId'
-      required:
-      - cellId
-      title: DeleteCellRequest
-      type: object
     DeleteSecretRequest:
       properties:
         key:
@@ -7269,26 +7261,6 @@ paths:
               schema:
                 type: string
           description: Copy notebook
-  /api/kernel/delete:
-    post:
-      parameters:
-      - in: header
-        name: Marimo-Session-Id
-        required: true
-        schema:
-          type: string
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/DeleteCellRequest'
-      responses:
-        200:
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/SuccessResponse'
-          description: Delete a cell
   /api/kernel/focus_cell:
     post:
       parameters:

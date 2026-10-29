@@ -18,7 +18,7 @@ import {
 import { MockNotebook } from "@/__mocks__/notebook";
 import { cellId } from "@/__tests__/branded";
 import type { CellHandle } from "@/components/editor/notebook-cell";
-import { CellId, SETUP_CELL_ID } from "@/core/cells/ids";
+import { CellId } from "@/core/cells/ids";
 import { foldAllBulk, unfoldAllBulk } from "@/core/codemirror/editing/commands";
 import { adaptiveLanguageConfiguration } from "@/core/codemirror/language/extension";
 import { OverridingHotkeyProvider } from "@/core/hotkeys/hotkeys";
@@ -212,17 +212,6 @@ describe("cell reducer", () => {
     return id;
   }
 
-  function seedSetupCell(code: string) {
-    const first = state.cellIds.atOrThrow(0).at(0);
-    seedCell({
-      cellId: first ?? "__end__",
-      before: first !== undefined,
-      code,
-      name: SETUP_CELL_ID,
-      newCellId: SETUP_CELL_ID,
-    });
-  }
-
   let i = 0;
   const originalCreate = CellId.create.bind(CellId);
 
@@ -243,121 +232,6 @@ describe("cell reducer", () => {
 
   afterAll(() => {
     CellId.create = originalCreate;
-  });
-
-  it("can delete a Python cell and undo delete", () => {
-    seedCell({
-      cellId: firstCellId,
-      before: false,
-    });
-    actions.deleteCell({
-      cellId: firstCellId,
-    });
-    expect(formatCells(state)).toMatchInlineSnapshot(`
-      "
-      [1] ''
-      "
-    `);
-
-    // undo
-    actions.undoDeleteCell();
-    expect(formatCells(state)).toMatchInlineSnapshot(`
-      "
-      [2] ''
-
-      [1] ''
-      "
-    `);
-
-    // Verify scrollKey is set to the restored cell
-    expect(state.scrollKey).toBe("2");
-  });
-
-  it("can delete a SQL cell and undo delete", () => {
-    seedCell({
-      cellId: firstCellId,
-      before: false,
-      code: `df = mo.sql("""SELECT * FROM table""")`,
-    });
-    const newCellId = state.cellIds.getColumns()[0].atOrThrow(1);
-    actions.deleteCell({
-      cellId: newCellId,
-    });
-    expect(formatCells(state)).toMatchInlineSnapshot(`
-      "
-      [0] ''
-      "
-    `);
-
-    // undo
-    actions.undoDeleteCell();
-    expect(formatCells(state)).toMatchInlineSnapshot(`
-      "
-      [0] ''
-
-      [2] 'df = mo.sql("""SELECT * FROM table""")'
-      "
-    `);
-  });
-
-  it("can delete a Markdown cell and undo delete", () => {
-    const text = "The quick brown fox jumps over the lazy dog.";
-    seedCell({
-      cellId: firstCellId,
-      before: false,
-      code: `mo.md(r"""${text}""")`,
-    });
-    const newCellId = state.cellIds.getColumns()[0].atOrThrow(1);
-    actions.deleteCell({
-      cellId: newCellId,
-    });
-    expect(formatCells(state)).toMatchInlineSnapshot(`
-      "
-      [0] ''
-      "
-    `);
-
-    // undo
-    actions.undoDeleteCell();
-    expect(formatCells(state)).toMatchInlineSnapshot(`
-      "
-      [0] ''
-
-      [2] 'mo.md(r"""The quick brown fox jumps over the lazy dog.""")'
-      "
-    `);
-  });
-
-  it("undo delete restores cell config (hide_code, disabled)", () => {
-    seedCell({
-      cellId: firstCellId,
-      before: false,
-      code: "x = 1",
-    });
-    const newCellId = state.cellIds.getColumns()[0].atOrThrow(1);
-
-    // The document hides and disables the cell
-    state.cellData[newCellId] = {
-      ...state.cellData[newCellId],
-      config: {
-        ...state.cellData[newCellId].config,
-        hide_code: true,
-        disabled: true,
-      },
-    };
-
-    // Delete the cell
-    actions.deleteCell({ cellId: newCellId });
-    expect(state.cellIds.inOrderIds).not.toContain(newCellId);
-
-    // Undo delete
-    actions.undoDeleteCell();
-    const restoredCellId =
-      state.cellIds.inOrderIds[state.cellIds.inOrderIds.length - 1];
-
-    // Config should be preserved
-    expect(state.cellData[restoredCellId].config.hide_code).toBe(true);
-    expect(state.cellData[restoredCellId].config.disabled).toBe(true);
   });
 
   it("can update a cell", () => {
@@ -669,143 +543,6 @@ describe("cell reducer", () => {
       [0] ''
 
       [1] ''
-      "
-    `);
-  });
-
-  it("can undo cut-paste (move with previousPlacements)", () => {
-    seedCell({
-      cellId: firstCellId,
-      before: false,
-    });
-    seedCell({
-      cellId: cellId("1"),
-      before: false,
-    });
-    expect(formatCells(state)).toMatchInlineSnapshot(`
-      "
-      [0] ''
-
-      [1] ''
-
-      [2] ''
-      "
-    `);
-
-    const col = state.cellIds.findWithId(firstCellId);
-    const previousPlacements = [
-      {
-        columnId: col.id,
-        index: col.indexOfOrThrow(
-          firstCellId,
-        ) as import("@/utils/id-tree").CellIndex,
-      },
-      {
-        columnId: col.id,
-        index: col.indexOfOrThrow(
-          cellId("1"),
-        ) as import("@/utils/id-tree").CellIndex,
-      },
-    ];
-
-    actions.moveCellsRelativeTo({
-      cellIds: [firstCellId, cellId("1")],
-      targetCellId: cellId("2"),
-      position: "after",
-      previousPlacements,
-    });
-    expect(formatCells(state)).toMatchInlineSnapshot(`
-      "
-      [2] ''
-
-      [0] ''
-
-      [1] ''
-      "
-    `);
-
-    actions.undoDeleteCell();
-    expect(formatCells(state)).toMatchInlineSnapshot(`
-      "
-      [0] ''
-
-      [1] ''
-
-      [2] ''
-      "
-    `);
-  });
-
-  it("undo order: cut-paste then delete — first undo restores delete, second undo undoes move", () => {
-    seedCell({
-      cellId: firstCellId,
-      before: false,
-    });
-    seedCell({
-      cellId: cellId("1"),
-      before: false,
-    });
-
-    const col = state.cellIds.findWithId(firstCellId);
-    const previousPlacements = [
-      {
-        columnId: col.id,
-        index: col.indexOfOrThrow(
-          firstCellId,
-        ) as import("@/utils/id-tree").CellIndex,
-      },
-      {
-        columnId: col.id,
-        index: col.indexOfOrThrow(
-          cellId("1"),
-        ) as import("@/utils/id-tree").CellIndex,
-      },
-    ];
-
-    actions.moveCellsRelativeTo({
-      cellIds: [firstCellId, cellId("1")],
-      targetCellId: cellId("2"),
-      position: "after",
-      previousPlacements,
-    });
-    expect(formatCells(state)).toMatchInlineSnapshot(`
-      "
-      [2] ''
-
-      [0] ''
-
-      [1] ''
-      "
-    `);
-
-    actions.deleteCell({ cellId: cellId("2") });
-    expect(formatCells(state)).toMatchInlineSnapshot(`
-      "
-      [0] ''
-
-      [1] ''
-      "
-    `);
-
-    actions.undoDeleteCell();
-    expect(formatCells(state)).toMatchInlineSnapshot(`
-      "
-      [3] ''
-
-      [0] ''
-
-      [1] ''
-      "
-    `);
-
-    actions.undoDeleteCell();
-    expect(formatCells(state)).toMatchInlineSnapshot(`
-      "
-      [0] ''
-
-      [1] ''
-
-      [3] ''
       "
     `);
   });
@@ -2575,38 +2312,6 @@ describe("cell reducer", () => {
     expect(state.cellRuntime[secondCellId].consoleOutputs).toEqual([]);
   });
 
-  it("can delete and undelete the setup cell", () => {
-    // Create the setup cell
-    seedSetupCell("# Setup code");
-
-    // Check that setup cell was created
-    expect(state.cellData[SETUP_CELL_ID].id).toBe(SETUP_CELL_ID);
-    expect(state.cellData[SETUP_CELL_ID].name).toBe("setup");
-    expect(state.cellData[SETUP_CELL_ID].code).toBe("# Setup code");
-    expect(state.cellData[SETUP_CELL_ID].edited).toBe(true);
-    expect(state.cellIds.inOrderIds).toContain(SETUP_CELL_ID);
-
-    // Delete the setup cell
-    actions.deleteCell({ cellId: SETUP_CELL_ID });
-
-    // Check that setup cell was deleted
-    expect(state.cellData[SETUP_CELL_ID]).toBeDefined(); // we keep old state
-    expect(state.cellIds.inOrderIds).not.toContain(SETUP_CELL_ID);
-
-    // Undo delete the setup cell
-    actions.undoDeleteCell();
-
-    // Check that setup cell was restored
-    expect(state.cellData[SETUP_CELL_ID].id).toBe(SETUP_CELL_ID);
-    expect(state.cellData[SETUP_CELL_ID].name).toBe("setup");
-    expect(state.cellData[SETUP_CELL_ID].code).toBe("# Setup code");
-    expect(state.cellData[SETUP_CELL_ID].edited).toBe(true);
-    expect(state.cellIds.inOrderIds).toContain(SETUP_CELL_ID);
-
-    // Verify scrollKey is set to the restored setup cell
-    expect(state.scrollKey).toBe(SETUP_CELL_ID);
-  });
-
   it("can clear all outputs", () => {
     // Add a cell and give it output
     seedCell({
@@ -2754,55 +2459,6 @@ describe("cell reducer", () => {
       // Both cells should still be untouched
       expect(state.untouchedNewCells.has(cell1Id)).toBe(true);
       expect(state.untouchedNewCells.has(cell2Id)).toBe(true);
-    });
-
-    it("does not remove untouched state when cell is deleted", () => {
-      // We could implement this, but it doesn't actually affect downstream behavior.
-      // It is easier to leave it, so `undo` works as expected.
-
-      // Create a cell with hideCode
-      seedCell({
-        cellId: "__end__",
-        before: false,
-        hideCode: true,
-      });
-
-      const newCellId =
-        state.cellIds.inOrderIds[state.cellIds.inOrderIds.length - 1];
-      expect(state.untouchedNewCells.has(newCellId)).toBe(true);
-
-      // Delete the cell
-      actions.deleteCell({ cellId: newCellId });
-
-      // Does not actually remove untouched state
-      expect(state.untouchedNewCells.has(newCellId)).toBe(true);
-    });
-
-    it("restores untouched state when cell deletion is undone", () => {
-      // Create a cell with hideCode
-      seedCell({
-        cellId: "__end__",
-        before: false,
-        hideCode: true,
-      });
-
-      const newCellId =
-        state.cellIds.inOrderIds[state.cellIds.inOrderIds.length - 1];
-      expect(state.untouchedNewCells.has(newCellId)).toBe(true);
-
-      // Delete the cell
-      actions.deleteCell({ cellId: newCellId });
-      // Still exists in untouchedNewCells
-      expect(state.untouchedNewCells.has(newCellId)).toBe(true);
-
-      // Undo the deletion
-      actions.undoDeleteCell();
-
-      // The cell should be restored but no longer untouched
-      // (this is expected behavior - undoing doesn't restore untouched state)
-      const restoredCellId =
-        state.cellIds.inOrderIds[state.cellIds.inOrderIds.length - 1];
-      expect(state.untouchedNewCells.has(restoredCellId)).toBe(false);
     });
 
     it("untouched cell behavior with hide_code config", () => {
@@ -2979,31 +2635,6 @@ describe("cell reducer", () => {
       expect(dataAtom2).toBe(dataAtom1);
       expect(runtimeAtom2).toBe(runtimeAtom1);
       expect(handleAtom2).toBe(handleAtom1);
-    });
-
-    it("cleans up atom family cache when cells are deleted", () => {
-      const { cellDataAtom, cellRuntimeAtom, cellHandleAtom } =
-        exportedForTesting;
-
-      seedCell({ cellId: firstCellId, before: false });
-      const newCellId = state.cellIds.inOrderIds[1];
-
-      // Access to create cache entries
-      const dataAtom1 = cellDataAtom(newCellId);
-      const runtimeAtom1 = cellRuntimeAtom(newCellId);
-      const handleAtom1 = cellHandleAtom(newCellId);
-
-      // Triggers purge
-      actions.deleteCell({ cellId: newCellId });
-
-      // Access again (should be new instances after cleanup)
-      const dataAtom2 = cellDataAtom(newCellId);
-      const runtimeAtom2 = cellRuntimeAtom(newCellId);
-      const handleAtom2 = cellHandleAtom(newCellId);
-
-      expect(dataAtom2).not.toBe(dataAtom1);
-      expect(runtimeAtom2).not.toBe(runtimeAtom1);
-      expect(handleAtom2).not.toBe(handleAtom1);
     });
   });
 });

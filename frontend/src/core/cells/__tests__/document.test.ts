@@ -282,12 +282,6 @@ describe("documentEditMiddleware", () => {
     store.set(activeDocumentModelAtom, null);
   });
 
-  it("deletes a cell", () => {
-    actions.deleteCell({ cellId: b });
-
-    expect(calls).toEqual([["deleteCell", b]]);
-  });
-
   it("writes code", () => {
     actions.updateCellCode({
       cellId: a,

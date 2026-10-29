@@ -10,7 +10,6 @@ from marimo._runtime.commands import (
     ClearCacheCommand,
     CodeCompletionCommand,
     DebugCellCommand,
-    DeleteCellCommand,
     DiscoverDataSourcesCommand,
     ExecuteCellsCommand,
     ExecuteScratchpadCommand,
@@ -187,11 +186,6 @@ class StorageDownloadRequest(StorageDownloadCommand, tag=False):
 class UpdateUserConfigRequest(UpdateUserConfigCommand, tag=False):
     def as_command(self) -> UpdateUserConfigCommand:
         return UpdateUserConfigCommand(config=self.config)
-
-
-class DeleteCellRequest(DeleteCellCommand, tag=False):
-    def as_command(self) -> DeleteCellCommand:
-        return DeleteCellCommand(cell_id=self.cell_id)
 
 
 class InstallPackagesRequest(InstallPackagesCommand, tag=False):

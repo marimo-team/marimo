@@ -1,5 +1,8 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
+import { history } from "@codemirror/commands";
+import { EditorState } from "@codemirror/state";
+import { EditorView } from "@codemirror/view";
 import type * as Protocol from "@marimo-team/client/protocol";
 import { createStore } from "jotai";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -11,14 +14,23 @@ import {
   document as documentOf,
   withCells,
 } from "@/core/notebook/document/__tests__/fixtures";
+import type { CellIndex } from "@/utils/id-tree";
 import {
   addSetupCellAtom,
   createCellAtom,
+  deleteCellsAtom,
   moveToNextCellAtom,
+  undoDeleteCellAtom,
 } from "../actions";
-import { exportedForTesting, notebookAtom, notebookReducer } from "../cells";
+import {
+  cellDataAtom,
+  cellHandleAtom,
+  exportedForTesting,
+  notebookAtom,
+  notebookReducer,
+} from "../cells";
 import { followDocument } from "../document";
-import { SCRATCH_CELL_ID, SETUP_CELL_ID } from "../ids";
+import { type CellId, SCRATCH_CELL_ID, SETUP_CELL_ID } from "../ids";
 import { focusAndScrollCellIntoView } from "../scrollCellIntoView";
 
 vi.mock("../scrollCellIntoView", () => ({
@@ -27,6 +39,7 @@ vi.mock("../scrollCellIntoView", () => ({
 
 const c1 = cellId("c1");
 const c2 = cellId("c2");
+const c3 = cellId("c3");
 const stops: Array<() => void> = [];
 
 afterEach(() => {
@@ -64,6 +77,23 @@ function setup(cells?: Record<string, Protocol.Cell | null>) {
     order: () => store.get(notebookAtom).cellIds.inOrderIds,
     notebook: () => store.get(notebookAtom),
     cellIn: (id: string) => store.get(model.documentAtom)?.cells.get(id),
+    /** Give a cell an editor, as mounting it would. */
+    mountEditor: (id: string) => {
+      const view = new EditorView({
+        state: EditorState.create({
+          doc: store.get(model.documentAtom)?.cells.get(id)?.code ?? "",
+          extensions: [history()],
+        }),
+      });
+      store.get(notebookAtom).cellHandles[id as never].current = {
+        editorView: view,
+        editorViewOrNull: view,
+      };
+      return view;
+    },
+    /** Apply a reducer action, as `useReducerActions()` does. */
+    dispatch: (action: Parameters<typeof notebookReducer>[1]) =>
+      store.set(notebookAtom, (state) => notebookReducer(state, action)),
   };
 }
 
@@ -237,5 +267,209 @@ describe("addSetupCellAtom", () => {
 
     expect(order().filter((id) => id === SETUP_CELL_ID)).toHaveLength(1);
     expect(cellIn(SETUP_CELL_ID)?.code).toBe("first");
+  });
+});
+
+describe("deleteCellsAtom", () => {
+  it("deletes a cell, focuses the one above, and remembers it", () => {
+    const { store, order, notebook } = setup();
+
+    expect(store.set(deleteCellsAtom, { cellIds: [c2] })).toBe(true);
+
+    expect(order()).toEqual([c1]);
+    expect(notebook().cellData[c2]).toBeUndefined();
+    expect(notebook().scrollKey).toBe(c1);
+    expect(notebook().history).toEqual([
+      {
+        type: "delete",
+        cells: [
+          {
+            cell: { id: c2, code: "y = 2", name: "_", config: CONFIG },
+            placement: { after: c1 },
+            serializedEditorState: null,
+          },
+        ],
+      },
+    ]);
+  });
+
+  it("focuses the cell below when the first cell goes", () => {
+    const { store, notebook } = setup();
+
+    store.set(deleteCellsAtom, { cellIds: [c1] });
+
+    expect(notebook().scrollKey).toBe(c2);
+    expect(notebook().history[0]).toMatchObject({
+      cells: [{ placement: { before: c2 } }],
+    });
+  });
+
+  it("keeps the last cell", () => {
+    const { store, order, notebook } = setup();
+
+    expect(store.set(deleteCellsAtom, { cellIds: [c1, c2] })).toBe(true);
+    expect(order()).toEqual([c2]);
+
+    expect(store.set(deleteCellsAtom, { cellIds: [c2] })).toBe(false);
+    expect(order()).toEqual([c2]);
+    expect(notebook().history).toHaveLength(1);
+  });
+
+  it("skips cells the document does not have", () => {
+    const { store, order } = setup();
+
+    expect(store.set(deleteCellsAtom, { cellIds: [cellId("gone")] })).toBe(
+      false,
+    );
+
+    expect(order()).toEqual([c1, c2]);
+  });
+
+  it("names the column of a cell that followed a deleted column start", () => {
+    const { store, notebook, cellIn } = setup({
+      c2: cell("c2", "y = 2", { config: { ...CONFIG, column: 1 } }),
+      c3: cell("c3", "z = 3"),
+    });
+    expect(notebook().cellIds.atOrThrow(1).inOrderIds).toEqual([c2, c3]);
+
+    store.set(deleteCellsAtom, { cellIds: [c2] });
+
+    expect(cellIn(c3)?.config.column).toBe(1);
+    expect(notebook().cellIds.atOrThrow(1).inOrderIds).toEqual([c3]);
+  });
+
+  it("forgets the untouched state and the cell atoms of a deleted cell", () => {
+    const { store, notebook } = setup();
+    const id = store.set(createCellAtom, {
+      after: c1,
+      config: { hide_code: true },
+    }) as CellId;
+    const dataAtom = cellDataAtom(id);
+    const handleAtom = cellHandleAtom(id);
+
+    store.set(deleteCellsAtom, { cellIds: [id] });
+
+    expect(notebook().untouchedNewCells.has(id)).toBe(false);
+    expect(cellDataAtom(id)).not.toBe(dataAtom);
+    expect(cellHandleAtom(id)).not.toBe(handleAtom);
+  });
+});
+
+describe("undoDeleteCellAtom", () => {
+  it("brings a deleted cell back where it was, with its editor history", () => {
+    const { store, order, notebook, cellIn, mountEditor } = setup({
+      c3: cell("c3", "z = 3"),
+    });
+    const view = mountEditor(c2);
+    view.dispatch({ changes: { from: 0, insert: "# " } });
+    store.set(deleteCellsAtom, { cellIds: [c2] });
+    expect(order()).toEqual([c1, c3]);
+
+    store.set(undoDeleteCellAtom);
+
+    expect(order()).toEqual([c1, c2, c3]);
+    expect(cellIn(c2)?.code).toBe("y = 2");
+    expect(notebook().cellData[c2].serializedEditorState).toMatchObject({
+      doc: "y = 2",
+    });
+    expect(notebook().cellData[c2].edited).toBe(true);
+    expect(notebook().scrollKey).toBe(c2);
+    expect(notebook().history).toEqual([]);
+  });
+
+  it("restores the config and the id of the setup cell", () => {
+    const { store, order, cellIn } = setup({
+      [SETUP_CELL_ID]: cell(SETUP_CELL_ID, "import marimo as mo", {
+        name: "setup",
+        config: { ...CONFIG, hide_code: true, disabled: true },
+      }),
+    });
+    store.set(deleteCellsAtom, { cellIds: [SETUP_CELL_ID] });
+    expect(order()).toEqual([c1, c2]);
+
+    store.set(undoDeleteCellAtom);
+
+    expect(order()).toEqual([c1, c2, SETUP_CELL_ID]);
+    expect(cellIn(SETUP_CELL_ID)).toMatchObject({
+      name: "setup",
+      code: "import marimo as mo",
+      config: { hide_code: true, disabled: true },
+    });
+  });
+
+  it("restores every cell of one deletion at once, in order", () => {
+    const { store, order, notebook } = setup({ c3: cell("c3", "z = 3") });
+    store.set(deleteCellsAtom, { cellIds: [c1, c2] });
+    expect(order()).toEqual([c3]);
+    expect(notebook().history).toHaveLength(1);
+
+    store.set(undoDeleteCellAtom);
+
+    expect(order()).toEqual([c1, c2, c3]);
+    expect(notebook().history).toEqual([]);
+  });
+
+  it("undoes a move recorded in the history", () => {
+    const { store, model, order, notebook, dispatch } = setup({
+      c3: cell("c3", "z = 3"),
+    });
+    const column = notebook().cellIds.atOrThrow(0);
+    dispatch({
+      type: "moveCellsRelativeTo",
+      payload: {
+        cellIds: [c1, c2],
+        targetCellId: c3,
+        position: "after",
+        previousPlacements: [
+          { columnId: column.id, index: 0 as CellIndex },
+          { columnId: column.id, index: 1 as CellIndex },
+        ],
+      },
+    });
+    expect(order()).toEqual([c3, c1, c2]);
+    // The middleware would write the order to the document.
+    store.set(model.editAtom, (tx) => tx.setOrder([c3, c1, c2]));
+
+    store.set(deleteCellsAtom, { cellIds: [c3] });
+    expect(order()).toEqual([c1, c2]);
+
+    store.set(undoDeleteCellAtom);
+    expect(order()).toEqual([c3, c1, c2]);
+
+    store.set(undoDeleteCellAtom);
+    expect(order()).toEqual([c1, c2, c3]);
+    expect(notebook().history).toEqual([]);
+  });
+
+  it("appends a restored cell whose anchor another client removed", () => {
+    const { store, order, notebook } = setup();
+    store.set(notebookAtom, (state) => ({
+      ...state,
+      history: [
+        {
+          type: "delete",
+          cells: [
+            {
+              cell: { id: "c9", code: "q = 9" },
+              placement: { after: cellId("gone") },
+              serializedEditorState: null,
+            },
+          ],
+        },
+      ],
+    }));
+
+    store.set(undoDeleteCellAtom);
+
+    expect(order()).toEqual([c1, c2, "c9"]);
+    expect(notebook().history).toEqual([]);
+  });
+
+  it("does nothing without history", () => {
+    const { store, order } = setup();
+
+    store.set(undoDeleteCellAtom);
+
+    expect(order()).toEqual([c1, c2]);
   });
 });
