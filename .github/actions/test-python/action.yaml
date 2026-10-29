@@ -6,7 +6,7 @@ inputs:
     description: Python version to test against.
     required: true
   dependencies:
-    description: Dependency set — "core", "core,optional", "duckdb2", or "minimal".
+    description: Dependency group — "core", "core,optional", or "minimal".
     required: true
 
 runs:
@@ -73,18 +73,11 @@ runs:
         || { ec=$?; [ $ec -eq 5 ] && exit 0 || exit $ec; }
 
     # Test with optional dependencies
-    - name: Install optional dependencies
-      if: ${{ inputs.dependencies == 'core,optional' }}
-      shell: bash
-      run: |
-        uv sync --python ${{ inputs.python-version }} --group test-optional
-        uv pip install --python .venv 'duckdb<2'
-
     - name: Test changed with optional dependencies
       if: ${{ inputs.dependencies == 'core,optional' }}
       shell: bash
       run: |
-        uv run --no-sync pytest tests/ \
+        uv run --python ${{ inputs.python-version }} --group test-optional pytest tests/ \
           -v \
           ${{ !contains(github.event.pull_request.labels.*.name, 'test-serial') && '-n auto' || '-p no:xdist' }} \
           -k "not test_cli" \
@@ -95,29 +88,6 @@ runs:
           --picked=first \
           --inline-snapshot=disable \
         || { ec=$?; [ $ec -eq 5 ] && exit 0 || exit $ec; }
-
-    # Ibis 12 requires DuckDB 1.x. Exercise DuckDB 2 with the other optional
-    # dependencies and Narwhals' released compatibility fixes.
-    - name: Install native DuckDB 2 dependencies
-      if: ${{ inputs.dependencies == 'duckdb2' }}
-      shell: bash
-      run: |
-        uv sync --python ${{ inputs.python-version }} --group test-optional
-        uv pip install --python .venv/bin/python \
-          --exclude-newer-package 'narwhals=0 days' \
-          'duckdb>=2,<3' 'narwhals>=2.28'
-        uv pip uninstall --python .venv/bin/python ibis-framework
-
-    - name: Test native DuckDB 2
-      if: ${{ inputs.dependencies == 'duckdb2' }}
-      shell: bash
-      run: |
-        uv run --no-sync pytest tests/ \
-          -v \
-          ${{ !contains(github.event.pull_request.labels.*.name, 'test-serial') && '-n auto' || '-p no:xdist' }} \
-          -k "not test_cli" \
-          --durations=10 \
-          --inline-snapshot=disable
 
     # Test with minimal dependencies using lowest resolution
     # https://docs.astral.sh/uv/concepts/resolution/#lowest-resolution
