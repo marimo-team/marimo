@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import base64
 import dataclasses
-from typing import TYPE_CHECKING, Any, Literal, Union, cast
+from typing import TYPE_CHECKING, Any, Literal, Union
 
 from marimo import _loggers
 from marimo._ai._types import (
@@ -192,6 +192,14 @@ AnthropicParts = Union[
 ]
 
 
+def _create_anthropic_message(
+    role: Literal["user", "assistant"], content: list[AnthropicParts]
+) -> MessageParam:
+    if role == "assistant":
+        return {"role": "assistant", "content": content}
+    return {"role": "user", "content": content}
+
+
 def convert_to_anthropic_messages(
     messages: list[ChatMessage],
 ) -> list[MessageParam]:
@@ -212,10 +220,7 @@ def convert_to_anthropic_messages(
                 "text": str(message.content),
             }
             anthropic_messages.append(
-                cast(
-                    "MessageParam",
-                    {"role": anthropic_role, "content": [text_block]},
-                )
+                _create_anthropic_message(anthropic_role, [text_block])
             )
             continue
 
@@ -318,10 +323,7 @@ def convert_to_anthropic_messages(
 
         if current_parts:
             anthropic_messages.append(
-                cast(
-                    "MessageParam",
-                    {"role": anthropic_role, "content": current_parts},
-                )
+                _create_anthropic_message(anthropic_role, current_parts)
             )
 
     return anthropic_messages
