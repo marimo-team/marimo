@@ -326,7 +326,7 @@ describe("cellCodeBinding", () => {
       });
     });
 
-    it("switches language for host code without rewriting it", async () => {
+    it("keeps Python mode for host code without rewriting it", async () => {
       const { store, source, view, code, status } = setup({ adapters: true });
       await settle();
       expect(language(view)).toBe("python");
@@ -337,10 +337,56 @@ describe("cellCodeBinding", () => {
       );
       await settle();
 
-      expect(language(view)).toBe("markdown");
-      expect(view.state.doc.toString()).toBe("hi");
+      expect(language(view)).toBe("python");
+      expect(view.state.doc.toString()).toBe('mo.md("hi")');
       expect(code()).toBe('mo.md("hi")');
       expect(status()).toEqual({ status: "idle" });
+    });
+
+    it("keeps Python mode while typing mo.md() and receiving its echo", async () => {
+      const { store, source, view, type } = setup({
+        adapters: true,
+        initial: withCells(document(), { c1: cell("c1", "") }),
+      });
+      await settle();
+      type("mo.md");
+      await settle();
+      type("()");
+      await settle();
+      store.set(source, withCells(document(), { c1: cell("c1", "mo.md()") }));
+      await settle();
+
+      expect(language(view)).toBe("python");
+      expect(view.state.doc.toString()).toBe("mo.md()");
+    });
+
+    it("falls back to Python when host code no longer fits Markdown", async () => {
+      const { store, source, view, code, status } = setup({
+        adapters: true,
+        initial: withCells(document(), { c1: cell("c1", 'mo.md("hi")') }),
+      });
+      await settle();
+      expect(language(view)).toBe("markdown");
+
+      store.set(source, withCells(document(), { c1: cell("c1", "x = 1") }));
+      await settle();
+
+      expect(language(view)).toBe("python");
+      expect(view.state.doc.toString()).toBe("x = 1");
+      expect(code()).toBe("x = 1");
+      expect(status()).toEqual({ status: "idle" });
+    });
+
+    it("preserves Python when typing before the initial pull", async () => {
+      const { view, type } = setup({
+        adapters: true,
+        initial: withCells(document(), { c1: cell("c1", "") }),
+      });
+      type("mo.md()");
+      await settle();
+
+      expect(language(view)).toBe("python");
+      expect(view.state.doc.toString()).toBe("mo.md()");
     });
 
     it("writes changes to language metadata alone", async () => {
@@ -435,15 +481,12 @@ describe("cellCodeBinding", () => {
     });
 
     it("edits SQL as SQL and keeps its output name", async () => {
-      const { store, source, view, code, type } = setup({ adapters: true });
-      await settle();
-
-      store.set(
-        source,
-        withCells(document(), {
+      const { view, code, type } = setup({
+        adapters: true,
+        initial: withCells(document(), {
           c1: cell("c1", 'df = mo.sql(f"""SELECT 1""")'),
         }),
-      );
+      });
       await settle();
       expect(language(view)).toBe("sql");
       expect(view.state.doc.toString()).toBe("SELECT 1");
@@ -456,7 +499,12 @@ describe("cellCodeBinding", () => {
     });
 
     it("sets the SQL dialect from the host's engine", async () => {
-      const { store, source } = setup({ adapters: true });
+      const { store, source } = setup({
+        adapters: true,
+        initial: withCells(document(), {
+          c1: cell("c1", 'df = mo.sql("SELECT 1")'),
+        }),
+      });
       await settle();
       const dialect = vi.spyOn(SCHEMA_CACHE, "getDialect");
       try {

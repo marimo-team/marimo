@@ -28,33 +28,23 @@
  * coarsely instead of blocking the editor.
  */
 
-import { diff } from "@codemirror/merge";
 import {
-  type ChangeSpec,
   type EditorState,
   type Extension,
-  type StateEffect,
   Transaction,
 } from "@codemirror/state";
 import { type EditorView, ViewPlugin, type ViewUpdate } from "@codemirror/view";
 import type { CellId } from "@marimo-team/client/protocol";
-import { dequal } from "dequal";
 import type { Atom, createStore } from "jotai/vanilla";
 import {
-  languageAdapterFromCode,
-  languageAdapterState,
-  switchLanguage,
-} from "../../codemirror/language/extension";
-import { initializeSQLDialect } from "../../codemirror/language/languages/sql/sql";
-import {
-  languageMetadataField,
-  setLanguageMetadata,
-} from "../../codemirror/language/metadata";
+  editorShowsCellCode,
+  getCellCode,
+  prepareCellCodeUpdate,
+} from "../../codemirror/language/cell-code";
+import { languageAdapterState } from "../../codemirror/language/extension";
+import { languageMetadataField } from "../../codemirror/language/metadata";
 import type { DocumentModel } from "./model";
 import { selectCellField } from "./select";
-
-/** The diff scan limit, matching the default of the merge view. */
-const SCAN_LIMIT = 500;
 
 interface Binding {
   readonly store: ReturnType<typeof createStore>;
@@ -94,17 +84,11 @@ export function cellCodeBinding({
 }
 
 class CellCodeSync {
+  // Only the initial load infers a mode; subsequent edits preserve it.
+  #initialized = false;
   #scheduled = false;
   /** A pull arrived during IME composition and runs once it ends. */
   #deferred = false;
-  /**
-   * A pull is dispatching to the editor.
-   *
-   * A language switch dispatches transactions of its own before the text, and
-   * their in-between states represent the wrong code. Until the switch can be
-   * part of the pull's one remote transaction, this keeps them from pushing.
-   */
-  #pulling = false;
   /**
    * The code the editor and the model last agreed on.
    *
@@ -130,7 +114,10 @@ class CellCodeSync {
   }
 
   public update(update: ViewUpdate) {
-    if (!this.#pulling && changesCode(update)) {
+    if (
+      changesCode(update) &&
+      !update.transactions.every((tr) => tr.annotation(Transaction.remote))
+    ) {
       this.#push(update.state);
     }
     if (this.#deferred && !update.view.composing) {
@@ -158,17 +145,18 @@ class CellCodeSync {
 
   /** Write the editor's code to the model unless the editor already shows it. */
   #push(state: EditorState) {
+    this.#initialized = true;
     const { store, model, cellId, code } = this.#binding;
     const current = store.get(code);
     if (typeof current !== "string") {
       this.#synced = undefined;
       return;
     }
-    if (shows(state, current)) {
+    if (editorShowsCellCode(state, current)) {
       this.#synced = current;
       return;
     }
-    const next = codeOf(state);
+    const next = getCellCode(state);
     this.#synced = next;
     store.set(model.editAtom, (tx) => tx.setCode(cellId, next));
   }
@@ -185,15 +173,21 @@ class CellCodeSync {
       return;
     }
     this.#deferred = false;
-    if (next !== this.#synced && !shows(this.#view.state, next)) {
-      this.#pulling = true;
-      try {
-        replaceCode(this.#view, next);
-      } finally {
-        this.#pulling = false;
+    if (next !== this.#synced) {
+      const update = prepareCellCodeUpdate(this.#view.state, next, {
+        initialize: !this.#initialized,
+      });
+      if (update) {
+        this.#view.dispatch(update, {
+          annotations: [
+            Transaction.remote.of(true),
+            Transaction.addToHistory.of(false),
+          ],
+        });
       }
     }
     this.#synced = next;
+    this.#initialized = true;
   }
 
   /** Pull once after the current update, however many changes arrive. */
@@ -203,44 +197,6 @@ class CellCodeSync {
       queueMicrotask(() => this.#pull());
     }
   }
-}
-
-/**
- * The cell code an editor state represents.
- *
- * With a language adapter, this is the adapter's Python for the editor text.
- */
-function codeOf(state: EditorState): string {
-  const text = state.doc.toString();
-  const adapter = state.field(languageAdapterState, false);
-  return adapter
-    ? adapter.transformOut(
-        text,
-        state.field(languageMetadataField, false) ?? {},
-      )[0]
-    : text;
-}
-
-/**
- * Whether an editor state shows the given cell code.
- *
- * An adapter can spell the same code more than one way, such as `mo.md("hi")`
- * and its canonical form, so a state shows code that reads into its text and
- * metadata as well as the code its own spelling produces.
- */
-function shows(state: EditorState, code: string): boolean {
-  if (codeOf(state) === code) {
-    return true;
-  }
-  const adapter = state.field(languageAdapterState, false);
-  if (!adapter) {
-    return false;
-  }
-  const [text, , metadata] = adapter.transformIn(code);
-  return (
-    text === state.doc.toString() &&
-    dequal(metadata, state.field(languageMetadataField, false))
-  );
 }
 
 /**
@@ -257,55 +213,4 @@ function changesCode(update: ViewUpdate): boolean {
     update.state.field(languageMetadataField, false) !==
       update.startState.field(languageMetadataField, false)
   );
-}
-
-/**
- * Show cell code in the language it implies.
- *
- * The language switch happens first, in its own transactions, and clears undo
- * history because its entries edit the previous language's text. The text and
- * metadata follow in one remote transaction that undo history leaves out. An
- * SQL dialect depends on the engine in the metadata, so it is set again after.
- */
-function replaceCode(view: EditorView, code: string) {
-  let text = code;
-  const effects: StateEffect<unknown>[] = [];
-  let sql = false;
-  const adapter = view.state.field(languageAdapterState, false);
-  if (adapter) {
-    const target = languageAdapterFromCode(code);
-    sql = target.type === "sql";
-    if (target.type !== adapter.type) {
-      switchLanguage(view, { language: target.type, keepCodeAsIs: true });
-    }
-    const [inner, , metadata] = target.transformIn(code);
-    text = inner;
-    if (!dequal(metadata, view.state.field(languageMetadataField, false))) {
-      effects.push(setLanguageMetadata.of(metadata));
-    }
-  }
-  const current = view.state.doc.toString();
-  if (current === text && effects.length === 0) {
-    return;
-  }
-  view.dispatch({
-    changes: changesBetween(current, text),
-    effects,
-    annotations: [
-      Transaction.remote.of(true),
-      Transaction.addToHistory.of(false),
-    ],
-  });
-  if (sql && effects.length > 0) {
-    initializeSQLDialect(view);
-  }
-}
-
-/** The changes that turn one text into another, one per edited range. */
-function changesBetween(from: string, to: string): ChangeSpec {
-  return diff(from, to, { scanLimit: SCAN_LIMIT }).map((change) => ({
-    from: change.fromA,
-    to: change.toA,
-    insert: to.slice(change.fromB, change.toB),
-  }));
 }
