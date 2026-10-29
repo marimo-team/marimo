@@ -1,9 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
-/* oxlint-disable typescript/no-explicit-any */
 
 import { Logger } from "./Logger";
-
-type NoInfer<T> = [T][T extends any ? 0 : never];
 
 export const Maps = {
   /**

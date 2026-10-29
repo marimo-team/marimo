@@ -102,8 +102,7 @@ export const Objects = {
     return Objects.filter(obj, (_, key) => !set.has(key));
   },
 
-  // oxlint-disable-next-line typescript/no-explicit-any
-  pick<V extends Record<string, any>, K extends string>(
+  pick<V extends Record<string, unknown>, K extends string>(
     obj: V,
     keys: readonly K[],
   ): Pick<V, K & keyof V> {
