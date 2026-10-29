@@ -353,7 +353,7 @@ exclude = [
     "marimo/_static/export_demos/wasm-intro.py",
     "marimo/_test_utils/_tutorials",
     "marimo/_test_utils/codegen_data",
-    "marimo/_tutorials/[!_]*.py",
+    "marimo/_tutorials/[!_]*",
     "scripts",
     "protocols/**/.venv",
     "tests/_ast/app_data",
