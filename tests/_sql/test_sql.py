@@ -76,24 +76,22 @@ def duckdb_connection() -> Generator[duckdb.DuckDBPyConnection, None, None]:
     import duckdb
 
     conn = duckdb.connect(":memory:")
-    sql(
+    conn.execute(
         """
         CREATE TABLE test (
             id INTEGER PRIMARY KEY,
             name TEXT
         );
-        """,
-        engine=conn,
-    )
-    sql(
+        """
+    ).fetchall()
+    conn.execute(
         """
         INSERT INTO test VALUES
         (1, 'Alice'),
         (2, 'Bob'),
         (3, 'Charlie');
-        """,
-        engine=conn,
-    )
+        """
+    ).fetchall()
 
     yield conn
     conn.close()
