@@ -17,10 +17,13 @@ import {
   notebookAtom,
   notebookReducer,
 } from "../cells/cells";
+import { followDocument } from "../cells/document";
+import { createDocumentModel } from "../notebook/document";
 import { defineCustomElement } from "../dom/defineCustomElement";
 import { MarimoValueInputEvent } from "../dom/events";
 import { UI_ELEMENT_REGISTRY } from "../dom/uiregistry";
 import { FUNCTIONS_REGISTRY } from "../functions/FunctionRegistry";
+import { createNotebookReplica } from "../notebook/replica";
 import {
   handleCellNotificationeration,
   handleKernelReady,
@@ -124,6 +127,23 @@ export async function initializeIslands(
     handleNotification(notification, actions, store, sessionGeneration);
   });
 
+  // The notebook's cells follow the managed session's host document.
+  const replica = createNotebookReplica(store);
+  replica.connect(bridge.notebookBackend, { onNotification: Functions.NOOP });
+  const documentModel = createDocumentModel({
+    store,
+    documentAtom: replica.documentAtom,
+    backendAtom: replica.backendAtom,
+  });
+  const lifetime = new AbortController();
+  documentModel.start({ signal: lifetime.signal });
+  followDocument({
+    store,
+    model: documentModel,
+    reconcile: actions.reconcileDocument,
+    signal: lifetime.signal,
+  });
+
   // Track first user interaction before initialization completes
   document.addEventListener(
     MarimoValueInputEvent.TYPE,
@@ -196,7 +216,7 @@ function handleNotification(
       case "kernel-ready":
         handleKernelReady(msg, {
           autoInstantiate: true,
-          setCells: actions.setCells,
+          setCells: Functions.NOOP,
           setLayoutData: Functions.NOOP,
           setAppConfig: Functions.NOOP,
           setCapabilities: Functions.NOOP,

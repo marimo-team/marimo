@@ -936,12 +936,7 @@ const {
       cellLogs: [...state.cellLogs, ...action.logs],
     };
   },
-  /**
-   * Follow the host document's cells and order.
-   *
-   * Dispatched without middleware, since the document already has these
-   * changes.
-   */
+  /** Follow the host document's cells and order. */
   reconcileDocument: (state, document: EditableDocument) => {
     const nextState = applyDocument(state, document);
     for (const cellId of state.cellIds.inOrderIds) {
