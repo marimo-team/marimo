@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import os
+import sys
 from functools import partial
 from typing import Any
 from unittest.mock import patch
@@ -10,9 +11,12 @@ import pytest
 
 from marimo._ast import compiler
 from marimo._ast.cell_manager import CellManager
+from marimo._ast.errors import LazyImportError
+from marimo._ast.names import SETUP_CELL_NAME
 from marimo._ast.sql_visitor import SQLRef
 from marimo._ast.visitor import ImportData, VariableData
 from marimo._dependencies.dependencies import DependencyManager
+from marimo._types.ids import CellId_t
 
 compile_cell = partial(compiler.compile_cell, cell_id="0")
 
@@ -1017,3 +1021,54 @@ class TestCellAstMatchesRawAst:
         assert pos is not None
 
         self._assert_fixed_ast_contains_line(cell.code, source, pos)
+
+
+@pytest.mark.skipif(
+    sys.version_info < (3, 15), reason="`lazy import` requires Python 3.15"
+)
+class TestLazyImports:
+    @staticmethod
+    @pytest.mark.parametrize(
+        ("code", "lineno", "offset"),
+        [
+            ("lazy import numpy", 1, 1),
+            ("x = 1\nif x:\n    lazy import numpy", 3, 5),
+        ],
+    )
+    def test_lazy_import_in_regular_cell_is_a_syntax_error(
+        code: str, lineno: int, offset: int
+    ) -> None:
+        with pytest.raises(
+            LazyImportError, match="only allowed in the setup cell"
+        ) as e:
+            compile_cell(code)
+        assert e.value.lineno == lineno
+        assert e.value.offset == offset
+
+    @staticmethod
+    @pytest.mark.parametrize("prefix", ["", "app1-"])
+    def test_lazy_import_in_setup_cell_compiles(prefix: str) -> None:
+        cell = compiler.compile_cell(
+            "lazy import numpy", cell_id=CellId_t(prefix + SETUP_CELL_NAME)
+        )
+        assert cell.defs == {"numpy"}
+
+    @staticmethod
+    def test_lazy_import_is_tracked() -> None:
+        cell = compiler.compile_cell(
+            "lazy import numpy\nimport os\nlazy from json import dumps",
+            cell_id=CellId_t(SETUP_CELL_NAME),
+        )
+        assert {data.definition: data for data in cell.imports} == {
+            "numpy": ImportData(
+                module="numpy", definition="numpy", is_lazy=True
+            ),
+            "os": ImportData(module="os", definition="os"),
+            "dumps": ImportData(
+                module="json",
+                definition="dumps",
+                imported_symbol="json.dumps",
+                import_level=0,
+                is_lazy=True,
+            ),
+        }

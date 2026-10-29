@@ -540,6 +540,7 @@ components:
               - $ref: '#/components/schemas/CycleError'
               - $ref: '#/components/schemas/MultipleDefinitionError'
               - $ref: '#/components/schemas/ImportStarError'
+              - $ref: '#/components/schemas/LazyImportError'
               - $ref: '#/components/schemas/MarimoAncestorStoppedError'
               - $ref: '#/components/schemas/MarimoAncestorPreventedError'
               - $ref: '#/components/schemas/MarimoExceptionRaisedError'
@@ -558,6 +559,7 @@ components:
                   import-star: '#/components/schemas/ImportStarError'
                   internal: '#/components/schemas/MarimoInternalError'
                   interruption: '#/components/schemas/MarimoInterruptionError'
+                  lazy-import: '#/components/schemas/LazyImportError'
                   multiple-defs: '#/components/schemas/MultipleDefinitionError'
                   setup-refs: '#/components/schemas/SetupRootError'
                   sql-error: '#/components/schemas/MarimoSQLError'
@@ -3211,6 +3213,23 @@ components:
       - data
       title: LayoutConfig
       type: object
+    LazyImportError:
+      properties:
+        lineno:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          default: null
+        msg:
+          type: string
+        type:
+          enum:
+          - lazy-import
+      required:
+      - type
+      - msg
+      title: LazyImportError
+      type: object
     LintConfig:
       description: "Configuration for lint rule selection.\n\n    Follows ruff-inspired\
         \ semantics for selecting which rules to run\n    during `marimo check`.\n\
@@ -3651,6 +3670,7 @@ components:
       - $ref: '#/components/schemas/CycleError'
       - $ref: '#/components/schemas/MultipleDefinitionError'
       - $ref: '#/components/schemas/ImportStarError'
+      - $ref: '#/components/schemas/LazyImportError'
       - $ref: '#/components/schemas/MarimoAncestorStoppedError'
       - $ref: '#/components/schemas/MarimoAncestorPreventedError'
       - $ref: '#/components/schemas/MarimoExceptionRaisedError'
@@ -3669,6 +3689,7 @@ components:
           import-star: '#/components/schemas/ImportStarError'
           internal: '#/components/schemas/MarimoInternalError'
           interruption: '#/components/schemas/MarimoInterruptionError'
+          lazy-import: '#/components/schemas/LazyImportError'
           multiple-defs: '#/components/schemas/MultipleDefinitionError'
           setup-refs: '#/components/schemas/SetupRootError'
           sql-error: '#/components/schemas/MarimoSQLError'
