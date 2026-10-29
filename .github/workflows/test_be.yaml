@@ -182,6 +182,21 @@ jobs:
           python-version: ${{ matrix.python-version }}
           dependencies: ${{ matrix.dependencies }}
 
+  test_python_duckdb2:
+    needs: changes
+    if: ${{ needs.changes.outputs.backend == 'true' || (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'test-all')) }}
+    name: ubuntu-latest / Py 3.13 / native DuckDB 2
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+      - uses: ./.github/actions/test-python
+        with:
+          python-version: "3.13"
+          dependencies: "duckdb2"
+
   # Only run coverage on `main` so it is not blocking
   test_coverage:
     needs: changes
@@ -207,7 +222,7 @@ jobs:
 
       - name: Test with optional dependencies
         run: |
-          uv run --group test-optional pytest \
+          uv run --group test-optional --with 'duckdb<2' pytest \
             -v \
             tests/ \
             -k "not test_cli" \
