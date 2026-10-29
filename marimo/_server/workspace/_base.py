@@ -93,7 +93,8 @@ class NotebookWorkspace(abc.ABC):
     ) -> AppFileManager:
         """Convenience for workspaces with a unique single file."""
         key = self.get_unique_file_key()
-        assert key is not None, "Expected a single file"
+        if key is None:
+            raise RuntimeError("Expected a single file")
         return self.load(key, defaults)
 
     # Optional capabilities — subclasses override only when supported.

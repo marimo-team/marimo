@@ -116,7 +116,8 @@ class LogFormatter(logging.Formatter):
     def format(self, record: Any) -> str | Any:
         try:
             message = record.getMessage()
-            assert isinstance(message, str)  # guaranteed by logging
+            if not isinstance(message, str):  # guaranteed by logging
+                raise RuntimeError("Log message must be a string")
             record.message = message
         except Exception as e:
             record.message = f"Bad message ({e!r}): {record.__dict__!r}"

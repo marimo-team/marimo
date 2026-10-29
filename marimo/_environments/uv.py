@@ -268,8 +268,10 @@ def uv_stream(
             raise UvNotFoundError() from e
         raise
 
-    assert process.stdout is not None
-    assert process.stderr is not None
+    if process.stdout is None:
+        raise RuntimeError("Process stdout pipe is not available")
+    if process.stderr is None:
+        raise RuntimeError("Process stderr pipe is not available")
     stdout_pipe = process.stdout
     stdout_chunks: list[bytes] = []
 

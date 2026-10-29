@@ -22,7 +22,10 @@ LOGGER = _loggers.marimo_logger()
 @kernel_tracer.start_as_current_span("send_interrupt_errors")
 def _send_interrupt_errors(ctx: OnFinishHookContext) -> None:
     if ctx.cells_to_run:
-        assert ctx.interrupted
+        if not ctx.interrupted:
+            raise RuntimeError(
+                "Unfinished cells remain without an interruption"
+            )
         for cid in ctx.cells_to_run:
             # `cid` was not run
             ctx.graph.cells[cid].set_runtime_state("idle")

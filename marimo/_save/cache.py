@@ -574,19 +574,21 @@ class Cache:
             from marimo._ast.compiler import get_filename
 
             context = get_context().execution_context
-            assert context is not None
+            if context is None:
+                return None
             return get_filename(context.cell_id)
-        except (ContextNotInitializedError, AssertionError):
+        except ContextNotInitializedError:
             return None
 
     def contextual_defs(self) -> dict[tuple[Name, Name], Any]:
         """Uses context to resolve private variable names."""
         try:
             context = get_context().execution_context
-            assert context is not None, "Context could not be resolved"
-            private_prefix = f"_cell_{context.cell_id}_"
-        except (ContextNotInitializedError, AssertionError):
-            private_prefix = r"_"
+            private_prefix = (
+                f"_cell_{context.cell_id}_" if context is not None else "_"
+            )
+        except ContextNotInitializedError:
+            private_prefix = "_"
 
         return {
             (var, re.sub(r"^_", private_prefix, var)): value
@@ -646,7 +648,8 @@ class CacheContext(abc.ABC):
 
     @property
     def loader(self) -> Loader:
-        assert self._loader is not None, UNEXPECTED_FAILURE_BOILERPLATE
+        if self._loader is None:
+            raise RuntimeError(UNEXPECTED_FAILURE_BOILERPLATE)
         return self._loader()
 
     def cache_clear(self) -> None:

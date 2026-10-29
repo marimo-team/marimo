@@ -101,7 +101,10 @@ def existing_sql_bindings(
             exists = qualified in schemas
         else:
             ref = candidate.ref
-            assert ref is not None
+            if ref is None:
+                raise RuntimeError(
+                    "SQL binding candidate has no table reference"
+                )
             catalog = ref.catalog or database
             namespace = ref.schema or schema
             if ref.catalog is None and ref.schema in catalogs:

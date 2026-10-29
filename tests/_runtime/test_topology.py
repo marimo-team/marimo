@@ -41,9 +41,7 @@ class TestMutableGraphTopology:
 
         graph.add_node("cell_1", cell)
 
-        with pytest.raises(
-            AssertionError, match="Cell cell_1 already in graph"
-        ):
+        with pytest.raises(RuntimeError, match="Cell cell_1 already in graph"):
             graph.add_node("cell_1", cell)
 
     def test_add_multiple_nodes(self) -> None:

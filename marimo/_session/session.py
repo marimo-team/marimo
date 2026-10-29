@@ -361,7 +361,8 @@ class SessionImpl(Session):
         self.app_file_manager.rename(new_path)
         if self._notebook_sandbox is not None:
             path = self.app_file_manager.path
-            assert path is not None
+            if path is None:
+                raise RuntimeError("Sandbox notebook has no file path")
             self._notebook_sandbox.rebind(path)
         await self._event_bus.emit_session_notebook_renamed(self, old_path)
 

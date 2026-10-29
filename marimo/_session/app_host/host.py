@@ -112,7 +112,8 @@ class AppHost:
         import zmq
 
         conn = self._conn
-        assert conn is not None  # start() sets _conn before this thread
+        if conn is None:  # start() sets _conn before this thread
+            raise RuntimeError("App host connection is not initialized")
 
         while not self._closed.is_set():
             try:

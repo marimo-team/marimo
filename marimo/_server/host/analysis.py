@@ -145,7 +145,8 @@ class CellAnalyzer:
         self, cell_id: protocol.CellId, name: str
     ) -> protocol.Range | None:
         compiled = self._cache[cell_id].result
-        assert isinstance(compiled, CellImpl)
+        if not isinstance(compiled, CellImpl):
+            raise RuntimeError("Expected a compiled cell for analysis")
         visitor = VariableLineVisitor(name, compiled.code)
         visitor.visit(compiled.mod)
         location = visitor.definition_range

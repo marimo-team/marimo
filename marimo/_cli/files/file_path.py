@@ -203,7 +203,8 @@ class StaticNotebookReader(FileReader):
     @staticmethod
     def _extract_code_from_static_notebook(file_contents: str) -> str:
         search = re.search(StaticNotebookReader.CODE_REGEX, file_contents)
-        assert search is not None, "<marimo-code> not found in file contents"
+        if search is None:
+            raise ValueError("<marimo-code> not found in file contents")
         return urllib.parse.unquote(search.group(1))
 
     @staticmethod

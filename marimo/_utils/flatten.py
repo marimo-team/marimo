@@ -79,7 +79,8 @@ def _flatten_sequence(
         # if we haven't exhausted the sequence, then we've hit a value that
         # is not a leaf
         if i < len(value):
-            assert not _is_leaf(value[i])
+            if _is_leaf(value[i]):
+                raise RuntimeError("Expected a nested value while flattening")
             flattened, u = _flatten(
                 value[i],
                 json_compat_keys,

@@ -228,7 +228,8 @@ def open_response(
             timeout=5.0,
         )
         connection.connect()
-        assert connection.sock is not None
+        if connection.sock is None:
+            raise RuntimeError("Connection socket is not available")
         response_socket = connection.sock
         response_socket.settimeout(read_timeout)
         path = parsed.path or "/"
@@ -814,7 +815,8 @@ def resolve_execution_target(
         )
     selected = found[0]
     stable_id = selected["session_id"]
-    assert stable_id is not None
+    if stable_id is None:
+        raise RuntimeError("Selected session has no session ID")
     return selected.get("notebook_id"), stable_id
 
 

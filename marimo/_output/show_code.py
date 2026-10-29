@@ -79,9 +79,8 @@ def show_code(
     Returns:
         HTML of the `output` arg displayed with its code.
     """
-    assert position in ["above", "below"], (
-        "position must be 'above' or 'below'"
-    )
+    if position not in ["above", "below"]:
+        raise ValueError("position must be 'above' or 'below'")
 
     try:
         context = get_context()

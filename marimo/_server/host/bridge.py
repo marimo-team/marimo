@@ -169,7 +169,8 @@ class SessionBridge(SessionEventListener):
     async def _initialize_app_notebook(
         self, record: protocol.Notebook, sink: Sink
     ) -> Notebook:
-        assert self.app_sessions is not None
+        if self.app_sessions is None:
+            raise RuntimeError("App sessions are not initialized")
         session = self.app_sessions.session(record.id)
         cells, app_config = documents.from_session(session)
         document = Document(cells, app_config)
@@ -596,7 +597,8 @@ class SessionBridge(SessionEventListener):
             except OSError as e:
                 raise Conflict(f"The notebook cannot be created: {e}") from e
             notebook = self.index.ensure(str(target), request_id=request_id)
-            assert notebook is not None
+            if notebook is None:
+                raise RuntimeError("Notebook is not available")
             if name is not None:
                 self.index.rename(notebook.id, name, request_id=request_id)
             return self.host.notebooks[notebook.id]
@@ -672,7 +674,8 @@ class SessionBridge(SessionEventListener):
                 )
                 if not ok:
                     raise Conflict(error or "The notebook cannot be moved")
-                assert session is not None
+                if session is None:
+                    raise RuntimeError("Notebook session is not available")
                 session.put_control_request(
                     RenameNotebookCommand(filename=str(target)),
                     from_consumer_id=None,

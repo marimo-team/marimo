@@ -102,7 +102,8 @@ class RunLog:
                 if (entry := self._entry(event)) is not None:
                     entry.live.discard(execution_id)
                     entry.scratch.pop(execution_id, None)
-                    assert event.run_id is not None
+                    if event.run_id is None:
+                        raise RuntimeError("Completed execution has no run ID")
                     return self._close(event.run_id)
         return []
 
@@ -111,7 +112,8 @@ class RunLog:
         entry = self._runs.get(run_id)
         if entry is None:
             return None
-        assert isinstance(entry.event.event, protocol.RunEvent)
+        if not isinstance(entry.event.event, protocol.RunEvent):
+            raise RuntimeError("Expected a run event")
         return entry.event.event.data.run
 
     def snapshot(self) -> list[RoutedEvent]:
@@ -170,10 +172,11 @@ class RunLog:
         events: list[RoutedEvent] = []
         for execution_id, scratch in entry.scratch.items():
             for output in scratch.outputs.values():
-                assert isinstance(
+                if not isinstance(
                     output.event,
                     (protocol.ConsoleEvent, protocol.DisplayEvent),
-                )
+                ):
+                    raise RuntimeError("Expected a console or display event")
                 body = protocol_events.body(output.event)
                 events.append(self._removal(entry, type(body), body.id))
             events.append(
@@ -211,9 +214,11 @@ class RunLog:
         )
 
     def _snapshot_event(self, event: RoutedEvent, entry: _Run) -> RoutedEvent:
-        assert isinstance(event.event, protocol_events.RecordEvent)
+        if not isinstance(event.event, protocol_events.RecordEvent):
+            raise RuntimeError("Expected a record event")
         body = protocol_events.body(event.event)
-        assert isinstance(body, protocol_events.SnapshotBody)
+        if not isinstance(body, protocol_events.SnapshotBody):
+            raise RuntimeError("Expected a snapshot body")
         return snapshot_event(
             body,
             request_id=(

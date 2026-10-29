@@ -90,7 +90,8 @@ class MutableGraphTopology(GraphTopology):
 
     def add_node(self, cell_id: CellId_t, cell: CellImpl) -> None:
         """Add a cell to the graph topology."""
-        assert cell_id not in self.cells, f"Cell {cell_id} already in graph"
+        if cell_id in self.cells:
+            raise RuntimeError(f"Cell {cell_id} already in graph")
         self._cells[cell_id] = cell
         self._children[cell_id] = set()
         self._parents[cell_id] = set()

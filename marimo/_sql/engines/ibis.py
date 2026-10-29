@@ -54,7 +54,8 @@ class IbisEngine(SQLConnection["SQLBackend"]):
         # reverse lookup
         for dialect_name, dialect_class in dialect_registry.items():
             if self._connection.dialect == dialect_class:
-                assert isinstance(dialect_name, str)
+                if not isinstance(dialect_name, str):
+                    raise RuntimeError("Ibis dialect name must be a string")
                 return dialect_name
 
         return str(self._connection.dialect)

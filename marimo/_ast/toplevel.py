@@ -364,7 +364,8 @@ class TopLevelExtraction:
         for name in names_to_resolve:
             if name in self.unresolved:
                 _ = resolve(name)
-        assert not self.unresolved
+        if self.unresolved:
+            raise RuntimeError("Unresolved references remain after resolution")
 
     @property
     def variables(self) -> dict[Name, VariableData]:

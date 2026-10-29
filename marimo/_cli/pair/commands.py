@@ -232,7 +232,8 @@ def execute(
             code = Path(code_file).read_text(encoding="utf-8")
         except (OSError, UnicodeError) as error:
             raise click.UsageError("Could not read the code file.") from error
-    assert code is not None
+    if code is None:
+        raise RuntimeError("Code is required")
     if not code:
         raise click.UsageError("Code must not be empty.")
 
@@ -249,7 +250,8 @@ def execute(
         editor = notebook_id is None
         selector = "--session" if editor else "--notebook"
         if editor:
-            assert session_id is not None
+            if session_id is None:
+                raise RuntimeError("Session ID is required")
             result = execute_editor(
                 url=url,
                 session_id=session_id,
@@ -260,7 +262,8 @@ def execute(
                 stream=stream,
             )
         else:
-            assert notebook_id is not None
+            if notebook_id is None:
+                raise RuntimeError("Notebook ID is required")
             host = resolve_host(url)
             result = execute_code(
                 url=host.url,
@@ -291,7 +294,8 @@ def execute(
         ctx.exit(1)
 
     target_id = notebook_id or session_id
-    assert target_id is not None
+    if target_id is None:
+        raise RuntimeError("Notebook or session ID is required")
     next_text = None
     if not result.success:
         next_text = _kernel_next(
@@ -623,7 +627,10 @@ def prompt(
 
 def _notebook_sort_key(notebook: dict[str, object]) -> tuple[str, str, str]:
     server = notebook["server"]
-    assert isinstance(server, dict)
+    if not isinstance(server, dict):
+        raise RuntimeError(
+            "Expected notebook server metadata to be a dictionary"
+        )
     return (
         str(server.get("url") or ""),
         str(notebook.get("name") or ""),
@@ -648,14 +655,16 @@ def _group_notebooks(
             },
         )
         notebook_sessions = notebook["sessions"]
-        assert isinstance(notebook_sessions, list)
+        if not isinstance(notebook_sessions, list):
+            raise RuntimeError("Expected notebook sessions to be a list")
         notebook_sessions.append(
             {"id": routing_id, "session_id": session["session_id"]}
         )
 
     for notebook in grouped.values():
         notebook_sessions = notebook["sessions"]
-        assert isinstance(notebook_sessions, list)
+        if not isinstance(notebook_sessions, list):
+            raise RuntimeError("Expected notebook sessions to be a list")
         notebook_sessions.sort(key=lambda session: session["id"])
     return list(grouped.values())
 

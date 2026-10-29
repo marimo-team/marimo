@@ -241,8 +241,10 @@ def _match_cell_ids_by_similarity(
     next_codes: Sequence[str],
 ) -> list[CellId_t]:
     """Match cell IDs based on code similarity."""
-    assert len(prev_codes) == len(prev_ids)
-    assert len(next_codes) == len(next_ids)
+    if len(prev_codes) != len(prev_ids):
+        raise ValueError("Mismatched previous codes and cell IDs")
+    if len(next_codes) != len(next_ids):
+        raise ValueError("Mismatched next codes and cell IDs")
 
     # ids that are not in prev_ids but in next_ids
     id_pool = set(next_ids) - set(prev_ids)

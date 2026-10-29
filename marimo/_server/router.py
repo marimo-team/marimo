@@ -31,12 +31,10 @@ class APIRouter(Router):
 
     def __post_init__(self) -> None:
         if self.prefix:
-            assert self.prefix.startswith("/"), (
-                "Path prefix must start with '/'"
-            )
-            assert not self.prefix.endswith("/"), (
-                "Path prefix must not end with '/'"
-            )
+            if not self.prefix.startswith("/"):
+                raise ValueError("Path prefix must start with '/'")
+            if self.prefix.endswith("/"):
+                raise ValueError("Path prefix must not end with '/'")
 
     def post(
         self, path: str, include_in_schema: bool = True

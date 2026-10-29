@@ -28,7 +28,8 @@ LOGGER = _loggers.marimo_logger()
 async def ensure_app_host(app: Starlette) -> HostContext:
     """Initialize a private app host, including for mounts without a lifespan."""
     state = AppStateBase.from_app(app)
-    assert state.mode is SessionMode.RUN
+    if state.mode is not SessionMode.RUN:
+        raise RuntimeError("Run lifespan requires run mode")
     if state.host_context is not None:
         return state.host_context
     bridge = SessionBridge(state.session_manager, state.config_manager)

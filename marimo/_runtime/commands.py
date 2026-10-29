@@ -333,9 +333,8 @@ class ExecuteCellsCommand(Command):
         ]
 
     def __post_init__(self) -> None:
-        assert len(self.cell_ids) == len(self.codes), (
-            "Mismatched cell_ids and codes"
-        )
+        if len(self.cell_ids) != len(self.codes):
+            raise ValueError("Mismatched cell_ids and codes")
 
 
 # TODO(MO-8007): Reconcile the graph as part of a run.
@@ -477,9 +476,8 @@ class UpdateUIElementCommand(Command):
         return f"UpdateUIElementCommand(n_elements={len(self.object_ids)}, token={self.token})"
 
     def __post_init__(self) -> None:
-        assert len(self.object_ids) == len(self.values), (
-            "Mismatched object_ids and values"
-        )
+        if len(self.object_ids) != len(self.values):
+            raise ValueError("Mismatched object_ids and values")
         # Empty token is not valid (but let's not fail)
         if not self.token:
             LOGGER.warning(
