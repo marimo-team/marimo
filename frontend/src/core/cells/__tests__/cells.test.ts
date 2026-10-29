@@ -7,6 +7,7 @@ import { createStore } from "jotai";
 import {
   afterAll,
   beforeAll,
+  afterEach,
   beforeEach,
   describe,
   expect,
@@ -3591,31 +3592,9 @@ describe("createTracebackInfoAtom", () => {
   });
 });
 
-describe("setCells snapshot preservation", () => {
+describe("kernel-ready", () => {
   const CELL_A = cellId("A");
   const CELL_B = cellId("B");
-  const newCells: CellData[] = [
-    {
-      id: CELL_A,
-      name: "a",
-      code: "1",
-      edited: false,
-      lastCodeRun: null,
-      lastExecutionTime: null,
-      config: { hide_code: false, disabled: false, column: null },
-      serializedEditorState: null,
-    },
-    {
-      id: CELL_B,
-      name: "b",
-      code: "2",
-      edited: false,
-      lastCodeRun: null,
-      lastExecutionTime: null,
-      config: { hide_code: false, disabled: false, column: null },
-      serializedEditorState: null,
-    },
-  ];
 
   const hydratedState = () =>
     MockNotebook.notebookState({
@@ -3645,44 +3624,75 @@ describe("setCells snapshot preservation", () => {
       },
     });
 
-  beforeEach(async () => {
-    const { isWasm } = await import("@/core/wasm/utils");
-    vi.mocked(isWasm).mockReturnValue(true);
+  it("setLastRun records what the kernel last ran", () => {
+    const state = hydratedState();
+    const next = exportedForTesting.reducer(state, {
+      type: "setLastRun",
+      payload: {
+        lastCodeRun: { [CELL_A]: "0" },
+        lastExecutionTime: { [CELL_A]: 5 },
+      },
+    });
+
+    expect(next.cellData[CELL_A]).toMatchObject({
+      lastCodeRun: "0",
+      lastExecutionTime: 5,
+      edited: true,
+    });
+    expect(next.cellData[CELL_B]).toMatchObject({
+      lastCodeRun: null,
+      lastExecutionTime: null,
+      edited: false,
+    });
+    expect(next.cellRuntime).toBe(state.cellRuntime);
   });
 
-  it("preserves hydrated output in WASM", () => {
+  it("resetCellRuntimes starts every cell's runtime over", () => {
     const next = exportedForTesting.reducer(hydratedState(), {
-      type: "setCells",
-      payload: newCells,
-    });
-
-    expect(next.cellRuntime[CELL_A].output).toMatchObject({
-      data: "hydrated-A",
-    });
-  });
-
-  it("preserves console-only hydration in WASM", () => {
-    const next = exportedForTesting.reducer(hydratedState(), {
-      type: "setCells",
-      payload: newCells,
-    });
-
-    expect(next.cellRuntime[CELL_B].consoleOutputs).toHaveLength(1);
-    expect(next.cellRuntime[CELL_B].consoleOutputs[0]).toMatchObject({
-      data: "hydrated-B-stdout",
-    });
-  });
-
-  it("resets cells with no prior runtime even in WASM", () => {
-    const empty = MockNotebook.notebookState({ cellData: {} });
-    const next = exportedForTesting.reducer(empty, {
-      type: "setCells",
-      payload: newCells,
+      type: "resetCellRuntimes",
+      payload: undefined,
     });
 
     expect(next.cellRuntime[CELL_A].output).toBeNull();
-    expect(next.cellRuntime[CELL_A].consoleOutputs).toEqual([]);
-    expect(next.cellRuntime[CELL_B].output).toBeNull();
     expect(next.cellRuntime[CELL_B].consoleOutputs).toEqual([]);
+  });
+
+  describe("resetCellRuntimes in WASM", () => {
+    beforeEach(async () => {
+      const { isWasm } = await import("@/core/wasm/utils");
+      vi.mocked(isWasm).mockReturnValue(true);
+    });
+
+    afterEach(async () => {
+      const { isWasm } = await import("@/core/wasm/utils");
+      vi.mocked(isWasm).mockReturnValue(false);
+    });
+
+    it("keeps hydrated outputs and console", () => {
+      const next = exportedForTesting.reducer(hydratedState(), {
+        type: "resetCellRuntimes",
+        payload: undefined,
+      });
+
+      expect(next.cellRuntime[CELL_A].output).toMatchObject({
+        data: "hydrated-A",
+      });
+      expect(next.cellRuntime[CELL_B].consoleOutputs[0]).toMatchObject({
+        data: "hydrated-B-stdout",
+      });
+    });
+
+    it("starts cells with no prior runtime over", () => {
+      const state = MockNotebook.notebookState({
+        cellData: { [CELL_A]: { id: CELL_A, code: "1" } },
+      });
+      const next = exportedForTesting.reducer(state, {
+        type: "resetCellRuntimes",
+        payload: undefined,
+      });
+
+      expect(next.cellRuntime[CELL_A].output).toBeNull();
+      expect(next.cellRuntime[CELL_A].consoleOutputs).toEqual([]);
+    });
   });
 });

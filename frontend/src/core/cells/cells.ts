@@ -44,6 +44,7 @@ import {
   createCell,
   createCellConfig,
   createCellRuntimeState,
+  isEdited,
 } from "./types";
 import {
   canUndoDeletes,
@@ -980,36 +981,44 @@ const {
       },
     });
   },
-  setCells: (state, cells: CellData[]) => {
-    const cellData = Object.fromEntries(cells.map((cell) => [cell.id, cell]));
-
-    // WASM has no server-side SessionView to replay outputs, so the
-    // snapshot hydrated by notebookStateFromSession is the only source.
+  /** Record what the kernel last ran for each cell. */
+  setLastRun: (
+    state,
+    action: {
+      lastCodeRun: Record<CellId, string>;
+      lastExecutionTime: Record<CellId, number>;
+    },
+  ) => {
+    const cellData = { ...state.cellData };
+    for (const cellId of state.cellIds.inOrderIds) {
+      const cell = state.cellData[cellId];
+      const lastCodeRun = action.lastCodeRun[cellId] ?? null;
+      cellData[cellId] = {
+        ...cell,
+        lastCodeRun,
+        lastExecutionTime: action.lastExecutionTime[cellId] ?? null,
+        // A cell the kernel never ran is not stale on load.
+        edited: lastCodeRun !== null && isEdited(lastCodeRun, cell.code),
+      };
+    }
+    return { ...state, cellData };
+  },
+  /**
+   * Start each cell's runtime over for a new kernel. WASM keeps the outputs
+   * its mount-time snapshot gave it.
+   */
+  resetCellRuntimes: (state) => {
     const preserveSnapshot = isWasm();
-    const runtimeFor = (cellId: CellId): CellRuntimeState => {
-      if (!preserveSnapshot) {
-        return createCellRuntimeState();
-      }
-      const prev = state.cellRuntime[cellId];
+    const cellRuntime = { ...state.cellRuntime };
+    for (const cellId of state.cellIds.inOrderIds) {
+      const previous = state.cellRuntime[cellId];
       const hasSnapshot =
-        prev && (prev.output != null || prev.consoleOutputs.length > 0);
-      return hasSnapshot ? prev : createCellRuntimeState();
-    };
-    const cellRuntime = Object.fromEntries(
-      cells.map((cell) => [cell.id, runtimeFor(cell.id)]),
-    );
-
-    return withScratchCell({
-      ...state,
-      cellIds: MultiColumn.fromIdsAndColumns(
-        cells.map((cell) => [cell.id, cell.config.column]),
-      ),
-      cellData: cellData,
-      cellRuntime: cellRuntime,
-      cellHandles: Object.fromEntries(
-        cells.map((cell) => [cell.id, createRef()]),
-      ),
-    });
+        preserveSnapshot &&
+        previous !== undefined &&
+        (previous.output != null || previous.consoleOutputs.length > 0);
+      cellRuntime[cellId] = hasSnapshot ? previous : createCellRuntimeState();
+    }
+    return { ...state, cellRuntime };
   },
   /**
    * Move focus to next cell

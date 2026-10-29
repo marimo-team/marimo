@@ -18,6 +18,7 @@ import {
   notebookReducer,
 } from "../cells/cells";
 import { followDocument } from "../cells/document";
+import { notebookCells } from "../cells/utils";
 import { createDocumentModel } from "../notebook/document";
 import { defineCustomElement } from "../dom/defineCustomElement";
 import { MarimoValueInputEvent } from "../dom/events";
@@ -216,7 +217,9 @@ function handleNotification(
       case "kernel-ready":
         handleKernelReady(msg, {
           autoInstantiate: true,
-          setCells: Functions.NOOP,
+          cells: notebookCells(store.get(notebookAtom)),
+          setLastRun: actions.setLastRun,
+          resetCellRuntimes: actions.resetCellRuntimes,
           setLayoutData: Functions.NOOP,
           setAppConfig: Functions.NOOP,
           setCapabilities: Functions.NOOP,
