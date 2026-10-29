@@ -12,6 +12,16 @@ with app.setup:
     def top_level_fixture():
         return 0
 
+    @pytest.fixture
+    def setup_data():
+        return [1, 2, 3]
+
+
+@app.cell
+def test_cell_uses_setup_fixture(setup_data):
+    assert setup_data == [1, 2, 3]
+    return
+
 
 @app.function
 @pytest.mark.parametrize(("a", "b"), test_cases)
