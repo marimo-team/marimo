@@ -62,8 +62,8 @@ import {
   getNotebook,
   hasDisabledCellsAtom,
   undoLabelAtom,
-  useCellActions,
 } from "@/core/cells/cells";
+import { useCellActions } from "@/core/cells/actions";
 import { useNotebookDocumentEdit } from "@/core/notebook/document";
 import { disabledCellIds } from "@/core/cells/utils";
 import { capabilitiesAtom } from "@/core/config/capabilities";
@@ -129,9 +129,9 @@ export function useNotebookActions({
   const {
     undoDeleteCell,
     clearAllCellOutputs,
-    addSetupCellIfDoesntExist,
     collapseAllCells,
     expandAllCells,
+    addSetupCell,
   } = useCellActions();
   const restartKernel = useRestartKernel();
   const runAllCells = useRunAllCells();
@@ -464,7 +464,7 @@ export function useNotebookActions({
       icon: <DiamondPlusIcon size={14} strokeWidth={1.5} />,
       label: "Add setup cell",
       handle: () => {
-        addSetupCellIfDoesntExist({});
+        addSetupCell();
       },
     },
     {

@@ -10,6 +10,7 @@ import {
 import { document as documentFixture } from "@/core/notebook/document/__tests__/fixtures";
 import type { Document } from "@/core/notebook/replica";
 import { fakeBackend } from "@/core/notebook/replica/__tests__/fixtures";
+import { activeDocumentModelAtom } from "@/core/session/active-notebook";
 
 /** A started document model over `document`, for components that edit cells. */
 export function mockDocumentModel(
@@ -23,7 +24,16 @@ export function mockDocumentModel(
     backendAtom: atom(fakeBackend()),
   });
   model.start({ signal: controller.signal });
-  return { model, stop: () => controller.abort() };
+  store.set(activeDocumentModelAtom, model);
+  return {
+    model,
+    stop: () => {
+      controller.abort();
+      if (store.get(activeDocumentModelAtom) === model) {
+        store.set(activeDocumentModelAtom, null);
+      }
+    },
+  };
 }
 
 /** Provide `store` and `model` to a rendered hook or component. */

@@ -1,7 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 import type { Meta } from "@storybook/react-vite";
 import { createStore, Provider, useAtomValue, useStore } from "jotai";
-import { useEffect, useRef, useState } from "react";
+import { createRef, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { ConnectionNotice } from "@/components/editor/alerts/connection-notice";
 import PackagesPanel from "@/components/editor/chrome/panels/packages-panel";
@@ -13,11 +13,10 @@ import { Cell } from "@/components/editor/notebook-cell";
 import { VerticalLayoutWrapper } from "@/components/editor/renderers/vertical-layout/vertical-layout-wrapper";
 import { alertAtom } from "@/core/alerts/state";
 import type { EnvironmentOperation } from "@/core/alerts/environment";
-import {
-  createNotebookActions,
-  notebookAtom,
-  notebookReducer,
-} from "@/core/cells/cells";
+import { notebookAtom } from "@/core/cells/cells";
+import { CellId } from "@/core/cells/ids";
+import { createCell, createCellRuntimeState } from "@/core/cells/types";
+import { MultiColumn } from "@/utils/id-tree";
 import { userConfigAtom } from "@/core/config/config";
 import {
   type AppConfig,
@@ -349,15 +348,23 @@ export function RuntimeStory(props: Props) {
       log_mode: "replace",
     });
     if (props.existingCells) {
-      const actions = createNotebookActions((action) =>
-        state.set(notebookAtom, (value) => notebookReducer(value, action)),
-      );
-      actions.createNewCell({
-        cellId: "__end__",
-        before: false,
-        code: 'import polars as pl\n\ntrips = pl.read_csv("bike_trips.csv")\ntrips.head()',
-        autoFocus: false,
-      });
+      const cellId = CellId.create();
+      state.set(notebookAtom, (value) => ({
+        ...value,
+        cellIds: MultiColumn.from([[cellId]]),
+        cellData: {
+          ...value.cellData,
+          [cellId]: createCell({
+            id: cellId,
+            code: 'import polars as pl\n\ntrips = pl.read_csv("bike_trips.csv")\ntrips.head()',
+          }),
+        },
+        cellRuntime: {
+          ...value.cellRuntime,
+          [cellId]: createCellRuntimeState(),
+        },
+        cellHandles: { ...value.cellHandles, [cellId]: createRef() },
+      }));
     }
     state.set(requestClientAtom, {
       ...createStaticRequests(),

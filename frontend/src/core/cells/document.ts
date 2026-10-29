@@ -27,7 +27,7 @@ import type { CellConfig } from "../network/types";
 import { canUseRtc, isRtcEnabled } from "../rtc/state";
 import { store } from "../state/jotai";
 import { activeDocumentModelAtom } from "../session/active-notebook";
-import type { CellActions, NotebookState } from "./cells";
+import type { NotebookState, ReducerCellActions } from "./cells";
 import { groupByColumn } from "./columns";
 import type { CellId } from "./ids";
 import {
@@ -38,7 +38,7 @@ import {
   isEdited,
 } from "./types";
 
-type CellAction = DispatchedActionOf<CellActions>;
+type CellAction = DispatchedActionOf<ReducerCellActions>;
 
 // Following the document ----------------------------------------------------
 
@@ -126,14 +126,17 @@ export function applyDocument(
       continue;
     }
     if (current === undefined) {
-      // A new cell has no run to be edited from.
+      // A new cell with code is stale until it runs. The kernel's last run
+      // settles it on kernel-ready.
+      const code = cell.code ?? "";
       cellData = {
         ...cellData,
         [id]: createCell({
           id,
-          code: cell.code ?? "",
+          code,
           name: cell.name,
           config: createCellConfig(cell.config),
+          edited: code.trim().length > 0,
         }),
       };
       cellRuntime = { ...cellRuntime, [id]: createCellRuntimeState() };

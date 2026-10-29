@@ -13,7 +13,8 @@ import type React from "react";
 import { Suspense, useRef, useState } from "react";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import useEvent from "react-use-event-hook";
-import { useCellActions, useNotebook } from "@/core/cells/cells";
+import { useNotebook } from "@/core/cells/cells";
+import { useCellActions } from "@/core/cells/actions";
 import { useLastFocusedCellId } from "@/core/cells/focus";
 import { HTMLCellId, SCRATCH_CELL_ID } from "@/core/cells/ids";
 import { DEFAULT_CELL_NAME } from "@/core/cells/names";
@@ -55,7 +56,7 @@ export const ScratchPad: React.FC = () => {
   const { theme } = useTheme();
   const ref = useRef<EditorView | null>(null);
   const lastFocusedCellId = useLastFocusedCellId();
-  const { createNewCell, updateCellCode } = useCellActions();
+  const { updateCellCode, createCell } = useCellActions();
   const { sendRunScratchpad } = useRequestClient();
   const orientation = usePanelOrientation();
   const section = usePanelSection();
@@ -81,11 +82,7 @@ export const ScratchPad: React.FC = () => {
     if (!code.trim()) {
       return;
     }
-    createNewCell({
-      code,
-      before: false,
-      cellId: lastFocusedCellId ?? "__end__",
-    });
+    createCell({ after: lastFocusedCellId, code });
   });
 
   const handleClearCode = useEvent(() => {

@@ -28,8 +28,8 @@ import {
   canUndoDeletesAtom,
   needsRunAtom,
   undoLabelAtom,
-  useCellActions,
 } from "../../../core/cells/cells";
+import { useCellActions } from "../../../core/cells/actions";
 import { ConfigButton } from "../../app-config/app-config-button";
 import { renderShortcut } from "../../shortcuts/renderShortcut";
 import { Tooltip } from "../../ui/tooltip";

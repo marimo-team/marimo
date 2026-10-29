@@ -14,11 +14,17 @@ import {
   vi,
 } from "vitest";
 import { Mocks } from "@/__mocks__/common";
+
+const { mockCreateCell, mockMoveToNextCell } = vi.hoisted(() => ({
+  mockCreateCell: vi.fn(),
+  mockMoveToNextCell: vi.fn(),
+}));
+
 import { DocumentWrapper, mockDocumentModel } from "@/__mocks__/document";
 import { MockNotebook } from "@/__mocks__/notebook";
 import { MockRequestClient } from "@/__mocks__/requests";
 import { aiCompletionCellAtom } from "@/core/ai/state";
-import type { CellActions } from "@/core/cells/cells";
+import type { CellActions } from "@/core/cells/actions";
 import { notebookAtom } from "@/core/cells/cells";
 import type { CellId } from "@/core/cells/ids";
 import type { DocumentModel } from "@/core/notebook/document";
@@ -46,9 +52,11 @@ import {
 } from "../navigation";
 
 // Mock only the essential dependencies that we need to control
+vi.mock("@/core/cells/actions", () => ({
+  useCellActions: vi.fn(),
+}));
 vi.mock("@/core/cells/cells", async (importOriginal) => ({
   ...(await importOriginal()),
-  useCellActions: vi.fn(),
 }));
 
 vi.mock("@/core/cells/focus", async (importOriginal) => ({
@@ -96,7 +104,7 @@ vi.mock("@codemirror/autocomplete", () => ({
 
 // Get mocked functions
 const mockUseCellActions = vi.mocked(
-  await import("@/core/cells/cells"),
+  await import("@/core/cells/actions"),
 ).useCellActions;
 
 const mockUseSaveNotebook = vi.mocked(
@@ -149,11 +157,11 @@ const mockCutCell = vi.fn().mockResolvedValue(undefined);
 const mockPasteCell = vi.fn();
 
 const mockCellActions = MockNotebook.cellActions({
+  createCell: mockCreateCell,
+  moveToNextCell: mockMoveToNextCell,
   focusCell: vi.fn(),
-  moveToNextCell: vi.fn(),
   focusTopCell: vi.fn(),
   focusBottomCell: vi.fn(),
-  createNewCell: vi.fn(),
   moveCell: vi.fn(),
   sendToTop: vi.fn(),
   sendToBottom: vi.fn(),
@@ -407,7 +415,7 @@ describe("useCellNavigationProps", () => {
       });
 
       expect(mockRunCell).toHaveBeenCalled();
-      expect(mockCellActions.moveToNextCell).toHaveBeenCalledWith({
+      expect(mockMoveToNextCell).toHaveBeenCalledWith({
         cellId: mockCellId,
         before: false,
       });
@@ -439,11 +447,7 @@ describe("useCellNavigationProps", () => {
         result.current.onKeyDown?.(mockEvent);
       });
 
-      expect(mockCellActions.createNewCell).toHaveBeenCalledWith({
-        cellId: mockCellId,
-        before: true,
-        autoFocus: true,
-      });
+      expect(mockCreateCell).toHaveBeenCalledWith({ before: mockCellId });
     });
 
     it("should create cell after when 'b' key is pressed", () => {
@@ -457,11 +461,7 @@ describe("useCellNavigationProps", () => {
         result.current.onKeyDown?.(mockEvent);
       });
 
-      expect(mockCellActions.createNewCell).toHaveBeenCalledWith({
-        cellId: mockCellId,
-        before: false,
-        autoFocus: true,
-      });
+      expect(mockCreateCell).toHaveBeenCalledWith({ after: mockCellId });
     });
 
     it("should add an import before and a SQL cell after when 'q' is pressed", () => {
@@ -475,18 +475,15 @@ describe("useCellNavigationProps", () => {
         result.current.onKeyDown?.(Mocks.keyboardEvent({ key: "q" }));
       });
 
-      expect(mockCellActions.createNewCell).toHaveBeenNthCalledWith(
+      expect(mockCreateCell).toHaveBeenNthCalledWith(
         1,
         expect.objectContaining({
-          cellId: mockCellId,
-          before: true,
+          before: mockCellId,
           code: "import marimo as mo",
         }),
       );
-      expect(mockCellActions.createNewCell).toHaveBeenNthCalledWith(2, {
-        cellId: mockCellId,
-        before: false,
-        autoFocus: true,
+      expect(mockCreateCell).toHaveBeenNthCalledWith(2, {
+        after: mockCellId,
         code: LanguageAdapters.sql.defaultCode,
       });
     });
@@ -1074,7 +1071,7 @@ describe("useCellNavigationProps", () => {
 
       expect(mockRunCell).toHaveBeenCalledWith([cellId1, cellId2]);
       // Should move to next cell after the last selected cell
-      expect(mockCellActions.moveToNextCell).toHaveBeenCalledWith({
+      expect(mockMoveToNextCell).toHaveBeenCalledWith({
         cellId: cellId2,
         before: false,
       });
@@ -1106,7 +1103,7 @@ describe("useCellNavigationProps", () => {
 
       expect(mockRunCell).toHaveBeenCalledWith([cellId2, cellId3]);
       // Should move to previous cell before the first selected cell
-      expect(mockCellActions.moveToNextCell).toHaveBeenCalledWith({
+      expect(mockMoveToNextCell).toHaveBeenCalledWith({
         cellId: cellId2,
         before: true,
       });
@@ -1713,7 +1710,7 @@ describe("useCellNavigationProps", () => {
         result.current.onKeyDown?.(mockEvent);
       });
 
-      expect(mockCellActions.createNewCell).not.toHaveBeenCalled();
+      expect(mockCreateCell).not.toHaveBeenCalled();
       expect(mockEvent.preventDefault).not.toHaveBeenCalled();
     });
 
@@ -1728,7 +1725,7 @@ describe("useCellNavigationProps", () => {
         result.current.onKeyDown?.(mockEvent);
       });
 
-      expect(mockCellActions.createNewCell).not.toHaveBeenCalled();
+      expect(mockCreateCell).not.toHaveBeenCalled();
       expect(mockEvent.preventDefault).not.toHaveBeenCalled();
     });
   });
