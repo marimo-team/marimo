@@ -53,8 +53,7 @@ export function arrayShallowEquals<T>(a: T[], b: T[]): boolean {
 }
 
 export const Arrays = {
-  // oxlint-disable-next-line typescript/no-explicit-any
-  EMPTY: [] as any,
+  EMPTY: [],
   /** Keep values present in both arrays, preserving the first array's order and duplicates. */
   intersection<T>(values: readonly T[], included: readonly T[]): T[] {
     const includedSet = new Set(included);
