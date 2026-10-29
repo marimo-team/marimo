@@ -13,7 +13,6 @@ from marimo._ast.app import App, InternalApp
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._dependencies.errors import ManyModulesNotFoundError
 from marimo._export.dependencies import (
-    _get_playwright_chromium_executable_on_windows,
     _is_playwright_chromium_installed,
     get_missing_export_packages,
     get_missing_export_setup,
@@ -27,6 +26,7 @@ from marimo._schemas.export_options import (
     SERVER_EXPORT_FORMATS,
     IPYNBExportOptions,
 )
+from tests.mocks import fake_async_playwright
 
 
 def test_export_requirements_when_dependencies_are_installed() -> None:
@@ -172,13 +172,13 @@ async def test_pdf_setup_is_deferred_until_playwright_is_installed() -> None:
     probe.assert_not_awaited()
 
 
-async def test_chromium_probe_checks_playwright_executable() -> None:
-    context = MagicMock()
-    context.__aenter__.return_value = SimpleNamespace(
-        chromium=SimpleNamespace(executable_path="/playwright/chromium")
-    )
+def test_chromium_probe_checks_playwright_executable() -> None:
     async_api = MagicMock()
-    async_api.async_playwright.return_value = context
+    async_api.async_playwright = fake_async_playwright(
+        SimpleNamespace(
+            chromium=SimpleNamespace(executable_path="/playwright/chromium")
+        )
+    )
     is_file = AsyncMock(return_value=True)
 
     with (
@@ -189,57 +189,14 @@ async def test_chromium_probe_checks_playwright_executable() -> None:
                 "playwright.async_api": async_api,
             },
         ),
-        patch("marimo._export.dependencies.sys.platform", "linux"),
         patch("marimo._export.dependencies.isfile", new=is_file),
+        asyncio.Runner(loop_factory=asyncio.SelectorEventLoop) as runner,
     ):
-        assert await _is_playwright_chromium_installed() is True
+        assert runner.run(_is_playwright_chromium_installed()) is True
 
     async_api.async_playwright.assert_called_once_with()
-    context.__aexit__.assert_awaited_once()
+    async_api.async_playwright.return_value.__aexit__.assert_awaited_once()
     is_file.assert_awaited_once_with("/playwright/chromium")
-
-
-async def test_chromium_probe_uses_proactor_worker_on_windows() -> None:
-    to_thread = AsyncMock(return_value="C:/playwright/chromium.exe")
-    is_file = AsyncMock(return_value=True)
-    with (
-        patch("marimo._export.dependencies.sys.platform", "win32"),
-        patch("marimo._export.dependencies.asyncio.to_thread", new=to_thread),
-        patch("marimo._export.dependencies.isfile", new=is_file),
-    ):
-        assert await _is_playwright_chromium_installed() is True
-
-    to_thread.assert_awaited_once_with(
-        _get_playwright_chromium_executable_on_windows
-    )
-    is_file.assert_awaited_once_with("C:/playwright/chromium.exe")
-
-
-def test_windows_chromium_probe_owns_proactor_loop() -> None:
-    loop = MagicMock()
-    loop.run_until_complete.side_effect = [
-        "C:/playwright/chromium.exe",
-        None,
-    ]
-    loop.shutdown_asyncgens = AsyncMock()
-
-    with (
-        patch("marimo._export.dependencies.sys.platform", "win32"),
-        patch.object(
-            asyncio,
-            "ProactorEventLoop",
-            create=True,
-            return_value=loop,
-        ),
-    ):
-        assert (
-            _get_playwright_chromium_executable_on_windows()
-            == "C:/playwright/chromium.exe"
-        )
-
-    for call in loop.run_until_complete.call_args_list:
-        call.args[0].close()
-    loop.close.assert_called_once_with()
 
 
 def test_ipynb_export_requires_server_dependency() -> None:

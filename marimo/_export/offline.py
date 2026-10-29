@@ -18,6 +18,7 @@ from marimo._export._html_asset_server import HtmlAssetServer
 from marimo._pyodide.pyodide_constraints import PYODIDE_VERSION
 from marimo._schemas.export_options import WASMRuntimeConfig
 from marimo._utils import requests
+from marimo._utils.asyncio_utils import run_on_proactor_loop
 from marimo._utils.inline_script_metadata import PyProjectReader
 from marimo._version import __version__
 
@@ -238,6 +239,7 @@ def _rewrite_requirements(code: str, packages: dict[str, _Package]) -> str:
     return script_metadata.replace_block(code, script_metadata.dumps(project))
 
 
+@run_on_proactor_loop
 async def check_offline_export_browser() -> None:
     """Verify the resolver's browser can start before downloading assets."""
     from playwright.async_api import async_playwright  # type: ignore[import-not-found]
@@ -247,6 +249,7 @@ async def check_offline_export_browser() -> None:
         await browser.close()
 
 
+@run_on_proactor_loop
 async def _resolve_packages(
     code: str,
     *,
