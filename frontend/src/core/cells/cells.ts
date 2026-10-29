@@ -20,10 +20,8 @@ import { extractAllTracebackInfo, type TracebackInfo } from "@/utils/traceback";
 import { createReducerAndAtoms } from "../../utils/createReducer";
 import { foldAllBulk, unfoldAllBulk } from "../codemirror/editing/commands";
 import { editorMountScheduler } from "../codemirror/editor-mount-scheduler";
-import {
-  splitEditor,
-  updateEditorCodeFromPython,
-} from "../codemirror/language/utils";
+import { prepareCellCodeUpdate } from "../codemirror/language/cell-code";
+import { splitEditor } from "../codemirror/language/utils";
 import type { SerializedEditorState } from "../codemirror/types";
 import { findCollapseRange, mergeOutlines } from "../dom/outline";
 import type { CellMessage } from "../kernel/messages";
@@ -1300,7 +1298,14 @@ const {
       cellHandle.editorView,
     );
 
-    updateEditorCodeFromPython(cellHandle.editorView, beforeCursorCode);
+    const update = prepareCellCodeUpdate(
+      cellHandle.editorView.state,
+      beforeCursorCode,
+    );
+
+    if (update) {
+      cellHandle.editorView.dispatch(update);
+    }
 
     const newCellId = CellId.create();
 
@@ -1348,7 +1353,11 @@ const {
       return state;
     }
 
-    updateEditorCodeFromPython(cellHandle.editorView, snapshot);
+    const update = prepareCellCodeUpdate(cellHandle.editorView.state, snapshot);
+
+    if (update) {
+      cellHandle.editorView.dispatch(update);
+    }
 
     return {
       ...state,

@@ -20,10 +20,7 @@ import type {
 } from "@/core/notebook/document";
 import type { DispatchedActionOf } from "@/utils/createReducer";
 import { CollapsibleTree, MultiColumn } from "@/utils/id-tree";
-import {
-  getEditorCodeAsPython,
-  updateEditorCodeFromPython,
-} from "../codemirror/language/utils";
+import { prepareCellCodeUpdate } from "../codemirror/language/cell-code";
 import type { CellConfig } from "../network/types";
 import { canUseRtc, isRtcEnabled } from "../rtc/state";
 import { store } from "../state/jotai";
@@ -87,12 +84,13 @@ function followCell(
   if (code === current.code) {
     return { ...current, name: cell.name, config };
   }
-  // RTC cells follow Loro. Other editors take the host's code, unless they
-  // show it already, as the editor this client types in does.
+  // RTC cells follow Loro. Other editors take the host's code; one that
+  // shows it already, as the editor this client types in does, is left alone.
   if (!isRtcEnabled() || !canUseRtc(current.id)) {
     const view = handle?.current?.editorViewOrNull;
-    if (view && getEditorCodeAsPython(view) !== code) {
-      updateEditorCodeFromPython(view, code);
+    const update = view && prepareCellCodeUpdate(view.state, code);
+    if (update) {
+      view.dispatch(update);
     }
   }
   return {

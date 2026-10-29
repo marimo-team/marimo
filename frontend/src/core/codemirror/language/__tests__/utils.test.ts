@@ -14,11 +14,7 @@ import {
   languageAdapterState,
   switchLanguage,
 } from "../extension";
-import {
-  getEditorCodeAsPython,
-  splitEditor,
-  updateEditorCodeFromPython,
-} from "../utils";
+import { getEditorCodeAsPython, splitEditor } from "../utils";
 
 const views: EditorView[] = [];
 
@@ -90,7 +86,7 @@ describe("getEditorCodeAsPython", () => {
   });
 });
 
-describe("updateEditorCodeFromPython", () => {
+describe("prepareCellCodeUpdate transactions", () => {
   it("applies text and metadata together, including metadata-only undo", () => {
     const view = createEditor('mo.md(r"hi")');
     switchLanguage(view, { language: "markdown" });
@@ -113,7 +109,7 @@ describe("updateEditorCodeFromPython", () => {
     });
     observed.length = 0;
 
-    updateEditorCodeFromPython(view, 'mo.md(f"hi")');
+    view.dispatch(prepareCellCodeUpdate(view.state, 'mo.md(f"hi")')!);
     expect(observed).toEqual([{ text: "hi", prefix: "f" }]);
     expect(undo(view)).toBe(true);
     expect(view.state.field(languageMetadataField).quotePrefix).toBe("r");
@@ -138,7 +134,7 @@ describe("updateEditorCodeFromPython", () => {
     });
     observed.length = 0;
 
-    updateEditorCodeFromPython(view, "x = 1");
+    view.dispatch(prepareCellCodeUpdate(view.state, "x = 1")!);
     expect(observed).toEqual([{ text: "x = 1", language: "python" }]);
     expect(undo(view)).toBe(false);
     view.dispatch({ changes: { from: 5, insert: "0" } });
@@ -149,7 +145,9 @@ describe("updateEditorCodeFromPython", () => {
   it("maps the selection through separate edits and keeps the update undoable", () => {
     const view = createEditor("a = 1\nb = 2\nc = 3");
     view.dispatch({ selection: EditorSelection.range(6, 11) });
-    updateEditorCodeFromPython(view, "alpha = 1\nb = 2\ncharlie = 3");
+    view.dispatch(
+      prepareCellCodeUpdate(view.state, "alpha = 1\nb = 2\ncharlie = 3")!,
+    );
     expect(
       view.state.sliceDoc(
         view.state.selection.main.from,
@@ -164,7 +162,7 @@ describe("updateEditorCodeFromPython", () => {
     "keeps Python mode when receiving %s",
     (code) => {
       const view = createEditor("mo.md");
-      updateEditorCodeFromPython(view, code);
+      view.dispatch(prepareCellCodeUpdate(view.state, code)!);
       expect({
         language: view.state.field(languageAdapterState).type,
         code: view.state.doc.toString(),
@@ -190,7 +188,7 @@ describe("updateEditorCodeFromPython", () => {
     ({ language, initial, next, text }) => {
       const view = createEditor(initial);
       switchLanguage(view, { language });
-      updateEditorCodeFromPython(view, next);
+      view.dispatch(prepareCellCodeUpdate(view.state, next)!);
       expect({
         language: view.state.field(languageAdapterState).type,
         code: view.state.doc.toString(),
@@ -215,21 +213,13 @@ describe("updateEditorCodeFromPython", () => {
     ({ language, initial, next }) => {
       const view = createEditor(initial);
       switchLanguage(view, { language });
-      updateEditorCodeFromPython(view, next);
+      view.dispatch(prepareCellCodeUpdate(view.state, next)!);
       expect({
         language: view.state.field(languageAdapterState).type,
         code: view.state.doc.toString(),
       }).toEqual({ language: "python", code: next });
     },
   );
-
-  it("should update the editor code with the provided Python code", () => {
-    const mockEditor = createEditor("");
-    const pythonCode = "print('Hello, World!')";
-    const result = updateEditorCodeFromPython(mockEditor, pythonCode);
-    expect(result).toEqual(pythonCode);
-    expect(mockEditor.state.doc.toString()).toEqual(pythonCode);
-  });
 });
 
 describe("prepareCellCodeUpdate", () => {
