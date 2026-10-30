@@ -101,6 +101,14 @@ def _try_wasm_duckdb(
     return _NO_WASM_DUCKDB_RESULT if result is None else result.value
 
 
+def _as_duckdb_relation(result: object) -> duckdb.DuckDBPyRelation | None:
+    import duckdb
+
+    if result is None or isinstance(result, duckdb.DuckDBPyRelation):
+        return result
+    raise TypeError("DuckDB SQL did not return a relation or None")
+
+
 def wrapped_sql(
     query: str,
     connection: duckdb.DuckDBPyConnection | None,
@@ -126,7 +134,7 @@ def wrapped_sql(
             # No WASM rewrite was needed; use DuckDB's normal SQL path.
             relation = connection.sql(query=query)
         else:
-            relation = cast("duckdb.DuckDBPyRelation | None", result)
+            relation = _as_duckdb_relation(result)
     else:
         install_connection = (
             ctx.execution_context.with_connection
@@ -148,7 +156,7 @@ def wrapped_sql(
                     {"query": query, "connection": connection},
                 )
             else:
-                relation = cast("duckdb.DuckDBPyRelation | None", result)
+                relation = _as_duckdb_relation(result)
 
     return relation
 
