@@ -1,6 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { atom, type createStore, Provider } from "jotai";
+import { atom, type createStore, type PrimitiveAtom, Provider } from "jotai";
 import type { ReactNode } from "react";
 import {
   createDocumentModel,
@@ -12,21 +12,30 @@ import type { Document } from "@/core/notebook/replica";
 import { fakeBackend } from "@/core/notebook/replica/__tests__/fixtures";
 import { activeDocumentModelAtom } from "@/core/session/active-notebook";
 
-/** A started document model over `document`, for components that edit cells. */
+/**
+ * A started document model over `document`, for components that edit cells.
+ * Setting `documentAtom` delivers a document as the host would.
+ */
 export function mockDocumentModel(
   store: ReturnType<typeof createStore>,
   document: Document | null = documentFixture(),
-): { model: DocumentModel; stop: () => void } {
+): {
+  model: DocumentModel;
+  documentAtom: PrimitiveAtom<Document | null>;
+  stop: () => void;
+} {
   const controller = new AbortController();
+  const documentAtom = atom(document);
   const model = createDocumentModel({
     store,
-    documentAtom: atom(document),
+    documentAtom,
     backendAtom: atom(fakeBackend()),
   });
   model.start({ signal: controller.signal });
   store.set(activeDocumentModelAtom, model);
   return {
     model,
+    documentAtom,
     stop: () => {
       controller.abort();
       if (store.get(activeDocumentModelAtom) === model) {

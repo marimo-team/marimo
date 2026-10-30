@@ -30,6 +30,7 @@ import { activeDocumentModelAtom } from "../session/active-notebook";
 import type { NotebookState, ReducerCellActions } from "./cells";
 import { groupByColumn } from "./columns";
 import type { CellId } from "./ids";
+import { followColumnsAtom } from "./layout";
 import {
   type CellData,
   createCell,
@@ -172,7 +173,8 @@ export function applyDocument(
 }
 
 /**
- * Reconcile the model's document now and on each change, until the signal aborts.
+ * Reconcile the model's document and name its columns, now and on each
+ * change, until the signal aborts.
  *
  * TODO(MO-8028): Delete with `applyDocument`.
  */
@@ -191,6 +193,7 @@ export function followDocument({
     const document = store.get(model.documentAtom);
     if (document !== null) {
       reconcile(document);
+      store.set(followColumnsAtom, document);
     }
   };
   const unsubscribe = store.sub(model.documentAtom, follow);

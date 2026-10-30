@@ -1,9 +1,8 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { Memoize } from "typescript-memoize";
-import { reorderColumnSizes } from "@/components/editor/columns/storage";
 import { SETUP_CELL_ID } from "@/core/cells/ids";
-import { arrayDelete, arrayInsert, arrayMove } from "./arrays";
+import { arrayDelete, arrayInsert } from "./arrays";
 import { Logger } from "./Logger";
 
 /**
@@ -195,26 +194,6 @@ export class CollapsibleTree<T> {
     return this.deleteAtIndex(index);
   }
 
-  /**
-   * Split the tree into two trees
-   * @param id the id of the node to split at
-   * @returns a tuple of the left and right trees
-   */
-  public split(id: T): [CollapsibleTree<T>, CollapsibleTree<T> | undefined] {
-    const index = this.nodes.findIndex((n) => n.value === id);
-    if (index === -1) {
-      throw new Error(`Node ${id} not found in tree`);
-    }
-    const leftNodes = this.nodes.slice(0, index);
-    const rightNodes = this.nodes.slice(index);
-    if (leftNodes.length === 0) {
-      return [CollapsibleTree.from<T>([]), this.withNodes(rightNodes)];
-    }
-    const left = this.withNodes(leftNodes);
-    const right = CollapsibleTree.from<T>([]).withNodes(rightNodes);
-    return [left, right];
-  }
-
   public equals(other: CollapsibleTree<T>): boolean {
     return (
       this.nodes.length === other.nodes.length &&
@@ -390,64 +369,6 @@ export class MultiColumn<T> {
     return this.columns.indexOf(column);
   }
 
-  public addColumn(
-    columnId: CellColumnId,
-    initialIds: T[] = [],
-  ): MultiColumn<T> {
-    return new MultiColumn(
-      this.columns.flatMap((c) => {
-        if (c.id === columnId) {
-          return [c, CollapsibleTree.from(initialIds)];
-        }
-        return [c];
-      }),
-    );
-  }
-
-  public insertBreakpoint(cellId: T): MultiColumn<T> {
-    const column = this.findWithId(cellId);
-    const [left, right] = column.split(cellId);
-    const newColumns = this.columns.flatMap((c) => {
-      if (c === column) {
-        return [left, right].filter(Boolean);
-      }
-      return [c];
-    });
-    return new MultiColumn(newColumns);
-  }
-
-  public delete(columnId: CellColumnId): MultiColumn<T> {
-    // Move cells to preceding column
-    // If its the first column, move the cells to the next column
-
-    // Noop if there is only one column
-    if (this.columns.length <= 1) {
-      return this;
-    }
-
-    const columnIndex = this.indexOfOrThrow(columnId);
-    const targetColumnIndex = columnIndex === 0 ? 1 : columnIndex - 1;
-
-    const columns = [...this.columns];
-    const column = columns[columnIndex];
-    columns[targetColumnIndex] = column.withNodes([
-      ...columns[targetColumnIndex].nodes,
-      ...column.nodes,
-    ]);
-    columns.splice(columnIndex, 1);
-    return new MultiColumn(columns);
-  }
-
-  public mergeAllColumns(): MultiColumn<T> {
-    if (this.columns.length <= 1) {
-      return this;
-    }
-
-    const nodes = this.columns.flatMap((c) => c.nodes);
-    const firstColumn = this.columns[0];
-    return new MultiColumn([firstColumn.withNodes(nodes)]);
-  }
-
   public indexOfOrThrow(id: CellColumnId): number {
     const index = this.columns.findIndex((c) => c.id === id);
     if (index === -1) {
@@ -456,25 +377,6 @@ export class MultiColumn<T> {
       );
     }
     return index;
-  }
-
-  public moveColumn(
-    fromCol: CellColumnId,
-    toCol: CellColumnId | "_left_" | "_right_",
-  ): MultiColumn<T> {
-    if (fromCol === toCol) {
-      return this;
-    }
-    const fromIdx = this.indexOfOrThrow(fromCol);
-    const toIdx =
-      toCol === "_left_"
-        ? fromIdx - 1
-        : toCol === "_right_"
-          ? fromIdx + 1
-          : this.indexOfOrThrow(toCol);
-
-    reorderColumnSizes(fromIdx, toIdx);
-    return new MultiColumn(arrayMove([...this.columns], fromIdx, toIdx));
   }
 
   public findWithId(id: T): CollapsibleTree<T> {
@@ -528,21 +430,6 @@ export class MultiColumn<T> {
 
   public insertId(id: T, col: CellColumnId, index: CellIndex): MultiColumn<T> {
     return this.transform(col, (c) => c.insert(id, index));
-  }
-
-  public compact(): MultiColumn<T> {
-    // Don't compact if there's only one column
-    if (this.columns.length === 1) {
-      return this;
-    }
-    // If no need to compact, return the same tree
-    // to avoid unnecessary re-renders
-    const someEmpty = this.columns.some((c) => c.nodes.length === 0);
-    if (!someEmpty) {
-      return this;
-    }
-
-    return new MultiColumn(this.columns.filter((c) => c.nodes.length > 0));
   }
 
   /**

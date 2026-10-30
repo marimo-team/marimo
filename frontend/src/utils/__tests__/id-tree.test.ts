@@ -160,51 +160,6 @@ describe("CollapsibleTree", () => {
     expect(singleTree.before("single")).toBeUndefined();
   });
 
-  it("handles split correctly", () => {
-    const [left, right] = tree.split("two");
-    expect(left.toString()).toMatchInlineSnapshot(`
-      "one
-      "
-    `);
-    expect(right?.toString()).toMatchInlineSnapshot(`
-      "two
-      three
-      four
-      "
-    `);
-  });
-
-  it("handles split at the beginning", () => {
-    const [left, right] = tree.split("one");
-    expect(left.toString()).toMatchInlineSnapshot(`
-      ""
-    `);
-    expect(right?.toString()).toMatchInlineSnapshot(`
-      "one
-      two
-      three
-      four
-      "
-    `);
-  });
-
-  it("handles split at the end", () => {
-    const [left, right] = tree.split("four");
-    expect(left.toString()).toMatchInlineSnapshot(`
-      "one
-      two
-      three
-      "
-    `);
-    expect(right?.toString()).toMatchInlineSnapshot(`
-      "four
-      "
-    `);
-  });
-
-  it("throws when splitting on non-existent node", () => {
-    expect(() => tree.split("five")).toThrow("Node five not found in tree");
-  });
 });
 
 describe("CollapsibleTree edge cases", () => {
@@ -313,93 +268,6 @@ describe("MultiColumn", () => {
     expect(singleIdSingleColumn.hasOnlyOneId()).toBe(true);
   });
 
-  it("adds a column", () => {
-    const columnId = multiColumn.getColumns()[0].id;
-    const newMultiColumn = multiColumn.addColumn(columnId);
-    expect(newMultiColumn.colLength).toBe(4);
-    expect(newMultiColumn.topLevelIds[1]).toEqual([]);
-  });
-
-  it("inserts a breakpoint", () => {
-    const withBreakpoint = multiColumn.insertBreakpoint("C3");
-    expect(withBreakpoint.colLength).toBe(4);
-    expect(withBreakpoint.topLevelIds).toEqual([
-      ["A1", "A2", "A3"],
-      ["B1", "B2"],
-      ["C1", "C2"],
-      ["C3", "C4"],
-    ]);
-  });
-
-  it("deletes a column", () => {
-    const withoutBreakpoint = multiColumn.delete(columnIds[1]);
-    expect(withoutBreakpoint.colLength).toBe(2);
-    expect(withoutBreakpoint.topLevelIds).toEqual([
-      ["A1", "A2", "A3", "B1", "B2"],
-      ["C1", "C2", "C3", "C4"],
-    ]);
-  });
-
-  it("deletes a column with only one column", () => {
-    const singleColumn = MultiColumn.from([["A1", "A2"]]);
-    const deleted = singleColumn.delete(columnIds[0]);
-    expect(deleted.colLength).toBe(1);
-    expect(deleted.topLevelIds).toEqual([["A1", "A2"]]);
-  });
-
-  it("deletes the first column", () => {
-    const deleted = multiColumn.delete(columnIds[0]);
-    expect(deleted.colLength).toBe(2);
-    expect(deleted.topLevelIds).toEqual([
-      ["B1", "B2", "A1", "A2", "A3"],
-      ["C1", "C2", "C3", "C4"],
-    ]);
-  });
-
-  it("merges all columns", () => {
-    const merged = multiColumn.mergeAllColumns();
-    expect(merged.colLength).toBe(1);
-    expect(merged.topLevelIds).toEqual([
-      ["A1", "A2", "A3", "B1", "B2", "C1", "C2", "C3", "C4"],
-    ]);
-  });
-
-  it("moves a column", () => {
-    const moved = multiColumn.moveColumn(columnIds[0], columnIds[2]);
-    expect(moved.topLevelIds).toEqual([
-      ["B1", "B2"],
-      ["C1", "C2", "C3", "C4"],
-      ["A1", "A2", "A3"],
-    ]);
-  });
-
-  it("moves a column before", () => {
-    const moved = multiColumn.moveColumn(columnIds[1], columnIds[0]);
-    expect(moved.topLevelIds).toEqual([
-      ["B1", "B2"],
-      ["A1", "A2", "A3"],
-      ["C1", "C2", "C3", "C4"],
-    ]);
-  });
-
-  it("moves to the left", () => {
-    const moved = multiColumn.moveColumn(columnIds[1], "_left_");
-    expect(moved.topLevelIds).toEqual([
-      ["B1", "B2"],
-      ["A1", "A2", "A3"],
-      ["C1", "C2", "C3", "C4"],
-    ]);
-  });
-
-  it("moves to the right", () => {
-    const moved = multiColumn.moveColumn(columnIds[1], "_right_");
-    expect(moved.topLevelIds).toEqual([
-      ["A1", "A2", "A3"],
-      ["C1", "C2", "C3", "C4"],
-      ["B1", "B2"],
-    ]);
-  });
-
   it("gets column with id", () => {
     const column = multiColumn.findWithId("B2");
     expect(multiColumn.indexOf(column)).toBe(1);
@@ -429,21 +297,11 @@ describe("MultiColumn", () => {
     expect(inserted.topLevelIds[1]).toEqual(["B1", "D1", "B2"]);
   });
 
-  it("compacts", () => {
-    const withEmpty = MultiColumn.from([["A1"], [], ["C1"], []]);
-    const compacted = withEmpty.compact();
-    expect(compacted.colLength).toBe(2);
-    expect(compacted.topLevelIds).toEqual([["A1"], ["C1"]]);
-  });
-
   it("handles errors", () => {
     expect(() => multiColumn.findWithId("Z1")).toThrow(
       "Cell Z1 not found in any column",
     );
     expect(multiColumn.colLength).toBeGreaterThan(2);
-    expect(() => multiColumn.delete("123" as CellColumnId)).toThrow(
-      /Column 123 not found/,
-    );
   });
 
   it("checks if it's empty", () => {
@@ -478,60 +336,12 @@ describe("MultiColumn", () => {
     expect(inserted.topLevelIds).toEqual([["A1"], ["B1", "C1"]]);
   });
 
-  it("handles moving a column to its own position", () => {
-    const multiColumn = MultiColumn.from([["A1"], ["B1"], ["C1"]]);
-    const moved = multiColumn.moveColumn(columnIds[1], columnIds[1]);
-    expect(moved.topLevelIds).toEqual([["A1"], ["B1"], ["C1"]]);
-  });
-
-  it("handles compacting when all columns are empty", () => {
-    const multiColumn = MultiColumn.from([[], [], []]);
-    const compacted = multiColumn.compact();
-    expect(compacted.colLength).toBe(1);
-    expect(compacted.isEmpty()).toBe(true);
-  });
-
   it("handles transformById when id is not found", () => {
     const multiColumn = MultiColumn.from([["A1"], ["B1"]]);
     const transformed = multiColumn.transformWithCellId("C1", (tree) =>
       tree.insertAtEnd("C2"),
     );
     expect(transformed).toBe(multiColumn);
-  });
-
-  it("handles multiple operations in sequence", () => {
-    let multiColumn = MultiColumn.from([
-      ["A1", "A2"],
-      ["B1", "B2"],
-      ["C1", "C2"],
-    ]);
-    const columnIds = multiColumn.getColumns().map((c) => c.id);
-    multiColumn = multiColumn.insertId("D1", columnIds[2], 1 as CellIndex);
-    expect(multiColumn.topLevelIds).toEqual([
-      ["A1", "A2"],
-      ["B1", "B2"],
-      ["C1", "D1", "C2"],
-    ]);
-    multiColumn = multiColumn.transformWithCellId("B1", (tree) =>
-      tree.delete("B1"),
-    );
-    expect(multiColumn.topLevelIds).toEqual([
-      ["A1", "A2"],
-      ["B2"],
-      ["C1", "D1", "C2"],
-    ]);
-    multiColumn = multiColumn.moveColumn(columnIds[0], columnIds[2]);
-    expect(multiColumn.topLevelIds).toEqual([
-      ["B2"],
-      ["C1", "D1", "C2"],
-      ["A1", "A2"],
-    ]);
-    multiColumn = multiColumn.compact();
-    expect(multiColumn.topLevelIds).toEqual([
-      ["B2"],
-      ["C1", "D1", "C2"],
-      ["A1", "A2"],
-    ]);
   });
 
   it("handles setup cell existence", () => {
@@ -586,32 +396,4 @@ describe("MultiColumn", () => {
     expect(transformed).toBe(multiColumn);
   });
 
-  it("handles inserting a breakpoint at the start of a column", () => {
-    const withBreakpoint = multiColumn.insertBreakpoint("A1");
-    expect(withBreakpoint.colLength).toBe(4);
-    expect(withBreakpoint.topLevelIds).toEqual([
-      [],
-      ["A1", "A2", "A3"],
-      ["B1", "B2"],
-      ["C1", "C2", "C3", "C4"],
-    ]);
-  });
-
-  it("handles inserting a breakpoint at the end of a column", () => {
-    const withBreakpoint = multiColumn.insertBreakpoint("A3");
-    expect(withBreakpoint.colLength).toBe(4);
-    expect(withBreakpoint.topLevelIds).toEqual([
-      ["A1", "A2"],
-      ["A3"],
-      ["B1", "B2"],
-      ["C1", "C2", "C3", "C4"],
-    ]);
-  });
-
-  it("handles inserting a breakpoint in a single-item column", () => {
-    const singleItemColumn = MultiColumn.from([["A1"], ["B1"], ["C1"]]);
-    const withBreakpoint = singleItemColumn.insertBreakpoint("B1");
-    expect(withBreakpoint.colLength).toBe(4);
-    expect(withBreakpoint.topLevelIds).toEqual([["A1"], [], ["B1"], ["C1"]]);
-  });
 });

@@ -19,7 +19,7 @@ import {
   showCellIfHiddenAtom,
   undoDeleteCellAtom,
 } from "../actions";
-import { moveCellsRelativeToAtom } from "../arrange";
+import { moveCellAtom, moveCellsRelativeToAtom } from "../arrange";
 import {
   cellDataAtom,
   cellHandleAtom,
@@ -127,18 +127,20 @@ describe("createCellAtom", () => {
     expect(notebook().cellIds.atOrThrow(1).inOrderIds).toEqual([c2, id]);
   });
 
-  it("names the column when appending to an empty column", () => {
-    const { store, notebook, cellIn } = setup();
-    store.set(notebookAtom, (state) => ({
-      ...state,
-      cellIds: state.cellIds.addColumn(state.cellIds.atOrThrow(0).id),
-    }));
-    const empty = notebook().cellIds.atOrThrow(1).id;
+  it("fills an emptied column, which keeps its id", () => {
+    const { store, columns, columnIds, cellIn } = setup({
+      c3: cell("c3", "z = 3", { config: { ...CONFIG, column: 1 } }),
+    });
+    const [first, second] = columnIds();
+    // Moving its only cell out leaves the column on the page, to add to.
+    store.set(moveCellAtom, { cellId: c3, direction: "left" });
+    expect(columns()).toEqual([[c3, c1, c2], []]);
 
-    const id = store.set(createCellAtom, { endOf: empty });
+    const id = store.set(createCellAtom, { endOf: second });
 
     expect(cellIn(id as string)?.config.column).toBe(1);
-    expect(notebook().cellIds.atOrThrow(1).inOrderIds).toEqual([id]);
+    expect(columns()).toEqual([[c3, c1, c2], [id]]);
+    expect(columnIds()).toEqual([first, second]);
   });
 
   it("creates nothing when a cell already has the code", () => {

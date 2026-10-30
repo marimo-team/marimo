@@ -33,7 +33,6 @@ import { findColumn, useLayout } from "@/core/cells/layout";
 import type { CellColumnId } from "@/utils/id-tree";
 import { invariant } from "@/utils/invariant";
 import {
-  columnIdsAtom,
   useCellIds,
   useScrollKey,
 } from "../../../core/cells/cells";
@@ -61,7 +60,7 @@ interface CellArrayProps {
 }
 
 export const CellArray: React.FC<CellArrayProps> = (props) => {
-  const columnIds = useAtomValue(columnIdsAtom);
+  const columnIds = useLayout().columns.map((column) => column.id);
 
   // Setup context for sorting
   return (
@@ -116,7 +115,7 @@ const CellArrayInternal: React.FC<CellArrayProps> = ({
 
   const cellIds = useCellIds();
   const scrollKey = useScrollKey();
-  const columnIds = cellIds.getColumnIds();
+  const columnIds = useLayout().columns.map((column) => column.id);
 
   // Scroll to a cell targeted by a previous action
   const scrollToTarget = actions.scrollToTarget;

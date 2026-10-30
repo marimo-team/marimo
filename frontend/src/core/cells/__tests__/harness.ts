@@ -12,6 +12,7 @@ import {
   document as documentOf,
   withCells,
 } from "@/core/notebook/document/__tests__/fixtures";
+import type { Document } from "@/core/notebook/replica";
 import { exportedForTesting, notebookAtom, notebookReducer } from "../cells";
 import { followDocument } from "../document";
 import { layoutAtom } from "../layout";
@@ -22,7 +23,7 @@ export function setupNotebook(
 ) {
   const store = createStore();
   store.set(notebookAtom, exportedForTesting.initialNotebookState());
-  const { model, stop } = mockDocumentModel(
+  const { model, documentAtom, stop } = mockDocumentModel(
     store,
     cells ? withCells(documentOf(), cells) : documentOf(),
   );
@@ -43,9 +44,13 @@ export function setupNotebook(
   return {
     store,
     model,
+    /** Deliver a document from the host. Edits pending here stay on top. */
+    host: (document: Document) => store.set(documentAtom, document),
     order: () => store.get(notebookAtom).cellIds.inOrderIds,
     /** The cells of each column, as the page lays them out. */
     columns: () => store.get(layoutAtom).columns.map((column) => column.ids),
+    /** The columns' ids, as the page keys them. */
+    columnIds: () => store.get(layoutAtom).columns.map((column) => column.id),
     notebook: () => store.get(notebookAtom),
     cellIn: (id: string) => store.get(model.documentAtom)?.cells.get(id),
     /** Give a cell an editor, as mounting it would. */
