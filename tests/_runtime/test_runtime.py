@@ -3778,7 +3778,7 @@ class TestSQL:
                 "WHERE table_catalog = 'memory' AND table_schema = ? "
                 "AND table_name = 'manual-holdings'",
                 [resolved_schema],
-            ).fetchone()
+            ).fetchall()[0]
             assert row is not None
             return bool(row[0] > 0)
 
@@ -3840,7 +3840,7 @@ class TestSQL:
                     AND table_schema = 'main'
                     AND table_name = 'holdings'
                     """
-                ).fetchone()
+                ).fetchall()[0]
                 assert row is not None
                 return bool(row[0] > 0)
 
@@ -3852,7 +3852,7 @@ class TestSQL:
                     AND table_schema = 'other_db'
                     AND table_name = 'holdings'
                     """
-                ).fetchone()
+                ).fetchall()[0]
                 assert row is not None
                 return bool(row[0] > 0)
 
@@ -3904,7 +3904,7 @@ class TestSQL:
                 "SELECT count(*) FROM information_schema.tables "
                 "WHERE table_catalog = 'memory' AND table_schema = 'main' "
                 "AND table_name = 'holdings'"
-            ).fetchone()
+            ).fetchall()[0]
             assert row is not None
             return bool(row[0] > 0)
 

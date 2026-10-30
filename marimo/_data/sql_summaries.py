@@ -72,9 +72,9 @@ def get_sql_stats(
         FROM {table_name}
         """
 
-    stats_result: tuple[int, ...] | None = wrapped_sql(
-        stats_query, connection=None
-    ).fetchone()
+    relation = wrapped_sql(stats_query, connection=None)
+    rows = relation.fetchall() if relation is not None else []
+    stats_result: tuple[int, ...] | None = rows[0] if rows else None
     if stats_result is None:
         raise ValueError(
             f"Column {column_name} not found in table {table_name}"
@@ -149,10 +149,10 @@ def get_column_type(
     # DuckDB 1.0's pragma_table_info does not preserve escaped identifier quotes.
     if is_duckdb_v2():
         table_name = fully_qualified_table_name
-        column_info_result: tuple[str] | None = execute_duckdb_sql(
-            "SELECT type FROM pragma_table_info(?) WHERE name = ?",
+        rows = execute_duckdb_sql(
+            "SELECT type FROM pragma_table_info(?) WHERE name = ? LIMIT 1",
             [fully_qualified_table_name, column_name],
-        ).fetchone()
+        ).fetchall()
     elif "." in fully_qualified_table_name:
         # Fully qualified table name
         db_name, schema_name, table_name = parse_fully_qualified_table_name(
@@ -165,11 +165,12 @@ def get_column_type(
         AND table_schema = $2
         AND table_catalog = $3
         AND column_name = $4
+        LIMIT 1
         """
-        column_info_result = execute_duckdb_sql(
+        rows = execute_duckdb_sql(
             column_info_query,
             [table_name, schema_name, db_name, column_name],
-        ).fetchone()
+        ).fetchall()
     else:
         # Simple table name
         table_name = fully_qualified_table_name
@@ -178,12 +179,14 @@ def get_column_type(
         FROM information_schema.columns
         WHERE table_name = $1
         AND column_name = $2
+        LIMIT 1
         """
-        column_info_result = execute_duckdb_sql(
+        rows = execute_duckdb_sql(
             column_info_query,
             [table_name, column_name],
-        ).fetchone()
+        ).fetchall()
 
+    column_info_result = rows[0] if rows else None
     if column_info_result is None:
         raise ValueError(
             f"Column {column_name} not found in table {table_name}"

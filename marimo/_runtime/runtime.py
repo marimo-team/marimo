@@ -485,12 +485,10 @@ def _get_attached_catalogs() -> set[str]:
     import duckdb
 
     try:
-        return {
-            row[0].lower()
-            for row in duckdb.sql(
-                "SELECT database_name FROM duckdb_databases()"
-            ).fetchall()
-        }
+        result = duckdb.sql("SELECT database_name FROM duckdb_databases()")
+        if result is None:
+            return set()
+        return {row[0].lower() for row in result.fetchall()}
     except Exception:
         return set()
 

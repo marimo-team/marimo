@@ -234,9 +234,17 @@ class NarwhalsTableManager(
             indexed = relation.project(
                 f"{columns}, row_number() OVER () - 1 AS {quoted_index}"
             )
-            selected_columns = ", ".join(
-                f"source.{quote_sql_identifier(name, dialect='duckdb')}"
-                for name in relation.columns
+            requested_index = index_name + "_requested"
+            while requested_index.casefold() in occupied:
+                requested_index += "_"
+            requested_order = index_name + "_order"
+            while requested_order.casefold() in occupied:
+                requested_order += "_"
+            quoted_requested_index = quote_sql_identifier(
+                requested_index, dialect="duckdb"
+            )
+            quoted_requested_order = quote_sql_identifier(
+                requested_order, dialect="duckdb"
             )
             indexed, row_count = _snapshot_duckdb_relation(indexed)
             if max(indices) >= row_count:
@@ -246,7 +254,7 @@ class NarwhalsTableManager(
                 requested = relation.query(
                     view,
                     f"SELECT * FROM unnest([{', '.join(str(int(i)) for i in indices)}]) "
-                    "WITH ORDINALITY AS selected(row_index, ordinal)",
+                    f"WITH ORDINALITY AS selected({quoted_requested_index}, {quoted_requested_order})",
                 )
             finally:
                 relation.query(view, f"DROP VIEW IF EXISTS {view}")
@@ -254,10 +262,10 @@ class NarwhalsTableManager(
                 indexed.set_alias("source")
                 .join(
                     requested.set_alias("selected"),
-                    f"source.{quoted_index} = selected.row_index",
+                    f"source.{quoted_index} = selected.{quoted_requested_index}",
                 )
-                .order("selected.ordinal")
-                .project(selected_columns)
+                .order(quoted_requested_order)
+                .project(columns)
             )
             return self.with_new_data(
                 nw.from_native(selected, pass_through=False)
@@ -309,6 +317,8 @@ class NarwhalsTableManager(
 
     def drop_columns(self, columns: list[str]) -> TableManager[Any]:
         if self.data.implementation.is_duckdb() and self._geometry_columns:
+            if not set(columns).intersection(self.data.columns):
+                return self
             return self.select_columns(
                 [name for name in self.data.columns if name not in columns]
             )

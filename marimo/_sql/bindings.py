@@ -60,30 +60,38 @@ def existing_sql_bindings(
     import duckdb
 
     try:
-        database, schema = duckdb.sql(
-            "SELECT current_database(), current_schema()"
-        ).fetchone() or ("memory", "main")
+        current = duckdb.sql("SELECT current_database(), current_schema()")
+        if current is None:
+            return []
+        rows = current.fetchall()
+        database, schema = rows[0] if rows else ("memory", "main")
         database, schema = database.lower(), schema.lower()
-        catalogs = {
-            row[0].lower()
-            for row in duckdb.sql(
-                "SELECT database_name FROM duckdb_databases()"
-            ).fetchall()
-        }
+        catalog_result = duckdb.sql(
+            "SELECT database_name FROM duckdb_databases()"
+        )
+        if catalog_result is None:
+            return []
+        catalogs = {row[0].lower() for row in catalog_result.fetchall()}
+        schema_result = duckdb.sql(
+            "SELECT database_name, schema_name FROM duckdb_schemas()"
+        )
+        if schema_result is None:
+            return []
         schemas = {
             tuple(part.lower() for part in row)
-            for row in duckdb.sql(
-                "SELECT database_name, schema_name FROM duckdb_schemas()"
-            ).fetchall()
+            for row in schema_result.fetchall()
         }
+        relation_result = duckdb.sql(
+            "SELECT database_name, schema_name, table_name, 'table' "
+            "FROM duckdb_tables() UNION ALL "
+            "SELECT database_name, schema_name, view_name, 'view' "
+            "FROM duckdb_views()"
+        )
+        if relation_result is None:
+            return []
         relations = {
             tuple(part.lower() for part in row)
-            for row in duckdb.sql(
-                "SELECT database_name, schema_name, table_name, 'table' "
-                "FROM duckdb_tables() UNION ALL "
-                "SELECT database_name, schema_name, view_name, 'view' "
-                "FROM duckdb_views()"
-            ).fetchall()
+            for row in relation_result.fetchall()
         }
     except duckdb.Error:
         # An aborted transaction can make catalog inspection unavailable.

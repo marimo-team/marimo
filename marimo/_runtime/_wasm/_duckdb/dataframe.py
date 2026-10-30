@@ -108,16 +108,23 @@ def _read_json_objects_path(
     path: str, options: Mapping[str, Any], function_name: str
 ) -> pd.DataFrame:
     import duckdb
+    import pandas as pd
 
     # DuckDB exposes JSON-object readers as SQL table functions, not Python
     # module methods, so invoke the table function with bound parameters.
     option_items = tuple(options.items())
     query_args = ["?"]
     query_args.extend(f"{key} := ?" for key, _ in option_items)
-    return duckdb.sql(
+    relation = duckdb.sql(
         f"SELECT * FROM {function_name}({', '.join(query_args)})",
         params=[path, *(value for _, value in option_items)],
-    ).df()
+    )
+    if relation is None:
+        raise ValueError("DuckDB JSON reader returned no relation")
+    dataframe: object = relation.df()
+    if not isinstance(dataframe, pd.DataFrame):
+        raise TypeError("DuckDB JSON reader did not return a pandas DataFrame")
+    return dataframe
 
 
 def read_text_dataframe(data: bytes, url: str) -> pd.DataFrame:

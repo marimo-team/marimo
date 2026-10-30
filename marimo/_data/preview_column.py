@@ -187,8 +187,10 @@ def get_column_preview_for_duckdb(
                     f"SELECT {column_name} FROM {fully_qualified_table_name}",
                     connection=None,
                 )
+                if relation is None:
+                    raise ValueError("DuckDB returned no column-preview data")
                 chart_spec = _get_chart_spec(
-                    column_data=relation,
+                    column_data=relation.to_arrow_table(),
                     column_type=column_type,
                     column_name=column_name,
                     chart_builder=get_chart_builder(

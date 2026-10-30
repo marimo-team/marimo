@@ -213,3 +213,19 @@ def test_column_type_with_quoted_identifiers(schema: str, table: str) -> None:
         duckdb.execute(
             f"DROP SCHEMA IF EXISTS memory.{quote_sql_identifier(schema)} CASCADE"
         )
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="duckdb not installed")
+@pytest.mark.parametrize("column_name", ["id", "missing"])
+def test_column_type_lookup_releases_connection_result(
+    setup_test_db: Any, column_name: str
+) -> None:
+    import duckdb
+
+    del setup_test_db
+    if column_name == "missing":
+        with pytest.raises(ValueError, match="Column missing not found"):
+            get_column_type("test_table_3", column_name)
+    else:
+        assert get_column_type("test_table_3", column_name) == "integer"
+    assert duckdb.sql("SELECT 42").fetchall() == [(42,)]

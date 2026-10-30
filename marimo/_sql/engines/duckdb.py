@@ -84,7 +84,7 @@ class DuckDBEngine(SQLConnection[Optional["duckdb.DuckDBPyConnection"]]):
     @staticmethod
     def execute_and_return_relation(
         query: str, params: list[Any] | None = None
-    ) -> duckdb.DuckDBPyRelation:
+    ) -> duckdb.DuckDBPyRelation | None:
         """Execute a query and return a relation. Supports parameters."""
         DependencyManager.duckdb.require("to execute sql")
 
@@ -113,10 +113,15 @@ class DuckDBEngine(SQLConnection[Optional["duckdb.DuckDBPyConnection"]]):
             # Arrow PyCapsule path on older DuckDB or when pyarrow is missing.
             # batch_size of 100k bounds peak memory at ~10x less than DuckDB's
             # 1M default while keeping per-batch overhead negligible.
+            import polars as pl
+
             try:
-                return relation.pl(batch_size=100_000, lazy=True)
+                result: object = relation.pl(batch_size=100_000, lazy=True)
             except (TypeError, ImportError, ModuleNotFoundError):
                 return to_polars().lazy()
+            if isinstance(result, pl.LazyFrame):
+                return result
+            return to_polars().lazy()
 
         return convert_to_output(
             sql_output_format=sql_output_format,
