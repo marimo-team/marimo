@@ -214,15 +214,43 @@ def test_save_config_with_none_does_not_raise(tmp_path: Path) -> None:
     assert "be terse" in contents
 
 
-def test_user_config_drops_hollow_dotenv(tmp_path: Path) -> None:
-    """An empty runtime.dotenv on disk is a masked value, so it is ignored."""
+def test_user_config_keeps_empty_dotenv(tmp_path: Path) -> None:
+    """An explicit empty list disables loading in user configuration too."""
     config_path = tmp_path / "marimo.toml"
     config_path.write_text("[runtime]\ndotenv = []\n")
     manager = UserConfigStore()
     manager.get_config_path = lambda: str(config_path)  # type: ignore[method-assign]
 
     config = MarimoConfigManager(manager).get_user_config(hide_secrets=False)
-    assert "dotenv" not in config["runtime"]
+    assert config["runtime"]["dotenv"] == []
+
+
+@pytest.mark.parametrize(
+    ("contents", "expected"),
+    [
+        ("", None),
+        ("[runtime]\ndotenv = []\n", []),
+        ('[runtime]\ndotenv = ["secret.env"]\n', ["secret.env"]),
+    ],
+)
+def test_saving_masked_config_preserves_dotenv_choice(
+    tmp_path: Path,
+    contents: str,
+    expected: list[str] | None,
+) -> None:
+    path = tmp_path / "marimo.toml"
+    path.write_text(contents)
+    store = UserConfigStore()
+    store.get_config_path = lambda: str(path)  # type: ignore[method-assign]
+    manager = MarimoConfigManager(store)
+    masked = manager.get_user_config()
+    masked["display"]["theme"] = "dark"
+    manager.save_config(masked)
+    assert (
+        manager.get_user_config(hide_secrets=False)["runtime"].get("dotenv")
+        == expected
+    )
+    assert manager.get_user_config()["display"]["theme"] == "dark"
 
 
 def test_user_config_keeps_populated_dotenv(tmp_path: Path) -> None:
@@ -412,15 +440,13 @@ def test_default_dotenv_is_masked_with_the_other_secrets(
     notebook_path.write_text("import marimo as mo")
 
     manager = get_default_config_manager(current_path=str(notebook_path))
-    assert manager.get_config()["runtime"]["dotenv"] == []
+    assert "dotenv" not in manager.get_config()["runtime"]
     assert manager.get_config(hide_secrets=False)["runtime"]["dotenv"] == [
         str(tmp_path / ".env")
     ]
 
 
 def test_project_config_empty_dotenv_opts_out(tmp_path: Path) -> None:
-    # A user-level [] is dropped as a masked leftover, but a pyproject.toml is
-    # never written back masked, so its [] is a deliberate "load nothing".
     notebook_path = _write_dotenv_project(tmp_path, "")
     (notebook_path.parent / ".env").write_text("KEY=value")
 
@@ -658,10 +684,9 @@ def test_default_dotenv_applies_with_an_empty_user_config(
     assert config["runtime"]["dotenv"] == [str(notebook_path.parent / ".env")]
 
 
-def test_default_dotenv_applies_over_a_hollow_user_dotenv(
+def test_user_config_empty_dotenv_disables_default(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    # marimo 0.18 and earlier wrote the masked (emptied) dotenv back to disk.
     _isolate_user_config(
         monkeypatch,
         tmp_path,
@@ -674,7 +699,7 @@ def test_default_dotenv_applies_over_a_hollow_user_dotenv(
 
     manager = get_default_config_manager(current_path=str(notebook_path))
     config = manager.get_config(hide_secrets=False)
-    assert config["runtime"]["dotenv"] == [str(notebook_path.parent / ".env")]
+    assert config["runtime"]["dotenv"] == []
 
 
 def test_project_dotenv_beats_user_config(

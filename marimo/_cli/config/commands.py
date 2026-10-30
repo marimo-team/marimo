@@ -7,15 +7,12 @@ import click
 
 from marimo._cli.config.utils import (
     format_config_docs,
+    format_config_with_sources,
     highlight_toml_headers,
 )
 from marimo._cli.help_formatter import ColoredCommand, ColoredGroup
-from marimo._cli.print import echo, green
-from marimo._config.manager import (
-    UserConfigStore,
-    get_default_config_manager,
-)
-from marimo._config.reader import find_nearest_pyproject_toml
+from marimo._cli.print import echo
+from marimo._config.manager import get_default_config_manager
 
 
 @click.group(
@@ -26,35 +23,38 @@ def config() -> None:
 
 
 @click.command(cls=ColoredCommand, help="""Show the marimo config.""")
-def show() -> None:
+@click.argument(
+    "notebook",
+    required=False,
+    type=click.Path(exists=True, dir_okay=False, resolve_path=True),
+)
+@click.option(
+    "--show-sources",
+    is_flag=True,
+    help="Include source comments for configuration settings and tables.",
+)
+def show(notebook: str | None = None, show_sources: bool = False) -> None:
     """
     Print out marimo config information.
     Example usage:
 
         marimo config show
     """
-    import tomlkit
-
-    current_path = os.getcwd()
-
-    config_manager = get_default_config_manager(current_path=current_path)
-    # Save config if doesn't exist
-    UserConfigStore().save_config_if_missing()
-
-    # Show project overrides if they exist
-    project_config_path = find_nearest_pyproject_toml(current_path)
-    overrides = config_manager.get_config_overrides()
-    if overrides:
-        echo(
-            f"\n📁 Project overrides from {green(str(project_config_path))}\n"
+    config_manager = get_default_config_manager(
+        current_path=notebook or os.getcwd()
+    )
+    config_manager.user_config_mgr.save_config_if_missing()
+    if show_sources:
+        output = format_config_with_sources(
+            config_manager.get_config_with_sources()
         )
-        echo(highlight_toml_headers(tomlkit.dumps(overrides)))
+    else:
+        import tomlkit
 
-    # Show user config
-    user_config_path = config_manager.user_config_mgr.get_config_path()
-    echo(f"\n🏠 User config from {green(user_config_path)}\n")
-    user_config = config_manager.get_user_config()
-    echo(highlight_toml_headers(tomlkit.dumps(user_config)))
+        output = highlight_toml_headers(
+            tomlkit.dumps(config_manager.get_config(), sort_keys=True)
+        )
+    echo(output)
 
 
 @click.command(cls=ColoredCommand, help="""Describe the marimo config.""")

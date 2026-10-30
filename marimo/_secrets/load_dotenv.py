@@ -4,8 +4,10 @@ from __future__ import annotations
 import os
 import re
 from functools import partial
+from pathlib import Path
 from typing import TYPE_CHECKING
 
+from marimo import _loggers
 from marimo._dependencies.dependencies import DependencyManager
 
 if TYPE_CHECKING:
@@ -16,12 +18,42 @@ _POSIX_VARIABLE = re.compile(
     r"\$\{(?P<name>[^}:]*)(?::-(?P<default>[^}]*))?\}"
 )
 
+LOGGER = _loggers.marimo_logger()
+
+
+class DotEnvReader:
+    """Read environment variables from a selected dotenv file."""
+
+    def __init__(self, file: str) -> None:
+        self.file = file
+
+    def read(
+        self, *, environment: Mapping[str, str | None] | None = None
+    ) -> dict[str, str | None]:
+        """Parse and interpolate values without modifying the environment."""
+        if not Path(self.file).exists():
+            LOGGER.warning(
+                "Dotenv file not found: %s",
+                self.file,
+                extra={"omit_log_prefix": True},
+            )
+            return {}
+        return _interpolate_dotenv_values(
+            _read_dotenv_bindings(self.file),
+            os.environ if environment is None else environment,
+            environment_overrides=environment is not None,
+        )
+
+    def load(self) -> None:
+        """Load values without replacing existing environment variables."""
+        load_to_environ(self.read(environment=os.environ))
+
 
 def load_dotenv_with_fallback(file: str) -> None:
     """Load a .env file using the dotenv library, falling to our custom
     implementation if the dotenv library is not installed.
     """
-    load_to_environ(read_dotenv_with_fallback(file, environment=os.environ))
+    DotEnvReader(file).load()
 
 
 def read_dotenv_with_fallback(
@@ -32,12 +64,7 @@ def read_dotenv_with_fallback(
     """Read a .env file using the dotenv library, falling to our custom
     implementation if the dotenv library is not installed.
     """
-    environment_overrides = environment is not None
-    return _interpolate_dotenv_values(
-        _read_dotenv_bindings(file),
-        os.environ if environment is None else environment,
-        environment_overrides=environment_overrides,
-    )
+    return DotEnvReader(file).read(environment=environment)
 
 
 def resolve_dotenv_value(
