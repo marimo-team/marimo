@@ -1,8 +1,9 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 /**
- * Keep the notebook state and the host document in step while cells live
- * in both.
+ * Make the notebook state follow the host document while cells live in
+ * both. Edits go the other way through the document model directly: the
+ * cell operations write it, and each cell editor is bound to its cell.
  *
  * TODO(MO-8028): Delete this module once components read cells from the
  * document model and `notebookAtom` holds only runtime and editor state.
@@ -10,21 +11,15 @@
 
 import { dequal as isEqual } from "dequal";
 import type { createStore } from "jotai";
-import { createRef, type RefObject } from "react";
-import type { CellHandle } from "@/components/editor/notebook-cell";
+import { createRef } from "react";
 import type {
-  DocumentEdit,
-  DocumentEditor,
   DocumentModel,
   EditableCell,
   EditableDocument,
 } from "@/core/notebook/document";
-import type { DispatchedActionOf } from "@/utils/createReducer";
-import { prepareCellCodeUpdate } from "../codemirror/language/cell-code";
-import { canUseRtc, isRtcEnabled } from "../rtc/state";
 import { store } from "../state/jotai";
 import { activeDocumentModelAtom } from "../session/active-notebook";
-import type { NotebookState, ReducerCellActions } from "./cells";
+import type { NotebookState } from "./cells";
 import type { CellId } from "./ids";
 import {
   type CellData,
@@ -34,16 +29,10 @@ import {
   isEdited,
 } from "./types";
 
-type CellAction = DispatchedActionOf<ReducerCellActions>;
-
 // Following the document ----------------------------------------------------
 
-/** Rebuild the tree for `columns`, keeping column ids. */
-function followCell(
-  current: CellData,
-  cell: EditableCell,
-  handle: RefObject<CellHandle | null> | undefined,
-): CellData {
+/** The cell's data after the document's cell, the same object when nothing differs. */
+function followCell(current: CellData, cell: EditableCell): CellData {
   // Withheld source keeps the code this client has.
   const code = cell.code ?? current.code;
   const config = isEqual(current.config, cell.config)
@@ -58,15 +47,6 @@ function followCell(
   }
   if (code === current.code) {
     return { ...current, name: cell.name, config };
-  }
-  // RTC cells follow Loro. Other editors take the host's code; one that
-  // shows it already, as the editor this client types in does, is left alone.
-  if (!isRtcEnabled() || !canUseRtc(current.id)) {
-    const view = handle?.current?.editorViewOrNull;
-    const update = view && prepareCellCodeUpdate(view.state, code);
-    if (update) {
-      view.dispatch(update);
-    }
   }
   return {
     ...current,
@@ -122,7 +102,7 @@ export function applyDocument(
       cellHandles = { ...cellHandles, [id]: createRef() };
       continue;
     }
-    const next = followCell(current, cell, state.cellHandles[id]);
+    const next = followCell(current, cell);
     if (next !== current) {
       cellData = { ...cellData, [id]: next };
     }
@@ -174,64 +154,6 @@ export function followDocument({
   const unsubscribe = store.sub(model.documentAtom, follow);
   signal.addEventListener("abort", unsubscribe, { once: true });
   follow();
-}
-
-// Editing the document ------------------------------------------------------
-
-/**
- * The edit that writes the code a reducer action changed, or null when none
- * did. Order, creation, deletion, names and configs are edited on the model
- * directly by their atoms.
- */
-function diffNotebook(
-  prev: NotebookState,
-  next: NotebookState,
-): DocumentEdit | null {
-  const steps: Array<(tx: DocumentEditor) => void> = [];
-  for (const id of next.cellIds) {
-    const cell = next.cellData[id];
-    const before = prev.cellData[id];
-    if (before !== undefined && cell !== before && before.code !== cell.code) {
-      steps.push((tx) => tx.setCode(id, cell.code));
-    }
-  }
-  if (steps.length === 0) {
-    return null;
-  }
-  return (tx) => {
-    for (const step of steps) {
-      step(tx);
-    }
-  };
-}
-
-/**
- * Middleware for the notebook reducer. Writes what an action changed about
- * the cells and their order into the document model as one edit.
- *
- * TODO(MO-8028): Only code is left in `diffNotebook`. The middleware goes
- * with it, once the editors bind to the model.
- */
-export function documentEditMiddleware(
-  prev: NotebookState,
-  next: NotebookState,
-  action: CellAction,
-): void {
-  // The document replaces the notebook's cells, so following it is no edit.
-  if (action.type === "reconcileDocument") {
-    return;
-  }
-  if (prev.cellIds === next.cellIds && prev.cellData === next.cellData) {
-    return;
-  }
-  const model = store.get(activeDocumentModelAtom);
-  if (model === null) {
-    return;
-  }
-  const edit = diffNotebook(prev, next);
-  if (edit !== null) {
-    store.set(model.editAtom, edit);
-  }
 }
 
 // Commands that read the document on the host -------------------------------

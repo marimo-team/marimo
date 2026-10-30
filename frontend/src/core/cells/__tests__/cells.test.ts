@@ -178,6 +178,38 @@ describe("cell reducer", () => {
     return id;
   }
 
+  /** Edit a cell's code as the document delivers it. */
+  function editCode(cellId: CellId, code: string) {
+    const cells = state.cellIds.map((id) => {
+      const cell = state.cellData[id];
+      return {
+        id,
+        code: id === cellId ? code : cell.code,
+        name: cell.name,
+        config: {
+          column: cell.config.column ?? null,
+          disabled: cell.config.disabled ?? false,
+          hide_code: cell.config.hide_code ?? false,
+          expand_output: cell.config.expand_output ?? false,
+        },
+      };
+    });
+    actions.reconcileDocument({
+      order: state.cellIds,
+      cells: new Map(cells.map((cell) => [cell.id, cell])),
+    });
+  }
+
+  /** Format a cell's code, as the editor reports it. */
+  function formatCode(cellId: CellId, code: string) {
+    actions.codeFormatted({
+      cellId,
+      before: state.cellData[cellId].code,
+      after: code,
+    });
+    editCode(cellId, code);
+  }
+
   let i = 0;
   const originalCreate = CellId.create.bind(CellId);
 
@@ -200,11 +232,7 @@ describe("cell reducer", () => {
   });
 
   it("can update a cell", () => {
-    actions.updateCellCode({
-      cellId: firstCellId,
-      code: "import numpy as np",
-      formattingChange: false,
-    });
+    editCode(firstCellId, "import numpy as np");
     expect(formatCells(state)).toMatchInlineSnapshot(`
       "
       [0] 'import numpy as np'
@@ -243,11 +271,7 @@ describe("cell reducer", () => {
       stale_inputs: null,
       timestamp: 1,
     });
-    actions.updateCellCode({
-      cellId: firstCellId,
-      code: "print('new code')",
-      formattingChange: false,
-    });
+    editCode(firstCellId, "print('new code')");
     actions.prepareForRun({ cellId: firstCellId });
     actions.handleCellMessage({
       cell_id: firstCellId,
@@ -275,11 +299,7 @@ describe("cell reducer", () => {
     expect(cell).toMatchSnapshot("initial state");
 
     // Update code
-    actions.updateCellCode({
-      cellId: firstCellId,
-      code: "import marimo as mo",
-      formattingChange: false,
-    });
+    editCode(firstCellId, "import marimo as mo");
     cell = cells[0];
     expect(cell.status).toBe("idle");
     expect(cell.lastCodeRun).toBe(null);
@@ -384,32 +404,20 @@ describe("cell reducer", () => {
     // EDITING BACK AND FORTH
     /////////////////
     // Update code again
-    actions.updateCellCode({
-      cellId: firstCellId,
-      code: "import marimo as mo\nimport numpy",
-      formattingChange: false,
-    });
+    editCode(firstCellId, "import marimo as mo\nimport numpy");
     cell = cells[0];
     expect(cell.status).toBe("idle");
     expect(cell.edited).toBe(true);
     expect(cell).toMatchSnapshot("code edited again");
 
     // Update code should be unedited
-    actions.updateCellCode({
-      cellId: firstCellId,
-      code: "import marimo as mo",
-      formattingChange: false,
-    });
+    editCode(firstCellId, "import marimo as mo");
     cell = cells[0];
     expect(cell.edited).toBe(false);
     expect(cell).toMatchSnapshot("code reverted");
 
     // Update code should be edited again
-    actions.updateCellCode({
-      cellId: firstCellId,
-      code: "import marimo as mo\nimport numpy",
-      formattingChange: false,
-    });
+    editCode(firstCellId, "import marimo as mo\nimport numpy");
     cell = cells[0];
     expect(cell.status).toBe("idle");
     expect(cell.lastCodeRun).toBe("import marimo as mo");
@@ -533,11 +541,7 @@ describe("cell reducer", () => {
     expect(cell).toMatchSnapshot("initial state");
 
     // Update code
-    actions.updateCellCode({
-      cellId: firstCellId,
-      code: "import marimo as mo",
-      formattingChange: false,
-    });
+    editCode(firstCellId, "import marimo as mo");
     cell = cells[0];
     expect(cell.status).toBe("idle");
     expect(cell.lastCodeRun).toBe(null);
@@ -589,11 +593,7 @@ describe("cell reducer", () => {
 
   it("can run a stale cell", () => {
     // Update code of first cell
-    actions.updateCellCode({
-      cellId: firstCellId,
-      code: "import marimo as mo",
-      formattingChange: false,
-    });
+    editCode(firstCellId, "import marimo as mo");
     // Add cell
     seedCell({
       cellId: firstCellId,
@@ -601,11 +601,7 @@ describe("cell reducer", () => {
     });
     const secondCell = cells[1].id;
     // Update code
-    actions.updateCellCode({
-      code: "mo.slider()",
-      cellId: secondCell,
-      formattingChange: false,
-    });
+    editCode(secondCell, "mo.slider()");
 
     // Prepare for run
     actions.prepareForRun({
@@ -649,11 +645,7 @@ describe("cell reducer", () => {
 
   it("can format code and update cell", () => {
     const firstCellId = cells[0].id;
-    actions.updateCellCode({
-      cellId: firstCellId,
-      code: "import marimo as    mo",
-      formattingChange: false,
-    });
+    editCode(firstCellId, "import marimo as    mo");
     let cell = cells[0];
     expect(cell.status).toBe("idle");
     expect(cell.lastCodeRun).toBe(null);
@@ -689,11 +681,7 @@ describe("cell reducer", () => {
     expect(cell.lastCodeRun).toBe("import marimo as    mo");
 
     // Format code
-    actions.updateCellCode({
-      cellId: firstCellId,
-      code: "import marimo as mo",
-      formattingChange: true,
-    });
+    formatCode(firstCellId, "import marimo as mo");
     cell = cells[0];
     expect(cell.status).toBe("idle");
     expect(cell.lastCodeRun).toBe("import marimo as mo");
@@ -702,11 +690,7 @@ describe("cell reducer", () => {
 
   it("can run a stopped cell", () => {
     // Update code of first cell
-    actions.updateCellCode({
-      cellId: firstCellId,
-      code: "mo.md('This has an ancestor that was stopped')",
-      formattingChange: false,
-    });
+    editCode(firstCellId, "mo.md('This has an ancestor that was stopped')");
 
     // Prepare for run
     actions.prepareForRun({

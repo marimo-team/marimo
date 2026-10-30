@@ -22,7 +22,7 @@ const { stagedGenerationAtom, createActions, reducer, initialState } =
 
 // Mock the dependencies
 const mockCreateCell = vi.fn();
-const mockUpdateCellCode = vi.fn();
+const mockSetCellCode = vi.fn();
 const mockDeleteCellCallback = vi.fn();
 
 // Mock cell handle with editor view
@@ -37,7 +37,7 @@ const mockCellHandle = {
 vi.mock("../../cells/actions", () => ({
   useCellActions: () => ({
     createCell: mockCreateCell,
-    updateCellCode: mockUpdateCellCode,
+    setCellCode: mockSetCellCode,
   }),
 }));
 vi.mock("../../cells/cells", async () => {
@@ -710,10 +710,9 @@ describe("staged cell generation", () => {
       },
     });
 
-    expect(mockUpdateCellCode).toHaveBeenCalledWith({
+    expect(mockSetCellCode).toHaveBeenCalledWith({
       cellId: cellId("unmounted-cell"),
       code: "value = 1",
-      formattingChange: false,
     });
   });
 

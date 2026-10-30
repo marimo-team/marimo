@@ -52,27 +52,34 @@ interface Binding {
   readonly cellId: CellId;
   /** Undefined while the cell is absent, null while its source is withheld. */
   readonly code: Atom<string | null | undefined>;
+  /** Whether the editor shows the model's code, or only writes its own. */
+  readonly follow: boolean;
 }
 
 /**
  * Bind an editor to one cell's code.
  *
  * Editors without marimo's language configuration bind their text as is.
+ * With `follow` off the editor only pushes, for an editor whose text has
+ * another source of remote changes.
  */
 export function cellCodeBinding({
   store,
   model,
   cellId,
+  follow = true,
 }: {
   store: ReturnType<typeof createStore>;
   model: DocumentModel;
   cellId: CellId;
+  follow?: boolean;
 }): Extension {
   const binding: Binding = {
     store,
     model,
     cellId,
     code: selectCellField(model.documentAtom, cellId, "code"),
+    follow,
   };
   return ViewPlugin.define((view) => new CellCodeSync(view, binding), {
     eventObservers: {
@@ -104,6 +111,11 @@ class CellCodeSync {
   public constructor(view: EditorView, binding: Binding) {
     this.#view = view;
     this.#binding = binding;
+    if (!binding.follow) {
+      this.#initialized = true;
+      this.#unsubscribe = () => undefined;
+      return;
+    }
     // A change to the agreed code is the echo of a push and needs no pull.
     this.#unsubscribe = binding.store.sub(binding.code, () => {
       if (binding.store.get(binding.code) !== this.#synced) {

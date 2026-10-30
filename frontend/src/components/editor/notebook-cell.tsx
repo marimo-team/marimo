@@ -209,7 +209,6 @@ function useCellHiddenLogic({
 
 export type CellComponentActions = Pick<
   CellActions,
-  | "updateCellCode"
   | "focusCell"
   | "moveCell"
   | "collapseCell"

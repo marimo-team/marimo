@@ -17,7 +17,10 @@ import {
   takeRestoredEditorStateAtom,
   useRestoredEditorState,
 } from "@/core/cells/editor";
-import { useNotebookDocumentEdit } from "@/core/notebook/document";
+import {
+  useNotebookCellCodeExtension,
+  useNotebookDocumentEdit,
+} from "@/core/notebook/document";
 import { SETUP_CELL_ID } from "@/core/cells/ids";
 import { usePendingDeleteService } from "@/core/cells/pending-delete-service";
 import type { CellData, CellRuntimeState } from "@/core/cells/types";
@@ -97,6 +100,8 @@ export interface CellEditorProps
    * defaults to `#App`.
    */
   tooltipParentSelector?: string;
+  /** Further editor extensions, for an editor outside the notebook. */
+  extensions?: Extension[];
 }
 
 export function composeRtcEditorConfig(
@@ -135,6 +140,7 @@ const CellEditorInternal = ({
   inlineAiTooltip,
   outputArea,
   tooltipParentSelector,
+  extensions: extraExtensions,
 }: CellEditorProps) => {
   const [aiCompletionCell, setAiCompletionCell] = useAtom(aiCompletionCellAtom);
   const serializedEditorState = useRestoredEditorState(cellId);
@@ -144,6 +150,11 @@ const CellEditorInternal = ({
   const { saveOrNameNotebook } = useSaveNotebook();
   const pendingDeleteService = usePendingDeleteService();
   const edit = useNotebookDocumentEdit();
+  // RTC cells show Loro's text and only write their code to the document.
+  const rtcEnabled = isRtcEnabled() && canUseRtc(cellId);
+  const codeBinding = useNotebookCellCodeExtension(cellId, {
+    follow: !rtcEnabled,
+  });
 
   const loading = status === "running" || status === "queued";
   const cellActions = useCellActions();
@@ -255,12 +266,9 @@ const CellEditorInternal = ({
             if (update) {
               view.dispatch(update);
             }
+          } else {
+            cellActions.setCellCode({ cellId: SETUP_CELL_ID, code: merged });
           }
-          cellActions.updateCellCode({
-            cellId: SETUP_CELL_ID,
-            code: merged,
-            formattingChange: false,
-          });
         },
         splitCell,
         toggleHideCode,
@@ -294,6 +302,8 @@ const CellEditorInternal = ({
     });
 
     extensions.push(
+      codeBinding,
+      ...(extraExtensions ?? []),
       // Listen to code changes if we can use markdown
       // Also update the language adapter
       ViewPlugin.define((view) => {
@@ -333,6 +343,8 @@ const CellEditorInternal = ({
     return extensions;
   }, [
     cellId,
+    codeBinding,
+    extraExtensions,
     acceptCompletionOnEnter,
     userConfig.keymap,
     userConfig.completion,
@@ -358,7 +370,6 @@ const CellEditorInternal = ({
     saveOrNameNotebook,
   ]);
 
-  const rtcEnabled = isRtcEnabled() && canUseRtc(cellId);
   const createEditorConfig = (initialCode?: string) => {
     if (!rtcEnabled) {
       return composeRtcEditorConfig(code, extensions, undefined);

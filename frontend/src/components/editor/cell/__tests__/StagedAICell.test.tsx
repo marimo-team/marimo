@@ -18,7 +18,7 @@ vi.mock("@/core/cells/cells", () => ({
 vi.mock("@/core/cells/actions", () => ({
   useCellActions: () => ({
     createCell: vi.fn(),
-    updateCellCode: vi.fn(),
+    setCellCode: vi.fn(),
   }),
 }));
 

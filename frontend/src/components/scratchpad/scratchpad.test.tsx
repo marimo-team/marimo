@@ -7,26 +7,22 @@ import { type ComponentProps, useEffect, useRef } from "react";
 import { expect, it, vi } from "vitest";
 import type { CellEditor } from "@/components/editor/cell/code/cell-editor";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { SCRATCH_CELL_ID } from "@/core/cells/ids";
 import { ScratchPad } from "./scratchpad";
 import {
   historyVisibleAtom,
   scratchpadHistoryAtom,
 } from "./scratchpad-history";
+import { scratchpadCodeAtom } from "./state";
 
 const state = vi.hoisted(() => ({
   editor: null as EditorView | null,
-  updateCellCode: vi.fn(),
 }));
 
 vi.mock("@/core/cells/cells", () => ({
   useNotebook: () => ({ cellRuntime: {}, cellData: {} }),
 }));
 vi.mock("@/core/cells/actions", () => ({
-  useCellActions: () => ({
-    createCell: vi.fn(),
-    updateCellCode: state.updateCellCode,
-  }),
+  useCellActions: () => ({ createCell: vi.fn() }),
 }));
 vi.mock("@/core/cells/focus", () => ({ useLastFocusedCellId: () => null }));
 vi.mock("@/core/network/requests", () => ({
@@ -89,9 +85,5 @@ it("focuses the editor after recalling history", () => {
     screen.getByRole("textbox", { name: "Scratchpad editor" }),
   ).toHaveFocus();
   expect(state.editor?.state.doc.toString()).toBe("print(42)");
-  expect(state.updateCellCode).toHaveBeenCalledExactlyOnceWith({
-    cellId: SCRATCH_CELL_ID,
-    code: "print(42)",
-    formattingChange: false,
-  });
+  expect(store.get(scratchpadCodeAtom)).toBe("print(42)");
 });

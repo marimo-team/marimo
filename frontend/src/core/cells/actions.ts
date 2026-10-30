@@ -170,6 +170,14 @@ export const createCellAtom = atom(
  * becomes a new cell below, which is focused. Returns the new cell's id,
  * or null for a cell without an editor.
  */
+/** Write a cell's code. A mounted editor shows it through its binding. */
+export const setCellCodeAtom = atom(
+  null,
+  (get, set, { cellId, code }: { cellId: CellId; code: string }): void => {
+    set(modelOf(get).editAtom, (tx) => tx.setCode(cellId, code));
+  },
+);
+
 export const splitCellAtom = atom(
   null,
   (get, set, { cellId }: { cellId: CellId }): CellId | null => {
@@ -597,11 +605,13 @@ export function useCellActions() {
   const mergeAllColumns = useSetAtom(mergeAllColumnsAtom);
   const compactColumns = useSetAtom(compactColumnsAtom);
   const moveColumn = useSetAtom(moveColumnAtom);
+  const setCellCode = useSetAtom(setCellCodeAtom);
   const splitCell = useSetAtom(splitCellAtom);
   const undoSplitCell = useSetAtom(undoSplitCellAtom);
   return useMemo(
     () => ({
       ...operations,
+      setCellCode,
       splitCell,
       undoSplitCell,
       addColumn,

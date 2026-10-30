@@ -1,6 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { EditorState } from "@codemirror/state";
+import { EditorState, Transaction } from "@codemirror/state";
 import type { EditorView } from "@codemirror/view";
 import { LoroDoc, LoroText } from "loro-crdt";
 import { describe, expect, it, vi } from "vitest";
@@ -39,10 +39,10 @@ describe("LoroSyncPluginValue", () => {
             insert: "remote",
           },
         ],
+        // Marked remote too, so the cell's document binding leaves it alone.
         annotations: [
-          expect.objectContaining({
-            type: loroSyncAnnotation,
-          }),
+          expect.objectContaining({ type: loroSyncAnnotation }),
+          expect.objectContaining({ type: Transaction.remote, value: true }),
         ],
       }),
     );

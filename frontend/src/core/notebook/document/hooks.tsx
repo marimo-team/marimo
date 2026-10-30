@@ -78,18 +78,23 @@ export function useNotebookCellConfig(id: CellId) {
 
 /**
  * A CodeMirror extension that binds the editor's text to a cell's code.
- * Stable until the cell id or document model changes.
+ * Stable until the cell id, document model, or options change. With
+ * `follow` off the editor writes its code to the cell but does not show
+ * the cell's code, for an editor whose text has another remote source.
  *
  * ```tsx
  * const extension = useNotebookCellCodeExtension(cellId);
  * ```
  */
-export function useNotebookCellCodeExtension(id: CellId) {
+export function useNotebookCellCodeExtension(
+  id: CellId,
+  { follow = true }: { follow?: boolean } = {},
+) {
   const model = useDocumentModel();
   const store = useStore();
   return useMemo(
-    () => cellCodeBinding({ store, model, cellId: id }),
-    [model, store, id],
+    () => cellCodeBinding({ store, model, cellId: id, follow }),
+    [model, store, id, follow],
   );
 }
 

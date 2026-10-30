@@ -60,6 +60,7 @@ function languages(id: CellId) {
       aiCellCompletion: () => false,
       createManyBelow: vi.fn(),
       addOrAppendSetupCell: vi.fn(),
+      setCellCode: vi.fn(),
       createCell: vi.fn(),
       moveToNextCell: vi.fn(),
       addSetupCell: vi.fn(),
@@ -104,11 +105,13 @@ function setup({
   cellId = "c1",
   doc = "",
   adapters = false,
+  follow = true,
 }: {
   initial?: Document | null;
   cellId?: CellId;
   doc?: string;
   adapters?: boolean;
+  follow?: boolean;
 } = {}) {
   const store = createStore();
   const source = atom(initial);
@@ -127,7 +130,7 @@ function setup({
         extensions: [
           history(),
           adapters ? languages(cellId) : [],
-          cellCodeBinding({ store, model, cellId }),
+          cellCodeBinding({ store, model, cellId, follow }),
         ],
       }),
     });
@@ -311,6 +314,22 @@ describe("cellCodeBinding", () => {
       expect(view.state.doc.toString()).toBe("local!");
       expect(status()).toEqual({ status: "idle" });
     }
+  });
+
+  it("writes without following when the editor has another remote source", async () => {
+    const { store, source, view, type, code } = setup({
+      doc: "x = 1",
+      follow: false,
+    });
+    await settle();
+    expect(view.state.doc.toString()).toBe("x = 1");
+
+    type("\ny = 2");
+    expect(code()).toBe("x = 1\ny = 2");
+
+    store.set(source, withCells(document(), { c1: cell("c1", "z = 3") }));
+    await settle();
+    expect(view.state.doc.toString()).toBe("x = 1\ny = 2");
   });
 
   it("stops following the cell when the view is destroyed", async () => {

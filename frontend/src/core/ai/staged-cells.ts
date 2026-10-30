@@ -95,7 +95,7 @@ interface UpdateStagedCellAction {
 /** Manage staged cells without assuming which AI workflow owns them. */
 export function useStagedCells(store: JotaiStore) {
   const { addStagedCell, removeStagedCell } = useStagedAICellsActions();
-  const { updateCellCode, createCell } = useCellActions();
+  const { setCellCode, createCell } = useCellActions();
   const deleteCellCallback = useDeleteCellCallback();
 
   const createStagedCell = (code: string): CellId => {
@@ -121,7 +121,7 @@ export function useStagedCells(store: JotaiStore) {
         editorView.dispatch(update);
       }
     } else {
-      updateCellCode({ cellId, code, formattingChange: false });
+      setCellCode({ cellId, code });
     }
   };
 

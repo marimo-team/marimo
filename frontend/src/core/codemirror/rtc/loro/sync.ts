@@ -6,7 +6,7 @@
 // - filter diffs by path
 
 import type { Extension } from "@codemirror/state";
-import { Annotation, type ChangeSpec } from "@codemirror/state";
+import { Annotation, type ChangeSpec, Transaction } from "@codemirror/state";
 import type { EditorView, PluginValue, ViewUpdate } from "@codemirror/view";
 import { ViewPlugin } from "@codemirror/view";
 import type {
@@ -33,7 +33,9 @@ export const loroSyncPlugin = (
 };
 
 /**
- * Annotation to identify loro sync changes (syncing from remote to local)
+ * Annotation to identify loro sync changes (syncing from remote to local).
+ * These changes are also marked remote, so the editor's other bindings leave
+ * them to the client that typed them.
  */
 export const loroSyncAnnotation = Annotation.define();
 
@@ -72,7 +74,7 @@ export class LoroSyncPluginValue implements PluginValue {
             insert: text.toString(),
           },
         ],
-        annotations: [loroSyncAnnotation.of(this)],
+        annotations: [loroSyncAnnotation.of(this), Transaction.remote.of(true)],
       });
     });
   }
@@ -91,7 +93,7 @@ export class LoroSyncPluginValue implements PluginValue {
             insert: this.getTextFromDoc(this.doc).toString(),
           },
         ],
-        annotations: [loroSyncAnnotation.of(this)],
+        annotations: [loroSyncAnnotation.of(this), Transaction.remote.of(true)],
       });
       return;
     }
@@ -126,7 +128,10 @@ export class LoroSyncPluginValue implements PluginValue {
         if (changes.length > 0) {
           this.view.dispatch({
             changes,
-            annotations: [loroSyncAnnotation.of(this)],
+            annotations: [
+              loroSyncAnnotation.of(this),
+              Transaction.remote.of(true),
+            ],
           });
         }
       }

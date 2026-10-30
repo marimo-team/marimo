@@ -22,7 +22,7 @@ import type { CellConfig } from "../network/types";
 import { createDeepEqualAtom, store } from "../state/jotai";
 import { isWasm } from "../wasm/utils";
 import { prepareCellForExecution, transitionCell } from "./cell";
-import { applyDocument, documentEditMiddleware } from "./document";
+import { applyDocument } from "./document";
 import { isCodeHidden, shownHiddenCodeAtom } from "./editor";
 import { type CellId, SCRATCH_CELL_ID } from "./ids";
 import { type CellLog, getCellLogsForMessage } from "./logs";
@@ -153,50 +153,35 @@ export function initialNotebookState(): NotebookState {
  */
 const {
   reducer,
-  addMiddleware,
   createActions,
   useActions,
   valueAtom: notebookAtom,
 } = createReducerAndAtoms(initialNotebookState, {
   /**
-   * Put moved cells back where they were.
-   *
-   * TODO(MO-8028): Move to `undoDeleteCellAtom` with the order family.
+   * Keep a cell as run, or as edited, as it was before formatting rewrote
+   * its code from `before` to `after`. The code itself arrives through the
+   * document.
    */
-  updateCellCode: (
+  codeFormatted: (
     state,
-    action: {
-      cellId: CellId;
-      code: string;
-      /**
-       * Whether or not the update is a formatting change,
-       * if so, the 'edited' state will be handled differently.
-       */
-      formattingChange: boolean;
-    },
+    action: { cellId: CellId; before: string; after: string },
   ) => {
-    const { cellId, code, formattingChange } = action;
+    const { cellId, before, after } = action;
     if (!state.cellData[cellId]) {
       return state;
     }
-
     return updateCellData({
       state,
       cellId,
       cellReducer: (cell) => {
-        // Formatting-only change means we can re-use the last code run
-        // if it was not previously edited. And we don't change the edited state.
-        return formattingChange
-          ? {
-              ...cell,
-              code: code,
-              lastCodeRun: cell.edited ? cell.lastCodeRun : code,
-            }
-          : {
-              ...cell,
-              code: code,
-              edited: code.trim() !== cell.lastCodeRun,
-            };
+        const lastCodeRun = isEdited(cell.lastCodeRun, before)
+          ? cell.lastCodeRun
+          : after;
+        return {
+          ...cell,
+          lastCodeRun,
+          edited: isEdited(lastCodeRun, cell.code),
+        };
       },
     });
   },
@@ -424,11 +409,6 @@ const {
     };
   },
 });
-
-// We apply the middleware here (rather than inline in createReducerAndAtoms)
-// so that the document edit middleware can import CellActions and
-// strictly type the dispatched actions without creating a circular dependency.
-addMiddleware(documentEditMiddleware);
 
 // Helper function to update a cell in the array
 function updateCellRuntimeState({

@@ -51,12 +51,26 @@ for (const count of [10, 25, 100, 1000]) {
         let iteration = 0;
 
         function edit() {
+          const edited = `${code}\n# ${iteration++ % 2}`;
+          const cells = ids.map((id) => {
+            const cell = state.cellData[id];
+            return {
+              id,
+              code: id === target ? edited : cell.code,
+              name: cell.name,
+              config: {
+                column: cell.config.column ?? null,
+                disabled: cell.config.disabled ?? false,
+                hide_code: cell.config.hide_code ?? false,
+                expand_output: cell.config.expand_output ?? false,
+              },
+            };
+          });
           const action: CellAction = {
-            type: "updateCellCode",
+            type: "reconcileDocument",
             payload: {
-              cellId: target,
-              code: `${code}\n# ${iteration++ % 2}`,
-              formattingChange: false,
+              order: ids,
+              cells: new Map(cells.map((cell) => [cell.id, cell])),
             },
           };
           if (mode === "reducer") {
