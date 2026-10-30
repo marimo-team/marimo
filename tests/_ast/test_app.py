@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+import json
 import pathlib
+import re
 import subprocess
 import sys
 import textwrap
+from html import unescape
 from typing import TYPE_CHECKING, Any
 
 import pytest
@@ -1338,6 +1341,14 @@ def test_cli_args(tmp_path: pathlib.Path) -> None:
 # the flaky tests have been marked as xfail. If this ever does become
 # a priority (in particular, if we see GitHub issues about these methods
 # failing in real usage), these failing tests may provide a clue.
+def _embedded_blocks(html_text: str) -> list[str]:
+    """String outputs and displayed code of an embed, in display order."""
+    blocks = re.findall(
+        r"<span>(.*?)</span>|data-initial-value='([^']*)'", html_text
+    )
+    return [output or json.loads(unescape(code)) for output, code in blocks]
+
+
 class TestAppComposition:
     async def test_app_embed(self) -> None:
         app = App()
@@ -1375,6 +1386,101 @@ class TestAppComposition:
         # None shouldn't show up in output
         assert result.output.text == vstack(["hello", "world"]).text
         assert not result.defs
+
+    async def test_app_embed_show_code(self) -> None:
+        app = App()
+
+        @app.cell
+        def __() -> tuple[int]:
+            x = 1
+            "hello"
+            return (x,)
+
+        @app.cell(hide_code=True)
+        def __() -> None:
+            "hidden code"
+
+        @app.cell
+        def __(x: int) -> tuple[int]:
+            y = x + 1
+            return (y,)
+
+        @app.cell(disabled=True)
+        def __() -> None:
+            "disabled"
+
+        result = await app.embed(show_code=True)
+        assert _embedded_blocks(result.output.text) == [
+            "hello",
+            'x = 1\n"hello"',
+            "hidden code",
+            "y = x + 1",
+        ]
+        assert result.defs["y"] == 2
+
+        result = await app.embed()
+        assert _embedded_blocks(result.output.text) == [
+            "hello",
+            "hidden code",
+        ]
+
+    async def test_app_embed_show_code_with_defs(self) -> None:
+        """Code of cells pruned by `defs` did not run, so it is not shown."""
+        app = App()
+
+        @app.cell
+        def __() -> tuple[int]:
+            x = 10
+            return (x,)
+
+        @app.cell
+        def __(x: int) -> None:
+            label = f"x is {x}"
+            label
+
+        result = await app.embed(defs={"x": 100}, show_code=True)
+        assert _embedded_blocks(result.output.text) == [
+            "x is 100",
+            'label = f"x is {x}"\nlabel',
+        ]
+
+    async def test_app_embed_show_code_kernel(
+        self, k: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        await k.run(
+            [
+                exec_req.get(
+                    """
+                    from marimo import App
+
+                    app = App()
+
+                    @app.cell
+                    def __() -> None:
+                        "hello"
+                    """
+                ),
+                exec_req.get(
+                    """
+                    with_code = await app.embed(show_code=True)
+                    """
+                ),
+                exec_req.get(
+                    """
+                    without_code = await app.embed()
+                    """
+                ),
+            ]
+        )
+        assert not k.errors
+
+        with_code = k.globals["with_code"]
+        without_code = k.globals["without_code"]
+        assert _embedded_blocks(with_code.output.text) == [
+            "hello",
+            '"hello"',
+        ]
+        assert _embedded_blocks(without_code.output.text) == ["hello"]
 
     async def test_app_embed_with_defs(self) -> None:
         """Test embed() with defs parameter to override cell definitions."""

@@ -72,6 +72,7 @@ if TYPE_CHECKING:
 
     from marimo._messaging.notification import HumanReadableStatus
     from marimo._plugins.core.web_component import JSONType
+    from marimo._runtime.app.common import RunOutput
     from marimo._runtime.context.types import ExecutionContext
 
 P = ParamSpec("P")
@@ -651,6 +652,34 @@ class App:
             if not self._graph.is_disabled(cid) and cid in outputs
         )
 
+    def _embed_output(
+        self, outputs: dict[CellId_t, Any], *, show_code: bool
+    ) -> Html:
+        from marimo._plugins.stateless.flex import vstack
+        from marimo._plugins.ui._impl.input import code_editor
+
+        if not show_code:
+            return vstack(
+                [o for o in self._flatten_outputs(outputs) if o is not None]
+            )
+
+        items: list[object] = []
+        for cid in self._cell_manager.valid_cell_ids():
+            # Cells absent from outputs were disabled or pruned by `defs`;
+            # their code did not run, so showing it would mislead.
+            if self._graph.is_disabled(cid) or cid not in outputs:
+                continue
+            if outputs[cid] is not None:
+                items.append(outputs[cid])
+            cell_data = self._cell_manager.cell_data_at(cid)
+            if cell_data.code.strip() and not cell_data.config.hide_code:
+                items.append(
+                    code_editor(
+                        value=cell_data.code, disabled=True, min_height=1
+                    )
+                )
+        return vstack(items)
+
     def _globals_to_defs(self, glbls: dict[str, Any]) -> _Namespace:
         return _Namespace(
             dictionary={
@@ -761,6 +790,10 @@ class App:
             edit.invoke(ctx)
             return ((), {})
 
+        outputs, glbls = self._run_script(defs)
+        return (self._flatten_outputs(outputs), self._globals_to_defs(glbls))
+
+    def _run_script(self, defs: dict[str, Any] | None) -> RunOutput:
         try:
             self._maybe_initialize()
         except (CycleError, MultipleDefinitionError, UnparsableError) as e:
@@ -788,12 +821,11 @@ class App:
         if defs is not None:
             glbls.update(defs)
 
-        outputs, glbls = AppScriptRunner(
+        return AppScriptRunner(
             InternalApp(self),
             filename=self._filename,
             glbls=glbls,
         ).run()
-        return (self._flatten_outputs(outputs), self._globals_to_defs(glbls))
 
     async def _run_cell_async(
         self, cell: Cell, kwargs: dict[str, Any]
@@ -840,6 +872,8 @@ class App:
     async def embed(
         self,
         defs: dict[str, Any] | None = None,
+        *,
+        show_code: bool = False,
     ) -> AppEmbedResult:
         """Embed a notebook into another notebook.
 
@@ -910,6 +944,11 @@ class App:
                 arguments. marimo will use these values instead of executing
                 the cells that would normally define them. Cells that depend
                 on these variables will use your provided values.
+            show_code (bool):
+                If `True`, display each cell's code below its output, in
+                notebook order. Cells configured with `hide_code=True` keep
+                their code hidden, and cells skipped because of `defs` are
+                omitted.
 
         Returns:
             An object `result` with two attributes: `result.output` (visual
@@ -917,7 +956,6 @@ class App:
             variable names defined by the notebook to their values).
 
         """
-        from marimo._plugins.stateless.flex import vstack
         from marimo._plugins.ui._core.ui_element import UIElement
         from marimo._runtime.context.utils import running_in_notebook
 
@@ -930,6 +968,8 @@ class App:
                 "Substituting UI Elements for variables is not allowed."
             )
 
+        outputs: dict[CellId_t, Any]
+        glbls: dict[str, Any]
         if running_in_notebook():
             ctx = get_context()
             for var, v in ctx.globals.items():
@@ -945,9 +985,6 @@ class App:
                     )
 
             app_kernel_runner = self._get_kernel_runner()
-
-            outputs: dict[CellId_t, Any]
-            glbls: dict[str, Any]
 
             if not app_kernel_runner.are_outputs_cached(defs):
                 app_kernel_runner.register_defs(defs)
@@ -966,22 +1003,12 @@ class App:
                     app_kernel_runner.outputs,
                     app_kernel_runner.globals,
                 )
-            return AppEmbedResult(
-                output=vstack(
-                    [
-                        o
-                        for o in self._flatten_outputs(outputs)
-                        if o is not None
-                    ]
-                ),
-                defs=self._globals_to_defs(glbls),
-            )
         else:
-            flat_outputs, computed_defs = self.run(defs=defs or {})
-            return AppEmbedResult(
-                output=vstack([o for o in flat_outputs if o is not None]),
-                defs=computed_defs,
-            )
+            outputs, glbls = self._run_script(defs or {})
+        return AppEmbedResult(
+            output=self._embed_output(outputs, show_code=show_code),
+            defs=self._globals_to_defs(glbls),
+        )
 
 
 class InternalApp:
