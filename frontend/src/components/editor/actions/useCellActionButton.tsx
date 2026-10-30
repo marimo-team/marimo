@@ -55,8 +55,8 @@ import {
   appWidthAtom,
   autoInstantiateAtom,
 } from "@/core/config/config";
-import { kioskModeAtom } from "@/core/mode";
 import type { CellConfig, RuntimeState } from "@/core/network/types";
+import { canEditAtom } from "@/core/notebook";
 import { canLinkToCell, createCellLink } from "@/utils/cell-urls";
 import { copyToClipboard } from "@/utils/copy";
 import { downloadCellOutputAsImage } from "@/utils/download";
@@ -103,10 +103,10 @@ export function useCellActionButtons({ cell, closePopover }: Props) {
   const setAiCompletionCell = useSetAtom(aiCompletionCellAtom);
   const aiFeaturesEnabled = useAtomValue(aiFeaturesEnabledAtom);
   const autoInstantiate = useAtomValue(autoInstantiateAtom);
-  const kioskMode = useAtomValue(kioskModeAtom);
+  const canEdit = useAtomValue(canEditAtom);
   const appWidth = useAtomValue(appWidthAtom);
 
-  if (!cell || kioskMode) {
+  if (!cell || !canEdit) {
     return [];
   }
 

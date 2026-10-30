@@ -10,15 +10,14 @@ export function useAutoSave(opts: {
   config: UserConfig["save"];
   connStatus: ConnectionStatus;
   needsSave: boolean;
-  kioskMode: boolean;
+  canEdit: boolean;
   onSave: () => void;
 }) {
-  const { version, config, connStatus, needsSave, kioskMode, onSave } = opts;
+  const { version, config, connStatus, needsSave, canEdit, onSave } = opts;
   const autosaveTimeoutId = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
-    // If kiosk mode is enabled, do not autosave
-    if (kioskMode) {
+    if (!canEdit) {
       return;
     }
 
@@ -38,5 +37,5 @@ export function useAutoSave(opts: {
       }
     };
     // `version` restarts the delay on every confirmed change.
-  }, [version, config, connStatus.state, onSave, kioskMode, needsSave]);
+  }, [version, config, connStatus.state, onSave, canEdit, needsSave]);
 }

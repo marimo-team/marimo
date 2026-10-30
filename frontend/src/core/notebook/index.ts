@@ -1,6 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-/** React hooks for the current notebook. */
+/** What the editor reads about the current notebook. */
 
 export {
   useNotebookAttachments,
@@ -16,3 +16,4 @@ export {
   useNotebookDocumentEdit,
   useNotebookDocumentSync,
 } from "./document";
+export { canEditAtom, notebookOperationsAtom } from "./operations";

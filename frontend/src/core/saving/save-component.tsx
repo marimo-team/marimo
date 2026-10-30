@@ -28,8 +28,8 @@ import { autoSaveConfigAtom } from "../config/config";
 import { useAutoExport } from "../export/hooks";
 import { getSerializedLayout } from "../layout/layout";
 import { layoutStateAtom } from "../layout/state";
-import { kioskModeAtom } from "../mode";
 import { connectionAtom } from "../network/connection";
+import { canEditAtom } from "@/core/notebook";
 import { useRequestClient } from "../network/requests";
 import { ConnectionState } from "../session/types";
 import { isWasm } from "../wasm/utils";
@@ -37,10 +37,6 @@ import { filenameAtom } from "./file-state";
 import { useFilename, useUpdateFilename } from "./filename";
 import { documentVersionAtom, needsSaveAtom, savedLayoutAtom } from "./state";
 import { useAutoSave } from "./useAutoSave";
-
-interface SaveNotebookProps {
-  kioskMode: boolean;
-}
 
 let notebookSaveQueue: Promise<void> = Promise.resolve();
 
@@ -53,12 +49,12 @@ export function enqueueNotebookSave<T>(save: () => Promise<T>): Promise<T> {
   return result;
 }
 
-export const SaveComponent = ({ kioskMode }: SaveNotebookProps) => {
+export const SaveComponent = () => {
   const filename = useFilename();
   const needsSave = useAtomValue(needsSaveAtom);
   const closed = useAtomValue(connectionAtom).state === ConnectionState.CLOSED;
   const { saveOrNameNotebook, saveIfNotebookIsPersistent } = useSaveNotebook();
-  useAutoSaveNotebook({ onSave: saveIfNotebookIsPersistent, kioskMode });
+  useAutoSaveNotebook({ onSave: saveIfNotebookIsPersistent });
 
   useAutoExport();
 
@@ -113,9 +109,8 @@ export function useSaveNotebook() {
     enqueueNotebookSave(async () => {
       const connection = store.get(connectionAtom);
       const autoSaveConfig = store.get(autoSaveConfigAtom);
-      const kioskMode = store.get(kioskModeAtom);
 
-      if (kioskMode) {
+      if (!store.get(canEditAtom)) {
         return;
       }
 
@@ -223,11 +218,9 @@ export function isNamedPersistentFile(
   );
 }
 
-export function useAutoSaveNotebook(opts: {
-  onSave: () => void;
-  kioskMode: boolean;
-}) {
+export function useAutoSaveNotebook(opts: { onSave: () => void }) {
   const autoSaveConfig = useAtomValue(autoSaveConfigAtom);
+  const canEdit = useAtomValue(canEditAtom);
   const [connection] = useAtom(connectionAtom);
   const needsSave = useAtomValue(needsSaveAtom);
   const version = useAtomValue(documentVersionAtom);
@@ -238,7 +231,7 @@ export function useAutoSaveNotebook(opts: {
     version,
     connStatus: connection,
     config: autoSaveConfig,
-    kioskMode: opts.kioskMode,
+    canEdit,
   });
 }
 

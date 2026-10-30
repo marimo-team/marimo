@@ -111,7 +111,7 @@ export const Controls = ({
         className={cn(bottomRightControls)}
       >
         <HideInKioskMode>
-          <SaveComponent kioskMode={false} />
+          <SaveComponent />
         </HideInKioskMode>
 
         <Tooltip content={renderShortcut("global.hideCode")}>
