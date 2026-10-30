@@ -317,6 +317,8 @@ export function notebookStateFromSession(
     history: [],
     scrollKey: null,
     cellLogs: [],
+    multiColumn: true,
+    verticalCellIds: null,
     untouchedNewCells: new Set(),
   };
 }

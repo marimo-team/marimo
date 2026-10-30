@@ -147,7 +147,7 @@ export class CollapsibleTree<T> {
 
     // Collapse nodes that were collapsed in the previous tree
     for (const id of ids) {
-      if (previousTree.isCollapsed(id)) {
+      if (previousTree._nodeMap.has(id) && previousTree.isCollapsed(id)) {
         const children = previousTree._nodeMap.get(id)?.children ?? [];
         // Find the first child that is also in the new tree, going backwards
         for (let i = children.length - 1; i >= 0; i--) {
@@ -875,53 +875,61 @@ export class MultiColumn<T> {
     cellIds: T[],
     targetId: T,
     position: "before" | "after",
+    options: { expandAffectedColumns?: boolean } = {},
   ): MultiColumn<T> {
     if (cellIds.length === 0) {
       return this;
     }
 
     const cellIdSet = new Set(cellIds);
-    const targetColumn = this.findWithId(targetId);
-    const targetColIndex = this.indexOfOrThrow(targetColumn.id);
+    const movedNodes = new Map<T, TreeNode<T>>();
+    let targetColIndex = -1;
 
-    // Collect nodes to move
-    const nodesToMove: TreeNode<T>[] = [];
-    for (const id of cellIds) {
-      const col = this.findWithId(id);
-      const node = col.nodes.find((n) => n.value === id);
-      if (!node) {
-        throw new Error(`Node ${id} not found in column ${col.id}`);
+    // Scan once and preserve untouched columns, including their folded shape.
+    const columnsWithRemovals = this.columns.map((column, index) => {
+      const isTarget = column.inOrderIds.includes(targetId);
+      const hasMovedCells = column.inOrderIds.some((id) => cellIdSet.has(id));
+      if (!isTarget && !hasMovedCells) {
+        return column;
       }
-      nodesToMove.push(node);
+      if (isTarget) {
+        targetColIndex = index;
+      }
+      const source = options.expandAffectedColumns
+        ? column.expandAll()
+        : column;
+      const remainingNodes = source.nodes.filter((node) => {
+        if (!cellIdSet.has(node.value)) {
+          return true;
+        }
+        movedNodes.set(node.value, node);
+        return false;
+      });
+      return hasMovedCells ? source.withNodes(remainingNodes) : source;
+    });
+
+    if (targetColIndex === -1) {
+      throw new Error(`Cell ${targetId} not found in any column`);
     }
-
-    // Remove moved cells from all columns
-    const columnsWithRemovals = this.columns.map((col) =>
-      col.withNodes(col.nodes.filter((n) => !cellIdSet.has(n.value))),
+    const nodesToMove = cellIds.map((id) => {
+      const node = movedNodes.get(id);
+      if (!node) {
+        throw new Error(`Cell ${id} not found in any column`);
+      }
+      return node;
+    });
+    const targetColumn = columnsWithRemovals[targetColIndex];
+    let insertIndex = targetColumn.nodes.findIndex(
+      (node) => node.value === targetId,
     );
-
-    // Find target index in the cleaned column
-    const cleanedTargetCol = columnsWithRemovals[targetColIndex];
-    let insertIndex = cleanedTargetCol.nodes.findIndex(
-      (n) => n.value === targetId,
-    );
-
-    // If target was one of the moved cells, insert at end
     if (insertIndex === -1) {
-      insertIndex = cleanedTargetCol.nodes.length;
+      insertIndex = targetColumn.nodes.length;
     } else if (position === "after") {
       insertIndex += 1;
     }
-
-    // Insert all moved nodes at target position
-    const newTargetNodes = arrayInsertMany(
-      cleanedTargetCol.nodes,
-      insertIndex,
-      nodesToMove,
+    columnsWithRemovals[targetColIndex] = targetColumn.withNodes(
+      arrayInsertMany(targetColumn.nodes, insertIndex, nodesToMove),
     );
-    columnsWithRemovals[targetColIndex] =
-      cleanedTargetCol.withNodes(newTargetNodes);
-
     return new MultiColumn(columnsWithRemovals);
   }
 
