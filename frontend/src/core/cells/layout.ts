@@ -3,14 +3,41 @@
 /** The cells as they appear on the page: by column, with folded sections hidden. */
 
 import { atom, useAtomValue } from "jotai";
+import type { EditableDocument } from "@/core/notebook/document";
 import type { CellColumnId } from "@/utils/id-tree";
 import { findCollapseRange } from "../dom/outline";
+import { activeDocumentModelAtom } from "../session/active-notebook";
 import { notebookAtom } from "./cells";
+import { groupByColumn } from "./columns";
 import type { CellId } from "./ids";
 import type { Outline } from "./outline";
 
 /** The headers whose sections the user folded. Only this browser knows. */
 export const collapsedAtom = atom<ReadonlySet<CellId>>(new Set<CellId>());
+
+/**
+ * The columns' identities, in order, as drag and drop and column sizes
+ * refer to them. The document knows columns only by position, so this
+ * browser names them, and keeps a trailing column the user emptied until
+ * a drop compacts it. A column the host adds is named by its position
+ * until a column operation here names it.
+ */
+export const columnIdsAtom = atom<readonly CellColumnId[]>([]);
+
+/** The columns of a document, each with its id, trailing empty ones included. */
+function columnsOf(
+  document: EditableDocument | null,
+  ids: readonly CellColumnId[],
+): Array<{ id: CellColumnId; ids: CellId[] }> {
+  const groups = document === null ? [[]] : groupByColumn(document);
+  while (groups.length < ids.length) {
+    groups.push([]);
+  }
+  return groups.map((cells, index) => ({
+    id: ids[index] ?? (`column-${index}` as CellColumnId),
+    ids: cells,
+  }));
+}
 
 export interface LayoutColumn {
   readonly id: CellColumnId;
@@ -66,19 +93,17 @@ export function deriveLayout(
 }
 
 /**
- * The layout of the notebook's cells.
+ * The layout of the notebook's cells: the document's order and columns,
+ * this browser's column ids and folds, and the kernel's outlines.
  *
- * TODO(MO-8028): Order and columns come from the reducer's tree until the
- * arrange family edits the document; then they derive from the document and
- * the column ids this browser keeps. Outlines come from executions later.
+ * TODO(MO-8028): Outlines come from executions later.
  */
 export const layoutAtom = atom((get): Layout => {
-  const { cellIds, cellRuntime } = get(notebookAtom);
+  const model = get(activeDocumentModelAtom);
+  const document = model === null ? null : get(model.documentAtom);
+  const { cellRuntime } = get(notebookAtom);
   return deriveLayout(
-    cellIds.getColumns().map((column) => ({
-      id: column.id,
-      ids: column.inOrderIds,
-    })),
+    columnsOf(document, get(columnIdsAtom)),
     (id) => cellRuntime[id]?.outline ?? null,
     get(collapsedAtom),
   );

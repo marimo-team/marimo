@@ -15,9 +15,15 @@ import { canCollapseOutline } from "../dom/outline";
 import type { CellConfig } from "../network/types";
 import { store } from "../state/jotai";
 import {
+  addColumnAtom,
+  addColumnBreakpointAtom,
+  compactColumnsAtom,
+  deleteColumnAtom,
   dropCellOverCellAtom,
   dropCellOverColumnAtom,
+  mergeAllColumnsAtom,
   moveCellAtom,
+  moveColumnAtom,
   moveCellsRelativeToAtom,
   moveCellToIndexAtom,
   placeCells,
@@ -41,6 +47,7 @@ import { CellId, SCRATCH_CELL_ID, SETUP_CELL_ID } from "./ids";
 import {
   collapsedAtom,
   columnOf,
+  findColumn,
   foldOf,
   foldsHiding,
   layoutAtom,
@@ -90,7 +97,7 @@ export const createCellAtom = atom(
     if (options.skipIfCodeExists && hasCellWithCode(document, code)) {
       return null;
     }
-    const { cellIds } = get(notebookAtom);
+    const layout = get(layoutAtom);
 
     // The document knows cells and order. Columns come from each cell's
     // `column` config, which the cell before it provides unless it starts a
@@ -101,7 +108,6 @@ export const createCellAtom = atom(
       // A folded header hides the cells after it, so a cell placed after
       // the header goes after its fold. Any section that holds the anchor
       // holds the new cell too, so when it is to be focused, those open.
-      const layout = get(layoutAtom);
       const fold = foldOf(layout, options.after);
       placement = { after: fold?.at(-1) ?? options.after };
       const sections = foldsHiding(layout, options.after);
@@ -118,19 +124,21 @@ export const createCellAtom = atom(
         });
       }
     } else if (options.before) {
-      const tree = cellIds.findWithId(options.before);
-      const index = cellIds.indexOf(tree);
+      const target = columnOf(layout, options.before);
+      const index = layout.columns.indexOf(target);
       placement = { before: options.before };
-      if (index > 0 && tree.indexOfOrThrow(options.before) === 0) {
+      if (index > 0 && target.ids[0] === options.before) {
         column = index;
       }
     } else {
-      const tree =
-        (options.endOf && cellIds.get(options.endOf)) ?? cellIds.atOrThrow(0);
-      if (tree.length > 0) {
-        placement = { after: tree.last() };
-      } else if (cellIds.colLength > 1) {
-        column = cellIds.indexOf(tree);
+      const target =
+        (options.endOf && findColumn(layout, options.endOf)) ??
+        layout.columns[0];
+      const last = target.ids.at(-1);
+      if (last !== undefined) {
+        placement = { after: last };
+      } else if (layout.columns.length > 1) {
+        column = layout.columns.indexOf(target);
       }
     }
 
@@ -518,9 +526,21 @@ export function useCellActions() {
   const dropCellOverColumn = useSetAtom(dropCellOverColumnAtom);
   const sendToTop = useSetAtom(sendToTopAtom);
   const sendToBottom = useSetAtom(sendToBottomAtom);
+  const addColumn = useSetAtom(addColumnAtom);
+  const addColumnBreakpoint = useSetAtom(addColumnBreakpointAtom);
+  const deleteColumn = useSetAtom(deleteColumnAtom);
+  const mergeAllColumns = useSetAtom(mergeAllColumnsAtom);
+  const compactColumns = useSetAtom(compactColumnsAtom);
+  const moveColumn = useSetAtom(moveColumnAtom);
   return useMemo(
     () => ({
       ...operations,
+      addColumn,
+      addColumnBreakpoint,
+      deleteColumn,
+      mergeAllColumns,
+      compactColumns,
+      moveColumn,
       moveCell,
       moveCellToIndex,
       moveCellsRelativeTo,

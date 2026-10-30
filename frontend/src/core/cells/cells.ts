@@ -163,74 +163,6 @@ const {
   useActions,
   valueAtom: notebookAtom,
 } = createReducerAndAtoms(initialNotebookState, {
-  moveColumn: (
-    state,
-    action: {
-      column: CellColumnId;
-      overColumn: CellColumnId | "_left_" | "_right_";
-    },
-  ) => {
-    if (action.column === action.overColumn) {
-      return state;
-    }
-    return {
-      ...state,
-      cellIds: state.cellIds.moveColumn(action.column, action.overColumn),
-    };
-  },
-  addColumn: (state, action: { columnId: CellColumnId }) => {
-    // Add column and new cell
-    const newCellId = CellId.create();
-    return {
-      ...state,
-      cellIds: state.cellIds.addColumn(action.columnId, [newCellId]),
-      cellData: {
-        ...state.cellData,
-        [newCellId]: createCell({
-          id: newCellId,
-        }),
-      },
-      cellRuntime: {
-        ...state.cellRuntime,
-        [newCellId]: createCellRuntimeState(),
-      },
-      cellHandles: {
-        ...state.cellHandles,
-        [newCellId]: createRef(),
-      },
-      scrollKey: newCellId,
-    };
-  },
-  addColumnBreakpoint: (state, action: { cellId: CellId }) => {
-    const { cellId } = action;
-    if (state.cellIds.getColumns()[0].inOrderIds[0] === cellId) {
-      return state;
-    }
-    return {
-      ...state,
-      cellIds: state.cellIds.insertBreakpoint(cellId),
-    };
-  },
-  deleteColumn: (state, action: { columnId: CellColumnId }) => {
-    // Move all cells in the column to the previous column
-    const { columnId } = action;
-    return {
-      ...state,
-      cellIds: state.cellIds.delete(columnId),
-    };
-  },
-  mergeAllColumns: (state) => {
-    return {
-      ...state,
-      cellIds: state.cellIds.mergeAllColumns(),
-    };
-  },
-  compactColumns: (state) => {
-    return {
-      ...state,
-      cellIds: state.cellIds.compact(),
-    };
-  },
   /**
    * Put moved cells back where they were.
    *
@@ -866,10 +798,6 @@ export const numColumnsAtom = atom(
 export const hasCellsAtom = atom(
   (get) => get(notebookAtom).cellIds.idLength > 0,
 );
-export const columnIdsAtom = atom((get) =>
-  get(notebookAtom).cellIds.getColumnIds(),
-);
-
 export const cellDataAtom = atomFamily((cellId: CellId) =>
   atom((get) => get(notebookAtom).cellData[cellId]),
 );

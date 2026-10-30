@@ -124,7 +124,6 @@ afterAll(() => {
 });
 
 import { defaultUserConfig } from "@/core/config/config-schema";
-import { MultiColumn } from "@/utils/id-tree";
 import { focusCell, focusCellEditor } from "../focus-utils";
 import {
   type CellSelectionState,
@@ -1426,12 +1425,27 @@ describe("useCellNavigationProps", () => {
           },
         },
       });
-      // Override cellIds to be multi-column
-      notebookState.cellIds = MultiColumn.from([
-        [cellId1, cellId3],
-        [cellId2, cellId4, cellId5],
-      ]);
       store.set(notebookAtom, notebookState);
+      // The layout reads columns from the document's cells.
+      stopModel();
+      const inColumn = (id: CellId, column: number) =>
+        cell(id, "", { config: { ...CONFIG, column } });
+      ({ model, stop: stopModel } = mockDocumentModel(
+        store,
+        withCells(
+          documentOf(),
+          {
+            c1: null,
+            c2: null,
+            [cellId1]: inColumn(cellId1, 0),
+            [cellId3]: inColumn(cellId3, 0),
+            [cellId2]: inColumn(cellId2, 1),
+            [cellId4]: inColumn(cellId4, 1),
+            [cellId5]: inColumn(cellId5, 1),
+          },
+          [cellId1, cellId3, cellId2, cellId4, cellId5],
+        ),
+      ));
 
       // Mock DOM elements and their positions
       const mockGetElementById = vi.spyOn(document, "getElementById");

@@ -7,15 +7,21 @@ import { cell, CONFIG } from "@/core/notebook/document/__tests__/fixtures";
 import type { CellIndex } from "@/utils/id-tree";
 import { collapseCellAtom, undoDeleteCellAtom } from "../actions";
 import {
+  addColumnAtom,
+  addColumnBreakpointAtom,
+  compactColumnsAtom,
+  deleteColumnAtom,
   dropCellOverCellAtom,
   dropCellOverColumnAtom,
+  mergeAllColumnsAtom,
   moveCellAtom,
   moveCellsRelativeToAtom,
   moveCellToIndexAtom,
+  moveColumnAtom,
   sendToBottomAtom,
   sendToTopAtom,
 } from "../arrange";
-import { layoutAtom } from "../layout";
+import { columnIdsAtom, layoutAtom } from "../layout";
 import { setupNotebook } from "./harness";
 
 vi.mock("../scrollCellIntoView", () => ({
@@ -259,5 +265,106 @@ describe("moveCellsRelativeToAtom", () => {
       position: "before",
     });
     expect(order()).toEqual([c2, c3, c1]);
+  });
+});
+
+describe("columns", () => {
+  it("adds a column after another with a new cell, and names it", () => {
+    const { store, columns, notebook, cellIn } = setup();
+    const [first] = store.get(layoutAtom).columns.map((c) => c.id);
+
+    store.set(addColumnAtom, { columnId: first });
+
+    const [left, right] = store.get(layoutAtom).columns;
+    expect(left.id).toBe(first);
+    expect(right.ids).toHaveLength(1);
+    const id = right.ids[0];
+    expect(columns()).toEqual([[c1, c2], [id]]);
+    expect(cellIn(id)?.config.column).toBe(1);
+    expect(store.get(columnIdsAtom)).toEqual([first, right.id]);
+    expect(notebook().scrollKey).toBe(id);
+  });
+
+  it("starts a column at a cell, but not at the first cell", () => {
+    const { store, model, columns, cellIn } = setup({
+      c3: cell("c3", "z = 3"),
+    });
+    const before = store.get(model.documentAtom);
+
+    store.set(addColumnBreakpointAtom, { cellId: c1 });
+    expect(store.get(model.documentAtom)).toBe(before);
+
+    store.set(addColumnBreakpointAtom, { cellId: c2 });
+    expect(columns()).toEqual([[c1], [c2, c3]]);
+    expect(cellIn(c2)?.config.column).toBe(1);
+    expect(store.get(layoutAtom).columns).toHaveLength(2);
+  });
+
+  it("deletes a column into the one before it, or after it for the first", () => {
+    const { store, columns, cellIn } = twoColumns();
+    const [first, second] = store.get(layoutAtom).columns.map((c) => c.id);
+
+    store.set(deleteColumnAtom, { columnId: first });
+    expect(columns()).toEqual([[c1, c2, c3, c4]]);
+    expect(cellIn(c3)?.config.column).toBeNull();
+    expect(store.get(columnIdsAtom)).toEqual([second]);
+
+    store.set(deleteColumnAtom, { columnId: second });
+    expect(columns()).toEqual([[c1, c2, c3, c4]]);
+  });
+
+  it("merges every column into the first", () => {
+    const { store, columns, cellIn } = twoColumns();
+    const [first] = store.get(layoutAtom).columns.map((c) => c.id);
+
+    store.set(mergeAllColumnsAtom);
+
+    expect(columns()).toEqual([[c1, c2, c3, c4]]);
+    expect(cellIn(c3)?.config.column).toBeNull();
+    expect(store.get(layoutAtom).columns.map((c) => c.id)).toEqual([first]);
+  });
+
+  it("compacts the columns a drag left empty", () => {
+    const { store, columns } = twoColumns();
+    const [first, second] = store.get(layoutAtom).columns.map((c) => c.id);
+    store.set(dropCellOverColumnAtom, { cellId: c3, columnId: first });
+    store.set(dropCellOverColumnAtom, { cellId: c4, columnId: first });
+    expect(columns()).toEqual([[c4, c3, c1, c2], []]);
+    expect(store.get(layoutAtom).columns.map((c) => c.id)).toEqual([
+      first,
+      second,
+    ]);
+
+    store.set(compactColumnsAtom);
+
+    expect(columns()).toEqual([[c4, c3, c1, c2]]);
+    expect(store.get(columnIdsAtom)).toEqual([first]);
+  });
+
+  it("moves a column, keeping its id with it", () => {
+    const { store, columns, cellIn } = twoColumns();
+    const [first, second] = store.get(layoutAtom).columns.map((c) => c.id);
+
+    store.set(moveColumnAtom, { column: first, overColumn: second });
+    expect(columns()).toEqual([
+      [c3, c4],
+      [c1, c2],
+    ]);
+    expect(store.get(layoutAtom).columns.map((c) => c.id)).toEqual([
+      second,
+      first,
+    ]);
+    expect(cellIn(c3)?.config.column).toBe(0);
+    expect(cellIn(c1)?.config.column).toBe(1);
+
+    store.set(moveColumnAtom, { column: first, overColumn: "_left_" });
+    expect(columns()).toEqual([
+      [c1, c2],
+      [c3, c4],
+    ]);
+    expect(store.get(layoutAtom).columns.map((c) => c.id)).toEqual([
+      first,
+      second,
+    ]);
   });
 });

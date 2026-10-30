@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { cellId } from "@/__tests__/branded";
 import { createStore } from "jotai";
 import { cell, CONFIG } from "@/core/notebook/document/__tests__/fixtures";
-import type { CellIndex } from "@/utils/id-tree";
+import type { CellColumnId, CellIndex } from "@/utils/id-tree";
 import {
   addSetupCellAtom,
   collapseAllCellsAtom,
@@ -31,7 +31,7 @@ import {
   restoredEditorStatesAtom,
   shownHiddenCodeAtom,
 } from "../editor";
-import { collapsedAtom, layoutAtom } from "../layout";
+import { collapsedAtom, columnIdsAtom, layoutAtom } from "../layout";
 import { type CellId, SCRATCH_CELL_ID, SETUP_CELL_ID } from "../ids";
 import { setupNotebook } from "./harness";
 import { focusAndScrollCellIntoView } from "../scrollCellIntoView";
@@ -128,17 +128,16 @@ describe("createCellAtom", () => {
   });
 
   it("names the column when appending to an empty column", () => {
-    const { store, notebook, cellIn } = setup();
-    store.set(notebookAtom, (state) => ({
-      ...state,
-      cellIds: state.cellIds.addColumn(state.cellIds.atOrThrow(0).id),
-    }));
-    const empty = notebook().cellIds.atOrThrow(1).id;
+    const { store, columns, cellIn } = setup();
+    // A column the user added and has not filled yet.
+    const empty = "column-empty" as CellColumnId;
+    store.set(columnIdsAtom, [store.get(layoutAtom).columns[0].id, empty]);
+    expect(columns()).toEqual([[c1, c2], []]);
 
     const id = store.set(createCellAtom, { endOf: empty });
 
     expect(cellIn(id as string)?.config.column).toBe(1);
-    expect(notebook().cellIds.atOrThrow(1).inOrderIds).toEqual([id]);
+    expect(columns()).toEqual([[c1, c2], [id]]);
   });
 
   it("creates nothing when a cell already has the code", () => {

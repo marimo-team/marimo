@@ -222,19 +222,6 @@ describe("applyDocument", () => {
     expect(next.cellIds.getColumnIds()).toEqual(state.cellIds.getColumnIds());
     expect(next.cellIds.atOrThrow(1).inOrderIds).toEqual([d]);
   });
-
-  it("keeps a trailing empty column", () => {
-    const state = notebookOf([cell(a)]);
-    const withEmpty = {
-      ...state,
-      cellIds: state.cellIds.addColumn(state.cellIds.atOrThrow(0).id),
-    };
-
-    const next = applyDocument(withEmpty, documentOf([cell(a, { code: "" })]));
-
-    expect(next.cellIds.colLength).toBe(2);
-    expect(next.cellData[a].code).toBe("");
-  });
 });
 
 describe("documentEditMiddleware", () => {
@@ -280,18 +267,6 @@ describe("documentEditMiddleware", () => {
     });
 
     expect(calls).toEqual([["setCode", a, "a = 2"]]);
-  });
-
-  it("clears columns merged into one", () => {
-    state = notebookOf([
-      cell(a),
-      cell(b),
-      cell(c, { config: { ...cell(c).config, column: 1 } }),
-    ]);
-
-    actions.mergeAllColumns();
-
-    expect(calls).toEqual([["updateConfig", c, { column: null }]]);
   });
 
   it("ignores the document and the kernel's run state", () => {
