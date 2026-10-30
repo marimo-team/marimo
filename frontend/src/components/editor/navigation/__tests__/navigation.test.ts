@@ -165,7 +165,6 @@ const mockCellActions = MockNotebook.cellActions({
   moveCell: vi.fn(),
   sendToTop: vi.fn(),
   sendToBottom: vi.fn(),
-  markTouched: vi.fn(),
   deleteCells: vi.fn(),
   undoDeleteCell: vi.fn(),
 });

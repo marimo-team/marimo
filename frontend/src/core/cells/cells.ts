@@ -29,6 +29,7 @@ import { createDeepEqualAtom, store } from "../state/jotai";
 import { isWasm } from "../wasm/utils";
 import { prepareCellForExecution, transitionCell } from "./cell";
 import { applyDocument, documentEditMiddleware } from "./document";
+import { isCodeHidden, shownHiddenCodeAtom } from "./editor";
 import { CellId, SCRATCH_CELL_ID } from "./ids";
 import { type CellLog, getCellLogsForMessage } from "./logs";
 import { focusAndScrollCellIntoView } from "./scrollCellIntoView";
@@ -111,12 +112,6 @@ export interface NotebookState {
    * Logs of all cell messages
    */
   cellLogs: CellLog[];
-  /**
-   * Set of cells that have been created that are initialized with `hide_code`.
-   *
-   * These start temporarily open until their first blur event.
-   */
-  untouchedNewCells: Set<CellId>;
 }
 
 function withScratchCell(notebookState: NotebookState): NotebookState {
@@ -155,7 +150,6 @@ export function initialNotebookState(): NotebookState {
     history: [],
     scrollKey: null,
     cellLogs: [],
-    untouchedNewCells: new Set<CellId>(),
   });
 }
 
@@ -520,19 +514,6 @@ const {
       scrollKey: cellIds[0] ?? null,
     };
   },
-  clearSerializedEditorState: (state, action: { cellId: CellId }) => {
-    const { cellId } = action;
-    return updateCellData({
-      state,
-      cellId,
-      cellReducer: (cell) => {
-        return {
-          ...cell,
-          serializedEditorState: null,
-        };
-      },
-    });
-  },
   updateCellCode: (
     state,
     action: {
@@ -708,34 +689,6 @@ const {
     }
     return { ...state, cellRuntime };
   },
-  markTouched: (state, action: { cellId: CellId }) => {
-    const { cellId } = action;
-
-    if (state.untouchedNewCells.has(cellId)) {
-      const nextUntouchedNewCells = new Set(state.untouchedNewCells);
-      nextUntouchedNewCells.delete(cellId);
-      return {
-        ...state,
-        untouchedNewCells: nextUntouchedNewCells,
-      };
-    }
-
-    return state;
-  },
-  markUntouched: (state, action: { cellId: CellId }) => {
-    const { cellId } = action;
-
-    if (!state.untouchedNewCells.has(cellId)) {
-      const nextUntouchedNewCells = new Set(state.untouchedNewCells);
-      nextUntouchedNewCells.add(cellId);
-      return {
-        ...state,
-        untouchedNewCells: nextUntouchedNewCells,
-      };
-    }
-
-    return state;
-  },
   scrollToTarget: (state) => {
     // Scroll to the specified cell and clear the scroll key.
     const scrollKey = state.scrollKey;
@@ -752,7 +705,11 @@ const {
     focusAndScrollCellIntoView({
       cellId: cellId,
       cell: state.cellHandles[cellId],
-      isCodeHidden: isCellCodeHidden(state, cellId),
+      isCodeHidden: isCodeHidden(
+        state.cellData[cellId]?.config.hide_code,
+        store.get(shownHiddenCodeAtom),
+        cellId,
+      ),
       codeFocus: undefined,
       variableName: undefined,
     });
@@ -932,16 +889,6 @@ const {
 // so that the document edit middleware can import CellActions and
 // strictly type the dispatched actions without creating a circular dependency.
 addMiddleware(documentEditMiddleware);
-
-export function isCellCodeHidden(
-  state: NotebookState,
-  cellId: CellId,
-): boolean {
-  return (
-    Boolean(state.cellData[cellId].config.hide_code) &&
-    !state.untouchedNewCells.has(cellId)
-  );
-}
 
 // Helper function to update a cell in the array
 function updateCellRuntimeState({
@@ -1273,10 +1220,6 @@ export function flattenTopLevelNotebookCells(
   );
 }
 
-export function createUntouchedCellAtom(cellId: CellId): Atom<boolean> {
-  return atom((get) => get(notebookAtom).untouchedNewCells.has(cellId));
-}
-
 export function createTracebackInfoAtom(
   cellId: CellId,
 ): Atom<TracebackInfo[] | undefined> {
@@ -1351,7 +1294,6 @@ export const exportedForTesting = {
   reducer,
   createActions,
   initialNotebookState,
-  isCellCodeHidden,
   // Export atom families for testing cleanup
   cellDataAtom,
   cellRuntimeAtom,

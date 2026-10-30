@@ -39,6 +39,7 @@ import { aiCompletionCellAtom } from "@/core/ai/state";
 import { maybeAddMarimoImport } from "@/core/cells/add-missing-import";
 import { hasOnlyOneCellAtom } from "@/core/cells/cells";
 import { useCellActions } from "@/core/cells/actions";
+import { showHiddenCodeAtom } from "@/core/cells/editor";
 import { type CellId, SETUP_CELL_ID } from "@/core/cells/ids";
 import { useNotebookDocumentEdit } from "@/core/notebook/document";
 import type { CellData } from "@/core/cells/types";
@@ -89,9 +90,9 @@ export function useCellActionButtons({ cell, closePopover }: Props) {
     sendToBottom,
     addColumnBreakpoint,
     clearCellOutput,
-    markUntouched,
     createCell,
   } = useCellActions();
+  const showHiddenCode = useSetAtom(showHiddenCodeAtom);
   const edit = useNotebookDocumentEdit();
   const splitCell = useSplitCellCallback();
   const runCell = useRunCell(cell?.cellId);
@@ -229,7 +230,7 @@ export function useCellActionButtons({ cell, closePopover }: Props) {
                 hide_code: MARKDOWN_INITIAL_HIDE_CODE,
               }),
             );
-            markUntouched({ cellId });
+            showHiddenCode({ cellId });
           }
         },
         hidden: isSetupCell,
