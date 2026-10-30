@@ -384,10 +384,11 @@ class EditCellsCommand(Command):
     """Apply one edit of the notebook's cells to the kernel.
 
     Sent when the notebook changes without a run, as a host edit does.
-    Changed code is registered without running, so no later run uses
-    code the notebook no longer has. Deletions and configs take effect
-    together, before any cell runs because of them, so a cell the edit
-    deletes or disables does not run when a cell it depended on goes.
+    The kernel replaces code it holds for cells that have not run yet;
+    a cell that has run takes new code from its next run. Deletions and
+    configs take effect together, before any cell runs because of them,
+    so a cell the edit deletes or disables does not run when a cell it
+    depended on goes.
 
     Attributes:
         codes: New code for each cell the edit created or changed.
