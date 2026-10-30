@@ -49,7 +49,7 @@ const { valueAtom: pendingDeleteStateAtom, useActions } = createReducerAndAtoms(
       const variables = store.get(variablesAtom);
 
       const emptyCells = new Set(
-        notebook.cellIds.inOrderIds.filter(
+        notebook.cellIds.filter(
           (id) => notebook.cellData[id].code.trim() === "",
         ),
       );

@@ -1,15 +1,10 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 /* oxlint-disable typescript/no-explicit-any */
 import { describe, expect, it } from "vitest";
-import {
-  getCellConfigs,
-  initialNotebookState,
-  type NotebookState,
-} from "@/core/cells/cells";
+import { initialNotebookState, type NotebookState } from "@/core/cells/cells";
 import { CellId } from "@/core/cells/ids";
-import type { CellData, CellRuntimeState } from "@/core/cells/types";
+import type { CellData } from "@/core/cells/types";
 import type { OutputMessage } from "@/core/kernel/messages";
-import { MultiColumn } from "@/utils/id-tree";
 import {
   disabledCellIds,
   enabledCellIds,
@@ -18,103 +13,10 @@ import {
   staleCellIds,
 } from "../utils";
 
-describe("getCellConfigs", () => {
-  it("should return correct cell configs with column indices", () => {
-    // Create mock cell IDs
-    const cellId1 = CellId.create();
-    const cellId2 = CellId.create();
-    const cellId3 = CellId.create();
-    const cellId4 = CellId.create();
-
-    // Create a mock NotebookState
-    const mockState: NotebookState = {
-      ...initialNotebookState(),
-      cellIds: MultiColumn.from([
-        [cellId1, cellId2],
-        [cellId3, cellId4],
-      ]),
-      cellData: {
-        [cellId1]: {
-          id: cellId1,
-          config: { hide_code: false, disabled: false },
-        } as CellData,
-        [cellId2]: {
-          id: cellId2,
-          config: { hide_code: true, disabled: false },
-        } as CellData,
-        [cellId3]: {
-          id: cellId3,
-          config: { hide_code: false, disabled: true },
-        } as CellData,
-        [cellId4]: {
-          id: cellId4,
-          config: { hide_code: true, disabled: true },
-        } as CellData,
-      },
-      cellRuntime: {} as Record<CellId, CellRuntimeState>,
-    };
-
-    // Call the function
-    const result = getCellConfigs(mockState);
-
-    // Assert the results
-    expect(result).toEqual([
-      { hide_code: false, disabled: false, column: 0 },
-      { hide_code: true, disabled: false, column: null },
-      { hide_code: false, disabled: true, column: 1 },
-      { hide_code: true, disabled: true, column: null },
-    ]);
-
-    // Check that the original state was not modified
-    expect(mockState.cellData[cellId1].config).toEqual({
-      hide_code: false,
-      disabled: false,
-    });
-    expect(mockState.cellData[cellId2].config).toEqual({
-      hide_code: true,
-      disabled: false,
-    });
-    expect(mockState.cellData[cellId3].config).toEqual({
-      hide_code: false,
-      disabled: true,
-    });
-    expect(mockState.cellData[cellId4].config).toEqual({
-      hide_code: true,
-      disabled: true,
-    });
-  });
-
-  it("should handle single column", () => {
-    const cellId1 = CellId.create();
-    const mockState: NotebookState = {
-      ...initialNotebookState(),
-      cellIds: MultiColumn.from([[cellId1]]),
-      cellData: {
-        [cellId1]: {
-          id: cellId1,
-          config: { hide_code: false, disabled: false },
-        } as CellData,
-      },
-    };
-
-    const result = getCellConfigs(mockState);
-    expect(result).toEqual([
-      { hide_code: false, disabled: false, column: null },
-    ]);
-  });
-
-  it("should handle empty notebook state", () => {
-    const mockState: NotebookState = initialNotebookState();
-    const result = getCellConfigs(mockState);
-
-    expect(result).toEqual([]);
-  });
-});
-
 describe("staleCellIds", () => {
   it("should return cell IDs that have not been instantiated when auto-instantiate is false", () => {
     const state: NotebookState = {
-      cellIds: MultiColumn.from([["cell1", "cell2"]]),
+      cellIds: ["cell1", "cell2"],
       cellData: {
         cell1: {
           lastExecutionTime: null,
@@ -154,7 +56,7 @@ describe("staleCellIds", () => {
 
   it("should use lastExecutionTime when runElapsedTimeMs is null", () => {
     const state: NotebookState = {
-      cellIds: MultiColumn.from([["cell1", "cell2"]]),
+      cellIds: ["cell1", "cell2"],
       cellData: {
         cell1: {
           lastExecutionTime: null,
@@ -194,7 +96,7 @@ describe("staleCellIds", () => {
 
   it("should return cell IDs that are edited", () => {
     const state: NotebookState = {
-      cellIds: MultiColumn.from([["cell1", "cell2"]]),
+      cellIds: ["cell1", "cell2"],
       cellData: {
         cell1: {
           lastExecutionTime: 123,
@@ -234,7 +136,7 @@ describe("staleCellIds", () => {
 
   it("should return cell IDs that are interrupted", () => {
     const state: NotebookState = {
-      cellIds: MultiColumn.from([["cell1", "cell2"]]),
+      cellIds: ["cell1", "cell2"],
       cellData: {
         cell1: {
           lastExecutionTime: 123,
@@ -274,7 +176,7 @@ describe("staleCellIds", () => {
 
   it("should not return cell IDs that are disabled", () => {
     const state: NotebookState = {
-      cellIds: MultiColumn.from([["cell1", "cell2"]]),
+      cellIds: ["cell1", "cell2"],
       cellData: {
         cell1: {
           lastExecutionTime: 123,
@@ -394,7 +296,7 @@ describe("disabledCellIds", () => {
 
     const state: NotebookState = {
       ...initialNotebookState(),
-      cellIds: MultiColumn.from([[cellId1, cellId2, cellId3]]),
+      cellIds: [cellId1, cellId2, cellId3],
       cellData: {
         [cellId1]: { id: cellId1, config: { disabled: true } } as CellData,
         [cellId2]: { id: cellId2, config: { disabled: false } } as CellData,
@@ -415,7 +317,7 @@ describe("enabledCellIds", () => {
 
     const state: NotebookState = {
       ...initialNotebookState(),
-      cellIds: MultiColumn.from([[cellId1, cellId2, cellId3]]),
+      cellIds: [cellId1, cellId2, cellId3],
       cellData: {
         [cellId1]: { id: cellId1, config: { disabled: true } } as CellData,
         [cellId2]: { id: cellId2, config: { disabled: false } } as CellData,

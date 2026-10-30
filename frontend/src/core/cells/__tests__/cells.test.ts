@@ -24,11 +24,6 @@ import { adaptiveLanguageConfiguration } from "@/core/codemirror/language/extens
 import { OverridingHotkeyProvider } from "@/core/hotkeys/hotkeys";
 import type { OutputMessage } from "@/core/kernel/messages";
 import type { CellConfig } from "@/core/network/types";
-import {
-  type CollapsibleTree,
-  MultiColumn,
-  type CellColumnId,
-} from "@/utils/id-tree";
 import type { Seconds } from "@/utils/time";
 import {
   exportedForTesting,
@@ -61,8 +56,6 @@ vi.mock("../scrollCellIntoView", async (importOriginal) => {
   };
 });
 
-const FIRST_COLUMN = 0;
-
 const { initialNotebookState, reducer, createActions } = exportedForTesting;
 
 function formatCells(notebook: NotebookState) {
@@ -78,14 +71,7 @@ function formatCells(notebook: NotebookState) {
     const cells = cellsId.map((cellId) => cellData[cellId]);
     return cells.map((cell) => printCell(cell)).join("\n\n");
   };
-  const printColumn = (column: CollapsibleTree<CellId>, columnIdx: number) => {
-    return `> col ${columnIdx}\n${printCells(column.inOrderIds)}`;
-  };
-  const columns = cellIds.getColumns();
-  if (columns.length > 1) {
-    return wrap(columns.map(printColumn).join("\n\n"));
-  }
-  return wrap(printCells(cellIds.inOrderIds));
+  return wrap(printCells(cellIds));
 }
 
 function createEditor(content: string) {
@@ -152,7 +138,7 @@ describe("cell reducer", () => {
     hideCode,
     autoFocus = true,
   }: {
-    cellId: CellId | "__end__" | { type: "__end__"; columnId: CellColumnId };
+    cellId: CellId | "__end__";
     before: boolean;
     code?: string;
     name?: string;
@@ -161,26 +147,16 @@ describe("cell reducer", () => {
     hideCode?: boolean;
     autoFocus?: boolean;
   }): CellId {
-    let column: CollapsibleTree<CellId>;
-    let cellIndex: number;
-    if (cellId === "__end__") {
-      column = state.cellIds.atOrThrow(0);
-      cellIndex = column.length;
-    } else if (typeof cellId === "string") {
-      column = state.cellIds.findWithId(cellId);
-      cellIndex = column.topLevelIds.indexOf(cellId);
-    } else {
-      column = state.cellIds.get(cellId.columnId) ?? state.cellIds.atOrThrow(0);
-      cellIndex = column.length;
-    }
+    const cellIndex =
+      cellId === "__end__"
+        ? state.cellIds.length
+        : state.cellIds.indexOf(cellId);
     const id = newCellId ?? CellId.create();
+    const cellIds = [...state.cellIds];
+    cellIds.splice(before ? cellIndex : cellIndex + 1, 0, id);
     state = {
       ...state,
-      cellIds: state.cellIds.insertId(
-        id,
-        column.id,
-        before ? cellIndex : cellIndex + 1,
-      ),
+      cellIds,
       cellData: {
         ...state.cellData,
         [id]: createCell({
@@ -215,9 +191,8 @@ describe("cell reducer", () => {
     i = 0;
 
     state = initialNotebookState();
-    state.cellIds = MultiColumn.from([]);
     seedCell({ cellId: "__end__", before: false });
-    firstCellId = state.cellIds.inOrderIds[0];
+    firstCellId = state.cellIds[0];
   });
 
   afterAll(() => {
@@ -1281,7 +1256,7 @@ describe("cell reducer", () => {
   it("can clear output of all cells", () => {
     // Create multiple cells with output
     seedCell({ cellId: firstCellId, before: false });
-    const secondCellId = state.cellIds.atOrThrow(FIRST_COLUMN).atOrThrow(1);
+    const secondCellId = state.cellIds[1];
 
     // Add output to both cells
     const outputMessage = {
@@ -1363,7 +1338,7 @@ describe("cell reducer", () => {
         exportedForTesting;
 
       seedCell({ cellId: firstCellId, before: false });
-      const newCellId = state.cellIds.inOrderIds[1];
+      const newCellId = state.cellIds[1];
 
       const dataAtom1 = cellDataAtom(newCellId);
       const runtimeAtom1 = cellRuntimeAtom(newCellId);

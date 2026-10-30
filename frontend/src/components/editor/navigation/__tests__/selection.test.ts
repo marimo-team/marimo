@@ -3,8 +3,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { cellId } from "@/__tests__/branded";
 import type { CellId } from "@/core/cells/ids";
-import type { Layout } from "@/core/cells/layout";
-import type { CellColumnId } from "@/utils/id-tree";
+import type { CellColumnId, Layout } from "@/core/cells/layout";
 import type { CellSelectionState } from "../selection";
 import { exportedForTesting } from "../selection";
 

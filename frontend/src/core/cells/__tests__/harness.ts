@@ -50,7 +50,7 @@ export function setupNotebook(
     model,
     /** Deliver a document from the host. Edits pending here stay on top. */
     host: (document: Document) => store.set(documentAtom, document),
-    order: () => store.get(notebookAtom).cellIds.inOrderIds,
+    order: () => store.get(notebookAtom).cellIds,
     /** The cells of each column, as the page lays them out. */
     columns: () => store.get(layoutAtom).columns.map((column) => column.ids),
     /** The columns' ids, as the page keys them. */

@@ -36,7 +36,7 @@ export function maybeAddMissingImport({
     `import[ \t]+${moduleName}[ \t]+as[ \t]+${variableName}`,
     "g",
   );
-  for (const cell of cellIds.inOrderIds) {
+  for (const cell of cellIds) {
     if (regex.test(cellData[cell].code)) {
       return false;
     }

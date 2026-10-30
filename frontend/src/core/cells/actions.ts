@@ -7,7 +7,6 @@ import { atom, type Getter, type Setter, useSetAtom } from "jotai";
 import { useMemo } from "react";
 import { scrollAndHighlightCell } from "@/components/editor/links/cell-link";
 import type { EditableDocument } from "@/core/notebook/document";
-import type { CellColumnId } from "@/utils/id-tree";
 import { Logger } from "@/utils/Logger";
 import { clamp } from "@/utils/math";
 import { prepareCellCodeUpdate } from "../codemirror/language/cell-code";
@@ -48,6 +47,7 @@ import {
 } from "./editor";
 import { CellId, SCRATCH_CELL_ID, SETUP_CELL_ID } from "./ids";
 import {
+  type CellColumnId,
   collapsedAtom,
   columnOf,
   findColumn,
@@ -357,9 +357,7 @@ export const collapseAllCellsAtom = atom(null, (get, set): void => {
   set(
     collapsedAtom,
     new Set(
-      cellIds.inOrderIds.filter((id) =>
-        canCollapseOutline(cellRuntime[id]?.outline),
-      ),
+      cellIds.filter((id) => canCollapseOutline(cellRuntime[id]?.outline)),
     ),
   );
 });
@@ -392,18 +390,18 @@ export const addSetupCellAtom = atom(
   null,
   (get, set, { code }: { code?: string } = {}): void => {
     const { cellIds } = get(notebookAtom);
-    if (cellIds.setupCellExists()) {
+    if (cellIds.includes(SETUP_CELL_ID)) {
       focusWhenMounted(set, SETUP_CELL_ID);
       return;
     }
     // The setup cell leads the first column, which may be empty.
-    const first = cellIds.atOrThrow(0);
+    const first = get(layoutAtom).columns[0];
     set(createCellAtom, {
       id: SETUP_CELL_ID,
       name: SETUP_CELL_ID,
       code: code ?? "",
-      ...(first.length > 0
-        ? { before: first.atOrThrow(0) }
+      ...(first.ids.length > 0
+        ? { before: first.ids[0] }
         : { endOf: first.id }),
     });
   },
@@ -653,9 +651,7 @@ export type CellActions = ReturnType<typeof useCellActions>;
 /** Scroll to the first cell that is currently running. */
 export function notebookScrollToRunning() {
   const { cellIds, cellRuntime } = store.get(notebookAtom);
-  const cellId = cellIds.inOrderIds.find(
-    (id) => cellRuntime[id]?.status === "running",
-  );
+  const cellId = cellIds.find((id) => cellRuntime[id]?.status === "running");
   if (!cellId) {
     return;
   }

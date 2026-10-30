@@ -9,7 +9,6 @@ import {
   document as documentOf,
   withCells,
 } from "@/core/notebook/document/__tests__/fixtures";
-import type { CellIndex } from "@/utils/id-tree";
 import { collapseCellAtom, undoDeleteCellAtom } from "../actions";
 import {
   addColumnAtom,
@@ -231,8 +230,8 @@ describe("moveCellsRelativeToAtom", () => {
       targetCellId: c3,
       position: "after",
       previousPlacements: [
-        { columnId: column, index: 0 as CellIndex },
-        { columnId: column, index: 1 as CellIndex },
+        { columnId: column, index: 0 },
+        { columnId: column, index: 1 },
       ],
     });
     expect(order()).toEqual([c3, c1, c2]);

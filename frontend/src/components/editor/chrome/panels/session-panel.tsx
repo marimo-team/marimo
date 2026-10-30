@@ -88,7 +88,7 @@ const SessionPanel: React.FC = () => {
               No variables defined
             </div>
           ) : (
-            <VariableTable cellIds={cellIds.inOrderIds} variables={variables} />
+            <VariableTable cellIds={cellIds} variables={variables} />
           )}
         </PanelAccordionContent>
       </PanelAccordionItem>

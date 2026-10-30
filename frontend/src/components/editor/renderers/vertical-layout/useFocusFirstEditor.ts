@@ -52,7 +52,7 @@ function focusFirstEditor() {
   const { cellIds, cellData, cellHandles } = getNotebook();
 
   // Focus on the first cell if it's been mounted and is not hidden
-  for (const cellId of cellIds.iterateTopLevelIds) {
+  for (const cellId of cellIds) {
     const handle = cellHandles[cellId];
     const hidden = cellData[cellId]?.config.hide_code;
     if (!hidden && handle?.current?.editorView) {

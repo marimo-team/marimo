@@ -15,7 +15,6 @@ import { requestClientAtom } from "@/core/network/requests";
 import { resolveRequestClient } from "@/core/network/resolve";
 import type { CellConfig } from "@/core/network/types";
 import { ConnectionState } from "@/core/session/types";
-import { MultiColumn } from "@/utils/id-tree";
 import type { Milliseconds, Seconds } from "@/utils/time";
 import { Cell as EditorCell } from "../components/editor/notebook-cell";
 import { TooltipProvider } from "../components/ui/tooltip";
@@ -55,7 +54,7 @@ const Cell: React.FC<{
         lastExecutionTime: null,
       },
     },
-    cellIds: MultiColumn.from([[cid]]),
+    cellIds: [cid],
     cellRuntime: {
       [cid]: createCellRuntimeState({
         output: overrides.output ?? null,
