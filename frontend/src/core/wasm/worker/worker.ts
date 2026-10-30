@@ -12,7 +12,7 @@ import type { UserConfig } from "@/core/config/config-schema";
 import type {
   ListPackagesResponse,
   PackageOperationResponse,
-  SaveNotebookRequest,
+  SaveLayoutRequest,
 } from "@/core/network/types";
 import { decodeUtf8 } from "@/utils/strings";
 import { Deferred } from "../../../utils/Deferred";
@@ -301,7 +301,7 @@ const requestHandler = createRPCRequestHandler({
     };
   },
 
-  setNotebookLayout: async (layout: SaveNotebookRequest["layout"]) => {
+  setNotebookLayout: async (layout: SaveLayoutRequest["layout"]) => {
     const notebook = await getNotebook();
     try {
       await notebook.set_layout(JSON.stringify(layout));

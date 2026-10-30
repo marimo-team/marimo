@@ -9,12 +9,15 @@ from unittest.mock import patch
 
 import pytest
 
+from marimo._ast.cell import CellConfig
+from marimo._messaging.notebook.document import NotebookCell
 from marimo._session.notebook import (
     AppFileManager,
     load_notebook,
     new_notebook,
     read_css_file,
 )
+from marimo._utils.http import HTTPException
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -122,7 +125,6 @@ def test_manifest_and_cell_saves_preserve_each_other(
     first_writer: str,
 ) -> None:
     from marimo._environments import script_metadata
-    from marimo._server.models.models import SaveNotebookRequest
     from marimo._session.notebook.serializer import get_notebook_serializer
 
     path = tmp_path / f"notebook{suffix}"
@@ -164,16 +166,13 @@ def test_manifest_and_cell_saves_preserve_each_other(
         )
 
     def save_cells():
-        return manager.save(
-            SaveNotebookRequest(
-                cell_ids=list(manager.app.cell_manager.cell_ids()),
-                codes=["x = 2"],
-                names=["__"],
-                configs=[{}],
-                filename=str(path),
-                layout=None,
-                persist=True,
-            )
+        return manager.save_from_cells(
+            [
+                NotebookCell(
+                    id=cell_id, code="x = 2", name="__", config=CellConfig()
+                )
+                for cell_id in manager.app.cell_manager.cell_ids()
+            ]
         )
 
     first, second = (
@@ -218,7 +217,6 @@ def test_manifest_and_cell_saves_preserve_each_other(
 def test_on_persisted_reports_the_cells_and_config_written(
     tmp_path: Path,
 ) -> None:
-    from marimo._ast.cell import CellConfig
     from marimo._messaging.notebook.document import NotebookCell
     from marimo._types.ids import CellId_t
 
@@ -233,3 +231,30 @@ def test_on_persisted_reports_the_cells_and_config_written(
     fm.save_from_cells(cells)
 
     assert seen == [(cells, {"width": "full"})]
+
+
+def test_save_layout_writes_the_sidecar_and_points_the_config_at_it(
+    tmp_path: Path,
+) -> None:
+    path = tmp_path / "nb.py"
+    path.write_text("import marimo\napp = marimo.App()\n")
+    manager = AppFileManager(str(path))
+    changes: list[None] = []
+    manager.on_config_changed = lambda: changes.append(None)
+
+    manager.save_layout({"type": "grid", "data": {"columns": 24, "cells": []}})
+
+    assert manager.app.config.layout_file == "layouts/nb.grid.json"
+    assert (tmp_path / "layouts" / "nb.grid.json").exists()
+    assert len(changes) == 1
+
+    manager.save_layout(None)
+
+    assert manager.app.config.layout_file is None
+    assert len(changes) == 2
+
+
+def test_save_layout_needs_a_named_notebook() -> None:
+    manager = AppFileManager(None)
+    with pytest.raises(HTTPException):
+        manager.save_layout({"type": "grid", "data": {}})

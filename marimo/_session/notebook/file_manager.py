@@ -37,7 +37,6 @@ if TYPE_CHECKING:
 
     from marimo._server.models.models import (
         CopyNotebookRequest,
-        SaveNotebookRequest,
     )
 
 
@@ -399,83 +398,28 @@ class AppFileManager:
         if callback is not None:
             callback()
 
-    def save(
-        self,
-        request: SaveNotebookRequest,
-        *,
-        on_document_transaction: Callable[[Transaction], None] | None = None,
-    ) -> str:
-        """Save the notebook.
-
-        Args:
-            request: Save request with cell data and options
-            on_document_transaction: Called with the applied in-memory
-                document transaction before the file is persisted.
-
-        Returns:
-            Serialized notebook content
+    def save_layout(self, layout: dict[str, Any] | None) -> None:
+        """Write the layout file beside the notebook and point the app config
+        at it, or clear the config when `layout` is None.
 
         Raises:
-            HTTPException: If save fails or tries to rename
+            HTTPException: If the notebook has no file to sit beside.
         """
-        cell_ids, codes, configs, names, filename, layout = (
-            request.cell_ids,
-            request.codes,
-            request.configs,
-            request.names,
-            request.filename,
-            request.layout,
-        )
-
-        filename_path = Path(canonicalize_filename(filename))
-
         with self._save_lock:
-            if self.is_notebook_named and not self._is_same_path(
-                filename_path
-            ):
+            if self._filename is None:
                 raise HTTPException(
                     status_code=HTTPStatus.BAD_REQUEST,
-                    detail="Save handler cannot rename files.",
+                    detail="Save the notebook before saving its layout.",
                 )
-
-            transaction = self.app.apply_data(
-                cell_ids=cell_ids,
-                codes=codes,
-                names=names,
-                configs=configs,
-            )
-            if on_document_transaction is not None and transaction.changes:
-                on_document_transaction(transaction)
-
-            # Save layout if provided
-            if layout is not None:
-                app_dir = filename_path.parent
-                app_name = filename_path.name
-                layout_filename = save_layout_config(
-                    app_dir, app_name, LayoutConfig(**layout)
-                )
-                self._update_config({"layout_file": layout_filename})
-            else:
-                # Remove the layout from the config
+            if layout is None:
                 self._update_config({"layout_file": None})
-
-            if request.persist:
-                self._invalidate_autosaves()
-            contents = self._save_file(
-                filename_path,
-                notebook=self.app.to_ir(),
-                persist=request.persist,
+                return
+            layout_filename = save_layout_config(
+                self._filename.parent,
+                self._filename.name,
+                LayoutConfig(**layout),
             )
-            if request.persist:
-                self._persisted(
-                    [
-                        NotebookCell(id=i, code=c, name=n, config=f)
-                        for i, c, n, f in zip(
-                            cell_ids, codes, names, configs, strict=True
-                        )
-                    ]
-                )
-            return contents
+            self._update_config({"layout_file": layout_filename})
 
     def _persisted(self, cells: Sequence[NotebookCell]) -> None:
         callback = self.on_persisted

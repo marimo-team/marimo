@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import asyncio
+import uuid
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -240,6 +241,17 @@ class PyodideNotebook:
             list(notebook.document),
             self._session.app_manager.app.config.asdict_difference(),
         )
+
+    async def save_app_config(self, config: dict[str, Any]) -> None:
+        """Apply the config and write the notebook, as the server does."""
+        await self.update_config(config)
+        if self._persist is not None:
+            await self.save(
+                self.id,
+                if_match=None,
+                decisions={},
+                request_id=f"app-config:{uuid.uuid4()}",
+            )
 
     async def set_layout(self, raw: str) -> None:
         layout = msgspec.json.decode(raw, type=LayoutConfig | None)

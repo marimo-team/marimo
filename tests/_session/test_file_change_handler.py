@@ -28,7 +28,6 @@ from marimo._messaging.notification import (
     ReloadNotification,
 )
 from marimo._runtime.commands import SyncGraphCommand
-from marimo._server.models.models import SaveNotebookRequest
 from marimo._session.file_change_handler import (
     EditModeReloadStrategy,
     FileChangeCoordinator,
@@ -671,15 +670,11 @@ async def test_file_change_coordinator_skips_own_writes(
 
     cell_ids = list(afm.app.cell_manager.cell_ids())
     codes = list(afm.app.cell_manager.codes())
-    afm.save(
-        SaveNotebookRequest(
-            cell_ids=cell_ids,
-            filename=str(temp_file),
-            codes=codes,
-            names=["cell1"],
-            configs=[CellConfig()],
-            persist=True,
-        )
+    afm.save_from_cells(
+        [
+            NotebookCell(id=i, code=c, name=n, config=CellConfig())
+            for i, c, n in zip(cell_ids, codes, ["cell1"], strict=True)
+        ]
     )
 
     strategy = MagicMock()
@@ -707,29 +702,23 @@ async def test_file_change_coordinator_keeps_reloaded_generated_with(
 
     afm = AppFileManager(filename=str(temp_file))
     mock_session.app_file_manager = afm
-    request = SaveNotebookRequest(
-        cell_ids=[CellId_t("1")],
-        filename=str(temp_file),
-        codes=["x = 1"],
-        names=["cell1"],
-        configs=[CellConfig()],
-        persist=True,
-    )
-    afm.save(request)
+    request = [
+        NotebookCell(id=i, code=c, name=n, config=CellConfig())
+        for i, c, n in zip([CellId_t("1")], ["x = 1"], ["cell1"], strict=True)
+    ]
+    afm.save_from_cells(request)
     old_content = temp_file.read_text().replace(
         f'__generated_with = "{__version__}"',
         '__generated_with = "0.0.0"',
     )
 
-    afm.save(
-        SaveNotebookRequest(
-            cell_ids=[CellId_t("1")],
-            filename=str(temp_file),
-            codes=["x = 2"],
-            names=["cell1"],
-            configs=[CellConfig()],
-            persist=True,
-        )
+    afm.save_from_cells(
+        [
+            NotebookCell(id=i, code=c, name=n, config=CellConfig())
+            for i, c, n in zip(
+                [CellId_t("1")], ["x = 2"], ["cell1"], strict=True
+            )
+        ]
     )
 
     temp_file.write_text(old_content)
@@ -738,15 +727,16 @@ async def test_file_change_coordinator_keeps_reloaded_generated_with(
     )
     assert result.handled
 
-    afm.save(
-        SaveNotebookRequest(
-            cell_ids=list(afm.app.cell_manager.cell_ids()),
-            filename=str(temp_file),
-            codes=list(afm.app.cell_manager.codes()),
-            names=["cell1"],
-            configs=[CellConfig()],
-            persist=True,
-        )
+    afm.save_from_cells(
+        [
+            NotebookCell(id=i, code=c, name=n, config=CellConfig())
+            for i, c, n in zip(
+                list(afm.app.cell_manager.cell_ids()),
+                list(afm.app.cell_manager.codes()),
+                ["cell1"],
+                strict=True,
+            )
+        ]
     )
 
     assert '__generated_with = "0.0.0"' in temp_file.read_text()

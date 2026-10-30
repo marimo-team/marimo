@@ -538,6 +538,18 @@ async def test_host_edits_config_layout_and_reload(bridge):
     ]
 
 
+async def test_app_config_changes_are_written_when_persistence_is_set(bridge):
+    await snapshot(bridge)
+    notebook = await bridge.notebook.host.notebook(bridge.notebook.id)
+    persist = AsyncMock()
+    bridge.notebook.set_persistence(persist)
+    await bridge.save_app_config(json.dumps({"config": {"width": "full"}}))
+    persist.assert_awaited_once()
+    contents, _filename = persist.await_args.args
+    assert 'width="full"' in contents
+    assert notebook.saved_etag == notebook.document.etag
+
+
 async def test_save_includes_kernel_document_edits(bridge):
     await snapshot(bridge)
     persist = AsyncMock()

@@ -2426,47 +2426,6 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  "/api/kernel/save": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    post: {
-      parameters: {
-        query?: never;
-        header: {
-          "Marimo-Session-Id": string;
-        };
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: {
-        content: {
-          "application/json": components["schemas"]["SaveNotebookRequest"];
-        };
-      };
-      responses: {
-        /** @description Save the current app */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            "text/plain": string;
-          };
-        };
-      };
-    };
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
   "/api/kernel/save_app_config": {
     parameters: {
       query?: never;
@@ -2498,6 +2457,47 @@ export interface paths {
           };
           content: {
             "text/plain": string;
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/kernel/save_layout": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header: {
+          "Marimo-Session-Id": string;
+        };
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: {
+        content: {
+          "application/json": components["schemas"]["SaveLayoutRequest"];
+        };
+      };
+      responses: {
+        /** @description Write the notebook's layout file and point its app config at it */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["SuccessResponse"];
           };
         };
       };
@@ -6754,17 +6754,13 @@ export interface components {
       autosave_delay: number;
       format_on_save: boolean;
     };
-    /** SaveNotebookRequest */
-    SaveNotebookRequest: {
-      cellIds: components["schemas"]["CellId"][];
-      codes: string[];
-      configs: components["schemas"]["CellConfig"][];
-      filename: string;
+    /**
+     * SaveLayoutRequest
+     * @description The notebook's layout, written beside it; `None` removes it.
+     */
+    SaveLayoutRequest: {
       /** @default null */
       layout?: Record<string, any> | null;
-      names: string[];
-      /** @default true */
-      persist?: boolean;
     };
     /** SaveUserConfigurationRequest */
     SaveUserConfigurationRequest: {

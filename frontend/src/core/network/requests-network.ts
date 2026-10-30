@@ -78,15 +78,6 @@ export function createNetworkRequests(): EditRequests & RunRequests {
         })
         .then(handleResponseReturnNull);
     },
-    sendSave: (request) => {
-      return getClient()
-        .POST("/api/kernel/save", {
-          body: request,
-          parseAs: "text",
-          params: getParams(),
-        })
-        .then(handleResponseReturnNull);
-    },
     sendCopy: (request) => {
       return getClient()
         .POST("/api/kernel/copy", {
@@ -155,6 +146,14 @@ export function createNetworkRequests(): EditRequests & RunRequests {
       return getClient()
         .POST("/api/kernel/save_user_config", {
           body: request,
+        })
+        .then(handleResponseReturnNull);
+    },
+    saveLayout: (request) => {
+      return getClient()
+        .POST("/api/kernel/save_layout", {
+          body: request,
+          params: getParams(),
         })
         .then(handleResponseReturnNull);
     },
