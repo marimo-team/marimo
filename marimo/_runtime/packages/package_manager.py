@@ -81,7 +81,11 @@ class PackageManager(abc.ABC):
         return False
 
     def install_command(
-        self, package: str, *, upgrade: bool, group: str | None = None
+        self,
+        package: str | list[str],
+        *,
+        upgrade: bool,
+        group: str | None = None,
     ) -> list[str]:
         """
         Get the shell command to install a package (where applicable).
@@ -94,7 +98,7 @@ class PackageManager(abc.ABC):
 
     async def _install(
         self,
-        package: str,
+        package: str | list[str],
         *,
         upgrade: bool,
         group: str | None = None,
@@ -133,6 +137,32 @@ class PackageManager(abc.ABC):
             log_callback=log_callback,
         )
 
+    async def install_many(
+        self,
+        packages: list[str],
+        *,
+        upgrade: bool = False,
+        group: str | None = None,
+        log_callback: LogCallback | None = None,
+    ) -> bool:
+        """Install requirements in one request, preserving argument boundaries."""
+        if not packages:
+            return True
+        self._attempted_packages.update(packages)
+        return await self._install(
+            packages,
+            upgrade=upgrade,
+            group=group,
+            log_callback=log_callback,
+        )
+
+    async def uninstall_many(
+        self, packages: list[str], *, group: str | None = None
+    ) -> bool:
+        if not packages:
+            return True
+        return await self.uninstall(packages, group=group)
+
     async def stream_install(
         self,
         packages: list[str],
@@ -165,7 +195,9 @@ class PackageManager(abc.ABC):
             yield (pkg, success)
 
     @abc.abstractmethod
-    async def uninstall(self, package: str, group: str | None = None) -> bool:
+    async def uninstall(
+        self, package: str | list[str], group: str | None = None
+    ) -> bool:
         """Attempt to uninstall a package
 
         Args:

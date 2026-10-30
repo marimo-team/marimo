@@ -247,9 +247,10 @@ def _split_around_extras(package: str) -> list[str]:
     return parts
 
 
-def split_packages(package: str) -> list[str]:
+def split_packages(package: str | list[str]) -> list[str]:
     """Split one or more package specifications.
 
+    Lists preserve each requirement verbatim as one argument. For strings,
     PEP 508 requirements are parsed before falling back to handling editable
     installs, paths, and URLs.
 
@@ -262,6 +263,9 @@ def split_packages(package: str) -> list[str]:
     "package1 -e /path/to/package1 package2" -> ["package1 -e /path/to/package1", "package2"]
     "package1 @ /path/to/package1" -> ["package1 @ /path/to/package1"]
     """
+    if isinstance(package, list):
+        # A typed batch already carries argument boundaries (including spaces).
+        return package.copy()
     package = package.strip()
     if not package:
         return []
