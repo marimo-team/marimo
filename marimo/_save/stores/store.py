@@ -14,6 +14,13 @@ class Store(ABC):
     def get(self, key: str) -> bytes | None:
         """Get the bytes of a cache from the store"""
 
+    def read(self, key: str) -> bytes | None:
+        """Read bytes and return `None` only for missing keys.
+
+        Stores that suppress read errors in `get` must override this method.
+        """
+        return self.get(key)
+
     @abstractmethod
     def put(self, key: str, value: bytes) -> bool:
         """Put a cache into the store."""

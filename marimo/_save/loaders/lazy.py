@@ -472,6 +472,12 @@ class LazyStore(Store):
             self._touched_keys.add(key)
         return result
 
+    def read(self, key: str) -> bytes | None:
+        result = self._inner.read(key)
+        if result is not None:
+            self._touched_keys.add(key)
+        return result
+
     def put(self, key: str, value: bytes) -> bool:
         self._written_keys.add(key)
         return self._inner.put(key, value)
@@ -512,6 +518,12 @@ class WasmLazyStore(LazyStore):
             return self._http_get(key)
         return None
 
+    def read(self, key: str) -> bytes | None:
+        result = super().read(key)
+        if result is None and key not in _cache_state().poisoned_keys:
+            return self._http_get(key, strict=True)
+        return result
+
     def get_batch(
         self, keys: Iterable[str]
     ) -> Iterator[tuple[str, bytes | None]]:
@@ -545,15 +557,30 @@ class WasmLazyStore(LazyStore):
             raise ValueError(f"Invalid cache key: {key}")
         return key
 
-    def _http_get(self, key: str) -> bytes | None:
+    def _http_get(self, key: str, *, strict: bool = False) -> bytes | None:
         """Single sync fetch via pyodide_http-patched urllib."""
+        import urllib.error
         import urllib.request
 
         url = f"{self._base_url()}/{self._sanitize_key(key)}"
         try:
             with urllib.request.urlopen(url) as resp:
+                if strict and resp.status not in (200, 404):
+                    raise urllib.error.HTTPError(
+                        url,
+                        resp.status,
+                        "Unexpected status",
+                        resp.headers,
+                        None,
+                    )
                 data = resp.read() if resp.status == 200 else None
+        except urllib.error.HTTPError as e:
+            if strict and e.code != 404:
+                raise
+            return None
         except Exception:
+            if strict:
+                raise
             return None
         if data is not None:
             self._inner.put(key, data)
