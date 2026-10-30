@@ -3,11 +3,8 @@
 import type { EditorView } from "@codemirror/view";
 import { z } from "zod";
 import { scrollAndHighlightCell } from "@/components/editor/links/cell-link";
-import {
-  type CellPosition as NotebookCellPosition,
-  type NotebookState,
-  notebookAtom,
-} from "@/core/cells/cells";
+import { type NotebookState, notebookAtom } from "@/core/cells/cells";
+import type { CreateCellOptions } from "@/core/cells/actions";
 import { CellId } from "@/core/cells/ids";
 import { prepareCellCodeUpdate } from "@/core/codemirror/language/cell-code";
 import type { CellColumnId } from "@/utils/id-tree";
@@ -86,7 +83,7 @@ export class EditNotebookTool implements AiTool<
     { edit }: EditNotebookInput,
     toolContext: ToolNotebookContext,
   ): Promise<ToolOutputBase> => {
-    const { addStagedCell, createNewCell, store } = toolContext;
+    const { addStagedCell, createCell, store } = toolContext;
 
     switch (edit.type) {
       case "update_cell": {
@@ -151,8 +148,7 @@ export class EditNotebookTool implements AiTool<
       case "add_cell": {
         const { position, code } = edit;
 
-        let notebookPosition: NotebookCellPosition = "__end__";
-        let before = false;
+        let placement: CreateCellOptions = {};
         const newCellId = CellId.create();
         const notebook = store.get(notebookAtom);
 
@@ -182,11 +178,12 @@ export class EditNotebookTool implements AiTool<
             }
 
             this.validateCellIdExists(cellId, notebook);
-            notebookPosition = cellId;
-            before = position.before;
+            placement = position.before
+              ? { before: cellId }
+              : { after: cellId };
             break;
           }
-          case "column_end": {
+          case "column_end":
             if (!position.columnIndex) {
               throw new ToolExecutionError(
                 "Column index is required for add_cell with column_end position",
@@ -199,21 +196,16 @@ export class EditNotebookTool implements AiTool<
               );
             }
 
-            const columnId = this.getColumnId(position.columnIndex, notebook);
-            notebookPosition = { type: "__end__", columnId };
+            placement = {
+              endOf: this.getColumnId(position.columnIndex, notebook),
+            };
             break;
-          }
+
           case "notebook_end":
-            // Use default: notebookPosition = "__end__"
             break;
         }
 
-        createNewCell({
-          cellId: notebookPosition,
-          before,
-          code,
-          newCellId,
-        });
+        createCell({ ...placement, code, id: newCellId });
 
         addStagedCell({
           cellId: newCellId,

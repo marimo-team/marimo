@@ -1,7 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { z } from "zod";
-import type { CreateNewCellAction } from "@/core/cells/cells";
+import type { CreateCell } from "@/core/cells/actions";
 import type { CellId } from "@/core/cells/ids";
 import type { ExecuteCellsRequest } from "@/core/network/types";
 import type { JotaiStore } from "@/core/state/jotai";
@@ -113,7 +113,7 @@ export interface ToolDescription {
 export interface ToolNotebookContext {
   store: JotaiStore;
   addStagedCell: (payload: { cellId: CellId; edit: Edit }) => void;
-  createNewCell: (payload: CreateNewCellAction) => void;
+  createCell: CreateCell;
   prepareForRun: (payload: { cellId: CellId }) => void;
   sendRun: (request: ExecuteCellsRequest) => Promise<null>;
 }

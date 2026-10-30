@@ -41,20 +41,6 @@ def test_code_autocomplete(client: TestClient) -> None:
     assert "success" in response.json()
 
 
-@with_session(SESSION_ID)
-def test_delete_cell(client: TestClient) -> None:
-    response = client.post(
-        "/api/kernel/delete",
-        headers=HEADERS,
-        json={
-            "cellId": "cell-123",
-        },
-    )
-    assert response.status_code == 200, response.text
-    assert response.headers["content-type"] == "application/json"
-    assert "success" in response.json()
-
-
 @pytest.mark.skipif(not HAS_FORMATTER, reason="ruff or black not installed")
 @with_session(SESSION_ID)
 def test_format_cell(client: TestClient) -> None:
@@ -146,22 +132,6 @@ def test_install_missing_packages_server_source(client: TestClient) -> None:
         assert "success" in response.json()
 
     install_packages.assert_awaited_once_with({"nbformat": ""})
-
-
-@with_session(SESSION_ID)
-def test_set_cell_config(client: TestClient) -> None:
-    response = client.post(
-        "/api/kernel/set_cell_config",
-        headers=HEADERS,
-        json={
-            "configs": {
-                "cell-123": {"runnable": True},
-            },
-        },
-    )
-    assert response.status_code == 200, response.text
-    assert response.headers["content-type"] == "application/json"
-    assert "success" in response.json()
 
 
 @with_session(SESSION_ID)

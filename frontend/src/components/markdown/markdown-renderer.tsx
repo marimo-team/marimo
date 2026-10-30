@@ -12,7 +12,7 @@ import {
 } from "streamdown";
 import { Button, type ButtonProps } from "@/components/ui/button";
 import { maybeAddMarimoImport } from "@/core/cells/add-missing-import";
-import { useCellActions } from "@/core/cells/cells";
+import { useCellActions } from "@/core/cells/actions";
 import { useLastFocusedCellId } from "@/core/cells/focus";
 import { MarkdownLanguageAdapter } from "@/core/codemirror/language/languages/markdown";
 import { SQLLanguageAdapter } from "@/core/codemirror/language/languages/sql/sql";
@@ -71,7 +71,7 @@ function maybeTransform(
 }
 
 const InsertCodeBlockButton = ({ code, language }: CodeBlockProps) => {
-  const { createNewCell } = useCellActions();
+  const { createCell } = useCellActions();
   const lastFocusedCellId = useLastFocusedCellId();
   const autoInstantiate = useAtomValue(autoInstantiateAtom);
 
@@ -81,15 +81,11 @@ const InsertCodeBlockButton = ({ code, language }: CodeBlockProps) => {
     if (language === "sql") {
       maybeAddMarimoImport({
         autoInstantiate,
-        createNewCell,
+        createCell,
         fromCellId: lastFocusedCellId,
       });
     }
-    createNewCell({
-      code: result.code,
-      before: false,
-      cellId: lastFocusedCellId ?? "__end__",
-    });
+    createCell({ after: lastFocusedCellId, code: result.code });
   };
 
   return (

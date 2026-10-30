@@ -13,17 +13,19 @@ const A = cellId("a");
 const B = cellId("b");
 
 // Spies shared with the hoisted module mocks below.
-const { createNewCell, deleteCell, moveCellToIndex } = vi.hoisted(() => ({
-  createNewCell: vi.fn(),
+const { createCell, deleteCell, moveCellToIndex } = vi.hoisted(() => ({
+  createCell: vi.fn(),
   deleteCell: vi.fn(),
   moveCellToIndex: vi.fn(),
 }));
 
+vi.mock("@/core/cells/actions", () => ({
+  useCellActions: () => ({ moveCellToIndex, createCell }),
+}));
 vi.mock("@/core/cells/cells", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/core/cells/cells")>();
   return {
     ...actual,
-    useCellActions: () => ({ moveCellToIndex, createNewCell }),
     useCellIds: () => MultiColumn.from([[A, B]]),
   };
 });
@@ -91,8 +93,6 @@ function renderMinimap() {
   return { ...utils, onSlideClick };
 }
 
-const EMPTY_CELL = { code: "", autoFocus: false } as const;
-
 describe("SlidesMinimap insert lines", () => {
   it("inserts a blank cell above the first row and below any row", () => {
     renderMinimap();
@@ -102,25 +102,13 @@ describe("SlidesMinimap insert lines", () => {
     expect(inserts).toHaveLength(3);
 
     fireEvent.click(inserts[0]);
-    expect(createNewCell).toHaveBeenLastCalledWith({
-      cellId: A,
-      before: true,
-      ...EMPTY_CELL,
-    });
+    expect(createCell).toHaveBeenLastCalledWith({ before: A, focus: false });
 
     fireEvent.click(inserts[1]);
-    expect(createNewCell).toHaveBeenLastCalledWith({
-      cellId: A,
-      before: false,
-      ...EMPTY_CELL,
-    });
+    expect(createCell).toHaveBeenLastCalledWith({ after: A, focus: false });
 
     fireEvent.click(inserts[2]);
-    expect(createNewCell).toHaveBeenLastCalledWith({
-      cellId: B,
-      before: false,
-      ...EMPTY_CELL,
-    });
+    expect(createCell).toHaveBeenLastCalledWith({ after: B, focus: false });
   });
 });
 
@@ -135,11 +123,7 @@ describe("SlidesMinimap context menu", () => {
     const { container } = renderMinimap();
     openRowMenu(container, A);
     fireEvent.click(screen.getByText("Add cell"));
-    expect(createNewCell).toHaveBeenCalledWith({
-      cellId: A,
-      before: false,
-      ...EMPTY_CELL,
-    });
+    expect(createCell).toHaveBeenCalledWith({ after: A, focus: false });
   });
 
   it('"Delete cell" deletes the row\'s cell', () => {

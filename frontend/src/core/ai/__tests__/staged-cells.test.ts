@@ -21,7 +21,7 @@ const { stagedGenerationAtom, createActions, reducer, initialState } =
   visibleForTesting;
 
 // Mock the dependencies
-const mockCreateNewCell = vi.fn();
+const mockCreateCell = vi.fn();
 const mockUpdateCellCode = vi.fn();
 const mockDeleteCellCallback = vi.fn();
 
@@ -34,14 +34,16 @@ const mockCellHandle = {
   },
 };
 
+vi.mock("../../cells/actions", () => ({
+  useCellActions: () => ({
+    createCell: mockCreateCell,
+    updateCellCode: mockUpdateCellCode,
+  }),
+}));
 vi.mock("../../cells/cells", async () => {
   const { atom } = await import("jotai");
   return {
     notebookAtom: atom({ cellData: {}, cellIds: { inOrderIds: [] } }),
-    useCellActions: () => ({
-      createNewCell: mockCreateNewCell,
-      updateCellCode: mockUpdateCellCode,
-    }),
     cellHandleAtom: vi.fn(() => ({
       read: vi.fn(() => mockCellHandle),
     })),
@@ -261,11 +263,9 @@ describe("staged-cells", () => {
       const returnedCellId = result.current.createStagedCell(testCode);
 
       expect(returnedCellId).toBe(mockCellId);
-      expect(mockCreateNewCell).toHaveBeenCalledWith({
-        cellId: "__end__",
+      expect(mockCreateCell).toHaveBeenCalledWith({
         code: testCode,
-        before: false,
-        newCellId: mockCellId,
+        id: mockCellId,
       });
     });
 
@@ -330,7 +330,7 @@ describe("staged-cells", () => {
 
       // Verify it was created and added
       expect(createdCellId).toBe(mockCellId);
-      expect(mockCreateNewCell).toHaveBeenCalled();
+      expect(mockCreateCell).toHaveBeenCalled();
 
       let state = store.get(stagedAICellsAtom);
       expect(state.has(mockCellId)).toBe(true);
@@ -401,7 +401,7 @@ describe("staged cell generation", () => {
     result.current.beginStagedCellGeneration();
 
     // No cell or cell update should have been called
-    expect(mockCreateNewCell).not.toHaveBeenCalled();
+    expect(mockCreateCell).not.toHaveBeenCalled();
     expect(prepareCellCodeUpdate).not.toHaveBeenCalled();
     expect(store.get(stagedGenerationInProgressAtom)).toBe(true);
   });
@@ -610,11 +610,9 @@ describe("staged cell generation", () => {
       },
     });
 
-    expect(mockCreateNewCell).toHaveBeenCalledWith({
-      cellId: "__end__",
+    expect(mockCreateCell).toHaveBeenCalledWith({
       code: "print('```')",
-      before: false,
-      newCellId: "mock-cell-id",
+      id: "mock-cell-id",
     });
   });
 
@@ -636,16 +634,16 @@ describe("staged cell generation", () => {
       },
     });
 
-    expect(mockCreateNewCell).toHaveBeenCalledWith(
+    expect(mockCreateCell).toHaveBeenCalledWith(
       expect.objectContaining({
         code: "value = 1",
-        newCellId: "first-cell",
+        id: "first-cell",
       }),
     );
-    expect(mockCreateNewCell).toHaveBeenCalledWith(
+    expect(mockCreateCell).toHaveBeenCalledWith(
       expect.objectContaining({
         code: "value",
-        newCellId: "second-cell",
+        id: "second-cell",
       }),
     );
   });
@@ -683,7 +681,7 @@ describe("staged cell generation", () => {
       },
     });
 
-    expect(mockCreateNewCell).toHaveBeenCalledTimes(2);
+    expect(mockCreateCell).toHaveBeenCalledTimes(2);
     expect(store.get(stagedAICellsAtom).has(cellId("first-cell"))).toBe(true);
     expect(store.get(stagedAICellsAtom).has(cellId("second-cell"))).toBe(true);
     expect(prepareCellCodeUpdate).toHaveBeenCalledTimes(2);

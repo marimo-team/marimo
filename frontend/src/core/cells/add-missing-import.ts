@@ -3,7 +3,8 @@
 import { getRequestClient } from "../network/requests";
 import { store } from "../state/jotai";
 import { variablesAtom } from "../variables/state";
-import { type CellActions, notebookAtom } from "./cells";
+import { notebookAtom } from "./cells";
+import type { CreateCell, CreateCellOptions } from "./actions";
 import { CellId } from "./ids";
 
 /**
@@ -50,82 +51,85 @@ export function maybeAddMissingImport({
 /**
  * Adds a marimo import to the notebook if not already present.
  * @param autoInstantiate Whether to automatically run the cell.
- * @param createNewCell The function to create a new cell.
- * @param fromCellId The cell to add the import to.
+ * @param createCell The command that creates a cell.
+ * @param fromCellId The cell to add the import next to.
  * @param before Whether to add the import before or after the cell.
  *
  * Returns the ID of the new cell if added, otherwise null.
  */
 export function maybeAddMarimoImport({
   autoInstantiate,
-  createNewCell,
+  createCell,
   fromCellId,
   before,
 }: {
   autoInstantiate: boolean;
-  createNewCell: CellActions["createNewCell"];
+  createCell: CreateCell;
   fromCellId?: CellId | null;
   before?: boolean;
 }): CellId | null {
-  const client = getRequestClient();
-  let newCellId: CellId | null = null;
-  const added = maybeAddMissingImport({
+  return addImport({
     moduleName: "marimo",
     variableName: "mo",
-    onAddImport: (importStatement) => {
-      newCellId = CellId.create();
-      createNewCell({
-        cellId: fromCellId ?? "__end__",
-        before: before ?? false,
-        code: importStatement,
-        lastCodeRun: autoInstantiate ? importStatement : undefined,
-        newCellId: newCellId,
-        skipIfCodeExists: true,
-        autoFocus: false,
-      });
-      if (autoInstantiate) {
-        void client.sendRun({
-          cellIds: [newCellId],
-          codes: [importStatement],
-        });
-      }
-    },
+    autoInstantiate,
+    createCell,
+    placement: before ? { before: fromCellId } : { after: fromCellId },
   });
-  return added ? newCellId : null;
 }
 
 export function maybeAddAltairImport({
   autoInstantiate,
-  createNewCell,
+  createCell,
   fromCellId,
 }: {
   autoInstantiate: boolean;
-  createNewCell: CellActions["createNewCell"];
+  createCell: CreateCell;
   fromCellId?: CellId | null;
 }): CellId | null {
-  const client = getRequestClient();
-  let newCellId: CellId | null = null;
-  const added = maybeAddMissingImport({
+  return addImport({
     moduleName: "altair",
     variableName: "alt",
+    autoInstantiate,
+    createCell,
+    placement: { after: fromCellId },
+  });
+}
+
+/** Create the import cell, and run it when the notebook runs on its own. */
+function addImport({
+  moduleName,
+  variableName,
+  autoInstantiate,
+  createCell,
+  placement,
+}: {
+  moduleName: string;
+  variableName: string;
+  autoInstantiate: boolean;
+  createCell: CreateCell;
+  placement: Pick<CreateCellOptions, "after" | "before">;
+}): CellId | null {
+  let newCellId: CellId | null = null;
+  maybeAddMissingImport({
+    moduleName,
+    variableName,
     onAddImport: (importStatement) => {
-      newCellId = CellId.create();
-      createNewCell({
-        cellId: fromCellId ?? "__end__",
-        before: false,
+      const id = CellId.create();
+      const created = createCell({
+        ...placement,
+        id,
         code: importStatement,
-        lastCodeRun: autoInstantiate ? importStatement : undefined,
-        newCellId: newCellId,
         skipIfCodeExists: true,
-        autoFocus: false,
+        focus: false,
       });
-      if (autoInstantiate) {
-        void client.sendRun({
+      newCellId = created === null ? null : id;
+      if (autoInstantiate && newCellId !== null) {
+        void getRequestClient().sendRun({
           cellIds: [newCellId],
           codes: [importStatement],
         });
       }
     },
   });
-  return added ? newCellId : null;
+  return newCellId;
 }

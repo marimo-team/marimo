@@ -37,8 +37,10 @@ import { Label } from "@/components/ui/label";
 import { toast } from "@/components/ui/use-toast";
 import { aiCompletionCellAtom } from "@/core/ai/state";
 import { maybeAddMarimoImport } from "@/core/cells/add-missing-import";
-import { hasOnlyOneCellAtom, useCellActions } from "@/core/cells/cells";
+import { hasOnlyOneCellAtom } from "@/core/cells/cells";
+import { useCellActions } from "@/core/cells/actions";
 import { type CellId, SETUP_CELL_ID } from "@/core/cells/ids";
+import { useNotebookDocumentEdit } from "@/core/notebook/document";
 import type { CellData } from "@/core/cells/types";
 import { formatEditorViews } from "@/core/codemirror/format";
 import {
@@ -53,7 +55,6 @@ import {
   autoInstantiateAtom,
 } from "@/core/config/config";
 import { kioskModeAtom } from "@/core/mode";
-import { useRequestClient } from "@/core/network/requests";
 import type { CellConfig, RuntimeState } from "@/core/network/types";
 import { canLinkToCell, createCellLink } from "@/utils/cell-urls";
 import { copyToClipboard } from "@/utils/copy";
@@ -83,16 +84,15 @@ interface Props {
 
 export function useCellActionButtons({ cell, closePopover }: Props) {
   const {
-    createNewCell: createCell,
-    updateCellConfig,
-    updateCellName,
     moveCell,
     sendToTop,
     sendToBottom,
     addColumnBreakpoint,
     clearCellOutput,
     markUntouched,
+    createCell,
   } = useCellActions();
+  const edit = useNotebookDocumentEdit();
   const splitCell = useSplitCellCallback();
   const runCell = useRunCell(cell?.cellId);
   const hasOnlyOneCell = useAtomValue(hasOnlyOneCellAtom);
@@ -104,7 +104,6 @@ export function useCellActionButtons({ cell, closePopover }: Props) {
   const autoInstantiate = useAtomValue(autoInstantiateAtom);
   const kioskMode = useAtomValue(kioskModeAtom);
   const appWidth = useAtomValue(appWidthAtom);
-  const { saveCellConfig } = useRequestClient();
 
   if (!cell || kioskMode) {
     return [];
@@ -120,16 +119,13 @@ export function useCellActionButtons({ cell, closePopover }: Props) {
     status,
   } = cell;
 
-  const toggleDisabled = async () => {
-    const newConfig = { disabled: !config.disabled };
-    await saveCellConfig({ configs: { [cellId]: newConfig } });
-    updateCellConfig({ cellId, config: newConfig });
+  const toggleDisabled = () => {
+    edit((tx) => tx.updateConfig(cellId, { disabled: !config.disabled }));
   };
 
-  const toggleHideCode = async () => {
+  const toggleHideCode = () => {
     const newConfig: Partial<CellConfig> = { hide_code: !config.hide_code };
-    await saveCellConfig({ configs: { [cellId]: newConfig } });
-    updateCellConfig({ cellId, config: newConfig });
+    edit((tx) => tx.updateConfig(cellId, newConfig));
     const editorView = getEditorView();
     // If we're hiding the code, we should blur the editor
     // otherwise, we should focus it
@@ -221,20 +217,18 @@ export function useCellActionButtons({ cell, closePopover }: Props) {
           if (!editorView) {
             return;
           }
-          maybeAddMarimoImport({ autoInstantiate, createNewCell: createCell });
+          maybeAddMarimoImport({ autoInstantiate, createCell });
           switchLanguage(editorView, {
             language: "markdown",
             keepCodeAsIs: false,
           });
           // Code stays visible until the user blurs the cell
           if (!config.hide_code && MARKDOWN_INITIAL_HIDE_CODE) {
-            await saveCellConfig({
-              configs: { [cellId]: { hide_code: MARKDOWN_INITIAL_HIDE_CODE } },
-            });
-            updateCellConfig({
-              cellId,
-              config: { hide_code: MARKDOWN_INITIAL_HIDE_CODE },
-            });
+            edit((tx) =>
+              tx.updateConfig(cellId, {
+                hide_code: MARKDOWN_INITIAL_HIDE_CODE,
+              }),
+            );
             markUntouched({ cellId });
           }
         },
@@ -266,7 +260,7 @@ export function useCellActionButtons({ cell, closePopover }: Props) {
               }
               maybeAddMarimoImport({
                 autoInstantiate,
-                createNewCell: createCell,
+                createCell,
               });
               switchLanguage(editorView, {
                 language: "sql",
@@ -288,7 +282,7 @@ export function useCellActionButtons({ cell, closePopover }: Props) {
         ),
         label: "Create cell above",
         hotkey: "cell.createAbove",
-        handle: () => createCell({ cellId, before: true }),
+        handle: () => createCell({ before: cellId }),
         hidden: isSetupCell,
         redundant: true,
       },
@@ -301,7 +295,7 @@ export function useCellActionButtons({ cell, closePopover }: Props) {
         ),
         label: "Create cell below",
         hotkey: "cell.createBelow",
-        handle: () => createCell({ cellId, before: false }),
+        handle: () => createCell({ after: cellId }),
         redundant: true,
       },
       {
@@ -406,7 +400,7 @@ export function useCellActionButtons({ cell, closePopover }: Props) {
                     }
                   }}
                   onChange={(newName) =>
-                    updateCellName({ cellId, name: newName })
+                    edit((tx) => tx.setName(cellId, newName))
                   }
                 />
               </div>
@@ -417,7 +411,7 @@ export function useCellActionButtons({ cell, closePopover }: Props) {
           <NameCellInput
             placeholder={"cell name"}
             value={name}
-            onChange={(newName) => updateCellName({ cellId, name: newName })}
+            onChange={(newName) => edit((tx) => tx.setName(cellId, newName))}
             onEnterKey={() => closePopover?.()}
           />
         ),

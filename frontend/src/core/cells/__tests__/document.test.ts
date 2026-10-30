@@ -107,9 +107,10 @@ describe("applyDocument", () => {
     expect(state.cellData[a]).toMatchObject({
       code: "a = 1",
       name: "_",
-      edited: false,
+      edited: true,
       lastCodeRun: null,
     });
+    expect(state.cellData[b].edited).toBe(false);
     expect(state.cellRuntime[a]).toBeDefined();
     expect(state.cellHandles[a]).toBeDefined();
     expect(state.cellData[SCRATCH_CELL_ID]).toBeDefined();
@@ -190,7 +191,7 @@ describe("applyDocument", () => {
     expect(next.cellData[a]).toMatchObject({
       name: "renamed",
       config: { hide_code: true },
-      edited: false,
+      edited: true,
     });
   });
 
@@ -281,45 +282,14 @@ describe("documentEditMiddleware", () => {
     store.set(activeDocumentModelAtom, null);
   });
 
-  it("creates a cell at the end without setting the order", () => {
-    actions.createNewCell({
-      cellId: c,
-      before: false,
-      code: "d = 1",
-      newCellId: d,
-    });
-
-    expect(calls.map((call) => call[0])).toEqual(["createCell"]);
-    expect(calls[0][1]).toMatchObject({ id: d, code: "d = 1" });
-  });
-
-  it("creates a cell elsewhere and sets the order", () => {
-    actions.createNewCell({ cellId: a, before: true, newCellId: d });
-
-    expect(calls.map((call) => call[0])).toEqual(["createCell", "setOrder"]);
-    expect(calls[1][1]).toEqual([d, a, b, c]);
-  });
-
-  it("deletes a cell", () => {
-    actions.deleteCell({ cellId: b });
-
-    expect(calls).toEqual([["deleteCell", b]]);
-  });
-
-  it("writes code, name, and config", () => {
+  it("writes code", () => {
     actions.updateCellCode({
       cellId: a,
       code: "a = 2",
       formattingChange: false,
     });
-    actions.updateCellName({ cellId: a, name: "first" });
-    actions.updateCellConfig({ cellId: a, config: { hide_code: true } });
 
-    expect(calls).toEqual([
-      ["setCode", a, "a = 2"],
-      ["setName", a, "first"],
-      ["updateConfig", a, { hide_code: true }],
-    ]);
+    expect(calls).toEqual([["setCode", a, "a = 2"]]);
   });
 
   it("sets the order when a cell moves", () => {

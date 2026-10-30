@@ -18,7 +18,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Tooltip } from "@/components/ui/tooltip";
 import { aiCompletionCellAtom } from "@/core/ai/state";
-import { notebookAtom, useCellActions } from "@/core/cells/cells";
+import { notebookAtom } from "@/core/cells/cells";
+import { useCellActions } from "@/core/cells/actions";
 import type { CellId } from "@/core/cells/ids";
 import { aiFeaturesEnabledAtom } from "@/core/config/config";
 import { getAutoFixes } from "@/core/errors/errors";
@@ -51,7 +52,7 @@ export const AutoFixButton = ({
   className?: string;
 }) => {
   const store = useStore();
-  const { createNewCell } = useCellActions();
+  const { createCell } = useCellActions();
   const aiFeaturesEnabled = useAtomValue(aiFeaturesEnabledAtom);
   const autoFixes = errors.flatMap((error) =>
     getAutoFixes(error, { aiEnabled: aiFeaturesEnabled }),
@@ -72,12 +73,7 @@ export const AutoFixButton = ({
       store.get(notebookAtom).cellHandles[cellId].current?.editorView;
     firstFix.onFix({
       addCodeBelow: (code: string) => {
-        createNewCell({
-          cellId: cellId,
-          autoFocus: false,
-          before: false,
-          code: code,
-        });
+        createCell({ after: cellId, code, focus: false });
       },
       editor: editorView,
       cellId: cellId,

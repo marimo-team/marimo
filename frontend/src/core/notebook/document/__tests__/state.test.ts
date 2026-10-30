@@ -124,6 +124,27 @@ describe("document model", () => {
     },
   );
 
+  it("brings back a cell deleted earlier in the draft with new content", () => {
+    const { store, cellAtom, orderAtom, changesAtom, edit } = setup();
+    edit((tx) => tx.deleteCell("c1"));
+    edit((tx) => tx.createCell({ id: "c1", code: "back" }, { after: "c2" }));
+    expect(store.get(cellAtom("c1"))?.code).toBe("back");
+    expect(store.get(orderAtom)).toEqual(["c2", "c1"]);
+    expect(store.get(changesAtom)).toEqual([
+      {
+        kind: "put_cell",
+        base_etag: "c1-etag",
+        cell: {
+          id: "c1",
+          code: "back",
+          name: "_",
+          config: cell("c1", "").config,
+        },
+      },
+      { kind: "set_order", base_etag: "order-1", order: ["c2", "c1"] },
+    ]);
+  });
+
   it("publishes the visible order when an anchor is deleted later in the draft", () => {
     const { store, orderAtom, changesAtom, edit } = setup();
     edit((tx) => {

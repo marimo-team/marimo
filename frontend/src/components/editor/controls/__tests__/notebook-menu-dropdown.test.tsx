@@ -11,6 +11,7 @@ import { Provider } from "jotai";
 import type React from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { requestId } from "@/__tests__/branded";
+import { mockDocumentModel } from "@/__mocks__/document";
 import { MockRequestClient } from "@/__mocks__/requests";
 import { ModalProvider } from "@/components/modal/ImperativeModal";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -19,6 +20,7 @@ import {
   invalidateDataSourceDiscovery,
 } from "@/core/datasets/data-source-discovery";
 import { DiscoverDataSources } from "@/core/datasets/request-registry";
+import { DocumentProvider } from "@/core/notebook/document";
 import { layoutStateAtom } from "@/core/layout/state";
 import { kioskModeAtom, viewStateAtom } from "@/core/mode";
 import { connectionAtom } from "@/core/network/connection";
@@ -73,12 +75,16 @@ global.HTMLElement.prototype.scrollIntoView = () => {
   // jsdom does not implement scrollIntoView; cmdk calls it on selection.
 };
 
+const { model } = mockDocumentModel(store, null);
+
 function wrapper({ children }: { children: React.ReactNode }) {
   return (
     <Provider store={store}>
-      <TooltipProvider>
-        <ModalProvider>{children}</ModalProvider>
-      </TooltipProvider>
+      <DocumentProvider model={model}>
+        <TooltipProvider>
+          <ModalProvider>{children}</ModalProvider>
+        </TooltipProvider>
+      </DocumentProvider>
     </Provider>
   );
 }

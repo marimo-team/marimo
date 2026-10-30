@@ -21,3 +21,4 @@ export {
   type EditableCell,
   type EditableDocument,
 } from "./model";
+export type { Placement } from "./draft";

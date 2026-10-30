@@ -1450,14 +1450,6 @@ components:
       - cellId
       title: DeleteCellCommand
       type: object
-    DeleteCellRequest:
-      properties:
-        cellId:
-          $ref: '#/components/schemas/CellId'
-      required:
-      - cellId
-      title: DeleteCellRequest
-      type: object
     DeleteSecretRequest:
       properties:
         key:
@@ -5993,16 +5985,6 @@ components:
       - configs
       title: UpdateCellConfigCommand
       type: object
-    UpdateCellConfigRequest:
-      properties:
-        configs:
-          additionalProperties:
-            type: object
-          type: object
-      required:
-      - configs
-      title: UpdateCellConfigRequest
-      type: object
     UpdateCellOutputsRequest:
       properties:
         cellIdsToOutput:
@@ -7279,26 +7261,6 @@ paths:
               schema:
                 type: string
           description: Copy notebook
-  /api/kernel/delete:
-    post:
-      parameters:
-      - in: header
-        name: Marimo-Session-Id
-        required: true
-        schema:
-          type: string
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/DeleteCellRequest'
-      responses:
-        200:
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/SuccessResponse'
-          description: Delete a cell
   /api/kernel/focus_cell:
     post:
       parameters:
@@ -7605,26 +7567,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/SuccessResponse'
           description: Run the scratchpad
-  /api/kernel/set_cell_config:
-    post:
-      parameters:
-      - in: header
-        name: Marimo-Session-Id
-        required: true
-        schema:
-          type: string
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/UpdateCellConfigRequest'
-      responses:
-        200:
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/SuccessResponse'
-          description: Set the configuration of a cell
   /api/kernel/set_model_value:
     post:
       parameters:

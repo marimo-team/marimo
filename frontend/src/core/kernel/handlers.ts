@@ -3,7 +3,7 @@ import type { LayoutType } from "@/components/editor/renderers/types";
 import { Logger } from "@/utils/Logger";
 import { Objects } from "@/utils/objects";
 import type { UIElementId } from "../cells/ids";
-import type { CellActions } from "../cells/cells";
+import type { ReducerCellActions } from "../cells/cells";
 import type { CellData } from "../cells/types";
 import { type AppConfig, AppConfigSchema } from "../config/config-schema";
 import { UI_ELEMENT_REGISTRY } from "../dom/uiregistry";
@@ -63,8 +63,8 @@ export function handleKernelReady(
     autoInstantiate: boolean;
     /** The notebook's cells, as the host document provided them. */
     cells: CellData[];
-    setLastRun: CellActions["setLastRun"];
-    resetCellRuntimes: CellActions["resetCellRuntimes"];
+    setLastRun: ReducerCellActions["setLastRun"];
+    resetCellRuntimes: ReducerCellActions["resetCellRuntimes"];
     setLayoutData: (payload: {
       layoutView: LayoutType;
       data: LayoutData;

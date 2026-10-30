@@ -19,7 +19,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Tooltip } from "@/components/ui/tooltip";
-import { useCellActions } from "@/core/cells/cells";
+import { useCellActions } from "@/core/cells/actions";
 import { cn } from "@/utils/cn";
 import type { CellColumnId } from "@/utils/id-tree";
 import { mergeRefs } from "../../../utils/mergeRefs";

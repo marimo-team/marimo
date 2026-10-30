@@ -1934,47 +1934,6 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  "/api/kernel/delete": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    post: {
-      parameters: {
-        query?: never;
-        header: {
-          "Marimo-Session-Id": string;
-        };
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: {
-        content: {
-          "application/json": components["schemas"]["DeleteCellRequest"];
-        };
-      };
-      responses: {
-        /** @description Delete a cell */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": components["schemas"]["SuccessResponse"];
-          };
-        };
-      };
-    };
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
   "/api/kernel/focus_cell": {
     parameters: {
       query?: never;
@@ -2615,47 +2574,6 @@ export interface paths {
       };
       responses: {
         /** @description Run the scratchpad */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": components["schemas"]["SuccessResponse"];
-          };
-        };
-      };
-    };
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/kernel/set_cell_config": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    post: {
-      parameters: {
-        query?: never;
-        header: {
-          "Marimo-Session-Id": string;
-        };
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: {
-        content: {
-          "application/json": components["schemas"]["UpdateCellConfigRequest"];
-        };
-      };
-      responses: {
-        /** @description Set the configuration of a cell */
         200: {
           headers: {
             [name: string]: unknown;
@@ -4665,10 +4583,6 @@ export interface components {
       cellId: components["schemas"]["CellId"];
       /** @enum {unknown} */
       type: "delete-cell";
-    };
-    /** DeleteCellRequest */
-    DeleteCellRequest: {
-      cellId: components["schemas"]["CellId"];
     };
     /** DeleteSecretRequest */
     DeleteSecretRequest: {
@@ -7381,12 +7295,6 @@ export interface components {
       };
       /** @enum {unknown} */
       type: "update-cell-config";
-    };
-    /** UpdateCellConfigRequest */
-    UpdateCellConfigRequest: {
-      configs: {
-        [key: string]: Record<string, any>;
-      };
     };
     /** UpdateCellOutputsRequest */
     UpdateCellOutputsRequest: {
