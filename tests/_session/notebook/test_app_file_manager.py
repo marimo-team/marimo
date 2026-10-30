@@ -15,6 +15,7 @@ from marimo._session.notebook import (
     new_notebook,
     read_css_file,
 )
+from marimo._utils.http import HTTPException
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -233,3 +234,30 @@ def test_on_persisted_reports_the_cells_and_config_written(
     fm.save_from_cells(cells)
 
     assert seen == [(cells, {"width": "full"})]
+
+
+def test_save_layout_writes_the_sidecar_and_points_the_config_at_it(
+    tmp_path: Path,
+) -> None:
+    path = tmp_path / "nb.py"
+    path.write_text("import marimo\napp = marimo.App()\n")
+    manager = AppFileManager(str(path))
+    changes: list[None] = []
+    manager.on_config_changed = lambda: changes.append(None)
+
+    manager.save_layout({"type": "grid", "data": {"columns": 24, "cells": []}})
+
+    assert manager.app.config.layout_file == "layouts/nb.grid.json"
+    assert (tmp_path / "layouts" / "nb.grid.json").exists()
+    assert len(changes) == 1
+
+    manager.save_layout(None)
+
+    assert manager.app.config.layout_file is None
+    assert len(changes) == 2
+
+
+def test_save_layout_needs_a_named_notebook() -> None:
+    manager = AppFileManager(None)
+    with pytest.raises(HTTPException):
+        manager.save_layout({"type": "grid", "data": {}})

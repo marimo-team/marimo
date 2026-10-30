@@ -44,6 +44,7 @@ export function createStaticRequests(): EditRequests & RunRequests {
     sendRunScratchpad: throwNotInEditMode,
     sendRename: throwNotInEditMode,
     sendSave: throwNotInEditMode,
+    saveLayout: throwNotInEditMode,
     sendCopy: throwNotInEditMode,
     sendInterrupt: throwNotInEditMode,
     sendShutdown: throwNotInEditMode,

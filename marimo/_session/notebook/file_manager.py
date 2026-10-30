@@ -399,6 +399,29 @@ class AppFileManager:
         if callback is not None:
             callback()
 
+    def save_layout(self, layout: dict[str, Any] | None) -> None:
+        """Write the layout file beside the notebook and point the app config
+        at it, or clear the config when `layout` is None.
+
+        Raises:
+            HTTPException: If the notebook has no file to sit beside.
+        """
+        with self._save_lock:
+            if self._filename is None:
+                raise HTTPException(
+                    status_code=HTTPStatus.BAD_REQUEST,
+                    detail="Save the notebook before saving its layout.",
+                )
+            if layout is None:
+                self._update_config({"layout_file": None})
+                return
+            layout_filename = save_layout_config(
+                self._filename.parent,
+                self._filename.name,
+                LayoutConfig(**layout),
+            )
+            self._update_config({"layout_file": layout_filename})
+
     def save(
         self,
         request: SaveNotebookRequest,

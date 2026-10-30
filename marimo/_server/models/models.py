@@ -296,6 +296,12 @@ class SaveNotebookRequest(msgspec.Struct, rename="camel"):
         )
 
 
+class SaveLayoutRequest(msgspec.Struct, rename="camel"):
+    """The notebook's layout, written beside it; `None` removes it."""
+
+    layout: dict[str, Any] | None = None
+
+
 class CopyNotebookRequest(msgspec.Struct, rename="camel"):
     # path to app
     source: str

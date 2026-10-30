@@ -279,6 +279,11 @@ export class PyodideBridge implements RunRequests, EditRequests {
     }
   }
 
+  public saveLayout: EditRequests["saveLayout"] = async ({ layout }) => {
+    await this.rpc.proxy.request.setNotebookLayout(layout ?? null);
+    return null;
+  };
+
   public sendSave: EditRequests["sendSave"] = async ({ layout }) => {
     await flushDocument();
     await this.rpc.proxy.request.setNotebookLayout(layout ?? null);

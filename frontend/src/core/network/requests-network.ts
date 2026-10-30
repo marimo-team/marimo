@@ -158,6 +158,14 @@ export function createNetworkRequests(): EditRequests & RunRequests {
         })
         .then(handleResponseReturnNull);
     },
+    saveLayout: (request) => {
+      return getClient()
+        .POST("/api/kernel/save_layout", {
+          body: request,
+          params: getParams(),
+        })
+        .then(handleResponseReturnNull);
+    },
     saveAppConfig: (request) => {
       return getClient()
         .POST("/api/kernel/save_app_config", {

@@ -5087,6 +5087,17 @@ components:
       - format_on_save
       title: SaveConfig
       type: object
+    SaveLayoutRequest:
+      description: The notebook's layout, written beside it; `None` removes it.
+      properties:
+        layout:
+          anyOf:
+          - type: object
+          - type: 'null'
+          default: null
+      required: []
+      title: SaveLayoutRequest
+      type: object
     SaveNotebookRequest:
       properties:
         cellIds:
@@ -7526,6 +7537,27 @@ paths:
               schema:
                 type: string
           description: Save the app configuration
+  /api/kernel/save_layout:
+    post:
+      parameters:
+      - in: header
+        name: Marimo-Session-Id
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SaveLayoutRequest'
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+          description: Write the notebook's layout file and point its app config at
+            it
   /api/kernel/save_user_config:
     post:
       parameters:
