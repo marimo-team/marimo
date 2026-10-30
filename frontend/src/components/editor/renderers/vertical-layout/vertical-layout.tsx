@@ -81,7 +81,7 @@ const VerticalLayoutRenderer: React.FC<VerticalLayoutProps> = ({
     getInitialShowCode({ showCodeInRunModePreference, kioskMode }),
   );
 
-  const canShowCode = useNotebookCodeAvailable(cells);
+  const canShowCode = useNotebookCodeAvailable();
 
   const handleToggleShowCode = () => {
     setShowCode((currentShowCode) => {
