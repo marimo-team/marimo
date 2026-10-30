@@ -3,10 +3,10 @@
 /** Notebook operations that edit the document and then adjust the editor. */
 
 import { historyField } from "@codemirror/commands";
-import { atom, type Getter, type Setter, useSetAtom } from "jotai";
+import { atom, type Getter, useSetAtom } from "jotai";
 import { useMemo } from "react";
 import { scrollAndHighlightCell } from "@/components/editor/links/cell-link";
-import type { DocumentModel, EditableDocument } from "@/core/notebook/document";
+import type { EditableDocument } from "@/core/notebook/document";
 import type { CellColumnId } from "@/utils/id-tree";
 import { Logger } from "@/utils/Logger";
 import { clamp } from "@/utils/math";
@@ -14,15 +14,24 @@ import type { SerializedEditorState } from "../codemirror/types";
 import { canCollapseOutline } from "../dom/outline";
 import type { CellConfig } from "../network/types";
 import { store } from "../state/jotai";
-import { activeDocumentModelAtom } from "../session/active-notebook";
+import {
+  dropCellOverCellAtom,
+  dropCellOverColumnAtom,
+  moveCellAtom,
+  moveCellsRelativeToAtom,
+  moveCellToIndexAtom,
+  placeCells,
+  sendToBottomAtom,
+  sendToTopAtom,
+} from "./arrange";
 import {
   type DeletedCell,
   notebookAtom,
-  notebookReducer,
   releaseCellAtoms,
   useReducerActions,
 } from "./cells";
 import { resolveColumns } from "./columns";
+import { documentOf, focusWhenMounted, modelOf } from "./edit";
 import {
   isCodeHidden,
   restoredEditorStatesAtom,
@@ -63,22 +72,6 @@ export interface CreateCellOptions {
 
 export type CreateCell = (options?: CreateCellOptions) => CellId | null;
 
-function modelOf(get: Getter): DocumentModel {
-  const model = get(activeDocumentModelAtom);
-  if (!model) {
-    throw new Error("The notebook has no document to edit");
-  }
-  return model;
-}
-
-function documentOf(get: Getter): EditableDocument {
-  const document = get(modelOf(get).documentAtom);
-  if (!document) {
-    throw new Error("The notebook has no document to edit");
-  }
-  return document;
-}
-
 function hasCellWithCode(document: EditableDocument, code: string): boolean {
   for (const cell of document.cells.values()) {
     if (cell.code === code) {
@@ -86,11 +79,6 @@ function hasCellWithCode(document: EditableDocument, code: string): boolean {
     }
   }
   return false;
-}
-
-/** Scroll to and focus the cell once it mounts. */
-function focusWhenMounted(set: Setter, cellId: CellId): void {
-  set(notebookAtom, (state) => ({ ...state, scrollKey: cellId }));
 }
 
 /** Create a cell. Returns its id, or null when it was skipped. */
@@ -452,12 +440,12 @@ export const undoDeleteCellAtom = atom(null, (get, set): void => {
     return;
   }
   if (last.type === "move") {
-    set(notebookAtom, (state) =>
-      notebookReducer(
-        { ...state, history: state.history.slice(0, -1) },
-        { type: "undoMoveCells", payload: last },
-      ),
-    );
+    set(notebookAtom, (state) => ({
+      ...state,
+      history: state.history.slice(0, -1),
+    }));
+    placeCells(get, set, last.cellIds, last.placements);
+    focusWhenMounted(set, last.cellIds[0]);
     return;
   }
   const model = modelOf(get);
@@ -523,9 +511,23 @@ export function useCellActions() {
   const collapseAllCells = useSetAtom(collapseAllCellsAtom);
   const expandAllCells = useSetAtom(expandAllCellsAtom);
   const showCellIfHidden = useSetAtom(showCellIfHiddenAtom);
+  const moveCell = useSetAtom(moveCellAtom);
+  const moveCellToIndex = useSetAtom(moveCellToIndexAtom);
+  const moveCellsRelativeTo = useSetAtom(moveCellsRelativeToAtom);
+  const dropCellOverCell = useSetAtom(dropCellOverCellAtom);
+  const dropCellOverColumn = useSetAtom(dropCellOverColumnAtom);
+  const sendToTop = useSetAtom(sendToTopAtom);
+  const sendToBottom = useSetAtom(sendToBottomAtom);
   return useMemo(
     () => ({
       ...operations,
+      moveCell,
+      moveCellToIndex,
+      moveCellsRelativeTo,
+      dropCellOverCell,
+      dropCellOverColumn,
+      sendToTop,
+      sendToBottom,
       createCell,
       moveToNextCell,
       addSetupCell,

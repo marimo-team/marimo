@@ -25,17 +25,6 @@ describe("CollapsibleTree", () => {
 		`);
   });
 
-  it("moves nodes correctly", () => {
-    const movedTree = tree.move(0, 1);
-    expect(movedTree.toString()).toMatchInlineSnapshot(`
-      "two
-      one
-      three
-      four
-      "
-    `);
-  });
-
   it("inserts nodes correctly", () => {
     tree = tree.insert("newNode", 1);
     expect(tree.toString()).toMatchInlineSnapshot(`
@@ -239,16 +228,6 @@ describe("CollapsibleTree edge cases", () => {
     expect(() => tree.first()).toThrow("Node at index 0 not found in tree");
     expect(() => tree.last()).toThrow("Node at index -1 not found in tree");
   });
-
-  it("handles moving within bounds", () => {
-    tree = tree.move(0, 2);
-    expect(tree.topLevelIds).toEqual(["B", "C", "A", "D"]);
-  });
-
-  it("handles moving out of bounds", () => {
-    tree = tree.move(0, 10);
-    expect(tree.topLevelIds).toEqual(["B", "C", "D", "A"]);
-  });
 });
 
 describe("MultiColumn", () => {
@@ -385,29 +364,6 @@ describe("MultiColumn", () => {
     ]);
   });
 
-  it("moves within a column", () => {
-    const moved = multiColumn.moveWithinColumn(
-      columnIds[0],
-      0 as CellIndex,
-      2 as CellIndex,
-    );
-    expect(moved.topLevelIds[0]).toEqual(["A2", "A3", "A1"]);
-  });
-
-  it("moves across columns", () => {
-    const moved = multiColumn.moveAcrossColumns(
-      columnIds[0],
-      "A1",
-      columnIds[1],
-      "B1",
-    );
-    expect(moved.topLevelIds).toEqual([
-      ["A2", "A3"],
-      ["A1", "B1", "B2"],
-      ["C1", "C2", "C3", "C4"],
-    ]);
-  });
-
   it("moves a column", () => {
     const moved = multiColumn.moveColumn(columnIds[0], columnIds[2]);
     expect(moved.topLevelIds).toEqual([
@@ -444,17 +400,6 @@ describe("MultiColumn", () => {
     ]);
   });
 
-  it("moves to a new column", () => {
-    const newColumn = multiColumn.moveToNewColumn("B1");
-    expect(newColumn.colLength).toBe(4);
-    expect(newColumn.topLevelIds).toEqual([
-      ["A1", "A2", "A3"],
-      ["B2"],
-      ["C1", "C2", "C3", "C4"],
-      ["B1"],
-    ]);
-  });
-
   it("gets column with id", () => {
     const column = multiColumn.findWithId("B2");
     expect(multiColumn.indexOf(column)).toBe(1);
@@ -463,9 +408,9 @@ describe("MultiColumn", () => {
 
   it("transforms by id", () => {
     const transformed = multiColumn.transformWithCellId("B1", (tree) =>
-      tree.moveToFront("B2"),
+      tree.delete("B1"),
     );
-    expect(transformed.topLevelIds[1]).toEqual(["B2", "B1"]);
+    expect(transformed.topLevelIds[1]).toEqual(["B2"]);
   });
 
   it("transforms all columns", () => {
@@ -482,82 +427,6 @@ describe("MultiColumn", () => {
   it("inserts an id", () => {
     const inserted = multiColumn.insertId("D1", columnIds[1], 1 as CellIndex);
     expect(inserted.topLevelIds[1]).toEqual(["B1", "D1", "B2"]);
-  });
-
-  describe("moveCellsRelativeTo", () => {
-    it("moves a single cell before target in same column", () => {
-      const moved = multiColumn.moveCellsRelativeTo(["A3"], "A1", "before");
-      expect(moved.topLevelIds).toEqual([
-        ["A3", "A1", "A2"],
-        ["B1", "B2"],
-        ["C1", "C2", "C3", "C4"],
-      ]);
-    });
-
-    it("moves a single cell after target in same column", () => {
-      const moved = multiColumn.moveCellsRelativeTo(["A1"], "A3", "after");
-      expect(moved.topLevelIds).toEqual([
-        ["A2", "A3", "A1"],
-        ["B1", "B2"],
-        ["C1", "C2", "C3", "C4"],
-      ]);
-    });
-
-    it("moves multiple cells before target", () => {
-      const moved = multiColumn.moveCellsRelativeTo(
-        ["A1", "A2"],
-        "B2",
-        "before",
-      );
-      expect(moved.topLevelIds).toEqual([
-        ["A3"],
-        ["B1", "A1", "A2", "B2"],
-        ["C1", "C2", "C3", "C4"],
-      ]);
-    });
-
-    it("moves multiple cells after target", () => {
-      const moved = multiColumn.moveCellsRelativeTo(
-        ["A2", "A3"],
-        "B1",
-        "after",
-      );
-      expect(moved.topLevelIds).toEqual([
-        ["A1"],
-        ["B1", "A2", "A3", "B2"],
-        ["C1", "C2", "C3", "C4"],
-      ]);
-    });
-
-    it("returns same MultiColumn when cellIds is empty", () => {
-      const moved = multiColumn.moveCellsRelativeTo([], "A1", "before");
-      expect(moved).toBe(multiColumn);
-    });
-
-    it("inserts at end when target is among moved cells", () => {
-      const moved = multiColumn.moveCellsRelativeTo(
-        ["A1", "A2"],
-        "A2",
-        "after",
-      );
-      // Target A2 was removed; insert at end of column 0
-      expect(moved.topLevelIds).toEqual([
-        ["A3", "A1", "A2"],
-        ["B1", "B2"],
-        ["C1", "C2", "C3", "C4"],
-      ]);
-    });
-
-    it("throws when node not found", () => {
-      expect(() =>
-        multiColumn.moveCellsRelativeTo(["Z1"], "A1", "before"),
-      ).toThrow("Cell Z1 not found in any column");
-    });
-  });
-
-  it("deletes by id", () => {
-    const deleted = multiColumn.deleteById("B1");
-    expect(deleted.topLevelIds[1]).toEqual(["B2"]);
   });
 
   it("compacts", () => {
@@ -602,36 +471,6 @@ describe("MultiColumn", () => {
     expect(() => multiColumn.atOrThrow(5)).toThrow("Column 5 not found");
   });
 
-  it("handles moving the last item in a column", () => {
-    const multiColumn = MultiColumn.from([["A1", "A2"], ["B1"]]);
-    const columnIds = multiColumn.getColumns().map((c) => c.id);
-    const moved = multiColumn.moveAcrossColumns(
-      columnIds[1],
-      "B1",
-      columnIds[0],
-      "A2",
-    );
-    expect(moved.topLevelIds).toEqual([["A1", "B1", "A2"], []]);
-    expect(moved.colLength).toBe(2);
-  });
-
-  it("handles moving all items from a column", () => {
-    const multiColumn = MultiColumn.from([
-      ["A1", "A2"],
-      ["B1", "B2"],
-    ]);
-    const columnIds = multiColumn.getColumns().map((c) => c.id);
-    let moved = multiColumn.moveAcrossColumns(
-      columnIds[1],
-      "B1",
-      columnIds[0],
-      "A2",
-    );
-    moved = moved.moveAcrossColumns(columnIds[1], "B2", columnIds[0], "A2");
-    expect(moved.topLevelIds).toEqual([["A1", "B1", "B2", "A2"], []]);
-    expect(moved.colLength).toBe(2);
-  });
-
   it("handles inserting at out-of-bounds indices", () => {
     const multiColumn = MultiColumn.from([["A1"], ["B1"]]);
     const columnId = multiColumn.atOrThrow(1).id;
@@ -660,20 +499,6 @@ describe("MultiColumn", () => {
     expect(transformed).toBe(multiColumn);
   });
 
-  it("handles moving to a new column when it's the last item", () => {
-    let multiColumn = MultiColumn.from([["A1"], ["B1"]]);
-    multiColumn = multiColumn.moveToNewColumn("B1");
-    expect(multiColumn.colLength).toBe(3);
-    expect(multiColumn.topLevelIds).toEqual([["A1"], [], ["B1"]]);
-  });
-
-  it("handles deleting the last item in a column", () => {
-    let multiColumn = MultiColumn.from([["A1"], ["B1"], ["C1"]]);
-    multiColumn = multiColumn.deleteById("B1");
-    expect(multiColumn.colLength).toBe(3);
-    expect(multiColumn.topLevelIds).toEqual([["A1"], [], ["C1"]]);
-  });
-
   it("handles multiple operations in sequence", () => {
     let multiColumn = MultiColumn.from([
       ["A1", "A2"],
@@ -681,40 +506,31 @@ describe("MultiColumn", () => {
       ["C1", "C2"],
     ]);
     const columnIds = multiColumn.getColumns().map((c) => c.id);
-    multiColumn = multiColumn.moveAcrossColumns(
-      columnIds[0],
-      "A2",
-      columnIds[1],
-      "B1",
-    );
-    expect(multiColumn.topLevelIds).toEqual([
-      ["A1"],
-      ["A2", "B1", "B2"],
-      ["C1", "C2"],
-    ]);
     multiColumn = multiColumn.insertId("D1", columnIds[2], 1 as CellIndex);
     expect(multiColumn.topLevelIds).toEqual([
-      ["A1"],
-      ["A2", "B1", "B2"],
+      ["A1", "A2"],
+      ["B1", "B2"],
       ["C1", "D1", "C2"],
     ]);
-    multiColumn = multiColumn.deleteById("B1");
+    multiColumn = multiColumn.transformWithCellId("B1", (tree) =>
+      tree.delete("B1"),
+    );
     expect(multiColumn.topLevelIds).toEqual([
-      ["A1"],
-      ["A2", "B2"],
+      ["A1", "A2"],
+      ["B2"],
       ["C1", "D1", "C2"],
     ]);
     multiColumn = multiColumn.moveColumn(columnIds[0], columnIds[2]);
     expect(multiColumn.topLevelIds).toEqual([
-      ["A2", "B2"],
+      ["B2"],
       ["C1", "D1", "C2"],
-      ["A1"],
+      ["A1", "A2"],
     ]);
     multiColumn = multiColumn.compact();
     expect(multiColumn.topLevelIds).toEqual([
-      ["A2", "B2"],
+      ["B2"],
       ["C1", "D1", "C2"],
-      ["A1"],
+      ["A1", "A2"],
     ]);
   });
 
@@ -724,7 +540,10 @@ describe("MultiColumn", () => {
     expect(multiColumn.setupCellExists()).toBe(false);
     const multiColumn2 = multiColumn.insertId(SETUP_CELL_ID, columnIds[0], 0);
     expect(multiColumn2.setupCellExists()).toBe(true);
-    const multiColumn3 = multiColumn2.deleteById(SETUP_CELL_ID);
+    const multiColumn3 = multiColumn2.transformWithCellId(
+      SETUP_CELL_ID,
+      (tree) => tree.delete(SETUP_CELL_ID),
+    );
     expect(multiColumn3.setupCellExists()).toBe(false);
   });
 
@@ -750,52 +569,21 @@ describe("MultiColumn", () => {
 
   it("handles transform method", () => {
     const transformed = multiColumn.transform(columnIds[1], (tree) =>
-      tree.moveToFront("B2"),
+      tree.delete("B1"),
     );
-    expect(transformed.topLevelIds[1]).toEqual(["B2", "B1"]);
+    expect(transformed.topLevelIds[1]).toEqual(["B2"]);
   });
 
   it("handles transform method with non-existent column id", () => {
     const transformed = multiColumn.transform(
       "non-existent-id" as CellColumnId,
-      (tree) => tree.moveToFront("B2"),
+      (tree) => tree.delete("B2"),
     );
     const columns1 = multiColumn.getColumns();
     const columns2 = transformed.getColumns();
     const allEqual = columns1.every((c, i) => c.equals(columns2[i]));
     expect(allEqual).toBe(true);
     expect(transformed).toBe(multiColumn);
-  });
-
-  it("handles moving across columns with undefined toId", () => {
-    const moved = multiColumn.moveAcrossColumns(
-      columnIds[0],
-      "A1",
-      columnIds[1],
-      undefined,
-    );
-    expect(moved.topLevelIds).toEqual([
-      ["A2", "A3"],
-      ["A1", "B1", "B2"],
-      ["C1", "C2", "C3", "C4"],
-    ]);
-  });
-
-  it("handles moving across columns to an empty column", () => {
-    const emptyColumnMultiColumn = multiColumn
-      .deleteById("B1")
-      .deleteById("B2");
-    const moved = emptyColumnMultiColumn.moveAcrossColumns(
-      columnIds[0],
-      "A1",
-      columnIds[1],
-      undefined,
-    );
-    expect(moved.topLevelIds).toEqual([
-      ["A2", "A3"],
-      ["A1"],
-      ["C1", "C2", "C3", "C4"],
-    ]);
   });
 
   it("handles inserting a breakpoint at the start of a column", () => {

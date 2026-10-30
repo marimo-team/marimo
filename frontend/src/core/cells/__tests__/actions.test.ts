@@ -1,19 +1,10 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { history } from "@codemirror/commands";
-import { EditorState } from "@codemirror/state";
-import { EditorView } from "@codemirror/view";
 import type * as Protocol from "@marimo-team/client/protocol";
-import { createStore } from "jotai";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { mockDocumentModel } from "@/__mocks__/document";
 import { cellId } from "@/__tests__/branded";
-import {
-  cell,
-  CONFIG,
-  document as documentOf,
-  withCells,
-} from "@/core/notebook/document/__tests__/fixtures";
+import { createStore } from "jotai";
+import { cell, CONFIG } from "@/core/notebook/document/__tests__/fixtures";
 import type { CellIndex } from "@/utils/id-tree";
 import {
   addSetupCellAtom,
@@ -28,14 +19,13 @@ import {
   showCellIfHiddenAtom,
   undoDeleteCellAtom,
 } from "../actions";
+import { moveCellsRelativeToAtom } from "../arrange";
 import {
   cellDataAtom,
   cellHandleAtom,
   exportedForTesting,
   notebookAtom,
-  notebookReducer,
 } from "../cells";
-import { followDocument } from "../document";
 import {
   hideShownCodeAtom,
   restoredEditorStatesAtom,
@@ -43,6 +33,7 @@ import {
 } from "../editor";
 import { collapsedAtom, layoutAtom } from "../layout";
 import { type CellId, SCRATCH_CELL_ID, SETUP_CELL_ID } from "../ids";
+import { setupNotebook } from "./harness";
 import { focusAndScrollCellIntoView } from "../scrollCellIntoView";
 
 vi.mock("../scrollCellIntoView", () => ({
@@ -61,66 +52,8 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
-/** A store whose notebook follows a document model, as the session wires it. */
-function setup(cells?: Record<string, Protocol.Cell | null>) {
-  const store = createStore();
-  store.set(notebookAtom, exportedForTesting.initialNotebookState());
-  const { model, stop } = mockDocumentModel(
-    store,
-    cells ? withCells(documentOf(), cells) : documentOf(),
-  );
-  const controller = new AbortController();
-  stops.push(stop, () => controller.abort());
-  followDocument({
-    store,
-    model,
-    reconcile: (document) =>
-      store.set(notebookAtom, (state) =>
-        notebookReducer(state, {
-          type: "reconcileDocument",
-          payload: document,
-        }),
-      ),
-    signal: controller.signal,
-  });
-  return {
-    store,
-    model,
-    order: () => store.get(notebookAtom).cellIds.inOrderIds,
-    notebook: () => store.get(notebookAtom),
-    cellIn: (id: string) => store.get(model.documentAtom)?.cells.get(id),
-    /** Give a cell an editor, as mounting it would. */
-    mountEditor: (id: string) => {
-      const view = new EditorView({
-        state: EditorState.create({
-          doc: store.get(model.documentAtom)?.cells.get(id)?.code ?? "",
-          extensions: [history()],
-        }),
-      });
-      store.get(notebookAtom).cellHandles[id as never].current = {
-        editorView: view,
-        editorViewOrNull: view,
-      };
-      return view;
-    },
-    /** Give a cell's output a heading, as the kernel's outline would. */
-    heading: (id: string, level: number) =>
-      store.set(notebookAtom, (state) => ({
-        ...state,
-        cellRuntime: {
-          ...state.cellRuntime,
-          [id]: {
-            ...state.cellRuntime[id as never],
-            outline: { items: [{ name: `H${level}`, level, by: { id } }] },
-          },
-        },
-      })),
-    visible: () => store.get(layoutAtom).columns[0].visible,
-    /** Apply a reducer action, as `useReducerActions()` does. */
-    dispatch: (action: Parameters<typeof notebookReducer>[1]) =>
-      store.set(notebookAtom, (state) => notebookReducer(state, action)),
-  };
-}
+const setup = (cells?: Record<string, Protocol.Cell | null>) =>
+  setupNotebook(stops, cells);
 
 describe("createCellAtom", () => {
   it("creates a cell after another and focuses it once it mounts", () => {
@@ -435,25 +368,20 @@ describe("undoDeleteCellAtom", () => {
   });
 
   it("undoes a move recorded in the history", () => {
-    const { store, model, order, notebook, dispatch } = setup({
+    const { store, order, notebook } = setup({
       c3: cell("c3", "z = 3"),
     });
     const column = notebook().cellIds.atOrThrow(0);
-    dispatch({
-      type: "moveCellsRelativeTo",
-      payload: {
-        cellIds: [c1, c2],
-        targetCellId: c3,
-        position: "after",
-        previousPlacements: [
-          { columnId: column.id, index: 0 as CellIndex },
-          { columnId: column.id, index: 1 as CellIndex },
-        ],
-      },
+    store.set(moveCellsRelativeToAtom, {
+      cellIds: [c1, c2],
+      targetCellId: c3,
+      position: "after",
+      previousPlacements: [
+        { columnId: column.id, index: 0 as CellIndex },
+        { columnId: column.id, index: 1 as CellIndex },
+      ],
     });
     expect(order()).toEqual([c3, c1, c2]);
-    // The middleware would write the order to the document.
-    store.set(model.editAtom, (tx) => tx.setOrder([c3, c1, c2]));
 
     store.set(deleteCellsAtom, { cellIds: [c3] });
     expect(order()).toEqual([c1, c2]);

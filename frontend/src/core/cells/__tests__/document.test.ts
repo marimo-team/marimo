@@ -282,25 +282,6 @@ describe("documentEditMiddleware", () => {
     expect(calls).toEqual([["setCode", a, "a = 2"]]);
   });
 
-  it("sets the order when a cell moves", () => {
-    actions.moveCell({ cellId: c, before: true });
-
-    expect(calls).toEqual([["setOrder", [a, c, b]]]);
-  });
-
-  it("sets the column of a cell that changes column", () => {
-    state = notebookOf([
-      cell(a),
-      cell(b),
-      cell(c, { config: { ...cell(c).config, column: 1 } }),
-    ]);
-
-    actions.moveCell({ cellId: b, direction: "right" });
-
-    expect(state.cellIds.atOrThrow(1).inOrderIds).toEqual([b, c]);
-    expect(calls).toEqual([["updateConfig", b, { column: 1 }]]);
-  });
-
   it("clears columns merged into one", () => {
     state = notebookOf([
       cell(a),
