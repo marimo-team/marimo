@@ -4,12 +4,10 @@ from __future__ import annotations
 import os
 import random
 import tempfile
-from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
 from unittest.mock import Mock, patch
 
-import msgspec
 import pytest
 
 from marimo._utils.platform import is_windows
@@ -166,57 +164,6 @@ def test_read_code_in_run_mode_without_include_code(
 
 @pytest.mark.flaky(reruns=5)
 @with_session(SESSION_ID)
-def test_save_file(client: TestClient) -> None:
-    filename = get_session_manager(client).workspace.get_unique_file_key()
-    assert filename
-    path = Path(filename)
-
-    response = client.post(
-        "/api/kernel/save",
-        headers=HEADERS,
-        json={
-            "cellIds": ["1"],
-            "filename": str(path),
-            "codes": ["import marimo as mo"],
-            "names": ["my_cell"],
-            "configs": [
-                {
-                    "hide_code": True,
-                    "disabled": False,
-                }
-            ],
-        },
-    )
-    assert response.status_code == 200, response.text
-
-    def _assert_contents():
-        file_contents = path.read_text()
-        assert "import marimo" in response.text
-        assert "import marimo as mo" in file_contents
-        assert "@app.cell(hide_code=True)" in file_contents
-        assert "my_cell" in file_contents
-
-    try_assert_n_times(5, _assert_contents)
-
-    # save back
-    response = client.post(
-        "/api/kernel/save",
-        headers=HEADERS,
-        json={
-            "cellIds": ["1"],
-            "filename": str(path),
-            "codes": ["import marimo as mo"],
-            "names": ["__"],
-            "configs": [
-                {
-                    "hide_code": False,
-                }
-            ],
-        },
-    )
-
-
-@with_session(SESSION_ID)
 def test_save_layout(client: TestClient) -> None:
     filename = get_session_manager(client).workspace.get_unique_file_key()
     assert filename
@@ -252,137 +199,7 @@ def test_save_layout(client: TestClient) -> None:
     assert app.config.layout_file is None
 
 
-@pytest.mark.xfail(
-    reason="Flaky in CI, can't repro locally",
-)
-@with_session(SESSION_ID)
-def test_save_with_header(client: TestClient) -> None:
-    filename = get_session_manager(client).workspace.get_unique_file_key()
-    assert filename
-    path = Path(filename)
-    assert path.exists()
-
-    copyright_year = datetime.now().year
-    header = (
-        '"""This is a docstring"""\n\n'
-        + f"# Copyright {copyright_year}\n# Linter ignore\n"
-    )
-    # Prepend a header to the file
-    contents = path.read_text()
-    contents = header + contents
-    path.write_text(contents, encoding="UTF-8")
-
-    response = client.post(
-        "/api/kernel/save",
-        headers=HEADERS,
-        json={
-            "cellIds": ["1"],
-            "filename": str(path),
-            "codes": ["import marimo as mo"],
-            "names": ["my_cell"],
-            "configs": [
-                {
-                    "hide_code": True,
-                    "disabled": False,
-                }
-            ],
-        },
-    )
-
-    assert response.status_code == 200, response.text
-    assert "import marimo" in response.text
-
-    def _assert_contents():
-        file_contents = path.read_text()
-        assert "import marimo as mo" in file_contents
-        # Race condition with uv (seen in python 3.10)
-        if file_contents.startswith("# ///"):
-            file_contents = file_contents.split("# ///")[2].lstrip()
-        assert file_contents.startswith(header.rstrip()), "Header was removed"
-        assert "@app.cell(hide_code=True)" in file_contents
-        assert "my_cell" in file_contents
-
-    try_assert_n_times(5, _assert_contents)
-
-
 @pytest.mark.flaky(reruns=5)
-@with_session(SESSION_ID)
-def test_save_with_invalid_file(client: TestClient) -> None:
-    filename = get_session_manager(client).workspace.get_unique_file_key()
-    assert filename
-    path = Path(filename)
-    assert path.exists()
-
-    header = (
-        '"""This is a docstring"""\n\n'
-        + 'print("dont do this!")\n'
-        + "# Linter ignore\n"
-    )
-
-    # Prepend a header to the file
-    contents = path.read_text()
-    contents = header + contents
-    path.write_text(contents)
-
-    response = client.post(
-        "/api/kernel/save",
-        headers=HEADERS,
-        json={
-            "cellIds": ["1"],
-            "filename": str(path),
-            "codes": ["import marimo as mo"],
-            "names": ["my_cell"],
-            "configs": [
-                {
-                    "hide_code": True,
-                    "disabled": False,
-                }
-            ],
-        },
-    )
-
-    assert response.status_code == 200, response.text
-    assert "import marimo" in response.text
-
-    def _assert_contents():
-        file_contents = path.read_text()
-        assert "@app.cell(hide_code=True)" in file_contents
-        assert "my_cell" in file_contents
-
-        # Race condition with uv (seen in python 3.10)
-        if file_contents.startswith("# ///"):
-            file_contents = file_contents.split("# ///")[2].lstrip()
-        assert file_contents.startswith("import marimo"), (
-            "Header was not removed"
-        )
-
-    try_assert_n_times(5, _assert_contents)
-
-
-@with_session(SESSION_ID)
-def test_save_file_cannot_rename(client: TestClient) -> None:
-    response = client.post(
-        "/api/kernel/save",
-        headers=HEADERS,
-        json={
-            "cellIds": ["1"],
-            "filename": "random_filename.py",
-            "codes": ["import marimo as mo"],
-            "names": ["my_cell"],
-            "configs": [
-                {
-                    "hide_code": True,
-                    "disabled": False,
-                }
-            ],
-        },
-    )
-    assert response.status_code == 400
-    body = response.json()
-    assert body["detail"]
-    assert "cannot rename" in body["detail"]
-
-
 @pytest.mark.flaky(reruns=5)
 @with_session(SESSION_ID)
 def test_save_app_config(client: TestClient) -> None:
@@ -488,36 +305,6 @@ def test_copy_file_with_relative_paths(client: TestClient) -> None:
         assert 'marimo.App(width="full"' in file_contents
 
     try_assert_n_times(5, _assert_contents)
-
-
-@with_session(SESSION_ID)
-def test_path_traversal_save_blocked(client: TestClient) -> None:
-    """Save endpoint must not write outside the workspace's directory."""
-    filename = get_session_manager(client).workspace.get_unique_file_key()
-    assert filename
-    path = Path(filename)
-    directory = str(path.parent)
-    workspace = get_session_manager(client).workspace
-
-    with patch.object(
-        type(workspace),
-        "directory",
-        new_callable=lambda: property(lambda _: directory),
-    ):
-        # Attempt to save outside the directory via path traversal
-        traversal_path = str(path.parent.parent / "escaped.py")
-        response = client.post(
-            "/api/kernel/save",
-            headers=HEADERS,
-            json={
-                "cellIds": ["1"],
-                "codes": ["import marimo as mo"],
-                "names": ["cell"],
-                "configs": [{}],
-                "filename": traversal_path,
-            },
-        )
-        assert response.status_code == 403, response.text
 
 
 @with_session(SESSION_ID)
@@ -656,55 +443,6 @@ def test_read_code_without_saved_file(client: TestClient) -> None:
         assert (
             "File must be saved before downloading"
             in response.json()["detail"]
-        )
-
-
-@with_session(SESSION_ID)
-def test_save_with_unicode_content(client: TestClient) -> None:
-    """Test save endpoint with unicode and special characters."""
-    filename = get_session_manager(client).workspace.get_unique_file_key()
-    assert filename
-    path = Path(filename)
-
-    unicode_code = """# Unicode test: 你好世界 🌍 ñáéíóú
-def test():
-    return "Hello 世界" """
-
-    response = client.post(
-        "/api/kernel/save",
-        headers=HEADERS,
-        json={
-            "cellIds": ["1"],
-            "filename": str(path),
-            "codes": [unicode_code],
-            "names": ["unicode_cell"],
-            "configs": [{}],
-        },
-    )
-    assert response.status_code == 200
-
-    def _assert_contents():
-        file_contents = path.read_text(encoding="utf-8")
-        assert "你好世界" in file_contents
-        assert "🌍" in file_contents
-
-    try_assert_n_times(5, _assert_contents)
-
-
-@with_session(SESSION_ID)
-def test_save_with_missing_required_fields(client: TestClient) -> None:
-    """Test save endpoint with missing required fields."""
-    # Missing codes field
-    with pytest.raises(msgspec.ValidationError):
-        client.post(
-            "/api/kernel/save",
-            headers=HEADERS,
-            json={
-                "cellIds": ["1"],
-                "filename": "test.py",
-                "names": ["my_cell"],
-                "configs": [{}],
-            },
         )
 
 

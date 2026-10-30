@@ -376,7 +376,6 @@ export class IslandsPyodideBridge implements RunRequests, EditRequests {
   public getUsageStats = throwNotImplemented;
   public getEnvironmentInfo = throwNotImplemented;
   public sendRename = throwNotImplemented;
-  public sendSave = throwNotImplemented;
   public saveLayout = throwNotImplemented;
   public sendCopy = throwNotImplemented;
   public sendRunScratchpad = throwNotImplemented;

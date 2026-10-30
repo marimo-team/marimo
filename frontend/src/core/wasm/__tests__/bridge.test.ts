@@ -1,7 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cellId } from "@/__tests__/branded";
 import { Deferred } from "@/utils/Deferred";
 
 const {
@@ -11,7 +10,6 @@ const {
   mockWriteNotebook,
   mockNotebookCall,
   mockSetNotebookLayout,
-  mockFlush,
   parentRequests,
   mockBootstrap,
   rpcListeners,
@@ -24,7 +22,6 @@ const {
   mockWriteNotebook: vi.fn(),
   mockNotebookCall: vi.fn(),
   mockSetNotebookLayout: vi.fn(),
-  mockFlush: vi.fn(),
   parentRequests: {} as {
     persistNotebook?: (snapshot: {
       filename: string;
@@ -101,18 +98,9 @@ vi.mock("@/core/wasm/store", () => ({
   notebookFileStore: { readFile: mockNotebookReadFile, saveFile: vi.fn() },
 }));
 
-vi.mock("@/core/cells/document", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("@/core/cells/document")>()),
-  flushDocument: mockFlush,
-}));
-
 // Import after all mocks are set up
 import { store } from "@/core/state/jotai";
 import { initialModeAtom } from "@/core/mode";
-import { fixtureEvents } from "@/core/notebook/replica/__tests__/fixtures";
-import { createNotebookReplica } from "@/core/notebook/replica";
-import { activeNotebookReplicaAtom } from "@/core/session/active-notebook";
-import { createEditorBackend } from "@/core/session/backend";
 import { fallbackFileStore, notebookFileStore } from "../store";
 import { getWasmWorkerName, PyodideBridge } from "../bridge";
 
@@ -200,128 +188,16 @@ describe("PyodideBridge.exportAsScript", () => {
   });
 });
 
-describe("PyodideBridge.sendSave", () => {
-  let disconnect: () => void;
-  const request = {
-    cellIds: [cellId("cell-1")],
-    codes: ['value = "NEW"'],
-    names: ["_"],
-    filename: "notebook.py",
-    configs: [{}],
-    layout: null,
-    persist: true,
-  };
-
-  beforeEach(async () => {
+describe("PyodideBridge notebook persistence", () => {
+  beforeEach(() => {
     vi.clearAllMocks();
     store.set(initialModeAtom, "edit");
     rpcListeners.initialized();
-    mockFlush.mockResolvedValue(undefined);
     mockWriteNotebook.mockResolvedValue(undefined);
-    mockNotebookUnsubscribe.mockResolvedValue(undefined);
-    const document = fixtureEvents("notebook-events.sse").find(
-      (event) => event.event === "document",
-    )?.data.document;
-    mockNotebookCall.mockResolvedValue({
-      status: 200,
-      body: { document, cells: {} },
-    });
-    mockNotebookSubscribe.mockImplementation(async ({ id }) => {
-      for (const event of fixtureEvents("notebook-events.sse")) {
-        rpcListeners.notebookEvent({ id, event: JSON.stringify(event) });
-      }
-    });
-    const replica = createNotebookReplica(store);
-    store.set(activeNotebookReplicaAtom, replica);
-    const backend = createEditorBackend({
-      static: false,
-      snapshot: null,
-      transportType: "sse",
-      url: () => "http://localhost/",
-      headers: () => ({}),
-      notebookUrl: (id) => new URL(`http://localhost/notebooks/${id}`),
-      waitUntilReady: async () => undefined,
-      checkHealth: async () => true,
-    });
-    disconnect = replica.connect(backend, { onNotification: vi.fn() });
-    await vi.waitFor(() =>
-      expect(store.get(replica.notebookAtom)?.id).toBe("n1"),
-    );
   });
 
   afterEach(() => {
-    disconnect();
-    store.set(activeNotebookReplicaAtom, null);
     store.set(initialModeAtom, undefined);
-  });
-
-  it("saves through the connected backend using the stream's notebook ID", async () => {
-    const bridge = PyodideBridge.INSTANCE;
-    const createBackend = vi.spyOn(bridge, "createNotebookBackend");
-    await bridge.sendSave(request);
-    expect(createBackend).not.toHaveBeenCalled();
-    expect(mockNotebookCall).toHaveBeenCalledWith(
-      expect.objectContaining({
-        operation: "notebook.save",
-        params: { notebook_id: "n1" },
-        body: {},
-      }),
-    );
-  });
-
-  it.each(["unmounted", "not ready", "disconnected"])(
-    "does not save when the notebook is %s",
-    async (state) => {
-      if (state === "unmounted") {
-        store.set(activeNotebookReplicaAtom, null);
-      } else if (state === "not ready") {
-        store.set(activeNotebookReplicaAtom, createNotebookReplica(store));
-      } else {
-        disconnect();
-      }
-      await expect(PyodideBridge.INSTANCE.sendSave(request)).rejects.toThrow(
-        "The notebook is not connected",
-      );
-      expect(mockNotebookCall).not.toHaveBeenCalled();
-    },
-  );
-
-  it("flushes edits before asking the host to save without an editor snapshot", async () => {
-    const flushed = new Deferred<void>();
-    mockFlush.mockReturnValueOnce(flushed.promise);
-    const saving = PyodideBridge.INSTANCE.sendSave(request);
-    await Promise.resolve();
-    expect(mockNotebookCall).not.toHaveBeenCalled();
-    flushed.resolve();
-    await saving;
-    expect(mockSetNotebookLayout).toHaveBeenCalledWith(null);
-    expect(mockNotebookCall).toHaveBeenCalledWith(
-      expect.objectContaining({ operation: "notebook.save", body: {} }),
-    );
-    expect(mockWriteNotebook).not.toHaveBeenCalled();
-  });
-
-  it("does not save when flushing fails", async () => {
-    mockFlush.mockRejectedValueOnce(new Error("unsynchronized edit"));
-    await expect(PyodideBridge.INSTANCE.sendSave(request)).rejects.toThrow(
-      "unsynchronized edit",
-    );
-    expect(mockNotebookCall).not.toHaveBeenCalled();
-  });
-
-  it("reports host persistence failures", async () => {
-    mockNotebookCall.mockResolvedValueOnce({
-      status: 409,
-      body: {
-        type: "tag:marimo.io,2026:host/conflict",
-        title: "Conflict",
-        status: 409,
-        detail: "storage full",
-      },
-    });
-    await expect(PyodideBridge.INSTANCE.sendSave(request)).rejects.toThrow(
-      "storage full",
-    );
   });
 
   it("persists exactly the host's content before acknowledging storage", async () => {

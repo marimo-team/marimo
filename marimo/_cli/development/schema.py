@@ -380,7 +380,6 @@ def generate_server_api_schema() -> dict[str, Any]:
         models.ExecuteCellsRequest,
         models.SaveAppConfigurationRequest,
         models.SaveLayoutRequest,
-        models.SaveNotebookRequest,
         models.SaveUserConfigurationRequest,
         models.StdinRequest,
         models.SuccessResponse,

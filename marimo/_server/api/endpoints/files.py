@@ -9,9 +9,6 @@ from starlette.exceptions import HTTPException
 from starlette.responses import PlainTextResponse
 
 from marimo import _loggers
-from marimo._messaging.notification import (
-    NotebookDocumentTransactionNotification,
-)
 from marimo._runtime.commands import RenameNotebookCommand
 from marimo._server.api.deps import AppState
 from marimo._server.api.utils import (
@@ -26,7 +23,6 @@ from marimo._server.models.models import (
     RenameNotebookRequest,
     SaveAppConfigurationRequest,
     SaveLayoutRequest,
-    SaveNotebookRequest,
     SuccessResponse,
 )
 from marimo._server.router import APIRouter
@@ -182,60 +178,6 @@ async def save_layout(
         body.layout
     )
     return SuccessResponse()
-
-
-@router.post("/save")
-@requires("edit")
-async def save(
-    *,
-    request: Request,
-) -> PlainTextResponse:
-    """
-    parameters:
-        - in: header
-          name: Marimo-Session-Id
-          schema:
-            type: string
-          required: true
-    requestBody:
-        content:
-            application/json:
-                schema:
-                    $ref: "#/components/schemas/SaveNotebookRequest"
-    responses:
-        200:
-            description: Save the current app
-            content:
-                text/plain:
-                    schema:
-                        type: string
-    """
-    app_state = AppState(request)
-    body = await parse_request(request, cls=SaveNotebookRequest)
-    directory = app_state.session_manager.workspace.directory
-
-    # Resolve relative filenames against the workspace's directory
-    if body.filename and not Path(body.filename).is_absolute():
-        if directory:
-            body.filename = str(Path(directory) / body.filename)
-
-    # Prevent path traversal: ensure target is inside the router's directory
-    if directory and body.filename:
-        PathValidator().validate_inside_directory(
-            Path(directory), Path(body.filename)
-        )
-
-    session = app_state.require_current_session()
-    session_id = app_state.require_current_session_id()
-    contents = session.app_file_manager.save(
-        body,
-        on_document_transaction=lambda transaction: session.notify(
-            NotebookDocumentTransactionNotification(transaction=transaction),
-            from_consumer_id=ConsumerId(session_id),
-        ),
-    )
-
-    return PlainTextResponse(content=contents)
 
 
 @router.post("/copy")

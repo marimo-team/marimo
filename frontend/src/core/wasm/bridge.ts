@@ -42,7 +42,6 @@ import type {
 } from "../network/types";
 import { filenameAtom } from "../saving/file-state";
 import { store } from "../state/jotai";
-import { activeNotebookReplicaAtom } from "../session/active-notebook";
 import { PyodideRouter } from "./router";
 import { getWorkerRPC, type PersistNotebookRequest } from "./rpc";
 import { getWasmRuntimeConfig } from "./runtime-config";
@@ -266,28 +265,8 @@ export class PyodideBridge implements RunRequests, EditRequests {
     return null;
   };
 
-  private async saveHostNotebook() {
-    const replica = store.get(activeNotebookReplicaAtom);
-    const notebook = replica && store.get(replica.notebookAtom);
-    const backend = replica && store.get(replica.backendAtom);
-    if (!notebook || !backend) {
-      throw new Error("The notebook is not connected");
-    }
-    const result = await backend.notebook(notebook.id).save();
-    if (!result.ok) {
-      throw new Error(result.problem.detail ?? result.problem.title);
-    }
-  }
-
   public saveLayout: EditRequests["saveLayout"] = async ({ layout }) => {
     await this.rpc.proxy.request.setNotebookLayout(layout ?? null);
-    return null;
-  };
-
-  public sendSave: EditRequests["sendSave"] = async ({ layout }) => {
-    await flushDocument();
-    await this.rpc.proxy.request.setNotebookLayout(layout ?? null);
-    await this.saveHostNotebook();
     return null;
   };
 
@@ -396,7 +375,6 @@ export class PyodideBridge implements RunRequests, EditRequests {
       functionName: "save_app_config",
       payload: request,
     });
-    await this.saveHostNotebook();
     return null;
   };
 

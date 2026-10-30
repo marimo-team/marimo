@@ -5,7 +5,6 @@ from typing import Any, Literal
 
 import msgspec
 
-from marimo._ast.cell import CellConfig
 from marimo._runtime.commands import (
     ClearCacheCommand,
     CodeCompletionCommand,
@@ -264,35 +263,6 @@ class ExecuteCellsRequest(msgspec.Struct, rename="camel"):
     def __post_init__(self) -> None:
         assert len(self.cell_ids) == len(self.codes), (
             "Mismatched cell_ids and codes"
-        )
-
-
-class SaveNotebookRequest(msgspec.Struct, rename="camel"):
-    # id of each cell
-    cell_ids: list[CellId_t]
-    # code for each cell
-    codes: list[str]
-    # name of each cell
-    names: list[str]
-    # config for each cell
-    configs: list[CellConfig]
-    # path to app
-    filename: str
-    # layout of app
-    layout: dict[str, Any] | None = None
-    # persist the file to disk
-    persist: bool = True
-
-    # Validate same length
-    def __post_init__(self) -> None:
-        assert len(self.cell_ids) == len(self.codes), (
-            "Mismatched cell_ids and codes"
-        )
-        assert len(self.cell_ids) == len(self.names), (
-            "Mismatched cell_ids and names"
-        )
-        assert len(self.cell_ids) == len(self.configs), (
-            "Mismatched cell_ids and configs"
         )
 
 
