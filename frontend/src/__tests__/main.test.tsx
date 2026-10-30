@@ -12,6 +12,8 @@ import {
   configOverridesAtom,
   userConfigAtom,
 } from "../core/config/config";
+import { notebookAtom } from "../core/cells/cells";
+import { SCRATCH_CELL_ID } from "../core/cells/ids";
 import { marimoVersionAtom, showCodeInRunModeAtom } from "../core/meta/state";
 import { type AppMode, viewStateAtom } from "../core/mode";
 import { codeAtom, filenameAtom } from "../core/saving/file-state";
@@ -97,6 +99,25 @@ describe("main", () => {
     expect(store.get(codeAtom)).toBe("");
     expect(store.get(marimoVersionAtom)).toBe("unknown");
     expect(store.get(viewStateAtom).mode).toBe("edit");
+  });
+
+  it("seeds runtime from a session snapshot without dropping the scratch cell", () => {
+    const el = document.createElement("div");
+    const error = mount(
+      {
+        mode: "edit",
+        session: {
+          version: "1",
+          metadata: { marimo_version: "1", script_metadata_hash: null },
+          cells: [{ id: "cell-1", code_hash: null, console: [], outputs: [] }],
+        },
+      },
+      el,
+    );
+    expect(error).toBeUndefined();
+    const { cellRuntime } = store.get(notebookAtom);
+    expect(cellRuntime["cell-1" as never]).toBeDefined();
+    expect(cellRuntime[SCRATCH_CELL_ID]).toBeDefined();
   });
 
   it("should mount with empty config", () => {
