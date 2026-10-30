@@ -9,7 +9,7 @@ import { cellId } from "@/__tests__/branded";
 import { notebookAtom } from "@/core/cells/cells";
 import type { CellId } from "@/core/cells/ids";
 import { OverridingHotkeyProvider } from "@/core/hotkeys/hotkeys";
-import { MultiColumn } from "@/utils/id-tree";
+import { type CellColumnId, columnIdsAtom } from "@/core/cells/layout";
 import { cellConfigExtension } from "../../../codemirror/config/extension";
 import { adaptiveLanguageConfiguration } from "../../../codemirror/language/extension";
 import { stagedAICellsAtom } from "../../staged-cells";
@@ -447,9 +447,12 @@ describe("EditNotebookTool", () => {
           [cellId2]: { code: "x = 2" },
         },
       });
-      // Create multi-column layout
-      notebook.cellIds = MultiColumn.from([[cellId1], [cellId2]]);
       store.set(notebookAtom, notebook);
+      // A second column this page named, with nothing in it yet.
+      store.set(columnIdsAtom, [
+        "column-0" as CellColumnId,
+        "column-1" as CellColumnId,
+      ]);
 
       const newCode = "y = 2";
       const result = await tool.handler(
@@ -711,8 +714,6 @@ describe("EditNotebookTool", () => {
           [cellId3]: { code: "x = 3" },
         },
       });
-      // Create multi-column layout
-      notebook.cellIds = MultiColumn.from([[cellId1, cellId2], [cellId3]]);
       store.set(notebookAtom, notebook);
 
       // Should not throw for cells in different columns

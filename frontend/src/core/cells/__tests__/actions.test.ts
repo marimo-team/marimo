@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { cellId } from "@/__tests__/branded";
 import { createStore } from "jotai";
 import { cell, CONFIG } from "@/core/notebook/document/__tests__/fixtures";
-import type { CellColumnId, CellIndex } from "@/utils/id-tree";
+import type { CellColumnId } from "../layout";
 import {
   addSetupCellAtom,
   collapseAllCellsAtom,
@@ -97,7 +97,7 @@ describe("createCellAtom", () => {
   });
 
   it("names the column of a cell placed first in a later column", () => {
-    const { store, notebook, cellIn } = setup({
+    const { store, cellIn } = setup({
       c2: cell("c2", "y = 2", { config: { ...CONFIG, column: 1 } }),
     });
 
@@ -105,12 +105,14 @@ describe("createCellAtom", () => {
 
     expect(cellIn(id as string)?.config.column).toBe(1);
     expect(cellIn(c2)?.config.column).toBeNull();
-    expect(notebook().cellIds.atOrThrow(1).inOrderIds).toEqual([id, c2]);
-    expect(notebook().cellIds.atOrThrow(0).inOrderIds).toEqual([c1]);
+    expect(store.get(layoutAtom).columns.map((c) => c.ids)).toEqual([
+      [c1],
+      [id, c2],
+    ]);
   });
 
   it("places a cell in the column of its anchor, whatever config it carries", () => {
-    const { store, order, notebook, cellIn } = setup({
+    const { store, order, cellIn } = setup({
       c2: cell("c2", "y = 2", { config: { ...CONFIG, column: 1 } }),
     });
 
@@ -126,7 +128,7 @@ describe("createCellAtom", () => {
       hide_code: true,
       column: null,
     });
-    expect(notebook().cellIds.atOrThrow(1).inOrderIds).toEqual([c2, id]);
+    expect(store.get(layoutAtom).columns[1].ids).toEqual([c2, id]);
   });
 
   it("names the column when appending to an empty column", () => {
@@ -319,16 +321,16 @@ describe("deleteCellsAtom", () => {
   });
 
   it("names the column of a cell that followed a deleted column start", () => {
-    const { store, notebook, cellIn } = setup({
+    const { store, cellIn } = setup({
       c2: cell("c2", "y = 2", { config: { ...CONFIG, column: 1 } }),
       c3: cell("c3", "z = 3"),
     });
-    expect(notebook().cellIds.atOrThrow(1).inOrderIds).toEqual([c2, c3]);
+    expect(store.get(layoutAtom).columns[1].ids).toEqual([c2, c3]);
 
     store.set(deleteCellsAtom, { cellIds: [c2] });
 
     expect(cellIn(c3)?.config.column).toBe(1);
-    expect(notebook().cellIds.atOrThrow(1).inOrderIds).toEqual([c3]);
+    expect(store.get(layoutAtom).columns[1].ids).toEqual([c3]);
   });
 
   it("forgets the untouched state and the cell atoms of a deleted cell", () => {
@@ -406,14 +408,14 @@ describe("undoDeleteCellAtom", () => {
     const { store, order, notebook } = setup({
       c3: cell("c3", "z = 3"),
     });
-    const column = notebook().cellIds.atOrThrow(0);
+    const column = store.get(layoutAtom).columns[0];
     store.set(moveCellsRelativeToAtom, {
       cellIds: [c1, c2],
       targetCellId: c3,
       position: "after",
       previousPlacements: [
-        { columnId: column.id, index: 0 as CellIndex },
-        { columnId: column.id, index: 1 as CellIndex },
+        { columnId: column.id, index: 0 },
+        { columnId: column.id, index: 1 },
       ],
     });
     expect(order()).toEqual([c3, c1, c2]);

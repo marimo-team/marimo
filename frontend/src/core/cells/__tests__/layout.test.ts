@@ -2,7 +2,7 @@
 
 import { describe, expect, it } from "vitest";
 import { cellId } from "@/__tests__/branded";
-import type { CellColumnId } from "@/utils/id-tree";
+import type { CellColumnId } from "@/core/cells/layout";
 import type { CellId } from "../ids";
 import {
   columnOf,

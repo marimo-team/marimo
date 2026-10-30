@@ -11,6 +11,7 @@ import { useCellData, useCellIds, useCellRuntime } from "@/core/cells/cells";
 import { useCellActions } from "@/core/cells/actions";
 import { cellFocusAtom, useCellFocusActions } from "@/core/cells/focus";
 import type { CellId } from "@/core/cells/ids";
+import { useLayout } from "@/core/cells/layout";
 import { useVariables } from "@/core/variables/state";
 import { cn } from "@/utils/cn";
 import { extractCellPreview } from "./utils/cell-preview";
@@ -381,22 +382,23 @@ function isNonReferenceableCell(graph: CellGraph): boolean {
  */
 export const MinimapContent: React.FC = () => {
   const cellIds = useCellIds();
+  const layout = useLayout();
   const cellPositions: Record<CellId, number> = Object.fromEntries(
-    cellIds.inOrderIds.map((id, idx) => [id, idx]),
+    cellIds.map((id, idx) => [id, idx]),
   );
   const columnBoundaries: number[] = [];
   let cellCount = 0;
-  for (const [idx, column] of cellIds.getColumns().entries()) {
+  for (const [idx, column] of layout.columns.entries()) {
     if (idx > 0) {
       columnBoundaries.push(cellCount);
     }
-    cellCount += column.inOrderIds.length;
+    cellCount += column.ids.length;
   }
 
   return (
     <div className="overflow-y-auto overflow-x-hidden flex-1 scrollbar-none h-full max-w-80">
       <div className="py-3 pl-3 pr-4 relative min-h-full">
-        {cellIds.inOrderIds.map((cellId, idx) => {
+        {cellIds.map((cellId, idx) => {
           const isColumnBoundary = columnBoundaries.includes(idx);
           return (
             <React.Fragment key={cellId}>

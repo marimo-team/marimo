@@ -4,13 +4,15 @@
 
 import { atom, useAtomValue } from "jotai";
 import type { EditableDocument } from "@/core/notebook/document";
-import type { CellColumnId } from "@/utils/id-tree";
 import { findCollapseRange } from "../dom/outline";
 import { activeDocumentModelAtom } from "../session/active-notebook";
 import { notebookAtom } from "./cells";
 import { groupByColumn } from "./columns";
 import type { CellId } from "./ids";
 import type { Outline } from "./outline";
+
+/** A column's identity on this page, as drag and drop and saved widths refer to it. */
+export type CellColumnId = string & { __brand: "CellColumnId" };
 
 /** The headers whose sections the user folded. Only this browser knows. */
 export const collapsedAtom = atom<ReadonlySet<CellId>>(new Set<CellId>());
@@ -110,6 +112,8 @@ export const layoutAtom = atom((get): Layout => {
 });
 
 export const useLayout = () => useAtomValue(layoutAtom);
+
+export const numColumnsAtom = atom((get) => get(layoutAtom).columns.length);
 
 export function findColumn(
   layout: Layout,

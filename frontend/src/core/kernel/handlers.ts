@@ -82,8 +82,7 @@ export function handleKernelReady(
     setKernelState,
     onError,
   } = opts;
-  const { resumed, ui_values, capabilities, auto_instantiated } =
-    data;
+  const { resumed, ui_values, capabilities, auto_instantiated } = data;
 
   resetCellRuntimes();
   setLastRun({

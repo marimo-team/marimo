@@ -2,7 +2,6 @@
 
 import { beforeEach, describe, expect, it } from "vitest";
 import { cellId } from "@/__tests__/branded";
-import { MultiColumn } from "@/utils/id-tree";
 import type { CellSelectionState } from "../selection";
 import { exportedForTesting } from "../selection";
 
@@ -57,9 +56,7 @@ describe("cell selection reducer", () => {
   });
 
   it("should extend selection forward", () => {
-    const allCellIds = MultiColumn.from([
-      [CellIds.a, CellIds.b, CellIds.c, CellIds.d],
-    ]);
+    const allCellIds = [CellIds.a, CellIds.b, CellIds.c, CellIds.d];
 
     // First select cell a
     actions.select({ cellId: CellIds.a });
@@ -75,9 +72,7 @@ describe("cell selection reducer", () => {
   });
 
   it("should extend selection backward", () => {
-    const allCellIds = MultiColumn.from([
-      [CellIds.a, CellIds.b, CellIds.c, CellIds.d],
-    ]);
+    const allCellIds = [CellIds.a, CellIds.b, CellIds.c, CellIds.d];
 
     // First select cell c
     actions.select({ cellId: CellIds.c });
@@ -93,7 +88,7 @@ describe("cell selection reducer", () => {
   });
 
   it("should extend selection to same cell", () => {
-    const allCellIds = MultiColumn.from([[CellIds.a, CellIds.b, CellIds.c]]);
+    const allCellIds = [CellIds.a, CellIds.b, CellIds.c];
 
     // First select cell b
     actions.select({ cellId: CellIds.b });
@@ -109,7 +104,7 @@ describe("cell selection reducer", () => {
   });
 
   it("should fallback to single select when extending without selectionStart", () => {
-    const allCellIds = MultiColumn.from([[CellIds.a, CellIds.b, CellIds.c]]);
+    const allCellIds = [CellIds.a, CellIds.b, CellIds.c];
 
     // Try to extend without any previous selection
     actions.extend({ cellId: CellIds.b, allCellIds });
@@ -122,7 +117,7 @@ describe("cell selection reducer", () => {
   });
 
   it("should fallback to single select when extending with invalid cell ids", () => {
-    const allCellIds = MultiColumn.from([[CellIds.a, CellIds.b, CellIds.c]]);
+    const allCellIds = [CellIds.a, CellIds.b, CellIds.c];
 
     // Create a state with invalid selection start (not in allCellIds)
     const invalidState = {
@@ -171,9 +166,7 @@ describe("cell selection reducer", () => {
   });
 
   it("should handle complex selection scenarios", () => {
-    const allCellIds = MultiColumn.from([
-      [CellIds.a, CellIds.b, CellIds.c, CellIds.d, CellIds.e],
-    ]);
+    const allCellIds = [CellIds.a, CellIds.b, CellIds.c, CellIds.d, CellIds.e];
 
     // Select middle cell
     actions.select({ cellId: CellIds.c });

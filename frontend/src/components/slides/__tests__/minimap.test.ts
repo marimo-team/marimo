@@ -4,7 +4,7 @@ import { renderHook, act } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { CellId } from "@/core/cells/ids";
 import type { DragMoveEvent } from "@dnd-kit/core";
-import { MultiColumn } from "@/utils/id-tree";
+import type { CellColumnId, Layout } from "@/core/cells/layout";
 import { exportedForTesting } from "../minimap";
 
 const { useVisibleCellIds, projectDropTarget, resolveDropTarget } =
@@ -318,15 +318,23 @@ describe("resolveDropTarget", () => {
   const C = "c" as CellId;
   const D = "d" as CellId;
 
-  function makeSingleColumnIds(...ids: CellId[]) {
-    return MultiColumn.from([ids]);
+  function makeLayout(...columns: CellId[][]): Layout {
+    return {
+      columns: columns.map((ids, index) => ({
+        id: `column-${index}` as CellColumnId,
+        ids,
+        visible: ids,
+        folds: new Map(),
+      })),
+    };
   }
+  const makeSingleColumnIds = (...ids: CellId[]) => makeLayout(ids);
 
   it("returns null when activeId matches target overId", () => {
-    const cellIds = makeSingleColumnIds(A, B);
+    const layout = makeSingleColumnIds(A, B);
     expect(
       resolveDropTarget({
-        cellIds,
+        layout,
         activeId: A,
         target: { overId: A, position: "after" },
       }),
@@ -334,10 +342,10 @@ describe("resolveDropTarget", () => {
   });
 
   it("returns null for multi-column layouts", () => {
-    const cellIds = MultiColumn.from([[A, B], [C]]);
+    const layout = makeLayout([A, B], [C]);
     expect(
       resolveDropTarget({
-        cellIds,
+        layout,
         activeId: A,
         target: { overId: B, position: "after" },
       }),
@@ -345,57 +353,57 @@ describe("resolveDropTarget", () => {
   });
 
   it('resolves "before" to the over index', () => {
-    const cellIds = makeSingleColumnIds(A, B, C);
+    const layout = makeSingleColumnIds(A, B, C);
     const result = resolveDropTarget({
-      cellIds,
+      layout,
       activeId: A,
       target: { overId: C, position: "before" },
     });
     expect(result).toEqual({
       cellId: A,
-      columnId: cellIds.atOrThrow(0).id,
+      columnId: layout.columns[0].id,
       index: 2,
     });
   });
 
   it('resolves "after" to one past the over index', () => {
-    const cellIds = makeSingleColumnIds(A, B, C);
+    const layout = makeSingleColumnIds(A, B, C);
     const result = resolveDropTarget({
-      cellIds,
+      layout,
       activeId: C,
       target: { overId: A, position: "after" },
     });
     expect(result).toEqual({
       cellId: C,
-      columnId: cellIds.atOrThrow(0).id,
+      columnId: layout.columns[0].id,
       index: 1,
     });
   });
 
   it('resolves "before" on first item to index 0', () => {
-    const cellIds = makeSingleColumnIds(A, B, C);
+    const layout = makeSingleColumnIds(A, B, C);
     const result = resolveDropTarget({
-      cellIds,
+      layout,
       activeId: C,
       target: { overId: A, position: "before" },
     });
     expect(result).toEqual({
       cellId: C,
-      columnId: cellIds.atOrThrow(0).id,
+      columnId: layout.columns[0].id,
       index: 0,
     });
   });
 
   it('resolves "after" on last item to one past the end', () => {
-    const cellIds = makeSingleColumnIds(A, B, C, D);
+    const layout = makeSingleColumnIds(A, B, C, D);
     const result = resolveDropTarget({
-      cellIds,
+      layout,
       activeId: A,
       target: { overId: D, position: "after" },
     });
     expect(result).toEqual({
       cellId: A,
-      columnId: cellIds.atOrThrow(0).id,
+      columnId: layout.columns[0].id,
       index: 4,
     });
   });

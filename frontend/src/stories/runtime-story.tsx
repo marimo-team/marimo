@@ -16,7 +16,6 @@ import type { EnvironmentOperation } from "@/core/alerts/environment";
 import { notebookAtom } from "@/core/cells/cells";
 import { CellId } from "@/core/cells/ids";
 import { createCell, createCellRuntimeState } from "@/core/cells/types";
-import { MultiColumn } from "@/utils/id-tree";
 import { userConfigAtom } from "@/core/config/config";
 import {
   type AppConfig,
@@ -111,7 +110,7 @@ function RuntimePreview({
       {props.surface === "notebook" && (
         <div className="flex-1 min-w-0 pt-12">
           <ConnectionNotice appConfig={appConfig} onRetry={reconnect} />
-          {notebook.cellIds.inOrderIds.map((cellId) => (
+          {notebook.cellIds.map((cellId) => (
             <VerticalLayoutWrapper key={cellId} appConfig={appConfig}>
               <Cell
                 cellId={cellId}
@@ -351,7 +350,7 @@ export function RuntimeStory(props: Props) {
       const cellId = CellId.create();
       state.set(notebookAtom, (value) => ({
         ...value,
-        cellIds: MultiColumn.from([[cellId]]),
+        cellIds: [cellId],
         cellData: {
           ...value.cellData,
           [cellId]: createCell({

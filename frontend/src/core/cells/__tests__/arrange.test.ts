@@ -4,7 +4,6 @@ import type * as Protocol from "@marimo-team/client/protocol";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cellId } from "@/__tests__/branded";
 import { cell, CONFIG } from "@/core/notebook/document/__tests__/fixtures";
-import type { CellIndex } from "@/utils/id-tree";
 import { collapseCellAtom, undoDeleteCellAtom } from "../actions";
 import {
   addColumnAtom,
@@ -226,8 +225,8 @@ describe("moveCellsRelativeToAtom", () => {
       targetCellId: c3,
       position: "after",
       previousPlacements: [
-        { columnId: column, index: 0 as CellIndex },
-        { columnId: column, index: 1 as CellIndex },
+        { columnId: column, index: 0 },
+        { columnId: column, index: 1 },
       ],
     });
     expect(order()).toEqual([c3, c1, c2]);

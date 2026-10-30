@@ -148,8 +148,7 @@ export const pageAppConfigAtom = atom<unknown>({});
 const appConfigRecordAtom = selectAtom(
   atom(
     (get) =>
-      get(confirmedDocumentAtom)?.revision.app_config ??
-      get(pageAppConfigAtom),
+      get(confirmedDocumentAtom)?.revision.app_config ?? get(pageAppConfigAtom),
   ),
   (record) => record,
   dequal,

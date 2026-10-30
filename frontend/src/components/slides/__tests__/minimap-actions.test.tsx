@@ -6,7 +6,7 @@ import { cellId } from "@/__tests__/branded";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import type { CellId } from "@/core/cells/ids";
 import type { CellData, CellRuntimeState } from "@/core/cells/types";
-import { MultiColumn } from "@/utils/id-tree";
+import type { CellColumnId } from "@/core/cells/layout";
 import { SlidesMinimap } from "../minimap";
 
 const A = cellId("a");
@@ -22,11 +22,20 @@ const { createCell, deleteCell, moveCellToIndex } = vi.hoisted(() => ({
 vi.mock("@/core/cells/actions", () => ({
   useCellActions: () => ({ moveCellToIndex, createCell }),
 }));
-vi.mock("@/core/cells/cells", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/core/cells/cells")>();
+vi.mock("@/core/cells/layout", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/core/cells/layout")>();
   return {
     ...actual,
-    useCellIds: () => MultiColumn.from([[A, B]]),
+    useLayout: () => ({
+      columns: [
+        {
+          id: "column-0" as CellColumnId,
+          ids: [A, B],
+          visible: [A, B],
+          folds: new Map(),
+        },
+      ],
+    }),
   };
 });
 

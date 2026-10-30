@@ -47,7 +47,7 @@ export function setupNotebook(
   return {
     store,
     model,
-    order: () => store.get(notebookAtom).cellIds.inOrderIds,
+    order: () => store.get(notebookAtom).cellIds,
     /** The cells of each column, as the page lays them out. */
     columns: () => store.get(layoutAtom).columns.map((column) => column.ids),
     notebook: () => store.get(notebookAtom),

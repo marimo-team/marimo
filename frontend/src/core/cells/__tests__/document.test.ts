@@ -46,7 +46,6 @@ const { initialNotebookState } = exportedForTesting;
 const a = cellId("a");
 const b = cellId("b");
 const c = cellId("c");
-const d = cellId("d");
 
 function cell(id: CellId, patch: Partial<EditableCell> = {}): EditableCell {
   return {
@@ -102,7 +101,7 @@ describe("applyDocument", () => {
   it("adds the document's cells to an empty notebook", () => {
     const state = notebookOf([cell(a), cell(b, { code: "" })]);
 
-    expect(state.cellIds.inOrderIds).toEqual([a, b]);
+    expect(state.cellIds).toEqual([a, b]);
     expect(state.cellData[a]).toMatchObject({
       code: "a = 1",
       name: "_",
@@ -199,28 +198,10 @@ describe("applyDocument", () => {
 
     const next = applyDocument(state, documentOf([cell(a), cell(c)]));
 
-    expect(next.cellIds.inOrderIds).toEqual([a, c]);
+    expect(next.cellIds).toEqual([a, c]);
     expect(next.cellData[b]).toBeUndefined();
     expect(next.cellRuntime[b]).toBeUndefined();
     expect(next.cellHandles[b]).toBeUndefined();
-  });
-
-  it("regroups columns from the cells' configs, keeping column ids", () => {
-    const column1 = { ...cell(d).config, column: 1 };
-    const state = notebookOf([
-      cell(a),
-      cell(b),
-      cell(c),
-      cell(d, { config: column1 }),
-    ]);
-    const next = applyDocument(
-      state,
-      documentOf([cell(c), cell(a), cell(b), cell(d, { config: column1 })]),
-    );
-
-    expect(next.cellIds.inOrderIds).toEqual([c, a, b, d]);
-    expect(next.cellIds.getColumnIds()).toEqual(state.cellIds.getColumnIds());
-    expect(next.cellIds.atOrThrow(1).inOrderIds).toEqual([d]);
   });
 });
 

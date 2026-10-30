@@ -9,12 +9,12 @@ import type {
   DocumentEditor,
   EditableDocument,
 } from "@/core/notebook/document";
-import type { CellColumnId, CellIndex } from "@/utils/id-tree";
 import { arrayMove } from "@/utils/arrays";
 import { notebookAtom, type UndoMoveEntry } from "./cells";
 import { documentOf, focusWhenMounted, modelOf } from "./edit";
 import { CellId } from "./ids";
 import {
+  type CellColumnId,
   columnIdsAtom,
   columnOf,
   findColumn,
@@ -26,7 +26,7 @@ import {
 /** A placement to restore a cell to: its column and its index there. */
 export interface Placement {
   columnId: CellColumnId;
-  index: CellIndex;
+  index: number;
 }
 
 /** A cell with the cells its fold hides, which move with it. */

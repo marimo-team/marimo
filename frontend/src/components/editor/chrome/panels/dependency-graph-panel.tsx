@@ -57,7 +57,7 @@ const DependencyGraphPanel: React.FC = () => {
           <DependencyGraph
             cellAtoms={cells}
             variables={variables}
-            cellIds={cellIds.inOrderIds}
+            cellIds={cellIds}
           />
         )}
       </div>

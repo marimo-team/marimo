@@ -29,13 +29,9 @@ import { canInteractWithAppAtom } from "@/core/network/connection";
 import { useBoolean } from "@/hooks/useBoolean";
 import { cn } from "@/utils/cn";
 import { Functions } from "@/utils/functions";
-import { findColumn, useLayout } from "@/core/cells/layout";
-import type { CellColumnId } from "@/utils/id-tree";
+import { type CellColumnId, findColumn, useLayout } from "@/core/cells/layout";
 import { invariant } from "@/utils/invariant";
-import {
-  useCellIds,
-  useScrollKey,
-} from "../../../core/cells/cells";
+import { useCellIds, useScrollKey } from "../../../core/cells/cells";
 import { useCellActions } from "../../../core/cells/actions";
 import { formatAll } from "../../../core/codemirror/format";
 import type { AppConfig, UserConfig } from "../../../core/config/config-schema";
@@ -139,7 +135,7 @@ const CellArrayInternal: React.FC<CellArrayProps> = ({
       <StdinBlockingAlert />
       <NotebookBanner width={appConfig.width} />
       {/* Only show if not cells, otherwise running a single cell will start the connection */}
-      {cellIds.idLength === 0 && <NotStartedConnectionAlert />}
+      {cellIds.length === 0 && <NotStartedConnectionAlert />}
       <div
         className={cn(
           appConfig.width === "columns" &&
@@ -191,8 +187,8 @@ const CellColumn: React.FC<{
   const column = findColumn(useLayout(), columnId);
   invariant(column, `Expected column for: ${columnId}`);
 
-  const hasOnlyOneCell = cellIds.hasOnlyOneId();
-  const hasSetupCell = cellIds.inOrderIds.includes(SETUP_CELL_ID);
+  const hasOnlyOneCell = cellIds.length === 1;
+  const hasSetupCell = cellIds.includes(SETUP_CELL_ID);
   const isPresenting = mode === "present";
 
   return (

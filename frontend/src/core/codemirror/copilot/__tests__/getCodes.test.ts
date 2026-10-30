@@ -9,7 +9,6 @@ import { createCell } from "@/core/cells/types";
 import { OverridingHotkeyProvider } from "@/core/hotkeys/hotkeys";
 import { store } from "@/core/state/jotai";
 import { variablesAtom } from "@/core/variables/state";
-import { MultiColumn } from "@/utils/id-tree";
 import { cellConfigExtension } from "../../config/extension";
 import { adaptiveLanguageConfiguration } from "../../language/extension";
 import {
@@ -159,7 +158,7 @@ describe("getCodes", () => {
     ];
     store.set(notebookAtom, {
       ...initialNotebookState(),
-      cellIds: MultiColumn.from([[Cells.cell1, Cells.cell2]]),
+      cellIds: [Cells.cell1, Cells.cell2],
       cellHandles: {
         [Cells.cell1]: { current: mockEditorViews[0] },
         [Cells.cell2]: { current: mockEditorViews[1] },
@@ -177,7 +176,7 @@ describe("getCodes", () => {
     ];
     store.set(notebookAtom, {
       ...initialNotebookState(),
-      cellIds: MultiColumn.from([[Cells.cell1, Cells.cell2]]),
+      cellIds: [Cells.cell1, Cells.cell2],
       cellHandles: {
         [Cells.cell1]: { current: mockEditorViews[0] },
         [Cells.cell2]: { current: mockEditorViews[1] },
@@ -196,7 +195,7 @@ describe("getCodes", () => {
     ];
     store.set(notebookAtom, {
       ...initialNotebookState(),
-      cellIds: MultiColumn.from([[Cells.cell1, Cells.cell2, Cells.cell3]]),
+      cellIds: [Cells.cell1, Cells.cell2, Cells.cell3],
       cellHandles: {
         [Cells.cell1]: { current: mockEditorViews[0] },
         [Cells.cell2]: { current: mockEditorViews[1] },
@@ -218,7 +217,7 @@ describe("getCodes", () => {
     const otherCode = "print('Hello World')";
     store.set(notebookAtom, {
       ...initialNotebookState(),
-      cellIds: MultiColumn.from([[Cells.cell1, Cells.cell2]]),
+      cellIds: [Cells.cell1, Cells.cell2],
       cellData: {
         [Cells.cell1]: createCell({ id: Cells.cell1, code: "import os" }),
         [Cells.cell2]: createCell({ id: Cells.cell2, code: "x = 1" }),
@@ -232,7 +231,7 @@ describe("getCodes", () => {
     const otherCode = "print('Hello World')";
     store.set(notebookAtom, {
       ...initialNotebookState(),
-      cellIds: MultiColumn.from([[Cells.cell1, Cells.cell2]]),
+      cellIds: [Cells.cell1, Cells.cell2],
       cellData: {
         [Cells.cell1]: createCell({ id: Cells.cell1, code: "import os" }),
         [Cells.cell2]: createCell({ id: Cells.cell2, code: "x = 1" }),
@@ -250,7 +249,7 @@ describe("topologicalCodesAtom", () => {
   it("should include every cell when no editor is mounted", () => {
     store.set(notebookAtom, {
       ...initialNotebookState(),
-      cellIds: MultiColumn.from([[Cells.cell1, Cells.cell2, Cells.cell3]]),
+      cellIds: [Cells.cell1, Cells.cell2, Cells.cell3],
       cellData: {
         [Cells.cell1]: createCell({ id: Cells.cell1, code: "import os" }),
         [Cells.cell2]: createCell({ id: Cells.cell2, code: "x = 1" }),

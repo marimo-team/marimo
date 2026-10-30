@@ -13,7 +13,7 @@ export function isKnownCellDocumentUri(uri: string): boolean {
   if (!CellDocumentUri.is(uri)) {
     return false;
   }
-  return store.get(cellIdsAtom).inOrderIds.includes(CellDocumentUri.parse(uri));
+  return store.get(cellIdsAtom).includes(CellDocumentUri.parse(uri));
 }
 
 export function getLspRootUri() {

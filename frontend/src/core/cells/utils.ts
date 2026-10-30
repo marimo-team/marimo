@@ -25,7 +25,7 @@ export function notebookNeedsRun(state: NotebookState) {
 }
 
 export function notebookCells(state: NotebookState) {
-  return state.cellIds.inOrderIds.map((cellId) => state.cellData[cellId]);
+  return state.cellIds.map((cellId) => state.cellData[cellId]);
 }
 
 export function notebookCellEditorViews({ cellHandles }: NotebookState) {
@@ -42,7 +42,7 @@ export function notebookCellEditorViews({ cellHandles }: NotebookState) {
 export function disabledCellIds(state: NotebookState) {
   const { cellIds, cellData } = state;
   const disabledCells: CellId[] = [];
-  for (const cellId of cellIds.inOrderIds) {
+  for (const cellId of cellIds) {
     const cell = cellData[cellId];
     if (cell.config.disabled) {
       disabledCells.push(cellId);
@@ -54,7 +54,7 @@ export function disabledCellIds(state: NotebookState) {
 export function enabledCellIds(state: NotebookState) {
   const { cellIds, cellData } = state;
   const enabledCells: CellId[] = [];
-  for (const cellId of cellIds.inOrderIds) {
+  for (const cellId of cellIds) {
     const cell = cellData[cellId];
     if (!cell.config.disabled) {
       enabledCells.push(cellId);
@@ -107,7 +107,7 @@ export function getDescendantsStatus(
  */
 export function staleCellIds(state: NotebookState) {
   const { cellIds, cellData, cellRuntime } = state;
-  return cellIds.inOrderIds.filter(
+  return cellIds.filter(
     (cellId) =>
       isUninstantiated({
         // runElapstedTimeMs is what we've seen in this session

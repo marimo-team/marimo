@@ -104,7 +104,7 @@ export function buildCellGraph(
 export const cellGraphsAtom = atom((get) => {
   const cellIds = get(cellIdsAtom);
   const variables = get(variablesAtom);
-  return buildCellGraph(cellIds.inOrderIds, variables);
+  return buildCellGraph(cellIds, variables);
 });
 
 /**

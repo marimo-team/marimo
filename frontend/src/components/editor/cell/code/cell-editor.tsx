@@ -236,7 +236,7 @@ const CellEditorInternal = ({
         addOrAppendSetupCell: (code) => {
           const notebook = getNotebook();
           // No setup cell yet: create one with this code at the top.
-          if (!notebook.cellIds.setupCellExists()) {
+          if (!notebook.cellIds.includes(SETUP_CELL_ID)) {
             cellActions.addSetupCell({ code });
             return;
           }

@@ -8,7 +8,6 @@
  * document model and `notebookAtom` holds only runtime and editor state.
  */
 
-import type * as Protocol from "@marimo-team/client/protocol";
 import { dequal as isEqual } from "dequal";
 import type { createStore } from "jotai";
 import { createRef, type RefObject } from "react";
@@ -21,14 +20,11 @@ import type {
   EditableDocument,
 } from "@/core/notebook/document";
 import type { DispatchedActionOf } from "@/utils/createReducer";
-import { CollapsibleTree, MultiColumn } from "@/utils/id-tree";
 import { prepareCellCodeUpdate } from "../codemirror/language/cell-code";
-import type { CellConfig } from "../network/types";
 import { canUseRtc, isRtcEnabled } from "../rtc/state";
 import { store } from "../state/jotai";
 import { activeDocumentModelAtom } from "../session/active-notebook";
 import type { NotebookState, ReducerCellActions } from "./cells";
-import { groupByColumn } from "./columns";
 import type { CellId } from "./ids";
 import {
   type CellData,
@@ -43,27 +39,6 @@ type CellAction = DispatchedActionOf<ReducerCellActions>;
 // Following the document ----------------------------------------------------
 
 /** Rebuild the tree for `columns`, keeping column ids. */
-function reconcileColumns(
-  current: MultiColumn<CellId>,
-  columns: CellId[][],
-): MultiColumn<CellId> {
-  const previous = current.getColumns();
-  // The document cannot hold an empty column, so keep the ones this client has.
-  while (previous[columns.length]?.length === 0) {
-    columns.push([]);
-  }
-  if (
-    columns.length === previous.length &&
-    columns.every((ids, index) => isEqual(ids, previous[index].inOrderIds))
-  ) {
-    return current;
-  }
-  return new MultiColumn(
-    columns.map((ids, index) => CollapsibleTree.from(ids, previous[index]?.id)),
-  );
-}
-
-/** The cell's data with the document's fields, and its editor brought along. */
 function followCell(
   current: CellData,
   cell: EditableCell,
@@ -115,9 +90,12 @@ export function applyDocument(
   state: NotebookState,
   document: EditableDocument,
 ): NotebookState {
-  const cellIds = reconcileColumns(state.cellIds, groupByColumn(document));
+  // The protocol's ids are plain strings; the notebook brands them.
+  const cellIds = isEqual(document.order, state.cellIds)
+    ? state.cellIds
+    : ([...document.order] as CellId[]);
   let { cellData, cellRuntime, cellHandles } = state;
-  for (const id of cellIds.inOrderIds) {
+  for (const id of cellIds) {
     const cell = document.cells.get(id);
     const current = state.cellData[id];
     if (cell === undefined) {
@@ -149,8 +127,8 @@ export function applyDocument(
       cellData = { ...cellData, [id]: next };
     }
   }
-  const present = new Set(cellIds.inOrderIds);
-  const removed = state.cellIds.inOrderIds.filter((id) => !present.has(id));
+  const present = new Set(cellIds);
+  const removed = state.cellIds.filter((id) => !present.has(id));
   if (removed.length > 0) {
     const gone = new Set(removed);
     const keep = <V>(record: Record<CellId, V>): Record<CellId, V> =>
@@ -200,107 +178,22 @@ export function followDocument({
 
 // Editing the document ------------------------------------------------------
 
-const CONFIG_FIELDS = ["disabled", "hide_code", "expand_output"] as const;
-
-/** The fields of `after` that differ from `before`, leaving `column` to the tree. */
-function configPatch(
-  before: CellConfig,
-  after: CellConfig,
-): Partial<Protocol.CellConfig> | null {
-  const patch: Partial<Protocol.CellConfig> = {};
-  for (const field of CONFIG_FIELDS) {
-    if (before[field] !== after[field]) {
-      patch[field] = after[field] ?? false;
-    }
-  }
-  return Object.keys(patch).length === 0 ? null : patch;
-}
-
 /**
- * The `column` configs that make the document's columns match the tree's.
- *
- * A cell without a column follows the cell before it, so only cells whose
- * resolved column differs from their position need one.
+ * The edit that writes the code a reducer action changed, or null when none
+ * did. Order, creation, deletion, names and configs are edited on the model
+ * directly by their atoms.
  */
-function columnFixes(state: NotebookState): Array<[CellId, number | null]> {
-  const fixes: Array<[CellId, number | null]> = [];
-  const columns = state.cellIds.getColumns();
-  if (columns.length === 1) {
-    for (const id of columns[0].inOrderIds) {
-      const column = state.cellData[id].config.column;
-      if (column != null && column !== 0) {
-        fixes.push([id, null]);
-      }
-    }
-    return fixes;
-  }
-  let inherited = 0;
-  columns.forEach((column, target) => {
-    for (const id of column.inOrderIds) {
-      const configured = state.cellData[id].config.column;
-      const resolved =
-        configured != null && configured >= 0 ? configured : inherited;
-      if (resolved !== target) {
-        fixes.push([id, target]);
-      }
-      inherited = target;
-    }
-  });
-  return fixes;
-}
-
-/** The edit that makes the document match `next`, or null when it already does. */
 function diffNotebook(
   prev: NotebookState,
   next: NotebookState,
 ): DocumentEdit | null {
   const steps: Array<(tx: DocumentEditor) => void> = [];
-  const prevOrder = prev.cellIds.inOrderIds;
-  const nextOrder = next.cellIds.inOrderIds;
-  const prevIds = new Set(prevOrder);
-  const nextIds = new Set(nextOrder);
-  for (const id of prevOrder) {
-    if (!nextIds.has(id)) {
-      steps.push((tx) => tx.deleteCell(id));
-    }
-  }
-  const created: CellId[] = [];
-  for (const id of nextOrder) {
+  for (const id of next.cellIds) {
     const cell = next.cellData[id];
     const before = prev.cellData[id];
-    if (!prevIds.has(id) || before === undefined) {
-      created.push(id);
-      steps.push((tx) =>
-        tx.createCell({
-          id,
-          code: cell.code,
-          name: cell.name,
-          config: cell.config,
-        }),
-      );
-      continue;
-    }
-    if (before === cell) {
-      continue;
-    }
-    if (before.code !== cell.code) {
+    if (before !== undefined && cell !== before && before.code !== cell.code) {
       steps.push((tx) => tx.setCode(id, cell.code));
     }
-    if (before.name !== cell.name) {
-      steps.push((tx) => tx.setName(id, cell.name));
-    }
-    const patch = configPatch(before.config, cell.config);
-    if (patch !== null) {
-      steps.push((tx) => tx.updateConfig(id, patch));
-    }
-  }
-  for (const [id, column] of columnFixes(next)) {
-    steps.push((tx) => tx.updateConfig(id, { column }));
-  }
-  // Created cells go to the end, so the order is set when they belong elsewhere.
-  const survivors = prevOrder.filter((id) => nextIds.has(id));
-  if (!isEqual(nextOrder, [...survivors, ...created])) {
-    steps.push((tx) => tx.setOrder(nextOrder));
   }
   if (steps.length === 0) {
     return null;
@@ -316,8 +209,8 @@ function diffNotebook(
  * Middleware for the notebook reducer. Writes what an action changed about
  * the cells and their order into the document model as one edit.
  *
- * TODO(MO-8028): Each action family that moves onto the model removes its
- * part of `diffNotebook`. The middleware goes with the last one, code.
+ * TODO(MO-8028): Only code is left in `diffNotebook`. The middleware goes
+ * with it, once the editors bind to the model.
  */
 export function documentEditMiddleware(
   prev: NotebookState,

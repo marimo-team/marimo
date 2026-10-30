@@ -6,6 +6,8 @@ import { toast } from "@/components/ui/use-toast";
 import { getNotebook } from "@/core/cells/cells";
 import { useCellActions } from "@/core/cells/actions";
 import type { CellId } from "@/core/cells/ids";
+import { columnOf, layoutAtom } from "@/core/cells/layout";
+import { store } from "@/core/state/jotai";
 import {
   usePendingCutActions,
   usePendingCutState,
@@ -140,10 +142,10 @@ export function useCellClipboard() {
     // Check if we have pending cut cells (internal move)
     if (pendingCutState.cellIds.size > 0) {
       const pendingCellIds = [...pendingCutState.cellIds];
-      const notebook = getNotebook();
+      const layout = store.get(layoutAtom);
       const previousPlacements = pendingCellIds.map((id) => {
-        const column = notebook.cellIds.findWithId(id);
-        return { columnId: column.id, index: column.indexOfOrThrow(id) };
+        const column = columnOf(layout, id);
+        return { columnId: column.id, index: column.ids.indexOf(id) };
       });
 
       actions.moveCellsRelativeTo({

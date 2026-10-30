@@ -13,7 +13,7 @@ import { mergeProps, useFocusWithin, useKeyboard } from "react-aria";
 import { DATA_FOR_CELL_ID } from "@/components/data-table/cell-utils";
 import { aiCompletionCellAtom } from "@/core/ai/state";
 import { maybeAddMarimoImport } from "@/core/cells/add-missing-import";
-import { cellIdsAtom, notebookAtom } from "@/core/cells/cells";
+import { notebookAtom } from "@/core/cells/cells";
 import { hideShownCodeAtom, showHiddenCodeAtom } from "@/core/cells/editor";
 import {
   columnOf,
@@ -315,7 +315,7 @@ export function useCellNavigationProps(
         // Select up
         "Shift+ArrowUp": () => {
           // Select self
-          const allCellIds = store.get(cellIdsAtom);
+          const allCellIds = columnOf(store.get(layoutAtom), cellId).ids;
           selectionActions.extend({ cellId, allCellIds });
           // Select to where focus is going
           const beforeCellId = visibleNeighbor(
@@ -333,7 +333,7 @@ export function useCellNavigationProps(
         // Select down
         "Shift+ArrowDown": () => {
           // Select self
-          const allCellIds = store.get(cellIdsAtom);
+          const allCellIds = columnOf(store.get(layoutAtom), cellId).ids;
           selectionActions.extend({ cellId, allCellIds });
           // Select to where focus is going
           const afterCellId = visibleNeighbor(store.get(layoutAtom), cellId, 1);
