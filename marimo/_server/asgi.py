@@ -129,6 +129,9 @@ class DynamicDirectoryMiddleware:
 
         # Build the redirect URL with query params
         redirect_url = f"{path}/"
+        root_path = request.scope.get("root_path", "").rstrip("/")
+        if root_path and not redirect_url.startswith(root_path):
+            redirect_url = f"{root_path}{redirect_url}"
         if query_string:
             redirect_url = f"{redirect_url}?{query_string}"
 
@@ -597,15 +600,18 @@ def create_asgi_app(
                 self._mount_configs, key=lambda x: -len(x[0])
             )
 
-            def create_redirect_to_slash(
-                base_url: str,
-            ) -> Callable[[Request], Response]:
-                # Strip leading slash
-                base_url = base_url.lstrip("/")
-                redirect_path = f"{base_url}/"
-                return lambda _: RedirectResponse(
-                    url=redirect_path, status_code=301
-                )
+            def redirect_to_slash(request: Request) -> Response:
+                path = request.url.path
+                if not path.startswith("/"):
+                    path = f"/{path}"
+                if not path.endswith("/"):
+                    path = f"{path}/"
+                root_path = request.scope.get("root_path", "").rstrip("/")
+                if root_path and not path.startswith(root_path):
+                    path = f"{root_path}{path}"
+                if request.url.query:
+                    path = f"{path}?{request.url.query}"
+                return RedirectResponse(url=path, status_code=301)
 
             for path, root, middleware in self._mount_configs:
                 if root not in self._app_cache:
@@ -625,7 +631,7 @@ def create_asgi_app(
                 if path and not path.endswith("/"):
                     base_app.add_route(
                         path,
-                        create_redirect_to_slash(path),
+                        redirect_to_slash,
                     )
 
             # Add dynamic directory middleware for each directory config
