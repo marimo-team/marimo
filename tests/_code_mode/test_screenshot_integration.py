@@ -194,9 +194,28 @@ async def test_screenshots_attach_to_live_notebook(tmp_path: Path) -> None:
                         # prevent capturing output rendered after run_cell.
                         code = f"""
 import marimo._code_mode as cm
+from marimo._code_mode.screenshot import ScreenshotError
+import time
 from urllib.parse import parse_qs, urlsplit
 ctx = cm.get_context()
 assert all(cell.output is None or cell.output.data == "" for cell in ctx.cells)
+empty_id = ctx.cells[-1].id
+async with ctx:
+    ctx.run_cell(empty_id)
+for attempt in range(2):
+    started = time.monotonic()
+    try:
+        await ctx.screenshot(empty_id)
+    except ScreenshotError as error:
+        assert "has no rendered output" in str(error), str(error)
+        assert "ctx.run_cell" in str(error)
+    else:
+        raise AssertionError("An assignment has no display output")
+    if attempt:
+        elapsed = time.monotonic() - started
+        # A reused page refresh includes a network-idle wait (up to 10 s).
+        assert elapsed < 30
+        print("EMPTY_CAPTURE_MS=" + str(round(elapsed * 1000)))
 async with ctx:
     {operation}
     ctx.run_cell(cell_id)
@@ -206,6 +225,18 @@ assert image.startswith(b"\\x89PNG\\r\\n\\x1a\\n")
 assert {marker!r} in await session._page.locator("#output-" + cell_id).inner_text()
 assert parse_qs(urlsplit(session._page.url).query)["file"] == [{key!r}]
 assert parse_qs(urlsplit(session._page.url).query)["kiosk"] == ["true"]
+assert "capture" not in parse_qs(urlsplit(session._page.url).query)
+assert await session._page.locator("[data-cell-output-id]").count() == 0
+assert await session._page.evaluate("(id) => window.__marimoCapture.getCellState(id)", cell_id) == "available"
+# Reuse a page with rich output after replacing it with newer rich output.
+updated_code = {source.replace(marker, f"{marker} UPDATED")!r}
+async with cm.get_context() as update_ctx:
+    update_ctx.edit_cell(cell_id, code=updated_code)
+    update_ctx.run_cell(cell_id)
+updated_image = await ctx.screenshot(cell_id)
+assert ctx._screenshot_session is session
+assert updated_image.startswith(b"\\x89PNG\\r\\n\\x1a\\n")
+assert {f"{marker} UPDATED"!r} in await session._page.locator("#output-" + cell_id).inner_text()
 browser = session._browser
 page = session._page
 await ctx.close_screenshot_session()
@@ -240,12 +271,51 @@ image
                         stdout = await _execute(
                             client, session_id, code, verify_png=True
                         )
+                        empty_capture_ms = next(
+                            line.removeprefix("EMPTY_CAPTURE_MS=")
+                            for line in stdout.splitlines()
+                            if line.startswith("EMPTY_CAPTURE_MS=")
+                        )
+                        print(
+                            f"Reused empty-output capture: {empty_capture_ms}ms"
+                        )
                         cell_id = next(
                             line.removeprefix("CELL_ID=")
                             for line in stdout.splitlines()
                             if line.startswith("CELL_ID=")
                         )
-                        await page.get_by_text(marker, exact=True).wait_for()
+                        await page.get_by_text(
+                            f"{marker} UPDATED", exact=True
+                        ).wait_for()
+                        kiosk = await page.context.new_page()
+                        await kiosk.goto(
+                            base
+                            + "/?"
+                            + urlencode(
+                                {
+                                    "file": key,
+                                    "access_token": token,
+                                    "kiosk": "true",
+                                }
+                            )
+                        )
+                        await kiosk.get_by_text(
+                            f"{marker} UPDATED", exact=True
+                        ).wait_for()
+                        assert (
+                            await kiosk.locator(
+                                "[data-cell-output-id]"
+                            ).count()
+                            == 0
+                        )
+                        assert (
+                            await kiosk.evaluate(
+                                "(id) => window.__marimoCapture.getCellState(id)",
+                                cell_id,
+                            )
+                            == "available"
+                        )
+                        await kiosk.close()
                         assert not websocket.is_closed()
                         assert (
                             await _execute(
@@ -269,3 +339,62 @@ image
                 except TimeoutError:
                     os.killpg(server.pid, signal.SIGKILL)
                     await asyncio.wait_for(server.wait(), timeout=5)
+
+
+@pytest.mark.integration
+@pytest.mark.skipif(
+    os.environ.get("MARIMO_TEST_SCREENSHOTS") != "1",
+    reason="Requires Playwright Chromium",
+)
+async def test_screenshot_waits_for_frontend_state_and_rendering() -> None:
+    from playwright.async_api import (
+        TimeoutError as BrowserTimeoutError,
+        async_playwright,
+    )
+
+    from marimo._code_mode.screenshot import _ScreenshotSession
+    from marimo._types.ids import CellId_t
+
+    async with async_playwright() as playwright:
+        browser = await playwright.chromium.launch()
+        try:
+            page = await browser.new_page()
+            session = _ScreenshotSession("http://localhost:1234")
+            session._page = page
+            for state in ("unknown", "pending"):
+                await page.set_content('<div id="output-a">old output</div>')
+                await page.evaluate(
+                    "state => { window.__marimoCapture = { getCellState: () => state }; }",
+                    state,
+                )
+                with pytest.raises(BrowserTimeoutError):
+                    await session._wait_for_output(CellId_t("a"), timeout=50)
+                await page.evaluate("""() => {
+                    window.__marimoCapture.getCellState = () => 'available';
+                    document.getElementById('output-a').textContent = 'new output';
+                }""")
+                assert (
+                    await session._wait_for_output(CellId_t("a"), timeout=1000)
+                    == "ready"
+                )
+
+            await page.evaluate("""() => {
+                window.__marimoCapture.getCellState = () => 'pending';
+            }""")
+            wait = asyncio.create_task(
+                session._wait_for_output(CellId_t("a"), timeout=1000)
+            )
+            await page.evaluate("""() => {
+                window.__marimoCapture.getCellState = () => 'empty';
+            }""")
+            assert await wait == "empty"
+
+            # Older frontend assets have no getter but can still render output.
+            await page.evaluate("delete window.__marimoCapture")
+            await page.set_content('<div id="output-a">rich output</div>')
+            assert (
+                await session._wait_for_output(CellId_t("a"), timeout=1000)
+                == "ready"
+            )
+        finally:
+            await browser.close()

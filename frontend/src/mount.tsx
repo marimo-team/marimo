@@ -21,6 +21,7 @@ import {
 import { Logger } from "@/utils/Logger";
 import { ErrorBoundary } from "./components/editor/boundary/ErrorBoundary";
 import { notebookAtom } from "./core/cells/cells";
+import { installCaptureInterface } from "./core/cells/capture";
 import { notebookStateFromSession } from "./core/cells/session";
 import {
   parseAppConfig,
@@ -338,6 +339,11 @@ function initStore(options: unknown) {
     mode === "edit" && shouldStartInPresentMode ? "present" : mode;
   store.set(viewStateAtom, { mode: initialViewMode, cellAnchor: null });
   store.set(kioskModeAtom, isKioskMode);
+  if (isKioskMode) {
+    installCaptureInterface(store);
+  } else {
+    delete window.__marimoCapture;
+  }
   store.set(serverTokenAtom, parsedOptions.data.serverToken);
 
   // Config
