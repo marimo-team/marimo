@@ -501,7 +501,7 @@ const RevealSlidesComponent = ({
   const [showCodeOverrides, setShowCodeOverrides] = useState<
     ReadonlySet<CellId>
   >(() => new Set());
-  const codeAvailable = useNotebookCodeAvailable(slideCells);
+  const codeAvailable = useNotebookCodeAvailable();
   const codeRenderingEnabled = !isIslands() && codeAvailable;
   const isSpeakerReceiver = isSpeakerViewReceiver(
     kioskMode,

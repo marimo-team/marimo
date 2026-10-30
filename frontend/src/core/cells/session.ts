@@ -145,7 +145,7 @@ function createEmptyNotebookCell(): NotebookCell {
   return {
     id: CellId.create(),
     name: EMPTY_STRING,
-    code: EMPTY_STRING,
+    code: null,
     code_hash: null,
     config: {
       column: null,
@@ -170,7 +170,7 @@ function cellRecord(cellId: CellId, cell: NotebookCell): Protocol.Cell {
   return {
     id: cellId,
     notebook_id: EMBEDDED,
-    code: cell.code ?? EMPTY_STRING,
+    code: cell.code,
     name: cell.name || DEFAULT_CELL_NAME,
     config: {
       column: cell.config?.column ?? null,

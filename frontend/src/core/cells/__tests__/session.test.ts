@@ -168,7 +168,8 @@ describe("readExport", () => {
 
       invariant(result.snapshot, "no snapshot");
       expect(result.snapshot.document.order).toEqual([CELL_1]);
-      expect(cellIn(result, CELL_1).code).toBe("");
+      // The session knows outputs, not source; the host withholds it as null.
+      expect(cellIn(result, CELL_1).code).toBeNull();
       expect(result.cellRuntime[CELL_1]).toBeDefined();
     });
 
@@ -480,7 +481,7 @@ describe("readExport", () => {
         id: CELL_1,
         notebook_id: "embedded",
         name: "_",
-        code: "",
+        code: null,
         config: {
           hide_code: false,
           disabled: false,
