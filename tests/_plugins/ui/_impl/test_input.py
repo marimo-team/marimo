@@ -87,6 +87,43 @@ def test_number_from_dataframe() -> None:
     assert number._args.label == "Custom label"
 
 
+@pytest.mark.skipif(not HAS_PANDAS, reason="pandas not installed")
+@pytest.mark.parametrize("widget", [ui.number, ui.slider, ui.range_slider])
+def test_numeric_from_empty_series(widget) -> None:
+    import pandas as pd
+
+    series = pd.Series([], dtype=float)
+    with pytest.raises(ValueError, match="provide explicit bounds"):
+        widget.from_series(series)
+
+    element = widget.from_series(series, start=0, stop=100)
+    assert element.start == 0
+    assert element.stop == 100
+
+
+@pytest.mark.skipif(not HAS_PANDAS, reason="pandas not installed")
+@pytest.mark.parametrize("widget", [ui.number, ui.slider, ui.range_slider])
+def test_numeric_from_all_null_series(widget) -> None:
+    import pandas as pd
+
+    series = pd.Series([None, None], dtype=float)
+    with pytest.raises(ValueError, match="provide explicit bounds"):
+        widget.from_series(series)
+
+
+@pytest.mark.skipif(not HAS_PANDAS, reason="pandas not installed")
+@pytest.mark.parametrize("widget", [ui.radio, ui.dropdown, ui.multiselect])
+def test_categorical_from_empty_series(widget) -> None:
+    import pandas as pd
+
+    series = pd.Series([], dtype=object)
+    element = widget.from_series(series)
+    assert element.options == {}
+
+    element = widget.from_series(series, options=["a", "b"])
+    assert element.options == {"a": "a", "b": "b"}
+
+
 def test_slider_init() -> None:
     slider = ui.slider(1, 10)
     assert slider.start == 1

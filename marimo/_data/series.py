@@ -22,8 +22,8 @@ class NumberSeriesInfo:
     Represents a summary of a numeric series.
     """
 
-    min: float
-    max: float
+    min: float | None
+    max: float | None
     label: str
 
 
@@ -43,8 +43,8 @@ class DateSeriesInfo:
     Represents a summary of a date series.
     """
 
-    min: str
-    max: str
+    min: str | None
+    max: str | None
     label: str
 
 
@@ -52,6 +52,15 @@ def _get_name(series: nw.Series[Any]) -> str:
     if series.name is None:
         return ""
     return str(series.name)
+
+
+def _is_missing(value: Any) -> bool:
+    if value is None:
+        return True
+    try:
+        return bool(value != value)  # noqa: PLR0124
+    except (TypeError, ValueError):
+        return False
 
 
 @nw.narwhalify(eager_only=True, series_only=True)
@@ -62,17 +71,29 @@ def get_number_series_info(series: nw.Series[Any]) -> NumberSeriesInfo:
     assert_narwhals_series(series)
 
     series = series.drop_nulls()
+    raw_min = series.min()
+    raw_max = series.max()
 
     def validate_number(value: Any) -> float:
         value = unwrap_py_scalar(value)
+        if _is_missing(value):
+            raise ValueError("Series has no non-null numeric values")
         value = float(value)
         if not isinstance(value, (int, float)):
             raise ValueError("Expected a number. Got: " + str(type(value)))
         return value
 
     return NumberSeriesInfo(
-        min=validate_number(series.min()),
-        max=validate_number(series.max()),
+        min=(
+            None
+            if series.len() == 0 or _is_missing(raw_min)
+            else validate_number(raw_min)
+        ),
+        max=(
+            None
+            if series.len() == 0 or _is_missing(raw_max)
+            else validate_number(raw_max)
+        ),
         label=_get_name(series),
     )
 
@@ -100,9 +121,15 @@ def get_date_series_info(series: nw.Series[Any]) -> DateSeriesInfo:
     assert_narwhals_series(series)
 
     series = series.drop_nulls()
+    raw_min = series.min()
+    raw_max = series.max()
+    raw_min = series.min()
+    raw_max = series.max()
 
     def validate_date(value: Any) -> str:
         value = unwrap_py_scalar(value)
+        if _is_missing(value):
+            raise ValueError("Series has no non-null date values")
         if isinstance(value, datetime.date):
             return value.strftime("%Y-%m-%d")
         if hasattr(value, "strftime"):
@@ -110,8 +137,16 @@ def get_date_series_info(series: nw.Series[Any]) -> DateSeriesInfo:
         raise ValueError("Expected a date. Got: " + str(type(value)))
 
     return DateSeriesInfo(
-        min=validate_date(series.min()),
-        max=validate_date(series.max()),
+        min=(
+            None
+            if series.len() == 0 or _is_missing(raw_min)
+            else validate_date(raw_min)
+        ),
+        max=(
+            None
+            if series.len() == 0 or _is_missing(raw_max)
+            else validate_date(raw_max)
+        ),
         label=_get_name(series),
     )
 
@@ -124,9 +159,13 @@ def get_datetime_series_info(series: nw.Series[Any]) -> DateSeriesInfo:
     assert_narwhals_series(series)
 
     series = series.drop_nulls()
+    raw_min = series.min()
+    raw_max = series.max()
 
     def validate_datetime(value: Any) -> str:
         value = unwrap_py_scalar(value)
+        if _is_missing(value):
+            raise ValueError("Series has no non-null datetime values")
         if isinstance(value, datetime.datetime):
             return value.strftime("%Y-%m-%dT%H:%M:%S")
         if isinstance(value, datetime.date):
@@ -138,7 +177,15 @@ def get_datetime_series_info(series: nw.Series[Any]) -> DateSeriesInfo:
         raise ValueError("Expected a datetime. Got: " + str(type(value)))
 
     return DateSeriesInfo(
-        min=validate_datetime(series.min()),
-        max=validate_datetime(series.max()),
+        min=(
+            None
+            if series.len() == 0 or _is_missing(raw_min)
+            else validate_datetime(raw_min)
+        ),
+        max=(
+            None
+            if series.len() == 0 or _is_missing(raw_max)
+            else validate_datetime(raw_max)
+        ),
         label=_get_name(series),
     )
