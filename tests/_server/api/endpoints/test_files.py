@@ -216,6 +216,42 @@ def test_save_file(client: TestClient) -> None:
     )
 
 
+@with_session(SESSION_ID)
+def test_save_layout(client: TestClient) -> None:
+    filename = get_session_manager(client).workspace.get_unique_file_key()
+    assert filename
+    path = Path(filename)
+    response = client.post(
+        "/api/kernel/rename",
+        headers=HEADERS,
+        json={"filename": str(path)},
+    )
+    assert response.status_code == 200, response.text
+    manager = get_session_manager(client).get_session(SESSION_ID)
+    assert manager is not None
+    app = manager.app_file_manager.app
+
+    response = client.post(
+        "/api/kernel/save_layout",
+        headers=HEADERS,
+        json={
+            "layout": {"type": "grid", "data": {"columns": 24, "cells": []}}
+        },
+    )
+    assert response.status_code == 200, response.text
+    layout_file = app.config.layout_file
+    assert layout_file == f"layouts/{path.stem}.grid.json"
+    assert (path.parent / layout_file).exists()
+
+    response = client.post(
+        "/api/kernel/save_layout",
+        headers=HEADERS,
+        json={"layout": None},
+    )
+    assert response.status_code == 200, response.text
+    assert app.config.layout_file is None
+
+
 @pytest.mark.xfail(
     reason="Flaky in CI, can't repro locally",
 )

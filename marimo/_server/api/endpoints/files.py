@@ -25,6 +25,7 @@ from marimo._server.models.models import (
     ReadCodeResponse,
     RenameNotebookRequest,
     SaveAppConfigurationRequest,
+    SaveLayoutRequest,
     SaveNotebookRequest,
     SuccessResponse,
 )
@@ -146,6 +147,40 @@ async def rename_file(
         from_consumer_id=ConsumerId(app_state.require_current_session_id()),
     )
 
+    return SuccessResponse()
+
+
+@router.post("/save_layout")
+@requires("edit")
+async def save_layout(
+    *,
+    request: Request,
+) -> BaseResponse:
+    """
+    parameters:
+        - in: header
+          name: Marimo-Session-Id
+          schema:
+            type: string
+          required: true
+    requestBody:
+        content:
+            application/json:
+                schema:
+                    $ref: "#/components/schemas/SaveLayoutRequest"
+    responses:
+        200:
+            description: Write the notebook's layout file and point its app config at it
+            content:
+                application/json:
+                    schema:
+                        $ref: "#/components/schemas/SuccessResponse"
+    """
+    app_state = AppState(request)
+    body = await parse_request(request, cls=SaveLayoutRequest)
+    app_state.require_current_session().app_file_manager.save_layout(
+        body.layout
+    )
     return SuccessResponse()
 
 
