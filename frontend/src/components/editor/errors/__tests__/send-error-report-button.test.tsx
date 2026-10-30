@@ -24,7 +24,7 @@ import {
   ERROR_MESSAGE_INSTRUCTIONS,
 } from "@/core/cells/error-report";
 import { pairConfigAtom } from "@/core/config/pair";
-import { notebookStateFromSession } from "@/core/cells/session";
+import { readExport } from "@/core/cells/session";
 import type { MarimoError, OutputMessage } from "@/core/kernel/messages";
 import {
   type StableSessionId,
@@ -317,8 +317,8 @@ describe("SendErrorReportButton", () => {
   });
 
   it("sends the restored exception type and complete traceback", async () => {
-    const state = notebookStateFromSession(
-      {
+    const { cellRuntime } = readExport({
+      session: {
         version: "1",
         metadata: { marimo_version: "1", script_metadata_hash: null },
         cells: [
@@ -342,9 +342,11 @@ describe("SendErrorReportButton", () => {
           },
         ],
       },
-      null,
-    );
-    const message = state?.cellRuntime[CELL_ID].output;
+      notebook: null,
+      filename: null,
+      appConfig: {},
+    });
+    const message = cellRuntime[CELL_ID].output;
     expect(message).toBeDefined();
     renderButton({
       content: message && <OutputRenderer cellId={CELL_ID} message={message} />,

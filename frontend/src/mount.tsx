@@ -5,8 +5,8 @@ import { Provider } from "jotai";
 import { createRoot } from "react-dom/client";
 import { z } from "zod";
 import {
-  appConfigAtom,
   configOverridesAtom,
+  pageAppConfigAtom,
   userConfigAtom,
 } from "@/core/config/config";
 import { KnownQueryParams } from "@/core/constants";
@@ -21,7 +21,7 @@ import {
 import { Logger } from "@/utils/Logger";
 import { ErrorBoundary } from "./components/editor/boundary/ErrorBoundary";
 import { notebookAtom } from "./core/cells/cells";
-import { notebookStateFromSession } from "./core/cells/session";
+import { readExport } from "./core/cells/session";
 import {
   parseAppConfig,
   parseConfigOverrides,
@@ -62,6 +62,7 @@ import {
 import { maybeRegisterVSCodeBindings } from "./core/vscode/vscode-bindings";
 import type { FileStore } from "./core/wasm/store";
 import { notebookFileStore } from "./core/wasm/store";
+import { embeddedSnapshotAtom } from "./core/session/embedded";
 import { ConnectionState } from "./core/session/types";
 import {
   handleWidgetMessage,
@@ -346,7 +347,8 @@ function initStore(options: unknown) {
     parseConfigOverrides(parsedOptions.data.configOverrides),
   );
   store.set(userConfigAtom, parseUserConfig(parsedOptions.data.config));
-  store.set(appConfigAtom, parseAppConfig(parsedOptions.data.appConfig));
+  store.set(pageAppConfigAtom, parsedOptions.data.appConfig);
+  const appConfig = parseAppConfig(parsedOptions.data.appConfig);
   store.set(pairConfigAtom, parsedOptions.data.pairConfig);
 
   // Runtime config
@@ -369,14 +371,21 @@ function initStore(options: unknown) {
     });
   }
 
-  // Session/notebook
-  const notebook = notebookStateFromSession(
-    parsedOptions.data.session,
-    parsedOptions.data.notebook,
-  );
+  // The notebook the page was served with shows until the host answers.
+  const { snapshot, cellRuntime } = readExport({
+    session: parsedOptions.data.session,
+    notebook: parsedOptions.data.notebook,
+    filename: parsedOptions.data.filename,
+    appConfig,
+  });
+  store.set(embeddedSnapshotAtom, snapshot);
   store.set(layoutStateAtom, initialLayoutState(parsedOptions.data.layout));
-  if (notebook) {
-    store.set(notebookAtom, notebook);
+  if (snapshot !== null) {
+    // The scratch cell keeps its own runtime; the snapshot has none for it.
+    store.set(notebookAtom, (state) => ({
+      ...state,
+      cellRuntime: { ...state.cellRuntime, ...cellRuntime },
+    }));
   }
 }
 

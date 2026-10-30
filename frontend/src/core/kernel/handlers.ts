@@ -1,11 +1,9 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 import type { LayoutType } from "@/components/editor/renderers/types";
-import { Logger } from "@/utils/Logger";
 import { Objects } from "@/utils/objects";
 import type { UIElementId } from "../cells/ids";
 import type { ReducerCellActions } from "../cells/cells";
 import type { CellData } from "../cells/types";
-import { type AppConfig, AppConfigSchema } from "../config/config-schema";
 import { UI_ELEMENT_REGISTRY } from "../dom/uiregistry";
 import { deserializeLayoutState } from "../layout/layout";
 import type { LayoutData, LayoutState } from "../layout/state";
@@ -71,7 +69,6 @@ export function handleKernelReady(
     }) => void;
     setCapabilities: (capabilities: Capabilities) => void;
     setKernelState: (state: KernelState) => void;
-    setAppConfig: (config: AppConfig) => void;
     onError: (error: Error) => void;
   },
 ): LayoutState {
@@ -81,13 +78,11 @@ export function handleKernelReady(
     setLastRun,
     resetCellRuntimes,
     setLayoutData,
-    setAppConfig,
     setCapabilities,
     setKernelState,
     onError,
   } = opts;
-  const { resumed, ui_values, app_config, capabilities, auto_instantiated } =
-    data;
+  const { resumed, ui_values, capabilities, auto_instantiated } = data;
 
   resetCellRuntimes();
   setLastRun({
@@ -96,13 +91,6 @@ export function handleKernelReady(
   });
   const layoutState = buildLayoutState(data, cells, setLayoutData);
 
-  // Set app config and capabilities
-  const parsedAppConfig = AppConfigSchema.safeParse(app_config);
-  if (parsedAppConfig.success) {
-    setAppConfig(parsedAppConfig.data);
-  } else {
-    Logger.error("Failed to parse app config", parsedAppConfig.error);
-  }
   setCapabilities(capabilities);
 
   // If the kernel was already instantiated server-side (e.g. run mode), we're done

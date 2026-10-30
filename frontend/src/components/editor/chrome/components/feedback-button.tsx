@@ -18,7 +18,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
-import { notebookAtom } from "@/core/cells/cells";
 import { Constants } from "@/core/constants";
 import {
   buildBugReportUrl,
@@ -116,13 +115,8 @@ export const FeedbackModal: React.FC<{
     return requestClient.getEnvironmentInfo();
   }, [requestClient]);
 
-  const notebook = useAtomValue(notebookAtom);
   const errors = getCellErrorEntries(store);
-
-  const cells = notebook.cellIds.inOrderIds.map(
-    (cellId) => notebook.cellData[cellId],
-  );
-  const codeAvailable = useNotebookCodeAvailable(cells);
+  const codeAvailable = useNotebookCodeAvailable();
   const filename = useAtomValue(filenameAtom);
   const connection = useAtomValue(connectionAtom);
   const notebookSourceReason = getNotebookSourceUnavailableReason({

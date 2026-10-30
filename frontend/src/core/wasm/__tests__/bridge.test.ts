@@ -235,6 +235,7 @@ describe("PyodideBridge.sendSave", () => {
     store.set(activeNotebookReplicaAtom, replica);
     const backend = createEditorBackend({
       static: false,
+      snapshot: null,
       transportType: "sse",
       url: () => "http://localhost/",
       headers: () => ({}),

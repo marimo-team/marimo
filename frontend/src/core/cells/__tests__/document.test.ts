@@ -21,7 +21,6 @@ import {
 import { OverridingHotkeyProvider } from "@/core/hotkeys/hotkeys";
 import { store } from "@/core/state/jotai";
 import { activeDocumentModelAtom } from "@/core/session/active-notebook";
-import { MultiColumn } from "@/utils/id-tree";
 import { isRtcEnabled } from "../../rtc/state";
 import {
   createNotebookActions,
@@ -47,7 +46,6 @@ const { initialNotebookState } = exportedForTesting;
 const a = cellId("a");
 const b = cellId("b");
 const c = cellId("c");
-const d = cellId("d");
 
 function cell(id: CellId, patch: Partial<EditableCell> = {}): EditableCell {
   return {
@@ -103,7 +101,7 @@ describe("applyDocument", () => {
   it("adds the document's cells to an empty notebook", () => {
     const state = notebookOf([cell(a), cell(b, { code: "" })]);
 
-    expect(state.cellIds.inOrderIds).toEqual([a, b]);
+    expect(state.cellIds).toEqual([a, b]);
     expect(state.cellData[a]).toMatchObject({
       code: "a = 1",
       name: "_",
@@ -200,50 +198,10 @@ describe("applyDocument", () => {
 
     const next = applyDocument(state, documentOf([cell(a), cell(c)]));
 
-    expect(next.cellIds.inOrderIds).toEqual([a, c]);
+    expect(next.cellIds).toEqual([a, c]);
     expect(next.cellData[b]).toBeUndefined();
     expect(next.cellRuntime[b]).toBeUndefined();
     expect(next.cellHandles[b]).toBeUndefined();
-  });
-
-  it("regroups columns from the cells' configs, keeping column ids and collapsed sections", () => {
-    const column1 = { ...cell(d).config, column: 1 };
-    const state = notebookOf([
-      cell(a),
-      cell(b),
-      cell(c),
-      cell(d, { config: column1 }),
-    ]);
-    const [first, second] = state.cellIds.getColumns();
-    const collapsed = {
-      ...state,
-      cellIds: new MultiColumn([first.collapse(a, b), second]),
-    };
-
-    const next = applyDocument(
-      collapsed,
-      documentOf([cell(c), cell(a), cell(b), cell(d, { config: column1 })]),
-    );
-
-    expect(next.cellIds.inOrderIds).toEqual([c, a, b, d]);
-    expect(next.cellIds.getColumnIds()).toEqual(
-      collapsed.cellIds.getColumnIds(),
-    );
-    expect(next.cellIds.atOrThrow(0).isCollapsed(a)).toBe(true);
-    expect(next.cellIds.atOrThrow(1).inOrderIds).toEqual([d]);
-  });
-
-  it("keeps a trailing empty column", () => {
-    const state = notebookOf([cell(a)]);
-    const withEmpty = {
-      ...state,
-      cellIds: state.cellIds.addColumn(state.cellIds.atOrThrow(0).id),
-    };
-
-    const next = applyDocument(withEmpty, documentOf([cell(a, { code: "" })]));
-
-    expect(next.cellIds.colLength).toBe(2);
-    expect(next.cellData[a].code).toBe("");
   });
 });
 
@@ -290,37 +248,6 @@ describe("documentEditMiddleware", () => {
     });
 
     expect(calls).toEqual([["setCode", a, "a = 2"]]);
-  });
-
-  it("sets the order when a cell moves", () => {
-    actions.moveCell({ cellId: c, before: true });
-
-    expect(calls).toEqual([["setOrder", [a, c, b]]]);
-  });
-
-  it("sets the column of a cell that changes column", () => {
-    state = notebookOf([
-      cell(a),
-      cell(b),
-      cell(c, { config: { ...cell(c).config, column: 1 } }),
-    ]);
-
-    actions.moveCell({ cellId: b, direction: "right" });
-
-    expect(state.cellIds.atOrThrow(1).inOrderIds).toEqual([b, c]);
-    expect(calls).toEqual([["updateConfig", b, { column: 1 }]]);
-  });
-
-  it("clears columns merged into one", () => {
-    state = notebookOf([
-      cell(a),
-      cell(b),
-      cell(c, { config: { ...cell(c).config, column: 1 } }),
-    ]);
-
-    actions.mergeAllColumns();
-
-    expect(calls).toEqual([["updateConfig", c, { column: null }]]);
   });
 
   it("ignores the document and the kernel's run state", () => {

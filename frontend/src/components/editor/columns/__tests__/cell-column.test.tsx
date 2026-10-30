@@ -3,7 +3,7 @@ import { render } from "@testing-library/react";
 import { createStore, Provider } from "jotai";
 import { describe, expect, it } from "vitest";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import type { CellColumnId } from "@/utils/id-tree";
+import type { CellColumnId } from "@/core/cells/layout";
 import { Column } from "../cell-column";
 
 const columnId = "col-1" as CellColumnId;

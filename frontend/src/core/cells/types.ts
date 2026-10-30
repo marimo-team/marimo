@@ -1,7 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import type { Milliseconds, Seconds } from "@/utils/time";
-import type { SerializedEditorState } from "../codemirror/types";
 import type { OutputMessage } from "../kernel/messages";
 import type { CellConfig, RuntimeState } from "../network/types";
 import type { CellId } from "./ids";
@@ -31,7 +30,6 @@ export function createCell({
   lastExecutionTime = null,
   edited = false,
   config,
-  serializedEditorState = null,
 }: Partial<CellData> & { id: CellId }): CellData {
   return {
     id: id,
@@ -46,7 +44,6 @@ export function createCell({
     edited: edited,
     lastCodeRun: lastCodeRun,
     lastExecutionTime: lastExecutionTime,
-    serializedEditorState: serializedEditorState,
   };
 }
 
@@ -97,8 +94,6 @@ export interface CellData {
   lastExecutionTime: number | null;
   /** cell configuration */
   config: CellConfig;
-  /** serialized state of the underlying editor */
-  serializedEditorState: SerializedEditorState | null;
 }
 
 export interface CellRuntimeState {

@@ -25,7 +25,7 @@ describe("useFocusFirstEditor", () => {
     const getNotebookSpy = vi
       .spyOn(cellsModule, "getNotebook")
       .mockReturnValue({
-        cellIds: { iterateTopLevelIds: ["cell-1", "cell-2"] },
+        cellIds: ["cell-1", "cell-2"],
         cellData: {
           "cell-1": { config: { hide_code: false } },
           "cell-2": { config: { hide_code: false } },
@@ -52,7 +52,7 @@ describe("useFocusFirstEditor", () => {
     const getNotebookSpy = vi
       .spyOn(cellsModule, "getNotebook")
       .mockReturnValue({
-        cellIds: { iterateTopLevelIds: ["cell-1", "cell-2"] },
+        cellIds: ["cell-1", "cell-2"],
         cellData: {
           "cell-1": { config: { hide_code: true } }, // hidden
           "cell-2": { config: { hide_code: false } }, // visible
@@ -94,7 +94,7 @@ describe("useFocusFirstEditor", () => {
     // Mock getNotebook
     const mockEditor = { focus: vi.fn() };
     vi.spyOn(cellsModule, "getNotebook").mockReturnValue({
-      cellIds: { iterateTopLevelIds: [] },
+      cellIds: [],
       cellData: {},
       cellHandles: {
         "cell-123": { current: { editorView: mockEditor } },
@@ -129,7 +129,7 @@ describe("useFocusFirstEditor", () => {
 
     const mockEditor = { focus: vi.fn() };
     vi.spyOn(cellsModule, "getNotebook").mockReturnValue({
-      cellIds: { iterateTopLevelIds: ["cell-1"] },
+      cellIds: ["cell-1"],
       cellData: {
         "cell-1": { config: { hide_code: false } },
       },

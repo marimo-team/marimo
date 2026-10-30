@@ -11,7 +11,6 @@ import {
   createCellRuntimeState,
 } from "@/core/cells/types";
 import type { MarimoError } from "@/core/kernel/messages";
-import { MultiColumn } from "@/utils/id-tree";
 import { Objects } from "@/utils/objects";
 
 export const MockNotebook = {
@@ -46,7 +45,7 @@ export const MockNotebook = {
         serializedEditorState: null,
         ...data,
       })),
-      cellIds: MultiColumn.from([Object.keys(cellData) as CellId[]]),
+      cellIds: Object.keys(cellData) as CellId[],
       cellRuntime: Objects.mapValues(cellData, (_data, cid) =>
         createCellRuntimeState({ ...cellRuntime[cid] }),
       ),
@@ -54,7 +53,6 @@ export const MockNotebook = {
       cellLogs: [],
       history: [],
       scrollKey: null,
-      untouchedNewCells: new Set(),
     };
   },
 

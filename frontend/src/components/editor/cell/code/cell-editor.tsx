@@ -3,7 +3,7 @@ import { historyField } from "@codemirror/commands";
 import { EditorState, type Extension, StateEffect } from "@codemirror/state";
 import { EditorView, ViewPlugin } from "@codemirror/view";
 import { useIntersectionObserver } from "@uidotdev/usehooks";
-import { useAtom, useAtomValue } from "jotai";
+import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import React, { memo, useEffect, useMemo, useRef, useState } from "react";
 import useEvent from "react-use-event-hook";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,11 @@ import { aiCompletionCellAtom } from "@/core/ai/state";
 import { maybeAddMarimoImport } from "@/core/cells/add-missing-import";
 import { getNotebook } from "@/core/cells/cells";
 import { useCellActions } from "@/core/cells/actions";
+import {
+  showHiddenCodeAtom,
+  takeRestoredEditorStateAtom,
+  useRestoredEditorState,
+} from "@/core/cells/editor";
 import { useNotebookDocumentEdit } from "@/core/notebook/document";
 import { SETUP_CELL_ID } from "@/core/cells/ids";
 import { usePendingDeleteService } from "@/core/cells/pending-delete-service";
@@ -58,7 +63,7 @@ import { LanguageToggles } from "./language-toggle";
 export interface CellEditorProps
   extends
     Pick<CellRuntimeState, "status">,
-    Pick<CellData, "id" | "code" | "serializedEditorState" | "config"> {
+    Pick<CellData, "id" | "code" | "config"> {
   runCell: () => void;
   theme: Theme;
   showPlaceholder: boolean;
@@ -116,7 +121,6 @@ const CellEditorInternal = ({
   config: cellConfig,
   code,
   status,
-  serializedEditorState,
   setEditorView,
   runCell,
   userConfig,
@@ -133,6 +137,9 @@ const CellEditorInternal = ({
   tooltipParentSelector,
 }: CellEditorProps) => {
   const [aiCompletionCell, setAiCompletionCell] = useAtom(aiCompletionCellAtom);
+  const serializedEditorState = useRestoredEditorState(cellId);
+  const takeRestoredEditorState = useSetAtom(takeRestoredEditorStateAtom);
+  const showHiddenCodeNow = useSetAtom(showHiddenCodeAtom);
   const deleteCell = useDeleteCellCallback();
   const { saveOrNameNotebook } = useSaveNotebook();
   const pendingDeleteService = usePendingDeleteService();
@@ -192,7 +199,7 @@ const CellEditorInternal = ({
       edit((tx) =>
         tx.updateConfig(cellId, { hide_code: MARKDOWN_INITIAL_HIDE_CODE }),
       );
-      cellActions.markUntouched({ cellId });
+      showHiddenCodeNow({ cellId });
     }
   });
 
@@ -229,7 +236,7 @@ const CellEditorInternal = ({
         addOrAppendSetupCell: (code) => {
           const notebook = getNotebook();
           // No setup cell yet: create one with this code at the top.
-          if (!notebook.cellIds.setupCellExists()) {
+          if (!notebook.cellIds.includes(SETUP_CELL_ID)) {
             cellActions.addSetupCell({ code });
             return;
           }
@@ -422,8 +429,8 @@ const CellEditorInternal = ({
       });
     }
     setEditorView(ev);
-    // Clear the serialized state so that we don't re-create the editor next time
-    cellActions.clearSerializedEditorState({ cellId });
+    // The restored state is used once; the next mount builds a fresh editor.
+    takeRestoredEditorState({ cellId });
   });
   const [isEditorMounted, setIsEditorMounted] = useState(
     serializedEditorState !== null,

@@ -21,7 +21,7 @@ import {
 import { Tooltip } from "@/components/ui/tooltip";
 import { useCellActions } from "@/core/cells/actions";
 import { cn } from "@/utils/cn";
-import type { CellColumnId } from "@/utils/id-tree";
+import type { CellColumnId } from "@/core/cells/layout";
 import { mergeRefs } from "../../../utils/mergeRefs";
 
 interface Props extends React.HTMLAttributes<HTMLDivElement> {

@@ -103,15 +103,11 @@ describe("initializeIslands document", () => {
     }
 
     const notebook = store.get(notebookAtom);
-    expect(notebook.cellIds.inOrderIds).toEqual(["c1", "c3", "k7f2"]);
+    expect(notebook.cellIds).toEqual(["c1", "c3", "k7f2"]);
     expect(notebook.cellData[cellId("c3")].code).toBe("x = 21");
     expect(notebook.cellRuntime[cellId("c3")]).toBeDefined();
 
     handlers?.message({ event: "reset", data: {} });
-    expect(store.get(notebookAtom).cellIds.inOrderIds).toEqual([
-      "c1",
-      "c3",
-      "k7f2",
-    ]);
+    expect(store.get(notebookAtom).cellIds).toEqual(["c1", "c3", "k7f2"]);
   });
 });

@@ -22,9 +22,13 @@ import React, { useCallback, useMemo, useState } from "react";
 import type { CellId } from "@/core/cells/ids";
 import { useAppConfig } from "@/core/config/config";
 import { Arrays } from "@/utils/arrays";
-import type { CellColumnId, MultiColumn } from "@/utils/id-tree";
 import { invariant } from "@/utils/invariant";
-import { getNotebook } from "../../core/cells/cells";
+import {
+  type CellColumnId,
+  findColumn,
+  layoutAtom,
+} from "../../core/cells/layout";
+import { store } from "../../core/state/jotai";
 import { useCellActions } from "../../core/cells/actions";
 import { useEvent } from "../../hooks/useEvent";
 
@@ -48,11 +52,8 @@ const SortableCellsProviderInternal = ({
     useCellActions();
 
   const [activeId, setActiveId] = useState<UniqueIdentifier | null>(null);
-  const [clonedItems, setClonedItems] = useState<MultiColumn<CellId> | null>(
-    null,
-  );
 
-  const [config] = useAppConfig();
+  const config = useAppConfig();
   const modifiers = useMemo(() => {
     if (config.width === "columns") {
       return Arrays.EMPTY;
@@ -74,20 +75,10 @@ const SortableCellsProviderInternal = ({
 
   const handleDragStart = useEvent((event: DragStartEvent) => {
     setActiveId(event.active.id);
-    const notebook = getNotebook();
-    setClonedItems(notebook.cellIds);
   });
 
   const handleDragCancel = useEvent(() => {
-    // TODO: restore cloned items
-    if (clonedItems) {
-      // Reset items to their original state in case items have been
-      // Dragged across containers
-      // setItems(clonedItems);
-    }
-
     setActiveId(null);
-    setClonedItems(null);
   });
 
   /**
@@ -136,16 +127,15 @@ const SortableCellsProviderInternal = ({
       invariant(isColumnId(overId), `Expected column id. Got: ${overId}`);
 
       // If column is empty, we can drop on it
-      const notebook = getNotebook();
-      const column = notebook.cellIds.get(overId);
+      const column = findColumn(store.get(layoutAtom), overId);
       invariant(column, `Expected column. Got: ${overId}`);
-      if (column && column.topLevelIds.length === 0) {
+      if (column.visible.length === 0) {
         // Return the column
         return [{ id: overId }];
       }
 
       // If the column is not empty, we only consider the cells in the same column
-      const cellIdSet = new Set(column.topLevelIds);
+      const cellIdSet = new Set(column.visible);
       const collisions = closestCenter({
         ...args,
         droppableContainers: args.droppableContainers.filter(
@@ -239,5 +229,5 @@ function isCellId(id: UniqueIdentifier): id is CellId {
 }
 
 function isColumnId(id: UniqueIdentifier): id is CellColumnId {
-  return typeof id === "string" && id.startsWith("tree_");
+  return typeof id === "string" && id.startsWith("column-");
 }

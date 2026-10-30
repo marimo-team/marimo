@@ -7,7 +7,11 @@ import { type NotebookState, notebookAtom } from "@/core/cells/cells";
 import type { CreateCellOptions } from "@/core/cells/actions";
 import { CellId } from "@/core/cells/ids";
 import { prepareCellCodeUpdate } from "@/core/codemirror/language/cell-code";
-import type { CellColumnId } from "@/utils/id-tree";
+import {
+  type CellColumnId,
+  type Layout,
+  layoutAtom,
+} from "@/core/cells/layout";
 import { stagedAICellsAtom } from "../staged-cells";
 import {
   type AiTool,
@@ -197,7 +201,10 @@ export class EditNotebookTool implements AiTool<
             }
 
             placement = {
-              endOf: this.getColumnId(position.columnIndex, notebook),
+              endOf: this.getColumnId(
+                position.columnIndex,
+                store.get(layoutAtom),
+              ),
             };
             break;
 
@@ -256,8 +263,7 @@ export class EditNotebookTool implements AiTool<
   };
 
   private validateCellIdExists(cellId: CellId, notebook: NotebookState) {
-    const cellIds = notebook.cellIds;
-    if (!cellIds.getColumns().some((column) => column.idSet.has(cellId))) {
+    if (!notebook.cellIds.includes(cellId)) {
       throw new ToolExecutionError("Cell not found", {
         code: "CELL_NOT_FOUND",
         isRetryable: false,
@@ -266,12 +272,8 @@ export class EditNotebookTool implements AiTool<
     }
   }
 
-  private getColumnId(
-    columnIndex: number,
-    notebook: NotebookState,
-  ): CellColumnId {
-    const cellIds = notebook.cellIds;
-    const columns = cellIds.getColumns();
+  private getColumnId(columnIndex: number, layout: Layout): CellColumnId {
+    const { columns } = layout;
 
     if (columnIndex < 0 || columnIndex >= columns.length) {
       throw new ToolExecutionError("Column index is out of range", {

@@ -19,7 +19,7 @@ export function outputExpansionConfigs(
   expanded: boolean,
 ): Record<CellId, Partial<CellConfig>> {
   const configs: Record<CellId, Partial<CellConfig>> = {};
-  for (const cellId of notebook.cellIds.inOrderIds) {
+  for (const cellId of notebook.cellIds) {
     const cell = notebook.cellData[cellId];
     if (
       cell === undefined ||

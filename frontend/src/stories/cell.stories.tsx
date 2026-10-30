@@ -15,7 +15,6 @@ import { requestClientAtom } from "@/core/network/requests";
 import { resolveRequestClient } from "@/core/network/resolve";
 import type { CellConfig } from "@/core/network/types";
 import { ConnectionState } from "@/core/session/types";
-import { MultiColumn } from "@/utils/id-tree";
 import type { Milliseconds, Seconds } from "@/utils/time";
 import { Cell as EditorCell } from "../components/editor/notebook-cell";
 import { TooltipProvider } from "../components/ui/tooltip";
@@ -46,7 +45,6 @@ const Cell: React.FC<{
         name: "cell_1",
         code: "import marimo as mo",
         edited: overrides.edited ?? false,
-        serializedEditorState: null,
         config: {
           hide_code: overrides.config?.hide_code ?? false,
           disabled: overrides.config?.disabled ?? false,
@@ -56,7 +54,7 @@ const Cell: React.FC<{
         lastExecutionTime: null,
       },
     },
-    cellIds: MultiColumn.from([[cid]]),
+    cellIds: [cid],
     cellRuntime: {
       [cid]: createCellRuntimeState({
         output: overrides.output ?? null,
@@ -79,7 +77,6 @@ const Cell: React.FC<{
     cellLogs: [],
     history: [],
     scrollKey: null,
-    untouchedNewCells: new Set(),
   };
 
   const store = createStore();

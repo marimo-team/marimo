@@ -8,11 +8,18 @@ import type { NotebookBackend } from "../notebook/replica";
 import { PyodideBridge } from "../wasm/bridge";
 import { isWasm } from "../wasm/utils";
 import { sessionSse, websocket, withHeaders } from "../transports/server";
-import { idle } from "../transports/static";
+import {
+  createStaticNotebookBackend,
+  emptySnapshot,
+  type StaticNotebookSnapshot,
+  startWithSnapshot,
+} from "../transports/static";
 
 /** How the editor follows its notebook. */
 export interface EditorBackendOptions {
   static: boolean;
+  /** The notebook the page was served with, shown until the host answers. */
+  snapshot: StaticNotebookSnapshot | null;
   transportType: "websocket" | "sse";
   /** The session route, read before each connection. */
   url: () => string;
@@ -86,30 +93,21 @@ function wasm(): NotebookBackend {
   };
 }
 
-/** Commands for a notebook the editor cannot change through its backend. */
-function uneditable(): ReturnType<NotebookBackend["notebook"]> {
-  const unsupported: NotebookClient["save"] = async () => ({
-    ok: false,
-    status: 501,
-    problem: {
-      type: "tag:marimo.io,2026:host/unsupported-operation",
-      title: "Document mutations are unavailable on this connection",
-      status: 501,
-    },
-  });
-  return { edit: () => unsupported(), save: unsupported };
-}
-
 /** Choose the backend for the editor's notebook. */
 export function createEditorBackend(
   options: EditorBackendOptions,
 ): NotebookBackend {
   if (options.static) {
-    return { transport: idle, notebook: uneditable };
+    return createStaticNotebookBackend(
+      options.snapshot ?? emptySnapshot("static"),
+    );
   }
-  if (isWasm()) {
-    return wasm();
-  }
+  const live = isWasm() ? wasm() : server(options);
+  return options.snapshot ? startWithSnapshot(options.snapshot, live) : live;
+}
+
+/** Follow the notebook on the server, over SSE or a WebSocket. */
+function server(options: EditorBackendOptions): NotebookBackend {
   const url = afterStartup(options);
   return {
     transport:

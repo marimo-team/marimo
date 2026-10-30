@@ -13,7 +13,14 @@ import { mergeProps, useFocusWithin, useKeyboard } from "react-aria";
 import { DATA_FOR_CELL_ID } from "@/components/data-table/cell-utils";
 import { aiCompletionCellAtom } from "@/core/ai/state";
 import { maybeAddMarimoImport } from "@/core/cells/add-missing-import";
-import { cellIdsAtom, notebookAtom } from "@/core/cells/cells";
+import { notebookAtom } from "@/core/cells/cells";
+import { hideShownCodeAtom, showHiddenCodeAtom } from "@/core/cells/editor";
+import {
+  columnOf,
+  type LayoutColumn,
+  layoutAtom,
+  visibleNeighbor,
+} from "@/core/cells/layout";
 import { useCellActions } from "@/core/cells/actions";
 import { useNotebookDocumentEdit } from "@/core/notebook/document";
 import { useCellFocusActions } from "@/core/cells/focus";
@@ -40,18 +47,21 @@ import type { HotkeyAction } from "@/core/hotkeys/hotkeys";
 import { parseShortcut } from "@/core/hotkeys/shortcuts";
 import { useSaveNotebook } from "@/core/saving/save-component";
 import { Events } from "@/utils/events";
-import type { CollapsibleTree } from "@/utils/id-tree";
 import type { CellActionsDropdownHandle } from "../cell/cell-actions";
 import { useDeleteManyCellsCallback } from "../cell/useDeleteCell";
 import { useRunCells } from "../cell/useRunCells";
 import { useCellClipboard } from "./clipboard";
-import { focusCell, focusCellEditor, raf2 } from "./focus-utils";
+import {
+  focusCell,
+  focusCellEditor,
+  keepFocusedCellInView,
+  raf2,
+} from "./focus-utils";
 import {
   getSelectedCells,
   useCellSelectionActions,
   useIsCellSelected,
 } from "./selection";
-import { useTemporarilyShownCodeActions } from "./state";
 import { handleVimKeybinding } from "./vim-bindings";
 
 interface HotkeyHandler {
@@ -105,8 +115,7 @@ function useCellFocusProps(
   editorView: React.RefObject<EditorView | null>,
 ) {
   const focusActions = useCellFocusActions();
-  const actions = useCellActions();
-  const temporarilyShownCodeActions = useTemporarilyShownCodeActions();
+  const hideShownCode = useSetAtom(hideShownCodeAtom);
 
   // This occurs at the cell level and descedants.
   const { focusWithinProps } = useFocusWithin({
@@ -131,9 +140,9 @@ function useCellFocusProps(
         return;
       }
 
-      // On blur, hide the code if it was temporarily shown.
-      temporarilyShownCodeActions.remove(cellId);
-      actions.markTouched({ cellId });
+      // On blur, hide the code if it was showing for now.
+      hideShownCode({ cellId });
+      keepFocusedCellInView();
       focusActions.blurCell();
       // Close signature help when clicking outside the cell
       if (editorView.current) {
@@ -195,7 +204,7 @@ export function useCellNavigationProps(
   const actions = useCellActions();
   const { createCell, moveToNextCell } = useCellActions();
   const store = useStore();
-  const temporarilyShownCodeActions = useTemporarilyShownCodeActions();
+  const showHiddenCode = useSetAtom(showHiddenCodeAtom);
   const runCells = useRunCells();
   const keymapPreset = useAtomValue(keymapPresetAtom);
   const { copyCells, pasteAtCell, cutCells } = useCellClipboard();
@@ -268,12 +277,13 @@ export function useCellNavigationProps(
         // Move left across columns
         ArrowLeft: () => {
           if (canMoveX) {
-            const notebook = store.get(notebookAtom);
-            const column = notebook.cellIds.findWithId(cellId);
-            const columnIndex = notebook.cellIds.indexOf(column);
-            const leftColumn = notebook.cellIds.at(columnIndex - 1);
+            const layout = store.get(layoutAtom);
+            const columnIndex = layout.columns.indexOf(
+              columnOf(layout, cellId),
+            );
+            const leftColumn = layout.columns[columnIndex - 1];
 
-            if (leftColumn && leftColumn.length > 0) {
+            if (leftColumn && leftColumn.visible.length > 0) {
               const leftCellId = findClosestAdjacentCell(cellId, leftColumn);
               actions.focusCell({ cellId: leftCellId, where: "exact" });
 
@@ -286,12 +296,13 @@ export function useCellNavigationProps(
         // Move right across columns
         ArrowRight: () => {
           if (canMoveX) {
-            const notebook = store.get(notebookAtom);
-            const column = notebook.cellIds.findWithId(cellId);
-            const columnIndex = notebook.cellIds.indexOf(column);
-            const rightColumn = notebook.cellIds.at(columnIndex + 1);
+            const layout = store.get(layoutAtom);
+            const columnIndex = layout.columns.indexOf(
+              columnOf(layout, cellId),
+            );
+            const rightColumn = layout.columns[columnIndex + 1];
 
-            if (rightColumn && rightColumn.length > 0) {
+            if (rightColumn && rightColumn.visible.length > 0) {
               const rightCellId = findClosestAdjacentCell(cellId, rightColumn);
               actions.focusCell({ cellId: rightCellId, where: "exact" });
 
@@ -304,10 +315,14 @@ export function useCellNavigationProps(
         // Select up
         "Shift+ArrowUp": () => {
           // Select self
-          const allCellIds = store.get(cellIdsAtom);
+          const allCellIds = columnOf(store.get(layoutAtom), cellId).ids;
           selectionActions.extend({ cellId, allCellIds });
           // Select to where focus is going
-          const beforeCellId = allCellIds.findWithId(cellId).before(cellId);
+          const beforeCellId = visibleNeighbor(
+            store.get(layoutAtom),
+            cellId,
+            -1,
+          );
           if (beforeCellId) {
             selectionActions.extend({ cellId: beforeCellId, allCellIds });
           }
@@ -318,10 +333,10 @@ export function useCellNavigationProps(
         // Select down
         "Shift+ArrowDown": () => {
           // Select self
-          const allCellIds = store.get(cellIdsAtom);
+          const allCellIds = columnOf(store.get(layoutAtom), cellId).ids;
           selectionActions.extend({ cellId, allCellIds });
           // Select to where focus is going
-          const afterCellId = allCellIds.findWithId(cellId).after(cellId);
+          const afterCellId = visibleNeighbor(store.get(layoutAtom), cellId, 1);
           if (afterCellId) {
             selectionActions.extend({ cellId: afterCellId, allCellIds });
           }
@@ -345,7 +360,7 @@ export function useCellNavigationProps(
         },
         // Enter will focus the cell editor.
         Enter: () => {
-          temporarilyShownCodeActions.add(cellId);
+          showHiddenCode({ cellId });
           focusCellEditor(store, cellId);
           selectionActions.clear();
           return true;
@@ -398,10 +413,8 @@ export function useCellNavigationProps(
         "cell.moveUp": addSingleHandler((cellIds) => {
           // If moving up, make sure the first cell is not at the top of the notebook
           const firstCellId = cellIds[0];
-          const notebook = store.get(notebookAtom);
-          const isFirst =
-            notebook.cellIds.findWithId(firstCellId).first() === firstCellId;
-          if (isFirst) {
+          const layout = store.get(layoutAtom);
+          if (columnOf(layout, firstCellId).visible[0] === firstCellId) {
             return false;
           }
 
@@ -413,10 +426,8 @@ export function useCellNavigationProps(
         "cell.moveDown": addSingleHandler((cellIds) => {
           // If moving down, make sure the last cell is not at the bottom of the notebook
           const lastCellId = cellIds[cellIds.length - 1];
-          const notebook = store.get(notebookAtom);
-          const isLast =
-            notebook.cellIds.findWithId(lastCellId).last() === lastCellId;
-          if (isLast) {
+          const layout = store.get(layoutAtom);
+          if (columnOf(layout, lastCellId).visible.at(-1) === lastCellId) {
             return false;
           }
 
@@ -693,7 +704,7 @@ export function useCellEditorNavigationProps(
   cellId: CellId,
   editorView: React.RefObject<EditorView | null>,
 ) {
-  const temporarilyShownCodeActions = useTemporarilyShownCodeActions();
+  const hideShownCode = useSetAtom(hideShownCodeAtom);
   const keymapPreset = useAtomValue(keymapPresetAtom);
   const hotkeys = useAtomValue(hotkeysAtom);
 
@@ -703,7 +714,7 @@ export function useCellEditorNavigationProps(
   }, [hotkeys]);
 
   const exitToCommandMode = () => {
-    temporarilyShownCodeActions.remove(cellId);
+    hideShownCode({ cellId });
     focusCell(cellId);
     // Scroll to cell in case it is not in view because of layout shifts.
     raf2(() => {
@@ -770,18 +781,18 @@ export function useCellEditorNavigationProps(
 
 function findClosestAdjacentCell(
   currentCellId: CellId,
-  adjacentColumn: CollapsibleTree<CellId>,
+  adjacentColumn: LayoutColumn,
 ): CellId {
   const current = document.getElementById(HTMLCellId.create(currentCellId));
 
   if (!current) {
     // fallback to first
-    return adjacentColumn.first();
+    return adjacentColumn.visible[0];
   }
 
   const currentRect = current.getBoundingClientRect();
   // first to to either overlap or contain the current cell's top edge
-  for (const candidateId of adjacentColumn.topLevelIds) {
+  for (const candidateId of adjacentColumn.visible) {
     const candidate = document.getElementById(HTMLCellId.create(candidateId));
     if (candidate) {
       const candidateRect = candidate.getBoundingClientRect();
@@ -795,7 +806,7 @@ function findClosestAdjacentCell(
   }
 
   // no aligned cells (column beyond other), jump to last element
-  return adjacentColumn.last();
+  return adjacentColumn.visible[adjacentColumn.visible.length - 1];
 }
 
 export function closeSignatureHelp(view: EditorView) {

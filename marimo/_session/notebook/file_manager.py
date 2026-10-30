@@ -75,8 +75,8 @@ class AppFileManager:
         # Load the app
         self.app = self._load_app(self.path)
 
-        # TODO(MO-7927): The host follows the editor's writes through this
-        # hook until the notebook owns persistence and no second writer
+        # TODO(MO-7927): The host follows the editor's writes through these
+        # hooks until the notebook owns persistence and no second writer
         # remains to follow.
         self.on_persisted: (
             Callable[[Sequence[NotebookCell], dict[str, Any]], None] | None
@@ -86,6 +86,8 @@ class AppFileManager:
         The cells are the snapshot the save was given, not the live
         document, which another thread may have changed meanwhile.
         """
+        self.on_config_changed: Callable[[], None] | None = None
+        """Called after the app config changes, on the changing thread."""
 
         # Serializes concurrent writers. Public entry points wrap the full
         # "mutate app + _save_file" sequence and the writer re-acquires.
@@ -369,15 +371,33 @@ class AppFileManager:
             Serialized notebook content
         """
         with self._save_lock:
-            self.app.update_config(config)
+            self._update_config(config)
             if self._filename is not None:
                 self._invalidate_autosaves()
-                return self._save_file(
+                contents = self._save_file(
                     self._filename,
                     notebook=self.app.to_ir(),
                     persist=True,
                 )
+                self._persisted(
+                    [
+                        NotebookCell(
+                            id=data.cell_id,
+                            code=data.code,
+                            name=data.name,
+                            config=data.config,
+                        )
+                        for data in self.app.cell_manager.cell_data()
+                    ]
+                )
+                return contents
             return ""
+
+    def _update_config(self, config: dict[str, Any]) -> None:
+        self.app.update_config(config)
+        callback = self.on_config_changed
+        if callback is not None:
+            callback()
 
     def save(
         self,
@@ -434,10 +454,10 @@ class AppFileManager:
                 layout_filename = save_layout_config(
                     app_dir, app_name, LayoutConfig(**layout)
                 )
-                self.app.update_config({"layout_file": layout_filename})
+                self._update_config({"layout_file": layout_filename})
             else:
                 # Remove the layout from the config
-                self.app.update_config({"layout_file": None})
+                self._update_config({"layout_file": None})
 
             if request.persist:
                 self._invalidate_autosaves()

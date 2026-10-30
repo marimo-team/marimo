@@ -3,7 +3,6 @@ import { atom, type createStore, useAtomValue } from "jotai";
 import { useMemo } from "react";
 import type { CellId } from "@/core/cells/ids";
 import { createReducerAndAtoms } from "@/utils/createReducer";
-import type { MultiColumn } from "@/utils/id-tree";
 
 export interface CellSelectionState {
   selectionStart: CellId | null;
@@ -38,7 +37,8 @@ const {
     state: CellSelectionState,
     payload: {
       cellId: CellId;
-      allCellIds: MultiColumn<CellId>;
+      /** The cells of the column being selected in, in order. */
+      allCellIds: readonly CellId[];
     },
   ): CellSelectionState => {
     if (!state.selectionStart) {
@@ -51,26 +51,23 @@ const {
     }
     const { cellId, allCellIds } = payload;
 
-    try {
-      const column = allCellIds.findWithId(state.selectionStart);
-      const startIdx = column.indexOfOrThrow(state.selectionStart);
-      const endIdx = column.indexOfOrThrow(cellId);
-      const [from, to] =
-        startIdx < endIdx ? [startIdx, endIdx] : [endIdx, startIdx];
-      const selected = column.slice(from, to + 1);
-      return {
-        selectionStart: state.selectionStart,
-        selectionEnd: cellId,
-        selected: new Set(selected),
-      };
-    } catch {
-      // fallback to single select
+    const startIdx = allCellIds.indexOf(state.selectionStart);
+    const endIdx = allCellIds.indexOf(cellId);
+    if (startIdx === -1 || endIdx === -1) {
+      // The selection started outside this column: select the one cell.
       return {
         selectionStart: cellId,
         selectionEnd: cellId,
         selected: new Set([cellId]),
       };
     }
+    const [from, to] =
+      startIdx < endIdx ? [startIdx, endIdx] : [endIdx, startIdx];
+    return {
+      selectionStart: state.selectionStart,
+      selectionEnd: cellId,
+      selected: new Set(allCellIds.slice(from, to + 1)),
+    };
   },
 
   clear: (state: CellSelectionState): CellSelectionState => {

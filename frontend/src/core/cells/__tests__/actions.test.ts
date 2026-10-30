@@ -1,36 +1,41 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { history } from "@codemirror/commands";
-import { EditorState } from "@codemirror/state";
-import { EditorView } from "@codemirror/view";
 import type * as Protocol from "@marimo-team/client/protocol";
-import { createStore } from "jotai";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { mockDocumentModel } from "@/__mocks__/document";
 import { cellId } from "@/__tests__/branded";
-import {
-  cell,
-  CONFIG,
-  document as documentOf,
-  withCells,
-} from "@/core/notebook/document/__tests__/fixtures";
-import type { CellIndex } from "@/utils/id-tree";
+import { createStore } from "jotai";
+import { cell, CONFIG } from "@/core/notebook/document/__tests__/fixtures";
+import type { CellColumnId } from "../layout";
 import {
   addSetupCellAtom,
+  collapseAllCellsAtom,
+  collapseCellAtom,
   createCellAtom,
   deleteCellsAtom,
+  expandAllCellsAtom,
+  expandCellAtom,
+  focusCellAtom,
   moveToNextCellAtom,
+  showCellIfHiddenAtom,
+  splitCellAtom,
   undoDeleteCellAtom,
+  undoSplitCellAtom,
 } from "../actions";
+import { moveCellsRelativeToAtom } from "../arrange";
 import {
   cellDataAtom,
   cellHandleAtom,
   exportedForTesting,
   notebookAtom,
-  notebookReducer,
 } from "../cells";
-import { followDocument } from "../document";
+import {
+  hideShownCodeAtom,
+  restoredEditorStatesAtom,
+  shownHiddenCodeAtom,
+} from "../editor";
+import { collapsedAtom, columnIdsAtom, layoutAtom } from "../layout";
 import { type CellId, SCRATCH_CELL_ID, SETUP_CELL_ID } from "../ids";
+import { setupNotebook } from "./harness";
 import { focusAndScrollCellIntoView } from "../scrollCellIntoView";
 
 vi.mock("../scrollCellIntoView", () => ({
@@ -49,53 +54,8 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
-/** A store whose notebook follows a document model, as the session wires it. */
-function setup(cells?: Record<string, Protocol.Cell | null>) {
-  const store = createStore();
-  store.set(notebookAtom, exportedForTesting.initialNotebookState());
-  const { model, stop } = mockDocumentModel(
-    store,
-    cells ? withCells(documentOf(), cells) : documentOf(),
-  );
-  const controller = new AbortController();
-  stops.push(stop, () => controller.abort());
-  followDocument({
-    store,
-    model,
-    reconcile: (document) =>
-      store.set(notebookAtom, (state) =>
-        notebookReducer(state, {
-          type: "reconcileDocument",
-          payload: document,
-        }),
-      ),
-    signal: controller.signal,
-  });
-  return {
-    store,
-    model,
-    order: () => store.get(notebookAtom).cellIds.inOrderIds,
-    notebook: () => store.get(notebookAtom),
-    cellIn: (id: string) => store.get(model.documentAtom)?.cells.get(id),
-    /** Give a cell an editor, as mounting it would. */
-    mountEditor: (id: string) => {
-      const view = new EditorView({
-        state: EditorState.create({
-          doc: store.get(model.documentAtom)?.cells.get(id)?.code ?? "",
-          extensions: [history()],
-        }),
-      });
-      store.get(notebookAtom).cellHandles[id as never].current = {
-        editorView: view,
-        editorViewOrNull: view,
-      };
-      return view;
-    },
-    /** Apply a reducer action, as `useReducerActions()` does. */
-    dispatch: (action: Parameters<typeof notebookReducer>[1]) =>
-      store.set(notebookAtom, (state) => notebookReducer(state, action)),
-  };
-}
+const setup = (cells?: Record<string, Protocol.Cell | null>) =>
+  setupNotebook(stops, cells);
 
 describe("createCellAtom", () => {
   it("creates a cell after another and focuses it once it mounts", () => {
@@ -131,13 +91,13 @@ describe("createCellAtom", () => {
       focus: false,
     });
 
-    expect(notebook().untouchedNewCells.has(hidden as never)).toBe(true);
-    expect(notebook().untouchedNewCells.has(unfocused as never)).toBe(false);
+    expect(store.get(shownHiddenCodeAtom).has(hidden as CellId)).toBe(true);
+    expect(store.get(shownHiddenCodeAtom).has(unfocused as CellId)).toBe(false);
     expect(notebook().scrollKey).toBe(hidden);
   });
 
   it("names the column of a cell placed first in a later column", () => {
-    const { store, notebook, cellIn } = setup({
+    const { store, cellIn } = setup({
       c2: cell("c2", "y = 2", { config: { ...CONFIG, column: 1 } }),
     });
 
@@ -145,12 +105,14 @@ describe("createCellAtom", () => {
 
     expect(cellIn(id as string)?.config.column).toBe(1);
     expect(cellIn(c2)?.config.column).toBeNull();
-    expect(notebook().cellIds.atOrThrow(1).inOrderIds).toEqual([id, c2]);
-    expect(notebook().cellIds.atOrThrow(0).inOrderIds).toEqual([c1]);
+    expect(store.get(layoutAtom).columns.map((c) => c.ids)).toEqual([
+      [c1],
+      [id, c2],
+    ]);
   });
 
   it("places a cell in the column of its anchor, whatever config it carries", () => {
-    const { store, order, notebook, cellIn } = setup({
+    const { store, order, cellIn } = setup({
       c2: cell("c2", "y = 2", { config: { ...CONFIG, column: 1 } }),
     });
 
@@ -166,21 +128,20 @@ describe("createCellAtom", () => {
       hide_code: true,
       column: null,
     });
-    expect(notebook().cellIds.atOrThrow(1).inOrderIds).toEqual([c2, id]);
+    expect(store.get(layoutAtom).columns[1].ids).toEqual([c2, id]);
   });
 
   it("names the column when appending to an empty column", () => {
-    const { store, notebook, cellIn } = setup();
-    store.set(notebookAtom, (state) => ({
-      ...state,
-      cellIds: state.cellIds.addColumn(state.cellIds.atOrThrow(0).id),
-    }));
-    const empty = notebook().cellIds.atOrThrow(1).id;
+    const { store, columns, cellIn } = setup();
+    // A column the user added and has not filled yet.
+    const empty = "column-empty" as CellColumnId;
+    store.set(columnIdsAtom, [store.get(layoutAtom).columns[0].id, empty]);
+    expect(columns()).toEqual([[c1, c2], []]);
 
     const id = store.set(createCellAtom, { endOf: empty });
 
     expect(cellIn(id as string)?.config.column).toBe(1);
-    expect(notebook().cellIds.atOrThrow(1).inOrderIds).toEqual([id]);
+    expect(columns()).toEqual([[c1, c2], [id]]);
   });
 
   it("creates nothing when a cell already has the code", () => {
@@ -200,6 +161,40 @@ describe("createCellAtom", () => {
     store.set(notebookAtom, exportedForTesting.initialNotebookState());
 
     expect(() => store.set(createCellAtom, {})).toThrow("no document");
+  });
+});
+
+describe("splitCellAtom", () => {
+  it("splits a cell at the cursor and undoes it", () => {
+    const { store, order, notebook, cellIn, mountEditor } = setup({
+      c1: cell("c1", "line1\nline2"),
+    });
+    const view = mountEditor(c1);
+    view.dispatch({ selection: { anchor: 5 } });
+
+    const id = store.set(splitCellAtom, { cellId: c1 }) as CellId;
+
+    expect(order()).toEqual([c1, id, c2]);
+    expect(cellIn(c1)?.code).toBe("line1");
+    expect(cellIn(id)?.code).toBe("line2");
+    expect(view.state.doc.toString()).toBe("line1");
+    expect(notebook().scrollKey).toBe(id);
+
+    store.set(undoSplitCellAtom, {
+      cellId: c1,
+      newCellId: id,
+      snapshot: "line1\nline2",
+    });
+
+    expect(order()).toEqual([c1, c2]);
+    expect(cellIn(c1)?.code).toBe("line1\nline2");
+    expect(view.state.doc.toString()).toBe("line1\nline2");
+  });
+
+  it("does nothing for a cell without an editor", () => {
+    const { store, order } = setup();
+    expect(store.set(splitCellAtom, { cellId: c1 })).toBeNull();
+    expect(order()).toEqual([c1, c2]);
   });
 });
 
@@ -326,20 +321,20 @@ describe("deleteCellsAtom", () => {
   });
 
   it("names the column of a cell that followed a deleted column start", () => {
-    const { store, notebook, cellIn } = setup({
+    const { store, cellIn } = setup({
       c2: cell("c2", "y = 2", { config: { ...CONFIG, column: 1 } }),
       c3: cell("c3", "z = 3"),
     });
-    expect(notebook().cellIds.atOrThrow(1).inOrderIds).toEqual([c2, c3]);
+    expect(store.get(layoutAtom).columns[1].ids).toEqual([c2, c3]);
 
     store.set(deleteCellsAtom, { cellIds: [c2] });
 
     expect(cellIn(c3)?.config.column).toBe(1);
-    expect(notebook().cellIds.atOrThrow(1).inOrderIds).toEqual([c3]);
+    expect(store.get(layoutAtom).columns[1].ids).toEqual([c3]);
   });
 
   it("forgets the untouched state and the cell atoms of a deleted cell", () => {
-    const { store, notebook } = setup();
+    const { store } = setup();
     const id = store.set(createCellAtom, {
       after: c1,
       config: { hide_code: true },
@@ -349,7 +344,7 @@ describe("deleteCellsAtom", () => {
 
     store.set(deleteCellsAtom, { cellIds: [id] });
 
-    expect(notebook().untouchedNewCells.has(id)).toBe(false);
+    expect(store.get(shownHiddenCodeAtom).has(id)).toBe(false);
     expect(cellDataAtom(id)).not.toBe(dataAtom);
     expect(cellHandleAtom(id)).not.toBe(handleAtom);
   });
@@ -369,7 +364,7 @@ describe("undoDeleteCellAtom", () => {
 
     expect(order()).toEqual([c1, c2, c3]);
     expect(cellIn(c2)?.code).toBe("y = 2");
-    expect(notebook().cellData[c2].serializedEditorState).toMatchObject({
+    expect(store.get(restoredEditorStatesAtom).get(c2)).toMatchObject({
       doc: "y = 2",
     });
     expect(notebook().cellData[c2].edited).toBe(true);
@@ -410,25 +405,20 @@ describe("undoDeleteCellAtom", () => {
   });
 
   it("undoes a move recorded in the history", () => {
-    const { store, model, order, notebook, dispatch } = setup({
+    const { store, order, notebook } = setup({
       c3: cell("c3", "z = 3"),
     });
-    const column = notebook().cellIds.atOrThrow(0);
-    dispatch({
-      type: "moveCellsRelativeTo",
-      payload: {
-        cellIds: [c1, c2],
-        targetCellId: c3,
-        position: "after",
-        previousPlacements: [
-          { columnId: column.id, index: 0 as CellIndex },
-          { columnId: column.id, index: 1 as CellIndex },
-        ],
-      },
+    const column = store.get(layoutAtom).columns[0];
+    store.set(moveCellsRelativeToAtom, {
+      cellIds: [c1, c2],
+      targetCellId: c3,
+      position: "after",
+      previousPlacements: [
+        { columnId: column.id, index: 0 },
+        { columnId: column.id, index: 1 },
+      ],
     });
     expect(order()).toEqual([c3, c1, c2]);
-    // The middleware would write the order to the document.
-    store.set(model.editAtom, (tx) => tx.setOrder([c3, c1, c2]));
 
     store.set(deleteCellsAtom, { cellIds: [c3] });
     expect(order()).toEqual([c1, c2]);
@@ -471,5 +461,121 @@ describe("undoDeleteCellAtom", () => {
     store.set(undoDeleteCellAtom);
 
     expect(order()).toEqual([c1, c2]);
+  });
+});
+
+describe("folding", () => {
+  it("folds a header's section and unfolds it, focusing the header", () => {
+    const { store, notebook, visible, heading } = setup({
+      c3: cell("c3", "z = 3"),
+    });
+    heading(c1, 1);
+
+    store.set(collapseCellAtom, { cellId: c1 });
+    expect(visible()).toEqual([c1]);
+    expect(store.get(layoutAtom).columns[0].folds.get(c1)).toEqual([c2, c3]);
+    expect(notebook().scrollKey).toBe(c1);
+
+    store.set(expandCellAtom, { cellId: c1 });
+    expect(visible()).toEqual([c1, c2, c3]);
+    expect(store.get(collapsedAtom).size).toBe(0);
+  });
+
+  it("creates after a folded header below its fold and opens the section", () => {
+    const { store, order, visible, heading } = setup({
+      c3: cell("c3", "z = 3"),
+    });
+    heading(c1, 1);
+    store.set(collapseCellAtom, { cellId: c1 });
+
+    const id = store.set(createCellAtom, { after: c1, code: "w = 4" });
+
+    // The section runs to the next heading, so the new cell is in it.
+    expect(order()).toEqual([c1, c2, c3, id]);
+    expect(visible()).toEqual([c1, c2, c3, id]);
+    expect(store.get(collapsedAtom).size).toBe(0);
+  });
+
+  it("leaves a fold closed over a cell created without focus", () => {
+    const { store, order, visible, heading } = setup({
+      c3: cell("c3", "z = 3"),
+    });
+    heading(c1, 1);
+    store.set(collapseCellAtom, { cellId: c1 });
+
+    const id = store.set(createCellAtom, {
+      after: c1,
+      code: "w = 4",
+      focus: false,
+    });
+
+    expect(order()).toEqual([c1, c2, c3, id]);
+    expect(visible()).toEqual([c1]);
+  });
+
+  it("does not fold a cell without a heading", () => {
+    const { store, visible } = setup();
+
+    store.set(collapseCellAtom, { cellId: c1 });
+
+    expect(visible()).toEqual([c1, c2]);
+    expect(store.get(collapsedAtom).size).toBe(0);
+  });
+
+  it("folds and unfolds every section", () => {
+    const { store, visible, heading } = setup({ c3: cell("c3", "z = 3") });
+    heading(c1, 1);
+    heading(c2, 2);
+
+    store.set(collapseAllCellsAtom);
+    expect(visible()).toEqual([c1]);
+    expect([...store.get(collapsedAtom)]).toEqual([c1, c2]);
+
+    store.set(expandAllCellsAtom);
+    expect(visible()).toEqual([c1, c2, c3]);
+  });
+
+  it("unfolds whatever hides a cell", () => {
+    const { store, visible, heading } = setup({ c3: cell("c3", "z = 3") });
+    heading(c1, 1);
+    heading(c2, 2);
+    store.set(collapseAllCellsAtom);
+
+    store.set(showCellIfHiddenAtom, { cellId: c3 });
+
+    expect(visible()).toEqual([c1, c2, c3]);
+    expect(store.get(collapsedAtom).size).toBe(0);
+  });
+
+  it("moves focus over folded cells", () => {
+    const { store, heading } = setup({ c3: cell("c3", "z = 3") });
+    heading(c2, 1);
+    store.set(collapseCellAtom, { cellId: c2 });
+
+    store.set(focusCellAtom, { cellId: c1, where: "after" });
+    expect(focusAndScrollCellIntoView).toHaveBeenLastCalledWith(
+      expect.objectContaining({ cellId: c2, codeFocus: "top" }),
+    );
+
+    store.set(moveToNextCellAtom, { cellId: c2, before: false, create: false });
+    expect(focusAndScrollCellIntoView).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("hidden code showing for now", () => {
+  it("shows a new hidden cell's code until it is hidden again", () => {
+    const { store } = setup();
+    const id = store.set(createCellAtom, {
+      after: c1,
+      config: { hide_code: true },
+    }) as CellId;
+    expect(store.get(shownHiddenCodeAtom).has(id)).toBe(true);
+
+    const before = store.get(shownHiddenCodeAtom);
+    store.set(hideShownCodeAtom, { cellId: id });
+    store.set(hideShownCodeAtom, { cellId: id });
+
+    expect(store.get(shownHiddenCodeAtom).has(id)).toBe(false);
+    expect(store.get(shownHiddenCodeAtom)).not.toBe(before);
   });
 });

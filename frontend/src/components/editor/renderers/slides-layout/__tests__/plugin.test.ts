@@ -17,7 +17,6 @@ function makeCell(id: string, code = "print('hi')"): CellData {
     lastCodeRun: null,
     lastExecutionTime: null,
     config: { hide_code: false, disabled: false, column: null },
-    serializedEditorState: null,
   };
 }
 
