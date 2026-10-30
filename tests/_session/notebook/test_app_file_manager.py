@@ -9,6 +9,8 @@ from unittest.mock import patch
 
 import pytest
 
+from marimo._ast.cell import CellConfig
+from marimo._messaging.notebook.document import NotebookCell
 from marimo._session.notebook import (
     AppFileManager,
     load_notebook,
@@ -123,7 +125,6 @@ def test_manifest_and_cell_saves_preserve_each_other(
     first_writer: str,
 ) -> None:
     from marimo._environments import script_metadata
-    from marimo._server.models.models import SaveNotebookRequest
     from marimo._session.notebook.serializer import get_notebook_serializer
 
     path = tmp_path / f"notebook{suffix}"
@@ -165,16 +166,13 @@ def test_manifest_and_cell_saves_preserve_each_other(
         )
 
     def save_cells():
-        return manager.save(
-            SaveNotebookRequest(
-                cell_ids=list(manager.app.cell_manager.cell_ids()),
-                codes=["x = 2"],
-                names=["__"],
-                configs=[{}],
-                filename=str(path),
-                layout=None,
-                persist=True,
-            )
+        return manager.save_from_cells(
+            [
+                NotebookCell(
+                    id=cell_id, code="x = 2", name="__", config=CellConfig()
+                )
+                for cell_id in manager.app.cell_manager.cell_ids()
+            ]
         )
 
     first, second = (
@@ -219,7 +217,6 @@ def test_manifest_and_cell_saves_preserve_each_other(
 def test_on_persisted_reports_the_cells_and_config_written(
     tmp_path: Path,
 ) -> None:
-    from marimo._ast.cell import CellConfig
     from marimo._messaging.notebook.document import NotebookCell
     from marimo._types.ids import CellId_t
 

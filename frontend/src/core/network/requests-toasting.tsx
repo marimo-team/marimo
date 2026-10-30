@@ -24,7 +24,6 @@ export function createErrorToastingRequests(
     sendRun: "Failed to run",
     sendRunScratchpad: "Failed to run scratchpad",
     sendRename: "Failed to rename",
-    sendSave: "Failed to save",
     saveLayout: "Failed to save layout",
     sendCopy: "Failed to copy",
     sendInterrupt: "Failed to interrupt",

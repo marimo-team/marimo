@@ -78,15 +78,6 @@ export function createNetworkRequests(): EditRequests & RunRequests {
         })
         .then(handleResponseReturnNull);
     },
-    sendSave: (request) => {
-      return getClient()
-        .POST("/api/kernel/save", {
-          body: request,
-          parseAs: "text",
-          params: getParams(),
-        })
-        .then(handleResponseReturnNull);
-    },
     sendCopy: (request) => {
       return getClient()
         .POST("/api/kernel/copy", {

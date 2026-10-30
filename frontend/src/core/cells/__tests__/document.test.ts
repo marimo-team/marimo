@@ -28,12 +28,7 @@ import {
   type NotebookState,
   notebookReducer,
 } from "../cells";
-import {
-  applyDocument,
-  flushDocument,
-  followDocument,
-  withDocumentSave,
-} from "../document";
+import { applyDocument, flushDocument, followDocument } from "../document";
 import { type CellId, SCRATCH_CELL_ID } from "../ids";
 
 vi.mock("../../rtc/state", async (importOriginal) => ({
@@ -320,19 +315,5 @@ describe("flushing before host commands", () => {
 
     store.set(activeDocumentModelAtom, null);
     await expect(flushDocument()).resolves.toBeUndefined();
-  });
-
-  it("saves after a flush and resumes the model when the flush failed", async () => {
-    vi.mocked(model.flush).mockRejectedValue(new Error("conflict"));
-    vi.mocked(model.retry).mockResolvedValue(undefined as never);
-    const save = vi.fn().mockResolvedValue("saved");
-
-    await expect(withDocumentSave(save)).resolves.toBe("saved");
-    expect(save).toHaveBeenCalledOnce();
-    expect(model.retry).toHaveBeenCalledOnce();
-
-    vi.mocked(model.flush).mockResolvedValue(undefined as never);
-    await withDocumentSave(save);
-    expect(model.retry).toHaveBeenCalledOnce();
   });
 });

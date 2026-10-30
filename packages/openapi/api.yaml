@@ -5098,42 +5098,6 @@ components:
       required: []
       title: SaveLayoutRequest
       type: object
-    SaveNotebookRequest:
-      properties:
-        cellIds:
-          items:
-            $ref: '#/components/schemas/CellId'
-          type: array
-        codes:
-          items:
-            type: string
-          type: array
-        configs:
-          items:
-            $ref: '#/components/schemas/CellConfig'
-          type: array
-        filename:
-          type: string
-        layout:
-          anyOf:
-          - type: object
-          - type: 'null'
-          default: null
-        names:
-          items:
-            type: string
-          type: array
-        persist:
-          default: true
-          type: boolean
-      required:
-      - cellIds
-      - codes
-      - names
-      - configs
-      - filename
-      title: SaveNotebookRequest
-      type: object
     SaveUserConfigurationRequest:
       properties:
         config:
@@ -7497,26 +7461,6 @@ paths:
                 $ref: '#/components/schemas/SuccessResponse'
           description: Run a cell. Updates cell code in the kernel if needed; registers
             new cells for unseen cell IDs. Only allowed in edit mode.
-  /api/kernel/save:
-    post:
-      parameters:
-      - in: header
-        name: Marimo-Session-Id
-        required: true
-        schema:
-          type: string
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/SaveNotebookRequest'
-      responses:
-        200:
-          content:
-            text/plain:
-              schema:
-                type: string
-          description: Save the current app
   /api/kernel/save_app_config:
     post:
       parameters:

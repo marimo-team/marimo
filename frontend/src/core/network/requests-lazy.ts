@@ -70,7 +70,6 @@ const ACTIONS: Record<keyof AllRequests, Action> = {
   sendRestart: "throwError",
 
   // These wait until the connection is open, but don't start a connection
-  sendSave: "waitForConnectionOpen",
   saveLayout: "waitForConnectionOpen",
   invokeAiTool: "waitForConnectionOpen",
   sendFunctionRequest: "waitForConnectionOpen",
