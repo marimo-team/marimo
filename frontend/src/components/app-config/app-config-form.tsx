@@ -37,7 +37,7 @@ import {
 const FORM_DEBOUNCE = 100; // ms;
 
 export const AppConfigForm: React.FC = () => {
-  const [config, setConfig] = useAppConfig();
+  const config = useAppConfig();
   const { saveAppConfig } = useRequestClient();
   const htmlCheckboxId = useId();
   const ipynbCheckboxId = useId();
@@ -50,14 +50,9 @@ export const AppConfigForm: React.FC = () => {
     defaultValues: config,
   });
 
+  // The host document carries the saved config back.
   const onSubmit = async (values: AppConfig) => {
-    await saveAppConfig({ config: values })
-      .then(() => {
-        setConfig(values);
-      })
-      .catch(() => {
-        setConfig(values);
-      });
+    await saveAppConfig({ config: values });
   };
 
   const debouncedSubmit = useDebouncedCallback((v: AppConfig) => {
