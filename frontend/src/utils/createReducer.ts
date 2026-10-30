@@ -16,21 +16,27 @@ interface ReducerHandlers<State> {
   [k: string]: ReducerHandler<State, any>;
 }
 
-type ReducerActions<RH extends ReducerHandlers<any>> = {
-  [Type in keyof RH]: RH[Type] extends ReducerHandler<any, infer Payload>
+type ReducerActions<RH> = {
+  [Type in keyof RH]: RH[Type] extends (
+    state: never,
+    payload: infer Payload,
+  ) => unknown
     ? IfUnknown<Payload, () => void, (payload: Payload) => void>
     : never;
 };
 
 /** Helper for typing middleware that receives dispatched actions. */
 export type DispatchedActionOf<T> = {
-  [Key in keyof T]: T[Key] extends (payload: infer P) => any
+  [Key in keyof T]: T[Key] extends (payload: infer P) => unknown
     ? { type: Key; payload: P }
     : never;
 }[keyof T & string];
 
 type ReducerActionOf<RH> = {
-  [Type in keyof RH]: RH[Type] extends ReducerHandler<any, infer Payload>
+  [Type in keyof RH]: RH[Type] extends (
+    state: never,
+    payload: infer Payload,
+  ) => unknown
     ? { type: Type; payload: Payload }
     : never;
 }[keyof RH & string];
@@ -42,7 +48,7 @@ export interface ReducerCreatorResult<
   /**
    * The reducer function.
    */
-  reducer: Reducer<State, any>;
+  reducer: Reducer<State, ReducerActionOf<RH>>;
   /**
    * Given a dispatch function, returns an object containing all the actions.
    */
