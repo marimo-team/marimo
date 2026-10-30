@@ -62,9 +62,10 @@ import {
   stableSessionIdAtom,
 } from "../kernel/session";
 import { initialRunCompletedAtom, kernelStateAtom } from "../kernel/state";
-import { type LayoutState, useLayoutActions } from "../layout/state";
+import { useLayoutActions } from "../layout/state";
 import { kioskModeAtom } from "../mode";
 import { connectionAtom, startupProgressAtom } from "../network/connection";
+import { savedLayoutAtom } from "../saving/state";
 import type { RequestId } from "../network/DeferredRequestRegistry";
 import { useRuntimeManager } from "../runtime/config";
 import { SECRETS_REGISTRY } from "../secrets/request-registry";
@@ -84,10 +85,8 @@ import { WebSocketClosedReason, ConnectionState } from "./types";
 export function useNotebookSession(opts: {
   sessionId: SessionId;
   autoInstantiate: boolean;
-  /** Called with the layout the kernel reported, after its cells are ready. */
-  onKernelReady?: (layout: LayoutState) => void;
 }) {
-  const { autoInstantiate, sessionId, onKernelReady } = opts;
+  const { autoInstantiate, sessionId } = opts;
   const { showBoundary } = useErrorBoundary();
   const store = useStore();
 
@@ -162,7 +161,7 @@ export function useNotebookSession(opts: {
           setKernelState,
           onError: showBoundary,
         });
-        onKernelReady?.(layout);
+        store.set(savedLayoutAtom, layout);
         if (!msg.data.resumed) {
           // A freshly started kernel may expose a different environment
           // (e.g. new env vars); re-run discovery instead of reusing stale

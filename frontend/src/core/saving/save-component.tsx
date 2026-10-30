@@ -1,6 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { useAtom, useAtomValue, useSetAtom, useStore } from "jotai";
+import { useAtom, useAtomValue, useStore } from "jotai";
 import { SaveIcon } from "lucide-react";
 import { useState } from "react";
 import { FilenameInput } from "@/components/editor/header/filename-input";
@@ -20,7 +20,7 @@ import {
 import { Label } from "../../components/ui/label";
 import { useEvent } from "../../hooks/useEvent";
 import { Logger } from "../../utils/Logger";
-import { getCellConfigs, getNotebook, useNotebook } from "../cells/cells";
+import { getCellConfigs, getNotebook } from "../cells/cells";
 import { flushDocument, withDocumentSave } from "../cells/document";
 import { notebookCells } from "../cells/utils";
 import { formatAll } from "../codemirror/format";
@@ -35,7 +35,7 @@ import { ConnectionState } from "../session/types";
 import { isWasm } from "../wasm/utils";
 import { filenameAtom } from "./file-state";
 import { useFilename, useUpdateFilename } from "./filename";
-import { lastSavedNotebookAtom, needsSaveAtom } from "./state";
+import { documentVersionAtom, needsSaveAtom, savedLayoutAtom } from "./state";
 import { useAutoSave } from "./useAutoSave";
 
 interface SaveNotebookProps {
@@ -105,7 +105,6 @@ export const SaveComponent = ({ kioskMode }: SaveNotebookProps) => {
 export function useSaveNotebook() {
   const { sendSave } = useRequestClient();
   const { openModal, closeModal, openAlert } = useImperativeModal();
-  const setLastSavedNotebook = useSetAtom(lastSavedNotebookAtom);
   const updateFilename = useUpdateFilename();
   const store = useStore();
 
@@ -157,14 +156,14 @@ export function useSaveNotebook() {
           layout: getSerializedLayout(),
           persist: true,
         });
-        return { names: cellNames, codes, configs, layout };
+        return layout;
       };
       // TODO(MO-7955): Remove this conditional once all frontend saves use
       // the host protocol. Host saves cannot recover edits from an editor snapshot.
-      const savedNotebook = isWasm()
+      const savedLayout = isWasm()
         ? await flushDocument().then(save)
         : await withDocumentSave(save);
-      setLastSavedNotebook(savedNotebook);
+      store.set(savedLayoutAtom, savedLayout);
     }),
   );
 
@@ -229,21 +228,14 @@ export function useAutoSaveNotebook(opts: {
   kioskMode: boolean;
 }) {
   const autoSaveConfig = useAtomValue(autoSaveConfigAtom);
-  const notebook = useNotebook();
   const [connection] = useAtom(connectionAtom);
   const needsSave = useAtomValue(needsSaveAtom);
-
-  const cells = notebookCells(notebook);
-  const codes = cells.map((cell) => cell.code);
-  const cellNames = cells.map((cell) => cell.name);
-  const configs = getCellConfigs(notebook);
+  const version = useAtomValue(documentVersionAtom);
 
   useAutoSave({
     onSave: opts.onSave,
     needsSave: needsSave,
-    codes: codes,
-    cellConfigs: configs,
-    cellNames: cellNames,
+    version,
     connStatus: connection,
     config: autoSaveConfig,
     kioskMode: opts.kioskMode,

@@ -1,36 +1,20 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 import { useEffect, useRef } from "react";
 import type { UserConfig } from "../config/config-schema";
-import type { CellConfig } from "../network/types";
 import { type ConnectionStatus, ConnectionState } from "../session/types";
 
+/** Save after a delay while the notebook needs it, restarting on every confirmed change. */
 export function useAutoSave(opts: {
-  codes: string[];
-  cellConfigs: CellConfig[];
-  cellNames: string[];
+  /** The document version, which counts confirmed changes. */
+  version: number | null;
   config: UserConfig["save"];
   connStatus: ConnectionStatus;
   needsSave: boolean;
   kioskMode: boolean;
   onSave: () => void;
 }) {
-  const {
-    codes,
-    cellConfigs,
-    config,
-    connStatus,
-    cellNames,
-    needsSave,
-    kioskMode,
-    onSave,
-  } = opts;
+  const { version, config, connStatus, needsSave, kioskMode, onSave } = opts;
   const autosaveTimeoutId = useRef<NodeJS.Timeout | null>(null);
-
-  const codesString = codes.join(":");
-  const cellConfigsString = cellConfigs
-    .map((config) => JSON.stringify(config))
-    .join(":");
-  const cellNamesString = cellNames.join(":");
 
   useEffect(() => {
     // If kiosk mode is enabled, do not autosave
@@ -53,16 +37,6 @@ export function useAutoSave(opts: {
         clearTimeout(autosaveTimeoutId.current);
       }
     };
-    // codes, cellConfigs, cellNames needed in deps array to prevent race condition
-    // with needsSave when user changes state rapidly
-  }, [
-    codesString,
-    cellConfigsString,
-    cellNamesString,
-    config,
-    connStatus.state,
-    onSave,
-    kioskMode,
-    needsSave,
-  ]);
+    // `version` restarts the delay on every confirmed change.
+  }, [version, config, connStatus.state, onSave, kioskMode, needsSave]);
 }
