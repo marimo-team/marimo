@@ -126,13 +126,22 @@ class DBAPIEngine(QueryEngine[DBAPIConnection]):
                 return False
 
             cursor = var.cursor()
-            cursor_methods = ["execute", "fetchall"]
-            has_cursor_methods = all(
-                callable(getattr(cursor, method, None))
-                for method in cursor_methods
-            )
+            try:
+                cursor_methods = ["execute", "fetchall"]
+                has_cursor_methods = all(
+                    callable(getattr(cursor, method, None))
+                    for method in cursor_methods
+                )
 
-            return has_required_methods and has_cursor_methods
+                return has_required_methods and has_cursor_methods
+            finally:
+                try:
+                    cursor.close()
+                except Exception:
+                    LOGGER.debug(
+                        "Failed to close cursor during DB-API compatibility check",
+                        exc_info=True,
+                    )
 
         except Exception:
             return False
