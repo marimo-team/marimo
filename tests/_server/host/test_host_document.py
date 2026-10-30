@@ -61,6 +61,29 @@ async def test_enabling_an_edited_cell_does_not_run_old_code() -> None:
         assert "old" not in "".join(runtime.stdout.messages)
 
 
+async def test_enabling_a_cell_edited_earlier_runs_its_current_code() -> None:
+    cell_id = CellId_t("a")
+    old_code, new_code = 'print("old")', 'print("new")'
+    session = FakeSession()
+    # The code changed in an earlier edit, which the kernel did not take.
+    session.document = NotebookDocument(
+        [NotebookCell(cell_id, new_code, "_", CellConfig(disabled=True))]
+    )
+    document = Document([DocumentCell(cell_id, new_code)], {})
+
+    with mocked_kernel_session(
+        configs={cell_id: CellConfig(disabled=True)}
+    ) as runtime:
+        await runtime.kernel.run(
+            [ExecuteCellCommand(cell_id=cell_id, code=old_code)]
+        )
+        apply_to_session(session, document)  # type: ignore[arg-type]
+        for command in session.commands:
+            await runtime.kernel.handle_message(command)
+
+        assert "".join(runtime.stdout.messages) == "new\n"
+
+
 @pytest.mark.parametrize(
     "delete_dependent", [True, False], ids=["delete", "disable"]
 )
