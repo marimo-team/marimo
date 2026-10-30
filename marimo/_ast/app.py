@@ -663,13 +663,18 @@ class App:
                 [o for o in self._flatten_outputs(outputs) if o is not None]
             )
 
+        setup_cell_id = self._cell_manager.setup_cell_id
         items: list[object] = []
         for cid in self._cell_manager.valid_cell_ids():
             # Cells absent from outputs were disabled or pruned by `defs`;
-            # their code did not run, so showing it would mislead.
-            if self._graph.is_disabled(cid) or cid not in outputs:
+            # their code did not run, so showing it would mislead. The
+            # setup cell is the exception: outside a notebook it runs at
+            # import time, so it is never in outputs.
+            if self._graph.is_disabled(cid) or (
+                cid not in outputs and cid != setup_cell_id
+            ):
                 continue
-            if outputs[cid] is not None:
+            if outputs.get(cid) is not None:
                 items.append(outputs[cid])
             cell_data = self._cell_manager.cell_data_at(cid)
             if cell_data.code.strip() and not cell_data.config.hide_code:

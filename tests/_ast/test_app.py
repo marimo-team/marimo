@@ -1424,6 +1424,24 @@ class TestAppComposition:
             "hidden code",
         ]
 
+    async def test_app_embed_show_code_setup_cell(self) -> None:
+        """The setup cell runs at import time but its code is still shown."""
+        app = App()
+        with app.setup:
+            base = 10
+
+        @app.cell
+        def __() -> tuple[int]:
+            x = base + 1
+            return (x,)
+
+        result = await app.embed(show_code=True)
+        assert _embedded_blocks(result.output.text) == [
+            "base = 10",
+            "x = base + 1",
+        ]
+        assert result.defs["x"] == 11
+
     async def test_app_embed_show_code_with_defs(self) -> None:
         """Code of cells pruned by `defs` did not run, so it is not shown."""
         app = App()
@@ -1455,9 +1473,12 @@ class TestAppComposition:
 
                     app = App()
 
+                    with app.setup:
+                        greeting = "hello"
+
                     @app.cell
                     def __() -> None:
-                        "hello"
+                        greeting
                     """
                 ),
                 exec_req.get(
@@ -1477,8 +1498,9 @@ class TestAppComposition:
         with_code = k.globals["with_code"]
         without_code = k.globals["without_code"]
         assert _embedded_blocks(with_code.output.text) == [
+            'greeting = "hello"',
             "hello",
-            '"hello"',
+            "greeting",
         ]
         assert _embedded_blocks(without_code.output.text) == ["hello"]
 
