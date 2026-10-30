@@ -306,9 +306,8 @@ class TestNarwhalsTableManagerFactory(unittest.TestCase):
         assert lazy_manager.take(1, 0).data.collect()["A"].to_list() == [1]
         assert lazy_manager.take(2, 0).data.collect()["A"].to_list() == [1, 2]
 
-        # Converted to eager frame
-        assert lazy_manager.take(2, 1).data["A"].to_list() == [2, 3]
-        assert lazy_manager.take(2, 2).data["A"].to_list() == [3]
+        assert lazy_manager.take(2, 1).data.collect()["A"].to_list() == [2, 3]
+        assert lazy_manager.take(2, 2).data.collect()["A"].to_list() == [3]
 
     def test_take_zero(self) -> None:
         limited_manager = self.manager.take(0, 0)
@@ -1005,6 +1004,30 @@ def test_empty_dataframe(df: Any) -> None:
     assert empty_manager.get_num_columns() == 0
     assert empty_manager.get_column_names() == []
     assert empty_manager.get_field_types() == []
+
+
+@pytest.mark.parametrize(
+    "df",
+    create_dataframes({"value": range(5)}, include=["pandas", "pyarrow"]),
+)
+@pytest.mark.parametrize(
+    ("count", "offset", "expected"),
+    [(2, 0, [0, 1]), (2, 4, [4]), (2, 5, []), (0, 3, [])],
+)
+def test_take_lazy_without_native_slice(
+    df: Any, count: int, offset: int, expected: list[int]
+) -> None:
+    source = nw.from_native(df).lazy()
+    manager = NarwhalsTableManager.from_dataframe(source)
+
+    page = manager.take(count, offset)
+
+    assert json.loads(page.to_json_str()) == [
+        {"value": value} for value in expected
+    ]
+    assert source.collect().to_dict(as_series=False) == {
+        "value": list(range(5))
+    }
 
 
 @pytest.mark.parametrize(

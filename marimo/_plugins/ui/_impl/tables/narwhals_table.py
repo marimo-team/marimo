@@ -13,6 +13,11 @@ from typing import TYPE_CHECKING, Any, Literal, cast
 
 import msgspec
 import narwhals.stable.v2 as nw
+from narwhals.dependencies import (
+    is_duckdb_relation,
+    is_ibis_table,
+    is_polars_lazyframe,
+)
 from narwhals.typing import IntoDataFrameT, IntoLazyFrameT
 
 from marimo import _loggers
@@ -443,16 +448,35 @@ class NarwhalsTableManager(
         if offset < 0:
             raise ValueError("Offset must be a non-negative integer")
 
+        if is_narwhals_lazyframe(self.data):
+            return self._take_lazy(self.data, count, offset)
+
         if offset == 0:
             return self.with_new_data(self.data.head(count))
-        else:
-            if is_narwhals_lazyframe(self.data):
-                # Lazyframes do not support slicing, https://github.com/narwhals-dev/narwhals/issues/2389
-                # So we collect the first n rows
-                data = self.data.head(offset + count).collect()
-                return self.with_new_data(data[offset : offset + count])
-            else:
-                return self.with_new_data(self.data[offset : offset + count])
+        return self.with_new_data(self.data[offset : offset + count])
+
+    def _take_lazy(
+        self, frame: nw.LazyFrame[IntoLazyFrameT], count: int, offset: int
+    ) -> TableManager[Any]:
+        native = frame.to_native()
+        if is_polars_lazyframe(native):
+            return self.with_new_data(
+                nw.from_native(native.slice(offset, count))
+            )
+        if is_duckdb_relation(native):
+            return self.with_new_data(
+                nw.from_native(native.limit(count, offset=offset))
+            )
+        if is_ibis_table(native):
+            return self.with_new_data(
+                nw.from_native(native.limit(count, offset=offset))
+            )
+
+        if offset == 0:
+            return self.with_new_data(frame.head(count))
+        # Narwhals has no portable lazy slicing API for the other backends.
+        data = frame.head(offset + count).collect()
+        return self.with_new_data(data[offset : offset + count])
 
     def search(self, query: str) -> TableManager[Any]:
         pattern = f"(?i){regex_literal(query)}"
