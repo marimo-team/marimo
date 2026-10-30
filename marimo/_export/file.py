@@ -19,6 +19,14 @@ from marimo._config.manager import (
 from marimo._convert.common.filename import get_download_filename
 from marimo._convert.converters import MarimoConvert
 from marimo._export._status import emit_pdf_export_status
+from marimo._export._tab_variants import (
+    apply_tab_variants_to_view,
+    combo_key,
+    compute_tab_variant_combos,
+    describe_variants,
+    diff_tab_variants,
+    find_tabs_elements,
+)
 from marimo._export.exporter import (
     Exporter,
     export_markdown as render_markdown,
@@ -70,7 +78,7 @@ from marimo._session.model import ConnectionState, SessionMode
 from marimo._session.notebook import load_notebook
 from marimo._session.requests import InstantiateNotebookRequest
 from marimo._session.startup import SessionStartup
-from marimo._types.ids import ConsumerId
+from marimo._types.ids import CellId_t, ConsumerId, UIElementId
 from marimo._utils.inline_script_metadata import (
     pin_pep723_dependencies_for_wasm,
 )
@@ -81,9 +89,10 @@ LOGGER = _loggers.marimo_logger()
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
+    from marimo._export.requests import NotebookExecutionOptions
+    from marimo._session.notebook import AppFileManager
     from marimo._session.state.session_view import SessionView
     from marimo._session.types import Session
-    from marimo._types.ids import CellId_t
 
 
 def _resolve_and_inline_layout(app: InternalApp) -> LayoutConfig | None:
@@ -375,6 +384,89 @@ async def export_pdf(
     )
 
 
+async def _pre_render_tab_variants(
+    file_manager: AppFileManager,
+    options: NotebookExecutionOptions,
+    session_view: SessionView,
+) -> bool:
+    """Pre-render outputs for every value of each `mo.ui.tabs` element.
+
+    A static HTML export has no kernel, so without this, cells that depend
+    on a tab's value would stay frozen on the default tab (#6076). Runs
+    the notebook once per tab-value combination, embeds the outputs that
+    differ, and returns True when any cell was wrapped with variants.
+    """
+    app = file_manager.app
+    elements = find_tabs_elements(
+        session_view,
+        cell_ids=list(app.cell_manager.cell_ids()),
+    )
+    if not elements:
+        return False
+    # Skip tabs whose defining cell has no dependents: switching tabs
+    # cannot change any other cell's outputs.
+    try:
+        graph = app.graph
+    except (CycleError, MultipleDefinitionError):
+        graph = None
+    if graph is not None:
+        elements = [
+            element
+            for element in elements
+            if graph.descendants(
+                CellId_t(element.object_id.rpartition("-")[0])
+            )
+        ]
+        if not elements:
+            return False
+    combos = compute_tab_variant_combos(elements)
+    if combos is None:
+        return False
+
+    default_combo = {
+        element.object_id: str(element.initial_index) for element in elements
+    }
+    LOGGER.info(
+        "Pre-rendering %d tab variants for static HTML export (%s).",
+        len(combos),
+        describe_variants(elements),
+    )
+    variant_views: dict[str, SessionView] = {}
+    # Variant runs must not overwrite the on-disk session cache, which
+    # should reflect the default run; they also stay quiet so console
+    # output is not printed twice.
+    variant_options = replace(options, persist_session=False, quiet=True)
+    for combo in combos:
+        # Preset only the values that differ from the default run.
+        ui_values = {
+            object_id: value
+            for object_id, value in combo.items()
+            if default_combo[object_id] != value
+        }
+        view, did_error = await run_notebook(
+            RunNotebookRequest(
+                file_manager=file_manager,
+                options=variant_options,
+                ui_values=ui_values,
+            )
+        )
+        if did_error:
+            LOGGER.warning(
+                "Skipping tab variant %s: the notebook errored.",
+                combo_key(combo),
+            )
+            continue
+        variant_views[combo_key(combo)] = view
+    if not variant_views:
+        return False
+    affected = diff_tab_variants(session_view, variant_views, default_combo)
+    if not affected:
+        return False
+    return apply_tab_variants_to_view(
+        session_view, affected, combo_key(default_combo)
+    )
+
+
 async def export_html(
     request: HTMLFileExportRequest,
 ) -> ExportResult:
@@ -388,12 +480,20 @@ async def export_html(
         for cell_data in file_manager.app.cell_manager.cell_data():
             session_view.last_executed_code[cell_data.cell_id] = cell_data.code
         did_error = False
+        include_tab_variant_script = False
     else:
         session_view, did_error = await run_notebook(
             RunNotebookRequest(
                 file_manager=file_manager,
                 options=request.execution,
             )
+        )
+        # Static exports have no kernel, so cells that depend on the value
+        # of a `mo.ui.tabs` element would otherwise stay frozen on the
+        # default tab. Pre-render every tab value's outputs and embed them
+        # so the exported page can switch between them (#6076).
+        include_tab_variant_script = await _pre_render_tab_variants(
+            file_manager, request.execution, session_view
         )
 
     config = get_default_config_manager(current_path=file_manager.path)
@@ -419,6 +519,7 @@ async def export_html(
                 if request.execution is not None
                 else None
             ),
+            include_tab_variant_script=include_tab_variant_script,
         )
     )
     return ExportResult(
@@ -709,8 +810,12 @@ async def run_notebook(
     )
 
     # Run the notebook to completion once
+    ui_values = request.ui_values or {}
     session.instantiate(
-        InstantiateNotebookRequest(object_ids=[], values=[]),
+        InstantiateNotebookRequest(
+            object_ids=[UIElementId(object_id) for object_id in ui_values],
+            values=list(ui_values.values()),
+        ),
         http_request=None,
     )
     await instantiated_event.wait()
