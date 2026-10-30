@@ -877,21 +877,30 @@ async def test_pyodide_bridge_format(pyodide_bridge: PyodideBridge) -> None:
 async def test_pyodide_bridge_document_export(
     pyodide_bridge: PyodideBridge,
 ) -> None:
-    request_json = json.dumps(
-        {
-            "changes": [
+    result = json.loads(
+        await pyodide_bridge.notebook.call(
+            json.dumps(
                 {
-                    "type": "create-cell",
-                    "cellId": "test",
-                    "code": 'message = "NEW"',
-                    "name": "_",
-                    "config": {},
+                    "operation": "notebook.edit",
+                    "params": {"notebook_id": pyodide_bridge.notebook.id},
+                    "headers": {"idempotency-key": "edit-1"},
+                    "body": {
+                        "changes": [
+                            {
+                                "kind": "put_cell",
+                                "base_etag": None,
+                                "cell": {
+                                    "id": "test",
+                                    "code": 'message = "NEW"',
+                                },
+                            }
+                        ]
+                    },
                 }
-            ],
-        }
+            )
+        )
     )
-
-    await pyodide_bridge.notebook.transaction(request_json)
+    assert result["status"] == 200, result
 
     request = json.dumps({"download": False})
     script = json.loads(pyodide_bridge.export_script(request))

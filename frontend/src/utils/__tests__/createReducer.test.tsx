@@ -1,4 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
+import { renderHook } from "@testing-library/react";
+import { createStore, Provider } from "jotai";
+import type { PropsWithChildren } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { Logger } from "@/utils/Logger";
 import { createReducer, createReducerAndAtoms } from "../createReducer";
@@ -137,6 +140,31 @@ describe("createReducerAndAtoms", () => {
     reducer(state, action);
 
     expect(middleware).toHaveBeenCalledWith(state, { count: 5 }, action);
+  });
+
+  it("runs middleware after the write commits, so it sees the new state", () => {
+    const initialState = () => ({ count: 0 });
+    const reducers = {
+      increment: (state: State, payload: number) => ({
+        count: state.count + payload,
+      }),
+    };
+    const seen: number[] = [];
+    const { valueAtom, useActions } = createReducerAndAtoms(
+      initialState,
+      reducers,
+      [(_prev, next) => seen.push(store.get(valueAtom).count, next.count)],
+    );
+    const store = createStore();
+    const wrapper = ({ children }: PropsWithChildren) => (
+      <Provider store={store}>{children}</Provider>
+    );
+    const { result } = renderHook(() => useActions(), { wrapper });
+
+    result.current.increment(5);
+
+    expect(seen).toEqual([5, 5]);
+    expect(store.get(valueAtom)).toEqual({ count: 5 });
   });
 
   it("should log an error for non-existent action types", () => {

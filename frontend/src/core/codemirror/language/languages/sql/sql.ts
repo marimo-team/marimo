@@ -2,7 +2,7 @@
 
 import { acceptCompletion, autocompletion } from "@codemirror/autocomplete";
 import { insertTab } from "@codemirror/commands";
-import { type SQLDialect, type SQLNamespace, sql } from "@codemirror/lang-sql";
+import { type SQLNamespace, sql } from "@codemirror/lang-sql";
 import type { EditorState, Extension } from "@codemirror/state";
 import { Compartment } from "@codemirror/state";
 import {
@@ -499,10 +499,9 @@ function isDuckDBConnection(
 /**
  * Update the SQL dialect in the editor view.
  */
-function updateSQLDialect(view: EditorView, dialect: SQLDialect) {
-  view.dispatch({
-    effects: sqlConfigCompartment.reconfigure(sql({ dialect })),
-  });
+export function sqlDialectEffect(connectionName: ConnectionName) {
+  const dialect = SCHEMA_CACHE.getDialect(connectionName);
+  return sqlConfigCompartment.reconfigure(sql({ dialect }));
 }
 
 // Helper functions to update the SQL dialect
@@ -511,17 +510,7 @@ export function updateSQLDialectFromConnection(
   view: EditorView,
   connectionName: ConnectionName,
 ) {
-  const dialect = SCHEMA_CACHE.getDialect(connectionName);
-  updateSQLDialect(view, dialect);
-}
-
-export function initializeSQLDialect(view: EditorView) {
-  // Get current engine and update dialect
-  const metadata = getSQLMetadata(view.state);
-  const connectionName = metadata.engine;
-  const dialect = SCHEMA_CACHE.getDialect(connectionName);
-
-  updateSQLDialect(view, dialect);
+  view.dispatch({ effects: sqlDialectEffect(connectionName) });
 }
 
 function getSQLMetadata(state: EditorState): SQLLanguageAdapterMetadata {

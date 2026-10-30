@@ -101,9 +101,9 @@ vi.mock("@/core/wasm/store", () => ({
   notebookFileStore: { readFile: mockNotebookReadFile, saveFile: vi.fn() },
 }));
 
-vi.mock("@/core/cells/document-changes", () => ({
-  flushDocumentChanges: mockFlush,
-  documentTransactionMiddleware: vi.fn(),
+vi.mock("@/core/cells/document", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/core/cells/document")>()),
+  flushDocument: mockFlush,
 }));
 
 // Import after all mocks are set up

@@ -11,7 +11,7 @@ import {
 } from "@/core/ai/staged-cells";
 import { getCellEditorView } from "@/core/cells/cells";
 import type { CellId } from "@/core/cells/ids";
-import { updateEditorCodeFromPython } from "@/core/codemirror/language/utils";
+import { prepareCellCodeUpdate } from "@/core/codemirror/language/cell-code";
 import { cn } from "@/utils/cn";
 import { Logger } from "@/utils/Logger";
 import {
@@ -144,7 +144,11 @@ export function rejectStagedCell(
         break;
       }
 
-      updateEditorCodeFromPython(editorView, edit.previousCode);
+      const update = prepareCellCodeUpdate(editorView.state, edit.previousCode);
+
+      if (update) {
+        editorView.dispatch(update);
+      }
       removeStagedCell(cellId);
       break;
     }

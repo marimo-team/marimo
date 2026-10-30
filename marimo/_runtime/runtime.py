@@ -2003,34 +2003,36 @@ class Kernel:
     async def edit_cells(self, request: EditCellsCommand) -> None:
         """Apply a notebook edit to the graph, then run what follows from it.
 
-        Changed code is registered as stale, not run. The kernel only
-        takes code for cells it has: a cell it has never seen arrives
-        with the run that first carries it, and code pending from an
-        instantiation without a run is replaced in place. Deletions and
-        configs then apply together, and only their consequences run:
+        Code arrives with runs. A cell the kernel has run keeps its code
+        until the next run carries new code, so typing is never compiled
+        here; only code pending from an instantiation that has not run
+        is replaced, so that run uses what the notebook has. Deletions
+        and configs apply together, and only their consequences run:
         cells that depended on a deleted cell, and under autorun, stale
-        cells the edit enabled.
+        cells the edit enabled. Enabling a cell under autorun is a run
+        of it, so it takes the code the edit carries for that cell.
         """
-        edits: list[ExecuteCellCommand] = []
         for cell_id, code in request.codes.items():
-            command = ExecuteCellCommand(cell_id=cell_id, code=code)
-            if cell_id in self.graph.cells:
-                edits.append(command)
-            elif cell_id in self._uninstantiated_execution_requests:
-                self._uninstantiated_execution_requests[cell_id] = command
-        if edits:
-            self.mutate_graph(
-                edits,
-                deletion_requests=[],
-                cells_starting_stale={edit.cell_id for edit in edits},
-            )
+            if cell_id in self._uninstantiated_execution_requests:
+                self._uninstantiated_execution_requests[cell_id] = (
+                    ExecuteCellCommand(cell_id=cell_id, code=code)
+                )
         deletions = [
             DeleteCellCommand(cell_id=cell_id)
             for cell_id in request.delete_ids
         ]
         cells_to_run = self.mutate_graph([], deletions) if deletions else set()
-        stale_cells = self._configure_cells(request.configs)
+        enabled, stale_cells = self._configure_cells(request.configs)
         if self.reactive_execution_mode == "autorun":
+            runs = [
+                ExecuteCellCommand(
+                    cell_id=cell_id, code=request.codes[cell_id]
+                )
+                for cell_id in enabled
+                if cell_id in request.codes and cell_id in self.graph.cells
+            ]
+            if runs:
+                cells_to_run |= self.mutate_graph(runs, deletion_requests=[])
             cells_to_run |= stale_cells
         if cells_to_run:
             await self._run_cells(cells_to_run)
@@ -2288,14 +2290,19 @@ class Kernel:
 
         Cells that are enabled (via config) but stale are run as a side-effect.
         """
-        stale_cells = self._configure_cells(request.configs)
+        _, stale_cells = self._configure_cells(request.configs)
         if stale_cells and self.reactive_execution_mode == "autorun":
             await self._run_cells(stale_cells)
 
     def _configure_cells(
         self, configs: dict[CellId_t, dict[str, Any]]
-    ) -> set[CellId_t]:
-        """Apply cell configs and return the stale cells they enabled."""
+    ) -> tuple[set[CellId_t], set[CellId_t]]:
+        """Apply cell configs.
+
+        Returns the cells the configs enabled and the stale cells that
+        enabling them woke, the enabled cells among them.
+        """
+        enabled: set[CellId_t] = set()
         stale_cells: set[CellId_t] = set()
         for cell_id, config in configs.items():
             metadata = self.cell_metadata.setdefault(cell_id, CellMetadata())
@@ -2303,6 +2310,8 @@ class Kernel:
             merged = CellConfig.from_dict(previous.asdict())
             merged.configure(config)
             metadata.config = merged
+            if previous.disabled and not merged.disabled:
+                enabled.add(cell_id)
             cell = self.graph.cells.get(cell_id)
             if cell is None:
                 continue
@@ -2311,7 +2320,7 @@ class Kernel:
                 self.graph.disable_cell(cell_id)
             else:
                 stale_cells |= self.graph.enable_cell(cell_id)
-        return stale_cells
+        return enabled, stale_cells
 
     @kernel_tracer.start_as_current_span("set_user_config")
     def set_user_config(self, request: UpdateUserConfigCommand) -> None:

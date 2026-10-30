@@ -19,7 +19,7 @@ import {
   getCellEditorView,
   useCellActions,
 } from "../cells/cells";
-import { updateEditorCodeFromPython } from "../codemirror/language/utils";
+import { prepareCellCodeUpdate } from "../codemirror/language/cell-code";
 import type { JotaiStore } from "../state/jotai";
 import type { EditType } from "./tools/edit-notebook-tool";
 
@@ -124,7 +124,10 @@ export function useStagedCells(store: JotaiStore) {
 
     const editorView = getCellEditorView(cellId);
     if (editorView) {
-      updateEditorCodeFromPython(editorView, code);
+      const update = prepareCellCodeUpdate(editorView.state, code);
+      if (update) {
+        editorView.dispatch(update);
+      }
     } else {
       updateCellCode({ cellId, code, formattingChange: false });
     }

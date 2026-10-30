@@ -12,10 +12,8 @@ import { Objects } from "@/utils/objects";
 import { isRecord } from "@/utils/records";
 import { getPositionAtWordBounds } from "../completion/hints";
 import { topologicalCodesAtom } from "../copilot/getCodes";
-import {
-  getEditorCodeAsPython,
-  updateEditorCodeFromPython,
-} from "../language/utils";
+import { prepareCellCodeUpdate } from "../language/cell-code";
+import { getEditorCodeAsPython } from "../language/utils";
 import { createNotebookLens, type NotebookLens } from "./lens";
 import { normalizeLspDocumentation } from "./normalize-markdown-math";
 import {
@@ -770,7 +768,10 @@ export class NotebookLanguageServerClient implements ILanguageServerClient {
       // Only update if it has changed
       const code = getEditorCodeAsPython(ev);
       if (code !== newCode) {
-        updateEditorCodeFromPython(ev, newCode);
+        const update = prepareCellCodeUpdate(ev.state, newCode);
+        if (update) {
+          ev.dispatch(update);
+        }
         updatedCount++;
       }
     }

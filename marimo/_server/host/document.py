@@ -119,7 +119,8 @@ def apply_to_session(session: Session, document: Document) -> None:
     The session tells its consumers, so the frontend sees the edit and
     the host backend mirrors it back as a no-op. The kernel is told of
     the edit as one command, so nothing runs code the document no longer
-    has: changed code is registered without running, and a cell the edit
+    has: the kernel takes code from runs, so a cell the edit enables
+    carries its code for the run enabling it causes, and a cell the edit
     deletes or disables is gone before any run the deletion causes. The
     app config is the session's own and is left alone.
     """
@@ -176,6 +177,8 @@ def apply_to_document(
                     )
                 )
                 configs[cell_id] = config.asdict()
+                if existing.config.disabled and not config.disabled:
+                    codes[cell_id] = cell.code
         previous = cell_id
     wanted = {CellId_t(cell.id) for cell in document}
     deleted = [c for c in current.cell_ids if c not in wanted]

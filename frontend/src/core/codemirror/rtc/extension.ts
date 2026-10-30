@@ -172,7 +172,6 @@ awareness.addListener((updates, origin) => {
 
 export function realTimeCollaboration(
   cellId: CellId,
-  _updateCellCode: (code: string) => void,
   initialCode = "",
 ): { extension: Extension; code: string } {
   if (isWasm()) {
