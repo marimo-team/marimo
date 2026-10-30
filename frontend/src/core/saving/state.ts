@@ -7,18 +7,12 @@ import { atom } from "jotai";
 import { type LayoutState, layoutStateAtom } from "../layout/state";
 import {
   activeDocumentModelAtom,
-  activeNotebookReplicaAtom,
+  confirmedDocumentAtom,
 } from "../session/active-notebook";
-
-/** The host's document, or null while no notebook is connected. */
-const hostDocumentAtom = atom((get) => {
-  const replica = get(activeNotebookReplicaAtom);
-  return replica === null ? null : get(replica.documentAtom);
-});
 
 /** The document version, which counts confirmed changes. Null without a document. */
 export const documentVersionAtom = atom(
-  (get) => get(hostDocumentAtom)?.revision.version ?? null,
+  (get) => get(confirmedDocumentAtom)?.revision.version ?? null,
 );
 
 /**
@@ -33,7 +27,7 @@ export const savedLayoutAtom = atom<LayoutState | undefined>(undefined);
  * or the layout changed. A document never written reports as unsaved.
  */
 export const needsSaveAtom = atom((get) => {
-  const document = get(hostDocumentAtom);
+  const document = get(confirmedDocumentAtom);
   if (document === null) {
     return false;
   }

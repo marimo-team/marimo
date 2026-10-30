@@ -5,8 +5,8 @@ import { Provider } from "jotai";
 import { createRoot } from "react-dom/client";
 import { z } from "zod";
 import {
-  appConfigAtom,
   configOverridesAtom,
+  pageAppConfigAtom,
   userConfigAtom,
 } from "@/core/config/config";
 import { KnownQueryParams } from "@/core/constants";
@@ -347,8 +347,8 @@ function initStore(options: unknown) {
     parseConfigOverrides(parsedOptions.data.configOverrides),
   );
   store.set(userConfigAtom, parseUserConfig(parsedOptions.data.config));
+  store.set(pageAppConfigAtom, parsedOptions.data.appConfig);
   const appConfig = parseAppConfig(parsedOptions.data.appConfig);
-  store.set(appConfigAtom, appConfig);
   store.set(pairConfigAtom, parsedOptions.data.pairConfig);
 
   // Runtime config

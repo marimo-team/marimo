@@ -221,7 +221,6 @@ function handleNotification(
           setLastRun: actions.setLastRun,
           resetCellRuntimes: actions.resetCellRuntimes,
           setLayoutData: Functions.NOOP,
-          setAppConfig: Functions.NOOP,
           setCapabilities: Functions.NOOP,
           setKernelState: Functions.NOOP,
           onError: Logger.error,

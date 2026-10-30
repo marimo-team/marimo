@@ -54,7 +54,7 @@ const SortableCellsProviderInternal = ({
     null,
   );
 
-  const [config] = useAppConfig();
+  const config = useAppConfig();
   const modifiers = useMemo(() => {
     if (config.width === "columns") {
       return Arrays.EMPTY;

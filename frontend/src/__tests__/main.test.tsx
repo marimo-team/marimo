@@ -10,6 +10,7 @@ import {
 import {
   appConfigAtom,
   configOverridesAtom,
+  pageAppConfigAtom,
   userConfigAtom,
 } from "../core/config/config";
 import { notebookAtom } from "../core/cells/cells";
@@ -42,7 +43,7 @@ describe("main", () => {
     store.set(filenameAtom, null);
     store.set(showCodeInRunModeAtom, false);
     store.set(marimoVersionAtom, "unknown");
-    store.set(appConfigAtom, parseAppConfig({}));
+    store.set(pageAppConfigAtom, {});
     store.set(userConfigAtom, defaultUserConfig());
     store.set(configOverridesAtom, {});
   });

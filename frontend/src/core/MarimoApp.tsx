@@ -59,7 +59,7 @@ export function preloadPage(mode: string) {
  */
 export const MarimoApp: React.FC = memo(() => {
   const [userConfig] = useResolvedMarimoConfig();
-  const [appConfig] = useAppConfig();
+  const appConfig = useAppConfig();
   const editorFontSize = toRem(userConfig.display.code_editor_font_size);
 
   const renderBody = () => {

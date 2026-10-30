@@ -35,7 +35,7 @@ import {
 } from "../codemirror/cells/debugger-state";
 import { notebookCells } from "../cells/utils";
 import { capabilitiesAtom } from "../config/capabilities";
-import { connectionTransportTypeAtom, useSetAppConfig } from "../config/config";
+import { connectionTransportTypeAtom } from "../config/config";
 import { useDataSourceActions } from "../datasets/data-source-connections";
 import { invalidateDataSourceDiscovery } from "../datasets/data-source-discovery";
 import type { ConnectionName } from "../datasets/engines";
@@ -99,7 +99,6 @@ export function useNotebookSession(opts: {
   const { addCellNotification } = useRunsActions();
   const setKernelState = useSetAtom(kernelStateAtom);
   const setInitialRunCompleted = useSetAtom(initialRunCompletedAtom);
-  const setAppConfig = useSetAppConfig();
   const { setVariables, setMetadata } = useVariablesActions();
   const { addColumnPreview } = useDatasetsActions();
   const { addDatasets, filterDatasetsFromVariables } = useDatasetsActions();
@@ -156,7 +155,6 @@ export function useNotebookSession(opts: {
           setLastRun,
           resetCellRuntimes,
           setLayoutData,
-          setAppConfig,
           setCapabilities,
           setKernelState,
           onError: showBoundary,

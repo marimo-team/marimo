@@ -9,3 +9,9 @@ export const activeNotebookReplicaAtom = atom<NotebookReplica | null>(null);
 
 /** The document model owned by the mounted notebook session. */
 export const activeDocumentModelAtom = atom<DocumentModel | null>(null);
+
+/** The document the host last confirmed, or null while no notebook is connected. */
+export const confirmedDocumentAtom = atom((get) => {
+  const replica = get(activeNotebookReplicaAtom);
+  return replica === null ? null : get(replica.documentAtom);
+});
