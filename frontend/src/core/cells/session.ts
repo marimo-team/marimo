@@ -1,17 +1,19 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
+/** Read the notebook a page was served with: its cells as a host snapshot, and their outputs. */
+
+import type * as Protocol from "@marimo-team/client/protocol";
 import type * as api from "@marimo-team/marimo-api";
 import { mergeArray } from "@/utils/edit-distance";
-import { MultiColumn } from "@/utils/id-tree";
 import { Logger } from "@/utils/Logger";
 import { parseOutline } from "../dom/outline";
-import type { NotebookState } from "./cells";
+import type { StaticNotebookSnapshot } from "../transports/static";
 import { CellId, SETUP_CELL_ID } from "./ids";
-import {
-  type CellData,
-  type CellRuntimeState,
-  createCellRuntimeState,
-} from "./types";
+import { DEFAULT_CELL_NAME } from "./names";
+import { type CellRuntimeState, createCellRuntimeState } from "./types";
+
+/** The identity of a snapshot the page carries. A host's own stream replaces it. */
+const EMBEDDED = "embedded";
 
 // Constants
 const DEFAULT_TIMESTAMP = 0;
@@ -163,24 +165,22 @@ function createEmptySessionCell(): SessionCell {
   };
 }
 
-function createCellDataFromNotebook(
-  cellId: CellId,
-  notebookCell: NotebookCell,
-): CellData {
+/** The cell as a host would describe it. A snapshot never changes, so its etags only need to be distinct. */
+function cellRecord(cellId: CellId, cell: NotebookCell): Protocol.Cell {
   return {
     id: cellId,
-    name: notebookCell.name ?? EMPTY_STRING,
-    code: notebookCell.code ?? EMPTY_STRING,
-    edited: false,
-    lastCodeRun: null,
-    lastExecutionTime: null,
+    notebook_id: EMBEDDED,
+    code: cell.code ?? EMPTY_STRING,
+    name: cell.name || DEFAULT_CELL_NAME,
     config: {
-      column: notebookCell.config?.column ?? null,
-      disabled: notebookCell.config?.disabled ?? false,
-      hide_code: notebookCell.config?.hide_code ?? false,
-      expand_output: notebookCell.config?.expand_output ?? false,
+      column: cell.config?.column ?? null,
+      disabled: cell.config?.disabled ?? false,
+      hide_code: cell.config?.hide_code ?? false,
+      expand_output: cell.config?.expand_output ?? false,
     },
-    serializedEditorState: null,
+    etag: `${EMBEDDED}:${cellId}`,
+    code_hash: cell.code_hash ?? `${EMBEDDED}:${cellId}:code`,
+    version: 1,
   };
 }
 
@@ -278,45 +278,68 @@ function createCellRuntimeFromSession(
   };
 }
 
-export function notebookStateFromSession(
-  session: api.Session["NotebookSessionV1"] | null | undefined,
-  notebook: api.Notebook["NotebookV1"] | null | undefined,
-): NotebookState | null {
-  // Merge session and notebook cells using edit distance
+/**
+ * Read the session and notebook a page embeds.
+ *
+ * The cells become a host snapshot the replica starts from, and the session's
+ * outputs seed each cell's runtime until the kernel speaks. Null when the page
+ * carries no cells.
+ */
+export function readExport({
+  session,
+  notebook,
+  filename,
+  appConfig,
+}: {
+  session: api.Session["NotebookSessionV1"] | null | undefined;
+  notebook: api.Notebook["NotebookV1"] | null | undefined;
+  filename: string | null;
+  appConfig: Record<string, unknown>;
+}): {
+  snapshot: StaticNotebookSnapshot | null;
+  cellRuntime: Record<CellId, CellRuntimeState>;
+} {
   const { cellIds, sessionCellData, notebookCellData } =
     mergeSessionAndNotebookCells(session, notebook);
-
   if (cellIds.length === 0) {
-    return null;
+    return { snapshot: null, cellRuntime: {} };
   }
 
-  const cellData: Record<CellId, CellData> = {};
+  const cells: Protocol.Cell[] = [];
   const cellRuntime: Record<CellId, CellRuntimeState> = {};
-
-  // Process each cell
   for (const cellId of cellIds) {
-    const sessionCell = sessionCellData.get(cellId);
-    const notebookCell = notebookCellData.get(cellId);
-
-    // Create cell data from notebook if available
-    if (notebookCell) {
-      cellData[cellId] = createCellDataFromNotebook(cellId, notebookCell);
-    }
-
-    // Create cell runtime
-    // This needs always be created even if there is no session cell
-    // in order to display the cell in the correct state
-    cellRuntime[cellId] = createCellRuntimeFromSession(sessionCell);
+    cells.push(
+      cellRecord(
+        cellId,
+        notebookCellData.get(cellId) ?? createEmptyNotebookCell(),
+      ),
+    );
+    cellRuntime[cellId] = createCellRuntimeFromSession(
+      sessionCellData.get(cellId),
+    );
   }
 
   return {
-    cellIds: MultiColumn.from([cellIds]),
-    cellData: cellData,
-    cellRuntime: cellRuntime,
-    cellHandles: {},
-    history: [],
-    scrollKey: null,
-    cellLogs: [],
-    untouchedNewCells: new Set(),
+    snapshot: {
+      notebook: {
+        id: EMBEDDED,
+        project_id: EMBEDDED,
+        path: filename,
+        name: filename ?? EMPTY_STRING,
+        updated_at: null,
+      },
+      document: {
+        notebook_id: EMBEDDED,
+        order: cellIds,
+        app_config: appConfig,
+        etag: `${EMBEDDED}:document`,
+        saved_etag: `${EMBEDDED}:document`,
+        order_etag: `${EMBEDDED}:order`,
+        app_config_etag: `${EMBEDDED}:app_config`,
+        version: 1,
+      },
+      cells,
+    },
+    cellRuntime,
   };
 }

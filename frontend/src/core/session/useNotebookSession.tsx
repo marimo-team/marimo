@@ -77,6 +77,7 @@ import { useStorageActions } from "../storage/state";
 import { useVariablesActions } from "../variables/state";
 import type { VariableName } from "../variables/types";
 import { activeDocumentModelAtom } from "./active-notebook";
+import { embeddedSnapshotAtom } from "./embedded";
 import { WebSocketClosedReason, ConnectionState } from "./types";
 
 /** Coordinate session startup and apply notifications to the editor. */
@@ -399,6 +400,7 @@ export function useNotebookSession(opts: {
   };
   const replica = useNotebookReplica({
     static: isStaticNotebook(),
+    snapshot: useAtomValue(embeddedSnapshotAtom),
     transportType,
     url: () =>
       transportType === "sse"

@@ -3,10 +3,13 @@
 import { createNotebookReducer, NotebookEvents } from "@marimo-team/client";
 import * as Protocol from "@marimo-team/client/protocol";
 import { afterEach, assert, describe, expect, it, vi } from "vitest";
+import type { NotebookBackend } from "../../notebook/replica";
 import { document as documentResource } from "../../notebook/replica/resources/document";
 import {
   createStaticNotebookBackend,
+  emptySnapshot,
   type StaticNotebookSnapshot,
+  startWithSnapshot,
 } from "../static";
 import { fixtureEvents } from "../../notebook/replica/__tests__/fixtures";
 
@@ -34,22 +37,46 @@ afterEach(async () => {
   vi.useRealTimers();
 });
 
+/** Collect a stream's events up to and including its next `ready`. */
+function untilReady(stream: NotebookEvents): Promise<Protocol.EventOutput[]> {
+  const events: Protocol.EventOutput[] = [];
+  return new Promise((resolve, reject) => {
+    stream.subscribe((event) => {
+      events.push(Protocol.Event.parse(event));
+      if (event.event === "ready") {
+        resolve(events);
+      }
+    }, reject);
+  });
+}
+
+/** Open a backend's stream and read until it is ready. */
 async function read(
   backend: ReturnType<typeof createStaticNotebookBackend>,
   cursor?: string,
 ) {
   const stream = new NotebookEvents(backend.transport, { cursor });
   streams.push(stream);
-  const events: Protocol.EventOutput[] = [];
-  await new Promise<void>((resolve, reject) => {
-    stream.subscribe((event) => {
-      events.push(Protocol.Event.parse(event));
-      if (event.event === "ready") {
-        resolve();
-      }
-    }, reject);
-  });
+  const events = await untilReady(stream);
   return { stream, events };
+}
+
+/** A live backend whose stream sends nothing until `release` is called. */
+function silentUntilReleased(backend: NotebookBackend) {
+  let release = () => {};
+  const released = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const attempts: Array<string | null> = [];
+  const silent: NotebookBackend = {
+    ...backend,
+    transport: async (attempt, handlers) => {
+      attempts.push(attempt.cursor);
+      await released;
+      return backend.transport(attempt, handlers);
+    },
+  };
+  return { backend: silent, release: () => release(), attempts };
 }
 
 describe("static notebook backend", () => {
@@ -171,5 +198,89 @@ describe("static notebook backend", () => {
       { open, message },
     );
     expect(message).toHaveBeenCalledOnce();
+  });
+});
+
+describe("starting from an embedded snapshot", () => {
+  it("shows the snapshot until the host answers, then resets into its stream", async () => {
+    const embedded = snapshot();
+    const live = silentUntilReleased(
+      createStaticNotebookBackend(emptySnapshot("live")),
+    );
+    const reducer = createNotebookReducer({ document: documentResource });
+
+    // The snapshot is published on its own, with the host still silent.
+    const { stream, events } = await read(
+      startWithSnapshot(embedded, live.backend),
+    );
+    expect(events.map((event) => event.event)).toEqual([
+      "notebook",
+      "cell",
+      "cell",
+      "cell",
+      "document",
+      "ready",
+    ]);
+    const shown = events.reduce(reducer.reduce, reducer.initial);
+    expect(shown.notebook?.id).toBe(embedded.notebook.id);
+    expect(shown.resources.document.current?.cells.size).toBe(3);
+    expect(live.attempts).toEqual([null]);
+
+    // The host's first frame discards it, and the host's snapshot follows.
+    const host = untilReady(stream);
+    live.release();
+    const rest = await host;
+    expect(rest.map((event) => event.event)).toEqual([
+      "reset",
+      "notebook",
+      "document",
+      "ready",
+    ]);
+    const state = rest.reduce(reducer.reduce, shown);
+    expect(state.notebook?.id).toBe("live");
+    expect(state.resources.document.current?.cells.size).toBe(0);
+    expect(stream.status).toBe("connected");
+  });
+
+  it("starts the host connection fresh when resuming from the snapshot's cursor", async () => {
+    const embedded = snapshot();
+    const live = silentUntilReleased(
+      createStaticNotebookBackend(emptySnapshot("live")),
+    );
+    live.release();
+    const { events } = await read(
+      startWithSnapshot(embedded, live.backend),
+      `${embedded.notebook.id}:snapshot`,
+    );
+    expect(live.attempts).toEqual([null]);
+    expect(events.map((event) => event.event)).toEqual([
+      "reset",
+      "notebook",
+      "document",
+      "ready",
+    ]);
+  });
+
+  it("skips the snapshot when a connection resumes", async () => {
+    const backend = startWithSnapshot(
+      snapshot(),
+      createStaticNotebookBackend(emptySnapshot("live")),
+    );
+    const { events } = await read(backend, "static");
+    expect(events.map((event) => event.event)).toEqual([
+      "reset",
+      "notebook",
+      "document",
+      "ready",
+    ]);
+  });
+
+  it("keeps the live backend's commands", async () => {
+    const backend = startWithSnapshot(
+      snapshot(),
+      createStaticNotebookBackend(emptySnapshot("live")),
+    );
+    const result = await backend.notebook("live").save();
+    expect(result).toMatchObject({ ok: false, status: 501 });
   });
 });

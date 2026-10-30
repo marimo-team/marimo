@@ -137,7 +137,10 @@ export function applyDocument(
           edited: code.trim().length > 0,
         }),
       };
-      cellRuntime = { ...cellRuntime, [id]: createCellRuntimeState() };
+      cellRuntime = {
+        ...cellRuntime,
+        [id]: cellRuntime[id] ?? createCellRuntimeState(),
+      };
       cellHandles = { ...cellHandles, [id]: createRef() };
       continue;
     }
