@@ -21,6 +21,7 @@ from marimo._cli.pair.client import (
     PairError,
     PairInputError,
     RunConflictError,
+    SandboxGoneError,
     StaleNotebookError,
     display_url,
     execute as execute_code,
@@ -473,6 +474,11 @@ def _failure_guidance(
         )
     if message.startswith("The server URL"):
         return message, ("Use the url field from:\nmarimo pair notebook list")
+    if isinstance(error, SandboxGoneError):
+        return (
+            "The notebook's sandbox is gone (HTTP 410).",
+            "Start a new notebook, then pair again with its URL and token.",
+        )
     if isinstance(error, PairConnectionError):
         return f"Could not connect to {safe_url}.", (
             "Check the URL. To find live servers: marimo pair notebook list"

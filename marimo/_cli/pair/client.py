@@ -41,6 +41,17 @@ class PairConnectionError(PairError):
     """A transport failure while connecting to the notebook server."""
 
 
+class SandboxGoneError(PairError):
+    """The notebook's sandbox is gone (HTTP 410 Gone).
+
+    A 410 is terminal: neither the notebook nor its filesystem still exists, so
+    the same URL and token will not work again. That is different from a bad
+    URL or token, which a generic connection error implies, and from a 503,
+    where retrying can help. The cause is the host's business; callers should
+    report the state and leave the reason out.
+    """
+
+
 class NoRuntimeError(PairError):
     """The notebook has no running kernel."""
 
@@ -276,6 +287,14 @@ def _raise_for_status(response: HTTPResponse) -> None:
         return
     detail, problem = _response_problem(response)
     response.close()
+    if response.status == 410:
+        raise SandboxGoneError(
+            "The notebook's sandbox is gone (HTTP 410). Start a new notebook and re-pair."
+        )
+    if response.status == 503:
+        raise PairError(
+            "The notebook is unavailable (HTTP 503). It may be restarting; retry shortly."
+        )
     if isinstance(detail, str) and detail.startswith(
         ("Invalid session id", "Invalid stable session id")
     ):
