@@ -86,6 +86,8 @@ function languages(id: CellId) {
       mergeAllColumns: vi.fn(),
       compactColumns: vi.fn(),
       moveColumn: vi.fn(),
+      splitCell: vi.fn(),
+      undoSplitCell: vi.fn(),
       onRun: vi.fn(),
       deleteCell: vi.fn(),
       afterToggleMarkdown: vi.fn(),

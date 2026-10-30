@@ -18,8 +18,6 @@ import { extractAllTracebackInfo, type TracebackInfo } from "@/utils/traceback";
 import { createReducerAndAtoms } from "../../utils/createReducer";
 import { foldAllBulk, unfoldAllBulk } from "../codemirror/editing/commands";
 import { editorMountScheduler } from "../codemirror/editor-mount-scheduler";
-import { prepareCellCodeUpdate } from "../codemirror/language/cell-code";
-import { splitEditor } from "../codemirror/language/utils";
 import type { SerializedEditorState } from "../codemirror/types";
 import { mergeOutlines } from "../dom/outline";
 import type { CellMessage } from "../kernel/messages";
@@ -30,7 +28,7 @@ import { isWasm } from "../wasm/utils";
 import { prepareCellForExecution, transitionCell } from "./cell";
 import { applyDocument, documentEditMiddleware } from "./document";
 import { isCodeHidden, shownHiddenCodeAtom } from "./editor";
-import { CellId, SCRATCH_CELL_ID } from "./ids";
+import { type CellId, SCRATCH_CELL_ID } from "./ids";
 import { type CellLog, getCellLogsForMessage } from "./logs";
 import { focusAndScrollCellIntoView } from "./scrollCellIntoView";
 import {
@@ -391,110 +389,6 @@ const {
     return {
       ...state,
       cellLogs: [],
-    };
-  },
-  splitCell: (state, action: { cellId: CellId }) => {
-    const { cellId } = action;
-    const column = state.cellIds.findWithId(cellId);
-    const index = column.indexOfOrThrow(cellId);
-    const cell = state.cellData[cellId];
-    const cellHandle = state.cellHandles[cellId].current;
-
-    if (cellHandle?.editorView == null) {
-      return state;
-    }
-
-    const { beforeCursorCode, afterCursorCode } = splitEditor(
-      cellHandle.editorView,
-    );
-
-    const update = prepareCellCodeUpdate(
-      cellHandle.editorView.state,
-      beforeCursorCode,
-    );
-
-    if (update) {
-      cellHandle.editorView.dispatch(update);
-    }
-
-    const newCellId = CellId.create();
-
-    return {
-      ...state,
-      cellIds: state.cellIds.insertId(newCellId, column.id, index + 1),
-      cellData: {
-        ...state.cellData,
-        [cellId]: {
-          ...cell,
-          code: beforeCursorCode,
-          edited:
-            Boolean(beforeCursorCode) &&
-            beforeCursorCode.trim() !== cell.lastCodeRun?.trim(),
-        },
-        [newCellId]: createCell({
-          id: newCellId,
-          code: afterCursorCode,
-          edited: Boolean(afterCursorCode),
-        }),
-      },
-      cellRuntime: {
-        ...state.cellRuntime,
-        [cellId]: {
-          ...state.cellRuntime[cellId],
-          output: null,
-          consoleOutputs: [],
-        },
-        [newCellId]: createCellRuntimeState(),
-      },
-      cellHandles: {
-        ...state.cellHandles,
-        [newCellId]: createRef(),
-      },
-      scrollKey: newCellId,
-    };
-  },
-  undoSplitCell: (state, action: { cellId: CellId; snapshot: string }) => {
-    const { cellId, snapshot } = action;
-
-    const cell = state.cellData[cellId];
-    const cellHandle = state.cellHandles[cellId].current;
-
-    if (cellHandle?.editorView == null) {
-      return state;
-    }
-
-    const update = prepareCellCodeUpdate(cellHandle.editorView.state, snapshot);
-
-    if (update) {
-      cellHandle.editorView.dispatch(update);
-    }
-
-    return {
-      ...state,
-      cellIds: state.cellIds.transformWithCellId(cellId, (column) => {
-        const newCellIndex = column.indexOfOrThrow(cellId) + 1;
-        return column.deleteAtIndex(newCellIndex);
-      }),
-      cellData: {
-        ...state.cellData,
-        [cellId]: {
-          ...cell,
-          code: snapshot,
-          edited:
-            Boolean(snapshot) && snapshot?.trim() !== cell.lastCodeRun?.trim(),
-        },
-      },
-      cellRuntime: {
-        ...state.cellRuntime,
-        [cellId]: {
-          ...state.cellRuntime[cellId],
-          output: null,
-          consoleOutputs: [],
-        },
-      },
-      cellHandles: {
-        ...state.cellHandles,
-      },
     };
   },
   clearCellOutput: (state, action: { cellId: CellId }) => {

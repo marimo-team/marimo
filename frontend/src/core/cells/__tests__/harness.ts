@@ -3,11 +3,15 @@
 /** A store whose notebook follows a document model, as the session wires it. */
 
 import { history } from "@codemirror/commands";
+import { python } from "@codemirror/lang-python";
 import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import type * as Protocol from "@marimo-team/client/protocol";
 import { createStore } from "jotai";
 import { mockDocumentModel } from "@/__mocks__/document";
+import type { CellId } from "@/core/cells/ids";
+import { adaptiveLanguageConfiguration } from "@/core/codemirror/language/extension";
+import { OverridingHotkeyProvider } from "@/core/hotkeys/hotkeys";
 import {
   document as documentOf,
   withCells,
@@ -48,12 +52,27 @@ export function setupNotebook(
     columns: () => store.get(layoutAtom).columns.map((column) => column.ids),
     notebook: () => store.get(notebookAtom),
     cellIn: (id: string) => store.get(model.documentAtom)?.cells.get(id),
-    /** Give a cell an editor, as mounting it would. */
+    /** Give a cell an editor, as mounting it would, with a cell's language setup. */
     mountEditor: (id: string) => {
       const view = new EditorView({
         state: EditorState.create({
           doc: store.get(model.documentAtom)?.cells.get(id)?.code ?? "",
-          extensions: [history()],
+          extensions: [
+            history(),
+            python(),
+            adaptiveLanguageConfiguration({
+              cellId: id as CellId,
+              completionConfig: {
+                activate_on_typing: true,
+                signature_hint_on_typing: false,
+                copilot: false,
+                codeium_api_key: null,
+              },
+              hotkeys: new OverridingHotkeyProvider({}),
+              placeholderType: "marimo-import",
+              lspConfig: {},
+            }),
+          ],
         }),
       });
       store.get(notebookAtom).cellHandles[id as never].current = {

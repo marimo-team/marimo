@@ -1156,37 +1156,6 @@ describe("cell reducer", () => {
     expect(state.cellLogs).toEqual([]);
   });
 
-  it("can split and undo split cells", () => {
-    seedCell({
-      cellId: firstCellId,
-      before: false,
-      code: "line1\nline2",
-    });
-    const nextCellId = state.cellIds.atOrThrow(FIRST_COLUMN).atOrThrow(1);
-
-    const originalCellCount = state.cellIds.atOrThrow(FIRST_COLUMN).length;
-    // Move cursor to the second line
-    const editor = state.cellHandles[nextCellId].current?.editorView;
-    if (!editor) {
-      throw new Error("Editor not found");
-    }
-    editor.dispatch({ selection: { anchor: 5, head: 5 } });
-    actions.splitCell({ cellId: nextCellId });
-    expect(state.cellIds.atOrThrow(FIRST_COLUMN).length).toBe(
-      originalCellCount + 1,
-    );
-    expect(state.cellData[nextCellId].code).toBe("line1");
-    expect(
-      state.cellData[state.cellIds.atOrThrow(FIRST_COLUMN).atOrThrow(2)].code,
-    ).toBe("line2");
-
-    actions.undoSplitCell({ cellId: nextCellId, snapshot: "line1\nline2" });
-    expect(state.cellIds.atOrThrow(FIRST_COLUMN).length).toBe(
-      originalCellCount,
-    );
-    expect(state.cellData[nextCellId].code).toBe("line1\nline2");
-  });
-
   it("can handle multiple console outputs", () => {
     const STDOUT1: OutputMessage = {
       channel: "stdout",

@@ -3,13 +3,15 @@
 /** Notebook operations that edit the document and then adjust the editor. */
 
 import { historyField } from "@codemirror/commands";
-import { atom, type Getter, useSetAtom } from "jotai";
+import { atom, type Getter, type Setter, useSetAtom } from "jotai";
 import { useMemo } from "react";
 import { scrollAndHighlightCell } from "@/components/editor/links/cell-link";
 import type { EditableDocument } from "@/core/notebook/document";
 import type { CellColumnId } from "@/utils/id-tree";
 import { Logger } from "@/utils/Logger";
 import { clamp } from "@/utils/math";
+import { prepareCellCodeUpdate } from "../codemirror/language/cell-code";
+import { splitEditor } from "../codemirror/language/utils";
 import type { SerializedEditorState } from "../codemirror/types";
 import { canCollapseOutline } from "../dom/outline";
 import type { CellConfig } from "../network/types";
@@ -33,6 +35,7 @@ import {
 import {
   type DeletedCell,
   notebookAtom,
+  notebookReducer,
   releaseCellAtoms,
   useReducerActions,
 } from "./cells";
@@ -161,6 +164,70 @@ export const createCellAtom = atom(
     return id;
   },
 );
+
+/**
+ * Split a cell at its cursor. The text before stays, the text after
+ * becomes a new cell below, which is focused. Returns the new cell's id,
+ * or null for a cell without an editor.
+ */
+export const splitCellAtom = atom(
+  null,
+  (get, set, { cellId }: { cellId: CellId }): CellId | null => {
+    const view = get(notebookAtom).cellHandles[cellId]?.current?.editorView;
+    if (!view) {
+      return null;
+    }
+    const { beforeCursorCode, afterCursorCode } = splitEditor(view);
+    const update = prepareCellCodeUpdate(view.state, beforeCursorCode);
+    if (update) {
+      view.dispatch(update);
+    }
+    const id = CellId.create();
+    set(modelOf(get).editAtom, (tx) => {
+      tx.setCode(cellId, beforeCursorCode);
+      tx.createCell({ id, code: afterCursorCode }, { after: cellId });
+    });
+    clearOutput(set, cellId);
+    focusWhenMounted(set, id);
+    return id;
+  },
+);
+
+/** Undo a split: the cell takes its code back and the cell split off goes. */
+export const undoSplitCellAtom = atom(
+  null,
+  (
+    get,
+    set,
+    {
+      cellId,
+      newCellId,
+      snapshot,
+    }: { cellId: CellId; newCellId: CellId; snapshot: string },
+  ): void => {
+    const view = get(notebookAtom).cellHandles[cellId]?.current?.editorView;
+    const update = view && prepareCellCodeUpdate(view.state, snapshot);
+    if (view && update) {
+      view.dispatch(update);
+    }
+    const document = documentOf(get);
+    set(modelOf(get).editAtom, (tx) => {
+      tx.setCode(cellId, snapshot);
+      if (document.cells.has(newCellId)) {
+        tx.deleteCell(newCellId);
+      }
+    });
+    releaseCellAtoms(newCellId);
+    clearOutput(set, cellId);
+  },
+);
+
+/** The output belonged to the code before the change; neither version has run. */
+function clearOutput(set: Setter, cellId: CellId): void {
+  set(notebookAtom, (state) =>
+    notebookReducer(state, { type: "clearCellOutput", payload: { cellId } }),
+  );
+}
 
 /**
  * Focus the cell before or after `cellId`. Past the edge of the column,
@@ -532,9 +599,13 @@ export function useCellActions() {
   const mergeAllColumns = useSetAtom(mergeAllColumnsAtom);
   const compactColumns = useSetAtom(compactColumnsAtom);
   const moveColumn = useSetAtom(moveColumnAtom);
+  const splitCell = useSetAtom(splitCellAtom);
+  const undoSplitCell = useSetAtom(undoSplitCellAtom);
   return useMemo(
     () => ({
       ...operations,
+      splitCell,
+      undoSplitCell,
       addColumn,
       addColumnBreakpoint,
       deleteColumn,

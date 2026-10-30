@@ -17,7 +17,9 @@ import {
   focusCellAtom,
   moveToNextCellAtom,
   showCellIfHiddenAtom,
+  splitCellAtom,
   undoDeleteCellAtom,
+  undoSplitCellAtom,
 } from "../actions";
 import { moveCellsRelativeToAtom } from "../arrange";
 import {
@@ -157,6 +159,40 @@ describe("createCellAtom", () => {
     store.set(notebookAtom, exportedForTesting.initialNotebookState());
 
     expect(() => store.set(createCellAtom, {})).toThrow("no document");
+  });
+});
+
+describe("splitCellAtom", () => {
+  it("splits a cell at the cursor and undoes it", () => {
+    const { store, order, notebook, cellIn, mountEditor } = setup({
+      c1: cell("c1", "line1\nline2"),
+    });
+    const view = mountEditor(c1);
+    view.dispatch({ selection: { anchor: 5 } });
+
+    const id = store.set(splitCellAtom, { cellId: c1 }) as CellId;
+
+    expect(order()).toEqual([c1, id, c2]);
+    expect(cellIn(c1)?.code).toBe("line1");
+    expect(cellIn(id)?.code).toBe("line2");
+    expect(view.state.doc.toString()).toBe("line1");
+    expect(notebook().scrollKey).toBe(id);
+
+    store.set(undoSplitCellAtom, {
+      cellId: c1,
+      newCellId: id,
+      snapshot: "line1\nline2",
+    });
+
+    expect(order()).toEqual([c1, c2]);
+    expect(cellIn(c1)?.code).toBe("line1\nline2");
+    expect(view.state.doc.toString()).toBe("line1\nline2");
+  });
+
+  it("does nothing for a cell without an editor", () => {
+    const { store, order } = setup();
+    expect(store.set(splitCellAtom, { cellId: c1 })).toBeNull();
+    expect(order()).toEqual([c1, c2]);
   });
 });
 
