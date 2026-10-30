@@ -17,13 +17,17 @@ import { store } from "../state/jotai";
 import { activeDocumentModelAtom } from "../session/active-notebook";
 import {
   type DeletedCell,
-  isCellCodeHidden,
   notebookAtom,
   notebookReducer,
   releaseCellAtoms,
   useReducerActions,
 } from "./cells";
 import { resolveColumns } from "./columns";
+import {
+  isCodeHidden,
+  restoredEditorStatesAtom,
+  shownHiddenCodeAtom,
+} from "./editor";
 import { CellId, SCRATCH_CELL_ID, SETUP_CELL_ID } from "./ids";
 import {
   collapsedAtom,
@@ -153,12 +157,9 @@ export const createCellAtom = atom(
     });
     if (focus) {
       focusWhenMounted(set, id);
-      // Hidden code stays visible until the cell is blurred for the first time.
+      // Hidden code stays showing until the cell is blurred for the first time.
       if (config.hide_code) {
-        set(notebookAtom, (state) => ({
-          ...state,
-          untouchedNewCells: new Set([...state.untouchedNewCells, id]),
-        }));
+        set(shownHiddenCodeAtom, (cells) => new Set([...cells, id]));
       }
     }
     return id;
@@ -206,7 +207,11 @@ function focusOnPage(
   focusAndScrollCellIntoView({
     cellId,
     cell: notebook.cellHandles[cellId],
-    isCodeHidden: isCellCodeHidden(notebook, cellId),
+    isCodeHidden: isCodeHidden(
+      notebook.cellData[cellId]?.config.hide_code,
+      get(shownHiddenCodeAtom),
+      cellId,
+    ),
     codeFocus,
     variableName: undefined,
   });
@@ -426,12 +431,14 @@ export const deleteCellsAtom = atom(
     for (const id of gone) {
       releaseCellAtoms(id);
     }
+    set(shownHiddenCodeAtom, (cells) =>
+      cells.size === 0
+        ? cells
+        : new Set([...cells].filter((id) => !gone.has(id))),
+    );
     set(notebookAtom, (state) => ({
       ...state,
       history: [...state.history, { type: "delete", cells }],
-      untouchedNewCells: new Set(
-        [...state.untouchedNewCells].filter((id) => !gone.has(id)),
-      ),
       scrollKey,
     }));
     return true;
@@ -469,32 +476,21 @@ export const undoDeleteCellAtom = atom(null, (get, set): void => {
       restored.add(cell.id);
     }
   });
-  // Subscribers hear of the edit after the outermost set, so the notebook
-  // has not followed the document yet. Catch it up to reach the new cells.
-  const document = get(model.documentAtom);
-  if (document !== null) {
-    set(notebookAtom, (state) =>
-      notebookReducer(state, { type: "reconcileDocument", payload: document }),
-    );
-  }
-  set(notebookAtom, (state) => {
-    let { cellData } = state;
+  // The editors take their history back when they mount.
+  set(restoredEditorStatesAtom, (states) => {
+    const next = new Map(states);
     for (const { cell, serializedEditorState } of last.cells) {
-      const id = cell.id as CellId;
-      if (serializedEditorState !== null && cellData[id] !== undefined) {
-        cellData = {
-          ...cellData,
-          [id]: { ...cellData[id], serializedEditorState },
-        };
+      if (serializedEditorState !== null) {
+        next.set(cell.id as CellId, serializedEditorState);
       }
     }
-    return {
-      ...state,
-      cellData,
-      history: state.history.slice(0, -1),
-      scrollKey: last.cells[0].cell.id as CellId,
-    };
+    return next;
   });
+  set(notebookAtom, (state) => ({
+    ...state,
+    history: state.history.slice(0, -1),
+    scrollKey: last.cells[0].cell.id as CellId,
+  }));
 });
 
 /**

@@ -14,6 +14,7 @@ import { DATA_FOR_CELL_ID } from "@/components/data-table/cell-utils";
 import { aiCompletionCellAtom } from "@/core/ai/state";
 import { maybeAddMarimoImport } from "@/core/cells/add-missing-import";
 import { cellIdsAtom, notebookAtom } from "@/core/cells/cells";
+import { hideShownCodeAtom, showHiddenCodeAtom } from "@/core/cells/editor";
 import {
   columnOf,
   type LayoutColumn,
@@ -50,13 +51,17 @@ import type { CellActionsDropdownHandle } from "../cell/cell-actions";
 import { useDeleteManyCellsCallback } from "../cell/useDeleteCell";
 import { useRunCells } from "../cell/useRunCells";
 import { useCellClipboard } from "./clipboard";
-import { focusCell, focusCellEditor, raf2 } from "./focus-utils";
+import {
+  focusCell,
+  focusCellEditor,
+  keepFocusedCellInView,
+  raf2,
+} from "./focus-utils";
 import {
   getSelectedCells,
   useCellSelectionActions,
   useIsCellSelected,
 } from "./selection";
-import { useTemporarilyShownCodeActions } from "./state";
 import { handleVimKeybinding } from "./vim-bindings";
 
 interface HotkeyHandler {
@@ -110,8 +115,7 @@ function useCellFocusProps(
   editorView: React.RefObject<EditorView | null>,
 ) {
   const focusActions = useCellFocusActions();
-  const actions = useCellActions();
-  const temporarilyShownCodeActions = useTemporarilyShownCodeActions();
+  const hideShownCode = useSetAtom(hideShownCodeAtom);
 
   // This occurs at the cell level and descedants.
   const { focusWithinProps } = useFocusWithin({
@@ -136,9 +140,9 @@ function useCellFocusProps(
         return;
       }
 
-      // On blur, hide the code if it was temporarily shown.
-      temporarilyShownCodeActions.remove(cellId);
-      actions.markTouched({ cellId });
+      // On blur, hide the code if it was showing for now.
+      hideShownCode({ cellId });
+      keepFocusedCellInView();
       focusActions.blurCell();
       // Close signature help when clicking outside the cell
       if (editorView.current) {
@@ -200,7 +204,7 @@ export function useCellNavigationProps(
   const actions = useCellActions();
   const { createCell, moveToNextCell } = useCellActions();
   const store = useStore();
-  const temporarilyShownCodeActions = useTemporarilyShownCodeActions();
+  const showHiddenCode = useSetAtom(showHiddenCodeAtom);
   const runCells = useRunCells();
   const keymapPreset = useAtomValue(keymapPresetAtom);
   const { copyCells, pasteAtCell, cutCells } = useCellClipboard();
@@ -356,7 +360,7 @@ export function useCellNavigationProps(
         },
         // Enter will focus the cell editor.
         Enter: () => {
-          temporarilyShownCodeActions.add(cellId);
+          showHiddenCode({ cellId });
           focusCellEditor(store, cellId);
           selectionActions.clear();
           return true;
@@ -700,7 +704,7 @@ export function useCellEditorNavigationProps(
   cellId: CellId,
   editorView: React.RefObject<EditorView | null>,
 ) {
-  const temporarilyShownCodeActions = useTemporarilyShownCodeActions();
+  const hideShownCode = useSetAtom(hideShownCodeAtom);
   const keymapPreset = useAtomValue(keymapPresetAtom);
   const hotkeys = useAtomValue(hotkeysAtom);
 
@@ -710,7 +714,7 @@ export function useCellEditorNavigationProps(
   }, [hotkeys]);
 
   const exitToCommandMode = () => {
-    temporarilyShownCodeActions.remove(cellId);
+    hideShownCode({ cellId });
     focusCell(cellId);
     // Scroll to cell in case it is not in view because of layout shifts.
     raf2(() => {

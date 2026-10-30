@@ -36,7 +36,6 @@ const createLongReprNotebook = (
 print('hello')
 LongReprA()`,
       edited: false,
-      serializedEditorState: null,
       config: {
         hide_code: hideCode,
         disabled: false,
@@ -88,7 +87,6 @@ LongReprA()`,
   cellLogs: [],
   history: [],
   scrollKey: null,
-  untouchedNewCells: new Set(),
 });
 
 export default {

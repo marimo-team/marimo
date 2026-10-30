@@ -54,7 +54,6 @@ export const MockNotebook = {
       cellLogs: [],
       history: [],
       scrollKey: null,
-      untouchedNewCells: new Set(),
     };
   },
 

@@ -36,6 +36,11 @@ import {
   notebookReducer,
 } from "../cells";
 import { followDocument } from "../document";
+import {
+  hideShownCodeAtom,
+  restoredEditorStatesAtom,
+  shownHiddenCodeAtom,
+} from "../editor";
 import { collapsedAtom, layoutAtom } from "../layout";
 import { type CellId, SCRATCH_CELL_ID, SETUP_CELL_ID } from "../ids";
 import { focusAndScrollCellIntoView } from "../scrollCellIntoView";
@@ -151,8 +156,8 @@ describe("createCellAtom", () => {
       focus: false,
     });
 
-    expect(notebook().untouchedNewCells.has(hidden as never)).toBe(true);
-    expect(notebook().untouchedNewCells.has(unfocused as never)).toBe(false);
+    expect(store.get(shownHiddenCodeAtom).has(hidden as CellId)).toBe(true);
+    expect(store.get(shownHiddenCodeAtom).has(unfocused as CellId)).toBe(false);
     expect(notebook().scrollKey).toBe(hidden);
   });
 
@@ -359,7 +364,7 @@ describe("deleteCellsAtom", () => {
   });
 
   it("forgets the untouched state and the cell atoms of a deleted cell", () => {
-    const { store, notebook } = setup();
+    const { store } = setup();
     const id = store.set(createCellAtom, {
       after: c1,
       config: { hide_code: true },
@@ -369,7 +374,7 @@ describe("deleteCellsAtom", () => {
 
     store.set(deleteCellsAtom, { cellIds: [id] });
 
-    expect(notebook().untouchedNewCells.has(id)).toBe(false);
+    expect(store.get(shownHiddenCodeAtom).has(id)).toBe(false);
     expect(cellDataAtom(id)).not.toBe(dataAtom);
     expect(cellHandleAtom(id)).not.toBe(handleAtom);
   });
@@ -389,7 +394,7 @@ describe("undoDeleteCellAtom", () => {
 
     expect(order()).toEqual([c1, c2, c3]);
     expect(cellIn(c2)?.code).toBe("y = 2");
-    expect(notebook().cellData[c2].serializedEditorState).toMatchObject({
+    expect(store.get(restoredEditorStatesAtom).get(c2)).toMatchObject({
       doc: "y = 2",
     });
     expect(notebook().cellData[c2].edited).toBe(true);
@@ -589,5 +594,23 @@ describe("folding", () => {
 
     store.set(moveToNextCellAtom, { cellId: c2, before: false, create: false });
     expect(focusAndScrollCellIntoView).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("hidden code showing for now", () => {
+  it("shows a new hidden cell's code until it is hidden again", () => {
+    const { store } = setup();
+    const id = store.set(createCellAtom, {
+      after: c1,
+      config: { hide_code: true },
+    }) as CellId;
+    expect(store.get(shownHiddenCodeAtom).has(id)).toBe(true);
+
+    const before = store.get(shownHiddenCodeAtom);
+    store.set(hideShownCodeAtom, { cellId: id });
+    store.set(hideShownCodeAtom, { cellId: id });
+
+    expect(store.get(shownHiddenCodeAtom).has(id)).toBe(false);
+    expect(store.get(shownHiddenCodeAtom)).not.toBe(before);
   });
 });

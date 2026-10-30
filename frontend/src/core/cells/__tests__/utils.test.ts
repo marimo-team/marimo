@@ -95,7 +95,6 @@ describe("getCellConfigs", () => {
           config: { hide_code: false, disabled: false },
         } as CellData,
       },
-      untouchedNewCells: new Set(),
     };
 
     const result = getCellConfigs(mockState);
