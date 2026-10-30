@@ -29,7 +29,12 @@ import {
   type NotebookState,
   notebookReducer,
 } from "../cells";
-import { applyDocument, flushDocument, withDocumentSave } from "../document";
+import {
+  applyDocument,
+  flushDocument,
+  followDocument,
+  withDocumentSave,
+} from "../document";
 import { type CellId, SCRATCH_CELL_ID } from "../ids";
 
 vi.mock("../../rtc/state", async (importOriginal) => ({
@@ -348,9 +353,14 @@ describe("documentEditMiddleware", () => {
     expect(calls).toEqual([["updateConfig", c, { column: null }]]);
   });
 
-  it("ignores the kernel's cells and runtime state", () => {
+  it("ignores the document and the kernel's run state", () => {
     actions.prepareForRun({ cellId: a });
-    actions.setCells([state.cellData[a]]);
+    actions.setLastRun({
+      lastCodeRun: { [a]: "a = 0" },
+      lastExecutionTime: {},
+    });
+    actions.resetCellRuntimes();
+    actions.reconcileDocument(documentOf([cell(a)]));
 
     expect(calls).toEqual([]);
   });
@@ -363,6 +373,30 @@ describe("documentEditMiddleware", () => {
     });
 
     expect(calls).toEqual([]);
+  });
+});
+
+describe("followDocument", () => {
+  it("reconciles the document now and on each change, until aborted", () => {
+    const documentAtom = atom<EditableDocument | null>(null);
+    const reconcile = vi.fn();
+    const controller = new AbortController();
+
+    followDocument({
+      store,
+      model: { documentAtom },
+      reconcile,
+      signal: controller.signal,
+    });
+    expect(reconcile).not.toHaveBeenCalled();
+
+    const first = documentOf([cell(a)]);
+    store.set(documentAtom, first);
+    expect(reconcile).toHaveBeenCalledWith(first);
+
+    controller.abort();
+    store.set(documentAtom, documentOf([cell(b)]));
+    expect(reconcile).toHaveBeenCalledOnce();
   });
 });
 

@@ -10,11 +10,13 @@
 
 import type * as Protocol from "@marimo-team/client/protocol";
 import { dequal as isEqual } from "dequal";
+import type { createStore } from "jotai";
 import { createRef, type RefObject } from "react";
 import type { CellHandle } from "@/components/editor/notebook-cell";
 import type {
   DocumentEdit,
   DocumentEditor,
+  DocumentModel,
   EditableCell,
   EditableDocument,
 } from "@/core/notebook/document";
@@ -165,6 +167,33 @@ export function applyDocument(
   return { ...state, cellIds, cellData, cellRuntime, cellHandles };
 }
 
+/**
+ * Reconcile the model's document now and on each change, until the signal aborts.
+ *
+ * TODO(MO-8028): Delete with `applyDocument`.
+ */
+export function followDocument({
+  store,
+  model,
+  reconcile,
+  signal,
+}: {
+  store: ReturnType<typeof createStore>;
+  model: Pick<DocumentModel, "documentAtom">;
+  reconcile: (document: EditableDocument) => void;
+  signal: AbortSignal;
+}): void {
+  const follow = () => {
+    const document = store.get(model.documentAtom);
+    if (document !== null) {
+      reconcile(document);
+    }
+  };
+  const unsubscribe = store.sub(model.documentAtom, follow);
+  signal.addEventListener("abort", unsubscribe, { once: true });
+  follow();
+}
+
 // Editing the document ------------------------------------------------------
 
 const CONFIG_FIELDS = ["disabled", "hide_code", "expand_output"] as const;
@@ -291,8 +320,8 @@ export function documentEditMiddleware(
   next: NotebookState,
   action: CellAction,
 ): void {
-  // The kernel's cells replace the notebook rather than edit it.
-  if (action.type === "setCells") {
+  // The document replaces the notebook's cells, so following it is no edit.
+  if (action.type === "reconcileDocument") {
     return;
   }
   if (prev.cellIds === next.cellIds && prev.cellData === next.cellData) {

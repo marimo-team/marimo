@@ -5,7 +5,7 @@ import { Tooltip } from "radix-ui";
 
 const TooltipProvider = Tooltip.Provider;
 
-import { useAtomValue, useSetAtom } from "jotai";
+import { useAtomValue, useSetAtom, useStore } from "jotai";
 import { useEffect } from "react";
 import { NotStartedConnectionAlert } from "@/components/editor/alerts/connecting-alert";
 import { Controls } from "@/components/editor/controls/Controls";
@@ -29,10 +29,12 @@ import { CellsRenderer } from "../components/editor/renderers/cells-renderer";
 import { useHotkey } from "../hooks/useHotkey";
 import {
   hasCellsAtom,
+  notebookAtom,
   notebookIsRunningAtom,
   numColumnsAtom,
   useCellActions,
 } from "./cells/cells";
+import { notebookCells } from "./cells/utils";
 import type { AppConfig, UserConfig } from "./config/config-schema";
 import { DocumentProvider } from "./notebook/document";
 import { RuntimeState } from "./kernel/RuntimeState";
@@ -64,8 +66,9 @@ export const EditApp: React.FC<AppProps> = ({
   appConfig,
   hideControls = false,
 }) => {
-  const { setCells, mergeAllColumns, collapseAllCells, expandAllCells } =
+  const { mergeAllColumns, collapseAllCells, expandAllCells } =
     useCellActions();
+  const store = useStore();
   const viewState = useAtomValue(viewStateAtom);
   const numColumns = useAtomValue(numColumnsAtom);
   const filename = useFilename();
@@ -86,8 +89,8 @@ export const EditApp: React.FC<AppProps> = ({
 
   const { connection, reconnect, documentModel } = useNotebookSession({
     autoInstantiate: userConfig.runtime.auto_instantiate,
-    setCells: (cells, layout) => {
-      setCells(cells);
+    onKernelReady: (layout) => {
+      const cells = notebookCells(store.get(notebookAtom));
       const names = cells.map((cell) => cell.name);
       const codes = cells.map((cell) => cell.code);
       const configs = cells.map((cell) => cell.config);

@@ -314,9 +314,7 @@ async def test_sse_hides_code_when_include_code_false(
         event = await connection.next_notification()
         message = json.loads(event["data"])
         assert message["op"] == "kernel-ready"
-        assert message["data"]["codes"] == [""]  # hidden
         assert message["data"]["last_executed_code"] == {}  # hidden
-        assert message["data"]["cell_ids"] == ["Hbol"]  # preserved
 
 
 async def test_sse_kernel_startup_error(client: TestClient) -> None:

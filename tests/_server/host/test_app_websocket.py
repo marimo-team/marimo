@@ -60,9 +60,6 @@ def test_app_executes_with_hidden_source_and_retained_hashes(
         snapshot = socket_snapshot(ws)
         ready = receive_notification(ws, "kernel-ready")
         assert ready["auto_instantiated"] is True
-        assert ready["codes"] == (
-            ["import marimo as mo"] if include_code else [""]
-        )
         cell = next(
             e["data"]["cell"] for e in snapshot if e["event"] == "cell"
         )

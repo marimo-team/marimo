@@ -3,7 +3,8 @@ import type { LayoutType } from "@/components/editor/renderers/types";
 import { Logger } from "@/utils/Logger";
 import { Objects } from "@/utils/objects";
 import type { UIElementId } from "../cells/ids";
-import { type CellData, createCell } from "../cells/types";
+import type { CellActions } from "../cells/cells";
+import type { CellData } from "../cells/types";
 import { type AppConfig, AppConfigSchema } from "../config/config-schema";
 import { UI_ELEMENT_REGISTRY } from "../dom/uiregistry";
 import { deserializeLayoutState } from "../layout/layout";
@@ -18,41 +19,6 @@ import type {
 import type { KernelState } from "./state";
 
 type KernelReadyData = NotificationMessageData<"kernel-ready">;
-
-/**
- * Build cells from kernel-ready data.
- */
-export function buildCellData(data: KernelReadyData): CellData[] {
-  const {
-    codes,
-    names,
-    configs,
-    cell_ids,
-    last_executed_code,
-    last_execution_time,
-  } = data;
-
-  const lastExecutedCode = last_executed_code || {};
-  const lastExecutionTime = last_execution_time || {};
-
-  return codes.map((code, i) => {
-    const cellId = cell_ids[i];
-    const lastCodeRun = lastExecutedCode[cellId];
-
-    // A cell is edited if the code has changed since the last time it was run
-    const edited = lastCodeRun ? lastCodeRun !== code : false;
-
-    return createCell({
-      id: cellId,
-      code,
-      edited,
-      name: names[i],
-      lastCodeRun: lastExecutedCode[cellId] ?? null,
-      lastExecutionTime: lastExecutionTime[cellId] ?? null,
-      config: configs[i],
-    });
-  });
-}
 
 /**
  * Build layout state from kernel-ready data.
@@ -95,7 +61,10 @@ export function handleKernelReady(
   data: KernelReadyData,
   opts: {
     autoInstantiate: boolean;
-    setCells: (cells: CellData[], layout: LayoutState) => void;
+    /** The notebook's cells, as the host document provided them. */
+    cells: CellData[];
+    setLastRun: CellActions["setLastRun"];
+    resetCellRuntimes: CellActions["resetCellRuntimes"];
     setLayoutData: (payload: {
       layoutView: LayoutType;
       data: LayoutData;
@@ -104,17 +73,13 @@ export function handleKernelReady(
     setKernelState: (state: KernelState) => void;
     setAppConfig: (config: AppConfig) => void;
     onError: (error: Error) => void;
-    /**
-     * If provided, these cells will be used instead of the cells from
-     * kernel-ready. This allows preserving local edits made before connecting.
-     */
-    existingCells?: CellData[];
   },
-) {
+): LayoutState {
   const {
-    existingCells,
     autoInstantiate,
-    setCells,
+    cells,
+    setLastRun,
+    resetCellRuntimes,
     setLayoutData,
     setAppConfig,
     setCapabilities,
@@ -124,15 +89,12 @@ export function handleKernelReady(
   const { resumed, ui_values, app_config, capabilities, auto_instantiated } =
     data;
 
-  // Use existing cells if provided (local pre-connect edits), otherwise build from kernel-ready
-  // If the kernel was resumed, we don't want to use the existing cells because they may be stale.
-  const hasExistingCells = existingCells && existingCells.length > 0;
-  const cells =
-    hasExistingCells && !resumed ? existingCells : buildCellData(data);
-
-  // Set up layout and cells
+  resetCellRuntimes();
+  setLastRun({
+    lastCodeRun: data.last_executed_code ?? {},
+    lastExecutionTime: data.last_execution_time ?? {},
+  });
   const layoutState = buildLayoutState(data, cells, setLayoutData);
-  setCells(cells, layoutState);
 
   // Set app config and capabilities
   const parsedAppConfig = AppConfigSchema.safeParse(app_config);
@@ -145,7 +107,7 @@ export function handleKernelReady(
 
   // If the kernel was already instantiated server-side (e.g. run mode), we're done
   if (auto_instantiated) {
-    return;
+    return layoutState;
   }
 
   // If resumed, restore UI element values from kernel and we're done
@@ -156,16 +118,13 @@ export function handleKernelReady(
       const uiObjectId: UIElementId = objectId;
       UI_ELEMENT_REGISTRY.set(uiObjectId, value);
     }
-    return;
+    return layoutState;
   }
 
   // If we already have values for some objects, we should
   // send them to the kernel. This may happen after re-connecting
   // to the kernel after the computer wakes from sleep.
   const { objectIds, values } = collectUIElementValues();
-  const codesToSend = hasExistingCells
-    ? Object.fromEntries(existingCells.map((c) => [c.id, c.code]))
-    : undefined;
 
   // Send instantiate request to kernel
   void getRequestClient()
@@ -173,7 +132,6 @@ export function handleKernelReady(
       objectIds,
       values,
       autoRun: autoInstantiate,
-      codes: codesToSend,
     })
     .then(() => {
       setKernelState({ isInstantiated: true, error: null });
@@ -182,6 +140,7 @@ export function handleKernelReady(
       setKernelState({ isInstantiated: false, error: error });
       onError(new Error("Failed to instantiate", { cause: error }));
     });
+  return layoutState;
 }
 
 export function handleRemoveUIElements(
