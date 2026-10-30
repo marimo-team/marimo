@@ -84,6 +84,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import { Tooltip } from "../ui/tooltip";
 import { formItemClasses, SettingSubtitle } from "./common";
 import { AWS_REGIONS } from "./constants";
+import { ModelDiscovery } from "./model-discovery";
 import { IncorrectModelId } from "./incorrect-model-id";
 import {
   IsOverridden,
@@ -828,6 +829,19 @@ export const CustomProvidersConfig: React.FC<AiConfigProps> = ({
                   })
                 }
               />
+              <div className="flex flex-col gap-2">
+                <p className="text-sm text-muted-secondary">
+                  Verify the connection by listing available models. To use a
+                  model in chat, add it from the “AI Models” tab, then select it
+                  in the chat model dropdown.
+                </p>
+                <ModelDiscovery
+                  key={providerName}
+                  provider={providerName}
+                  label={displayName}
+                  disabled={!providerConfig.base_url?.trim()}
+                />
+              </div>
               <Button
                 variant="destructive"
                 size="xs"
@@ -1094,6 +1108,11 @@ export const AiProvidersConfig: React.FC<AiConfigProps> = ({
             name="ai.openrouter.base_url"
             placeholder="https://openrouter.ai/api/v1/"
             testId="ai-openrouter-base-url-input"
+          />
+          <ModelDiscovery
+            provider="openrouter"
+            label="OpenRouter"
+            disabled={!hasValue("ai.openrouter.api_key")}
           />
         </AccordionFormItem>
 
@@ -1703,6 +1722,10 @@ export const AddModelForm: React.FC<{
 
   const isCustomProvider = provider === "custom";
   const providerName = isCustomProvider ? customProviderName : provider;
+  const canDiscoverModels =
+    !!providerName &&
+    (providerName === "openrouter" ||
+      customProviderNames.includes(providerName));
   const hasValidValues = providerName?.trim() && modelName?.trim();
 
   const resetForm = () => {
@@ -1750,7 +1773,10 @@ export const AddModelForm: React.FC<{
         </Label>
         <Select
           value={provider || ""}
-          onValueChange={(v) => setProvider(v as ProviderId | "custom")}
+          onValueChange={(v) => {
+            setProvider(v as ProviderId | "custom");
+            setModelName("");
+          }}
         >
           <SelectTrigger id={providerSelectId} className={providerClassName}>
             {provider ? (
@@ -1877,6 +1903,23 @@ export const AddModelForm: React.FC<{
   return (
     <div>
       {isFormOpen && inputForm}
+      {isFormOpen && provider && providerName && canDiscoverModels && (
+        <div className="flex flex-col gap-2 p-3 border border-border rounded-md mt-2">
+          <p className="text-sm text-muted-secondary">
+            Choose a catalog model to fill the Model field with its provider
+            model ID, or enter one manually. Click Add above to save it.
+          </p>
+          <ModelDiscovery
+            provider={providerName}
+            label={
+              isCustomProvider
+                ? Strings.startCase(providerName)
+                : getProviderLabel(provider)
+            }
+            onSelect={setModelName}
+          />
+        </div>
+      )}
       <div className="flex flex-row text-sm">
         <AddButton
           isFormOpen={isFormOpen}
