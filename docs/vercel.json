@@ -716,6 +716,11 @@
       "permanent": true
     },
     {
+      "source": "/guides/generate_with_ai/text_to_notebook/",
+      "destination": "/cli/#marimo-new",
+      "permanent": true
+    },
+    {
       "source": "/guides/generate_with_ai/prompts/",
       "destination": "/guides/generate_with_ai/customize_your_agent/",
       "permanent": true
