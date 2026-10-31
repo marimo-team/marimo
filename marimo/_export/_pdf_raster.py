@@ -640,7 +640,10 @@ async def _capture_pngs_from_page(
 
             # In live notebook mode, output wrappers often use `display: contents`,
             # which cannot be directly screenshotted, so we target a concrete child node.
-            locator = page.locator(f"#output-{target.cell_id} > .output").first
+            locator = page.locator(
+                f"#output-{target.cell_id} > .output, "
+                f"#output-{target.cell_id} .vega-embed"
+            ).first
             if not await _wait_for_target_ready(
                 page=page,
                 target=target,
