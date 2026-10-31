@@ -550,6 +550,6 @@ def test_capture_pngs_from_page_reports_progress_in_notebook_order() -> None:
         (2, 2),
     ]
     assert visited_locators == [
-        "#output-2 > .output",
-        "#output-1 > .output",
+        "#output-2 > .output, #output-2 .vega-embed",
+        "#output-1 > .output, #output-1 .vega-embed",
     ]
