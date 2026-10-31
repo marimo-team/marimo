@@ -3,7 +3,7 @@
 import { python } from "@codemirror/lang-python";
 import { ensureSyntaxTree, syntaxTree } from "@codemirror/language";
 import { EditorState } from "@codemirror/state";
-import { bench, describe, expect } from "vitest";
+import { test, describe, expect } from "vitest";
 import { cellId, variableName } from "@/__tests__/branded";
 import {
   findCacheSites,
@@ -34,8 +34,7 @@ for (const lines of [20, 200, 2000]) {
       let state: EditorState;
 
       const benchmarkOptions = {
-        ...options,
-        setup() {
+        beforeAll() {
           state = EditorState.create({ doc: code, extensions: [python()] });
           // EditorState.create only parses a prefix for large documents. Without
           // this check, a fast benchmark can silently measure incomplete analysis.
@@ -52,52 +51,50 @@ for (const lines of [20, 200, 2000]) {
         },
       };
 
-      bench(
-        "one-character transaction (no view)",
-        () => {
-          // Start from a fixed state to avoid accumulating text/history. Parsing
-          // and view work scheduled after the transaction is not included.
-          const next = state.update({
-            changes: { from: Math.floor(code.length / 2), insert: "x" },
-          }).state;
-          if (next.doc.length !== code.length + 1) {
-            throw new Error("Edit did not apply");
-          }
-        },
-        benchmarkOptions,
-      );
+      test("one-character transaction (no view)", async ({ bench }) => {
+        await bench(
+          "one-character transaction (no view)",
+          benchmarkOptions,
+          () => {
+            // Start from a fixed state to avoid accumulating text/history. Parsing
+            // and view work scheduled after the transaction is not included.
+            const next = state.update({
+              changes: { from: Math.floor(code.length / 2), insert: "x" },
+            }).state;
+            if (next.doc.length !== code.length + 1) {
+              throw new Error("Edit did not apply");
+            }
+          },
+        ).run(options);
+      });
 
-      bench(
-        "serialize entire document",
-        () => {
+      test("serialize entire document", async ({ bench }) => {
+        await bench("serialize entire document", benchmarkOptions, () => {
           state.doc.toString();
-        },
-        benchmarkOptions,
-      );
+        }).run(options);
+      });
 
-      bench(
-        "reactive references / 1000 variables",
-        () => {
-          findReactiveVariables({ state, cellId: id, variables });
-        },
-        benchmarkOptions,
-      );
+      test("reactive references / 1000 variables", async ({ bench }) => {
+        await bench(
+          "reactive references / 1000 variables",
+          benchmarkOptions,
+          () => {
+            findReactiveVariables({ state, cellId: id, variables });
+          },
+        ).run(options);
+      });
 
-      bench(
-        "code lens declarations",
-        () => {
+      test("code lens declarations", async ({ bench }) => {
+        await bench("code lens declarations", benchmarkOptions, () => {
           findDeclarationSites({ state, names });
-        },
-        benchmarkOptions,
-      );
+        }).run(options);
+      });
 
-      bench(
-        "cache scan / no cache sites",
-        () => {
+      test("cache scan / no cache sites", async ({ bench }) => {
+        await bench("cache scan / no cache sites", benchmarkOptions, () => {
           findCacheSites(state);
-        },
-        benchmarkOptions,
-      );
+        }).run(options);
+      });
     });
   }
 }

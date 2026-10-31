@@ -1,4 +1,4 @@
-import { bench, describe } from "vitest";
+import { test, describe } from "vitest";
 
 // To run:
 // pnpm vitest bench benchmarks/uint8array-to-base64.bench.ts
@@ -39,12 +39,16 @@ for (const [name, size] of Object.entries(sizes)) {
 // Benchmarks
 describe("Uint8Array to base64 conversion", () => {
   for (const [name, data] of Object.entries(testData)) {
-    bench(`slow - ${name}`, () => {
-      uint8ArrayToBase64Slow(data);
+    test(`slow - ${name}`, async ({ bench }) => {
+      await bench(`slow - ${name}`, () => {
+        uint8ArrayToBase64Slow(data);
+      }).run();
     });
 
-    bench(`fast - ${name}`, () => {
-      uint8ArrayToBase64Fast(data);
+    test(`fast - ${name}`, async ({ bench }) => {
+      await bench(`fast - ${name}`, () => {
+        uint8ArrayToBase64Fast(data);
+      }).run();
     });
   }
 });
