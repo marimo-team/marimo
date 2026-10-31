@@ -722,17 +722,17 @@
     },
     {
       "source": "/guides/generate_with_ai/prompts/",
-      "destination": "/guides/generate_with_ai/customize_your_agent/",
+      "destination": "/guides/generate_with_ai/skills/",
       "permanent": true
     },
     {
-      "source": "/guides/generate_with_ai/skills/",
-      "destination": "/guides/generate_with_ai/customize_your_agent/",
+      "source": "/guides/generate_with_ai/customize_your_agent/",
+      "destination": "/guides/generate_with_ai/skills/",
       "permanent": true
     },
     {
       "source": "/guides/generate_with_ai/using_claude_code/",
-      "destination": "/guides/generate_with_ai/customize_your_agent/",
+      "destination": "/guides/generate_with_ai/skills/",
       "permanent": true
     },
     {
