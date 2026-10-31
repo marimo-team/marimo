@@ -4,7 +4,7 @@ description: "Using AI with marimo notebooks."
 
 # Generate notebooks with AI
 
-There are three main ways to manipulate marimo notebooks with AI.
+There are three main ways to use AI with marimo.
 
 **Use agents with running notebooks.** Give agents like
 Claude Code and OpenCode full access to running notebooks with [marimo
