@@ -230,4 +230,7 @@ the following configuration:
 ```toml title="marimo.toml"
 [ai]
 enabled = false
+
+[completion]
+copilot = false
 ```
