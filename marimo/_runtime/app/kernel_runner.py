@@ -182,6 +182,10 @@ class AppKernelRunner:
             if (cell := self.app.cell_manager.cell_data_at(cid).cell)
             is not None
         ]
+        # Outputs of cells outside this run were produced under an earlier
+        # set of `defs`; left in place they would render as current.
+        for cid in self._outputs.keys() - cells_to_run:
+            del self._outputs[cid]
 
         execution_mode = self._kernel.reactive_execution_mode
         try:

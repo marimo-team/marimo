@@ -1462,6 +1462,51 @@ class TestAppComposition:
             'label = f"x is {x}"\nlabel',
         ]
 
+    async def test_app_embed_with_defs_drops_pruned_outputs_kernel(
+        self, k: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        """A cell pruned by `defs` loses the output of an earlier embed."""
+        await k.run(
+            [
+                exec_req.get(
+                    """
+                    from marimo import App
+
+                    app = App()
+
+                    @app.cell
+                    def __() -> tuple[int]:
+                        x = 10
+                        "x defined in cell"
+                        return (x,)
+
+                    @app.cell
+                    def __(x: int) -> None:
+                        label = f"x is {x}"
+                        label
+                    """
+                ),
+                exec_req.get("initial = await app.embed()"),
+                exec_req.get("override = await app.embed(defs={'x': 100})"),
+                exec_req.get(
+                    "with_code = await app.embed(defs={'x': 200}, show_code=True)"
+                ),
+            ]
+        )
+        assert not k.errors
+
+        assert _embedded_blocks(k.globals["initial"].output.text) == [
+            "x defined in cell",
+            "x is 10",
+        ]
+        assert _embedded_blocks(k.globals["override"].output.text) == [
+            "x is 100"
+        ]
+        assert _embedded_blocks(k.globals["with_code"].output.text) == [
+            "x is 200",
+            'label = f"x is {x}"\nlabel',
+        ]
+
     async def test_app_embed_show_code_kernel(
         self, k: Kernel, exec_req: ExecReqProvider
     ) -> None:
