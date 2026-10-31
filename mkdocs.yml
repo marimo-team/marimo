@@ -112,6 +112,7 @@ nav:
           - Generate with AI: guides/generate_with_ai/index.md
           - Use agents with marimo pair: guides/generate_with_ai/marimo_pair.md
           - In-editor AI assistance: guides/editor_features/ai_completion.md
+          - Skills: guides/generate_with_ai/skills.md
       - Editor features:
           - Editor features: guides/editor_features/index.md
           - Editor overview: guides/editor_features/overview.md
