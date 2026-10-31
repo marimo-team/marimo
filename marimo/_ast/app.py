@@ -939,6 +939,13 @@ class App:
             r2 = await two.embed()
             ```
 
+        To show the embedded notebook's code along with its outputs, pass
+        `show_code=True`:
+
+            ```python
+            result = await app.embed(show_code=True)
+            ```
+
         Args:
             defs (dict[str, Any]):
                 You may pass values for any variable definitions as keyword
