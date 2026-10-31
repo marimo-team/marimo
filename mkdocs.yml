@@ -110,10 +110,9 @@ nav:
           - Importing local code: guides/package_management/importing_local_code.md
       - Generate with AI:
           - Generate with AI: guides/generate_with_ai/index.md
-          - Pair with agents via marimo pair: guides/generate_with_ai/marimo_pair.md
-          - Customize your agent: guides/generate_with_ai/customize_your_agent.md
-          - The editor's AI assistant: guides/editor_features/ai_completion.md
-          - Generate notebooks with marimo new: guides/generate_with_ai/text_to_notebook.md
+          - Use agents with marimo pair: guides/generate_with_ai/marimo_pair.md
+          - In-editor AI assistance: guides/editor_features/ai_completion.md
+          - Skills: guides/generate_with_ai/skills.md
       - Editor features:
           - Editor features: guides/editor_features/index.md
           - Editor overview: guides/editor_features/overview.md

@@ -1,43 +1,53 @@
-# AI-assisted coding
+# In-editor AI assistance
 
-!!! tip "Using an agent CLI like Claude Code? Try marimo pair"
+!!! tip "Using agents like Claude Code or OpenCode? Try marimo pair instead."
 
-    This guide covers the AI assistant built into the marimo editor, which
-    connects to an [LLM provider](#connecting-to-an-llm) that you configure.
-    If you'd rather work with an agent CLI such as Claude Code, Codex, or
-    OpenCode — driven from your terminal, on your existing subscription — use
-    [marimo pair](../generate_with_ai/marimo_pair.md) instead, which gives
-    your agent full access to your running notebook.
+    This guide covers AI assistance built into the marimo editor.
+    To work with coding agents such as Claude Code or OpenCode, use [marimo
+    pair](../generate_with_ai/marimo_pair.md) instead.
 
-marimo is an AI-native editor, with support for full-cell AI code generation:
+marimo's editor lets you use AI to author and modify your notebook. Use AI to:
 
-* generating new cells from a prompt
-* refactoring existing cells from a prompt
-* generating entire notebooks
+* generate new cells and refactor existing ones;
+* complete code snippets with copilots.
 
-as well as inline autocompletion (like GitHub Copilot).
-
-marimo's AI assistant is specialized for working with data: unlike traditional
-assistants that only have access to the text of your program, marimo's assistant
-has access to the values of variables in memory, letting it code against
-your dataframe and database schemas.
+Unlike traditional assistants that only have access to the text of your
+program, marimo's assistant has access to the values of variables in memory,
+letting it code against your dataframe and database schemas.
 
 This guide provides an overview of these features and how to configure them.
+
+<div align="center">
+<video autoplay muted loop playsinline width="90%" height="90%" align="center">
+  <source src="/_static/readme-generate-with-ai.mp4" type="video/mp4">
+</video>
+</div>
 
 !!! tip "Locating your marimo.toml config file"
 
     Various instructions in this guide refer to the marimo.toml configuration
     file. Locate this file with `marimo config show | head`.
 
+## Connecting to an LLM
+
+Connect to an LLM through the notebook settings menu.
+
+You can configure the following providers:
+
+* OpenAI
+* GitHub Copilot
+* Anthropic
+* AWS Bedrock
+* Google AI
+* Ollama
+* and any OpenAI-compatible provider
+
+See the [llm_providers](../configuration/llm_providers.md) guide for detailed
+instructions on how to configure each provider.
+
 ## Generating cells with AI
 
-<video autoplay muted loop playsinline width="100%" height="100%" align="center">
-  <source src="/_static/readme-generate-with-ai.mp4" type="video/mp4">
-</video>
-
 marimo has built-in support for generating and refactoring code with LLMs.
-marimo works with hosted AI providers, such as OpenAI, Anthropic, and Google,
-as well as local models served via Ollama.
 
 **Enabling AI code generation.** To enable AI code generation, first install
 required dependencies through the notebook settings.
@@ -54,8 +64,8 @@ the section on [connecting your LLM](#connecting-to-an-llm) for detailed instruc
 
 ### Variable context
 
-marimo's AI assistant has your notebook code as context. You can additionally
-pass variables and their values to the assistant by referencing them by name
+marimo provides models your notebook code as context. You can additionally
+supply variables and their values by referencing them by name
 with `@`. For example, to include the columns of a dataframe `df` in your
 prompt, write `@df`.
 
@@ -63,18 +73,6 @@ prompt, write `@df`.
 <figure>
 <img src="/_static/docs-ai-variables.png" width="740px"/>
 <figcaption>Pass variables to your prompt by tagging them with `@`.</figcaption>
-</figure>
-</div>
-
-### Refactor existing cells
-
-Make edits to an existing cell by hitting `Ctrl/Cmd-shift-e`, which opens a prompt box
-that has your cell's code as input.
-
-<div align="center">
-<figure>
-<video src="/_static/ai-completion.mp4" controls="controls" width="100%" height="100%"></video>
-<figcaption>Use AI to modify a cell by pressing `Ctrl/Cmd-Shift-e`.</figcaption>
 </figure>
 </div>
 
@@ -91,6 +89,8 @@ The chat panel on the left sidebar lets you chat with an LLM and ask questions
 about your notebook. The LLM can also generate code cells that you can insert
 into your notebook.
 
+<iframe width="740" height="420" src="https://www.youtube.com/embed/4DC1E2UBwAM?si=zzrzl0VlvOU6JiZP" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" loading="lazy" allowfullscreen></iframe>
+
 The chat panel currently supports the following modes:
 
 - **Manual**: No tool access; the AI responds based only on the conversation and manually injected context
@@ -98,14 +98,10 @@ The chat panel currently supports the following modes:
 - **Agent**: Enables all tools in **Ask Mode** plus additional tools to [edit notebook cells (add, remove, update) and run stale cells](tools.md#editing-agent-mode-only)
 - **Code mode**: Gives the assistant access to the [notebook kernel](tools.md#code-mode) which allows the assistant to inspect the marimo runtime and manipulate the notebook in powerful ways.
 
-??? tip "See the chat panel in action"
+### Refactor existing cells
 
-    <iframe width="740" height="420" src="https://www.youtube.com/embed/4DC1E2UBwAM?si=zzrzl0VlvOU6JiZP" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" loading="lazy" allowfullscreen></iframe>
-
-### Generating entire notebooks
-
-Generate entire notebooks with `marimo new PROMPT` at the command-line; see the
-[text-to-notebook docs](../generate_with_ai/text_to_notebook.md) to learn more.
+Make edits to an existing cell by inputting `Ctrl/Cmd-shift-e` while a cell is
+focused. This opens a prompt box that has your cell's code as input.
 
 ### Custom rules
 
@@ -144,44 +140,6 @@ For plotting:
 - Include proper axis labels and titles
 - Set appropriate color schemes
 ```
-
-### Connecting to an LLM
-
-You can connect to an LLM through the notebook settings menu, or by manually editing
-your `marimo.toml` configuration file. **Prefer going through the notebook settings menu.**
-
-You can configure the following providers:
-
-* OpenAI
-* GitHub Copilot
-* Anthropic
-* AWS Bedrock
-* Google AI
-* Ollama
-* and any OpenAI-compatible provider
-
-See the [llm_providers](../configuration/llm_providers.md) guide for detailed instructions on how to configure each provider.
-
-## Hide AI actions and panels
-
-If you don't use marimo's AI assistant, you can hide AI actions and panels in the editor:
-
-```toml title="marimo.toml"
-[ai]
-enabled = false
-```
-
-This hides AI assistant surfaces such as the Chat panel and Generate with AI. Code completion settings including GitHub Copilot, remain available.
-
-You can still collaborate with an AI agent using [marimo pair](../generate_with_ai/marimo_pair.md).
-
-## Agents
-
-!!! example "Experimental: Agents panel"
-
-    marimo can also embed agents like Claude Code, Codex, and Gemini CLI
-    directly in the editor's chat panel. Learn more in the
-    [agents](agents.md) guide.
 
 ## Copilots
 
@@ -242,30 +200,6 @@ Available configuration options (these are the same settings directory from the 
 * **GitHub Enterprise**: Configure GitHub Enterprise Server
     * `uri`: URL of your GitHub Enterprise Server instance
 
-### Windsurf Copilot
-
-[Windsurf](https://windsurf.com/) (formerly codeium) provides tab-completion tooling that can also be used from within marimo.
-
-To set up Windsurf:
-
-1. Go to [windsurf.com](https://windsurf.com/) website and sign up for an account.
-2. Download the [Windsurf app](https://windsurf.com/download).
-3. After installing Windsurf and authenticating, open up the command palette, via <kbd>cmd</kbd>+<kbd>shift</kbd>+<kbd>p</kbd>, and ask it to copy the api key to your clipboard.
-
-![Copy Windsurf API key](../../_static/windsurf-api.png)
-
-4a. Configure the UI settings in the editor to use Windsurf.
-
-![Paste Windsurf API key](../../_static/windsurf-settings.png)
-
-4b. Alternatively you can also configure the api key from the marimo config file.
-
-```toml title="marimo.toml"
-[completion]
-copilot = "codeium"
-codeium_api_key = ""
-```
-
 ### Custom copilots
 
 marimo also supports integrating with custom LLM providers for code completion suggestions. This allows you to use your own LLM service to provide in-line code suggestions based on internal providers or local models (e.g. Ollama). You may also use OpenAI, Anthropic, Google, or any other providers by providing your own API keys and configuration.
@@ -287,3 +221,16 @@ The configuration options include:
 
 * `autocomplete_model`: The specific model to use for inline autocompletion.
 * `copilot`: The name of the copilot to use for code generation.
+
+## Disable in-editor AI features
+
+Disable in-editor AI features, and hide their associated user interfaces, with
+the following configuration:
+
+```toml title="marimo.toml"
+[ai]
+enabled = false
+
+[completion]
+copilot = false
+```
