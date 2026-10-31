@@ -663,18 +663,14 @@ class App:
                 [o for o in self._flatten_outputs(outputs) if o is not None]
             )
 
-        setup_cell_id = self._cell_manager.setup_cell_id
         items: list[object] = []
         for cid in self._cell_manager.valid_cell_ids():
-            # Cells absent from outputs were disabled or pruned by `defs`;
-            # their code did not run, so showing it would mislead. The
-            # setup cell is the exception: outside a notebook it runs at
-            # import time, so it is never in outputs.
-            if self._graph.is_disabled(cid) or (
-                cid not in outputs and cid != setup_cell_id
-            ):
+            # Cells absent from outputs did not run in this embed (disabled,
+            # replaced by `defs`, or stopped by an upstream error), so
+            # showing their code would mislead.
+            if self._graph.is_disabled(cid) or cid not in outputs:
                 continue
-            if outputs.get(cid) is not None:
+            if outputs[cid] is not None:
                 items.append(outputs[cid])
             cell_data = self._cell_manager.cell_data_at(cid)
             if cell_data.code.strip() and not cell_data.config.hide_code:
@@ -952,8 +948,8 @@ class App:
             show_code (bool):
                 If `True`, display each cell's code below its output, in
                 notebook order. Cells configured with `hide_code=True` keep
-                their code hidden, and cells skipped because of `defs` are
-                omitted.
+                their code hidden, and cells that did not run, such as
+                cells whose definitions are replaced by `defs`, are omitted.
 
         Returns:
             An object `result` with two attributes: `result.output` (visual
@@ -1010,6 +1006,10 @@ class App:
                 )
         else:
             outputs, glbls = self._run_script(defs or {})
+            if self._setup is not None:
+                # The setup cell ran when the app was imported, not in this
+                # run, so it has no entry of its own.
+                outputs.setdefault(self._cell_manager.setup_cell_id, None)
         return AppEmbedResult(
             output=self._embed_output(outputs, show_code=show_code),
             defs=self._globals_to_defs(glbls),

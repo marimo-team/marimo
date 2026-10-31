@@ -1344,7 +1344,8 @@ def test_cli_args(tmp_path: pathlib.Path) -> None:
 def _embedded_blocks(html_text: str) -> list[str]:
     """String outputs and displayed code of an embed, in display order."""
     blocks = re.findall(
-        r"<span>(.*?)</span>|data-initial-value='([^']*)'", html_text
+        r"<span>(.*?)</span>|<marimo-code-editor data-initial-value='([^']*)'",
+        html_text,
     )
     return [output or json.loads(unescape(code)) for output, code in blocks]
 
@@ -1505,6 +1506,82 @@ class TestAppComposition:
         assert _embedded_blocks(k.globals["with_code"].output.text) == [
             "x is 200",
             'label = f"x is {x}"\nlabel',
+        ]
+
+    async def test_app_embed_with_defs_drops_cancelled_outputs_kernel(
+        self, k: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        """A cell cancelled by an upstream error loses its earlier output."""
+        await k.run(
+            [
+                exec_req.get(
+                    """
+                    from marimo import App
+
+                    app = App()
+
+                    @app.cell
+                    def __() -> tuple[int]:
+                        x = 1
+                        return (x,)
+
+                    @app.cell
+                    def __(x: int) -> tuple[int]:
+                        y = 10 // x
+                        return (y,)
+
+                    @app.cell
+                    def __(y: int) -> None:
+                        label = f"y is {y}"
+                        label
+                    """
+                ),
+                exec_req.get("valid = await app.embed(defs={'x': 1})"),
+                exec_req.get("failing = await app.embed(defs={'x': 0})"),
+                exec_req.get(
+                    "with_code = await app.embed(defs={'x': 0}, show_code=True)"
+                ),
+            ]
+        )
+        assert not k.errors
+
+        assert _embedded_blocks(k.globals["valid"].output.text) == ["y is 10"]
+        assert _embedded_blocks(k.globals["failing"].output.text) == []
+        assert _embedded_blocks(k.globals["with_code"].output.text) == [
+            "y = 10 // x"
+        ]
+
+    async def test_app_embed_show_code_setup_cell_replaced_kernel(
+        self, k: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        """A setup cell whose definitions `defs` replaces shows no code."""
+        await k.run(
+            [
+                exec_req.get(
+                    """
+                    from marimo import App
+
+                    app = App()
+
+                    with app.setup:
+                        base = 10
+
+                    @app.cell
+                    def __() -> None:
+                        label = f"x is {base + 1}"
+                        label
+                    """
+                ),
+                exec_req.get(
+                    "result = await app.embed(defs={'base': 5}, show_code=True)"
+                ),
+            ]
+        )
+        assert not k.errors
+
+        assert _embedded_blocks(k.globals["result"].output.text) == [
+            "x is 6",
+            'label = f"x is {base + 1}"\nlabel',
         ]
 
     async def test_app_embed_show_code_kernel(

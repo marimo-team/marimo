@@ -182,10 +182,10 @@ class AppKernelRunner:
             if (cell := self.app.cell_manager.cell_data_at(cid).cell)
             is not None
         ]
-        # Outputs of cells outside this run were produced under an earlier
-        # set of `defs`; left in place they would render as current.
-        for cid in self._outputs.keys() - cells_to_run:
-            del self._outputs[cid]
+        # Outputs from an earlier run belong to an earlier set of `defs`. A
+        # cell that is pruned now, or cancelled by an upstream error, would
+        # otherwise render its old output as current.
+        self._outputs.clear()
 
         execution_mode = self._kernel.reactive_execution_mode
         try:
