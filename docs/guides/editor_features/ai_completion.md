@@ -231,5 +231,3 @@ the following configuration:
 [ai]
 enabled = false
 ```
-
-
