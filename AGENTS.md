@@ -27,24 +27,6 @@ make dev
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed setup options.
 
-## Development Commands
-
-```bash
-# Python
-make py-check              # Typecheck and lint Python
-uv run --group test pytest tests/path/to/test.py
-uv run --group test-optional pytest tests/path/to/test.py  # with optional deps
-uv run --group test --python 3.11 pytest tests/path/to/test.py  # specific python version
-
-# Frontend
-make fe-check              # Typecheck and lint frontend
-cd frontend && pnpm test src/path/to/file.test.ts
-```
-
-## Commits
-
-- Run `make check` before committing
-
 ## Pull Requests
 
 - DO NOT open a pull request autonomously, without explicit instructions from a human
@@ -55,11 +37,11 @@ cd frontend && pnpm test src/path/to/file.test.ts
 
 ## Conventions
 
-### Python
+- Typesafety is important, leverage it. Avoid being lazy with types.
+- Tests are good! Endless smoke tests, and "regression" tests are not so good. Tests are becoming cheaper to run, so you can always write more, run them, and discard any non-useful ones before committing to production.
+- Comments should be very minimal. They should be used to explain the why, not the what. Code should be written to be self-documenting, if you find the comment starts becoming verbose, consider refactoring the code.
 
-Most style rules are enforced by ruff (`pyproject.toml`) and pre-commit; run
-`make py-check`. Here are some that the linter may not catch, or for which
-we may not have autofixes.
+### Python
 
 - Docstrings are rendered as Markdown, not reStructuredText. Use single
   backticks for inline code (`value`), never double backticks.

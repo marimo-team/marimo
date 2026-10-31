@@ -12,7 +12,7 @@ Closes #
 
 - [ ] For large changes, or changes that affect the public API: this change was discussed or approved through an issue, on [Discord](https://marimo.io/discord?ref=pr), or the community [discussions](https://github.com/marimo-team/marimo/discussions) (Please provide a link if applicable).
 - [ ] Any AI generated code has been reviewed line-by-line by the human PR author, who stands by it.
-- [ ] Video or media evidence is provided for any visual changes (optional). <!-- PR is more likely to be merged if evidence is provided for changes made -->
+- [ ] Video or media evidence is provided for any visual changes. <!-- PR is more likely to be merged if functionality is tested thoroughly -->
 
 ## ✅ Merge Checklist
 
