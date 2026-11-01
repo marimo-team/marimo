@@ -9,6 +9,9 @@ export function normalizeBoolean(value: unknown, columnName: string): boolean {
   if (typeof value === "boolean") {
     return value;
   }
+  if (typeof value === "bigint") {
+    return Boolean(value);
+  }
   if (typeof value === "number" && Number.isFinite(value)) {
     return Boolean(value);
   }

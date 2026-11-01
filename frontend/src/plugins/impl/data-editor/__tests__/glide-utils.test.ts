@@ -66,6 +66,14 @@ describe("normalizeBoolean", () => {
     expect(normalizeBoolean(value, "active")).toBe(expected);
   });
 
+  it.each([
+    [BigInt("9007199254740992"), true],
+    [BigInt("-9007199254740992"), true],
+    [BigInt(0), false],
+  ])("normalizes bigint %s", (value, expected) => {
+    expect(normalizeBoolean(value, "active")).toBe(expected);
+  });
+
   it("reports the configured column for invalid values", () => {
     expect(() => normalizeBoolean("maybe", "active")).toThrow(
       "Invalid boolean value for column 'active': maybe",
