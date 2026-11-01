@@ -103,7 +103,9 @@ describe("PairWithAgentModal", () => {
         panel.textContent?.includes("Agent connections require OpenCode 2.x"),
       ).toBe(tab === "OpenCode");
       expect(panel).toHaveTextContent(
-        tab === "Other Agents" ? "1. Copy this prompt" : "1. Run in your terminal",
+        tab === "Other Agents"
+          ? "1. Copy this prompt"
+          : "1. Run in your terminal",
       );
       fireEvent.click(
         within(panel).getByRole("button", {
