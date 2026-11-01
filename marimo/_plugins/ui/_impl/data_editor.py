@@ -477,7 +477,9 @@ def _column_values(
             return [cast(dict[str, Any], row).get(column) for row in data]
         return list(data) if column == _DEFAULT_SCALAR_COLUMN else []
     if isinstance(data, dict):
-        return list(data.get(column, []))
+        values = list(data.get(column, []))
+        row_count = max((len(values) for values in data.values()), default=0)
+        return values + [None] * (row_count - len(values))
 
     frame = nw.from_native(data, eager_only=True)
     return frame.get_column(column).to_list()

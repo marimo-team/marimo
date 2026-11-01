@@ -114,6 +114,23 @@ def test_data_editor_rejects_dropdown_initial_value():
         )
 
 
+@pytest.mark.parametrize("status", [["open"], []])
+@pytest.mark.parametrize("options", [["open", "closed"], ["", "open"]])
+def test_data_editor_rejects_missing_column_oriented_dropdown_value(
+    status, options
+):
+    data = {"task": ["a", "b"], "status": status}
+    original = deepcopy(data)
+    with pytest.raises(ValueError) as exc:
+        data_editor(data, column_types={"status": options})
+
+    assert str(exc.value) == (
+        "Invalid initial value for column 'status': None; "
+        f"expected one of {options!r}"
+    )
+    assert data == original
+
+
 def test_data_editor_rejects_forged_dropdown_edit():
     editor = data_editor(
         [{"status": "open"}], column_types={"status": ["open", "closed"]}
