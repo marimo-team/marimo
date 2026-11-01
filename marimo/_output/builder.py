@@ -74,12 +74,15 @@ class _HTMLBuilder:
         *,
         src: str | None = None,
         controls: bool = True,
+        style: str | None = None,
     ) -> str:
         params: list[tuple[str, str | None]] = []
         if src:
             params.append(("src", src))
         if controls:
             params.append(("controls", ""))
+        if style:
+            params.append(("style", style))
 
         if len(params) == 0:
             return "<audio></audio>"
