@@ -106,6 +106,53 @@ def test_data_editor_rejects_invalid_dropdown_configuration(
         data_editor([{"status": "open"}], column_types=column_types)
 
 
+@pytest.mark.parametrize(
+    "data",
+    [[{"status": "open"}], {"status": ["open"]}],
+)
+def test_data_editor_dropdown_only_without_edits(data):
+    editor = data_editor(data, column_types={"status": ["open", "closed"]})
+
+    assert editor.value == data
+    assert (
+        apply_edits(
+            data, {"edits": []}, column_types={"status": ["open", "closed"]}
+        )
+        is data
+    )
+
+
+@pytest.mark.skipif(not HAS_PANDAS, reason="Pandas not installed")
+def test_data_editor_dropdown_only_preserves_pandas_without_edits():
+    import pandas as pd
+
+    data = pd.DataFrame(
+        {
+            "status": pd.Categorical(["open", "closed"]),
+            "count": pd.array([1, None], dtype="Int8"),
+        },
+        index=pd.Index([10, 20], name="task_id"),
+    )
+    editor = data_editor(data, column_types={"status": ["open", "closed"]})
+
+    assert editor.value is data
+
+
+@pytest.mark.skipif(not HAS_POLARS, reason="Polars not installed")
+def test_data_editor_dropdown_only_preserves_polars_without_edits():
+    import polars as pl
+
+    data = pl.DataFrame(
+        {
+            "status": pl.Series(["open", "closed"], dtype=pl.Categorical),
+            "count": pl.Series([1, None], dtype=pl.Int8),
+        }
+    )
+    editor = data_editor(data, column_types={"status": ["open", "closed"]})
+
+    assert editor.value is data
+
+
 def test_data_editor_rejects_dropdown_initial_value():
     with pytest.raises(
         ValueError,

@@ -740,7 +740,9 @@ def apply_edits(
     column_names: Sequence[str] | None = None,
     column_types: ColumnTypes | None = None,
 ) -> ScalarData | RowOrientedData | ColumnOrientedData | IntoDataFrame:
-    if len(edits["edits"]) == 0 and not column_types:
+    if len(edits["edits"]) == 0 and (
+        not column_types or "boolean" not in column_types.values()
+    ):
         return data
     if isinstance(data, list):
         return _apply_edits_list(
