@@ -1,11 +1,12 @@
-# Collaborate with agents using marimo pair
+# Work with agents using marimo pair
 
-Use the **[marimo pair](https://marimo.io/pair)** CLI to connect coding agents
-to running marimo notebooks.
+Use **[marimo pair](https://marimo.io/pair)** to connect coding agents like
+Claude Code, Codex, and OpenCode to running marimo notebooks. Once your agent
+is paired with marimo, ask it to explore data, explain results, or modify
+cells. The agent can inspect variables and try code in a scratchpad before it
+commits changes to the notebook. You can inspect the results and edit the same
+notebook yourself, letting you pair program with the agent.
 
-marimo pair is the recommended way to collaborate on marimo notebooks with
-agents. It lets your agent read variables, test logic in a scratchpad, run
-cells, add and remove cells, and even manipulate UI elements.
 
 <div style="text-align: center">
   <iframe width="100%" style="aspect-ratio: 16/9; max-width: 800px"
@@ -15,75 +16,137 @@ cells, add and remove cells, and even manipulate UI elements.
   referrerpolicy="strict-origin-when-cross-origin" loading="lazy" allowfullscreen></iframe>
 </div>
 
-## Quickstart
+## Installation
 
-1. Start a notebook:
+The marimo pair skill teaches your agent how to connect to running notebooks.
+Choose the installation method for your agent.
 
-   ```bash
-   uvx marimo@latest edit my_notebook.py
-   ```
+=== "Claude Code"
 
-2. Open the notebook actions menu and select **Connect your agent**.
-3. Select **Claude**, **Codex**, or **OpenCode** and run the copied command in your terminal.
+    Run these commands in your terminal:
 
-To use an existing agent conversation, select **Prompt** and paste the copied text into that conversation.
-The dialog includes the notebook target and authentication instructions.
+    ```bash
+    claude plugin marketplace add marimo-team/marimo-pair
+    claude plugin install marimo-pair@marimo-pair
+    ```
 
-Your agent can execute code without enabling agent messages.
-Run `uvx marimo@latest pair --help` for the available commands.
+    To update the plugin, run:
 
-## Receive notebook messages in your agent
+    ```bash
+    claude plugin update marimo-pair@marimo-pair
+    ```
 
-Agent messages let you send notebook errors to a connected conversation.
-Agent connections require a saved notebook inside the server project.
+=== "Codex CLI"
 
-Start the server with:
+    Run these commands in your terminal:
 
-```bash
-uvx marimo@latest edit my_notebook.py
-```
+    ```bash
+    codex plugin marketplace add marimo-team/marimo-pair
+    codex plugin add marimo-pair@marimo-pair
+    ```
 
-Open **Connect your agent** and follow the dialog instructions.
+    To update the marketplace, run:
 
-Supported agents have these requirements:
+    ```bash
+    codex plugin marketplace upgrade
+    ```
 
-| Agent | Requirement |
-| --- | --- |
-| Codex | A native session with the shared daemon and `codex queue` support. |
-| Claude Code | A native inbox session on macOS or Linux. |
-| OpenCode | Version 2.x on macOS or Linux, with its native local service running. |
+=== "Other agents"
 
-To connect an existing conversation manually, find the saved notebook ID:
+    For Cursor, VS Code, Gemini CLI, OpenCode, Copilot CLI, or another agent that supports Agent Skills, run:
 
-```bash
-uvx marimo@latest pair notebook list --url http://localhost:2718
-```
+    ```bash
+    npx skills add marimo-team/marimo-pair
+    ```
 
-Ask the agent to run this command through its own shell tool:
+    To update the skill, run:
 
-```bash
-uvx marimo@latest pair connect --url http://localhost:2718 --notebook <notebook-id>
-```
+    ```bash
+    npx skills upgrade marimo-team/marimo-pair
+    ```
 
-Use the server URL printed by marimo.
-In a development checkout, use the backend URL rather than the Vite frontend URL.
-For authenticated notebook discovery, pass `--token-file` with the path to a file containing the editor token.
+    If you use `uv` instead of `npx`, install the skill with:
 
-The notebook footer shows connected agents.
-Use the send action on an error to share its captured source and traceback.
-To end delivery, select the disconnect icon in the footer and confirm **Disconnect?**.
-The agent conversation and notebook kernel keep running.
+    ```bash
+    uvx deno -A npm:skills add marimo-team/marimo-pair
+    ```
 
-## Cloud sandbox with molab
+## Start pairing
 
-You can also connect to marimo notebooks running on [molab](https://molab.marimo.io/notebooks). This gives you a free sandbox for your agent and also makes it easy to share your work afterwards.
+### Ask your agent to start a notebook
 
-To connect an agent, start a notebook on molab and open the actions panel in the upper right corner.
-Select the option to pair with an agent.
+With the skill installed, ask your agent to start a notebook:
 
-<div align="center">
-  <img src="/_static/marimo-pair-molab.png" alt="Screenshot of a molab notebook showing the option to pair with an agent from the actions panel"/>
-</div>
+=== "Claude Code"
 
-Follow the dialog instructions to connect your local agent.
-Use your agent from the terminal to edit and run cells in the molab notebook.
+    ```text
+    /marimo-pair with me on notebook.py
+    ```
+
+=== "Codex CLI"
+
+    ```text
+    $marimo-pair with me on notebook.py
+    ```
+
+=== "Other agents"
+
+    ```text
+    /marimo-pair with me on notebook.py
+    ```
+
+The agent starts marimo and connects to the notebook.
+
+
+### Connect to a running notebook
+
+1. Open the notebook's **Actions menu** and select **Pair an agent**.
+2. In the **Pair an agent** dialog, select your agent.
+3. Click **Copy command**, then paste and run the command in your terminal.
+
+=== "Actions menu"
+
+    <img src="/_static/marimo-pair-actions.jpg" alt="The notebook header and Actions menu with Pair an agent highlighted." width="640">
+
+=== "Pairing dialog"
+
+    ![The Pair an agent dialog with the Claude tab selected.](../../_static/marimo-pair-dialog.jpg)
+
+!!! tip "Pair with notebooks on molab"
+
+    You can also pair your local agent with notebooks on
+    [molab](https://molab.marimo.io/notebooks). Just follow these same steps.
+
+Watch the connection steps for your agent:
+
+=== "Claude Code"
+
+    <video muted loop playsinline controls preload="metadata" width="100%"
+      poster="https://cms.marimo.io/landing/pair/claude-boot.webp"
+      aria-label="Connect Claude Code to a marimo notebook">
+      <source src="https://cms.marimo.io/landing/pair/claude-boot.webm" type="video/webm">
+      <source src="https://cms.marimo.io/landing/pair/claude-boot.mp4" type="video/mp4">
+    </video>
+
+=== "Codex CLI"
+
+    <video muted loop playsinline controls preload="metadata" width="100%"
+      poster="https://cms.marimo.io/landing/pair/codex-boot.webp"
+      aria-label="Connect Codex CLI to a marimo notebook">
+      <source src="https://cms.marimo.io/landing/pair/codex-boot.webm" type="video/webm">
+      <source src="https://cms.marimo.io/landing/pair/codex-boot.mp4" type="video/mp4">
+    </video>
+
+=== "Other agents"
+
+    <video muted loop playsinline controls preload="metadata" width="100%"
+      poster="https://cms.marimo.io/landing/pair/prompt-boot.webp"
+      aria-label="Connect Other agents to a marimo notebook">
+      <source src="https://cms.marimo.io/landing/pair/prompt-boot.webm" type="video/webm">
+      <source src="https://cms.marimo.io/landing/pair/prompt-boot.mp4" type="video/mp4">
+    </video>
+
+Ask your agent to explore data, explain results, or modify cells.
+The agent can inspect variables and try code in a scratchpad before it changes the notebook.
+You can inspect the results and edit the same notebook yourself.
+Your work stays in a notebook that you can run again, modify, and share.
