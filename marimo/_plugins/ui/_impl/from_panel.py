@@ -149,7 +149,6 @@ def render_extension(load_timeout: int = 500, loaded: bool = False) -> str:
             configs, requirements, exports, skip_imports, require_skip = (
                 require_components(**resource_kwargs)  # type: ignore[no-untyped-call]
             )
-            # marimo does not use Panel's Jupyter extension error element.
             autoload_kwargs = {"require_skip": require_skip, "error_id": None}
         else:
             configs, requirements, exports, skip_imports = require_components()  # type: ignore[no-untyped-call]

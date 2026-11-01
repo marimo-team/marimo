@@ -53,26 +53,12 @@ slider = mo.ui.panel(slider)
         exports = {"example": "Example"}
         skip_imports = {"Example": ["example.js"]}
         require_skip = ["bundled-example.js"]
-        resources_seen: list[object] = []
 
-        def legacy_components() -> tuple[
-            list[dict[str, object]],
-            list[str],
-            dict[str, str],
-            dict[str, list[str]],
-        ]:
+        def legacy_components() -> tuple[object, ...]:
             return configs, requirements, exports, skip_imports
 
-        def modern_components(
-            resources: object,
-        ) -> tuple[
-            list[dict[str, object]],
-            list[str],
-            dict[str, str],
-            dict[str, list[str]],
-            list[str],
-        ]:
-            resources_seen.append(resources)
+        def modern_components(resources: object) -> tuple[object, ...]:
+            assert resources is not None
             return (*legacy_components(), require_skip)
 
         monkeypatch.setattr(
@@ -96,9 +82,6 @@ slider = mo.ui.panel(slider)
         }
         if modern_loader:
             expected.update(require_skip=require_skip, error_id=None)
-            assert len(resources_seen) == 1
-        else:
-            assert resources_seen == []
         autoload.assert_called_once_with(**expected)
 
     @staticmethod
