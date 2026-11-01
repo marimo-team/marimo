@@ -279,8 +279,10 @@ class _EditableTable:
                     row[column] = _normalize_boolean(row.get(column), column)
             else:
                 self.data[column] = [
-                    _normalize_boolean(value, column)
-                    for value in self.data.get(column, [])
+                    _normalize_boolean(
+                        self._get_cell_value(row_idx, column), column
+                    )
+                    for row_idx in range(self.row_count)
                 ]
             self.conversion_examples[column] = False
             self.dtypes[column] = nw.Boolean()

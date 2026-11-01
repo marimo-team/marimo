@@ -290,6 +290,29 @@ def test_data_editor_rejects_missing_boolean_value():
         )
 
 
+@pytest.mark.parametrize("done", [[True], []])
+def test_data_editor_rejects_missing_column_oriented_boolean_value(done):
+    with pytest.raises(
+        ValueError, match="Invalid boolean value None for column 'done'"
+    ):
+        data_editor(
+            {"task": ["a", "b"], "done": done},
+            column_types={"done": "boolean"},
+        )
+
+
+def test_data_editor_normalizes_column_oriented_boolean_values():
+    editor = data_editor(
+        {"task": ["a", "b"], "done": ["true", "false"]},
+        column_types={"done": "boolean"},
+    )
+
+    assert editor._convert_value({"edits": []}) == {
+        "task": ["a", "b"],
+        "done": [True, False],
+    }
+
+
 @pytest.mark.skipif(not HAS_PANDAS, reason="Pandas not installed")
 def test_data_editor_rejects_nan_in_boolean_dataframe_column():
     import pandas as pd
