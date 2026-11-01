@@ -67,7 +67,7 @@ make dev
 
 This will build the frontend, install Python dependencies in editable mode, and launch the dev server (backend on port 2718, frontend on port 3000).
 
-`make dev` is the day-to-day loop: it serves the frontend from Vite, which is faster to iterate on but not identical to production. Use `pnpm build:watch` when you want a production-like frontend, and `marimo -d edit --no-token` when you want backend debug logs.
+`make dev` will suit most development needs: it serves the frontend from Vite, which is faster to iterate on but not identical to production. Use `pnpm --dir frontend build:watch` when you want a production-like frontend, and `marimo -d edit --no-token` when you want backend debug logs.
 
 ### `pre-commit` hooks
 
