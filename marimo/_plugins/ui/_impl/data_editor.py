@@ -677,12 +677,14 @@ class data_editor(
         validation_data = (
             deepcopy(data) if isinstance(data, (list, dict)) else data
         )
-        apply_edits(
+        normalized_data = apply_edits(
             validation_data,
             {"edits": []},
             column_names=column_names,
             column_types=validated_column_types,
         )
+        if "boolean" in validated_column_types.values():
+            table_manager = get_table_manager(normalized_data)
         self._column_types = validated_column_types
         field_types = _editor_field_types(
             table_manager, column_names, validated_column_types
@@ -823,6 +825,21 @@ def _apply_edits_dataframe(
     # TODO: We should try to find more performant methods of bulk edits for dataframes
     table = _EditableTable.from_columns(column_oriented, schema, column_types)
     table.normalize_configured_columns()
+    if (
+        not edits["edits"]
+        and column_types
+        and "boolean" in column_types.values()
+    ):
+        return df.with_columns(
+            nw.new_series(
+                column,
+                column_oriented[column],
+                dtype=nw.Boolean(),
+                backend=nw.get_native_namespace(df),
+            )
+            for column, column_type in column_types.items()
+            if column_type == "boolean"
+        ).to_native()  # type: ignore[no-any-return]
     table.apply(edits)
     new_native_df = nw.from_dict(
         column_oriented, backend=nw.get_native_namespace(df)

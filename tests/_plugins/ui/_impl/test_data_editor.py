@@ -1,7 +1,10 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import base64
+import csv
 import datetime
+import io
 from copy import deepcopy
 from decimal import Decimal
 from typing import Any, cast
@@ -429,6 +432,73 @@ def test_data_editor_sends_dropdown_columns_as_strings_for_row_data():
         ("count", ("integer", "int")),
         ("level", ("string", "str")),
     ]
+
+
+@pytest.mark.parametrize(
+    "data",
+    [
+        [{"done": "yes", "label": "01"}, {"done": 2, "label": "02"}],
+        {"done": ["yes", 2], "label": ["01", "02"]},
+    ],
+)
+def test_data_editor_sends_normalized_boolean_payload(data):
+    original = deepcopy(data)
+    editor = data_editor(data, column_types={"done": "boolean"})
+    payload = base64.b64decode(
+        editor._component_args["data"].split(",", 1)[1]
+    ).decode()
+
+    assert list(csv.reader(io.StringIO(payload.lower()))) == [
+        ["done", "label"],
+        ["true", "01"],
+        ["true", "02"],
+    ]
+    assert editor._component_args["field-types"] == [
+        ("done", ("boolean", "bool")),
+        ("label", ("string", "str")),
+    ]
+    assert editor._data is data
+    assert data == original
+    assert editor.value == (
+        [{"done": True, "label": "01"}, {"done": True, "label": "02"}]
+        if isinstance(data, list)
+        else {"done": [True, True], "label": ["01", "02"]}
+    )
+
+
+@pytest.mark.skipif(not HAS_PANDAS, reason="Pandas not installed")
+def test_data_editor_sends_normalized_boolean_dataframe_payload():
+    import pandas as pd
+
+    data = pd.DataFrame(
+        {
+            "done": ["yes", 2],
+            "label": ["01", "02"],
+            "count": pd.array([1, None], dtype="Int8"),
+            "category": pd.Categorical(["a", "b"]),
+        },
+        index=pd.Index([10, 20], name="task_id"),
+    )
+    original = data.copy(deep=True)
+    editor = data_editor(data, column_types={"done": "boolean"})
+    payload = base64.b64decode(
+        editor._component_args["data"].split(",", 1)[1]
+    ).decode()
+
+    assert list(csv.reader(io.StringIO(payload.lower()))) == [
+        ["task_id", "done", "label", "count", "category"],
+        ["10", "true", "01", "1", "a"],
+        ["20", "true", "02", "", "b"],
+    ]
+    field_types = dict(editor._component_args["field-types"])
+    assert field_types["done"][0] == "boolean"
+    assert field_types["label"][0] == "string"
+    assert field_types["count"] == ("integer", "Int8")
+    assert editor._data is data
+    pd.testing.assert_frame_equal(data, original)
+    expected = data.copy()
+    expected["done"] = True
+    pd.testing.assert_frame_equal(editor.value, expected)
 
 
 def test_data_editor_sends_field_types_for_row_data():
