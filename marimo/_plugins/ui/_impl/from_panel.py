@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import base64
+import inspect
 import sys
 from dataclasses import dataclass
 from typing import (
@@ -117,7 +118,7 @@ def render_extension(load_timeout: int = 500, loaded: bool = False) -> str:
     if loaded and not new_exts:
         return ""
 
-    from bokeh.io.notebook import curstate  # type: ignore
+    from bokeh.io.state import curstate  # type: ignore
     from bokeh.resources import CDN, INLINE
     from panel.config import config
     from panel.io.notebook import (  # type: ignore
@@ -142,7 +143,16 @@ def render_extension(load_timeout: int = 500, loaded: bool = False) -> str:
             reloading=loaded,
             enable_mathjax="auto",
         )
-        configs, requirements, exports, skip_imports = require_components()  # type: ignore[no-untyped-call]
+        autoload_kwargs: dict[str, object] = {}
+        if "resources" in inspect.signature(require_components).parameters:
+            resource_kwargs: dict[str, object] = {"resources": resources}
+            configs, requirements, exports, skip_imports, require_skip = (
+                require_components(**resource_kwargs)  # type: ignore[no-untyped-call]
+            )
+            # marimo does not use Panel's Jupyter extension error element.
+            autoload_kwargs = {"require_skip": require_skip, "error_id": None}
+        else:
+            configs, requirements, exports, skip_imports = require_components()  # type: ignore[no-untyped-call]
         ipywidget = "ipywidgets_bokeh" in sys.modules
         bokeh_js = _autoload_js(  # type: ignore[no-untyped-call]
             bundle=bundle,
@@ -153,6 +163,7 @@ def render_extension(load_timeout: int = 500, loaded: bool = False) -> str:
             ipywidget=ipywidget,
             reloading=loaded,
             load_timeout=load_timeout,
+            **autoload_kwargs,
         )
     loaded_extensions.extend(new_exts)
     return bokeh_js  # type: ignore[no-any-return]
