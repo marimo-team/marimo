@@ -42,9 +42,20 @@ slider = mo.ui.panel(slider)
         )
 
     @staticmethod
-    @pytest.mark.parametrize("modern_loader", [False, True])
+    @pytest.mark.parametrize(
+        ("panel_version", "modern_loader"),
+        [
+            ("1.9.0", False),
+            ("1.9.4", False),
+            ("1.10.0", True),
+            ("1.11.0rc1", True),
+            ("1.11.0", True),
+        ],
+    )
     def test_extension_loader_compatibility(
-        monkeypatch: pytest.MonkeyPatch, modern_loader: bool
+        monkeypatch: pytest.MonkeyPatch,
+        panel_version: str,
+        modern_loader: bool,
     ) -> None:
         from panel.io import notebook
 
@@ -53,6 +64,11 @@ slider = mo.ui.panel(slider)
         exports = {"example": "Example"}
         skip_imports = {"Example": ["example.js"]}
         require_skip = ["bundled-example.js"]
+
+        get_version = Mock(return_value=panel_version)
+        monkeypatch.setattr(
+            DependencyManager.panel, "get_version", get_version
+        )
 
         def legacy_components() -> tuple[object, ...]:
             return configs, requirements, exports, skip_imports
@@ -70,6 +86,7 @@ slider = mo.ui.panel(slider)
         monkeypatch.setattr(notebook, "_autoload_js", autoload)
 
         assert render_extension(load_timeout=123) == "extension JavaScript"
+        get_version.assert_called_once_with()
         expected: dict[str, object] = {
             "bundle": ANY,
             "configs": configs,

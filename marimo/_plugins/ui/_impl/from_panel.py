@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import base64
-import inspect
 import sys
 from dataclasses import dataclass
 from typing import (
@@ -13,6 +12,7 @@ from typing import (
 )
 
 from marimo import _loggers
+from marimo._dependencies.dependencies import DependencyManager
 from marimo._output.rich_help import mddoc
 from marimo._plugins.ui._core.ui_element import InitializationArgs, UIElement
 from marimo._runtime.functions import Function
@@ -144,7 +144,9 @@ def render_extension(load_timeout: int = 500, loaded: bool = False) -> str:
             enable_mathjax="auto",
         )
         autoload_kwargs: dict[str, object] = {}
-        if "resources" in inspect.signature(require_components).parameters:
+        if DependencyManager.panel.has_at_version(
+            min_version="1.10.0", quiet=True
+        ):
             resource_kwargs: dict[str, object] = {"resources": resources}
             configs, requirements, exports, skip_imports, require_skip = (
                 require_components(**resource_kwargs)  # type: ignore[no-untyped-call]
