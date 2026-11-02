@@ -642,7 +642,7 @@ async def _capture_pngs_from_page(
             # which cannot be directly screenshotted, so we target a concrete child node.
             locator = page.locator(
                 f"#output-{target.cell_id} > .output, "
-                f"#output-{target.cell_id} .vega-embed"
+                f"#output-{target.cell_id} > .vega-embed"
             ).first
             if not await _wait_for_target_ready(
                 page=page,
