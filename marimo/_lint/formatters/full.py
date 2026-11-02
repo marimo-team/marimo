@@ -7,6 +7,7 @@ import os
 from typing import TYPE_CHECKING
 
 from marimo._cli.print import bold, cyan, light_blue, red, yellow
+from marimo._core.errors import InternalError
 from marimo._lint.diagnostic import Severity
 from marimo._lint.formatters.base import DiagnosticFormatter
 
@@ -27,9 +28,9 @@ class FullFormatter(DiagnosticFormatter):
 
         # Implementation error if this is raised.
         if diagnostic.name is None:
-            raise RuntimeError(diagnostic)
+            raise InternalError(diagnostic)
         if diagnostic.severity is None:
-            raise RuntimeError(diagnostic)
+            raise InternalError(diagnostic)
 
         severity_color = {
             Severity.FORMATTING: yellow,

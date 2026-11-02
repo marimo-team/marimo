@@ -5,6 +5,7 @@ import inspect
 import os
 from typing import TYPE_CHECKING, Literal, get_args
 
+from marimo._core.errors import InternalError
 from marimo._utils.marimo_path import MarimoPath, create_temp_notebook_file
 
 if TYPE_CHECKING:
@@ -41,7 +42,7 @@ tutorial_order: list[Tutorial] = [
 if set(tutorial_order) != set(get_args(PythonTutorial)) | set(
     get_args(MarkdownTutorial)
 ):
-    raise RuntimeError("Tutorial missing")
+    raise InternalError("Tutorial missing")
 
 
 def get_tutorial_source(name: Tutorial) -> str:

@@ -24,6 +24,7 @@ from marimo._ast.toplevel import TopLevelExtraction, TopLevelStatus
 from marimo._ast.variables import BUILTINS
 from marimo._ast.visitor import Name, VariableData
 from marimo._convert.converters import MarimoConvert
+from marimo._core.errors import InternalError
 from marimo._schemas.serialization import (
     ClassCell,
     FunctionCell,
@@ -415,12 +416,10 @@ def to_top_functiondef(
     toplevel_var = cell.toplevel_variable
 
     if not toplevel_var:
-        raise RuntimeError("Cell is not a top-level function")
+        raise InternalError("Cell is not a top-level function")
     if cell.code:
         if toplevel_var.kind not in ("function", "class"):
-            raise RuntimeError(
-                "Unexpected cell kind, please report an issue to github.com/marimo-team/marimo"
-            )
+            raise InternalError("Unexpected cell kind")
         if toplevel_var.kind == "class":
             decorator = to_decorator(cell.config, fn="class_definition")
         else:
@@ -474,7 +473,7 @@ def serialize_cell(
         )
     cell = status._cell
     if cell is None:
-        raise RuntimeError("Cell is not initialized")
+        raise InternalError("Cell is not initialized")
     if status.is_cell:
         return to_functiondef(
             cell,

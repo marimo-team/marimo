@@ -5,6 +5,7 @@ import threading
 from collections import OrderedDict
 from typing import TYPE_CHECKING, Any, TypeVar
 
+from marimo._core.errors import InternalError
 from marimo._save.cache import Cache
 from marimo._save.loaders.loader import Loader
 
@@ -67,9 +68,9 @@ class MemoryLoader(Loader):
         path = self.build_path(key)
         if self.is_lru:
             if not isinstance(self._cache, OrderedDict):
-                raise RuntimeError("LRU cache must use an OrderedDict")
+                raise InternalError("LRU cache must use an OrderedDict")
             if self._cache_lock is None:
-                raise RuntimeError("LRU cache lock is not initialized")
+                raise InternalError("LRU cache lock is not initialized")
             with self._cache_lock:
                 self._cache.move_to_end(path)
         return self._cache[path]
@@ -79,9 +80,9 @@ class MemoryLoader(Loader):
         # LRU
         if self.is_lru:
             if not isinstance(self._cache, OrderedDict):
-                raise RuntimeError("LRU cache must use an OrderedDict")
+                raise InternalError("LRU cache must use an OrderedDict")
             if self._cache_lock is None:
-                raise RuntimeError("LRU cache lock is not initialized")
+                raise InternalError("LRU cache lock is not initialized")
             with self._cache_lock:
                 self._cache[path] = cache
                 self._cache.move_to_end(path)
@@ -99,9 +100,9 @@ class MemoryLoader(Loader):
             self._max_size = max_size
             return
         if not isinstance(self._cache, OrderedDict):
-            raise RuntimeError("LRU cache must use an OrderedDict")
+            raise InternalError("LRU cache must use an OrderedDict")
         if self._cache_lock is None:
-            raise RuntimeError("LRU cache lock is not initialized")
+            raise InternalError("LRU cache lock is not initialized")
         with self._cache_lock:
             self.is_lru = max_size > 0
             if not self.is_lru:

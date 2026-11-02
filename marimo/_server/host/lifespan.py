@@ -9,6 +9,7 @@ import secrets
 from typing import TYPE_CHECKING
 
 from marimo import _loggers
+from marimo._core.errors import InternalError
 from marimo._server.api.deps import AppStateBase
 from marimo._server.api.utils import format_url_host
 from marimo._server.host.bridge import SessionBridge
@@ -29,7 +30,7 @@ async def ensure_app_host(app: Starlette) -> HostContext:
     """Initialize a private app host, including for mounts without a lifespan."""
     state = AppStateBase.from_app(app)
     if state.mode is not SessionMode.RUN:
-        raise RuntimeError("Run lifespan requires run mode")
+        raise InternalError("Run lifespan requires run mode")
     if state.host_context is not None:
         return state.host_context
     bridge = SessionBridge(state.session_manager, state.config_manager)

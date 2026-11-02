@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING
 from marimo._ast.cell import CellImpl
 from marimo._ast.compiler import compile_cell
 from marimo._core import protocol
+from marimo._core.errors import InternalError
 from marimo._lint.validate_graph import (
     check_for_cycles,
     check_for_multiple_definitions,
@@ -146,7 +147,7 @@ class CellAnalyzer:
     ) -> protocol.Range | None:
         compiled = self._cache[cell_id].result
         if not isinstance(compiled, CellImpl):
-            raise RuntimeError("Expected a compiled cell for analysis")
+            raise InternalError("Expected a compiled cell for analysis")
         visitor = VariableLineVisitor(name, compiled.code)
         visitor.visit(compiled.mod)
         location = visitor.definition_range

@@ -10,6 +10,7 @@ from marimo._cli.errors import MarimoCLIMissingDependencyError
 from marimo._cli.print import echo
 from marimo._cli.utils import prompt_to_overwrite
 from marimo._convert.converters import MarimoConvert
+from marimo._core.errors import InternalError
 from marimo._utils.paths import maybe_make_dirs
 
 
@@ -97,7 +98,7 @@ def convert(
         notebook = MarimoConvert.from_md(text).to_py()
     else:
         if ext != ".py":
-            raise RuntimeError("Expected a Python notebook extension")
+            raise InternalError("Expected a Python notebook extension")
         # First check if it's already a valid marimo notebook
         from marimo._ast.parse import parse_notebook
 

@@ -16,6 +16,7 @@ from typing import TYPE_CHECKING, Any
 import msgspec
 
 from marimo import _loggers
+from marimo._core.errors import InternalError
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._runtime.context import safe_get_context
 from marimo._runtime.primitives import (
@@ -1480,7 +1481,7 @@ class LazyLoader(BasePersistenceLoader):
             # and (when signing) every blob hash has been collected.
             if signing:
                 if signer is None:
-                    raise RuntimeError(
+                    raise InternalError(
                         "Cache signing is enabled without a signer"
                     )
                 base_schema = CacheSchema(

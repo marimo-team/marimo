@@ -17,6 +17,7 @@ from marimo._ast.variables import (
     unmangle_local,
 )
 from marimo._ast.visitor import ImportData, Name, ScopedVisitor
+from marimo._core.errors import InternalError
 from marimo._plugins.ui._core.ui_element import UIElement
 from marimo._runtime.context import (
     ContextNotInitializedError,
@@ -306,7 +307,7 @@ class BlockHasher:
             scoped_refs = set()
         else:
             if apply_content_hash:
-                raise RuntimeError(
+                raise InternalError(
                     "scoped_refs should only be used with deferred hashing."
                 )
 
@@ -372,8 +373,8 @@ class BlockHasher:
                 graph, to_hash | {self.cell_id}
             )
             if children.get(self.cell_id, None):
-                raise RuntimeError(
-                    "No children expected, please report this issue. "
+                raise InternalError(
+                    "No children expected. "
                     "You may have a cycle which marimo should have previously "
                     "detected."
                 )
@@ -439,14 +440,14 @@ class BlockHasher:
     @property
     def raw_hash(self) -> bytes:
         if self.hash_alg is None:
-            raise RuntimeError("Hash algorithm not initialized.")
+            raise InternalError("Hash algorithm not initialized.")
         return self.hash_alg.digest()
 
     @property
     def hash(self) -> str:
         if self._hash is None:
             if self.hash_alg is None:
-                raise RuntimeError("Hash algorithm not initialized.")
+                raise InternalError("Hash algorithm not initialized.")
             self._hash = (
                 base64.urlsafe_b64encode(self.raw_hash)
                 .decode("utf-8")
@@ -469,7 +470,7 @@ class BlockHasher:
     def exe_hash(self) -> str:
         if self._exe_hash is None:
             if self.exe_alg is None:
-                raise RuntimeError("Hash algorithm not initialized.")
+                raise InternalError("Hash algorithm not initialized.")
             self._exe_hash = (
                 base64.urlsafe_b64encode(self.exe_alg.digest())
                 .decode("utf-8")
@@ -1034,9 +1035,8 @@ class BlockHasher:
                 ]
                 if cell_hash:
                     if len(cell_hash) != 1:
-                        raise RuntimeError(
-                            "Cell Hash registered multiple times, this is unexpected. "
-                            "Please report this issue to marimo-team/marimo"
+                        raise InternalError(
+                            "Cell Hash registered multiple times"
                         )
                     hashes.append(cell_hash[0])
                     refs -= cell.defs
@@ -1080,12 +1080,10 @@ class BlockHasher:
         # Native save won't pass down context, so if we are here,
         # then something is wrong with the remaining references.
         if context is None:
-            raise RuntimeError(
+            raise InternalError(
                 "Execution path could not be resolved. "
                 "There may be cyclic definitions in the code. "
                 f"The unresolved references are: {refs}. "
-                "This is unexpected, please report this issue to "
-                "https://github.com/marimo-team/marimo/issues"
             )
 
         ref_cells = set().union(
@@ -1097,18 +1095,14 @@ class BlockHasher:
             if (cell := get_cell_from_local(ref, self.cell_id))
         }
         if len(ref_cells) != 1:
-            raise RuntimeError(
+            raise InternalError(
                 "Inconsistent references, cannot determine execution path. "
                 f"Got {ref_cells} expected set({self.cell_id}). "
-                "This is unexpected, please report this issue to "
-                "https://github.com/marimo-team/marimo/issues"
             )
         if ref_cells != {self.cell_id}:
-            raise RuntimeError(
+            raise InternalError(
                 "Unexpected execution cell residual "
                 f"{ref_cells.pop()} expected {self.cell_id}. "
-                "This is unexpected, please report this issue to "
-                "https://github.com/marimo-team/marimo/issues"
             )
         self.hash_alg.update(hash_raw_module(context, self.hash_alg.name))
         # refs have been accounted for at this point. Nothing to return

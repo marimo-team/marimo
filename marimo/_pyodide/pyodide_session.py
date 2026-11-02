@@ -14,6 +14,7 @@ from marimo._config.config import (
     PartialMarimoConfig,
     merge_config,
 )
+from marimo._core.errors import InternalError
 from marimo._export.exporter import Exporter, export_markdown, export_script
 from marimo._export.requests import (
     HTMLExportRequest,
@@ -272,7 +273,7 @@ class PyodideBridge:
         if not isinstance(
             notification, NotebookDocumentTransactionNotification
         ):
-            raise RuntimeError("Expected a notebook document transaction")
+            raise InternalError("Expected a notebook document transaction")
         transaction = notification.transaction
         if transaction.source == "host":
             return

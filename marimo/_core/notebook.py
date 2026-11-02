@@ -17,6 +17,7 @@ from marimo._core.document import Stale
 from marimo._core.errors import (
     Conflict,
     EditConflict,
+    InternalError,
     Invalid,
     NoRuntime,
     NotFound,
@@ -307,7 +308,7 @@ class Notebook:
         self, document: Document, request_id: str | None
     ) -> None:
         if self._analyzer is None:
-            raise RuntimeError("Notebook analyzer is not initialized")
+            raise InternalError("Notebook analyzer is not initialized")
         try:
             while not self._closed:
                 etag = document.etag
@@ -428,7 +429,7 @@ class Notebook:
 
     def _end_runtime(self) -> None:
         if self._runtime is None:
-            raise RuntimeError("Notebook runtime is not initialized")
+            raise InternalError("Notebook runtime is not initialized")
         self._apply(self.executions.interrupt())
         runtime, self._runtime = self._runtime, None
         self._remove(protocol.Runtime, runtime.id, self._runtime_request)

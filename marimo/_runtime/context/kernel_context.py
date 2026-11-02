@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, Any
 
 from marimo._ast.app import AppKernelRunnerRegistry
 from marimo._config.config import MarimoConfig
+from marimo._core.errors import InternalError
 from marimo._plugins.ui._core.ids import IDProvider, NoIDProviderException
 from marimo._runtime.cell_lifecycle_registry import CellLifecycleRegistry
 from marimo._runtime.context.types import (
@@ -143,7 +144,7 @@ class KernelRuntimeContext(RuntimeContext):
     @property
     def app(self) -> InternalApp:
         if self._app is None:
-            raise RuntimeError("Cell is not bound to an app")
+            raise InternalError("Cell is not bound to an app")
         return self._app
 
 

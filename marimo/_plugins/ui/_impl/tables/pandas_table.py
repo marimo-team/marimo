@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING, Any
 import narwhals.stable.v2 as nw
 
 from marimo import _loggers
+from marimo._core.errors import InternalError
 from marimo._data.models import ExternalDataType
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.msgspec_encoder import enc_hook
@@ -306,7 +307,7 @@ class PandasTableManagerFactory(TableManagerFactory):
                                 default_handler=str,
                             )
                             if json_str is None:
-                                raise RuntimeError(
+                                raise InternalError(
                                     "Dataframe JSON serialization returned no result"
                                 )
                             return json_str

@@ -14,7 +14,7 @@ from starlette.routing import Route
 from marimo import _loggers
 from marimo._core import operations, protocol
 from marimo._core.calls import CALLS, dispatch
-from marimo._core.errors import HostError
+from marimo._core.errors import HostError, InternalError
 from marimo._core.operations import Reply
 
 if TYPE_CHECKING:
@@ -32,7 +32,7 @@ _Body = TypeVar("_Body", bound=msgspec.Struct)
 def _context(request: HTTPConnection) -> HostContext:
     context = getattr(request.app.state, "host_context", None)
     if context is None:
-        raise RuntimeError("HostApiMiddleware admits requests only then")
+        raise InternalError("HostApiMiddleware admits requests only then")
     return context  # type: ignore[no-any-return]
 
 

@@ -12,7 +12,7 @@ from time import monotonic
 from typing import TYPE_CHECKING
 
 from marimo._core import protocol, protocol_events
-from marimo._core.errors import NotFound
+from marimo._core.errors import InternalError, NotFound
 from marimo._core.notebook import Notebook
 from marimo._core.run_log import RetentionPolicy, RunLog
 from marimo._core.stream import (
@@ -87,10 +87,12 @@ class _NotebookRecords(Mapping[str, protocol.Notebook]):
 
 def _identity(event: RoutedEvent) -> tuple[type[Body], str]:
     if not isinstance(event.event, protocol_events.RecordEvent):
-        raise RuntimeError("Expected a record event")
+        raise InternalError("Expected a record event")
     body = protocol_events.body(event.event)
     if isinstance(body, (protocol.Host, protocol.Custom)):
-        raise RuntimeError("Host and custom records have no notebook identity")
+        raise InternalError(
+            "Host and custom records have no notebook identity"
+        )
     if isinstance(body, (protocol.Document, protocol.Analysis)):
         return type(body), body.notebook_id
     return type(body), body.id

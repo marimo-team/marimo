@@ -14,6 +14,7 @@ from marimo._core.document import Document, DocumentCell
 from marimo._core.errors import (
     Conflict,
     DecisionRequired,
+    InternalError,
     Invalid,
     NotFound,
 )
@@ -170,7 +171,7 @@ class SessionBridge(SessionEventListener):
         self, record: protocol.Notebook, sink: Sink
     ) -> Notebook:
         if self.app_sessions is None:
-            raise RuntimeError("App sessions are not initialized")
+            raise InternalError("App sessions are not initialized")
         session = self.app_sessions.session(record.id)
         cells, app_config = documents.from_session(session)
         document = Document(cells, app_config)
@@ -598,7 +599,7 @@ class SessionBridge(SessionEventListener):
                 raise Conflict(f"The notebook cannot be created: {e}") from e
             notebook = self.index.ensure(str(target), request_id=request_id)
             if notebook is None:
-                raise RuntimeError("Notebook is not available")
+                raise InternalError("Notebook is not available")
             if name is not None:
                 self.index.rename(notebook.id, name, request_id=request_id)
             return self.host.notebooks[notebook.id]
@@ -675,7 +676,7 @@ class SessionBridge(SessionEventListener):
                 if not ok:
                     raise Conflict(error or "The notebook cannot be moved")
                 if session is None:
-                    raise RuntimeError("Notebook session is not available")
+                    raise InternalError("Notebook session is not available")
                 session.put_control_request(
                     RenameNotebookCommand(filename=str(target)),
                     from_consumer_id=None,

@@ -9,6 +9,7 @@ import typing
 import msgspec
 
 from marimo import _loggers
+from marimo._core.errors import InternalError
 from marimo._session.queue import QueueType
 
 LOGGER = _loggers.marimo_logger()
@@ -91,7 +92,7 @@ def start_receiver_thread(
                         ch = socket_to_channel[socket]
                         msg = socket.recv(flags=zmq.NOBLOCK)
                         if ch.decoder is None:
-                            raise RuntimeError(
+                            raise InternalError(
                                 "Pull channel must have a decoder"
                             )
                         ch.queue.put(ch.decoder.decode(msg))

@@ -6,6 +6,8 @@ import sys
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, NoReturn
 
+from marimo._core.errors import InternalError
+
 if TYPE_CHECKING:
     from types import FrameType
     from typing import Self
@@ -30,7 +32,7 @@ class SkipContext(ABC):
         else:
             raise RuntimeError("Unable to establish current frame.")
         if frame is None:
-            raise RuntimeError("Unable to establish current frame")
+            raise InternalError("Unable to establish current frame")
         # Hold on to the previous trace.
         self._old_trace = frame.f_trace
         # Setting the frametrace, will cause the function to be run on _every_

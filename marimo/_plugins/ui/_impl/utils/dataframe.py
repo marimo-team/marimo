@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, Any, TypeVar, Union
 from narwhals.typing import IntoDataFrame, IntoLazyFrame
 
 from marimo import _loggers
+from marimo._core.errors import InternalError
 from marimo._output.data import data as mo_data
 from marimo._output.mime import MIME
 from marimo._plugins.core.web_component import JSONType
@@ -228,7 +229,7 @@ def download_as(
         )
     if artifact is None:
         if fmt.serialize is None:
-            raise RuntimeError("Dataframe format has no serializer")
+            raise InternalError("Dataframe format has no serializer")
         artifact = fmt.serialize(manager, options)
     vfile = mo_data.any_data(artifact, ext=fmt.extension)
     base_name = filename if filename is not None else "download"

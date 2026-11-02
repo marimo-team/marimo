@@ -20,6 +20,7 @@ from marimo._cli.errors import (
 )
 from marimo._cli.print import bold, echo, green, muted
 from marimo._config.settings import GLOBAL_SETTINGS
+from marimo._core.errors import InternalError
 from marimo._environments import environment, script_metadata
 from marimo._environments.overlay import DepExtras, runtime_overlay
 from marimo._environments.sandbox import Backend as SandboxBackend
@@ -528,7 +529,7 @@ def run_in_sandbox(
             )
             handle = notebook_sandbox.environment
             if handle is None:
-                raise RuntimeError("Sandbox environment is not initialized")
+                raise InternalError("Sandbox environment is not initialized")
             echo(
                 f"Using script environment: {muted(handle.root)}",
                 err=True,

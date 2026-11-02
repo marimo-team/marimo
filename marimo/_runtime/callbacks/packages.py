@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING
 
 from marimo import _loggers
 from marimo._config.settings import GLOBAL_SETTINGS
+from marimo._core.errors import InternalError
 from marimo._dependencies.errors import ManyModulesNotFoundError
 from marimo._messaging.context import is_code_mode_request
 from marimo._messaging.notification import (
@@ -249,7 +250,7 @@ class PackagesCallbacks:
         Runs cells affected by successful installation.
         """
         if self.package_manager is None:
-            raise RuntimeError(
+            raise InternalError(
                 "Cannot install packages without a package manager"
             )
         if (

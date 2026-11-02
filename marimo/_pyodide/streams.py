@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING
 import msgspec
 
 from marimo import _loggers
+from marimo._core.errors import InternalError
 from marimo._messaging.cell_output import CellOutput
 from marimo._messaging.mimetypes import ConsoleMimeType
 from marimo._messaging.notification import CellNotification
@@ -73,7 +74,7 @@ class PyodideStdout(Stdout):
         self, data: str, mimetype: ConsoleMimeType
     ) -> int:
         if self.stream.cell_id is None:
-            raise RuntimeError("Stream has no active cell")
+            raise InternalError("Stream has no active cell")
         if not isinstance(data, str):
             raise TypeError(
                 f"write() argument must be a str, not {type(data).__name__}"
@@ -124,7 +125,7 @@ class PyodideStderr(Stderr):
         code: str | None = None,
     ) -> int:
         if self.stream.cell_id is None:
-            raise RuntimeError("Stream has no active cell")
+            raise InternalError("Stream has no active cell")
         if not isinstance(data, str):
             raise TypeError(
                 f"write() argument must be a str, not {type(data).__name__}"
@@ -173,7 +174,7 @@ class PyodideStdin(Stdin):
     ) -> str:
         """Read input from the standard in stream, with an optional prompt."""
         if self.stream.cell_id is None:
-            raise RuntimeError("Stream has no active cell")
+            raise InternalError("Stream has no active cell")
         if not isinstance(prompt, str):
             raise TypeError(
                 f"prompt must be a str, not {type(prompt).__name__}"

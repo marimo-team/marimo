@@ -4,6 +4,7 @@ from __future__ import annotations
 import hashlib
 from typing import TYPE_CHECKING
 
+from marimo._core.errors import InternalError
 from marimo._runtime.cell_lifecycle_item import CellLifecycleItem
 
 if TYPE_CHECKING:
@@ -17,7 +18,7 @@ class SideEffect(CellLifecycleItem):
     @property
     def key(self) -> bytes:
         if self._key is None:
-            raise RuntimeError("Side effect key is not initialized")
+            raise InternalError("Side effect key is not initialized")
         if isinstance(self._key, bytes):
             return self._key
         return self._key.encode("utf-8")
@@ -54,7 +55,7 @@ class CellHash(CellLifecycleItem):
     @property
     def key(self) -> bytes:
         if self._key is None:
-            raise RuntimeError("Side effect key is not initialized")
+            raise InternalError("Side effect key is not initialized")
         if isinstance(self._key, bytes):
             return self._key
         return self._key.encode("utf-8")

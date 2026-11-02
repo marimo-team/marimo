@@ -8,6 +8,8 @@ import io
 import tokenize
 from dataclasses import dataclass
 
+from marimo._core.errors import InternalError
+
 
 @dataclass(frozen=True)
 class DefinitionRange:
@@ -89,9 +91,9 @@ class _DefinitionVisitor(ast.NodeVisitor):
         )
         end_line = node.end_lineno
         if end_line is None:
-            raise RuntimeError("AST node has no end line")
+            raise InternalError("AST node has no end line")
         if node.end_col_offset is None:
-            raise RuntimeError("AST node has no end column")
+            raise InternalError("AST node has no end column")
         end_column = len(
             self._lines[end_line - 1]
             .encode("utf-8")[: node.end_col_offset]

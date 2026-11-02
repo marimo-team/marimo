@@ -8,6 +8,8 @@ import string
 import threading
 from typing import TYPE_CHECKING, cast
 
+from marimo._core.errors import InternalError
+
 if TYPE_CHECKING:
     from collections.abc import Iterator
 
@@ -148,7 +150,7 @@ class VirtualFileLifecycleItem(CellLifecycleItem):
     @property
     def virtual_file(self) -> VirtualFile:
         if self._virtual_file is None:
-            raise RuntimeError("Virtual file is not initialized")
+            raise InternalError("Virtual file is not initialized")
         return self._virtual_file
 
     def create(self, context: RuntimeContext | None) -> None:

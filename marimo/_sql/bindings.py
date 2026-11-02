@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, cast
 
 from marimo._ast.sql_visitor import SQLKind, SQLRef
+from marimo._core.errors import InternalError
 from marimo._dependencies.dependencies import DependencyManager
 
 if TYPE_CHECKING:
@@ -102,7 +103,7 @@ def existing_sql_bindings(
         else:
             ref = candidate.ref
             if ref is None:
-                raise RuntimeError(
+                raise InternalError(
                     "SQL binding candidate has no table reference"
                 )
             catalog = ref.catalog or database

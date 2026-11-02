@@ -7,6 +7,7 @@ import abc
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from marimo._core.errors import InternalError
 from marimo._server.app_defaults import AppDefaults
 from marimo._session.notebook import AppFileManager
 from marimo._utils.http import HTTPException, HTTPStatus
@@ -94,7 +95,7 @@ class NotebookWorkspace(abc.ABC):
         """Convenience for workspaces with a unique single file."""
         key = self.get_unique_file_key()
         if key is None:
-            raise RuntimeError("Expected a single file")
+            raise InternalError("Expected a single file")
         return self.load(key, defaults)
 
     # Optional capabilities — subclasses override only when supported.

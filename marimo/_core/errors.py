@@ -1,5 +1,5 @@
 # Copyright 2026 Marimo. All rights reserved.
-"""Exceptions raised by host and notebook commands."""
+"""Internal failures and exceptions raised by host and notebook commands."""
 
 from __future__ import annotations
 
@@ -7,6 +7,18 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from marimo._core import protocol
+
+
+class InternalError(RuntimeError):
+    """A broken marimo invariant, rather than invalid user input."""
+
+    def __str__(self) -> str:
+        return (
+            f"{super().__str__()}\n\n"
+            "This is an internal marimo error. Please report it at "
+            "https://github.com/marimo-team/marimo/issues "
+            "and include the full traceback."
+        )
 
 
 class HostError(Exception):

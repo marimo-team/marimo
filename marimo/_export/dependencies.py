@@ -10,6 +10,7 @@ from marimo import _loggers
 from marimo._cli.install_hints import (
     get_playwright_chromium_setup_commands,
 )
+from marimo._core.errors import InternalError
 from marimo._dependencies.dependencies import (
     DependencyLike,
     DependencyManager,
@@ -155,7 +156,7 @@ def _get_playwright_chromium_executable_on_windows() -> str:
     # The server uses a Windows SelectorEventLoop, which cannot start the
     # Playwright driver subprocess. This worker thread owns a Proactor loop.
     if sys.platform != "win32":
-        raise RuntimeError("Proactor worker requires Windows")
+        raise InternalError("Proactor worker requires Windows")
     loop = asyncio.ProactorEventLoop()  # type: ignore[attr-defined]
     try:
         return cast(

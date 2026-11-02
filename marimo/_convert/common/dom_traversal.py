@@ -8,6 +8,7 @@ from html.parser import HTMLParser
 from typing import TYPE_CHECKING, cast
 
 from marimo import _loggers
+from marimo._core.errors import InternalError
 from marimo._messaging.mimetypes import KnownMimeType
 from marimo._runtime.virtual_file import read_virtual_file
 from marimo._utils.data_uri import build_data_url
@@ -77,7 +78,7 @@ class _HTMLAttributeReplacer(HTMLParser):
         start = self._line_offsets[line - 1] + column
         original_tag = self.get_starttag_text()
         if original_tag is None:
-            raise RuntimeError("HTML start tag text is not available")
+            raise InternalError("HTML start tag text is not available")
         ending = " />" if original_tag.endswith("/>") else ">"
         self._output.extend(
             (

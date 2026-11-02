@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING
 from msgspec.structs import replace
 
 from marimo._core import backend as be, protocol
-from marimo._core.errors import NoRuntime
+from marimo._core.errors import InternalError, NoRuntime
 from marimo._core.stream import utcnow
 
 if TYPE_CHECKING:
@@ -470,7 +470,7 @@ class Executions:
         now = utcnow()
         execution = replace(execution, status="running", started_at=now)
         if execution.run_id is None:
-            raise RuntimeError("Running execution has no run ID")
+            raise InternalError("Running execution has no run ID")
         run = self._runs[execution.run_id].run
         if run.status == "queued":
             changes.append(

@@ -12,6 +12,7 @@ from uuid import uuid4
 
 from marimo import _loggers
 from marimo._config.settings import GLOBAL_SETTINGS
+from marimo._core.errors import InternalError
 from marimo._messaging.types import KernelMessage
 from marimo._output.formatters.formatters import register_formatters
 from marimo._runtime import commands, runtime
@@ -127,7 +128,7 @@ class KernelManagerImpl(KernelManager):
                 install_thread_local_proxies()
 
             if self.queue_manager.stream_queue is None:
-                raise RuntimeError("Kernel stream queue is not initialized")
+                raise InternalError("Kernel stream queue is not initialized")
             # Make threads daemons so killing the server immediately brings
             # down all client sessions
             self.kernel_task = threading.Thread(
@@ -243,7 +244,7 @@ class KernelManagerImpl(KernelManager):
 
     def close_kernel(self, *, graceful: bool = False) -> None:
         if self.kernel_task is None:
-            raise RuntimeError("kernel not started")
+            raise InternalError("kernel not started")
 
         if isinstance(self.kernel_task, threading.Thread):
             # in run mode
@@ -294,5 +295,5 @@ class KernelManagerImpl(KernelManager):
     @property
     def kernel_connection(self) -> TypedConnection[KernelMessage]:
         if self._read_conn is None:
-            raise RuntimeError("connection not started")
+            raise InternalError("connection not started")
         return self._read_conn

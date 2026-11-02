@@ -11,6 +11,7 @@ import threading
 from typing import TYPE_CHECKING, Any
 
 from marimo._ast.compiler import cell_id_from_filename
+from marimo._core.errors import InternalError
 
 if TYPE_CHECKING:
     from types import FrameType
@@ -171,7 +172,7 @@ class FrameWatcher:
         execution run on.
         """
         if self._debugger is None:
-            raise RuntimeError("Debugger is not initialized")
+            raise InternalError("Debugger is not initialized")
         debugger = self._debugger
         debugger.disable_sigint()
         debugger.reset()

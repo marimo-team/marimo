@@ -10,6 +10,7 @@ import threading
 from typing import TYPE_CHECKING, cast
 
 from marimo import _loggers
+from marimo._core.errors import InternalError
 from marimo._environments.environment import ProcessPlan
 from marimo._messaging.types import KernelMessage
 from marimo._session.app_host.commands import (
@@ -113,7 +114,7 @@ class AppHost:
 
         conn = self._conn
         if conn is None:  # start() sets _conn before this thread
-            raise RuntimeError("App host connection is not initialized")
+            raise InternalError("App host connection is not initialized")
 
         while not self._closed.is_set():
             try:

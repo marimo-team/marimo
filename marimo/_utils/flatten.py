@@ -15,6 +15,8 @@ import itertools
 from collections.abc import Callable
 from typing import Any
 
+from marimo._core.errors import InternalError
+
 STRUCT_TYPE = tuple[Any, ...] | list[Any] | dict[Any, Any]
 UNFLATTEN_TYPE = Callable[[list[Any]], STRUCT_TYPE | Any]
 FLATTEN_RET_TYPE = tuple[list[Any], UNFLATTEN_TYPE]
@@ -80,7 +82,7 @@ def _flatten_sequence(
         # is not a leaf
         if i < len(value):
             if _is_leaf(value[i]):
-                raise RuntimeError("Expected a nested value while flattening")
+                raise InternalError("Expected a nested value while flattening")
             flattened, u = _flatten(
                 value[i],
                 json_compat_keys,

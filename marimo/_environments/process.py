@@ -8,6 +8,7 @@ import subprocess
 from typing import TYPE_CHECKING
 
 from marimo import _loggers
+from marimo._core.errors import InternalError
 from marimo._utils.subprocess import stop_subprocess
 
 if TYPE_CHECKING:
@@ -54,9 +55,9 @@ async def run_command(
         start_new_session=True,
     ) as process:
         if process.stdout is None:
-            raise RuntimeError("Process stdout pipe is not available")
+            raise InternalError("Process stdout pipe is not available")
         if process.stderr is None:
-            raise RuntimeError("Process stderr pipe is not available")
+            raise InternalError("Process stderr pipe is not available")
         stderr_pipe = process.stderr
 
         def read_stderr() -> str:

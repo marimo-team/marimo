@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING
 from urllib.parse import quote, urlsplit
 from uuid import uuid4
 
+from marimo._core.errors import InternalError
 from marimo._server.api.utils import format_url_host
 from marimo._server.host import (
     ATTACHMENT_IDENTITY,
@@ -229,7 +230,7 @@ def open_response(
         )
         connection.connect()
         if connection.sock is None:
-            raise RuntimeError("Connection socket is not available")
+            raise InternalError("Connection socket is not available")
         response_socket = connection.sock
         response_socket.settimeout(read_timeout)
         path = parsed.path or "/"
@@ -816,7 +817,7 @@ def resolve_execution_target(
     selected = found[0]
     stable_id = selected["session_id"]
     if stable_id is None:
-        raise RuntimeError("Selected session has no session ID")
+        raise InternalError("Selected session has no session ID")
     return selected.get("notebook_id"), stable_id
 
 

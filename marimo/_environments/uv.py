@@ -17,6 +17,7 @@ import threading
 from typing import TYPE_CHECKING
 
 from marimo import _loggers
+from marimo._core.errors import InternalError
 from marimo._environments.errors import (
     EnvironmentManagerError,
     EnvironmentManagerNotFoundError,
@@ -269,9 +270,9 @@ def uv_stream(
         raise
 
     if process.stdout is None:
-        raise RuntimeError("Process stdout pipe is not available")
+        raise InternalError("Process stdout pipe is not available")
     if process.stderr is None:
-        raise RuntimeError("Process stderr pipe is not available")
+        raise InternalError("Process stderr pipe is not available")
     stdout_pipe = process.stdout
     stdout_chunks: list[bytes] = []
 

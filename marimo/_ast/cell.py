@@ -15,6 +15,7 @@ from marimo import _loggers
 from marimo._ast.parse import ast_parse
 from marimo._ast.sql_visitor import SQLRef, SQLVisitor
 from marimo._ast.visitor import ImportData, Language, Name, VariableData
+from marimo._core.errors import InternalError
 from marimo._messaging.msgspec_encoder import asdict
 from marimo._runtime.exceptions import MarimoRuntimeException
 from marimo._types.ids import CellId_t
@@ -395,7 +396,7 @@ class CellImpl:
             return
 
         if self.cell_id is None:
-            raise RuntimeError("Cell ID is not initialized")
+            raise InternalError("Cell ID is not initialized")
         CellNotificationUtils.broadcast_status(
             cell_id=self.cell_id, status=status, stream=stream
         )
@@ -515,7 +516,7 @@ class Cell:
         if hasattr(self, "_is_coro_cached"):
             return self._is_coro_cached
         if self._app is None:
-            raise RuntimeError("Cell is not bound to an app")
+            raise InternalError("Cell is not bound to an app")
         from marimo._runtime.runner import by_refs
 
         # Currently expensive since `graph` triggers _maybe_initialize on the
@@ -682,7 +683,7 @@ class Cell:
                 from the cell's defined names to their values.
         """
         if self._app is None:
-            raise RuntimeError("Cell is not bound to an app")
+            raise InternalError("Cell is not bound to an app")
 
         # Inject setup cell definitions so that we do not rerun the setup cell.
         # With an exception for tests that should act as if it's in runtime.
@@ -709,7 +710,7 @@ class Cell:
         from marimo._ast.toplevel import TopLevelExtraction
 
         if self._app is None:
-            raise RuntimeError("Cell is not bound to an app")
+            raise InternalError("Cell is not bound to an app")
         # Definitions on a module level are not part of the signature, and as
         # such, should not be provided with the call.
 

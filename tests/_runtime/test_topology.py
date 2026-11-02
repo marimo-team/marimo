@@ -6,6 +6,7 @@ from functools import partial
 import pytest
 
 from marimo._ast import compiler
+from marimo._core.errors import InternalError
 from marimo._runtime.dataflow.topology import MutableGraphTopology
 from marimo._types.ids import CellId_t
 
@@ -35,13 +36,15 @@ class TestMutableGraphTopology:
         assert graph.parents["cell_1"] == set()
 
     def test_add_duplicate_node_raises_error(self) -> None:
-        """Test that adding a duplicate node raises an assertion error."""
+        """Duplicate nodes indicate a bug in graph management."""
         graph = MutableGraphTopology()
         cell = parse_cell("x = 1")
 
         graph.add_node("cell_1", cell)
 
-        with pytest.raises(RuntimeError, match="Cell cell_1 already in graph"):
+        with pytest.raises(
+            InternalError, match="Cell cell_1 already in graph"
+        ):
             graph.add_node("cell_1", cell)
 
     def test_add_multiple_nodes(self) -> None:

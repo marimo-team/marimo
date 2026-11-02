@@ -38,6 +38,7 @@ from marimo._cli.pair.connection import (
 from marimo._cli.pair.forwarder import ForwarderConfig, start_forwarder
 from marimo._cli.pair.harnesses import detect_target, environment_identity
 from marimo._cli.pair.prompts import render_prompt
+from marimo._core.errors import InternalError
 from marimo._server.ai.skills import utils as skills_utils
 
 _REFERENCES_DIR = (
@@ -233,7 +234,7 @@ def execute(
         except (OSError, UnicodeError) as error:
             raise click.UsageError("Could not read the code file.") from error
     if code is None:
-        raise RuntimeError("Code is required")
+        raise InternalError("Code is required")
     if not code:
         raise click.UsageError("Code must not be empty.")
 
@@ -251,7 +252,7 @@ def execute(
         selector = "--session" if editor else "--notebook"
         if editor:
             if session_id is None:
-                raise RuntimeError("Session ID is required")
+                raise InternalError("Session ID is required")
             result = execute_editor(
                 url=url,
                 session_id=session_id,
@@ -263,7 +264,7 @@ def execute(
             )
         else:
             if notebook_id is None:
-                raise RuntimeError("Notebook ID is required")
+                raise InternalError("Notebook ID is required")
             host = resolve_host(url)
             result = execute_code(
                 url=host.url,
@@ -295,7 +296,7 @@ def execute(
 
     target_id = notebook_id or session_id
     if target_id is None:
-        raise RuntimeError("Notebook or session ID is required")
+        raise InternalError("Notebook or session ID is required")
     next_text = None
     if not result.success:
         next_text = _kernel_next(
@@ -628,7 +629,7 @@ def prompt(
 def _notebook_sort_key(notebook: dict[str, object]) -> tuple[str, str, str]:
     server = notebook["server"]
     if not isinstance(server, dict):
-        raise RuntimeError(
+        raise InternalError(
             "Expected notebook server metadata to be a dictionary"
         )
     return (
@@ -656,7 +657,7 @@ def _group_notebooks(
         )
         notebook_sessions = notebook["sessions"]
         if not isinstance(notebook_sessions, list):
-            raise RuntimeError("Expected notebook sessions to be a list")
+            raise InternalError("Expected notebook sessions to be a list")
         notebook_sessions.append(
             {"id": routing_id, "session_id": session["session_id"]}
         )
@@ -664,7 +665,7 @@ def _group_notebooks(
     for notebook in grouped.values():
         notebook_sessions = notebook["sessions"]
         if not isinstance(notebook_sessions, list):
-            raise RuntimeError("Expected notebook sessions to be a list")
+            raise InternalError("Expected notebook sessions to be a list")
         notebook_sessions.sort(key=lambda session: session["id"])
     return list(grouped.values())
 

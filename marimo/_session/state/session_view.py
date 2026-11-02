@@ -9,6 +9,7 @@ from typing import Any, Literal, cast
 import msgspec
 
 from marimo import _loggers
+from marimo._core.errors import InternalError
 from marimo._data.models import DataSourceConnection, DataTable
 from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._messaging.mimetypes import KnownMimeType, MimeBundleTuple
@@ -752,7 +753,7 @@ def merge_cell_notification(
         return current
 
     if previous.cell_id != current.cell_id:
-        raise RuntimeError("Cannot merge outputs from different cells")
+        raise InternalError("Cannot merge outputs from different cells")
 
     if current.status is None:
         current.status = previous.status

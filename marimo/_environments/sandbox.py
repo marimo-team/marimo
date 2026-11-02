@@ -18,6 +18,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Literal, Protocol
 
+from marimo._core.errors import InternalError
 from marimo._environments import script_metadata
 from marimo._environments.errors import (
     EnvironmentManagerError,
@@ -348,7 +349,7 @@ class NotebookSandbox:
             requirement = _python_requirement(target, self._environment)
             if requirement is not None:
                 if self._environment is None:
-                    raise RuntimeError(
+                    raise InternalError(
                         "Sandbox environment is not initialized"
                     )
                 completed = await run_command(
@@ -622,7 +623,7 @@ class NotebookSandbox:
             requirement = _python_requirement(target, active_environment)
             if requirement is not None:
                 if active_environment is None:
-                    raise RuntimeError(
+                    raise InternalError(
                         "Sandbox environment is not initialized"
                     )
                 completed = subprocess.run(

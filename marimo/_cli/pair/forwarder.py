@@ -31,6 +31,7 @@ from marimo._cli.pair.client import (
 from marimo._cli.pair.connection import Connection, ConnectionStore
 from marimo._cli.pair.delivery import DeliveryTarget, ProcessHandle
 from marimo._cli.pair.harnesses import harness_for
+from marimo._core.errors import InternalError
 from marimo._messaging.messages import AGENT_MESSAGE_TYPE
 from marimo._utils.subprocess import kill_subprocess
 
@@ -83,7 +84,7 @@ def start_forwarder(
     import psutil
 
     if config.target.process is None:
-        raise RuntimeError("Forwarder target process is not configured")
+        raise InternalError("Forwarder target process is not configured")
     process = subprocess.Popen(
         [sys.executable, "-m", "marimo._cli.pair.forwarder"],
         stdin=subprocess.PIPE,
@@ -108,9 +109,9 @@ def start_forwarder(
         )
         store.save(record)
         if process.stdin is None:
-            raise RuntimeError("Process stdin pipe is not available")
+            raise InternalError("Process stdin pipe is not available")
         if process.stdout is None:
-            raise RuntimeError("Process stdout pipe is not available")
+            raise InternalError("Process stdout pipe is not available")
         output = process.stdout
         # Secrets travel through the private pipe, never argv or a state file.
         process.stdin.write(

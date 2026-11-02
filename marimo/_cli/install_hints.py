@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Final
 
 from marimo._config.packages import PackageManagerKind, infer_package_manager
+from marimo._core.errors import InternalError
 from marimo._utils.platform import is_windows
 
 
@@ -118,7 +119,7 @@ def _build_primary_and_fallback(
     template = _resolve_template(rules, manager, context=context)
     fallback_template = _resolve_template(rules, "pip", context="any")
     if fallback_template is None:
-        raise RuntimeError("Fallback pip install template is missing")
+        raise InternalError("Fallback pip install template is missing")
 
     primary_command = (
         template.format(**format_args)

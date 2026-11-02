@@ -14,6 +14,7 @@ from uuid import uuid4
 
 from marimo import _loggers
 from marimo._config.manager import MarimoConfigManager, ScriptConfigReader
+from marimo._core.errors import InternalError
 from marimo._core.ids import mint
 from marimo._messaging.notebook.document import NotebookDocument
 from marimo._messaging.notification import (
@@ -362,7 +363,7 @@ class SessionImpl(Session):
         if self._notebook_sandbox is not None:
             path = self.app_file_manager.path
             if path is None:
-                raise RuntimeError("Sandbox notebook has no file path")
+                raise InternalError("Sandbox notebook has no file path")
             self._notebook_sandbox.rebind(path)
         await self._event_bus.emit_session_notebook_renamed(self, old_path)
 

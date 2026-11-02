@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING
 import msgspec
 
 from marimo import _loggers
+from marimo._core.errors import InternalError
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.notification import AlertNotification
 from marimo._messaging.notification_utils import broadcast_notification
@@ -337,7 +338,7 @@ class CanonicalizingPackageManager(PackageManager):
         if self._module_name_to_repo_name is None:
             self._initialize_mappings()
         if self._module_name_to_repo_name is None:
-            raise RuntimeError("Module-to-package mapping is not initialized")
+            raise InternalError("Module-to-package mapping is not initialized")
 
         if module_name in self._module_name_to_repo_name:
             return self._module_name_to_repo_name[module_name]
@@ -352,9 +353,9 @@ class CanonicalizingPackageManager(PackageManager):
         ):
             self._initialize_mappings()
         if self._repo_name_to_module_name is None:
-            raise RuntimeError("Package-to-module mapping is not initialized")
+            raise InternalError("Package-to-module mapping is not initialized")
         if self._normalized_repo_name_to_module_name is None:
-            raise RuntimeError(
+            raise InternalError(
                 "Normalized package-to-module mapping is not initialized"
             )
 

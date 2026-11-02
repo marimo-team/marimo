@@ -9,6 +9,8 @@ from functools import cached_property
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from marimo._core.errors import InternalError
+
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator, Callable
 
@@ -234,7 +236,7 @@ class MicropipPackageManager(PypiPackageManager):
         # The `group` parameter is accepted for interface compatibility, but is ignored.
         del group
         if not is_pyodide():
-            raise RuntimeError("Micropip requires a Pyodide environment")
+            raise InternalError("Micropip requires a Pyodide environment")
         import micropip  # type: ignore
 
         # If we're upgrading, we need to uninstall the package first
@@ -272,7 +274,7 @@ class MicropipPackageManager(PypiPackageManager):
         base sequential path if micropip's internal API has shifted.
         """
         if not is_pyodide():
-            raise RuntimeError("Micropip requires a Pyodide environment")
+            raise InternalError("Micropip requires a Pyodide environment")
 
         if log_callback_factory:
             for pkg in packages:
@@ -319,7 +321,7 @@ class MicropipPackageManager(PypiPackageManager):
         # The `group` parameter is accepted for interface compatibility, but is ignored.
         del group
         if not is_pyodide():
-            raise RuntimeError("Micropip requires a Pyodide environment")
+            raise InternalError("Micropip requires a Pyodide environment")
         import micropip  # type: ignore
 
         try:
@@ -330,7 +332,7 @@ class MicropipPackageManager(PypiPackageManager):
 
     def list_packages(self) -> list[PackageDescription]:
         if not is_pyodide():
-            raise RuntimeError("Micropip requires a Pyodide environment")
+            raise InternalError("Micropip requires a Pyodide environment")
         import micropip  # type: ignore
 
         packages = [

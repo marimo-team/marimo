@@ -15,6 +15,7 @@ def test_validation_with_optimization(optimization: str) -> None:
         """
         import pytest
 
+        from marimo._core.errors import InternalError
         from marimo._output.show_code import show_code
         from marimo._pyodide.restartable_task import RestartableTask
         from marimo._session.requests import UpdateUIElementValuesRequest
@@ -29,7 +30,7 @@ def test_validation_with_optimization(optimization: str) -> None:
         with pytest.raises(TypeError, match="data must be a string"):
             from_data_uri(123)
 
-        with pytest.raises(RuntimeError, match="Task has not been started"):
+        with pytest.raises(InternalError, match="include the full traceback"):
             RestartableTask(lambda: None).restart()
         """
     )

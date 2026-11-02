@@ -22,6 +22,7 @@ from marimo import _loggers
 from marimo._config.config import VenvConfig
 from marimo._config.manager import MarimoConfigManager
 from marimo._config.settings import GLOBAL_SETTINGS
+from marimo._core.errors import InternalError
 from marimo._environments.overlay import runtime_overlay
 from marimo._messaging.notification import (
     NotificationMessage,
@@ -508,7 +509,7 @@ class IPCKernelManagerImpl(KernelManager):
             def drain_output(stream: Literal["stdout", "stderr"]) -> None:
                 pipe = process.stderr if stream == "stderr" else process.stdout
                 if pipe is None:
-                    raise RuntimeError("Process output pipe is not available")
+                    raise InternalError("Process output pipe is not available")
                 with pipe:
                     for line in iter(pipe.readline, b""):
                         if stream == "stderr":
@@ -542,9 +543,9 @@ class IPCKernelManagerImpl(KernelManager):
 
             def exchange_handshake() -> list[str]:
                 if process.stdin is None:
-                    raise RuntimeError("Process stdin pipe is not available")
+                    raise InternalError("Process stdin pipe is not available")
                 if process.stdout is None:
-                    raise RuntimeError("Process stdout pipe is not available")
+                    raise InternalError("Process stdout pipe is not available")
                 with process.stdin:
                     process.stdin.write(kernel_args.encode_json())
                     process.stdin.flush()
