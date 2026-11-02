@@ -114,8 +114,9 @@ class NarwhalsTransformHandler(TransformHandler[DataFrame]):
             raise ValueError(f"Unsupported dtype: {transform.data_type}")
 
         # Polars 2 requires explicit parsers for string-to-temporal conversions.
+        native_df = df.to_native()
         if (
-            df.implementation.is_polars()
+            nw.dependencies.is_polars_lazyframe(native_df)
             and data_type_str in {"date", "datetime64"}
             and df.collect_schema()[transform.column_id] == nw.String
         ):
@@ -128,8 +129,6 @@ class NarwhalsTransformHandler(TransformHandler[DataFrame]):
                 parsed = column.str.to_date(strict=strict)
             else:
                 parsed = column.str.to_datetime(strict=strict)
-            native_df = df.to_native()
-            assert nw.dependencies.is_polars_lazyframe(native_df)
             return nw.from_native(native_df.with_columns(parsed)).lazy()
 
         if transform.errors == "ignore":
