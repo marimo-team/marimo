@@ -56,7 +56,8 @@ export const AppConfigForm: React.FC = () => {
   };
 
   const debouncedSubmit = useDebouncedCallback((v: AppConfig) => {
-    onSubmit(v);
+    // The request client reports a failed save, so nothing is left to handle.
+    onSubmit(v).catch(() => undefined);
   }, FORM_DEBOUNCE);
 
   // When width is changed, dispatch a resize event so widgets know to resize
