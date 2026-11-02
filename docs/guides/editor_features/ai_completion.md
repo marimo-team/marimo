@@ -28,7 +28,7 @@ This guide provides an overview of these features and how to configure them.
     Various instructions in this guide refer to the marimo.toml configuration
     file. Locate this file with `marimo config show | head`.
 
-## Connecting to an LLM
+## Connecting to an LLM provider
 
 Connect to an LLM through the notebook settings menu.
 
