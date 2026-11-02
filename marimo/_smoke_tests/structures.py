@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -31,7 +31,6 @@ def _(mo, x: int):
             "time": datetime.time(1, 2, 3),
         }
     ]
-    return
 
 
 @app.cell
@@ -48,7 +47,6 @@ def _():
         random_data[f"key_{i}"].extend(random.sample(range(100), 5))
 
     random_data
-    return
 
 
 @app.cell
@@ -59,7 +57,6 @@ def _():
 
 
     CustomList(1)
-    return
 
 
 @app.cell
@@ -81,32 +78,27 @@ def _():
 @app.cell
 def _(sys):
     repr(sys.version_info)
-    return
 
 
 @app.cell
 def _(sys):
     # Nested, so it is not preserved
     (sys.version_info,)
-    return
 
 
 @app.cell
 def _(sys):
     {1, 2, 3, sys.version_info}
-    return
 
 
 @app.cell
 def _():
     (1, 2, 3)
-    return
 
 
 @app.cell
 def _(mo):
     mo.refs()
-    return
 
 
 @app.cell

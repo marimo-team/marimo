@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -23,21 +23,18 @@ def _(mo, refresh):
     refresh
     user = mo.app_meta().request.user
     [user]
-    return
 
 
 @app.cell
 def _(mo, refresh):
     refresh
     list(mo.app_meta().request.keys())
-    return
 
 
 @app.cell
 def _(mo, refresh):
     refresh
     mo.app_meta().request
-    return
 
 
 if __name__ == "__main__":

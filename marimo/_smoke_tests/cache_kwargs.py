@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -21,7 +21,6 @@ def _():
 @app.cell
 def _():
     1
-    return
 
 
 @app.cell
@@ -41,13 +40,11 @@ def _(kw: dict[str, int], my_cached_func):
     # Expect (persistent) caching correctly capture changes in kw, but it doesn't.
     # breakpoint()
     my_cached_func(**kw)
-    return
 
 
 @app.cell
 def _(my_cached_func):
     my_cached_func.hits
-    return
 
 
 @app.cell

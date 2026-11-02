@@ -8,7 +8,7 @@
 
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium", css_file="custom.css")
 
 
@@ -23,7 +23,6 @@ def _():
 @app.cell
 def _(data):
     data.cars()
-    return
 
 
 @app.cell
@@ -35,7 +34,6 @@ def _(mo):
     This font should be styled
     """)
     )
-    return
 
 
 @app.cell
@@ -45,14 +43,12 @@ def _(mo):
 
     Here is a paragraph
     """)
-    return
 
 
 @app.cell
 def _(mo):
     # This text should be aligned-right
     mo.ui.number(value=50)
-    return
 
 
 if __name__ == "__main__":

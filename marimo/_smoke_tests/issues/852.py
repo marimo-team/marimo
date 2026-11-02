@@ -2,7 +2,7 @@
 
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App()
 
 
@@ -13,7 +13,6 @@ def _(mo):
 
     Explanation: The table was rendering incorrectly due to javascript number precision.
     """)
-    return
 
 
 @app.cell
@@ -35,7 +34,6 @@ def _(pd):
 def _(df, mo):
     table = mo.ui.table(df)
     table
-    return
 
 
 if __name__ == "__main__":

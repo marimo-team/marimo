@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App(width="full")
 
 
@@ -66,7 +66,6 @@ def _(mo):
     | Row 1, Col 1 Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text | Row 1, Col 2 | Row 1, Col 3 |
     | Row 2, Col 1 | Row 2, Col 2 | Row 2, Col 3 |
     """)
-    return
 
 
 @app.cell
@@ -74,7 +73,6 @@ def _(mo):
     mo.md(r"""
     This cell now contains a link to [marimo](https://docs.marimo.io/), and suddenly all sort of weird things are happening - line widths change, and there is no lie wrap anymore!
     """)
-    return
 
 
 if __name__ == "__main__":

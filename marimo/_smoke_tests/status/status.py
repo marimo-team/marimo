@@ -8,7 +8,7 @@
 
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App()
 
 
@@ -51,7 +51,6 @@ def _(disabled_switch, mo, sleep_time: float, time):
         disabled=disabled_switch.value,
     ):
         time.sleep(sleep_time)
-    return
 
 
 @app.cell
@@ -65,7 +64,6 @@ def _(disabled_switch, mo, sleep_time: float, time):
         disabled=disabled_switch.value,
     ):
         time.sleep(sleep_time)
-    return
 
 
 @app.cell
@@ -79,7 +77,6 @@ def _(disabled_switch, mo, sleep_time: float, time):
         for _ in range(10):
             time.sleep(sleep_time)
             bar.update()
-    return
 
 
 @app.cell
@@ -88,7 +85,6 @@ def _(mo, sleep_time: float, time):
         time.sleep(0.1)
         _spinner.update("Almost done")
         time.sleep(sleep_time)
-    return
 
 
 @app.cell
@@ -98,7 +94,6 @@ def _(mo, sleep_time: float, time):
         _spinner.update("Almost done")
         time.sleep(sleep_time)
     mo.ui.table([1, 2, 3])
-    return
 
 
 @app.cell
@@ -109,7 +104,6 @@ def _(disabled_switch, mo, sleep_time: float, time):
         disabled=disabled_switch.value,
     ):
         time.sleep(sleep_time / 10)
-    return
 
 
 if __name__ == "__main__":

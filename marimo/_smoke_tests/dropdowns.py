@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -9,7 +9,6 @@ def _(mo):
     mo.md(r"""
     # dropdown
     """)
-    return
 
 
 @app.cell
@@ -56,7 +55,6 @@ def _(dropdown1, dropdown2, dropdown3, dropdown4):
         dropdown3,
         dropdown4,
     ]
-    return
 
 
 @app.cell
@@ -68,7 +66,6 @@ def _(mo):
         searchable=True,
         allow_select_none=True,
     )
-    return
 
 
 @app.cell
@@ -82,7 +79,6 @@ def _(mo):
 @app.cell
 def _(dropdown_mixed_types, mo):
     mo.hstack([dropdown_mixed_types, dropdown_mixed_types.value])
-    return
 
 
 @app.cell(hide_code=True)
@@ -90,7 +86,6 @@ def _(mo):
     mo.md(r"""
     # multiselect
     """)
-    return
 
 
 @app.cell
@@ -133,13 +128,11 @@ def _(multiselect1, multiselect2, multiselect3, multiselect4):
         multiselect3,
         multiselect4,
     ]
-    return
 
 
 @app.cell
 def _(mo, multiselect_mixed_types):
     mo.hstack([multiselect_mixed_types, multiselect_mixed_types.value])
-    return
 
 
 if __name__ == "__main__":

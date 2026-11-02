@@ -9,7 +9,7 @@
 
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App()
 
 
@@ -18,7 +18,6 @@ def _(mo):
     mo.md("""
     # PDF Q&A
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -26,7 +25,6 @@ def _(mo):
     mo.md("""
     This app lets you upload a PDF and ask questions about it.
     """)
-    return
 
 
 @app.cell
@@ -42,7 +40,6 @@ def _(mo):
         is processed by a GPT model.
         """
     })
-    return
 
 
 @app.cell
@@ -142,7 +139,6 @@ def _(
 
     res = query_pdf()
     mo.md(res)
-    return
 
 
 @app.cell

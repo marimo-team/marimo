@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -24,7 +24,6 @@ def _(np):
 def _(columns: list[str], data: float, pd):
     df_no_index = pd.DataFrame(data, columns=columns)
     df_no_index
-    return
 
 
 @app.cell
@@ -42,7 +41,6 @@ def _(columns: list[str], data: float, pd):
         data, index=pd.DatetimeIndex(_dates, name="date"), columns=columns
     )
     df_date_index_with_name
-    return
 
 
 @app.cell
@@ -52,7 +50,6 @@ def _(columns: list[str], data: float, pd):
         data, index=pd.CategoricalIndex(_dates), columns=columns
     )
     df_category_index
-    return
 
 
 @app.cell
@@ -62,13 +59,11 @@ def _(columns: list[str], data: float, pd):
     )
     df_multi_index = pd.DataFrame(data[:10], index=index, columns=columns)
     df_multi_index
-    return
 
 
 @app.cell
 def _(df_date_index, mo):
     mo.ui.dataframe(df_date_index)
-    return
 
 
 if __name__ == "__main__":

@@ -4,7 +4,7 @@
 
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -39,7 +39,6 @@ def _(duckdb, mo):
     through the engine. They verify query counts, not remote Iceberg latency.
     One check deliberately simulates an unavailable column-metadata query.
     """)
-    return
 
 
 @app.cell
@@ -152,7 +151,6 @@ def _(discovered_catalogs: list, mo, msgspec, observed_engine):
             ),
         ]
     )
-    return
 
 
 @app.cell
@@ -310,7 +308,6 @@ def _(check_results: list[dict[str, str]], mo):
             mo.ui.table(check_results, selection=None),
         ]
     )
-    return
 
 
 @app.cell
@@ -318,7 +315,6 @@ def _(check_results: list[dict[str, str]]):
     assert all(result["status"] == "PASS" for result in check_results), [
         result for result in check_results if result["status"] == "FAIL"
     ]
-    return
 
 
 @app.cell(hide_code=True)
@@ -341,7 +337,6 @@ def _(mo):
     REST catalog with credentials is needed for that measurement; a public CSV
     would exercise data reads rather than catalog discovery.
     """)
-    return
 
 
 if __name__ == "__main__":

@@ -11,7 +11,7 @@
 
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -36,7 +36,6 @@ def _(df, mo, quak):
     qwidget = quak.Widget(df)
     w = mo.ui.anywidget(qwidget)
     w
-    return
 
 
 @app.cell

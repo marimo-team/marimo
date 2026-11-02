@@ -10,7 +10,7 @@
 
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -32,7 +32,6 @@ def _(mo, pl, uri: None | str):
 
     df = pl.read_database_uri(query=query, uri=uri)
     df
-    return
 
 
 @app.cell

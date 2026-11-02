@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -43,14 +43,12 @@ def _(CONTENT: bytes):
 def _(CONTENT: bytes, mo):
     # Not lossy
     mo.image(CONTENT.decode("latin1").encode("latin1"))
-    return
 
 
 @app.cell
 def _(CONTENT: bytes, mo):
     # Is lossy
     mo.image(CONTENT.decode("utf-8", errors="replace").encode("utf-8"))
-    return
 
 
 @app.cell
@@ -77,7 +75,6 @@ def _(CONTENT: bytes, anywidget, traitlets):
 
     # raises a TraitError
     BytesWritesWidget(value=CONTENT)
-    return
 
 
 @app.cell

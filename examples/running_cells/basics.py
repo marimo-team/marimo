@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App()
 
 
@@ -22,7 +22,6 @@ def _(mo):
 
     Try updating the values of variables below and see what happens! You can also try deleting a cell.
     """)
-    return
 
 
 @app.cell
@@ -34,13 +33,11 @@ def _():
 @app.cell
 def _():
     y = 1
-    return
 
 
 @app.cell
 def _(x: int):
     x
-    return
 
 
 if __name__ == "__main__":

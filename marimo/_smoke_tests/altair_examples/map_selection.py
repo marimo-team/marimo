@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App(width="columns")
 
 
@@ -9,7 +9,6 @@ def _(mo):
     mo.md(r"""
     # Selections with altair maps
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -26,7 +25,6 @@ def _(mo):
     mo.md("""
     ## Load the data
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -51,7 +49,6 @@ def _(mo):
 
     https://altair-viz.github.io/user_guide/marks/geoshape.html#interactions
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -107,13 +104,11 @@ def _(mo):
     mo.md("""
     ### Without `mo.ui.altair_chart`
     """)
-    return
 
 
 @app.cell
 def _(population_map):
     population_map()
-    return
 
 
 @app.cell(hide_code=True)
@@ -121,7 +116,6 @@ def _(mo):
     mo.md(r"""
     ### With `mo.ui.altair_chart`
     """)
-    return
 
 
 @app.cell
@@ -136,13 +130,11 @@ def _(mo):
     mo.md("""
     Selecting the bar chart or map should filter the table below
     """)
-    return
 
 
 @app.cell
 def _(chart, mo, us_population):
     mo.hstack([chart.selections, chart.apply_selection(us_population)])
-    return
 
 
 @app.cell
@@ -167,7 +159,6 @@ def _(mo):
     mo.md("""
     ## Example 2:
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -240,13 +231,11 @@ def _(mo):
     mo.md("""
     ### Without `mo.ui.altair_chart`
     """)
-    return
 
 
 @app.cell
 def _(world_map):
     world_map()
-    return
 
 
 @app.cell(hide_code=True)
@@ -254,7 +243,6 @@ def _(mo):
     mo.md(r"""
     ### With `mo.ui.altair_chart`
     """)
-    return
 
 
 @app.cell
@@ -269,13 +257,11 @@ def _(mo):
     mo.md("""
     Hovering over an element on the map should filter the table below.
     """)
-    return
 
 
 @app.cell
 def _(world):
     str(world.selections)
-    return
 
 
 @app.cell
@@ -286,7 +272,6 @@ def _(gdf_quakies, gdf_world, mo, world):
             world.apply_selection(gdf_world)["id"],
         ]
     )
-    return
 
 
 if __name__ == "__main__":

@@ -13,7 +13,7 @@
 
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App(width="full")
 
 
@@ -22,7 +22,6 @@ def _(mo):
     mo.md("""
     # Pokémon Statistics 📊🔬
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -35,7 +34,6 @@ def _(clear_selection, mo, pokemon_types):
         Start by choosing one or more types: {pokemon_types} {clear_selection}
         """
     )
-    return
 
 
 @app.cell
@@ -79,7 +77,6 @@ def _(mo):
 @app.cell
 def _(mo, pokemon_types):
     mo.md("`selected types: " + ", ".join(pokemon_types.value) + "`") if pokemon_types.value else None
-    return
 
 
 @app.cell
@@ -90,7 +87,6 @@ def _(mo, pokemon_types):
         into specific Pokémon's statistics 👇
         """
     ).callout(kind="info") if pokemon_types.value else None
-    return
 
 
 @app.cell
@@ -115,7 +111,6 @@ def _(distribution_plot, drilldown, mo, pokemon_types):
             "**Drill down**": drilldown,
         }
     ) if pokemon_types.value else None
-    return
 
 
 @app.cell
@@ -277,8 +272,6 @@ def _():
 @app.cell
 def _():
     import plotly.express as px
-
-    return
 
 
 if __name__ == "__main__":

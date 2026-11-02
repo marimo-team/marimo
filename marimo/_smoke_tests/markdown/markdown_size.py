@@ -2,7 +2,7 @@
 
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -28,7 +28,6 @@ def _(mo):
 @app.cell
 def _(mo, size, sizes: list[str]):
     mo.md(f"""{size} **{sizes[size.value]}**""")
-    return
 
 
 @app.cell
@@ -91,7 +90,6 @@ def _(cars, mo):
     `inline code`
     """,
     )
-    return
 
 
 @app.cell
@@ -101,7 +99,6 @@ def _():
         "int": 10,
         "float": 10.5,
     }
-    return
 
 
 @app.cell

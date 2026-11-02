@@ -104,14 +104,14 @@ def _(np):
 
 
 @app.cell
-def _(plt, x):
+def _(plt, x: tuple):
     plt.plot(x, x)
     plt.plot(x, x**2)
     plt.gca()
 
 
 @app.cell
-def _(plt, x):
+def _(plt, x: tuple):
     plt.plot(x, x**3)
 
 
@@ -124,7 +124,7 @@ def _(mo):
 
 
 @app.cell
-def _(plt, x):
+def _(plt, x: tuple):
     _, axis = plt.subplots()
     axis.plot(x, x)
     axis.plot(x, x**2)
@@ -133,7 +133,7 @@ def _(plt, x):
 
 
 @app.cell
-def _(axis, x):
+def _(axis, x: tuple):
     axis.plot(x, x**3)
     axis
 
@@ -162,7 +162,7 @@ def _(mo):
 
 
 @app.cell
-def _(mo, plt, x):
+def _(mo, plt, x: tuple):
     @mo.cache
     def plot_power(exponent):
         plt.plot(x, x**exponent)
@@ -209,7 +209,7 @@ def _(mo, np, plt):
 
 
 @app.cell
-def _(XY, scatter_fig):
+def _(XY: float, scatter_fig):
     _mask = scatter_fig.value.get_mask(XY[:, 0], XY[:, 1])
     XY[_mask]
 

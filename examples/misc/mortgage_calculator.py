@@ -10,7 +10,7 @@
 
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App()
 
 
@@ -19,7 +19,6 @@ def _(mo):
     mo.md("""
     # Mortgage Calculator
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -27,7 +26,6 @@ def _(mo):
     mo.md("""
     ## Income
     """)
-    return
 
 
 @app.cell
@@ -62,7 +60,6 @@ def _(mo):
         ),
         kind="warn",
     )
-    return
 
 
 @app.cell
@@ -158,7 +155,6 @@ def _(mo):
 @app.cell
 def _(home_expense_parameters: list, home_purchase_parameters: list, mo):
     mo.hstack([home_purchase_parameters, home_expense_parameters])
-    return
 
 
 @app.cell
@@ -224,7 +220,6 @@ def _(mo):
     mo.md("""
     ## Monthly Expenses
     """)
-    return
 
 
 @app.cell
@@ -234,7 +229,6 @@ def _(mo):
     necessities and entertainment. Let's estimate these to see how much
     you'll save per month, after all expenses.
     """)
-    return
 
 
 @app.cell
@@ -287,7 +281,6 @@ def _(
             _row("miscellaneous", misc),
         ]
     )
-    return
 
 
 @app.cell
@@ -324,7 +317,6 @@ def _(
         or **${{annual_cash_saved:,.02f}}** annually.
         """
     )
-    return
 
 
 @app.cell
@@ -386,7 +378,6 @@ def _(interest_payments, mo, np, principal_payments, years):
         {mo.as_html(fig)}
         """
     )
-    return
 
 
 @app.cell

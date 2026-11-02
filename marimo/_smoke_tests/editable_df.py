@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -38,7 +38,6 @@ def _(mo):
     mo.md(r"""
     ## Editing different inputs (dicts, lists, polars, pandas)
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -78,7 +77,6 @@ def _(edited, mo):
             flatten_edits(edited._edits["edits"]),
         ]
     )
-    return
 
 
 @app.function
@@ -94,7 +92,6 @@ def _(mo):
     mo.md(r"""
     ## Editing different data types
     """)
-    return
 
 
 @app.cell
@@ -120,7 +117,6 @@ def _(pd):
 @app.cell
 def _(pl, varying_data: dict):
     pl.DataFrame(varying_data).schema
-    return
 
 
 @app.cell
@@ -133,7 +129,6 @@ def _(mo, pl, varying_data: dict):
 @app.cell
 def _(edited_df):
     edited_df.value
-    return
 
 
 if __name__ == "__main__":

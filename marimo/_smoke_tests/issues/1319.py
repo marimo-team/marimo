@@ -2,7 +2,7 @@
 
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App()
 
 
@@ -49,7 +49,6 @@ def _():
 def _(df, mo):
     uidf = mo.ui.dataframe(df)
     uidf
-    return
 
 
 if __name__ == "__main__":

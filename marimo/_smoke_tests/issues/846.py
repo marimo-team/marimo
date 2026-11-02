@@ -2,7 +2,7 @@
 
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App()
 
 
@@ -11,7 +11,6 @@ def _(mo):
     mo.md("""
     This notebook covers a couple different cases for rendering plotly under different configs and with different renderers.
     """)
-    return
 
 
 @app.cell
@@ -28,13 +27,11 @@ def _():
 @app.cell
 def _(pio):
     pio.renderers.default
-    return
 
 
 @app.cell
 def _(pio):
     pio.renderers[pio.renderers.default].config
-    return
 
 
 @app.cell
@@ -53,13 +50,11 @@ def _(mo, pio):
         {"name": key, "config": get_config(pio.renderers[key])} for key in keys
     ]
     mo.ui.table(printed_configs)
-    return
 
 
 @app.cell
 def _(pio):
     pio.renderers
-    return
 
 
 @app.cell
@@ -75,31 +70,26 @@ def _():
 @app.cell
 def _(fig):
     fig  # Uses the default renderer "notebook"
-    return
 
 
 @app.cell
 def _(fig, mo):
     mo.ui.plotly(fig)  # Uses the default renderer "notebook"
-    return
 
 
 @app.cell
 def _(fig, mo):
     mo.ui.plotly(fig, config={})  # Uses the empty config
-    return
 
 
 @app.cell
 def _(fig, mo):
     mo.ui.plotly(fig, config={"staticPlot": True})  # Uses the passed config
-    return
 
 
 @app.cell
 def _(fig, mo):
     mo.ui.plotly(fig, renderer_name="browser")  # Uses a pre-defined rendererer
-    return
 
 
 if __name__ == "__main__":

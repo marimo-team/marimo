@@ -9,7 +9,7 @@
 
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -25,21 +25,18 @@ def _():
 @app.cell
 def _(mo, plt):
     mo.ui.table(plt.style.available, selection=None, page_size=2)
-    return
 
 
 @app.cell
 def _(create_plot, plt):
     plt.style.use('default')
     create_plot().gca()
-    return
 
 
 @app.cell
 def _(create_plot, plt):
     plt.style.use('dark_background')
     create_plot().gca()
-    return
 
 
 @app.cell

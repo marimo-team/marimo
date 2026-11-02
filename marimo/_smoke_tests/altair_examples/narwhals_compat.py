@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -42,25 +42,21 @@ def _(alt, df_selection, mo):
 @app.cell
 def _(chart):
     chart.data
-    return
 
 
 @app.cell
 def _(chart, df: None):
     ["Types", type(df), type(chart.dataframe), type(chart.value)]
-    return
 
 
 @app.cell
 def _(chart):
     chart.value
-    return
 
 
 @app.cell
 def _(chart):
     chart.dataframe
-    return
 
 
 if __name__ == "__main__":

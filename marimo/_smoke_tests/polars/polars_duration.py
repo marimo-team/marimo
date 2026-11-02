@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -17,7 +17,6 @@ def _(mo):
     mo.md(r"""
     ## Polars
     """)
-    return
 
 
 @app.cell
@@ -35,7 +34,6 @@ def _(pl):
 @app.cell
 def _(df, mo):
     mo.plain(df)
-    return
 
 
 @app.cell
@@ -43,19 +41,16 @@ def _(mo):
     mo.md(r"""
     ## Pandas
     """)
-    return
 
 
 @app.cell
 def _(df):
     df.to_pandas()
-    return
 
 
 @app.cell
 def _(df, mo):
     mo.plain(df.to_pandas())
-    return
 
 
 if __name__ == "__main__":

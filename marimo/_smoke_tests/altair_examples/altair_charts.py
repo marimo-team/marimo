@@ -11,7 +11,7 @@
 
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App(width="full")
 
 
@@ -101,7 +101,6 @@ def _(mo):
     mo.md("""
     # Basic Chart
     """)
-    return
 
 
 @app.cell
@@ -133,7 +132,6 @@ def _(
             chart1.value.head(),
         ]
     )
-    return
 
 
 @app.cell
@@ -172,13 +170,11 @@ def _(mo):
     mo.md("""
     # Another Chart
     """)
-    return
 
 
 @app.cell
 def _(chart2, mo):
     mo.vstack([chart2, chart2.value.head(10)])
-    return
 
 
 @app.cell
@@ -186,7 +182,6 @@ def _(mo):
     mo.md("""
     # Defined Width + Height
     """)
-    return
 
 
 @app.cell
@@ -208,7 +203,6 @@ def _(alt, iris, mo):
         chart_selection=None,
         legend_selection=None,
     )
-    return
 
 
 @app.cell
@@ -250,13 +244,11 @@ def _(mo):
     mo.md("""
     # Chart + Chart
     """)
-    return
 
 
 @app.cell
 def _(chart3, mo):
     mo.hstack([chart3, chart3])
-    return
 
 
 @app.cell
@@ -264,13 +256,11 @@ def _(mo):
     mo.md("""
     # Chart + Table
     """)
-    return
 
 
 @app.cell
 def _(chart3, mo):
     mo.hstack([chart3, chart3.value.head(10)], widths="equal")
-    return
 
 
 @app.cell
@@ -278,13 +268,11 @@ def _(mo):
     mo.md("""
     # Chart + Table returned as an array
     """)
-    return
 
 
 @app.cell
 def _(chart3):
     [chart3, chart3.value.head(10)]
-    return
 
 
 @app.cell
@@ -326,13 +314,11 @@ def _(mo):
     mo.md("""
     # Chart with transform
     """)
-    return
 
 
 @app.cell
 def _(chart4, mo):
     mo.vstack([chart4, chart4.value.head(10)])
-    return
 
 
 @app.cell
@@ -340,7 +326,6 @@ def _(mo):
     mo.md("""
     # Bar chart
     """)
-    return
 
 
 @app.cell
@@ -350,7 +335,6 @@ def _(alt, data, mo):
         .mark_bar()
         .encode(x=alt.X("Miles_per_Gallon:Q", bin=True), y="count()")
     )
-    return
 
 
 @app.cell
@@ -369,7 +353,6 @@ def _(alt, cars, mo):
 @app.cell
 def _(mean, mo):
     mo.vstack([mean, mean.value])
-    return
 
 
 @app.cell
@@ -386,7 +369,6 @@ def _(alt, data, mo):
 @app.cell
 def _(hist, mo):
     mo.vstack([hist, hist.value])
-    return
 
 
 @app.cell
@@ -394,7 +376,6 @@ def _(mo):
     mo.md("""
     # Pivot and horizontal bar chart
     """)
-    return
 
 
 @app.cell
@@ -428,7 +409,6 @@ def _(alt, mo, pd):
 @app.cell
 def _(mo, pivot):
     mo.vstack([pivot, pivot.value.head()])
-    return
 
 
 @app.cell
@@ -451,7 +431,6 @@ def _(alt, data, mo):
 @app.cell
 def _(horizontal_bar, mo):
     mo.vstack([horizontal_bar, horizontal_bar.value.head()])
-    return
 
 
 @app.cell
@@ -474,7 +453,6 @@ def _(alt, mo, pd):
 @app.cell
 def _(mo, pie):
     mo.vstack([pie, pie.value])
-    return
 
 
 @app.cell
@@ -482,7 +460,6 @@ def _(mo):
     mo.md("""
     # Line Chart
     """)
-    return
 
 
 @app.cell
@@ -501,7 +478,6 @@ def _(alt, mo, np, pd):
 @app.cell
 def _(line_chart, mo):
     mo.hstack([line_chart.value, line_chart.selections])
-    return
 
 
 @app.cell
@@ -509,7 +485,6 @@ def _(mo):
     mo.md("""
     # Multi-Line Chart
     """)
-    return
 
 
 @app.cell
@@ -538,7 +513,6 @@ def _(alt, data, mo):
 @app.cell
 def _(mo, multiline_chart):
     mo.hstack([multiline_chart.value, multiline_chart.selections])
-    return
 
 
 @app.cell
@@ -574,7 +548,6 @@ def _(alt, mo, np, pd):
 @app.cell
 def _(facet_chart, mo):
     mo.hstack([facet_chart.value, facet_chart.selections])
-    return
 
 
 @app.cell
@@ -583,7 +556,6 @@ def _(mo):
     # With `transform_filter`
     > Bug https://github.com/marimo-team/marimo/issues/727
     """)
-    return
 
 
 @app.cell
@@ -607,7 +579,6 @@ def _(alt, data, mo):
 @app.cell
 def _(mo, with_transform):
     mo.vstack([with_transform, with_transform.value])
-    return
 
 
 @app.cell
@@ -615,7 +586,6 @@ def _(mo):
     mo.md("""
     # Layers
     """)
-    return
 
 
 @app.cell
@@ -662,7 +632,6 @@ def _(layered_chart, mo):
             mo.hstack([layered_chart.value, layered_chart.selections]),
         ]
     )
-    return
 
 
 @app.cell
@@ -670,7 +639,6 @@ def _(mo):
     mo.md(r"""
     # layered
     """)
-    return
 
 
 @app.cell
@@ -693,13 +661,11 @@ def _(mo):
     mo.md(r"""
     # hconcat
     """)
-    return
 
 
 @app.cell
 def _(base, mo):
     mo.ui.altair_chart(base.mark_line() | base.mark_point())
-    return
 
 
 @app.cell
@@ -707,13 +673,11 @@ def _(mo):
     mo.md("""
     # vconcat
     """)
-    return
 
 
 @app.cell
 def _(base, mo):
     mo.ui.altair_chart(base.mark_line() & base.mark_point())
-    return
 
 
 if __name__ == "__main__":

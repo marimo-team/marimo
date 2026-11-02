@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App()
 
 
@@ -57,7 +57,6 @@ def _(approve_btn, data: list[dict[str, int | str]], set_data_version, table):
                     item["status"] = "approved"
                     break
             set_data_version(time.time())
-    return
 
 
 if __name__ == "__main__":

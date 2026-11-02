@@ -11,7 +11,7 @@
 
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -39,7 +39,6 @@ def _(mo):
 
     Try it out by playing with the slider!
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -61,7 +60,6 @@ def _(mo):
     mo.md("""
     ## Try it!
     """)
-    return
 
 
 @app.cell
@@ -87,7 +85,6 @@ def _(efficient_seam_carve, input_image: str, mo, slider):
         result = efficient_seam_carve(input_image, scale_factor)
 
     mo.hstack([mo.image(input_image), mo.image(result)], justify="start")
-    return
 
 
 @app.cell

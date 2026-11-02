@@ -20,7 +20,7 @@
 
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App()
 
 
@@ -37,7 +37,6 @@ def _(mo):
     PyTorch on Linux and Windows, and CPU PyTorch on macOS. The first run
     downloads the model weights.
     """)
-    return
 
 
 @app.cell
@@ -78,7 +77,6 @@ def _(files, mo, whisper):
 def _(audio, model):
     result = model.transcribe(audio, language="en", fp16=model.device.type == "cuda")
     result["text"]
-    return
 
 
 @app.cell(hide_code=True)
@@ -90,7 +88,6 @@ def _(mo):
     *The Ashiel Mystery* is read by Garth Comira, *The Age of Chivalry*
     by Anders Lankford, and *Sense and Sensibility* by Heather Barnett.
     """)
-    return
 
 
 if __name__ == "__main__":

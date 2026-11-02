@@ -8,7 +8,7 @@
 
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -26,7 +26,6 @@ def _(mo):
     mo.md("""
     This notebook compares `docstring_to_markdown` to our internal `google_docstring_to_markdown`.
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -50,19 +49,16 @@ def _(mo):
 @app.cell(hide_code=True)
 def _(element, mo):
     mo.accordion({"MD doc": mo.plain_text(element.value.__doc__)})
-    return
 
 
 @app.cell
 def _(docstring_to_markdown, element, mo):
     mo.md(docstring_to_markdown.convert(element.value.__doc__))
-    return
 
 
 @app.cell
 def _(element, google_docstring_to_markdown, mo):
     mo.md(google_docstring_to_markdown(element.value.__doc__))
-    return
 
 
 if __name__ == "__main__":

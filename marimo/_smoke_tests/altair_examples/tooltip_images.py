@@ -10,7 +10,7 @@
 
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -34,7 +34,6 @@ def _(mo):
     2. Base64-encoded images in tooltips
     3. XSS vulnerability prevention
     """)
-    return
 
 
 @app.cell
@@ -82,7 +81,6 @@ def _(mo):
     Hover over the circles to see the image tooltips.
     The images should render in the tooltip, not just show URLs as text.
     """)
-    return
 
 
 @app.cell
@@ -119,7 +117,6 @@ def _(alt, pd):
     )
 
     chart2
-    return
 
 
 @app.cell(hide_code=True)
@@ -133,7 +130,6 @@ def _(mo):
     **Expected behavior:** All XSS attempts should be neutralized.
     No alert boxes or script execution should occur when hovering.
     """)
-    return
 
 
 @app.cell
@@ -194,7 +190,6 @@ def _(alt, pd):
     )
 
     xss_chart
-    return
 
 
 if __name__ == "__main__":

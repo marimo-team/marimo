@@ -8,7 +8,7 @@
 
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -84,19 +84,16 @@ def _(mo):
 def _(ScaleControl, add_control_button, m):
     if add_control_button.value:
         m.add_control(ScaleControl())
-    return
 
 
 @app.cell
 def _(m):
     m.clicked
-    return
 
 
 @app.cell
 def _(m):
     m.center
-    return
 
 
 @app.cell

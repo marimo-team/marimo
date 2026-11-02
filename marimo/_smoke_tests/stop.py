@@ -8,7 +8,7 @@
 
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App()
 
 
@@ -71,7 +71,6 @@ def _(mo, success_1: bool, success_2: bool, success_3: bool):
     mo.stop(not _success)
 
     mo.md("Secret is correct!").callout(kind="success")
-    return
 
 
 if __name__ == "__main__":

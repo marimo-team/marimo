@@ -9,7 +9,7 @@
 
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium", sql_output="polars")
 
 
@@ -38,13 +38,11 @@ def _(UpSetAltair, df):
 @app.cell
 def _(chart):
     chart
-    return
 
 
 @app.cell
 def _(chart, mo):
     mo.ui.altair_chart(chart.copy())
-    return
 
 
 if __name__ == "__main__":

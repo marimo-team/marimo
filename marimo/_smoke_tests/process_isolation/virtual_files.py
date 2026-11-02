@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App()
 
 with app.setup:
@@ -24,15 +24,13 @@ def _():
     **How to test:**
 
     ```
-    marimo run marimo/_smoke_tests/process_isolation/virtual_files.py \
-               marimo/_smoke_tests/process_isolation/app1.py
+    marimo run marimo/_smoke_tests/process_isolation/virtual_files.py            marimo/_smoke_tests/process_isolation/app1.py
     ```
 
     Multi-file `marimo run` auto-enables process isolation. If all three
     sections below render correctly (not broken images / empty iframes),
     virtual file serving across process boundaries is working.
     """)
-    return
 
 
 @app.cell
@@ -68,7 +66,6 @@ def _():
         ),
         mo.image(src=png_bytes, width=64, height=64),
     ])
-    return
 
 
 @app.cell
@@ -91,7 +88,6 @@ def _():
         ),
         table,
     ])
-    return
 
 
 if __name__ == "__main__":

@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App()
 
 
@@ -63,7 +63,6 @@ def _(alt, heatmap_df, mo):
 def _(heatmap_ui):
     # Display the selected points from the heatmap
     heatmap_ui.value
-    return
 
 
 if __name__ == "__main__":

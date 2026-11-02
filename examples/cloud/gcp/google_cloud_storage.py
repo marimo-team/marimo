@@ -9,7 +9,7 @@
 
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App(width="full")
 
 
@@ -110,7 +110,6 @@ def _(get_prefix, mo, set_prefix):
             ]
         )
     output
-    return
 
 
 @app.cell
@@ -151,7 +150,6 @@ def _(bucket, file_table, mo):
             mo.output.replace(mo.image(_blob.download_as_string()))
         else:
             mo.output.replace(mo.plain_text(_blob.download_as_text()))
-    return
 
 
 if __name__ == "__main__":

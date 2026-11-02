@@ -2,7 +2,7 @@
 
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App()
 
 
@@ -20,7 +20,6 @@ def _(mo):
 
     This notebook tests various LaTeX writing styles and configurations.
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -30,7 +29,6 @@ def _(mo):
 
     Different ways to write inline math:
     """)
-    return
 
 
 @app.cell
@@ -41,7 +39,6 @@ def _(mo):
     - With spaces: $ a + b = c $ (spaces around content).
     - Complex inline: $\frac{x^2}{y^2} + \sqrt{z}$ in a sentence.
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -51,7 +48,6 @@ def _(mo):
 
     Different ways to write display/block math:
     """)
-    return
 
 
 @app.cell
@@ -63,7 +59,6 @@ def _(mo):
     f(x) = \int_{-\infty}^{\infty} e^{-x^2} dx = \sqrt{\pi}
     $$
     """)
-    return
 
 
 @app.cell
@@ -75,7 +70,6 @@ def _(mo):
     \sum_{n=1}^{\infty} \frac{1}{n^2} = \frac{\pi^2}{6}
     \]
     """)
-    return
 
 
 @app.cell
@@ -83,7 +77,6 @@ def _(mo):
     mo.md(r"""
     Inline display (no newlines): \[ x^2 + y^2 = z^2 \]
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -91,7 +84,6 @@ def _(mo):
     mo.md("""
     ## 3. LaTeX Environments
     """)
-    return
 
 
 @app.cell
@@ -105,7 +97,6 @@ def _(mo):
         e^{\pi i} + 1 &= 0
     \end{align}
     """)
-    return
 
 
 @app.cell
@@ -117,7 +108,6 @@ def _(mo):
     \mathcal{L} = \int_\Omega \left( \frac{1}{2} |\nabla u|^2 - f u \right) dx
     \end{equation}
     """)
-    return
 
 
 @app.cell
@@ -133,7 +123,6 @@ def _(mo):
 
     Determinant: $\begin{vmatrix} a & b \\ c & d \end{vmatrix} = ad - bc$
     """)
-    return
 
 
 @app.cell
@@ -148,7 +137,6 @@ def _(mo):
     \end{cases}
     $$
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -156,7 +144,6 @@ def _(mo):
     mo.md("""
     ## 4. Greek Letters and Symbols
     """)
-    return
 
 
 @app.cell
@@ -170,7 +157,6 @@ def _(mo):
     - Relations: $\leq, \geq, \neq, \approx, \equiv, \sim, \propto$
     - Arrows: $\leftarrow, \rightarrow, \leftrightarrow, \Rightarrow, \Leftrightarrow$
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -178,7 +164,6 @@ def _(mo):
     mo.md("""
     ## 5. Common Mathematical Expressions
     """)
-    return
 
 
 @app.cell
@@ -190,7 +175,6 @@ def _(mo):
 
     $$\sqrt{x}, \quad \sqrt[3]{x}, \quad \sqrt{x^2 + y^2}$$
     """)
-    return
 
 
 @app.cell
@@ -200,7 +184,6 @@ def _(mo):
 
     $$x_i, \quad x^2, \quad x_i^2, \quad x_{i,j}^{(n)}, \quad e^{i\pi}$$
     """)
-    return
 
 
 @app.cell
@@ -212,7 +195,6 @@ def _(mo):
 
     $$\iint_D f(x,y)\,dx\,dy, \quad \oint_C \vec{F} \cdot d\vec{r}$$
     """)
-    return
 
 
 @app.cell
@@ -224,7 +206,6 @@ def _(mo):
 
     $$\left\langle \psi | \phi \right\rangle, \quad \left\| \vec{v} \right\|, \quad \left\lfloor x \right\rfloor, \quad \left\lceil x \right\rceil$$
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -234,7 +215,6 @@ def _(mo):
 
     Using the mhchem extension for chemical equations:
     """)
-    return
 
 
 @app.cell
@@ -246,7 +226,6 @@ def _(mo):
     - Equilibrium: $\ce{N2 + 3H2 <=> 2NH3}$
     - Isotopes: $\ce{^{14}C}$, $\ce{^{238}U}$
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -254,7 +233,6 @@ def _(mo):
     mo.md("""
     ## 7. Edge Cases
     """)
-    return
 
 
 @app.cell
@@ -269,7 +247,6 @@ def _(mo):
     - Bullet with math: $\vec{F} = m\vec{a}$
     - Another: $\nabla \cdot \vec{E} = \frac{\rho}{\epsilon_0}$
     """)
-    return
 
 
 @app.cell
@@ -280,7 +257,6 @@ def _(mo):
     The function $f(x) = x^2$ has derivative $f'(x) = 2x$ and second derivative $f''(x) = 2$.
     At $x = 0$, we have $f(0) = 0$, $f'(0) = 0$, and $f''(0) = 2 > 0$, so $x = 0$ is a local minimum.
     """)
-    return
 
 
 @app.cell
@@ -295,7 +271,6 @@ def _(mo):
     - Hat: $\hat{x}$, $\widehat{xyz}$
     - Bar: $\bar{x}$, $\overline{xyz}$
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -303,7 +278,6 @@ def _(mo):
     mo.md("""
     ## 8. Real-World Examples
     """)
-    return
 
 
 @app.cell
@@ -313,7 +287,6 @@ def _(mo):
 
     $$e^{i\pi} + 1 = 0$$
     """)
-    return
 
 
 @app.cell
@@ -325,7 +298,6 @@ def _(mo):
 
     $$x = \frac{-b \pm \sqrt{b^2 - 4ac}}{2a}$$
     """)
-    return
 
 
 @app.cell
@@ -335,7 +307,6 @@ def _(mo):
 
     $$\int_{-\infty}^{\infty} e^{-x^2} dx = \sqrt{\pi}$$
     """)
-    return
 
 
 @app.cell
@@ -350,7 +321,6 @@ def _(mo):
         \nabla \times \vec{B} &= \mu_0 \vec{J} + \mu_0 \epsilon_0 \frac{\partial \vec{E}}{\partial t}
     \end{align}
     """)
-    return
 
 
 @app.cell
@@ -360,7 +330,6 @@ def _(mo):
 
     $$i\hbar\frac{\partial}{\partial t}\Psi(\vec{r},t) = \hat{H}\Psi(\vec{r},t) = \left[-\frac{\hbar^2}{2m}\nabla^2 + V(\vec{r},t)\right]\Psi(\vec{r},t)$$
     """)
-    return
 
 
 @app.cell
@@ -370,7 +339,6 @@ def _(mo):
 
     $$P(A|B) = \frac{P(B|A) \cdot P(A)}{P(B)}$$
     """)
-    return
 
 
 @app.cell
@@ -380,7 +348,6 @@ def _(mo):
 
     $$f(x) = \sum_{n=0}^{\infty} \frac{f^{(n)}(a)}{n!}(x-a)^n = f(a) + f'(a)(x-a) + \frac{f''(a)}{2!}(x-a)^2 + \cdots$$
     """)
-    return
 
 
 if __name__ == "__main__":

@@ -7,7 +7,7 @@
 
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -49,7 +49,6 @@ def _(counts: list[int], curdoc, figure, fruits: list[str]):
     p3.xgrid.grid_line_color = None
     p3.y_range.start = 0
     p3
-    return
 
 
 @app.cell
@@ -64,7 +63,6 @@ def _(counts: list[int], curdoc, figure, fruits: list[str]):
     p2.xgrid.grid_line_color = None
     p2.y_range.start = 0
     p2
-    return
 
 
 if __name__ == "__main__":

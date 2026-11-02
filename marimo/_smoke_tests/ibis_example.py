@@ -7,7 +7,7 @@
 
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -33,13 +33,11 @@ def _(ibis):
 def _(df, mo):
     # Print Ibis data in a pretty table
     mo.ui.table(df)
-    return
 
 
 @app.cell
 def _(df):
     df.to_polars()
-    return
 
 
 @app.cell
@@ -47,7 +45,6 @@ def _(df):
     # Transform using the python API
     _res = df.group_by("species", "island").agg(count=df.count()).order_by("count")
     df.to_polars()
-    return
 
 
 @app.cell
@@ -57,14 +54,12 @@ def _(df):
         "SELECT species, island, count(*) AS count FROM penguins GROUP BY 1, 2"
     )
     _res.to_polars()
-    return
 
 
 @app.cell
 def _(df, mo):
     # Transform using the ui.dataframe GUI
     mo.ui.dataframe(df)
-    return
 
 
 @app.cell
@@ -76,7 +71,6 @@ def _(ibis):
             "y": [["a", "b", "c"], [], [], ["d", "e"]],
         }
     ).unnest("x").to_polars()
-    return
 
 
 @app.cell
@@ -85,7 +79,6 @@ def _(ibis):
     ibis.memtable({"A": [{"foo": 1, "bar": "hello"}], "B": [1]}).unpack(
         "A"
     ).to_polars()
-    return
 
 
 if __name__ == "__main__":

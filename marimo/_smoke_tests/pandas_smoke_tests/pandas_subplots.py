@@ -8,7 +8,7 @@
 
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -34,7 +34,6 @@ def _(mo):
     The issue occurs because `df.plot.box(subplots=True)` returns a numpy
     ndarray of matplotlib Axes objects, which marimo doesn't currently format.
     """)
-    return
 
 
 @app.cell
@@ -56,14 +55,12 @@ def _(mo):
     mo.md("""
     ## Test Case 1: Box plot WITHOUT subplots (works correctly)
     """)
-    return
 
 
 @app.cell
 def _(df):
     # This should work - returns a single Axes object
     df[["distance", "total"]].plot.box()
-    return
 
 
 @app.cell(hide_code=True)
@@ -73,14 +70,12 @@ def _(mo):
 
     This is the exact scenario from the bug report.
     """)
-    return
 
 
 @app.cell
 def _(df):
     # This reproduces the issue - returns ndarray of Axes
     df[["distance", "total"]].plot.box(subplots=True)
-    return
 
 
 @app.cell(hide_code=True)
@@ -88,7 +83,6 @@ def _(mo):
     mo.md("""
     ## Test Case 3: Multiple subplots with custom layout
     """)
-    return
 
 
 @app.cell
@@ -97,7 +91,6 @@ def _(df):
     df[["distance", "total", "fare", "tip"]].plot.box(
         subplots=True, layout=(2, 2), figsize=(10, 8)
     )
-    return
 
 
 @app.cell(hide_code=True)
@@ -107,14 +100,12 @@ def _(mo):
 
     Test with a single row of subplots.
     """)
-    return
 
 
 @app.cell
 def _(df):
     # Returns 1D ndarray of Axes
     df[["fare", "tip", "tolls"]].plot.box(subplots=True, layout=(1, 3))
-    return
 
 
 if __name__ == "__main__":

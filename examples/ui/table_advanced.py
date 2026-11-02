@@ -7,7 +7,7 @@
 
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App()
 
 
@@ -26,7 +26,6 @@ def _(mo):
     > “Sometimes I’ll start a sentence and I don’t even know where it’s going. I just hope I find it along the way.”
     — Michael Scott
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -34,7 +33,6 @@ def _(mo):
     mo.md("""
     _Create rich tables with selectable rows using_ `mo.ui.table`.
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -42,7 +40,6 @@ def _(mo):
     mo.md("""
     **Single selection.**
     """)
-    return
 
 
 @app.cell
@@ -58,7 +55,6 @@ def _(mo, office_characters: list):
 @app.cell
 def _(mo, single_select_table):
     mo.ui.tabs({"table": single_select_table, "selection": single_select_table.value})
-    return
 
 
 @app.cell(hide_code=True)
@@ -66,7 +62,6 @@ def _(mo):
     mo.md("""
     **Multi-selection.**
     """)
-    return
 
 
 @app.cell
@@ -82,7 +77,6 @@ def _(mo, office_characters: list):
 @app.cell
 def _(mo, multi_select_table):
     mo.ui.tabs({"table": multi_select_table, "selection": multi_select_table.value})
-    return
 
 
 @app.cell(hide_code=True)
@@ -90,7 +84,6 @@ def _(mo):
     mo.md("""
     **No selection.**
     """)
-    return
 
 
 @app.cell
@@ -102,7 +95,6 @@ def _(mo, office_characters: list):
     )
 
     table
-    return
 
 
 @app.cell(hide_code=True)
@@ -110,14 +102,12 @@ def _(mo):
     mo.md("""
     **Select individual cells**
     """)
-    return
 
 
 @app.cell
 def _(mo):
     data = {str(col): [col * 10 + row for row in range(10)] for col in range(10)}
     mo.ui.table(data, selection="multi-cell", initial_selection=[("3", "5"),("9","8")])
-    return
 
 
 @app.cell
@@ -125,7 +115,6 @@ def _(mo):
     mo.md("""
     **Style individual cells**
     """)
-    return
 
 
 @app.cell
@@ -151,7 +140,6 @@ def _(mo):
         data=colors, pagination=True, page_size=16, style_cell=apply_styling
     )
     color_table
-    return
 
 
 @app.cell

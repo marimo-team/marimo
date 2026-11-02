@@ -9,7 +9,7 @@
 
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -39,7 +39,6 @@ def _(mo):
     The `customdata` field embeds the original row ID (`sample_id`) so selected
     points map back to the source DataFrame without relying on raw indices.
     """)
-    return
 
 
 @app.cell
@@ -162,13 +161,11 @@ def _(box_single, df, mo):
 
     **Indices:** {box_single.indices}
     """)
-    return
 
 
 @app.cell
 def _(box_single, df, mo):
     mo.ui.table(selected_rows(box_single.value, df))
-    return
 
 
 @app.cell
@@ -226,13 +223,11 @@ def _(box_grouped, df, mo):
 
     **Range:** {box_grouped.ranges}
     """)
-    return
 
 
 @app.cell
 def _(box_grouped, df, mo):
     mo.ui.table(selected_rows(box_grouped.value, df))
-    return
 
 
 @app.cell
@@ -290,13 +285,11 @@ def _(box_horizontal, df, mo):
 
     **Indices:** {box_horizontal.indices}
     """)
-    return
 
 
 @app.cell
 def _(box_horizontal, df, mo):
     mo.ui.table(selected_rows(box_horizontal.value, df))
-    return
 
 
 if __name__ == "__main__":

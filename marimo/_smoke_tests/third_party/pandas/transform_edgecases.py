@@ -13,7 +13,7 @@
 
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -43,7 +43,6 @@ def _(mo, pd):
 @app.cell
 def _(df):
     df.dtypes
-    return
 
 
 @app.cell
@@ -61,27 +60,23 @@ def _():
 def _(gdf):
     # This is ugly
     gdf
-    return
 
 
 @app.cell
 def _(gdf):
     # This interactive leaflet map does work like a charm
     gdf.explore()
-    return
 
 
 @app.cell
 def _(gdf, mo):
     # https://github.com/marimo-team/marimo/issues/5447
     mo.ui.table(gdf)
-    return
 
 
 @app.cell
 def _(gdf):
     type(gdf)
-    return
 
 
 @app.cell
@@ -89,14 +84,12 @@ def _(gdf, mo):
     # This should not fail
     # https://github.com/marimo-team/marimo/issues/5447
     mo.ui.dataframe(gdf)
-    return
 
 
 @app.cell
 def _(gdf, mo, pl):
     pl_df = pl.DataFrame(gdf.assign(geometry=gdf.geometry.astype(str)))
     mo.ui.dataframe(pl_df)
-    return
 
 
 if __name__ == "__main__":

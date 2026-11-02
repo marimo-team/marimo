@@ -1,25 +1,22 @@
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App(width="columns")
 
 
 @app.cell(column=0)
 def _(df_pandas, mo):
     mo.ui.dataframe(df_pandas)
-    return
 
 
 @app.cell
 def _(df_polars, mo):
     mo.ui.dataframe(df_polars)
-    return
 
 
 @app.cell
 def _(df_ibis, mo):
     mo.ui.dataframe(df_ibis)
-    return
 
 
 @app.cell
@@ -46,14 +43,12 @@ def _(data, ib, pd, pl):
 def _(df_pandas):
     df_pandas_next = df_pandas
     df_pandas_next.drop_duplicates(["sepalLength"], keep="first")
-    return
 
 
 @app.cell
 def _(df_polars):
     df_polars_next = df_polars
     df_polars_next.unique(subset=["sepalLength"], keep="first")
-    return
 
 
 @app.cell
@@ -61,7 +56,6 @@ def _(df_ibis, mo):
     df_ibis_next = df_ibis
     df_ibis_next = df_ibis_next.distinct(on=["sepalLength"], keep="first")
     mo.ui.table(df_ibis_next)
-    return
 
 
 if __name__ == "__main__":

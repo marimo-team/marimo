@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -25,13 +25,11 @@ def _(mo):
 @app.cell
 def _(items: list, mo):
     mo.hstack(items)
-    return
 
 
 @app.cell
 def _(items: list, mo):
     mo.vstack(items)
-    return
 
 
 @app.cell
@@ -48,7 +46,6 @@ def _(items: list, mo):
             *_items,
         ]
     )
-    return
 
 
 if __name__ == "__main__":

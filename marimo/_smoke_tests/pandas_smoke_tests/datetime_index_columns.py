@@ -8,7 +8,7 @@
 
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -24,7 +24,6 @@ def _(mo):
     mo.md("""
     # Issue #6898: DatetimeIndex Lost Across Cells
     """)
-    return
 
 
 @app.cell
@@ -60,7 +59,6 @@ def _(mo):
     This reproduces the exact issue from #6898 where `.pipe()` is used
     to set DatetimeIndex on columns.
     """)
-    return
 
 
 @app.cell
@@ -89,7 +87,6 @@ def _(mo):
     This is where the bug manifests - the DatetimeIndex is lost when
     the DataFrame is passed to the next cell.
     """)
-    return
 
 
 @app.cell
@@ -100,7 +97,6 @@ def _(df_with_datetime_cols, pd):
     print(
         f"Is DatetimeIndex in next cell: {isinstance(df_with_datetime_cols.columns, pd.DatetimeIndex)}"
     )
-    return
 
 
 if __name__ == "__main__":

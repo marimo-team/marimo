@@ -8,7 +8,7 @@
 
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App()
 
 
@@ -34,7 +34,6 @@ def _(mo):
             ),
         ]
     )
-    return
 
 
 @app.cell
@@ -155,7 +154,6 @@ def _(mo, render_about, render_home, render_sales):
             mo.routes.CATCH_ALL: render_home,
         }
     )
-    return
 
 
 if __name__ == "__main__":

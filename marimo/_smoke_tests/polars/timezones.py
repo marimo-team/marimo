@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -25,19 +25,16 @@ def _():
 @app.cell
 def _(df):
     df
-    return
 
 
 @app.cell
 def _(df, mo):
     mo.plain(df)
-    return
 
 
 @app.cell
 def _(df):
     df.to_dicts()
-    return
 
 
 @app.cell

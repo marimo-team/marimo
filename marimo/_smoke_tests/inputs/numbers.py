@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -16,19 +16,16 @@ def _(mo):
     mo.md(r"""
     ## Basic
     """)
-    return
 
 
 @app.cell
 def _(mo):
     mo.ui.number()
-    return
 
 
 @app.cell
 def _(mo):
     mo.ui.number(-10, 10)
-    return
 
 
 @app.cell
@@ -36,7 +33,6 @@ def _(mo):
     mo.md(r"""
     ## Edge cases
     """)
-    return
 
 
 @app.cell
@@ -53,7 +49,6 @@ def _(mo):
 @app.cell
 def _(v):
     v.value
-    return
 
 
 @app.cell
@@ -72,7 +67,6 @@ def _(mo, on_change):
 
     # Cannot set infinity as range
     mo.ui.number(start=-np.inf, stop=np.inf, value=5, on_change=on_change)
-    return
 
 
 if __name__ == "__main__":

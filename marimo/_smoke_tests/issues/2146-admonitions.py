@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -24,7 +24,6 @@ def _(mo):
 
         em que $A$ é uma matriz simétrica. No nosso caso, $A=X'X$ e $v=\hat{\boldsymbol{\beta}}$.
     """).center().callout()
-    return
 
 
 @app.cell
@@ -42,7 +41,6 @@ def _(mo):
 
         em que $A$ é uma matriz simétrica. No nosso caso, $A=X'X$ e $v=\hat{\boldsymbol{\beta}}$.
     """)
-    return
 
 
 @app.cell
@@ -62,7 +60,6 @@ def _(mo):
     """).center()
         }
     )
-    return
 
 
 if __name__ == "__main__":

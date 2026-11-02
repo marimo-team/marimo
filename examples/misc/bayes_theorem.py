@@ -8,7 +8,7 @@
 
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -48,7 +48,6 @@ def _(mo):
     P(E) = P(E \cap H) + P(E \cap \neg H).
     \]
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -98,7 +97,6 @@ def _(
         align="start",
         widths=[0.33, 0.5],
     )
-    return
 
 
 @app.cell(hide_code=True)

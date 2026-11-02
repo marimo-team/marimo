@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App()
 
 
@@ -14,7 +14,6 @@ def _():
 @app.cell
 def _(sys):
     sys.exit()
-    return
 
 
 @app.cell
@@ -27,7 +26,6 @@ def _():
 @app.cell
 def _(os):
     os._exit(1)
-    return
 
 
 if __name__ == "__main__":

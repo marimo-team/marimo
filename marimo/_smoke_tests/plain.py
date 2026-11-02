@@ -10,7 +10,7 @@
 
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -33,25 +33,21 @@ def _(data, pl):
 @app.cell
 def _(df, mo):
     mo.ui.table(df)
-    return
 
 
 @app.cell
 def _(df, mo):
     mo.plain(df)
-    return
 
 
 @app.cell
 def _(df, mo):
     mo.hstack(["hstack", mo.vstack(["vstack", df])])
-    return
 
 
 @app.cell
 def _(df, mo):
     mo.hstack(["hstack", mo.vstack(["vstack", mo.plain(df)])])
-    return
 
 
 if __name__ == "__main__":

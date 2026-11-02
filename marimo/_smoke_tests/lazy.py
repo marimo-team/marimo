@@ -2,7 +2,7 @@
 
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App(width="full")
 
 
@@ -22,7 +22,6 @@ def _(generate_number, mo, slider, table):
         }
     )
     tabs
-    return
 
 
 @app.cell
@@ -36,25 +35,21 @@ def _(generate_number, mo, slider, table):
         lazy=True,
     )
     auto_lazy_tabs
-    return
 
 
 @app.cell
 def _(generate_number, mo):
     mo.accordion({"Open me": mo.lazy(generate_number, show_loading_indicator=True)})
-    return
 
 
 @app.cell
 def _(generate_number, mo):
     mo.accordion({"Open me": generate_number}, lazy=True)
-    return
 
 
 @app.cell
 def _(generate_number_async, mo):
     mo.accordion({"Lazy async function": mo.lazy(generate_number_async, show_loading_indicator=True)})
-    return
 
 
 @app.cell

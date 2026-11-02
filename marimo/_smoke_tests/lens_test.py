@@ -2,7 +2,7 @@
 
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App()
 
 
@@ -54,7 +54,6 @@ def _(mo):
 @app.cell
 def _(mo, x):
     mo.ui.table([{"data": "foo", "button": btn} for btn in x.values()])
-    return
 
 
 @app.cell
@@ -62,7 +61,6 @@ def _(data: list, x):
     # x.value counts how many times each button has been clicked
     # data is a log of button clicks
     x.value, data
-    return
 
 
 @app.cell
@@ -80,25 +78,21 @@ def _(dict_template: dict[str], mo):
 @app.cell
 def _():
     10
-    return
 
 
 @app.cell
 def _(composite):
     composite[0], composite[1], composite[2]
-    return
 
 
 @app.cell
 def _(composite, mo):
     mo.accordion({"Push a button": composite[2]["0"]})
-    return
 
 
 @app.cell
 def _(composite):
     composite.value
-    return
 
 
 @app.function
@@ -109,7 +103,6 @@ def change_printer(v):
 @app.cell
 def _(checkboxes):
     [_item for _item in checkboxes]
-    return
 
 
 @app.cell

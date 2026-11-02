@@ -8,7 +8,7 @@
 
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -51,7 +51,6 @@ def _(mo):
     mo.md("""
     The following cell writes the updated dataframe to disk when the submit button is clicked.
     """)
-    return
 
 
 @app.cell
@@ -59,7 +58,6 @@ def _(DATA_FILE: str, editor, mo):
     mo.stop(editor.value is None, mo.md("Submit your changes."))
 
     editor.value.write_csv(DATA_FILE)
-    return
 
 
 if __name__ == "__main__":

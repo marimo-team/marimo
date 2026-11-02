@@ -7,7 +7,7 @@
 
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium", auto_download=["html", "ipynb"])
 
 
@@ -42,34 +42,29 @@ def _(con):
 @app.cell
 def _(t):
     t.schema()
-    return
 
 
 @app.cell
 def _(t):
     t._find_backends()
-    return
 
 
 @app.cell
 def _(t):
     # This should render the opinionated table, somewhat fast, without fetching the full dataframe into memory
     t
-    return
 
 
 @app.cell
 def _(t):
     # This should render the opinionated table, somewhat fast, without fetching the full dataframe into memory
     t.limit(10)
-    return
 
 
 @app.cell
 def _(mo, t):
     # Should show a plain HTML table from ibis
     mo.plain(t)
-    return
 
 
 @app.cell

@@ -13,7 +13,7 @@
 
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App()
 
 
@@ -25,7 +25,6 @@ def _(mo):
     pip install holoviews
     ```
     """)
-    return
 
 
 @app.cell
@@ -72,14 +71,12 @@ def _(mo):
     mo.md("""
     ## Area chart
     """)
-    return
 
 
 @app.cell
 def _(hv, np):
     xs = np.linspace(0, np.pi * 4, 40)
     hv.Area((xs, np.sin(xs)))
-    return
 
 
 @app.cell
@@ -87,13 +84,11 @@ def _(mo):
     mo.md("""
     ## Scatter chart
     """)
-    return
 
 
 @app.cell
 def _(scatter):
     scatter
-    return
 
 
 @app.cell
@@ -101,7 +96,6 @@ def _(mo):
     mo.md("""
     # HV Plot
     """)
-    return
 
 
 @app.cell
@@ -110,7 +104,6 @@ def _():
     from bokeh.sampledata.penguins import data as df
 
     df.hvplot.scatter(x="bill_length_mm", y="bill_depth_mm", by="species")
-    return
 
 
 @app.cell
@@ -118,7 +111,6 @@ def _(mo):
     mo.md("""
     # Composed Views
     """)
-    return
 
 
 @app.cell
@@ -134,13 +126,11 @@ def _():
 @app.cell
 def _(df3, df4):
     df3.hvplot.line("x", "y") * df4.hvplot.line("x", "y")
-    return
 
 
 @app.cell
 def _(df3, df4):
     df3.hvplot.line("x", "y") + df4.hvplot.line("x", "y")
-    return
 
 
 if __name__ == "__main__":

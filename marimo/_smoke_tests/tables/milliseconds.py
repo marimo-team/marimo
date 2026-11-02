@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -37,7 +37,6 @@ def _(pandas_dates_df):
     import polars as pl
 
     pl.DataFrame(pandas_dates_df)
-    return
 
 
 @app.cell
@@ -59,7 +58,6 @@ def _(mo):
         ) AS t(raw)
         """
     )
-    return
 
 
 @app.cell(hide_code=True)
@@ -73,7 +71,6 @@ def _(mo):
 
     Also created an equivalent SQL result (df_sql_dates) using an inline VALUES list and TRY_CAST to show parsed timestamps and a simple LIKE check to detect milliseconds.
     """)
-    return
 
 
 if __name__ == "__main__":

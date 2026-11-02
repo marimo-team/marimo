@@ -12,7 +12,7 @@
 
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -139,7 +139,6 @@ def _(df, query):
             print(res.choices[0].message.content)
         except Exception as e:
             print(f"❌ {e}")
-    return
 
 
 @app.cell
@@ -158,7 +157,6 @@ def _(query):
             print(res.choices[0].message.content)
         except Exception as e:
             print(f"❌ {e}")
-    return
 
 
 @app.cell
@@ -174,7 +172,6 @@ def _():
                 print(f"Display name: {m.display_name}")
                 print(f"Description: {m.description}")
                 print("-" * 80)
-    return
 
 
 if __name__ == "__main__":

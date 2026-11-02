@@ -2,7 +2,7 @@
 
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App()
 
 
@@ -19,7 +19,6 @@ def _(mo):
     mo.md("""
     # Basic form
     """)
-    return
 
 
 @app.cell
@@ -58,7 +57,6 @@ def _(form_1, mo, random):
             form_1.value,
         ]
     )
-    return
 
 
 @app.cell
@@ -68,7 +66,6 @@ def _(mo):
 
     # Validating forms
     """)
-    return
 
 
 @app.cell
@@ -121,7 +118,6 @@ def _(form_2, mo, random):
             form_2.value,
         ]
     )
-    return
 
 
 @app.cell
@@ -130,7 +126,6 @@ def _(mo):
     ------
     # Dictionary
     """)
-    return
 
 
 @app.cell
@@ -160,7 +155,6 @@ def _(dict, mo):
             dict.value,
         ]
     )
-    return
 
 
 if __name__ == "__main__":

@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -16,7 +16,6 @@ def _(plt):
     import numpy as np
 
     plt.hist(np.random.rand(1000), bins=10)
-    return
 
 
 @app.cell
@@ -37,7 +36,6 @@ def _():
     )
 
     [chart, "application/foo:bar"]
-    return
 
 
 if __name__ == "__main__":

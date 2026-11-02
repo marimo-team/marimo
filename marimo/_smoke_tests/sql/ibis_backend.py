@@ -15,7 +15,7 @@
 
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -34,7 +34,6 @@ def _(mo):
     mo.md(r"""
     ## DataFusion Connection
     """)
-    return
 
 
 @app.cell
@@ -68,7 +67,6 @@ def _(con, mo):
         """,
         engine=con
     )
-    return
 
 
 @app.cell(hide_code=True)
@@ -89,7 +87,6 @@ def _(mo):
 
     Notice I have commented out mounting a local volume, you can opt to ignore that line. Include this to read your local filesystem.
     """)
-    return
 
 
 @app.cell
@@ -108,7 +105,6 @@ def _(ibis):
 def _(data, pyspark_conn):
     # pyspark_conn.read_csv("/mounted_data/order_details.csv").to_polars()
     pyspark_conn.create_table("my_data", obj=data, overwrite=True)
-    return
 
 
 @app.cell
@@ -119,7 +115,6 @@ def _(mo, my_data, pyspark_conn):
         """,
         engine=pyspark_conn
     )
-    return
 
 
 if __name__ == "__main__":

@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App()
 
 
@@ -15,7 +15,6 @@ def _():
 @app.cell
 def _(time):
     time.sleep(10)
-    return
 
 
 @app.cell
@@ -39,7 +38,6 @@ def _(mo):
 
     ![](https://marimo.io/apple-touch-icon.png)
     """)
-    return
 
 
 if __name__ == "__main__":

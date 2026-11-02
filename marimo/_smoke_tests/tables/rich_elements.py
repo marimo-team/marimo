@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -19,7 +19,6 @@ def _(mo):
     mo.md(r"""
     # Printing Rich Elements
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -149,7 +148,6 @@ def _(alt, mo, pd):
 @app.cell
 def _(data: dict, mo):
     mo.vstack([mo.md("## Table"), mo.ui.table(data, page_size=20)])
-    return
 
 
 @app.cell
@@ -162,7 +160,6 @@ def _(data: dict, mo, pd):
 @app.cell
 def _(mo, pandas_rich):
     mo.vstack([mo.md("## Table containing pandas df"), mo.ui.table(pandas_rich)])
-    return
 
 
 @app.cell
@@ -181,13 +178,11 @@ def _(mo, password):
     mo.md(f"""
     ### Password value: {password.value}
     """)
-    return
 
 
 @app.cell
 def _(mo, pl_df):
     mo.vstack([mo.md("## Table containing polars dataframe"), mo.ui.table(pl_df)])
-    return
 
 
 @app.cell
@@ -198,7 +193,6 @@ def _(mo):
     `pl.DataFrame(data).transpose()`
     """)
     # pl.DataFrame(data).transpose()
-    return
 
 
 @app.cell
@@ -207,19 +201,16 @@ def _(mo, pd, pl):
 
     pl.DataFrame({"button": mo.ui.button()})
     mo.ui.table({"button": mo.ui.button()})
-    return
 
 
 @app.cell
 def _(data: dict, mo):
     mo.ui.data_editor(data=data, label="Edit Data")
-    return
 
 
 @app.cell
 def _(data: dict, mo):
     mo.ui.data_explorer(data)
-    return
 
 
 if __name__ == "__main__":

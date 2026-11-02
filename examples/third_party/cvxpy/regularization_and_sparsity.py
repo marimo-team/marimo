@@ -10,7 +10,7 @@
 
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App()
 
 
@@ -19,7 +19,6 @@ def _(mo):
     mo.md("""
     # Regularization and Sparsity
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -55,7 +54,6 @@ def _(mo):
     \|x\|_2 = \sqrt{x_1^2 + x_2^2 + \cdots + x_n^2}.
     \]
     """)
-    return
 
 
 @app.cell
@@ -97,7 +95,6 @@ def _(mo):
     mo.md("""
     ## Parameter selection
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -136,7 +133,6 @@ def _(mo, n: int, number_of_zeros, sparsity_parameter, x_l1, x_l2):
             """
         )
     )
-    return
 
 
 @app.cell
@@ -146,7 +142,6 @@ def _(cdf, plt, x_l1, x_l2):
     cdf(x_l2, cdf_axs[1]).set_title("$p=2$")
     plt.tight_layout()
     cdf_figure
-    return
 
 
 @app.cell
@@ -162,7 +157,6 @@ def _(mo):
     of $x$ is $0$, then the corresponding feature or measurement
     must not be important in making predictions.
     """)
-    return
 
 
 @app.cell

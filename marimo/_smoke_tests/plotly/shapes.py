@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium", auto_download=["html"])
 
 
@@ -28,7 +28,6 @@ def _(mo):
 @app.cell
 def _(plot_boxes):
     plot_boxes
-    return
 
 
 @app.cell
@@ -57,7 +56,6 @@ def _(np, plot_boxes, px):
 @app.cell
 def _(fig):
     fig.layout.shapes
-    return
 
 
 if __name__ == "__main__":

@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App(width="full")
 
 
@@ -36,7 +36,6 @@ def button(keys_1: list[str], keys_2: list[str], switch):
 def display(keys: list[str], mo):
     table = mo.ui.table({str(k): mo.ui.text(value=k) for k in keys})
     table
-    return
 
 
 if __name__ == "__main__":

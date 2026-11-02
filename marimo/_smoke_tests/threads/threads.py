@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App()
 
 
@@ -27,14 +27,12 @@ def _():
 def _(mo, threading):
     with mo.redirect_stdout():
         threading.Thread(target=foo).start()
-    return
 
 
 @app.cell
 def _(mo):
     with mo.redirect_stdout():
         mo.Thread(target=foo).start()
-    return
 
 
 if __name__ == "__main__":

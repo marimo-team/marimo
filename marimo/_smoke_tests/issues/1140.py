@@ -2,7 +2,7 @@
 
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App(width="full")
 
 
@@ -22,7 +22,6 @@ def _(mo):
 
     These differences are due to how each library prints their data as CSVs.
     """)
-    return
 
 
 @app.cell
@@ -84,19 +83,16 @@ def _(pd):
 @app.cell
 def _(df_with_date_index, mo):
     mo.ui.table(df_with_date_index, label="Pandas with date index")
-    return
 
 
 @app.cell
 def _(df_with_date_index):
     df_with_date_index
-    return
 
 
 @app.cell
 def _(df, mo):
     mo.ui.table(df, label="Pandas")
-    return
 
 
 @app.cell
@@ -109,13 +105,11 @@ def _(data: dict, pd):
 @app.cell
 def _(df, mo):
     mo.ui.dataframe(df)
-    return
 
 
 @app.cell
 def _(df, mo):
     mo.ui.table(df.to_dict(orient="records"), label="List of dictionaries")
-    return
 
 
 @app.cell
@@ -126,7 +120,6 @@ def _(data_2: dict, mo, pd):
 
     table = pa.Table.from_pandas(pd.DataFrame(data_2))
     mo.ui.table(table, label="Pyarrow")
-    return
 
 
 @app.cell
@@ -180,7 +173,6 @@ def _(data_2: dict, mo):
 @app.cell
 def _(pl_df):
     pl_df
-    return
 
 
 @app.cell

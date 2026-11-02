@@ -8,7 +8,7 @@
 
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App()
 
 
@@ -24,7 +24,6 @@ def _(mo):
     mo.md(r"""
     ::lucide:alarm-clock::
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -40,7 +39,6 @@ def _(mo):
         ],
         justify="start",
     )
-    return
 
 
 @app.cell
@@ -55,7 +53,6 @@ def _(mo):
         ],
         justify="start",
     )
-    return
 
 
 @app.cell
@@ -70,7 +67,6 @@ def _(mo):
         ],
         justify="start",
     )
-    return
 
 
 @app.cell
@@ -90,13 +86,11 @@ def _(mo):
         ],
         justify="start",
     )
-    return
 
 
 @app.cell
 def _(mo):
     mo.md(f"""## {mo.icon('material-symbols:edit')} Icons in markdown""")
-    return
 
 
 @app.cell
@@ -108,7 +102,6 @@ def _(mo):
             f"{mo.icon('material-symbols:group-remove')} Remove": mo.md("Tab 3"),
         }
     )
-    return
 
 
 if __name__ == "__main__":

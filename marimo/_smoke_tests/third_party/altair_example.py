@@ -9,7 +9,7 @@
 
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App()
 
 
@@ -34,7 +34,6 @@ def _(alt, source):
         angle=alt.Angle("dir", scale=alt.Scale(domain=[0, 360], range=[180, 540])),
         size=alt.Size("speed", scale=alt.Scale(rangeMax=500)),
     ).project("equalEarth")
-    return
 
 
 @app.cell
@@ -59,7 +58,6 @@ def _(alt, cars, mo):
         that was an altair plot
         """
     )
-    return
 
 
 @app.cell
@@ -71,7 +69,6 @@ def _(alt, stocks):
     )
 
     (base.mark_line() + base.mark_point())
-    return
 
 
 @app.cell

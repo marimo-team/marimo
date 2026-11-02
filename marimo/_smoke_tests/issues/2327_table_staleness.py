@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -62,19 +62,16 @@ def _(get_data, mo, set_data):
 @app.cell
 def _(add_row, mo, table):
     mo.vstack([table, add_row])
-    return
 
 
 @app.cell
 def _(get_data):
     get_data()
-    return
 
 
 @app.cell
 def _(table_list: list):
     table_list[0]["x"].value
-    return
 
 
 if __name__ == "__main__":

@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -15,7 +15,6 @@ def _():
 @app.cell
 def _(pd):
     pd.DataFrame([1, 2, 3])
-    return
 
 
 @app.cell
@@ -28,7 +27,6 @@ def _(pd):
 @app.cell
 def _(data, mo):
     mo.ui.table(data)
-    return
 
 
 if __name__ == "__main__":

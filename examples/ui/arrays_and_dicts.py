@@ -7,7 +7,7 @@
 
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App()
 
 
@@ -24,7 +24,6 @@ def _(mo):
     mo.md("""
     # Arrays and Dictionaries
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -37,7 +36,6 @@ def _(mo):
     these functions are required when the set of elements to create is not
     known until runtime.
     """)
-    return
 
 
 @app.cell
@@ -49,7 +47,6 @@ def _(mo):
 @app.cell
 def _(create):
     create.center()
-    return
 
 
 @app.cell
@@ -57,7 +54,6 @@ def _(mo):
     mo.md("""
     UI Elements ...
     """)
-    return
 
 
 @app.cell
@@ -81,13 +77,11 @@ def _(mo):
     mo.md("""
     ... and their values
     """)
-    return
 
 
 @app.cell
 def _(array, dictionary, mo):
     mo.hstack([array.value, dictionary.value], justify="space-around")
-    return
 
 
 @app.cell(hide_code=True)
@@ -97,7 +91,6 @@ def _(mo):
 
     The main reason to use `mo.ui.dictionary` is for reactive execution — when you interact with an element in a `mo.ui.dictionary`, all cells that reference the `mo.ui.dictionary` run automatically, just like all other ui elements. When you use a regular dictionary, you don't get this reactivity.
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -144,7 +137,6 @@ def _(mo, mo_d, py_d: dict):
         ],
         justify="space-around",
     )
-    return
 
 
 @app.cell(hide_code=True)
@@ -152,7 +144,6 @@ def _(mo):
     mo.md(r"""
     Notice that when you interact with the UI elements in the marimo dict, the reference of marimo dict updates automatically. However, when you interact with the elements in the python dict, you need to manually re-run the cell to see the updated values.
     """)
-    return
 
 
 if __name__ == "__main__":

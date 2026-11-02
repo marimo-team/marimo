@@ -7,7 +7,7 @@
 
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App()
 
 
@@ -16,7 +16,6 @@ def _(mo):
     mo.md("""
     # Model Comparison
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -25,7 +24,6 @@ def _(mo):
     !!! tip "This notebook is best viewed as an app."
         Hit `Cmd/Ctrl+.` or click the "app view" button in the bottom right.
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -66,7 +64,6 @@ def _(mo):
     mo.md(f"""
     _Models A and B both predict spans. Which do you prefer?_
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -78,13 +75,11 @@ def _(NUMBER_OF_EXAMPLES: int, mo, num_a_preferred: int, num_b_preferred: int):
         ],
         selection=None,
     )
-    return
 
 
 @app.cell
 def _(index, mo, next_button, previous_button):
     mo.hstack([index, previous_button, next_button], justify="center")
-    return
 
 
 @app.cell(hide_code=True)
@@ -93,7 +88,6 @@ def _(CHOICES_PATH: str, get_choices, index, mo, write_choices):
     mo.stop(preference is None, mo.md("**Choose the better model**.").center())
     write_choices(get_choices(), CHOICES_PATH)
     mo.md(f"You prefer **model {preference}**.").center()
-    return
 
 
 @app.cell(hide_code=True)
@@ -105,7 +99,6 @@ def _(mo):
         ],
         justify="space-around",
     )
-    return
 
 
 @app.cell(hide_code=True)
@@ -132,7 +125,6 @@ def _(index, mo, set_choices):
         ),
     )
     mo.hstack([model_A, model_B], justify="space-around")
-    return
 
 
 @app.cell(hide_code=True)
@@ -160,7 +152,6 @@ def _(mo, model_A_prediction, model_B_prediction):
     mo.hstack(
         [model_A_prediction, model_B_prediction], gap=2, justify="space-around"
     )
-    return
 
 
 @app.cell

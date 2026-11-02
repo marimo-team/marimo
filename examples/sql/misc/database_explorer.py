@@ -13,7 +13,7 @@
 
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App(width="full")
 
 
@@ -34,7 +34,6 @@ def _(mo):
 
     This notebook lets you explore the contents of a database. Start by providing a database URL.
     """)
-    return
 
 
 @app.cell
@@ -60,13 +59,11 @@ def _(database_url, duckdb):
                 ATTACH DATABASE '{database_url.value}' AS my_db  (TYPE postgres, READ_ONLY);
             """
         )
-    return
 
 
 @app.cell
 def _(duckdb):
     duckdb.sql("SHOW DATABASES").show()
-    return
 
 
 @app.cell(hide_code=True)
@@ -74,7 +71,6 @@ def _(mo):
     mo.md(r"""
     ## Tables
     """)
-    return
 
 
 @app.cell
@@ -84,7 +80,6 @@ def _(mo):
         SHOW ALL TABLES;
         """
     )
-    return
 
 
 @app.cell(hide_code=True)
@@ -92,7 +87,6 @@ def _(mo):
     mo.md(r"""
     ## Other meta table functions
     """)
-    return
 
 
 @app.cell
@@ -136,7 +130,6 @@ def _(function, mo):
         SELECT * FROM {function.value} WHERE database_name == 'my_db'
         """
     )
-    return
 
 
 @app.cell(hide_code=True)
@@ -144,7 +137,6 @@ def _(mo):
     mo.md(r"""
     ## Interact with your tables
     """)
-    return
 
 
 @app.cell
@@ -198,7 +190,6 @@ def _(limit, mo, table_select_value: None):
 @app.cell
 def _(mo, selected_table):
     mo.ui.data_explorer(selected_table)
-    return
 
 
 if __name__ == "__main__":

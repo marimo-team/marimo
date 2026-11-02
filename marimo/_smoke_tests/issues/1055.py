@@ -2,7 +2,7 @@
 
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App()
 
 
@@ -10,13 +10,10 @@ app = marimo.App()
 def _():
     import manim_slides
 
-    return
-
 
 @app.cell
 def _():
     print(1)
-    return
 
 
 if __name__ == "__main__":

@@ -15,7 +15,7 @@
 
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App(
     width="medium",
     layout_file="layouts/grid-dashboard.grid.json",
@@ -27,7 +27,6 @@ def _(mo):
     mo.md(r"""
     # Gapminder Dashboard
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -44,7 +43,6 @@ def _(mo):
     ///
     """
     )
-    return
 
 
 @app.cell(hide_code=True)
@@ -54,7 +52,6 @@ def _(mo):
 
     This application is adapted from <https://examples.holoviz.org/gallery/gapminders/gapminders.html>
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -62,7 +59,6 @@ def _(mo):
     mo.md(r"""
     # Getting the data
     """)
-    return
 
 
 @app.cell
@@ -119,7 +115,6 @@ def _(mo):
     mo.md(r"""
     # Charting the data
     """)
-    return
 
 
 @app.cell
@@ -306,7 +301,6 @@ def _(HEIGHT: int, altair_view, hvplot_view, mo, mpl_view, plotly_view):
             "hvplot": hvplot_view(),
         }
     )
-    return
 
 
 @app.cell(hide_code=True)
@@ -314,7 +308,6 @@ def _(mo):
     mo.md(r"""
     # Building a dashboard
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -322,7 +315,6 @@ def _(mo):
     mo.md("""
     ## Creating widgets
     """)
-    return
 
 
 @app.cell
@@ -349,7 +341,6 @@ def _(mo, show_legend, year):
             show_legend,
         ]
     )
-    return
 
 
 @app.cell
@@ -372,7 +363,6 @@ def _(YEARS: list, autoplay, set_year):
 
 
     set_year(increment)
-    return
 
 
 @app.cell(hide_code=True)
@@ -380,31 +370,26 @@ def _(mo):
     mo.md(r"""
     ## Creating the charts, reactive to the widgets
     """)
-    return
 
 
 @app.cell
 def _(mpl_view, show_legend, year):
     mpl_view(year=year.value, show_legend=show_legend.value)
-    return
 
 
 @app.cell
 def _(plotly_view, show_legend, year):
     plotly_view(year=year.value, show_legend=show_legend.value)
-    return
 
 
 @app.cell
 def _(HEIGHT: int, altair_view, show_legend, year):
     altair_view(year=year.value, show_legend=show_legend.value, height=HEIGHT - 100)
-    return
 
 
 @app.cell
 def _(hvplot_view, show_legend, year):
     hvplot_view(year=year.value, show_legend=show_legend.value)
-    return
 
 
 @app.cell(hide_code=True)
@@ -414,13 +399,11 @@ def _(mo):
 
     Next we will toggle to "App view" (hit `Cmd/Ctrl+.` or click the "app view") in order to layout our dashboard with the grid layout editor.
     """)
-    return
 
 
 @app.cell
 def _(mo):
     mo.image("https://marimo.io/logotype-wide.svg")
-    return
 
 
 @app.cell(hide_code=True)
@@ -432,7 +415,6 @@ def _(mo):
 
     This application is inspired by [Panel](https://examples.holoviz.org/gallery/gapminders/gapminders.html).
     """)
-    return
 
 
 if __name__ == "__main__":

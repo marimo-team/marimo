@@ -2,7 +2,7 @@
 
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App()
 
 
@@ -21,7 +21,6 @@ def _(mo):
     Check that equations and following text stay inside their list items.
     The numbered list should have three items.
     """)
-    return
 
 
 @app.cell
@@ -35,7 +34,6 @@ def _(mo):
        This text belongs to item two.
     3. Third item.
     """)
-    return
 
 
 @app.cell
@@ -50,7 +48,6 @@ def _(mo):
         )
         for _marker in ["-", "*", "+"]
     ])
-    return
 
 
 @app.cell
@@ -62,7 +59,6 @@ def _(mo):
     block. Display math at this indentation still has a pre-existing rendering
     issue; this check only verifies that the content does not become code.
     """)
-    return
 
 
 @app.cell
@@ -77,7 +73,6 @@ def _(mo):
         )
         for _rule in ["- - -", "* * *", "- --", "* **"]
     ])
-    return
 
 
 @app.cell
@@ -93,7 +88,6 @@ def _(mo):
       Text after the equation.
     - Second item.
     """)
-    return
 
 
 if __name__ == "__main__":

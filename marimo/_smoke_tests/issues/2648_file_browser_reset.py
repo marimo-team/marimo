@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -21,7 +21,6 @@ def _(mo):
 @app.cell
 def _(mo, source):
     mo.ui.file_browser(initial_path=source.value)
-    return
 
 
 @app.cell
@@ -39,7 +38,6 @@ def _(mo):
 def _(columns, df, mo, slider):
     frozen = columns[: slider.value]
     mo.ui.table(df, freeze_columns_left=frozen)
-    return
 
 
 if __name__ == "__main__":

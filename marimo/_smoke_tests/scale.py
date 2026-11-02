@@ -8,7 +8,7 @@
 
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App()
 
 
@@ -17,7 +17,6 @@ def _(mo):
     mo.md("""
     # Scale
     """)
-    return
 
 
 @app.cell
@@ -58,7 +57,6 @@ def _(mo, s):
         "As Flat Tree": sliders_as_tree,
         "As Nested Tree": sliders_as_nested_tree,
     })
-    return
 
 
 @app.cell
@@ -77,13 +75,11 @@ def _(mo):
             "As Tree": button_as_tree,
         }
     )
-    return
 
 
 @app.cell
 def _(s):
     [s, s.value]
-    return
 
 
 @app.cell
@@ -131,7 +127,6 @@ def _(mo):
     )
 
     mo.hstack([same, distinct])
-    return
 
 
 @app.cell
@@ -172,7 +167,6 @@ def _(mo):
     >> ...by using additional greater-than signs right next to each other...
     > > > ...or with spaces between arrows.
     """)
-    return
 
 
 @app.cell

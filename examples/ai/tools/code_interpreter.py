@@ -9,7 +9,7 @@
 
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -29,7 +29,6 @@ def _(mo):
 
     This example shows how to create a code-interpreter in a few lines of code.
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -193,7 +192,6 @@ def _(mo, my_model):
             f"Can you sum this list using python: {numbers}",
         ],
     )
-    return
 
 
 if __name__ == "__main__":

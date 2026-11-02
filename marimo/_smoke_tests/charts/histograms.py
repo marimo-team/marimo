@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App(width="full")
 
 
@@ -9,7 +9,6 @@ def _(mo):
     mo.md(r"""
     This is some experimental work to see if we can pre-aggregate column charts on the backend for performance. We are trying to use the dataframe of choice, to avoid additional dependencies.
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -36,7 +35,6 @@ def _(alt, charts: dict, mo):
         )
         _charts.append(chart)
     mo.hstack(_charts)
-    return
 
 
 @app.cell
@@ -55,7 +53,6 @@ def _(df, pl):
 def _(df):
     res = df["Weight"].hist().to_dicts()
     res[0]
-    return
 
 
 @app.cell

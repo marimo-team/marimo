@@ -10,7 +10,7 @@
 
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -46,7 +46,6 @@ def _(mo, np, opacity: float, plt, sizes: float, widget, x: int, y: int):
     ax.set(xlim=(0, 8), xticks=np.arange(1, 8), ylim=(0, 8), yticks=np.arange(1, 8))
     ax.scatter(x, y, s=sizes*5, color=widget.color or None, alpha=opacity)
     mo.hstack([widget, plt.gca()], justify="start", widths=[1, 1])
-    return
 
 
 if __name__ == "__main__":

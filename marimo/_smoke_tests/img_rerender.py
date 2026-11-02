@@ -12,7 +12,7 @@
 
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App()
 
 
@@ -54,7 +54,6 @@ def _(choice, mo, sets: dict[str, list[str]]):
         for u in urls
     )
     mo.Html(f'<div>{imgs}</div>')
-    return
 
 
 @app.cell
@@ -66,7 +65,6 @@ def _(mo):
     - Open devtools and confirm the rendered `<img>` `src` attributes
       match the selected set, and that the painted images match too.
     """)
-    return
 
 
 if __name__ == "__main__":

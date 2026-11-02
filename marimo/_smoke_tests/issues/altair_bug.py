@@ -2,7 +2,7 @@
 
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App()
 
 
@@ -62,25 +62,21 @@ def _(alt, data, mo):
 @app.cell
 def _(chart):
     chart
-    return
 
 
 @app.cell
 def _(chart):
     chart.selections
-    return
 
 
 @app.cell
 def _(chart):
     chart.value
-    return
 
 
 @app.cell
 def _(chart):
     chart.dataframe
-    return
 
 
 if __name__ == "__main__":

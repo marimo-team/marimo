@@ -9,7 +9,7 @@
 
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -38,28 +38,24 @@ def _(cars, mo):
 @app.cell
 def _(default):
     default._value_frontend
-    return
 
 
 @app.cell
 def _(cars, mo):
     # JSON
     mo.ui.table(cars.to_dict(orient="records"))
-    return
 
 
 @app.cell
 def _(cars, mo):
     # No pagination
     mo.ui.table(cars[0:20], pagination=False)
-    return
 
 
 @app.cell
 def _(cars, mo):
     # Trimmed, no pagination
     mo.ui.table(cars[0:9])
-    return
 
 
 @app.cell
@@ -74,7 +70,6 @@ def _(cars, mo):
 @app.cell
 def _(more_cars):
     more_cars.value
-    return
 
 
 @app.cell
@@ -82,13 +77,11 @@ def _(cars):
     # 1m cars, above DEFAULT_SUMMARY_STATS_ROW_LIMIT
     one_mil_cars = cars.sample(1_000_000 + 1, replace=True)
     # mo.ui.table(one_mil_cars)
-    return
 
 
 @app.cell
 def _(cars, mo):
     mo.ui.dataframe(cars)
-    return
 
 
 if __name__ == "__main__":

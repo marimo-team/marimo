@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -25,13 +25,11 @@ def _(mo):
         LOAD spatial;
         """
     )
-    return
 
 
 @app.cell
 def _():
     10
-    return
 
 
 @app.cell
@@ -41,7 +39,6 @@ def _(mo):
         SELECT 1;
         """
     )
-    return
 
 
 @app.cell
@@ -53,7 +50,6 @@ def _(FILE: str, mo):
         FROM '{FILE}'
         """
     )
-    return
 
 
 if __name__ == "__main__":

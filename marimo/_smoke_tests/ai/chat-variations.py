@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium", auto_download=["html"])
 
 
@@ -50,13 +50,11 @@ def _(mo, model):
 @app.cell
 def _(chat):
     chat.value
-    return
 
 
 @app.cell
 def _(chat):
     chat.value[1].content if len(chat.value) else None
-    return
 
 
 @app.cell

@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -37,21 +37,18 @@ def _(alt, df):
 @app.cell
 def _(chart, mo):
     mo.ui.altair_chart(chart)
-    return
 
 
 @app.cell
 def _(alt, chart, mo):
     with alt.data_transformers.enable("marimo_csv"):
         mo.output.append(chart)
-    return
 
 
 @app.cell
 def _(alt, chart, mo):
     with alt.data_transformers.enable("marimo_json"):
         mo.output.append(chart)
-    return
 
 
 if __name__ == "__main__":

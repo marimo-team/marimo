@@ -9,7 +9,7 @@
 
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -25,7 +25,6 @@ def _(mo):
     mo.md(r"""
     ## Basic Text
     """)
-    return
 
 
 @app.cell
@@ -50,7 +49,6 @@ def _(mo):
 @app.cell
 def _(chart, mo):
     mo.vstack([chart, chart.value.head()])
-    return
 
 
 @app.cell(hide_code=True)
@@ -58,7 +56,6 @@ def _(mo):
     mo.md(r"""
     ## Bar chart with text
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -94,7 +91,6 @@ def _(alt, data, mo):
 @app.cell
 def _(chart2):
     chart2.value
-    return
 
 
 @app.cell(hide_code=True)
@@ -104,7 +100,6 @@ def _(mo):
 
     This fails for another reason which is that `month(date)` field gets converted into `month_date` and breaks the backend filtering.
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -158,7 +153,6 @@ def _(alt, data, mo):
 @app.cell
 def _(chart3):
     chart3.selections
-    return
 
 
 if __name__ == "__main__":

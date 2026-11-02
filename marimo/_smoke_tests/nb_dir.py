@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -14,13 +14,11 @@ def _():
 @app.cell
 def _():
     print("__file__", __file__)
-    return
 
 
 @app.cell
 def _(mo):
     print("mo.notebook_dir()", mo.notebook_dir())
-    return
 
 
 if __name__ == "__main__":

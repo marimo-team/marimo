@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -26,13 +26,11 @@ def _(mo):
 @app.cell
 def _(d):
     d
-    return
 
 
 @app.cell
 def _(d, time):
     d.value, time()
-    return
 
 
 @app.cell
@@ -44,7 +42,6 @@ def _(d, time):
     for n, b in d.items():
         print(button.value, n)
     d.value
-    return
 
 
 @app.cell
@@ -58,7 +55,6 @@ def _(mo):
 def _(run_button, time):
     if run_button.value:
         print("Clicked run button at time ", time())
-    return
 
 
 if __name__ == "__main__":

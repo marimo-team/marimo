@@ -7,7 +7,7 @@
 
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App()
 
 
@@ -23,7 +23,6 @@ def _(mo):
     It uses an academic co-authorship network collected from Google Scholar as
     a case study.
     """)
-    return
 
 
 @app.cell
@@ -47,7 +46,6 @@ def _(pymde):
 def _(gscholar):
     scholars_df = gscholar.other_data['dataframe']
     scholars_df
-    return
 
 
 @app.cell
@@ -59,19 +57,16 @@ def _(gscholar):
 @app.cell
 def _(coauthorship_graph):
     f'{coauthorship_graph.n_items:,} authors'
-    return
 
 
 @app.cell
 def _(coauthorship_graph):
     f'{coauthorship_graph.n_edges:,} edges'
-    return
 
 
 @app.cell
 def _(coauthorship_graph):
     print(f'edge density: {100*(coauthorship_graph.n_edges / (coauthorship_graph.n_all_edges)):.2f} percent')
-    return
 
 
 @app.cell
@@ -97,20 +92,17 @@ def _(mde, np, plt):
     plt.xticks(np.arange(1, 11))
     plt.xlabel('graph distances')
     plt.show()
-    return
 
 
 @app.cell
 def _(mde):
     mde.distortions_cdf()
-    return
 
 
 @app.cell
 def _(gscholar, mde):
     mde.plot(color_by=gscholar.attributes['coauthors'], color_map='viridis',
              figsize_inches=(12., 12.), background_color='k')
-    return
 
 
 @app.cell
@@ -122,7 +114,6 @@ def _(coauthorship_graph, gscholar, mde, plt, torch):
     _ax = mde.plot(edges=edges, color_by=gscholar.attributes['coauthors'], color_map='viridis', figsize_inches=(12, 12))
     plt.tight_layout()
     _ax
-    return
 
 
 @app.cell
@@ -146,7 +137,6 @@ def _(gscholar):
 def _(mde, pymde, scholar_disciplines_df, topic_colors: list):
     pymde.plot(mde.X[scholar_disciplines_df['node_id'].values], colors=topic_colors,
                figsize_inches=(12, 12), background_color='black')
-    return
 
 
 @app.cell

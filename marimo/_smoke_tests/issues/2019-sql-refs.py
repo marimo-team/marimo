@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -12,7 +12,6 @@ def _(mo, my_table):
         """
     )
     [mo.refs(), mo.defs()]
-    return
 
 
 @app.cell
@@ -23,7 +22,6 @@ def _(mo, my_view):
         """
     )
     [mo.refs(), mo.defs()]
-    return
 
 
 @app.cell
@@ -35,7 +33,6 @@ def _(mo):
         """
     )
     [mo.refs(), mo.defs()]
-    return
 
 
 @app.cell
@@ -46,7 +43,6 @@ def _(mo, my_table):
         """
     )
     [mo.refs(), mo.defs()]
-    return
 
 
 @app.cell(hide_code=True)

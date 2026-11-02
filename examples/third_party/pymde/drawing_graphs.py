@@ -7,7 +7,7 @@
 
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App()
 
 
@@ -16,7 +16,6 @@ def _(mo):
     mo.md("""
     # Drawing Graphs
     """)
-    return
 
 
 @app.cell
@@ -28,13 +27,11 @@ def _(mo):
 @app.cell
 def _(mo, n_items):
     mo.md(f"Embedding graphs on {n_items} **{n_items.value}** items")
-    return
 
 
 @app.cell
 def _(draw_graphs, loss, n_items, penalty):
     draw_graphs(n_items, penalty, loss)
-    return
 
 
 @app.cell

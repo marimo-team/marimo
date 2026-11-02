@@ -9,7 +9,7 @@
 
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 with app.setup(hide_code=True):
@@ -25,7 +25,6 @@ def _():
     This notebook demonstrates marimo's SQL error handling capabilities across different types of SQL errors.
     Each section shows how marimo gracefully handles SQL errors with helpful error messages.
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -35,7 +34,6 @@ def _():
 
     First, let's create some test data to work with.
     """)
-    return
 
 
 @app.cell
@@ -51,7 +49,6 @@ def _():
         )
         """
     )
-    return
 
 
 @app.cell
@@ -64,7 +61,6 @@ def _(users):
         (3, 'Charlie', 'charlie@example.com', 35)
         """
     )
-    return
 
 
 @app.cell(hide_code=True)
@@ -74,7 +70,6 @@ def _():
 
     DuckDB provides helpful suggestions when table names don't exist.
     """)
-    return
 
 
 @app.cell
@@ -85,7 +80,6 @@ def _(user):
         select * from user
         """
     )
-    return
 
 
 @app.cell
@@ -96,7 +90,6 @@ def _(user_table):
         SELECT * FROM user_table
         """
     )
-    return
 
 
 @app.cell(hide_code=True)
@@ -106,7 +99,6 @@ def _():
 
     Column reference errors with candidate suggestions.
     """)
-    return
 
 
 @app.cell
@@ -118,7 +110,6 @@ def _(users):
         SELECT user_name FROM users
         """
     )
-    return
 
 
 @app.cell
@@ -130,7 +121,6 @@ def _(users):
         SELECT id, fullname, email FROM users
         """
     )
-    return
 
 
 @app.cell(hide_code=True)
@@ -140,7 +130,6 @@ def _():
 
     Various syntax errors with position information.
     """)
-    return
 
 
 @app.cell
@@ -151,7 +140,6 @@ def _():
         SELECT * FRM users
         """
     )
-    return
 
 
 @app.cell
@@ -162,7 +150,6 @@ def _():
         SELECT ( FROM users
         """
     )
-    return
 
 
 @app.cell
@@ -173,7 +160,6 @@ def _():
         SELECT * FROM users WHERE
         """
     )
-    return
 
 
 @app.cell
@@ -184,7 +170,6 @@ def _():
         SELECT * FROM users FROM users
         """
     )
-    return
 
 
 @app.cell(hide_code=True)
@@ -194,7 +179,6 @@ def _():
 
     Type mismatch and conversion errors.
     """)
-    return
 
 
 @app.cell
@@ -205,7 +189,6 @@ def _(users):
         SELECT age / 'invalid_string' FROM users
         """
     )
-    return
 
 
 @app.cell
@@ -216,7 +199,6 @@ def _(users):
         SELECT * FROM users WHERE name > 123
         """
     )
-    return
 
 
 @app.cell(hide_code=True)
@@ -226,7 +208,6 @@ def _():
 
     Function call errors and argument mismatches.
     """)
-    return
 
 
 @app.cell
@@ -237,7 +218,6 @@ def _(users):
         SELECT INVALID_FUNCTION(name) FROM users
         """
     )
-    return
 
 
 @app.cell
@@ -249,7 +229,6 @@ def _(users):
         SELECT SUBSTRING(name) FROM users
         """
     )
-    return
 
 
 @app.cell(hide_code=True)
@@ -259,7 +238,6 @@ def _():
 
     GROUP BY and aggregate function errors.
     """)
-    return
 
 
 @app.cell
@@ -271,7 +249,6 @@ def _(users):
         SELECT name, COUNT(*) FROM users
         """
     )
-    return
 
 
 @app.cell
@@ -282,7 +259,6 @@ def _(users):
         SELECT * FROM users HAVING COUNT(*) > 1
         """
     )
-    return
 
 
 @app.cell(hide_code=True)
@@ -292,7 +268,6 @@ def _():
 
     More complex SQL errors that might occur in real scenarios.
     """)
-    return
 
 
 @app.cell
@@ -304,7 +279,6 @@ def _(users):
         WHERE id IN (SELECT invalid_column FROM users)
         """
     )
-    return
 
 
 @app.cell
@@ -317,7 +291,6 @@ def _(nonexistent_table, users):
         JOIN nonexistent_table p ON u.id = p.user_id
         """
     )
-    return
 
 
 @app.cell(hide_code=True)
@@ -327,7 +300,6 @@ def _():
 
     Testing error handling with long SQL that gets truncated.
     """)
-    return
 
 
 @app.cell
@@ -340,7 +312,6 @@ def _(nonexistent_table):
         FROM nonexistent_table
         """
     )
-    return
 
 
 @app.cell(hide_code=True)
@@ -350,7 +321,6 @@ def _():
 
     Testing error handling with special characters and edge cases.
     """)
-    return
 
 
 @app.cell
@@ -361,7 +331,6 @@ def _():
         SELECT * FROM 'table with spaces and quotes'
         """
     )
-    return
 
 
 @app.cell
@@ -372,7 +341,6 @@ def _(用户表):
         SELECT * FROM 用户表
         """
     )
-    return
 
 
 @app.cell(hide_code=True)
@@ -382,7 +350,6 @@ def _():
 
     Test sql cells with multiple queries
     """)
-    return
 
 
 @app.cell
@@ -393,7 +360,6 @@ def _(users):
         SELECT names FROM users
         """
     )
-    return
 
 
 @app.cell(hide_code=True)
@@ -403,7 +369,6 @@ def _():
 
     Here's a working query to show the contrast with error handling.
     """)
-    return
 
 
 @app.cell
@@ -417,7 +382,6 @@ def _(users):
         ORDER BY age DESC
         """
     )
-    return
 
 
 @app.cell(hide_code=True)
@@ -437,7 +401,6 @@ def _():
     Each SQL cell above will display a structured error in marimo's error UI, showing how
     different types of SQL errors are handled gracefully with actionable feedback.
     """)
-    return
 
 
 if __name__ == "__main__":

@@ -7,7 +7,7 @@ escaped when generating Altair chart code.
 
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -33,7 +33,6 @@ def _(mo):
 
     These characters need to be escaped in Altair field names.
     """)
-    return
 
 
 @app.cell
@@ -57,7 +56,6 @@ def _(pandas_df, pl):
     # Create a Polars DataFrame with special column names
     polars_df = pl.DataFrame(pandas_df)
     polars_df
-    return
 
 
 @app.cell(hide_code=True)
@@ -68,13 +66,11 @@ def _(mo):
 
     Repeat for all the other columns
     """)
-    return
 
 
 @app.cell
 def _(mo, pandas_df):
     mo.ui.table(pandas_df, selection=None)
-    return
 
 
 @app.cell
@@ -88,7 +84,6 @@ def _(alt, pandas_df):
         )
     )
     chart
-    return
 
 
 if __name__ == "__main__":

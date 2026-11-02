@@ -2,7 +2,7 @@
 
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App()
 
 
@@ -18,7 +18,6 @@ def _(mo):
     mo.md("""
     # Innermost
     """)
-    return
 
 
 @app.cell
@@ -36,7 +35,6 @@ def _(mo, x_initial_value: int):
 @app.cell
 def _(x):
     x
-    return
 
 
 @app.cell
@@ -48,13 +46,11 @@ def _(mo):
 @app.cell
 def _(y):
     y
-    return
 
 
 @app.cell
 def _(x, y):
     x.value + y.value
-    return
 
 
 if __name__ == "__main__":

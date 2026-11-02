@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -61,7 +61,6 @@ def _(ARRAY_SIZE: int, mo, np, time):
 def _(ARRAY_SIZE: int, lazy_time: float, pickle_time: float):
     print(f"\nArray size: {ARRAY_SIZE} ({ARRAY_SIZE * 8 / 1e6:.1f}MB each)")
     print(f"Pickle: {pickle_time * 1000:.1f}ms | Lazy: {lazy_time * 1000:.1f}ms")
-    return
 
 
 if __name__ == "__main__":

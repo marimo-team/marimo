@@ -2,7 +2,7 @@
 
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -18,7 +18,6 @@ def _(mo):
     mo.md("""
     # hello
     """)
-    return
 
 
 @app.cell
@@ -26,7 +25,6 @@ def _(mo, time):
     for i in mo.status.progress_bar(range(5)):
         time.sleep(0.5)
         print(i)
-    return
 
 
 @app.cell

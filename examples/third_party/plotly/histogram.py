@@ -8,7 +8,7 @@
 
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -32,7 +32,6 @@ def _(mo):
     Select bins by dragging a box (or use lasso with Shift). Selections are
     returned to Python as selected rows with `pointIndex` values.
     """)
-    return
 
 
 @app.cell
@@ -95,7 +94,6 @@ def _(
     **First mapped original values (using pointIndex):**
     {mapped_original_values}
     """)
-    return
 
 
 @app.cell
@@ -141,7 +139,6 @@ def _(categorical_hist, mo):
     **Preview:**
     {categorical_hist.value[:10]}
     """)
-    return
 
 
 @app.cell
@@ -187,7 +184,6 @@ def _(horizontal_hist, mo):
     **Preview:**
     {horizontal_hist.value[:10]}
     """)
-    return
 
 
 if __name__ == "__main__":

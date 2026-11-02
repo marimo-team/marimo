@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App()
 
 with app.setup:
@@ -16,7 +16,6 @@ def _():
 
     [^2293]: https://github.com/marimo-team/marimo/issues/2293
     """)
-    return
 
 
 @app.function
@@ -49,7 +48,6 @@ def multiply(a, b) -> int:
 @app.cell
 def _():
     d = 13
-    return
 
 
 @app.function(hide_code=True)
@@ -72,13 +70,11 @@ def _():
     print(addition(21, 56))
     print(multiply(21, 56))
     print(self_ref_fib(10))
-    return
 
 
 @app.cell
 def _():
     a = bad_divide_curry(1)
-    return
 
 
 if __name__ == "__main__":

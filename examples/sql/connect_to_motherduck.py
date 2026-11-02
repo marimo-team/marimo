@@ -11,7 +11,7 @@
 
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -24,7 +24,6 @@ def _(mo):
 
     _You can expand the code of any cells to see how the output are being created._
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -42,7 +41,6 @@ def _(md_token: None | str, mo):
         mo.output.replace(
             mo.accordion({"Tired of logging in to MotherDuck?": callout})
         )
-    return
 
 
 @app.cell(hide_code=True)
@@ -60,7 +58,6 @@ def _(mo):
     mo.md("""
     Let's attach a remote MotherDuck database using `md:`
     """)
-    return
 
 
 @app.cell
@@ -82,7 +79,6 @@ def _(mo):
     !!! tip "Explore data sources"
         If you open the "Explore data sources" panel on the left side bar (3rd icon), you will see all your tables including any news ones we will create below
     """)
-    return
 
 
 @app.cell
@@ -90,7 +86,6 @@ def _(mo):
     mo.md(r"""
     ## Let's make some queries 🦆
     """)
-    return
 
 
 @app.cell
@@ -152,7 +147,6 @@ def _(mo):
         -- Which can be used in Python to create charts
         """
     )
-    return
 
 
 @app.cell(hide_code=True)
@@ -162,7 +156,6 @@ def _(mo):
 
     Now that we have made some queries and named the results, we can chart those resulting dataframes in Python, using our favorite charting libraries (e.g [altair](https://altair-viz.github.io/), [matplotlib](https://matplotlib.org/), or [plotly](https://plotly.com/)).
     """)
-    return
 
 
 @app.cell
@@ -193,7 +186,6 @@ def _(mo):
 
     We can also parameterize our SQL using marimo UI elements. This not only makes our SQL reactive, but also any downstream logic, including our charts.
     """)
-    return
 
 
 @app.cell
@@ -297,7 +289,6 @@ def _(alt, hn_type_select, most_monthly_voted):
         )
     )
     _chart
-    return
 
 
 @app.cell(hide_code=True)
@@ -305,7 +296,6 @@ def _(mo):
     mo.md("""
     ## Additional Reactivity ⚡⚡
     """)
-    return
 
 
 @app.cell
@@ -372,7 +362,6 @@ def _(alt, keyword_results, mo, search_value: str):
     )
 
     _chart + _text
-    return
 
 
 @app.cell(hide_code=True)

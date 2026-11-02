@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App()
 
 
@@ -9,7 +9,6 @@ def _(mo):
     mo.md("""
     # Data Labeler
     """)
-    return
 
 
 @app.cell
@@ -42,7 +41,6 @@ def _(mo):
     mo.md(f"""
     **Choose an example to label.**
     """)
-    return
 
 
 @app.cell
@@ -62,19 +60,16 @@ def _(NUMBER_OF_EXAMPLES: int, get_index, mo, set_index):
 @app.cell
 def _(index, mo, next_button, previous_button):
     mo.hstack([index, previous_button, next_button], justify="start")
-    return
 
 
 @app.cell
 def _(index, mo):
     mo.md(f"![img](https://picsum.photos/id/{index.value}/700/400)").center()
-    return
 
 
 @app.cell
 def _(mo):
     mo.md("### Real or AI generated?").center()
-    return
 
 
 @app.cell
@@ -112,7 +107,6 @@ def _(mo, notes):
         Notes can't be longer than 100 characters. {_character_count}
         """
     ).callout(kind="alert")
-    return
 
 
 @app.cell

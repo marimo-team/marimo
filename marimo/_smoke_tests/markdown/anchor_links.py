@@ -9,7 +9,7 @@ To test:
 
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -34,7 +34,6 @@ def _(mo):
     - [Go to Section 2](#section-2)
     - [Go to Section 3](#section-3)
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -47,7 +46,6 @@ def _(mo):
     - [Section 3](#section-3)
     - [Back to top](#anchor-link-test)
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -60,7 +58,6 @@ def _(mo):
     - [Section 3](#section-3)
     - [Back to top](#anchor-link-test)
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -73,7 +70,6 @@ def _(mo):
     - [Section 2](#section-2)
     - [Back to top](#anchor-link-test)
     """)
-    return
 
 
 if __name__ == "__main__":

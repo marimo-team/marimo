@@ -10,7 +10,7 @@
 
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App()
 
 
@@ -28,7 +28,6 @@ def _(mo):
 
     _Use the slider below to choose the number of circles to sample:_
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -88,7 +87,6 @@ def _(center, circles: list, plot_circle, plt, radius):
     plt.legend(loc='upper right')
     plt.gcf().set_size_inches((6, 6))
     plt.gca()
-    return
 
 
 @app.cell
@@ -106,7 +104,6 @@ def _(mo):
     mo.md("""
     ## The solution method
     """)
-    return
 
 
 @app.cell
@@ -148,7 +145,6 @@ def _(mo):
         return (center.value, radius.value)
     ```
     """)
-    return
 
 
 @app.cell

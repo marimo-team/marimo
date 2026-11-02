@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -20,7 +20,6 @@ def _(mo):
     c = \pm\root{a^2 + b^2}\in\RR
     $$
     """)
-    return
 
 
 @app.cell
@@ -28,7 +27,6 @@ def _(mo):
     mo.md(r"""
     $c = \pm\root{a^2 + b^2}\in\RR$
     """)
-    return
 
 
 if __name__ == "__main__":

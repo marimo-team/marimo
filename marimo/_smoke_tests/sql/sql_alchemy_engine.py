@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -16,7 +16,6 @@ def _(mo):
     mo.md("""
     # SQL Alchemy with `mo.sql()`
     """)
-    return
 
 
 @app.cell
@@ -31,7 +30,6 @@ def _(mo):
     mo.md("""
     ## sqlite
     """)
-    return
 
 
 @app.cell
@@ -86,7 +84,6 @@ def _(mo):
     mo.md("""
     ### All Products (sorted by price)
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -103,7 +100,6 @@ def _(mo, products_df):
             ),
         ]
     )
-    return
 
 
 @app.cell(hide_code=True)
@@ -111,7 +107,6 @@ def _(mo):
     mo.md(r"""
     ### Category Summary
     """)
-    return
 
 
 @app.cell
@@ -131,7 +126,6 @@ def _(mo, products, sqlite):
         """,
         engine=sqlite
     )
-    return
 
 
 @app.cell(hide_code=True)
@@ -155,7 +149,6 @@ def _(mo, price_threshold, products, sqlite):
     """,
         engine=sqlite,
     )
-    return
 
 
 @app.cell(hide_code=True)
@@ -163,7 +156,6 @@ def _(mo):
     mo.md(r"""
     ## postgresql
     """)
-    return
 
 
 @app.cell
@@ -201,7 +193,6 @@ def _(mo, my_postgres):
         """,
         engine=my_postgres
     )
-    return
 
 
 if __name__ == "__main__":

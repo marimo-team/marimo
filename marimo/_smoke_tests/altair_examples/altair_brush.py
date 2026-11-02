@@ -11,7 +11,7 @@
 
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -20,7 +20,6 @@ def _(mo):
     mo.md(r"""
     ## Data
     """)
-    return
 
 
 @app.cell
@@ -48,7 +47,6 @@ def _(mo):
     mo.md(r"""
     ## Plain Altair
     """)
-    return
 
 
 @app.cell
@@ -70,7 +68,6 @@ def _(alt, traces):
     )
 
     _chart_overview | _chart_detail
-    return
 
 
 @app.cell
@@ -78,7 +75,6 @@ def _(mo):
     mo.md(r"""
     ## Example of the Or ( | ) operator
     """)
-    return
 
 
 @app.cell
@@ -110,7 +106,6 @@ def _(mo):
     mo.md(r"""
     ## Example of the Or ( | ) operator with selection
     """)
-    return
 
 
 @app.cell
@@ -123,7 +118,6 @@ def _(chart_detail, chart_overview):
 @app.cell
 def _(combined):
     combined.value
-    return
 
 
 if __name__ == "__main__":

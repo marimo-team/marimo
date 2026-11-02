@@ -8,7 +8,7 @@
 
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App()
 
 
@@ -28,13 +28,11 @@ def _(mo):
     marimo edit marimo/_smoke_tests/cli_args.py -- -a foo --b=bar -d 10 -d 20 -d false
     ```
     """)
-    return
 
 
 @app.cell
 def _(mo):
     mo.cli_args().to_dict()
-    return
 
 
 if __name__ == "__main__":

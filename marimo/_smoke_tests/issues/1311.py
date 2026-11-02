@@ -2,7 +2,7 @@
 
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App()
 
 
@@ -25,13 +25,11 @@ def _(pd):
 @app.cell
 def _(all_flights, mo):
     mo.ui.table(all_flights)
-    return
 
 
 @app.cell
 def _(all_flights, mo):
     mo.ui.table(all_flights[0:10])
-    return
 
 
 if __name__ == "__main__":

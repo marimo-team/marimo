@@ -8,7 +8,7 @@
 
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App()
 
 
@@ -30,7 +30,6 @@ def _(mo):
 @app.cell
 def _(kinds: list[str], mo):
     mo.vstack([mo.ui.button(label=kind, kind=kind, disabled=True) for kind in kinds])
-    return
 
 
 if __name__ == "__main__":

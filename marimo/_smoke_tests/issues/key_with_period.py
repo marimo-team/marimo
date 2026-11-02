@@ -2,7 +2,7 @@
 
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App()
 
 
@@ -23,19 +23,16 @@ def _():
 @app.cell
 def _(json_list: list[dict[str, str]], mo):
     mo.ui.table(json_list)
-    return
 
 
 @app.cell
 def _(json_list: list[dict[str, str]], mo, pd):
     mo.ui.data_explorer(pd.DataFrame(json_list))
-    return
 
 
 @app.cell
 def _(json_list: list[dict[str, str]], mo, pd):
     mo.ui.dataframe(pd.DataFrame(json_list))
-    return
 
 
 if __name__ == "__main__":

@@ -8,7 +8,7 @@
 
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App()
 
 
@@ -24,7 +24,6 @@ def _(mo):
     mo.md("""
     # Tables
     """)
-    return
 
 
 @app.cell
@@ -35,7 +34,6 @@ def _(mo):
     Content Cell  | Content Cell
     $f(x)$        | Content Cell
     """)
-    return
 
 
 @app.cell
@@ -47,7 +45,6 @@ def _(mo):
     | col 2 is      | centered      |   $12 |
     | zebra stripes | are neat      |    $1 |
     """)
-    return
 
 
 @app.cell
@@ -55,7 +52,6 @@ def _(mo):
     mo.md("""
     # Footnotes
     """)
-    return
 
 
 @app.cell
@@ -73,7 +69,6 @@ def _(mo):
 
         Add as many paragraphs as you need.
     """)
-    return
 
 
 @app.cell
@@ -81,7 +76,6 @@ def _(mo):
     mo.md("""
     # External links
     """)
-    return
 
 
 @app.cell
@@ -91,7 +85,6 @@ def _(mo):
 
     [This link](http://example.net/) has no title attribute.
     """)
-    return
 
 
 if __name__ == "__main__":

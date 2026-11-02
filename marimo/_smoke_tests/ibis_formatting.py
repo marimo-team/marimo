@@ -9,7 +9,7 @@
 
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -26,8 +26,6 @@ def _():
 def _():
     from ibis import _
     from datetime import datetime
-
-    return
 
 
 @app.cell
@@ -54,7 +52,6 @@ def _(ibis, t):
     ibis.options.interactive = False
 
     t
-    return
 
 
 @app.cell
@@ -63,7 +60,6 @@ def _(ibis, t):
     ibis.options.interactive = False
 
     t.struct
-    return
 
 
 @app.cell
@@ -72,7 +68,6 @@ def _(ibis, t):
     ibis.options.interactive = False
 
     t.floats.min()
-    return
 
 
 @app.cell
@@ -81,7 +76,6 @@ def _(ibis, t):
     ibis.options.interactive = True
 
     t
-    return
 
 
 @app.cell
@@ -90,7 +84,6 @@ def _(ibis, t):
     ibis.options.interactive = True
 
     t.struct
-    return
 
 
 @app.cell
@@ -99,7 +92,6 @@ def _(ibis, t):
     ibis.options.interactive = True
 
     t.list.first()
-    return
 
 
 @app.cell
@@ -108,7 +100,6 @@ def _(ibis, t):
     ibis.options.interactive = True
 
     t.floats.min()
-    return
 
 
 @app.cell
@@ -132,7 +123,6 @@ def _(ibis, joined):
     ibis.options.interactive = False
 
     joined
-    return
 
 
 @app.cell
@@ -141,7 +131,6 @@ def _(ibis, joined):
     ibis.options.interactive = True
 
     joined
-    return
 
 
 @app.cell
@@ -164,7 +153,6 @@ def _(ibis, pl_connection):
     ibis.options.interactive = False
 
     pl_connection.table("band_members")
-    return
 
 
 @app.cell
@@ -173,7 +161,6 @@ def _(ibis, pl_connection):
     ibis.options.interactive = False
 
     pl_connection.table("band_members").name.first()
-    return
 
 
 @app.cell
@@ -182,7 +169,6 @@ def _(ibis, pl_connection):
     ibis.options.interactive = True
 
     pl_connection.table("band_members")
-    return
 
 
 @app.cell
@@ -191,7 +177,6 @@ def _(ibis, pl_connection):
     ibis.options.interactive = True
 
     pl_connection.table("band_members").name.first()
-    return
 
 
 @app.cell
@@ -207,7 +192,6 @@ def _(duckdb_table, ibis):
     ibis.options.interactive = False
 
     duckdb_table
-    return
 
 
 @app.cell
@@ -216,7 +200,6 @@ def _(duckdb_table, ibis):
     ibis.options.interactive = True
 
     duckdb_table
-    return
 
 
 if __name__ == "__main__":

@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -44,14 +44,12 @@ def _(execution_timer, ibis_table):
     # Takes a while, loads data into memory when `ibis.options.interactive = True`
     with execution_timer("ibis_table"):
         print(ibis_table)
-    return
 
 
 @app.cell
 def _(ibis_table):
     # Takes a while, loads data into memory when `ibis.options.interactive = True`
     ibis_table
-    return
 
 
 @app.cell
@@ -59,7 +57,6 @@ def _(execution_timer, ibis_table):
     # This should be fast (lazy)
     with execution_timer("t.head(10)"):
         ibis_head = ibis_table.head(10)
-    return
 
 
 @app.cell(hide_code=True)

@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -25,7 +25,6 @@ def _(mo):
 
     Relevant issues: #9288, #2667.
     """)
-    return
 
 
 @app.cell
@@ -64,21 +63,18 @@ def _(mo):
     render with their native types. Empty dict, single-entry dict, and a
     record-shaped dict.
     """)
-    return
 
 
 @app.cell
 def _():
     empty = {}
     empty
-    return
 
 
 @app.cell
 def _():
     single = {"only": 1}
     single
-    return
 
 
 @app.cell
@@ -91,7 +87,6 @@ def _():
         "spouse": None,
     }
     record
-    return
 
 
 @app.cell(hide_code=True)
@@ -104,7 +99,6 @@ def _(mo):
     decimals, bigints at full precision, sets with `{}`, tuples with `()`,
     `None` as `None`, bools as `True`/`False`.
     """)
-    return
 
 
 @app.cell
@@ -128,7 +122,6 @@ def _():
         "bytes": b"raw bytes",
     }
     values
-    return
 
 
 @app.cell(hide_code=True)
@@ -142,7 +135,6 @@ def _(mo):
     each entry survives, keys render unquoted in the appropriate Python form,
     and collision-prone cases (`"2"` vs `2`, `"true"` vs `True`) stay distinct.
     """)
-    return
 
 
 @app.cell
@@ -160,7 +152,6 @@ def _():
 @app.cell(hide_code=True)
 def _(collision: dict[int | str, str], serialized):
     serialized(collision)
-    return
 
 
 @app.cell
@@ -175,7 +166,6 @@ def _():
         None: "None key",
     }
     primitives
-    return
 
 
 @app.cell
@@ -187,7 +177,6 @@ def _():
         "normal": 1.5,
     }
     nan_inf
-    return
 
 
 @app.cell
@@ -200,7 +189,6 @@ def _():
         frozenset(): "empty frozenset",
     }
     composites
-    return
 
 
 @app.cell(hide_code=True)
@@ -218,7 +206,6 @@ def _(mo):
     - Nested tuples: a tuple containing a 1-tuple key should round-trip
       the inner trailing comma too.
     """)
-    return
 
 
 @app.cell
@@ -230,7 +217,6 @@ def _():
         ((1,), 2): "nested 1-tuple inside a 2-tuple",
     }
     tuple_edges
-    return
 
 
 @app.cell(hide_code=True)
@@ -243,7 +229,6 @@ def _(mo):
     to the original literal string on the frontend (quoted, as expected).
     Below, four similar-looking entries stay distinct.
     """)
-    return
 
 
 @app.cell
@@ -255,7 +240,6 @@ def _():
         "text/plain+tuple:[1, 2]": "another lookalike",
     }
     lookalike
-    return
 
 
 @app.cell(hide_code=True)
@@ -266,7 +250,6 @@ def _(mo):
     Encoding applies recursively at every level. Mixed-key nesting,
     dicts inside lists, and tuples of dicts all walk correctly.
     """)
-    return
 
 
 @app.cell
@@ -292,7 +275,6 @@ def _():
             {(0, 0): ("origin",)},
         ],
     }
-    return
 
 
 @app.cell
@@ -306,7 +288,6 @@ def _():
         ],
     ]
     in_containers
-    return
 
 
 @app.cell(hide_code=True)
@@ -316,7 +297,6 @@ def _(mo):
 
     Subclasses and dict-likes should go through the same formatter path.
     """)
-    return
 
 
 @app.cell
@@ -328,14 +308,12 @@ def _(defaultdict):
     dd[(0, 0)].append("origin")
     dd[None].append("none")
     dd
-    return
 
 
 @app.cell
 def _(OrderedDict):
     od = OrderedDict([("first", 1), ("second", 2), ("third", 3)])
     od
-    return
 
 
 @app.cell(hide_code=True)
@@ -351,7 +329,6 @@ def _(mo):
     This is Python semantics, not a serializer concern; the encoder
     faithfully round-trips what Python actually stored.
     """)
-    return
 
 
 @app.cell
@@ -362,7 +339,6 @@ def _():
     collapsed[1.0] = "third"  # still True
     collapsed["distinct"] = "fourth"
     collapsed  # 2 entries total
-    return
 
 
 @app.cell(hide_code=True)
@@ -375,7 +351,6 @@ def _(mo):
     `frozenset({...})`, `None`/`True`/`False`, and `float('nan')` — ready
     to paste back into code.
     """)
-    return
 
 
 @app.cell
@@ -395,7 +370,6 @@ def _():
         "text/plain+int:99": "escaped lookalike",
     }
     copy_target
-    return
 
 
 @app.cell(hide_code=True)
@@ -421,7 +395,6 @@ def _(mo):
     }
     ```
     """)
-    return
 
 
 if __name__ == "__main__":

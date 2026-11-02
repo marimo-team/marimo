@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -23,7 +23,6 @@ def _(mo, pd):
     named_indexes = pd.Series([1, 2], index=index)
 
     mo.vstack([mo.md("## Named indexes (works)"), named_indexes])
-    return
 
 
 @app.cell
@@ -43,7 +42,6 @@ def _(mo, pd):
     ### Using reset_index works but changes structure
     {mo.ui.table(unnamed_indexes.reset_index())}
     """)
-    return
 
 
 @app.cell
@@ -62,7 +60,6 @@ def _(mo, pd):
             _multi_col_stack,
         ]
     )
-    return
 
 
 @app.cell
@@ -84,7 +81,6 @@ def _(column_multi_idx, mo):
             column_multi_idx,
         ]
     )
-    return
 
 
 if __name__ == "__main__":

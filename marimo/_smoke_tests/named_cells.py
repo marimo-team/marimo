@@ -2,7 +2,7 @@
 
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App()
 
 
@@ -17,7 +17,6 @@ def _():
 def display_slider(mo):
     slider = mo.ui.slider(1, 10)
     mo.md(f"Here is a slider: {slider}")
-    return
 
 
 @app.cell
@@ -29,7 +28,6 @@ def _(mo):
 @app.cell
 def display_element(element, mo):
     mo.md(f"Here is an element: {element}")
-    return
 
 
 if __name__ == "__main__":

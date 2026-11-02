@@ -2,7 +2,7 @@
 
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App(width="full")
 
 
@@ -19,7 +19,6 @@ def _(mo):
     mo.md("""
     # Issue 1064
     """)
-    return
 
 
 @app.cell
@@ -52,7 +51,6 @@ def _(mo, plot1, plot2, tabs):
 
 
     mo.vstack([tabs.center(), render_tab_content()])
-    return
 
 
 if __name__ == "__main__":

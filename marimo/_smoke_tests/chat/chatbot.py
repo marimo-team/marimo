@@ -11,7 +11,7 @@
 
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -27,7 +27,6 @@ def _(mo):
     mo.md(r"""
     # Built-in chatbots
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -35,7 +34,6 @@ def _(mo):
     mo.md(r"""
     ## OpenAI
     """)
-    return
 
 
 @app.cell
@@ -52,7 +50,6 @@ def _(mo):
             "What is 2 + {{number}}",
         ],
     )
-    return
 
 
 @app.cell(hide_code=True)
@@ -60,7 +57,6 @@ def _(mo):
     mo.md(r"""
     ## Anthropic
     """)
-    return
 
 
 @app.cell
@@ -74,7 +70,6 @@ def _(mo):
             "What is 2 + {{number}}",
         ],
     )
-    return
 
 
 @app.cell(hide_code=True)
@@ -82,7 +77,6 @@ def _(mo):
     mo.md(r"""
     ## Google Gemini
     """)
-    return
 
 
 @app.cell
@@ -96,7 +90,6 @@ def _(mo):
             "What is 2 + {{number}}",
         ],
     )
-    return
 
 
 @app.cell(hide_code=True)
@@ -104,7 +97,6 @@ def _(mo):
     mo.md(r"""
     # Custom chatbots
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -144,7 +136,6 @@ def _(mo):
     mo.md(r"""
     ## Simple
     """)
-    return
 
 
 @app.cell
@@ -156,7 +147,6 @@ def _(client, ell, mo):
 
 
     mo.ui.chat(mo.ai.llm.simple(_my_model))
-    return
 
 
 @app.cell(hide_code=True)
@@ -164,7 +154,6 @@ def _(mo):
     mo.md(r"""
     ## Complex
     """)
-    return
 
 
 @app.cell
@@ -253,7 +242,6 @@ def _(cars, get_sample_prompts, mo, my_complex_model):
         my_complex_model,
         prompts=prompts,
     )
-    return
 
 
 @app.cell
@@ -266,7 +254,6 @@ def _(mo):
 @app.cell
 def _(no_bot):
     no_bot.value
-    return
 
 
 if __name__ == "__main__":

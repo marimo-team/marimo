@@ -8,7 +8,7 @@
 
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -32,7 +32,6 @@ def _(MODEL_NAME: str, mo):
     mo.md(f"""
     # Chat with **{MODEL_NAME}**
     """)
-    return
 
 
 @app.cell
@@ -43,7 +42,6 @@ def _(max_tokens, mo, system_message, temperature, top_p):
             mo.vstack([temperature, top_p, max_tokens], align="end"),
         ],
     )
-    return
 
 
 @app.cell
@@ -53,7 +51,6 @@ def _(mo, respond):
         prompts=["Tell me a joke.", "What is the square root of {{number}}?"],
     )
     chat
-    return
 
 
 @app.cell

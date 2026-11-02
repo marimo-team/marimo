@@ -9,7 +9,7 @@
 
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -70,19 +70,16 @@ def _(CounterWidget, mo):
 @app.cell
 def _(widget):
     widget
-    return
 
 
 @app.cell
 def _(widget):
     widget.count
-    return
 
 
 @app.cell
 def _(widget):
     widget.value
-    return
 
 
 if __name__ == "__main__":

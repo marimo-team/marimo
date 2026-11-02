@@ -10,7 +10,7 @@
 
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -52,13 +52,11 @@ def _(alt, gdf_sel):
 @app.cell
 def _(chart):
     chart
-    return
 
 
 @app.cell
 def _(chart):
     chart.mark.type
-    return
 
 
 @app.cell
@@ -71,13 +69,11 @@ def _(chart, mo):
 @app.cell
 def _(mo, mo_chart):
     mo.ui.table(mo_chart.value)
-    return
 
 
 @app.cell
 def _(chart, mo):
     mo.ui.altair_chart(chart, chart_selection=None)
-    return
 
 
 if __name__ == "__main__":

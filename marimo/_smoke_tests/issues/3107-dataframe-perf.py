@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -79,7 +79,6 @@ def _(create_test_dataframe):
 @app.cell
 def _(df: tuple, pl):
     x = df.filter(pl.col("group") == "group2")
-    return
 
 
 if __name__ == "__main__":

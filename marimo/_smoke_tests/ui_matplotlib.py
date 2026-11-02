@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App()
 
 
@@ -58,13 +58,11 @@ def _(ax, mo):
 @app.cell
 def _(embedding, fig, x, y):
     embedding[fig.value.get_mask(x, y)]
-    return
 
 
 @app.cell
 def _(fig):
     fig.value if fig.value else "No selection!"
-    return
 
 
 @app.cell(hide_code=True)
@@ -77,7 +75,6 @@ def _(mo):
     the click was clamped to the nearest edge, which would select these
     edge points via `get_mask()`.
     """)
-    return
 
 
 @app.cell
@@ -123,13 +120,11 @@ def _(edge_ax, mo):
 def _(edge_fig, edge_x, edge_y):
     _m = edge_fig.value.get_mask(edge_x, edge_y)
     f"Selected {_m.sum()} / {len(edge_x)} points"
-    return
 
 
 @app.cell
 def _(edge_fig):
     edge_fig.value if edge_fig.value else "No selection!"
-    return
 
 
 @app.cell(hide_code=True)
@@ -137,7 +132,6 @@ def _(mo):
     mo.md("""
     ## Log-scale axes test
     """)
-    return
 
 
 @app.cell
@@ -169,13 +163,11 @@ def _(log_fig, log_x: float, log_y: float, np):
     _m = log_fig.value.get_mask(log_x, log_y)
     log_x_sel, log_y_sel  = log_x[_m], log_y[_m]
     np.column_stack([log_x_sel, log_y_sel])
-    return
 
 
 @app.cell
 def _(log_fig):
     log_fig.value if log_fig.value else "No selection!"
-    return
 
 
 if __name__ == "__main__":

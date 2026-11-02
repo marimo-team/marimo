@@ -11,7 +11,7 @@
 
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -35,7 +35,6 @@ def _(mo):
     2. Check VPC/subnets is public traffic is allowed
     3. Navigate to redshift -> workgroup -> obtain connection details
     """)
-    return
 
 
 @app.cell
@@ -90,7 +89,6 @@ def _(cursor):
         ('sarah_jones', 'sarah.jones@email.com', '2024-04-05'),
         ('alex_brown', 'alex.brown@email.com', '2024-05-12');
     """)
-    return
 
 
 @app.cell
@@ -101,7 +99,6 @@ def _(conn, mo):
         """,
         engine=conn
     )
-    return
 
 
 @app.function
@@ -200,7 +197,6 @@ def _(mo):
     5. key_sequence
     6. pk_name
     """)
-    return
 
 
 if __name__ == "__main__":

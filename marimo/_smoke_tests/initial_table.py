@@ -8,7 +8,7 @@
 
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -39,7 +39,6 @@ def _(mo, sample_df):
 
     mo.output.replace(sample_df)
     time.sleep(5)
-    return
 
 
 if __name__ == "__main__":

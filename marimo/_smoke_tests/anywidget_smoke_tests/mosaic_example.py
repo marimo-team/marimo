@@ -13,7 +13,7 @@
 
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -46,7 +46,6 @@ def _():
 @app.cell
 def _(w):
     w
-    return
 
 
 @app.cell
@@ -87,7 +86,6 @@ def _(q, thing: dict[str, int]):
     print(thing["a"])
 
     q.data()
-    return
 
 
 if __name__ == "__main__":

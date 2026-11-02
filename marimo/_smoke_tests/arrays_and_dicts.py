@@ -8,7 +8,7 @@
 
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App()
 
 
@@ -37,13 +37,11 @@ def _(mo):
 @app.cell
 def _(items):
     items
-    return
 
 
 @app.cell
 def _(items):
     items.hstack(gap=2)
-    return
 
 
 @app.cell
@@ -64,13 +62,11 @@ def _(mo):
 @app.cell
 def _(dictionary):
     dictionary
-    return
 
 
 @app.cell
 def _(dictionary):
     dictionary.vstack()
-    return
 
 
 if __name__ == "__main__":

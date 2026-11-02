@@ -8,15 +8,13 @@
 
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App()
 
 
 @app.cell
 def _():
     import marimo as mo
-
-    return
 
 
 @app.cell
@@ -31,7 +29,6 @@ def _():
 def _(pprint):
     pprint("[bold red]Error:[/bold red] Something went wrong!")
     pprint("[green]Success:[/green] Operation completed.")
-    return
 
 
 if __name__ == "__main__":

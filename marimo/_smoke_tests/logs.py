@@ -8,7 +8,7 @@
 
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App()
 
 
@@ -54,7 +54,6 @@ def _(logger, mo):
     result = 42
     logger.debug(f"Result computed: {result}")
     mo.md(f"The result is {result}")
-    return
 
 
 @app.cell
@@ -64,7 +63,6 @@ def _(logger):
         x = 1 / 0
     except ZeroDivisionError as e:
         logger.error("Division by zero!", exc_info=True)
-    return
 
 
 @app.cell
@@ -94,7 +92,6 @@ def _(level_dropdown, logging):
     template_logger.info(
         "User %(name)s is %(age)d years old", {"name": name, "age": age}
     )
-    return
 
 
 if __name__ == "__main__":

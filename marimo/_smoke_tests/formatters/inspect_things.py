@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -16,13 +16,11 @@ def _():
 @app.cell
 def _(mo):
     mo.inspect(mo, value=False)
-    return
 
 
 @app.cell
 def _(mo, np):
     mo.inspect(np)
-    return
 
 
 @app.cell
@@ -39,7 +37,6 @@ def _():
 
 
     fib
-    return
 
 
 @app.class_definition
@@ -60,37 +57,31 @@ class Foo:
 @app.cell
 def _():
     Foo
-    return
 
 
 @app.cell
 def _():
     Foo.__init__
-    return
 
 
 @app.cell
 def _():
     Foo.__str__
-    return
 
 
 @app.cell
 def _():
     Foo.bar
-    return
 
 
 @app.cell
 def _():
     Foo().bar
-    return
 
 
 @app.cell
 def _():
     Foo._baz
-    return
 
 
 @app.cell
@@ -101,21 +92,18 @@ def _(functools):
 
 
     square
-    return
 
 
 @app.cell
 def _():
     lambda_func = lambda x: x * 2
     lambda_func
-    return
 
 
 @app.cell
 def _():
     # built in
     len
-    return
 
 
 if __name__ == "__main__":

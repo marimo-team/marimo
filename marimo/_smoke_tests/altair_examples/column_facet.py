@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -34,19 +34,16 @@ def _():
 @app.cell
 def _(chart, mo):
     mo.ui.altair_chart(chart)
-    return
 
 
 @app.cell
 def _(chart):
     chart.encoding.column
-    return
 
 
 @app.cell
 def _(chart):
     type(chart).mro()
-    return
 
 
 if __name__ == "__main__":

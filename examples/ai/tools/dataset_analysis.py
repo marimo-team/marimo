@@ -16,7 +16,7 @@
 
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App()
 
 
@@ -41,7 +41,6 @@ def _(mo):
 
     This example shows how to use [`ell`](https://docs.ell.so/) with tools to analyze a dataset and return rich responses like charts and tables.
     """)
-    return
 
 
 @app.cell
@@ -153,7 +152,6 @@ def _(analyze_dataset, mo, text):
                 mo.output.replace(summary)
             except Exception as e:
                 mo.output.replace(mo.callout(str(e)))
-    return
 
 
 if __name__ == "__main__":

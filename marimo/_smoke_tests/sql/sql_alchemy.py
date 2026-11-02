@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App()
 
 
@@ -9,7 +9,6 @@ def _(mo):
     mo.md("""
     # SQLAlchemy Demo
     """)
-    return
 
 
 @app.cell
@@ -63,7 +62,6 @@ def _(Session, User, engine):
         ]
         _session.add_all(users)
         _session.commit()
-    return
 
 
 @app.cell(hide_code=True)
@@ -71,7 +69,6 @@ def _(mo):
     mo.md("""
     ### All Users
     """)
-    return
 
 
 @app.cell
@@ -98,7 +95,6 @@ def _(Session, User, engine, mo, pl):
             ),
         ]
     )
-    return
 
 
 @app.cell(hide_code=True)
@@ -106,7 +102,6 @@ def _(mo):
     mo.md("""
     ### Users under 30 (ordered by name)
     """)
-    return
 
 
 @app.cell
@@ -121,7 +116,6 @@ def _(Session, User, engine, mo):
     mo.ui.table(
         [{"Name": u.name, "Age": u.age} for u in young_users], selection=None
     )
-    return
 
 
 @app.cell(hide_code=True)
@@ -129,7 +123,6 @@ def _(mo):
     mo.md("""
     ### Age Statistics
     """)
-    return
 
 
 @app.cell
@@ -149,7 +142,6 @@ def _(Session, User, engine, sa):
         ("Youngest", age_stats.min_age),
         ("Oldest", age_stats.max_age),
     ]
-    return
 
 
 if __name__ == "__main__":

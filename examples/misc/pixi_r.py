@@ -19,7 +19,7 @@
 
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App()
 
 with app.setup:
@@ -46,7 +46,6 @@ def _():
     reactivity to run R code when a slider changes, and shares the resulting
     Arrow table back to Python without copying its data.
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -58,7 +57,6 @@ def _():
     marimo edit --sandbox=pixi examples/misc/pixi_r.py
     ```
     """)
-    return
 
 
 @app.cell
@@ -85,7 +83,6 @@ def _(min_len):
 
     df = pl.from_arrow(rpy2_arrow.arrow.rarrow_to_py_table(r_table))
     df
-    return
 
 
 if __name__ == "__main__":

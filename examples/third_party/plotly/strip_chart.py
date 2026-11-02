@@ -9,7 +9,7 @@
 
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -42,7 +42,6 @@ def _(mo):
     The `customdata` field embeds `sample_id` so selected points map back to the
     source DataFrame without relying on raw indices.
     """)
-    return
 
 
 @app.cell
@@ -162,13 +161,11 @@ def _(df, mo, strip_plot):
 
     **Range:** {strip_plot.ranges}
     """)
-    return
 
 
 @app.cell
 def _(df, mo, strip_plot):
     mo.ui.table(selected_rows(strip_plot.value, df))
-    return
 
 
 @app.cell
@@ -228,13 +225,11 @@ def _(df, mo, strip_single):
 
     **Indices:** {strip_single.indices}
     """)
-    return
 
 
 @app.cell
 def _(df, mo, strip_single):
     mo.ui.table(selected_rows(strip_single.value, df))
-    return
 
 
 @app.cell
@@ -294,13 +289,11 @@ def _(df, mo, strip_horizontal):
 
     **Indices:** {strip_horizontal.indices}
     """)
-    return
 
 
 @app.cell
 def _(df, mo, strip_horizontal):
     mo.ui.table(selected_rows(strip_horizontal.value, df))
-    return
 
 
 if __name__ == "__main__":

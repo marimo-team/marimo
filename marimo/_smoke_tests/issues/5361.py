@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -66,7 +66,6 @@ def _(cProfile, os, struct):
     for name in ["sample.prof", "sample.bin", "sample.pkl", "sample.txt", "sample.png"]:
         p = os.path.join(test_dir, name)
         print(f"  {name}: {os.path.getsize(p)} bytes")
-    return
 
 
 if __name__ == "__main__":

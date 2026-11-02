@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -18,7 +18,6 @@ def _(mo):
 
     Trigger each case and check: wrapping, scrolling, text selection, and copy.
     """)
-    return
 
 
 @app.cell
@@ -106,7 +105,6 @@ def trigger(
             fire_toast("Failed to download", LONG_STACK, as_html=True)
         elif choice == "success":
             mo.status.toast("All good", "This is a short success toast.")
-    return
 
 
 if __name__ == "__main__":

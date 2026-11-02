@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -16,7 +16,6 @@ def _(mo):
     mo.md(r"""
     ## Buttons
     """)
-    return
 
 
 @app.cell
@@ -38,13 +37,11 @@ def _(full_width, mo):
 @app.cell
 def _(items: list, mo):
     mo.vstack(items)
-    return
 
 
 @app.cell
 def _(items: list, mo):
     mo.hstack(items)
-    return
 
 
 @app.cell
@@ -59,13 +56,11 @@ def _(items: list, mo):
 @app.cell
 def _(different_height_items: list, mo):
     mo.vstack(different_height_items)
-    return
 
 
 @app.cell
 def _(different_height_items: list, mo):
     mo.hstack(different_height_items)
-    return
 
 
 @app.cell(hide_code=True)
@@ -73,13 +68,11 @@ def _(mo):
     mo.md(r"""
     ## Sliders
     """)
-    return
 
 
 @app.cell(hide_code=True)
 def _(full_width):
     full_width
-    return
 
 
 @app.cell
@@ -94,13 +87,11 @@ def _(full_width, mo):
 @app.cell
 def _(mo, range_slider):
     mo.hstack([range_slider])
-    return
 
 
 @app.cell
 def _(mo, range_slider):
     mo.vstack([range_slider])
-    return
 
 
 @app.cell
@@ -113,13 +104,11 @@ def _(full_width, mo):
 @app.cell
 def _(mo, slider):
     mo.hstack([slider])
-    return
 
 
 @app.cell
 def _(mo, slider):
     mo.vstack([slider])
-    return
 
 
 if __name__ == "__main__":

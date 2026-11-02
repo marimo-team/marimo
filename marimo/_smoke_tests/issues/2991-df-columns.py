@@ -9,7 +9,7 @@
 
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -27,7 +27,6 @@ def _(mo):
     mo.md(r"""
     ## Lots of columns
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -35,7 +34,6 @@ def _(mo):
     mo.md("""
     Set cols to 10000 to crash the frontend. Number of rows appears to have no effect.
     """)
-    return
 
 
 @app.cell
@@ -62,7 +60,6 @@ def _(data, pd):
 @app.cell
 def _(df):
     df
-    return
 
 
 @app.cell
@@ -72,7 +69,6 @@ def _(mo):
 
     This is the default max to show column summaries
     """)
-    return
 
 
 @app.cell
@@ -83,7 +79,6 @@ def _(np, pd):
         {col: _data[:, i] for i, col in enumerate(column_names)}
     )
     large_df
-    return
 
 
 @app.cell

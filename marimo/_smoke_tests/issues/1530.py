@@ -2,7 +2,7 @@
 
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App()
 
 
@@ -38,26 +38,21 @@ def _(pd):
 @app.cell
 def _(df, mo):
     mo.ui.table(df)
-    return
 
 
 @app.cell
 def _(df, mo):
     mo.ui.dataframe(df)
-    return
 
 
 @app.cell
 def _(df, mo):
     mo.ui.data_explorer(df)
-    return
 
 
 @app.cell
 def _():
     import altair as alt
-
-    return
 
 
 if __name__ == "__main__":

@@ -2,7 +2,7 @@
 
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App()
 
 
@@ -36,7 +36,6 @@ def _(mo):
         ),
     ]
     mo.hstack(_stats)
-    return
 
 
 @app.cell
@@ -74,7 +73,6 @@ def _(mo):
         ),
     ]
     mo.hstack(_stats, widths="equal", gap=1)
-    return
 
 
 @app.cell(hide_code=True)
@@ -170,7 +168,6 @@ def _(alt, mo, pl):
     _second = mo.hstack(_rich, widths="equal", gap=1)
 
     mo.vstack([_first, _second])
-    return
 
 
 if __name__ == "__main__":

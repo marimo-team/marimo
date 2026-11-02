@@ -2,7 +2,7 @@
 
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App(width="full")
 
 
@@ -37,7 +37,6 @@ def _(mo):
         ],
         width="500px",
     )
-    return
 
 
 @app.cell
@@ -50,7 +49,6 @@ def _(mo):
             label=f"{mo.icon('lucide:home')} Home {mo.icon('lucide:external-link')}",
         ),
     ]
-    return
 
 
 @app.cell
@@ -70,7 +68,6 @@ def _(mo):
         },
         orientation="vertical",
     )
-    return
 
 
 @app.cell
@@ -82,7 +79,6 @@ def _(mo):
             "#contact": f"{mo.icon('lucide:phone')} Contact",
         }
     )
-    return
 
 
 if __name__ == "__main__":

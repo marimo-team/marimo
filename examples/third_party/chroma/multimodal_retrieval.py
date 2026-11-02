@@ -13,7 +13,7 @@
 
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -33,7 +33,6 @@ def _(mo):
 
     This notebook shows an example of how to create and query a collection with both text and images, using Chroma's built-in features.
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -45,7 +44,6 @@ def _(mo):
 
     We download a small fraction of all the images in the dataset locally, and use it to create a multimodal collection.
     """)
-    return
 
 
 @app.cell
@@ -113,7 +111,6 @@ def _(all_images: list, img_width, mo):
         [as_image(_img) for _img in all_images[10:]],
         wrap=True,
     )
-    return
 
 
 @app.cell(hide_code=True)
@@ -126,7 +123,6 @@ def _(mo):
 
     For this example, we are only adding images, though you can also add text.
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -136,7 +132,6 @@ def _(mo):
 
     First we create the default Chroma client.
     """)
-    return
 
 
 @app.cell
@@ -154,7 +149,6 @@ def _(mo):
 
     The built-in `OpenCLIPEmbeddingFunction` works with both text and image data. The `ImageLoader` is a simple data loader that loads images from a local directory.
     """)
-    return
 
 
 @app.cell
@@ -172,7 +166,6 @@ def _(mo):
     mo.md(r"""
     We create a collection with the embedding function and data loader.
     """)
-    return
 
 
 @app.cell
@@ -204,7 +197,6 @@ def _(mo):
 
     We add image data to the collection using the image URIs. The data loader and embedding functions we specified earlier will ingest data from the provided URIs automatically.
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -214,7 +206,6 @@ def _(mo):
 
     We can query the collection using text as normal, since the `OpenCLIPEmbeddingFunction` works with both text and images.
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -234,7 +225,6 @@ def _(collection, mo, query):
     )
 
     [mo.image(img, height=200) for img in _retrieved["data"][0]]
-    return
 
 
 @app.cell(hide_code=True)
@@ -244,7 +234,6 @@ def _(mo):
     We can also query by images directly, by using the `query_images` field in the `collection.query` method.
     ///
     """)
-    return
 
 
 @app.cell
@@ -280,7 +269,6 @@ def _(mo, results: list, selected):
         widths="equal",
         gap=4,
     )
-    return
 
 
 @app.cell(hide_code=True)
@@ -288,7 +276,6 @@ def _(mo):
     mo.md(r"""
     This example was adapted from [multimodal_retrieval.ipynb](https://github.com/chroma-core/chroma/blob/main/examples/multimodal/multimodal_retrieval.ipynb), using `marimo convert`.
     """)
-    return
 
 
 if __name__ == "__main__":

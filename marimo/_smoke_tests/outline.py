@@ -2,7 +2,7 @@
 
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -18,13 +18,11 @@ def _(mo):
     mo.md("""
     # Heading 1
     """)
-    return
 
 
 @app.cell
 def _(mo):
     mo.carousel([mo.md("# Carousel Heading")])
-    return
 
 
 @app.cell
@@ -34,13 +32,11 @@ def _(mo):
 
     Headings between carousel and tabs are detected
     """)
-    return
 
 
 @app.cell
 def _(mo):
     mo.ui.tabs({"Tab 1": mo.md("# Tabs Heading")})
-    return
 
 
 @app.cell
@@ -50,13 +46,11 @@ def _(mo):
 
     Headings between tabs and accordion are detected
     """)
-    return
 
 
 @app.cell
 def _(mo):
     mo.accordion({"Accordion 1": mo.md("# Accordion Heading")})
-    return
 
 
 @app.cell
@@ -64,7 +58,6 @@ def _(mo):
     mo.md("""
     # Heading 4
     """)
-    return
 
 
 if __name__ == "__main__":

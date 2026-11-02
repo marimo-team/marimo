@@ -11,7 +11,7 @@
 
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -30,7 +30,6 @@ def _(mo):
     mo.md("""
     ## Cars
     """)
-    return
 
 
 @app.cell
@@ -63,7 +62,6 @@ def _(alt, df, mo):
         .encode(x="Miles_per_Gallon", y="Horsepower")
         .properties(height=200)
     )
-    return
 
 
 @app.cell(hide_code=True)
@@ -71,7 +69,6 @@ def _(mo):
     mo.md("""
     ## Airports
     """)
-    return
 
 
 @app.cell
@@ -93,7 +90,6 @@ def _(airports, mo):
 @app.cell
 def _(less_airports):
     len(less_airports)
-    return
 
 
 @app.cell
@@ -101,7 +97,6 @@ def _(mo):
     mo.md("""
     ## Google Sheets
     """)
-    return
 
 
 @app.cell
@@ -137,7 +132,6 @@ def _(job_title, mo, sheet: str):
         WHERE current_job_title == '{job_title.value}'
         """
     )
-    return
 
 
 @app.cell(hide_code=True)
@@ -145,7 +139,6 @@ def _(mo):
     mo.md("""
     Debug
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -156,7 +149,6 @@ def _(duckdb):
         FROM cars
         """
     )
-    return
 
 
 @app.cell(hide_code=True)
@@ -168,7 +160,6 @@ def _(duckdb, job_title, sheet: str):
         WHERE current_job_title == '{job_title.value}'
         """
     )
-    return
 
 
 @app.cell
@@ -181,7 +172,6 @@ def _(cars, mo):
         LIMIT 100
         """
     )
-    return
 
 
 if __name__ == "__main__":

@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App()
 
 
@@ -9,7 +9,6 @@ def _(mo):
     mo.md(r"""
     [Debounce mo.ui.text and mo.ui.text_area #2218](https://github.com/marimo-team/marimo/issues/2218)
     """)
-    return
 
 
 @app.cell
@@ -25,7 +24,6 @@ def _(debounce: None | int | bool, debounce_options, mo):
 def _(name_input):
     if len(name_input.value) > 0:
         print(f"Hello {name_input.value}!")
-    return
 
 
 @app.cell
@@ -41,7 +39,6 @@ def _(debounce: None | int | bool, debounce_options, mo):
 def _(story_input):
     if (len(story_input.value) > 0):
         print(story_input.value)
-    return
 
 
 @app.cell

@@ -2,7 +2,7 @@
 
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App()
 
 
@@ -23,33 +23,28 @@ def _(mo):
 @app.cell
 def _(get_v, get_v2):
     [get_v(), get_v2()]
-    return
 
 
 @app.cell
 def _(get_v, mo, set_v):
     x = mo.ui.checkbox(get_v(), on_change=set_v)
     x
-    return
 
 
 @app.cell
 def _(get_v, mo, set_v):
     y = mo.ui.checkbox(get_v(), on_change=set_v)
     y
-    return
 
 
 @app.cell
 def _(get_v2, mo, set_v2):
     mo.ui.checkbox(get_v2(), on_change=set_v2)
-    return
 
 
 @app.cell
 def _(get_v2, mo, set_v2):
     mo.ui.checkbox(get_v2(), on_change=set_v2)
-    return
 
 
 if __name__ == "__main__":

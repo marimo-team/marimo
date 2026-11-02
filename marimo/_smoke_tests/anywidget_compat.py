@@ -12,7 +12,7 @@
 
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -78,13 +78,11 @@ def _(CounterWidget):
 def _(w):
     # Non-reactive, but class is cached
     w
-    return
 
 
 @app.cell
 def _(w):
     w.trait_values()["count"]
-    return
 
 
 @app.cell
@@ -97,19 +95,16 @@ def _(CounterWidget, mo):
 @app.cell
 def _(w_reactive):
     w_reactive
-    return
 
 
 @app.cell
 def _(w_reactive):
     w_reactive.value
-    return
 
 
 @app.cell
 def _(w_reactive):
     w_reactive.widget.trait_values()["count"]
-    return
 
 
 @app.cell
@@ -135,7 +130,6 @@ def _(alt, dd_widget, mo, pd):
     df = pd.DataFrame(dd_widget.value["data"])
     chart = alt.Chart(df).mark_point().encode(x="x", y="y", color="color")
     mo.ui.altair_chart(chart)
-    return
 
 
 if __name__ == "__main__":

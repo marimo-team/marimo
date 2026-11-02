@@ -13,7 +13,7 @@
 
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -29,7 +29,6 @@ def _(mo):
     mo.md(r"""
     # Binning Examples
     """)
-    return
 
 
 @app.cell
@@ -57,7 +56,6 @@ def _(mo):
     mo.md(r"""
     ## Basic Histogram with Auto-binning
     """)
-    return
 
 
 @app.cell
@@ -81,7 +79,6 @@ def _(alt, mo, movies):
 @app.cell
 def _(basic_histogram, mo):
     mo.vstack([basic_histogram.value])
-    return
 
 
 @app.cell
@@ -95,7 +92,6 @@ def _(mo):
     mo.md(r"""
     ## Histogram with Custom Bin Parameters
     """)
-    return
 
 
 @app.cell
@@ -123,7 +119,6 @@ def _(alt, cars, mo):
 @app.cell
 def _(custom_bins, mo):
     mo.vstack([custom_bins.value])
-    return
 
 
 @app.cell(hide_code=True)
@@ -131,7 +126,6 @@ def _(mo):
     mo.md(r"""
     ## Histogram with Fixed Bin Step
     """)
-    return
 
 
 @app.cell
@@ -157,7 +151,6 @@ def _(alt, cars, mo):
 @app.cell
 def _(mo, step_bins):
     mo.vstack([step_bins.value])
-    return
 
 
 @app.cell(hide_code=True)
@@ -165,7 +158,6 @@ def _(mo):
     mo.md(r"""
     ## 2D Binning (Heatmap)
     """)
-    return
 
 
 @app.cell
@@ -196,7 +188,6 @@ def _(alt, mo, movies):
 @app.cell
 def _(heatmap, mo):
     mo.vstack([heatmap.value])
-    return
 
 
 @app.cell(hide_code=True)
@@ -204,7 +195,6 @@ def _(mo):
     mo.md(r"""
     ## Binned Color Encoding
     """)
-    return
 
 
 @app.cell
@@ -235,7 +225,6 @@ def _(alt, cars, mo):
 @app.cell
 def _(binned_color, mo):
     mo.vstack([binned_color.value])
-    return
 
 
 @app.cell(hide_code=True)
@@ -243,7 +232,6 @@ def _(mo):
     mo.md(r"""
     ## Binned Size Encoding
     """)
-    return
 
 
 @app.cell
@@ -275,7 +263,6 @@ def _(alt, cars, mo):
 @app.cell
 def _(binned_size, mo):
     mo.vstack([binned_size.value])
-    return
 
 
 @app.cell(hide_code=True)
@@ -283,7 +270,6 @@ def _(mo):
     mo.md(r"""
     ## Stacked Histogram with Binning
     """)
-    return
 
 
 @app.cell
@@ -310,7 +296,6 @@ def _(alt, cars, mo):
 @app.cell
 def _(mo, stacked_histogram):
     mo.vstack([stacked_histogram.value])
-    return
 
 
 @app.cell(hide_code=True)
@@ -318,7 +303,6 @@ def _(mo):
     mo.md(r"""
     ## Binning with Selection
     """)
-    return
 
 
 @app.cell
@@ -345,7 +329,6 @@ def _(alt, mo, movies):
 @app.cell
 def _(binned_selection, mo):
     mo.vstack([binned_selection.value, binned_selection.selections])
-    return
 
 
 @app.cell(hide_code=True)
@@ -353,7 +336,6 @@ def _(mo):
     mo.md(r"""
     ## Custom Bin Extent
     """)
-    return
 
 
 @app.cell
@@ -383,7 +365,6 @@ def _(alt, cars, mo):
 @app.cell
 def _(extent_bins, mo):
     mo.vstack([extent_bins.value])
-    return
 
 
 if __name__ == "__main__":

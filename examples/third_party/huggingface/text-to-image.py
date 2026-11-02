@@ -13,7 +13,7 @@
 
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -52,7 +52,6 @@ def _():
 @app.cell
 def _(mo, model_repo_id: str):
     mo.md(f"""# HuggingFace Text-to-Image: **{model_repo_id}**""")
-    return
 
 
 @app.cell(hide_code=True)
@@ -242,13 +241,11 @@ def _(
     )
     set_image(_image)
     mo.output.clear()  # Clear loading tdqm
-    return
 
 
 @app.cell
 def _(get_image):
     get_image()
-    return
 
 
 if __name__ == "__main__":

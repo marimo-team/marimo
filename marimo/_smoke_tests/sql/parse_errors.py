@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -48,7 +48,6 @@ def _(mo, queries: list[str]):
 def _(mo, parse, table):
     mo.stop(not table.value)
     parse(table.value[0])
-    return
 
 
 if __name__ == "__main__":

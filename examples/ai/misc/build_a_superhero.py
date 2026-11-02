@@ -8,7 +8,7 @@
 
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App()
 
 
@@ -17,7 +17,6 @@ def _(mo):
     mo.md("""
     ## Build a Superhero with Generative AI
     """)
-    return
 
 
 @app.cell
@@ -137,7 +136,6 @@ def _(generate_image_button, mo, openai, superhero):
         url = res["data"][0]["url"]
 
     mo.image(src=url) if url else None
-    return
 
 
 @app.cell

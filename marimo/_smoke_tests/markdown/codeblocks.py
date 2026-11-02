@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -9,7 +9,6 @@ def _(mo):
     mo.md(r"""
     # hello
     """)
-    return
 
 
 @app.cell
@@ -17,7 +16,6 @@ def _(mo):
     mo.md(r"""
     This is `inline code`
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -39,7 +37,6 @@ def _(mo):
         return fib_sequence
     ```
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -55,7 +52,6 @@ def _(code_block, mo):
     {code_block}
     """
     )
-    return
 
 
 @app.cell(hide_code=True)

@@ -8,7 +8,7 @@
 
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App()
 
 
@@ -28,19 +28,16 @@ def _():
 @app.cell
 def _(mo, value: str):
     mo.md(f"## 👋 Hi {value}")
-    return
 
 
 @app.cell
 def _():
     print('hi')
-    return
 
 
 @app.cell
 def _():
     print('there')
-    return
 
 
 if __name__ == "__main__":

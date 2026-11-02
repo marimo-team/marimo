@@ -7,7 +7,7 @@
 
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App()
 
 
@@ -19,7 +19,6 @@ def _(mo):
     This notebook shows you the basics of sanity-checking an embedding made
     with the `PyMDE` library. We'll use MNIST as a case study.
     """)
-    return
 
 
 @app.cell
@@ -30,13 +29,11 @@ def _(mo):
     a heuristic, and we'll tell PyMDE to place these pairs near each other in
     the embedding.
     """)
-    return
 
 
 @app.cell
 def _(n_neighbors):
     n_neighbors
-    return
 
 
 @app.cell
@@ -55,7 +52,6 @@ def _(mo, ready: bool):
         that the rest. These will be interesting to examine up close.
         """
     ) if ready else None
-    return
 
 
 @app.cell
@@ -136,7 +132,6 @@ def _(mo, ready: bool):
         them near each other).
         """
     ) if ready else None
-    return
 
 
 @app.cell
@@ -155,13 +150,11 @@ def _(mo, ready: bool):
         and that the embedding placed very near each other.
         """
     ) if ready else None
-    return
 
 
 @app.cell
 def _(n_pairs, pairs: None, plot_pairs, ready: bool):
     plot_pairs(pairs[-n_pairs.value :]) if ready else None
-    return
 
 
 @app.cell
@@ -178,13 +171,11 @@ def _(mo, ready: bool):
         data.
         """
     ) if ready else None
-    return
 
 
 @app.cell
 def _(n_pairs, pairs: None, plot_pairs, ready: bool):
     plot_pairs(pairs[: n_pairs.value]) if ready else None
-    return
 
 
 @app.cell

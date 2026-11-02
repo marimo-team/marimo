@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -18,7 +18,6 @@ def _(mo):
     mo.md(r"""
     # Lazy polars
     """)
-    return
 
 
 @app.cell
@@ -47,7 +46,6 @@ def _(mo):
     mo.md(r"""
     # Lazy ibis
     """)
-    return
 
 
 @app.cell
@@ -73,7 +71,6 @@ def _(execution_timer, ibis, ibis_table, mo):
     ibis.options.interactive = False
     with execution_timer("as_html, interactive = False"):
         mo.output.replace(ibis_table)
-    return
 
 
 @app.cell
@@ -83,7 +80,6 @@ def _(execution_timer, ibis, ibis_table, mo):
     with execution_timer("as_html, interactive = True"):
         mo.output.replace(ibis_table)
     ibis.options.interactive = False
-    return
 
 
 @app.cell
@@ -99,7 +95,6 @@ def _(execution_timer, ibis_table):
     # This should be ~300-500ms
     with execution_timer("t.count().execute()"):
         count = ibis_table.count().execute()
-    return
 
 
 @app.cell
@@ -141,14 +136,12 @@ def _(execution_timer, ibis):
 def _(ibis_table, time_things):
     # Ibis
     time_things(ibis_table)
-    return
 
 
 @app.cell
 def _(polars_df, time_things):
     # Polars
     time_things(polars_df)
-    return
 
 
 @app.cell
@@ -157,7 +150,6 @@ def _(execution_timer, ibis_table, mo):
     with execution_timer("mo.ui.dataframe"):
         _df_viewer = mo.ui.dataframe(ibis_table)
     _df_viewer
-    return
 
 
 @app.cell
@@ -166,7 +158,6 @@ def _(execution_timer, ibis_table, mo):
     with execution_timer("mo.ui.dataframe(limit=10)"):
         _df_viewer = mo.ui.dataframe(ibis_table, limit=10)
     _df_viewer
-    return
 
 
 @app.cell(hide_code=True)

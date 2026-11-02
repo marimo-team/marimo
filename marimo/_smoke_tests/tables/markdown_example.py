@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -21,7 +21,6 @@ def _(markdown_sample: str, mo):
             "markdown_sample": [markdown_sample],
         }
     )
-    return
 
 
 @app.cell

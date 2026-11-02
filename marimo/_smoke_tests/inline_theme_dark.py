@@ -11,7 +11,7 @@
 
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App()
 
 
@@ -29,7 +29,6 @@ def _(mo):
     metadata. It should render in dark mode even when opened from a
     directory listing (`marimo run marimo/_smoke_tests`). See #10056.
     """)
-    return
 
 
 if __name__ == "__main__":

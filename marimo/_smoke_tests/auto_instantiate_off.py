@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -16,7 +16,6 @@ def _(mo):
     mo.md(r"""
     If you run this first, then this should run and the `import marimo` cell should run, but nothing else
     """)
-    return
 
 
 @app.cell
@@ -32,7 +31,6 @@ def _(x: int):
     # If you run this first, then this should run and `x = 2`
     y = x + 2
     y
-    return
 
 
 if __name__ == "__main__":

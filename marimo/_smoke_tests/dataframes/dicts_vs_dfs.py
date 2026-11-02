@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -42,7 +42,6 @@ def _(mo, test_df):
 @app.cell
 def _(t1):
     t1.value
-    return
 
 
 @app.cell
@@ -55,13 +54,11 @@ def _(mo, pd, test_df):
 @app.cell
 def _(t2):
     t2.value
-    return
 
 
 @app.cell
 def _(mo, test_df):
     mo.ui.table(test_df.to_dicts())
-    return
 
 
 if __name__ == "__main__":

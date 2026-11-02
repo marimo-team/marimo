@@ -2,7 +2,7 @@
 
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App()
 
 
@@ -17,7 +17,6 @@ def _():
 def _(mo):
     with mo.status.spinner(remove_on_exit=False):
         pass
-    return
 
 
 @app.cell
@@ -35,7 +34,6 @@ def _(counter_button, mo):
         counter_button.value,
         mo.status.spinner(remove_on_exit=False) if counter_button.value < 3 else mo.md("Done!"),
     ])
-    return
 
 
 if __name__ == "__main__":

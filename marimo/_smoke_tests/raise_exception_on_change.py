@@ -2,7 +2,7 @@
 
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App()
 
 
@@ -22,7 +22,6 @@ def error(v):
 def _(mo):
     s = mo.ui.slider(1, 10, on_change=lambda v: error(v))
     s
-    return
 
 
 if __name__ == "__main__":

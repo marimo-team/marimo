@@ -8,7 +8,7 @@
 
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App()
 
 
@@ -30,14 +30,10 @@ def _():
 def _():
     import random
 
-    return
-
 
 @app.cell
 def _():
     import time
-
-    return
 
 
 @app.cell
@@ -50,13 +46,11 @@ def _(mo):
 def _(get_state, set_state):
     # No self-loops: shouldn't be a cycle
     set_state(get_state())
-    return
 
 
 @app.cell
 def _(get_state):
     get_state()
-    return
 
 
 @app.cell
@@ -66,7 +60,6 @@ def _(mo, set_state):
         value=0, on_click=_on_click
     )
     button
-    return
 
 
 @app.cell
@@ -100,7 +93,6 @@ def _(get_angle, math, mo, set_angle):
 @app.cell
 def _(degrees, radians):
     degrees, radians
-    return
 
 
 if __name__ == "__main__":

@@ -8,7 +8,7 @@
 
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App()
 
 
@@ -34,7 +34,6 @@ def _(mo):
 def _(api_token, default_api_token: None | str | list[str]):
     api_token if not default_api_token else None
     api_token
-    return
 
 
 @app.cell(hide_code=True)
@@ -137,7 +136,6 @@ def _(mo, res):
         content = res
 
     mo.md(f"**Response:** \n{res}")
-    return
 
 
 if __name__ == "__main__":
