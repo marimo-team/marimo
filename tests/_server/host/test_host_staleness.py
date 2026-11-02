@@ -246,7 +246,6 @@ async def test_sql_results_follow_their_binding_revisions(
         table=producer,
         reader=f"df = mo.sql('SELECT * FROM {name}')",
     ) as c:
-        # Initial catalog discovery and result rendering import native libraries.
         await c.run("mo", "table", "reader", timeout=30)
         initial = await c.snapshot()
         variables = {v.name: v for v in initial.variables.values()}
