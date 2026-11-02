@@ -18,6 +18,35 @@ from marimo._loggers import (
     marimo_logger,
     set_level,
 )
+from marimo._utils.log_formatter import LogFormatter
+
+
+def test_error_format_without_log_prefix():
+    record = logging.LogRecord(
+        "marimo",
+        logging.ERROR,
+        __file__,
+        1,
+        "Invalid config: %s\nDetails",
+        ("test",),
+        None,
+    )
+    record.omit_log_prefix = True
+    formatter = LogFormatter(
+        color=False,
+        without_log_prefix_fmt=LogFormatter.WITHOUT_LOG_PREFIX_FORMAT,
+    )
+    assert formatter.format(record) == (
+        "Error: Invalid config: test\nDetails\n"
+    )
+    formatter._colors = {logging.ERROR: "\033[31m"}
+    formatter._normal = "\033[0m"
+    assert formatter.format(record) == (
+        "\033[31mError: Invalid config: test\nDetails\033[0m\n"
+    )
+    assert "[E " in LogFormatter(color=False).format(record)
+    record.omit_log_prefix = False
+    assert "[E " in formatter.format(record)
 
 
 def test_set_level():

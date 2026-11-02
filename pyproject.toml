@@ -144,7 +144,7 @@ dev = [
     # For SQL. duckdb has no cp315 wheels as of 2026-10; drop the marker when
     # published.
     "duckdb>=1.0.0; python_version < '3.15'",
-    "sqlglot[c]>=30.7.0",
+    "sqlglot>=30.7.0",
     # Stubs for optional dataframe backends
     "pyarrow-stubs",
     # For linting
@@ -199,7 +199,7 @@ test-optional = [
     "altair>=5.4.0",
     "plotly>=5.14.0",
     "polars>=1.32.2",
-    "sqlglot[c]>=30.7.0",
+    "sqlglot>=30.7.0",
     "sqlalchemy[asyncio]>=2.0.40",
     "obstore>=0.8.2",
     "huggingface-hub>=1.24.0",
@@ -262,7 +262,7 @@ typecheck = [
     "duckdb>=1.0.0",
     "narwhals>=2.0.0",
     "matplotlib>=3.8.0",
-    "sqlglot[c]>=30.7.0",
+    "sqlglot>=30.7.0",
     "sqlalchemy[asyncio]>=2.0.40",
     "obstore>=0.8.2",
     "huggingface_hub>=1.24.0",

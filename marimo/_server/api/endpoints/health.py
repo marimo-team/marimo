@@ -373,6 +373,8 @@ async def usage(request: Request) -> JSONResponse:
         gpu_stats = _parse_nvidia_smi_stats()
     elif gpu_available == "rocm":
         gpu_stats = _parse_rocm_smi_stats()
+    elif gpu_available == "amd":
+        gpu_stats = _parse_amd_smi_stats()
 
     return JSONResponse(
         {
@@ -430,9 +432,16 @@ _AMD_GPU_STATS_CMD = [
     "--json",
 ]
 
+# Newer ROCm ships amd-smi only; rocm-smi is gone. Prefer this over
+# `metric --json`: on APUs (UMA) `metric` reports only the small dedicated
+# carveout as total_vram (2048 MB here), while `monitor --vram-usage` reports
+# the shared pool the GPU can actually use.
+_AMD_SMI_STATS_CMD = ["amd-smi", "monitor", "--vram-usage", "--json"]
+_AMD_SMI_STATIC_CMD = ["amd-smi", "static", "--json"]
+
 
 @lru_cache(maxsize=1)
-def _is_gpu_available() -> Literal["nvidia", "rocm", False]:
+def _is_gpu_available() -> Literal["nvidia", "rocm", "amd", False]:
     import subprocess
 
     if DependencyManager.which("nvidia-smi"):
@@ -459,8 +468,21 @@ def _is_gpu_available() -> Literal["nvidia", "rocm", False]:
         except (subprocess.SubprocessError, FileNotFoundError):
             pass
 
+    if DependencyManager.which("amd-smi"):
+        try:
+            subprocess.run(
+                _AMD_SMI_STATS_CMD,
+                capture_output=True,
+                text=True,
+                check=True,
+            )
+            return "amd"
+        except (subprocess.SubprocessError, FileNotFoundError):
+            pass
+
     LOGGER.warning(
-        "Neither nvidia-smi nor rocm-smi succeeded, cannot get GPU stats"
+        "Neither nvidia-smi, rocm-smi, nor amd-smi succeeded, "
+        "cannot get GPU stats"
     )
     return False
 
@@ -555,6 +577,96 @@ def _parse_rocm_smi_stats() -> list[dict[str, Any]]:
                     "total": total,
                     "used": used,
                     "free": free,
+                    "percent": (used / total) * 100 if total > 0 else 0,
+                },
+            }
+        )
+    return stats
+
+
+def _amd_smi_bytes(field: Any) -> int:
+    """Convert an amd-smi field (`{"value": 6, "unit": "MB"}`) to bytes."""
+    if not isinstance(field, dict):
+        return 0
+    value: Any = field.get("value")
+    unit = str(field.get("unit") or "B")
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return 0
+    scale = {"B": 1, "KB": 1024, "MB": 1024**2, "GB": 1024**3}
+    return int(number * scale.get(unit, 1))
+
+
+def _amd_smi_json(stdout: str) -> Any:
+    """Parse amd-smi JSON, tolerating leading warning lines on stdout."""
+    import json
+
+    start = min(
+        (i for i in (stdout.find("{"), stdout.find("[")) if i != -1),
+        default=-1,
+    )
+    if start == -1:
+        raise ValueError("No JSON found in amd-smi output")
+    return json.loads(stdout[start:])
+
+
+def _parse_amd_smi_stats() -> list[dict[str, Any]]:
+    import subprocess
+
+    # amd-smi monitor reports memory but not the product name; static has it.
+    names: dict[int, str] = {}
+    try:
+        result = subprocess.run(
+            _AMD_SMI_STATIC_CMD,
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        for gpu in _amd_smi_json(result.stdout).get("gpu_data", []):
+            asic = gpu.get("asic") or {}
+            names[int(gpu.get("gpu", 0))] = (
+                asic.get("market_name") or "AMD GPU"
+            )
+    except (
+        subprocess.SubprocessError,
+        FileNotFoundError,
+        ValueError,
+        AttributeError,
+    ) as e:
+        LOGGER.warning("Failed to extract AMD GPU names: %s", e)
+
+    try:
+        result = subprocess.run(
+            _AMD_SMI_STATS_CMD,
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        data = _amd_smi_json(result.stdout)
+    except (subprocess.SubprocessError, FileNotFoundError, ValueError) as e:
+        LOGGER.warning("Failed to extract AMD GPU stats: %s", e)
+        return []
+
+    stats: list[dict[str, Any]] = []
+    seen: set[int] = set()
+    for gpu in data if isinstance(data, list) else []:
+        index = int(gpu.get("gpu", 0))
+        # monitor emits one row per xcp; keep the first for each GPU.
+        if index in seen:
+            continue
+        seen.add(index)
+        total = _amd_smi_bytes(gpu.get("vram_total"))
+        used = _amd_smi_bytes(gpu.get("vram_used"))
+        total = max(total, used)
+        stats.append(
+            {
+                "index": index,
+                "name": names.get(index, "AMD GPU").strip(),
+                "memory": {
+                    "total": total,
+                    "used": used,
+                    "free": total - used,
                     "percent": (used / total) * 100 if total > 0 else 0,
                 },
             }

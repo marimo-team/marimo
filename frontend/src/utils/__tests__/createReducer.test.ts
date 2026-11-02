@@ -93,6 +93,7 @@ describe("createReducer", () => {
     const loggerSpy = vi.spyOn(Logger, "error");
 
     const state = { count: 0 };
+    // @ts-expect-error - exercise runtime handling of an invalid action
     const newState = reducer(state, { type: "nonexistent", payload: null });
 
     expect(newState).toBe(state);

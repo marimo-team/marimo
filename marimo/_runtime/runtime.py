@@ -15,7 +15,6 @@ import time
 import traceback
 from copy import copy
 from multiprocessing import connection
-from pathlib import Path
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -160,9 +159,7 @@ from marimo._runtime.win32_interrupt_handler import (
     Win32InterruptHandler,
     ignore_console_ctrl_c,
 )
-from marimo._secrets.load_dotenv import (
-    load_dotenv_with_fallback,
-)
+from marimo._secrets.load_dotenv import DotEnvReader
 from marimo._session.model import SessionMode
 from marimo._session.queue import QueueType
 from marimo._sql.bindings import (
@@ -486,12 +483,10 @@ def _get_attached_catalogs() -> set[str]:
     import duckdb
 
     try:
-        return {
-            row[0].lower()
-            for row in duckdb.sql(
-                "SELECT database_name FROM duckdb_databases()"
-            ).fetchall()
-        }
+        result = duckdb.sql("SELECT database_name FROM duckdb_databases()")
+        if result is None:
+            return set()
+        return {row[0].lower() for row in result.fetchall()}
     except Exception:
         return set()
 
@@ -2775,13 +2770,10 @@ class Kernel:
             return
 
         for env in dotenvs:
-            if Path(env).exists():
-                try:
-                    load_dotenv_with_fallback(env)
-                except Exception as e:
-                    LOGGER.error(
-                        "Failed to load dotenv file %s", env, exc_info=e
-                    )
+            try:
+                DotEnvReader(env).load()
+            except Exception as e:
+                LOGGER.error("Failed to load dotenv file %s", env, exc_info=e)
 
     async def handle_message(self, request: CommandMessage) -> None:
         """Handle a message from the client.

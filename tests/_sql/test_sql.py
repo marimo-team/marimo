@@ -76,24 +76,22 @@ def duckdb_connection() -> Generator[duckdb.DuckDBPyConnection, None, None]:
     import duckdb
 
     conn = duckdb.connect(":memory:")
-    sql(
+    conn.execute(
         """
         CREATE TABLE test (
             id INTEGER PRIMARY KEY,
             name TEXT
         );
-        """,
-        engine=conn,
-    )
-    sql(
+        """
+    ).fetchall()
+    conn.execute(
         """
         INSERT INTO test VALUES
         (1, 'Alice'),
         (2, 'Bob'),
         (3, 'Charlie');
-        """,
-        engine=conn,
-    )
+        """
+    ).fetchall()
 
     yield conn
     conn.close()
@@ -693,7 +691,7 @@ logical_plan
         with duckdb.connect(":memory:") as conn:
             conn.sql("CREATE TABLE t AS SELECT * FROM range(5) tbl(id)")
             query = "EXPLAIN SELECT * FROM t"
-            expected = conn.execute(query).fetchone()
+            expected = conn.execute(query).fetchall()[0]
             assert expected is not None
             result = extract_explain_content(conn.sql(query))
 
