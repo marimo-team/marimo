@@ -242,6 +242,26 @@ describe("starting from an embedded snapshot", () => {
     expect(stream.status).toBe("connected");
   });
 
+  it("does not open the host when cancelled while showing the snapshot", async () => {
+    const attempts: Array<string | null> = [];
+    const live: NotebookBackend = {
+      ...createStaticNotebookBackend(emptySnapshot("live")),
+      transport: async (attempt) => {
+        attempts.push(attempt.cursor);
+      },
+    };
+    const controller = new AbortController();
+    const message = vi.fn(() => controller.abort());
+
+    await startWithSnapshot(snapshot(), live).transport(
+      { cursor: null, signal: controller.signal },
+      { open: vi.fn(), message },
+    );
+
+    expect(message).toHaveBeenCalledOnce();
+    expect(attempts).toEqual([]);
+  });
+
   it("starts the host connection fresh when resuming from the snapshot's cursor", async () => {
     const embedded = snapshot();
     const live = silentUntilReleased(

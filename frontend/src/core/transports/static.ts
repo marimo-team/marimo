@@ -81,9 +81,10 @@ export function startWithSnapshot(
           }
           handlers.message(frame);
         }
-        if (!attempt.signal.aborted) {
-          handlers.message({ event: "ready", id: cursor, data: {} });
+        if (attempt.signal.aborted) {
+          return Promise.resolve();
         }
+        handlers.message({ event: "ready", id: cursor, data: {} });
       }
       let shown = true;
       const discard = () => {
