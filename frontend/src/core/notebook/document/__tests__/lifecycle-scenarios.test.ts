@@ -13,7 +13,7 @@ test("closing a session before the debounce prevents submission", async ({
   await vi.advanceTimersByTimeAsync(1000);
   expect(notebook.edit).not.toHaveBeenCalled();
   expect(vi.getTimerCount()).toBe(0);
-  await expect(user.sync()).rejects.toBe(reason);
+  await expect(user.sync()).rejects.toThrow("not started");
 });
 
 test("closing a session before a queued flush starts prevents submission", async ({
@@ -55,7 +55,7 @@ test.for(["request", "confirmation", "retry"] as const)(
     await vi.advanceTimersByTimeAsync(1000);
     expect(notebook.edit).toHaveBeenCalledOnce();
     expect(vi.getTimerCount()).toBe(0);
-    await expect(user.sync()).rejects.toBe(reason);
-    await expect(user.retry()).rejects.toBe(reason);
+    await expect(user.sync()).rejects.toThrow("not started");
+    await expect(user.retry()).rejects.toThrow("not started");
   },
 );

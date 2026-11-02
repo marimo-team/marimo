@@ -8,7 +8,6 @@ import { MockNotebook } from "@/__mocks__/notebook";
 import { cellId } from "@/__tests__/branded";
 import { notebookAtom } from "@/core/cells/cells";
 import type { CellId } from "@/core/cells/ids";
-import { updateEditorCodeFromPython } from "@/core/codemirror/language/utils";
 import { OverridingHotkeyProvider } from "@/core/hotkeys/hotkeys";
 import { MultiColumn } from "@/utils/id-tree";
 import { cellConfigExtension } from "../../../codemirror/config/extension";
@@ -20,11 +19,6 @@ import { EditNotebookTool } from "../edit-notebook-tool";
 // Mock scrollAndHighlightCell
 vi.mock("@/components/editor/links/cell-link", () => ({
   scrollAndHighlightCell: vi.fn(),
-}));
-
-// Mock updateEditorCodeFromPython
-vi.mock("@/core/codemirror/language/utils", () => ({
-  updateEditorCodeFromPython: vi.fn(),
 }));
 
 function createMockEditorView(code: string): EditorView {
@@ -140,10 +134,7 @@ describe("EditNotebookTool", () => {
       );
 
       expect(result.status).toBe("success");
-      expect(vi.mocked(updateEditorCodeFromPython)).toHaveBeenCalledWith(
-        editorView,
-        newCode,
-      );
+      expect(editorView.state.doc.toString()).toBe(newCode);
 
       // Check that cell was staged
       const stagedCells = store.get(stagedAICellsAtom);
@@ -166,10 +157,7 @@ describe("EditNotebookTool", () => {
       );
 
       expect(result2.status).toBe("success");
-      expect(vi.mocked(updateEditorCodeFromPython)).toHaveBeenCalledWith(
-        editorView,
-        "x = 3",
-      );
+      expect(editorView.state.doc.toString()).toBe("x = 3");
 
       const stagedCells2 = store.get(stagedAICellsAtom);
       expect(stagedCells2.has(cellId1)).toBe(true);
@@ -206,7 +194,7 @@ describe("EditNotebookTool", () => {
 
       // Should NOT stage the cell or update the editor
       expect(toolContext.addStagedCell).not.toHaveBeenCalled();
-      expect(vi.mocked(updateEditorCodeFromPython)).not.toHaveBeenCalled();
+      expect(editorView.state.doc.toString()).toBe(code);
 
       // No staged cells
       const stagedCells = store.get(stagedAICellsAtom);

@@ -347,7 +347,6 @@ export class IslandsPyodideBridge implements RunRequests, EditRequests {
   public saveAppConfig = throwNotImplemented;
   public saveCellConfig = throwNotImplemented;
   public sendRestart = throwNotImplemented;
-  public sendDocumentTransaction = throwNotImplemented;
   public readCode = throwNotImplemented;
   public readSnippets = throwNotImplemented;
   public previewDatasetColumn = throwNotImplemented;

@@ -1,11 +1,11 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { historyField } from "@codemirror/commands";
-import { dequal as isEqual } from "dequal";
 import { type Atom, atom, useAtom, useAtomValue } from "jotai";
 import { atomFamily, selectAtom, splitAtom } from "jotai/utils";
 import { createRef, type ReducerWithoutAction } from "react";
 import type { CellHandle } from "@/components/editor/notebook-cell";
+import type { EditableDocument } from "@/core/notebook/document";
 import type { CollapsibleTree } from "@/utils/id-tree";
 import {
   type CellColumnId,
@@ -20,20 +20,17 @@ import { extractAllTracebackInfo, type TracebackInfo } from "@/utils/traceback";
 import { createReducerAndAtoms } from "../../utils/createReducer";
 import { foldAllBulk, unfoldAllBulk } from "../codemirror/editing/commands";
 import { editorMountScheduler } from "../codemirror/editor-mount-scheduler";
-import {
-  splitEditor,
-  updateEditorCodeFromPython,
-} from "../codemirror/language/utils";
+import { prepareCellCodeUpdate } from "../codemirror/language/cell-code";
+import { splitEditor } from "../codemirror/language/utils";
 import type { SerializedEditorState } from "../codemirror/types";
 import { findCollapseRange, mergeOutlines } from "../dom/outline";
 import type { CellMessage } from "../kernel/messages";
 import { isErrorMime } from "../mime";
 import type { CellConfig } from "../network/types";
-import { canUseRtc, isRtcEnabled } from "../rtc/state";
 import { createDeepEqualAtom, store } from "../state/jotai";
 import { isWasm } from "../wasm/utils";
 import { prepareCellForExecution, transitionCell } from "./cell";
-import { documentTransactionMiddleware } from "./document-changes";
+import { applyDocument, documentEditMiddleware } from "./document";
 import { CellId, SCRATCH_CELL_ID, SETUP_CELL_ID } from "./ids";
 import { type CellLog, getCellLogsForMessage } from "./logs";
 import {
@@ -939,158 +936,19 @@ const {
       cellLogs: [...state.cellLogs, ...action.logs],
     };
   },
-  setCellIds: (state, action: { cellIds: CellId[] }) => {
-    const isTheSame = isEqual(state.cellIds.inOrderIds, action.cellIds);
-    if (isTheSame) {
-      return state;
-    }
-
-    // Create new cell data and runtime states for the new cell IDs
-    const nextCellData = { ...state.cellData };
-    const nextCellRuntime = { ...state.cellRuntime };
-    const nextCellHandles = { ...state.cellHandles };
-
-    for (const cellId of action.cellIds) {
-      if (!(cellId in state.cellData)) {
-        nextCellData[cellId] = createCell({ id: cellId });
-      }
-      if (!(cellId in state.cellRuntime)) {
-        nextCellRuntime[cellId] = createCellRuntimeState();
-      }
-      if (!(cellId in state.cellHandles)) {
-        nextCellHandles[cellId] = createRef();
-      }
-    }
-
-    return {
-      ...state,
-      cellIds: MultiColumn.fromWithPreviousShape(action.cellIds, state.cellIds),
-      cellData: nextCellData,
-      cellRuntime: nextCellRuntime,
-      cellHandles: nextCellHandles,
-    };
-  },
   /**
-   * Rebuild the MultiColumn tree using each cell's `config.column` value.
+   * Follow the host document's cells and order.
    *
-   * Used after a transaction whose `set-config` changes updated cells'
-   * column metadata without physically moving them in the tree. Cells with
-   * `config.column == null` inherit the column of the previous cell in the
-   * given order (see `MultiColumn.fromIdsAndColumns`), which lets the server
-   * send column changes only at column boundaries.
+   * Dispatched without middleware, since the document already has these
+   * changes.
    */
-  rebuildCellColumns: (state, action: { cellIds: CellId[] }) => {
-    const newCellIds = MultiColumn.fromIdsAndColumns(
-      action.cellIds.map((id) => [
-        id,
-        state.cellData[id]?.config.column ?? null,
-      ]),
-    );
-    return { ...state, cellIds: newCellIds };
-  },
-  setCellCodes: (
-    state,
-    action: {
-      codes: string[];
-      ids: CellId[];
-      codeIsStale: boolean;
-      names?: string[];
-      configs?: CellConfig[];
-    },
-  ) => {
-    invariant(
-      action.codes.length === action.ids.length,
-      "Expected codes and ids to have the same length",
-    );
-
-    let nextState = { ...state };
-
-    const cellReducer = ({
-      cell,
-      code,
-      cellId,
-      name,
-      config,
-    }: {
-      cell: CellData | undefined;
-      code: string;
-      cellId: CellId;
-      name?: string;
-      config?: CellConfig;
-    }) => {
-      if (!cell) {
-        return createCell({
-          id: cellId,
-          code,
-          name: name,
-          config: config,
-          lastCodeRun: action.codeIsStale ? null : code,
-          edited: action.codeIsStale && code.trim().length > 0,
-        });
+  reconcileDocument: (state, document: EditableDocument) => {
+    const nextState = applyDocument(state, document);
+    for (const cellId of state.cellIds.inOrderIds) {
+      if (!(cellId in nextState.cellData)) {
+        releaseCellAtoms(cellId);
       }
-
-      // If code is stale, we don't promote it to lastCodeRun
-      const lastCodeRun = action.codeIsStale ? cell.lastCodeRun : code;
-
-      // Mark as edited if the code has changed
-      const edited = lastCodeRun
-        ? lastCodeRun.trim() !== code.trim()
-        : Boolean(code);
-
-      // No change
-      if (cell.code.trim() === code.trim()) {
-        return {
-          ...cell,
-          code: code,
-          edited,
-          lastCodeRun,
-          ...(name !== undefined && { name }),
-          ...(config !== undefined && { config }),
-        };
-      }
-
-      // Update codemirror if mounted. RTC-backed cells sync via Loro; others
-      // (e.g. scratchpad) still need an explicit editor update.
-      if (!isRtcEnabled() || !canUseRtc(cellId)) {
-        const cellHandle = nextState.cellHandles[cellId].current;
-        if (cellHandle?.editorViewOrNull) {
-          updateEditorCodeFromPython(cellHandle.editorViewOrNull, code);
-        }
-      }
-
-      return {
-        ...cell,
-        code: code,
-        edited,
-        lastCodeRun,
-        ...(name !== undefined && { name }),
-        ...(config !== undefined && { config }),
-      };
-    };
-
-    for (let i = 0; i < action.ids.length; i++) {
-      const cellId = action.ids[i];
-      const code = action.codes[i];
-      if (cellId === undefined || code === undefined) {
-        continue;
-      }
-      const name = action.names?.[i];
-      const config = action.configs?.[i];
-      nextState = {
-        ...nextState,
-        cellData: {
-          ...nextState.cellData,
-          [cellId]: cellReducer({
-            cell: nextState.cellData[cellId],
-            code,
-            cellId,
-            name,
-            config,
-          }),
-        },
-      };
     }
-
     return nextState;
   },
   setStdinResponse: (
@@ -1440,7 +1298,14 @@ const {
       cellHandle.editorView,
     );
 
-    updateEditorCodeFromPython(cellHandle.editorView, beforeCursorCode);
+    const update = prepareCellCodeUpdate(
+      cellHandle.editorView.state,
+      beforeCursorCode,
+    );
+
+    if (update) {
+      cellHandle.editorView.dispatch(update);
+    }
 
     const newCellId = CellId.create();
 
@@ -1488,7 +1353,11 @@ const {
       return state;
     }
 
-    updateEditorCodeFromPython(cellHandle.editorView, snapshot);
+    const update = prepareCellCodeUpdate(cellHandle.editorView.state, snapshot);
+
+    if (update) {
+      cellHandle.editorView.dispatch(update);
+    }
 
     return {
       ...state,
@@ -1599,9 +1468,9 @@ const {
 });
 
 // We apply the middleware here (rather than inline in createReducerAndAtoms)
-// so that the document transaction middleware can import CellActions and
+// so that the document edit middleware can import CellActions and
 // strictly type the dispatched actions without creating a circular dependency.
-addMiddleware(documentTransactionMiddleware);
+addMiddleware(documentEditMiddleware);
 
 function isCellCodeHidden(state: NotebookState, cellId: CellId): boolean {
   return (

@@ -70,15 +70,6 @@ export function createNetworkRequests(): EditRequests & RunRequests {
         })
         .then(handleResponseReturnNull);
     },
-    sendDocumentTransaction: async (request) => {
-      await waitForConnectionOpen();
-      return getClient()
-        .POST("/api/document/transaction", {
-          body: request,
-          params: getParams(),
-        })
-        .then(handleResponseReturnNull);
-    },
     sendRename: (request) => {
       return getClient()
         .POST("/api/kernel/rename", {

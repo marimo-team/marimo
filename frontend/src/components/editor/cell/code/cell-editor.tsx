@@ -24,10 +24,8 @@ import {
   reconfigureLanguageEffect,
   switchLanguage,
 } from "@/core/codemirror/language/extension";
-import {
-  getEditorCodeAsPython,
-  updateEditorCodeFromPython,
-} from "@/core/codemirror/language/utils";
+import { prepareCellCodeUpdate } from "@/core/codemirror/language/cell-code";
+import { getEditorCodeAsPython } from "@/core/codemirror/language/utils";
 import { MARKDOWN_INITIAL_HIDE_CODE } from "@/core/codemirror/language/languages/markdown";
 import type { LanguageAdapterType } from "@/core/codemirror/language/types";
 import {
@@ -253,7 +251,10 @@ const CellEditorInternal = ({
             ? `${existing.trimEnd()}\n\n${code}`
             : code;
           if (view) {
-            updateEditorCodeFromPython(view, merged);
+            const update = prepareCellCodeUpdate(view.state, merged);
+            if (update) {
+              view.dispatch(update);
+            }
           }
           cellActions.updateCellCode({
             cellId: SETUP_CELL_ID,
@@ -363,15 +364,7 @@ const CellEditorInternal = ({
       return composeRtcEditorConfig(code, extensions, undefined);
     }
 
-    const rtc = realTimeCollaboration(
-      cellId,
-      (code) => {
-        // It's not really a formatting change,
-        // but this means it won't be marked as stale
-        cellActions.updateCellCode({ cellId, code, formattingChange: true });
-      },
-      initialCode,
-    );
+    const rtc = realTimeCollaboration(cellId, initialCode);
     return composeRtcEditorConfig(code, extensions, rtc);
   };
 

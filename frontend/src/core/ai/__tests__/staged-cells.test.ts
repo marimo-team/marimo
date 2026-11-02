@@ -7,7 +7,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { cellId } from "@/__tests__/branded";
 import { CellId } from "@/core/cells/ids";
 import { getCellEditorView } from "../../cells/cells";
-import { updateEditorCodeFromPython } from "../../codemirror/language/utils";
+import { prepareCellCodeUpdate } from "../../codemirror/language/cell-code";
 import {
   stagedAICellsAtom,
   stagedGenerationInProgressAtom,
@@ -57,8 +57,8 @@ vi.mock("@/core/network/requests", () => ({
   getRequestClient: () => ({ sendRun: vi.fn() }),
 }));
 
-vi.mock("../../codemirror/language/utils", () => ({
-  updateEditorCodeFromPython: vi.fn(),
+vi.mock("../../codemirror/language/cell-code", () => ({
+  prepareCellCodeUpdate: vi.fn(() => ({ effects: [] })),
 }));
 
 // Mock CellId.create
@@ -402,7 +402,7 @@ describe("staged cell generation", () => {
 
     // No cell or cell update should have been called
     expect(mockCreateNewCell).not.toHaveBeenCalled();
-    expect(updateEditorCodeFromPython).not.toHaveBeenCalled();
+    expect(prepareCellCodeUpdate).not.toHaveBeenCalled();
     expect(store.get(stagedGenerationInProgressAtom)).toBe(true);
   });
 
@@ -686,7 +686,10 @@ describe("staged cell generation", () => {
     expect(mockCreateNewCell).toHaveBeenCalledTimes(2);
     expect(store.get(stagedAICellsAtom).has(cellId("first-cell"))).toBe(true);
     expect(store.get(stagedAICellsAtom).has(cellId("second-cell"))).toBe(true);
-    expect(updateEditorCodeFromPython).toHaveBeenCalledTimes(2);
+    expect(prepareCellCodeUpdate).toHaveBeenCalledTimes(2);
+    expect(
+      mockCellHandle.current.editorViewOrNull.dispatch,
+    ).toHaveBeenCalledTimes(2);
   });
 
   it("should update notebook state when the cell editor is not mounted", () => {

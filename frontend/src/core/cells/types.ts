@@ -9,6 +9,18 @@ import { DEFAULT_CELL_NAME } from "./names";
 import type { Outline } from "./outline";
 
 /**
+ * Whether a cell's code has changed since it last ran. A cell that never ran
+ * is edited once it has code. Whitespace at the ends does not count.
+ *
+ * TODO(MO-8028): Temporary until staleness comes from the host's executions.
+ */
+export function isEdited(lastCodeRun: string | null, code: string): boolean {
+  return lastCodeRun === null
+    ? code.trim().length > 0
+    : lastCodeRun.trim() !== code.trim();
+}
+
+/**
  * Create a new cell with default state.
  */
 export function createCell({

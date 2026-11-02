@@ -9,7 +9,7 @@ import {
   notebookAtom,
 } from "@/core/cells/cells";
 import { CellId } from "@/core/cells/ids";
-import { updateEditorCodeFromPython } from "@/core/codemirror/language/utils";
+import { prepareCellCodeUpdate } from "@/core/codemirror/language/cell-code";
 import type { CellColumnId } from "@/utils/id-tree";
 import { stagedAICellsAtom } from "../staged-cells";
 import {
@@ -117,7 +117,12 @@ export class EditNotebookTool implements AiTool<
 
         // If previous edit was from a new cell, just replace editor code with the new code
         if (existingStagedCell?.type === "add_cell") {
-          updateEditorCodeFromPython(editorView, code);
+          const update = prepareCellCodeUpdate(editorView.state, code, {
+            initialize: true,
+          });
+          if (update) {
+            editorView.dispatch(update);
+          }
           break;
         }
 
@@ -137,7 +142,13 @@ export class EditNotebookTool implements AiTool<
           edit: { type: "update_cell", previousCode: previousCode },
         });
 
-        updateEditorCodeFromPython(editorView, code);
+        const update = prepareCellCodeUpdate(editorView.state, code, {
+          initialize: true,
+        });
+
+        if (update) {
+          editorView.dispatch(update);
+        }
 
         break;
       }

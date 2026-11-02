@@ -6,7 +6,6 @@ import { EditorView } from "@codemirror/view";
 import { createStore } from "jotai";
 import {
   afterAll,
-  afterEach,
   beforeAll,
   beforeEach,
   describe,
@@ -34,7 +33,6 @@ import {
   type NotebookState,
   notebookAtom,
 } from "../cells";
-import { exportedForTesting as documentTransactionTestExports } from "../document-changes";
 import {
   focusAndScrollCellIntoView,
   scrollToBottom,
@@ -154,10 +152,6 @@ describe("cell reducer", () => {
     state.cellIds = MultiColumn.from([]);
     actions.createNewCell({ cellId: "__end__", before: false });
     firstCellId = state.cellIds.inOrderIds[0];
-  });
-
-  afterEach(() => {
-    documentTransactionTestExports.cancelPendingChanges();
   });
 
   afterAll(() => {
@@ -1761,187 +1755,6 @@ describe("cell reducer", () => {
     expect(state.cellData[firstCellId].name).toBe("Test Cell");
   });
 
-  it("can set cell IDs and codes", () => {
-    const newIds = [cellId("3"), cellId("4"), cellId("5")];
-    const newCodes = ["code1", "code2", "code3"];
-
-    actions.setCellIds({ cellIds: newIds });
-    expect(state.cellIds.atOrThrow(FIRST_COLUMN).topLevelIds).toEqual(newIds);
-
-    // When codeIsStale is false, lastCodeRun should match code
-    actions.setCellCodes({
-      codes: newCodes,
-      ids: newIds,
-      codeIsStale: false,
-    });
-    newIds.forEach((id, index) => {
-      expect(state.cellData[id].code).toBe(newCodes[index]);
-      expect(state.cellData[id].lastCodeRun).toBe(newCodes[index]);
-      expect(state.cellData[id].edited).toBe(false);
-    });
-
-    // When codeIsStale is true, lastCodeRun should not change
-    const staleCodes = ["stale1", "stale2", "stale3"];
-    actions.setCellCodes({
-      codes: staleCodes,
-      ids: newIds,
-      codeIsStale: true,
-    });
-    newIds.forEach((id, index) => {
-      expect(state.cellData[id].code).toBe(staleCodes[index]);
-      expect(state.cellData[id].lastCodeRun).toBe(newCodes[index]);
-      expect(state.cellData[id].edited).toBe(true);
-    });
-  });
-
-  it("can can add a new cell with/without stale code", () => {
-    actions.setCellCodes({
-      codes: ["new code"],
-      ids: [cellId("2")],
-      codeIsStale: false,
-    });
-
-    expect(state.cellData[cellId("2")].code).toBe("new code");
-    expect(state.cellData[cellId("2")].edited).toBe(false);
-    expect(state.cellData[cellId("2")].lastCodeRun).toBe("new code");
-
-    actions.setCellCodes({
-      codes: ["new code 2"],
-      ids: [cellId("9")],
-      codeIsStale: true,
-    });
-
-    expect(state.cellData[cellId("9")].code).toBe("new code 2");
-    expect(state.cellData[cellId("9")].edited).toBe(true);
-    expect(state.cellData[cellId("9")].lastCodeRun).toBe(null);
-  });
-
-  it("can partial update cell codes", () => {
-    actions.createNewCell({ cellId: firstCellId, before: false });
-    actions.createNewCell({ cellId: cellId("1"), before: false });
-
-    expect(state.cellIds.inOrderIds).toEqual([
-      cellId("0"),
-      cellId("1"),
-      cellId("2"),
-    ]);
-    expect(state.cellData[cellId("0")].code).toBe("");
-    expect(state.cellData[cellId("1")].code).toBe("");
-    expect(state.cellData[cellId("2")].code).toBe("");
-
-    // Update cell 1
-    actions.setCellCodes({
-      codes: ["new code 2"],
-      ids: [cellId("1")],
-      codeIsStale: false,
-    });
-
-    expect(state.cellIds.inOrderIds).toEqual([
-      cellId("0"),
-      cellId("1"),
-      cellId("2"),
-    ]);
-    expect(state.cellData[cellId("0")].code).toBe("");
-    expect(state.cellData[cellId("1")].code).toBe("new code 2");
-    expect(state.cellData[cellId("1")].edited).toBe(false);
-    expect(state.cellData[cellId("2")].code).toBe("");
-  });
-
-  it("can set cell codes with new cell ids, while preserving the old cell data", () => {
-    actions.setCellCodes({
-      codes: ["code1", "code2", "code3"],
-      ids: [cellId("3"), cellId("4"), cellId("5")],
-      codeIsStale: false,
-    });
-    expect(state.cellData[cellId("3")].code).toBe("code1");
-    expect(state.cellData[cellId("4")].code).toBe("code2");
-    expect(state.cellData[cellId("5")].code).toBe("code3");
-
-    // Update with some new cell ids and some old cell ids
-    actions.setCellIds({
-      cellIds: [cellId("1"), cellId("2"), cellId("3"), cellId("4")],
-    });
-    actions.setCellCodes({
-      codes: ["new1", "new2", "code1", "code2"],
-      ids: [cellId("1"), cellId("2"), cellId("3"), cellId("4")],
-      codeIsStale: false,
-    });
-    expect(state.cellData[cellId("1")].code).toBe("new1");
-    expect(state.cellData[cellId("2")].code).toBe("new2");
-    expect(state.cellData[cellId("3")].code).toBe("code1");
-    expect(state.cellData[cellId("4")].code).toBe("code2");
-    expect(state.cellIds.inOrderIds).toEqual([
-      cellId("1"),
-      cellId("2"),
-      cellId("3"),
-      cellId("4"),
-    ]);
-    // Cell 5 data is preserved (possibly used for tracing), but it's not in the cellIds
-    expect(state.cellData[cellId("5")]).not.toBeUndefined();
-  });
-
-  it("can set cell codes with names and configs", () => {
-    const newIds = [cellId("3"), cellId("4")];
-    actions.setCellIds({ cellIds: newIds });
-    actions.setCellCodes({
-      codes: ["code1", "code2"],
-      ids: newIds,
-      codeIsStale: false,
-      names: ["setup_cell", "analysis"],
-      configs: [
-        { hide_code: true, disabled: false, column: null },
-        { hide_code: false, disabled: true, column: null },
-      ],
-    });
-
-    expect(state.cellData[cellId("3")].name).toBe("setup_cell");
-    expect(state.cellData[cellId("3")].config.hide_code).toBe(true);
-    expect(state.cellData[cellId("3")].config.disabled).toBe(false);
-
-    expect(state.cellData[cellId("4")].name).toBe("analysis");
-    expect(state.cellData[cellId("4")].config.hide_code).toBe(false);
-    expect(state.cellData[cellId("4")].config.disabled).toBe(true);
-  });
-
-  it("can set cell codes without names/configs (backward compat)", () => {
-    const newIds = [cellId("3")];
-    actions.setCellIds({ cellIds: newIds });
-    actions.setCellCodes({
-      codes: ["code1"],
-      ids: newIds,
-      codeIsStale: false,
-    });
-
-    // Should use defaults when names/configs not provided
-    expect(state.cellData[cellId("3")].code).toBe("code1");
-    expect(state.cellData[cellId("3")].config.hide_code).toBe(false);
-    expect(state.cellData[cellId("3")].config.disabled).toBe(false);
-  });
-
-  it("can update names and configs on existing cells via setCellCodes", () => {
-    // Set initial state
-    actions.setCellCodes({
-      codes: ["x = 1"],
-      ids: [firstCellId],
-      codeIsStale: false,
-      names: ["old_name"],
-      configs: [{ hide_code: false, disabled: false, column: null }],
-    });
-    expect(state.cellData[firstCellId].name).toBe("old_name");
-    expect(state.cellData[firstCellId].config.hide_code).toBe(false);
-
-    // Update with new name and config (same code)
-    actions.setCellCodes({
-      codes: ["x = 1"],
-      ids: [firstCellId],
-      codeIsStale: true,
-      names: ["new_name"],
-      configs: [{ hide_code: true, disabled: false, column: null }],
-    });
-    expect(state.cellData[firstCellId].name).toBe("new_name");
-    expect(state.cellData[firstCellId].config.hide_code).toBe(true);
-  });
-
   it("can fold and unfold all cells", () => {
     actions.foldAll();
     expect(foldAllBulk).toHaveBeenCalled();
@@ -2630,116 +2443,6 @@ describe("cell reducer", () => {
     expect(state.cellIds.getColumns()[0].topLevelIds).toEqual([cellId("0")]);
     expect(state.cellIds.getColumns()[1].topLevelIds).toEqual([cellId("1")]);
     expect(state.cellIds.getColumns()[2].topLevelIds).toEqual([cellId("2")]);
-  });
-
-  it("rebuildCellColumns regroups cells by config.column", () => {
-    // Create four cells in a single column.
-    actions.createNewCell({ cellId: firstCellId, before: false });
-    actions.createNewCell({ cellId: cellId("1"), before: false });
-    actions.createNewCell({ cellId: cellId("2"), before: false });
-    expect(state.cellIds.getColumns().length).toBe(1);
-
-    // Explicitly set config.column on each cell. This ONLY updates metadata —
-    // updateCellConfig does not touch the MultiColumn tree.
-    actions.updateCellConfig({
-      cellId: cellId("0"),
-      config: { column: 0 },
-    });
-    actions.updateCellConfig({
-      cellId: cellId("2"),
-      config: { column: 1 },
-    });
-
-    // Tree is still a single column at this point.
-    expect(state.cellIds.getColumns().length).toBe(1);
-
-    // Now rebuild the column tree from metadata.
-    actions.rebuildCellColumns({
-      cellIds: [cellId("0"), cellId("1"), cellId("2"), cellId("3")],
-    });
-
-    expect(state.cellIds.getColumns().length).toBe(2);
-    // Cell 1 inherits from 0 (col 0), cell 3 inherits from 2 (col 1).
-    expect(state.cellIds.getColumns()[0].topLevelIds).toEqual([
-      cellId("0"),
-      cellId("1"),
-    ]);
-    expect(state.cellIds.getColumns()[1].topLevelIds).toEqual([
-      cellId("2"),
-      cellId("3"),
-    ]);
-  });
-
-  it("rebuildCellColumns with explicit column on every cell", () => {
-    actions.createNewCell({ cellId: firstCellId, before: false });
-    actions.createNewCell({ cellId: cellId("1"), before: false });
-    actions.createNewCell({ cellId: cellId("2"), before: false });
-
-    for (const [id, col] of [
-      ["0", 1],
-      ["1", 0],
-      ["2", 1],
-      ["3", 0],
-    ] as const) {
-      actions.updateCellConfig({ cellId: cellId(id), config: { column: col } });
-    }
-
-    actions.rebuildCellColumns({
-      cellIds: [cellId("0"), cellId("1"), cellId("2"), cellId("3")],
-    });
-
-    expect(state.cellIds.getColumns().length).toBe(2);
-    expect(state.cellIds.getColumns()[0].topLevelIds).toEqual([
-      cellId("1"),
-      cellId("3"),
-    ]);
-    expect(state.cellIds.getColumns()[1].topLevelIds).toEqual([
-      cellId("0"),
-      cellId("2"),
-    ]);
-  });
-
-  it("rebuildCellColumns collapses to one column when all cells are col 0", () => {
-    actions.createNewCell({ cellId: firstCellId, before: false });
-    actions.addColumnBreakpoint({ cellId: cellId("1") });
-    expect(state.cellIds.getColumns().length).toBe(2);
-
-    // Wipe column metadata back to 0 for both cells.
-    actions.updateCellConfig({ cellId: cellId("0"), config: { column: 0 } });
-    actions.updateCellConfig({ cellId: cellId("1"), config: { column: 0 } });
-
-    actions.rebuildCellColumns({
-      cellIds: [cellId("0"), cellId("1")],
-    });
-
-    expect(state.cellIds.getColumns().length).toBe(1);
-    expect(state.cellIds.getColumns()[0].topLevelIds).toEqual([
-      cellId("0"),
-      cellId("1"),
-    ]);
-  });
-
-  it("rebuildCellColumns follows the provided order, not current tree order", () => {
-    // Start with a single column.
-    actions.createNewCell({ cellId: firstCellId, before: false });
-    actions.createNewCell({ cellId: cellId("1"), before: false });
-    actions.updateCellConfig({ cellId: cellId("0"), config: { column: 0 } });
-    actions.updateCellConfig({ cellId: cellId("2"), config: { column: 1 } });
-
-    // Pass the reversed order. The rebuild should honor it.
-    actions.rebuildCellColumns({
-      cellIds: [cellId("2"), cellId("1"), cellId("0")],
-    });
-
-    // cellIds iteration:
-    //   2 → col=1, pushed to col1, prev=1
-    //   1 → col=null, pushed to col[prev=1] = col1
-    //   0 → col=0, pushed to col0
-    expect(state.cellIds.getColumns()[0].topLevelIds).toEqual([cellId("0")]);
-    expect(state.cellIds.getColumns()[1].topLevelIds).toEqual([
-      cellId("2"),
-      cellId("1"),
-    ]);
   });
 
   it("can clear output of a single cell", () => {

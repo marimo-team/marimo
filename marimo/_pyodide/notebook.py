@@ -12,14 +12,12 @@ import msgspec
 from marimo._core import protocol
 from marimo._core.calls import OperationCall, dispatch
 from marimo._core.document import Document
-from marimo._core.errors import Conflict, Forbidden, Invalid
+from marimo._core.errors import Conflict, Invalid
 from marimo._core.executions import Executions
 from marimo._core.host import Host
 from marimo._core.ids import mint
 from marimo._core.notebook import Notebook
 from marimo._core.operations import Mutations, problem
-from marimo._messaging.notebook import NotebookDocument, Transaction
-from marimo._messaging.notebook.reconcile import reconcile_transaction
 from marimo._messaging.notification import (
     NotebookDocumentTransactionNotification,
 )
@@ -34,7 +32,6 @@ from marimo._runtime.layout.layout import (
 )
 from marimo._server.host import document as documents
 from marimo._server.host.events import notification_event, serialize_event
-from marimo._server.models.models import NotebookDocumentTransactionRequest
 from marimo._session.model import SessionMode
 from marimo._session.notebook.writer import NotebookWriter, cells_to_ir
 
@@ -235,26 +232,6 @@ class PyodideNotebook:
         # Before instantiation the kernel receives the latest app cells.
         if update is not None and self._session.instantiated:
             self._session.put_control_request(update)
-
-    async def transaction(self, raw: str) -> None:
-        """Apply the editor's incremental transactions to the host document."""
-        if self._session.mode is not SessionMode.EDIT:
-            raise Forbidden("The notebook is read-only")
-        request = msgspec.json.decode(
-            raw, type=NotebookDocumentTransactionRequest
-        )
-        notebook = await self.host.notebook(self.id)
-        self.refresh()
-        staged = NotebookDocument(
-            documents.to_notebook_cell(cell) for cell in notebook.document
-        )
-        changes = reconcile_transaction(tuple(request.changes), staged)
-        staged.apply(Transaction(changes=changes, source="frontend"))
-        notebook.replace(
-            documents.sources(staged.cells), notebook.document.app_config
-        )
-        # Echoing an acknowledged edit could overwrite newer local typing.
-        self._apply_to_session(notebook, notify=False)
 
     async def update_config(self, config: dict[str, Any]) -> None:
         notebook = await self.host.notebook(self.id)
