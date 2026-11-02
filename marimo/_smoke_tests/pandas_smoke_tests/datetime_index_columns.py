@@ -8,20 +8,22 @@
 
 import marimo
 
-__generated_with = "0.17.0"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
 @app.cell
 def _():
     import marimo as mo
+
     return (mo,)
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md("""# Issue #6898: DatetimeIndex Lost Across Cells""")
-    return
+    mo.md("""
+    # Issue #6898: DatetimeIndex Lost Across Cells
+    """)
 
 
 @app.cell
@@ -51,15 +53,12 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        """
+    mo.md("""
     ## Test Case 1: DataFrame with DatetimeIndex columns using pipe()
 
     This reproduces the exact issue from #6898 where `.pipe()` is used
     to set DatetimeIndex on columns.
-    """
-    )
-    return
+    """)
 
 
 @app.cell
@@ -82,15 +81,12 @@ def _(df_subset, pd):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        """
+    mo.md("""
     ## Test Case 2: Check column type in NEXT cell (reproduces bug)
 
     This is where the bug manifests - the DatetimeIndex is lost when
     the DataFrame is passed to the next cell.
-    """
-    )
-    return
+    """)
 
 
 @app.cell
@@ -101,7 +97,6 @@ def _(df_with_datetime_cols, pd):
     print(
         f"Is DatetimeIndex in next cell: {isinstance(df_with_datetime_cols.columns, pd.DatetimeIndex)}"
     )
-    return
 
 
 if __name__ == "__main__":

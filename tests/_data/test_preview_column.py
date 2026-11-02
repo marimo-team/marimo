@@ -284,6 +284,38 @@ def test_get_column_preview_for_duckdb_categorical() -> None:
     )
 
 
+@pytest.mark.requires("duckdb", "altair", "pyarrow", "vegafusion")
+@pytest.mark.parametrize("column_type", ["DATE", "TIMESTAMP"])
+@pytest.mark.parametrize("row_count", [0, 3])
+def test_get_column_preview_for_duckdb_missing_dates(
+    column_type: str, row_count: int
+) -> None:
+    import duckdb
+
+    table_name = "missing_dates_preview"
+    duckdb.execute(
+        f"CREATE OR REPLACE TABLE {table_name} AS "
+        f"SELECT NULL::{column_type} AS value FROM range({row_count})"
+    ).fetchall()
+    try:
+        result = get_column_preview_for_duckdb(
+            fully_qualified_table_name=table_name,
+            column_name="value",
+        )
+        assert result is not None
+        assert result.error is None
+        assert result.chart_spec is not None
+        assert result.stats is not None
+        assert (result.stats.total, result.stats.nulls) == (
+            row_count,
+            row_count if row_count else None,
+        )
+        assert duckdb.sql("SELECT 42").fetchall() == [(42,)]
+        assert_serialize_roundtrip(result)
+    finally:
+        duckdb.execute(f"DROP TABLE {table_name}").fetchall()
+
+
 @pytest.mark.skipif(
     not HAS_SQL_DEPS, reason="optional dependencies not installed"
 )

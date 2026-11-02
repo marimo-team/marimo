@@ -8,6 +8,8 @@ import {
   type MockInstance,
   vi,
 } from "vitest";
+import { Deferred } from "@/utils/Deferred";
+import { Logger } from "@/utils/Logger";
 import { getMarimoInternal, Model } from "../model";
 import { handleWidgetMessage, WidgetRegistry } from "../registry";
 import type { EsmSpec, ModelState, WidgetModelId } from "../types";
@@ -153,6 +155,155 @@ describe("WidgetRegistry models", () => {
     await expect(registry.getModel(testId)).rejects.toThrow(
       `Model not found for key: ${testId}`,
     );
+  });
+
+  describe("outgoing messages", () => {
+    async function openModel(id = testId) {
+      await handleWidgetMessage(registry, {
+        model_id: id,
+        message: {
+          method: "open",
+          state: {},
+          buffer_paths: [],
+          buffers: [],
+        },
+      });
+      return registry.getModel(id);
+    }
+
+    afterEach(() => {
+      mockSendModelValue.mockReset().mockResolvedValue(null);
+      vi.restoreAllMocks();
+    });
+
+    it("waits for each acknowledgement before sending the next update", async () => {
+      const model = await openModel();
+      const responses = [new Deferred<null>(), new Deferred<null>()];
+      for (const response of responses) {
+        mockSendModelValue.mockReturnValueOnce(response.promise);
+      }
+      const states = [
+        { card: "A", seq: 5 },
+        { card: "", seq: 6 },
+        { card: "B", seq: 7 },
+      ];
+      for (const state of states) {
+        model.set("selection", state);
+        model.save_changes();
+      }
+
+      await vi.waitFor(() =>
+        expect(mockSendModelValue).toHaveBeenCalledTimes(1),
+      );
+      for (const [index, response] of responses.entries()) {
+        response.resolve(null);
+        await vi.waitFor(() =>
+          expect(mockSendModelValue).toHaveBeenCalledTimes(index + 2),
+        );
+      }
+      expect(mockSendModelValue.mock.calls).toEqual(
+        states.map((selection) => [
+          {
+            modelId: testId,
+            message: {
+              method: "update",
+              state: { selection },
+              bufferPaths: [],
+            },
+            buffers: [],
+          },
+        ]),
+      );
+    });
+
+    it("orders custom messages with updates and waits before calling callbacks", async () => {
+      const model = await openModel();
+      const response = new Deferred<null>();
+      mockSendModelValue.mockReturnValueOnce(response.promise);
+      const callback = vi.fn();
+      const sent = model.send({ action: "first" }, callback);
+      model.set("count", 1);
+      model.save_changes();
+      const last = model.send({ action: "last" });
+
+      await vi.waitFor(() =>
+        expect(mockSendModelValue).toHaveBeenCalledTimes(1),
+      );
+      expect(callback).not.toHaveBeenCalled();
+      response.resolve(null);
+      await Promise.all([sent, last]);
+      expect(callback).toHaveBeenCalledExactlyOnceWith();
+      expect(
+        mockSendModelValue.mock.calls.map(([request]) => request.message),
+      ).toEqual([
+        { method: "custom", content: { action: "first" } },
+        { method: "update", state: { count: 1 }, bufferPaths: [] },
+        { method: "custom", content: { action: "last" } },
+      ]);
+    });
+
+    it("continues sending after a failed update", async () => {
+      const model = await openModel();
+      const response = new Deferred<null>();
+      mockSendModelValue.mockReturnValueOnce(response.promise);
+      const logError = vi
+        .spyOn(Logger, "error")
+        .mockImplementation(() => undefined);
+      model.set("count", 1);
+      model.save_changes();
+      model.set("count", 2);
+      model.save_changes();
+      const last = model.send({ action: "done" });
+
+      await vi.waitFor(() =>
+        expect(mockSendModelValue).toHaveBeenCalledTimes(1),
+      );
+      const error = new Error("Network failure");
+      response.reject(error);
+      await last;
+      expect(mockSendModelValue).toHaveBeenCalledTimes(3);
+      expect(logError).toHaveBeenCalledWith(
+        "[anywidget] Failed to save model changes",
+        error,
+      );
+    });
+
+    it("allows different models to send independently", async () => {
+      const first = await openModel();
+      const secondId = asModelId("second-model");
+      const second = await openModel(secondId);
+      const response = new Deferred<null>();
+      mockSendModelValue.mockReturnValueOnce(response.promise);
+
+      const firstSend = first.send({ value: 1 });
+      await second.send({ value: 2 });
+      expect(
+        mockSendModelValue.mock.calls.map(([request]) => request.modelId),
+      ).toEqual([testId, secondId]);
+      response.resolve(null);
+      await firstSend;
+    });
+
+    it("drops queued messages when the model closes", async () => {
+      const model = await openModel();
+      const response = new Deferred<null>();
+      mockSendModelValue.mockReturnValueOnce(response.promise);
+      const first = model.send({ value: 1 });
+      model.set("count", 2);
+      model.save_changes();
+      const last = model.send({ value: 3 });
+
+      await vi.waitFor(() =>
+        expect(mockSendModelValue).toHaveBeenCalledTimes(1),
+      );
+      await handleWidgetMessage(registry, {
+        model_id: testId,
+        message: { method: "close" },
+      });
+      response.resolve(null);
+      await Promise.all([first, last]);
+      expect(mockSendModelValue).toHaveBeenCalledTimes(1);
+    });
   });
 
   describe("static mode", () => {

@@ -14,7 +14,7 @@ import type {
   LspRestartResponse,
 } from "@/core/network/types";
 import { isWasm } from "@/core/wasm/utils";
-import { isAppConnected } from "@/core/websocket/connection-utils";
+import { isAppConnected } from "@/core/session/connection-utils";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import { useInterval } from "@/hooks/useInterval";
 

@@ -62,7 +62,7 @@ import {
 import { maybeRegisterVSCodeBindings } from "./core/vscode/vscode-bindings";
 import type { FileStore } from "./core/wasm/store";
 import { notebookFileStore } from "./core/wasm/store";
-import { ConnectionState } from "./core/websocket/types";
+import { ConnectionState } from "./core/session/types";
 import {
   handleWidgetMessage,
   WIDGET_REGISTRY,

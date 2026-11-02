@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.19.2"
+__generated_with = "0.25.2"
 app = marimo.App(width="full")
 
 
@@ -8,6 +8,7 @@ app = marimo.App(width="full")
 def _():
     import marimo as mo
     import time
+
     return (mo,)
 
 
@@ -27,11 +28,10 @@ def _(mo):
 @app.cell
 def _(slider):
     slider
-    return
 
 
 @app.cell
-def _(slider, state):
+def _(slider, state: None):
     value = slider.value if state is None else state()
     label = "our"
     return label, value
@@ -44,13 +44,12 @@ def _():
 
 
 @app.cell
-def _(kind, label, mo, value):
+def _(kind: str, label: str, mo, value: int | float):
     mo.callout(
         mo.md(f"""
         The value of *{label}* slider is **{value}**!
         """), kind
     )
-    return
 
 
 @app.cell

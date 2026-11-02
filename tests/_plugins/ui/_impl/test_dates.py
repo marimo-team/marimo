@@ -316,6 +316,34 @@ def test_date_range_from_dataframe() -> None:
     assert date_range_ui.stop == datetime.date(2024, 1, 31)
 
 
+@pytest.mark.skipif(not HAS_PANDAS, reason="pandas not installed")
+@pytest.mark.parametrize("widget", [ui.date, ui.datetime, ui.date_range])
+def test_date_from_empty_series(widget) -> None:
+    import pandas as pd
+
+    series = pd.Series([], dtype="datetime64[ns]")
+    with pytest.raises(ValueError, match="provide explicit bounds"):
+        widget.from_series(series)
+
+    if widget is ui.datetime:
+        start, stop = "2024-01-01T00:00", "2024-01-02T00:00"
+    else:
+        start, stop = "2024-01-01", "2024-01-02"
+    element = widget.from_series(series, start=start, stop=stop)
+    assert element.start.isoformat().startswith("2024-01-01")
+    assert element.stop.isoformat().startswith("2024-01-02")
+
+
+@pytest.mark.skipif(not HAS_PANDAS, reason="pandas not installed")
+@pytest.mark.parametrize("widget", [ui.date, ui.datetime, ui.date_range])
+def test_date_from_all_null_series(widget) -> None:
+    import pandas as pd
+
+    series = pd.Series([pd.NaT, pd.NaT], dtype="datetime64[ns]")
+    with pytest.raises(ValueError, match="provide explicit bounds"):
+        widget.from_series(series)
+
+
 def test_datetime_precision_default() -> None:
     """Test that datetime precision defaults to 'minute'."""
     dt = ui.datetime(value="2024-01-01T12:30:45")

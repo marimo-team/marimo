@@ -7,6 +7,7 @@ from typing import Any, cast
 
 from marimo import _loggers
 from marimo._config.config import PartialMarimoConfig
+from marimo._config.provenance import ConfigLayer, ConfigSource
 from marimo._utils.toml import toml_reader
 
 LOGGER = _loggers.marimo_logger()
@@ -23,6 +24,14 @@ class ConfigReader(ABC):
     def read(self) -> PartialMarimoConfig:
         """Read a sparse, unmasked configuration from this source."""
 
+    @property
+    def source(self) -> ConfigSource:
+        return "override"
+
+    def read_layer(self) -> ConfigLayer:
+        """Read sparse settings and their sources, without validating inherited fields."""
+        return ConfigLayer(self.read(), self.source)
+
 
 def read_marimo_config(path: str) -> PartialMarimoConfig:
     """Read the marimo.toml configuration."""
@@ -35,7 +44,7 @@ def read_pyproject_marimo_config(
     """Read the marimo tool config from a pyproject.toml file."""
     pyproject_config = toml_reader.read(pyproject_path)
     marimo_tool_config = get_marimo_config_from_pyproject_dict(
-        pyproject_config
+        pyproject_config, location=str(pyproject_path)
     )
     if marimo_tool_config is None:
         return None
@@ -195,15 +204,19 @@ def strip_untrusted_config(
 
 def get_marimo_config_from_pyproject_dict(
     pyproject_dict: dict[str, Any],
+    *,
+    location: str | None = None,
 ) -> PartialMarimoConfig | None:
     """Get the marimo config from a pyproject.toml dictionary."""
     marimo_tool_config = _get_tool_dict(pyproject_dict).get("marimo", None)
     if marimo_tool_config is None:
         return None
     if not isinstance(marimo_tool_config, dict):
-        LOGGER.warning(
-            "pyproject.toml contains invalid marimo config: %s",
-            marimo_tool_config,
+        LOGGER.error(
+            "Ignoring marimo configuration in %s: 'tool.marimo' must be a table, got %s.",
+            location or "pyproject.toml/script metadata",
+            type(marimo_tool_config).__name__,
+            extra={"omit_log_prefix": True},
         )
         return None
     return cast(PartialMarimoConfig, marimo_tool_config)

@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.13.0"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -12,7 +12,7 @@ def _():
     import os
 
     mo.md("# Binary File Download Test (GH-5361)\n\nUse the **file explorer** panel on the left to navigate into the smoke test directory and try downloading the sample files. Binary files (`.prof`, `.bin`, `.pkl`, `.png`) should download as valid binary, not as base64 text.")
-    return cProfile, mo, os, struct
+    return cProfile, os, struct
 
 
 @app.cell
@@ -66,7 +66,6 @@ def _(cProfile, os, struct):
     for name in ["sample.prof", "sample.bin", "sample.pkl", "sample.txt", "sample.png"]:
         p = os.path.join(test_dir, name)
         print(f"  {name}: {os.path.getsize(p)} bytes")
-    return
 
 
 if __name__ == "__main__":

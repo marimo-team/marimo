@@ -207,7 +207,8 @@ export const MarimoErrorOutput = ({
       e.type === "ancestor-stopped",
   );
   const syntaxErrors = errors.filter(
-    (e): e is Extract<MarimoError, { type: "syntax" }> => e.type === "syntax",
+    (e): e is Extract<MarimoError, { type: "syntax" | "lazy-import" }> =>
+      e.type === "syntax" || e.type === "lazy-import",
   );
   const unknownErrors = errors.filter(
     (e): e is Extract<MarimoError, { type: "unknown" }> => e.type === "unknown",

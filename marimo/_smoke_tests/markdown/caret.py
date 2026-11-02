@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.17.7"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -17,7 +17,6 @@ def _(mo):
 
     This is text^with\ superscript^ in the middle.
     """)
-    return
 
 
 @app.cell
@@ -31,7 +30,6 @@ def _(mo):
 
     Here is some ^^newly added content^^ in the document.
     """)
-    return
 
 
 @app.cell
@@ -47,12 +45,12 @@ def _(mo):
 
     CH~3~CH~2~OH with H^2^O
     """)
-    return
 
 
 @app.cell
 def _():
     import marimo as mo
+
     return (mo,)
 
 

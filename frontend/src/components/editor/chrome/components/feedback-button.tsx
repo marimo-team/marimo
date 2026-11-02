@@ -39,7 +39,7 @@ import { connectionAtom } from "@/core/network/connection";
 import { requestClientAtom } from "@/core/network/requests";
 import { filenameAtom } from "@/core/saving/file-state";
 import { store } from "@/core/state/jotai";
-import { ConnectionState } from "@/core/websocket/types";
+import { ConnectionState } from "@/core/session/types";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { cn } from "@/utils/cn";

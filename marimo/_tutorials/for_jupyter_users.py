@@ -40,7 +40,7 @@ def _():
 
 
 @app.cell
-def _(x):
+def _(x: int):
     y = x + 1; y
 
 
@@ -186,7 +186,7 @@ def _():
 
 
 @app.cell
-def _(df):
+def _(df: int):
     results = df.groupby(["my_column"]).sum()
 
 

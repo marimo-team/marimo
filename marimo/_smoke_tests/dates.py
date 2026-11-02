@@ -7,13 +7,14 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
 @app.cell
 def _():
     import marimo as mo
+
     return (mo,)
 
 
@@ -42,7 +43,6 @@ def _(end_date, mo, start_date):
             mo.md(f"From {start_date.value} to {end_date.value}"),
         ]
     )
-    return
 
 
 @app.cell
@@ -68,7 +68,6 @@ def _(end_datetime, mo, start_datetime):
             mo.md(f"From {start_datetime.value} to {end_datetime.value}"),
         ]
     )
-    return
 
 
 @app.cell
@@ -84,7 +83,6 @@ def _(datetime, mo):
 @app.cell
 def _(date_range_input, mo):
     mo.hstack([date_range_input, date_range_input.value])
-    return
 
 
 @app.cell
@@ -92,7 +90,6 @@ def _(mo):
     _date = mo.ui.date(label="Input")
     _datetime = mo.ui.datetime(label="Input")
     _date_range = mo.ui.date_range(label="Input")
-    return
 
 
 if __name__ == "__main__":

@@ -458,6 +458,97 @@ async def test_azure_openai_provider() -> None:
     assert endpoint == "https://unknown_domain.openai"
 
 
+@pytest.mark.requires("anthropic", "pydantic_ai")
+async def test_anthropic_request_with_tool_history() -> None:
+    import httpx2
+    from anthropic import AsyncAnthropic
+    from pydantic_ai.messages import (
+        ModelRequest,
+        ModelResponse,
+        ToolCallPart,
+        ToolReturnPart,
+        UserPromptPart,
+    )
+    from pydantic_ai.models import ModelRequestParameters
+    from pydantic_ai.providers.anthropic import (
+        AnthropicProvider as PydanticAnthropic,
+    )
+
+    model_name = "claude-sonnet-4-5"
+    requests: list[dict[str, Any]] = []
+
+    def respond(request: httpx2.Request) -> httpx2.Response:
+        requests.append(json.loads(request.content))
+        return httpx2.Response(
+            200,
+            json={
+                "id": "msg_test",
+                "type": "message",
+                "role": "assistant",
+                "model": model_name,
+                "content": [{"type": "text", "text": "Four"}],
+                "stop_reason": "end_turn",
+                "stop_sequence": None,
+                "usage": {"input_tokens": 10, "output_tokens": 1},
+            },
+        )
+
+    async with httpx2.AsyncClient(
+        transport=httpx2.MockTransport(respond)
+    ) as client:
+        sdk = AsyncAnthropic(api_key="test-key", http_client=client)
+        with patch.object(
+            AnthropicProvider,
+            "create_provider",
+            return_value=PydanticAnthropic(anthropic_client=sdk),
+        ):
+            provider = AnthropicProvider(
+                model_name,
+                AnyProviderConfig(api_key="test-key", base_url=None),
+            )
+        model = provider.create_model()
+        settings = provider._build_model_settings(model, max_tokens=1024)
+        settings["thinking"] = False
+        response = await model.request(
+            [
+                ModelRequest(parts=[UserPromptPart(content="Double two")]),
+                ModelResponse(
+                    parts=[
+                        ToolCallPart(
+                            tool_name="double",
+                            args={"value": 2},
+                            tool_call_id="double-call",
+                        )
+                    ]
+                ),
+                ModelRequest(
+                    parts=[
+                        ToolReturnPart(
+                            tool_name="double",
+                            content=4,
+                            tool_call_id="double-call",
+                        )
+                    ]
+                ),
+            ],
+            settings,
+            ModelRequestParameters(),
+        )
+
+    assert {
+        "roles": [message["role"] for message in requests[0]["messages"]],
+        "blocks": [
+            [block["type"] for block in message["content"]]
+            for message in requests[0]["messages"]
+        ],
+        "response": response.text,
+    } == {
+        "roles": ["user", "assistant", "user"],
+        "blocks": [["text"], ["tool_use"], ["tool_result"]],
+        "response": "Four",
+    }
+
+
 @pytest.mark.skipif(
     not DependencyManager.anthropic.has()
     or not DependencyManager.pydantic_ai.has(),
@@ -1218,12 +1309,12 @@ async def test_custom_provider_structured_completion_tool_choice(
 
 
 @pytest.mark.requires("pydantic_ai")
-def test_custom_provider_unknown_base_url_stays_generic() -> None:
-    """An unknown name with an unrecognized base URL falls back to the generic
-    OpenAI provider (no thinking field), preserving prior behavior."""
-    config = AnyProviderConfig(
-        api_key="test-key", base_url="https://my.internal.llm/v1"
-    )
+@pytest.mark.parametrize(
+    "base_url", ["https://my.internal.llm/v1", "https://api.openai.com/v1"]
+)
+def test_custom_provider_unknown_base_url_stays_generic(base_url: str) -> None:
+    """A shared or unrecognized URL keeps the generic OpenAI provider."""
+    config = AnyProviderConfig(api_key="test-key", base_url=base_url)
     provider = CustomProvider(
         AiModelId.from_model("my_provider/my-model"), config
     )

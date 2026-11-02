@@ -8,7 +8,7 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.25.2"
 app = marimo.App()
 
 
@@ -31,7 +31,6 @@ def _(b, mo, s):
     mo.stop(not b.value, "Click `run` to submit the slider's value")
 
     s.value
-    return
 
 
 @app.cell
@@ -40,12 +39,12 @@ def _(b, mo):
 
     import random
     random.randint(0, 1000)
-    return
 
 
 @app.cell
 def _():
     import marimo as mo
+
     return (mo,)
 
 

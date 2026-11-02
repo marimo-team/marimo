@@ -16,7 +16,7 @@ import { connectionAtom } from "../network/connection";
 import { useRequestClient } from "../network/requests";
 import type { UpdateCellOutputsRequest } from "../network/types";
 import { VirtualFileTracker } from "../static/virtual-file-tracker";
-import { ConnectionState } from "../websocket/types";
+import { ConnectionState } from "../session/types";
 
 const DELAY = 5000; // 5 seconds;
 

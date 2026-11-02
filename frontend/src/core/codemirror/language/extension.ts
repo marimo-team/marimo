@@ -1,11 +1,13 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { history } from "@codemirror/commands";
+import { history, historyField, invertedEffects } from "@codemirror/commands";
 import {
   Compartment,
   EditorSelection,
+  EditorState,
   StateEffect,
   StateField,
+  Transaction,
 } from "@codemirror/state";
 import { type EditorView, keymap, showPanel } from "@codemirror/view";
 import type { CellId } from "@/core/cells/ids";
@@ -25,11 +27,10 @@ import {
   placeholderState,
 } from "../config/extension";
 import type { PlaceholderType } from "../config/types";
-import { historyCompartment } from "../editing/extensions";
 import { formattingChangeEffect } from "../format";
 import { createPanel } from "../react-dom/createPanel";
 import { getLanguageAdapters, LanguageAdapters } from "./LanguageAdapters";
-import { initializeSQLDialect } from "./languages/sql/sql";
+import { sqlDialectEffect } from "./languages/sql/sql";
 import type { LanguageMetadata } from "./metadata";
 import { languageMetadataField, setLanguageMetadata } from "./metadata";
 import { LanguagePanelComponent } from "./panel/panel";
@@ -41,6 +42,32 @@ import { getEditorCodeAsPython } from "./utils";
  * When the language changes, the extensions inside the compartment will be updated.
  */
 const languageCompartment = new Compartment();
+
+/** Reconfigure a language and discard history written in its previous representation. */
+export function languageConfigurationEffects(
+  state: EditorState,
+  language: LanguageAdapter,
+): StateEffect<unknown>[] {
+  const extensions = language.getExtension({
+    cellId: state.facet(cellIdState),
+    completionConfig: state.facet(completionConfigState),
+    hotkeys: state.facet(hotkeysProviderState),
+    placeholderType: state.facet(placeholderState),
+    lspConfig: state.facet(lspConfigState),
+  });
+  if (state.field(historyField, false) !== undefined) {
+    // A fresh initializer resets the history in the same transaction as the language.
+    extensions.push(
+      historyField.init(() =>
+        EditorState.create({ extensions: [history()] }).field(historyField),
+      ),
+    );
+  }
+  return [
+    setLanguageAdapter.of(language),
+    languageCompartment.reconfigure(extensions),
+  ];
+}
 
 /**
  * State effect to set the language adapter.
@@ -129,11 +156,6 @@ function updateLanguageAdapterAndCode({
 }) {
   const currentLanguage = view.state.field(languageAdapterState);
   const code = view.state.doc.toString();
-  const completionConfig = view.state.facet(completionConfigState);
-  const hotkeysProvider = view.state.facet(hotkeysProviderState);
-  const placeholderType = view.state.facet(placeholderState);
-  const cellId = view.state.facet(cellIdState);
-  const lspConfig = view.state.facet(lspConfigState);
   let metadata = view.state.field(languageMetadataField);
   let cursor = view.state.selection.main.head;
 
@@ -164,22 +186,15 @@ function updateLanguageAdapterAndCode({
   // Update the state
   view.dispatch({
     effects: [
-      setLanguageAdapter.of(nextLanguage),
+      ...languageConfigurationEffects(view.state, nextLanguage),
       setLanguageMetadata.of(metadata),
-      languageCompartment.reconfigure(
-        nextLanguage.getExtension({
-          cellId,
-          completionConfig,
-          hotkeys: hotkeysProvider,
-          placeholderType,
-          lspConfig,
-        }),
-      ),
-      // Clear history
-      historyCompartment.reconfigure([]),
+      ...(nextLanguage.type === "sql"
+        ? [sqlDialectEffect(metadata.engine)]
+        : []),
       // Let downstream extensions know that this is a formatting change
       formattingChangeEffect.of(true),
     ],
+    annotations: Transaction.addToHistory.of(false),
     changes: opts.keepCodeAsIs
       ? undefined
       : {
@@ -189,16 +204,6 @@ function updateLanguageAdapterAndCode({
         },
     selection: opts.keepCodeAsIs ? undefined : EditorSelection.cursor(cursor),
   });
-
-  // Add history back
-  view.dispatch({
-    effects: [historyCompartment.reconfigure([history()])],
-  });
-
-  // Initialize SQL dialect if switching to SQL
-  if (nextLanguage.type === "sql") {
-    initializeSQLDialect(view);
-  }
 }
 
 /**
@@ -228,6 +233,18 @@ export function adaptiveLanguageConfiguration(opts: {
     ),
     languageAdapterState,
     languageMetadataField,
+    invertedEffects.of((tr) => {
+      if (!tr.effects.some((effect) => effect.is(setLanguageMetadata))) {
+        return [];
+      }
+      const metadata = tr.startState.field(languageMetadataField);
+      return [
+        setLanguageMetadata.of(metadata),
+        ...(tr.startState.field(languageAdapterState).type === "sql"
+          ? [sqlDialectEffect(metadata.engine)]
+          : []),
+      ];
+    }),
   ];
 }
 

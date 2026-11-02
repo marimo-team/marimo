@@ -15,7 +15,6 @@ import time
 import traceback
 from copy import copy
 from multiprocessing import connection
-from pathlib import Path
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -32,7 +31,7 @@ from marimo._ast.cell import (
     RuntimeStateType,
 )
 from marimo._ast.compiler import _build_source_position_map, compile_cell
-from marimo._ast.errors import ImportStarError
+from marimo._ast.errors import ImportStarError, LazyImportError
 from marimo._ast.names import SETUP_CELL_NAME
 from marimo._ast.variables import BUILTINS, is_local
 from marimo._ast.visitor import ImportData, Name, VariableData
@@ -54,6 +53,7 @@ from marimo._messaging.context import (
 from marimo._messaging.errors import (
     Error,
     ImportStarError as MarimoImportStarError,
+    LazyImportError as MarimoLazyImportError,
     MarimoInterruptionError,
     MarimoStrictExecutionError,
     MarimoSyntaxError,
@@ -159,9 +159,7 @@ from marimo._runtime.win32_interrupt_handler import (
     Win32InterruptHandler,
     ignore_console_ctrl_c,
 )
-from marimo._secrets.load_dotenv import (
-    load_dotenv_with_fallback,
-)
+from marimo._secrets.load_dotenv import DotEnvReader
 from marimo._session.model import SessionMode
 from marimo._session.queue import QueueType
 from marimo._sql.bindings import (
@@ -485,12 +483,10 @@ def _get_attached_catalogs() -> set[str]:
     import duckdb
 
     try:
-        return {
-            row[0].lower()
-            for row in duckdb.sql(
-                "SELECT database_name FROM duckdb_databases()"
-            ).fetchall()
-        }
+        result = duckdb.sql("SELECT database_name FROM duckdb_databases()")
+        if result is None:
+            return set()
+        return {row[0].lower() for row in result.fetchall()}
     except Exception:
         return set()
 
@@ -953,6 +949,9 @@ class Kernel:
                 lineno = getattr(e, "lineno", None)
                 if isinstance(e, ImportStarError):
                     error = MarimoImportStarError(msg=str(e), lineno=lineno)
+                elif isinstance(e, LazyImportError):
+                    # NB. str(e) appends the line number already in lineno.
+                    error = MarimoLazyImportError(msg=e.msg, lineno=lineno)
                 else:
 
                     def _get_syntax_hints(broken_line: str) -> str:
@@ -2006,27 +2005,20 @@ class Kernel:
     async def edit_cells(self, request: EditCellsCommand) -> None:
         """Apply a notebook edit to the graph, then run what follows from it.
 
-        Changed code is registered as stale, not run. The kernel only
-        takes code for cells it has: a cell it has never seen arrives
-        with the run that first carries it, and code pending from an
-        instantiation without a run is replaced in place. Deletions and
-        configs then apply together, and only their consequences run:
-        cells that depended on a deleted cell, and under autorun, stale
-        cells the edit enabled.
+        Code arrives with runs. A cell the kernel has run keeps its code
+        until the next run carries new code, so typing is never compiled
+        here. Only code pending from an instantiation that has not run
+        is replaced, so that run uses what the notebook has. Deletions
+        and configs apply together, and only their consequences run.
+        Those are the cells that depended on a deleted cell and, under
+        autorun, stale cells the edit enabled, which run the code the
+        kernel holds for them.
         """
-        edits: list[ExecuteCellCommand] = []
         for cell_id, code in request.codes.items():
-            command = ExecuteCellCommand(cell_id=cell_id, code=code)
-            if cell_id in self.graph.cells:
-                edits.append(command)
-            elif cell_id in self._uninstantiated_execution_requests:
-                self._uninstantiated_execution_requests[cell_id] = command
-        if edits:
-            self.mutate_graph(
-                edits,
-                deletion_requests=[],
-                cells_starting_stale={edit.cell_id for edit in edits},
-            )
+            if cell_id in self._uninstantiated_execution_requests:
+                self._uninstantiated_execution_requests[cell_id] = (
+                    ExecuteCellCommand(cell_id=cell_id, code=code)
+                )
         deletions = [
             DeleteCellCommand(cell_id=cell_id)
             for cell_id in request.delete_ids
@@ -2302,8 +2294,7 @@ class Kernel:
         stale_cells: set[CellId_t] = set()
         for cell_id, config in configs.items():
             metadata = self.cell_metadata.setdefault(cell_id, CellMetadata())
-            previous = metadata.config
-            merged = CellConfig.from_dict(previous.asdict())
+            merged = CellConfig.from_dict(metadata.config.asdict())
             merged.configure(config)
             metadata.config = merged
             cell = self.graph.cells.get(cell_id)
@@ -2782,13 +2773,10 @@ class Kernel:
             return
 
         for env in dotenvs:
-            if Path(env).exists():
-                try:
-                    load_dotenv_with_fallback(env)
-                except Exception as e:
-                    LOGGER.error(
-                        "Failed to load dotenv file %s", env, exc_info=e
-                    )
+            try:
+                DotEnvReader(env).load()
+            except Exception as e:
+                LOGGER.error("Failed to load dotenv file %s", env, exc_info=e)
 
     async def handle_message(self, request: CommandMessage) -> None:
         """Handle a message from the client.

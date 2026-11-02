@@ -4,8 +4,8 @@ import useEvent from "react-use-event-hook";
 import { Logger } from "@/utils/Logger";
 import { connectionAtom } from "../network/connection";
 import { store } from "../state/jotai";
-import { isAppNotStarted } from "../websocket/connection-utils";
-import { ConnectionState } from "../websocket/types";
+import { isAppNotStarted } from "../session/connection-utils";
+import { ConnectionState } from "../session/types";
 import { RuntimeManager } from "./runtime";
 import type { RuntimeConfig } from "./types";
 

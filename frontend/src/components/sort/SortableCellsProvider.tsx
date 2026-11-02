@@ -24,7 +24,8 @@ import { useAppConfig } from "@/core/config/config";
 import { Arrays } from "@/utils/arrays";
 import type { CellColumnId, MultiColumn } from "@/utils/id-tree";
 import { invariant } from "@/utils/invariant";
-import { getNotebook, useCellActions } from "../../core/cells/cells";
+import { getNotebook } from "../../core/cells/cells";
+import { useCellActions } from "../../core/cells/actions";
 import { useEvent } from "../../hooks/useEvent";
 
 interface SortableCellsProviderProps {

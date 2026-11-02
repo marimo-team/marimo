@@ -11,8 +11,10 @@ import { CellLink, CellLinkTraceback } from "../cell-link";
 const showCellIfHidden = vi.hoisted(() => vi.fn());
 const targetId = cellId("target");
 
-vi.mock("@/core/cells/cells", () => ({
+vi.mock("@/core/cells/actions", () => ({
   useCellActions: () => ({ showCellIfHidden }),
+}));
+vi.mock("@/core/cells/cells", () => ({
   useCellIds: () => ({ inOrderIds: [targetId] }),
   useCellNames: () => ({ [targetId]: "Target" }),
 }));

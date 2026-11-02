@@ -1,12 +1,13 @@
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.25.2"
 app = marimo.App()
 
 
 @app.cell
 def _():
     import marimo as mo
+
     return (mo,)
 
 
@@ -34,7 +35,6 @@ def euclid_mcd(a: int, b: int) -> int:
 @app.cell
 def _():
     euclid_mcd(42, 42)
-    return
 
 
 @app.function
@@ -58,7 +58,6 @@ def _(mo):
     import doctest
     failures, success = doctest.testmod(verbose=True)
     mo.md(f"Success: {success}, Failures: {failures}")
-    return
 
 
 if __name__ == "__main__":

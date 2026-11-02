@@ -17,10 +17,10 @@ import {
 } from "@/components/ui/popover";
 import {
   type Attachment,
-  agentAttachmentsAtom,
   attachmentLabel,
-} from "@/core/attachments/state";
-import { agentToast } from "@/core/attachments/toast";
+  useNotebookAttachments,
+} from "@/core/notebook";
+import { agentToast } from "@/components/editor/agent-toast";
 import { pairConfigAtom } from "@/core/config/pair";
 import { stableSessionIdAtom } from "@/core/kernel/session";
 import { API } from "@/core/network/api";
@@ -29,7 +29,7 @@ import { FooterItem } from "../footer-item";
 
 export function AttachmentStatus() {
   const hostEnabled = useAtomValue(pairConfigAtom)?.hostEnabled;
-  const agents = useAtomValue(agentAttachmentsAtom);
+  const agents = useNotebookAttachments("agent");
   const [open, setOpen] = useState(false);
   const previous = useRef(new Set<string>());
   const automatic = useRef(false);

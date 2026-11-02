@@ -13,7 +13,7 @@
 
 import marimo
 
-__generated_with = "0.19.7"
+__generated_with = "0.25.2"
 app = marimo.App(width="full")
 
 
@@ -34,7 +34,6 @@ def _(mo):
 
     This notebook lets you explore the contents of a database. Start by providing a database URL.
     """)
-    return
 
 
 @app.cell
@@ -60,13 +59,11 @@ def _(database_url, duckdb):
                 ATTACH DATABASE '{database_url.value}' AS my_db  (TYPE postgres, READ_ONLY);
             """
         )
-    return
 
 
 @app.cell
 def _(duckdb):
     duckdb.sql("SHOW DATABASES").show()
-    return
 
 
 @app.cell(hide_code=True)
@@ -74,7 +71,6 @@ def _(mo):
     mo.md(r"""
     ## Tables
     """)
-    return
 
 
 @app.cell
@@ -84,7 +80,6 @@ def _(mo):
         SHOW ALL TABLES;
         """
     )
-    return
 
 
 @app.cell(hide_code=True)
@@ -92,7 +87,6 @@ def _(mo):
     mo.md(r"""
     ## Other meta table functions
     """)
-    return
 
 
 @app.cell
@@ -119,7 +113,7 @@ def _():
 
 
 @app.cell
-def _(FUNCTIONS, mo):
+def _(FUNCTIONS: list[str], mo):
     function = mo.ui.dropdown(
         label="Dropdown",
         options=FUNCTIONS,
@@ -136,7 +130,6 @@ def _(function, mo):
         SELECT * FROM {function.value} WHERE database_name == 'my_db'
         """
     )
-    return
 
 
 @app.cell(hide_code=True)
@@ -144,7 +137,6 @@ def _(mo):
     mo.md(r"""
     ## Interact with your tables
     """)
-    return
 
 
 @app.cell
@@ -160,7 +152,7 @@ def _(duckdb, mo):
 
 
 @app.cell
-def _(mo, table_names):
+def _(mo, table_names: list):
     mo.stop(not table_names)
     table_select = mo.ui.dropdown(
         label="Table",
@@ -186,7 +178,7 @@ def _(mo, table_select):
 
 
 @app.cell
-def _(limit, mo, table_select_value):
+def _(limit, mo, table_select_value: None):
     selected_table = mo.sql(
         f"""
         select * from my_db.{table_select_value} LIMIT {limit.value};
@@ -198,7 +190,6 @@ def _(limit, mo, table_select_value):
 @app.cell
 def _(mo, selected_table):
     mo.ui.data_explorer(selected_table)
-    return
 
 
 if __name__ == "__main__":

@@ -11,7 +11,7 @@
 
 import marimo
 
-__generated_with = "0.17.4"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -24,11 +24,10 @@ def _(mo):
 
     _You can expand the code of any cells to see how the output are being created._
     """)
-    return
 
 
 @app.cell(hide_code=True)
-def _(md_token, mo):
+def _(md_token: None | str, mo):
     callout = mo.md(f"""
     There is no **MotherDuck** token found in your environment. To set one up, go to the [MotherDuck's settings page](https://app.motherduck.com/settings/general), create a token, and copy it below.
     And re-run this notebook:
@@ -42,7 +41,6 @@ def _(md_token, mo):
         mo.output.replace(
             mo.accordion({"Tired of logging in to MotherDuck?": callout})
         )
-    return
 
 
 @app.cell(hide_code=True)
@@ -60,7 +58,6 @@ def _(mo):
     mo.md("""
     Let's attach a remote MotherDuck database using `md:`
     """)
-    return
 
 
 @app.cell
@@ -82,7 +79,6 @@ def _(mo):
     !!! tip "Explore data sources"
         If you open the "Explore data sources" panel on the left side bar (3rd icon), you will see all your tables including any news ones we will create below
     """)
-    return
 
 
 @app.cell
@@ -90,7 +86,6 @@ def _(mo):
     mo.md(r"""
     ## Let's make some queries 🦆
     """)
-    return
 
 
 @app.cell
@@ -152,7 +147,6 @@ def _(mo):
         -- Which can be used in Python to create charts
         """
     )
-    return
 
 
 @app.cell(hide_code=True)
@@ -162,7 +156,6 @@ def _(mo):
 
     Now that we have made some queries and named the results, we can chart those resulting dataframes in Python, using our favorite charting libraries (e.g [altair](https://altair-viz.github.io/), [matplotlib](https://matplotlib.org/), or [plotly](https://plotly.com/)).
     """)
-    return
 
 
 @app.cell
@@ -193,11 +186,10 @@ def _(mo):
 
     We can also parameterize our SQL using marimo UI elements. This not only makes our SQL reactive, but also any downstream logic, including our charts.
     """)
-    return
 
 
 @app.cell
-def _(MONTHS, duckdb, mo):
+def _(MONTHS: dict[str, int], duckdb, mo):
     month_select = mo.ui.multiselect(
         MONTHS,
         label="Month",
@@ -231,7 +223,7 @@ def _(hn_type_select, mo, month_select):
 
 
 @app.cell(hide_code=True)
-def _(hn_type_select, mo, month_list):
+def _(hn_type_select, mo, month_list: str):
     most_monthly_voted = mo.sql(
         f"""
         -- Most monthly voted
@@ -297,7 +289,6 @@ def _(alt, hn_type_select, most_monthly_voted):
         )
     )
     _chart
-    return
 
 
 @app.cell(hide_code=True)
@@ -305,7 +296,6 @@ def _(mo):
     mo.md("""
     ## Additional Reactivity ⚡⚡
     """)
-    return
 
 
 @app.cell
@@ -316,7 +306,7 @@ def _(mo):
 
 
 @app.cell
-def _(mo, search_value):
+def _(mo, search_value: str):
     keyword_results = mo.sql(
         f"""
         SELECT
@@ -340,7 +330,7 @@ def _(search_input):
 
 
 @app.cell(hide_code=True)
-def _(alt, keyword_results, mo, search_value):
+def _(alt, keyword_results, mo, search_value: str):
     if keyword_results.is_empty():
         mo.stop(True, f"No results for {search_value}")
 
@@ -372,7 +362,6 @@ def _(alt, keyword_results, mo, search_value):
     )
 
     _chart + _text
-    return
 
 
 @app.cell(hide_code=True)

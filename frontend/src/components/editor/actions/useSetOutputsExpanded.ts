@@ -1,14 +1,10 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { useCallback } from "react";
-import {
-  getNotebook,
-  type NotebookState,
-  useCellActions,
-} from "@/core/cells/cells";
+import { getNotebook, type NotebookState } from "@/core/cells/cells";
 import type { CellId } from "@/core/cells/ids";
 import { isOutputEmpty } from "@/core/cells/outputs";
-import { useRequestClient } from "@/core/network/requests";
+import { useNotebookDocumentEdit } from "@/core/notebook/document";
 import type { CellConfig } from "@/core/network/types";
 import { Objects } from "@/utils/objects";
 
@@ -44,24 +40,23 @@ export function outputExpansionConfigs(
  * every output to a fixed height, by setting each cell's `expand_output` config.
  */
 export const useSetOutputsExpanded = () => {
-  const { updateCellConfig } = useCellActions();
-  const { saveCellConfig } = useRequestClient();
+  const edit = useNotebookDocumentEdit();
 
   return useCallback(
-    async (expanded: boolean) => {
-      const newConfigs = outputExpansionConfigs(getNotebook(), expanded);
-
-      const entries = Objects.entries(newConfigs);
+    (expanded: boolean) => {
+      const entries = Objects.entries(
+        outputExpansionConfigs(getNotebook(), expanded),
+      );
       if (entries.length === 0) {
         return;
       }
 
-      await saveCellConfig({ configs: newConfigs });
-
-      for (const [cellId, config] of entries) {
-        updateCellConfig({ cellId, config });
-      }
+      edit((tx) => {
+        for (const [cellId, config] of entries) {
+          tx.updateConfig(cellId, config);
+        }
+      });
     },
-    [updateCellConfig, saveCellConfig],
+    [edit],
   );
 };
