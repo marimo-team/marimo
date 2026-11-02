@@ -29,9 +29,9 @@ class SkipContext(ABC):
         if maybe_frame := inspect.currentframe():
             frame = maybe_frame.f_back
         else:
-            raise RuntimeError("Caching requires Python stack frame support.")
+            raise RuntimeError("Unable to access the calling Python frame.")
         if frame is None:
-            raise RuntimeError("Caching requires Python stack frame support.")
+            raise RuntimeError("Unable to access the calling Python frame.")
         self._entry_line = frame.f_lineno
         # Hold on to the previous trace.
         self._old_trace = frame.f_trace

@@ -18,9 +18,11 @@ class _SkipContext(SkipContext):
 
 
 @pytest.mark.parametrize("frame_available", [False, True])
-def test_caching_requires_stack_frames(frame_available: bool) -> None:
+def test_skip_context_requires_calling_frame(frame_available: bool) -> None:
     frame = Mock(f_back=None) if frame_available else None
     with patch("inspect.currentframe", return_value=frame):
-        with pytest.raises(RuntimeError, match="stack frame") as exc_info:
+        with pytest.raises(
+            RuntimeError, match="calling Python frame"
+        ) as exc_info:
             _SkipContext().__enter__()
     assert exc_info.type is RuntimeError
