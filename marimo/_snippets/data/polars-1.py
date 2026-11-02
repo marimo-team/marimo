@@ -13,7 +13,7 @@ def __(mo):
         # Polars: Rolling Averages and Z-Score Calculations
 
         This snippet shows advanced column operations in Polars using `rolling_mean()`, `over()` aggregations,
-        and type casting with the expression API.
+        and calendar expressions with the expression API.
         """
     )
     return
@@ -38,7 +38,7 @@ def __():
         .with_columns([
             pl.col('value').sum().over('category').alias('category_sum'),
             pl.col('value').rolling_mean(3).alias('rolling_avg'),
-            pl.col('date').dt.month().cast(pl.Categorical).alias('month'),
+            pl.col('date').dt.month().alias('month'),
             ((pl.col('value') - pl.col('value').mean()) /
              pl.col('value').std()).alias('zscore')
         ])

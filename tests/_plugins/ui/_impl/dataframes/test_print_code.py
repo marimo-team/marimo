@@ -1262,33 +1262,51 @@ def test_polars_temporal_conversion_without_non_null_values(
 )
 @pytest.mark.parametrize("data_type", ["date", "datetime64"])
 @pytest.mark.parametrize("errors", ["raise", "ignore"])
+@pytest.mark.parametrize("lazy", [False, True])
 def test_polars_temporal_conversion_invalid_strings(
-    data_type: str, errors: Literal["raise", "ignore"]
+    data_type: str, errors: Literal["raise", "ignore"], lazy: bool
 ) -> None:
     import polars as pl
+    import polars.testing as pl_testing
 
-    source = pl.LazyFrame({"event_time": ["2026-10-07", "invalid", None]})
+    original = pl.DataFrame({"event_time": ["2026-10-07", "invalid", None]})
+    source = original.lazy() if lazy else original
     transform = ColumnConversionTransform(
         type=TransformType.COLUMN_CONVERSION,
         column_id="event_time",
         data_type=data_type,
         errors=errors,
     )
-    runtime = NarwhalsTransformHandler.handle_column_conversion(
-        nw.from_native(source), transform
-    )
     namespace = {"pl": pl, "df": source}
-    exec(
-        python_print_transforms(
-            "df", ["event_time"], [transform], python_print_polars
-        ),
-        namespace,
+    code = python_print_transforms(
+        "df", ["event_time"], [transform], python_print_polars
     )
-    generated = namespace["df_next"]
-    with pytest.raises(nw.exceptions.InvalidOperationError):
-        runtime.collect()
-    with pytest.raises(pl.exceptions.InvalidOperationError):
-        generated.collect()
+
+    def runtime_result() -> pl.DataFrame:
+        result = NarwhalsTransformHandler.handle_column_conversion(
+            nw.from_native(source).lazy(), transform
+        )
+        return result.collect().to_native()
+
+    def generated_result() -> pl.DataFrame:
+        exec(code, namespace)
+        result = namespace["df_next"]
+        return result.collect() if lazy else result
+
+    if errors == "raise":
+        with pytest.raises(nw.exceptions.InvalidOperationError):
+            runtime_result()
+        with pytest.raises(pl.exceptions.InvalidOperationError):
+            generated_result()
+    else:
+        value = (
+            datetime.date(2026, 10, 7)
+            if data_type == "date"
+            else datetime.datetime(2026, 10, 7)
+        )
+        expected = pl.DataFrame({"event_time": [value, None, None]})
+        pl_testing.assert_frame_equal(runtime_result(), expected)
+        pl_testing.assert_frame_equal(generated_result(), expected)
 
 
 @pytest.mark.skipif(
