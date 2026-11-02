@@ -267,9 +267,7 @@ describe("addSetupCellAtom", () => {
 
     store.set(addSetupCellAtom, { code: "import marimo as mo" });
 
-    expect(notebook().cellIds.atOrThrow(0).inOrderIds).toEqual([
-      SETUP_CELL_ID,
-    ]);
+    expect(notebook().cellIds.atOrThrow(0).inOrderIds).toEqual([SETUP_CELL_ID]);
     expect(cellIn(SETUP_CELL_ID)?.config.column).toBe(0);
     expect(notebook().scrollKey).toBe(SETUP_CELL_ID);
   });

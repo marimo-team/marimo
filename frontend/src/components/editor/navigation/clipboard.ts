@@ -74,7 +74,7 @@ async function writeCellsToClipboard(
 
 export function useCellClipboard() {
   const actions = useCellActions();
-  const { createCell } = useCellActions();
+  const { createCell } = actions;
   const pendingCutActions = usePendingCutActions();
   const pendingCutState = usePendingCutState();
 
