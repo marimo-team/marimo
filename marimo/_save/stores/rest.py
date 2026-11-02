@@ -54,6 +54,25 @@ class RestStore(Store):
             LOGGER.warning(f"GET {url} - Error: {e}")
         return None
 
+    def read(self, key: str) -> bytes | None:
+        url = self._get_url(key)
+        req = urllib.request.Request(url, headers=self.headers)
+        try:
+            with urllib.request.urlopen(req, context=self.context) as response:
+                if response.status == 200:
+                    return response.read()  # type: ignore[no-any-return]
+                raise urllib.error.HTTPError(
+                    url,
+                    response.status,
+                    "Unexpected status",
+                    response.headers,
+                    None,
+                )
+        except urllib.error.HTTPError as e:
+            if e.code == 404:
+                return None
+            raise
+
     def put(self, key: str, value: bytes) -> bool:
         url = self._get_url(key)
         req = urllib.request.Request(
