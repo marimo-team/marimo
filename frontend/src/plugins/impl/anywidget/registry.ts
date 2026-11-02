@@ -1,6 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 import type { NotificationMessageData } from "@/core/kernel/messages";
 import { getRequestClient } from "@/core/network/requests";
+import type { ModelRequest } from "@/core/network/types";
 import { isStaticNotebook } from "@/core/static/static-state";
 import { assertNever } from "@/utils/assertNever";
 import {
@@ -10,6 +11,7 @@ import {
 } from "@/utils/json/base64";
 import { Logger } from "@/utils/Logger";
 import { repl } from "@/utils/repl";
+import { Semaphore } from "@/utils/semaphore";
 import { viewStateAtom } from "@/core/mode";
 import { store } from "@/core/state/jotai";
 import { createHost, type WidgetResolver } from "./host";
@@ -191,6 +193,20 @@ export async function handleWidgetMessage(
       }
 
       registry.createModel(modelId, (signal) => {
+        // Wait for the server to acknowledge queueing each message before
+        // sending the next one, preserving order within this model.
+        const sends = new Semaphore(1);
+        const sendMessage = (request: ModelRequest): Promise<void> =>
+          sends.run(async () => {
+            if (signal.aborted) {
+              Logger.debug(
+                `[Model] ${request.message.method} suppressed for model=${modelId} (signal aborted)`,
+              );
+              return;
+            }
+            await getRequestClient().sendModelValue(request);
+          });
+
         // In static exports there is no kernel, so comm calls are no-ops.
         const comm: MarimoComm<ModelState> = isStaticNotebook()
           ? {
@@ -199,28 +215,16 @@ export async function handleWidgetMessage(
             }
           : {
               async sendUpdate(changeData) {
-                if (signal.aborted) {
-                  Logger.debug(
-                    `[Model] sendUpdate suppressed for model=${modelId} (signal aborted)`,
-                  );
-                  return;
-                }
                 const { state, buffers, bufferPaths } =
                   serializeBuffersToBase64(changeData);
-                await getRequestClient().sendModelValue({
+                await sendMessage({
                   modelId,
                   message: { method: "update", state, bufferPaths },
                   buffers,
                 });
               },
               async sendCustomMessage(content, buffers) {
-                if (signal.aborted) {
-                  Logger.debug(
-                    `[Model] sendCustomMessage suppressed for model=${modelId} (signal aborted)`,
-                  );
-                  return;
-                }
-                await getRequestClient().sendModelValue({
+                await sendMessage({
                   modelId,
                   message: { method: "custom", content },
                   buffers: buffers.map(dataViewToBase64),

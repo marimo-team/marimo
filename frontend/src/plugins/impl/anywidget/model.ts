@@ -157,7 +157,9 @@ export class Model<T extends ModelState> implements AnyModel<T> {
 
     // Clear the dirty fields to avoid sending again.
     this.#dirtyFields.clear();
-    this.#comm.sendUpdate(partialData);
+    this.#comm.sendUpdate(partialData).catch((error) => {
+      Logger.error("[anywidget] Failed to save model changes", error);
+    });
   }
 
   /**
