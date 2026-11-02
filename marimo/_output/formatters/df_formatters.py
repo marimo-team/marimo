@@ -8,7 +8,6 @@ from typing import Any
 import narwhals.stable.v2 as nw
 
 from marimo import Html, _loggers
-from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.mimetypes import KnownMimeType
 from marimo._output.formatters.formatter_factory import (
     FormatterFactory,
@@ -95,9 +94,6 @@ class PolarsFormatter(FormatterFactory):
             return None
 
         unpatch_polars = patch_polars_for_wasm()
-        is_polars_2 = DependencyManager.polars.has_at_version(
-            min_version="2.0.0", quiet=True
-        )
 
         @formatting.opinionated_formatter(pl.DataFrame)
         def _show_marimo_dataframe(
@@ -132,27 +128,13 @@ class PolarsFormatter(FormatterFactory):
         def _show_marimo_lazyframe(
             df: pl.LazyFrame,
         ) -> tuple[KnownMimeType, str]:
-            # Polars 2 defaults to the physical plan; keep the logical view too.
-            logical_dot = (
-                df.show_graph(show=False, raw_output=True, plan_stage="ir")
-                if is_polars_2
-                else df.show_graph(show=False, raw_output=True)
-            )
-            plans: dict[str, object] = {
-                "Query plan": mermaid(polars_dot_to_mermaid(logical_dot or ""))
-            }
-            if is_polars_2:
-                physical_dot = df.show_graph(
-                    show=False,
-                    raw_output=True,
-                    engine="streaming",
-                    plan_stage="physical",
-                )
-                plans["Streaming plan"] = mermaid(
-                    polars_dot_to_mermaid(physical_dot or "")
-                )
-            plans["Table"] = table.lazy(df)
-            return tabs.tabs(plans)._mime_()
+            dot = df.show_graph(show=False, raw_output=True)
+            return tabs.tabs(
+                {
+                    "Query plan": mermaid(polars_dot_to_mermaid(dot or "")),
+                    "Table": table.lazy(df),
+                }
+            )._mime_()
 
         return unpatch_polars
 

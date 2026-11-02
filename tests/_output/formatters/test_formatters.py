@@ -4,7 +4,7 @@ import importlib
 import importlib.util
 import os.path
 import sys
-from typing import Any
+from typing import Any, Literal
 from unittest.mock import Mock, patch
 
 import pytest
@@ -610,12 +610,20 @@ def test_display_protocol_takes_precedence() -> None:
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+@pytest.mark.parametrize("engine", [None, "streaming", "in-memory"])
 def test_lazyframe_renders_mermaid_html(
     monkeypatch: pytest.MonkeyPatch,
+    engine: Literal["streaming", "in-memory"] | None,
 ) -> None:
     register_formatters()
 
     import polars as pl
+
+    is_polars_2 = DependencyManager.polars.has_at_version(
+        min_version="2.0.0", quiet=True
+    )
+    if engine is not None and not is_polars_2:
+        pytest.skip("Engine affinity requires newer Polars")
 
     ldf = pl.DataFrame({"A": [1, 2, 3], "B": ["a", "a", "a"]}).lazy()
 
@@ -625,14 +633,19 @@ def test_lazyframe_renders_mermaid_html(
     monkeypatch.setattr(pl.LazyFrame, "collect", fail_collect)
     formatter = get_formatter(ldf)
     assert formatter is not None
-    mimetype, contents = formatter(ldf)
+    with pl.Config() as config:
+        if is_polars_2:
+            config.set_engine_affinity(engine)
+        mimetype, contents = formatter(ldf)
     assert mimetype == "text/html"
     assert "<marimo-mermaid" in contents
-    assert ("Streaming plan" in contents) == (
-        DependencyManager.polars.has_at_version(
-            min_version="2.0.0", quiet=True
-        )
+    assert "Streaming plan" not in contents
+    expected_node = (
+        "in-memory-source"
+        if is_polars_2 and engine != "in-memory"
+        else "TABLE"
     )
+    assert expected_node in contents
 
 
 def test_polars_dot_to_mermaid() -> None:
