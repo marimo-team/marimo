@@ -1,9 +1,10 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { expect, test, type Locator } from "@playwright/test";
+import { copyFile, mkdir } from "node:fs/promises";
+import path from "node:path";
 import { getAppUrl } from "../playwright.config";
-import { openCommandPalette } from "./helper";
-import { waitForMarimoApp } from "./test-utils";
+import { openCommandPalette, pressShortcut } from "./helper";
 
 async function measureLayout(deck: Locator) {
   return deck.evaluate((el) => {
@@ -41,17 +42,32 @@ async function measureLayout(deck: Locator) {
   });
 }
 
+test.beforeEach(async ({ page }, testInfo) => {
+  const notebook = testInfo.outputPath(`slides_sizing_${Date.now()}.py`);
+  const layoutDirectory = testInfo.outputPath("layouts");
+  await mkdir(layoutDirectory, { recursive: true });
+  await copyFile(new URL("./py/slides_sizing.py", import.meta.url), notebook);
+  await copyFile(
+    new URL("./py/layouts/slides_sizing.slides.json", import.meta.url),
+    path.join(layoutDirectory, "slides_sizing.slides.json"),
+  );
+  const url = new URL(getAppUrl("slides_sizing.py"));
+  url.searchParams.set("file", notebook);
+  await page.goto(url.toString(), { waitUntil: "domcontentloaded" });
+  await page
+    .locator(".marimo-cell, [role='button'][data-cell-id]")
+    .first()
+    .waitFor();
+  await openCommandPalette({ page, command: "Re-run all cells" });
+  if (!(await page.locator(".reveal.mo-slides-theme").isVisible())) {
+    await openCommandPalette({ page, command: "Present as Slides" });
+  }
+});
+
 test("slides preserve layout when the viewport and fullscreen state change", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 1600, height: 1000 });
-  await page.goto(getAppUrl("slides_sizing.py"));
-  await waitForMarimoApp(page);
-  await openCommandPalette({ page, command: "Re-run all cells" });
-  await expect(
-    page.getByRole("heading", { name: "Resolution-independent slides" }),
-  ).toBeVisible();
-  await openCommandPalette({ page, command: "Present as Slides" });
 
   const deck = page.locator(".reveal.mo-slides-theme");
   await expect(deck.locator("section.present .katex-html")).toBeVisible();
@@ -98,7 +114,7 @@ test("slides preserve layout when the viewport and fullscreen state change", asy
     .toBe(true);
   await expect
     .poll(async () => {
-      const { scale, ...layout } = await measureLayout(deck);
+      const { scale: _scale, ...layout } = await measureLayout(deck);
       return layout;
     })
     .toEqual(initialLayout);
@@ -109,18 +125,102 @@ test("slides preserve layout when the viewport and fullscreen state change", asy
     .toBe(true);
   await expect
     .poll(async () => {
-      const { scale, ...layout } = await measureLayout(deck);
+      const { scale: _scale, ...layout } = await measureLayout(deck);
       return layout;
     })
     .toEqual(initialLayout);
 
-  await deck
-    .getByRole("slider", { name: "Parameter", exact: true })
-    .press("ArrowRight");
+  const track = deck.getByTestId("track");
+  const trackBounds = await track.boundingBox();
+  if (!trackBounds) {
+    throw new Error("Slider track is not visible");
+  }
+  await track.click({
+    position: { x: trackBounds.width * 0.6, y: trackBounds.height / 2 },
+  });
   await expect(
     deck.getByRole("slider", { name: "Parameter", exact: true }),
   ).toHaveAttribute("aria-valuenow", "6");
   await expect(
     deck.getByTestId("slide-scroll-container").getByText("Parameter value:"),
   ).toHaveText("Parameter value: 6");
+});
+
+test("scroll hint accounts for scaled unrevealed fragments", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1024, height: 768 });
+
+  const deck = page.locator(".reveal.mo-slides-theme");
+  await deck.press("ArrowRight");
+  const slide = deck.locator("section.present");
+  await expect(
+    slide.getByRole("heading", { name: "Overflow before a fragment" }),
+  ).toBeVisible();
+  await expect(slide.locator(".fragment:not(.visible)")).toHaveCount(1);
+  await expect(slide.getByTestId("slide-scroll-hint")).toBeVisible();
+  await slide.getByTestId("slide-scroll-container").evaluate((el) => {
+    el.scrollTop = 100;
+  });
+  await expect(slide.getByTestId("slide-scroll-hint")).toHaveCount(0);
+});
+
+test("new cell output preserves its preview layout after navigation", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1024, height: 768 });
+  const thumbnails = page.locator("[role='button'][data-cell-id]");
+  await thumbnails
+    .nth(2)
+    .getByRole("button", { name: "Add Python cell" })
+    .click();
+  await expect(thumbnails).toHaveCount(6);
+  await thumbnails.nth(3).click();
+  const editor = page.locator(".cm-content:visible");
+  await expect(editor).toHaveCount(1);
+  await editor.fill(
+    'mo.md("New output keeps the same line breaks across preview and presentation. " * 20)',
+  );
+  await pressShortcut(page, "cell.run");
+  await expect(
+    page.getByText("New output keeps", { exact: false }).last(),
+  ).toBeVisible();
+  await expect(editor).toBeFocused();
+  await page.getByRole("button", { name: "Hide code", exact: true }).click();
+
+  const preview = page.getByTestId("slide-preview-canvas");
+  await expect(preview).toBeVisible();
+  const measure = (root: Locator) =>
+    root
+      .locator(".paragraph, p")
+      .first()
+      .evaluate((el) => ({
+        width: el.clientWidth,
+        height: el.clientHeight,
+        screenWidth: el.getBoundingClientRect().width,
+      }));
+  const initialPreview = await measure(preview);
+  await page.setViewportSize({ width: 800, height: 600 });
+  await expect
+    .poll(async () => {
+      const current = await measure(preview);
+      return {
+        width: current.width,
+        height: current.height,
+        scaledDown: current.screenWidth < initialPreview.screenWidth,
+      };
+    })
+    .toEqual({
+      width: initialPreview.width,
+      height: initialPreview.height,
+      scaledDown: true,
+    });
+  const previewLayout = await measure(preview);
+  const deck = page.locator(".reveal.mo-slides-theme").first();
+  await deck.press("ArrowLeft");
+  await expect(preview).toHaveCount(0);
+  await deck.press("ArrowRight");
+  await expect
+    .poll(() => measure(deck.locator("section.present")))
+    .toEqual(previewLayout);
 });

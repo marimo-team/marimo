@@ -6,12 +6,14 @@
 
 import marimo
 
-app = marimo.App(layout_file="layouts/slides.slides.json")
+__generated_with = "0.25.2"
+app = marimo.App(layout_file="layouts/slides_sizing.slides.json")
 
 
 @app.cell
 def _():
     import marimo as mo
+
     return (mo,)
 
 
@@ -49,7 +51,23 @@ def _(mo, parameter):
         ],
         gap=1,
     )
-    return
+
+
+@app.cell
+def _(mo):
+    mo.vstack(
+        [
+            mo.md("# Overflow before a fragment"),
+            mo.Html('<div style="height: 1000px">Revealed overflow</div>'),
+        ]
+    )
+
+
+@app.cell
+def _(mo):
+    mo.md("""
+    This fragment has not been revealed yet.
+    """)
 
 
 if __name__ == "__main__":

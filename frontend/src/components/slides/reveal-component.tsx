@@ -489,10 +489,17 @@ const RevealSlidesComponent = ({
   const deckRef = useRef<RevealApi | null>(null);
   const { width, height } = useSlideViewportSize(containerRef);
   const isFullscreen = useFullScreenElement() != null;
+  const [slideScale, setSlideScale] = useState(1);
 
   useEffect(() => {
     // Embedded decks also resize when panels change, without a window resize.
-    const frame = requestAnimationFrame(() => deckRef.current?.layout());
+    const frame = requestAnimationFrame(() => {
+      const deck = deckRef.current;
+      if (deck) {
+        deck.layout();
+        setSlideScale(deck.getScale());
+      }
+    });
     return () => cancelAnimationFrame(frame);
   }, [width, height, isFullscreen]);
 
@@ -714,6 +721,7 @@ const RevealSlidesComponent = ({
   });
 
   const handleDeckReady = useEvent((deck: RevealApi) => {
+    setSlideScale(deck.getScale());
     navigateDeckToActiveCell(deck);
     if (canResolveInitialHash) {
       reportDeckCell(deck);
@@ -840,22 +848,33 @@ const RevealSlidesComponent = ({
                 <span>{parkedPreviewLabel}</span>
               </div>
             )}
-            <div className="flex-1 overflow-auto flex">
-              <div
-                className={
-                  parkedShowsSource
-                    ? "mo-slide-content flex flex-col gap-3"
-                    : "mo-slide-content"
-                }
-                style={slideContentStyle}
-              >
-                <ParkedPreviewContent
-                  cell={parkedPreviewCell}
-                  isNoOutputPreview={isNoOutputPreview}
-                  isEditable={isEditable}
-                  showCode={parkedShowCode}
-                />
-              </div>
+            <div
+              className="reveal mo-slides-theme prose-slides absolute left-1/2 top-1/2"
+              data-testid="slide-preview-canvas"
+              style={{
+                position: "absolute",
+                width: SLIDE_WIDTH,
+                height: SLIDE_HEIGHT,
+                transform: `translate(-50%, -50%) scale(${slideScale})`,
+              }}
+            >
+              <SlideScrollContainer>
+                <div
+                  className={
+                    parkedShowsSource
+                      ? "mo-slide-content flex flex-col gap-3"
+                      : "mo-slide-content"
+                  }
+                  style={slideContentStyle}
+                >
+                  <ParkedPreviewContent
+                    cell={parkedPreviewCell}
+                    isNoOutputPreview={isNoOutputPreview}
+                    isEditable={isEditable}
+                    showCode={parkedShowCode}
+                  />
+                </div>
+              </SlideScrollContainer>
             </div>
           </div>
         )}
