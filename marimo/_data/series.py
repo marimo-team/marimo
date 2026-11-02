@@ -71,6 +71,9 @@ def get_number_series_info(series: nw.Series[Any]) -> NumberSeriesInfo:
     assert_narwhals_series(series)
 
     series = series.drop_nulls()
+    if series.dtype.is_float():
+        # Arrow can return inf/-inf bounds when every value is NaN.
+        series = series.filter(~series.is_nan())
     raw_min = series.min()
     raw_max = series.max()
 
@@ -121,8 +124,6 @@ def get_date_series_info(series: nw.Series[Any]) -> DateSeriesInfo:
     assert_narwhals_series(series)
 
     series = series.drop_nulls()
-    raw_min = series.min()
-    raw_max = series.max()
     raw_min = series.min()
     raw_max = series.max()
 

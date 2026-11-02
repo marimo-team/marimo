@@ -6,13 +6,19 @@ from typing import Any
 import pytest
 
 from marimo._data.series import (
+    NumberSeriesInfo,
     get_category_series_info,
     get_date_series_info,
     get_datetime_series_info,
     get_number_series_info,
 )
 from marimo._dependencies.dependencies import DependencyManager
-from tests._data.mocks import NON_EAGER_LIBS, create_dataframes, create_series
+from tests._data.mocks import (
+    NON_EAGER_LIBS,
+    DFType,
+    create_dataframes,
+    create_series,
+)
 
 HAS_DEPS = (
     DependencyManager.pandas.has()
@@ -206,3 +212,30 @@ def test_all_null_series_info(df: Any) -> None:
     assert get_date_series_info(series).max is None
     assert get_datetime_series_info(series).min is None
     assert get_datetime_series_info(series).max is None
+
+
+@pytest.mark.parametrize("backend", ["pandas", "polars", "pyarrow"])
+@pytest.mark.parametrize(
+    ("values", "minimum", "maximum"),
+    [
+        ([float("nan"), float("nan")], None, None),
+        ([None, float("nan")], None, None),
+        ([None, float("nan"), 1.0, 3.0], 1.0, 3.0),
+        ([float("nan"), float("inf")], float("inf"), float("inf")),
+        ([float("nan"), -float("inf")], -float("inf"), -float("inf")),
+        ([-float("inf"), float("inf")], -float("inf"), float("inf")),
+    ],
+)
+def test_number_series_with_nan_and_infinity(
+    backend: DFType,
+    values: list[float | None],
+    minimum: float | None,
+    maximum: float | None,
+) -> None:
+    pytest.importorskip(backend)
+    df = create_dataframes({"A": values}, include=[backend])[0]
+    assert get_number_series_info(df["A"]) == NumberSeriesInfo(
+        min=minimum,
+        max=maximum,
+        label="" if backend == "pyarrow" else "A",
+    )

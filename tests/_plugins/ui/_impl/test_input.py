@@ -111,6 +111,22 @@ def test_numeric_from_all_null_series(widget) -> None:
         widget.from_series(series)
 
 
+@pytest.mark.parametrize("widget", [ui.number, ui.slider, ui.range_slider])
+@pytest.mark.parametrize(
+    "values", [[float("nan"), float("nan")], [None, float("nan")]]
+)
+def test_numeric_from_pyarrow_nan_series(widget, values) -> None:
+    pa = pytest.importorskip("pyarrow")
+    series = pa.table({"x": values})["x"]
+
+    with pytest.raises(ValueError, match="provide explicit bounds"):
+        widget.from_series(series)
+
+    element = widget.from_series(series, start=0, stop=100)
+    assert element.start == 0
+    assert element.stop == 100
+
+
 @pytest.mark.skipif(not HAS_PANDAS, reason="pandas not installed")
 @pytest.mark.parametrize("widget", [ui.radio, ui.dropdown, ui.multiselect])
 def test_categorical_from_empty_series(widget) -> None:
