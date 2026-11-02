@@ -706,7 +706,7 @@ class TestCacheStateResolution:
     ) -> None:
         monkeypatch.chdir(tmp_path)
         monkeypatch.setattr("marimo._save.loaders.is_pyodide", lambda: True)
-        monkeypatch.setattr(WasmLazyStore, "_http_get", lambda *args: None)
+        monkeypatch.setattr(WasmLazyStore, "_http_get", lambda *_: None)
 
         notebook = tmp_path / "child.py"
         notebook.write_text(
