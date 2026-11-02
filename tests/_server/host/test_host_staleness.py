@@ -541,7 +541,6 @@ async def test_a_ui_update_outdates_lazy_readers(tmp_path: Path) -> None:
             UpdateUIElementCommand.from_ids_and_values([(object_id, 5)]),
             from_consumer_id=None,
         )
-        # Revisions are published before previews finish formatting.
         await wait_for(
             c.events,
             lambda response: any(
