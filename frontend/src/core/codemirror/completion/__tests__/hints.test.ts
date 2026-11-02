@@ -2,7 +2,7 @@
 
 import { Text } from "@codemirror/state";
 import { describe, expect, it } from "vitest";
-import { getPositionAtWordBounds } from "../hints";
+import { getPositionAtWordBounds, hintTooltip } from "../hints";
 
 const doc = Text.of([
   "# Update the data",
@@ -96,5 +96,18 @@ describe("getPositionAtWordBounds", () => {
     expect(
       callDoc.slice(result.startToken, result.endToken).toString(),
     ).toMatchInlineSnapshot('"func"');
+  });
+});
+
+
+describe("hintTooltip", () => {
+  it("does not register hover documentation when disabled", () => {
+    const [hoverExtension] = hintTooltip({}, false);
+    expect(hoverExtension).toEqual([]);
+  });
+
+  it("registers hover documentation when enabled", () => {
+    const [hoverExtension] = hintTooltip({}, true);
+    expect(hoverExtension).not.toEqual([]);
   });
 });

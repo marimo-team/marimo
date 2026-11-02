@@ -254,7 +254,7 @@ export const basicBundle = (opts: CodeMirrorSetupOpts): Extension[] => {
     scrollActiveLineIntoViewExtension(),
     theme === "dark" ? darkTheme : lightTheme,
 
-    hintTooltip(lspConfig),
+    hintTooltip(lspConfig, completionConfig.show_docstring_on_hover ?? true),
     copilotBundle(completionConfig),
     foldGutter(),
     stringsAutoCloseBraces(),

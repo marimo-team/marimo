@@ -52,6 +52,7 @@ def test_configure_full() -> None:
                 "activate_on_typing": False,
                 "auto_close_pairs": True,
                 "copilot": False,
+                "show_docstring_on_hover": True,
                 "signature_hint_on_typing": False,
             },
             save={

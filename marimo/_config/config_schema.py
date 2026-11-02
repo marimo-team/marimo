@@ -38,6 +38,10 @@ class CompletionConfig(Config, kw_only=True):
             description="if `False`, completion won't activate until the completion hotkey is entered"
         ),
     ] = True
+    show_docstring_on_hover: Annotated[
+        bool,
+        Meta(description="if `False`, documentation won't appear on hover"),
+    ] = True
     signature_hint_on_typing: Annotated[
         bool,
         Meta(

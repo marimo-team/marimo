@@ -43,6 +43,7 @@ class CompletionConfig(TypedDict):
 
     - `activate_on_typing`: if `False`, completion won't activate
     until the completion hotkey is entered
+    - `show_docstring_on_hover`: if `False`, documentation won't appear on hover
     - `signature_hint_on_typing`: if `False`, signature hint won't be shown when typing
     - `copilot`: one of `"github"`, `"codeium"`, or `"custom"`
     - `codeium_api_key`: the Codeium API key
@@ -51,6 +52,7 @@ class CompletionConfig(TypedDict):
     """
 
     activate_on_typing: bool
+    show_docstring_on_hover: NotRequired[bool]
     signature_hint_on_typing: bool
     copilot: bool | Literal["github", "codeium", "custom"]
     auto_close_pairs: NotRequired[bool]

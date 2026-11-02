@@ -79,6 +79,7 @@ export const UserConfigSchema = z
     completion: z
       .object({
         activate_on_typing: z.boolean().prefault(true),
+        show_docstring_on_hover: z.boolean().prefault(true),
         signature_hint_on_typing: z.boolean().prefault(false),
         auto_close_pairs: z.boolean().prefault(true),
         copilot: z
