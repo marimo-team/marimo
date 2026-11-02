@@ -32,7 +32,7 @@ from marimo._ast.cell import (
     RuntimeStateType,
 )
 from marimo._ast.compiler import _build_source_position_map, compile_cell
-from marimo._ast.errors import ImportStarError
+from marimo._ast.errors import ImportStarError, LazyImportError
 from marimo._ast.names import SETUP_CELL_NAME
 from marimo._ast.variables import BUILTINS, is_local
 from marimo._ast.visitor import ImportData, Name, VariableData
@@ -54,6 +54,7 @@ from marimo._messaging.context import (
 from marimo._messaging.errors import (
     Error,
     ImportStarError as MarimoImportStarError,
+    LazyImportError as MarimoLazyImportError,
     MarimoInterruptionError,
     MarimoStrictExecutionError,
     MarimoSyntaxError,
@@ -952,6 +953,9 @@ class Kernel:
                 lineno = getattr(e, "lineno", None)
                 if isinstance(e, ImportStarError):
                     error = MarimoImportStarError(msg=str(e), lineno=lineno)
+                elif isinstance(e, LazyImportError):
+                    # NB. str(e) appends the line number already in lineno.
+                    error = MarimoLazyImportError(msg=e.msg, lineno=lineno)
                 else:
 
                     def _get_syntax_hints(broken_line: str) -> str:

@@ -122,6 +122,9 @@ export function describeError(error: MarimoError): string {
   if (error.type === "import-star") {
     return error.msg;
   }
+  if (error.type === "lazy-import") {
+    return error.msg;
+  }
   if (error.type === "ancestor-stopped") {
     return error.msg;
   }
