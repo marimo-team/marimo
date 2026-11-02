@@ -180,7 +180,7 @@ test = [
     # tests used to get it only through matplotlib.
     # Forced for modern matplotlib.
     "matplotlib~=3.10.7; python_version < '3.15'",
-    "numpy",
+    "numpy>=1.23.4",
     "pillow>=9",
     "zstandard>=0.21.0; python_version < '3.15'",
     "cffi>=1.16.0",
