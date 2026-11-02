@@ -110,13 +110,14 @@ export function useSaveNotebook() {
       const connection = store.get(connectionAtom);
       const autoSaveConfig = store.get(autoSaveConfigAtom);
 
-      if (!store.get(canEditAtom)) {
-        return;
-      }
-
       // Don't save if we are not connected to a kernel
       if (connection.state !== ConnectionState.OPEN) {
         openAlert("Failed to save notebook: not connected to a kernel.");
+        return;
+      }
+
+      // The host may not let this consumer edit, or may not have said yet.
+      if (!store.get(canEditAtom)) {
         return;
       }
 
