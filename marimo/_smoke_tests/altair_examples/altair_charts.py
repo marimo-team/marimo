@@ -11,7 +11,7 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.25.2"
 app = marimo.App(width="full")
 
 
@@ -24,6 +24,7 @@ def _():
     from vega_datasets import data
 
     import marimo as mo
+
     return data, mo, np, pd
 
 
@@ -70,7 +71,13 @@ def _(chart_selection_type, legend_selection_type, theme):
 
 
 @app.cell
-def _(alt, cars, chart_selection_value, legend_selection_value, mo):
+def _(
+    alt,
+    cars,
+    chart_selection_value: None | bool | str,
+    legend_selection_value: bool,
+    mo,
+):
     _chart = (
         alt.Chart(cars)
         .mark_point()
@@ -91,12 +98,19 @@ def _(alt, cars, chart_selection_value, legend_selection_value, mo):
 
 @app.cell
 def _(mo):
-    mo.md("""# Basic Chart""")
-    return
+    mo.md("""
+    # Basic Chart
+    """)
 
 
 @app.cell
-def _(alt, chart1, chart_selection_value, legend_selection_value, mo):
+def _(
+    alt,
+    chart1,
+    chart_selection_value: None | bool | str,
+    legend_selection_value: bool,
+    mo,
+):
     mo.vstack(
         [
             chart1,
@@ -118,11 +132,16 @@ def _(alt, chart1, chart_selection_value, legend_selection_value, mo):
             chart1.value.head(),
         ]
     )
-    return
 
 
 @app.cell
-def _(alt, chart_selection_value, employment, legend_selection_value, mo):
+def _(
+    alt,
+    chart_selection_value: None | bool | str,
+    employment: str,
+    legend_selection_value: bool,
+    mo,
+):
     # _selection = alt.selection_point(fields=["series"], bind="legend")
 
     _chart = (
@@ -148,20 +167,21 @@ def _(alt, chart_selection_value, employment, legend_selection_value, mo):
 
 @app.cell
 def _(mo):
-    mo.md("""# Another Chart""")
-    return
+    mo.md("""
+    # Another Chart
+    """)
 
 
 @app.cell
 def _(chart2, mo):
     mo.vstack([chart2, chart2.value.head(10)])
-    return
 
 
 @app.cell
 def _(mo):
-    mo.md("""# Defined Width + Height""")
-    return
+    mo.md("""
+    # Defined Width + Height
+    """)
 
 
 @app.cell
@@ -183,11 +203,16 @@ def _(alt, iris, mo):
         chart_selection=None,
         legend_selection=None,
     )
-    return
 
 
 @app.cell
-def _(alt, chart_selection_value, iris, legend_selection_value, mo):
+def _(
+    alt,
+    chart_selection_value: None | bool | str,
+    iris,
+    legend_selection_value: bool,
+    mo,
+):
     # _color_sel = alt.selection_point(fields=["species"], bind="legend")
     # _size_sel = alt.selection_point(fields=["petalWidth"], bind="legend")
 
@@ -216,42 +241,48 @@ def _(alt, chart_selection_value, iris, legend_selection_value, mo):
 
 @app.cell
 def _(mo):
-    mo.md("""# Chart + Chart""")
-    return
+    mo.md("""
+    # Chart + Chart
+    """)
 
 
 @app.cell
 def _(chart3, mo):
     mo.hstack([chart3, chart3])
-    return
 
 
 @app.cell
 def _(mo):
-    mo.md("""# Chart + Table""")
-    return
+    mo.md("""
+    # Chart + Table
+    """)
 
 
 @app.cell
 def _(chart3, mo):
     mo.hstack([chart3, chart3.value.head(10)], widths="equal")
-    return
 
 
 @app.cell
 def _(mo):
-    mo.md("""# Chart + Table returned as an array""")
-    return
+    mo.md("""
+    # Chart + Table returned as an array
+    """)
 
 
 @app.cell
 def _(chart3):
     [chart3, chart3.value.head(10)]
-    return
 
 
 @app.cell
-def _(alt, cars, chart_selection_value, legend_selection_value, mo):
+def _(
+    alt,
+    cars,
+    chart_selection_value: None | bool | str,
+    legend_selection_value: bool,
+    mo,
+):
     brush = alt.selection_interval()
     points = (
         alt.Chart(cars)
@@ -280,20 +311,21 @@ def _(alt, cars, chart_selection_value, legend_selection_value, mo):
 
 @app.cell
 def _(mo):
-    mo.md("""# Chart with transform""")
-    return
+    mo.md("""
+    # Chart with transform
+    """)
 
 
 @app.cell
 def _(chart4, mo):
     mo.vstack([chart4, chart4.value.head(10)])
-    return
 
 
 @app.cell
 def _(mo):
-    mo.md("""# Bar chart""")
-    return
+    mo.md("""
+    # Bar chart
+    """)
 
 
 @app.cell
@@ -303,7 +335,6 @@ def _(alt, data, mo):
         .mark_bar()
         .encode(x=alt.X("Miles_per_Gallon:Q", bin=True), y="count()")
     )
-    return
 
 
 @app.cell
@@ -322,7 +353,6 @@ def _(alt, cars, mo):
 @app.cell
 def _(mean, mo):
     mo.vstack([mean, mean.value])
-    return
 
 
 @app.cell
@@ -339,13 +369,13 @@ def _(alt, data, mo):
 @app.cell
 def _(hist, mo):
     mo.vstack([hist, hist.value])
-    return
 
 
 @app.cell
 def _(mo):
-    mo.md("""# Pivot and horizontal bar chart""")
-    return
+    mo.md("""
+    # Pivot and horizontal bar chart
+    """)
 
 
 @app.cell
@@ -379,7 +409,6 @@ def _(alt, mo, pd):
 @app.cell
 def _(mo, pivot):
     mo.vstack([pivot, pivot.value.head()])
-    return
 
 
 @app.cell
@@ -402,7 +431,6 @@ def _(alt, data, mo):
 @app.cell
 def _(horizontal_bar, mo):
     mo.vstack([horizontal_bar, horizontal_bar.value.head()])
-    return
 
 
 @app.cell
@@ -425,13 +453,13 @@ def _(alt, mo, pd):
 @app.cell
 def _(mo, pie):
     mo.vstack([pie, pie.value])
-    return
 
 
 @app.cell
 def _(mo):
-    mo.md("""# Line Chart""")
-    return
+    mo.md("""
+    # Line Chart
+    """)
 
 
 @app.cell
@@ -450,13 +478,13 @@ def _(alt, mo, np, pd):
 @app.cell
 def _(line_chart, mo):
     mo.hstack([line_chart.value, line_chart.selections])
-    return
 
 
 @app.cell
 def _(mo):
-    mo.md("""# Multi-Line Chart""")
-    return
+    mo.md("""
+    # Multi-Line Chart
+    """)
 
 
 @app.cell
@@ -485,7 +513,6 @@ def _(alt, data, mo):
 @app.cell
 def _(mo, multiline_chart):
     mo.hstack([multiline_chart.value, multiline_chart.selections])
-    return
 
 
 @app.cell
@@ -521,18 +548,14 @@ def _(alt, mo, np, pd):
 @app.cell
 def _(facet_chart, mo):
     mo.hstack([facet_chart.value, facet_chart.selections])
-    return
 
 
 @app.cell
 def _(mo):
-    mo.md(
-        """
-        # With `transform_filter`
-        > Bug https://github.com/marimo-team/marimo/issues/727
-        """
-    )
-    return
+    mo.md("""
+    # With `transform_filter`
+    > Bug https://github.com/marimo-team/marimo/issues/727
+    """)
 
 
 @app.cell
@@ -556,13 +579,13 @@ def _(alt, data, mo):
 @app.cell
 def _(mo, with_transform):
     mo.vstack([with_transform, with_transform.value])
-    return
 
 
 @app.cell
 def _(mo):
-    mo.md("""# Layers""")
-    return
+    mo.md("""
+    # Layers
+    """)
 
 
 @app.cell
@@ -609,13 +632,13 @@ def _(layered_chart, mo):
             mo.hstack([layered_chart.value, layered_chart.selections]),
         ]
     )
-    return
 
 
 @app.cell
 def _(mo):
-    mo.md(r"""# layered""")
-    return
+    mo.md(r"""
+    # layered
+    """)
 
 
 @app.cell
@@ -635,26 +658,26 @@ def _(alt, data, datum, mo):
 
 @app.cell
 def _(mo):
-    mo.md(r"""# hconcat""")
-    return
+    mo.md(r"""
+    # hconcat
+    """)
 
 
 @app.cell
 def _(base, mo):
     mo.ui.altair_chart(base.mark_line() | base.mark_point())
-    return
 
 
 @app.cell
 def _(mo):
-    mo.md("""# vconcat""")
-    return
+    mo.md("""
+    # vconcat
+    """)
 
 
 @app.cell
 def _(base, mo):
     mo.ui.altair_chart(base.mark_line() & base.mark_point())
-    return
 
 
 if __name__ == "__main__":

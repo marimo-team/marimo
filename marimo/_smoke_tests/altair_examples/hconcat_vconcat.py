@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.16.2"
+__generated_with = "0.25.2"
 app = marimo.App(width="full")
 
 
@@ -27,8 +27,9 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""## vconcat with hconcat inside""")
-    return
+    mo.md(r"""
+    ## vconcat with hconcat inside
+    """)
 
 
 @app.cell
@@ -57,19 +58,18 @@ def _(alt, cars):
 @app.cell
 def _(stacked_chart):
     stacked_chart
-    return
 
 
 @app.cell
 def _(mo, stacked_chart):
     mo.ui.altair_chart(stacked_chart.copy())
-    return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""## Nested vconcat""")
-    return
+    mo.md(r"""
+    ## Nested vconcat
+    """)
 
 
 @app.cell
@@ -100,13 +100,13 @@ def _(alt, cars):
 @app.cell
 def _(mo, stacked_chart1):
     mo.ui.altair_chart(stacked_chart1.copy())
-    return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""## hconcat with vconcat inside""")
-    return
+    mo.md(r"""
+    ## hconcat with vconcat inside
+    """)
 
 
 @app.cell
@@ -137,13 +137,13 @@ def _(alt, cars):
 @app.cell
 def _(h_v_chart, mo):
     mo.ui.altair_chart(h_v_chart.copy())
-    return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""## Nested hconcat""")
-    return
+    mo.md(r"""
+    ## Nested hconcat
+    """)
 
 
 @app.cell
@@ -174,13 +174,13 @@ def _(alt, cars):
 @app.cell
 def _(mo, nested_h_chart):
     mo.ui.altair_chart(nested_h_chart.copy())
-    return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""## Complex nested combination""")
-    return
+    mo.md(r"""
+    ## Complex nested combination
+    """)
 
 
 @app.cell
@@ -218,7 +218,6 @@ def _(alt, cars):
 @app.cell
 def _(complex_chart, mo):
     mo.ui.altair_chart(complex_chart.copy())
-    return
 
 
 if __name__ == "__main__":

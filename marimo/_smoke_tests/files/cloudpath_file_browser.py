@@ -1,12 +1,13 @@
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
 @app.cell
 def _():
     import marimo as mo
+
     return (mo,)
 
 
@@ -14,7 +15,6 @@ def _():
 def _(mo):
     file_browser = mo.ui.file_browser()
     file_browser
-    return
 
 
 @app.cell
@@ -26,7 +26,7 @@ def _():
 
 
 @app.cell
-def _(BUCKET):
+def _(BUCKET: str):
     from cloudpathlib import CloudPath
 
     # dispatches to S3Path based on prefix
@@ -38,7 +38,6 @@ def _(BUCKET):
 @app.cell
 def _(cloud_file_browser):
     cloud_file_browser.value
-    return
 
 
 @app.cell
@@ -51,25 +50,21 @@ def _(mo, root_dir):
 @app.cell
 def _(cloud_file_browser):
     [f.path.is_dir() for f in cloud_file_browser.value]
-    return
 
 
 @app.cell
 def _(cloud_file_browser):
     [type(f.path) for f in cloud_file_browser.value]
-    return
 
 
 @app.cell
 def _(cloud_file_browser):
     [f.path for f in cloud_file_browser.value]
-    return
 
 
 @app.cell
 def _(cloud_file_browser):
     [f.path.read_text() for f in cloud_file_browser.value]
-    return
 
 
 if __name__ == "__main__":

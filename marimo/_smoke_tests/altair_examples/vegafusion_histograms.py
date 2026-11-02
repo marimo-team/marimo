@@ -14,13 +14,14 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
 @app.cell
 def _():
     import marimo as mo
+
     return (mo,)
 
 
@@ -36,13 +37,13 @@ def _(alt, flights):
         .properties(width="container")
     )
     _chart
-    return
 
 
 @app.cell
 def _(mo):
-    mo.md(r"""# Histograms with vegafusion""")
-    return
+    mo.md(r"""
+    # Histograms with vegafusion
+    """)
 
 
 @app.cell
@@ -78,7 +79,6 @@ def _(alt, flights):
 @app.cell
 def _(flights, mo):
     mo.ui.table(flights[0:100], show_column_summaries=True)
-    return
 
 
 @app.cell
@@ -120,7 +120,6 @@ def _(alt, flights, mo):
                 )
             )
     mo.hstack(charts)
-    return
 
 
 @app.cell
@@ -128,7 +127,6 @@ def _(delay_hist, mo):
     mo.md(
         f"Total buckets **{len(delay_hist.to_dict(format='vega')['data'][0]['values'])}**"
     )
-    return
 
 
 if __name__ == "__main__":

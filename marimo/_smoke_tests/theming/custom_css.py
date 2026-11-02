@@ -8,7 +8,7 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium", css_file="custom.css")
 
 
@@ -16,13 +16,13 @@ app = marimo.App(width="medium", css_file="custom.css")
 def _():
     import marimo as mo
     from vega_datasets import data
+
     return data, mo
 
 
 @app.cell
 def _(data):
     data.cars()
-    return
 
 
 @app.cell
@@ -34,26 +34,21 @@ def _(mo):
     This font should be styled
     """)
     )
-    return
 
 
 @app.cell
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     # heading
 
     Here is a paragraph
-    """
-    )
-    return
+    """)
 
 
 @app.cell
 def _(mo):
     # This text should be aligned-right
     mo.ui.number(value=50)
-    return
 
 
 if __name__ == "__main__":

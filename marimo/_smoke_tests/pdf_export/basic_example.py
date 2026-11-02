@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.19.6"
+__generated_with = "0.25.2"
 app = marimo.App(auto_download=["ipynb"])
 
 
@@ -9,6 +9,7 @@ def _():
     import marimo as mo
     import matplotlib.pyplot as plt
     import plotly.express as px
+
     return mo, plt, px
 
 
@@ -29,26 +30,22 @@ def _(mo):
     g(x) = 0
     $$
     """)
-    return
 
 
 @app.cell
 def _(mo):
     mo.ui.text(label="$f(x)$")
-    return
 
 
 @app.cell
 def _():
     # How are errors serialized?
     1 / 0
-    return
 
 
 @app.cell
 def _():
     print("This is console output")
-    return
 
 
 @app.cell
@@ -66,13 +63,11 @@ def _(df, plt):
     plt.scatter(x=df["sepal_width"], y=df["sepal_length"])
     print("Plot in console output")
     plt.show()
-    return
 
 
 @app.cell
 def _(df, plt):
     plt.scatter(x=df["sepal_width"], y=df["sepal_length"])
-    return
 
 
 @app.cell
@@ -96,7 +91,6 @@ def _(mo):
 @app.cell
 def _(iframe, mo):
     mo.Html(iframe.text)
-    return
 
 
 @app.cell
@@ -104,7 +98,6 @@ def _(mo):
     mo.iframe(
         '<iframe src="demo_iframe.html" height="200" width="300" title="Iframe Example"></iframe>'
     )
-    return
 
 
 @app.cell
@@ -112,13 +105,11 @@ def _(mo):
     mo.iframe(
         '<iframe id="inlineFrameExample" title="Inline Frame Example" width="800" height="600" src="https://www.openstreetmap.org/export/embed.html?bbox=-0.004017949104309083%2C51.47612752641776%2C0.00030577182769775396%2C51.478569861898606&amp;layer=mapnik"></iframe>'
     )
-    return
 
 
 @app.cell
 def _(df):
     df
-    return
 
 
 if __name__ == "__main__":

@@ -11,14 +11,13 @@
 
 import marimo
 
-__generated_with = "0.15.2"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
 @app.cell
 def _():
     import marimo as mo
-    return (mo,)
 
 
 @app.cell
@@ -32,7 +31,6 @@ def _():
 
     air_ds = xr.tutorial.open_dataset('air_temperature').load()
     air_ds.air.hvplot.image()
-    return air_ds, hv, xr
 
 
 @app.cell

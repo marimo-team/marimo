@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -8,13 +8,15 @@ app = marimo.App(width="medium")
 def _():
     import marimo as mo
     import os
+
     return mo, os
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""## Setup""")
-    return
+    mo.md(r"""
+    ## Setup
+    """)
 
 
 @app.cell(hide_code=True)
@@ -29,7 +31,6 @@ def _(mo, os):
 @app.cell(hide_code=True)
 def _(api_token, mo):
     mo.callout("Missing API Key", kind="danger") if not api_token.value else None
-    return
 
 
 @app.cell(hide_code=True)
@@ -41,14 +42,16 @@ def _(mo):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md("""## Run some queries""")
-    return
+    mo.md("""
+    ## Run some queries
+    """)
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md("""### Streaming""")
-    return
+    mo.md("""
+    ### Streaming
+    """)
 
 
 @app.cell
@@ -61,8 +64,9 @@ def _(api_token):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""### Non-streaming""")
-    return
+    mo.md(r"""
+    ### Non-streaming
+    """)
 
 
 @app.cell
@@ -74,7 +78,6 @@ def _(client, tools):
             "tools": tools.value,
         }
     )
-    return
 
 
 if __name__ == "__main__":

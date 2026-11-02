@@ -7,7 +7,7 @@
 
 import marimo
 
-__generated_with = "0.19.7"
+__generated_with = "0.25.2"
 app = marimo.App()
 
 
@@ -23,7 +23,6 @@ def _(mo):
     mo.md("""
     # Batch and Form
     """)
-    return
 
 
 @app.cell
@@ -32,7 +31,6 @@ def _(mo):
     Make custom UI elements using `batch()`, and turn any UI element
     into a form with `form()`.
     """)
-    return
 
 
 @app.cell
@@ -61,7 +59,7 @@ def _(mo, reset):
 
 
 @app.cell
-def _(mo, reset, submitted_values, variables):
+def _(mo, reset, submitted_values: dict[str, set], variables):
     if variables.value is not None:
         submitted_values["x"].add(variables.value["x"])
         submitted_values["y"].add(variables.value["y"])
@@ -80,7 +78,6 @@ def _(mo, reset, submitted_values, variables):
         {mo.hstack([mo.tree(submitted_values), reset], align="center", gap=4)}
         """
     ).callout()
-    return
 
 
 @app.cell

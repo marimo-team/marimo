@@ -12,7 +12,7 @@
 
 import marimo
 
-__generated_with = "0.19.7"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -23,7 +23,6 @@ def _(mo):
 
     This notebook shows how to create a histogram of a column using built-in duckdb aggregate functions.
     """)
-    return
 
 
 @app.cell
@@ -44,13 +43,12 @@ def _():
 
 
 @app.cell(hide_code=True)
-def _(URL, mo):
+def _(URL: str, mo):
     mo.md(rf"""First we read the dataset at: **{URL}**""")
-    return
 
 
 @app.cell
-def _(URL, mo):
+def _(URL: str, mo):
     dataset = mo.sql(
         f"""
         CREATE OR REPLACE VIEW dataset AS
@@ -59,7 +57,6 @@ def _(URL, mo):
         FROM dataset
         """
     )
-    return
 
 
 @app.cell
@@ -87,7 +84,6 @@ def _(mo):
     mo.md(r"""
     Now we will take the histogram result and plot it using [Altair](https://altair-viz.github.io/).
     """)
-    return
 
 
 @app.cell
@@ -101,7 +97,6 @@ def _(alt, histogram):
         )
         .properties(width="container")
     )
-    return
 
 
 if __name__ == "__main__":
