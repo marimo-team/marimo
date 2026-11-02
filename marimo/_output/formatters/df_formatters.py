@@ -95,6 +95,9 @@ class PolarsFormatter(FormatterFactory):
             return None
 
         unpatch_polars = patch_polars_for_wasm()
+        is_polars_2 = DependencyManager.polars.has_at_version(
+            min_version="2.0.0", quiet=True
+        )
 
         @formatting.opinionated_formatter(pl.DataFrame)
         def _show_marimo_dataframe(
@@ -129,9 +132,6 @@ class PolarsFormatter(FormatterFactory):
         def _show_marimo_lazyframe(
             df: pl.LazyFrame,
         ) -> tuple[KnownMimeType, str]:
-            is_polars_2 = DependencyManager.polars.has_at_version(
-                min_version="2.0.0", quiet=True
-            )
             # Polars 2 defaults to the physical plan; keep the logical view too.
             logical_dot = (
                 df.show_graph(show=False, raw_output=True, plan_stage="ir")
