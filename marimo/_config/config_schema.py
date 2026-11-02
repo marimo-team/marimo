@@ -301,6 +301,10 @@ class FormattingConfig(Config, kw_only=True):
     """Configuration for code formatting."""
 
     line_length: Annotated[int, Meta(description="max line length")] = 79
+    infer_types: Annotated[
+        Literal["off", "jedi"],
+        Meta(description="infer type annotations for cell parameters on save"),
+    ] = "off"
 
 
 class ServerConfig(Config, kw_only=True):

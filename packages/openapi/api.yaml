@@ -2664,6 +2664,10 @@ components:
       description: "Configuration for code formatting.\n\n    **Keys.**\n\n    - `line_length`:\
         \ max line length"
       properties:
+        infer_types:
+          enum:
+          - jedi
+          - 'off'
         line_length:
           type: integer
       required:

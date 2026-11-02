@@ -57,7 +57,7 @@ describe("Cell data attributes", () => {
           signature_hint_on_typing: false,
           copilot: false,
         },
-        formatting: { line_length: 88 },
+        formatting: { line_length: 88, infer_types: "off" },
         package_management: { manager: "pip" },
         runtime: {
           auto_instantiate: false,
@@ -75,7 +75,11 @@ describe("Cell data attributes", () => {
           browser: "default",
           follow_symlink: false,
         },
-        save: { autosave: "off", autosave_delay: 1000, format_on_save: false },
+        save: {
+          autosave: "off",
+          autosave_delay: 1000,
+          format_on_save: false,
+        },
         ai: {},
       } as UserConfig;
 

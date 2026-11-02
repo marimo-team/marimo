@@ -794,6 +794,28 @@ app._unparsable_cell(
         assert result == 'app = marimo.App(auto_download=["html"])'
 
     @staticmethod
+    @pytest.mark.parametrize(
+        "title",
+        ['He said "hi"', "it's", "both \"double\" and 'single'", "two\nlines"],
+    )
+    def test_generate_app_constructor_quotes_strings(title: str) -> None:
+        result = codegen.generate_app_constructor(_AppConfig(app_title=title))
+        (call,) = ast.parse(result).body
+        assert isinstance(call, ast.Assign)
+        assert isinstance(call.value, ast.Call)
+        (keyword,) = call.value.keywords
+        assert keyword.arg == "app_title"
+        assert ast.literal_eval(keyword.value) == title
+
+    @staticmethod
+    def test_generate_app_constructor_prefers_double_quotes() -> None:
+        config = _AppConfig(app_title="plain", css_file=r"a\b.css")
+        result = codegen.generate_app_constructor(config)
+        assert result == (
+            'app = marimo.App(app_title="plain", css_file="a\\\\b.css")'
+        )
+
+    @staticmethod
     def test_generate_file_contents_overwrite_default_cell_names() -> None:
         contents = wrap_generate_filecontents(
             ["import numpy as np", "x = 0", "y = x + 1"],
