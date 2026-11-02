@@ -3657,6 +3657,28 @@ describe("kernel-ready", () => {
     expect(next.cellRuntime[CELL_B].consoleOutputs).toEqual([]);
   });
 
+  it("resetCellRuntimes starts the scratch cell over too", () => {
+    const state = MockNotebook.notebookState({
+      cellData: { [CELL_A]: { id: CELL_A, code: "1" } },
+      cellRuntime: {
+        [SCRATCH_CELL_ID]: {
+          output: {
+            channel: "output",
+            mimetype: "text/plain",
+            data: "scratch",
+            timestamp: 0,
+          },
+        },
+      },
+    });
+    const next = exportedForTesting.reducer(state, {
+      type: "resetCellRuntimes",
+      payload: undefined,
+    });
+
+    expect(next.cellRuntime[SCRATCH_CELL_ID].output).toBeNull();
+  });
+
   describe("resetCellRuntimes in WASM", () => {
     beforeEach(async () => {
       const { isWasm } = await import("@/core/wasm/utils");

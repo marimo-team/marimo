@@ -1010,7 +1010,7 @@ const {
   resetCellRuntimes: (state) => {
     const preserveSnapshot = isWasm();
     const cellRuntime = { ...state.cellRuntime };
-    for (const cellId of state.cellIds.inOrderIds) {
+    for (const cellId of [...state.cellIds.inOrderIds, SCRATCH_CELL_ID]) {
       const previous = state.cellRuntime[cellId];
       const hasSnapshot =
         preserveSnapshot &&
