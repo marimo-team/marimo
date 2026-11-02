@@ -118,10 +118,12 @@ def apply_to_session(session: Session, document: Document) -> None:
 
     The session tells its consumers, so the frontend sees the edit and
     the host backend mirrors it back as a no-op. The kernel is told of
-    the edit as one command, so nothing runs code the document no longer
-    has: changed code is registered without running, and a cell the edit
-    deletes or disables is gone before any run the deletion causes. The
-    app config is the session's own and is left alone.
+    the edit as one command. Deletions and configs take effect before
+    any run the edit causes, so a cell the edit deletes or disables does
+    not run when a cell it depended on goes. Code reaches the kernel for
+    cells that have never run, so their first run uses it. A cell that
+    has run keeps its code until its next run, and enabling it runs that
+    code. The app config is the session's own and is left alone.
     """
     transaction, command = apply_to_document(session.document, document)
     if transaction is None:
