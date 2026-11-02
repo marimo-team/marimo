@@ -259,6 +259,21 @@ describe("addSetupCellAtom", () => {
     expect(notebook().scrollKey).toBe(SETUP_CELL_ID);
   });
 
+  it("places the setup cell in an empty first column", () => {
+    const { store, notebook, cellIn } = setup({
+      c1: cell(c1, "x = 1", { config: { ...CONFIG, column: 1 } }),
+    });
+    expect(notebook().cellIds.atOrThrow(0).inOrderIds).toEqual([]);
+
+    store.set(addSetupCellAtom, { code: "import marimo as mo" });
+
+    expect(notebook().cellIds.atOrThrow(0).inOrderIds).toEqual([
+      SETUP_CELL_ID,
+    ]);
+    expect(cellIn(SETUP_CELL_ID)?.config.column).toBe(0);
+    expect(notebook().scrollKey).toBe(SETUP_CELL_ID);
+  });
+
   it("only focuses a setup cell that exists", () => {
     const { store, order, cellIn } = setup();
     store.set(addSetupCellAtom, { code: "first" });

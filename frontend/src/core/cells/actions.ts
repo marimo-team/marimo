@@ -184,14 +184,16 @@ export const addSetupCellAtom = atom(
       focusWhenMounted(set, SETUP_CELL_ID);
       return;
     }
-    const first = cellIds.atOrThrow(0).at(0);
-    set(modelOf(get).editAtom, (tx) =>
-      tx.createCell(
-        { id: SETUP_CELL_ID, name: SETUP_CELL_ID, code: code ?? "" },
-        first === undefined ? {} : { before: first },
-      ),
-    );
-    focusWhenMounted(set, SETUP_CELL_ID);
+    // The setup cell leads the first column, which may be empty.
+    const first = cellIds.atOrThrow(0);
+    set(createCellAtom, {
+      id: SETUP_CELL_ID,
+      name: SETUP_CELL_ID,
+      code: code ?? "",
+      ...(first.length > 0
+        ? { before: first.atOrThrow(0) }
+        : { endOf: first.id }),
+    });
   },
 );
 
