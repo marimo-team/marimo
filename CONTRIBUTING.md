@@ -134,7 +134,27 @@ make fe-test
 make py-test
 ```
 
-For a subset, run `uv run --group test pytest <path>`. Use `--group test-optional` when the tests need optional dependencies. Tests use [pytest syntax](https://docs.pytest.org/en/stable/how-to/usage.html).
+We use [pytest syntax](https://docs.pytest.org/en/stable/how-to/usage.html) for Python tests.
+
+#### Using uv
+
+Run a specific test
+
+```bash
+uv run --python 3.13 --group test pytest tests/_ast/
+```
+
+Run all changed tests
+
+```bash
+uv run --python 3.13 --group test pytest --picked
+```
+
+Run tests with optional dependencies
+
+```bash
+uv run --python 3.13 --group test-optional pytest tests/_ast/
+```
 
 ### End-to-end
 

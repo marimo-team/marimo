@@ -43,5 +43,9 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed setup options.
 
 ### Python
 
+Most style rules are enforced by ruff (`pyproject.toml`) and pre-commit; run
+`make py-check`. Here are some that the linter may not catch, or for which
+we may not have autofixes.
+
 - Docstrings are rendered as Markdown, not reStructuredText. Use single
   backticks for inline code (`value`), never double backticks.
