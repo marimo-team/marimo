@@ -219,7 +219,6 @@ describe("documentEditMiddleware", () => {
     syncStatusAtom: atom<DocumentSyncStatus>({ status: "idle" }),
     flush: vi.fn(),
     retry: vi.fn(),
-    hold: () => () => undefined,
     start: vi.fn(),
   };
   const actions = createNotebookActions((action) => {
@@ -298,7 +297,6 @@ describe("flushing before host commands", () => {
     syncStatusAtom: atom<DocumentSyncStatus>({ status: "idle" }),
     flush: vi.fn<() => Promise<never>>(),
     retry: vi.fn<() => Promise<never>>(),
-    hold: () => () => undefined,
   } as unknown as DocumentModel;
 
   beforeEach(() => {
