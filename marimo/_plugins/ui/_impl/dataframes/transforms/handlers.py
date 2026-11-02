@@ -4,7 +4,7 @@ from __future__ import annotations
 import datetime
 import decimal
 from functools import reduce
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any
 
 import narwhals.stable.v2 as nw
 from narwhals.stable.v2 import col
@@ -129,7 +129,7 @@ class NarwhalsTransformHandler(TransformHandler[DataFrame]):
                 parsed = column.str.to_date(strict=strict)
             else:
                 parsed = column.str.to_datetime(strict=strict)
-            native_result = cast(IntoLazyFrame, native_df.with_columns(parsed))
+            native_result: IntoLazyFrame = native_df.with_columns(parsed)
             return nw.from_native(native_result).lazy()
 
         if transform.errors == "ignore":
