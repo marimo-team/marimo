@@ -1,12 +1,11 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { historyField } from "@codemirror/commands";
-import { dequal as isEqual } from "dequal";
+import type * as Protocol from "@marimo-team/client/protocol";
 import { type Atom, atom, useAtom, useAtomValue } from "jotai";
 import { atomFamily, selectAtom, splitAtom } from "jotai/utils";
 import { createRef, type ReducerWithoutAction } from "react";
 import type { CellHandle } from "@/components/editor/notebook-cell";
-import type { CollapsibleTree } from "@/utils/id-tree";
+import type { EditableDocument, Placement } from "@/core/notebook/document";
 import {
   type CellColumnId,
   type CellIndex,
@@ -20,21 +19,18 @@ import { extractAllTracebackInfo, type TracebackInfo } from "@/utils/traceback";
 import { createReducerAndAtoms } from "../../utils/createReducer";
 import { foldAllBulk, unfoldAllBulk } from "../codemirror/editing/commands";
 import { editorMountScheduler } from "../codemirror/editor-mount-scheduler";
-import {
-  splitEditor,
-  updateEditorCodeFromPython,
-} from "../codemirror/language/utils";
+import { prepareCellCodeUpdate } from "../codemirror/language/cell-code";
+import { splitEditor } from "../codemirror/language/utils";
 import type { SerializedEditorState } from "../codemirror/types";
 import { findCollapseRange, mergeOutlines } from "../dom/outline";
 import type { CellMessage } from "../kernel/messages";
 import { isErrorMime } from "../mime";
 import type { CellConfig } from "../network/types";
-import { canUseRtc, isRtcEnabled } from "../rtc/state";
 import { createDeepEqualAtom, store } from "../state/jotai";
 import { isWasm } from "../wasm/utils";
 import { prepareCellForExecution, transitionCell } from "./cell";
-import { documentTransactionMiddleware } from "./document-changes";
-import { CellId, SCRATCH_CELL_ID, SETUP_CELL_ID } from "./ids";
+import { applyDocument, documentEditMiddleware } from "./document";
+import { CellId, SCRATCH_CELL_ID } from "./ids";
 import { type CellLog, getCellLogsForMessage } from "./logs";
 import {
   focusAndScrollCellIntoView,
@@ -45,8 +41,8 @@ import {
   type CellData,
   type CellRuntimeState,
   createCell,
-  createCellConfig,
   createCellRuntimeState,
+  isEdited,
 } from "./types";
 import {
   canUndoDeletes,
@@ -58,17 +54,21 @@ import {
   notebookQueueOrRunningCount,
 } from "./utils";
 
+/** A deleted cell as it was, with where it went in the document. */
+export interface DeletedCell {
+  cell: Protocol.CellInput;
+  placement: Placement;
+  /** The editor's state at deletion, so undo brings its history back. */
+  serializedEditorState: SerializedEditorState | null;
+}
+
 /**
- * History entry for undoing a cell deletion.
+ * History entry for undoing one deletion, of one or more cells.
  */
 export interface UndoDeleteEntry {
   type: "delete";
-  name: string;
-  serializedEditorState: SerializedEditorState;
-  column: CellColumnId;
-  index: CellIndex;
-  isSetupCell: boolean;
-  config: CellConfig;
+  /** In document order. Each cell is placed after the one before it. */
+  cells: DeletedCell[];
 }
 
 /**
@@ -164,40 +164,6 @@ export function initialNotebookState(): NotebookState {
   });
 }
 
-/** The target cell ID to create a new cell relative to. Can be:
- * - A CellId string for an existing cell
- * - "__end__" to append at the end of the first column
- * - {type: "__end__", columnId} to append at the end of a specific column
- */
-export type CellPosition =
-  | CellId
-  | "__end__"
-  | { type: "__end__"; columnId: CellColumnId };
-
-export interface CreateNewCellAction {
-  cellId: CellPosition;
-  /** Whether to insert before (true) or after (false) the target cell */
-  before: boolean;
-  /** Initial code content for the new cell */
-  code?: string;
-  /** Optional name for the new cell */
-  name?: string;
-  /** Optional cell configuration */
-  config?: CellConfig;
-  /** The last executed code for the new cell */
-  lastCodeRun?: string;
-  /** Timestamp of the last execution */
-  lastExecutionTime?: number;
-  /** Optional custom ID for the new cell. Auto-generated if not provided */
-  newCellId?: CellId;
-  /** Whether to focus the new cell after creation */
-  autoFocus?: boolean;
-  /** If true, skip creation if code already exists */
-  skipIfCodeExists?: boolean;
-  /** Hide the code in the new cell. This will be initially shown until the cell is blurred for the first time. */
-  hideCode?: boolean;
-}
-
 /**
  * Actions and reducer for the notebook state.
  */
@@ -208,85 +174,6 @@ const {
   useActions,
   valueAtom: notebookAtom,
 } = createReducerAndAtoms(initialNotebookState, {
-  createNewCell: (state, action: CreateNewCellAction) => {
-    const {
-      cellId,
-      before,
-      code,
-      name,
-      config,
-      lastCodeRun = null,
-      lastExecutionTime = null,
-      autoFocus = true,
-      skipIfCodeExists = false,
-      hideCode = undefined,
-    } = action;
-
-    let columnId: CellColumnId;
-    let cellIndex: number;
-
-    // If skipIfCodeExists is true, check if the code already exists in the notebook
-    if (skipIfCodeExists) {
-      for (const cellId of state.cellIds.inOrderIds) {
-        if (state.cellData[cellId]?.code === code) {
-          return state;
-        }
-      }
-    }
-
-    if (cellId === "__end__") {
-      const column = state.cellIds.atOrThrow(0);
-      columnId = column.id;
-      cellIndex = column.length;
-    } else if (typeof cellId === "string") {
-      const column = state.cellIds.findWithId(cellId);
-      columnId = column.id;
-      cellIndex = column.topLevelIds.indexOf(cellId);
-    } else if (cellId.type === "__end__") {
-      const column =
-        state.cellIds.get(cellId.columnId) || state.cellIds.atOrThrow(0);
-      columnId = column.id;
-      cellIndex = column.length;
-    } else {
-      throw new Error("Invalid cellId");
-    }
-
-    const newCellId = action.newCellId || CellId.create();
-    const insertionIndex = before ? cellIndex : cellIndex + 1;
-
-    return {
-      ...state,
-      cellIds: state.cellIds.insertId(newCellId, columnId, insertionIndex),
-      cellData: {
-        ...state.cellData,
-        [newCellId]: createCell({
-          id: newCellId,
-          code,
-          name,
-          lastCodeRun,
-          config: createCellConfig({
-            ...config,
-            ...(hideCode != null && { hide_code: hideCode }),
-          }),
-          lastExecutionTime,
-          edited: Boolean(code) && code !== lastCodeRun,
-        }),
-      },
-      cellRuntime: {
-        ...state.cellRuntime,
-        [newCellId]: createCellRuntimeState(),
-      },
-      cellHandles: {
-        ...state.cellHandles,
-        [newCellId]: createRef(),
-      },
-      scrollKey: autoFocus ? newCellId : null,
-      untouchedNewCells:
-        hideCode && autoFocus
-          ? new Set([...state.untouchedNewCells, newCellId])
-          : state.untouchedNewCells,
-    };
-  },
   moveCell: (
     state,
     action: {
@@ -681,128 +568,29 @@ const {
       cellIds: state.cellIds.compact(),
     };
   },
-  deleteCell: (state, action: { cellId: CellId }) => {
-    const cellId = action.cellId;
-
-    // Can't delete the last cell, across all columns
-    if (state.cellIds.hasOnlyOneId()) {
+  /**
+   * Put moved cells back where they were.
+   *
+   * TODO(MO-8028): Move to `undoDeleteCellAtom` with the order family.
+   */
+  undoMoveCells: (state, action: UndoMoveEntry) => {
+    const { cellIds, placements } = action;
+    if (
+      cellIds.length === 0 ||
+      placements.length !== cellIds.length ||
+      cellIds.some((id) => !state.cellData[id])
+    ) {
       return state;
     }
-
-    let column: CollapsibleTree<CellId>;
-    try {
-      column = state.cellIds.findWithId(cellId);
-    } catch (error) {
-      // Expected for kernel-only cells or out-of-order transactions.
-      Logger.warn("Skipping delete for missing cellId", {
-        cellId,
-        error,
-      });
-      return state;
-    }
-
-    const cellIndex = column.indexOfOrThrow(cellId);
-    const focusIndex = cellIndex === 0 ? 1 : cellIndex - 1;
-    let scrollKey: CellId | null = null;
-    if (column.length > 1) {
-      scrollKey = column.atOrThrow(focusIndex);
-    }
-
-    const editorView = state.cellHandles[cellId].current?.editorView;
-    const serializedEditorState = editorView?.state.toJSON({
-      history: historyField,
-    });
-    if (serializedEditorState) {
-      serializedEditorState.doc = state.cellData[cellId].code;
-    }
-
-    // release the granular atom(s) created for this cell
-    releaseCellAtoms(cellId);
-    const prevData = state.cellData[cellId];
+    const toRestore = cellIds.map((id, i) => ({
+      id,
+      columnId: placements[i].columnId,
+      index: placements[i].index,
+    }));
     return {
       ...state,
-      cellIds: state.cellIds.deleteById(cellId),
-      history: [
-        ...state.history,
-        {
-          type: "delete",
-          name: prevData.name,
-          serializedEditorState: serializedEditorState,
-          column: column.id,
-          index: cellIndex,
-          isSetupCell: cellId === SETUP_CELL_ID,
-          config: prevData.config,
-        },
-      ],
-      scrollKey: scrollKey,
-    };
-  },
-  undoDeleteCell: (state) => {
-    if (state.history.length === 0) {
-      return state;
-    }
-
-    const last = state.history[state.history.length - 1];
-
-    if (last.type === "move") {
-      const { cellIds, placements } = last;
-      if (
-        cellIds.length === 0 ||
-        placements.length !== cellIds.length ||
-        cellIds.some((id) => !state.cellData[id])
-      ) {
-        return { ...state, history: state.history.slice(0, -1) };
-      }
-      const toRestore = cellIds.map((id, i) => ({
-        id,
-        columnId: placements[i].columnId,
-        index: placements[i].index,
-      }));
-      return {
-        ...state,
-        cellIds: state.cellIds.placeCells(toRestore),
-        history: state.history.slice(0, -1),
-        scrollKey: cellIds[0] ?? null,
-      };
-    }
-
-    const {
-      name,
-      serializedEditorState = { doc: "" },
-      column,
-      index,
-      isSetupCell,
-      config,
-    } = last;
-
-    const cellId = isSetupCell ? SETUP_CELL_ID : CellId.create();
-    const undoCell = createCell({
-      id: cellId,
-      name,
-      code: serializedEditorState.doc,
-      edited: serializedEditorState.doc.trim().length > 0,
-      serializedEditorState,
-      config,
-    });
-
-    return {
-      ...state,
-      cellIds: state.cellIds.insertId(cellId, column, index),
-      cellData: {
-        ...state.cellData,
-        [cellId]: undoCell,
-      },
-      cellRuntime: {
-        ...state.cellRuntime,
-        [cellId]: createCellRuntimeState(),
-      },
-      cellHandles: {
-        ...state.cellHandles,
-        [cellId]: createRef(),
-      },
-      history: state.history.slice(0, -1),
-      // Scroll to the newly created cell
-      scrollKey: cellId,
+      cellIds: state.cellIds.placeCells(toRestore),
+      scrollKey: cellIds[0] ?? null,
     };
   },
   clearSerializedEditorState: (state, action: { cellId: CellId }) => {
@@ -852,35 +640,6 @@ const {
               code: code,
               edited: code.trim() !== cell.lastCodeRun,
             };
-      },
-    });
-  },
-  updateCellName: (state, action: { cellId: CellId; name: string }) => {
-    const { cellId, name } = action;
-    return updateCellData({
-      state,
-      cellId,
-      cellReducer: (cell) => {
-        return {
-          ...cell,
-          name: name,
-        };
-      },
-    });
-  },
-  updateCellConfig: (
-    state,
-    action: { cellId: CellId; config: Partial<CellConfig> },
-  ) => {
-    const { cellId, config } = action;
-    return updateCellData({
-      state,
-      cellId,
-      cellReducer: (cell) => {
-        return {
-          ...cell,
-          config: createCellConfig({ ...cell.config, ...config }),
-        };
       },
     });
   },
@@ -939,158 +698,14 @@ const {
       cellLogs: [...state.cellLogs, ...action.logs],
     };
   },
-  setCellIds: (state, action: { cellIds: CellId[] }) => {
-    const isTheSame = isEqual(state.cellIds.inOrderIds, action.cellIds);
-    if (isTheSame) {
-      return state;
-    }
-
-    // Create new cell data and runtime states for the new cell IDs
-    const nextCellData = { ...state.cellData };
-    const nextCellRuntime = { ...state.cellRuntime };
-    const nextCellHandles = { ...state.cellHandles };
-
-    for (const cellId of action.cellIds) {
-      if (!(cellId in state.cellData)) {
-        nextCellData[cellId] = createCell({ id: cellId });
-      }
-      if (!(cellId in state.cellRuntime)) {
-        nextCellRuntime[cellId] = createCellRuntimeState();
-      }
-      if (!(cellId in state.cellHandles)) {
-        nextCellHandles[cellId] = createRef();
+  /** Follow the host document's cells and order. */
+  reconcileDocument: (state, document: EditableDocument) => {
+    const nextState = applyDocument(state, document);
+    for (const cellId of state.cellIds.inOrderIds) {
+      if (!(cellId in nextState.cellData)) {
+        releaseCellAtoms(cellId);
       }
     }
-
-    return {
-      ...state,
-      cellIds: MultiColumn.fromWithPreviousShape(action.cellIds, state.cellIds),
-      cellData: nextCellData,
-      cellRuntime: nextCellRuntime,
-      cellHandles: nextCellHandles,
-    };
-  },
-  /**
-   * Rebuild the MultiColumn tree using each cell's `config.column` value.
-   *
-   * Used after a transaction whose `set-config` changes updated cells'
-   * column metadata without physically moving them in the tree. Cells with
-   * `config.column == null` inherit the column of the previous cell in the
-   * given order (see `MultiColumn.fromIdsAndColumns`), which lets the server
-   * send column changes only at column boundaries.
-   */
-  rebuildCellColumns: (state, action: { cellIds: CellId[] }) => {
-    const newCellIds = MultiColumn.fromIdsAndColumns(
-      action.cellIds.map((id) => [
-        id,
-        state.cellData[id]?.config.column ?? null,
-      ]),
-    );
-    return { ...state, cellIds: newCellIds };
-  },
-  setCellCodes: (
-    state,
-    action: {
-      codes: string[];
-      ids: CellId[];
-      codeIsStale: boolean;
-      names?: string[];
-      configs?: CellConfig[];
-    },
-  ) => {
-    invariant(
-      action.codes.length === action.ids.length,
-      "Expected codes and ids to have the same length",
-    );
-
-    let nextState = { ...state };
-
-    const cellReducer = ({
-      cell,
-      code,
-      cellId,
-      name,
-      config,
-    }: {
-      cell: CellData | undefined;
-      code: string;
-      cellId: CellId;
-      name?: string;
-      config?: CellConfig;
-    }) => {
-      if (!cell) {
-        return createCell({
-          id: cellId,
-          code,
-          name: name,
-          config: config,
-          lastCodeRun: action.codeIsStale ? null : code,
-          edited: action.codeIsStale && code.trim().length > 0,
-        });
-      }
-
-      // If code is stale, we don't promote it to lastCodeRun
-      const lastCodeRun = action.codeIsStale ? cell.lastCodeRun : code;
-
-      // Mark as edited if the code has changed
-      const edited = lastCodeRun
-        ? lastCodeRun.trim() !== code.trim()
-        : Boolean(code);
-
-      // No change
-      if (cell.code.trim() === code.trim()) {
-        return {
-          ...cell,
-          code: code,
-          edited,
-          lastCodeRun,
-          ...(name !== undefined && { name }),
-          ...(config !== undefined && { config }),
-        };
-      }
-
-      // Update codemirror if mounted. RTC-backed cells sync via Loro; others
-      // (e.g. scratchpad) still need an explicit editor update.
-      if (!isRtcEnabled() || !canUseRtc(cellId)) {
-        const cellHandle = nextState.cellHandles[cellId].current;
-        if (cellHandle?.editorViewOrNull) {
-          updateEditorCodeFromPython(cellHandle.editorViewOrNull, code);
-        }
-      }
-
-      return {
-        ...cell,
-        code: code,
-        edited,
-        lastCodeRun,
-        ...(name !== undefined && { name }),
-        ...(config !== undefined && { config }),
-      };
-    };
-
-    for (let i = 0; i < action.ids.length; i++) {
-      const cellId = action.ids[i];
-      const code = action.codes[i];
-      if (cellId === undefined || code === undefined) {
-        continue;
-      }
-      const name = action.names?.[i];
-      const config = action.configs?.[i];
-      nextState = {
-        ...nextState,
-        cellData: {
-          ...nextState.cellData,
-          [cellId]: cellReducer({
-            cell: nextState.cellData[cellId],
-            code,
-            cellId,
-            name,
-            config,
-          }),
-        },
-      };
-    }
-
     return nextState;
   },
   setStdinResponse: (
@@ -1127,127 +742,44 @@ const {
       },
     });
   },
-  setCells: (state, cells: CellData[]) => {
-    const cellData = Object.fromEntries(cells.map((cell) => [cell.id, cell]));
-
-    // WASM has no server-side SessionView to replay outputs, so the
-    // snapshot hydrated by notebookStateFromSession is the only source.
-    const preserveSnapshot = isWasm();
-    const runtimeFor = (cellId: CellId): CellRuntimeState => {
-      if (!preserveSnapshot) {
-        return createCellRuntimeState();
-      }
-      const prev = state.cellRuntime[cellId];
-      const hasSnapshot =
-        prev && (prev.output != null || prev.consoleOutputs.length > 0);
-      return hasSnapshot ? prev : createCellRuntimeState();
-    };
-    const cellRuntime = Object.fromEntries(
-      cells.map((cell) => [cell.id, runtimeFor(cell.id)]),
-    );
-
-    return withScratchCell({
-      ...state,
-      cellIds: MultiColumn.fromIdsAndColumns(
-        cells.map((cell) => [cell.id, cell.config.column]),
-      ),
-      cellData: cellData,
-      cellRuntime: cellRuntime,
-      cellHandles: Object.fromEntries(
-        cells.map((cell) => [cell.id, createRef()]),
-      ),
-    });
+  /** Record what the kernel last ran for each cell. */
+  setLastRun: (
+    state,
+    action: {
+      lastCodeRun: Record<CellId, string>;
+      lastExecutionTime: Record<CellId, number>;
+    },
+  ) => {
+    const cellData = { ...state.cellData };
+    for (const cellId of state.cellIds.inOrderIds) {
+      const cell = state.cellData[cellId];
+      const lastCodeRun = action.lastCodeRun[cellId] ?? null;
+      cellData[cellId] = {
+        ...cell,
+        lastCodeRun,
+        lastExecutionTime: action.lastExecutionTime[cellId] ?? null,
+        // A cell the kernel never ran is not stale on load.
+        edited: lastCodeRun !== null && isEdited(lastCodeRun, cell.code),
+      };
+    }
+    return { ...state, cellData };
   },
   /**
-   * Move focus to next cell
-   *
-   * Creates a new cell if the current cell is the last one in the array.
-   *
-   * If needed, scrolls newly created or focused cell into view.
-   *
-   * Replicates Shift+Enter functionality of Jupyter
+   * Start each cell's runtime over for a new kernel. WASM keeps the outputs
+   * its mount-time snapshot gave it.
    */
-  moveToNextCell: (
-    state,
-    action: { cellId: CellId; before: boolean; noCreate?: boolean },
-  ) => {
-    const { cellId, before, noCreate = false } = action;
-
-    // Can't move focus of scratch cell
-    if (cellId === SCRATCH_CELL_ID) {
-      return state;
+  resetCellRuntimes: (state) => {
+    const preserveSnapshot = isWasm();
+    const cellRuntime = { ...state.cellRuntime };
+    for (const cellId of [...state.cellIds.inOrderIds, SCRATCH_CELL_ID]) {
+      const previous = state.cellRuntime[cellId];
+      const hasSnapshot =
+        preserveSnapshot &&
+        previous !== undefined &&
+        (previous.output != null || previous.consoleOutputs.length > 0);
+      cellRuntime[cellId] = hasSnapshot ? previous : createCellRuntimeState();
     }
-
-    const column = state.cellIds.findWithId(cellId);
-    const index = column.indexOfOrThrow(cellId);
-    const nextCellIndex = before ? index - 1 : index + 1;
-
-    const isPastLastCell = nextCellIndex === column.length;
-    const isBeforeFirstCell = nextCellIndex === -1;
-
-    // Create a new cell at the end and set scrollKey to focus it
-    if (isPastLastCell && !noCreate) {
-      const newCellId = CellId.create();
-      return {
-        ...state,
-        cellIds: state.cellIds.insertId(newCellId, column.id, nextCellIndex),
-        cellData: {
-          ...state.cellData,
-          [newCellId]: createCell({ id: newCellId }),
-        },
-        cellRuntime: {
-          ...state.cellRuntime,
-          [newCellId]: createCellRuntimeState(),
-        },
-        cellHandles: {
-          ...state.cellHandles,
-          [newCellId]: createRef(),
-        },
-        scrollKey: newCellId,
-      };
-    }
-
-    if (isBeforeFirstCell && !noCreate) {
-      const newCellId = CellId.create();
-      return {
-        ...state,
-        cellIds: state.cellIds.insertId(newCellId, column.id, 0),
-        cellData: {
-          ...state.cellData,
-          [newCellId]: createCell({ id: newCellId }),
-        },
-        cellRuntime: {
-          ...state.cellRuntime,
-          [newCellId]: createCellRuntimeState(),
-        },
-        cellHandles: {
-          ...state.cellHandles,
-          [newCellId]: createRef(),
-        },
-        scrollKey: newCellId,
-      };
-    }
-
-    if ((isPastLastCell || isBeforeFirstCell) && noCreate) {
-      // Trying to move past the last cell or before the first cell
-      // with noCreate=true - do nothing
-      return state;
-    }
-
-    if (nextCellIndex >= 0 && nextCellIndex < column.length) {
-      // Move to valid cell within bounds
-      const nextCellId = column.atOrThrow(nextCellIndex);
-      // Just focus, no state change
-      focusAndScrollCellIntoView({
-        cellId: nextCellId,
-        cell: state.cellHandles[nextCellId],
-        isCodeHidden: isCellCodeHidden(state, nextCellId),
-        codeFocus: before ? "bottom" : "top",
-        variableName: undefined,
-      });
-    }
-
-    return state;
+    return { ...state, cellRuntime };
   },
   markTouched: (state, action: { cellId: CellId }) => {
     const { cellId } = action;
@@ -1440,7 +972,14 @@ const {
       cellHandle.editorView,
     );
 
-    updateEditorCodeFromPython(cellHandle.editorView, beforeCursorCode);
+    const update = prepareCellCodeUpdate(
+      cellHandle.editorView.state,
+      beforeCursorCode,
+    );
+
+    if (update) {
+      cellHandle.editorView.dispatch(update);
+    }
 
     const newCellId = CellId.create();
 
@@ -1488,7 +1027,11 @@ const {
       return state;
     }
 
-    updateEditorCodeFromPython(cellHandle.editorView, snapshot);
+    const update = prepareCellCodeUpdate(cellHandle.editorView.state, snapshot);
+
+    if (update) {
+      cellHandle.editorView.dispatch(update);
+    }
 
     return {
       ...state,
@@ -1558,50 +1101,12 @@ const {
       cellRuntime: newCellRuntime,
     };
   },
-  addSetupCellIfDoesntExist: (state, action: { code?: string }) => {
-    const { code } = action;
-
-    if (state.cellIds.setupCellExists()) {
-      // Just focus on the existing setup cell
-      return {
-        ...state,
-        scrollKey: SETUP_CELL_ID,
-      };
-    }
-
-    return {
-      ...state,
-      cellIds: state.cellIds.insertId(
-        SETUP_CELL_ID,
-        state.cellIds.atOrThrow(0).id,
-        0,
-      ),
-      cellData: {
-        ...state.cellData,
-        [SETUP_CELL_ID]: createCell({
-          id: SETUP_CELL_ID,
-          name: SETUP_CELL_ID,
-          code,
-          edited: Boolean(code),
-        }),
-      },
-      cellRuntime: {
-        ...state.cellRuntime,
-        [SETUP_CELL_ID]: createCellRuntimeState(),
-      },
-      cellHandles: {
-        ...state.cellHandles,
-        [SETUP_CELL_ID]: createRef(),
-      },
-      scrollKey: SETUP_CELL_ID,
-    };
-  },
 });
 
 // We apply the middleware here (rather than inline in createReducerAndAtoms)
-// so that the document transaction middleware can import CellActions and
+// so that the document edit middleware can import CellActions and
 // strictly type the dispatched actions without creating a circular dependency.
-addMiddleware(documentTransactionMiddleware);
+addMiddleware(documentEditMiddleware);
 
 function isCellCodeHidden(state: NotebookState, cellId: CellId): boolean {
   return (
@@ -2003,20 +1508,13 @@ export function createTracebackInfoAtom(
   });
 }
 
-/**
- * Use this hook to dispatch cell actions. This hook will not cause a re-render
- * when cells change.
- */
-export function useCellActions(
-  options: { skipMiddleware?: boolean } = {},
-): CellActions {
-  return useActions(options);
+/** The reducer's actions. Components use `useCellActions` from `./actions`. */
+export function useReducerActions(): ReducerCellActions {
+  return useActions();
 }
 
-/**
- * Map of cell actions
- */
-export type CellActions = ReturnType<typeof createActions>;
+/** The actions the reducer still handles. */
+export type ReducerCellActions = ReturnType<typeof createActions>;
 
 /**
  * This is exported for testing purposes only.

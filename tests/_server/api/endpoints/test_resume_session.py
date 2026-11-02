@@ -217,30 +217,12 @@ def test_save_session(client: TestClient) -> None:
         data = receive_notification(websocket)
         assert_kernel_ready_response(
             data,
-            create_response(
-                {
-                    # The cell IDs that were saved should be the ones that are
-                    # resumed
-                    "cell_ids": ["2", "1"],
-                    "names": ["cell_0", "cell_1"],
-                    "codes": [
-                        "slider = mo.ui.slider(0, 100)",
-                        "import marimo as mo",
-                    ],
-                    "configs": [
-                        {
-                            "hideCode": True,
-                            "disabled": True,
-                        },
-                        {
-                            "hideCode": False,
-                            "disabled": False,
-                        },
-                    ],
-                    "resumed": True,
-                }
-            ),
+            create_response({"resumed": True}),
         )
+        # The saved cells are the resumed session's document
+        session = get_session(client, SessionId("456"))
+        assert session is not None
+        assert list(session.document.cell_ids) == ["2", "1"]
 
     # Check the session switch IDs
     assert not get_session(client, "123")

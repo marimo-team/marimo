@@ -2,26 +2,29 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.25.2"
 app = marimo.App()
 
 
 @app.cell
 def _():
     import marimo as mo
+
     return (mo,)
 
 
 @app.cell
 def _():
     from named_cells import display_slider, display_element
+
     return display_element, display_slider
 
 
 @app.cell
 def _(mo):
-    mo.md("""**A cell that creates and shows a slider**""")
-    return
+    mo.md("""
+    **A cell that creates and shows a slider**
+    """)
 
 
 @app.cell
@@ -33,26 +36,26 @@ def _(display_slider):
 
 @app.cell
 def _(mo):
-    mo.md("""_Notice that set-ui-element value requests make it into the defs_""")
-    return
+    mo.md("""
+    _Notice that set-ui-element value requests make it into the defs_
+    """)
 
 
 @app.cell
 def _(slider_defs):
     slider_defs
-    return
 
 
 @app.cell
 def _(slider_defs):
     slider_defs["slider"].value
-    return
 
 
 @app.cell
 def _(mo):
-    mo.md("""**A cell that shows a parametrizable UI element**""")
-    return
+    mo.md("""
+    **A cell that shows a parametrizable UI element**
+    """)
 
 
 @app.cell
@@ -66,7 +69,6 @@ def _(display_element, mo):
 @app.cell
 def _(text):
     text.value
-    return
 
 
 if __name__ == "__main__":

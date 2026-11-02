@@ -44,6 +44,8 @@ export const DEFAULT_AI_MODEL = "openai/gpt-4o";
  */
 const AUTO_DOWNLOAD_FORMATS = ["html", "markdown", "ipynb"] as const;
 
+export const TYPE_INFERENCE_MODES = ["off", "jedi"] as const;
+
 export type CopilotMode = NonNullable<schemas["AiConfig"]["mode"]>;
 export const COPILOT_MODES: CopilotMode[] = [
   "manual",
@@ -112,6 +114,7 @@ export const UserConfigSchema = z
           .nonnegative()
           .prefault(79)
           .transform((n) => Math.min(n, 1000)),
+        infer_types: z.enum(TYPE_INFERENCE_MODES).prefault("off"),
       })
       .prefault({}),
     keymap: z

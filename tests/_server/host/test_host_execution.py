@@ -170,9 +170,8 @@ async def test_scratch_outcomes_from_the_kernel(
         assert outcome["error"]["message"]
 
 
-@pytest.mark.parametrize("delete", [False, True], ids=["edit", "delete"])
-async def test_cell_runs_preserve_order_with_later_edits(
-    live_host: tuple[Starlette, str, Response], delete: bool
+async def test_cell_runs_preserve_order_with_later_deletions(
+    live_host: tuple[Starlette, str, Response],
 ) -> None:
     app, notebook_id, events = live_host
     notebook = await app.state.host_context.bridge.host.notebook(notebook_id)
@@ -204,15 +203,7 @@ async def test_cell_runs_preserve_order_with_later_edits(
             app, "POST", runs, headers=key("run"), body=body
         )
         assert accepted.status == 202, accepted.body
-        change = (
-            {"kind": "delete_cell", "id": cell.id, "base_etag": "*"}
-            if delete
-            else {
-                "kind": "put_cell",
-                "base_etag": "*",
-                "cell": {"id": cell.id, "code": "example = 99"},
-            }
-        )
+        change = {"kind": "delete_cell", "id": cell.id, "base_etag": "*"}
         edited = await finished(
             app,
             "POST",
@@ -223,11 +214,7 @@ async def test_cell_runs_preserve_order_with_later_edits(
         assert edited.status == 200, edited.body
     await completed(accepted)
 
-    assertion = (
-        f"assert {cell.id!r} not in _graph.cells"
-        if delete
-        else f"assert _graph.cells[{cell.id!r}].code == 'example = 99'"
-    )
+    assertion = f"assert {cell.id!r} not in _graph.cells"
     checked = await finished(
         app,
         "POST",
@@ -250,10 +237,7 @@ async def test_cell_runs_preserve_order_with_later_edits(
         )
         == "succeeded"
     )
-    current = notebook.document.cell(cell.id)
-    assert (None if current is None else current.code) == (
-        None if delete else "example = 99"
-    )
+    assert notebook.document.cell(cell.id) is None
 
 
 @pytest.mark.parametrize(

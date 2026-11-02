@@ -9,7 +9,7 @@
 
 import marimo
 
-__generated_with = "0.19.7"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -28,7 +28,6 @@ def _(mo):
 
     This notebook shows you how to connect to an Apache Iceberg data catalog over REST.
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -42,7 +41,6 @@ def _(mo):
 
     ///
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -50,7 +48,6 @@ def _(mo):
     mo.md(r"""
     ## Connect to a data catalog
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -83,7 +80,7 @@ def _(catalog_input, mo, token_input, warehouse_input):
 
 
 @app.cell
-def _(CATALOG_URI, TOKEN, WAREHOUSE):
+def _(CATALOG_URI: str, TOKEN: str, WAREHOUSE: str):
     import pyarrow as pa
     from pyiceberg.catalog.rest import RestCatalog
     from pyiceberg.exceptions import NamespaceAlreadyExistsError
@@ -131,7 +128,6 @@ def _(add_button, clear_button, df, table):
     if clear_button.value:
         table.delete()
     table.to_polars().collect()
-    return
 
 
 if __name__ == "__main__":

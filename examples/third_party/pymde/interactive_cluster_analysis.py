@@ -8,7 +8,7 @@
 
 import marimo
 
-__generated_with = "0.19.7"
+__generated_with = "0.25.2"
 app = marimo.App()
 
 
@@ -17,7 +17,6 @@ def _(mo):
     mo.md("""
     # Cluster analysis
     """)
-    return
 
 
 @app.cell
@@ -26,11 +25,10 @@ def _(mo):
     Here's an **embedding of MNIST**: each point represents a digit,
     with similar digits close to each other.
     """)
-    return
 
 
 @app.cell
-def _(compute_embedding, constraint, embedding_dimension):
+def _(compute_embedding, constraint, embedding_dimension: int):
     embedding = compute_embedding(embedding_dimension, constraint)
     return (embedding,)
 
@@ -83,7 +81,6 @@ def _(chart, mo, show_images, table):
         {table}
         """
     )
-    return
 
 
 @app.cell

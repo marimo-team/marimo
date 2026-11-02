@@ -3,7 +3,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { initialModeAtom } from "@/core/mode";
 import { store } from "@/core/state/jotai";
-import { ConnectionState } from "../../websocket/types";
+import { ConnectionState } from "../../session/types";
 import { connectionAtom, waitForConnectionOpenIfNotebook } from "../connection";
 
 const NEVER = Symbol("never");

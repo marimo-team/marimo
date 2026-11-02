@@ -110,6 +110,12 @@ class FileStore(Store):
             return None
         return path.read_bytes()
 
+    def read(self, key: str) -> bytes | None:
+        try:
+            return (self.save_path / key).read_bytes()
+        except FileNotFoundError:
+            return None
+
     def put(self, key: str, value: bytes) -> bool:
         path = self.save_path / key
         path.parent.mkdir(parents=True, exist_ok=True)

@@ -1,5 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
+import { useState } from "react";
 import {
   generateColumns,
   inferFieldTypes,
@@ -127,4 +128,34 @@ export const Pagination = {
   ),
 
   name: "Pagination",
+};
+
+export const UnknownTotal = {
+  render: function UnknownTotal() {
+    const [paginationState, setPaginationState] = useState({
+      pageIndex: 0,
+      pageSize: 5,
+    });
+    const rows = Array.from({ length: 12 }, (_, index) => ({
+      value: index + 1,
+    }));
+    const offset = paginationState.pageIndex * paginationState.pageSize;
+    return (
+      <DataTable
+        data={rows.slice(offset, offset + paginationState.pageSize)}
+        columns={generateColumns({
+          fieldTypes: inferFieldTypes(rows),
+          rowHeaders: [],
+          selection: null,
+        })}
+        totalRows="too_many"
+        hasNextPage={offset + paginationState.pageSize < rows.length}
+        totalColumns={1}
+        pagination={true}
+        manualPagination={true}
+        paginationState={paginationState}
+        setPaginationState={setPaginationState}
+      />
+    );
+  },
 };

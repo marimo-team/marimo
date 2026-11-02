@@ -2,7 +2,7 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.25.2"
 app = marimo.App()
 
 
@@ -11,6 +11,7 @@ def _():
     import marimo as mo
     import pandas as pd
     import polars as pl
+
     return mo, pd, pl
 
 
@@ -28,7 +29,7 @@ def _():
 
 
 @app.cell
-def _(json_data, list_data, pd, pl):
+def _(json_data: list[dict[str, str]], list_data: list[list[str]], pd, pl):
     df = pd.DataFrame()
     df['list_data'] = list_data
     df['json_data'] = json_data
@@ -43,8 +44,9 @@ def _(json_data, list_data, pd, pl):
 
 @app.cell
 def _(mo):
-    mo.md("""### Transformations performed manually with pandas:""")
-    return
+    mo.md("""
+    ### Transformations performed manually with pandas:
+    """)
 
 
 @app.cell
@@ -52,31 +54,30 @@ def _(df, pd):
     df3 = df.copy(deep=True)
     df3 = df.join(pd.DataFrame(df.pop('json_data').values.tolist()))
     df3.explode('list_data')
-    return
 
 
 @app.cell
 def _(mo):
-    mo.md("""### Transformations on pandas dataframe using `mo.ui.dataframe`:""")
-    return
+    mo.md("""
+    ### Transformations on pandas dataframe using `mo.ui.dataframe`:
+    """)
 
 
 @app.cell
 def _(df2, mo):
     mo.ui.dataframe(df2[['list_data', 'json_data']])
-    return
 
 
 @app.cell
 def _(mo):
-    mo.md(r"""### Transformations on polars dataframe using `mo.ui.dataframe`:""")
-    return
+    mo.md(r"""
+    ### Transformations on polars dataframe using `mo.ui.dataframe`:
+    """)
 
 
 @app.cell
 def _(df4, mo):
     mo.ui.dataframe(df4[['list_data', 'json_data']])
-    return
 
 
 if __name__ == "__main__":

@@ -18,10 +18,8 @@ import { cellIdState } from "./config/extension";
 import { languageAdapterState } from "./language/extension";
 import { SCHEMA_CACHE } from "./language/languages/sql/completion-store";
 import { isKnownDialect } from "./language/languages/sql/utils";
-import {
-  getEditorCodeAsPython,
-  updateEditorCodeFromPython,
-} from "./language/utils";
+import { prepareCellCodeUpdate } from "./language/cell-code";
+import { getEditorCodeAsPython } from "./language/utils";
 import { replaceEditorContent } from "./replace-editor-content";
 
 export const formattingChangeEffect = StateEffect.define<boolean>();
@@ -62,7 +60,10 @@ export async function formatEditorViews(views: Record<CellId, EditorView>) {
       code: formattedCode,
       formattingChange: true,
     });
-    updateEditorCodeFromPython(view, formattedCode);
+    const update = prepareCellCodeUpdate(view.state, formattedCode);
+    if (update) {
+      view.dispatch(update);
+    }
   }
 }
 

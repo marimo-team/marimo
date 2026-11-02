@@ -11,8 +11,8 @@
 
 import marimo
 
-__generated_with = "0.25.0"
-app = marimo.App(width="compact")
+__generated_with = "0.25.2"
+app = marimo.App()
 
 
 @app.cell(hide_code=True)
@@ -24,7 +24,6 @@ def _(mo):
     marimo edit --sandbox=pixi examples/misc/pixi_ffmpeg.py
     ```
     """)
-    return
 
 
 @app.cell
@@ -56,7 +55,6 @@ def _(mo, pitch):
         check=True,
     )
     mo.audio(io.BytesIO(tone.stdout))
-    return
 
 
 if __name__ == "__main__":

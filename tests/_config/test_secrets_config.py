@@ -39,6 +39,8 @@ def test_mask_secrets() -> None:
     )
 
     new_config = redact_secrets(config)
+    assert "dotenv" not in new_config["runtime"]
+    assert config["runtime"]["dotenv"] == [".env"]
     assert new_config["ai"]["open_ai"]["api_key"] == SECRET_PLACEHOLDER
     assert new_config["ai"]["anthropic"]["api_key"] == SECRET_PLACEHOLDER
     assert new_config["ai"]["google"]["api_key"] == SECRET_PLACEHOLDER

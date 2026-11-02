@@ -6,7 +6,7 @@ import { islandsInitializedAtom } from "../../islands/state";
 import { kernelStateAtom } from "../../kernel/state";
 import { connectionAtom } from "../../network/connection";
 import { wasmInitStateAtom } from "../../wasm/state";
-import { ConnectionState } from "../../websocket/types";
+import { ConnectionState } from "../../session/types";
 import {
   canRunCellsAtom,
   islandsAdapter,

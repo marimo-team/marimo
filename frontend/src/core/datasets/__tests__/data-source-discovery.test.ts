@@ -4,7 +4,7 @@ import { requestId } from "@/__tests__/branded";
 import type { DataSourceDiscoveryResult } from "@/core/kernel/messages";
 import { connectionAtom } from "@/core/network/connection";
 import { store } from "@/core/state/jotai";
-import { ConnectionState } from "@/core/websocket/types";
+import { ConnectionState } from "@/core/session/types";
 import {
   fetchDataSourceDiscovery,
   invalidateDataSourceDiscovery,

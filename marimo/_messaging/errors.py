@@ -37,6 +37,14 @@ class ImportStarError(msgspec.Struct, tag="import-star"):
         return self.msg
 
 
+class LazyImportError(msgspec.Struct, tag="lazy-import"):
+    msg: str
+    lineno: int | None = None
+
+    def describe(self) -> str:
+        return self.msg
+
+
 class MarimoInterruptionError(msgspec.Struct, tag="interruption"):
     def describe(self) -> str:
         return "This cell was interrupted and needs to be re-run"
@@ -168,6 +176,7 @@ Error = (
     | CycleError
     | MultipleDefinitionError
     | ImportStarError
+    | LazyImportError
     | MarimoAncestorStoppedError
     | MarimoAncestorPreventedError
     | MarimoExceptionRaisedError

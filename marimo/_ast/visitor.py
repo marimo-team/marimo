@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING, Literal, Union
 from uuid import uuid4
 
 from marimo import _loggers
-from marimo._ast.errors import ImportStarError
+from marimo._ast.errors import ImportStarError, LazyImportError
 from marimo._ast.sql_visitor import (
     SQLDefs,
     SQLKind,
@@ -46,6 +46,13 @@ class LexicalScope(str, Enum):
     ANNOTATION = "annotation"
 
 
+def is_lazy_import(node: ast.AST) -> bool:
+    """Return whether the node is a lazy import statement."""
+    return isinstance(node, (ast.Import, ast.ImportFrom)) and bool(
+        getattr(node, "is_lazy", 0)
+    )
+
+
 @dataclass
 class ImportData:
     # full module name
@@ -58,6 +65,7 @@ class ImportData:
     # from a.b import c => symbol == a.b.c
     imported_symbol: str | None = None
     import_level: int | None = None
+    is_lazy: bool = False
 
     def __post_init__(self) -> None:
         self.namespace = self.module.split(".")[0]
@@ -238,8 +246,11 @@ class ScopedVisitor(ast.NodeVisitor):
         ignore_local: bool = False,
         on_def: Callable[[NamedNode, str, list[Block]], None] | None = None,
         on_ref: Callable[[NamedNode], None] | None = None,
+        allow_lazy_imports: bool = True,
     ) -> None:
         self.block_stack: list[Block] = [Block()]
+        # NB. Lazy imports are invalid in cells saved as function bodies.
+        self.allow_lazy_imports = allow_lazy_imports
         # Names to be loaded into a variable required_refs
         self.ref_stack: list[set[Name]] = [set()]
         self.obscured_scope_stack: list[ObscuredScope] = []
@@ -1112,7 +1123,19 @@ class ScopedVisitor(ast.NodeVisitor):
                 self._add_ref(node, name, deleted=False)
         return node
 
+    def _check_lazy_import(self, node: ast.Import | ast.ImportFrom) -> bool:
+        is_lazy = is_lazy_import(node)
+        if is_lazy and not self.allow_lazy_imports:
+            error = LazyImportError(
+                "`lazy import` is only allowed in the setup cell."
+            )
+            error.lineno = node.lineno
+            error.offset = node.col_offset + 1
+            raise error
+        return is_lazy
+
     def visit_Import(self, node: ast.Import) -> ast.Import:
+        is_lazy = self._check_lazy_import(node)
         for alias_node in node.names:
             variable_name = self._get_alias_name(alias_node)
             self._define(
@@ -1124,12 +1147,14 @@ class ScopedVisitor(ast.NodeVisitor):
                         module=alias_node.name,
                         definition=variable_name,
                         imported_symbol=None,
+                        is_lazy=is_lazy,
                     ),
                 ),
             )
         return node
 
     def visit_ImportFrom(self, node: ast.ImportFrom) -> ast.ImportFrom:
+        is_lazy = self._check_lazy_import(node)
         module = node.module if node.module is not None else ""
         # we don't recurse into the alias nodes, since we define the
         # aliases here
@@ -1146,6 +1171,7 @@ class ScopedVisitor(ast.NodeVisitor):
                         definition=variable_name,
                         imported_symbol=module + "." + original_name,
                         import_level=node.level,
+                        is_lazy=is_lazy,
                     ),
                 ),
             )

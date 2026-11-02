@@ -1,16 +1,16 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { createStore } from "jotai";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { MockNotebook } from "@/__mocks__/notebook";
 import { cellId } from "@/__tests__/branded";
+import { CONFIG } from "@/core/notebook/document/__tests__/fixtures";
 import {
   createNotebookActions,
   notebookAtom,
   notebookOutline,
   notebookReducer,
 } from "../cells";
-import { exportedForTesting } from "../document-changes";
 import type { Outline } from "../outline";
 
 const first = cellId("first");
@@ -39,10 +39,6 @@ function setup() {
   );
   return { store, actions };
 }
-
-afterEach(() => {
-  exportedForTesting.cancelPendingChanges();
-});
 
 describe("notebookOutline", () => {
   it("does not notify outline subscribers when cell code changes", () => {
@@ -89,7 +85,12 @@ describe("notebookOutline", () => {
       items: [...secondOutline.items, ...firstOutline.items],
     });
 
-    actions.deleteCell({ cellId: second });
+    actions.reconcileDocument({
+      order: [first],
+      cells: new Map([
+        [first, { id: first, code: "x = 1", name: "_", config: CONFIG }],
+      ]),
+    });
     expect(store.get(notebookOutline)).toEqual(firstOutline);
   });
 

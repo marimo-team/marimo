@@ -9,7 +9,7 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -17,6 +17,7 @@ app = marimo.App(width="medium")
 def _():
     import marimo as mo
     from vega_datasets import data
+
     return data, mo
 
 
@@ -30,37 +31,31 @@ def _(data):
 @app.cell
 def _(mo, polars_df):
     mo.ui.slider.from_series(polars_df["Cylinders"])
-    return
 
 
 @app.cell
 def _(mo, polars_df):
     mo.ui.number.from_series(polars_df["Cylinders"])
-    return
 
 
 @app.cell
 def _(mo, polars_df):
     mo.ui.radio.from_series(polars_df["Origin"])
-    return
 
 
 @app.cell
 def _(mo, polars_df):
     mo.ui.dropdown.from_series(polars_df["Origin"])
-    return
 
 
 @app.cell
 def _(mo, polars_df):
     mo.ui.multiselect.from_series(polars_df["Origin"])
-    return
 
 
 @app.cell
 def _(mo, polars_df):
     mo.ui.date.from_series(polars_df["Year"])
-    return
 
 
 @app.cell
@@ -74,7 +69,6 @@ def _(data, mo):
         mo.ui.multiselect.from_series(pandas_df["Origin"]),
         mo.ui.date.from_series(pandas_df["Year"])
     ]
-    return
 
 
 @app.cell

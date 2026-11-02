@@ -24,7 +24,7 @@ import {
 } from "@/core/packages/sandbox-state";
 import { filenameAtom } from "@/core/saving/file-state";
 import { store } from "@/core/state/jotai";
-import { WebSocketClosedReason, ConnectionState } from "@/core/websocket/types";
+import { WebSocketClosedReason, ConnectionState } from "@/core/session/types";
 import { chromeAtom } from "../../state";
 import PackagesPanel from "../packages-panel";
 import { PanelSectionProvider } from "../panel-context";

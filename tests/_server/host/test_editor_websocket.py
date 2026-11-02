@@ -22,7 +22,7 @@ from marimo._server.host import HOST_API_PATH
 from marimo._server.host.bridge import SessionBridge
 from marimo._server.host.context import HostContext
 from marimo._session.managers.ipc import KernelStartupError
-from marimo._types.ids import ConsumerId, SessionId
+from marimo._types.ids import CellId_t, ConsumerId, SessionId
 from tests._server.api.endpoints.ws_helpers import headers
 from tests._server.host.drive import socket_snapshot
 from tests._server.mocks import get_session_manager
@@ -32,6 +32,13 @@ if TYPE_CHECKING:
     from pathlib import Path
 
     from starlette.testclient import TestClient, WebSocketTestSession
+
+
+def first_cell_id(client: TestClient, session_id: str) -> CellId_t:
+    """The first cell of the session's document, as the host stream has it."""
+    session = get_session_manager(client).get_session(SessionId(session_id))
+    assert session is not None
+    return session.document.cell_ids[0]
 
 
 @pytest.fixture
@@ -93,7 +100,7 @@ def test_editor_starts_and_runs_through_the_host_socket(
             names = [event["event"] for event in messages[:boundary]]
             assert names[0] == "notebook"
             assert names.index("cell") < names.index("document")
-        cell_id = ready["cell_ids"][0]
+        cell_id = first_cell_id(client, "s1")
         response = client.post(
             "/api/kernel/run",
             headers=headers("s1"),
@@ -171,8 +178,8 @@ def test_reconnect_keeps_state_and_refresh_replays_it(
 ) -> None:
     url = f"{socket_url(editor_host)}&types=marimo"
     with client.websocket_connect(url) as websocket:
-        ready = receive_notification(websocket, "kernel-ready")
-        cell_id = ready["cell_ids"][0]
+        receive_notification(websocket, "kernel-ready")
+        cell_id = first_cell_id(client, "s1")
         response = client.post(
             "/api/kernel/run",
             headers=headers("s1"),
@@ -213,12 +220,12 @@ def test_reconnect_recovers_offline_notifications(
     url = f"{socket_url(editor_host)}&types=marimo"
     with client.websocket_connect(url) as socket:
         cursor = socket_snapshot(socket)[-1]["id"]
-        ready = receive_notification(socket, "kernel-ready")
+        receive_notification(socket, "kernel-ready")
     session = get_session_manager(client).get_session(SessionId("s1"))
     assert session is not None
     assert client.portal is not None
     update = CellNotification(
-        cell_id=ready["cell_ids"][0],
+        cell_id=session.document.cell_ids[0],
         status="idle",
         output=CellOutput(
             channel=CellChannel.OUTPUT,
@@ -484,7 +491,7 @@ def test_untitled_editor_bootstraps_and_reconnects_with_host_events(
         try:
             with client.websocket_connect(url) as ws:
                 snapshot = socket_snapshot(ws)
-                ready = receive_notification(ws, "kernel-ready")
+                receive_notification(ws, "kernel-ready")
                 notebook_id = next(
                     e["data"]["notebook"]["id"]
                     for e in snapshot
@@ -493,7 +500,10 @@ def test_untitled_editor_bootstraps_and_reconnects_with_host_events(
                 response = client.post(
                     "/api/kernel/run",
                     headers=headers("new"),
-                    json={"cellIds": ready["cell_ids"], "codes": ["x = 42"]},
+                    json={
+                        "cellIds": [first_cell_id(client, "new")],
+                        "codes": ["x = 42"],
+                    },
                 )
                 assert response.status_code == 200
                 receive_notification(ws, "completed-run")

@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -24,8 +24,9 @@ def _():
 
 @app.cell
 def _(mo):
-    mo.md(r"""## Layered""")
-    return
+    mo.md(r"""
+    ## Layered
+    """)
 
 
 @app.cell
@@ -62,20 +63,19 @@ def _(alt, mo, test_counts):
 @app.cell
 def _(layered_chart):
     layered_chart.value
-    return
 
 
 @app.cell
 def _(mo):
-    mo.md(r"""## Warnings""")
-    return
+    mo.md(r"""
+    ## Warnings
+    """)
 
 
 @app.cell
 def _(alt, chart, mo, rule):
     mo.ui.altair_chart(alt.layer(chart, rule), chart_selection="point")
     None
-    return
 
 
 if __name__ == "__main__":

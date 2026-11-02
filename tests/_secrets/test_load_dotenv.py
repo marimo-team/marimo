@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 
+from marimo import _loggers
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._secrets.load_dotenv import (
     _drop_quotes,
@@ -73,6 +74,16 @@ KEY6=value6"
 def test_parse_dotenv_nonexistent():
     env_dict = parse_dotenv("nonexistent.env")
     assert env_dict == {}
+
+
+def test_read_dotenv_nonexistent_warns(tmp_path: Path) -> None:
+    path = tmp_path / "missing.env"
+    with _loggers.capture_output() as (_, _, records):
+        values = read_dotenv_with_fallback(str(path))
+    assert values == {}
+    assert [(record.levelname, record.getMessage()) for record in records] == [
+        ("WARNING", f"Dotenv file not found: {path}")
+    ]
 
 
 def test_load_to_environ():

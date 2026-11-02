@@ -221,22 +221,24 @@ def _extract_markdown(tree: ast.Module) -> str | None:
             raise ValueError("Expected a call to mo.md")
         if not value.args:  # Handle mo.md() with no arguments
             return None
-        md_lines = _extract_const_string(value.args).split("\n")
+        text = _extract_const_string(value.args)
     except (AttributeError, ValueError):
         # No reason to explicitly catch exceptions if we can't parse out
         # markdown. Just handle it as a code block.
         return None
+    return dedent_markdown(text)
 
+
+def dedent_markdown(text: str) -> str:
     # Dedent behavior is a little different that in marimo js, so handle
     # accordingly.
-    md_lines = [line.rstrip() for line in md_lines]
+    lines = [line.rstrip() for line in text.split("\n")]
     md = (
-        textwrap.dedent(md_lines[0])
+        textwrap.dedent(lines[0])
         + "\n"
-        + textwrap.dedent("\n".join(md_lines[1:]))
+        + textwrap.dedent("\n".join(lines[1:]))
     )
-    md = md.strip()
-    return md
+    return md.strip()
 
 
 def extract_markdown(code: str) -> str | None:
@@ -304,7 +306,11 @@ def compile_cell(
         isinstance(stmt, (ast.Import, ast.ImportFrom)) for stmt in module.body
     )
 
-    v = ScopedVisitor("cell_" + cell_id)
+    # NB. Setup cell IDs can have an app-specific prefix.
+    v = ScopedVisitor(
+        "cell_" + cell_id,
+        allow_lazy_imports=cell_id.endswith(SETUP_CELL_NAME),
+    )
     v.visit(module)
 
     expr: ast.Expression

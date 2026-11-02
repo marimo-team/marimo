@@ -9,7 +9,7 @@
 
 import marimo
 
-__generated_with = "0.19.7"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -29,7 +29,6 @@ def _(mo):
 
     This example shows how to create a code-interpreter in a few lines of code.
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -65,7 +64,7 @@ def _(openai):
 
 
 @app.cell(hide_code=True)
-def _(backend, input_key, mo, os_key):
+def _(backend, input_key, mo, os_key: None | str):
     def _get_open_ai_client():
         openai_key = os_key or input_key.value
 
@@ -161,7 +160,7 @@ def _(ell, mo):
 
 
 @app.cell
-def _(client, ell, execute_code, mo, model):
+def _(client, ell, execute_code, mo, model: str):
     @ell.complex(model=model, tools=[execute_code], client=client)
     def custom_chatbot(messages, config) -> str:
         """You are data scientist with access to writing python code."""
@@ -193,7 +192,6 @@ def _(mo, my_model):
             f"Can you sum this list using python: {numbers}",
         ],
     )
-    return
 
 
 if __name__ == "__main__":

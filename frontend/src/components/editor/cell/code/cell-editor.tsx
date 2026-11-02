@@ -10,7 +10,9 @@ import { Button } from "@/components/ui/button";
 import { DelayMount } from "@/components/utils/delay-mount";
 import { aiCompletionCellAtom } from "@/core/ai/state";
 import { maybeAddMarimoImport } from "@/core/cells/add-missing-import";
-import { getNotebook, useCellActions } from "@/core/cells/cells";
+import { getNotebook } from "@/core/cells/cells";
+import { useCellActions } from "@/core/cells/actions";
+import { useNotebookDocumentEdit } from "@/core/notebook/document";
 import { SETUP_CELL_ID } from "@/core/cells/ids";
 import { usePendingDeleteService } from "@/core/cells/pending-delete-service";
 import type { CellData, CellRuntimeState } from "@/core/cells/types";
@@ -24,10 +26,8 @@ import {
   reconfigureLanguageEffect,
   switchLanguage,
 } from "@/core/codemirror/language/extension";
-import {
-  getEditorCodeAsPython,
-  updateEditorCodeFromPython,
-} from "@/core/codemirror/language/utils";
+import { prepareCellCodeUpdate } from "@/core/codemirror/language/cell-code";
+import { getEditorCodeAsPython } from "@/core/codemirror/language/utils";
 import { MARKDOWN_INITIAL_HIDE_CODE } from "@/core/codemirror/language/languages/markdown";
 import type { LanguageAdapterType } from "@/core/codemirror/language/types";
 import {
@@ -38,10 +38,9 @@ import { autoInstantiateAtom, isAiFeatureEnabled } from "@/core/config/config";
 import type { UserConfig } from "@/core/config/config-schema";
 import { OverridingHotkeyProvider } from "@/core/hotkeys/hotkeys";
 import { connectionAtom } from "@/core/network/connection";
-import { useRequestClient } from "@/core/network/requests";
 import { canUseRtc, isRtcEnabled } from "@/core/rtc/state";
 import { useSaveNotebook } from "@/core/saving/save-component";
-import { isAppConnecting } from "@/core/websocket/connection-utils";
+import { isAppConnecting } from "@/core/session/connection-utils";
 import type { Theme } from "@/theme/useTheme";
 import { cn } from "@/utils/cn";
 import { invariant } from "@/utils/invariant";
@@ -137,7 +136,7 @@ const CellEditorInternal = ({
   const deleteCell = useDeleteCellCallback();
   const { saveOrNameNotebook } = useSaveNotebook();
   const pendingDeleteService = usePendingDeleteService();
-  const { saveCellConfig } = useRequestClient();
+  const edit = useNotebookDocumentEdit();
 
   const loading = status === "running" || status === "queued";
   const cellActions = useCellActions();
@@ -177,9 +176,7 @@ const CellEditorInternal = ({
   const toggleHideCode = useEvent(() => {
     // Use cellConfig.hide_code instead of hidden, since it may be temporarily shown
     const nextHidden = !cellConfig.hide_code;
-    // Fire-and-forget save
-    void saveCellConfig({ configs: { [cellId]: { hide_code: nextHidden } } });
-    cellActions.updateCellConfig({ cellId, config: { hide_code: nextHidden } });
+    edit((tx) => tx.updateConfig(cellId, { hide_code: nextHidden }));
     return nextHidden;
   });
 
@@ -188,17 +185,13 @@ const CellEditorInternal = ({
   const afterToggleMarkdown = useEvent(() => {
     maybeAddMarimoImport({
       autoInstantiate,
-      createNewCell: cellActions.createNewCell,
+      createCell: cellActions.createCell,
     });
     // Code stays visible until the user blurs the cell
     if (!cellConfig.hide_code && MARKDOWN_INITIAL_HIDE_CODE) {
-      void saveCellConfig({
-        configs: { [cellId]: { hide_code: MARKDOWN_INITIAL_HIDE_CODE } },
-      });
-      cellActions.updateCellConfig({
-        cellId,
-        config: { hide_code: MARKDOWN_INITIAL_HIDE_CODE },
-      });
+      edit((tx) =>
+        tx.updateConfig(cellId, { hide_code: MARKDOWN_INITIAL_HIDE_CODE }),
+      );
       cellActions.markUntouched({ cellId });
     }
   });
@@ -206,7 +199,7 @@ const CellEditorInternal = ({
   const afterToggleSQL = useEvent(() => {
     maybeAddMarimoImport({
       autoInstantiate,
-      createNewCell: cellActions.createNewCell,
+      createCell: cellActions.createCell,
     });
   });
 
@@ -226,11 +219,9 @@ const CellEditorInternal = ({
         saveNotebook: saveOrNameNotebook,
         createManyBelow: (cells) => {
           for (const code of cells.toReversed()) {
-            cellActions.createNewCell({
+            cellActions.createCell({
+              after: cellId,
               code,
-              before: false,
-              cellId: cellId,
-              // If the code already exists, skip creation
               skipIfCodeExists: true,
             });
           }
@@ -239,7 +230,7 @@ const CellEditorInternal = ({
           const notebook = getNotebook();
           // No setup cell yet: create one with this code at the top.
           if (!notebook.cellIds.setupCellExists()) {
-            cellActions.addSetupCellIfDoesntExist({ code });
+            cellActions.addSetupCell({ code });
             return;
           }
           // Setup cell exists: append the pasted code to it. Prefer updating
@@ -253,7 +244,10 @@ const CellEditorInternal = ({
             ? `${existing.trimEnd()}\n\n${code}`
             : code;
           if (view) {
-            updateEditorCodeFromPython(view, merged);
+            const update = prepareCellCodeUpdate(view.state, merged);
+            if (update) {
+              view.dispatch(update);
+            }
           }
           cellActions.updateCellCode({
             cellId: SETUP_CELL_ID,
@@ -363,15 +357,7 @@ const CellEditorInternal = ({
       return composeRtcEditorConfig(code, extensions, undefined);
     }
 
-    const rtc = realTimeCollaboration(
-      cellId,
-      (code) => {
-        // It's not really a formatting change,
-        // but this means it won't be marked as stale
-        cellActions.updateCellCode({ cellId, code, formattingChange: true });
-      },
-      initialCode,
-    );
+    const rtc = realTimeCollaboration(cellId, initialCode);
     return composeRtcEditorConfig(code, extensions, rtc);
   };
 

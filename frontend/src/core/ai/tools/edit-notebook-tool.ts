@@ -3,13 +3,10 @@
 import type { EditorView } from "@codemirror/view";
 import { z } from "zod";
 import { scrollAndHighlightCell } from "@/components/editor/links/cell-link";
-import {
-  type CellPosition as NotebookCellPosition,
-  type NotebookState,
-  notebookAtom,
-} from "@/core/cells/cells";
+import { type NotebookState, notebookAtom } from "@/core/cells/cells";
+import type { CreateCellOptions } from "@/core/cells/actions";
 import { CellId } from "@/core/cells/ids";
-import { updateEditorCodeFromPython } from "@/core/codemirror/language/utils";
+import { prepareCellCodeUpdate } from "@/core/codemirror/language/cell-code";
 import type { CellColumnId } from "@/utils/id-tree";
 import { stagedAICellsAtom } from "../staged-cells";
 import {
@@ -86,7 +83,7 @@ export class EditNotebookTool implements AiTool<
     { edit }: EditNotebookInput,
     toolContext: ToolNotebookContext,
   ): Promise<ToolOutputBase> => {
-    const { addStagedCell, createNewCell, store } = toolContext;
+    const { addStagedCell, createCell, store } = toolContext;
 
     switch (edit.type) {
       case "update_cell": {
@@ -117,7 +114,12 @@ export class EditNotebookTool implements AiTool<
 
         // If previous edit was from a new cell, just replace editor code with the new code
         if (existingStagedCell?.type === "add_cell") {
-          updateEditorCodeFromPython(editorView, code);
+          const update = prepareCellCodeUpdate(editorView.state, code, {
+            initialize: true,
+          });
+          if (update) {
+            editorView.dispatch(update);
+          }
           break;
         }
 
@@ -137,15 +139,20 @@ export class EditNotebookTool implements AiTool<
           edit: { type: "update_cell", previousCode: previousCode },
         });
 
-        updateEditorCodeFromPython(editorView, code);
+        const update = prepareCellCodeUpdate(editorView.state, code, {
+          initialize: true,
+        });
+
+        if (update) {
+          editorView.dispatch(update);
+        }
 
         break;
       }
       case "add_cell": {
         const { position, code } = edit;
 
-        let notebookPosition: NotebookCellPosition = "__end__";
-        let before = false;
+        let placement: CreateCellOptions = {};
         const newCellId = CellId.create();
         const notebook = store.get(notebookAtom);
 
@@ -175,11 +182,12 @@ export class EditNotebookTool implements AiTool<
             }
 
             this.validateCellIdExists(cellId, notebook);
-            notebookPosition = cellId;
-            before = position.before;
+            placement = position.before
+              ? { before: cellId }
+              : { after: cellId };
             break;
           }
-          case "column_end": {
+          case "column_end":
             if (!position.columnIndex) {
               throw new ToolExecutionError(
                 "Column index is required for add_cell with column_end position",
@@ -192,21 +200,16 @@ export class EditNotebookTool implements AiTool<
               );
             }
 
-            const columnId = this.getColumnId(position.columnIndex, notebook);
-            notebookPosition = { type: "__end__", columnId };
+            placement = {
+              endOf: this.getColumnId(position.columnIndex, notebook),
+            };
             break;
-          }
+
           case "notebook_end":
-            // Use default: notebookPosition = "__end__"
             break;
         }
 
-        createNewCell({
-          cellId: notebookPosition,
-          before,
-          code,
-          newCellId,
-        });
+        createCell({ ...placement, code, id: newCellId });
 
         addStagedCell({
           cellId: newCellId,

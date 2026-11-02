@@ -13,8 +13,8 @@ import { once } from "@/utils/once";
 import { generateUUID } from "@/utils/uuid";
 import { createModuleWorker } from "@/utils/worker";
 import { notebookIsRunningAtom } from "../cells/cells";
-import { flushDocumentChanges } from "../cells/document-changes";
-import { createWasmNotebookBackend } from "../host";
+import { flushDocument } from "../cells/document";
+import { createWasmNotebookBackend } from "../transports/wasm";
 import type { ClientCommand } from "../kernel/messages";
 import { getInitialAppMode } from "../mode";
 import { API } from "../network/api";
@@ -42,7 +42,7 @@ import type {
 } from "../network/types";
 import { filenameAtom } from "../saving/file-state";
 import { store } from "../state/jotai";
-import { notebookReplicaAtom } from "../websocket/state";
+import { activeNotebookReplicaAtom } from "../session/active-notebook";
 import { PyodideRouter } from "./router";
 import { getWorkerRPC, type PersistNotebookRequest } from "./rpc";
 import { getWasmRuntimeConfig } from "./runtime-config";
@@ -267,7 +267,7 @@ export class PyodideBridge implements RunRequests, EditRequests {
   };
 
   private async saveHostNotebook() {
-    const replica = store.get(notebookReplicaAtom);
+    const replica = store.get(activeNotebookReplicaAtom);
     const notebook = replica && store.get(replica.notebookAtom);
     const backend = replica && store.get(replica.backendAtom);
     if (!notebook || !backend) {
@@ -280,7 +280,7 @@ export class PyodideBridge implements RunRequests, EditRequests {
   }
 
   public sendSave: EditRequests["sendSave"] = async ({ layout }) => {
-    await flushDocumentChanges();
+    await flushDocument();
     await this.rpc.proxy.request.setNotebookLayout(layout ?? null);
     await this.saveHostNotebook();
     return null;
@@ -345,14 +345,6 @@ export class PyodideBridge implements RunRequests, EditRequests {
     return response as FormatResponse;
   };
 
-  public sendDeleteCell: EditRequests["sendDeleteCell"] = async (request) => {
-    await this.putControlRequest({
-      type: "delete-cell",
-      ...request,
-    });
-    return null;
-  };
-
   public sendInstallMissingPackages: EditRequests["sendInstallMissingPackages"] =
     async (request) => {
       this.putControlRequest({
@@ -400,14 +392,6 @@ export class PyodideBridge implements RunRequests, EditRequests {
       payload: request,
     });
     await this.saveHostNotebook();
-    return null;
-  };
-
-  public saveCellConfig: EditRequests["saveCellConfig"] = async (request) => {
-    await this.putControlRequest({
-      type: "update-cell-config",
-      ...request,
-    });
     return null;
   };
 
@@ -565,7 +549,7 @@ export class PyodideBridge implements RunRequests, EditRequests {
   public exportAsHTML: EditRequests["exportAsHTML"] = async (
     request: ExportAsHTMLRequest,
   ) => {
-    await flushDocumentChanges();
+    await flushDocument();
     const response = await this.rpc.proxy.request.bridge({
       functionName: "export_html",
       payload: withDevAssetUrl(request),
@@ -576,7 +560,7 @@ export class PyodideBridge implements RunRequests, EditRequests {
   public exportAsMarkdown: EditRequests["exportAsMarkdown"] = async (
     request: ExportAsMarkdownRequest,
   ) => {
-    await flushDocumentChanges();
+    await flushDocument();
     const response = await this.rpc.proxy.request.bridge({
       functionName: "export_markdown",
       payload: request,
@@ -587,7 +571,7 @@ export class PyodideBridge implements RunRequests, EditRequests {
   public exportAsScript: EditRequests["exportAsScript"] = async (
     request: ExportAsScriptRequest,
   ) => {
-    await flushDocumentChanges();
+    await flushDocument();
     const response = await this.rpc.proxy.request.bridge({
       functionName: "export_script",
       payload: request,
@@ -657,13 +641,6 @@ export class PyodideBridge implements RunRequests, EditRequests {
     });
     return null;
   };
-
-  public sendDocumentTransaction: EditRequests["sendDocumentTransaction"] =
-    async (request) => {
-      await this.initialized.promise;
-      await this.rpc.proxy.request.documentTransaction(request);
-      return null;
-    };
 
   public addPackage: EditRequests["addPackage"] = async (request) => {
     return this.rpc.proxy.request.addPackage(request);

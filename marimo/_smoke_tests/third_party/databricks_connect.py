@@ -1,13 +1,12 @@
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
 @app.cell
 def _():
     import marimo as mo
-    return
 
 
 @app.cell
@@ -32,13 +31,11 @@ def _(df_taxi):
     # As of 1.35.0, this is currently False
     print(nw.dependencies.is_pyspark_dataframe(df_taxi))
     print(nw.__version__)
-    return
 
 
 @app.cell
 def _(df_taxi):
     df_taxi
-    return
 
 
 if __name__ == "__main__":

@@ -1,7 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import React, { type PropsWithChildren } from "react";
-import { type ConnectionStatus, ConnectionState } from "@/core/websocket/types";
+import { type ConnectionStatus, ConnectionState } from "@/core/session/types";
 import { Disconnected } from "../Disconnected";
 
 interface Props {

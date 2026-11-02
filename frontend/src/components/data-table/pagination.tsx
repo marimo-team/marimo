@@ -41,21 +41,24 @@ import { PluralWord } from "@/utils/pluralize";
 interface DataTablePaginationProps<TData> {
   table: Table<TData>;
   tableLoading?: boolean;
+  hasNextPage?: boolean;
   showPageSizeSelector?: boolean;
 }
 
 export const DataTablePagination = <TData,>({
   table,
   tableLoading,
+  hasNextPage,
   showPageSizeSelector,
 }: DataTablePaginationProps<TData>) => {
   const { locale } = useLocale();
 
-  const currentPage = Math.min(
-    table.getState().pagination.pageIndex + 1,
-    table.getPageCount(),
-  );
   const totalPages = table.getPageCount();
+  const hasKnownTotal = totalPages !== -1;
+  const pageNumber = table.getState().pagination.pageIndex + 1;
+  const currentPage = hasKnownTotal
+    ? Math.min(pageNumber, totalPages)
+    : pageNumber;
 
   const pageSize = table.getState().pagination.pageSize;
 
@@ -142,16 +145,22 @@ export const DataTablePagination = <TData,>({
         </Tooltip>
         <div className="flex items-center justify-center text-xs font-medium gap-1">
           <span>Page</span>
-          <PageSelector
-            currentPage={currentPage}
-            totalPages={totalPages}
-            onPageChange={(page) =>
-              handlePageChange(() => table.setPageIndex(page))
-            }
-          />
-          <span className="shrink-0">
-            of {prettyNumber(totalPages, locale)}
-          </span>
+          {hasKnownTotal ? (
+            <>
+              <PageSelector
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPageChange={(page) =>
+                  handlePageChange(() => table.setPageIndex(page))
+                }
+              />
+              <span className="shrink-0">
+                of {prettyNumber(totalPages, locale)}
+              </span>
+            </>
+          ) : (
+            <span>{prettyNumber(currentPage, locale)}</span>
+          )}
         </div>
         <Tooltip content="Next page">
           <Button
@@ -162,29 +171,31 @@ export const DataTablePagination = <TData,>({
             className="h-6 w-5 p-0"
             onClick={() => handlePageChange(() => table.nextPage())}
             onMouseDown={Events.preventFocus}
-            disabled={!table.getCanNextPage()}
+            disabled={tableLoading || !(hasNextPage ?? table.getCanNextPage())}
           >
             <ChevronRight className="h-4 w-4" />
           </Button>
         </Tooltip>
-        <Tooltip content="Last page">
-          <Button
-            size="xs"
-            variant="text"
-            data-testid="last-page-button"
-            aria-label="Last page"
-            className="hidden h-6 w-5 p-0 lg:flex"
-            onClick={() =>
-              handlePageChange(() =>
-                table.setPageIndex(table.getPageCount() - 1),
-              )
-            }
-            onMouseDown={Events.preventFocus}
-            disabled={!table.getCanNextPage()}
-          >
-            <ChevronsRight className="h-4 w-4" />
-          </Button>
-        </Tooltip>
+        {hasKnownTotal && (
+          <Tooltip content="Last page">
+            <Button
+              size="xs"
+              variant="text"
+              data-testid="last-page-button"
+              aria-label="Last page"
+              className="hidden h-6 w-5 p-0 lg:flex"
+              onClick={() =>
+                handlePageChange(() =>
+                  table.setPageIndex(table.getPageCount() - 1),
+                )
+              }
+              onMouseDown={Events.preventFocus}
+              disabled={!table.getCanNextPage()}
+            >
+              <ChevronsRight className="h-4 w-4" />
+            </Button>
+          </Tooltip>
+        )}
       </div>
     </div>
   );

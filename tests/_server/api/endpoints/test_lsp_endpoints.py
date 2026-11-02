@@ -235,7 +235,8 @@ class TestCompositeLspServer:
         """Mock find_free_port to return incrementing ports."""
         port = [8000]
 
-        def side_effect(_: int) -> int:
+        def side_effect(_: int, *, addr: str) -> int:
+            assert addr == "127.0.0.1"
             port[0] += 1
             return port[0]
 

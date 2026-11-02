@@ -3,11 +3,13 @@ import { render } from "@testing-library/react";
 import { createStore, Provider } from "jotai";
 import { beforeAll, describe, expect, it } from "vitest";
 import { SetupMocks } from "@/__mocks__/common";
+import { mockDocumentModel } from "@/__mocks__/document";
 import { MockNotebook } from "@/__mocks__/notebook";
 import { MockRequestClient } from "@/__mocks__/requests";
 import { cellId } from "@/__tests__/branded";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { notebookAtom } from "@/core/cells/cells";
+import { DocumentProvider } from "@/core/notebook/document";
 import { createCellRuntimeState } from "@/core/cells/types";
 import type { UserConfig } from "@/core/config/config-schema";
 import type { OutputMessage } from "@/core/kernel/messages";
@@ -18,9 +20,12 @@ import { OutputArea } from "../Output";
 
 function createTestWrapper() {
   const store = createStore();
+  const { model } = mockDocumentModel(store, null);
   store.set(requestClientAtom, MockRequestClient.create());
   const wrapper = ({ children }: { children: React.ReactNode }) => (
-    <Provider store={store}>{children}</Provider>
+    <Provider store={store}>
+      <DocumentProvider model={model}>{children}</DocumentProvider>
+    </Provider>
   );
   return { wrapper, store };
 }
@@ -57,7 +62,7 @@ describe("Cell data attributes", () => {
           signature_hint_on_typing: false,
           copilot: false,
         },
-        formatting: { line_length: 88 },
+        formatting: { line_length: 88, infer_types: "off" },
         package_management: { manager: "pip" },
         runtime: {
           auto_instantiate: false,
@@ -75,7 +80,11 @@ describe("Cell data attributes", () => {
           browser: "default",
           follow_symlink: false,
         },
-        save: { autosave: "off", autosave_delay: 1000, format_on_save: false },
+        save: {
+          autosave: "off",
+          autosave_delay: 1000,
+          format_on_save: false,
+        },
         ai: {},
       } as UserConfig;
 
@@ -146,17 +155,23 @@ describe("Output data attributes", () => {
       timestamp: 0,
     };
 
+    const store = createStore();
+    const { model } = mockDocumentModel(store, null);
     const { container } = render(
-      <TooltipProvider>
-        <OutputArea
-          output={output}
-          cellId={cid}
-          stale={false}
-          loading={false}
-          allowExpand={true}
-          className="test-output"
-        />
-      </TooltipProvider>,
+      <Provider store={store}>
+        <DocumentProvider model={model}>
+          <TooltipProvider>
+            <OutputArea
+              output={output}
+              cellId={cid}
+              stale={false}
+              loading={false}
+              allowExpand={true}
+              className="test-output"
+            />
+          </TooltipProvider>
+        </DocumentProvider>
+      </Provider>,
     );
 
     const outputElement = container.querySelector('[data-cell-role="output"]');

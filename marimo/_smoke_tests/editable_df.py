@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -23,7 +23,7 @@ def _():
 
 
 @app.cell
-def _(params, pd, pl):
+def _(params: list[str], pd, pl):
     row_oriented = [
         dict(Model=i, **{param: 0 for param in params}) for i in range(1, 5)
     ]
@@ -35,12 +35,19 @@ def _(params, pd, pl):
 
 @app.cell
 def _(mo):
-    mo.md(r"""## Editing different inputs (dicts, lists, polars, pandas)""")
-    return
+    mo.md(r"""
+    ## Editing different inputs (dicts, lists, polars, pandas)
+    """)
 
 
 @app.cell(hide_code=True)
-def _(column_oriented, mo, pandas_df, polars_df, row_oriented):
+def _(
+    column_oriented: dict[str],
+    mo,
+    pandas_df,
+    polars_df,
+    row_oriented: list[dict],
+):
     df = mo.ui.dropdown(
         {
             "polars": polars_df,
@@ -70,7 +77,6 @@ def _(edited, mo):
             flatten_edits(edited._edits["edits"]),
         ]
     )
-    return
 
 
 @app.function
@@ -83,8 +89,9 @@ def flatten_edits(edits):
 
 @app.cell
 def _(mo):
-    mo.md(r"""## Editing different data types""")
-    return
+    mo.md(r"""
+    ## Editing different data types
+    """)
 
 
 @app.cell
@@ -108,13 +115,12 @@ def _(pd):
 
 
 @app.cell
-def _(pl, varying_data):
+def _(pl, varying_data: dict):
     pl.DataFrame(varying_data).schema
-    return
 
 
 @app.cell
-def _(mo, pl, varying_data):
+def _(mo, pl, varying_data: dict):
     edited_df = mo.ui.data_editor(pl.DataFrame(varying_data))
     edited_df
     return (edited_df,)
@@ -123,7 +129,6 @@ def _(mo, pl, varying_data):
 @app.cell
 def _(edited_df):
     edited_df.value
-    return
 
 
 if __name__ == "__main__":

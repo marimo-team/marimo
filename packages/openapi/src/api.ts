@@ -612,47 +612,6 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  "/api/document/transaction": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    post: {
-      parameters: {
-        query?: never;
-        header: {
-          "Marimo-Session-Id": string;
-        };
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: {
-        content: {
-          "application/json": components["schemas"]["NotebookDocumentTransactionRequest"];
-        };
-      };
-      responses: {
-        /** @description Apply a document transaction */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": components["schemas"]["SuccessResponse"];
-          };
-        };
-      };
-    };
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
   "/api/documentation/snippets": {
     parameters: {
       query?: never;
@@ -1975,47 +1934,6 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  "/api/kernel/delete": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    post: {
-      parameters: {
-        query?: never;
-        header: {
-          "Marimo-Session-Id": string;
-        };
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: {
-        content: {
-          "application/json": components["schemas"]["DeleteCellRequest"];
-        };
-      };
-      responses: {
-        /** @description Delete a cell */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": components["schemas"]["SuccessResponse"];
-          };
-        };
-      };
-    };
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
   "/api/kernel/focus_cell": {
     parameters: {
       query?: never;
@@ -2656,47 +2574,6 @@ export interface paths {
       };
       responses: {
         /** @description Run the scratchpad */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": components["schemas"]["SuccessResponse"];
-          };
-        };
-      };
-    };
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/kernel/set_cell_config": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    post: {
-      parameters: {
-        query?: never;
-        header: {
-          "Marimo-Session-Id": string;
-        };
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: {
-        content: {
-          "application/json": components["schemas"]["UpdateCellConfigRequest"];
-        };
-      };
-      responses: {
-        /** @description Set the configuration of a cell */
         200: {
           headers: {
             [name: string]: unknown;
@@ -4176,6 +4053,7 @@ export interface components {
             | components["schemas"]["CycleError"]
             | components["schemas"]["MultipleDefinitionError"]
             | components["schemas"]["ImportStarError"]
+            | components["schemas"]["LazyImportError"]
             | components["schemas"]["MarimoAncestorStoppedError"]
             | components["schemas"]["MarimoAncestorPreventedError"]
             | components["schemas"]["MarimoExceptionRaisedError"]
@@ -4706,10 +4584,6 @@ export interface components {
       cellId: components["schemas"]["CellId"];
       /** @enum {unknown} */
       type: "delete-cell";
-    };
-    /** DeleteCellRequest */
-    DeleteCellRequest: {
-      cellId: components["schemas"]["CellId"];
     };
     /** DeleteSecretRequest */
     DeleteSecretRequest: {
@@ -5368,6 +5242,8 @@ export interface components {
      *         - `line_length`: max line length
      */
     FormattingConfig: {
+      /** @enum {unknown} */
+      infer_types?: "jedi" | "off";
       line_length: number;
     };
     /**
@@ -5622,11 +5498,7 @@ export interface components {
      * @description Kernel ready for execution. First notification sent at startup.
      *
      *         Attributes:
-     *             cell_ids: Cell IDs in order.
-     *             codes: Source code for each cell.
-     *             names: Cell names/titles.
      *             layout: Notebook layout config.
-     *             configs: Per-cell configuration.
      *             resumed: Whether resumed from previous session.
      *             ui_values: Previous UI element values if resumed.
      *             last_executed_code: Last executed code per cell if resumed.
@@ -5643,9 +5515,6 @@ export interface components {
       /** @default false */
       auto_instantiated?: boolean;
       capabilities: components["schemas"]["KernelCapabilitiesNotification"];
-      cell_ids: components["schemas"]["CellId"][];
-      codes: string[];
-      configs: components["schemas"]["CellConfig"][];
       consumer_capabilities: components["schemas"]["ConsumerCapabilities"];
       kiosk: boolean;
       last_executed_code: {
@@ -5655,7 +5524,6 @@ export interface components {
         [key: string]: number;
       } | null;
       layout: components["schemas"]["LayoutConfig"] | null;
-      names: string[];
       /** @enum {unknown} */
       op: "kernel-ready";
       resumed: boolean;
@@ -5732,6 +5600,14 @@ export interface components {
     LayoutConfig: {
       data: Record<string, any>;
       type: string;
+    };
+    /** LazyImportError */
+    LazyImportError: {
+      /** @default null */
+      lineno?: number | null;
+      msg: string;
+      /** @enum {unknown} */
+      type: "lazy-import";
     };
     /**
      * LintConfig
@@ -5994,6 +5870,7 @@ export interface components {
       | components["schemas"]["CycleError"]
       | components["schemas"]["MultipleDefinitionError"]
       | components["schemas"]["ImportStarError"]
+      | components["schemas"]["LazyImportError"]
       | components["schemas"]["MarimoAncestorStoppedError"]
       | components["schemas"]["MarimoAncestorPreventedError"]
       | components["schemas"]["MarimoExceptionRaisedError"]
@@ -6290,18 +6167,6 @@ export interface components {
       /** @enum {unknown} */
       op: "notebook-document-transaction";
       transaction: components["schemas"]["Transaction"];
-    };
-    /** NotebookDocumentTransactionRequest */
-    NotebookDocumentTransactionRequest: {
-      changes: (
-        | components["schemas"]["CreateCell"]
-        | components["schemas"]["DeleteCell"]
-        | components["schemas"]["MoveCell"]
-        | components["schemas"]["ReorderCells"]
-        | components["schemas"]["SetCode"]
-        | components["schemas"]["SetName"]
-        | components["schemas"]["SetConfig"]
-      )[];
     };
     NotificationMessage:
       | components["schemas"]["CellNotification"]
@@ -7442,12 +7307,6 @@ export interface components {
       };
       /** @enum {unknown} */
       type: "update-cell-config";
-    };
-    /** UpdateCellConfigRequest */
-    UpdateCellConfigRequest: {
-      configs: {
-        [key: string]: Record<string, any>;
-      };
     };
     /** UpdateCellOutputsRequest */
     UpdateCellOutputsRequest: {
