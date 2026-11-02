@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import sys
 from copy import deepcopy
 from typing import TYPE_CHECKING, Any, Literal
@@ -12,6 +13,7 @@ import pytest
 from marimo._config.config import SqlOutputType
 from marimo._data.models import Database, DataTable, DataTableColumn, Schema
 from marimo._dependencies.dependencies import DependencyManager
+from marimo._plugins.ui._impl.table import SearchTableArgs, table
 from marimo._sql.engines.duckdb import DuckDBEngine
 from marimo._sql.engines.types import EngineCatalog, QueryEngine
 from marimo._sql.get_engines import engine_to_data_source_connection
@@ -964,7 +966,10 @@ def test_duckdb_nested_schema_discovery(include_tables: bool) -> None:
 @pytest.mark.parametrize(
     "output_format", ["native", "polars", "lazy-polars", "pandas"]
 )
-def test_duckdb_command_results(output_format: SqlOutputType) -> None:
+@pytest.mark.parametrize("output", [False, True])
+def test_duckdb_command_results(
+    output_format: SqlOutputType, output: bool
+) -> None:
     import duckdb
     import pandas as pd
     import polars as pl
@@ -991,6 +996,11 @@ def test_duckdb_command_results(output_format: SqlOutputType) -> None:
         mock.patch.object(
             DuckDBEngine, "sql_output_format", return_value=output_format
         ),
+        mock.patch("marimo._sql.sql.replace") as replace,
+        mock.patch(
+            "marimo._output.formatters.df_formatters.include_opinionated",
+            return_value=True,
+        ),
     ):
         connection.execute("CREATE SEQUENCE command_counter")
         commands = [
@@ -1004,16 +1014,27 @@ def test_duckdb_command_results(output_format: SqlOutputType) -> None:
             ("INSERT INTO command_result VALUES (3)", 1),
         ]
         for query, count in commands:
-            result = sql(query, engine=connection, output=False)
+            replace.reset_mock()
+            result = sql(query, engine=connection, output=output)
             if is_duckdb_v2():
                 assert_rows(result, [(count,)])
+                assert replace.call_count == int(output)
+                if output:
+                    rendered = replace.call_args.args[0]
+                    assert isinstance(rendered, table)
+                    page = rendered._search(
+                        SearchTableArgs(page_size=10, page_number=0)
+                    )
+                    assert json.loads(page.data) == [{"Count": count}]
             else:
                 assert result is None
+                replace.assert_not_called()
+            assert connection.execute("SELECT 42").fetchall() == [(42,)]
         assert_rows(
             sql(
                 'INSERT INTO command_result VALUES (17) RETURNING value AS "Count"',
                 engine=connection,
-                output=False,
+                output=output,
             ),
             [(17,)],
         )
