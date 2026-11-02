@@ -531,3 +531,17 @@ describe("cellCodeBinding", () => {
     });
   });
 });
+
+describe("cellCodeBinding before the cell has source", () => {
+  it("still infers the language when the source first arrives", async () => {
+    const { store, view, source, type } = setup({
+      initial: null,
+      adapters: true,
+    });
+    type("x");
+    await settle();
+    store.set(source, withCells(document(), { c1: cell("c1", 'mo.md("hi")') }));
+    await settle();
+    expect(view.state.field(languageAdapterState).type).toBe("markdown");
+  });
+});

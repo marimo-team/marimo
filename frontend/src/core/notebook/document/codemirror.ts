@@ -145,13 +145,13 @@ class CellCodeSync {
 
   /** Write the editor's code to the model unless the editor already shows it. */
   #push(state: EditorState) {
-    this.#initialized = true;
     const { store, model, cellId, code } = this.#binding;
     const current = store.get(code);
     if (typeof current !== "string") {
       this.#synced = undefined;
       return;
     }
+    this.#initialized = true;
     if (editorShowsCellCode(state, current)) {
       this.#synced = current;
       return;
