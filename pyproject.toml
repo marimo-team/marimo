@@ -144,7 +144,6 @@ dev = [
     # For SQL. duckdb has no cp315 wheels as of 2026-10; drop the marker when
     # published.
     "duckdb>=1.0.0; python_version < '3.15'",
-    # Older sqlglotc source distributions fail to build with current build dependencies.
     "sqlglot>=30.7.0",
     # Stubs for optional dataframe backends
     "pyarrow-stubs",
