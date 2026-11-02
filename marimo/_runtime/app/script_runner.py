@@ -45,6 +45,15 @@ if TYPE_CHECKING:
     from marimo._save.cache import CacheState
 
 
+def _close_matplotlib_figures() -> None:
+    """Close pyplot figures after each cell so the next one starts fresh."""
+    if not DependencyManager.imported("matplotlib.pyplot"):
+        return
+    from marimo._output.mpl import close_figures
+
+    close_figures()
+
+
 class AppScriptRunner:
     """Runs an app in a script context."""
 
@@ -313,11 +322,9 @@ class AppScriptRunner:
                 )
                 self._evaluator.lifecycles = [self._cache]
 
-            post_execute_hooks: list[Callable[[], Any]] = []
-            if DependencyManager.matplotlib.has():
-                from marimo._output.mpl import close_figures
-
-                post_execute_hooks.append(close_figures)
+            post_execute_hooks: list[Callable[[], Any]] = [
+                _close_matplotlib_figures
+            ]
 
             if is_async:
                 outputs, defs = run_coroutine_blocking(

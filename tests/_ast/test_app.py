@@ -1385,6 +1385,43 @@ def test_cli_args(tmp_path: pathlib.Path) -> None:
     assert "value2" in output
 
 
+@pytest.mark.skipif(
+    condition=not DependencyManager.matplotlib.has(),
+    reason="requires matplotlib",
+)
+def test_script_run_does_not_import_matplotlib(
+    tmp_path: pathlib.Path,
+) -> None:
+    """A script run leaves matplotlib alone until a cell imports it.
+
+    Loading it costs a font-cache build on a fresh machine, which can
+    take longer than the notebook itself.
+    """
+    py_file = tmp_path / "no_mpl_script.py"
+    content = """
+    import marimo
+    app = marimo.App()
+
+    @app.cell
+    def __():
+        import sys
+        print("matplotlib" in sys.modules)
+        return
+
+    if __name__ == "__main__":
+        app.run()
+    """
+    py_file.write_text(textwrap.dedent(content))
+    p = subprocess.run(
+        [sys.executable, str(py_file)],
+        capture_output=True,
+        text=True,
+        timeout=120,
+    )
+    assert p.returncode == 0, p.stderr
+    assert p.stdout.strip() == "False"
+
+
 # TODO(akshayka): Many of the app composition and embedding tests are flaky in
 # CI. This suggests either cross-test state pollution or a bug in the
 # underlying implementation. These bugs are not high priority to fix, so
