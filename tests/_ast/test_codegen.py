@@ -2465,6 +2465,12 @@ def test_format_markdown_preserves_string_value(
     )
 
 
+def test_format_markdown_keeps_cell_with_escaped_newline() -> None:
+    # Dedenting the physical lines would leave `bar` indented but not `baz`.
+    code = 'mo.md("""foo\\n    bar\n    baz""")'
+    assert codegen.format_markdown(compile_cell(code)) == code
+
+
 def test_trailing_comment_on_final_expression_round_trips() -> None:
     from marimo._convert.converters import MarimoConvert
 

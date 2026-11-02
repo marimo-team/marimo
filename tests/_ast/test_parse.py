@@ -383,6 +383,24 @@ if __name__ == "__main__":
         assert notebook.cells[0].code == "x = 1\nx  # the comment"
 
     @staticmethod
+    def test_one_line_cell_keeps_inline_comment() -> None:
+        code = """import marimo
+
+__generated_with = "0.0.0"
+app = marimo.App()
+
+
+@app.cell
+def _(): x  # the comment
+
+
+if __name__ == "__main__":
+    app.run()
+"""
+        notebook = parse_notebook(code)
+        assert notebook.cells[0].code == "x  # the comment"
+
+    @staticmethod
     def test_class_definition_with_trailing_comment() -> None:
         """@app.class_definition should preserve trailing comments at body indentation."""
         code = """import marimo

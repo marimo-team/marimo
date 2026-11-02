@@ -318,7 +318,7 @@ class Extractor:
                 else:
                     end_lineno = node.body[-1].lineno - 1
                     end_col_offset = None
-        elif not single_line:
+        else:
             # The last statement's own end offset stops short of a comment
             # that shares its line.
             end_col_offset = len(self.lines[end_lineno - 1])

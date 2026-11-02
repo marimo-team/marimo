@@ -12,7 +12,11 @@ from typing import TYPE_CHECKING, Any, Literal
 from marimo import _loggers
 from marimo._ast.app_config import _AppConfig
 from marimo._ast.cell import CellConfig, CellImpl
-from marimo._ast.compiler import compile_cell, dedent_markdown
+from marimo._ast.compiler import (
+    compile_cell,
+    dedent_markdown,
+    extract_markdown,
+)
 from marimo._ast.names import (
     DEFAULT_CELL_NAME,
     SETUP_CELL_NAME,
@@ -265,6 +269,10 @@ def format_markdown(cell: CellImpl) -> str:
     else:
         quote = '"""'
     body = construct_markdown_call(markdown, quote, prefix)
+    # Dedenting source lines can disagree with dedenting the value when an
+    # escaped newline hides a line break; leave such a cell as written.
+    if extract_markdown(body) != cell.markdown:
+        return cell.code
     return "".join([cell.code[:call_start], body, cell.code[call_end:]])
 
 
