@@ -8,6 +8,7 @@ from typing import Any
 import narwhals.stable.v2 as nw
 
 from marimo import Html, _loggers
+from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.mimetypes import KnownMimeType
 from marimo._output.formatters.formatter_factory import (
     FormatterFactory,
@@ -49,7 +50,7 @@ def polars_dot_to_mermaid(dot: str) -> str:
 
     edge_regex = r"(?P<node1>\w+) -- (?P<node2>\w+)"
     directed_edge_regex = r"(?P<node1>\w+) -> (?P<node2>\w+)"
-    node_regex = r"(?P<node>\w+)(\s+)?\[label=\"(?P<label>.*)\"]"
+    node_regex = r'(?P<node>\w+)\s*\[label="(?P<label>(?:\\.|[^"\\])*)"'
 
     edges = re.finditer(edge_regex, dot)
     directed_edges = re.finditer(directed_edge_regex, dot)
@@ -128,18 +129,30 @@ class PolarsFormatter(FormatterFactory):
         def _show_marimo_lazyframe(
             df: pl.LazyFrame,
         ) -> tuple[KnownMimeType, str]:
-            return tabs.tabs(
-                {
-                    # NB(Trevor): Use `optimized=True` to match other methods' defaults (`show_graph`, `collect`).
-                    # The _repr_html_ uses `optimized=False`, but "cost" is probably minimal and this is more
-                    # accurate/opinionated default.
-                    # See: https://github.com/pola-rs/polars/blob/911352/py-polars/polars/lazyframe/frame.py#L773-L790
-                    "Query plan": mermaid(
-                        polars_dot_to_mermaid(df._ldf.to_dot(optimized=True))
-                    ),
-                    "Table": table.lazy(df),
-                }
-            )._mime_()
+            is_polars_2 = DependencyManager.polars.has_at_version(
+                min_version="2.0.0", quiet=True
+            )
+            # Polars 2 defaults to the physical plan; keep the logical view too.
+            logical_dot = (
+                df.show_graph(show=False, raw_output=True, plan_stage="ir")
+                if is_polars_2
+                else df.show_graph(show=False, raw_output=True)
+            )
+            plans: dict[str, object] = {
+                "Query plan": mermaid(polars_dot_to_mermaid(logical_dot or ""))
+            }
+            if is_polars_2:
+                physical_dot = df.show_graph(
+                    show=False,
+                    raw_output=True,
+                    engine="streaming",
+                    plan_stage="physical",
+                )
+                plans["Streaming plan"] = mermaid(
+                    polars_dot_to_mermaid(physical_dot or "")
+                )
+            plans["Table"] = table.lazy(df)
+            return tabs.tabs(plans)._mime_()
 
         return unpatch_polars
 
