@@ -4,10 +4,10 @@ description: "Skills for coding agents."
 
 # Skills
 
-Install our official skills with a single command:
+Install our official skills with a single command using [uv](https://docs.astral.sh/uv/):
 
 ```bash
-npx skills add marimo-team/skills
+uvx deno -A npm:skills add marimo-team/skills
 ```
 
 For the best experience, use these skills alongside [marimo
