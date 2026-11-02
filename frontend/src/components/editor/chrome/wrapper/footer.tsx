@@ -18,6 +18,7 @@ import {
   connectionStatusAtom,
 } from "./footer-items/backend-status";
 import { CopilotStatusIcon } from "./footer-items/copilot-status";
+import { DocumentSyncStatus } from "./footer-items/document-sync-status";
 import { MachineStats } from "./footer-items/machine-stats";
 import { PyodideStatus } from "./footer-items/pyodide-status";
 import { RTCStatus } from "./footer-items/rtc-status";
@@ -107,6 +108,7 @@ export const Footer: React.FC = () => {
       </ShowInKioskMode>
 
       <div className="flex items-center shrink-0 min-w-0">
+        <DocumentSyncStatus />
         <MachineStats />
         <AttachmentStatus />
         <AIStatusIcon />
