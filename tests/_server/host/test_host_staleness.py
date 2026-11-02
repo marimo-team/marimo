@@ -55,6 +55,7 @@ class Client:
         *cells: str,
         code: str | None = None,
         outcome: RunOutcome = "succeeded",
+        timeout: float = 5,
     ) -> None:
         """Run the named cells, or code in the scratchpad, to `outcome`."""
         body: dict[str, object] = (
@@ -81,7 +82,11 @@ class Client:
                 and run["status"] == "completed"
             ]
 
-        await wait_for(self.events, lambda response: bool(completed(response)))
+        await wait_for(
+            self.events,
+            lambda response: bool(completed(response)),
+            timeout=timeout,
+        )
         assert completed(self.events)[-1]["outcome"] == outcome
 
     async def edit(self, cell: str, code: str) -> None:
@@ -241,7 +246,8 @@ async def test_sql_results_follow_their_binding_revisions(
         table=producer,
         reader=f"df = mo.sql('SELECT * FROM {name}')",
     ) as c:
-        await c.run("mo", "table", "reader")
+        # Initial catalog discovery and result rendering import native libraries.
+        await c.run("mo", "table", "reader", timeout=30)
         initial = await c.snapshot()
         variables = {v.name: v for v in initial.variables.values()}
         assert set(variables) == {"mo", name, "df"}
