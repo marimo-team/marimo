@@ -191,7 +191,7 @@ class AppHost:
         proc_stdin = self._process.stdin
         if proc_stdin is None:
             self.shutdown()
-            raise RuntimeError("Failed to open stdin for app host")
+            raise InternalError("Failed to open stdin for app host")
 
         # A launcher plan may resolve packages before the host starts;
         # a cold resolution can take minutes.
@@ -209,7 +209,7 @@ class AppHost:
             data = conn.response.recv()
             ready_response = decode_mgmt_response(data)
             if not isinstance(ready_response, AppHostReadyResponse):
-                raise RuntimeError(
+                raise InternalError(
                     f"Unexpected response during startup: "
                     f"{type(ready_response)}"
                 )
@@ -300,7 +300,7 @@ class AppHost:
                     data = conn.response.recv()
                     response = decode_mgmt_response(data)
                     if not isinstance(response, KernelCreatedResponse):
-                        raise RuntimeError(
+                        raise InternalError(
                             f"Unexpected response type: {type(response)}"
                         )
                     if not response.success:

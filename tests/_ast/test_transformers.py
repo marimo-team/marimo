@@ -184,6 +184,16 @@ def test_clean_to_modules_no_optional_vars() -> None:
     assert len(with_module.body) == 1
 
 
+def test_clean_to_modules_rejects_multiple_context_managers() -> None:
+    block = ast.parse("with cache(), other():\n    x = 1").body[0]
+    assert isinstance(block, ast.With)
+
+    with pytest.raises(
+        BlockException, match="Use a separate `with` statement"
+    ):
+        clean_to_modules([], block)
+
+
 def test_get_hashable_ast() -> None:
     """Test the get_hashable_ast function."""
 

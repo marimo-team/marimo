@@ -16,6 +16,7 @@ import pytest
 from marimo._ast import compiler
 from marimo._runtime.packages.package_manager import PackageDescription
 from marimo._runtime.packages.pypi_package_manager import (
+    MicropipPackageManager,
     PipPackageManager,
     PoetryPackageManager,
     UvPackageManager,
@@ -25,6 +26,26 @@ from marimo._runtime.packages.pypi_package_manager import (
 parse_cell = partial(compiler.compile_cell, cell_id="0")
 
 PY_EXE = sys.executable
+
+
+def test_micropip_listing_outside_pyodide_is_usage_error() -> None:
+    with patch(
+        "marimo._runtime.packages.pypi_package_manager.is_pyodide",
+        return_value=False,
+    ):
+        with pytest.raises(RuntimeError, match="Pyodide") as exc_info:
+            MicropipPackageManager().list_packages()
+    assert exc_info.type is RuntimeError
+
+
+async def test_micropip_install_outside_pyodide_is_usage_error() -> None:
+    with patch(
+        "marimo._runtime.packages.pypi_package_manager.is_pyodide",
+        return_value=False,
+    ):
+        with pytest.raises(RuntimeError, match="Pyodide") as exc_info:
+            await MicropipPackageManager()._install("numpy", upgrade=False)
+    assert exc_info.type is RuntimeError
 
 
 def _normalize_cmd(cmd: list[Any]) -> list[Any]:

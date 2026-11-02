@@ -13,7 +13,6 @@ from uuid import uuid4
 import msgspec
 
 from marimo import _loggers as loggers
-from marimo._core.errors import InternalError
 from marimo._messaging.cell_output import CellOutput
 from marimo._messaging.errors import (
     MarimoExceptionRaisedError,
@@ -128,7 +127,9 @@ class CellNotificationUtils:
             cell_id if cell_id is not None else get_context().stream.cell_id
         )
         if cell_id is None:
-            raise InternalError("No active cell")
+            raise RuntimeError(
+                "No active cell. Display output from a notebook cell."
+            )
         broadcast_notification(
             CellNotification(
                 cell_id=cell_id,
@@ -155,7 +156,9 @@ class CellNotificationUtils:
             cell_id if cell_id is not None else get_context().stream.cell_id
         )
         if cell_id is None:
-            raise InternalError("No active cell")
+            raise RuntimeError(
+                "No active cell. Display output from a notebook cell."
+            )
         broadcast_notification(
             CellNotification(
                 cell_id=cell_id,
@@ -184,7 +187,9 @@ class CellNotificationUtils:
             cell_id if cell_id is not None else get_context().stream.cell_id
         )
         if cell_id is None:
-            raise InternalError("No active cell")
+            raise RuntimeError(
+                "No active cell. Display output from a notebook cell."
+            )
         broadcast_notification(
             CellNotification(
                 cell_id=cell_id,

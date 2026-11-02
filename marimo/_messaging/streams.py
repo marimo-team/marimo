@@ -13,7 +13,6 @@ from typing import (
 )
 
 from marimo import _loggers
-from marimo._core.errors import InternalError
 from marimo._messaging.cell_output import CellChannel
 from marimo._messaging.console_output_worker import (
     ConsoleMsg,
@@ -324,7 +323,9 @@ class ThreadSafeStdout(Stdout):
         self, data: str, mimetype: ConsoleMimeType
     ) -> int:
         if self._stream.cell_id is None:
-            raise InternalError("Stream has no active cell")
+            raise RuntimeError(
+                "Stream has no active cell. Read or write from a notebook cell."
+            )
         if not isinstance(data, str):
             raise TypeError(
                 f"write() argument must be a str, not {type(data).__name__}"
@@ -403,7 +404,9 @@ class ThreadSafeStderr(Stderr):
         code: str | None = None,
     ) -> int:
         if self._stream.cell_id is None:
-            raise InternalError("Stream has no active cell")
+            raise RuntimeError(
+                "Stream has no active cell. Read or write from a notebook cell."
+            )
         if not isinstance(data, str):
             raise TypeError(
                 f"write() argument must be a str, not {type(data).__name__}"
@@ -459,7 +462,9 @@ class ThreadSafeStdin(Stdin):
     ) -> str:
         """Read input from the standard in stream, with an optional prompt."""
         if self._stream.cell_id is None:
-            raise InternalError("Stream has no active cell")
+            raise RuntimeError(
+                "Stream has no active cell. Read or write from a notebook cell."
+            )
         if not isinstance(prompt, str):
             raise TypeError(
                 f"prompt must be a str, not {type(prompt).__name__}"

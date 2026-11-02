@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 from marimo._config.config import CopilotMode
-from marimo._core.errors import InternalError
 from marimo._server.ai.skills.utils import load_skill
 from marimo._server.models.completion import (
     AiCompletionContext,
@@ -142,11 +141,10 @@ def get_refactor_or_insert_notebook_cell_system_prompt(
 
     # When we are modifying or inserting into an existing cell, we need to
     if cell_code:
-        # Assertions, otherwise the system prompt will be wrong
         if is_insert:
             if "<insert_here>" not in cell_code:
-                raise InternalError(
-                    "Cell code is missing the insertion marker"
+                raise ValueError(
+                    "Cell code must contain <insert_here> for insertion."
                 )
             system_prompt += "The point you'll need to insert at is marked with <insert_here></insert_here>.\n"
         else:
@@ -156,7 +154,10 @@ def get_refactor_or_insert_notebook_cell_system_prompt(
                 cell_code = f"<rewrite_this>\n{cell_code}\n</rewrite_this>"
 
             if "<rewrite_this>" not in cell_code:
-                raise InternalError("Cell code is missing the rewrite marker")
+                raise ValueError(
+                    "Cell code must contain <rewrite_this> when selected text "
+                    "is provided."
+                )
             system_prompt += "The section you'll need to rewrite is marked with <rewrite_this></rewrite_this> tags.\n"
 
         if cell_code:

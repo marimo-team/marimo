@@ -66,7 +66,10 @@ def clean_to_modules(
     >>> </block>
     """
     if len(block.items) != 1:
-        raise InternalError("Unexpected with block structure.")
+        raise BlockException(
+            "Multiple context managers in a cached `with` statement are not "
+            "supported. Use a separate `with` statement for each."
+        )
     (with_block,) = block.items
     initializer: ast.AST = with_block.context_expr
     if with_block.optional_vars:
