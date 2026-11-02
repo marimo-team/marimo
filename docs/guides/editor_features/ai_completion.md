@@ -60,7 +60,7 @@ required dependencies through the notebook settings.
 </div>
 
 Then configure your LLM provider through the AI tab in the settings menu; see
-the section on [connecting your LLM](#connecting-to-an-llm) for detailed instructions.
+the section on [connecting your LLM](#connecting-to-an-llm-provider) for detailed instructions.
 
 ### Variable context
 
