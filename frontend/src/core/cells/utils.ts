@@ -79,7 +79,8 @@ export function getUndoLabel(state: NotebookState): string {
 }
 
 /**
- * Get the status of the descendants of the given cell.
+ * Summarize the run state of the given descendants, whether any is stale,
+ * errored, or running.
  */
 export function getDescendantsStatus(
   state: NotebookState,
