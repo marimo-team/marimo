@@ -218,22 +218,24 @@ def _extract_markdown(tree: ast.Module) -> str | None:
         assert value.func.value.id == "mo"  # type: ignore[attr-defined]
         if not value.args:  # Handle mo.md() with no arguments
             return None
-        md_lines = _extract_const_string(value.args).split("\n")
+        text = _extract_const_string(value.args)
     except (AssertionError, AttributeError, ValueError):
         # No reason to explicitly catch exceptions if we can't parse out
         # markdown. Just handle it as a code block.
         return None
+    return dedent_markdown(text)
 
+
+def dedent_markdown(text: str) -> str:
     # Dedent behavior is a little different that in marimo js, so handle
     # accordingly.
-    md_lines = [line.rstrip() for line in md_lines]
+    lines = [line.rstrip() for line in text.split("\n")]
     md = (
-        textwrap.dedent(md_lines[0])
+        textwrap.dedent(lines[0])
         + "\n"
-        + textwrap.dedent("\n".join(md_lines[1:]))
+        + textwrap.dedent("\n".join(lines[1:]))
     )
-    md = md.strip()
-    return md
+    return md.strip()
 
 
 def extract_markdown(code: str) -> str | None:

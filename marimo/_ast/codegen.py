@@ -5,7 +5,6 @@ import ast
 import io
 import os
 import re
-import sys
 import textwrap
 import tokenize
 from typing import TYPE_CHECKING, Any, Literal
@@ -13,7 +12,7 @@ from typing import TYPE_CHECKING, Any, Literal
 from marimo import _loggers
 from marimo._ast.app_config import _AppConfig
 from marimo._ast.cell import CellConfig, CellImpl
-from marimo._ast.compiler import compile_cell
+from marimo._ast.compiler import compile_cell, dedent_markdown
 from marimo._ast.names import (
     DEFAULT_CELL_NAME,
     SETUP_CELL_NAME,
@@ -193,12 +192,24 @@ def to_decorator(
     )
 
 
+_STRING_START_TYPES = {tokenize.STRING} | {
+    getattr(tokenize, name)
+    for name in ("FSTRING_START", "TSTRING_START")
+    if hasattr(tokenize, name)
+}
+_STRING_END_TYPES = {
+    getattr(tokenize, name)
+    for name in ("FSTRING_END", "TSTRING_END")
+    if hasattr(tokenize, name)
+}
+
+
 def format_markdown(cell: CellImpl) -> str:
-    markdown = cell.markdown or ""
-    # AST does not preserve string quote types or types, so directly use
+    # The markdown is reflowed from the literal's source text rather than
+    # its evaluated value, so escape sequences come out exactly as written.
+    # AST does not preserve string quote types or prefixes, so directly use
     # tokenize.
     tokens = tokenize.tokenize(io.BytesIO(cell.code.encode("utf-8")).readline)
-    tag = ""
     # Anything outside the `mo.md(...)` call (comments, and the whitespace
     # around them) is kept verbatim, so track where the call starts and ends
     # in the source rather than rebuilding it from tokens, which drop
@@ -214,42 +225,46 @@ def format_markdown(cell: CellImpl) -> str:
     call_start = 0
     call_end = len(cell.code)
     depth = 0
-    tokenizes_fstring = sys.version_info >= (3, 12)
-    start_tokens = (
-        (tokenize.STRING, tokenize.FSTRING_START)
-        if tokenizes_fstring
-        else (tokenize.STRING,)
-    )
-    fstring = False
+    literals = 0
+    prefix = ""
+    quote = ""
+    body_start = body_end = 0
     for tok in tokens:
-        # if string
-        if tok.type in start_tokens:
-            tag = ""
+        if tok.type in _STRING_START_TYPES:
+            literals += 1
             # rf"""/ f"/ r"/ "more
-            start = tok.string[:5]
-            for _ in range(2):
-                if start[0].lower() in "rtf":
-                    tag += start[0]
-                    start = start[1:]
-            fstring = "f" in tag.lower()
-        elif tok.string == "mo":
+            opening = tok.string.lstrip("rRfFtTuU")
+            prefix = tok.string[: len(tok.string) - len(opening)]
+            quote = (
+                opening[:3] if opening[:3] in ('"""', "'''") else opening[0]
+            )
+            body_start = offset(tok.start) + len(prefix) + len(quote)
+            if tok.type == tokenize.STRING:
+                body_end = offset(tok.end) - len(quote)
+        elif tok.type in _STRING_END_TYPES:
+            body_end = offset(tok.start)
+        elif tok.type == tokenize.NAME and tok.string == "mo":
             call_start = offset(tok.start)
             depth = 0
-        elif tok.string == "(":
+        elif tok.type == tokenize.OP and tok.string == "(":
             depth += 1
-        elif tok.string == ")":
+        elif tok.type == tokenize.OP and tok.string == ")":
             depth -= 1
             if depth == 0:
                 call_end = offset(tok.end)
 
-    if fstring:
-        # We can blanket replace, because cell.markdown is not set
-        # on f-strings with values.
-        markdown = markdown.replace("{", "{{").replace("}", "}}")
-    markdown = markdown.replace('""', '"\\"')
+    # Implicitly concatenated literals have no single body to reflow.
+    if literals != 1:
+        return cell.code
 
-    # We always use """ as per front end.
-    body = construct_markdown_call(markdown, '"""', tag)
+    markdown = dedent_markdown(cell.code[body_start:body_end])
+    # We always use """ as per front end, unless the body holds a bare
+    # triple quote, which only the other triple quote can hold.
+    if '"""' in markdown and quote != '"""':
+        quote = "'''"
+    else:
+        quote = '"""'
+    body = construct_markdown_call(markdown, quote, prefix)
     return "".join([cell.code[:call_start], body, cell.code[call_end:]])
 
 

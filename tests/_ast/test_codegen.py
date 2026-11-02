@@ -4,6 +4,7 @@ from __future__ import annotations
 import ast
 import json
 import sys
+import warnings
 from functools import partial
 from inspect import cleandoc
 from pathlib import Path
@@ -2410,3 +2411,65 @@ class TestLazyImports:
         ]
         _, defs = run_path(str(path))["app"].run()
         assert defs["y"] == "1"
+
+
+def _markdown_value(code: str) -> str:
+    (stmt,) = ast.parse(code).body
+    (arg,) = stmt.value.args  # type: ignore[attr-defined]
+    if isinstance(arg, ast.JoinedStr):
+        (arg,) = arg.values
+    assert isinstance(arg, ast.Constant)
+    assert isinstance(arg.value, str)
+    return arg.value
+
+
+@pytest.mark.parametrize(
+    ("code", "expected"),
+    [
+        # Raw string: a doubled quote is content, not an escape
+        (
+            'mo.md(\n    r"""\n    !!! tip ""\n    """\n)',
+            'mo.md(r"""\n!!! tip ""\n""")',
+        ),
+        # Raw string: a code sample with an empty JS string stays terminated
+        (
+            'mo.md(\n    r"""\n    const myVar = "";\n    """\n)',
+            'mo.md(r"""\nconst myVar = "";\n""")',
+        ),
+        # Non-raw string: an escaped backslash stays escaped
+        (
+            'mo.md(\n    """\n    `field=\'value\\\\.data\'`\n    """\n)',
+            'mo.md("""\n`field=\'value\\\\.data\'`\n""")',
+        ),
+        # Non-raw string: escape sequences are kept as written
+        ('mo.md("tab\\there")', 'mo.md("""\ntab\\there\n""")'),
+        # f-string: doubled braces stay doubled
+        ('mo.md(f"{{x}}")', 'mo.md(f"""\n{{x}}\n""")'),
+        # A bare triple quote in the body cannot move into """ quotes
+        ('mo.md(r\'has """\')', "mo.md(r'''\nhas \"\"\"\n''')"),
+        ('mo.md(\'has """\')', "mo.md('''\nhas \"\"\"\n''')"),
+    ],
+)
+def test_format_markdown_preserves_string_value(
+    code: str, expected: str
+) -> None:
+    formatted = codegen.format_markdown(compile_cell(code))
+    assert formatted == expected
+    with warnings.catch_warnings():
+        # An invalid escape sequence is only a SyntaxWarning
+        warnings.simplefilter("error")
+        compile(formatted, "<cell>", "exec")
+    assert (
+        _markdown_value(formatted)
+        == "\n" + dedent(_markdown_value(code)).strip() + "\n"
+    )
+
+
+def test_trailing_comment_on_final_expression_round_trips() -> None:
+    from marimo._convert.converters import MarimoConvert
+
+    source = wrap_generate_filecontents(
+        ["x = 1", "x  # Uses the default renderer"], ["a", "b"]
+    )
+    assert "    x  # Uses the default renderer\n" in source
+    assert MarimoConvert.from_py(source).to_py() == source
