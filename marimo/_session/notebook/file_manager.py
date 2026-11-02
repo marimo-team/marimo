@@ -416,9 +416,10 @@ class AppFileManager:
             return ""
 
     def _update_config(self, config: dict[str, Any]) -> None:
+        before = self.app.config.asdict()
         self.app.update_config(config)
         callback = self.on_config_changed
-        if callback is not None:
+        if callback is not None and self.app.config.asdict() != before:
             callback()
 
     def save(
