@@ -497,7 +497,8 @@ function isDuckDBConnection(
 }
 
 /**
- * Update the SQL dialect in the editor view.
+ * The effect that reconfigures the SQL language for the connection's dialect.
+ * Callers dispatch it, alone or with the change that selected the connection.
  */
 export function sqlDialectEffect(connectionName: ConnectionName) {
   const dialect = SCHEMA_CACHE.getDialect(connectionName);
