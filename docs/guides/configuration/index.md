@@ -60,10 +60,18 @@ marimo searches for the `.marimo.toml` file in the following order:
 If no `.marimo.toml` file is found, marimo creates one for you in an XDG config
 compliant way.
 
-To view your current configuration and locate the config file, run:
+To view the configuration marimo is using, run:
 
 ```bash
 marimo config show
+```
+
+Add `--show-sources` to include where each configuration value was determined.
+
+To include a notebook's script metadata, pass its path:
+
+```bash
+marimo config show notebook.py
 ```
 
 To describe the user configuration options, run:
@@ -140,6 +148,13 @@ You can also configure marimo settings directly in your notebook files using scr
     The ordering covers the settings those layers are allowed to set. `signing`
     and `cache.verification` come from user configuration whatever any other
     layer says.
+
+### Dotenv files
+
+By default, marimo loads `.env` from the project directory, or the notebook's
+directory when there is no `pyproject.toml`. Override this location with
+`runtime.dotenv`; run `marimo config describe` for the option's path resolution
+and loading rules.
 
 ## Environment variables
 
