@@ -10,7 +10,8 @@
 #     "plotly==6.7.0",
 #     "polars==1.27.1",
 #     "pyarrow==19.0.1",
-#     "sqlglot==26.13.0",
+#     "sqlglot[c]>=30.11.0; python_version < '3.15'",
+#     "sqlglot[c]>=30.23.0; python_version >= '3.15'",
 # ]
 # ///
 
