@@ -34,7 +34,11 @@ class ConfigReader:
         try:
             data = toml_reader.read(self.filepath)
             return parse_raw(data, cls, allow_unknown_keys=True)
-        except (toml_reader.decode_error, FileNotFoundError):
+        except (
+            toml_reader.decode_error,
+            FileNotFoundError,
+            UnicodeDecodeError,
+        ):
             return fallback
 
     def write_toml(self, data: Any) -> None:
