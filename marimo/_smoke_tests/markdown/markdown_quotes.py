@@ -16,7 +16,7 @@ def _(mo):
 @app.cell
 def _(mo):
     mo.md(r"""
-    Markdown with an escaped \"\"\"quote\"\"\"!!
+    Markdown with an escaped \"""quote\"""!!
     """)
 
 

@@ -29,7 +29,7 @@ def _(mo):
 @app.cell
 def _(mo):
     mo.md(r"""
-    !!! tip "\"
+    !!! tip ""
 
         Importa recordar as seguintes regras de diferenciação de matrizes:
 

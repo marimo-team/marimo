@@ -39,13 +39,13 @@ def _(mo):
     mo.md(r"""
     ```js
     // js
-    const myVar = "\";
+    const myVar = "";
     ```
 
     ```
     import { foo } from "bar";
     // js omitted
-    var myVar = "\";
+    var myVar = "";
     ```
     """)
 

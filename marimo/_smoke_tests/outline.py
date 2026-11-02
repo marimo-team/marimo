@@ -28,9 +28,7 @@ def _(mo):
 @app.cell
 def _(mo):
     mo.md("""
-    # Heading 2
-
-    Headings between carousel and tabs are detected
+    # Heading 2 \n\n Headings between carousel and tabs are detected
     """)
 
 
@@ -42,9 +40,7 @@ def _(mo):
 @app.cell
 def _(mo):
     mo.md("""
-    # Heading 3
-
-    Headings between tabs and accordion are detected
+    # Heading 3 \n\n Headings between tabs and accordion are detected
     """)
 
 

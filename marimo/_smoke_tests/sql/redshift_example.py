@@ -125,7 +125,7 @@ def _(mo):
 
     get_tables() ->
     [
-      "dev", "information_schema", "views", "VIEW", None, "\", "\", "\","\", "\"
+      "dev", "information_schema", "views", "VIEW", None, "", "", "","", ""
     ]
 
     1. catalog

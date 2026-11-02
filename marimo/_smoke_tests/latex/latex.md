@@ -2,7 +2,7 @@
 header: |-
   # Copyright 2026 Marimo. All rights reserved.
 title: Latex
-marimo-version: 0.25.1
+marimo-version: 0.25.2
 ---
 
 ```python {.marimo}

@@ -24,7 +24,8 @@ def _():
     **How to test:**
 
     ```
-    marimo run marimo/_smoke_tests/process_isolation/virtual_files.py            marimo/_smoke_tests/process_isolation/app1.py
+    marimo run marimo/_smoke_tests/process_isolation/virtual_files.py \\
+               marimo/_smoke_tests/process_isolation/app1.py
     ```
 
     Multi-file `marimo run` auto-enables process isolation. If all three

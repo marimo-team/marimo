@@ -62,7 +62,7 @@ def _(pandas_df, pl):
 def _(mo):
     mo.md("""
     Use the data table chart builder to create a chart using `value.data` column.
-    The generated Python code should escape the dot: `field='value\.data'`
+    The generated Python code should escape the dot: `field='value\\.data'`
 
     Repeat for all the other columns
     """)
