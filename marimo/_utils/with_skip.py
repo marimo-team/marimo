@@ -21,6 +21,7 @@ class SkipContext(ABC):
         self._sys_trace: TraceFunction | None = None
         self._old_trace: TraceFunction | None = None
         self._frame: FrameType | None = None
+        self._entry_line: int | None = None
         self._skipped = True
 
     def __enter__(self) -> Self:
@@ -31,6 +32,7 @@ class SkipContext(ABC):
             raise RuntimeError("Caching requires Python stack frame support.")
         if frame is None:
             raise RuntimeError("Caching requires Python stack frame support.")
+        self._entry_line = frame.f_lineno
         # Hold on to the previous trace.
         self._old_trace = frame.f_trace
         # Setting the frametrace, will cause the function to be run on _every_

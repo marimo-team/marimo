@@ -34,14 +34,16 @@ class UIElementRegistry:
         ui_element: UIElement[Any, Any],
     ) -> None:
         execution_context = get_context().execution_context
+        if execution_context is None:
+            raise RuntimeError(
+                "UI elements must be created during notebook cell execution."
+            )
         if object_id in self._objects:
             # on cell re-run, a UI element may be (re)-registered before
             # its destructor was called, so manually delete the old element
             # here
             self.delete(object_id, id(self._objects[object_id]()))
         self._objects[object_id] = weakref.ref(ui_element)
-        if execution_context is None:
-            raise InternalError("UI element has no execution context")
         self._constructing_cells[object_id] = execution_context.cell_id
         # bindings must be lazily registered, since there aren't any
         # bindings at UIElement object creation time

@@ -194,6 +194,46 @@ def test_clean_to_modules_rejects_multiple_context_managers() -> None:
         clean_to_modules([], block)
 
 
+@pytest.mark.parametrize(
+    ("source", "line"),
+    [
+        ("with other():\n    with cache(), other():\n        x = 1", 2),
+        (
+            (
+                "if True:\n    with other():\n"
+                "        with cache(), other():\n            x = 1"
+            ),
+            3,
+        ),
+    ],
+)
+def test_nested_cache_rejects_multiple_context_managers(
+    source: str, line: int
+) -> None:
+    with pytest.raises(
+        BlockException, match="Use a separate `with` statement"
+    ):
+        CacheExtractWithBlock(line).visit(ast.parse(source).body)
+
+
+@pytest.mark.parametrize(
+    ("first_context", "second_context", "line", "expected_body"),
+    [
+        ("cache()", "cache(), other()", 2, "x = 1"),
+        ("cache(), other()", "cache()", 5, "x = 2"),
+    ],
+)
+def test_cache_extraction_only_validates_matched_branch(
+    first_context: str, second_context: str, line: int, expected_body: str
+) -> None:
+    source = (
+        f"if flag:\n    with {first_context}:\n        x = 1\n"
+        f"else:\n    with {second_context}:\n        x = 2\n"
+    )
+    _, body = CacheExtractWithBlock(line).visit(ast.parse(source).body)
+    assert ast.unparse(body) == expected_body
+
+
 def test_get_hashable_ast() -> None:
     """Test the get_hashable_ast function."""
 

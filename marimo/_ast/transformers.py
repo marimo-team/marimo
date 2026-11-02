@@ -22,6 +22,10 @@ class BlockException(Exception):
     pass
 
 
+class UnsupportedBlockException(BlockException):
+    """A matched block uses a form that extraction cannot support."""
+
+
 def compiled_ast(block: Sequence[ast.AST | ast.stmt]) -> ast.Module:
     return cast(
         ast.Module,
@@ -39,7 +43,7 @@ def compiled_ast(block: Sequence[ast.AST | ast.stmt]) -> ast.Module:
 
 
 def clean_to_modules(
-    pre_block: list[ast.AST], block: ast.With
+    pre_block: list[ast.AST], block: ast.With, *, allow_inline: bool = True
 ) -> tuple[ast.Module, ast.Module]:
     """Standardizes a `with` block to modules.
 
@@ -66,9 +70,13 @@ def clean_to_modules(
     >>> </block>
     """
     if len(block.items) != 1:
-        raise BlockException(
+        raise UnsupportedBlockException(
             "Multiple context managers in a cached `with` statement are not "
             "supported. Use a separate `with` statement for each."
+        )
+    if not allow_inline and block.body[0].lineno == block.lineno:
+        raise UnsupportedBlockException(
+            "Cached `with` statements must put the body on a new line."
         )
     (with_block,) = block.items
     initializer: ast.AST = with_block.context_expr
@@ -105,7 +113,9 @@ def get_hashable_ast(
     function_ast = ast_parse(textwrap.dedent("".join(code)))
     body = function_ast.body.pop()
     if not isinstance(body, (ast.FunctionDef, ast.AsyncFunctionDef)):
-        raise InternalError("Expected a function definition")
+        raise TypeError(
+            "Cached functions must be declared with `def` or `async def`."
+        )
 
     # Insert decorator calls as expression statements so they affect the hash.
     # This ensures changes to decorator parameters invalidate the cache.
@@ -202,6 +212,7 @@ class ExtractWithBlock(ast.NodeTransformer):
         allowed_types: tuple[type, ...],
         *arg: Any,
         name: str = "context",
+        allow_inline: bool = True,
         **kwargs: Any,
     ) -> None:
         super().__init__(*arg, **kwargs)
@@ -210,6 +221,7 @@ class ExtractWithBlock(ast.NodeTransformer):
             allowed_types = (ast.With,)
         self.allowed_types = allowed_types
         self.name = name
+        self.allow_inline = allow_inline
 
     def generic_visit(self, node: ast.AST) -> tuple[ast.Module, ast.Module]:  # type: ignore[override]
         pre_block = []
@@ -262,6 +274,13 @@ class ExtractWithBlock(ast.NodeTransformer):
                     else [previous.body]  # type: ignore[attr-defined]
                 )
                 for body in bodies:
+                    if not body or self.target_line < body[0].lineno:
+                        continue
+                    if (
+                        body[-1].end_lineno is not None
+                        and self.target_line > body[-1].end_lineno
+                    ):
+                        continue
                     try:
                         # Recursion by referring to the containing block also
                         # captures the case where the target line number was not
@@ -279,9 +298,12 @@ class ExtractWithBlock(ast.NodeTransformer):
                             self.target_line,
                             self.allowed_types,
                             name=self.name,
+                            allow_inline=self.allow_inline,
                         ).generic_visit(
                             body  # type: ignore[arg-type]
                         )
+                    except UnsupportedBlockException:
+                        raise
                     except BlockException:
                         pass
 
@@ -302,7 +324,9 @@ class ExtractWithBlock(ast.NodeTransformer):
                     "For instance, the following is not supported:\n"
                     f">>>> with {self.name}: a = 1 # all one line"
                 )
-            return clean_to_modules(pre_block, on_line[0])
+            return clean_to_modules(
+                pre_block, on_line[0], allow_inline=self.allow_inline
+            )
         # It should be possible to relate the lines with the AST,
         # but reduce potential bugs by just throwing an error.
         raise BlockException(
@@ -333,7 +357,14 @@ class ExtractSkippableWithBlock(ExtractWithBlock):
 class CacheExtractWithBlock(ExtractSkippableWithBlock):
     def __init__(self, line: int, *arg: Any, **kwargs: Any) -> None:
         name = kwargs.pop("name", "cache")
-        super().__init__(line, (ast.With, ast.If), *arg, name=name, **kwargs)
+        super().__init__(
+            line,
+            (ast.With, ast.If),
+            *arg,
+            name=name,
+            allow_inline=False,
+            **kwargs,
+        )
 
 
 class ContainedExtractWithBlock(ExtractWithBlock):

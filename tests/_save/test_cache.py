@@ -522,6 +522,34 @@ class TestScriptCache:
             app.run()
 
 
+def test_cache_rejects_lambda() -> None:
+    cached = marimo.cache(lambda value: value + 1)
+    with pytest.raises(TypeError, match="declared with `def` or `async def`"):
+        cached(1)
+
+
+def test_nested_cache_rejects_multiple_contexts() -> None:
+    from marimo._ast.transformers import BlockException
+
+    app = App()
+    app._anonymous_file = True
+
+    @app.cell
+    def _():
+        from contextlib import nullcontext
+
+        import marimo as mo
+
+        with nullcontext():
+            with mo.cache("nested"), nullcontext():
+                value = 1
+
+    with pytest.raises(
+        BlockException, match="Use a separate `with` statement"
+    ):
+        app.run()
+
+
 class TestAppCache:
     async def test_cache_miss(self, any_kernel: Kernel) -> None:
         k = any_kernel

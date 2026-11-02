@@ -759,6 +759,9 @@ class _cache_context(SkipContext, CacheContext):
         for i, frame in enumerate(stack[::-1]):
             filename, lineno, function_name, _code = frame
             if function_name == "<module>":
+                # Tracing may start in another context manager's header or
+                # a nested block, rather than the first line of this body.
+                entry_lineno = self._entry_line or lineno - 1
                 ctx = get_context()
                 if ctx.execution_context is None:
                     raise CacheException(
@@ -780,6 +783,7 @@ class _cache_context(SkipContext, CacheContext):
                             f"{UNEXPECTED_FAILURE_BOILERPLATE}"
                         )
                     lineno -= cell.lineno
+                    entry_lineno -= cell.lineno
                     code = cell.code
                 elif cell_id in graph.cells:
                     code = graph.cells[cell_id].code
@@ -807,7 +811,7 @@ class _cache_context(SkipContext, CacheContext):
                     )
 
                 pre_module, save_module = CacheExtractWithBlock(
-                    lineno - 1
+                    entry_lineno
                 ).visit(
                     ast.parse(code).body  # type: ignore[arg-type]
                 )
