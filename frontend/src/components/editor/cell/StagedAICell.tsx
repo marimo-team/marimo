@@ -144,7 +144,11 @@ export function rejectStagedCell(
         break;
       }
 
-      const update = prepareCellCodeUpdate(editorView.state, edit.previousCode);
+      const update = prepareCellCodeUpdate(
+        editorView.state,
+        edit.previousCode,
+        { initialize: true },
+      );
 
       if (update) {
         editorView.dispatch(update);

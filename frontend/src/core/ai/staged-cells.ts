@@ -124,7 +124,9 @@ export function useStagedCells(store: JotaiStore) {
 
     const editorView = getCellEditorView(cellId);
     if (editorView) {
-      const update = prepareCellCodeUpdate(editorView.state, code);
+      const update = prepareCellCodeUpdate(editorView.state, code, {
+        initialize: true,
+      });
       if (update) {
         editorView.dispatch(update);
       }

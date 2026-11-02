@@ -117,7 +117,9 @@ export class EditNotebookTool implements AiTool<
 
         // If previous edit was from a new cell, just replace editor code with the new code
         if (existingStagedCell?.type === "add_cell") {
-          const update = prepareCellCodeUpdate(editorView.state, code);
+          const update = prepareCellCodeUpdate(editorView.state, code, {
+            initialize: true,
+          });
           if (update) {
             editorView.dispatch(update);
           }
@@ -140,7 +142,9 @@ export class EditNotebookTool implements AiTool<
           edit: { type: "update_cell", previousCode: previousCode },
         });
 
-        const update = prepareCellCodeUpdate(editorView.state, code);
+        const update = prepareCellCodeUpdate(editorView.state, code, {
+          initialize: true,
+        });
 
         if (update) {
           editorView.dispatch(update);
