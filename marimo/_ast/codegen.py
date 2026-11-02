@@ -5,6 +5,7 @@ import ast
 import io
 import os
 import re
+import sys
 import textwrap
 import tokenize
 from typing import TYPE_CHECKING, Any, Literal
@@ -196,16 +197,14 @@ def to_decorator(
     )
 
 
-_STRING_START_TYPES = {tokenize.STRING} | {
-    getattr(tokenize, name)
-    for name in ("FSTRING_START", "TSTRING_START")
-    if hasattr(tokenize, name)
-}
-_STRING_END_TYPES = {
-    getattr(tokenize, name)
-    for name in ("FSTRING_END", "TSTRING_END")
-    if hasattr(tokenize, name)
-}
+_STRING_START_TYPES = {tokenize.STRING}
+_STRING_END_TYPES: set[int] = set()
+if sys.version_info >= (3, 12):
+    _STRING_START_TYPES.add(tokenize.FSTRING_START)
+    _STRING_END_TYPES.add(tokenize.FSTRING_END)
+if sys.version_info >= (3, 14):
+    _STRING_START_TYPES.add(tokenize.TSTRING_START)
+    _STRING_END_TYPES.add(tokenize.TSTRING_END)
 
 
 def format_markdown(cell: CellImpl) -> str:
