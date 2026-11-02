@@ -1,10 +1,10 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-import sys
 from typing import TYPE_CHECKING, Any
 
 from marimo._ast.names import SETUP_CELL_NAME
+from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.types import NoopStream
 from marimo._runtime import dataflow
 from marimo._runtime.app.common import RunOutput
@@ -47,7 +47,7 @@ if TYPE_CHECKING:
 
 def _close_matplotlib_figures() -> None:
     """Close pyplot figures after each cell so the next one starts fresh."""
-    if "matplotlib.pyplot" not in sys.modules:
+    if not DependencyManager.imported("matplotlib.pyplot"):
         return
     from marimo._output.mpl import close_figures
 
