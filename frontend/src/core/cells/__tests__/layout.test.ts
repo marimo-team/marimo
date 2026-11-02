@@ -1,14 +1,20 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
+import { createStore } from "jotai";
 import { describe, expect, it } from "vitest";
 import { cellId } from "@/__tests__/branded";
+import type { EditableCell } from "@/core/notebook/document";
 import type { CellColumnId } from "@/utils/id-tree";
+import { exportedForTesting, notebookAtom, notebookReducer } from "../cells";
+import { applyDocument } from "../document";
 import type { CellId } from "../ids";
 import {
+  collapsedAtom,
   columnOf,
   deriveLayout,
   foldSections,
   foldsHiding,
+  layoutAtom,
   visibleNeighbor,
 } from "../layout";
 import type { Outline } from "../outline";
@@ -84,5 +90,78 @@ describe("deriveLayout", () => {
     expect(visibleNeighbor(layout, h1b, -1)).toBe(h2);
     expect(visibleNeighbor(layout, h1, -1)).toBeUndefined();
     expect(visibleNeighbor(layout, b, 1)).toBeUndefined();
+  });
+});
+
+describe("layoutAtom", () => {
+  /** A store whose notebook holds `ids`, in that order, with nothing run. */
+  function notebookOf(...ids: CellId[]) {
+    const store = createStore();
+    const cells = ids.map((id): EditableCell => ({
+      id,
+      code: "",
+      name: "_",
+      config: {
+        column: null,
+        disabled: false,
+        hide_code: false,
+        expand_output: false,
+      },
+    }));
+    store.set(
+      notebookAtom,
+      applyDocument(exportedForTesting.initialNotebookState(), {
+        order: ids,
+        cells: new Map(cells.map((cell) => [cell.id, cell])),
+      }),
+    );
+    return store;
+  }
+
+  /** Deliver `html` as a cell's output, as the kernel's message does. */
+  function output(
+    store: ReturnType<typeof createStore>,
+    id: CellId,
+    html: string,
+  ) {
+    store.set(notebookAtom, (state) =>
+      notebookReducer(state, {
+        type: "handleCellMessage",
+        payload: {
+          cell_id: id,
+          output: {
+            channel: "output",
+            mimetype: "text/html",
+            data: html,
+            timestamp: 1,
+          },
+          console: null,
+          status: "idle",
+          stale_inputs: null,
+          timestamp: 1,
+        },
+      }),
+    );
+  }
+
+  it("is the same layout after output that changes no heading", () => {
+    const store = notebookOf(h1, a);
+    output(store, h1, "<h1>Title</h1>");
+    const layout = store.get(layoutAtom);
+
+    output(store, a, "<p>1</p>");
+    output(store, h1, "<h1>Title</h1>");
+
+    expect(store.get(layoutAtom)).toBe(layout);
+  });
+
+  it("follows a heading arriving in a cell's output", () => {
+    const store = notebookOf(h1, a);
+    store.set(collapsedAtom, new Set([h1]));
+    expect(store.get(layoutAtom).columns[0].folds.size).toBe(0);
+
+    output(store, h1, "<h1>Title</h1>");
+
+    expect(store.get(layoutAtom).columns[0].folds.get(h1)).toEqual([a]);
   });
 });

@@ -5,7 +5,7 @@
 import { atom, useAtomValue } from "jotai";
 import type { CellColumnId } from "@/utils/id-tree";
 import { findCollapseRange } from "../dom/outline";
-import { notebookAtom } from "./cells";
+import { cellIdsAtom, cellOutlinesAtom } from "./cells";
 import type { CellId } from "./ids";
 import type { Outline } from "./outline";
 
@@ -73,13 +73,12 @@ export function deriveLayout(
  * the column ids this browser keeps. Outlines come from executions later.
  */
 export const layoutAtom = atom((get): Layout => {
-  const { cellIds, cellRuntime } = get(notebookAtom);
+  const outlines = get(cellOutlinesAtom);
   return deriveLayout(
-    cellIds.getColumns().map((column) => ({
-      id: column.id,
-      ids: column.inOrderIds,
-    })),
-    (id) => cellRuntime[id]?.outline ?? null,
+    get(cellIdsAtom)
+      .getColumns()
+      .map((column) => ({ id: column.id, ids: column.inOrderIds })),
+    (id) => outlines[id] ?? null,
     get(collapsedAtom),
   );
 });

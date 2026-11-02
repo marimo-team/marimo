@@ -32,6 +32,7 @@ import { applyDocument, documentEditMiddleware } from "./document";
 import { isCodeHidden, shownHiddenCodeAtom } from "./editor";
 import { CellId, SCRATCH_CELL_ID } from "./ids";
 import { type CellLog, getCellLogsForMessage } from "./logs";
+import type { Outline } from "./outline";
 import { focusAndScrollCellIntoView } from "./scrollCellIntoView";
 import {
   type CellData,
@@ -1040,6 +1041,24 @@ export const cellErrorsAtom = atom((get) => {
     .filter(Boolean);
   return errors;
 });
+
+/**
+ * The outline of each cell whose output has a heading. Compared by value, so
+ * readers are left alone by the runtime messages that change no heading.
+ */
+export const cellOutlinesAtom = createDeepEqualAtom(
+  atom((get) => {
+    const outlines: Partial<Record<CellId, Outline>> = {};
+    for (const [id, runtime] of Objects.entries(
+      get(notebookAtom).cellRuntime,
+    )) {
+      if (runtime.outline !== null && runtime.outline.items.length > 0) {
+        outlines[id] = runtime.outline;
+      }
+    }
+    return outlines;
+  }),
+);
 
 export const notebookOutline = atom((get) => {
   const cellIds = get(cellIdsAtom);
