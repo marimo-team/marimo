@@ -2005,12 +2005,12 @@ class Kernel:
 
         Code arrives with runs. A cell the kernel has run keeps its code
         until the next run carries new code, so typing is never compiled
-        here; only code pending from an instantiation that has not run
+        here. Only code pending from an instantiation that has not run
         is replaced, so that run uses what the notebook has. Deletions
-        and configs apply together, and only their consequences run:
-        cells that depended on a deleted cell, and under autorun, stale
-        cells the edit enabled. Enabling a cell under autorun is a run
-        of it, so it takes the code the edit carries for that cell.
+        and configs apply together, and only their consequences run.
+        Those are the cells that depended on a deleted cell and, under
+        autorun, stale cells the edit enabled, which run the code the
+        kernel holds for them.
         """
         for cell_id, code in request.codes.items():
             if cell_id in self._uninstantiated_execution_requests:
@@ -2022,17 +2022,8 @@ class Kernel:
             for cell_id in request.delete_ids
         ]
         cells_to_run = self.mutate_graph([], deletions) if deletions else set()
-        enabled, stale_cells = self._configure_cells(request.configs)
+        stale_cells = self._configure_cells(request.configs)
         if self.reactive_execution_mode == "autorun":
-            runs = [
-                ExecuteCellCommand(
-                    cell_id=cell_id, code=request.codes[cell_id]
-                )
-                for cell_id in enabled
-                if cell_id in request.codes and cell_id in self.graph.cells
-            ]
-            if runs:
-                cells_to_run |= self.mutate_graph(runs, deletion_requests=[])
             cells_to_run |= stale_cells
         if cells_to_run:
             await self._run_cells(cells_to_run)
@@ -2290,28 +2281,20 @@ class Kernel:
 
         Cells that are enabled (via config) but stale are run as a side-effect.
         """
-        _, stale_cells = self._configure_cells(request.configs)
+        stale_cells = self._configure_cells(request.configs)
         if stale_cells and self.reactive_execution_mode == "autorun":
             await self._run_cells(stale_cells)
 
     def _configure_cells(
         self, configs: dict[CellId_t, dict[str, Any]]
-    ) -> tuple[set[CellId_t], set[CellId_t]]:
-        """Apply cell configs.
-
-        Returns the cells the configs enabled and the stale cells that
-        enabling them woke, the enabled cells among them.
-        """
-        enabled: set[CellId_t] = set()
+    ) -> set[CellId_t]:
+        """Apply cell configs and return the stale cells they enabled."""
         stale_cells: set[CellId_t] = set()
         for cell_id, config in configs.items():
             metadata = self.cell_metadata.setdefault(cell_id, CellMetadata())
-            previous = metadata.config
-            merged = CellConfig.from_dict(previous.asdict())
+            merged = CellConfig.from_dict(metadata.config.asdict())
             merged.configure(config)
             metadata.config = merged
-            if previous.disabled and not merged.disabled:
-                enabled.add(cell_id)
             cell = self.graph.cells.get(cell_id)
             if cell is None:
                 continue
@@ -2320,7 +2303,7 @@ class Kernel:
                 self.graph.disable_cell(cell_id)
             else:
                 stale_cells |= self.graph.enable_cell(cell_id)
-        return enabled, stale_cells
+        return stale_cells
 
     @kernel_tracer.start_as_current_span("set_user_config")
     def set_user_config(self, request: UpdateUserConfigCommand) -> None:

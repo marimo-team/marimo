@@ -2263,7 +2263,7 @@ except NameError:
         # A cell the kernel has never seen arrives with its first run.
         assert "1" not in k.graph.cells
 
-    async def test_edit_cells_enabling_a_cell_runs_the_code_it_carries(
+    async def test_edit_cells_enabling_a_cell_keeps_the_code_the_kernel_holds(
         self, any_kernel: Kernel
     ) -> None:
         k = any_kernel
@@ -2280,14 +2280,11 @@ except NameError:
             )
         )
 
+        # The edited code is a draft until a run carries it.
         cell = k.graph.cells["0"]
         assert not cell.config.disabled
-        if k.lazy():
-            assert cell.code == "x = 1"
-            assert k.globals["x"] == 1
-        else:
-            assert cell.code == "x = 2"
-            assert k.globals["x"] == 2
+        assert cell.code == "x = 1"
+        assert k.globals["x"] == 1
 
     async def test_edit_cells_pending_code_runs_as_an_ancestor(
         self, any_kernel: Kernel

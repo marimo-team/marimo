@@ -39,12 +39,24 @@ def test_deleting_all_cells_broadcasts_the_final_order() -> None:
     assert session.document.cell_ids == []
 
 
-async def test_enabling_an_edited_cell_does_not_run_old_code() -> None:
+@pytest.mark.parametrize("edited_earlier", [False, True])
+async def test_enabling_a_cell_runs_the_code_the_kernel_holds(
+    edited_earlier: bool,
+) -> None:
     cell_id = CellId_t("a")
     old_code, new_code = 'print("old")', 'print("new")'
     session = FakeSession()
+    # The edit changes the code and enables the cell, or an earlier edit
+    # changed the code, which the kernel did not take, and this one enables.
     session.document = NotebookDocument(
-        [NotebookCell(cell_id, old_code, "_", CellConfig(disabled=True))]
+        [
+            NotebookCell(
+                cell_id,
+                new_code if edited_earlier else old_code,
+                "_",
+                CellConfig(disabled=True),
+            )
+        ]
     )
     document = Document([DocumentCell(cell_id, new_code)], {})
 
@@ -58,30 +70,7 @@ async def test_enabling_an_edited_cell_does_not_run_old_code() -> None:
         for command in session.commands:
             await runtime.kernel.handle_message(command)
 
-        assert "old" not in "".join(runtime.stdout.messages)
-
-
-async def test_enabling_a_cell_edited_earlier_runs_its_current_code() -> None:
-    cell_id = CellId_t("a")
-    old_code, new_code = 'print("old")', 'print("new")'
-    session = FakeSession()
-    # The code changed in an earlier edit, which the kernel did not take.
-    session.document = NotebookDocument(
-        [NotebookCell(cell_id, new_code, "_", CellConfig(disabled=True))]
-    )
-    document = Document([DocumentCell(cell_id, new_code)], {})
-
-    with mocked_kernel_session(
-        configs={cell_id: CellConfig(disabled=True)}
-    ) as runtime:
-        await runtime.kernel.run(
-            [ExecuteCellCommand(cell_id=cell_id, code=old_code)]
-        )
-        apply_to_session(session, document)  # type: ignore[arg-type]
-        for command in session.commands:
-            await runtime.kernel.handle_message(command)
-
-        assert "".join(runtime.stdout.messages) == "new\n"
+        assert "".join(runtime.stdout.messages) == "old\n"
 
 
 @pytest.mark.parametrize(
