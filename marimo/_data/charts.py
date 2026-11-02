@@ -360,6 +360,8 @@ class DateChartBuilder(ChartBuilder):
         # Get min and max dates using narwhals
         min_date = df[column].min()
         max_date = df[column].max()
+        if min_date is None or max_date is None:
+            return self.DEFAULT_DATE_FORMAT, self.DEFAULT_TIME_UNIT
 
         # Handle time-only data
         if isinstance(min_date, time) and isinstance(max_date, time):

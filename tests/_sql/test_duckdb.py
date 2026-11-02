@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import sys
 from copy import deepcopy
 from typing import TYPE_CHECKING, Any, Literal
@@ -9,13 +10,16 @@ from unittest import mock
 
 import pytest
 
+from marimo._config.config import SqlOutputType
 from marimo._data.models import Database, DataTable, DataTableColumn, Schema
 from marimo._dependencies.dependencies import DependencyManager
+from marimo._plugins.ui._impl.table import SearchTableArgs, table
 from marimo._sql.engines.duckdb import DuckDBEngine
 from marimo._sql.engines.types import EngineCatalog, QueryEngine
 from marimo._sql.get_engines import engine_to_data_source_connection
 from marimo._sql.sql import sql
 from marimo._sql.sql_quoting import quote_qualified_name
+from marimo._sql.utils import is_duckdb_v2
 from marimo._types.ids import VariableName
 
 HAS_DUCKDB = DependencyManager.duckdb.has()
@@ -51,7 +55,7 @@ def duckdb_connection() -> Generator[duckdb.DuckDBPyConnection, None, None]:
         (3, 'Charlie');
         """
     )
-    sql("INSERT INTO test (id, name) VALUES (4, 'Rose')", engine=conn)
+    conn.execute("INSERT INTO test (id, name) VALUES (4, 'Rose')").fetchall()
     yield conn
     conn.execute("DROP TABLE test")
     conn.close()
@@ -156,6 +160,8 @@ def test_duckdb_engine_get_databases(
 @pytest.mark.skipif(not HAS_DUCKDB, reason="DuckDB not installed")
 def test_duckdb_engine_get_databases_no_conn() -> None:
     """Test DuckDBEngine get_databases method."""
+    import duckdb
+
     engine = DuckDBEngine(None, engine_name=None)
     initial_databases = engine.get_databases(
         include_schemas=False,
@@ -171,18 +177,18 @@ def test_duckdb_engine_get_databases_no_conn() -> None:
     assert engine.get_default_database() == "memory"
     assert engine.get_default_schema() == "main"
 
-    engine.execute(
+    duckdb.execute(
         "CREATE TABLE test (id INTEGER PRIMARY KEY, name VARCHAR(255))"
-    )
+    ).fetchall()
     try:
-        engine.execute(
+        duckdb.execute(
             """
             INSERT INTO test VALUES
             (1, 'Alice'),
             (2, 'Bob'),
             (3, 'Charlie');
             """
-        )
+        ).fetchall()
         databases = engine.get_databases(
             include_schemas=True,
             include_tables=True,
@@ -204,7 +210,7 @@ def test_duckdb_engine_get_databases_no_conn() -> None:
             ),
         ]
     finally:
-        engine.execute("DROP TABLE test")
+        duckdb.execute("DROP TABLE test").fetchall()
 
 
 @pytest.mark.skipif(not HAS_DUCKDB, reason="duckdb not installed")
@@ -242,15 +248,17 @@ def test_get_current_database_schema() -> None:
     assert duckdb_engine.get_default_database() == "memory"
     assert duckdb_engine.get_default_schema() == "main"
 
-    sql("CREATE SCHEMA test_schema;", engine=engine)
-    sql("CREATE TABLE test_schema.test_table (id INTEGER);", engine=engine)
-    sql("USE test_schema;", engine=engine)
+    engine.execute("CREATE SCHEMA test_schema;").fetchall()
+    engine.execute(
+        "CREATE TABLE test_schema.test_table (id INTEGER);"
+    ).fetchall()
+    engine.execute("USE test_schema;").fetchall()
 
     assert duckdb_engine.get_default_database() == "memory"
     assert duckdb_engine.get_default_schema() == "test_schema"
 
-    sql("DROP TABLE test_schema.test_table;", engine=engine)
-    sql("DROP SCHEMA test_schema;", engine=engine)
+    engine.execute("DROP TABLE test_schema.test_table;").fetchall()
+    engine.execute("DROP SCHEMA test_schema;").fetchall()
 
 
 @pytest.mark.skipif(
@@ -837,7 +845,7 @@ def test_duckdb_keeps_tables_when_column_discovery_fails(failure: str) -> None:
                 if failure == "placeholder":
                     oid = connection.execute(
                         "SELECT oid FROM duckdb_schemas() WHERE database_name = 'memory' AND schema_name = 'main'"
-                    ).fetchone()[0]
+                    ).fetchall()[0][0]
                     return [("memory", oid, "example", "__", "INTEGER")]
                 return []
             return query(sql, params)
@@ -952,3 +960,87 @@ def test_duckdb_nested_schema_discovery(include_tables: bool) -> None:
             )
             == []
         )
+
+
+@pytest.mark.requires("duckdb", "pandas", "polars", "pyarrow")
+@pytest.mark.parametrize(
+    "output_format", ["native", "polars", "lazy-polars", "pandas"]
+)
+@pytest.mark.parametrize("output", [False, True])
+def test_duckdb_command_results(
+    output_format: SqlOutputType, output: bool
+) -> None:
+    import duckdb
+    import pandas as pd
+    import polars as pl
+
+    def assert_rows(result: object, expected: list[tuple[int]]) -> None:
+        if output_format == "native":
+            assert isinstance(result, duckdb.DuckDBPyRelation)
+            assert result.columns == ["Count"]
+            assert result.fetchall() == expected
+        elif output_format == "pandas":
+            assert isinstance(result, pd.DataFrame)
+            assert list(result.columns) == ["Count"]
+            assert list(result.itertuples(index=False, name=None)) == expected
+        else:
+            if output_format == "lazy-polars":
+                assert isinstance(result, pl.LazyFrame)
+                result = result.collect()
+            assert isinstance(result, pl.DataFrame)
+            assert result.columns == ["Count"]
+            assert result.rows() == expected
+
+    with (
+        duckdb.connect() as connection,
+        mock.patch.object(
+            DuckDBEngine, "sql_output_format", return_value=output_format
+        ),
+        mock.patch("marimo._sql.sql.replace") as replace,
+        mock.patch(
+            "marimo._output.formatters.df_formatters.include_opinionated",
+            return_value=True,
+        ),
+    ):
+        connection.execute("CREATE SEQUENCE command_counter")
+        commands = [
+            (
+                (
+                    "CREATE TABLE command_result AS "
+                    "SELECT nextval('command_counter') AS value FROM range(2)"
+                ),
+                2,
+            ),
+            ("INSERT INTO command_result VALUES (3)", 1),
+        ]
+        for query, count in commands:
+            replace.reset_mock()
+            result = sql(query, engine=connection, output=output)
+            if is_duckdb_v2():
+                assert_rows(result, [(count,)])
+                assert replace.call_count == int(output)
+                if output:
+                    rendered = replace.call_args.args[0]
+                    assert isinstance(rendered, table)
+                    page = rendered._search(
+                        SearchTableArgs(page_size=10, page_number=0)
+                    )
+                    assert json.loads(page.data) == [{"Count": count}]
+            else:
+                assert result is None
+                replace.assert_not_called()
+            assert connection.execute("SELECT 42").fetchall() == [(42,)]
+        assert_rows(
+            sql(
+                'INSERT INTO command_result VALUES (17) RETURNING value AS "Count"',
+                engine=connection,
+                output=output,
+            ),
+            [(17,)],
+        )
+        assert connection.execute(
+            "SELECT value FROM command_result ORDER BY value"
+        ).fetchall() == [(1,), (2,), (3,), (17,)]
+        assert connection.execute(
+            "SELECT currval('command_counter')"
+        ).fetchall() == [(2,)]
