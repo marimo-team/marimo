@@ -43,13 +43,12 @@ import { useResizeObserver } from "@/hooks/useResizeObserver";
 import { cn } from "@/utils/cn";
 import type { Milliseconds, Seconds } from "@/utils/time";
 import {
-  type CellActions,
   createUntouchedCellAtom,
-  useCellActions,
   useCellData,
   useCellHandle,
   useCellRuntime,
 } from "../../core/cells/cells";
+import { type CellActions, useCellActions } from "../../core/cells/actions";
 import { type CellId, SETUP_CELL_ID } from "../../core/cells/ids";
 import {
   cellNeedsRun,
@@ -216,13 +215,10 @@ function useCellHiddenLogic({
 export type CellComponentActions = Pick<
   CellActions,
   | "updateCellCode"
-  | "createNewCell"
   | "focusCell"
   | "moveCell"
   | "collapseCell"
   | "expandCell"
-  | "moveToNextCell"
-  | "updateCellConfig"
   | "clearSerializedEditorState"
   | "setStdinResponse"
   | "clearCellConsoleOutput"
@@ -928,15 +924,16 @@ const CellLeftSideActions = memo(
     actions: CellComponentActions;
   }) => {
     const connection = useAtomValue(connectionAtom);
-    const { className, actions, cellId } = props;
+    const { className, cellId } = props;
+    const { createCell } = useCellActions();
 
     const createBelow = useEvent(
-      (opts: { code?: string; hideCode?: boolean } = {}) =>
-        actions.createNewCell({ cellId, before: false, ...opts }),
+      ({ code, hideCode }: { code?: string; hideCode?: boolean } = {}) =>
+        createCell({ after: cellId, code, config: { hide_code: hideCode } }),
     );
     const createAbove = useEvent(
-      (opts: { code?: string; hideCode?: boolean } = {}) =>
-        actions.createNewCell({ cellId, before: true, ...opts }),
+      ({ code, hideCode }: { code?: string; hideCode?: boolean } = {}) =>
+        createCell({ before: cellId, code, config: { hide_code: hideCode } }),
     );
 
     const oneClickShortcut = "mod";

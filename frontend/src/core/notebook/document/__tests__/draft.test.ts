@@ -9,6 +9,7 @@ import {
   type EditableCell,
   editCell,
   EMPTY_DRAFT,
+  restoreCell,
   setOrder,
   toChanges,
   viewDocument,
@@ -98,6 +99,46 @@ describe("createCell and deleteCell", () => {
     );
     expect(toChanges(confirmed, draft)).toEqual([]);
     expect(viewDocument(confirmed, draft).order).toEqual(["c1", "c2"]);
+  });
+
+  it("restores a deleted cell as an edit at the requested place", () => {
+    const deleted = deleteCell(EMPTY_DRAFT, "c1");
+    const back = { id: "c1", code: "back" };
+    const put = {
+      kind: "put_cell",
+      base_etag: "c1-etag",
+      cell: { ...back, name: "_", config: CONFIG },
+    };
+    const inPlace = restoreCell(confirmed, deleted, back, { before: "c2" });
+    const moved = restoreCell(confirmed, deleted, back, { after: "c2" });
+    expect(viewDocument(confirmed, inPlace).cells.get("c1")?.code).toBe("back");
+    expect(viewDocument(confirmed, inPlace).order).toEqual(["c1", "c2"]);
+    expect(toChanges(confirmed, inPlace)).toEqual([put]);
+    expect(viewDocument(confirmed, moved).order).toEqual(["c2", "c1"]);
+    expect(toChanges(confirmed, moved)).toEqual([
+      put,
+      { kind: "set_order", base_etag: "order-1", order: ["c2", "c1"] },
+    ]);
+  });
+
+  it("recreates a cell whose deletion is in flight once the host removes it", () => {
+    const sent = deleteCell(EMPTY_DRAFT, "c1");
+    const back = { id: "c1", code: "back" };
+    const draft = restoreCell(confirmed, sent, back, { before: "c2" }, sent);
+    expect(viewDocument(confirmed, draft).cells.get("c1")?.code).toBe("back");
+    expect(viewDocument(confirmed, draft).order).toEqual(["c1", "c2"]);
+
+    const removed = withCells(confirmed, { c1: null });
+    const settled = acknowledge(draft, sent);
+    expect(viewDocument(removed, settled).order).toEqual(["c1", "c2"]);
+    expect(toChanges(removed, settled)).toEqual([
+      {
+        kind: "put_cell",
+        base_etag: null,
+        cell: { ...back, name: "_", config: CONFIG },
+        before: "c2",
+      },
+    ]);
   });
 });
 

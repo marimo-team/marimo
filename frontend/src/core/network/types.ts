@@ -1,6 +1,5 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 import type { components, paths } from "@marimo-team/marimo-api";
-import type { CellId } from "../cells/ids";
 
 export type schemas = components["schemas"];
 export type AiCompletionRequest = schemas["AiCompletionRequest"];
@@ -16,7 +15,6 @@ export type CellConfig = schemas["CellConfig"];
  */
 export type RuntimeState = schemas["CellNotification"]["status"];
 export type CodeCompletionRequest = schemas["CodeCompletionRequest"];
-export type DeleteCellRequest = schemas["DeleteCellRequest"];
 export type AutoExportAsIPYNBRequest = schemas["AutoExportAsIPYNBRequest"];
 export type AutoExportAsMarkdownRequest =
   schemas["AutoExportAsMarkdownRequest"];
@@ -101,9 +99,6 @@ export type SaveNotebookRequest = schemas["SaveNotebookRequest"];
 export type CopyNotebookRequest = schemas["CopyNotebookRequest"];
 export type SaveUserConfigurationRequest =
   schemas["SaveUserConfigurationRequest"];
-export interface SetCellConfigRequest {
-  configs: Record<CellId, Partial<CellConfig>>;
-}
 /**
  * Client-side shape for creating a file/directory/notebook. The HTTP
  * transport sends this as multipart/form-data; the WASM bridge base64-encodes
@@ -171,11 +166,9 @@ export interface EditRequests {
   sendInterrupt: () => Promise<null>;
   sendShutdown: () => Promise<null>;
   sendFormat: (request: FormatCellsRequest) => Promise<FormatResponse>;
-  sendDeleteCell: (request: DeleteCellRequest) => Promise<null>;
   sendCodeCompletionRequest: (request: CodeCompletionRequest) => Promise<null>;
   saveUserConfig: (request: SaveUserConfigurationRequest) => Promise<null>;
   saveAppConfig: (request: SaveAppConfigurationRequest) => Promise<null>;
-  saveCellConfig: (request: SetCellConfigRequest) => Promise<null>;
   sendRestart: () => Promise<null>;
   sendInstallMissingPackages: (
     request: InstallPackagesRequest,

@@ -253,17 +253,47 @@ export function createCell(
   input: Protocol.CellInput,
   placement: Placement = {},
 ): Draft {
+  const cell = parseCell(input);
+  const next = withCell(draft, cell.id, { kind: "create", cell, placement });
+  return draft.order === null
+    ? next
+    : { ...next, order: insertAt(draft.order, cell.id, placement) };
+}
+
+/**
+ * Bring back a cell this draft deletes, with the given content.
+ *
+ * A deletion not yet sent is withdrawn and the cell edited in place. One in
+ * flight is superseded by a creation, so the cell returns once the host has
+ * removed it. Either way the cell takes the requested placement.
+ */
+export function restoreCell(
+  confirmed: Document,
+  draft: Draft,
+  input: Protocol.CellInput,
+  placement: Placement = {},
+  sent: Draft = EMPTY_DRAFT,
+): Draft {
+  const { id, code, name, config } = parseCell(input);
+  const withdrawn = withCell(draft, id, undefined);
+  const next =
+    sent.cells.get(id)?.kind === "delete"
+      ? createCell(withdrawn, input, placement)
+      : editCell(confirmed, withdrawn, id, { code, name, config });
+  const { order } = viewDocument(confirmed, next);
+  const placed = insertAt(order, id, placement);
+  return sameOrder(order, placed) ? next : setOrder(next, placed);
+}
+
+/** A cell input with the protocol's defaults filled in. */
+function parseCell(input: Protocol.CellInput): CellWithSource {
   const parsed = Protocol.CellInput.parse(input);
-  const cell: CellWithSource = {
+  return {
     id: parsed.id,
     code: parsed.code,
     name: parsed.name,
     config: parsed.config ?? Protocol.CellConfigInput.parse({}),
   };
-  const next = withCell(draft, cell.id, { kind: "create", cell, placement });
-  return draft.order === null
-    ? next
-    : { ...next, order: insertAt(draft.order, cell.id, placement) };
 }
 
 /** Forget an unsent creation; otherwise retain the deletion until confirmed. */

@@ -5,7 +5,7 @@ import { bench, describe, expect } from "vitest";
 import { MockNotebook } from "@/__mocks__/notebook";
 import { cellId } from "@/__tests__/branded";
 import {
-  type CellActions,
+  type ReducerCellActions,
   cellDataAtom,
   cellErrorsAtom,
   cellHandleAtom,
@@ -23,7 +23,7 @@ import { layoutStateAtom } from "@/core/layout/state";
 import { lastSavedNotebookAtom, needsSaveAtom } from "@/core/saving/state";
 import type { DispatchedActionOf } from "@/utils/createReducer";
 
-type CellAction = DispatchedActionOf<CellActions>;
+type CellAction = DispatchedActionOf<ReducerCellActions>;
 
 const options = { time: 500, warmupTime: 200, iterations: 100 };
 const code = Array.from({ length: 20 }, (_, i) => `value_${i} = ${i}`).join(

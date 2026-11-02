@@ -4,6 +4,7 @@ import { createStore } from "jotai";
 import { describe, expect, it, vi } from "vitest";
 import { MockNotebook } from "@/__mocks__/notebook";
 import { cellId } from "@/__tests__/branded";
+import { CONFIG } from "@/core/notebook/document/__tests__/fixtures";
 import {
   createNotebookActions,
   notebookAtom,
@@ -84,7 +85,12 @@ describe("notebookOutline", () => {
       items: [...secondOutline.items, ...firstOutline.items],
     });
 
-    actions.deleteCell({ cellId: second });
+    actions.reconcileDocument({
+      order: [first],
+      cells: new Map([
+        [first, { id: first, code: "x = 1", name: "_", config: CONFIG }],
+      ]),
+    });
     expect(store.get(notebookOutline)).toEqual(firstOutline);
   });
 

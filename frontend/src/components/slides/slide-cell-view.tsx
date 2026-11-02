@@ -14,7 +14,7 @@ import { useRunCell } from "@/components/editor/cell/useRunCells";
 import { Slide as CellOutputSlide } from "@/components/slides/slide";
 import { maybeAddMarimoImport } from "@/core/cells/add-missing-import";
 import { outputIsStale } from "@/core/cells/cell";
-import { useCellActions } from "@/core/cells/cells";
+import { useCellActions } from "@/core/cells/actions";
 import { autoInstantiateAtom, useUserConfig } from "@/core/config/config";
 import {
   cellNeedsRun,
@@ -42,7 +42,7 @@ export const SlideCellView = ({ cell }: { cell: RuntimeCell }) => {
   const { theme } = useTheme();
   const runCell = useRunCell(cell.id);
   const connection = useAtomValue(connectionAtom);
-  const cellActions = useCellActions();
+  const { createCell } = useCellActions();
   const autoInstantiate = useAtomValue(autoInstantiateAtom);
   const editorViewRef = useRef<EditorView | null>(null);
   const editorViewParentRef = useRef<HTMLDivElement | null>(null);
@@ -53,7 +53,7 @@ export const SlideCellView = ({ cell }: { cell: RuntimeCell }) => {
   const afterToggleLanguage = useEvent(() => {
     maybeAddMarimoImport({
       autoInstantiate,
-      createNewCell: cellActions.createNewCell,
+      createCell,
     });
   });
 

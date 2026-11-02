@@ -5,8 +5,8 @@ import { Tooltip } from "radix-ui";
 
 const TooltipProvider = Tooltip.Provider;
 
-import { useAtomValue, useSetAtom, useStore } from "jotai";
-import { useEffect } from "react";
+import { useAtomValue } from "jotai";
+import { lazy, useEffect } from "react";
 import { NotStartedConnectionAlert } from "@/components/editor/alerts/connecting-alert";
 import { Controls } from "@/components/editor/controls/Controls";
 import { SandboxController } from "@/components/editor/chrome/panels/sandbox-controller";
@@ -29,24 +29,23 @@ import { CellsRenderer } from "../components/editor/renderers/cells-renderer";
 import { useHotkey } from "../hooks/useHotkey";
 import {
   hasCellsAtom,
-  notebookAtom,
   notebookIsRunningAtom,
   numColumnsAtom,
-  useCellActions,
 } from "./cells/cells";
-import { notebookCells } from "./cells/utils";
+import { useCellActions } from "./cells/actions";
 import type { AppConfig, UserConfig } from "./config/config-schema";
-import { DocumentProvider } from "./notebook/document";
 import { RuntimeState } from "./kernel/RuntimeState";
-import { getSessionId } from "./kernel/session";
 import { useTogglePresenting } from "./layout/useTogglePresenting";
 import { viewStateAtom } from "./mode";
 import { useRequestClient } from "./network/requests";
 import { useFilename } from "./saving/filename";
-import { lastSavedNotebookAtom } from "./saving/state";
-import { useNotebookSession } from "./session/useNotebookSession";
+import type { ConnectionStatus } from "./session/types";
 
-interface AppProps {
+const LazyCommandPalette = lazy(
+  () => import("../components/editor/controls/command-palette"),
+);
+
+export interface EditAppProps {
   /**
    * The user config.
    */
@@ -59,20 +58,24 @@ interface AppProps {
    * If true, the floating controls will be hidden.
    */
   hideControls?: boolean;
+  /** The session's connection, which the page owns with the document model. */
+  connection: ConnectionStatus;
+  reconnect: () => Promise<void>;
 }
 
-export const EditApp: React.FC<AppProps> = ({
+/** The notebook editor. Rendered inside the page's `DocumentProvider`. */
+export const EditApp: React.FC<EditAppProps> = ({
   userConfig,
   appConfig,
   hideControls = false,
+  connection,
+  reconnect,
 }) => {
   const { mergeAllColumns, collapseAllCells, expandAllCells } =
     useCellActions();
-  const store = useStore();
   const viewState = useAtomValue(viewStateAtom);
   const numColumns = useAtomValue(numColumnsAtom);
   const filename = useFilename();
-  const setLastSavedNotebook = useSetAtom(lastSavedNotebookAtom);
   const { sendComponentValues, sendInterrupt } = useRequestClient();
 
   const isEditing = viewState.mode === "edit";
@@ -86,18 +89,6 @@ export const EditApp: React.FC<AppProps> = ({
       RuntimeState.INSTANCE.stop();
     };
   }, [sendComponentValues]);
-
-  const { connection, reconnect, documentModel } = useNotebookSession({
-    autoInstantiate: userConfig.runtime.auto_instantiate,
-    onKernelReady: (layout) => {
-      const cells = notebookCells(store.get(notebookAtom));
-      const names = cells.map((cell) => cell.name);
-      const codes = cells.map((cell) => cell.code);
-      const configs = cells.map((cell) => cell.config);
-      setLastSavedNotebook({ names, codes, configs, layout });
-    },
-    sessionId: getSessionId(),
-  });
 
   // Update document title whenever filename or app_title changes
   useEffect(() => {
@@ -178,7 +169,7 @@ export const EditApp: React.FC<AppProps> = ({
   );
 
   return (
-    <DocumentProvider model={documentModel}>
+    <>
       <SandboxController onReconnect={reconnect} />
       <AppContainer
         connection={connection}
@@ -232,6 +223,7 @@ export const EditApp: React.FC<AppProps> = ({
           />
         </TooltipProvider>
       )}
-    </DocumentProvider>
+      <LazyCommandPalette />
+    </>
   );
 };
