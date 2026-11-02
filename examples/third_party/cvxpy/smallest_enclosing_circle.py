@@ -78,7 +78,7 @@ def _(circles: list, smallest_enclosing_circle):
 
 
 @app.cell
-def _(center, circles: list, plot_circle, plt, radius):
+def _(center: None, circles: list, plot_circle, plt, radius: None):
     for (c_i, r_i) in circles:
         plot_circle(c_i, r_i, color='gray')
     plot_circle(center, radius, color='green', label='smallest enclosing circle')

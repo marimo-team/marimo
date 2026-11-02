@@ -53,7 +53,7 @@ def _(mo):
 
 
 @app.cell
-def _(plt, x):
+def _(plt, x: tuple):
     plt.plot(x, x**3)
     plt.show()
 

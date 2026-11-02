@@ -138,7 +138,7 @@ def _(
 def _(
     alt,
     chart_selection_value: None | bool | str,
-    employment,
+    employment: str,
     legend_selection_value: bool,
     mo,
 ):

@@ -21,13 +21,13 @@ def _(np):
 
 
 @app.cell
-def _(columns: list[str], data: float, pd):
+def _(columns: list[str], data, pd):
     df_no_index = pd.DataFrame(data, columns=columns)
     df_no_index
 
 
 @app.cell
-def _(columns: list[str], data: float, pd):
+def _(columns: list[str], data, pd):
     _dates = pd.date_range(start="2023-01-01", periods=100, freq="D")
     df_date_index = pd.DataFrame(data, index=_dates, columns=columns)
     df_date_index
@@ -35,7 +35,7 @@ def _(columns: list[str], data: float, pd):
 
 
 @app.cell
-def _(columns: list[str], data: float, pd):
+def _(columns: list[str], data, pd):
     _dates = pd.date_range(start="2023-01-01", periods=100, freq="D")
     df_date_index_with_name = pd.DataFrame(
         data, index=pd.DatetimeIndex(_dates, name="date"), columns=columns
@@ -44,7 +44,7 @@ def _(columns: list[str], data: float, pd):
 
 
 @app.cell
-def _(columns: list[str], data: float, pd):
+def _(columns: list[str], data, pd):
     _dates = pd.date_range(start="2023-01-01", periods=100, freq="D")
     df_category_index = pd.DataFrame(
         data, index=pd.CategoricalIndex(_dates), columns=columns
@@ -53,7 +53,7 @@ def _(columns: list[str], data: float, pd):
 
 
 @app.cell
-def _(columns: list[str], data: float, pd):
+def _(columns: list[str], data, pd):
     index = pd.MultiIndex.from_tuples(
         [(i, j) for i in range(5) for j in range(2)], names=["Level1", "Level2"]
     )

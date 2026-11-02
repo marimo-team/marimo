@@ -326,7 +326,7 @@ def _(loan):
 
 
 @app.cell
-def _(np, schedule):
+def _(np, schedule: list):
     _interest, _principal = zip(
         *[(payment.interest, payment.principal) for payment in schedule]
     )

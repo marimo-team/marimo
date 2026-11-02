@@ -61,7 +61,7 @@ def _(alt, cars, mo):
 
 
 @app.cell
-def _(alt, stocks):
+def _(alt, stocks: str):
     base = (
         alt.Chart(stocks)
         .encode(x="date:T", y="price:Q", color="symbol:N")

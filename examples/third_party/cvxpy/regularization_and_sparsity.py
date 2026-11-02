@@ -72,7 +72,7 @@ def _(m: int, n: int, np):
 
 
 @app.cell
-def _(A: float, b: float, sparse_solver):
+def _(A, b, sparse_solver):
     l2_solver = sparse_solver(A, b, p=2)
     l1_solver = sparse_solver(A, b, p=1)
     return l1_solver, l2_solver
@@ -108,7 +108,7 @@ def _(mo):
 
 
 @app.cell(hide_code=True)
-def _(mo, n: int, number_of_zeros, sparsity_parameter, x_l1, x_l2):
+def _(mo, n: int, number_of_zeros, sparsity_parameter, x_l1: None, x_l2: None):
     (
         mo.md(
             """
@@ -136,7 +136,7 @@ def _(mo, n: int, number_of_zeros, sparsity_parameter, x_l1, x_l2):
 
 
 @app.cell
-def _(cdf, plt, x_l1, x_l2):
+def _(cdf, plt, x_l1: None, x_l2: None):
     cdf_figure, cdf_axs = plt.subplots(2, 1, sharex=True)
     cdf(x_l1, cdf_axs[0]).set_title("$p=1$")
     cdf(x_l2, cdf_axs[1]).set_title("$p=2$")

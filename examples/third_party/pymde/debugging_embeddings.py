@@ -55,7 +55,7 @@ def _(mo, ready: bool):
 
 
 @app.cell
-def _(mnist, plt, quadratic_mde: None, ready: bool):
+def _(mnist, plt, quadratic_mde, ready: bool):
     def compute_embedding():
         _ = quadratic_mde.embed(verbose=True)
         quadratic_mde.plot(color_by=mnist.attributes["digits"])
@@ -100,7 +100,7 @@ def _(functools, mnist, pymde):
 
 
 @app.cell
-def _(knn_graph: None, mnist, pymde, ready: bool, torch):
+def _(knn_graph, mnist, pymde, ready: bool, torch):
     def construct_mde_problem():
         if torch.cuda.is_available():
             device = "cuda"
@@ -153,7 +153,7 @@ def _(mo, ready: bool):
 
 
 @app.cell
-def _(n_pairs, pairs: None, plot_pairs, ready: bool):
+def _(n_pairs, pairs, plot_pairs, ready: bool):
     plot_pairs(pairs[-n_pairs.value :]) if ready else None
 
 
@@ -174,7 +174,7 @@ def _(mo, ready: bool):
 
 
 @app.cell
-def _(n_pairs, pairs: None, plot_pairs, ready: bool):
+def _(n_pairs, pairs, plot_pairs, ready: bool):
     plot_pairs(pairs[: n_pairs.value]) if ready else None
 
 

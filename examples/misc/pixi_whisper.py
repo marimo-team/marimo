@@ -74,7 +74,7 @@ def _(files, mo, whisper):
 
 
 @app.cell
-def _(audio, model):
+def _(audio: float, model):
     result = model.transcribe(audio, language="en", fp16=model.device.type == "cuda")
     result["text"]
 
