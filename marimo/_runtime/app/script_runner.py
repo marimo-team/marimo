@@ -46,8 +46,7 @@ if TYPE_CHECKING:
 
 
 def _close_matplotlib_figures() -> None:
-    """Close pyplot figures after each cell so the next one starts fresh.
-    """
+    """Close pyplot figures after each cell so the next one starts fresh."""
     if "matplotlib.pyplot" not in sys.modules:
         return
     from marimo._output.mpl import close_figures
