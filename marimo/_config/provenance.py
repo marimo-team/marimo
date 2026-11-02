@@ -9,10 +9,25 @@ if TYPE_CHECKING:
     from marimo._config.config import MarimoConfig, PartialMarimoConfig
 
 ConfigPath = tuple[str, ...]
+
+# Compatibility aliases scheduled for removal in marimo 1.0.
+DEPRECATED_ENV_VARS: dict[ConfigPath, str] = {
+    (
+        "runtime",
+        "auto_instantiate",
+    ): "_MARIMO_CONFIG_OVERLOAD_RUNTIME_AUTO_INSTANTIATE",
+    ("runtime", "output_max_bytes"): "MARIMO_OUTPUT_MAX_BYTES",
+    ("runtime", "std_stream_max_bytes"): "MARIMO_STD_STREAM_MAX_BYTES",
+    ("runtime", "sql_default_limit"): "MARIMO_SQL_DEFAULT_LIMIT",
+    ("server", "skip_update_check"): "MARIMO_SKIP_UPDATE_CHECK",
+    ("server", "session_cookie_secure"): "MARIMO_SESSION_COOKIE_SECURE",
+    ("server", "session_secret"): "MARIMO_SESSION_SECRET",
+}
 ConfigSource: TypeAlias = (
     Path
     | Literal[
         "env_var",
+        "deprecated_env_var",
         "cli",
         "default",
         "inferred",
@@ -35,6 +50,8 @@ def env_var_name(path: ConfigPath) -> str:
 
 
 def format_config_source(path: ConfigPath, source: ConfigSource) -> str:
+    if source == "deprecated_env_var":
+        return f"env var: {DEPRECATED_ENV_VARS[path]} (deprecated)"
     if source == "env_var":
         return f"env var: {env_var_name(path)}"
     if source == "MARIMO_RESTRICT_SHARING":

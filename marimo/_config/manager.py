@@ -30,6 +30,7 @@ from marimo._config.config import (
 from marimo._config.config_schema import MarimoConfig as MarimoConfigSchema
 from marimo._config.packages import PackageManagerKind
 from marimo._config.provenance import (
+    DEPRECATED_ENV_VARS,
     ConfigLayer,
     ConfigSource,
     ResolvedConfig,
@@ -128,6 +129,7 @@ def get_default_config_manager(
         UserConfigStore(),
         PyprojectConfigReader(current_path),
         ScriptConfigReader(current_path),
+        EnvVarReader(deprecated=True),
         EnvVarReader(),
         # Always merged last; see SecurityConfigReader.
         SecurityConfigReader(),
@@ -477,22 +479,45 @@ class PyprojectConfigReader(ConfigReader):
 class EnvVarReader(ConfigReader):
     """Read `MARIMO_<PATH>` overrides for schema-declared leaves."""
 
+    def __init__(self, *, deprecated: bool = False) -> None:
+        self.deprecated = deprecated
+
     @property
     def source(self) -> ConfigSource:
-        return "env_var"
+        return "deprecated_env_var" if self.deprecated else "env_var"
 
     def read(self) -> PartialMarimoConfig:
         """Read schema-declared leaves, skipping malformed environment values."""
         config: dict[str, Any] = {}
         for path, annotation in config_leaf_types(MarimoConfigSchema).items():
-            key = env_var_name(path)
+            canonical = env_var_name(path)
+            key = (
+                DEPRECATED_ENV_VARS.get(path) if self.deprecated else canonical
+            )
+            if key is None:
+                continue
             raw = os.environ.get(key)
             if raw is None:
                 continue
+            if self.deprecated:
+                LOGGER.warning(
+                    "Environment variable %s is deprecated and will be removed "
+                    "in marimo 1.0. Use %s instead.",
+                    key,
+                    canonical,
+                    extra={"omit_log_prefix": True},
+                )
+                # The canonical name wins even when its value is malformed.
+                if canonical in os.environ:
+                    continue
             try:
                 # Preserve strings verbatim; use JSON for collections and null.
-                if raw == "null" and type(None) in get_args(annotation):
-                    value: Any = None
+                if self.deprecated and (
+                    annotation is int or int in get_args(annotation)
+                ):
+                    value: Any = int(raw)
+                elif raw == "null" and type(None) in get_args(annotation):
+                    value = None
                 else:
                     try:
                         value = msgspec.convert(

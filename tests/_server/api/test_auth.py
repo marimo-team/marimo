@@ -186,7 +186,10 @@ def test_hash_access_token_is_keyed_and_deterministic():
     assert len(hash_access_token("a")) == 64
 
 
-def test_session_secret_env_override():
+@pytest.mark.parametrize(
+    "variable", ["MARIMO_SERVER_SESSION_SECRET", "MARIMO_SESSION_SECRET"]
+)
+def test_session_secret_env_override(variable: str):
     # The fallback secret is random per process; check in fresh interpreters.
     code = (
         "from marimo._config.manager import get_default_config_manager;"
@@ -201,19 +204,30 @@ def test_session_secret_env_override():
     def run(env: dict[str, str]) -> list[str]:
         out = subprocess.check_output(
             [sys.executable, "-c", code],
-            env={**os.environ, **env},
+            env={
+                **{
+                    key: value
+                    for key, value in os.environ.items()
+                    if key
+                    not in (
+                        "MARIMO_SERVER_SESSION_SECRET",
+                        "MARIMO_SESSION_SECRET",
+                    )
+                },
+                **env,
+            },
             text=True,
         )
         return out.strip().splitlines()
 
-    stable_a = run({"MARIMO_SERVER_SESSION_SECRET": "stable-secret"})
-    stable_b = run({"MARIMO_SERVER_SESSION_SECRET": "stable-secret"})
+    stable_a = run({variable: "stable-secret"})
+    stable_b = run({variable: "stable-secret"})
     assert stable_a[0] == "stable-secret"
     # Same secret => same cookie hash across processes
     assert stable_a[1] == stable_b[1]
 
-    random_a = run({"MARIMO_SERVER_SESSION_SECRET": ""})
-    random_b = run({"MARIMO_SERVER_SESSION_SECRET": ""})
+    random_a = run({variable: ""})
+    random_b = run({variable: ""})
     # Empty/unset => random per process, so hashes differ
     assert random_a[0] != "stable-secret"
     assert random_a[0] != random_b[0]

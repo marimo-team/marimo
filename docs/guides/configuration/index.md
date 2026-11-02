@@ -184,6 +184,10 @@ applies. Run `marimo config show` to check your environment configuration, or ad
 `--show-sources` to see which environment variables supplied the effective values.
 Environment overrides are not saved to configuration files.
 
+Older environment-variable names remain supported with a deprecation warning
+and will be removed in marimo 1.0. When both names are set, the new name takes
+precedence.
+
 The session secret is hidden in configuration output; set it in trusted user
 configuration or through the environment. Session cookie settings take effect
 when the server starts.

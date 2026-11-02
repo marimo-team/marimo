@@ -460,12 +460,16 @@ def test_query_includes_limit() -> None:
     )
 
 
+@pytest.mark.parametrize(
+    "variable",
+    ["MARIMO_RUNTIME_SQL_DEFAULT_LIMIT", "MARIMO_SQL_DEFAULT_LIMIT"],
+)
 @patch("marimo._sql.sql.replace")
 @pytest.mark.requires("polars", "duckdb")
-def test_applies_limit(mock_replace: MagicMock) -> None:
+def test_applies_limit(mock_replace: MagicMock, variable: str) -> None:
     import duckdb
 
-    with patch.dict(os.environ, {"MARIMO_RUNTIME_SQL_DEFAULT_LIMIT": "300"}):
+    with patch.dict(os.environ, {variable: "300"}):
         duckdb.sql("CREATE OR REPLACE TABLE t AS SELECT * FROM range(1000)")
         mock_replace.assert_not_called()
 

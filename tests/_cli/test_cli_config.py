@@ -371,3 +371,32 @@ def test_config_show_skips_malformed_environment_values(
             f"autosave_delay = 777 # {tmp_path / '.marimo.toml'}"
             in result.stdout
         )
+
+
+def test_config_show_deprecated_environment_source_masks_secret(
+    tmp_path: Path,
+) -> None:
+    import os
+
+    (tmp_path / ".marimo.toml").write_text("")
+    env = {
+        key: value
+        for key, value in os.environ.items()
+        if not key.startswith("MARIMO_") and not key.startswith("_MARIMO_")
+    }
+    env["MARIMO_SESSION_SECRET"] = "private-deprecated-secret"
+    result = subprocess.run(
+        ["marimo", "config", "show", "--show-sources"],
+        cwd=tmp_path,
+        env=env,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, result.stderr
+    assert (
+        'session_secret = "********" # env var: MARIMO_SESSION_SECRET (deprecated)'
+        in result.stdout
+    )
+    assert "will be removed in marimo 1.0" in result.stderr
+    assert "MARIMO_SERVER_SESSION_SECRET" in result.stderr
+    assert "private-deprecated-secret" not in result.stdout + result.stderr
