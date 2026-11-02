@@ -310,12 +310,20 @@ export function documentEditMiddleware(
 
 // Commands that read the document on the host -------------------------------
 
-/** Send this client's edits to the host before a command that reads them there. */
+/**
+ * Send this client's edits to the host before a command that reads them
+ * there. Without a document or a backend, as on a static page, there is
+ * nothing to send and the command proceeds.
+ */
 export async function flushDocument(): Promise<void> {
   const model = store.get(activeDocumentModelAtom);
-  if (model !== null) {
-    await model.flush();
+  if (
+    model === null ||
+    store.get(model.syncStatusAtom).status === "unavailable"
+  ) {
+    return;
   }
+  await model.flush();
 }
 
 /**

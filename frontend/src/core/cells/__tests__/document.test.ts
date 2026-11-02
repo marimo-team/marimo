@@ -369,6 +369,7 @@ describe("documentEditMiddleware", () => {
 
 describe("flushing before host commands", () => {
   const model = {
+    syncStatusAtom: atom<DocumentSyncStatus>({ status: "idle" }),
     flush: vi.fn<() => Promise<never>>(),
     retry: vi.fn<() => Promise<never>>(),
     hold: () => () => undefined,
