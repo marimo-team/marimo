@@ -152,8 +152,12 @@ uv add "marimo[recommended]"
 /// tab | install with conda
 
 ```bash
-conda install -c conda-forge marimo "duckdb>=1.0.0" "altair>=5.4.0" pyarrow "polars>=1.9.0" "sqlglot[c]>=23.4" "openai>=1.55.3" "ruff" "nbformat>=5.7.0" "vegafusion>=2.0.0" "vl-convert-python>=1.0.0"
+conda install -c conda-forge marimo "duckdb>=1.0.0" "altair>=5.4.0" pyarrow "polars>=1.9.0" "sqlglot>=30.11.0" "openai>=1.55.3" "ruff" "nbformat>=5.7.0" "vegafusion>=2.0.0" "vl-convert-python>=1.0.0"
 ```
+
+On Python 3.15 or later, use `"sqlglot>=30.23.0"` in this command. Conda
+installs SQLGlot without pip extras; pip and uv installations of `marimo[sql]`
+request SQLGlot's compiled `[c]` extra.
 
 ///
 
@@ -164,7 +168,7 @@ Installing marimo in this way installs the following additional dependencies and
 | duckdb>=1.0.0              | SQL cells                       |
 | altair>=5.4.0              | Plotting in datasource viewer   |
 | polars[pyarrow]>=1.9.0     | SQL output back in Python       |
-| sqlglot[c]>=23.4          | SQL cells parsing               |
+| sqlglot[c]>=30.11.0 (Python <3.15), >=30.23.0 (Python ≥3.15) | SQL cells parsing |
 | openai>=1.55.3             | AI features                     |
 | ruff                       | Formatting                      |
 | nbformat>=5.7.0            | Export as IPYNB                 |

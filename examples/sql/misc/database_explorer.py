@@ -7,7 +7,8 @@
 #     "pandas==2.2.3",
 #     "polars==1.18.0",
 #     "pyarrow==18.1.0",
-#     "sqlglot==26.19.0",
+#     "sqlglot[c]>=30.11.0; python_version < '3.15'",
+#     "sqlglot[c]>=30.23.0; python_version >= '3.15'",
 # ]
 # ///
 

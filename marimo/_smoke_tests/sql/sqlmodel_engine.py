@@ -6,7 +6,8 @@
 #     "marimo",
 #     "polars==1.21.0",
 #     "psycopg[binary]==3.2.4",
-#     "sqlglot==26.3.9",
+#     "sqlglot[c]>=30.11.0; python_version < '3.15'",
+#     "sqlglot[c]>=30.23.0; python_version >= '3.15'",
 #     "sqlmodel==0.0.22",
 # ]
 # ///

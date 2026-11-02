@@ -92,8 +92,8 @@ marimo_markdown_converter = "marimo._utils.docs:MarkdownConverter"
 sql = [
     "duckdb>=1.0.0",           # SQL cells
     "polars[pyarrow]>=1.9.0",  # SQL output back in Python
-    # 30.7.0 pins sqlglotc to the matching SQLGlot version.
-    "sqlglot[c]>=30.7.0"       # SQL cells parsing;
+    "sqlglot[c]>=30.11.0; python_version < '3.15'",
+    "sqlglot[c]>=30.23.0; python_version >= '3.15'",
 ]
 
 # For per-notebook sandboxed kernels. pyzmq moved to the core
@@ -144,7 +144,8 @@ dev = [
     # For SQL. duckdb has no cp315 wheels as of 2026-10; drop the marker when
     # published.
     "duckdb>=1.0.0; python_version < '3.15'",
-    "sqlglot>=30.7.0",
+    "sqlglot>=30.11.0; python_version < '3.15'",
+    "sqlglot>=30.23.0; python_version >= '3.15'",
     # Stubs for optional dataframe backends
     "pyarrow-stubs",
     # For linting
@@ -199,7 +200,8 @@ test-optional = [
     "altair>=5.4.0",
     "plotly>=5.14.0",
     "polars>=1.32.2",
-    "sqlglot>=30.7.0",
+    "sqlglot>=30.11.0; python_version < '3.15'",
+    "sqlglot>=30.23.0; python_version >= '3.15'",
     "sqlalchemy[asyncio]>=2.0.40",
     "obstore>=0.8.2",
     "huggingface-hub>=1.24.0",
@@ -262,7 +264,8 @@ typecheck = [
     "duckdb>=1.0.0",
     "narwhals>=2.0.0",
     "matplotlib>=3.8.0",
-    "sqlglot>=30.7.0",
+    "sqlglot>=30.11.0; python_version < '3.15'",
+    "sqlglot>=30.23.0; python_version >= '3.15'",
     "sqlalchemy[asyncio]>=2.0.40",
     "obstore>=0.8.2",
     "huggingface_hub>=1.24.0",

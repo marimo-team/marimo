@@ -5,7 +5,8 @@
 #     "pandas==2.2.3",
 #     "polars[pyarrow]==1.30.0",
 #     "redshift-connector[full]==2.1.7",
-#     "sqlglot==26.23.0",
+#     "sqlglot[c]>=30.11.0; python_version < '3.15'",
+#     "sqlglot[c]>=30.23.0; python_version >= '3.15'",
 # ]
 # ///
 
