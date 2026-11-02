@@ -99,7 +99,6 @@ describe("getPositionAtWordBounds", () => {
   });
 });
 
-
 describe("hintTooltip", () => {
   it("does not register hover documentation when disabled", () => {
     const [hoverExtension] = hintTooltip({}, false);
