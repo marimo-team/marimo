@@ -47,11 +47,6 @@ if TYPE_CHECKING:
 
 def _close_matplotlib_figures() -> None:
     """Close pyplot figures after each cell so the next one starts fresh.
-
-    Figures reach pyplot's registry only through `matplotlib.pyplot`, so
-    a run that never imported it has nothing to close. Importing the
-    marimo backend up front instead would load matplotlib for every
-    script run, and a cold font-cache build can take tens of seconds.
     """
     if "matplotlib.pyplot" not in sys.modules:
         return
