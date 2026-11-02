@@ -406,6 +406,23 @@ def test_copilot_server_node_version_validation():
         assert result is True  # Should fail open
 
 
+def test_composite_server_probes_loopback_ports():
+    config_reader = get_default_config_manager(current_path=None)
+    min_port = 8000
+    num_servers = len(CompositeLspServer.LANGUAGE_SERVERS)
+    ports = range(min_port, min_port + num_servers + 1)
+
+    with mock.patch(
+        "marimo._server.lsp.find_free_port", side_effect=ports
+    ) as find_free_port:
+        server = CompositeLspServer(config_reader, min_port=min_port)
+
+    assert find_free_port.call_args_list == [
+        mock.call(port, addr="127.0.0.1") for port in ports
+    ]
+    assert [lsp.port for lsp in server.servers.values()] == list(ports)[1:]
+
+
 def test_composite_server():
     def as_reader(
         completion_config: CompletionConfig, config: LanguageServersConfig
