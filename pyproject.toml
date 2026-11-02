@@ -215,7 +215,9 @@ test-optional = [
     "pandas>=1.5.3",
     "hvplot~=0.11.3",
     "geopandas>=1.1.0",
-    "duckdb>=1.0.0",
+    # Ibis 12 needs DuckDB 1.x; remove after a compatible Ibis release.
+    # https://github.com/ibis-project/ibis/issues/12196
+    "duckdb>=1.0.0,<2",
     "ibis-framework[duckdb]>=10.3.0",
     # For testing mo.image
     # 12.3 is the first release with cp315 wheels.
