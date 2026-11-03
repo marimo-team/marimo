@@ -15,13 +15,9 @@ from marimo._server.codes import WebSocketCloseReason, WebSocketCodes
 def _app_state(
     query: dict[str, str] | None = None,
     unique_file_key: str | None = "test.py",
-    rtc_v2: bool = False,
 ) -> MagicMock:
     query = query or {}
-    config: dict[str, Any] = {
-        "runtime": {"auto_instantiate": True},
-        "experimental": {"rtc_v2": rtc_v2},
-    }
+    config: dict[str, Any] = {"runtime": {"auto_instantiate": True}}
     app_state = MagicMock()
     app_state.query_params.side_effect = query.get
     workspace = app_state.session_manager.workspace
@@ -56,7 +52,6 @@ def test_extracts_params() -> None:
         file_key="test.py",
         kiosk=True,
         auto_instantiate=True,
-        rtc_enabled=False,
     )
 
 
@@ -66,21 +61,3 @@ def test_file_query_param_wins_over_unique_file_key() -> None:
     )
     assert isinstance(result, ConnectionParams)
     assert result.file_key == "other.py"
-
-
-def test_rtc_enabled_from_config() -> None:
-    result = parse_connection_params(
-        _app_state(query={"session_id": "123"}, rtc_v2=True)
-    )
-    assert isinstance(result, ConnectionParams)
-    assert result.rtc_enabled is True
-
-
-def test_allow_rtc_false_disables_rtc() -> None:
-    # The SSE transport cannot carry the /ws_sync document stream
-    result = parse_connection_params(
-        _app_state(query={"session_id": "123"}, rtc_v2=True),
-        allow_rtc=False,
-    )
-    assert isinstance(result, ConnectionParams)
-    assert result.rtc_enabled is False

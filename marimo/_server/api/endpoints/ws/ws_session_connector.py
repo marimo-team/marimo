@@ -34,24 +34,8 @@ class ConnectionType(Enum):
 
     KIOSK = "kiosk"
     RECONNECT = "reconnect"
-    RTC_EXISTING = "rtc_existing"
     RESUME = "resume"
     NEW = "new"
-
-
-def is_viewer_connection(
-    *, connection_type: ConnectionType, is_main_consumer: bool
-) -> bool:
-    """Whether a connection should receive read-only (kiosk) message filtering.
-
-    RTC collaborators are full editors even though they are not the room's
-    main consumer, so they are never treated as viewers. For the single-editor
-    model, the viewer is whichever connection is not currently the main
-    consumer; takeover flips this by reassigning the main consumer.
-    """
-    if connection_type is ConnectionType.RTC_EXISTING:
-        return False
-    return not is_main_consumer
 
 
 class SessionConnector:
@@ -101,23 +85,11 @@ class SessionConnector:
             await self.handler._prepare_session(existing_by_id)
             return self._reconnect_session(existing_by_id)
 
-        # 3. Connect to existing session
-        # 3a. If RTC enabled and session exists for file key, connect to it
-
+        # 3. Viewer only mode: a second connection request is auto routed as reader only
         existing_by_file = self.manager.get_session_by_file_key(
             self.params.file_key
         )
         session_in_edit_mode = self.manager.mode == SessionMode.EDIT
-
-        if (
-            existing_by_file is not None
-            and session_in_edit_mode
-            and self.params.rtc_enabled
-        ):
-            await self.handler._prepare_session(existing_by_file)
-            return self._connect_rtc_session(existing_by_file)
-
-        # 3b. Viewer only mode: a second connection request is auto routed as reader only
         if (
             existing_by_file is not None
             and session_in_edit_mode
@@ -189,16 +161,6 @@ class SessionConnector:
         session.disconnect_main_consumer()
         self.handler._reconnect_session(session, replay=False)
         return session, ConnectionType.RECONNECT
-
-    def _connect_rtc_session(
-        self, session: Session
-    ) -> tuple[Session, ConnectionType]:
-        """Connect to RTC-enabled session."""
-        LOGGER.debug(
-            "Connecting to existing session for file %s", self.params.file_key
-        )
-        self.handler._connect_to_existing_session(session)
-        return session, ConnectionType.RTC_EXISTING
 
     def _resume_session(
         self, session: Session

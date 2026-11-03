@@ -20,7 +20,6 @@ class WebSocketCloseReason(str, Enum):
     `frontend/src/core/websocket/useMarimoKernelConnection.tsx`.
     """
 
-    LORO_NOT_INSTALLED = "MARIMO_LORO_NOT_INSTALLED"
     NOT_ALLOWED = "MARIMO_NOT_ALLOWED"
     UNAUTHORIZED = "MARIMO_UNAUTHORIZED"
     NO_SESSION_ID = "MARIMO_NO_SESSION_ID"

@@ -492,7 +492,6 @@ def _make_handler(
         file_key="test.py",
         kiosk=False,
         auto_instantiate=False,
-        rtc_enabled=False,
     )
     handler = SessionEventStream(
         connection=request,
@@ -502,7 +501,6 @@ def _make_handler(
         cursor=None,
         manager=MagicMock(mode=mode),
         params=params,
-        doc_manager=MagicMock(),
         heartbeat_seconds=60,
     )
     handler.status = ConnectionState.OPEN

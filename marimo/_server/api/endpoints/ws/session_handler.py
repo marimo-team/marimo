@@ -20,13 +20,9 @@ from marimo._messaging.notification import (
 from marimo._messaging.serde import (
     serialize_kernel_message,
 )
-from marimo._server.api.endpoints.ws.ws_kernel_ready import (
-    build_kernel_ready,
-    is_rtc_available,
-)
+from marimo._server.api.endpoints.ws.ws_kernel_ready import build_kernel_ready
 from marimo._server.api.endpoints.ws.ws_session_connector import (
     SessionConnector,
-    is_viewer_connection,
 )
 from marimo._server.codes import WebSocketCloseReason, WebSocketCodes
 from marimo._session.consumer import SessionConsumer
@@ -48,7 +44,6 @@ if TYPE_CHECKING:
     from marimo._server.api.endpoints.ws.ws_session_connector import (
         ConnectionType,
     )
-    from marimo._server.rtc.doc import LoroDocManager
     from marimo._server.session_manager import SessionManager
     from marimo._session import Session
     from marimo._session.events import SessionEventBus
@@ -73,12 +68,10 @@ class SessionHandler(SessionConsumer, abc.ABC):
         manager: SessionManager,
         params: ConnectionParams,
         mode: SessionMode,
-        doc_manager: LoroDocManager,
     ):
         self.manager = manager
         self.params = params
         self.mode = mode
-        self.doc_manager = doc_manager
         self.status = ConnectionState.CONNECTING
         self._session: Session | None = None
         self.cancel_close_handle: asyncio.TimerHandle | None = None
@@ -156,14 +149,13 @@ class SessionHandler(SessionConsumer, abc.ABC):
     async def _wait_for_disconnect(self) -> None:
         """Notice a closed transport even while a session is starting."""
 
-    def _is_viewer(
-        self, session: Session, connection_type: ConnectionType
-    ) -> bool:
-        """Whether this consumer gets read-only (kiosk) message filtering."""
-        return is_viewer_connection(
-            connection_type=connection_type,
-            is_main_consumer=session.room.main_consumer is self,
-        )
+    def _is_viewer(self, session: Session) -> bool:
+        """Whether this consumer gets read-only (kiosk) message filtering.
+
+        The viewer is whichever connection is not the room's main consumer;
+        a takeover flips this by reassigning the main consumer.
+        """
+        return session.room.main_consumer is not self
 
     @abc.abstractmethod
     def notify(self, notification: KernelMessage) -> None:
@@ -214,9 +206,6 @@ class SessionHandler(SessionConsumer, abc.ABC):
         # Only send execution data if sending code to frontend
         should_send = self.manager.should_send_code_to_frontend()
 
-        # RTC is only enabled if configured AND Loro is available
-        effective_rtc_enabled = self.params.rtc_enabled and is_rtc_available()
-
         # Build kernel ready message
         kernel_ready_msg = build_kernel_ready(
             session=session,
@@ -225,10 +214,6 @@ class SessionHandler(SessionConsumer, abc.ABC):
             last_executed_code=last_executed_code if should_send else {},
             last_execution_time=last_execution_time if should_send else {},
             kiosk=kiosk,
-            rtc_enabled=effective_rtc_enabled,
-            file_key=self.params.file_key,
-            mode=self.mode,
-            doc_manager=self.doc_manager,
             auto_instantiated=auto_instantiated,
         )
         self._serialize_and_notify(kernel_ready_msg)

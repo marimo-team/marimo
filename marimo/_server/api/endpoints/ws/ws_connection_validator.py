@@ -7,14 +7,11 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from starlette.websockets import WebSocket
 
-from marimo import _loggers
 from marimo._server.api.auth import validate_auth
 from marimo._server.api.deps import AppState
 from marimo._server.codes import WebSocketCloseReason, WebSocketCodes
 from marimo._server.workspace import MarimoFileKey
 from marimo._types.ids import SessionId
-
-LOGGER = _loggers.marimo_logger()
 
 SESSION_QUERY_PARAM_KEY = "session_id"
 FILE_QUERY_PARAM_KEY = "file"
@@ -29,7 +26,6 @@ class ConnectionParams:
     file_key: MarimoFileKey
     kiosk: bool
     auto_instantiate: bool
-    rtc_enabled: bool
 
 
 @dataclass
@@ -45,17 +41,12 @@ class ConnectionRejection:
 
 
 def parse_connection_params(
-    app_state: AppState, *, allow_rtc: bool = True
+    app_state: AppState,
 ) -> ConnectionParams | ConnectionRejection:
     """Extract and validate session connection parameters.
 
     Transport-agnostic: reads query params and config from the request held
     by `app_state`.
-
-    Args:
-        app_state: App state wrapping the incoming HTTP or WebSocket request.
-        allow_rtc: Whether the transport supports RTC. SSE cannot carry the
-            `/ws_sync` document stream, so RTC is disabled for it.
     """
     # Extract session_id
     raw_session_id = app_state.query_params(SESSION_QUERY_PARAM_KEY)
@@ -82,9 +73,6 @@ def parse_connection_params(
 
     # Extract config-based parameters
     config = app_state.config_manager_at_file(file_key).get_config()
-    rtc_enabled = allow_rtc and config.get("experimental", {}).get(
-        "rtc_v2", False
-    )
     auto_instantiate = config["runtime"]["auto_instantiate"]
 
     return ConnectionParams(
@@ -92,7 +80,6 @@ def parse_connection_params(
         file_key=file_key,
         kiosk=kiosk,
         auto_instantiate=auto_instantiate,
-        rtc_enabled=rtc_enabled,
     )
 
 
@@ -131,23 +118,3 @@ class WebSocketConnectionValidator:
             await self.websocket.close(result.code, result.reason)
             return None
         return result
-
-    async def extract_file_key_only(self) -> MarimoFileKey | None:
-        """Extract only the file_key parameter (for RTC endpoint).
-
-        Returns:
-            MarimoFileKey if valid, None otherwise.
-        """
-        file_key: MarimoFileKey | None = (
-            self.app_state.query_params(FILE_QUERY_PARAM_KEY)
-            or self.app_state.session_manager.workspace.get_unique_file_key()
-        )
-
-        if file_key is None:
-            LOGGER.warning("RTC: Closing websocket - no file key")
-            await self.websocket.close(
-                WebSocketCodes.NORMAL_CLOSE, WebSocketCloseReason.NO_FILE_KEY
-            )
-            return None
-
-        return file_key

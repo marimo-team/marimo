@@ -631,7 +631,6 @@ async def test_connections_share_starting_notebook(
                 file_key=NEW_FILE,
                 kiosk=False,
                 auto_instantiate=False,
-                rtc_enabled=True,
             ),
             connection=HTTPConnection({"type": "http", "query_string": b""}),
         )
@@ -649,7 +648,7 @@ async def test_connections_share_starting_notebook(
         )
         assert await asyncio.wait_for(second, 5) == (
             mock_session,
-            ConnectionType.RTC_EXISTING,
+            ConnectionType.KIOSK,
         )
         assert launches == 1
     finally:
@@ -725,7 +724,6 @@ async def test_refresh_reuses_pending_startup(
                 file_key=NEW_FILE,
                 kiosk=False,
                 auto_instantiate=False,
-                rtc_enabled=False,
             ),
             connection=HTTPConnection({"type": "http", "query_string": b""}),
         )
