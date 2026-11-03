@@ -20,6 +20,7 @@ from marimo._messaging.notification import (
     InterruptedNotification,
     NotebookDocumentTransactionNotification,
     StartupProgressNotification,
+    UIElementCreatedNotification,
     VariableValuesNotification,
 )
 from marimo._messaging.serde import deserialize_kernel_message
@@ -451,10 +452,32 @@ class SessionBackend(SessionConsumer):
     def notify(self, notification: KernelMessage) -> None:
         message = deserialize_kernel_message(notification)
         with self._sink.deferred():
-            self._sink.append(notification_event(self._notebook_id, message))
+            if not isinstance(message, UIElementCreatedNotification):
+                self._sink.append(
+                    notification_event(self._notebook_id, message)
+                )
             self._handle_notification(message)
 
     def _handle_notification(self, message: NotificationMessage) -> None:
+        if isinstance(message, UIElementCreatedNotification):
+            if self._kernel is not None:
+                self._observe(
+                    be.UIElementCreated(
+                        self._kernel.runtime_id,
+                        protocol.UIElement(
+                            id=message.id,
+                            kind="element",
+                            cell_id=protocol.CellId(message.cell_id),
+                            config=protocol.UIElementConfig(
+                                component=message.component,
+                                label=message.label,
+                                args=message.args,
+                            ),
+                            state=protocol.UIElementState(value=message.value),
+                        ),
+                    )
+                )
+            return
         if isinstance(message, VariableValuesNotification):
             for removed in message.removed:
                 self._observe(

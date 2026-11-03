@@ -189,6 +189,14 @@ class Done:
     outcome: protocol.RunOutcome
 
 
+@dataclass(frozen=True)
+class UIElementCreated:
+    """A UI element created by the current runtime."""
+
+    runtime_id: protocol.RuntimeId
+    element: protocol.UIElement
+
+
 Message = (
     Starting
     | Running
@@ -201,4 +209,5 @@ Message = (
     | Unbound
     | Concluded
     | Done
+    | UIElementCreated
 )
