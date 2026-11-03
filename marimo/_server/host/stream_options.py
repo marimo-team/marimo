@@ -35,6 +35,7 @@ def types(connection: HTTPConnection) -> set[str] | None:
     unknown = kinds - OBJECT_TYPES
     if unknown:
         raise ValueError(
-            f"types has no kind named {', '.join(sorted(unknown))}"
+            f"types has no kind named {', '.join(sorted(unknown))}. "
+            f"Supported kinds: {', '.join(sorted(OBJECT_TYPES))}"
         )
     return kinds

@@ -45,6 +45,7 @@ from marimo._cli.pair.harnesses import detect_target, environment_identity
 from marimo._cli.pair.prompts import render_prompt
 from marimo._cli.print import _supports_color
 from marimo._server.ai.skills import utils as skills_utils
+from marimo._server.host.stream_options import OBJECT_TYPES
 
 _REFERENCES_DIR = (
     Path(skills_utils.__file__).parent / "marimo-pair" / "references"
@@ -767,7 +768,11 @@ def list_notebooks(urls: tuple[str, ...], token_file: Path | None) -> None:
     "--types",
     "event_types",
     metavar="TYPES",
-    help="Comma-separated event types, for example runtime,execution.",
+    help=(
+        "Comma-separated event types, for example runtime,execution. "
+        f"Known kinds: {', '.join(sorted(OBJECT_TYPES))}. "
+        "The connected server determines which kinds are supported."
+    ),
 )
 @click.option(
     "--pretty", is_flag=True, help="Print indented JSON for each event."
