@@ -11,9 +11,7 @@ Multiple language servers can be run simultaneously. When
 enabled, their results are merged — for example, you can
 get completions from pylsp and diagnostics from basedpyright at the same time.
 
-If you launch marimo with `--sandbox` (e.g. `marimo edit --sandbox`, `marimo
-new --sandbox`, `marimo run --sandbox`), language servers are resolved
-differently than without it; see [Sandbox mode](#sandbox-mode-sandbox) below.
+For language server installation with `--sandbox`, see [Sandbox mode](#sandbox-mode-sandbox).
 
 ## Supported language servers
 
@@ -150,27 +148,16 @@ Language servers are not available when running marimo in WebAssembly.
 
 ## Sandbox mode (`--sandbox`)
 
-Passing `--sandbox` to any marimo command that starts the editor (e.g. `marimo
-edit --sandbox`) relaunches
-the editor itself inside an ephemeral environment managed by `uv` (or
-`pixi`). That environment is built from the Python environment you ran
-`marimo` from, with marimo's own `lsp` extra layered on top automatically.
-This matters for which language servers are available:
+With `--sandbox`, the editor and notebook code run in separate environments.
+Language servers run in the editor environment, which includes packages from
+the Python environment that launches marimo.
 
-- **pylsp** works out of the box in sandbox mode, since `python-lsp-server`
-  and `python-lsp-ruff` are installed automatically as part of the `lsp`
-  extra.
-- **basedpyright**, **ty**, and **pyrefly** are standalone tools, not part of
-  marimo's `lsp` extra, so the sandboxed editor does not install them for
-  you. They must already be importable from the environment you launched
-  `marimo` from. Installing them into the *notebook's* own sandboxed
-  environment has no effect here — that environment is used by the kernel
-  subprocess that runs your notebook's code, not by the editor process that
-  hosts the language servers.
+- **pylsp** is installed automatically through marimo's `lsp` extra.
+- **basedpyright**, **ty**, and **pyrefly** must be installed in the environment
+  that launches marimo. Installing them only in the notebook's sandbox does
+  not make them available to the editor.
 
-To make one of these available in sandbox mode, add it with `--with` on the
-command that launches marimo itself, so it's present in the environment the
-sandboxed editor is built from:
+When you launch marimo, use `--with` to include a language server:
 
 ```bash
 uv run --with basedpyright marimo edit --sandbox notebook.py
@@ -178,10 +165,9 @@ uv run --with ty marimo edit --sandbox notebook.py
 uv run --with pyrefly marimo edit --sandbox notebook.py
 ```
 
-`ty` additionally ships a standalone CLI binary, so installing it with `uv
-tool install ty` and having it on `PATH` also works, since marimo falls back
-to checking `PATH` for `ty` specifically. `basedpyright` and `pyrefly` have
-no such fallback and must be importable.
+You can also install **ty** with `uv tool install ty`. The `ty` executable
+must be on `PATH`. **basedpyright** and **pyrefly** require importable Python packages
+and do not support this fallback.
 
 ## Troubleshooting
 
@@ -189,7 +175,7 @@ If you encounter issues with a language server:
 
 1. Make sure you've installed the required dependencies with `uv pip install "marimo[lsp]"`
 2. For basedpyright, ty, and pyrefly, ensure [Node.js](https://nodejs.org/) is installed
-3. If you're using `marimo edit --sandbox`, see [Sandbox mode](#sandbox-mode-sandbox) above — the tool must be importable from the environment marimo was launched from, not the notebook's own environment
+3. If you use `--sandbox`, follow the [sandbox installation instructions](#sandbox-mode-sandbox).
 4. Check if the language server is enabled in your configuration
 5. Try restarting the marimo server
 6. Check the terminal for error messages or the log files in your marimo log directory (e.g. `~/.cache/marimo/logs/`)
