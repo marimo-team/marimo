@@ -42,7 +42,7 @@ type CellAction = DispatchedActionOf<ReducerCellActions>;
 
 // Following the document ----------------------------------------------------
 
-/** Rebuild the tree for `columns`, keeping column ids and collapsed sections. */
+/** Rebuild the tree for `columns`, keeping column ids. */
 function reconcileColumns(
   current: MultiColumn<CellId>,
   columns: CellId[][],
@@ -59,9 +59,7 @@ function reconcileColumns(
     return current;
   }
   return new MultiColumn(
-    columns.map((ids, index) =>
-      CollapsibleTree.fromWithPreviousShape(ids, previous[index]),
-    ),
+    columns.map((ids, index) => CollapsibleTree.from(ids, previous[index]?.id)),
   );
 }
 
@@ -139,7 +137,10 @@ export function applyDocument(
           edited: code.trim().length > 0,
         }),
       };
-      cellRuntime = { ...cellRuntime, [id]: createCellRuntimeState() };
+      cellRuntime = {
+        ...cellRuntime,
+        [id]: cellRuntime[id] ?? createCellRuntimeState(),
+      };
       cellHandles = { ...cellHandles, [id]: createRef() };
       continue;
     }

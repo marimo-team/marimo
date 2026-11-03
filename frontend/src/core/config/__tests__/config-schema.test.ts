@@ -27,7 +27,7 @@ test("default AppConfig", () => {
     {
       "auto_download": [],
       "sql_output": "auto",
-      "width": "medium",
+      "width": "compact",
     }
   `);
 });

@@ -35,7 +35,7 @@ import {
 } from "../codemirror/cells/debugger-state";
 import { notebookCells } from "../cells/utils";
 import { capabilitiesAtom } from "../config/capabilities";
-import { connectionTransportTypeAtom, useSetAppConfig } from "../config/config";
+import { connectionTransportTypeAtom } from "../config/config";
 import { useDataSourceActions } from "../datasets/data-source-connections";
 import { invalidateDataSourceDiscovery } from "../datasets/data-source-discovery";
 import type { ConnectionName } from "../datasets/engines";
@@ -62,9 +62,10 @@ import {
   stableSessionIdAtom,
 } from "../kernel/session";
 import { initialRunCompletedAtom, kernelStateAtom } from "../kernel/state";
-import { type LayoutState, useLayoutActions } from "../layout/state";
+import { useLayoutActions } from "../layout/state";
 import { kioskModeAtom } from "../mode";
 import { connectionAtom, startupProgressAtom } from "../network/connection";
+import { savedLayoutAtom } from "../saving/state";
 import type { RequestId } from "../network/DeferredRequestRegistry";
 import { useRuntimeManager } from "../runtime/config";
 import { SECRETS_REGISTRY } from "../secrets/request-registry";
@@ -77,16 +78,15 @@ import { useStorageActions } from "../storage/state";
 import { useVariablesActions } from "../variables/state";
 import type { VariableName } from "../variables/types";
 import { activeDocumentModelAtom } from "./active-notebook";
+import { embeddedSnapshotAtom } from "./embedded";
 import { WebSocketClosedReason, ConnectionState } from "./types";
 
 /** Coordinate session startup and apply notifications to the editor. */
 export function useNotebookSession(opts: {
   sessionId: SessionId;
   autoInstantiate: boolean;
-  /** Called with the layout the kernel reported, after its cells are ready. */
-  onKernelReady?: (layout: LayoutState) => void;
 }) {
-  const { autoInstantiate, sessionId, onKernelReady } = opts;
+  const { autoInstantiate, sessionId } = opts;
   const { showBoundary } = useErrorBoundary();
   const store = useStore();
 
@@ -99,7 +99,6 @@ export function useNotebookSession(opts: {
   const { addCellNotification } = useRunsActions();
   const setKernelState = useSetAtom(kernelStateAtom);
   const setInitialRunCompleted = useSetAtom(initialRunCompletedAtom);
-  const setAppConfig = useSetAppConfig();
   const { setVariables, setMetadata } = useVariablesActions();
   const { addColumnPreview } = useDatasetsActions();
   const { addDatasets, filterDatasetsFromVariables } = useDatasetsActions();
@@ -156,12 +155,11 @@ export function useNotebookSession(opts: {
           setLastRun,
           resetCellRuntimes,
           setLayoutData,
-          setAppConfig,
           setCapabilities,
           setKernelState,
           onError: showBoundary,
         });
-        onKernelReady?.(layout);
+        store.set(savedLayoutAtom, layout);
         if (!msg.data.resumed) {
           // A freshly started kernel may expose a different environment
           // (e.g. new env vars); re-run discovery instead of reusing stale
@@ -399,6 +397,7 @@ export function useNotebookSession(opts: {
   };
   const replica = useNotebookReplica({
     static: isStaticNotebook(),
+    snapshot: useAtomValue(embeddedSnapshotAtom),
     transportType,
     url: () =>
       transportType === "sse"

@@ -3,7 +3,7 @@
 import { Memoize } from "typescript-memoize";
 import { reorderColumnSizes } from "@/components/editor/columns/storage";
 import { SETUP_CELL_ID } from "@/core/cells/ids";
-import { arrayDelete, arrayInsert, arrayInsertMany, arrayMove } from "./arrays";
+import { arrayDelete, arrayInsert, arrayMove } from "./arrays";
 import { Logger } from "./Logger";
 
 /**
@@ -25,79 +25,12 @@ export type CellIndex = number & { __brand?: "CellIndex" };
  */
 export class TreeNode<T> {
   public value: T;
-  public isCollapsed: boolean;
-  public children: TreeNode<T>[];
 
-  public constructor(value: T, isCollapsed: boolean, children: TreeNode<T>[]) {
+  public constructor(value: T) {
     this.value = value;
-    this.isCollapsed = isCollapsed;
-    this.children = children;
-  }
-
-  /**
-   * Recursively count the number of nodes in the tree
-   */
-  @Memoize()
-  public geDescendantCount(): number {
-    let count = 0;
-    const stack = [...this.children];
-
-    while (stack.length > 0) {
-      // oxlint-disable-next-line typescript/no-non-null-assertion
-      const node = stack.pop()!;
-      count++;
-
-      // Add children to stack
-      for (let i = node.children.length - 1; i >= 0; i--) {
-        stack.push(node.children[i]);
-      }
-    }
-
-    return count;
-  }
-
-  @Memoize()
-  public getDescendants(): T[] {
-    const result: T[] = [];
-    const stack = [...this.children];
-
-    while (stack.length > 0) {
-      // oxlint-disable-next-line typescript/no-non-null-assertion
-      const node = stack.pop()!;
-      result.push(node.value);
-
-      // Add children to stack in reverse order to maintain correct traversal order
-      for (let i = node.children.length - 1; i >= 0; i--) {
-        stack.push(node.children[i]);
-      }
-    }
-
-    return result;
-  }
-
-  @Memoize()
-  public get inOrderIds(): T[] {
-    const result: T[] = [];
-
-    // Use depth-first traversal to preserve logical document order
-    const traverse = (node: TreeNode<T>) => {
-      result.push(node.value);
-      for (const child of node.children) {
-        traverse(child);
-      }
-    };
-
-    for (const child of this.children) {
-      traverse(child);
-    }
-
-    return result;
   }
 
   public toString(): string {
-    if (this.isCollapsed) {
-      return `${this.value} (collapsed)`;
-    }
     return String(this.value);
   }
 
@@ -117,50 +50,12 @@ export class CollapsibleTree<T> {
     this.id = id;
   }
 
-  public static from<T>(ids: T[]): CollapsibleTree<T> {
-    const id = `tree_${uniqueId++}` as CellColumnId;
+  /** A column of `ids`, keeping `id` when a column is rebuilt. */
+  public static from<T>(ids: T[], id?: CellColumnId): CollapsibleTree<T> {
     return new CollapsibleTree(
-      ids.map((id) => new TreeNode(id, false, [])),
-      id,
+      ids.map((id) => new TreeNode(id)),
+      id ?? (`tree_${uniqueId++}` as CellColumnId),
     );
-  }
-
-  /**
-   * Create a new tree from ids, preserving structure from previous tree if possible
-   */
-  public static fromWithPreviousShape<T>(
-    ids: T[],
-    previousTree?: CollapsibleTree<T>,
-  ): CollapsibleTree<T> {
-    if (!previousTree) {
-      return CollapsibleTree.from(ids);
-    }
-
-    // Reuse the previous tree's id if possible
-    const id = previousTree.id;
-
-    // Create new tree with nothing collapsed
-    let newTree = new CollapsibleTree(
-      ids.map((id) => new TreeNode(id, false, [])),
-      id,
-    );
-
-    // Collapse nodes that were collapsed in the previous tree
-    for (const id of ids) {
-      if (previousTree.isCollapsed(id)) {
-        const children = previousTree._nodeMap.get(id)?.children ?? [];
-        // Find the first child that is also in the new tree, going backwards
-        for (let i = children.length - 1; i >= 0; i--) {
-          const child = children[i];
-          if (newTree._nodeMap.has(child.value)) {
-            newTree = newTree.collapse(id, child.value);
-            break;
-          }
-        }
-      }
-    }
-
-    return newTree;
   }
 
   public withNodes(nodes: TreeNode<T>[]): CollapsibleTree<T> {
@@ -172,9 +67,8 @@ export class CollapsibleTree<T> {
     return this.nodes.map((n) => n.value);
   }
 
-  @Memoize()
   public get inOrderIds(): T[] {
-    return this.nodes.flatMap((n) => [n.value, ...n.inOrderIds]);
+    return this.topLevelIds;
   }
 
   @Memoize()
@@ -196,38 +90,6 @@ export class CollapsibleTree<T> {
   }
 
   /**
-   * Get the descendants of the given node
-   *
-   * Only works for the top-level nodes
-   */
-  public getDescendants(id: T): T[] {
-    const node = this._nodeMap.get(id);
-    if (!node) {
-      Logger.warn(
-        `Node ${id} not found in tree. Valid ids: ${this.topLevelIds}`,
-      );
-      return [];
-    }
-    return node.getDescendants();
-  }
-
-  /**
-   * Check if the given node is collapsed
-   *
-   * Only works for the top-level nodes
-   */
-  public isCollapsed(id: T): boolean {
-    const node = this._nodeMap.get(id);
-    if (!node) {
-      Logger.warn(
-        `Node ${id} not found in tree. Valid ids: ${this.topLevelIds}`,
-      );
-      return false;
-    }
-    return node.isCollapsed;
-  }
-
-  /**
    * Get the index of the given node, or throw
    */
   public indexOfOrThrow(id: T): CellIndex {
@@ -246,173 +108,6 @@ export class CollapsibleTree<T> {
    */
   public slice(start: number, end: number): T[] {
     return this.nodes.slice(start, end).map((n) => n.value);
-  }
-
-  /**
-   * Move the given node to the front
-   */
-  public moveToFront(id: T): CollapsibleTree<T> {
-    const index = this.indexOfOrThrow(id);
-    return this.withNodes(arrayMove(this.nodes, index, 0));
-  }
-
-  /**
-   * Move the given node to the back
-   */
-  public moveToBack(id: T): CollapsibleTree<T> {
-    const index = this.indexOfOrThrow(id);
-    return this.withNodes(arrayMove(this.nodes, index, this.nodes.length - 1));
-  }
-
-  /**
-   * Collapse everything past the given node @param id
-   * until @param until or the end of the tree
-   */
-  public collapse(id: T, until: T | undefined): CollapsibleTree<T> {
-    const nodeIndex = this.nodes.findIndex((n) => n.value === id);
-    if (nodeIndex === -1) {
-      throw new Error(
-        `Node ${id} not found in tree. Valid ids: ${this.topLevelIds}`,
-      );
-    }
-
-    const untilIndex =
-      until === undefined
-        ? this.nodes.length
-        : this.nodes.findIndex((n) => n.value === until);
-
-    if (untilIndex === -1) {
-      throw new Error(`Node ${until} not found in tree`);
-    }
-    if (untilIndex < nodeIndex) {
-      throw new Error(`Node ${until} is before node ${id}`);
-    }
-
-    const nodes = [...this.nodes];
-    const node = nodes[nodeIndex];
-    if (node.isCollapsed) {
-      throw new Error(`Node ${id} is already collapsed`);
-    }
-
-    // Fold the next nodes into the current node
-    const children = nodes.splice(nodeIndex + 1, untilIndex - nodeIndex);
-    nodes[nodeIndex] = new TreeNode(node.value, true, children);
-
-    return this.withNodes(nodes);
-  }
-
-  /**
-   * Collapse all nodes in the tree, including nested ones
-   *
-   * Only works for the top-level nodes
-   * Does not collapse the children of already collapsed nodes
-   */
-  public collapseAll(
-    collapseRanges: ({ id: T; until: T | undefined } | null)[],
-  ): CollapsibleTree<T> {
-    const nodes = [...this.nodes];
-    if (collapseRanges.length === 0) {
-      throw new Error("No collapse ranges provided");
-    }
-
-    if (collapseRanges.length !== nodes.length) {
-      throw new Error(
-        `Collapse ranges length ${collapseRanges.length} does not match tree length ${nodes.length}`,
-      );
-    }
-
-    // Start from the end of the list and collapse nodes children first
-    let nodeIndex = nodes.length - 1;
-    while (nodeIndex >= 0) {
-      const node = nodes[nodeIndex];
-      const range = collapseRanges[nodeIndex];
-
-      if (!node.isCollapsed && range) {
-        const { id, until } = range;
-        if (id !== node.value) {
-          throw new Error(
-            `Node ${node.value} does not match collapse range id ${id}`,
-          );
-        }
-        const untilIndex =
-          until === undefined
-            ? nodes.length
-            : nodes.findIndex((n) => n.value === until);
-
-        if (untilIndex === -1) {
-          throw new Error(`Node ${until} not found in tree`);
-        }
-        if (untilIndex < nodeIndex) {
-          throw new Error(`Node ${until} is before node ${id}`);
-        }
-
-        // Fold the next nodes into the current node
-        const children = nodes.splice(nodeIndex + 1, untilIndex - nodeIndex);
-        nodes[nodeIndex] = new TreeNode(node.value, true, children);
-        nodeIndex--;
-      } else {
-        // Move to the next node
-        nodeIndex--;
-      }
-    }
-
-    return this.withNodes(nodes);
-  }
-
-  /**
-   * Expand a node and all of its children.
-   * If the node is already expanded, returns the same tree (no-op).
-   */
-  public expand(id: T): CollapsibleTree<T> {
-    const nodeIndex = this.nodes.findIndex((n) => n.value === id);
-    if (nodeIndex === -1) {
-      throw new Error(
-        `Node ${id} not found in tree. Valid ids: ${this.topLevelIds}`,
-      );
-    }
-
-    let nodes = [...this.nodes];
-    const node = nodes[nodeIndex];
-    if (!node.isCollapsed) {
-      // Already expanded, no-op
-      return this;
-    }
-
-    nodes[nodeIndex] = new TreeNode(node.value, false, []);
-    nodes = arrayInsertMany(nodes, nodeIndex + 1, node.children);
-
-    return this.withNodes(nodes);
-  }
-
-  /**
-   * Expand all collapsed nodes in the tree, including nested ones
-   */
-  public expandAll(): CollapsibleTree<T> {
-    let nodes = [...this.nodes];
-    let nodeIndex = 0;
-
-    while (nodeIndex < nodes.length) {
-      const node = nodes[nodeIndex];
-      if (node.isCollapsed) {
-        // Replace the collapsed node with an expanded one
-        nodes[nodeIndex] = new TreeNode(node.value, false, []);
-        // Add the children of the collapsed node to the list
-        nodes = arrayInsertMany(nodes, nodeIndex + 1, node.children);
-        nodeIndex++;
-      } else {
-        // Move to the next node
-        nodeIndex++;
-      }
-    }
-
-    return this.withNodes(nodes);
-  }
-
-  /**
-   * Move a node from one index to another
-   */
-  public move(fromIdx: number, toIdx: number): CollapsibleTree<T> {
-    return this.withNodes(arrayMove(this.nodes, fromIdx, toIdx));
   }
 
   /**
@@ -473,9 +168,7 @@ export class CollapsibleTree<T> {
    * Insert a node at the given index
    */
   public insert(id: T, index: number): CollapsibleTree<T> {
-    return this.withNodes(
-      arrayInsert(this.nodes, index, new TreeNode(id, false, [])),
-    );
+    return this.withNodes(arrayInsert(this.nodes, index, new TreeNode(id)));
   }
 
   /**
@@ -492,62 +185,14 @@ export class CollapsibleTree<T> {
     return this.insert(id, 0);
   }
 
-  /**
-   * Delete a node, expand if it was collapsed
-   */
   public deleteAtIndex(idx: number): CollapsibleTree<T> {
-    const id = this.atOrThrow(idx);
-    // Expand the node first (if collapsed) to bring children back to top level
-    const tree = this.expand(id);
-    return tree.withNodes(arrayDelete(tree.nodes, idx));
+    this.atOrThrow(idx);
+    return this.withNodes(arrayDelete(this.nodes, idx));
   }
 
   public delete(id: T): CollapsibleTree<T> {
     const index = this.indexOfOrThrow(id);
     return this.deleteAtIndex(index);
-  }
-
-  /**
-   * Get the number of nodes in the tree, not-including the given node
-   */
-  public getCount(id: T): number {
-    return this._nodeMap.get(id)?.geDescendantCount() ?? 0;
-  }
-
-  /**
-   * Find and expand the node and all of its children
-   */
-  public findAndExpandDeep(id: T): CollapsibleTree<T> {
-    const found = this.find(id);
-    if (found.length === 0) {
-      return this;
-    }
-    return found.reduce<CollapsibleTree<T>>(
-      (acc, node) => acc.expand(node),
-      this,
-    );
-  }
-
-  /**
-   * Find a node, returning the path to it
-   * With the last element being the node itself
-   */
-  public find(id: T): T[] {
-    // We need to recursively find the node
-    function findNode(nodes: TreeNode<T>[], path: T[]): T[] {
-      for (const node of nodes) {
-        if (node.value === id) {
-          return [...path, id];
-        }
-        const result = findNode(node.children, [...path, node.value]);
-        if (result.length > 0) {
-          return result;
-        }
-      }
-      return [];
-    }
-
-    return findNode(this.nodes, []);
   }
 
   /**
@@ -578,18 +223,7 @@ export class CollapsibleTree<T> {
   }
 
   public toString(): string {
-    let depth = 0;
-    let result = "";
-    const asString = (nodes: TreeNode<T>[]) => {
-      for (const node of nodes) {
-        result += `${" ".repeat(depth * 2)}${node.toString()}\n`;
-        depth += 1;
-        asString(node.children);
-        depth -= 1;
-      }
-    };
-    asString(this.nodes);
-    return result;
+    return this.nodes.map((node) => `${node.toString()}\n`).join("");
   }
 }
 
@@ -642,7 +276,7 @@ export class MultiColumn<T> {
     }
 
     const newColumns = splitIds.map((ids, idx) =>
-      CollapsibleTree.fromWithPreviousShape(ids, previousColumns[idx]),
+      CollapsibleTree.from(ids, previousColumns[idx].id),
     );
 
     return new MultiColumn(newColumns);
@@ -814,117 +448,6 @@ export class MultiColumn<T> {
     return new MultiColumn([firstColumn.withNodes(nodes)]);
   }
 
-  public moveWithinColumn(
-    col: CellColumnId,
-    fromIdx: CellIndex,
-    toIdx: CellIndex,
-  ): MultiColumn<T> {
-    return this.transform(col, (c) => {
-      return c.move(fromIdx, toIdx);
-    });
-  }
-
-  public moveAcrossColumns(
-    fromCol: CellColumnId,
-    fromId: T,
-    toCol: CellColumnId,
-    toId: T | undefined,
-  ): MultiColumn<T> {
-    // Find indices once to avoid repeated lookups
-    const fromColumnIndex = this.indexOfOrThrow(fromCol);
-    const toColumnIndex = this.indexOfOrThrow(toCol);
-
-    // Only copy the columns we're modifying
-    const newColumns = [...this.columns];
-    const fromColumn = newColumns[fromColumnIndex];
-
-    // Find the node once
-    const nodeIndex = fromColumn.nodes.findIndex((n) => n.value === fromId);
-    if (nodeIndex === -1) {
-      throw new Error(`Node ${fromId} not found in column ${fromCol}`);
-    }
-
-    const node = fromColumn.nodes[nodeIndex];
-
-    // Create new columns with the changes
-    newColumns[fromColumnIndex] = fromColumn.withNodes(
-      fromColumn.nodes.filter((_, i) => i !== nodeIndex),
-    );
-
-    const toColumn = newColumns[toColumnIndex];
-    if (toId) {
-      const toIndex = toColumn.indexOfOrThrow(toId);
-      newColumns[toColumnIndex] = toColumn.withNodes(
-        arrayInsert(toColumn.nodes, toIndex, node),
-      );
-    } else {
-      newColumns[toColumnIndex] = toColumn.withNodes([node, ...toColumn.nodes]);
-    }
-
-    return new MultiColumn(newColumns);
-  }
-
-  /**
-   * Move multiple cells to be immediately before (or after) a target cell.
-   * Cells are inserted in their original order.
-   *
-   * @throws Error if any cellId is not found in any column.
-   * If targetId is among the moved cells, cells are inserted at the end of the target column.
-   */
-  public moveCellsRelativeTo(
-    cellIds: T[],
-    targetId: T,
-    position: "before" | "after",
-  ): MultiColumn<T> {
-    if (cellIds.length === 0) {
-      return this;
-    }
-
-    const cellIdSet = new Set(cellIds);
-    const targetColumn = this.findWithId(targetId);
-    const targetColIndex = this.indexOfOrThrow(targetColumn.id);
-
-    // Collect nodes to move
-    const nodesToMove: TreeNode<T>[] = [];
-    for (const id of cellIds) {
-      const col = this.findWithId(id);
-      const node = col.nodes.find((n) => n.value === id);
-      if (!node) {
-        throw new Error(`Node ${id} not found in column ${col.id}`);
-      }
-      nodesToMove.push(node);
-    }
-
-    // Remove moved cells from all columns
-    const columnsWithRemovals = this.columns.map((col) =>
-      col.withNodes(col.nodes.filter((n) => !cellIdSet.has(n.value))),
-    );
-
-    // Find target index in the cleaned column
-    const cleanedTargetCol = columnsWithRemovals[targetColIndex];
-    let insertIndex = cleanedTargetCol.nodes.findIndex(
-      (n) => n.value === targetId,
-    );
-
-    // If target was one of the moved cells, insert at end
-    if (insertIndex === -1) {
-      insertIndex = cleanedTargetCol.nodes.length;
-    } else if (position === "after") {
-      insertIndex += 1;
-    }
-
-    // Insert all moved nodes at target position
-    const newTargetNodes = arrayInsertMany(
-      cleanedTargetCol.nodes,
-      insertIndex,
-      nodesToMove,
-    );
-    columnsWithRemovals[targetColIndex] =
-      cleanedTargetCol.withNodes(newTargetNodes);
-
-    return new MultiColumn(columnsWithRemovals);
-  }
-
   public indexOfOrThrow(id: CellColumnId): number {
     const index = this.columns.findIndex((c) => c.id === id);
     if (index === -1) {
@@ -952,22 +475,6 @@ export class MultiColumn<T> {
 
     reorderColumnSizes(fromIdx, toIdx);
     return new MultiColumn(arrayMove([...this.columns], fromIdx, toIdx));
-  }
-
-  public moveToNewColumn(cellId: T): MultiColumn<T> {
-    const fromColumn = this.findWithId(cellId);
-
-    // Create new columns array with the cell removed from its original column
-    const columns = this.columns.map((c) => {
-      if (c.id === fromColumn.id) {
-        return c.delete(cellId);
-      }
-      return c;
-    });
-
-    // Insert into new column
-    const newColumn = CollapsibleTree.from([cellId]);
-    return new MultiColumn([...columns, newColumn]);
   }
 
   public findWithId(id: T): CollapsibleTree<T> {
@@ -1021,38 +528,6 @@ export class MultiColumn<T> {
 
   public insertId(id: T, col: CellColumnId, index: CellIndex): MultiColumn<T> {
     return this.transform(col, (c) => c.insert(id, index));
-  }
-
-  public deleteById(cellId: T): MultiColumn<T> {
-    return this.transformWithCellId(cellId, (c) => c.delete(cellId));
-  }
-
-  /**
-   * Remove the given cells from the tree, then re-insert each at its
-   * (columnId, index). Used to undo a move (e.g. cut-paste) by restoring
-   * cells to their previous positions. Placements are sorted by
-   * (columnId, index) so insert order keeps indices valid.
-   */
-  public placeCells(
-    placements: Array<{ id: T; columnId: CellColumnId; index: CellIndex }>,
-  ): MultiColumn<T> {
-    if (placements.length === 0) {
-      return this;
-    }
-    let result = this.deleteById(placements[0].id);
-    for (const { id } of placements.slice(1)) {
-      result = result.deleteById(id);
-    }
-    const sorted = [...placements].toSorted((a, b) => {
-      if (a.columnId !== b.columnId) {
-        return a.columnId.localeCompare(b.columnId);
-      }
-      return (a.index as number) - (b.index as number);
-    });
-    for (const { id, columnId, index } of sorted) {
-      result = result.insertId(id, columnId, index);
-    }
-    return result;
   }
 
   public compact(): MultiColumn<T> {

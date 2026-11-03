@@ -29,6 +29,7 @@ import { canInteractWithAppAtom } from "@/core/network/connection";
 import { useBoolean } from "@/hooks/useBoolean";
 import { cn } from "@/utils/cn";
 import { Functions } from "@/utils/functions";
+import { findColumn, useLayout } from "@/core/cells/layout";
 import type { CellColumnId } from "@/utils/id-tree";
 import { invariant } from "@/utils/invariant";
 import {
@@ -188,7 +189,7 @@ const CellColumn: React.FC<{
   hideControls,
 }) => {
   const cellIds = useCellIds();
-  const column = cellIds.get(columnId);
+  const column = findColumn(useLayout(), columnId);
   invariant(column, `Expected column for: ${columnId}`);
 
   const hasOnlyOneCell = cellIds.hasOnlyOneId();
@@ -218,7 +219,7 @@ const CellColumn: React.FC<{
     >
       <SortableContext
         id={`column-${index + 1}`}
-        items={column.topLevelIds}
+        items={[...column.visible]}
         strategy={verticalListSortingStrategy}
       >
         {/* Render the setup cell first, always */}
@@ -237,7 +238,7 @@ const CellColumn: React.FC<{
           />
         )}
 
-        {column.topLevelIds.map((cellId) => {
+        {column.visible.map((cellId) => {
           // Skip the setup cell later
           if (cellId === SETUP_CELL_ID) {
             return null;
@@ -252,8 +253,8 @@ const CellColumn: React.FC<{
               canDelete={!hasOnlyOneCell}
               mode={mode}
               userConfig={userConfig}
-              isCollapsed={column.isCollapsed(cellId)}
-              collapseCount={column.getCount(cellId)}
+              isCollapsed={column.folds.has(cellId)}
+              collapseCount={column.folds.get(cellId)?.length ?? 0}
               canMoveX={appConfig.width === "columns"}
             />
           );

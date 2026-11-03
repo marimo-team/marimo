@@ -1,36 +1,39 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { history } from "@codemirror/commands";
-import { EditorState } from "@codemirror/state";
-import { EditorView } from "@codemirror/view";
 import type * as Protocol from "@marimo-team/client/protocol";
-import { createStore } from "jotai";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { mockDocumentModel } from "@/__mocks__/document";
 import { cellId } from "@/__tests__/branded";
-import {
-  cell,
-  CONFIG,
-  document as documentOf,
-  withCells,
-} from "@/core/notebook/document/__tests__/fixtures";
+import { createStore } from "jotai";
+import { cell, CONFIG } from "@/core/notebook/document/__tests__/fixtures";
 import type { CellIndex } from "@/utils/id-tree";
 import {
   addSetupCellAtom,
+  collapseAllCellsAtom,
+  collapseCellAtom,
   createCellAtom,
   deleteCellsAtom,
+  expandAllCellsAtom,
+  expandCellAtom,
+  focusCellAtom,
   moveToNextCellAtom,
+  showCellIfHiddenAtom,
   undoDeleteCellAtom,
 } from "../actions";
+import { moveCellsRelativeToAtom } from "../arrange";
 import {
   cellDataAtom,
   cellHandleAtom,
   exportedForTesting,
   notebookAtom,
-  notebookReducer,
 } from "../cells";
-import { followDocument } from "../document";
+import {
+  hideShownCodeAtom,
+  restoredEditorStatesAtom,
+  shownHiddenCodeAtom,
+} from "../editor";
+import { collapsedAtom, layoutAtom } from "../layout";
 import { type CellId, SCRATCH_CELL_ID, SETUP_CELL_ID } from "../ids";
+import { setupNotebook } from "./harness";
 import { focusAndScrollCellIntoView } from "../scrollCellIntoView";
 
 vi.mock("../scrollCellIntoView", () => ({
@@ -49,53 +52,8 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
-/** A store whose notebook follows a document model, as the session wires it. */
-function setup(cells?: Record<string, Protocol.Cell | null>) {
-  const store = createStore();
-  store.set(notebookAtom, exportedForTesting.initialNotebookState());
-  const { model, stop } = mockDocumentModel(
-    store,
-    cells ? withCells(documentOf(), cells) : documentOf(),
-  );
-  const controller = new AbortController();
-  stops.push(stop, () => controller.abort());
-  followDocument({
-    store,
-    model,
-    reconcile: (document) =>
-      store.set(notebookAtom, (state) =>
-        notebookReducer(state, {
-          type: "reconcileDocument",
-          payload: document,
-        }),
-      ),
-    signal: controller.signal,
-  });
-  return {
-    store,
-    model,
-    order: () => store.get(notebookAtom).cellIds.inOrderIds,
-    notebook: () => store.get(notebookAtom),
-    cellIn: (id: string) => store.get(model.documentAtom)?.cells.get(id),
-    /** Give a cell an editor, as mounting it would. */
-    mountEditor: (id: string) => {
-      const view = new EditorView({
-        state: EditorState.create({
-          doc: store.get(model.documentAtom)?.cells.get(id)?.code ?? "",
-          extensions: [history()],
-        }),
-      });
-      store.get(notebookAtom).cellHandles[id as never].current = {
-        editorView: view,
-        editorViewOrNull: view,
-      };
-      return view;
-    },
-    /** Apply a reducer action, as `useReducerActions()` does. */
-    dispatch: (action: Parameters<typeof notebookReducer>[1]) =>
-      store.set(notebookAtom, (state) => notebookReducer(state, action)),
-  };
-}
+const setup = (cells?: Record<string, Protocol.Cell | null>) =>
+  setupNotebook(stops, cells);
 
 describe("createCellAtom", () => {
   it("creates a cell after another and focuses it once it mounts", () => {
@@ -131,8 +89,8 @@ describe("createCellAtom", () => {
       focus: false,
     });
 
-    expect(notebook().untouchedNewCells.has(hidden as never)).toBe(true);
-    expect(notebook().untouchedNewCells.has(unfocused as never)).toBe(false);
+    expect(store.get(shownHiddenCodeAtom).has(hidden as CellId)).toBe(true);
+    expect(store.get(shownHiddenCodeAtom).has(unfocused as CellId)).toBe(false);
     expect(notebook().scrollKey).toBe(hidden);
   });
 
@@ -351,18 +309,20 @@ describe("deleteCellsAtom", () => {
     expect(notebook().cellIds.atOrThrow(1).inOrderIds).toEqual([c3]);
   });
 
-  it("forgets the untouched state and the cell atoms of a deleted cell", () => {
-    const { store, notebook } = setup();
+  it("forgets a deleted cell's editor-only state and its atoms", () => {
+    const { store } = setup();
     const id = store.set(createCellAtom, {
       after: c1,
       config: { hide_code: true },
     }) as CellId;
+    store.set(restoredEditorStatesAtom, new Map([[id, { doc: "" }]]));
     const dataAtom = cellDataAtom(id);
     const handleAtom = cellHandleAtom(id);
 
     store.set(deleteCellsAtom, { cellIds: [id] });
 
-    expect(notebook().untouchedNewCells.has(id)).toBe(false);
+    expect(store.get(shownHiddenCodeAtom).has(id)).toBe(false);
+    expect(store.get(restoredEditorStatesAtom).has(id)).toBe(false);
     expect(cellDataAtom(id)).not.toBe(dataAtom);
     expect(cellHandleAtom(id)).not.toBe(handleAtom);
   });
@@ -382,7 +342,7 @@ describe("undoDeleteCellAtom", () => {
 
     expect(order()).toEqual([c1, c2, c3]);
     expect(cellIn(c2)?.code).toBe("y = 2");
-    expect(notebook().cellData[c2].serializedEditorState).toMatchObject({
+    expect(store.get(restoredEditorStatesAtom).get(c2)).toMatchObject({
       doc: "y = 2",
     });
     expect(notebook().cellData[c2].edited).toBe(true);
@@ -423,25 +383,20 @@ describe("undoDeleteCellAtom", () => {
   });
 
   it("undoes a move recorded in the history", () => {
-    const { store, model, order, notebook, dispatch } = setup({
+    const { store, order, notebook } = setup({
       c3: cell("c3", "z = 3"),
     });
     const column = notebook().cellIds.atOrThrow(0);
-    dispatch({
-      type: "moveCellsRelativeTo",
-      payload: {
-        cellIds: [c1, c2],
-        targetCellId: c3,
-        position: "after",
-        previousPlacements: [
-          { columnId: column.id, index: 0 as CellIndex },
-          { columnId: column.id, index: 1 as CellIndex },
-        ],
-      },
+    store.set(moveCellsRelativeToAtom, {
+      cellIds: [c1, c2],
+      targetCellId: c3,
+      position: "after",
+      previousPlacements: [
+        { columnId: column.id, index: 0 as CellIndex },
+        { columnId: column.id, index: 1 as CellIndex },
+      ],
     });
     expect(order()).toEqual([c3, c1, c2]);
-    // The middleware would write the order to the document.
-    store.set(model.editAtom, (tx) => tx.setOrder([c3, c1, c2]));
 
     store.set(deleteCellsAtom, { cellIds: [c3] });
     expect(order()).toEqual([c1, c2]);
@@ -484,5 +439,160 @@ describe("undoDeleteCellAtom", () => {
     store.set(undoDeleteCellAtom);
 
     expect(order()).toEqual([c1, c2]);
+  });
+});
+
+describe("folding", () => {
+  it("folds a header's section and unfolds it, focusing the header", () => {
+    const { store, notebook, visible, heading } = setup({
+      c3: cell("c3", "z = 3"),
+    });
+    heading(c1, 1);
+
+    store.set(collapseCellAtom, { cellId: c1 });
+    expect(visible()).toEqual([c1]);
+    expect(store.get(layoutAtom).columns[0].folds.get(c1)).toEqual([c2, c3]);
+    expect(notebook().scrollKey).toBe(c1);
+
+    store.set(expandCellAtom, { cellId: c1 });
+    expect(visible()).toEqual([c1, c2, c3]);
+    expect(store.get(collapsedAtom).size).toBe(0);
+  });
+
+  it("creates after a folded header below its fold and opens the section", () => {
+    const { store, order, visible, heading } = setup({
+      c3: cell("c3", "z = 3"),
+    });
+    heading(c1, 1);
+    store.set(collapseCellAtom, { cellId: c1 });
+
+    const id = store.set(createCellAtom, { after: c1, code: "w = 4" });
+
+    // The section runs to the next heading, so the new cell is in it.
+    expect(order()).toEqual([c1, c2, c3, id]);
+    expect(visible()).toEqual([c1, c2, c3, id]);
+    expect(store.get(collapsedAtom).size).toBe(0);
+  });
+
+  it("opens every section a new cell lands in", () => {
+    const { store, order, visible, heading } = setup({
+      c3: cell("c3", "z = 3"),
+    });
+    heading(c1, 1);
+    heading(c2, 2);
+    store.set(collapseAllCellsAtom);
+
+    // After the H1, the cell lands past the folded H2 too, inside both.
+    const id = store.set(createCellAtom, { after: c1, code: "w = 4" });
+
+    expect(order()).toEqual([c1, c2, c3, id]);
+    expect(visible()).toEqual([c1, c2, c3, id]);
+    expect(store.get(collapsedAtom).size).toBe(0);
+  });
+
+  it("opens the fold a cell created before or at the end lands in", () => {
+    const { store, order, visible, heading } = setup({
+      c3: cell("c3", "z = 3"),
+    });
+    heading(c1, 1);
+    heading(c3, 1);
+    store.set(collapseCellAtom, { cellId: c1 });
+
+    // Before the second header, the cell follows the first header's fold.
+    const before = store.set(createCellAtom, { before: c3, code: "w = 4" });
+    expect(order()).toEqual([c1, c2, before, c3]);
+    expect(visible()).toEqual([c1, c2, before, c3]);
+
+    store.set(collapseCellAtom, { cellId: c3 });
+    expect(visible()).toEqual([c1, c2, before, c3]);
+
+    // At the end of the column, the cell falls under the last header.
+    const end = store.set(createCellAtom, { code: "v = 5" });
+    expect(order()).toEqual([c1, c2, before, c3, end]);
+    expect(visible()).toEqual([c1, c2, before, c3, end]);
+    expect(store.get(collapsedAtom).size).toBe(0);
+  });
+
+  it("leaves a fold closed over a cell created without focus", () => {
+    const { store, order, visible, heading } = setup({
+      c3: cell("c3", "z = 3"),
+    });
+    heading(c1, 1);
+    store.set(collapseCellAtom, { cellId: c1 });
+
+    const id = store.set(createCellAtom, {
+      after: c1,
+      code: "w = 4",
+      focus: false,
+    });
+
+    expect(order()).toEqual([c1, c2, c3, id]);
+    expect(visible()).toEqual([c1]);
+  });
+
+  it("does not fold a cell without a heading", () => {
+    const { store, visible } = setup();
+
+    store.set(collapseCellAtom, { cellId: c1 });
+
+    expect(visible()).toEqual([c1, c2]);
+    expect(store.get(collapsedAtom).size).toBe(0);
+  });
+
+  it("folds and unfolds every section", () => {
+    const { store, visible, heading } = setup({ c3: cell("c3", "z = 3") });
+    heading(c1, 1);
+    heading(c2, 2);
+
+    store.set(collapseAllCellsAtom);
+    expect(visible()).toEqual([c1]);
+    expect([...store.get(collapsedAtom)]).toEqual([c1, c2]);
+
+    store.set(expandAllCellsAtom);
+    expect(visible()).toEqual([c1, c2, c3]);
+  });
+
+  it("unfolds whatever hides a cell", () => {
+    const { store, visible, heading } = setup({ c3: cell("c3", "z = 3") });
+    heading(c1, 1);
+    heading(c2, 2);
+    store.set(collapseAllCellsAtom);
+
+    store.set(showCellIfHiddenAtom, { cellId: c3 });
+
+    expect(visible()).toEqual([c1, c2, c3]);
+    expect(store.get(collapsedAtom).size).toBe(0);
+  });
+
+  it("moves focus over folded cells", () => {
+    const { store, heading } = setup({ c3: cell("c3", "z = 3") });
+    heading(c2, 1);
+    store.set(collapseCellAtom, { cellId: c2 });
+
+    store.set(focusCellAtom, { cellId: c1, where: "after" });
+    expect(focusAndScrollCellIntoView).toHaveBeenLastCalledWith(
+      expect.objectContaining({ cellId: c2, codeFocus: "top" }),
+    );
+
+    store.set(moveToNextCellAtom, { cellId: c2, before: false, create: false });
+    expect(focusAndScrollCellIntoView).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("hidden code showing for now", () => {
+  it("shows a new hidden cell's code until it is hidden again", () => {
+    const { store } = setup();
+    const id = store.set(createCellAtom, {
+      after: c1,
+      config: { hide_code: true },
+    }) as CellId;
+    expect(store.get(shownHiddenCodeAtom).has(id)).toBe(true);
+
+    const before = store.get(shownHiddenCodeAtom);
+    store.set(hideShownCodeAtom, { cellId: id });
+    store.set(hideShownCodeAtom, { cellId: id });
+
+    expect(store.get(shownHiddenCodeAtom).has(id)).toBe(false);
+    expect(store.get(shownHiddenCodeAtom)).not.toBe(before);
   });
 });

@@ -149,7 +149,6 @@ export const SlideCellView = ({ cell }: { cell: RuntimeCell }) => {
         code={cell.code}
         config={cell.config}
         status={cell.status}
-        serializedEditorState={cell.serializedEditorState}
         runCell={runCell}
         setEditorView={(ev) => {
           editorViewRef.current = ev;

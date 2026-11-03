@@ -19,8 +19,6 @@ import {
   notebookReducer,
 } from "@/core/cells/cells";
 import type { CellData } from "@/core/cells/types";
-import { layoutStateAtom } from "@/core/layout/state";
-import { lastSavedNotebookAtom, needsSaveAtom } from "@/core/saving/state";
 import type { DispatchedActionOf } from "@/utils/createReducer";
 
 type CellAction = DispatchedActionOf<ReducerCellActions>;
@@ -74,12 +72,6 @@ for (const count of [10, 25, 100, 1000]) {
           state = MockNotebook.notebookState({ cellData });
           iteration = 0;
           store.set(notebookAtom, state);
-          store.set(lastSavedNotebookAtom, {
-            codes: ids.map(() => code),
-            names: ids.map((id) => state.cellData[id].name),
-            configs: ids.map((id) => state.cellData[id].config),
-            layout: store.get(layoutStateAtom),
-          });
           const subscribe = (value: Atom<unknown>) => {
             unsubscribes.push(store.sub(value, () => undefined));
           };
@@ -98,7 +90,6 @@ for (const count of [10, 25, 100, 1000]) {
               notebookIsRunningAtom,
               notebookQueuedOrRunningCountAtom,
               needsRunAtom,
-              needsSaveAtom,
             ]) {
               subscribe(value);
             }
