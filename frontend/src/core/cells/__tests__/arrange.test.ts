@@ -138,12 +138,13 @@ describe("sendToTopAtom and sendToBottomAtom", () => {
   it("move a cell to the ends of its column", () => {
     const { store, order, notebook } = setup({ c3: cell("c3", "z = 3") });
 
-    store.set(sendToBottomAtom, { cellId: c1 });
+    store.set(sendToBottomAtom, { cellId: c1, scroll: false });
     expect(order()).toEqual([c2, c3, c1]);
-    expect(notebook().scrollKey).toBe(c1);
+    expect(notebook().scrollKey).toBeNull();
 
-    store.set(sendToTopAtom, { cellId: c1, scroll: false });
+    store.set(sendToTopAtom, { cellId: c1 });
     expect(order()).toEqual([c1, c2, c3]);
+    expect(notebook().scrollKey).toBe(c1);
   });
 
   it("send a folded header with its section and leave an edge cell alone", () => {
@@ -169,6 +170,22 @@ describe("drag and drop", () => {
     expect(order()).toEqual([c2, c3, c1]);
     store.set(dropCellOverCellAtom, { cellId: c1, overCellId: c2 });
     expect(order()).toEqual([c1, c2, c3]);
+  });
+
+  it("ignores a drop from or onto a cell hidden in a fold", () => {
+    const { store, model, heading, notebook } = setup({
+      c3: cell("c3", "z = 3"),
+    });
+    heading(c2, 1);
+    store.set(collapseCellAtom, { cellId: c2 });
+    const before = store.get(model.documentAtom);
+    const focused = notebook().scrollKey;
+
+    store.set(dropCellOverCellAtom, { cellId: c1, overCellId: c3 });
+    store.set(dropCellOverCellAtom, { cellId: c3, overCellId: c1 });
+
+    expect(store.get(model.documentAtom)).toBe(before);
+    expect(notebook().scrollKey).toBe(focused);
   });
 
   it("drops a cell before another cell in another column", () => {

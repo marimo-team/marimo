@@ -148,15 +148,7 @@ export const createCellAtom = atom(
       // The new cell has no heading, so every section that runs past the
       // cell before it holds it too. Those open, so the cell is on the page.
       const hiding = follows === undefined ? [] : foldsAfter(layout, follows);
-      if (hiding.length > 0) {
-        set(collapsedAtom, (collapsed) => {
-          const next = new Set(collapsed);
-          for (const header of hiding) {
-            next.delete(header);
-          }
-          return next;
-        });
-      }
+      unfoldSections(set, hiding);
       focusWhenMounted(set, id);
       // Hidden code stays showing until the cell is blurred for the first time.
       if (config.hide_code) {
@@ -326,6 +318,19 @@ export const focusBottomCellAtom = atom(null, (get): void => {
 // A folded header hides the cells of its section. Which headers are folded is
 // editor state; the section each one hides derives from the outlines.
 
+function unfoldSections(set: Setter, headers: readonly CellId[]): void {
+  if (headers.length === 0) {
+    return;
+  }
+  set(collapsedAtom, (collapsed) => {
+    const next = new Set(collapsed);
+    for (const header of headers) {
+      next.delete(header);
+    }
+    return next;
+  });
+}
+
 /** Fold the section under `cellId`, if its output has a heading. */
 export const collapseCellAtom = atom(
   null,
@@ -342,11 +347,7 @@ export const collapseCellAtom = atom(
 export const expandCellAtom = atom(
   null,
   (_get, set, { cellId }: { cellId: CellId }): void => {
-    set(collapsedAtom, (collapsed) => {
-      const next = new Set(collapsed);
-      next.delete(cellId);
-      return next;
-    });
+    unfoldSections(set, [cellId]);
     focusWhenMounted(set, cellId);
   },
 );
@@ -371,17 +372,7 @@ export const expandAllCellsAtom = atom(null, (_get, set): void => {
 export const showCellIfHiddenAtom = atom(
   null,
   (get, set, { cellId }: { cellId: CellId }): void => {
-    const hiding = foldsHiding(get(layoutAtom), cellId);
-    if (hiding.length === 0) {
-      return;
-    }
-    set(collapsedAtom, (collapsed) => {
-      const next = new Set(collapsed);
-      for (const header of hiding) {
-        next.delete(header);
-      }
-      return next;
-    });
+    unfoldSections(set, foldsHiding(get(layoutAtom), cellId));
   },
 );
 
