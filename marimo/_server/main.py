@@ -23,6 +23,7 @@ from marimo._server.api.middleware import (
     ProxyMiddleware,
     SkewProtectionMiddleware,
     TimeoutMiddleware,
+    WebSocketOriginMiddleware,
 )
 from marimo._server.api.router import build_routes
 from marimo._server.errors import handle_error
@@ -67,9 +68,14 @@ def create_starlette_app(
         else DEFAULT_CONFIG["server"]
     )
     session_secret = server_config.get("session_secret") or SESSION_SECRET
-    # Handle host API requests first to bypass the editor's middleware.
     final_middlewares: list[Middleware] = [
-        Middleware(HostApiMiddleware, base_url=base_url)
+        Middleware(
+            WebSocketOriginMiddleware,
+            allow_origins=allow_origins or (),
+            host=host,
+        ),
+        # Handle host API requests before the editor's middleware.
+        Middleware(HostApiMiddleware, base_url=base_url),
     ]
 
     if allow_origins is None:

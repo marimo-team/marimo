@@ -331,7 +331,7 @@ class PyodideBridge:
 
     async def save_app_config(self, request: str) -> None:
         parsed = self._parse(request, SaveAppConfigurationRequest)
-        await self.notebook.update_config(parsed.config)
+        await self.notebook.save_app_config(parsed.config)
 
     def save_user_config(self, request: str) -> None:
         parsed = self._parse(request, SaveUserConfigurationRequest)

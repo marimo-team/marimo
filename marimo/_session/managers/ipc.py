@@ -179,6 +179,9 @@ class IPCQueueManagerImpl(QueueManager):
     def close_queues(self) -> None:
         self._ipc.close_queues()
 
+    def request_kernel_stop(self) -> None:
+        self._ipc.request_kernel_stop()
+
     def put_control_request(self, request: commands.CommandMessage) -> None:
         route_control_request(
             request,
@@ -701,9 +704,8 @@ class IPCKernelManagerImpl(KernelManager):
 
     def close_kernel(self, *, graceful: bool = False) -> None:
         if self._process is not None:
-            self.queue_manager.put_control_request(
-                commands.StopKernelCommand()
-            )
+            if self.is_alive():
+                self.queue_manager.request_kernel_stop()
             # A clean stop lets the kernel flush pending work (the
             # profile dump, cache writes) before we kill it. Unlike the
             # multiprocessing manager, every wait here is bounded.

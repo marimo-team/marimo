@@ -27,11 +27,8 @@ import { useSetOutputsExpanded } from "../components/editor/actions/useSetOutput
 import { CellArray } from "../components/editor/renderers/cell-array";
 import { CellsRenderer } from "../components/editor/renderers/cells-renderer";
 import { useHotkey } from "../hooks/useHotkey";
-import {
-  hasCellsAtom,
-  notebookIsRunningAtom,
-  numColumnsAtom,
-} from "./cells/cells";
+import { hasCellsAtom, notebookIsRunningAtom } from "./cells/cells";
+import { numColumnsAtom } from "./cells/layout";
 import { useCellActions } from "./cells/actions";
 import type { AppConfig, UserConfig } from "./config/config-schema";
 import { RuntimeState } from "./kernel/RuntimeState";

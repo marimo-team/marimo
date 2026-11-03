@@ -43,7 +43,7 @@ vi.mock("../../cells/actions", () => ({
 vi.mock("../../cells/cells", async () => {
   const { atom } = await import("jotai");
   return {
-    notebookAtom: atom({ cellData: {}, cellIds: { inOrderIds: [] } }),
+    notebookAtom: atom({ cellData: {}, cellIds: [] }),
     cellHandleAtom: vi.fn(() => ({
       read: vi.fn(() => mockCellHandle),
     })),

@@ -29,13 +29,9 @@ import { canInteractWithAppAtom } from "@/core/network/connection";
 import { useBoolean } from "@/hooks/useBoolean";
 import { cn } from "@/utils/cn";
 import { Functions } from "@/utils/functions";
-import type { CellColumnId } from "@/utils/id-tree";
+import { type CellColumnId, findColumn, useLayout } from "@/core/cells/layout";
 import { invariant } from "@/utils/invariant";
-import {
-  columnIdsAtom,
-  useCellIds,
-  useScrollKey,
-} from "../../../core/cells/cells";
+import { useCellIds, useScrollKey } from "../../../core/cells/cells";
 import { useCellActions } from "../../../core/cells/actions";
 import { formatAll } from "../../../core/codemirror/format";
 import type { AppConfig, UserConfig } from "../../../core/config/config-schema";
@@ -60,7 +56,7 @@ interface CellArrayProps {
 }
 
 export const CellArray: React.FC<CellArrayProps> = (props) => {
-  const columnIds = useAtomValue(columnIdsAtom);
+  const columnIds = useLayout().columns.map((column) => column.id);
 
   // Setup context for sorting
   return (
@@ -115,7 +111,7 @@ const CellArrayInternal: React.FC<CellArrayProps> = ({
 
   const cellIds = useCellIds();
   const scrollKey = useScrollKey();
-  const columnIds = cellIds.getColumnIds();
+  const columnIds = useLayout().columns.map((column) => column.id);
 
   // Scroll to a cell targeted by a previous action
   const scrollToTarget = actions.scrollToTarget;
@@ -139,7 +135,7 @@ const CellArrayInternal: React.FC<CellArrayProps> = ({
       <StdinBlockingAlert />
       <NotebookBanner width={appConfig.width} />
       {/* Only show if not cells, otherwise running a single cell will start the connection */}
-      {cellIds.idLength === 0 && <NotStartedConnectionAlert />}
+      {cellIds.length === 0 && <NotStartedConnectionAlert />}
       <div
         className={cn(
           appConfig.width === "columns" &&
@@ -188,11 +184,11 @@ const CellColumn: React.FC<{
   hideControls,
 }) => {
   const cellIds = useCellIds();
-  const column = cellIds.get(columnId);
+  const column = findColumn(useLayout(), columnId);
   invariant(column, `Expected column for: ${columnId}`);
 
-  const hasOnlyOneCell = cellIds.hasOnlyOneId();
-  const hasSetupCell = cellIds.inOrderIds.includes(SETUP_CELL_ID);
+  const hasOnlyOneCell = cellIds.length === 1;
+  const hasSetupCell = cellIds.includes(SETUP_CELL_ID);
   const isPresenting = mode === "present";
 
   return (
@@ -218,7 +214,7 @@ const CellColumn: React.FC<{
     >
       <SortableContext
         id={`column-${index + 1}`}
-        items={column.topLevelIds}
+        items={[...column.visible]}
         strategy={verticalListSortingStrategy}
       >
         {/* Render the setup cell first, always */}
@@ -237,7 +233,7 @@ const CellColumn: React.FC<{
           />
         )}
 
-        {column.topLevelIds.map((cellId) => {
+        {column.visible.map((cellId) => {
           // Skip the setup cell later
           if (cellId === SETUP_CELL_ID) {
             return null;
@@ -252,8 +248,8 @@ const CellColumn: React.FC<{
               canDelete={!hasOnlyOneCell}
               mode={mode}
               userConfig={userConfig}
-              isCollapsed={column.isCollapsed(cellId)}
-              collapseCount={column.getCount(cellId)}
+              isCollapsed={column.folds.has(cellId)}
+              collapseCount={column.folds.get(cellId)?.length ?? 0}
               canMoveX={appConfig.width === "columns"}
             />
           );

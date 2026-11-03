@@ -60,6 +60,7 @@ const CellActionsDropdownInternal = (
   ref: React.Ref<CellActionsDropdownHandle>,
 ) => {
   const [open, setOpen] = useState(false);
+  const pendingAction = useRef<(() => void) | null>(null);
   const closePopover = () => setOpen(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const actions = useCellActionButtons({ cell: props, closePopover });
@@ -107,6 +108,16 @@ const CellActionsDropdownInternal = (
       className="w-[300px] p-0 pt-1 overflow-auto"
       scrollable={true}
       {...restoreFocus}
+      onCloseAutoFocus={(event) => {
+        restoreFocus.onCloseAutoFocus(event);
+        const action = pendingAction.current;
+        pendingAction.current = null;
+        if (action) {
+          // Restore focus before the action moves it or hides the editor.
+          event.preventDefault();
+          action();
+        }
+      }}
     >
       <Command>
         <CommandInput
@@ -153,7 +164,7 @@ const CellActionsDropdownInternal = (
                         if (action.disableClick || action.disabled) {
                           return;
                         }
-                        action.handle();
+                        pendingAction.current = action.handle;
                         setOpen(false);
                       }}
                       variant={action.variant}

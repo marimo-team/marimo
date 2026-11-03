@@ -1,6 +1,8 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { history, undo } from "@codemirror/commands";
+import { MySQL, PostgreSQL } from "@codemirror/lang-sql";
+import { language as activeLanguage } from "@codemirror/language";
 import { EditorSelection, EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import type { CellId } from "@marimo-team/client/protocol";
@@ -65,6 +67,29 @@ function languages(id: CellId) {
       addSetupCell: vi.fn(),
       deleteCells: vi.fn(),
       undoDeleteCell: vi.fn(),
+      focusCell: vi.fn(),
+      focusTopCell: vi.fn(),
+      focusBottomCell: vi.fn(),
+      collapseCell: vi.fn(),
+      expandCell: vi.fn(),
+      collapseAllCells: vi.fn(),
+      expandAllCells: vi.fn(),
+      showCellIfHidden: vi.fn(),
+      moveCell: vi.fn(),
+      moveCellToIndex: vi.fn(),
+      moveCellsRelativeTo: vi.fn(),
+      dropCellOverCell: vi.fn(),
+      dropCellOverColumn: vi.fn(),
+      sendToTop: vi.fn(),
+      sendToBottom: vi.fn(),
+      addColumn: vi.fn(),
+      addColumnBreakpoint: vi.fn(),
+      deleteColumn: vi.fn(),
+      mergeAllColumns: vi.fn(),
+      compactColumns: vi.fn(),
+      moveColumn: vi.fn(),
+      splitCell: vi.fn(),
+      undoSplitCell: vi.fn(),
       onRun: vi.fn(),
       deleteCell: vi.fn(),
       afterToggleMarkdown: vi.fn(),
@@ -504,14 +529,23 @@ describe("cellCodeBinding", () => {
     });
 
     it("sets the SQL dialect from the host's engine", async () => {
-      const { store, source } = setup({
+      const { store, source, view } = setup({
         adapters: true,
         initial: withCells(document(), {
           c1: cell("c1", 'df = mo.sql("SELECT 1")'),
         }),
       });
-      await settle();
-      const dialect = vi.spyOn(SCHEMA_CACHE, "getDialect");
+      await Promise.resolve();
+      const getDialect = SCHEMA_CACHE.getDialect.bind(SCHEMA_CACHE);
+      const dialects = new Map([
+        ["warehouse", PostgreSQL],
+        ["lake", MySQL],
+      ]);
+      const dialect = vi
+        .spyOn(SCHEMA_CACHE, "getDialect")
+        .mockImplementation(
+          (engine) => dialects.get(engine) ?? getDialect(engine),
+        );
       try {
         store.set(
           source,
@@ -519,8 +553,8 @@ describe("cellCodeBinding", () => {
             c1: cell("c1", '_df = mo.sql(f"""SELECT 1""", engine=warehouse)'),
           }),
         );
-        await settle();
-        expect(dialect).toHaveBeenLastCalledWith("warehouse");
+        await Promise.resolve();
+        expect(view.state.facet(activeLanguage)).toBe(PostgreSQL.language);
 
         store.set(
           source,
@@ -528,8 +562,8 @@ describe("cellCodeBinding", () => {
             c1: cell("c1", '_df = mo.sql(f"""SELECT 1""", engine=lake)'),
           }),
         );
-        await settle();
-        expect(dialect).toHaveBeenLastCalledWith("lake");
+        await Promise.resolve();
+        expect(view.state.facet(activeLanguage)).toBe(MySQL.language);
       } finally {
         dialect.mockRestore();
       }

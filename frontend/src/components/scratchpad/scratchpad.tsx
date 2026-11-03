@@ -259,7 +259,6 @@ export const ScratchPad: React.FC = () => {
                 code={code}
                 config={scratchpadCellConfig}
                 status="idle"
-                serializedEditorState={null}
                 runCell={handleRun}
                 userConfig={userConfig}
                 editorViewRef={ref}

@@ -65,13 +65,14 @@ import {
 } from "@/core/cells/cells";
 import { useCellActions } from "@/core/cells/actions";
 import { useNotebookDocumentEdit } from "@/core/notebook/document";
+import { canEditAtom } from "@/core/notebook";
 import { disabledCellIds } from "@/core/cells/utils";
 import { capabilitiesAtom } from "@/core/config/capabilities";
 import { aiEnabledAtom, useResolvedMarimoConfig } from "@/core/config/config";
 import { Constants } from "@/core/constants";
 import { useLayoutActions, useLayoutState } from "@/core/layout/state";
 import { useTogglePresenting } from "@/core/layout/useTogglePresenting";
-import { kioskModeAtom, viewStateAtom } from "@/core/mode";
+import { viewStateAtom } from "@/core/mode";
 import { useRequestClient } from "@/core/network/requests";
 import { useFilename } from "@/core/saving/filename";
 import { createShareableLink } from "@/core/wasm/share";
@@ -119,7 +120,7 @@ export function useNotebookActions({
   const { toggleApplication } = useChromeActions();
   const { selectedPanel } = useChromeState();
   const [viewState] = useAtom(viewStateAtom);
-  const kioskMode = useAtomValue(kioskModeAtom);
+  const canEdit = useAtomValue(canEditAtom);
   const setCodeVisibility = useSetCodeVisibility();
   const setOutputsExpanded = useSetOutputsExpanded();
   const [resolvedConfig] = useResolvedMarimoConfig();
@@ -448,7 +449,7 @@ export function useNotebookActions({
     {
       icon: <ZapIcon size={14} strokeWidth={1.5} />,
       label: "Enable all cells",
-      hidden: !hasDisabledCells || kioskMode,
+      hidden: !hasDisabledCells || !canEdit,
       handle: () => {
         const ids = disabledCellIds(getNotebook());
         edit((tx) => {
@@ -538,7 +539,7 @@ export function useNotebookActions({
     {
       icon: <Undo2Icon size={14} strokeWidth={1.5} />,
       label: undoLabel,
-      hidden: !canUndoDeletes || kioskMode,
+      hidden: !canUndoDeletes || !canEdit,
       handle: () => {
         undoDeleteCell();
       },

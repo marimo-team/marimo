@@ -16,13 +16,18 @@ import {
   UserConfigSchema,
 } from "../config-schema";
 
+test("legacy Manual config resolves to Read only", () => {
+  const config = UserConfigSchema.parse({ ai: { mode: "manual" } });
+  expect(config).toEqual(UserConfigSchema.parse({ ai: { mode: "ask" } }));
+});
+
 test("default AppConfig", () => {
   const defaultConfig = AppConfigSchema.parse({});
   expect(defaultConfig).toMatchInlineSnapshot(`
     {
       "auto_download": [],
       "sql_output": "auto",
-      "width": "medium",
+      "width": "compact",
     }
   `);
 });
@@ -51,7 +56,7 @@ test("default UserConfig - empty", () => {
         "custom_providers": {},
         "enabled": true,
         "inline_tooltip": false,
-        "mode": "manual",
+        "mode": "ask",
         "models": {
           "custom_models": [],
           "displayed_models": [],
@@ -128,7 +133,7 @@ test("default UserConfig - one level", () => {
         "custom_providers": {},
         "enabled": true,
         "inline_tooltip": false,
-        "mode": "manual",
+        "mode": "ask",
         "models": {
           "custom_models": [],
           "displayed_models": [],

@@ -171,7 +171,10 @@ export const UserConfigSchema = z
         enabled: z.boolean().prefault(true),
         rules: z.string().prefault(""),
         max_tokens: z.number().int().positive().nullable().optional(),
-        mode: z.enum(COPILOT_MODES).prefault("manual"),
+        mode: z
+          .enum(COPILOT_MODES)
+          .transform((mode) => (mode === "manual" ? "ask" : mode))
+          .prefault("ask"),
         inline_tooltip: z.boolean().prefault(false),
         allow_provider_config: z.boolean().prefault(true),
         open_ai: AiConfigSchema.optional(),
@@ -279,11 +282,15 @@ export const SqlOutputSchema = z
   .enum(VALID_SQL_OUTPUT_FORMATS)
   .prefault("auto");
 
+/**
+ * The notebook's app config. The defaults are Python's `_AppConfig` defaults,
+ * since the host document carries only what differs from them.
+ */
 export const AppConfigSchema = z
   .object({
     width: z
       .enum(VALID_APP_WIDTHS)
-      .prefault("medium")
+      .prefault("compact")
       .transform((width) => {
         if (width === "normal") {
           return "compact";
@@ -297,7 +304,7 @@ export const AppConfigSchema = z
     sql_output: SqlOutputSchema,
   })
   .prefault(() => ({
-    width: "medium" as const,
+    width: "compact" as const,
     auto_download: [],
     sql_output: "auto" as const,
   }));

@@ -13,28 +13,15 @@ import {
 import { useAtom, useAtomValue, useSetAtom, useStore } from "jotai";
 import {
   BotMessageSquareIcon,
-  HatGlasses,
   ArrowRightIcon,
   Loader2,
-  type LucideIcon,
-  MessageCircleIcon,
-  NotebookText,
   PlusIcon,
   SparklesIcon,
   SettingsIcon,
-  CodeIcon,
 } from "lucide-react";
 import { memo, useEffect, useRef, useState } from "react";
 import useEvent from "react-use-event-hook";
 import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectLabel,
-  SelectTrigger,
-} from "@/components/ui/select";
 import { replaceMessagesInChat } from "@/core/ai/chat-utils";
 import { useAIConfigActions } from "@/core/ai/config";
 import { AI_SDK_UI_THROTTLE_MS } from "@/core/ai/constants";
@@ -49,10 +36,7 @@ import {
   pendingAiPromptAtom,
 } from "@/core/ai/state";
 import type { ToolNotebookContext } from "@/core/ai/tools/base";
-import {
-  type CopilotMode,
-  FRONTEND_TOOL_REGISTRY,
-} from "@/core/ai/tools/registry";
+import { FRONTEND_TOOL_REGISTRY } from "@/core/ai/tools/registry";
 import { useCellActions } from "@/core/cells/actions";
 import { aiAtom, aiModelConfiguredAtom } from "@/core/config/config";
 import { DEFAULT_AI_MODEL } from "@/core/config/config-schema";
@@ -97,6 +81,7 @@ import {
 import { renderUIMessage } from "./chat-display";
 import { ChatHistoryPopover } from "./chat-history-popover";
 import { CapabilitiesPopover } from "./capabilities-popover";
+import { NotebookAccessSelector } from "./notebook-access-selector";
 import {
   type ChatMessagePart,
   convertToFileUIPart,
@@ -117,7 +102,7 @@ import ScrollToBottomButton from "./acp/scroll-to-bottom-button";
 import { useChatControllerId } from "./use-chat-controller-id";
 
 // Default mode for the AI
-const DEFAULT_MODE = "manual";
+const DEFAULT_MODE = "ask";
 
 const QueuedMessageDisplay = memo(
   ({ message }: { message: QueuedUserMessage }) => {
@@ -321,82 +306,17 @@ const ChatInputFooter: React.FC<ChatInputFooterProps> = memo(
 
     const { saveModeChange } = useAIConfigActions();
 
-    const modeOptions: {
-      value: CopilotMode;
-      label: string;
-      subtitle: string;
-      Icon: LucideIcon;
-    }[] = [
-      {
-        value: "manual",
-        label: "Manual",
-        subtitle: "Pure chat, no tool usage",
-        Icon: MessageCircleIcon,
-      },
-      {
-        value: "ask",
-        label: "Ask",
-        subtitle: "AI with access to read-only tools like documentation search",
-        Icon: NotebookText,
-      },
-      {
-        value: "agent",
-        label: "Agent",
-        subtitle: "AI with access to read and write tools",
-        Icon: HatGlasses,
-      },
-      {
-        value: "code_mode",
-        label: "Code Mode (beta)",
-        subtitle:
-          "AI with access to the notebook's kernel. Potentially destructive.",
-        Icon: CodeIcon,
-      },
-    ];
-
     const isAttachmentSupported =
       PROVIDERS_THAT_SUPPORT_ATTACHMENTS.has(currentProvider);
-
-    const currentModeOption = modeOptions.find((o) => o.value === currentMode);
-    const CurrentModeIcon = currentModeOption?.Icon;
-    const CurrentModeLabel = currentModeOption?.label;
 
     return (
       <TooltipProvider>
         <div className="px-3 py-2 border-t border-border/20 flex flex-wrap items-center gap-1">
           <div className="flex flex-wrap items-center gap-1">
-            <Select value={currentMode} onValueChange={saveModeChange}>
-              <SelectTrigger className="h-6 text-xs border-border shadow-none! ring-0! bg-muted hover:bg-muted/30 py-0 px-2 gap-1.5 shrink-0">
-                {CurrentModeIcon && <CurrentModeIcon className="h-3 w-3" />}
-                <span className="text-nowrap">{CurrentModeLabel}</span>
-              </SelectTrigger>
-              <SelectContent>
-                <SelectGroup>
-                  <SelectLabel className="text-xs uppercase tracking-wider text-muted-foreground/70 font-medium">
-                    AI Mode
-                  </SelectLabel>
-                  {modeOptions.map((option) => (
-                    <SelectItem
-                      key={option.value}
-                      value={option.value}
-                      className="text-xs py-1"
-                    >
-                      <div className="flex items-start gap-2.5">
-                        <span className="mt-1 text-muted-foreground">
-                          <option.Icon className="h-3 w-3" />
-                        </span>
-                        <div className="flex flex-col gap-0.5">
-                          <span className="font-semibold">{option.label}</span>
-                          <span className="text-muted-foreground">
-                            {option.subtitle}
-                          </span>
-                        </div>
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectGroup>
-              </SelectContent>
-            </Select>
+            <NotebookAccessSelector
+              value={currentMode}
+              onValueChange={saveModeChange}
+            />
             <AIModelDropdown
               placeholder="Model"
               triggerClassName="h-6 text-xs shadow-none! ring-0! bg-muted hover:bg-muted/30 rounded-sm max-w-[200px]"
@@ -573,7 +493,7 @@ const ChatPanelBody = () => {
     setAbortNotice(null);
   });
   const runtimeManager = useRuntimeManager();
-  const { invokeAiTool, sendRun } = useRequestClient();
+  const { invokeAiTool } = useRequestClient();
   const { openModal, closeModal } = useImperativeModal();
 
   const activeChatId = activeChat?.id;
@@ -582,12 +502,10 @@ const ChatPanelBody = () => {
   const store = useStore();
 
   const { addStagedCell } = useStagedAICellsActions();
-  const { prepareForRun, createCell } = useCellActions();
+  const { createCell } = useCellActions();
   const toolContext: ToolNotebookContext = {
     addStagedCell,
     createCell,
-    prepareForRun,
-    sendRun,
     store,
   };
 

@@ -20,6 +20,7 @@ import time
 import urllib.error
 import urllib.request
 from pathlib import Path
+from types import SimpleNamespace
 from typing import TYPE_CHECKING, Any
 from unittest.mock import patch
 
@@ -154,7 +155,6 @@ def _try_fetch(
     [(0, 0), (15, 0), (None, 0), (None, 5)],
 )
 def test_try_fetch_waits_for_startup(
-    monkeypatch: pytest.MonkeyPatch,
     ready_after: int | None,
     request_duration: int,
 ) -> None:
@@ -174,9 +174,14 @@ def test_try_fetch_waits_for_startup(
             raise urllib.error.URLError("Connection refused")
         return response
 
-    monkeypatch.setattr(time, "monotonic", lambda: elapsed)
-    monkeypatch.setattr(time, "sleep", sleep)
-    with patch("urllib.request.build_opener") as build_opener:
+    with (
+        patch.object(
+            sys.modules[__name__],
+            "time",
+            SimpleNamespace(monotonic=lambda: elapsed, sleep=sleep),
+        ),
+        patch("urllib.request.build_opener") as build_opener,
+    ):
         response = build_opener.return_value.open.return_value
         response.__enter__.return_value = response
         response.read.return_value = b"ready"

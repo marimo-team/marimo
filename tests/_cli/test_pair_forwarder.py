@@ -11,6 +11,7 @@ import threading
 import time
 from dataclasses import replace
 from pathlib import Path
+from types import SimpleNamespace
 from typing import TYPE_CHECKING
 from unittest.mock import Mock
 
@@ -211,7 +212,12 @@ def test_reconnect_wait_stops_when_harness_exits(
 ) -> None:
     inbox = RecordingInbox()
     monkeypatch.setattr(
-        time, "sleep", lambda _: setattr(inbox, "living", False)
+        forwarder,
+        "time",
+        SimpleNamespace(
+            monotonic=time.monotonic,
+            sleep=lambda _: setattr(inbox, "living", False),
+        ),
     )
     assert not forwarder._wait_reconnect(inbox, 5)
 
