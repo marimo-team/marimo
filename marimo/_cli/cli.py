@@ -347,7 +347,10 @@ class _OptionalValueOption(click.Option):
     "--allow-origins",
     default=None,
     multiple=True,
-    help="Allowed origins for CORS. Can be repeated. Use * for all origins.",
+    help=(
+        "Allowed origins for HTTP and WebSocket connections. "
+        "Can be repeated. Use * for all origins."
+    ),
 )
 @click.option(
     "--skip-update-check",
@@ -1077,7 +1080,9 @@ Example:
     "--allow-origins",
     default=None,
     multiple=True,
-    help="Allowed origins for CORS. Can be repeated.",
+    help=(
+        "Allowed origins for HTTP and WebSocket connections. Can be repeated."
+    ),
 )
 @click.option(
     "--redirect-console-to-browser",
