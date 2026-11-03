@@ -147,7 +147,7 @@ anthropic:
 openai:
   - name: GPT-6.1 Terra
     model: gpt-6.1-terra
-    description: ""
+    description: "Mid-tier GPT-6.1 model for everyday coding, writing, and agent workflows"
     roles: [chat, edit]
     capabilities: [thinking, tool_calling]
     input_types: [text, image, pdf]
@@ -316,7 +316,7 @@ openai:
 google:
   - name: Nano Banana 2.1
     model: gemini-nano-banana-2.1
-    description: ""
+    description: "Flash-tier model for generating and editing images, succeeding Nano Banana 2 and Nano Banana Pro"
     roles: [chat, edit]
     capabilities: [thinking]
     input_types: [text, image, pdf]
@@ -539,7 +539,7 @@ google:
 bedrock:
   - name: GPT-6.1 Terra (Global)
     model: global.openai.gpt-6.1-terra
-    description: ""
+    description: "Mid-tier GPT-6.1 model for everyday coding, writing, and agent workflows"
     roles: [chat, edit]
     capabilities: [thinking, tool_calling]
     input_types: [text, image]
@@ -553,7 +553,7 @@ bedrock:
 
   - name: GPT-6.1 Terra
     model: openai.gpt-6.1-terra
-    description: ""
+    description: "Mid-tier GPT-6.1 model for everyday coding, writing, and agent workflows"
     roles: [chat, edit]
     capabilities: [thinking, tool_calling]
     input_types: [text, image, pdf]
@@ -567,7 +567,7 @@ bedrock:
 
   - name: GPT-6.1 Terra (US)
     model: us.openai.gpt-6.1-terra
-    description: ""
+    description: "Mid-tier GPT-6.1 model for everyday coding, writing, and agent workflows"
     roles: [chat, edit]
     capabilities: [thinking, tool_calling]
     input_types: [text, image]
@@ -581,7 +581,7 @@ bedrock:
 
   - name: Claude Haiku 5.5
     model: anthropic.claude-haiku-5-5
-    description: ""
+    description: "Small, fast model for high-volume, cost-sensitive work such as summarization, subagents, and browser use"
     roles: [chat, edit]
     capabilities: [thinking, tool_calling]
     input_types: [text, image, pdf]
@@ -596,7 +596,7 @@ bedrock:
 
   - name: Claude Haiku 5.5 (AU)
     model: au.anthropic.claude-haiku-5-5
-    description: ""
+    description: "Small, fast model for high-volume, cost-sensitive work such as summarization, subagents, and browser use"
     roles: [chat, edit]
     capabilities: [thinking, tool_calling]
     input_types: [text, image, pdf]
@@ -896,7 +896,7 @@ bedrock:
 azure:
   - name: GPT-6.1 Terra
     model: gpt-6.1-terra
-    description: ""
+    description: "Mid-tier GPT-6.1 model for everyday coding, writing, and agent workflows"
     roles: [chat, edit]
     capabilities: [thinking, tool_calling]
     input_types: [text, image, pdf]
@@ -1743,7 +1743,7 @@ wandb:
 opencode-go:
   - name: Iceman Contributor Free
     model: iceman-contributor-free
-    description: ""
+    description: "OpenCode Go contributor model offering free access in exchange for using prompts and completions to improve the model"
     roles: [chat, edit]
     capabilities: [thinking, tool_calling]
     input_types: [text]
