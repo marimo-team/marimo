@@ -1811,6 +1811,11 @@ class table(
         if not self._lazy or not isinstance(manager, NarwhalsTableManager):
             return _TablePage(manager)
 
+        prepared = manager.prepare_for_display(page_size)
+        if prepared is not None:
+            page_manager, has_next_page = prepared
+            return _TablePage(page_manager, has_next_page)
+
         frame = manager.as_frame()
         return _TablePage(
             manager=get_table_manager(frame.head(page_size).to_native()),
