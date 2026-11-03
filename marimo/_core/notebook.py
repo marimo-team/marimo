@@ -281,6 +281,9 @@ class Notebook:
             for cell in changed.cells:
                 self._publish(self._cell_record(cell), request_id)
             for cell_id in changed.removed:
+                self._remove_ui_elements(
+                    cell_id=cell_id, request_id=request_id
+                )
                 self._apply(
                     self.executions.remove_cell(protocol.CellId(cell_id))
                 )
@@ -428,6 +431,7 @@ class Notebook:
 
     def _end_runtime(self) -> None:
         assert self._runtime is not None
+        self._remove_ui_elements(request_id=self._runtime_request)
         self._apply(self.executions.interrupt())
         runtime, self._runtime = self._runtime, None
         self._remove(protocol.Runtime, runtime.id, self._runtime_request)
@@ -567,9 +571,16 @@ class Notebook:
                 if (
                     self._runtime is not None
                     and self._runtime.id == runtime_id
+                    and self.document.cell(element.cell_id) is not None
                 ):
                     self._ui_elements[element.id] = deepcopy(element)
                     self._publish(element, None)
+            case be.UIElementsRemoved(runtime_id=runtime_id, cell_id=cell_id):
+                if (
+                    self._runtime is not None
+                    and self._runtime.id == runtime_id
+                ):
+                    self._remove_ui_elements(cell_id=cell_id)
             case be.Starting() | be.Running() | be.Exited():
                 runtime = self._runtime
                 if runtime is None or msg.runtime_id != runtime.id:
@@ -613,6 +624,7 @@ class Notebook:
             self._end_runtime()
         else:
             # Preserve results after an unexpected exit.
+            self._remove_ui_elements()
             self._apply(self.executions.interrupt("failed"))
             self._set_runtime(
                 replace(runtime, status="failed", message=reason)
@@ -650,6 +662,15 @@ class Notebook:
         self._publish(custom, request_id)
         return custom
 
+    def _remove_ui_elements(
+        self, *, cell_id: str | None = None, request_id: str | None = None
+    ) -> None:
+        with self.sink.deferred():
+            for element in tuple(self._ui_elements.values()):
+                if cell_id is None or element.cell_id == cell_id:
+                    del self._ui_elements[element.id]
+                    self._remove(protocol.UIElement, element.id, request_id)
+
     # ---- stream --------------------------------------------------------
 
     def _records(self) -> Iterator[tuple[SnapshotBody, protocol.RunId | None]]:
@@ -686,6 +707,7 @@ class Notebook:
         The host publishes `notebook.removed` after disposing of this state.
         """
         self._closed = True
+        self._remove_ui_elements(request_id=request_id)
         if self._analysis_task is not None:
             self._analysis_task.cancel()
         self._apply(self.executions.interrupt())
