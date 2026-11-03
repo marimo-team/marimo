@@ -769,9 +769,10 @@ def list_notebooks(urls: tuple[str, ...], token_file: Path | None) -> None:
     "event_types",
     metavar="TYPES",
     help=(
-        "Comma-separated event types, for example runtime,execution. "
-        f"Known kinds: {', '.join(sorted(OBJECT_TYPES))}. "
-        "The connected server determines which kinds are supported."
+        "Comma-separated event types, for example runtime,execution.\n\n"
+        "\b\nKnown kinds:\n"
+        + "\n".join(f"  - {kind}" for kind in sorted(OBJECT_TYPES))
+        + "\n\nThe connected server determines which kinds are supported."
     ),
 )
 @click.option(
