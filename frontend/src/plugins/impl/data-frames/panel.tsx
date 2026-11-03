@@ -370,6 +370,7 @@ const AddTransformDropdown: React.FC<
               window.open(
                 "https://github.com/marimo-team/marimo/issues/new?title=New%20dataframe%20transform:&labels=enhancement&template=feature_request.yaml",
                 "_blank",
+                "noopener",
               );
             }}
           >
