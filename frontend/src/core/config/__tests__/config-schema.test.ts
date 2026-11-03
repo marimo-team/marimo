@@ -99,6 +99,7 @@ test("default UserConfig - empty", () => {
         "on_cell_change": "autorun",
         "reactive_tests": true,
         "show_tracebacks": false,
+        "sql_keyword_case": "upper",
         "watcher_on_save": "lazy",
       },
       "save": {
@@ -176,6 +177,7 @@ test("default UserConfig - one level", () => {
         "on_cell_change": "autorun",
         "reactive_tests": true,
         "show_tracebacks": false,
+        "sql_keyword_case": "upper",
         "watcher_on_save": "lazy",
       },
       "save": {

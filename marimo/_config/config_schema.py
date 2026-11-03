@@ -19,6 +19,7 @@ from marimo._config.types import (
     ExecutionType,
     ExportType,
     OnCellChangeType,
+    SqlKeywordCase,
     SqlOutputType,
     StoreKey,
     Theme,
@@ -212,6 +213,12 @@ class RuntimeConfig(Config, kw_only=True):
             description='the default output format for SQL queries. Can be one of: `"auto"`, `"native"`, `"polars"`, `"lazy-polars"`, or `"pandas"`.'
         ),
     ] = "auto"
+    sql_keyword_case: Annotated[
+        SqlKeywordCase,
+        Meta(
+            description='the keyword case used in generated SQL, such as cell boilerplate, autocomplete suggestions, and table snippets. Can be `"upper"` or `"lower"`.'
+        ),
+    ] = "upper"
     default_auto_download: Annotated[
         list[ExportType] | UnsetType,
         Meta(
