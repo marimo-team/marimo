@@ -229,7 +229,10 @@ class NarwhalsTableManager(
                 expressions.append(quoted)
 
         with _duckdb_display_snapshot(relation) as snapshot:
-            ordinary = nw.from_native(snapshot.project(", ".join(expressions)))
+            ordinary = cast(
+                "nw.LazyFrame[duckdb.DuckDBPyRelation]",
+                nw.from_native(snapshot.project(", ".join(expressions))),
+            )
             rows = ordinary.collect().rows(named=True)
             values = snapshot.project(", ".join(variants)).fetchall()
             for row, variant_values in zip(rows, values, strict=True):
