@@ -57,6 +57,29 @@ def test_module_to_package() -> None:
     assert mgr.module_to_package("sklearn") == "scikit-learn"
 
 
+def test_module_to_package_nested() -> None:
+    mgr = PipPackageManager()
+    # Nested names with a known mapping resolve to their own package,
+    # not to a package for the top-level namespace.
+    assert mgr.module_to_package("azure.identity") == "azure-identity"
+    assert mgr.module_to_package("azure.storage.blob") == "azure-storage-blob"
+    assert (
+        mgr.module_to_package("azure.storage.queue") == "azure-storage-queue"
+    )
+    # Unlisted submodules fall back to the top-level namespace's package.
+    assert mgr.module_to_package("sklearn.ensemble") == "scikit-learn"
+    # Unknown names fall back to replacing underscores with hyphens.
+    assert (
+        mgr.module_to_package("my_module.sub_module") == "my-module.sub-module"
+    )
+    # The bare "azure" namespace no longer maps to the deprecated
+    # azure-storage package.
+    assert mgr.module_to_package("azure") == "azure"
+    # The reverse mapping resolves nested packages back to their module.
+    assert mgr.package_to_module("azure-identity") == "azure.identity"
+    assert mgr.package_to_module("azure-storage-blob") == "azure.storage.blob"
+
+
 def test_package_to_module() -> None:
     mgr = PipPackageManager()
     assert mgr.package_to_module("marimo") == "marimo"

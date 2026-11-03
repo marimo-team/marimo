@@ -338,10 +338,18 @@ class CanonicalizingPackageManager(PackageManager):
             self._initialize_mappings()
         assert self._module_name_to_repo_name is not None
 
+        # Exact match, which also covers nested names in the mapping
+        # (e.g. "azure.identity" -> "azure-identity").
         if module_name in self._module_name_to_repo_name:
             return self._module_name_to_repo_name[module_name]
-        else:
-            return module_name.replace("_", "-")
+
+        # Fall back to the top-level namespace
+        # (e.g. "sklearn.ensemble" -> "scikit-learn").
+        namespace = module_name.split(".", maxsplit=1)[0]
+        if namespace in self._module_name_to_repo_name:
+            return self._module_name_to_repo_name[namespace]
+
+        return module_name.replace("_", "-")
 
     def package_to_module(self, package_name: str) -> str:
         """Canonicalizes a package name to a module name."""

@@ -22,6 +22,7 @@ def test_defining_cell_dotted() -> None:
     mpl = parse_cell("import matplotlib.pyplot as plt")
     graph.register_cell("0", mpl)
     assert mgr.defining_cell("matplotlib") == "0"
+    assert mgr.defining_cell("matplotlib.pyplot") == "0"
     assert mgr.defining_cell("pyplot") is None
     assert mgr.defining_cell("plt") is None
 
@@ -32,4 +33,15 @@ def test_missing_modules() -> None:
     graph.register_cell(
         "1", parse_cell("import time; import super_fake_package")
     )
-    assert mgr.missing_modules() == {"does", "super_fake_package"}
+    # Full dotted names are kept, so that nested modules can be resolved
+    # to their own package instead of their top-level namespace's.
+    assert mgr.missing_modules() == {"does.nt.exist", "super_fake_package"}
+
+
+def test_missing_modules_installed_parent() -> None:
+    mgr = ModuleRegistry(graph := DirectedGraph())
+    graph.register_cell("0", parse_cell("import json.decoder"))
+    graph.register_cell("1", parse_cell("import json.fake_submodule"))
+    # json.decoder is installed; json.fake_submodule is not, even though
+    # its parent package is.
+    assert mgr.missing_modules() == {"json.fake_submodule"}

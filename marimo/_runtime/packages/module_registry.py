@@ -18,10 +18,14 @@ def _is_module_installed(module_name: str) -> bool:
     # We don't actually need the spec, we just need to see if a package is
     # available, so we first check if the module is in sys.modules without
     # checking for a __spec__ attr.
-    return (
-        module_name in sys.modules
-        or importlib.util.find_spec(module_name) is not None
-    )
+    if module_name in sys.modules:
+        return True
+    try:
+        return importlib.util.find_spec(module_name) is not None
+    except ModuleNotFoundError:
+        # find_spec raises for dotted names when a parent package (or the
+        # submodule itself) is not installed.
+        return False
 
 
 class ModuleRegistry:
@@ -39,14 +43,21 @@ class ModuleRegistry:
         for cell_id, cell in self.graph.cells.items():
             if cell.namespace_to_variable(module_name) is not None:
                 return cell_id
+            # module_name may be a full dotted name (e.g. "azure.identity"),
+            # which never equals a top-level namespace.
+            if any(
+                import_data.module == module_name
+                for import_data in cell.imports
+            ):
+                return cell_id
         return None
 
     def modules(self) -> set[str]:
-        """Modules imported by cells."""
+        """Modules imported by cells, as full (possibly dotted) names."""
         return {
             mod
             for cell in self.graph.cells.values()
-            for mod in cell.imported_namespaces
+            for mod in cell.imported_modules
         }
 
     def missing_modules(self) -> set[str]:
