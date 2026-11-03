@@ -68,10 +68,28 @@ def test_module_to_package_nested() -> None:
     )
     # Unlisted submodules fall back to the top-level namespace's package.
     assert mgr.module_to_package("sklearn.ensemble") == "scikit-learn"
-    # Unknown names fall back to replacing underscores with hyphens.
+    # Deeper names resolve to the closest ancestor with a known package:
+    # azure.core.pipeline.policies ships in azure-core.
+    assert mgr.module_to_package("azure.core.pipeline") == "azure-core"
     assert (
-        mgr.module_to_package("my_module.sub_module") == "my-module.sub-module"
+        mgr.module_to_package("azure.core.pipeline.policies") == "azure-core"
     )
+    # Async variants ship in the same distribution as the sync module.
+    assert mgr.module_to_package("azure.identity.aio") == "azure-identity"
+    assert (
+        mgr.module_to_package("azure.storage.blob.aio") == "azure-storage-blob"
+    )
+    assert mgr.module_to_package("azure.cosmos.aio") == "azure-cosmos"
+    assert (
+        mgr.module_to_package("azure.storage.queue.aio")
+        == "azure-storage-queue"
+    )
+    # Names whose top level is not in the mapping resolve as the bare
+    # top-level name used to, instead of keeping the dots.
+    assert mgr.module_to_package("numpy.linalg") == "numpy"
+    assert mgr.module_to_package("matplotlib.pyplot") == "matplotlib"
+    assert mgr.module_to_package("foo.bar") == "foo"
+    assert mgr.module_to_package("my_module.sub_module") == "my-module"
     # The bare "azure" namespace no longer maps to the deprecated
     # azure-storage package.
     assert mgr.module_to_package("azure") == "azure"
