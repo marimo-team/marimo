@@ -8,6 +8,8 @@ import {
   type NotebookEvent,
   NotebookEvents,
   StreamStopped,
+  uiElements,
+  type UIElements,
 } from "@marimo-team/client";
 import type { Attachment, NotebookOutput } from "@marimo-team/client/protocol";
 import { type Atom, atom, type createStore } from "jotai/vanilla";
@@ -22,7 +24,14 @@ import { attachments } from "./resources/attachments";
 import { type Document, document } from "./resources/document";
 
 /** The kinds the editor reads, with marimo's own notifications. */
-const TYPES = ["notebook", "cell", "document", "attachment", "marimo"] as const;
+const TYPES = [
+  "notebook",
+  "cell",
+  "document",
+  "attachment",
+  "ui_element",
+  "marimo",
+] as const;
 
 type EditorEvent = NotebookEvent<(typeof TYPES)[number]>;
 
@@ -31,6 +40,7 @@ const MarimoMessage = z.object({ marimo: z.unknown() });
 
 /** A notebook as its backend's stream reports it, kept current while connected. */
 export interface NotebookReplica {
+  readonly uiElementsAtom: Atom<UIElements>;
   /** Connection status, independent of application session readiness. */
   readonly connectionAtom: Atom<ConnectionStatus>;
   /** Identity and capabilities, available while the stream is connected and ready. */
@@ -110,7 +120,7 @@ export function createNotebookReplica(
     state: ConnectionState.NOT_STARTED,
   });
   // One atom holds the whole stream, which resource atoms derive from.
-  const reducer = createNotebookReducer({ document, attachments });
+  const reducer = createNotebookReducer({ document, attachments, uiElements });
   const streamAtom = atom(reducer.initial);
   // A resumed stream is live, but presence waits for this connection's ready.
   const readyAtom = atom(false);
@@ -130,6 +140,7 @@ export function createNotebookReplica(
       : attachments.initial,
   );
   const backendAtom = atom<NotebookBackend | null>(null);
+  const uiElementsAtom = atom((get) => get(streamAtom).resources.uiElements);
   /** The connection this replica follows. Connecting again ends it. */
   let current: { end(): void; reconnect(): Promise<void> } | undefined;
 
@@ -150,6 +161,7 @@ export function createNotebookReplica(
     documentAtom,
     backendAtom,
     attachmentsAtom,
+    uiElementsAtom,
     connect,
     reconnect: async () => current?.reconnect(),
   };
