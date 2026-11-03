@@ -27,6 +27,9 @@ cursor when the server supplies one. The initial snapshot ends with `ready`;
 live changes follow. Heartbeat comments are omitted. Unknown event names and
 payload fields are preserved, so the command also works with protocol extensions.
 
+Add `--pretty` to indent each event's JSON across multiple lines for reading
+in the terminal. The default remains one JSON object per line for scripts.
+
 `--types` accepts comma-separated names. Whitespace around names is ignored;
 empty entries are rejected. Omit the option to receive all event types.
 

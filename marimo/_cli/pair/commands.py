@@ -744,8 +744,9 @@ def list_notebooks(urls: tuple[str, ...], token_file: Path | None) -> None:
     cls=ColoredCommand,
     help="""Listen to a notebook's host event stream.
 
-    Print one JSON object per line, including the event name, data, and cursor
-    when present. The initial snapshot ends with ready, then live events follow.
+    Print one JSON object per line, or use --pretty for indented JSON, including
+    the event name, data, and cursor when present. The initial snapshot ends
+    with ready, then live events follow.
     Omit --types to receive all event types. Unknown event types are preserved.
 
     Authentication uses the private local host record, as pair execute does.
@@ -767,8 +768,11 @@ def list_notebooks(urls: tuple[str, ...], token_file: Path | None) -> None:
     metavar="TYPES",
     help="Comma-separated event types, for example runtime,execution.",
 )
+@click.option(
+    "--pretty", is_flag=True, help="Print indented JSON for each event."
+)
 def notebook_events(
-    notebook_id: str, url: str, event_types: str | None
+    notebook_id: str, url: str, event_types: str | None, pretty: bool
 ) -> None:
     if event_types is not None:
         kinds = [kind.strip() for kind in event_types.split(",")]
@@ -799,7 +803,7 @@ def notebook_events(
                 }
                 if event.id is not None:
                     payload["id"] = event.id
-                click.echo(json.dumps(payload))
+                click.echo(json.dumps(payload, indent=2 if pretty else None))
     except PairInputError as error:
         raise click.UsageError(str(error)) from error
     except PairError as error:
