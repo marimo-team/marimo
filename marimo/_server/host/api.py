@@ -81,6 +81,12 @@ PING_SECONDS = 15.0
 def build_app() -> Router:
     """Build the host API router."""
     routes = [
+        Route("/snapshot", _snapshot, methods=["GET"]),
+        Route(
+            "/notebooks/{notebook_id}/snapshot",
+            _snapshot,
+            methods=["GET"],
+        ),
         Route("/events", _events, methods=["GET"]),
         Route("/notebooks", _create_notebook, methods=["POST"]),
         Route("/notebooks/{notebook_id}", _update_notebook, methods=["PATCH"]),
@@ -138,6 +144,43 @@ def _record(request: Request) -> protocol.Notebook:
 
 
 # ---- streams -------------------------------------------------------------------
+
+
+async def _snapshot(request: Request) -> Response:
+    """Read current state at a cursor without attaching a client."""
+    context = _context(request)
+    types = _types(request)
+    if isinstance(types, Response):
+        return types
+    notebook_id = request.path_params.get("notebook_id")
+    run_id = (
+        request.query_params.get("run_id") if notebook_id is not None else None
+    )
+    if run_id == "":
+        return problem(400, "invalid-request", "run_id must not be empty")
+    if notebook_id is None:
+        await context.bridge.refresh()
+    else:
+        try:
+            notebook = await _notebook(request)
+        except NotFound as error:
+            return problem(404, "not-found", str(error))
+        except Conflict as error:
+            return problem(409, "conflict", str(error))
+        notebook_id = notebook.id
+    initial = _initial_events(
+        context.bridge, None, types, notebook_id=notebook_id, run_id=run_id
+    )
+    return Response(
+        msgspec.json.encode(
+            {
+                "cursor": initial[-1].event.id,
+                "events": [event.event for event in initial[:-1]],
+            }
+        ),
+        media_type="application/json",
+        headers={"Cache-Control": "no-store"},
+    )
 
 
 async def _events(request: Request) -> Response:

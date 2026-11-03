@@ -22,6 +22,69 @@ info:
 security:
   - hostToken: []
 paths:
+  /snapshot:
+    get:
+      operationId: snapshot
+      summary: Read the current host catalog as one JSON object
+      description: |
+        Returns the same current records as a new `/events` connection,
+        without opening a stream. `events` contains snapshot records in
+        dependency order; `cursor` is the position that the stream's `ready`
+        event would carry. There are no `ready`, `reset`, removal, or custom
+        occurrence events in this response. This reads current retained
+        state, independently of the bounded replay history.
+
+        Resume `/events` with this cursor and the same `types` filter to
+        receive subsequent changes. If the cursor expires before connecting,
+        the stream sends `reset` and a fresh snapshot. This request does not
+        create an attachment. The response must not be cached.
+      parameters:
+        - $ref: '#/components/parameters/Types'
+      responses:
+        '200':
+          description: Current catalog records and their resume cursor.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Snapshot' }
+        '400': { $ref: '#/components/responses/InvalidRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '405': { $ref: '#/components/responses/MethodNotAllowed' }
+        '500': { $ref: '#/components/responses/Internal' }
+  /notebooks/{notebook_id}/snapshot:
+    get:
+      operationId: notebook.snapshot
+      summary: Read the current notebook state as one JSON object
+      description: |
+        Returns the same current records as the opening snapshot of
+        `/notebooks/{notebook_id}/events`, without creating an attachment.
+        It includes current notebook state and retained run results, not
+        replay history. Removed objects, expired results, custom occurrences,
+        and stream control events are absent.
+
+        `cursor` identifies the consistent cut represented by `events`.
+        Resume the notebook stream with that cursor and the same filters
+        to receive subsequent changes. The stream creates its own attachment;
+        if the cursor has expired, it sends `reset` and a fresh snapshot.
+        This request does not start a runtime. The response must not be cached.
+      parameters:
+        - $ref: '#/components/parameters/NotebookId'
+        - $ref: '#/components/parameters/Types'
+        - $ref: '#/components/parameters/RunFilter'
+      responses:
+        '200':
+          description: Current notebook records and their resume cursor.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Snapshot' }
+        '400': { $ref: '#/components/responses/InvalidRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '405': { $ref: '#/components/responses/MethodNotAllowed' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '500': { $ref: '#/components/responses/Internal' }
   /events:
     get:
       operationId: events
@@ -1380,6 +1443,22 @@ components:
           type: integer
           minimum: 1
           description: Counts changes to the cells, the order, or the app config. A save does not advance it. Comparable only within one notebook while it is in the catalog.
+    Snapshot:
+      type: object
+      description: |
+        Current retained state captured at one stream position. Records use
+        the same envelopes as snapshot events on the stream, without event
+        cursors or control messages. The array is not a replay log.
+      required: [cursor, events]
+      properties:
+        cursor:
+          type: string
+          minLength: 1
+          description: Resume cursor for this snapshot, used with the same scope and filters.
+        events:
+          type: array
+          description: Current records in dependency order. No ready, reset, removal, or custom occurrence events.
+          items: { $ref: '#/components/schemas/Event' }
     Event:
       description: |
         A record, removal, or control message from a host stream.

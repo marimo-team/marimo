@@ -1598,6 +1598,27 @@ export const Event = zod
 export type Event = zod.input<typeof Event>;
 export type EventOutput = zod.output<typeof Event>;
 
+export const Snapshot = zod
+  .object({
+    cursor: zod
+      .string()
+      .min(1)
+      .describe(
+        "Resume cursor for this snapshot, used with the same scope and filters.",
+      ),
+    events: zod
+      .array(Event)
+      .describe(
+        "Current records in dependency order. No ready, reset, removal, or custom occurrence events.",
+      ),
+  })
+  .describe(
+    "Current retained state captured at one stream position. Records use\nthe same envelopes as snapshot events on the stream, without event\ncursors or control messages. The array is not a replay log.\n",
+  );
+
+export type Snapshot = zod.input<typeof Snapshot>;
+export type SnapshotOutput = zod.output<typeof Snapshot>;
+
 export const DecisionOption = zod
   .object({
     id: zod.string().describe("Identifies this answer."),

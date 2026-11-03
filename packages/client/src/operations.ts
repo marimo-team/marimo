@@ -14,6 +14,26 @@ import * as Protocol from "./protocol.ts";
  * `problems` lists the statuses that answer with a `Problem`.
  */
 export const operations = {
+  /** Read the current host catalog as one JSON object. */
+  snapshot: {
+    method: "GET",
+    path: "/snapshot",
+    query: { types: false },
+    headers: {},
+    body: null,
+    responses: { 200: Protocol.Snapshot },
+    problems: [400, 401, 403, 404, 405, 500],
+  },
+  /** Read the current notebook state as one JSON object. */
+  "notebook.snapshot": {
+    method: "GET",
+    path: "/notebooks/{notebook_id}/snapshot",
+    query: { types: false, run_id: false },
+    headers: {},
+    body: null,
+    responses: { 200: Protocol.Snapshot },
+    problems: [400, 401, 403, 404, 405, 409, 500],
+  },
   /** Read the host's catalog as a stream. */
   events: {
     method: "GET",

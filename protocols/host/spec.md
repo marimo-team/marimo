@@ -252,6 +252,20 @@ document, and retained results. A `ready` event marks the end of the snapshot,
 after which the stream delivers changes as they happen. A client that only
 needs the current state can disconnect at `ready`.
 
+The same retained state is available as a single JSON response from
+`GET /snapshot` for the host catalog or
+`GET /notebooks/{notebook_id}/snapshot` for one notebook. The response has
+`events`, an ordered array of snapshot record envelopes, and `cursor`, the
+position a stream's `ready` event would carry. It contains no control messages,
+removals, or custom occurrences. Both routes accept `types`; the notebook
+route also accepts `run_id`. These reads do not create attachments or start
+runtimes, and responses MUST NOT be cached.
+
+Clients can resume the corresponding stream with the returned cursor and
+the same filters. If that cursor has expired, the stream sends `reset` and
+a fresh snapshot. A new notebook stream creates its own attachment after
+the snapshot read.
+
 A notebook snapshot MUST represent one consistent state. Hosts MUST publish
 each document change as a group without interleaving unrelated events, so
 clients can apply an edit together with its effects on the rest of the

@@ -155,6 +155,86 @@ def harness(
     return harness
 
 
+@pytest.mark.parametrize("scope", ["host", "notebook"])
+async def test_snapshot_survives_replay_eviction_without_attaching(
+    harness: Harness, scope: str
+) -> None:
+    notebook_id = await harness.running()
+    notebook = await harness.host.notebook(notebook_id)
+    await analyzed(notebook)
+    old_cursor = harness.host._stream.cursor
+    for index in range(1005):
+        notebook.emit("test.noise", {"index": index})
+    assert (
+        harness.host._stream.since(position(harness.host, old_cursor)) is None
+    )
+    path = (
+        "/snapshot"
+        if scope == "host"
+        else f"/notebooks/{notebook_id}/snapshot"
+    )
+    before = harness.host._stream.cursor
+    response = await finished(harness.app, "GET", path, headers=AUTH)
+    assert response.status == 200, response.body
+    snapshot = response.json()
+    msgspec.json.decode(response.body, type=protocol.Snapshot)
+    assert snapshot["cursor"] == before == harness.host._stream.cursor
+    expected = harness.host.events(
+        notebook_id=None if scope == "host" else notebook_id
+    )
+    assert snapshot["events"] == [
+        msgspec.json.decode(msgspec.json.encode(event.event))
+        for event in expected[:-1]
+    ]
+    kinds = {event["event"] for event in snapshot["events"]}
+    assert "runtime" in kinds
+    assert kinds.isdisjoint({"custom", "attachment", "ready", "reset"})
+    assert all("id" not in event for event in snapshot["events"])
+    assert response.headers["cache-control"] == "no-store"
+    notebook.emit("test.after", {})
+    replay = harness.host.events(snapshot["cursor"], notebook_id=notebook_id)
+    assert [event_name(event.event) for event in replay] == ["custom", "ready"]
+
+
+@pytest.mark.parametrize("scope", ["host", "notebook"])
+async def test_snapshot_filters_and_authentication(
+    harness: Harness, scope: str
+) -> None:
+    notebook_id = harness.notebook_id
+    path = (
+        "/snapshot"
+        if scope == "host"
+        else f"/notebooks/{notebook_id}/snapshot"
+    )
+    assert (await finished(harness.app, "GET", path)).status == 401
+    invalid = await finished(
+        harness.app, "GET", path, headers=AUTH, query="types=bogus"
+    )
+    assert invalid.status == 400
+    filtered = await finished(
+        harness.app, "GET", path, headers=AUTH, query="types=notebook"
+    )
+    assert filtered.status == 200
+    assert [event["event"] for event in filtered.json()["events"]] == [
+        "notebook"
+    ]
+    notebook = await harness.host.notebook(notebook_id)
+    assert notebook.runtime is None
+    empty = await finished(
+        harness.app, "GET", path, headers=AUTH, query="types=custom"
+    )
+    assert empty.status == 200
+    assert empty.json()["events"] == []
+    assert empty.json()["cursor"]
+
+
+async def test_snapshot_unknown_notebook(harness: Harness) -> None:
+    response = await finished(
+        harness.app, "GET", "/notebooks/missing/snapshot", headers=AUTH
+    )
+    assert response.status == 404
+
+
 async def test_the_token_the_address_and_the_name_are_all_checked(
     harness: Harness,
 ) -> None:

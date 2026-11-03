@@ -1933,3 +1933,19 @@ Event: TypeAlias = Annotated[
         description="A record, removal, or control message from a host stream.\nThe data is decoded JSON. Snapshot records and reset events omit\nthe cursor; ready and live events carry it. Unknown event names\nbelong to later versions or host extensions.\n"
     ),
 ]
+
+
+class Snapshot(Struct, frozen=True):
+    cursor: Annotated[
+        str,
+        Meta(
+            description="Resume cursor for this snapshot, used with the same scope and filters.",
+            min_length=1,
+        ),
+    ]
+    events: Annotated[
+        tuple[Event, ...],
+        Meta(
+            description="Current records in dependency order. No ready, reset, removal, or custom occurrence events."
+        ),
+    ]
