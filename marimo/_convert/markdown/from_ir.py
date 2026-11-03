@@ -87,7 +87,7 @@ def _notebook_to_markdown_export_document(
                 _recovered = dict(frontmatter)
                 _recovered.update(metadata)
                 metadata = _recovered
-        except (yaml.YAMLError, AssertionError):
+        except (yaml.YAMLError, TypeError):
             # Not valid YAML dict — treat as script preamble
             header = notebook.header.value.strip()
             metadata["header"] = header
@@ -209,5 +209,5 @@ def _get_sql_options_from_cell(code: str) -> dict[str, str] | None:
             options["hide_output"] = "True"
 
         return options
-    except (AssertionError, AttributeError, ValueError):
+    except (AttributeError, ValueError):
         return None

@@ -306,7 +306,8 @@ class Notebook:
     async def _analyze(
         self, document: Document, request_id: str | None
     ) -> None:
-        assert self._analyzer is not None
+        if self._analyzer is None:
+            raise RuntimeError("Notebook analyzer is not initialized")
         try:
             while not self._closed:
                 etag = document.etag
@@ -426,7 +427,8 @@ class Notebook:
             self._runtime_request = None
 
     def _end_runtime(self) -> None:
-        assert self._runtime is not None
+        if self._runtime is None:
+            raise RuntimeError("Notebook runtime is not initialized")
         self._apply(self.executions.interrupt())
         runtime, self._runtime = self._runtime, None
         self._remove(protocol.Runtime, runtime.id, self._runtime_request)

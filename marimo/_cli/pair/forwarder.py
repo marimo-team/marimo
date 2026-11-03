@@ -82,7 +82,8 @@ def start_forwarder(
 ) -> Connection:
     import psutil
 
-    assert config.target.process is not None
+    if config.target.process is None:
+        raise RuntimeError("Forwarder target process is not configured")
     process = subprocess.Popen(
         [sys.executable, "-m", "marimo._cli.pair.forwarder"],
         stdin=subprocess.PIPE,
@@ -106,8 +107,10 @@ def start_forwarder(
             created_at=time.time(),
         )
         store.save(record)
-        assert process.stdin is not None
-        assert process.stdout is not None
+        if process.stdin is None:
+            raise RuntimeError("Process stdin pipe is not available")
+        if process.stdout is None:
+            raise RuntimeError("Process stdout pipe is not available")
         output = process.stdout
         # Secrets travel through the private pipe, never argv or a state file.
         process.stdin.write(

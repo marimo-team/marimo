@@ -522,6 +522,12 @@ class TestScriptCache:
             app.run()
 
 
+def test_cache_rejects_lambda() -> None:
+    cached = marimo.cache(lambda value: value + 1)
+    with pytest.raises(TypeError, match="declared with `def` or `async def`"):
+        cached(1)
+
+
 class TestAppCache:
     async def test_cache_miss(self, any_kernel: Kernel) -> None:
         k = any_kernel

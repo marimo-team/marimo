@@ -63,7 +63,8 @@ def format_config_with_sources(resolved: ResolvedConfig) -> str:
                 for entry in item:
                     entry.comment(source)
             else:
-                assert isinstance(item, Item)
+                if not isinstance(item, Item):
+                    raise RuntimeError("Expected a TOML item")
                 item.comment(source)
 
     annotate(document, ())
