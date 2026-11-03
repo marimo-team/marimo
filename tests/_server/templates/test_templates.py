@@ -1,12 +1,16 @@
 from __future__ import annotations
 
+import html
 import json
 import shutil
 import tempfile
 import unittest
+from copy import deepcopy
 from pathlib import Path
-from typing import Literal
+from typing import Literal, cast
 from unittest.mock import patch
+
+import pytest
 
 import marimo._templates as templates
 from marimo._ast.app_config import _AppConfig
@@ -32,7 +36,10 @@ from marimo._schemas.session import (
 from marimo._server.tokens import SkewProtectionToken
 from marimo._session.model import SessionMode
 from marimo._utils.code import hash_code
-from tests._server.templates.utils import normalize_index_html
+from tests._server.templates.utils import (
+    normalize_index_html,
+    parse_mount_config,
+)
 from tests.mocks import snapshotter
 
 snapshot = snapshotter(__file__)
@@ -42,6 +49,98 @@ default_config = merge_default_config({})
 def _assert_no_leftover_replacements(result: str) -> None:
     has_replacement = "{{" in result and "}}" in result
     assert not has_replacement, f"Found {{}} in {result}"
+
+
+@pytest.mark.parametrize("mode", [SessionMode.EDIT, SessionMode.RUN])
+@pytest.mark.parametrize("page", ["notebook", "home", "wasm"])
+def test_page_config_by_mode(mode: SessionMode, page: str) -> None:
+    config = merge_default_config(
+        {
+            "display": {"theme": "dark"},
+            "runtime": {"show_tracebacks": True},
+            "server": {"transport": "sse"},
+            "completion": {
+                "codeium_api_key": "completion-codeium-marker",
+                "api_key": "completion-custom-marker",
+            },
+            "ai": {
+                "open_ai": {
+                    "api_key": "ai-key-marker",
+                    "extra_headers": {"Authorization": "ai-header-marker"},
+                },
+                "custom_providers": {
+                    "custom": {
+                        "extra_headers": {"X-Token": "custom-header-marker"}
+                    }
+                },
+            },
+        }
+    )
+    config["mcp"] = {
+        "mcpServers": {
+            "local": {
+                "command": "example",
+                "env": {"TOKEN": "mcp-env-marker"},
+            },
+            "remote": {
+                "url": "https://example.com/mcp",
+                "headers": {"Authorization": "mcp-header-marker"},
+            },
+        }
+    }
+    original_config = deepcopy(config)
+    # Exercise the legacy attribute as well as the mount config.
+    template = (Path(__file__).parent / "data" / "index.html").read_text()
+    if page != "wasm":
+        template += '<marimo-user-config data-config="{{ user_config }}">'
+    overrides = cast(PartialMarimoConfig, deepcopy(config))
+    if page == "home":
+        result = templates.home_page_template(
+            html=template,
+            base_url="",
+            user_config=config,
+            config_overrides=overrides,
+            server_token=SkewProtectionToken("token"),
+            mode=mode,
+        )
+    elif page == "wasm":
+        result = templates.wasm_notebook_template(
+            html=template,
+            version="1.0.0",
+            filename="notebook.py",
+            user_config=config,
+            config_overrides=overrides,
+            app_config=_AppConfig(),
+            mode="run" if mode == SessionMode.RUN else "edit",
+            code="",
+            show_code=False,
+        )
+    else:
+        result = templates.notebook_page_template(
+            html=template,
+            base_url="",
+            user_config=config,
+            config_overrides=overrides,
+            server_token=SkewProtectionToken("token"),
+            app_config=_AppConfig(),
+            filename="notebook.py",
+            mode=mode,
+        )
+
+    mount_config = parse_mount_config(result)
+    expected = dict(original_config)
+    if mode == SessionMode.RUN:
+        for key in ("ai", "completion", "mcp"):
+            del expected[key]
+        assert "-marker" not in result
+
+    assert mount_config["config"] == expected
+    assert mount_config["configOverrides"] == expected
+    if page != "wasm":
+        legacy_config = result.split('data-config="', 1)[1].split('"', 1)[0]
+        assert json.loads(html.unescape(legacy_config)) == expected
+    assert config == original_config
+    assert overrides == original_config
 
 
 class TestNotebookPageTemplate(unittest.TestCase):
@@ -1208,7 +1307,9 @@ class TestWasmNotebookTemplate(unittest.TestCase):
 
         assert self.filename.name in result
         assert self.mode in result
-        assert json.dumps(self.user_config, sort_keys=True) in result
+        config = parse_mount_config(result)["config"]
+        assert config["display"] == self.user_config["display"]
+        assert {"ai", "completion", "mcp"}.isdisjoint(config)
         assert '<marimo-wasm hidden="">' in result
         assert "__MARIMO_EXPORT_CONTEXT__" in result
         assert '<marimo-code hidden="">' in result

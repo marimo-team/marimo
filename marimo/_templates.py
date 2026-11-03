@@ -92,6 +92,17 @@ def _static_state_block(
     )
 
 
+def _get_frontend_config(
+    config: MarimoConfig | PartialMarimoConfig, *, readonly: bool
+) -> PartialMarimoConfig:
+    # Integration settings are only used by the editor.
+    excluded = {"ai", "completion", "mcp"} if readonly else set()
+    return cast(
+        PartialMarimoConfig,
+        {key: value for key, value in config.items() if key not in excluded},
+    )
+
+
 def _get_mount_config(
     *,
     filename: str | None,
@@ -120,8 +131,12 @@ def _get_mount_config(
         "mode": mode,
         "version": version or get_version(),
         "server_token": str(server_token),
-        "user_config": user_config,
-        "config_overrides": config_overrides,
+        "user_config": _get_frontend_config(
+            user_config, readonly=mode in ("read", "gallery")
+        ),
+        "config_overrides": _get_frontend_config(
+            config_overrides, readonly=mode in ("read", "gallery")
+        ),
         "app_config": _del_none_or_empty(app_config.asdict())
         if app_config
         else {},
@@ -184,7 +199,14 @@ def home_page_template(
     # TODO(Trevor): Legacy, required by VS Code plugin. Remove when plugin is updated (see frontend/index.html)
     html = html.replace("{{ version }}", get_version())
     html = html.replace(
-        "{{ user_config }}", _html_escape(json.dumps(user_config))
+        "{{ user_config }}",
+        _html_escape(
+            json.dumps(
+                _get_frontend_config(
+                    user_config, readonly=mode == SessionMode.RUN
+                )
+            )
+        ),
     )
     html = html.replace("{{ server_token }}", str(server_token))
 
@@ -322,7 +344,14 @@ def notebook_page_template(
     # TODO(Trevor): Legacy, required by VS Code plugin. Remove when plugin is updated (see frontend/index.html)
     html = html.replace("{{ version }}", get_version())
     html = html.replace(
-        "{{ user_config }}", _html_escape(json.dumps(user_config))
+        "{{ user_config }}",
+        _html_escape(
+            json.dumps(
+                _get_frontend_config(
+                    user_config, readonly=mode == SessionMode.RUN
+                )
+            )
+        ),
     )
     html = html.replace("{{ server_token }}", str(server_token))
 
