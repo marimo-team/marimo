@@ -1,6 +1,8 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import logging
+
 import pytest
 from starlette.applications import Starlette
 from starlette.middleware import Middleware
@@ -168,6 +170,31 @@ def test_configured_origins_normalize_host_and_port() -> None:
         "/ws", headers={"Origin": "https://editor.example"}
     ) as websocket:
         assert websocket.receive_text() == "connected"
+
+
+def test_invalid_configured_origins_warn_once(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    with caplog.at_level(logging.WARNING):
+        client = make_client(
+            (
+                "localhost",
+                "https://editor.example/",
+                "https://editor.example",
+                "*",
+            )
+        )
+        for _ in range(2):
+            with client.websocket_connect(
+                "/ws", headers={"Origin": "https://editor.example"}
+            ) as websocket:
+                assert websocket.receive_text() == "connected"
+    assert [record.getMessage() for record in caplog.records] == [
+        f"Ignoring invalid WebSocket origin {origin!r} in allow_origins. "
+        "Use an http:// or https:// origin with an optional port, "
+        "without a path or trailing slash."
+        for origin in ("localhost", "https://editor.example/")
+    ]
 
 
 @pytest.mark.parametrize("host", ["localhost", "0.0.0.0", "::"])

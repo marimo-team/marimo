@@ -117,11 +117,20 @@ class WebSocketOriginMiddleware:
     ) -> None:
         self.app = app
         self.allow_all_origins = "*" in allow_origins
-        self.allow_origins = {
-            origin
-            for value in allow_origins
-            if (origin := self._parse_origin(value)) is not None
-        }
+        self.allow_origins: set[tuple[str, str, int]] = set()
+        for value in allow_origins:
+            if value == "*":
+                continue
+            origin = self._parse_origin(value)
+            if origin is None:
+                LOGGER.warning(
+                    "Ignoring invalid WebSocket origin %r in allow_origins. "
+                    "Use an http:// or https:// origin with an optional port, "
+                    "without a path or trailing slash.",
+                    value,
+                )
+            else:
+                self.allow_origins.add(origin)
 
     @staticmethod
     def _parse_origin(value: str) -> tuple[str, str, int] | None:
