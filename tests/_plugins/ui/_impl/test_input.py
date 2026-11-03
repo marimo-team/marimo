@@ -235,6 +235,17 @@ def test_slider_from_dataframe() -> None:
     assert slider._args.label == "Custom label"
 
 
+def test_range_slider_invalid_value() -> None:
+    """`value` must be a sequence of exactly two numbers."""
+    with pytest.raises(ValueError, match="`value` must be a sequence of two"):
+        ui.range_slider(1, 10, value=[3])
+
+    with pytest.raises(ValueError, match="`value` must be a sequence of two"):
+        ui.range_slider(1, 10, value=5)  # type: ignore[arg-type]
+
+    with pytest.raises(ValueError, match="`value` must be a sequence of two"):
+        ui.range_slider(steps=[1, 3, 6], value=[3])
+
 def test_range_slider_init() -> None:
     slider = ui.range_slider(1, 10)
     assert slider.start == 1

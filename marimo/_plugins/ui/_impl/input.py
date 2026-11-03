@@ -466,6 +466,17 @@ class range_slider(UIElement[list[Numeric], Sequence[Numeric]]):
         self.stop: Numeric
         self.step: Numeric | None
         self.steps: Sequence[Numeric] | None
+        if value is not None:
+            try:
+                value_length = len(value)
+            except TypeError:
+                value_length = -1
+            if value_length != 2:
+                raise ValueError(
+                    "Invalid value: `value` must be a sequence of two "
+                    "numbers, e.g. [start, stop]; "
+                    f"got {value!r}"
+                )
         warn_js_safe_number(start, stop, *(value or []))
 
         if steps is not None and (
