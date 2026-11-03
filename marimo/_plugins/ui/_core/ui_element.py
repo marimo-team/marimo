@@ -28,6 +28,7 @@ from marimo._runtime.context import (
     RuntimeContext,
     get_context,
 )
+from marimo._runtime.context.utils import get_mode
 from marimo._runtime.functions import Function
 from marimo._types.ids import UIElementId
 
@@ -289,6 +290,29 @@ class UIElement(Html, Generic[S, T]):
             + "</marimo-ui-element>"
         )
         super().__init__(text=text)
+        if (
+            component_name == "marimo-slider"
+            and self._ctx is not None
+            and self._ctx.parent is None
+            and get_mode() == "edit"
+        ):
+            from marimo._messaging.notification import (
+                UIElementCreatedNotification,
+            )
+            from marimo._messaging.notification_utils import (
+                broadcast_notification,
+            )
+
+            broadcast_notification(
+                UIElementCreatedNotification(
+                    id=self._id,
+                    cell_id=self._ctx.ui_element_registry.get_cell(self._id),
+                    component=component_name,
+                    label=label,
+                    args=args,
+                    value=frontend_value,
+                )
+            )
 
     @abc.abstractmethod
     def _convert_value(self, value: S) -> T:

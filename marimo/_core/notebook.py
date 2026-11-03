@@ -85,6 +85,7 @@ class Notebook:
         self._closed = False
         self._runtime: protocol.Runtime | None = None
         self._attachments: dict[str, protocol.Attachment] = {}
+        self._ui_elements: dict[str, protocol.UIElement] = {}
         self._replacement: protocol.Runtime | None = None
         # Correlate runtime events with the pending start, stop, or restart.
         self._runtime_request: str | None = None
@@ -564,6 +565,13 @@ class Notebook:
         if self._closed:
             return
         match msg:
+            case be.UIElementCreated(runtime_id=runtime_id, element=element):
+                if (
+                    self._runtime is not None
+                    and self._runtime.id == runtime_id
+                ):
+                    self._ui_elements[element.id] = deepcopy(element)
+                    self._publish(element, None)
             case be.Starting() | be.Running() | be.Exited():
                 runtime = self._runtime
                 if runtime is None or msg.runtime_id != runtime.id:
@@ -657,6 +665,8 @@ class Notebook:
             yield self._runtime, None
         for attachment in self._attachments.values():
             yield attachment, None
+        for element in self._ui_elements.values():
+            yield element, None
         for record in self.executions._records():
             yield record, self.executions.run_id_of(record)
 

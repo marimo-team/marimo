@@ -206,6 +206,18 @@ class RemoveUIElementsNotification(Notification, tag="remove-ui-elements"):
     cell_id: CellId_t
 
 
+class UIElementCreatedNotification(Notification, tag="ui-element-created"):
+    """Constructor data and initial wire state for a host UI element."""
+
+    name: ClassVar[str] = "ui-element-created"
+    id: UIElementId
+    cell_id: CellId_t
+    component: str
+    label: str | None
+    args: dict[str, Any]
+    value: Any
+
+
 class UIElementMessageNotification(
     Notification, tag="send-ui-element-message"
 ):
@@ -1115,6 +1127,7 @@ NotificationMessage = (
     | ExecutionNotification
     | FunctionCallResultNotification
     | UIElementMessageNotification
+    | UIElementCreatedNotification
     | ModelLifecycleNotification
     | RemoveUIElementsNotification
     # Notebook lifecycle
