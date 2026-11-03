@@ -439,6 +439,24 @@ class Notebook:
 
     # ---- runs ----------------------------------------------------------
 
+    def update_ui_element(
+        self,
+        element_id: str,
+        state: protocol.UIElementPartialState,
+        *,
+        request_id: str,
+    ) -> protocol.UIElementUpdateResponse:
+        self._require_open()
+        runtime = self._require_runtime()
+        if runtime.status != "running":
+            raise Conflict(f"the notebook has a {runtime.status} runtime")
+        if element_id not in self._ui_elements:
+            raise NotFound(f"UI element {element_id} does not exist")
+        self.backend.update_ui_element(element_id, state, request_id)
+        return protocol.UIElementUpdateResponse(
+            id=element_id, state=state, request_id=request_id
+        )
+
     @overload
     def run(self, code: str, *, request_id: str) -> protocol.Run: ...
 
@@ -569,6 +587,35 @@ class Notebook:
         if self._closed:
             return
         match msg:
+            case be.UIElementUpdated():
+                element = self._ui_elements.get(msg.element_id)
+                if (
+                    self._runtime is None
+                    or self._runtime.id != msg.runtime_id
+                    or element is None
+                ):
+                    return
+                state = deepcopy(msg.state)
+                if state.value is not UNSET:
+                    self._ui_elements[element.id] = replace(
+                        element,
+                        state=protocol.UIElementState(value=state.value),
+                    )
+                self.sink.append(
+                    RoutedEvent(
+                        protocol.UIElementUpdateEvent(
+                            protocol.UIElementUpdateMessage(
+                                id=element.id,
+                                state=state,
+                                time=utcnow(),
+                                request_id=msg.request_id
+                                if msg.request_id is not None
+                                else UNSET,
+                            )
+                        ),
+                        notebook_id=self.id,
+                    )
+                )
             case be.UIElementCreated(runtime_id=runtime_id, element=element):
                 if (
                     self._runtime is not None

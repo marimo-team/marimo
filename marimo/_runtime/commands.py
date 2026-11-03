@@ -469,6 +469,9 @@ class UpdateUIElementCommand(Command):
 
     object_ids: list[UIElementId]
     values: list[Any]
+    # Host writes must retain their identity through queue batching.
+    request_id: str | None = None
+    value_supplied: bool = True
     # Incoming request, e.g. from Starlette or FastAPI
     request: HTTPRequest | None = None
     # uniquely identifies the request

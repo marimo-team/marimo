@@ -30,6 +30,22 @@ class RunParams(NotebookParams, frozen=True):
     run_id: protocol.RunId
 
 
+class UIElementParams(NotebookParams, frozen=True):
+    element_id: str
+
+
+class UIElementState(
+    protocol.UIElementPartialState, frozen=True, forbid_unknown_fields=True
+):
+    pass
+
+
+class UIElementUpdateRequest(
+    msgspec.Struct, frozen=True, forbid_unknown_fields=True
+):
+    state: UIElementState
+
+
 class MutationHeaders(msgspec.Struct, frozen=True):
     idempotency_key: str = msgspec.field(name="idempotency-key", default="")
 
@@ -183,6 +199,27 @@ class InterruptCall(_Call, frozen=True, tag="runtime.interrupt"):
             raise
 
 
+class UIElementUpdateCall(_Call, frozen=True, tag="ui_element.update"):
+    """Submit a partial state to the kernel; acceptance does not apply it."""
+
+    METHOD = "POST"
+    PATH = "/notebooks/{notebook_id}/ui-elements/{element_id}/update"
+
+    params: UIElementParams
+    headers: MutationHeaders
+    body: UIElementUpdateRequest
+
+    async def handle(
+        self, bridge: NotebookBridge
+    ) -> tuple[Literal[202], protocol.UIElementUpdateResponse]:
+        notebook = await bridge.host.notebook(self.params.notebook_id)
+        return 202, notebook.update_ui_element(
+            self.params.element_id,
+            self.body.state,
+            request_id=self.headers.idempotency_key,
+        )
+
+
 OperationCall = (
     EditCall
     | SaveCall
@@ -191,6 +228,7 @@ OperationCall = (
     | RestartCall
     | RunCall
     | InterruptCall
+    | UIElementUpdateCall
 )
 """A request for any notebook operation, tagged by its operation id."""
 
@@ -204,6 +242,7 @@ CALLS: tuple[type[OperationCall], ...] = (
     RestartCall,
     RunCall,
     InterruptCall,
+    UIElementUpdateCall,
 )
 
 

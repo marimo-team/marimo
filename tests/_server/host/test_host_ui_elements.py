@@ -209,3 +209,267 @@ async def test_deleting_owner_removes_slider_displayed_elsewhere(
         assert "ui_element" not in [
             r.get("event") for r in await snapshot(app, notebook_id)
         ]
+
+
+async def test_host_updates_reach_every_attachment_once(
+    tmp_path: Path,
+) -> None:
+    async with open_host(tmp_path, SOURCE) as (app, notebook_id, events):
+        await run_cells(app, notebook_id, events)
+        element = next(
+            r["data"]["ui_element"]
+            for r in events.records
+            if r.get("event") == "ui_element"
+        )
+        peer, task, disconnect = request(
+            app,
+            "GET",
+            f"/notebooks/{notebook_id}/events",
+            headers=AUTH,
+            query="types=ui_element",
+        )
+        try:
+            await wait_for(peer, until_ready)
+            route = (
+                f"/notebooks/{notebook_id}/ui-elements/{element['id']}/update"
+            )
+            for request_id in ("write", "unchanged"):
+                response = await finished(
+                    app,
+                    "POST",
+                    route,
+                    headers=key(request_id),
+                    body=b'{"state":{"value":4}}',
+                )
+                assert response.status == 202, response.body
+                assert response.json() == {
+                    "id": element["id"],
+                    "state": {"value": 4},
+                    "request_id": request_id,
+                }
+                retried = await finished(
+                    app,
+                    "POST",
+                    route,
+                    headers=key(request_id),
+                    body=b'{"state":{"value":4}}',
+                )
+                assert retried.json() == response.json()
+                for stream in (events, peer):
+                    await wait_for(
+                        stream,
+                        lambda s, request_id=request_id: any(
+                            r.get("event") == "ui_element.update"
+                            and r["data"].get("request_id") == request_id
+                            for r in s.records
+                        ),
+                    )
+                    updates = [
+                        r
+                        for r in stream.records
+                        if r.get("event") == "ui_element.update"
+                        and r["data"].get("request_id") == request_id
+                    ]
+                    assert len(updates) == 1
+                    assert updates[0]["data"]["state"] == {"value": 4}
+            current = await snapshot(app, notebook_id)
+            assert next(
+                r["data"]["ui_element"]["state"]
+                for r in current
+                if r.get("event") == "ui_element"
+            ) == {"value": 4}
+        finally:
+            disconnect()
+            await asyncio.wait_for(task, 5)
+
+
+async def test_queued_acceptance_does_not_change_confirmed_state(
+    tmp_path: Path,
+) -> None:
+    async with open_host(tmp_path, SOURCE) as (app, notebook_id, events):
+        await run_cells(app, notebook_id, events)
+        element = next(
+            r["data"]["ui_element"]
+            for r in events.records
+            if r.get("event") == "ui_element"
+        )
+        busy = await finished(
+            app,
+            "POST",
+            f"/notebooks/{notebook_id}/runtime/runs",
+            headers=key("busy"),
+            body=b'{"code":"import time; time.sleep(1)"}',
+        )
+        await wait_for(
+            events,
+            lambda stream: any(
+                r.get("event") == "run"
+                and r["data"]["run"]["id"] == busy.json()["id"]
+                and r["data"]["run"]["status"] == "running"
+                for r in stream.records
+            ),
+        )
+        route = f"/notebooks/{notebook_id}/ui-elements/{element['id']}/update"
+        for request_id, state in (
+            ("four", {"value": 4}),
+            ("five", {"value": 5}),
+            ("empty", {}),
+        ):
+            response = await finished(
+                app,
+                "POST",
+                route,
+                headers=key(request_id),
+                body=json.dumps({"state": state}).encode(),
+            )
+            assert response.status == 202, response.body
+        retained = await snapshot(app, notebook_id, "types=ui_element")
+        assert next(
+            r["data"]["ui_element"]["state"]
+            for r in retained
+            if r.get("event") == "ui_element"
+        ) == {"value": 3}
+        await wait_for(
+            events,
+            lambda stream: any(
+                r.get("event") == "ui_element.update"
+                and r["data"].get("request_id") == "empty"
+                for r in stream.records
+            ),
+        )
+        updates = [
+            r["data"]
+            for r in events.records
+            if r.get("event") == "ui_element.update"
+        ]
+        assert [(r["request_id"], r["state"]) for r in updates] == [
+            ("four", {"value": 4}),
+            ("five", {"value": 5}),
+            ("empty", {}),
+        ]
+        retained = await snapshot(app, notebook_id, "types=ui_element")
+        assert next(
+            r["data"]["ui_element"]["state"]
+            for r in retained
+            if r.get("event") == "ui_element"
+        ) == {"value": 5}
+
+
+async def test_invalid_updates_leave_no_acknowledgements(
+    tmp_path: Path,
+) -> None:
+    async with open_host(tmp_path, SOURCE) as (app, notebook_id, events):
+        await run_cells(app, notebook_id, events)
+        element = next(
+            r["data"]["ui_element"]
+            for r in events.records
+            if r.get("event") == "ui_element"
+        )
+        route = f"/notebooks/{notebook_id}/ui-elements/{element['id']}/update"
+        for index, body in enumerate(
+            (
+                {},
+                {"state": []},
+                {"state": {"unknown": 4}},
+                {"state": {}, "extra": True},
+            )
+        ):
+            response = await finished(
+                app,
+                "POST",
+                route,
+                headers=key(f"invalid-{index}"),
+                body=json.dumps(body).encode(),
+            )
+            assert response.status == 400, response.body
+        missing = await finished(
+            app,
+            "POST",
+            f"/notebooks/{notebook_id}/ui-elements/missing/update",
+            headers=key("missing"),
+            body=b'{"state":{"value":4}}',
+        )
+        assert missing.status == 404
+        forbidden = await finished(
+            app,
+            "POST",
+            route,
+            headers={"Idempotency-Key": "unauthorized"},
+            body=b'{"state":{"value":4}}',
+        )
+        assert forbidden.status == 401
+        stopped = await finished(
+            app,
+            "DELETE",
+            f"/notebooks/{notebook_id}/runtime",
+            headers=key("stop"),
+        )
+        assert stopped.status == 202
+        await wait_for(
+            events, lambda stream: "runtime.removed" in stream.names()
+        )
+        no_runtime = await finished(
+            app,
+            "POST",
+            route,
+            headers=key("no-runtime"),
+            body=b'{"state":{"value":4}}',
+        )
+        assert no_runtime.status == 409
+        assert no_runtime.json()["type"].endswith("/no-runtime")
+        assert "ui_element.update" not in events.names()
+
+
+async def test_dependent_failure_does_not_undo_applied_value(
+    tmp_path: Path,
+) -> None:
+    source = (
+        SOURCE
+        + """
+@app.cell
+def _(slider):
+    assert slider.value != 4, "dependent failed"
+    return
+"""
+    )
+    async with open_host(tmp_path, source) as (app, notebook_id, events):
+        await run_cells(app, notebook_id, events)
+        element = next(
+            r["data"]["ui_element"]
+            for r in events.records
+            if r.get("event") == "ui_element"
+        )
+        response = await finished(
+            app,
+            "POST",
+            f"/notebooks/{notebook_id}/ui-elements/{element['id']}/update",
+            headers=key("fail-dependent"),
+            body=b'{"state":{"value":4}}',
+        )
+        assert response.status == 202
+        await wait_for(
+            events,
+            lambda stream: any(
+                r.get("event") == "execution"
+                and r["data"]["execution"]["status"] == "completed"
+                and r["data"]["execution"].get("outcome", {}).get("kind")
+                == "error"
+                for r in stream.records
+            ),
+        )
+        retained = await snapshot(app, notebook_id, "types=ui_element")
+        assert next(
+            r["data"]["ui_element"]["state"]
+            for r in retained
+            if r.get("event") == "ui_element"
+        ) == {"value": 4}
+        assert (
+            len(
+                [
+                    r
+                    for r in events.records
+                    if r.get("event") == "ui_element.update"
+                ]
+            )
+            == 1
+        )

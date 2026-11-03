@@ -414,3 +414,25 @@ def test_contiguous_runs_merged_within_run() -> None:
     assert result[1].message.state == {"x": 2}
     # Last UI is standalone
     assert result[2].object_ids == ["obj3"]
+
+
+def test_host_writes_keep_each_request_between_legacy_batches() -> None:
+    commands = [
+        UpdateUIElementCommand(
+            object_ids=["slider"], values=[value], request_id=request_id
+        )
+        for value, request_id in [
+            (1, None),
+            (2, None),
+            (3, "a"),
+            (4, "b"),
+            (5, None),
+            (6, None),
+        ]
+    ]
+    result = merge_batchable_commands(commands)
+    assert [
+        (cmd.values, cmd.request_id)
+        for cmd in result
+        if isinstance(cmd, UpdateUIElementCommand)
+    ] == [([2], None), ([3], "a"), ([4], "b"), ([6], None)]
