@@ -305,38 +305,42 @@ describe("readExport", () => {
       ]);
     });
 
-    it("handles error output in session cell", () => {
-      const errorOutput = {
-        type: "error" as const,
-        ename: "ValueError",
-        evalue: "Something went wrong",
-        traceback: ["Traceback line 1"],
-      };
-      const session = createSession([
-        createSessionCell("cell-1", [errorOutput]),
-      ]);
-      const result = readExport({
-        session: session,
-        notebook: null,
-        filename: null,
-        appConfig: {},
-      });
+    it.each([undefined, false, true])(
+      "restores error classification %s from the session",
+      (isInternal) => {
+        const errorOutput = {
+          type: "error" as const,
+          ename: "ValueError",
+          evalue: "Something went wrong",
+          traceback: ["Traceback line 1"],
+          ...(isInternal === undefined ? {} : { is_internal: isInternal }),
+        };
+        const session = createSession([
+          createSessionCell("cell-1", [errorOutput]),
+        ]);
+        const result = readExport({
+          session,
+          notebook: null,
+          filename: null,
+          appConfig: {},
+        });
 
-      expect(result.snapshot?.results[0]?.execution.state).toHaveProperty(
-        "outcome",
-        {
-          kind: "error",
-          error: expect.objectContaining({
-            kind: "exception",
-            name: "ValueError",
-            message: "Something went wrong",
-            traceback: { mimetype: "text/plain", data: "Traceback line 1" },
-          }),
-        },
-      );
+        expect(result.snapshot?.results[0]?.execution.state).toHaveProperty(
+          "outcome",
+          {
+            kind: "error",
+            error: expect.objectContaining({
+              kind: isInternal ? "internal-exception" : "exception",
+              name: "ValueError",
+              message: "Something went wrong",
+              traceback: { mimetype: "text/plain", data: "Traceback line 1" },
+            }),
+          },
+        );
 
-      invariant(result.snapshot, "no snapshot");
-    });
+        invariant(result.snapshot, "no snapshot");
+      },
+    );
 
     it("restores matching code from the session", () => {
       const code = "raise ValueError('cached failure')";

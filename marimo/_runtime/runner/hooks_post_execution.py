@@ -6,6 +6,7 @@ import sys
 from marimo import _loggers
 from marimo._ast.cell import CellImpl
 from marimo._ast.toplevel import TopLevelExtraction
+from marimo._core.errors import InternalError
 from marimo._data._external_storage.get_storage import (
     get_storage_backends_from_variables,
     storage_backend_to_storage_namespace,
@@ -421,6 +422,9 @@ def _broadcast_outputs(
                 MarimoExceptionRaisedError(
                     msg=msg,
                     exception_type=exception_type,
+                    is_internal=isinstance(
+                        run_result.exception, InternalError
+                    ),
                     raising_cell=None,
                     traceback=formatted_traceback,
                 )

@@ -228,7 +228,7 @@ function resultRecord(
     outcome = {
       kind: "error",
       error: {
-        kind: "exception",
+        kind: primary.is_internal ? "internal-exception" : "exception",
         name: primary.ename,
         message: primary.evalue,
         source: "marimo",
