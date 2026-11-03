@@ -13,7 +13,7 @@ import { mergeProps, useFocusWithin, useKeyboard } from "react-aria";
 import { DATA_FOR_CELL_ID } from "@/components/data-table/cell-utils";
 import { aiCompletionCellAtom } from "@/core/ai/state";
 import { maybeAddMarimoImport } from "@/core/cells/add-missing-import";
-import { cellIdsAtom, notebookAtom } from "@/core/cells/cells";
+import { notebookAtom } from "@/core/cells/cells";
 import { hideShownCodeAtom, showHiddenCodeAtom } from "@/core/cells/editor";
 import {
   columnOf,
@@ -317,16 +317,12 @@ export function useCellNavigationProps(
         // Select up
         "Shift+ArrowUp": () => {
           // Select self
-          const allCellIds = store.get(cellIdsAtom);
-          selectionActions.extend({ cellId, allCellIds });
+          const layout = store.get(layoutAtom);
+          selectionActions.extend({ cellId, layout });
           // Select to where focus is going
-          const beforeCellId = visibleNeighbor(
-            store.get(layoutAtom),
-            cellId,
-            -1,
-          );
+          const beforeCellId = visibleNeighbor(layout, cellId, -1);
           if (beforeCellId) {
-            selectionActions.extend({ cellId: beforeCellId, allCellIds });
+            selectionActions.extend({ cellId: beforeCellId, layout });
           }
           // Focus the cell
           actions.focusCell({ cellId, where: "before" });
@@ -335,12 +331,12 @@ export function useCellNavigationProps(
         // Select down
         "Shift+ArrowDown": () => {
           // Select self
-          const allCellIds = store.get(cellIdsAtom);
-          selectionActions.extend({ cellId, allCellIds });
+          const layout = store.get(layoutAtom);
+          selectionActions.extend({ cellId, layout });
           // Select to where focus is going
-          const afterCellId = visibleNeighbor(store.get(layoutAtom), cellId, 1);
+          const afterCellId = visibleNeighbor(layout, cellId, 1);
           if (afterCellId) {
-            selectionActions.extend({ cellId: afterCellId, allCellIds });
+            selectionActions.extend({ cellId: afterCellId, layout });
           }
           // Focus the cell
           actions.focusCell({ cellId, where: "after" });

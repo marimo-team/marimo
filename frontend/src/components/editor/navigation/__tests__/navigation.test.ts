@@ -27,6 +27,7 @@ import { aiCompletionCellAtom } from "@/core/ai/state";
 import type { CellActions } from "@/core/cells/actions";
 import { notebookAtom } from "@/core/cells/cells";
 import type { CellId } from "@/core/cells/ids";
+import { layoutAtom } from "@/core/cells/layout";
 import type { DocumentModel } from "@/core/notebook/document";
 import {
   cell,
@@ -317,7 +318,7 @@ describe("useCellNavigationProps", () => {
       selectionActions.select({ cellId: cellId1 });
       selectionActions.extend({
         cellId: cellId2,
-        allCellIds: store.get(notebookAtom).cellIds,
+        layout: store.get(layoutAtom),
       });
 
       const { result } = renderWithProvider(() =>
@@ -849,7 +850,7 @@ describe("useCellNavigationProps", () => {
       selectionActions.select({ cellId: cellId1 });
       selectionActions.extend({
         cellId: cellId2,
-        allCellIds: store.get(notebookAtom).cellIds,
+        layout: store.get(layoutAtom),
       });
 
       const { result } = renderWithProvider(() =>
@@ -872,7 +873,7 @@ describe("useCellNavigationProps", () => {
       selectionActions.select({ cellId: cellId1 });
       selectionActions.extend({
         cellId: cellId3,
-        allCellIds: store.get(notebookAtom).cellIds,
+        layout: store.get(layoutAtom),
       });
 
       const { result } = renderWithProvider(() =>
@@ -895,7 +896,7 @@ describe("useCellNavigationProps", () => {
       selectionActions.select({ cellId: cellId1 });
       selectionActions.extend({
         cellId: cellId3,
-        allCellIds: store.get(notebookAtom).cellIds,
+        layout: store.get(layoutAtom),
       });
 
       const { result } = renderWithProvider(() =>
@@ -918,7 +919,7 @@ describe("useCellNavigationProps", () => {
       selectionActions.select({ cellId: cellId2 });
       selectionActions.extend({
         cellId: cellId3,
-        allCellIds: store.get(notebookAtom).cellIds,
+        layout: store.get(layoutAtom),
       });
 
       const { result } = renderWithProvider(() =>
@@ -953,7 +954,7 @@ describe("useCellNavigationProps", () => {
       selectionActions.select({ cellId: cellId1 });
       selectionActions.extend({
         cellId: cellId2,
-        allCellIds: store.get(notebookAtom).cellIds,
+        layout: store.get(layoutAtom),
       });
 
       const { result } = renderWithProvider(() =>
@@ -989,7 +990,7 @@ describe("useCellNavigationProps", () => {
       selectionActions.select({ cellId: cellId2 });
       selectionActions.extend({
         cellId: cellId3,
-        allCellIds: store.get(notebookAtom).cellIds,
+        layout: store.get(layoutAtom),
       });
 
       const { result } = renderWithProvider(() =>
@@ -1022,7 +1023,7 @@ describe("useCellNavigationProps", () => {
       selectionActions.select({ cellId: cellId1 });
       selectionActions.extend({
         cellId: cellId2,
-        allCellIds: store.get(notebookAtom).cellIds,
+        layout: store.get(layoutAtom),
       });
 
       const { result } = renderWithProvider(() =>
@@ -1055,7 +1056,7 @@ describe("useCellNavigationProps", () => {
       selectionActions.select({ cellId: cellId1 });
       selectionActions.extend({
         cellId: cellId2,
-        allCellIds: store.get(notebookAtom).cellIds,
+        layout: store.get(layoutAtom),
       });
 
       const { result } = renderWithProvider(() =>
@@ -1083,7 +1084,7 @@ describe("useCellNavigationProps", () => {
       selectionActions.select({ cellId: cellId2 });
       selectionActions.extend({
         cellId: cellId3,
-        allCellIds: store.get(notebookAtom).cellIds,
+        layout: store.get(layoutAtom),
       });
 
       const { result } = renderWithProvider(() =>
@@ -1137,7 +1138,7 @@ describe("useCellNavigationProps", () => {
       selectionActions.select({ cellId: cellId1 });
       selectionActions.extend({
         cellId: cellId2,
-        allCellIds: store.get(notebookAtom).cellIds,
+        layout: store.get(layoutAtom),
       });
 
       const { result } = renderWithProvider(() =>
@@ -1165,7 +1166,7 @@ describe("useCellNavigationProps", () => {
       selectionActions.select({ cellId: cellId1 });
       selectionActions.extend({
         cellId: cellId2,
-        allCellIds: store.get(notebookAtom).cellIds,
+        layout: store.get(layoutAtom),
       });
 
       const { result } = renderWithProvider(() =>
@@ -1227,7 +1228,7 @@ describe("useCellNavigationProps", () => {
       selectionActions.select({ cellId: cellId1 });
       selectionActions.extend({
         cellId: cellId2,
-        allCellIds: store.get(notebookAtom).cellIds,
+        layout: store.get(layoutAtom),
       });
 
       const { result } = renderWithProvider(() =>
@@ -1621,7 +1622,7 @@ describe("useCellNavigationProps", () => {
       selectionActions.select({ cellId: cellId1 });
       selectionActions.extend({
         cellId: cellId2,
-        allCellIds: store.get(notebookAtom).cellIds,
+        layout: store.get(layoutAtom),
       });
 
       const { result } = renderWithProvider(() =>
