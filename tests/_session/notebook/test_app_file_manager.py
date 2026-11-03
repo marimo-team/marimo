@@ -373,3 +373,22 @@ def test_on_persisted_reports_the_cells_and_config_written(
     fm.save_from_cells(cells)
 
     assert seen == [(cells, {"width": "full"})]
+
+
+def test_on_config_changed_fires_only_when_the_config_changes(
+    tmp_path: Path,
+) -> None:
+    nb = tmp_path / "nb.py"
+    nb.write_text(_NOTEBOOK_SOURCE)
+    fm = AppFileManager(str(nb))
+    changes: list[None] = []
+    fm.on_config_changed = lambda: changes.append(None)
+
+    fm.save_app_config({})
+    assert changes == []
+
+    fm.save_app_config({"width": "full"})
+    assert len(changes) == 1
+
+    fm.save_app_config({"width": "full"})
+    assert len(changes) == 1

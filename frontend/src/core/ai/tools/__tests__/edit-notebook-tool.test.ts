@@ -65,8 +65,6 @@ describe("EditNotebookTool", () => {
   let toolContext: {
     addStagedCell: ReturnType<typeof vi.fn>;
     createCell: ReturnType<typeof vi.fn>;
-    prepareForRun: ReturnType<typeof vi.fn>;
-    sendRun: ReturnType<typeof vi.fn>;
     store: ReturnType<typeof getDefaultStore>;
   };
 
@@ -82,8 +80,6 @@ describe("EditNotebookTool", () => {
         store.set(stagedAICellsAtom, new Map(current).set(cellId, edit));
       }),
       createCell: vi.fn(),
-      prepareForRun: vi.fn(),
-      sendRun: vi.fn().mockResolvedValue(null),
       store,
     };
     tool = new EditNotebookTool();
@@ -100,7 +96,7 @@ describe("EditNotebookTool", () => {
     it("should have correct metadata", () => {
       expect(tool.name).toBe("edit_notebook_tool");
       expect(tool.description).toBeDefined();
-      expect(tool.description.baseDescription).toContain("editing operations");
+      expect(tool.description.baseDescription).toContain("Propose cell edits");
       expect(tool.schema).toBeDefined();
       expect(tool.outputSchema).toBeDefined();
       expect(tool.mode).toEqual(["agent"]);

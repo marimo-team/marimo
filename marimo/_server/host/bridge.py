@@ -457,6 +457,7 @@ class SessionBridge(SessionEventListener):
         notebook = self.host.peek_notebook(notebook_id)
         if session is None or notebook is None:
             return
+        self._follow_config(notebook_id, session)
         if self.app_sessions is not None:
             cells, app_config = documents.from_session(session)
             notebook.replace(cells, app_config, saved=True)
@@ -470,6 +471,26 @@ class SessionBridge(SessionEventListener):
             return
         cells, app_config = documents.from_session(session)
         notebook.replace(cells, app_config, saved=True)
+
+    # TODO(MO-7927): Following the editor's config ends when the notebook
+    # owns the app config and the editor changes it through the host.
+    def _follow_config(
+        self, notebook_id: protocol.NotebookId, session: Session
+    ) -> None:
+        """Mirror the document when the editor changes the app config.
+
+        The legacy endpoint changes it in the session, which fires no
+        document transaction, so the file manager reports it instead.
+        """
+        loop = asyncio.get_running_loop()
+
+        def config_changed() -> None:
+            if _running_loop() is loop:
+                self._mirror(notebook_id)
+            else:
+                loop.call_soon_threadsafe(self._mirror, notebook_id)
+
+        session.app_file_manager.on_config_changed = config_changed
 
     # TODO(MO-7927): Following the editor's writes ends when the notebook
     # owns persistence and the editor saves through it.
@@ -506,6 +527,7 @@ class SessionBridge(SessionEventListener):
         Its baseline for external changes is the file as the editor
         left it, read off the event loop before the next save compares.
         """
+        session.app_file_manager.on_config_changed = None
         if self.app_sessions is not None:
             return
         session.app_file_manager.on_persisted = None

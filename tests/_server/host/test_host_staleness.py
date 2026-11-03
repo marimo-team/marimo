@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import contextlib
 import itertools
 import json
@@ -12,6 +13,7 @@ from typing import TYPE_CHECKING, Any
 import pytest
 from msgspec.structs import replace
 
+from marimo._core import protocol
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._runtime.commands import UpdateUIElementCommand
 from tests._server.host.drive import finished, wait_for
@@ -26,6 +28,7 @@ if TYPE_CHECKING:
 
     from marimo._config.config import OnCellChangeType
     from marimo._core.protocol import RunOutcome
+    from marimo._core.stream import RoutedEvent
     from tests._server.host.drive import Response
     from tests._server.host.staleness import Outdated
 
@@ -536,24 +539,32 @@ async def test_a_ui_update_outdates_lazy_readers(tmp_path: Path) -> None:
             if r.get("event") == "console"
             and r["data"]["console"]["text"].strip()
         ]
-        session = next(iter(c.app.state.session_manager.sessions.values()))
-        session.put_control_request(
-            UpdateUIElementCommand.from_ids_and_values([(object_id, 5)]),
-            from_consumer_id=None,
-        )
-        await wait_for(
-            c.events,
-            lambda response: any(
-                r.get("event") == "variable"
-                and r["data"]["variable"]["id"] == slider.id
-                and r["data"]["variable"]["revision"]["update"] == 1
-                for r in response.records
-            ),
-        )
-        after = await c.snapshot()
-        assert after.variables[slider.id] == replace(
+        expected = replace(
             slider, preview="5", revision=replace(slider.revision, update=1)
         )
+        updated = asyncio.Event()
+
+        def observe(event: RoutedEvent) -> None:
+            if (
+                isinstance(event.event, protocol.VariableEvent)
+                and event.event.data.variable == expected
+            ):
+                updated.set()
+
+        host = c.app.state.host_context.bridge.host
+        unsubscribe = host.subscribe(observe, notebook_id=c.notebook_id)
+        try:
+            session = next(iter(c.app.state.session_manager.sessions.values()))
+            session.put_control_request(
+                UpdateUIElementCommand.from_ids_and_values([(object_id, 5)]),
+                from_consumer_id=None,
+            )
+            await updated.wait()
+        finally:
+            unsubscribe()
+
+        after = await c.snapshot()
+        assert after.variables[slider.id] == expected
         assert after.latest(c.cells["reader"]) == before.latest(
             c.cells["reader"]
         )

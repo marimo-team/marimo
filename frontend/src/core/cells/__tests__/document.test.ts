@@ -21,7 +21,6 @@ import {
 import { OverridingHotkeyProvider } from "@/core/hotkeys/hotkeys";
 import { store } from "@/core/state/jotai";
 import { activeDocumentModelAtom } from "@/core/session/active-notebook";
-import { MultiColumn } from "@/utils/id-tree";
 import { isRtcEnabled } from "../../rtc/state";
 import {
   createNotebookActions,
@@ -206,7 +205,7 @@ describe("applyDocument", () => {
     expect(next.cellHandles[b]).toBeUndefined();
   });
 
-  it("regroups columns from the cells' configs, keeping column ids and collapsed sections", () => {
+  it("regroups columns from the cells' configs, keeping column ids", () => {
     const column1 = { ...cell(d).config, column: 1 };
     const state = notebookOf([
       cell(a),
@@ -214,22 +213,13 @@ describe("applyDocument", () => {
       cell(c),
       cell(d, { config: column1 }),
     ]);
-    const [first, second] = state.cellIds.getColumns();
-    const collapsed = {
-      ...state,
-      cellIds: new MultiColumn([first.collapse(a, b), second]),
-    };
-
     const next = applyDocument(
-      collapsed,
+      state,
       documentOf([cell(c), cell(a), cell(b), cell(d, { config: column1 })]),
     );
 
     expect(next.cellIds.inOrderIds).toEqual([c, a, b, d]);
-    expect(next.cellIds.getColumnIds()).toEqual(
-      collapsed.cellIds.getColumnIds(),
-    );
-    expect(next.cellIds.atOrThrow(0).isCollapsed(a)).toBe(true);
+    expect(next.cellIds.getColumnIds()).toEqual(state.cellIds.getColumnIds());
     expect(next.cellIds.atOrThrow(1).inOrderIds).toEqual([d]);
   });
 
@@ -291,25 +281,6 @@ describe("documentEditMiddleware", () => {
     });
 
     expect(calls).toEqual([["setCode", a, "a = 2"]]);
-  });
-
-  it("sets the order when a cell moves", () => {
-    actions.moveCell({ cellId: c, before: true });
-
-    expect(calls).toEqual([["setOrder", [a, c, b]]]);
-  });
-
-  it("sets the column of a cell that changes column", () => {
-    state = notebookOf([
-      cell(a),
-      cell(b),
-      cell(c, { config: { ...cell(c).config, column: 1 } }),
-    ]);
-
-    actions.moveCell({ cellId: b, direction: "right" });
-
-    expect(state.cellIds.atOrThrow(1).inOrderIds).toEqual([b, c]);
-    expect(calls).toEqual([["updateConfig", b, { column: 1 }]]);
   });
 
   it("clears columns merged into one", () => {

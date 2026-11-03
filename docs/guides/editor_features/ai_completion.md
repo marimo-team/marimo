@@ -91,12 +91,30 @@ into your notebook.
 
 <iframe width="740" height="420" src="https://www.youtube.com/embed/4DC1E2UBwAM?si=zzrzl0VlvOU6JiZP" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" loading="lazy" allowfullscreen></iframe>
 
-The chat panel currently supports the following modes:
+Use the **Notebook access** selector to choose what the assistant can do:
 
-- **Manual**: No tool access; the AI responds based only on the conversation and manually injected context
-- **Ask**: Enables read-only tools and [tools from added MCP Client servers](mcp.md#mcp-client) for context gathering, allowing the assistant to inspect your notebooks
-- **Agent**: Enables all tools in **Ask Mode** plus additional tools to edit notebook cells (add, remove, update) and run stale cells.
-- **Code mode**: Gives the assistant direct access to the notebook kernel to inspect variables, edit cells, and run Python code.
+- **Read only**: The assistant can read notebook code, outputs, and variable previews.
+- **Suggest edits**: The assistant can read the notebook and propose cell changes for review.
+- **Full access**: The assistant can read, edit, and run cells, with Python scratchpad access.
+
+With **Suggest edits**, you can keep or discard proposed cell changes. The
+assistant cannot run cells at this access level.
+
+!!! warning "Full access"
+    The assistant can execute Python in your live notebook kernel and change
+    notebook cells and runtime state without review. These changes can be destructive.
+
+**Read only** and **Suggest edits** also enable tools from
+[connected MCP servers](mcp.md#mcp-client). Notebook access levels apply to
+marimo's built-in notebook tools. They do not restrict what connected MCP tools
+can do.
+
+Use the chat panel's **Capabilities** menu to enable web search and URL fetching
+at any notebook access level. Availability depends on your model and installed
+packages.
+
+The `ai.mode` configuration values are `ask` for **Read only** (the default),
+`agent` for **Suggest edits**, and `code_mode` for **Full access**.
 
 ### Refactor existing cells
 

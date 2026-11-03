@@ -8,7 +8,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from starlette.exceptions import HTTPException
 
-from marimo._config.config import MarimoConfig
+from marimo._config.config import CopilotMode, MarimoConfig
 from marimo._server.ai.completion_output import (
     CELL_COMPLETION_DATA_TYPE,
     NOTEBOOK_CELLS_COMPLETION_DATA_TYPE,
@@ -21,6 +21,7 @@ from marimo._server.ai.prompts import (
     FIM_SUFFIX_TAG,
 )
 from marimo._server.ai.tools.types import ToolCallResult
+from marimo._server.ai.tracing import SpanInfo
 from marimo._server.api.endpoints.ai import (
     get_provider_config,
     resolve_completion_messages,
@@ -781,49 +782,64 @@ def _google_ai_config():
 
 
 @pytest.mark.requires("openai", "pydantic_ai")
-@with_session(SESSION_ID)
-@patch("marimo._server.ai.providers.OpenAIProvider.stream_completion")
+@pytest.mark.parametrize("mode", [None, "manual", "ask", "agent"])
 def test_chat_without_code(
-    client: TestClient, mock_stream_completion: Any
+    client: TestClient, temp_marimo_file: str, mode: CopilotMode | None
 ) -> None:
-    user_config_manager = get_session_config_manager(client)
+    @with_session(SESSION_ID)
+    @patch("marimo._server.ai.providers.OpenAIProvider.stream_completion")
+    def check_chat(client: TestClient, mock_stream_completion: Any) -> None:
+        user_config_manager = get_session_config_manager(client)
+        config = _openai_config()
+        if mode is not None:
+            config["ai"]["mode"] = mode
 
-    # Create a mock StreamingResponse
-    from starlette.responses import StreamingResponse
+        # Create a mock StreamingResponse
+        from starlette.responses import StreamingResponse
 
-    async def mock_stream():
-        yield b"Hello, how can I help you?"
+        async def mock_stream():
+            yield b"Hello, how can I help you?"
 
-    mock_response = StreamingResponse(
-        content=mock_stream(),
-        media_type="text/event-stream",
-    )
-    mock_stream_completion.return_value = mock_response
-
-    with patch.object(
-        user_config_manager, "get_config", return_value=_openai_config()
-    ):
-        response = client.post(
-            "/api/ai/chat",
-            headers=HEADERS,
-            json={
-                "messages": _create_messages("Hello"),
-                "uiMessages": _create_messages("Hello"),
-                "model": "gpt-4-turbo",
-                "variables": [],
-                "includeOtherCode": "",
-                "context": {},
-                "id": "123",
-                "options": {"webSearch": True},
-            },
+        mock_response = StreamingResponse(
+            content=mock_stream(),
+            media_type="text/event-stream",
         )
-        assert response.status_code == 200, response.text
-        # Verify stream_completion was called
-        mock_stream_completion.assert_called_once()
-        assert (
-            mock_stream_completion.call_args.kwargs["enable_capabilities"]
-            is True
-        )
+        mock_stream_completion.return_value = mock_response
+
+        with patch.object(
+            user_config_manager, "get_config", return_value=config
+        ):
+            response = client.post(
+                "/api/ai/chat",
+                headers=HEADERS,
+                json={
+                    "messages": _create_messages("Hello"),
+                    "uiMessages": _create_messages("Hello"),
+                    "model": "gpt-4-turbo",
+                    "variables": [],
+                    "includeOtherCode": "",
+                    "context": {},
+                    "id": "123",
+                    "options": {"webSearch": True},
+                },
+            )
+            assert response.status_code == 200, response.text
+            # Verify stream_completion was called
+            mock_stream_completion.assert_called_once()
+            assert mock_stream_completion.call_args.kwargs[
+                "stream_options"
+            ].span_info == SpanInfo(
+                endpoint="chat",
+                model="gpt-4-turbo",
+                mode="agent" if mode == "agent" else "ask",
+                session_id=SESSION_ID,
+            )
+            assert (
+                mock_stream_completion.call_args.kwargs["enable_capabilities"]
+                is True
+            )
+
+    check_chat(client, temp_marimo_file)
 
 
 @pytest.mark.requires("openai", "pydantic_ai")

@@ -80,7 +80,13 @@ describe("notebookOutline", () => {
 
   it("keeps headings in cell order after moving and deleting cells", () => {
     const { store, actions } = setup();
-    actions.moveCell({ cellId: second, before: true });
+    actions.reconcileDocument({
+      order: [second, first],
+      cells: new Map([
+        [first, { id: first, code: "x = 1", name: "_", config: CONFIG }],
+        [second, { id: second, code: "y = 2", name: "_", config: CONFIG }],
+      ]),
+    });
     expect(store.get(notebookOutline)).toEqual({
       items: [...secondOutline.items, ...firstOutline.items],
     });

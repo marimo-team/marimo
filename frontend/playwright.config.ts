@@ -45,6 +45,7 @@ const appToOptions = {
   "stdin.py": { command: "edit" },
   "layout_grid_with_sidebar.py": { command: "edit" },
   "slides.py": { command: "edit" },
+  "slides_sizing.py": { command: "edit" },
   "visual_tokens.py": { command: "edit" },
   // Custom server for shutdown
   "shutdown.py": { command: "edit", port: port() },

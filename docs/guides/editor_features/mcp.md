@@ -174,4 +174,7 @@ Alternatively, configure MCP servers in your marimo configuration file:
 presets = ["marimo", "context7"]
 ```
 
-Once configured, tools from these servers will be automatically available in the [chat panel when using ask mode](ai_completion.md#chat-panel).
+Configured servers provide tools to the [chat panel](ai_completion.md#chat-panel)
+with **Read only** or **Suggest edits** access. These access levels restrict
+marimo's built-in notebook tools. They do not restrict what connected MCP tools
+can do.

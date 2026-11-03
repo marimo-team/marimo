@@ -94,7 +94,6 @@ describe("Cell data attributes", () => {
             code: "",
             name: cellName,
             edited: false,
-            serializedEditorState: null,
             config: {
               disabled: false,
               hide_code: false,
