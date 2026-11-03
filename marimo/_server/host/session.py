@@ -12,7 +12,11 @@ from starlette.websockets import WebSocket, WebSocketDisconnect, WebSocketState
 
 from marimo._core import protocol
 from marimo._core.stream import RoutedEvent
-from marimo._messaging.notification import KernelStartupErrorNotification
+from marimo._messaging.notification import (
+    KernelStartupErrorNotification,
+    UIElementCreatedNotification,
+    UIElementUpdatedNotification,
+)
 from marimo._messaging.serde import deserialize_kernel_message
 from marimo._server.api.endpoints.ws.notification_filter import (
     should_filter_operation,
@@ -98,9 +102,15 @@ class SessionEventStream(SessionHandler):
         )
 
     def notify(self, notification: KernelMessage) -> None:
+        message = deserialize_kernel_message(notification)
+        if isinstance(
+            message,
+            (UIElementCreatedNotification, UIElementUpdatedNotification),
+        ):
+            return
         event = notification_event(
             self.notebook.id if self.notebook is not None else None,
-            deserialize_kernel_message(notification),
+            message,
         )
         if event.wanted(self.types):
             self._events.put_nowait(event)

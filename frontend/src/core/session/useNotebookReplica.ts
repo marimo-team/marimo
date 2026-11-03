@@ -5,6 +5,8 @@
 import { useStore } from "jotai";
 import { useEffect, useMemo } from "react";
 import useEvent from "react-use-event-hook";
+import { UI_ELEMENT_REGISTRY } from "../dom/uiregistry";
+import { createUIElementModel } from "../notebook/ui-elements";
 import type {
   NotificationMessage,
   NotificationPayload,
@@ -57,12 +59,22 @@ export function useNotebookReplica(options: Options): NotebookReplica {
 
   useEffect(() => {
     store.set(activeNotebookReplicaAtom, replica);
+    const lifetime = new AbortController();
+    const elements = createUIElementModel({ store, replica });
+    elements.start({ signal: lifetime.signal });
+    const disconnectElements = UI_ELEMENT_REGISTRY.connectHost({
+      values: () => store.get(elements.valuesAtom),
+      subscribe: (listener) => store.sub(elements.valuesAtom, listener),
+      update: (id, value) => elements.update(id, value),
+    });
     const disconnect = replica.connect(backend, {
       // The host validates the envelope, not the native notification contents.
       onNotification: (notification) =>
         onNotification({ data: notification as NotificationMessage }),
     });
     return () => {
+      disconnectElements();
+      lifetime.abort();
       disconnect();
       if (store.get(activeNotebookReplicaAtom) === replica) {
         store.set(activeNotebookReplicaAtom, null);

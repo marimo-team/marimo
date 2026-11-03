@@ -8,6 +8,7 @@ const MODULES = [
   "core/notebook",
   "core/notebook/replica",
   "core/notebook/document",
+  "core/notebook/ui-elements",
 ];
 
 /** Keep each module's files private to it, behind its entry point. */

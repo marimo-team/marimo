@@ -2420,10 +2420,7 @@ class Kernel:
                 try:
                     component._update(value)
                 except MarimoConvertValueException:
-                    if (
-                        report_host_state
-                        and component._args.component_name == "marimo-slider"
-                    ):
+                    if report_host_state and component._host_published:
                         component._value_frontend = previous_value
                     # Internal marimo error
                     sys.stderr.write(
@@ -2463,10 +2460,7 @@ class Kernel:
                             self.stream,
                         )
                 finally:
-                    if (
-                        report_host_state
-                        and component._args.component_name == "marimo-slider"
-                    ):
+                    if report_host_state and component._host_published:
                         broadcast_notification(
                             UIElementUpdatedNotification(
                                 id=object_id,

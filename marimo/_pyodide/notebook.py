@@ -21,6 +21,8 @@ from marimo._core.notebook import Notebook
 from marimo._core.operations import Mutations, problem
 from marimo._messaging.notification import (
     NotebookDocumentTransactionNotification,
+    UIElementCreatedNotification,
+    UIElementUpdatedNotification,
 )
 from marimo._messaging.serde import (
     deserialize_kernel_message,
@@ -160,6 +162,11 @@ class PyodideNotebook:
         self.unsubscribe(subscription_id)
 
         def notify(notification: NotificationMessage) -> None:
+            if isinstance(
+                notification,
+                (UIElementCreatedNotification, UIElementUpdatedNotification),
+            ):
+                return
             emit(serialize_event(notification_event(self.id, notification)))
 
         def consume(message: KernelMessage) -> None:
