@@ -1,6 +1,6 @@
 # Copyright 2026 Marimo. All rights reserved.
 # From this checkout:
-# uv run --with 'duckdb>=1.5' --with pyarrow --with pandas marimo edit marimo/_smoke_tests/sql/duckdb_variant.py
+# uv run --with 'duckdb>=1.5' --with pyarrow marimo edit marimo/_smoke_tests/sql/duckdb_variant.py
 
 import marimo
 
@@ -13,25 +13,28 @@ def _():
     import duckdb
 
     import marimo as mo
+    from marimo._plugins.ui._impl.tables.utils import get_table_manager
 
     connection = duckdb.connect()
-    return connection, duckdb, mo
+    return connection, duckdb, get_table_manager, mo
 
 
 @app.cell(hide_code=True)
 def _(duckdb, mo):
     mo.md(f"""
-    # Native DuckDB VARIANT display
+    # DuckDB VARIANT: schema and upstream display support
 
     **DuckDB:** `{duckdb.__version__}` · **marimo:** `{mo.__version__}`
 
     **Loaded from:** `{mo.__file__}`
 
-    These tables keep native DuckDB relations. Polars VARIANT decoding is
-    an upstream limitation and is not covered by this smoke test.
+    marimo recognizes VARIANT as a heterogeneous type. Its schema should
+    retain the native type label and should not emit an unknown-type warning.
 
-    Check that objects and lists are readable, Unicode is intact, and the
-    first table labels `data` as `VARIANT` instead of exposing binary storage.
+    Logical decoding through Arrow/Polars remains upstream work:
+    [Arrow Python bindings](https://github.com/apache/arrow/issues/50131)
+    and [VARIANT decoder](https://github.com/apache/arrow/pull/50121).
+    This notebook does not assert readable VARIANT table output.
     """)
     return
 
@@ -40,15 +43,11 @@ def _(duckdb, mo):
 def _(connection):
     examples = connection.sql("""
         SELECT * FROM (VALUES
-            (1, 'Object', {'name': 'Alice', 'age': 30}::VARIANT),
-            (2, 'Nested object', {'user': {'name': 'Bob'}, 'tags': ['python', 'sql']}::VARIANT),
-            (3, 'Mixed list', [1::VARIANT, 'two'::VARIANT, true::VARIANT]::VARIANT),
-            (4, 'Unicode', 'héllo 🦆 — 世界'::VARIANT),
-            (5, 'Number', 42::VARIANT),
-            (6, 'Boolean', true::VARIANT),
-            (7, 'SQL NULL', NULL::VARIANT),
-            (8, 'String null', 'null'::VARIANT)
-        ) AS examples(id, kind, data)
+            (1, {'name': 'Alice', 'age': 30}::VARIANT),
+            (2, [1::VARIANT, 'two'::VARIANT]::VARIANT),
+            (3, 'héllo 🦆'::VARIANT),
+            (4, NULL::VARIANT)
+        ) AS examples(id, data)
         ORDER BY id
     """)
     assert examples is not None
@@ -57,16 +56,47 @@ def _(connection):
 
 
 @app.cell
-def _(examples, mo):
-    native_table = mo.ui.table(
-        examples,
+def _(examples, get_table_manager, mo):
+    fields = get_table_manager(examples).get_field_types()
+    assert fields == [
+        ("id", ("integer", "Int32")),
+        ("data", ("unknown", "VARIANT")),
+    ]
+    mo.ui.table(
+        [
+            {"column": name, "UI type": kind, "native type": native_type}
+            for name, (kind, native_type) in fields
+        ],
         selection=None,
-        pagination=False,
         show_column_summaries=False,
-        label="Native relation: mixed VARIANT values",
+        label="Schema recognition: heterogeneous values retain the VARIANT label",
     )
-    native_table
-    return (native_table,)
+    return
+
+
+@app.cell(hide_code=True)
+def _(duckdb, examples, mo):
+    try:
+        _arrow = examples.to_arrow_table()
+    except duckdb.NotImplementedException as error:
+        _report = mo.callout(
+            f"This DuckDB version cannot export VARIANT to Arrow: {error}",
+            kind="info",
+        )
+    else:
+        _report = mo.vstack(
+            [
+                mo.md("""
+                Arrow transports the encoded VARIANT storage below. The binary
+                metadata/value fields are expected until upstream decoding is
+                available; they are not the logical object shown by DuckDB.
+                """),
+                mo.plain_text(str(_arrow.schema)),
+                mo.plain_text(repr(_arrow.to_pylist())),
+            ]
+        )
+    _report
+    return
 
 
 @app.cell(hide_code=True)
@@ -74,93 +104,30 @@ def _(examples, mo):
     mo.vstack(
         [
             mo.md("""
-            ## Lazy pagination
+            ## Explicit DuckDB text inspection
 
-            Visit all three pages, then go back. Objects should remain
-            readable, and the final page should disable **Next page**.
+            This diagnostic query explicitly casts VARIANT to VARCHAR. It
+            demonstrates DuckDB's own text representation, not a marimo decoder.
+            The original relation remains native VARIANT.
             """),
-            mo.ui.table.lazy(examples, page_size=3, preload=True),
+            mo.ui.table(
+                examples.project("id, data::VARCHAR AS native_text"),
+                selection=None,
+                show_column_summaries=False,
+            ),
         ]
     )
     return
 
 
 @app.cell
-def _(examples, mo):
-    formatted_table = mo.ui.table(
-        examples.filter("kind = 'Object'"),
-        selection=None,
-        show_column_summaries=False,
-        format_mapping={
-            "data": lambda value: f"{value['name']} (age {value['age']})"
-        },
-        label="Formatting receives the decoded object: Alice (age 30)",
-    )
-    formatted_table
-    return (formatted_table,)
-
-
-@app.cell
-def _(connection):
-    precision = connection.sql("""
-        SELECT
-            42::VARIANT AS data,
-            TIMESTAMP_NS '2026-01-01 12:34:56.123456789' AS stamp,
-            INTERVAL '1 month 2 days' AS duration,
-            MAP(
-                [TIMESTAMP_NS '2026-01-01 00:00:00.000000001',
-                 TIMESTAMP_NS '2026-01-01 00:00:00.000000002'],
-                ['first', 'second']
-            ) AS mapping
-    """)
-    assert precision is not None
-    return (precision,)
-
-
-@app.cell(hide_code=True)
-def _(mo, precision):
-    precision_table = mo.ui.table(
-        precision, selection=None, show_column_summaries=False
-    )
-    mo.vstack(
-        [
-            mo.md("""
-            ## Ordinary columns retain their display values
-
-            `stamp` should end in `.123456789`, `duration` should show
-            `[1,2,0]`, and expanding `mapping` should show **both** entries
-            with distinct nanosecond timestamp keys.
-            """),
-            precision_table,
-        ]
-    )
-    return (precision_table,)
-
-
-@app.cell
-def _(
-    examples,
-    formatted_table,
-    mo,
-    native_table,
-    original_types,
-    precision,
-    precision_table,
-):
-    assert native_table.data is examples
-    assert formatted_table.data.types == original_types
-    assert precision_table.data is precision
+def _(examples, mo, original_types):
     assert examples.types == original_types
-    assert examples.filter("kind = 'Object'").project(
+    assert examples.filter("id = 1").project(
         "typeof(data), data.age::INTEGER"
     ).fetchall() == [("VARIANT", 30)]
-    assert precision.project(
-        "stamp::VARCHAR, duration::VARCHAR, cardinality(mapping)"
-    ).fetchall() == [("2026-01-01 12:34:56.123456789", "1 month 2 days", 2)]
     mo.callout(
-        "Source checks passed: native types, field extraction, nanosecond "
-        "precision, interval months, and both map entries remain intact.",
-        kind="success",
+        "Native types and SQL field extraction remain intact.", kind="success"
     )
     return
 

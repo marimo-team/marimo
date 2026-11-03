@@ -7,8 +7,6 @@ import io
 import json
 import math
 import uuid
-from contextlib import contextmanager
-from copy import deepcopy
 from enum import Enum
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, Literal, cast
@@ -58,9 +56,6 @@ from marimo._utils.narwhals_utils import (
 )
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator
-
-    import duckdb
     from duckdb.sqltypes import DuckDBPyType
 
     from marimo._plugins.ui._impl.table import SortArgs
@@ -80,48 +75,11 @@ def _duckdb_type_contains_variant(dtype: DuckDBPyType) -> bool:
         return True
     if dtype.id in {"list", "struct", "map", "array", "union"}:
         return any(
-            _duckdb_type_contains_variant(cast("DuckDBPyType", child))
-            for name, child in dtype.children
-            if dtype.id != "array" or name != "size"
+            _duckdb_type_contains_variant(child)
+            for _, child in dtype.children
+            if not isinstance(child, (int, list))
         )
     return False
-
-
-def _null_nonfinite(value: Any) -> Any:
-    if isinstance(value, dict):
-        return {key: _null_nonfinite(item) for key, item in value.items()}
-    if isinstance(value, (list, tuple)):
-        return [_null_nonfinite(item) for item in value]
-    if isinstance(value, float) and not math.isfinite(value):
-        return None
-    return value
-
-
-@contextmanager
-def _duckdb_display_snapshot(
-    relation: duckdb.DuckDBPyRelation,
-) -> Iterator[duckdb.DuckDBPyRelation]:
-    materialize = getattr(relation, "materialize", None)
-    if callable(materialize):
-        yield materialize()
-        return
-
-    # DuckDB 1.x needs a native snapshot to read both projections from one run.
-    suffix = uuid.uuid4().hex
-    view = f"__marimo_display_source_{suffix}"
-    table = f"__marimo_display_data_{suffix}"
-    try:
-        relation.query(
-            view, f"CREATE TEMP TABLE {table} AS SELECT * FROM {view}"
-        )
-        snapshot = relation.query(view, f"SELECT * FROM {table}")
-        assert snapshot is not None
-        yield snapshot
-    finally:
-        try:
-            relation.query(view, f"DROP TABLE IF EXISTS {table}")
-        finally:
-            relation.query(view, f"DROP VIEW IF EXISTS {view}")
 
 
 def _duckdb_snapshot_needs_text(dtype: Any) -> bool:
@@ -198,64 +156,14 @@ class NarwhalsTableManager(
     def _duckdb_variant_columns(self) -> dict[str, str]:
         if not self.data.implementation.is_duckdb():
             return {}
-        relation = cast("duckdb.DuckDBPyRelation", self.data.to_native())
+        native = self.data.to_native()
+        if not is_duckdb_relation(native):
+            return {}
         return {
             name: str(dtype)
-            for name, dtype in zip(
-                relation.columns, relation.types, strict=True
-            )
+            for name, dtype in zip(native.columns, native.types, strict=True)
             if _duckdb_type_contains_variant(dtype)
         }
-
-    @cached_property
-    def _duckdb_variant_rows(self) -> list[dict[str, Any]]:
-        relation = cast("duckdb.DuckDBPyRelation", self.data.to_native())
-        columns = relation.columns
-        # Arrow carries VARIANT's binary storage, not its decoded values.
-        if len(self._duckdb_variant_columns) == len(columns):
-            return [
-                dict(zip(columns, row, strict=True))
-                for row in relation.fetchall()
-            ]
-
-        expressions = []
-        variants = []
-        for name in columns:
-            quoted = quote_sql_identifier(name, dialect="duckdb")
-            if name in self._duckdb_variant_columns:
-                expressions.append(f"NULL AS {quoted}")
-                variants.append(quoted)
-            else:
-                expressions.append(quoted)
-
-        with _duckdb_display_snapshot(relation) as snapshot:
-            ordinary = cast(
-                "nw.LazyFrame[duckdb.DuckDBPyRelation]",
-                nw.from_native(snapshot.project(", ".join(expressions))),
-            )
-            rows = ordinary.collect().rows(named=True)
-            values = snapshot.project(", ".join(variants)).fetchall()
-            for row, variant_values in zip(rows, values, strict=True):
-                row.update(
-                    zip(
-                        self._duckdb_variant_columns,
-                        variant_values,
-                        strict=True,
-                    )
-                )
-            return rows
-
-    def prepare_for_display(
-        self, page_size: int
-    ) -> tuple[TableManager[Any], bool] | None:
-        """Prepare a bounded native page when Arrow cannot decode its values."""
-        if not self._duckdb_variant_columns:
-            return None
-
-        rows = self._duckdb_variant_rows
-        page = NarwhalsTableManager(self.data.head(page_size))
-        page._duckdb_variant_rows = rows[:page_size]
-        return page, len(rows) > page_size
 
     def with_new_data(
         self, data: nw.DataFrame[Any] | nw.LazyFrame[Any]
@@ -280,26 +188,11 @@ class NarwhalsTableManager(
         strict_json: bool = False,
         ensure_ascii: bool = True,
     ) -> str:
-        if self._duckdb_variant_columns:
-            geometry_columns = self._geometry_columns
-            rows = self._duckdb_variant_rows
-            if format_mapping:
-                rows = [
-                    {
-                        col: (
-                            format_value(col, deepcopy(value), format_mapping)
-                            if col in format_mapping
-                            and col not in geometry_columns
-                            else value
-                        )
-                        for col, value in row.items()
-                    }
-                    for row in rows
-                ]
-        else:
-            formatted_manager = self.apply_formatting(format_mapping)
-            rows = formatted_manager.as_frame().rows(named=True)
-            geometry_columns = formatted_manager._geometry_columns
+        del strict_json
+        formatted_manager = self.apply_formatting(format_mapping)
+        frame = formatted_manager.as_frame()
+        rows = frame.rows(named=True)
+        geometry_columns = formatted_manager._geometry_columns
         if geometry_columns:
             rows = [
                 {
@@ -312,11 +205,6 @@ class NarwhalsTableManager(
                     )
                     for col, value in row.items()
                 }
-                for row in rows
-            ]
-        if strict_json and self._duckdb_variant_columns:
-            rows = [
-                {col: _null_nonfinite(value) for col, value in row.items()}
                 for row in rows
             ]
         return sanitize_json_bigint(rows, ensure_ascii=ensure_ascii)
