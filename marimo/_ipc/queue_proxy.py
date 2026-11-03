@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import queue
 import threading
 import typing
 
@@ -39,11 +40,19 @@ class PushQueue(QueueType[T]):
     def put(
         self,
         obj: T,
-        block: bool = True,  # noqa: ARG002
+        block: bool = True,
         timeout: float | None = None,  # noqa: ARG002
     ) -> None:
         """Put an item into the queue."""
-        self.socket.send(msgspec.msgpack.encode(obj))
+        import zmq
+
+        try:
+            self.socket.send(
+                msgspec.msgpack.encode(obj),
+                flags=0 if block else zmq.DONTWAIT,
+            )
+        except zmq.Again:
+            raise queue.Full from None
 
     def put_nowait(self, obj: T) -> None:
         """Put an item into the queue without blocking."""

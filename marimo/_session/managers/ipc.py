@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import os
+import queue
 import signal
 import subprocess
 import sys
@@ -697,9 +698,13 @@ class IPCKernelManagerImpl(KernelManager):
 
     def close_kernel(self, *, graceful: bool = False) -> None:
         if self._process is not None:
-            self.queue_manager.put_control_request(
-                commands.StopKernelCommand()
-            )
+            if self.is_alive():
+                try:
+                    self.queue_manager.control_queue.put_nowait(
+                        commands.StopKernelCommand()
+                    )
+                except queue.Full:
+                    pass
             # A clean stop lets the kernel flush pending work (the
             # profile dump, cache writes) before we kill it. Unlike the
             # multiprocessing manager, every wait here is bounded.

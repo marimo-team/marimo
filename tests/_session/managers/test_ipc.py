@@ -354,7 +354,9 @@ class TestCloseKernel:
         manager = self._closable_manager()
         manager.close_kernel(graceful=True)
 
-        (request,), _ = manager.queue_manager.put_control_request.call_args
+        (request,), _ = (
+            manager.queue_manager.control_queue.put_nowait.call_args
+        )
         assert isinstance(request, commands.StopKernelCommand)
         manager.queue_manager.close_queues.assert_called_once()
         manager._process.wait.assert_called_once_with(
@@ -365,6 +367,28 @@ class TestCloseKernel:
         manager = self._closable_manager()
         manager.close_kernel()
         manager._process.wait.assert_not_called()
+
+    @pytest.mark.requires("zmq")
+    @pytest.mark.parametrize("returncode", [None, 0])
+    def test_close_without_kernel_receiver(
+        self, returncode: int | None
+    ) -> None:
+        import zmq
+
+        from marimo._ipc.queue_manager import QueueManager
+        from marimo._session.managers.ipc import IPCQueueManagerImpl
+
+        ipc, _ = QueueManager.create()
+        # Bound a blocking send so a regression fails instead of hanging.
+        ipc.conn.control.socket.setsockopt(zmq.SNDTIMEO, 100)
+        manager = self._closable_manager()
+        manager.queue_manager = IPCQueueManagerImpl(ipc)
+        manager._process.poll.return_value = returncode
+        try:
+            manager.close_kernel()
+            assert ipc.conn.context.closed
+        finally:
+            ipc.close_queues()
 
     def test_profiling_close_waits_for_flush(self) -> None:
         from marimo._session.managers.ipc import PROFILE_FLUSH_TIMEOUT
