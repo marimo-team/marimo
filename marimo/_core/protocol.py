@@ -1,8 +1,8 @@
 # Copyright 2026 Marimo. All rights reserved.
 # AUTO-GENERATED FILE — DO NOT EDIT.
 # Generated from protocols/host/openapi.yaml.
-# Experimental features: analysis
-# Regenerate with `uv run --no-config --locked --script protocols/host/generate.py --include-experimental=analysis`.
+# Experimental features: analysis, ui_element
+# Regenerate with `uv run --no-config --locked --script protocols/host/generate.py --include-experimental=analysis,ui_element`.
 # ruff: noqa: TC003 - msgspec resolves annotations at runtime
 # ruff: noqa: RUF036 - the generator orders unions; the wire shape is the same
 
@@ -289,6 +289,7 @@ ObjectType: TypeAlias = Annotated[
         "variable",
         "custom",
         "analysis",
+        "ui_element",
     ],
     Meta(
         description="The kinds a stream carries, and the values `types` accepts. The\ncatalog stream carries host, project, notebook, runtime, and\nattachment. A notebook's stream carries notebook, document,\ncell, runtime, attachment, run, execution, console,\ndisplay, input, variable, and custom. Custom events describe occurrences\nrather than object state.\n"
@@ -611,6 +612,44 @@ class StartRuntimeRequest(Struct, frozen=True):
         ]
         | UnsetType
     ) = UNSET
+
+
+class UIElementConfig(Struct, frozen=True):
+    args: dict[str, Any]
+    component: str
+    label: str | None
+
+
+class UIElementPartialState(Struct, frozen=True):
+    value: Any | UnsetType = UNSET
+
+
+class UIElementRemovedEvent(
+    Struct, frozen=True, tag_field="event", tag="ui_element.removed"
+):
+    data: RemovedMessage
+    id: Annotated[str, Meta(min_length=1)] | UnsetType = UNSET
+
+
+class UIElementState(Struct, frozen=True):
+    value: Any
+
+
+class UIElementUpdateMessage(Struct, frozen=True):
+    id: str
+    state: UIElementPartialState
+    time: datetime
+    request_id: str | UnsetType = UNSET
+
+
+class UIElementUpdateRequest(Struct, frozen=True):
+    state: UIElementPartialState
+
+
+class UIElementUpdateResponse(Struct, frozen=True):
+    id: str
+    request_id: str
+    state: UIElementPartialState
 
 
 class UpdateNotebookRequest(Struct, frozen=True):
@@ -1634,6 +1673,27 @@ class RuntimeMessage(Struct, frozen=True):
     ) = UNSET
 
 
+class UIElement(Struct, frozen=True):
+    cell_id: CellId
+    config: UIElementConfig
+    id: Annotated[str, Meta(min_length=1)]
+    kind: Literal["element"]
+    state: UIElementState
+
+
+class UIElementMessage(Struct, frozen=True):
+    ui_element: UIElement
+    request_id: str | UnsetType = UNSET
+    time: datetime | UnsetType = UNSET
+
+
+class UIElementUpdateEvent(
+    Struct, frozen=True, tag_field="event", tag="ui_element.update"
+):
+    data: UIElementUpdateMessage
+    id: Annotated[str, Meta(min_length=1)] | UnsetType = UNSET
+
+
 class VariableEvent(Struct, frozen=True, tag_field="event", tag="variable"):
     data: VariableMessage
     id: (
@@ -1917,6 +1977,11 @@ class RuntimeEvent(Struct, frozen=True, tag_field="event", tag="runtime"):
     ) = UNSET
 
 
+class UIElementEvent(Struct, frozen=True, tag_field="event", tag="ui_element"):
+    data: UIElementMessage
+    id: Annotated[str, Meta(min_length=1)] | UnsetType = UNSET
+
+
 class Analysis(Struct, frozen=True):
     cells: Annotated[
         dict[str, CellAnalysis],
@@ -2010,7 +2075,10 @@ Event: TypeAlias = Annotated[
     | VariableRemovedEvent
     | ResetEvent
     | ReadyEvent
-    | AnalysisEvent,
+    | AnalysisEvent
+    | UIElementEvent
+    | UIElementUpdateEvent
+    | UIElementRemovedEvent,
     Meta(
         description="A record, removal, or control message from a host stream.\nThe data is decoded JSON. Snapshot records and reset events omit\nthe cursor; ready and live events carry it. Unknown event names\nbelong to later versions or host extensions.\n"
     ),

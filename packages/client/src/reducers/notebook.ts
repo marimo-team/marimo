@@ -24,7 +24,7 @@ type ControlName = "reset" | "notebook" | "notebook.removed";
 export type NotebookResourceEvent<K extends NotebookKind = NotebookKind> =
   Extract<
     Exclude<Protocol.EventOutput, { event: ControlName }>,
-    { event: K | `${K}.removed` | "ready" }
+    { event: K | `${K}.removed` | `${K}.update` | "ready" }
   >;
 
 /**

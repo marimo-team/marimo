@@ -39,8 +39,8 @@ def test_selected_contracts_are_valid(selection: str | None) -> None:
 
 def test_analysis_selection_preserves_stable_contract() -> None:
     base = compose()
-    combined = compose("all")
-    assert combined == compose("analysis") == compose("analysis,analysis")
+    combined = compose("analysis")
+    assert combined == compose("analysis,analysis")
     assert combined["x-marimo-experimental"] == ["analysis"]
     assert combined["paths"] == base["paths"]
     schemas = combined["components"]["schemas"]
@@ -67,6 +67,18 @@ def test_analysis_selection_preserves_stable_contract() -> None:
             "Experimental (analysis)."
         )
     assert compose() == base
+
+
+def test_ui_element_selection_preserves_stable_contract() -> None:
+    base = compose()
+    combined = compose("ui_element")
+    assert {key: combined["paths"][key] for key in base["paths"]} == base[
+        "paths"
+    ]
+    for name, schema in base["components"]["schemas"].items():
+        if name not in {"ObjectType", "Event"}:
+            assert combined["components"]["schemas"][name] == schema
+    assert compose("all") == compose("ui_element,analysis")
 
 
 @pytest.mark.parametrize(

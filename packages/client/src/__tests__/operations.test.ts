@@ -34,6 +34,7 @@ describe("operations", () => {
       | "runtime.run"
       | "runtime.input"
       | "runtime.interrupt"
+      | "ui_element.update"
     >();
   });
 
