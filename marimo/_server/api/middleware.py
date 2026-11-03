@@ -163,6 +163,13 @@ class WebSocketOriginMiddleware:
             ):
                 return None
             port = parsed.port
+            authority = parsed.hostname
+            if ":" in authority:
+                authority = f"[{authority}]"
+            if port is not None:
+                authority += ":" + parsed.netloc.rsplit(":", 1)[1]
+            if authority.lower() != parsed.netloc.lower():
+                return None
             if port is None:
                 port = 443 if parsed.scheme == "https" else 80
             return parsed.scheme, parsed.hostname, port
