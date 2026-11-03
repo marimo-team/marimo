@@ -520,3 +520,62 @@ def test_untitled_editor_bootstraps_and_reconnects_with_host_events(
                 )
         finally:
             client.portal.call(bridge.close)
+
+
+def test_slider_host_write_reaches_both_editor_attachments(
+    client: TestClient, editor_host: SessionBridge
+) -> None:
+    (notebook_id,) = editor_host.host.notebooks
+    with client.websocket_connect(socket_url(editor_host)) as first:
+        receive_notification(first, "kernel-ready")
+        cell_id = first_cell_id(client, "s1")
+        response = client.post(
+            "/api/kernel/run",
+            headers=headers("s1"),
+            json={
+                "cellIds": [cell_id],
+                "codes": [
+                    "import marimo as mo\nslider = mo.ui.slider(0, 10, value=3)\nslider"
+                ],
+            },
+        )
+        assert response.status_code == 200
+        created = None
+        while True:
+            event = first.receive_json()
+            if event["event"] == "ui_element":
+                created = event["data"]["ui_element"]
+            if event["event"] == "marimo":
+                assert event["data"]["marimo"]["op"] not in {
+                    "ui-element-created",
+                    "ui-element-updated",
+                }
+                if event["data"]["marimo"]["op"] == "completed-run":
+                    break
+        assert created is not None
+        with client.websocket_connect(socket_url(editor_host, "s2")) as second:
+            initial = socket_snapshot(second)
+            assert any(
+                event["event"] == "ui_element"
+                and event["data"]["ui_element"] == created
+                for event in initial
+            )
+            receive_notification(second, "kernel-ready")
+            accepted = client.post(
+                f"{HOST_API_PATH}/notebooks/{notebook_id}/ui-elements/{created['id']}/update",
+                headers={**headers("s1"), "Idempotency-Key": "headless-write"},
+                json={"state": {"value": 4}},
+            )
+            assert accepted.status_code == 202, accepted.text
+            for socket in (first, second):
+                while True:
+                    event = socket.receive_json()
+                    if event["event"] == "marimo":
+                        assert event["data"]["marimo"]["op"] not in {
+                            "ui-element-created",
+                            "ui-element-updated",
+                        }
+                    if event["event"] == "ui_element.update":
+                        assert event["data"]["request_id"] == "headless-write"
+                        assert event["data"]["state"] == {"value": 4}
+                        break

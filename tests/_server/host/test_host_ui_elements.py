@@ -473,3 +473,29 @@ def _(slider):
             )
             == 1
         )
+
+
+async def test_composite_slider_clones_keep_the_legacy_path(
+    tmp_path: Path,
+) -> None:
+    source = SOURCE.replace(
+        "    slider\n    return (slider,)",
+        "    form = slider.form()\n    form\n    return (slider, form)",
+    )
+    async with open_host(tmp_path, source) as (app, notebook_id, events):
+        await run_cells(app, notebook_id, events)
+        records = [
+            r["data"]["ui_element"]
+            for r in events.records
+            if r.get("event") == "ui_element"
+        ]
+        assert len(records) == 1
+        assert records[0]["id"] == f"{records[0]['cell_id']}-0"
+        clone = await finished(
+            app,
+            "POST",
+            f"/notebooks/{notebook_id}/ui-elements/{records[0]['cell_id']}-1/update",
+            headers=key("clone"),
+            body=b'{"state":{"value":4}}',
+        )
+        assert clone.status == 404
