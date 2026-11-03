@@ -136,6 +136,19 @@ class NotebookOperations {
     return this.#send("runtime.run", { body: request, options });
   }
 
+  /** Request a partial UI element state update. Applied state arrives on the stream. */
+  public updateUIElement(
+    elementId: string,
+    state: Protocol.UIElementPartialState,
+    options?: MutationOptions,
+  ): Promise<Result<Protocol.UIElementUpdateResponseOutput>> {
+    return this.#send("ui_element.update", {
+      params: { element_id: elementId },
+      body: { state },
+      options,
+    });
+  }
+
   /** Interrupt a run. */
   public interrupt(
     runId: Protocol.RunId,

@@ -183,6 +183,8 @@ def event_adapters(
         if tag.endswith(".removed"):
             removals.append((tag.removesuffix(".removed"), name, message))
             continue
+        if tag.endswith((".update", ".message")):
+            continue  # Partial updates and messages are not snapshot records.
         schema = schemas[message]
         fields = {
             field: reference(value)

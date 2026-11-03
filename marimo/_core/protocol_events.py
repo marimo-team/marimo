@@ -1,8 +1,8 @@
 # Copyright 2026 Marimo. All rights reserved.
 # AUTO-GENERATED FILE — DO NOT EDIT.
 # Generated from protocols/host/openapi.yaml.
-# Experimental features: analysis
-# Regenerate with `uv run --no-config --locked --script protocols/host/generate.py --include-experimental=analysis`.
+# Experimental features: analysis, ui_element
+# Regenerate with `uv run --no-config --locked --script protocols/host/generate.py --include-experimental=analysis,ui_element`.
 """Typed envelope adapters. Payload ownership stays with the caller."""
 
 from __future__ import annotations
@@ -30,6 +30,7 @@ Body: TypeAlias = (
     | protocol.Project
     | protocol.Run
     | protocol.Runtime
+    | protocol.UIElement
     | protocol.Variable
 )
 SnapshotBody: TypeAlias = (
@@ -45,6 +46,7 @@ SnapshotBody: TypeAlias = (
     | protocol.Project
     | protocol.Run
     | protocol.Runtime
+    | protocol.UIElement
     | protocol.Variable
 )
 RecordEvent: TypeAlias = (
@@ -61,6 +63,7 @@ RecordEvent: TypeAlias = (
     | protocol.ProjectEvent
     | protocol.RunEvent
     | protocol.RuntimeEvent
+    | protocol.UIElementEvent
     | protocol.VariableEvent
 )
 RemovableBody: TypeAlias = (
@@ -73,6 +76,7 @@ RemovableBody: TypeAlias = (
     | protocol.Project
     | protocol.Run
     | protocol.Runtime
+    | protocol.UIElement
     | protocol.Variable
 )
 RemovalEvent: TypeAlias = (
@@ -85,6 +89,7 @@ RemovalEvent: TypeAlias = (
     | protocol.ProjectRemovedEvent
     | protocol.RunRemovedEvent
     | protocol.RuntimeRemovedEvent
+    | protocol.UIElementRemovedEvent
     | protocol.VariableRemovedEvent
 )
 
@@ -208,6 +213,15 @@ def record(
 
 @overload
 def record(
+    value: protocol.UIElement,
+    *,
+    request_id: str | UnsetType = UNSET,
+    time: datetime | UnsetType = UNSET,
+) -> protocol.UIElementEvent: ...
+
+
+@overload
+def record(
     value: protocol.Variable,
     *,
     request_id: str | UnsetType = UNSET,
@@ -317,6 +331,13 @@ def record(
                 )
             )
 
+        case protocol.UIElement():
+            return protocol.UIElementEvent(
+                protocol.UIElementMessage(
+                    ui_element=value, request_id=request_id, time=time
+                )
+            )
+
         case protocol.Variable():
             return protocol.VariableEvent(
                 protocol.VariableMessage(
@@ -380,6 +401,10 @@ def body(event: protocol.RuntimeEvent) -> protocol.Runtime: ...
 
 
 @overload
+def body(event: protocol.UIElementEvent) -> protocol.UIElement: ...
+
+
+@overload
 def body(event: protocol.VariableEvent) -> protocol.Variable: ...
 
 
@@ -424,6 +449,9 @@ def body(event: RecordEvent) -> Body:
 
         case protocol.RuntimeEvent(data=data):
             return data.runtime
+
+        case protocol.UIElementEvent(data=data):
+            return data.ui_element
 
         case protocol.VariableEvent(data=data):
             return data.variable
@@ -523,6 +551,16 @@ def removed(
 
 @overload
 def removed(
+    record_type: type[protocol.UIElement],
+    object_id: str,
+    *,
+    request_id: str | UnsetType = UNSET,
+    time: datetime | UnsetType = UNSET,
+) -> protocol.UIElementRemovedEvent: ...
+
+
+@overload
+def removed(
     record_type: type[protocol.Variable],
     object_id: str,
     *,
@@ -598,6 +636,13 @@ def removed(
 
     if record_type is protocol.Runtime:
         return protocol.RuntimeRemovedEvent(
+            protocol.RemovedMessage(
+                id=object_id, request_id=request_id, time=time
+            )
+        )
+
+    if record_type is protocol.UIElement:
+        return protocol.UIElementRemovedEvent(
             protocol.RemovedMessage(
                 id=object_id, request_id=request_id, time=time
             )

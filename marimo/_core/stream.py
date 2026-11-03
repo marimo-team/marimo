@@ -138,6 +138,8 @@ class RoutedEvent:
             kind = event_name(self.event)
             if isinstance(self.event, protocol_events.RemovalEvent):
                 kind = kind.removesuffix(".removed")
+            elif isinstance(self.event, protocol.UIElementUpdateEvent):
+                kind = "ui_element"
             if kind not in types:
                 return False
         return run_id is None or self.run_id == run_id

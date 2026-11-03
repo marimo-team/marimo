@@ -82,6 +82,24 @@ describe("NotebookClient", () => {
     expect(request.body).toBeNull();
   });
 
+  it("submits a slider update with the caller's request identity", async () => {
+    const response = { id: "Hbol-0", state: { value: 4 }, request_id: "r1" };
+    const { notebook, sent } = connect(() => json(202, response));
+    expect(
+      await notebook.updateUIElement(
+        "Hbol-0",
+        { value: 4 },
+        { idempotencyKey: "r1" },
+      ),
+    ).toEqual({ ok: true, status: 202, data: response });
+    const request = sent();
+    expect(request.url).toBe(
+      "http://127.0.0.1:2718/api/marimo/v1/notebooks/n1/ui-elements/Hbol-0/update",
+    );
+    expect(request.headers.get("Idempotency-Key")).toBe("r1");
+    expect(await request.json()).toEqual({ state: { value: 4 } });
+  });
+
   it("sends an edit below the notebook's URL and returns the validated response", async () => {
     const response = readFixture("edit-response.json");
     const { notebook, sent } = connect(() => json(200, response));
@@ -231,6 +249,7 @@ describe("NotebookClient", () => {
       "runtime.restart": "restart",
       "runtime.run": "run",
       "runtime.interrupt": "interrupt",
+      "ui_element.update": "updateUIElement",
     } as const).toExtend<Record<NotebookOperationId, keyof NotebookClient>>();
   });
 });

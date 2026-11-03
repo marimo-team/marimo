@@ -1,0 +1,15 @@
+event: ui_element
+data: {"ui_element":{"id":"Hbol-0","kind":"element","cell_id":"Hbol","config":{"component":"marimo-slider","label":"x","args":{"start":0,"stop":10,"step":1}},"state":{"value":3}}}
+
+id: 40
+event: ready
+data: {}
+
+id: 41
+event: ui_element.update
+data: {"request_id":"r1","time":"2026-11-03T22:00:00Z","id":"Hbol-0","state":{"value":4}}
+
+id: 42
+event: ui_element.removed
+data: {"time":"2026-11-03T22:00:01Z","id":"Hbol-0"}
+

@@ -1,7 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 // Generated from protocols/host/openapi.yaml. Do not edit.
-// Experimental features: analysis
-// Regenerate with: pnpm --dir packages/client codegen --include-experimental=analysis
+// Experimental features: analysis, ui_element
+// Regenerate with: pnpm --dir packages/client codegen --include-experimental=analysis,ui_element
 
 import * as zod from "zod";
 
@@ -141,6 +141,7 @@ export const ObjectType = zod
     "variable",
     "custom",
     "analysis",
+    "ui_element",
   ])
   .describe(
     "The kinds a stream carries, and the values `types` accepts. The\ncatalog stream carries host, project, notebook, runtime, and\nattachment. A notebook's stream carries notebook, document,\ncell, runtime, attachment, run, execution, console,\ndisplay, variable, and custom. Custom events describe occurrences\nrather than object state.\n",
@@ -1562,6 +1563,122 @@ export const AnalysisEvent = zod
 export type AnalysisEvent = zod.input<typeof AnalysisEvent>;
 export type AnalysisEventOutput = zod.output<typeof AnalysisEvent>;
 
+export const UIElementConfig = zod
+  .object({
+    component: zod.string(),
+    label: zod.string().nullable(),
+    args: zod.record(zod.string(), zod.unknown()),
+  })
+  .describe(
+    "Experimental (ui_element). Constructor information that clients cannot write.",
+  );
+
+export type UIElementConfig = zod.input<typeof UIElementConfig>;
+export type UIElementConfigOutput = zod.output<typeof UIElementConfig>;
+
+export const UIElementState = zod
+  .object({
+    value: zod.unknown(),
+  })
+  .describe(
+    "Experimental (ui_element). The element's current JSON wire value, before conversion to a Python value.",
+  );
+
+export type UIElementState = zod.input<typeof UIElementState>;
+export type UIElementStateOutput = zod.output<typeof UIElementState>;
+
+export const UIElement = zod
+  .object({
+    id: zod.string().min(1),
+    kind: zod.enum(["element"]),
+    cell_id: CellId,
+    config: UIElementConfig,
+    state: UIElementState,
+  })
+  .describe(
+    "Experimental (ui_element). An element's confirmed wire state, owned by its creating cell. This prototype supports sliders.",
+  );
+
+export type UIElement = zod.input<typeof UIElement>;
+export type UIElementOutput = zod.output<typeof UIElement>;
+
+export const UIElementMessage = zod
+  .object({
+    ui_element: UIElement,
+    request_id: zod.string().optional(),
+    time: zod.iso.datetime({ offset: true }).optional(),
+  })
+  .describe("Experimental (ui_element). A full record, retained in snapshots.");
+
+export type UIElementMessage = zod.input<typeof UIElementMessage>;
+export type UIElementMessageOutput = zod.output<typeof UIElementMessage>;
+
+export const UIElementEvent = zod
+  .object({
+    event: zod.enum(["ui_element"]),
+    id: zod.string().min(1).optional(),
+    data: UIElementMessage,
+  })
+  .describe("Experimental (ui_element). ");
+
+export type UIElementEvent = zod.input<typeof UIElementEvent>;
+export type UIElementEventOutput = zod.output<typeof UIElementEvent>;
+
+export const UIElementPartialState = zod
+  .object({
+    value: zod.unknown().optional(),
+  })
+  .describe(
+    "Experimental (ui_element). Supplied top-level state keys replace the corresponding values. Null is a value.",
+  );
+
+export type UIElementPartialState = zod.input<typeof UIElementPartialState>;
+export type UIElementPartialStateOutput = zod.output<
+  typeof UIElementPartialState
+>;
+
+export const UIElementUpdateMessage = zod
+  .object({
+    id: zod.string(),
+    state: UIElementPartialState,
+    request_id: zod.string().optional(),
+    time: zod.iso.datetime({ offset: true }),
+  })
+  .describe(
+    "Experimental (ui_element). A kernel-confirmed partial update. Exactly one is emitted per accepted write, even for unchanged values.",
+  );
+
+export type UIElementUpdateMessage = zod.input<typeof UIElementUpdateMessage>;
+export type UIElementUpdateMessageOutput = zod.output<
+  typeof UIElementUpdateMessage
+>;
+
+export const UIElementUpdateEvent = zod
+  .object({
+    event: zod.enum(["ui_element.update"]),
+    id: zod.string().min(1).optional(),
+    data: UIElementUpdateMessage,
+  })
+  .describe("Experimental (ui_element). ");
+
+export type UIElementUpdateEvent = zod.input<typeof UIElementUpdateEvent>;
+export type UIElementUpdateEventOutput = zod.output<
+  typeof UIElementUpdateEvent
+>;
+
+export const UIElementRemovedEvent = zod
+  .object({
+    event: zod.enum(["ui_element.removed"]),
+    id: zod.string().min(1).optional(),
+    data: RemovedMessage,
+  })
+  .describe("Experimental (ui_element). ");
+
+export type UIElementRemovedEvent = zod.input<typeof UIElementRemovedEvent>;
+export type UIElementRemovedEventOutput = zod.output<
+  typeof UIElementRemovedEvent
+>;
+
 export const Event = zod
   .union([
     HostEvent,
@@ -1590,6 +1707,9 @@ export const Event = zod
     ResetEvent,
     ReadyEvent,
     AnalysisEvent,
+    UIElementEvent,
+    UIElementUpdateEvent,
+    UIElementRemovedEvent,
   ])
   .describe(
     "A record, removal, or control message from a host stream.\nThe data is decoded JSON. Snapshot records and reset events omit\nthe cursor; ready and live events carry it. Unknown event names\nbelong to later versions or host extensions.\n",
@@ -1951,3 +2071,31 @@ export const RunRequest = zod
 
 export type RunRequest = zod.input<typeof RunRequest>;
 export type RunRequestOutput = zod.output<typeof RunRequest>;
+
+export const UIElementUpdateRequest = zod
+  .object({
+    state: UIElementPartialState,
+  })
+  .describe(
+    "Experimental (ui_element). A partial state write. Config cannot be changed.",
+  );
+
+export type UIElementUpdateRequest = zod.input<typeof UIElementUpdateRequest>;
+export type UIElementUpdateRequestOutput = zod.output<
+  typeof UIElementUpdateRequest
+>;
+
+export const UIElementUpdateResponse = zod
+  .object({
+    request_id: zod.string(),
+    id: zod.string(),
+    state: UIElementPartialState,
+  })
+  .describe(
+    "Experimental (ui_element). The accepted partial state, not proof that the kernel applied it.",
+  );
+
+export type UIElementUpdateResponse = zod.input<typeof UIElementUpdateResponse>;
+export type UIElementUpdateResponseOutput = zod.output<
+  typeof UIElementUpdateResponse
+>;

@@ -1,0 +1,144 @@
+overlay: 1.0.0
+info:
+  title: Experimental UI elements
+  version: 0.1.0
+extends: ../../openapi.yaml
+actions:
+  - target: $
+    update:
+      paths:
+        /notebooks/{notebook_id}/ui-elements/{element_id}/update:
+          post:
+            operationId: ui_element.update
+            summary: Update a UI element's state
+            description: Accept a partial state write. The kernel reports the applied state on the notebook stream.
+            parameters:
+              - $ref: '#/components/parameters/NotebookId'
+              - $ref: '#/components/parameters/UIElementId'
+              - $ref: '#/components/parameters/IdempotencyKey'
+            requestBody:
+              required: true
+              content:
+                application/json:
+                  schema: { $ref: '#/components/schemas/UIElementUpdateRequest' }
+            responses:
+              '202':
+                description: The write was accepted, but has not necessarily reached the kernel.
+                content:
+                  application/json:
+                    schema: { $ref: '#/components/schemas/UIElementUpdateResponse' }
+              '400': { $ref: '#/components/responses/InvalidRequest' }
+              '401': { $ref: '#/components/responses/Unauthorized' }
+              '403': { $ref: '#/components/responses/Forbidden' }
+              '404': { $ref: '#/components/responses/NotFound' }
+              '409': { $ref: '#/components/responses/Conflict' }
+              '500': { $ref: '#/components/responses/Internal' }
+              '501': { $ref: '#/components/responses/UnsupportedOperation' }
+      components:
+        parameters:
+          UIElementId:
+            name: element_id
+            in: path
+            required: true
+            description: The UI element's object id.
+            schema: { type: string, minLength: 1 }
+        schemas:
+          UIElement:
+            type: object
+            description: An element's confirmed wire state, owned by its creating cell. This prototype supports sliders.
+            required: [id, kind, cell_id, config, state]
+            properties:
+              id: { type: string, minLength: 1 }
+              kind: { type: string, enum: [element] }
+              cell_id: { $ref: '#/components/schemas/CellId' }
+              config: { $ref: '#/components/schemas/UIElementConfig' }
+              state: { $ref: '#/components/schemas/UIElementState' }
+          UIElementConfig:
+            type: object
+            description: Constructor information that clients cannot write.
+            required: [component, label, args]
+            properties:
+              component: { type: string }
+              label: { type: [string, 'null'] }
+              args:
+                type: object
+                additionalProperties: true
+          UIElementState:
+            type: object
+            description: The element's current JSON wire value, before conversion to a Python value.
+            required: [value]
+            additionalProperties: false
+            properties:
+              value: {}
+          UIElementPartialState:
+            type: object
+            description: Supplied top-level state keys replace the corresponding values. Null is a value.
+            additionalProperties: false
+            properties:
+              value: {}
+          UIElementUpdateRequest:
+            type: object
+            description: A partial state write. Config cannot be changed.
+            required: [state]
+            additionalProperties: false
+            properties:
+              state: { $ref: '#/components/schemas/UIElementPartialState' }
+          UIElementUpdateResponse:
+            type: object
+            description: The accepted partial state, not proof that the kernel applied it.
+            required: [request_id, id, state]
+            properties:
+              request_id: { type: string }
+              id: { type: string }
+              state: { $ref: '#/components/schemas/UIElementPartialState' }
+          UIElementMessage:
+            type: object
+            description: A full record, retained in snapshots.
+            required: [ui_element]
+            properties:
+              ui_element: { $ref: '#/components/schemas/UIElement' }
+              request_id: { type: string }
+              time: { type: string, format: date-time }
+          UIElementUpdateMessage:
+            type: object
+            description: A kernel-confirmed partial update. Exactly one is emitted per accepted write, even for unchanged values.
+            required: [id, state, time]
+            properties:
+              id: { type: string }
+              state: { $ref: '#/components/schemas/UIElementPartialState' }
+              request_id: { type: string }
+              time: { type: string, format: date-time }
+          UIElementEvent:
+            type: object
+            required: [event, data]
+            properties:
+              event: { type: string, enum: [ui_element] }
+              id: { type: string, minLength: 1 }
+              data: { $ref: '#/components/schemas/UIElementMessage' }
+          UIElementUpdateEvent:
+            type: object
+            required: [event, data]
+            properties:
+              event: { type: string, enum: [ui_element.update] }
+              id: { type: string, minLength: 1 }
+              data: { $ref: '#/components/schemas/UIElementUpdateMessage' }
+          UIElementRemovedEvent:
+            type: object
+            required: [event, data]
+            properties:
+              event: { type: string, enum: [ui_element.removed] }
+              id: { type: string, minLength: 1 }
+              data: { $ref: '#/components/schemas/RemovedMessage' }
+  - target: $.components.schemas.ObjectType.enum
+    update: ui_element
+  - target: $.components.schemas.Event.oneOf
+    update: { $ref: '#/components/schemas/UIElementEvent' }
+  - target: $.components.schemas.Event.oneOf
+    update: { $ref: '#/components/schemas/UIElementUpdateEvent' }
+  - target: $.components.schemas.Event.oneOf
+    update: { $ref: '#/components/schemas/UIElementRemovedEvent' }
+  - target: $.components.schemas.Event.discriminator.mapping
+    update:
+      ui_element: '#/components/schemas/UIElementEvent'
+      ui_element.update: '#/components/schemas/UIElementUpdateEvent'
+      ui_element.removed: '#/components/schemas/UIElementRemovedEvent'
