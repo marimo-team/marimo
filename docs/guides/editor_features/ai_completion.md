@@ -94,9 +94,9 @@ into your notebook.
 The chat panel currently supports the following modes:
 
 - **Manual**: No tool access; the AI responds based only on the conversation and manually injected context
-- **Ask**: Enables read-only [AI tools](tools.md) and [tools from added MCP Client servers](mcp.md#mcp-client) for context gathering, allowing the assistant to inspect your notebooks
-- **Agent**: Enables all tools in **Ask Mode** plus additional tools to [edit notebook cells (add, remove, update) and run stale cells](tools.md#editing-agent-mode-only)
-- **Code mode**: Gives the assistant access to the [notebook kernel](tools.md#code-mode) which allows the assistant to inspect the marimo runtime and manipulate the notebook in powerful ways.
+- **Ask**: Enables read-only tools and [tools from added MCP Client servers](mcp.md#mcp-client) for context gathering, allowing the assistant to inspect your notebooks
+- **Agent**: Enables all tools in **Ask Mode** plus additional tools to edit notebook cells (add, remove, update) and run stale cells.
+- **Code mode**: Gives the assistant access to the notebook kernel through marimo pair, which allows the assistant to inspect the marimo runtime and manipulate the notebook in powerful ways.
 
 ### Refactor existing cells
 
