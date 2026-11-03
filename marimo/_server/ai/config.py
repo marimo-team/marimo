@@ -263,7 +263,7 @@ class AnyProviderConfig:
             "ca_bundle_path": ca_bundle_path,
             "client_pem": ai_config.get("client_pem", None),
             "extra_headers": ai_config.get("extra_headers", None),
-            "tools": _get_tools(config.get("mode", "manual")),
+            "tools": _get_tools(config.get("mode", "ask")),
         }
 
         return AnyProviderConfig(**kwargs)
@@ -289,7 +289,7 @@ class AnyProviderConfig:
         return cls(
             base_url=_get_base_url(ai_config),
             api_key=key,
-            tools=_get_tools(config.get("mode", "manual")),
+            tools=_get_tools(config.get("mode", "ask")),
         )
 
     @classmethod
@@ -314,7 +314,7 @@ class AnyProviderConfig:
             base_url=_get_base_url(ai_config),
             api_key=key,
             ssl_verify=True,
-            tools=_get_tools(config.get("mode", "manual")),
+            tools=_get_tools(config.get("mode", "ask")),
         )
 
     @classmethod
@@ -324,7 +324,7 @@ class AnyProviderConfig:
         return cls(
             base_url=_get_base_url(ai_config, "Bedrock"),
             api_key=key,
-            tools=_get_tools(config.get("mode", "manual")),
+            tools=_get_tools(config.get("mode", "ask")),
         )
 
     @classmethod

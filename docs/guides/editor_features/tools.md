@@ -7,16 +7,21 @@ marimo exposes a set of tools that allow AI assistants to interact with your not
 
 ## Using tools
 
-Tool availability depends on which [chat panel mode](ai_completion.md#chat-panel) you use:
+Tool availability depends on the [notebook access level](ai_completion.md#chat-panel) you choose in the chat panel:
 
-| Mode | Marimo notebook tools |
-|------|----------------------|
-| **Manual** | — |
-| **Ask** | Read-only inspection, data, debugging, and reference tools |
-| **Agent** | All **Ask** tools plus editing tools |
-| **Code mode** | Code execution tool and on-demand reference guides (see below) |
+| Notebook access | Marimo notebook tools |
+|-----------------|-----------------------|
+| **Read only** | Read-only inspection, data, debugging, and reference tools |
+| **Suggest edits** | All **Read only** notebook tools plus cell proposals for review |
+| **Full access** | Python execution in the live kernel and on-demand reference guides (see below) |
 
-External AI applications can also access the **Ask** and **Agent** notebook tools through the [marimo MCP server](mcp.md#mcp-server).
+**Read only** and **Suggest edits** also enable tools from connected MCP servers. These
+access levels apply to marimo's built-in notebook tools; they do not restrict
+what connected MCP tools can do. Manage external tools in your
+[MCP client configuration](mcp.md#mcp-client).
+
+External AI applications can also access the inspection, data, debugging, and
+reference tools through the [marimo MCP server](mcp.md#mcp-server).
 
 ## Available tools
 
@@ -50,19 +55,21 @@ External AI applications can also access the **Ask** and **Agent** notebook tool
 |------|-------------|
 | **get_marimo_rules** | Get official marimo guidelines and best practices for AI assistants. Returns the content of the marimo rules file and source URL for understanding marimo-specific conventions. |
 
-### Editing (Agent mode only)
+<span id="editing-agent-mode-only"></span>
+
+### Editing
 
 !!! note "Availability"
-    These tools are only available when using the [chat panel in agent mode](ai_completion.md#chat-panel). They are not exposed through the [MCP server](mcp.md#mcp-server).
+    These tools are only available when using the [chat panel with **Suggest edits** access](ai_completion.md#chat-panel). They are not exposed through the [MCP server](mcp.md#mcp-server).
 
 | Tool | Description |
 |------|-------------|
-| **edit_notebook** | Add, remove, or update cells in the notebook. Takes cell operations and modifications as parameters. Allows the AI agent to generate diffs that modify notebook structure and content. |
+| **edit_notebook** | Propose adding, removing, or updating cells. Changes appear in the notebook for the user to keep or discard. This tool does not run cells. |
 | **run_stale_cells** | Run cells that are stale (outdated due to upstream changes). Triggers execution of affected cells to update the notebook state. |
 
 ## Web search and fetch
 
-In any chat panel mode (**Manual**, **Ask**, **Agent**, or **Code mode**), marimo can give the assistant access to web search and URL fetching. These are [provider-adaptive capabilities](https://pydantic.dev/docs/ai/core-concepts/capabilities/#provider-adaptive-tools) from [Pydantic AI](https://ai.pydantic.dev): marimo enables them automatically based on your installed packages and the model you are using.
+At any notebook access level, the chat panel's **Capabilities** menu lets you enable web search and URL fetching. These are [provider-adaptive capabilities](https://pydantic.dev/docs/ai/core-concepts/capabilities/#provider-adaptive-tools) from [Pydantic AI](https://ai.pydantic.dev): marimo enables them automatically based on your installed packages and the model you are using.
 
 ### How capabilities are enabled
 
@@ -94,12 +101,15 @@ When local packages are not installed, marimo enables native tools only if your 
 Configure xAI in your `marimo.toml` or through the notebook settings — see the [xAI provider guide](../configuration/llm_providers.md#xai).
 
 
-## Code mode
+<span id="code-mode"></span>
 
-!!! warning "Experimental"
-    Code mode gives the assistant direct access to your notebook's kernel so it can make destructive changes to your notebook.
+## Full access
 
-Code mode is available from the chat panel mode selector. Instead of the inspection and editing tools above, the assistant uses a different toolset oriented around running Python in the live kernel:
+!!! warning "Full access"
+    The assistant can execute Python in your live notebook kernel and make
+    destructive changes to notebook cells and runtime state without review.
+
+Select **Full access** from the chat panel's **Notebook access** selector. Instead of the inspection and editing tools above, the assistant uses a different toolset oriented around running Python in the live kernel:
 
 | Tool / capability | Description |
 |-------------------|-------------|
@@ -108,7 +118,7 @@ Code mode is available from the chat panel mode selector. Instead of the inspect
 | **notebook-improvements** | On-demand reference for improving, optimizing, or cleaning up an existing notebook. |
 | **rich-representations** | On-demand reference for custom widgets, visual encodings, and interactive output. |
 
-Code mode loads the [marimo pair](../generate_with_ai/marimo_pair.md) skill as its system prompt, so the assistant follows the same conventions as external agent CLIs paired on your notebook.
+Full access loads the [marimo pair](../generate_with_ai/marimo_pair.md) skill as its system prompt, so the assistant follows the same conventions as external agent CLIs paired on your notebook.
 
 
 ## Related documentation

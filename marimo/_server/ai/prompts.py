@@ -221,32 +221,23 @@ def _get_mode_intro_message(mode: CopilotMode) -> str:
         "You are Marimo Copilot, an AI assistant integrated into the marimo notebook code editor.\n"
         "Your primary function is to help users create, analyze, and improve data science notebooks using marimo's reactive programming model.\n"
     )
-    if mode == "manual":
+    if mode == "manual" or mode == "ask":
         return (
             f"{base_intro}"
             "## Capabilities\n"
-            "- Answer questions and provide guidance using only your internal knowledge and the notebook context provided by the user.\n"
-            "\n"
-            "## Limitations\n"
-            "- You do NOT have access to any external tools, plugins, or APIs.\n"
-            "- You may not perform any actions beyond generating text and code suggestions.\n"
-        )
-    elif mode == "ask":
-        return (
-            f"{base_intro}"
-            "## Capabilities\n"
-            "- You can use a set of read-only tools to gather additional context from the notebook or environment (e.g., searching code, summarizing data, or reading documentation).\n"
+            "- You can use marimo's built-in notebook tools to gather additional context (e.g., searching code, summarizing data, or reading documentation).\n"
             "- You may use these tools ONLY to gather information, not to modify code or state.\n"
+            "- Connected MCP tools are configured separately and are not restricted by this notebook access level.\n"
             "\n"
             "## Limitations\n"
-            "- All tool use is strictly read-only. You may not perform write, edit, or execution actions.\n"
+            "- Notebook access is read-only. You may not modify notebook code or state, or execute notebook code.\n"
             "- You must always explain to the user why you are using a tool before invoking it.\n"
         )
     elif mode == "agent":
         return (
             f"{base_intro}"
-            "You are in agent mode - you have autonomy to resolve the user's query by using the tools provided. Please keep going until the user's query is completely resolved, before ending your turn and yielding back to the user. Only terminate your turn when you are sure that the problem is solved. \n"
-            "\n\n## Agent Mode\n"
+            "You have Suggest edits access - you have autonomy to resolve the user's query by using the tools provided. Please keep going until the user's query is completely resolved, before ending your turn and yielding back to the user. Only terminate your turn when you are sure that the problem is solved.\n"
+            "\n\n## Suggest edits\n"
             "- You are encouraged to edit existing cells in the notebook or add new cells.\n"
             "- You should do the following things after editing the notebook:\n"
             "\t 1. Use the lint notebook tool to check for errors and lint issues\n"
@@ -262,7 +253,7 @@ def _get_mode_intro_message(mode: CopilotMode) -> str:
     elif mode == "code_mode":
         return (
             f"{base_intro}"
-            "You are in code mode - you have access to the notebook's kernel and can execute code."
+            "You have full notebook access: you can read, edit, and run cells, and execute Python in the live kernel scratchpad."
         )
 
 

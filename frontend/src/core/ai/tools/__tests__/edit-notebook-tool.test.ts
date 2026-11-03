@@ -100,7 +100,7 @@ describe("EditNotebookTool", () => {
     it("should have correct metadata", () => {
       expect(tool.name).toBe("edit_notebook_tool");
       expect(tool.description).toBeDefined();
-      expect(tool.description.baseDescription).toContain("editing operations");
+      expect(tool.description.baseDescription).toContain("Propose cell edits");
       expect(tool.schema).toBeDefined();
       expect(tool.outputSchema).toBeDefined();
       expect(tool.mode).toEqual(["agent"]);
