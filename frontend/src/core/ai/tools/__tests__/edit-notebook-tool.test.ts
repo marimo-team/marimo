@@ -65,8 +65,6 @@ describe("EditNotebookTool", () => {
   let toolContext: {
     addStagedCell: ReturnType<typeof vi.fn>;
     createCell: ReturnType<typeof vi.fn>;
-    prepareForRun: ReturnType<typeof vi.fn>;
-    sendRun: ReturnType<typeof vi.fn>;
     store: ReturnType<typeof getDefaultStore>;
   };
 
@@ -82,8 +80,6 @@ describe("EditNotebookTool", () => {
         store.set(stagedAICellsAtom, new Map(current).set(cellId, edit));
       }),
       createCell: vi.fn(),
-      prepareForRun: vi.fn(),
-      sendRun: vi.fn().mockResolvedValue(null),
       store,
     };
     tool = new EditNotebookTool();

@@ -493,7 +493,7 @@ const ChatPanelBody = () => {
     setAbortNotice(null);
   });
   const runtimeManager = useRuntimeManager();
-  const { invokeAiTool, sendRun } = useRequestClient();
+  const { invokeAiTool } = useRequestClient();
   const { openModal, closeModal } = useImperativeModal();
 
   const activeChatId = activeChat?.id;
@@ -502,12 +502,10 @@ const ChatPanelBody = () => {
   const store = useStore();
 
   const { addStagedCell } = useStagedAICellsActions();
-  const { prepareForRun, createCell } = useCellActions();
+  const { createCell } = useCellActions();
   const toolContext: ToolNotebookContext = {
     addStagedCell,
     createCell,
-    prepareForRun,
-    sendRun,
     store,
   };
 

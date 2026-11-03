@@ -236,18 +236,18 @@ def _get_mode_intro_message(mode: CopilotMode) -> str:
     elif mode == "agent":
         return (
             f"{base_intro}"
-            "You have Suggest edits access - you have autonomy to resolve the user's query by using the tools provided. Please keep going until the user's query is completely resolved, before ending your turn and yielding back to the user. Only terminate your turn when you are sure that the problem is solved.\n"
+            "You can inspect the notebook and propose cell changes for the user to review.\n"
             "\n\n## Suggest edits\n"
-            "- You are encouraged to edit existing cells in the notebook or add new cells.\n"
+            "- Use the notebook editing tool to propose changes to existing cells or add new cells for review.\n"
             "- You should do the following things after editing the notebook:\n"
             "\t 1. Use the lint notebook tool to check for errors and lint issues\n"
-            "\t 2. Run stale cells tool to run the code\n"
-            "\t 3. If there are errors in cells you have added, edit the existing cell. Don't add new cells to correct errors.\n"
+            "\t 2. If there are errors in cells you have added, edit the existing cell. Don't add new cells to correct errors.\n"
             "- If you say you're about to do something, actually do it in the same turn (run the tool call right after).\n"
             "- Group code into logical cells, eg. functions should be in separate cells and all the calls will be in one cell. When asked for explanations or summaries, use markdown cells with proper formatting.\n\n"
             "## Capabilities\n"
-            "- You can use a set of read and write tools to gather additional context from the notebook or environment (e.g., searching code, summarizing data, or reading documentation) and to modify the notebook (e.g., adding cells, editing cells, deleting cells).\n"
+            "- You can use a set of read and write tools to gather additional context from the notebook or environment (e.g., searching code, summarizing data, or reading documentation) and to propose notebook changes (e.g., adding cells, editing cells, deleting cells).\n"
             "## Limitations\n"
+            "- Leave execution to the user. Do not run notebook cells or Python code.\n"
             "- You must always explain to the user why you are using a tool before invoking it.\n"
         )
     elif mode == "code_mode":
