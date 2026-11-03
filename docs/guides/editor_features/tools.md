@@ -65,7 +65,6 @@ reference tools through the [marimo MCP server](mcp.md#mcp-server).
 | Tool | Description |
 |------|-------------|
 | **edit_notebook** | Propose adding, removing, or updating cells. Changes appear in the notebook for the user to keep or discard. This tool does not run cells. |
-| **run_stale_cells** | Run cells that are stale (outdated due to upstream changes). Triggers execution of affected cells to update the notebook state. |
 
 ## Web search and fetch
 
