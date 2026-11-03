@@ -92,7 +92,19 @@ def _static_state_block(
     )
 
 
-def _get_mount_config(
+def _get_frontend_config(
+    config: MarimoConfig | PartialMarimoConfig, *, readonly: bool
+) -> PartialMarimoConfig:
+    # Integration settings are only used by the editor.
+    excluded = {"ai", "completion", "mcp"} if readonly else set()
+    return cast(
+        PartialMarimoConfig,
+        {key: value for key, value in config.items() if key not in excluded},
+    )
+
+
+def _render_page_config(
+    html: str,
     *,
     filename: str | None,
     cwd: str | None = None,
@@ -110,9 +122,11 @@ def _get_mount_config(
     layout: LayoutConfig | None = None,
 ) -> str:
     """
-    Return a JSON string with custom indentation and sorting.
+    Render the page configuration and legacy template placeholders.
     """
 
+    readonly = mode in ("read", "gallery")
+    frontend_config = _get_frontend_config(user_config, readonly=readonly)
     options: dict[str, Any] = {
         "filename": filename or "",
         "cwd": cwd or "",
@@ -120,8 +134,10 @@ def _get_mount_config(
         "mode": mode,
         "version": version or get_version(),
         "server_token": str(server_token),
-        "user_config": user_config,
-        "config_overrides": config_overrides,
+        "user_config": frontend_config,
+        "config_overrides": _get_frontend_config(
+            config_overrides, readonly=readonly
+        ),
         "app_config": _del_none_or_empty(app_config.asdict())
         if app_config
         else {},
@@ -145,7 +161,7 @@ def _get_mount_config(
             "hostEnabled": mode == "edit",
         }
     )
-    return """{{
+    mount_config = """{{
             "filename": {filename},
             "cwd": {cwd},
             "lspWorkspace": {lsp_workspace},
@@ -167,6 +183,14 @@ def _get_mount_config(
         pair_config=pair_config,
     ).strip()
 
+    # Legacy placeholders are still used by the VS Code plugin.
+    html = html.replace("{{ version }}", options["version"])
+    html = html.replace(
+        "{{ user_config }}", _html_escape(json.dumps(frontend_config))
+    )
+    html = html.replace("{{ server_token }}", str(server_token))
+    return html.replace(MOUNT_CONFIG_TEMPLATE, mount_config)
+
 
 def home_page_template(
     html: str,
@@ -181,28 +205,19 @@ def home_page_template(
     html = html.replace("{{ title }}", "marimo")
     html = html.replace("{{ filename }}", "")
 
-    # TODO(Trevor): Legacy, required by VS Code plugin. Remove when plugin is updated (see frontend/index.html)
-    html = html.replace("{{ version }}", get_version())
-    html = html.replace(
-        "{{ user_config }}", _html_escape(json.dumps(user_config))
-    )
-    html = html.replace("{{ server_token }}", str(server_token))
-
     html = _replace_asset_urls(html, asset_url)
 
     app_mode: Literal["home", "gallery"] = (
         "home" if mode == SessionMode.EDIT else "gallery"
     )
-    html = html.replace(
-        MOUNT_CONFIG_TEMPLATE,
-        _get_mount_config(
-            filename=None,
-            mode=app_mode,
-            server_token=server_token,
-            user_config=user_config,
-            config_overrides=config_overrides,
-            app_config=None,
-        ),
+    html = _render_page_config(
+        html,
+        filename=None,
+        mode=app_mode,
+        server_token=server_token,
+        user_config=user_config,
+        config_overrides=config_overrides,
+        app_config=None,
     )
 
     # Add custom CSS from display config
@@ -319,31 +334,22 @@ def notebook_page_template(
 
     html = html.replace("{{ filename }}", _html_escape(filename or ""))
 
-    # TODO(Trevor): Legacy, required by VS Code plugin. Remove when plugin is updated (see frontend/index.html)
-    html = html.replace("{{ version }}", get_version())
-    html = html.replace(
-        "{{ user_config }}", _html_escape(json.dumps(user_config))
-    )
-    html = html.replace("{{ server_token }}", str(server_token))
-
     html = _replace_asset_urls(html, asset_url)
 
     cwd = os.path.dirname(filepath) if filepath else None
-    html = html.replace(
-        MOUNT_CONFIG_TEMPLATE,
-        _get_mount_config(
-            filename=filename,
-            cwd=cwd,
-            lsp_workspace=lsp_workspace,
-            mode="read" if mode == SessionMode.RUN else "edit",
-            server_token=server_token,
-            user_config=user_config,
-            config_overrides=config_overrides,
-            app_config=app_config,
-            runtime_config=runtime_config,
-            notebook_snapshot=notebook_snapshot,
-            session_snapshot=session_snapshot,
-        ),
+    html = _render_page_config(
+        html,
+        filename=filename,
+        cwd=cwd,
+        lsp_workspace=lsp_workspace,
+        mode="read" if mode == SessionMode.RUN else "edit",
+        server_token=server_token,
+        user_config=user_config,
+        config_overrides=config_overrides,
+        app_config=app_config,
+        runtime_config=runtime_config,
+        notebook_snapshot=notebook_snapshot,
+        session_snapshot=session_snapshot,
     )
 
     html = html.replace(
@@ -436,21 +442,19 @@ def static_notebook_template(
     # but we do need some:
     # - display.theme
     # - display.cell_output
-    html = html.replace(
-        MOUNT_CONFIG_TEMPLATE,
-        _get_mount_config(
-            filename=filename,
-            cwd=None,  # We don't need the cwd for static notebooks
-            mode="read",
-            server_token=server_token,
-            user_config=user_config,
-            config_overrides=config_overrides,
-            app_config=app_config,
-            session_snapshot=session_snapshot,
-            notebook_snapshot=notebook_snapshot,
-            runtime_config=None,
-            layout=layout,
-        ),
+    html = _render_page_config(
+        html,
+        filename=filename,
+        cwd=None,  # We don't need the cwd for static notebooks
+        mode="read",
+        server_token=server_token,
+        user_config=user_config,
+        config_overrides=config_overrides,
+        app_config=app_config,
+        session_snapshot=session_snapshot,
+        notebook_snapshot=notebook_snapshot,
+        runtime_config=None,
+        layout=layout,
     )
 
     html = html.replace(
@@ -557,23 +561,21 @@ def wasm_notebook_template(
     )
 
     body = body.replace("{{ filename }}", _html_escape("notebook.py"))
-    body = body.replace(
-        MOUNT_CONFIG_TEMPLATE,
-        _get_mount_config(
-            # WASM runtime currently expect this to be notebook.py instead of the actual filename
-            filename="notebook.py",
-            mode="edit" if mode == "edit" else "read",
-            server_token=SkewProtectionToken("unused"),
-            user_config=user_config,
-            config_overrides=config_overrides,
-            app_config=app_config,
-            version=version,
-            show_app_code=show_code,
-            runtime_config=None,
-            session_snapshot=session_snapshot,
-            notebook_snapshot=notebook_snapshot,
-            layout=layout,
-        ),
+    body = _render_page_config(
+        body,
+        # WASM runtime currently expect this to be notebook.py instead of the actual filename
+        filename="notebook.py",
+        mode="edit" if mode == "edit" else "read",
+        server_token=SkewProtectionToken("unused"),
+        user_config=user_config,
+        config_overrides=config_overrides,
+        app_config=app_config,
+        version=version,
+        show_app_code=show_code,
+        runtime_config=None,
+        session_snapshot=session_snapshot,
+        notebook_snapshot=notebook_snapshot,
+        layout=layout,
     )
 
     wasm_attributes = "".join(
