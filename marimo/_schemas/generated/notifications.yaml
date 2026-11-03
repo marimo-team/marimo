@@ -1216,6 +1216,9 @@ components:
       properties:
         exception_type:
           type: string
+        is_internal:
+          default: false
+          type: boolean
         msg:
           type: string
         raising_cell:

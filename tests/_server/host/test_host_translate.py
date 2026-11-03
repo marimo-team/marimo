@@ -249,6 +249,44 @@ ZeroDivisionError: division by zero
     )
 
 
+@pytest.mark.parametrize("is_internal", [False, True])
+def test_exception_classification_survives_host_translation(
+    is_internal: bool,
+) -> None:
+    t = RunTranslator(RunId("r1"), "failed()")
+    t.feed(attempt("planned"))
+    t.feed(attempt("running"))
+    error = MarimoExceptionRaisedError(
+        msg="broken invariant",
+        exception_type="InternalError",
+        raising_cell=None,
+        traceback="InternalError: broken invariant",
+        is_internal=is_internal,
+    )
+    t.feed(scratch(output=CellOutput.errors([error])))
+    assert t.finish() == [
+        Completed(
+            execution_id=ExecutionId("scratch"),
+            outcome=ErrorOutcome(
+                error=Error(
+                    kind="internal-exception" if is_internal else "exception",
+                    source="marimo",
+                    severity="error",
+                    range=None,
+                    related=(),
+                    message="broken invariant",
+                    name="InternalError",
+                    traceback=DisplayData(
+                        mimetype="text/plain",
+                        data="InternalError: broken invariant",
+                    ),
+                )
+            ),
+        ),
+        Done(run_id=RunId("r1"), outcome="failed"),
+    ]
+
+
 @pytest.mark.parametrize("interrupted_by", ["kernel", "client"])
 def test_an_interruption_ends_the_run_interrupted(
     interrupted_by: str,
