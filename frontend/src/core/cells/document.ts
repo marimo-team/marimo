@@ -254,36 +254,3 @@ export async function flushDocument(): Promise<void> {
   }
   await model.flush();
 }
-
-/**
- * Run a legacy save after this client's edits reach the host, and keep
- * later edits local until it finishes. The save carries the whole
- * notebook and the host takes it as the document, so an edit sent
- * meanwhile would be overwritten. When the edits cannot be sent the save
- * still runs, and the model resumes against the saved document.
- *
- * TODO(MO-8028): Goes with the legacy save, along with the hold.
- */
-export async function withDocumentSave<T>(save: () => Promise<T>): Promise<T> {
-  const model = store.get(activeDocumentModelAtom);
-  if (model === null) {
-    return save();
-  }
-  let flushed = true;
-  try {
-    await model.flush();
-  } catch {
-    flushed = false;
-  }
-  const release = model.hold();
-  let result: T;
-  try {
-    result = await save();
-  } finally {
-    release();
-  }
-  if (!flushed) {
-    void model.retry().catch(() => undefined);
-  }
-  return result;
-}

@@ -17,12 +17,13 @@ import pytest
 
 from marimo import App, __version__
 from marimo._ast.app import InternalApp
+from marimo._ast.cell import CellConfig
 from marimo._convert.markdown.flavor.base import MarkdownFlavorName
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._export.requests import PDFExportRequest
 from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._messaging.notebook import Transaction
-from marimo._messaging.notebook.changes import SetCode
+from marimo._messaging.notebook.changes import CreateCell, SetCode
 from marimo._messaging.notification import CellNotification
 from marimo._output.utils import uri_encode_component
 from marimo._runtime.layout.layout import LayoutConfig
@@ -1274,7 +1275,20 @@ def test_auto_export_ipynb_with_new_cell(
     assert session
     session.app_file_manager.filename = temp_marimo_file
 
-    # First, create and run a cell with constant value 1
+    # The editor creates the cell in the document, then runs it.
+    session.document.apply(
+        Transaction(
+            changes=(
+                CreateCell(
+                    cell_id=CellId_t("new_cell"),
+                    code="3.14",
+                    name="_",
+                    config=CellConfig(),
+                ),
+            ),
+            source="frontend",
+        )
+    )
     create_cell_response = client.post(
         "/api/kernel/run",
         headers=HEADERS,
@@ -1286,25 +1300,6 @@ def test_auto_export_ipynb_with_new_cell(
     assert create_cell_response.status_code == 200
 
     time.sleep(0.5)
-
-    # Save the session
-    save_response = client.post(
-        "/api/kernel/save",
-        headers=HEADERS,
-        json={
-            "cellIds": ["new_cell"],
-            "filename": temp_marimo_file,
-            "codes": ["3.14"],
-            "names": ["_"],
-            "configs": [
-                {
-                    "hideCode": True,
-                    "disabled": False,
-                }
-            ],
-        },
-    )
-    assert save_response.status_code == 200, save_response.text
 
     # Clean up the marimo directory
     marimo_dir = Path(temp_marimo_file).parent / "__marimo__"
