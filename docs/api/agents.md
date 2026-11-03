@@ -1,11 +1,47 @@
-# Agent messaging
+# Agents
 
-Use `mo.agents` to send JSON content to agents connected with `marimo pair connect`.
-The Python interface and the editor's send controls use the same backend endpoints.
+Use `mo.agents` to observe and send JSON content to agents connected with `marimo pair connect`.
+Python sends and the editor's send controls use the same backend endpoints.
 
 Messaging requires a live edit Notebook. It works in cells and Python widget callbacks, without an active cell ID.
-Scripts, read-mode apps, static exports, WASM, and unrelated background threads raise `MessagingUnavailableError`.
+Scripts, read-mode apps, static exports, WASM, and unrelated background threads raise `AgentContextUnavailableError`.
 A live Notebook with no agents returns an empty tuple from `mo.agents.list()`.
+
+## Observe connections
+
+Use `subscribe_connections()` to receive immutable tuples of `AgentInfo` values.
+The initial callback runs after registration returns. An empty tuple means no agents are connected.
+
+```python
+import marimo as mo
+
+unsubscribe = mo.agents.subscribe_connections(
+    lambda agents: print([(agent.id, agent.name) for agent in agents])
+)
+```
+
+Callbacks run on the normal kernel loop with their owning cell context.
+A busy kernel delays callbacks. Intermediate changes can coalesce into the latest state.
+Callbacks do not rerun notebook cells. They must be synchronous.
+
+Register subscriptions from a notebook cell or a synchronous widget callback with an owning cell.
+Background thread registration, including `mo.Thread`, is unsupported.
+Cell reruns, deletion, and runtime shutdown remove subscriptions.
+Call `unsubscribe()` to remove one earlier. Repeated removal is safe.
+A callback that has started can finish. Removal prevents later callbacks from starting.
+Callback errors use normal runtime reporting and do not stop other subscribers.
+
+Libraries can update an existing widget model from the callback:
+
+```python
+unsubscribe = mo.agents.subscribe_connections(
+    lambda agents: widget.set_trait("agent_connected", bool(agents))
+)
+```
+
+The widget owns that trait and its display policy. Its close handler can call `unsubscribe()`.
+No marimo frontend import is needed. Presence indicates a live agent attachment, not native inbox readiness.
+Duplicate streams with the same logical identity represent one agent. The newest remaining stream supplies its name.
 
 ## Send from a callback
 
@@ -55,15 +91,17 @@ Codex reports successful native queue admission. OpenCode reports a validated ad
 Claude Code reports `unknown` after a completed socket write because its inbox does not confirm acceptance.
 Each result can include an explanatory `detail`.
 
-All calls have a positive, finite `timeout` in seconds, with a default of 30.
+`list()`, `send()`, and `broadcast()` accept a positive, finite `timeout` in seconds, with a default of 30.
 Broadcast uses one wait budget for all recipients. A timeout stops the wait and does not cancel native delivery.
 If the overall response is lost after possible dispatch, sending raises `SendOutcomeUnknownError`.
-A listing timeout raises `AgentMessagingError`.
+A listing timeout or subscription setup failure raises `AgentError`.
 
 The service does not retry sends automatically. After an unknown outcome, another send can duplicate the content.
 Connection loss or server shutdown can also leave an outcome unknown.
 
 ::: marimo.agents.list
+
+::: marimo.agents.subscribe_connections
 
 ::: marimo.agents.send
 
@@ -75,9 +113,9 @@ Connection loss or server shutdown can also leave an outcome unknown.
 
 ::: marimo.agents.RecipientResult
 
-::: marimo.agents.AgentMessagingError
+::: marimo.agents.AgentError
 
-::: marimo.agents.MessagingUnavailableError
+::: marimo.agents.AgentContextUnavailableError
 
 ::: marimo.agents.NoAgentsConnectedError
 

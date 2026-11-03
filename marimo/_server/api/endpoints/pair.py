@@ -8,11 +8,12 @@ from starlette.authentication import requires
 from starlette.responses import Response
 
 from marimo._messaging.agents import (
+    AgentContextUnavailableError,
+    AgentError,
     AgentInfo,
-    AgentMessagingError,
+    ConnectionSubscriptionRequest,
     MessageError,
     MessageRequest,
-    MessagingUnavailableError,
     NoAgentsConnectedError,
     SendResult,
 )
@@ -104,9 +105,9 @@ async def messages(request: Request) -> SendResult | Response:
         )
     except NoAgentsConnectedError as error:
         return _message_error(409, MessageError("no-agents", str(error)))
-    except MessagingUnavailableError as error:
+    except AgentContextUnavailableError as error:
         return _message_error(409, MessageError("unavailable", str(error)))
-    except AgentMessagingError as error:
+    except AgentError as error:
         return _message_error(503, MessageError("failed", str(error)))
     return result
 
@@ -123,6 +124,49 @@ async def agents(request: Request) -> tuple[AgentInfo, ...] | Response:
         return target
     notebook, messaging = target
     return messaging.list(notebook)
+
+
+@pair_router.post(
+    "/notebooks/{id}/agents/subscriptions", include_in_schema=False
+)
+@requires("edit")
+async def agent_subscription(request: Request) -> Response:
+    """Register a private function callback for the current kernel only."""
+    resolved = _messaging_session(request)
+    if isinstance(resolved, Response):
+        return resolved
+    state, session = resolved
+    target = _messaging_target(state, session)
+    if isinstance(target, Response):
+        return target
+    try:
+        body = await parse_request(request, ConnectionSubscriptionRequest)
+        if len(body.subscription_id) != 32 or any(
+            c not in "0123456789abcdef" for c in body.subscription_id
+        ):
+            raise ValueError("Invalid subscription ID")
+    except (msgspec.DecodeError, ValueError):
+        return _message_error(
+            400, MessageError("invalid-argument", "Invalid subscription")
+        )
+    notebook, _ = target
+    if notebook.runtime is None or notebook.runtime.status not in {
+        "starting",
+        "running",
+    }:
+        return _message_error(
+            409, MessageError("unavailable", "The kernel is no longer active")
+        )
+    assert state.host_context is not None
+    connections = state.host_context.bridge.agent_connections
+    if body.active:
+        try:
+            connections.subscribe(notebook, session, body.subscription_id)
+        except ValueError as error:
+            return _message_error(409, MessageError("failed", str(error)))
+    else:
+        connections.unsubscribe(session, body.subscription_id)
+    return Response(b"{}", media_type="application/json")
 
 
 class DetachRequest(msgspec.Struct):

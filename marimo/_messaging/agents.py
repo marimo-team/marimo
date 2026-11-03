@@ -53,19 +53,19 @@ class SendResult(msgspec.Struct, frozen=True):
     recipients: tuple[RecipientResult, ...]
 
 
-class AgentMessagingError(Exception):
-    """An operational failure in agent messaging."""
+class AgentError(Exception):
+    """An operational failure in an agent query, subscription, or send."""
 
 
-class MessagingUnavailableError(AgentMessagingError):
-    """The current context has no live editor messaging adapter."""
+class AgentContextUnavailableError(AgentError):
+    """The current context has no usable live editor agent interface."""
 
 
-class NoAgentsConnectedError(AgentMessagingError):
+class NoAgentsConnectedError(AgentError):
     """A broadcast has no connected recipients."""
 
 
-class SendOutcomeUnknownError(AgentMessagingError):
+class SendOutcomeUnknownError(AgentError):
     """The overall response was lost after possible dispatch."""
 
 
@@ -158,3 +158,14 @@ class AgentConnection:
     url: str
     auth_token: str = field(repr=False)
     server_token: str = field(repr=False)
+
+
+class ConnectionSubscriptionRequest(msgspec.Struct):
+    """Private registration addressed through the owning stable Session URL."""
+
+    subscription_id: str
+    active: bool = True
+
+
+def connection_namespace(subscription_id: str) -> str:
+    return f"marimo.agents.connections.{subscription_id}"

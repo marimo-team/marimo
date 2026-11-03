@@ -79,7 +79,7 @@ def test_detached_delivery_replacement_and_files(
     owner = ProcessHandle.capture(os.getpid())
     runner = CliRunner()
     records = []
-    with pair_test_server(tmp_path) as server:
+    with pair_test_server(tmp_path, token="editor-test-secret") as server:
         arguments = [
             "--url",
             server.url,
@@ -117,7 +117,10 @@ def test_detached_delivery_replacement_and_files(
                     data=json.dumps(
                         {"message": payload, "broadcast": True}
                     ).encode("utf-8"),
-                    headers={"Content-Type": "application/json"},
+                    headers={
+                        "Content-Type": "application/json",
+                        "Authorization": "Bearer editor-test-secret",
+                    },
                     method="POST",
                 )
                 with urllib.request.urlopen(request, timeout=5) as response:
@@ -193,6 +196,7 @@ def test_detached_delivery_replacement_and_files(
                     headers={
                         "Content-Type": "application/json",
                         "Marimo-Session-Id": server.session_id,
+                        "Authorization": "Bearer editor-test-secret",
                     },
                     method="POST",
                 )

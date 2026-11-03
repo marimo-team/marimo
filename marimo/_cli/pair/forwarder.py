@@ -220,6 +220,34 @@ def _report(
         )
 
 
+def _submit(
+    inbox: Inbox,
+    content: object,
+    *,
+    notebook: str,
+    files: AgentMessageFiles,
+) -> Submission:
+    try:
+        message = inbox_message(
+            content, notebook=notebook, budget=inbox.inbox_bytes, files=files
+        )
+    except (PairError, OSError, ValueError, TypeError):
+        return Submission(
+            "rejected", "The message could not be prepared for the agent."
+        )
+    if not inbox.alive():
+        return Submission("rejected", "The agent inbox is unavailable.")
+    try:
+        return inbox.send(message)
+    except SubmissionRejectedError as error:
+        return Submission("rejected", str(error))
+    except (PairError, OSError, ValueError):
+        return Submission(
+            "unknown",
+            "The native operation failed after possible submission.",
+        )
+
+
 def _wait_reconnect(inbox: Inbox, delay: float) -> bool:
     deadline = time.monotonic() + delay
     while inbox.alive():
@@ -312,20 +340,17 @@ def run_forwarder(
                     stream = json.loads(event.data)
                     attachment = stream["attachment"]
                     report_key = stream["key"]
-                elif event.name == "reset":
-                    if report_key is None:
-                        attachment = None
                 elif event.name == "attachment":
                     payload = json.loads(event.data)["attachment"]
-                    if payload.get("identity") == config.identity and (
-                        report_key is None or payload["id"] == attachment
+                    if (
+                        payload.get("identity") == config.identity
+                        and payload["id"] == attachment
                     ):
-                        attachment = payload["id"]
                         if not attached:
                             attached = True
                             ready()
                 elif event.name == "ready":
-                    if attachment is None:
+                    if not attached:
                         raise PairError(
                             "The notebook stream did not confirm its attachment."
                         )
@@ -338,42 +363,16 @@ def run_forwarder(
                     payload = json.loads(event.data)["custom"]
                     if payload["type"] == MESSAGE_TYPE:
                         data = payload["data"]
-                        if (
-                            report_key is not None
-                            and data["attachment_id"] == attachment
-                        ):
+                        if data["attachment_id"] == attachment:
+                            assert report_key is not None
                             if event.id is not None:
                                 cursor = event.id
-                            try:
-                                message = inbox_message(
-                                    data["message"],
-                                    notebook=config.notebook,
-                                    budget=inbox.inbox_bytes,
-                                    files=files,
-                                )
-                            except (PairError, OSError, ValueError, TypeError):
-                                submission = Submission(
-                                    "rejected",
-                                    "The message could not be prepared for the agent.",
-                                )
-                            else:
-                                if not inbox.alive():
-                                    submission = Submission(
-                                        "rejected",
-                                        "The agent inbox is unavailable.",
-                                    )
-                                else:
-                                    try:
-                                        submission = inbox.send(message)
-                                    except SubmissionRejectedError as error:
-                                        submission = Submission(
-                                            "rejected", str(error)
-                                        )
-                                    except (PairError, OSError, ValueError):
-                                        submission = Submission(
-                                            "unknown",
-                                            "The native operation failed after possible submission.",
-                                        )
+                            submission = _submit(
+                                inbox,
+                                data["message"],
+                                notebook=config.notebook,
+                                files=files,
+                            )
                             _report(
                                 config,
                                 SubmissionReport(

@@ -12,9 +12,9 @@ from marimo._core.notebook import Notebook
 from marimo._core.stream import RoutedEvent
 from marimo._messaging.agents import (
     MESSAGE_TYPE,
+    AgentContextUnavailableError,
+    AgentError,
     AgentInfo,
-    AgentMessagingError,
-    MessagingUnavailableError,
     NoAgentsConnectedError,
     RecipientResult,
     SendResult,
@@ -180,7 +180,7 @@ async def test_cleanup_releases_waiters_and_capacity(setup, end: str) -> None:
     incoming = listen(host, notebook)
     task = asyncio.create_task(messages.send(notebook, "once", to="agent"))
     await incoming.get()
-    with pytest.raises(AgentMessagingError, match="Too many"):
+    with pytest.raises(AgentError, match="Too many"):
         await messages.send(notebook, "overflow", to="agent")
     assert incoming.empty()
     if end == "cancel":
@@ -197,7 +197,7 @@ async def test_cleanup_releases_waiters_and_capacity(setup, end: str) -> None:
             host.remove_notebook(notebook.id)
         assert (await task).recipients[0].status == "unknown"
     if end == "close":
-        with pytest.raises(MessagingUnavailableError):
+        with pytest.raises(AgentContextUnavailableError):
             messages.list(notebook)
 
 

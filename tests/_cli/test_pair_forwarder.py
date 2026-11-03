@@ -84,7 +84,12 @@ def install_stream(
         _cursor: str | None = None,
     ) -> None:
         calls(config)
-        for event in scripts.pop(0):
+        script = scripts.pop(0)
+        if not (
+            isinstance(script[0], SSEEvent) and script[0].name == "pair.stream"
+        ):
+            incoming.put(stream_credentials())
+        for event in script:
             if event is None:
                 event = SSEEvent(
                     "attachment.removed",
@@ -104,6 +109,13 @@ def attached(identity: str = "identity") -> SSEEvent:
     return SSEEvent(
         "attachment",
         json.dumps({"attachment": {"identity": identity, "id": "att-one"}}),
+    )
+
+
+def stream_credentials(attachment: str = "att-one") -> SSEEvent:
+    return SSEEvent(
+        "pair.stream",
+        json.dumps({"attachment": attachment, "key": "private-key"}),
     )
 
 
@@ -144,12 +156,7 @@ def test_stream_binding_ignores_sibling_identity_and_other_recipients(
         monkeypatch,
         [
             [
-                SSEEvent(
-                    "pair.stream",
-                    json.dumps(
-                        {"attachment": "att-one", "key": "private-key"}
-                    ),
-                ),
+                stream_credentials(),
                 attached(),
                 SSEEvent(
                     "attachment",
@@ -196,12 +203,7 @@ def test_failed_native_attempt_and_lost_report_do_not_repeat_submission(
         monkeypatch,
         [
             [
-                SSEEvent(
-                    "pair.stream",
-                    json.dumps(
-                        {"attachment": "att-one", "key": "private-key"}
-                    ),
-                ),
+                stream_credentials(),
                 attached(),
                 routed_message("once", "one send"),
                 None,
@@ -234,12 +236,7 @@ def test_message_file_failure_is_a_rejection_before_native_delivery(
         monkeypatch,
         [
             [
-                SSEEvent(
-                    "pair.stream",
-                    json.dumps(
-                        {"attachment": "att-one", "key": "private-key"}
-                    ),
-                ),
+                stream_credentials(),
                 attached(),
                 routed_message("file", "😀" * 1000),
                 None,
@@ -424,6 +421,7 @@ def test_dead_harness_closes_reader(
         _responses: object,
         _cursor: str | None = None,
     ) -> None:
+        incoming.put(stream_credentials())
         incoming.put(attached())
         stopped.wait(timeout=2)
         closed.set()
@@ -659,6 +657,9 @@ def test_reconnect_uses_processed_cursor_and_ignores_old_removal(
         cursor: str | None = None,
     ) -> None:
         cursors.append(cursor)
+        incoming.put(
+            stream_credentials("att-one" if len(cursors) == 1 else "att-two")
+        )
         for event in scripts.pop(0):
             incoming.put(event)
 
@@ -674,7 +675,7 @@ def test_reconnect_uses_processed_cursor_and_ignores_old_removal(
     ready.assert_called_once()
 
 
-def test_reset_replaces_attachment_without_second_ready(
+def test_reset_retains_stream_attachment_without_second_ready(
     config: ForwarderConfig, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     install_stream(

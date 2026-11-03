@@ -22,6 +22,7 @@ from marimo._core.host import Host
 from marimo._core.notebook import Notebook
 from marimo._runtime.commands import RenameNotebookCommand
 from marimo._server.host import OPERATIONS, document as documents
+from marimo._server.host.agent_connections import AgentConnections
 from marimo._server.host.analysis import HostAnalyzer
 from marimo._server.host.backend import RequestMetadata, SessionBackend
 from marimo._server.host.events import notification_event
@@ -118,6 +119,7 @@ class SessionBridge(SessionEventListener):
             operations=OPERATIONS if manager.mode is SessionMode.EDIT else ()
         )
         self._backends: dict[protocol.NotebookId, SessionBackend] = {}
+        self.agent_connections = AgentConnections(self.host)
         self._index: WorkspaceIndex | None = (
             WorkspaceIndex(
                 self.host, manager.workspace, self._initialize_notebook
@@ -151,6 +153,7 @@ class SessionBridge(SessionEventListener):
                 await self.adopt(session)
 
     def close(self) -> None:
+        self.agent_connections.close()
         self._manager.event_bus.unsubscribe(self)
         self._unsubscribe()
 

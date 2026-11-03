@@ -14,9 +14,9 @@ import msgspec
 from marimo._core import protocol
 from marimo._messaging.agents import (
     MESSAGE_TYPE,
+    AgentContextUnavailableError,
+    AgentError,
     AgentInfo,
-    AgentMessagingError,
-    MessagingUnavailableError,
     NoAgentsConnectedError,
     RecipientResult,
     SendResult,
@@ -27,8 +27,6 @@ from marimo._messaging.agents import (
 )
 
 if TYPE_CHECKING:
-    import builtins
-
     from marimo._core.host import Host
     from marimo._core.notebook import Notebook
     from marimo._core.stream import RoutedEvent
@@ -37,6 +35,24 @@ if TYPE_CHECKING:
 def agent_id(attachment: protocol.Attachment) -> str:
     identity = attachment.identity
     return identity if isinstance(identity, str) else attachment.id
+
+
+def _agent_attachments(
+    notebook: Notebook,
+) -> dict[str, list[protocol.Attachment]]:
+    recipients: dict[str, list[protocol.Attachment]] = {}
+    for attachment in notebook.attachments:
+        if attachment.kind == "agent":
+            recipients.setdefault(agent_id(attachment), []).append(attachment)
+    return recipients
+
+
+def connected_agents(notebook: Notebook) -> tuple[AgentInfo, ...]:
+    """Derive logical agents from the Notebook's live attachments."""
+    return tuple(
+        AgentInfo(id=identity, name=attachments[-1].name)
+        for identity, attachments in _agent_attachments(notebook).items()
+    )
 
 
 @dataclass
@@ -79,10 +95,7 @@ class AgentMessaging:
 
     def list(self, notebook: Notebook) -> tuple[AgentInfo, ...]:
         self._require_open()
-        return tuple(
-            AgentInfo(id=identity, name=attachments[-1].name)
-            for identity, attachments in self._recipients(notebook).items()
-        )
+        return connected_agents(notebook)
 
     async def send(
         self,
@@ -114,12 +127,12 @@ class AgentMessaging:
         validate_message(message)
         message = msgspec.json.decode(msgspec.json.encode(message))
         self._require_open()
-        recipients = self._recipients(notebook)
+        recipients = _agent_attachments(notebook)
         selected = list(recipients) if to is None else [to]
         if not selected:
             raise NoAgentsConnectedError("No agents are connected")
         if len(self._pending) + len(selected) > self._capacity:
-            raise AgentMessagingError("Too many agent messages are pending")
+            raise AgentError("Too many agent messages are pending")
         attempts: dict[str, _Attempt] = {}
         try:
             for identity in selected:
@@ -205,7 +218,9 @@ class AgentMessaging:
 
     def _require_open(self) -> None:
         if self._closed:
-            raise MessagingUnavailableError("Agent messaging is unavailable")
+            raise AgentContextUnavailableError(
+                "Agent messaging is unavailable"
+            )
 
     def _observe(self, event: RoutedEvent) -> None:
         if isinstance(event.event, protocol.AttachmentRemovedEvent):
@@ -221,15 +236,3 @@ class AgentMessaging:
             attempt.result.set_result(
                 RecipientResult(attempt.agent_id, "unknown", detail)
             )
-
-    @staticmethod
-    def _recipients(
-        notebook: Notebook,
-    ) -> dict[str, builtins.list[protocol.Attachment]]:
-        recipients: dict[str, builtins.list[protocol.Attachment]] = {}
-        for attachment in notebook.attachments:
-            if attachment.kind == "agent":
-                recipients.setdefault(agent_id(attachment), []).append(
-                    attachment
-                )
-        return recipients

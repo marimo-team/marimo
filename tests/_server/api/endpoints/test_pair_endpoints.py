@@ -9,8 +9,11 @@ import pytest
 
 from marimo._ast.app import App, InternalApp
 from marimo._config.manager import get_default_config_manager
-from marimo._core import protocol
-from marimo._messaging.agents import MESSAGE_TYPE, SubmissionReport
+from marimo._core import backend as be, protocol
+from marimo._messaging.agents import (
+    MESSAGE_TYPE,
+    SubmissionReport,
+)
 from marimo._server.host.bridge import SessionBridge
 from marimo._server.host.context import HostContext
 from marimo._server.workspace import SingleFileWorkspace
@@ -279,7 +282,9 @@ def test_invalid_message_json(
     )
 
 
-@pytest.mark.parametrize("operation", ["messages", "attachments/detach"])
+@pytest.mark.parametrize(
+    "operation", ["messages", "attachments/detach", "agents/subscriptions"]
+)
 def test_missing_session(client: TestClient, operation: str) -> None:
     assert (
         client.post(
@@ -314,7 +319,9 @@ def test_pair_events_route_is_removed(
     )
 
 
-@pytest.mark.parametrize("operation", ["messages", "attachments/detach"])
+@pytest.mark.parametrize(
+    "operation", ["messages", "attachments/detach", "agents/subscriptions"]
+)
 def test_routes_require_authentication(
     client: TestClient, target: tuple[SessionImpl, Notebook], operation: str
 ) -> None:
@@ -323,7 +330,9 @@ def test_routes_require_authentication(
     assert (response.status_code, notebook.attachments) == (401, [])
 
 
-@pytest.mark.parametrize("operation", ["messages", "attachments/detach"])
+@pytest.mark.parametrize(
+    "operation", ["messages", "attachments/detach", "agents/subscriptions"]
+)
 def test_routes_require_edit_mode(
     client: TestClient, target: tuple[SessionImpl, Notebook], operation: str
 ) -> None:
@@ -353,3 +362,54 @@ def test_sessions_include_host_notebook_id(
             "path": session.app_file_manager.path,
         }
     }
+
+
+def test_subscription_registration_removal_and_runtime_availability(
+    client, target
+) -> None:
+    session, notebook = target
+    connections = client.app.state.host_context.bridge.agent_connections
+    body = {"subscription_id": "a" * 32}
+    headers = token_header("fake-token")
+    url = path(session, "agents/subscriptions")
+    assert client.post(url, json=body, headers=headers).status_code == 200
+    assert len(connections._subscriptions) == len(connections._calls) == 1
+    for _ in range(2):
+        assert (
+            client.post(
+                url, json={**body, "active": False}, headers=headers
+            ).status_code
+            == 200
+        )
+    assert not connections._subscriptions
+    assert not connections._calls
+    assert not connections._sessions
+    assert notebook.runtime is not None
+    notebook.observe(be.Exited(notebook.runtime.id))
+    assert client.post(url, json=body, headers=headers).status_code == 409
+    assert not connections._subscriptions
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        None,
+        {},
+        {"subscription_id": ""},
+        {"subscription_id": "g" * 32},
+        {"subscription_id": 1},
+    ],
+)
+def test_invalid_subscription_creates_no_resources(
+    client, target, body
+) -> None:
+    session, _ = target
+    connections = client.app.state.host_context.bridge.agent_connections
+    response = client.post(
+        path(session, "agents/subscriptions"),
+        content=msgspec.json.encode(body),
+        headers=token_header("fake-token"),
+    )
+    assert response.status_code == 400
+    assert not connections._subscriptions
+    assert not connections._sessions

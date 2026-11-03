@@ -2784,6 +2784,53 @@ class TestImports:
 
 
 class TestStoredOutput:
+    async def test_output_retains_the_source_that_produced_it(
+        self, mocked_kernel: MockedKernel, exec_req: ExecReqProvider
+    ) -> None:
+        code = "6 * 7"
+        request = exec_req.get(code)
+        await mocked_kernel.k.run([request])
+        outputs = [
+            op.output
+            for op in mocked_kernel.stream.cell_notifications
+            if op.cell_id == request.cell_id
+            and op.output is not None
+            and op.output.data
+        ]
+        assert len(outputs) == 1
+        original = outputs[0]
+        original_data = original.data
+        assert original.code == code
+        await mocked_kernel.k.run(
+            [ExecuteCellCommand(cell_id=request.cell_id, code="8 * 8")]
+        )
+        outputs = [
+            op.output
+            for op in mocked_kernel.stream.cell_notifications
+            if op.cell_id == request.cell_id
+            and op.output is not None
+            and op.output.data
+        ]
+        updated = outputs[-1]
+        assert updated.code == "8 * 8"
+        assert updated.data != original_data
+        assert original.code == code
+        assert original.data == original_data
+
+    async def test_output_omits_source_in_read_mode(
+        self, run_mode_kernel: MockedKernel, exec_req: ExecReqProvider
+    ) -> None:
+        code = "'published result'"
+        request = exec_req.get(code)
+        await run_mode_kernel.k.run([request])
+        outputs = [
+            op.output
+            for op in run_mode_kernel.stream.cell_notifications
+            if op.cell_id == request.cell_id and op.output is not None
+        ]
+        assert outputs
+        assert all(output.code is msgspec.UNSET for output in outputs)
+
     async def test_ui_element_in_output_stored(
         self, any_kernel: Kernel, exec_req: ExecReqProvider
     ) -> None:

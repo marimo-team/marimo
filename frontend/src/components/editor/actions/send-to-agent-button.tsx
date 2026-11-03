@@ -17,7 +17,10 @@ import {
   SendOutcomeUnknownError,
 } from "@/core/agents/messages";
 import { connectedAgentsAtom } from "@/core/agents/state";
-import { agentToast } from "@/components/editor/agent-toast";
+import {
+  agentToast,
+  formatAgentSendResult,
+} from "@/components/editor/agent-toast";
 import { stableSessionIdAtom } from "@/core/kernel/session";
 import { initialModeAtom } from "@/core/mode";
 import { prettyError } from "@/utils/errors";
@@ -48,33 +51,7 @@ export function SendToAgentButton({
     const selected = new Map(agents.map((agent) => [agent.id, agent.name]));
     try {
       const result = await sendAgentMessage(sessionId, getContent(), recipient);
-      const submitted = result.recipients.filter(
-        (r) => r.status === "submitted",
-      );
-      const uncertain = result.recipients.some((r) => r.status === "unknown");
-      if (submitted.length === result.recipients.length) {
-        agentToast({
-          title: `Submitted to ${submitted.map((r) => selected.get(r.agent_id) ?? r.agent_id).join(", ")}`,
-        });
-      } else {
-        agentToast({
-          variant: "danger",
-          title:
-            submitted.length > 0
-              ? "Some messages were not confirmed"
-              : uncertain
-                ? "Submission outcome unknown"
-                : "Message rejected",
-          description:
-            result.recipients
-              .map(
-                (r) =>
-                  `${selected.get(r.agent_id) ?? r.agent_id}: ${r.detail ?? r.status}`,
-              )
-              .join("\n") +
-            (uncertain ? "\nAnother send can duplicate the message." : ""),
-        });
-      }
+      agentToast(formatAgentSendResult(result, selected));
     } catch (error) {
       agentToast({
         variant: "danger",

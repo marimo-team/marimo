@@ -7,14 +7,15 @@ callbacks for user actions. Submission does not mean reading or task completion.
 
 from __future__ import annotations
 
+import inspect
 from typing import TYPE_CHECKING, Any, Literal
 
 import msgspec
 
 from marimo._messaging.agents import (
+    AgentContextUnavailableError,
+    AgentError,
     AgentInfo,
-    AgentMessagingError,
-    MessagingUnavailableError,
     NoAgentsConnectedError,
     RecipientResult,
     SendOutcomeUnknownError,
@@ -25,12 +26,14 @@ from marimo._messaging.agents import (
 )
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from marimo._messaging.agents import AgentConnection
 
 __all__ = [
+    "AgentContextUnavailableError",
+    "AgentError",
     "AgentInfo",
-    "AgentMessagingError",
-    "MessagingUnavailableError",
     "NoAgentsConnectedError",
     "RecipientResult",
     "SendOutcomeUnknownError",
@@ -38,6 +41,7 @@ __all__ = [
     "broadcast",
     "list",
     "send",
+    "subscribe_connections",
 ]
 
 
@@ -56,8 +60,8 @@ def _connection() -> AgentConnection:
         or ctx.session_mode is not SessionMode.EDIT
         or ctx._kernel.agent_messaging is None
     ):
-        raise MessagingUnavailableError(
-            "Agent messaging requires a live editor Notebook"
+        raise AgentContextUnavailableError(
+            "Agent operations require a live editor Notebook"
         )
     return ctx._kernel.agent_messaging
 
@@ -91,9 +95,7 @@ def list(*, timeout: float = 30.0) -> tuple[AgentInfo, ...]:  # noqa: A001
             type=tuple[AgentInfo, ...],
         )
     except msgspec.ValidationError as error:
-        raise AgentMessagingError(
-            "The agent listing response is invalid"
-        ) from error
+        raise AgentError("The agent listing response is invalid") from error
 
 
 def _send_result(value: Any) -> SendResult:
@@ -103,6 +105,59 @@ def _send_result(value: Any) -> SendResult:
         raise SendOutcomeUnknownError(
             "The submission response is invalid. Another send can duplicate the message."
         ) from error
+
+
+def subscribe_connections(
+    callback: Callable[[tuple[AgentInfo, ...]], None],
+) -> Callable[[], None]:
+    """Observe connected agents in the current live editor Notebook.
+
+    Args:
+        callback (Callable): Synchronous function that receives an immutable
+            tuple of `AgentInfo` values. An empty tuple means no agents.
+
+    Returns:
+        An idempotent function that removes this subscription.
+
+    The first callback runs after this function returns. Callbacks use normal
+    kernel dispatch and wait while the kernel is busy. Pending changes can
+    coalesce into the latest state. Updates do not rerun notebook cells.
+    Cell reruns, deletion, and runtime shutdown remove the subscription.
+    Register from a cell or synchronous widget callback. Background thread
+    registration, including `mo.Thread`, is unsupported.
+
+    Raises:
+        TypeError: The callback is not callable or is asynchronous.
+        AgentContextUnavailableError: No live editor runtime is available.
+        NoOwningCellError: No cell can own this subscription.
+    """
+    if not callable(callback) or any(
+        check(value)
+        for check in (inspect.iscoroutinefunction, inspect.isasyncgenfunction)
+        for value in (
+            callback,
+            getattr(callback, "__call__", None),  # noqa: B004
+        )
+    ):
+        raise TypeError("Agent connection callbacks must be synchronous")
+    try:
+        signature = inspect.signature(callback)
+    except (TypeError, ValueError):
+        pass
+    else:
+        signature.bind(())
+    config = _connection()
+    from marimo._runtime.agent_connections import ConnectionSubscription
+    from marimo._runtime.context import get_context
+    from marimo._runtime.threads import is_marimo_thread
+
+    if is_marimo_thread():
+        raise AgentContextUnavailableError(
+            "Register agent connection callbacks from a notebook cell or widget callback"
+        )
+    subscription = ConnectionSubscription(config, callback)
+    get_context().cell_lifecycle_registry.add(subscription)
+    return subscription.close
 
 
 def send(message: Any, *, to: str, timeout: float = 30.0) -> SendResult:

@@ -11,10 +11,11 @@ import msgspec
 
 from marimo._messaging.agents import (
     AgentConnection,
-    AgentMessagingError,
+    AgentContextUnavailableError,
+    AgentError,
+    ConnectionSubscriptionRequest,
     MessageError,
     MessageRequest,
-    MessagingUnavailableError,
     NoAgentsConnectedError,
     SendOutcomeUnknownError,
 )
@@ -23,21 +24,19 @@ from marimo._utils.requests import RequestError, request
 _MAX_RESPONSE_BYTES = 4 * 1024 * 1024
 
 
-def _lost(operation: str) -> AgentMessagingError:
-    if operation == "list":
-        return AgentMessagingError(
-            "The agent listing response was lost or timed out"
+def _lost(operation: str) -> AgentError:
+    if operation not in {"send", "broadcast"}:
+        return AgentError(
+            "The agent observation response was lost or timed out"
         )
     return SendOutcomeUnknownError(
         "The submission outcome is unknown. Another send can duplicate the message."
     )
 
 
-def _http_error(
-    status: int, data: bytes, operation: str
-) -> AgentMessagingError:
+def _http_error(status: int, data: bytes, operation: str) -> AgentError:
     if status in {401, 403, 404, 405}:
-        return MessagingUnavailableError(
+        return AgentContextUnavailableError(
             "The editor agent messaging endpoint is unavailable or unauthorized"
         )
     if status in {400, 409, 503}:
@@ -47,21 +46,22 @@ def _http_error(
             return _lost(operation)
         match error.code:
             case "unavailable":
-                return MessagingUnavailableError(error.detail)
+                return AgentContextUnavailableError(error.detail)
             case "no-agents":
                 return NoAgentsConnectedError(error.detail)
             case "invalid-argument" | "failed":
-                return AgentMessagingError(error.detail)
+                return AgentError(error.detail)
     return _lost(operation)
 
 
 def call(
     config: AgentConnection,
-    operation: Literal["list", "send", "broadcast"],
+    operation: Literal["list", "send", "broadcast", "connections"],
     *,
     timeout: float,
     message: Any = None,
     to: str | None = None,
+    subscription: ConnectionSubscriptionRequest | None = None,
 ) -> Any:
     """Call the same authenticated endpoints used by browser controls."""
     deadline = monotonic() + timeout
@@ -75,17 +75,21 @@ def call(
         or endpoint.query
         or endpoint.fragment
     ):
-        raise MessagingUnavailableError("Invalid agent messaging endpoint")
+        raise AgentContextUnavailableError("Invalid agent messaging endpoint")
     headers = {
         "Content-Type": "application/json",
         "Marimo-Server-Token": config.server_token,
     }
     if config.auth_token:
         headers["Authorization"] = f"Bearer {config.auth_token}"
-    body = (
-        None
-        if operation == "list"
-        else msgspec.json.encode(
+    if operation == "list":
+        body = None
+        path = "/agents"
+    elif operation == "connections":
+        body = msgspec.json.encode(subscription)
+        path = "/agents/subscriptions"
+    else:
+        body = msgspec.json.encode(
             MessageRequest(
                 message,
                 to=to,
@@ -93,10 +97,8 @@ def call(
                 timeout=max(0, deadline - monotonic()),
             )
         )
-    )
-    url = config.url.rstrip("/") + (
-        "/agents" if operation == "list" else "/messages"
-    )
+        path = "/messages"
+    url = config.url.rstrip("/") + path
     try:
         response = request(
             "GET" if operation == "list" else "POST",
@@ -110,7 +112,7 @@ def call(
         if error.status_code in {401, 403, 404, 405}:
             raise _http_error(error.status_code, b"", operation) from error
         if error.dispatched is False:
-            raise MessagingUnavailableError(
+            raise AgentContextUnavailableError(
                 "Could not connect to the editor agent messaging endpoint"
             ) from error
         raise _lost(operation) from error

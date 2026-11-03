@@ -85,10 +85,10 @@ def test_public_calls_use_the_editor_endpoints(k, endpoint) -> None:
 @pytest.mark.parametrize(
     ("status", "code", "expected"),
     [
-        (409, "unavailable", mo.agents.MessagingUnavailableError),
+        (409, "unavailable", mo.agents.AgentContextUnavailableError),
         (409, "no-agents", mo.agents.NoAgentsConnectedError),
-        (503, "failed", mo.agents.AgentMessagingError),
-        (400, "invalid-argument", mo.agents.AgentMessagingError),
+        (503, "failed", mo.agents.AgentError),
+        (400, "invalid-argument", mo.agents.AgentError),
     ],
 )
 def test_typed_endpoint_errors(k, endpoint, status, code, expected) -> None:
@@ -146,7 +146,7 @@ def test_unavailable_endpoint_is_definite_even_with_a_truncated_body(
     state.status = status
     if truncated:
         state.content_length = len(state.body) + 10
-    with pytest.raises(mo.agents.MessagingUnavailableError):
+    with pytest.raises(mo.agents.AgentContextUnavailableError):
         mo.agents.send(None, to="agent")
     assert len(state.requests) == 1
 
@@ -167,7 +167,9 @@ def test_connection_failure_is_unavailable() -> None:
         closed.bind(("127.0.0.1", 0))
         port = closed.getsockname()[1]
     config = AgentConnection(f"http://127.0.0.1:{port}/session", "", "")
-    with pytest.raises(mo.agents.MessagingUnavailableError, match="connect"):
+    with pytest.raises(
+        mo.agents.AgentContextUnavailableError, match="connect"
+    ):
         call(config, "send", timeout=1, message=None, to="agent")
 
 
@@ -175,7 +177,7 @@ def test_listing_failure_does_not_claim_possible_delivery(k, endpoint) -> None:
     config, state = endpoint
     k.agent_messaging = config
     state.body = b"not JSON"
-    with pytest.raises(mo.agents.AgentMessagingError) as error:
+    with pytest.raises(mo.agents.AgentError) as error:
         mo.agents.list()
     assert not isinstance(error.value, mo.agents.SendOutcomeUnknownError)
 
@@ -207,13 +209,13 @@ def test_context_aware_callback_needs_no_cell(k, endpoint) -> None:
 )
 def test_unbound_context_is_unavailable(operation) -> None:
     teardown_context()
-    with pytest.raises(mo.agents.MessagingUnavailableError):
+    with pytest.raises(mo.agents.AgentContextUnavailableError):
         operation()
 
 
 @pytest.mark.usefixtures("run_mode_kernel")
 def test_read_mode_is_unavailable() -> None:
-    with pytest.raises(mo.agents.MessagingUnavailableError):
+    with pytest.raises(mo.agents.AgentContextUnavailableError):
         mo.agents.list()
 
 
