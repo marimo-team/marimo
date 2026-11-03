@@ -551,3 +551,49 @@ describe("NotebookReplica attachments", () => {
     },
   );
 });
+
+it("retains UI element state across replay and clears it before a reset snapshot", async () => {
+  const { client, store, connect, opened } = setup();
+  const lifetime = new AbortController();
+  onTestFinished(() => lifetime.abort());
+  connect(lifetime.signal);
+  const stream = await opened();
+  const element = {
+    id: "c1-0",
+    kind: "element",
+    cell_id: "c1",
+    config: { component: "marimo-slider", label: null, args: {} },
+    state: { value: 3 },
+  };
+  stream.receive({ event: "ui_element", data: { ui_element: element } });
+  stream.receive({ event: "ready", id: "cursor-1", data: {} });
+  expect(
+    store.get(client.uiElementsAtom).get(element.id)?.element.state.value,
+  ).toBe(3);
+  stream.stop();
+  await vi.waitFor(() =>
+    expect(store.get(client.connectionAtom).state).toBe(ConnectionState.CLOSED),
+  );
+  await client.reconnect();
+  const resumed = await opened();
+  expect(resumed.cursor).toBe("cursor-1");
+  resumed.receive({
+    event: "ui_element.update",
+    id: "cursor-2",
+    data: {
+      id: element.id,
+      state: { value: 4 },
+      request_id: "r1",
+      time: "2026-11-03T00:00:00Z",
+    },
+  });
+  expect(
+    store.get(client.uiElementsAtom).get(element.id)?.element.state.value,
+  ).toBe(4);
+  resumed.receive({ event: "reset", data: {} });
+  expect(store.get(client.uiElementsAtom).size).toBe(0);
+  resumed.receive({ event: "ui_element", data: { ui_element: element } });
+  expect(
+    store.get(client.uiElementsAtom).get(element.id)?.element.state.value,
+  ).toBe(3);
+});
