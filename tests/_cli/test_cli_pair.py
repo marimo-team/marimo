@@ -139,7 +139,7 @@ Commands:
   detach    Stop the forwarder and detach its notebook...
   docs      Read notebook guidance on demand.
   execute   Run Python in a live notebook.
-  notebook  Find active notebooks and their IDs.
+  notebook  Inspect live notebooks and their events.
   prompt    Generate a prompt for pair programming on...
 """)
 
@@ -1039,13 +1039,14 @@ class TestPairNotebooks:
         assert result.output == snapshot("""\
 Usage: main pair notebook [OPTIONS] COMMAND [ARGS]...
 
-  Find active notebooks and their IDs.
+  Inspect live notebooks and their events.
 
 Options:
   -h, --help  Show this message and exit.
 
 Commands:
-  list  List active notebooks and their host IDs.
+  events  Listen to notebook events as JSON lines.
+  list    List active notebooks and their host IDs.
 """)
 
     def test_notebook_list_help(self) -> None:

@@ -304,3 +304,61 @@ def test_host_run_without_runtime_reports_error(tmp_path: Path) -> None:
         payload = json.loads(result.stdout)
         assert "runtime" in payload["error"].lower()
         assert "kernel" in payload["next"]
+
+
+def test_notebook_events_streams_snapshot_and_live_changes(
+    server: PairTestServer,
+) -> None:
+    process = subprocess.Popen(
+        [
+            sys.executable,
+            "-m",
+            "marimo",
+            "pair",
+            "notebook",
+            "events",
+            server.notebook_id,
+            "--url",
+            server.url,
+            "--types",
+            "runtime,execution",
+        ],
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+
+    def read_until(name: str) -> list[dict[str, object]]:
+        assert process.stdout is not None
+        events = []
+        for line in process.stdout:
+            event = json.loads(line)
+            events.append(event)
+            if event["event"] == name:
+                return events
+        raise AssertionError(f"Stream ended before {name}")
+
+    with ThreadPoolExecutor(max_workers=1) as executor:
+        try:
+            initial = executor.submit(read_until, "ready").result(timeout=10)
+            assert {event["event"] for event in initial} == {
+                "runtime",
+                "ready",
+            }
+            assert process.poll() is None
+            result = _run(server, "-c", "print('event stream test')")
+            assert result.returncode == 0, result.stderr
+            live = executor.submit(read_until, "execution").result(timeout=10)
+            assert live[-1]["event"] == "execution"
+            assert all(
+                event["event"] in {"runtime", "execution"} for event in live
+            )
+            process.send_signal(signal.SIGINT)
+            _stdout, stderr = process.communicate(timeout=10)
+            assert process.returncode == 1
+            assert "Aborted!" in stderr
+            assert "Traceback" not in stderr
+        finally:
+            if process.poll() is None:
+                process.kill()
+                process.wait()

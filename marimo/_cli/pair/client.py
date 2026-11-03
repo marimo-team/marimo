@@ -9,7 +9,7 @@ import socket
 import threading
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
-from urllib.parse import quote, urlsplit
+from urllib.parse import quote, urlencode, urlsplit
 from uuid import uuid4
 
 from marimo._server.api.utils import format_url_host
@@ -133,7 +133,10 @@ def _endpoint_url(url: str, path: str) -> str:
 
 
 def iter_sse(
-    lines: Iterable[bytes], *, heartbeats: bool = False
+    lines: Iterable[bytes],
+    *,
+    heartbeats: bool = False,
+    inherit_id: bool = True,
 ) -> Iterator[SSEEvent]:
     name = "message"
     data: list[str] = []
@@ -146,6 +149,8 @@ def iter_sse(
                 yield SSEEvent(name=name, data="\n".join(data), id=cursor)
             name = "message"
             data = []
+            if not inherit_id:
+                cursor = None
             continue
         if line.startswith(":"):
             if heartbeats:
@@ -597,7 +602,7 @@ def open_events(
     name: str,
     cursor: str | None = None,
     kind: str = "agent",
-    types: str = "custom,attachment",
+    types: str | None = "custom,attachment",
     read_timeout: float | None = 45,
 ) -> EventStream:
     headers = {
@@ -609,10 +614,14 @@ def open_events(
         headers["Authorization"] = f"Bearer {token}"
     if cursor is not None:
         headers["Last-Event-ID"] = cursor
+    endpoint = _endpoint_url(
+        url, f"/notebooks/{quote(notebook, safe='')}/events"
+    )
+    if types is not None:
+        endpoint += "?" + urlencode({"types": types}, safe=",")
     return open_response(
         method="GET",
-        url=_endpoint_url(url, f"/notebooks/{quote(notebook, safe='')}/events")
-        + f"?types={types}",
+        url=endpoint,
         headers=headers,
         body=None,
         read_timeout=read_timeout,

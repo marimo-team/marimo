@@ -2,12 +2,15 @@
 from __future__ import annotations
 
 import hashlib
+import http.client
 import json
 import os
 import re
 import shlex
 import sys
+from contextlib import closing
 from pathlib import Path
+from uuid import uuid4
 
 import click
 
@@ -25,8 +28,10 @@ from marimo._cli.pair.client import (
     display_url,
     execute as execute_code,
     execute_editor,
+    iter_sse,
     list_sessions,
     load_token,
+    open_events,
     registry_urls,
     resolve_execution_target,
     resolve_host,
@@ -662,8 +667,8 @@ def _group_notebooks(
 
 @click.group(
     cls=ColoredGroup,
-    help="Find active notebooks and their IDs.",
-    short_help="""Find active notebooks and their IDs.""",
+    help="Inspect live notebooks and their events.",
+    short_help="""Inspect live notebooks and their events.""",
 )
 def notebook() -> None:
     pass
@@ -734,7 +739,83 @@ def list_notebooks(urls: tuple[str, ...], token_file: Path | None) -> None:
     click.echo(json.dumps(listing, indent=2))
 
 
+@click.command(
+    name="events",
+    cls=ColoredCommand,
+    help="""Listen to a notebook's host event stream.
+
+    Print one JSON object per line, including the event name, data, and cursor
+    when present. The initial snapshot ends with ready, then live events follow.
+    Omit --types to receive all event types. Unknown event types are preserved.
+
+    Authentication uses the private local host record, as pair execute does.
+    The stream ends on server disconnect or Ctrl-C; rerun to reconnect.
+
+    \b
+    Example:
+      marimo pair notebook events <ID> --url http://localhost:2718 --types runtime,execution
+    """,
+    short_help="Listen to notebook events as JSON lines.",
+)
+@click.argument("notebook_id", metavar="ID")
+@click.option(
+    "--url", required=True, metavar="URL", help="Local edit server URL."
+)
+@click.option(
+    "--types",
+    "event_types",
+    metavar="TYPES",
+    help="Comma-separated event types, for example runtime,execution.",
+)
+def notebook_events(
+    notebook_id: str, url: str, event_types: str | None
+) -> None:
+    if event_types is not None:
+        kinds = [kind.strip() for kind in event_types.split(",")]
+        if not all(kinds):
+            raise click.BadParameter(
+                "Event types must not contain empty entries.",
+                param_hint="--types",
+            )
+        event_types = ",".join(kinds)
+    try:
+        host = resolve_host(url)
+        with closing(
+            open_events(
+                url=host.url,
+                notebook=notebook_id,
+                token=host.token,
+                identity=str(uuid4()),
+                name="pair notebook events",
+                kind="client",
+                types=event_types,
+                read_timeout=None,
+            )
+        ) as response:
+            for event in iter_sse(response, inherit_id=False):
+                payload: dict[str, object] = {
+                    "event": event.name,
+                    "data": json.loads(event.data),
+                }
+                if event.id is not None:
+                    payload["id"] = event.id
+                click.echo(json.dumps(payload))
+    except PairInputError as error:
+        raise click.UsageError(str(error)) from error
+    except PairError as error:
+        raise click.ClickException(str(error)) from error
+    except (OSError, http.client.HTTPException) as error:
+        raise click.ClickException(
+            "The notebook event stream was disconnected."
+        ) from error
+    except ValueError as error:
+        raise click.ClickException(
+            "The notebook event stream contained invalid JSON."
+        ) from error
+
+
 notebook.add_command(list_notebooks)
+notebook.add_command(notebook_events)
 
 
 @click.command(
