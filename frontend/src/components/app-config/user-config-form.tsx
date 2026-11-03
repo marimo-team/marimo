@@ -1339,11 +1339,7 @@ export const UserConfigForm: React.FC = () => {
                   <IsOverridden override={override} />
                   <FormDescription>
                     Enable experimental external agents such as Claude Code and
-                    Codex. Learn more in the{" "}
-                    <ExternalLink href="https://docs.marimo.io/guides/editor_features/agents/">
-                      docs
-                    </ExternalLink>
-                    .
+                    Codex.
                   </FormDescription>
                 </div>
               )}
