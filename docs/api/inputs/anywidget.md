@@ -96,6 +96,18 @@ widget.value
 # You can also access the widget's specific properties
 widget.count
 ```
+
+!!! note "Instances of a widget share one JavaScript module"
+    marimo loads each distinct `_esm` string once, and every widget instance
+    with that `_esm` shares the loaded module. Top-level code in `_esm` runs
+    once, not once per instance, so any variables defined at the top level
+    are shared between instances. This may differ from what you see in
+    Jupyter.
+
+    To keep state separate for each instance, store it in the model or define
+    it inside `render` or `initialize`. `initialize` runs once per widget
+    instance, and `render` runs once per view.
+
 ### More examples
 
 If you're eager to build your own widgets and want to dive deeper you may enjoy these resources:
