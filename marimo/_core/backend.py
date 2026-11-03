@@ -197,6 +197,14 @@ class UIElementCreated:
     element: protocol.UIElement
 
 
+@dataclass(frozen=True)
+class UIElementsRemoved:
+    """The current runtime invalidated a cell's UI elements."""
+
+    runtime_id: protocol.RuntimeId
+    cell_id: protocol.CellId
+
+
 Message = (
     Starting
     | Running
@@ -210,4 +218,5 @@ Message = (
     | Concluded
     | Done
     | UIElementCreated
+    | UIElementsRemoved
 )

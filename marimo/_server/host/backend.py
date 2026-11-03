@@ -18,6 +18,7 @@ from marimo._messaging.notification import (
     ExecutionNotification,
     InterruptedNotification,
     NotebookDocumentTransactionNotification,
+    RemoveUIElementsNotification,
     StartupProgressNotification,
     UIElementCreatedNotification,
     VariableValuesNotification,
@@ -397,6 +398,15 @@ class SessionBackend(SessionConsumer):
             self._handle_notification(message)
 
     def _handle_notification(self, message: NotificationMessage) -> None:
+        if isinstance(message, RemoveUIElementsNotification):
+            if self._kernel is not None:
+                self._observe(
+                    be.UIElementsRemoved(
+                        self._kernel.runtime_id,
+                        protocol.CellId(message.cell_id),
+                    )
+                )
+            return
         if isinstance(message, UIElementCreatedNotification):
             if self._kernel is not None:
                 self._observe(
