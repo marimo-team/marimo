@@ -1,6 +1,8 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { history, undo } from "@codemirror/commands";
+import { MySQL, PostgreSQL } from "@codemirror/lang-sql";
+import { language as activeLanguage } from "@codemirror/language";
 import { EditorSelection, EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import type { CellId } from "@marimo-team/client/protocol";
@@ -519,14 +521,23 @@ describe("cellCodeBinding", () => {
     });
 
     it("sets the SQL dialect from the host's engine", async () => {
-      const { store, source } = setup({
+      const { store, source, view } = setup({
         adapters: true,
         initial: withCells(document(), {
           c1: cell("c1", 'df = mo.sql("SELECT 1")'),
         }),
       });
-      await settle();
-      const dialect = vi.spyOn(SCHEMA_CACHE, "getDialect");
+      await Promise.resolve();
+      const getDialect = SCHEMA_CACHE.getDialect.bind(SCHEMA_CACHE);
+      const dialects = new Map([
+        ["warehouse", PostgreSQL],
+        ["lake", MySQL],
+      ]);
+      const dialect = vi
+        .spyOn(SCHEMA_CACHE, "getDialect")
+        .mockImplementation(
+          (engine) => dialects.get(engine) ?? getDialect(engine),
+        );
       try {
         store.set(
           source,
@@ -534,8 +545,8 @@ describe("cellCodeBinding", () => {
             c1: cell("c1", '_df = mo.sql(f"""SELECT 1""", engine=warehouse)'),
           }),
         );
-        await settle();
-        expect(dialect).toHaveBeenLastCalledWith("warehouse");
+        await Promise.resolve();
+        expect(view.state.facet(activeLanguage)).toBe(PostgreSQL.language);
 
         store.set(
           source,
@@ -543,8 +554,8 @@ describe("cellCodeBinding", () => {
             c1: cell("c1", '_df = mo.sql(f"""SELECT 1""", engine=lake)'),
           }),
         );
-        await settle();
-        expect(dialect).toHaveBeenLastCalledWith("lake");
+        await Promise.resolve();
+        expect(view.state.facet(activeLanguage)).toBe(MySQL.language);
       } finally {
         dialect.mockRestore();
       }
