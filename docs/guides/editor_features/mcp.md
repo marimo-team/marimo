@@ -79,13 +79,6 @@ When connected to marimo's MCP server, external applications can access the foll
 |------|-------------|
 | **get_marimo_rules** | Get official marimo guidelines and best practices for AI assistants. Returns the content of the marimo rules file and source URL for understanding marimo-specific conventions. |
 
-#### Editing
-
-| Tool | Description |
-|------|-------------|
-| **edit_notebook** | Add, remove, or update cells in the notebook. Takes cell operations and modifications as parameters. Allows the AI agent to generate diffs that modify notebook structure and content. |
-| **run_stale_cells** | Run cells that are stale. Triggers execution of affected cells to update the notebook state. |
-
 ### Available prompts
 
 When connected to marimo's MCP server, external applications can access the following prompts:

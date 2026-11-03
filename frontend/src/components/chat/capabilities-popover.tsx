@@ -9,7 +9,6 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { ExternalLink } from "@/components/ui/links";
 import { Switch } from "@/components/ui/switch";
 import { chatOptionsAtom } from "@/core/ai/state";
 import { cn } from "@/utils/cn";
@@ -46,10 +45,7 @@ export const CapabilitiesPopover: React.FC = () => {
           <div className="flex flex-col gap-0.5">
             <span className="text-sm font-semibold">Web search</span>
             <span className="text-xs text-muted-foreground">
-              Search the web when the model supports it.{" "}
-              <ExternalLink href="https://docs.marimo.io/guides/editor_features/tools#web-search-and-fetch">
-                Learn more
-              </ExternalLink>
+              Search the web when the model supports it.
             </span>
           </div>
           <Switch
