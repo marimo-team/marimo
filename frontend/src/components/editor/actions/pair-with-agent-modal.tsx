@@ -116,7 +116,7 @@ export const PairWithAgentModal: React.FC<{
   return (
     <DialogContent className="sm:max-w-2xl">
       <DialogHeader>
-        <DialogTitle>Pair with an agent</DialogTitle>
+        <DialogTitle>Pair an agent</DialogTitle>
         <DialogDescription>
           Use an AI coding agent to pair-program on this notebook.{" "}
           <a

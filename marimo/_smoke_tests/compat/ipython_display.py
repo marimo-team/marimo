@@ -9,7 +9,7 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -33,6 +33,7 @@ def _():
         Code,
         IFrame,
     )
+
     return (
         Audio,
         Code,
@@ -56,7 +57,6 @@ def _():
 def _(HTML):
     html = HTML("<h1>Hello World</h1><p style='color: blue;'>This is HTML</p>")
     html
-    return
 
 
 @app.cell
@@ -64,7 +64,6 @@ def _(Image):
     # Using a sample image URL
     image = Image(url="https://marimo.io/logo.png", width=100)
     image
-    return
 
 
 @app.cell
@@ -77,7 +76,6 @@ def _(JSON):
         }
     )
     json_data
-    return
 
 
 @app.cell
@@ -85,14 +83,12 @@ def _(Javascript):
     # Not yet supported
     js = Javascript("alert('Hello from JavaScript!');")
     js
-    return
 
 
 @app.cell
 def _(Latex):
     latex = Latex(r"\begin{align}f(x) &= x^2\\g(x) &= \frac{1}{x}\end{align}")
     latex
-    return
 
 
 @app.cell
@@ -101,7 +97,6 @@ def _(Math):
         r"\frac{1}{\pi} = \frac{2\sqrt{2}}{9801} \sum_{k=0}^\infty \frac{(4k)!(1103+26390k)}{(k!)^4 396^{4k}}"
     )
     math
-    return
 
 
 @app.cell
@@ -109,7 +104,6 @@ def _(Pretty):
     _data = '{"complex": [1, 2, {"nested": "structure"}]}'
     pretty = Pretty(_data)
     pretty
-    return
 
 
 @app.cell
@@ -118,7 +112,6 @@ def _(SVG):
         '<svg height="100" width="100"><circle cx="50" cy="50" r="40" stroke="black" stroke-width="3" fill="red" /></svg>'
     )
     svg
-    return
 
 
 @app.cell
@@ -131,7 +124,6 @@ def _(Audio):
     data = np.sin(2 * np.pi * 440 * t)  # 440 Hz sine wave
     audio = Audio(data=data, rate=sample_rate)
     audio
-    return
 
 
 @app.cell
@@ -139,7 +131,6 @@ def _(Video):
     # Using a sample video URL
     video = Video("https://www.w3schools.com/html/mov_bbb.mp4")
     video
-    return
 
 
 @app.cell
@@ -147,7 +138,6 @@ def _(YouTubeVideo):
     # Example YouTube video
     yt = YouTubeVideo("dQw4w9WgXcQ")
     yt
-    return
 
 
 @app.cell
@@ -158,14 +148,12 @@ def _(Code):
         language="python",
     )
     code
-    return
 
 
 @app.cell
 def _(IFrame):
     iframe = IFrame("https://marimo.io", width=800, height=450)
     iframe
-    return
 
 
 @app.cell
@@ -182,20 +170,19 @@ def _(Markdown):
         """
     )
     markdown
-    return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""# Display Commands""")
-    return
+    mo.md(r"""
+    # Display Commands
+    """)
 
 
 @app.cell
 def _(Markdown, display):
     display(Markdown("**hello**"))
     display(Markdown("_goodbye*"))
-    return
 
 
 @app.cell
@@ -212,6 +199,7 @@ def _():
         display_javascript,
         display_pdf,
     )
+
     return (
         display_html,
         display_javascript,
@@ -237,7 +225,6 @@ def _(display_html, display_jpeg, display_png, display_pretty, display_svg):
     )
     display_png("https://marimo.io/favicon.ico", raw=True)
     display_jpeg("https://marimo.io/favicon.ico", raw=True)
-    return
 
 
 @app.cell
@@ -263,12 +250,12 @@ def _(
     )
     display_javascript("alert('Hello from JavaScript!');", raw=True)
     display_pdf("https://marimo.io/logo.png", raw=True)
-    return
 
 
 @app.cell
 def _():
     import marimo as mo
+
     return (mo,)
 
 

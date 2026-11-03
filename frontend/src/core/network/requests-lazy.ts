@@ -52,10 +52,8 @@ const ACTIONS: Record<keyof AllRequests, Action> = {
   sendModelValue: "startConnection",
   sendInstantiate: "startConnectionWithoutKernel",
   sendRun: "startConnection",
-  sendDeleteCell: "startConnection",
   sendRunScratchpad: "startConnection",
   saveAppConfig: "startConnection",
-  saveCellConfig: "startConnection",
   discoverDataSources: "startConnection",
 
   // Export operations start a connection
@@ -144,7 +142,6 @@ const ACTIONS: Record<keyof AllRequests, Action> = {
   downloadStorage: "waitForConnectionOpen",
 
   // Sync operations that wait for connection
-  sendDocumentTransaction: "waitForConnectionOpen",
   sendCodeCompletionRequest: "waitForConnectionOpen",
 };
 

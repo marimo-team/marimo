@@ -12,7 +12,7 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -25,8 +25,9 @@ def _():
 
 @app.cell
 def _(mo):
-    mo.md(r"""# Basic examples""")
-    return
+    mo.md(r"""
+    # Basic examples
+    """)
 
 
 @app.cell
@@ -61,21 +62,18 @@ def _(alt, flights, mo):
 def _(alt, delay_hist, mo):
     alt.data_transformers.enable("vegafusion")
     mo.as_html(delay_hist)
-    return
 
 
 @app.cell
 def _(alt, delay_hist):
     alt.data_transformers.enable("vegafusion")
     delay_hist
-    return
 
 
 @app.cell
 def _(alt, delay_hist, mo):
     alt.data_transformers.enable("vegafusion")
     mo.ui.altair_chart(delay_hist)
-    return
 
 
 @app.cell
@@ -87,29 +85,26 @@ def _(alt, delay_hist, mo):
         mo.output.replace("No error found")
     except Exception as e:
         print(e)
-    return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
-        # Examples from vegafusion
+    mo.md(r"""
+    # Examples from vegafusion
 
-        The examples below still hit `MARIMO_RUNTIME_OUTPUT_MAX_BYTES` limitations, and require increasing this before running this notebook:
+    The examples below still hit `MARIMO_RUNTIME_OUTPUT_MAX_BYTES` limitations, and require increasing this before running this notebook:
 
-        ```
-        export MARIMO_RUNTIME_OUTPUT_MAX_BYTES=100000000
-        ```
-        """
-    )
-    return
+    ```
+    export MARIMO_RUNTIME_OUTPUT_MAX_BYTES=100000000
+    ```
+    """)
 
 
 @app.cell
 def _(mo):
-    mo.md(r"""## Interactive Cross-filter""")
-    return
+    mo.md(r"""
+    ## Interactive Cross-filter
+    """)
 
 
 @app.cell
@@ -156,13 +151,13 @@ def _(alt, make_cross_filter_chart, pd):
         "https://vegafusion-datasets.s3.amazonaws.com/vega/flights_200k.parquet"
     )
     make_cross_filter_chart(source_data)
-    return
 
 
 @app.cell
 def _(mo):
-    mo.md(r"""## Interactive average""")
-    return
+    mo.md(r"""
+    ## Interactive average
+    """)
 
 
 @app.cell
@@ -202,13 +197,13 @@ def _(alt, make_average_chart, pd):
         "https://vegafusion-datasets.s3.amazonaws.com/vega/seattle_weather_200k.parquet"
     )
     make_average_chart(_source_data)
-    return
 
 
 @app.cell
 def _(mo):
-    mo.md(r"""## Interactive Chart with Cross-Highlight""")
-    return
+    mo.md(r"""
+    ## Interactive Chart with Cross-Highlight
+    """)
 
 
 @app.cell
@@ -271,13 +266,13 @@ def _(alt, make_movie_chart, pd):
         "https://vegafusion-datasets.s3.amazonaws.com/vega/movies_201k.parquet"
     )
     make_movie_chart(_source_data)
-    return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""# Vega fusion mimes""")
-    return
+    mo.md(r"""
+    # Vega fusion mimes
+    """)
 
 
 @app.cell
@@ -287,7 +282,6 @@ def _(alt, flights, vf):
     alt.Chart(flights).mark_bar().encode(
         alt.X("delay", bin=alt.Bin(maxbins=30)), alt.Y("count()")
     )
-    return
 
 
 @app.cell
@@ -296,7 +290,6 @@ def _(alt, flights, vf):
     alt.Chart(flights).mark_bar().encode(
         alt.X("delay", bin=alt.Bin(maxbins=30)), alt.Y("count()")
     )
-    return
 
 
 @app.cell
@@ -305,7 +298,6 @@ def _(alt, flights, vf):
     alt.Chart(flights).mark_bar().encode(
         alt.X("delay", bin=alt.Bin(maxbins=30)), alt.Y("count()")
     )
-    return
 
 
 @app.cell
@@ -314,7 +306,6 @@ def _(alt, flights, vf):
     alt.Chart(flights).mark_bar().encode(
         alt.X("delay", bin=alt.Bin(maxbins=30)), alt.Y("count()")
     )
-    return
 
 
 if __name__ == "__main__":

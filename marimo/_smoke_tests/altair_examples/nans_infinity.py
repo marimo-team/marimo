@@ -10,7 +10,7 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -22,6 +22,7 @@ def _():
     import altair
 
     import marimo as mo
+
     return mo, pd, pl
 
 
@@ -46,7 +47,6 @@ def _(mo, pandas_df, polars_df):
         [md, polars_df.plot.line(x="x", y="y"), pandas_df.plot.line(x="x", y="y")],
         heights=[20, 50, 50],
     )
-    return
 
 
 if __name__ == "__main__":

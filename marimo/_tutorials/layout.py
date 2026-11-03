@@ -103,7 +103,7 @@ def _(mo):
 
 
 @app.cell
-def _(align, boxes, gap, justify, mo, wrap):
+def _(align, boxes: list, gap, justify, mo, wrap):
     mo.hstack(
         boxes,
         align=align.value,
@@ -114,7 +114,7 @@ def _(align, boxes, gap, justify, mo, wrap):
 
 
 @app.cell
-def _(align, boxes, gap, mo):
+def _(align, boxes: list, gap, mo):
     mo.vstack(
         boxes,
         align=align.value,

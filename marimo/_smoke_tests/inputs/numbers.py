@@ -1,37 +1,38 @@
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
 @app.cell
 def _():
     import marimo as mo
+
     return (mo,)
 
 
 @app.cell
 def _(mo):
-    mo.md(r"""## Basic""")
-    return
+    mo.md(r"""
+    ## Basic
+    """)
 
 
 @app.cell
 def _(mo):
     mo.ui.number()
-    return
 
 
 @app.cell
 def _(mo):
     mo.ui.number(-10, 10)
-    return
 
 
 @app.cell
 def _(mo):
-    mo.md(r"""## Edge cases""")
-    return
+    mo.md(r"""
+    ## Edge cases
+    """)
 
 
 @app.cell
@@ -48,7 +49,6 @@ def _(mo):
 @app.cell
 def _(v):
     v.value
-    return
 
 
 @app.cell
@@ -67,7 +67,6 @@ def _(mo, on_change):
 
     # Cannot set infinity as range
     mo.ui.number(start=-np.inf, stop=np.inf, value=5, on_change=on_change)
-    return
 
 
 if __name__ == "__main__":

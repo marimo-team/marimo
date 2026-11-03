@@ -190,7 +190,7 @@ function cellKeymaps({
 
           if (isAtStartOfEditor(ev)) {
             const actions = ev.state.facet(cellActionsState);
-            actions.moveToNextCell({ cellId, before: true, noCreate: true });
+            actions.moveToNextCell({ cellId, before: true, create: false });
             return true;
           }
           return false;
@@ -207,7 +207,7 @@ function cellKeymaps({
 
           if (isAtEndOfEditor(ev)) {
             const actions = ev.state.facet(cellActionsState);
-            actions.moveToNextCell({ cellId, before: false, noCreate: true });
+            actions.moveToNextCell({ cellId, before: false, create: false });
             return true;
           }
           return false;
@@ -219,7 +219,7 @@ function cellKeymaps({
         stopPropagation: true,
         run: (ev) => {
           const actions = ev.state.facet(cellActionsState);
-          actions.moveToNextCell({ cellId, before: false, noCreate: true });
+          actions.moveToNextCell({ cellId, before: false, create: false });
           return true;
         },
       },
@@ -229,7 +229,7 @@ function cellKeymaps({
         stopPropagation: true,
         run: (ev) => {
           const actions = ev.state.facet(cellActionsState);
-          actions.moveToNextCell({ cellId, before: true, noCreate: true });
+          actions.moveToNextCell({ cellId, before: true, create: false });
           return true;
         },
       },
@@ -260,7 +260,7 @@ function cellKeymaps({
         run: (ev) => {
           ev.contentDOM.blur();
           const actions = ev.state.facet(cellActionsState);
-          actions.createNewCell({ cellId, before: true });
+          actions.createCell({ before: cellId });
           return true;
         },
       },
@@ -271,7 +271,7 @@ function cellKeymaps({
         run: (ev) => {
           ev.contentDOM.blur();
           const actions = ev.state.facet(cellActionsState);
-          actions.createNewCell({ cellId, before: false });
+          actions.createCell({ after: cellId });
           return true;
         },
       },
@@ -325,6 +325,11 @@ function cellKeymaps({
 function cellCodeEditing(hotkeys: HotkeyProvider): Extension[] {
   const onChangePlugin = EditorView.updateListener.of((update) => {
     if (update.docChanged) {
+      // Loro already applied a collaborator's change here. The client that
+      // typed it syncs it to the document.
+      if (isCollaboratorUpdate(update.transactions)) {
+        return;
+      }
       // Check if the doc update was a formatting change
       // e.g. changing from python to markdown
       const isFormattingChange = update.transactions.some((tr) =>
@@ -348,6 +353,14 @@ function cellCodeEditing(hotkeys: HotkeyProvider): Extension[] {
   });
 
   return [onChangePlugin, formatKeymapExtension(hotkeys)];
+}
+
+/** Whether every transaction in an update arrived from a collaborator through Loro. */
+function isCollaboratorUpdate(transactions: readonly Transaction[]): boolean {
+  return (
+    transactions.length > 0 &&
+    transactions.every((tr) => tr.annotation(loroSyncAnnotation) !== undefined)
+  );
 }
 
 const MARKDOWN_AUTORUN_USER_EVENTS = ["input", "delete", "undo", "redo"];
@@ -467,5 +480,6 @@ export function cellBundle({
 }
 
 export const exportedForTesting = {
+  isCollaboratorUpdate,
   shouldAutorunMarkdownUpdate,
 };

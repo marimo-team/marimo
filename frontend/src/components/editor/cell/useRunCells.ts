@@ -3,11 +3,8 @@
 import { closeCompletion } from "@codemirror/autocomplete";
 import { atom, useSetAtom } from "jotai";
 import useEvent from "react-use-event-hook";
-import {
-  getNotebook,
-  type NotebookState,
-  useCellActions,
-} from "@/core/cells/cells";
+import { getNotebook, type NotebookState } from "@/core/cells/cells";
+import { useCellActions } from "@/core/cells/actions";
 import type { CellId } from "@/core/cells/ids";
 import { enabledCellIds, staleCellIds } from "@/core/cells/utils";
 import { getCurrentLanguageAdapter } from "@/core/codemirror/language/commands";

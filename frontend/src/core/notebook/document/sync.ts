@@ -97,6 +97,13 @@ export function createDocumentSync({
   let failure: Extract<DocumentSyncStatus, { status: "error" }> | null = null;
   let timer: ReturnType<typeof setTimeout> | undefined;
   let refreshing = false;
+  // Holds keep edits local, as a legacy save needs while it writes the
+  // notebook the flush before it produced.
+  let holds = 0;
+  let releaseWaiters: Array<{
+    resolve: () => void;
+    reject: (reason: unknown) => void;
+  }> = [];
 
   function clearTimer() {
     clearTimeout(timer);
@@ -139,9 +146,11 @@ export function createDocumentSync({
         store.set(statusAtom, { status: "idle" });
       } else {
         store.set(statusAtom, { status: "pending" });
-        timer = setTimeout(() => {
-          void flush().catch(() => undefined);
-        }, DEBOUNCE_MS);
+        if (holds === 0) {
+          timer = setTimeout(() => {
+            void flush().catch(() => undefined);
+          }, DEBOUNCE_MS);
+        }
       }
     } finally {
       refreshing = false;
@@ -314,6 +323,11 @@ export function createDocumentSync({
     if (running) {
       return running;
     }
+    if (holds > 0) {
+      return new Promise<void>((resolve, reject) => {
+        releaseWaiters.push({ resolve, reject });
+      }).then(flush);
+    }
     const notebookId =
       active?.submission.notebookId ?? store.get(source)?.revision.notebook_id;
     if (notebookId === undefined) {
@@ -353,17 +367,52 @@ export function createDocumentSync({
     return flush();
   }
 
+  /**
+   * Keep edits local until the returned release is called. Flushes
+   * requested meanwhile wait for it. Holds nest, and a release is
+   * idempotent.
+   *
+   * TODO(MO-8028): Only the legacy save needs this, since the host takes
+   * the notebook it writes as the document. Saving through the host
+   * removes both.
+   */
+  function hold(): () => void {
+    holds += 1;
+    let held = true;
+    return () => {
+      if (!held) {
+        return;
+      }
+      held = false;
+      holds -= 1;
+      if (holds > 0) {
+        return;
+      }
+      const waiters = releaseWaiters;
+      releaseWaiters = [];
+      for (const waiter of waiters) {
+        waiter.resolve();
+      }
+      refresh();
+    };
+  }
+
   const unsubscribe = store.sub(observed, refresh);
   function stop() {
     clearTimer();
     unsubscribe();
     signal.removeEventListener("abort", stop);
     active?.controller.abort(signal.reason);
+    const waiters = releaseWaiters;
+    releaseWaiters = [];
+    for (const waiter of waiters) {
+      waiter.reject(signal.reason);
+    }
   }
   signal.addEventListener("abort", stop, { once: true });
   if (signal.aborted) {
     stop();
   }
   refresh();
-  return { statusAtom, flush, retry };
+  return { statusAtom, flush, retry, hold };
 }

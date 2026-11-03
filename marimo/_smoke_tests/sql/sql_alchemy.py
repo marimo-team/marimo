@@ -1,18 +1,20 @@
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.25.2"
 app = marimo.App()
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md("""# SQLAlchemy Demo""")
-    return
+    mo.md("""
+    # SQLAlchemy Demo
+    """)
 
 
 @app.cell
 def _():
     import marimo as mo
+
     return (mo,)
 
 
@@ -22,6 +24,7 @@ def _():
     from sqlalchemy.orm import declarative_base, Session
     from sqlalchemy.orm import Mapped, mapped_column
     import polars as pl
+
     return Mapped, Session, declarative_base, mapped_column, pl, sa
 
 
@@ -59,13 +62,13 @@ def _(Session, User, engine):
         ]
         _session.add_all(users)
         _session.commit()
-    return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md("""### All Users""")
-    return
+    mo.md("""
+    ### All Users
+    """)
 
 
 @app.cell
@@ -92,13 +95,13 @@ def _(Session, User, engine, mo, pl):
             ),
         ]
     )
-    return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md("""### Users under 30 (ordered by name)""")
-    return
+    mo.md("""
+    ### Users under 30 (ordered by name)
+    """)
 
 
 @app.cell
@@ -113,13 +116,13 @@ def _(Session, User, engine, mo):
     mo.ui.table(
         [{"Name": u.name, "Age": u.age} for u in young_users], selection=None
     )
-    return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md("""### Age Statistics""")
-    return
+    mo.md("""
+    ### Age Statistics
+    """)
 
 
 @app.cell
@@ -139,7 +142,6 @@ def _(Session, User, engine, sa):
         ("Youngest", age_stats.min_age),
         ("Oldest", age_stats.max_age),
     ]
-    return
 
 
 if __name__ == "__main__":

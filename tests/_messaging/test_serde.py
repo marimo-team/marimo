@@ -100,7 +100,7 @@ class TestDeserializeKernelMessage:
 
         message_dict = {
             "name": "kernel-ready"
-            # Missing required fields: cell_ids, codes
+            # Missing required fields, such as layout and resumed
         }
         kernel_message = KernelMessage(json.dumps(message_dict).encode())
 

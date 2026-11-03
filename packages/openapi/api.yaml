@@ -1452,14 +1452,6 @@ components:
       - cellId
       title: DeleteCellCommand
       type: object
-    DeleteCellRequest:
-      properties:
-        cellId:
-          $ref: '#/components/schemas/CellId'
-      required:
-      - cellId
-      title: DeleteCellRequest
-      type: object
     DeleteSecretRequest:
       properties:
         key:
@@ -3034,17 +3026,15 @@ components:
       type: object
     KernelReadyNotification:
       description: "Kernel ready for execution. First notification sent at startup.\n\
-        \n    Attributes:\n        cell_ids: Cell IDs in order.\n        codes: Source\
-        \ code for each cell.\n        names: Cell names/titles.\n        layout:\
-        \ Notebook layout config.\n        configs: Per-cell configuration.\n    \
-        \    resumed: Whether resumed from previous session.\n        ui_values: Previous\
-        \ UI element values if resumed.\n        last_executed_code: Last executed\
-        \ code per cell if resumed.\n        last_execution_time: Last execution time\
-        \ per cell if resumed.\n        app_config: Application configuration.\n \
-        \       kiosk: Whether running in kiosk mode.\n        capabilities: Available\
-        \ kernel capabilities.\n        auto_instantiated: Whether cells already executed\
-        \ (run mode).\n        stable_session_id: Server-owned Session identity that\
-        \ survives\n            browser reconnects. None where no server Session exists."
+        \n    Attributes:\n        layout: Notebook layout config.\n        resumed:\
+        \ Whether resumed from previous session.\n        ui_values: Previous UI element\
+        \ values if resumed.\n        last_executed_code: Last executed code per cell\
+        \ if resumed.\n        last_execution_time: Last execution time per cell if\
+        \ resumed.\n        app_config: Application configuration.\n        kiosk:\
+        \ Whether running in kiosk mode.\n        capabilities: Available kernel capabilities.\n\
+        \        auto_instantiated: Whether cells already executed (run mode).\n \
+        \       stable_session_id: Server-owned Session identity that survives\n \
+        \           browser reconnects. None where no server Session exists."
       properties:
         app_config:
           $ref: '#/components/schemas/_AppConfig'
@@ -3053,18 +3043,6 @@ components:
           type: boolean
         capabilities:
           $ref: '#/components/schemas/KernelCapabilitiesNotification'
-        cell_ids:
-          items:
-            $ref: '#/components/schemas/CellId'
-          type: array
-        codes:
-          items:
-            type: string
-          type: array
-        configs:
-          items:
-            $ref: '#/components/schemas/CellConfig'
-          type: array
         consumer_capabilities:
           $ref: '#/components/schemas/ConsumerCapabilities'
         kiosk:
@@ -3085,10 +3063,6 @@ components:
           anyOf:
           - $ref: '#/components/schemas/LayoutConfig'
           - type: 'null'
-        names:
-          items:
-            type: string
-          type: array
         op:
           enum:
           - kernel-ready
@@ -3105,11 +3079,7 @@ components:
           - type: 'null'
       required:
       - op
-      - cell_ids
-      - codes
-      - names
       - layout
-      - configs
       - resumed
       - ui_values
       - last_executed_code
@@ -4194,33 +4164,6 @@ components:
       - op
       - transaction
       title: NotebookDocumentTransactionNotification
-      type: object
-    NotebookDocumentTransactionRequest:
-      properties:
-        changes:
-          items:
-            anyOf:
-            - $ref: '#/components/schemas/CreateCell'
-            - $ref: '#/components/schemas/DeleteCell'
-            - $ref: '#/components/schemas/MoveCell'
-            - $ref: '#/components/schemas/ReorderCells'
-            - $ref: '#/components/schemas/SetCode'
-            - $ref: '#/components/schemas/SetName'
-            - $ref: '#/components/schemas/SetConfig'
-            discriminator:
-              mapping:
-                create-cell: '#/components/schemas/CreateCell'
-                delete-cell: '#/components/schemas/DeleteCell'
-                move-cell: '#/components/schemas/MoveCell'
-                reorder-cells: '#/components/schemas/ReorderCells'
-                set-code: '#/components/schemas/SetCode'
-                set-config: '#/components/schemas/SetConfig'
-                set-name: '#/components/schemas/SetName'
-              propertyName: type
-          type: array
-      required:
-      - changes
-      title: NotebookDocumentTransactionRequest
       type: object
     NotificationMessage:
       anyOf:
@@ -6077,16 +6020,6 @@ components:
       - configs
       title: UpdateCellConfigCommand
       type: object
-    UpdateCellConfigRequest:
-      properties:
-        configs:
-          additionalProperties:
-            type: object
-          type: object
-      required:
-      - configs
-      title: UpdateCellConfigRequest
-      type: object
     UpdateCellOutputsRequest:
       properties:
         cellIdsToOutput:
@@ -6806,26 +6739,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/SuccessResponse'
           description: Preview a list of tables in an SQL schema
-  /api/document/transaction:
-    post:
-      parameters:
-      - in: header
-        name: Marimo-Session-Id
-        required: true
-        schema:
-          type: string
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/NotebookDocumentTransactionRequest'
-      responses:
-        200:
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/SuccessResponse'
-          description: Apply a document transaction
   /api/documentation/snippets:
     get:
       parameters:
@@ -7383,26 +7296,6 @@ paths:
               schema:
                 type: string
           description: Copy notebook
-  /api/kernel/delete:
-    post:
-      parameters:
-      - in: header
-        name: Marimo-Session-Id
-        required: true
-        schema:
-          type: string
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/DeleteCellRequest'
-      responses:
-        200:
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/SuccessResponse'
-          description: Delete a cell
   /api/kernel/focus_cell:
     post:
       parameters:
@@ -7709,26 +7602,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/SuccessResponse'
           description: Run the scratchpad
-  /api/kernel/set_cell_config:
-    post:
-      parameters:
-      - in: header
-        name: Marimo-Session-Id
-        required: true
-        schema:
-          type: string
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/UpdateCellConfigRequest'
-      responses:
-        200:
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/SuccessResponse'
-          description: Set the configuration of a cell
   /api/kernel/set_model_value:
     post:
       parameters:

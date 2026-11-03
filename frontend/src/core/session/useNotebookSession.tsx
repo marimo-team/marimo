@@ -2,16 +2,18 @@
 
 import { invalidatePackageData } from "@/core/packages/package-data";
 import { useAtom, useAtomValue, useSetAtom, useStore } from "jotai";
-import { useLayoutEffect } from "react";
+import { useEffect, useLayoutEffect, useMemo } from "react";
 import { useErrorBoundary } from "react-error-boundary";
 import { toast } from "@/components/ui/use-toast";
-import { getNotebook, useCellActions } from "@/core/cells/cells";
-import { applyTransactionChanges } from "@/core/cells/document-changes";
+import {
+  getNotebook,
+  notebookAtom,
+  useReducerActions,
+} from "@/core/cells/cells";
+import { followDocument } from "@/core/cells/document";
 import { AUTOCOMPLETER } from "@/core/codemirror/completion/Autocompleter";
-import type {
-  NotificationMessageData,
-  NotificationPayload,
-} from "@/core/kernel/messages";
+import { createDocumentModel } from "@/core/notebook/document";
+import type { NotificationPayload } from "@/core/kernel/messages";
 import { useNotebookReplica } from "@/core/session/useNotebookReplica";
 import { renderHTML } from "@/plugins/core/RenderHTML";
 import {
@@ -25,14 +27,13 @@ import { Logger } from "@/utils/Logger";
 import { reloadSafe } from "@/utils/reload-safe";
 import { useAlertActions } from "../alerts/state";
 import { cacheInfoAtom } from "../cache/requests";
-import { SCRATCH_CELL_ID } from "../cells/ids";
 import { useRunsActions } from "../cells/runs";
 import { focusAndScrollCellOutputIntoView } from "../cells/scrollCellIntoView";
 import {
   resyncBreakpoints,
   setActiveLine,
 } from "../codemirror/cells/debugger-state";
-import type { CellData } from "../cells/types";
+import { notebookCells } from "../cells/utils";
 import { capabilitiesAtom } from "../config/capabilities";
 import { connectionTransportTypeAtom, useSetAppConfig } from "../config/config";
 import { useDataSourceActions } from "../datasets/data-source-connections";
@@ -75,42 +76,26 @@ import {
 import { useStorageActions } from "../storage/state";
 import { useVariablesActions } from "../variables/state";
 import type { VariableName } from "../variables/types";
+import { activeDocumentModelAtom } from "./active-notebook";
 import { WebSocketClosedReason, ConnectionState } from "./types";
-
-const SUPPORTS_LAZY_KERNELS = true;
-
-function getExistingCells(): CellData[] | undefined {
-  if (!SUPPORTS_LAZY_KERNELS) {
-    return undefined;
-  }
-
-  // Remove scratch pad
-  return Object.values(getNotebook().cellData).filter(
-    (cell) => cell.id !== SCRATCH_CELL_ID,
-  );
-}
 
 /** Coordinate session startup and apply notifications to the editor. */
 export function useNotebookSession(opts: {
   sessionId: SessionId;
   autoInstantiate: boolean;
-  setCells: (cells: CellData[], layout: LayoutState) => void;
+  /** Called with the layout the kernel reported, after its cells are ready. */
+  onKernelReady?: (layout: LayoutState) => void;
 }) {
-  const { autoInstantiate, sessionId, setCells } = opts;
+  const { autoInstantiate, sessionId, onKernelReady } = opts;
   const { showBoundary } = useErrorBoundary();
+  const store = useStore();
 
-  const { handleCellMessage } = useCellActions();
-  const actionsWithoutMiddleware = useCellActions({ skipMiddleware: true });
-
-  const handleDocumentTransaction = (
-    transaction: NotificationMessageData<"notebook-document-transaction">["transaction"],
-  ) => {
-    applyTransactionChanges(
-      transaction.changes,
-      actionsWithoutMiddleware,
-      () => getNotebook().cellIds.inOrderIds,
-    );
-  };
+  const {
+    handleCellMessage,
+    reconcileDocument,
+    setLastRun,
+    resetCellRuntimes,
+  } = useReducerActions();
   const { addCellNotification } = useRunsActions();
   const setKernelState = useSetAtom(kernelStateAtom);
   const setInitialRunCompleted = useSetAtom(initialRunCompletedAtom);
@@ -165,18 +150,18 @@ export function useNotebookSession(opts: {
         setInitialRunCompleted(
           Boolean(msg.data.resumed || msg.data.auto_instantiated),
         );
-        const existingCells = getExistingCells();
-
-        handleKernelReady(msg.data, {
+        const layout = handleKernelReady(msg.data, {
           autoInstantiate,
-          setCells,
+          cells: notebookCells(store.get(notebookAtom)),
+          setLastRun,
+          resetCellRuntimes,
           setLayoutData,
           setAppConfig,
           setCapabilities,
           setKernelState,
           onError: showBoundary,
-          existingCells,
         });
+        onKernelReady?.(layout);
         if (!msg.data.resumed) {
           // A freshly started kernel may expose a different environment
           // (e.g. new env vars); re-run discovery instead of reusing stale
@@ -395,7 +380,7 @@ export function useNotebookSession(opts: {
         );
         return;
       case "notebook-document-transaction":
-        handleDocumentTransaction(msg.data.transaction);
+        // Edits reach the notebook through the host document.
         return;
       case "consumer-capabilities":
         setKioskMode(!msg.data.consumer_capabilities.edit);
@@ -405,7 +390,6 @@ export function useNotebookSession(opts: {
     }
   };
 
-  const store = useStore();
   const onMessageError = (error: unknown) => {
     toast({
       title: "Failed to handle message",
@@ -439,6 +423,35 @@ export function useNotebookSession(opts: {
       }
     },
   });
+
+  const documentModel = useMemo(
+    () =>
+      createDocumentModel({
+        store,
+        documentAtom: replica.documentAtom,
+        backendAtom: replica.backendAtom,
+      }),
+    [store, replica],
+  );
+  // Edits outlive reconnects and end with the session. The notebook's cells
+  // follow the document for as long as the session is mounted.
+  useEffect(() => {
+    const controller = new AbortController();
+    documentModel.start({ signal: controller.signal });
+    store.set(activeDocumentModelAtom, documentModel);
+    followDocument({
+      store,
+      model: documentModel,
+      reconcile: reconcileDocument,
+      signal: controller.signal,
+    });
+    return () => {
+      controller.abort();
+      if (store.get(activeDocumentModelAtom) === documentModel) {
+        store.set(activeDocumentModelAtom, null);
+      }
+    };
+  }, [documentModel, store, reconcileDocument]);
 
   // Subscribe before passive connection setup: static/WASM transports can emit synchronously.
   useLayoutEffect(() => {
@@ -485,5 +498,5 @@ export function useNotebookSession(opts: {
     updateStartupProgress,
   ]);
 
-  return { replica, connection, reconnect: replica.reconnect };
+  return { replica, documentModel, connection, reconnect: replica.reconnect };
 }

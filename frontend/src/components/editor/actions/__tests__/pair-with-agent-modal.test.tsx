@@ -82,7 +82,7 @@ describe("PairWithAgentModal", () => {
     vi.unstubAllGlobals();
   });
 
-  it.each(["Claude", "Codex", "OpenCode", "Prompt"])(
+  it.each(["Claude", "Codex", "OpenCode", "Other Agents"])(
     "targets the verified host Notebook in %s",
     async (tab) => {
       await act(async () => {
@@ -103,11 +103,13 @@ describe("PairWithAgentModal", () => {
         panel.textContent?.includes("Agent connections require OpenCode 2.x"),
       ).toBe(tab === "OpenCode");
       expect(panel).toHaveTextContent(
-        tab === "Prompt" ? "1. Copy this prompt" : "1. Run in your terminal",
+        tab === "Other Agents"
+          ? "1. Copy this prompt"
+          : "1. Run in your terminal",
       );
       fireEvent.click(
         within(panel).getByRole("button", {
-          name: tab === "Prompt" ? "Copy prompt" : "Copy command",
+          name: tab === "Other Agents" ? "Copy prompt" : "Copy command",
         }),
       );
       await waitFor(() => expect(copyToClipboard).toHaveBeenCalledOnce());
@@ -119,7 +121,7 @@ describe("PairWithAgentModal", () => {
     },
   );
 
-  it.each(["Claude", "Prompt"])(
+  it.each(["Claude", "Other Agents"])(
     "waits for kernel-ready before copying the %s target",
     async (tab) => {
       store.set(stableSessionIdAtom, null);
@@ -137,13 +139,13 @@ describe("PairWithAgentModal", () => {
       expect(panel).toHaveTextContent("http://localhost:8000");
       expect(
         within(panel).getByRole("button", {
-          name: tab === "Prompt" ? "Copy prompt" : "Copy command",
+          name: tab === "Other Agents" ? "Copy prompt" : "Copy command",
         }),
       ).toBeDisabled();
     },
   );
 
-  it.each(["Claude", "Codex", "OpenCode", "Prompt"])(
+  it.each(["Claude", "Codex", "OpenCode", "Other Agents"])(
     "uses the editor CLI in %s when host is disabled",
     async (tab) => {
       store.set(pairConfigAtom, { ...PAIR_CONFIG, hostEnabled: false });
@@ -162,7 +164,7 @@ describe("PairWithAgentModal", () => {
       expect(panel).not.toHaveTextContent("MARIMO_PAIR_NEXT");
       fireEvent.click(
         within(panel).getByRole("button", {
-          name: tab === "Prompt" ? "Copy prompt" : "Copy command",
+          name: tab === "Other Agents" ? "Copy prompt" : "Copy command",
         }),
       );
       await waitFor(() => expect(copyToClipboard).toHaveBeenCalledOnce());
@@ -185,7 +187,7 @@ describe("PairWithAgentModal", () => {
       await act(async () => {
         render(<PairWithAgentModal onClose={vi.fn()} />, { wrapper });
       });
-      fireEvent.mouseDown(screen.getByRole("tab", { name: "Prompt" }), {
+      fireEvent.mouseDown(screen.getByRole("tab", { name: "Other Agents" }), {
         button: 0,
         ctrlKey: false,
       });

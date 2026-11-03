@@ -10,7 +10,7 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -31,19 +31,18 @@ def _():
         height=400,
         width=400,
     )
-    return
 
 
 @app.cell
 def _():
     import marimo as mo
+
     return (mo,)
 
 
 @app.cell
 def _(mo):
     mo.ui.panel({1: 2})
-    return
 
 
 @app.cell
@@ -53,7 +52,6 @@ def _(mo):
     slider = pn.widgets.IntSlider(start=0, end=10, value=5)
     rx_stars = mo.ui.panel(slider.rx() * "*")
     rx_stars
-    return
 
 
 if __name__ == "__main__":

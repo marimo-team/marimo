@@ -220,7 +220,6 @@ class SessionHandler(SessionConsumer, abc.ABC):
         # Build kernel ready message
         kernel_ready_msg = build_kernel_ready(
             session=session,
-            manager=self.manager,
             resumed=resumed,
             ui_values=ui_values,
             last_executed_code=last_executed_code if should_send else {},

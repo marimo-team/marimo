@@ -832,7 +832,8 @@ class CompositeLspServer(LspServer):
         self.config_reader = config_reader
         self.min_port = min_port
 
-        last_free_port = find_free_port(min_port)
+        # Probing all interfaces can trigger the Windows firewall prompt.
+        last_free_port = find_free_port(min_port, addr="127.0.0.1")
 
         # NOTE: we construct all servers up front regardless of whether they are enabled
         # in order to properly mount them as Starlette routes with their own ports
@@ -842,7 +843,9 @@ class CompositeLspServer(LspServer):
         # We also need to ensure that the ports are unique
         self.servers: dict[str, LspServer] = {}
         for server_name, server_constructor in self.LANGUAGE_SERVERS.items():
-            last_free_port = find_free_port(last_free_port + 1)
+            last_free_port = find_free_port(
+                last_free_port + 1, addr="127.0.0.1"
+            )
             self.servers[server_name] = server_constructor(last_free_port)
 
     def _is_enabled(self, config: MarimoConfig, server_name: str) -> bool:

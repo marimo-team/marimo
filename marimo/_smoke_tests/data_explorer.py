@@ -9,7 +9,7 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.25.2"
 app = marimo.App(width="full")
 
 
@@ -17,6 +17,7 @@ app = marimo.App(width="full")
 def _():
     import marimo as mo
     from vega_datasets import data
+
     return data, mo
 
 
@@ -46,7 +47,6 @@ def _(df, mo):
 @app.cell
 def _(v):
     v.value
-    return
 
 
 if __name__ == "__main__":

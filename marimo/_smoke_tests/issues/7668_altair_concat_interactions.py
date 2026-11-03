@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.18.4"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -11,6 +11,7 @@ def _():
     import numpy as np
     import pyarrow
     import pandas as pd
+
     return alt, mo, np, pd
 
 
@@ -39,14 +40,12 @@ def _(alt, np, pd):
 def _(lower, mo, upper):
     # Brush interaction (no longer) breaks:
     mo.ui.altair_chart(upper & lower)
-    return
 
 
 @app.cell
 def _(alt, lower, mo, upper):
     # Brush interaction works:
     mo.ui.altair_chart(alt.vconcat(upper & lower))
-    return
 
 
 if __name__ == "__main__":

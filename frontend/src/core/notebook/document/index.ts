@@ -12,4 +12,13 @@ export {
   useNotebookDocumentEdit,
   useNotebookDocumentSync,
 } from "./hooks";
-export { createDocumentModel, type DocumentModel } from "./model";
+export {
+  createDocumentModel,
+  type DocumentEdit,
+  type DocumentEditor,
+  type DocumentModel,
+  type DocumentSyncStatus,
+  type EditableCell,
+  type EditableDocument,
+} from "./model";
+export type { Placement } from "./draft";

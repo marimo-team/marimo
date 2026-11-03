@@ -8,7 +8,7 @@
 
 import marimo
 
-__generated_with = "0.19.7"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -26,7 +26,6 @@ def _(mo):
 
     This example shows how to use [`mo.ui.chat`](https://docs.marimo.io/api/inputs/chat.html#marimo.ui.chat) to make a chatbot backed by OpenAI.
     """)
-    return
 
 
 @app.cell
@@ -40,7 +39,7 @@ def _(mo):
 
 
 @app.cell
-def _(input_key, mo, os_key):
+def _(input_key, mo, os_key: None | str):
     openai_key = os_key or input_key.value
 
     mo.stop(
@@ -51,7 +50,7 @@ def _(input_key, mo, os_key):
 
 
 @app.cell
-def _(mo, openai_key):
+def _(mo, openai_key: None | str):
     chatbot = mo.ui.chat(
        mo.ai.llm.openai(
             "gpt-4o",
@@ -77,14 +76,12 @@ def _(mo):
     mo.md("""
     Access the chatbot's historical messages with [`chatbot.value`](https://docs.marimo.io/api/inputs/chat.html#accessing-chat-history).
     """)
-    return
 
 
 @app.cell
 def _(chatbot):
     # chatbot.value is the list of chat messages
     chatbot.value
-    return
 
 
 if __name__ == "__main__":

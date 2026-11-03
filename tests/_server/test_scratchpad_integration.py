@@ -13,8 +13,8 @@ stream out entirely, so real kernel timing and cross-process
 notification ordering aren't testable there. These tests share one
 `marimo edit` subprocess across the module and drive it through
 the full HTTP surface: a websocket for session setup and
-`completed-run` synchronization, `/api/document/transaction` to
-populate `session.document` (required for `code_mode` cell
+`completed-run` synchronization, host edits to populate
+`session.document` (required for `code_mode` cell
 lookup by name), `/api/kernel/run` to register and execute cells,
 and `/api/kernel/execute` to hit the scratchpad. Each test gets a
 fresh session via a per-test `session` fixture that calls
@@ -39,17 +39,9 @@ import time
 import uuid
 from typing import TYPE_CHECKING, Any
 
-import msgspec
 import pytest
 import websockets.sync.client
 from inline_snapshot import snapshot
-
-from marimo._ast.cell import CellConfig
-from marimo._messaging.notebook.changes import (
-    CreateCell,
-    DocumentChange,
-)
-from marimo._types.ids import CellId_t
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Generator
@@ -155,6 +147,8 @@ class _Session:
     def __init__(self, base: str) -> None:
         self.base = base
         self.session_id = f"it_{uuid.uuid4().hex[:8]}"
+        self.notebook_id = ""
+        self.cells: dict[str, str] = {}
         self.ws = websockets.sync.client.connect(
             f"{base.replace('http', 'ws')}/ws?session_id={self.session_id}",
             open_timeout=5,
@@ -189,6 +183,11 @@ class _Session:
                 raise TimeoutError("websocket predicate never satisfied")
             raw = self.ws.recv(timeout=remaining)
             event = json.loads(raw)
+            if event["event"] == "notebook":
+                self.notebook_id = event["data"]["notebook"]["id"]
+            if event["event"] == "cell":
+                cell = event["data"]["cell"]
+                self.cells[cell["id"]] = cell["etag"]
             if event["event"] != "marimo":
                 continue
             msg: dict[str, Any] = event["data"]["marimo"]
@@ -202,7 +201,12 @@ class _Session:
             timeout_s=timeout_s,
         )
 
-    def _post(self, path: str, body: dict[str, Any]) -> str:
+    def _post(
+        self,
+        path: str,
+        body: dict[str, Any],
+        headers: dict[str, str] | None = None,
+    ) -> str:
         import urllib.request
 
         req = urllib.request.Request(
@@ -212,18 +216,26 @@ class _Session:
             headers={
                 "Content-Type": "application/json",
                 "Marimo-Session-Id": self.session_id,
+                **(headers or {}),
             },
         )
         with urllib.request.urlopen(req, timeout=10) as resp:
             text: str = resp.read().decode()
         return text
 
-    def apply_changes(self, changes: list[DocumentChange]) -> None:
-        """POST a document transaction built from typed change objects."""
-        self._post(
-            "/api/document/transaction",
-            {"changes": msgspec.to_builtins(changes)},
+    def edit(self, changes: list[dict[str, Any]]) -> None:
+        """Edit the notebook through the host, as the frontend does."""
+        body = self._post(
+            f"/api/marimo/v1/notebooks/{self.notebook_id}/edits",
+            {"changes": changes},
+            headers={"Idempotency-Key": uuid.uuid4().hex},
         )
+        # The response names each cell the edit touched, null if deleted.
+        for cell_id, cell in json.loads(body)["cells"].items():
+            if cell is None:
+                self.cells.pop(cell_id, None)
+            else:
+                self.cells[cell_id] = cell["etag"]
 
     def run_cells(self, cell_ids: list[str], codes: list[str]) -> None:
         """Register + run cells in the kernel graph, then wait for idle."""
@@ -239,25 +251,33 @@ class _Session:
         codes: list[str],
         names: list[str] | None = None,
     ) -> None:
-        """Register cells in both `session.document` and the kernel graph.
+        """Make the notebook hold exactly these cells, then run them.
 
         `/api/kernel/run` only touches the graph; `ctx.edit_cell` /
         `ctx.run_cell` in code_mode look up cells from
-        `session.document`, which is kept in sync via document
-        transactions from the frontend. We emulate the frontend with
-        typed `CreateCell` changes.
+        `session.document`, which host edits keep in sync. The host
+        notebook outlives the session, so cells from earlier tests are
+        deleted here.
         """
         if names is None:
             names = cell_ids
-        self.apply_changes(
+        self.edit(
             [
-                CreateCell(
-                    cell_id=CellId_t(cid),
-                    code=code,
-                    name=name,
-                    config=CellConfig(),
-                )
-                for cid, code, name in zip(cell_ids, codes, names, strict=True)
+                *(
+                    {"kind": "delete_cell", "id": cid, "base_etag": etag}
+                    for cid, etag in self.cells.items()
+                    if cid not in cell_ids
+                ),
+                *(
+                    {
+                        "kind": "put_cell",
+                        "base_etag": self.cells.get(cid),
+                        "cell": {"id": cid, "code": code, "name": name},
+                    }
+                    for cid, code, name in zip(
+                        cell_ids, codes, names, strict=True
+                    )
+                ),
             ]
         )
         self.run_cells(cell_ids, codes)

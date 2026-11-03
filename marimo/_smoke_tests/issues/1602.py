@@ -2,7 +2,7 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -19,9 +19,8 @@ def _():
 
 
 @app.cell
-def _(b):
+def _(b: Boom):
     callable(b.__dataframe__)
-    return
 
 
 if __name__ == "__main__":

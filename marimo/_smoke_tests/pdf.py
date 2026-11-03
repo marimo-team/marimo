@@ -2,7 +2,7 @@
 
 import marimo
 
-__generated_with = "0.18.4"
+__generated_with = "0.25.2"
 app = marimo.App(width="full")
 
 
@@ -11,6 +11,7 @@ def _():
     import marimo as mo
     import requests
     import io
+
     return io, mo, requests
 
 
@@ -19,7 +20,6 @@ def _(mo):
     mo.md("""
     # PDFs
     """)
-    return
 
 
 @app.cell
@@ -37,7 +37,6 @@ def _(mo, page):
         width="100%",
         height="60vh",
     )
-    return
 
 
 @app.cell
@@ -58,7 +57,6 @@ def _(io, mo, page, requests):
 @app.cell
 def _(pdf):
     pdf
-    return
 
 
 if __name__ == "__main__":

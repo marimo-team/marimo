@@ -2,7 +2,8 @@
 
 import { createRef } from "react";
 import { vi } from "vitest";
-import type { CellActions, NotebookState } from "@/core/cells/cells";
+import type { CellActions } from "@/core/cells/actions";
+import type { NotebookState } from "@/core/cells/cells";
 import { CellId } from "@/core/cells/ids";
 import {
   type CellData,
