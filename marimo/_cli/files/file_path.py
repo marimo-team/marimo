@@ -14,6 +14,7 @@ from marimo import _loggers
 from marimo._cli.print import green
 from marimo._utils import requests
 from marimo._utils.marimo_path import MarimoPath
+from marimo._utils.paths import is_valid_filename
 from marimo._utils.url import is_url
 
 LOGGER = _loggers.marimo_logger()
@@ -303,16 +304,7 @@ def _create_tmp_file_from_content(
 ) -> str:
     import click
 
-    # Imported filenames must be single filenames on both POSIX and Windows.
-    if (
-        not name
-        or name.endswith((".", " "))
-        or re.search(r'[<>:"/\\|?*\x00-\x1f\x7f-\x9f]', name)
-        or re.fullmatch(
-            r"CON|PRN|AUX|NUL|CONIN\$|CONOUT\$|COM[1-9¹²³]|LPT[1-9¹²³]",
-            name.partition(".")[0].rstrip(" ").upper(),
-        )
-    ):
+    if not is_valid_filename(name):
         name = StaticNotebookReader.DEFAULT_FILENAME
 
     path_to_app = Path(temp_dir.name) / name
