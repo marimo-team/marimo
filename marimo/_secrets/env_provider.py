@@ -1,6 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import re
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -36,6 +37,21 @@ class EnvSecretsProvider(SecretProvider):
         raise NotImplementedError("Cannot delete keys for env provider")
 
 
+# Characters that cannot round-trip through dotenv syntax: writing a key that
+# holds one of them changes how the line is parsed back (`=` splits the
+# binding, `#` turns the whole line into a comment).
+_INVALID_KEY_CHARS = re.compile(r"[\s=#\"'\\]")
+
+
+def _validate_key(key: str) -> None:
+    """Reject keys that would corrupt the dotenv file when written."""
+    if not key or _INVALID_KEY_CHARS.search(key):
+        raise ValueError(
+            f"Invalid secret key {key!r}: keys must be non-empty and cannot "
+            'contain whitespace, "=", "#", quotes, or backslashes'
+        )
+
+
 class DotEnvSecretsProvider(SecretProvider):
     type = "dotenv"
 
@@ -51,6 +67,7 @@ class DotEnvSecretsProvider(SecretProvider):
         return set(env_dict.keys())
 
     def write_key(self, key: str, value: str) -> None:
+        _validate_key(key)
         filepath = Path(self.file)
         if not filepath.exists():
             # If is `.env`, then create it.
