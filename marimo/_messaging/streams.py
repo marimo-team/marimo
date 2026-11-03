@@ -1,12 +1,17 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import codecs
 import contextlib
+import copy
 import io
 import os
+import selectors
 import sys
 import threading
+from array import array
 from collections import deque
+from contextvars import copy_context
 from typing import (
     TYPE_CHECKING,
     Protocol,
@@ -198,26 +203,19 @@ class ThreadSafeStream(Stream):
                 self.console_msg_cv.notify()
 
 
-def _forward_os_stream(
-    standard_stream: Stdout | Stderr, fd: int, should_exit: threading.Event
-) -> None:
-    """Watch a file descriptor and forward it to a stream object."""
+def _pipe_bytes_available(fd: int) -> int:
+    if sys.platform == "win32":
+        import _winapi
+        import msvcrt
 
-    # This coarse try/except block silences exceptions; a raised exception
-    # at this point could cause bad errors, such as an infinite stream of data
-    # to be written to the fd/routed through the stream.
-    #
-    # TODO(akshayka): Make this loop bomb-proof, so that exceptions raised are
-    # exceptions we actually want to pay attention to; then store the exception
-    # and print it to the terminal later (outside an execution context).
-    try:
-        while not should_exit.is_set():
-            data = os.read(fd, 1024)
-            if not data:
-                break
-            standard_stream.write(data.decode())
-    except Exception:
-        ...
+        return _winapi.PeekNamedPipe(msvcrt.get_osfhandle(fd), 0)[0]
+
+    import fcntl
+    import termios
+
+    available = array("i", [0])
+    fcntl.ioctl(fd, termios.FIONREAD, available, True)
+    return available[0]
 
 
 class _NoOpWatcher:
@@ -246,33 +244,106 @@ class Watcher:
         self.fd = self.standard_stream._original_fd
         self.read_fd, self.write_fd = os.pipe()
         self._should_exit = threading.Event()
-        self.thread = threading.Thread(
-            target=_forward_os_stream,
-            args=(self.standard_stream, self.read_fd, self._should_exit),
-            daemon=True,
-        )
+        self._read_lock = threading.Lock()
+        self._error: Exception | None = None
+        self._output: ThreadSafeStdout | ThreadSafeStderr | None = None
+        self._context = copy_context()
+        self._decoder = codecs.getincrementaldecoder("utf-8")("replace")
+        self._wake_read_fd, self._wake_write_fd = os.pipe()
+        self.thread = threading.Thread(target=self._forward, daemon=True)
         self.thread.start()
 
+    def _check_error(self) -> None:
+        if self._error is not None:
+            raise RuntimeError("OS stream reader failed") from self._error
+
+    def _read(self, remaining: int) -> None:
+        # The reader and pause hold the same lock through queue insertion.
+        # Read only a fixed quota so a background writer cannot extend a drain.
+        try:
+            while remaining:
+                data = os.read(self.read_fd, min(remaining, 1024))
+                if not data:
+                    raise EOFError("OS stream pipe closed during drain")
+                remaining -= len(data)
+                text = self._decoder.decode(data)
+                if text and self._output is not None:
+                    self._context.run(self._output.write, text)
+        except Exception as exc:
+            self._error = exc
+            raise
+
+    def _forward(self) -> None:
+        selector: selectors.BaseSelector | None = None
+        try:
+            if sys.platform != "win32":
+                selector = selectors.DefaultSelector()
+            if selector is not None:
+                selector.register(self.read_fd, selectors.EVENT_READ)
+                selector.register(self._wake_read_fd, selectors.EVENT_READ)
+            while not self._should_exit.is_set():
+                if selector is None:
+                    # Windows anonymous pipes cannot be passed to select.
+                    # This wait only schedules reads; pause drains synchronously.
+                    if self._should_exit.wait(0.01):
+                        break
+                else:
+                    selector.select()
+                with self._read_lock:
+                    if self._should_exit.is_set():
+                        break
+                    self._read(_pipe_bytes_available(self.read_fd))
+        except Exception as exc:
+            with self._read_lock:
+                self._error = exc
+        finally:
+            if selector is not None:
+                selector.close()
+            os.close(self.read_fd)
+            os.close(self._wake_read_fd)
+
     def start(self) -> None:
-        # Save the file for the standard stream by opening a new file
-        # descriptor for it
-        self.fd_dup = os.dup(self.fd)
-        self.standard_stream._set_fileno(self.fd_dup)
-        # Change the original file descriptor for the standard stream
-        # to refer to the write end of the pipe
-        os.dup2(self.write_fd, self.fd)
+        with SigintHandler.defer(), self._read_lock:
+            self._check_error()
+            self._output = self.standard_stream
+            self._context = copy_context()
+            fd_dup = os.dup(self.fd)
+            try:
+                os.dup2(self.write_fd, self.fd)
+            except BaseException:
+                os.close(fd_dup)
+                raise
+            self.fd_dup = fd_dup
+            self.standard_stream._set_fileno(fd_dup)
 
     def pause(self) -> None:
-        # Restore the original file descriptor to point to the standard
-        # stream file
-        os.dup2(self.fd_dup, self.fd)
-        os.close(self.fd_dup)
-        self.standard_stream._set_fileno(None)
+        with SigintHandler.defer():
+            os.dup2(self.fd_dup, self.fd)
+            os.close(self.fd_dup)
+            self.standard_stream._set_fileno(None)
+            with self._read_lock:
+                self._check_error()
+                self._read(_pipe_bytes_available(self.read_fd))
+                tail = self._decoder.decode(b"", final=True)
+                if tail and self._output is not None:
+                    self._context.run(self._output.write, tail)
+                self._decoder.reset()
+                # Inherited writers can still emit between executions.
+                output = copy.copy(self.standard_stream)
+                output._stream = copy.copy(self.standard_stream._stream)
+                output._stream.redirect_console = False
+                self._output = output
 
     def stop(self) -> None:
-        os.close(self.write_fd)
-        os.close(self.read_fd)
         self._should_exit.set()
+        if sys.platform != "win32":
+            with contextlib.suppress(BrokenPipeError):
+                os.write(self._wake_write_fd, b"\0")
+        os.close(self.write_fd)
+        os.close(self._wake_write_fd)
+        self.thread.join(timeout=_FLUSH_CONSOLE_TIMEOUT_S)
+        if self.thread.is_alive():
+            LOGGER.warning("OS stream reader did not stop")
 
 
 # NB: Python doesn't provide a standard out class to inherit from, so
@@ -490,10 +561,13 @@ class ThreadSafeStdin(Stdin):
 @contextlib.contextmanager
 def redirect(standard_stream: Stdout | Stderr) -> Iterator[None]:
     """Redirect a standard stream to the frontend."""
+    watcher = (
+        standard_stream._watcher
+        if isinstance(standard_stream, (ThreadSafeStdout, ThreadSafeStderr))
+        else _NOOP_WATCHER
+    )
+    watcher.start()
     try:
-        if isinstance(standard_stream, (ThreadSafeStdout, ThreadSafeStderr)):
-            standard_stream._watcher.start()
         yield
     finally:
-        if isinstance(standard_stream, (ThreadSafeStdout, ThreadSafeStderr)):
-            standard_stream._watcher.pause()
+        watcher.pause()
