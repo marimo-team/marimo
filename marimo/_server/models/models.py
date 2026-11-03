@@ -286,7 +286,9 @@ class SaveNotebookRequest(msgspec.Struct, rename="camel"):
     def __post_init__(self) -> None:
         for field in ("codes", "names", "configs"):
             if len(self.cell_ids) != len(getattr(self, field)):
-                raise msgspec.ValidationError(f"Mismatched cell_ids and {field}")
+                raise msgspec.ValidationError(
+                    f"Mismatched cell_ids and {field}"
+                )
 
 
 class CopyNotebookRequest(msgspec.Struct, rename="camel"):
