@@ -8,6 +8,7 @@ from unittest.mock import Mock
 from urllib.parse import parse_qs, urlsplit
 
 import pytest
+from click import unstyle
 from click.testing import CliRunner
 
 from marimo._cli.cli import main
@@ -15,6 +16,68 @@ from marimo._cli.pair import client, commands
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
+
+
+@pytest.mark.parametrize(
+    ("pretty", "terminal", "no_color", "colored"),
+    [
+        (True, True, None, True),
+        (True, False, None, False),
+        (True, True, "1", False),
+        (True, True, "true", False),
+        (False, True, None, False),
+    ],
+)
+def test_events_colors_only_pretty_terminal_output(
+    monkeypatch: pytest.MonkeyPatch,
+    pretty: bool,
+    terminal: bool,
+    no_color: str | None,
+    colored: bool,
+) -> None:
+    monkeypatch.setattr(commands, "_supports_color", lambda: True)
+    monkeypatch.setattr(
+        commands,
+        "sys",
+        Mock(stdout=Mock(isatty=lambda: terminal)),
+    )
+    if no_color is None:
+        monkeypatch.delenv("NO_COLOR", raising=False)
+    else:
+        monkeypatch.setenv("NO_COLOR", no_color)
+    monkeypatch.setattr(
+        commands,
+        "resolve_host",
+        lambda _: client.HostEndpoint("http://localhost:2718", "private"),
+    )
+    stream = io.BytesIO(
+        b'event: runtime\ndata: {"status": "running"}\n\n'
+        b"event: ready\ndata: {}\n\n"
+    )
+    monkeypatch.setattr(commands, "open_events", Mock(return_value=stream))
+    result = CliRunner().invoke(
+        main,
+        [
+            "pair",
+            "notebook",
+            "events",
+            "nb-one",
+            "--url",
+            "http://localhost:2718",
+            *(["--pretty"] if pretty else []),
+        ],
+        color=True,
+    )
+    assert result.exit_code == 0, result.output
+    assert ("\x1b[" in result.stdout) is colored
+    plain = unstyle(result.stdout)
+    events = plain.strip().split("\n\n" if pretty else "\n")
+    assert [json.loads(event) for event in events] == [
+        {"event": "runtime", "data": {"status": "running"}},
+        {"event": "ready", "data": {}},
+    ]
+    assert not plain.startswith("\n")
+    assert not plain.endswith("\n\n")
 
 
 @pytest.mark.parametrize(

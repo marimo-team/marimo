@@ -43,6 +43,7 @@ from marimo._cli.pair.connection import (
 from marimo._cli.pair.forwarder import ForwarderConfig, start_forwarder
 from marimo._cli.pair.harnesses import detect_target, environment_identity
 from marimo._cli.pair.prompts import render_prompt
+from marimo._cli.print import _supports_color
 from marimo._server.ai.skills import utils as skills_utils
 
 _REFERENCES_DIR = (
@@ -782,6 +783,19 @@ def notebook_events(
                 param_hint="--types",
             )
         event_types = ",".join(kinds)
+    use_color = (
+        pretty
+        and not os.environ.get("NO_COLOR")
+        and sys.stdout.isatty()
+        and _supports_color()
+    )
+    if use_color:
+        from pygments import highlight
+        from pygments.formatters import TerminalFormatter
+        from pygments.lexers import JsonLexer
+
+        lexer = JsonLexer()
+        formatter = TerminalFormatter()
     try:
         host = resolve_host(url)
         with closing(
@@ -806,7 +820,10 @@ def notebook_events(
                     payload["id"] = event.id
                 if pretty and not first_event:
                     click.echo()
-                click.echo(json.dumps(payload, indent=2 if pretty else None))
+                output = json.dumps(payload, indent=2 if pretty else None)
+                if use_color:
+                    output = highlight(output, lexer, formatter).rstrip("\n")
+                click.echo(output)
                 first_event = False
     except PairInputError as error:
         raise click.UsageError(str(error)) from error

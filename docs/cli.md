@@ -29,6 +29,8 @@ payload fields are preserved, so the command also works with protocol extensions
 
 Add `--pretty` to indent each event's JSON across multiple lines, with a blank
 line between events. The default remains one JSON object per line for scripts.
+Pretty output uses syntax colors in supported terminals. Piped output stays
+plain. Set `NO_COLOR=1` to disable colors.
 
 `--types` accepts comma-separated names. Whitespace around names is ignored;
 empty entries are rejected. Omit the option to receive all event types.
