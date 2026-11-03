@@ -97,24 +97,9 @@ Use the **Notebook access** selector to choose what the assistant can do:
 - **Suggest edits**: The assistant can read the notebook and propose cell changes for review.
 - **Full access**: The assistant can read, edit, and run cells, with Python scratchpad access.
 
-With **Suggest edits**, you can keep or discard proposed cell changes. The
-assistant cannot run cells at this access level.
-
-!!! warning "Full access"
-    The assistant can execute Python in your live notebook kernel and change
+!!! warning "Full access can execute arbitrary Python"
+    The assistant can execute arbitrary Python on your machine, and it can change
     notebook cells and runtime state without review. These changes can be destructive.
-
-**Read only** and **Suggest edits** also enable tools from
-[connected MCP servers](mcp.md#mcp-client). Notebook access levels apply to
-marimo's built-in notebook tools. They do not restrict what connected MCP tools
-can do.
-
-Use the chat panel's **Capabilities** menu to enable web search and URL fetching
-at any notebook access level. Availability depends on your model and installed
-packages.
-
-The `ai.mode` configuration values are `ask` for **Read only** (the default),
-`agent` for **Suggest edits**, and `code_mode` for **Full access**.
 
 ### Refactor existing cells
 
