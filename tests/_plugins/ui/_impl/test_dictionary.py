@@ -102,3 +102,12 @@ def test_container_emulation() -> None:
 
     with pytest.raises(KeyError) as e:
         d["2"]
+
+
+@pytest.mark.parametrize("elements", [1, "abc", [("a", 1)]])
+def test_dictionary_invalid_elements_type(elements: object) -> None:
+    with pytest.raises(
+        ValueError,
+        match="Invalid type: dictionary expects a mapping of strings",
+    ):
+        ui.dictionary(elements)  # type: ignore[arg-type]

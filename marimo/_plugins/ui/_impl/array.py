@@ -1,7 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-from collections.abc import Callable, Iterator, Sequence
+from collections.abc import Callable, Iterable, Iterator, Sequence
 from typing import Any, Final
 
 from marimo._output.formatters.structures import format_structure
@@ -83,6 +83,14 @@ class array(UIElement[dict[str, JSONType], Sequence[object]]):
         label: str = "",
         on_change: Callable[[Sequence[object]], None] | None = None,
     ) -> None:
+        if isinstance(elements, (str, bytes)) or not isinstance(
+            elements, Iterable
+        ):
+            raise ValueError(
+                "Invalid type: array expects an iterable of UI elements, "
+                f"got {type(elements).__name__}"
+            )
+
         self._elements = [e._clone() for e in elements]
         self._label = label
         slotted_html = json_output(

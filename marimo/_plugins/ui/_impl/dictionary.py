@@ -1,6 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+from collections.abc import Mapping
 from typing import TYPE_CHECKING, Any
 
 from marimo._output.formatters.structures import format_structure
@@ -12,7 +13,7 @@ from marimo._plugins.ui._core.ui_element import UIElement
 from marimo._plugins.ui._impl.batch import _batch_base, validate_and_clone
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Mapping
+    from collections.abc import Callable
 
 
 @mddoc
@@ -123,6 +124,13 @@ class dictionary(_batch_base):
         # additional logic were added to the frontend DictPlugin to spy on
         # marimoValueUpdateEvents of children), and in any case will not
         # trigger cells that ref the dictionary to run, leading to confusion
+        if not isinstance(elements, Mapping):
+            raise ValueError(
+                "Invalid type: dictionary expects a mapping of strings to "
+                "UI elements, "
+                f"got {type(elements).__name__}"
+            )
+
         elements = validate_and_clone(elements)
 
         self._label = label

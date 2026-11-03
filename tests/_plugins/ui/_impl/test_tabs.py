@@ -3,6 +3,8 @@ from __future__ import annotations
 
 import gc
 
+import pytest
+
 from marimo._plugins import ui
 from marimo._runtime.context import get_context
 from marimo._runtime.runtime import Kernel
@@ -88,3 +90,11 @@ def test_tabs_keeps_ui_element_registered(executing_kernel: Kernel) -> None:
         "it was removed from the registry and is no longer interactive"
     )
     assert registry._objects[object_id]() is not None
+
+
+@pytest.mark.parametrize("tabs", [1, "abc", ["a", "b"]])
+def test_tabs_invalid_tabs_type(tabs: object) -> None:
+    with pytest.raises(
+        ValueError, match="Invalid type: tabs expects a mapping of titles"
+    ):
+        ui.tabs(tabs)  # type: ignore[arg-type]

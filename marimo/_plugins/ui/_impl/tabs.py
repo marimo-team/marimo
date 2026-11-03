@@ -1,6 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+from collections.abc import Mapping
 from typing import TYPE_CHECKING, Final, Literal
 
 from marimo._output.formatting import as_html
@@ -11,7 +12,7 @@ from marimo._plugins.stateless.lazy import lazy as lazy_ui
 from marimo._plugins.ui._core.ui_element import UIElement
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Mapping
+    from collections.abc import Callable
 
 
 @mddoc
@@ -79,6 +80,12 @@ class tabs(UIElement[str, str]):
         label: str = "",
         on_change: Callable[[str], None] | None = None,
     ) -> None:
+        if not isinstance(tabs, Mapping):
+            raise ValueError(
+                "Invalid type: tabs expects a mapping of titles to content, "
+                f"got {type(tabs).__name__}"
+            )
+
         def render_content(tab: object) -> Html:
             if lazy:
                 return lazy_ui(tab)
