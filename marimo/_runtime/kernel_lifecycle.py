@@ -42,6 +42,7 @@ if TYPE_CHECKING:
 
     from marimo._ast.cell import CellConfig
     from marimo._config.config import MarimoConfig
+    from marimo._config.provenance import ConfigPath
     from marimo._messaging.types import KernelStreams
     from marimo._runtime import marimo_pdb
     from marimo._runtime.commands import (
@@ -73,6 +74,7 @@ class KernelArgs:
     control_queue: ControlQueue
     set_ui_element_queue: UIElementQueue
     virtual_file_storage: VirtualFileStorageType | None
+    config_overrides: tuple[ConfigPath, ...] = ()
 
     @property
     def is_edit_mode(self) -> bool:
@@ -182,6 +184,7 @@ def create_kernel(
         ),
         debugger_override=args.debugger,
         user_config=user_config,
+        config_overrides=args.config_overrides,
         enqueue_control_request=make_control_enqueuer(
             args.control_queue,
             args.set_ui_element_queue,

@@ -207,9 +207,9 @@ class RuntimeConfig(Config, kw_only=True):
         ),
     ] = UNSET
     sql_default_limit: Annotated[
-        int | UnsetType | None,
+        Annotated[int, Meta(ge=0)] | UnsetType | None,
         Meta(
-            description="Default maximum number of SQL result rows when a query has no LIMIT. None means no limit."
+            description="Default maximum number of SQL result rows when a query has no LIMIT. Must be non-negative; None means no limit."
         ),
     ] = UNSET
     default_sql_output: Annotated[

@@ -249,14 +249,17 @@ def test_deprecated_environment_names(
 ) -> None:
     import logging
 
-    from marimo._config.manager import get_default_config_manager
+    from marimo._config.manager import MarimoConfigManager, UserConfigStore
 
     variable = DEPRECATED_ENV_VARS[path]
     monkeypatch.setenv(variable, raw)
-    (tmp_path / ".marimo.toml").write_text("")
+    path_to_config = tmp_path / ".marimo.toml"
+    path_to_config.write_text("")
+    user = UserConfigStore()
+    monkeypatch.setattr(user, "get_config_path", lambda: str(path_to_config))
     with _loggers.capture_output(log_level=logging.WARNING) as (_, _, records):
-        resolved = get_default_config_manager(
-            current_path=str(tmp_path)
+        resolved = MarimoConfigManager(
+            user, EnvVarReader(deprecated=True), EnvVarReader()
         ).get_config_with_sources(hide_secrets=False)
     value: Any = resolved.config
     for component in path:
@@ -312,3 +315,19 @@ def test_invalid_deprecated_value_is_skipped_without_disclosing_it(
         "private-invalid-value" not in record.getMessage()
         for record in records
     )
+
+
+@pytest.mark.parametrize("deprecated", [False, True])
+def test_negative_sql_environment_limit_is_skipped(
+    monkeypatch: pytest.MonkeyPatch,
+    deprecated: bool,
+) -> None:
+    variable = (
+        "MARIMO_SQL_DEFAULT_LIMIT"
+        if deprecated
+        else "MARIMO_RUNTIME_SQL_DEFAULT_LIMIT"
+    )
+    monkeypatch.setenv(variable, "-1")
+    with _loggers.capture_output() as (_, _, records):
+        assert EnvVarReader(deprecated=deprecated).read() == {}
+    assert "skipped" in records[-1].getMessage()

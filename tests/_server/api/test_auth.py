@@ -391,3 +391,16 @@ async def test_configured_session_secret_signs_and_validates_cookies() -> None:
         token, secret="another-server-secret"
     )
     assert not validate_auth(conn)
+
+
+def test_partial_server_config_defaults_to_insecure_local_cookie() -> None:
+    app = create_starlette_app(
+        base_url="",
+        server_config={"browser": "default", "follow_symlink": False},
+    )
+    middleware = next(
+        item
+        for item in app.user_middleware
+        if item.cls is CustomSessionMiddleware
+    )
+    assert middleware.kwargs["https_only"] is False

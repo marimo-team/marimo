@@ -26,6 +26,9 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 
+pytestmark = pytest.mark.usefixtures("clean_config_environment")
+
+
 @pytest.mark.xfail(condition=is_windows(), reason="flaky on Windows")
 def test_config_show() -> None:
     p = subprocess.run(

@@ -465,14 +465,7 @@ def test_cli_edit_checks_for_updates_after_preflight(source: str) -> None:
 
     with (
         runner.isolated_filesystem(),
-        patch.dict(
-            os.environ,
-            {
-                "MARIMO_SERVER_SKIP_UPDATE_CHECK": "true"
-                if source == "environment"
-                else "false"
-            },
-        ),
+        patch.dict(os.environ),
         patch(
             "marimo._cli.cli.prompt_run_in_docker_container",
             return_value=False,
@@ -493,6 +486,11 @@ def test_cli_edit_checks_for_updates_after_preflight(source: str) -> None:
         from marimo._config.utils import get_user_config_path
 
         get_user_config_path.cache_clear()
+        os.environ.pop("MARIMO_SKIP_UPDATE_CHECK", None)
+        os.environ.pop("MARIMO_SERVER_SKIP_UPDATE_CHECK", None)
+        if source == "environment":
+            os.environ["MARIMO_SERVER_SKIP_UPDATE_CHECK"] = "true"
+        Path(".marimo.toml").write_text("")
         if source == "file":
             os.environ.pop("MARIMO_SERVER_SKIP_UPDATE_CHECK", None)
             Path(".marimo.toml").write_text(
@@ -838,7 +836,7 @@ def test_cli_edit_with_additional_args(temp_marimo_file: str) -> None:
 def test_cli_edit_update_check(tmp_path: Path) -> None:
     port = _get_port()
     env = {**os.environ, "XDG_STATE_HOME": str(tmp_path)}
-    # pop off MARIMO_SERVER_SKIP_UPDATE_CHECK
+    env.pop("MARIMO_SKIP_UPDATE_CHECK", None)
     env.pop("MARIMO_SERVER_SKIP_UPDATE_CHECK", None)
     p = subprocess.Popen(
         ["marimo", "edit", "-p", str(port), "--headless", "--no-token"],

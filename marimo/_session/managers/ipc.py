@@ -308,10 +308,14 @@ class IPCKernelManagerImpl(KernelManager):
         from marimo._cli.print import echo, muted
         from marimo._ipc.types import KernelArgs
 
+        resolved = self.config_manager.get_config_with_sources(
+            hide_secrets=False
+        )
         kernel_args = KernelArgs(
             configs=self.configs,
             app_metadata=self.app_metadata,
-            user_config=self.config_manager.get_config(hide_secrets=False),
+            user_config=resolved.config,
+            config_overrides=resolved.override_paths,
             log_level=GLOBAL_SETTINGS.LOG_LEVEL,
             profile_path=self.profile_path,
             connection_info=self.connection_info,

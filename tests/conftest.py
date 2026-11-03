@@ -682,3 +682,16 @@ def pytest_make_collect_report(collector):
             " (tests/conftest.py)."
         )
     return report
+
+
+@pytest.fixture
+def clean_config_environment(monkeypatch: pytest.MonkeyPatch) -> None:
+    from marimo._config.config_schema import MarimoConfig
+    from marimo._config.provenance import DEPRECATED_ENV_VARS, env_var_name
+    from marimo._config.schema_utils import config_leaf_types
+
+    for name in {
+        *DEPRECATED_ENV_VARS.values(),
+        *(env_var_name(path) for path in config_leaf_types(MarimoConfig)),
+    }:
+        monkeypatch.delenv(name, raising=False)

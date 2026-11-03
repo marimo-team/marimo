@@ -83,7 +83,9 @@ def create_starlette_app(
                 Middleware(
                     CustomSessionMiddleware,
                     secret_key=session_secret,
-                    https_only=server_config["session_cookie_secure"],
+                    https_only=server_config.get(
+                        "session_cookie_secure", False
+                    ),
                 ),
             ]
         )

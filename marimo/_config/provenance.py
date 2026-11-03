@@ -73,3 +73,12 @@ class ResolvedConfig:
 
     config: MarimoConfig
     origins: dict[ConfigPath, ConfigSource]
+
+    @property
+    def override_paths(self) -> tuple[ConfigPath, ...]:
+        """Settings explicitly overridden above file and environment sources."""
+        return tuple(
+            path
+            for path, source in self.origins.items()
+            if source in ("override", "cli")
+        )

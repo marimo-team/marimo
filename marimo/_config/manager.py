@@ -6,7 +6,7 @@ import os
 import re
 from functools import cached_property, lru_cache
 from pathlib import Path
-from typing import Any, cast, get_args
+from typing import Annotated, Any, cast, get_args, get_origin
 
 import msgspec
 
@@ -32,6 +32,7 @@ from marimo._config.packages import PackageManagerKind
 from marimo._config.provenance import (
     DEPRECATED_ENV_VARS,
     ConfigLayer,
+    ConfigPath,
     ConfigSource,
     ResolvedConfig,
     env_var_name,
@@ -64,6 +65,7 @@ from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._config.utils import (
     deep_copy,
     get_or_create_user_config_path,
+    get_user_config_path,
     is_trusted_user_config_path,
 )
 
@@ -307,11 +309,20 @@ class MarimoConfigManager:
         The source is read unmasked during resolution; masking is applied only
         when configuration values are returned to callers.
         """
+        partials = list(self.partials)
+        index = len(partials)
+        if isinstance(partial, ScriptConfigReader):
+            index = next(
+                (
+                    i
+                    for i, reader in enumerate(partials)
+                    if isinstance(reader, (EnvVarReader, OverrideConfigReader))
+                ),
+                index,
+            )
+        partials.insert(index, partial)
         return MarimoConfigManager(
-            self.user_config_mgr,
-            *self.partials,
-            partial,
-            *self.security_partials,
+            self.user_config_mgr, *partials, *self.security_partials
         )
 
 
@@ -486,10 +497,14 @@ class EnvVarReader(ConfigReader):
     def source(self) -> ConfigSource:
         return "deprecated_env_var" if self.deprecated else "env_var"
 
-    def read(self) -> PartialMarimoConfig:
+    def read(
+        self, *, paths: tuple[ConfigPath, ...] | None = None
+    ) -> PartialMarimoConfig:
         """Read schema-declared leaves, skipping malformed environment values."""
         config: dict[str, Any] = {}
         for path, annotation in config_leaf_types(MarimoConfigSchema).items():
+            if paths is not None and path not in paths:
+                continue
             canonical = env_var_name(path)
             key = (
                 DEPRECATED_ENV_VARS.get(path) if self.deprecated else canonical
@@ -513,7 +528,14 @@ class EnvVarReader(ConfigReader):
             try:
                 # Preserve strings verbatim; use JSON for collections and null.
                 if self.deprecated and (
-                    annotation is int or int in get_args(annotation)
+                    any(
+                        variant is int
+                        or (
+                            get_origin(variant) is Annotated
+                            and get_args(variant)[0] is int
+                        )
+                        for variant in (get_args(annotation) or (annotation,))
+                    )
                 ):
                     value: Any = int(raw)
                 elif raw == "null" and type(None) in get_args(annotation):
@@ -656,6 +678,9 @@ class ScriptConfigReader(ConfigReader):
 class UserConfigStore(ConfigReader):
     """Read and write the user configuration"""
 
+    def __init__(self, *, create_if_missing: bool = True) -> None:
+        self.create_if_missing = create_if_missing
+
     @property
     def source(self) -> ConfigSource:
         try:
@@ -699,7 +724,11 @@ class UserConfigStore(ConfigReader):
         return cast(PartialMarimoConfig, deep_copy(self._load_config()))
 
     def get_config_path(self) -> str:
-        return get_or_create_user_config_path()
+        if self.create_if_missing:
+            return get_or_create_user_config_path()
+        from marimo._utils.xdg import marimo_config_path
+
+        return get_user_config_path() or str(marimo_config_path())
 
     def _load_config(self) -> PartialMarimoConfig:
         """
@@ -713,7 +742,7 @@ class UserConfigStore(ConfigReader):
                 "Encountered error when searching for config: %s", e
             )
 
-        if path is not None:
+        if path is not None and os.path.isfile(path):
             LOGGER.debug("Using config at %s", path)
             try:
                 user_config = read_marimo_config(path)

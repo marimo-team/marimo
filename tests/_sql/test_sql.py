@@ -31,9 +31,16 @@ from marimo._sql.utils import (
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Generator
+    from pathlib import Path
 
     import duckdb
     import sqlalchemy as sa
+
+
+@pytest.fixture(autouse=True)
+def clean_sql_environment(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("MARIMO_RUNTIME_SQL_DEFAULT_LIMIT", raising=False)
+    monkeypatch.delenv("MARIMO_SQL_DEFAULT_LIMIT", raising=False)
 
 
 HAS_DUCKDB = DependencyManager.duckdb.has()
@@ -466,9 +473,13 @@ def test_query_includes_limit() -> None:
 )
 @patch("marimo._sql.sql.replace")
 @pytest.mark.requires("polars", "duckdb")
-def test_applies_limit(mock_replace: MagicMock, variable: str) -> None:
+def test_applies_limit(
+    mock_replace: MagicMock, variable: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
     import duckdb
 
+    monkeypatch.delenv("MARIMO_RUNTIME_SQL_DEFAULT_LIMIT", raising=False)
+    monkeypatch.delenv("MARIMO_SQL_DEFAULT_LIMIT", raising=False)
     with patch.dict(os.environ, {variable: "300"}):
         duckdb.sql("CREATE OR REPLACE TABLE t AS SELECT * FROM range(1000)")
         mock_replace.assert_not_called()
@@ -938,3 +949,39 @@ def test_sql_limit_uses_environment_outside_notebook(
         "marimo._sql.sql.get_context", side_effect=ContextNotInitializedError
     ):
         assert get_default_result_limit() == 45
+
+
+def test_standalone_sql_reads_files_once_without_creating_user_config(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from marimo._runtime.context.types import ContextNotInitializedError
+    from marimo._sql.sql import _standalone_sql_limit
+
+    _standalone_sql_limit.cache_clear()
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "xdg"))
+    monkeypatch.setattr(
+        "marimo._config.manager.get_user_config_path", lambda: None
+    )
+    project = tmp_path / "pyproject.toml"
+    project.write_text("[tool.marimo.runtime]\nsql_default_limit = 30\n")
+    with patch(
+        "marimo._sql.sql.get_context", side_effect=ContextNotInitializedError
+    ):
+        assert get_default_result_limit() == 30
+        project.write_text("[tool.marimo.runtime]\nsql_default_limit = 99\n")
+        assert get_default_result_limit() == 30
+        assert not (tmp_path / "xdg").exists()
+    _standalone_sql_limit.cache_clear()
+
+
+def test_negative_file_sql_limit_is_not_applied() -> None:
+    from marimo._config.config import merge_default_config
+
+    context = MagicMock()
+    context.marimo_config = merge_default_config(
+        {"runtime": {"sql_default_limit": -1}}
+    )
+    with patch("marimo._sql.sql.get_context", return_value=context):
+        assert get_default_result_limit() is None
