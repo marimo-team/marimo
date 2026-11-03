@@ -63,7 +63,9 @@ def create_starlette_app(
 ) -> Starlette:
     final_middlewares: list[Middleware] = [
         Middleware(
-            WebSocketOriginMiddleware, allow_origins=allow_origins or ()
+            WebSocketOriginMiddleware,
+            allow_origins=allow_origins or (),
+            host=host,
         ),
         # Handle host API requests before the editor's middleware.
         Middleware(HostApiMiddleware, base_url=base_url),

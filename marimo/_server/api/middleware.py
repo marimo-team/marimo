@@ -6,6 +6,7 @@ import time
 from collections.abc import AsyncIterable, Callable
 from dataclasses import dataclass
 from http.client import HTTPResponse, HTTPSConnection
+from ipaddress import ip_address
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -113,9 +114,16 @@ class WebSocketOriginMiddleware:
     """Apply the server's origin policy to WebSocket handshakes."""
 
     def __init__(
-        self, app: ASGIApp, *, allow_origins: tuple[str, ...] = ()
+        self,
+        app: ASGIApp,
+        *,
+        allow_origins: tuple[str, ...] = (),
+        host: str | None = None,
     ) -> None:
         self.app = app
+        self.trusted_hosts = {"localhost", "127.0.0.1", "::1"}
+        if host is not None:
+            self.trusted_hosts.add(host.strip("[]").lower())
         self.allow_all_origins = "*" in allow_origins
         self.allow_origins: set[tuple[str, str, int]] = set()
         for value in allow_origins:
@@ -161,6 +169,18 @@ class WebSocketOriginMiddleware:
         except ValueError:
             return None
 
+    def _is_trusted_host(self, hostname: str, scope: Scope) -> bool:
+        if hostname in self.trusted_hosts:
+            return True
+        server = scope.get("server")
+        if server is None:
+            return False
+        try:
+            # The local socket address also supports direct IP connections.
+            return ip_address(hostname) == ip_address(server[0])
+        except ValueError:
+            return False
+
     async def __call__(
         self, scope: Scope, receive: Receive, send: Send
     ) -> None:
@@ -179,7 +199,10 @@ class WebSocketOriginMiddleware:
             f"{scheme}://{websocket.headers.get('host', '')}"
         )
         if origin is not None and (
-            origin == server_origin
+            (
+                origin == server_origin
+                and self._is_trusted_host(origin[1], scope)
+            )
             or origin in self.allow_origins
             or self.allow_all_origins
         ):

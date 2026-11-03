@@ -23,7 +23,9 @@ async def echo(websocket: WebSocket) -> None:
     await websocket.close()
 
 
-def make_client(allow_origins: tuple[str, ...] = ()) -> TestClient:
+def make_client(
+    allow_origins: tuple[str, ...] = (), *, host: str | None = None
+) -> TestClient:
     return TestClient(
         Starlette(
             routes=[
@@ -32,7 +34,9 @@ def make_client(allow_origins: tuple[str, ...] = ()) -> TestClient:
             ],
             middleware=[
                 Middleware(
-                    WebSocketOriginMiddleware, allow_origins=allow_origins
+                    WebSocketOriginMiddleware,
+                    allow_origins=allow_origins,
+                    host=host,
                 )
             ],
         )
@@ -55,7 +59,9 @@ def make_client(allow_origins: tuple[str, ...] = ()) -> TestClient:
 )
 def test_same_origin(url: str, origin: str | None) -> None:
     headers = {"Origin": origin} if origin is not None else {}
-    with make_client().websocket_connect(url, headers=headers) as websocket:
+    with make_client(host="example.com").websocket_connect(
+        url, headers=headers
+    ) as websocket:
         assert websocket.receive_text() == "connected"
 
 
@@ -100,9 +106,9 @@ def test_other_or_invalid_origin(origin: str) -> None:
 @pytest.mark.parametrize("allow_origins", [(), ("*",)])
 def test_duplicate_origin(allow_origins: tuple[str, ...]) -> None:
     client = make_client(allow_origins)
-    client.headers = [("Origin", "http://testserver")] * 2
+    client.headers = [("Origin", "http://localhost")] * 2
     with pytest.raises(WebSocketDisconnect) as exc_info:
-        with client.websocket_connect("/ws"):
+        with client.websocket_connect("ws://localhost/ws"):
             pytest.fail("Unexpected connection")
     assert exc_info.value.reason == "Origin not allowed"
 
@@ -145,7 +151,7 @@ def test_configured_origins(allow_origins: tuple[str, ...]) -> None:
     ) as websocket:
         assert websocket.receive_text() == "connected"
     with client.websocket_connect(
-        "/ws", headers={"Origin": "http://testserver"}
+        "ws://localhost/ws", headers={"Origin": "http://localhost"}
     ) as websocket:
         assert websocket.receive_text() == "connected"
 
@@ -209,6 +215,71 @@ def test_bound_host_does_not_allow_other_origins(host: str) -> None:
     assert exc_info.value.reason == "Origin not allowed"
 
 
+@pytest.mark.parametrize("host", [None, "localhost", "0.0.0.0", "::"])
+@pytest.mark.parametrize("enable_auth", [True, False])
+@pytest.mark.parametrize("request_host", ["other.example", "192.0.2.50"])
+def test_matching_headers_require_a_configured_host(
+    host: str | None, enable_auth: bool, request_host: str
+) -> None:
+    app = create_starlette_app(base_url="", host=host, enable_auth=enable_auth)
+    app.state.session_manager = get_mock_session_manager()
+    with pytest.raises(WebSocketDisconnect) as exc_info:
+        with TestClient(app).websocket_connect(
+            "ws://127.0.0.1:2718/ws?access_token=fake-token",
+            headers={
+                "Host": f"{request_host}:2718",
+                "Origin": f"http://{request_host}:2718",
+            },
+        ):
+            pytest.fail("Unexpected connection")
+    assert exc_info.value.reason == "Origin not allowed"
+
+
+def test_configured_host_is_allowed() -> None:
+    app = create_starlette_app(
+        base_url="", host="EDITOR.EXAMPLE", enable_auth=False
+    )
+    app.state.session_manager = get_mock_session_manager()
+    app.router.routes.insert(0, WebSocketRoute("/echo", echo))
+    with TestClient(app).websocket_connect(
+        "ws://127.0.0.1:2718/echo",
+        headers={
+            "Host": "editor.example:8080",
+            "Origin": "http://editor.example:8080",
+        },
+    ) as websocket:
+        assert websocket.receive_text() == "connected"
+
+
+@pytest.mark.parametrize("host", ["192.0.2.10", "[2001:db8::1]"])
+def test_local_socket_address_is_allowed(host: str) -> None:
+    with make_client().websocket_connect(
+        f"ws://{host}:2718/ws", headers={"Origin": f"http://{host}:2718"}
+    ) as websocket:
+        assert websocket.receive_text() == "connected"
+
+
+def test_socket_hostname_does_not_allow_other_origins() -> None:
+    with pytest.raises(WebSocketDisconnect) as exc_info:
+        with make_client().websocket_connect(
+            "ws://other.example/ws",
+            headers={"Origin": "http://other.example"},
+        ):
+            pytest.fail("Unexpected connection")
+    assert exc_info.value.reason == "Origin not allowed"
+
+
+def test_rewritten_host_with_configured_origin() -> None:
+    with make_client(("https://editor.example",)).websocket_connect(
+        "ws://127.0.0.1:2718/ws",
+        headers={
+            "Host": "internal-upstream:2718",
+            "Origin": "https://editor.example",
+        },
+    ) as websocket:
+        assert websocket.receive_text() == "connected"
+
+
 def test_http_and_lifespan_passthrough() -> None:
     with make_client() as client:
         response = client.get("/", headers={"Origin": "https://other.example"})
@@ -217,7 +288,9 @@ def test_http_and_lifespan_passthrough() -> None:
 
 def test_trusted_proxy_scheme() -> None:
     client = TestClient(
-        ProxyHeadersMiddleware(make_client().app, trusted_hosts=["testclient"])
+        ProxyHeadersMiddleware(
+            make_client(host="example.com").app, trusted_hosts=["testclient"]
+        )
     )
     with client.websocket_connect(
         "ws://127.0.0.1:2718/ws",
@@ -287,11 +360,12 @@ def test_app_allowed_origins(
     )
     app.state.session_manager = get_mock_session_manager()
     app.router.routes.insert(0, WebSocketRoute("/echo", echo))
-    origins = ["http://testserver"]
+    origins = ["http://localhost"]
     if allow_origins:
         origins.append("https://editor.example")
     for origin in origins:
         with TestClient(app).websocket_connect(
-            "/echo?access_token=fake-token", headers={"Origin": origin}
+            "ws://localhost/echo?access_token=fake-token",
+            headers={"Origin": origin},
         ) as websocket:
             assert websocket.receive_text() == "connected"
