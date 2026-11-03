@@ -125,10 +125,11 @@ components:
       description: "Configuration options for AI.\n\n    **Keys.**\n\n    - `enabled`:\
         \ if `False`, hide AI actions and panels in the marimo UI\n    - `rules`:\
         \ custom rules to include in all AI completion prompts\n    - `max_tokens`:\
-        \ the maximum number of tokens to use in AI completions\n    - `mode`: the\
-        \ mode to use for AI completions. Can be one of: `\"ask\"` or `\"manual\"\
-        `\n    - `inline_tooltip`: if `True`, enable inline AI tooltip suggestions\n\
-        \    - `allow_provider_config`: if `False`, lock provider setup in the settings\
+        \ the maximum number of tokens to use in AI completions\n    - `mode`: notebook\
+        \ access for the built-in assistant: `\"ask\"` (read only), `\"agent\"` (suggest\
+        \ edits), or `\"code_mode\"` (full access). Defaults to `\"ask\"`.\n    -\
+        \ `inline_tooltip`: if `True`, enable inline AI tooltip suggestions\n    -\
+        \ `allow_provider_config`: if `False`, lock provider setup in the settings\
         \ UI, making them read-only. Users cannot bring their own credentials or add\
         \ custom providers. Default `True`.\n    - `models`: the models to use for\
         \ AI completions\n    - `open_ai`: the OpenAI config\n    - `anthropic`: the\
