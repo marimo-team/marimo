@@ -48,7 +48,7 @@ def _validate_key(key: str) -> None:
     if not key or _INVALID_KEY_CHARS.search(key):
         raise ValueError(
             f"Invalid secret key {key!r}: keys must be non-empty and cannot "
-            "contain whitespace, \"=\", \"#\", quotes, or backslashes"
+            'contain whitespace, "=", "#", quotes, or backslashes'
         )
 
 
