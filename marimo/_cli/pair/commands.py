@@ -796,6 +796,7 @@ def notebook_events(
                 read_timeout=None,
             )
         ) as response:
+            first_event = True
             for event in iter_sse(response, inherit_id=False):
                 payload: dict[str, object] = {
                     "event": event.name,
@@ -803,7 +804,10 @@ def notebook_events(
                 }
                 if event.id is not None:
                     payload["id"] = event.id
+                if pretty and not first_event:
+                    click.echo()
                 click.echo(json.dumps(payload, indent=2 if pretty else None))
+                first_event = False
     except PairInputError as error:
         raise click.UsageError(str(error)) from error
     except PairError as error:
