@@ -2,6 +2,9 @@
 from __future__ import annotations
 
 import logging
+from typing import TYPE_CHECKING
+from unittest.mock import AsyncMock
+from urllib.parse import urlsplit
 
 import pytest
 from starlette.applications import Starlette
@@ -16,6 +19,9 @@ from marimo._server.api.middleware import WebSocketOriginMiddleware
 from marimo._server.main import create_starlette_app
 from tests._server.mocks import get_mock_session_manager
 
+if TYPE_CHECKING:
+    from starlette.types import Message, Scope
+
 
 async def echo(websocket: WebSocket) -> None:
     await websocket.accept()
@@ -23,24 +29,60 @@ async def echo(websocket: WebSocket) -> None:
     await websocket.close()
 
 
+def make_app(
+    allow_origins: tuple[str, ...] = (), *, host: str | None = None
+) -> Starlette:
+    return Starlette(
+        routes=[
+            WebSocketRoute("/ws", echo),
+            Route("/", lambda _: PlainTextResponse("ok")),
+        ],
+        middleware=[
+            Middleware(
+                WebSocketOriginMiddleware,
+                allow_origins=allow_origins,
+                host=host,
+            )
+        ],
+    )
+
+
 def make_client(
     allow_origins: tuple[str, ...] = (), *, host: str | None = None
 ) -> TestClient:
-    return TestClient(
-        Starlette(
-            routes=[
-                WebSocketRoute("/ws", echo),
-                Route("/", lambda _: PlainTextResponse("ok")),
-            ],
-            middleware=[
-                Middleware(
-                    WebSocketOriginMiddleware,
-                    allow_origins=allow_origins,
-                    host=host,
-                )
-            ],
-        )
+    return TestClient(make_app(allow_origins, host=host))
+
+
+async def websocket_messages(
+    app: Starlette, url: str, origin: str | None
+) -> list[Message]:
+    # Older supported Starlette TestClients cannot parse IPv6 URL authorities.
+    parsed = urlsplit(url)
+    headers = [(b"host", parsed.netloc.encode())]
+    if origin is not None:
+        headers.append((b"origin", origin.encode()))
+    scope: Scope = {
+        "type": "websocket",
+        "scheme": parsed.scheme,
+        "path": parsed.path,
+        "root_path": "",
+        "query_string": parsed.query.encode(),
+        "headers": headers,
+        "server": (
+            parsed.hostname,
+            parsed.port or (443 if parsed.scheme == "wss" else 80),
+        ),
+        "subprotocols": [],
+    }
+    messages: list[Message] = []
+
+    async def send(message: Message) -> None:
+        messages.append(message)
+
+    await app(
+        scope, AsyncMock(return_value={"type": "websocket.connect"}), send
     )
+    return messages
 
 
 @pytest.mark.parametrize(
@@ -57,12 +99,12 @@ def make_client(
         ("ws://localhost:2718/ws", None),
     ],
 )
-def test_same_origin(url: str, origin: str | None) -> None:
-    headers = {"Origin": origin} if origin is not None else {}
-    with make_client(host="example.com").websocket_connect(
-        url, headers=headers
-    ) as websocket:
-        assert websocket.receive_text() == "connected"
+async def test_same_origin(url: str, origin: str | None) -> None:
+    messages = await websocket_messages(
+        make_app(host="example.com"), url, origin
+    )
+    assert messages[0]["type"] == "websocket.accept"
+    assert messages[1] == {"type": "websocket.send", "text": "connected"}
 
 
 @pytest.mark.parametrize(
@@ -130,15 +172,19 @@ def test_duplicate_origin(allow_origins: tuple[str, ...]) -> None:
         "http://user:password@[::1]",
     ],
 )
-def test_invalid_origin_with_configured_policy(
+async def test_invalid_origin_with_configured_policy(
     allow_origins: tuple[str, ...], origin: str
 ) -> None:
-    with pytest.raises(WebSocketDisconnect) as exc_info:
-        with make_client(allow_origins).websocket_connect(
-            "ws://[::1]/ws", headers={"Origin": origin}
-        ):
-            pytest.fail("Unexpected connection")
-    assert exc_info.value.reason == "Origin not allowed"
+    messages = await websocket_messages(
+        make_app(allow_origins), "ws://[::1]/ws", origin
+    )
+    assert messages == [
+        {
+            "type": "websocket.close",
+            "code": 1008,
+            "reason": "Origin not allowed",
+        }
+    ]
 
 
 @pytest.mark.parametrize(
@@ -252,11 +298,12 @@ def test_configured_host_is_allowed() -> None:
 
 
 @pytest.mark.parametrize("host", ["192.0.2.10", "[2001:db8::1]"])
-def test_local_socket_address_is_allowed(host: str) -> None:
-    with make_client().websocket_connect(
-        f"ws://{host}:2718/ws", headers={"Origin": f"http://{host}:2718"}
-    ) as websocket:
-        assert websocket.receive_text() == "connected"
+async def test_local_socket_address_is_allowed(host: str) -> None:
+    messages = await websocket_messages(
+        make_app(), f"ws://{host}:2718/ws", f"http://{host}:2718"
+    )
+    assert messages[0]["type"] == "websocket.accept"
+    assert messages[1] == {"type": "websocket.send", "text": "connected"}
 
 
 def test_socket_hostname_does_not_allow_other_origins() -> None:
