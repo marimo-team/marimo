@@ -200,7 +200,6 @@ def test_save_layout(client: TestClient) -> None:
 
 
 @pytest.mark.flaky(reruns=5)
-@pytest.mark.flaky(reruns=5)
 @with_session(SESSION_ID)
 def test_save_app_config(client: TestClient) -> None:
     filename = get_session_manager(client).workspace.get_unique_file_key()
