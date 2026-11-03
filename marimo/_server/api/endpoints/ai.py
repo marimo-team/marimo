@@ -234,7 +234,7 @@ async def ai_chat(
     ai_config = get_ai_config(config)
     custom_rules = ai_config.get("rules", None)
 
-    mode: CopilotMode = ai_config.get("mode", "manual")
+    mode: CopilotMode = ai_config.get("mode", "ask")
     system_prompt = get_chat_system_prompt(
         custom_rules=custom_rules,
         include_other_code=body.include_other_code,
@@ -265,6 +265,8 @@ async def ai_chat(
     )
     enable_capabilities = body.options.web_search
 
+    # TODO: Unify these paths behind one toolset with different access levels.
+    # Full access should use our Pair MCP scoped to this notebook.
     if mode == "code_mode":
         return await provider.stream_completion_harness(
             messages=body.ui_messages,

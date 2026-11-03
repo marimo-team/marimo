@@ -91,12 +91,22 @@ into your notebook.
 
 <iframe width="740" height="420" src="https://www.youtube.com/embed/4DC1E2UBwAM?si=zzrzl0VlvOU6JiZP" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" loading="lazy" allowfullscreen></iframe>
 
-The chat panel currently supports the following modes:
+Use the **Notebook access** selector to choose what the assistant can do:
 
-- **Manual**: No tool access; the AI responds based only on the conversation and manually injected context
-- **Ask**: Enables read-only [AI tools](tools.md) and [tools from added MCP Client servers](mcp.md#mcp-client) for context gathering, allowing the assistant to inspect your notebooks
-- **Agent**: Enables all tools in **Ask Mode** plus additional tools to [edit notebook cells (add, remove, update) and run stale cells](tools.md#editing-agent-mode-only)
-- **Code mode**: Gives the assistant access to the [notebook kernel](tools.md#code-mode) which allows the assistant to inspect the marimo runtime and manipulate the notebook in powerful ways.
+- **Read only**: Read notebook code, outputs, and variable previews.
+- **Suggest edits**: Read the notebook and propose cell changes for review.
+- **Full access**: Read, edit, and run cells, with Python scratchpad access.
+
+**Suggest edits** uses [cell proposals](tools.md#editing) that you can keep or discard.
+**Full access** can modify the notebook directly and [execute Python in the live kernel](tools.md#full-access).
+
+See [AI tools](tools.md) for details about notebook tools and MCP integrations.
+[Web search and fetch](tools.md#web-search-and-fetch) can be enabled separately
+at any notebook access level.
+
+The `ai.mode` configuration values are `ask` for **Read only** (the default),
+`agent` for **Suggest edits**, and `code_mode` for **Full access**. The legacy
+`manual` value is an alias for `ask`.
 
 ### Refactor existing cells
 

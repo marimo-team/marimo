@@ -21,7 +21,7 @@ import type { CopilotMode } from "./registry";
 
 const description: ToolDescription = {
   baseDescription:
-    "Perform editing operations on the current notebook. You should prefer to create new cells unless you need to edit existing cells. Call this tool multiple times to perform multiple edits. Separate code into logical individual cells to take advantage of the notebook's reactive execution model.",
+    "Propose cell edits for the user to review in the current notebook. You should prefer to create new cells unless you need to edit existing cells. Call this tool multiple times to perform multiple edits. Separate code into logical individual cells to take advantage of the notebook's reactive execution model.",
   prerequisites: [
     "If you are updating existing cells, you need the cellIds. If they are not known, call the lightweight_cell_map_tool to find out.",
   ],

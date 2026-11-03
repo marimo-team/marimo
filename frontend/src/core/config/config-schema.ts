@@ -170,7 +170,10 @@ export const UserConfigSchema = z
         enabled: z.boolean().prefault(true),
         rules: z.string().prefault(""),
         max_tokens: z.number().int().positive().nullable().optional(),
-        mode: z.enum(COPILOT_MODES).prefault("manual"),
+        mode: z
+          .enum(COPILOT_MODES)
+          .transform((mode) => (mode === "manual" ? "ask" : mode))
+          .prefault("ask"),
         inline_tooltip: z.boolean().prefault(false),
         allow_provider_config: z.boolean().prefault(true),
         open_ai: AiConfigSchema.optional(),

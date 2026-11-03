@@ -388,7 +388,7 @@ class AiConfig(Config, kw_only=True):
     mode: Annotated[
         CopilotMode | UnsetType,
         Meta(
-            description='the mode to use for AI completions. Can be one of: `"ask"` or `"manual"`'
+            description='notebook access for the built-in assistant: `"ask"` (read only), `"agent"` (suggest edits), or `"code_mode"` (full access). Defaults to `"ask"`. The legacy `"manual"` value is an alias for `"ask"`.'
         ),
     ] = UNSET
     inline_tooltip: Annotated[

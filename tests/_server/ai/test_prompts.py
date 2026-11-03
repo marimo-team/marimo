@@ -220,13 +220,24 @@ def test_edit_inline_prompts():
     assert FIM_SUFFIX_TAG in result
 
 
+def test_legacy_manual_uses_read_only_prompt():
+    kwargs = {
+        "custom_rules": None,
+        "include_other_code": "",
+        "session_id": SessionId("s_test"),
+    }
+    assert get_chat_system_prompt(
+        mode="manual", **kwargs
+    ) == get_chat_system_prompt(mode="ask", **kwargs)
+
+
 def test_chat_system_prompts():
     result: str = ""
     result += _header("no custom rules")
     result += get_chat_system_prompt(
         custom_rules=None,
         include_other_code="",
-        mode="manual",
+        mode="ask",
         session_id=SessionId("s_test"),  # stable fake session id for snapshot
     )
 
@@ -234,7 +245,7 @@ def test_chat_system_prompts():
     result += get_chat_system_prompt(
         custom_rules="Always be polite.",
         include_other_code="",
-        mode="manual",
+        mode="ask",
         session_id=SessionId("s_test"),
     )
 
@@ -242,11 +253,11 @@ def test_chat_system_prompts():
     result += get_chat_system_prompt(
         custom_rules=None,
         include_other_code="import pandas as pd\nimport numpy as np\n",
-        mode="manual",
+        mode="ask",
         session_id=SessionId("s_test"),
     )
 
-    result += _header("with agent mode")
+    result += _header("with suggested edits")
     result += get_chat_system_prompt(
         custom_rules=None,
         include_other_code="",
@@ -258,7 +269,7 @@ def test_chat_system_prompts():
     result += get_chat_system_prompt(
         custom_rules="Always be polite.",
         include_other_code="import pandas as pd\nimport numpy as np\n",
-        mode="manual",
+        mode="ask",
         session_id=SessionId("s_test"),
     )
 
@@ -290,7 +301,7 @@ def test_markdown_rules_include_latex():
     chat_prompt = get_chat_system_prompt(
         custom_rules=None,
         include_other_code="",
-        mode="manual",
+        mode="ask",
         session_id=SessionId("test"),
     )
     assert "double dollar signs ($$)" in chat_prompt
@@ -462,13 +473,13 @@ def test_chat_system_prompt_agent_mode_inserts_cell_rules():
         mode="agent",
         session_id=SessionId("s_test"),
     )
-    manual_prompt = get_chat_system_prompt(
+    read_only_prompt = get_chat_system_prompt(
         custom_rules=None,
         include_other_code="",
-        mode="manual",
+        mode="ask",
         session_id=SessionId("s_test"),
     )
-    # Agent mode adds guidance for inserting cells; manual mode does not.
+    # Agent mode adds guidance for inserting cells; read-only access does not.
     assert "## Rules for inserting cells:" in agent_prompt
     assert 'mo.md(f"""{content}""")' in agent_prompt
-    assert "## Rules for inserting cells:" not in manual_prompt
+    assert "## Rules for inserting cells:" not in read_only_prompt

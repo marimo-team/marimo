@@ -40,6 +40,12 @@ def test_get_tools_for_mode(manager: ToolManager):
         assert "ask" in tool.mode
 
 
+def test_legacy_manual_uses_read_only_tools(manager: ToolManager):
+    assert manager.get_tools_for_mode("manual") == manager.get_tools_for_mode(
+        "ask"
+    )
+
+
 async def test_invoke_tool_backend_success(manager: ToolManager):
     """Test successful backend tool invocation."""
 
