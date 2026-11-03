@@ -18,7 +18,10 @@ export interface LayoutColumn {
   readonly ids: readonly CellId[];
   /** The cells on the page: those no fold hides. */
   readonly visible: readonly CellId[];
-  /** Each folded header and the cells it hides, nested sections included. */
+  /**
+   * Each folded header and the cells it hides, nested sections included. A
+   * folded header with nothing under it yet has an empty fold.
+   */
   readonly folds: ReadonlyMap<CellId, readonly CellId[]>;
 }
 
@@ -43,7 +46,7 @@ export function foldSections(
       return;
     }
     const range = findCollapseRange(index, outlines);
-    if (range === null || range[1] === index) {
+    if (range === null) {
       return;
     }
     folds.set(id, ids.slice(index + 1, range[1] + 1));
@@ -124,6 +127,17 @@ export function foldsHiding(layout: Layout, id: CellId): CellId[] {
   return [...column.folds]
     .filter(([, hidden]) => hidden.includes(id))
     .map(([header]) => header);
+}
+
+/**
+ * The folded headers whose sections a cell without a heading would fall
+ * into, placed right after `id`: those hiding `id`, and `id` itself when it
+ * is a folded header. A section runs until the next heading, so a cell
+ * placed after the last cell of a fold is still inside it.
+ */
+export function foldsAfter(layout: Layout, id: CellId): CellId[] {
+  const hiding = foldsHiding(layout, id);
+  return foldOf(layout, id) === undefined ? hiding : [...hiding, id];
 }
 
 /** The visible cell `offset` places from `id` in its column, if there is one. */

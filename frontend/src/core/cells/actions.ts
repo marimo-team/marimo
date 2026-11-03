@@ -42,6 +42,7 @@ import {
   collapsedAtom,
   columnOf,
   foldOf,
+  foldsAfter,
   foldsHiding,
   layoutAtom,
 } from "./layout";
@@ -97,30 +98,19 @@ export const createCellAtom = atom(
     // column, so a cell placed first in a later column names its column.
     let placement: { after?: CellId; before?: CellId } = {};
     let column: number | null = null;
+    // The cell the new one comes right after, whose folds would hide it.
+    let follows: CellId | undefined;
+    const layout = get(layoutAtom);
     if (options.after) {
       // A folded header hides the cells after it, so a cell placed after
-      // the header goes after its fold. Any section that holds the anchor
-      // holds the new cell too, so when it is to be focused, those open.
-      const layout = get(layoutAtom);
-      const fold = foldOf(layout, options.after);
-      placement = { after: fold?.at(-1) ?? options.after };
-      const sections = foldsHiding(layout, options.after);
-      if (fold) {
-        sections.push(options.after);
-      }
-      if (focus && sections.length > 0) {
-        set(collapsedAtom, (collapsed) => {
-          const next = new Set(collapsed);
-          for (const header of sections) {
-            next.delete(header);
-          }
-          return next;
-        });
-      }
+      // the header goes after its fold.
+      follows = foldOf(layout, options.after)?.at(-1) ?? options.after;
+      placement = { after: follows };
     } else if (options.before) {
       const tree = cellIds.findWithId(options.before);
       const index = cellIds.indexOf(tree);
       placement = { before: options.before };
+      follows = tree.before(options.before);
       if (index > 0 && tree.indexOfOrThrow(options.before) === 0) {
         column = index;
       }
@@ -128,7 +118,8 @@ export const createCellAtom = atom(
       const tree =
         (options.endOf && cellIds.get(options.endOf)) ?? cellIds.atOrThrow(0);
       if (tree.length > 0) {
-        placement = { after: tree.last() };
+        follows = tree.last();
+        placement = { after: follows };
       } else if (cellIds.colLength > 1) {
         column = cellIds.indexOf(tree);
       }
@@ -144,6 +135,18 @@ export const createCellAtom = atom(
       }
     });
     if (focus) {
+      // The new cell has no heading, so every section that runs past the
+      // cell before it holds it too. Those open, so the cell is on the page.
+      const hiding = follows === undefined ? [] : foldsAfter(layout, follows);
+      if (hiding.length > 0) {
+        set(collapsedAtom, (collapsed) => {
+          const next = new Set(collapsed);
+          for (const header of hiding) {
+            next.delete(header);
+          }
+          return next;
+        });
+      }
       focusWhenMounted(set, id);
       // Hidden code stays showing until the cell is blurred for the first time.
       if (config.hide_code) {

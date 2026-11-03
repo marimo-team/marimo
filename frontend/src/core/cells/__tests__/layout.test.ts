@@ -13,6 +13,7 @@ import {
   columnOf,
   deriveLayout,
   foldSections,
+  foldsAfter,
   foldsHiding,
   layoutAtom,
   visibleNeighbor,
@@ -55,13 +56,18 @@ describe("foldSections", () => {
     expect(folds.get(h1b)).toEqual([d]);
   });
 
-  it("ignores cells without a heading and headers with nothing under them", () => {
+  it("ignores cells without a heading", () => {
+    const folds = foldSections([h1, a], [heading(1), null], new Set([a]));
+    expect(folds.size).toBe(0);
+  });
+
+  it("keeps an empty fold for a header with nothing under it yet", () => {
     const folds = foldSections(
       [h1, a, h1b],
       [heading(1), null, heading(1)],
-      new Set([a, h1b]),
+      new Set([h1b]),
     );
-    expect(folds.size).toBe(0);
+    expect(folds.get(h1b)).toEqual([]);
   });
 });
 
@@ -90,6 +96,22 @@ describe("deriveLayout", () => {
     expect(visibleNeighbor(layout, h1b, -1)).toBe(h2);
     expect(visibleNeighbor(layout, h1, -1)).toBeUndefined();
     expect(visibleNeighbor(layout, b, 1)).toBeUndefined();
+  });
+
+  it("names the folds a cell placed after another would fall into", () => {
+    // After the folded header or the last cell of its fold, inside it.
+    expect(foldsAfter(layout, h2)).toEqual([h2]);
+    expect(foldsAfter(layout, c)).toEqual([h2]);
+    // After a visible cell no fold reaches, nothing.
+    expect(foldsAfter(layout, a)).toEqual([]);
+    expect(foldsAfter(layout, h1b)).toEqual([]);
+
+    const nested = deriveLayout(
+      [column("left", ids)],
+      outlineOf,
+      new Set([h1, h2]),
+    );
+    expect(foldsAfter(nested, c)).toEqual([h1, h2]);
   });
 });
 

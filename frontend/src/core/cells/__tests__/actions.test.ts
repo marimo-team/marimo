@@ -474,6 +474,45 @@ describe("folding", () => {
     expect(store.get(collapsedAtom).size).toBe(0);
   });
 
+  it("opens every section a new cell lands in", () => {
+    const { store, order, visible, heading } = setup({
+      c3: cell("c3", "z = 3"),
+    });
+    heading(c1, 1);
+    heading(c2, 2);
+    store.set(collapseAllCellsAtom);
+
+    // After the H1, the cell lands past the folded H2 too, inside both.
+    const id = store.set(createCellAtom, { after: c1, code: "w = 4" });
+
+    expect(order()).toEqual([c1, c2, c3, id]);
+    expect(visible()).toEqual([c1, c2, c3, id]);
+    expect(store.get(collapsedAtom).size).toBe(0);
+  });
+
+  it("opens the fold a cell created before or at the end lands in", () => {
+    const { store, order, visible, heading } = setup({
+      c3: cell("c3", "z = 3"),
+    });
+    heading(c1, 1);
+    heading(c3, 1);
+    store.set(collapseCellAtom, { cellId: c1 });
+
+    // Before the second header, the cell follows the first header's fold.
+    const before = store.set(createCellAtom, { before: c3, code: "w = 4" });
+    expect(order()).toEqual([c1, c2, before, c3]);
+    expect(visible()).toEqual([c1, c2, before, c3]);
+
+    store.set(collapseCellAtom, { cellId: c3 });
+    expect(visible()).toEqual([c1, c2, before, c3]);
+
+    // At the end of the column, the cell falls under the last header.
+    const end = store.set(createCellAtom, { code: "v = 5" });
+    expect(order()).toEqual([c1, c2, before, c3, end]);
+    expect(visible()).toEqual([c1, c2, before, c3, end]);
+    expect(store.get(collapsedAtom).size).toBe(0);
+  });
+
   it("leaves a fold closed over a cell created without focus", () => {
     const { store, order, visible, heading } = setup({
       c3: cell("c3", "z = 3"),
