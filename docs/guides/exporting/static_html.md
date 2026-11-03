@@ -56,6 +56,8 @@ command, e.g. `marimo export html notebook.py || true`.
 
 **Slides.** If your notebook is configured with the slides layout, a HTML reveal.js slide deck is created. It preserves slide structure, speaker notes and deck settings. Speaker notes are embedded in the HTML file and readable by anyone who receives it.
 
+**Tabs.** When a notebook uses `mo.ui.tabs` and other cells depend on the selected tab, the exporter runs the notebook once per tab and embeds every tab's rendering in the exported HTML, so readers can switch tabs and see each tab's content without a running kernel.
+
 ## Pre-render HTML exports
 
 Static marimo exports execute Javascript to render the notebook source code as HTML at browser runtime. If you would like to directly serve the HTML representation of your notebook, you can run the following post-processing script and serve the resulting file instead.
