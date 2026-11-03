@@ -69,6 +69,16 @@ class _DocumentRuntime:
     def interrupt(self, run_id: protocol.RunId) -> None:
         raise NotImplementedError("Worker runtime operations are not exposed")
 
+    def update_ui_element(
+        self,
+        element_id: str,
+        state: protocol.UIElementPartialState,
+        request_id: str,
+    ) -> None:
+        raise NotImplementedError(
+            "Worker UI element operations are not exposed"
+        )
+
     def forget(self, run_id: protocol.RunId) -> None:
         pass
 

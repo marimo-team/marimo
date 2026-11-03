@@ -67,6 +67,14 @@ class Backend(Protocol):
     def interrupt(self, run_id: protocol.RunId) -> None:
         """Interrupt a run and report an `interrupted` execution outcome."""
 
+    def update_ui_element(
+        self,
+        element_id: str,
+        state: protocol.UIElementPartialState,
+        request_id: str,
+    ) -> None:
+        """Apply state and report the kernel's value with the request identity."""
+
     def forget(self, run_id: protocol.RunId) -> None:
         """Release a run the host no longer retains.
 
@@ -205,6 +213,14 @@ class UIElementsRemoved:
     cell_id: protocol.CellId
 
 
+@dataclass(frozen=True)
+class UIElementUpdated:
+    runtime_id: protocol.RuntimeId
+    element_id: str
+    state: protocol.UIElementPartialState
+    request_id: str | None
+
+
 Message = (
     Starting
     | Running
@@ -219,4 +235,5 @@ Message = (
     | Done
     | UIElementCreated
     | UIElementsRemoved
+    | UIElementUpdated
 )

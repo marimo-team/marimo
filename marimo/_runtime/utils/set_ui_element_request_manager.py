@@ -1,6 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+from itertools import groupby
 from typing import TYPE_CHECKING, Any, Generic, TypeVar
 
 from marimo._runtime.commands import (
@@ -74,6 +75,19 @@ class _RunAccumulator(Generic[A, B]):
 
 
 def _merge_ui_commands(
+    cmds: list[UpdateUIElementCommand],
+) -> list[UpdateUIElementCommand]:
+    """Keep host acknowledgements intact; merge only adjacent legacy writes."""
+    result: list[UpdateUIElementCommand] = []
+    for is_host, group in groupby(
+        cmds, key=lambda cmd: cmd.request_id is not None
+    ):
+        batch = list(group)
+        result.extend(batch if is_host else _merge_legacy_ui_commands(batch))
+    return result
+
+
+def _merge_legacy_ui_commands(
     cmds: list[UpdateUIElementCommand],
 ) -> list[UpdateUIElementCommand]:
     """Merge UI element commands: last-write-wins per element ID."""

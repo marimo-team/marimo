@@ -22,6 +22,7 @@ from marimo._messaging.notification import (
     RemoveUIElementsNotification,
     StartupProgressNotification,
     UIElementCreatedNotification,
+    UIElementUpdatedNotification,
     VariableValuesNotification,
 )
 from marimo._messaging.serde import deserialize_kernel_message
@@ -30,6 +31,7 @@ from marimo._runtime.commands import (
     ExecuteCellsCommand,
     ExecuteScratchpadCommand,
     HTTPRequest,
+    UpdateUIElementCommand,
 )
 from marimo._runtime.scratch import SCRATCH_CELL_ID
 from marimo._server.host.events import notification_event
@@ -39,7 +41,7 @@ from marimo._session.consumer import SessionConsumer
 from marimo._session.model import ConnectionState, SessionMode
 from marimo._session.requests import InstantiateNotebookRequest
 from marimo._session.types import KernelState
-from marimo._types.ids import CellId_t, ConsumerId, SessionId
+from marimo._types.ids import CellId_t, ConsumerId, SessionId, UIElementId
 from marimo._version import __version__
 
 if TYPE_CHECKING:
@@ -184,6 +186,24 @@ class SessionBackend(SessionConsumer):
                 return
         # Closing an unregistered session still detaches its consumers.
         session.close()
+
+    def update_ui_element(
+        self,
+        element_id: str,
+        state: protocol.UIElementPartialState,
+        request_id: str,
+    ) -> None:
+        session = self.session
+        assert session is not None
+        session.put_control_request(
+            UpdateUIElementCommand(
+                object_ids=[UIElementId(element_id)],
+                values=[None if state.value is msgspec.UNSET else state.value],
+                value_supplied=state.value is not msgspec.UNSET,
+                request_id=request_id,
+            ),
+            from_consumer_id=None,
+        )
 
     def run(self, run_id: protocol.RunId, code: str) -> None:
         session = self.session
@@ -453,13 +473,29 @@ class SessionBackend(SessionConsumer):
     def notify(self, notification: KernelMessage) -> None:
         message = deserialize_kernel_message(notification)
         with self._sink.deferred():
-            if not isinstance(message, UIElementCreatedNotification):
+            if not isinstance(
+                message,
+                (UIElementCreatedNotification, UIElementUpdatedNotification),
+            ):
                 self._sink.append(
                     notification_event(self._notebook_id, message)
                 )
             self._handle_notification(message)
 
     def _handle_notification(self, message: NotificationMessage) -> None:
+        if isinstance(message, UIElementUpdatedNotification):
+            if self._kernel is not None:
+                self._observe(
+                    be.UIElementUpdated(
+                        self._kernel.runtime_id,
+                        message.id,
+                        msgspec.convert(
+                            message.state, type=protocol.UIElementPartialState
+                        ),
+                        message.request_id,
+                    )
+                )
+            return
         if isinstance(message, RemoveUIElementsNotification):
             if self._kernel is not None:
                 self._observe(

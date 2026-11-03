@@ -218,6 +218,15 @@ class UIElementCreatedNotification(Notification, tag="ui-element-created"):
     value: Any
 
 
+class UIElementUpdatedNotification(Notification, tag="ui-element-updated"):
+    """Wire state after the kernel processes an element update."""
+
+    name: ClassVar[str] = "ui-element-updated"
+    id: UIElementId
+    state: dict[str, Any]
+    request_id: str | None
+
+
 class UIElementMessageNotification(
     Notification, tag="send-ui-element-message"
 ):
@@ -1128,6 +1137,7 @@ NotificationMessage = (
     | FunctionCallResultNotification
     | UIElementMessageNotification
     | UIElementCreatedNotification
+    | UIElementUpdatedNotification
     | ModelLifecycleNotification
     | RemoveUIElementsNotification
     # Notebook lifecycle
