@@ -8,11 +8,9 @@ import {
 } from "@codemirror/state";
 import { describe, expect, it } from "vitest";
 import { formattingChangeEffect } from "../../format";
-import { loroSyncAnnotation } from "../../rtc/loro/sync";
 import { exportedForTesting } from "../extensions";
 
-const { isCollaboratorUpdate, shouldAutorunMarkdownUpdate } =
-  exportedForTesting;
+const { shouldAutorunMarkdownUpdate } = exportedForTesting;
 
 function createTransaction(spec: TransactionSpec) {
   return EditorState.create({ doc: "" }).update(spec);
@@ -47,24 +45,6 @@ describe("shouldAutorunMarkdownUpdate", () => {
       shouldAutorunMarkdownUpdate({
         docChanged: transaction.docChanged,
         transactions: [transaction],
-      }),
-    ).toBe(false);
-  });
-
-  it("ignores RTC sync transactions", () => {
-    const transaction = createTransaction({
-      changes: { from: 0, insert: "#" },
-      annotations: [
-        Transaction.userEvent.of("input.type"),
-        loroSyncAnnotation.of(true),
-      ],
-    });
-
-    expect(
-      shouldAutorunMarkdownUpdate({
-        docChanged: transaction.docChanged,
-        transactions: [transaction],
-        hasFocus: true,
       }),
     ).toBe(false);
   });
@@ -124,30 +104,5 @@ describe("shouldAutorunMarkdownUpdate", () => {
         predicate: () => false,
       }),
     ).toBe(false);
-  });
-});
-
-describe("isCollaboratorUpdate", () => {
-  it("recognizes an update made only of Loro sync transactions", () => {
-    const transaction = createTransaction({
-      changes: { from: 0, insert: "#" },
-      annotations: [loroSyncAnnotation.of(true)],
-    });
-
-    expect(isCollaboratorUpdate([transaction])).toBe(true);
-  });
-
-  it("treats typing beside a Loro sync transaction as local", () => {
-    const remote = createTransaction({
-      changes: { from: 0, insert: "#" },
-      annotations: [loroSyncAnnotation.of(true)],
-    });
-    const local = createTransaction({
-      changes: { from: 0, insert: "x" },
-      annotations: [Transaction.userEvent.of("input.type")],
-    });
-
-    expect(isCollaboratorUpdate([remote, local])).toBe(false);
-    expect(isCollaboratorUpdate([])).toBe(false);
   });
 });

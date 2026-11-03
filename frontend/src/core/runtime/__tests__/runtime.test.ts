@@ -143,13 +143,9 @@ describe("RuntimeManager", () => {
       );
 
       const wsUrl = runtime.getWsURL("s_123" as SessionId);
-      const wsSyncUrl = runtime.getWsSyncURL("s_123" as SessionId);
       const terminalUrl = runtime.getTerminalWsURL();
 
       expect(wsUrl.searchParams.get("access_token")).toBe("my-secret-token");
-      expect(wsSyncUrl.searchParams.get("access_token")).toBe(
-        "my-secret-token",
-      );
       expect(terminalUrl.searchParams.get("access_token")).toBe(
         "my-secret-token",
       );
@@ -271,18 +267,6 @@ describe("RuntimeManager", () => {
       } finally {
         window.history.pushState({}, "", original);
       }
-    });
-  });
-
-  describe("getWsSyncURL", () => {
-    it("should return WebSocket Sync URL", () => {
-      const runtime = new RuntimeManager(mockConfig);
-      const sessionId = "1234" as SessionId;
-      const url = runtime.getWsSyncURL(sessionId);
-
-      expect(url.protocol).toBe("wss:");
-      expect(url.pathname).toBe("/ws_sync");
-      expect(url.searchParams.get("session_id")).toBe(sessionId);
     });
   });
 
