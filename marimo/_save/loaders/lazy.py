@@ -10,7 +10,7 @@ import queue
 import threading
 from contextlib import contextmanager
 from enum import Enum, auto
-from pathlib import Path, PurePosixPath
+from pathlib import Path, PurePath, PurePosixPath
 from typing import TYPE_CHECKING, Any
 
 import msgspec
@@ -489,15 +489,33 @@ class LazyStore(Store):
         return result
 
     def clear(self, key: str) -> bool:
-        self._written_keys.discard(key)
-        self._touched_keys.discard(key)
-        return self._inner.clear(key)
+        if not self._inner.clear(key):
+            return False
+        # Blob keys use POSIX paths even when the caller uses Windows paths.
+        posix = PurePath(key).as_posix()
+        prefix = f"{posix}/"
+        for tracked in (self._written_keys, self._touched_keys):
+            tracked.difference_update(
+                {
+                    k
+                    for k in tracked
+                    if (
+                        (p := PurePath(k).as_posix()) == posix
+                        or p.startswith(prefix)
+                    )
+                    and not self._inner.hit(k)
+                }
+            )
+        return True
 
     def export_keys(self) -> list[str]:
         return sorted(self._written_keys | self._touched_keys)
 
     def local_dirs(self) -> list[Path]:
         return self._inner.local_dirs()
+
+    def clearable_root(self) -> Path | None:
+        return self._inner.clearable_root()
 
 
 class WasmLazyStore(LazyStore):
@@ -767,12 +785,6 @@ class LazyLoader(BasePersistenceLoader):
         if isinstance(configured, LazyStore):
             return configured
         return self._store_cls(configured)
-
-    def _clearable_root(self) -> Path | None:
-        store = self.store
-        while isinstance(store, LazyStore):
-            store = store._inner
-        return store.save_path if isinstance(store, FileStore) else None
 
     def clear(self) -> None:
         self.flush()

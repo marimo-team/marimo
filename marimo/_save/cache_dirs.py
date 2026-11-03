@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import os
 import re
+import shutil
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -21,11 +22,23 @@ from marimo._utils.paths import (
 )
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator
+    from collections.abc import Collection, Iterator
 
 LOGGER = _loggers.marimo_logger()
 
 CACHE_DIR_NAME = "cache"
+
+# A value too large to inline is split over a directory of blobs and described
+# by an entry of this suffix. The entry is written last, so its presence shows
+# that the blobs beside it are complete.
+LAZY_ENTRY_SUFFIX = ".jsonl"
+
+# Windows rejects most punctuation in a path component.
+_UNSAFE_IN_BLOCK_NAME = re.compile(r"[^a-zA-Z0-9 _-]")
+
+# A key is a one-letter cache-type prefix, an underscore, and a url-safe
+# base64 digest. Without the prefix a name can also be a directory of blobs.
+_ENTRY_KEY = re.compile(r"[A-Z]_[A-Za-z0-9_-]+")
 
 # An entry is written to a sibling and renamed into place, so a reader never
 # meets a half-written value. A process killed between the two steps leaves
@@ -74,17 +87,11 @@ def directory_cache_dir(directory: Path) -> Path:
 def resolve_cache_dirs(path: Path, recursive: bool = False) -> list[Path]:
     """Return the cache directories that `path` resolves to, absolute.
 
-    A notebook file resolves to the single cache directory beside it. A
-    directory resolves to the cache directory for a notebook run there.
-    Both are listed whether or not they exist yet, so a caller can report
-    an absent cache rather than nothing at all.
+    Use config, and location to determine which cache directories apply.
+    `recursive`, searches for existing `__marimo__/cache` directories, skipping
+    dot-folders.
 
-    With `recursive`, a directory is instead searched for existing
-    `__marimo__/cache` directories, skipping dot-folders. The search can
-    come back empty.
-
-    Either way a directory that is itself a cache directory resolves to
-    itself, so the output of one call can be fed back into another.
+    The search can come back empty.
 
     Raises:
         FileNotFoundError: If `path` does not exist.
@@ -117,15 +124,15 @@ class CacheDirStats:
             entries=self.entries + other.entries,
         )
 
+    def __sub__(self, other: CacheDirStats) -> CacheDirStats:
+        return CacheDirStats(
+            total_bytes=max(self.total_bytes - other.total_bytes, 0),
+            entries=max(self.entries - other.entries, 0),
+        )
+
 
 def cache_dir_stats(cache_dir: Path) -> CacheDirStats:
-    """Return the bytes and entry count held by `cache_dir`.
-
-    An entry is one cached value. It is a file in a block directory, together
-    with the directory of blobs that a value too large to inline is split
-    over.
-    Files at the root of the cache directory, such as manifests, hold no
-    cached value and so add bytes without adding entries.
+    """Return byte and entry count in `cache_dir`.
 
     A directory that does not exist, or that cannot be read, reports zero.
     """
@@ -139,6 +146,118 @@ def cache_dir_stats(cache_dir: Path) -> CacheDirStats:
         else:
             stats += CacheDirStats(total_bytes=_file_bytes(block))
     return stats
+
+
+def block_dir_name(name: str) -> str:
+    """Return the directory for a cache block called `name`."""
+    return _UNSAFE_IN_BLOCK_NAME.sub("_", name.strip("*"))
+
+
+def clean_cache_dir(
+    cache_dir: Path,
+    names: Collection[str] | None = None,
+    *,
+    dry_run: bool = False,
+) -> CacheDirStats:
+    """Delete blocks from `cache_dir`, returns stats of freed entries."""
+
+    if not cache_dir.is_dir():
+        return CacheDirStats()
+
+    wanted = {block_dir_name(name) for name in names} if names else None
+    freed = CacheDirStats()
+    for block in _children(cache_dir):
+        if not _is_directory(block):
+            continue
+        if wanted is not None and block.name not in wanted:
+            continue
+        if not _holds_entries(block):
+            if _children(block):
+                LOGGER.warning(
+                    "Skipping %s: it holds no cache entries.", block
+                )
+            continue
+        held = _block_stats(block)
+        if dry_run:
+            freed += held
+            continue
+        _remove_tree(block)
+        freed += held - (
+            _block_stats(block) if block.exists() else CacheDirStats()
+        )
+    return freed
+
+
+def delete_cache_entries(
+    cache_dir: Path,
+    entries: Collection[tuple[str, str]],
+    *,
+    dry_run: bool = False,
+) -> CacheDirStats:
+    """Delete the `(block, key)` entries named, reporting what that freed.
+
+    With `dry_run`, only report what would be freed (no deletion).
+    """
+    by_block: dict[str, set[str]] = {}
+    for block, key in entries:
+        if not _names_an_entry(block, key):
+            LOGGER.warning(
+                "Not deleting %s: no cache entry can be named that.",
+                Path(block) / key,
+            )
+            continue
+        by_block.setdefault(block, set()).add(key)
+    freed = CacheDirStats()
+    for block, keys in by_block.items():
+        freed += _delete_block_entries(
+            cache_dir / block, keys, dry_run=dry_run
+        )
+    return freed
+
+
+def configured_store_dirs(path: Path, cache_dirs: list[Path]) -> list[Path]:
+    """Return the directories the `cache.store` configured for `path` writes
+    to, or `cache_dirs` when no store is configured."""
+    # The stores import this module, so they are imported here instead.
+    from marimo._save.stores import (
+        cache_store_is_untrusted,
+        configured_cache_store,
+    )
+    from marimo._save.stores.file import FileStore
+    from marimo._save.stores.tiered import TieredStore
+
+    try:
+        store = configured_cache_store(current_path=str(path))
+        if store is None:
+            return cache_dirs
+        untrusted = cache_store_is_untrusted(current_path=str(path))
+    except Exception:
+        LOGGER.warning("Could not read the cache store from the config")
+        return cache_dirs
+
+    tiers = store.stores if isinstance(store, TieredStore) else [store]
+    directories: list[Path] = list(cache_dirs) if untrusted else []
+    for tier in tiers:
+        if isinstance(tier, FileStore) and tier.uses_default_path:
+            directories.extend(cache_dirs)
+        else:
+            directories.extend(tier.local_dirs())
+    return list(dict.fromkeys(directories))
+
+
+def named_by_path(
+    path: Path, own: list[Path], configured: list[Path]
+) -> tuple[list[Path], list[Path]]:
+    """Split `configured` into the directories `path` names and the rest.
+
+    A directory is named when it is `path` itself or one of `own`, the
+    directories `path` resolves to without a configured store.
+    """
+    named = {normalize_path(directory) for directory in own}
+    named.add(normalize_path(path))
+    kept = [d for d in configured if normalize_path(d) in named]
+    unnamed = [d for d in configured if normalize_path(d) not in named]
+    return kept, unnamed
 
 
 def partial_write_name(name: str) -> str:
@@ -168,6 +287,134 @@ def entry_bytes(entry: Path) -> int:
     return total
 
 
+def _delete_block_entries(
+    block: Path, keys: set[str], *, dry_run: bool
+) -> CacheDirStats:
+    """Delete the entries `keys` name from one block directory."""
+    if not _is_directory(block):
+        return CacheDirStats()
+
+    children = _children(block)
+    by_hash: dict[str, list[str]] = {}
+    for key in sorted(keys):
+        by_hash.setdefault(entry_hash(key), []).append(key)
+
+    freed = CacheDirStats()
+    # Entries with the same hash share blobs, even across cache types.
+    for key_hash, shared_keys in by_hash.items():
+        doomed = {key: _entry_files(children, key) for key in shared_keys}
+        entry_files = {file for files in doomed.values() for file in files}
+        blob_dir = block / key_hash
+        shared = any(
+            child.name.endswith(LAZY_ENTRY_SUFFIX)
+            and entry_hash(child.name) == key_hash
+            and child not in entry_files
+            for child in children
+        )
+        has_blobs = not shared and _is_directory(blob_dir)
+        if not entry_files and not has_blobs:
+            continue
+        entries = sum(bool(files) for files in doomed.values())
+        if not entry_files and has_blobs:
+            entries = 1
+        if dry_run:
+            bytes_freed = sum(_file_bytes(file) for file in entry_files)
+            bytes_freed += entry_bytes(blob_dir) if has_blobs else 0
+        else:
+            # Readers must see a cache miss before any blobs disappear.
+            bytes_freed = sum(
+                _unlink(file)
+                for file in sorted(
+                    entry_files,
+                    key=lambda file: not file.name.endswith(LAZY_ENTRY_SUFFIX),
+                )
+            )
+            remaining = {
+                key
+                for key, files in doomed.items()
+                if any(file.exists() or file.is_symlink() for file in files)
+            }
+            for key in remaining:
+                LOGGER.warning("Could not remove %s from %s.", key, block)
+            entries -= len(remaining)
+            if has_blobs and not remaining:
+                bytes_freed += _remove_tree(blob_dir)
+                if blob_dir.exists():
+                    entries = 0
+        freed += CacheDirStats(total_bytes=bytes_freed, entries=entries)
+    return freed
+
+
+def holds_entry(cache_dir: Path, block: str, key: str) -> bool:
+    """Whether a file on disk still answers to the entry `(block, key)`."""
+    if not _names_an_entry(block, key):
+        return False
+    block_dir = cache_dir / block
+    if not _is_directory(block_dir):
+        return False
+    children = _children(block_dir)
+    if _entry_files(children, key):
+        return True
+    # Keep orphaned blobs tracked so a failed deletion can be retried.
+    key_hash = entry_hash(key)
+    return _is_directory(block_dir / key_hash) and not any(
+        child.name.endswith(LAZY_ENTRY_SUFFIX)
+        and entry_hash(child.name) == key_hash
+        for child in children
+    )
+
+
+def _holds_entries(block: Path) -> bool:
+    """Distinguish cache blocks from unrelated project directories."""
+    return any(
+        not _is_directory(child)
+        and _ENTRY_KEY.fullmatch(child.name.split(".", 1)[0]) is not None
+        for child in _children(block)
+    )
+
+
+def _names_an_entry(block: str, key: str) -> bool:
+    """Reject names that can escape the cache or name unrelated files."""
+    return (
+        bool(block)
+        and block == block_dir_name(block)
+        and _ENTRY_KEY.fullmatch(key) is not None
+    )
+
+
+def _entry_files(children: list[Path], key: str) -> list[Path]:
+    """The files holding entry `key`, the leftovers of a killed write too."""
+    return [
+        child
+        for child in children
+        if not _is_directory(child)
+        and (child.name == key or child.name.startswith(f"{key}."))
+    ]
+
+
+def _unlink(path: Path) -> int:
+    """Remove one file, returning the bytes that freed."""
+    size = _file_bytes(path)
+    try:
+        path.unlink()
+    except FileNotFoundError:
+        return 0
+    except OSError as e:
+        LOGGER.warning("Could not remove %s: %s", path, e)
+        return 0
+    return size
+
+
+def _remove_tree(directory: Path) -> int:
+    """Remove a directory and everything in it, returning the bytes freed."""
+    held = entry_bytes(directory)
+    shutil.rmtree(directory, ignore_errors=True)
+    if not directory.exists():
+        return held
+    LOGGER.warning("Could not remove %s", directory)
+    return max(held - entry_bytes(directory), 0)
+
+
 def _block_stats(block: Path) -> CacheDirStats:
     """Return the bytes and entry count of one block directory."""
     children = _children(block)
@@ -175,7 +422,7 @@ def _block_stats(block: Path) -> CacheDirStats:
     # blobs named after the same hash. Counting that pair once keeps an entry
     # equal to a cached value.
     hashes = {
-        _entry_hash(child.name)
+        entry_hash(child.name)
         for child in children
         if not _is_directory(child) and not is_partial_write(child.name)
     }
@@ -190,8 +437,11 @@ def _block_stats(block: Path) -> CacheDirStats:
     return CacheDirStats(total_bytes=total_bytes, entries=entries)
 
 
-def _entry_hash(entry_name: str) -> str:
-    """Return the hash an entry file names, without its prefix or suffix."""
+def entry_hash(entry_name: str) -> str:
+    """Return the hash an entry file names, without its prefix or suffix.
+
+    A directory of blobs is named by this hash alone.
+    """
     stem = entry_name.split(".", 1)[0]
     if len(stem) > 2 and stem[1] == "_":
         return stem[2:]
