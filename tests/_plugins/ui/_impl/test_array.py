@@ -101,6 +101,7 @@ def test_container_emulation() -> None:
 @pytest.mark.parametrize("elements", [1, "abc", object()])
 def test_array_invalid_elements_type(elements: object) -> None:
     with pytest.raises(
-        ValueError, match="Invalid type: array expects an iterable of UI elements"
+        ValueError,
+        match="Invalid type: array expects an iterable of UI elements",
     ):
         ui.array(elements)  # type: ignore[arg-type]
