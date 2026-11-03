@@ -6853,9 +6853,8 @@ export interface components {
      *             `MARIMO_SERVER_TRANSPORT` environment variable. `"websocket"`
      *             (default) uses the `/ws` WebSocket endpoint; `"sse"` uses
      *             server-sent events over HTTP, for deployments behind proxies or
-     *             services that do not support WebSockets. Terminal, LSP, and
-     *             real-time collaboration still require WebSockets; RTC is disabled
-     *             when using `"sse"`.
+     *             services that do not support WebSockets. The terminal and LSP
+     *             still require WebSockets.
      */
     ServerConfig: {
       browser: "default" | string;

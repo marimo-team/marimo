@@ -337,11 +337,20 @@ def test_print_experimental_features() -> None:
     # Test with experimental features that have been released
     with io.StringIO() as buf, redirect_stdout(buf):
         config = merge_default_config(
-            {"experimental": {"rtc": True, "chat_sidebar": True}}
+            {"experimental": {"lsp": True, "chat_sidebar": True}}
         )
         print_experimental_features(config)
         output = buf.getvalue()
         assert output == ""
+
+    # Test with an experimental feature that has been removed
+    with io.StringIO() as buf, redirect_stdout(buf):
+        config = merge_default_config({"experimental": {"rtc_v2": True}})
+        print_experimental_features(config)
+        output = buf.getvalue()
+        assert "Removed experimental features" in output
+        assert "rtc_v2" in output
+        assert "Experimental features (use with caution)" not in output
 
     # Test with experimental features that have not been released
     with io.StringIO() as buf, redirect_stdout(buf):

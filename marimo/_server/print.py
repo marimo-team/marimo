@@ -163,9 +163,16 @@ def print_experimental_features(config: MarimoConfig) -> None:
 
     keys = set(config["experimental"].keys())
 
+    # These experiments were removed. Their keys still load, and do nothing.
+    removed_experiments = {"rtc", "rtc_v2"}
+    removed = sorted(keys & removed_experiments)
+    if removed:
+        print_tabbed(
+            f"{_utf8('⚠️')} {yellow('Removed experimental features (ignored)')}: {', '.join(removed)}"
+        )
+
     # These experiments have been released
     finished_experiments = {
-        "rtc",
         "lsp",
         "chat_sidebar",
         "inline_ai_tooltip",
@@ -186,7 +193,7 @@ def print_experimental_features(config: MarimoConfig) -> None:
         "server_side_pdf_export",
         "storage_inspector",
     }
-    keys = keys - finished_experiments
+    keys = keys - finished_experiments - removed_experiments
 
     if len(keys) == 0:
         return
