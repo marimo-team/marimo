@@ -355,3 +355,21 @@ def test_write_secret_nonexistent_file(tmp_path: Path):
 
     content = env_file.read_text()
     assert content == 'NEW_SECRET="new_value"\n'
+
+
+def test_write_rejects_keys_that_corrupt_dotenv(tmp_path: Path) -> None:
+    from marimo._secrets.env_provider import DotEnvSecretsProvider
+
+    dotenv = tmp_path / ".env"
+    provider = DotEnvSecretsProvider(str(dotenv))
+
+    # `MY=KEY` would be read back as the key `MY`, and `#HIDDEN` would turn the
+    # whole line into a comment.
+    for key in ["MY=KEY", "#HIDDEN", "WITH SPACE", 'QU"OTED']:
+        with pytest.raises(ValueError, match="Invalid secret key"):
+            provider.write_key(key, "secret")
+
+    assert not dotenv.exists() or dotenv.read_text() == ""
+
+    provider.write_key("VALID_KEY", "secret")
+    assert 'VALID_KEY="secret"' in dotenv.read_text()
