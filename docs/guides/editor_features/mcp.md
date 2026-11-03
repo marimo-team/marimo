@@ -49,7 +49,7 @@ pair](../generate_with_ai/marimo_pair.md) instead.
 
 When connected to marimo's MCP server, external applications can access the following categories of tools.
 
-### Inspection
+#### Inspection
 
 | Tool | Description |
 |------|-------------|
@@ -71,13 +71,13 @@ When connected to marimo's MCP server, external applications can access the foll
 | Tool | Description |
 |------|-------------|
 | **get_notebook_errors** | Get all errors in the notebook organized by cell. Takes `session_id` parameter. Returns error summary (total errors, affected cells) and per-cell error details (type, message, traceback). |
-| **lint_notebook** | Get all marimo lint errors in the notebook. Returns lint errors as defined in the [lint rules documentation](../lint_rules/index.md). |
+| **lint_notebook** | Get all marimo lint errors in the notebook. Takes a `session_id` parameter. Returns lint errors as defined in the [lint rules documentation](../lint_rules/index.md). |
 
 #### Reference
 
 | Tool | Description |
 |------|-------------|
-| **get_marimo_rules** | Get official marimo guidelines and best practices for AI assistants. Returns the content of the marimo rules file and source URL for understanding marimo-specific conventions. |
+| **get_marimo_rules** | Returns marimo's rules and best practices for AI assistants. |
 
 ### Available prompts
 
