@@ -294,6 +294,51 @@ class FileHandler(abc.ABC):
         pass
 
 
+def _create_tmp_file_from_content(
+    content: str,
+    name: str,
+    temp_dir: TemporaryDirectory[str],
+    *,
+    infer_suffix: bool = False,
+) -> str:
+    import click
+
+    # Imported filenames must be single filenames on both POSIX and Windows.
+    if (
+        not name
+        or name.endswith((".", " "))
+        or re.search(r'[<>:"/\\|?*\x00-\x1f\x7f-\x9f]', name)
+        or re.fullmatch(
+            r"CON|PRN|AUX|NUL|CONIN\$|CONOUT\$|COM[1-9¹²³]|LPT[1-9¹²³]",
+            name.partition(".")[0].rstrip(" ").upper(),
+        )
+    ):
+        name = StaticNotebookReader.DEFAULT_FILENAME
+
+    path_to_app = Path(temp_dir.name) / name
+    if infer_suffix and path_to_app.suffix not in (".py", ".md", ".qmd"):
+        suffix = (
+            ".md"
+            if "marimo-version" in content
+            and "__generated_with" not in content
+            else ".py"
+        )
+        path_to_app = path_to_app.with_suffix(suffix)
+
+    LOGGER.info("Creating temporary file")
+    try:
+        if os.path.lexists(path_to_app):
+            raise FileExistsError(path_to_app)
+        with path_to_app.open("x", encoding="utf-8") as file:
+            file.write(content)
+    except FileExistsError as e:
+        raise click.ClickException(
+            f"Cannot create notebook - {path_to_app.name} already exists"
+        ) from e
+    LOGGER.info("App saved to %s", path_to_app)
+    return str(path_to_app)
+
+
 class LocalFileHandler(FileHandler):
     def __init__(self, allow_new_file: bool, allow_directory: bool):
         self.allow_new_file = allow_new_file
@@ -326,7 +371,7 @@ class LocalFileHandler(FileHandler):
             reader = StaticNotebookReader()
             if reader.can_read(name):
                 content, filename = reader.read(name)
-                path_to_app = self._create_tmp_file_from_content(
+                path_to_app = _create_tmp_file_from_content(
                     content, filename, temp_dir
                 )
                 return path_to_app, temp_dir
@@ -352,16 +397,6 @@ class LocalFileHandler(FileHandler):
 
         return name, None
 
-    @staticmethod
-    def _create_tmp_file_from_content(
-        content: str, name: str, temp_dir: TemporaryDirectory[str]
-    ) -> str:
-        LOGGER.info("Creating temporary file")
-        path_to_app = Path(temp_dir.name) / name
-        path_to_app.write_text(content, encoding="utf-8")
-        LOGGER.info("App saved to %s", path_to_app)
-        return str(path_to_app)
-
 
 class RemoteFileHandler(FileHandler):
     def __init__(self) -> None:
@@ -379,29 +414,10 @@ class RemoteFileHandler(FileHandler):
             import click
 
             raise click.ClickException(f"Failed to read URL: {e}")  # noqa: B904
-        path_to_app = self._create_tmp_file_from_content(
-            content, filename, temp_dir
+        path_to_app = _create_tmp_file_from_content(
+            content, filename, temp_dir, infer_suffix=True
         )
         return path_to_app, temp_dir
-
-    @staticmethod
-    def _create_tmp_file_from_content(
-        content: str, name: str, temp_dir: TemporaryDirectory[str]
-    ) -> str:
-        LOGGER.info("Creating temporary file")
-        path_to_app = Path(temp_dir.name) / name
-        # If doesn't end in .py, add it
-        if path_to_app.suffix not in (".py", ".md", ".qmd"):
-            if "__generated_with" in content:
-                path_to_app = path_to_app.with_suffix(".py")
-            elif "marimo-version" in content:
-                path_to_app = path_to_app.with_suffix(".md")
-            else:
-                # Fallback to .py
-                path_to_app = path_to_app.with_suffix(".py")
-        path_to_app.write_text(content, encoding="utf-8")
-        LOGGER.info("App saved to %s", path_to_app)
-        return str(path_to_app)
 
 
 def validate_name(
