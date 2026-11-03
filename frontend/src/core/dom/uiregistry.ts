@@ -33,6 +33,13 @@ interface UIElementEntry {
   // elements synchronized by a UIElement (in the DOM, each
   // <marimo-ui-element>'s first child)
   elements: Set<HTMLElement>;
+  hostManaged?: boolean;
+}
+
+export interface UIElementStateSource {
+  values(): ReadonlyMap<string, unknown>;
+  subscribe(listener: () => void): () => void;
+  update(id: string, value: unknown): Promise<void>;
 }
 
 /* UIElementRegistry
@@ -44,6 +51,7 @@ interface UIElementEntry {
  * Expects object IDs to have the form <cellId>-<suffixId>
  */
 export class UIElementRegistry {
+  private source: UIElementStateSource | undefined;
   // maps UIElement objectIds to entries.
   public entries: Map<UIElementId, UIElementEntry>;
 
@@ -60,6 +68,67 @@ export class UIElementRegistry {
 
   private constructor() {
     this.entries = new Map();
+  }
+
+  /** Connect confirmed values and local drafts without depending on their store. */
+  public connectHost(source: UIElementStateSource): () => void {
+    this.source = source;
+    const refresh = () => {
+      if (this.source !== source) {
+        return;
+      }
+      const values = source.values();
+      for (const [id, entry] of this.entries) {
+        if (entry.hostManaged && !values.has(id)) {
+          entry.value = undefined;
+          if (entry.elements.size === 0) {
+            this.entries.delete(id);
+          }
+        }
+      }
+      for (const [id, value] of values) {
+        // The host and HTML wrapper use the same Python UIElement identity.
+        const objectId = id as UIElementId;
+        let entry = this.entries.get(objectId);
+        if (!entry) {
+          this.set(objectId, value);
+          entry = this.entries.get(objectId);
+        }
+        if (entry) {
+          entry.hostManaged = true;
+          this.applyValue(entry, value);
+        }
+      }
+    };
+    const unsubscribe = source.subscribe(refresh);
+    refresh();
+    return () => {
+      unsubscribe();
+      if (this.source === source) {
+        this.source = undefined;
+        for (const [id, entry] of this.entries) {
+          if (entry.hostManaged) {
+            this.entries.delete(id);
+          }
+        }
+      }
+    };
+  }
+
+  private applyValue(entry: UIElementEntry, value: unknown): void {
+    if (Object.is(entry.value, value)) {
+      return;
+    }
+    entry.value = value;
+    for (const element of entry.elements) {
+      element.dispatchEvent(
+        MarimoValueUpdateEvent.create({
+          bubbles: false,
+          composed: true,
+          detail: { value, element },
+        }),
+      );
+    }
   }
 
   public has(objectId: UIElementId): boolean {
@@ -118,6 +187,13 @@ export class UIElementRegistry {
     // (which can happen after Python deconstruction)
     if (entry?.elements.has(instance)) {
       entry.elements.delete(instance);
+      if (
+        entry.hostManaged &&
+        entry.elements.size === 0 &&
+        !this.source?.values().has(objectId)
+      ) {
+        this.entries.delete(objectId);
+      }
     }
   }
 
@@ -135,7 +211,9 @@ export class UIElementRegistry {
     );
 
     objectIds.forEach((objectId) => {
-      this.entries.delete(objectId);
+      if (!this.entries.get(objectId)?.hostManaged) {
+        this.entries.delete(objectId);
+      }
     });
   }
 
@@ -164,6 +242,9 @@ export class UIElementRegistry {
     // Kernel-initiated value update — push into DOM elements without
     // dispatching MarimoValueReadyEvent to avoid a round-trip.
     if (isUIValueUpdateMessage(message)) {
+      if (entry.hostManaged) {
+        return;
+      }
       entry.value = message.value;
       entry.elements.forEach((element) => {
         element.dispatchEvent(
@@ -208,6 +289,25 @@ export class UIElementRegistry {
     value: ValueType,
   ): void {
     const entry = this.entries.get(objectId);
+    if (entry?.hostManaged && this.source) {
+      const source = this.source;
+      void source.update(objectId, value).catch((error: unknown) => {
+        Logger.warn("UI element update failed", error);
+        if (this.source === source && source.values().has(objectId)) {
+          initiator.dispatchEvent(
+            MarimoValueUpdateEvent.create({
+              bubbles: false,
+              composed: true,
+              detail: {
+                value: source.values().get(objectId),
+                element: initiator,
+              },
+            }),
+          );
+        }
+      });
+      return;
+    }
     if (entry === undefined) {
       Logger.warn("UIElementRegistry missing entry", objectId);
     } else {
