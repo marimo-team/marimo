@@ -80,7 +80,6 @@ describe("ReportMarimoBugButton", () => {
       requestClientAtom,
       MockRequestClient.create({ getEnvironmentInfo, readCode }),
     );
-    localStorage.setItem("marimo:issue-report:include-errors", "false");
     const selectedError = { ...error };
     const { rerender } = render(
       <ReportMarimoBugButton
@@ -110,9 +109,6 @@ describe("ReportMarimoBugButton", () => {
     rerender(<ReportMarimoBugButton cellId={cellId("cell1")} errors={[]} />);
     expect(description()).toContain("broken invariant");
     expect(description()).not.toContain("new error");
-    expect(localStorage.getItem("marimo:issue-report:include-errors")).toBe(
-      "false",
-    );
 
     fireEvent.click(screen.getByRole("checkbox", { name: "Include errors" }));
     expect(description()).toBeNull();

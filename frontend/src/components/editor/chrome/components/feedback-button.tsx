@@ -129,18 +129,9 @@ export const FeedbackModal: React.FC<{
   });
   const notebookSourceAvailable = notebookSourceReason === undefined;
 
-  const [savedIncludeErrors, setSavedIncludeErrors] = useLocalStorage(
-    "marimo:issue-report:include-errors",
-    false,
+  const [includeErrors, setIncludeErrors] = useState(
+    initialErrors !== undefined,
   );
-  const [selectedIncludeErrors, setSelectedIncludeErrors] = useState<
-    boolean | undefined
-  >(initialErrors === undefined ? undefined : true);
-  const includeErrors = selectedIncludeErrors ?? savedIncludeErrors;
-  const setIncludeErrors =
-    initialErrors === undefined
-      ? setSavedIncludeErrors
-      : setSelectedIncludeErrors;
   const [includeCode, setIncludeCode] = useLocalStorage(
     "marimo:issue-report:include-code",
     false,
