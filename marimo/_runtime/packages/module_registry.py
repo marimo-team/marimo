@@ -22,10 +22,19 @@ def _is_module_installed(module_name: str) -> bool:
         return True
     try:
         return importlib.util.find_spec(module_name) is not None
-    except ModuleNotFoundError:
+    except ModuleNotFoundError as e:
         # find_spec raises for dotted names when a parent package (or the
-        # submodule itself) is not installed.
-        return False
+        # submodule itself) is not installed, and the missing name says
+        # which. Any other missing name means an installed package whose
+        # own imports are broken; surface that error instead of reporting
+        # this module as missing.
+        if (
+            e.name is None
+            or e.name == module_name
+            or module_name.startswith(e.name + ".")
+        ):
+            return False
+        raise
 
 
 class ModuleRegistry:
@@ -44,9 +53,11 @@ class ModuleRegistry:
             if cell.namespace_to_variable(module_name) is not None:
                 return cell_id
             # module_name may be a full dotted name (e.g. "azure.identity"),
-            # which never equals a top-level namespace.
+            # which never equals a top-level namespace; a cell importing a
+            # submodule of it (e.g. "azure.identity.aio") counts too.
             if any(
                 import_data.module == module_name
+                or import_data.module.startswith(module_name + ".")
                 for import_data in cell.imports
             ):
                 return cell_id
@@ -63,5 +74,15 @@ class ModuleRegistry:
     def missing_modules(self) -> set[str]:
         """Modules that will fail to import."""
         return {
-            mod for mod in self.modules() if not _is_module_installed(mod)
-        } - self.excluded_modules
+            mod
+            for mod in self.modules()
+            if not _is_module_installed(mod) and not self._is_excluded(mod)
+        }
+
+    def _is_excluded(self, module_name: str) -> bool:
+        # Exclusions name the module a package provides, so they cover its
+        # submodules too (e.g. "pkg" also excludes "pkg.child").
+        return any(
+            module_name == excluded or module_name.startswith(excluded + ".")
+            for excluded in self.excluded_modules
+        )
