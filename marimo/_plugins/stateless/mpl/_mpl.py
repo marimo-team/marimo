@@ -116,7 +116,8 @@ def interactive(figure: Figure | SubFigure | Axes) -> Html:
 
     if isinstance(figure, Axes):
         maybe_figure = figure.get_figure()
-        assert maybe_figure is not None, "Axes object does not have a Figure"
+        if maybe_figure is None:
+            raise RuntimeError("Axes object does not have a Figure")
         figure = maybe_figure
 
     ctx = get_context()

@@ -254,7 +254,7 @@ def test_write_invalid_secret(tmp_path: Path):
     )
 
     # Empty key
-    with pytest.raises(AssertionError):
+    with pytest.raises(ValueError):
         write_secret(
             CreateSecretRequest(
                 key="",
@@ -266,7 +266,7 @@ def test_write_invalid_secret(tmp_path: Path):
         )
 
     # Empty value
-    with pytest.raises(AssertionError):
+    with pytest.raises(ValueError):
         write_secret(
             CreateSecretRequest(
                 key="NEW_SECRET",

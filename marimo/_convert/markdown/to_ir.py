@@ -164,7 +164,8 @@ def get_source_from_tag(tag: Element) -> str:
             tag.attrib.get("engine", None),
         )
     else:
-        assert tag.tag == MARIMO_CODE, f"Unknown tag: {tag.tag}"
+        if tag.tag != MARIMO_CODE:
+            raise RuntimeError(f"Unknown tag: {tag.tag}")
     return source
 
 
@@ -489,7 +490,8 @@ class ExpandAndClassifyProcessor(BlockProcessor):
 
     def run(self, parent: Element, blocks: list[str]) -> None:
         # Copy app metadata to the parent element.
-        assert isinstance(self.parser.md, MarimoMdParser)
+        if not isinstance(self.parser.md, MarimoMdParser):
+            raise RuntimeError("Expected a marimo Markdown parser")
         # Lists are kept too, for options like `auto_download: [html]`.
         # The root is only read back via `app_config_from_root`, never
         # serialized, so non-string attribute values are safe here.
@@ -562,7 +564,8 @@ def convert_from_md_to_marimo_ir(
         output_format="marimo-ir",
         import_dialects=_markdown_import_dialects(text, filepath),
     ).convert(text)
-    assert isinstance(notebook, NotebookSerializationV1)
+    if not isinstance(notebook, NotebookSerializationV1):
+        raise RuntimeError("Expected a serialized notebook")
     return NotebookSerializationV1(
         app=notebook.app,
         filename=filepath,

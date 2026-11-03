@@ -66,8 +66,10 @@ class MemoryLoader(Loader):
             return None
         path = self.build_path(key)
         if self.is_lru:
-            assert isinstance(self._cache, OrderedDict)
-            assert self._cache_lock is not None
+            if not isinstance(self._cache, OrderedDict):
+                raise RuntimeError("LRU cache must use an OrderedDict")
+            if self._cache_lock is None:
+                raise RuntimeError("LRU cache lock is not initialized")
             with self._cache_lock:
                 self._cache.move_to_end(path)
         return self._cache[path]
@@ -76,8 +78,10 @@ class MemoryLoader(Loader):
         path = self.build_path(cache.key)
         # LRU
         if self.is_lru:
-            assert isinstance(self._cache, OrderedDict)
-            assert self._cache_lock is not None
+            if not isinstance(self._cache, OrderedDict):
+                raise RuntimeError("LRU cache must use an OrderedDict")
+            if self._cache_lock is None:
+                raise RuntimeError("LRU cache lock is not initialized")
             with self._cache_lock:
                 self._cache[path] = cache
                 self._cache.move_to_end(path)
@@ -94,8 +98,10 @@ class MemoryLoader(Loader):
                 self._cache_lock = threading.Lock()
             self._max_size = max_size
             return
-        assert isinstance(self._cache, OrderedDict)
-        assert self._cache_lock is not None
+        if not isinstance(self._cache, OrderedDict):
+            raise RuntimeError("LRU cache must use an OrderedDict")
+        if self._cache_lock is None:
+            raise RuntimeError("LRU cache lock is not initialized")
         with self._cache_lock:
             self.is_lru = max_size > 0
             if not self.is_lru:

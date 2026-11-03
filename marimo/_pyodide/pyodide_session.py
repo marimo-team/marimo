@@ -301,9 +301,10 @@ class PyodideBridge:
         ):
             return
         notification = deserialize_kernel_message(message)
-        assert isinstance(
+        if not isinstance(
             notification, NotebookDocumentTransactionNotification
-        )
+        ):
+            raise RuntimeError("Expected a notebook document transaction")
         transaction = notification.transaction
         if transaction.source == "host":
             return

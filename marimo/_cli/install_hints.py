@@ -117,7 +117,8 @@ def _build_primary_and_fallback(
     manager, context = _resolve_manager_context()
     template = _resolve_template(rules, manager, context=context)
     fallback_template = _resolve_template(rules, "pip", context="any")
-    assert fallback_template is not None
+    if fallback_template is None:
+        raise RuntimeError("Fallback pip install template is missing")
 
     primary_command = (
         template.format(**format_args)

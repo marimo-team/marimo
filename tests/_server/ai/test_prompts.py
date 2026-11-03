@@ -35,6 +35,26 @@ def _header(title: str) -> str:
     return f"\n\n==================== {title} ====================\n\n"
 
 
+@pytest.mark.parametrize(
+    ("is_insert", "selected_text", "marker"),
+    [(True, None, "<insert_here>"), (False, "x", "<rewrite_this>")],
+)
+def test_edit_prompt_rejects_missing_markers(
+    is_insert: bool, selected_text: str | None, marker: str
+) -> None:
+    with pytest.raises(ValueError, match=marker):
+        get_refactor_or_insert_notebook_cell_system_prompt(
+            language="python",
+            is_insert=is_insert,
+            support_multiple_cells=False,
+            custom_rules=None,
+            cell_code="x = 1",
+            selected_text=selected_text,
+            other_cell_codes=None,
+            context=None,
+        )
+
+
 def test_system_prompts():
     result = ""
     for language in ("python", "markdown", "sql", "idk"):

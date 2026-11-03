@@ -135,7 +135,7 @@ async def test_stop_before_start_assertion():
     task = RestartableTask(dummy_coro)
 
     # Stop before start should raise assertion error due to task being None
-    with pytest.raises(AssertionError):
+    with pytest.raises(RuntimeError):
         task.stop()
 
 
@@ -148,7 +148,7 @@ async def test_restart_before_start_assertion():
     task = RestartableTask(dummy_coro)
 
     # Restart before start should raise assertion error
-    with pytest.raises(AssertionError):
+    with pytest.raises(RuntimeError):
         task.restart()
 
 
