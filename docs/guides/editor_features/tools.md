@@ -105,8 +105,9 @@ Configure xAI in your `marimo.toml` or through the notebook settings — see the
 
 ## Full access
 
-Full access lets the assistant execute Python in your live notebook kernel,
-inspect and change runtime state, and modify notebook cells.
+!!! warning "Full access"
+    The assistant can execute Python in your live notebook kernel and make
+    destructive changes to notebook cells and runtime state without review.
 
 Select **Full access** from the chat panel's **Notebook access** selector. Instead of the inspection and editing tools above, the assistant uses a different toolset oriented around running Python in the live kernel:
 

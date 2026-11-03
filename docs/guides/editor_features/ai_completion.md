@@ -105,8 +105,7 @@ See [AI tools](tools.md) for details about notebook tools and MCP integrations.
 at any notebook access level.
 
 The `ai.mode` configuration values are `ask` for **Read only** (the default),
-`agent` for **Suggest edits**, and `code_mode` for **Full access**. The legacy
-`manual` value is an alias for `ask`.
+`agent` for **Suggest edits**, and `code_mode` for **Full access**.
 
 ### Refactor existing cells
 

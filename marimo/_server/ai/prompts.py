@@ -225,11 +225,12 @@ def _get_mode_intro_message(mode: CopilotMode) -> str:
         return (
             f"{base_intro}"
             "## Capabilities\n"
-            "- You can use a set of read-only tools to gather additional context from the notebook or environment (e.g., searching code, summarizing data, or reading documentation).\n"
+            "- You can use marimo's built-in notebook tools to gather additional context (e.g., searching code, summarizing data, or reading documentation).\n"
             "- You may use these tools ONLY to gather information, not to modify code or state.\n"
+            "- Connected MCP tools are configured separately and are not restricted by this notebook access level.\n"
             "\n"
             "## Limitations\n"
-            "- All tool use is strictly read-only. You may not perform write, edit, or execution actions.\n"
+            "- Notebook access is read-only. You may not modify notebook code or state, or execute notebook code.\n"
             "- You must always explain to the user why you are using a tool before invoking it.\n"
         )
     elif mode == "agent":

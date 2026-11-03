@@ -3763,7 +3763,7 @@ export interface components {
      *         - `enabled`: if `False`, hide AI actions and panels in the marimo UI
      *         - `rules`: custom rules to include in all AI completion prompts
      *         - `max_tokens`: the maximum number of tokens to use in AI completions
-     *         - `mode`: notebook access for the built-in assistant: `"ask"` (read only), `"agent"` (suggest edits), or `"code_mode"` (full access). Defaults to `"ask"`. The legacy `"manual"` value is an alias for `"ask"`.
+     *         - `mode`: notebook access for the built-in assistant: `"ask"` (read only), `"agent"` (suggest edits), or `"code_mode"` (full access). Defaults to `"ask"`.
      *         - `inline_tooltip`: if `True`, enable inline AI tooltip suggestions
      *         - `allow_provider_config`: if `False`, lock provider setup in the settings UI, making them read-only. Users cannot bring their own credentials or add custom providers. Default `True`.
      *         - `models`: the models to use for AI completions

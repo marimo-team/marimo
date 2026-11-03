@@ -235,6 +235,8 @@ async def ai_chat(
     custom_rules = ai_config.get("rules", None)
 
     mode: CopilotMode = ai_config.get("mode", "ask")
+    if mode == "manual":
+        mode = "ask"
     system_prompt = get_chat_system_prompt(
         custom_rules=custom_rules,
         include_other_code=body.include_other_code,
