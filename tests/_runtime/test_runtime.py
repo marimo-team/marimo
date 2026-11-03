@@ -4945,6 +4945,63 @@ def _filter_to_error_ops(
     ]
 
 
+@pytest.mark.parametrize(
+    ("code", "is_internal"),
+    [
+        (
+            (
+                "from marimo._core.errors import InternalError\n"
+                "raise InternalError('broken invariant')"
+            ),
+            True,
+        ),
+        ("raise RuntimeError('broken invariant')", False),
+        (
+            (
+                "class InternalError(RuntimeError):\n    pass\n"
+                "raise InternalError('broken invariant')"
+            ),
+            False,
+        ),
+    ],
+)
+async def test_internal_error_classification(
+    mocked_kernel: MockedKernel,
+    exec_req: ExecReqProvider,
+    code: str,
+    is_internal: bool,
+) -> None:
+    await mocked_kernel.k.run([exec_req.get(code)])
+    errors = _parse_error_output(
+        _filter_to_error_ops(mocked_kernel.stream.cell_notifications)[0]
+    )
+    assert len(errors) == 1
+    error = errors[0]
+    assert isinstance(error, MarimoExceptionRaisedError)
+    assert error.is_internal is is_internal
+    assert error.msg == "broken invariant"
+    assert error.traceback is not None
+
+
+async def test_internal_error_redacted_in_run_mode(
+    run_mode_kernel: MockedKernel, exec_req: ExecReqProvider
+) -> None:
+    await run_mode_kernel.k.run(
+        [
+            exec_req.get(
+                "from marimo._core.errors import InternalError\n"
+                "raise InternalError('secret invariant details')"
+            )
+        ]
+    )
+    errors = _parse_error_output(
+        _filter_to_error_ops(run_mode_kernel.stream.cell_notifications)[0]
+    )
+    assert len(errors) == 1
+    assert isinstance(errors[0], MarimoInternalError)
+    assert "secret invariant details" not in errors[0].msg
+
+
 class TestLaunchKernelEventLoop:
     """Event-loop policy / factory selection in launch_kernel.
 

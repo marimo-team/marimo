@@ -540,7 +540,7 @@ def _describe(
                 ),
             )
         return diagnostics.error(
-            "exception",
+            "internal-exception" if error.is_internal else "exception",
             error.msg,
             name=error.exception_type,
             traceback=traceback,
