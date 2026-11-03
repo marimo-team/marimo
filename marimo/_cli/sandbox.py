@@ -527,7 +527,8 @@ def run_in_sandbox(
                 )
             )
             handle = notebook_sandbox.environment
-            assert handle is not None
+            if handle is None:
+                raise RuntimeError("Sandbox environment is not initialized")
             echo(
                 f"Using script environment: {muted(handle.root)}",
                 err=True,

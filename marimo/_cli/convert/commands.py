@@ -96,7 +96,8 @@ def convert(
     elif ext in (".md", ".qmd"):
         notebook = MarimoConvert.from_md(text).to_py()
     else:
-        assert ext == ".py"
+        if ext != ".py":
+            raise RuntimeError("Expected a Python notebook extension")
         # First check if it's already a valid marimo notebook
         from marimo._ast.parse import parse_notebook
 

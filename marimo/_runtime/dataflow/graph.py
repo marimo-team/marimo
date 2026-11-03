@@ -99,7 +99,8 @@ class DirectedGraph(GraphTopology):
         LOGGER.debug("Acquiring graph lock to register cell %s", cell_id)
         with self.lock:
             LOGGER.debug("Acquired graph lock.")
-            assert cell_id not in self.topology.cells
+            if cell_id in self.topology.cells:
+                raise RuntimeError("Cell is already in the graph")
 
             parents, children = edges.register_cell_dependencies(
                 cell_id, cell, self.topology, self.definition_registry

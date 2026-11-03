@@ -90,9 +90,10 @@ def start_receiver_thread(
                     if event & zmq.POLLIN:
                         ch = socket_to_channel[socket]
                         msg = socket.recv(flags=zmq.NOBLOCK)
-                        assert ch.decoder is not None, (
-                            "Pull channel must have a decoder"
-                        )
+                        if ch.decoder is None:
+                            raise RuntimeError(
+                                "Pull channel must have a decoder"
+                            )
                         ch.queue.put(ch.decoder.decode(msg))
             except zmq.Again:
                 continue

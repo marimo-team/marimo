@@ -236,7 +236,8 @@ class MicropipPackageManager(PypiPackageManager):
     ) -> bool:
         # The `group` parameter is accepted for interface compatibility, but is ignored.
         del group
-        assert is_pyodide()
+        if not is_pyodide():
+            raise RuntimeError("Micropip requires a Pyodide environment")
         import micropip  # type: ignore
 
         # If we're upgrading, we need to uninstall the package first
@@ -273,7 +274,8 @@ class MicropipPackageManager(PypiPackageManager):
         (`_attempted_packages`) and log-callback glue.  Falls back to the
         base sequential path if micropip's internal API has shifted.
         """
-        assert is_pyodide()
+        if not is_pyodide():
+            raise RuntimeError("Micropip requires a Pyodide environment")
 
         if log_callback_factory:
             for pkg in packages:
@@ -319,7 +321,8 @@ class MicropipPackageManager(PypiPackageManager):
     async def uninstall(self, package: str, group: str | None = None) -> bool:
         # The `group` parameter is accepted for interface compatibility, but is ignored.
         del group
-        assert is_pyodide()
+        if not is_pyodide():
+            raise RuntimeError("Micropip requires a Pyodide environment")
         import micropip  # type: ignore
 
         try:
@@ -329,7 +332,8 @@ class MicropipPackageManager(PypiPackageManager):
             return False
 
     def list_packages(self) -> list[PackageDescription]:
-        assert is_pyodide()
+        if not is_pyodide():
+            raise RuntimeError("Micropip requires a Pyodide environment")
         import micropip  # type: ignore
 
         packages = [

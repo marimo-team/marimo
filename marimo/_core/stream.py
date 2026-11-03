@@ -81,7 +81,8 @@ class ExtensionEvent(msgspec.Struct, frozen=True, tag_field="event"):
 def event_name(event: protocol.Event | ExtensionEvent) -> str:
     """Read the wire tag for transport framing and client type filters."""
     tag = event.__struct_config__.tag
-    assert isinstance(tag, str)
+    if not isinstance(tag, str):
+        raise RuntimeError("Protocol event tag must be a string")
     return tag
 
 
@@ -265,7 +266,8 @@ class Stream(Sink):
         oldest = (
             self._history[0].position if self._history else self._last_id + 1
         )
-        assert oldest is not None
+        if oldest is None:
+            raise RuntimeError("Stream history is empty")
         if position < oldest - 1:
             return None
         return deepcopy(

@@ -16,7 +16,8 @@ class SideEffect(CellLifecycleItem):
 
     @property
     def key(self) -> bytes:
-        assert self._key is not None
+        if self._key is None:
+            raise RuntimeError("Side effect key is not initialized")
         if isinstance(self._key, bytes):
             return self._key
         return self._key.encode("utf-8")
@@ -52,7 +53,8 @@ class CellHash(CellLifecycleItem):
 
     @property
     def key(self) -> bytes:
-        assert self._key is not None
+        if self._key is None:
+            raise RuntimeError("Side effect key is not initialized")
         if isinstance(self._key, bytes):
             return self._key
         return self._key.encode("utf-8")

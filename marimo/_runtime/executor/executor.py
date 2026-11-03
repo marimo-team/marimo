@@ -62,7 +62,8 @@ class DefaultExecutor:
     def execute_cell(self, cell: CellImpl, glbls: MutableGlobals) -> Any:
         if cell.body is None:
             return None
-        assert cell.last_expr is not None
+        if cell.last_expr is None:
+            raise RuntimeError("Compiled cell has no last expression")
         if _is_coroutine(cell.body) or _is_coroutine(cell.last_expr):
             raise RuntimeError(
                 "A coroutine cell cannot be run synchronously. Use "
@@ -85,7 +86,8 @@ class DefaultExecutor:
     ) -> Any:
         if cell.body is None:
             return None
-        assert cell.last_expr is not None
+        if cell.last_expr is None:
+            raise RuntimeError("Compiled cell has no last expression")
         try:
             if _is_coroutine(cell.body):
                 await eval(cell.body, glbls)

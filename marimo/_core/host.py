@@ -86,9 +86,11 @@ class _NotebookRecords(Mapping[str, protocol.Notebook]):
 
 
 def _identity(event: RoutedEvent) -> tuple[type[Body], str]:
-    assert isinstance(event.event, protocol_events.RecordEvent)
+    if not isinstance(event.event, protocol_events.RecordEvent):
+        raise RuntimeError("Expected a record event")
     body = protocol_events.body(event.event)
-    assert not isinstance(body, (protocol.Host, protocol.Custom))
+    if isinstance(body, (protocol.Host, protocol.Custom)):
+        raise RuntimeError("Host and custom records have no notebook identity")
     if isinstance(body, (protocol.Document, protocol.Analysis)):
         return type(body), body.notebook_id
     return type(body), body.id

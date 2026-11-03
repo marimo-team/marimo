@@ -305,7 +305,10 @@ class PandasTableManagerFactory(TableManagerFactory):
                                 date_format="iso",
                                 default_handler=str,
                             )
-                            assert json_str is not None
+                            if json_str is None:
+                                raise RuntimeError(
+                                    "Dataframe JSON serialization returned no result"
+                                )
                             return json_str
                         except Exception as e:
                             LOGGER.warning(

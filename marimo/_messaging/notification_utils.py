@@ -139,7 +139,10 @@ class CellNotificationUtils:
         cell_id = (
             cell_id if cell_id is not None else get_context().stream.cell_id
         )
-        assert cell_id is not None
+        if cell_id is None:
+            raise RuntimeError(
+                "No active cell. Display output from a notebook cell."
+            )
         broadcast_notification(
             CellNotification(
                 cell_id=cell_id,
@@ -162,7 +165,10 @@ class CellNotificationUtils:
         cell_id = (
             cell_id if cell_id is not None else get_context().stream.cell_id
         )
-        assert cell_id is not None
+        if cell_id is None:
+            raise RuntimeError(
+                "No active cell. Display output from a notebook cell."
+            )
         broadcast_notification(
             CellNotification(
                 cell_id=cell_id,
@@ -187,7 +193,10 @@ class CellNotificationUtils:
         cell_id = (
             cell_id if cell_id is not None else get_context().stream.cell_id
         )
-        assert cell_id is not None
+        if cell_id is None:
+            raise RuntimeError(
+                "No active cell. Display output from a notebook cell."
+            )
         broadcast_notification(
             console_notification(
                 cell_id=cell_id,

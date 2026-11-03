@@ -56,7 +56,8 @@ def dump(data: dict[str, Any], **kwargs: Any) -> str:
     yaml.add_representer(literal_str, represent_literal_str)
 
     response = yaml.dump(data, **kwargs)
-    assert isinstance(response, str), f"Expected str, got {type(response)}"
+    if not isinstance(response, str):
+        raise TypeError(f"Expected str, got {type(response)}")
     return response
 
 
@@ -72,7 +73,8 @@ def load(yaml_content: str) -> dict[str, Any]:
     except ImportError:
         from yaml import SafeLoader  # type: ignore[assignment]
     response = yaml.load(yaml_content, SafeLoader)
-    assert isinstance(response, dict), f"Expected dict, got {type(response)}"
+    if not isinstance(response, dict):
+        raise TypeError(f"Expected dict, got {type(response)}")
     return response
 
 

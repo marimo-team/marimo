@@ -147,7 +147,8 @@ class VirtualFileLifecycleItem(CellLifecycleItem):
 
     @property
     def virtual_file(self) -> VirtualFile:
-        assert self._virtual_file is not None
+        if self._virtual_file is None:
+            raise RuntimeError("Virtual file is not initialized")
         return self._virtual_file
 
     def create(self, context: RuntimeContext | None) -> None:

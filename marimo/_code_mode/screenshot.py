@@ -194,7 +194,8 @@ class _ScreenshotSession:
 
     async def _navigate(self, *, initial: bool) -> None:
         """Navigate (initial=True) or reload (initial=False) the kiosk page."""
-        assert self._page is not None
+        if self._page is None:
+            raise RuntimeError("Screenshot page is not initialized")
 
         if initial:
             LOGGER.debug(
@@ -253,7 +254,8 @@ class _ScreenshotSession:
         missing, has no content, or no output element becomes visible.
         """
         await self._ensure_ready()
-        assert self._page is not None
+        if self._page is None:
+            raise RuntimeError("Screenshot page is not initialized")
 
         LOGGER.debug("Screenshot: capturing cell %s", cell_id)
 
@@ -321,7 +323,8 @@ class _ScreenshotSession:
         timeout_ms: int,
     ) -> Any:
         """Return the first visible locator from a prioritised selector list."""
-        assert self._page is not None
+        if self._page is None:
+            raise RuntimeError("Screenshot page is not initialized")
 
         # Most-specific → most-general, then the container itself.
         candidates: list[str] = [
@@ -367,14 +370,16 @@ class _ScreenshotSession:
         self, container_selector: str, *, timeout: int
     ) -> None:
         """Wait for a cell output container to attach to the DOM."""
-        assert self._page is not None
+        if self._page is None:
+            raise RuntimeError("Screenshot page is not initialized")
         await self._page.locator(container_selector).first.wait_for(
             state="attached", timeout=timeout
         )
 
     async def _list_cell_ids(self) -> list[str]:
         """Return the cell IDs currently rendered on the page."""
-        assert self._page is not None
+        if self._page is None:
+            raise RuntimeError("Screenshot page is not initialized")
         try:
             ids: list[str] = await self._page.eval_on_selector_all(
                 "[id^='output-']",
@@ -386,7 +391,8 @@ class _ScreenshotSession:
 
     async def _container_has_content(self, container_selector: str) -> bool:
         """Whether the cell container has any rendered children."""
-        assert self._page is not None
+        if self._page is None:
+            raise RuntimeError("Screenshot page is not initialized")
         try:
             return bool(
                 await self._page.eval_on_selector(
@@ -400,7 +406,8 @@ class _ScreenshotSession:
 
     async def _describe_container(self, container_selector: str) -> str:
         """Human-readable snapshot of the container for error messages."""
-        assert self._page is not None
+        if self._page is None:
+            raise RuntimeError("Screenshot page is not initialized")
         try:
             info = await self._page.eval_on_selector(
                 container_selector,

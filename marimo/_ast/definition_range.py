@@ -88,8 +88,10 @@ class _DefinitionVisitor(ast.NodeVisitor):
             .decode("utf-8")
         )
         end_line = node.end_lineno
-        assert end_line is not None
-        assert node.end_col_offset is not None
+        if end_line is None:
+            raise RuntimeError("AST node has no end line")
+        if node.end_col_offset is None:
+            raise RuntimeError("AST node has no end column")
         end_column = len(
             self._lines[end_line - 1]
             .encode("utf-8")[: node.end_col_offset]

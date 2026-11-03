@@ -604,7 +604,8 @@ class Executions:
             execution,
             state=protocol.ExecutionRunning(started_at=now),
         )
-        assert execution.run_id is not None
+        if execution.run_id is None:
+            raise RuntimeError("Running execution has no run ID")
         run = self._runs[execution.run_id].run
         if isinstance(run.state, protocol.RunQueued):
             changes.append(

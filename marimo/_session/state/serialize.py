@@ -217,7 +217,8 @@ def serialize_session_view(
 
         # Convert console outputs
         for console_out in cell_console:
-            assert isinstance(console_out, CellOutput)
+            if not isinstance(console_out, CellOutput):
+                raise RuntimeError("Expected a console cell output")
             if console_out.channel == CellChannel.MEDIA:
                 console.append(
                     StreamMediaOutput(
