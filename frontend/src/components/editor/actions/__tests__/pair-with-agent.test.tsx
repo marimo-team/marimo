@@ -60,7 +60,7 @@ describe("PairWithAgent", () => {
     ).toBeVisible();
     expect(
       screen.getByRole("button", {
-        name: "Learn more.",
+        name: "Pair your agent",
       }),
     ).toBeVisible();
   });
@@ -71,7 +71,7 @@ describe("PairWithAgent", () => {
 
     fireEvent.click(
       screen.getByRole("button", {
-        name: "Learn more.",
+        name: "Pair your agent",
       }),
     );
 
@@ -83,7 +83,7 @@ describe("PairWithAgent", () => {
     stubTokenFetch();
     render(<PairWithAgentButton onClick={onClick} />, { wrapper });
 
-    fireEvent.click(screen.getByRole("button", { name: "Connect your agent" }));
+    fireEvent.click(screen.getByRole("button", { name: "Pair your agent" }));
 
     expect(onClick).toHaveBeenCalledOnce();
     expect(screen.getByRole("dialog", { name: "Pair an agent" })).toBeVisible();
