@@ -1,5 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
+import type { unstable_NotebookCall } from "@marimo-team/client";
 import type { PyodideInterface } from "pyodide";
 import {
   createRPC,
@@ -8,14 +9,11 @@ import {
   type RPCSchema,
 } from "rpc-anywhere";
 import type { UserConfig } from "@/core/config/config-schema";
-import type { NotificationPayload } from "@/core/kernel/messages";
 import type {
   ListPackagesResponse,
   PackageOperationResponse,
   SaveNotebookRequest,
 } from "@/core/network/types";
-import type { JsonString } from "@/utils/json/base64";
-import { once } from "@/utils/once";
 import { decodeUtf8 } from "@/utils/strings";
 import { Deferred } from "../../../utils/Deferred";
 import { prettyError } from "../../../utils/errors";
@@ -27,12 +25,11 @@ import { TRANSPORT_ID } from "./constants";
 import { WasmFileSystem } from "./fs";
 import { getController } from "./getController";
 import { getPyodideVersion } from "./getPyodideVersion";
-import { MessageBuffer } from "./message-buffer";
 import { t } from "./tracer";
 import type {
   BridgePayload,
   RawBridge,
-  SerializedBridge,
+  WasmSession,
   WasmController,
 } from "./types";
 import { shouldLoadDuckDBPackages } from "../utils";
@@ -72,16 +69,66 @@ async function loadPyodideAndPackages() {
   }
 }
 
-const messageBuffer = new MessageBuffer(
-  (message: JsonString<NotificationPayload>) => {
-    rpc.send.kernelMessage({ message });
-  },
-);
-const bridgeReady = new Deferred<SerializedBridge>();
+const sessionReady = new Deferred<WasmSession>();
 let started = false;
 
 // Handle RPC requests
+const notebookSubscriptions = new Map<
+  string,
+  { promise: Promise<void>; cancel(): void }
+>();
+async function getNotebook() {
+  const session = await sessionReady.promise;
+  return session.bridge.notebook;
+}
+
 const requestHandler = createRPCRequestHandler({
+  notebookSubscribe: (request: { id: string; cursor: string | null }) => {
+    let canceled = false;
+    const subscribing = (async () => {
+      const session = await sessionReady.promise;
+      const notebook = session.bridge.notebook;
+      try {
+        await notebook.subscribe(request.id, request.cursor, (event) => {
+          rpc.send.notebookEvent({ id: request.id, event });
+        });
+        if (!canceled) {
+          void session.start().catch((error: unknown) => {
+            rpc.send.initializedError({ error: prettyError(error) });
+          });
+        }
+      } finally {
+        notebook.destroy();
+      }
+    })();
+    notebookSubscriptions.set(request.id, {
+      promise: subscribing,
+      cancel: () => {
+        canceled = true;
+      },
+    });
+    return subscribing.finally(() => notebookSubscriptions.delete(request.id));
+  },
+  notebookUnsubscribe: async (id: string) => {
+    // An RPC timeout can close a reader while its subscription is still opening.
+    const pending = notebookSubscriptions.get(id);
+    pending?.cancel();
+    await pending?.promise.catch(() => undefined);
+    const notebook = await getNotebook();
+    try {
+      notebook.unsubscribe(id);
+    } finally {
+      notebook.destroy();
+    }
+  },
+  notebookCall: async (call: unstable_NotebookCall): Promise<unknown> => {
+    const notebook = await getNotebook();
+    try {
+      return JSON.parse(await notebook.call(JSON.stringify(call)));
+    } finally {
+      notebook.destroy();
+    }
+  },
   /**
    * Start the session
    */
@@ -105,29 +152,34 @@ const requestHandler = createRPCRequestHandler({
         code: opts.code,
         filename: opts.filename,
       });
-      const startSession = t.wrapAsync(
-        self.controller.startSession.bind(self.controller),
+      const prepareSession = t.wrapAsync(
+        self.controller.prepareSession.bind(self.controller),
       );
-      const initializeOnce = once(() => {
-        rpc.send.initializingMessage({
-          message: "Initializing notebook...",
-        });
-        rpc.send.initialized({});
-      });
       rpc.send.initializingMessage({
         message: "Loading notebook and dependencies...",
       });
-      const bridge = await startSession({
+      const session = await prepareSession({
         code: opts.code,
         filename: opts.filename,
         queryParameters: opts.queryParameters,
         userConfig: opts.userConfig,
-        onMessage: (msg) => {
-          initializeOnce();
-          messageBuffer.push(msg);
-        },
       });
-      bridgeReady.resolve(bridge);
+      const notebook = session.bridge.notebook;
+      try {
+        notebook.set_persistence(async (contents, filename) => {
+          // Keep file operations in the execution worker from syncing stale source.
+          self.pyodide.FS.writeFile(filename, contents);
+          self.pyodide.FS.writeFile(WasmFileSystem.NOTEBOOK_FILENAME, contents);
+          await rpc.proxy.request.persistNotebook({ filename, contents });
+        });
+      } finally {
+        notebook.destroy();
+      }
+      sessionReady.resolve(session);
+      rpc.send.initializingMessage({
+        message: "Initializing notebook...",
+      });
+      rpc.send.initialized({});
       workerInitSpan.end("ok");
     } catch (error) {
       rpc.send.initializedError({
@@ -249,13 +301,13 @@ const requestHandler = createRPCRequestHandler({
     };
   },
 
-  /**
-   * Save the notebook
-   */
-  saveNotebook: async (opts: SaveNotebookRequest) => {
-    await pyodideReadyPromise; // Make sure loading is done
-    const bridge = await bridgeReady.promise;
-    await bridge.save(JSON.stringify(opts));
+  setNotebookLayout: async (layout: SaveNotebookRequest["layout"]) => {
+    const notebook = await getNotebook();
+    try {
+      await notebook.set_layout(JSON.stringify(layout));
+    } finally {
+      notebook.destroy();
+    }
   },
 
   /**
@@ -302,7 +354,7 @@ const requestHandler = createRPCRequestHandler({
     }
 
     // Perform the function call to the Python bridge
-    const bridge = await bridgeReady.promise;
+    const { bridge } = await sessionReady.promise;
 
     // Serialize the payload
     const payloadString =
@@ -335,10 +387,9 @@ const requestHandler = createRPCRequestHandler({
 export type WorkerSchema = RPCSchema<
   {
     messages: {
+      notebookEvent: { id: string; event: string };
       // Emitted when the worker is ready
       ready: {};
-      // Emitted when the kernel sends a message
-      kernelMessage: { message: JsonString<NotificationPayload> };
       // Emitted when the Pyodide is initialized
       initialized: {};
       // Emitted when the Pyodide is initializing, with new messages
@@ -355,22 +406,15 @@ const rpc = createRPC<WorkerSchema, ParentSchema>({
     transportId: TRANSPORT_ID,
   }),
   requestHandler,
+  // Persistence can include bootstrapping the storage worker.
+  maxRequestTime: Infinity,
 });
 
 rpc.addMessageListener("bootstrap", (config) => runtimeConfig.resolve(config));
 
 rpc.send("ready", {});
 
-/// Listeners
-// When the consumer is ready, start the message buffer
-rpc.addMessageListener("consumerReady", async () => {
-  await pyodideReadyPromise; // Make sure loading is done
-  messageBuffer.start();
-});
-
 const namesThatRequireSync = new Set<keyof RawBridge>([
-  "save",
-  "save_app_config",
   "rename_file",
   "create_file_or_directory",
   "delete_file_or_directory",

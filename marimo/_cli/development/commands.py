@@ -232,7 +232,6 @@ def print_routes() -> None:
                 print_all_routes(route.app, new_base_path)
 
     print_all_routes(app)
-    return
 
 
 @click.command(cls=ColoredCommand, help="Preview a marimo file as static HTML")

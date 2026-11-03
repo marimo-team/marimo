@@ -1,6 +1,5 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-/* oxlint-disable typescript/no-explicit-any */
 /* oxlint-disable no-console -- for debugging */
 
 import { Logger } from "./Logger";
@@ -61,12 +60,17 @@ export class Tracer {
     }
   }
 
-  public wrapAsync<T extends (...args: any[]) => Promise<any>>(
+  public wrapAsync<T extends (...args: never[]) => Promise<unknown>>(
     fn: T,
     name?: string,
+    attributes?: Record<string, unknown>,
+  ): T;
+  public wrapAsync<Args extends unknown[], Result>(
+    fn: (...args: Args) => Promise<Result>,
+    name?: string,
     attributes: Record<string, unknown> = {},
-  ): T {
-    return (async (...args) => {
+  ): (...args: Args) => Promise<Result> {
+    return async (...args) => {
       const span = this.startSpan(name || fn.name, attributes);
       try {
         const result = await fn(...args);
@@ -76,7 +80,7 @@ export class Tracer {
         this.endSpan(span, "error");
         throw error;
       }
-    }) as T;
+    };
   }
 
   public logSpans(): void {

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import sys
 from copy import deepcopy
 from typing import TYPE_CHECKING, Any, Literal
@@ -9,13 +10,16 @@ from unittest import mock
 
 import pytest
 
+from marimo._config.config import SqlOutputType
 from marimo._data.models import Database, DataTable, DataTableColumn, Schema
 from marimo._dependencies.dependencies import DependencyManager
+from marimo._plugins.ui._impl.table import SearchTableArgs, table
 from marimo._sql.engines.duckdb import DuckDBEngine
 from marimo._sql.engines.types import EngineCatalog, QueryEngine
 from marimo._sql.get_engines import engine_to_data_source_connection
 from marimo._sql.sql import sql
 from marimo._sql.sql_quoting import quote_qualified_name
+from marimo._sql.utils import is_duckdb_v2
 from marimo._types.ids import VariableName
 
 HAS_DUCKDB = DependencyManager.duckdb.has()
@@ -51,7 +55,7 @@ def duckdb_connection() -> Generator[duckdb.DuckDBPyConnection, None, None]:
         (3, 'Charlie');
         """
     )
-    sql("INSERT INTO test (id, name) VALUES (4, 'Rose')", engine=conn)
+    conn.execute("INSERT INTO test (id, name) VALUES (4, 'Rose')").fetchall()
     yield conn
     conn.execute("DROP TABLE test")
     conn.close()
@@ -156,6 +160,8 @@ def test_duckdb_engine_get_databases(
 @pytest.mark.skipif(not HAS_DUCKDB, reason="DuckDB not installed")
 def test_duckdb_engine_get_databases_no_conn() -> None:
     """Test DuckDBEngine get_databases method."""
+    import duckdb
+
     engine = DuckDBEngine(None, engine_name=None)
     initial_databases = engine.get_databases(
         include_schemas=False,
@@ -171,18 +177,18 @@ def test_duckdb_engine_get_databases_no_conn() -> None:
     assert engine.get_default_database() == "memory"
     assert engine.get_default_schema() == "main"
 
-    engine.execute(
+    duckdb.execute(
         "CREATE TABLE test (id INTEGER PRIMARY KEY, name VARCHAR(255))"
-    )
+    ).fetchall()
     try:
-        engine.execute(
+        duckdb.execute(
             """
             INSERT INTO test VALUES
             (1, 'Alice'),
             (2, 'Bob'),
             (3, 'Charlie');
             """
-        )
+        ).fetchall()
         databases = engine.get_databases(
             include_schemas=True,
             include_tables=True,
@@ -204,7 +210,30 @@ def test_duckdb_engine_get_databases_no_conn() -> None:
             ),
         ]
     finally:
-        engine.execute("DROP TABLE test")
+        duckdb.execute("DROP TABLE test").fetchall()
+
+
+@pytest.mark.skipif(not HAS_DUCKDB, reason="duckdb not installed")
+@pytest.mark.parametrize("use_connection", [True, False])
+def test_default_catalog_discovery(use_connection: bool) -> None:
+    import duckdb
+
+    with duckdb.connect() as connection:
+        engine = DuckDBEngine(connection if use_connection else None)
+        query_connection = connection if use_connection else duckdb
+
+        assert engine.get_default_database() == "memory"
+        assert query_connection.sql("SELECT 42").fetchall() == [(42,)]
+        assert engine.get_default_schema() == "main"
+        assert query_connection.sql("SELECT 42").fetchall() == [(42,)]
+        assert [
+            schema.name
+            for schema in engine.get_schemas(
+                database=None,
+                include_tables=False,
+                include_table_details=False,
+            )
+        ] == ["main"]
 
 
 @pytest.mark.skipif(not HAS_DUCKDB, reason="duckdb not installed")
@@ -219,15 +248,17 @@ def test_get_current_database_schema() -> None:
     assert duckdb_engine.get_default_database() == "memory"
     assert duckdb_engine.get_default_schema() == "main"
 
-    sql("CREATE SCHEMA test_schema;", engine=engine)
-    sql("CREATE TABLE test_schema.test_table (id INTEGER);", engine=engine)
-    sql("USE test_schema;", engine=engine)
+    engine.execute("CREATE SCHEMA test_schema;").fetchall()
+    engine.execute(
+        "CREATE TABLE test_schema.test_table (id INTEGER);"
+    ).fetchall()
+    engine.execute("USE test_schema;").fetchall()
 
     assert duckdb_engine.get_default_database() == "memory"
     assert duckdb_engine.get_default_schema() == "test_schema"
 
-    sql("DROP TABLE test_schema.test_table;", engine=engine)
-    sql("DROP SCHEMA test_schema;", engine=engine)
+    engine.execute("DROP TABLE test_schema.test_table;").fetchall()
+    engine.execute("DROP SCHEMA test_schema;").fetchall()
 
 
 @pytest.mark.skipif(
@@ -511,8 +542,7 @@ def test_duckdb_discovery_depth(
             schemas_enabled
         )
         assert (
-            any("information_schema.tables" in sql for sql in queries)
-            == tables_enabled
+            any("duckdb_tables()" in sql for sql in queries) == tables_enabled
         )
         assert sum("duckdb_columns()" in sql for sql in queries) == int(
             details_enabled
@@ -813,7 +843,10 @@ def test_duckdb_keeps_tables_when_column_discovery_fails(failure: str) -> None:
                         "Column metadata unavailable"
                     )
                 if failure == "placeholder":
-                    return [("memory", "main", "example", "__", "INTEGER")]
+                    oid = connection.execute(
+                        "SELECT oid FROM duckdb_schemas() WHERE database_name = 'memory' AND schema_name = 'main'"
+                    ).fetchall()[0][0]
+                    return [("memory", oid, "example", "__", "INTEGER")]
                 return []
             return query(sql, params)
 
@@ -840,3 +873,174 @@ def test_duckdb_keeps_tables_when_column_discovery_fails(failure: str) -> None:
             )
         ]
         assert describe.call_count == int(failure == "placeholder")
+
+
+@pytest.mark.skipif(not HAS_DUCKDB, reason="DuckDB not installed")
+@pytest.mark.parametrize("include_tables", [False, True])
+def test_duckdb_nested_schema_discovery(include_tables: bool) -> None:
+    import duckdb
+
+    from marimo._sql.utils import is_duckdb_v2
+
+    if not is_duckdb_v2():
+        pytest.skip("Nested schemas require DuckDB 2")
+    with duckdb.connect() as connection:
+        for parent in ("finance", "other", "finance.reports"):
+            connection.execute(f"CREATE SCHEMA {quote_qualified_name(parent)}")
+        for parent, dtype in (("finance", "INTEGER"), ("other", "VARCHAR")):
+            connection.execute(
+                f"CREATE SCHEMA {quote_qualified_name(parent, 'reports')}"
+            )
+            connection.execute(
+                f"CREATE TABLE {quote_qualified_name(parent, 'reports', 'sales')} (amount {dtype})"
+            )
+            connection.execute(
+                f"CREATE VIEW {quote_qualified_name(parent, 'reports', 'summary')} AS SELECT * FROM {quote_qualified_name(parent, 'reports', 'sales')}"
+            )
+        connection.execute(
+            'CREATE TABLE "finance.reports".sales (literal BOOLEAN)'
+        )
+        engine = DuckDBEngine(connection)
+        databases = engine.get_databases(
+            include_schemas=True,
+            include_tables=include_tables,
+            include_table_details=True,
+        )
+        schemas = {
+            s.name: s
+            for db in databases
+            if db.name == "memory"
+            for s in db.schemas
+        }
+        assert set(schemas) == {"finance", "other", "finance.reports", "main"}
+        assert schemas["finance"].child_schemas_resolved == include_tables
+        assert schemas["finance"].tables == []
+        for parent, dtype in (("finance", "INTEGER"), ("other", "VARCHAR")):
+            children = (
+                schemas[parent].child_schemas
+                if include_tables
+                else engine.get_schemas(
+                    database="memory",
+                    schema_path=[parent],
+                    include_tables=True,
+                    include_table_details=True,
+                )
+            )
+            assert len(children) == 1
+            assert children[0].name == "reports"
+            assert [(t.name, t.type) for t in children[0].tables] == [
+                ("sales", "table"),
+                ("summary", "view"),
+            ]
+            assert all(
+                t.columns[0].external_type == dtype for t in children[0].tables
+            )
+            for name in ("sales", "summary"):
+                details = engine.get_table_details(
+                    database_name="memory",
+                    schema_name="reports",
+                    schema_path=[parent, "reports"],
+                    table_name=name,
+                )
+                assert details is not None
+                assert details.columns[0].external_type == dtype
+        literal = engine.get_tables_in_schema(
+            database="memory",
+            schema="finance.reports",
+            schema_path=["finance.reports"],
+            include_table_details=True,
+        )
+        assert literal[0].columns[0].name == "literal"
+        assert (
+            engine.get_tables_in_schema(
+                database="memory",
+                schema="reports",
+                schema_path=["missing", "reports"],
+                include_table_details=True,
+            )
+            == []
+        )
+
+
+@pytest.mark.requires("duckdb", "pandas", "polars", "pyarrow")
+@pytest.mark.parametrize(
+    "output_format", ["native", "polars", "lazy-polars", "pandas"]
+)
+@pytest.mark.parametrize("output", [False, True])
+def test_duckdb_command_results(
+    output_format: SqlOutputType, output: bool
+) -> None:
+    import duckdb
+    import pandas as pd
+    import polars as pl
+
+    def assert_rows(result: object, expected: list[tuple[int]]) -> None:
+        if output_format == "native":
+            assert isinstance(result, duckdb.DuckDBPyRelation)
+            assert result.columns == ["Count"]
+            assert result.fetchall() == expected
+        elif output_format == "pandas":
+            assert isinstance(result, pd.DataFrame)
+            assert list(result.columns) == ["Count"]
+            assert list(result.itertuples(index=False, name=None)) == expected
+        else:
+            if output_format == "lazy-polars":
+                assert isinstance(result, pl.LazyFrame)
+                result = result.collect()
+            assert isinstance(result, pl.DataFrame)
+            assert result.columns == ["Count"]
+            assert result.rows() == expected
+
+    with (
+        duckdb.connect() as connection,
+        mock.patch.object(
+            DuckDBEngine, "sql_output_format", return_value=output_format
+        ),
+        mock.patch("marimo._sql.sql.replace") as replace,
+        mock.patch(
+            "marimo._output.formatters.df_formatters.include_opinionated",
+            return_value=True,
+        ),
+    ):
+        connection.execute("CREATE SEQUENCE command_counter")
+        commands = [
+            (
+                (
+                    "CREATE TABLE command_result AS "
+                    "SELECT nextval('command_counter') AS value FROM range(2)"
+                ),
+                2,
+            ),
+            ("INSERT INTO command_result VALUES (3)", 1),
+        ]
+        for query, count in commands:
+            replace.reset_mock()
+            result = sql(query, engine=connection, output=output)
+            if is_duckdb_v2():
+                assert_rows(result, [(count,)])
+                assert replace.call_count == int(output)
+                if output:
+                    rendered = replace.call_args.args[0]
+                    assert isinstance(rendered, table)
+                    page = rendered._search(
+                        SearchTableArgs(page_size=10, page_number=0)
+                    )
+                    assert json.loads(page.data) == [{"Count": count}]
+            else:
+                assert result is None
+                replace.assert_not_called()
+            assert connection.execute("SELECT 42").fetchall() == [(42,)]
+        assert_rows(
+            sql(
+                'INSERT INTO command_result VALUES (17) RETURNING value AS "Count"',
+                engine=connection,
+                output=output,
+            ),
+            [(17,)],
+        )
+        assert connection.execute(
+            "SELECT value FROM command_result ORDER BY value"
+        ).fetchall() == [(1,), (2,), (3,), (17,)]
+        assert connection.execute(
+            "SELECT currval('command_counter')"
+        ).fetchall() == [(2,)]

@@ -20,16 +20,16 @@ import { SaveComponent } from "@/core/saving/save-component";
 import {
   getConnectionTooltip,
   isAppInteractionDisabled,
-} from "@/core/websocket/connection-utils";
-import { ConnectionState } from "@/core/websocket/types";
+} from "@/core/session/connection-utils";
+import { ConnectionState } from "@/core/session/types";
 import { cn } from "@/utils/cn";
 import { Functions } from "@/utils/functions";
 import {
   canUndoDeletesAtom,
   needsRunAtom,
   undoLabelAtom,
-  useCellActions,
 } from "../../../core/cells/cells";
+import { useCellActions } from "../../../core/cells/actions";
 import { ConfigButton } from "../../app-config/app-config-button";
 import { renderShortcut } from "../../shortcuts/renderShortcut";
 import { Tooltip } from "../../ui/tooltip";

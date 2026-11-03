@@ -15,7 +15,6 @@ import time
 import traceback
 from copy import copy
 from multiprocessing import connection
-from pathlib import Path
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -24,9 +23,15 @@ from typing import (
 from uuid import uuid4
 
 from marimo import _loggers
-from marimo._ast.cell import CellConfig, CellImpl, RuntimeStateType
+from marimo._ast.cell import (
+    CellConfig,
+    CellImpl,
+    ImportedValue,
+    ImportWorkspace,
+    RuntimeStateType,
+)
 from marimo._ast.compiler import _build_source_position_map, compile_cell
-from marimo._ast.errors import ImportStarError
+from marimo._ast.errors import ImportStarError, LazyImportError
 from marimo._ast.names import SETUP_CELL_NAME
 from marimo._ast.variables import BUILTINS, is_local
 from marimo._ast.visitor import ImportData, Name, VariableData
@@ -35,17 +40,20 @@ from marimo._config.config import (
     MarimoConfig,
     OnCellChangeType,
 )
+from marimo._core.protocol import ExecutionId, Revision
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._entrypoints.registry import EntryPointRegistry
 from marimo._lint.validate_graph import check_for_errors
 from marimo._messaging.cell_output import CellChannel
 from marimo._messaging.context import (
+    EXECUTION_CTX,
     RUN_ID_CTX,
     run_id_context,
 )
 from marimo._messaging.errors import (
     Error,
     ImportStarError as MarimoImportStarError,
+    LazyImportError as MarimoLazyImportError,
     MarimoInterruptionError,
     MarimoStrictExecutionError,
     MarimoSyntaxError,
@@ -58,6 +66,7 @@ from marimo._messaging.notification import (
     RemoveUIElementsNotification,
     UIElementMessageNotification,
     VariableDeclarationNotification,
+    VariableRemoval,
     VariablesNotification,
     VariableValue,
     VariableValuesNotification,
@@ -150,11 +159,14 @@ from marimo._runtime.win32_interrupt_handler import (
     Win32InterruptHandler,
     ignore_console_ctrl_c,
 )
-from marimo._secrets.load_dotenv import (
-    load_dotenv_with_fallback,
-)
+from marimo._secrets.load_dotenv import DotEnvReader
 from marimo._session.model import SessionMode
 from marimo._session.queue import QueueType
+from marimo._sql.bindings import (
+    SQLBinding,
+    existing_sql_bindings,
+    get_sql_bindings,
+)
 from marimo._sql.engines.types import (
     EngineCatalog,
     QueryEngine,
@@ -178,13 +190,14 @@ from marimo._utils.signals import restore_signals
 from marimo._utils.typed_connection import TypedConnection
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Iterator, Sequence
+    from collections.abc import Callable, Iterable, Iterator, Sequence
     from types import ModuleType
 
     from marimo._plugins.ui._core.ui_element import UIElement
     from marimo._runtime.virtual_file import VirtualFileStorageType
 
 LOGGER = _loggers.marimo_logger()
+_NOT_IMPORTED = object()
 
 _KERNEL_LIFESPAN_REGISTRY = EntryPointRegistry[Lifespan[None]](
     "marimo.kernel.lifespan",
@@ -454,17 +467,26 @@ class CellMetadata:
     code: str | None = None
 
 
+@dataclasses.dataclass(frozen=True)
+class Binding:
+    """The execution that owns a notebook name and its value's revision."""
+
+    cell_id: CellId_t
+    execution_id: str
+    revision: Revision
+    imported: object = _NOT_IMPORTED
+    sql: SQLBinding | None = None
+
+
 def _get_attached_catalogs() -> set[str]:
     """Fetch the names of all catalogs currently attached to DuckDB."""
     import duckdb
 
     try:
-        return {
-            row[0].lower()
-            for row in duckdb.sql(
-                "SELECT database_name FROM duckdb_databases()"
-            ).fetchall()
-        }
+        result = duckdb.sql("SELECT database_name FROM duckdb_databases()")
+        if result is None:
+            return set()
+        return {row[0].lower() for row in result.fetchall()}
     except Exception:
         return set()
 
@@ -563,7 +585,6 @@ class Kernel:
         self._callbacks: list[KernelCallback] = [
             self.secrets_callbacks,
             self.datasets_callbacks,
-            self.packages_callbacks,
             self.sql_callbacks,
             self.cache_callbacks,
             self.external_storage_callbacks,
@@ -581,10 +602,12 @@ class Kernel:
                 if path not in sys.path:
                     sys.path.insert(0, path)
 
-        self._hooks = hooks
+        self._hooks = hooks.copy()
+        self._hooks.add_post_execution(self._bind_variables)
 
         self._globals_lock = threading.RLock()
         self._state_lock = threading.RLock()
+        self._bindings: dict[str, Binding] = {}
         self._out_of_band_worker_started = False
 
         self.debugger = debugger_override
@@ -925,6 +948,9 @@ class Kernel:
                 lineno = getattr(e, "lineno", None)
                 if isinstance(e, ImportStarError):
                     error = MarimoImportStarError(msg=str(e), lineno=lineno)
+                elif isinstance(e, LazyImportError):
+                    # NB. str(e) appends the line number already in lineno.
+                    error = MarimoLazyImportError(msg=e.msg, lineno=lineno)
                 else:
 
                     def _get_syntax_hints(broken_line: str) -> str:
@@ -1011,13 +1037,26 @@ class Kernel:
             else:
                 carried_imports = []
 
-            if previous_cell is not None:
-                LOGGER.debug("Deleting cell %s", cell_id)
-                previous_children = self._deactivate_cell(cell_id)
+            with self._state_lock:
+                carried_values = (
+                    self._imported_values(previous_cell)
+                    if previous_cell is not None and carried_imports
+                    else {}
+                )
+                if previous_cell is not None:
+                    LOGGER.debug("Deleting cell %s", cell_id)
+                    previous_children = self._deactivate_cell(cell_id)
 
             error = self._try_registering_cell(
                 cell_id, code, carried_imports=carried_imports, stale=stale
             )
+            if error is None:
+                workspace = self.graph.cells[cell_id].import_workspace
+                workspace.carried_values = {
+                    name: carried_values[name]
+                    for name in workspace.imported_defs
+                    if name in carried_values
+                }
             if error is not None and previous_cell is not None:
                 # The frontend keeps the cell around in the case of a
                 # registration error; let the FE know the cell is no longer
@@ -1071,62 +1110,83 @@ class Kernel:
                 attached_catalogs = _get_attached_catalogs()
             return attached_catalogs
 
-        for name, variable_data in variables.items():
-            # Take the last definition of the variable
-            variable = variable_data[-1]
-            if name in exclude_defs:
-                continue
+        with self._state_lock:
+            for name, variable_data in variables.items():
+                # Take the last definition of the variable
+                variable = variable_data[-1]
+                if name in exclude_defs:
+                    continue
 
-            if variable.kind == "table" and DependencyManager.duckdb.has():
-                import duckdb
-
-                # We only drop in-memory tables: we don't want to drop tables
-                # on databases!
-                qualified = _in_memory_qualified_name(
-                    variable, name, get_attached_catalogs
+                binding_name = (
+                    variable.sql_ref.qualified_name
+                    if variable.sql_ref is not None
+                    else name
                 )
-                if qualified is not None:
-                    try:
-                        duckdb.execute(f"DROP TABLE IF EXISTS {qualified}")
-                    except Exception as e:
-                        LOGGER.warning("Failed to drop table %s: %s", name, e)
-            elif variable.kind == "view" and DependencyManager.duckdb.has():
-                import duckdb
+                self._bindings.pop(binding_name, None)
 
-                # We only drop in-memory views for the same reason.
-                qualified = _in_memory_qualified_name(
-                    variable, name, get_attached_catalogs
-                )
-                if qualified is not None:
-                    try:
-                        duckdb.execute(f"DROP VIEW IF EXISTS {qualified}")
-                    except Exception as e:
-                        LOGGER.warning("Failed to drop view %s: %s", name, e)
-            elif variable.kind == "catalog" and DependencyManager.duckdb.has():
-                import duckdb
+                if variable.kind == "table" and DependencyManager.duckdb.has():
+                    import duckdb
 
-                try:
-                    identifier = quote_sql_identifier(name)
-                    duckdb.execute(f"DETACH DATABASE IF EXISTS {identifier}")
-                except Exception as e:
-                    LOGGER.warning("Failed to detach catalog %s: %s", name, e)
-            else:
-                if name in self.globals:
-                    del self.globals[name]
-
-                # Restore module-level __doc__ so it doesn't fall
-                # through to builtins.__doc__
-                if name == "__doc__":
-                    self.globals["__doc__"] = (
-                        self.app_metadata.docstring
-                        or "Created for the marimo kernel."
+                    # We only drop in-memory tables: we don't want to drop tables
+                    # on databases!
+                    qualified = _in_memory_qualified_name(
+                        variable, name, get_attached_catalogs
                     )
-
-                if (
-                    "__annotations__" in self.globals
-                    and name in self.globals["__annotations__"]
+                    if qualified is not None:
+                        try:
+                            duckdb.execute(f"DROP TABLE IF EXISTS {qualified}")
+                        except Exception as e:
+                            LOGGER.warning(
+                                "Failed to drop table %s: %s", name, e
+                            )
+                elif (
+                    variable.kind == "view" and DependencyManager.duckdb.has()
                 ):
-                    del self.globals["__annotations__"][name]
+                    import duckdb
+
+                    # We only drop in-memory views for the same reason.
+                    qualified = _in_memory_qualified_name(
+                        variable, name, get_attached_catalogs
+                    )
+                    if qualified is not None:
+                        try:
+                            duckdb.execute(f"DROP VIEW IF EXISTS {qualified}")
+                        except Exception as e:
+                            LOGGER.warning(
+                                "Failed to drop view %s: %s", name, e
+                            )
+                elif (
+                    variable.kind == "catalog"
+                    and DependencyManager.duckdb.has()
+                ):
+                    import duckdb
+
+                    try:
+                        identifier = quote_sql_identifier(name)
+                        duckdb.execute(
+                            f"DETACH DATABASE IF EXISTS {identifier}"
+                        )
+                    except Exception as e:
+                        LOGGER.warning(
+                            "Failed to detach catalog %s: %s", name, e
+                        )
+                else:
+                    if name in self.globals:
+                        del self.globals[name]
+
+                    # Restore module-level __doc__ so it doesn't fall
+                    # through to builtins.__doc__
+                    if name == "__doc__":
+                        self.globals["__doc__"] = (
+                            self.app_metadata.docstring
+                            or "Created for the marimo kernel."
+                        )
+
+                    if (
+                        "__annotations__" in self.globals
+                        and name in self.globals["__annotations__"]
+                    ):
+                        del self.globals["__annotations__"][name]
 
     def _invalidate_cell_state(
         self,
@@ -1142,6 +1202,7 @@ class Kernel:
         """
         cell = self.graph.cells[cell_id]
         cell.import_workspace.imported_defs = set()
+        cell.import_workspace.carried_values.clear()
         missing_modules_before_deletion = (
             self.module_registry.missing_modules()
         )
@@ -1520,6 +1581,214 @@ class Kernel:
             # modules are marked as stale
             self.graph.set_stale(cell_ids, prune_imports=True)
 
+    def _read_inputs(
+        self, cell: CellImpl
+    ) -> dict[str, Revision | None] | None:
+        if get_context().is_embedded() or get_mode() != "edit":
+            return None
+        with self._state_lock:
+            sql_bindings = (
+                [
+                    binding.sql
+                    for binding in self._bindings.values()
+                    if binding.sql is not None
+                ]
+                if cell.sql_refs
+                else []
+            )
+        existing_sql = set(existing_sql_bindings(sql_bindings))
+        with self._state_lock:
+            inputs: dict[str, Revision | None] = {}
+            for name in sorted(cell.refs):
+                sql_ref = cell.sql_refs.get(name)
+                matches = (
+                    {
+                        bound_name: binding
+                        for bound_name, binding in self._bindings.items()
+                        if binding.sql is not None
+                        and binding.sql in existing_sql
+                        and binding.sql.matches(sql_ref)
+                    }
+                    if sql_ref is not None
+                    else {}
+                )
+                inputs.update(
+                    (name, binding.revision)
+                    for name, binding in matches.items()
+                )
+                if not any(
+                    binding.sql is not None
+                    and binding.sql.kind in ("table", "view")
+                    for binding in matches.values()
+                ):
+                    binding = self._bindings.get(name)
+                    inputs[name] = (
+                        binding.revision
+                        if binding is not None
+                        and binding.sql is None
+                        and name in self.globals
+                        else None
+                    )
+            return inputs
+
+    def _imported_values(self, cell: CellImpl) -> dict[str, ImportedValue]:
+        with self._state_lock:
+            return {
+                name: ImportedValue(binding.imported, binding.revision)
+                for name in cell.import_workspace.imported_defs
+                if name in self.globals
+                and (binding := self._bindings.get(name)) is not None
+                and binding.cell_id == cell.cell_id
+                and binding.imported is not _NOT_IMPORTED
+            }
+
+    def _bind_variables(
+        self,
+        cell: CellImpl,
+        ctx: hook_context.PostExecutionHookContext,
+        result: cell_runner.RunResult,
+    ) -> None:
+        del result
+        carried = cell.import_workspace.carried_values
+        cell.import_workspace.carried_values = {}
+        if not ctx.should_broadcast_data:
+            return
+        current = EXECUTION_CTX.get()
+        assert current is not None
+        sql_bindings = get_sql_bindings(cell)
+        python_names = {
+            name
+            for name in cell.defs
+            if cell.variable_data[name][-1].language == "python"
+        }
+        with self._state_lock:
+            # A nested run may have produced a newer import while this cell
+            # was queued. Its live binding takes precedence over the carry.
+            previous_imports = carried | self._imported_values(cell)
+            imports = (
+                {item.definition for item in cell.imports}
+                if cell.import_workspace.is_import_block
+                else set()
+            )
+            self._unbind_variables(cell.deleted_refs - self.globals.keys())
+            for name in python_names.intersection(self.globals):
+                value = self.globals[name]
+                previous = (
+                    previous_imports.get(name) if name in imports else None
+                )
+                revision = (
+                    previous.revision
+                    if previous is not None and previous.value is value
+                    else Revision(ExecutionId(current.id), 0)
+                )
+                self._bindings[name] = Binding(
+                    cell.cell_id,
+                    current.id,
+                    revision,
+                    value if name in imports else _NOT_IMPORTED,
+                )
+            for sql_binding in sql_bindings:
+                self._bindings[sql_binding.name] = Binding(
+                    cell.cell_id,
+                    current.id,
+                    Revision(ExecutionId(current.id), 0),
+                    sql=sql_binding,
+                )
+            previews = self._publish_bindings(
+                python_names | {binding.name for binding in sql_bindings}
+            )
+        self._publish_variable_previews(previews)
+
+    def _unbind_variables(self, names: Iterable[str]) -> None:
+        # Called under _state_lock, like _publish_bindings.
+        removed = [
+            VariableRemoval(name=name, execution_id=binding.execution_id)
+            for name in sorted(names)
+            if (binding := self._bindings.pop(name, None)) is not None
+        ]
+        if removed:
+            broadcast_notification(
+                VariableValuesNotification(variables=[], removed=removed),
+                self.stream,
+            )
+
+    def _publish_bindings(
+        self, names: Iterable[str]
+    ) -> dict[str, tuple[object, Binding | None]]:
+        # Called under _state_lock: readers must not see an unpublished revision.
+        previews = {
+            name: (self.globals.get(name), self._bindings.get(name))
+            for name in sorted(names)
+        }
+        values = [
+            VariableValue(
+                name=name,
+                value=None,
+                datatype=binding.sql.kind if binding.sql else None,
+                execution_id=binding.execution_id,
+                revision=binding.revision,
+            )
+            for name, (_, binding) in previews.items()
+            if binding is not None
+        ]
+        if values:
+            broadcast_notification(
+                VariableValuesNotification(variables=values), self.stream
+            )
+        return previews
+
+    def _publish_variable_previews(
+        self, previews: dict[str, tuple[object, Binding | None]]
+    ) -> None:
+        # Formatting can run user code, including waiting for a state setter
+        # on another thread. Never hold the state lock while rendering.
+        values = {
+            name: create_variable_value(name, value)
+            for name, (value, binding) in previews.items()
+            if binding is None or binding.sql is None
+        }
+        with self._state_lock:
+            current = []
+            for name, value in values.items():
+                obj, binding = previews[name]
+                if (
+                    self._bindings.get(name) is not binding
+                    or self.globals.get(name) is not obj
+                ):
+                    continue
+                if binding is not None:
+                    value.execution_id = binding.execution_id
+                    value.revision = binding.revision
+                current.append(value)
+            if current:
+                broadcast_notification(
+                    VariableValuesNotification(variables=current), self.stream
+                )
+
+    def _update_variables(self, names: Iterable[str]) -> None:
+        if get_context().is_embedded() or get_mode() != "edit":
+            return
+        with self._state_lock:
+            revisions = {}
+            for name in sorted(set(names)):
+                if (
+                    name not in self.globals
+                    or (binding := self._bindings.get(name)) is None
+                ):
+                    continue
+                revision = Revision(
+                    binding.revision.execution, binding.revision.update + 1
+                )
+                self._bindings[name] = dataclasses.replace(
+                    binding, revision=revision
+                )
+                revisions[name] = revision
+            previews = self._publish_bindings(revisions)
+            current = EXECUTION_CTX.get()
+            if current is not None and current.attempt is not None:
+                current.attempt.advance_inputs(revisions)
+        self._publish_variable_previews(previews)
+
     def _propagate_kernel_errors(
         self,
         ctx: hook_context.OnFinishHookContext,
@@ -1541,9 +1810,21 @@ class Kernel:
         # descendants (cancelled == cells that raise exceptions), whereas
         # eager kernels do (since we clear all state ahead of time, and
         # have the closure of the roots in cells to run)
+        workspaces: list[ImportWorkspace] = []
+
         def invalidate_state(ctx: hook_context.PreparationHookContext) -> None:
             for cid in ctx.cells_to_run:
-                self._invalidate_cell_state(cid)
+                source = self.graph.cells[cid]
+                workspace = ctx.graph.cells[cid].import_workspace
+                workspaces.append(workspace)
+                with self._state_lock:
+                    carried = (
+                        self._imported_values(source)
+                        or source.import_workspace.carried_values
+                    )
+                    source.import_workspace.carried_values = {}
+                    self._invalidate_cell_state(cid)
+                    workspace.carried_values = carried
 
         def note_time_of_interruption(
             cell_impl: CellImpl,
@@ -1578,6 +1859,7 @@ class Kernel:
             execution_type=self.execution_type,
             execution_context=self._install_execution_context,
             hooks=run_hooks,
+            get_inputs=self._read_inputs,
             user_config=self.user_config,
         )
 
@@ -1586,7 +1868,11 @@ class Kernel:
         # TODO(akshayka): when no logger is configured, log output is not
         #                 redirected to frontend (it's printed to console),
         #                 which is incorrect
-        await runner.run_all()
+        try:
+            await runner.run_all()
+        finally:
+            for workspace in workspaces:
+                workspace.carried_values.clear()
         with self._state_lock:
             cells_with_stale_state = runner.resolve_state_updates(
                 self.state_updates
@@ -1602,6 +1888,9 @@ class Kernel:
         from marimo._runtime.threads import is_marimo_thread
 
         ctx = get_context()
+        self._update_variables(
+            name for name in self._bindings if self.globals.get(name) is state
+        )
         if ctx.execution_context is not None:
             setter_cell_id = ctx.execution_context.cell_id
         else:
@@ -1713,27 +2002,20 @@ class Kernel:
     async def edit_cells(self, request: EditCellsCommand) -> None:
         """Apply a notebook edit to the graph, then run what follows from it.
 
-        Changed code is registered as stale, not run. The kernel only
-        takes code for cells it has: a cell it has never seen arrives
-        with the run that first carries it, and code pending from an
-        instantiation without a run is replaced in place. Deletions and
-        configs then apply together, and only their consequences run:
-        cells that depended on a deleted cell, and under autorun, stale
-        cells the edit enabled.
+        Code arrives with runs. A cell the kernel has run keeps its code
+        until the next run carries new code, so typing is never compiled
+        here. Only code pending from an instantiation that has not run
+        is replaced, so that run uses what the notebook has. Deletions
+        and configs apply together, and only their consequences run.
+        Those are the cells that depended on a deleted cell and, under
+        autorun, stale cells the edit enabled, which run the code the
+        kernel holds for them.
         """
-        edits: list[ExecuteCellCommand] = []
         for cell_id, code in request.codes.items():
-            command = ExecuteCellCommand(cell_id=cell_id, code=code)
-            if cell_id in self.graph.cells:
-                edits.append(command)
-            elif cell_id in self._uninstantiated_execution_requests:
-                self._uninstantiated_execution_requests[cell_id] = command
-        if edits:
-            self.mutate_graph(
-                edits,
-                deletion_requests=[],
-                cells_starting_stale={edit.cell_id for edit in edits},
-            )
+            if cell_id in self._uninstantiated_execution_requests:
+                self._uninstantiated_execution_requests[cell_id] = (
+                    ExecuteCellCommand(cell_id=cell_id, code=code)
+                )
         deletions = [
             DeleteCellCommand(cell_id=cell_id)
             for cell_id in request.delete_ids
@@ -1954,6 +2236,7 @@ class Kernel:
             execution_type=self.execution_type,
             execution_context=self._install_execution_context,
             hooks=scratchpad_hooks,
+            get_inputs=self._read_inputs,
             executions={SCRATCH_CELL_ID: execution},
             user_config=self.user_config,
         )
@@ -2008,8 +2291,7 @@ class Kernel:
         stale_cells: set[CellId_t] = set()
         for cell_id, config in configs.items():
             metadata = self.cell_metadata.setdefault(cell_id, CellMetadata())
-            previous = metadata.config
-            merged = CellConfig.from_dict(previous.asdict())
+            merged = CellConfig.from_dict(metadata.config.asdict())
             merged.configure(config)
             metadata.config = merged
             cell = self.graph.cells.get(cell_id)
@@ -2168,12 +2450,8 @@ class Kernel:
                 for name in ctx.ui_element_registry.bound_names(object_id)
                 if not is_local(name)
             }
-            variable_values: list[VariableValue] = []
+            self._update_variables(bound_names)
             for name in bound_names:
-                # TODO update variable values even for namespaces? lenses? etc
-                variable_values.append(
-                    create_variable_value(name=name, value=value)
-                )
                 try:
                     # subtracting self.graph.definitions[name]: never rerun the
                     # cell that created the name
@@ -2197,12 +2475,6 @@ class Kernel:
                     write_traceback(tmpio.read())
                     # Entering undefined behavior territory ...
                     continue
-
-            if variable_values and not ctx.is_embedded():
-                broadcast_notification(
-                    VariableValuesNotification(variables=variable_values),
-                    self.stream,
-                )
 
         if self.reactive_execution_mode == "autorun":
             await self._run_cells(referring_cells)
@@ -2498,13 +2770,10 @@ class Kernel:
             return
 
         for env in dotenvs:
-            if Path(env).exists():
-                try:
-                    load_dotenv_with_fallback(env)
-                except Exception as e:
-                    LOGGER.error(
-                        "Failed to load dotenv file %s", env, exc_info=e
-                    )
+            try:
+                DotEnvReader(env).load()
+            except Exception as e:
+                LOGGER.error("Failed to load dotenv file %s", env, exc_info=e)
 
     async def handle_message(self, request: CommandMessage) -> None:
         """Handle a message from the client.

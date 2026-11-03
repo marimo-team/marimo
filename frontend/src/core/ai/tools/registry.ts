@@ -73,9 +73,11 @@ export class FrontendToolRegistry {
         const strError = z.prettifyError(inputResponse.error);
         throw new ToolExecutionError(
           `Tool ${toolName} returned invalid input: ${strError}`,
-          "INVALID_ARGUMENTS",
-          true,
-          "Please check the arguments and try again.",
+          {
+            code: "INVALID_ARGUMENTS",
+            isRetryable: true,
+            suggestedFix: "Please check the arguments and try again.",
+          },
         );
       }
       const args = inputResponse.data;
@@ -110,12 +112,15 @@ export class FrontendToolRegistry {
       // Handle unknown/generic errors
       const genericError = new ToolExecutionError(
         error instanceof Error ? error.message : String(error),
-        "TOOL_ERROR",
-        false,
-        "Check the error message and try again with valid arguments.",
         {
-          args: rawArgs,
-          errorType: error?.constructor?.name ?? typeof error,
+          code: "TOOL_ERROR",
+          isRetryable: false,
+          suggestedFix:
+            "Check the error message and try again with valid arguments.",
+          meta: {
+            args: rawArgs,
+            errorType: error?.constructor?.name ?? typeof error,
+          },
         },
       );
       return {

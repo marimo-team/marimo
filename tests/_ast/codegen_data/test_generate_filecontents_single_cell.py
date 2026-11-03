@@ -8,8 +8,6 @@ app = marimo.App()
 def one():
     import numpy as np
 
-    return
-
 
 if __name__ == "__main__":
     app.run()

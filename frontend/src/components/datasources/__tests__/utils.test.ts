@@ -34,6 +34,37 @@ describe("sqlCode", () => {
     name: "email" as const,
   } as DataTableColumn;
 
+  it.each([
+    {
+      path: ["finance", "reports"],
+      expected: '"memory"."finance"."reports"."users"',
+    },
+    { path: ["finance.reports"], expected: '"finance.reports"."users"' },
+    {
+      path: ['fi"nance', "reports"],
+      expected: '"memory"."fi""nance"."reports"."users"',
+    },
+    {
+      path: ["main", "reports"],
+      expected: '"memory"."main"."reports"."users"',
+    },
+  ])("preserves schema path $path in generated SQL", ({ path, expected }) => {
+    const result = sqlCode({
+      table: mockTable,
+      columnName: "*",
+      sqlTableContext: {
+        engine: DUCKDB_ENGINE,
+        dialect: "duckdb",
+        database: "memory",
+        defaultDatabase: "memory",
+        defaultSchema: "main",
+        schema: path.at(-1)!,
+        schemaPath: path,
+      },
+    });
+    expect(result).toContain(`FROM ${expected}`);
+  });
+
   describe("basic SQL generation", () => {
     it("should generate basic SQL without sqlTableContext", () => {
       const result = sqlCode({ table: mockTable, columnName: mockColumn.name });
@@ -484,7 +515,7 @@ describe("tableUniqueId", () => {
 
   it("uses database + schema for flat engines", () => {
     expect(tableUniqueId(ctx({ database: "db", schema: "public" }), "t")).toBe(
-      "db.public.t",
+      '["db","public","t"]',
     );
   });
 
@@ -495,7 +526,7 @@ describe("tableUniqueId", () => {
         ctx({ database: "top", schema: "nested", schemaPath: ["nested"] }),
         "t",
       ),
-    ).toBe("top.nested.t");
+    ).toBe('["top","nested","t"]');
   });
 
   it("includes the full schema path for deeply nested namespaces", () => {
@@ -508,7 +539,7 @@ describe("tableUniqueId", () => {
         }),
         "t",
       ),
-    ).toBe("top.nested.deep.t");
+    ).toBe('["top","nested","deep","t"]');
   });
 
   it("falls back to the flat schema when schemaPath is empty", () => {
@@ -517,16 +548,36 @@ describe("tableUniqueId", () => {
         ctx({ database: "db", schema: "public", schemaPath: [] }),
         "t",
       ),
-    ).toBe("db.public.t");
+    ).toBe('["db","public","t"]');
   });
 
   it("does not emit a double dot for schemaless tables", () => {
     expect(
       tableUniqueId(ctx({ database: "db", schema: "", schemaPath: [] }), "t"),
-    ).toBe("db.t");
+    ).toBe('["db","t"]');
     expect(tableUniqueId(ctx({ database: "db", schema: "" }), "t")).toBe(
-      "db.t",
+      '["db","t"]',
     );
+  });
+
+  it("keeps literal-dot and nested schemas distinct", () => {
+    const nested = tableUniqueId(
+      ctx({
+        database: "memory",
+        schema: "reports",
+        schemaPath: ["finance", "reports"],
+      }),
+      "sales",
+    );
+    const literal = tableUniqueId(
+      ctx({
+        database: "memory",
+        schema: "finance.reports",
+        schemaPath: ["finance.reports"],
+      }),
+      "sales",
+    );
+    expect(nested).not.toBe(literal);
   });
 });
 

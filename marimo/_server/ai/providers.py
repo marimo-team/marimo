@@ -852,7 +852,7 @@ def _known_provider_base_urls() -> dict[str, str]:
     known service (e.g. `https://api.deepseek.com`) points to the correct provider.
     """
     responses, chat = _openai_compatible_provider_names()
-    mapping: dict[str, str] = {}
+    mapping: dict[str, str] = {"api.moonshot.ai": "moonshotai"}
     # Sorted so that, if two providers normalize alike, the first wins.
     for name in sorted(responses | chat):
         provider_class = _try_infer_provider_class(name)
@@ -866,7 +866,9 @@ def _known_provider_base_urls() -> dict[str, str]:
             )
             continue
         normalized = _normalize_base_url(base_url)
-        if normalized:
+        # OpenAI API keys and ChatGPT OAuth share a URL, so it cannot
+        # identify which provider to use. Preserve the generic OpenAI fallback.
+        if normalized and normalized != "api.openai.com":
             mapping.setdefault(normalized, name)
     return mapping
 
@@ -1063,6 +1065,17 @@ class CustomProvider(OpenAIClientMixin, PydanticProvider["Provider"]):
         from pydantic_ai import UserError
         from pydantic_ai.models import infer_model
         from pydantic_ai.models.openai import OpenAIChatModel
+
+        if (
+            self._provider_name == "deepseek"
+            and self.model == "deepseek-flash"
+        ):
+            # Remove once pydantic/pydantic-ai#8353 fixes this model's profile.
+            return OpenAIChatModel(
+                model_name=self.model,
+                provider=self.provider,
+                profile=self.provider.model_profile("deepseek-v4-flash"),
+            )
 
         try:
             return infer_model(

@@ -122,6 +122,7 @@ export function hasNewLines(tr: Transaction | ViewUpdate): boolean {
 
   let hasNewLines = false;
   // Iterate through all changes in the transaction
+  // oxlint-disable-next-line marimo/prefer-object-params -- CodeMirror supplies positional change ranges and inserted text.
   tr.changes.iterChanges((fromA, toA, fromB, toB, inserted) => {
     // Check if the inserted text contains line breaks
     if (inserted.toString().includes("\n")) {

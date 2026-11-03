@@ -13,7 +13,11 @@ from typing import TYPE_CHECKING, Any, Literal
 from marimo import _loggers
 from marimo._ast.app_config import _AppConfig
 from marimo._ast.cell import CellConfig, CellImpl
-from marimo._ast.compiler import compile_cell
+from marimo._ast.compiler import (
+    compile_cell,
+    dedent_markdown,
+    extract_markdown,
+)
 from marimo._ast.names import (
     DEFAULT_CELL_NAME,
     SETUP_CELL_NAME,
@@ -21,6 +25,7 @@ from marimo._ast.names import (
 )
 from marimo._ast.parse import ast_parse
 from marimo._ast.toplevel import TopLevelExtraction, TopLevelStatus
+from marimo._ast.type_inference import infer_annotations
 from marimo._ast.variables import BUILTINS
 from marimo._ast.visitor import Name, VariableData
 from marimo._convert.converters import MarimoConvert
@@ -35,6 +40,8 @@ from marimo._version import __version__
 
 if TYPE_CHECKING:
     from pathlib import Path
+
+    from marimo._ast.type_inference import TypeInferenceMode
 
 from typing import TypeAlias
 
@@ -80,7 +87,9 @@ def indent_text(text: str) -> str:
 
 def _format_arg(arg: Any) -> str:
     if isinstance(arg, str):
-        return f'"{arg}"'.replace("\\", "\\\\")
+        literal = repr(arg)
+        # Match Ruff's quote style unless the value contains double quotes.
+        return f'"{literal[1:-1]}"' if '"' not in arg else literal
     elif isinstance(arg, list):
         return f"[{', '.join([_format_arg(item) for item in arg])}]"
     else:
@@ -141,21 +150,34 @@ def _needs_trailing_blank_line(mod: ast.Module, code: str) -> bool:
     if not mod.body:
         return False
     last_stmt = mod.body[-1]
-    if not isinstance(
-        last_stmt,
-        (
-            ast.Import,
-            ast.ImportFrom,
-            ast.FunctionDef,
-            ast.AsyncFunctionDef,
-            ast.ClassDef,
-        ),
-    ):
-        return False
     # Check if there's trailing content (like comments) after the last statement
     # If so, don't add a blank line - the existing formatting should be preserved
     code_lines = code.rstrip().count("\n") + 1
-    return last_stmt.end_lineno == code_lines
+    if isinstance(last_stmt, (ast.Import, ast.ImportFrom)):
+        return last_stmt.end_lineno == code_lines
+    return any(
+        isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef))
+        and node.end_lineno == code_lines
+        for node in ast.walk(last_stmt)
+    )
+
+
+def _can_strip_bare_return(cell: CellImpl) -> bool:
+    """Returns True if a bare return can be safely omitted (ruff-compatible)."""
+    # Comment only case
+    if not cell.mod.body:
+        return False
+    # If the user has explicit \n, then we leave it
+    if cell.code.rstrip(" \t") != cell.code.rstrip(" \t\r\n"):
+        return False
+    # A single function/class def would trigger toplevel reclassification
+    return not (
+        len(cell.mod.body) == 1
+        and isinstance(
+            cell.mod.body[0],
+            (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef),
+        )
+    )
 
 
 def to_decorator(
@@ -175,12 +197,22 @@ def to_decorator(
     )
 
 
+_STRING_START_TYPES = {tokenize.STRING}
+_STRING_END_TYPES: set[int] = set()
+if sys.version_info >= (3, 12):
+    _STRING_START_TYPES.add(tokenize.FSTRING_START)
+    _STRING_END_TYPES.add(tokenize.FSTRING_END)
+if sys.version_info >= (3, 14):
+    _STRING_START_TYPES.add(tokenize.TSTRING_START)
+    _STRING_END_TYPES.add(tokenize.TSTRING_END)
+
+
 def format_markdown(cell: CellImpl) -> str:
-    markdown = cell.markdown or ""
-    # AST does not preserve string quote types or types, so directly use
+    # The markdown is reflowed from the literal's source text rather than
+    # its evaluated value, so escape sequences come out exactly as written.
+    # AST does not preserve string quote types or prefixes, so directly use
     # tokenize.
     tokens = tokenize.tokenize(io.BytesIO(cell.code.encode("utf-8")).readline)
-    tag = ""
     # Anything outside the `mo.md(...)` call (comments, and the whitespace
     # around them) is kept verbatim, so track where the call starts and ends
     # in the source rather than rebuilding it from tokens, which drop
@@ -196,42 +228,50 @@ def format_markdown(cell: CellImpl) -> str:
     call_start = 0
     call_end = len(cell.code)
     depth = 0
-    tokenizes_fstring = sys.version_info >= (3, 12)
-    start_tokens = (
-        (tokenize.STRING, tokenize.FSTRING_START)
-        if tokenizes_fstring
-        else (tokenize.STRING,)
-    )
-    fstring = False
+    literals = 0
+    prefix = ""
+    quote = ""
+    body_start = body_end = 0
     for tok in tokens:
-        # if string
-        if tok.type in start_tokens:
-            tag = ""
+        if tok.type in _STRING_START_TYPES:
+            literals += 1
             # rf"""/ f"/ r"/ "more
-            start = tok.string[:5]
-            for _ in range(2):
-                if start[0].lower() in "rtf":
-                    tag += start[0]
-                    start = start[1:]
-            fstring = "f" in tag.lower()
-        elif tok.string == "mo":
+            opening = tok.string.lstrip("rRfFtTuU")
+            prefix = tok.string[: len(tok.string) - len(opening)]
+            quote = (
+                opening[:3] if opening[:3] in ('"""', "'''") else opening[0]
+            )
+            body_start = offset(tok.start) + len(prefix) + len(quote)
+            if tok.type == tokenize.STRING:
+                body_end = offset(tok.end) - len(quote)
+        elif tok.type in _STRING_END_TYPES:
+            body_end = offset(tok.start)
+        elif tok.type == tokenize.NAME and tok.string == "mo":
             call_start = offset(tok.start)
             depth = 0
-        elif tok.string == "(":
+        elif tok.type == tokenize.OP and tok.string == "(":
             depth += 1
-        elif tok.string == ")":
+        elif tok.type == tokenize.OP and tok.string == ")":
             depth -= 1
             if depth == 0:
                 call_end = offset(tok.end)
 
-    if fstring:
-        # We can blanket replace, because cell.markdown is not set
-        # on f-strings with values.
-        markdown = markdown.replace("{", "{{").replace("}", "}}")
-    markdown = markdown.replace('""', '"\\"')
+    # Implicitly concatenated literals have no single body to reflow.
+    if literals != 1:
+        return cell.code
 
-    # We always use """ as per front end.
-    body = construct_markdown_call(markdown, '"""', tag)
+    markdown = dedent_markdown(cell.code[body_start:body_end])
+    # We always use """ as per front end, unless the body holds a bare
+    # triple quote, which only the other triple quote can hold.
+    if '"""' in markdown and quote != '"""':
+        quote = "'''"
+    else:
+        quote = '"""'
+    body = construct_markdown_call(markdown, quote, prefix)
+    # Dedenting source lines can disagree with dedenting the value when an
+    # escaped newline hides a line break; leave such a cell as written.
+    if extract_markdown(body) != cell.markdown:
+        return cell.code
     return "".join([cell.code[:call_start], body, cell.code[call_end:]])
 
 
@@ -375,19 +415,20 @@ def to_functiondef(
     elif body := indent_text(cell.code):
         definition_body.append(body)
 
-    returns = format_tuple_elements(
-        "return (...)",
-        defs,
-        indent=True,
-        allowed_naked=True,
-        # maybe consider "return Edges(...)"
-        # Such that the return type can simply be 'Edges'
-    )
-    # Add blank line before return for ruff compatibility when last statement
-    # is an import, function def, or class def
-    if _needs_trailing_blank_line(cell.mod, cell.code):
-        definition_body.append("")
-    definition_body.append(returns)
+    if defs or not _can_strip_bare_return(cell):
+        returns = format_tuple_elements(
+            "return (...)",
+            defs,
+            indent=True,
+            allowed_naked=True,
+            # maybe consider "return Edges(...)"
+            # Such that the return type can simply be 'Edges'
+        )
+        # Add blank line before return for ruff compatibility when last statement
+        # is an import, function def, or class def
+        if _needs_trailing_blank_line(cell.mod, cell.code):
+            definition_body.append("")
+        definition_body.append(returns)
     return "\n".join(definition_body)
 
 
@@ -434,11 +475,13 @@ def generate_unparsable_cell(
     if name is not None:
         flags["name"] = name
 
-    kwargs = ", ".join(
+    kwargs = ",\n".join(
         [f"{key}={_format_arg(value)}" for key, value in flags.items()]
     )
     if kwargs:
-        text.extend([indent_text(f"{code_as_str},"), indent_text(kwargs)])
+        text.extend(
+            [indent_text(f"{code_as_str},"), indent_text(f"{kwargs},")]
+        )
     else:
         text.append(indent_text(code_as_str))
 
@@ -506,7 +549,12 @@ def generate_app_constructor(config: _AppConfig | None) -> str:
     return format_tuple_elements("app = marimo.App(...)", kwargs)
 
 
-def generate_filecontents_from_ir(ir: NotebookSerializationV1) -> str:
+def generate_filecontents_from_ir(
+    ir: NotebookSerializationV1,
+    *,
+    infer_types: TypeInferenceMode = "off",
+    line_length: int = 79,
+) -> str:
     # Markdown frontmatter may contain non-config metadata (e.g., author,
     # description). Suppress warnings for unrecognized keys from markdown.
     silent = (
@@ -524,12 +572,18 @@ def generate_filecontents_from_ir(ir: NotebookSerializationV1) -> str:
         else cell.name
         for cell in ir.cells
     ]
+    filename = (
+        ir.filename if ir.filename and ir.filename != "<marimo>" else None
+    )
     return generate_filecontents(
         codes=[cell.code for cell in ir.cells],
         names=names,
         cell_configs=[CellConfig.from_dict(cell.options) for cell in ir.cells],
         config=_AppConfig.from_untrusted_dict(ir.app.options, silent=silent),
         header_comments=header_comments,
+        filename=filename,
+        infer_types=infer_types,
+        line_length=line_length,
     )
 
 
@@ -569,8 +623,12 @@ def generate_filecontents(
     cell_configs: list[CellConfig],
     config: _AppConfig | None = None,
     header_comments: str | None = None,
+    *,
+    filename: str | None = None,
+    infer_types: TypeInferenceMode = "off",
+    line_length: int = 79,
 ) -> str:
-    """Translates a sequences of codes (cells) to a Python file"""
+    """Generate a Python notebook from cell source and configuration."""
 
     # Normalize internal cell names. Empty names would emit `def ():`
     # (invalid Python) and fall back to the unparsable-cell path;
@@ -584,6 +642,16 @@ def generate_filecontents(
     if setup_cell:
         toplevel_defs = set(setup_cell.defs)
     extraction = TopLevelExtraction(codes, names, cell_configs, toplevel_defs)
+    if infer_types != "off":
+        extraction.add_default_annotations(
+            infer_annotations(
+                extraction,
+                setup_cell,
+                filename=filename,
+                mode=infer_types,
+                line_length=line_length,
+            )
+        )
     cell_blocks = [
         safe_serialize_cell(extraction, status) for status in extraction
     ]

@@ -33,10 +33,10 @@ import type { CellColumnId } from "@/utils/id-tree";
 import { invariant } from "@/utils/invariant";
 import {
   columnIdsAtom,
-  useCellActions,
   useCellIds,
   useScrollKey,
 } from "../../../core/cells/cells";
+import { useCellActions } from "../../../core/cells/actions";
 import { formatAll } from "../../../core/codemirror/format";
 import type { AppConfig, UserConfig } from "../../../core/config/config-schema";
 import type { AppMode } from "../../../core/mode";
@@ -267,7 +267,7 @@ const AddCellButtons: React.FC<{
   columnId: CellColumnId;
   className?: string;
 }> = ({ columnId, className }) => {
-  const { createNewCell } = useCellActions();
+  const { createCell } = useCellActions();
   const [isAiButtonOpen, isAiButtonOpenActions] = useBoolean(false);
   const aiEnabled = useAtomValue(aiEnabledAtom);
   const aiFeaturesEnabled = useAtomValue(aiFeaturesEnabledAtom);
@@ -291,12 +291,7 @@ const AddCellButtons: React.FC<{
           variant="text"
           size="sm"
           disabled={!canInteractWithApp}
-          onClick={() =>
-            createNewCell({
-              cellId: { type: "__end__", columnId },
-              before: false,
-            })
-          }
+          onClick={() => createCell({ endOf: columnId })}
         >
           <SquareCodeIcon className="mr-2 size-4 shrink-0" />
           Python
@@ -307,13 +302,12 @@ const AddCellButtons: React.FC<{
           size="sm"
           disabled={!canInteractWithApp}
           onClick={() => {
-            maybeAddMarimoImport({ autoInstantiate: true, createNewCell });
+            maybeAddMarimoImport({ autoInstantiate: true, createCell });
 
-            createNewCell({
-              cellId: { type: "__end__", columnId },
-              before: false,
+            createCell({
+              endOf: columnId,
               code: LanguageAdapters.markdown.defaultCode,
-              hideCode: MARKDOWN_INITIAL_HIDE_CODE,
+              config: { hide_code: MARKDOWN_INITIAL_HIDE_CODE },
             });
           }}
         >
@@ -326,11 +320,10 @@ const AddCellButtons: React.FC<{
           size="sm"
           disabled={!canInteractWithApp}
           onClick={() => {
-            maybeAddMarimoImport({ autoInstantiate: true, createNewCell });
+            maybeAddMarimoImport({ autoInstantiate: true, createCell });
 
-            createNewCell({
-              cellId: { type: "__end__", columnId },
-              before: false,
+            createCell({
+              endOf: columnId,
               code: LanguageAdapters.sql.defaultCode,
             });
           }}

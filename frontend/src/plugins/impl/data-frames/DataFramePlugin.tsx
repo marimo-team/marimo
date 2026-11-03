@@ -154,7 +154,7 @@ export const DataFramePlugin = createPlugin<S>("marimo-dataframe")
       )
       .output(
         z.object({
-          data: z.union([z.string(), z.array(z.object({}).passthrough())]),
+          data: z.union([z.string(), z.array(z.looseObject({}))]),
           total_rows: z.number(),
         }),
       ),

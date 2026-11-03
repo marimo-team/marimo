@@ -13,7 +13,6 @@ def one():
 @app.cell
 def two(type):
     type
-    return
 
 
 if __name__ == "__main__":

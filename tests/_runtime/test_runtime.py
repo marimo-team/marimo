@@ -29,6 +29,7 @@ from marimo._messaging.errors import (
 from marimo._messaging.notification import (
     CellNotification,
     VariablesNotification,
+    VariableValuesNotification,
 )
 from marimo._messaging.serde import deserialize_kernel_message
 from marimo._plugins.ui._core.ids import IDProvider
@@ -301,6 +302,36 @@ class TestExecution:
             assert k.graph.cells[er.cell_id].stale
             await k.run([er])
         assert k.globals["x"] == 6
+
+    async def test_set_ui_element_value_previews_bound_names(
+        self, mocked_kernel: MockedKernel, exec_req: ExecReqProvider
+    ) -> None:
+        k = mocked_kernel.k
+        await k.run(
+            [
+                exec_req.get(code="import marimo as mo"),
+                exec_req.get(
+                    code="array = mo.ui.array([mo.ui.slider(0, 10, value=1)])"
+                ),
+            ]
+        )
+        mocked_kernel.stream.messages.clear()
+
+        await k.set_ui_element_value(
+            UpdateUIElementCommand.from_ids_and_values(
+                [(k.globals["array"][0]._id, 5)]
+            ),
+            notify_frontend=False,
+        )
+
+        notifications = [
+            m
+            for m in mocked_kernel.stream.parsed_operations
+            if isinstance(m, VariableValuesNotification)
+        ]
+        assert [(v.name, v.value) for v in notifications[-1].variables] == [
+            ("array", "[5]")
+        ]
 
     async def test_set_ui_element_value_lensed_with_state(
         self, any_kernel: Kernel, exec_req: ExecReqProvider
@@ -2211,24 +2242,75 @@ except NameError:
         assert "c" in k.globals
         assert "d" not in k.globals
 
-    async def test_edit_cells_registers_code_without_running(
+    async def test_edit_cells_leaves_run_code_to_the_next_run(
         self, any_kernel: Kernel
     ) -> None:
         k = any_kernel
         await k.run([ExecuteCellCommand(cell_id="0", code="x = 1")])
 
+        # Typing in progress is not compiled, so it raises no error.
         await k.edit_cells(
             EditCellsCommand(
-                codes={"0": "x = 2", "1": "y = 3"}, configs={}, delete_ids=[]
+                codes={"0": "import ", "1": "y = 3"}, configs={}, delete_ids=[]
             )
         )
 
         cell = k.graph.cells["0"]
-        assert cell.code == "x = 2"
-        assert cell.stale
+        assert cell.code == "x = 1"
+        assert not cell.stale
+        assert not k.errors
         assert "y" not in k.globals
         # A cell the kernel has never seen arrives with its first run.
         assert "1" not in k.graph.cells
+
+    async def test_edit_cells_enabling_a_cell_keeps_the_code_the_kernel_holds(
+        self, any_kernel: Kernel
+    ) -> None:
+        k = any_kernel
+        await k.run([ExecuteCellCommand(cell_id="0", code="x = 1")])
+        await k.set_cell_config(
+            UpdateCellConfigCommand(configs={"0": {"disabled": True}})
+        )
+
+        await k.edit_cells(
+            EditCellsCommand(
+                codes={"0": "x = 2"},
+                configs={"0": {"disabled": False}},
+                delete_ids=[],
+            )
+        )
+
+        # The edited code is a draft until a run carries it.
+        cell = k.graph.cells["0"]
+        assert not cell.config.disabled
+        assert cell.code == "x = 1"
+        assert k.globals["x"] == 1
+
+    async def test_edit_cells_pending_code_runs_as_an_ancestor(
+        self, any_kernel: Kernel
+    ) -> None:
+        k = any_kernel
+        await k.instantiate(
+            CreateNotebookCommand(
+                execution_requests=(
+                    ExecuteCellCommand(cell_id="0", code="x = 0"),
+                    ExecuteCellCommand(cell_id="1", code="y = x"),
+                ),
+                cell_ids=("0", "1"),
+                set_ui_element_value_request=UpdateUIElementCommand.from_ids_and_values(
+                    []
+                ),
+                auto_run=False,
+            )
+        )
+
+        await k.edit_cells(
+            EditCellsCommand(codes={"0": "x = 5"}, configs={}, delete_ids=[])
+        )
+        await k.run([ExecuteCellCommand(cell_id="1", code="y = x")])
+
+        assert k.globals["x"] == 5
+        assert k.globals["y"] == 5
 
     async def test_edit_cells_replaces_pending_code(
         self, any_kernel: Kernel
@@ -3747,7 +3829,7 @@ class TestSQL:
                 "WHERE table_catalog = 'memory' AND table_schema = ? "
                 "AND table_name = 'manual-holdings'",
                 [resolved_schema],
-            ).fetchone()
+            ).fetchall()[0]
             assert row is not None
             return bool(row[0] > 0)
 
@@ -3809,7 +3891,7 @@ class TestSQL:
                     AND table_schema = 'main'
                     AND table_name = 'holdings'
                     """
-                ).fetchone()
+                ).fetchall()[0]
                 assert row is not None
                 return bool(row[0] > 0)
 
@@ -3821,7 +3903,7 @@ class TestSQL:
                     AND table_schema = 'other_db'
                     AND table_name = 'holdings'
                     """
-                ).fetchone()
+                ).fetchall()[0]
                 assert row is not None
                 return bool(row[0] > 0)
 
@@ -3873,7 +3955,7 @@ class TestSQL:
                 "SELECT count(*) FROM information_schema.tables "
                 "WHERE table_catalog = 'memory' AND table_schema = 'main' "
                 "AND table_name = 'holdings'"
-            ).fetchone()
+            ).fetchall()[0]
             assert row is not None
             return bool(row[0] > 0)
 

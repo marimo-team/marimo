@@ -27,6 +27,7 @@ if TYPE_CHECKING:
     from types import CodeType
 
     from marimo._ast.app import InternalApp
+    from marimo._core.protocol import Revision
     from marimo._messaging.types import Stream
     from marimo._output.hypertext import Html
 
@@ -140,6 +141,14 @@ class RunResultStatus:
     exception: Exception | None = None
 
 
+@dataclasses.dataclass(frozen=True)
+class ImportedValue:
+    """An imported value whose revision may survive reevaluation."""
+
+    value: object
+    revision: Revision
+
+
 @dataclasses.dataclass
 class ImportWorkspace:
     """A workspace for runtimes to use to manage a cell's imports."""
@@ -148,6 +157,10 @@ class ImportWorkspace:
     is_import_block: bool = False
     # Defs that have been imported by the runtime
     imported_defs: set[Name] = dataclasses.field(default_factory=set)
+    # Candidates carried across invalidation, consumed by the next evaluation.
+    carried_values: dict[Name, ImportedValue] = dataclasses.field(
+        default_factory=dict
+    )
 
 
 def _is_coroutine(code: CodeType | None) -> bool:

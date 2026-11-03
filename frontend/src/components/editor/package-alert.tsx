@@ -55,6 +55,7 @@ import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
   DropdownMenuContent,
+  DropdownMenuItem,
   DropdownMenuTrigger,
 } from "../ui/dropdown-menu";
 import { ExternalLink } from "../ui/links";
@@ -172,12 +173,12 @@ export const PackageAlert: React.FC = () => {
               <p>The following packages were not found:</p>
               <table className="list-disc ml-2 mt-1">
                 <tbody>
-                  {packageAlert.packages.map((pkg, index) => {
+                  {packageAlert.packages.map((pkg) => {
                     const parsed = parsePackageSpecifier(pkg);
                     const currentExtras = selectedExtras[pkg] || parsed.extras;
 
                     return (
-                      <tr className="font-mono text-sm" key={index}>
+                      <tr className="font-mono text-sm" key={pkg}>
                         <td className="pr-2 py-1 align-middle">
                           <BoxIcon size="1rem" />
                         </td>
@@ -296,7 +297,7 @@ export const PackageAlert: React.FC = () => {
               </>
             )}
             <ul className="list-disc ml-2 mt-1">
-              {Object.entries(packageAlert.packages).map(([pkg, st], index) => (
+              {Object.entries(packageAlert.packages).map(([pkg, st]) => (
                 <li
                   className={cn(
                     "flex items-center gap-1 font-mono text-sm",
@@ -307,7 +308,7 @@ export const PackageAlert: React.FC = () => {
                       status === "failed" &&
                       "text-muted-foreground",
                   )}
-                  key={index}
+                  key={pkg}
                 >
                   <ProgressIcon status={st} />
                   {pkg}
@@ -592,14 +593,18 @@ const ExtrasSelector: React.FC<ExtrasSelectorProps> = ({
                 <div className="p-2 bg-popover border-b border-border">
                   <div className="flex flex-wrap gap-1 p-1 min-h-[24px]">
                     {selectedExtras.map((extra) => (
-                      <span
+                      <DropdownMenuItem
                         key={extra}
+                        aria-label={`Remove ${extra}`}
                         className="inline-flex items-center gap-1 px-1 py-0.5 text-sm font-mono border border-muted-foreground/30 hover:border-muted-foreground/60 rounded-sm cursor-pointer group transition-colors"
-                        onClick={() => handleExtraToggle(extra, false)}
+                        onSelect={(e) => {
+                          e.preventDefault();
+                          handleExtraToggle(extra, false);
+                        }}
                       >
                         {extra}
                         <XIcon className="w-3 h-3 opacity-60 group-hover:opacity-100" />
-                      </span>
+                      </DropdownMenuItem>
                     ))}
                   </div>
                 </div>

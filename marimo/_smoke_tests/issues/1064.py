@@ -2,7 +2,7 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.25.2"
 app = marimo.App(width="full")
 
 
@@ -10,13 +10,15 @@ app = marimo.App(width="full")
 def _():
     import marimo as mo
     import plotly.express as px
+
     return mo, px
 
 
 @app.cell
 def _(mo):
-    mo.md("# Issue 1064")
-    return
+    mo.md("""
+    # Issue 1064
+    """)
 
 
 @app.cell
@@ -49,7 +51,6 @@ def _(mo, plot1, plot2, tabs):
 
 
     mo.vstack([tabs.center(), render_tab_content()])
-    return
 
 
 if __name__ == "__main__":

@@ -208,13 +208,19 @@ export function hasAreaTrace(
   });
 }
 
-function createDragmodeButton(
-  name: string,
-  title: string,
-  svg: string,
-  dragmode: Plotly.Layout["dragmode"],
-  setDragmode: (dragmode: Plotly.Layout["dragmode"]) => void,
-): ModeBarButton {
+function createDragmodeButton({
+  name,
+  title,
+  svg,
+  dragmode,
+  setDragmode,
+}: {
+  name: string;
+  title: string;
+  svg: string;
+  dragmode: Plotly.Layout["dragmode"];
+  setDragmode: (dragmode: Plotly.Layout["dragmode"]) => void;
+}): ModeBarButton {
   return {
     name,
     title,
@@ -227,27 +233,27 @@ export function lineSelectionButtons(
   setDragmode: (dragmode: Plotly.Layout["dragmode"]) => void,
 ): ModeBarButton[] {
   return [
-    createDragmodeButton(
-      "line-box-select",
-      "Box select",
-      `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+    createDragmodeButton({
+      name: "line-box-select",
+      title: "Box select",
+      svg: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
         stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <rect x="4" y="4" width="16" height="16" stroke-dasharray="2 2" />
       </svg>`,
-      "select",
+      dragmode: "select",
       setDragmode,
-    ),
-    createDragmodeButton(
-      "line-lasso-select",
-      "Lasso select",
-      `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+    }),
+    createDragmodeButton({
+      name: "line-lasso-select",
+      title: "Lasso select",
+      svg: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
         stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <path d="M6 8c0-2.2 2.2-4 5-4s5 1.8 5 4-2.2 4-5 4-5 1.8-5 4 2.2 4 5 4" />
         <circle cx="17.5" cy="16.5" r="1.5" />
       </svg>`,
-      "lasso",
+      dragmode: "lasso",
       setDragmode,
-    ),
+    }),
   ];
 }
 

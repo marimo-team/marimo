@@ -4,8 +4,10 @@ import type * as Protocol from "../protocol.ts";
 import type { NotebookKind } from "../kinds.ts";
 import {
   below,
+  type CallTarget,
   type ClientOptions,
   type MutationOptions,
+  type OperationCall,
   type OperationsBelow,
   request,
   type Result,
@@ -30,46 +32,26 @@ interface SaveOptions extends DecisionOptions {
 
 type Scope = "/notebooks/{notebook_id}";
 
+type NotebookOperationId = OperationsBelow<Scope>;
+
 /**
- * A client for one notebook.
+ * A notebook operation as one message, the parts of its request without a URL.
  *
- * Requests go to URLs below the notebook's URL and keep its query string.
+ * `unstable_NotebookCall` is any notebook operation, and
+ * `unstable_NotebookCall<"notebook.edit">` is one. Header names are lowercase.
+ *
+ * @experimental The shape may change while transports other than HTTP settle.
  */
-export class NotebookClient {
-  readonly #url: URL;
-  readonly #target: Target<Scope>;
+export type unstable_NotebookCall<
+  Id extends NotebookOperationId = NotebookOperationId,
+> = OperationCall<Id>;
 
-  public constructor(url: string | URL, init: NotebookClientOptions = {}) {
-    this.#url = new URL(url);
-    this.#target = {
-      url: this.#url,
-      prefix: "/notebooks/{notebook_id}",
-      client: init,
-    };
-  }
+/** The notebook's operations, sent to whichever target the client was given. */
+class NotebookOperations {
+  readonly #target: Target<Scope> | CallTarget<Scope>;
 
-  /**
-   * The notebook's URL, such as `…/api/marimo/v1/notebooks/n1`.
-   *
-   * Each read returns a copy, so changing it does not redirect requests.
-   */
-  public get url(): URL {
-    return new URL(this.#url);
-  }
-
-  /**
-   * Follow the notebook's stream.
-   *
-   * The stream is served below the notebook's URL over server-sent events,
-   * and shares this client's options.
-   */
-  public events<const K extends string = NotebookKind>(
-    options: Omit<NotebookEventsOptions<K>, keyof ClientOptions> = {},
-  ): NotebookEvents<K> {
-    return new NotebookEvents<K>(below(this.#url, "/events"), {
-      ...this.#target.client,
-      ...options,
-    });
+  public constructor(target: Target<Scope> | CallTarget<Scope>) {
+    this.#target = target;
   }
 
   /** Rename or move the notebook. */
@@ -162,5 +144,71 @@ export class NotebookClient {
     call: Parameters<typeof request<Scope, Id>>[2],
   ) {
     return request(this.#target, id, call);
+  }
+}
+
+/**
+ * A client for one notebook.
+ *
+ * Requests go to URLs below the notebook's URL and keep its query string.
+ */
+export class NotebookClient extends NotebookOperations {
+  readonly #url: URL;
+  readonly #options: NotebookClientOptions;
+
+  public constructor(url: string | URL, init: NotebookClientOptions = {}) {
+    const notebook = new URL(url);
+    super({ url: notebook, prefix: "/notebooks/{notebook_id}", client: init });
+    this.#url = notebook;
+    this.#options = init;
+  }
+
+  /**
+   * A client whose requests go to `send` as calls rather than over HTTP.
+   *
+   * `send` delivers each call and resolves with the host's reply, a status
+   * and a body. Replies are validated as HTTP responses are. The client has
+   * no URL, so it has no `url` or `events`.
+   *
+   * @experimental The shape may change while transports other than HTTP settle.
+   */
+  public static unstable_over(
+    send: (call: unstable_NotebookCall) => Promise<unknown>,
+    { notebookId }: { readonly notebookId: string },
+  ): Omit<NotebookClient, "url" | "events"> {
+    return new NotebookOperations({
+      // SAFETY: `request` builds each message from its operation's table
+      // entry. Its params fill the path's placeholders, its headers are the
+      // entry's headers in lowercase, and its body is parsed by the entry's
+      // schema, which is the shape `unstable_NotebookCall` gives that
+      // operation. The tests check the message for each method.
+      send: (message) => send(message as unstable_NotebookCall),
+      prefix: "/notebooks/{notebook_id}",
+      params: { notebook_id: notebookId },
+    });
+  }
+
+  /**
+   * The notebook's URL, such as `…/api/marimo/v1/notebooks/n1`.
+   *
+   * Each read returns a copy, so changing it does not redirect requests.
+   */
+  public get url(): URL {
+    return new URL(this.#url);
+  }
+
+  /**
+   * Follow the notebook's stream.
+   *
+   * The stream is served below the notebook's URL over server-sent events,
+   * and shares this client's options.
+   */
+  public events<const K extends string = NotebookKind>(
+    options: Omit<NotebookEventsOptions<K>, keyof ClientOptions> = {},
+  ): NotebookEvents<K> {
+    return new NotebookEvents<K>(below(this.#url, "/events"), {
+      ...this.#options,
+      ...options,
+    });
   }
 }

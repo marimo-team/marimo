@@ -9,7 +9,7 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.25.2"
 app = marimo.App()
 
 
@@ -33,7 +33,6 @@ def _(IPython):
 @app.cell
 def _(IPython, html, url):
     IPython.display.display(html, url)
-    return
 
 
 @app.cell
@@ -41,6 +40,7 @@ def _():
     # not on PyPI
     # installation instructions here https://github.com/allefeld/pytikz
     import tikz
+
     return (tikz,)
 
 
@@ -59,7 +59,6 @@ def _(tikz):
 @app.cell
 def _(pic):
     pic.demo(dpi=300)
-    return
 
 
 if __name__ == "__main__":

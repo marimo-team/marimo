@@ -10,6 +10,7 @@ import {
   render,
   screen,
   waitFor,
+  within,
 } from "@testing-library/react";
 import { Provider } from "jotai";
 import { useState } from "react";
@@ -538,6 +539,275 @@ describe("table pagination and static notebook control suppression", () => {
 
   beforeEach(() => {
     mockIsStatic.mockReturnValue(false);
+  });
+
+  it("preserves the preview banner for ordinary paginated tables with unknown totals", async () => {
+    const props = makeProps();
+    render(
+      <Wrapper>
+        <LoadingDataTableComponent {...props} totalRows="too_many" />
+      </Wrapper>,
+    );
+    expect(
+      await screen.findByText("Previewing the first 10 rows."),
+    ).toBeInTheDocument();
+  });
+
+  it("pages lazy results with unknown totals and resets search, sorting, and filters to page one", async () => {
+    const props = makeProps();
+    const search = vi
+      .fn()
+      .mockImplementation(
+        async (request: {
+          page_number: number;
+          query?: string;
+          sort?: { by: string; descending: boolean }[];
+        }) => ({
+          data: [
+            { id: request.page_number + 1, name: request.query || "item" },
+          ],
+          total_rows: "too_many",
+          has_next_page: request.page_number === 0,
+        }),
+      );
+    render(
+      <Wrapper>
+        <LoadingDataTableComponent
+          {...props}
+          lazy={true}
+          totalRows="too_many"
+          selection={null}
+          showColumnSummaries={false}
+          search={search}
+        />
+      </Wrapper>,
+    );
+    await waitFor(() =>
+      expect(screen.getByTestId("next-page-button")).toBeEnabled(),
+    );
+    expect(screen.getByText("Unknown, 2 columns")).toBeInTheDocument();
+    expect(screen.queryByTestId("last-page-button")).not.toBeInTheDocument();
+    expect(screen.queryByText(/Previewing the first/)).not.toBeInTheDocument();
+    fireEvent.click(screen.getByTestId("next-page-button"));
+    await waitFor(() =>
+      expect(search).toHaveBeenLastCalledWith(
+        expect.objectContaining({ page_number: 1 }),
+      ),
+    );
+    await waitFor(() =>
+      expect(screen.getByTestId("next-page-button")).toBeDisabled(),
+    );
+    fireEvent.click(screen.getByTestId("previous-page-button"));
+    await waitFor(() =>
+      expect(screen.getByTestId("next-page-button")).toBeEnabled(),
+    );
+    fireEvent.click(screen.getByTestId("next-page-button"));
+    await waitFor(() =>
+      expect(screen.getByTestId("next-page-button")).toBeDisabled(),
+    );
+    search.mockClear();
+    fireEvent.change(screen.getByPlaceholderText("Search..."), {
+      target: { value: "new" },
+    });
+    await waitFor(() =>
+      expect(search).toHaveBeenCalledWith(
+        expect.objectContaining({ query: "new", page_number: 0 }),
+      ),
+    );
+    expect(
+      search.mock.calls.every(([request]) => request.page_number === 0),
+    ).toBe(true);
+    await waitFor(() =>
+      expect(screen.getByTestId("next-page-button")).toBeEnabled(),
+    );
+    fireEvent.click(screen.getByTestId("next-page-button"));
+    await waitFor(() =>
+      expect(screen.getByTestId("next-page-button")).toBeDisabled(),
+    );
+    search.mockClear();
+    fireEvent.click(
+      within(screen.getByRole("columnheader", { name: /name/ })).getByRole(
+        "button",
+        { name: "Sort column ascending" },
+      ),
+    );
+    await waitFor(() =>
+      expect(search).toHaveBeenCalledWith(
+        expect.objectContaining({
+          page_number: 0,
+          sort: [{ by: "name", descending: false }],
+        }),
+      ),
+    );
+    expect(
+      search.mock.calls.every(([request]) => request.page_number === 0),
+    ).toBe(true);
+    await waitFor(() =>
+      expect(screen.getByTestId("next-page-button")).toBeEnabled(),
+    );
+    fireEvent.click(screen.getByTestId("next-page-button"));
+    await waitFor(() =>
+      expect(search).toHaveBeenLastCalledWith(
+        expect.objectContaining({ page_number: 1 }),
+      ),
+    );
+    await waitFor(() =>
+      expect(screen.getByTestId("next-page-button")).toBeDisabled(),
+    );
+    search.mockClear();
+    const columnMenu = within(
+      screen.getByRole("columnheader", { name: /name/ }),
+    ).getByRole("button", { name: "Column options" });
+    fireEvent.keyDown(columnMenu, { key: "Enter" });
+    fireEvent.click(await screen.findByRole("menuitem", { name: "Filter" }));
+    fireEvent.change(screen.getByPlaceholderText("Text…"), {
+      target: { value: "item" },
+    });
+    fireEvent.click(screen.getByLabelText("Apply filter"));
+    await waitFor(() =>
+      expect(search).toHaveBeenCalledWith(
+        expect.objectContaining({
+          page_number: 0,
+          filters: expect.objectContaining({ children: expect.any(Array) }),
+        }),
+      ),
+    );
+    expect(
+      search.mock.calls.every(([request]) => request.page_number === 0),
+    ).toBe(true);
+  });
+
+  it.each(["success", "error"] as const)(
+    "ignores a stale lazy page %s after the query changes",
+    async (outcome) => {
+      const props = makeProps();
+      const initial = {
+        data: [{ id: 1, name: "initial-page" }],
+        total_rows: "too_many" as const,
+        has_next_page: true,
+      };
+      const oldPage = new Deferred<typeof initial>();
+      const newQuery = new Deferred<typeof initial>();
+      const search = vi
+        .fn()
+        .mockResolvedValueOnce(initial)
+        .mockReturnValueOnce(oldPage.promise)
+        .mockReturnValueOnce(newQuery.promise);
+      render(
+        <Wrapper>
+          <LoadingDataTableComponent
+            {...props}
+            lazy={true}
+            totalRows="too_many"
+            selection={null}
+            showColumnSummaries={false}
+            search={search}
+          />
+        </Wrapper>,
+      );
+      await screen.findByText("initial-page");
+      fireEvent.click(screen.getByTestId("next-page-button"));
+      await waitFor(() =>
+        expect(search).toHaveBeenLastCalledWith(
+          expect.objectContaining({ page_number: 1 }),
+        ),
+      );
+      expect(screen.getByTestId("next-page-button")).toBeDisabled();
+
+      fireEvent.change(screen.getByPlaceholderText("Search..."), {
+        target: { value: "current" },
+      });
+      await waitFor(() =>
+        expect(search).toHaveBeenLastCalledWith(
+          expect.objectContaining({ query: "current", page_number: 0 }),
+        ),
+      );
+      await act(async () => {
+        newQuery.resolve({
+          data: [{ id: 2, name: "latest-page" }],
+          total_rows: "too_many",
+          has_next_page: false,
+        });
+      });
+      await screen.findByText("latest-page");
+
+      await act(async () => {
+        if (outcome === "success") {
+          oldPage.resolve({
+            ...initial,
+            data: [{ id: 3, name: "stale-result" }],
+          });
+        } else {
+          oldPage.reject(new Error("stale-page-error"));
+        }
+      });
+      expect(screen.getByText("latest-page")).toBeInTheDocument();
+      expect(screen.queryByText("stale-result")).not.toBeInTheDocument();
+      expect(screen.queryByText("stale-page-error")).not.toBeInTheDocument();
+      expect(screen.getByTestId("previous-page-button")).toBeDisabled();
+      expect(screen.getByTestId("next-page-button")).toBeDisabled();
+    },
+  );
+
+  it("recovers from a failed lazy page by navigating back", async () => {
+    const props = makeProps();
+    const initial = {
+      data: [{ id: 1, name: "initial-page" }],
+      total_rows: "too_many" as const,
+      has_next_page: true,
+    };
+    const failedPage = new Deferred<typeof initial>();
+    const search = vi
+      .fn()
+      .mockResolvedValueOnce(initial)
+      .mockReturnValueOnce(failedPage.promise)
+      .mockResolvedValueOnce({
+        ...initial,
+        data: [{ id: 1, name: "recovered-page" }],
+      })
+      .mockResolvedValueOnce({
+        ...initial,
+        data: [{ id: 2, name: "last-page" }],
+        has_next_page: false,
+      });
+    render(
+      <Wrapper>
+        <LoadingDataTableComponent
+          {...props}
+          lazy={true}
+          totalRows="too_many"
+          selection={null}
+          showColumnSummaries={false}
+          search={search}
+        />
+      </Wrapper>,
+    );
+    await screen.findByText("initial-page");
+    fireEvent.click(screen.getByTestId("next-page-button"));
+    await waitFor(() =>
+      expect(search).toHaveBeenLastCalledWith(
+        expect.objectContaining({ page_number: 1 }),
+      ),
+    );
+    expect(screen.getByTestId("next-page-button")).toBeDisabled();
+    expect(screen.getByText("initial-page")).toBeInTheDocument();
+    await act(async () => {
+      failedPage.reject(new Error("page-fetch-failed"));
+    });
+    await screen.findByText("page-fetch-failed");
+    expect(screen.getByTestId("next-page-button")).toBeDisabled();
+    expect(screen.getByTestId("previous-page-button")).toBeEnabled();
+
+    fireEvent.click(screen.getByTestId("previous-page-button"));
+    await screen.findByText("recovered-page");
+    expect(search).toHaveBeenLastCalledWith(
+      expect.objectContaining({ page_number: 0 }),
+    );
+    expect(screen.queryByText("page-fetch-failed")).not.toBeInTheDocument();
+    expect(screen.getByTestId("next-page-button")).toBeEnabled();
+    fireEvent.click(screen.getByTestId("next-page-button"));
+    await screen.findByText("last-page");
+    expect(screen.getByTestId("next-page-button")).toBeDisabled();
   });
 
   it("requests only the first page with the new configured page size", async () => {

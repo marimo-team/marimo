@@ -28,6 +28,7 @@ export const FileNameInput = <T extends FileInfo>({
   return (
     <input
       ref={ref}
+      aria-label="File name"
       className="flex-1 bg-transparent border border-border text-muted-foreground"
       defaultValue={node.data.name}
       onClick={(e) => e.stopPropagation()}

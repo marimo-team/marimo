@@ -7,14 +7,13 @@ app._unparsable_cell(
     r"""
     x ( b 2 d & !
     """,
-    name="_"
+    name="_",
 )
 
 
 @app.cell
 def _(x):
     x
-    return
 
 
 if __name__ == "__main__":

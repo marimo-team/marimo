@@ -162,7 +162,7 @@ async def test_idle_host_expires_results_and_stops_maintenance(
         context = app.state.host_context
         host = context.bridge.host
         now = 0.0
-        host.clock = context.clock = lambda: now
+        host.clock = context.mutations.clock = lambda: now
         host.update_project(project())
         notebook = await add_notebook(host, record(), ScriptedBackend())
         notebook.adopt(lambda _: None)
@@ -184,8 +184,7 @@ async def test_idle_host_expires_results_and_stops_maintenance(
         notebook.observe(
             be.Planned(run_id, (be.PlannedExecution(eid, None, "hash", "42"),))
         )
-        notebook.observe(be.Concluded(eid, protocol.ValueOutcome(None)))
-        notebook.observe(be.Status(eid, "completed"))
+        notebook.observe(be.Completed(eid, protocol.ValueOutcome(None)))
         notebook.observe(be.Done(run_id, "succeeded"))
         removed = asyncio.Event()
         host.subscribe(
@@ -203,6 +202,6 @@ async def test_idle_host_expires_results_and_stops_maintenance(
         ]
         now = 300
         await asyncio.wait_for(removed.wait(), timeout=5)
-        assert context.replies == {}
+        assert context.mutations.replies == {}
     assert maintenance.done()
     assert app.state.host_context is None

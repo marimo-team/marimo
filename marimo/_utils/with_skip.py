@@ -4,7 +4,7 @@ from __future__ import annotations
 import inspect
 import sys
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Any, NoReturn
+from typing import TYPE_CHECKING, NoReturn
 
 if TYPE_CHECKING:
     from types import FrameType
@@ -39,7 +39,7 @@ class SkipContext(ABC):
         return self
 
     def _trace_wrapper(
-        self, frame: FrameType, event: str, arg: Any
+        self, frame: FrameType, event: str, arg: object
     ) -> TraceFunction | None:
         """Wrapper function that ensures we do not break existing traces (e.g., code coverage)."""
         result = None
@@ -55,7 +55,7 @@ class SkipContext(ABC):
         raise SkipWithBlock()
 
     def _trace(
-        self, with_frame: FrameType, _event: str, _arg: Any
+        self, with_frame: FrameType, _event: str, _arg: object
     ) -> TraceFunction | None:
         self._entered_trace = True
 

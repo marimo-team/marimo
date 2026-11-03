@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.25.2"
 app = marimo.App(width="full")
 
 
@@ -21,17 +21,16 @@ def _(alt, df, mo):
 @app.cell
 def _(tmc):
     tmc.value
-    return
 
 
 @app.cell
-def _(build_df, d):
+def _(build_df, d: str):
     df = build_df(d)
     return (df,)
 
 
 @app.cell
-def _(StringIO, date_format, pd):
+def _(StringIO, date_format: str, pd):
     def build_df(data: str):
         res = pd.read_csv(StringIO(data))
         res["timestamp"] = pd.to_datetime(
@@ -48,6 +47,7 @@ def _(StringIO, date_format, pd):
         ]
 
         return res
+
     return (build_df,)
 
 
@@ -82,6 +82,7 @@ def _():
     import pandas as pd
 
     import marimo as mo
+
     return StringIO, alt, mo, pd
 
 

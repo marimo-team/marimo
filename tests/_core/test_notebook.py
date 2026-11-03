@@ -97,7 +97,7 @@ def scratch(notebook: Notebook, run_id: str = "run-1") -> Run:
             (be.PlannedExecution(ExecutionId("e1"), None, "9f", "3 * 3"),),
         )
     )
-    notebook.observe(be.Status(ExecutionId("e1"), "running"))
+    notebook.observe(be.Started(ExecutionId("e1")))
     return run
 
 
@@ -288,8 +288,7 @@ class TestStop:
         running(notebook, backend)
         run = scratch(notebook)
         notebook.observe(be.Produced(console("o1", "e1", "x")))
-        notebook.observe(be.Concluded(ExecutionId("e1"), value("")))
-        notebook.observe(be.Status(ExecutionId("e1"), "completed"))
+        notebook.observe(be.Completed(ExecutionId("e1"), value("")))
         notebook.observe(be.Done(run.id, "succeeded"))
         log.clear()
 
@@ -510,8 +509,7 @@ class TestRun:
     ) -> None:
         running(notebook, backend)
         run = scratch(notebook)
-        notebook.observe(be.Concluded(ExecutionId("e1"), value("9")))
-        notebook.observe(be.Status(ExecutionId("e1"), "completed"))
+        notebook.observe(be.Completed(ExecutionId("e1"), value("9")))
         notebook.observe(be.Done(run.id, "succeeded"))
         cursor = host.events()[-1].event.id
         live: list[RoutedEvent] = []
@@ -564,13 +562,12 @@ class TestRun:
                 (be.PlannedExecution(ExecutionId("e7"), None, "9f", "3 * 3"),),
             )
         )
-        notebook.observe(be.Status(ExecutionId("e7"), "running"))
+        notebook.observe(be.Started(ExecutionId("e7")))
         notebook.observe(be.Concluded(ExecutionId("e7"), value("working")))
         notebook.observe(be.Produced(console("o3", "e7", "2\n")))
         notebook.observe(
-            be.Concluded(ExecutionId("e7"), value("working<pre>9</pre>"))
+            be.Completed(ExecutionId("e7"), value("working<pre>9</pre>"))
         )
-        notebook.observe(be.Status(ExecutionId("e7"), "completed"))
         notebook.observe(be.Done(run.id, "succeeded"))
 
         assert notebook.runtime is not None
@@ -582,7 +579,6 @@ class TestRun:
             "execution",
             "execution",
             "console",
-            "execution",
             "execution",
             "run",
         ]
@@ -611,7 +607,6 @@ class TestRun:
             ("queued", None),
             ("running", None),
             ("running", value("working")),
-            ("running", value("working<pre>9</pre>")),
             ("completed", value("working<pre>9</pre>")),
         ]
         retained = [
@@ -739,7 +734,7 @@ class TestRun:
                 (be.PlannedExecution(ExecutionId("e9"), None, "x", "3 * 3"),),
             )
         )
-        notebook.observe(be.Status(ExecutionId("e9"), "running"))
+        notebook.observe(be.Started(ExecutionId("e9")))
         notebook.observe(be.Produced(console("o9", "e9", "boo")))
         notebook.observe(be.Done(RunId("ghost"), "succeeded"))
         assert log == []
@@ -754,8 +749,7 @@ class TestRunCompletion:
     ) -> None:
         running(notebook, backend)
         original = scratch(notebook)
-        notebook.observe(be.Concluded(ExecutionId("e1"), value("9")))
-        notebook.observe(be.Status(ExecutionId("e1"), "completed"))
+        notebook.observe(be.Completed(ExecutionId("e1"), value("9")))
         notebook.observe(be.Done(original.id, "succeeded"))
         log.clear()
         notebook.observe(be.Scheduled(RunId("later"), ExecutionId("e1")))
@@ -806,8 +800,7 @@ class TestRunCompletion:
         run = scratch(notebook)
         with pytest.raises(ValueError, match="unfinished"):
             notebook.observe(be.Done(run.id, "succeeded"))
-        notebook.observe(be.Concluded(ExecutionId("e1"), value("9")))
-        notebook.observe(be.Status(ExecutionId("e1"), "completed"))
+        notebook.observe(be.Completed(ExecutionId("e1"), value("9")))
         notebook.observe(
             be.Planned(
                 run.id,
@@ -822,9 +815,9 @@ class TestRunCompletion:
                 ),
             )
         )
-        notebook.observe(be.Status(ExecutionId("child"), "running"))
+        notebook.observe(be.Started(ExecutionId("child")))
         notebook.observe(
-            be.Concluded(
+            be.Completed(
                 ExecutionId("child"),
                 ErrorOutcome(
                     Error(
@@ -840,7 +833,6 @@ class TestRunCompletion:
                 ),
             )
         )
-        notebook.observe(be.Status(ExecutionId("child"), "completed"))
         # Even an empty execution queue is not an authoritative end to scheduling.
         current = notebook.executions.run(run.id)
         assert current is not None
@@ -859,7 +851,7 @@ class TestRunCompletion:
         assert final.run.status == "completed"
         log.clear()
         # Released scratch records cannot reopen or acquire more output.
-        notebook.observe(be.Status(ExecutionId("e1"), "running"))
+        notebook.observe(be.Started(ExecutionId("e1")))
         notebook.observe(be.Concluded(ExecutionId("e1"), value("changed")))
         notebook.observe(be.Done(run.id, "succeeded"))
         notebook.observe(
@@ -898,8 +890,7 @@ class TestInterrupt:
         with pytest.raises(NotFound):
             notebook.interrupt("nope")
         run = scratch(notebook)
-        notebook.observe(be.Concluded(ExecutionId("e1"), value("9")))
-        notebook.observe(be.Status(ExecutionId("e1"), "completed"))
+        notebook.observe(be.Completed(ExecutionId("e1"), value("9")))
         notebook.observe(be.Done(run.id, "succeeded"))
         with pytest.raises(NotFound):
             notebook.interrupt(run.id)
@@ -922,7 +913,7 @@ class TestCellResults:
                 first.id, (be.PlannedExecution(old, "cell", "h1", None),)
             )
         )
-        notebook.observe(be.Status(old, "running"))
+        notebook.observe(be.Started(old))
         failed = ErrorOutcome(
             Error(
                 kind="exception",
@@ -935,8 +926,7 @@ class TestCellResults:
                 related=(),
             )
         )
-        notebook.observe(be.Concluded(old, failed))
-        notebook.observe(be.Status(old, "completed"))
+        notebook.observe(be.Completed(old, failed))
         item = Console(
             id=ItemId("o1"),
             execution_id=old,
@@ -968,8 +958,7 @@ class TestCellResults:
             if isinstance(event.event.data, ExecutionMessage)
         ]
         assert visible == [new]
-        notebook.observe(be.Concluded(new, ValueOutcome(None)))
-        notebook.observe(be.Status(new, "completed"))
+        notebook.observe(be.Completed(new, ValueOutcome(None)))
         if same_run:
             with pytest.raises(ValueError, match="successful run"):
                 notebook.observe(be.Done(second.id, "succeeded"))

@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.16.2"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -17,6 +17,7 @@ def _():
         return json.loads(
             duckdb.execute(JSON_SERIALIZE_QUERY, [query]).fetchone()[0]
         )
+
     return mo, parse
 
 
@@ -37,7 +38,7 @@ def _():
 
 
 @app.cell
-def _(mo, queries):
+def _(mo, queries: list[str]):
     table = mo.ui.table(queries, selection="single")
     table
     return (table,)
@@ -47,7 +48,6 @@ def _(mo, queries):
 def _(mo, parse, table):
     mo.stop(not table.value)
     parse(table.value[0])
-    return
 
 
 if __name__ == "__main__":

@@ -16,21 +16,27 @@ interface ReducerHandlers<State> {
   [k: string]: ReducerHandler<State, any>;
 }
 
-type ReducerActions<RH extends ReducerHandlers<any>> = {
-  [Type in keyof RH]: RH[Type] extends ReducerHandler<any, infer Payload>
+type ReducerActions<RH> = {
+  [Type in keyof RH]: RH[Type] extends (
+    state: never,
+    payload: infer Payload,
+  ) => unknown
     ? IfUnknown<Payload, () => void, (payload: Payload) => void>
     : never;
 };
 
 /** Helper for typing middleware that receives dispatched actions. */
 export type DispatchedActionOf<T> = {
-  [Key in keyof T]: T[Key] extends (payload: infer P) => any
+  [Key in keyof T]: T[Key] extends (payload: infer P) => unknown
     ? { type: Key; payload: P }
     : never;
 }[keyof T & string];
 
 type ReducerActionOf<RH> = {
-  [Type in keyof RH]: RH[Type] extends ReducerHandler<any, infer Payload>
+  [Type in keyof RH]: RH[Type] extends (
+    state: never,
+    payload: infer Payload,
+  ) => unknown
     ? { type: Type; payload: Payload }
     : never;
 }[keyof RH & string];
@@ -42,7 +48,7 @@ export interface ReducerCreatorResult<
   /**
    * The reducer function.
    */
-  reducer: Reducer<State, any>;
+  reducer: Reducer<State, ReducerActionOf<RH>>;
   /**
    * Given a dispatch function, returns an object containing all the actions.
    */
@@ -98,49 +104,70 @@ export function createReducerAndAtoms<
   };
   const { reducer, createActions } = createReducer(initialState, reducers);
 
-  const reducerWithMiddleware = (state: State, action: ReducerActionOf<RH>) => {
+  const reduceSafely = (state: State, action: ReducerActionOf<RH>) => {
     try {
-      const newState = reducer(state, action);
-      for (const mw of allMiddleware) {
-        try {
-          mw(state, newState, action);
-        } catch (error) {
-          Logger.error(`Error in middleware for action ${action.type}:`, error);
-        }
-      }
-      return newState;
+      return reducer(state, action);
     } catch (error) {
       Logger.error(`Error in reducer for action ${action.type}:`, error);
       return state;
     }
   };
 
+  const runMiddleware = (
+    prev: State,
+    next: State,
+    action: ReducerActionOf<RH>,
+  ) => {
+    for (const mw of allMiddleware) {
+      try {
+        mw(prev, next, action);
+      } catch (error) {
+        Logger.error(`Error in middleware for action ${action.type}:`, error);
+      }
+    }
+  };
+
+  const reducerWithMiddleware = (state: State, action: ReducerActionOf<RH>) => {
+    const next = reduceSafely(state, action);
+    runMiddleware(state, next, action);
+    return next;
+  };
+
   const valueAtom = atom(initialState());
-  // map of SetAtom => Actions
+  // map of SetAtom => Actions, with and without middleware
   const actionsMap = new WeakMap();
+  const plainActionsMap = new WeakMap();
 
   function useActions(
     options: { skipMiddleware?: boolean } = {},
   ): ReducerActions<RH> {
     const setState = useSetAtom(valueAtom);
+    const skipMiddleware = options.skipMiddleware === true;
+    const cache = skipMiddleware ? plainActionsMap : actionsMap;
 
-    if (options.skipMiddleware === true) {
-      return createActions((action: ReducerActionOf<RH>) => {
-        setState((state: State) => reducer(state, action));
-      });
-    }
-
-    if (!actionsMap.has(setState)) {
-      actionsMap.set(
+    if (!cache.has(setState)) {
+      cache.set(
         setState,
         createActions((action: ReducerActionOf<RH>) => {
-          setState((state: State) => reducerWithMiddleware(state, action));
+          // Reduce inside the write. Middleware runs once the write has
+          // committed and its subscribers have run, so anything it sets in
+          // turn observes the new state rather than the one being replaced.
+          let prev: State | undefined;
+          let next: State | undefined;
+          setState((state: State) => {
+            prev = state;
+            next = reduceSafely(state, action);
+            return next;
+          });
+          if (!skipMiddleware && prev !== undefined && next !== undefined) {
+            runMiddleware(prev, next, action);
+          }
         }),
       );
     }
 
     // oxlint-disable-next-line typescript/no-non-null-assertion
-    return actionsMap.get(setState)!;
+    return cache.get(setState)!;
   }
 
   return {

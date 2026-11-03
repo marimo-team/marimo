@@ -23,7 +23,6 @@ def _():
 @app.cell
 def _(x: int, y: float, z: "int"):
     _ = x + y + z
-    return
 
 
 if __name__ == "__main__":

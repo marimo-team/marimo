@@ -122,13 +122,9 @@ def mock_pyodide() -> Generator[MagicMock, None, None]:
 async def pyodide_session(
     pyodide_app_file: Path,
 ) -> AsyncGenerator[PyodideSession, None]:
-    def _on_write(msg: KernelMessage) -> None:
-        pass
-
     session = PyodideSession(
         app=AppFileManager(filename=str(pyodide_app_file)),
         mode=SessionMode.EDIT,
-        on_write=_on_write,
         app_metadata=AppMetadata(
             query_params={},
             cli_args={},
@@ -761,6 +757,28 @@ async def test_pyodide_session_on_message(
     mock_consumer2.assert_called_once_with(test_msg)
 
 
+async def test_pyodide_session_on_message_isolates_consumers(
+    pyodide_session: PyodideSession,
+) -> None:
+    """A failing or departing consumer does not keep the message from others."""
+    received: list[str] = []
+
+    def failing(_msg: KernelMessage) -> None:
+        raise RuntimeError("receiver is gone")
+
+    def departing(_msg: KernelMessage) -> None:
+        received.append("departing")
+        pyodide_session.consumers.remove(departing)
+
+    pyodide_session.consumers = [
+        failing,
+        departing,
+        lambda _msg: received.append("last"),
+    ]
+    pyodide_session._on_message(b"{}")
+    assert received == ["departing", "last"]
+
+
 async def test_pyodide_session_put_completion_request(
     pyodide_session: PyodideSession,
 ) -> None:
@@ -856,45 +874,39 @@ async def test_pyodide_bridge_format(pyodide_bridge: PyodideBridge) -> None:
     assert "cell-1" in response["codes"]
 
 
-def test_pyodide_bridge_save(
+async def test_pyodide_bridge_document_export(
     pyodide_bridge: PyodideBridge,
-    pyodide_app_file: Path,
 ) -> None:
-    request_json = json.dumps(
-        {
-            "cellIds": ["test"],
-            "codes": ['message = "NEW"'],
-            "names": ["_"],
-            "configs": [{}],
-            "filename": str(pyodide_app_file),
-        }
+    result = json.loads(
+        await pyodide_bridge.notebook.call(
+            json.dumps(
+                {
+                    "operation": "notebook.edit",
+                    "params": {"notebook_id": pyodide_bridge.notebook.id},
+                    "headers": {"idempotency-key": "edit-1"},
+                    "body": {
+                        "changes": [
+                            {
+                                "kind": "put_cell",
+                                "base_etag": None,
+                                "cell": {
+                                    "id": "test",
+                                    "code": 'message = "NEW"',
+                                },
+                            }
+                        ]
+                    },
+                }
+            )
+        )
     )
-
-    pyodide_bridge.save(request_json)
+    assert result["status"] == 200, result
 
     request = json.dumps({"download": False})
     script = json.loads(pyodide_bridge.export_script(request))
     markdown = json.loads(pyodide_bridge.export_markdown(request))
     assert 'message = "NEW"' in script["contents"]
     assert 'message = "NEW"' in markdown["contents"]
-
-
-def test_pyodide_bridge_save_app_config(
-    pyodide_bridge: PyodideBridge,
-    pyodide_app_file: Path,
-) -> None:
-    del pyodide_app_file
-    """Test saving app config through the bridge."""
-    request_json = json.dumps(
-        {
-            "config": {
-                "width": "full",
-            }
-        }
-    )
-
-    # Should not raise
-    pyodide_bridge.save_app_config(request_json)
 
 
 def test_pyodide_bridge_save_user_config(

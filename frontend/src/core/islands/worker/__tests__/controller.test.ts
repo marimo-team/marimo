@@ -2,6 +2,7 @@
 
 import type { PyodideInterface } from "pyodide";
 import { describe, expect, it, vi } from "vitest";
+import { Deferred } from "@/utils/Deferred";
 import { ReadonlyWasmController } from "../controller";
 
 class TestController extends ReadonlyWasmController {
@@ -50,15 +51,71 @@ function createPyodideStub(
   };
 }
 
-function startSession(controller: TestController, code: string) {
-  return controller.startSession({
+function prepareSession(controller: TestController, code: string) {
+  return controller.prepareSession({
     code,
     filename: `${code}.py`,
-    onMessage: vi.fn(),
   });
 }
 
+async function startSession(controller: TestController, code: string) {
+  const session = await prepareSession(controller, code);
+  void session.start();
+  return session;
+}
+
 describe("WASM controller session lifecycle", () => {
+  it("releases a prepared session and ignores start after stop", async () => {
+    const { init, pyodide } = createPyodideStub();
+    const controller = new TestController();
+    controller.setPyodide(pyodide);
+
+    const session = await prepareSession(controller, "current");
+    await session.stop();
+    expect(init.destroy).toHaveBeenCalledOnce();
+    await session.start();
+    expect(init).not.toHaveBeenCalled();
+  });
+
+  it.each(["resolve", "reject"] as const)(
+    "releases a stopped session before its dependencies %s",
+    async (outcome) => {
+      const dependencies = new Deferred<void>();
+      const { init, loadPackagesFromImports, pyodide, bridge, stop } =
+        createPyodideStub();
+      loadPackagesFromImports.mockReturnValue(dependencies.promise);
+      const controller = new TestController();
+      controller.setPyodide(pyodide);
+      const session = await prepareSession(controller, "current");
+      const starting = session.start();
+      expect(init).not.toHaveBeenCalled();
+      await session.stop();
+      expect(init.destroy).toHaveBeenCalledOnce();
+      expect(bridge.destroy).toHaveBeenCalledOnce();
+      if (outcome === "resolve") {
+        dependencies.resolve();
+      } else {
+        dependencies.reject(new Error("Loading failed after stop"));
+      }
+      await starting;
+      await session.stop();
+      expect(stop).toHaveBeenCalledOnce();
+      expect(init).not.toHaveBeenCalled();
+    },
+  );
+
+  it("reports dependency failures when starting an active session", async () => {
+    const { init, loadPackagesFromImports, pyodide } = createPyodideStub();
+    loadPackagesFromImports.mockRejectedValue(new Error("Dependency failed"));
+    const controller = new TestController();
+    controller.setPyodide(pyodide);
+    const session = await prepareSession(controller, "current");
+    await expect(session.start()).rejects.toThrow("Dependency failed");
+    expect(init).not.toHaveBeenCalled();
+    expect(init.destroy).toHaveBeenCalledOnce();
+    await session.stop();
+  });
+
   it("stops and releases the active session", async () => {
     const { init, packages, pyodide, sessionResources, stop } =
       createPyodideStub();
@@ -116,7 +173,6 @@ describe("WASM controller session lifecycle", () => {
 
     await startSession(controller, "first");
     await startSession(controller, "second");
-    second.bridge.destroy();
 
     expect(first.stop.destroy).not.toHaveBeenCalled();
 
@@ -126,6 +182,8 @@ describe("WASM controller session lifecycle", () => {
     expect(second.stop).toHaveBeenCalledOnce();
     expect(first.stop.destroy).toHaveBeenCalledOnce();
     expect(second.stop.destroy).toHaveBeenCalledOnce();
+    expect(first.bridge.destroy).toHaveBeenCalledOnce();
+    expect(second.bridge.destroy).toHaveBeenCalledOnce();
   });
 
   it("continues stopping sessions after one stop fails", async () => {

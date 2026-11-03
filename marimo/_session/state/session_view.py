@@ -376,6 +376,13 @@ class SessionView:
             )
 
         elif isinstance(notification, VariableValuesNotification):
+            for removed in notification.removed:
+                value = self.variable_values.get(removed.name)
+                if (
+                    value is not None
+                    and value.execution_id == removed.execution_id
+                ):
+                    del self.variable_values[removed.name]
             for value in notification.variables:
                 self.variable_values[value.name] = value
 

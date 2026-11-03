@@ -64,8 +64,10 @@ LOGGER = marimo_logger()
 
 if TYPE_CHECKING:
     from collections import deque
+    from collections.abc import Callable
 
     from marimo._ast.cell import CellImpl
+    from marimo._core.protocol import Revision
     from marimo._runtime.runner.hook_context import PostExecutionHookContext
     from marimo._runtime.runner.hooks import NotebookCellHooks
     from marimo._runtime.state import State
@@ -156,6 +158,8 @@ class Runner:
         execution_context: ExecutionContextManager | None = None,
         user_config: MarimoConfig | None = None,
         executions: dict[CellId_t, ExecutionAttempt] | None = None,
+        get_inputs: Callable[[CellImpl], dict[str, Revision | None] | None]
+        | None = None,
     ):
         self.graph = graph
         self.debugger = debugger
@@ -164,6 +168,7 @@ class Runner:
         self._hooks = hooks
         self.user_config = user_config
         self._executions = executions if executions is not None else {}
+        self._get_inputs = get_inputs
 
         # runtime globals
         self.glbls = glbls
@@ -808,6 +813,8 @@ class Runner:
         execution = self._executions.pop(
             cell_id, None
         ) or ExecutionAttempt.plan(cell_id, self.graph.cells[cell_id].code)
+        if self._get_inputs is not None:
+            execution.depends_on = self._get_inputs(self.graph.cells[cell_id])
         with execution.activate():
             execution.start()
             try:
@@ -932,6 +939,10 @@ class Runner:
         for finish_hook in self._hooks.on_finish_hooks:
             finish_hook(finish_ctx)
         for execution in self._executions.values():
+            if self._get_inputs is not None:
+                execution.depends_on = self._get_inputs(
+                    self.graph.cells[execution.cell_id]
+                )
             execution.finish()
 
     async def _dispatch_runnable(

@@ -8,7 +8,7 @@ import { connectionAtom } from "../network/connection";
 import { isStaticNotebook } from "../static/static-state";
 import { wasmInitStateAtom } from "../wasm/state";
 import { isWasm } from "../wasm/utils";
-import { ConnectionState } from "../websocket/types";
+import { ConnectionState } from "../session/types";
 
 export type RuntimeKind = "wasm" | "remote" | "static" | "islands";
 

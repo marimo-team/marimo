@@ -75,9 +75,7 @@ describe("PairWithAgent", () => {
       }),
     );
 
-    expect(
-      screen.getByRole("dialog", { name: "Pair with an agent" }),
-    ).toBeVisible();
+    expect(screen.getByRole("dialog", { name: "Pair an agent" })).toBeVisible();
   });
 
   it("opens the pairing dialog and preserves a passed click handler", () => {
@@ -88,9 +86,7 @@ describe("PairWithAgent", () => {
     fireEvent.click(screen.getByRole("button", { name: "Connect your agent" }));
 
     expect(onClick).toHaveBeenCalledOnce();
-    expect(
-      screen.getByRole("dialog", { name: "Pair with an agent" }),
-    ).toBeVisible();
+    expect(screen.getByRole("dialog", { name: "Pair an agent" })).toBeVisible();
   });
 
   it("hides pairing controls in WASM", () => {

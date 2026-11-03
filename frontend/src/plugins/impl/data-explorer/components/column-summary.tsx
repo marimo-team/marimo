@@ -60,7 +60,9 @@ export const ColumnSummary: React.FC<Props> = ({ schema }) => {
             field: field,
           });
           return (
-            <span
+            <button
+              type="button"
+              aria-pressed={selectedField === field}
               key={field}
               className={cn(
                 "hover:bg-muted self-start px-2 py-2 rounded flex flex-row gap-1 items-center cursor-pointer lg:justify-center text-sm truncate shrink-0 overflow-hidden",
@@ -81,7 +83,7 @@ export const ColumnSummary: React.FC<Props> = ({ schema }) => {
                   ({cardinality})
                 </span>
               )}
-            </span>
+            </button>
           );
         })}
         {hasMore && (

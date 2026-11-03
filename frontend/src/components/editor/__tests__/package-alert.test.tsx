@@ -27,10 +27,12 @@ function mountPackageAlert({
   configuredManager,
   sandboxBackend,
   source = "kernel",
+  packages = ["polars"],
 }: {
   configuredManager: PackageManagerName;
   sandboxBackend: "uv" | "pixi" | null;
   source?: "kernel" | "server";
+  packages?: string[];
 }) {
   const store = createStore();
   const client = MockRequestClient.create();
@@ -55,7 +57,7 @@ function mountPackageAlert({
     packageAlert: {
       id: "missing-package",
       kind: "missing",
-      packages: ["polars"],
+      packages,
       isolated: true,
       source,
     },
@@ -95,6 +97,25 @@ it("keeps the configured package manager selectable outside a sandbox", () => {
   const managerSelect = screen.getByTestId("install-package-manager-select");
   expect(managerSelect).toHaveValue("uv");
   expect(managerSelect).not.toBeDisabled();
+});
+
+it("removes an extra absent from available choices through a keyboard menu item", async () => {
+  const client = mountPackageAlert({
+    configuredManager: "uv",
+    sandboxBackend: null,
+    packages: ["polars[dev]"],
+  });
+  fireEvent.keyDown(screen.getByRole("button", { name: "dev" }), {
+    key: "ArrowDown",
+  });
+  const remove = await screen.findByRole("menuitem", { name: "Remove dev" });
+  fireEvent.keyDown(remove, { key: "Enter" });
+  fireEvent.click(screen.getByTestId("install-packages-button"));
+  expect(client.sendInstallMissingPackages).toHaveBeenCalledExactlyOnceWith({
+    manager: "uv",
+    source: "kernel",
+    versions: { polars: "" },
+  });
 });
 
 it("installs a selected version in a Pixi sandbox", () => {

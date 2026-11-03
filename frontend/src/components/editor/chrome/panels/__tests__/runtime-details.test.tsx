@@ -11,7 +11,7 @@ import { kernelStartupErrorAtom } from "@/core/errors/state";
 import { connectionAtom, startupProgressAtom } from "@/core/network/connection";
 import { requestClientAtom } from "@/core/network/requests";
 import { sandboxAtom } from "@/core/packages/sandbox-state";
-import { WebSocketClosedReason, ConnectionState } from "@/core/websocket/types";
+import { WebSocketClosedReason, ConnectionState } from "@/core/session/types";
 import PackagesPanel from "../packages-panel";
 import { PanelSectionProvider } from "../panel-context";
 import { RuntimeStatusToggle } from "../runtime-status-toggle";

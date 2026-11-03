@@ -11,7 +11,7 @@ import {
   type ConnectionStatus,
   WebSocketClosedReason,
   ConnectionState,
-} from "@/core/websocket/types";
+} from "@/core/session/types";
 import { cn } from "@/utils/cn";
 
 export const StatusOverlay: React.FC<{
@@ -61,20 +61,17 @@ const DisconnectedIcon: React.FC<{ onReconnect?: () => void }> = ({
         disabled ? "App disconnected" : "App disconnected — click to reconnect"
       }
     >
-      {/* Wrapper span keeps the tooltip reachable when the button is
-          disabled — a disabled <button> swallows pointer events. */}
-      <span tabIndex={disabled ? 0 : -1}>
-        <button
-          type="button"
-          className={cn(topLeftStatus, "bg-transparent border-0 p-0")}
-          aria-label={disabled ? "App disconnected" : "Reconnect to app"}
-          data-testid="disconnected-indicator"
-          onClick={onReconnect}
-          disabled={disabled}
-        >
-          <UnlinkIcon className="w-[25px] h-[25px] text-(--red-11)" />
-        </button>
-      </span>
+      <button
+        type="button"
+        className={cn(topLeftStatus, "bg-transparent border-0 p-0")}
+        aria-label={disabled ? "App disconnected" : "Reconnect to app"}
+        data-testid="disconnected-indicator"
+        onClick={onReconnect}
+        // Keep the tooltip reachable by keyboard when reconnection is unavailable.
+        aria-disabled={disabled}
+      >
+        <UnlinkIcon className="w-[25px] h-[25px] text-(--red-11)" />
+      </button>
     </Tooltip>
   );
 };
@@ -85,15 +82,38 @@ const RunningIcon = () => {
     ? "Scratchpad is running"
     : "Jump to running cell";
 
+  const icon = (
+    <HourglassIcon className="running-app-icon" size={30} strokeWidth={1} />
+  );
+
+  if (scratchpadOnly) {
+    return (
+      <Tooltip content={tooltip} side="right">
+        <span
+          className={topLeftStatus}
+          data-testid="loading-indicator"
+          // Execution progress is advisory status, not a form result.
+          // eslint-disable-next-line jsx-a11y/prefer-tag-over-role
+          role="status"
+          aria-label={tooltip}
+        >
+          {icon}
+        </span>
+      </Tooltip>
+    );
+  }
+
   return (
     <Tooltip content={tooltip} side="right">
-      <div
-        className={topLeftStatus}
+      <button
+        type="button"
+        aria-label={tooltip}
+        className={cn(topLeftStatus, "bg-transparent border-0 p-0")}
         data-testid="loading-indicator"
-        onClick={scratchpadOnly ? undefined : notebookScrollToRunning}
+        onClick={notebookScrollToRunning}
       >
-        <HourglassIcon className="running-app-icon" size={30} strokeWidth={1} />
-      </div>
+        {icon}
+      </button>
     </Tooltip>
   );
 };

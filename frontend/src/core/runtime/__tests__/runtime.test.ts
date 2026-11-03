@@ -220,6 +220,23 @@ describe("RuntimeManager", () => {
     });
   });
 
+  describe("getNotebookURL", () => {
+    it("addresses the notebook below the host API without the auth token", () => {
+      const runtime = new RuntimeManager(
+        {
+          url: "https://sandbox.example.com/base",
+          lazy: true,
+          authToken: "my-secret-token",
+        },
+        true,
+      );
+      const url = runtime.getNotebookURL("n/1");
+
+      expect(url.pathname).toBe("/base/api/marimo/v1/notebooks/n%2F1");
+      expect(url.toString()).not.toContain("my-secret-token");
+    });
+  });
+
   describe("getSseURL", () => {
     it("should never put the auth token in the URL, even cross-origin", () => {
       // SSE requests can send headers, so auth travels in the

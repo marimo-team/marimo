@@ -260,6 +260,7 @@ describe("DataTable", () => {
     );
 
     const cells = within(screen.getAllByRole("row")[1]).getAllByRole("cell");
+    cells[1].scrollIntoView = vi.fn();
     // Start a pending hover-show on cell A, then focus cell B before it fires.
     fireEvent.mouseOver(cells[0], { buttons: 0 });
     fireEvent.focus(cells[1]);

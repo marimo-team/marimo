@@ -2,7 +2,6 @@
 # ruff: noqa: E402
 from __future__ import annotations
 
-import json
 from typing import TYPE_CHECKING
 
 from marimo._runtime._wasm import ensure_wasm_runtime_bootstrapped
@@ -10,15 +9,6 @@ from marimo._runtime._wasm import ensure_wasm_runtime_bootstrapped
 ensure_wasm_runtime_bootstrapped()
 
 from marimo._config.config import merge_config
-from marimo._messaging.notification import (
-    ConsumerCapabilities,
-    KernelCapabilitiesNotification,
-    KernelReadyNotification,
-)
-from marimo._messaging.serde import (
-    deserialize_kernel_message,
-    serialize_kernel_message,
-)
 from marimo._runtime.commands import (
     AppMetadata,
     CreateNotebookCommand,
@@ -28,16 +18,11 @@ from marimo._runtime.commands import (
 )
 from marimo._runtime.patches import extract_docstring_from_header
 from marimo._server.app_defaults import AppDefaults
-from marimo._server.models.models import SaveNotebookRequest
 from marimo._session.model import SessionMode
 from marimo._session.notebook import AppFileManager
-from marimo._utils.parse_dataclass import parse_raw
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
-
     from marimo._config.config import MarimoConfig
-    from marimo._messaging.types import KernelMessage
     from marimo._pyodide.pyodide_session import PyodideBridge, PyodideSession
 
 
@@ -51,6 +36,7 @@ def instantiate(
     """
 
     app = session.app_manager.app
+    session.instantiated = True
     execution_requests = tuple(
         ExecuteCellCommand(
             cell_id=cell_data.cell_id,
@@ -75,7 +61,6 @@ def instantiate(
 def create_session(
     filename: str,
     query_params: SerializedQueryParams,
-    message_callback: Callable[[str], None],
     user_config: MarimoConfig,
 ) -> tuple[PyodideSession, PyodideBridge]:
     """
@@ -84,8 +69,6 @@ def create_session(
     Args:
         filename: The filename of the app.
         query_params: The query parameters from the URL.
-        message_callback: A callback that can be used to send messages to the
-            frontend.
         user_config: The user configuration.
 
     Returns:
@@ -94,12 +77,6 @@ def create_session(
     This function is called by the WebAssembly frontend.
     """
     ensure_wasm_runtime_bootstrapped()
-
-    def write_kernel_message(notification: KernelMessage) -> None:
-        data_json_str = notification.decode("utf-8")
-        name = deserialize_kernel_message(notification).name
-        text = f'{{"op": "{name}", "data": {data_json_str}}}'
-        message_callback(text)
 
     # Lazy import to decrease startup time
     from marimo._config.config import merge_default_config
@@ -120,34 +97,11 @@ def create_session(
     )
     app = app_file_manager.app
 
-    # We want this message to be performant, so any expensive operations
-    # should be after this message is sent
-    write_kernel_message(
-        serialize_kernel_message(
-            KernelReadyNotification(
-                codes=tuple(app.cell_manager.codes()),
-                names=tuple(app.cell_manager.names()),
-                configs=tuple(app.cell_manager.configs()),
-                cell_ids=tuple(app.cell_manager.cell_ids()),
-                layout=app_file_manager.read_layout_config(),
-                resumed=False,
-                ui_values={},
-                last_executed_code={},
-                last_execution_time={},
-                app_config=app.config,
-                kiosk=False,
-                capabilities=KernelCapabilitiesNotification(),
-                consumer_capabilities=ConsumerCapabilities.EDITOR,
-            )
-        ),
-    )
-
     from marimo._pyodide.pyodide_session import PyodideBridge, PyodideSession
 
     session = PyodideSession(
         app_file_manager,
         SessionMode.EDIT,
-        write_kernel_message,
         AppMetadata(
             query_params=query_params,
             filename=filename,
@@ -164,21 +118,3 @@ def create_session(
     bridge = PyodideBridge(session)
 
     return session, bridge
-
-
-def save_file(
-    request: str,
-    filename: str,
-) -> None:
-    """
-    Save the app to the given filename.
-
-    Args:
-        request: serialized/stringified SaveNotebookRequest
-        filename: the filename of the app
-
-    This function is called by the WebAssembly frontend.
-    """
-    parsed = parse_raw(json.loads(request), SaveNotebookRequest)
-    app_file_manager = AppFileManager(filename=filename)
-    app_file_manager.save(parsed)

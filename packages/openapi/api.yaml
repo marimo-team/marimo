@@ -540,6 +540,7 @@ components:
               - $ref: '#/components/schemas/CycleError'
               - $ref: '#/components/schemas/MultipleDefinitionError'
               - $ref: '#/components/schemas/ImportStarError'
+              - $ref: '#/components/schemas/LazyImportError'
               - $ref: '#/components/schemas/MarimoAncestorStoppedError'
               - $ref: '#/components/schemas/MarimoAncestorPreventedError'
               - $ref: '#/components/schemas/MarimoExceptionRaisedError'
@@ -558,6 +559,7 @@ components:
                   import-star: '#/components/schemas/ImportStarError'
                   internal: '#/components/schemas/MarimoInternalError'
                   interruption: '#/components/schemas/MarimoInterruptionError'
+                  lazy-import: '#/components/schemas/LazyImportError'
                   multiple-defs: '#/components/schemas/MultipleDefinitionError'
                   setup-refs: '#/components/schemas/SetupRootError'
                   sql-error: '#/components/schemas/MarimoSQLError'
@@ -1450,14 +1452,6 @@ components:
       - cellId
       title: DeleteCellCommand
       type: object
-    DeleteCellRequest:
-      properties:
-        cellId:
-          $ref: '#/components/schemas/CellId'
-      required:
-      - cellId
-      title: DeleteCellRequest
-      type: object
     DeleteSecretRequest:
       properties:
         key:
@@ -2062,6 +2056,15 @@ components:
           - type: string
           - type: 'null'
           default: null
+        depends_on:
+          anyOf:
+          - additionalProperties:
+              anyOf:
+              - $ref: '#/components/schemas/Revision'
+              - type: 'null'
+            type: object
+          - type: 'null'
+          default: null
         execution_id:
           type: string
         op:
@@ -2655,6 +2658,10 @@ components:
       description: "Configuration for code formatting.\n\n    **Keys.**\n\n    - `line_length`:\
         \ max line length"
       properties:
+        infer_types:
+          enum:
+          - jedi
+          - 'off'
         line_length:
           type: integer
       required:
@@ -3019,17 +3026,15 @@ components:
       type: object
     KernelReadyNotification:
       description: "Kernel ready for execution. First notification sent at startup.\n\
-        \n    Attributes:\n        cell_ids: Cell IDs in order.\n        codes: Source\
-        \ code for each cell.\n        names: Cell names/titles.\n        layout:\
-        \ Notebook layout config.\n        configs: Per-cell configuration.\n    \
-        \    resumed: Whether resumed from previous session.\n        ui_values: Previous\
-        \ UI element values if resumed.\n        last_executed_code: Last executed\
-        \ code per cell if resumed.\n        last_execution_time: Last execution time\
-        \ per cell if resumed.\n        app_config: Application configuration.\n \
-        \       kiosk: Whether running in kiosk mode.\n        capabilities: Available\
-        \ kernel capabilities.\n        auto_instantiated: Whether cells already executed\
-        \ (run mode).\n        stable_session_id: Server-owned Session identity that\
-        \ survives\n            browser reconnects. None where no server Session exists."
+        \n    Attributes:\n        layout: Notebook layout config.\n        resumed:\
+        \ Whether resumed from previous session.\n        ui_values: Previous UI element\
+        \ values if resumed.\n        last_executed_code: Last executed code per cell\
+        \ if resumed.\n        last_execution_time: Last execution time per cell if\
+        \ resumed.\n        app_config: Application configuration.\n        kiosk:\
+        \ Whether running in kiosk mode.\n        capabilities: Available kernel capabilities.\n\
+        \        auto_instantiated: Whether cells already executed (run mode).\n \
+        \       stable_session_id: Server-owned Session identity that survives\n \
+        \           browser reconnects. None where no server Session exists."
       properties:
         app_config:
           $ref: '#/components/schemas/_AppConfig'
@@ -3038,18 +3043,6 @@ components:
           type: boolean
         capabilities:
           $ref: '#/components/schemas/KernelCapabilitiesNotification'
-        cell_ids:
-          items:
-            $ref: '#/components/schemas/CellId'
-          type: array
-        codes:
-          items:
-            type: string
-          type: array
-        configs:
-          items:
-            $ref: '#/components/schemas/CellConfig'
-          type: array
         consumer_capabilities:
           $ref: '#/components/schemas/ConsumerCapabilities'
         kiosk:
@@ -3070,10 +3063,6 @@ components:
           anyOf:
           - $ref: '#/components/schemas/LayoutConfig'
           - type: 'null'
-        names:
-          items:
-            type: string
-          type: array
         op:
           enum:
           - kernel-ready
@@ -3090,11 +3079,7 @@ components:
           - type: 'null'
       required:
       - op
-      - cell_ids
-      - codes
-      - names
       - layout
-      - configs
       - resumed
       - ui_values
       - last_executed_code
@@ -3201,6 +3186,23 @@ components:
       - type
       - data
       title: LayoutConfig
+      type: object
+    LazyImportError:
+      properties:
+        lineno:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          default: null
+        msg:
+          type: string
+        type:
+          enum:
+          - lazy-import
+      required:
+      - type
+      - msg
+      title: LazyImportError
       type: object
     LintConfig:
       description: "Configuration for lint rule selection.\n\n    Follows ruff-inspired\
@@ -3642,6 +3644,7 @@ components:
       - $ref: '#/components/schemas/CycleError'
       - $ref: '#/components/schemas/MultipleDefinitionError'
       - $ref: '#/components/schemas/ImportStarError'
+      - $ref: '#/components/schemas/LazyImportError'
       - $ref: '#/components/schemas/MarimoAncestorStoppedError'
       - $ref: '#/components/schemas/MarimoAncestorPreventedError'
       - $ref: '#/components/schemas/MarimoExceptionRaisedError'
@@ -3660,6 +3663,7 @@ components:
           import-star: '#/components/schemas/ImportStarError'
           internal: '#/components/schemas/MarimoInternalError'
           interruption: '#/components/schemas/MarimoInterruptionError'
+          lazy-import: '#/components/schemas/LazyImportError'
           multiple-defs: '#/components/schemas/MultipleDefinitionError'
           setup-refs: '#/components/schemas/SetupRootError'
           sql-error: '#/components/schemas/MarimoSQLError'
@@ -4160,33 +4164,6 @@ components:
       - op
       - transaction
       title: NotebookDocumentTransactionNotification
-      type: object
-    NotebookDocumentTransactionRequest:
-      properties:
-        changes:
-          items:
-            anyOf:
-            - $ref: '#/components/schemas/CreateCell'
-            - $ref: '#/components/schemas/DeleteCell'
-            - $ref: '#/components/schemas/MoveCell'
-            - $ref: '#/components/schemas/ReorderCells'
-            - $ref: '#/components/schemas/SetCode'
-            - $ref: '#/components/schemas/SetName'
-            - $ref: '#/components/schemas/SetConfig'
-            discriminator:
-              mapping:
-                create-cell: '#/components/schemas/CreateCell'
-                delete-cell: '#/components/schemas/DeleteCell'
-                move-cell: '#/components/schemas/MoveCell'
-                reorder-cells: '#/components/schemas/ReorderCells'
-                set-code: '#/components/schemas/SetCode'
-                set-config: '#/components/schemas/SetConfig'
-                set-name: '#/components/schemas/SetName'
-              propertyName: type
-          type: array
-      required:
-      - changes
-      title: NotebookDocumentTransactionRequest
       type: object
     NotificationMessage:
       anyOf:
@@ -4789,6 +4766,22 @@ components:
     RequestId:
       format: request-id
       type: string
+    Revision:
+      properties:
+        execution:
+          description: Identifies an execution. Unique within the host.
+          minLength: 1
+          type: string
+        update:
+          description: How many times the value has been updated since it was produced.
+            Zero at binding.
+          minimum: 0
+          type: integer
+      required:
+      - execution
+      - update
+      title: Revision
+      type: object
     RunningNotebooksResponse:
       properties:
         files:
@@ -6017,16 +6010,6 @@ components:
       - configs
       title: UpdateCellConfigCommand
       type: object
-    UpdateCellConfigRequest:
-      properties:
-        configs:
-          additionalProperties:
-            type: object
-          type: object
-      required:
-      - configs
-      title: UpdateCellConfigRequest
-      type: object
     UpdateCellOutputsRequest:
       properties:
         cellIdsToOutput:
@@ -6281,6 +6264,18 @@ components:
     VariableName:
       format: variable-name
       type: string
+    VariableRemoval:
+      description: A binding removed from the runtime's namespace.
+      properties:
+        execution_id:
+          type: string
+        name:
+          type: string
+      required:
+      - name
+      - execution_id
+      title: VariableRemoval
+      type: object
     VariableValue:
       description: "Variable value and type for variables panel.\n\n    Attributes:\n\
         \        name: Variable name.\n        value: String representation of value.\n\
@@ -6290,8 +6285,18 @@ components:
           anyOf:
           - type: string
           - type: 'null'
+        execution_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
         name:
           type: string
+        revision:
+          anyOf:
+          - $ref: '#/components/schemas/Revision'
+          - type: 'null'
+          default: null
         value:
           anyOf:
           - type: string
@@ -6304,11 +6309,17 @@ components:
       type: object
     VariableValuesNotification:
       description: "Current variable values.\n\n    Attributes:\n        variables:\
-        \ Variables with current values and types."
+        \ Variables with current values and types.\n        removed: Bindings that\
+        \ no longer exist, identified by their producer."
       properties:
         op:
           enum:
           - variable-values
+        removed:
+          default: []
+          items:
+            $ref: '#/components/schemas/VariableRemoval'
+          type: array
         variables:
           items:
             $ref: '#/components/schemas/VariableValue'
@@ -6718,26 +6729,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/SuccessResponse'
           description: Preview a list of tables in an SQL schema
-  /api/document/transaction:
-    post:
-      parameters:
-      - in: header
-        name: Marimo-Session-Id
-        required: true
-        schema:
-          type: string
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/NotebookDocumentTransactionRequest'
-      responses:
-        200:
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/SuccessResponse'
-          description: Apply a document transaction
   /api/documentation/snippets:
     get:
       parameters:
@@ -7295,26 +7286,6 @@ paths:
               schema:
                 type: string
           description: Copy notebook
-  /api/kernel/delete:
-    post:
-      parameters:
-      - in: header
-        name: Marimo-Session-Id
-        required: true
-        schema:
-          type: string
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/DeleteCellRequest'
-      responses:
-        200:
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/SuccessResponse'
-          description: Delete a cell
   /api/kernel/focus_cell:
     post:
       parameters:
@@ -7621,26 +7592,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/SuccessResponse'
           description: Run the scratchpad
-  /api/kernel/set_cell_config:
-    post:
-      parameters:
-      - in: header
-        name: Marimo-Session-Id
-        required: true
-        schema:
-          type: string
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/UpdateCellConfigRequest'
-      responses:
-        200:
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/SuccessResponse'
-          description: Set the configuration of a cell
   /api/kernel/set_model_value:
     post:
       parameters:

@@ -2,6 +2,7 @@
 
 import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { MockRequestClient } from "@/__mocks__/requests";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import type { CellId } from "@/core/cells/ids";
 import * as requestsModule from "@/core/network/requests";
@@ -18,7 +19,8 @@ vi.mock("@/utils/copy", () => ({
 }));
 
 describe("IslandControls", () => {
-  const mockSendRun = vi.fn();
+  const mockSendRun =
+    vi.fn<ReturnType<typeof requestsModule.useRequestClient>["sendRun"]>();
   const mockCopyToClipboard = vi.fn();
   const mockCodeCallback = vi.fn(() => "print('test code')");
   const cellId = "test-cell-id" as CellId;
@@ -30,11 +32,11 @@ describe("IslandControls", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    mockSendRun.mockResolvedValue(undefined);
+    mockSendRun.mockResolvedValue(null);
 
-    vi.spyOn(requestsModule, "useRequestClient").mockReturnValue({
-      sendRun: mockSendRun,
-    } as any);
+    vi.spyOn(requestsModule, "useRequestClient").mockReturnValue(
+      MockRequestClient.create({ sendRun: mockSendRun }),
+    );
 
     vi.spyOn(copyModule, "copyToClipboard").mockImplementation(
       mockCopyToClipboard,

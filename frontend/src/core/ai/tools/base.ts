@@ -1,7 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { z } from "zod";
-import type { CreateNewCellAction } from "@/core/cells/cells";
+import type { CreateCell } from "@/core/cells/actions";
 import type { CellId } from "@/core/cells/ids";
 import type { ExecuteCellsRequest } from "@/core/network/types";
 import type { JotaiStore } from "@/core/state/jotai";
@@ -20,9 +20,11 @@ export type StatusValue = "success" | "error" | "warning";
  * @example
  * throw new ToolExecutionError(
  *   "Failed to fetch data",
- *   "FETCH_ERROR",
- *   true,
- *   "Check your network connection"
+ *   {
+ *     code: "FETCH_ERROR",
+ *     isRetryable: true,
+ *     suggestedFix: "Check your network connection",
+ *   }
  * );
  */
 export class ToolExecutionError extends Error {
@@ -33,10 +35,17 @@ export class ToolExecutionError extends Error {
 
   public constructor(
     message: string,
-    code = "TOOL_ERROR",
-    isRetryable = false,
-    suggestedFix?: string,
-    meta?: Record<string, unknown>,
+    {
+      code = "TOOL_ERROR",
+      isRetryable = false,
+      suggestedFix,
+      meta,
+    }: {
+      code?: string;
+      isRetryable?: boolean;
+      suggestedFix?: string;
+      meta?: Record<string, unknown>;
+    } = {},
   ) {
     super(message);
     this.name = "ToolExecutionError";
@@ -104,7 +113,7 @@ export interface ToolDescription {
 export interface ToolNotebookContext {
   store: JotaiStore;
   addStagedCell: (payload: { cellId: CellId; edit: Edit }) => void;
-  createNewCell: (payload: CreateNewCellAction) => void;
+  createCell: CreateCell;
   prepareForRun: (payload: { cellId: CellId }) => void;
   sendRun: (request: ExecuteCellsRequest) => Promise<null>;
 }

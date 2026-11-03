@@ -632,7 +632,6 @@ class TestTopLevelHook:
                 @staticmethod
                 def method() -> None:
                     print(__class__)
-                    return
 
         status = TopLevelStatus.from_cell(cell._cell, BUILTINS)
         assert status.type == TopLevelType.TOPLEVEL

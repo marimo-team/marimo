@@ -404,13 +404,15 @@ const SubslideView = ({
             if (block.isFragment) {
               const cumulative = cumulativeByBlock.get(i);
               return (
-                <Fragment key={i} as="div">
+                <Fragment key={block.cells[0].id} as="div">
                   {rendered}
                   {cumulative && <NotesAside text={cumulative} />}
                 </Fragment>
               );
             }
-            return <ReactFragment key={i}>{rendered}</ReactFragment>;
+            return (
+              <ReactFragment key={block.cells[0].id}>{rendered}</ReactFragment>
+            );
           })}
         </div>
       </SlideScrollContainer>

@@ -328,15 +328,16 @@ export const PlansBlock = (props: { data: PlanNotificationEvent[] }) => {
         </span>
       </div>
       <ul className="flex flex-col gap-1">
-        {plans.map((item, index) => (
+        {plans.map((item) => (
           <li
-            key={`${item.status}-${index}`}
+            key={item.content}
             className={`
               flex items-center gap-2 px-2 py-1 rounded
             `}
           >
             <input
               type="checkbox"
+              aria-label={item.content}
               checked={item.status === "completed"}
               readOnly={true}
               className="accent-primary h-4 w-4 rounded border border-muted-foreground/30"

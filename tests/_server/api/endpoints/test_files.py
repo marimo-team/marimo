@@ -560,7 +560,9 @@ def test_rename_propagates(
         data = receive_notification(websocket)
         if data["op"] == "variable-values":
             for var in data["data"]["variables"]:
-                variables[var["name"]] = var["value"]
+                # Revisions arrive before their rendered previews.
+                if var["value"] is not None:
+                    variables[var["name"]] = var["value"]
 
     # Variable outputs are truncated to 50 characters
     # current_filename can exceed this count on windows and OSX.
@@ -586,7 +588,9 @@ def test_rename_propagates(
         data = receive_notification(websocket)
         if data["op"] == "variable-values":
             for var in data["data"]["variables"]:
-                variables[var["name"]] = var["value"]
+                # Revisions arrive before their rendered previews.
+                if var["value"] is not None:
+                    variables[var["name"]] = var["value"]
 
     assert ("x" + new_filename).startswith(variables["a"])
     assert new_filename.startswith(variables["b"])

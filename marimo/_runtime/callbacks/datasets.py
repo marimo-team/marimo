@@ -29,6 +29,7 @@ from marimo._runtime.commands import (
     PreviewDatasetColumnCommand,
     PreviewSQLTableCommand,
 )
+from marimo._sql.engines.duckdb import INTERNAL_DUCKDB_ENGINE, DuckDBEngine
 from marimo._sql.engines.types import EngineCatalog
 from marimo._sql.get_engines import engine_to_data_source_connection
 from marimo._tracer import kernel_tracer
@@ -75,6 +76,8 @@ class DatasetCallbacks:
         """Get engines that support catalog operations.
         Returns an error if the connection does not support catalog operations."""
         variable_name = cast(VariableName, variable_name)
+        if variable_name == INTERNAL_DUCKDB_ENGINE:
+            return DuckDBEngine(), None
         connection, error = self._kernel.get_sql_connection(variable_name)
         if error is not None or connection is None:
             return None, error

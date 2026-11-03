@@ -59,7 +59,7 @@ import {
 import { Tooltip } from "@/components/ui/tooltip";
 import { SearchInput } from "@/components/ui/input";
 import { toast } from "@/components/ui/use-toast";
-import { useCellActions } from "@/core/cells/cells";
+import { useCellActions } from "@/core/cells/actions";
 import { useLastFocusedCellId } from "@/core/cells/focus";
 import { disableFileDownloadsAtom } from "@/core/config/config";
 import { useRequestClient } from "@/core/network/requests";
@@ -263,6 +263,27 @@ export const FileExplorer: React.FC<{
       event.target instanceof Element
         ? event.target.getAttribute("role")
         : null;
+    if (event.key === "Tab" && event.target instanceof HTMLElement) {
+      if (!event.shiftKey && role === "treeitem") {
+        const action = event.target.querySelector<HTMLButtonElement>(
+          '[data-file-tree-action="open"]',
+        );
+        if (action) {
+          event.preventDefault();
+          event.stopPropagation();
+          action.focus();
+          return;
+        }
+      } else if (
+        event.shiftKey &&
+        event.target.dataset.fileTreeAction === "open"
+      ) {
+        event.preventDefault();
+        event.stopPropagation();
+        event.target.closest<HTMLElement>('[role="treeitem"]')?.focus();
+        return;
+      }
+    }
     if (query.trim() || (role !== "treeitem" && role !== "tree")) {
       return;
     }
@@ -637,13 +658,24 @@ const Show = ({
     <span className="flex-1 overflow-hidden text-ellipsis">
       {node.data.name}
       {node.data.isMarimoFile && node.data.isPrimaryRoot && !isWasm() && (
-        <span
+        <button
+          type="button"
+          aria-label={`Open notebook ${node.data.name}`}
           data-testid="file-explorer-open-marimo-button"
-          className="shrink-0 ml-2 text-sm hidden group-hover:inline hover:underline"
+          data-file-tree-action="open"
+          onKeyDown={(event) => {
+            if (event.key !== "Tab") {
+              event.stopPropagation();
+            }
+          }}
+          className={cn(
+            "shrink-0 ml-2 text-sm hidden group-hover:inline group-focus-within:inline hover:underline",
+            node.isFocused && "inline",
+          )}
           onClick={onOpenMarimoFile}
         >
           open <ExternalLinkIcon className="inline ml-1" size={12} />
-        </span>
+        </button>
       )}
     </span>
   );
@@ -665,15 +697,11 @@ const Node = ({ node, style, dragHandle }: NodeRendererProps<FileTreeNode>) => {
 
   const Icon = FILE_ICON[fileType];
   const { openPrompt } = useImperativeModal();
-  const { createNewCell } = useCellActions();
+  const { createCell } = useCellActions();
   const lastFocusedCellId = useLastFocusedCellId();
 
   const handleInsertCode = (code: string) => {
-    createNewCell({
-      code,
-      before: false,
-      cellId: lastFocusedCellId ?? "__end__",
-    });
+    createCell({ after: lastFocusedCellId, code });
   };
 
   const fileExplorer = use(RequestingTreeContext);

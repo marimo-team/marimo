@@ -736,35 +736,6 @@ bedrock:
         values: [low, medium, high, xhigh, max]
     limits: {context: 1000000, output: 128000}
 
-  - name: Claude Fable 5 (Global)
-    model: global.anthropic.claude-fable-5
-    description: "Anthropic's Mythos-class model built for demanding reasoning, coding, and long-horizon agentic work"
-    roles: [chat, edit]
-    capabilities: [thinking, tool_calling]
-    input_types: [text, image, pdf]
-    output_types: [text]
-    release_date: 2026-06-09
-    cost: {input: 10, output: 50}
-    reasoning_options:
-      - type: effort
-        values: [low, medium, high, xhigh, max]
-    limits: {context: 1000000, output: 128000}
-
-  - name: Claude Sonnet 5 (Global)
-    model: global.anthropic.claude-sonnet-5
-    description: "Anthropic's Sonnet model, built for planning, tool use, and autonomous multi-step work at Sonnet pricing"
-    roles: [chat, edit]
-    capabilities: [thinking, tool_calling]
-    input_types: [text, image, pdf]
-    output_types: [text]
-    release_date: 2026-06-30
-    cost: {input: 2, output: 10}
-    reasoning_options:
-      - type: toggle
-      - type: effort
-        values: [low, medium, high, xhigh, max]
-    limits: {context: 1000000, output: 128000}
-
   - name: Claude Opus 4.8 (Global)
     model: global.anthropic.claude-opus-4-8
     description: "Modest but tangible improvement over Claude Opus 4.7"
@@ -933,7 +904,7 @@ azure:
     cost: {input: 10, output: 50}
     reasoning_options:
       - type: effort
-        values: [low, medium, high, xhigh, max]
+        values: [low, medium, high, xhigh]
     limits: {context: 1000000, output: 128000}
 
   - name: Grok 4.6
@@ -1017,7 +988,7 @@ azure:
     cost: {input: 5, output: 30}
     reasoning_options:
       - type: effort
-        values: [low, medium, high]
+        values: [medium]
     limits: {context: 400000, output: 128000}
 
   - name: Claude Fable 5
@@ -1031,7 +1002,7 @@ azure:
     cost: {input: 10, output: 50}
     reasoning_options:
       - type: effort
-        values: [low, medium, high, xhigh, max]
+        values: [low, medium, high, xhigh]
     limits: {context: 1000000, output: 128000}
 
   - name: Claude Sonnet 5
@@ -1120,27 +1091,58 @@ azure:
     model: deepseek-v4-flash
     description: "Efficiency-optimized Mixture-of-Experts model from DeepSeek with 284B total parameters and 13B activated parameters, supporting a 1M-token context window"
     roles: [chat, edit]
-    capabilities: [thinking]
+    capabilities: [thinking, tool_calling]
     input_types: [text]
     output_types: [text]
     release_date: 2026-04-24
     cost: {input: 0.19, output: 0.51}
-    reasoning_options: []
+    reasoning_options:
+      - type: effort
+        values: [none, low, high, max]
     limits: {context: 1000000, output: 384000}
 
   - name: DeepSeek-V4-Pro
     model: deepseek-v4-pro
     description: "Large-scale Mixture-of-Experts model from DeepSeek with 1.6T total parameters and 49B activated parameters, supporting a 1M-token context window"
     roles: [chat, edit]
-    capabilities: [thinking]
+    capabilities: [thinking, tool_calling]
     input_types: [text]
     output_types: [text]
     release_date: 2026-04-24
     cost: {input: 1.74, output: 3.48}
-    reasoning_options: []
+    reasoning_options:
+      - type: effort
+        values: [none, low, high, max]
     limits: {context: 1000000, output: 384000}
 
 ollama:
+  - name: MiniMax-M3.1-Flash
+    model: minimax-m3.1-flash
+    description: "Multimodal model from MiniMax for coding, computer use, and complex multi-step agent workflows"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image]
+    output_types: [text]
+    release_date: 2026-10-19
+    cost: {input: 0.15, output: 0.6}
+    reasoning_options:
+      - type: effort
+        values: [low, medium, high, xhigh, max]
+    limits: {context: 1000000, output: 512000}
+
+  - name: Beam 1.0 501B A23B
+    model: beam
+    description: "Open-weight reasoning model from Reflection for coding and long-running agent workflows, with 501B total and 23B active parameters"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text]
+    output_types: [text]
+    release_date: 2026-10-05
+    reasoning_options:
+      - type: effort
+        values: [low, medium, high, xhigh, max]
+    limits: {context: 1048576, output: 131072}
+
   - name: DeepSeek V4.1 Flash 1017
     model: deepseek-v4.1-flash:1017
     description: "October 17 update of DeepSeek V4.1 Flash for coding and end-to-end project development, with faster task completion and shorter outputs"
@@ -1166,8 +1168,9 @@ ollama:
     release_date: 2026-10-15
     cost: {input: 1.25, output: 4.25}
     reasoning_options:
+      - type: toggle
       - type: effort
-        values: [low, medium, high, xhigh]
+        values: [low, medium, high, max]
     limits: {context: 1048576, output: 131072}
 
   - name: Mistral Large 4
@@ -1178,7 +1181,7 @@ ollama:
     input_types: [text, image]
     output_types: [text]
     release_date: 2026-10-06
-    cost: {input: 1.36, output: 4.18}
+    cost: {input: 0.68, output: 2.09}
     reasoning_options:
       - type: effort
         values: [none, high]
@@ -1206,11 +1209,11 @@ ollama:
     capabilities: [thinking, tool_calling]
     input_types: [text]
     output_types: [text]
-    release_date: 2026-08-12
+    release_date: 2026-08-13
     reasoning_options:
       - type: toggle
       - type: effort
-        values: [high, max]
+        values: [low, high, max]
     limits: {context: 1048576, output: 1048576}
     cost: {input: 0.66, output: 1.98}
 
@@ -1219,7 +1222,7 @@ ollama:
     description: "Native multimodal model from Z.ai optimized for efficient coding and long-horizon agent tasks"
     roles: [chat, edit]
     capabilities: [thinking, tool_calling]
-    input_types: [text, image, pdf]
+    input_types: [text, image]
     output_types: [text]
     release_date: 2026-08-26
     reasoning_options:
@@ -1298,7 +1301,7 @@ ollama:
     reasoning_options:
       - type: toggle
       - type: effort
-        values: [high, max]
+        values: [low, high, max]
     limits: {context: 1048576, output: 1048576}
     cost: {input: 0.66, output: 1.98}
 
@@ -1324,6 +1327,7 @@ ollama:
     output_types: [text]
     release_date: 2026-06-13
     reasoning_options:
+      - type: toggle
       - type: effort
         values: [high, max]
     limits: {context: 976000, output: 131072}
@@ -1336,7 +1340,7 @@ ollama:
     capabilities: [thinking, tool_calling]
     input_types: [text, image]
     output_types: [text]
-    release_date: 2026-05-31
+    release_date: 2026-06-01
     reasoning_options:
       - type: toggle
       - type: effort
@@ -1352,8 +1356,7 @@ ollama:
     input_types: [text]
     output_types: [text]
     release_date: 2026-03-18
-    reasoning_options:
-      - type: toggle
+    reasoning_options: []
     limits: {context: 196608, output: 196608}
     cost: {input: 0.3, output: 1.2}
 
@@ -1404,8 +1407,8 @@ wandb:
     capabilities: [thinking, tool_calling]
     input_types: [text]
     output_types: [text]
-    release_date: 2026-10-16
-    cost: {input: 1, output: 3}
+    release_date: 2026-10-05
+    cost: {input: 0.3, output: 1}
     reasoning_options:
       - type: effort
         values: [minimal, low, medium, high, xhigh, max]
@@ -1456,7 +1459,7 @@ wandb:
     capabilities: [thinking, tool_calling]
     input_types: [text]
     output_types: [text]
-    release_date: 2026-08-24
+    release_date: 2026-08-25
     cost: {input: 0.1, output: 0.15}
     reasoning_options:
       - type: toggle
@@ -1521,7 +1524,7 @@ wandb:
     capabilities: [thinking, tool_calling]
     input_types: [text, image]
     output_types: [text]
-    release_date: 2026-06-12
+    release_date: 2026-06-01
     cost: {input: 0.23, output: 0.96}
     reasoning_options: []
     limits: {context: 262144, output: 262144}
@@ -1559,7 +1562,7 @@ wandb:
     capabilities: [thinking, tool_calling]
     input_types: [text]
     output_types: [text]
-    release_date: 2026-06-16
+    release_date: 2026-06-13
     cost: {input: 0.62, output: 2.42}
     reasoning_options:
       - type: toggle
@@ -1624,6 +1627,48 @@ wandb:
     limits: {context: 131072, output: 131072}
 
 opencode-go:
+  - name: Kimi K3.1 Pro
+    model: kimi-k3.1-pro
+    description: "Open-weight multimodal reasoning model from Moonshot AI for long-horizon coding, financial research, and agentic knowledge work"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image]
+    output_types: [text]
+    release_date: 2026-10-23
+    cost: {input: 2, output: 10}
+    reasoning_options:
+      - type: effort
+        values: [low, high, max]
+    limits: {context: 1048576, output: 131072}
+
+  - name: MiniMax M3.1 Flash
+    model: minimax-m3.1-flash
+    description: "Multimodal model from MiniMax for coding, computer use, and complex multi-step agent workflows"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image]
+    output_types: [text]
+    release_date: 2026-10-19
+    cost: {input: 0.15, output: 0.6}
+    reasoning_options:
+      - type: effort
+        values: [low, medium, high, xhigh, max]
+    limits: {context: 1000000, output: 512000}
+
+  - name: Gemini 4 Argon
+    model: gemini-4-argon
+    description: "Reasoning model for complex software engineering, mathematical and scientific problem solving, and autonomous multi-step agents"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image, pdf]
+    output_types: [text]
+    release_date: 2026-10-13
+    cost: {input: 2, output: 10}
+    reasoning_options:
+      - type: effort
+        values: [low, medium, high]
+    limits: {context: 1048576, output: 65536}
+
   - name: Beam Free
     model: beam-free
     description: "Free access to Reflection's Beam model for coding, reasoning, and long-running agent workflows, available for a limited time in supported regions"
@@ -1779,7 +1824,7 @@ opencode-go:
     description: "Native multimodal model from Z.ai optimized for efficient coding and long-horizon agent tasks"
     roles: [chat, edit]
     capabilities: [thinking, tool_calling]
-    input_types: [text, image, pdf]
+    input_types: [text, image]
     output_types: [text]
     release_date: 2026-08-26
     cost: {input: 0.15, output: 0.5}
@@ -1957,7 +2002,7 @@ opencode-go:
     capabilities: [thinking, tool_calling]
     input_types: [text, image]
     output_types: [text]
-    release_date: 2026-05-31
+    release_date: 2026-06-01
     cost: {input: 0.3, output: 1.2}
     reasoning_options:
       - type: toggle

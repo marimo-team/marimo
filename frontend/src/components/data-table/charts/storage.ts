@@ -7,13 +7,16 @@ import { Logger } from "@/utils/Logger";
 import { NotebookScopedLocalStorage } from "@/utils/storage/typed";
 import { capitalize } from "@/utils/strings";
 import type { TypedString } from "@/utils/typed";
+import { generateUUID } from "@/utils/uuid";
 import { ChartSchema, type ChartSchemaType } from "./schemas";
 import type { ChartType } from "./types";
 
 export type TabName = TypedString<"TabName">;
+export type TabId = TypedString<"TabId">;
 export const KEY = "marimo:charts:v2";
 
 interface TabStorage {
+  id: TabId;
   tabName: TabName; // unique within cell
   chartType: ChartType;
   config: ChartSchemaType;
@@ -21,11 +24,15 @@ interface TabStorage {
 
 type TabStorageMap = Map<CellId, TabStorage[]>;
 
-const TabStorageSchema = z.object({
-  tabName: z.string().transform((name) => name as TabName),
-  chartType: z.string().transform((type) => type as ChartType),
-  config: ChartSchema,
-});
+const TabStorageSchema = z
+  .object({
+    id: z.string().optional(),
+    tabName: z.string().transform((name) => name as TabName),
+    chartType: z.string().transform((type) => type as ChartType),
+    config: ChartSchema,
+  })
+  // Stored tabs without an id use their name, which is unique within a cell.
+  .transform((tab) => ({ ...tab, id: (tab.id ?? tab.tabName) as TabId }));
 const TabStorageEntriesSchema = z.array(
   z.tuple([
     z.string().transform((name) => name as CellId),
@@ -63,6 +70,10 @@ export const tabsStorageAtom = atomWithStorage<TabStorageMap>(
   new Map(),
   mapStorage,
 );
+
+export function createTabId(): TabId {
+  return generateUUID() as TabId;
+}
 
 /**
  * Convenience function to get the tab name for a given tab number and chart type

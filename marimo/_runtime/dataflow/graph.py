@@ -4,7 +4,7 @@
 from __future__ import annotations
 
 import threading
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import TYPE_CHECKING, Literal
 
 from marimo import _loggers
@@ -364,7 +364,7 @@ class DirectedGraph(GraphTopology):
         return processed - refs
 
     def copy(self, filename: str | None = None) -> DirectedGraph:
-        """Return a deep copy of the graph by recompiling all cells.
+        """Recompile the graph while preserving runtime import state.
 
         This is mainly useful in the case where recompilation must be done
         due to a dynamically changing notebook, where the line cache must be
@@ -380,11 +380,10 @@ class DirectedGraph(GraphTopology):
                     cell_id=cid,
                     filename=filename,
                 )
-                # Carry over import data manually
-                imported_defs = old_cell.import_workspace.imported_defs
-                is_import_block = old_cell.import_workspace.is_import_block
-                cell.import_workspace.imported_defs = imported_defs
-                cell.import_workspace.is_import_block = is_import_block
+                # Recompilation changes source locations, not runtime imports.
+                cell = replace(
+                    cell, import_workspace=old_cell.import_workspace
+                )
                 # Reregister
                 graph.register_cell(cid, cell)
         return graph

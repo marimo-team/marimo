@@ -10,7 +10,6 @@ import {
 } from "@/__tests__/branded";
 import { notebookAtom } from "@/core/cells/cells";
 import { islandsPendingInitialRunsAtom } from "@/core/islands/state";
-import type { IslandsKernelMessage } from "../worker/worker";
 
 type Base64String = components["schemas"]["Base64String"];
 interface TestIslandApp {
@@ -88,9 +87,6 @@ vi.mock("@/core/wasm/rpc", () => ({
         replaceSession: mockReplaceSessionRequest,
         startSession: mockStartSessionRequest,
         stopSession: mockStopSessionRequest,
-      },
-      send: {
-        consumerReady: vi.fn(),
       },
     },
     addMessageListener: vi.fn(
@@ -177,17 +173,22 @@ describe("IslandsPyodideBridge", () => {
     });
   }
 
-  function sendKernelMessage(sessionGeneration: number) {
-    const listener = mockMessageListeners.get("kernelMessage");
+  function sendNotebookEvent(sessionGeneration: number, frame: unknown) {
+    const listener = mockMessageListeners.get("notebookEvent");
     if (!listener) {
-      throw new Error("Missing kernel message listener");
+      throw new Error("Missing notebook event listener");
     }
-    const message = {
-      message: "" as IslandsKernelMessage["message"],
-      sessionGeneration,
-    };
-    listener(message as never);
-    return message;
+    listener({ event: JSON.stringify(frame), sessionGeneration } as never);
+  }
+
+  /** Send a notification and return the call the consumer should receive. */
+  function sendKernelMessage(sessionGeneration: number) {
+    const notification = { op: "interrupted" };
+    sendNotebookEvent(sessionGeneration, {
+      event: "marimo",
+      data: { marimo: notification },
+    });
+    return [notification, sessionGeneration];
   }
 
   async function initializeSingleApp() {
@@ -300,7 +301,7 @@ describe("IslandsPyodideBridge", () => {
   describe("app lifecycle", () => {
     it("ignores messages after a session yields ownership", async () => {
       const consumeMessage = vi.fn();
-      bridge.consumeMessages(consumeMessage);
+      bridge.consumeNotifications(consumeMessage);
       mockSingleApp();
       await bridge.initializeApps();
 
@@ -319,10 +320,7 @@ describe("IslandsPyodideBridge", () => {
       sendKernelMessage(1);
       const currentMessage = sendKernelMessage(2);
 
-      expect(consumeMessage.mock.calls).toEqual([
-        [firstMessage],
-        [currentMessage],
-      ]);
+      expect(consumeMessage.mock.calls).toEqual([firstMessage, currentMessage]);
 
       finishReplacement();
       await replacement;
@@ -330,7 +328,7 @@ describe("IslandsPyodideBridge", () => {
 
     it("restores message ownership when replacement fails", async () => {
       const consumeMessage = vi.fn();
-      bridge.consumeMessages(consumeMessage);
+      bridge.consumeNotifications(consumeMessage);
       mockSingleApp();
       await bridge.initializeApps();
       mockReplaceSessionRequest.mockRejectedValueOnce(
@@ -344,12 +342,12 @@ describe("IslandsPyodideBridge", () => {
       const previousMessage = sendKernelMessage(1);
       sendKernelMessage(2);
 
-      expect(consumeMessage.mock.calls).toEqual([[previousMessage]]);
+      expect(consumeMessage.mock.calls).toEqual([previousMessage]);
     });
 
     it("ignores messages while their session is stopping", async () => {
       const consumeMessage = vi.fn();
-      bridge.consumeMessages(consumeMessage);
+      bridge.consumeNotifications(consumeMessage);
       mockSingleApp();
       await bridge.initializeApps();
       let finishStop!: () => void;
@@ -373,7 +371,7 @@ describe("IslandsPyodideBridge", () => {
 
     it("forwards messages from every app in a multi-app document", async () => {
       const consumeMessage = vi.fn();
-      bridge.consumeMessages(consumeMessage);
+      bridge.consumeNotifications(consumeMessage);
       mockParseMarimoIslandApps.mockReturnValue([app(), app("app-2")]);
       mockCreateMarimoFile
         .mockReturnValueOnce("generated app 1")
@@ -385,9 +383,58 @@ describe("IslandsPyodideBridge", () => {
       const secondMessage = sendKernelMessage(2);
       sendKernelMessage(3);
 
-      expect(consumeMessage.mock.calls).toEqual([
-        [firstMessage],
-        [secondMessage],
+      expect(consumeMessage.mock.calls).toEqual([firstMessage, secondMessage]);
+    });
+
+    it("delivers only the notebook stream's marimo notifications", async () => {
+      const consumeMessage = vi.fn();
+      bridge.consumeNotifications(consumeMessage);
+      await initializeSingleApp();
+      sendNotebookEvent(1, { event: "ready", id: "3", data: {} });
+      const notification = sendKernelMessage(1);
+
+      expect(consumeMessage.mock.calls).toEqual([notification]);
+    });
+
+    it("forwards the managed session's host events to the notebook stream", async () => {
+      await initializeSingleApp();
+      const handlers = { open: vi.fn(), message: vi.fn() };
+      void bridge.notebookBackend.transport(
+        { signal: new AbortController().signal, cursor: null },
+        handlers,
+      );
+      expect(handlers.open).toHaveBeenCalledOnce();
+
+      const cell = { event: "cell", id: "1", data: { cell: { id: "c1" } } };
+      sendNotebookEvent(1, cell);
+      sendNotebookEvent(2, { event: "ready", id: "2", data: {} });
+      sendKernelMessage(1);
+
+      expect(handlers.message.mock.calls).toEqual([[cell]]);
+      expect(() => bridge.notebookBackend.notebook("n1")).toThrow(
+        "Islands do not edit",
+      );
+    });
+
+    it("resets the notebook stream when the managed session is replaced or stopped", async () => {
+      await initializeSingleApp();
+      const handlers = { open: vi.fn(), message: vi.fn() };
+      void bridge.notebookBackend.transport(
+        { signal: new AbortController().signal, cursor: null },
+        handlers,
+      );
+
+      mockSingleApp("generated app 2");
+      await bridge.initializeApps();
+      const ready = { event: "ready", id: "2", data: {} };
+      sendNotebookEvent(1, { event: "ready", id: "1", data: {} });
+      sendNotebookEvent(2, ready);
+      await bridge.stopSession("app-1");
+
+      expect(handlers.message.mock.calls).toEqual([
+        [{ event: "reset", data: {} }],
+        [ready],
+        [{ event: "reset", data: {} }],
       ]);
     });
 

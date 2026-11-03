@@ -26,13 +26,13 @@ export interface LanguageAdapter<M = Record<string, any>> {
   transformIn(code: string): [string, number, M];
   transformOut(code: string, metadata: M): [string, number];
   isSupported(code: string): boolean;
-  getExtension(
-    cellId: CellId,
-    completionConfig: CompletionConfig,
-    hotkeys: HotkeyProvider,
-    placeholderType: PlaceholderType,
-    lspConfig: LSPConfig & { diagnostics?: DiagnosticsConfig },
-  ): Extension[];
+  getExtension(options: {
+    cellId: CellId;
+    completionConfig: CompletionConfig;
+    hotkeys: HotkeyProvider;
+    placeholderType: PlaceholderType;
+    lspConfig: LSPConfig & { diagnostics?: DiagnosticsConfig };
+  }): Extension[];
 }
 
 export type LanguageMetadataOf<T extends LanguageAdapter> =

@@ -8,7 +8,7 @@ import {
   type ConnectionStatus,
   WebSocketClosedReason,
   ConnectionState,
-} from "@/core/websocket/types";
+} from "@/core/session/types";
 import { cn } from "@/utils/cn";
 import { DynamicFavicon } from "./dynamic-favicon";
 import { StatusOverlay } from "./header/status";

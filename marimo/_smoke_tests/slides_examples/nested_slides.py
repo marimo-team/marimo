@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.23.8"
+__generated_with = "0.25.2"
 app = marimo.App(
     width="medium",
     layout_file="layouts/nested_slides.slides.json",
@@ -29,7 +29,6 @@ def _(mo):
 
     A deck exercising slides, sub-slides (stacks), fragments, and skip cells.
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -38,7 +37,6 @@ def _(mo):
     mo.md("""
     - Built with `@revealjs/react`
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -46,7 +44,6 @@ def _(mo):
     mo.md(r"""
     - Composed from flat marimo cells
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -59,14 +56,12 @@ def _(mo):
     2. Section B — layouts across a stack
     3. Section C — fragments only
     """)
-    return
 
 
 @app.cell(hide_code=True)
 def _(mo):
     # Cell 6 (slide) — start of Section A stack.
     mo.md("# Section A").center()
-    return
 
 
 @app.cell(hide_code=True)
@@ -75,7 +70,6 @@ def _(mo):
     mo.md("""
     ## A.1 — Plain text
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -84,7 +78,6 @@ def _(mo):
     mo.md("""
     - Fragments reveal incrementally
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -93,7 +86,6 @@ def _(mo):
     mo.md("""
     - Each `fragment` cell is one reveal step
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -102,7 +94,6 @@ def _(mo):
     mo.md("""
     ## A.2 — Continuation cells
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -111,7 +102,6 @@ def _(mo):
     mo.md("""
     Cells with no slide type are treated as slides.
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -126,14 +116,12 @@ def _(mo):
             mo.plain_text(f"sin(x) sampled at {len(x)} points"),
         ]
     )
-    return
 
 
 @app.cell(hide_code=True)
 def _(mo):
     # Cell 13 (slide) — start of Section B stack.
     mo.md("# Section B").center()
-    return
 
 
 @app.cell(hide_code=True)
@@ -147,7 +135,6 @@ def _(mo):
             ),
         ]
     )
-    return
 
 
 @app.cell(hide_code=True)
@@ -156,7 +143,6 @@ def _(mo):
     mo.md("""
     _hstack items sized equally_
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -177,7 +163,6 @@ def _(mo):
             ),
         ]
     )
-    return
 
 
 @app.cell
@@ -198,7 +183,6 @@ def _(mo):
 def _(mo):
     # Cell 18 (slide) — Section C title.
     mo.md("# Section C — Fragments").center()
-    return
 
 
 @app.cell(hide_code=True)
@@ -207,7 +191,6 @@ def _(mo):
     mo.md("""
     ### First reveal
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -216,14 +199,12 @@ def _(mo):
     mo.md("""
     ### Second reveal
     """)
-    return
 
 
 @app.cell(hide_code=True)
-def _(mo, secret):
+def _(mo, secret: int):
     # Cell 21 (fragment) — pulls in the skipped cell's value.
     mo.md(f"### Third reveal — secret is **{secret}**")
-    return
 
 
 @app.cell
@@ -286,7 +267,6 @@ def _(mo):
 
     tbl = mo.ui.table(_bios_df)
     tbl
-    return
 
 
 @app.cell
@@ -348,7 +328,6 @@ def _(mo):
     }
 
     mo.ui.table(_bios_df)
-    return
 
 
 @app.cell
@@ -410,7 +389,6 @@ def _(mo):
     }
 
     mo.ui.table(_bios_df)
-    return
 
 
 @app.cell
@@ -472,7 +450,6 @@ def _(mo):
     }
 
     mo.ui.table(_bios_df)
-    return
 
 
 @app.cell(hide_code=True)
@@ -485,7 +462,6 @@ def _(mo):
         Questions?
         """
     ).center()
-    return
 
 
 if __name__ == "__main__":

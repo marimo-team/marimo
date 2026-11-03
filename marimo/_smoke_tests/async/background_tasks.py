@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -18,6 +18,7 @@ def _():
             await asyncio.sleep(1)
         print(f"Task {name} completed")
         return f"{name} result"
+
     return asyncio, background_task
 
 
@@ -25,7 +26,6 @@ def _():
 def _(asyncio, background_task):
     # Run this cell for a new background task
     a = asyncio.create_task(background_task("A", 2))
-    return
 
 
 @app.cell
@@ -33,7 +33,6 @@ def _(asyncio, refresh):
     # This list should have at least one task (the kernel). When creating tasks above, they should be added and then removed.
     refresh
     list(asyncio.all_tasks())
-    return
 
 
 @app.cell(hide_code=True)

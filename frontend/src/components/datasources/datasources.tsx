@@ -17,7 +17,8 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { Command, CommandInput, CommandItem } from "@/components/ui/command";
 import { Tooltip } from "@/components/ui/tooltip";
 import { maybeAddMarimoImport } from "@/core/cells/add-missing-import";
-import { cellIdsAtom, useCellActions } from "@/core/cells/cells";
+import { cellIdsAtom } from "@/core/cells/cells";
+import { useCellActions } from "@/core/cells/actions";
 import { useLastFocusedCellId } from "@/core/cells/focus";
 import { autoInstantiateAtom } from "@/core/config/config";
 import {
@@ -78,6 +79,7 @@ import {
   areChildSchemasResolved,
   areSchemasResolved,
   areTablesResolved,
+  fullyQualifiedTableName,
   isSchemaless,
   schemaSubtreeMatchesSearch,
   shouldExpandDatabaseForSearch,
@@ -284,6 +286,7 @@ export const DataSources: React.FC = () => {
         {hasSearch && (
           <button
             type="button"
+            aria-label="Clear table search"
             className="float-right border-b px-2 m-0 h-full hover:bg-accent hover:text-accent-foreground"
             onClick={() => setSearchValue("")}
           >
@@ -636,7 +639,7 @@ const SchemaNode: React.FC<SchemaNodeProps> = (props) => {
   const [prevSearchValue, setPrevSearchValue] = React.useState(searchValue);
   const [prevExpandForSearch, setPrevExpandForSearch] =
     React.useState(expandForSearch);
-  const uniqueValue = `${databaseName}:${schemaPath.join(".")}`;
+  const uniqueValue = JSON.stringify(["schema", databaseName, ...schemaPath]);
   const childSchemas = schema.child_schemas ?? [];
 
   // Re-sync when the query changes or when newly resolved data turns this
@@ -847,13 +850,13 @@ const DatasetTableItem: React.FC<{
 
   const autoInstantiate = useAtomValue(autoInstantiateAtom);
   const lastFocusedCellId = useLastFocusedCellId();
-  const { createNewCell } = useCellActions();
+  const { createCell } = useCellActions();
   const addCodeToNewCell = useAddCodeToNewCell();
 
   const handleAddTable = () => {
     maybeAddMarimoImport({
       autoInstantiate,
-      createNewCell,
+      createCell,
       fromCellId: lastFocusedCellId,
     });
     const getCode = () => {
@@ -1094,9 +1097,7 @@ const DatasetColumnItem: React.FC<{
               column={column}
               onAddColumnChart={handleAddColumn}
               preview={columnsPreviews.get(
-                sqlTableContext
-                  ? `${sqlTableContext.database}.${sqlTableContext.schema}.${table.name}:${column.name}`
-                  : `${table.name}:${column.name}`,
+                `${fullyQualifiedTableName(sqlTableContext, table.name)}:${column.name}`,
               )}
               sqlTableContext={sqlTableContext}
             />

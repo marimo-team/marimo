@@ -24,7 +24,6 @@ def _(mo):
     print("Hello World")
     ```
     """)
-    return
 
 
 @app.cell
@@ -35,7 +34,6 @@ def _(mo):
     print("Hello World")
     ```
     """)
-    return
 
 
 @app.cell
@@ -46,7 +44,6 @@ def _(mo):
         print("1 + 1 = {1 + 1}")
         ```
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -58,7 +55,6 @@ def _(mo):
     ```python {.marimo}
     ````
     """)
-    return
 
 
 @app.cell
@@ -66,7 +62,6 @@ def _():
     """
     ```
     """
-    return
 
 
 @app.cell
@@ -75,20 +70,17 @@ def _(mo):
     Cross cell injection
     ```python
     """)
-    return
 
 
 @app.cell
 def _():
     1 + 1
-    return
 
 
 @app.cell
 def _():
     # Actual print
     print("Hello World")
-    return
 
 
 if __name__ == "__main__":

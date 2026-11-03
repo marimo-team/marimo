@@ -11,13 +11,14 @@ export type { CatalogKind, NotebookKind } from "./kinds.ts";
 export {
   NotebookClient,
   type NotebookClientOptions,
+  type unstable_NotebookCall,
 } from "./notebook/client.ts";
 export {
   NotebookEvents,
   type NotebookEventsOptions,
   type NotebookEvent,
 } from "./notebook/events.ts";
-export type { Result } from "./request.ts";
+export { idempotencyKey, type Result } from "./request.ts";
 export {
   type Frame,
   type Transport,

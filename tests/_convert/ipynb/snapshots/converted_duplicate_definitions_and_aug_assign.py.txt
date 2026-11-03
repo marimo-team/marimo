@@ -12,7 +12,6 @@ def _():
 @app.cell
 def _(x):
     x
-    return
 
 
 @app.cell
@@ -24,7 +23,6 @@ def _(x):
 @app.cell
 def _(x_1):
     x_1
-    return
 
 
 if __name__ == "__main__":

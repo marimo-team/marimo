@@ -44,7 +44,7 @@ export const DataEditorPlugin = createPlugin<Edits>("marimo-data-editor", {
         ),
       }),
       label: z.string().nullable(),
-      data: z.union([z.string(), z.array(z.object({}).passthrough())]),
+      data: z.union([z.string(), z.array(z.looseObject({}))]),
       fieldTypes: columnToFieldTypesSchema.nullish(),
       columnNames: z.array(z.string()).default([]),
       editableColumns: z.union([z.array(z.string()), z.literal("all")]),

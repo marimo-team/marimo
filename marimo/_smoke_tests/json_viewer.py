@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.24.0"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -29,7 +29,6 @@ def _(mo):
     `True`, `False`, and `None`. MIME-looking strings must remain literal
     text in JSON mode. Expand the long string and check quotes and wrapping.
     """)
-    return
 
 
 @app.cell
@@ -49,15 +48,13 @@ def _():
 
 
 @app.cell
-def _(mo, sample):
+def _(mo, sample: dict):
     mo.json(sample, label="JSON values")
-    return
 
 
 @app.cell
-def _(sample):
+def _(sample: dict):
     sample
-    return
 
 
 @app.cell(hide_code=True)
@@ -69,7 +66,6 @@ def _(mo):
     and non-string keys. Copies should preserve Python literal syntax.
     HTML and Markdown leaves should render inline without a leaf copy button.
     """)
-    return
 
 
 @app.cell
@@ -86,7 +82,6 @@ def _(mo):
         "html": mo.Html("<strong>Rich HTML leaf</strong>"),
         "markdown": mo.md("**Rich Markdown leaf**"),
     }
-    return
 
 
 @app.cell(hide_code=True)
@@ -102,7 +97,6 @@ def _(mo):
     Expanding `a.b` must not change pagination for `a` → `b`, or vice versa.
     Empty keys and `__proto__` must remain visible as ordinary data keys.
     """)
-    return
 
 
 @app.cell
@@ -117,7 +111,6 @@ def _(mo):
         },
         label="Independent pagination",
     )
-    return
 
 
 @app.cell(hide_code=True)
@@ -129,13 +122,11 @@ def _(mo):
     Copying it must include all 720 values. Expand the deep tree manually;
     deeper levels should start collapsed and remain accessible.
     """)
-    return
 
 
 @app.cell
 def _(mo):
     mo.json([[row * 100 + col for col in range(60)] for row in range(12)])
-    return
 
 
 @app.cell
@@ -144,7 +135,6 @@ def _(mo):
     for _level in range(8, 0, -1):
         _tree = {f"level_{_level}": _tree}
     mo.json(_tree)
-    return
 
 
 @app.cell(hide_code=True)
@@ -155,7 +145,6 @@ def _(mo):
     Empty containers and scalar JSON roots should render without errors.
     JSON text passed to `mo.json` should parse into a tree.
     """)
-    return
 
 
 @app.cell
@@ -171,7 +160,6 @@ def _(mo):
             mo.json('{"parsed": [true, null, {"nested": 1}]}'),
         ]
     )
-    return
 
 
 @app.cell(hide_code=True)
@@ -183,11 +171,10 @@ def _(mo):
     and theme colors in each popover. The plain string should remain text.
     The inspector should use consistent string colors.
     """)
-    return
 
 
 @app.cell
-def _(json, mo, sample):
+def _(json, mo, sample: dict):
     mo.ui.table(
         [
             {
@@ -199,7 +186,6 @@ def _(json, mo, sample):
         ],
         selection=None,
     )
-    return
 
 
 @app.cell
@@ -207,7 +193,6 @@ def _(mo):
     from types import SimpleNamespace
 
     mo.inspect(SimpleNamespace(name="Inspector string", values=[1, True, None]))
-    return
 
 
 @app.cell(hide_code=True)
@@ -219,7 +204,6 @@ def _(mo):
     **Bad Data** alert. Open **View Data** and check that its JSON tree works.
     This is an expected frontend validation error, not a Python cell failure.
     """)
-    return
 
 
 @app.cell
@@ -235,7 +219,6 @@ def _(mo):
             },
         )
     )
-    return
 
 
 if __name__ == "__main__":

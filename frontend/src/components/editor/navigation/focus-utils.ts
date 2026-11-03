@@ -19,10 +19,10 @@ export function focusCellEditor(
   }
 }
 
-export function focusCell(cellId: CellId): void {
+export function focusCell(cellId: CellId, options?: FocusOptions): void {
   const element = document.getElementById(HTMLCellId.create(cellId));
   if (element) {
-    tryFocus(element);
+    tryFocus(element, options);
   } else {
     Logger.warn(`[CellFocusManager] focusCell: element not found: ${cellId}`);
   }
@@ -48,9 +48,9 @@ export function isAnyCellFocused(): boolean {
   );
 }
 
-export function tryFocus(dom: HTMLElement) {
+export function tryFocus(dom: HTMLElement, options?: FocusOptions) {
   try {
-    dom.focus();
+    dom.focus(options);
   } catch {
     Logger.warn("[CellFocusManager] element may not be focusable", dom);
   }

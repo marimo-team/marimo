@@ -21,7 +21,7 @@ import { Label } from "../../components/ui/label";
 import { useEvent } from "../../hooks/useEvent";
 import { Logger } from "../../utils/Logger";
 import { getCellConfigs, getNotebook, useNotebook } from "../cells/cells";
-import { withDocumentSave } from "../cells/document-changes";
+import { flushDocument, withDocumentSave } from "../cells/document";
 import { notebookCells } from "../cells/utils";
 import { formatAll } from "../codemirror/format";
 import { autoSaveConfigAtom } from "../config/config";
@@ -31,7 +31,8 @@ import { layoutStateAtom } from "../layout/state";
 import { kioskModeAtom } from "../mode";
 import { connectionAtom } from "../network/connection";
 import { useRequestClient } from "../network/requests";
-import { ConnectionState } from "../websocket/types";
+import { ConnectionState } from "../session/types";
+import { isWasm } from "../wasm/utils";
 import { filenameAtom } from "./file-state";
 import { useFilename, useUpdateFilename } from "./filename";
 import { lastSavedNotebookAtom, needsSaveAtom } from "./state";
@@ -136,7 +137,7 @@ export function useSaveNotebook() {
         return;
       }
 
-      const savedNotebook = await withDocumentSave(async () => {
+      const save = async () => {
         // Grab the latest notebook state after formatting and after every
         // earlier document transaction has reached the server.
         const notebook = getNotebook();
@@ -157,7 +158,12 @@ export function useSaveNotebook() {
           persist: true,
         });
         return { names: cellNames, codes, configs, layout };
-      });
+      };
+      // TODO(MO-7955): Remove this conditional once all frontend saves use
+      // the host protocol. Host saves cannot recover edits from an editor snapshot.
+      const savedNotebook = isWasm()
+        ? await flushDocument().then(save)
+        : await withDocumentSave(save);
       setLastSavedNotebook(savedNotebook);
     }),
   );

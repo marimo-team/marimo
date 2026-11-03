@@ -43,13 +43,12 @@ import { useResizeObserver } from "@/hooks/useResizeObserver";
 import { cn } from "@/utils/cn";
 import type { Milliseconds, Seconds } from "@/utils/time";
 import {
-  type CellActions,
   createUntouchedCellAtom,
-  useCellActions,
   useCellData,
   useCellHandle,
   useCellRuntime,
 } from "../../core/cells/cells";
+import { type CellActions, useCellActions } from "../../core/cells/actions";
 import { type CellId, SETUP_CELL_ID } from "../../core/cells/ids";
 import {
   cellNeedsRun,
@@ -59,7 +58,7 @@ import {
   shouldHidePublishedCell,
 } from "../../core/cells/utils";
 import type { UserConfig } from "../../core/config/config-schema";
-import { isAppInteractionDisabled } from "../../core/websocket/connection-utils";
+import { isAppInteractionDisabled } from "../../core/session/connection-utils";
 import { useCellRenderCount } from "../../hooks/useCellRenderCount";
 import type { Theme } from "../../theme/useTheme";
 import { Functions } from "../../utils/functions";
@@ -216,13 +215,10 @@ function useCellHiddenLogic({
 export type CellComponentActions = Pick<
   CellActions,
   | "updateCellCode"
-  | "createNewCell"
   | "focusCell"
   | "moveCell"
   | "collapseCell"
   | "expandCell"
-  | "moveToNextCell"
-  | "updateCellConfig"
   | "clearSerializedEditorState"
   | "setStdinResponse"
   | "clearCellConsoleOutput"
@@ -525,13 +521,22 @@ const EditableCellComponent = ({
     isMarkdownCodeHidden &&
     isEmptyMarkdownContent &&
     !needsRun && (
+      // Preserve pointer double-click editing; keyboard and assistive clicks activate directly.
+      // react-doctor-disable-next-line react-doctor/prefer-tag-over-role
       <div
+        // eslint-disable-next-line jsx-a11y/prefer-tag-over-role
         role="button"
-        aria-label="Double-click to edit markdown"
+        aria-label="Edit markdown"
         className="relative cursor-pointer px-3 py-2"
         onDoubleClick={showHiddenCodeIfMarkdown}
+        onClick={(e) => {
+          if (e.detail === 0) {
+            showHiddenCodeIfMarkdown();
+          }
+        }}
         onKeyDown={(e) => {
-          if (e.key === "Enter") {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
             showHiddenCodeIfMarkdown();
           }
         }}
@@ -919,15 +924,16 @@ const CellLeftSideActions = memo(
     actions: CellComponentActions;
   }) => {
     const connection = useAtomValue(connectionAtom);
-    const { className, actions, cellId } = props;
+    const { className, cellId } = props;
+    const { createCell } = useCellActions();
 
     const createBelow = useEvent(
-      (opts: { code?: string; hideCode?: boolean } = {}) =>
-        actions.createNewCell({ cellId, before: false, ...opts }),
+      ({ code, hideCode }: { code?: string; hideCode?: boolean } = {}) =>
+        createCell({ after: cellId, code, config: { hide_code: hideCode } }),
     );
     const createAbove = useEvent(
-      (opts: { code?: string; hideCode?: boolean } = {}) =>
-        actions.createNewCell({ cellId, before: true, ...opts }),
+      ({ code, hideCode }: { code?: string; hideCode?: boolean } = {}) =>
+        createCell({ before: cellId, code, config: { hide_code: hideCode } }),
     );
 
     const oneClickShortcut = "mod";

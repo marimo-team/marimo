@@ -1,31 +1,35 @@
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
 @app.cell
 def _():
     import marimo as mo
+
     return (mo,)
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md("""# SQL Alchemy with `mo.sql()`""")
-    return
+    mo.md("""
+    # SQL Alchemy with `mo.sql()`
+    """)
 
 
 @app.cell
 def _():
     from sqlalchemy import text, create_engine
+
     return (create_engine,)
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md("""## sqlite""")
-    return
+    mo.md("""
+    ## sqlite
+    """)
 
 
 @app.cell
@@ -63,7 +67,7 @@ def _(create_engine, mo):
 
 
 @app.cell
-def _(mo, sqlite):
+def _(mo, products, sqlite):
     products_df = mo.sql(
         f"""
         SELECT name, price, category
@@ -77,8 +81,9 @@ def _(mo, sqlite):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md("""### All Products (sorted by price)""")
-    return
+    mo.md("""
+    ### All Products (sorted by price)
+    """)
 
 
 @app.cell(hide_code=True)
@@ -95,17 +100,17 @@ def _(mo, products_df):
             ),
         ]
     )
-    return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""### Category Summary""")
-    return
+    mo.md(r"""
+    ### Category Summary
+    """)
 
 
 @app.cell
-def _(mo, sqlite):
+def _(mo, products, sqlite):
     _df = mo.sql(
         f"""
         -- Category summary
@@ -121,7 +126,6 @@ def _(mo, sqlite):
         """,
         engine=sqlite
     )
-    return
 
 
 @app.cell(hide_code=True)
@@ -135,7 +139,7 @@ def _(mo):
 
 
 @app.cell
-def _(mo, price_threshold, sqlite):
+def _(mo, price_threshold, products, sqlite):
     mo.sql(
         f"""
     SELECT name, price, category
@@ -145,13 +149,13 @@ def _(mo, price_threshold, sqlite):
     """,
         engine=sqlite,
     )
-    return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""## postgresql""")
-    return
+    mo.md(r"""
+    ## postgresql
+    """)
 
 
 @app.cell
@@ -189,7 +193,6 @@ def _(mo, my_postgres):
         """,
         engine=my_postgres
     )
-    return
 
 
 if __name__ == "__main__":

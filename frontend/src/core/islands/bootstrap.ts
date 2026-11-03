@@ -9,11 +9,7 @@ import {
 } from "@/plugins/impl/anywidget/registry";
 import { initializePlugins } from "@/plugins/plugins";
 import { Functions } from "@/utils/functions";
-import {
-  safeExtractSetUIElementMessageBuffers,
-  type JsonString,
-} from "@/utils/json/base64";
-import { jsonParseWithSpecialChar } from "@/utils/json/json-parser";
+import { safeExtractSetUIElementMessageBuffers } from "@/utils/json/base64";
 import { Logger } from "@/utils/Logger";
 import { logNever } from "@/utils/assertNever";
 import {
@@ -21,19 +17,20 @@ import {
   notebookAtom,
   notebookReducer,
 } from "../cells/cells";
+import { followDocument } from "../cells/document";
+import { notebookCells } from "../cells/utils";
+import { createDocumentModel } from "../notebook/document";
 import { defineCustomElement } from "../dom/defineCustomElement";
 import { MarimoValueInputEvent } from "../dom/events";
 import { UI_ELEMENT_REGISTRY } from "../dom/uiregistry";
 import { FUNCTIONS_REGISTRY } from "../functions/FunctionRegistry";
+import { createNotebookReplica } from "../notebook/replica";
 import {
   handleCellNotificationeration,
   handleKernelReady,
   handleRemoveUIElements,
 } from "../kernel/handlers";
-import type {
-  NotificationMessage,
-  NotificationMessageType,
-} from "../kernel/messages";
+import type { NotificationMessage } from "../kernel/messages";
 import { queryParamHandlers } from "../kernel/queryParamHandlers";
 import { RuntimeState } from "../kernel/RuntimeState";
 import { initialModeAtom } from "../mode";
@@ -126,19 +123,26 @@ export async function initializeIslands(
     }
   });
 
-  // Wire up kernel message handling
-  // The wire format is {"op": "...", "data": {"op": "...", ...}} — both
-  // the envelope and the payload carry the op. The bridge types the message
-  // as NotificationPayload (just {data}), but the actual wire format
-  // includes the outer op too.
-  // Worker metadata identifies the session that emitted the message.
-  bridge.consumeMessages(({ message, sessionGeneration }) => {
-    handleMessage(
-      message as unknown as JsonString<IslandsNotificationMessage>,
-      actions,
-      store,
-      sessionGeneration,
-    );
+  // Each notification names the session that sent it.
+  bridge.consumeNotifications((notification, sessionGeneration) => {
+    handleNotification(notification, actions, store, sessionGeneration);
+  });
+
+  // The notebook's cells follow the managed session's host document.
+  const replica = createNotebookReplica(store);
+  replica.connect(bridge.notebookBackend, { onNotification: Functions.NOOP });
+  const documentModel = createDocumentModel({
+    store,
+    documentAtom: replica.documentAtom,
+    backendAtom: replica.backendAtom,
+  });
+  const lifetime = new AbortController();
+  documentModel.start({ signal: lifetime.signal });
+  followDocument({
+    store,
+    model: documentModel,
+    reconcile: actions.reconcileDocument,
+    signal: lifetime.signal,
   });
 
   // Track first user interaction before initialization completes
@@ -154,27 +158,15 @@ export async function initializeIslands(
   RuntimeState.INSTANCE.start(bridge.sendComponentValues);
 }
 
-type IslandsNotificationMessage = {
-  [K in NotificationMessageType]: {
-    data: Extract<NotificationMessage, { op: K }>;
-    op: K;
-  };
-}[NotificationMessageType];
-
-/**
- * Handles a single message from the kernel.
- *
- * Wire format from Python: {"op": "<name>", "data": {"op": "<name>", ...}}
- */
+/** Handles a single notification from the kernel. */
 // oxlint-disable-next-line marimo/prefer-object-params
-function handleMessage(
-  message: JsonString<IslandsNotificationMessage>,
+function handleNotification(
+  msg: NotificationMessage,
   actions: NotebookActions,
   store: Store,
   sessionGeneration: number,
 ): void {
   try {
-    const msg = jsonParseWithSpecialChar(message);
     Logger.debug("Islands received message:", msg.op);
 
     switch (msg.op) {
@@ -223,9 +215,11 @@ function handleMessage(
         return;
 
       case "kernel-ready":
-        handleKernelReady(msg.data, {
+        handleKernelReady(msg, {
           autoInstantiate: true,
-          setCells: actions.setCells,
+          cells: notebookCells(store.get(notebookAtom)),
+          setLastRun: actions.setLastRun,
+          resetCellRuntimes: actions.resetCellRuntimes,
           setLayoutData: Functions.NOOP,
           setAppConfig: Functions.NOOP,
           setCapabilities: Functions.NOOP,
@@ -239,47 +233,47 @@ function handleMessage(
 
       case "send-ui-element-message":
         UI_ELEMENT_REGISTRY.broadcastMessage(
-          msg.data.ui_element,
-          msg.data.message,
-          safeExtractSetUIElementMessageBuffers(msg.data),
+          msg.ui_element,
+          msg.message,
+          safeExtractSetUIElementMessageBuffers(msg),
         );
         return;
 
       case "remove-ui-elements":
-        handleRemoveUIElements(msg.data);
+        handleRemoveUIElements(msg);
         return;
 
       case "function-call-result":
-        FUNCTIONS_REGISTRY.resolve(msg.data.function_call_id, msg.data);
+        FUNCTIONS_REGISTRY.resolve(msg.function_call_id, msg);
         return;
 
       case "cell-op":
-        handleCellNotificationeration(msg.data, actions.handleCellMessage);
+        handleCellNotificationeration(msg, actions.handleCellMessage);
         return;
 
       case "alert":
         toast({
-          title: msg.data.title,
-          description: renderHTML({ html: msg.data.description }),
-          variant: msg.data.variant,
+          title: msg.title,
+          description: renderHTML({ html: msg.description }),
+          variant: msg.variant,
         });
         return;
 
       case "query-params-append":
-        queryParamHandlers.append(msg.data);
+        queryParamHandlers.append(msg);
         return;
       case "query-params-set":
-        queryParamHandlers.set(msg.data);
+        queryParamHandlers.set(msg);
         return;
       case "query-params-delete":
-        queryParamHandlers.delete(msg.data);
+        queryParamHandlers.delete(msg);
         return;
       case "query-params-clear":
         queryParamHandlers.clear();
         return;
 
       case "model-lifecycle":
-        handleWidgetMessage(WIDGET_REGISTRY, msg.data);
+        handleWidgetMessage(WIDGET_REGISTRY, msg);
         return;
 
       case "consumer-capabilities":

@@ -13,7 +13,8 @@ import type React from "react";
 import { Suspense, useRef, useState } from "react";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import useEvent from "react-use-event-hook";
-import { useCellActions, useNotebook } from "@/core/cells/cells";
+import { useNotebook } from "@/core/cells/cells";
+import { useCellActions } from "@/core/cells/actions";
 import { useLastFocusedCellId } from "@/core/cells/focus";
 import { HTMLCellId, SCRATCH_CELL_ID } from "@/core/cells/ids";
 import { DEFAULT_CELL_NAME } from "@/core/cells/names";
@@ -55,7 +56,7 @@ export const ScratchPad: React.FC = () => {
   const { theme } = useTheme();
   const ref = useRef<EditorView | null>(null);
   const lastFocusedCellId = useLastFocusedCellId();
-  const { createNewCell, updateCellCode } = useCellActions();
+  const { updateCellCode, createCell } = useCellActions();
   const { sendRunScratchpad } = useRequestClient();
   const orientation = usePanelOrientation();
   const section = usePanelSection();
@@ -81,11 +82,7 @@ export const ScratchPad: React.FC = () => {
     if (!code.trim()) {
       return;
     }
-    createNewCell({
-      code,
-      before: false,
-      cellId: lastFocusedCellId ?? "__end__",
-    });
+    createCell({ after: lastFocusedCellId, code });
   });
 
   const handleClearCode = useEvent(() => {
@@ -123,6 +120,7 @@ export const ScratchPad: React.FC = () => {
           insert: item,
         },
       });
+      ev.focus();
     }
   });
 
@@ -135,12 +133,24 @@ export const ScratchPad: React.FC = () => {
     return (
       <div className="absolute inset-0 z-100 bg-background p-3 border-none overflow-auto">
         <div className="overflow-auto flex flex-col gap-3">
-          {history.map((item, index) => (
+          {history.map((item) => (
+            // The Recall code button provides keyboard access without making the code preview a button.
+            // react-doctor-disable-next-line react-doctor/click-events-have-key-events, react-doctor/no-static-element-interactions
             <div
-              key={index}
-              className="border rounded-md hover:shadow-sm cursor-pointer hover:border-input overflow-hidden"
+              key={item}
+              className="relative border rounded-md hover:shadow-sm cursor-pointer hover:border-input overflow-hidden"
               onClick={() => handleSelectHistoryItem(item)}
             >
+              <button
+                type="button"
+                className="sr-only focus:not-sr-only focus:absolute focus:right-1 focus:top-1 focus:z-10 focus:bg-background focus:px-2 focus:py-1 focus:outline focus:outline-ring"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleSelectHistoryItem(item);
+                }}
+              >
+                Recall code
+              </button>
               <Suspense>
                 <LazyAnyLanguageCodeMirror
                   language="python"

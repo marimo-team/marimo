@@ -139,6 +139,7 @@ exports[`cell reducer > can initialize stdin > second stdin requested 1`] = `
     {
       "channel": "stdin",
       "data": "what is your name?",
+      "id": 2,
       "mimetype": "text/plain",
       "response": "Marimo!",
       "timestamp": 2,
@@ -146,6 +147,7 @@ exports[`cell reducer > can initialize stdin > second stdin requested 1`] = `
     {
       "channel": "stdin",
       "data": "how old are you?",
+      "id": 3,
       "mimetype": "text/plain",
       "timestamp": 3,
     },
@@ -189,6 +191,7 @@ exports[`cell reducer > can initialize stdin > stdin answered 1`] = `
     {
       "channel": "stdin",
       "data": "what is your name?",
+      "id": 2,
       "mimetype": "text/plain",
       "response": "Marimo!",
       "timestamp": 2,
@@ -233,6 +236,7 @@ exports[`cell reducer > can initialize stdin > stdin requested 1`] = `
     {
       "channel": "stdin",
       "data": "what is your name?",
+      "id": 2,
       "mimetype": "text/plain",
       "timestamp": 2,
     },

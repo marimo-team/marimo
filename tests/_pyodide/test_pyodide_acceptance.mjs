@@ -12,6 +12,7 @@
  */
 
 import http from "node:http";
+import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
@@ -144,7 +145,7 @@ async function main() {
 
     // In Node.js, loadPyodide uses the bundled files from the npm package
     // Load without packages first, then add packages separately
-    const pyodide = await loadPyodide();
+    const pyodide = await loadPyodide({ convertNullToNone: true });
     console.log("Pyodide loaded successfully");
 
     // Load required packages that marimo depends on
@@ -209,11 +210,13 @@ print("Test notebook created at /home/pyodide/test_notebook.py")
 import json
 import asyncio
 
-# Collect messages sent by the session
+# Collect the notifications the session sends on its notebook stream
 messages = []
 
-def message_callback(msg):
-    messages.append(msg)
+def receive(raw):
+    event = json.loads(raw)
+    if event["event"] == "marimo":
+        messages.append(event["data"]["marimo"])
 
 # Import and create session
 from marimo._pyodide.bootstrap import create_session, instantiate
@@ -225,9 +228,9 @@ def init(auto_instantiate=True):
 session, bridge = create_session(
     filename="/home/pyodide/test_notebook.py",
     query_params={},
-    message_callback=message_callback,
     user_config={},
 )
+await bridge.notebook.subscribe("messages", None, receive)
 
 # Run the session
 init(session)
@@ -248,7 +251,6 @@ expected_methods = [
     "read_code",
     "read_snippets",
     "format",
-    "save",
     "save_app_config",
     "save_user_config",
     "rename_file",
@@ -277,7 +279,7 @@ if missing_methods:
 # Sleep until we get two messages (one after kernel-ready)
 while len(messages) < 2:
     await asyncio.sleep(0.1)
-message_ops = [json.loads(msg)["op"] for msg in messages]
+message_ops = [msg["op"] for msg in messages]
 
 print("Messages received:", message_ops);
 kernel_ready_received = "kernel-ready" in message_ops
@@ -294,6 +296,59 @@ result = {
 }
 json.dumps(result)
 `);
+
+    // Exercise the same Python proxy and callback lifetime as the worker RPC.
+    const notebook = pyodide.runPython("bridge.notebook");
+    const frames = [];
+    try {
+      // Host events only. Notifications follow them on the same stream.
+      await notebook.subscribe("acceptance", null, (raw) => {
+        const frame = JSON.parse(raw);
+        if (frame.event !== "marimo") {
+          frames.push(frame);
+        }
+      });
+      assert.equal(frames.at(-1).event, "ready");
+      const cell = frames.find((frame) => frame.event === "cell").data.cell;
+      const call = JSON.stringify({
+        operation: "notebook.edit",
+        params: { notebook_id: cell.notebook_id },
+        headers: { "idempotency-key": "wasm-acceptance-edit" },
+        body: { changes: [{
+          kind: "put_cell", base_etag: cell.etag,
+          cell: { id: cell.id, code: "x = 7", name: cell.name, config: cell.config },
+        }] },
+      });
+      const reply = JSON.parse(await notebook.call(call));
+      assert.equal(reply.status, 200);
+      assert.deepEqual(frames.at(-1).data.document, reply.body.document);
+      assert.equal(frames.at(-2).data.cell.code, "x = 7");
+      assert.equal(frames.at(-1).data.request_id, "wasm-acceptance-edit");
+      const count = frames.length;
+      assert.deepEqual(JSON.parse(await notebook.call(call)), reply);
+      assert.equal(frames.length, count);
+      assert.equal(pyodide.runPython("list(session.app_manager.app.cell_manager.codes())[0]"), "x = 7");
+      notebook.set_persistence(async (contents, filename) => {
+        await Promise.resolve();
+        pyodide.FS.writeFile(filename, contents);
+      });
+      const save = JSON.stringify({
+        operation: "notebook.save",
+        params: { notebook_id: cell.notebook_id },
+        headers: { "idempotency-key": "wasm-acceptance-save" },
+        body: {},
+      });
+      const saved = JSON.parse(await notebook.call(save));
+      assert.equal(saved.status, 200);
+      assert.equal(saved.body.document.etag, saved.body.document.saved_etag);
+      assert.match(
+        pyodide.FS.readFile("/home/pyodide/test_notebook.py", { encoding: "utf8" }),
+        /x = 7/,
+      );
+      notebook.unsubscribe("acceptance");
+    } finally {
+      notebook.destroy();
+    }
 
     // Step 6: Test mo.watch.file in Pyodide (within execution context)
     console.log("Step 6: Testing mo.watch.file in Pyodide...");

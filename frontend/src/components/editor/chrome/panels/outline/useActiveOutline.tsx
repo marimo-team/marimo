@@ -113,9 +113,10 @@ export function findOutlineElements(items: OutlineItem[]) {
   return items
     .map((item) => {
       const identifier = "id" in item.by ? item.by.id : item.by.path;
+      const selector = JSON.stringify(item.by);
       // Keep track of how many times we've seen this selector
-      const occurrences = seen.get(identifier) ?? 0;
-      seen.set(identifier, occurrences + 1);
+      const occurrences = seen.get(selector) ?? 0;
+      seen.set(selector, occurrences + 1);
 
       const el = findOutlineItem(item, occurrences);
       if (!el) {

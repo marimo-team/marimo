@@ -3,13 +3,10 @@
 import type { EditorView } from "@codemirror/view";
 import { z } from "zod";
 import { scrollAndHighlightCell } from "@/components/editor/links/cell-link";
-import {
-  type CellPosition as NotebookCellPosition,
-  type NotebookState,
-  notebookAtom,
-} from "@/core/cells/cells";
+import { type NotebookState, notebookAtom } from "@/core/cells/cells";
+import type { CreateCellOptions } from "@/core/cells/actions";
 import { CellId } from "@/core/cells/ids";
-import { updateEditorCodeFromPython } from "@/core/codemirror/language/utils";
+import { prepareCellCodeUpdate } from "@/core/codemirror/language/cell-code";
 import type { CellColumnId } from "@/utils/id-tree";
 import { stagedAICellsAtom } from "../staged-cells";
 import {
@@ -86,7 +83,7 @@ export class EditNotebookTool implements AiTool<
     { edit }: EditNotebookInput,
     toolContext: ToolNotebookContext,
   ): Promise<ToolOutputBase> => {
-    const { addStagedCell, createNewCell, store } = toolContext;
+    const { addStagedCell, createCell, store } = toolContext;
 
     switch (edit.type) {
       case "update_cell": {
@@ -94,19 +91,17 @@ export class EditNotebookTool implements AiTool<
         const cellId = position.cellId as CellId | undefined;
 
         if (!cellId) {
-          throw new ToolExecutionError(
-            "Cell ID is required for update_cell",
-            "CELL_ID_REQUIRED_FOR_UPDATE_CELL",
-            true,
-            "Provide a cell ID to update",
-          );
+          throw new ToolExecutionError("Cell ID is required for update_cell", {
+            code: "CELL_ID_REQUIRED_FOR_UPDATE_CELL",
+            isRetryable: true,
+            suggestedFix: "Provide a cell ID to update",
+          });
         } else if (!code) {
-          throw new ToolExecutionError(
-            "Code is required for update_cell",
-            "CODE_REQUIRED_FOR_UPDATE_CELL",
-            true,
-            "Provide the new code to update the cell",
-          );
+          throw new ToolExecutionError("Code is required for update_cell", {
+            code: "CODE_REQUIRED_FOR_UPDATE_CELL",
+            isRetryable: true,
+            suggestedFix: "Provide the new code to update the cell",
+          });
         }
 
         const notebook = store.get(notebookAtom);
@@ -119,7 +114,12 @@ export class EditNotebookTool implements AiTool<
 
         // If previous edit was from a new cell, just replace editor code with the new code
         if (existingStagedCell?.type === "add_cell") {
-          updateEditorCodeFromPython(editorView, code);
+          const update = prepareCellCodeUpdate(editorView.state, code, {
+            initialize: true,
+          });
+          if (update) {
+            editorView.dispatch(update);
+          }
           break;
         }
 
@@ -139,15 +139,20 @@ export class EditNotebookTool implements AiTool<
           edit: { type: "update_cell", previousCode: previousCode },
         });
 
-        updateEditorCodeFromPython(editorView, code);
+        const update = prepareCellCodeUpdate(editorView.state, code, {
+          initialize: true,
+        });
+
+        if (update) {
+          editorView.dispatch(update);
+        }
 
         break;
       }
       case "add_cell": {
         const { position, code } = edit;
 
-        let notebookPosition: NotebookCellPosition = "__end__";
-        let before = false;
+        let placement: CreateCellOptions = {};
         const newCellId = CellId.create();
         const notebook = store.get(notebookAtom);
 
@@ -157,51 +162,54 @@ export class EditNotebookTool implements AiTool<
             if (!cellId) {
               throw new ToolExecutionError(
                 "Cell ID is required for add_cell with relative position",
-                "TOOL_ERROR",
-                true,
-                "Provide a cell ID to add the cell before",
+                {
+                  code: "TOOL_ERROR",
+                  isRetryable: true,
+                  suggestedFix: "Provide a cell ID to add the cell before",
+                },
               );
             }
 
             if (position.before === undefined) {
               throw new ToolExecutionError(
                 "Before is required for add_cell with relative position",
-                "TOOL_ERROR",
-                true,
-                `Provide a boolean value for before, true to add before cell ${cellId}, false to add after the cell`,
+                {
+                  code: "TOOL_ERROR",
+                  isRetryable: true,
+                  suggestedFix: `Provide a boolean value for before, true to add before cell ${cellId}, false to add after the cell`,
+                },
               );
             }
 
             this.validateCellIdExists(cellId, notebook);
-            notebookPosition = cellId;
-            before = position.before;
+            placement = position.before
+              ? { before: cellId }
+              : { after: cellId };
             break;
           }
-          case "column_end": {
+          case "column_end":
             if (!position.columnIndex) {
               throw new ToolExecutionError(
                 "Column index is required for add_cell with column_end position",
-                "TOOL_ERROR",
-                true,
-                "Provide a column index to add the cell at the end of",
+                {
+                  code: "TOOL_ERROR",
+                  isRetryable: true,
+                  suggestedFix:
+                    "Provide a column index to add the cell at the end of",
+                },
               );
             }
 
-            const columnId = this.getColumnId(position.columnIndex, notebook);
-            notebookPosition = { type: "__end__", columnId };
+            placement = {
+              endOf: this.getColumnId(position.columnIndex, notebook),
+            };
             break;
-          }
+
           case "notebook_end":
-            // Use default: notebookPosition = "__end__"
             break;
         }
 
-        createNewCell({
-          cellId: notebookPosition,
-          before,
-          code,
-          newCellId,
-        });
+        createCell({ ...placement, code, id: newCellId });
 
         addStagedCell({
           cellId: newCellId,
@@ -218,12 +226,11 @@ export class EditNotebookTool implements AiTool<
         const cellId = position.cellId as CellId | undefined;
 
         if (!cellId) {
-          throw new ToolExecutionError(
-            "Cell ID is required for delete_cell",
-            "CELL_ID_REQUIRED_FOR_DELETE_CELL",
-            true,
-            "Provide a cell ID to delete",
-          );
+          throw new ToolExecutionError("Cell ID is required for delete_cell", {
+            code: "CELL_ID_REQUIRED_FOR_DELETE_CELL",
+            isRetryable: true,
+            suggestedFix: "Provide a cell ID to delete",
+          });
         }
 
         const notebook = store.get(notebookAtom);
@@ -255,12 +262,11 @@ export class EditNotebookTool implements AiTool<
   private validateCellIdExists(cellId: CellId, notebook: NotebookState) {
     const cellIds = notebook.cellIds;
     if (!cellIds.getColumns().some((column) => column.idSet.has(cellId))) {
-      throw new ToolExecutionError(
-        "Cell not found",
-        "CELL_NOT_FOUND",
-        false,
-        "Check which cells exist in the notebook",
-      );
+      throw new ToolExecutionError("Cell not found", {
+        code: "CELL_NOT_FOUND",
+        isRetryable: false,
+        suggestedFix: "Check which cells exist in the notebook",
+      });
     }
   }
 
@@ -272,12 +278,12 @@ export class EditNotebookTool implements AiTool<
     const columns = cellIds.getColumns();
 
     if (columnIndex < 0 || columnIndex >= columns.length) {
-      throw new ToolExecutionError(
-        "Column index is out of range",
-        "COLUMN_INDEX_OUT_OF_RANGE",
-        true,
-        "Choose a column index between 0 and the number of columns in the notebook (0-based)",
-      );
+      throw new ToolExecutionError("Column index is out of range", {
+        code: "COLUMN_INDEX_OUT_OF_RANGE",
+        isRetryable: true,
+        suggestedFix:
+          "Choose a column index between 0 and the number of columns in the notebook (0-based)",
+      });
     }
     return columns[columnIndex].id;
   }
@@ -289,12 +295,11 @@ export class EditNotebookTool implements AiTool<
     const cellHandles = notebook.cellHandles;
     const cellHandle = cellHandles[cellId].current;
     if (!cellHandle?.editorView) {
-      throw new ToolExecutionError(
-        "Cell editor not found",
-        "CELL_EDITOR_NOT_FOUND",
-        false,
-        "Internal error, ask the user to report this error",
-      );
+      throw new ToolExecutionError("Cell editor not found", {
+        code: "CELL_EDITOR_NOT_FOUND",
+        isRetryable: false,
+        suggestedFix: "Internal error, ask the user to report this error",
+      });
     }
     return cellHandle.editorView;
   }

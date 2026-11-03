@@ -6,6 +6,7 @@ from __future__ import annotations
 import re
 import time
 from typing import (
+    Annotated,
     Any,
     ClassVar,
     Literal,
@@ -16,7 +17,8 @@ import msgspec
 
 from marimo import _loggers as loggers
 from marimo._ast.app_config import _AppConfig
-from marimo._ast.cell import CellConfig, RuntimeStateType
+from marimo._ast.cell import RuntimeStateType
+from marimo._core.protocol import Revision
 from marimo._data._external_storage.models import (
     StorageEntry,
     StorageNamespace,
@@ -47,7 +49,7 @@ from marimo._types.ids import (
     VariableName,
     WidgetModelId,
 )
-from marimo._utils.msgspec_basestruct import BaseStruct
+from marimo._utils.msgspec_basestruct import BaseStruct, MsgspecSchema
 from marimo._utils.platform import is_pyodide, is_windows
 
 LOGGER = loggers.marimo_logger()
@@ -101,6 +103,7 @@ class ExecutionNotification(Notification, tag="execution"):
     phase: Literal["planned", "running", "completed"]
     code: str | None = None
     caused_by: str | None = None
+    depends_on: dict[str, Revision | None] | None = None
 
 
 class CellNotification(Notification, tag="cell-op"):
@@ -436,11 +439,7 @@ class KernelReadyNotification(Notification, tag="kernel-ready"):
     """Kernel ready for execution. First notification sent at startup.
 
     Attributes:
-        cell_ids: Cell IDs in order.
-        codes: Source code for each cell.
-        names: Cell names/titles.
         layout: Notebook layout config.
-        configs: Per-cell configuration.
         resumed: Whether resumed from previous session.
         ui_values: Previous UI element values if resumed.
         last_executed_code: Last executed code per cell if resumed.
@@ -454,11 +453,7 @@ class KernelReadyNotification(Notification, tag="kernel-ready"):
     """
 
     name: ClassVar[str] = "kernel-ready"
-    cell_ids: tuple[CellId_t, ...]
-    codes: tuple[str, ...]
-    names: tuple[str, ...]
     layout: LayoutConfig | None
-    configs: tuple[CellConfig, ...]
     resumed: bool
     ui_values: dict[str, JSONType] | None
     last_executed_code: dict[CellId_t, str] | None
@@ -714,6 +709,8 @@ class VariableValue(BaseStruct):
     name: str
     value: str | None
     datatype: str | None
+    execution_id: str | None = None
+    revision: Annotated[Revision, MsgspecSchema] | None = None
 
 
 class VariablesNotification(Notification, tag="variables"):
@@ -727,15 +724,24 @@ class VariablesNotification(Notification, tag="variables"):
     variables: list[VariableDeclarationNotification]
 
 
+class VariableRemoval(BaseStruct):
+    """A binding removed from the runtime's namespace."""
+
+    name: str
+    execution_id: str
+
+
 class VariableValuesNotification(Notification, tag="variable-values"):
     """Current variable values.
 
     Attributes:
         variables: Variables with current values and types.
+        removed: Bindings that no longer exist, identified by their producer.
     """
 
     name: ClassVar[str] = "variable-values"
     variables: list[VariableValue]
+    removed: list[VariableRemoval] = msgspec.field(default_factory=list)
 
 
 class DatasetsNotification(Notification, tag="datasets"):

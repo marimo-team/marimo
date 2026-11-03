@@ -27,7 +27,6 @@ from marimo._messaging.notification import (
     DatasetsNotification,
     DataSourceConnectionsNotification,
     StorageNamespacesNotification,
-    VariableValuesNotification,
 )
 from marimo._messaging.notification_utils import (
     CellNotificationUtils,
@@ -38,7 +37,6 @@ from marimo._messaging.tracebacks import (
     format_exception_message,
     write_traceback,
 )
-from marimo._messaging.variables import create_variable_value
 from marimo._output import formatting
 from marimo._plugins.ui._core.ui_element import UIElement
 from marimo._runtime.context.types import (
@@ -120,27 +118,6 @@ def _set_run_result_status(
         )
     else:
         cell.set_run_result_status("success")
-
-
-@kernel_tracer.start_as_current_span("broadcast_variables")
-def _broadcast_variables(
-    cell: CellImpl,
-    ctx: PostExecutionHookContext,
-    run_result: cell_runner.RunResult,
-) -> None:
-    if not ctx.should_broadcast_data:
-        return
-
-    del run_result
-    values = [
-        create_variable_value(
-            name=variable,
-            value=(ctx.glbls.get(variable, None)),
-        )
-        for variable in cell.defs
-    ]
-    if values:
-        broadcast_notification(VariableValuesNotification(variables=values))
 
 
 @kernel_tracer.start_as_current_span("broadcast_datasets")
@@ -559,7 +536,6 @@ POST_EXECUTION_HOOKS: list[PostExecutionHook] = [
     _store_reference_to_output,
     _store_state_reference,
     _issue_exception_side_effect,
-    _broadcast_variables,
     _broadcast_datasets,
     _broadcast_data_source_connection,
     _broadcast_duckdb_datasource,

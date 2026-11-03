@@ -14,7 +14,7 @@ export const AGENT_LABELS: Record<AgentTab, string> = {
   claude: "Claude",
   codex: "Codex",
   opencode: "OpenCode",
-  prompt: "Prompt",
+  prompt: "Other Agents",
 };
 
 /** How to invoke marimo: from the local checkout in dev, else via uvx. */
@@ -67,7 +67,7 @@ export function getTerminalCommand(
 }
 
 /**
- * The raw prompt for the "Prompt" tab. Mirrors the output of
+ * The raw prompt for the "Other Agents" tab. Mirrors the output of
  * `marimo pair prompt` (see `marimo/_cli/pair/commands.py`) so pasting it into
  * an agent behaves the same as the terminal commands.
  */

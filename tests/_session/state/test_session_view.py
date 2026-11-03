@@ -8,6 +8,7 @@ import msgspec
 import pytest
 
 from marimo._ast.cell import RuntimeStateType
+from marimo._core.protocol import ExecutionId, Revision
 from marimo._data.models import (
     Database,
     DataSourceConnection,
@@ -47,6 +48,7 @@ from marimo._messaging.notification import (
     StartupLogsNotification,
     StartupProgressNotification,
     VariableDeclarationNotification,
+    VariableRemoval,
     VariablesNotification,
     VariableValue,
     VariableValuesNotification,
@@ -212,6 +214,31 @@ def test_session_view_variable_values(session_view: SessionView) -> None:
     variables_names = session_view.variable_values.keys()
     # var1 was removed, var2 was not changed, var3 has no value yet
     assert list(variables_names) == ["var2"]
+
+
+def test_variable_removals_only_remove_the_named_binding(
+    session_view: SessionView,
+) -> None:
+    value = VariableValue(
+        name="x", value="1", datatype="int", execution_id="new"
+    )
+    session_view.add_notification(
+        VariableValuesNotification(variables=[value])
+    )
+    for execution_id in ("old", "new", "new"):
+        session_view.add_raw_notification(
+            serialize_kernel_message(
+                VariableValuesNotification(
+                    variables=[],
+                    removed=[
+                        VariableRemoval(name="x", execution_id=execution_id)
+                    ],
+                )
+            )
+        )
+        assert session_view.variable_values == (
+            {"x": value} if execution_id == "old" else {}
+        )
 
 
 def test_ui_values(session_view: SessionView) -> None:
@@ -725,10 +752,23 @@ def test_last_run_code(session_view: SessionView) -> None:
     assert session_view.last_executed_code[cell_id] == "print('hello')"
 
 
-def test_serialize_parse_variable_value() -> None:
+@pytest.mark.parametrize("execution_id", [None, "execution-1"])
+def test_serialize_parse_variable_value(execution_id: str | None) -> None:
     original = create_variable_value(name="var1", value=1)
+    original.execution_id = execution_id
+    original.revision = (
+        Revision(ExecutionId(execution_id), 2) if execution_id else None
+    )
     serialized = serialize(original)
-    assert serialized == {"datatype": "int", "name": "var1", "value": "1"}
+    assert serialized == {
+        "datatype": "int",
+        "name": "var1",
+        "value": "1",
+        "execution_id": execution_id,
+        "revision": (
+            {"execution": execution_id, "update": 2} if execution_id else None
+        ),
+    }
     parsed = parse_raw(serialized, VariableValue)
     assert parsed == original
 

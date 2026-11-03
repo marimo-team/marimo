@@ -208,13 +208,19 @@ export class RemoteCursorMarker implements LayerMarker {
   private name: string;
   private colorClassName: string;
 
-  public constructor(
-    left: number,
-    top: number,
-    height: number,
-    name: string,
-    colorClassName: string,
-  ) {
+  public constructor({
+    left,
+    top,
+    height,
+    name,
+    colorClassName,
+  }: {
+    left: number;
+    top: number;
+    height: number;
+    name: string;
+    colorClassName: string;
+  }) {
     this.left = left;
     this.top = top;
     this.height = height;
@@ -271,13 +277,13 @@ export class RemoteCursorMarker implements LayerMarker {
     const baseLeft = left - view.scrollDOM.scrollLeft;
     const baseTop = rect.top - view.scrollDOM.scrollTop;
     return [
-      new RemoteCursorMarker(
-        absolutePosition.left - baseLeft,
-        absolutePosition.top - baseTop,
-        absolutePosition.bottom - absolutePosition.top,
-        displayName,
+      new RemoteCursorMarker({
+        left: absolutePosition.left - baseLeft,
+        top: absolutePosition.top - baseTop,
+        height: absolutePosition.bottom - absolutePosition.top,
+        name: displayName,
         colorClassName,
-      ),
+      }),
     ];
   }
 
@@ -375,12 +381,21 @@ export class AwarenessPlugin implements PluginValue {
 
   public constructor(
     view: EditorView,
-    doc: LoroDoc,
-    user: UserState,
-    awareness: Awareness<AwarenessState>,
-    getTextFromDoc: (doc: LoroDoc) => LoroText,
-    scopeId: ScopeId,
-    getUserId?: () => Uid,
+    {
+      doc,
+      user,
+      awareness,
+      getTextFromDoc,
+      scopeId,
+      getUserId,
+    }: {
+      doc: LoroDoc;
+      user: UserState;
+      awareness: Awareness<AwarenessState>;
+      getTextFromDoc: (doc: LoroDoc) => LoroText;
+      scopeId: ScopeId;
+      getUserId?: () => Uid;
+    },
   ) {
     this.view = view;
     this.doc = doc;

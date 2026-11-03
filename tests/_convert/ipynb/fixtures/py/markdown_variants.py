@@ -24,7 +24,6 @@ def _(mo):
 
     Plain triple-quoted markdown.
     """)
-    return
 
 
 @app.cell
@@ -34,7 +33,6 @@ def _(mo):
 
     Raw triple-quoted markdown.
     """)
-    return
 
 
 @app.cell
@@ -44,7 +42,6 @@ def _(mo):
 
     F-string with no interpolation.
     """)
-    return
 
 
 @app.cell
@@ -54,13 +51,11 @@ def _(mo):
 
     FR-string with no interpolation.
     """)
-    return
 
 
 @app.cell
 def _(mo, x):
     mo.md(f"The value is **{x}**")
-    return
 
 
 if __name__ == "__main__":

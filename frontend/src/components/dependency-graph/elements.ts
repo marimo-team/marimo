@@ -42,6 +42,14 @@ export interface NodeData {
 }
 export type CustomNodeProps = NodeProps<NodeData>;
 
+interface CreateElementsOptions {
+  cellIds: CellId[];
+  cellAtoms: Atom<CellData>[];
+  variables: Variables;
+  hidePureMarkdown: boolean;
+  hideReusableFunctions: boolean;
+}
+
 const LINE_HEIGHT = 11; // matches TinyCode.css
 
 export function getNodeHeight(linesOfCode: number) {
@@ -176,13 +184,10 @@ export function computeDefsByCell(
 }
 
 interface ElementsBuilder {
-  createElements: (
-    cellIds: CellId[],
-    cellAtoms: Atom<CellData>[],
-    variables: Variables,
-    hidePureMarkdown: boolean,
-    hideReusableFunctions: boolean,
-  ) => { nodes: Node<NodeData>[]; edges: Edge[] };
+  createElements: (options: CreateElementsOptions) => {
+    nodes: Node<NodeData>[];
+    edges: Edge[];
+  };
 }
 
 export class VerticalElementsBuilder implements ElementsBuilder {
@@ -225,13 +230,11 @@ export class VerticalElementsBuilder implements ElementsBuilder {
     };
   }
 
-  public createElements(
-    cellIds: CellId[],
-    cellAtoms: Atom<CellData>[],
-    variables: Variables,
-    _hidePureMarkdown: boolean,
-    _hideReusableFunctions: boolean,
-  ) {
+  public createElements({
+    cellIds,
+    cellAtoms,
+    variables,
+  }: CreateElementsOptions) {
     let prevY = 0;
     const nodes: Node<NodeData>[] = [];
     const edges: Edge[] = [];
@@ -311,13 +314,13 @@ export class TreeElementsBuilder implements ElementsBuilder {
     };
   }
 
-  public createElements(
-    cellIds: CellId[],
-    cellAtoms: Atom<CellData>[],
-    variables: Variables,
-    hidePureMarkdown: boolean,
-    hideReusableFunctions: boolean,
-  ) {
+  public createElements({
+    cellIds,
+    cellAtoms,
+    variables,
+    hidePureMarkdown,
+    hideReusableFunctions,
+  }: CreateElementsOptions) {
     const nodes: Node<NodeData>[] = [];
 
     const cellRuntime = getNotebook().cellRuntime;

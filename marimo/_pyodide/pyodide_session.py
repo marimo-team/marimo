@@ -22,6 +22,15 @@ from marimo._export.requests import (
 )
 from marimo._export.serialization import serialize_notebook_snapshot
 from marimo._messaging.msgspec_encoder import encode_json_str
+from marimo._messaging.notebook import Transaction
+from marimo._messaging.notebook.reconcile import reconcile_transaction
+from marimo._messaging.notification import (
+    NotebookDocumentTransactionNotification,
+)
+from marimo._messaging.serde import (
+    deserialize_kernel_message,
+    deserialize_kernel_notification_name,
+)
 from marimo._messaging.types import KernelStreams
 from marimo._pyodide.restartable_task import RestartableTask
 from marimo._pyodide.streams import (
@@ -73,7 +82,6 @@ from marimo._server.models.models import (
     FormatResponse,
     ReadCodeResponse,
     SaveAppConfigurationRequest,
-    SaveNotebookRequest,
     SaveUserConfigurationRequest,
 )
 from marimo._session.model import SessionMode
@@ -88,6 +96,7 @@ if TYPE_CHECKING:
 
     from marimo._ast.cell import CellConfig
     from marimo._messaging.types import KernelMessage
+    from marimo._pyodide.notebook import PyodideNotebook
     from marimo._runtime.context.types import RuntimeContext
     from marimo._session.notebook.file_manager import AppFileManager
     from marimo._types.ids import CellId_t
@@ -127,7 +136,6 @@ class PyodideSession:
         self,
         app: AppFileManager,
         mode: SessionMode,
-        on_write: Callable[[KernelMessage], None],
         app_metadata: AppMetadata,
         user_config: MarimoConfig,
     ) -> None:
@@ -138,22 +146,27 @@ class PyodideSession:
         self.mode = mode
         self.app_metadata = app_metadata
         self._queue_manager = AsyncQueueManager()
-        self.session_consumer = on_write
         self.session_view = SessionView()
+        self.instantiated = False
         self._initial_user_config = user_config
         self._enqueue_control_request = make_control_enqueuer(
             self._queue_manager.control_queue,
             self._queue_manager.set_ui_element_queue,
         )
 
+        # Notebook subscriptions add themselves to receive notifications.
         self.consumers: list[Callable[[KernelMessage], None]] = [
-            lambda msg: self.session_consumer(msg),
-            lambda msg: self.session_view.add_raw_notification(msg),
+            self.session_view.add_raw_notification,
         ]
 
     def _on_message(self, msg: KernelMessage) -> None:
-        for consumer in self.consumers:
-            consumer(msg)
+        # A consumer may unsubscribe during delivery, and one that fails
+        # must not keep the notification from the others.
+        for consumer in list(self.consumers):
+            try:
+                consumer(msg)
+            except Exception:
+                LOGGER.exception("A notification consumer failed")
 
     async def start(self) -> None:
         self.kernel_task = _launch_pyodide_kernel(
@@ -171,6 +184,7 @@ class PyodideSession:
 
     def put_control_request(self, request: commands.CommandMessage) -> None:
         self._enqueue_control_request(request)
+        self.session_view.add_control_request(request)
 
     def put_completion_request(
         self, request: commands.CodeCompletionCommand
@@ -245,6 +259,43 @@ class PyodideBridge:
     ):
         self.session = session
         self.file_system = OSFileSystem()
+        self._notebook: PyodideNotebook | None = None
+        self.session.consumers.append(self._on_message)
+
+    def _on_message(self, message: KernelMessage) -> None:
+        if (
+            deserialize_kernel_notification_name(message)
+            != "notebook-document-transaction"
+        ):
+            return
+        notification = deserialize_kernel_message(message)
+        assert isinstance(
+            notification, NotebookDocumentTransactionNotification
+        )
+        transaction = notification.transaction
+        if transaction.source == "host":
+            return
+        # Kernel/code-mode edits already reached the frontend; retain them for
+        # subsequent host saves without sending them back to the kernel.
+        document = self.session.app_manager.app.cell_manager.document
+        changes = reconcile_transaction(transaction.changes, document)
+        document.apply(Transaction(changes=changes, source=transaction.source))
+        if self._notebook is not None:
+            self._notebook.refresh()
+
+    @property
+    def notebook(self) -> PyodideNotebook:
+        if self._notebook is None:
+            from marimo._pyodide.notebook import PyodideNotebook
+
+            self._notebook = PyodideNotebook(self.session)
+        return self._notebook
+
+    def close(self) -> None:
+        if self._on_message in self.session.consumers:
+            self.session.consumers.remove(self._on_message)
+        if self._notebook is not None:
+            self._notebook.close()
 
     def put_control_request(self, request: str) -> None:
         parsed = parse_command(request)
@@ -278,13 +329,9 @@ class PyodideBridge:
         response = FormatResponse(codes=await formatter.format(parsed.codes))
         return self._dump(response)
 
-    def save(self, request: str) -> None:
-        parsed = self._parse(request, SaveNotebookRequest)
-        self.session.app_manager.save(parsed)
-
-    def save_app_config(self, request: str) -> None:
+    async def save_app_config(self, request: str) -> None:
         parsed = self._parse(request, SaveAppConfigurationRequest)
-        self.session.app_manager.save_app_config(parsed.config)
+        await self.notebook.update_config(parsed.config)
 
     def save_user_config(self, request: str) -> None:
         parsed = self._parse(request, SaveUserConfigurationRequest)

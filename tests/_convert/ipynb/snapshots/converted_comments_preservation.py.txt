@@ -24,7 +24,6 @@ def _():
     # This variable will be redefined later
     y = 10  # First definition
     print(y)  # Should preserve this comment
-    return
 
 
 @app.cell
@@ -45,7 +44,6 @@ def _():
     # Comment before magic
     import os
     os.listdir()
-    return
 
 
 @app.cell
@@ -55,7 +53,6 @@ def _(mo):
     SELECT * FROM table  -- Another SQL comment
     WHERE id > 0  # Python-style comment in SQL
     """)
-    return
 
 
 @app.cell
@@ -72,7 +69,6 @@ def _(np):
     # Cell 7: Duplicate import with different comment
     # This should be deduplicated but preserve one of the comments
     arr = np.array([1, 2, 3])  # Create array
-    return
 
 
 @app.cell
@@ -81,7 +77,6 @@ def _(x, y_1):
     # Calculate something complex
     # Final comment in cell
     z = x * 2 + y_1  # Multiply x by 2  # Add y to the result
-    return
 
 
 @app.cell
@@ -90,7 +85,6 @@ def _():
     counter = 0  # Initialize counter
     # This should preserve comments during aug assign transformation
     counter = counter + 1  # Increment counter (this will be transformed)
-    return
 
 
 @app.cell

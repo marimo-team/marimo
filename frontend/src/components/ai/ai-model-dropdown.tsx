@@ -276,13 +276,18 @@ const ProviderDropdownContent = ({
             const qualifiedModelId: QualifiedModelId = `${provider}/${model.model}`;
             return (
               <DropdownMenuSub key={qualifiedModelId}>
-                <DropdownMenuSubTrigger showChevron={false} className="py-2">
-                  <div
-                    className="flex items-center gap-2 w-full cursor-pointer"
-                    onClick={() => {
+                <DropdownMenuSubTrigger
+                  showChevron={false}
+                  className="py-2"
+                  onClick={() => onSelect(qualifiedModelId)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
                       onSelect(qualifiedModelId);
-                    }}
-                  >
+                    }
+                  }}
+                >
+                  <div className="flex items-center gap-2 w-full cursor-pointer">
                     <AiModelDropdownItem model={model} provider={provider} />
                   </div>
                 </DropdownMenuSubTrigger>

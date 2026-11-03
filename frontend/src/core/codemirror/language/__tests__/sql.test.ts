@@ -42,12 +42,14 @@ const adapter = new SQLLanguageAdapter();
 const TEST_ENGINE = "test_engine" as ConnectionName;
 
 const TEST_EXTENSION_ARGS = [
-  {} as CellId,
-  {} as CompletionConfig,
-  {} as HotkeyProvider,
-  {} as PlaceholderType,
-  {} as LSPConfig & {
-    diagnostics: DiagnosticsConfig;
+  {
+    cellId: {} as CellId,
+    completionConfig: {} as CompletionConfig,
+    hotkeys: {} as HotkeyProvider,
+    placeholderType: {} as PlaceholderType,
+    lspConfig: {} as LSPConfig & {
+      diagnostics: DiagnosticsConfig;
+    },
   },
 ] as const;
 
@@ -930,15 +932,15 @@ describe("SQL analysis features", () => {
 
   it("reports semantic diagnostics as warnings", async () => {
     const adapter = new SQLLanguageAdapter();
-    const extensions = adapter.getExtension(
-      {} as CellId,
-      {} as CompletionConfig,
-      {} as HotkeyProvider,
-      {} as PlaceholderType,
-      {
+    const extensions = adapter.getExtension({
+      cellId: {} as CellId,
+      completionConfig: {} as CompletionConfig,
+      hotkeys: {} as HotkeyProvider,
+      placeholderType: {} as PlaceholderType,
+      lspConfig: {
         diagnostics: { sql_linter: true },
       } as LSPConfig & { diagnostics: DiagnosticsConfig },
-    );
+    });
     const state = EditorState.create({
       doc: "SELECT missing FROM users",
       extensions: [languageMetadataField.init(() => metadata), ...extensions],
@@ -963,15 +965,15 @@ describe("SQL analysis features", () => {
 
   it("does not report unknown tables", async () => {
     const adapter = new SQLLanguageAdapter();
-    const extensions = adapter.getExtension(
-      {} as CellId,
-      {} as CompletionConfig,
-      {} as HotkeyProvider,
-      {} as PlaceholderType,
-      {
+    const extensions = adapter.getExtension({
+      cellId: {} as CellId,
+      completionConfig: {} as CompletionConfig,
+      hotkeys: {} as HotkeyProvider,
+      placeholderType: {} as PlaceholderType,
+      lspConfig: {
         diagnostics: { sql_linter: true },
       } as LSPConfig & { diagnostics: DiagnosticsConfig },
-    );
+    });
     const state = EditorState.create({
       doc: "SELECT missing FROM users; SELECT * FROM unknown_table",
       extensions: [languageMetadataField.init(() => metadata), ...extensions],

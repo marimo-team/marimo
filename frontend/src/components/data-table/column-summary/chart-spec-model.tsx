@@ -119,16 +119,16 @@ export class ColumnChartSpecModel<T> {
   private columnBinValues = new Map<ColumnName, BinValues>();
   private columnValueCounts = new Map<ColumnName, ValueCounts>();
 
-  public static readonly EMPTY = new ColumnChartSpecModel(
-    [],
-    new Map(),
-    {},
-    {},
-    {},
-    {
+  public static readonly EMPTY = new ColumnChartSpecModel({
+    data: [],
+    fieldTypes: new Map(),
+    stats: {},
+    binValues: {},
+    valueCounts: {},
+    opts: {
       includeCharts: false,
     },
-  );
+  });
 
   private dataSpec: TopLevelSpec["data"];
 
@@ -144,16 +144,23 @@ export class ColumnChartSpecModel<T> {
     includeCharts: boolean;
   };
 
-  public constructor(
-    data: T[] | string,
-    fieldTypes: FieldTypes,
-    stats: Record<ColumnName, Partial<ColumnHeaderStats>>,
-    binValues: Record<ColumnName, BinValues>,
-    valueCounts: Record<ColumnName, ValueCounts>,
+  public constructor({
+    data,
+    fieldTypes,
+    stats,
+    binValues,
+    valueCounts,
+    opts,
+  }: {
+    data: T[] | string;
+    fieldTypes: FieldTypes;
+    stats: Record<ColumnName, Partial<ColumnHeaderStats>>;
+    binValues: Record<ColumnName, BinValues>;
+    valueCounts: Record<ColumnName, ValueCounts>;
     opts: {
       includeCharts: boolean;
-    },
-  ) {
+    };
+  }) {
     this.fieldTypes = fieldTypes;
     this.stats = stats;
     this.binValues = binValues;

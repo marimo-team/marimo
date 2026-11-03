@@ -11,7 +11,6 @@ from marimo._runtime.callbacks import (
     DatasetCallbacks,
     ExternalStorageCallbacks,
     KernelCallback,
-    PackagesCallbacks,
     SecretsCallbacks,
     SqlCallbacks,
 )
@@ -37,7 +36,6 @@ ALL_CALLBACKS: list[type] = [
     SqlCallbacks,
     CacheCallbacks,
     ExternalStorageCallbacks,
-    PackagesCallbacks,
 ]
 
 # Commands that are part of the CommandMessage dispatch surface but are

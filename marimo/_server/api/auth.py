@@ -45,7 +45,7 @@ def validate_auth(
 
     # Validate the cookie. The cookie stores a keyed hash of the token,
     # never the token itself.
-    if hmac.compare_digest(
+    if _matches(
         cookie_session.get_access_token(), hash_access_token(auth_token)
     ):
         return True  # Success
@@ -53,9 +53,7 @@ def validate_auth(
     # Check for access_token
     if TOKEN_QUERY_PARAM in conn.query_params:
         # Validate the access_token
-        if hmac.compare_digest(
-            conn.query_params[TOKEN_QUERY_PARAM], auth_token
-        ):
+        if _matches(conn.query_params[TOKEN_QUERY_PARAM], auth_token):
             LOGGER.debug("Validated access_token from query param")
             # Set the cookie
             cookie_session.set_access_token(auth_token)
@@ -65,7 +63,7 @@ def validate_auth(
     if form_dict is not None:
         # Validate the access_token
         password = form_dict.get("password")
-        if password and hmac.compare_digest(password, auth_token):
+        if password and _matches(password, auth_token):
             LOGGER.debug("Validated access_token from form data")
             # Set the cookie
             cookie_session.set_access_token(auth_token)
@@ -80,20 +78,14 @@ def validate_auth(
         scheme, _, credentials = auth.partition(" ")
         scheme_lower = scheme.lower()
 
-        if scheme_lower == "bearer" and hmac.compare_digest(
-            credentials, auth_token
-        ):
+        if scheme_lower == "bearer" and _matches(credentials, auth_token):
             LOGGER.debug("Validated bearer token from header")
             cookie_session.set_access_token(auth_token)
             return True  # Success
 
         if scheme_lower == "basic":
             username, password = _parse_basic_auth_credentials(credentials)
-            if (
-                username
-                and password
-                and hmac.compare_digest(password, auth_token)
-            ):
+            if username and password and _matches(password, auth_token):
                 LOGGER.debug("Validated basic auth from header")
                 cookie_session.set_access_token(auth_token)
                 cookie_session.set_username(username)
@@ -101,6 +93,11 @@ def validate_auth(
 
     LOGGER.debug("Invalid auth")
     return False
+
+
+def _matches(given: str, expected: str) -> bool:
+    # compare_digest rejects str with non-ASCII characters.
+    return hmac.compare_digest(given.encode(), expected.encode())
 
 
 def _parse_basic_auth_credentials(

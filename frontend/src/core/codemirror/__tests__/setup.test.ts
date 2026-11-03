@@ -198,22 +198,22 @@ test("go to definition falls through to lower-priority LSP keymap", () => {
 test("placeholder adds another extension", () => {
   const opts = getOpts();
   const withAI = new PythonLanguageAdapter()
-    .getExtension(
-      opts.cellId,
-      opts.completionConfig,
-      opts.hotkeys,
-      "marimo-import",
-      opts.lspConfig,
-    )
+    .getExtension({
+      cellId: opts.cellId,
+      completionConfig: opts.completionConfig,
+      hotkeys: opts.hotkeys,
+      placeholderType: "marimo-import",
+      lspConfig: opts.lspConfig,
+    })
     .flat();
   const withoutAI = new PythonLanguageAdapter()
-    .getExtension(
-      opts.cellId,
-      opts.completionConfig,
-      opts.hotkeys,
-      "none",
-      opts.lspConfig,
-    )
+    .getExtension({
+      cellId: opts.cellId,
+      completionConfig: opts.completionConfig,
+      hotkeys: opts.hotkeys,
+      placeholderType: "none",
+      lspConfig: opts.lspConfig,
+    })
     .flat();
   expect(withAI.length - 1).toBe(withoutAI.length);
 });
@@ -221,22 +221,22 @@ test("placeholder adds another extension", () => {
 test("ai adds more extensions", () => {
   const opts = getOpts();
   const withAI = new PythonLanguageAdapter()
-    .getExtension(
-      opts.cellId,
-      opts.completionConfig,
-      opts.hotkeys,
-      "ai",
-      opts.lspConfig,
-    )
+    .getExtension({
+      cellId: opts.cellId,
+      completionConfig: opts.completionConfig,
+      hotkeys: opts.hotkeys,
+      placeholderType: "ai",
+      lspConfig: opts.lspConfig,
+    })
     .flat();
   const withoutAI = new PythonLanguageAdapter()
-    .getExtension(
-      opts.cellId,
-      opts.completionConfig,
-      opts.hotkeys,
-      "none",
-      opts.lspConfig,
-    )
+    .getExtension({
+      cellId: opts.cellId,
+      completionConfig: opts.completionConfig,
+      hotkeys: opts.hotkeys,
+      placeholderType: "none",
+      lspConfig: opts.lspConfig,
+    })
     .flat();
   expect(withAI.length - 2).toBe(withoutAI.length);
 });

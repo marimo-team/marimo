@@ -21,7 +21,6 @@ def compute(os, sys):
 @app.cell
 def display(result):
     print(result)
-    return
 
 
 @app.function

@@ -134,6 +134,9 @@ export const KeyboardShortcuts: React.FC = () => {
             defaultValue={newShortcut.join("+")}
             placeholder={hotkey.name}
             onKeyDown={(e) => {
+              if (e.key === "Tab" && !e.metaKey && !e.ctrlKey && !e.altKey) {
+                return;
+              }
               e.preventDefault();
               const next: string[] = [];
 
@@ -189,6 +192,7 @@ export const KeyboardShortcuts: React.FC = () => {
             autoFocus={true}
             endAdornment={
               <Button
+                aria-label="Cancel shortcut recording"
                 variant="text"
                 size="xs"
                 className="mb-0"
@@ -206,13 +210,14 @@ export const KeyboardShortcuts: React.FC = () => {
               Press a key combination
             </span>
             {defaultHotkey.key !== hotkey.key && (
-              <span
+              <button
+                type="button"
                 className="text-xs cursor-pointer text-primary"
                 onClick={handleResetShortcut}
               >
                 Reset to default:{" "}
                 <span className="font-mono">{defaultHotkey.key}</span>
-              </span>
+              </button>
             )}
           </div>
         </div>
@@ -228,13 +233,17 @@ export const KeyboardShortcuts: React.FC = () => {
         className="grid grid-cols-[auto_2fr_3fr] gap-2 items-center"
       >
         {hotkeys.isEditable(action) ? (
-          <EditIcon
-            className="cursor-pointer opacity-60 hover:opacity-100 text-muted-foreground w-3 h-3"
+          <button
+            type="button"
+            aria-label={`Edit shortcut: ${hotkey.name}`}
+            className="cursor-pointer opacity-60 hover:opacity-100 text-muted-foreground w-3 h-3 focus-visible:outline focus-visible:outline-ring"
             onClick={() => {
               setNewShortcut([]);
               setEditingShortcut(action);
             }}
-          />
+          >
+            <EditIcon className="w-3 h-3" />
+          </button>
         ) : (
           <div className="w-3 h-3" />
         )}

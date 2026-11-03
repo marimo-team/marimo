@@ -246,6 +246,8 @@ class SessionImpl(Session):
         self.initialization_id = initialization_id
         self._stable_id = mint(StableSessionId, "sess")
         self.app_file_manager = app_file_manager
+        # Read configuration on each save to pick up later edits.
+        self.app_file_manager.config_reader = config_manager
         self.room = Room()
         self.connection_generation = 0
         self._kernel_manager = kernel_manager

@@ -58,11 +58,8 @@ export class PlotlyPlugin implements IPlugin<T, Data> {
   public tagName = "marimo-plotly";
 
   public validator = z.object({
-    figure: z
-      .object({})
-      .passthrough()
-      .transform((spec) => spec as unknown as Figure),
-    config: z.object({}).passthrough(),
+    figure: z.looseObject({}).transform((spec) => spec as unknown as Figure),
+    config: z.looseObject({}),
   });
 
   public render(props: IPluginProps<T, Data>): JSX.Element {
