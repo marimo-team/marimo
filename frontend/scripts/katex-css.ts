@@ -79,7 +79,7 @@ export async function generateKatexCss(upstream: string): Promise<string> {
     !font ||
     font.type !== "decl" ||
     font.value.replace(/\s+/g, " ").trim() !==
-      "normal 1.21em KaTeX_Main, Times New Roman, serif"
+      "normal 1.21em KaTeX_Main, math, Times New Roman, serif"
   ) {
     throw new Error(
       "Upstream KaTeX font shorthand changed; review the font override in frontend/scripts/katex-css.ts.",
