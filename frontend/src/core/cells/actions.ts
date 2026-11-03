@@ -3,21 +3,28 @@
 /** Notebook operations that edit the document and then adjust the editor. */
 
 import { historyField } from "@codemirror/commands";
-import { atom, type Getter, useSetAtom } from "jotai";
+import { atom, type Getter, type Setter, useSetAtom } from "jotai";
 import { useMemo } from "react";
 import { scrollAndHighlightCell } from "@/components/editor/links/cell-link";
 import type { EditableDocument } from "@/core/notebook/document";
-import type { CellColumnId } from "@/utils/id-tree";
 import { Logger } from "@/utils/Logger";
 import { clamp } from "@/utils/math";
+import { prepareCellCodeUpdate } from "../codemirror/language/cell-code";
+import { splitEditor } from "../codemirror/language/utils";
 import type { SerializedEditorState } from "../codemirror/types";
 import { canCollapseOutline } from "../dom/outline";
 import type { CellConfig } from "../network/types";
 import { store } from "../state/jotai";
 import {
+  addColumnAtom,
+  addColumnBreakpointAtom,
+  compactColumnsAtom,
+  deleteColumnAtom,
   dropCellOverCellAtom,
   dropCellOverColumnAtom,
+  mergeAllColumnsAtom,
   moveCellAtom,
+  moveColumnAtom,
   moveCellsRelativeToAtom,
   moveCellToIndexAtom,
   placeCells,
@@ -27,6 +34,7 @@ import {
 import {
   type DeletedCell,
   notebookAtom,
+  notebookReducer,
   releaseCellAtoms,
   useReducerActions,
 } from "./cells";
@@ -39,8 +47,10 @@ import {
 } from "./editor";
 import { CellId, SCRATCH_CELL_ID, SETUP_CELL_ID } from "./ids";
 import {
+  type CellColumnId,
   collapsedAtom,
   columnOf,
+  findColumn,
   foldOf,
   foldsAfter,
   foldsHiding,
@@ -91,7 +101,7 @@ export const createCellAtom = atom(
     if (options.skipIfCodeExists && hasCellWithCode(document, code)) {
       return null;
     }
-    const { cellIds } = get(notebookAtom);
+    const layout = get(layoutAtom);
 
     // The document knows cells and order. Columns come from each cell's
     // `column` config, which the cell before it provides unless it starts a
@@ -100,31 +110,31 @@ export const createCellAtom = atom(
     let column: number | null = null;
     // The cell the new one comes right after, whose folds would hide it.
     let follows: CellId | undefined;
-    const layout = get(layoutAtom);
     if (options.after) {
       // A folded header hides the cells after it, so a cell placed after
       // the header goes after its fold.
       follows = foldOf(layout, options.after)?.at(-1) ?? options.after;
       placement = { after: follows };
     } else if (options.before) {
-      const tree = cellIds.findWithId(options.before);
-      const index = cellIds.indexOf(tree);
+      const target = columnOf(layout, options.before);
+      const index = layout.columns.indexOf(target);
       placement = { before: options.before };
-      follows = tree.before(options.before);
-      if (index > 0 && tree.indexOfOrThrow(options.before) === 0) {
+      follows = target.ids[target.ids.indexOf(options.before) - 1];
+      if (index > 0 && target.ids[0] === options.before) {
         column = index;
       }
     } else {
-      const tree =
-        (options.endOf && cellIds.get(options.endOf)) ?? cellIds.atOrThrow(0);
-      if (tree.length > 0) {
-        follows = tree.last();
-        placement = { after: follows };
-      } else if (cellIds.colLength > 1) {
-        column = cellIds.indexOf(tree);
+      const target =
+        (options.endOf && findColumn(layout, options.endOf)) ??
+        layout.columns[0];
+      const last = target.ids.at(-1);
+      if (last !== undefined) {
+        follows = last;
+        placement = { after: last };
+      } else if (layout.columns.length > 1) {
+        column = layout.columns.indexOf(target);
       }
     }
-
     const id = options.id ?? CellId.create();
     const config = { ...options.config, column };
     set(modelOf(get).editAtom, (tx) => {
@@ -156,6 +166,70 @@ export const createCellAtom = atom(
     return id;
   },
 );
+
+/**
+ * Split a cell at its cursor. The text before stays, the text after
+ * becomes a new cell below, which is focused. Returns the new cell's id,
+ * or null for a cell without an editor.
+ */
+export const splitCellAtom = atom(
+  null,
+  (get, set, { cellId }: { cellId: CellId }): CellId | null => {
+    const view = get(notebookAtom).cellHandles[cellId]?.current?.editorView;
+    if (!view) {
+      return null;
+    }
+    const { beforeCursorCode, afterCursorCode } = splitEditor(view);
+    const update = prepareCellCodeUpdate(view.state, beforeCursorCode);
+    if (update) {
+      view.dispatch(update);
+    }
+    const id = CellId.create();
+    set(modelOf(get).editAtom, (tx) => {
+      tx.setCode(cellId, beforeCursorCode);
+      tx.createCell({ id, code: afterCursorCode }, { after: cellId });
+    });
+    clearOutput(set, cellId);
+    focusWhenMounted(set, id);
+    return id;
+  },
+);
+
+/** Undo a split: the cell takes its code back and the cell split off goes. */
+export const undoSplitCellAtom = atom(
+  null,
+  (
+    get,
+    set,
+    {
+      cellId,
+      newCellId,
+      snapshot,
+    }: { cellId: CellId; newCellId: CellId; snapshot: string },
+  ): void => {
+    const view = get(notebookAtom).cellHandles[cellId]?.current?.editorView;
+    const update = view && prepareCellCodeUpdate(view.state, snapshot);
+    if (view && update) {
+      view.dispatch(update);
+    }
+    const document = documentOf(get);
+    set(modelOf(get).editAtom, (tx) => {
+      tx.setCode(cellId, snapshot);
+      if (document.cells.has(newCellId)) {
+        tx.deleteCell(newCellId);
+      }
+    });
+    releaseCellAtoms(newCellId);
+    clearOutput(set, cellId);
+  },
+);
+
+/** The output belonged to the code before the change; neither version has run. */
+function clearOutput(set: Setter, cellId: CellId): void {
+  set(notebookAtom, (state) =>
+    notebookReducer(state, { type: "clearCellOutput", payload: { cellId } }),
+  );
+}
 
 /**
  * Focus the cell before or after `cellId`. Past the edge of the column,
@@ -283,9 +357,7 @@ export const collapseAllCellsAtom = atom(null, (get, set): void => {
   set(
     collapsedAtom,
     new Set(
-      cellIds.inOrderIds.filter((id) =>
-        canCollapseOutline(cellRuntime[id]?.outline),
-      ),
+      cellIds.filter((id) => canCollapseOutline(cellRuntime[id]?.outline)),
     ),
   );
 });
@@ -318,18 +390,18 @@ export const addSetupCellAtom = atom(
   null,
   (get, set, { code }: { code?: string } = {}): void => {
     const { cellIds } = get(notebookAtom);
-    if (cellIds.setupCellExists()) {
+    if (cellIds.includes(SETUP_CELL_ID)) {
       focusWhenMounted(set, SETUP_CELL_ID);
       return;
     }
     // The setup cell leads the first column, which may be empty.
-    const first = cellIds.atOrThrow(0);
+    const first = get(layoutAtom).columns[0];
     set(createCellAtom, {
       id: SETUP_CELL_ID,
       name: SETUP_CELL_ID,
       code: code ?? "",
-      ...(first.length > 0
-        ? { before: first.atOrThrow(0) }
+      ...(first.ids.length > 0
+        ? { before: first.ids[0] }
         : { endOf: first.id }),
     });
   },
@@ -528,9 +600,25 @@ export function useCellActions() {
   const dropCellOverColumn = useSetAtom(dropCellOverColumnAtom);
   const sendToTop = useSetAtom(sendToTopAtom);
   const sendToBottom = useSetAtom(sendToBottomAtom);
+  const addColumn = useSetAtom(addColumnAtom);
+  const addColumnBreakpoint = useSetAtom(addColumnBreakpointAtom);
+  const deleteColumn = useSetAtom(deleteColumnAtom);
+  const mergeAllColumns = useSetAtom(mergeAllColumnsAtom);
+  const compactColumns = useSetAtom(compactColumnsAtom);
+  const moveColumn = useSetAtom(moveColumnAtom);
+  const splitCell = useSetAtom(splitCellAtom);
+  const undoSplitCell = useSetAtom(undoSplitCellAtom);
   return useMemo(
     () => ({
       ...operations,
+      splitCell,
+      undoSplitCell,
+      addColumn,
+      addColumnBreakpoint,
+      deleteColumn,
+      mergeAllColumns,
+      compactColumns,
+      moveColumn,
       moveCell,
       moveCellToIndex,
       moveCellsRelativeTo,
@@ -563,9 +651,7 @@ export type CellActions = ReturnType<typeof useCellActions>;
 /** Scroll to the first cell that is currently running. */
 export function notebookScrollToRunning() {
   const { cellIds, cellRuntime } = store.get(notebookAtom);
-  const cellId = cellIds.inOrderIds.find(
-    (id) => cellRuntime[id]?.status === "running",
-  );
+  const cellId = cellIds.find((id) => cellRuntime[id]?.status === "running");
   if (!cellId) {
     return;
   }

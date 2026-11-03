@@ -13,7 +13,7 @@ const hasBlockingStdinAtom = atom((get) => {
   const notebook = get(notebookAtom);
 
   // Check each cell in order
-  for (const cellId of notebook.cellIds.inOrderIds) {
+  for (const cellId of notebook.cellIds) {
     // Check if the cell is idle and has unresolved stdin
     const runtime = notebook.cellRuntime[cellId];
     if (runtime.status === "idle") {

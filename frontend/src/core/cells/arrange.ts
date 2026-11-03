@@ -1,26 +1,34 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-/** Notebook operations that move cells within and across columns. */
+/** Notebook operations that move cells and arrange columns. */
 
 import { dequal as isEqual } from "dequal";
 import { atom, type Getter, type Setter } from "jotai";
-import type { CellColumnId, CellIndex } from "@/utils/id-tree";
+import { reorderColumnSizes } from "@/components/editor/columns/storage";
+import type {
+  DocumentEditor,
+  EditableDocument,
+} from "@/core/notebook/document";
 import { arrayMove } from "@/utils/arrays";
 import { notebookAtom, type UndoMoveEntry } from "./cells";
 import { documentOf, focusWhenMounted, modelOf } from "./edit";
-import type { CellId } from "./ids";
+import { CellId } from "./ids";
 import {
+  type CellColumnId,
+  columnIdsAtom,
   columnOf,
+  emptyColumnIdsAtom,
   findColumn,
   type Layout,
   type LayoutColumn,
   layoutAtom,
+  newColumnId,
 } from "./layout";
 
 /** A placement to restore a cell to: its column and its index there. */
 export interface Placement {
   columnId: CellColumnId;
-  index: CellIndex;
+  index: number;
 }
 
 /** A cell with the cells its fold hides, which move with it. */
@@ -66,12 +74,11 @@ function columnConfigs(
   return fixes;
 }
 
-/**
- * Make the document's cells fall into `columns`, in that order, as one edit.
- * Nothing is written when they already do.
- */
-export function arrange(get: Getter, set: Setter, columns: CellId[][]): void {
-  const document = documentOf(get);
+/** The steps that make the document's cells fall into `columns`, or null when they do. */
+function arrangement(
+  document: EditableDocument,
+  columns: readonly (readonly CellId[])[],
+): ((tx: DocumentEditor) => void) | null {
   const order = columns.flat();
   const fixes = columnConfigs(
     columns,
@@ -79,16 +86,61 @@ export function arrange(get: Getter, set: Setter, columns: CellId[][]): void {
   );
   const reordered = !isEqual(order, document.order);
   if (!reordered && fixes.length === 0) {
-    return;
+    return null;
   }
-  set(modelOf(get).editAtom, (tx) => {
+  return (tx) => {
     if (reordered) {
       tx.setOrder(order);
     }
     for (const [id, column] of fixes) {
       tx.updateConfig(id, { column });
     }
-  });
+  };
+}
+
+/**
+ * How many of `columns` the document holds: all but the trailing empty
+ * ones, which the page alone keeps.
+ */
+function heldByDocument(columns: readonly (readonly CellId[])[]): number {
+  let count = columns.length;
+  while (count > 1 && columns[count - 1].length === 0) {
+    count -= 1;
+  }
+  return count;
+}
+
+/** Name the page's columns: `count` of `ids` for the document's, the rest kept empty. */
+function nameColumns(
+  set: Setter,
+  ids: readonly CellColumnId[],
+  count: number,
+): void {
+  set(columnIdsAtom, ids.slice(0, count));
+  set(emptyColumnIdsAtom, ids.slice(count));
+}
+
+/**
+ * Make the document's cells fall into `columns`, in that order, as one
+ * edit, and name the columns `ids`, by default as they stand. Nothing is
+ * written when the cells already fall that way. Trailing columns left
+ * empty stay on the page, as the document cannot hold them, until a drop
+ * compacts them.
+ */
+export function arrange(
+  get: Getter,
+  set: Setter,
+  columns: CellId[][],
+  ids: readonly CellColumnId[] = get(layoutAtom).columns.map(
+    (column) => column.id,
+  ),
+): void {
+  const count = heldByDocument(columns);
+  nameColumns(set, ids, count);
+  const edit = arrangement(documentOf(get), columns.slice(0, count));
+  if (edit !== null) {
+    set(modelOf(get).editAtom, edit);
+  }
 }
 
 /**
@@ -339,3 +391,144 @@ export function placeCells(
   }
   arrange(get, set, cleaned);
 }
+
+// Columns --------------------------------------------------------------------
+
+/** Add a column after another, with one new cell to start it, and focus the cell. */
+export const addColumnAtom = atom(
+  null,
+  (get, set, { columnId }: { columnId: CellColumnId }): void => {
+    const layout = get(layoutAtom);
+    const at = layout.columns.findIndex((column) => column.id === columnId);
+    if (at === -1) {
+      return;
+    }
+    const id = CellId.create();
+    const columns = columnsOf(layout);
+    columns.splice(at + 1, 0, [id]);
+    const ids = layout.columns.map((column) => column.id);
+    ids.splice(at + 1, 0, newColumnId());
+    const document = documentOf(get);
+    const previous = layout.columns[at].ids.at(-1);
+    const count = heldByDocument(columns);
+    nameColumns(set, ids, count);
+    set(modelOf(get).editAtom, (tx) => {
+      tx.createCell(
+        { id, code: "", config: { column: at + 1 } },
+        previous === undefined ? {} : { after: previous },
+      );
+      arrangement(document, columns.slice(0, count))?.(tx);
+    });
+    focusWhenMounted(set, id);
+  },
+);
+
+/** Start a new column at a cell, unless it already starts the first column. */
+export const addColumnBreakpointAtom = atom(
+  null,
+  (get, set, { cellId }: { cellId: CellId }): void => {
+    const layout = get(layoutAtom);
+    const column = columnOf(layout, cellId);
+    const at = layout.columns.indexOf(column);
+    const index = column.ids.indexOf(cellId);
+    if (at === 0 && index === 0) {
+      return;
+    }
+    const columns = columnsOf(layout);
+    columns.splice(at, 1, column.ids.slice(0, index), column.ids.slice(index));
+    const ids = layout.columns.map((column) => column.id);
+    // The id stays with the cells, so the half without any is the new one.
+    ids.splice(index === 0 ? at : at + 1, 0, newColumnId());
+    arrange(get, set, columns, ids);
+  },
+);
+
+/** Remove a column, moving its cells to the column before it, or after it for the first. */
+export const deleteColumnAtom = atom(
+  null,
+  (get, set, { columnId }: { columnId: CellColumnId }): void => {
+    const layout = get(layoutAtom);
+    const at = layout.columns.findIndex((column) => column.id === columnId);
+    if (at === -1 || layout.columns.length <= 1) {
+      return;
+    }
+    const columns = columnsOf(layout);
+    const target = at === 0 ? 1 : at - 1;
+    columns[target] =
+      at === 0
+        ? [...columns[at], ...columns[target]]
+        : [...columns[target], ...columns[at]];
+    columns.splice(at, 1);
+    const ids = layout.columns.map((column) => column.id);
+    ids.splice(at, 1);
+    arrange(get, set, columns, ids);
+  },
+);
+
+/** Bring every cell into the first column. */
+export const mergeAllColumnsAtom = atom(null, (get, set): void => {
+  const layout = get(layoutAtom);
+  if (layout.columns.length <= 1) {
+    return;
+  }
+  arrange(
+    get,
+    set,
+    [layout.columns.flatMap((column) => [...column.ids])],
+    [layout.columns[0].id],
+  );
+});
+
+/** Drop the columns a drag left empty. */
+export const compactColumnsAtom = atom(null, (get, set): void => {
+  const layout = get(layoutAtom);
+  const kept = layout.columns.filter((column) => column.ids.length > 0);
+  if (kept.length === layout.columns.length || layout.columns.length <= 1) {
+    return;
+  }
+  arrange(
+    get,
+    set,
+    kept.map((column) => [...column.ids]),
+    kept.map((column) => column.id),
+  );
+});
+
+/** Move a column where another is, or one step left or right, with its saved width. */
+export const moveColumnAtom = atom(
+  null,
+  (
+    get,
+    set,
+    {
+      column,
+      overColumn,
+    }: {
+      column: CellColumnId;
+      overColumn: CellColumnId | "_left_" | "_right_";
+    },
+  ): void => {
+    if (column === overColumn) {
+      return;
+    }
+    const layout = get(layoutAtom);
+    const ids = layout.columns.map((column) => column.id);
+    const from = ids.indexOf(column);
+    const to =
+      overColumn === "_left_"
+        ? from - 1
+        : overColumn === "_right_"
+          ? from + 1
+          : ids.indexOf(overColumn);
+    if (from === -1 || to < 0 || to >= ids.length) {
+      return;
+    }
+    arrange(
+      get,
+      set,
+      arrayMove(columnsOf(layout), from, to),
+      arrayMove(ids, from, to),
+    );
+    reorderColumnSizes(from, to);
+  },
+);

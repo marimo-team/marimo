@@ -12,7 +12,7 @@ import { getEditorCodeAsPython } from "../language/utils";
 const notebookCellCodes = atom((get) => {
   const notebook = get(notebookAtom);
   const codes = Objects.fromEntries(
-    notebook.cellIds.inOrderIds.map((id) => {
+    notebook.cellIds.map((id) => {
       // A cell editor mounts progressively, so the notebook store is the only
       // complete source of code until every editor is built.
       const editorView = notebook.cellHandles[id]?.current?.editorViewOrNull;
@@ -54,7 +54,7 @@ export function getOtherCellsCode(otherCode: string) {
 
 const inOrderCellIdsAtom = atom((get) => {
   const notebook = get(notebookAtom);
-  return notebook.cellIds.inOrderIds;
+  return notebook.cellIds;
 });
 const topologicalCellIdsAtom = atom((get) => {
   const cellIds = get(inOrderCellIdsAtom);

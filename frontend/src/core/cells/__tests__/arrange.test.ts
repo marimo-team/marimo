@@ -3,15 +3,25 @@
 import type * as Protocol from "@marimo-team/client/protocol";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cellId } from "@/__tests__/branded";
-import { cell, CONFIG } from "@/core/notebook/document/__tests__/fixtures";
-import type { CellIndex } from "@/utils/id-tree";
+import {
+  cell,
+  CONFIG,
+  document as documentOf,
+  withCells,
+} from "@/core/notebook/document/__tests__/fixtures";
 import { collapseCellAtom, undoDeleteCellAtom } from "../actions";
 import {
+  addColumnAtom,
+  addColumnBreakpointAtom,
+  compactColumnsAtom,
+  deleteColumnAtom,
   dropCellOverCellAtom,
   dropCellOverColumnAtom,
+  mergeAllColumnsAtom,
   moveCellAtom,
   moveCellsRelativeToAtom,
   moveCellToIndexAtom,
+  moveColumnAtom,
   sendToBottomAtom,
   sendToTopAtom,
 } from "../arrange";
@@ -220,8 +230,8 @@ describe("moveCellsRelativeToAtom", () => {
       targetCellId: c3,
       position: "after",
       previousPlacements: [
-        { columnId: column, index: 0 as CellIndex },
-        { columnId: column, index: 1 as CellIndex },
+        { columnId: column, index: 0 },
+        { columnId: column, index: 1 },
       ],
     });
     expect(order()).toEqual([c3, c1, c2]);
@@ -259,5 +269,147 @@ describe("moveCellsRelativeToAtom", () => {
       position: "before",
     });
     expect(order()).toEqual([c2, c3, c1]);
+  });
+});
+
+describe("columns", () => {
+  it("adds a column after another with a new cell, and names it", () => {
+    const { store, columns, columnIds, notebook, cellIn } = setup();
+    const [first] = columnIds();
+
+    store.set(addColumnAtom, { columnId: first });
+
+    const [left, right] = store.get(layoutAtom).columns;
+    expect(left.id).toBe(first);
+    expect(right.id).not.toBe(first);
+    expect(right.ids).toHaveLength(1);
+    const id = right.ids[0];
+    expect(columns()).toEqual([[c1, c2], [id]]);
+    expect(cellIn(id)?.config.column).toBe(1);
+    expect(notebook().scrollKey).toBe(id);
+  });
+
+  it("starts a column at a cell, but not at the first cell", () => {
+    const { store, model, columns, cellIn } = setup({
+      c3: cell("c3", "z = 3"),
+    });
+    const before = store.get(model.documentAtom);
+
+    store.set(addColumnBreakpointAtom, { cellId: c1 });
+    expect(store.get(model.documentAtom)).toBe(before);
+
+    store.set(addColumnBreakpointAtom, { cellId: c2 });
+    expect(columns()).toEqual([[c1], [c2, c3]]);
+    expect(cellIn(c2)?.config.column).toBe(1);
+  });
+
+  it("starts a column at a column's first cell, keeping the id with the cells", () => {
+    const { store, columns, columnIds } = twoColumns();
+    const [first, second] = columnIds();
+
+    store.set(addColumnBreakpointAtom, { cellId: c3 });
+
+    expect(columns()).toEqual([[c1, c2], [], [c3, c4]]);
+    const [left, , right] = columnIds();
+    expect(left).toBe(first);
+    expect(right).toBe(second);
+  });
+
+  it("deletes a column into the one before it, or after it for the first", () => {
+    const { store, columns, columnIds, cellIn } = twoColumns();
+    const [first, second] = columnIds();
+
+    store.set(deleteColumnAtom, { columnId: first });
+    expect(columns()).toEqual([[c1, c2, c3, c4]]);
+    expect(cellIn(c3)?.config.column).toBeNull();
+    expect(columnIds()).toEqual([second]);
+
+    store.set(deleteColumnAtom, { columnId: second });
+    expect(columns()).toEqual([[c1, c2, c3, c4]]);
+  });
+
+  it("merges every column into the first", () => {
+    const { store, columns, columnIds, cellIn } = twoColumns();
+    const [first] = columnIds();
+
+    store.set(mergeAllColumnsAtom);
+
+    expect(columns()).toEqual([[c1, c2, c3, c4]]);
+    expect(cellIn(c3)?.config.column).toBeNull();
+    expect(columnIds()).toEqual([first]);
+  });
+
+  it("keeps the column a drag emptied until a drop compacts it", () => {
+    const { store, columns, columnIds, cellIn } = twoColumns();
+    const [first, second] = columnIds();
+    store.set(dropCellOverColumnAtom, { cellId: c3, columnId: first });
+    store.set(dropCellOverColumnAtom, { cellId: c4, columnId: first });
+    expect(columns()).toEqual([[c4, c3, c1, c2], []]);
+    expect(columnIds()).toEqual([first, second]);
+    expect(cellIn(c4)?.config.column).toBeNull();
+
+    store.set(dropCellOverColumnAtom, { cellId: c3, columnId: second });
+    expect(columns()).toEqual([[c4, c1, c2], [c3]]);
+    expect(cellIn(c3)?.config.column).toBe(1);
+
+    store.set(dropCellOverColumnAtom, { cellId: c3, columnId: first });
+    store.set(compactColumnsAtom);
+
+    expect(columns()).toEqual([[c3, c4, c1, c2]]);
+    expect(columnIds()).toEqual([first]);
+  });
+
+  it("moves a column, keeping its id with it", () => {
+    const { store, columns, columnIds, cellIn } = twoColumns();
+    const [first, second] = columnIds();
+
+    store.set(moveColumnAtom, { column: first, overColumn: second });
+    expect(columns()).toEqual([
+      [c3, c4],
+      [c1, c2],
+    ]);
+    expect(columnIds()).toEqual([second, first]);
+    expect(cellIn(c3)?.config.column).toBe(0);
+    expect(cellIn(c1)?.config.column).toBe(1);
+
+    store.set(moveColumnAtom, { column: first, overColumn: "_left_" });
+    expect(columns()).toEqual([
+      [c1, c2],
+      [c3, c4],
+    ]);
+    expect(columnIds()).toEqual([first, second]);
+  });
+});
+
+describe("the host's columns", () => {
+  it("names a column the host adds, leaving the others as they are", () => {
+    const { host, columns, columnIds } = setup();
+    const [first] = columnIds();
+
+    host(
+      withCells(documentOf(), {
+        c3: cell("c3", "z = 3", { config: { ...CONFIG, column: 1 } }),
+      }),
+    );
+
+    expect(columns()).toEqual([[c1, c2], [c3]]);
+    const [left, right] = columnIds();
+    expect(left).toBe(first);
+    expect(right).not.toBe(first);
+  });
+
+  it("drops a column the host removed", () => {
+    const { host, columns, columnIds } = twoColumns();
+    const [first] = columnIds();
+
+    host(
+      withCells(documentOf(), {
+        c3: cell("c3", "z = 3"),
+        c4: cell("c4", "w = 4"),
+      }),
+    );
+
+    expect(columns()).toEqual([[c1, c2, c3, c4]]);
+    expect(columnIds()).toEqual([first]);
   });
 });
