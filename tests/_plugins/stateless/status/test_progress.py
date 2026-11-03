@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import time
 from typing import TYPE_CHECKING, Any
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 import pytest
 
@@ -84,7 +84,10 @@ def test_update_progress_slowly(mock_flush: Any) -> None:
     )
 
     # Mock sleep 120 seconds
-    with patch("time.time", return_value=progress.start_time + 120):
+    with patch(
+        "marimo._plugins.stateless.status._progress.time",
+        Mock(time=Mock(return_value=progress.start_time + 120)),
+    ):
         progress.update_progress(
             increment=1, title="Updated", subtitle="Still Running Slowly"
         )
@@ -148,7 +151,10 @@ def test_rapid_text_updates(
     mocked_kernel: MockedKernel, kind: str, field: str
 ) -> None:
     with mocked_kernel.k._install_execution_context(cell_id=CellId_t("0")):
-        with patch("time.time", return_value=time.time()):
+        with patch(
+            "marimo._plugins.stateless.status._progress.time",
+            Mock(time=Mock(return_value=time.time())),
+        ):
             indicator: progress_bar[int] | spinner = (
                 progress_bar(total=5) if kind == "progress_bar" else spinner()
             )
@@ -173,7 +179,10 @@ def test_rapid_text_updates(
 def test_numeric_updates_remain_rate_limited(
     mock_flush: Any, title: str | None, subtitle: str | None
 ) -> None:
-    with patch("time.time", return_value=time.time()):
+    with patch(
+        "marimo._plugins.stateless.status._progress.time",
+        Mock(time=Mock(return_value=time.time())),
+    ):
         with progress_bar(total=100, title=title, subtitle=subtitle) as bar:
             bar.update(title=title, subtitle=subtitle)
             mock_flush.reset_mock()

@@ -5,7 +5,7 @@ import threading
 import time
 from collections.abc import Mapping
 from inspect import signature
-from types import ModuleType
+from types import ModuleType, SimpleNamespace
 from typing import Any
 from unittest import mock
 
@@ -1001,8 +1001,8 @@ def test_get_completion_options_bails_out_when_timeout_elapsed() -> None:
     times = iter([0.0, 0.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0])
 
     with mock.patch(
-        "marimo._runtime.complete.time.monotonic",
-        side_effect=lambda: next(times, original_monotonic()),
+        "marimo._runtime.complete.time",
+        SimpleNamespace(monotonic=lambda: next(times, original_monotonic())),
     ):
         options = _get_completion_options(
             completions, prefix="", limit=100, timeout=1.0
@@ -1171,8 +1171,8 @@ def test_infer_skipped_once_timeout_elapsed() -> None:
     times = iter([0.0, 0.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0])
 
     with mock.patch(
-        "marimo._runtime.complete.time.monotonic",
-        side_effect=lambda: next(times, original_monotonic()),
+        "marimo._runtime.complete.time",
+        SimpleNamespace(monotonic=lambda: next(times, original_monotonic())),
     ):
         _get_completion_options(completions, prefix="", limit=100, timeout=1.0)
 
