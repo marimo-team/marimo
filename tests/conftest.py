@@ -51,6 +51,22 @@ register_formatters()
 initialize_mimetypes()
 
 
+@pytest.fixture(scope="session", autouse=True)
+def _isolate_jedi_cache(
+    tmp_path_factory: pytest.TempPathFactory,
+) -> Generator[None, None, None]:
+    import jedi
+
+    # Parso's disk cache writes are not atomic across pytest workers.
+    with pytest.MonkeyPatch.context() as monkeypatch:
+        monkeypatch.setattr(
+            jedi.settings,
+            "cache_directory",
+            str(tmp_path_factory.mktemp("jedi")),
+        )
+        yield
+
+
 def pytest_collection_modifyitems(
     config: pytest.Config, items: list[pytest.Item]
 ) -> None:
