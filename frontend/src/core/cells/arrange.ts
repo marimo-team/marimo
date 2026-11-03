@@ -150,6 +150,32 @@ export function arrange(
   }
 }
 
+function reorderBlock(
+  get: Getter,
+  set: Setter,
+  cellId: CellId,
+  targetIndex: (index: number, visible: readonly CellId[]) => number,
+): boolean {
+  const layout = get(layoutAtom);
+  const column = columnOf(layout, cellId);
+  const index = column.visible.indexOf(cellId);
+  if (index === -1) {
+    return false;
+  }
+  const target = targetIndex(index, column.visible);
+  if (target < 0 || target >= column.visible.length || target === index) {
+    return false;
+  }
+  const columns = columnsOf(layout);
+  columns[layout.columns.indexOf(column)].ids = arrayMove(
+    blocksOf(column),
+    index,
+    target,
+  ).flat();
+  arrange(get, set, columns);
+  return true;
+}
+
 /**
  * Move a cell one block up or down its column, or to the start of the
  * neighbouring column. A folded header moves with its section.
@@ -165,11 +191,11 @@ export const moveCellAtom = atom(
       direction,
     }: { cellId: CellId; before?: boolean; direction?: "left" | "right" },
   ): void => {
-    const layout = get(layoutAtom);
-    const column = columnOf(layout, cellId);
-    const at = layout.columns.indexOf(column);
-    const columns = columnsOf(layout);
     if (direction) {
+      const layout = get(layoutAtom);
+      const column = columnOf(layout, cellId);
+      const at = layout.columns.indexOf(column);
+      const columns = columnsOf(layout);
       const to = direction === "left" ? at - 1 : at + 1;
       if (to < 0 || to >= columns.length) {
         return;
@@ -181,13 +207,7 @@ export const moveCellAtom = atom(
       focusWhenMounted(set, cellId);
       return;
     }
-    const blocks = blocksOf(column);
-    const index = blocks.findIndex((block) => block[0] === cellId);
-    const target = before ? index - 1 : index + 1;
-    if (index !== -1 && target >= 0 && target < blocks.length) {
-      columns[at].ids = arrayMove(blocks, index, target).flat();
-      arrange(get, set, columns);
-    }
+    reorderBlock(get, set, cellId, (index) => (before ? index - 1 : index + 1));
     focusWhenMounted(set, cellId);
   },
 );
@@ -198,22 +218,10 @@ function sendTo(
   { cellId, scroll = true }: { cellId: CellId; scroll?: boolean },
   edge: "top" | "bottom",
 ): void {
-  const layout = get(layoutAtom);
-  const column = columnOf(layout, cellId);
-  const blocks = blocksOf(column);
-  const index = blocks.findIndex((block) => block[0] === cellId);
-  const target = edge === "top" ? 0 : blocks.length - 1;
-  if (index === -1 || index === target) {
-    return;
-  }
-  const columns = columnsOf(layout);
-  columns[layout.columns.indexOf(column)].ids = arrayMove(
-    blocks,
-    index,
-    target,
-  ).flat();
-  arrange(get, set, columns);
-  if (scroll) {
+  const moved = reorderBlock(get, set, cellId, (_index, visible) =>
+    edge === "top" ? 0 : visible.length - 1,
+  );
+  if (moved && scroll) {
     focusWhenMounted(set, cellId);
   }
 }
@@ -243,24 +251,14 @@ export const dropCellOverCellAtom = atom(
     const layout = get(layoutAtom);
     const from = columnOf(layout, cellId);
     const to = columnOf(layout, overCellId);
-    const columns = columnsOf(layout);
     if (from === to) {
-      const blocks = blocksOf(from);
-      const index = blocks.findIndex((block) => block[0] === cellId);
-      const target = blocks.findIndex((block) => block[0] === overCellId);
-      if (index === -1 || target === -1 || index === target) {
-        return;
-      }
-      columns[layout.columns.indexOf(from)].ids = arrayMove(
-        blocks,
-        index,
-        target,
-      ).flat();
-      arrange(get, set, columns);
+      reorderBlock(get, set, cellId, (_index, visible) =>
+        visible.indexOf(overCellId),
+      );
       return;
     }
     const block = blockOf(from, cellId);
-    const cleaned = without(columns, new Set(block));
+    const cleaned = without(columnsOf(layout), new Set(block));
     const target = cleaned[layout.columns.indexOf(to)].ids;
     const at = target.indexOf(overCellId);
     target.splice(at, 0, ...block);
