@@ -614,6 +614,38 @@ def test_temporary_filename_already_exists(
         ("example.py", "marimo-version: 0.1.0", "example.py"),
         ("example.md", "__generated_with = '0.1.0'", "example.md"),
         ("example.qmd", "print('hello')", "example.qmd"),
+        ("", "marimo-version: 0.1.0", "notebook.md"),
+        ("file:name", "marimo-version: 0.1.0", "notebook.md"),
+        ("../example.md", "marimo-version: 0.1.0", "notebook.md"),
+        ("", "__generated_with marimo-version", "notebook.py"),
+        ("file:name", "print('hello')", "notebook.py"),
+        pytest.param(
+            "a" * 252,
+            "print('hello')",
+            "a" * 252 + ".py",
+            id="suffix-at-limit",
+        ),
+        pytest.param(
+            "a" * 255, "print('hello')", "notebook.py", id="suffix-over-limit"
+        ),
+        pytest.param(
+            "a" * 253 + ".x",
+            "marimo-version: 0.1.0",
+            "notebook.md",
+            id="replacement-suffix-over-limit",
+        ),
+        pytest.param(
+            "é" * 127,
+            "marimo-version: 0.1.0",
+            "notebook.md",
+            id="unicode-suffix-over-limit",
+        ),
+        pytest.param(
+            "a" * 256,
+            "marimo-version: 0.1.0",
+            "notebook.md",
+            id="long-markdown-name",
+        ),
     ],
 )
 def test_temporary_filename_suffix(
@@ -740,6 +772,8 @@ class TestStaticNotebooks:
                 "COM¹.py",
                 "LPT².py",
                 "NUL .py",
+                "a" * 256 + ".py",
+                "é" * 128 + ".py",
                 *[
                     f"custom{chr(char)}.py"
                     for char in [0, 1, 9, 10, 13, 31, 127, 159]

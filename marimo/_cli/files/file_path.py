@@ -304,19 +304,23 @@ def _create_tmp_file_from_content(
 ) -> str:
     import click
 
+    default_filename = Path(StaticNotebookReader.DEFAULT_FILENAME)
     if not is_valid_filename(name):
-        name = StaticNotebookReader.DEFAULT_FILENAME
+        name = default_filename.stem if infer_suffix else default_filename.name
 
-    path_to_app = Path(temp_dir.name) / name
-    if infer_suffix and path_to_app.suffix not in (".py", ".md", ".qmd"):
+    filename = Path(name)
+    if infer_suffix and filename.suffix not in (".py", ".md", ".qmd"):
         suffix = (
             ".md"
             if "marimo-version" in content
             and "__generated_with" not in content
             else ".py"
         )
-        path_to_app = path_to_app.with_suffix(suffix)
+        filename = filename.with_suffix(suffix)
+        if not is_valid_filename(filename.name):
+            filename = default_filename.with_suffix(suffix)
 
+    path_to_app = Path(temp_dir.name) / filename
     LOGGER.info("Creating temporary file")
     try:
         if os.path.lexists(path_to_app):
