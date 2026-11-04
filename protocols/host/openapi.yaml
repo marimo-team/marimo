@@ -1272,7 +1272,7 @@ components:
           description: The runtime that produced this execution. Live when it equals the current runtime's id. Null when the producer is unknown.
         caused_by:
           oneOf: [{ $ref: '#/components/schemas/ExecutionId' }, { type: 'null' }]
-          description: The execution in the same run that caused this one. Null for executions requested directly.
+          description: The execution in the same run that initiated this evaluation. Null for executions requested directly.
         cell_id:
           oneOf: [{ $ref: '#/components/schemas/CellId' }, { type: 'null' }]
           description: The cell this execution belongs to. Null for scratch code, a cell outside the document.
@@ -1286,7 +1286,7 @@ components:
           type: object
           additionalProperties:
             oneOf: [{ $ref: '#/components/schemas/Revision' }, { type: 'null' }]
-          description: The variables the execution used, by name, each at the revision the runtime holds its result valid against. Null for a name no retained cell execution had bound. Empty while queued, stamped as the execution ends, and final from then on.
+          description: The variable revisions this result is valid against, keyed by name. Null for a name no retained cell execution had bound. Empty while queued, stamped as the execution ends, and final from then on.
         status: { $ref: '#/components/schemas/Lifecycle' }
         outcome:
           oneOf: [{ $ref: '#/components/schemas/Outcome' }, { type: 'null' }]

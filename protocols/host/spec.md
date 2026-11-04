@@ -229,9 +229,8 @@ Hosts MUST publish a cell execution's variables before its `completed` status,
 and MUST remove a cell's previous execution and its items before publishing
 the next one. A cell has one latest execution on the stream.
 
-An execution **depends on** the variables it used, each at the revision the
-runtime holds its result valid against. A name that no retained cell
-execution had bound is recorded as null.
+An execution's `depends_on` records the variable revisions its result is valid
+against. A name that no retained cell execution had bound is recorded as null.
 
     Execution { ..., depends_on: Record<Name, Revision | null> }
 
