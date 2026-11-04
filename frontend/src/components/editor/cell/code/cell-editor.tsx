@@ -1,6 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 import { historyField } from "@codemirror/commands";
-import { EditorState, StateEffect } from "@codemirror/state";
+import { EditorState, type Extension, StateEffect } from "@codemirror/state";
 import { EditorView, ViewPlugin } from "@codemirror/view";
 import { useIntersectionObserver } from "@uidotdev/usehooks";
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
@@ -88,6 +88,8 @@ export interface CellEditorProps
    * defaults to `#App`.
    */
   tooltipParentSelector?: string;
+  /** Further editor extensions, for an editor outside the notebook. */
+  extensions?: Extension[];
 }
 
 const CellEditorInternal = ({
@@ -111,6 +113,7 @@ const CellEditorInternal = ({
   inlineAiTooltip,
   outputArea,
   tooltipParentSelector,
+  extensions: extraExtensions,
 }: CellEditorProps) => {
   const [aiCompletionCell, setAiCompletionCell] = useAtom(aiCompletionCellAtom);
   const serializedEditorState = useRestoredEditorState(cellId);
@@ -270,6 +273,7 @@ const CellEditorInternal = ({
     });
 
     extensions.push(
+      ...(extraExtensions ?? []),
       // Listen to code changes if we can use markdown
       // Also update the language adapter
       ViewPlugin.define((view) => {
@@ -309,6 +313,7 @@ const CellEditorInternal = ({
     return extensions;
   }, [
     cellId,
+    extraExtensions,
     acceptCompletionOnEnter,
     userConfig.keymap,
     userConfig.completion,
