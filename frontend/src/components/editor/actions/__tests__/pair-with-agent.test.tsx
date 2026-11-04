@@ -60,18 +60,18 @@ describe("PairWithAgent", () => {
     ).toBeVisible();
     expect(
       screen.getByRole("button", {
-        name: "Pair your agent",
+        name: "Set up pairing",
       }),
     ).toBeVisible();
   });
 
-  it("opens the pairing dialog from the banner description", () => {
+  it("opens the pairing dialog from the banner button", () => {
     stubTokenFetch();
     render(<PairWithAgentBanner />, { wrapper });
 
     fireEvent.click(
       screen.getByRole("button", {
-        name: "Pair your agent",
+        name: "Set up pairing",
       }),
     );
 

@@ -75,113 +75,113 @@ export const DataForm = ({
 
   return (
     <>
-      <OverriddenFormField
-        control={form.control}
-        name="display.dataframes"
-        render={({ field, override }) => (
-          <div className="flex flex-col space-y-1">
-            <FormItem className={formItemClasses}>
-              <FormLabel>Dataframe viewer</FormLabel>
-              <FormControl>
-                <NativeSelect
-                  data-testid="display-dataframes-select"
-                  onChange={(e) => field.onChange(e.target.value)}
-                  value={override.value}
-                  disabled={field.disabled || override.isOverridden}
-                  className="inline-flex mr-2"
-                >
-                  {["rich", "plain"].map((option) => (
-                    <option value={option} key={option}>
-                      {option}
-                    </option>
-                  ))}
-                </NativeSelect>
-              </FormControl>
-              <FormMessage />
-              <IsOverridden override={override} />
-            </FormItem>
-
-            <FormDescription>
-              Whether to use marimo's rich dataframe viewer or a plain HTML
-              table. This requires restarting your notebook to take effect.
-            </FormDescription>
-          </div>
-        )}
-      />
-      <OverriddenFormField
-        control={form.control}
-        name="display.default_table_page_size"
-        render={({ field, override }) => (
-          <div className="flex flex-col space-y-1">
-            <FormItem className={formItemClasses}>
-              <FormLabel>Default table page size</FormLabel>
-              <FormControl>
-                <NumberField
-                  aria-label="Default table page size"
-                  data-testid="default-table-page-size-input"
-                  className="m-0 w-24"
-                  {...field}
-                  value={override.value}
-                  isDisabled={override.isOverridden}
-                  minValue={1}
-                  step={1}
-                  onChange={(value) => {
-                    field.onChange(value);
-                    if (!Number.isNaN(value)) {
-                      onSubmit(form.getValues());
-                    }
-                  }}
-                />
-              </FormControl>
-              <FormMessage />
-              <IsOverridden override={override} />
-            </FormItem>
-            <FormDescription>
-              The default number of rows displayed in dataframes and SQL
-              results.
-            </FormDescription>
-          </div>
-        )}
-      />
-      <OverriddenFormField
-        control={form.control}
-        name="display.default_table_max_columns"
-        render={({ field, override }) => (
-          <div className="flex flex-col space-y-1">
-            <FormItem className={formItemClasses}>
-              <FormLabel>Default table max columns</FormLabel>
-              <FormControl>
-                <NumberField
-                  aria-label="Default table max columns"
-                  data-testid="default-table-max-columns-input"
-                  className="m-0 w-24"
-                  {...field}
-                  value={override.value}
-                  isDisabled={override.isOverridden}
-                  minValue={1}
-                  step={1}
-                  onChange={(value) => {
-                    field.onChange(value);
-                    if (!Number.isNaN(value)) {
-                      onSubmit(form.getValues());
-                    }
-                  }}
-                />
-              </FormControl>
-              <FormMessage />
-              <IsOverridden override={override} />
-            </FormItem>
-            <FormDescription>
-              The default maximum number of columns displayed in dataframes and
-              SQL results.
-            </FormDescription>
-          </div>
-        )}
-      />
-
+      <SettingGroup title="Data">
+        <OverriddenFormField
+          control={form.control}
+          name="display.dataframes"
+          render={({ field, override }) => (
+            <div className="settings-field flex flex-col space-y-1">
+              <FormItem className={formItemClasses}>
+                <FormLabel>Dataframe viewer</FormLabel>
+                <FormDescription>
+                  Whether to use marimo's rich dataframe viewer or a plain HTML
+                  table. This requires restarting your notebook to take effect.
+                </FormDescription>
+                <FormControl>
+                  <NativeSelect
+                    data-testid="display-dataframes-select"
+                    onChange={(e) => field.onChange(e.target.value)}
+                    value={override.value}
+                    disabled={field.disabled || override.isOverridden}
+                    className="inline-flex mr-2"
+                  >
+                    {["rich", "plain"].map((option) => (
+                      <option value={option} key={option}>
+                        {option}
+                      </option>
+                    ))}
+                  </NativeSelect>
+                </FormControl>
+                <FormMessage />
+                <IsOverridden override={override} />
+              </FormItem>
+            </div>
+          )}
+        />
+        <OverriddenFormField
+          control={form.control}
+          name="display.default_table_page_size"
+          render={({ field, override }) => (
+            <div className="settings-field flex flex-col space-y-1">
+              <FormItem className={formItemClasses}>
+                <FormLabel>Default table page size</FormLabel>
+                <FormDescription>
+                  The default number of rows displayed in dataframes and SQL
+                  results.
+                </FormDescription>
+                <FormControl>
+                  <NumberField
+                    aria-label="Default table page size"
+                    data-testid="default-table-page-size-input"
+                    className="m-0 w-24"
+                    {...field}
+                    value={override.value}
+                    isDisabled={override.isOverridden}
+                    minValue={1}
+                    step={1}
+                    onChange={(value) => {
+                      field.onChange(value);
+                      if (!Number.isNaN(value)) {
+                        onSubmit(form.getValues());
+                      }
+                    }}
+                  />
+                </FormControl>
+                <FormMessage />
+                <IsOverridden override={override} />
+              </FormItem>
+            </div>
+          )}
+        />
+        <OverriddenFormField
+          control={form.control}
+          name="display.default_table_max_columns"
+          render={({ field, override }) => (
+            <div className="settings-field flex flex-col space-y-1">
+              <FormItem className={formItemClasses}>
+                <FormLabel>Default table max columns</FormLabel>
+                <FormDescription>
+                  The default maximum number of columns displayed in dataframes
+                  and SQL results.
+                </FormDescription>
+                <FormControl>
+                  <NumberField
+                    aria-label="Default table max columns"
+                    data-testid="default-table-max-columns-input"
+                    className="m-0 w-24"
+                    {...field}
+                    value={override.value}
+                    isDisabled={override.isOverridden}
+                    minValue={1}
+                    step={1}
+                    onChange={(value) => {
+                      field.onChange(value);
+                      if (!Number.isNaN(value)) {
+                        onSubmit(form.getValues());
+                      }
+                    }}
+                  />
+                </FormControl>
+                <FormMessage />
+                <IsOverridden override={override} />
+              </FormItem>
+            </div>
+          )}
+        />
+      </SettingGroup>
       <SettingGroup title="SQL">
-        <div className="flex flex-col gap-1">
-          <div className="text-sm text-foreground">
+        <div className="settings-field flex flex-col gap-1">
+          <div className="text-sm font-semibold text-muted-foreground">
             Database Schema Discovery
           </div>
           <div className="text-sm text-muted-foreground mb-2">
@@ -212,7 +212,7 @@ export const DataForm = ({
           control={form.control}
           name="diagnostics.sql_linter"
           render={({ field, override }) => (
-            <div className="flex flex-col space-y-1">
+            <div className="settings-field flex flex-col space-y-1">
               <FormItem className={formItemClasses}>
                 <FormLabel>SQL Linter</FormLabel>
                 <FormControl>
@@ -237,9 +237,13 @@ export const DataForm = ({
           control={form.control}
           name="runtime.default_sql_output"
           render={({ field, override }) => (
-            <div className="flex flex-col space-y-1">
+            <div className="settings-field flex flex-col space-y-1">
               <FormItem className={formItemClasses}>
                 <FormLabel>Default SQL output</FormLabel>
+                <FormDescription>
+                  The default SQL output type for new notebooks; overridden by
+                  "sql_output" in the application config.
+                </FormDescription>
                 <FormControl>
                   <NativeSelect
                     data-testid="user-config-sql-output-select"
@@ -258,11 +262,6 @@ export const DataForm = ({
                 <FormMessage />
                 <IsOverridden override={override} />
               </FormItem>
-
-              <FormDescription>
-                The default SQL output type for new notebooks; overridden by
-                "sql_output" in the application config.
-              </FormDescription>
             </div>
           )}
         />

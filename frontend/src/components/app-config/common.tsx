@@ -23,7 +23,7 @@ export const SettingSubtitle: React.FC<HTMLProps<HTMLHeadingElement>> = ({
   return (
     <h3
       {...props}
-      className={cn("text-sm font-semibold text-foreground", className)}
+      className={cn("text-base font-semibold text-foreground", className)}
     >
       {children}
     </h3>
