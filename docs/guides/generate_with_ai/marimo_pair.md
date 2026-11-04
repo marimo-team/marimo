@@ -1,4 +1,4 @@
-# Work with agents using marimo pair
+# marimo pair: work on notebooks with coding agents
 
 Use **[marimo pair](https://marimo.io/pair)** to connect coding agents like
 Claude Code, Codex, and OpenCode to running marimo notebooks. Once your agent

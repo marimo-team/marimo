@@ -33,7 +33,7 @@ export const usePairWithAgentModal = () => {
 
 export const PairWithAgentButton: React.FC<
   ButtonProps & { label?: string }
-> = ({ className, label = "Connect your agent", onClick, ...props }) => {
+> = ({ className, label = "Pair your agent", onClick, ...props }) => {
   const openPairWithAgentModal = usePairWithAgentModal();
 
   if (isWasm()) {
@@ -62,7 +62,7 @@ export const PairWithAgentButton: React.FC<
 export const PairWithAgentBanner: React.FC<{
   label?: string;
   className?: string;
-}> = ({ label = "Connect your agent", className }) => {
+}> = ({ label = "Pair your agent", className }) => {
   const openPairWithAgentModal = usePairWithAgentModal();
 
   if (isWasm()) {
@@ -104,14 +104,16 @@ export const PairWithAgentBanner: React.FC<{
       </div>
       <div className="mt-1 text-xs leading-relaxed">
         <p className="inline">
-          Use your AI coding agent to pair-program on this notebook.
+          Pair your coding agent with this notebook to edit and run cells,
+          inspect variables, and more, straight from your agent's CLI or user
+          interface.
         </p>
         <button
           type="button"
           onClick={openPairWithAgentModal}
           className="text-link hover:underline ml-1"
         >
-          Learn more.
+          Pair your agent
         </button>
       </div>
     </div>

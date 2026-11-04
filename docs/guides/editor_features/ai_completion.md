@@ -93,19 +93,13 @@ into your notebook.
 
 Use the **Notebook access** selector to choose what the assistant can do:
 
-- **Read only**: Read notebook code, outputs, and variable previews.
-- **Suggest edits**: Read the notebook and propose cell changes for review.
-- **Full access**: Read, edit, and run cells, with Python scratchpad access.
+- **Read only**: The assistant can read notebook code, outputs, and variable previews.
+- **Suggest edits**: The assistant can read the notebook and propose cell changes for review.
+- **Full access**: The assistant can read, edit, and run cells, with Python scratchpad access.
 
-**Suggest edits** uses [cell proposals](tools.md#editing) that you can keep or discard.
-**Full access** can modify the notebook directly and [execute Python in the live kernel](tools.md#full-access).
-
-See [AI tools](tools.md) for details about notebook tools and MCP integrations.
-[Web search and fetch](tools.md#web-search-and-fetch) can be enabled separately
-at any notebook access level.
-
-The `ai.mode` configuration values are `ask` for **Read only** (the default),
-`agent` for **Suggest edits**, and `code_mode` for **Full access**.
+!!! warning "Full access can execute arbitrary Python"
+    The assistant can execute arbitrary Python on your machine, and it can change
+    notebook cells and runtime state without review. These changes can be destructive.
 
 ### Refactor existing cells
 
