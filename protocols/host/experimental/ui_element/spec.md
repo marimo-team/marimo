@@ -1,6 +1,6 @@
 # Experimental UI elements
 
-Owner: Kiran. This experiment covers edit-mode sliders. Other element families
+This experiment covers edit-mode sliders. Other element families
 and message operations are outside this implementation.
 
 A `ui_element` record describes the current wire value and constructor config
