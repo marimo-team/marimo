@@ -6,6 +6,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from copy import deepcopy
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, overload
 
 import msgspec
@@ -20,6 +21,7 @@ from marimo._core.errors import (
     Invalid,
     NoRuntime,
     NotFound,
+    ResultTimeout,
 )
 from marimo._core.executions import Executions, Released, Removed
 from marimo._core.ids import mint
@@ -40,6 +42,15 @@ if TYPE_CHECKING:
 
 
 LOGGER = logging.getLogger(__name__)
+
+UI_ELEMENT_RESULT_TIMEOUT = 30.0
+
+
+@dataclass(frozen=True)
+class _PendingUIElementCall:
+    element_id: str
+    runtime_id: protocol.RuntimeId
+    result: asyncio.Future[protocol.UIElementFunctionResult]
 
 
 class Notebook:
@@ -85,6 +96,8 @@ class Notebook:
         self._closed = False
         self._runtime: protocol.Runtime | None = None
         self._attachments: dict[str, protocol.Attachment] = {}
+        self._ui_elements: dict[str, protocol.UIElement] = {}
+        self._ui_element_calls: dict[str, _PendingUIElementCall] = {}
         self._replacement: protocol.Runtime | None = None
         # Correlate runtime events with the pending start, stop, or restart.
         self._runtime_request: str | None = None
@@ -280,6 +293,9 @@ class Notebook:
             for cell in changed.cells:
                 self._publish(self._cell_record(cell), request_id)
             for cell_id in changed.removed:
+                self._remove_ui_elements(
+                    cell_id=cell_id, request_id=request_id
+                )
                 self._apply(
                     self.executions.remove_cell(protocol.CellId(cell_id))
                 )
@@ -427,12 +443,66 @@ class Notebook:
 
     def _end_runtime(self) -> None:
         assert self._runtime is not None
+        self._remove_ui_elements(request_id=self._runtime_request)
         self._apply(self.executions.interrupt())
         runtime, self._runtime = self._runtime, None
         self._remove(protocol.Runtime, runtime.id, self._runtime_request)
         self._runtime_request = None
 
     # ---- runs ----------------------------------------------------------
+
+    def update_ui_element(
+        self,
+        element_id: str,
+        state: protocol.UIElementPartialState,
+        *,
+        request_id: str,
+    ) -> protocol.UIElementUpdateResponse:
+        self._require_open()
+        runtime = self._require_runtime()
+        if runtime.status != "running":
+            raise Conflict(f"the notebook has a {runtime.status} runtime")
+        if element_id not in self._ui_elements:
+            raise NotFound(f"UI element {element_id} does not exist")
+        self.backend.update_ui_element(element_id, state, request_id)
+        return protocol.UIElementUpdateResponse(
+            id=element_id, state=state, request_id=request_id
+        )
+
+    async def send_ui_element(
+        self,
+        element_id: str,
+        message: protocol.UIElementFunctionCall,
+        *,
+        request_id: str,
+    ) -> protocol.UIElementSendResponse:
+        self._require_open()
+        runtime = self._require_runtime()
+        if runtime.status != "running":
+            raise Conflict(f"the notebook has a {runtime.status} runtime")
+        if element_id not in self._ui_elements:
+            raise NotFound(f"UI element {element_id} does not exist")
+        # Kernel call ids are independent of retry keys and reused element ids.
+        call_id = str(mint(str, "call"))
+        pending = _PendingUIElementCall(
+            element_id, runtime.id, asyncio.get_running_loop().create_future()
+        )
+        self._ui_element_calls[call_id] = pending
+        try:
+            self.backend.send_ui_element(element_id, message, call_id)
+            try:
+                result = await asyncio.wait_for(
+                    pending.result, timeout=UI_ELEMENT_RESULT_TIMEOUT
+                )
+            except TimeoutError as exc:
+                raise ResultTimeout(
+                    "The UI element function timed out"
+                ) from exc
+            return protocol.UIElementSendResponse(
+                request_id=request_id, result=result
+            )
+        finally:
+            self._ui_element_calls.pop(call_id, None)
 
     @overload
     def run(self, code: str, *, request_id: str) -> protocol.Run: ...
@@ -562,6 +632,57 @@ class Notebook:
         if self._closed:
             return
         match msg:
+            case be.UIElementResult():
+                pending = self._ui_element_calls.get(msg.call_id)
+                if (
+                    pending is not None
+                    and pending.runtime_id == msg.runtime_id
+                    and not pending.result.done()
+                ):
+                    pending.result.set_result(msg.result)
+            case be.UIElementUpdated():
+                element = self._ui_elements.get(msg.element_id)
+                if (
+                    self._runtime is None
+                    or self._runtime.id != msg.runtime_id
+                    or element is None
+                ):
+                    return
+                state = deepcopy(msg.state)
+                if state.value is not UNSET:
+                    self._ui_elements[element.id] = replace(
+                        element,
+                        state=protocol.UIElementState(value=state.value),
+                    )
+                self.sink.append(
+                    RoutedEvent(
+                        protocol.UIElementUpdateEvent(
+                            protocol.UIElementUpdateMessage(
+                                id=element.id,
+                                state=state,
+                                time=utcnow(),
+                                request_id=msg.request_id
+                                if msg.request_id is not None
+                                else UNSET,
+                            )
+                        ),
+                        notebook_id=self.id,
+                    )
+                )
+            case be.UIElementCreated(runtime_id=runtime_id, element=element):
+                if (
+                    self._runtime is not None
+                    and self._runtime.id == runtime_id
+                    and self.document.cell(element.cell_id) is not None
+                ):
+                    self._ui_elements[element.id] = deepcopy(element)
+                    self._publish(element, None)
+            case be.UIElementsRemoved(runtime_id=runtime_id, cell_id=cell_id):
+                if (
+                    self._runtime is not None
+                    and self._runtime.id == runtime_id
+                ):
+                    self._remove_ui_elements(cell_id=cell_id)
             case be.Starting() | be.Running() | be.Exited():
                 runtime = self._runtime
                 if runtime is None or msg.runtime_id != runtime.id:
@@ -605,6 +726,7 @@ class Notebook:
             self._end_runtime()
         else:
             # Preserve results after an unexpected exit.
+            self._remove_ui_elements()
             self._apply(self.executions.interrupt("failed"))
             self._set_runtime(
                 replace(runtime, status="failed", message=reason)
@@ -642,6 +764,25 @@ class Notebook:
         self._publish(custom, request_id)
         return custom
 
+    def _remove_ui_elements(
+        self, *, cell_id: str | None = None, request_id: str | None = None
+    ) -> None:
+        with self.sink.deferred():
+            for element in tuple(self._ui_elements.values()):
+                if cell_id is None or element.cell_id == cell_id:
+                    del self._ui_elements[element.id]
+                    for pending in self._ui_element_calls.values():
+                        if (
+                            pending.element_id == element.id
+                            and not pending.result.done()
+                        ):
+                            pending.result.set_exception(
+                                NotFound(
+                                    f"UI element {element.id} was removed"
+                                )
+                            )
+                    self._remove(protocol.UIElement, element.id, request_id)
+
     # ---- stream --------------------------------------------------------
 
     def _records(self) -> Iterator[tuple[SnapshotBody, protocol.RunId | None]]:
@@ -655,6 +796,8 @@ class Notebook:
             yield self._runtime, None
         for attachment in self._attachments.values():
             yield attachment, None
+        for element in self._ui_elements.values():
+            yield element, None
         for record in self.executions._records():
             yield record, self.executions.run_id_of(record)
 
@@ -676,6 +819,7 @@ class Notebook:
         The host publishes `notebook.removed` after disposing of this state.
         """
         self._closed = True
+        self._remove_ui_elements(request_id=request_id)
         if self._analysis_task is not None:
             self._analysis_task.cancel()
         self._apply(self.executions.interrupt())

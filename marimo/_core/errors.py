@@ -37,6 +37,10 @@ class Unsupported(HostError):
     """The host does not offer the command."""
 
 
+class ResultTimeout(HostError):
+    """An accepted function call did not return before its deadline."""
+
+
 class EditConflict(Conflict):
     """A change named a state the document no longer has.
 

@@ -1,7 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 // Generated from protocols/host/openapi.yaml. Do not edit.
-// Experimental features: analysis
-// Regenerate with: pnpm --dir packages/client codegen --include-experimental=analysis
+// Experimental features: analysis, ui_element
+// Regenerate with: pnpm --dir packages/client codegen --include-experimental=analysis,ui_element
 
 import * as Protocol from "./protocol.ts";
 
@@ -158,6 +158,26 @@ export const operations = {
     body: null,
     responses: { 202: Protocol.Run },
     problems: [400, 401, 403, 404, 405, 409, 500, 501],
+  },
+  /** Call a registered UI element function. */
+  "ui_element.send": {
+    method: "POST",
+    path: "/notebooks/{notebook_id}/ui-elements/{element_id}/send",
+    query: {},
+    headers: { "Idempotency-Key": true },
+    body: Protocol.UIElementSendRequest,
+    responses: { 200: Protocol.UIElementSendResponse },
+    problems: [400, 401, 403, 404, 409, 500, 501, 504],
+  },
+  /** Update a UI element's state. */
+  "ui_element.update": {
+    method: "POST",
+    path: "/notebooks/{notebook_id}/ui-elements/{element_id}/update",
+    query: {},
+    headers: { "Idempotency-Key": true },
+    body: Protocol.UIElementUpdateRequest,
+    responses: { 202: Protocol.UIElementUpdateResponse },
+    problems: [400, 401, 403, 404, 409, 500, 501],
   },
 } as const;
 

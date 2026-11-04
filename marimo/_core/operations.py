@@ -21,6 +21,7 @@ from marimo._core.errors import (
     Invalid,
     NoRuntime,
     NotFound,
+    ResultTimeout,
     Unsupported,
 )
 from marimo._core.host import Host
@@ -66,6 +67,7 @@ _TITLES = {
     "decision-required": "Decision required",
     "unsupported-operation": "Unsupported operation",
     "internal": "Internal error",
+    "timeout": "Result timeout",
 }
 
 
@@ -91,6 +93,8 @@ def problem_for(error: HostError) -> protocol.Problem:
     """Describe a failed command the same way on every transport."""
     detail = str(error)
     match error:
+        case ResultTimeout():
+            return problem(504, "timeout", detail)
         case NoRuntime():
             return problem(409, "no-runtime", detail)
         case DecisionRequired():

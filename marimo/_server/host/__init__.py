@@ -15,6 +15,8 @@ OPERATIONS = [
     "runtime.stop",
     "runtime.restart",
     "runtime.run",
+    "ui_element.update",
+    "ui_element.send",
 ]
 """Supported operations advertised in the `host` object."""
 

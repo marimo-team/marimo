@@ -1,0 +1,11 @@
+{
+  "request": {"message": {"function": "search", "args": {"query": "a", "page_number": 0}}},
+  "response": {
+    "request_id": "search-1",
+    "result": {
+      "status": {"code": "ok", "title": null, "message": null},
+      "return_value": {"data": [], "total_rows": 0},
+      "found": true
+    }
+  }
+}

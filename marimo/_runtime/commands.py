@@ -469,6 +469,9 @@ class UpdateUIElementCommand(Command):
 
     object_ids: list[UIElementId]
     values: list[Any]
+    # Host writes must retain their identity through queue batching.
+    request_id: str | None = None
+    value_supplied: bool = True
     # Incoming request, e.g. from Starlette or FastAPI
     request: HTTPRequest | None = None
     # uniquely identifies the request
@@ -538,6 +541,7 @@ class InvokeFunctionCommand(Command):
     namespace: str
     function_name: str
     args: dict[str, Any]
+    host_call: bool = False
 
     def __repr__(self) -> str:
         return f"InvokeFunctionCommand(id={self.function_call_id}, fn={self.namespace}.{self.function_name})"

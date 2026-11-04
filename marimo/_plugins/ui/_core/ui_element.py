@@ -28,6 +28,7 @@ from marimo._runtime.context import (
     RuntimeContext,
     get_context,
 )
+from marimo._runtime.context.utils import get_mode
 from marimo._runtime.functions import Function
 from marimo._types.ids import UIElementId
 
@@ -112,6 +113,7 @@ class UIElement(Html, Generic[S, T]):
 
     _value_frontend: S
     _value: T
+    _host_publish: bool = True
 
     # We want this to be fully random in production,
     # otherwise cached session state could use incorrect object-ids.
@@ -168,7 +170,8 @@ class UIElement(Html, Generic[S, T]):
         self._initialized = True
 
     def _initialize(
-        self, initialization_args: InitializationArgs[S, T]
+        self,
+        initialization_args: InitializationArgs[S, T],
     ) -> None:
         """Initialize the UIElement
 
@@ -289,6 +292,32 @@ class UIElement(Html, Generic[S, T]):
             + "</marimo-ui-element>"
         )
         super().__init__(text=text)
+        self._host_published = (
+            self._host_publish
+            and component_name == "marimo-slider"
+            and self._ctx is not None
+            and self._ctx.parent is None
+            and get_mode() == "edit"
+        )
+        if self._host_published:
+            assert self._ctx is not None
+            from marimo._messaging.notification import (
+                UIElementCreatedNotification,
+            )
+            from marimo._messaging.notification_utils import (
+                broadcast_notification,
+            )
+
+            broadcast_notification(
+                UIElementCreatedNotification(
+                    id=self._id,
+                    cell_id=self._ctx.ui_element_registry.get_cell(self._id),
+                    component=component_name,
+                    label=label,
+                    args=args,
+                    value=frontend_value,
+                )
+            )
 
     @abc.abstractmethod
     def _convert_value(self, value: S) -> T:
@@ -550,6 +579,8 @@ class UIElement(Html, Generic[S, T]):
 
         # Use the newly constructed arguments, instead of the one in the naive deepcopy.
         result._args = args
+        # Composite elements clone their children and own their update path.
+        result._host_publish = False
         result._initialize(args)
         return result
 
