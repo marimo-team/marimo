@@ -12,7 +12,7 @@ import contextlib
 import dataclasses
 import queue as _queue
 from collections import deque
-from typing import TYPE_CHECKING, Any, TypeVar
+from typing import TYPE_CHECKING, Any, Protocol, TypeVar
 
 from marimo import _loggers
 from marimo._runtime import patches
@@ -89,6 +89,12 @@ LOGGER = _loggers.marimo_logger()
 # (threading vs asyncio).
 _Q = TypeVar("_Q")
 _T = TypeVar("_T")
+
+
+class CommandHandler(Protocol):
+    """What the control loop needs from a kernel."""
+
+    async def handle_message(self, request: CommandMessage) -> None: ...
 
 
 def drain_stale(queue: Any, *, latest: _T) -> _T:
@@ -263,7 +269,7 @@ async def asyncio_queue_reader(
 
 
 async def listen_messages(
-    kernel: Kernel,
+    kernel: CommandHandler,
     control_queue: _Q,
     set_ui_element_queue: UIElementQueue,
     get_request: Callable[[_Q], Awaitable[CommandMessage | None]],

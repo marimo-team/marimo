@@ -5,11 +5,12 @@ import asyncio
 import queue as _queue
 import threading
 from typing import TYPE_CHECKING, Any
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock
 
 import pytest
 
 from marimo._runtime.commands import (
+    BatchableCommand,
     CancelRunCommand,
     CodeCompletionCommand,
     CommandMessage,
@@ -27,26 +28,36 @@ from marimo._runtime.kernel_lifecycle import (
     make_control_enqueuer,
     threaded_queue_reader,
 )
-from marimo._types.ids import CellId_t, UIElementId, WidgetModelId
+from marimo._types.ids import (
+    CellId_t,
+    RequestId,
+    UIElementId,
+    WidgetModelId,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
 
 
-@pytest.fixture
-def kernel() -> Any:
-    k = MagicMock()
-    k.handle_message = AsyncMock()
-    return k
+class FakeKernel:
+    """Records the commands the control loop dispatches."""
+
+    def __init__(self) -> None:
+        self.handle_message = AsyncMock()
 
 
 @pytest.fixture
-def control() -> asyncio.Queue[Any]:
+def kernel() -> FakeKernel:
+    return FakeKernel()
+
+
+@pytest.fixture
+def control() -> asyncio.Queue[CommandMessage]:
     return asyncio.Queue()
 
 
 @pytest.fixture
-def ui() -> asyncio.Queue[Any]:
+def ui() -> asyncio.Queue[BatchableCommand]:
     return asyncio.Queue()
 
 
@@ -86,9 +97,9 @@ async def test_threaded_queue_reader_offloads_blocking_get(
 
 
 async def test_listen_messages_exits_on_stop_command(
-    kernel: Any,
-    control: asyncio.Queue[Any],
-    ui: asyncio.Queue[Any],
+    kernel: FakeKernel,
+    control: asyncio.Queue[CommandMessage],
+    ui: asyncio.Queue[BatchableCommand],
 ) -> None:
     cmd = _execute()
     control.put_nowait(cmd)
@@ -99,29 +110,30 @@ async def test_listen_messages_exits_on_stop_command(
     await listen_messages(kernel, control, ui, asyncio_queue_reader)
 
     assert kernel.handle_message.await_count == 1
-    assert kernel.handle_message.await_args.args == (cmd,)
+    assert kernel.handle_message.await_args_list[-1].args == (cmd,)
 
 
 async def test_listen_messages_skips_none_requests(
-    kernel: Any,
-    control: asyncio.Queue[Any],
-    ui: asyncio.Queue[Any],
+    kernel: FakeKernel,
+    control: asyncio.Queue[CommandMessage],
+    ui: asyncio.Queue[BatchableCommand],
 ) -> None:
-    control.put_nowait(None)
     cmd = _execute()
-    control.put_nowait(cmd)
-    control.put_nowait(StopKernelCommand())
+    reads = iter([None, cmd, StopKernelCommand()])
 
-    await listen_messages(kernel, control, ui, asyncio_queue_reader)
+    async def reader(_queue: object) -> CommandMessage | None:
+        return next(reads)
+
+    await listen_messages(kernel, control, ui, reader)
 
     assert kernel.handle_message.await_count == 1
-    assert kernel.handle_message.await_args.args == (cmd,)
+    assert kernel.handle_message.await_args_list[-1].args == (cmd,)
 
 
 async def test_listen_messages_swallows_handle_message_exception_non_ui(
-    kernel: Any,
-    control: asyncio.Queue[Any],
-    ui: asyncio.Queue[Any],
+    kernel: FakeKernel,
+    control: asyncio.Queue[CommandMessage],
+    ui: asyncio.Queue[BatchableCommand],
 ) -> None:
     kernel.handle_message.side_effect = [RuntimeError("boom"), None]
     control.put_nowait(_execute("first"))
@@ -135,9 +147,9 @@ async def test_listen_messages_swallows_handle_message_exception_non_ui(
 
 
 async def test_listen_messages_swallows_handle_message_exception_ui_branch(
-    kernel: Any,
-    control: asyncio.Queue[Any],
-    ui: asyncio.Queue[Any],
+    kernel: FakeKernel,
+    control: asyncio.Queue[CommandMessage],
+    ui: asyncio.Queue[BatchableCommand],
 ) -> None:
     """Regression test: the UI-merge branch used to let `handle_message`
     exceptions propagate while the non-UI branch caught them."""
@@ -160,14 +172,14 @@ def _run(run_id: str) -> ExecuteCellsCommand:
 
 
 async def test_listen_messages_cancels_a_run_still_in_the_queue(
-    kernel: Any,
-    control: asyncio.Queue[Any],
-    ui: asyncio.Queue[Any],
+    kernel: FakeKernel,
+    control: asyncio.Queue[CommandMessage],
+    ui: asyncio.Queue[BatchableCommand],
 ) -> None:
     """A cancellation enqueued while an earlier run executes takes the
     place of the run it names, which the kernel never sees."""
 
-    async def arrive_during_first(request: Any) -> None:
+    async def arrive_during_first(request: CommandMessage) -> None:
         if getattr(request, "run_id", None) == "first":
             control.put_nowait(_run("second"))
             control.put_nowait(_run("third"))
@@ -191,9 +203,9 @@ async def test_listen_messages_cancels_a_run_still_in_the_queue(
 
 
 async def test_listen_messages_drops_a_cancellation_whose_run_already_left(
-    kernel: Any,
-    control: asyncio.Queue[Any],
-    ui: asyncio.Queue[Any],
+    kernel: FakeKernel,
+    control: asyncio.Queue[CommandMessage],
+    ui: asyncio.Queue[BatchableCommand],
 ) -> None:
     control.put_nowait(CancelRunCommand(run_id="gone"))
     control.put_nowait(_run("later"))
@@ -202,15 +214,15 @@ async def test_listen_messages_drops_a_cancellation_whose_run_already_left(
     await listen_messages(kernel, control, ui, asyncio_queue_reader)
 
     assert kernel.handle_message.await_count == 1
-    assert kernel.handle_message.await_args.args[0].run_id == "later"
+    assert kernel.handle_message.await_args_list[-1].args[0].run_id == "later"
 
 
 async def test_listen_messages_exits_when_reader_raises(
-    kernel: Any,
-    control: asyncio.Queue[Any],
-    ui: asyncio.Queue[Any],
+    kernel: FakeKernel,
+    control: asyncio.Queue[CommandMessage],
+    ui: asyncio.Queue[BatchableCommand],
 ) -> None:
-    async def failing_reader(_queue: Any) -> Any:
+    async def failing_reader(_queue: object) -> CommandMessage:
         raise OSError("queue closed")
 
     await listen_messages(kernel, control, ui, failing_reader)
@@ -219,9 +231,9 @@ async def test_listen_messages_exits_when_reader_raises(
 
 
 async def test_listen_messages_survives_interrupted_read(
-    kernel: Any,
-    control: asyncio.Queue[Any],
-    ui: asyncio.Queue[Any],
+    kernel: FakeKernel,
+    control: asyncio.Queue[CommandMessage],
+    ui: asyncio.Queue[BatchableCommand],
 ) -> None:
     """A SIGINT-aborted queue read (EINTR) must not stop the control
     loop."""
@@ -244,13 +256,13 @@ async def test_listen_messages_survives_interrupted_read(
 
     # The dispatch after the EINTR proves the loop kept reading.
     assert kernel.handle_message.await_count == 1
-    assert kernel.handle_message.await_args.args == (cmd,)
+    assert kernel.handle_message.await_args_list[-1].args == (cmd,)
 
 
 async def test_listen_messages_merges_ui_updates(
-    kernel: Any,
-    control: asyncio.Queue[Any],
-    ui: asyncio.Queue[Any],
+    kernel: FakeKernel,
+    control: asyncio.Queue[CommandMessage],
+    ui: asyncio.Queue[BatchableCommand],
 ) -> None:
     """Contiguous UI updates against the same element collapse to one dispatch."""
     first = _ui_update("u", 1)
@@ -266,7 +278,7 @@ async def test_listen_messages_merges_ui_updates(
 
     # Both UI updates merge into a single batched dispatch.
     assert kernel.handle_message.await_count == 1
-    dispatched = kernel.handle_message.await_args.args[0]
+    dispatched = kernel.handle_message.await_args_list[-1].args[0]
     assert isinstance(dispatched, UpdateUIElementCommand)
     assert dispatched.values == [2]
 
@@ -311,7 +323,9 @@ def test_collapse_out_of_band_returns_first_when_empty(
     queue_factory: Any,
 ) -> None:
     q = queue_factory()
-    first = CodeCompletionCommand(id="r1", document="x.", cell_id="c1")
+    first = CodeCompletionCommand(
+        id=RequestId("r1"), document="x.", cell_id=CellId_t("c1")
+    )
     assert collapse_out_of_band(q, first=first) == [first]
 
 
@@ -325,11 +339,11 @@ def test_collapse_out_of_band_keeps_latest_per_type(
 ) -> None:
     q = queue_factory()
     completion_old = CodeCompletionCommand(
-        id="r1", document="x.", cell_id="c1"
+        id=RequestId("r1"), document="x.", cell_id=CellId_t("c1")
     )
-    breakpoints = SetBreakpointsCommand(breakpoints={"c1": [1]})
+    breakpoints = SetBreakpointsCommand(breakpoints={CellId_t("c1"): [1]})
     completion_new = CodeCompletionCommand(
-        id="r2", document="y.", cell_id="c1"
+        id=RequestId("r2"), document="y.", cell_id=CellId_t("c1")
     )
     q.put_nowait(breakpoints)
     q.put_nowait(completion_new)
@@ -342,8 +356,8 @@ def test_collapse_out_of_band_keeps_latest_per_type(
 
 
 def test_make_control_enqueuer_routes_plain_command_to_control_only() -> None:
-    control: asyncio.Queue[Any] = asyncio.Queue()
-    ui: asyncio.Queue[Any] = asyncio.Queue()
+    control: asyncio.Queue[CommandMessage] = asyncio.Queue()
+    ui: asyncio.Queue[BatchableCommand] = asyncio.Queue()
     enqueue = make_control_enqueuer(control, ui)
 
     cmd = _execute()
@@ -354,8 +368,8 @@ def test_make_control_enqueuer_routes_plain_command_to_control_only() -> None:
 
 
 def test_make_control_enqueuer_mirrors_ui_element_command() -> None:
-    control: asyncio.Queue[Any] = asyncio.Queue()
-    ui: asyncio.Queue[Any] = asyncio.Queue()
+    control: asyncio.Queue[CommandMessage] = asyncio.Queue()
+    ui: asyncio.Queue[BatchableCommand] = asyncio.Queue()
     enqueue = make_control_enqueuer(control, ui)
 
     cmd = _ui_update("u", 1)
@@ -368,8 +382,8 @@ def test_make_control_enqueuer_mirrors_ui_element_command() -> None:
 def test_make_control_enqueuer_mirrors_model_command() -> None:
     from marimo._runtime.commands import ModelUpdateMessage
 
-    control: asyncio.Queue[Any] = asyncio.Queue()
-    ui: asyncio.Queue[Any] = asyncio.Queue()
+    control: asyncio.Queue[CommandMessage] = asyncio.Queue()
+    ui: asyncio.Queue[BatchableCommand] = asyncio.Queue()
     enqueue = make_control_enqueuer(control, ui)
 
     cmd = ModelCommand(
