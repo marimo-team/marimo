@@ -1887,26 +1887,51 @@ components:
       - hash
       title: EsmSpec
       type: object
+    ExecuteCellCommand:
+      description: "Execute a single cell.\n\n    Executes a cell with the provided\
+        \ code. Dependent cells may be\n    re-executed based on the reactive execution\
+        \ mode.\n\n    Attributes:\n        cell_id: Cell to execute.\n        code:\
+        \ Python code to execute.\n        code_fingerprint: Code fingerprint. Computed\
+        \ from `code` when omitted.\n        request: HTTP request context if available.\n\
+        \        timestamp: Unix timestamp when command was created."
+      properties:
+        cellId:
+          $ref: '#/components/schemas/CellId'
+        code:
+          type: string
+        codeFingerprint:
+          default: ''
+          type: string
+        request:
+          anyOf:
+          - $ref: '#/components/schemas/HTTPRequest'
+          - type: 'null'
+          default: null
+        timestamp:
+          type: number
+        type:
+          enum:
+          - execute-cell
+      required:
+      - type
+      - cellId
+      - code
+      title: ExecuteCellCommand
+      type: object
     ExecuteCellsCommand:
-      description: "Execute multiple cells in a batch.\n\n    Executes multiple cells\
-        \ with their corresponding code. The kernel manages\n    dependency tracking\
-        \ and reactive execution.\n\n    Attributes:\n        cell_ids: Cells to execute.\n\
-        \        codes: Python code for each cell. Must match length of cell_ids.\n\
-        \        request: HTTP request context if available.\n        timestamp: Unix\
-        \ timestamp when command was created.\n        run_id: Optional correlation\
-        \ ID. When set, the run's notifications\n            and its `CompletedRunNotification`\
-        \ carry it.\n        allow_stdin: Whether cells may request interactive input."
+      description: "Execute cells and their reactive dependents in one batch.\n\n\
+        \    Attributes:\n        execution_requests: The cells and source identities\
+        \ to execute.\n        request: HTTP request context for the batch.\n    \
+        \    timestamp: Unix timestamp when the batch was created.\n        run_id:\
+        \ Correlates the run's notifications and completion.\n        allow_stdin:\
+        \ Whether cells may request interactive input."
       properties:
         allowStdin:
           default: true
           type: boolean
-        cellIds:
+        executionRequests:
           items:
-            $ref: '#/components/schemas/CellId'
-          type: array
-        codes:
-          items:
-            type: string
+            $ref: '#/components/schemas/ExecuteCellCommand'
           type: array
         request:
           anyOf:
@@ -1925,8 +1950,7 @@ components:
           - execute-cells
       required:
       - type
-      - cellIds
-      - codes
+      - executionRequests
       title: ExecuteCellsCommand
       type: object
     ExecuteCellsRequest:
@@ -1954,6 +1978,7 @@ components:
         \ execution environment that doesn't affect\n    the notebook's cells or dependencies.\
         \ Runs in an isolated cell with a copy\n    of the global namespace, useful\
         \ for experimentation.\n\n    Attributes:\n        code: Python code to execute.\n\
+        \        code_fingerprint: Code fingerprint. Computed from `code` when omitted.\n\
         \        request: HTTP request context if available.\n        notebook_cells:\
         \ Snapshot of notebook cells from the session document.\n            Used\
         \ to populate the document ContextVar so code_mode can read\n            cell\
@@ -1979,6 +2004,9 @@ components:
           - type: 'null'
           default: null
         code:
+          type: string
+        codeFingerprint:
+          default: ''
           type: string
         notebookCells:
           anyOf:
@@ -2017,6 +2045,9 @@ components:
           default: null
         code:
           type: string
+        codeFingerprint:
+          default: ''
+          type: string
         notebookCells:
           anyOf:
           - items:
@@ -2040,10 +2071,11 @@ components:
       type: object
     ExecutionNotification:
       description: "An attempt's lifecycle, independent of a cell's displayed status.\n\
-        \n    `planned` supplies the source and identity before output is reported.\n\
-        \    `running` means evaluation began. `completed` follows the final output\n\
-        \    and errors, including for attempts that never ran. Buffered and background\n\
-        \    console output may still arrive with the completed attempt's identity."
+        \n    `planned` includes the execution ID and code fingerprint before any\
+        \ output.\n    `code` is null when source is withheld.\n    `running` means\
+        \ evaluation began. `completed` follows the final output\n    and errors,\
+        \ including for attempts that never ran. Buffered and background\n    console\
+        \ output may still arrive with the completed attempt's identity."
       properties:
         caused_by:
           anyOf:
@@ -2053,6 +2085,11 @@ components:
         cell_id:
           $ref: '#/components/schemas/CellId'
         code:
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
+        code_fingerprint:
           anyOf:
           - type: string
           - type: 'null'

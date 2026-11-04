@@ -375,13 +375,18 @@ class TestSessionViewExtension:
 
     def test_command_added_to_view(self, mock_session, event_bus) -> None:
         """Test that commands are added to session view."""
-        from marimo._runtime.commands import ExecuteCellsCommand
+        from marimo._runtime.commands import (
+            ExecuteCellCommand,
+            ExecuteCellsCommand,
+        )
 
         extension = SessionViewExtension()
         extension.on_attach(mock_session, event_bus)
 
         cmd = ExecuteCellsCommand(
-            cell_ids=[CellId_t("cell1")], codes=["x = 1"]
+            execution_requests=[
+                ExecuteCellCommand(cell_id=CellId_t("cell1"), code="x = 1")
+            ]
         )
         extension.on_received_command(mock_session, cmd, None)
 
@@ -461,13 +466,18 @@ class TestQueueExtension:
         self, mock_session, event_bus, queue_manager
     ) -> None:
         """Test that commands are added to queue."""
-        from marimo._runtime.commands import ExecuteCellsCommand
+        from marimo._runtime.commands import (
+            ExecuteCellCommand,
+            ExecuteCellsCommand,
+        )
 
         extension = QueueExtension(queue_manager)
         extension.on_attach(mock_session, event_bus)
 
         cmd = ExecuteCellsCommand(
-            cell_ids=[CellId_t("cell1")], codes=["x = 1"]
+            execution_requests=[
+                ExecuteCellCommand(cell_id=CellId_t("cell1"), code="x = 1")
+            ]
         )
         extension.on_received_command(mock_session, cmd, None)
 
@@ -506,14 +516,19 @@ class TestReplayExtension:
 
     def test_execute_command_replayed(self, mock_session, event_bus) -> None:
         """Test that ExecuteCellsCommand is replayed with notifications."""
-        from marimo._runtime.commands import ExecuteCellsCommand
+        from marimo._runtime.commands import (
+            ExecuteCellCommand,
+            ExecuteCellsCommand,
+        )
 
         mock_session.notify = Mock()
         extension = ReplayExtension()
         extension.on_attach(mock_session, event_bus)
 
         cmd = ExecuteCellsCommand(
-            cell_ids=[CellId_t("cell1")], codes=["x = 1"]
+            execution_requests=[
+                ExecuteCellCommand(cell_id=CellId_t("cell1"), code="x = 1")
+            ]
         )
         extension.on_received_command(mock_session, cmd, None)
 

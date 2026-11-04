@@ -402,7 +402,7 @@ async def test_host_analyzer_raises_unexpected_failures(
         await analyzer.analyze(document_snapshot({"a": "x = 1"}))
 
 
-def test_compilation_cache_uses_identity_and_code_fingerprint(
+def test_compilation_cache_uses_identity_and_exact_source(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     compiler = Mock(wraps=compile_cell)
@@ -475,3 +475,17 @@ def test_references_follow_runtime_language_semantics(
     if reverse:
         cells.reverse()
     assert analyze(dict(cells))[protocol.CellId("consumer")].refs == refs
+
+
+def test_formatting_refreshes_diagnostic_locations() -> None:
+    analyzer = CellAnalyzer()
+    before = DocumentCell(protocol.CellId("a"), "x=1")
+    after = DocumentCell(protocol.CellId("a"), "# comment\n\nx = 1")
+    other = DocumentCell(protocol.CellId("b"), "x = 2")
+    assert before.code_fingerprint == after.code_fingerprint
+    first = analyzer(Document([before, other], {}))[before.id].errors[0]
+    second = analyzer(Document([after, other], {}))[after.id].errors[0]
+    assert first.range is not None
+    assert second.range is not None
+    assert first.range.start.line == 0
+    assert second.range.start.line == 2

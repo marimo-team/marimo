@@ -20,7 +20,7 @@ from marimo._messaging.notification import (
     CellNotification,
     StartupProgressNotification,
 )
-from marimo._runtime.commands import ExecuteCellsCommand
+from marimo._runtime.commands import ExecuteCellCommand, ExecuteCellsCommand
 from marimo._schemas.session import NotebookSessionV1
 from marimo._session.state.serialize import (
     SessionCacheKey,
@@ -1258,7 +1258,11 @@ class TestSessionCacheManager:
             ),
         )
         view.add_control_request(
-            ExecuteCellsCommand(cell_ids=[CELL1], codes=["a"])
+            ExecuteCellsCommand(
+                execution_requests=[
+                    ExecuteCellCommand(cell_id=CELL1, code="a")
+                ]
+            )
         )
 
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -1292,7 +1296,12 @@ class TestSessionCacheManager:
         id1, id2 = CellId_t("1"), CellId_t("2")
         doc = _make_document(id1, id2)
         view.add_control_request(
-            ExecuteCellsCommand(cell_ids=[id1, id2], codes=["a", "b"])
+            ExecuteCellsCommand(
+                execution_requests=[
+                    ExecuteCellCommand(cell_id=id1, code="a"),
+                    ExecuteCellCommand(cell_id=id2, code="b"),
+                ]
+            )
         )
 
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -1328,7 +1337,12 @@ class TestSessionCacheManager:
         id1, id2 = CellId_t("1"), CellId_t("2")
         doc = _make_document(id1, id2)
         view.add_control_request(
-            ExecuteCellsCommand(cell_ids=[id1, id2], codes=["a", "b"])
+            ExecuteCellsCommand(
+                execution_requests=[
+                    ExecuteCellCommand(cell_id=id1, code="a"),
+                    ExecuteCellCommand(cell_id=id2, code="b"),
+                ]
+            )
         )
 
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -1377,7 +1391,12 @@ class TestSessionCacheManager:
         )
 
         view.add_control_request(
-            ExecuteCellsCommand(cell_ids=[CELL1, CELL2], codes=["a", "b"])
+            ExecuteCellsCommand(
+                execution_requests=[
+                    ExecuteCellCommand(cell_id=CELL1, code="a"),
+                    ExecuteCellCommand(cell_id=CELL2, code="b"),
+                ]
+            )
         )
 
         with tempfile.TemporaryDirectory() as tmpdir:

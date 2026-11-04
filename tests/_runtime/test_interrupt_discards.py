@@ -7,7 +7,7 @@ import time
 from typing import TYPE_CHECKING
 
 from marimo._messaging.notification import CompletedRunNotification
-from marimo._runtime.commands import ExecuteCellsCommand
+from marimo._runtime.commands import ExecuteCellCommand, ExecuteCellsCommand
 from marimo._types.ids import CellId_t
 
 if TYPE_CHECKING:
@@ -34,7 +34,10 @@ async def test_a_host_run_queued_before_an_interrupt_still_runs(
 
     await k.handle_message(
         ExecuteCellsCommand(
-            cell_ids=[CellId_t("c")], codes=["x = 1"], run_id="host-run"
+            execution_requests=[
+                ExecuteCellCommand(cell_id=CellId_t("c"), code="x = 1")
+            ],
+            run_id="host-run",
         )
     )
 
@@ -49,8 +52,35 @@ async def test_a_browser_run_queued_before_an_interrupt_is_discarded(
     queued_before_interrupt(mocked_kernel)
 
     await k.handle_message(
-        ExecuteCellsCommand(cell_ids=[CellId_t("c")], codes=["x = 1"])
+        ExecuteCellsCommand(
+            execution_requests=[
+                ExecuteCellCommand(cell_id=CellId_t("c"), code="x = 1")
+            ]
+        )
     )
 
     assert "x" not in k.globals
+    assert completed_runs(mocked_kernel) == ["interrupted"]
+
+
+async def test_interrupt_discards_a_batch_by_its_submission_time(
+    mocked_kernel: MockedKernel,
+) -> None:
+    k = mocked_kernel.k
+    k.last_interrupt_timestamp = 2
+    await k.handle_message(
+        ExecuteCellsCommand(
+            execution_requests=[
+                ExecuteCellCommand(
+                    cell_id=CellId_t("a"), code="x = 1", timestamp=1
+                ),
+                ExecuteCellCommand(
+                    cell_id=CellId_t("b"), code="y = 2", timestamp=3
+                ),
+            ],
+            timestamp=1,
+        )
+    )
+    assert "x" not in k.globals
+    assert "y" not in k.globals
     assert completed_runs(mocked_kernel) == ["interrupted"]

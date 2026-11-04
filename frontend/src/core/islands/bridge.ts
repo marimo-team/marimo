@@ -3,6 +3,7 @@
 
 import type { NotebookTransport } from "@marimo-team/client";
 import { getWorkerRPC } from "@/core/wasm/rpc";
+import { Arrays } from "@/utils/arrays";
 import { Deferred } from "@/utils/Deferred";
 import { throwNotImplemented } from "@/utils/functions";
 import { Logger } from "@/utils/Logger";
@@ -362,7 +363,14 @@ export class IslandsPyodideBridge implements RunRequests, EditRequests {
     await this.putControlRequest(
       {
         type: "execute-cells",
-        ...request,
+        request: request.request,
+        executionRequests: Arrays.zip(request.cellIds, request.codes).map(
+          ([cellId, code]) => ({
+            type: "execute-cell",
+            cellId,
+            code,
+          }),
+        ),
       },
       session,
     );

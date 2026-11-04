@@ -9,7 +9,11 @@ from marimo._messaging.notification import (
     CompletedRunNotification,
     ExecutionNotification,
 )
-from marimo._runtime.commands import CancelRunCommand, ExecuteCellsCommand
+from marimo._runtime.commands import (
+    CancelRunCommand,
+    ExecuteCellCommand,
+    ExecuteCellsCommand,
+)
 from marimo._runtime.kernel_request_handlers import KernelRequestHandlers
 from marimo._types.ids import CellId_t
 
@@ -58,7 +62,10 @@ async def test_a_later_run_is_unaffected_by_an_earlier_cancellation(
     await k.handle_message(CancelRunCommand(run_id="r1"))
     await k.handle_message(
         ExecuteCellsCommand(
-            cell_ids=[CellId_t("c")], codes=["x = 1"], run_id="r2"
+            execution_requests=[
+                ExecuteCellCommand(cell_id=CellId_t("c"), code="x = 1")
+            ],
+            run_id="r2",
         )
     )
 

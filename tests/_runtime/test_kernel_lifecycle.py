@@ -15,6 +15,7 @@ from marimo._runtime.commands import (
     CancelRunCommand,
     CodeCompletionCommand,
     CommandMessage,
+    ExecuteCellCommand,
     ExecuteCellsCommand,
     ModelCommand,
     SetBreakpointsCommand,
@@ -64,7 +65,11 @@ def ui() -> asyncio.Queue[BatchableCommand]:
 
 
 def _execute(cell_id: str = "c1") -> ExecuteCellsCommand:
-    return ExecuteCellsCommand(cell_ids=[CellId_t(cell_id)], codes=["x = 1"])
+    return ExecuteCellsCommand(
+        execution_requests=[
+            ExecuteCellCommand(cell_id=CellId_t(cell_id), code="x = 1")
+        ]
+    )
 
 
 def _ui_update(
@@ -169,7 +174,10 @@ async def test_listen_messages_swallows_handle_message_exception_ui_branch(
 
 def _run(run_id: str) -> ExecuteCellsCommand:
     return ExecuteCellsCommand(
-        cell_ids=[CellId_t("c1")], codes=["x = 1"], run_id=run_id
+        execution_requests=[
+            ExecuteCellCommand(cell_id=CellId_t("c1"), code="x = 1")
+        ],
+        run_id=run_id,
     )
 
 

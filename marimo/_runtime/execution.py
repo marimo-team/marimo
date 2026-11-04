@@ -13,6 +13,7 @@ from threading import RLock
 from typing import Literal
 from uuid import uuid4
 
+from marimo._core.code import code_fingerprint as source_fingerprint
 from marimo._core.protocol import Revision
 from marimo._messaging.context import (
     EXECUTION_CTX,
@@ -39,7 +40,9 @@ class ExecutionAttempt:
     )
 
     @classmethod
-    def plan(cls, cell_id: CellId_t, code: str) -> ExecutionAttempt:
+    def plan(
+        cls, cell_id: CellId_t, code: str, code_fingerprint: str | None = None
+    ) -> ExecutionAttempt:
         attempt = cls(cell_id)
         parent = EXECUTION_CTX.get()
         broadcast_notification(
@@ -48,6 +51,11 @@ class ExecutionAttempt:
                 cell_id=cell_id,
                 run_id=attempt.run_id,
                 phase="planned",
+                code_fingerprint=(
+                    code_fingerprint
+                    if code_fingerprint is not None
+                    else source_fingerprint(code)
+                ),
                 code=code if get_mode() != "run" else None,
                 caused_by=(
                     parent.id

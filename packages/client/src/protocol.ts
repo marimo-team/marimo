@@ -796,7 +796,7 @@ export const Cell = zod
       ),
     config: CellConfig,
     etag: Etag.describe(
-      "Precondition for edits and cell runs. Covers exact source, name, and config. Its text is the first 16 hex characters of SHA-256 of the source, `name`, and the config values `column`, `disabled`, `hide_code`, and `expand_output`, in that order. Config values are JSON scalars.",
+      "Precondition for edits and cell runs. Covers exact source, name, and config. Its text is the newline-joined sequence of the first 16 hex characters of SHA-256 of the UTF-8 source, `name`, and the config values `column`, `disabled`, `hide_code`, and `expand_output`, in that order. Config values are JSON scalars.",
     ),
     code_fingerprint: CodeFingerprint.describe(
       "Fingerprint of the actual source, including when `code` is null. Formatting-only edits may preserve it. Independent of cell name, config, and source visibility.",

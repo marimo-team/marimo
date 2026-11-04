@@ -13,6 +13,7 @@ from marimo._code_mode.screenshot_meta import (
     SCREENSHOT_SERVER_URL_KEY,
 )
 from marimo._core import backend as be, protocol
+from marimo._core.code import code_fingerprint
 from marimo._core.document import Document, DocumentCell
 from marimo._core.stream import Stream
 from marimo._messaging.notification import (
@@ -200,6 +201,7 @@ async def test_interrupt_waits_for_the_kernel_result(
             phase="planned",
             execution_id="attempt",
             code="while True: pass",
+            code_fingerprint=code_fingerprint("while True: pass"),
             run_id="run-1",
         )
     )
@@ -270,6 +272,7 @@ async def test_interrupting_a_run_started_by_another_client(
             phase="planned",
             execution_id="attempt",
             code="while True: pass",
+            code_fingerprint=code_fingerprint("while True: pass"),
             run_id="browser",
         )
     )
@@ -297,6 +300,7 @@ async def test_external_scratch_is_adopted_before_compilation(
             cell_id=SCRATCH_CELL_ID,
             phase="planned",
             code="3 * 3",
+            code_fingerprint=code_fingerprint("3 * 3"),
             execution_id="attempt",
             run_id="browser",
         )
@@ -459,11 +463,13 @@ async def test_running_cells_instantiates_from_the_host_document(
 
     (instantiation,) = session.instantiations
     assert instantiation.auto_run is False
-    assert instantiation.codes == {"a": "x = 1", "b": "y = x"}
     (command,) = session.commands
     assert isinstance(command, ExecuteCellsCommand)
-    assert command.cell_ids == ["b"]
-    assert command.codes == ["y = x"]
+    assert [
+        (cell.cell_id, cell.code, cell.code_fingerprint)
+        for cell in session.execution_requests
+    ] == [(cell.id, cell.code, cell.code_fingerprint) for cell in document]
+    assert command.execution_requests == [session.execution_requests[1]]
     assert command.run_id == "run-1"
 
     session.broadcast(
@@ -558,7 +564,10 @@ async def test_cell_runs_queue_in_the_kernel_in_order(
     b.run_cells(protocol.RunId("run-1"), document, [protocol.CellId("a")])
     b.run_cells(protocol.RunId("run-2"), document, [protocol.CellId("b")])
 
-    assert [(c.run_id, c.cell_ids) for c in session.commands] == [
+    assert [
+        (c.run_id, [cell.cell_id for cell in c.execution_requests])
+        for c in session.commands
+    ] == [
         ("run-1", ["a"]),
         ("run-2", ["b"]),
     ]
@@ -713,6 +722,7 @@ async def test_a_cancelled_run_that_starts_anyway_is_interrupted(
                 phase="planned",
                 execution_id=execution_id,
                 code="x = 1",
+                code_fingerprint=code_fingerprint("x = 1"),
                 run_id="run-1",
             )
         )
@@ -742,6 +752,7 @@ async def test_interrupting_a_started_cell_run_interrupts_the_kernel(
             phase="planned",
             execution_id="e1",
             code="x = 1",
+            code_fingerprint=code_fingerprint("x = 1"),
             run_id="run-1",
         )
     )

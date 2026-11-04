@@ -90,7 +90,8 @@ class Notification(msgspec.Struct, tag_field="op"):
 class ExecutionNotification(Notification, tag="execution"):
     """An attempt's lifecycle, independent of a cell's displayed status.
 
-    `planned` supplies the source and identity before output is reported.
+    `planned` includes the execution ID and code fingerprint before any output.
+    `code` is null when source is withheld.
     `running` means evaluation began. `completed` follows the final output
     and errors, including for attempts that never ran. Buffered and background
     console output may still arrive with the completed attempt's identity.
@@ -102,6 +103,7 @@ class ExecutionNotification(Notification, tag="execution"):
     run_id: str | None
     phase: Literal["planned", "running", "completed"]
     code: str | None = None
+    code_fingerprint: str | None = None
     caused_by: str | None = None
     depends_on: dict[str, Revision | None] | None = None
 
