@@ -13,7 +13,7 @@ import sys
 import threading
 import time
 import traceback
-from copy import copy
+from copy import copy, deepcopy
 from multiprocessing import connection
 from typing import (
     TYPE_CHECKING,
@@ -40,6 +40,8 @@ from marimo._config.config import (
     MarimoConfig,
     OnCellChangeType,
 )
+from marimo._config.provenance import ConfigPath
+from marimo._config.resolver import config_paths
 from marimo._core.protocol import ExecutionId, Revision
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._entrypoints.registry import EntryPointRegistry
@@ -548,6 +550,7 @@ class Kernel:
         enqueue_control_request: Callable[[CommandMessage], None],
         hooks: NotebookCellHooks,
         debugger_override: marimo_pdb.MarimoPdb | None = None,
+        config_overrides: tuple[ConfigPath, ...] = (),
     ) -> None:
         self.app_metadata = app_metadata
         self.query_params = QueryParams(app_metadata.query_params)
@@ -658,6 +661,7 @@ class Kernel:
 
         # Load runtime settings from user config
         self.user_config = user_config
+        self.config_overrides = set(config_overrides)
         self.reactive_execution_mode: OnCellChangeType = user_config[
             "runtime"
         ]["on_cell_change"]
@@ -2336,6 +2340,36 @@ class Kernel:
 
     @kernel_tracer.start_as_current_span("set_user_config")
     def set_user_config(self, request: UpdateUserConfigCommand) -> None:
+        if request.edited_paths is not None:
+            config = deepcopy(self.user_config)
+            for path in request.edited_paths:
+                if any(
+                    path[: len(override)] == override
+                    or override[: len(path)] == path
+                    for override in self.config_overrides
+                ):
+                    continue
+                source: Any = request.config
+                target: Any = config
+                for key in path[:-1]:
+                    source = source.get(key, {})
+                    target = target.setdefault(key, {})
+                if path[-1] in source:
+                    target[path[-1]] = deepcopy(source[path[-1]])
+                else:
+                    target.pop(path[-1], None)
+            self._update_runtime_from_user_config(config)
+            return
+        # A settings update contains a full snapshot; only changed values are
+        # new explicit overrides, not unchanged file/environment settings.
+        for path in config_paths(cast(dict[str, Any], request.config)):
+            before: Any = self.user_config
+            after: Any = request.config
+            for key in path:
+                before = before.get(key) if isinstance(before, dict) else None
+                after = after[key]
+            if before != after:
+                self.config_overrides.add(path)
         self._update_runtime_from_user_config(request.config)
 
     @kernel_tracer.start_as_current_span("set_ui_element_value")
@@ -3063,6 +3097,7 @@ def launch_kernel(
     log_level: int | None = None,
     is_ipc: bool = False,
     parent_pid: int | None = None,
+    config_overrides: tuple[ConfigPath, ...] = (),
 ) -> None:
     from marimo._runtime.kernel_lifecycle import (
         KernelArgs,
@@ -3099,6 +3134,7 @@ def launch_kernel(
                 configs=configs,
                 app_metadata=app_metadata,
                 user_config=user_config,
+                config_overrides=config_overrides,
                 mode=SessionMode.EDIT if is_edit_mode else SessionMode.RUN,
                 control_queue=control_queue,
                 set_ui_element_queue=set_ui_element_queue,

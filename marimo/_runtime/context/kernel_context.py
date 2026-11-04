@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, Any
 
 from marimo._ast.app import AppKernelRunnerRegistry
 from marimo._config.config import MarimoConfig
+from marimo._config.provenance import ConfigPath
 from marimo._plugins.ui._core.ids import IDProvider, NoIDProviderException
 from marimo._runtime.cell_lifecycle_registry import CellLifecycleRegistry
 from marimo._runtime.context.types import (
@@ -72,6 +73,10 @@ class KernelRuntimeContext(RuntimeContext):
     @property
     def marimo_config(self) -> MarimoConfig:
         return self._kernel.user_config
+
+    @property
+    def config_overrides(self) -> frozenset[ConfigPath]:
+        return frozenset(self._kernel.config_overrides)
 
     @property
     def lazy(self) -> bool:

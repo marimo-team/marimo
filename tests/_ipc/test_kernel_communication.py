@@ -407,3 +407,34 @@ class TestMsgpackIPC:
         )
         assert decoded.execution_requests == old.execution_requests
         assert decoded.new_field == "default_value"
+
+
+def test_kernel_args_preserve_explicit_config_overrides() -> None:
+    from marimo._ipc.types import ConnectionInfo, KernelArgs
+    from marimo._runtime.commands import AppMetadata
+
+    args = KernelArgs(
+        configs={},
+        app_metadata=AppMetadata(
+            query_params={}, cli_args={}, app_config=_AppConfig()
+        ),
+        user_config=DEFAULT_CONFIG,
+        log_level=30,
+        profile_path=None,
+        connection_info=ConnectionInfo(
+            control=1,
+            ui_element=2,
+            completion=3,
+            win32_interrupt=None,
+            input=4,
+            stream=5,
+        ),
+        config_overrides=(
+            ("runtime", "sql_default_limit"),
+            ("display", "theme"),
+        ),
+    )
+    assert (
+        KernelArgs.decode_json(args.encode_json()).config_overrides
+        == args.config_overrides
+    )

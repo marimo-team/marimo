@@ -15,7 +15,9 @@ WORKDIR /app
 ARG marimo_version=0.12.8
 LABEL org.opencontainers.image.version="${marimo_version}"
 
+# Older marimo versions installed via marimo_version need the legacy name.
 ENV MARIMO_SKIP_UPDATE_CHECK=1
+ENV MARIMO_SERVER_SKIP_UPDATE_CHECK=1
 ENV VIRTUAL_ENV=/opt/venv
 ENV PATH="${VIRTUAL_ENV}/bin:${PATH}"
 ENV UV_COMPILE_BYTECODE=1

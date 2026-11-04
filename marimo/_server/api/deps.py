@@ -258,6 +258,4 @@ class AppState(AppStateBase):
             raise
         if resolved is None:
             return config_manager
-        return config_manager.with_overrides(
-            ScriptConfigReader(resolved).read()
-        )
+        return config_manager.with_partial(ScriptConfigReader(resolved))
