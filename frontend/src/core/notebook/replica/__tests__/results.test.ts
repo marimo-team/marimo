@@ -39,7 +39,7 @@ const restored = {
   caused_by: null,
   cell_id: "c3",
   code: null,
-  code_hash: "0f71456db2ea83f4",
+  code_fingerprint: "0f71456db2ea83f4",
   depends_on: {},
   status: "completed",
   outcome: { kind: "value", display: null },
