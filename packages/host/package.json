@@ -1,0 +1,26 @@
+{
+  "name": "@marimo-team/host",
+  "version": "0.1.0",
+  "description": "An Effect contract for implementing a marimo host",
+  "private": true,
+  "sideEffects": false,
+  "type": "module",
+  "license": "Apache-2.0",
+  "exports": { ".": "./dist/index.js" },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsgo",
+    "test": "vitest",
+    "openapi": "node --experimental-strip-types scripts/export-openapi.ts",
+    "codegen:python": "node --experimental-strip-types scripts/generate-python.ts"
+  },
+  "peerDependencies": { "effect": "^4.0.4" },
+  "devDependencies": {
+    "@types/node": "^24.13.6",
+    "effect": "4.0.4",
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.11",
+    "yaml": "^2.9.1"
+  }
+}
