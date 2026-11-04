@@ -29,7 +29,9 @@ describe("Client", () => {
   it("reads a catalog snapshot with authentication and no mutation headers", async () => {
     const response = {
       cursor: "epoch-42",
-      events: [fixtureEvents("events.sse").find((event) => event.event === "host")!],
+      events: [
+        fixtureEvents("events.sse").find((event) => event.event === "host")!,
+      ],
     };
     const { client, sent, fetch } = connect(() => Response.json(response));
     const controller = new AbortController();

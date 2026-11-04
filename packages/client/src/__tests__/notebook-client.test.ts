@@ -14,7 +14,11 @@ import { fixtureEvents } from "./fixtures.ts";
 
 const snapshot = {
   cursor: "epoch-42",
-  events: [fixtureEvents("notebook-events.sse").find((event) => event.event === "document")!],
+  events: [
+    fixtureEvents("notebook-events.sse").find(
+      (event) => event.event === "document",
+    )!,
+  ],
 };
 
 const fixtures = new NodeUrl.URL(
@@ -242,7 +246,11 @@ describe("NotebookClient.unstable_over", () => {
   it("reads a snapshot through the call transport", async () => {
     const { notebook, send } = over(() => ({ status: 200, body: snapshot }));
 
-    expect(await notebook.snapshot()).toEqual({ ok: true, status: 200, data: snapshot });
+    expect(await notebook.snapshot()).toEqual({
+      ok: true,
+      status: 200,
+      data: snapshot,
+    });
     expect(send).toHaveBeenCalledWith({
       operation: "notebook.snapshot",
       params: { notebook_id: "n1" },
