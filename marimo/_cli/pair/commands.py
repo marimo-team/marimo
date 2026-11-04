@@ -47,7 +47,7 @@ from marimo._cli.pair.harnesses import detect_target, environment_identity
 from marimo._cli.pair.prompts import render_prompt
 from marimo._cli.print import _supports_color
 from marimo._server.ai.skills import utils as skills_utils
-from marimo._server.host.stream_options import OBJECT_TYPES
+from marimo._server.host.stream_options import OBJECT_TYPES_HELP
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -746,7 +746,9 @@ def list_notebooks(urls: tuple[str, ...], token_file: Path | None) -> None:
     click.echo(json.dumps(listing, indent=2))
 
 
-def _parse_event_types(value: str | None) -> str | None:
+def _parse_event_types(
+    _ctx: click.Context, _param: click.Parameter, value: str | None
+) -> str | None:
     if value is None:
         return None
     kinds = [kind.strip() for kind in value.split(",")]
@@ -781,17 +783,40 @@ def _json_formatter(pretty: bool) -> Callable[[object], str]:
     return format_payload
 
 
-_event_types_option = click.option(
-    "--types",
-    "event_types",
-    metavar="TYPES",
-    help=(
-        "Comma-separated event types, for example runtime,execution.\n\n"
-        "\b\nKnown kinds:\n"
-        + "\n".join(f"  - {kind}" for kind in sorted(OBJECT_TYPES))
-        + "\n\nThe connected server determines which kinds are supported."
-    ),
-)
+def _inspection_options(command: Callable[..., None]) -> Callable[..., None]:
+    options = (
+        click.option(
+            "--url",
+            required=True,
+            metavar="URL",
+            help="Local edit server URL.",
+        ),
+        click.option(
+            "--notebook",
+            "notebook_id",
+            metavar="ID",
+            help="Select one notebook. Omit to read the host catalog.",
+        ),
+        click.option(
+            "--types",
+            "event_types",
+            metavar="TYPES",
+            callback=_parse_event_types,
+            help=(
+                "Comma-separated event types, for example runtime,execution.\n\n"
+                f"\b\nKnown kinds:\n{OBJECT_TYPES_HELP}\n\n"
+                "The connected server determines which kinds are supported."
+            ),
+        ),
+        click.option(
+            "--pretty",
+            is_flag=True,
+            help="Print indented JSON with colors in supported terminals.",
+        ),
+    )
+    for option in reversed(options):
+        command = option(command)
+    return command
 
 
 @click.command(
@@ -808,18 +833,10 @@ _event_types_option = click.option(
     """,
     short_help="Read a host or notebook snapshot as JSON.",
 )
-@click.option(
-    "--url", required=True, metavar="URL", help="Local edit server URL."
-)
-@click.option(
-    "--notebook", "notebook_id", metavar="ID", help="Read one notebook."
-)
-@_event_types_option
-@click.option("--pretty", is_flag=True, help="Print indented JSON.")
+@_inspection_options
 def snapshot(
     url: str, notebook_id: str | None, event_types: str | None, pretty: bool
 ) -> None:
-    event_types = _parse_event_types(event_types)
     try:
         host = resolve_host(url)
         payload = get_snapshot(
@@ -858,20 +875,10 @@ def snapshot(
     """,
     short_help="Listen to host or notebook events as JSON lines.",
 )
-@click.option(
-    "--notebook", "notebook_id", metavar="ID", help="Follow one notebook."
-)
-@click.option(
-    "--url", required=True, metavar="URL", help="Local edit server URL."
-)
-@_event_types_option
-@click.option(
-    "--pretty", is_flag=True, help="Print indented JSON for each event."
-)
+@_inspection_options
 def events(
     notebook_id: str | None, url: str, event_types: str | None, pretty: bool
 ) -> None:
-    event_types = _parse_event_types(event_types)
     format_payload = _json_formatter(pretty)
     try:
         host = resolve_host(url)

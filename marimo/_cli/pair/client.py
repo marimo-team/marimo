@@ -593,6 +593,29 @@ class EventStream:
             self.socket.close()
 
 
+def _host_read_url(
+    url: str, resource: str, *, notebook: str | None, types: str | None
+) -> str:
+    path = f"/{resource}"
+    if notebook is not None:
+        path = f"/notebooks/{quote(notebook, safe='')}{path}"
+    endpoint = _endpoint_url(url, path)
+    if types is not None:
+        endpoint += "?" + urlencode({"types": types}, safe=",")
+    return endpoint
+
+
+def _get_json(*, url: str, token: str | None, error_message: str) -> object:
+    headers = {"Authorization": f"Bearer {token}"} if token is not None else {}
+    response = open_response(method="GET", url=url, headers=headers, body=None)
+    try:
+        return json.load(response.response)
+    except (OSError, ValueError, http.client.HTTPException) as error:
+        raise PairError(error_message) from error
+    finally:
+        response.close()
+
+
 def get_snapshot(
     *,
     url: str,
@@ -600,31 +623,19 @@ def get_snapshot(
     notebook: str | None = None,
     types: str | None = None,
 ) -> dict[str, object]:
-    path = "/snapshot"
-    if notebook is not None:
-        path = f"/notebooks/{quote(notebook, safe='')}/snapshot"
-    endpoint = _endpoint_url(url, path)
-    if types is not None:
-        endpoint += "?" + urlencode({"types": types}, safe=",")
-    response = open_response(
-        method="GET",
-        url=endpoint,
-        headers={"Authorization": f"Bearer {token}"},
-        body=None,
+    message = "The host returned an invalid snapshot."
+    payload = _get_json(
+        url=_host_read_url(url, "snapshot", notebook=notebook, types=types),
+        token=token,
+        error_message=message,
     )
-    try:
-        payload = json.load(response.response)
-    except (OSError, ValueError, http.client.HTTPException) as error:
-        raise PairError("The host returned an invalid snapshot.") from error
-    finally:
-        response.close()
     if (
         not isinstance(payload, dict)
         or not isinstance(payload.get("cursor"), str)
         or not payload["cursor"]
         or not isinstance(payload.get("events"), list)
     ):
-        raise PairError("The host returned an invalid snapshot.")
+        raise PairError(message)
     return payload
 
 
@@ -641,9 +652,7 @@ def open_events(
     read_timeout: float | None = 45,
 ) -> EventStream:
     headers = {}
-    path = "/events"
     if notebook is not None:
-        path = f"/notebooks/{quote(notebook, safe='')}/events"
         headers.update(
             {
                 ATTACHMENT_IDENTITY: identity,
@@ -655,12 +664,9 @@ def open_events(
         headers["Authorization"] = f"Bearer {token}"
     if cursor is not None:
         headers["Last-Event-ID"] = cursor
-    endpoint = _endpoint_url(url, path)
-    if types is not None:
-        endpoint += "?" + urlencode({"types": types}, safe=",")
     return open_response(
         method="GET",
-        url=endpoint,
+        url=_host_read_url(url, "events", notebook=notebook, types=types),
         headers=headers,
         body=None,
         read_timeout=read_timeout,
@@ -753,31 +759,12 @@ def list_sessions(
     *, url: str, token: str | None
 ) -> dict[str, dict[str, str | None]]:
     request_url = _endpoint_url(url, "/api/sessions")
-    headers = {}
-    if token is not None:
-        headers["Authorization"] = f"Bearer {token}"
-    response = open_response(
-        method="GET",
-        url=request_url,
-        headers=headers,
-        body=None,
-    )
-    try:
-        try:
-            payload = json.load(response.response)
-        except (
-            OSError,
-            UnicodeError,
-            json.JSONDecodeError,
-            http.client.HTTPException,
-        ) as error:
-            raise PairError(
-                f"Unexpected response from {display_url(request_url)}."
-            ) from error
-    finally:
-        response.close()
-
     message = f"Unexpected response from {display_url(request_url)}."
+    payload = _get_json(
+        url=request_url,
+        token=token,
+        error_message=message,
+    )
     if not isinstance(payload, dict):
         raise PairError(message)
 

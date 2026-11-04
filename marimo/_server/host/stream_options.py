@@ -13,6 +13,7 @@ if TYPE_CHECKING:
 OBJECT_TYPES = frozenset(get_args(get_args(protocol.ObjectType)[0])) | {
     "marimo"
 }
+OBJECT_TYPES_HELP = "\n".join(f"  - {kind}" for kind in sorted(OBJECT_TYPES))
 
 
 def cursor(connection: HTTPConnection) -> str | None:
@@ -36,7 +37,6 @@ def types(connection: HTTPConnection) -> set[str] | None:
     if unknown:
         raise ValueError(
             f"types has no kind named {', '.join(sorted(unknown))}.\n\n"
-            "Supported kinds:\n"
-            + "\n".join(f"  - {kind}" for kind in sorted(OBJECT_TYPES))
+            f"Supported kinds:\n{OBJECT_TYPES_HELP}"
         )
     return kinds
