@@ -535,35 +535,87 @@ async def test_cell_runs_queue_in_the_kernel_in_order(
     assert b._runs == {}
 
 
-async def test_scratch_runs_take_the_scratchpad_in_order(
+async def submitted(session: FakeSession, count: int) -> list[str]:
+    """Wait until the session has received `count` commands."""
+
+    async def wait() -> None:
+        while len(session.commands) < count:
+            session.submitted.clear()
+            await session.submitted.wait()
+
+    await asyncio.wait_for(wait(), 5)
+    return [c.run_id for c in session.commands]
+
+
+async def test_runs_reach_the_kernel_in_acceptance_order(
     manager: FakeManager, observed: Observed
 ) -> None:
     b = backend(manager, observed)
     session = manager.next_session
     b.adopt(RT1, session)
     observed.messages.clear()
+    document = Document([DocumentCell(protocol.CellId("a"), "x = 1")], {})
 
     b.run(protocol.RunId("run-1"), "1")
+    assert await submitted(session, 1) == ["run-1"]
+    # The scratchpad is busy, so the next scratch run waits for it, and
+    # the cell run accepted after that waits its turn too.
     b.run(protocol.RunId("run-2"), "2")
-    await asyncio.wait_for(session.submitted.wait(), 5)
-    session.submitted.clear()
-    assert [(c.run_id, c.code) for c in session.commands] == [("run-1", "1")]
+    b.run_cells(protocol.RunId("run-3"), document, [protocol.CellId("a")])
+    await asyncio.sleep(0)
+    assert [c.run_id for c in session.commands] == ["run-1"]
 
     session.broadcast(CompletedRunNotification(run_id="run-1"))
-    await observed.wait_for(be.Done)
-    await asyncio.wait_for(session.submitted.wait(), 5)
-    assert [(c.run_id, c.code) for c in session.commands] == [
-        ("run-1", "1"),
-        ("run-2", "2"),
+    assert await submitted(session, 3) == ["run-1", "run-2", "run-3"]
+    for run_id in ("run-2", "run-3"):
+        session.broadcast(CompletedRunNotification(run_id=run_id))
+    await asyncio.gather(*(run.task for run in b._runs.values() if run.task))
+    await asyncio.sleep(0)
+    assert b._runs == {}
+    assert [m.run_id for m in observed.messages if isinstance(m, be.Done)] == [
+        "run-1",
+        "run-2",
+        "run-3",
     ]
 
+
+async def test_a_cell_run_waits_for_a_scratch_run_accepted_just_before(
+    manager: FakeManager, observed: Observed
+) -> None:
+    b = backend(manager, observed)
+    session = manager.next_session
+    b.adopt(RT1, session)
+    document = Document([DocumentCell(protocol.CellId("a"), "x = 1")], {})
+
+    b.run(protocol.RunId("run-1"), "1")
+    b.run_cells(protocol.RunId("run-2"), document, [protocol.CellId("a")])
+
+    assert session.commands == []
+    assert await submitted(session, 2) == ["run-1", "run-2"]
+
+
+async def test_interrupting_a_cell_run_waiting_its_turn_never_submits_it(
+    manager: FakeManager, observed: Observed
+) -> None:
+    b = backend(manager, observed)
+    session = manager.next_session
+    b.adopt(RT1, session)
     observed.messages.clear()
-    session.broadcast(CompletedRunNotification(run_id="run-2"))
+    document = Document([DocumentCell(protocol.CellId("a"), "x = 1")], {})
+    b.run(protocol.RunId("run-1"), "1")
+    await submitted(session, 1)
+    b.run(protocol.RunId("run-2"), "2")
+    b.run_cells(protocol.RunId("run-3"), document, [protocol.CellId("a")])
+
+    b.interrupt(protocol.RunId("run-3"))
     await observed.wait_for(be.Done)
-    assert observed.messages[-1] == be.Done(
-        protocol.RunId("run-2"), "succeeded"
-    )
-    assert b._runs == {}
+
+    assert observed.messages == [
+        be.Done(protocol.RunId("run-3"), "interrupted")
+    ]
+    assert session.interrupts == 0
+    session.broadcast(CompletedRunNotification(run_id="run-1"))
+    assert await submitted(session, 2) == ["run-1", "run-2"]
 
 
 async def test_interrupting_a_queued_cell_run_cancels_it_in_the_kernel(

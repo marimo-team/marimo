@@ -78,7 +78,8 @@ class _Run:
     translator: RunTranslator
     done: asyncio.Event = field(default_factory=asyncio.Event)
     task: asyncio.Task[object] | None = None
-    submitted: bool = False
+    submitted: asyncio.Event = field(default_factory=asyncio.Event)
+    """Set once the command is in the kernel queue, or the run ended first."""
     interrupt_requested: bool = False
     """A cancellation was sent for this run while it was still queued."""
 
@@ -119,6 +120,8 @@ class SessionBackend(SessionConsumer):
         self._kernel: _Kernel | None = None
         self._runs: dict[protocol.RunId, _Run] = {}
         """Runs this backend submitted that have not finished, by run id."""
+        self._last_accepted: _Run | None = None
+        """The run accepted most recently. The next one submits after it."""
         self._translators: dict[str, RunTranslator] = {}
 
     @property
@@ -185,7 +188,8 @@ class SessionBackend(SessionConsumer):
             return
         run = _Run(session, RunTranslator(run_id, code))
         self._runs[run_id] = run
-        self._watch_run(run, self._run_code(run, code))
+        previous, self._last_accepted = self._last_accepted, run
+        self._watch_run(run, self._run_code(run, code, previous))
 
     def run_cells(
         self,
@@ -200,28 +204,52 @@ class SessionBackend(SessionConsumer):
         self._runs[run_id] = run
         codes = {CellId_t(cell.id): cell.code for cell in document}
         targets = [CellId_t(cell_id) for cell_id in cell_ids]
+        command = ExecuteCellsCommand(
+            cell_ids=targets,
+            codes=[codes[cell_id] for cell_id in targets],
+            request=self._http_request(session),
+            run_id=run_id,
+            allow_stdin=False,
+        )
+        previous, self._last_accepted = self._last_accepted, run
+        if previous is not None and not previous.submitted.is_set():
+            # A scratch run ahead is still waiting for the scratchpad.
+            self._watch_run(
+                run, self._run_cells_after(previous, run, codes, command)
+            )
+            return
         try:
             # Enqueue before returning so later document edits follow the run.
-            session.instantiate(
-                InstantiateNotebookRequest(
-                    object_ids=[], values=[], auto_run=False, codes=codes
-                ),
-                http_request=None,
-            )
-            self._submit(
-                run,
-                ExecuteCellsCommand(
-                    cell_ids=targets,
-                    codes=[codes[cell_id] for cell_id in targets],
-                    request=self._http_request(session),
-                    run_id=run_id,
-                    allow_stdin=False,
-                ),
-            )
+            self._submit_cells(run, codes, command)
         except Exception as exception:
             self._finish_run(run, exception)
             return
         self._watch_run(run, run.done.wait())
+
+    def _submit_cells(
+        self,
+        run: _Run,
+        codes: dict[CellId_t, str],
+        command: ExecuteCellsCommand,
+    ) -> None:
+        run.session.instantiate(
+            InstantiateNotebookRequest(
+                object_ids=[], values=[], auto_run=False, codes=codes
+            ),
+            http_request=None,
+        )
+        self._submit(run, command)
+
+    async def _run_cells_after(
+        self,
+        previous: _Run,
+        run: _Run,
+        codes: dict[CellId_t, str],
+        command: ExecuteCellsCommand,
+    ) -> None:
+        await previous.submitted.wait()
+        self._submit_cells(run, codes, command)
+        await run.done.wait()
 
     def _watch_run(
         self, run: _Run, coroutine: Coroutine[object, object, object]
@@ -240,12 +268,16 @@ class SessionBackend(SessionConsumer):
         )
 
     def _submit(self, run: _Run, command: CommandMessage) -> None:
-        run.submitted = True
+        run.submitted.set()
         self._translators[run.translator.run_id] = run.translator
         run.session.put_control_request(command, from_consumer_id=None)
 
-    async def _run_code(self, run: _Run, code: str) -> None:
+    async def _run_code(
+        self, run: _Run, code: str, previous: _Run | None
+    ) -> None:
         session = run.session
+        if previous is not None:
+            await previous.submitted.wait()
         async with session.scratchpad_lock:
             # Register notebook definitions once, without executing cells.
             session.instantiate(
@@ -293,6 +325,8 @@ class SessionBackend(SessionConsumer):
         )
 
     def _finish_run(self, run: _Run, exception: BaseException | None) -> None:
+        # Runs accepted after this one may be waiting to submit behind it.
+        run.submitted.set()
         if self._runs.get(run.translator.run_id) is run:
             del self._runs[run.translator.run_id]
         error = None
@@ -328,7 +362,7 @@ class SessionBackend(SessionConsumer):
             return
         if run.done.is_set():
             return
-        if not run.submitted:
+        if not run.submitted.is_set():
             if run.task is not None:
                 run.task.cancel()
         elif run.translator.started:
