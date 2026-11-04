@@ -15,8 +15,14 @@ import {
 } from "./config-schema";
 
 /**
- * Match Python configuration merging, including array and record replacement.
+ * Combine configuration sources in priority order, with later sources winning.
+ * Arrays and shortcut maps replace earlier values so removed entries stay removed.
+ * Provider and signer maps replace their keys, while retained records inherit
+ * unspecified fields (for example, a provider's API key).
+ * These rules match backend resolution so the editor and kernel use the same settings.
  */
+// TODO(MO-8400): Resolve configuration on the backend and send resolved values
+// with provenance, instead of duplicating source merging in the frontend.
 export function mergeConfig<T extends object>(...sources: object[]): T {
   const result = {};
   for (const source of sources) {
