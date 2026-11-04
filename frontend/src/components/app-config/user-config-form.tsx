@@ -1320,36 +1320,6 @@ export const UserConfigForm: React.FC = () => {
             />
             <OverriddenFormField
               control={form.control}
-              name="experimental.external_agents"
-              render={({ field, override }) => (
-                <div className="flex flex-col gap-y-1">
-                  <FormItem className={formItemClasses}>
-                    <FormLabel className="font-normal">
-                      External Agents
-                    </FormLabel>
-                    <FormControl>
-                      <Checkbox
-                        data-testid="external-agents-checkbox"
-                        checked={override.value === true}
-                        disabled={override.isOverridden}
-                        onCheckedChange={field.onChange}
-                      />
-                    </FormControl>
-                  </FormItem>
-                  <IsOverridden override={override} />
-                  <FormDescription>
-                    Enable experimental external agents such as Claude Code and
-                    Codex. Learn more in the{" "}
-                    <ExternalLink href="https://docs.marimo.io/guides/editor_features/agents/">
-                      docs
-                    </ExternalLink>
-                    .
-                  </FormDescription>
-                </div>
-              )}
-            />
-            <OverriddenFormField
-              control={form.control}
               name="experimental.debugger"
               render={({ field, override }) => (
                 <div className="flex flex-col gap-y-1">

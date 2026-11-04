@@ -828,6 +828,14 @@ class ExperimentalConfig(Config, kw_only=True):
     rtc_v2: Annotated[
         bool | UnsetType, Meta(description="Enable real-time collaboration.")
     ] = UNSET
+    external_agents: Annotated[
+        bool | UnsetType,
+        Meta(
+            description="Deprecated; prefer marimo pair. Enable external agents such as Claude Code and Codex.",
+            extra={"deprecated": True},
+            extra_json_schema={"deprecated": True},
+        ),
+    ] = UNSET
     isolate_apps: Annotated[
         bool | UnsetType,
         Meta(description="Run applications in separate processes."),
