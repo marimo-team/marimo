@@ -825,6 +825,14 @@ class ExperimentalConfig(Config, kw_only=True):
             description="Enable experimental layouts in WebAssembly notebooks."
         ),
     ] = UNSET
+    external_agents: Annotated[
+        bool | UnsetType,
+        Meta(
+            description="Deprecated; prefer marimo pair. Enable external agents such as Claude Code and Codex.",
+            extra={"deprecated": True},
+            extra_json_schema={"deprecated": True},
+        ),
+    ] = UNSET
     isolate_apps: Annotated[
         bool | UnsetType,
         Meta(description="Run applications in separate processes."),
