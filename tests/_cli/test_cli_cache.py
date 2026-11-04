@@ -682,7 +682,7 @@ def test_clean_notebook_keeps_the_record_of_an_entry_that_stayed(
     tmp_path: Path,
 ) -> None:
     """An entry that cannot be removed can still be read and deleted another
-    time, so its record stays."""
+    time, so its record stays and the command exits with a failure."""
     notebook = tmp_path / "nb.py"
     notebook.write_text(NOTEBOOK)
     cache_dir = make_cache_dir(tmp_path)
@@ -703,16 +703,19 @@ def test_clean_notebook_keeps_the_record_of_an_entry_that_stayed(
     finally:
         block.chmod(0o755)
 
-    assert result.exit_code == 0, result.output
+    assert result.exit_code == 1
+    assert "1 path was not cleaned" in result.stderr
     assert (block / "C_ab12ab12ab12ab12ab12ab.jsonl").exists()
     assert read_manifest(manifest) == {
         "3f9c": {"train": {"C_ab12ab12ab12ab12ab12ab"}}
     }
 
 
-def test_clean_notebook_keeps_shared_blobs_when_a_marker_cannot_be_removed(
+def test_clean_notebook_keeps_the_record_of_a_marker_that_cannot_be_removed(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    """The blobs go first. A marker that then cannot be removed keeps its
+    record, and the command reports the failure."""
     notebook = tmp_path / "nb.py"
     notebook.write_text(NOTEBOOK)
     cache_dir = make_cache_dir(tmp_path)
@@ -742,25 +745,24 @@ def test_clean_notebook_keeps_shared_blobs_when_a_marker_cannot_be_removed(
 
     result = CliRunner().invoke(main, ["cache", "clean", str(notebook), "-y"])
 
-    assert result.exit_code == 0, result.output
-    assert "Deleted 1 entry, freeing 10 B." in result.output
+    assert result.exit_code == 1
+    assert "Deleted 1 entry, freeing 30 B." in result.output
+    assert "1 path was not cleaned" in result.stderr
     assert not (
         cache_dir / "train" / "C_ab12ab12ab12ab12ab12ab.jsonl"
     ).exists()
+    assert not (cache_dir / "train" / "ab12ab12ab12ab12ab12ab").exists()
     assert marker.read_bytes() == b"shared"
-    assert (
-        cache_dir / "train" / "ab12ab12ab12ab12ab12ab" / "return.pickle"
-    ).read_bytes() == (b"y" * 20)
     assert read_manifest(manifest) == {
         "3f9c": {"train": {"E_ab12ab12ab12ab12ab12ab"}}
     }
 
 
-def test_clean_notebook_leaves_blobs_that_stayed_to_prune(
+def test_clean_notebook_can_retry_an_entry_whose_blobs_stayed(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Once the marker is gone, nothing can read the blobs, so the record
-    goes and `marimo cache prune` removes the remaining blobs."""
+    """A failed blob removal leaves the marker and the record in place, so
+    the next clean deletes the entry."""
     notebook = tmp_path / "nb.py"
     notebook.write_text(NOTEBOOK)
     cache_dir = make_cache_dir(tmp_path)
@@ -774,14 +776,19 @@ def test_clean_notebook_leaves_blobs_that_stayed_to_prune(
             main, ["cache", "clean", str(notebook), "-y"]
         )
 
+    assert result.exit_code == 1
+    assert "Deleted 0 entries, freeing 0 B." in result.output
+    assert "1 path was not cleaned" in result.stderr
+    assert (cache_dir / "train" / "C_ab12ab12ab12ab12ab12ab.jsonl").exists()
+    assert read_manifest(manifest) == {
+        "3f9c": {"train": {"C_ab12ab12ab12ab12ab12ab"}}
+    }
+
+    result = CliRunner().invoke(main, ["cache", "clean", str(notebook), "-y"])
+
     assert result.exit_code == 0, result.output
-    assert "Deleted 0 entries, freeing 10 B." in result.output
-    assert not (
-        cache_dir / "train" / "C_ab12ab12ab12ab12ab12ab.jsonl"
-    ).exists()
-    assert (
-        cache_dir / "train" / "ab12ab12ab12ab12ab12ab" / "return.pickle"
-    ).read_bytes() == b"y" * 20
+    assert "Deleted 1 entry, freeing 30 B." in result.output
+    assert not (cache_dir / "train" / "ab12ab12ab12ab12ab12ab").exists()
     assert read_manifest(manifest) == {}
 
 
@@ -1021,3 +1028,59 @@ def test_clean_notebook_deletes_an_entry_with_another_suffix(
         cache_dir / "train" / "C_ab12ab12ab12ab12ab12ab.custom"
     ).exists()
     assert read_manifest(manifest) == {}
+
+
+@pytest.mark.skipif(
+    sys.platform == "win32", reason="symlinks need a privileged user"
+)
+def test_clean_notebook_refuses_a_linked_block(tmp_path: Path) -> None:
+    notebook = tmp_path / "nb.py"
+    notebook.write_text(NOTEBOOK)
+    cache_dir = make_cache_dir(tmp_path)
+    elsewhere = tmp_path / "elsewhere" / "train"
+    elsewhere.mkdir(parents=True)
+    (elsewhere / "C_ab12ab12ab12ab12ab12ab.pickle").write_bytes(b"x" * 10)
+    (cache_dir / "train").symlink_to(elsewhere, target_is_directory=True)
+    manifest = write_manifest(
+        cache_dir, notebook, {"3f9c": {"train": {"C_ab12ab12ab12ab12ab12ab"}}}
+    )
+
+    result = CliRunner().invoke(main, ["cache", "clean", str(notebook), "-y"])
+
+    assert result.exit_code == 1
+    assert "is a symbolic link" in result.stderr
+    assert (elsewhere / "C_ab12ab12ab12ab12ab12ab.pickle").exists()
+    assert read_manifest(manifest) == {
+        "3f9c": {"train": {"C_ab12ab12ab12ab12ab12ab"}}
+    }
+
+
+@pytest.mark.skipif(
+    sys.platform == "win32", reason="chmod does not restrict reads on Windows"
+)
+def test_clean_exits_nonzero_when_a_block_cannot_be_listed(
+    tmp_path: Path,
+) -> None:
+    """The entries that the command deleted are reported, and the failure
+    is reported too, in the exit code."""
+    cache_dir = make_cache_dir(tmp_path)
+    write_entry(cache_dir, "train", "C_ab12ab12ab12ab12ab12ab.pickle", 5)
+    sealed = cache_dir / "evaluate"
+    write_entry(cache_dir, "evaluate", "E_ab12ab12ab12ab12ab12ab.pickle", 7)
+    sealed.chmod(0o000)
+    if os.access(sealed, os.R_OK):
+        sealed.chmod(0o755)
+        pytest.skip("chmod does not restrict reads for this user")
+
+    try:
+        result = CliRunner().invoke(
+            main, ["cache", "clean", str(tmp_path), "-y"]
+        )
+    finally:
+        sealed.chmod(0o755)
+
+    assert result.exit_code == 1
+    assert "Deleted 1 entry, freeing 5 B." in result.output
+    assert "1 path was not cleaned" in result.stderr
+    assert not (cache_dir / "train").exists()
+    assert (sealed / "E_ab12ab12ab12ab12ab12ab.pickle").exists()

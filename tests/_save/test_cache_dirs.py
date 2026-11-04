@@ -11,20 +11,22 @@ import pytest
 
 from marimo import _loggers
 from marimo._save.cache_dirs import (
-    LAZY_ENTRY_SUFFIX,
     CacheDirError,
     CacheDirStats,
     NotANotebookError,
     block_dir_name,
     cache_dir_stats,
     clean_cache_dir,
+    delete_blocks,
     delete_cache_entries,
     directory_cache_dir,
     entry_bytes,
     holds_entry,
+    missing_entries,
     notebook_cache_dir,
     partial_write_name,
     resolve_cache_dirs,
+    select_blocks,
 )
 
 NOTEBOOK = """
@@ -564,7 +566,8 @@ def test_clean_reports_only_what_a_block_gave_up(
     caplog: pytest.LogCaptureFixture,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Bytes a block did not give up are not reported as freed."""
+    """Bytes a block did not give up are not reported as freed, and the
+    marker of an entry whose blobs stayed is kept for another try."""
     cache_dir = make_cache_dir(tmp_path)
     block = populate_lazy_block(cache_dir)
     kept = block / "ab12ab12ab12ab12ab12ab"
@@ -580,8 +583,10 @@ def test_clean_reports_only_what_a_block_gave_up(
     finally:
         kept.chmod(0o755)
 
-    assert freed == CacheDirStats(total_bytes=60, entries=1)
+    assert freed == CacheDirStats(total_bytes=50, entries=1, failures=1)
     assert (kept / "return.pickle").read_bytes() == b"y" * 20
+    assert (block / "C_ab12ab12ab12ab12ab12ab.jsonl").exists()
+    assert not (block / "C_77e077e077e077e077e077.jsonl").exists()
     assert str(block) in caplog.text
 
 
@@ -675,20 +680,21 @@ def test_delete_entries_refuses_a_name_that_leaves_the_cache(
     assert "no cache entry can be named that" in caplog.text
 
 
-def test_delete_entries_removes_a_marker_before_the_blobs_it_covers(
+def test_delete_entries_removes_blobs_before_the_marker(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Half an entry must never be readable, so the marker goes first."""
+    """A marker that outlives a failed blob removal keeps the entry on
+    record, so the blobs go first."""
     cache_dir = make_cache_dir(tmp_path)
     block = populate_lazy_block(cache_dir)
     (block / "E_ab12ab12ab12ab12ab12ab.jsonl").write_bytes(b"shared")
-    marker_gone: list[bool] = []
+    markers_present: list[bool] = []
     remove_tree = shutil.rmtree
 
     def spy(directory: Path, *, ignore_errors: bool = False) -> None:
-        marker_gone.append(
-            not (block / "C_ab12ab12ab12ab12ab12ab.jsonl").exists()
-            and not (block / "E_ab12ab12ab12ab12ab12ab.jsonl").exists()
+        markers_present.append(
+            (block / "C_ab12ab12ab12ab12ab12ab.jsonl").exists()
+            and (block / "E_ab12ab12ab12ab12ab12ab.jsonl").exists()
         )
         remove_tree(directory, ignore_errors=ignore_errors)
 
@@ -701,9 +707,11 @@ def test_delete_entries_removes_a_marker_before_the_blobs_it_covers(
         ],
     )
 
-    assert marker_gone == [True]
+    assert markers_present == [True]
     assert freed == CacheDirStats(total_bytes=36, entries=2)
     assert not (block / "ab12ab12ab12ab12ab12ab").exists()
+    assert not (block / "C_ab12ab12ab12ab12ab12ab.jsonl").exists()
+    assert not (block / "E_ab12ab12ab12ab12ab12ab.jsonl").exists()
 
 
 def test_delete_entries_leaves_a_write_in_flight(tmp_path: Path) -> None:
@@ -803,13 +811,13 @@ def test_clean_cache_dir_skips_a_directory_that_holds_no_entries(
 @pytest.mark.skipif(
     sys.platform == "win32", reason="chmod does not restrict writes on Windows"
 )
-def test_delete_entries_keeps_the_blobs_of_a_marker_that_stays(
+def test_delete_entries_keeps_the_marker_when_its_blobs_stay(
     tmp_path: Path,
     caplog: pytest.LogCaptureFixture,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """A marker that cannot be removed can still be read, so the blobs it
-    names must stay, and the entry does not count as deleted."""
+    """A directory of blobs that cannot be removed keeps its marker, so the
+    entry stays on record and a later clean can try again."""
     cache_dir = make_cache_dir(tmp_path)
     block = populate_lazy_block(cache_dir)
     block.chmod(0o555)
@@ -830,9 +838,10 @@ def test_delete_entries_keeps_the_blobs_of_a_marker_that_stays(
         block.chmod(0o755)
 
     assert freed.entries == 0
+    assert freed.failures == 1
     assert (block / "C_ab12ab12ab12ab12ab12ab.jsonl").exists()
-    assert (block / "ab12ab12ab12ab12ab12ab" / "return.pickle").exists()
-    assert "Could not remove C_ab12ab12ab12ab12ab12ab" in caplog.text
+    assert (block / "ab12ab12ab12ab12ab12ab").is_dir()
+    assert "Could not remove" in caplog.text
 
 
 def test_block_dir_name_drops_the_stars_a_loader_drops() -> None:
@@ -955,22 +964,20 @@ def test_clean_takes_entries_written_at_the_root(tmp_path: Path) -> None:
 def test_delete_entries_keeps_blobs_a_new_marker_names(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """A writer can publish a marker for the same blobs after the doomed
-    marker is gone and before the blobs are removed."""
+    """A writer can write a marker for the same blobs between the listing
+    and the removal of the blobs."""
     from marimo._save import cache_dirs
 
     cache_dir = make_cache_dir(tmp_path)
     block = populate_lazy_block(cache_dir)
-    unlink = cache_dirs._unlink
+    index_block = cache_dirs._index_block
 
-    def publish_after(path: Path) -> int:
-        size = unlink(path)
-        (block / f"E_ab12ab12ab12ab12ab12ab{LAZY_ENTRY_SUFFIX}").write_bytes(
-            b"new"
-        )
-        return size
+    def index_then_publish(*args: object, **kwargs: object) -> object:
+        index = index_block(*args, **kwargs)
+        (block / "E_ab12ab12ab12ab12ab12ab.jsonl").write_bytes(b"new")
+        return index
 
-    monkeypatch.setattr(cache_dirs, "_unlink", publish_after)
+    monkeypatch.setattr(cache_dirs, "_index_block", index_then_publish)
     freed = delete_cache_entries(
         cache_dir, [("train", "C_ab12ab12ab12ab12ab12ab")]
     )
@@ -1112,3 +1119,94 @@ def test_resolve_refuses_a_linked_marimo_dir_when_deleting(
 
     with pytest.raises(CacheDirError, match="symbolic link"):
         resolve_cache_dirs(project, deleting=True)
+
+
+@pytest.mark.skipif(
+    sys.platform == "win32", reason="symlinks need a privileged user"
+)
+def test_delete_entries_refuses_a_linked_block(tmp_path: Path) -> None:
+    """Files behind a link are neither deleted nor declared absent."""
+    cache_dir = make_cache_dir(tmp_path)
+    elsewhere = tmp_path / "elsewhere"
+    populate_lazy_block(elsewhere)
+    (cache_dir / "train").symlink_to(
+        elsewhere / "train", target_is_directory=True
+    )
+
+    with pytest.raises(CacheDirError, match="symbolic link"):
+        delete_cache_entries(
+            cache_dir, [("train", "C_ab12ab12ab12ab12ab12ab")]
+        )
+    with pytest.raises(CacheDirError, match="symbolic link"):
+        missing_entries(cache_dir, [("train", "C_ab12ab12ab12ab12ab12ab")])
+
+    assert (elsewhere / "train" / "C_ab12ab12ab12ab12ab12ab.jsonl").exists()
+
+
+def test_missing_entries_lists_each_block_once(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from marimo._save import cache_dirs
+
+    cache_dir = make_cache_dir(tmp_path)
+    populate_lazy_block(cache_dir, "train")
+    populate_lazy_block(cache_dir, "evaluate")
+    listings: list[Path] = []
+    index_block = cache_dirs._index_block
+
+    def count(block: Path, *args: object, **kwargs: object) -> object:
+        listings.append(block)
+        return index_block(block, *args, **kwargs)
+
+    monkeypatch.setattr(cache_dirs, "_index_block", count)
+    missing = missing_entries(
+        cache_dir,
+        [
+            ("train", "C_ab12ab12ab12ab12ab12ab"),
+            ("train", "C_77e077e077e077e077e077"),
+            ("train", "C_gonegonegonegonegonego"),
+            ("evaluate", "C_ab12ab12ab12ab12ab12ab"),
+            ("evaluate", "C_gonegonegonegonegonego"),
+            ("absent", "C_ab12ab12ab12ab12ab12ab"),
+            ("../..", "C_ab12ab12ab12ab12ab12ab"),
+        ],
+    )
+
+    assert sorted(listings) == [cache_dir / "evaluate", cache_dir / "train"]
+    assert missing == {
+        ("train", "C_gonegonegonegonegonego"),
+        ("evaluate", "C_gonegonegonegonegonego"),
+        ("absent", "C_ab12ab12ab12ab12ab12ab"),
+        ("../..", "C_ab12ab12ab12ab12ab12ab"),
+    }
+
+
+@pytest.mark.skipif(
+    sys.platform == "win32", reason="chmod does not restrict reads on Windows"
+)
+def test_select_blocks_reports_a_block_it_cannot_list(tmp_path: Path) -> None:
+    """A block that cannot be listed is a failure, and the others are
+    still cleaned."""
+    cache_dir = make_cache_dir(tmp_path)
+    populate_lazy_block(cache_dir, "train")
+    sealed = populate_lazy_block(cache_dir, "evaluate")
+    sealed.chmod(0o000)
+    if os.access(sealed, os.R_OK):
+        sealed.chmod(0o755)
+        pytest.skip("chmod does not restrict reads for this user")
+
+    try:
+        selection = select_blocks(cache_dir)
+        planned = delete_blocks(cache_dir, selection, dry_run=True)
+        freed = delete_blocks(cache_dir, selection)
+    finally:
+        sealed.chmod(0o755)
+
+    assert selection[sealed] is None
+    assert (
+        planned
+        == freed
+        == CacheDirStats(total_bytes=80, entries=2, failures=1)
+    )
+    assert not (cache_dir / "train").exists()
+    assert (sealed / "C_ab12ab12ab12ab12ab12ab.jsonl").exists()

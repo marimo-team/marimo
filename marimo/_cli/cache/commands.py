@@ -10,9 +10,9 @@ import click
 from marimo._cli.errors import MarimoCLIError
 from marimo._cli.help_formatter import ColoredGroup
 from marimo._config.settings import GLOBAL_SETTINGS
+from marimo._save.cache_dirs import CacheDirStats
 
 if TYPE_CHECKING:
-    from marimo._save.cache_dirs import CacheDirStats
     from marimo._save.clean import CleanPlan
 
 path_argument = click.argument(
@@ -78,10 +78,18 @@ def format_entries(entries: int) -> str:
     return f"{entries} entry" if entries == 1 else f"{entries} entries"
 
 
+def _exit_if_incomplete(stats: CacheDirStats) -> None:
+    """Fail the command when some paths were not cleaned."""
+    if not stats.failures:
+        return
+    paths = (
+        "1 path was" if stats.failures == 1 else f"{stats.failures} paths were"
+    )
+    raise MarimoCLIError(f"{paths} not cleaned. See the warnings above.")
+
+
 def report(measured: list[tuple[Path, CacheDirStats]]) -> CacheDirStats:
     """Print cache directory listing and total."""
-    from marimo._save.cache_dirs import CacheDirStats
-
     total = CacheDirStats()
     for cache_directory, stats in measured:
         total += stats
@@ -261,22 +269,23 @@ def _clean_blocks(
     yes: bool,
     dry_run: bool,
 ) -> None:
-    from marimo._save.cache_dirs import CacheDirStats
     from marimo._save.clean import apply_block_clean, plan_block_clean
 
     plans = [plan_block_clean(directory, names) for directory in cache_dirs]
     planned = report([(plan.cache_dir, plan.freed) for plan in plans])
-    if planned == CacheDirStats():
+    if not planned.entries and not planned.total_bytes:
         click.echo("Nothing to delete.")
+        _exit_if_incomplete(planned)
         return
     if dry_run:
         _report_deleted(planned, dry_run=True)
+        _exit_if_incomplete(planned)
         return
     if not _confirm(planned, yes=yes):
         return
-    _report_deleted(
-        sum((apply_block_clean(p) for p in plans), CacheDirStats())
-    )
+    freed = sum((apply_block_clean(p) for p in plans), CacheDirStats())
+    _report_deleted(freed)
+    _exit_if_incomplete(freed)
 
 
 def _clean_tracked_entries(
@@ -287,12 +296,13 @@ def _clean_tracked_entries(
     yes: bool,
     dry_run: bool,
 ) -> None:
+    from marimo._save.cache_dirs import CacheDirError
     from marimo._save.clean import plan_clean
     from marimo._save.manifest import ManifestError
 
     try:
         plan = plan_clean(cache_dir, notebook, names)
-    except (ManifestError, OSError) as e:
+    except (CacheDirError, ManifestError, OSError) as e:
         raise MarimoCLIError(str(e)) from e
     if not plan.tracked:
         click.echo(format_dir(cache_dir))
@@ -307,30 +317,33 @@ def _clean_tracked_entries(
     if plan.deletes_nothing():
         # Forgetting a record no file answers to removes no cached value,
         # so the command does not ask.
-        if not dry_run:
-            _apply_or_error(plan)
+        freed = CacheDirStats() if dry_run else _apply_or_error(plan)
         click.echo("Nothing to delete.")
         verb = "Would forget" if dry_run else "Forgot"
         click.echo(
             f"{verb} {format_entries(len(plan.entries))} the cache no "
             "longer holds."
         )
+        _exit_if_incomplete(freed)
         return
     if dry_run:
         _report_deleted(plan.freed, dry_run=True)
         return
     if not _confirm(plan.freed, yes=yes):
         return
-    _report_deleted(_apply_or_error(plan))
+    freed = _apply_or_error(plan)
+    _report_deleted(freed)
+    _exit_if_incomplete(freed)
 
 
 def _apply_or_error(plan: CleanPlan) -> CacheDirStats:
+    from marimo._save.cache_dirs import CacheDirError
     from marimo._save.clean import apply_clean
     from marimo._save.manifest import ManifestError
 
     try:
         return apply_clean(plan)
-    except (ManifestError, OSError) as e:
+    except (CacheDirError, ManifestError, OSError) as e:
         raise MarimoCLIError(str(e)) from e
 
 

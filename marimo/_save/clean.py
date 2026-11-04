@@ -11,7 +11,7 @@ from marimo._save.cache_dirs import (
     block_dir_name,
     delete_blocks,
     delete_cache_entries,
-    holds_entry,
+    missing_entries,
     select_blocks,
 )
 from marimo._save.manifest import (
@@ -31,7 +31,7 @@ class BlockCleanPlan:
     """The planned clean of whole blocks from one cache directory."""
 
     cache_dir: Path
-    selection: dict[Path, frozenset[str]] = field(default_factory=dict)
+    selection: dict[Path, frozenset[str] | None] = field(default_factory=dict)
     freed: CacheDirStats = field(default_factory=CacheDirStats)
 
 
@@ -90,7 +90,8 @@ def plan_clean(
 
     Raises:
         ManifestError: If the manifest cannot be read as one.
-        OSError: If the manifest cannot be read at all.
+        CacheDirError: If a block is a symbolic link.
+        OSError: If the manifest or a block cannot be read.
     """
     from marimo._save.stores.file import FileStore
 
@@ -124,6 +125,7 @@ def apply_clean(plan: CleanPlan) -> CacheDirStats:
 
     Raises:
         ManifestError: If the manifest cannot be re-read as one.
+        CacheDirError: If a block is a symbolic link.
         OSError: If a block cannot be listed or the manifest cannot be
             rewritten.
     """
@@ -140,12 +142,6 @@ def apply_clean(plan: CleanPlan) -> CacheDirStats:
         manifest = load_manifest(store, plan.key)
         if manifest is None:
             return freed
-        manifest.discard(
-            {
-                entry
-                for entry in plan.entries
-                if not holds_entry(plan.cache_dir, *entry)
-            }
-        )
+        manifest.discard(missing_entries(plan.cache_dir, plan.entries))
         store.put(plan.key, manifest.to_bytes())
     return freed

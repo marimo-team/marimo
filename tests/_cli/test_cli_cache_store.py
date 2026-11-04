@@ -232,3 +232,27 @@ def test_clean_notebook_beside_a_store_the_default_method_distrusts(
     assert read_manifest(elsewhere) == {
         "3f9c": {"train": {"C_ab12ab12ab12ab12ab12ab"}}
     }
+
+
+def test_clean_acts_on_a_cache_dir_named_outright_whatever_the_store(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A cache directory given as PATH is cleaned as given. A configured
+    store elsewhere is not used in its place, and it is left untouched."""
+    from tests._cli.test_cli_cache import write_entry
+
+    own = make_cache_dir(tmp_path)
+    write_entry(own, "train", "C_ab12ab12ab12ab12ab12ab.pickle", 10)
+    store_dir = tmp_path / "elsewhere"
+    write_entry(store_dir, "train", "C_77e077e077e077e077e077.pickle", 10)
+    configure_store(monkeypatch, store_dir)
+
+    result = CliRunner().invoke(main, ["cache", "clean", str(own), "-y"])
+
+    assert result.exit_code == 0, result.output
+    assert result.output.splitlines() == [
+        f"{own}\t10 B\t1 entry",
+        "Deleted 1 entry, freeing 10 B.",
+    ]
+    assert not (own / "train").exists()
+    assert (store_dir / "train" / "C_77e077e077e077e077e077.pickle").exists()
