@@ -1,7 +1,6 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-import atexit
 import json
 import os
 import shutil
@@ -637,41 +636,7 @@ def edit(
     )
 
 
-# To make this more readable at 80 character terminal width, the bullet
-# that overflows is moved to the end, and _key_value_bullets is called
-# twice.
-new_help_msg = "\n".join(
-    [
-        "\b",
-        "Create an empty notebook, or generate from a prompt with AI",
-        "",
-        _key_value_bullets(
-            [
-                (
-                    "marimo new",
-                    "Create an empty notebook",
-                ),
-                (
-                    "marimo new prompt.txt",
-                    "Generate a notebook from a prompt in a file.",
-                ),
-            ]
-        ),
-        _key_value_bullets(
-            [
-                (
-                    'marimo new "Plot an interactive 3D surface with matplotlib."',
-                    "Generate a notebook from a prompt.",
-                ),
-            ]
-        ),
-        "",
-        "Visit https://marimo.app/ai for more prompt examples.",
-    ]
-)
-
-
-@main.command(cls=SandboxCommand, help=new_help_msg)
+@main.command(cls=SandboxCommand, help="Create an empty notebook.")
 @click.option(
     "-p",
     "--port",
@@ -750,7 +715,6 @@ new_help_msg = "\n".join(
     type=float,
     help="Enable a global timeout to shut down the server after specified number of minutes of no connection",
 )
-@click.argument("prompt", required=False)
 def new(
     port: int | None,
     host: str,
@@ -764,68 +728,16 @@ def new(
     no_sandbox: bool,
     skew_protection: bool,
     timeout: float | None,
-    prompt: str | None,
 ) -> None:
     from marimo._cli.sandbox import ensure_server_environment, resolve_sandbox
 
     sandbox_backend = resolve_sandbox(sandbox, no_sandbox, name=None)
     ensure_server_environment(sandbox_backend)
 
-    workspace: NotebookWorkspace | None = None
-
-    if prompt is None:
-        # We support unix-style prompting, cat prompt.txt | marimo new
-        prompt = _get_stdin_contents()
-
-    if prompt is not None:
-        import tempfile
-
-        from marimo._ai.text_to_notebook import text_to_notebook
-
-        try:
-            _maybe_path = Path(prompt)
-            if _maybe_path.is_file():
-                prompt = _maybe_path.read_text(encoding="utf-8")
-        except OSError:
-            # is_file() fails when, for example, the "filename" (prompt) is too long
-            pass
-
-        temp_file = None
-        try:
-            notebook_content = text_to_notebook(prompt)
-            # On Windows, NamedTemporaryFile cannot be reopened unless
-            # delete=False.
-            with tempfile.NamedTemporaryFile(
-                suffix=".py", mode="w", encoding="utf-8", delete=False
-            ) as temp_file:
-                temp_file.write(notebook_content)
-            workspace = infer_workspace(temp_file.name)
-
-            def _cleanup() -> None:
-                try:
-                    os.unlink(temp_file.name)
-                except Exception:
-                    pass
-
-            atexit.register(_cleanup)
-        except Exception as e:
-            if temp_file is not None:
-                try:
-                    os.unlink(temp_file.name)
-                except Exception:
-                    pass
-
-            raise click.ClickException(
-                f"Failed to generate notebook: {e!s}"
-            ) from e
-
-    if workspace is None:
-        workspace = EmptyWorkspace()
-
     base_url = validators.check_proxy_base_url(proxy, base_url)
 
     start(
-        workspace=workspace,
+        workspace=EmptyWorkspace(),
         development_mode=GLOBAL_SETTINGS.DEVELOPMENT_MODE,
         quiet=GLOBAL_SETTINGS.QUIET,
         host=host,
