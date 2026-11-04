@@ -292,7 +292,11 @@ async def listen_messages(
     pending: deque[CommandMessage] = deque()
 
     while True:
-        if not pending:
+        if pending:
+            # Give user background tasks a turn between commands, as the
+            # blocking read did.
+            await asyncio.sleep(0)
+        else:
             try:
                 request = await get_request(control_queue)
             except InterruptedError:
