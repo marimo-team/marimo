@@ -162,6 +162,20 @@ class TestDefaultSavePath:
 
         assert path == Path("__marimo__", "cache")
 
+    def test_clearable_root_is_where_clear_acts(
+        self, tmp_path, monkeypatch
+    ) -> None:
+        monkeypatch.setattr(file_mod, "notebook_dir", lambda: tmp_path)
+
+        def deny_mkdir(self: Path, *_args: object, **_kwargs: object) -> None:
+            raise PermissionError(f"read-only: {self}")
+
+        monkeypatch.setattr(Path, "mkdir", deny_mkdir)
+        store = FileStore()
+
+        assert store.clearable_root() == store.save_path
+        assert store.clearable_root() == Path("__marimo__", "cache")
+
     def test_existing_read_only_target_falls_back_to_cwd(
         self, tmp_path, monkeypatch
     ) -> None:

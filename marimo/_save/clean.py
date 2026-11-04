@@ -9,9 +9,10 @@ from typing import TYPE_CHECKING
 from marimo._save.cache_dirs import (
     CacheDirStats,
     block_dir_name,
-    clean_cache_dir,
+    delete_blocks,
     delete_cache_entries,
     holds_entry,
+    select_blocks,
 )
 from marimo._save.manifest import (
     CacheManifest,
@@ -30,7 +31,7 @@ class BlockCleanPlan:
     """The planned clean of whole blocks from one cache directory."""
 
     cache_dir: Path
-    names: tuple[str, ...] = ()
+    selection: dict[Path, frozenset[str]] = field(default_factory=dict)
     freed: CacheDirStats = field(default_factory=CacheDirStats)
 
 
@@ -41,15 +42,18 @@ def plan_block_clean(
 
     An empty `names` plans every block.
     """
-    names = tuple(names)
+    selection = select_blocks(cache_dir, names)
     return BlockCleanPlan(
-        cache_dir, names, clean_cache_dir(cache_dir, names, dry_run=True)
+        cache_dir, selection, delete_blocks(cache_dir, selection, dry_run=True)
     )
 
 
 def apply_block_clean(plan: BlockCleanPlan) -> CacheDirStats:
-    """Carry out `plan`, reporting what it freed."""
-    return clean_cache_dir(plan.cache_dir, plan.names)
+    """Carry out `plan`, reporting what it freed.
+
+    Entries written since the plan was made are left alone.
+    """
+    return delete_blocks(plan.cache_dir, plan.selection)
 
 
 @dataclass(frozen=True)
@@ -120,25 +124,28 @@ def apply_clean(plan: CleanPlan) -> CacheDirStats:
 
     Raises:
         ManifestError: If the manifest cannot be re-read as one.
-        OSError: If the manifest cannot be rewritten.
+        OSError: If a block cannot be listed or the manifest cannot be
+            rewritten.
     """
     from marimo._save.stores.file import FileStore
 
     if plan.manifest is None:
         return CacheDirStats()
     freed = delete_cache_entries(plan.cache_dir, plan.entries)
-    dead = {
-        entry
-        for entry in plan.entries
-        if not holds_entry(plan.cache_dir, *entry)
-    }
     store = FileStore(save_path=str(plan.cache_dir))
-    # A kernel can record entries while this runs, so this re-reads the
-    # records under the lock and drops only the planned dead ones.
+    # A kernel can write and record entries while this runs, so the records
+    # are re-read under the lock and only the planned entries that are gone
+    # from disk at that moment are dropped.
     with manifest_lock(store, plan.key):
         manifest = load_manifest(store, plan.key)
         if manifest is None:
             return freed
-        manifest.discard(dead)
+        manifest.discard(
+            {
+                entry
+                for entry in plan.entries
+                if not holds_entry(plan.cache_dir, *entry)
+            }
+        )
         store.put(plan.key, manifest.to_bytes())
     return freed

@@ -10,7 +10,7 @@ import queue
 import threading
 from contextlib import contextmanager
 from enum import Enum, auto
-from pathlib import Path, PurePath, PurePosixPath
+from pathlib import Path, PurePosixPath
 from typing import TYPE_CHECKING, Any
 
 import msgspec
@@ -452,6 +452,10 @@ def _write_export_manifest(
         LOGGER.warning("Failed to write cache export manifest: %s", e)
 
 
+def _posix_key(key: str) -> str:
+    return key.replace("\\", "/")
+
+
 class LazyStore(Store):
     """Native store for `LazyLoader`.
 
@@ -489,22 +493,23 @@ class LazyStore(Store):
         return result
 
     def clear(self, key: str) -> bool:
+        self._written_keys.discard(key)
+        self._touched_keys.discard(key)
         if not self._inner.clear(key):
             return False
         # Blob keys use POSIX paths even when the caller uses Windows paths.
-        posix = PurePath(key).as_posix()
+        posix = _posix_key(key)
         prefix = f"{posix}/"
         for tracked in (self._written_keys, self._touched_keys):
+            # Loaders sharing this store add keys from their writer threads
+            # meanwhile, so iteration uses a copy.
+            under = {
+                k
+                for k in list(tracked)
+                if (p := _posix_key(k)) == posix or p.startswith(prefix)
+            }
             tracked.difference_update(
-                {
-                    k
-                    for k in tracked
-                    if (
-                        (p := PurePath(k).as_posix()) == posix
-                        or p.startswith(prefix)
-                    )
-                    and not self._inner.hit(k)
-                }
+                k for k in under if not self._inner.hit(k)
             )
         return True
 

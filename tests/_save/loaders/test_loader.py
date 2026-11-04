@@ -57,6 +57,36 @@ def test_lazy_store_exports_keys_the_inner_store_kept(
     assert store.read("train/hash/value.pickle") == b"value"
 
 
+def test_lazy_store_forgets_a_key_the_inner_store_no_longer_holds(
+    tmp_path: Path,
+) -> None:
+    store = LazyStore(FileStore(str(tmp_path)))
+    store.put("train/P_hash.pickle", b"value")
+    (tmp_path / "train" / "P_hash.pickle").unlink()
+
+    assert store.clear("train/P_hash.pickle") is False
+
+    assert store.export_keys() == []
+
+
+def test_loader_clear_keeps_files_that_are_not_its_entries(
+    tmp_path: Path,
+) -> None:
+    """A store pointed at a project puts entries beside project files."""
+    store = FileStore(str(tmp_path))
+    store.put("src/P_hash.json", b"{}")
+    store.put("src/records.json", b"[]")
+    store.put("src/records/a.json", b"{}")
+    loader = JsonLoader("src", store=store)
+
+    assert loader.clearable_bytes() == 2
+    loader.clear()
+
+    assert store.read("src/P_hash.json") is None
+    assert store.read("src/records.json") == b"[]"
+    assert store.read("src/records/a.json") == b"{}"
+
+
 def test_loader_clears_a_store_path_with_glob_characters(
     tmp_path: Path,
 ) -> None:

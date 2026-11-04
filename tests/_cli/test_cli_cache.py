@@ -914,3 +914,34 @@ def test_clean_leaves_a_block_of_orphaned_blobs_to_prune(
     assert result.exit_code == 0, result.output
     assert "Deleted 1 entry, freeing 5 B." in result.output
     assert orphan.read_bytes() == b"y" * 20
+
+
+@pytest.mark.skipif(
+    sys.platform == "win32", reason="chmod does not restrict reads on Windows"
+)
+def test_clean_notebook_refuses_a_block_it_cannot_list(tmp_path: Path) -> None:
+    """Records are forgotten only for entries known to be gone."""
+    notebook = tmp_path / "nb.py"
+    notebook.write_text(NOTEBOOK)
+    cache_dir = make_cache_dir(tmp_path)
+    write_entry(cache_dir, "train", "C_ab12.pickle", 10)
+    manifest = write_manifest(
+        cache_dir, notebook, {"3f9c": {"train": {"C_ab12"}}}
+    )
+    block = cache_dir / "train"
+    block.chmod(0o000)
+    if os.access(block, os.R_OK):
+        block.chmod(0o755)
+        pytest.skip("chmod does not restrict reads for this user")
+
+    try:
+        result = CliRunner().invoke(
+            main, ["cache", "clean", str(notebook), "-y"]
+        )
+    finally:
+        block.chmod(0o755)
+
+    assert result.exit_code == 1
+    assert "Permission denied" in result.stderr
+    assert (block / "C_ab12.pickle").exists()
+    assert read_manifest(manifest) == {"3f9c": {"train": {"C_ab12"}}}

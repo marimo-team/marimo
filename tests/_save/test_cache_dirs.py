@@ -11,6 +11,7 @@ import pytest
 
 from marimo import _loggers
 from marimo._save.cache_dirs import (
+    LAZY_ENTRY_SUFFIX,
     CacheDirStats,
     NotANotebookError,
     block_dir_name,
@@ -680,18 +681,18 @@ def test_delete_entries_removes_a_marker_before_the_blobs_it_covers(
     assert not (block / "ab12").exists()
 
 
-def test_delete_entries_takes_the_leftovers_of_a_killed_write(
-    tmp_path: Path,
-) -> None:
+def test_delete_entries_leaves_a_write_in_flight(tmp_path: Path) -> None:
+    """A writer publishes by renaming a sibling into place. Deleting the
+    sibling breaks that rename, so it is never matched as an entry."""
     cache_dir = make_cache_dir(tmp_path)
     block = populate_lazy_block(cache_dir)
-    leftover = block / partial_write_name("C_ab12.jsonl")
-    leftover.write_bytes(b"p" * 8)
+    in_flight = block / partial_write_name("C_ab12.jsonl")
+    in_flight.write_bytes(b"p" * 8)
 
     freed = delete_cache_entries(cache_dir, [("train", "C_ab12")])
 
-    assert freed == CacheDirStats(total_bytes=38, entries=1)
-    assert not leftover.exists()
+    assert freed == CacheDirStats(total_bytes=30, entries=1)
+    assert in_flight.read_bytes() == b"p" * 8
 
 
 def test_delete_entries_of_an_entry_the_cache_no_longer_holds(
@@ -851,3 +852,115 @@ def test_delete_entries_refuses_a_key_no_cache_write_spells(
     assert freed == CacheDirStats()
     assert (block / "Z_ab12.pickle").exists()
     assert (block / "utils" / "__init__.py").exists()
+
+
+def test_clean_keeps_files_spelled_like_entries(
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Only the suffixes the loaders write make a file an entry, so a source
+    file whose stem reads as a key keeps the directory named like its hash."""
+    src = tmp_path / "src"
+    src.mkdir()
+    (src / "C_data.py").write_text("data = 1\n")
+    (src / "data").mkdir()
+    (src / "data" / "rows.csv").write_text("1,2\n")
+    (src / "records.json").write_text("{}")
+    (src / "records").mkdir()
+    (src / "records" / "a.json").write_text("{}")
+    (src / "C_ab12.pickle").write_bytes(b"x" * 10)
+    monkeypatch.setattr(_loggers.marimo_logger(), "propagate", True)
+
+    with caplog.at_level(logging.WARNING):
+        freed = clean_cache_dir(tmp_path)
+
+    assert freed == CacheDirStats(total_bytes=10, entries=1)
+    assert not (src / "C_ab12.pickle").exists()
+    assert (src / "C_data.py").exists()
+    assert (src / "data" / "rows.csv").exists()
+    assert (src / "records.json").exists()
+    assert (src / "records" / "a.json").exists()
+    assert f"Kept {src}" in caplog.text
+
+
+def test_clean_takes_entries_written_at_the_root(tmp_path: Path) -> None:
+    """A cache named by stars alone writes its entries at the root."""
+    cache_dir = make_cache_dir(tmp_path)
+    (cache_dir / "C_ab12.pickle").write_bytes(b"x" * 10)
+    (cache_dir / ".nb-export.json").write_bytes(b"m" * 3)
+    populate_lazy_block(cache_dir)
+
+    assert clean_cache_dir(cache_dir, ["***"]) == CacheDirStats(
+        total_bytes=10, entries=1
+    )
+    assert not (cache_dir / "C_ab12.pickle").exists()
+    assert (cache_dir / ".nb-export.json").exists()
+    assert (cache_dir / "train" / "C_ab12.jsonl").exists()
+
+    (cache_dir / "C_77e0.pickle").write_bytes(b"x" * 10)
+
+    assert delete_cache_entries(cache_dir, [("", "C_77e0")]) == CacheDirStats(
+        total_bytes=10, entries=1
+    )
+    assert cache_dir.is_dir()
+
+
+def test_delete_entries_keeps_blobs_a_new_marker_names(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A writer can publish a marker for the same blobs after the doomed
+    marker is gone and before the blobs are removed."""
+    from marimo._save import cache_dirs
+
+    cache_dir = make_cache_dir(tmp_path)
+    block = populate_lazy_block(cache_dir)
+    unlink = cache_dirs._unlink
+
+    def publish_after(path: Path) -> int:
+        size = unlink(path)
+        (block / f"E_ab12{LAZY_ENTRY_SUFFIX}").write_bytes(b"new")
+        return size
+
+    monkeypatch.setattr(cache_dirs, "_unlink", publish_after)
+    freed = delete_cache_entries(cache_dir, [("train", "C_ab12")])
+
+    assert freed == CacheDirStats(total_bytes=10, entries=1)
+    assert not (block / "C_ab12.jsonl").exists()
+    assert (block / "ab12" / "return.pickle").read_bytes() == b"y" * 20
+
+
+@pytest.mark.skipif(
+    sys.platform == "win32", reason="chmod does not restrict reads on Windows"
+)
+def test_delete_entries_reports_a_block_it_cannot_list(tmp_path: Path) -> None:
+    cache_dir = make_cache_dir(tmp_path)
+    block = populate_lazy_block(cache_dir)
+    block.chmod(0o000)
+    if os.access(block, os.R_OK):
+        block.chmod(0o755)
+        pytest.skip("chmod does not restrict reads for this user")
+
+    try:
+        with pytest.raises(OSError):
+            delete_cache_entries(cache_dir, [("train", "C_ab12")])
+    finally:
+        block.chmod(0o755)
+
+    assert (block / "C_ab12.jsonl").exists()
+
+
+@pytest.mark.skipif(
+    sys.platform == "win32", reason="symlinks need a privileged user"
+)
+def test_resolve_recursive_skips_a_linked_cache_dir(tmp_path: Path) -> None:
+    elsewhere = tmp_path / "elsewhere" / "__marimo__" / "cache"
+    elsewhere.mkdir(parents=True)
+    project = tmp_path / "project"
+    (project / "__marimo__").mkdir(parents=True)
+    (project / "__marimo__" / "cache").symlink_to(
+        elsewhere, target_is_directory=True
+    )
+    own = make_cache_dir(project, "nested")
+
+    assert resolve_cache_dirs(project, recursive=True) == [own]

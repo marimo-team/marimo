@@ -130,12 +130,12 @@ class CacheManifest:
         only that a cell once ran, and the notebook source shows which
         cells are live.
         """
-        doomed = set(entries)
+        doomed: dict[str, set[str]] = {}
+        for block, key in entries:
+            doomed.setdefault(block, set()).add(key)
         for node, blocks in list(self.nodes.items()):
             for block, keys in list(blocks.items()):
-                keys.difference_update(
-                    key for other, key in doomed if other == block
-                )
+                keys.difference_update(doomed.get(block, ()))
                 if not keys:
                     del blocks[block]
             if not blocks:

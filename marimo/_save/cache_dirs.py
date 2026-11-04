@@ -22,7 +22,7 @@ from marimo._utils.paths import (
 )
 
 if TYPE_CHECKING:
-    from collections.abc import Collection, Iterator
+    from collections.abc import Collection, Iterator, Mapping
 
 LOGGER = _loggers.marimo_logger()
 
@@ -40,6 +40,10 @@ _UNSAFE_IN_BLOCK_NAME = re.compile(r"[^a-zA-Z0-9 _-]")
 # without padding, so its length cannot be one more than a multiple of four.
 # Without the prefix a name can also be a directory of blobs.
 _DIGEST = re.compile(r"[A-Za-z0-9_-]{2,}")
+
+# Loaders write entries with these suffixes, and a neighboring file with any
+# other suffix belongs to something else.
+_ENTRY_SUFFIXES = frozenset({"json", "jsonl", "pickle"})
 
 # An entry is written to a sibling and renamed into place, so a reader never
 # meets a half-written value. A process killed between the two steps leaves
@@ -88,11 +92,11 @@ def directory_cache_dir(directory: Path) -> Path:
 def resolve_cache_dirs(path: Path, recursive: bool = False) -> list[Path]:
     """Return the cache directories that `path` resolves to, absolute.
 
-    Use config, and location to determine which cache directories apply.
-    `recursive`, searches for existing `__marimo__/cache` directories, skipping
-    dot-folders.
-
-    The search can come back empty.
+    A notebook file resolves to the cache directory beside it, and a
+    directory to the cache directory for a notebook run there. Both are
+    listed whether or not they exist yet. With `recursive`, a directory is
+    instead searched for existing `__marimo__/cache` directories, skipping
+    dot-folders. The search can come back empty.
 
     Raises:
         FileNotFoundError: If `path` does not exist.
@@ -154,33 +158,53 @@ def block_dir_name(name: str) -> str:
     return _UNSAFE_IN_BLOCK_NAME.sub("_", name.strip("*"))
 
 
-def clean_cache_dir(
+def select_blocks(
+    cache_dir: Path, names: Collection[str] | None = None
+) -> dict[Path, frozenset[str]]:
+    """Return the entry keys in each block of `cache_dir` that `names` select.
+
+    An empty `names` selects every block. A cache with an empty name writes
+    entries at the cache root, and selection lists them under `cache_dir`
+    itself.
+    """
+    if not cache_dir.is_dir():
+        return {}
+    wanted = {block_dir_name(name) for name in names} if names else None
+    blocks = [cache_dir] + [
+        child for child in _children(cache_dir) if _is_directory(child)
+    ]
+    selected: dict[Path, frozenset[str]] = {}
+    for block in blocks:
+        name = "" if block == cache_dir else block.name
+        if wanted is not None and name not in wanted:
+            continue
+        keys = _entry_keys(block)
+        if keys:
+            selected[block] = frozenset(keys)
+        elif block != cache_dir and _children(block):
+            LOGGER.warning("Skipping %s: it holds no cache entries.", block)
+    return selected
+
+
+def delete_blocks(
     cache_dir: Path,
-    names: Collection[str] | None = None,
+    selection: Mapping[Path, Collection[str]],
     *,
     dry_run: bool = False,
 ) -> CacheDirStats:
-    """Delete blocks from `cache_dir`, returns stats of freed entries."""
+    """Delete the selected entries of each block, reporting what that freed.
 
-    if not cache_dir.is_dir():
-        return CacheDirStats()
-
-    wanted = {block_dir_name(name) for name in names} if names else None
+    A block directory goes once nothing is left in it. A dry run deletes
+    nothing and reports what deleting frees.
+    """
     freed = CacheDirStats()
-    for block in _children(cache_dir):
-        if not _is_directory(block):
+    for block, keys in selection.items():
+        try:
+            freed += _delete_block_entries(block, set(keys), dry_run=dry_run)
+        except OSError as e:
+            LOGGER.warning("Skipping %s: %s", block, e)
             continue
-        if wanted is not None and block.name not in wanted:
-            continue
-        keys = _entry_keys(block)
-        if not keys:
-            if _children(block):
-                LOGGER.warning(
-                    "Skipping %s: it holds no cache entries.", block
-                )
-            continue
-        freed += _delete_block_entries(block, keys, dry_run=dry_run)
-        if dry_run:
+        if dry_run or block == cache_dir:
             continue
         # A store pointed at a project puts entries beside source files, so
         # only entries and their blobs go, and the directory only when empty.
@@ -194,6 +218,18 @@ def clean_cache_dir(
     return freed
 
 
+def clean_cache_dir(
+    cache_dir: Path,
+    names: Collection[str] | None = None,
+    *,
+    dry_run: bool = False,
+) -> CacheDirStats:
+    """Delete blocks from `cache_dir`, returns stats of freed entries."""
+    return delete_blocks(
+        cache_dir, select_blocks(cache_dir, names), dry_run=dry_run
+    )
+
+
 def delete_cache_entries(
     cache_dir: Path,
     entries: Collection[tuple[str, str]],
@@ -203,6 +239,9 @@ def delete_cache_entries(
     """Delete the `(block, key)` entries named, reporting what that freed.
 
     With `dry_run`, only report what would be freed (no deletion).
+
+    Raises:
+        OSError: If a block cannot be listed.
     """
     by_block: dict[str, set[str]] = {}
     for block, key in entries:
@@ -296,11 +335,15 @@ def entry_bytes(entry: Path) -> int:
 def _delete_block_entries(
     block: Path, keys: set[str], *, dry_run: bool
 ) -> CacheDirStats:
-    """Delete the entries `keys` name from one block directory."""
+    """Delete the entries `keys` name from one block directory.
+
+    Raises:
+        OSError: If `block` cannot be listed.
+    """
     if not _is_directory(block):
         return CacheDirStats()
 
-    children = _children(block)
+    index = _index_block(block)
     by_hash: dict[str, list[str]] = {}
     for key in sorted(keys):
         by_hash.setdefault(entry_hash(key), []).append(key)
@@ -308,16 +351,15 @@ def _delete_block_entries(
     freed = CacheDirStats()
     # Entries with the same hash share blobs, even across cache types.
     for key_hash, shared_keys in by_hash.items():
-        doomed = {key: _entry_files(children, key) for key in shared_keys}
+        doomed = {key: index.files_by_key.get(key, []) for key in shared_keys}
         entry_files = {file for files in doomed.values() for file in files}
         blob_dir = block / key_hash
-        shared = any(
-            child.name.endswith(LAZY_ENTRY_SUFFIX)
-            and entry_hash(child.name) == key_hash
-            and child not in entry_files
-            for child in children
+        shared = bool(index.markers_by_hash.get(key_hash, set()) - entry_files)
+        has_blobs = (
+            not shared
+            and key_hash in index.dir_names
+            and _is_directory(blob_dir)
         )
-        has_blobs = not shared and _is_directory(blob_dir)
         if not entry_files and not has_blobs:
             continue
         entries = sum(bool(files) for files in doomed.values())
@@ -343,7 +385,12 @@ def _delete_block_entries(
             for key in remaining:
                 LOGGER.warning("Could not remove %s from %s.", key, block)
             entries -= len(remaining)
-            if has_blobs and not remaining:
+            # A writer can publish a new marker for these blobs meanwhile.
+            if (
+                has_blobs
+                and not remaining
+                and not _has_marker(block, key_hash)
+            ):
                 bytes_freed += _remove_tree(blob_dir)
                 if blob_dir.exists():
                     entries = 0
@@ -351,53 +398,111 @@ def _delete_block_entries(
     return freed
 
 
+@dataclass(frozen=True)
+class _BlockIndex:
+    """One listing of a block directory."""
+
+    files_by_key: dict[str, list[Path]]
+    markers_by_hash: dict[str, set[Path]]
+    dir_names: frozenset[str]
+
+
+def _index_block(block: Path) -> _BlockIndex:
+    """List `block` once, sorting what it holds by entry key and hash.
+
+    Raises:
+        OSError: If `block` cannot be listed.
+    """
+    files_by_key: dict[str, list[Path]] = {}
+    markers_by_hash: dict[str, set[Path]] = {}
+    dir_names: set[str] = set()
+    for child in block.iterdir():
+        if _is_directory(child):
+            dir_names.add(child.name)
+            continue
+        key = entry_key(child.name)
+        if key is None:
+            continue
+        files_by_key.setdefault(key, []).append(child)
+        if child.name.endswith(LAZY_ENTRY_SUFFIX):
+            markers_by_hash.setdefault(entry_hash(key), set()).add(child)
+    return _BlockIndex(files_by_key, markers_by_hash, frozenset(dir_names))
+
+
+def _has_marker(block: Path, key_hash: str) -> bool:
+    """Whether an entry in `block` names the blobs of `key_hash` now."""
+    return any(
+        (block / f"{prefix}{key_hash}{LAZY_ENTRY_SUFFIX}").exists()
+        for prefix in _cache_prefixes()
+    )
+
+
 def holds_entry(cache_dir: Path, block: str, key: str) -> bool:
-    """Whether a file on disk still answers to the entry `(block, key)`."""
+    """Whether a file on disk still answers to the entry `(block, key)`.
+
+    Raises:
+        OSError: If the block cannot be listed.
+    """
     if not _names_an_entry(block, key):
         return False
     block_dir = cache_dir / block
     if not _is_directory(block_dir):
         return False
-    children = _children(block_dir)
-    if _entry_files(children, key):
+    index = _index_block(block_dir)
+    if index.files_by_key.get(key):
         return True
     # Keep orphaned blobs tracked so a failed deletion can be retried.
     key_hash = entry_hash(key)
-    return _is_directory(block_dir / key_hash) and not any(
-        child.name.endswith(LAZY_ENTRY_SUFFIX)
-        and entry_hash(child.name) == key_hash
-        for child in children
+    return (
+        key_hash in index.dir_names
+        and _is_directory(block_dir / key_hash)
+        and key_hash not in index.markers_by_hash
     )
 
 
 def _entry_keys(block: Path) -> set[str]:
-    """The keys of the entry files in `block`, leftovers of killed writes too."""
-    stems = {
-        child.name.split(".", 1)[0]
+    """The keys of the entry files in `block`."""
+    return {
+        key
         for child in _children(block)
         if not _is_directory(child)
+        and (key := entry_key(child.name)) is not None
     }
-    return {stem for stem in stems if _is_entry_key(stem)}
+
+
+def entry_key(name: str) -> str | None:
+    """Return the key of the entry file `name`, or `None` for any other file.
+
+    An entry is a key, a dot, and the suffix of the loader that wrote it. A
+    write in flight, and the sibling a killed write leaves behind, are not
+    entries.
+    """
+    key, dot, suffix = name.partition(".")
+    if dot and suffix in _ENTRY_SUFFIXES and _is_entry_key(key):
+        return key
+    return None
 
 
 def _names_an_entry(block: str, key: str) -> bool:
     """Reject names that can escape the cache or name unrelated files."""
-    return (
-        bool(block) and block == block_dir_name(block) and _is_entry_key(key)
-    )
+    return block == block_dir_name(block) and _is_entry_key(key)
 
 
 def _is_entry_key(key: str) -> bool:
     """Whether `key` is spelled as a cache write spells one."""
-    # The stores import this module, so the cache types are imported here.
-    from marimo._save.cache import CACHE_PREFIX
-
     digest = key[2:]
     return (
-        key[:2] in CACHE_PREFIX.values()
+        key[:2] in _cache_prefixes()
         and _DIGEST.fullmatch(digest) is not None
         and len(digest) % 4 != 1
     )
+
+
+def _cache_prefixes() -> Collection[str]:
+    # The stores import this module, so the cache types are imported here.
+    from marimo._save.cache import CACHE_PREFIX
+
+    return CACHE_PREFIX.values()
 
 
 def _entry_files(children: list[Path], key: str) -> list[Path]:
@@ -526,7 +631,12 @@ def _cache_dirs_under(root: Path) -> Iterator[Path]:
             # A cache directory holds no nested cache directories, and can be
             # large.
             dirnames.remove(CACHE_DIR_NAME)
-            yield Path(dirpath) / CACHE_DIR_NAME
+            found = Path(dirpath) / CACHE_DIR_NAME
+            # A link leads out of the tree that was asked about.
+            if found.is_symlink():
+                LOGGER.warning("Skipping %s: it is a symbolic link.", found)
+                continue
+            yield found
 
 
 def _log_walk_error(error: OSError) -> None:

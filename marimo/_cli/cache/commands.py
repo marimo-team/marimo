@@ -208,10 +208,10 @@ def cache_size(path: Path, recursive: bool) -> None:
     help="""Delete all relevant cache entries for a notebook or directory.
 
 When this command is given a notebook path, it deletes the cache entries that
-corresponding to the notebook. When given a directory path, it deletes all cache
+correspond to the notebook. When given a directory path, it deletes all cache
 entries that correspond to notebooks in that directory and (optionally) its subdirectories.
-Additionally accepts a cache key or a list of cache keys to delete specific entries.
-Defaults to the current directory if no path is provided.
+Additionally accepts one or more cache names, as given to `mo.persistent_cache`,
+to delete only those entries. Defaults to the current directory if no path is provided.
 
 Pass one or more arguments. Accepts `-r`/`--recursive` to search `path`
 recursively. A prompt is provided before deletion; use `-y`/`--yes` to
@@ -329,7 +329,7 @@ def _apply_or_error(plan: CleanPlan) -> CacheDirStats:
     try:
         return apply_clean(plan)
     except (ManifestError, OSError) as e:
-        raise MarimoCLIError(f"Could not rewrite {plan.key}: {e}") from e
+        raise MarimoCLIError(str(e)) from e
 
 
 def _confirm(planned: CacheDirStats, *, yes: bool) -> bool:

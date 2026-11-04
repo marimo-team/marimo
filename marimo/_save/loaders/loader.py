@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import time
 from abc import ABC, abstractmethod
-from fnmatch import fnmatchcase
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -19,6 +18,8 @@ from marimo._save.cache_dirs import (
     PARTIAL_WRITE_INFIX,
     block_dir_name,
     entry_hash,
+    entry_key,
+    is_partial_write,
 )
 from marimo._save.stores import DEFAULT_STORE, Store
 
@@ -298,24 +299,19 @@ class BasePersistenceLoader(Loader):
             children = list(block.iterdir())
         except OSError:
             return []
-        # The leftovers of an interrupted write hold no value anyone can read,
-        # so clearing the block is the last chance to reclaim their bytes.
-        patterns = (
-            f"*.{self.suffix}",
-            f"*.{self.suffix}{PARTIAL_WRITE_INFIX}*",
-        )
         paths = [
             child
             for child in children
-            if not child.is_dir()
-            and any(fnmatchcase(child.name, pattern) for pattern in patterns)
+            if not child.is_dir() and self._is_own_entry(child.name)
         ]
         # Blobs are shared by hash, so a surviving marker keeps them alive.
         hashes = {entry_hash(path.name) for path in paths}
         hashes -= {
             entry_hash(marker.name)
             for marker in children
-            if marker.name.endswith(LAZY_ENTRY_SUFFIX) and marker not in paths
+            if marker.name.endswith(LAZY_ENTRY_SUFFIX)
+            and entry_key(marker.name) is not None
+            and marker not in paths
         }
         paths.extend(
             child
@@ -325,6 +321,14 @@ class BasePersistenceLoader(Loader):
             and not child.is_symlink()
         )
         return paths
+
+    def _is_own_entry(self, name: str) -> bool:
+        """Whether `name` is an entry this loader wrote, or a killed write's."""
+        # The leftovers of an interrupted write hold no value anyone can read,
+        # so clearing the block is the last chance to reclaim their bytes.
+        if is_partial_write(name):
+            name = name.rpartition(PARTIAL_WRITE_INFIX)[0]
+        return name.endswith(f".{self.suffix}") and entry_key(name) is not None
 
     def clear(self) -> None:
         """Clear all cached items for this loader."""

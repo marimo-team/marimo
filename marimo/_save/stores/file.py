@@ -107,7 +107,9 @@ class FileStore(Store):
         return [self._default_target()]
 
     def clearable_root(self) -> Path | None:
-        return self.local_dirs()[0]
+        # Resolved, unlike `local_dirs`: `clear` acts on the fallback when
+        # the default target cannot be written.
+        return self.save_path
 
     def get(self, key: str) -> bytes | None:
         if not self._initialized:
