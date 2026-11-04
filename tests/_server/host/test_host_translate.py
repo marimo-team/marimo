@@ -30,6 +30,8 @@ from marimo._core.protocol import (
 )
 from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._messaging.errors import (
+    MarimoAncestorPreventedError,
+    MarimoAncestorStoppedError,
     MarimoExceptionRaisedError,
     MarimoInterruptionError,
 )
@@ -384,3 +386,72 @@ def test_planned_fingerprint_is_preserved_without_rehashing(
             ),
         )
     ]
+
+
+@pytest.mark.parametrize(
+    ("error", "kind", "related"),
+    [
+        (
+            MarimoAncestorStoppedError(
+                msg="This cell wasn't run because an ancestor was stopped with `mo.stop`: ",
+                raising_cell=CellId_t("a"),
+            ),
+            "ancestor-stopped",
+            [("a", "Stopped with `mo.stop`"), ("c", "Did not run")],
+        ),
+        (
+            MarimoAncestorPreventedError(
+                msg="This cell wasn't run because an ancestor failed to resolve the reference `x` : ",
+                raising_cell=CellId_t("a"),
+                blamed_cell=CellId_t("b"),
+            ),
+            "ancestor-prevented",
+            [
+                ("a", "Could not resolve a reference"),
+                ("b", "Expected to define it"),
+                ("c", "Did not run"),
+            ],
+        ),
+    ],
+)
+def test_ancestor_errors_name_the_cells_involved(
+    error: object, kind: str, related: list[tuple[str, str]]
+) -> None:
+    translator = RunTranslator(RunId("r1"), None)
+
+    def cell(**fields: object) -> CellNotification:
+        return CellNotification(
+            cell_id=CellId_t("c"),
+            run_id="r1",
+            execution_id="skipped",
+            **fields,
+        )  # type: ignore[arg-type]
+
+    translator.feed(
+        ExecutionNotification(
+            cell_id=CellId_t("c"),
+            run_id="r1",
+            execution_id="skipped",
+            phase="planned",
+            code="x",
+            code_fingerprint=code_fingerprint("x"),
+        )
+    )
+    translator.feed(cell(status="idle"))
+    translator.feed(cell(output=CellOutput.errors([error])))  # type: ignore[list-item]
+    [completed] = translator.feed(
+        ExecutionNotification(
+            cell_id=CellId_t("c"),
+            run_id="r1",
+            execution_id="skipped",
+            phase="completed",
+        )
+    )
+    assert isinstance(completed, Completed)
+    assert isinstance(completed.outcome, ErrorOutcome)
+    assert completed.outcome.error.kind == kind
+    assert completed.outcome.error.message.startswith("This cell wasn't run")
+    assert not completed.outcome.error.message.endswith((":", " "))
+    assert [
+        (r.cell_id, r.message) for r in completed.outcome.error.related
+    ] == related

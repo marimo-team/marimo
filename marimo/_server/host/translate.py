@@ -13,6 +13,8 @@ from marimo._core.code import code_fingerprint
 from marimo._messaging.cell_output import CellChannel
 from marimo._messaging.errors import (
     Error,
+    MarimoAncestorPreventedError,
+    MarimoAncestorStoppedError,
     MarimoExceptionRaisedError,
     MarimoInterruptionError,
     MarimoSyntaxError,
@@ -165,7 +167,9 @@ class RunTranslator:
         if error is not None:
             execution.outcome = protocol.ErrorOutcome(error)
         elif exceptions:
-            execution.outcome = protocol.ErrorOutcome(_describe(exceptions[0]))
+            execution.outcome = protocol.ErrorOutcome(
+                _describe(exceptions[0], execution.cell_id)
+            )
         elif interrupted or execution.errors:
             execution.outcome = protocol.InterruptedOutcome()
         execution.ended = True
@@ -261,8 +265,63 @@ def _plain(text: str) -> str:
     return html.unescape(re.sub(r"<[^>]+>", "", text))
 
 
-def _describe(error: Error) -> protocol.Error:
-    """Convert a kernel error to a host protocol error."""
+def _ancestor(
+    kind: str,
+    message: str,
+    cell_id: str | None,
+    *ancestors: tuple[str | None, str],
+) -> protocol.Error:
+    """Describe a cell that did not run because of the cells named.
+
+    The kernel's message ends where the editor appends a link to the
+    cause, so the cause is named in `related` instead, before this cell.
+    """
+    involved = [
+        (ancestor, part)
+        for ancestor, part in ancestors
+        if ancestor is not None and ancestor != cell_id
+    ]
+    if cell_id is not None:
+        involved.append((cell_id, "Did not run"))
+    return protocol.Error(
+        kind=kind,
+        name=None,
+        message=message.rstrip(": "),
+        traceback=None,
+        source="marimo",
+        severity="error",
+        range=None,
+        related=tuple(
+            protocol.Related(
+                cell_id=protocol.CellId(involved_cell),
+                range=None,
+                message=part,
+            )
+            for involved_cell, part in involved
+        ),
+    )
+
+
+def _describe(error: Error, cell_id: str | None = None) -> protocol.Error:
+    """Convert a kernel error to a host protocol error.
+
+    `cell_id` is the cell the error belongs to, when it belongs to one.
+    """
+    if isinstance(error, MarimoAncestorStoppedError):
+        return _ancestor(
+            "ancestor-stopped",
+            error.msg,
+            cell_id,
+            (error.raising_cell, "Stopped with `mo.stop`"),
+        )
+    if isinstance(error, MarimoAncestorPreventedError):
+        return _ancestor(
+            "ancestor-prevented",
+            error.msg,
+            cell_id,
+            (error.raising_cell, "Could not resolve a reference"),
+            (error.blamed_cell, "Expected to define it"),
+        )
     if isinstance(error, MarimoExceptionRaisedError):
         traceback = None
         if error.traceback:

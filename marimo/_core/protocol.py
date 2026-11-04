@@ -1160,7 +1160,7 @@ class Error(Struct, frozen=True):
     kind: Annotated[
         str,
         Meta(
-            description="The producer's identifier, scoped by source. Open; this protocol defines `exception`, `interrupted`, and `internal` for executions. Clients show unrecognized kinds as plain errors."
+            description="The producer's identifier, scoped by source. Open; this protocol defines `exception`, `interrupted`, `internal`, `ancestor-stopped`, and `ancestor-prevented` for executions. An ancestor kind means the cell did not run because a cell it depends on raised or stopped, named in `related`. Clients show unrecognized kinds as plain errors."
         ),
     ]
     message: Annotated[
