@@ -1,17 +1,9 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useMediaQuery } from "@uidotdev/usehooks";
 import { atom, useAtom, useAtomValue, useSetAtom } from "jotai";
-import {
-  AlertTriangleIcon,
-  BrainIcon,
-  CpuIcon,
-  EditIcon,
-  FlaskConicalIcon,
-  FolderCog2,
-  LayersIcon,
-  MonitorIcon,
-} from "lucide-react";
+import { AlertTriangleIcon } from "lucide-react";
 import React, { useId, useRef } from "react";
 import { useLocale } from "react-aria";
 import { useForm } from "react-hook-form";
@@ -30,7 +22,7 @@ import {
 import { Kbd } from "@/components/ui/kbd";
 import { NativeSelect } from "@/components/ui/native-select";
 import { NumberField } from "@/components/ui/number-field";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { KEYMAP_PRESETS } from "@/core/codemirror/keymaps/keymaps";
 import { capabilitiesAtom } from "@/core/config/capabilities";
 import { mergeConfig, useUserConfig } from "@/core/config/config";
@@ -49,7 +41,6 @@ import { useDebouncedCallback } from "@/hooks/useDebounce";
 import { Banner } from "@/plugins/impl/common/error-banner";
 import { THEMES } from "@/theme/useTheme";
 import { arrayToggle } from "@/utils/arrays";
-import { cn } from "@/utils/cn";
 import { autoPopulateModels } from "../ai/ai-utils";
 import { keyboardShortcutsAtom } from "../editor/controls/keyboard-shortcuts";
 import { Badge } from "../ui/badge";
@@ -65,49 +56,36 @@ import {
   useConfigOverride,
 } from "./is-overridden";
 import { OptionalFeatures } from "./optional-features";
+import "./user-config-form.css";
 
 const categories = [
   {
     id: "editor",
     label: "Editor",
-    Icon: EditIcon,
-    className: "bg-(--blue-4)",
   },
   {
     id: "display",
     label: "Display",
-    Icon: MonitorIcon,
-    className: "bg-(--grass-4)",
   },
   {
     id: "packageManagementAndData",
     label: "Packages & Data",
-    Icon: LayersIcon,
-    className: "bg-(--red-4)",
   },
   {
     id: "runtime",
     label: "Runtime",
-    Icon: CpuIcon,
-    className: "bg-(--amber-4)",
   },
   {
     id: "ai",
     label: "AI",
-    Icon: BrainIcon,
-    className: "bg-[linear-gradient(45deg,var(--purple-5),var(--cyan-5))]",
   },
   {
     id: "optionalDeps",
     label: "Optional Dependencies",
-    Icon: FolderCog2,
-    className: "bg-(--orange-4)",
   },
   {
     id: "labs",
     label: "Labs",
-    Icon: FlaskConicalIcon,
-    className: "bg-(--slate-4)",
   },
 ] as const;
 
@@ -122,6 +100,7 @@ const LOCALE_SYSTEM_VALUE = "__system__";
 
 export const UserConfigForm: React.FC = () => {
   const [config, setConfig] = useUserConfig();
+  const isWideLayout = useMediaQuery("(min-width: 640px)");
   const [acceptOnEnter, setAcceptOnEnter] = useAtom(
     acceptCompletionOnEnterAtom,
   );
@@ -567,7 +546,7 @@ export const UserConfigForm: React.FC = () => {
                 )}
               />
             </SettingGroup>
-            <SettingGroup title="Language Servers">
+            <SettingGroup title="Language servers">
               <FormDescription>
                 See the{" "}
                 <ExternalLink href="https://docs.marimo.io/guides/editor_features/language_server/">
@@ -1084,7 +1063,7 @@ export const UserConfigForm: React.FC = () => {
       case "packageManagementAndData":
         return (
           <>
-            <SettingGroup title="Package Management">
+            <SettingGroup title="Package management">
               <OverriddenFormField
                 control={form.control}
                 disabled={isWasmRuntime}
@@ -1286,7 +1265,7 @@ export const UserConfigForm: React.FC = () => {
         return <OptionalFeatures />;
       case "labs":
         return (
-          <SettingGroup title="Experimental Features">
+          <SettingGroup title="Experimental features">
             <p className="text-sm text-muted-secondary mb-4">
               ⚠️ These features are experimental and may require restarting your
               notebook to take effect.
@@ -1350,7 +1329,7 @@ export const UserConfigForm: React.FC = () => {
   };
 
   const configMessage = (
-    <p className="text-muted-secondary">
+    <p className="text-muted-foreground">
       User configuration is stored in <Kbd className="inline">marimo.toml</Kbd>
       <br />
       Run <Kbd className="inline">marimo config show</Kbd> in your terminal to
@@ -1363,49 +1342,47 @@ export const UserConfigForm: React.FC = () => {
       <form
         ref={formElement}
         onChange={form.handleSubmit((values) => onSubmit(values))}
-        className="flex text-pretty overflow-hidden"
+        className="user-config-form flex min-h-0 flex-1 text-sm overflow-hidden"
       >
         <Tabs
           value={activeCategory}
           onValueChange={(value) =>
             setActiveCategory(value as SettingCategoryId)
           }
-          orientation="vertical"
-          className="w-1/3 border-r h-full overflow-auto p-3"
+          orientation={isWideLayout ? "vertical" : "horizontal"}
+          className="flex min-h-0 min-w-0 flex-1 flex-col sm:flex-row"
         >
-          <TabsList className="self-start max-h-none flex flex-col gap-2 shrink-0 bg-background flex-1 min-h-full">
-            {categories.map((category) => (
-              <TabsTrigger
-                key={category.id}
-                value={category.id}
-                className="w-full text-left p-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground justify-start"
-              >
-                <div className="flex gap-4 items-center text-lg overflow-hidden">
-                  <span
-                    className={cn(
-                      category.className,
-                      "w-8 h-8 rounded flex items-center justify-center text-muted-foreground shrink-0",
-                    )}
-                  >
-                    <category.Icon className="w-4 h-4" />
-                  </span>
-                  <span className="truncate">{category.label}</span>
-                </div>
-              </TabsTrigger>
-            ))}
-
-            <div className="p-2 text-xs text-muted-foreground self-start flex flex-col gap-1">
-              <span>Version: {marimoVersion}</span>
-              <span>Locale: {locale}</span>
+          <aside className="flex shrink-0 flex-col border-b bg-muted/20 p-3 sm:w-52 sm:overflow-y-auto sm:border-b-0 sm:border-r">
+            <TabsList
+              aria-label="Settings categories"
+              className="max-h-none justify-start gap-1 overflow-x-auto rounded-none bg-transparent p-0 sm:flex-col sm:items-stretch"
+            >
+              {categories.map((category) => (
+                <TabsTrigger
+                  key={category.id}
+                  value={category.id}
+                  className="justify-start px-3 py-2 text-left font-normal hover:bg-muted/60 hover:text-foreground data-[state=active]:bg-muted data-[state=active]:font-medium data-[state=active]:shadow-none"
+                >
+                  {category.label}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+            <div className="mt-auto hidden pt-6 px-3 text-xs leading-relaxed text-muted-foreground sm:flex sm:flex-col sm:gap-3">
+              {!isWasm() && configMessage}
+              <div>
+                <div>Version: {marimoVersion}</div>
+                <div>Locale: {locale}</div>
+              </div>
             </div>
-
-            <div className="flex-1" />
-            {!isWasm() && configMessage}
-          </TabsList>
+          </aside>
+          <TabsContent
+            key={activeCategory}
+            value={activeCategory}
+            className="settings-content m-0 min-h-0 min-w-0 flex-1 overflow-auto p-5 sm:p-6"
+          >
+            <div className="flex flex-col gap-6">{renderBody()}</div>
+          </TabsContent>
         </Tabs>
-        <div className="w-2/3 pl-6 gap-2 flex flex-col overflow-auto p-6">
-          {renderBody()}
-        </div>
       </form>
     </Form>
   );

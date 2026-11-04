@@ -119,7 +119,7 @@ export const AiProviderTitle: React.FC<AiProviderTitleProps> = ({
   children,
 }) => {
   return (
-    <div className="flex items-center text-base font-semibold">
+    <div className="flex items-center text-sm font-medium">
       {provider && <AiProviderIcon provider={provider} className="mr-2" />}
       {children}
     </div>
@@ -461,7 +461,9 @@ const SettingGroup = ({
   className?: string;
 }) => {
   return (
-    <div className={cn("flex flex-col gap-4 pb-4", className)}>{children}</div>
+    <div className={cn("settings-group flex flex-col gap-4", className)}>
+      {children}
+    </div>
   );
 };
 
@@ -563,7 +565,7 @@ export const AiCodeCompletionConfig: React.FC<AiConfigProps> = ({
   const { value: copilot } = getOverride("completion.copilot", watchedCopilot);
   return (
     <SettingGroup>
-      <SettingSubtitle>Code Completion</SettingSubtitle>
+      <SettingSubtitle>Code completion</SettingSubtitle>
       <p className="text-sm text-muted-secondary">
         Choose GitHub Copilot, Codeium, or a custom provider (such as Ollama) to
         enable AI-powered code completion.
@@ -847,7 +849,7 @@ export const CustomProvidersConfig: React.FC<AiConfigProps> = ({
 
         return (
           <SettingGroup>
-            <SettingSubtitle>Custom Providers</SettingSubtitle>
+            <SettingSubtitle>Custom providers</SettingSubtitle>
             <p className="text-sm text-muted-secondary">
               Add your own OpenAI-compatible provider. Once added, you can
               configure models in the AI Models tab.
@@ -1326,7 +1328,7 @@ export const AiAssistConfig: React.FC<AiConfigProps> = ({
 
   return (
     <SettingGroup>
-      <SettingSubtitle>AI Assistant</SettingSubtitle>
+      <SettingSubtitle>AI assistant</SettingSubtitle>
 
       <FormField
         control={form.control}
@@ -1356,18 +1358,16 @@ export const AiAssistConfig: React.FC<AiConfigProps> = ({
         render={({ field }) => {
           return (
             <div className="flex flex-col gap-y-1">
-              <div className="flex items-center gap-x-2">
-                <FormItem className={formItemClasses}>
-                  <FormLabel className="font-normal">
-                    Max output tokens
-                  </FormLabel>
+              <FormItem className={formItemClasses}>
+                <FormLabel className="font-normal">Max output tokens</FormLabel>
+                <div className="flex flex-wrap items-center gap-2">
                   <FormControl>
                     <Input
                       data-testid="ai-max-tokens-input"
                       type="number"
                       min={1}
                       disabled={!maxTokensEnabled}
-                      className="w-28 h-6"
+                      className="w-20 h-7"
                       value={field.value ?? (maxTokensEnabled ? "" : 32768)}
                       onChange={(e) => {
                         const n = Number.parseInt(e.target.value, 10);
@@ -1375,35 +1375,37 @@ export const AiAssistConfig: React.FC<AiConfigProps> = ({
                       }}
                     />
                   </FormControl>
-                </FormItem>
-                <FormItem className={formItemClasses}>
-                  <Checkbox
-                    data-testid="ai-max-tokens-checkbox"
-                    checked={maxTokensEnabled}
-                    onCheckedChange={(checked) => {
-                      const isChecked = checked === true;
-                      setMaxTokensEnabled(isChecked);
-                      // null signals delete to the server; cast because
-                      // UserConfig (OpenAPI-derived) types max_tokens as
-                      // `number | undefined`, but zod accepts `null`.
-                      const next = (
-                        isChecked ? (field.value ?? 32768) : null
-                      ) as number | undefined;
-                      // shouldDirty: true forces RHF to keep this in
-                      // dirtyFields even when `next` happens to equal the
-                      // form's defaultValue (e.g. untick → tick when disk
-                      // started with 32768). Otherwise getDirtyValues
-                      // would skip it and the save body would be empty.
-                      form.setValue("ai.max_tokens", next, {
-                        shouldDirty: true,
-                        shouldTouch: true,
-                      });
-                      onSubmit(form.getValues());
-                    }}
-                  />
-                  <FormLabel className="font-normal">Override</FormLabel>
-                </FormItem>
-              </div>
+                  <FormItem className="flex-row items-center gap-1.5">
+                    <FormControl>
+                      <Checkbox
+                        data-testid="ai-max-tokens-checkbox"
+                        checked={maxTokensEnabled}
+                        onCheckedChange={(checked) => {
+                          const isChecked = checked === true;
+                          setMaxTokensEnabled(isChecked);
+                          // null signals delete to the server; cast because
+                          // UserConfig (OpenAPI-derived) types max_tokens as
+                          // `number | undefined`, but zod accepts `null`.
+                          const next = (
+                            isChecked ? (field.value ?? 32768) : null
+                          ) as number | undefined;
+                          // shouldDirty: true forces RHF to keep this in
+                          // dirtyFields even when `next` happens to equal the
+                          // form's defaultValue (e.g. untick → tick when disk
+                          // started with 32768). Otherwise getDirtyValues
+                          // would skip it and the save body would be empty.
+                          form.setValue("ai.max_tokens", next, {
+                            shouldDirty: true,
+                            shouldTouch: true,
+                          });
+                          onSubmit(form.getValues());
+                        }}
+                      />
+                    </FormControl>
+                    <FormLabel className="font-normal">Override</FormLabel>
+                  </FormItem>
+                </div>
+              </FormItem>
 
               <FormDescription>
                 Each provider sets its own max output tokens (Anthropic uses a
@@ -1986,7 +1988,7 @@ export const AiConfig: React.FC<AiConfigProps> = ({
       onValueChange={(value) => setActiveTab(value as AiSettingsSubTab)}
       className="flex-1"
     >
-      <TabsList className="mb-2">
+      <TabsList className="mb-2 max-w-full justify-start overflow-x-auto">
         <TabsTrigger value="ai-features">AI Features</TabsTrigger>
         {aiEnabled !== false && (
           <>
@@ -1997,7 +1999,7 @@ export const AiConfig: React.FC<AiConfigProps> = ({
         )}
       </TabsList>
 
-      <TabsContent value="ai-features">
+      <TabsContent value="ai-features" className="space-y-6">
         <AiCodeCompletionConfig
           form={form}
           config={config}
