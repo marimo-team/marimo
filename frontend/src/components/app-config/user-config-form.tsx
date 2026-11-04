@@ -202,7 +202,7 @@ export const UserConfigForm: React.FC = () => {
                 name="save.autosave"
                 render={({ field, override }) => (
                   <FormItem className={formItemClasses}>
-                    <FormLabel className="font-normal">Autosave</FormLabel>
+                    <FormLabel>Autosave</FormLabel>
                     <FormControl>
                       <Checkbox
                         data-testid="autosave-checkbox"
@@ -333,9 +333,7 @@ export const UserConfigForm: React.FC = () => {
                 name="save.format_on_save"
                 render={({ field, override }) => (
                   <FormItem className={formItemClasses}>
-                    <FormLabel className="font-normal">
-                      Format on save
-                    </FormLabel>
+                    <FormLabel>Format on save</FormLabel>
                     <FormControl>
                       <Checkbox
                         data-testid="format-on-save-checkbox"
@@ -431,9 +429,7 @@ export const UserConfigForm: React.FC = () => {
                 render={({ field, override }) => (
                   <div className="settings-field flex flex-col space-y-1">
                     <FormItem className={formItemClasses}>
-                      <FormLabel className="font-normal">
-                        Autocomplete
-                      </FormLabel>
+                      <FormLabel>Autocomplete</FormLabel>
                       <FormControl>
                         <Checkbox
                           data-testid="autocomplete-checkbox"
@@ -462,9 +458,7 @@ export const UserConfigForm: React.FC = () => {
               />
               <div className="settings-field flex flex-col space-y-1">
                 <FormItem className={formItemClasses}>
-                  <FormLabel className="font-normal">
-                    Accept suggestion on Enter
-                  </FormLabel>
+                  <FormLabel>Accept suggestion on Enter</FormLabel>
                   <FormControl>
                     <Checkbox
                       data-testid="accept-completion-on-enter-checkbox"
@@ -488,9 +482,7 @@ export const UserConfigForm: React.FC = () => {
                 render={({ field, override }) => (
                   <div className="settings-field flex flex-col space-y-1">
                     <FormItem className={formItemClasses}>
-                      <FormLabel className="font-normal">
-                        Signature hints
-                      </FormLabel>
+                      <FormLabel>Signature hints</FormLabel>
                       <FormControl>
                         <Checkbox
                           data-testid="signature-hint-on-type-checkbox"
@@ -517,9 +509,7 @@ export const UserConfigForm: React.FC = () => {
                 render={({ field, override }) => (
                   <div className="settings-field flex flex-col space-y-1">
                     <FormItem className={formItemClasses}>
-                      <FormLabel className="font-normal">
-                        Auto-close pairs
-                      </FormLabel>
+                      <FormLabel>Auto-close pairs</FormLabel>
                       <FormControl>
                         <Checkbox
                           data-testid="auto-close-pairs-checkbox"
@@ -589,9 +579,7 @@ export const UserConfigForm: React.FC = () => {
                 render={({ field, override }) => (
                   <div className="settings-field flex flex-col space-y-1">
                     <FormItem className={formItemClasses}>
-                      <FormLabel className="font-normal">
-                        Destructive delete
-                      </FormLabel>
+                      <FormLabel>Destructive delete</FormLabel>
                       <FormControl>
                         <Checkbox
                           data-testid="destructive-delete-checkbox"
@@ -1108,9 +1096,7 @@ export const UserConfigForm: React.FC = () => {
               render={({ field, override }) => (
                 <div className="settings-field flex flex-col gap-y-1">
                   <FormItem className={formItemClasses}>
-                    <FormLabel className="font-normal">
-                      Autorun on startup
-                    </FormLabel>
+                    <FormLabel>Autorun on startup</FormLabel>
                     <FormControl>
                       <Checkbox
                         data-testid="auto-instantiate-checkbox"
@@ -1135,9 +1121,7 @@ export const UserConfigForm: React.FC = () => {
               render={({ field, override }) => (
                 <div className="settings-field flex flex-col gap-y-1">
                   <FormItem className={formItemClasses}>
-                    <FormLabel className="font-normal">
-                      On cell change
-                    </FormLabel>
+                    <FormLabel>On cell change</FormLabel>
                     <FormDescription>
                       Whether marimo should automatically run cells or just mark
                       them as stale. If "autorun", marimo will automatically run
@@ -1172,9 +1156,7 @@ export const UserConfigForm: React.FC = () => {
               render={({ field, override }) => (
                 <div className="settings-field flex flex-col gap-y-1">
                   <FormItem className={formItemClasses}>
-                    <FormLabel className="font-normal">
-                      On module change
-                    </FormLabel>
+                    <FormLabel>On module change</FormLabel>
                     <FormDescription>
                       Whether marimo should automatically reload modules before
                       executing cells. If "lazy", marimo will mark cells
@@ -1209,9 +1191,7 @@ export const UserConfigForm: React.FC = () => {
               render={({ field, override }) => (
                 <div className="settings-field flex flex-col gap-y-1">
                   <FormItem className={formItemClasses}>
-                    <FormLabel className="font-normal">
-                      Autorun Unit Tests
-                    </FormLabel>
+                    <FormLabel>Autorun Unit Tests</FormLabel>
                     <FormControl>
                       <Checkbox
                         data-testid="reactive-test-checkbox"
@@ -1260,7 +1240,7 @@ export const UserConfigForm: React.FC = () => {
               render={({ field, override }) => (
                 <div className="settings-field flex flex-col gap-y-1">
                   <FormItem className={formItemClasses}>
-                    <FormLabel className="font-normal">Debugger</FormLabel>
+                    <FormLabel>Debugger</FormLabel>
                     <FormControl>
                       <Checkbox
                         data-testid="debugger-checkbox"
@@ -1286,7 +1266,7 @@ export const UserConfigForm: React.FC = () => {
               render={({ field, override }) => (
                 <div className="settings-field flex flex-col gap-y-1">
                   <FormItem className={formItemClasses}>
-                    <FormLabel className="font-normal">Line Timing</FormLabel>
+                    <FormLabel>Line Timing</FormLabel>
                     <FormControl>
                       <Checkbox
                         data-testid="line-timing-checkbox"
