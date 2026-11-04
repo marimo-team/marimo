@@ -514,6 +514,7 @@ class EnvVarReader(ConfigReader):
             raw = os.environ.get(key)
             if raw is None:
                 continue
+            # TODO: Remove legacy environment-variable support in marimo 1.0.
             if self.deprecated:
                 LOGGER.warning(
                     "Environment variable %s is deprecated and will be removed "
