@@ -95,7 +95,7 @@ interface UpdateStagedCellAction {
 /** Manage staged cells without assuming which AI workflow owns them. */
 export function useStagedCells(store: JotaiStore) {
   const { addStagedCell, removeStagedCell } = useStagedAICellsActions();
-  const { updateCellCode, createCell } = useCellActions();
+  const { setCellCode, createCell } = useCellActions();
   const deleteCellCallback = useDeleteCellCallback();
 
   const createStagedCell = (code: string): CellId => {
@@ -114,6 +114,8 @@ export function useStagedCells(store: JotaiStore) {
       return;
     }
 
+    // The AI may change the cell's language, and only the editor infers
+    // one. Without a mounted editor the code arrives through the document.
     const editorView = getCellEditorView(cellId);
     if (editorView) {
       const update = prepareCellCodeUpdate(editorView.state, code, {
@@ -123,7 +125,7 @@ export function useStagedCells(store: JotaiStore) {
         editorView.dispatch(update);
       }
     } else {
-      updateCellCode({ cellId, code, formattingChange: false });
+      setCellCode({ cellId, code });
     }
   };
 

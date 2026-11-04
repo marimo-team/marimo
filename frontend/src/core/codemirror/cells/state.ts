@@ -8,11 +8,6 @@ export interface CodemirrorCellActions extends CellActions {
   toggleHideCode: () => boolean;
   aiCellCompletion: () => boolean;
   createManyBelow: (content: string[]) => void;
-  /**
-   * Create the setup cell with the given code, or append the code to the
-   * existing setup cell if one already exists.
-   */
-  addOrAppendSetupCell: (code: string) => void;
   onRun: () => void;
   deleteCell: () => void;
   afterToggleMarkdown: () => void;

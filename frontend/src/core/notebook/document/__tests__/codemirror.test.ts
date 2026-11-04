@@ -62,6 +62,7 @@ function languages(id: CellId) {
       aiCellCompletion: () => false,
       createManyBelow: vi.fn(),
       addOrAppendSetupCell: vi.fn(),
+      setCellCode: vi.fn(),
       createCell: vi.fn(),
       moveToNextCell: vi.fn(),
       addSetupCell: vi.fn(),

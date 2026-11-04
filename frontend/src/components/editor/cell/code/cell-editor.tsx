@@ -8,7 +8,6 @@ import React, { memo, useEffect, useMemo, useRef, useState } from "react";
 import useEvent from "react-use-event-hook";
 import { aiCompletionCellAtom } from "@/core/ai/state";
 import { maybeAddMarimoImport } from "@/core/cells/add-missing-import";
-import { getNotebook } from "@/core/cells/cells";
 import { useCellActions } from "@/core/cells/actions";
 import {
   showHiddenCodeAtom,
@@ -16,10 +15,8 @@ import {
   useRestoredEditorState,
 } from "@/core/cells/editor";
 import { useNotebookDocumentEdit } from "@/core/notebook/document";
-import { SETUP_CELL_ID } from "@/core/cells/ids";
 import { usePendingDeleteService } from "@/core/cells/pending-delete-service";
 import type { CellData, CellRuntimeState } from "@/core/cells/types";
-import { notebookCellEditorViews } from "@/core/cells/utils";
 import { setupCodeMirror } from "@/core/codemirror/cm";
 import { acceptCompletionOnEnterAtom } from "@/core/codemirror/completion/accept-on-enter-atom";
 import { editorMountScheduler } from "@/core/codemirror/editor-mount-scheduler";
@@ -29,8 +26,6 @@ import {
   reconfigureLanguageEffect,
   switchLanguage,
 } from "@/core/codemirror/language/extension";
-import { prepareCellCodeUpdate } from "@/core/codemirror/language/cell-code";
-import { getEditorCodeAsPython } from "@/core/codemirror/language/utils";
 import { MARKDOWN_INITIAL_HIDE_CODE } from "@/core/codemirror/language/languages/markdown";
 import type { LanguageAdapterType } from "@/core/codemirror/language/types";
 import { autoInstantiateAtom, isAiFeatureEnabled } from "@/core/config/config";
@@ -211,35 +206,6 @@ const CellEditorInternal = ({
               skipIfCodeExists: true,
             });
           }
-        },
-        addOrAppendSetupCell: (code) => {
-          const notebook = getNotebook();
-          // No setup cell yet: create one with this code at the top.
-          if (!notebook.cellIds.includes(SETUP_CELL_ID)) {
-            cellActions.addSetupCell({ code });
-            return;
-          }
-          // Setup cell exists: append the pasted code to it. Prefer updating
-          // the mounted editor (keeps the view and state in sync, like
-          // formatting does); fall back to a plain state update otherwise.
-          const view = notebookCellEditorViews(notebook)[SETUP_CELL_ID];
-          const existing = view
-            ? getEditorCodeAsPython(view)
-            : notebook.cellData[SETUP_CELL_ID].code;
-          const merged = existing.trim()
-            ? `${existing.trimEnd()}\n\n${code}`
-            : code;
-          if (view) {
-            const update = prepareCellCodeUpdate(view.state, merged);
-            if (update) {
-              view.dispatch(update);
-            }
-          }
-          cellActions.updateCellCode({
-            cellId: SETUP_CELL_ID,
-            code: merged,
-            formattingChange: false,
-          });
         },
         splitCell,
         toggleHideCode,
