@@ -26,10 +26,8 @@ For guidance on specific features, see [runtime configuration](runtime_configura
 
 ### Notebook settings
 
-Notebook settings such as title, width, [custom CSS](theming.md),
-[HTML head](html_head.md), and automatic exports are stored in the notebook's
-`marimo.App(...)` declaration. Open the notebook menu (⚙️) in the top-right
-corner to change them.
+Some notebook-specific settings, such as title, width, [custom CSS](theming.md),
+[HTML head](html_head.md), and automatic exports, are managed separately from the rest of marimo's configuration. These notebook-specific settings are stored in the notebook's `marimo.App(...)` Open the notebook menu (⚙️) in the top-right corner of the marimo editor to change them.
 
 These settings are separate from the configuration options above. A notebook
 can also override user configuration through [script metadata](#script-metadata-configuration).
