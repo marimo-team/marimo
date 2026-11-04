@@ -53,3 +53,4 @@ async def test_a_browser_run_queued_before_an_interrupt_is_discarded(
     )
 
     assert "x" not in k.globals
+    assert completed_runs(mocked_kernel) == ["interrupted"]

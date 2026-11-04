@@ -2096,7 +2096,7 @@ class Kernel:
         execution_requests: Sequence[ExecuteCellCommand],
         *,
         discard_after_interrupt: bool = True,
-    ) -> None:
+    ) -> list[ExecuteCellCommand]:
         """Run cells and their descendants.
 
         The cells may be cells already existing in the graph or new cells.
@@ -2112,6 +2112,9 @@ class Kernel:
             discard_after_interrupt: Drop requests created before the last
                 interrupt, so one interrupt also clears what the browser
                 queued behind it. A host cancels its runs by id instead.
+
+        Returns:
+            The requests discarded because an interrupt preceded them.
         """
 
         async def _run_with_uninstantiated_requests(
@@ -2130,12 +2133,14 @@ class Kernel:
             or not discard_after_interrupt
         ):
             await _run_with_uninstantiated_requests(execution_requests)
-            return
+            return []
 
         # Filter out requests that were created before the last interruption
         filtered_requests: list[ExecuteCellCommand] = []
+        discarded: list[ExecuteCellCommand] = []
         for request in execution_requests:
             if request.timestamp < self.last_interrupt_timestamp:
+                discarded.append(request)
                 CellNotificationUtils.broadcast_error(
                     data=[MarimoInterruptionError()],
                     clear_console=False,
@@ -2158,6 +2163,7 @@ class Kernel:
                 filtered_requests.append(request)
 
         await _run_with_uninstantiated_requests(filtered_requests)
+        return discarded
 
     @kernel_tracer.start_as_current_span("pdb_request")
     async def pdb_request(self, cell_id: CellId_t) -> None:
