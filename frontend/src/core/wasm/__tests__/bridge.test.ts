@@ -2,6 +2,7 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Deferred } from "@/utils/Deferred";
+import { atom } from "jotai";
 
 const {
   mockBridge,
@@ -101,6 +102,9 @@ vi.mock("@/core/wasm/store", () => ({
 // Import after all mocks are set up
 import { store } from "@/core/state/jotai";
 import { initialModeAtom } from "@/core/mode";
+import type { NotebookClient } from "@marimo-team/client";
+import type { NotebookReplica } from "@/core/notebook/replica";
+import { activeNotebookReplicaAtom } from "@/core/session/active-notebook";
 import { fallbackFileStore, notebookFileStore } from "../store";
 import { getWasmWorkerName, PyodideBridge } from "../bridge";
 
@@ -254,6 +258,52 @@ it("cancels a pending notebook subscription before its RPC response", async () =
   } finally {
     controller.abort();
     pending.resolve();
+    store.set(initialModeAtom, undefined);
+  }
+});
+
+it("raises the interrupt buffer for a running run before the worker takes the call", async () => {
+  vi.clearAllMocks();
+  store.set(initialModeAtom, "read");
+  rpcListeners.initialized();
+  const run = {
+    id: "run-1",
+    notebook_id: "n1",
+    caused_by: null,
+    status: "running",
+    outcome: null,
+    started_at: "2026-10-01T09:20:11Z",
+    completed_at: null,
+  };
+  const replicaWith = (status: string) =>
+    ({
+      executionsAtom: atom({
+        runs: new Map([["run-1", { ...run, status }]]),
+        executions: new Map(),
+        latest: new Map(),
+      }),
+    }) as unknown as NotebookReplica;
+  const interrupt = vi
+    .spyOn(PyodideBridge.INSTANCE, "sendInterrupt")
+    .mockResolvedValue(null);
+  mockNotebookCall.mockResolvedValue({ status: 202, body: run });
+  try {
+    const backend = await PyodideBridge.INSTANCE.createNotebookBackend();
+    // The backend narrows the client to editing until the editor runs through the host.
+    const notebook = backend.notebook("n1") as unknown as NotebookClient;
+
+    store.set(activeNotebookReplicaAtom, replicaWith("running"));
+    expect((await notebook.interrupt("run-1")).ok).toBe(true);
+    expect(interrupt).toHaveBeenCalledOnce();
+    expect(mockNotebookCall).toHaveBeenCalledOnce();
+
+    store.set(activeNotebookReplicaAtom, replicaWith("queued"));
+    expect((await notebook.interrupt("run-1")).ok).toBe(true);
+    expect(interrupt).toHaveBeenCalledOnce();
+    expect(mockNotebookCall).toHaveBeenCalledTimes(2);
+  } finally {
+    interrupt.mockRestore();
+    store.set(activeNotebookReplicaAtom, null);
     store.set(initialModeAtom, undefined);
   }
 });

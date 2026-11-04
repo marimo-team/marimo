@@ -122,11 +122,14 @@ async def test_snapshot_edit_and_retry(bridge):
         "notebook",
         "cell",
         "document",
+        "runtime",
         "ready",
     ]
     assert events[0]["data"]["notebook"]["operations"] == [
         "notebook.edit",
         "notebook.save",
+        "runtime.run",
+        "runtime.interrupt",
     ]
     request = edit(events)
     response = await send(bridge, request)
@@ -225,6 +228,7 @@ async def test_resume_and_independent_unsubscribe(bridge):
         "notebook",
         "cell",
         "document",
+        "runtime",
         "ready",
     ]
     bridge.close()
@@ -264,9 +268,9 @@ async def test_kernel_ready_follows_the_snapshot(bridge):
         "reader", None, lambda raw: frames.append(json.loads(raw))
     )
     kinds = [frame["event"] for frame in frames]
-    assert kinds[:4] == ["notebook", "cell", "document", "ready"]
-    assert set(kinds[4:]) == {"marimo"}
-    kernel_ready = frames[4]["data"]["marimo"]
+    assert kinds[:5] == ["notebook", "cell", "document", "runtime", "ready"]
+    assert set(kinds[5:]) == {"marimo"}
+    kernel_ready = frames[5]["data"]["marimo"]
     assert kernel_ready["op"] == "kernel-ready"
     assert "codes" not in kernel_ready
     assert kernel_ready["resumed"] is False
@@ -350,10 +354,12 @@ async def test_live_notifications_reach_each_subscription_until_it_closes(
     assert len(first) == count
     assert ops(second)[-2:] == ["variables", "variables"]
     bridge.notebook.unsubscribe("second")
-    assert bridge.session.consumers == [
+    # The runtime backend stays attached; only the subscriptions leave.
+    assert bridge.session.consumers[:2] == [
         bridge.session.session_view.add_raw_notification,
         bridge._on_message,
     ]
+    assert len(bridge.session.consumers) == 3
 
 
 def save_call(bridge, key="save-1", if_match=None):

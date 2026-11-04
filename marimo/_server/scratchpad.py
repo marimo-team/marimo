@@ -16,7 +16,7 @@ from marimo._code_mode.screenshot_meta import (
 )
 from marimo._messaging.cell_output import CellChannel
 from marimo._messaging.errors import MarimoAncestorStoppedError
-from marimo._messaging.notebook.outputs import CellOutputs
+from marimo._messaging.notebook.outputs import CellOutputs, scratchpad_snapshot
 from marimo._messaging.notification import (
     CellNotification,
     CompletedRunNotification,
@@ -33,7 +33,9 @@ if TYPE_CHECKING:
 
     from starlette.requests import Request
 
-    from marimo._messaging.notebook.document import NotebookCell
+    from marimo._messaging.notebook.document import (
+        NotebookCell,
+    )
     from marimo._messaging.types import KernelMessage
     from marimo._session.session import Session
     from marimo._types.encodable import Encodable
@@ -300,15 +302,7 @@ def snapshot_for_scratchpad(
     and passed on `ExecuteScratchpadCommand` so `cm.get_context()`
     can expose cells and their last outputs.
     """
-    cell_ids = session.document.cell_ids
-    notebook_cells = tuple(session.document.cells)
-    cell_outputs = CellOutputs(
-        output=session.session_view.get_cell_outputs(cell_ids),
-        console_outputs=session.session_view.get_cell_console_outputs(
-            cell_ids
-        ),
-    )
-    return notebook_cells, cell_outputs
+    return scratchpad_snapshot(session.document, session.session_view)
 
 
 def _format_console(msg: CellNotification) -> list[str]:

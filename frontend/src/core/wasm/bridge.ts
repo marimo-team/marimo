@@ -14,6 +14,7 @@ import { once } from "@/utils/once";
 import { generateUUID } from "@/utils/uuid";
 import { createModuleWorker } from "@/utils/worker";
 import { notebookIsRunningAtom } from "../cells/cells";
+import { activeNotebookReplicaAtom } from "../session/active-notebook";
 import { flushDocument } from "../cells/document";
 import { createWasmNotebookBackend } from "../transports/wasm";
 import type { ClientCommand } from "../kernel/messages";
@@ -247,8 +248,29 @@ export class PyodideBridge implements RunRequests, EditRequests {
           throw error;
         }
       },
-      call: (call) => this.rpc.proxy.request.notebookCall(call),
+      call: (call) => {
+        if (
+          call.operation === "runtime.interrupt" &&
+          this.isRunning(call.params.run_id)
+        ) {
+          // The worker cannot take the call while a cell runs; raise the
+          // interrupt there first. A queued run is cancelled by the worker.
+          void this.sendInterrupt();
+        }
+        return this.rpc.proxy.request.notebookCall(call);
+      },
     });
+  }
+
+  /** Whether the host reports `runId` as running, so a cell is executing. */
+  private isRunning(runId: string): boolean {
+    const replica = store.get(activeNotebookReplicaAtom);
+    if (replica === null) {
+      return false;
+    }
+    return (
+      store.get(replica.executionsAtom).runs.get(runId)?.status === "running"
+    );
   }
 
   public sendRename: EditRequests["sendRename"] = async ({ filename }) => {
