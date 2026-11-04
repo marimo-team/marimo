@@ -42,15 +42,7 @@ The configuration sources are listed below **in order, from lowest to highest pr
 
 1. <a id="user-configuration-file"></a><a id="user-settings"></a>**User configuration file `.marimo.toml`**
 
-    The **User settings** UI edits the `.marimo.toml` file. You can also edit the TOML file
-    directly:
-
-    ```toml title=".marimo.toml"
-    [display]
-    theme = "dark"
-    ```
-
-    marimo uses the **first existing file** in this search order:
+    The **User settings** UI edits the **first existing file** in this search order:
 
     1. `.marimo.toml` in the current working directory
     2. `.marimo.toml` in parent directories, stopping at your home directory if it
@@ -60,6 +52,14 @@ The configuration sources are listed below **in order, from lowest to highest pr
        `~/.config/marimo/marimo.toml`
 
     If none exists, marimo creates its user configuration file at the XDG location.
+
+    You can also edit the TOML file
+    directly:
+
+    ```toml title=".marimo.toml"
+    [display]
+    theme = "dark"
+    ```
 
 2. <a id="overriding-settings-with-pyprojecttoml"></a>**Per-project configuration in `pyproject.toml`**
 
