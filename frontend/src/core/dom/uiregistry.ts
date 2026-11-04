@@ -158,6 +158,10 @@ export class UIElementRegistry {
   }
 
   public set(objectId: UIElementId, value: ValueType): void {
+    // Legacy resume values must not replace host state or pending input.
+    if (this.entries.get(objectId)?.hostManaged) {
+      return;
+    }
     if (this.entries.has(objectId)) {
       Logger.debug(
         "UIElementRegistry overwriting entry for objectId.",

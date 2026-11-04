@@ -18,6 +18,7 @@ import { registerReactComponent } from "@/plugins/core/registerReactComponent";
 import { SliderPlugin } from "@/plugins/impl/SliderPlugin";
 import { Deferred } from "@/utils/Deferred";
 import { fakeBackend } from "../../notebook/replica/__tests__/fixtures";
+import { handleKernelReady } from "../../kernel/handlers";
 import { createUIElementModel } from "../../notebook/ui-elements/model";
 import { MarimoValueReadyEvent } from "../events";
 import { initializeUIElement } from "../ui-element";
@@ -34,7 +35,7 @@ afterEach(() => {
   registry.entries.clear();
 });
 
-it("mounts from host state, keeps newer input visible, and sends no legacy write", async () => {
+it("keeps host state and drafts across legacy resume", async () => {
   const store = createStore();
   const reducer = createNotebookReducer({ uiElements });
   let state = reducer.initial;
@@ -97,10 +98,46 @@ it("mounts from host state, keeps newer input visible, and sends no legacy write
     if (!mountedThumb) {
       throw new Error("Slider did not mount");
     }
+    const restoreLegacyValues = () => {
+      act(() =>
+        handleKernelReady(
+          {
+            layout: null,
+            resumed: true,
+            ui_values: { "c1-0": 1 },
+            last_executed_code: {},
+            last_execution_time: {},
+            app_config: {
+              width: "normal",
+              app_title: null,
+              layout_file: null,
+              css_file: null,
+              auto_download: [],
+            },
+            kiosk: false,
+            capabilities: { terminal: false },
+            auto_instantiated: false,
+            consumer_capabilities: { edit: true, interact: true },
+          },
+          {
+            autoInstantiate: true,
+            cells: [],
+            setLastRun: vi.fn(),
+            resetCellRuntimes: vi.fn(),
+            setLayoutData: vi.fn(),
+            setCapabilities: vi.fn(),
+            setKernelState: vi.fn(),
+            onError: vi.fn(),
+          },
+        ),
+      );
+    };
+    restoreLegacyValues();
     fireEvent.keyDown(mountedThumb, { key: "ArrowRight" });
     fireEvent.keyDown(mountedThumb, { key: "ArrowRight" });
     expect(update).toHaveBeenCalledTimes(2);
     expect(thumb()).toHaveAttribute("aria-valuenow", "5");
+    restoreLegacyValues();
     const firstKey = update.mock.calls[0][2]?.idempotencyKey;
     receive({
       event: "ui_element.update",
