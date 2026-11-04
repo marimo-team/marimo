@@ -124,7 +124,7 @@ async def test_get_cache_info_promises_only_what_purging_frees(
     cache_dir = tmp_path / "__marimo__" / "cache"
     write_entry(cache_dir, "train", "C_ab12.pickle", 100)
     # A value too large to inline is stored as a directory of blobs, which
-    # purging leaves behind.
+    # purging takes along with the entry that names it.
     write_entry(cache_dir, "train", "ab12/return.npy", 500)
     cache = make_cache(cache_dir, "train")
     scope = SimpleNamespace(globals={"train": cache})
@@ -138,7 +138,7 @@ async def test_get_cache_info_promises_only_what_purging_frees(
     await callbacks.get_cache_info(GetCacheInfoCommand())
 
     promised = sent[0].disk_to_free
-    assert promised == 100
+    assert promised == 600
     assert promised == sent[0].disk_total - sent[-1].disk_total
     assert sent[-1].disk_to_free == 0
 
@@ -167,7 +167,7 @@ async def test_get_cache_info_promises_a_shared_block_once(
     assert sent[0].disk_to_free == 100
 
 
-async def test_get_cache_info_reports_lazy_manifest_bytes(
+async def test_get_cache_info_promises_the_blobs_of_a_lazy_cache(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     cache_dir = tmp_path / "__marimo__" / "cache"
@@ -189,8 +189,8 @@ async def test_get_cache_info_reports_lazy_manifest_bytes(
     await callbacks.get_cache_info(GetCacheInfoCommand())
 
     assert sent[0].disk_total == 600
-    assert sent[0].disk_to_free == 100
-    assert sent[-1].disk_total == 500
+    assert sent[0].disk_to_free == 600
+    assert sent[-1].disk_total == 0
     assert sent[-1].disk_to_free == 0
 
 

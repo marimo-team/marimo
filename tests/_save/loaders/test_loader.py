@@ -19,11 +19,13 @@ from marimo._save.loaders import (
     MemoryLoader,
     PickleLoader,
 )
+from marimo._save.loaders.lazy import LazyStore
 from marimo._save.loaders.loader import (
     BasePersistenceLoader,
     Loader,
     LoaderPartial,
 )
+from marimo._save.stores.dict_store import DictStore
 from marimo._save.stores.file import FileStore
 from marimo._save.stubs.lazy_stub import (
     Cache as CacheSchema,
@@ -37,6 +39,36 @@ from tests._save.loaders.mocks import MockLoader
 
 def key(a, b):
     return HashKey(a, b)
+
+
+@pytest.mark.parametrize("has_parent", [False, True])
+def test_lazy_store_exports_keys_the_inner_store_kept(
+    has_parent: bool,
+) -> None:
+    store = LazyStore(DictStore())
+    if has_parent:
+        store.put("train/hash", b"parent")
+    store.put("train/hash/value.pickle", b"value")
+    assert store.read("train/hash/value.pickle") == b"value"
+
+    assert store.clear("train/hash") is has_parent
+
+    assert store.export_keys() == ["train/hash/value.pickle"]
+    assert store.read("train/hash/value.pickle") == b"value"
+
+
+def test_loader_clears_a_store_path_with_glob_characters(
+    tmp_path: Path,
+) -> None:
+    store = FileStore(str(tmp_path / "cache[1]"))
+    store.put("train/P_hash.pickle", b"value")
+    loader = PickleLoader("train", store=store)
+
+    assert loader.clearable_bytes() == 5
+    loader.clear()
+
+    assert store.read("train/P_hash.pickle") is None
+    assert loader.clearable_bytes() == 0
 
 
 class TestLoaderPartial:
@@ -259,6 +291,116 @@ class TestLazyLoader(ABCTestLoader):
         assert loaded.defs["x"] == 42
         assert loaded.defs["y"] == "hello"
         assert loaded.defs["z"] == [1, 2, 3]
+
+    def test_clear_removes_the_blobs_of_an_entry(self) -> None:
+        """Clearing takes the blobs of a value stored in parts, and counts
+        their bytes as bytes it can free."""
+        loader = self.instance()
+
+        cache = Cache(
+            defs={"z": [1, 2, 3]},
+            hash="clear_hash",
+            cache_type="Pure",
+            stateful_refs=set(),
+            hit=False,
+            meta={"version": MARIMO_CACHE_VERSION},
+        )
+        assert loader.save_cache(cache)
+        loader.flush()
+        block = Path(self.save_path) / "test"
+        blobs = block / "clear_hash"
+        assert blobs.is_dir()
+        entry_bytes = sum(
+            path.stat().st_size for path in block.rglob("*") if path.is_file()
+        )
+        blob_bytes = sum(
+            path.stat().st_size for path in blobs.rglob("*") if path.is_file()
+        )
+        assert blob_bytes > 0
+
+        held = loader.clearable_bytes()
+        loader.clear()
+
+        assert list(block.iterdir()) == []
+        assert held == entry_bytes
+        assert loader.clearable_bytes() == 0
+
+    def test_clear_reaches_through_a_wrapping_store(self) -> None:
+        """A loader given a wrapped store clears what the inner store wrote."""
+        loader = LazyLoader(
+            "test",
+            store=LazyStore(FileStore(save_path=self.save_path)),
+            verification="off",
+        )
+        cache = Cache(
+            defs={"z": [1, 2, 3]},
+            hash="wired_hash",
+            cache_type="Pure",
+            stateful_refs=set(),
+            hit=False,
+            meta={"version": MARIMO_CACHE_VERSION},
+        )
+        assert loader.save_cache(cache)
+        loader.flush()
+        block = Path(self.save_path) / "test"
+
+        assert loader.clearable_bytes() > 0
+        loader.clear()
+
+        assert list(block.iterdir()) == []
+        assert loader.clearable_bytes() == 0
+
+    def test_clear_leaves_the_blobs_of_a_loader_sharing_the_block(
+        self,
+    ) -> None:
+        """Two caches can share a block name. Clearing one takes only the
+        blob directories its own entries name."""
+        loader = self.instance()
+        cache = Cache(
+            defs={"z": [1, 2, 3]},
+            hash="shared_hash",
+            cache_type="Pure",
+            stateful_refs=set(),
+            hit=False,
+            meta={"version": MARIMO_CACHE_VERSION},
+        )
+        assert loader.save_cache(cache)
+        loader.flush()
+        block = Path(self.save_path) / "test"
+        blobs = block / "shared_hash"
+        assert blobs.is_dir()
+        # The other loader wrote the same value under the same hash inline.
+        other = block / "P_shared_hash.pickle"
+        other.write_bytes(b"x")
+
+        PickleLoader("test", store=FileStore(save_path=self.save_path)).clear()
+
+        assert not other.exists()
+        assert blobs.is_dir()
+        restored = loader.load_cache(cache.key)
+        assert restored is not None
+        assert restored.defs["z"] == [1, 2, 3]
+
+    def test_clear_forgets_the_blobs_of_a_cleared_entry(self) -> None:
+        """Blobs are tracked for export under their own paths. A cleared
+        entry must not leave them listed."""
+        store = LazyStore(FileStore(save_path=self.save_path))
+        loader = LazyLoader("test", store=store, verification="off")
+        cache = Cache(
+            defs={"z": [1, 2, 3]},
+            hash="forget_hash",
+            cache_type="Pure",
+            stateful_refs=set(),
+            hit=False,
+            meta={"version": MARIMO_CACHE_VERSION},
+        )
+        assert loader.save_cache(cache)
+        loader.flush()
+        assert any("forget_hash/" in key for key in store.export_keys())
+
+        loader.clear()
+
+        assert store.export_keys() == []
 
     def test_import_reference_stays_inline(self) -> None:
         """Re-importable references (`from typing import Optional`, an

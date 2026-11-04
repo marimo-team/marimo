@@ -30,9 +30,22 @@ class Store(ABC):
         """Check if the cache is in the store"""
 
     def clear(self, key: str) -> bool:
-        """Check if the cache is in the store"""
+        """Remove what is held under `key`, and return whether anything was.
+
+        The default removes nothing.
+        """
         del key
         return False
+
+    def clearable_root(self) -> Path | None:
+        """The directory under which every key of the store is a path, or
+        `None`.
+
+        Every path below it is a key the store can remove, so a caller can
+        clear the store by walking the directory. A store that removes
+        nothing, or keeps entries where a caller cannot walk, returns `None`.
+        """
+        return None
 
     def local_dirs(self) -> list[Path]:
         """Every local directory this store keeps its entries in.
