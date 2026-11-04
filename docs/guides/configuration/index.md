@@ -14,11 +14,10 @@ To view the configuration values being used:
 marimo config show
 ```
 
-You can also pass a notebook path to include its project settings and script metadata, and
-add `--show-sources` to identify where values came from:
+Pass a notebook path to include its project settings and script metadata:
 
 ```bash
-marimo config show notebook.py --show-sources
+marimo config show notebook.py
 ```
 
 For guidance on specific features, see [runtime configuration](runtime_configuration.md),
@@ -37,8 +36,9 @@ can also override user configuration through [script metadata](#script-metadata-
 
 ## Ways to set configurations
 
-marimo applies each configuration value individually from the configuration sources below **in order, from lowest to highest priority**. See [restrictions and overrides](#restrictions-and-overrides) for
-exceptions.
+marimo applies each configuration value individually from the configuration sources listed below.
+
+The configuration sources are listed below **in order, from lowest to highest priority**.
 
 1. <a id="user-configuration-file"></a><a id="user-settings"></a>**User configuration file `.marimo.toml`**
 
@@ -88,7 +88,7 @@ exceptions.
 
 4. <a id="environment-variables"></a>**Environment variables**
 
-    Environment variables are named following the pattern `MARIMO_<CATEGORY>_<NAME>`. For example, `display.theme` becomes:
+    Environment variables are named following the pattern `MARIMO_<CATEGORY>_<NAME>`:
 
     ```bash
     export MARIMO_DISPLAY_THEME=dark
@@ -108,6 +108,11 @@ exceptions.
     `runtime.dotenv` to choose different files; see
     [dotenv loading](runtime_configuration.md#env-files) for examples and run
     `marimo config describe` for path resolution rules.
+
+To identify which source was used to set each config value, use:
+```bash
+marimo config show --show-sources
+```
 
 ### Restrictions and overrides
 
