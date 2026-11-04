@@ -231,6 +231,7 @@ describe("NotebookReplica lifetime", () => {
       "k7f2",
     ]);
     expect(store.get(client.runtimeAtom)?.id).toBe("r1");
+    expect(store.get(client.executionsAtom).executions.has("e7")).toBe(true);
     attempt.drop();
     await backoff();
     expect(store.get(client.documentAtom)?.revision.order).toEqual([
@@ -239,8 +240,10 @@ describe("NotebookReplica lifetime", () => {
       "k7f2",
     ]);
     expect(store.get(client.runtimeAtom)).toBeNull();
+    expect(store.get(client.executionsAtom).executions.has("e7")).toBe(true);
     current.abort();
     expect(store.get(client.documentAtom)).toBeNull();
+    expect(store.get(client.executionsAtom).executions.size).toBe(0);
   });
 
   it.each([
