@@ -313,7 +313,7 @@ def flush_cache_manifest(ctx: RuntimeContext, store: Store) -> bool:
     settled = True
     for tier in _manifest_stores(store):
         try:
-            with _manifest_lock(tier, key):
+            with manifest_lock(tier, key):
                 if not _merge_records(records, ctx.filename, key, tier):
                     settled = False
         except Exception:
@@ -344,7 +344,8 @@ def _manifest_stores(store: Store) -> Iterator[Store]:
         yield store
 
 
-def _manifest_lock(store: Store, key: str) -> AbstractContextManager[None]:
+def manifest_lock(store: Store, key: str) -> AbstractContextManager[None]:
+    """Hold the lock that serializes writes to the manifest `key`."""
     from marimo._save.loaders.lazy import LazyStore
     from marimo._save.stores.file import FileStore
     from marimo._utils.file_lock import file_lock

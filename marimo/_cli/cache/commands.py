@@ -215,7 +215,7 @@ Defaults to the current directory if no path is provided.
 
 Pass one or more arguments. Accepts `-r`/`--recursive` to search `path`
 recursively. A prompt is provided before deletion; use `-y`/`--yes` to
-skip the prompt, or --dry-run to simulate the deletion.
+skip the prompt, or `--dry-run` to simulate the deletion.
 
 Example usage:
 
@@ -324,10 +324,11 @@ def _clean_tracked_entries(
 
 def _apply_or_error(plan: CleanPlan) -> CacheDirStats:
     from marimo._save.clean import apply_clean
+    from marimo._save.manifest import ManifestError
 
     try:
         return apply_clean(plan)
-    except OSError as e:
+    except (ManifestError, OSError) as e:
         raise MarimoCLIError(f"Could not rewrite {plan.key}: {e}") from e
 
 

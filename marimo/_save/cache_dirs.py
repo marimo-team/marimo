@@ -36,9 +36,10 @@ LAZY_ENTRY_SUFFIX = ".jsonl"
 # Windows rejects most punctuation in a path component.
 _UNSAFE_IN_BLOCK_NAME = re.compile(r"[^a-zA-Z0-9 _-]")
 
-# A key is a one-letter cache-type prefix, an underscore, and a url-safe
-# base64 digest. Without the prefix a name can also be a directory of blobs.
-_ENTRY_KEY = re.compile(r"[A-Z]_[A-Za-z0-9_-]+")
+# A key is a cache-type prefix and a digest. The digest uses url-safe base64
+# without padding, so its length cannot be one more than a multiple of four.
+# Without the prefix a name can also be a directory of blobs.
+_DIGEST = re.compile(r"[A-Za-z0-9_-]{2,}")
 
 # An entry is written to a sibling and renamed into place, so a reader never
 # meets a half-written value. A process killed between the two steps leaves
@@ -171,20 +172,25 @@ def clean_cache_dir(
             continue
         if wanted is not None and block.name not in wanted:
             continue
-        if not _holds_entries(block):
+        keys = _entry_keys(block)
+        if not keys:
             if _children(block):
                 LOGGER.warning(
                     "Skipping %s: it holds no cache entries.", block
                 )
             continue
-        held = _block_stats(block)
+        freed += _delete_block_entries(block, keys, dry_run=dry_run)
         if dry_run:
-            freed += held
             continue
-        _remove_tree(block)
-        freed += held - (
-            _block_stats(block) if block.exists() else CacheDirStats()
-        )
+        # A store pointed at a project puts entries beside source files, so
+        # only entries and their blobs go, and the directory only when empty.
+        if _children(block):
+            LOGGER.warning("Kept %s: files remain in it.", block)
+            continue
+        try:
+            block.rmdir()
+        except OSError as e:
+            LOGGER.warning("Could not remove %s: %s", block, e)
     return freed
 
 
@@ -364,21 +370,33 @@ def holds_entry(cache_dir: Path, block: str, key: str) -> bool:
     )
 
 
-def _holds_entries(block: Path) -> bool:
-    """Distinguish cache blocks from unrelated project directories."""
-    return any(
-        not _is_directory(child)
-        and _ENTRY_KEY.fullmatch(child.name.split(".", 1)[0]) is not None
+def _entry_keys(block: Path) -> set[str]:
+    """The keys of the entry files in `block`, leftovers of killed writes too."""
+    stems = {
+        child.name.split(".", 1)[0]
         for child in _children(block)
-    )
+        if not _is_directory(child)
+    }
+    return {stem for stem in stems if _is_entry_key(stem)}
 
 
 def _names_an_entry(block: str, key: str) -> bool:
     """Reject names that can escape the cache or name unrelated files."""
     return (
-        bool(block)
-        and block == block_dir_name(block)
-        and _ENTRY_KEY.fullmatch(key) is not None
+        bool(block) and block == block_dir_name(block) and _is_entry_key(key)
+    )
+
+
+def _is_entry_key(key: str) -> bool:
+    """Whether `key` is spelled as a cache write spells one."""
+    # The stores import this module, so the cache types are imported here.
+    from marimo._save.cache import CACHE_PREFIX
+
+    digest = key[2:]
+    return (
+        key[:2] in CACHE_PREFIX.values()
+        and _DIGEST.fullmatch(digest) is not None
+        and len(digest) % 4 != 1
     )
 
 

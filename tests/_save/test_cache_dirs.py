@@ -797,3 +797,57 @@ def test_delete_entries_keeps_the_blobs_of_a_marker_that_stays(
 
 def test_block_dir_name_drops_the_stars_a_loader_drops() -> None:
     assert block_dir_name("*train*") == "train"
+
+
+def test_clean_keeps_what_is_not_a_cache_entry(
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A store pointed at a project puts entries beside source files."""
+    src = tmp_path / "src"
+    src.mkdir()
+    (src / "app.py").write_text("print('hi')\n")
+    (src / "C_utils.py").write_text("def f(): ...\n")
+    (src / "utils").mkdir()
+    (src / "utils" / "__init__.py").write_text("")
+    (src / "C_ab12.jsonl").write_bytes(b"x" * 10)
+    (src / "ab12").mkdir()
+    (src / "ab12" / "return.pickle").write_bytes(b"y" * 20)
+    monkeypatch.setattr(_loggers.marimo_logger(), "propagate", True)
+
+    with caplog.at_level(logging.WARNING):
+        planned = clean_cache_dir(tmp_path, dry_run=True)
+        freed = clean_cache_dir(tmp_path)
+
+    assert planned == freed == CacheDirStats(total_bytes=30, entries=1)
+    assert not (src / "C_ab12.jsonl").exists()
+    assert not (src / "ab12").exists()
+    assert (src / "app.py").exists()
+    assert (src / "C_utils.py").exists()
+    assert (src / "utils" / "__init__.py").exists()
+    assert f"Kept {src}" in caplog.text
+
+
+def test_delete_entries_refuses_a_key_no_cache_write_spells(
+    tmp_path: Path,
+) -> None:
+    cache_dir = make_cache_dir(tmp_path)
+    block = populate_lazy_block(cache_dir)
+    (block / "Z_ab12.pickle").write_bytes(b"z" * 5)
+    (block / "utils").mkdir()
+    (block / "utils" / "__init__.py").write_text("")
+
+    freed = delete_cache_entries(
+        cache_dir,
+        [
+            # Not a cache type.
+            ("train", "Z_ab12"),
+            # Five characters is not a length stripped base64 can have.
+            ("train", "C_utils"),
+        ],
+    )
+
+    assert freed == CacheDirStats()
+    assert (block / "Z_ab12.pickle").exists()
+    assert (block / "utils" / "__init__.py").exists()
