@@ -31,6 +31,8 @@ MODELS = {
     "edit-response.json": "EditResponse",
     "execution-restored.json": "Execution",
     "run-cells-request.json": "RunRequest",
+    "input-reply-request.json": "InputReplyRequest",
+    "input-reply-response.json": "Input",
 }
 
 

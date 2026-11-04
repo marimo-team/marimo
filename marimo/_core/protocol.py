@@ -211,6 +211,23 @@ class HostMessage(Struct, frozen=True):
     ) = UNSET
 
 
+class InputReplyRequest(Struct, frozen=True):
+    value: Annotated[
+        str,
+        Meta(
+            description="The text to deliver to the input exactly as submitted, including an empty string when the answer is empty."
+        ),
+    ]
+
+
+InputStatus: TypeAlias = Annotated[
+    Literal["pending", "answered", "cancelled"],
+    Meta(
+        description="An input starts `pending` while it waits for an answer. It becomes\n`answered` when the host accepts a reply for delivery, or `cancelled`\nwhen the host ends the wait while input is still pending. Both\n`answered` and `cancelled` are final. An answered input stays\nanswered if execution later fails before consuming the value.\n"
+    ),
+]
+
+
 class InterruptedOutcome(
     Struct, frozen=True, tag_field="kind", tag="interrupted"
 ):
@@ -225,7 +242,7 @@ else:
         Annotated[
             str,
             Meta(
-                description="Identifies a console, display, or variable item. Unique within the host; sending an item again with the same id replaces it.",
+                description="Identifies a console, display, input, or variable item uniquely within the host. Sending an item again with the same id replaces it.",
                 min_length=1,
             ),
         ],
@@ -268,12 +285,13 @@ ObjectType: TypeAlias = Annotated[
         "execution",
         "console",
         "display",
+        "input",
         "variable",
         "custom",
         "analysis",
     ],
     Meta(
-        description="The kinds a stream carries, and the values `types` accepts. The\ncatalog stream carries host, project, notebook, runtime, and\nattachment. A notebook's stream carries notebook, document,\ncell, runtime, attachment, run, execution, console,\ndisplay, variable, and custom. Custom events describe occurrences\nrather than object state.\n"
+        description="The kinds a stream carries, and the values `types` accepts. The\ncatalog stream carries host, project, notebook, runtime, and\nattachment. A notebook's stream carries notebook, document,\ncell, runtime, attachment, run, execution, console,\ndisplay, input, variable, and custom. Custom events describe occurrences\nrather than object state.\n"
     ),
 ]
 
@@ -1247,6 +1265,55 @@ class HostRecord(Struct, frozen=True):
     ]
 
 
+class Input(Struct, frozen=True):
+    execution_id: ExecutionId
+    id: Annotated[
+        ItemId,
+        Meta(
+            description="Identifies this prompt uniquely across executions and runtime restarts."
+        ),
+    ]
+    password: Annotated[
+        bool,
+        Meta(
+            description="Whether clients must obscure the value as it is entered."
+        ),
+    ]
+    prompt: Annotated[
+        str, Meta(description="The prompt to display, which may be empty.")
+    ]
+    seq: Annotated[
+        int,
+        Meta(
+            description="Position among the execution's console, display, and input items, increasing in production order.",
+            ge=0,
+        ),
+    ]
+    status: InputStatus
+
+
+class InputMessage(Struct, frozen=True):
+    input: Input
+    request_id: (
+        Annotated[
+            str,
+            Meta(
+                description="The `Idempotency-Key` of the request that caused this event. Omitted when no request did, and on snapshots unless that request's work is still in progress."
+            ),
+        ]
+        | UnsetType
+    ) = UNSET
+    time: (
+        Annotated[
+            datetime,
+            Meta(
+                description="When the host made this change. Present on live and replayed events; omitted on snapshots."
+            ),
+        ]
+        | UnsetType
+    ) = UNSET
+
+
 class Notebook(Struct, frozen=True):
     id: NotebookId
     name: Annotated[
@@ -1780,6 +1847,20 @@ class ExecutionMessage(Struct, frozen=True):
     ) = UNSET
 
 
+class InputEvent(Struct, frozen=True, tag_field="event", tag="input"):
+    data: InputMessage
+    id: (
+        Annotated[
+            str,
+            Meta(
+                description="The resume cursor. Omitted on snapshot and reset events.",
+                min_length=1,
+            ),
+        ]
+        | UnsetType
+    ) = UNSET
+
+
 class NotebookEvent(Struct, frozen=True, tag_field="event", tag="notebook"):
     data: NotebookMessage
     id: (
@@ -1914,6 +1995,7 @@ Event: TypeAlias = Annotated[
     | ExecutionEvent
     | ConsoleEvent
     | DisplayEvent
+    | InputEvent
     | VariableEvent
     | CustomEvent
     | ProjectRemovedEvent

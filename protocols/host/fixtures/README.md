@@ -34,6 +34,34 @@ keys carried by their events.
 and a runtime stop. Both attachments remain connected after the runtime ends.
 `events-reset.sse` shows the resulting catalog after a client's cursor expires.
 
+## Answering input
+
+In a separate session, `inputs.sse` follows a scratch execution that prints,
+asks for a name, prints again, and asks for a password. The console and input
+items share `seq` ordering, so a client can display them in the order the
+execution produced them. The name prompt is answered with this request.
+
+```http
+POST /notebooks/n1/runtime/inputs/i1/reply
+Idempotency-Key: reply-name
+Content-Type: application/json
+
+{ "value": "Trevor" }
+```
+
+The request body is in `input-reply-request.json`, and
+`input-reply-response.json` contains the `200` response. The response and
+answered event contain the prompt's identity, metadata, and updated status.
+The event carries the reply's key, `reply-name`, while subsequent execution
+events keep the run request's key, `start-input`.
+
+`inputs-reconnect.sse` opens a new stream with
+`types=run,execution,console,input` while the password prompt is pending.
+Its snapshot includes both prompts, so the client can see that the name was
+answered and the password still needs an answer. The live events match
+`inputs.sse`, where interruption cancels the password prompt before execution
+completes. The final `execution.removed` event removes both inputs.
+
 ## Standalone objects
 
 `custom-events.sse` shows a `types=custom` notebook stream: an empty snapshot

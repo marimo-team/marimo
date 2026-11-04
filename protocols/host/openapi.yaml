@@ -240,7 +240,7 @@ paths:
                   which shape: a NotebookMessage, DocumentMessage,
                   CellMessage, RuntimeMessage, AttachmentMessage,
                   RunMessage, ExecutionMessage, ConsoleMessage,
-                  DisplayMessage, or VariableMessage for an event named
+                  DisplayMessage, InputMessage, or VariableMessage for an event named
                   after that kind; a CustomMessage for `custom`; a RemovedMessage
                   for an event ending in `.removed`; and an empty object
                   for `ready` and `reset`.
@@ -525,8 +525,7 @@ paths:
         when the notebook has no runtime and `conflict` while another run
         is in progress. Within the host's retry window, repeating the
         request returns its latest run record without executing again,
-        even if its outputs have expired. A call to `input()` gets end of
-        file rather than blocking.
+        even if its outputs have expired.
       parameters:
         - $ref: '#/components/parameters/NotebookId'
         - $ref: '#/components/parameters/IdempotencyKey'
@@ -541,6 +540,48 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Run' }
+        '400': { $ref: '#/components/responses/InvalidRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '405': { $ref: '#/components/responses/MethodNotAllowed' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '500': { $ref: '#/components/responses/Internal' }
+        '501': { $ref: '#/components/responses/UnsupportedOperation' }
+  /notebooks/{notebook_id}/runtime/inputs/{input_id}/reply:
+    post:
+      operationId: runtime.input
+      summary: Answer an execution's pending input
+      description: |
+        Accepts an answer for delivery to the identified input and returns
+        identity, metadata, and updated status `answered`. Any client
+        permitted this operation may answer, regardless of who started
+        the run. The first accepted reply determines the answer.
+
+        The host returns `conflict` for a new request to an answered or
+        cancelled input, or `not-found` if the input is unknown, removed,
+        or belongs to another notebook. Retrying an accepted request with
+        the same key within the retry window returns the original response,
+        even after the execution is removed, under the protocol's
+        idempotency rules.
+
+        Hosts offering `runtime.run` implement this operation. See
+        [Answering input](spec.md#answering-input) for delivery semantics.
+      parameters:
+        - $ref: '#/components/parameters/NotebookId'
+        - $ref: '#/components/parameters/InputId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/InputReplyRequest' }
+      responses:
+        '200':
+          description: The input is now answered because the host accepted the reply for delivery.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Input' }
         '400': { $ref: '#/components/responses/InvalidRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
@@ -666,6 +707,12 @@ components:
       required: true
       description: The run's id.
       schema: { $ref: '#/components/schemas/RunId' }
+    InputId:
+      name: input_id
+      in: path
+      required: true
+      description: The input's item id.
+      schema: { $ref: '#/components/schemas/ItemId' }
     RunFilter:
       name: run_id
       in: query
@@ -768,7 +815,7 @@ components:
     ItemId:
       type: string
       minLength: 1
-      description: Identifies a console, display, or variable item. Unique within the host; sending an item again with the same id replaces it.
+      description: Identifies a console, display, input, or variable item uniquely within the host. Sending an item again with the same id replaces it.
     CellId:
       type: string
       minLength: 1
@@ -830,9 +877,9 @@ components:
         catalog stream carries host, project, notebook, runtime, and
         attachment. A notebook's stream carries notebook, document,
         cell, runtime, attachment, run, execution, console,
-        display, variable, and custom. Custom events describe occurrences
+        display, input, variable, and custom. Custom events describe occurrences
         rather than object state.
-      enum: [host, project, notebook, document, cell, runtime, attachment, run, execution, console, display, variable, custom]
+      enum: [host, project, notebook, document, cell, runtime, attachment, run, execution, console, display, input, variable, custom]
     Custom:
       type: object
       description: |
@@ -1288,6 +1335,40 @@ components:
         data:
           type: string
           description: The rendered value. JSON mimetypes are encoded as text; binary mimetypes are base64. Never a URL only the runtime can serve.
+    Input:
+      type: object
+      description: |
+        A running execution's request for a line of text. Its identity,
+        execution, prompt, password flag, and position stay fixed while
+        its status tracks the request. The record remains with its
+        execution after it is answered or cancelled. Submitted answers
+        travel through the reply endpoint to the runtime.
+      required: [id, execution_id, seq, prompt, password, status]
+      properties:
+        id:
+          $ref: '#/components/schemas/ItemId'
+          description: Identifies this prompt uniquely across executions and runtime restarts.
+        execution_id: { $ref: '#/components/schemas/ExecutionId' }
+        seq:
+          type: integer
+          minimum: 0
+          description: Position among the execution's console, display, and input items, increasing in production order.
+        prompt:
+          type: string
+          description: The prompt to display, which may be empty.
+        password:
+          type: boolean
+          description: Whether clients must obscure the value as it is entered.
+        status: { $ref: '#/components/schemas/InputStatus' }
+    InputStatus:
+      type: string
+      description: |
+        An input starts `pending` while it waits for an answer. It becomes
+        `answered` when the host accepts a reply for delivery, or `cancelled`
+        when the host ends the wait while input is still pending. Both
+        `answered` and `cancelled` are final. An answered input stays
+        answered if execution later fails before consuming the value.
+      enum: [pending, answered, cancelled]
     Etag:
       type: string
       description: |
@@ -1398,6 +1479,7 @@ components:
         - $ref: '#/components/schemas/ExecutionEvent'
         - $ref: '#/components/schemas/ConsoleEvent'
         - $ref: '#/components/schemas/DisplayEvent'
+        - $ref: '#/components/schemas/InputEvent'
         - $ref: '#/components/schemas/VariableEvent'
         - $ref: '#/components/schemas/CustomEvent'
         - $ref: '#/components/schemas/ProjectRemovedEvent'
@@ -1426,6 +1508,7 @@ components:
           execution: '#/components/schemas/ExecutionEvent'
           console: '#/components/schemas/ConsoleEvent'
           display: '#/components/schemas/DisplayEvent'
+          input: '#/components/schemas/InputEvent'
           variable: '#/components/schemas/VariableEvent'
           custom: '#/components/schemas/CustomEvent'
           project.removed: '#/components/schemas/ProjectRemovedEvent'
@@ -1531,6 +1614,14 @@ components:
         event: { type: string, enum: [display] }
         id: *event_cursor
         data: { $ref: '#/components/schemas/DisplayMessage' }
+    InputEvent:
+      type: object
+      description: An `input` event from a notebook stream.
+      required: [event, data]
+      properties:
+        event: { type: string, enum: [input] }
+        id: *event_cursor
+        data: { $ref: '#/components/schemas/InputMessage' }
     VariableEvent:
       type: object
       description: A `variable` event from a host stream.
@@ -1731,6 +1822,14 @@ components:
         request_id: *request_id
         time: *time
         display: { $ref: '#/components/schemas/Display' }
+    InputMessage:
+      type: object
+      description: The current input record carried by an `input` event.
+      required: [input]
+      properties:
+        request_id: *request_id
+        time: *time
+        input: { $ref: '#/components/schemas/Input' }
     VariableMessage:
       type: object
       description: The data of a `variable` event. The item as it now is.
@@ -1764,7 +1863,8 @@ components:
         `display.removed`, or `variable.removed` event. The client deletes the object with this
         id; the event name says which kind it is. Removing a notebook
         removes its document and cells with it, without events of their
-        own; the document never has one.
+        own; the document never has one. Removing an execution also removes
+        its inputs, without individual `input.removed` events.
       required: [id]
       properties:
         request_id: *request_id
@@ -1875,6 +1975,14 @@ components:
         url:
           type: string
           description: The URL the host used to show the notebook. It never contains the host's token.
+    InputReplyRequest:
+      type: object
+      description: The answer to one pending input.
+      required: [value]
+      properties:
+        value:
+          type: string
+          description: The text to deliver to the input exactly as submitted, including an empty string when the answer is empty.
     StartRuntimeRequest:
       type: object
       properties:

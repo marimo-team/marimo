@@ -163,7 +163,7 @@ Notebook
 ```
 
 Results include an execution's outcome, **console** output, **display**
-items, and the **variables** a cell's execution bound. They can remain
+items, **inputs**, and the **variables** a cell's execution bound. They can remain
 available after the runtime stops or be restored from storage. Hosts choose
 how long to retain results and SHOULD keep ephemeral results briefly after
 completion to allow reconnection.
@@ -367,6 +367,53 @@ full sequence open the stream before submitting work. Hosts MUST limit each
 notebook to one run in progress and support interruption when they offer
 execution. Completion means the work has finished, including any interruption
 that was requested.
+
+### Answering input
+
+When running code requests input, the host MUST publish a pending input and
+wait for an answer or cancellation. This applies to cell, scratch, and reactive
+executions. Hosts MUST associate each new input with a running execution.
+Input calls from completed or removed executions MUST raise `EOFError` in the
+calling code, including calls from background work that outlives its execution.
+
+Hosts offering `runtime.run` MUST implement `runtime.input`. Any client
+permitted the operation may answer. This permission applies to the notebook
+and is independent of which client started the run or opened an event stream.
+The client sends the input id in the URL and its answer in the request body.
+
+```http
+POST /notebooks/{notebook_id}/runtime/inputs/{input_id}/reply
+Idempotency-Key: reply-1
+Content-Type: application/json
+
+{ "value": "Trevor" }
+```
+
+The runtime receives the text in `value` exactly as submitted, including an
+empty string when the answer is empty. Clients that want to stop the work
+waiting for input can interrupt the owning run.
+
+The host MUST accept at most one reply to each input and reject replies once
+it is cancelled. Before acknowledging a reply, the host MUST arrange delivery
+to that specific input and publish its `answered` record. The response confirms
+acceptance, and clients follow execution events to observe further progress.
+If delivery subsequently fails, the host MUST end the execution with an error
+or interruption.
+
+Replies follow the protocol's [idempotency rules](#requests-and-decisions).
+
+| Request | Response |
+| --- | --- |
+| First accepted reply | `200` with the answered input record. |
+| Retry with the same key and request within the retry window | The original response for the accepted reply, including after execution removal. |
+| New reply to an answered or cancelled input | `409 conflict`. |
+| Reply to an unknown, removed, or other notebook's input | `404 not-found`. |
+
+An input's creation event carries the execution's originating request key.
+The answered event carries the reply's key, and cancellation carries the
+cancelling request's key when there is one. Subsequent run and execution events
+keep their original request key, so clients can continue following the run
+independently of its answers.
 
 ## Local discovery
 

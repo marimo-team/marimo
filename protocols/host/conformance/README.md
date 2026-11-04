@@ -32,6 +32,9 @@ operation responses. Retention expiry, external store changes, shutdown, and
 transport failures also need implementation tests. WebSocket transport is outside
 this contract.
 
+Input fixtures cover pending, answered, and cancelled records, shared output
+ordering, and a reconnect snapshot.
+
 Experimental features have separate conformance tests. Check the stable
 contract and all experimental fixtures together with:
 
