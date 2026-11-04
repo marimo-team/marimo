@@ -8,8 +8,14 @@ import {
   NotebookClient,
   type unstable_NotebookCall,
 } from "../notebook/client.ts";
-import type { OperationsBelow } from "../request.ts";
+import type { OperationsBelow, Result } from "../request.ts";
 import type * as Protocol from "../protocol.ts";
+import { fixtureEvents } from "./fixtures.ts";
+
+const snapshot = {
+  cursor: "epoch-42",
+  events: [fixtureEvents("notebook-events.sse").find((event) => event.event === "document")!],
+};
 
 const fixtures = new NodeUrl.URL(
   "../../../../protocols/host/fixtures/",
@@ -52,6 +58,26 @@ afterEach(() => {
 });
 
 describe("NotebookClient", () => {
+  it("reads a notebook snapshot without a mutation header", async () => {
+    const { notebook, sent } = connect(
+      () => json(200, snapshot),
+      "http://localhost/prefix/api/marimo/v1/notebooks/n1/?session_id=s1",
+    );
+
+    const result = await notebook.snapshot();
+
+    expectTypeOf(result).toEqualTypeOf<Result<Protocol.SnapshotOutput>>();
+    expect(result).toEqual({ ok: true, status: 200, data: snapshot });
+    const request = sent();
+    expect(request.url).toBe(
+      "http://localhost/prefix/api/marimo/v1/notebooks/n1/snapshot?session_id=s1",
+    );
+    expect(request.method).toBe("GET");
+    expect(request.headers.get("Authorization")).toBe("Bearer secret");
+    expect(request.headers.has("Idempotency-Key")).toBe(false);
+    expect(request.body).toBeNull();
+  });
+
   it("sends an edit below the notebook's URL and returns the validated response", async () => {
     const response = readFixture("edit-response.json");
     const { notebook, sent } = connect(() => json(200, response));
@@ -193,6 +219,7 @@ describe("NotebookClient", () => {
       "notebook.update": "update",
       "notebook.delete": "delete",
       "notebook.open": "open",
+      "notebook.snapshot": "snapshot",
       "notebook.edit": "edit",
       "notebook.save": "save",
       "runtime.start": "start",
@@ -212,6 +239,18 @@ function over(reply: (call: unstable_NotebookCall) => unknown) {
 }
 
 describe("NotebookClient.unstable_over", () => {
+  it("reads a snapshot through the call transport", async () => {
+    const { notebook, send } = over(() => ({ status: 200, body: snapshot }));
+
+    expect(await notebook.snapshot()).toEqual({ ok: true, status: 200, data: snapshot });
+    expect(send).toHaveBeenCalledWith({
+      operation: "notebook.snapshot",
+      params: { notebook_id: "n1" },
+      headers: {},
+      body: undefined,
+    });
+  });
+
   it("sends each method as its call", async () => {
     const response = readFixture("edit-response.json");
     const { notebook, send } = over(() => ({ status: 200, body: response }));

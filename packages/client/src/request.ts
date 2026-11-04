@@ -31,9 +31,13 @@ export type Result<T> =
       readonly problem: Protocol.ProblemOutput;
     };
 
-/** Options for a request that changes state. */
-export interface MutationOptions {
+/** Options shared by reads and mutations. */
+export interface RequestOptions {
   readonly signal?: AbortSignal;
+}
+
+/** Options for a request that changes state. */
+export interface MutationOptions extends RequestOptions {
   /**
    * The key the host uses to answer a repeated request once.
    *

@@ -2,7 +2,7 @@
 
 import { describe, expect, expectTypeOf, it, vi } from "vitest";
 import { z } from "zod";
-import { Client, NotebookClient } from "../index.ts";
+import { Client, NotebookClient, type Result } from "../index.ts";
 import type * as Protocol from "../protocol.ts";
 import { fixtureEvents } from "./fixtures.ts";
 
@@ -26,6 +26,29 @@ function connect(response: () => Response) {
 }
 
 describe("Client", () => {
+  it("reads a catalog snapshot with authentication and no mutation headers", async () => {
+    const response = {
+      cursor: "epoch-42",
+      events: [fixtureEvents("events.sse").find((event) => event.event === "host")!],
+    };
+    const { client, sent, fetch } = connect(() => Response.json(response));
+    const controller = new AbortController();
+
+    const result = await client.snapshot({ signal: controller.signal });
+
+    expectTypeOf(result).toEqualTypeOf<Result<Protocol.SnapshotOutput>>();
+    expect(result).toEqual({ ok: true, status: 200, data: response });
+    const request = sent();
+    expect(request.url).toBe(
+      "http://localhost/prefix/api/marimo/v1/snapshot?session_id=s1",
+    );
+    expect(request.method).toBe("GET");
+    expect(request.headers.get("Authorization")).toBe("Bearer secret");
+    expect(request.headers.has("Idempotency-Key")).toBe(false);
+    expect(request.body).toBeNull();
+    expect(fetch.mock.calls[0][1]?.signal).toBe(controller.signal);
+  });
+
   it("creates a notebook with the shared request conventions", async () => {
     const { client, sent } = connect(() =>
       Response.json(record, { status: 201 }),

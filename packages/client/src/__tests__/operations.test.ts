@@ -21,10 +21,12 @@ describe("operations", () => {
   it("names every operation in the spec", () => {
     expectTypeOf<OperationId>().toEqualTypeOf<
       | "events"
+      | "snapshot"
       | "notebook.create"
       | "notebook.update"
       | "notebook.delete"
       | "notebook.events"
+      | "notebook.snapshot"
       | "notebook.edit"
       | "notebook.save"
       | "notebook.open"

@@ -10,6 +10,7 @@ import {
   type OperationCall,
   type OperationsBelow,
   request,
+  type RequestOptions,
   type Result,
   type Target,
 } from "../request.ts";
@@ -52,6 +53,13 @@ class NotebookOperations {
 
   public constructor(target: Target<Scope> | CallTarget<Scope>) {
     this.#target = target;
+  }
+
+  /** Read current state and its resume cursor without creating an attachment. */
+  public snapshot(
+    options?: RequestOptions,
+  ): Promise<Result<Protocol.SnapshotOutput>> {
+    return this.#send("notebook.snapshot", { options });
   }
 
   /** Rename or move the notebook. */

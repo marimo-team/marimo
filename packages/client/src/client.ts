@@ -9,6 +9,7 @@ import {
   type ClientOptions,
   type MutationOptions,
   request,
+  type RequestOptions,
   resolve,
   type Result,
   type Target,
@@ -25,6 +26,13 @@ export class Client {
   /** The host API's base URL. Each read returns a copy. */
   public get url(): URL {
     return new URL(this.#target.url);
+  }
+
+  /** Read the current catalog and its resume cursor without opening a stream. */
+  public snapshot(
+    options?: RequestOptions,
+  ): Promise<Result<Protocol.SnapshotOutput>> {
+    return request(this.#target, "snapshot", { options });
   }
 
   /** Follow the catalog with this client's options and an independent cursor. */
