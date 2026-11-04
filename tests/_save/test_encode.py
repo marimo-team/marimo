@@ -6,6 +6,7 @@ import array
 import enum
 import pickle
 from decimal import Decimal
+from fractions import Fraction
 from typing import Any
 
 import pytest
@@ -225,6 +226,19 @@ def test_pickled_array_preserves_metadata(change: str) -> None:
 
 
 @pytest.mark.skipif(not HAS_NUMPY, reason="numpy not installed")
+def test_structured_dtype_with_overlapping_fields() -> None:
+    import numpy as np
+
+    overlapping = np.dtype(
+        {"names": ["a", "b"], "formats": ["<i4", "<i4"], "offsets": [0, 2]}
+    )
+    with pytest.raises(ValueError):
+        overlapping.descr  # noqa: B018
+    value = np.zeros(3, dtype=overlapping)
+    assert data_to_buffer(value) != data_to_buffer(value.view(np.uint8))
+
+
+@pytest.mark.skipif(not HAS_NUMPY, reason="numpy not installed")
 def test_numpy_scalar_keyed_by_dtype_and_value() -> None:
     import numpy as np
 
@@ -242,8 +256,19 @@ def test_number_subclass_keyed_by_type() -> None:
     class Level(enum.IntEnum):
         LOW = 1
 
+    class Rounded(float):
+        def __repr__(self) -> str:
+            return f"{self:.1f}"
+
     assert primitive_to_bytes(Celsius(1.0)) != primitive_to_bytes(Celsius(2.0))
     assert primitive_to_bytes(Celsius(1.0)) != primitive_to_bytes(1.0)
+    assert repr(Rounded(1.01)) == repr(Rounded(1.02))
+    assert primitive_to_bytes(Rounded(1.01)) != primitive_to_bytes(
+        Rounded(1.02)
+    )
+    assert primitive_to_bytes(Fraction(1, 3)) != primitive_to_bytes(
+        Fraction(1, 4)
+    )
     assert primitive_to_bytes(Decimal(1)) != primitive_to_bytes(1)
     # bytes(Level.LOW) is one zero byte, which would collide with bytes(1).
     assert primitive_to_bytes(Level.LOW) != primitive_to_bytes(bytes(1))

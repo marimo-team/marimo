@@ -26,6 +26,13 @@ if TYPE_CHECKING:
     Tensor = Any
 
 
+def _frame(label: str, size: int) -> bytes:
+    tag = label.encode("utf-8")
+    return b"".join(
+        [struct.pack("!Q", len(tag)), tag, struct.pack("!Q", size)]
+    )
+
+
 def type_sign(value: bytes | memoryview, label: str) -> bytes:
     """Frame a typed payload without losing boundaries between values."""
     # Tagging values disambiguates types, for example when a string contains
@@ -37,12 +44,9 @@ def type_sign(value: bytes | memoryview, label: str) -> bytes:
     # the key encoding, and neither protects a compromised Python runtime.
     #
     # TODO: Benchmark this encoding, including the cost of copying large data.
-    tag = label.encode("utf-8")
     # len(memoryview) counts the first dimension, not the number of bytes.
     size = value.nbytes if isinstance(value, memoryview) else len(value)
-    return b"".join(
-        [struct.pack("!Q", len(tag)), tag, struct.pack("!Q", size), value]
-    )
+    return _frame(label, size) + value
 
 
 _LENGTH = struct.Struct("!Q")
@@ -107,20 +111,28 @@ def _contiguous_tensor_bytes(data: Tensor) -> memoryview:
     return memoryview(data_c_contiguous.view("uint8"))
 
 
-def data_to_buffer(data: Tensor) -> bytes:
+def data_frames(data: Tensor) -> tuple[bytes, memoryview]:
+    """Framed metadata header and the raw buffer of an array-like."""
     array = standardize_tensor(data)
+    # str(dtype) keeps byte order, subarray shapes and field offsets, and does
+    # not raise on overlapping or out-of-order fields the way dtype.descr does.
     metadata = primitive_to_bytes(
         (
             type(data).__module__,
             type(data).__qualname__,
-            str(array.dtype.descr),
+            str(array.dtype),
             array.shape,
             array.strides,
         )
     )
-    return type_sign(metadata, "array") + type_sign(
-        _contiguous_tensor_bytes(array), "data"
-    )
+    buffer = _contiguous_tensor_bytes(array)
+    header = type_sign(metadata, "array") + _frame("data", buffer.nbytes)
+    return header, buffer
+
+
+def data_to_buffer(data: Tensor) -> bytes:
+    header, buffer = data_frames(data)
+    return header + buffer
 
 
 def primitive_to_bytes(value: Any) -> bytes:
@@ -148,16 +160,27 @@ def primitive_to_bytes(value: Any) -> bytes:
     dtype = getattr(value, "dtype", None)
     if dtype is not None and hasattr(value, "tobytes"):
         return type_sign(
-            primitive_to_bytes((str(dtype.descr), value.tobytes())), "numpy"
+            primitive_to_bytes((str(dtype), value.tobytes())), "numpy"
         )
-    # bytes(n) on an int subclass allocates n zero bytes, so a Number subclass
-    # such as Decimal or IntEnum is keyed by its type and repr instead.
+    # bytes(n) on an int subclass allocates n zero bytes, and a subclass can
+    # override repr lossily, so a Number subclass is keyed by its type and the
+    # exact value its numeric tower exposes. Decimal is only a Number, and its
+    # repr is exact.
     if isinstance(value, numbers.Number):
+        base: Any
+        if isinstance(value, numbers.Integral):
+            base = int(value)
+        elif isinstance(value, numbers.Rational):
+            base = (int(value.numerator), int(value.denominator))
+        elif isinstance(value, numbers.Real):
+            base = float(value)
+        elif isinstance(value, numbers.Complex):
+            base = complex(value)
+        else:
+            base = repr(value)
         cls = type(value)
         return type_sign(
-            primitive_to_bytes(
-                (cls.__module__, cls.__qualname__, repr(value))
-            ),
+            primitive_to_bytes((cls.__module__, cls.__qualname__, base)),
             "scalar",
         )
     return type_sign(bytes(value), "bytes")
@@ -223,7 +246,9 @@ def deterministic_dumps(obj: Any, hash_type: str) -> bytes:
             try:
                 if not is_primitive(obj) and is_data_primitive(obj):
                     h = hashlib.new(hash_type, usedforsecurity=False)
-                    h.update(data_to_buffer(obj))
+                    header, buffer = data_frames(obj)
+                    h.update(header)
+                    h.update(buffer)
                     return (bytes, (h.digest(),))
             except Exception:
                 pass
