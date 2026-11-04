@@ -14,7 +14,6 @@ import {
   clearPendingCutAtom,
   pendingCutCellIdsAtom,
 } from "@/core/cells/pending-cut-service";
-import { loroSyncAnnotation } from "@/core/codemirror/rtc/loro/sync";
 import type { KeymapConfig } from "@/core/config/config-schema";
 import type { HotkeyProvider } from "@/core/hotkeys/hotkeys";
 import { getFeatureFlag } from "@/core/config/feature-flag";
@@ -325,11 +324,6 @@ function cellKeymaps({
 function cellCodeEditing(hotkeys: HotkeyProvider): Extension[] {
   const onChangePlugin = EditorView.updateListener.of((update) => {
     if (update.docChanged) {
-      // Loro already applied a collaborator's change here. The client that
-      // typed it syncs it to the document.
-      if (isCollaboratorUpdate(update.transactions)) {
-        return;
-      }
       // Check if the doc update was a formatting change
       // e.g. changing from python to markdown
       const isFormattingChange = update.transactions.some((tr) =>
@@ -353,14 +347,6 @@ function cellCodeEditing(hotkeys: HotkeyProvider): Extension[] {
   });
 
   return [onChangePlugin, formatKeymapExtension(hotkeys)];
-}
-
-/** Whether every transaction in an update arrived from a collaborator through Loro. */
-function isCollaboratorUpdate(transactions: readonly Transaction[]): boolean {
-  return (
-    transactions.length > 0 &&
-    transactions.every((tr) => tr.annotation(loroSyncAnnotation) !== undefined)
-  );
 }
 
 const MARKDOWN_AUTORUN_USER_EVENTS = ["input", "delete", "undo", "redo"];
@@ -397,10 +383,7 @@ function shouldAutorunMarkdownUpdate({
   return transactions.some((tr) => {
     // Ignore remote changes to avoid duplicate runs. The client that made the
     // edit runs it.
-    if (
-      tr.annotation(Transaction.remote) ||
-      tr.annotation(loroSyncAnnotation) !== undefined
-    ) {
+    if (tr.annotation(Transaction.remote)) {
       return false;
     }
 
@@ -480,6 +463,5 @@ export function cellBundle({
 }
 
 export const exportedForTesting = {
-  isCollaboratorUpdate,
   shouldAutorunMarkdownUpdate,
 };

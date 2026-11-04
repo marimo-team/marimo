@@ -21,7 +21,6 @@ import {
 import { OverridingHotkeyProvider } from "@/core/hotkeys/hotkeys";
 import { store } from "@/core/state/jotai";
 import { activeDocumentModelAtom } from "@/core/session/active-notebook";
-import { isRtcEnabled } from "../../rtc/state";
 import {
   createNotebookActions,
   exportedForTesting,
@@ -30,11 +29,6 @@ import {
 } from "../cells";
 import { applyDocument, flushDocument, followDocument } from "../document";
 import { type CellId, SCRATCH_CELL_ID } from "../ids";
-
-vi.mock("../../rtc/state", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("../../rtc/state")>()),
-  isRtcEnabled: vi.fn(() => false),
-}));
 
 const { initialNotebookState } = exportedForTesting;
 
@@ -146,18 +140,6 @@ describe("applyDocument", () => {
     expect(next.cellData[a].code).toBe('mo.md("hi")');
     expect(view.state.doc.toString()).toBe('mo.md("hi")');
     expect(view.state.field(languageAdapterState).type).toBe("python");
-  });
-
-  it("leaves an RTC editor to Loro", () => {
-    vi.mocked(isRtcEnabled).mockReturnValueOnce(true);
-    const state = notebookOf([cell(a)]);
-    const view = createEditor("a = 1");
-    state.cellHandles[a].current = { editorView: view, editorViewOrNull: view };
-
-    const next = applyDocument(state, documentOf([cell(a, { code: "a = 2" })]));
-
-    expect(next.cellData[a].code).toBe("a = 2");
-    expect(view.state.doc.toString()).toBe("a = 1");
   });
 
   it("keeps the code this client has when the host withholds source", () => {

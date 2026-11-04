@@ -185,14 +185,6 @@ export class RuntimeManager {
   }
 
   /**
-   * The WebSocket Sync URL of the runtime, for real-time updates.
-   */
-  public getWsSyncURL(sessionId: SessionId): URL {
-    const url = this.getSessionURL("/ws_sync", sessionId);
-    return asWsUrl(this.appendCrossOriginAuth(url).toString());
-  }
-
-  /**
    * The WebSocket URL of the terminal.
    */
   public getTerminalWsURL(size?: { rows: number; cols: number }): URL {

@@ -23,7 +23,6 @@ import {
   Form,
   FormControl,
   FormDescription,
-  FormField,
   FormItem,
   FormLabel,
   FormMessage,
@@ -1293,31 +1292,6 @@ export const UserConfigForm: React.FC = () => {
               notebook to take effect.
             </p>
 
-            <FormField
-              control={form.control}
-              name="experimental.rtc_v2"
-              render={({ field }) => (
-                <div className="flex flex-col gap-y-1">
-                  <FormItem className={formItemClasses}>
-                    <FormLabel className="font-normal">
-                      Real-Time Collaboration
-                    </FormLabel>
-                    <FormControl>
-                      <Checkbox
-                        data-testid="rtc-checkbox"
-                        checked={field.value === true}
-                        onCheckedChange={field.onChange}
-                      />
-                    </FormControl>
-                  </FormItem>
-
-                  <FormDescription>
-                    Enable experimental real-time collaboration. This change
-                    requires a page refresh to take effect.
-                  </FormDescription>
-                </div>
-              )}
-            />
             <OverriddenFormField
               control={form.control}
               name="experimental.external_agents"
