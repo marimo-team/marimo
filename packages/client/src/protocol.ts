@@ -609,7 +609,7 @@ export const Execution = zod
     caused_by: zod
       .union([ExecutionId, zod.null()])
       .describe(
-        "The execution in the same run that caused this one. Null for executions requested directly.",
+        "The execution in the same run that initiated this evaluation. Null for executions requested directly.",
       ),
     cell_id: zod
       .union([CellId, zod.null()])
@@ -628,7 +628,7 @@ export const Execution = zod
     depends_on: zod
       .record(zod.string(), zod.union([Revision, zod.null()]))
       .describe(
-        "The variables the execution used, by name, each at the revision the runtime holds its result valid against. Null for a name no retained cell execution had bound. Empty while queued, stamped as the execution ends, and final from then on.",
+        "The variable revisions this result is valid against, keyed by name. Null for a name no retained cell execution had bound. Empty while queued, stamped as the execution ends, and final from then on.",
       ),
     status: Lifecycle,
     outcome: zod

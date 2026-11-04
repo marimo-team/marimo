@@ -1741,7 +1741,7 @@ class Execution(Struct, frozen=True):
         Annotated[
             ExecutionId,
             Meta(
-                description="The execution in the same run that caused this one. Null for executions requested directly."
+                description="The execution in the same run that initiated this evaluation. Null for executions requested directly."
             ),
         ]
         | None
@@ -1782,7 +1782,7 @@ class Execution(Struct, frozen=True):
     depends_on: Annotated[
         dict[str, Revision | None],
         Meta(
-            description="The variables the execution used, by name, each at the revision the runtime holds its result valid against. Null for a name no retained cell execution had bound. Empty while queued, stamped as the execution ends, and final from then on."
+            description="The variable revisions this result is valid against, keyed by name. Null for a name no retained cell execution had bound. Empty while queued, stamped as the execution ends, and final from then on."
         ),
     ]
     id: ExecutionId
