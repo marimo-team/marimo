@@ -84,7 +84,9 @@ class Client:
                 and run["status"] == "completed"
             ]
 
-        await wait_for(self.events, lambda response: bool(completed(response)))
+        while not completed(self.events):
+            self.events.changed.clear()
+            await self.events.changed.wait()
         assert completed(self.events)[-1]["outcome"] == outcome
 
     async def edit(self, cell: str, code: str) -> None:
