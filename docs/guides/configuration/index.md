@@ -1,4 +1,5 @@
 # Configuration
+marimo’s editor, runtime, and server can be configured through user settings, project files, notebook metadata, and environment variables. This page explains how to find available options, set their values, and determine which source takes priority.
 
 ## Configuration options
 
@@ -7,6 +8,10 @@ For available options, descriptions, types, and defaults, run:
 ```bash
 marimo config describe
 ```
+
+For guidance on specific configuration options, see [runtime configuration](runtime_configuration.md),
+[AI assistance](../editor_features/ai_completion.md), and
+[theming](theming.md).
 
 To view the configuration values being used:
 
@@ -19,10 +24,6 @@ Pass a notebook path to include its project settings and script metadata:
 ```bash
 marimo config show notebook.py
 ```
-
-For guidance on specific features, see [runtime configuration](runtime_configuration.md),
-[AI assistance](../editor_features/ai_completion.md), and
-[theming](theming.md).
 
 
 ## Ways to set configurations
