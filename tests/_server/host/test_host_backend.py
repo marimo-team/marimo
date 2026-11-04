@@ -591,6 +591,41 @@ async def test_interrupting_a_queued_cell_run_cancels_it_in_the_kernel(
     assert b._runs == {}
 
 
+async def test_a_cancelled_run_that_starts_anyway_is_interrupted(
+    manager: FakeManager, observed: Observed
+) -> None:
+    b = backend(manager, observed)
+    session = manager.next_session
+    b.adopt(RT1, session)
+    observed.messages.clear()
+    document = Document([DocumentCell(protocol.CellId("a"), "x = 1")], {})
+    b.run_cells(protocol.RunId("run-1"), document, [protocol.CellId("a")])
+    b.interrupt(protocol.RunId("run-1"))
+    assert session.interrupts == 0
+
+    # The kernel dequeued the run before the cancellation reached it.
+    for execution_id in ("e1", "e2"):
+        session.broadcast(
+            ExecutionNotification(
+                cell_id=CellId_t("a"),
+                phase="planned",
+                execution_id=execution_id,
+                code="x = 1",
+                run_id="run-1",
+            )
+        )
+    assert session.interrupts == 1
+
+    session.broadcast(
+        CompletedRunNotification(run_id="run-1", outcome="interrupted")
+    )
+    await observed.wait_for(be.Done)
+    assert observed.messages[-1] == be.Done(
+        protocol.RunId("run-1"), "interrupted"
+    )
+    assert b._runs == {}
+
+
 async def test_interrupting_a_started_cell_run_interrupts_the_kernel(
     manager: FakeManager, observed: Observed
 ) -> None:

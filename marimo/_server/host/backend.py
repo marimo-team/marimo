@@ -79,6 +79,8 @@ class _Run:
     done: asyncio.Event = field(default_factory=asyncio.Event)
     task: asyncio.Task[object] | None = None
     submitted: bool = False
+    interrupt_requested: bool = False
+    """A cancellation was sent for this run while it was still queued."""
 
 
 class SessionBackend(SessionConsumer):
@@ -333,6 +335,7 @@ class SessionBackend(SessionConsumer):
             run.session.try_interrupt()
         else:
             # The kernel discards a queued run when its command arrives.
+            run.interrupt_requested = True
             run.session.put_control_request(
                 CancelRunCommand(run_id=run_id), from_consumer_id=None
             )
@@ -480,9 +483,20 @@ class SessionBackend(SessionConsumer):
                 message = msgspec.structs.replace(message, code=cell.code)
         for out in translator.feed(message):
             self._observe(out)
+        run = self._runs.get(protocol.RunId(run_id))
+        if run is not None and translator is not run.translator:
+            run = None
+        if (
+            run is not None
+            and run.interrupt_requested
+            and translator.started
+            and not translator.completed
+        ):
+            # The cancellation arrived after the kernel started this run.
+            run.interrupt_requested = False
+            run.session.try_interrupt()
         if translator.completed:
-            run = self._runs.get(protocol.RunId(run_id))
-            if run is not None and translator is run.translator:
+            if run is not None:
                 run.done.set()
             else:
                 for out in translator.finish():
