@@ -12,7 +12,10 @@ from marimo._core import backend as be, protocol
 from marimo._core.code import code_fingerprint
 from marimo._messaging.cell_output import CellChannel
 from marimo._messaging.errors import (
+    ANCESTOR_RAISED,
     Error,
+    MarimoAncestorPreventedError,
+    MarimoAncestorStoppedError,
     MarimoExceptionRaisedError,
     MarimoInterruptionError,
     MarimoSyntaxError,
@@ -157,15 +160,18 @@ class RunTranslator:
     ) -> list[be.Message]:
         if execution.ended:
             return []
+        skips = [e for e in execution.errors if _skip_reason(e) is not None]
         exceptions = [
             e
             for e in execution.errors
-            if not isinstance(e, MarimoInterruptionError)
+            if not isinstance(e, MarimoInterruptionError) and e not in skips
         ]
         if error is not None:
             execution.outcome = protocol.ErrorOutcome(error)
         elif exceptions:
             execution.outcome = protocol.ErrorOutcome(_describe(exceptions[0]))
+        elif skips:
+            execution.outcome = _skipped(skips[0], execution.cell_id)
         elif interrupted or execution.errors:
             execution.outcome = protocol.InterruptedOutcome()
         execution.ended = True
@@ -259,6 +265,56 @@ def _plain(text: str) -> str:
     if not is_code_highlighting(text):
         return text
     return html.unescape(re.sub(r"<[^>]+>", "", text))
+
+
+def _skip_reason(error: Error) -> str | None:
+    """The reason a kernel error means the cell did not evaluate, if it does."""
+    if isinstance(error, MarimoAncestorStoppedError):
+        return "ancestor-stopped"
+    if isinstance(error, MarimoAncestorPreventedError):
+        return "ancestor-prevented"
+    if (
+        isinstance(error, MarimoExceptionRaisedError)
+        # A NameError blamed on another cell names that cell too, so the
+        # exception type is what tells a cancelled cell from one that ran.
+        and error.exception_type == ANCESTOR_RAISED
+    ):
+        return "ancestor-raised"
+    return None
+
+
+def _skipped(error: Error, cell_id: str) -> protocol.SkippedOutcome:
+    """Describe a cell that did not evaluate because of the cells it names.
+
+    The kernel's message ends where the editor appends a link to the cause,
+    so the trailing colon goes and the cause is named in `related`.
+    """
+    reason = _skip_reason(error)
+    assert reason is not None
+    involved: list[tuple[str, str]] = []
+    if isinstance(error, MarimoAncestorStoppedError):
+        involved.append((error.raising_cell, "Stopped with `mo.stop`"))
+    elif isinstance(error, MarimoAncestorPreventedError):
+        involved.append((error.raising_cell, "Could not resolve a reference"))
+        if error.blamed_cell is not None:
+            involved.append((error.blamed_cell, "Expected to define it"))
+    elif isinstance(error, MarimoExceptionRaisedError):
+        assert error.raising_cell is not None
+        involved.append((error.raising_cell, "Raised an exception"))
+    involved = [(cell, part) for cell, part in involved if cell != cell_id]
+    involved.append((cell_id, "Did not run"))
+    return protocol.SkippedOutcome(
+        reason=reason,
+        message=error.describe().rstrip(": "),
+        related=tuple(
+            protocol.Related(
+                cell_id=protocol.CellId(involved_cell),
+                range=None,
+                message=part,
+            )
+            for involved_cell, part in involved
+        ),
+    )
 
 
 def _describe(error: Error) -> protocol.Error:
