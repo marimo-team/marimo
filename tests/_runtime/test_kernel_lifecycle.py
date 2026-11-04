@@ -10,6 +10,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from marimo._runtime.commands import (
+    CancelRunCommand,
     CodeCompletionCommand,
     CommandMessage,
     ExecuteCellsCommand,
@@ -150,6 +151,58 @@ async def test_listen_messages_swallows_handle_message_exception_ui_branch(
     await listen_messages(kernel, control, ui, asyncio_queue_reader)
 
     assert kernel.handle_message.await_count == 2
+
+
+def _run(run_id: str) -> ExecuteCellsCommand:
+    return ExecuteCellsCommand(
+        cell_ids=[CellId_t("c1")], codes=["x = 1"], run_id=run_id
+    )
+
+
+async def test_listen_messages_cancels_a_run_still_in_the_queue(
+    kernel: Any,
+    control: asyncio.Queue[Any],
+    ui: asyncio.Queue[Any],
+) -> None:
+    """A cancellation enqueued while an earlier run executes takes the
+    place of the run it names, which the kernel never sees."""
+
+    async def arrive_during_first(request: Any) -> None:
+        if getattr(request, "run_id", None) == "first":
+            control.put_nowait(_run("second"))
+            control.put_nowait(_run("third"))
+            control.put_nowait(CancelRunCommand(run_id="second"))
+            control.put_nowait(StopKernelCommand())
+
+    kernel.handle_message.side_effect = arrive_during_first
+    control.put_nowait(_run("first"))
+
+    await listen_messages(kernel, control, ui, asyncio_queue_reader)
+
+    dispatched = [
+        call.args[0] for call in kernel.handle_message.await_args_list
+    ]
+    assert [type(r).__name__ for r in dispatched] == [
+        "ExecuteCellsCommand",
+        "CancelRunCommand",
+        "ExecuteCellsCommand",
+    ]
+    assert [r.run_id for r in dispatched] == ["first", "second", "third"]
+
+
+async def test_listen_messages_drops_a_cancellation_whose_run_already_left(
+    kernel: Any,
+    control: asyncio.Queue[Any],
+    ui: asyncio.Queue[Any],
+) -> None:
+    control.put_nowait(CancelRunCommand(run_id="gone"))
+    control.put_nowait(_run("later"))
+    control.put_nowait(StopKernelCommand())
+
+    await listen_messages(kernel, control, ui, asyncio_queue_reader)
+
+    assert kernel.handle_message.await_count == 1
+    assert kernel.handle_message.await_args.args[0].run_id == "later"
 
 
 async def test_listen_messages_exits_when_reader_raises(

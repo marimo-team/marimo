@@ -22,11 +22,12 @@ from marimo._messaging.notification import (
     StartupProgressNotification,
 )
 from marimo._messaging.serde import serialize_kernel_message
-from marimo._runtime.commands import ExecuteCellsCommand
+from marimo._runtime.commands import CancelRunCommand, ExecuteCellsCommand
 from marimo._runtime.scratch import SCRATCH_CELL_ID
 from marimo._server.host.backend import SessionBackend
 from marimo._server.scratchpad import scratchpad_request_metadata
 from marimo._session.types import KernelExitInfo, KernelState
+from marimo._types.ids import CellId_t
 from marimo._version import __version__
 from tests._server.host.conftest import (
     FakeManager,
@@ -191,6 +192,17 @@ async def test_interrupt_waits_for_the_kernel_result(
     session = manager.next_session
     b.run(protocol.RunId("run-1"), "while True: pass")
     await asyncio.wait_for(session.submitted.wait(), 5)
+    # The kernel has started the run, so the backend interrupts it rather
+    # than cancelling a queued command.
+    session.broadcast(
+        ExecutionNotification(
+            cell_id=SCRATCH_CELL_ID,
+            phase="planned",
+            execution_id="attempt",
+            code="while True: pass",
+            run_id="run-1",
+        )
+    )
     observed.messages.clear()
 
     b.interrupt(protocol.RunId("run-1"))
@@ -552,3 +564,52 @@ async def test_scratch_runs_take_the_scratchpad_in_order(
         protocol.RunId("run-2"), "succeeded"
     )
     assert b._runs == {}
+
+
+async def test_interrupting_a_queued_cell_run_cancels_it_in_the_kernel(
+    manager: FakeManager, observed: Observed
+) -> None:
+    b = backend(manager, observed)
+    session = manager.next_session
+    b.adopt(RT1, session)
+    observed.messages.clear()
+    document = Document([DocumentCell(protocol.CellId("a"), "x = 1")], {})
+
+    b.run_cells(protocol.RunId("run-1"), document, [protocol.CellId("a")])
+    b.interrupt(protocol.RunId("run-1"))
+
+    assert session.interrupts == 0
+    assert session.commands[-1] == CancelRunCommand(run_id="run-1")
+
+    session.broadcast(
+        CompletedRunNotification(run_id="run-1", outcome="interrupted")
+    )
+    await observed.wait_for(be.Done)
+    assert observed.messages == [
+        be.Done(protocol.RunId("run-1"), "interrupted")
+    ]
+    assert b._runs == {}
+
+
+async def test_interrupting_a_started_cell_run_interrupts_the_kernel(
+    manager: FakeManager, observed: Observed
+) -> None:
+    b = backend(manager, observed)
+    session = manager.next_session
+    b.adopt(RT1, session)
+    document = Document([DocumentCell(protocol.CellId("a"), "x = 1")], {})
+    b.run_cells(protocol.RunId("run-1"), document, [protocol.CellId("a")])
+    session.broadcast(
+        ExecutionNotification(
+            cell_id=CellId_t("a"),
+            phase="planned",
+            execution_id="e1",
+            code="x = 1",
+            run_id="run-1",
+        )
+    )
+
+    b.interrupt(protocol.RunId("run-1"))
+
+    assert session.interrupts == 1
+    assert not any(isinstance(c, CancelRunCommand) for c in session.commands)

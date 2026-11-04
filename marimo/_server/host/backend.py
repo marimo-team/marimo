@@ -23,6 +23,7 @@ from marimo._messaging.notification import (
 )
 from marimo._messaging.serde import deserialize_kernel_message
 from marimo._runtime.commands import (
+    CancelRunCommand,
     ExecuteCellsCommand,
     ExecuteScratchpadCommand,
     HTTPRequest,
@@ -325,10 +326,16 @@ class SessionBackend(SessionConsumer):
             return
         if run.done.is_set():
             return
-        if run.submitted:
+        if not run.submitted:
+            if run.task is not None:
+                run.task.cancel()
+        elif run.translator.started:
             run.session.try_interrupt()
-        elif run.task is not None:
-            run.task.cancel()
+        else:
+            # The kernel discards a queued run when its command arrives.
+            run.session.put_control_request(
+                CancelRunCommand(run_id=run_id), from_consumer_id=None
+            )
 
     def forget(self, run_id: protocol.RunId) -> None:
         self._translators.pop(run_id, None)

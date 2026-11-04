@@ -428,8 +428,9 @@ MUST execute one run at a time, accept further requests as `queued` runs, and
 start them in the order they were accepted. A run's requested cells and their
 source are fixed when it is accepted. Editing continues while runs are queued
 or running, and a result from source the document no longer has is outdated.
-Hosts MUST support interruption. Completion means the work has finished,
-including any interruption that was requested.
+Hosts MUST support interruption, and interrupting a run that has not started
+cancels it. Completion means the work has finished, including any interruption
+that was requested.
 
 ### Answering input
 
