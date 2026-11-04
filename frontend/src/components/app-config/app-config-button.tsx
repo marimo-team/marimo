@@ -1,7 +1,8 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { useAtom } from "jotai";
-import { SettingsIcon } from "lucide-react";
+import { ArrowRightIcon, SettingsIcon } from "lucide-react";
+import { useState } from "react";
 import { AppConfigForm } from "@/components/app-config/app-config-form";
 import {
   Popover,
@@ -32,6 +33,7 @@ export const ConfigButton: React.FC<Props> = ({
   tooltip = "Settings",
 }) => {
   const [settingDialog, setSettingDialog] = useAtom(settingDialogAtom);
+  const [popoverOpen, setPopoverOpen] = useState(false);
 
   const button = (
     <EditorButton
@@ -71,26 +73,35 @@ export const ConfigButton: React.FC<Props> = ({
 
   return (
     <>
-      <Popover>
+      <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
         <PopoverTrigger asChild={true}>{button}</PopoverTrigger>
         <PopoverContent
-          className="w-[650px] overflow-auto max-h-[80vh] max-w-[80vw]"
+          className="flex w-[440px] max-w-[calc(100vw-2rem)] max-h-[80vh] flex-col overflow-hidden p-0 font-prose"
           align="end"
           side="bottom"
           // prevent focus outside to hack around a bug in which
           // interacting with buttons closes the popover ...
           onFocusOutside={(evt) => evt.preventDefault()}
         >
-          <AppConfigForm />
-          <div className="h-px bg-border my-2" />
-          <Button
-            onClick={() => setSettingDialog(true)}
-            variant="link"
-            className="px-0"
-          >
-            <SettingsIcon strokeWidth={1.8} className="w-4 h-4 mr-2" />
-            User settings
-          </Button>
+          <div className="shrink-0 border-b p-1.5">
+            <Button
+              onClick={() => {
+                setPopoverOpen(false);
+                setSettingDialog(true);
+              }}
+              variant="ghost"
+              className="h-auto w-full justify-between gap-3 px-2.5 py-2 text-left"
+            >
+              <span className="font-semibold">User settings</span>
+              <span className="ml-auto text-xs font-normal text-muted-foreground">
+                For all notebooks
+              </span>
+              <ArrowRightIcon className="h-4 w-4 shrink-0 text-muted-foreground" />
+            </Button>
+          </div>
+          <div className="min-h-0 overflow-y-auto p-4">
+            <AppConfigForm />
+          </div>
         </PopoverContent>
       </Popover>
       <Dialog open={settingDialog} onOpenChange={setSettingDialog}>

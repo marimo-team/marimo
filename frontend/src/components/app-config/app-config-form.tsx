@@ -24,15 +24,14 @@ import {
 } from "../../core/config/config-schema";
 import { Checkbox } from "../ui/checkbox";
 import { Input } from "../ui/input";
-import { Kbd } from "../ui/kbd";
 import { ExternalLink } from "../ui/links";
 import { NativeSelect } from "../ui/native-select";
 import { toast } from "../ui/use-toast";
-import {
-  SettingDescription,
-  SettingTitle,
-  SQL_OUTPUT_SELECT_OPTIONS,
-} from "./common";
+import { SQL_OUTPUT_SELECT_OPTIONS } from "./common";
+
+const fieldClasses =
+  "gap-1 rounded-md hover:bg-muted/50 focus-within:bg-muted/50 hover:ring-8 hover:ring-muted/50 focus-within:ring-8 focus-within:ring-muted/50 [&_input]:mt-1";
+const labelClasses = "font-semibold text-muted-foreground";
 
 const FORM_DEBOUNCE = 100; // ms;
 
@@ -69,249 +68,214 @@ export const AppConfigForm: React.FC = () => {
     <Form {...form}>
       <form
         onChange={form.handleSubmit(debouncedSubmit)}
-        className="flex flex-col gap-6"
+        className="flex flex-col gap-3"
       >
-        <div>
-          <SettingTitle>Notebook Settings</SettingTitle>
-          <SettingDescription>
-            Configure how your notebook or application looks and behaves.
-          </SettingDescription>
+        <div className="space-y-1">
+          <h2 className="text-base font-semibold">Notebook settings</h2>
+          <p className="text-sm text-muted-foreground">
+            These settings apply to this notebook only.
+          </p>
         </div>
 
-        <div className="grid grid-cols-2 gap-x-8 gap-y-4">
-          <SettingSection title="Display">
-            <FormField
-              control={form.control}
-              name="width"
-              render={({ field }) => (
-                <FormItem
-                  className={"flex flex-row items-center space-x-1 space-y-0"}
-                >
-                  <FormLabel>Width</FormLabel>
-                  <FormControl>
-                    <NativeSelect
-                      data-testid="app-width-select"
-                      onChange={(e) => field.onChange(e.target.value)}
-                      value={field.value}
-                      disabled={field.disabled}
-                      className="inline-flex mr-2"
-                    >
-                      {getAppWidths().map((option) => (
-                        <option value={option} key={option}>
-                          {option}
-                        </option>
-                      ))}
-                    </NativeSelect>
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="app_title"
-              render={({ field }) => (
-                <div className="flex flex-col gap-y-1">
-                  <FormItem className="flex flex-row items-center space-x-1 space-y-0">
-                    <FormLabel>App title</FormLabel>
-                    <FormControl>
-                      <Input
-                        {...field}
-                        value={field.value ?? ""}
-                        onChange={(e) => {
-                          field.onChange(e.target.value);
-                          if (
-                            AppTitleSchema.safeParse(e.target.value).success
-                          ) {
-                            document.title = e.target.value;
-                          }
-                        }}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                  <FormDescription>
-                    The application title is put in the title tag in the HTML
-                    code and typically displayed in the title bar of the browser
-                    window.
-                  </FormDescription>
-                </div>
-              )}
-            />
-          </SettingSection>
-
-          <SettingSection title="Custom Files">
-            <FormField
-              control={form.control}
-              name="css_file"
-              render={({ field }) => (
-                <div className="flex flex-col gap-y-1">
-                  <FormItem className="flex flex-row items-center space-x-1 space-y-0">
-                    <FormLabel className="shrink-0">Custom CSS</FormLabel>
-                    <FormControl>
-                      <Input
-                        {...field}
-                        value={field.value ?? ""}
-                        placeholder="custom.css"
-                        onChange={(e) => {
-                          field.onChange(e.target.value);
-                          if (
-                            AppTitleSchema.safeParse(e.target.value).success
-                          ) {
-                            document.title = e.target.value;
-                          }
-                        }}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                  <FormDescription>
-                    A filepath to a custom css file to be injected into the
-                    notebook.
-                  </FormDescription>
-                </div>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="html_head_file"
-              render={({ field }) => (
-                <div className="flex flex-col gap-y-1">
-                  <FormItem className="flex flex-row items-center space-x-1 space-y-0">
-                    <FormLabel className="shrink-0">HTML Head</FormLabel>
-                    <FormControl>
-                      <Input
-                        {...field}
-                        value={field.value ?? ""}
-                        placeholder="head.html"
-                        onChange={(e) => {
-                          field.onChange(e.target.value);
-                        }}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                  <FormDescription>
-                    A filepath to an HTML file to be injected into the{" "}
-                    <Kbd className="inline">{"<head/>"}</Kbd> section of the
-                    notebook. Use this to add analytics, custom fonts, meta
-                    tags, or external scripts.
-                  </FormDescription>
-                </div>
-              )}
-            />
-          </SettingSection>
-
-          <SettingSection title="Data">
-            <FormField
-              control={form.control}
-              name="sql_output"
-              render={({ field }) => (
-                <div className="flex flex-col gap-y-1">
-                  <FormItem
-                    className={"flex flex-row items-center space-x-1 space-y-0"}
+        <div className="flex flex-col gap-4">
+          <FormField
+            control={form.control}
+            name="width"
+            render={({ field }) => (
+              <FormItem className={fieldClasses}>
+                <FormLabel className={labelClasses}>Width</FormLabel>
+                <FormControl>
+                  <NativeSelect
+                    data-testid="app-width-select"
+                    onChange={(e) => field.onChange(e.target.value)}
+                    value={field.value}
+                    disabled={field.disabled}
+                    className="mt-1 mb-0 h-7 min-w-32"
                   >
-                    <FormLabel>SQL Output Type</FormLabel>
-                    <FormControl>
-                      <NativeSelect
-                        data-testid="sql-output-select"
-                        onChange={(e) => {
-                          field.onChange(e.target.value);
-                          toast({
-                            title: "Kernel Restart Required",
-                            description:
-                              "This change requires a kernel restart to take effect.",
-                          });
-                        }}
-                        value={field.value}
-                        disabled={field.disabled}
-                        className="inline-flex mr-2"
-                      >
-                        {SQL_OUTPUT_SELECT_OPTIONS.map((option) => (
-                          <option value={option.value} key={option.value}>
-                            {option.label}
-                          </option>
-                        ))}
-                      </NativeSelect>
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                  <FormDescription>
-                    The Python type returned by a SQL cell. For best performance
-                    with large datasets, we recommend using{" "}
-                    <Kbd className="inline">native</Kbd>. See the{" "}
-                    <ExternalLink href="https://docs.marimo.io/guides/working_with_data/sql">
-                      SQL guide
-                    </ExternalLink>{" "}
-                    for more information.
-                  </FormDescription>
-                </div>
-              )}
-            />
-          </SettingSection>
+                    {getAppWidths().map((option) => (
+                      <option value={option} key={option}>
+                        {option}
+                      </option>
+                    ))}
+                  </NativeSelect>
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="app_title"
+            render={({ field }) => (
+              <FormItem className={fieldClasses}>
+                <FormLabel className={labelClasses}>App title</FormLabel>
+                <FormDescription>
+                  The title shown in the browser tab.
+                </FormDescription>
+                <FormControl>
+                  <Input
+                    {...field}
+                    value={field.value ?? ""}
+                    onChange={(e) => {
+                      field.onChange(e.target.value);
+                      if (AppTitleSchema.safeParse(e.target.value).success) {
+                        document.title = e.target.value;
+                      }
+                    }}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
 
-          <SettingSection title="Exporting outputs">
-            <FormField
-              control={form.control}
-              name="auto_download"
-              render={({ field }) => (
-                <div className="flex flex-col gap-y-1">
-                  <FormItem className="flex flex-col gap-2">
-                    <FormControl>
-                      <div className="flex gap-4">
-                        <div className="flex items-center space-x-2">
-                          <Checkbox
-                            id={htmlCheckboxId}
-                            data-testid="html-checkbox"
-                            checked={field.value.includes("html")}
-                            onCheckedChange={() => {
-                              field.onChange(arrayToggle(field.value, "html"));
-                            }}
-                          />
-                          <FormLabel htmlFor={htmlCheckboxId}>HTML</FormLabel>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <Checkbox
-                            id={ipynbCheckboxId}
-                            data-testid="ipynb-checkbox"
-                            checked={field.value.includes("ipynb")}
-                            onCheckedChange={() => {
-                              field.onChange(arrayToggle(field.value, "ipynb"));
-                            }}
-                          />
-                          <FormLabel htmlFor={ipynbCheckboxId}>IPYNB</FormLabel>
-                        </div>
-                      </div>
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                  <FormDescription>
-                    When enabled, marimo will periodically save this notebook in
-                    your selected formats (HTML, IPYNB) to a folder named{" "}
-                    <Kbd className="inline">__marimo__</Kbd> next to your
-                    notebook file.
-                  </FormDescription>
-                </div>
-              )}
-            />
-          </SettingSection>
+          <FormField
+            control={form.control}
+            name="sql_output"
+            render={({ field }) => (
+              <FormItem className={fieldClasses}>
+                <FormLabel className={labelClasses}>SQL output type</FormLabel>
+                <FormDescription>
+                  The Python type returned by SQL cells. Use <code>native</code>{" "}
+                  for large datasets. See the{" "}
+                  <ExternalLink href="https://docs.marimo.io/guides/working_with_data/sql">
+                    SQL guide
+                  </ExternalLink>
+                  .
+                </FormDescription>
+                <FormControl>
+                  <NativeSelect
+                    data-testid="sql-output-select"
+                    onChange={(e) => {
+                      field.onChange(e.target.value);
+                      toast({
+                        title: "Kernel Restart Required",
+                        description:
+                          "This change requires a kernel restart to take effect.",
+                      });
+                    }}
+                    value={field.value}
+                    disabled={field.disabled}
+                    className="mt-1 mb-0 h-7 min-w-32"
+                  >
+                    {SQL_OUTPUT_SELECT_OPTIONS.map((option) => (
+                      <option value={option.value} key={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </NativeSelect>
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="auto_download"
+            render={({ field }) => (
+              <FormItem className={fieldClasses}>
+                <span className="text-sm font-semibold text-muted-foreground">
+                  Save cell outputs
+                </span>
+                <FormDescription>
+                  Automatically save cell outputs as HTML or IPYNB in a{" "}
+                  <code>__marimo__</code> folder next to this notebook.
+                </FormDescription>
+                <FormControl>
+                  <div className="mt-1 flex gap-4">
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id={htmlCheckboxId}
+                        data-testid="html-checkbox"
+                        checked={field.value.includes("html")}
+                        onCheckedChange={() => {
+                          field.onChange(arrayToggle(field.value, "html"));
+                        }}
+                      />
+                      <FormLabel
+                        className={labelClasses}
+                        htmlFor={htmlCheckboxId}
+                      >
+                        HTML
+                      </FormLabel>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id={ipynbCheckboxId}
+                        data-testid="ipynb-checkbox"
+                        checked={field.value.includes("ipynb")}
+                        onCheckedChange={() => {
+                          field.onChange(arrayToggle(field.value, "ipynb"));
+                        }}
+                      />
+                      <FormLabel
+                        className={labelClasses}
+                        htmlFor={ipynbCheckboxId}
+                      >
+                        IPYNB
+                      </FormLabel>
+                    </div>
+                  </div>
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <div className="border-t" />
+          <FormField
+            control={form.control}
+            name="css_file"
+            render={({ field }) => (
+              <FormItem className={fieldClasses}>
+                <FormLabel className={labelClasses}>Custom CSS</FormLabel>
+                <FormDescription>
+                  Path to a CSS file for styling this notebook.
+                </FormDescription>
+                <FormControl>
+                  <Input
+                    {...field}
+                    value={field.value ?? ""}
+                    placeholder="custom.css"
+                    onChange={(e) => {
+                      field.onChange(e.target.value);
+                      if (AppTitleSchema.safeParse(e.target.value).success) {
+                        document.title = e.target.value;
+                      }
+                    }}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="html_head_file"
+            render={({ field }) => (
+              <FormItem className={fieldClasses}>
+                <FormLabel className={labelClasses}>HTML head</FormLabel>
+                <FormDescription>
+                  Path to HTML to add to the notebook’s{" "}
+                  <code>&lt;head&gt;</code>.
+                </FormDescription>
+                <FormControl>
+                  <Input
+                    {...field}
+                    value={field.value ?? ""}
+                    placeholder="head.html"
+                    onChange={(e) => {
+                      field.onChange(e.target.value);
+                    }}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
         </div>
       </form>
     </Form>
-  );
-};
-
-const SettingSection = ({
-  title,
-  children,
-}: {
-  title: string;
-  children: React.ReactNode;
-}) => {
-  return (
-    <div className="flex flex-col gap-y-2">
-      <h3 className="text-base font-semibold mb-1">{title}</h3>
-      {children}
-    </div>
   );
 };
