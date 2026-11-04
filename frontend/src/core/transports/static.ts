@@ -144,10 +144,12 @@ export function createStaticNotebookBackend(
         }
       }),
     notebook: () => {
-      const unsupported: NotebookClient["save"] = async (options) => {
+      const unsupported = async (
+        options: Parameters<NotebookClient["save"]>[0],
+      ) => {
         options?.signal?.throwIfAborted();
         return {
-          ok: false,
+          ok: false as const,
           status: 501,
           problem: {
             type: "tag:marimo.io,2026:host/unsupported-operation",
@@ -160,6 +162,7 @@ export function createStaticNotebookBackend(
       return {
         edit: (_changes, options) => unsupported(options),
         save: unsupported,
+        updateUIElement: (_id, _state, options) => unsupported(options),
       };
     },
   };
