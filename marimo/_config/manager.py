@@ -672,7 +672,7 @@ class UserConfigStore(ConfigReader):
 
         config_path = self.get_config_path()
         try:
-            existing_config = self._load_config(raise_on_error=True)
+            existing_config = self._load_config(config_path)
         except (OSError, ValueError) as e:
             raise ValueError(
                 f"Cannot save configuration to {config_path}: "
@@ -706,55 +706,44 @@ class UserConfigStore(ConfigReader):
 
     def read(self) -> PartialMarimoConfig:
         """Read explicit user settings without applying defaults or masking."""
-        return cast(PartialMarimoConfig, deep_copy(self._load_config()))
+        try:
+            path = self.get_config_path()
+        except OSError as e:
+            LOGGER.warning(
+                "Encountered error when searching for config: %s", e
+            )
+            return {}
+
+        try:
+            return cast(
+                PartialMarimoConfig, deep_copy(self._load_config(path))
+            )
+        except Exception as e:
+            LOGGER.error(
+                'Could not load configuration from %s: "%s"\n'
+                "Settings from this file were skipped; other configuration sources still apply.",
+                path,
+                e,
+                extra={"omit_log_prefix": True},
+            )
+            return {}
 
     def get_config_path(self) -> str:
         return get_or_create_user_config_path()
 
-    def _load_config(
-        self, *, raise_on_error: bool = False
-    ) -> PartialMarimoConfig:
-        """
-        Load configuration, taking into account user config file, if any.
-        """
+    def _load_config(self, path: str) -> PartialMarimoConfig:
+        """Read and sanitize a file, returning empty settings only if it is missing."""
+        LOGGER.debug("Using config at %s", path)
         try:
-            path = self.get_config_path()
-        except OSError as e:
-            if raise_on_error:
-                raise
-            path = None
-            LOGGER.warning(
-                "Encountered error when searching for config: %s", e
+            user_config = read_marimo_config(path)
+        except FileNotFoundError:
+            return {}
+        if not is_trusted_user_config_path(path):
+            # Workspace configuration cannot establish cache-signing trust.
+            user_config = strip_untrusted_config(
+                user_config, is_user_layer=True
             )
-
-        if path is not None:
-            LOGGER.debug("Using config at %s", path)
-            try:
-                user_config = read_marimo_config(path)
-            except Exception as e:
-                if raise_on_error:
-                    if isinstance(e, FileNotFoundError):
-                        return {}
-                    raise
-                LOGGER.error(
-                    'Could not load configuration from %s: "%s"\n'
-                    "Settings from this file were skipped; other configuration sources still apply.",
-                    path,
-                    e,
-                    extra={"omit_log_prefix": True},
-                )
-                return {}
-            if not is_trusted_user_config_path(path):
-                # A `.marimo.toml` discovered by walking up from the cwd is
-                # project-origin, not user-owned. Strip its cache-trust keys
-                # like any other untrusted layer.
-                user_config = strip_untrusted_config(
-                    user_config, is_user_layer=True
-                )
-            return user_config
-        else:
-            LOGGER.debug("No config found; loading default settings.")
-        return {}
+        return user_config
 
 
 class OverrideConfigReader(ConfigReader):
