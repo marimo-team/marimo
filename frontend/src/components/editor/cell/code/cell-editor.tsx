@@ -14,7 +14,10 @@ import {
   takeRestoredEditorStateAtom,
   useRestoredEditorState,
 } from "@/core/cells/editor";
-import { useNotebookDocumentEdit } from "@/core/notebook/document";
+import {
+  useNotebookCellCodeExtension,
+  useNotebookDocumentEdit,
+} from "@/core/notebook/document";
 import { usePendingDeleteService } from "@/core/cells/pending-delete-service";
 import type { CellData, CellRuntimeState } from "@/core/cells/types";
 import { setupCodeMirror } from "@/core/codemirror/cm";
@@ -118,6 +121,7 @@ const CellEditorInternal = ({
   const { saveOrNameNotebook } = useSaveNotebook();
   const pendingDeleteService = usePendingDeleteService();
   const edit = useNotebookDocumentEdit();
+  const codeBinding = useNotebookCellCodeExtension(cellId);
 
   const loading = status === "running" || status === "queued";
   const cellActions = useCellActions();
@@ -239,6 +243,7 @@ const CellEditorInternal = ({
     });
 
     extensions.push(
+      codeBinding,
       ...(extraExtensions ?? []),
       // Listen to code changes if we can use markdown
       // Also update the language adapter
@@ -279,6 +284,7 @@ const CellEditorInternal = ({
     return extensions;
   }, [
     cellId,
+    codeBinding,
     extraExtensions,
     acceptCompletionOnEnter,
     userConfig.keymap,
