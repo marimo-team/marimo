@@ -150,6 +150,10 @@ def tuple_arrays(source: bytes) -> bytes:
 
 def regeneration_command(document: dict[str, Any]) -> str:
     features = document.get("x-marimo-experimental", [])
+    if document.get("x-marimo-source") == "@marimo-team/host":
+        return "pnpm --dir packages/host codegen:python" + (
+            " --include-experimental" if features else ""
+        )
     command = "uv run --no-config --locked --script protocols/host/generate.py"
     return command + (
         f" --include-experimental={','.join(features)}" if features else ""
@@ -220,6 +224,7 @@ def event_adapters(
         removals=removed,
         command=regeneration_command(document),
         features=document.get("x-marimo-experimental", []),
+        source=document.get("x-marimo-source", "protocols/host/openapi.yaml"),
         relative_import=relative_import,
     )
 
@@ -281,7 +286,7 @@ def generate_models(document: dict[str, Any], output_path: Path) -> None:
         custom_file_header=(
             "# Copyright 2026 Marimo. All rights reserved.\n"
             "# AUTO-GENERATED FILE — DO NOT EDIT.\n"
-            "# Generated from protocols/host/openapi.yaml.\n"
+            f"# Generated from {document.get('x-marimo-source', 'protocols/host/openapi.yaml')}.\n"
             + experimental_header
             + f"# Regenerate with `{regeneration_command(document)}`.\n"
             "# ruff: noqa: TC003 - msgspec resolves annotations at runtime\n"
@@ -310,10 +315,23 @@ def main() -> None:
         help="Include all experimental features, or a comma-separated selection",
     )
     parser.add_argument("--output-dir", type=Path)
+    parser.add_argument(
+        "--input",
+        type=Path,
+        help="Generate from a composed OpenAPI JSON document instead of the YAML contract",
+    )
     args = parser.parse_args()
     default_destination = ROOT.parents[1] / "marimo" / "_core"
     destination = args.output_dir or default_destination
-    document = compose(args.include_experimental)
+    if args.input is not None and args.include_experimental is not None:
+        parser.error(
+            "--input is already composed; select experimental features when exporting it"
+        )
+    document = (
+        json.loads(args.input.read_text())
+        if args.input is not None
+        else compose(args.include_experimental)
+    )
     if args.schema:
         sys.stdout.write(json.dumps(document) + "\n")
         return
