@@ -223,12 +223,14 @@ describe("NotebookReplica lifetime", () => {
     const snapshot = fixtureMessages("notebook-events.sse");
     snapshot.slice(0, -3).forEach(attempt.receive);
     expect(store.get(client.documentAtom)).toBeNull();
+    expect(store.get(client.runtimeAtom)).toBeNull();
     snapshot.slice(-3).forEach(attempt.receive);
     expect(store.get(client.documentAtom)?.revision.order).toEqual([
       "c1",
       "c3",
       "k7f2",
     ]);
+    expect(store.get(client.runtimeAtom)?.id).toBe("r1");
     attempt.drop();
     await backoff();
     expect(store.get(client.documentAtom)?.revision.order).toEqual([
@@ -236,6 +238,7 @@ describe("NotebookReplica lifetime", () => {
       "c3",
       "k7f2",
     ]);
+    expect(store.get(client.runtimeAtom)).toBeNull();
     current.abort();
     expect(store.get(client.documentAtom)).toBeNull();
   });

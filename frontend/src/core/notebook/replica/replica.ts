@@ -9,7 +9,11 @@ import {
   NotebookEvents,
   StreamStopped,
 } from "@marimo-team/client";
-import type { Attachment, NotebookOutput } from "@marimo-team/client/protocol";
+import type {
+  Attachment,
+  NotebookOutput,
+  Runtime,
+} from "@marimo-team/client/protocol";
 import { type Atom, atom, type createStore } from "jotai/vanilla";
 import { z } from "zod";
 import type { NotebookBackend } from "./backend";
@@ -20,9 +24,17 @@ import {
 } from "./connection";
 import { attachments } from "./resources/attachments";
 import { type Document, document } from "./resources/document";
+import { runtime } from "./resources/runtime";
 
 /** The kinds the editor reads, with marimo's own notifications. */
-const TYPES = ["notebook", "cell", "document", "attachment", "marimo"] as const;
+const TYPES = [
+  "notebook",
+  "cell",
+  "document",
+  "attachment",
+  "runtime",
+  "marimo",
+] as const;
 
 type EditorEvent = NotebookEvent<(typeof TYPES)[number]>;
 
@@ -52,6 +64,8 @@ export interface NotebookReplica {
   readonly backendAtom: Atom<NotebookBackend | null>;
   /** Live attachments, empty until the stream is ready or while disconnected. */
   readonly attachmentsAtom: Atom<readonly Attachment[]>;
+  /** The notebook's runtime, null while it has none or the stream is not ready. */
+  readonly runtimeAtom: Atom<Runtime | null>;
   /**
    * Follow a backend, replacing any current connection.
    *
@@ -110,7 +124,7 @@ export function createNotebookReplica(
     state: ConnectionState.NOT_STARTED,
   });
   // One atom holds the whole stream, which resource atoms derive from.
-  const reducer = createNotebookReducer({ document, attachments });
+  const reducer = createNotebookReducer({ document, attachments, runtime });
   const streamAtom = atom(reducer.initial);
   // A resumed stream is live, but presence waits for this connection's ready.
   const readyAtom = atom(false);
@@ -128,6 +142,9 @@ export function createNotebookReplica(
     get(presentAtom)
       ? get(streamAtom).resources.attachments
       : attachments.initial,
+  );
+  const runtimeAtom = atom((get) =>
+    get(presentAtom) ? get(streamAtom).resources.runtime : null,
   );
   const backendAtom = atom<NotebookBackend | null>(null);
   /** The connection this replica follows. Connecting again ends it. */
@@ -150,6 +167,7 @@ export function createNotebookReplica(
     documentAtom,
     backendAtom,
     attachmentsAtom,
+    runtimeAtom,
     connect,
     reconnect: async () => current?.reconnect(),
   };
