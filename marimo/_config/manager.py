@@ -671,6 +671,15 @@ class UserConfigStore(ConfigReader):
         import tomlkit
 
         config_path = self.get_config_path()
+        if os.path.exists(config_path):
+            try:
+                read_marimo_config(config_path)
+            except (OSError, ValueError) as e:
+                raise ValueError(
+                    f"Cannot save configuration to {config_path}: "
+                    f'the existing file could not be read: "{e}". '
+                    "Fix the file before saving settings. The file was not changed."
+                ) from e
         LOGGER.info("Saving user configuration to %s", config_path)
         # Remove the secret placeholders from the incoming config
         config = remove_secret_placeholders(config)

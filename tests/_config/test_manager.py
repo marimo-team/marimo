@@ -54,6 +54,54 @@ def test_save_config(mock_dump: Any) -> None:
     assert mock_dump.mock_calls[0][1][0] == mock_config
 
 
+@pytest.mark.parametrize(
+    "invalid_toml",
+    ['[keymap]\npreset = "default"\n', "[display\n"],
+)
+def test_save_config_preserves_unparseable_file(
+    tmp_path: Path, invalid_toml: str
+) -> None:
+    config_path = tmp_path / "marimo.toml"
+    original = (
+        '[keymap]\npreset = "vim"\n'
+        '[ai]\nrules = "prefer polars"\n' + invalid_toml
+    ).encode()
+    config_path.write_bytes(original)
+    store = UserConfigStore()
+
+    with patch.object(store, "get_config_path", return_value=str(config_path)):
+        # Reads remain tolerant, but saving must not turn the fallback into a write.
+        assert store.read() == {}
+        with pytest.raises(
+            ValueError, match="Fix the file before saving"
+        ) as exc:
+            store.save_config({"display": {"theme": "dark"}})
+
+    assert str(config_path) in str(exc.value)
+    assert exc.value.__cause__ is not None
+    assert str(exc.value.__cause__) in str(exc.value)
+    assert config_path.read_bytes() == original
+
+
+def test_save_config_preserves_existing_settings(tmp_path: Path) -> None:
+    from marimo._utils.toml import toml_reader
+
+    config_path = tmp_path / "marimo.toml"
+    config_path.write_text(
+        '[keymap]\npreset = "vim"\n[ai]\nrules = "prefer polars"\n'
+    )
+    store = UserConfigStore()
+    with patch.object(store, "get_config_path", return_value=str(config_path)):
+        store.save_config({"display": {"theme": "dark"}})
+
+    config = toml_reader.read(config_path)
+    assert (
+        config["keymap"]["preset"],
+        config["ai"]["rules"],
+        config["display"]["theme"],
+    ) == ("vim", "prefer polars", "dark")
+
+
 @restore_config
 def test_save_config_is_deterministic(tmp_path: Path) -> None:
     """Two configs with identical content but different dict insertion
