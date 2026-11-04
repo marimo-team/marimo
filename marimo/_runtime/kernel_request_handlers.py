@@ -167,7 +167,12 @@ class KernelRequestHandlers:
     async def _handle_cancel_run(self, request: CancelRunCommand) -> None:
         """End a run the control loop cancelled before it executed."""
         with self._run_context(request.run_id):
-            self._interrupt_cycle()
+            cycle = _COMMAND_CYCLE.get()
+            assert cycle is not None
+            # Issued from inside another command, as code mode can, the
+            # cancellation names a run that is not this cycle.
+            if cycle.run_id == request.run_id:
+                self._interrupt_cycle()
 
     async def _handle_delete_cell(self, request: DeleteCellCommand) -> None:
         with self._run_context():
