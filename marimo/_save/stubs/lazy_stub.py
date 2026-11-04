@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING, Any
 import msgspec
 
 from marimo._dependencies.dependencies import DependencyManager
+from marimo._save.cache_dirs import BLOB_SUFFIXES
 from marimo._save.stores import get_store
 from marimo._save.stubs.stubs import CustomStub
 
@@ -298,6 +299,8 @@ BLOB_SERIALIZERS: dict[str, Callable[[Any], bytes]] = {
     "pt": _pt_dump,
     "bin": _bin_dump,
 }
+# The CLI recognizes blobs by suffix alone, so the two tables must agree.
+assert BLOB_SERIALIZERS.keys() == BLOB_SUFFIXES
 
 # ---------------------------------------------------------------------------
 # Stubs for deferred / immediate blob loading

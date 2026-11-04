@@ -68,6 +68,11 @@ _DIGEST = re.compile(rf"[A-Za-z0-9_-]{{{_shortest_digest_chars()},}}")
 PARTIAL_WRITE_INFIX = ".tmp"
 _PARTIAL_WRITE_TAG = re.compile(r"[0-9a-f]{8}")
 
+# A value split over a directory of blobs writes each blob with the suffix
+# of the serializer that produced it. The CLI recognizes such a directory
+# by these suffixes without importing the serializers.
+BLOB_SUFFIXES = frozenset({"pickle", "npy", "arrow", "pt", "bin"})
+
 # Statuses that still describe a marimo notebook, unlike "empty" and
 # "invalid".
 _NOTEBOOK_STATUSES = frozenset({"valid", "has_warnings", "has_errors"})
@@ -263,11 +268,7 @@ def delete_blocks(
         if _children(block):
             LOGGER.warning("Kept %s: files remain in it.", block)
             continue
-        try:
-            block.rmdir()
-        except OSError as e:
-            LOGGER.warning("Could not remove %s: %s", block, e)
-            freed += CacheDirStats(failures=1)
+        freed += _remove_empty_block(block)
     return freed
 
 
@@ -281,6 +282,180 @@ def clean_cache_dir(
     return delete_blocks(
         cache_dir, select_blocks(cache_dir, names), dry_run=dry_run
     )
+
+
+def remove_empty_blocks(
+    cache_dir: Path, blocks: Collection[str]
+) -> CacheDirStats:
+    """Remove the block directories named that hold nothing any more.
+
+    A directory that cannot be removed counts as a failure.
+    """
+    freed = CacheDirStats()
+    for block in blocks:
+        if block and block == block_dir_name(block):
+            freed += _remove_empty_block(cache_dir / block)
+    return freed
+
+
+def _remove_empty_block(block: Path) -> CacheDirStats:
+    try:
+        if not _is_directory(block) or _list(block):
+            return CacheDirStats()
+    except OSError:
+        # The listing that failed before this point was counted already.
+        return CacheDirStats()
+    try:
+        block.rmdir()
+    except OSError as e:
+        LOGGER.warning("Could not remove %s: %s", block, e)
+        return CacheDirStats(failures=1)
+    return CacheDirStats()
+
+
+def cache_entry_keys(cache_dir: Path) -> set[tuple[str, str]]:
+    """Return the `(block, key)` entries `cache_dir` holds.
+
+    A key is the name of an entry file without its suffix, as in `C_ab12`,
+    and a manifest records the entry by that key. Entries at the cache root
+    sit under the blank block name.
+    """
+    if not cache_dir.is_dir():
+        return set()
+    blocks = [cache_dir] + [
+        child for child in _children(cache_dir) if _is_directory(child)
+    ]
+    keys: set[tuple[str, str]] = set()
+    for block in blocks:
+        try:
+            found = _entry_keys(block)
+        except OSError as e:
+            LOGGER.warning("Could not list %s: %s", block, e)
+            continue
+        name = "" if block == cache_dir else block.name
+        keys.update((name, key) for key in found)
+    return keys
+
+
+def orphan_blob_dirs(
+    cache_dir: Path, *, root: bool = False
+) -> dict[str, frozenset[str] | None]:
+    """Return the directories of blobs in each block that no marker reads.
+
+    A reader reaches blobs only through the lazy marker that names their
+    hash. A kernel killed mid-write, or a marker removed on its own, leaves
+    a directory without one, and no reader can use its bytes. With `root`,
+    the cache root is searched too, and its directories are listed under
+    the blank block name. A block that cannot be listed maps to `None`.
+    """
+    if not cache_dir.is_dir():
+        return {}
+    blocks = [child for child in _children(cache_dir) if _is_directory(child)]
+    if root:
+        blocks.append(cache_dir)
+    orphans: dict[str, frozenset[str] | None] = {}
+    for block in blocks:
+        name = "" if block == cache_dir else block.name
+        try:
+            index = _index_block(block)
+        except OSError as e:
+            LOGGER.warning("Could not list %s: %s", block, e)
+            orphans[name] = None
+            continue
+        found = frozenset(
+            child
+            for child in index.dir_names
+            if _is_orphan_blob_dir(block / child, index)
+        )
+        if found:
+            orphans[name] = found
+    return orphans
+
+
+def delete_blob_dirs(
+    cache_dir: Path,
+    selection: Mapping[str, Collection[str] | None],
+    *,
+    dry_run: bool = False,
+) -> CacheDirStats:
+    """Delete the directories of blobs that `selection` names in each block.
+
+    Each directory is checked again before deletion, because a marker that
+    was written since the plan keeps it. A block that maps to `None` or
+    cannot be listed, and a directory that stays, count as failures. With
+    `dry_run`, only report what deleting would free.
+    """
+    freed = CacheDirStats()
+    for block, hashes in selection.items():
+        if hashes is None:
+            freed += CacheDirStats(failures=1)
+            continue
+        if block != block_dir_name(block):
+            LOGGER.warning(
+                "Not deleting %s: no block can be named that.", block
+            )
+            continue
+        block_dir = cache_dir / block
+        if not _is_directory(block_dir):
+            continue
+        try:
+            index = _index_block(block_dir)
+        except OSError as e:
+            LOGGER.warning("Could not list %s: %s", block_dir, e)
+            freed += CacheDirStats(failures=1)
+            continue
+        for key_hash in sorted(hashes):
+            if _DIGEST.fullmatch(key_hash) is None:
+                LOGGER.warning(
+                    "Not deleting %s: no directory of blobs can be named that.",
+                    block_dir / key_hash,
+                )
+                continue
+            blob_dir = block_dir / key_hash
+            if key_hash not in index.dir_names or not _is_orphan_blob_dir(
+                blob_dir, index
+            ):
+                continue
+            if dry_run:
+                freed += CacheDirStats(
+                    total_bytes=entry_bytes(blob_dir), entries=1
+                )
+                continue
+            bytes_freed = _remove_tree(blob_dir)
+            if blob_dir.exists():
+                freed += CacheDirStats(total_bytes=bytes_freed, failures=1)
+            else:
+                freed += CacheDirStats(total_bytes=bytes_freed, entries=1)
+    return freed
+
+
+def _is_orphan_blob_dir(path: Path, index: _BlockIndex) -> bool:
+    """Whether `path` is a directory of blobs that no marker in its block reads.
+
+    A qualifying directory has the shape that the lazy loader leaves behind.
+    It is named by a digest and holds blob files and nothing else. A store
+    pointed at a project puts blocks beside the project's own directories,
+    which must never read as blobs.
+    """
+    if not _is_directory(path) or _DIGEST.fullmatch(path.name) is None:
+        return False
+    if path.name in index.markers_by_hash:
+        return False
+    blobs = _children(path)
+    return bool(blobs) and all(
+        not _is_directory(blob)
+        and not blob.is_symlink()
+        and _is_blob_name(blob.name)
+        and entry_key(blob.name) is None
+        for blob in blobs
+    )
+
+
+def _is_blob_name(name: str) -> bool:
+    if is_partial_write(name):
+        name = name.rpartition(PARTIAL_WRITE_INFIX)[0]
+    stem, dot, suffix = name.rpartition(".")
+    return bool(stem) and bool(dot) and suffix in BLOB_SUFFIXES
 
 
 def delete_cache_entries(

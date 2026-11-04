@@ -16,14 +16,18 @@ from marimo._save.cache_dirs import (
     NotANotebookError,
     block_dir_name,
     cache_dir_stats,
+    cache_entry_keys,
     clean_cache_dir,
+    delete_blob_dirs,
     delete_blocks,
     delete_cache_entries,
     directory_cache_dir,
     entry_bytes,
     missing_entries,
     notebook_cache_dir,
+    orphan_blob_dirs,
     partial_write_name,
+    remove_empty_blocks,
     resolve_cache_dirs,
     select_blocks,
 )
@@ -977,3 +981,154 @@ def test_delete_entries_refuses_a_linked_block(tmp_path: Path) -> None:
         missing_entries(cache_dir, [("train", f"C_{H}")])
 
     assert (elsewhere / "train" / f"C_{H}.jsonl").exists()
+
+
+def populate_orphan_blobs(block: Path, entry_hash: str) -> Path:
+    """Write 20 B of blobs that no marker reads, as a killed write leaves."""
+    blobs = block / entry_hash
+    blobs.mkdir(parents=True, exist_ok=True)
+    (blobs / "return.pickle").write_bytes(b"y" * 20)
+    return blobs
+
+
+def test_orphan_blob_dirs_names_only_blobs_no_marker_reads(
+    tmp_path: Path,
+) -> None:
+    """Only a lazy marker names a directory of blobs, so an inline entry or
+    the sibling of a killed write beside one does not keep it. A store
+    pointed at a project puts the project's own directories beside the
+    blocks, and those are not blobs however they are named."""
+    cache_dir = make_cache_dir(tmp_path)
+    block = populate_lazy_block(cache_dir)
+    populate_orphan_blobs(block, H3)
+    populate_orphan_blobs(block, GONE)
+    (block / partial_write_name(f"C_{GONE}.jsonl")).write_bytes(b"x")
+    inline = "e5f6e5f6e5f6e5f6e5f6e5"
+    populate_orphan_blobs(block, inline)
+    (block / f"P_{inline}.pickle").write_bytes(b"x")
+    (block / "a1b2a1b2a1b2a1b2a1b2a1").mkdir()
+    sources = populate_orphan_blobs(block, "src_src_src_src_src_src")
+    (sources / "app.py").write_text("print('hi')\n")
+    nested = populate_orphan_blobs(block, "deep_deep_deep_deep_deep")
+    (nested / "more").mkdir()
+    (block / "link").symlink_to(block / H, target_is_directory=True)
+    (block / "README.md").write_text("about the data\n")
+    (cache_dir / "stray.pickle").write_bytes(b"s")
+
+    assert orphan_blob_dirs(cache_dir) == {
+        "train": frozenset({H3, GONE, inline})
+    }
+    assert orphan_blob_dirs(tmp_path / "absent") == {}
+
+
+def test_orphan_blob_dirs_searches_the_root_only_when_asked(
+    tmp_path: Path,
+) -> None:
+    """A cache named by stars alone writes its blobs at the root, beside
+    the blocks."""
+    cache_dir = make_cache_dir(tmp_path)
+    block = populate_lazy_block(cache_dir)
+    populate_orphan_blobs(cache_dir, H3)
+
+    assert orphan_blob_dirs(cache_dir) == {}
+    assert orphan_blob_dirs(cache_dir, root=True) == {"": frozenset({H3})}
+    assert delete_blob_dirs(cache_dir, {"": {H3}}) == CacheDirStats(
+        total_bytes=20, entries=1
+    )
+    assert not (cache_dir / H3).exists()
+    assert block.is_dir()
+
+
+@pytest.mark.parametrize("dry_run", [True, False])
+def test_delete_blob_dirs_reports_the_blobs_as_an_entry(
+    tmp_path: Path, dry_run: bool
+) -> None:
+    cache_dir = make_cache_dir(tmp_path)
+    block = cache_dir / "train"
+    blobs = populate_orphan_blobs(block, H3)
+
+    freed = delete_blob_dirs(cache_dir, {"train": {H3}}, dry_run=dry_run)
+
+    assert freed == CacheDirStats(total_bytes=20, entries=1)
+    assert (blobs / "return.pickle").exists() is dry_run
+    # Removing the block is left to the caller, once its other deletions
+    # are done.
+    assert block.is_dir()
+
+
+def test_delete_blob_dirs_refuses_a_name_that_leaves_the_cache(
+    tmp_path: Path,
+) -> None:
+    outside = tmp_path / "project"
+    outside.mkdir()
+    (outside / "model.pickle").write_bytes(b"o" * 8)
+    cache_dir = make_cache_dir(tmp_path)
+    block = cache_dir / "train"
+    block.mkdir()
+    link = block / "link"
+    link.symlink_to(outside, target_is_directory=True)
+
+    freed = delete_blob_dirs(
+        cache_dir,
+        {
+            "..": {"project"},
+            "../..": {"project"},
+            "": {"x"},
+            "train": {"link"},
+        },
+    )
+
+    assert freed == CacheDirStats()
+    assert (outside / "model.pickle").exists()
+    assert link.is_symlink()
+
+
+def test_delete_blob_dirs_reports_what_stays_or_cannot_be_listed(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A failure is reported in the stats rather than raised, so the rest
+    of the plan still runs and the command can exit with an error."""
+    cache_dir = make_cache_dir(tmp_path)
+    blobs = populate_orphan_blobs(cache_dir / "train", H3)
+    monkeypatch.setattr(shutil, "rmtree", lambda *_args, **_kwargs: None)
+
+    freed = delete_blob_dirs(cache_dir, {"train": {H3}, "evaluate": None})
+
+    assert freed == CacheDirStats(failures=2)
+    assert (blobs / "return.pickle").exists()
+
+
+def test_remove_empty_blocks_takes_only_what_holds_nothing(
+    tmp_path: Path,
+) -> None:
+    cache_dir = make_cache_dir(tmp_path)
+    (cache_dir / "empty").mkdir()
+    block = populate_lazy_block(cache_dir)
+    (tmp_path / "outside").mkdir()
+
+    freed = remove_empty_blocks(
+        cache_dir, {"empty", "train", "absent", "../outside"}
+    )
+
+    assert freed == CacheDirStats()
+    assert not (cache_dir / "empty").exists()
+    assert block.is_dir()
+    assert (tmp_path / "outside").is_dir()
+
+
+def test_cache_entry_keys_names_what_a_manifest_records(
+    tmp_path: Path,
+) -> None:
+    cache_dir = make_cache_dir(tmp_path)
+    populate_cache_dir(cache_dir)
+    # A README is not spelled as a cache write spells a key, and the blobs
+    # that an entry reads are named by that entry.
+    (cache_dir / "train" / "README").write_bytes(b"r")
+    (cache_dir / f"C_{H2}.pickle").write_bytes(b"x")
+
+    assert cache_entry_keys(cache_dir) == {
+        ("train", f"C_{H}"),
+        ("train", f"E_{H3}"),
+        ("", f"C_{H2}"),
+    }
+    assert cache_entry_keys(tmp_path / "absent") == set()
