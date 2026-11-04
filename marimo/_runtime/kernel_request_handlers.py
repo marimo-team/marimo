@@ -158,12 +158,21 @@ class KernelRequestHandlers:
         finally:
             _COMMAND_CYCLE.reset(token)
 
+    def _interrupt_cycle(self) -> None:
+        """Record that the current command's work did not run to completion."""
+        cycle = _COMMAND_CYCLE.get()
+        assert cycle is not None
+        cycle.outcome = "interrupted"
+
     async def _handle_cancel_run(self, request: CancelRunCommand) -> None:
         """End a run the control loop cancelled before it executed."""
         with self._run_context(request.run_id):
             cycle = _COMMAND_CYCLE.get()
             assert cycle is not None
-            cycle.outcome = "interrupted"
+            # Issued from inside another command, as code mode can, the
+            # cancellation names a run that is not this cycle.
+            if cycle.run_id == request.run_id:
+                self._interrupt_cycle()
 
     async def _handle_delete_cell(self, request: DeleteCellCommand) -> None:
         with self._run_context():
@@ -193,7 +202,12 @@ class KernelRequestHandlers:
             stdin_context(request.allow_stdin),
             http_request_context(request.request),
         ):
-            await self._kernel.run(request.execution_requests)
+            discarded = await self._kernel.run(
+                request.execution_requests,
+                discard_after_interrupt=request.run_id is None,
+            )
+            if discarded:
+                self._interrupt_cycle()
 
     async def _handle_sync_graph(self, request: SyncGraphCommand) -> None:
         with self._run_context(), http_request_context(None):

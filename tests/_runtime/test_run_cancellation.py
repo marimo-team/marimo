@@ -10,6 +10,7 @@ from marimo._messaging.notification import (
     ExecutionNotification,
 )
 from marimo._runtime.commands import CancelRunCommand, ExecuteCellsCommand
+from marimo._runtime.kernel_request_handlers import KernelRequestHandlers
 from marimo._types.ids import CellId_t
 
 if TYPE_CHECKING:
@@ -36,6 +37,17 @@ async def test_a_cancelled_run_completes_interrupted_without_executing(
         isinstance(m, ExecutionNotification)
         for m in mocked_kernel.stream.parsed_operations
     )
+
+
+async def test_a_cancellation_issued_inside_another_cycle_leaves_it_alone(
+    mocked_kernel: MockedKernel,
+) -> None:
+    handlers = KernelRequestHandlers(mocked_kernel.k)
+
+    with handlers._run_context("outer"):
+        await handlers._handle_cancel_run(CancelRunCommand(run_id="other"))
+
+    assert completed_runs(mocked_kernel) == [("outer", "succeeded")]
 
 
 async def test_a_later_run_is_unaffected_by_an_earlier_cancellation(

@@ -4,6 +4,7 @@ from __future__ import annotations
 import asyncio
 import queue as _queue
 import threading
+from collections import deque
 from typing import TYPE_CHECKING, Any
 from unittest.mock import AsyncMock
 
@@ -23,6 +24,7 @@ from marimo._runtime.commands import (
 from marimo._runtime.kernel_lifecycle import (
     asyncio_queue_reader,
     collapse_out_of_band,
+    drain_pending,
     drain_stale,
     listen_messages,
     make_control_enqueuer,
@@ -215,6 +217,16 @@ async def test_listen_messages_drops_a_cancellation_whose_run_already_left(
 
     assert kernel.handle_message.await_count == 1
     assert kernel.handle_message.await_args_list[-1].args[0].run_id == "later"
+
+
+def test_drain_pending_stops_at_a_broken_queue() -> None:
+    class Broken:
+        def get_nowait(self) -> CommandMessage:
+            raise OSError("queue closed")
+
+    pending: deque[CommandMessage] = deque([_run("first")])
+    drain_pending(Broken(), pending)
+    assert [r.run_id for r in pending] == ["first"]  # type: ignore[union-attr]
 
 
 async def test_listen_messages_exits_when_reader_raises(

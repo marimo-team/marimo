@@ -125,6 +125,11 @@ def drain_pending(queue: Any, pending: deque[CommandMessage]) -> None:
             request = queue.get_nowait()
         except (asyncio.QueueEmpty, _queue.Empty):
             return
+        except Exception as e:
+            # e.g. the queue's pipe was torn down by server shutdown. The
+            # blocking read reports it and ends the loop.
+            LOGGER.debug("kernel queue.get_nowait() failed %s", e)
+            return
         if isinstance(request, CancelRunCommand):
             cancel_pending_run(pending, request)
         elif request is not None:
@@ -287,7 +292,11 @@ async def listen_messages(
     pending: deque[CommandMessage] = deque()
 
     while True:
-        if not pending:
+        if pending:
+            # Give user background tasks a turn between commands, as the
+            # blocking read did.
+            await asyncio.sleep(0)
+        else:
             try:
                 request = await get_request(control_queue)
             except InterruptedError:
