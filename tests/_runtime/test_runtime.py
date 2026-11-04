@@ -274,6 +274,47 @@ class TestExecution:
         # cell, which references `array`
         assert k.globals["x"] == 6
 
+    async def test_set_ui_element_value_lensed_siblings_one_request(
+        self, any_kernel: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        """Updates to sibling views sent in one request are all applied."""
+        k = any_kernel
+        await k.run([exec_req.get(code="import marimo as mo")])
+        await k.run(
+            [
+                exec_req.get(
+                    code="""
+                    d = mo.ui.dictionary(
+                        {
+                            "a": mo.ui.dictionary(
+                                {
+                                    "x": mo.ui.slider(0, 10, value=1),
+                                    "y": mo.ui.slider(0, 10, value=1),
+                                }
+                            ),
+                            "b": mo.ui.slider(0, 10, value=1),
+                        }
+                    )
+                    """
+                )
+            ]
+        )
+        assert not k.errors
+
+        d = k.globals["d"]
+        await k.set_ui_element_value(
+            UpdateUIElementCommand.from_ids_and_values(
+                [
+                    (d["a"]["x"]._id, 5),
+                    (d["a"]["y"]._id, 6),
+                    (d["b"]._id, 7),
+                ]
+            ),
+            notify_frontend=False,
+        )
+
+        assert k.globals["d"].value == {"a": {"x": 5, "y": 6}, "b": 7}
+
     async def test_set_ui_element_value_lensed_bound_child(
         self, any_kernel: Kernel, exec_req: ExecReqProvider
     ) -> None:
