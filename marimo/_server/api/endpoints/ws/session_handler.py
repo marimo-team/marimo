@@ -41,9 +41,6 @@ if TYPE_CHECKING:
     from marimo._server.api.endpoints.ws.ws_connection_validator import (
         ConnectionParams,
     )
-    from marimo._server.api.endpoints.ws.ws_session_connector import (
-        ConnectionType,
-    )
     from marimo._server.session_manager import SessionManager
     from marimo._session import Session
     from marimo._session.events import SessionEventBus
@@ -99,7 +96,7 @@ class SessionHandler(SessionConsumer, abc.ABC):
     @asynccontextmanager
     async def _connection_lifetime(
         self, connection: HTTPConnection
-    ) -> AsyncIterator[asyncio.Task[tuple[Session, ConnectionType]]]:
+    ) -> AsyncIterator[asyncio.Task[None]]:
         """Own attachment through startup, progress delivery, and streaming."""
         startup = asyncio.create_task(self._connect_session(connection))
         try:
@@ -110,9 +107,7 @@ class SessionHandler(SessionConsumer, abc.ABC):
             finally:
                 self._on_disconnect()
 
-    async def _connect_session(
-        self, connection: HTTPConnection
-    ) -> tuple[Session, ConnectionType]:
+    async def _connect_session(self, connection: HTTPConnection) -> None:
         """Connect this handler to a session (new, resume, reconnect, ...).
 
         Raises:
@@ -137,7 +132,7 @@ class SessionHandler(SessionConsumer, abc.ABC):
                 await disconnected
                 await cancel_and_wait(startup)
                 raise asyncio.CancelledError
-            return await startup
+            await startup
         finally:
             await cancel_and_wait(disconnected)
             await cancel_and_wait(startup)
@@ -274,18 +269,6 @@ class SessionHandler(SessionConsumer, abc.ABC):
         self.status = ConnectionState.CONNECTING
         self._write_kernel_ready_from_session_view(session, kiosk=True)
         self.status = ConnectionState.OPEN
-        self._replay_previous_session(session)
-
-    def _connect_to_existing_session(self, session: Session) -> None:
-        """Connect to an existing session and replay all messages."""
-        self.status = ConnectionState.CONNECTING
-        session.connect_consumer(self, main=False)
-
-        # Write kernel ready with current state
-        self._write_kernel_ready_from_session_view(session, kiosk=False)
-        self.status = ConnectionState.OPEN
-
-        # Replay all operations
         self._replay_previous_session(session)
 
     def _replay_previous_session(self, session: Session) -> None:

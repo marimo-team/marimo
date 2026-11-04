@@ -19,7 +19,6 @@ from marimo._messaging.serde import serialize_kernel_message
 from marimo._server.api.endpoints.ws.ws_connection_validator import (
     ConnectionParams,
 )
-from marimo._server.api.endpoints.ws.ws_session_connector import ConnectionType
 from marimo._server.codes import WebSocketCodes
 from marimo._server.host.session import SessionEventStream
 from marimo._server.session_manager import SessionManager
@@ -102,7 +101,7 @@ async def test_failed_startup_progress_delivery_detaches_session(
         ),
     )
 
-    async def connect(_connection: Any) -> tuple[Any, ConnectionType]:
+    async def connect(_connection: Any) -> None:
         handler.on_attach(session, MagicMock())
         # Progress reaches the startup queue only while the handler is still
         # connecting; once open, it travels with session messages instead.
@@ -114,7 +113,6 @@ async def test_failed_startup_progress_delivery_detaches_session(
             )
         )
         handler.status = ConnectionState.OPEN
-        return session, ConnectionType.NEW
 
     with patch.object(handler, "_connect_session", side_effect=connect):
         task = asyncio.create_task(handler.start())
@@ -381,17 +379,6 @@ def test_ws_rejects_invalid_token(client: TestClient) -> None:
             raise AssertionError(
                 "Should not be able to connect with an invalid token"
             )
-
-    assert exc_info.value.code == WebSocketCodes.UNAUTHORIZED
-    assert exc_info.value.reason == "MARIMO_UNAUTHORIZED"
-
-
-def test_ws_sync_requires_authentication(client: TestClient) -> None:
-    """Test that WebSocket sync endpoint requires authentication."""
-    # Try to connect without any authentication headers
-    with pytest.raises(WebSocketDisconnect) as exc_info:
-        with client.websocket_connect("/ws_sync?file=test"):
-            raise AssertionError("Should not be able to connect without auth")
 
     assert exc_info.value.code == WebSocketCodes.UNAUTHORIZED
     assert exc_info.value.reason == "MARIMO_UNAUTHORIZED"

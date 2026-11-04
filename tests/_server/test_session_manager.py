@@ -599,7 +599,6 @@ async def test_connections_share_starting_notebook(
         ConnectionParams,
     )
     from marimo._server.api.endpoints.ws.ws_session_connector import (
-        ConnectionType,
         SessionConnector,
     )
     from marimo._session.session import SessionImpl
@@ -635,20 +634,23 @@ async def test_connections_share_starting_notebook(
             connection=HTTPConnection({"type": "http", "query_string": b""}),
         )
 
-    first = asyncio.create_task(connector("first").connect())
+    first_connector = connector("first")
+    second_connector = connector("second")
+    first = asyncio.create_task(first_connector.connect())
     try:
         await asyncio.wait_for(entered.wait(), 5)
-        second = asyncio.create_task(connector("second").connect())
+        second = asyncio.create_task(second_connector.connect())
         # Scheduling the second connection before releasing preparation
         # exercises its decision against an initially empty repository.
         release.set()
-        assert await asyncio.wait_for(first, 5) == (
-            mock_session,
-            ConnectionType.NEW,
+        await asyncio.wait_for(first, 5)
+        await asyncio.wait_for(second, 5)
+        mock_session.connect_consumer.assert_called_once_with(
+            first_connector.handler, main=True
         )
-        assert await asyncio.wait_for(second, 5) == (
-            mock_session,
-            ConnectionType.KIOSK,
+        first_connector.handler._write_kernel_ready.assert_called_once()
+        second_connector.handler._connect_kiosk.assert_called_once_with(
+            mock_session
         )
         assert launches == 1
     finally:
@@ -677,7 +679,6 @@ async def test_refresh_reuses_pending_startup(
         ConnectionParams,
     )
     from marimo._server.api.endpoints.ws.ws_session_connector import (
-        ConnectionType,
         SessionConnector,
     )
     from marimo._session.session import SessionImpl
@@ -768,10 +769,7 @@ async def test_refresh_reuses_pending_startup(
             ],
         ]
         release.set()
-        assert await asyncio.wait_for(next_connection, 5) == (
-            mock_session,
-            ConnectionType.NEW,
-        )
+        await asyncio.wait_for(next_connection, 5)
         assert launches == 1
         assert (
             session_manager.get_session(SessionId(replacement_id))
