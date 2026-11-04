@@ -395,11 +395,12 @@ def test_events_streams_snapshot_and_live_changes(
                 event["event"] in {"runtime", event_kind, "attachment.removed"}
                 for event in live
             )
-            process.send_signal(signal.SIGINT)
-            _stdout, stderr = process.communicate(timeout=10)
-            assert process.returncode == 1
-            assert "Aborted!" in stderr
-            assert "Traceback" not in stderr
+            if os.name == "posix":
+                process.send_signal(signal.SIGINT)
+                _stdout, stderr = process.communicate(timeout=10)
+                assert process.returncode == 1
+                assert "Aborted!" in stderr
+                assert "Traceback" not in stderr
         finally:
             if process.poll() is None:
                 process.kill()
