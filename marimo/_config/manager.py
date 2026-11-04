@@ -671,20 +671,19 @@ class UserConfigStore(ConfigReader):
         import tomlkit
 
         config_path = self.get_config_path()
-        if os.path.exists(config_path):
-            try:
-                read_marimo_config(config_path)
-            except (OSError, ValueError) as e:
-                raise ValueError(
-                    f"Cannot save configuration to {config_path}: "
-                    f'the existing file could not be read: "{e}". '
-                    "Fix the file before saving settings. The file was not changed."
-                ) from e
+        try:
+            existing_config = self._load_config(raise_on_error=True)
+        except (OSError, ValueError) as e:
+            raise ValueError(
+                f"Cannot save configuration to {config_path}: "
+                f'the existing file could not be read: "{e}". '
+                "Fix the file before saving settings. The file was not changed."
+            ) from e
         LOGGER.info("Saving user configuration to %s", config_path)
         # Remove the secret placeholders from the incoming config
         config = remove_secret_placeholders(config)
         # Merge the current config with the new config
-        current_config = resolve_config(DEFAULT_CONFIG, (self.read(),))
+        current_config = resolve_config(DEFAULT_CONFIG, (existing_config,))
         merged = merge_config(current_config, config)
         # None-as-delete: any key whose merged value is None (typically because
         # the incoming config explicitly sent null) is removed from disk. Lets
@@ -712,13 +711,17 @@ class UserConfigStore(ConfigReader):
     def get_config_path(self) -> str:
         return get_or_create_user_config_path()
 
-    def _load_config(self) -> PartialMarimoConfig:
+    def _load_config(
+        self, *, raise_on_error: bool = False
+    ) -> PartialMarimoConfig:
         """
         Load configuration, taking into account user config file, if any.
         """
         try:
             path = self.get_config_path()
         except OSError as e:
+            if raise_on_error:
+                raise
             path = None
             LOGGER.warning(
                 "Encountered error when searching for config: %s", e
@@ -729,6 +732,10 @@ class UserConfigStore(ConfigReader):
             try:
                 user_config = read_marimo_config(path)
             except Exception as e:
+                if raise_on_error:
+                    if isinstance(e, FileNotFoundError):
+                        return {}
+                    raise
                 LOGGER.error(
                     'Could not load configuration from %s: "%s"\n'
                     "Settings from this file were skipped; other configuration sources still apply.",

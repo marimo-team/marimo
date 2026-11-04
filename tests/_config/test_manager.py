@@ -45,7 +45,7 @@ def restore_config(f: F) -> F:
 def test_save_config(mock_dump: Any) -> None:
     mock_config = merge_default_config(PartialMarimoConfig())
     manager = UserConfigStore()
-    manager._load_config = lambda: mock_config
+    manager._load_config = lambda **_kwargs: mock_config
 
     result = manager.save_config(mock_config)
 
@@ -100,6 +100,34 @@ def test_save_config_preserves_existing_settings(tmp_path: Path) -> None:
         config["ai"]["rules"],
         config["display"]["theme"],
     ) == ("vim", "prefer polars", "dark")
+
+
+def test_save_config_merges_the_validated_snapshot(tmp_path: Path) -> None:
+    from marimo._config.reader import read_marimo_config
+    from marimo._utils.toml import toml_reader
+
+    config_path = tmp_path / "marimo.toml"
+    config_path.write_text('[ai]\nrules = "prefer polars"\n')
+    original = read_marimo_config(str(config_path))
+    store = UserConfigStore()
+    with (
+        patch.object(store, "get_config_path", return_value=str(config_path)),
+        patch(
+            "marimo._config.manager.read_marimo_config",
+            side_effect=[
+                original,
+                ValueError("file changed before rereading"),
+            ],
+        ) as read_config,
+    ):
+        store.save_config({"display": {"theme": "dark"}})
+
+    read_config.assert_called_once_with(str(config_path))
+    config = toml_reader.read(config_path)
+    assert (config["ai"]["rules"], config["display"]["theme"]) == (
+        "prefer polars",
+        "dark",
+    )
 
 
 @restore_config
@@ -204,11 +232,11 @@ def test_save_config_is_deterministic(tmp_path: Path) -> None:
         },
     )
 
-    manager._load_config = lambda: cast(MarimoConfig, dict(a))
+    manager._load_config = lambda **_kwargs: cast(MarimoConfig, dict(a))
     manager.save_config(a)
     bytes_a = config_path.read_bytes()
 
-    manager._load_config = lambda: cast(MarimoConfig, dict(b))
+    manager._load_config = lambda **_kwargs: cast(MarimoConfig, dict(b))
     manager.save_config(b)
     bytes_b = config_path.read_bytes()
 
@@ -223,7 +251,7 @@ def test_save_config_none_deletes_key(mock_dump: Any) -> None:
         PartialMarimoConfig(ai={"max_tokens": 8192, "rules": "be terse"})
     )
     manager = UserConfigStore()
-    manager._load_config = lambda: mock_config
+    manager._load_config = lambda **_kwargs: mock_config
 
     manager.save_config(
         cast(
@@ -248,7 +276,7 @@ def test_save_config_with_none_does_not_raise(tmp_path: Path) -> None:
         PartialMarimoConfig(ai={"max_tokens": 8192, "rules": "be terse"})
     )
     manager = UserConfigStore()
-    manager._load_config = lambda: mock_config
+    manager._load_config = lambda **_kwargs: mock_config
 
     with patch.object(
         manager, "get_config_path", return_value=str(config_path)
@@ -329,14 +357,14 @@ def test_drop_none_values_strips_nested_none() -> None:
 def test_can_save_secrets(mock_dump: Any) -> None:
     mock_config = merge_default_config(PartialMarimoConfig())
     manager = UserConfigStore()
-    manager._load_config = lambda: mock_config
+    manager._load_config = lambda **_kwargs: mock_config
 
     new_config = manager.save_config(
         merge_default_config(
             PartialMarimoConfig(ai={"open_ai": {"api_key": "super_secret"}})
         )
     )
-    manager._load_config = lambda: new_config
+    manager._load_config = lambda **_kwargs: new_config
 
     assert (
         mock_dump.mock_calls[0][1][0]["ai"]["open_ai"]["api_key"]
@@ -361,7 +389,7 @@ def test_can_read_secrets() -> None:
     mock_config = merge_default_config(
         PartialMarimoConfig(ai={"open_ai": {"api_key": "super_secret"}})
     )
-    manager._load_config = lambda: mock_config
+    manager._load_config = lambda **_kwargs: mock_config
 
     assert (
         MarimoConfigManager(manager).get_user_config()["ai"]["open_ai"][
@@ -381,7 +409,7 @@ def test_can_read_secrets() -> None:
 def test_get_config() -> None:
     mock_config = merge_default_config(PartialMarimoConfig())
     manager = UserConfigStore()
-    manager._load_config = lambda: mock_config
+    manager._load_config = lambda **_kwargs: mock_config
 
     result = MarimoConfigManager(manager).get_user_config()
 
@@ -392,7 +420,7 @@ def test_get_config() -> None:
 def test_get_config_with_override() -> None:
     mock_config = merge_default_config(PartialMarimoConfig())
     user = UserConfigStore()
-    user._load_config = lambda: mock_config
+    user._load_config = lambda **_kwargs: mock_config
 
     manager = MarimoConfigManager(
         user,
