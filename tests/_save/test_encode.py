@@ -14,6 +14,7 @@ from marimo._save.encode import (
     common_container_to_bytes,
     data_to_buffer,
     deterministic_dumps,
+    primitive_to_bytes,
 )
 
 HAS_PANDAS = DependencyManager.pandas.has()
@@ -202,3 +203,71 @@ def test_polars_object_hash_uses_fallback(
     value = {"data": value} if in_container else value
 
     assert attempt_signed_bytes(value, "state") is value
+
+
+@pytest.mark.skipif(not HAS_NUMPY, reason="numpy not installed")
+@pytest.mark.parametrize("change", ["dtype", "shape", "transpose"])
+def test_pickled_array_preserves_metadata(change: str) -> None:
+    import numpy as np
+
+    before = np.arange(4, dtype=np.int64).reshape(2, 2)
+    if change == "dtype":
+        after = before.view(np.float64)
+    elif change == "shape":
+        after = before.reshape(2, 1, 2)
+    else:
+        after = before.T
+    assert deterministic_dumps(before, "sha256") != deterministic_dumps(
+        after, "sha256"
+    )
+
+
+@pytest.mark.skipif(not HAS_NUMPY, reason="numpy not installed")
+def test_numpy_scalar_keyed_by_dtype_and_value() -> None:
+    import numpy as np
+
+    assert primitive_to_bytes(np.int64(2)) == primitive_to_bytes(np.int64(2))
+    assert primitive_to_bytes(np.int64(2)) != primitive_to_bytes(np.int64(3))
+    assert primitive_to_bytes(np.int64(2)) != primitive_to_bytes(np.int32(2))
+    assert primitive_to_bytes(np.int64(2)) != primitive_to_bytes(2)
+    # bytes(np.int64(2)) is two zero bytes, which used to be the encoding.
+    assert primitive_to_bytes(np.int64(2)) != primitive_to_bytes(bytes(2))
+
+
+def test_scalar_subclass_keyed_by_type() -> None:
+    class Celsius(float):
+        pass
+
+    assert primitive_to_bytes(Celsius(1.0)) == primitive_to_bytes(Celsius(1.0))
+    assert primitive_to_bytes(Celsius(1.0)) != primitive_to_bytes(Celsius(2.0))
+    assert primitive_to_bytes(Celsius(1.0)) != primitive_to_bytes(1.0)
+
+
+def test_equal_scalars_of_different_types_are_distinct() -> None:
+    values = [1, 1.0, True, "1", b"1", 1 + 0j, None, (1,), 2**64, -1]
+    encoded = [primitive_to_bytes(v) for v in values]
+    assert len(set(encoded)) == len(values)
+    assert primitive_to_bytes(0.0) != primitive_to_bytes(-0.0)
+
+
+def test_item_boundaries_are_framed() -> None:
+    assert primitive_to_bytes(("ab", "c")) != primitive_to_bytes(("a", "bc"))
+    assert common_container_to_bytes(["ab", "c"]) != common_container_to_bytes(
+        ["a", "bc"]
+    )
+    assert common_container_to_bytes([1, 23]) != common_container_to_bytes(
+        [12, 3]
+    )
+
+
+def test_dict_order_is_observable() -> None:
+    assert common_container_to_bytes({"a": 1, "b": 2}) != (
+        common_container_to_bytes({"b": 2, "a": 1})
+    )
+
+
+def test_set_encoding_is_order_independent() -> None:
+    # Mixed-type members cannot be sorted, so the encoded items are sorted.
+    assert common_container_to_bytes({1, "a", (2,)}) == (
+        common_container_to_bytes({(2,), "a", 1})
+    )
