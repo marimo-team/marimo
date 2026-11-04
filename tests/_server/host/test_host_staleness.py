@@ -84,7 +84,9 @@ class Client:
                 and run["status"] == "completed"
             ]
 
-        await wait_for(self.events, lambda response: bool(completed(response)))
+        while not completed(self.events):
+            self.events.changed.clear()
+            await self.events.changed.wait()
         assert completed(self.events)[-1]["outcome"] == outcome
 
     async def edit(self, cell: str, code: str) -> None:
@@ -693,3 +695,27 @@ async def test_restart_retains_results_without_restoring_python_values(
         assert next(
             v for v in current.variables.values() if v.name == "x"
         ) == next(v for v in retained.variables.values() if v.name == "x")
+
+
+async def test_formatting_preserves_freshness_but_output_suppression_does_not(
+    tmp_path: Path,
+) -> None:
+    async with client(
+        tmp_path, on_cell_change="lazy", x="x = 1", y="x + 1"
+    ) as c:
+        await c.run("x", "y")
+        before = await c.snapshot()
+        await c.edit("x", "# comment\nx=1")
+        await c.edit("y", "(x + 1) # formatted")
+        assert await c.outdated() == {}
+        after = await c.snapshot()
+        assert before.executions == after.executions
+        assert (
+            before.cells[c.cells["x"]].etag != after.cells[c.cells["x"]].etag
+        )
+        await c.edit("y", "(x + 1); # suppress output")
+        assert await c.outdated() == {"y": "edited"}
+        await c.run("y")
+        assert await c.outdated() == {}
+        await c.edit("y", "x + 2;")
+        assert await c.outdated() == {"y": "edited"}

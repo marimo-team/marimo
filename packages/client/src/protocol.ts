@@ -65,7 +65,7 @@ export const ItemId = zod
   .string()
   .min(1)
   .describe(
-    "Identifies a console, display, or variable item. Unique within the host; sending an item again with the same id replaces it.",
+    "Identifies a console, display, input, or variable item uniquely within the host. Sending an item again with the same id replaces it.",
   );
 
 export type ItemId = zod.input<typeof ItemId>;
@@ -138,12 +138,13 @@ export const ObjectType = zod
     "execution",
     "console",
     "display",
+    "input",
     "variable",
     "custom",
     "analysis",
   ])
   .describe(
-    "The kinds a stream carries, and the values `types` accepts. The\ncatalog stream carries host, project, notebook, runtime, and\nattachment. A notebook's stream carries notebook, document,\ncell, runtime, attachment, run, execution, console,\ndisplay, variable, and custom. Custom events describe occurrences\nrather than object state.\n",
+    "The kinds a stream carries, and the values `types` accepts. The\ncatalog stream carries host, project, notebook, runtime, and\nattachment. A notebook's stream carries notebook, document,\ncell, runtime, attachment, run, execution, console,\ndisplay, input, variable, and custom. Custom events describe occurrences\nrather than object state.\n",
   );
 
 export type ObjectType = zod.input<typeof ObjectType>;
@@ -164,7 +165,7 @@ export const Custom = zod
       ),
   })
   .describe(
-    "A notebook occurrence with a producer-defined payload. It is replayed\nwhile event history is retained, but is never included in snapshots\nand does not belong to a run. The notebook is identified by the stream.\n",
+    "A notebook occurrence with a producer-defined payload. It is replayed\nwhile event history is retained. Delivery is limited to live events\nand replay on the notebook stream, with `run_id` omitted from the\nstream's filters. The notebook is identified by the stream.\n",
   );
 
 export type Custom = zod.input<typeof Custom>;
@@ -218,7 +219,7 @@ export const Project = zod
     operations: zod
       .array(zod.string())
       .describe(
-        "Operations this client may call on the project, today `notebook.create`. A subset of `host.operations`, narrowed by permission and never by state. The host sends the project again when it changes.",
+        "Operations this client may call on the project, today `notebook.create`. A subset of `host.operations` selected by the client's permissions, independently of the project's current state. The host sends the project again when it changes.",
       ),
   })
   .describe(
@@ -246,7 +247,7 @@ export const Notebook = zod
     operations: zod
       .array(zod.string())
       .describe(
-        "Operations this client may call on the notebook, such as `notebook.edit` or `runtime.start`. A subset of `host.operations`, narrowed by permission and never by state; whether a runtime is attached shows in the `runtime` object, and preconditions still apply when an operation is called. The host sends the notebook again when it changes.",
+        "Operations this client may call on the notebook, such as `notebook.edit` or `runtime.start`. A subset of `host.operations` selected by the client's permissions, independently of the notebook's current state. The `runtime` object shows whether a runtime is attached, and preconditions still apply when an operation is called. The host sends the notebook again when it changes.",
       ),
     updated_at: zod.iso
       .datetime({ offset: true })
@@ -385,7 +386,7 @@ export const Run = zod
       .describe("When the run ended. Null until the run is `completed`."),
   })
   .describe(
-    "One bounded cycle of notebook work initiated by an action. It\nincludes synchronous callbacks and reactive work owned and awaited\nby the runtime's scheduler. Context inherited by an independent task\nrecords provenance, not ownership of the cycle. The host completes it\nonly after all member executions have ended and scheduling for the\ncycle has finished. It never reopens or acquires new executions.\nIndependently triggered later work starts another run, even when\nits cause belongs to an earlier run. Every consumer attached to\nthe notebook sees it.\n\nRetention is up to the host and independent of replay history.\nHosts SHOULD retain ephemeral results briefly after completion to\nallow reconnection. Runs, executions, and items each have removal\nevents; a cell result may outlive its run.\n",
+    "One bounded cycle of notebook work initiated by an action. It\nincludes synchronous callbacks and reactive work owned and awaited\nby the runtime's scheduler. Context inherited by an independent task\nrecords provenance, not ownership of the cycle. The host completes it\nonly after all member executions have ended and scheduling for the\ncycle has finished. Completion fixes its status and execution membership.\nIndependently triggered later work starts another run, even when\nits cause belongs to an earlier run. Every consumer attached to\nthe notebook sees it.\n\nRetention is up to the host and independent of replay history.\nHosts SHOULD retain ephemeral results briefly after completion to\nallow reconnection. Runs, executions, and items each have removal\nevents; a cell result may outlive its run.\n",
   );
 
 export type Run = zod.input<typeof Run>;
@@ -399,7 +400,7 @@ export const DisplayData = zod
     data: zod
       .string()
       .describe(
-        "The rendered value. JSON mimetypes are encoded as text; binary mimetypes are base64. Never a URL only the runtime can serve.",
+        "The rendered value, embedded so clients can display it independently of the runtime. JSON mimetypes are encoded as text and binary mimetypes as base64.",
       ),
   })
   .describe("A rendered value.");
@@ -583,14 +584,15 @@ export const Outcome = zod
 export type Outcome = zod.input<typeof Outcome>;
 export type OutcomeOutput = zod.output<typeof Outcome>;
 
-export const Etag = zod
+export const CodeFingerprint = zod
   .string()
+  .min(1)
   .describe(
-    "An identifier derived from content, so that every host, kernel,\nand store computes the same value for the same state. It is the\nfirst 16 hexadecimal characters, in lower case, of SHA-256 over\nthe UTF-8 encoding of a canonical text. Each etag says what its\ntext is; a text made of several values is those values joined by\nnewlines. Clients do not compute etags. They read them from the\nstream and from responses, and send them back as preconditions.\n",
+    "Opaque code identity assigned by the host. Clients compare cell and execution fingerprints for freshness. Incompatible schemes MUST produce distinct fingerprints.",
   );
 
-export type Etag = zod.input<typeof Etag>;
-export type EtagOutput = zod.output<typeof Etag>;
+export type CodeFingerprint = zod.input<typeof CodeFingerprint>;
+export type CodeFingerprintOutput = zod.output<typeof CodeFingerprint>;
 
 export const Execution = zod
   .object({
@@ -608,7 +610,7 @@ export const Execution = zod
     caused_by: zod
       .union([ExecutionId, zod.null()])
       .describe(
-        "The execution in the same run that caused this one. Null for executions requested directly.",
+        "The execution in the same run that initiated this evaluation. Null for executions requested directly.",
       ),
     cell_id: zod
       .union([CellId, zod.null()])
@@ -621,13 +623,13 @@ export const Execution = zod
       .describe(
         "The submitted code for an execution with no cell. Null for a cell's execution; its source is available through the cell when the host exposes it.",
       ),
-    code_hash: Etag.describe(
-      "The `code_hash` of the code that was evaluated, computed as a cell's is.",
+    code_fingerprint: CodeFingerprint.describe(
+      "Fingerprint of the evaluated code.",
     ),
     depends_on: zod
       .record(zod.string(), zod.union([Revision, zod.null()]))
       .describe(
-        "The variables the execution used, by name, each at the revision the runtime holds its result valid against. Null for a name no retained cell execution had bound. Empty while queued, stamped as the execution ends, and final from then on.",
+        "The variable revisions this result is valid against, keyed by name. Null for a name no retained cell execution had bound. Empty while queued, stamped as the execution ends, and final from then on.",
       ),
     status: Lifecycle,
     outcome: zod
@@ -639,7 +641,7 @@ export const Execution = zod
       .datetime({ offset: true })
       .nullable()
       .describe(
-        "When the code started executing. Null while queued and for an execution that never ran.",
+        "When the code started executing. Null while queued or if the execution completed before starting.",
       ),
     completed_at: zod.iso
       .datetime({ offset: true })
@@ -647,7 +649,7 @@ export const Execution = zod
       .describe("When the execution ended. Null until it is completed."),
   })
   .describe(
-    "One cell evaluated within a run, or scratch code evaluated once.\nIt moves through `queued`, `running`, and `completed`, and ends with\none outcome. Side effects belong to the execution whose context\nproduced them; items can arrive after the execution is completed\nwhile it remains retained.\n",
+    "One cell evaluated within a run, or scratch code evaluated once.\nIt moves through `queued`, `running`, and `completed`, and ends with\none outcome. Side effects belong to the execution whose context\nproduced them, and items can arrive after completion while the\nexecution remains retained. Each new input belongs to a running\nexecution. Input calls from completed or removed executions raise\n`EOFError` in the calling code.\n",
   );
 
 export type Execution = zod.input<typeof Execution>;
@@ -695,7 +697,7 @@ export const Display = zod
     data: zod
       .string()
       .describe(
-        "The rendered value. JSON mimetypes are encoded as text; binary mimetypes are base64. Never a URL only the runtime can serve.",
+        "The rendered value, embedded so clients can display it independently of the runtime. JSON mimetypes are encoded as text and binary mimetypes as base64.",
       ),
   })
   .describe(
@@ -704,6 +706,51 @@ export const Display = zod
 
 export type Display = zod.input<typeof Display>;
 export type DisplayOutput = zod.output<typeof Display>;
+
+export const InputStatus = zod
+  .enum(["pending", "answered", "cancelled"])
+  .describe(
+    "An input starts `pending` while it waits for an answer. It becomes\n`answered` when the host accepts a reply for delivery, or `cancelled`\nwhen the host ends the wait while input is still pending. Both\n`answered` and `cancelled` are final. An answered input stays\nanswered if execution later fails before consuming the value.\n",
+  );
+
+export type InputStatus = zod.input<typeof InputStatus>;
+export type InputStatusOutput = zod.output<typeof InputStatus>;
+
+export const inputSeqMin = 0;
+
+export const Input = zod
+  .object({
+    id: ItemId.describe(
+      "Identifies this prompt uniquely across executions and runtime restarts.",
+    ),
+    execution_id: ExecutionId,
+    seq: zod
+      .int()
+      .min(inputSeqMin)
+      .describe(
+        "Position among the execution's console, display, and input items, increasing in production order.",
+      ),
+    prompt: zod.string().describe("The prompt to display, which may be empty."),
+    password: zod
+      .boolean()
+      .describe("Whether clients must obscure the value as it is entered."),
+    status: InputStatus,
+  })
+  .describe(
+    "A running execution's request for a line of text. Its identity,\nexecution, prompt, password flag, and position stay fixed while\nits status tracks the request. The record remains with its\nexecution after it is answered or cancelled. Submitted answers\ntravel through the reply endpoint to the runtime.\n",
+  );
+
+export type Input = zod.input<typeof Input>;
+export type InputOutput = zod.output<typeof Input>;
+
+export const Etag = zod
+  .string()
+  .describe(
+    "An identifier derived from content, so that every host, kernel,\nand store computes the same value for the same state. It is the\nfirst 16 hexadecimal characters, in lower case, of SHA-256 over\nthe UTF-8 encoding of a canonical text. Each etag says what its\ntext is; a text made of several values is those values joined by\nnewlines. Clients do not compute etags. They read them from the\nstream and from responses, and send them back as preconditions.\n",
+  );
+
+export type Etag = zod.input<typeof Etag>;
+export type EtagOutput = zod.output<typeof Etag>;
 
 export const CellConfig = zod
   .object({
@@ -749,10 +796,10 @@ export const Cell = zod
       ),
     config: CellConfig,
     etag: Etag.describe(
-      "Identifies code, name, and config together, and is the precondition for editing the cell. Its text is `code_hash`, `name`, and the config values `column`, `disabled`, `hide_code`, and `expand_output` in that order, each written as a JSON scalar such as `null`, `0`, or `true`.",
+      "Precondition for edits and cell runs. Covers exact source, name, and config. Its text is the newline-joined sequence of the first 16 hex characters of SHA-256 of the UTF-8 source, `name`, and the config values `column`, `disabled`, `hide_code`, and `expand_output`, in that order. Config values are JSON scalars.",
     ),
-    code_hash: Etag.describe(
-      "Identifies the code alone. Its text is the actual source, even when `code` is null. Withholding source does not change this hash, the cell or document etags, or their versions. Unchanged by renaming the cell or editing its config. Compare with an execution's `code_hash` to tell whether a result came from the current code without needing the source.",
+    code_fingerprint: CodeFingerprint.describe(
+      "Fingerprint of the actual source, including when `code` is null. Formatting-only edits may preserve it. Independent of cell name, config, and source visibility.",
     ),
     version: zod
       .int()
@@ -1207,6 +1254,42 @@ export const DisplayEvent = zod
 export type DisplayEvent = zod.input<typeof DisplayEvent>;
 export type DisplayEventOutput = zod.output<typeof DisplayEvent>;
 
+export const InputMessage = zod
+  .object({
+    request_id: zod
+      .string()
+      .optional()
+      .describe(
+        "The `Idempotency-Key` of the request that caused this event. Omitted when no request did, and on snapshots unless that request's work is still in progress.",
+      ),
+    time: zod.iso
+      .datetime({ offset: true })
+      .optional()
+      .describe(
+        "When the host made this change. Present on live and replayed events; omitted on snapshots.",
+      ),
+    input: Input,
+  })
+  .describe("The current input record carried by an `input` event.");
+
+export type InputMessage = zod.input<typeof InputMessage>;
+export type InputMessageOutput = zod.output<typeof InputMessage>;
+
+export const InputEvent = zod
+  .object({
+    event: zod.enum(["input"]),
+    id: zod
+      .string()
+      .min(1)
+      .optional()
+      .describe("The resume cursor. Omitted on snapshot and reset events."),
+    data: InputMessage,
+  })
+  .describe("An `input` event from a notebook stream.");
+
+export type InputEvent = zod.input<typeof InputEvent>;
+export type InputEventOutput = zod.output<typeof InputEvent>;
+
 export const VariableMessage = zod
   .object({
     request_id: zod
@@ -1295,7 +1378,7 @@ export const RemovedMessage = zod
     id: zod.string().describe("The id of the object that was removed."),
   })
   .describe(
-    "The data of a `project.removed`, `notebook.removed`,\n`cell.removed`, `runtime.removed`, `attachment.removed`,\n`run.removed`, `execution.removed`, `console.removed`,\n`display.removed`, or `variable.removed` event. The client deletes the object with this\nid; the event name says which kind it is. Removing a notebook\nremoves its document and cells with it, without events of their\nown; the document never has one.\n",
+    "The data of a `project.removed`, `notebook.removed`,\n`cell.removed`, `runtime.removed`, `attachment.removed`,\n`run.removed`, `execution.removed`, `console.removed`,\n`display.removed`, or `variable.removed` event. The event name\nidentifies the kind of object to delete from the client's view.\nRemoving a notebook also removes its document and cells, and\nremoving an execution removes its inputs. Clients discard these\nchild records when they receive the parent's removal event.\n",
   );
 
 export type RemovedMessage = zod.input<typeof RemovedMessage>;
@@ -1575,6 +1658,7 @@ export const Event = zod
     ExecutionEvent,
     ConsoleEvent,
     DisplayEvent,
+    InputEvent,
     VariableEvent,
     CustomEvent,
     ProjectRemovedEvent,
@@ -1680,7 +1764,7 @@ export const Problem = zod
     ),
   })
   .describe(
-    "An error. Every error response has this one shape, following RFC\n9457, and is served as `application/problem+json`. `status`\nrepeats the HTTP status, and `type` says more precisely what went\nwrong. `decisions` appears only when `type` is\n`tag:marimo.io,2026:host/decision-required`. A client ignores\nmembers it does not recognize. An error never contains a token.\n",
+    "An error. Every error response has this one shape, following RFC\n9457, and is served as `application/problem+json`. `status`\nrepeats the HTTP status, and `type` says more precisely what went\nwrong. `decisions` appears only when `type` is\n`tag:marimo.io,2026:host/decision-required`. A client ignores\nmembers it does not recognize. Hosts redact tokens from errors.\n",
   );
 
 export type Problem = zod.input<typeof Problem>;
@@ -1732,7 +1816,7 @@ export const OpenNotebookResponse = zod.object({
   url: zod
     .string()
     .describe(
-      "The URL the host used to show the notebook. It never contains the host's token.",
+      "The URL the host used to show the notebook, with the host's token omitted.",
     ),
 });
 
@@ -1740,6 +1824,19 @@ export type OpenNotebookResponse = zod.input<typeof OpenNotebookResponse>;
 export type OpenNotebookResponseOutput = zod.output<
   typeof OpenNotebookResponse
 >;
+
+export const InputReplyRequest = zod
+  .object({
+    value: zod
+      .string()
+      .describe(
+        "The text to deliver to the input exactly as submitted, including an empty string when the answer is empty.",
+      ),
+  })
+  .describe("The answer to one pending input.");
+
+export type InputReplyRequest = zod.input<typeof InputReplyRequest>;
+export type InputReplyRequestOutput = zod.output<typeof InputReplyRequest>;
 
 export const StartRuntimeRequest = zod.object({
   decisions: zod
@@ -1862,10 +1959,10 @@ export type EditRequestOutput = zod.output<typeof EditRequest>;
 export const CellVersion = zod
   .object({
     etag: Etag,
-    code_hash: Etag,
+    code_fingerprint: CodeFingerprint,
     version: zod.int().min(1).describe("The cell's version after the edit."),
   })
-  .describe("A cell's etags and version after an edit.");
+  .describe("A cell's etag, code fingerprint, and version after an edit.");
 
 export type CellVersion = zod.input<typeof CellVersion>;
 export type CellVersionOutput = zod.output<typeof CellVersion>;
@@ -1904,8 +2001,8 @@ export type SaveRequestOutput = zod.output<typeof SaveRequest>;
 
 export const RequestedCell = zod.object({
   id: CellId,
-  code_hash: Etag.optional().describe(
-    "The cell's `code_hash` as last read. A cell whose code differs is a `conflict`. Absent, the cell runs as it is.",
+  etag: Etag.optional().describe(
+    "The cell's `etag` as last read. A cell whose source, name, or config differs is a `conflict`. Absent, the cell runs as it is.",
   ),
 });
 

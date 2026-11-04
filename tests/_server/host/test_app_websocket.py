@@ -76,8 +76,8 @@ def test_app_executes_with_hidden_source_and_retained_hashes(
         assert notebook is not None
         source = next(iter(notebook.document))
         assert source.code == "import marimo as mo"
-        assert (cell["code_hash"], cell["etag"]) == (
-            source.code_hash,
+        assert (cell["code_fingerprint"], cell["etag"]) == (
+            source.code_fingerprint,
             source.etag,
         )
         # Delivery never mutates the host event, even when readers differ.
@@ -108,7 +108,7 @@ def test_app_executes_with_hidden_source_and_retained_hashes(
             ):
                 break
         assert executions
-        assert executions[-1]["code_hash"] == cell["code_hash"]
+        assert executions[-1]["code_fingerprint"] == cell["code_fingerprint"]
         assert executions[-1]["status"] == "completed"
 
 

@@ -205,7 +205,6 @@ export const UserConfigSchema = z
     experimental: z
       .looseObject({
         markdown: z.boolean().optional(),
-        rtc: z.boolean().optional(),
         // Add new experimental features here
       })
       // Pass through so that we don't remove any extra keys that the user has added.

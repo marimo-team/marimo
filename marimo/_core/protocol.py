@@ -95,6 +95,15 @@ class CellInput(Struct, frozen=True):
     ) = "_"
 
 
+CodeFingerprint: TypeAlias = Annotated[
+    str,
+    Meta(
+        description="Opaque code identity assigned by the host. Clients compare cell and execution fingerprints for freshness. Incompatible schemes MUST produce distinct fingerprints.",
+        min_length=1,
+    ),
+]
+
+
 class Custom(Struct, frozen=True):
     data: Annotated[
         Any,
@@ -146,7 +155,7 @@ class DisplayData(Struct, frozen=True):
     data: Annotated[
         str,
         Meta(
-            description="The rendered value. JSON mimetypes are encoded as text; binary mimetypes are base64. Never a URL only the runtime can serve."
+            description="The rendered value, embedded so clients can display it independently of the runtime. JSON mimetypes are encoded as text and binary mimetypes as base64."
         ),
     ]
     mimetype: Annotated[
@@ -211,6 +220,23 @@ class HostMessage(Struct, frozen=True):
     ) = UNSET
 
 
+class InputReplyRequest(Struct, frozen=True):
+    value: Annotated[
+        str,
+        Meta(
+            description="The text to deliver to the input exactly as submitted, including an empty string when the answer is empty."
+        ),
+    ]
+
+
+InputStatus: TypeAlias = Annotated[
+    Literal["pending", "answered", "cancelled"],
+    Meta(
+        description="An input starts `pending` while it waits for an answer. It becomes\n`answered` when the host accepts a reply for delivery, or `cancelled`\nwhen the host ends the wait while input is still pending. Both\n`answered` and `cancelled` are final. An answered input stays\nanswered if execution later fails before consuming the value.\n"
+    ),
+]
+
+
 class InterruptedOutcome(
     Struct, frozen=True, tag_field="kind", tag="interrupted"
 ):
@@ -225,7 +251,7 @@ else:
         Annotated[
             str,
             Meta(
-                description="Identifies a console, display, or variable item. Unique within the host; sending an item again with the same id replaces it.",
+                description="Identifies a console, display, input, or variable item uniquely within the host. Sending an item again with the same id replaces it.",
                 min_length=1,
             ),
         ],
@@ -268,12 +294,13 @@ ObjectType: TypeAlias = Annotated[
         "execution",
         "console",
         "display",
+        "input",
         "variable",
         "custom",
         "analysis",
     ],
     Meta(
-        description="The kinds a stream carries, and the values `types` accepts. The\ncatalog stream carries host, project, notebook, runtime, and\nattachment. A notebook's stream carries notebook, document,\ncell, runtime, attachment, run, execution, console,\ndisplay, variable, and custom. Custom events describe occurrences\nrather than object state.\n"
+        description="The kinds a stream carries, and the values `types` accepts. The\ncatalog stream carries host, project, notebook, runtime, and\nattachment. A notebook's stream carries notebook, document,\ncell, runtime, attachment, run, execution, console,\ndisplay, input, variable, and custom. Custom events describe occurrences\nrather than object state.\n"
     ),
 ]
 
@@ -282,7 +309,7 @@ class OpenNotebookResponse(Struct, frozen=True):
     url: Annotated[
         str,
         Meta(
-            description="The URL the host used to show the notebook. It never contains the host's token."
+            description="The URL the host used to show the notebook, with the host's token omitted."
         ),
     ]
 
@@ -422,11 +449,11 @@ class RemovedMessage(Struct, frozen=True):
 
 class RequestedCell(Struct, frozen=True):
     id: CellId
-    code_hash: (
+    etag: (
         Annotated[
             Etag,
             Meta(
-                description="The cell's `code_hash` as last read. A cell whose code differs is a `conflict`. Absent, the cell runs as it is."
+                description="The cell's `etag` as last read. A cell whose source, name, or config differs is a `conflict`. Absent, the cell runs as it is."
             ),
         ]
         | UnsetType
@@ -771,17 +798,17 @@ class Cell(Struct, frozen=True):
         ]
         | None
     )
-    code_hash: Annotated[
-        Etag,
+    code_fingerprint: Annotated[
+        CodeFingerprint,
         Meta(
-            description="Identifies the code alone. Its text is the actual source, even when `code` is null. Withholding source does not change this hash, the cell or document etags, or their versions. Unchanged by renaming the cell or editing its config. Compare with an execution's `code_hash` to tell whether a result came from the current code without needing the source."
+            description="Fingerprint of the actual source, including when `code` is null. Formatting-only edits may preserve it. Independent of cell name, config, and source visibility."
         ),
     ]
     config: CellConfig
     etag: Annotated[
         Etag,
         Meta(
-            description="Identifies code, name, and config together, and is the precondition for editing the cell. Its text is `code_hash`, `name`, and the config values `column`, `disabled`, `hide_code`, and `expand_output` in that order, each written as a JSON scalar such as `null`, `0`, or `true`."
+            description="Precondition for edits and cell runs. Covers exact source, name, and config. Its text is the newline-joined sequence of the first 16 hex characters of SHA-256 of the UTF-8 source, `name`, and the config values `column`, `disabled`, `hide_code`, and `expand_output`, in that order. Config values are JSON scalars."
         ),
     ]
     id: CellId
@@ -840,7 +867,7 @@ class CellRemovedEvent(
 
 
 class CellVersion(Struct, frozen=True):
-    code_hash: Etag
+    code_fingerprint: CodeFingerprint
     etag: Etag
     version: Annotated[
         int, Meta(description="The cell's version after the edit.", ge=1)
@@ -963,7 +990,7 @@ class Display(Struct, frozen=True):
     data: Annotated[
         str,
         Meta(
-            description="The rendered value. JSON mimetypes are encoded as text; binary mimetypes are base64. Never a URL only the runtime can serve."
+            description="The rendered value, embedded so clients can display it independently of the runtime. JSON mimetypes are encoded as text and binary mimetypes as base64."
         ),
     ]
     execution_id: ExecutionId
@@ -1247,6 +1274,55 @@ class HostRecord(Struct, frozen=True):
     ]
 
 
+class Input(Struct, frozen=True):
+    execution_id: ExecutionId
+    id: Annotated[
+        ItemId,
+        Meta(
+            description="Identifies this prompt uniquely across executions and runtime restarts."
+        ),
+    ]
+    password: Annotated[
+        bool,
+        Meta(
+            description="Whether clients must obscure the value as it is entered."
+        ),
+    ]
+    prompt: Annotated[
+        str, Meta(description="The prompt to display, which may be empty.")
+    ]
+    seq: Annotated[
+        int,
+        Meta(
+            description="Position among the execution's console, display, and input items, increasing in production order.",
+            ge=0,
+        ),
+    ]
+    status: InputStatus
+
+
+class InputMessage(Struct, frozen=True):
+    input: Input
+    request_id: (
+        Annotated[
+            str,
+            Meta(
+                description="The `Idempotency-Key` of the request that caused this event. Omitted when no request did, and on snapshots unless that request's work is still in progress."
+            ),
+        ]
+        | UnsetType
+    ) = UNSET
+    time: (
+        Annotated[
+            datetime,
+            Meta(
+                description="When the host made this change. Present on live and replayed events; omitted on snapshots."
+            ),
+        ]
+        | UnsetType
+    ) = UNSET
+
+
 class Notebook(Struct, frozen=True):
     id: NotebookId
     name: Annotated[
@@ -1258,7 +1334,7 @@ class Notebook(Struct, frozen=True):
     operations: Annotated[
         tuple[str, ...],
         Meta(
-            description="Operations this client may call on the notebook, such as `notebook.edit` or `runtime.start`. A subset of `host.operations`, narrowed by permission and never by state; whether a runtime is attached shows in the `runtime` object, and preconditions still apply when an operation is called. The host sends the notebook again when it changes."
+            description="Operations this client may call on the notebook, such as `notebook.edit` or `runtime.start`. A subset of `host.operations` selected by the client's permissions, independently of the notebook's current state. The `runtime` object shows whether a runtime is attached, and preconditions still apply when an operation is called. The host sends the notebook again when it changes."
         ),
     ]
     path: (
@@ -1396,7 +1472,7 @@ class Project(Struct, frozen=True):
     operations: Annotated[
         tuple[str, ...],
         Meta(
-            description="Operations this client may call on the project, today `notebook.create`. A subset of `host.operations`, narrowed by permission and never by state. The host sends the project again when it changes."
+            description="Operations this client may call on the project, today `notebook.create`. A subset of `host.operations` selected by the client's permissions, independently of the project's current state. The host sends the project again when it changes."
         ),
     ]
     root: (
@@ -1674,7 +1750,7 @@ class Execution(Struct, frozen=True):
         Annotated[
             ExecutionId,
             Meta(
-                description="The execution in the same run that caused this one. Null for executions requested directly."
+                description="The execution in the same run that initiated this evaluation. Null for executions requested directly."
             ),
         ]
         | None
@@ -1697,11 +1773,8 @@ class Execution(Struct, frozen=True):
         ]
         | None
     )
-    code_hash: Annotated[
-        Etag,
-        Meta(
-            description="The `code_hash` of the code that was evaluated, computed as a cell's is."
-        ),
+    code_fingerprint: Annotated[
+        CodeFingerprint, Meta(description="Fingerprint of the evaluated code.")
     ]
     completed_at: (
         Annotated[
@@ -1715,7 +1788,7 @@ class Execution(Struct, frozen=True):
     depends_on: Annotated[
         dict[str, Revision | None],
         Meta(
-            description="The variables the execution used, by name, each at the revision the runtime holds its result valid against. Null for a name no retained cell execution had bound. Empty while queued, stamped as the execution ends, and final from then on."
+            description="The variable revisions this result is valid against, keyed by name. Null for a name no retained cell execution had bound. Empty while queued, stamped as the execution ends, and final from then on."
         ),
     ]
     id: ExecutionId
@@ -1750,7 +1823,7 @@ class Execution(Struct, frozen=True):
         Annotated[
             datetime,
             Meta(
-                description="When the code started executing. Null while queued and for an execution that never ran."
+                description="When the code started executing. Null while queued or if the execution completed before starting."
             ),
         ]
         | None
@@ -1774,6 +1847,20 @@ class ExecutionMessage(Struct, frozen=True):
             datetime,
             Meta(
                 description="When the host made this change. Present on live and replayed events; omitted on snapshots."
+            ),
+        ]
+        | UnsetType
+    ) = UNSET
+
+
+class InputEvent(Struct, frozen=True, tag_field="event", tag="input"):
+    data: InputMessage
+    id: (
+        Annotated[
+            str,
+            Meta(
+                description="The resume cursor. Omitted on snapshot and reset events.",
+                min_length=1,
             ),
         ]
         | UnsetType
@@ -1914,6 +2001,7 @@ Event: TypeAlias = Annotated[
     | ExecutionEvent
     | ConsoleEvent
     | DisplayEvent
+    | InputEvent
     | VariableEvent
     | CustomEvent
     | ProjectRemovedEvent

@@ -16,7 +16,7 @@ from marimo._core.backend import (
     Produced,
     Started,
 )
-from marimo._core.document import code_hash
+from marimo._core.code import code_fingerprint
 from marimo._core.protocol import (
     Console,
     DisplayData,
@@ -56,6 +56,9 @@ def attempt(phase: str, **fields: object) -> ExecutionNotification:
         execution_id="scratch",
         phase=phase,
         code="3 * 3" if phase == "planned" else None,
+        code_fingerprint=code_fingerprint("3 * 3")
+        if phase == "planned"
+        else None,
         **fields,
     )  # type: ignore[arg-type]
 
@@ -93,7 +96,7 @@ def test_a_run_that_prints_and_shows_a_value() -> None:
                     PlannedExecution(
                         id=ExecutionId("scratch"),
                         cell_id=None,
-                        code_hash=code_hash("3 * 3"),
+                        code_fingerprint=code_fingerprint("3 * 3"),
                         code="3 * 3",
                         caused_by=None,
                     ),
@@ -262,6 +265,7 @@ def test_late_output_keeps_its_evaluation_when_a_cell_runs_again() -> None:
                 phase="planned",
                 execution_id=identity,
                 code="pass",
+                code_fingerprint=code_fingerprint("pass"),
             )
         )[0]
         assert isinstance(planned, Planned)
@@ -337,6 +341,7 @@ def test_skipped_cells_report_their_error_after_becoming_idle(
             execution_id="skipped",
             phase="planned",
             code="pass",
+            code_fingerprint=code_fingerprint("pass"),
         )
     )
     assert translator.feed(cell(status="idle")) == []
@@ -353,3 +358,29 @@ def test_skipped_cells_report_their_error_after_becoming_idle(
     assert isinstance(messages[0], Completed)
     assert isinstance(messages[0].outcome, outcome_type)
     assert messages[1] == Done(RunId("r1"), run_outcome)  # type: ignore[arg-type]
+
+
+@pytest.mark.parametrize("code", ["x = 1", None])
+def test_planned_fingerprint_is_preserved_without_rehashing(
+    code: str | None,
+) -> None:
+    translator = RunTranslator(RunId("r1"), None)
+    assert translator.feed(
+        ExecutionNotification(
+            cell_id=CellId_t("a"),
+            run_id="r1",
+            execution_id="execution",
+            phase="planned",
+            code=code,
+            code_fingerprint="custom:v1:a",
+        )
+    ) == [
+        Planned(
+            RunId("r1"),
+            (
+                PlannedExecution(
+                    ExecutionId("execution"), "a", "custom:v1:a", None
+                ),
+            ),
+        )
+    ]

@@ -4824,26 +4824,45 @@ export interface components {
       url: string;
     };
     /**
-     * ExecuteCellsCommand
-     * @description Execute multiple cells in a batch.
+     * ExecuteCellCommand
+     * @description Execute a single cell.
      *
-     *         Executes multiple cells with their corresponding code. The kernel manages
-     *         dependency tracking and reactive execution.
+     *         Executes a cell with the provided code. Dependent cells may be
+     *         re-executed based on the reactive execution mode.
      *
      *         Attributes:
-     *             cell_ids: Cells to execute.
-     *             codes: Python code for each cell. Must match length of cell_ids.
+     *             cell_id: Cell to execute.
+     *             code: Python code to execute.
+     *             code_fingerprint: Code fingerprint. Computed from `code` when omitted.
      *             request: HTTP request context if available.
      *             timestamp: Unix timestamp when command was created.
-     *             run_id: Optional correlation ID. When set, the run's notifications
-     *                 and its `CompletedRunNotification` carry it.
+     */
+    ExecuteCellCommand: {
+      cellId: components["schemas"]["CellId"];
+      code: string;
+      /** @default  */
+      codeFingerprint?: string;
+      /** @default null */
+      request?: components["schemas"]["HTTPRequest"] | null;
+      timestamp?: number;
+      /** @enum {unknown} */
+      type: "execute-cell";
+    };
+    /**
+     * ExecuteCellsCommand
+     * @description Execute cells and their reactive dependents in one batch.
+     *
+     *         Attributes:
+     *             execution_requests: The cells and source identities to execute.
+     *             request: HTTP request context for the batch.
+     *             timestamp: Unix timestamp when the batch was created.
+     *             run_id: Correlates the run's notifications and completion.
      *             allow_stdin: Whether cells may request interactive input.
      */
     ExecuteCellsCommand: {
       /** @default true */
       allowStdin?: boolean;
-      cellIds: components["schemas"]["CellId"][];
-      codes: string[];
+      executionRequests: components["schemas"]["ExecuteCellCommand"][];
       /** @default null */
       request?: components["schemas"]["HTTPRequest"] | null;
       /** @default null */
@@ -4869,6 +4888,7 @@ export interface components {
      *
      *         Attributes:
      *             code: Python code to execute.
+     *             code_fingerprint: Code fingerprint. Computed from `code` when omitted.
      *             request: HTTP request context if available.
      *             notebook_cells: Snapshot of notebook cells from the session document.
      *                 Used to populate the document ContextVar so code_mode can read
@@ -4893,6 +4913,8 @@ export interface components {
       /** @default null */
       cellOutputs?: components["schemas"]["CellOutputs"] | null;
       code: string;
+      /** @default  */
+      codeFingerprint?: string;
       /** @default null */
       notebookCells?: components["schemas"]["NotebookCell"][] | null;
       /** @default null */
@@ -4909,6 +4931,8 @@ export interface components {
       /** @default null */
       cellOutputs?: components["schemas"]["CellOutputs"] | null;
       code: string;
+      /** @default  */
+      codeFingerprint?: string;
       /** @default null */
       notebookCells?: components["schemas"]["NotebookCell"][] | null;
       /** @default null */
@@ -4920,7 +4944,8 @@ export interface components {
      * ExecutionNotification
      * @description An attempt's lifecycle, independent of a cell's displayed status.
      *
-     *         `planned` supplies the source and identity before output is reported.
+     *         `planned` includes the execution ID and code fingerprint before any output.
+     *         `code` is null when source is withheld.
      *         `running` means evaluation began. `completed` follows the final output
      *         and errors, including for attempts that never ran. Buffered and background
      *         console output may still arrive with the completed attempt's identity.
@@ -4931,6 +4956,8 @@ export interface components {
       cell_id: components["schemas"]["CellId"];
       /** @default null */
       code?: string | null;
+      /** @default null */
+      code_fingerprint?: string | null;
       /** @default null */
       depends_on?: {
         [key: string]: components["schemas"]["Revision"] | null;
@@ -6854,9 +6881,8 @@ export interface components {
      *             `MARIMO_SERVER_TRANSPORT` environment variable. `"websocket"`
      *             (default) uses the `/ws` WebSocket endpoint; `"sse"` uses
      *             server-sent events over HTTP, for deployments behind proxies or
-     *             services that do not support WebSockets. Terminal, LSP, and
-     *             real-time collaboration still require WebSockets; RTC is disabled
-     *             when using `"sse"`.
+     *             services that do not support WebSockets. The terminal and LSP
+     *             still require WebSockets.
      */
     ServerConfig: {
       browser: "default" | string;

@@ -1,7 +1,6 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-from enum import Enum
 from typing import TYPE_CHECKING
 
 from marimo._session.consumer_policy import initial_capabilities
@@ -29,31 +28,6 @@ from marimo._session.requests import InstantiateNotebookRequest
 LOGGER = _loggers.marimo_logger()
 
 
-class ConnectionType(Enum):
-    """Type of session connection established."""
-
-    KIOSK = "kiosk"
-    RECONNECT = "reconnect"
-    RTC_EXISTING = "rtc_existing"
-    RESUME = "resume"
-    NEW = "new"
-
-
-def is_viewer_connection(
-    *, connection_type: ConnectionType, is_main_consumer: bool
-) -> bool:
-    """Whether a connection should receive read-only (kiosk) message filtering.
-
-    RTC collaborators are full editors even though they are not the room's
-    main consumer, so they are never treated as viewers. For the single-editor
-    model, the viewer is whichever connection is not currently the main
-    consumer; takeover flips this by reassigning the main consumer.
-    """
-    if connection_type is ConnectionType.RTC_EXISTING:
-        return False
-    return not is_main_consumer
-
-
 class SessionConnector:
     """Handles different session connection strategies."""
 
@@ -69,12 +43,8 @@ class SessionConnector:
         self.params = params
         self.connection = connection
 
-    async def connect(self) -> tuple[Session, ConnectionType]:
-        """Determine connection type and establish session connection.
-
-        Returns:
-            Tuple of (Session, ConnectionType) indicating the session
-            and how it was connected.
+    async def connect(self) -> None:
+        """Establish a session connection.
 
         Raises:
             WebSocketDisconnect: If the connection cannot be established.
@@ -82,48 +52,40 @@ class SessionConnector:
         async with self.manager.connection_lock(
             self.params.session_id, self.params.file_key
         ):
-            return await self._connect()
+            await self._connect()
 
-    async def _connect(self) -> tuple[Session, ConnectionType]:
+    async def _connect(self) -> None:
         # 1. Kiosk mode
         if self.params.kiosk:
-            return await self._connect_kiosk()
+            await self._connect_kiosk()
+            return
 
         # A completed launch may still be waiting for its first connection.
         if self.manager.is_session_starting(
             self.params.session_id, self.params.file_key
         ):
-            return await self._create_new_session()
+            await self._create_new_session()
+            return
 
         # 2. Reconnect to existing session with same ID
         existing_by_id = self.manager.get_session(self.params.session_id)
         if existing_by_id is not None:
             await self.handler._prepare_session(existing_by_id)
-            return self._reconnect_session(existing_by_id)
+            self._reconnect_session(existing_by_id)
+            return
 
-        # 3. Connect to existing session
-        # 3a. If RTC enabled and session exists for file key, connect to it
-
+        # 3. Viewer only mode: a second connection request is auto routed as reader only
         existing_by_file = self.manager.get_session_by_file_key(
             self.params.file_key
         )
         session_in_edit_mode = self.manager.mode == SessionMode.EDIT
-
-        if (
-            existing_by_file is not None
-            and session_in_edit_mode
-            and self.params.rtc_enabled
-        ):
-            await self.handler._prepare_session(existing_by_file)
-            return self._connect_rtc_session(existing_by_file)
-
-        # 3b. Viewer only mode: a second connection request is auto routed as reader only
         if (
             existing_by_file is not None
             and session_in_edit_mode
             and not initial_capabilities(existing_by_file, self.params).edit
         ):
-            return await self._connect_kiosk()
+            await self._connect_kiosk()
+            return
 
         # 4. Resume previous session
         resumable = self.manager.maybe_resume_session(
@@ -131,12 +93,13 @@ class SessionConnector:
         )
         if resumable is not None:
             await self.handler._prepare_session(resumable)
-            return self._resume_session(resumable)
+            self._resume_session(resumable)
+            return
 
         # 5. Create new session
-        return await self._create_new_session()
+        await self._create_new_session()
 
-    async def _connect_kiosk(self) -> tuple[Session, ConnectionType]:
+    async def _connect_kiosk(self) -> None:
         """Connect to kiosk session.
 
         Raises:
@@ -174,11 +137,8 @@ class SessionConnector:
         LOGGER.debug("Connecting to kiosk session")
         await self.handler._prepare_session(kiosk_session)
         self.handler._connect_kiosk(kiosk_session)
-        return kiosk_session, ConnectionType.KIOSK
 
-    def _reconnect_session(
-        self, session: Session
-    ) -> tuple[Session, ConnectionType]:
+    def _reconnect_session(self, session: Session) -> None:
         """Reconnect to existing session.
 
         The session already exists, but it was disconnected. This can happen
@@ -188,32 +148,18 @@ class SessionConnector:
         # In case there is a lingering connection, close it
         session.disconnect_main_consumer()
         self.handler._reconnect_session(session, replay=False)
-        return session, ConnectionType.RECONNECT
 
-    def _connect_rtc_session(
-        self, session: Session
-    ) -> tuple[Session, ConnectionType]:
-        """Connect to RTC-enabled session."""
-        LOGGER.debug(
-            "Connecting to existing session for file %s", self.params.file_key
-        )
-        self.handler._connect_to_existing_session(session)
-        return session, ConnectionType.RTC_EXISTING
-
-    def _resume_session(
-        self, session: Session
-    ) -> tuple[Session, ConnectionType]:
+    def _resume_session(self, session: Session) -> None:
         """Resume a previous session."""
         LOGGER.debug("Resuming session %s", self.params.session_id)
         self.handler._reconnect_session(session, replay=True)
-        return session, ConnectionType.RESUME
 
     @property
     def _is_run_mode(self) -> bool:
         """Check if we're in run mode (read-only app mode)."""
         return self.manager.mode == SessionMode.RUN
 
-    async def _create_new_session(self) -> tuple[Session, ConnectionType]:
+    async def _create_new_session(self) -> None:
         """Create a new session.
 
         Grabs query params from the connection and creates a new session
@@ -240,8 +186,6 @@ class SessionConnector:
         # In run mode, auto-instantiate server-side (frontend won't call it)
         if self._is_run_mode:
             self._auto_instantiate(new_session)
-
-        return new_session, ConnectionType.NEW
 
     def _extract_query_params(self) -> QueryParams:
         """Read notebook parameters independently of stream options."""

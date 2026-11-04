@@ -21,7 +21,6 @@ import { CopilotStatusIcon } from "./footer-items/copilot-status";
 import { DocumentSyncStatus } from "./footer-items/document-sync-status";
 import { MachineStats } from "./footer-items/machine-stats";
 import { PyodideStatus } from "./footer-items/pyodide-status";
-import { RTCStatus } from "./footer-items/rtc-status";
 import { RuntimeSettings } from "./footer-items/runtime-settings";
 import { useSetDependencyPanelTab } from "./useDependencyPanelTab";
 
@@ -113,7 +112,6 @@ export const Footer: React.FC = () => {
         <AttachmentStatus />
         <AIStatusIcon />
         <CopilotStatusIcon />
-        <RTCStatus />
       </div>
     </footer>
   );

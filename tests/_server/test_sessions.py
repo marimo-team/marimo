@@ -282,8 +282,12 @@ async def test_kernel_manager_interrupt(
         # A later interrupt must still work after the first handler raised.
         queue_manager.put_control_request(
             ExecuteCellsCommand(
-                cell_ids=["1"],
-                codes=["import _thread; _thread.interrupt_main()"],
+                execution_requests=[
+                    ExecuteCellCommand(
+                        cell_id="1",
+                        code="import _thread; _thread.interrupt_main()",
+                    )
+                ]
             )
         )
         assert await asyncio.wait_for(

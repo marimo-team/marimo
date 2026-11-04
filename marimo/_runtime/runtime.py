@@ -467,6 +467,7 @@ class CellMetadata:
     config: CellConfig = dataclasses.field(default_factory=CellConfig)
     # Retain validated source even when a syntax error prevents registration.
     code: str | None = None
+    code_fingerprint: str | None = None
 
 
 @dataclasses.dataclass(frozen=True)
@@ -1328,15 +1329,17 @@ class Kernel:
             pending = self._uninstantiated_execution_requests.pop(
                 er.cell_id, None
             )
-            self.cell_metadata.setdefault(
+            metadata = self.cell_metadata.setdefault(
                 er.cell_id, CellMetadata()
-            ).code = er.code
+            )
             old_children, error = self._maybe_register_cell(
                 er.cell_id,
                 er.code,
                 stale=er.cell_id in cells_starting_stale
                 or pending is not None,
             )
+            metadata.code = er.code
+            metadata.code_fingerprint = er.code_fingerprint
             cells_that_were_children_of_mutated_cells |= old_children
             if error is None:
                 registered_cell_ids.add(er.cell_id)
@@ -1452,7 +1455,6 @@ class Kernel:
             self._invalidate_cell_state(cid, exclude_defs=keep_alive_defs)
 
         self.errors = all_errors
-        submitted_code = {er.cell_id: er.code for er in execution_requests}
         for cid in self.errors:
             cell = self.graph.cells.get(cid, None)
             if (
@@ -1471,9 +1473,7 @@ class Kernel:
                 # On syntax errors, we don't have a cell object.
                 CellNotificationUtils.broadcast_stale(cell_id=cid, stale=False)
 
-            execution = ExecutionAttempt.plan(
-                cid, submitted_code.get(cid, cell.code if cell else "")
-            )
+            execution = self._plan_execution(cid)
             with execution.activate():
                 CellNotificationUtils.broadcast_error(
                     data=self.errors[cid],
@@ -1864,6 +1864,7 @@ class Kernel:
             execution_context=self._install_execution_context,
             hooks=run_hooks,
             get_inputs=self._read_inputs,
+            plan_execution=self._plan_execution,
             user_config=self.user_config,
         )
 
@@ -2094,12 +2095,22 @@ class Kernel:
         )
         return requests
 
+    def _plan_execution(self, cell_id: CellId_t) -> ExecutionAttempt:
+        metadata = self.cell_metadata.get(cell_id)
+        if metadata is not None and metadata.code is not None:
+            return ExecutionAttempt.plan(
+                cell_id, metadata.code, metadata.code_fingerprint
+            )
+        return ExecutionAttempt.plan(cell_id, self.graph.cells[cell_id].code)
+
     @kernel_tracer.start_as_current_span("run")
     async def run(
-        self, execution_requests: Sequence[ExecuteCellCommand]
-    ) -> None:
+        self,
+        execution_requests: Sequence[ExecuteCellCommand],
+        *,
+        discard_after_interrupt: bool = True,
+    ) -> list[ExecuteCellCommand]:
         """Run cells and their descendants.
-
 
         The cells may be cells already existing in the graph or new cells.
         Adds the cells in `execution_requests` to the graph before running
@@ -2107,6 +2118,16 @@ class Kernel:
         allowing frontends to incrementally instantiate a notebook.
 
         Cells may use top-level await, which is why this function is async.
+
+        Args:
+            execution_requests: The cells to run, with the code to register
+                for each.
+            discard_after_interrupt: Drop requests created before the last
+                interrupt, so one interrupt also clears what the browser
+                queued behind it. A host cancels its runs by id instead.
+
+        Returns:
+            The requests discarded because an interrupt preceded them.
         """
 
         async def _run_with_uninstantiated_requests(
@@ -2120,15 +2141,19 @@ class Kernel:
                 )
             )
 
-        if self.last_interrupt_timestamp is None:
-            # No interruption has occurred, so we can run all requests
+        if (
+            self.last_interrupt_timestamp is None
+            or not discard_after_interrupt
+        ):
             await _run_with_uninstantiated_requests(execution_requests)
-            return
+            return []
 
         # Filter out requests that were created before the last interruption
         filtered_requests: list[ExecuteCellCommand] = []
+        discarded: list[ExecuteCellCommand] = []
         for request in execution_requests:
             if request.timestamp < self.last_interrupt_timestamp:
+                discarded.append(request)
                 CellNotificationUtils.broadcast_error(
                     data=[MarimoInterruptionError()],
                     clear_console=False,
@@ -2151,6 +2176,7 @@ class Kernel:
                 filtered_requests.append(request)
 
         await _run_with_uninstantiated_requests(filtered_requests)
+        return discarded
 
     @kernel_tracer.start_as_current_span("pdb_request")
     async def pdb_request(self, cell_id: CellId_t) -> None:
@@ -2176,8 +2202,12 @@ class Kernel:
         await self.maybe_autorun_cells(roots)
 
     @kernel_tracer.start_as_current_span("run_scratchpad")
-    async def run_scratchpad(self, code: str) -> None:
-        execution = ExecutionAttempt.plan(SCRATCH_CELL_ID, code)
+    async def run_scratchpad(
+        self, code: str, *, code_fingerprint: str | None = None
+    ) -> None:
+        execution = ExecutionAttempt.plan(
+            SCRATCH_CELL_ID, code, code_fingerprint
+        )
         with execution.activate():
             try:
                 await self._run_scratchpad(code, execution)

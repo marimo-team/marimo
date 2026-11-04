@@ -1,6 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { BotIcon } from "lucide-react";
+import { ArrowUpRightIcon, BotIcon } from "lucide-react";
 import React from "react";
 import { AiProviderIcon } from "@/components/ai/ai-provider-icon";
 import { useImperativeModal } from "@/components/modal/ImperativeModal";
@@ -33,7 +33,7 @@ export const usePairWithAgentModal = () => {
 
 export const PairWithAgentButton: React.FC<
   ButtonProps & { label?: string }
-> = ({ className, label = "Connect your agent", onClick, ...props }) => {
+> = ({ className, label = "Pair your agent", onClick, ...props }) => {
   const openPairWithAgentModal = usePairWithAgentModal();
 
   if (isWasm()) {
@@ -62,7 +62,7 @@ export const PairWithAgentButton: React.FC<
 export const PairWithAgentBanner: React.FC<{
   label?: string;
   className?: string;
-}> = ({ label = "Connect your agent", className }) => {
+}> = ({ label = "Pair your agent", className }) => {
   const openPairWithAgentModal = usePairWithAgentModal();
 
   if (isWasm()) {
@@ -72,7 +72,7 @@ export const PairWithAgentBanner: React.FC<{
   return (
     <div
       className={cn(
-        "rounded-lg border border-(--blue-6) bg-(--blue-2)/50 p-3",
+        "rounded-lg border border-border bg-muted/30 p-3",
         className,
       )}
     >
@@ -103,16 +103,21 @@ export const PairWithAgentBanner: React.FC<{
         </fieldset>
       </div>
       <div className="mt-1 text-xs leading-relaxed">
-        <p className="inline">
-          Use your AI coding agent to pair-program on this notebook.
+        <p>
+          Pair your coding agent with this notebook to edit and run cells,
+          inspect variables, and more, straight from your agent's CLI or user
+          interface.
         </p>
-        <button
+        <Button
           type="button"
+          variant="outline"
+          size="xs"
           onClick={openPairWithAgentModal}
-          className="text-link hover:underline ml-1"
+          className="mt-3 gap-1"
         >
-          Learn more.
-        </button>
+          Set up pairing
+          <ArrowUpRightIcon className="size-3.5" aria-hidden={true} />
+        </Button>
       </div>
     </div>
   );

@@ -11,6 +11,7 @@ from marimo._runtime.commands import (
     CodeCompletionCommand,
     DebugCellCommand,
     DiscoverDataSourcesCommand,
+    ExecuteCellCommand,
     ExecuteCellsCommand,
     ExecuteScratchpadCommand,
     GetCacheInfoCommand,
@@ -257,8 +258,12 @@ class ExecuteCellsRequest(msgspec.Struct, rename="camel"):
 
     def as_command(self) -> ExecuteCellsCommand:
         return ExecuteCellsCommand(
-            cell_ids=self.cell_ids,
-            codes=self.codes,
+            execution_requests=[
+                ExecuteCellCommand(cell_id=cell_id, code=code)
+                for cell_id, code in zip(
+                    self.cell_ids, self.codes, strict=True
+                )
+            ],
             request=self.request,
         )
 

@@ -160,6 +160,20 @@ export const createCellAtom = atom(
 );
 
 /**
+ * Write a cell's code, or nothing for a cell the document no longer has.
+ * A mounted editor follows the document.
+ */
+export const setCellCodeAtom = atom(
+  null,
+  (get, set, { cellId, code }: { cellId: CellId; code: string }): void => {
+    if (!documentOf(get).cells.has(cellId)) {
+      return;
+    }
+    set(modelOf(get).editAtom, (tx) => tx.setCode(cellId, code));
+  },
+);
+
+/**
  * Split a cell at its cursor. The text before stays, the text after
  * becomes a new cell below, which is focused. Returns the new cell's id,
  * or null for a cell without an editor.
@@ -399,6 +413,27 @@ export const addSetupCellAtom = atom(
 );
 
 /**
+ * Create the setup cell with `code`, or append `code` to the one that exists.
+ */
+export const addOrAppendSetupCellAtom = atom(
+  null,
+  (get, set, { code }: { code: string }): void => {
+    const setup = documentOf(get).cells.get(SETUP_CELL_ID);
+    if (setup === undefined) {
+      set(addSetupCellAtom, { code });
+      return;
+    }
+    // Withheld source keeps the code this client has.
+    const existing =
+      setup.code ?? get(notebookAtom).cellData[SETUP_CELL_ID]?.code ?? "";
+    set(setCellCodeAtom, {
+      cellId: SETUP_CELL_ID,
+      code: existing.trim() ? `${existing.trimEnd()}\n\n${code}` : code,
+    });
+  },
+);
+
+/**
  * Delete cells, keeping them in the history for undo. The notebook keeps at
  * least one cell. Returns false when nothing was deleted.
  */
@@ -574,6 +609,7 @@ export function useCellActions() {
   const createCell = useSetAtom(createCellAtom);
   const moveToNextCell = useSetAtom(moveToNextCellAtom);
   const addSetupCell = useSetAtom(addSetupCellAtom);
+  const addOrAppendSetupCell = useSetAtom(addOrAppendSetupCellAtom);
   const deleteCells = useSetAtom(deleteCellsAtom);
   const undoDeleteCell = useSetAtom(undoDeleteCellAtom);
   const focusCell = useSetAtom(focusCellAtom);
@@ -597,11 +633,13 @@ export function useCellActions() {
   const mergeAllColumns = useSetAtom(mergeAllColumnsAtom);
   const compactColumns = useSetAtom(compactColumnsAtom);
   const moveColumn = useSetAtom(moveColumnAtom);
+  const setCellCode = useSetAtom(setCellCodeAtom);
   const splitCell = useSetAtom(splitCellAtom);
   const undoSplitCell = useSetAtom(undoSplitCellAtom);
   return useMemo(
     () => ({
       ...operations,
+      setCellCode,
       splitCell,
       undoSplitCell,
       addColumn,
@@ -620,6 +658,7 @@ export function useCellActions() {
       createCell,
       moveToNextCell,
       addSetupCell,
+      addOrAppendSetupCell,
       deleteCells,
       undoDeleteCell,
       focusCell,

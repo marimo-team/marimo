@@ -40,7 +40,7 @@ function document(codes: ReadonlyArray<string | null>): Document {
       expand_output: false,
     },
     etag: `etag-${index}`,
-    code_hash: `hash-${index}`,
+    code_fingerprint: `hash-${index}`,
     version: 1,
   }));
   return {

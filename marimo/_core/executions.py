@@ -177,7 +177,7 @@ class Executions:
         return tracked.run if tracked is not None else None
 
     def active(self) -> protocol.Run | None:
-        """The run in progress, if any."""
+        """The oldest unfinished run, if any."""
         return next(
             (
                 tracked.run
@@ -446,7 +446,7 @@ class Executions:
                         if entry.cell_id is not None
                         else None,
                         code=entry.code,
-                        code_hash=entry.code_hash,
+                        code_fingerprint=entry.code_fingerprint,
                         depends_on={},
                         status="queued",
                         outcome=None,

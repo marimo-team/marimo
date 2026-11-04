@@ -34,8 +34,16 @@ KINDS = (
     "execution",
     "console",
     "display",
+    "input",
     "variable",
 )
+REMOVAL_EVENTS = {
+    name
+    for name in SPEC["components"]["schemas"]["Event"]["discriminator"][
+        "mapping"
+    ]
+    if name.endswith(".removed")
+}
 
 
 def validate(name: str, value: Any) -> None:
@@ -61,7 +69,7 @@ class Frame:
             assert value == {}, f"{self.event} must carry an empty object"
         elif self.event in KINDS:
             validate(f"{self.event.title()}Message", value)
-        elif self.event.removesuffix(".removed") in KINDS:
+        elif self.event in REMOVAL_EVENTS:
             validate("RemovedMessage", value)
         return value
 
@@ -101,7 +109,7 @@ class Watch:
                 if frame.comment is None and (
                     frame.event in KINDS
                     or frame.event in ("ready", "reset")
-                    or frame.event.removesuffix(".removed") in KINDS
+                    or frame.event in REMOVAL_EVENTS
                 ):
                     frame.message()
                 result.append(frame)
@@ -205,15 +213,16 @@ def document_state(
     assert sorted(document["order"]) == sorted(cells)
     for cell in cells.values():
         assert cell["notebook_id"] == document["notebook_id"]
+        assert isinstance(cell["code_fingerprint"], str)
+        assert cell["code_fingerprint"]
         if cell["code"] is not None:
-            assert cell["code_hash"] == etag(cell["code"])
-        config = cell["config"]
-        parts = [cell["code_hash"], cell["name"]]
-        parts.extend(
-            json.dumps(config[key])
-            for key in ("column", "disabled", "hide_code", "expand_output")
-        )
-        assert cell["etag"] == etag("\n".join(parts))
+            config = cell["config"]
+            parts = [etag(cell["code"]), cell["name"]]
+            parts.extend(
+                json.dumps(config[key])
+                for key in ("column", "disabled", "hide_code", "expand_output")
+            )
+            assert cell["etag"] == etag("\n".join(parts))
     assert document["order_etag"] == etag(
         json.dumps(
             document["order"], separators=(",", ":"), ensure_ascii=False

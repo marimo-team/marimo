@@ -40,6 +40,7 @@ from marimo._config.manager import get_default_config_manager
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._server.workspace import (
     DirectoryWorkspace,
+    EmptyWorkspace,
     FixedFilesWorkspace,
 )
 from marimo._templates import get_version
@@ -881,6 +882,28 @@ def test_cli_edit_skip_update_check(tmp_path: Path) -> None:
     assert (
         state_contents is None or state_contents.get("last_checked_at") is None
     )
+
+
+@pytest.mark.parametrize("stdin", ["", "Plot a sine wave"])
+def test_cli_new_creates_empty_notebook(stdin: str) -> None:
+    with patch("marimo._cli.cli.start") as start:
+        result = CliRunner().invoke(
+            cli_main, ["new", "--no-sandbox", "--headless"], input=stdin
+        )
+
+    assert result.exit_code == 0, result.output
+    start.assert_called_once()
+    assert isinstance(start.call_args.kwargs["workspace"], EmptyWorkspace)
+
+
+@pytest.mark.parametrize("prompt", ["Plot a sine wave", "prompt.txt"])
+def test_cli_new_rejects_prompt(prompt: str) -> None:
+    with patch("marimo._cli.cli.start") as start:
+        result = CliRunner().invoke(cli_main, ["new", prompt])
+
+    assert result.exit_code == 2
+    assert "unexpected extra argument" in result.output.lower()
+    start.assert_not_called()
 
 
 def test_cli_new() -> None:
