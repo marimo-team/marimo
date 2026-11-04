@@ -1,198 +1,128 @@
 # Configuration
 
-marimo offers two types of configuration: User Settings, which apply globally
-to all your notebooks, and Notebook Settings, which apply to a single notebook.
-Both can be configured in the marimo editor.
+## Configuration options
 
-<img align="right" src="/_static/docs-app-config.png" alt="Notebook settings dialog showing display, data, custom files, and exporting options" width="420px"/>
-
-## Notebook settings
-
-Notebook settings are specific to each notebook and are stored in the
-`notebook.py` file. This allows you to customize various aspects of your
-notebook, including:
-
-- Notebook width
-- Notebook title
-- [Custom CSS](theming.md)
-- [Custom HTML Head](html_head.md)
-- Automatically download HTML snapshots
-
-Configure these settings through the notebook menu (⚙️) in the top-right corner.
-
-<br clear="left"/>
-
-## User settings
-
-User settings apply globally across all marimo notebooks and are stored
-in a `$XDG_CONFIG_HOME/marimo/marimo.toml` file.
-
-While you can edit the `$XDG_CONFIG_HOME/marimo/marimo.toml` file directly, we
-recommend using the marimo UI for a more user-friendly experience. Click the
-"User settings" button in the bottom of the notebook settings menu to open
-configuration UI, or hit `Cmd/Ctrl + k` to open the command palette and type
-`"User settings"`.
-
-You can customize the following settings:
-
-- [Runtime](runtime_configuration.md), including whether notebooks autorun
-- [Hotkeys](../editor_features/hotkeys.md)
-- Completion (auto-completion, AI copilot, etc.)
-- Display (theme, font size, output placement, etc.)
-- Autosave
-- [Package management](../package_management/installing_packages.md)
-- Server settings
-- [VIM keybindings](../editor_features/overview.md#vim-keybindings)
-- Formatting settings
-- [AI assistance](../editor_features/ai_completion.md)
-- [Snippets](snippets.md)
-- Experimental features
-
-### User configuration file
-
-marimo searches for the `.marimo.toml` file in the following order:
-
-1. Current directory
-2. Parent directories (moving up the tree)
-3. Home directory (`~/.marimo.toml`)
-4. [XDG](https://xdgbasedirectoryspecification.com/) directory (`~/.config/marimo/marimo.toml` or `$XDG_CONFIG_HOME/marimo/marimo.toml`)
-
-If no `.marimo.toml` file is found, marimo creates one for you in an XDG config
-compliant way.
-
-To view the configuration marimo is using, run:
-
-```bash
-marimo config show
-```
-
-Add `--show-sources` to include where each configuration value was determined.
-
-To include a notebook's script metadata, pass its path:
-
-```bash
-marimo config show notebook.py
-```
-
-To describe the user configuration options, run:
+For available options, descriptions, types, and defaults, run:
 
 ```bash
 marimo config describe
 ```
 
-### Overriding settings with pyproject.toml
-
-You can override user configuration settings with a `pyproject.toml` file. This
-is useful for sharing configurations across teams or ensuring consistency across
-notebooks. You must edit the `pyproject.toml` file directly to override settings.
-
-For example, the following `pyproject.toml` file overrides the `autosave` setting
-in the user configuration:
-
-```toml title="pyproject.toml"
-[tool.marimo.formatting]
-line_length = 120
-
-[tool.marimo.display]
-default_width = "full"
-
-[tool.marimo.runtime]
-default_sql_output = "native"
-```
-
-You can override most user configuration settings in this way. To find these settings run `marimo config show`.
-
-### Additional file browser roots
-
-Add absolute local directories to the file browser with project configuration:
-
-```toml title="pyproject.toml"
-[tool.marimo.file_browser]
-folders = [{ path = "/absolute/path/to/data", name = "Data" }]
-```
-
-For `marimo.toml`, use `[file_browser]` instead. `name` is optional. Invalid or
-duplicate paths are ignored. Additional roots affect only the file browser and
-cannot be set through notebook script metadata.
-
-!!! note "Overridden settings"
-    Settings overridden in `pyproject.toml` or script metadata cannot be changed through the marimo editor's settings menu. Any changes made to overridden settings in the editor will not take effect.
-
-!!! warning "Settings that repositories cannot override"
-    A `pyproject.toml`, a notebook's script metadata, and a `.marimo.toml` inside
-    a project directory all travel with the code, so whoever wrote the repository
-    controls them. marimo reads `signing` and `cache.verification` from your user
-    configuration only, and ignores them in all three, because those two settings
-    decide [whose cached code you unpickle](../../api/caching.md#cache-signing-and-trust).
-
-### Script metadata configuration
-
-You can also configure marimo settings directly in your notebook files using script metadata (PEP 723). Add a `script` block at the top of your notebook:
-
-```python
-# /// script
-# [tool.marimo.runtime]
-# auto_instantiate = false
-# on_cell_change = "lazy"
-# [tool.marimo.display]
-# theme = "dark"
-# cell_output = "below"
-# ///
-```
-
-!!! note "Configuration precedence"
-    Script metadata configuration has the highest precedence, followed by `pyproject.toml` configuration, then user configuration:
-
-    **Script config > pyproject.toml config > user config**
-
-    The ordering covers the settings those layers are allowed to set. `signing`
-    and `cache.verification` come from user configuration whatever any other
-    layer says.
-
-### Dotenv files
-
-By default, marimo loads `.env` from the project directory, or the notebook's
-directory when there is no `pyproject.toml`. Override this location with
-`runtime.dotenv`; run `marimo config describe` for the option's path resolution
-and loading rules.
-
-## Environment variables
-
-Every configuration option listed by `marimo config describe` can be set through
-an environment variable. Prefix its path with `MARIMO_`, replace dots
-with underscores, and uppercase the result. For example:
+To view the configuration values being used:
 
 ```bash
-MARIMO_DISPLAY_THEME=dark marimo edit notebook.py
-MARIMO_SAVE_AUTOSAVE_DELAY=2000 marimo edit notebook.py
-MARIMO_EXPERIMENTAL_DEBUGGER=true marimo edit notebook.py
-MARIMO_RUNTIME_PYTHONPATH='["src", "lib"]' marimo edit notebook.py
-MARIMO_KEYMAP_OVERRIDES='{"run-cell": "Shift-Enter"}' marimo edit notebook.py
+marimo config show
 ```
 
-Strings are supplied directly, booleans accept `true` or `false` (case
-insensitive), and numbers use their usual numeric form. Lists and dictionaries
-use JSON and are addressed as whole values; individual dictionary entries and
-list elements cannot be addressed. Use `null` for nullable settings. Empty
-strings remain empty strings.
+You can also pass a notebook path to include its project settings and script metadata, and
+add `--show-sources` to identify where values came from:
 
-Environment settings override user, project, and notebook configuration.
-Explicit runtime overrides take precedence, and machine-wide restrictions such
-as `MARIMO_RESTRICT_SHARING` are always enforced. Malformed values are reported
-and ignored independently, so the corresponding file or default value still
-applies. Run `marimo config show` to check your environment configuration, or add
-`--show-sources` to see which environment variables supplied the effective values.
-Environment overrides are not saved to configuration files.
+```bash
+marimo config show notebook.py --show-sources
+```
 
-Older environment-variable names remain supported with a deprecation warning
-and will be removed in marimo 1.0. When both names are set, the new name takes
-precedence.
+For guidance on specific features, see [runtime configuration](runtime_configuration.md),
+[AI assistance](../editor_features/ai_completion.md), and
+[theming](theming.md).
 
-The session secret is hidden in configuration output; set it in trusted user
-configuration or through the environment. Session cookie settings take effect
-when the server starts.
+### Notebook settings
 
-### Tips
+Notebook settings such as title, width, [custom CSS](theming.md),
+[HTML head](html_head.md), and automatic exports are stored in the notebook's
+`marimo.App(...)` declaration. Open the notebook menu (⚙️) in the top-right
+corner to change them.
 
-- The `.marimo.toml` file can be version controlled to share configurations across teams
-- App configurations can be committed with notebooks to ensure consistent appearance
+These settings are separate from the configuration options above. A notebook
+can also override user configuration through [script metadata](#script-metadata-configuration).
+
+## Ways to set configurations
+
+marimo applies each configuration value individually from the configuration sources below **in order, from lowest to highest priority**. See [restrictions and overrides](#restrictions-and-overrides) for
+exceptions.
+
+1. <a id="user-configuration-file"></a><a id="user-settings"></a>**User configuration file `.marimo.toml`**
+
+    The **User settings** UI edits the `.marimo.toml` file. You can also edit the TOML file
+    directly:
+
+    ```toml title=".marimo.toml"
+    [display]
+    theme = "dark"
+    ```
+
+    marimo uses the **first existing file** in this search order:
+
+    1. `.marimo.toml` in the current working directory
+    2. `.marimo.toml` in parent directories, stopping at your home directory if it
+       is an ancestor, or at the filesystem root otherwise
+    3. `~/.marimo.toml`
+    4. `$XDG_CONFIG_HOME/marimo/marimo.toml`, defaulting to
+       `~/.config/marimo/marimo.toml`
+
+    If none exists, marimo creates its user configuration file at the XDG location.
+
+2. <a id="overriding-settings-with-pyprojecttoml"></a>**Per-project configuration in `pyproject.toml`**
+
+    Use `[tool.marimo]` sections in the nearest `pyproject.toml` to share settings
+    across a project. marimo searches upward from the notebook, or from the working
+    directory when no notebook is specified.
+
+    For a file-browser configuration example, see [additional file browser roots](../editor_features/panels.md#additional-file-browser-roots).
+
+3. <a id="script-metadata-configuration"></a>**Script metadata configuration in notebook**
+
+    Put configuration in a [PEP 723](https://peps.python.org/pep-0723/) script block
+    at the top of a notebook to override project and user settings for that notebook:
+
+    ```python
+    # /// script
+    # [tool.marimo.display]
+    # theme = "dark"
+    # ///
+    ```
+
+    Changes require a server restart. Script metadata supports a subset of options:
+    settings that access credentials or external services, such as the `ai`, `mcp`,
+    `completion`, `secrets`, and `server` sections, are ignored. It also ignores
+    `runtime.auto_instantiate`, `experimental.isolate_apps`, and `display.custom_css`.
+
+4. <a id="environment-variables"></a>**Environment variables**
+
+    Environment variables are named following the pattern `MARIMO_<CATEGORY>_<NAME>`. For example, `display.theme` becomes:
+
+    ```bash
+    export MARIMO_DISPLAY_THEME=dark
+    export MARIMO_RUNTIME_PYTHONPATH='["src", "lib"]'
+    export MARIMO_KEYMAP_OVERRIDES='{"run-cell": "Shift-Enter"}'
+    ```
+
+    <a id="dotenv-files"></a>
+    **Dotenv files** supply environment variables to notebook code when the
+    runtime starts, after startup configuration has been resolved. They do not
+    form another layer in this hierarchy. Existing environment variables take
+    precedence over values in these files.
+
+    By default, marimo loads `.env` beside the nearest `pyproject.toml`, or beside
+    the notebook when there is no project. Automatic discovery skips the home
+    directory unless it contains the project's `pyproject.toml`. Set
+    `runtime.dotenv` to choose different files; see
+    [dotenv loading](runtime_configuration.md#env-files) for examples and run
+    `marimo config describe` for path resolution rules.
+
+### Restrictions and overrides
+
+CLI flags such as `--skip-update-check` take precedence over the corresponding
+environment variable. Administrator restrictions such as `MARIMO_RESTRICT_SHARING` are always
+enforced, regardless of other sources.
+
+Settings supplied by `pyproject.toml`, script metadata, or environment variables
+cannot be overridden through the editor's User settings menu. Server session
+cookie settings take effect when the server starts.
+
+!!! note "Trusted configuration"
+    `signing`, `cache.verification`, `cache.loader`, and `server.session_secret`
+    are read only from trusted user configuration (`~/.marimo.toml` or the XDG
+    file) or environment variables. They are ignored in project files, script
+    metadata, and workspace `.marimo.toml` files. Workspace `.marimo.toml` files
+    also cannot set `cache.store`. See [project file security](../../security.md#project-files)
+    and [cache signing and trust](../../api/caching.md#cache-signing-and-trust).

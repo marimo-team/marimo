@@ -27,6 +27,20 @@ The sidebar provides quick access to panels you'll use frequently while working 
 
 Toggle the sidebar with `Cmd/Ctrl-Shift-S`.
 
+### Additional file browser roots
+
+Add absolute local directories to the Files panel with
+[project configuration](../configuration/index.md#overriding-settings-with-pyprojecttoml):
+
+```toml title="pyproject.toml"
+[tool.marimo.file_browser]
+folders = [{ path = "/absolute/path/to/data", name = "Data" }]
+```
+
+For a user configuration file, use `[file_browser]` instead. `name` is optional;
+invalid or duplicate paths are ignored. Additional roots affect only the file
+browser and cannot be set through notebook script metadata.
+
 ## Developer Panel
 
 The developer panel houses tools for debugging, tracing execution, and other advanced functionality. It appears at the bottom of the editor, similar to the developer tools in VS Code or browser DevTools.
