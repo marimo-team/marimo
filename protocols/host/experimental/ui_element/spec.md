@@ -1,7 +1,7 @@
 # Experimental UI elements
 
-This experiment covers edit-mode sliders. Other element families
-and message operations are outside this implementation.
+This experiment publishes edit-mode sliders and provides shared transport for
+registered UIElement functions. Other element families are not yet published.
 
 A `ui_element` record describes the current wire value and constructor config
 of an element owned by `cell_id`. HTML remains the render path. Clients MUST
@@ -42,3 +42,30 @@ runtime returns `no-runtime` (409). Rejections emit no acknowledgement.
 Both host and client filters map all implemented `ui_element.*` events to
 `ui_element`. Stable clients ignore unknown experimental events and preserve
 their stream cursor.
+
+## Function calls
+
+`ui_element.send` accepts `{message: {function, args}}`. The function name and
+arguments use the existing UIElement function registry. Nonempty `buffers`
+are not supported by this handler and return `unsupported-operation` (501).
+The send and update capabilities are granted separately.
+
+The caller receives `200` with `{request_id, result}`. `result` preserves the
+existing function reply: `{status: {code, title, message}, return_value, found}`.
+A null return value is a completed result. Function errors also return this
+envelope. Only `found: false` permits the editor to make a new registration
+retry. A function that ran MUST NOT be retried with a new key automatically.
+This handler always returns a result; fire-and-forget model messages are not
+implemented.
+
+Results MUST NOT appear in shared events, replay, or snapshots. The host
+correlates each call with a fresh kernel call id. It releases pending calls on
+completion, element removal, runtime stop, notebook removal, or timeout.
+Removal answers `not-found` (404); after 30 seconds, an outstanding call answers
+`tag:marimo.io,2026:host/timeout` (504). Timeout does not cancel kernel work.
+Late results are ignored, including results for an element id that was reused.
+
+Within the base retry window, concurrent and later requests with the same key
+share the result, including function errors, removal, and timeout. Disconnecting
+the HTTP caller does not cancel accepted work. The caller can reconnect and
+repeat the key without executing the function again.

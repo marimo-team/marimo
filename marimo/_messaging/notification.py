@@ -193,6 +193,14 @@ class FunctionCallResultNotification(Notification, tag="function-call-result"):
     found: bool
 
 
+class UIElementResultNotification(
+    FunctionCallResultNotification, tag="ui-element-result"
+):
+    """A host function reply, excluded from editor and replay streams."""
+
+    name: ClassVar[str] = "ui-element-result"
+
+
 class RemoveUIElementsNotification(Notification, tag="remove-ui-elements"):
     """Removes UI elements associated with a cell.
 
@@ -1135,6 +1143,7 @@ NotificationMessage = (
     CellNotification
     | ExecutionNotification
     | FunctionCallResultNotification
+    | UIElementResultNotification
     | UIElementMessageNotification
     | UIElementCreatedNotification
     | UIElementUpdatedNotification

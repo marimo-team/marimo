@@ -15,7 +15,13 @@ from typing import TYPE_CHECKING, ClassVar, Literal
 import msgspec
 
 from marimo._core import protocol
-from marimo._core.errors import Conflict, HostError, Invalid, NotFound
+from marimo._core.errors import (
+    Conflict,
+    HostError,
+    Invalid,
+    NotFound,
+    Unsupported,
+)
 from marimo._core.operations import Reply, problem_for
 
 if TYPE_CHECKING:
@@ -48,6 +54,19 @@ class UIElementUpdateRequest(
 
 class MutationHeaders(msgspec.Struct, frozen=True):
     idempotency_key: str = msgspec.field(name="idempotency-key", default="")
+
+
+class UIElementFunctionCall(
+    protocol.UIElementFunctionCall, frozen=True, forbid_unknown_fields=True
+):
+    pass
+
+
+class UIElementSendRequest(
+    msgspec.Struct, frozen=True, forbid_unknown_fields=True
+):
+    message: UIElementFunctionCall
+    buffers: tuple[str, ...] = ()
 
 
 class SaveHeaders(MutationHeaders, frozen=True):
@@ -220,6 +239,31 @@ class UIElementUpdateCall(_Call, frozen=True, tag="ui_element.update"):
         )
 
 
+class UIElementSendCall(_Call, frozen=True, tag="ui_element.send"):
+    """Call a registered function and return its result only to the caller."""
+
+    METHOD = "POST"
+    PATH = "/notebooks/{notebook_id}/ui-elements/{element_id}/send"
+
+    params: UIElementParams
+    headers: MutationHeaders
+    body: UIElementSendRequest
+
+    async def handle(
+        self, bridge: NotebookBridge
+    ) -> tuple[Literal[200], protocol.UIElementSendResponse]:
+        if self.body.buffers:
+            raise Unsupported("UIElement functions do not accept buffers")
+        if not self.body.message.function:
+            raise Invalid("A function name is required")
+        notebook = await bridge.host.notebook(self.params.notebook_id)
+        return 200, await notebook.send_ui_element(
+            self.params.element_id,
+            self.body.message,
+            request_id=self.headers.idempotency_key,
+        )
+
+
 OperationCall = (
     EditCall
     | SaveCall
@@ -229,6 +273,7 @@ OperationCall = (
     | RunCall
     | InterruptCall
     | UIElementUpdateCall
+    | UIElementSendCall
 )
 """A request for any notebook operation, tagged by its operation id."""
 
@@ -243,6 +288,7 @@ CALLS: tuple[type[OperationCall], ...] = (
     RunCall,
     InterruptCall,
     UIElementUpdateCall,
+    UIElementSendCall,
 )
 
 
@@ -250,13 +296,25 @@ async def dispatch(
     mutations: Mutations, bridge: NotebookBridge, call: OperationCall
 ) -> Reply:
     """Serve a call once per idempotency key and describe a failure as a problem."""
+
+    async def invoke() -> Reply:
+        try:
+            return await call.handle(bridge)
+        except HostError as exc:
+            if not isinstance(call, UIElementSendCall):
+                raise
+            # A timed-out or removed target can still have work in the kernel.
+            # Keep its terminal reply so a retry cannot execute it again.
+            failure = problem_for(exc)
+            return failure.status, failure
+
     try:
         return await mutations.execute(
             str(call.__struct_config__.tag),
             notebook_id=call.params.notebook_id,
             key=call.headers.idempotency_key,
             payload=call,
-            call=lambda: call.handle(bridge),
+            call=invoke,
         )
     except HostError as e:
         failure = problem_for(e)

@@ -22,6 +22,7 @@ from marimo._messaging.notification import (
     RemoveUIElementsNotification,
     StartupProgressNotification,
     UIElementCreatedNotification,
+    UIElementResultNotification,
     UIElementUpdatedNotification,
     VariableValuesNotification,
 )
@@ -31,6 +32,7 @@ from marimo._runtime.commands import (
     ExecuteCellsCommand,
     ExecuteScratchpadCommand,
     HTTPRequest,
+    InvokeFunctionCommand,
     UpdateUIElementCommand,
 )
 from marimo._runtime.scratch import SCRATCH_CELL_ID
@@ -41,7 +43,13 @@ from marimo._session.consumer import SessionConsumer
 from marimo._session.model import ConnectionState, SessionMode
 from marimo._session.requests import InstantiateNotebookRequest
 from marimo._session.types import KernelState
-from marimo._types.ids import CellId_t, ConsumerId, SessionId, UIElementId
+from marimo._types.ids import (
+    CellId_t,
+    ConsumerId,
+    RequestId,
+    SessionId,
+    UIElementId,
+)
 from marimo._version import __version__
 
 if TYPE_CHECKING:
@@ -201,6 +209,25 @@ class SessionBackend(SessionConsumer):
                 values=[None if state.value is msgspec.UNSET else state.value],
                 value_supplied=state.value is not msgspec.UNSET,
                 request_id=request_id,
+            ),
+            from_consumer_id=None,
+        )
+
+    def send_ui_element(
+        self,
+        element_id: str,
+        message: protocol.UIElementFunctionCall,
+        call_id: str,
+    ) -> None:
+        session = self.session
+        assert session is not None
+        session.put_control_request(
+            InvokeFunctionCommand(
+                function_call_id=RequestId(call_id),
+                namespace=element_id,
+                function_name=message.function,
+                args=message.args,
+                host_call=True,
             ),
             from_consumer_id=None,
         )
@@ -475,7 +502,11 @@ class SessionBackend(SessionConsumer):
         with self._sink.deferred():
             if not isinstance(
                 message,
-                (UIElementCreatedNotification, UIElementUpdatedNotification),
+                (
+                    UIElementCreatedNotification,
+                    UIElementUpdatedNotification,
+                    UIElementResultNotification,
+                ),
             ):
                 self._sink.append(
                     notification_event(self._notebook_id, message)
@@ -483,6 +514,24 @@ class SessionBackend(SessionConsumer):
             self._handle_notification(message)
 
     def _handle_notification(self, message: NotificationMessage) -> None:
+        if isinstance(message, UIElementResultNotification):
+            if self._kernel is not None:
+                self._observe(
+                    be.UIElementResult(
+                        self._kernel.runtime_id,
+                        message.function_call_id,
+                        protocol.UIElementFunctionResult(
+                            return_value=message.return_value,
+                            found=message.found,
+                            status=protocol.UIElementFunctionStatus(
+                                code=message.status.code,
+                                title=message.status.title,
+                                message=message.status.message,
+                            ),
+                        ),
+                    )
+                )
+            return
         if isinstance(message, UIElementUpdatedNotification):
             if self._kernel is not None:
                 self._observe(

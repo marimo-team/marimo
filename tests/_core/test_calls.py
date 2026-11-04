@@ -73,7 +73,12 @@ def test_calls_match_the_spec() -> None:
         for operation_id in specified
         if operation_id.startswith("runtime.")
         or operation_id
-        in {"notebook.edit", "notebook.save", "ui_element.update"}
+        in {
+            "notebook.edit",
+            "notebook.save",
+            "ui_element.update",
+            "ui_element.send",
+        }
     } - {"runtime.input"}
 
     for kind in CALLS:

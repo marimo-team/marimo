@@ -620,6 +620,17 @@ class UIElementConfig(Struct, frozen=True):
     label: str | None
 
 
+class UIElementFunctionCall(Struct, frozen=True):
+    args: dict[str, Any]
+    function: Annotated[str, Meta(min_length=1)]
+
+
+class UIElementFunctionStatus(Struct, frozen=True):
+    code: Literal["ok", "error"]
+    message: str | None
+    title: str | None
+
+
 class UIElementPartialState(Struct, frozen=True):
     value: Any | UnsetType = UNSET
 
@@ -629,6 +640,19 @@ class UIElementRemovedEvent(
 ):
     data: RemovedMessage
     id: Annotated[str, Meta(min_length=1)] | UnsetType = UNSET
+
+
+class UIElementSendRequest(Struct, frozen=True):
+    message: UIElementFunctionCall
+    buffers: (
+        Annotated[
+            tuple[str, ...],
+            Meta(
+                description="Reserved for binary messages. Registered UIElement functions do not accept nonempty buffers."
+            ),
+        ]
+        | UnsetType
+    ) = UNSET
 
 
 class UIElementState(Struct, frozen=True):
@@ -1681,10 +1705,21 @@ class UIElement(Struct, frozen=True):
     state: UIElementState
 
 
+class UIElementFunctionResult(Struct, frozen=True):
+    found: bool
+    return_value: Any
+    status: UIElementFunctionStatus
+
+
 class UIElementMessage(Struct, frozen=True):
     ui_element: UIElement
     request_id: str | UnsetType = UNSET
     time: datetime | UnsetType = UNSET
+
+
+class UIElementSendResponse(Struct, frozen=True):
+    request_id: str
+    result: UIElementFunctionResult
 
 
 class UIElementUpdateEvent(

@@ -6,6 +6,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from copy import deepcopy
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, overload
 
 import msgspec
@@ -20,6 +21,7 @@ from marimo._core.errors import (
     Invalid,
     NoRuntime,
     NotFound,
+    ResultTimeout,
 )
 from marimo._core.executions import Executions, Released, Removed
 from marimo._core.ids import mint
@@ -40,6 +42,15 @@ if TYPE_CHECKING:
 
 
 LOGGER = logging.getLogger(__name__)
+
+UI_ELEMENT_RESULT_TIMEOUT = 30.0
+
+
+@dataclass(frozen=True)
+class _PendingUIElementCall:
+    element_id: str
+    runtime_id: protocol.RuntimeId
+    result: asyncio.Future[protocol.UIElementFunctionResult]
 
 
 class Notebook:
@@ -86,6 +97,7 @@ class Notebook:
         self._runtime: protocol.Runtime | None = None
         self._attachments: dict[str, protocol.Attachment] = {}
         self._ui_elements: dict[str, protocol.UIElement] = {}
+        self._ui_element_calls: dict[str, _PendingUIElementCall] = {}
         self._replacement: protocol.Runtime | None = None
         # Correlate runtime events with the pending start, stop, or restart.
         self._runtime_request: str | None = None
@@ -457,6 +469,41 @@ class Notebook:
             id=element_id, state=state, request_id=request_id
         )
 
+    async def send_ui_element(
+        self,
+        element_id: str,
+        message: protocol.UIElementFunctionCall,
+        *,
+        request_id: str,
+    ) -> protocol.UIElementSendResponse:
+        self._require_open()
+        runtime = self._require_runtime()
+        if runtime.status != "running":
+            raise Conflict(f"the notebook has a {runtime.status} runtime")
+        if element_id not in self._ui_elements:
+            raise NotFound(f"UI element {element_id} does not exist")
+        # Kernel call ids are independent of retry keys and reused element ids.
+        call_id = str(mint(str, "call"))
+        pending = _PendingUIElementCall(
+            element_id, runtime.id, asyncio.get_running_loop().create_future()
+        )
+        self._ui_element_calls[call_id] = pending
+        try:
+            self.backend.send_ui_element(element_id, message, call_id)
+            try:
+                result = await asyncio.wait_for(
+                    pending.result, timeout=UI_ELEMENT_RESULT_TIMEOUT
+                )
+            except TimeoutError as exc:
+                raise ResultTimeout(
+                    "The UI element function timed out"
+                ) from exc
+            return protocol.UIElementSendResponse(
+                request_id=request_id, result=result
+            )
+        finally:
+            self._ui_element_calls.pop(call_id, None)
+
     @overload
     def run(self, code: str, *, request_id: str) -> protocol.Run: ...
 
@@ -585,6 +632,14 @@ class Notebook:
         if self._closed:
             return
         match msg:
+            case be.UIElementResult():
+                pending = self._ui_element_calls.get(msg.call_id)
+                if (
+                    pending is not None
+                    and pending.runtime_id == msg.runtime_id
+                    and not pending.result.done()
+                ):
+                    pending.result.set_result(msg.result)
             case be.UIElementUpdated():
                 element = self._ui_elements.get(msg.element_id)
                 if (
@@ -716,6 +771,16 @@ class Notebook:
             for element in tuple(self._ui_elements.values()):
                 if cell_id is None or element.cell_id == cell_id:
                     del self._ui_elements[element.id]
+                    for pending in self._ui_element_calls.values():
+                        if (
+                            pending.element_id == element.id
+                            and not pending.result.done()
+                        ):
+                            pending.result.set_exception(
+                                NotFound(
+                                    f"UI element {element.id} was removed"
+                                )
+                            )
                     self._remove(protocol.UIElement, element.id, request_id)
 
     # ---- stream --------------------------------------------------------

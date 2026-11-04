@@ -2138,6 +2138,75 @@ export const RunRequest = zod
 export type RunRequest = zod.input<typeof RunRequest>;
 export type RunRequestOutput = zod.output<typeof RunRequest>;
 
+export const UIElementFunctionCall = zod
+  .object({
+    function: zod.string().min(1),
+    args: zod.record(zod.string(), zod.unknown()),
+  })
+  .describe("Experimental (ui_element). ");
+
+export type UIElementFunctionCall = zod.input<typeof UIElementFunctionCall>;
+export type UIElementFunctionCallOutput = zod.output<
+  typeof UIElementFunctionCall
+>;
+
+export const UIElementSendRequest = zod
+  .object({
+    message: UIElementFunctionCall,
+    buffers: zod
+      .array(zod.string())
+      .optional()
+      .describe(
+        "Reserved for binary messages. Registered UIElement functions do not accept nonempty buffers.",
+      ),
+  })
+  .describe("Experimental (ui_element). ");
+
+export type UIElementSendRequest = zod.input<typeof UIElementSendRequest>;
+export type UIElementSendRequestOutput = zod.output<
+  typeof UIElementSendRequest
+>;
+
+export const UIElementFunctionStatus = zod
+  .object({
+    code: zod.enum(["ok", "error"]),
+    title: zod.string().nullable(),
+    message: zod.string().nullable(),
+  })
+  .describe("Experimental (ui_element). ");
+
+export type UIElementFunctionStatus = zod.input<typeof UIElementFunctionStatus>;
+export type UIElementFunctionStatusOutput = zod.output<
+  typeof UIElementFunctionStatus
+>;
+
+export const UIElementFunctionResult = zod
+  .object({
+    status: UIElementFunctionStatus,
+    return_value: zod.unknown(),
+    found: zod.boolean(),
+  })
+  .describe(
+    "Experimental (ui_element). The existing function result. Only found=false permits a new registration retry; a function that ran must never be retried automatically.",
+  );
+
+export type UIElementFunctionResult = zod.input<typeof UIElementFunctionResult>;
+export type UIElementFunctionResultOutput = zod.output<
+  typeof UIElementFunctionResult
+>;
+
+export const UIElementSendResponse = zod
+  .object({
+    request_id: zod.string(),
+    result: UIElementFunctionResult,
+  })
+  .describe("Experimental (ui_element). ");
+
+export type UIElementSendResponse = zod.input<typeof UIElementSendResponse>;
+export type UIElementSendResponseOutput = zod.output<
+  typeof UIElementSendResponse
+>;
+
 export const UIElementUpdateRequest = zod
   .object({
     state: UIElementPartialState,

@@ -81,6 +81,14 @@ class Backend(Protocol):
         Later kernel messages for the run are dropped.
         """
 
+    def send_ui_element(
+        self,
+        element_id: str,
+        message: protocol.UIElementFunctionCall,
+        call_id: str,
+    ) -> None:
+        """Invoke a registered function and report its caller-only result."""
+
 
 # Runtime reports
 
@@ -221,6 +229,15 @@ class UIElementUpdated:
     request_id: str | None
 
 
+@dataclass(frozen=True)
+class UIElementResult:
+    """A function reply, never retained or published on the shared stream."""
+
+    runtime_id: protocol.RuntimeId
+    call_id: str
+    result: protocol.UIElementFunctionResult
+
+
 Message = (
     Starting
     | Running
@@ -236,4 +253,5 @@ Message = (
     | UIElementCreated
     | UIElementsRemoved
     | UIElementUpdated
+    | UIElementResult
 )

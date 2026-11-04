@@ -159,6 +159,16 @@ export const operations = {
     responses: { 202: Protocol.Run },
     problems: [400, 401, 403, 404, 405, 409, 500, 501],
   },
+  /** Call a registered UI element function. */
+  "ui_element.send": {
+    method: "POST",
+    path: "/notebooks/{notebook_id}/ui-elements/{element_id}/send",
+    query: {},
+    headers: { "Idempotency-Key": true },
+    body: Protocol.UIElementSendRequest,
+    responses: { 200: Protocol.UIElementSendResponse },
+    problems: [400, 401, 403, 404, 409, 500, 501, 504],
+  },
   /** Update a UI element's state. */
   "ui_element.update": {
     method: "POST",

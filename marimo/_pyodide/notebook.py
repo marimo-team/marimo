@@ -22,6 +22,7 @@ from marimo._core.operations import Mutations, problem
 from marimo._messaging.notification import (
     NotebookDocumentTransactionNotification,
     UIElementCreatedNotification,
+    UIElementResultNotification,
     UIElementUpdatedNotification,
 )
 from marimo._messaging.serde import (
@@ -76,6 +77,16 @@ class _DocumentRuntime:
         element_id: str,
         state: protocol.UIElementPartialState,
         request_id: str,
+    ) -> None:
+        raise NotImplementedError(
+            "Worker UI element operations are not exposed"
+        )
+
+    def send_ui_element(
+        self,
+        element_id: str,
+        message: protocol.UIElementFunctionCall,
+        call_id: str,
     ) -> None:
         raise NotImplementedError(
             "Worker UI element operations are not exposed"
@@ -164,7 +175,11 @@ class PyodideNotebook:
         def notify(notification: NotificationMessage) -> None:
             if isinstance(
                 notification,
-                (UIElementCreatedNotification, UIElementUpdatedNotification),
+                (
+                    UIElementCreatedNotification,
+                    UIElementUpdatedNotification,
+                    UIElementResultNotification,
+                ),
             ):
                 return
             emit(serialize_event(notification_event(self.id, notification)))

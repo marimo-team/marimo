@@ -7,6 +7,34 @@ actions:
   - target: $
     update:
       paths:
+        /notebooks/{notebook_id}/ui-elements/{element_id}/send:
+          post:
+            operationId: ui_element.send
+            summary: Call a registered UI element function
+            description: Return the existing function result only to the caller. Results never enter the event stream or snapshots.
+            parameters:
+              - $ref: '#/components/parameters/NotebookId'
+              - $ref: '#/components/parameters/UIElementId'
+              - $ref: '#/components/parameters/IdempotencyKey'
+            requestBody:
+              required: true
+              content:
+                application/json:
+                  schema: { $ref: '#/components/schemas/UIElementSendRequest' }
+            responses:
+              '200':
+                description: The function completed, including a null return value or a function error.
+                content:
+                  application/json:
+                    schema: { $ref: '#/components/schemas/UIElementSendResponse' }
+              '400': { $ref: '#/components/responses/InvalidRequest' }
+              '401': { $ref: '#/components/responses/Unauthorized' }
+              '403': { $ref: '#/components/responses/Forbidden' }
+              '404': { $ref: '#/components/responses/NotFound' }
+              '409': { $ref: '#/components/responses/Conflict' }
+              '500': { $ref: '#/components/responses/Internal' }
+              '501': { $ref: '#/components/responses/UnsupportedOperation' }
+              '504': { $ref: '#/components/responses/UIElementTimeout' }
         /notebooks/{notebook_id}/ui-elements/{element_id}/update:
           post:
             operationId: ui_element.update
@@ -35,6 +63,12 @@ actions:
               '500': { $ref: '#/components/responses/Internal' }
               '501': { $ref: '#/components/responses/UnsupportedOperation' }
       components:
+        responses:
+          UIElementTimeout:
+            description: The function did not return within 30 seconds. A retry with the same key does not execute it again.
+            content:
+              application/problem+json:
+                schema: { $ref: '#/components/schemas/Problem' }
         parameters:
           UIElementId:
             name: element_id
@@ -43,6 +77,46 @@ actions:
             description: The UI element's object id.
             schema: { type: string, minLength: 1 }
         schemas:
+          UIElementFunctionCall:
+            type: object
+            required: [function, args]
+            additionalProperties: false
+            properties:
+              function: { type: string, minLength: 1 }
+              args:
+                type: object
+                additionalProperties: true
+          UIElementSendRequest:
+            type: object
+            required: [message]
+            additionalProperties: false
+            properties:
+              message: { $ref: '#/components/schemas/UIElementFunctionCall' }
+              buffers:
+                type: array
+                description: Reserved for binary messages. Registered UIElement functions do not accept nonempty buffers.
+                items: { type: string, contentEncoding: base64 }
+          UIElementFunctionStatus:
+            type: object
+            required: [code, title, message]
+            properties:
+              code: { type: string, enum: [ok, error] }
+              title: { type: [string, 'null'] }
+              message: { type: [string, 'null'] }
+          UIElementFunctionResult:
+            type: object
+            description: The existing function result. Only found=false permits a new registration retry; a function that ran must never be retried automatically.
+            required: [status, return_value, found]
+            properties:
+              status: { $ref: '#/components/schemas/UIElementFunctionStatus' }
+              return_value: {}
+              found: { type: boolean }
+          UIElementSendResponse:
+            type: object
+            required: [request_id, result]
+            properties:
+              request_id: { type: string }
+              result: { $ref: '#/components/schemas/UIElementFunctionResult' }
           UIElement:
             type: object
             description: An element's confirmed wire state, owned by its creating cell. This prototype supports sliders.

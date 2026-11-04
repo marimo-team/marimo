@@ -29,6 +29,26 @@ def test_slider_record() -> None:
     validate("UIElement", json.loads((FIXTURES / "slider.json").read_text()))
 
 
+def test_function_call_fixture() -> None:
+    example = json.loads((FIXTURES / "send.json").read_text())
+    validate("UIElementSendRequest", example["request"])
+    validate("UIElementSendResponse", example["response"])
+
+
+@pytest.mark.parametrize(
+    "message",
+    [
+        {},
+        {"function": "", "args": {}},
+        {"function": "search", "args": []},
+        {"function": "search", "args": {}, "extra": True},
+    ],
+)
+def test_invalid_function_call(message: Any) -> None:
+    with pytest.raises(ValidationError):
+        validate("UIElementSendRequest", {"message": message})
+
+
 @pytest.mark.parametrize("state", [{"value": 4}, {}, {"value": None}])
 def test_update_accepts_partial_wire_state(state: Any) -> None:
     validate("UIElementUpdateRequest", {"state": state})

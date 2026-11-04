@@ -154,6 +154,19 @@ class NotebookOperations {
     });
   }
 
+  /** Call a registered function and receive its result without stream events. */
+  public sendUIElement(
+    elementId: string,
+    message: Protocol.UIElementFunctionCall,
+    options?: MutationOptions,
+  ): Promise<Result<Protocol.UIElementSendResponseOutput>> {
+    return this.#send("ui_element.send", {
+      params: { element_id: elementId },
+      body: { message },
+      options,
+    });
+  }
+
   /** Interrupt a run. */
   public interrupt(
     runId: Protocol.RunId,

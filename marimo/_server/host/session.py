@@ -15,6 +15,7 @@ from marimo._core.stream import RoutedEvent
 from marimo._messaging.notification import (
     KernelStartupErrorNotification,
     UIElementCreatedNotification,
+    UIElementResultNotification,
     UIElementUpdatedNotification,
 )
 from marimo._messaging.serde import deserialize_kernel_message
@@ -96,7 +97,11 @@ class SessionEventStream(SessionHandler):
         message = deserialize_kernel_message(notification)
         if isinstance(
             message,
-            (UIElementCreatedNotification, UIElementUpdatedNotification),
+            (
+                UIElementCreatedNotification,
+                UIElementUpdatedNotification,
+                UIElementResultNotification,
+            ),
         ):
             return
         event = notification_event(

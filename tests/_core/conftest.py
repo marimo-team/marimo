@@ -56,6 +56,14 @@ class ScriptedBackend:
     ) -> None:
         self.calls.append(("update_ui_element", element_id, state, request_id))
 
+    def send_ui_element(
+        self,
+        element_id: str,
+        message: protocol.UIElementFunctionCall,
+        call_id: str,
+    ) -> None:
+        self.calls.append(("send_ui_element", element_id, message, call_id))
+
     def forget(self, run_id: str) -> None:
         self.calls.append(("forget", run_id))
 
