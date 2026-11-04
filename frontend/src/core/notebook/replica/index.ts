@@ -12,10 +12,9 @@ export {
 export { createNotebookReplica, type NotebookReplica } from "./replica";
 export type { Document } from "./resources/document";
 export {
-  type CellResult,
   type Execution,
   type Executions,
   type Item,
-  type Result,
   itemsInOrder,
 } from "./resources/executions";
+export type { Results } from "./resources/results";

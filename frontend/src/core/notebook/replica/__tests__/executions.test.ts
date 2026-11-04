@@ -37,20 +37,17 @@ const retire = (executionId: string, variableId: string) => [
 const ids = (holder: Parameters<typeof itemsInOrder>[0]) =>
   itemsInOrder(holder).map((item) => item.id);
 
-const EMPTY = { latest: null, completed: null };
-
 describe("executions resource", () => {
-  it("describes document cells from the snapshot with scratch work beside them", () => {
+  it("keeps scratch work from the snapshot and completes it after ready", () => {
     const ready = snapshot.findIndex((item) => item.event === "ready");
     const opening = resource(replay(snapshot.slice(0, ready + 1)));
-    expect([...opening.cells.keys()]).toEqual(["c1", "c3", "k7f2"]);
-    expect([...opening.cells.values()]).toEqual([EMPTY, EMPTY, EMPTY]);
     const scratch = opening.executions.get("e7");
     expect(scratch?.record.status).toBe("running");
     expect(itemsInOrder(scratch!).map((item) => item.kind)).toEqual([
       "console",
     ]);
     expect(opening.runs.get("run-scratch")?.status).toBe("running");
+    expect(opening.latest.size).toBe(0);
 
     const done = resource(replay(snapshot));
     expect(done.executions.get("e7")?.record.status).toBe("completed");
@@ -62,101 +59,53 @@ describe("executions resource", () => {
     expect(resource(released).runs.has("run-scratch")).toBe(false);
   });
 
-  it("follows a cell's execution from queued to completed", () => {
+  it("indexes a cell's execution while it is on the stream", () => {
     const start = replay(snapshot);
     const running = resource(replay(runCells.slice(0, 5), start));
-    expect(running.cells.get("c3")?.latest?.record.status).toBe("running");
-    expect(running.cells.get("c3")?.completed).toBeNull();
-    expect(running.cells.get("k7f2")?.latest?.record.status).toBe("queued");
+    expect(running.latest.get("c3")).toBe("e12");
+    expect(running.executions.get("e12")?.record.status).toBe("running");
+    expect(running.latest.get("k7f2")).toBe("e13");
     expect(running.runs.get("run-cells")?.status).toBe("running");
 
-    const done = resource(replay(runCells, start));
-    const c3 = done.cells.get("c3");
-    expect(c3?.latest?.record.id).toBe("e12");
-    expect(c3?.completed?.record.id).toBe("e12");
-    expect(c3?.completed).not.toHaveProperty("variables");
-    expect(
-      [...done.executions.get("e12")!.variables.values()].map((v) => v.name),
-    ).toEqual(["x"]);
-    expect(done.cells.get("k7f2")?.completed?.record.depends_on).toEqual({
+    const done = replay(runCells, start);
+    const e12 = resource(done).executions.get("e12");
+    expect(e12?.record.status).toBe("completed");
+    expect([...e12!.variables.values()].map((v) => v.name)).toEqual(["x"]);
+    expect(resource(done).executions.get("e13")?.record.depends_on).toEqual({
       x: { execution: "e12", update: 0 },
     });
-    expect(done.runs.get("run-cells")?.outcome).toBe("succeeded");
-    expect([...done.executions.keys()]).toEqual(["e7", "e12", "e13"]);
-  });
+    expect(resource(done).runs.get("run-cells")?.outcome).toBe("succeeded");
 
-  it("keeps a cell's last result while the host replaces it", () => {
-    const done = replay(runCells, replay(snapshot));
-    const result = resource(done).cells.get("c3")!.completed!;
     const retired = replay(retire("e12", "e12-x"), done);
     expect(resource(retired).executions.has("e12")).toBe(false);
-    expect(resource(retired).cells.get("c3")).toEqual({
-      latest: null,
-      completed: result,
-    });
-
-    const again = {
-      ...result.record,
-      id: "e14",
-      run_id: "run-again",
-      status: "queued",
-      outcome: null,
-      started_at: null,
-      completed_at: null,
-    };
+    expect(resource(retired).latest.has("c3")).toBe(false);
     const queued = reducer.reduce(
       retired,
-      event({ event: "execution", id: "113", data: { execution: again } }),
-    );
-    expect(resource(queued).cells.get("c3")?.latest?.record.id).toBe("e14");
-    expect(resource(queued).cells.get("c3")?.completed).toBe(result);
-
-    const completed = replay(
-      [
-        event({
-          event: "variable",
-          id: "114",
-          data: {
-            variable: {
-              id: "e14-x",
-              execution_id: "e14",
-              name: "x",
-              revision: { execution: "e14", update: 0 },
-              type: "int",
-              preview: "22",
-            },
+      event({
+        event: "execution",
+        id: "113",
+        data: {
+          execution: {
+            ...e12!.record,
+            id: "e14",
+            run_id: "run-again",
+            status: "queued",
+            outcome: null,
+            started_at: null,
+            completed_at: null,
           },
-        }),
-        event({
-          event: "execution",
-          id: "115",
-          data: {
-            execution: {
-              ...again,
-              status: "completed",
-              outcome: { kind: "value", display: null },
-              started_at: time,
-              completed_at: time,
-            },
-          },
-        }),
-      ],
-      queued,
+        },
+      }),
     );
-    const c3 = resource(completed).cells.get("c3");
-    expect(c3?.latest?.record.id).toBe("e14");
-    expect(c3?.completed?.record.id).toBe("e14");
-    expect([...resource(completed).executions.keys()]).toEqual([
+    expect(resource(queued).latest.get("c3")).toBe("e14");
+    expect([...resource(queued).executions.keys()]).toEqual([
       "e7",
       "e13",
       "e14",
     ]);
-    expect([
-      ...resource(completed).executions.get("e14")!.variables.keys(),
-    ]).toEqual(["e14-x"]);
   });
 
-  it("takes later additions into a result but not removals", () => {
+  it("applies item and variable removals to the stream's copy", () => {
     const done = replay(runCells, replay(snapshot));
     const late = {
       id: "o9",
@@ -179,10 +128,6 @@ describe("executions resource", () => {
       ],
       done,
     );
-    expect(ids(resource(added).cells.get("c3")!.completed!)).toEqual([
-      "o9",
-      "d1",
-    ]);
     expect(ids(resource(added).executions.get("e12")!)).toEqual(["o9", "d1"]);
 
     const cleared = replay(
@@ -193,82 +138,10 @@ describe("executions resource", () => {
       ],
       added,
     );
-    const c3 = resource(cleared).cells.get("c3")!;
-    expect(ids(c3.latest!)).toEqual([]);
-    expect(c3.latest?.variables.size).toBe(0);
-    expect(ids(c3.completed!)).toEqual(["o9", "d1"]);
-
-    const gone = reducer.reduce(cleared, removed("execution", "e12", "116"));
-    expect(resource(gone).cells.get("c3")).toEqual({
-      latest: null,
-      completed: c3.completed,
-    });
-  });
-
-  it("drops a cell deleted while its execution runs", () => {
-    const start = replay(runCells.slice(0, 5), replay(snapshot));
-    const deleted = reducer.reduce(start, removed("cell", "c3", "105"));
-    expect(resource(deleted).cells.has("c3")).toBe(false);
-
-    const finished = replay(runCells.slice(5), deleted);
-    expect(resource(finished).cells.has("c3")).toBe(false);
-    expect(resource(finished).executions.get("e12")?.record.status).toBe(
-      "completed",
-    );
-    expect(resource(finished).cells.get("k7f2")?.completed?.record.id).toBe(
-      "e13",
-    );
-
-    const removedForGood = replay(retire("e12", "e12-x"), finished);
-    expect(resource(removedForGood).executions.has("e12")).toBe(false);
-    expect(resource(removedForGood).cells.has("c3")).toBe(false);
-  });
-
-  it("adopts a restored result and an execution that precedes its cell", () => {
-    const restored = {
-      id: "e-restored",
-      run_id: null,
-      runtime_id: null,
-      caused_by: null,
-      cell_id: "c3",
-      code: null,
-      code_hash: "0f71456db2ea83f4",
-      depends_on: {},
-      status: "completed",
-      outcome: { kind: "value", display: null },
-      started_at: "2026-09-30T09:20:01Z",
-      completed_at: "2026-09-30T09:20:02Z",
-    };
-    const ready = snapshot.findIndex((item) => item.event === "ready");
-    const opened = resource(
-      replay([
-        ...snapshot.slice(0, ready),
-        event({ event: "execution", id: "94", data: { execution: restored } }),
-        ...snapshot.slice(ready),
-      ]),
-    );
-    expect(opened.cells.get("c3")?.latest?.record.id).toBe("e-restored");
-    expect(opened.cells.get("c3")?.completed?.record.run_id).toBeNull();
-
-    const early = reducer.reduce(
-      replay(snapshot),
-      event({
-        event: "execution",
-        id: "98",
-        data: { execution: { ...restored, id: "e-zz", cell_id: "zz" } },
-      }),
-    );
-    expect(resource(early).executions.has("e-zz")).toBe(true);
-    expect(resource(early).cells.has("zz")).toBe(false);
-    const cell = snapshot.find((item) => item.event === "cell")!.data.cell;
-    const described = reducer.reduce(
-      early,
-      event({ event: "cell", id: "99", data: { cell: { ...cell, id: "zz" } } }),
-    );
-    expect(resource(described).cells.get("zz")?.latest?.record.id).toBe("e-zz");
-    expect(resource(described).cells.get("zz")?.completed?.record.id).toBe(
-      "e-zz",
-    );
+    const e12 = resource(cleared).executions.get("e12")!;
+    expect(ids(e12)).toEqual([]);
+    expect(e12.variables.size).toBe(0);
+    expect(resource(cleared).latest.get("c3")).toBe("e12");
   });
 
   it("orders items by seq, replaces them by id, and drops orphans", () => {
@@ -287,7 +160,7 @@ describe("executions resource", () => {
       ["console", "o-input-2", 2],
       ["input", "i2", "cancelled"],
     ]);
-    expect([...prompted.cells.values()]).toEqual([EMPTY, EMPTY, EMPTY]);
+    expect(prompted.latest.size).toBe(0);
     const gone = resource(replay(inputs, start));
     expect(gone.executions.has("e-input")).toBe(false);
     expect(gone.runs.get("run-input")?.outcome).toBe("interrupted");
@@ -309,6 +182,15 @@ describe("executions resource", () => {
       }),
     );
     expect(orphan.resources).toBe(start.resources);
+  });
+
+  it("ignores removals delivered again", () => {
+    const retired = replay(
+      retire("e12", "e12-x"),
+      replay(runCells, replay(snapshot)),
+    );
+    const again = replay(retire("e12", "e12-x"), retired);
+    expect(again.resources).toBe(retired.resources);
   });
 
   it("clears on reset", () => {

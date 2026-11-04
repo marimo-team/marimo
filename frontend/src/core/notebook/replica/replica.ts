@@ -25,6 +25,7 @@ import {
 import { attachments } from "./resources/attachments";
 import { type Document, document } from "./resources/document";
 import { type Executions, executions } from "./resources/executions";
+import { type Results, results } from "./resources/results";
 import { runtime } from "./resources/runtime";
 
 /**
@@ -77,7 +78,7 @@ export interface NotebookReplica {
   /** The notebook's runtime, null while it has none or the stream is not ready. */
   readonly runtimeAtom: Atom<Runtime | null>;
   /**
-   * Runs, executions, and each document cell's result.
+   * Runs and executions as the stream reports them.
    *
    * Visible as events arrive, including during a snapshot, so a consumer
    * joins with `documentAtom`, which is null until the snapshot is ready.
@@ -85,6 +86,8 @@ export interface NotebookReplica {
    * on reset or removal.
    */
   readonly executionsAtom: Atom<Executions>;
+  /** Each document cell's last completed execution record, kept while it runs again. */
+  readonly resultsAtom: Atom<Results>;
   /**
    * Follow a backend, replacing any current connection.
    *
@@ -148,6 +151,7 @@ export function createNotebookReplica(
     attachments,
     runtime,
     executions,
+    results,
   });
   const streamAtom = atom(reducer.initial);
   // A resumed stream is live, but presence waits for this connection's ready.
@@ -171,6 +175,7 @@ export function createNotebookReplica(
     get(presentAtom) ? get(streamAtom).resources.runtime : null,
   );
   const executionsAtom = atom((get) => get(streamAtom).resources.executions);
+  const resultsAtom = atom((get) => get(streamAtom).resources.results);
   const backendAtom = atom<NotebookBackend | null>(null);
   /** The connection this replica follows. Connecting again ends it. */
   let current: { end(): void; reconnect(): Promise<void> } | undefined;
@@ -194,6 +199,7 @@ export function createNotebookReplica(
     attachmentsAtom,
     runtimeAtom,
     executionsAtom,
+    resultsAtom,
     connect,
     reconnect: async () => current?.reconnect(),
   };

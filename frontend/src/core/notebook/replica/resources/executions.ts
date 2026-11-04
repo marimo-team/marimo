@@ -19,52 +19,26 @@ export interface Execution {
 }
 
 /**
- * A cell execution as it last completed, kept after the host removes it.
+ * Runs and executions as the stream reports them.
  *
- * The host removes a cell's previous execution, items first, before it
- * publishes the next one. A result ignores removals, so retiring cannot
- * strip it, and takes items the execution adds or replaces afterwards.
- * Its inputs are answered or cancelled, since the host cancels pending
- * ones before completion. Variables stay with the stream's copy, as
- * freshness compares what the host holds now.
+ * Nothing outlives its removal. The host removes a cell's previous
+ * execution before it publishes the next one, so `results` keeps each
+ * cell's last completed record for display.
  */
-export interface Result {
-  readonly record: Protocol.Execution;
-  readonly items: ReadonlyMap<Protocol.ItemId, Item>;
-}
-
-/** A document cell's execution on the stream and its last completed result. */
-export interface CellResult {
-  /** The cell's execution on the stream, in any status. */
-  readonly latest: Execution | null;
-  /** The last execution that completed, until the cell leaves the document. */
-  readonly completed: Result | null;
-}
-
-/** Runs and executions on the stream, and each document cell's result. */
 export interface Executions {
   readonly runs: ReadonlyMap<Protocol.RunId, Protocol.Run>;
   /** Every execution on the stream, scratch included. */
   readonly executions: ReadonlyMap<Protocol.ExecutionId, Execution>;
-  /** One entry per cell, from its `cell` event until its removal. */
-  readonly cells: ReadonlyMap<Protocol.CellId, CellResult>;
+  /** The execution on the stream for each cell that has one. */
+  readonly latest: ReadonlyMap<Protocol.CellId, Protocol.ExecutionId>;
 }
 
-type Kind =
-  | "cell"
-  | "run"
-  | "execution"
-  | "console"
-  | "display"
-  | "input"
-  | "variable";
+type Kind = "run" | "execution" | "console" | "display" | "input" | "variable";
 
 /** An execution's items in the order they were produced. */
 export function itemsInOrder(execution: Pick<Execution, "items">): Item[] {
   return [...execution.items.values()].toSorted((a, b) => a.seq - b.seq);
 }
-
-const NO_RESULT: CellResult = { latest: null, completed: null };
 
 function without<K, V>(map: ReadonlyMap<K, V>, key: K): ReadonlyMap<K, V> {
   if (!map.has(key)) {
@@ -75,63 +49,32 @@ function without<K, V>(map: ReadonlyMap<K, V>, key: K): ReadonlyMap<K, V> {
   return next;
 }
 
-/** The cell's entry after `execution` changed on the stream. */
-function view(
-  entry: CellResult,
-  execution: Execution,
-  adopt: boolean,
-): CellResult {
-  const { id, status } = execution.record;
-  if (!adopt && entry.latest?.record.id !== id) {
-    return entry;
-  }
+/** Replace an execution on the stream, indexed under its cell. */
+function set(state: Executions, execution: Execution): Executions {
+  const { id, cell_id: cellId } = execution.record;
   return {
-    latest: execution,
-    completed:
-      status === "completed"
-        ? { record: execution.record, items: execution.items }
-        : entry.completed,
+    ...state,
+    executions: new Map(state.executions).set(id, execution),
+    latest:
+      cellId === null || state.latest.get(cellId) === id
+        ? state.latest
+        : new Map(state.latest).set(cellId, id),
   };
 }
 
-/** Put `execution` on the stream. `adopt` makes it its cell's latest. */
-function publish(
-  state: Executions,
-  execution: Execution,
-  adopt: boolean,
-): Executions {
-  const { id, cell_id: cellId } = execution.record;
-  const executions = new Map(state.executions).set(id, execution);
-  const entry = cellId === null ? undefined : state.cells.get(cellId);
-  if (cellId === null || entry === undefined) {
-    return { ...state, executions };
+function remove(state: Executions, id: Protocol.ExecutionId): Executions {
+  const execution = state.executions.get(id);
+  if (execution === undefined) {
+    return state;
   }
-  const next = view(entry, execution, adopt);
-  return next === entry
-    ? { ...state, executions }
-    : { ...state, executions, cells: new Map(state.cells).set(cellId, next) };
-}
-
-/** Take an item removal on the stream's copy. A result keeps what it had. */
-function strip(
-  state: Executions,
-  execution: Execution,
-  next: Execution,
-): Executions {
-  const { id, cell_id: cellId } = execution.record;
-  const executions = new Map(state.executions).set(id, next);
-  const entry = cellId === null ? undefined : state.cells.get(cellId);
-  if (
-    cellId === null ||
-    entry === undefined ||
-    entry.latest?.record.id !== id
-  ) {
-    return { ...state, executions };
-  }
+  const cellId = execution.record.cell_id;
   return {
     ...state,
-    executions,
-    cells: new Map(state.cells).set(cellId, { ...entry, latest: next }),
+    executions: without(state.executions, id),
+    latest:
+      cellId !== null && state.latest.get(cellId) === id
+        ? without(state.latest, cellId)
+        : state.latest,
   };
 }
 
@@ -140,17 +83,16 @@ function attach(state: Executions, item: Item): Executions {
   if (execution === undefined) {
     return state;
   }
-  return publish(
-    state,
-    { ...execution, items: new Map(execution.items).set(item.id, item) },
-    false,
-  );
+  return set(state, {
+    ...execution,
+    items: new Map(execution.items).set(item.id, item),
+  });
 }
 
 function detach(state: Executions, itemId: Protocol.ItemId): Executions {
   for (const execution of state.executions.values()) {
     if (execution.items.has(itemId)) {
-      return strip(state, execution, {
+      return set(state, {
         ...execution,
         items: without(execution.items, itemId),
       });
@@ -164,20 +106,16 @@ function bind(state: Executions, variable: Protocol.Variable): Executions {
   if (execution === undefined) {
     return state;
   }
-  return publish(
-    state,
-    {
-      ...execution,
-      variables: new Map(execution.variables).set(variable.id, variable),
-    },
-    false,
-  );
+  return set(state, {
+    ...execution,
+    variables: new Map(execution.variables).set(variable.id, variable),
+  });
 }
 
 function unbind(state: Executions, itemId: Protocol.ItemId): Executions {
   for (const execution of state.executions.values()) {
     if (execution.variables.has(itemId)) {
-      return strip(state, execution, {
+      return set(state, {
         ...execution,
         variables: without(execution.variables, itemId),
       });
@@ -186,56 +124,9 @@ function unbind(state: Executions, itemId: Protocol.ItemId): Executions {
   return state;
 }
 
-/** Take an execution off the stream. Its cell keeps its last result. */
-function remove(state: Executions, id: Protocol.ExecutionId): Executions {
-  const execution = state.executions.get(id);
-  if (execution === undefined) {
-    return state;
-  }
-  const executions = without(state.executions, id);
-  const cellId = execution.record.cell_id;
-  const entry = cellId === null ? undefined : state.cells.get(cellId);
-  if (
-    cellId === null ||
-    entry === undefined ||
-    entry.latest?.record.id !== id
-  ) {
-    return { ...state, executions };
-  }
-  return {
-    ...state,
-    executions,
-    cells: new Map(state.cells).set(cellId, { ...entry, latest: null }),
-  };
-}
-
-/** Describe a cell from the execution the stream already holds for it, if any. */
-function describe(state: Executions, cellId: Protocol.CellId): CellResult {
-  for (const execution of state.executions.values()) {
-    if (execution.record.cell_id === cellId) {
-      return view(NO_RESULT, execution, true);
-    }
-  }
-  return NO_RESULT;
-}
-
 export const executions: NotebookResource<Executions, Kind> = {
-  initial: { runs: new Map(), executions: new Map(), cells: new Map() },
+  initial: { runs: new Map(), executions: new Map(), latest: new Map() },
   on: {
-    cell: (state, { data }) =>
-      state.cells.has(data.cell.id)
-        ? state
-        : {
-            ...state,
-            cells: new Map(state.cells).set(
-              data.cell.id,
-              describe(state, data.cell.id),
-            ),
-          },
-    "cell.removed": (state, { data }) =>
-      state.cells.has(data.id)
-        ? { ...state, cells: without(state.cells, data.id) }
-        : state,
     run: (state, { data }) => ({
       ...state,
       runs: new Map(state.runs).set(data.run.id, data.run),
@@ -246,15 +137,11 @@ export const executions: NotebookResource<Executions, Kind> = {
         : state,
     execution: (state, { data: { execution: record } }) => {
       const previous = state.executions.get(record.id);
-      return publish(
-        state,
-        {
-          record,
-          items: previous?.items ?? new Map(),
-          variables: previous?.variables ?? new Map(),
-        },
-        true,
-      );
+      return set(state, {
+        record,
+        items: previous?.items ?? new Map(),
+        variables: previous?.variables ?? new Map(),
+      });
     },
     "execution.removed": (state, { data }) => remove(state, data.id),
     console: (state, { data }) =>
