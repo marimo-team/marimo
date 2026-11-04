@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import array
+import enum
 import pickle
+from decimal import Decimal
 from typing import Any
 
 import pytest
@@ -226,7 +228,6 @@ def test_pickled_array_preserves_metadata(change: str) -> None:
 def test_numpy_scalar_keyed_by_dtype_and_value() -> None:
     import numpy as np
 
-    assert primitive_to_bytes(np.int64(2)) == primitive_to_bytes(np.int64(2))
     assert primitive_to_bytes(np.int64(2)) != primitive_to_bytes(np.int64(3))
     assert primitive_to_bytes(np.int64(2)) != primitive_to_bytes(np.int32(2))
     assert primitive_to_bytes(np.int64(2)) != primitive_to_bytes(2)
@@ -234,13 +235,30 @@ def test_numpy_scalar_keyed_by_dtype_and_value() -> None:
     assert primitive_to_bytes(np.int64(2)) != primitive_to_bytes(bytes(2))
 
 
-def test_scalar_subclass_keyed_by_type() -> None:
+def test_number_subclass_keyed_by_type() -> None:
     class Celsius(float):
         pass
 
-    assert primitive_to_bytes(Celsius(1.0)) == primitive_to_bytes(Celsius(1.0))
+    class Level(enum.IntEnum):
+        LOW = 1
+
     assert primitive_to_bytes(Celsius(1.0)) != primitive_to_bytes(Celsius(2.0))
     assert primitive_to_bytes(Celsius(1.0)) != primitive_to_bytes(1.0)
+    assert primitive_to_bytes(Decimal(1)) != primitive_to_bytes(1)
+    # bytes(Level.LOW) is one zero byte, which would collide with bytes(1).
+    assert primitive_to_bytes(Level.LOW) != primitive_to_bytes(bytes(1))
+    assert primitive_to_bytes(Level.LOW) != primitive_to_bytes(1)
+
+
+def test_non_number_falls_back_to_bytes() -> None:
+    class Blob(bytes):
+        pass
+
+    class Color(str, enum.Enum):
+        RED = "red"
+
+    assert primitive_to_bytes(Blob(b"x")) == primitive_to_bytes(b"x")
+    assert primitive_to_bytes(Color.RED) == primitive_to_bytes("red")
 
 
 def test_equal_scalars_of_different_types_are_distinct() -> None:
@@ -267,6 +285,11 @@ def test_dict_order_is_observable() -> None:
 
 
 def test_set_encoding_is_order_independent() -> None:
+    # hash(2**61) == hash(1), so insertion order decides iteration order.
+    assert list({1, 2**61}) != list({2**61, 1})
+    assert common_container_to_bytes({1, 2**61}) == (
+        common_container_to_bytes({2**61, 1})
+    )
     # Mixed-type members cannot be sorted, so the encoded items are sorted.
     assert common_container_to_bytes({1, "a", (2,)}) == (
         common_container_to_bytes({(2,), "a", 1})

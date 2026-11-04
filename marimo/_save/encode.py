@@ -10,6 +10,7 @@ from __future__ import annotations
 import hashlib
 import io
 import itertools
+import numbers
 import pickle
 import struct
 from typing import TYPE_CHECKING, Any
@@ -48,12 +49,11 @@ _LENGTH = struct.Struct("!Q")
 
 
 def iterable_sign(value: Iterable[Any], label: str) -> bytes:
-    # An item count alone cannot distinguish different partitions of the bytes,
-    # so prefix each item with its length. A single join keeps one copy of the
-    # payload.
-    # NB. On 1e5 to 1e6 element containers, per-item type_sign framing
-    # measured about 35% slower than an unframed join. This form measured
-    # about 19% slower.
+    # An item count alone cannot tell apart different ways to divide the same
+    # bytes among the items, so prefix each item with its length. On 1e5 to
+    # 1e6 element containers, per-item type_sign framing measured about 35%
+    # slower than an unframed join. Length prefixes alone measured about 19%
+    # slower.
     pack = _LENGTH.pack
     return type_sign(
         b"".join(
@@ -130,7 +130,7 @@ def primitive_to_bytes(value: Any) -> bytes:
         return type_sign(b"", "ellipsis")
     if type(value) is bool:
         return type_sign(bytes([value]), "bool")
-    if type(value) is str:
+    if isinstance(value, str):
         return type_sign(value.encode("utf-8"), "str")
     if type(value) is float:
         return type_sign(struct.pack("!d", value), "float")
@@ -143,21 +143,24 @@ def primitive_to_bytes(value: Any) -> bytes:
         return type_sign(value, "bytes")
     if type(value) is tuple:
         return iterable_sign(map(primitive_to_bytes, value), "tuple")
-    # A numpy scalar carries its width and byte order in its dtype, so
-    # np.int64(2), np.int32(2), 2 and bytes(2) all key differently.
+    # A numpy scalar holds its width and byte order in its dtype, so
+    # np.int64(2), np.int32(2), 2 and bytes(2) encode differently.
     dtype = getattr(value, "dtype", None)
     if dtype is not None and hasattr(value, "tobytes"):
         return type_sign(
             primitive_to_bytes((str(dtype.descr), value.tobytes())), "numpy"
         )
-    # Any other Number subclass (Decimal, Fraction, an IntEnum, a local float
-    # subclass) keys on its type and repr. No pickle: the encoding stays a
-    # function of the value, not of how the type happens to reduce.
-    cls = type(value)
-    return type_sign(
-        primitive_to_bytes((cls.__module__, cls.__qualname__, repr(value))),
-        "scalar",
-    )
+    # bytes(n) on an int subclass allocates n zero bytes, so a Number subclass
+    # such as Decimal or IntEnum is keyed by its type and repr instead.
+    if isinstance(value, numbers.Number):
+        cls = type(value)
+        return type_sign(
+            primitive_to_bytes(
+                (cls.__module__, cls.__qualname__, repr(value))
+            ),
+            "scalar",
+        )
+    return type_sign(bytes(value), "bytes")
 
 
 def common_container_to_bytes(value: Any) -> bytes:
