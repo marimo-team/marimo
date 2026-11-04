@@ -306,6 +306,40 @@ def test_host_run_without_runtime_reports_error(tmp_path: Path) -> None:
         assert "kernel" in payload["next"]
 
 
+def test_snapshot_reads_current_state_and_exits(
+    server: PairTestServer,
+) -> None:
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "marimo",
+            "pair",
+            "snapshot",
+            "--url",
+            server.url,
+            "--notebook",
+            server.notebook_id,
+            "--types",
+            "notebook,runtime,document",
+            "--pretty",
+        ],
+        text=True,
+        capture_output=True,
+        timeout=10,
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr
+    snapshot = json.loads(result.stdout)
+    assert snapshot["cursor"]
+    assert {event["event"] for event in snapshot["events"]} == {
+        "notebook",
+        "runtime",
+        "document",
+    }
+    assert "\x1b" not in result.stdout
+
+
 def test_notebook_events_streams_snapshot_and_live_changes(
     server: PairTestServer,
 ) -> None:

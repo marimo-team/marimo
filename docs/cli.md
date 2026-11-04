@@ -38,3 +38,33 @@ empty entries are rejected. Omit the option to receive all event types.
 Authentication comes from the private local host record. The command requires
 a local edit server. Press **Ctrl-C** to stop. If the server disconnects, run
 the command again to receive a fresh snapshot and continue listening.
+
+## Read a snapshot
+
+Read the host catalog as one JSON response:
+
+```bash
+marimo pair snapshot --url http://localhost:2718 --pretty
+```
+
+Read one notebook's current state and retained results:
+
+```bash
+marimo pair snapshot --url http://localhost:2718 \
+  --notebook <notebook-id> --pretty
+```
+
+The response contains `cursor` and `events`. The events are current records in
+dependency order, not a replay of old messages. Objects still present are
+included even after their original events leave the replay history. Removed
+objects, expired results, and custom occurrences are absent. There is no
+`ready` event; its cursor is the top-level `cursor` field instead.
+
+Use `--types runtime,execution` to filter records. The same local host
+authentication and pretty-output color rules apply as for `notebook events`.
+Snapshot reads exit after the response and do not create a client attachment.
+
+The underlying HTTP routes are `GET /api/marimo/v1/snapshot` and
+`GET /api/marimo/v1/notebooks/<notebook-id>/snapshot`. A client can pass the
+returned cursor as `Last-Event-ID` to the matching event stream, keeping the
+same filters. An expired cursor causes a reset and a new snapshot.

@@ -10,6 +10,7 @@ import shlex
 import sys
 from contextlib import closing
 from pathlib import Path
+from typing import TYPE_CHECKING
 from uuid import uuid4
 
 import click
@@ -28,6 +29,7 @@ from marimo._cli.pair.client import (
     display_url,
     execute as execute_code,
     execute_editor,
+    get_snapshot,
     iter_sse,
     list_sessions,
     load_token,
@@ -46,6 +48,9 @@ from marimo._cli.pair.prompts import render_prompt
 from marimo._cli.print import _supports_color
 from marimo._server.ai.skills import utils as skills_utils
 from marimo._server.host.stream_options import OBJECT_TYPES
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 _REFERENCES_DIR = (
     Path(skills_utils.__file__).parent / "marimo-pair" / "references"
@@ -741,6 +746,95 @@ def list_notebooks(urls: tuple[str, ...], token_file: Path | None) -> None:
     click.echo(json.dumps(listing, indent=2))
 
 
+def _parse_event_types(value: str | None) -> str | None:
+    if value is None:
+        return None
+    kinds = [kind.strip() for kind in value.split(",")]
+    if not all(kinds):
+        raise click.BadParameter(
+            "Event types must not contain empty entries.", param_hint="--types"
+        )
+    return ",".join(kinds)
+
+
+def _json_formatter(pretty: bool) -> Callable[[object], str]:
+    use_color = (
+        pretty
+        and not os.environ.get("NO_COLOR")
+        and sys.stdout.isatty()
+        and _supports_color()
+    )
+    if use_color:
+        from pygments import highlight
+        from pygments.formatters import TerminalFormatter
+        from pygments.lexers import JsonLexer
+
+        lexer = JsonLexer()
+        formatter = TerminalFormatter()
+
+    def format_payload(payload: object) -> str:
+        output = json.dumps(payload, indent=2 if pretty else None)
+        if use_color:
+            output = highlight(output, lexer, formatter).rstrip("\n")
+        return output
+
+    return format_payload
+
+
+_event_types_option = click.option(
+    "--types",
+    "event_types",
+    metavar="TYPES",
+    help=(
+        "Comma-separated event types, for example runtime,execution.\n\n"
+        "\b\nKnown kinds:\n"
+        + "\n".join(f"  - {kind}" for kind in sorted(OBJECT_TYPES))
+        + "\n\nThe connected server determines which kinds are supported."
+    ),
+)
+
+
+@click.command(
+    name="snapshot",
+    cls=ColoredCommand,
+    help="""Read current host state as one JSON object, then exit.
+
+    Returns a cursor and an events array containing current records, not
+    replay history. Use --notebook to read one notebook's state and retained
+    results. Omit it to read the host catalog. No client attachment is created.
+
+    Authentication uses the private local host record, as pair execute does.
+    Use --pretty for indented JSON with colors in supported terminals.
+    """,
+    short_help="Read a host or notebook snapshot as JSON.",
+)
+@click.option(
+    "--url", required=True, metavar="URL", help="Local edit server URL."
+)
+@click.option(
+    "--notebook", "notebook_id", metavar="ID", help="Read one notebook."
+)
+@_event_types_option
+@click.option("--pretty", is_flag=True, help="Print indented JSON.")
+def snapshot(
+    url: str, notebook_id: str | None, event_types: str | None, pretty: bool
+) -> None:
+    event_types = _parse_event_types(event_types)
+    try:
+        host = resolve_host(url)
+        payload = get_snapshot(
+            url=host.url,
+            token=host.token,
+            notebook=notebook_id,
+            types=event_types,
+        )
+        click.echo(_json_formatter(pretty)(payload))
+    except PairInputError as error:
+        raise click.UsageError(str(error)) from error
+    except PairError as error:
+        raise click.ClickException(str(error)) from error
+
+
 @click.command(
     name="events",
     cls=ColoredCommand,
@@ -764,44 +858,15 @@ def list_notebooks(urls: tuple[str, ...], token_file: Path | None) -> None:
 @click.option(
     "--url", required=True, metavar="URL", help="Local edit server URL."
 )
-@click.option(
-    "--types",
-    "event_types",
-    metavar="TYPES",
-    help=(
-        "Comma-separated event types, for example runtime,execution.\n\n"
-        "\b\nKnown kinds:\n"
-        + "\n".join(f"  - {kind}" for kind in sorted(OBJECT_TYPES))
-        + "\n\nThe connected server determines which kinds are supported."
-    ),
-)
+@_event_types_option
 @click.option(
     "--pretty", is_flag=True, help="Print indented JSON for each event."
 )
 def notebook_events(
     notebook_id: str, url: str, event_types: str | None, pretty: bool
 ) -> None:
-    if event_types is not None:
-        kinds = [kind.strip() for kind in event_types.split(",")]
-        if not all(kinds):
-            raise click.BadParameter(
-                "Event types must not contain empty entries.",
-                param_hint="--types",
-            )
-        event_types = ",".join(kinds)
-    use_color = (
-        pretty
-        and not os.environ.get("NO_COLOR")
-        and sys.stdout.isatty()
-        and _supports_color()
-    )
-    if use_color:
-        from pygments import highlight
-        from pygments.formatters import TerminalFormatter
-        from pygments.lexers import JsonLexer
-
-        lexer = JsonLexer()
-        formatter = TerminalFormatter()
+    event_types = _parse_event_types(event_types)
+    format_payload = _json_formatter(pretty)
     try:
         host = resolve_host(url)
         with closing(
@@ -826,10 +891,7 @@ def notebook_events(
                     payload["id"] = event.id
                 if pretty and not first_event:
                     click.echo()
-                output = json.dumps(payload, indent=2 if pretty else None)
-                if use_color:
-                    output = highlight(output, lexer, formatter).rstrip("\n")
-                click.echo(output)
+                click.echo(format_payload(payload))
                 first_event = False
     except PairInputError as error:
         raise click.UsageError(str(error)) from error
@@ -941,3 +1003,4 @@ pair.add_command(execute)
 pair.add_command(docs)
 pair.add_command(notebook)
 pair.add_command(prompt)
+pair.add_command(snapshot)

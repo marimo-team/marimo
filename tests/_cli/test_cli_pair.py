@@ -141,6 +141,7 @@ Commands:
   execute   Run Python in a live notebook.
   notebook  Inspect live notebooks and their events.
   prompt    Generate a prompt for pair programming on...
+  snapshot  Read a host or notebook snapshot as JSON.
 """)
 
     def test_prompt_help(self) -> None:

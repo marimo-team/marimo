@@ -593,6 +593,41 @@ class EventStream:
             self.socket.close()
 
 
+def get_snapshot(
+    *,
+    url: str,
+    token: str,
+    notebook: str | None = None,
+    types: str | None = None,
+) -> dict[str, object]:
+    path = "/snapshot"
+    if notebook is not None:
+        path = f"/notebooks/{quote(notebook, safe='')}/snapshot"
+    endpoint = _endpoint_url(url, path)
+    if types is not None:
+        endpoint += "?" + urlencode({"types": types}, safe=",")
+    response = open_response(
+        method="GET",
+        url=endpoint,
+        headers={"Authorization": f"Bearer {token}"},
+        body=None,
+    )
+    try:
+        payload = json.load(response.response)
+    except (OSError, ValueError, http.client.HTTPException) as error:
+        raise PairError("The host returned an invalid snapshot.") from error
+    finally:
+        response.close()
+    if (
+        not isinstance(payload, dict)
+        or not isinstance(payload.get("cursor"), str)
+        or not payload["cursor"]
+        or not isinstance(payload.get("events"), list)
+    ):
+        raise PairError("The host returned an invalid snapshot.")
+    return payload
+
+
 def open_events(
     *,
     url: str,
