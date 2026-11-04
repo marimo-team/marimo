@@ -452,17 +452,18 @@ class Notebook:
         cells: Sequence[protocol.RequestedCell] | None = None,
         request_id: str,
     ) -> protocol.Run:
-        """Queue scratch code, or cells of the document, on an idle runtime.
+        """Queue scratch code, or cells of the document, on the runtime.
 
-        Each requested cell must be in the document. One that names a
-        `code_hash` the cell no longer has is a conflict, and nothing runs.
+        Runs start in acceptance order, one at a time. Each requested cell
+        must be in the document. One that names a `code_hash` the cell no
+        longer has is a conflict, and nothing runs.
 
         Raises:
             Invalid: If the request names neither code nor cells, or both,
                 an empty cell sequence, or a cell the document does not have.
             NoRuntime: If the notebook has no runtime.
-            Conflict: If the runtime is not running, a run is in progress,
-                or a requested cell's code has changed.
+            Conflict: If the runtime is not running or a requested cell's
+                code has changed.
         """
         if (code is None) == (cells is None):
             raise Invalid("a run names code or cells, not both")
@@ -473,9 +474,6 @@ class Notebook:
             runtime = self._require_runtime()
             if runtime.status != "running":
                 raise Conflict(f"the runtime is {runtime.status}.")
-            active = self.executions.active()
-            if active is not None:
-                raise Conflict(f"run {active.id} is in progress.")
             targets: list[protocol.CellId] = []
             for requested in cells or ():
                 cell = self._document.cell(requested.id)

@@ -219,7 +219,7 @@ async def test_interrupt_waits_for_the_kernel_result(
     )
 
 
-async def test_a_session_closing_mid_run_releases_the_run(
+async def test_a_session_closing_mid_run_releases_every_run(
     manager: FakeManager, observed: Observed
 ) -> None:
     b = backend(manager, observed)
@@ -227,16 +227,23 @@ async def test_a_session_closing_mid_run_releases_the_run(
     await observed.wait_for(be.Running)
     session = manager.next_session
     b.run(protocol.RunId("run-1"), "1")
+    b.run(protocol.RunId("run-2"), "2")
     await asyncio.wait_for(session.submitted.wait(), 5)
+    tasks = [run.task for run in b._runs.values()]
     observed.messages.clear()
 
     session.close()
     await asyncio.wait_for(session.scratchpad_lock.acquire(), 5)
     session.scratchpad_lock.release()
+    await asyncio.gather(*(t for t in tasks if t), return_exceptions=True)
+    await asyncio.sleep(0)
 
-    # `Exited` tells the notebook to end the active run.
+    # `Exited` tells the notebook to end the unfinished runs.
     assert observed.kinds() == ["Exited"]
     assert not session.scratchpad_lock.locked()
+    assert len(tasks) == 2
+    assert all(t and t.cancelled() for t in tasks)
+    assert b._runs == {}
 
 
 async def test_interrupting_a_run_started_by_another_client(
@@ -414,10 +421,10 @@ async def test_host_run_carries_screenshot_metadata(
     assert command.request.url["path"] == ""
     assert command.request.base_url["path"] == ""
     assert "HTTPRequest(path=''" in repr(command.request)
+    task = b._runs[run_id].task
+    assert task is not None
     manager.next_session.broadcast(CompletedRunNotification(run_id=run_id))
-    assert b._run is not None
-    assert b._run.task is not None
-    await b._run.task
+    await task
 
 
 async def test_running_cells_instantiates_from_the_host_document(
@@ -479,4 +486,69 @@ async def test_cell_submission_failure_ends_the_run(
     )
 
     assert observed.messages == [be.Done(protocol.RunId("failed"), "failed")]
-    assert b._run is None
+    assert b._runs == {}
+
+
+async def test_cell_runs_queue_in_the_kernel_in_order(
+    manager: FakeManager, observed: Observed
+) -> None:
+    b = backend(manager, observed)
+    session = manager.next_session
+    b.adopt(RT1, session)
+    observed.messages.clear()
+    document = Document(
+        [
+            DocumentCell(protocol.CellId("a"), "x = 1"),
+            DocumentCell(protocol.CellId("b"), "y = 2"),
+        ],
+        {},
+    )
+
+    b.run_cells(protocol.RunId("run-1"), document, [protocol.CellId("a")])
+    b.run_cells(protocol.RunId("run-2"), document, [protocol.CellId("b")])
+
+    assert [(c.run_id, c.cell_ids) for c in session.commands] == [
+        ("run-1", ["a"]),
+        ("run-2", ["b"]),
+    ]
+    session.broadcast(CompletedRunNotification(run_id="run-1"))
+    await observed.wait_for(be.Done)
+    assert observed.messages == [be.Done(protocol.RunId("run-1"), "succeeded")]
+    assert list(b._runs) == ["run-2"]
+
+    observed.messages.clear()
+    session.broadcast(CompletedRunNotification(run_id="run-2"))
+    await observed.wait_for(be.Done)
+    assert observed.messages == [be.Done(protocol.RunId("run-2"), "succeeded")]
+    assert b._runs == {}
+
+
+async def test_scratch_runs_take_the_scratchpad_in_order(
+    manager: FakeManager, observed: Observed
+) -> None:
+    b = backend(manager, observed)
+    session = manager.next_session
+    b.adopt(RT1, session)
+    observed.messages.clear()
+
+    b.run(protocol.RunId("run-1"), "1")
+    b.run(protocol.RunId("run-2"), "2")
+    await asyncio.wait_for(session.submitted.wait(), 5)
+    session.submitted.clear()
+    assert [(c.run_id, c.code) for c in session.commands] == [("run-1", "1")]
+
+    session.broadcast(CompletedRunNotification(run_id="run-1"))
+    await observed.wait_for(be.Done)
+    await asyncio.wait_for(session.submitted.wait(), 5)
+    assert [(c.run_id, c.code) for c in session.commands] == [
+        ("run-1", "1"),
+        ("run-2", "2"),
+    ]
+
+    observed.messages.clear()
+    session.broadcast(CompletedRunNotification(run_id="run-2"))
+    await observed.wait_for(be.Done)
+    assert observed.messages[-1] == be.Done(
+        protocol.RunId("run-2"), "succeeded"
+    )
+    assert b._runs == {}

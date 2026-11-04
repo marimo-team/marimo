@@ -245,6 +245,73 @@ async def test_cell_runs_preserve_order_with_later_deletions(
     [
         (
             "import marimo\napp = marimo.App()\n"
+            "@app.cell\ndef _():\n    import time\n    time.sleep(0.5)\n"
+            "    slow = 1\n    return (slow,)\n"
+            "@app.cell\ndef _():\n    quick = 2\n    return (quick,)\n"
+        )
+    ],
+    indirect=True,
+)
+async def test_runs_accepted_while_busy_start_in_order(
+    live_host: tuple[Starlette, str, Response],
+) -> None:
+    app, notebook_id, events = live_host
+    notebook = await app.state.host_context.bridge.host.notebook(notebook_id)
+    slow, quick = notebook.document
+    runs = f"/notebooks/{notebook_id}/runtime/runs"
+
+    def target(cell: object) -> bytes:
+        return json.dumps(
+            {"cells": [{"id": cell.id, "code_hash": cell.code_hash}]}  # type: ignore[attr-defined]
+        ).encode()
+
+    first = await finished(
+        app, "POST", runs, headers=key("first"), body=target(slow)
+    )
+    second = await finished(
+        app, "POST", runs, headers=key("second"), body=target(quick)
+    )
+    assert (first.status, second.status) == (202, 202), (
+        first.body,
+        second.body,
+    )
+    first_id, second_id = first.json()["id"], second.json()["id"]
+    assert second.json()["status"] == "queued"
+    assert second.json()["started_at"] is None
+
+    def transitions(stream: Response) -> list[tuple[str, str]]:
+        return [
+            (r["data"]["run"]["id"], r["data"]["run"]["status"])
+            for r in stream.records
+            if r.get("data", {}).get("run", {}).get("id")
+            in (first_id, second_id)
+        ]
+
+    await wait_for(
+        events,
+        lambda stream: (
+            transitions(stream).count((second_id, "completed")) == 1
+        ),
+    )
+    seen = transitions(events)
+    assert seen.index((second_id, "queued")) < seen.index(
+        (first_id, "completed")
+    )
+    assert seen.index((first_id, "completed")) < seen.index(
+        (second_id, "running")
+    )
+    assert [
+        r["data"]["run"]["outcome"]
+        for r in events.records
+        if r.get("data", {}).get("run", {}).get("status") == "completed"
+    ] == ["succeeded", "succeeded"]
+
+
+@pytest.mark.parametrize(
+    "notebook_source",
+    [
+        (
+            "import marimo\napp = marimo.App()\n"
             "@app.cell\ndef _():\n    answer = input('prompt')\n    return (answer,)\n"
         )
     ],

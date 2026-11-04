@@ -430,7 +430,7 @@ def _failure_guidance(
     if isinstance(error, RunConflictError):
         return (
             str(error),
-            "Wait for the active run to finish. Inspect its results before retrying.",
+            "Check the notebook's kernel state, then retry.",
         )
     if isinstance(error, AmbiguousNotebookError):
         lines = [

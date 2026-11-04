@@ -114,7 +114,8 @@ class SessionBackend(SessionConsumer):
         """Called with the session that detached, before its exit is reported."""
         self._request_metadata = request_metadata
         self._kernel: _Kernel | None = None
-        self._run: _Run | None = None
+        self._runs: dict[protocol.RunId, _Run] = {}
+        """Runs this backend submitted that have not finished, by run id."""
         self._translators: dict[str, RunTranslator] = {}
 
     @property
@@ -180,7 +181,7 @@ class SessionBackend(SessionConsumer):
         if session is None:
             return
         run = _Run(session, RunTranslator(run_id, code))
-        self._run = run
+        self._runs[run_id] = run
         self._watch_run(run, self._run_code(run, code))
 
     def run_cells(
@@ -193,7 +194,7 @@ class SessionBackend(SessionConsumer):
         if session is None:
             return
         run = _Run(session, RunTranslator(run_id, None))
-        self._run = run
+        self._runs[run_id] = run
         codes = {CellId_t(cell.id): cell.code for cell in document}
         targets = [CellId_t(cell_id) for cell_id in cell_ids]
         try:
@@ -289,8 +290,8 @@ class SessionBackend(SessionConsumer):
         )
 
     def _finish_run(self, run: _Run, exception: BaseException | None) -> None:
-        if self._run is run:
-            self._run = None
+        if self._runs.get(run.translator.run_id) is run:
+            del self._runs[run.translator.run_id]
         error = None
         if isinstance(exception, asyncio.CancelledError):
             run.translator.interrupted = True
@@ -312,8 +313,8 @@ class SessionBackend(SessionConsumer):
                 self._observe(message)
 
     def interrupt(self, run_id: protocol.RunId) -> None:
-        run = self._run
-        if run is None or run.translator.run_id != run_id:
+        run = self._runs.get(run_id)
+        if run is None:
             translator = self._translators.get(run_id)
             if (
                 translator is not None
@@ -380,9 +381,9 @@ class SessionBackend(SessionConsumer):
         if session.kernel_state() is KernelState.STOPPED:
             info = session.kernel_exit_info()
             reason = info.message if info is not None else "The kernel died"
-        run = self._run
-        if run is not None and run.task is not None:
-            run.task.cancel()
+        for run in list(self._runs.values()):
+            if run.task is not None:
+                run.task.cancel()
         self._translators.clear()
         self._observe(be.Exited(kernel.runtime_id, reason))
 
@@ -443,7 +444,6 @@ class SessionBackend(SessionConsumer):
         run_id = message.run_id
         if run_id is None:
             return
-        run = self._run
         translator = self._translators.get(run_id)
         if translator is None:
             if (
@@ -474,6 +474,7 @@ class SessionBackend(SessionConsumer):
         for out in translator.feed(message):
             self._observe(out)
         if translator.completed:
+            run = self._runs.get(protocol.RunId(run_id))
             if run is not None and translator is run.translator:
                 run.done.set()
             else:

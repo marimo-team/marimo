@@ -523,10 +523,11 @@ paths:
         `code_hash` so that an edit it did not see is a conflict rather
         than a run of other code.
 
-        One run is in progress at a time. The host answers `no-runtime`
-        when the notebook has no runtime and `conflict` while another run
-        is in progress. Within the host's retry window, repeating the
-        request returns its latest run record without executing again,
+        Runs execute one at a time in the order the host accepted them.
+        A run accepted while another is in progress is `queued` until the
+        earlier runs complete. The host answers `no-runtime` when the
+        notebook has no runtime. Within the host's retry window, repeating
+        the request returns its latest run record without executing again,
         even if its outputs have expired.
       parameters:
         - $ref: '#/components/parameters/NotebookId'

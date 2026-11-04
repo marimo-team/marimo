@@ -1100,9 +1100,11 @@ async def test_scratch_runs_over_http(harness: Harness) -> None:
     )
     assert reused.status == 409
 
-    busy = await finished(app, "POST", runs, headers=key("r2"), body=body)
-    assert busy.status == 409
-    assert run_id in busy.json()["detail"]
+    queued = await finished(app, "POST", runs, headers=key("r2"), body=body)
+    assert queued.status == 202
+    assert queued.json()["status"] == "queued"
+    assert queued.json()["id"] != run_id
+    assert harness.backend().calls[-1] == ("run", queued.json()["id"], "3 * 3")
 
     interrupted = await finished(
         app, "DELETE", f"{runs}/{run_id}", headers=key("i1")

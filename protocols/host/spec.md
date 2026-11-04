@@ -423,10 +423,13 @@ matches what it read before executing it.
 
 An accepted execution request starts a run whose progress and results arrive on
 the notebook stream for all attached clients. Clients that need to observe the
-full sequence open the stream before submitting work. Hosts MUST limit each
-notebook to one run in progress and support interruption when they offer
-execution. Completion means the work has finished, including any interruption
-that was requested.
+full sequence open the stream before submitting work. Hosts that offer execution
+MUST execute one run at a time, accept further requests as `queued` runs, and
+start them in the order they were accepted. A run's requested cells and their
+source are fixed when it is accepted. Editing continues while runs are queued
+or running, and a result from source the document no longer has is outdated.
+Hosts MUST support interruption. Completion means the work has finished,
+including any interruption that was requested.
 
 ### Answering input
 
