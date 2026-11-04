@@ -30,6 +30,8 @@ minimumReleaseAgeExclude:
   - ws@8.21.0
   - form-data@4.0.6
   - mermaid@11.16.1
+  # Renovate security update: zod@4.6.6
+  - zod@4.6.6
 blockExoticSubdeps: true
 trustPolicy: no-downgrade
 trustPolicyExclude:

@@ -196,7 +196,7 @@ importers:
     dependencies:
       '@ai-sdk/react':
         specifier: ^4.0.110
-        version: 4.0.110(react@19.3.0)(zod@4.6.5)
+        version: 4.0.110(react@19.3.0)(zod@4.6.6)
       '@anywidget/types':
         specifier: ^0.4.0
         version: 0.4.0
@@ -265,7 +265,7 @@ importers:
         version: 6.0.4-alpha24(lodash@4.17.21)(marked@15.0.12)(react-dom@19.3.0(react@19.3.0))(react-responsive-carousel@3.2.23)(react@19.3.0)(supports-color@10.0.0)
       '@hookform/resolvers':
         specifier: ^5.9.1
-        version: 5.9.1(@standard-schema/spec@1.1.0)(ajv-formats@2.1.1(ajv@8.20.0))(ajv@8.20.0)(react-hook-form@7.54.2(react@19.3.0))(zod@4.6.5)
+        version: 5.9.1(@standard-schema/spec@1.1.0)(ajv-formats@2.1.1(ajv@8.20.0))(ajv@8.20.0)(react-hook-form@7.54.2(react@19.3.0))(zod@4.6.6)
       '@img-comparison-slider/react':
         specifier: ^8.0.2
         version: 8.0.2
@@ -403,7 +403,7 @@ importers:
         version: 0.4.5
       ai:
         specifier: ^7.0.107
-        version: 7.0.107(zod@4.6.5)
+        version: 7.0.107(zod@4.6.6)
       ansi_up:
         specifier: ^6.0.6
         version: 6.0.6
@@ -607,7 +607,7 @@ importers:
         version: 4.2.4
       zod:
         specifier: ^4.6.5
-        version: 4.6.5
+        version: 4.6.6
     devDependencies:
       '@codecov/vite-plugin':
         specifier: ^1.9.1
@@ -725,14 +725,14 @@ importers:
     dependencies:
       zod:
         specifier: ^4.6.5
-        version: 4.6.5
+        version: 4.6.6
     devDependencies:
       '@types/node':
         specifier: ^24.13.6
         version: 24.13.6
       orval:
         specifier: 8.40.0
-        version: 8.40.0(@modelcontextprotocol/sdk@1.17.2(supports-color@10.0.0))(msw@2.15.0(@types/node@24.13.6)(typescript@5.9.3))(swr@2.4.2(react@19.3.0))(typescript@5.9.3)(zod@4.6.5)
+        version: 8.40.0(@modelcontextprotocol/sdk@1.17.2(supports-color@10.0.0))(msw@2.15.0(@types/node@24.13.6)(typescript@5.9.3))(swr@2.4.2(react@19.3.0))(typescript@5.9.3)(zod@4.6.6)
       typescript:
         specifier: ^5.9.3
         version: 5.9.3
@@ -756,7 +756,7 @@ importers:
         version: 2.9.1
       zod:
         specifier: ^4.6.5
-        version: 4.6.5
+        version: 4.6.6
 
   packages/lsp:
     dependencies:
@@ -9818,8 +9818,8 @@ packages:
   zod@3.25.76:
     resolution: {integrity: sha512-gzUt/qt81nXsFGKIFcC3YnfEAx5NkunCfnDlvuBSSFS02bcXu4Lmea0AFIUwbLWxWPx3d9p8S5QoaujKcNQxcQ==}
 
-  zod@4.6.5:
-    resolution: {integrity: sha512-v5l/aFXZQeai4awLbOpSoHecE9UiMrnfx75tEXLjNonXVARxQ5mOeipTjROUchszUNCqnE+hqAMujRsRHsut2Q==}
+  zod@4.6.6:
+    resolution: {integrity: sha512-4UmzQUF5fxvfcYHlbjBmejU+w+hbDnWFx4aS8kBx7nPBHcO2SqPbpAG8snbdg+Xse4pRefR98hgjFgIMCI/UhA==}
 
   zustand@4.5.7:
     resolution: {integrity: sha512-CHOUy7mu3lbD6o6LJLfllpjkzhHXSBlX8B9+qPddUsIfeF5S/UZ5q0kmCsnRqT1UHFQZchNFDDzMbQsuesHWlw==}
@@ -9891,40 +9891,40 @@ snapshots:
     dependencies:
       zod: 3.25.76
 
-  '@ai-sdk/gateway@4.0.87(zod@4.6.5)':
+  '@ai-sdk/gateway@4.0.87(zod@4.6.6)':
     dependencies:
       '@ai-sdk/provider': 4.0.17
-      '@ai-sdk/provider-utils': 5.0.45(zod@4.6.5)
+      '@ai-sdk/provider-utils': 5.0.45(zod@4.6.6)
       '@vercel/oidc': 3.2.0
-      zod: 4.6.5
+      zod: 4.6.6
 
-  '@ai-sdk/mcp@2.0.54(zod@4.6.5)':
+  '@ai-sdk/mcp@2.0.54(zod@4.6.6)':
     dependencies:
       '@ai-sdk/provider': 4.0.17
-      '@ai-sdk/provider-utils': 5.0.45(zod@4.6.5)
+      '@ai-sdk/provider-utils': 5.0.45(zod@4.6.6)
       cross-spawn: 7.0.6
       pkce-challenge: 5.0.1
-      zod: 4.6.5
+      zod: 4.6.6
 
-  '@ai-sdk/provider-utils@5.0.45(zod@4.6.5)':
+  '@ai-sdk/provider-utils@5.0.45(zod@4.6.6)':
     dependencies:
       '@ai-sdk/provider': 4.0.17
       '@standard-schema/spec': 1.1.0
       '@workflow/serde': 4.1.0
       eventsource-parser: 3.1.0
       undici: 7.29.1
-      zod: 4.6.5
+      zod: 4.6.6
 
   '@ai-sdk/provider@4.0.17':
     dependencies:
       json-schema: 0.4.0
 
-  '@ai-sdk/react@4.0.110(react@19.3.0)(zod@4.6.5)':
+  '@ai-sdk/react@4.0.110(react@19.3.0)(zod@4.6.6)':
     dependencies:
-      '@ai-sdk/mcp': 2.0.54(zod@4.6.5)
+      '@ai-sdk/mcp': 2.0.54(zod@4.6.6)
       '@ai-sdk/provider': 4.0.17
-      '@ai-sdk/provider-utils': 5.0.45(zod@4.6.5)
-      ai: 7.0.107(zod@4.6.5)
+      '@ai-sdk/provider-utils': 5.0.45(zod@4.6.6)
+      ai: 7.0.107(zod@4.6.6)
       react: 19.3.0
       swr: 2.4.2(react@19.3.0)
       throttleit: 2.1.0
@@ -10736,7 +10736,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@hookform/resolvers@5.9.1(@standard-schema/spec@1.1.0)(ajv-formats@2.1.1(ajv@8.20.0))(ajv@8.20.0)(react-hook-form@7.54.2(react@19.3.0))(zod@4.6.5)':
+  '@hookform/resolvers@5.9.1(@standard-schema/spec@1.1.0)(ajv-formats@2.1.1(ajv@8.20.0))(ajv@8.20.0)(react-hook-form@7.54.2(react@19.3.0))(zod@4.6.6)':
     dependencies:
       '@standard-schema/utils': 0.3.0
       react-hook-form: 7.54.2(react@19.3.0)
@@ -10744,7 +10744,7 @@ snapshots:
       '@standard-schema/spec': 1.1.0
       ajv: 8.20.0
       ajv-formats: 2.1.1(ajv@8.20.0)
-      zod: 4.6.5
+      zod: 4.6.6
 
   '@iconify/types@2.0.0': {}
 
@@ -11232,21 +11232,21 @@ snapshots:
     transitivePeerDependencies:
       - '@faker-js/faker'
 
-  '@orval/hono@8.40.0(typescript@5.9.3)(zod@4.6.5)':
+  '@orval/hono@8.40.0(typescript@5.9.3)(zod@4.6.6)':
     dependencies:
       '@orval/core': 8.40.0
-      '@orval/zod': 8.40.0(zod@4.6.5)
+      '@orval/zod': 8.40.0(zod@4.6.6)
     optionalDependencies:
       typescript: 5.9.3
     transitivePeerDependencies:
       - '@faker-js/faker'
       - zod
 
-  '@orval/mcp@8.40.0(@modelcontextprotocol/sdk@1.17.2(supports-color@10.0.0))(zod@4.6.5)':
+  '@orval/mcp@8.40.0(@modelcontextprotocol/sdk@1.17.2(supports-color@10.0.0))(zod@4.6.6)':
     dependencies:
       '@orval/core': 8.40.0
       '@orval/fetch': 8.40.0
-      '@orval/zod': 8.40.0(zod@4.6.5)
+      '@orval/zod': 8.40.0(zod@4.6.6)
     optionalDependencies:
       '@modelcontextprotocol/sdk': 1.17.2(supports-color@10.0.0)
     transitivePeerDependencies:
@@ -11289,12 +11289,12 @@ snapshots:
     transitivePeerDependencies:
       - '@faker-js/faker'
 
-  '@orval/zod@8.40.0(zod@4.6.5)':
+  '@orval/zod@8.40.0(zod@4.6.6)':
     dependencies:
       '@orval/core': 8.40.0
       jsesc: 3.1.0
     optionalDependencies:
-      zod: 4.6.5
+      zod: 4.6.6
     transitivePeerDependencies:
       - '@faker-js/faker'
 
@@ -12752,7 +12752,7 @@ snapshots:
       '@scalar/helpers': 0.16.1
       nanoid: 5.1.16
       type-fest: 5.9.0
-      zod: 4.6.5
+      zod: 4.6.6
 
   '@sec-ant/readable-stream@0.4.1': {}
 
@@ -13671,12 +13671,12 @@ snapshots:
 
   agent-base@7.1.4: {}
 
-  ai@7.0.107(zod@4.6.5):
+  ai@7.0.107(zod@4.6.6):
     dependencies:
-      '@ai-sdk/gateway': 4.0.87(zod@4.6.5)
+      '@ai-sdk/gateway': 4.0.87(zod@4.6.6)
       '@ai-sdk/provider': 4.0.17
-      '@ai-sdk/provider-utils': 5.0.45(zod@4.6.5)
-      zod: 4.6.5
+      '@ai-sdk/provider-utils': 5.0.45(zod@4.6.6)
+      zod: 4.6.6
 
   ajv-draft-04@1.0.0(ajv@8.20.0):
     optionalDependencies:
@@ -16877,7 +16877,7 @@ snapshots:
       type-check: 0.3.2
       word-wrap: 1.2.5
 
-  orval@8.40.0(@modelcontextprotocol/sdk@1.17.2(supports-color@10.0.0))(msw@2.15.0(@types/node@24.13.6)(typescript@5.9.3))(swr@2.4.2(react@19.3.0))(typescript@5.9.3)(zod@4.6.5):
+  orval@8.40.0(@modelcontextprotocol/sdk@1.17.2(supports-color@10.0.0))(msw@2.15.0(@types/node@24.13.6)(typescript@5.9.3))(swr@2.4.2(react@19.3.0))(typescript@5.9.3)(zod@4.6.6):
     dependencies:
       '@commander-js/extra-typings': 15.0.0(commander@15.0.0)
       '@orval/angular': 8.40.0
@@ -16885,14 +16885,14 @@ snapshots:
       '@orval/core': 8.40.0
       '@orval/effect': 8.40.0
       '@orval/fetch': 8.40.0
-      '@orval/hono': 8.40.0(typescript@5.9.3)(zod@4.6.5)
-      '@orval/mcp': 8.40.0(@modelcontextprotocol/sdk@1.17.2(supports-color@10.0.0))(zod@4.6.5)
+      '@orval/hono': 8.40.0(typescript@5.9.3)(zod@4.6.6)
+      '@orval/mcp': 8.40.0(@modelcontextprotocol/sdk@1.17.2(supports-color@10.0.0))(zod@4.6.6)
       '@orval/mock': 8.40.0(msw@2.15.0(@types/node@24.13.6)(typescript@5.9.3))
       '@orval/pinia-colada': 8.40.0
       '@orval/query': 8.40.0
       '@orval/solid-start': 8.40.0
       '@orval/swr': 8.40.0(swr@2.4.2(react@19.3.0))
-      '@orval/zod': 8.40.0(zod@4.6.5)
+      '@orval/zod': 8.40.0(zod@4.6.6)
       '@scalar/json-magic': 0.15.5
       '@scalar/openapi-parser': 0.29.11
       '@scalar/openapi-types': 0.9.7
@@ -19830,7 +19830,7 @@ snapshots:
 
   zod@3.25.76: {}
 
-  zod@4.6.5: {}
+  zod@4.6.6: {}
 
   zustand@4.5.7(@types/react@19.3.0)(react@19.3.0):
     dependencies:
