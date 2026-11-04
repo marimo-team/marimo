@@ -177,7 +177,7 @@ class Executions:
         return tracked.run if tracked is not None else None
 
     def active(self) -> protocol.Run | None:
-        """The run in progress, if any."""
+        """The oldest unfinished run, if any."""
         return next(
             (
                 tracked.run

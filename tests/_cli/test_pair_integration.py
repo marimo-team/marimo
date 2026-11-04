@@ -258,27 +258,37 @@ def test_host_run_error_returns_failed_result(
     assert error in payload["stderr"]
 
 
-@pytest.mark.skipif(os.name != "posix", reason="SIGINT requires POSIX")
-def test_concurrent_host_run_reports_conflict(server: PairTestServer) -> None:
-    process = subprocess.Popen(
-        _command(server, "-c", "import time; time.sleep(30)"),
+def test_concurrent_host_run_waits_for_the_active_run(
+    server: PairTestServer,
+) -> None:
+    first = subprocess.Popen(
+        _command(
+            server,
+            "-c",
+            "import builtins, time\n"
+            "time.sleep(2)\n"
+            "builtins._pair_first_done = True",
+        ),
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         text=True,
     )
     try:
         server.wait_for_kernel("running")
-        second = _run(server, "-c", "print('must not run')")
-        assert second.returncode == 2
-        payload = json.loads(second.stdout)
-        assert (
-            "active" in payload["error"].lower()
-            or "progress" in payload["error"].lower()
+        # Accepted while the first run executes, and queued behind it.
+        second = _run(
+            server,
+            "-c",
+            "import builtins\n"
+            "print(builtins._pair_first_done)\n"
+            "del builtins._pair_first_done",
         )
-        assert payload["stdout"] is None
     finally:
-        process.send_signal(signal.SIGINT)
-        process.communicate(timeout=10)
+        stdout, stderr = first.communicate(timeout=20)
+
+    assert first.returncode == 0, (stdout, stderr)
+    assert second.returncode == 0, second.stderr
+    assert json.loads(second.stdout)["stdout"] == "True\n"
     server.wait_for_kernel("idle")
 
 

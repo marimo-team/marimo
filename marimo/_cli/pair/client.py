@@ -46,7 +46,7 @@ class NoRuntimeError(PairError):
 
 
 class RunConflictError(PairError):
-    """The notebook already has an active run."""
+    """The host refused the run as a conflict."""
 
 
 class NoNotebookError(PairError):
@@ -287,9 +287,7 @@ def _raise_for_status(response: HTTPResponse) -> None:
     if problem == "tag:marimo.io,2026:host/no-runtime":
         raise NoRuntimeError(detail or "The notebook has no running kernel.")
     if problem == "tag:marimo.io,2026:host/conflict":
-        raise RunConflictError(
-            detail or "The notebook already has an active run."
-        )
+        raise RunConflictError(detail or "The host refused the run.")
     if detail:
         raise PairError(detail)
     raise PairError(f"Server returned {response.status}.")
