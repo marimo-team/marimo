@@ -48,9 +48,8 @@ its saved results, then offer editing or execution when those operations are
 available. Hosts MAY choose their own storage and runtime arrangements while
 presenting the same notebook model and API to clients.
 
-Executing code requires a Python runtime, but serving a document and saved
-results does not. This gives hosts a range of implementation choices, for
-example:
+A host can serve a document and saved results without a Python runtime,
+then attach one when a client needs to execute code.
 
 - **Snapshot hosts** serve documents and results from previous runs. A small
   web server could expose these through the host API for a client to display in
@@ -84,17 +83,18 @@ records of a cell, the higher version is the newer. Versions are comparable
 only within one notebook.
 
 A host MAY withhold a cell's source from a client by publishing `code: null`.
-The field MUST remain present; an empty string means an empty cell. The host
-MUST derive `code_hash` from the actual source even when it withholds that
-source. Withholding source MUST NOT change cell or document etags or versions.
+The field MUST remain present, with an empty string representing an empty
+cell. The host MUST derive `code_hash` from the actual source even when it
+withholds that source. Hosts MUST preserve cell and document etags and
+versions when withholding source.
 Clients can therefore compare execution hashes and dependency revisions to
 assess staleness without access to source.
 
 Hosts MUST apply their source visibility policy consistently to snapshots,
-live events, replay, and responses containing cells. `hide_code` is only a
-presentation preference; it does not withhold source. A null `code` field does
-not promise that source cannot be inferred from hashes, outputs, diagnostics,
-or other protocol data.
+live events, replay, and responses containing cells. `hide_code` controls
+presentation, while the source visibility policy determines the `code` sent
+to clients. Hashes, outputs, diagnostics, and other protocol data may still
+reveal information about withheld source.
 
 ### Runtimes and attachments
 
@@ -116,9 +116,8 @@ connection closes, including when reconnecting with `Last-Event-ID`.
 When opening a stream, clients MAY supply `Marimo-Attachment-Identity`,
 `Marimo-Attachment-Kind`, and `Marimo-Attachment-Name`. Hosts expose these as
 `identity`, `kind`, and `name` on the attachment, as defined in the OpenAPI
-schema. Consumers can use a shared identity to group attachments from the same
-client across streams and reconnects. Each attachment still has its own id and
-lifetime; identity does not merge connections or keep an attachment alive.
+schema. A shared identity lets clients group attachments across streams and
+reconnects. Each attachment keeps its own id and connection lifetime.
 
 Stopping a runtime ends its active work and loses its Python state, while the
 document and retained results remain available to clients.
@@ -142,6 +141,7 @@ Notebook
     └── Scratch execution
 ```
 
+Runs and executions move through `queued`, `running`, and `completed`.
 Hosts MUST complete a run only after its executions have ended and scheduling
 for that cycle has finished. An error in one execution may occur while others
 are still working.
@@ -162,11 +162,58 @@ Notebook
     └── Cell execution · another dependent cell
 ```
 
-Results include an execution's outcome, **console** output, **display**
-items, **inputs**, and the **variables** a cell's execution bound. They can remain
+An execution's results include its outcome, **console** output, **display**
+items, **inputs**, and the **variables** a cell bound. Results can remain
 available after the runtime stops or be restored from storage. Hosts choose
 how long to retain results and SHOULD keep ephemeral results briefly after
 completion to allow reconnection.
+
+Console, display, and input items share a `seq` ordering within their
+execution, so a client can place prompts among the outputs that surround them.
+Background work may continue producing console and display items after the
+execution completes, as long as its results remain retained. Input requires a
+running execution, because the host must still be able to accept an answer or
+interrupt the work that is waiting for it.
+
+### Inputs
+
+An **input** records an execution's request for a line of text, such as a call
+to Python's `input()` or `getpass.getpass()`. It gives clients a prompt to
+display and a status indicating whether an answer is still needed.
+
+    Input { id, execution_id, seq, prompt, password, status }
+
+Hosts MUST assign each prompt a distinct item id across executions and runtime
+restarts. Its execution, prompt, password flag, and position stay fixed while
+its status records the progress of the request.
+
+| Status | Meaning |
+| --- | --- |
+| `pending` | The input is waiting for an answer. |
+| `answered` | The host accepted a reply for delivery to this input. |
+| `cancelled` | The host ended the wait while the input was still pending. |
+
+An input starts `pending` and can transition once to `answered` or `cancelled`.
+An answered input stays answered if execution later fails before consuming the
+value, because its status records that the host accepted the reply.
+
+The execution remains `running` while it waits, and clients determine whether
+it needs input by looking for pending inputs. Hosts MUST cancel any remaining
+pending inputs before publishing the execution as completed, including on
+interruption, runtime stop, restart, or failure.
+
+Inputs stay with their execution after they are answered or cancelled, so a
+reconnecting client can distinguish outstanding prompts from those already
+resolved. Inputs retain their state through output clearing and client
+disconnections.
+
+When `password` is true, clients MUST obscure the answer as it is entered.
+Hosts MUST restrict input records, input events, and reply responses to the
+prompt's identity, metadata, and status. Submitted answers travel through the
+reply endpoint to the runtime, where user code may expose them through outputs
+or variables.
+
+### Variables and result freshness
 
 A **variable** is a name in the notebook's namespace whose value varies over
 time. A cell's execution **binds** variables as it ends, each with a
@@ -188,7 +235,7 @@ execution had bound is recorded as null.
 
     Execution { ..., depends_on: Record<Name, Revision | null> }
 
-A completed cell execution is **current** when:
+A completed cell execution is **current** when all of the following hold.
 
 - its `code_hash` equals the cell's,
 - each variable it depends on still holds the recorded revision,
@@ -206,7 +253,7 @@ updated, and edited that applies is why the result is **outdated**.
 A cell without an execution has no result to compare. Scratch executions run in
 a local namespace, bind no variables, and are not compared.
 
-For example, cell `k7f2` reads `x`, which cell `c3` binds:
+For example, cell `k7f2` reads `x`, which cell `c3` binds.
 
     Cell c3     code_hash 0f71…   Execution e12   code_hash 0f71…   depends_on {}
     Variable x  revision {e12, 0}  bound by e12
@@ -219,8 +266,8 @@ bound `x` is. Running `c3` again removes `e12` and binds `x` under a new
 execution, so `e13` is outdated because the execution it depends on was
 replaced.
 
-The runtime stamps `depends_on` as the execution ends, from its own namespace
-and rules:
+The runtime stamps `depends_on` as the execution ends, using the following
+rules to describe the values in its namespace.
 
 - a value the execution itself updated is recorded at the revision it set,
 - a name bound only by a result from an earlier runtime is recorded as
@@ -246,11 +293,24 @@ Clients use **event streams** to read state and follow changes as they happen.
 The **catalog stream** describes the host's notebooks and resources. A
 **notebook stream** carries the document and results for one notebook.
 
+A record event carries the object's current state and replaces any earlier
+record with the same identity. For example, an `input` event first introduces
+a pending prompt, then replaces it with the answered or cancelled record.
+Removal events tell clients which records to discard. Clients handle
+`execution.removed` by discarding both the execution and its inputs.
+
 On an initial connection, the host sends a **snapshot** as a sequence of events
 describing the current state. For a notebook, these events include its cells,
-document, and retained results. A `ready` event marks the end of the snapshot,
-after which the stream delivers changes as they happen. A client that only
-needs the current state can disconnect at `ready`.
+document, and retained results, with executions before their items. A `ready`
+event marks the end of the snapshot, after which the stream delivers changes
+as they happen. A client that only needs the current state can disconnect at
+`ready`.
+
+Clients can select object kinds with `types`. On a notebook stream, `run_id`
+narrows the view to one run and its executions and items. Because filters also
+select removal events, a client retaining inputs MUST subscribe to both `input`
+and `execution` to learn when those inputs are removed. The same filters apply
+to snapshots, live events, and replay.
 
 A notebook snapshot MUST represent one consistent state. Hosts MUST publish
 each document change as a group without interleaving unrelated events, so
@@ -275,17 +335,17 @@ their ordering, snapshot, and replay guarantees.
 
 A **custom event** describes an occurrence in a notebook without creating or
 updating an object. Hosts MAY send custom events on the notebook stream using
-the `custom` event kind. The protocol defines their envelope; the producer
-defines the meaning and JSON payload of each namespaced `type`, such as
-`marimo.pair.agent-message`. Producers MUST use a namespace they control.
+the `custom` event kind. The protocol defines their envelope, while the
+producer defines the meaning and JSON payload of each namespaced `type`, such
+as `marimo.pair.agent-message`. Producers MUST use a namespace they control.
 Clients MUST ignore custom types they do not recognize while retaining the
 stream cursor. Consumers of a type are responsible for validating its payload.
 
-The stream identifies the notebook. Custom events MUST carry a timestamp.
-When a request causes a custom event, the envelope MUST carry that request's
-key in `request_id`; otherwise, the key is omitted. They participate in the
-stream's ordering and cursor-based replay, with their original ids and timestamps.
-They MUST NOT appear in snapshots. Once their replay history expires, a
+Custom events MUST carry a timestamp, with the notebook identified by the
+stream. The envelope MUST include `request_id` when a request caused the event
+and omit it otherwise. Custom events participate in the stream's ordering and
+cursor-based replay, with their original ids and timestamps. They MUST NOT
+appear in snapshots. Once their replay history expires, a
 reset cannot recover them. Features that need recoverable state MUST
 represent that state separately rather than relying on custom events alone.
 

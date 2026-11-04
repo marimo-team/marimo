@@ -208,8 +208,8 @@ paths:
 
         The stream may also carry `custom` events: namespaced JSON payloads
         that describe occurrences rather than object state. These have
-        cursors and timestamps and participate in replay, but never appear
-        in snapshots. A reset cannot recover custom events whose history
+        cursors and timestamps and appear only in live delivery and replay.
+        A reset cannot recover custom events whose history
         has expired. `types=custom` selects them. They do not belong to a
         run and are excluded by `run_id`.
 
@@ -218,8 +218,8 @@ paths:
         `ready` and closing is a snapshot, and `types=cell,document` is a
         snapshot of the document alone. Cells arrive before the document
         that orders them, in the opening phase and after every change, so
-        a client never holds a document whose `order` names a cell it has
-        not received. The effects of one change to the document arrive
+        each cell named in `order` is already available to the client.
+        The effects of one change to the document arrive
         together, with no other event between them.
       parameters:
         - $ref: '#/components/parameters/NotebookId'
@@ -236,14 +236,11 @@ paths:
             text/event-stream:
               schema:
                 description: |
-                  One event. `data` holds JSON, and the event name says
-                  which shape: a NotebookMessage, DocumentMessage,
-                  CellMessage, RuntimeMessage, AttachmentMessage,
-                  RunMessage, ExecutionMessage, ConsoleMessage,
-                  DisplayMessage, InputMessage, or VariableMessage for an event named
-                  after that kind; a CustomMessage for `custom`; a RemovedMessage
-                  for an event ending in `.removed`; and an empty object
-                  for `ready` and `reset`.
+                  One event, with its message encoded as JSON in `data`.
+                  Record events carry their corresponding message type,
+                  such as InputMessage for `input`. Custom events carry
+                  CustomMessage, removal events carry RemovedMessage,
+                  and `ready` and `reset` carry an empty object.
                 type: object
                 required: [event, data]
                 properties:
@@ -274,12 +271,12 @@ paths:
       description: |
         Applies an ordered list of changes to the document as one unit.
         Each change says what it replaces and carries the etag that state
-        had when the client read it, so two writers never silently
-        overwrite each other. Every etag is compared with the document as
+        had when the client read it, so the host can detect competing
+        edits to that state. Every etag is compared with the document as
         it was when the request arrived, so one request can create a cell
         and then place it with the order etag the client read. Cells and
-        the order each have their own etag, so writers touching different
-        parts never conflict. An etag of `*` skips the check. A `put_cell`
+        the order each have their own etag, so writers can update different
+        parts independently. An etag of `*` skips the check. A `put_cell`
         with a null etag creates the cell, after or before an existing cell
         or at the end; placement has no precondition, so two clients
         inserting at once both succeed.
@@ -326,9 +323,9 @@ paths:
       summary: Write the document to the host's store
       description: |
         Writes the document as currently applied, after which `saved_etag`
-        equals `etag`. There is no body to send, since the host already
-        holds the state. A host that persists every change as it applies
-        it need not offer this operation. A client shows a save control
+        equals `etag`. The client sends an empty request body because the
+        host already holds the state. A host that persists every change as
+        it applies it need not offer this operation. A client shows a save control
         when the notebook lists it, and reads whether anything is unsaved
         from the two etags either way.
 
@@ -371,8 +368,8 @@ paths:
       description: |
         Opens the notebook where the host normally shows notebooks, such
         as a browser tab or an editor, and returns the URL it used.
-        Opening may start a runtime. The URL never contains the host's
-        token, and a client opens it exactly as given. If the notebook
+        Opening may start a runtime. The host omits its token from the URL,
+        and a client opens it exactly as given. If the notebook
         cannot be shown, for example because its file is gone, the host
         answers `conflict`.
       parameters:
@@ -472,9 +469,9 @@ paths:
       description: |
         Stops the runtime and starts a new one with a new id. The stream
         shows the old runtime `terminating`, then `runtime.removed`, then
-        the new runtime `starting`, so a notebook never has two runtimes
-        at once. Running executions end `interrupted`. Retained results
-        stay and are no longer live. The response carries the replacement
+        the new runtime `starting`, keeping one runtime attached to the
+        notebook at a time. Running executions end `interrupted`. Retained
+        results stay and are no longer live. The response carries the replacement
         runtime in its `starting` state. The client follows that id until
         it is `running` or has `failed`. If the notebook has no runtime,
         the host answers `no-runtime`.
@@ -504,15 +501,20 @@ paths:
         `cells` of the document. Scratch code stays out of the graph and
         its execution carries the submitted code. The runtime's execution
         configuration determines whether dependent cells run too. Each cell
-        gets an execution with its `cell_id` and no code. The host assigns a run
-        id independent of the request's `Idempotency-Key` and answers `202`
-        with the run `queued` or `running`. The rest arrives on the notebook's
-        stream with this request's key: executions as they start, console
-        and display items, the variables each cell execution bound, and a
-        final execution whose `outcome` is
-        `value`, `error`, or `interrupted`, and a final `run` whose
-        status is `completed`. A client that wants to see all of it opens
-        the notebook's stream before sending the request.
+        gets an execution with its `cell_id` and no code.
+
+        The host assigns a run id independent of the request's
+        `Idempotency-Key` and answers `202` with the run `queued` or
+        `running`. The notebook stream carries the executions, their
+        console and display output, their input requests, and the variables
+        each cell execution bound. Each execution completes with a `value`,
+        `error`, or `interrupted` outcome, followed by the run's completion.
+        Run and execution events carry this request's key. A client that
+        needs the full stream opens it before sending the request.
+
+        A running execution that requests input publishes a pending input
+        and waits for an answer or cancellation. Any client permitted
+        `runtime.input` may answer through the input's reply route.
 
         A cell in `cells` that the document does not have, or whose
         `code_hash` is not the one the request carries, is a `conflict`
@@ -628,10 +630,9 @@ components:
       description: |
         The `token` from a host record, sent as `Authorization: Bearer
         <token>` on every request. Hosts accept the token only in that
-        header, never in a cookie or a query parameter, and send no CORS
-        headers. Hosts answer only requests that arrive over the machine's
-        own loopback interface, and clients never follow redirects, so the
-        token never leaves the machine.
+        header and omit CORS headers. Hosts answer only requests that arrive
+        over the machine's own loopback interface. Clients disable redirects
+        to keep authenticated requests on that interface.
   parameters:
     AttachmentIdentity:
       name: Marimo-Attachment-Identity
@@ -754,7 +755,7 @@ components:
         application/problem+json:
           schema: { $ref: '#/components/schemas/Problem' }
     NotFound:
-      description: There is no such object or route.
+      description: The requested object or route was not found.
       content:
         application/problem+json:
           schema: { $ref: '#/components/schemas/Problem' }
@@ -884,8 +885,9 @@ components:
       type: object
       description: |
         A notebook occurrence with a producer-defined payload. It is replayed
-        while event history is retained, but is never included in snapshots
-        and does not belong to a run. The notebook is identified by the stream.
+        while event history is retained. Delivery is limited to live events
+        and replay on the notebook stream, with `run_id` omitted from the
+        stream's filters. The notebook is identified by the stream.
       required: [type, data]
       properties:
         type:
@@ -935,7 +937,7 @@ components:
         operations:
           type: array
           items: { type: string }
-          description: Operations this client may call on the project, today `notebook.create`. A subset of `host.operations`, narrowed by permission and never by state. The host sends the project again when it changes.
+          description: Operations this client may call on the project, today `notebook.create`. A subset of `host.operations` selected by the client's permissions, independently of the project's current state. The host sends the project again when it changes.
     Notebook:
       type: object
       description: |
@@ -957,7 +959,7 @@ components:
         operations:
           type: array
           items: { type: string }
-          description: Operations this client may call on the notebook, such as `notebook.edit` or `runtime.start`. A subset of `host.operations`, narrowed by permission and never by state; whether a runtime is attached shows in the `runtime` object, and preconditions still apply when an operation is called. The host sends the notebook again when it changes.
+          description: Operations this client may call on the notebook, such as `notebook.edit` or `runtime.start`. A subset of `host.operations` selected by the client's permissions, independently of the notebook's current state. The `runtime` object shows whether a runtime is attached, and preconditions still apply when an operation is called. The host sends the notebook again when it changes.
         updated_at:
           type: [string, 'null']
           format: date-time
@@ -1052,7 +1054,7 @@ components:
         by the runtime's scheduler. Context inherited by an independent task
         records provenance, not ownership of the cycle. The host completes it
         only after all member executions have ended and scheduling for the
-        cycle has finished. It never reopens or acquires new executions.
+        cycle has finished. Completion fixes its status and execution membership.
         Independently triggered later work starts another run, even when
         its cause belongs to an earlier run. Every consumer attached to
         the notebook sees it.
@@ -1093,7 +1095,7 @@ components:
           example: text/html
         data:
           type: string
-          description: The rendered value. JSON mimetypes are encoded as text; binary mimetypes are base64. Never a URL only the runtime can serve.
+          description: The rendered value, embedded so clients can display it independently of the runtime. JSON mimetypes are encoded as text and binary mimetypes as base64.
     Variable:
       type: object
       description: |
@@ -1254,8 +1256,10 @@ components:
         One cell evaluated within a run, or scratch code evaluated once.
         It moves through `queued`, `running`, and `completed`, and ends with
         one outcome. Side effects belong to the execution whose context
-        produced them; items can arrive after the execution is completed
-        while it remains retained.
+        produced them, and items can arrive after completion while the
+        execution remains retained. Each new input belongs to a running
+        execution. Input calls from completed or removed executions raise
+        `EOFError` in the calling code.
       required: [id, run_id, runtime_id, caused_by, cell_id, code, code_hash, depends_on, status, outcome, started_at, completed_at]
       properties:
         id: { $ref: '#/components/schemas/ExecutionId' }
@@ -1289,7 +1293,7 @@ components:
         started_at:
           type: [string, 'null']
           format: date-time
-          description: When the code started executing. Null while queued and for an execution that never ran.
+          description: When the code started executing. Null while queued or if the execution completed before starting.
         completed_at:
           type: [string, 'null']
           format: date-time
@@ -1334,7 +1338,7 @@ components:
           description: The format of `data`, such as `image/png`.
         data:
           type: string
-          description: The rendered value. JSON mimetypes are encoded as text; binary mimetypes are base64. Never a URL only the runtime can serve.
+          description: The rendered value, embedded so clients can display it independently of the runtime. JSON mimetypes are encoded as text and binary mimetypes as base64.
     Input:
       type: object
       description: |
@@ -1860,11 +1864,11 @@ components:
         The data of a `project.removed`, `notebook.removed`,
         `cell.removed`, `runtime.removed`, `attachment.removed`,
         `run.removed`, `execution.removed`, `console.removed`,
-        `display.removed`, or `variable.removed` event. The client deletes the object with this
-        id; the event name says which kind it is. Removing a notebook
-        removes its document and cells with it, without events of their
-        own; the document never has one. Removing an execution also removes
-        its inputs, without individual `input.removed` events.
+        `display.removed`, or `variable.removed` event. The event name
+        identifies the kind of object to delete from the client's view.
+        Removing a notebook also removes its document and cells, and
+        removing an execution removes its inputs. Clients discard these
+        child records when they receive the parent's removal event.
       required: [id]
       properties:
         request_id: *request_id
@@ -1880,7 +1884,7 @@ components:
         repeats the HTTP status, and `type` says more precisely what went
         wrong. `decisions` appears only when `type` is
         `tag:marimo.io,2026:host/decision-required`. A client ignores
-        members it does not recognize. An error never contains a token.
+        members it does not recognize. Hosts redact tokens from errors.
       required: [type, title, status]
       properties:
         type:
@@ -1974,7 +1978,7 @@ components:
       properties:
         url:
           type: string
-          description: The URL the host used to show the notebook. It never contains the host's token.
+          description: The URL the host used to show the notebook, with the host's token omitted.
     InputReplyRequest:
       type: object
       description: The answer to one pending input.

@@ -76,6 +76,31 @@ async def test_sse_preserves_multiline_data_comments_and_explicit_ids():
     ]
 
 
+@pytest.mark.parametrize(
+    ("event", "known"),
+    [
+        ("display.removed", True),
+        ("execution.removed", True),
+        ("input.removed", False),
+        ("document.removed", False),
+        ("host.removed", False),
+    ],
+)
+async def test_only_declared_removal_events_require_a_removed_message(
+    event, known
+):
+    stream = f"event: {event}\ndata: {{}}\n\nevent: ready\ndata: {{}}\n\n"
+    watch = Watch(frames(lines(stream)), timeout=1)
+    if known:
+        with pytest.raises(ValidationError, match="'id' is a required"):
+            await watch.ready()
+    else:
+        assert [frame.event for frame in await watch.ready()] == [
+            event,
+            "ready",
+        ]
+
+
 def test_required_nullable_fields_and_future_fields():
     value = json.loads((FIXTURES / "execution-restored.json").read_text())
     validate("Execution", {**value, "future_field": True})

@@ -165,7 +165,7 @@ export const Custom = zod
       ),
   })
   .describe(
-    "A notebook occurrence with a producer-defined payload. It is replayed\nwhile event history is retained, but is never included in snapshots\nand does not belong to a run. The notebook is identified by the stream.\n",
+    "A notebook occurrence with a producer-defined payload. It is replayed\nwhile event history is retained. Delivery is limited to live events\nand replay on the notebook stream, with `run_id` omitted from the\nstream's filters. The notebook is identified by the stream.\n",
   );
 
 export type Custom = zod.input<typeof Custom>;
@@ -219,7 +219,7 @@ export const Project = zod
     operations: zod
       .array(zod.string())
       .describe(
-        "Operations this client may call on the project, today `notebook.create`. A subset of `host.operations`, narrowed by permission and never by state. The host sends the project again when it changes.",
+        "Operations this client may call on the project, today `notebook.create`. A subset of `host.operations` selected by the client's permissions, independently of the project's current state. The host sends the project again when it changes.",
       ),
   })
   .describe(
@@ -247,7 +247,7 @@ export const Notebook = zod
     operations: zod
       .array(zod.string())
       .describe(
-        "Operations this client may call on the notebook, such as `notebook.edit` or `runtime.start`. A subset of `host.operations`, narrowed by permission and never by state; whether a runtime is attached shows in the `runtime` object, and preconditions still apply when an operation is called. The host sends the notebook again when it changes.",
+        "Operations this client may call on the notebook, such as `notebook.edit` or `runtime.start`. A subset of `host.operations` selected by the client's permissions, independently of the notebook's current state. The `runtime` object shows whether a runtime is attached, and preconditions still apply when an operation is called. The host sends the notebook again when it changes.",
       ),
     updated_at: zod.iso
       .datetime({ offset: true })
@@ -386,7 +386,7 @@ export const Run = zod
       .describe("When the run ended. Null until the run is `completed`."),
   })
   .describe(
-    "One bounded cycle of notebook work initiated by an action. It\nincludes synchronous callbacks and reactive work owned and awaited\nby the runtime's scheduler. Context inherited by an independent task\nrecords provenance, not ownership of the cycle. The host completes it\nonly after all member executions have ended and scheduling for the\ncycle has finished. It never reopens or acquires new executions.\nIndependently triggered later work starts another run, even when\nits cause belongs to an earlier run. Every consumer attached to\nthe notebook sees it.\n\nRetention is up to the host and independent of replay history.\nHosts SHOULD retain ephemeral results briefly after completion to\nallow reconnection. Runs, executions, and items each have removal\nevents; a cell result may outlive its run.\n",
+    "One bounded cycle of notebook work initiated by an action. It\nincludes synchronous callbacks and reactive work owned and awaited\nby the runtime's scheduler. Context inherited by an independent task\nrecords provenance, not ownership of the cycle. The host completes it\nonly after all member executions have ended and scheduling for the\ncycle has finished. Completion fixes its status and execution membership.\nIndependently triggered later work starts another run, even when\nits cause belongs to an earlier run. Every consumer attached to\nthe notebook sees it.\n\nRetention is up to the host and independent of replay history.\nHosts SHOULD retain ephemeral results briefly after completion to\nallow reconnection. Runs, executions, and items each have removal\nevents; a cell result may outlive its run.\n",
   );
 
 export type Run = zod.input<typeof Run>;
@@ -400,7 +400,7 @@ export const DisplayData = zod
     data: zod
       .string()
       .describe(
-        "The rendered value. JSON mimetypes are encoded as text; binary mimetypes are base64. Never a URL only the runtime can serve.",
+        "The rendered value, embedded so clients can display it independently of the runtime. JSON mimetypes are encoded as text and binary mimetypes as base64.",
       ),
   })
   .describe("A rendered value.");
@@ -640,7 +640,7 @@ export const Execution = zod
       .datetime({ offset: true })
       .nullable()
       .describe(
-        "When the code started executing. Null while queued and for an execution that never ran.",
+        "When the code started executing. Null while queued or if the execution completed before starting.",
       ),
     completed_at: zod.iso
       .datetime({ offset: true })
@@ -648,7 +648,7 @@ export const Execution = zod
       .describe("When the execution ended. Null until it is completed."),
   })
   .describe(
-    "One cell evaluated within a run, or scratch code evaluated once.\nIt moves through `queued`, `running`, and `completed`, and ends with\none outcome. Side effects belong to the execution whose context\nproduced them; items can arrive after the execution is completed\nwhile it remains retained.\n",
+    "One cell evaluated within a run, or scratch code evaluated once.\nIt moves through `queued`, `running`, and `completed`, and ends with\none outcome. Side effects belong to the execution whose context\nproduced them, and items can arrive after completion while the\nexecution remains retained. Each new input belongs to a running\nexecution. Input calls from completed or removed executions raise\n`EOFError` in the calling code.\n",
   );
 
 export type Execution = zod.input<typeof Execution>;
@@ -696,7 +696,7 @@ export const Display = zod
     data: zod
       .string()
       .describe(
-        "The rendered value. JSON mimetypes are encoded as text; binary mimetypes are base64. Never a URL only the runtime can serve.",
+        "The rendered value, embedded so clients can display it independently of the runtime. JSON mimetypes are encoded as text and binary mimetypes as base64.",
       ),
   })
   .describe(
@@ -1754,7 +1754,7 @@ export const Problem = zod
     ),
   })
   .describe(
-    "An error. Every error response has this one shape, following RFC\n9457, and is served as `application/problem+json`. `status`\nrepeats the HTTP status, and `type` says more precisely what went\nwrong. `decisions` appears only when `type` is\n`tag:marimo.io,2026:host/decision-required`. A client ignores\nmembers it does not recognize. An error never contains a token.\n",
+    "An error. Every error response has this one shape, following RFC\n9457, and is served as `application/problem+json`. `status`\nrepeats the HTTP status, and `type` says more precisely what went\nwrong. `decisions` appears only when `type` is\n`tag:marimo.io,2026:host/decision-required`. A client ignores\nmembers it does not recognize. Hosts redact tokens from errors.\n",
   );
 
 export type Problem = zod.input<typeof Problem>;
@@ -1806,7 +1806,7 @@ export const OpenNotebookResponse = zod.object({
   url: zod
     .string()
     .describe(
-      "The URL the host used to show the notebook. It never contains the host's token.",
+      "The URL the host used to show the notebook, with the host's token omitted.",
     ),
 });
 

@@ -32,6 +32,8 @@ MODELS = {
     "edit-response.json": protocol.EditResponse,
     "execution-restored.json": protocol.Execution,
     "run-cells-request.json": protocol.RunRequest,
+    "input-reply-request.json": protocol.InputReplyRequest,
+    "input-reply-response.json": protocol.Input,
 }
 
 

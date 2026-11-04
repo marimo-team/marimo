@@ -9,16 +9,15 @@ opaque. Gaps represent events outside an excerpt or its filter.
 shown in `run.sse`. Its snapshot includes the display and console output
 already produced. Both streams end with the same execution and run completion
 events, using the same cursors. `cell.json` is cell `c3` from that snapshot,
-and `cell-withheld.json`
-is the same cell with source withheld from the client: its hashes and version
-are unchanged.
+and `cell-withheld.json` shows that cell with its source withheld. The hashes
+and version remain the same in both records.
 
 `run-cells-request.json` requests `c3`, which defines `x`. In `run-cells.sse`,
 the runtime then evaluates `k7f2`, which defines `y` using `x`. The dependent
 execution identifies the first execution as its cause and depends on the
-revision of `x` it used. Each cell publishes
-the variable it bound before it completes, and neither displays a value,
-because their code consists of assignments.
+revision of `x` it used. Each cell publishes the variable it bound before
+it completes. Both cells consist of assignments, so their results are variable
+bindings with empty displays.
 
 `edit.json` edits that document. `edit-response.json` contains the accepted
 state, and `edits.sse` shows the cell and document events followed by a save.
@@ -64,18 +63,20 @@ completes. The final `execution.removed` event removes both inputs.
 
 ## Standalone objects
 
-`custom-events.sse` shows a `types=custom` notebook stream: an empty snapshot
-ending at `ready`, then a live custom event. `custom-events-replay.sse` resumes
-from that `ready` cursor, replaying the same event before the next `ready`.
-Its type and payload are illustrative, not a standardized agent-message schema.
-If the cursor expires instead, the host sends `reset` and an empty snapshot;
-the custom event cannot be recovered from that snapshot.
+`custom-events.sse` shows a `types=custom` notebook stream that begins with an
+empty snapshot ending at `ready`, followed by a live custom event.
+`custom-events-replay.sse` resumes from that `ready` cursor, replaying the same
+event before the next `ready`.
+The example uses a producer-defined agent message. After the cursor expires,
+reconnecting produces `reset` followed by an empty snapshot, because custom
+events are retained in replay history rather than notebook state.
 
 `execution-restored.json` represents an earlier evaluation of `c3` restored
 from storage. Its source is `x = 21`, but its original run and runtime are
 unknown. It illustrates a separate restoration scenario, outside the session
 above.
 
-The problem responses illustrate individual rejected requests. `record.json` contains fictional local discovery credentials.
+The problem responses illustrate individual rejected requests, and
+`record.json` contains fictional local discovery credentials.
 
 Experimental Analysis examples live in [experimental/analysis](../experimental/analysis/spec.md).

@@ -146,7 +146,7 @@ class DisplayData(Struct, frozen=True):
     data: Annotated[
         str,
         Meta(
-            description="The rendered value. JSON mimetypes are encoded as text; binary mimetypes are base64. Never a URL only the runtime can serve."
+            description="The rendered value, embedded so clients can display it independently of the runtime. JSON mimetypes are encoded as text and binary mimetypes as base64."
         ),
     ]
     mimetype: Annotated[
@@ -300,7 +300,7 @@ class OpenNotebookResponse(Struct, frozen=True):
     url: Annotated[
         str,
         Meta(
-            description="The URL the host used to show the notebook. It never contains the host's token."
+            description="The URL the host used to show the notebook, with the host's token omitted."
         ),
     ]
 
@@ -981,7 +981,7 @@ class Display(Struct, frozen=True):
     data: Annotated[
         str,
         Meta(
-            description="The rendered value. JSON mimetypes are encoded as text; binary mimetypes are base64. Never a URL only the runtime can serve."
+            description="The rendered value, embedded so clients can display it independently of the runtime. JSON mimetypes are encoded as text and binary mimetypes as base64."
         ),
     ]
     execution_id: ExecutionId
@@ -1325,7 +1325,7 @@ class Notebook(Struct, frozen=True):
     operations: Annotated[
         tuple[str, ...],
         Meta(
-            description="Operations this client may call on the notebook, such as `notebook.edit` or `runtime.start`. A subset of `host.operations`, narrowed by permission and never by state; whether a runtime is attached shows in the `runtime` object, and preconditions still apply when an operation is called. The host sends the notebook again when it changes."
+            description="Operations this client may call on the notebook, such as `notebook.edit` or `runtime.start`. A subset of `host.operations` selected by the client's permissions, independently of the notebook's current state. The `runtime` object shows whether a runtime is attached, and preconditions still apply when an operation is called. The host sends the notebook again when it changes."
         ),
     ]
     path: (
@@ -1463,7 +1463,7 @@ class Project(Struct, frozen=True):
     operations: Annotated[
         tuple[str, ...],
         Meta(
-            description="Operations this client may call on the project, today `notebook.create`. A subset of `host.operations`, narrowed by permission and never by state. The host sends the project again when it changes."
+            description="Operations this client may call on the project, today `notebook.create`. A subset of `host.operations` selected by the client's permissions, independently of the project's current state. The host sends the project again when it changes."
         ),
     ]
     root: (
@@ -1817,7 +1817,7 @@ class Execution(Struct, frozen=True):
         Annotated[
             datetime,
             Meta(
-                description="When the code started executing. Null while queued and for an execution that never ran."
+                description="When the code started executing. Null while queued or if the execution completed before starting."
             ),
         ]
         | None

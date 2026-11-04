@@ -1,42 +1,42 @@
 # Host protocol conformance tests
 
-Python tests for hosts implementing the [host protocol](../spec.md). The suite
-uses HTTP and SSE and does not import marimo.
+This suite checks hosts through the [host protocol](../spec.md) HTTP and SSE
+interfaces. Offline tests validate the schema, shared fixtures, and
+checker behavior. The input fixtures illustrate answering, cancellation,
+output ordering, and reconnecting while a prompt is pending.
 
-Start a host in a disposable workspace (for marimo, use
-`marimo edit`), then run this from the repository root:
+To check a running host, start it in a disposable workspace, using `marimo edit`
+for marimo, then run the suite from the repository root.
 
 ```sh
 uv run --locked --project protocols/host/conformance \
   pytest protocols/host/conformance --record /path/to/hosts-v1/host.json
 ```
 
-The caller starts and stops the host. Operation tests create scratch notebooks
-and clean up their own resources. Without `--record`, only offline schema,
-fixture, and checker tests run; these also run in CI via `make host-protocol-check`.
+The caller starts and stops the host, while operation tests create scratch
+notebooks and clean up their own resources. Omitting `--record` runs only the
+offline tests, which also run in CI through `make host-protocol-check`.
 
-Scratch checks require the created notebook to permit `notebook.delete`.
-That permission is only known after creation. If it is unavailable, the suite
-skips the remaining scratch checks and reports the notebook ID for manual
+Scratch checks inspect the created notebook for `notebook.delete` permission
+so they can clean it up afterward. When the notebook withholds that permission,
+the suite skips the remaining scratch checks and reports its ID for manual
 cleanup in the disposable workspace.
 
 - `--slow` includes idle ping checks.
 - `--host-timeout 30` allows longer waits for a host's responses and events.
 - `--require-operation runtime.run` fails if that capability is missing. Repeat
-  this option to require more operations; otherwise unavailable operations skip.
+  this option to require more operations. Tests for unavailable operations
+  otherwise skip.
 
-The suite covers discovery records, authentication, snapshots, filtering,
+The live tests cover discovery records, authentication, snapshots, filtering,
 resumption, document hashes, and selected notebook and runtime operations.
-It does not yet cover opening an editor, answering host decisions, or unsupported
-operation responses. Retention expiry, external store changes, shutdown, and
-transport failures also need implementation tests. WebSocket transport is outside
-this contract.
-
-Input fixtures cover pending, answered, and cancelled records, shared output
-ordering, and a reconnect snapshot.
+They do not yet cover input, opening an editor, answering host decisions, or
+unsupported operation responses. Retention expiry, external store changes,
+shutdown, and transport failures also need implementation tests. WebSocket
+transport is outside this contract.
 
 Experimental features have separate conformance tests. Check the stable
-contract and all experimental fixtures together with:
+contract and all experimental fixtures together with this command.
 
 ```sh
 uv run --locked --project protocols/host/conformance \

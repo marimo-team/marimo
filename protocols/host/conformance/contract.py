@@ -37,6 +37,13 @@ KINDS = (
     "input",
     "variable",
 )
+REMOVAL_EVENTS = {
+    name
+    for name in SPEC["components"]["schemas"]["Event"]["discriminator"][
+        "mapping"
+    ]
+    if name.endswith(".removed")
+}
 
 
 def validate(name: str, value: Any) -> None:
@@ -62,7 +69,7 @@ class Frame:
             assert value == {}, f"{self.event} must carry an empty object"
         elif self.event in KINDS:
             validate(f"{self.event.title()}Message", value)
-        elif self.event.removesuffix(".removed") in KINDS:
+        elif self.event in REMOVAL_EVENTS:
             validate("RemovedMessage", value)
         return value
 
@@ -102,7 +109,7 @@ class Watch:
                 if frame.comment is None and (
                     frame.event in KINDS
                     or frame.event in ("ready", "reset")
-                    or frame.event.removesuffix(".removed") in KINDS
+                    or frame.event in REMOVAL_EVENTS
                 ):
                     frame.message()
                 result.append(frame)
