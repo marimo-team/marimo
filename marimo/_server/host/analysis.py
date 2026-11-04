@@ -40,7 +40,7 @@ class HostAnalyzer:
 
 @dataclass(frozen=True)
 class _CachedCell:
-    code_hash: protocol.Etag
+    code_fingerprint: str
     result: CellImpl | protocol.Error
 
 
@@ -57,14 +57,17 @@ class CellAnalyzer:
         graph = DirectedGraph()
         for cell in document:
             cached = self._cache.get(cell.id)
-            if cached is None or cached.code_hash != cell.code_hash:
+            if (
+                cached is None
+                or cached.code_fingerprint != cell.code_fingerprint
+            ):
                 try:
                     result: CellImpl | protocol.Error = compile_cell(
                         cell.code, CellId_t(cell.id)
                     )
                 except (SyntaxError, ValueError) as error:
                     result = _syntax_error(cell.code, error)
-                cached = _CachedCell(cell.code_hash, result)
+                cached = _CachedCell(cell.code_fingerprint, result)
             cache[cell.id] = cached
             if isinstance(cached.result, CellImpl):
                 graph.register_cell(CellId_t(cell.id), cached.result)

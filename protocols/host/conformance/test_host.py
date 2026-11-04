@@ -460,9 +460,7 @@ async def test_run_cells(host, scratch):
                     "cells": [
                         {
                             "id": "check_a",
-                            "code_hash": answer["cells"]["check_a"][
-                                "code_hash"
-                            ],
+                            "etag": answer["cells"]["check_a"]["etag"],
                         }
                     ]
                 },
@@ -477,7 +475,7 @@ async def test_run_cells(host, scratch):
         response = await host.request(
             "POST",
             path + "/runtime/runs",
-            json={"cells": [{"id": "check_a", "code_hash": "stale"}]},
+            json={"cells": [{"id": "check_a", "etag": "stale"}]},
         )
         conflict = problem(response, 409, "conflict")["edit"]
         assert conflict["change"] == 0

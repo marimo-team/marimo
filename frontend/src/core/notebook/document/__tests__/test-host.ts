@@ -28,17 +28,17 @@ function record(
   const cell = Protocol.CellInput.parse(input);
   const config = Protocol.CellConfigInput.parse(cell.config ?? {});
   const code = cell.code.replace(/\r\n?/g, "\n");
-  const codeHash = hash(code);
+  const codeFingerprint = hash(code);
   return {
     id: cell.id,
     notebook_id: notebookId,
     name: cell.name,
     code,
     config,
-    code_hash: codeHash,
+    code_fingerprint: codeFingerprint,
     etag: hash(
       [
-        codeHash,
+        codeFingerprint,
         cell.name,
         ...[
           config.column,
@@ -203,7 +203,7 @@ export function createTestHost(initial: Document) {
           ? null
           : {
               etag: cell.etag,
-              code_hash: cell.code_hash,
+              code_fingerprint: cell.code_fingerprint,
               version: cell.version,
             };
     }

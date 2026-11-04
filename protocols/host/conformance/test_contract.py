@@ -145,7 +145,7 @@ async def test_document_checker_accepts_withheld_source_and_checks_etags():
     )
     cell = next(frame for frame in snapshot if frame.event == "cell")
     message = cell.message()
-    message["cell"]["code_hash"] = "0000000000000000"
+    message["cell"]["etag"] = "0000000000000000"
     cell.data = json.dumps(message)
     with pytest.raises(AssertionError):
         document_state(snapshot)
@@ -195,3 +195,12 @@ async def test_pings_do_not_extend_a_wait_for_ready():
     watch = Watch(pings(), timeout=0.01)
     with pytest.raises(TimeoutError):
         await watch.ready()
+
+
+def test_code_fingerprints_are_opaque():
+    cell = json.loads((FIXTURES / "cell.json").read_text())
+    cell["code_fingerprint"] = "custom:v1:opaque"
+    validate("Cell", cell)
+    cell["code_fingerprint"] = ""
+    with pytest.raises(ValidationError):
+        validate("Cell", cell)

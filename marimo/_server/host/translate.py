@@ -9,7 +9,7 @@ import re
 from dataclasses import dataclass, field
 
 from marimo._core import backend as be, protocol
-from marimo._core.document import code_hash
+from marimo._core.document import code_fingerprint
 from marimo._messaging.cell_output import CellChannel
 from marimo._messaging.errors import (
     Error,
@@ -139,7 +139,7 @@ class RunTranslator:
                     None
                     if execution.cell_id == SCRATCH_CELL_ID
                     else execution.cell_id,
-                    code_hash(code),
+                    code_fingerprint(code),
                     code if execution.cell_id == SCRATCH_CELL_ID else None,
                     caused_by=parent.id if parent is not None else None,
                 ),

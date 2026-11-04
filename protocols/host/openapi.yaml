@@ -519,10 +519,10 @@ paths:
         `runtime.input` may answer through the input's reply route.
 
         A cell in `cells` that the document does not have, or whose
-        `code_hash` is not the one the request carries, is a `conflict`
+        `etag` is not the one the request carries, is a `conflict`
         whose `edit` names the cell and its index in `cells`, and nothing
         runs. A client that read the cells from the stream sends their
-        `code_hash` so that an edit it did not see is a conflict rather
+        `etag` so that an edit it did not see is a conflict rather
         than a run of other code.
 
         Runs execute one at a time in the order the host accepted them.
@@ -1263,7 +1263,7 @@ components:
         execution remains retained. Each new input belongs to a running
         execution. Input calls from completed or removed executions raise
         `EOFError` in the calling code.
-      required: [id, run_id, runtime_id, caused_by, cell_id, code, code_hash, depends_on, status, outcome, started_at, completed_at]
+      required: [id, run_id, runtime_id, caused_by, cell_id, code, code_fingerprint, depends_on, status, outcome, started_at, completed_at]
       properties:
         id: { $ref: '#/components/schemas/ExecutionId' }
         run_id:
@@ -1281,9 +1281,9 @@ components:
         code:
           type: [string, 'null']
           description: The submitted code for an execution with no cell. Null for a cell's execution; its source is available through the cell when the host exposes it.
-        code_hash:
-          $ref: '#/components/schemas/Etag'
-          description: The `code_hash` of the code that was evaluated, computed as a cell's is.
+        code_fingerprint:
+          $ref: '#/components/schemas/CodeFingerprint'
+          description: Fingerprint of the evaluated code.
         depends_on:
           type: object
           additionalProperties:
@@ -1376,6 +1376,10 @@ components:
         `answered` and `cancelled` are final. An answered input stays
         answered if execution later fails before consuming the value.
       enum: [pending, answered, cancelled]
+    CodeFingerprint:
+      type: string
+      minLength: 1
+      description: Opaque code identity assigned by the host. Clients compare cell and execution fingerprints for freshness. Incompatible schemes MUST produce distinct fingerprints.
     Etag:
       type: string
       description: |
@@ -1410,7 +1414,7 @@ components:
         fires when its code, name, or config changes. Markdown and SQL
         cells are code that calls `mo.md` or `mo.sql`; a client chooses
         the editor to show.
-      required: [id, notebook_id, code, name, config, etag, code_hash, version]
+      required: [id, notebook_id, code, name, config, etag, code_fingerprint, version]
       properties:
         id: { $ref: '#/components/schemas/CellId' }
         notebook_id: { $ref: '#/components/schemas/NotebookId' }
@@ -1423,10 +1427,10 @@ components:
         config: { $ref: '#/components/schemas/CellConfig' }
         etag:
           $ref: '#/components/schemas/Etag'
-          description: Identifies code, name, and config together, and is the precondition for editing the cell. Its text is `code_hash`, `name`, and the config values `column`, `disabled`, `hide_code`, and `expand_output` in that order, each written as a JSON scalar such as `null`, `0`, or `true`.
-        code_hash:
-          $ref: '#/components/schemas/Etag'
-          description: Identifies the code alone. Its text is the actual source, even when `code` is null. Withholding source does not change this hash, the cell or document etags, or their versions. Unchanged by renaming the cell or editing its config. Compare with an execution's `code_hash` to tell whether a result came from the current code without needing the source.
+          description: Precondition for edits and cell runs. Covers exact source, name, and config. Its text is the first 16 hex characters of SHA-256 of the source, `name`, and the config values `column`, `disabled`, `hide_code`, and `expand_output`, in that order. Config values are JSON scalars.
+        code_fingerprint:
+          $ref: '#/components/schemas/CodeFingerprint'
+          description: Fingerprint of the actual source, including when `code` is null. Formatting-only edits may preserve it. Independent of cell name, config, and source visibility.
         version:
           type: integer
           minimum: 1
@@ -2104,11 +2108,11 @@ components:
           description: The changes, applied in order as one unit.
     CellVersion:
       type: object
-      description: A cell's etags and version after an edit.
-      required: [etag, code_hash, version]
+      description: A cell's etag, code fingerprint, and version after an edit.
+      required: [etag, code_fingerprint, version]
       properties:
         etag: { $ref: '#/components/schemas/Etag' }
-        code_hash: { $ref: '#/components/schemas/Etag' }
+        code_fingerprint: { $ref: '#/components/schemas/CodeFingerprint' }
         version:
           type: integer
           minimum: 1
@@ -2162,6 +2166,6 @@ components:
       required: [id]
       properties:
         id: { $ref: '#/components/schemas/CellId' }
-        code_hash:
+        etag:
           $ref: '#/components/schemas/Etag'
-          description: The cell's `code_hash` as last read. A cell whose code differs is a `conflict`. Absent, the cell runs as it is.
+          description: The cell's `etag` as last read. A cell whose source, name, or config differs is a `conflict`. Absent, the cell runs as it is.

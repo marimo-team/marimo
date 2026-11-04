@@ -402,7 +402,7 @@ async def test_host_analyzer_raises_unexpected_failures(
         await analyzer.analyze(document_snapshot({"a": "x = 1"}))
 
 
-def test_compilation_cache_uses_identity_and_code_hash(
+def test_compilation_cache_uses_identity_and_code_fingerprint(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     compiler = Mock(wraps=compile_cell)

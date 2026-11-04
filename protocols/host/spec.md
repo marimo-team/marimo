@@ -82,13 +82,16 @@ the document version at which the cell was created or last changed, so of two
 records of a cell, the higher version is the newer. Versions are comparable
 only within one notebook.
 
-A host MAY withhold a cell's source from a client by publishing `code: null`.
-The field MUST remain present, with an empty string representing an empty
-cell. The host MUST derive `code_hash` from the actual source even when it
-withholds that source. Hosts MUST preserve cell and document etags and
-versions when withholding source.
-Clients can therefore compare execution hashes and dependency revisions to
-assess staleness without access to source.
+`code_fingerprint` is an opaque code identity assigned by the host. Clients
+compare it with an execution's fingerprint when checking freshness.
+Formatting-only edits MAY preserve it. Edits to source, name, or config change
+the cell etag. Cells and executions MUST use compatible fingerprint schemes;
+incompatible schemes MUST produce distinct fingerprints.
+
+A host MAY withhold a cell's source by publishing `code: null`. The field MUST
+remain present; an empty string is an empty cell. Fingerprints MUST be computed
+from the actual source. Source visibility MUST NOT change fingerprints, etags,
+or versions.
 
 Hosts MUST apply their source visibility policy consistently to snapshots,
 live events, replay, and responses containing cells. `hide_code` controls
@@ -237,7 +240,7 @@ against. A name that no retained cell execution had bound is recorded as null.
 
 A completed cell execution is **current** when all of the following hold.
 
-- its `code_hash` equals the cell's,
+- its `code_fingerprint` equals the cell's,
 - each variable it depends on still holds the recorded revision,
 - each name it depends on that was unbound is still unbound,
 - the execution that bound each of those variables is current.
@@ -246,8 +249,8 @@ A client looks up each dependency by name, and also by the recorded revision's
 `execution` unless it is null. A dependency was replaced if no variable matches
 its revision, or if a variable now has a name recorded as null. It was updated
 if the variable's `update` is higher. An execution was edited if its
-`code_hash` differs from its cell's. A result whose dependency was bound by an
-outdated execution is outdated for the same reason. The first of replaced,
+`code_fingerprint` differs from its cell's. A result whose dependency was bound
+by an outdated execution is outdated for the same reason. The first of replaced,
 updated, and edited that applies is why the result is **outdated**.
 
 A cell without an execution has no result to compare. Scratch executions run in
@@ -255,9 +258,9 @@ a local namespace, bind no variables, and are not compared.
 
 For example, cell `k7f2` reads `x`, which cell `c3` binds.
 
-    Cell c3     code_hash 0f71…   Execution e12   code_hash 0f71…   depends_on {}
+    Cell c3     code_fingerprint 0f71…   Execution e12   code_fingerprint 0f71…   depends_on {}
     Variable x  revision {e12, 0}  bound by e12
-    Cell k7f2   code_hash db2b…   Execution e13   code_hash db2b…   depends_on {x: {e12, 0}}
+    Cell k7f2   code_fingerprint db2b…   Execution e13   code_fingerprint db2b…   depends_on {x: {e12, 0}}
 
 Both executions are current. An update that advances `x` to `{e12, 1}` makes
 `e13` outdated because a value it depends on was updated. Editing `c3` makes

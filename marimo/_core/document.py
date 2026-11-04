@@ -28,7 +28,7 @@ def etag(text: str) -> protocol.Etag:
     return protocol.Etag(hashlib.sha256(text.encode()).hexdigest()[:16])
 
 
-def code_hash(code: str) -> protocol.Etag:
+def code_fingerprint(code: str) -> str:
     return etag(code)
 
 
@@ -94,16 +94,16 @@ class DocumentCell:
     config: protocol.CellConfig = field(default_factory=default_config)
     etag: protocol.Etag = field(init=False)
     """Identifies code, name, and config together."""
-    code_hash: protocol.Etag = field(init=False)
+    code_fingerprint: str = field(init=False)
     """Identifies the code alone."""
 
     def __post_init__(self) -> None:
         code = normalize_code(self.code)
-        hashed = code_hash(code)
+        hashed = code_fingerprint(code)
         object.__setattr__(self, "code", code)
-        object.__setattr__(self, "code_hash", hashed)
+        object.__setattr__(self, "code_fingerprint", hashed)
         object.__setattr__(
-            self, "etag", cell_etag(hashed, self.name, self.config)
+            self, "etag", cell_etag(etag(code), self.name, self.config)
         )
 
 
@@ -211,7 +211,7 @@ class Document:
             original = by_id[cell.id]
             if (
                 cell.etag != original.etag
-                or cell.code_hash != original.code_hash
+                or cell.code_fingerprint != original.code_fingerprint
             ):
                 raise ValueError("cell revisions must match their content")
         if (
