@@ -24,11 +24,6 @@ For guidance on specific features, see [runtime configuration](runtime_configura
 [AI assistance](../editor_features/ai_completion.md), and
 [theming](theming.md).
 
-### Notebook settings
-
-Some notebook-specific settings, such as title, width, [custom CSS](theming.md),
-[HTML head](html_head.md), and automatic exports, are managed separately from the rest of marimo's configuration. These notebook-specific settings are stored in the notebook's `marimo.App(...)` Open the notebook menu (⚙️) in the top-right corner of the marimo editor to change them.
-
 
 ## Ways to set configurations
 
@@ -127,3 +122,8 @@ cookie settings take effect when the server starts.
     metadata, and workspace `.marimo.toml` files. Workspace `.marimo.toml` files
     also cannot set `cache.store`. See [project file security](../../security.md#project-files)
     and [cache signing and trust](../../api/caching.md#cache-signing-and-trust).
+
+## Notebook settings
+
+Some notebook-specific settings, such as title, width, [custom CSS](theming.md),
+[HTML head](html_head.md), and automatic exports, are managed separately from the rest of marimo's configuration. These notebook-specific settings are stored in the notebook's `marimo.App(...)` Open the notebook menu (⚙️) in the top-right corner of the marimo editor to change them.
