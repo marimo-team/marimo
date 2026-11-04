@@ -483,6 +483,35 @@ export const UserConfigForm: React.FC = () => {
                   </div>
                 )}
               />
+              <OverriddenFormField
+                control={form.control}
+                name="completion.show_docstring_on_hover"
+                render={({ field, override }) => (
+                  <div className="flex flex-col space-y-1">
+                    <FormItem className={formItemClasses}>
+                      <FormLabel className="font-normal">
+                        Show documentation on hover
+                      </FormLabel>
+                      <FormControl>
+                        <Checkbox
+                          data-testid="docstring-hover-checkbox"
+                          checked={override.value}
+                          disabled={field.disabled || override.isOverridden}
+                          onCheckedChange={(checked) => {
+                            field.onChange(Boolean(checked));
+                          }}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                      <IsOverridden override={override} />
+                    </FormItem>
+                    <FormDescription>
+                      When unchecked, documentation popups will not appear
+                      automatically when hovering over code.
+                    </FormDescription>
+                  </div>
+                )}
+              />
               <div className="flex flex-col space-y-1">
                 <FormItem className={formItemClasses}>
                   <FormLabel className="font-normal">

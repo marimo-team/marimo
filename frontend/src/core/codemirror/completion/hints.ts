@@ -13,9 +13,13 @@ import { Logger } from "@/utils/Logger";
 import { reactiveReferencesField } from "../reactive-references/extension";
 import { AUTOCOMPLETER, Autocompleter } from "./Autocompleter";
 
-export function hintTooltip(lspConfig: LSPConfig) {
+export function hintTooltip(
+  lspConfig: LSPConfig,
+  showDocstringOnHover: boolean,
+) {
   return [
     // Hover tooltip is already covered by LSP
+    !showDocstringOnHover ||
     (lspConfig?.pylsp?.enabled && hasCapability("pylsp")) ||
     (lspConfig?.ty?.enabled && hasCapability("ty")) ||
     (lspConfig?.pyrefly?.enabled && hasCapability("pyrefly")) ||

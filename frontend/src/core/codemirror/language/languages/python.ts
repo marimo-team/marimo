@@ -373,6 +373,7 @@ export class PythonLanguageAdapter implements LanguageAdapter<{}> {
             useSnippetOnCompletion: true,
             clientSideFiltering: true,
             hoverConfig: hoverOptions,
+            hoverEnabled: completionConfig.show_docstring_on_hover ?? true,
             completionConfig: autocompleteOptions,
             // Default to false
             diagnosticsEnabled: lspConfig.diagnostics?.enabled ?? false,
