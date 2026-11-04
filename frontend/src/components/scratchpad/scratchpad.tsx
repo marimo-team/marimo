@@ -19,6 +19,7 @@ import { useLastFocusedCellId } from "@/core/cells/focus";
 import { HTMLCellId, SCRATCH_CELL_ID } from "@/core/cells/ids";
 import { DEFAULT_CELL_NAME } from "@/core/cells/names";
 import type { LanguageAdapterType } from "@/core/codemirror/language/types";
+import { prepareCellCodeUpdate } from "@/core/codemirror/language/cell-code";
 import { getEditorCodeAsPython } from "@/core/codemirror/language/utils";
 import { useResolvedMarimoConfig } from "@/core/config/config";
 import { CSSClasses } from "@/core/constants";
@@ -116,13 +117,10 @@ export const ScratchPad: React.FC = () => {
     setCode(item);
     const ev = ref.current;
     if (ev) {
-      ev.dispatch({
-        changes: {
-          from: 0,
-          to: ev.state.doc.length,
-          insert: item,
-        },
-      });
+      const update = prepareCellCodeUpdate(ev.state, item);
+      if (update) {
+        ev.dispatch(update);
+      }
       ev.focus();
     }
   });
