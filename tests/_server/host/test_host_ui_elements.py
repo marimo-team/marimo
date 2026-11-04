@@ -105,6 +105,16 @@ async def test_slider_creation_is_retained_without_a_view(
         assert retained == [
             {"event": "ui_element", "data": {"ui_element": record}}
         ]
+        response = await finished(
+            app,
+            "GET",
+            f"/notebooks/{notebook_id}/snapshot",
+            headers=AUTH,
+            query="types=ui_element",
+        )
+        assert response.status == 200, response.body
+        assert response.json()["events"] == retained
+        assert response.json()["cursor"]
         names = [r.get("event") for r in current]
         assert (
             names.index("attachment")
