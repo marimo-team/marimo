@@ -119,8 +119,9 @@ When opening a stream, clients MAY supply `Marimo-Attachment-Identity`,
 schema. A shared identity lets clients group attachments across streams and
 reconnects. Each attachment keeps its own id and connection lifetime.
 
-Stopping a runtime ends its active work and loses its Python state, while the
-document and retained results remain available to clients.
+Stopping a runtime ends its active and queued work, completing those runs as
+`interrupted`, and loses its Python state, while the document and retained
+results remain available to clients.
 
 ### Runs and results
 
