@@ -1,6 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { BotIcon } from "lucide-react";
+import { ArrowUpRightIcon, BotIcon } from "lucide-react";
 import React from "react";
 import { AiProviderIcon } from "@/components/ai/ai-provider-icon";
 import { useImperativeModal } from "@/components/modal/ImperativeModal";
@@ -72,7 +72,7 @@ export const PairWithAgentBanner: React.FC<{
   return (
     <div
       className={cn(
-        "rounded-lg border border-(--blue-6) bg-(--blue-2)/50 p-3",
+        "rounded-lg border border-border bg-muted/30 p-3",
         className,
       )}
     >
@@ -103,18 +103,21 @@ export const PairWithAgentBanner: React.FC<{
         </fieldset>
       </div>
       <div className="mt-1 text-xs leading-relaxed">
-        <p className="inline">
+        <p>
           Pair your coding agent with this notebook to edit and run cells,
           inspect variables, and more, straight from your agent's CLI or user
           interface.
         </p>
-        <button
+        <Button
           type="button"
+          variant="outline"
+          size="xs"
           onClick={openPairWithAgentModal}
-          className="text-link hover:underline ml-1"
+          className="mt-3 gap-1"
         >
-          Pair your agent
-        </button>
+          Set up pairing
+          <ArrowUpRightIcon className="size-3.5" aria-hidden={true} />
+        </Button>
       </div>
     </div>
   );

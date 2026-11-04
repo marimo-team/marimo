@@ -1,21 +1,14 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useMediaQuery } from "@uidotdev/usehooks";
 import { atom, useAtom, useAtomValue, useSetAtom } from "jotai";
-import {
-  AlertTriangleIcon,
-  BrainIcon,
-  CpuIcon,
-  EditIcon,
-  FlaskConicalIcon,
-  FolderCog2,
-  LayersIcon,
-  MonitorIcon,
-} from "lucide-react";
+import { AlertTriangleIcon, ArrowUpRightIcon } from "lucide-react";
 import React, { useId, useRef } from "react";
 import { useLocale } from "react-aria";
 import { useForm } from "react-hook-form";
 import type z from "zod";
+import { MinimalShortcut } from "@/components/shortcuts/renderShortcut";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { acceptCompletionOnEnterAtom } from "@/core/codemirror/completion/accept-on-enter-atom";
@@ -30,7 +23,7 @@ import {
 import { Kbd } from "@/components/ui/kbd";
 import { NativeSelect } from "@/components/ui/native-select";
 import { NumberField } from "@/components/ui/number-field";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { KEYMAP_PRESETS } from "@/core/codemirror/keymaps/keymaps";
 import { capabilitiesAtom } from "@/core/config/capabilities";
 import { mergeConfig, useUserConfig } from "@/core/config/config";
@@ -49,7 +42,6 @@ import { useDebouncedCallback } from "@/hooks/useDebounce";
 import { Banner } from "@/plugins/impl/common/error-banner";
 import { THEMES } from "@/theme/useTheme";
 import { arrayToggle } from "@/utils/arrays";
-import { cn } from "@/utils/cn";
 import { autoPopulateModels } from "../ai/ai-utils";
 import { keyboardShortcutsAtom } from "../editor/controls/keyboard-shortcuts";
 import { Badge } from "../ui/badge";
@@ -65,49 +57,36 @@ import {
   useConfigOverride,
 } from "./is-overridden";
 import { OptionalFeatures } from "./optional-features";
+import "./user-config-form.css";
 
 const categories = [
   {
     id: "editor",
     label: "Editor",
-    Icon: EditIcon,
-    className: "bg-(--blue-4)",
   },
   {
     id: "display",
     label: "Display",
-    Icon: MonitorIcon,
-    className: "bg-(--grass-4)",
   },
   {
     id: "packageManagementAndData",
     label: "Packages & Data",
-    Icon: LayersIcon,
-    className: "bg-(--red-4)",
   },
   {
     id: "runtime",
     label: "Runtime",
-    Icon: CpuIcon,
-    className: "bg-(--amber-4)",
   },
   {
     id: "ai",
     label: "AI",
-    Icon: BrainIcon,
-    className: "bg-[linear-gradient(45deg,var(--purple-5),var(--cyan-5))]",
   },
   {
     id: "optionalDeps",
     label: "Optional Dependencies",
-    Icon: FolderCog2,
-    className: "bg-(--orange-4)",
   },
   {
     id: "labs",
     label: "Labs",
-    Icon: FlaskConicalIcon,
-    className: "bg-(--slate-4)",
   },
 ] as const;
 
@@ -122,6 +101,7 @@ const LOCALE_SYSTEM_VALUE = "__system__";
 
 export const UserConfigForm: React.FC = () => {
   const [config, setConfig] = useUserConfig();
+  const isWideLayout = useMediaQuery("(min-width: 640px)");
   const [acceptOnEnter, setAcceptOnEnter] = useAtom(
     acceptCompletionOnEnterAtom,
   );
@@ -222,9 +202,7 @@ export const UserConfigForm: React.FC = () => {
                 name="save.autosave"
                 render={({ field, override }) => (
                   <FormItem className={formItemClasses}>
-                    <FormLabel className="font-normal">
-                      Autosave enabled
-                    </FormLabel>
+                    <FormLabel>Autosave</FormLabel>
                     <FormControl>
                       <Checkbox
                         data-testid="autosave-checkbox"
@@ -235,6 +213,9 @@ export const UserConfigForm: React.FC = () => {
                         }}
                       />
                     </FormControl>
+                    <FormDescription>
+                      Automatically save changes to the notebook.
+                    </FormDescription>
                     <FormMessage />
                     <IsOverridden override={override} />
                   </FormItem>
@@ -251,6 +232,9 @@ export const UserConfigForm: React.FC = () => {
                   return (
                     <FormItem className={formItemClasses}>
                       <FormLabel>Autosave delay (seconds)</FormLabel>
+                      <FormDescription>
+                        Time to wait after the last change before saving.
+                      </FormDescription>
                       <FormControl>
                         <NumberField
                           aria-label="Autosave delay"
@@ -283,9 +267,15 @@ export const UserConfigForm: React.FC = () => {
                 control={form.control}
                 name="runtime.default_auto_download"
                 render={({ field, override }) => (
-                  <div className="flex flex-col gap-y-1">
+                  <div className="settings-field flex flex-col gap-y-1">
                     <FormItem className={formItemClasses}>
                       <FormLabel>Save cell outputs as</FormLabel>
+                      <FormDescription>
+                        When enabled, marimo will periodically save notebooks in
+                        your selected formats (HTML, IPYNB) to a folder named{" "}
+                        <Kbd className="inline">__marimo__</Kbd> next to your
+                        notebook file.
+                      </FormDescription>
                       <FormControl>
                         <div className="flex gap-4">
                           <div className="flex items-center space-x-2">
@@ -333,12 +323,6 @@ export const UserConfigForm: React.FC = () => {
                       <FormMessage />
                       <IsOverridden override={override} />
                     </FormItem>
-                    <FormDescription>
-                      When enabled, marimo will periodically save notebooks in
-                      your selected formats (HTML, IPYNB) to a folder named{" "}
-                      <Kbd className="inline">__marimo__</Kbd> next to your
-                      notebook file.
-                    </FormDescription>
                   </div>
                 )}
               />
@@ -349,9 +333,7 @@ export const UserConfigForm: React.FC = () => {
                 name="save.format_on_save"
                 render={({ field, override }) => (
                   <FormItem className={formItemClasses}>
-                    <FormLabel className="font-normal">
-                      Format on save
-                    </FormLabel>
+                    <FormLabel>Format on save</FormLabel>
                     <FormControl>
                       <Checkbox
                         data-testid="format-on-save-checkbox"
@@ -362,6 +344,9 @@ export const UserConfigForm: React.FC = () => {
                         }}
                       />
                     </FormControl>
+                    <FormDescription>
+                      Automatically format code when saving the notebook.
+                    </FormDescription>
                     <FormMessage />
                     <IsOverridden override={override} />
                   </FormItem>
@@ -371,9 +356,12 @@ export const UserConfigForm: React.FC = () => {
                 control={form.control}
                 name="formatting.line_length"
                 render={({ field, override }) => (
-                  <div className="flex flex-col space-y-1">
+                  <div className="settings-field flex flex-col space-y-1">
                     <FormItem className={formItemClasses}>
                       <FormLabel>Line length</FormLabel>
+                      <FormDescription>
+                        Maximum line length when formatting code.
+                      </FormDescription>
                       <FormControl>
                         <NumberField
                           aria-label="Line length"
@@ -396,10 +384,6 @@ export const UserConfigForm: React.FC = () => {
                       <FormMessage />
                       <IsOverridden override={override} />
                     </FormItem>
-
-                    <FormDescription>
-                      Maximum line length when formatting code.
-                    </FormDescription>
                   </div>
                 )}
               />
@@ -408,9 +392,13 @@ export const UserConfigForm: React.FC = () => {
                   control={form.control}
                   name="formatting.infer_types"
                   render={({ field, override }) => (
-                    <div className="flex flex-col space-y-1">
+                    <div className="settings-field flex flex-col space-y-1">
                       <FormItem className={formItemClasses}>
                         <FormLabel>Infer types on save</FormLabel>
+                        <FormDescription>
+                          Add inferred type annotations to cell signatures when
+                          saving.
+                        </FormDescription>
                         <FormControl>
                           <NativeSelect
                             data-testid="infer-types-select"
@@ -429,10 +417,6 @@ export const UserConfigForm: React.FC = () => {
                         <FormMessage />
                         <IsOverridden override={override} />
                       </FormItem>
-                      <FormDescription>
-                        Add inferred type annotations to cell signatures when
-                        saving.
-                      </FormDescription>
                     </div>
                   )}
                 />
@@ -443,11 +427,9 @@ export const UserConfigForm: React.FC = () => {
                 control={form.control}
                 name="completion.activate_on_typing"
                 render={({ field, override }) => (
-                  <div className="flex flex-col space-y-1">
+                  <div className="settings-field flex flex-col space-y-1">
                     <FormItem className={formItemClasses}>
-                      <FormLabel className="font-normal">
-                        Autocomplete
-                      </FormLabel>
+                      <FormLabel>Autocomplete</FormLabel>
                       <FormControl>
                         <Checkbox
                           data-testid="autocomplete-checkbox"
@@ -462,32 +444,21 @@ export const UserConfigForm: React.FC = () => {
                       <IsOverridden override={override} />
                     </FormItem>
                     <FormDescription>
-                      When unchecked, code completion is still available through
-                      a hotkey.
+                      When unchecked, code completion is still available with{" "}
+                      <Kbd className="inline-flex">
+                        <MinimalShortcut
+                          shortcut="cell.complete"
+                          className="inline-flex ml-0 tracking-normal opacity-100"
+                        />
+                      </Kbd>
+                      .
                     </FormDescription>
-
-                    <div>
-                      <Button
-                        variant="link"
-                        className="mb-0 px-0"
-                        type="button"
-                        onClick={(evt) => {
-                          evt.preventDefault();
-                          evt.stopPropagation();
-                          setActiveCategory("ai");
-                        }}
-                      >
-                        Edit AI autocomplete
-                      </Button>
-                    </div>
                   </div>
                 )}
               />
-              <div className="flex flex-col space-y-1">
+              <div className="settings-field flex flex-col space-y-1">
                 <FormItem className={formItemClasses}>
-                  <FormLabel className="font-normal">
-                    Accept suggestion on Enter
-                  </FormLabel>
+                  <FormLabel>Accept suggestion on Enter</FormLabel>
                   <FormControl>
                     <Checkbox
                       data-testid="accept-completion-on-enter-checkbox"
@@ -499,8 +470,9 @@ export const UserConfigForm: React.FC = () => {
                   </FormControl>
                 </FormItem>
                 <FormDescription>
-                  When unchecked, pressing Enter inserts a new line instead of
-                  accepting an autocomplete suggestion. Use Tab to accept
+                  When unchecked, pressing <Kbd className="inline">Enter</Kbd>{" "}
+                  inserts a new line instead of accepting an autocomplete
+                  suggestion. Use <Kbd className="inline">Tab</Kbd> to accept
                   suggestions.
                 </FormDescription>
               </div>
@@ -508,11 +480,9 @@ export const UserConfigForm: React.FC = () => {
                 control={form.control}
                 name="completion.signature_hint_on_typing"
                 render={({ field, override }) => (
-                  <div className="flex flex-col space-y-1">
+                  <div className="settings-field flex flex-col space-y-1">
                     <FormItem className={formItemClasses}>
-                      <FormLabel className="font-normal">
-                        Signature hints
-                      </FormLabel>
+                      <FormLabel>Signature hints</FormLabel>
                       <FormControl>
                         <Checkbox
                           data-testid="signature-hint-on-type-checkbox"
@@ -537,11 +507,9 @@ export const UserConfigForm: React.FC = () => {
                 control={form.control}
                 name="completion.auto_close_pairs"
                 render={({ field, override }) => (
-                  <div className="flex flex-col space-y-1">
+                  <div className="settings-field flex flex-col space-y-1">
                     <FormItem className={formItemClasses}>
-                      <FormLabel className="font-normal">
-                        Auto-close pairs
-                      </FormLabel>
+                      <FormLabel>Auto-close pairs</FormLabel>
                       <FormControl>
                         <Checkbox
                           data-testid="auto-close-pairs-checkbox"
@@ -567,15 +535,89 @@ export const UserConfigForm: React.FC = () => {
                 )}
               />
             </SettingGroup>
-            <SettingGroup title="Language Servers">
+            <SettingGroup title="Keymap">
+              <Button
+                variant="link"
+                className="h-auto self-start gap-1 p-0"
+                type="button"
+                onClick={() => setKeyboardShortcutsOpen(true)}
+              >
+                Edit keyboard shortcuts
+                <ArrowUpRightIcon className="h-3.5 w-3.5" aria-hidden={true} />
+              </Button>
+              <OverriddenFormField
+                control={form.control}
+                name="keymap.preset"
+                render={({ field, override }) => (
+                  <div className="settings-field flex flex-col space-y-1">
+                    <FormItem className={formItemClasses}>
+                      <FormLabel>Keymap</FormLabel>
+                      <FormControl>
+                        <NativeSelect
+                          data-testid="keymap-select"
+                          onChange={(e) => field.onChange(e.target.value)}
+                          value={override.value}
+                          disabled={field.disabled || override.isOverridden}
+                          className="inline-flex mr-2"
+                        >
+                          {KEYMAP_PRESETS.map((option) => (
+                            <option value={option} key={option}>
+                              {option}
+                            </option>
+                          ))}
+                        </NativeSelect>
+                      </FormControl>
+                      <FormMessage />
+                      <IsOverridden override={override} />
+                    </FormItem>
+                  </div>
+                )}
+              />
+              <OverriddenFormField
+                control={form.control}
+                name="keymap.destructive_delete"
+                render={({ field, override }) => (
+                  <div className="settings-field flex flex-col space-y-1">
+                    <FormItem className={formItemClasses}>
+                      <FormLabel>Destructive delete</FormLabel>
+                      <FormControl>
+                        <Checkbox
+                          data-testid="destructive-delete-checkbox"
+                          checked={override.value}
+                          disabled={field.disabled || override.isOverridden}
+                          onCheckedChange={(checked) => {
+                            field.onChange(Boolean(checked));
+                          }}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                      <IsOverridden override={override} />
+                    </FormItem>
+                    <FormDescription className="flex items-center gap-1">
+                      Allow deleting non-empty cells
+                      <Tooltip
+                        content={
+                          <div className="max-w-xs">
+                            <strong>Use with caution:</strong> Deleting cells
+                            with code can lose work and computed results since
+                            variables are removed from memory.
+                          </div>
+                        }
+                      >
+                        <AlertTriangleIcon className="w-3 h-3 text-(--amber-11)" />
+                      </Tooltip>
+                    </FormDescription>
+                  </div>
+                )}
+              />
+            </SettingGroup>
+            <SettingGroup title="Language servers">
               <FormDescription>
                 See the{" "}
                 <ExternalLink href="https://docs.marimo.io/guides/editor_features/language_server/">
                   docs
                 </ExternalLink>{" "}
-                for more information about language server support.
-              </FormDescription>
-              <FormDescription>
+                for more information about language server support.{" "}
                 <strong>Note:</strong> When using multiple language servers,
                 different features may conflict.
               </FormDescription>
@@ -584,7 +626,7 @@ export const UserConfigForm: React.FC = () => {
                 control={form.control}
                 name="language_servers.pylsp.enabled"
                 render={({ field, override }) => (
-                  <div className="flex flex-col gap-1">
+                  <div className="settings-field flex flex-col gap-1">
                     <FormItem className={formItemClasses}>
                       <FormLabel>
                         <Badge variant="defaultOutline" className="mr-2">
@@ -624,7 +666,7 @@ export const UserConfigForm: React.FC = () => {
                 control={form.control}
                 name="language_servers.basedpyright.enabled"
                 render={({ field, override }) => (
-                  <div className="flex flex-col gap-1">
+                  <div className="settings-field flex flex-col gap-1">
                     <FormItem className={formItemClasses}>
                       <FormLabel>
                         <Badge variant="defaultOutline" className="mr-2">
@@ -664,7 +706,7 @@ export const UserConfigForm: React.FC = () => {
                 control={form.control}
                 name="language_servers.pyrefly.enabled"
                 render={({ field, override }) => (
-                  <div className="flex flex-col gap-1">
+                  <div className="settings-field flex flex-col gap-1">
                     <FormItem className={formItemClasses}>
                       <FormLabel>
                         <Badge variant="defaultOutline" className="mr-2">
@@ -703,7 +745,7 @@ export const UserConfigForm: React.FC = () => {
                 control={form.control}
                 name="language_servers.ty.enabled"
                 render={({ field, override }) => (
-                  <div className="flex flex-col gap-1">
+                  <div className="settings-field flex flex-col gap-1">
                     <FormItem className={formItemClasses}>
                       <FormLabel>
                         <Badge variant="defaultOutline" className="mr-2">
@@ -765,91 +807,6 @@ export const UserConfigForm: React.FC = () => {
                 )}
               />
             </SettingGroup>
-
-            <SettingGroup title="Keymap">
-              <OverriddenFormField
-                control={form.control}
-                name="keymap.preset"
-                render={({ field, override }) => (
-                  <div className="flex flex-col space-y-1">
-                    <FormItem className={formItemClasses}>
-                      <FormLabel>Keymap</FormLabel>
-                      <FormControl>
-                        <NativeSelect
-                          data-testid="keymap-select"
-                          onChange={(e) => field.onChange(e.target.value)}
-                          value={override.value}
-                          disabled={field.disabled || override.isOverridden}
-                          className="inline-flex mr-2"
-                        >
-                          {KEYMAP_PRESETS.map((option) => (
-                            <option value={option} key={option}>
-                              {option}
-                            </option>
-                          ))}
-                        </NativeSelect>
-                      </FormControl>
-                      <FormMessage />
-                      <IsOverridden override={override} />
-                    </FormItem>
-                  </div>
-                )}
-              />
-              <OverriddenFormField
-                control={form.control}
-                name="keymap.destructive_delete"
-                render={({ field, override }) => (
-                  <div className="flex flex-col space-y-1">
-                    <FormItem className={formItemClasses}>
-                      <FormLabel className="font-normal">
-                        Destructive delete
-                      </FormLabel>
-                      <FormControl>
-                        <Checkbox
-                          data-testid="destructive-delete-checkbox"
-                          checked={override.value}
-                          disabled={field.disabled || override.isOverridden}
-                          onCheckedChange={(checked) => {
-                            field.onChange(Boolean(checked));
-                          }}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                      <IsOverridden override={override} />
-                    </FormItem>
-                    <FormDescription className="flex items-center gap-1">
-                      Allow deleting non-empty cells
-                      <Tooltip
-                        content={
-                          <div className="max-w-xs">
-                            <strong>Use with caution:</strong> Deleting cells
-                            with code can lose work and computed results since
-                            variables are removed from memory.
-                          </div>
-                        }
-                      >
-                        <AlertTriangleIcon className="w-3 h-3 text-(--amber-11)" />
-                      </Tooltip>
-                    </FormDescription>
-
-                    <div>
-                      <Button
-                        variant="link"
-                        className="mb-0 px-0"
-                        type="button"
-                        onClick={(evt) => {
-                          evt.preventDefault();
-                          evt.stopPropagation();
-                          setKeyboardShortcutsOpen(true);
-                        }}
-                      >
-                        Edit Keyboard Shortcuts
-                      </Button>
-                    </div>
-                  </div>
-                )}
-              />
-            </SettingGroup>
           </>
         );
       case "display":
@@ -860,9 +817,13 @@ export const UserConfigForm: React.FC = () => {
                 control={form.control}
                 name="display.default_width"
                 render={({ field, override }) => (
-                  <div className="flex flex-col space-y-1">
+                  <div className="settings-field flex flex-col space-y-1">
                     <FormItem className={formItemClasses}>
                       <FormLabel>Default width</FormLabel>
+                      <FormDescription>
+                        The default app width for new notebooks; overridden by
+                        "width" in the application config.
+                      </FormDescription>
                       <FormControl>
                         <NativeSelect
                           data-testid="user-config-width-select"
@@ -881,11 +842,6 @@ export const UserConfigForm: React.FC = () => {
                       <FormMessage />
                       <IsOverridden override={override} />
                     </FormItem>
-
-                    <FormDescription>
-                      The default app width for new notebooks; overridden by
-                      "width" in the application config.
-                    </FormDescription>
                   </div>
                 )}
               />
@@ -893,9 +849,13 @@ export const UserConfigForm: React.FC = () => {
                 control={form.control}
                 name="display.theme"
                 render={({ field, override }) => (
-                  <div className="flex flex-col space-y-1">
+                  <div className="settings-field flex flex-col space-y-1">
                     <FormItem className={formItemClasses}>
                       <FormLabel>Theme</FormLabel>
+                      <FormDescription>
+                        This theme will be applied to the user's configuration;
+                        it does not affect theme when sharing the notebook.
+                      </FormDescription>
                       <FormControl>
                         <NativeSelect
                           data-testid="theme-select"
@@ -914,11 +874,6 @@ export const UserConfigForm: React.FC = () => {
                       <FormMessage />
                       <IsOverridden override={override} />
                     </FormItem>
-
-                    <FormDescription>
-                      This theme will be applied to the user's configuration; it
-                      does not affect theme when sharing the notebook.
-                    </FormDescription>
                   </div>
                 )}
               />
@@ -955,9 +910,14 @@ export const UserConfigForm: React.FC = () => {
                 control={form.control}
                 name="display.locale"
                 render={({ field, override }) => (
-                  <div className="flex flex-col space-y-1">
+                  <div className="settings-field flex flex-col space-y-1">
                     <FormItem className={formItemClasses}>
                       <FormLabel>Locale</FormLabel>
+                      <FormDescription>
+                        The locale to use for the notebook. If your desired
+                        locale is not listed, you can change it manually via{" "}
+                        <Kbd className="inline">marimo config show</Kbd>.
+                      </FormDescription>
                       <FormControl>
                         <NativeSelect
                           data-testid="locale-select"
@@ -983,12 +943,6 @@ export const UserConfigForm: React.FC = () => {
                       <FormMessage />
                       <IsOverridden override={override} />
                     </FormItem>
-
-                    <FormDescription>
-                      The locale to use for the notebook. If your desired locale
-                      is not listed, you can change it manually via{" "}
-                      <Kbd className="inline">marimo config show</Kbd>.
-                    </FormDescription>
                   </div>
                 )}
               />
@@ -996,7 +950,7 @@ export const UserConfigForm: React.FC = () => {
                 control={form.control}
                 name="display.reference_highlighting"
                 render={({ field, override }) => (
-                  <div className="flex flex-col space-y-1">
+                  <div className="settings-field flex flex-col space-y-1">
                     <FormItem className={formItemClasses}>
                       <FormLabel>Reference highlighting</FormLabel>
                       <FormControl>
@@ -1022,7 +976,7 @@ export const UserConfigForm: React.FC = () => {
                 control={form.control}
                 name="display.code_lens"
                 render={({ field, override }) => (
-                  <div className="flex flex-col space-y-1">
+                  <div className="settings-field flex flex-col space-y-1">
                     <FormItem className={formItemClasses}>
                       <FormLabel>Code lens</FormLabel>
                       <FormControl>
@@ -1050,9 +1004,12 @@ export const UserConfigForm: React.FC = () => {
                 control={form.control}
                 name="display.cell_output"
                 render={({ field, override }) => (
-                  <div className="flex flex-col space-y-1">
+                  <div className="settings-field flex flex-col space-y-1">
                     <FormItem className={formItemClasses}>
                       <FormLabel>Cell output area</FormLabel>
+                      <FormDescription>
+                        Where to display cell's output.
+                      </FormDescription>
                       <FormControl>
                         <NativeSelect
                           data-testid="cell-output-select"
@@ -1071,10 +1028,6 @@ export const UserConfigForm: React.FC = () => {
                       <FormMessage />
                       <IsOverridden override={override} />
                     </FormItem>
-
-                    <FormDescription>
-                      Where to display cell's output.
-                    </FormDescription>
                   </div>
                 )}
               />
@@ -1084,15 +1037,31 @@ export const UserConfigForm: React.FC = () => {
       case "packageManagementAndData":
         return (
           <>
-            <SettingGroup title="Package Management">
+            <SettingGroup title="Package management">
               <OverriddenFormField
                 control={form.control}
                 disabled={isWasmRuntime}
                 name="package_management.manager"
                 render={({ field, override }) => (
-                  <div className="flex flex-col space-y-1">
+                  <div className="settings-field flex flex-col space-y-1">
                     <FormItem className={formItemClasses}>
                       <FormLabel>Manager</FormLabel>
+                      <FormDescription>
+                        When marimo comes across a module that is not installed,
+                        you will be prompted to install it using your preferred
+                        package manager. Learn more in the{" "}
+                        <ExternalLink href="https://docs.marimo.io/guides/editor_features/package_management.html">
+                          docs
+                        </ExternalLink>
+                        .
+                        <br />
+                        <br />
+                        Running marimo in a{" "}
+                        <ExternalLink href="https://docs.marimo.io/guides/package_management/inlining_dependencies.html">
+                          sandboxed environment
+                        </ExternalLink>{" "}
+                        is only supported by <Kbd className="inline">uv</Kbd>
+                      </FormDescription>
                       <FormControl>
                         <NativeSelect
                           data-testid="package-manager-select"
@@ -1111,30 +1080,11 @@ export const UserConfigForm: React.FC = () => {
                       <FormMessage />
                       <IsOverridden override={override} />
                     </FormItem>
-
-                    <FormDescription>
-                      When marimo comes across a module that is not installed,
-                      you will be prompted to install it using your preferred
-                      package manager. Learn more in the{" "}
-                      <ExternalLink href="https://docs.marimo.io/guides/editor_features/package_management.html">
-                        docs
-                      </ExternalLink>
-                      .
-                      <br />
-                      <br />
-                      Running marimo in a{" "}
-                      <ExternalLink href="https://docs.marimo.io/guides/package_management/inlining_dependencies.html">
-                        sandboxed environment
-                      </ExternalLink>{" "}
-                      is only supported by <Kbd className="inline">uv</Kbd>
-                    </FormDescription>
                   </div>
                 )}
               />
             </SettingGroup>
-            <SettingGroup title="Data">
-              <DataForm form={form} onSubmit={onSubmit} />
-            </SettingGroup>
+            <DataForm form={form} onSubmit={onSubmit} />
           </>
         );
       case "runtime":
@@ -1144,11 +1094,9 @@ export const UserConfigForm: React.FC = () => {
               control={form.control}
               name="runtime.auto_instantiate"
               render={({ field, override }) => (
-                <div className="flex flex-col gap-y-1">
+                <div className="settings-field flex flex-col gap-y-1">
                   <FormItem className={formItemClasses}>
-                    <FormLabel className="font-normal">
-                      Autorun on startup
-                    </FormLabel>
+                    <FormLabel>Autorun on startup</FormLabel>
                     <FormControl>
                       <Checkbox
                         data-testid="auto-instantiate-checkbox"
@@ -1171,11 +1119,16 @@ export const UserConfigForm: React.FC = () => {
               control={form.control}
               name="runtime.on_cell_change"
               render={({ field, override }) => (
-                <div className="flex flex-col gap-y-1">
+                <div className="settings-field flex flex-col gap-y-1">
                   <FormItem className={formItemClasses}>
-                    <FormLabel className="font-normal">
-                      On cell change
-                    </FormLabel>
+                    <FormLabel>On cell change</FormLabel>
+                    <FormDescription>
+                      Whether marimo should automatically run cells or just mark
+                      them as stale. If "autorun", marimo will automatically run
+                      affected cells when a cell is run or a UI element is
+                      interacted with; if "lazy", marimo will mark affected
+                      cells as stale but won't re-run them.
+                    </FormDescription>
                     <FormControl>
                       <NativeSelect
                         data-testid="on-cell-change-select"
@@ -1194,13 +1147,6 @@ export const UserConfigForm: React.FC = () => {
                     <FormMessage />
                     <IsOverridden override={override} />
                   </FormItem>
-                  <FormDescription>
-                    Whether marimo should automatically run cells or just mark
-                    them as stale. If "autorun", marimo will automatically run
-                    affected cells when a cell is run or a UI element is
-                    interacted with; if "lazy", marimo will mark affected cells
-                    as stale but won't re-run them.
-                  </FormDescription>
                 </div>
               )}
             />
@@ -1208,11 +1154,15 @@ export const UserConfigForm: React.FC = () => {
               control={form.control}
               name="runtime.auto_reload"
               render={({ field, override }) => (
-                <div className="flex flex-col gap-y-1">
+                <div className="settings-field flex flex-col gap-y-1">
                   <FormItem className={formItemClasses}>
-                    <FormLabel className="font-normal">
-                      On module change
-                    </FormLabel>
+                    <FormLabel>On module change</FormLabel>
+                    <FormDescription>
+                      Whether marimo should automatically reload modules before
+                      executing cells. If "lazy", marimo will mark cells
+                      affected by module modifications as stale; if "autorun",
+                      affected cells will be automatically re-run.
+                    </FormDescription>
                     <FormControl>
                       <NativeSelect
                         data-testid="auto-reload-select"
@@ -1231,12 +1181,6 @@ export const UserConfigForm: React.FC = () => {
                     <FormMessage />
                     <IsOverridden override={override} />
                   </FormItem>
-                  <FormDescription>
-                    Whether marimo should automatically reload modules before
-                    executing cells. If "lazy", marimo will mark cells affected
-                    by module modifications as stale; if "autorun", affected
-                    cells will be automatically re-run.
-                  </FormDescription>
                 </div>
               )}
             />
@@ -1245,11 +1189,9 @@ export const UserConfigForm: React.FC = () => {
               control={form.control}
               name="runtime.reactive_tests"
               render={({ field, override }) => (
-                <div className="flex flex-col gap-y-1">
+                <div className="settings-field flex flex-col gap-y-1">
                   <FormItem className={formItemClasses}>
-                    <FormLabel className="font-normal">
-                      Autorun Unit Tests
-                    </FormLabel>
+                    <FormLabel>Autorun Unit Tests</FormLabel>
                     <FormControl>
                       <Checkbox
                         data-testid="reactive-test-checkbox"
@@ -1272,7 +1214,7 @@ export const UserConfigForm: React.FC = () => {
             />
 
             <FormDescription>
-              Learn more in the{" "}
+              Learn more about how marimo runs cells in the{" "}
               <ExternalLink href="https://docs.marimo.io/guides/reactivity/#configuring-how-marimo-runs-cells">
                 docs
               </ExternalLink>
@@ -1286,8 +1228,8 @@ export const UserConfigForm: React.FC = () => {
         return <OptionalFeatures />;
       case "labs":
         return (
-          <SettingGroup title="Experimental Features">
-            <p className="text-sm text-muted-secondary mb-4">
+          <SettingGroup title="Experimental features">
+            <p className="text-sm text-muted-foreground mb-4">
               ⚠️ These features are experimental and may require restarting your
               notebook to take effect.
             </p>
@@ -1296,9 +1238,9 @@ export const UserConfigForm: React.FC = () => {
               control={form.control}
               name="experimental.debugger"
               render={({ field, override }) => (
-                <div className="flex flex-col gap-y-1">
+                <div className="settings-field flex flex-col gap-y-1">
                   <FormItem className={formItemClasses}>
-                    <FormLabel className="font-normal">Debugger</FormLabel>
+                    <FormLabel>Debugger</FormLabel>
                     <FormControl>
                       <Checkbox
                         data-testid="debugger-checkbox"
@@ -1322,9 +1264,9 @@ export const UserConfigForm: React.FC = () => {
               control={form.control}
               name="experimental.line_timing"
               render={({ field, override }) => (
-                <div className="flex flex-col gap-y-1">
+                <div className="settings-field flex flex-col gap-y-1">
                   <FormItem className={formItemClasses}>
-                    <FormLabel className="font-normal">Line Timing</FormLabel>
+                    <FormLabel>Line Timing</FormLabel>
                     <FormControl>
                       <Checkbox
                         data-testid="line-timing-checkbox"
@@ -1350,9 +1292,7 @@ export const UserConfigForm: React.FC = () => {
   };
 
   const configMessage = (
-    <p className="text-muted-secondary">
-      User configuration is stored in <Kbd className="inline">marimo.toml</Kbd>
-      <br />
+    <p className="text-muted-foreground">
       Run <Kbd className="inline">marimo config show</Kbd> in your terminal to
       show your current configuration and file location.
     </p>
@@ -1363,49 +1303,47 @@ export const UserConfigForm: React.FC = () => {
       <form
         ref={formElement}
         onChange={form.handleSubmit((values) => onSubmit(values))}
-        className="flex text-pretty overflow-hidden"
+        className="user-config-form flex min-h-0 flex-1 text-sm overflow-hidden"
       >
         <Tabs
           value={activeCategory}
           onValueChange={(value) =>
             setActiveCategory(value as SettingCategoryId)
           }
-          orientation="vertical"
-          className="w-1/3 border-r h-full overflow-auto p-3"
+          orientation={isWideLayout ? "vertical" : "horizontal"}
+          className="flex min-h-0 min-w-0 flex-1 flex-col sm:flex-row"
         >
-          <TabsList className="self-start max-h-none flex flex-col gap-2 shrink-0 bg-background flex-1 min-h-full">
-            {categories.map((category) => (
-              <TabsTrigger
-                key={category.id}
-                value={category.id}
-                className="w-full text-left p-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground justify-start"
-              >
-                <div className="flex gap-4 items-center text-lg overflow-hidden">
-                  <span
-                    className={cn(
-                      category.className,
-                      "w-8 h-8 rounded flex items-center justify-center text-muted-foreground shrink-0",
-                    )}
-                  >
-                    <category.Icon className="w-4 h-4" />
-                  </span>
-                  <span className="truncate">{category.label}</span>
-                </div>
-              </TabsTrigger>
-            ))}
-
-            <div className="p-2 text-xs text-muted-foreground self-start flex flex-col gap-1">
-              <span>Version: {marimoVersion}</span>
-              <span>Locale: {locale}</span>
+          <aside className="flex shrink-0 flex-col border-b bg-muted/20 p-3 sm:w-52 sm:overflow-y-auto sm:border-b-0 sm:border-r">
+            <TabsList
+              aria-label="Settings categories"
+              className="max-h-none justify-start gap-1 overflow-x-auto rounded-none bg-transparent p-0 sm:flex-col sm:items-stretch"
+            >
+              {categories.map((category) => (
+                <TabsTrigger
+                  key={category.id}
+                  value={category.id}
+                  className="justify-start px-3 py-2 text-left font-normal hover:bg-muted/60 hover:text-foreground data-[state=active]:bg-muted data-[state=active]:font-medium data-[state=active]:shadow-none"
+                >
+                  {category.label}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+            <div className="mt-auto hidden pt-6 px-3 text-xs leading-relaxed text-muted-foreground sm:flex sm:flex-col sm:gap-3">
+              {!isWasm() && configMessage}
+              <div>
+                <div>Version: {marimoVersion}</div>
+                <div>Locale: {locale}</div>
+              </div>
             </div>
-
-            <div className="flex-1" />
-            {!isWasm() && configMessage}
-          </TabsList>
+          </aside>
+          <TabsContent
+            key={activeCategory}
+            value={activeCategory}
+            className="settings-content m-0 min-h-0 min-w-0 flex-1 overflow-auto p-5 sm:p-6"
+          >
+            <div className="flex flex-col gap-6">{renderBody()}</div>
+          </TabsContent>
         </Tabs>
-        <div className="w-2/3 pl-6 gap-2 flex flex-col overflow-auto p-6">
-          {renderBody()}
-        </div>
       </form>
     </Form>
   );
