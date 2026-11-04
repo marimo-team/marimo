@@ -1,0 +1,44 @@
+id: 300
+event: run
+data: {"run":{"id":"run-input","notebook_id":"n1","status":"running","started_at":"2026-11-03T14:00:00Z","completed_at":null,"caused_by":null,"outcome":null},"request_id":"start-input","time":"2026-11-03T14:00:00Z"}
+
+id: 301
+event: execution
+data: {"execution":{"id":"e-input","run_id":"run-input","runtime_id":"r1","cell_id":null,"code":"from getpass import getpass\nprint(\"Starting\")\nname = input(\"Name: \")\nprint(\"Name accepted\")\npassword = getpass(\"Password: \")","code_hash":"c62108f175239e74","depends_on":{},"caused_by":null,"status":"running","outcome":null,"started_at":"2026-11-03T14:00:00Z","completed_at":null},"request_id":"start-input","time":"2026-11-03T14:00:01Z"}
+
+id: 302
+event: console
+data: {"console":{"id":"o-input-0","execution_id":"e-input","seq":0,"name":"stdout","text":"Starting\n"},"request_id":"start-input","time":"2026-11-03T14:00:02Z"}
+
+id: 303
+event: input
+data: {"input":{"id":"i1","execution_id":"e-input","seq":1,"prompt":"Name: ","password":false,"status":"pending"},"request_id":"start-input","time":"2026-11-03T14:00:03Z"}
+
+id: 304
+event: input
+data: {"input":{"id":"i1","execution_id":"e-input","seq":1,"prompt":"Name: ","password":false,"status":"answered"},"request_id":"reply-name","time":"2026-11-03T14:00:04Z"}
+
+id: 305
+event: console
+data: {"console":{"id":"o-input-2","execution_id":"e-input","seq":2,"name":"stdout","text":"Name accepted\n"},"request_id":"start-input","time":"2026-11-03T14:00:05Z"}
+
+id: 306
+event: input
+data: {"input":{"id":"i2","execution_id":"e-input","seq":3,"prompt":"Password: ","password":true,"status":"pending"},"request_id":"start-input","time":"2026-11-03T14:00:06Z"}
+
+id: 308
+event: input
+data: {"input":{"id":"i2","execution_id":"e-input","seq":3,"prompt":"Password: ","password":true,"status":"cancelled"},"request_id":"interrupt-input","time":"2026-11-03T14:00:08Z"}
+
+id: 309
+event: execution
+data: {"execution":{"id":"e-input","run_id":"run-input","runtime_id":"r1","cell_id":null,"code":"from getpass import getpass\nprint(\"Starting\")\nname = input(\"Name: \")\nprint(\"Name accepted\")\npassword = getpass(\"Password: \")","code_hash":"c62108f175239e74","depends_on":{},"caused_by":null,"status":"completed","outcome":{"kind":"interrupted"},"started_at":"2026-11-03T14:00:00Z","completed_at":"2026-11-03T14:00:08Z"},"request_id":"start-input","time":"2026-11-03T14:00:08Z"}
+
+id: 310
+event: run
+data: {"run":{"id":"run-input","notebook_id":"n1","status":"completed","started_at":"2026-11-03T14:00:00Z","completed_at":"2026-11-03T14:00:08Z","caused_by":null,"outcome":"interrupted"},"request_id":"start-input","time":"2026-11-03T14:00:08Z"}
+
+id: 311
+event: execution.removed
+data: {"id":"e-input","time":"2026-11-03T14:01:08Z"}
+

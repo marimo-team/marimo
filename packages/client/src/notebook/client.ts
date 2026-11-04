@@ -128,6 +128,19 @@ class NotebookOperations {
     return this.#send("runtime.run", { body: request, options });
   }
 
+  /** Answer one pending input. Acceptance does not imply execution resumed. */
+  public input(
+    inputId: Protocol.ItemId,
+    reply: Protocol.InputReplyRequest,
+    options?: MutationOptions,
+  ): Promise<Result<Protocol.InputOutput>> {
+    return this.#send("runtime.input", {
+      params: { input_id: inputId },
+      body: reply,
+      options,
+    });
+  }
+
   /** Interrupt a run. */
   public interrupt(
     runId: Protocol.RunId,

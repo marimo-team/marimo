@@ -139,6 +139,16 @@ export const operations = {
     responses: { 202: Protocol.Run },
     problems: [400, 401, 403, 404, 405, 409, 500, 501],
   },
+  /** Answer an execution's pending input. */
+  "runtime.input": {
+    method: "POST",
+    path: "/notebooks/{notebook_id}/runtime/inputs/{input_id}/reply",
+    query: {},
+    headers: { "Idempotency-Key": true },
+    body: Protocol.InputReplyRequest,
+    responses: { 200: Protocol.Input },
+    problems: [400, 401, 403, 404, 405, 409, 500, 501],
+  },
   /** Interrupt a run. */
   "runtime.interrupt": {
     method: "DELETE",
