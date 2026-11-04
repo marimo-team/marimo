@@ -19,7 +19,8 @@ def code_fingerprint(source: str) -> str:
     """Fingerprint the AST and final-expression suppression.
 
     Source positions are excluded. The prefix contains the algorithm and Python
-    major/minor version. Invalid code uses its exact source.
+    major/minor version. Invalid code and AST processing limits fall back to
+    the exact source.
     """
     payload: list[str | bool]
     code = source.replace("\u00a0", " ")
@@ -27,9 +28,6 @@ def code_fingerprint(source: str) -> str:
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", SyntaxWarning)
             tree = ast.parse(code)
-    except (SyntaxError, ValueError):
-        payload = ["source", source]
-    else:
         suppress_output = (
             bool(tree.body)
             and isinstance(tree.body[-1], ast.Expr)
@@ -40,6 +38,8 @@ def code_fingerprint(source: str) -> str:
             ast.dump(tree, annotate_fields=True, include_attributes=False),
             suppress_output,
         ]
+    except (SyntaxError, ValueError, RecursionError):
+        payload = ["source", source]
     encoded = json.dumps(payload, separators=(",", ":")).encode("utf-8")
     return f"{_SCHEME}:{hashlib.sha256(encoded).hexdigest()}"
 

@@ -63,3 +63,24 @@ def test_formatting_changes_etags_without_changing_fingerprints() -> None:
     after = DocumentCell(CellId("a"), "x = 1 # formatted")
     assert before.code_fingerprint == after.code_fingerprint
     assert before.etag != after.etag
+
+
+@pytest.mark.parametrize("stage", ["parse", "dump"])
+def test_ast_limits_preserve_document_source(
+    monkeypatch: pytest.MonkeyPatch, stage: str
+) -> None:
+    def exhausted(*_args: object, **_kwargs: object) -> None:
+        raise RecursionError
+
+    monkeypatch.setattr(f"marimo._core.code.ast.{stage}", exhausted)
+    source = "x = 1"
+    cell = DocumentCell(CellId("a"), source)
+    edited = DocumentCell(CellId("a"), source + " # edited")
+    assert cell.code == source
+    assert cell.code_fingerprint == code_fingerprint(source)
+    assert cell.code_fingerprint != edited.code_fingerprint
+
+
+def test_deep_expression_can_be_stored() -> None:
+    source = "x = " + "+".join(["1"] * 10000)
+    assert DocumentCell(CellId("a"), source).code == source
