@@ -17,6 +17,8 @@ from marimo._cli.cache.commands import cache, format_bytes
 from marimo._cli.cli import main
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from tests.conftest import ExecReqProvider
 
 NOTEBOOK = """
@@ -248,8 +250,14 @@ def test_size_recursive_reports_no_cache_directories(tmp_path: Path) -> None:
     assert result.output == "No cache directories found.\n"
 
 
+H = "ab12ab12ab12ab12ab12ab"
+H2 = "77e077e077e077e077e077"
+H3 = "9f009f009f009f009f009f"
+GONE = "gonegonegonegonegonego"
+
+
 def write_lazy_entry(cache_dir: Path, block: str, entry_hash: str) -> None:
-    """Write an entry and the directory of blobs it reads its value from."""
+    """Write a 10 B marker and the 20 B directory of blobs that it names."""
     blobs = cache_dir / block / entry_hash
     blobs.mkdir(parents=True, exist_ok=True)
     (blobs / "return.pickle").write_bytes(b"y" * 20)
@@ -274,10 +282,42 @@ def read_manifest(path: Path) -> dict[str, dict[str, set[str]]]:
     return CacheManifest.from_bytes(path.read_bytes()).nodes
 
 
+RECORD = {"3f9c": {"train": {f"C_{H}"}}}
+
+
+def tracked_notebook(tmp_path: Path) -> tuple[Path, Path, Path]:
+    """A notebook beside a cache that holds one lazy entry, with its record.
+
+    Returns the notebook, the cache directory, and the manifest.
+    """
+    notebook = tmp_path / "nb.py"
+    notebook.write_text(NOTEBOOK)
+    cache_dir = make_cache_dir(tmp_path)
+    write_lazy_entry(cache_dir, "train", H)
+    manifest = write_manifest(cache_dir, notebook, RECORD)
+    return notebook, cache_dir, manifest
+
+
+def interactive(monkeypatch: pytest.MonkeyPatch, answer: str) -> io.BytesIO:
+    """Pretend a terminal is attached, so the command prompts instead of skipping."""
+    stream = io.BytesIO(answer.encode("utf-8"))
+    monkeypatch.setattr(stream, "isatty", lambda: True)
+    return stream
+
+
+def snapshot(root: Path) -> dict[str, bytes]:
+    """Every file under `root` with its bytes, to prove nothing changed."""
+    return {
+        str(path.relative_to(root)): path.read_bytes()
+        for path in sorted(root.rglob("*"))
+        if path.is_file()
+    }
+
+
 def test_clean_deletes_every_block(tmp_path: Path) -> None:
     cache_dir = make_cache_dir(tmp_path)
-    write_lazy_entry(cache_dir, "train", "ab12ab12ab12ab12ab12ab")
-    write_entry(cache_dir, "evaluate", "E_9f009f009f009f009f009f.pickle", 5)
+    write_lazy_entry(cache_dir, "train", H)
+    write_entry(cache_dir, "evaluate", f"E_{H3}.pickle", 5)
     (cache_dir / ".nb-export.json").write_bytes(b"m" * 3)
 
     result = CliRunner().invoke(main, ["cache", "clean", str(tmp_path), "-y"])
@@ -290,53 +330,30 @@ def test_clean_deletes_every_block(tmp_path: Path) -> None:
     assert [path.name for path in cache_dir.iterdir()] == [".nb-export.json"]
 
 
-def interactive(monkeypatch: pytest.MonkeyPatch, answer: str) -> io.BytesIO:
-    """Pretend a terminal is attached, so the command prompts instead of skipping."""
-    stream = io.BytesIO(answer.encode("utf-8"))
-    monkeypatch.setattr(stream, "isatty", lambda: True)
-    return stream
-
-
+@pytest.mark.parametrize(("answer", "deleted"), [("n", False), ("y", True)])
 def test_clean_asks_before_deleting(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, answer: str, deleted: bool
 ) -> None:
     cache_dir = make_cache_dir(tmp_path)
-    write_entry(cache_dir, "train", "C_ab12ab12ab12ab12ab12ab.pickle", 10)
+    write_entry(cache_dir, "train", f"C_{H}.pickle", 10)
 
     result = CliRunner().invoke(
         main,
         ["cache", "clean", str(tmp_path)],
-        input=interactive(monkeypatch, "n\n"),
+        input=interactive(monkeypatch, f"{answer}\n"),
     )
 
     assert result.exit_code == 0, result.output
     assert "Delete 1 entry (10 B)?" in result.output
-    assert "Deleted" not in result.output
-    assert (cache_dir / "train" / "C_ab12ab12ab12ab12ab12ab.pickle").exists()
-
-
-def test_clean_deletes_once_confirmed(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    cache_dir = make_cache_dir(tmp_path)
-    write_entry(cache_dir, "train", "C_ab12ab12ab12ab12ab12ab.pickle", 10)
-
-    result = CliRunner().invoke(
-        main,
-        ["cache", "clean", str(tmp_path)],
-        input=interactive(monkeypatch, "y\n"),
-    )
-
-    assert result.exit_code == 0, result.output
-    assert "Deleted 1 entry, freeing 10 B." in result.output
-    assert not (cache_dir / "train").exists()
+    assert ("Deleted 1 entry, freeing 10 B." in result.output) is deleted
+    assert (cache_dir / "train").exists() is not deleted
 
 
 def test_clean_skips_the_prompt_with_no_one_to_answer(tmp_path: Path) -> None:
     """A script that forgot `-y` loses nothing. A piped answer is not a
     person, so it is not read either."""
     cache_dir = make_cache_dir(tmp_path)
-    write_entry(cache_dir, "train", "C_ab12ab12ab12ab12ab12ab.pickle", 10)
+    write_entry(cache_dir, "train", f"C_{H}.pickle", 10)
 
     result = CliRunner().invoke(
         main, ["cache", "clean", str(tmp_path)], input="y\n"
@@ -345,13 +362,30 @@ def test_clean_skips_the_prompt_with_no_one_to_answer(tmp_path: Path) -> None:
     assert result.exit_code == 0, result.output
     assert "Skipping 1 entry (10 B): rerun with -y to delete." in result.output
     assert "Deleted" not in result.output
-    assert (cache_dir / "train" / "C_ab12ab12ab12ab12ab12ab.pickle").exists()
+    assert (cache_dir / "train" / f"C_{H}.pickle").exists()
+
+
+def test_clean_takes_the_answer_from_the_global_yes(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from marimo._config.settings import GLOBAL_SETTINGS
+
+    # The setting outlives the invocation that set it, so monkeypatch restores it.
+    monkeypatch.setattr(GLOBAL_SETTINGS, "YES", False)
+    cache_dir = make_cache_dir(tmp_path)
+    write_entry(cache_dir, "train", f"C_{H}.pickle", 10)
+
+    result = CliRunner().invoke(main, ["-y", "cache", "clean", str(tmp_path)])
+
+    assert result.exit_code == 0, result.output
+    assert "Deleted 1 entry, freeing 10 B." in result.output
+    assert not (cache_dir / "train").exists()
 
 
 def test_clean_keeps_the_blocks_it_was_not_named(tmp_path: Path) -> None:
     cache_dir = make_cache_dir(tmp_path)
-    write_entry(cache_dir, "train", "C_ab12ab12ab12ab12ab12ab.pickle", 10)
-    write_entry(cache_dir, "evaluate", "E_9f009f009f009f009f009f.pickle", 5)
+    write_entry(cache_dir, "train", f"C_{H}.pickle", 10)
+    write_entry(cache_dir, "evaluate", f"E_{H3}.pickle", 5)
 
     result = CliRunner().invoke(
         main, ["cache", "clean", str(tmp_path), "train", "-y"]
@@ -360,9 +394,7 @@ def test_clean_keeps_the_blocks_it_was_not_named(tmp_path: Path) -> None:
     assert result.exit_code == 0, result.output
     assert "Deleted 1 entry, freeing 10 B." in result.output
     assert not (cache_dir / "train").exists()
-    assert (
-        cache_dir / "evaluate" / "E_9f009f009f009f009f009f.pickle"
-    ).exists()
+    assert (cache_dir / "evaluate" / f"E_{H3}.pickle").exists()
 
 
 def test_clean_of_a_cache_that_holds_nothing(tmp_path: Path) -> None:
@@ -379,9 +411,9 @@ def test_clean_of_a_cache_that_holds_nothing(tmp_path: Path) -> None:
 
 def test_clean_recursive_reports_a_total(tmp_path: Path) -> None:
     first = make_cache_dir(tmp_path, "a")
-    write_entry(first, "train", "C_ab12ab12ab12ab12ab12ab.pickle", 1024)
+    write_entry(first, "train", f"C_{H}.pickle", 1024)
     second = make_cache_dir(tmp_path, "b")
-    write_entry(second, "train", "C_77e077e077e077e077e077.pickle", 1024)
+    write_entry(second, "train", f"C_{H2}.pickle", 1024)
 
     result = CliRunner().invoke(
         main, ["cache", "clean", "-r", str(tmp_path), "-y"]
@@ -398,17 +430,51 @@ def test_clean_recursive_reports_a_total(tmp_path: Path) -> None:
     assert not (second / "train").exists()
 
 
+@pytest.mark.parametrize("flags", [["--dry-run"], ["-y", "--dry-run"]])
+def test_clean_dry_run_reports_what_the_real_run_frees(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, flags: list[str]
+) -> None:
+    first = make_cache_dir(tmp_path, "a")
+    write_lazy_entry(first, "train", H)
+    write_entry(first, "evaluate", f"E_{H3}.pickle", 5)
+    second = make_cache_dir(tmp_path, "b")
+    write_entry(second, "train", f"C_{H2}.pickle", 1024)
+    before = snapshot(tmp_path)
+
+    # A terminal answers no, but a dry run asks nothing.
+    dry = CliRunner().invoke(
+        main,
+        ["cache", "clean", "-r", str(tmp_path), *flags],
+        input=interactive(monkeypatch, "n\n"),
+    )
+
+    assert dry.exit_code == 0, dry.output
+    assert dry.output.splitlines() == [
+        f"{first}\t35 B\t2 entries",
+        f"{second}\t1.0 KB\t1 entry",
+        "Total\t1.0 KB\t3 entries",
+        "Would delete 3 entries, freeing 1.0 KB.",
+    ]
+    assert snapshot(tmp_path) == before
+
+    real = CliRunner().invoke(
+        main, ["cache", "clean", "-r", str(tmp_path), "-y"]
+    )
+
+    assert real.exit_code == 0, real.output
+    assert real.output.splitlines() == [
+        line.replace("Would delete", "Deleted")
+        for line in dry.output.splitlines()
+    ]
+    assert not (first / "train").exists()
+    assert not (second / "train").exists()
+
+
 def test_clean_notebook_deletes_only_what_the_manifest_lists(
     tmp_path: Path,
 ) -> None:
-    notebook = tmp_path / "nb.py"
-    notebook.write_text(NOTEBOOK)
-    cache_dir = make_cache_dir(tmp_path)
-    write_lazy_entry(cache_dir, "train", "ab12ab12ab12ab12ab12ab")
-    write_lazy_entry(cache_dir, "train", "77e077e077e077e077e077")
-    manifest = write_manifest(
-        cache_dir, notebook, {"3f9c": {"train": {"C_ab12ab12ab12ab12ab12ab"}}}
-    )
+    notebook, cache_dir, manifest = tracked_notebook(tmp_path)
+    write_lazy_entry(cache_dir, "train", H2)
 
     result = CliRunner().invoke(main, ["cache", "clean", str(notebook), "-y"])
 
@@ -418,11 +484,9 @@ def test_clean_notebook_deletes_only_what_the_manifest_lists(
         "Deleted 1 entry, freeing 30 B.",
     ]
     # An entry no manifest lists is not this command's to delete.
-    assert (cache_dir / "train" / "C_77e077e077e077e077e077.jsonl").exists()
-    assert (
-        cache_dir / "train" / "77e077e077e077e077e077" / "return.pickle"
-    ).exists()
-    assert not (cache_dir / "train" / "ab12ab12ab12ab12ab12ab").exists()
+    assert (cache_dir / "train" / f"C_{H2}.jsonl").exists()
+    assert (cache_dir / "train" / H2 / "return.pickle").exists()
+    assert not (cache_dir / "train" / H).exists()
     assert read_manifest(manifest) == {}
 
 
@@ -430,14 +494,8 @@ def test_clean_notebook_asks_before_deleting(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Declining leaves the entry, and the record of it, exactly as found."""
-    notebook = tmp_path / "nb.py"
-    notebook.write_text(NOTEBOOK)
-    cache_dir = make_cache_dir(tmp_path)
-    write_entry(cache_dir, "train", "C_ab12ab12ab12ab12ab12ab.pickle", 10)
-    manifest = write_manifest(
-        cache_dir, notebook, {"3f9c": {"train": {"C_ab12ab12ab12ab12ab12ab"}}}
-    )
-    before = manifest.read_bytes()
+    notebook, _cache_dir, _manifest = tracked_notebook(tmp_path)
+    before = snapshot(tmp_path)
 
     result = CliRunner().invoke(
         main,
@@ -446,169 +504,123 @@ def test_clean_notebook_asks_before_deleting(
     )
 
     assert result.exit_code == 0, result.output
-    assert "Delete 1 entry (10 B)?" in result.output
+    assert "Delete 1 entry (30 B)?" in result.output
     assert "Deleted" not in result.output
-    assert (cache_dir / "train" / "C_ab12ab12ab12ab12ab12ab.pickle").exists()
-    assert manifest.read_bytes() == before
+    assert snapshot(tmp_path) == before
 
 
-def test_clean_notebook_keeps_the_blocks_it_was_not_named(
-    tmp_path: Path,
-) -> None:
-    notebook = tmp_path / "nb.py"
-    notebook.write_text(NOTEBOOK)
-    cache_dir = make_cache_dir(tmp_path)
-    write_lazy_entry(cache_dir, "train", "ab12ab12ab12ab12ab12ab")
-    write_lazy_entry(cache_dir, "evaluate", "77e077e077e077e077e077")
-    manifest = write_manifest(
-        cache_dir,
-        notebook,
-        {
-            "3f9c": {
-                "train": {"C_ab12ab12ab12ab12ab12ab"},
-                "evaluate": {"C_77e077e077e077e077e077"},
-            }
-        },
-    )
-
-    result = CliRunner().invoke(
-        main, ["cache", "clean", str(notebook), "train", "-y"]
-    )
-
-    assert result.exit_code == 0, result.output
-    assert not (cache_dir / "train" / "ab12ab12ab12ab12ab12ab").exists()
-    assert (cache_dir / "evaluate" / "C_77e077e077e077e077e077.jsonl").exists()
-    assert read_manifest(manifest) == {
-        "3f9c": {"evaluate": {"C_77e077e077e077e077e077"}}
-    }
-
-
-def test_clean_notebook_matches_a_name_as_it_is_written_to_disk(
-    tmp_path: Path,
-) -> None:
-    notebook = tmp_path / "nb.py"
-    notebook.write_text(NOTEBOOK)
-    cache_dir = make_cache_dir(tmp_path)
-    write_lazy_entry(cache_dir, "train_v2", "ab12ab12ab12ab12ab12ab")
-    manifest = write_manifest(
-        cache_dir,
-        notebook,
-        {"3f9c": {"train_v2": {"C_ab12ab12ab12ab12ab12ab"}}},
-    )
-
-    result = CliRunner().invoke(
-        main, ["cache", "clean", str(notebook), "train/v2", "-y"]
-    )
-
-    assert result.exit_code == 0, result.output
-    assert "Deleted 1 entry, freeing 30 B." in result.output
-    assert not (cache_dir / "train_v2" / "ab12ab12ab12ab12ab12ab").exists()
-    assert read_manifest(manifest) == {}
-
-
+@pytest.mark.parametrize(
+    ("flag", "verb", "kept"),
+    [("-y", "Forgot", {}), ("--dry-run", "Would forget", None)],
+)
 def test_clean_notebook_forgets_a_record_no_file_answers_to(
-    tmp_path: Path,
+    tmp_path: Path, flag: str, verb: str, kept: dict | None
 ) -> None:
-    """A record no file answers to holds nothing, so it goes."""
+    """A record that matches no file holds nothing, so it goes without a
+    prompt. A dry run only reports it."""
     notebook = tmp_path / "nb.py"
     notebook.write_text(NOTEBOOK)
     cache_dir = make_cache_dir(tmp_path)
-    manifest = write_manifest(
-        cache_dir, notebook, {"3f9c": {"train": {"C_gonegonegonegonegonego"}}}
-    )
+    nodes = {"3f9c": {"train": {f"C_{GONE}"}}}
+    manifest = write_manifest(cache_dir, notebook, nodes)
 
-    result = CliRunner().invoke(main, ["cache", "clean", str(notebook), "-y"])
+    result = CliRunner().invoke(main, ["cache", "clean", str(notebook), flag])
 
     assert result.exit_code == 0, result.output
     assert result.output.splitlines() == [
         f"{cache_dir}\t0 B\t0 entries",
         "Nothing to delete.",
-        "Forgot 1 entry the cache no longer holds.",
+        f"{verb} 1 entry the cache no longer holds.",
     ]
-    assert read_manifest(manifest) == {}
+    assert read_manifest(manifest) == (nodes if kept is None else kept)
 
 
-def test_clean_notebook_refuses_a_record_that_leaves_the_cache(
-    tmp_path: Path,
+@pytest.mark.parametrize("has_cache_dir", [True, False])
+def test_clean_notebook_without_a_manifest(
+    tmp_path: Path, has_cache_dir: bool
 ) -> None:
-    """Any program can write a manifest, so a record that names no entry is refused."""
     notebook = tmp_path / "nb.py"
     notebook.write_text(NOTEBOOK)
-    outside = tmp_path / "model.bin"
-    outside.write_bytes(b"o" * 8)
-    cache_dir = make_cache_dir(tmp_path)
-    write_manifest(cache_dir, notebook, {"3f9c": {"../..": {"model"}}})
-
-    result = CliRunner().invoke(main, ["cache", "clean", str(notebook), "-y"])
-
-    assert result.exit_code == 0, result.output
-    assert "Deleted" not in result.output
-    assert outside.read_bytes() == b"o" * 8
-    assert cache_dir.is_dir()
-
-
-def test_clean_takes_the_answer_from_the_global_yes(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    from marimo._config.settings import GLOBAL_SETTINGS
-
-    # The setting outlives the invocation that set it, so monkeypatch restores it.
-    monkeypatch.setattr(GLOBAL_SETTINGS, "YES", False)
-    cache_dir = make_cache_dir(tmp_path)
-    write_entry(cache_dir, "train", "C_ab12ab12ab12ab12ab12ab.pickle", 10)
-
-    result = CliRunner().invoke(main, ["-y", "cache", "clean", str(tmp_path)])
-
-    assert result.exit_code == 0, result.output
-    assert "Deleted 1 entry, freeing 10 B." in result.output
-    assert not (cache_dir / "train").exists()
-
-
-def test_clean_notebook_without_a_manifest(tmp_path: Path) -> None:
-    notebook = tmp_path / "nb.py"
-    notebook.write_text(NOTEBOOK)
-    cache_dir = make_cache_dir(tmp_path)
-    write_entry(cache_dir, "train", "C_ab12ab12ab12ab12ab12ab.pickle", 10)
-
-    result = CliRunner().invoke(main, ["cache", "clean", str(notebook)])
-
-    assert result.exit_code == 0, result.output
-    assert result.output.splitlines() == [
-        str(cache_dir),
-        f"Nothing is tracked for {notebook}.",
-    ]
-    assert (cache_dir / "train" / "C_ab12ab12ab12ab12ab12ab.pickle").exists()
-
-
-def test_clean_notebook_without_a_cache_directory(tmp_path: Path) -> None:
-    notebook = tmp_path / "nb.py"
-    notebook.write_text(NOTEBOOK)
-
-    result = CliRunner().invoke(main, ["cache", "clean", str(notebook)])
-
-    assert result.exit_code == 0, result.output
     cache_dir = tmp_path / "__marimo__" / "cache"
+    if has_cache_dir:
+        make_cache_dir(tmp_path)
+        write_entry(cache_dir, "train", f"C_{H}.pickle", 10)
+
+    result = CliRunner().invoke(main, ["cache", "clean", str(notebook)])
+
+    assert result.exit_code == 0, result.output
+    shown = (
+        str(cache_dir) if has_cache_dir else f"{cache_dir} (does not exist)"
+    )
     assert result.output.splitlines() == [
-        f"{cache_dir} (does not exist)",
+        shown,
         f"Nothing is tracked for {notebook}.",
     ]
-    assert not cache_dir.exists()
+    assert (cache_dir / "train" / f"C_{H}.pickle").exists() is has_cache_dir
 
 
-def test_clean_notebook_refuses_an_unreadable_manifest(tmp_path: Path) -> None:
-    from marimo._save.manifest import manifest_name
+def _corrupt_manifest(cache_dir: Path, manifest: Path) -> Callable[[], None]:
+    del cache_dir
+    manifest.write_bytes(b"{not json")
+    return lambda: None
 
-    notebook = tmp_path / "nb.py"
-    notebook.write_text(NOTEBOOK)
-    cache_dir = make_cache_dir(tmp_path)
-    write_entry(cache_dir, "train", "C_ab12ab12ab12ab12ab12ab.pickle", 10)
-    (cache_dir / manifest_name(notebook)).write_bytes(b"{not json")
 
-    result = CliRunner().invoke(main, ["cache", "clean", str(notebook), "-y"])
+def _seal_block(cache_dir: Path, manifest: Path) -> Callable[[], None]:
+    del manifest
+    if sys.platform == "win32":
+        pytest.skip("chmod does not restrict reads on Windows")
+    block = cache_dir / "train"
+    block.chmod(0o000)
+    if os.access(block, os.R_OK):
+        block.chmod(0o755)
+        pytest.skip("chmod does not restrict reads for this user")
+    return lambda: block.chmod(0o755)
+
+
+def _link_block(cache_dir: Path, manifest: Path) -> Callable[[], None]:
+    del manifest
+    if sys.platform == "win32":
+        pytest.skip("symlinks need a privileged user")
+    block = cache_dir / "train"
+    elsewhere = cache_dir.parent / "elsewhere"
+    shutil.move(block, elsewhere)
+    block.symlink_to(elsewhere, target_is_directory=True)
+    return lambda: None
+
+
+@pytest.mark.parametrize(
+    ("damage", "flag", "message"),
+    [
+        (_corrupt_manifest, "-y", "Manifest is not JSON"),
+        (_corrupt_manifest, "--dry-run", "Manifest is not JSON"),
+        (_seal_block, "-y", "Permission denied"),
+        (_link_block, "-y", "is a symbolic link"),
+    ],
+    ids=["corrupt", "corrupt-dry-run", "unlistable", "linked"],
+)
+def test_clean_notebook_refuses_when_the_plan_fails(
+    tmp_path: Path,
+    damage: Callable[[Path, Path], Callable[[], None]],
+    flag: str,
+    message: str,
+) -> None:
+    """The command stops before changing anything if the manifest cannot be
+    read, or if a block cannot be listed or is a link."""
+    notebook, cache_dir, manifest = tracked_notebook(tmp_path)
+    repair = damage(cache_dir, manifest)
+    before = manifest.read_bytes()
+
+    try:
+        result = CliRunner().invoke(
+            main, ["cache", "clean", str(notebook), flag]
+        )
+    finally:
+        repair()
 
     assert result.exit_code == 1
-    assert "Manifest is not JSON" in result.stderr
-    assert (cache_dir / "train" / "C_ab12ab12ab12ab12ab12ab.pickle").exists()
+    assert message in result.stderr
+    assert manifest.read_bytes() == before
+    assert (cache_dir / "train" / f"C_{H}.jsonl").exists()
 
 
 async def test_clean_notebook_deletes_what_a_session_recorded(
@@ -645,94 +657,16 @@ async def test_clean_notebook_deletes_what_a_session_recorded(
     assert read_manifest(manifest) == {}
 
 
-def test_clean_rejects_a_file_that_is_not_a_notebook(tmp_path: Path) -> None:
-    script = tmp_path / "script.py"
-    script.write_text("print('hello')\n")
-
-    result = CliRunner().invoke(main, ["cache", "clean", str(script), "-y"])
-
-    assert result.exit_code == 1
-    assert "is not a marimo notebook" in result.stderr
-
-
-def test_clean_notebook_matches_a_starred_name(tmp_path: Path) -> None:
-    """`mo.persistent_cache("*train*")` writes to `train`. The name given
-    to the command is matched the same way."""
-    notebook = tmp_path / "nb.py"
-    notebook.write_text(NOTEBOOK)
-    cache_dir = make_cache_dir(tmp_path)
-    write_lazy_entry(cache_dir, "train", "ab12ab12ab12ab12ab12ab")
-    manifest = write_manifest(
-        cache_dir, notebook, {"3f9c": {"train": {"C_ab12ab12ab12ab12ab12ab"}}}
-    )
-
-    result = CliRunner().invoke(
-        main, ["cache", "clean", str(notebook), "*train*", "-y"]
-    )
-
-    assert result.exit_code == 0, result.output
-    assert "Deleted 1 entry, freeing 30 B." in result.output
-    assert read_manifest(manifest) == {}
-
-
-@pytest.mark.skipif(
-    sys.platform == "win32", reason="chmod does not restrict writes on Windows"
-)
-def test_clean_notebook_keeps_the_record_of_an_entry_that_stayed(
-    tmp_path: Path,
-) -> None:
-    """An entry that cannot be removed can still be read and deleted another
-    time, so its record stays and the command exits with a failure."""
-    notebook = tmp_path / "nb.py"
-    notebook.write_text(NOTEBOOK)
-    cache_dir = make_cache_dir(tmp_path)
-    write_lazy_entry(cache_dir, "train", "ab12ab12ab12ab12ab12ab")
-    manifest = write_manifest(
-        cache_dir, notebook, {"3f9c": {"train": {"C_ab12ab12ab12ab12ab12ab"}}}
-    )
-    block = cache_dir / "train"
-    block.chmod(0o555)
-    if os.getuid() == 0:
-        block.chmod(0o755)
-        pytest.skip("chmod does not restrict writes for this user")
-
-    try:
-        result = CliRunner().invoke(
-            main, ["cache", "clean", str(notebook), "-y"]
-        )
-    finally:
-        block.chmod(0o755)
-
-    assert result.exit_code == 1
-    assert "1 path was not cleaned" in result.stderr
-    assert (block / "C_ab12ab12ab12ab12ab12ab.jsonl").exists()
-    assert read_manifest(manifest) == {
-        "3f9c": {"train": {"C_ab12ab12ab12ab12ab12ab"}}
-    }
-
-
 def test_clean_notebook_keeps_the_record_of_a_marker_that_cannot_be_removed(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """The blobs go first. A marker that then cannot be removed keeps its
     record, and the command reports the failure."""
-    notebook = tmp_path / "nb.py"
-    notebook.write_text(NOTEBOOK)
-    cache_dir = make_cache_dir(tmp_path)
-    write_lazy_entry(cache_dir, "train", "ab12ab12ab12ab12ab12ab")
-    marker = cache_dir / "train" / "E_ab12ab12ab12ab12ab12ab.jsonl"
+    notebook, cache_dir, manifest = tracked_notebook(tmp_path)
+    marker = cache_dir / "train" / f"E_{H}.jsonl"
     marker.write_bytes(b"shared")
-    manifest = write_manifest(
-        cache_dir,
-        notebook,
-        {
-            "3f9c": {
-                "train": {
-                    "C_ab12ab12ab12ab12ab12ab",
-                    "E_ab12ab12ab12ab12ab12ab",
-                }
-            }
-        },
+    write_manifest(
+        cache_dir, notebook, {"3f9c": {"train": {f"C_{H}", f"E_{H}"}}}
     )
     unlink = Path.unlink
 
@@ -748,14 +682,10 @@ def test_clean_notebook_keeps_the_record_of_a_marker_that_cannot_be_removed(
     assert result.exit_code == 1
     assert "Deleted 1 entry, freeing 30 B." in result.output
     assert "1 path was not cleaned" in result.stderr
-    assert not (
-        cache_dir / "train" / "C_ab12ab12ab12ab12ab12ab.jsonl"
-    ).exists()
-    assert not (cache_dir / "train" / "ab12ab12ab12ab12ab12ab").exists()
+    assert not (cache_dir / "train" / f"C_{H}.jsonl").exists()
+    assert not (cache_dir / "train" / H).exists()
     assert marker.read_bytes() == b"shared"
-    assert read_manifest(manifest) == {
-        "3f9c": {"train": {"E_ab12ab12ab12ab12ab12ab"}}
-    }
+    assert read_manifest(manifest) == {"3f9c": {"train": {f"E_{H}"}}}
 
 
 def test_clean_notebook_can_retry_an_entry_whose_blobs_stayed(
@@ -763,13 +693,7 @@ def test_clean_notebook_can_retry_an_entry_whose_blobs_stayed(
 ) -> None:
     """A failed blob removal leaves the marker and the record in place, so
     the next clean deletes the entry."""
-    notebook = tmp_path / "nb.py"
-    notebook.write_text(NOTEBOOK)
-    cache_dir = make_cache_dir(tmp_path)
-    write_lazy_entry(cache_dir, "train", "ab12ab12ab12ab12ab12ab")
-    manifest = write_manifest(
-        cache_dir, notebook, {"3f9c": {"train": {"C_ab12ab12ab12ab12ab12ab"}}}
-    )
+    notebook, cache_dir, manifest = tracked_notebook(tmp_path)
     with monkeypatch.context() as patch:
         patch.setattr(shutil, "rmtree", lambda *_args, **_kwargs: None)
         result = CliRunner().invoke(
@@ -779,91 +703,22 @@ def test_clean_notebook_can_retry_an_entry_whose_blobs_stayed(
     assert result.exit_code == 1
     assert "Deleted 0 entries, freeing 0 B." in result.output
     assert "1 path was not cleaned" in result.stderr
-    assert (cache_dir / "train" / "C_ab12ab12ab12ab12ab12ab.jsonl").exists()
-    assert read_manifest(manifest) == {
-        "3f9c": {"train": {"C_ab12ab12ab12ab12ab12ab"}}
-    }
+    assert (cache_dir / "train" / f"C_{H}.jsonl").exists()
+    assert read_manifest(manifest) == RECORD
 
     result = CliRunner().invoke(main, ["cache", "clean", str(notebook), "-y"])
 
     assert result.exit_code == 0, result.output
     assert "Deleted 1 entry, freeing 30 B." in result.output
-    assert not (cache_dir / "train" / "ab12ab12ab12ab12ab12ab").exists()
+    assert not (cache_dir / "train" / H).exists()
     assert read_manifest(manifest) == {}
-
-
-def snapshot(root: Path) -> dict[str, bytes]:
-    """Every file under `root` with its bytes, to prove nothing changed."""
-    return {
-        str(path.relative_to(root)): path.read_bytes()
-        for path in sorted(root.rglob("*"))
-        if path.is_file()
-    }
-
-
-def test_clean_dry_run_reports_what_the_real_run_frees(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    first = make_cache_dir(tmp_path, "a")
-    write_lazy_entry(first, "train", "ab12ab12ab12ab12ab12ab")
-    write_entry(first, "evaluate", "E_9f009f009f009f009f009f.pickle", 5)
-    second = make_cache_dir(tmp_path, "b")
-    write_entry(second, "train", "C_77e077e077e077e077e077.pickle", 1024)
-    before = snapshot(tmp_path)
-
-    # A terminal answers no, but a dry run asks nothing.
-    dry = CliRunner().invoke(
-        main,
-        ["cache", "clean", "-r", str(tmp_path), "--dry-run"],
-        input=interactive(monkeypatch, "n\n"),
-    )
-
-    assert dry.exit_code == 0, dry.output
-    assert dry.output.splitlines() == [
-        f"{first}\t35 B\t2 entries",
-        f"{second}\t1.0 KB\t1 entry",
-        "Total\t1.0 KB\t3 entries",
-        "Would delete 3 entries, freeing 1.0 KB.",
-    ]
-    assert snapshot(tmp_path) == before
-
-    real = CliRunner().invoke(
-        main, ["cache", "clean", "-r", str(tmp_path), "-y"]
-    )
-
-    assert real.exit_code == 0, real.output
-    assert real.output.splitlines() == [
-        line.replace("Would delete", "Deleted")
-        for line in dry.output.splitlines()
-    ]
-    assert not (first / "train").exists()
-    assert not (second / "train").exists()
-
-
-def test_clean_dry_run_accepts_yes(tmp_path: Path) -> None:
-    cache_dir = make_cache_dir(tmp_path)
-    write_entry(cache_dir, "train", "C_ab12ab12ab12ab12ab12ab.pickle", 10)
-
-    result = CliRunner().invoke(
-        main, ["cache", "clean", str(tmp_path), "-y", "--dry-run"]
-    )
-
-    assert result.exit_code == 0, result.output
-    assert "Would delete 1 entry, freeing 10 B." in result.output
-    assert (cache_dir / "train" / "C_ab12ab12ab12ab12ab12ab.pickle").exists()
 
 
 def test_clean_notebook_dry_run_leaves_the_manifest_alone(
     tmp_path: Path,
 ) -> None:
-    notebook = tmp_path / "nb.py"
-    notebook.write_text(NOTEBOOK)
-    cache_dir = make_cache_dir(tmp_path)
-    write_lazy_entry(cache_dir, "train", "ab12ab12ab12ab12ab12ab")
-    write_lazy_entry(cache_dir, "train", "77e077e077e077e077e077")
-    manifest = write_manifest(
-        cache_dir, notebook, {"3f9c": {"train": {"C_ab12ab12ab12ab12ab12ab"}}}
-    )
+    notebook, cache_dir, manifest = tracked_notebook(tmp_path)
+    write_lazy_entry(cache_dir, "train", H2)
     before = snapshot(tmp_path)
 
     dry = CliRunner().invoke(
@@ -886,101 +741,8 @@ def test_clean_notebook_dry_run_leaves_the_manifest_alone(
         line.replace("Would delete", "Deleted")
         for line in dry.output.splitlines()
     ]
-    assert (cache_dir / "train" / "C_77e077e077e077e077e077.jsonl").exists()
+    assert (cache_dir / "train" / f"C_{H2}.jsonl").exists()
     assert read_manifest(manifest) == {}
-
-
-def test_clean_notebook_dry_run_keeps_a_record_no_file_answers_to(
-    tmp_path: Path,
-) -> None:
-    notebook = tmp_path / "nb.py"
-    notebook.write_text(NOTEBOOK)
-    cache_dir = make_cache_dir(tmp_path)
-    manifest = write_manifest(
-        cache_dir, notebook, {"3f9c": {"train": {"C_gonegonegonegonegonego"}}}
-    )
-
-    result = CliRunner().invoke(
-        main, ["cache", "clean", str(notebook), "--dry-run"]
-    )
-
-    assert result.exit_code == 0, result.output
-    assert result.output.splitlines() == [
-        f"{cache_dir}\t0 B\t0 entries",
-        "Nothing to delete.",
-        "Would forget 1 entry the cache no longer holds.",
-    ]
-    assert read_manifest(manifest) == {
-        "3f9c": {"train": {"C_gonegonegonegonegonego"}}
-    }
-
-
-def test_clean_notebook_dry_run_refuses_an_unreadable_manifest(
-    tmp_path: Path,
-) -> None:
-    from marimo._save.manifest import manifest_name
-
-    notebook = tmp_path / "nb.py"
-    notebook.write_text(NOTEBOOK)
-    cache_dir = make_cache_dir(tmp_path)
-    (cache_dir / manifest_name(notebook)).write_bytes(b"{not json")
-
-    result = CliRunner().invoke(
-        main, ["cache", "clean", str(notebook), "--dry-run"]
-    )
-
-    assert result.exit_code == 1
-    assert "Manifest is not JSON" in result.stderr
-
-
-def test_clean_leaves_a_block_of_orphaned_blobs_to_prune(
-    tmp_path: Path,
-) -> None:
-    """Blobs that no entry names are left for `marimo cache prune`."""
-    cache_dir = make_cache_dir(tmp_path)
-    orphan = cache_dir / "train" / "ab12ab12ab12ab12ab12ab" / "return.pickle"
-    orphan.parent.mkdir(parents=True)
-    orphan.write_bytes(b"y" * 20)
-    write_entry(cache_dir, "evaluate", "E_9f009f009f009f009f009f.pickle", 5)
-
-    result = CliRunner().invoke(main, ["cache", "clean", str(tmp_path), "-y"])
-
-    assert result.exit_code == 0, result.output
-    assert "Deleted 1 entry, freeing 5 B." in result.output
-    assert orphan.read_bytes() == b"y" * 20
-
-
-@pytest.mark.skipif(
-    sys.platform == "win32", reason="chmod does not restrict reads on Windows"
-)
-def test_clean_notebook_refuses_a_block_it_cannot_list(tmp_path: Path) -> None:
-    """Records are forgotten only for entries known to be gone."""
-    notebook = tmp_path / "nb.py"
-    notebook.write_text(NOTEBOOK)
-    cache_dir = make_cache_dir(tmp_path)
-    write_entry(cache_dir, "train", "C_ab12ab12ab12ab12ab12ab.pickle", 10)
-    manifest = write_manifest(
-        cache_dir, notebook, {"3f9c": {"train": {"C_ab12ab12ab12ab12ab12ab"}}}
-    )
-    block = cache_dir / "train"
-    block.chmod(0o000)
-    if os.access(block, os.R_OK):
-        block.chmod(0o755)
-        pytest.skip("chmod does not restrict reads for this user")
-
-    try:
-        result = CliRunner().invoke(
-            main, ["cache", "clean", str(notebook), "-y"]
-        )
-    finally:
-        block.chmod(0o755)
-
-    assert result.exit_code == 1
-    assert "Permission denied" in result.stderr
-    assert (block / "C_ab12ab12ab12ab12ab12ab.pickle").exists()
-    assert read_manifest(manifest) == {
-        "3f9c": {"train": {"C_ab12ab12ab12ab12ab12ab"}}
-    }
 
 
 @pytest.mark.skipif(
@@ -988,71 +750,18 @@ def test_clean_notebook_refuses_a_block_it_cannot_list(tmp_path: Path) -> None:
 )
 def test_clean_refuses_a_linked_cache_dir(tmp_path: Path) -> None:
     other = make_cache_dir(tmp_path, "other")
-    write_entry(other, "train", "C_ab12ab12ab12ab12ab12ab.pickle", 10)
+    write_entry(other, "train", f"C_{H}.pickle", 10)
     project = tmp_path / "project"
     (project / "__marimo__").mkdir(parents=True)
-    link = project / "__marimo__" / "cache"
-    link.symlink_to(other, target_is_directory=True)
+    (project / "__marimo__" / "cache").symlink_to(
+        other, target_is_directory=True
+    )
 
     result = CliRunner().invoke(main, ["cache", "clean", str(project), "-y"])
 
     assert result.exit_code == 1
     assert "is a symbolic link" in result.stderr
-    assert (other / "train" / "C_ab12ab12ab12ab12ab12ab.pickle").exists()
-
-    result = CliRunner().invoke(main, ["cache", "clean", str(link), "-y"])
-
-    assert result.exit_code == 0, result.output
-    assert "Deleted 1 entry, freeing 10 B." in result.output
-    assert not (other / "train").exists()
-
-
-def test_clean_notebook_deletes_an_entry_with_another_suffix(
-    tmp_path: Path,
-) -> None:
-    """A loader from an entry point writes its own suffix. Its records
-    are as good as any."""
-    notebook = tmp_path / "nb.py"
-    notebook.write_text(NOTEBOOK)
-    cache_dir = make_cache_dir(tmp_path)
-    write_entry(cache_dir, "train", "C_ab12ab12ab12ab12ab12ab.custom", 10)
-    manifest = write_manifest(
-        cache_dir, notebook, {"3f9c": {"train": {"C_ab12ab12ab12ab12ab12ab"}}}
-    )
-
-    result = CliRunner().invoke(main, ["cache", "clean", str(notebook), "-y"])
-
-    assert result.exit_code == 0, result.output
-    assert "Deleted 1 entry, freeing 10 B." in result.output
-    assert not (
-        cache_dir / "train" / "C_ab12ab12ab12ab12ab12ab.custom"
-    ).exists()
-    assert read_manifest(manifest) == {}
-
-
-@pytest.mark.skipif(
-    sys.platform == "win32", reason="symlinks need a privileged user"
-)
-def test_clean_notebook_refuses_a_linked_block(tmp_path: Path) -> None:
-    notebook = tmp_path / "nb.py"
-    notebook.write_text(NOTEBOOK)
-    cache_dir = make_cache_dir(tmp_path)
-    elsewhere = tmp_path / "elsewhere" / "train"
-    elsewhere.mkdir(parents=True)
-    (elsewhere / "C_ab12ab12ab12ab12ab12ab.pickle").write_bytes(b"x" * 10)
-    (cache_dir / "train").symlink_to(elsewhere, target_is_directory=True)
-    manifest = write_manifest(
-        cache_dir, notebook, {"3f9c": {"train": {"C_ab12ab12ab12ab12ab12ab"}}}
-    )
-
-    result = CliRunner().invoke(main, ["cache", "clean", str(notebook), "-y"])
-
-    assert result.exit_code == 1
-    assert "is a symbolic link" in result.stderr
-    assert (elsewhere / "C_ab12ab12ab12ab12ab12ab.pickle").exists()
-    assert read_manifest(manifest) == {
-        "3f9c": {"train": {"C_ab12ab12ab12ab12ab12ab"}}
-    }
+    assert (other / "train" / f"C_{H}.pickle").exists()
 
 
 @pytest.mark.skipif(
@@ -1064,9 +773,9 @@ def test_clean_exits_nonzero_when_a_block_cannot_be_listed(
     """The entries that the command deleted are reported, and the failure
     is reported too, in the exit code."""
     cache_dir = make_cache_dir(tmp_path)
-    write_entry(cache_dir, "train", "C_ab12ab12ab12ab12ab12ab.pickle", 5)
+    write_entry(cache_dir, "train", f"C_{H}.pickle", 5)
     sealed = cache_dir / "evaluate"
-    write_entry(cache_dir, "evaluate", "E_ab12ab12ab12ab12ab12ab.pickle", 7)
+    write_entry(cache_dir, "evaluate", f"E_{H}.pickle", 7)
     sealed.chmod(0o000)
     if os.access(sealed, os.R_OK):
         sealed.chmod(0o755)
@@ -1083,4 +792,4 @@ def test_clean_exits_nonzero_when_a_block_cannot_be_listed(
     assert "Deleted 1 entry, freeing 5 B." in result.output
     assert "1 path was not cleaned" in result.stderr
     assert not (cache_dir / "train").exists()
-    assert (sealed / "E_ab12ab12ab12ab12ab12ab.pickle").exists()
+    assert (sealed / f"E_{H}.pickle").exists()

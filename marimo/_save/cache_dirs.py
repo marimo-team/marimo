@@ -61,9 +61,6 @@ def _shortest_digest_chars() -> int:
 # directory of blobs.
 _DIGEST = re.compile(rf"[A-Za-z0-9_-]{{{_shortest_digest_chars()},}}")
 
-# Loaders write entries with these suffixes, and a neighboring file with any
-# other suffix belongs to something else.
-_ENTRY_SUFFIXES = frozenset({"json", "jsonl", "pickle"})
 
 # An entry is written to a sibling and renamed into place, so a reader never
 # meets a half-written value. A process killed between the two steps leaves
@@ -173,13 +170,6 @@ class CacheDirStats:
             total_bytes=self.total_bytes + other.total_bytes,
             entries=self.entries + other.entries,
             failures=self.failures + other.failures,
-        )
-
-    def __sub__(self, other: CacheDirStats) -> CacheDirStats:
-        return CacheDirStats(
-            total_bytes=max(self.total_bytes - other.total_bytes, 0),
-            entries=max(self.entries - other.entries, 0),
-            failures=max(self.failures - other.failures, 0),
         )
 
 
@@ -319,7 +309,7 @@ def delete_cache_entries(
     freed = CacheDirStats()
     for block, keys in by_block.items():
         freed += _delete_block_entries(
-            cache_dir / block, keys, dry_run=dry_run, trusted=True
+            cache_dir / block, keys, dry_run=dry_run
         )
     return freed
 
@@ -403,12 +393,9 @@ def entry_bytes(entry: Path) -> int:
 
 
 def _delete_block_entries(
-    block: Path, keys: set[str], *, dry_run: bool, trusted: bool = False
+    block: Path, keys: set[str], *, dry_run: bool
 ) -> CacheDirStats:
     """Delete the entries that `keys` name from one block directory.
-
-    With `trusted`, the keys come from a manifest, and a file matches them
-    regardless of its suffix.
 
     Raises:
         CacheDirError: If `block` is a symbolic link.
@@ -419,7 +406,7 @@ def _delete_block_entries(
     if not block.is_dir():
         return CacheDirStats()
 
-    index = _index_block(block, trusted=keys if trusted else ())
+    index = _index_block(block)
     by_hash: dict[str, list[str]] = {}
     for key in sorted(keys):
         by_hash.setdefault(entry_hash(key), []).append(key)
@@ -503,12 +490,8 @@ class _BlockIndex:
     dir_names: frozenset[str]
 
 
-def _index_block(block: Path, trusted: Collection[str] = ()) -> _BlockIndex:
+def _index_block(block: Path) -> _BlockIndex:
     """List `block` once, sorting what it holds by entry key and hash.
-
-    A file whose key is in `trusted` is an entry regardless of its suffix,
-    so a loader that uses a custom suffix is cleaned from its manifest
-    records.
 
     Raises:
         OSError: If `block` cannot be listed.
@@ -521,9 +504,6 @@ def _index_block(block: Path, trusted: Collection[str] = ()) -> _BlockIndex:
             dir_names.add(child.name)
             continue
         key = entry_key(child.name)
-        if key is None and trusted and not is_partial_write(child.name):
-            stem, dot, _suffix = child.name.partition(".")
-            key = stem if dot and stem in trusted else None
         if key is None:
             continue
         files_by_key.setdefault(key, []).append(child)
@@ -567,14 +547,9 @@ def missing_entries(
         if not block_dir.is_dir():
             missing.update((block, key) for key in keys)
             continue
-        files = _index_block(block_dir, trusted=keys).files_by_key
+        files = _index_block(block_dir).files_by_key
         missing.update((block, key) for key in keys if not files.get(key))
     return missing
-
-
-def holds_entry(cache_dir: Path, block: str, key: str) -> bool:
-    """Whether a file on disk still answers to the entry `(block, key)`."""
-    return (block, key) not in missing_entries(cache_dir, [(block, key)])
 
 
 def _entry_keys(block: Path) -> set[str]:
@@ -594,12 +569,12 @@ def _entry_keys(block: Path) -> set[str]:
 def entry_key(name: str) -> str | None:
     """Return the key of the entry file `name`, or `None` for any other file.
 
-    An entry is a key, a dot, and the suffix of the loader that wrote it. A
-    write in flight, and the sibling a killed write leaves behind, are not
-    entries.
+    An entry is a key, a dot, and a suffix. The rules for the key are strict
+    enough that a loader can choose any suffix. An unfinished write is not
+    an entry, and neither is the sibling that a killed write leaves behind.
     """
-    key, dot, suffix = name.partition(".")
-    if dot and suffix in _ENTRY_SUFFIXES and is_entry_key(key):
+    key, dot, _suffix = name.partition(".")
+    if dot and not is_partial_write(name) and is_entry_key(key):
         return key
     return None
 

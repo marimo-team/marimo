@@ -19,6 +19,9 @@ if TYPE_CHECKING:
 
     import pytest
 
+H = "ab12ab12ab12ab12ab12ab"
+H2 = "77e077e077e077e077e077"
+
 
 def write_manifest(
     cache_dir: Path, notebook: Path, nodes: dict[str, dict[str, set[str]]]
@@ -30,52 +33,63 @@ def write_manifest(
     return path
 
 
-def test_apply_keeps_records_written_after_the_plan(tmp_path: Path) -> None:
+def read_manifest(path: Path) -> dict[str, dict[str, set[str]]]:
+    return CacheManifest.from_bytes(path.read_bytes()).nodes
+
+
+def tracked_entry(tmp_path: Path) -> tuple[Path, Path, Path, Path]:
+    """A 10 B inline entry in block `train`, recorded for a notebook.
+
+    Returns the notebook, the cache directory, the entry, and the manifest.
+    """
     notebook = tmp_path / "nb.py"
     cache_dir = tmp_path / "__marimo__" / "cache"
     block = cache_dir / "train"
     block.mkdir(parents=True)
-    (block / "C_ab12ab12ab12ab12ab12ab.pickle").write_bytes(b"x" * 10)
+    entry = block / f"C_{H}.pickle"
+    entry.write_bytes(b"x" * 10)
     manifest = write_manifest(
-        cache_dir, notebook, {"3f9c": {"train": {"C_ab12ab12ab12ab12ab12ab"}}}
+        cache_dir, notebook, {"3f9c": {"train": {f"C_{H}"}}}
     )
-    plan = plan_clean(cache_dir, notebook)
+    return notebook, cache_dir, entry, manifest
 
-    # A kernel records a new entry between planning and deletion.
-    (block / "C_77e077e077e077e077e077.pickle").write_bytes(b"x" * 10)
+
+def test_plan_clean_selects_the_named_blocks(tmp_path: Path) -> None:
+    """A name is matched as the loader writes it, stars dropped."""
+    notebook, cache_dir, _entry, _manifest = tracked_entry(tmp_path)
     write_manifest(
         cache_dir,
         notebook,
-        {
-            "3f9c": {
-                "train": {
-                    "C_ab12ab12ab12ab12ab12ab",
-                    "C_77e077e077e077e077e077",
-                }
-            }
-        },
+        {"3f9c": {"train": {f"C_{H}"}, "evaluate": {f"C_{H2}"}}},
+    )
+
+    plan = plan_clean(cache_dir, notebook, ["*train*"])
+
+    assert plan.entries == {("train", f"C_{H}")}
+    assert plan.freed == CacheDirStats(total_bytes=10, entries=1)
+
+
+def test_apply_keeps_records_written_after_the_plan(tmp_path: Path) -> None:
+    notebook, cache_dir, entry, manifest = tracked_entry(tmp_path)
+    plan = plan_clean(cache_dir, notebook)
+
+    # A kernel records a new entry between planning and deletion.
+    (entry.parent / f"C_{H2}.pickle").write_bytes(b"x" * 10)
+    write_manifest(
+        cache_dir, notebook, {"3f9c": {"train": {f"C_{H}", f"C_{H2}"}}}
     )
     freed = apply_clean(plan)
 
     assert freed == CacheDirStats(total_bytes=10, entries=1)
-    assert not (block / "C_ab12ab12ab12ab12ab12ab.pickle").exists()
-    assert (block / "C_77e077e077e077e077e077.pickle").exists()
-    assert CacheManifest.from_bytes(manifest.read_bytes()).nodes == {
-        "3f9c": {"train": {"C_77e077e077e077e077e077"}}
-    }
+    assert not entry.exists()
+    assert (entry.parent / f"C_{H2}.pickle").exists()
+    assert read_manifest(manifest) == {"3f9c": {"train": {f"C_{H2}"}}}
 
 
 def test_apply_does_not_recreate_a_manifest_removed_meanwhile(
     tmp_path: Path,
 ) -> None:
-    notebook = tmp_path / "nb.py"
-    cache_dir = tmp_path / "__marimo__" / "cache"
-    block = cache_dir / "train"
-    block.mkdir(parents=True)
-    (block / "C_ab12ab12ab12ab12ab12ab.pickle").write_bytes(b"x" * 10)
-    manifest = write_manifest(
-        cache_dir, notebook, {"3f9c": {"train": {"C_ab12ab12ab12ab12ab12ab"}}}
-    )
+    notebook, cache_dir, _entry, manifest = tracked_entry(tmp_path)
     plan = plan_clean(cache_dir, notebook)
 
     manifest.unlink()
@@ -90,15 +104,7 @@ def test_apply_keeps_the_record_of_an_entry_recreated_meanwhile(
 ) -> None:
     """A kernel can write the same entry again between the deletion and
     the manifest rewrite. The record then still names a file."""
-    notebook = tmp_path / "nb.py"
-    cache_dir = tmp_path / "__marimo__" / "cache"
-    block = cache_dir / "train"
-    block.mkdir(parents=True)
-    entry = block / "C_ab12ab12ab12ab12ab12ab.pickle"
-    entry.write_bytes(b"x" * 10)
-    manifest = write_manifest(
-        cache_dir, notebook, {"3f9c": {"train": {"C_ab12ab12ab12ab12ab12ab"}}}
-    )
+    notebook, cache_dir, entry, manifest = tracked_entry(tmp_path)
     plan = plan_clean(cache_dir, notebook)
     delete = clean_module.delete_cache_entries
 
@@ -116,26 +122,19 @@ def test_apply_keeps_the_record_of_an_entry_recreated_meanwhile(
 
     assert freed == CacheDirStats(total_bytes=10, entries=1)
     assert entry.read_bytes() == b"x" * 10
-    assert CacheManifest.from_bytes(manifest.read_bytes()).nodes == {
-        "3f9c": {"train": {"C_ab12ab12ab12ab12ab12ab"}}
-    }
+    assert read_manifest(manifest) == {"3f9c": {"train": {f"C_{H}"}}}
 
 
 def test_apply_block_clean_leaves_entries_written_after_the_plan(
     tmp_path: Path,
 ) -> None:
-    cache_dir = tmp_path / "__marimo__" / "cache"
-    block = cache_dir / "train"
-    block.mkdir(parents=True)
-    (block / "C_ab12ab12ab12ab12ab12ab.pickle").write_bytes(b"x" * 10)
+    _notebook, cache_dir, entry, _manifest = tracked_entry(tmp_path)
     plan = plan_block_clean(cache_dir)
 
     # A kernel writes while the prompt waits for an answer.
-    (block / "C_77e077e077e077e077e077.pickle").write_bytes(b"x" * 10)
+    (entry.parent / f"C_{H2}.pickle").write_bytes(b"x" * 10)
     freed = apply_block_clean(plan)
 
     assert plan.freed == freed == CacheDirStats(total_bytes=10, entries=1)
-    assert not (block / "C_ab12ab12ab12ab12ab12ab.pickle").exists()
-    assert (
-        block / "C_77e077e077e077e077e077.pickle"
-    ).read_bytes() == b"x" * 10
+    assert not entry.exists()
+    assert (entry.parent / f"C_{H2}.pickle").read_bytes() == b"x" * 10

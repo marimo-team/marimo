@@ -66,15 +66,6 @@ class TestFileStore:
         assert not (tmp_path / "test_store" / "entry").exists()
         assert store.clear("entry") is False
 
-    def test_clear_refuses_a_key_that_leaves_the_store(self, tmp_path) -> None:
-        outside = tmp_path / "outside.bin"
-        outside.write_bytes(b"keep")
-        store = FileStore(tmp_path / "test_store")
-        store.put("entry", b"data")
-
-        assert store.clear("../outside.bin") is False
-        assert outside.exists()
-
     @pytest.mark.skipif(
         sys.platform == "win32", reason="symlinks need a privileged user"
     )

@@ -21,7 +21,6 @@ from marimo._save.cache_dirs import (
     delete_cache_entries,
     directory_cache_dir,
     entry_bytes,
-    holds_entry,
     missing_entries,
     notebook_cache_dir,
     partial_write_name,
@@ -454,15 +453,6 @@ def test_cache_dir_stats_add() -> None:
     assert left + right == CacheDirStats(total_bytes=15, entries=3)
 
 
-def test_cache_dir_stats_subtract() -> None:
-    left = CacheDirStats(total_bytes=10, entries=3)
-    right = CacheDirStats(total_bytes=4, entries=1)
-
-    assert left - right == CacheDirStats(total_bytes=6, entries=2)
-    # A negative size has no meaning, so the difference is clamped at zero.
-    assert right - left == CacheDirStats()
-
-
 def test_entry_bytes(tmp_path: Path) -> None:
     cache_dir = make_cache_dir(tmp_path)
     populate_cache_dir(cache_dir)
@@ -476,13 +466,16 @@ def test_entry_bytes(tmp_path: Path) -> None:
     assert entry_bytes(cache_dir / "never-written") == 0
 
 
+H = "ab12ab12ab12ab12ab12ab"
+H2 = "77e077e077e077e077e077"
+H3 = "9f009f009f009f009f009f"
+GONE = "gonegonegonegonegonego"
+
+
 def populate_lazy_block(cache_dir: Path, block_name: str = "train") -> Path:
-    """Write a block in the shape a lazily written value leaves behind."""
+    """Write a block with two lazy entries, 30 B and 50 B with their blobs."""
     block = cache_dir / block_name
-    for entry_hash, size in (
-        ("ab12ab12ab12ab12ab12ab", 20),
-        ("77e077e077e077e077e077", 40),
-    ):
+    for entry_hash, size in ((H, 20), (H2, 40)):
         blobs = block / entry_hash
         blobs.mkdir(parents=True)
         (blobs / "return.pickle").write_bytes(b"y" * size)
@@ -490,10 +483,11 @@ def populate_lazy_block(cache_dir: Path, block_name: str = "train") -> Path:
     return block
 
 
-def test_block_dir_name_replaces_what_a_path_cannot_hold() -> None:
+def test_block_dir_name_spells_a_name_as_a_loader_does() -> None:
     assert block_dir_name("train") == "train"
     assert block_dir_name("train/v2") == "train_v2"
     assert block_dir_name("épochs") == "_pochs"
+    assert block_dir_name("*train*") == "train"
 
 
 def test_clean_removes_every_block_and_its_blobs(tmp_path: Path) -> None:
@@ -508,50 +502,50 @@ def test_clean_removes_every_block_and_its_blobs(tmp_path: Path) -> None:
     assert [path.name for path in cache_dir.iterdir()] == [".nb-export.json"]
 
 
-def test_clean_keeps_the_blocks_it_was_not_named(tmp_path: Path) -> None:
-    cache_dir = make_cache_dir(tmp_path)
-    populate_cache_dir(cache_dir)
-    populate_lazy_block(cache_dir, "evaluate")
-
-    freed = clean_cache_dir(cache_dir, ["evaluate"])
-
-    assert freed == CacheDirStats(total_bytes=80, entries=2)
-    assert not (cache_dir / "evaluate").exists()
-    assert cache_dir_stats(cache_dir) == CacheDirStats(
-        total_bytes=105, entries=2
-    )
-
-
-def test_clean_matches_a_name_as_it_is_written_to_disk(
-    tmp_path: Path,
+@pytest.mark.parametrize(
+    ("names", "removed"),
+    [
+        (["evaluate"], "evaluate"),
+        (["train/v2"], "train_v2"),
+        (["*train*"], "train"),
+        (["absent"], None),
+    ],
+)
+def test_clean_selects_blocks_by_name(
+    tmp_path: Path, names: list[str], removed: str | None
 ) -> None:
+    """A name is matched as the loader writes it to disk."""
     cache_dir = make_cache_dir(tmp_path)
-    populate_lazy_block(cache_dir, "train_v2")
+    for block in ("train", "train_v2", "evaluate"):
+        populate_lazy_block(cache_dir, block)
 
-    assert clean_cache_dir(cache_dir, ["train/v2"]) == CacheDirStats(
-        total_bytes=80, entries=2
-    )
-    assert not (cache_dir / "train_v2").exists()
+    freed = clean_cache_dir(cache_dir, names)
 
-
-def test_clean_of_a_name_no_block_answers_to(tmp_path: Path) -> None:
-    cache_dir = make_cache_dir(tmp_path)
-    populate_cache_dir(cache_dir)
-
-    assert clean_cache_dir(cache_dir, ["absent"]) == CacheDirStats()
+    if removed is None:
+        assert freed == CacheDirStats()
+    else:
+        assert freed == CacheDirStats(total_bytes=80, entries=2)
+        assert not (cache_dir / removed).exists()
     assert cache_dir_stats(cache_dir) == CacheDirStats(
-        total_bytes=105, entries=2
+        total_bytes=240 - freed.total_bytes, entries=6 - freed.entries
     )
 
 
-def test_clean_dry_run_reports_without_deleting(tmp_path: Path) -> None:
+def test_dry_run_reports_what_the_real_run_frees(tmp_path: Path) -> None:
     cache_dir = make_cache_dir(tmp_path)
     populate_cache_dir(cache_dir)
+    other = make_cache_dir(tmp_path, "other")
+    populate_cache_dir(other)
+    entries = [("train", f"C_{H}"), ("train", f"E_{H3}")]
 
     planned = clean_cache_dir(cache_dir, dry_run=True)
+    planned_entries = delete_cache_entries(other, entries, dry_run=True)
 
-    assert planned == CacheDirStats(total_bytes=100, entries=2)
+    assert (
+        planned == planned_entries == CacheDirStats(total_bytes=100, entries=2)
+    )
     assert clean_cache_dir(cache_dir) == planned
+    assert delete_cache_entries(other, entries) == planned_entries
 
 
 def test_clean_of_a_directory_that_does_not_exist(tmp_path: Path) -> None:
@@ -570,7 +564,7 @@ def test_clean_reports_only_what_a_block_gave_up(
     marker of an entry whose blobs stayed is kept for another try."""
     cache_dir = make_cache_dir(tmp_path)
     block = populate_lazy_block(cache_dir)
-    kept = block / "ab12ab12ab12ab12ab12ab"
+    kept = block / H
     kept.chmod(0o555)
     if os.access(kept, os.W_OK):  # running as root
         kept.chmod(0o755)
@@ -585,66 +579,50 @@ def test_clean_reports_only_what_a_block_gave_up(
 
     assert freed == CacheDirStats(total_bytes=50, entries=1, failures=1)
     assert (kept / "return.pickle").read_bytes() == b"y" * 20
-    assert (block / "C_ab12ab12ab12ab12ab12ab.jsonl").exists()
-    assert not (block / "C_77e077e077e077e077e077.jsonl").exists()
+    assert (block / f"C_{H}.jsonl").exists()
+    assert not (block / f"C_{H2}.jsonl").exists()
     assert str(block) in caplog.text
 
 
-def test_delete_entries_takes_the_blobs_of_the_entry(tmp_path: Path) -> None:
+def test_delete_entries_takes_only_the_entries_named(tmp_path: Path) -> None:
     cache_dir = make_cache_dir(tmp_path)
     block = populate_lazy_block(cache_dir)
 
     freed = delete_cache_entries(
-        cache_dir, [("train", "C_ab12ab12ab12ab12ab12ab")]
+        cache_dir,
+        [("train", f"C_{H}"), ("train", f"C_{GONE}"), ("absent", f"C_{H}")],
     )
 
     assert freed == CacheDirStats(total_bytes=30, entries=1)
-    assert not (block / "ab12ab12ab12ab12ab12ab").exists()
     assert sorted(path.name for path in block.iterdir()) == [
-        "77e077e077e077e077e077",
-        "C_77e077e077e077e077e077.jsonl",
+        H2,
+        f"C_{H2}.jsonl",
     ]
 
 
-def test_delete_entries_keeps_blobs_another_entry_can_read(
-    tmp_path: Path,
-) -> None:
-    # One value serves both entries, and only one of them is deleted.
+def test_delete_entries_frees_shared_blobs_once(tmp_path: Path) -> None:
+    """Two entries can read from the same directory of blobs. The blobs go
+    with the last of those entries and are counted once."""
     cache_dir = make_cache_dir(tmp_path)
     block = populate_lazy_block(cache_dir)
-    (block / "E_ab12ab12ab12ab12ab12ab.jsonl").write_bytes(b"x" * 10)
+    (block / f"E_{H}.jsonl").write_bytes(b"x" * 10)
+    both = [("train", f"C_{H}"), ("train", f"E_{H}")]
 
-    freed = delete_cache_entries(
-        cache_dir, [("train", "C_ab12ab12ab12ab12ab12ab")]
-    )
+    planned = delete_cache_entries(cache_dir, both, dry_run=True)
+    first = delete_cache_entries(cache_dir, both[:1])
 
-    assert freed == CacheDirStats(total_bytes=10, entries=1)
-    assert (
-        block / "ab12ab12ab12ab12ab12ab" / "return.pickle"
-    ).read_bytes() == b"y" * 20
-    assert (block / "E_ab12ab12ab12ab12ab12ab.jsonl").read_bytes() == b"x" * 10
-    assert not (block / "C_ab12ab12ab12ab12ab12ab.jsonl").exists()
-
-
-def test_delete_entries_takes_shared_blobs_once(tmp_path: Path) -> None:
-    # Both entries reading one value are deleted, so the value goes with them.
-    cache_dir = make_cache_dir(tmp_path)
-    block = populate_lazy_block(cache_dir)
-    (block / "E_ab12ab12ab12ab12ab12ab.jsonl").write_bytes(b"x" * 10)
-    entries = [
-        ("train", "C_ab12ab12ab12ab12ab12ab"),
-        ("train", "E_ab12ab12ab12ab12ab12ab"),
-    ]
-
-    planned = delete_cache_entries(cache_dir, entries, dry_run=True)
-
-    # Blobs the two entries share are freed once, whether counted or removed.
     assert planned == CacheDirStats(total_bytes=40, entries=2)
-    assert delete_cache_entries(cache_dir, entries) == planned
-    assert not (block / "ab12ab12ab12ab12ab12ab").exists()
+    assert first == CacheDirStats(total_bytes=10, entries=1)
+    assert (block / H / "return.pickle").read_bytes() == b"y" * 20
+    assert (block / f"E_{H}.jsonl").exists()
+
+    second = delete_cache_entries(cache_dir, both[1:])
+
+    assert first + second == planned
+    assert not (block / H).exists()
 
 
-def test_delete_entries_refuses_a_name_that_leaves_the_cache(
+def test_delete_entries_refuses_a_name_no_cache_write_spells(
     tmp_path: Path,
     caplog: pytest.LogCaptureFixture,
     monkeypatch: pytest.MonkeyPatch,
@@ -653,7 +631,10 @@ def test_delete_entries_refuses_a_name_that_leaves_the_cache(
     outside = tmp_path / "model.bin"
     outside.write_bytes(b"o" * 40)
     cache_dir = make_cache_dir(tmp_path)
-    populate_lazy_block(cache_dir)
+    block = populate_lazy_block(cache_dir)
+    (block / f"Z_{H}.pickle").write_bytes(b"z" * 5)
+    (block / "utils").mkdir()
+    (block / "utils" / "__init__.py").write_text("")
     monkeypatch.setattr(_loggers.marimo_logger(), "propagate", True)
 
     with caplog.at_level(logging.WARNING):
@@ -667,16 +648,19 @@ def test_delete_entries_refuses_a_name_that_leaves_the_cache(
                 # can name a parent, however its hash reads.
                 ("train", "C_.."),
                 # Without a type prefix a key names a directory of blobs.
-                ("train", "ab12ab12ab12ab12ab12ab"),
+                ("train", H),
+                # Not a cache type.
+                ("train", f"Z_{H}"),
+                # Five characters is not a length stripped base64 can have.
+                ("train", "C_utils"),
             ],
         )
 
     assert freed == CacheDirStats()
     assert outside.read_bytes() == b"o" * 40
-    assert cache_dir.is_dir()
-    assert cache_dir_stats(cache_dir) == CacheDirStats(
-        total_bytes=80, entries=2
-    )
+    assert (block / f"Z_{H}.pickle").exists()
+    assert (block / "utils" / "__init__.py").exists()
+    assert (block / f"C_{H}.jsonl").exists()
     assert "no cache entry can be named that" in caplog.text
 
 
@@ -687,165 +671,43 @@ def test_delete_entries_removes_blobs_before_the_marker(
     record, so the blobs go first."""
     cache_dir = make_cache_dir(tmp_path)
     block = populate_lazy_block(cache_dir)
-    (block / "E_ab12ab12ab12ab12ab12ab.jsonl").write_bytes(b"shared")
+    (block / f"E_{H}.jsonl").write_bytes(b"shared")
     markers_present: list[bool] = []
     remove_tree = shutil.rmtree
 
     def spy(directory: Path, *, ignore_errors: bool = False) -> None:
         markers_present.append(
-            (block / "C_ab12ab12ab12ab12ab12ab.jsonl").exists()
-            and (block / "E_ab12ab12ab12ab12ab12ab.jsonl").exists()
+            (block / f"C_{H}.jsonl").exists()
+            and (block / f"E_{H}.jsonl").exists()
         )
         remove_tree(directory, ignore_errors=ignore_errors)
 
     monkeypatch.setattr(shutil, "rmtree", spy)
     freed = delete_cache_entries(
-        cache_dir,
-        [
-            ("train", "C_ab12ab12ab12ab12ab12ab"),
-            ("train", "E_ab12ab12ab12ab12ab12ab"),
-        ],
+        cache_dir, [("train", f"C_{H}"), ("train", f"E_{H}")]
     )
 
     assert markers_present == [True]
     assert freed == CacheDirStats(total_bytes=36, entries=2)
-    assert not (block / "ab12ab12ab12ab12ab12ab").exists()
-    assert not (block / "C_ab12ab12ab12ab12ab12ab.jsonl").exists()
-    assert not (block / "E_ab12ab12ab12ab12ab12ab.jsonl").exists()
+    assert not (block / H).exists()
+    assert not (block / f"C_{H}.jsonl").exists()
+    assert not (block / f"E_{H}.jsonl").exists()
 
 
-def test_delete_entries_leaves_a_write_in_flight(tmp_path: Path) -> None:
+def test_delete_entries_leaves_a_write_that_is_not_finished(
+    tmp_path: Path,
+) -> None:
     """A writer publishes by renaming a sibling into place. Deleting the
     sibling breaks that rename, so it is never matched as an entry."""
     cache_dir = make_cache_dir(tmp_path)
     block = populate_lazy_block(cache_dir)
-    in_flight = block / partial_write_name("C_ab12ab12ab12ab12ab12ab.jsonl")
-    in_flight.write_bytes(b"p" * 8)
+    sibling = block / partial_write_name(f"C_{H}.jsonl")
+    sibling.write_bytes(b"p" * 8)
 
-    freed = delete_cache_entries(
-        cache_dir, [("train", "C_ab12ab12ab12ab12ab12ab")]
-    )
+    freed = delete_cache_entries(cache_dir, [("train", f"C_{H}")])
 
     assert freed == CacheDirStats(total_bytes=30, entries=1)
-    assert in_flight.read_bytes() == b"p" * 8
-
-
-def test_delete_entries_of_an_entry_the_cache_no_longer_holds(
-    tmp_path: Path,
-) -> None:
-    cache_dir = make_cache_dir(tmp_path)
-    populate_lazy_block(cache_dir)
-
-    freed = delete_cache_entries(
-        cache_dir,
-        [
-            ("train", "C_0000000000000000000000"),
-            ("absent", "C_ab12ab12ab12ab12ab12ab"),
-        ],
-    )
-
-    assert freed == CacheDirStats()
-    assert cache_dir_stats(cache_dir) == CacheDirStats(
-        total_bytes=80, entries=2
-    )
-
-
-def test_delete_entries_dry_run_reports_without_deleting(
-    tmp_path: Path,
-) -> None:
-    cache_dir = make_cache_dir(tmp_path)
-    populate_cache_dir(cache_dir)
-    entries = [
-        ("train", "C_ab12ab12ab12ab12ab12ab"),
-        ("train", "E_9f009f009f009f009f009f"),
-    ]
-
-    planned = delete_cache_entries(cache_dir, entries, dry_run=True)
-
-    assert planned == CacheDirStats(total_bytes=100, entries=2)
-    assert delete_cache_entries(cache_dir, entries) == planned
-
-
-def test_delete_entries_leaves_everything_it_was_not_given(
-    tmp_path: Path,
-) -> None:
-    cache_dir = make_cache_dir(tmp_path)
-    populate_cache_dir(cache_dir)
-
-    delete_cache_entries(cache_dir, [("train", "E_9f009f009f009f009f009f")])
-
-    assert cache_dir_stats(cache_dir) == CacheDirStats(
-        total_bytes=85, entries=1
-    )
-    assert (cache_dir / ".nb-export.json").exists()
-
-
-def test_clean_cache_dir_skips_a_directory_that_holds_no_entries(
-    tmp_path: Path,
-    caplog: pytest.LogCaptureFixture,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """A `save_path` can point the cache at a project. Its directories are
-    not blocks, and deleting them takes the project with them."""
-    project = tmp_path
-    (project / ".git").mkdir()
-    (project / ".git" / "HEAD").write_text("ref: refs/heads/main\n")
-    (project / "src").mkdir()
-    (project / "src" / "app.py").write_text("print('hi')\n")
-    (project / "empty").mkdir()
-    block = populate_lazy_block(project)
-    monkeypatch.setattr(_loggers.marimo_logger(), "propagate", True)
-
-    with caplog.at_level(logging.WARNING):
-        freed = clean_cache_dir(project)
-
-    assert freed.entries == 2
-    assert not block.exists()
-    assert (project / ".git" / "HEAD").exists()
-    assert (project / "src" / "app.py").exists()
-    # An empty directory holds nothing to free, and is not a block either.
-    assert (project / "empty").is_dir()
-    assert "holds no cache entries" in caplog.text
-
-
-@pytest.mark.skipif(
-    sys.platform == "win32", reason="chmod does not restrict writes on Windows"
-)
-def test_delete_entries_keeps_the_marker_when_its_blobs_stay(
-    tmp_path: Path,
-    caplog: pytest.LogCaptureFixture,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """A directory of blobs that cannot be removed keeps its marker, so the
-    entry stays on record and a later clean can try again."""
-    cache_dir = make_cache_dir(tmp_path)
-    block = populate_lazy_block(cache_dir)
-    block.chmod(0o555)
-    if (
-        os.access(block / "C_ab12ab12ab12ab12ab12ab.jsonl", os.W_OK)
-        and os.getuid() == 0
-    ):
-        block.chmod(0o755)
-        pytest.skip("chmod does not restrict writes for this user")
-    monkeypatch.setattr(_loggers.marimo_logger(), "propagate", True)
-
-    try:
-        with caplog.at_level(logging.WARNING):
-            freed = delete_cache_entries(
-                cache_dir, [("train", "C_ab12ab12ab12ab12ab12ab")]
-            )
-    finally:
-        block.chmod(0o755)
-
-    assert freed.entries == 0
-    assert freed.failures == 1
-    assert (block / "C_ab12ab12ab12ab12ab12ab.jsonl").exists()
-    assert (block / "ab12ab12ab12ab12ab12ab").is_dir()
-    assert "Could not remove" in caplog.text
-
-
-def test_block_dir_name_drops_the_stars_a_loader_drops() -> None:
-    assert block_dir_name("*train*") == "train"
+    assert sibling.read_bytes() == b"p" * 8
 
 
 def test_clean_keeps_what_is_not_a_cache_entry(
@@ -853,111 +715,78 @@ def test_clean_keeps_what_is_not_a_cache_entry(
     caplog: pytest.LogCaptureFixture,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """A store pointed at a project puts entries beside source files."""
-    src = tmp_path / "src"
+    """A `save_path` can point the cache at a project, and only entries and
+    their blobs go. A file is an entry only if it has a cache-type prefix
+    and a digest at least as long as the shortest digest that a writer
+    produces, so project files that look like keys stay, and so do
+    directories with names that look like their hashes. A directory that
+    holds no entry is not a block."""
+    project = tmp_path
+    (project / ".git").mkdir()
+    (project / ".git" / "HEAD").write_text("ref: refs/heads/main\n")
+    (project / "empty").mkdir()
+    orphan = project / "stale" / H / "return.pickle"
+    orphan.parent.mkdir(parents=True)
+    orphan.write_bytes(b"y" * 20)
+    src = project / "src"
     src.mkdir()
-    (src / "app.py").write_text("print('hi')\n")
-    (src / "C_utils.py").write_text("def f(): ...\n")
-    (src / "utils").mkdir()
-    (src / "utils" / "__init__.py").write_text("")
-    (src / "C_ab12ab12ab12ab12ab12ab.jsonl").write_bytes(b"x" * 10)
-    (src / "ab12ab12ab12ab12ab12ab").mkdir()
-    (src / "ab12ab12ab12ab12ab12ab" / "return.pickle").write_bytes(b"y" * 20)
+    for name, text in (
+        ("app.py", "print('hi')\n"),
+        ("C_utils.py", "def f(): ...\n"),
+        ("utils/__init__.py", ""),
+        ("P_data.json", "{}"),
+        ("data/rows.csv", "1,2\n"),
+        ("records.json", "{}"),
+        ("records/a.json", "{}"),
+    ):
+        (src / name).parent.mkdir(exist_ok=True)
+        (src / name).write_text(text)
+    (src / f"C_{H2}.pickle").write_bytes(b"x" * 10)
+    block = populate_lazy_block(project)
     monkeypatch.setattr(_loggers.marimo_logger(), "propagate", True)
 
     with caplog.at_level(logging.WARNING):
-        planned = clean_cache_dir(tmp_path, dry_run=True)
-        freed = clean_cache_dir(tmp_path)
+        planned = clean_cache_dir(project, dry_run=True)
+        freed = clean_cache_dir(project)
 
-    assert planned == freed == CacheDirStats(total_bytes=30, entries=1)
-    assert not (src / "C_ab12ab12ab12ab12ab12ab.jsonl").exists()
-    assert not (src / "ab12ab12ab12ab12ab12ab").exists()
-    assert (src / "app.py").exists()
-    assert (src / "C_utils.py").exists()
-    assert (src / "utils" / "__init__.py").exists()
-    assert f"Kept {src}" in caplog.text
-
-
-def test_delete_entries_refuses_a_key_no_cache_write_spells(
-    tmp_path: Path,
-) -> None:
-    cache_dir = make_cache_dir(tmp_path)
-    block = populate_lazy_block(cache_dir)
-    (block / "Z_ab12ab12ab12ab12ab12ab.pickle").write_bytes(b"z" * 5)
-    (block / "utils").mkdir()
-    (block / "utils" / "__init__.py").write_text("")
-
-    freed = delete_cache_entries(
-        cache_dir,
-        [
-            # Not a cache type.
-            ("train", "Z_ab12ab12ab12ab12ab12ab"),
-            # Five characters is not a length stripped base64 can have.
-            ("train", "C_utils"),
-        ],
-    )
-
-    assert freed == CacheDirStats()
-    assert (block / "Z_ab12ab12ab12ab12ab12ab.pickle").exists()
-    assert (block / "utils" / "__init__.py").exists()
-
-
-def test_clean_keeps_files_spelled_like_entries(
-    tmp_path: Path,
-    caplog: pytest.LogCaptureFixture,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """A file is an entry only with a loader suffix and a digest at least as
-    long as the shortest one that a writer produces. Project files that read
-    like keys therefore stay, and so do the directories named like their
-    hashes."""
-    src = tmp_path / "src"
-    src.mkdir()
-    (src / "C_ab12ab12ab12ab12ab12ab.py").write_text("data = 1\n")
-    (src / "ab12ab12ab12ab12ab12ab").mkdir()
-    (src / "ab12ab12ab12ab12ab12ab" / "rows.csv").write_text("1,2\n")
-    (src / "P_data.json").write_text("{}")
-    (src / "data").mkdir()
-    (src / "data" / "rows.csv").write_text("1,2\n")
-    (src / "records.json").write_text("{}")
-    (src / "records").mkdir()
-    (src / "records" / "a.json").write_text("{}")
-    (src / "C_77e077e077e077e077e077.pickle").write_bytes(b"x" * 10)
-    monkeypatch.setattr(_loggers.marimo_logger(), "propagate", True)
-
-    with caplog.at_level(logging.WARNING):
-        freed = clean_cache_dir(tmp_path)
-
-    assert freed == CacheDirStats(total_bytes=10, entries=1)
-    assert not (src / "C_77e077e077e077e077e077.pickle").exists()
-    assert (src / "C_ab12ab12ab12ab12ab12ab.py").exists()
-    assert (src / "ab12ab12ab12ab12ab12ab" / "rows.csv").exists()
-    assert (src / "P_data.json").exists()
-    assert (src / "data" / "rows.csv").exists()
-    assert (src / "records.json").exists()
-    assert (src / "records" / "a.json").exists()
+    assert planned == freed == CacheDirStats(total_bytes=90, entries=3)
+    assert not block.exists()
+    assert not (src / f"C_{H2}.pickle").exists()
+    assert {path.name for path in src.rglob("*") if path.is_file()} == {
+        "C_utils.py",
+        "__init__.py",
+        "a.json",
+        "app.py",
+        "P_data.json",
+        "records.json",
+        "rows.csv",
+    }
+    assert (project / ".git" / "HEAD").exists()
+    assert (project / "empty").is_dir()
+    assert orphan.read_bytes() == b"y" * 20
+    assert "holds no cache entries" in caplog.text
     assert f"Kept {src}" in caplog.text
 
 
 def test_clean_takes_entries_written_at_the_root(tmp_path: Path) -> None:
     """A cache named by stars alone writes its entries at the root."""
     cache_dir = make_cache_dir(tmp_path)
-    (cache_dir / "C_ab12ab12ab12ab12ab12ab.jsonl").write_bytes(b"x" * 10)
+    (cache_dir / f"C_{H}.jsonl").write_bytes(b"x" * 10)
     (cache_dir / ".nb-export.json").write_bytes(b"m" * 3)
     populate_lazy_block(cache_dir)
 
     assert clean_cache_dir(cache_dir, ["***"]) == CacheDirStats(
         total_bytes=10, entries=1
     )
-    assert not (cache_dir / "C_ab12ab12ab12ab12ab12ab.jsonl").exists()
+    assert not (cache_dir / f"C_{H}.jsonl").exists()
     assert (cache_dir / ".nb-export.json").exists()
-    assert (cache_dir / "train" / "C_ab12ab12ab12ab12ab12ab.jsonl").exists()
+    assert (cache_dir / "train" / f"C_{H}.jsonl").exists()
 
-    (cache_dir / "C_77e077e077e077e077e077.pickle").write_bytes(b"x" * 10)
+    (cache_dir / f"C_{H2}.pickle").write_bytes(b"x" * 10)
 
-    assert delete_cache_entries(
-        cache_dir, [("", "C_77e077e077e077e077e077")]
-    ) == CacheDirStats(total_bytes=10, entries=1)
+    assert delete_cache_entries(cache_dir, [("", f"C_{H2}")]) == CacheDirStats(
+        total_bytes=10, entries=1
+    )
     assert cache_dir.is_dir()
 
 
@@ -974,57 +803,77 @@ def test_delete_entries_keeps_blobs_a_new_marker_names(
 
     def index_then_publish(*args: object, **kwargs: object) -> object:
         index = index_block(*args, **kwargs)
-        (block / "E_ab12ab12ab12ab12ab12ab.jsonl").write_bytes(b"new")
+        (block / f"E_{H}.jsonl").write_bytes(b"new")
         return index
 
     monkeypatch.setattr(cache_dirs, "_index_block", index_then_publish)
-    freed = delete_cache_entries(
-        cache_dir, [("train", "C_ab12ab12ab12ab12ab12ab")]
-    )
+    freed = delete_cache_entries(cache_dir, [("train", f"C_{H}")])
 
     assert freed == CacheDirStats(total_bytes=10, entries=1)
-    assert not (block / "C_ab12ab12ab12ab12ab12ab.jsonl").exists()
-    assert (
-        block / "ab12ab12ab12ab12ab12ab" / "return.pickle"
-    ).read_bytes() == b"y" * 20
+    assert not (block / f"C_{H}.jsonl").exists()
+    assert (block / H / "return.pickle").read_bytes() == b"y" * 20
 
 
 @pytest.mark.skipif(
     sys.platform == "win32", reason="chmod does not restrict reads on Windows"
 )
-def test_delete_entries_reports_a_block_it_cannot_list(tmp_path: Path) -> None:
+def test_a_block_that_cannot_be_listed_is_a_failure(tmp_path: Path) -> None:
+    """A manifest clean stops at it. A directory clean reports it and
+    cleans the other blocks."""
     cache_dir = make_cache_dir(tmp_path)
-    block = populate_lazy_block(cache_dir)
-    block.chmod(0o000)
-    if os.access(block, os.R_OK):
-        block.chmod(0o755)
+    populate_lazy_block(cache_dir, "train")
+    sealed = populate_lazy_block(cache_dir, "evaluate")
+    sealed.chmod(0o000)
+    if os.access(sealed, os.R_OK):
+        sealed.chmod(0o755)
         pytest.skip("chmod does not restrict reads for this user")
 
     try:
         with pytest.raises(OSError):
-            delete_cache_entries(
-                cache_dir, [("train", "C_ab12ab12ab12ab12ab12ab")]
-            )
+            delete_cache_entries(cache_dir, [("evaluate", f"C_{H}")])
+        selection = select_blocks(cache_dir)
+        planned = delete_blocks(cache_dir, selection, dry_run=True)
+        freed = delete_blocks(cache_dir, selection)
     finally:
-        block.chmod(0o755)
+        sealed.chmod(0o755)
 
-    assert (block / "C_ab12ab12ab12ab12ab12ab.jsonl").exists()
+    assert selection[sealed] is None
+    assert (
+        planned
+        == freed
+        == CacheDirStats(total_bytes=80, entries=2, failures=1)
+    )
+    assert not (cache_dir / "train").exists()
+    assert (sealed / f"C_{H}.jsonl").exists()
 
 
 @pytest.mark.skipif(
     sys.platform == "win32", reason="symlinks need a privileged user"
 )
-def test_resolve_recursive_skips_a_linked_cache_dir(tmp_path: Path) -> None:
-    elsewhere = tmp_path / "elsewhere" / "__marimo__" / "cache"
-    elsewhere.mkdir(parents=True)
-    project = tmp_path / "project"
-    (project / "__marimo__").mkdir(parents=True)
-    (project / "__marimo__" / "cache").symlink_to(
-        elsewhere, target_is_directory=True
+def test_resolve_refuses_linked_cache_dirs_when_deleting(
+    tmp_path: Path,
+) -> None:
+    """The recursive search skips a link, and a deletion that resolves to
+    one is refused. A link that PATH names directly is allowed."""
+    other = make_cache_dir(tmp_path, "other")
+    linked_cache = tmp_path / "a"
+    (linked_cache / "__marimo__").mkdir(parents=True)
+    link = linked_cache / "__marimo__" / "cache"
+    link.symlink_to(other, target_is_directory=True)
+    notebook = linked_cache / "nb.py"
+    notebook.write_text(NOTEBOOK)
+    linked_marimo = tmp_path / "b"
+    linked_marimo.mkdir()
+    (linked_marimo / "__marimo__").symlink_to(
+        other.parent, target_is_directory=True
     )
-    own = make_cache_dir(project, "nested")
 
-    assert resolve_cache_dirs(project, recursive=True) == [own]
+    assert resolve_cache_dirs(tmp_path, recursive=True) == [other]
+    assert resolve_cache_dirs(linked_cache) == [link]
+    for path in (linked_cache, notebook, linked_marimo):
+        with pytest.raises(CacheDirError, match="symbolic link"):
+            resolve_cache_dirs(path, deleting=True)
+    assert resolve_cache_dirs(link, deleting=True) == [link]
 
 
 def test_delete_entries_keeps_a_directory_beside_an_inline_entry(
@@ -1034,91 +883,80 @@ def test_delete_entries_keeps_a_directory_beside_an_inline_entry(
     cache_dir = make_cache_dir(tmp_path)
     block = cache_dir / "train"
     block.mkdir()
-    (block / "P_ab12ab12ab12ab12ab12ab.pickle").write_bytes(b"x" * 10)
-    (block / "ab12ab12ab12ab12ab12ab").mkdir()
-    (block / "ab12ab12ab12ab12ab12ab" / "rows.csv").write_text("1,2\n")
+    (block / f"P_{H}.pickle").write_bytes(b"x" * 10)
+    (block / H).mkdir()
+    (block / H / "rows.csv").write_text("1,2\n")
 
-    freed = delete_cache_entries(
-        cache_dir, [("train", "P_ab12ab12ab12ab12ab12ab")]
-    )
+    freed = delete_cache_entries(cache_dir, [("train", f"P_{H}")])
 
     assert freed == CacheDirStats(total_bytes=10, entries=1)
-    assert not (block / "P_ab12ab12ab12ab12ab12ab.pickle").exists()
-    assert (block / "ab12ab12ab12ab12ab12ab" / "rows.csv").exists()
+    assert not (block / f"P_{H}.pickle").exists()
+    assert (block / H / "rows.csv").exists()
 
 
-def test_holds_entry_needs_a_file(tmp_path: Path) -> None:
-    """A directory of blobs without its marker is left to prune, so the
-    record of it is not kept."""
-    cache_dir = make_cache_dir(tmp_path)
-    block = populate_lazy_block(cache_dir)
-
-    assert holds_entry(cache_dir, "train", "C_ab12ab12ab12ab12ab12ab")
-
-    (block / "C_ab12ab12ab12ab12ab12ab.jsonl").unlink()
-
-    assert not holds_entry(cache_dir, "train", "C_ab12ab12ab12ab12ab12ab")
-    assert (block / "ab12ab12ab12ab12ab12ab" / "return.pickle").exists()
-
-
-def test_delete_entries_accepts_any_suffix_for_a_recorded_key(
-    tmp_path: Path,
+def test_missing_entries_lists_each_block_once(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """A loader that uses a custom suffix is cleaned from its records. The
-    directory clean has no records, so it leaves such files alone."""
+    """A record is missing when no file matches it. A directory of blobs
+    without its marker matches no record, so it is left for prune."""
+    from marimo._save import cache_dirs
+
+    cache_dir = make_cache_dir(tmp_path)
+    populate_lazy_block(cache_dir, "train")
+    stale = populate_lazy_block(cache_dir, "evaluate")
+    (stale / f"C_{H}.jsonl").unlink()
+    listings: list[Path] = []
+    index_block = cache_dirs._index_block
+
+    def count(block: Path, *args: object, **kwargs: object) -> object:
+        listings.append(block)
+        return index_block(block, *args, **kwargs)
+
+    monkeypatch.setattr(cache_dirs, "_index_block", count)
+    missing = missing_entries(
+        cache_dir,
+        [
+            ("train", f"C_{H}"),
+            ("train", f"C_{H2}"),
+            ("train", f"C_{GONE}"),
+            ("evaluate", f"C_{H}"),
+            ("evaluate", f"C_{H2}"),
+            ("absent", f"C_{H}"),
+            ("../..", f"C_{H}"),
+        ],
+    )
+
+    assert sorted(listings) == [cache_dir / "evaluate", cache_dir / "train"]
+    assert missing == {
+        ("train", f"C_{GONE}"),
+        ("evaluate", f"C_{H}"),
+        ("absent", f"C_{H}"),
+        ("../..", f"C_{H}"),
+    }
+    assert (stale / H / "return.pickle").exists()
+
+
+def test_clean_takes_an_entry_with_any_suffix(tmp_path: Path) -> None:
+    """A loader that uses a custom suffix is cleaned like any other, by the
+    directory clean and from its records alike."""
     cache_dir = make_cache_dir(tmp_path)
     block = cache_dir / "train"
     block.mkdir()
-    entry = block / "C_ab12ab12ab12ab12ab12ab.custom"
+    entry = block / f"C_{H}.custom"
     entry.write_bytes(b"x" * 10)
 
-    assert clean_cache_dir(cache_dir) == CacheDirStats()
-    assert entry.exists()
-
-    freed = delete_cache_entries(
-        cache_dir, [("train", "C_ab12ab12ab12ab12ab12ab")]
+    assert clean_cache_dir(cache_dir) == CacheDirStats(
+        total_bytes=10, entries=1
     )
-
-    assert freed == CacheDirStats(total_bytes=10, entries=1)
     assert not entry.exists()
 
+    block.mkdir()
+    entry.write_bytes(b"x" * 10)
 
-@pytest.mark.skipif(
-    sys.platform == "win32", reason="symlinks need a privileged user"
-)
-def test_resolve_refuses_a_linked_cache_dir_when_deleting(
-    tmp_path: Path,
-) -> None:
-    other = make_cache_dir(tmp_path, "other")
-    project = tmp_path / "project"
-    (project / "__marimo__").mkdir(parents=True)
-    link = project / "__marimo__" / "cache"
-    link.symlink_to(other, target_is_directory=True)
-    notebook = project / "nb.py"
-    notebook.write_text(NOTEBOOK)
-
-    assert resolve_cache_dirs(project) == [link]
-    with pytest.raises(CacheDirError, match="symbolic link"):
-        resolve_cache_dirs(project, deleting=True)
-    with pytest.raises(CacheDirError, match="symbolic link"):
-        resolve_cache_dirs(notebook, deleting=True)
-    # A link that `path` names itself is allowed.
-    assert resolve_cache_dirs(link, deleting=True) == [link]
-
-
-@pytest.mark.skipif(
-    sys.platform == "win32", reason="symlinks need a privileged user"
-)
-def test_resolve_refuses_a_linked_marimo_dir_when_deleting(
-    tmp_path: Path,
-) -> None:
-    other = make_cache_dir(tmp_path, "other")
-    project = tmp_path / "project"
-    project.mkdir()
-    (project / "__marimo__").symlink_to(other.parent, target_is_directory=True)
-
-    with pytest.raises(CacheDirError, match="symbolic link"):
-        resolve_cache_dirs(project, deleting=True)
+    assert delete_cache_entries(cache_dir, [("train", f"C_{H}")]) == (
+        CacheDirStats(total_bytes=10, entries=1)
+    )
+    assert not entry.exists()
 
 
 @pytest.mark.skipif(
@@ -1134,79 +972,8 @@ def test_delete_entries_refuses_a_linked_block(tmp_path: Path) -> None:
     )
 
     with pytest.raises(CacheDirError, match="symbolic link"):
-        delete_cache_entries(
-            cache_dir, [("train", "C_ab12ab12ab12ab12ab12ab")]
-        )
+        delete_cache_entries(cache_dir, [("train", f"C_{H}")])
     with pytest.raises(CacheDirError, match="symbolic link"):
-        missing_entries(cache_dir, [("train", "C_ab12ab12ab12ab12ab12ab")])
+        missing_entries(cache_dir, [("train", f"C_{H}")])
 
-    assert (elsewhere / "train" / "C_ab12ab12ab12ab12ab12ab.jsonl").exists()
-
-
-def test_missing_entries_lists_each_block_once(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    from marimo._save import cache_dirs
-
-    cache_dir = make_cache_dir(tmp_path)
-    populate_lazy_block(cache_dir, "train")
-    populate_lazy_block(cache_dir, "evaluate")
-    listings: list[Path] = []
-    index_block = cache_dirs._index_block
-
-    def count(block: Path, *args: object, **kwargs: object) -> object:
-        listings.append(block)
-        return index_block(block, *args, **kwargs)
-
-    monkeypatch.setattr(cache_dirs, "_index_block", count)
-    missing = missing_entries(
-        cache_dir,
-        [
-            ("train", "C_ab12ab12ab12ab12ab12ab"),
-            ("train", "C_77e077e077e077e077e077"),
-            ("train", "C_gonegonegonegonegonego"),
-            ("evaluate", "C_ab12ab12ab12ab12ab12ab"),
-            ("evaluate", "C_gonegonegonegonegonego"),
-            ("absent", "C_ab12ab12ab12ab12ab12ab"),
-            ("../..", "C_ab12ab12ab12ab12ab12ab"),
-        ],
-    )
-
-    assert sorted(listings) == [cache_dir / "evaluate", cache_dir / "train"]
-    assert missing == {
-        ("train", "C_gonegonegonegonegonego"),
-        ("evaluate", "C_gonegonegonegonegonego"),
-        ("absent", "C_ab12ab12ab12ab12ab12ab"),
-        ("../..", "C_ab12ab12ab12ab12ab12ab"),
-    }
-
-
-@pytest.mark.skipif(
-    sys.platform == "win32", reason="chmod does not restrict reads on Windows"
-)
-def test_select_blocks_reports_a_block_it_cannot_list(tmp_path: Path) -> None:
-    """A block that cannot be listed is a failure, and the others are
-    still cleaned."""
-    cache_dir = make_cache_dir(tmp_path)
-    populate_lazy_block(cache_dir, "train")
-    sealed = populate_lazy_block(cache_dir, "evaluate")
-    sealed.chmod(0o000)
-    if os.access(sealed, os.R_OK):
-        sealed.chmod(0o755)
-        pytest.skip("chmod does not restrict reads for this user")
-
-    try:
-        selection = select_blocks(cache_dir)
-        planned = delete_blocks(cache_dir, selection, dry_run=True)
-        freed = delete_blocks(cache_dir, selection)
-    finally:
-        sealed.chmod(0o755)
-
-    assert selection[sealed] is None
-    assert (
-        planned
-        == freed
-        == CacheDirStats(total_bytes=80, entries=2, failures=1)
-    )
-    assert not (cache_dir / "train").exists()
-    assert (sealed / "C_ab12ab12ab12ab12ab12ab.jsonl").exists()
+    assert (elsewhere / "train" / f"C_{H}.jsonl").exists()
