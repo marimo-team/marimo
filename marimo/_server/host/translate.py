@@ -54,6 +54,11 @@ class RunTranslator:
         self._error: protocol.Error | None = None
         self._executions: dict[str, _Execution] = {}
 
+    @property
+    def started(self) -> bool:
+        """Whether the kernel has planned an execution for this run."""
+        return bool(self._executions)
+
     def feed(self, notification: NotificationMessage) -> list[be.Message]:
         """Translate an attempt's lifecycle and output by its kernel identity."""
         if isinstance(notification, InterruptedNotification):

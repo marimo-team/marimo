@@ -639,6 +639,19 @@ class StopKernelCommand(Command):
     """
 
 
+# TODO(MO-8007): Fold into Backend.interrupt.
+class CancelRunCommand(Command):
+    """Cancel a run that is still waiting in the control queue.
+
+    The control loop applies it to the run it names before handling that
+    run, and the kernel then completes the run `interrupted` without
+    executing it. A cancellation that arrives after its run has started
+    does nothing.
+    """
+
+    run_id: str
+
+
 class CodeCompletionCommand(Command):
     """Request code completion suggestions.
 
@@ -1010,6 +1023,7 @@ NotebookCommand = (
     | ExecuteStaleCellsCommand
     | RenameNotebookCommand
     | StopKernelCommand
+    | CancelRunCommand
 )
 """Commands whose subject is the whole notebook, issued by its owner.
 

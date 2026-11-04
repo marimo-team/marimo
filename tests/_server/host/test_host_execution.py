@@ -312,6 +312,84 @@ async def test_runs_accepted_while_busy_start_in_order(
     [
         (
             "import marimo\napp = marimo.App()\n"
+            "@app.cell\ndef _():\n    import time\n    time.sleep(0.5)\n"
+            "    slow = 1\n    return (slow,)\n"
+            "@app.cell\ndef _():\n    quick = 2\n    return (quick,)\n"
+        )
+    ],
+    indirect=True,
+)
+async def test_interrupting_a_queued_run_cancels_it_before_it_starts(
+    live_host: tuple[Starlette, str, Response],
+) -> None:
+    app, notebook_id, events = live_host
+    notebook = await app.state.host_context.bridge.host.notebook(notebook_id)
+    slow, quick = notebook.document
+    runs = f"/notebooks/{notebook_id}/runtime/runs"
+
+    def target(cell: object) -> bytes:
+        return json.dumps(
+            {"cells": [{"id": cell.id, "code_hash": cell.code_hash}]}  # type: ignore[attr-defined]
+        ).encode()
+
+    first = await finished(
+        app, "POST", runs, headers=key("first"), body=target(slow)
+    )
+    queued = await finished(
+        app, "POST", runs, headers=key("queued"), body=target(quick)
+    )
+    assert (first.status, queued.status) == (202, 202)
+    first_id, queued_id = first.json()["id"], queued.json()["id"]
+
+    cancelled = await finished(
+        app, "DELETE", f"{runs}/{queued_id}", headers=key("cancel")
+    )
+    assert cancelled.status == 202, cancelled.body
+
+    def final(stream: Response, run_id: str) -> str | None:
+        return next(
+            (
+                r["data"]["run"]["outcome"]
+                for r in reversed(stream.records)
+                if r.get("data", {}).get("run", {}).get("id") == run_id
+                and r["data"]["run"]["status"] == "completed"
+            ),
+            None,
+        )
+
+    await wait_for(
+        events,
+        lambda stream: (
+            final(stream, first_id) is not None
+            and final(stream, queued_id) is not None
+        ),
+    )
+    assert final(events, first_id) == "succeeded"
+    assert final(events, queued_id) == "interrupted"
+    assert not any(
+        r.get("data", {}).get("execution", {}).get("run_id") == queued_id
+        for r in events.records
+    )
+
+    checked = await finished(
+        app,
+        "POST",
+        runs,
+        headers=key("check"),
+        body=json.dumps({"code": "assert 'quick' not in globals()"}).encode(),
+    )
+    assert checked.status == 202
+    await wait_for(
+        events, lambda stream: final(stream, checked.json()["id"]) is not None
+    )
+    assert final(events, checked.json()["id"]) == "succeeded"
+
+
+@pytest.mark.parametrize(
+    "notebook_source",
+    [
+        (
+            "import marimo\napp = marimo.App()\n"
             "@app.cell\ndef _():\n    answer = input('prompt')\n    return (answer,)\n"
         )
     ],

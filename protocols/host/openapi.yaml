@@ -602,8 +602,8 @@ paths:
         carries its executions with the outcome `interrupted` and the
         run with status `completed` and outcome `interrupted` once the
         interruption has taken effect. Queued executions end `interrupted` and
-        the running one is interrupted. A host may answer `conflict`
-        for a run that has not started. Once the run is completed, the host
+        the running one is interrupted. A run that has not started completes
+        `interrupted` without executing. Once the run is completed, the host
         answers `conflict`. A host that lists `runtime.run` supports this route.
       parameters:
         - $ref: '#/components/parameters/NotebookId'

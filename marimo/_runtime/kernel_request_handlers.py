@@ -24,6 +24,7 @@ from marimo._messaging.notification import (
 from marimo._messaging.notification_utils import broadcast_notification
 from marimo._plugins.ui._impl.anywidget.init import WIDGET_COMM_MANAGER
 from marimo._runtime.commands import (
+    CancelRunCommand,
     CreateNotebookCommand,
     DebugCellCommand,
     DeleteCellCommand,
@@ -100,6 +101,7 @@ class KernelRequestHandlers:
         router.register(ModelCommand, self._handle_receive_model_message)
         router.register(UpdateUserConfigCommand, self._handle_set_user_config)
         router.register(StopKernelCommand, self._handle_stop)
+        router.register(CancelRunCommand, self._handle_cancel_run)
 
     @contextlib.contextmanager
     def _run_context(self, run_id: str | None = None) -> Iterator[None]:
@@ -155,6 +157,13 @@ class KernelRequestHandlers:
                         )
         finally:
             _COMMAND_CYCLE.reset(token)
+
+    async def _handle_cancel_run(self, request: CancelRunCommand) -> None:
+        """End a run the control loop cancelled before it executed."""
+        with self._run_context(request.run_id):
+            cycle = _COMMAND_CYCLE.get()
+            assert cycle is not None
+            cycle.outcome = "interrupted"
 
     async def _handle_delete_cell(self, request: DeleteCellCommand) -> None:
         with self._run_context():
