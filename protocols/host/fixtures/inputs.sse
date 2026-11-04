@@ -4,7 +4,7 @@ data: {"run":{"id":"run-input","notebook_id":"n1","status":"running","started_at
 
 id: 301
 event: execution
-data: {"execution":{"id":"e-input","run_id":"run-input","runtime_id":"r1","cell_id":null,"code":"from getpass import getpass\nprint(\"Starting\")\nname = input(\"Name: \")\nprint(\"Name accepted\")\npassword = getpass(\"Password: \")","code_hash":"c62108f175239e74","depends_on":{},"caused_by":null,"status":"running","outcome":null,"started_at":"2026-11-03T14:00:00Z","completed_at":null},"request_id":"start-input","time":"2026-11-03T14:00:01Z"}
+data: {"execution":{"id":"e-input","run_id":"run-input","runtime_id":"r1","cell_id":null,"code":"from getpass import getpass\nprint(\"Starting\")\nname = input(\"Name: \")\nprint(\"Name accepted\")\npassword = getpass(\"Password: \")","code_fingerprint":"c62108f175239e74","depends_on":{},"caused_by":null,"status":"running","outcome":null,"started_at":"2026-11-03T14:00:00Z","completed_at":null},"request_id":"start-input","time":"2026-11-03T14:00:01Z"}
 
 id: 302
 event: console
@@ -32,7 +32,7 @@ data: {"input":{"id":"i2","execution_id":"e-input","seq":3,"prompt":"Password: "
 
 id: 309
 event: execution
-data: {"execution":{"id":"e-input","run_id":"run-input","runtime_id":"r1","cell_id":null,"code":"from getpass import getpass\nprint(\"Starting\")\nname = input(\"Name: \")\nprint(\"Name accepted\")\npassword = getpass(\"Password: \")","code_hash":"c62108f175239e74","depends_on":{},"caused_by":null,"status":"completed","outcome":{"kind":"interrupted"},"started_at":"2026-11-03T14:00:00Z","completed_at":"2026-11-03T14:00:08Z"},"request_id":"start-input","time":"2026-11-03T14:00:08Z"}
+data: {"execution":{"id":"e-input","run_id":"run-input","runtime_id":"r1","cell_id":null,"code":"from getpass import getpass\nprint(\"Starting\")\nname = input(\"Name: \")\nprint(\"Name accepted\")\npassword = getpass(\"Password: \")","code_fingerprint":"c62108f175239e74","depends_on":{},"caused_by":null,"status":"completed","outcome":{"kind":"interrupted"},"started_at":"2026-11-03T14:00:00Z","completed_at":"2026-11-03T14:00:08Z"},"request_id":"start-input","time":"2026-11-03T14:00:08Z"}
 
 id: 310
 event: run

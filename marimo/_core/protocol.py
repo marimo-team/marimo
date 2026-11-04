@@ -95,6 +95,15 @@ class CellInput(Struct, frozen=True):
     ) = "_"
 
 
+CodeFingerprint: TypeAlias = Annotated[
+    str,
+    Meta(
+        description="Opaque code identity assigned by the host. Clients compare cell and execution fingerprints for freshness. Incompatible schemes MUST produce distinct fingerprints.",
+        min_length=1,
+    ),
+]
+
+
 class Custom(Struct, frozen=True):
     data: Annotated[
         Any,
@@ -440,11 +449,11 @@ class RemovedMessage(Struct, frozen=True):
 
 class RequestedCell(Struct, frozen=True):
     id: CellId
-    code_hash: (
+    etag: (
         Annotated[
             Etag,
             Meta(
-                description="The cell's `code_hash` as last read. A cell whose code differs is a `conflict`. Absent, the cell runs as it is."
+                description="The cell's `etag` as last read. A cell whose source, name, or config differs is a `conflict`. Absent, the cell runs as it is."
             ),
         ]
         | UnsetType
@@ -789,17 +798,17 @@ class Cell(Struct, frozen=True):
         ]
         | None
     )
-    code_hash: Annotated[
-        Etag,
+    code_fingerprint: Annotated[
+        CodeFingerprint,
         Meta(
-            description="Identifies the code alone. Its text is the actual source, even when `code` is null. Withholding source does not change this hash, the cell or document etags, or their versions. Unchanged by renaming the cell or editing its config. Compare with an execution's `code_hash` to tell whether a result came from the current code without needing the source."
+            description="Fingerprint of the actual source, including when `code` is null. Formatting-only edits may preserve it. Independent of cell name, config, and source visibility."
         ),
     ]
     config: CellConfig
     etag: Annotated[
         Etag,
         Meta(
-            description="Identifies code, name, and config together, and is the precondition for editing the cell. Its text is `code_hash`, `name`, and the config values `column`, `disabled`, `hide_code`, and `expand_output` in that order, each written as a JSON scalar such as `null`, `0`, or `true`."
+            description="Precondition for edits and cell runs. Covers exact source, name, and config. Its text is the first 16 hex characters of SHA-256 of the source, `name`, and the config values `column`, `disabled`, `hide_code`, and `expand_output`, in that order. Config values are JSON scalars."
         ),
     ]
     id: CellId
@@ -858,7 +867,7 @@ class CellRemovedEvent(
 
 
 class CellVersion(Struct, frozen=True):
-    code_hash: Etag
+    code_fingerprint: CodeFingerprint
     etag: Etag
     version: Annotated[
         int, Meta(description="The cell's version after the edit.", ge=1)
@@ -1764,11 +1773,8 @@ class Execution(Struct, frozen=True):
         ]
         | None
     )
-    code_hash: Annotated[
-        Etag,
-        Meta(
-            description="The `code_hash` of the code that was evaluated, computed as a cell's is."
-        ),
+    code_fingerprint: Annotated[
+        CodeFingerprint, Meta(description="Fingerprint of the evaluated code.")
     ]
     completed_at: (
         Annotated[

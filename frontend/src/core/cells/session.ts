@@ -179,7 +179,7 @@ function cellRecord(cellId: CellId, cell: NotebookCell): Protocol.Cell {
       expand_output: cell.config?.expand_output ?? false,
     },
     etag: `${EMBEDDED}:${cellId}`,
-    code_hash: cell.code_hash ?? `${EMBEDDED}:${cellId}:code`,
+    code_fingerprint: cell.code_hash ?? `${EMBEDDED}:${cellId}:code`,
     version: 1,
   };
 }

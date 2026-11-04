@@ -16,7 +16,7 @@ from marimo._core.document import (
     Stale,
     app_config_etag,
     cell_etag,
-    code_hash,
+    code_fingerprint,
     document_etag,
     order_etag,
 )
@@ -142,11 +142,11 @@ class TestEtags:
         document = Document(fixture_cells(), {"width": "full"})
 
         c1, c3, k7f2 = document
-        assert (c3.code_hash, c3.etag) == (
+        assert (c3.code_fingerprint, c3.etag) == (
             "0f71456db2ea83f4",
             "5cf78587dcf22d8d",
         )
-        assert (k7f2.code_hash, k7f2.etag) == (
+        assert (k7f2.code_fingerprint, k7f2.etag) == (
             "db2b9ee97e1ecf4c",
             "f199b5f48ae0aabb",
         )
@@ -157,7 +157,7 @@ class TestEtags:
         assert hosted(document).saved_etag == document.etag
 
     def test_are_derived_from_their_parts(self) -> None:
-        hashed = code_hash("x = 21")
+        hashed = code_fingerprint("x = 21")
         assert cell_etag(hashed, "_", HIDDEN) != cell_etag(
             hashed,
             "_",
@@ -483,7 +483,9 @@ class TestNotebookRecords:
         )
         assert same.document.version == 2
         assert same.cells["c1"] == protocol.CellVersion(
-            etag=cells[0].etag, code_hash=cells[0].code_hash, version=1
+            etag=cells[0].etag,
+            code_fingerprint=cells[0].code_fingerprint,
+            version=1,
         )
 
         # A reload changes content like any edit.
@@ -550,7 +552,7 @@ class TestNotebook:
             cells={
                 "c1": protocol.CellVersion(
                     etag=published.etag,
-                    code_hash=published.code_hash,
+                    code_fingerprint=published.code_fingerprint,
                     version=published.version,
                 )
             },

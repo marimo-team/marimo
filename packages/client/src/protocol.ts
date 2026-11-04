@@ -584,14 +584,15 @@ export const Outcome = zod
 export type Outcome = zod.input<typeof Outcome>;
 export type OutcomeOutput = zod.output<typeof Outcome>;
 
-export const Etag = zod
+export const CodeFingerprint = zod
   .string()
+  .min(1)
   .describe(
-    "An identifier derived from content, so that every host, kernel,\nand store computes the same value for the same state. It is the\nfirst 16 hexadecimal characters, in lower case, of SHA-256 over\nthe UTF-8 encoding of a canonical text. Each etag says what its\ntext is; a text made of several values is those values joined by\nnewlines. Clients do not compute etags. They read them from the\nstream and from responses, and send them back as preconditions.\n",
+    "Opaque code identity assigned by the host. Clients compare cell and execution fingerprints for freshness. Incompatible schemes MUST produce distinct fingerprints.",
   );
 
-export type Etag = zod.input<typeof Etag>;
-export type EtagOutput = zod.output<typeof Etag>;
+export type CodeFingerprint = zod.input<typeof CodeFingerprint>;
+export type CodeFingerprintOutput = zod.output<typeof CodeFingerprint>;
 
 export const Execution = zod
   .object({
@@ -622,8 +623,8 @@ export const Execution = zod
       .describe(
         "The submitted code for an execution with no cell. Null for a cell's execution; its source is available through the cell when the host exposes it.",
       ),
-    code_hash: Etag.describe(
-      "The `code_hash` of the code that was evaluated, computed as a cell's is.",
+    code_fingerprint: CodeFingerprint.describe(
+      "Fingerprint of the evaluated code.",
     ),
     depends_on: zod
       .record(zod.string(), zod.union([Revision, zod.null()]))
@@ -742,6 +743,15 @@ export const Input = zod
 export type Input = zod.input<typeof Input>;
 export type InputOutput = zod.output<typeof Input>;
 
+export const Etag = zod
+  .string()
+  .describe(
+    "An identifier derived from content, so that every host, kernel,\nand store computes the same value for the same state. It is the\nfirst 16 hexadecimal characters, in lower case, of SHA-256 over\nthe UTF-8 encoding of a canonical text. Each etag says what its\ntext is; a text made of several values is those values joined by\nnewlines. Clients do not compute etags. They read them from the\nstream and from responses, and send them back as preconditions.\n",
+  );
+
+export type Etag = zod.input<typeof Etag>;
+export type EtagOutput = zod.output<typeof Etag>;
+
 export const CellConfig = zod
   .object({
     column: zod
@@ -786,10 +796,10 @@ export const Cell = zod
       ),
     config: CellConfig,
     etag: Etag.describe(
-      "Identifies code, name, and config together, and is the precondition for editing the cell. Its text is `code_hash`, `name`, and the config values `column`, `disabled`, `hide_code`, and `expand_output` in that order, each written as a JSON scalar such as `null`, `0`, or `true`.",
+      "Precondition for edits and cell runs. Covers exact source, name, and config. Its text is the first 16 hex characters of SHA-256 of the source, `name`, and the config values `column`, `disabled`, `hide_code`, and `expand_output`, in that order. Config values are JSON scalars.",
     ),
-    code_hash: Etag.describe(
-      "Identifies the code alone. Its text is the actual source, even when `code` is null. Withholding source does not change this hash, the cell or document etags, or their versions. Unchanged by renaming the cell or editing its config. Compare with an execution's `code_hash` to tell whether a result came from the current code without needing the source.",
+    code_fingerprint: CodeFingerprint.describe(
+      "Fingerprint of the actual source, including when `code` is null. Formatting-only edits may preserve it. Independent of cell name, config, and source visibility.",
     ),
     version: zod
       .int()
@@ -1949,10 +1959,10 @@ export type EditRequestOutput = zod.output<typeof EditRequest>;
 export const CellVersion = zod
   .object({
     etag: Etag,
-    code_hash: Etag,
+    code_fingerprint: CodeFingerprint,
     version: zod.int().min(1).describe("The cell's version after the edit."),
   })
-  .describe("A cell's etags and version after an edit.");
+  .describe("A cell's etag, code fingerprint, and version after an edit.");
 
 export type CellVersion = zod.input<typeof CellVersion>;
 export type CellVersionOutput = zod.output<typeof CellVersion>;
@@ -1991,8 +2001,8 @@ export type SaveRequestOutput = zod.output<typeof SaveRequest>;
 
 export const RequestedCell = zod.object({
   id: CellId,
-  code_hash: Etag.optional().describe(
-    "The cell's `code_hash` as last read. A cell whose code differs is a `conflict`. Absent, the cell runs as it is.",
+  etag: Etag.optional().describe(
+    "The cell's `etag` as last read. A cell whose source, name, or config differs is a `conflict`. Absent, the cell runs as it is.",
   ),
 });
 

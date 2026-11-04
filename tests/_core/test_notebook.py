@@ -641,7 +641,7 @@ class TestRun:
                     caused_by=None,
                     cell_id=None,
                     code="3 * 3",
-                    code_hash="9f",
+                    code_fingerprint="9f",
                     completed_at=IsDatetime(),
                     depends_on={},
                     id=ExecutionId("e7"),
@@ -1356,7 +1356,8 @@ async def test_edits_preserve_results_and_deletion_removes_them() -> None:
     notebook.replace([DocumentCell(CellId("c1"), "43")], {})
     assert notebook.executions.current(CellId("c1")) == retained
     assert (
-        next(iter(notebook.document)).code_hash != retained.execution.code_hash
+        next(iter(notebook.document)).code_fingerprint
+        != retained.execution.code_fingerprint
     )
     live: list[RoutedEvent] = []
     host.subscribe(live.append, notebook_id=notebook.id)
@@ -1468,9 +1469,7 @@ async def test_running_cells_hands_the_backend_the_document() -> None:
     assert c1 is not None
 
     run = notebook.run(
-        cells=[
-            protocol.RequestedCell(id=CellId("c1"), code_hash=c1.code_hash)
-        ],
+        cells=[protocol.RequestedCell(id=CellId("c1"), etag=c1.etag)],
         request_id="run-1",
     )
 
@@ -1483,17 +1482,36 @@ async def test_running_cells_hands_the_backend_the_document() -> None:
     )
 
 
-async def test_running_a_cell_whose_code_changed_is_a_conflict() -> None:
+@pytest.mark.parametrize(
+    "replacement",
+    [
+        DocumentCell(CellId("c1"), "x=1"),
+        DocumentCell(CellId("c1"), "x = 1", name="renamed"),
+        DocumentCell(
+            CellId("c1"),
+            "x = 1",
+            config=protocol.CellConfig(
+                column=None,
+                disabled=True,
+                hide_code=False,
+                expand_output=False,
+            ),
+        ),
+    ],
+)
+async def test_running_a_cell_whose_content_changed_is_a_conflict(
+    replacement: DocumentCell,
+) -> None:
     _, notebook = await host_at(Clock())
-    notebook.replace([DocumentCell(CellId("c1"), "x = 1")], {})
+    original = DocumentCell(CellId("c1"), "x = 1")
+    notebook.replace([original], {})
+    notebook.replace([replacement], {})
     calls = len(notebook.backend.calls)  # type: ignore[attr-defined]
 
     with pytest.raises(Conflict, match="changed"):
         notebook.run(
             cells=[
-                protocol.RequestedCell(
-                    id=CellId("c1"), code_hash=protocol.Etag("0" * 16)
-                )
+                protocol.RequestedCell(id=CellId("c1"), etag=original.etag)
             ],
             request_id="run-1",
         )

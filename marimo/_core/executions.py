@@ -446,7 +446,7 @@ class Executions:
                         if entry.cell_id is not None
                         else None,
                         code=entry.code,
-                        code_hash=entry.code_hash,
+                        code_fingerprint=entry.code_fingerprint,
                         depends_on={},
                         status="queued",
                         outcome=None,

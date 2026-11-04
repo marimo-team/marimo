@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from marimo._core.document import code_hash
+from marimo._core.document import code_fingerprint
 from marimo._session.notebook import AppFileManager
 from marimo._session.requests import InstantiateNotebookRequest
 from tests._server.host.drive import finished, wait_for
@@ -145,7 +145,7 @@ async def test_scratch_outcomes_from_the_kernel(
     ]
     outcome = execution["outcome"]
     assert execution["code"] == code
-    assert execution["code_hash"]
+    assert execution["code_fingerprint"]
     assert execution["runtime_id"] is not None
     assert execution["caused_by"] is None
     if kind == "value":
@@ -178,9 +178,7 @@ async def test_cell_runs_preserve_order_with_later_deletions(
     cell = next(iter(notebook.document))
     session = next(iter(app.state.session_manager.sessions.values()))
     runs = f"/notebooks/{notebook_id}/runtime/runs"
-    body = json.dumps(
-        {"cells": [{"id": cell.id, "code_hash": cell.code_hash}]}
-    ).encode()
+    body = json.dumps({"cells": [{"id": cell.id, "etag": cell.etag}]}).encode()
 
     async def completed(response: Response) -> None:
         assert response.status == 202, response.body
@@ -283,7 +281,7 @@ def run_outcome(stream: Response, run_id: str) -> str | None:
 
 def cell_target(cell: object) -> bytes:
     return json.dumps(
-        {"cells": [{"id": cell.id, "code_hash": cell.code_hash}]}  # type: ignore[attr-defined]
+        {"cells": [{"id": cell.id, "etag": cell.etag}]}  # type: ignore[attr-defined]
     ).encode()
 
 
@@ -913,9 +911,11 @@ async def test_a_fixed_cell_replaces_its_failed_compilation(
         if r.get("data", {}).get("execution", {}).get("cell_id") == "child"
         and r["data"]["execution"]["status"] == "completed"
     ]
-    assert [(e["code_hash"], e["outcome"]["kind"]) for e in executions] == [
-        (code_hash("if !!!"), "error"),
-        (code_hash("x = 42"), "value"),
+    assert [
+        (e["code_fingerprint"], e["outcome"]["kind"]) for e in executions
+    ] == [
+        (code_fingerprint("if !!!"), "error"),
+        (code_fingerprint("x = 42"), "value"),
     ]
     assert len({e["id"] for e in executions}) == 2
     runs = [
@@ -1033,7 +1033,7 @@ async def test_awaited_commands_join_the_enclosing_run(
     assert root["outcome"]["kind"] == "value"
     assert "42" in root["outcome"]["display"]["data"]
     assert child["outcome"]["kind"] == "error"
-    assert child["code_hash"] == code_hash(child_code)
+    assert child["code_fingerprint"] == code_fingerprint(child_code)
     assert all(e["run_id"] == accepted.json()["id"] for e in executions)
 
 
