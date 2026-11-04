@@ -2092,10 +2092,12 @@ class Kernel:
 
     @kernel_tracer.start_as_current_span("run")
     async def run(
-        self, execution_requests: Sequence[ExecuteCellCommand]
+        self,
+        execution_requests: Sequence[ExecuteCellCommand],
+        *,
+        discard_after_interrupt: bool = True,
     ) -> None:
         """Run cells and their descendants.
-
 
         The cells may be cells already existing in the graph or new cells.
         Adds the cells in `execution_requests` to the graph before running
@@ -2103,6 +2105,13 @@ class Kernel:
         allowing frontends to incrementally instantiate a notebook.
 
         Cells may use top-level await, which is why this function is async.
+
+        Args:
+            execution_requests: The cells to run, with the code to register
+                for each.
+            discard_after_interrupt: Drop requests created before the last
+                interrupt, so one interrupt also clears what the browser
+                queued behind it. A host cancels its runs by id instead.
         """
 
         async def _run_with_uninstantiated_requests(
@@ -2116,8 +2125,10 @@ class Kernel:
                 )
             )
 
-        if self.last_interrupt_timestamp is None:
-            # No interruption has occurred, so we can run all requests
+        if (
+            self.last_interrupt_timestamp is None
+            or not discard_after_interrupt
+        ):
             await _run_with_uninstantiated_requests(execution_requests)
             return
 

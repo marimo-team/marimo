@@ -193,7 +193,10 @@ class KernelRequestHandlers:
             stdin_context(request.allow_stdin),
             http_request_context(request.request),
         ):
-            await self._kernel.run(request.execution_requests)
+            await self._kernel.run(
+                request.execution_requests,
+                discard_after_interrupt=request.run_id is None,
+            )
 
     async def _handle_sync_graph(self, request: SyncGraphCommand) -> None:
         with self._run_context(), http_request_context(None):
