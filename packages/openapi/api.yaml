@@ -1887,33 +1887,51 @@ components:
       - hash
       title: EsmSpec
       type: object
+    ExecuteCellCommand:
+      description: "Execute a single cell.\n\n    Executes a cell with the provided\
+        \ code. Dependent cells may be\n    re-executed based on the reactive execution\
+        \ mode.\n\n    Attributes:\n        cell_id: Cell to execute.\n        code:\
+        \ Python code to execute.\n        code_fingerprint: Code fingerprint. Computed\
+        \ from `code` when omitted.\n        request: HTTP request context if available.\n\
+        \        timestamp: Unix timestamp when command was created."
+      properties:
+        cellId:
+          $ref: '#/components/schemas/CellId'
+        code:
+          type: string
+        codeFingerprint:
+          default: ''
+          type: string
+        request:
+          anyOf:
+          - $ref: '#/components/schemas/HTTPRequest'
+          - type: 'null'
+          default: null
+        timestamp:
+          type: number
+        type:
+          enum:
+          - execute-cell
+      required:
+      - type
+      - cellId
+      - code
+      title: ExecuteCellCommand
+      type: object
     ExecuteCellsCommand:
-      description: "Execute multiple cells in a batch.\n\n    Executes multiple cells\
-        \ with their corresponding code. The kernel manages\n    dependency tracking\
-        \ and reactive execution.\n\n    Attributes:\n        cell_ids: Cells to execute.\n\
-        \        codes: Python code for each cell. Must match length of cell_ids.\n\
-        \        code_fingerprints: Fingerprints in the same order as `codes`.\n \
-        \           Computed from `codes` when omitted.\n        request: HTTP request\
-        \ context if available.\n        timestamp: Unix timestamp when command was\
-        \ created.\n        run_id: Optional correlation ID. When set, the run's notifications\n\
-        \            and its `CompletedRunNotification` carry it.\n        allow_stdin:\
+      description: "Execute cells and their reactive dependents in one batch.\n\n\
+        \    Attributes:\n        execution_requests: The cells and source identities\
+        \ to execute.\n        request: HTTP request context for the batch.\n    \
+        \    timestamp: Unix timestamp when the batch was created.\n        run_id:\
+        \ Correlates the run's notifications and completion.\n        allow_stdin:\
         \ Whether cells may request interactive input."
       properties:
         allowStdin:
           default: true
           type: boolean
-        cellIds:
+        executionRequests:
           items:
-            $ref: '#/components/schemas/CellId'
-          type: array
-        codeFingerprints:
-          default: []
-          items:
-            type: string
-          type: array
-        codes:
-          items:
-            type: string
+            $ref: '#/components/schemas/ExecuteCellCommand'
           type: array
         request:
           anyOf:
@@ -1932,8 +1950,7 @@ components:
           - execute-cells
       required:
       - type
-      - cellIds
-      - codes
+      - executionRequests
       title: ExecuteCellsCommand
       type: object
     ExecuteCellsRequest:

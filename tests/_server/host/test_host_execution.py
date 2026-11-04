@@ -758,11 +758,11 @@ async def test_detached_reactivity_starts_a_new_run(
     origin = (
         "import asyncio\n"
         "import marimo._code_mode as cm\n"
-        "from marimo._runtime.commands import ExecuteCellsCommand\n"
+        "from marimo._runtime.commands import ExecuteCellCommand, ExecuteCellsCommand\n"
         "ctx = cm.get_context()\n"
         "async def later():\n"
         "    await asyncio.to_thread(gate.wait)\n"
-        "    await ctx.execute_command(ExecuteCellsCommand(cell_ids=['later'], codes=['print(30)']))\n"
+        "    await ctx.execute_command(ExecuteCellsCommand(execution_requests=[ExecuteCellCommand(cell_id='later', code='print(30)')]))\n"
         "asyncio.create_task(later())"
         if command
         else "mo.Thread(target=lambda: (gate.wait(), set_x(20))).start()"
@@ -884,9 +884,9 @@ async def test_a_fixed_cell_replaces_its_failed_compilation(
     app, notebook_id, events = live_host
     code = (
         "import marimo._code_mode as cm\n"
-        "from marimo._runtime.commands import ExecuteCellsCommand\n"
-        "await cm.get_context().execute_command(ExecuteCellsCommand(cell_ids=['child'], codes=['if !!!']))\n"
-        "await cm.get_context().execute_command(ExecuteCellsCommand(cell_ids=['child'], codes=['x = 42']))\n"
+        "from marimo._runtime.commands import ExecuteCellCommand, ExecuteCellsCommand\n"
+        "await cm.get_context().execute_command(ExecuteCellsCommand(execution_requests=[ExecuteCellCommand(cell_id='child', code='if !!!')]))\n"
+        "await cm.get_context().execute_command(ExecuteCellsCommand(execution_requests=[ExecuteCellCommand(cell_id='child', code='x = 42')]))\n"
         "42"
     )
     accepted = await finished(
@@ -933,15 +933,15 @@ async def test_nested_commands_can_run_a_cell_queued_by_the_outer_command(
     inner = (
         "x = 42\n"
         "import marimo._code_mode as cm\n"
-        "from marimo._runtime.commands import ExecuteCellsCommand\n"
+        "from marimo._runtime.commands import ExecuteCellCommand, ExecuteCellsCommand\n"
         "await cm.get_context().execute_command(ExecuteCellsCommand("
-        "cell_ids=['b'], codes=['print(x)']))"
+        "execution_requests=[ExecuteCellCommand(cell_id='b', code='print(x)')]))"
     )
     code = (
         "import marimo._code_mode as cm\n"
-        "from marimo._runtime.commands import ExecuteCellsCommand\n"
+        "from marimo._runtime.commands import ExecuteCellCommand, ExecuteCellsCommand\n"
         "await cm.get_context().execute_command(ExecuteCellsCommand("
-        f"cell_ids=['a', 'b'], codes=[{inner!r}, 'print(x)']))"
+        f"execution_requests=[ExecuteCellCommand(cell_id='a', code={inner!r}), ExecuteCellCommand(cell_id='b', code='print(x)')]))"
     )
     accepted = await finished(
         app,
@@ -986,7 +986,7 @@ async def test_awaited_commands_join_the_enclosing_run(
     command = (
         f"ExecuteScratchpadCommand(code={child_code!r}, request=None)"
         if nested_scratch
-        else f"ExecuteCellsCommand(cell_ids=['child'], codes=[{child_code!r}])"
+        else f"ExecuteCellsCommand(execution_requests=[ExecuteCellCommand(cell_id='child', code={child_code!r})])"
     )
     sibling = (
         "await cm.get_context().execute_command(ExecuteScratchpadCommand(code='3 * 3', request=None))\n"
@@ -995,7 +995,7 @@ async def test_awaited_commands_join_the_enclosing_run(
     )
     code = (
         "import marimo._code_mode as cm\n"
-        "from marimo._runtime.commands import ExecuteCellsCommand, ExecuteScratchpadCommand\n"
+        "from marimo._runtime.commands import ExecuteCellCommand, ExecuteCellsCommand, ExecuteScratchpadCommand\n"
         f"await cm.get_context().execute_command({command})\n{sibling}42"
     )
     before = len(events.records)

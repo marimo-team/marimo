@@ -463,17 +463,13 @@ async def test_running_cells_instantiates_from_the_host_document(
 
     (instantiation,) = session.instantiations
     assert instantiation.auto_run is False
-    assert instantiation.codes == {"a": "x = 1", "b": "y = x"}
     (command,) = session.commands
     assert isinstance(command, ExecuteCellsCommand)
-    assert command.cell_ids == ["b"]
-    assert command.codes == ["y = x"]
-    assert command.code_fingerprints == [
-        document.cell(protocol.CellId("b")).code_fingerprint
-    ]
-    assert session.code_fingerprints == {
-        cell.id: cell.code_fingerprint for cell in document
-    }
+    assert [
+        (cell.cell_id, cell.code, cell.code_fingerprint)
+        for cell in session.execution_requests
+    ] == [(cell.id, cell.code, cell.code_fingerprint) for cell in document]
+    assert command.execution_requests == [session.execution_requests[1]]
     assert command.run_id == "run-1"
 
     session.broadcast(
@@ -568,7 +564,10 @@ async def test_cell_runs_queue_in_the_kernel_in_order(
     b.run_cells(protocol.RunId("run-1"), document, [protocol.CellId("a")])
     b.run_cells(protocol.RunId("run-2"), document, [protocol.CellId("b")])
 
-    assert [(c.run_id, c.cell_ids) for c in session.commands] == [
+    assert [
+        (c.run_id, [cell.cell_id for cell in c.execution_requests])
+        for c in session.commands
+    ] == [
         ("run-1", ["a"]),
         ("run-2", ["b"]),
     ]

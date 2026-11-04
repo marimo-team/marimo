@@ -732,8 +732,9 @@ class TestModelReplayState:
 def test_last_run_code(session_view: SessionView) -> None:
     session_view.add_control_request(
         ExecuteCellsCommand(
-            cell_ids=[cell_id],
-            codes=["print('hello')"],
+            execution_requests=[
+                ExecuteCellCommand(cell_id=cell_id, code="print('hello')")
+            ]
         )
     )
     assert session_view.last_executed_code[cell_id] == "print('hello')"
@@ -741,8 +742,14 @@ def test_last_run_code(session_view: SessionView) -> None:
     # Can overwrite values and add multiple
     session_view.add_control_request(
         ExecuteCellsCommand(
-            cell_ids=[cell_id, "cell_2"],
-            codes=["print('hello world')", "print('hello world')"],
+            execution_requests=[
+                ExecuteCellCommand(
+                    cell_id=cell_id, code="print('hello world')"
+                ),
+                ExecuteCellCommand(
+                    cell_id="cell_2", code="print('hello world')"
+                ),
+            ]
         )
     )
     assert session_view.last_executed_code[cell_id] == "print('hello world')"

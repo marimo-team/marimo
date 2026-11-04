@@ -4824,30 +4824,45 @@ export interface components {
       url: string;
     };
     /**
-     * ExecuteCellsCommand
-     * @description Execute multiple cells in a batch.
+     * ExecuteCellCommand
+     * @description Execute a single cell.
      *
-     *         Executes multiple cells with their corresponding code. The kernel manages
-     *         dependency tracking and reactive execution.
+     *         Executes a cell with the provided code. Dependent cells may be
+     *         re-executed based on the reactive execution mode.
      *
      *         Attributes:
-     *             cell_ids: Cells to execute.
-     *             codes: Python code for each cell. Must match length of cell_ids.
-     *             code_fingerprints: Fingerprints in the same order as `codes`.
-     *                 Computed from `codes` when omitted.
+     *             cell_id: Cell to execute.
+     *             code: Python code to execute.
+     *             code_fingerprint: Code fingerprint. Computed from `code` when omitted.
      *             request: HTTP request context if available.
      *             timestamp: Unix timestamp when command was created.
-     *             run_id: Optional correlation ID. When set, the run's notifications
-     *                 and its `CompletedRunNotification` carry it.
+     */
+    ExecuteCellCommand: {
+      cellId: components["schemas"]["CellId"];
+      code: string;
+      /** @default  */
+      codeFingerprint?: string;
+      /** @default null */
+      request?: components["schemas"]["HTTPRequest"] | null;
+      timestamp?: number;
+      /** @enum {unknown} */
+      type: "execute-cell";
+    };
+    /**
+     * ExecuteCellsCommand
+     * @description Execute cells and their reactive dependents in one batch.
+     *
+     *         Attributes:
+     *             execution_requests: The cells and source identities to execute.
+     *             request: HTTP request context for the batch.
+     *             timestamp: Unix timestamp when the batch was created.
+     *             run_id: Correlates the run's notifications and completion.
      *             allow_stdin: Whether cells may request interactive input.
      */
     ExecuteCellsCommand: {
       /** @default true */
       allowStdin?: boolean;
-      cellIds: components["schemas"]["CellId"][];
-      /** @default [] */
-      codeFingerprints?: string[];
-      codes: string[];
+      executionRequests: components["schemas"]["ExecuteCellCommand"][];
       /** @default null */
       request?: components["schemas"]["HTTPRequest"] | null;
       /** @default null */

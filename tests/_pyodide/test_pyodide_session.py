@@ -30,6 +30,7 @@ from marimo._runtime.commands import (
     CreateNotebookCommand,
     DebugCellCommand,
     DeleteCellCommand,
+    ExecuteCellCommand,
     ExecuteCellsCommand,
     ExecuteScratchpadCommand,
     ExecuteStaleCellsCommand,
@@ -351,8 +352,9 @@ async def test_pyodide_session_put_control_request(
 ) -> None:
     # Test putting control requests
     execution_request = ExecuteCellsCommand(
-        cell_ids=[CellId_t("test")],
-        codes=["test"],
+        execution_requests=[
+            ExecuteCellCommand(cell_id=CellId_t("test"), code="test")
+        ]
     )
     set_ui_element_request = UpdateUIElementCommand(
         object_ids=[UIElementId("test")], values=["test"]
@@ -618,11 +620,11 @@ async def test_pyodide_session_put_input(
         ),
         # Cell execution and management
         (
-            '{"type": "execute-cells", "cellIds": ["cell-1"], "codes": ["print(1)"]}',
+            '{"type": "execute-cells", "executionRequests": [{"type": "execute-cell", "cellId": "cell-1", "code": "print(1)"}]}',
             ExecuteCellsCommand,
         ),
         (
-            '{"type": "execute-cells", "cellIds": ["cell-1", "cell-2"], "codes": ["x=1", "y=2"]}',
+            '{"type": "execute-cells", "executionRequests": [{"type": "execute-cell", "cellId": "cell-1", "code": "x=1"}, {"type": "execute-cell", "cellId": "cell-2", "code": "y=2"}]}',
             ExecuteCellsCommand,
         ),
         (
@@ -819,7 +821,7 @@ def test_pyodide_bridge_put_control_request(
     pyodide_bridge: PyodideBridge,
 ) -> None:
     """Test putting control requests through the bridge."""
-    request_json = '{"type": "execute-cells", "cellIds": ["cell-1"], "codes": ["print(1)"]}'
+    request_json = '{"type": "execute-cells", "executionRequests": [{"type": "execute-cell", "cellId": "cell-1", "code": "print(1)"}]}'
     pyodide_bridge.put_control_request(request_json)
 
     assert not pyodide_bridge.session._queue_manager.control_queue.empty()

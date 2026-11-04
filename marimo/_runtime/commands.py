@@ -293,69 +293,29 @@ class ExecuteStaleCellsCommand(Command):
 
 # TODO(MO-8007): Run roots against a document revision.
 class ExecuteCellsCommand(Command):
-    """Execute multiple cells in a batch.
-
-    Executes multiple cells with their corresponding code. The kernel manages
-    dependency tracking and reactive execution.
+    """Execute cells and their reactive dependents in one batch.
 
     Attributes:
-        cell_ids: Cells to execute.
-        codes: Python code for each cell. Must match length of cell_ids.
-        code_fingerprints: Fingerprints in the same order as `codes`.
-            Computed from `codes` when omitted.
-        request: HTTP request context if available.
-        timestamp: Unix timestamp when command was created.
-        run_id: Optional correlation ID. When set, the run's notifications
-            and its `CompletedRunNotification` carry it.
+        execution_requests: The cells and source identities to execute.
+        request: HTTP request context for the batch.
+        timestamp: Unix timestamp when the batch was created.
+        run_id: Correlates the run's notifications and completion.
         allow_stdin: Whether cells may request interactive input.
     """
 
-    # ids of cells to run
-    cell_ids: list[CellId_t]
-    # code to register/run for each cell
-    codes: list[str]
-    # incoming request, e.g. from Starlette or FastAPI
+    execution_requests: list[ExecuteCellCommand]
     request: HTTPRequest | None = None
-    # time at which the request was received
     timestamp: float = msgspec.field(default_factory=time.time)
     run_id: str | None = None
     allow_stdin: bool = True
-    code_fingerprints: list[str] = msgspec.field(default_factory=list)
-
-    def __repr__(self) -> str:
-        return f"ExecuteCellsCommand(cells={len(self.cell_ids)})"
-
-    @property
-    def execution_requests(self) -> list[ExecuteCellCommand]:
-        """Convert to individual cell execution commands.
-
-        Returns:
-            List of ExecuteCellCommand instances, one per cell.
-        """
-        return [
-            ExecuteCellCommand(
-                cell_id=cell_id,
-                code=code,
-                code_fingerprint=fingerprint,
-                request=self.request,
-                timestamp=self.timestamp,
-            )
-            for cell_id, code, fingerprint in zip(
-                self.cell_ids, self.codes, self.code_fingerprints, strict=True
-            )
-        ]
 
     def __post_init__(self) -> None:
-        assert len(self.cell_ids) == len(self.codes), (
-            "Mismatched cell_ids and codes"
-        )
-        if not self.code_fingerprints:
-            self.code_fingerprints = [
-                source_fingerprint(code) for code in self.codes
-            ]
-        assert len(self.code_fingerprints) == len(self.codes), (
-            "Mismatched code_fingerprints and codes"
-        )
+        for cell in self.execution_requests:
+            cell.request = self.request
+            cell.timestamp = self.timestamp
+
+    def __repr__(self) -> str:
+        return f"ExecuteCellsCommand(cells={len(self.execution_requests)})"
 
 
 # TODO(MO-8007): Reconcile the graph as part of a run.

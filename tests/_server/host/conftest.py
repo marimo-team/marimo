@@ -59,9 +59,13 @@ class FakeSession:
                 return
 
     def instantiate(
-        self, request: Any, *, http_request: Any, code_fingerprints: Any = None
+        self,
+        request: Any,
+        *,
+        http_request: Any,
+        execution_requests: Any = None,
     ) -> None:
-        self.code_fingerprints = code_fingerprints
+        self.execution_requests = execution_requests
         del http_request
         self.instantiations.append(request)
 
