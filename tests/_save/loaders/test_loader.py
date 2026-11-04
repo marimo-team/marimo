@@ -6,6 +6,7 @@ import pickle
 import tempfile
 from abc import ABC, abstractmethod
 from pathlib import Path
+from typing import Any
 
 import msgspec
 import pytest
@@ -47,24 +48,24 @@ def test_lazy_store_exports_keys_the_inner_store_kept(
 ) -> None:
     store = LazyStore(DictStore())
     if has_parent:
-        store.put("train/hash", b"parent")
-    store.put("train/hash/value.pickle", b"value")
-    assert store.read("train/hash/value.pickle") == b"value"
+        store.put("train/hashhashhashhashhashha", b"parent")
+    store.put("train/hashhashhashhashhashha/value.pickle", b"value")
+    assert store.read("train/hashhashhashhashhashha/value.pickle") == b"value"
 
-    assert store.clear("train/hash") is has_parent
+    assert store.clear("train/hashhashhashhashhashha") is has_parent
 
-    assert store.export_keys() == ["train/hash/value.pickle"]
-    assert store.read("train/hash/value.pickle") == b"value"
+    assert store.export_keys() == ["train/hashhashhashhashhashha/value.pickle"]
+    assert store.read("train/hashhashhashhashhashha/value.pickle") == b"value"
 
 
 def test_lazy_store_forgets_a_key_the_inner_store_no_longer_holds(
     tmp_path: Path,
 ) -> None:
     store = LazyStore(FileStore(str(tmp_path)))
-    store.put("train/P_hash.pickle", b"value")
-    (tmp_path / "train" / "P_hash.pickle").unlink()
+    store.put("train/P_hashhashhashhashhashha.pickle", b"value")
+    (tmp_path / "train" / "P_hashhashhashhashhashha.pickle").unlink()
 
-    assert store.clear("train/P_hash.pickle") is False
+    assert store.clear("train/P_hashhashhashhashhashha.pickle") is False
 
     assert store.export_keys() == []
 
@@ -74,7 +75,7 @@ def test_loader_clear_keeps_files_that_are_not_its_entries(
 ) -> None:
     """A store pointed at a project puts entries beside project files."""
     store = FileStore(str(tmp_path))
-    store.put("src/P_hash.json", b"{}")
+    store.put("src/P_hashhashhashhashhashha.json", b"{}")
     store.put("src/records.json", b"[]")
     store.put("src/records/a.json", b"{}")
     loader = JsonLoader("src", store=store)
@@ -82,22 +83,102 @@ def test_loader_clear_keeps_files_that_are_not_its_entries(
     assert loader.clearable_bytes() == 2
     loader.clear()
 
-    assert store.read("src/P_hash.json") is None
+    assert store.read("src/P_hashhashhashhashhashha.json") is None
     assert store.read("src/records.json") == b"[]"
     assert store.read("src/records/a.json") == b"{}"
+
+
+def test_pickle_loader_clear_keeps_a_directory_named_like_its_hash(
+    tmp_path: Path,
+) -> None:
+    """Only a lazy marker names a directory of blobs."""
+    store = FileStore(str(tmp_path))
+    store.put("train/P_hashhashhashhashhashha.pickle", b"value")
+    store.put("train/hashhashhashhashhashha/rows.csv", b"1,2")
+    loader = PickleLoader("train", store=store)
+
+    assert loader.clearable_bytes() == 5
+    loader.clear()
+
+    assert store.read("train/P_hashhashhashhashhashha.pickle") is None
+    assert store.read("train/hashhashhashhashhashha/rows.csv") == b"1,2"
+
+
+class _CustomLoader(BasePersistenceLoader):
+    """A loader from an entry point, with a suffix of its own."""
+
+    def __init__(self, name: str, **kwargs: Any) -> None:
+        super().__init__(name, "custom", **kwargs)
+
+    def restore_cache(self, key: HashKey, blob: bytes) -> Cache:
+        raise NotImplementedError
+
+    def to_blob(self, cache: Cache) -> bytes:
+        raise NotImplementedError
+
+
+def test_loader_with_its_own_suffix_clears_its_entries(
+    tmp_path: Path,
+) -> None:
+    store = FileStore(str(tmp_path))
+    store.put("train/P_hashhashhashhashhashha.custom", b"value")
+    store.put("train/P_hashhashhashhashhashha.pickle", b"other")
+    loader = _CustomLoader("train", store=store)
+
+    assert loader.clearable_bytes() == 5
+    loader.clear()
+
+    assert store.read("train/P_hashhashhashhashhashha.custom") is None
+    assert store.read("train/P_hashhashhashhashhashha.pickle") == b"other"
+
+
+def test_lazy_loader_clear_keeps_blobs_a_new_marker_names(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A writer can write a marker for the same blobs between the listing
+    and the removal of the directory."""
+    store = FileStore(str(tmp_path))
+    loader = LazyLoader("train", store=store, verification="off")
+    cache = Cache(
+        defs={"z": [1, 2, 3]},
+        hash="sharedhashsharedhashsh",
+        cache_type="Pure",
+        stateful_refs=set(),
+        hit=False,
+        meta={"version": MARIMO_CACHE_VERSION},
+    )
+    assert loader.save_cache(cache)
+    loader.flush()
+    block = tmp_path / "train"
+    blobs = block / "sharedhashsharedhashsh"
+    assert blobs.is_dir()
+    clear = store.clear
+
+    def clear_then_publish(key: str) -> bool:
+        removed = clear(key)
+        if key.endswith(".jsonl"):
+            (block / "E_sharedhashsharedhashsh.jsonl").write_bytes(b"new")
+        return removed
+
+    monkeypatch.setattr(store, "clear", clear_then_publish)
+    loader.clear()
+
+    assert not (block / "P_sharedhashsharedhashsh.jsonl").exists()
+    assert (block / "E_sharedhashsharedhashsh.jsonl").exists()
+    assert blobs.is_dir()
 
 
 def test_loader_clears_a_store_path_with_glob_characters(
     tmp_path: Path,
 ) -> None:
     store = FileStore(str(tmp_path / "cache[1]"))
-    store.put("train/P_hash.pickle", b"value")
+    store.put("train/P_hashhashhashhashhashha.pickle", b"value")
     loader = PickleLoader("train", store=store)
 
     assert loader.clearable_bytes() == 5
     loader.clear()
 
-    assert store.read("train/P_hash.pickle") is None
+    assert store.read("train/P_hashhashhashhashhashha.pickle") is None
     assert loader.clearable_bytes() == 0
 
 
@@ -329,7 +410,7 @@ class TestLazyLoader(ABCTestLoader):
 
         cache = Cache(
             defs={"z": [1, 2, 3]},
-            hash="clear_hash",
+            hash="clearhashclearhashclea",
             cache_type="Pure",
             stateful_refs=set(),
             hit=False,
@@ -338,7 +419,7 @@ class TestLazyLoader(ABCTestLoader):
         assert loader.save_cache(cache)
         loader.flush()
         block = Path(self.save_path) / "test"
-        blobs = block / "clear_hash"
+        blobs = block / "clearhashclearhashclea"
         assert blobs.is_dir()
         entry_bytes = sum(
             path.stat().st_size for path in block.rglob("*") if path.is_file()
@@ -364,7 +445,7 @@ class TestLazyLoader(ABCTestLoader):
         )
         cache = Cache(
             defs={"z": [1, 2, 3]},
-            hash="wired_hash",
+            hash="wiredhashwiredhashwire",
             cache_type="Pure",
             stateful_refs=set(),
             hit=False,
@@ -388,7 +469,7 @@ class TestLazyLoader(ABCTestLoader):
         loader = self.instance()
         cache = Cache(
             defs={"z": [1, 2, 3]},
-            hash="shared_hash",
+            hash="sharedhashsharedhashsh",
             cache_type="Pure",
             stateful_refs=set(),
             hit=False,
@@ -397,10 +478,10 @@ class TestLazyLoader(ABCTestLoader):
         assert loader.save_cache(cache)
         loader.flush()
         block = Path(self.save_path) / "test"
-        blobs = block / "shared_hash"
+        blobs = block / "sharedhashsharedhashsh"
         assert blobs.is_dir()
         # The other loader wrote the same value under the same hash inline.
-        other = block / "P_shared_hash.pickle"
+        other = block / "P_sharedhashsharedhashsh.pickle"
         other.write_bytes(b"x")
 
         PickleLoader("test", store=FileStore(save_path=self.save_path)).clear()
@@ -418,7 +499,7 @@ class TestLazyLoader(ABCTestLoader):
         loader = LazyLoader("test", store=store, verification="off")
         cache = Cache(
             defs={"z": [1, 2, 3]},
-            hash="forget_hash",
+            hash="forgethashforgethashfo",
             cache_type="Pure",
             stateful_refs=set(),
             hit=False,
@@ -426,7 +507,9 @@ class TestLazyLoader(ABCTestLoader):
         )
         assert loader.save_cache(cache)
         loader.flush()
-        assert any("forget_hash/" in key for key in store.export_keys())
+        assert any(
+            "forgethashforgethashfo/" in key for key in store.export_keys()
+        )
 
         loader.clear()
 

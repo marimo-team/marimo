@@ -18,7 +18,8 @@ from marimo._save.cache_dirs import (
     PARTIAL_WRITE_INFIX,
     block_dir_name,
     entry_hash,
-    entry_key,
+    has_marker,
+    is_entry_key,
     is_partial_write,
 )
 from marimo._save.stores import DEFAULT_STORE, Store
@@ -304,13 +305,18 @@ class BasePersistenceLoader(Loader):
             for child in children
             if not child.is_dir() and self._is_own_entry(child.name)
         ]
-        # Blobs are shared by hash, so a surviving marker keeps them alive.
-        hashes = {entry_hash(path.name) for path in paths}
+        # Only a lazy marker names a directory of blobs, and blobs are
+        # shared by hash, so a surviving marker keeps them alive.
+        hashes = {
+            entry_hash(path.name)
+            for path in paths
+            if path.name.endswith(LAZY_ENTRY_SUFFIX)
+        }
         hashes -= {
             entry_hash(marker.name)
             for marker in children
             if marker.name.endswith(LAZY_ENTRY_SUFFIX)
-            and entry_key(marker.name) is not None
+            and is_entry_key(marker.name.partition(".")[0])
             and marker not in paths
         }
         paths.extend(
@@ -328,7 +334,8 @@ class BasePersistenceLoader(Loader):
         # so clearing the block is the last chance to reclaim their bytes.
         if is_partial_write(name):
             name = name.rpartition(PARTIAL_WRITE_INFIX)[0]
-        return name.endswith(f".{self.suffix}") and entry_key(name) is not None
+        key, dot, suffix = name.partition(".")
+        return bool(dot) and suffix == self.suffix and is_entry_key(key)
 
     def clear(self) -> None:
         """Clear all cached items for this loader."""
@@ -336,6 +343,12 @@ class BasePersistenceLoader(Loader):
         if root is None:
             return
         for cache_file in self._clearable_paths(root):
+            # A writer can write a new marker for these blobs after the
+            # listing, so the marker is checked again here.
+            if cache_file.is_dir() and has_marker(
+                cache_file.parent, cache_file.name
+            ):
+                continue
             self.store.clear(str(cache_file.relative_to(root)))
 
     def clearable_paths(self) -> list[Path]:

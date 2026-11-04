@@ -112,7 +112,9 @@ def resolve_cache_dirs_or_error(
             f"-r/--recursive searches a directory, and {path} is a file."
         )
     try:
-        cache_dirs = resolve_cache_dirs(path, recursive=recursive)
+        cache_dirs = resolve_cache_dirs(
+            path, recursive=recursive, deleting=deleting
+        )
     except CacheDirError as e:
         raise MarimoCLIError(str(e)) from e
     configured = configured_store_dirs(path, cache_dirs)

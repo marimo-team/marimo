@@ -6,6 +6,7 @@ Pure and kernel-free so the CLI can import it without starting a runtime.
 
 from __future__ import annotations
 
+import hashlib
 import os
 import re
 import shutil
@@ -36,10 +37,29 @@ LAZY_ENTRY_SUFFIX = ".jsonl"
 # Windows rejects most punctuation in a path component.
 _UNSAFE_IN_BLOCK_NAME = re.compile(r"[^a-zA-Z0-9 _-]")
 
-# A key is a cache-type prefix and a digest. The digest uses url-safe base64
-# without padding, so its length cannot be one more than a multiple of four.
-# Without the prefix a name can also be a directory of blobs.
-_DIGEST = re.compile(r"[A-Za-z0-9_-]{2,}")
+
+def _shortest_digest_chars() -> int:
+    """Return the length of the shortest digest that a writer can produce."""
+    sizes = []
+    for name in hashlib.algorithms_guaranteed:
+        try:
+            size = hashlib.new(name, usedforsecurity=False).digest_size
+        except ValueError:
+            # A FIPS build leaves some algorithms out.
+            continue
+        # The shake algorithms have no fixed size, and the writers call
+        # `digest()` without specifying a size.
+        if size:
+            sizes.append(size)
+    return -(-min(sizes) * 8 // 6)
+
+
+# A key is a cache-type prefix and a digest. The digest is the url-safe
+# base64 of a hashlib digest with the padding removed, so it is at least as
+# long as the shortest digest that hashlib offers, and its length is never
+# one more than a multiple of four. Without the prefix a name can also be a
+# directory of blobs.
+_DIGEST = re.compile(rf"[A-Za-z0-9_-]{{{_shortest_digest_chars()},}}")
 
 # Loaders write entries with these suffixes, and a neighboring file with any
 # other suffix belongs to something else.
@@ -89,7 +109,9 @@ def directory_cache_dir(directory: Path) -> Path:
     return notebook_output_dir(directory / "notebook.py") / CACHE_DIR_NAME
 
 
-def resolve_cache_dirs(path: Path, recursive: bool = False) -> list[Path]:
+def resolve_cache_dirs(
+    path: Path, recursive: bool = False, *, deleting: bool = False
+) -> list[Path]:
     """Return the cache directories that `path` resolves to, absolute.
 
     A notebook file resolves to the cache directory beside it, and a
@@ -98,22 +120,43 @@ def resolve_cache_dirs(path: Path, recursive: bool = False) -> list[Path]:
     instead searched for existing `__marimo__/cache` directories, skipping
     dot-folders. The search can come back empty.
 
+    With `deleting`, a cache directory that is reached through a symbolic
+    link is refused unless `path` names that directory itself.
+
     Raises:
         FileNotFoundError: If `path` does not exist.
         NotANotebookError: If `path` is neither a directory nor a marimo
             notebook file.
+        CacheDirError: If `deleting` and the cache directory is reached
+            through a symbolic link.
     """
     if path.is_dir():
         if recursive:
             return _walk_cache_dirs(path)
-        return [directory_cache_dir(path)]
+        cache_dir = directory_cache_dir(path)
+        if deleting and cache_dir != normalize_path(path):
+            _refuse_link(cache_dir)
+        return [cache_dir]
     if not path.exists():
         raise FileNotFoundError(f"No such file or directory: {path}")
     if not path.is_file():
         # Reading a pipe or a device as notebook text can block for good.
         raise NotANotebookError(f"{path} is not a notebook file.")
     _validate_notebook(path)
-    return [notebook_cache_dir(path)]
+    cache_dir = notebook_cache_dir(path)
+    if deleting:
+        _refuse_link(cache_dir)
+    return [cache_dir]
+
+
+def _refuse_link(cache_dir: Path) -> None:
+    """Raise if `cache_dir` or its parent is a symbolic link."""
+    for candidate in (cache_dir, cache_dir.parent):
+        if candidate.is_symlink():
+            raise CacheDirError(
+                f"{candidate} is a symbolic link. Pass the directory that "
+                "it points to instead."
+            )
 
 
 @dataclass(frozen=True)
@@ -255,7 +298,7 @@ def delete_cache_entries(
     freed = CacheDirStats()
     for block, keys in by_block.items():
         freed += _delete_block_entries(
-            cache_dir / block, keys, dry_run=dry_run
+            cache_dir / block, keys, dry_run=dry_run, trusted=True
         )
     return freed
 
@@ -333,9 +376,12 @@ def entry_bytes(entry: Path) -> int:
 
 
 def _delete_block_entries(
-    block: Path, keys: set[str], *, dry_run: bool
+    block: Path, keys: set[str], *, dry_run: bool, trusted: bool = False
 ) -> CacheDirStats:
-    """Delete the entries `keys` name from one block directory.
+    """Delete the entries that `keys` name from one block directory.
+
+    With `trusted`, the keys come from a manifest, and a file matches them
+    regardless of its suffix.
 
     Raises:
         OSError: If `block` cannot be listed.
@@ -343,7 +389,7 @@ def _delete_block_entries(
     if not _is_directory(block):
         return CacheDirStats()
 
-    index = _index_block(block)
+    index = _index_block(block, trusted=keys if trusted else ())
     by_hash: dict[str, list[str]] = {}
     for key in sorted(keys):
         by_hash.setdefault(entry_hash(key), []).append(key)
@@ -355,16 +401,17 @@ def _delete_block_entries(
         entry_files = {file for files in doomed.values() for file in files}
         blob_dir = block / key_hash
         shared = bool(index.markers_by_hash.get(key_hash, set()) - entry_files)
+        # Only a lazy marker names a directory of blobs. An inline entry
+        # beside a directory with the same name has no connection to it.
         has_blobs = (
-            not shared
+            any(file.name.endswith(LAZY_ENTRY_SUFFIX) for file in entry_files)
+            and not shared
             and key_hash in index.dir_names
             and _is_directory(blob_dir)
         )
-        if not entry_files and not has_blobs:
+        if not entry_files:
             continue
         entries = sum(bool(files) for files in doomed.values())
-        if not entry_files and has_blobs:
-            entries = 1
         if dry_run:
             bytes_freed = sum(_file_bytes(file) for file in entry_files)
             bytes_freed += entry_bytes(blob_dir) if has_blobs else 0
@@ -385,12 +432,8 @@ def _delete_block_entries(
             for key in remaining:
                 LOGGER.warning("Could not remove %s from %s.", key, block)
             entries -= len(remaining)
-            # A writer can publish a new marker for these blobs meanwhile.
-            if (
-                has_blobs
-                and not remaining
-                and not _has_marker(block, key_hash)
-            ):
+            # A writer can write a new marker for these blobs meanwhile.
+            if has_blobs and not remaining and not has_marker(block, key_hash):
                 bytes_freed += _remove_tree(blob_dir)
                 if blob_dir.exists():
                     entries = 0
@@ -407,8 +450,12 @@ class _BlockIndex:
     dir_names: frozenset[str]
 
 
-def _index_block(block: Path) -> _BlockIndex:
+def _index_block(block: Path, trusted: Collection[str] = ()) -> _BlockIndex:
     """List `block` once, sorting what it holds by entry key and hash.
+
+    A file whose key is in `trusted` is an entry regardless of its suffix,
+    so a loader that uses a custom suffix is cleaned from its manifest
+    records.
 
     Raises:
         OSError: If `block` cannot be listed.
@@ -421,6 +468,9 @@ def _index_block(block: Path) -> _BlockIndex:
             dir_names.add(child.name)
             continue
         key = entry_key(child.name)
+        if key is None and trusted and not is_partial_write(child.name):
+            stem, dot, _suffix = child.name.partition(".")
+            key = stem if dot and stem in trusted else None
         if key is None:
             continue
         files_by_key.setdefault(key, []).append(child)
@@ -429,8 +479,8 @@ def _index_block(block: Path) -> _BlockIndex:
     return _BlockIndex(files_by_key, markers_by_hash, frozenset(dir_names))
 
 
-def _has_marker(block: Path, key_hash: str) -> bool:
-    """Whether an entry in `block` names the blobs of `key_hash` now."""
+def has_marker(block: Path, key_hash: str) -> bool:
+    """Whether a lazy marker in `block` names the blobs of `key_hash` now."""
     return any(
         (block / f"{prefix}{key_hash}{LAZY_ENTRY_SUFFIX}").exists()
         for prefix in _cache_prefixes()
@@ -440,6 +490,9 @@ def _has_marker(block: Path, key_hash: str) -> bool:
 def holds_entry(cache_dir: Path, block: str, key: str) -> bool:
     """Whether a file on disk still answers to the entry `(block, key)`.
 
+    A directory of blobs without its marker does not count. Nothing can
+    read it, and `marimo cache prune` removes it.
+
     Raises:
         OSError: If the block cannot be listed.
     """
@@ -448,16 +501,7 @@ def holds_entry(cache_dir: Path, block: str, key: str) -> bool:
     block_dir = cache_dir / block
     if not _is_directory(block_dir):
         return False
-    index = _index_block(block_dir)
-    if index.files_by_key.get(key):
-        return True
-    # Keep orphaned blobs tracked so a failed deletion can be retried.
-    key_hash = entry_hash(key)
-    return (
-        key_hash in index.dir_names
-        and _is_directory(block_dir / key_hash)
-        and key_hash not in index.markers_by_hash
-    )
+    return bool(_index_block(block_dir, trusted={key}).files_by_key.get(key))
 
 
 def _entry_keys(block: Path) -> set[str]:
@@ -478,17 +522,17 @@ def entry_key(name: str) -> str | None:
     entries.
     """
     key, dot, suffix = name.partition(".")
-    if dot and suffix in _ENTRY_SUFFIXES and _is_entry_key(key):
+    if dot and suffix in _ENTRY_SUFFIXES and is_entry_key(key):
         return key
     return None
 
 
 def _names_an_entry(block: str, key: str) -> bool:
     """Reject names that can escape the cache or name unrelated files."""
-    return block == block_dir_name(block) and _is_entry_key(key)
+    return block == block_dir_name(block) and is_entry_key(key)
 
 
-def _is_entry_key(key: str) -> bool:
+def is_entry_key(key: str) -> bool:
     """Whether `key` is spelled as a cache write spells one."""
     digest = key[2:]
     return (

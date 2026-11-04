@@ -145,11 +145,11 @@ def test_clean_leaves_a_configured_store_that_path_did_not_name(
     notebook = tmp_path / "nb.py"
     notebook.write_text(NOTEBOOK)
     decoy = make_cache_dir(tmp_path)
-    write_entry(decoy, "train", "C_ab12.pickle", 10)
+    write_entry(decoy, "train", "C_ab12ab12ab12ab12ab12ab.pickle", 10)
     store_dir = tmp_path / "elsewhere"
-    write_lazy_entry(store_dir, "train", "ab12")
+    write_lazy_entry(store_dir, "train", "ab12ab12ab12ab12ab12ab")
     manifest = write_manifest(
-        store_dir, notebook, {"3f9c": {"train": {"C_ab12"}}}
+        store_dir, notebook, {"3f9c": {"train": {"C_ab12ab12ab12ab12ab12ab"}}}
     )
     configure_store(monkeypatch, store_dir)
 
@@ -160,9 +160,11 @@ def test_clean_leaves_a_configured_store_that_path_did_not_name(
         f"Configured cache.store at {store_dir}; pass it as PATH to act on it.",
         "No cache directories found.",
     ]
-    assert (store_dir / "train" / "ab12").exists()
-    assert read_manifest(manifest) == {"3f9c": {"train": {"C_ab12"}}}
-    assert (decoy / "train" / "C_ab12.pickle").exists()
+    assert (store_dir / "train" / "ab12ab12ab12ab12ab12ab").exists()
+    assert read_manifest(manifest) == {
+        "3f9c": {"train": {"C_ab12ab12ab12ab12ab12ab"}}
+    }
+    assert (decoy / "train" / "C_ab12ab12ab12ab12ab12ab.pickle").exists()
 
 
 def test_clean_acts_on_a_configured_store_given_as_path(
@@ -171,7 +173,7 @@ def test_clean_acts_on_a_configured_store_given_as_path(
     from tests._cli.test_cli_cache import write_lazy_entry
 
     store_dir = tmp_path / "elsewhere"
-    write_lazy_entry(store_dir, "train", "ab12")
+    write_lazy_entry(store_dir, "train", "ab12ab12ab12ab12ab12ab")
     configure_store(monkeypatch, store_dir)
 
     result = CliRunner().invoke(main, ["cache", "clean", str(store_dir), "-y"])
@@ -198,14 +200,14 @@ def test_clean_notebook_beside_a_store_the_default_method_distrusts(
     notebook = tmp_path / "nb.py"
     notebook.write_text(NOTEBOOK)
     cache_dir = make_cache_dir(tmp_path)
-    write_entry(cache_dir, "train", "C_ab12.pickle", 10)
+    write_entry(cache_dir, "train", "C_ab12ab12ab12ab12ab12ab.pickle", 10)
     beside = write_manifest(
-        cache_dir, notebook, {"3f9c": {"train": {"C_ab12"}}}
+        cache_dir, notebook, {"3f9c": {"train": {"C_ab12ab12ab12ab12ab12ab"}}}
     )
     store_dir = tmp_path / "elsewhere"
-    write_lazy_entry(store_dir, "train", "ab12")
+    write_lazy_entry(store_dir, "train", "ab12ab12ab12ab12ab12ab")
     elsewhere = write_manifest(
-        store_dir, notebook, {"3f9c": {"train": {"C_ab12"}}}
+        store_dir, notebook, {"3f9c": {"train": {"C_ab12ab12ab12ab12ab12ab"}}}
     )
     configure_store(monkeypatch, store_dir)
     monkeypatch.setattr(
@@ -222,7 +224,11 @@ def test_clean_notebook_beside_a_store_the_default_method_distrusts(
         in result.output
     )
     assert "Deleted 1 entry, freeing 10 B." in result.output
-    assert not (cache_dir / "train" / "C_ab12.pickle").exists()
+    assert not (
+        cache_dir / "train" / "C_ab12ab12ab12ab12ab12ab.pickle"
+    ).exists()
     assert read_manifest(beside) == {}
-    assert (store_dir / "train" / "ab12").exists()
-    assert read_manifest(elsewhere) == {"3f9c": {"train": {"C_ab12"}}}
+    assert (store_dir / "train" / "ab12ab12ab12ab12ab12ab").exists()
+    assert read_manifest(elsewhere) == {
+        "3f9c": {"train": {"C_ab12ab12ab12ab12ab12ab"}}
+    }
