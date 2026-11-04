@@ -349,7 +349,7 @@ async def test_removed_runs_release_backend_translation_state(
     retained = {"run"} if cell_id != SCRATCH_CELL_ID else set()
     assert set(backend._translators) == retained
     bridge.index.forget(record.id)
-    assert backend._translators == {}
+    assert set(backend._translators) == set()
     assert bridge._backends == {}
     bridge.close()
 
