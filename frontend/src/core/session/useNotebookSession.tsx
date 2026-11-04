@@ -61,7 +61,8 @@ import {
   type StableSessionId,
   stableSessionIdAtom,
 } from "../kernel/session";
-import { initialRunCompletedAtom, kernelStateAtom } from "../kernel/state";
+import { observeCellMessage } from "../executions";
+import { initialRunCompletedAtom } from "../kernel/state";
 import { useLayoutActions } from "../layout/state";
 import { kioskModeAtom } from "../mode";
 import { connectionAtom, startupProgressAtom } from "../network/connection";
@@ -97,7 +98,6 @@ export function useNotebookSession(opts: {
     resetCellRuntimes,
   } = useReducerActions();
   const { addCellNotification } = useRunsActions();
-  const setKernelState = useSetAtom(kernelStateAtom);
   const setInitialRunCompleted = useSetAtom(initialRunCompletedAtom);
   const { setVariables, setMetadata } = useVariablesActions();
   const { addColumnPreview } = useDatasetsActions();
@@ -156,7 +156,6 @@ export function useNotebookSession(opts: {
           resetCellRuntimes,
           setLayoutData,
           setCapabilities,
-          setKernelState,
           onError: showBoundary,
         });
         store.set(savedLayoutAtom, layout);
@@ -220,6 +219,7 @@ export function useNotebookSession(opts: {
         FUNCTIONS_REGISTRY.resolve(msg.data.function_call_id, msg.data);
         return;
       case "cell-op": {
+        observeCellMessage(store, msg.data);
         handleCellNotificationeration(msg.data, handleCellMessage);
         const cellData = getNotebook().cellData[msg.data.cell_id];
         if (!cellData) {

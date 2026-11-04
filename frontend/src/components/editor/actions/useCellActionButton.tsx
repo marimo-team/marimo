@@ -56,7 +56,8 @@ import {
   appWidthAtom,
   autoInstantiateAtom,
 } from "@/core/config/config";
-import type { CellConfig, RuntimeState } from "@/core/network/types";
+import type { CellRunStatus } from "@/core/executions";
+import type { CellConfig } from "@/core/network/types";
 import { canEditAtom } from "@/core/notebook";
 import { canLinkToCell, createCellLink } from "@/utils/cell-urls";
 import { copyToClipboard } from "@/utils/copy";
@@ -73,7 +74,9 @@ export interface CellActionButtonProps extends Pick<
   "name" | "config"
 > {
   cellId: CellId;
-  status: RuntimeState;
+  status: CellRunStatus;
+  /** Whether a cell it depends on is disabled. */
+  blocked: boolean;
   hasOutput: boolean;
   hasConsoleOutput: boolean;
   getEditorView: () => EditorView | null;
@@ -119,6 +122,7 @@ export function useCellActionButtons({ cell, closePopover }: Props) {
     hasOutput,
     hasConsoleOutput,
     status,
+    blocked,
   } = cell;
 
   const toggleDisabled = () => {
@@ -152,7 +156,7 @@ export function useCellActionButtons({ cell, closePopover }: Props) {
         hidden:
           status === "running" ||
           status === "queued" ||
-          status === "disabled-transitively" ||
+          blocked ||
           config.disabled,
         redundant: true,
         handle: () => runCell(),

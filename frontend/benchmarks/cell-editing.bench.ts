@@ -13,11 +13,13 @@ import {
   exportedForTesting,
   needsRunAtom,
   notebookAtom,
-  notebookIsRunningAtom,
   notebookOutline,
-  notebookQueuedOrRunningCountAtom,
   notebookReducer,
 } from "@/core/cells/cells";
+import {
+  notebookIsRunningAtom,
+  notebookQueuedOrRunningCountAtom,
+} from "@/core/executions";
 import type { CellData } from "@/core/cells/types";
 import type { DispatchedActionOf } from "@/utils/createReducer";
 

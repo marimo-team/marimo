@@ -14,7 +14,6 @@ import type {
   CellMessage,
   NotificationMessageData,
 } from "./messages";
-import type { KernelState } from "./state";
 
 type KernelReadyData = NotificationMessageData<"kernel-ready">;
 
@@ -68,7 +67,6 @@ export function handleKernelReady(
       data: LayoutData;
     }) => void;
     setCapabilities: (capabilities: Capabilities) => void;
-    setKernelState: (state: KernelState) => void;
     onError: (error: Error) => void;
   },
 ): LayoutState {
@@ -79,16 +77,12 @@ export function handleKernelReady(
     resetCellRuntimes,
     setLayoutData,
     setCapabilities,
-    setKernelState,
     onError,
   } = opts;
   const { resumed, ui_values, capabilities, auto_instantiated } = data;
 
   resetCellRuntimes();
-  setLastRun({
-    lastCodeRun: data.last_executed_code ?? {},
-    lastExecutionTime: data.last_execution_time ?? {},
-  });
+  setLastRun({ lastCodeRun: data.last_executed_code ?? {} });
   const layoutState = buildLayoutState(data, cells, setLayoutData);
 
   setCapabilities(capabilities);
@@ -121,11 +115,7 @@ export function handleKernelReady(
       values,
       autoRun: autoInstantiate,
     })
-    .then(() => {
-      setKernelState({ isInstantiated: true, error: null });
-    })
     .catch((error) => {
-      setKernelState({ isInstantiated: false, error: error });
       onError(new Error("Failed to instantiate", { cause: error }));
     });
   return layoutState;

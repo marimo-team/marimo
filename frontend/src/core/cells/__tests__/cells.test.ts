@@ -15,6 +15,12 @@ import {
   it,
   vi,
 } from "vitest";
+import { MockExecutions } from "@/__mocks__/executions";
+import {
+  notebookQueuedOrRunningCountAtom,
+  submitCells,
+} from "@/core/executions";
+import { store } from "@/core/state/jotai";
 import { MockNotebook } from "@/__mocks__/notebook";
 import { cellId } from "@/__tests__/branded";
 import type { CellHandle } from "@/components/editor/notebook-cell";
@@ -293,7 +299,6 @@ describe("cell reducer", () => {
     /////////////////
     // Initial state
     let cell = cells[0];
-    expect(cell.status).toBe("idle");
     expect(cell.lastCodeRun).toBe(null);
     expect(cell.edited).toBe(false);
     expect(cell).toMatchSnapshot("initial state");
@@ -301,7 +306,6 @@ describe("cell reducer", () => {
     // Update code
     editCode(firstCellId, "import marimo as mo");
     cell = cells[0];
-    expect(cell.status).toBe("idle");
     expect(cell.lastCodeRun).toBe(null);
     expect(cell.edited).toBe(true);
     expect(cell).toMatchSnapshot("code edited");
@@ -311,7 +315,6 @@ describe("cell reducer", () => {
       cellId: firstCellId,
     });
     cell = cells[0];
-    expect(cell.status).toBe("queued");
     expect(cell.lastCodeRun).toBe("import marimo as mo");
     expect(cell.edited).toBe(false);
     expect(cell).toMatchSnapshot("prepared for run");
@@ -326,12 +329,8 @@ describe("cell reducer", () => {
       timestamp: new Date(10).getTime() as Seconds,
     });
     cell = cells[0];
-    expect(cell.status).toBe("queued");
     expect(cell.lastCodeRun).toBe("import marimo as mo");
     expect(cell.edited).toBe(false);
-    expect(cell.runElapsedTimeMs).toBe(null);
-    expect(cell.runStartTimestamp).toBe(null);
-    expect(cell.lastRunStartTimestamp).toBe(null);
     expect(cell).toMatchSnapshot("queued message received");
 
     // Receive running messages
@@ -344,12 +343,8 @@ describe("cell reducer", () => {
       timestamp: new Date(20).getTime() as Seconds,
     });
     cell = cells[0];
-    expect(cell.status).toBe("running");
     expect(cell.lastCodeRun).toBe("import marimo as mo");
     expect(cell.edited).toBe(false);
-    expect(cell.runElapsedTimeMs).toBe(null);
-    expect(cell.runStartTimestamp).toBe(20);
-    expect(cell.lastRunStartTimestamp).toBe(20);
     expect(cell).toMatchSnapshot("running message received");
 
     // Console messages shouldn't transition status
@@ -367,11 +362,7 @@ describe("cell reducer", () => {
       timestamp: new Date(22).getTime() as Seconds,
     });
     cell = cells[0];
-    expect(cell.status).toBe("running");
     expect(cell.edited).toBe(false);
-    expect(cell.runElapsedTimeMs).toBe(null);
-    expect(cell.runStartTimestamp).toBe(20);
-    expect(cell.lastRunStartTimestamp).toBe(20);
     expect(cell).toMatchSnapshot("console message received");
 
     // Receive output messages
@@ -394,11 +385,7 @@ describe("cell reducer", () => {
       timestamp: new Date(33).getTime() as Seconds,
     });
     cell = cells[0];
-    expect(cell.status).toBe("idle");
     expect(cell.edited).toBe(false);
-    expect(cell.runElapsedTimeMs).toBe(13_000);
-    expect(cell.runStartTimestamp).toBe(null);
-    expect(cell.lastRunStartTimestamp).toBe(20);
     expect(cell).toMatchSnapshot("output received");
 
     // EDITING BACK AND FORTH
@@ -406,7 +393,6 @@ describe("cell reducer", () => {
     // Update code again
     editCode(firstCellId, "import marimo as mo\nimport numpy");
     cell = cells[0];
-    expect(cell.status).toBe("idle");
     expect(cell.edited).toBe(true);
     expect(cell).toMatchSnapshot("code edited again");
 
@@ -419,7 +405,6 @@ describe("cell reducer", () => {
     // Update code should be edited again
     editCode(firstCellId, "import marimo as mo\nimport numpy");
     cell = cells[0];
-    expect(cell.status).toBe("idle");
     expect(cell.lastCodeRun).toBe("import marimo as mo");
     expect(cell.edited).toBe(true);
     expect(cell).toMatchSnapshot("code changed after revert");
@@ -472,11 +457,8 @@ describe("cell reducer", () => {
     });
     cell = cells[0];
     expect(cell.output).not.toBe(null); // keep old output
-    expect(cell.status).toBe("idle");
     expect(cell.lastCodeRun).toBe("import marimo as mo\nimport numpy");
     expect(cell.edited).toBe(false);
-    expect(cell.runElapsedTimeMs).toBe(11_000);
-    expect(cell.runStartTimestamp).toBe(null);
     expect(cell).toMatchSnapshot("error response received");
 
     // INTERRUPT RESPONSE
@@ -524,71 +506,9 @@ describe("cell reducer", () => {
       timestamp: new Date(61).getTime() as Seconds,
     });
     cell = cells[0];
-    expect(cell.status).toBe("idle");
     expect(cell.lastCodeRun).toBe(cell.code);
     expect(cell.edited).toBe(false);
-    expect(cell.runElapsedTimeMs).toBe(11_000);
-    expect(cell.runStartTimestamp).toBe(null);
     expect(cell).toMatchSnapshot("interruption response received");
-  });
-
-  it("errors reset status to idle", () => {
-    // Initial state
-    let cell = cells[0];
-    expect(cell.status).toBe("idle");
-    expect(cell.lastCodeRun).toBe(null);
-    expect(cell.edited).toBe(false);
-    expect(cell).toMatchSnapshot("initial state");
-
-    // Update code
-    editCode(firstCellId, "import marimo as mo");
-    cell = cells[0];
-    expect(cell.status).toBe("idle");
-    expect(cell.lastCodeRun).toBe(null);
-    expect(cell.edited).toBe(true);
-    expect(cell).toMatchSnapshot("code edited");
-
-    // Prepare for run
-    actions.prepareForRun({
-      cellId: firstCellId,
-    });
-    cell = cells[0];
-    expect(cell.status).toBe("queued");
-    expect(cell.lastCodeRun).toBe("import marimo as mo");
-    expect(cell.edited).toBe(false);
-    expect(cell).toMatchSnapshot("prepared for run");
-
-    // ERROR RESPONSE
-    //
-    // should reset status to idle
-    /////////////////
-    // Prepare for run
-    actions.prepareForRun({
-      cellId: firstCellId,
-    });
-    cell = cells[0];
-    // Receive error
-    actions.handleCellMessage({
-      cell_id: firstCellId,
-      output: {
-        channel: "marimo-error",
-        mimetype: "application/vnd.marimo+error",
-        data: [
-          { type: "exception", exception_type: "SyntaxError", msg: "Oh no!" },
-        ],
-        timestamp: 0,
-      },
-      console: null,
-      stale_inputs: null,
-      timestamp: new Date(61).getTime() as Seconds,
-    });
-    cell = cells[0];
-    expect(cell.status).toBe("idle");
-    expect(cell.lastCodeRun).toBe("import marimo as mo");
-    expect(cell.edited).toBe(false);
-    expect(cell.runElapsedTimeMs).toBe(null);
-    expect(cell.runStartTimestamp).toBe(null);
-    expect(cell).toMatchSnapshot("error response received");
   });
 
   it("can run a stale cell", () => {
@@ -618,11 +538,8 @@ describe("cell reducer", () => {
       timestamp: new Date(10).getTime() as Seconds,
     });
     let cell = cells[1];
-    expect(cell.status).toBe("queued");
     expect(cell.lastCodeRun).toBe("mo.slider()");
     expect(cell.edited).toBe(false);
-    expect(cell.runElapsedTimeMs).toBe(null);
-    expect(cell.runStartTimestamp).toBe(null);
     expect(cell).toMatchSnapshot("queued message received");
 
     // Receive stale message
@@ -635,11 +552,8 @@ describe("cell reducer", () => {
       timestamp: new Date(20).getTime() as Seconds,
     });
     cell = cells[1];
-    expect(cell.status).toBe("queued");
     expect(cell.lastCodeRun).toBe("mo.slider()");
     expect(cell.edited).toBe(false);
-    expect(cell.runElapsedTimeMs).toBe(null);
-    expect(cell.runStartTimestamp).toBe(null);
     expect(cell).toMatchSnapshot("stale inputs received");
   });
 
@@ -647,7 +561,6 @@ describe("cell reducer", () => {
     const firstCellId = cells[0].id;
     editCode(firstCellId, "import marimo as    mo");
     let cell = cells[0];
-    expect(cell.status).toBe("idle");
     expect(cell.lastCodeRun).toBe(null);
     expect(cell.edited).toBe(true);
 
@@ -676,14 +589,12 @@ describe("cell reducer", () => {
 
     // Check steady state
     cell = cells[0];
-    expect(cell.status).toBe("idle");
     expect(cell.edited).toBe(false);
     expect(cell.lastCodeRun).toBe("import marimo as    mo");
 
     // Format code
     formatCode(firstCellId, "import marimo as mo");
     cell = cells[0];
-    expect(cell.status).toBe("idle");
     expect(cell.lastCodeRun).toBe("import marimo as mo");
     expect(cell.edited).toBe(false);
   });
@@ -707,13 +618,10 @@ describe("cell reducer", () => {
       timestamp: new Date(10).getTime() as Seconds,
     });
     let cell = cells[0];
-    expect(cell.status).toBe("queued");
     expect(cell.lastCodeRun).toBe(
       "mo.md('This has an ancestor that was stopped')",
     );
     expect(cell.edited).toBe(false);
-    expect(cell.runElapsedTimeMs).toBe(null);
-    expect(cell.runStartTimestamp).toBe(null);
     expect(cell).toMatchSnapshot("queued message received");
 
     // Receive idle message
@@ -749,12 +657,10 @@ describe("cell reducer", () => {
       timestamp: new Date(20).getTime() as Seconds,
     });
     cell = cells[0];
-    expect(cell.status).toBe("idle");
     // oxlint-disable-next-line typescript/no-explicit-any no-unsafe-optional-chaining
     expect((cell.output?.data as any)[0].msg).toBe(
       "This cell wasn't run because an ancestor was stopped with `mo.stop`: ",
     );
-    expect(cell.stopped).toBe(true);
     expect(cell).toMatchSnapshot("ancestor stopped");
 
     // Receive queued message
@@ -767,8 +673,6 @@ describe("cell reducer", () => {
       timestamp: new Date(30).getTime() as Seconds,
     });
     cell = cells[0];
-    expect(cell.status).toBe("queued");
-    expect(cell.stopped).toBe(true);
     expect(cell).toMatchSnapshot("queued after stop");
 
     // Receive running message
@@ -781,8 +685,6 @@ describe("cell reducer", () => {
       timestamp: new Date(40).getTime() as Seconds,
     });
     cell = cells[0];
-    expect(cell.status).toBe("running");
-    expect(cell.stopped).toBe(false);
     expect(cell.output).toBe(null);
     expect(cell).toMatchSnapshot("running after stop");
   });
@@ -809,7 +711,6 @@ describe("cell reducer", () => {
 
     // Initial state
     let cell = cells[0];
-    expect(cell.status).toBe("idle");
     expect(cell.consoleOutputs).toEqual([]);
     expect(cell).toMatchSnapshot("initial state");
 
@@ -818,7 +719,6 @@ describe("cell reducer", () => {
       cellId: firstCellId,
     });
     cell = cells[0];
-    expect(cell.status).toBe("queued");
     expect(cell.consoleOutputs).toEqual([]);
     expect(cell).toMatchSnapshot("prepared for run");
 
@@ -832,7 +732,6 @@ describe("cell reducer", () => {
       timestamp: new Date(10).getTime() as Seconds,
     });
     cell = cells[0];
-    expect(cell.status).toBe("queued");
     expect(cell).toMatchSnapshot("queued message received");
 
     // Receive running messages
@@ -845,7 +744,6 @@ describe("cell reducer", () => {
       timestamp: new Date(20).getTime() as Seconds,
     });
     cell = cells[0];
-    expect(cell.status).toBe("running");
     expect(cell).toMatchSnapshot("running message received");
 
     // Add console
@@ -858,12 +756,10 @@ describe("cell reducer", () => {
       timestamp: new Date(22).getTime() as Seconds,
     });
     cell = cells[0];
-    expect(cell.status).toBe("running");
     expect(cell).toMatchSnapshot("stdout received");
 
     cell = cells[0];
     expect(cell.consoleOutputs[0]).toMatchObject(STDOUT);
-    expect(cell.status).toBe("running");
     expect(cell).toMatchSnapshot("stdout verified");
 
     // Ask via stdin
@@ -878,7 +774,6 @@ describe("cell reducer", () => {
     cell = cells[0];
     expect(cell.consoleOutputs[0]).toMatchObject(STDOUT);
     expect(cell.consoleOutputs[1]).toMatchObject(STD_IN_1);
-    expect(cell.status).toBe("running");
     expect(cell).toMatchSnapshot("stdin requested");
 
     // Response to stdin
@@ -892,7 +787,6 @@ describe("cell reducer", () => {
       ...STD_IN_1,
       response: "Marimo!",
     });
-    expect(cell.status).toBe("running");
     expect(cell).toMatchSnapshot("stdin answered");
 
     // Ask via stdin, again
@@ -910,7 +804,6 @@ describe("cell reducer", () => {
       { ...STD_IN_1, response: "Marimo!" },
       STD_IN_2,
     ]);
-    expect(cell.status).toBe("running");
     expect(cell).toMatchSnapshot("second stdin requested");
 
     // Interrupt, so we respond with ""
@@ -928,7 +821,6 @@ describe("cell reducer", () => {
       timestamp: new Date(61).getTime() as Seconds,
     });
     cell = cells[0];
-    expect(cell.status).toBe("idle");
     expect(cell.consoleOutputs).toMatchObject([
       STDOUT,
       { ...STD_IN_1, response: "Marimo!" },
@@ -1022,7 +914,6 @@ describe("cell reducer", () => {
 
     // Initial state
     let cell = cells[0];
-    expect(cell.status).toBe("idle");
     expect(cell.consoleOutputs).toEqual([]);
     expect(cell).toMatchSnapshot("initial state");
 
@@ -1041,7 +932,6 @@ describe("cell reducer", () => {
       cellId: firstCellId,
     });
     cell = cells[0];
-    expect(cell.status).toBe("queued");
     expect(cell.consoleOutputs).toMatchObject([OLD_STDOUT]); // Old stays there until it starts running
     expect(cell).toMatchSnapshot("prepared for run");
 
@@ -1055,7 +945,6 @@ describe("cell reducer", () => {
       timestamp: new Date(10).getTime() as Seconds,
     });
     cell = cells[0];
-    expect(cell.status).toBe("queued");
     expect(cell.consoleOutputs).toMatchObject([OLD_STDOUT]); // Old stays there until it starts running
     expect(cell).toMatchSnapshot("queued message received");
 
@@ -1069,7 +958,6 @@ describe("cell reducer", () => {
       timestamp: new Date(20).getTime() as Seconds,
     });
     cell = cells[0];
-    expect(cell.status).toBe("running");
     expect(cell.consoleOutputs).toMatchObject([]);
     expect(cell).toMatchSnapshot("console cleared while running");
 
@@ -1084,7 +972,6 @@ describe("cell reducer", () => {
     });
     cell = cells[0];
     expect(cell.consoleOutputs).toMatchObject([STDOUT]);
-    expect(cell.status).toBe("idle");
     expect(cell).toMatchSnapshot("console received while idle");
   });
 
@@ -1338,6 +1225,15 @@ describe("cell reducer", () => {
       expect(handleAtom2).toBe(handleAtom1);
     });
   });
+  it("withdraws the submission of a cell that leaves the document", () => {
+    MockExecutions.seed(store, []);
+    submitCells(store, [firstCellId]);
+    expect(store.get(notebookQueuedOrRunningCountAtom)).toBe(1);
+
+    actions.reconcileDocument({ order: [], cells: new Map() });
+
+    expect(store.get(notebookQueuedOrRunningCountAtom)).toBe(0);
+  });
 });
 
 describe("createTracebackInfoAtom", () => {
@@ -1519,11 +1415,11 @@ describe("createTracebackInfoAtom", () => {
               data: [{ type: "syntax", msg: "Syntax error", lineno: 1 }],
               mimetype: "application/vnd.marimo+error",
             },
-            status: "queued",
           },
         },
       }),
     );
+    MockExecutions.seed(store, [MockExecutions.queued(cellId("cell1"))]);
 
     const tracebackAtom = exportedForTesting.createTracebackInfoAtom(
       cellId("cell1"),
@@ -1551,11 +1447,11 @@ describe("createTracebackInfoAtom", () => {
               data: [{ type: "syntax", msg: "Syntax error", lineno: 1 }],
               mimetype: "application/vnd.marimo+error",
             },
-            status: "running",
           },
         },
       }),
     );
+    MockExecutions.seed(store, [MockExecutions.running(cellId("cell1"))]);
 
     const tracebackAtom = exportedForTesting.createTracebackInfoAtom(
       cellId("cell1"),
@@ -1602,20 +1498,15 @@ describe("kernel-ready", () => {
     const state = hydratedState();
     const next = exportedForTesting.reducer(state, {
       type: "setLastRun",
-      payload: {
-        lastCodeRun: { [CELL_A]: "0" },
-        lastExecutionTime: { [CELL_A]: 5 },
-      },
+      payload: { lastCodeRun: { [CELL_A]: "0" } },
     });
 
     expect(next.cellData[CELL_A]).toMatchObject({
       lastCodeRun: "0",
-      lastExecutionTime: 5,
       edited: true,
     });
     expect(next.cellData[CELL_B]).toMatchObject({
       lastCodeRun: null,
-      lastExecutionTime: null,
       edited: false,
     });
     expect(next.cellRuntime).toBe(state.cellRuntime);

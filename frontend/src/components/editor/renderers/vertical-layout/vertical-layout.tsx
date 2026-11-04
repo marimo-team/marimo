@@ -32,7 +32,7 @@ import { getReadonlyCodeDisplay } from "@/core/cells/readonly-code-display";
 import { MarkdownLanguageAdapter } from "@/core/codemirror/language/languages/markdown";
 import { useResolvedMarimoConfig } from "@/core/config/config";
 import { CSSClasses } from "@/core/constants";
-import { kernelStateAtom } from "@/core/kernel/state";
+import { runtimeStatusAtom, useCellExecution } from "@/core/executions";
 import { useNotebookCodeAvailable } from "@/core/meta/code-visibility";
 import { showCodeInRunModeAtom } from "@/core/meta/state";
 import {
@@ -73,7 +73,7 @@ const VerticalLayoutRenderer: React.FC<VerticalLayoutProps> = ({
 }) => {
   const { invisible } = useDelayVisibility(cells.length, mode);
   const kioskMode = useAtomValue(kioskModeAtom);
-  const kernelState = useAtomValue(kernelStateAtom);
+  const runtimeStatus = useAtomValue(runtimeStatusAtom);
   const [userConfig] = useResolvedMarimoConfig();
   const showCodeInRunModePreference = useAtomValue(showCodeInRunModeAtom);
 
@@ -98,16 +98,11 @@ const VerticalLayoutRenderer: React.FC<VerticalLayoutProps> = ({
         cellId={cell.id}
         output={cell.output}
         consoleOutputs={cell.consoleOutputs}
-        status={cell.status}
         code={cell.code}
         config={cell.config}
         cellOutputArea={userConfig.display.cell_output}
-        stopped={cell.stopped}
         showCode={showCode && canShowCode}
-        errored={cell.errored}
         mode={mode}
-        runStartTimestamp={cell.runStartTimestamp}
-        interrupted={cell.interrupted}
         staleInputs={cell.staleInputs}
         name={cell.name}
         kiosk={kioskMode}
@@ -134,8 +129,8 @@ const VerticalLayoutRenderer: React.FC<VerticalLayoutProps> = ({
     }
 
     if (cells.length === 0 && !invisible) {
-      // If kernel is not yet instantiated, show loading state
-      if (!kernelState.isInstantiated) {
+      // Until the host reports the runtime running, show loading state
+      if (runtimeStatus !== "running") {
         return (
           <div className="flex-1 flex flex-col items-center justify-center py-8">
             <Loader2Icon className="w-8 h-8 animate-spin text-muted-foreground" />
@@ -304,14 +299,7 @@ const ActionButtons: React.FC<{
 
 interface VerticalCellProps extends Pick<
   CellRuntimeState,
-  | "output"
-  | "consoleOutputs"
-  | "status"
-  | "stopped"
-  | "errored"
-  | "interrupted"
-  | "staleInputs"
-  | "runStartTimestamp"
+  "output" | "consoleOutputs" | "staleInputs"
 > {
   cellOutputArea: "above" | "below";
   cellId: CellId;
@@ -330,13 +318,8 @@ const VerticalCell = memo(
     consoleOutputs,
     cellOutputArea,
     cellId,
-    status,
-    stopped,
-    errored,
     config,
-    interrupted,
     staleInputs,
-    runStartTimestamp,
     code,
     showCode,
     mode,
@@ -345,18 +328,13 @@ const VerticalCell = memo(
     showErrorTracebacks,
   }: VerticalCellProps) => {
     const cellRef = useRef<HTMLDivElement>(null);
+    const execution = useCellExecution(cellId);
+    const errored = execution.outcome === "error";
+    const interrupted = execution.outcome === "interrupted";
+    const stopped = execution.outcome === "skipped";
 
-    const outputStale = outputIsStale(
-      {
-        status,
-        output,
-        interrupted,
-        runStartTimestamp,
-        staleInputs,
-      },
-      false,
-    );
-    const loading = outputIsLoading(status);
+    const outputStale = outputIsStale(execution, staleInputs, false);
+    const loading = outputIsLoading(execution.status);
 
     // Kiosk and not presenting
     const kioskFull = kiosk && mode !== "present";

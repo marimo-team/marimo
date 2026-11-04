@@ -7,10 +7,8 @@ import type { PropsWithChildren } from "react";
 import { useEffect, useMemo } from "react";
 import { ReorderableList } from "@/components/ui/reorderable-list";
 import { Tooltip } from "@/components/ui/tooltip";
-import {
-  cellErrorCount,
-  notebookQueuedOrRunningCountAtom,
-} from "@/core/cells/cells";
+import { cellErrorCount } from "@/core/cells/cells";
+import { notebookQueuedOrRunningCountAtom } from "@/core/executions";
 import { capabilitiesAtom } from "@/core/config/capabilities";
 import { aiEnabledAtom } from "@/core/config/config";
 import { cn } from "@/utils/cn";

@@ -1,0 +1,57 @@
+/* Copyright 2026 Marimo. All rights reserved. */
+
+import { createStore } from "jotai";
+import { describe, expect, it } from "vitest";
+import { MockExecutions } from "@/__mocks__/executions";
+import { cellId } from "@/__tests__/branded";
+import type { CellMessage } from "@/core/kernel/messages";
+import {
+  cellExecutionInputsAtom,
+  notebookQueuedOrRunningCountAtom,
+  observeCellMessage,
+  submitCells,
+} from "../atoms";
+import { cellExecutionView } from "../select";
+
+const C1 = cellId("c1");
+
+function cellOp(status: CellMessage["status"]): CellMessage {
+  return {
+    cell_id: C1,
+    output: null,
+    console: null,
+    status,
+    stale_inputs: null,
+    timestamp: 1,
+  };
+}
+
+describe("observeCellMessage", () => {
+  it("withdraws a submission once the kernel reports the cell blocked", () => {
+    const store = createStore();
+    MockExecutions.seed(store, []);
+    submitCells(store, [C1]);
+    expect(
+      cellExecutionView(store.get(cellExecutionInputsAtom), C1).status,
+    ).toBe("queued");
+
+    observeCellMessage(store, cellOp("disabled-transitively"));
+
+    const view = cellExecutionView(store.get(cellExecutionInputsAtom), C1);
+    expect(view.status).toBe("idle");
+    expect(view.blocked).toBe(true);
+    expect(store.get(notebookQueuedOrRunningCountAtom)).toBe(0);
+  });
+
+  it("keeps a submission while the cell is merely queued", () => {
+    const store = createStore();
+    MockExecutions.seed(store, []);
+    submitCells(store, [C1]);
+
+    observeCellMessage(store, cellOp("queued"));
+
+    expect(
+      cellExecutionView(store.get(cellExecutionInputsAtom), C1).status,
+    ).toBe("queued");
+  });
+});

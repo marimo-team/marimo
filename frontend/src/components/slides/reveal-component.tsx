@@ -20,6 +20,7 @@ import { Button } from "@/components/ui/button";
 import { useFullScreenElement } from "@/components/ui/fullscreen";
 import { Tooltip } from "@/components/ui/tooltip";
 import { outputIsStale } from "@/core/cells/cell";
+import { useCellExecution } from "@/core/executions";
 import type { CellId } from "@/core/cells/ids";
 import type { RuntimeCell } from "@/core/cells/types";
 import type { RevealApi, RevealConfig } from "reveal.js";
@@ -351,16 +352,19 @@ function resolveSlideContentStyle(
  * different scheme than `HTMLCellId`) and its inner `OutputArea` uses
  * `display: contents`, which can't be targeted for background/border styling.
  */
-export const CellOutputBlock = ({ cell }: { cell: RuntimeCell }) => (
-  <div className="flex flex-col" {...cellDomProps(cell.id, cell.name)}>
-    <CellOutputSlide
-      cellId={cell.id}
-      status={cell.status}
-      output={cell.output}
-      stale={outputIsStale(cell, false)}
-    />
-  </div>
-);
+export const CellOutputBlock = ({ cell }: { cell: RuntimeCell }) => {
+  const execution = useCellExecution(cell.id);
+  return (
+    <div className="flex flex-col" {...cellDomProps(cell.id, cell.name)}>
+      <CellOutputSlide
+        cellId={cell.id}
+        status={execution.status}
+        output={cell.output}
+        stale={outputIsStale(execution, cell.staleInputs, false)}
+      />
+    </div>
+  );
+};
 
 const SubslideView = ({
   subslide,

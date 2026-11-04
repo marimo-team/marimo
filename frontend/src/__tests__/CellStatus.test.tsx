@@ -3,7 +3,7 @@
 import { render } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { formatElapsedTime, type Seconds } from "@/utils/time";
+import { formatElapsedTime, type Milliseconds } from "@/utils/time";
 import {
   CellStatusComponent,
   ElapsedTime,
@@ -76,8 +76,8 @@ describe("CellStatusComponent", () => {
     status: "idle" as const,
     interrupted: false,
     elapsedTime: null,
-    runStartTimestamp: null,
-    lastRunStartTimestamp: null,
+    startedAt: null,
+    blocked: false,
     uninstantiated: false,
   };
 
@@ -95,7 +95,7 @@ describe("CellStatusComponent", () => {
       ...baseProps,
       disabled: true,
       staleInputs: true,
-      lastRunStartTimestamp: 1_704_096_000 as Seconds, // Jan 1, 2024 12:00:00
+      startedAt: 1_704_096_000_000 as Milliseconds, // Jan 1, 2024 12:00:00
     };
 
     const { container } = render(
@@ -110,7 +110,7 @@ describe("CellStatusComponent", () => {
     const props = {
       ...baseProps,
       disabled: true,
-      lastRunStartTimestamp: 1_704_096_000 as Seconds,
+      startedAt: 1_704_096_000_000 as Milliseconds,
     };
 
     const { container } = render(
@@ -124,8 +124,8 @@ describe("CellStatusComponent", () => {
   test("renders disabled transitively state", () => {
     const props = {
       ...baseProps,
-      status: "disabled-transitively" as const,
-      lastRunStartTimestamp: 1_704_096_000 as Seconds,
+      blocked: true,
+      startedAt: 1_704_096_000_000 as Milliseconds,
     };
 
     const { container } = render(
@@ -139,9 +139,9 @@ describe("CellStatusComponent", () => {
   test("renders stale and disabled transitively state", () => {
     const props = {
       ...baseProps,
-      status: "disabled-transitively" as const,
+      blocked: true,
       staleInputs: true,
-      lastRunStartTimestamp: 1_704_096_000 as Seconds,
+      startedAt: 1_704_096_000_000 as Milliseconds,
     };
 
     const { container } = render(
@@ -156,8 +156,7 @@ describe("CellStatusComponent", () => {
     const props = {
       ...baseProps,
       status: "running" as const,
-      runStartTimestamp: 1_704_096_000 as Seconds,
-      lastRunStartTimestamp: 1_704_096_000 as Seconds,
+      startedAt: 1_704_096_000_000 as Milliseconds,
     };
 
     const { container } = render(
@@ -172,7 +171,7 @@ describe("CellStatusComponent", () => {
     const props = {
       ...baseProps,
       status: "queued" as const,
-      lastRunStartTimestamp: 1_704_096_000 as Seconds,
+      startedAt: 1_704_096_000_000 as Milliseconds,
     };
 
     const { container } = render(
@@ -201,8 +200,8 @@ describe("CellStatusComponent", () => {
     const props = {
       ...baseProps,
       interrupted: true,
-      elapsedTime: 1500,
-      lastRunStartTimestamp: 1_704_096_000 as Seconds,
+      elapsedTime: 1500 as Milliseconds,
+      startedAt: 1_704_096_000_000 as Milliseconds,
     };
 
     const { container } = render(
@@ -217,8 +216,8 @@ describe("CellStatusComponent", () => {
     const props = {
       ...baseProps,
       edited: true,
-      elapsedTime: 1500,
-      lastRunStartTimestamp: 1_704_096_000 as Seconds,
+      elapsedTime: 1500 as Milliseconds,
+      startedAt: 1_704_096_000_000 as Milliseconds,
     };
 
     const { container } = render(
@@ -233,8 +232,8 @@ describe("CellStatusComponent", () => {
     const props = {
       ...baseProps,
       staleInputs: true,
-      elapsedTime: 1500,
-      lastRunStartTimestamp: 1_704_096_000 as Seconds,
+      elapsedTime: 1500 as Milliseconds,
+      startedAt: 1_704_096_000_000 as Milliseconds,
     };
 
     const { container } = render(
@@ -248,8 +247,8 @@ describe("CellStatusComponent", () => {
   test("renders completed run with elapsed time", () => {
     const props = {
       ...baseProps,
-      elapsedTime: 1500,
-      lastRunStartTimestamp: 1_704_096_000 as Seconds,
+      elapsedTime: 1500 as Milliseconds,
+      startedAt: 1_704_096_000_000 as Milliseconds,
     };
 
     const { container } = render(

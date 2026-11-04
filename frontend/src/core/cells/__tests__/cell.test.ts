@@ -1,45 +1,41 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 import { describe, expect, it } from "vitest";
+import type { CellExecutionView, CellRunStatus } from "@/core/executions";
 import type { CellMessage, OutputMessage } from "@/core/kernel/messages";
-import type { RuntimeState } from "@/core/network/types";
-import type { Seconds } from "@/utils/time";
+import type { Milliseconds, Seconds } from "@/utils/time";
 import { outputIsLoading, outputIsStale, transitionCell } from "../cell";
 import { createCellRuntimeState } from "../types";
 
-const STATUSES: RuntimeState[] = [
-  "queued",
-  "running",
-  "idle",
-  "disabled-transitively",
-];
+const STATUSES: CellRunStatus[] = ["queued", "running", "idle"];
 
-function createOutput(): OutputMessage {
+const NOW = Date.now() as Milliseconds;
+
+type View = Pick<
+  CellExecutionView,
+  "status" | "outcome" | "startedAt" | "rendered"
+>;
+
+function view(overrides: Partial<View>): View {
   return {
-    channel: "output",
-    mimetype: "application/json",
-    data: {
-      foo: "bar",
-    },
-    timestamp: Date.now(),
+    status: "idle",
+    outcome: null,
+    startedAt: null,
+    rendered: false,
+    ...overrides,
   };
 }
+
 describe("outputIsLoading", () => {
   it("should return true if the cell is running", () => {
-    expect(outputIsLoading("running" as RuntimeState)).toBe(true);
+    expect(outputIsLoading("running")).toBe(true);
   });
 
   it("should return true if the cell is queued", () => {
-    expect(outputIsLoading("queued" as RuntimeState)).toBe(true);
+    expect(outputIsLoading("queued")).toBe(true);
   });
 
   it("should return false if the cell is idle", () => {
-    expect(outputIsLoading("idle" as RuntimeState)).toBe(false);
-  });
-
-  it("should return false if the cell is disabled-transitively", () => {
-    expect(outputIsLoading("disabled-transitively" as RuntimeState)).toBe(
-      false,
-    );
+    expect(outputIsLoading("idle")).toBe(false);
   });
 });
 
@@ -47,149 +43,53 @@ describe("outputIsStale", () => {
   it.each(STATUSES)(
     "should return true if the cell is edited and status is %s",
     (status) => {
-      const cell = {
-        status: status,
-        staleInputs: true,
-        output: null,
-        runStartTimestamp: null,
-        interrupted: false,
-      };
-      const edited = true;
-      expect(outputIsStale(cell, edited)).toBe(true);
+      expect(outputIsStale(view({ status }), true, true)).toBe(true);
     },
   );
 
   it("should return true if the cell is loading", () => {
-    const cell = {
-      status: "running" as RuntimeState,
-      staleInputs: false,
-      output: null,
-      runStartTimestamp: null,
-      interrupted: false,
-    };
-    const edited = false;
-    expect(outputIsStale(cell, edited)).toBe(true);
+    expect(outputIsStale(view({ status: "running" }), false, false)).toBe(true);
   });
 
-  it("should return false if the cell is running and output is received after run started", () => {
-    const cell = {
-      status: "running" as RuntimeState,
-      staleInputs: false,
-      output: createOutput(),
-      runStartTimestamp: (Date.now() - 1000) as Seconds, // Output received after run started
-      interrupted: false,
-    };
-    const edited = false;
-    expect(outputIsStale(cell, edited)).toBe(false);
+  it("should return false if the cell is running and has shown output", () => {
+    const running = view({ status: "running", rendered: true });
+    expect(outputIsStale(running, false, false)).toBe(false);
   });
 
-  it("should return true if the cell status is stale", () => {
-    const cell = {
-      status: "disabled-transitively" as RuntimeState,
-      staleInputs: true,
-      output: null,
-      runStartTimestamp: null,
-      interrupted: false,
-    };
-    const edited = false;
-    expect(outputIsStale(cell, edited)).toBe(true);
+  it("should return true if the cell has stale inputs", () => {
+    expect(outputIsStale(view({}), true, false)).toBe(true);
   });
 
   it("should return false if the cell is interrupted", () => {
-    const cell = {
-      status: "running" as RuntimeState,
-      staleInputs: false,
-      output: null,
-      runStartTimestamp: null,
-      interrupted: true,
-    };
-    const edited = false;
-    expect(outputIsStale(cell, edited)).toBe(false);
-  });
-
-  it("should return true if the cell is running and output is received before run started", () => {
-    const cell = {
-      status: "running" as RuntimeState,
-      staleInputs: false,
-      output: createOutput(),
-      runStartTimestamp: (Date.now() + 1000) as Seconds, // Output received before run started
-      interrupted: false,
-    };
-    const edited = false;
-    expect(outputIsStale(cell, edited)).toBe(true);
-  });
-
-  it("should return false if the cell is idle and output is received", () => {
-    const cell = {
-      status: "idle" as RuntimeState,
-      staleInputs: false,
-      output: createOutput(),
-      runStartTimestamp: null,
-      interrupted: false,
-    };
-    const edited = false;
-    expect(outputIsStale(cell, edited)).toBe(false);
-  });
-
-  it("should return true if the cell is queued", () => {
-    const cell = {
-      status: "queued" as RuntimeState,
-      staleInputs: false,
-      output: null,
-      runStartTimestamp: null,
-      interrupted: false,
-    };
-    const edited = false;
-    expect(outputIsStale(cell, edited)).toBe(true);
-  });
-
-  it("should return true if the cell is running but no output is received", () => {
-    const cell = {
-      status: "running" as RuntimeState,
-      staleInputs: false,
-      output: null,
-      runStartTimestamp: Date.now() as Seconds,
-      interrupted: false,
-    };
-    const edited = false;
-    expect(outputIsStale(cell, edited)).toBe(true);
+    expect(outputIsStale(view({ outcome: "interrupted" }), false, false)).toBe(
+      false,
+    );
   });
 
   it("should return false if the cell is idle and not edited", () => {
-    const cell = {
-      status: "idle" as RuntimeState,
-      staleInputs: false,
-      output: null,
-      runStartTimestamp: null,
-      interrupted: false,
-    };
-    const edited = false;
-    expect(outputIsStale(cell, edited)).toBe(false);
+    expect(outputIsStale(view({}), false, false)).toBe(false);
+  });
+
+  it("should return true if the cell is queued", () => {
+    expect(outputIsStale(view({ status: "queued" }), false, false)).toBe(true);
+  });
+
+  it("should return true if the cell is running but no output is received", () => {
+    const running = view({ status: "running", startedAt: NOW });
+    expect(outputIsStale(running, false, false)).toBe(true);
   });
 
   it("should return false if the cell is interrupted but also edited", () => {
     // We likely don't get in this state since before a cell is interrupted, it is run and we remove the edited state
-    const cell = {
-      status: "idle" as RuntimeState,
-      staleInputs: false,
-      output: null,
-      runStartTimestamp: null,
-      interrupted: true,
-    };
-    const edited = true;
-    expect(outputIsStale(cell, edited)).toBe(false);
+    expect(outputIsStale(view({ outcome: "interrupted" }), false, true)).toBe(
+      false,
+    );
   });
 
-  it("should return true if the cell is interrupted but has a stale status", () => {
-    const cell = {
-      status: "disabled-transitively" as RuntimeState,
-      staleInputs: true,
-      output: null,
-      runStartTimestamp: null,
-      interrupted: true,
-    };
-    const edited = false;
-    expect(outputIsStale(cell, edited)).toBe(false);
+  it("should return false if the cell is interrupted but has stale inputs", () => {
+    expect(outputIsStale(view({ outcome: "interrupted" }), true, false)).toBe(
+      false,
+    );
   });
 });
 
@@ -231,7 +131,7 @@ describe("transitionCell console output ids", () => {
   });
 
   it("assigns increasing ids to appended outputs", () => {
-    let cell = createCellRuntimeState({ status: "running" });
+    let cell = createCellRuntimeState();
     cell = transitionCell(cell, { console: output("a") } as CellMessage);
     cell = transitionCell(cell, {
       console: output("b", "stderr"),
@@ -240,7 +140,7 @@ describe("transitionCell console output ids", () => {
   });
 
   it("continues from the surviving maximum after a collapse", () => {
-    let cell = createCellRuntimeState({ status: "running" });
+    let cell = createCellRuntimeState();
     cell = transitionCell(cell, { console: output("a") } as CellMessage);
     cell = transitionCell(cell, { console: output("b") } as CellMessage);
     expect(cell.consoleOutputs.map((o) => o.id)).toEqual([1]);
@@ -251,7 +151,7 @@ describe("transitionCell console output ids", () => {
   });
 
   it("assigns ids when the kernel replaces the whole console", () => {
-    const cell = transitionCell(createCellRuntimeState({ status: "running" }), {
+    const cell = transitionCell(createCellRuntimeState(), {
       console: [output("a"), output("b", "stderr")],
     } as CellMessage);
     expect(cell.consoleOutputs.map((o) => o.id)).toEqual([1, 2]);
@@ -275,7 +175,7 @@ describe("transitionCell stdin resolution", () => {
       name: "idle",
       message: { status: "idle" } as CellMessage,
     },
-  ])("when $name", ({ name, message }) => {
+  ])("when $name", ({ message }) => {
     it.each(["text/plain", "text/password"] as const)(
       "preserves a processed %s prompt",
       (mimetype) => {
@@ -285,13 +185,11 @@ describe("transitionCell stdin resolution", () => {
           data: "Enter a value: ",
           timestamp: 0,
         };
-        const waiting = transitionCell(
-          createCellRuntimeState({ status: "running" }),
-          { console: prompt } as CellMessage,
-        );
+        const waiting = transitionCell(createCellRuntimeState(), {
+          console: prompt,
+        } as CellMessage);
         const resolved = transitionCell(waiting, message);
 
-        expect(resolved.interrupted).toBe(name === "interrupted");
         expect(resolved.consoleOutputs[0]).toMatchObject({
           ...prompt,
           response: "",
@@ -310,7 +208,6 @@ describe("transitionCell stdin resolution", () => {
           response: "submitted value",
         };
         const answered = createCellRuntimeState({
-          status: "running",
           consoleOutputs: [prompt],
         });
         const resolved = transitionCell(answered, message);
@@ -333,7 +230,6 @@ describe("transitionCell stdin resolution", () => {
     // A paused-pdb cell shows an unanswered stdin prompt (the debugger box);
     // once it finishes (e.g. after quitting with `q`), the box is removed.
     const cell = createCellRuntimeState({
-      status: "running",
       debuggerActive: true,
       consoleOutputs: [stdinOutput()],
     });
@@ -347,7 +243,6 @@ describe("transitionCell stdin resolution", () => {
 
   it("leaves an unanswered prompt interactive while still running", () => {
     const cell = createCellRuntimeState({
-      status: "running",
       consoleOutputs: [stdinOutput()],
     });
     const next = transitionCell(cell, {

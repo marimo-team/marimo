@@ -4,6 +4,7 @@ import { createStore, Provider } from "jotai";
 import { beforeAll, describe, expect, it } from "vitest";
 import { SetupMocks } from "@/__mocks__/common";
 import { mockDocumentModel } from "@/__mocks__/document";
+import { MockExecutions } from "@/__mocks__/executions";
 import { MockNotebook } from "@/__mocks__/notebook";
 import { MockRequestClient } from "@/__mocks__/requests";
 import { cellId } from "@/__tests__/branded";
@@ -50,7 +51,6 @@ function seedNotebook(
     },
   });
   notebook.cellRuntime[cid] = createCellRuntimeState({
-    status: "idle",
     output: {
       channel: "output",
       mimetype: "text/html",
@@ -207,8 +207,8 @@ describe("output persistence across mode changes", () => {
 
   it("hides errored cells while presenting without unmounting them", () => {
     const { store, wrapper } = createTestWrapper();
+    MockExecutions.seed(store, [MockExecutions.errored(cid)]);
     seedNotebook(store, {
-      errored: true,
       output: {
         channel: "marimo-error",
         mimetype: "application/vnd.marimo+error",

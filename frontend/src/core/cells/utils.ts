@@ -1,27 +1,22 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import type { EditorView } from "@codemirror/view";
+import {
+  type CellExecutionInputs,
+  type CellExecutionView,
+  cellExecutionView,
+} from "@/core/executions";
 import { Objects } from "@/utils/objects";
 import type { MarimoError, OutputMessage } from "../kernel/messages";
 import { isErrorMime } from "../mime";
-import type { RuntimeState } from "../network/types";
 import type { NotebookState } from "./cells";
 import type { CellId } from "./ids";
 
-export function notebookIsRunning(state: NotebookState) {
-  return Object.values(state.cellRuntime).some(
-    (cell) => cell.status === "running",
-  );
-}
-
-export function notebookQueueOrRunningCount(state: NotebookState) {
-  return Object.values(state.cellRuntime).filter(
-    (cell) => cell.status === "running" || cell.status === "queued",
-  ).length;
-}
-
-export function notebookNeedsRun(state: NotebookState) {
-  return staleCellIds(state).length > 0;
+export function notebookNeedsRun(
+  state: NotebookState,
+  executions: CellExecutionInputs,
+) {
+  return staleCellIds(state, executions).length > 0;
 }
 
 export function notebookCells(state: NotebookState) {
@@ -84,16 +79,16 @@ export function getUndoLabel(state: NotebookState): string {
  */
 export function getDescendantsStatus(
   state: NotebookState,
+  executions: CellExecutionInputs,
   descendants: readonly CellId[],
 ) {
+  const views = descendants.map((id) => cellExecutionView(executions, id));
   const stale = descendants.some(
     (id) => state.cellRuntime[id]?.staleInputs || state.cellData[id]?.edited,
   );
-  const errored = descendants.some((id) => state.cellRuntime[id]?.errored);
-  const runningOrQueued = descendants.some(
-    (id) =>
-      state.cellRuntime[id]?.status === "running" ||
-      state.cellRuntime[id]?.status === "queued",
+  const errored = views.some((view) => view.outcome === "error");
+  const runningOrQueued = views.some(
+    (view) => view.status === "running" || view.status === "queued",
   );
 
   return {
@@ -106,54 +101,30 @@ export function getDescendantsStatus(
 /**
  * Cells that are stale and can be run.
  */
-export function staleCellIds(state: NotebookState) {
+export function staleCellIds(
+  state: NotebookState,
+  executions: CellExecutionInputs,
+) {
   const { cellIds, cellData, cellRuntime } = state;
-  return cellIds.filter(
-    (cellId) =>
-      isUninstantiated({
-        // runElapstedTimeMs is what we've seen in this session
-        executionTime:
-          cellRuntime[cellId].runElapsedTimeMs ??
-          // lastExecutionTime is what was seen on session start/resume
-          cellData[cellId].lastExecutionTime,
-        status: cellRuntime[cellId].status,
-        errored: cellRuntime[cellId].errored,
-        interrupted: cellRuntime[cellId].interrupted,
-        stopped: cellRuntime[cellId].stopped,
-      }) ||
+  return cellIds.filter((cellId) => {
+    const execution = cellExecutionView(executions, cellId);
+    return (
+      isUninstantiated(execution) ||
       cellData[cellId].edited ||
-      cellRuntime[cellId].interrupted ||
+      execution.outcome === "interrupted" ||
       (cellRuntime[cellId].staleInputs &&
         // if a cell is disabled, it can't be run ...
-        !(
-          cellRuntime[cellId].status === "disabled-transitively" ||
-          cellData[cellId].config.disabled
-        )),
-  );
+        !(execution.blocked || cellData[cellId].config.disabled))
+    );
+  });
 }
 
+/** Whether a cell has never run: no result to show and nothing in flight. */
 export function isUninstantiated({
-  executionTime,
   status,
-  errored,
-  interrupted,
-  stopped,
-}: {
-  executionTime: number | null;
-  status: RuntimeState;
-  errored: boolean;
-  interrupted: boolean;
-  stopped: boolean;
-}) {
-  return (
-    // hasn't run ...
-    executionTime === null &&
-    // isn't currently queued/running &&
-    status !== "queued" &&
-    status !== "running" &&
-    // and isn't in an error state.
-    !(errored || interrupted || stopped)
-  );
+  outcome,
+}: Pick<CellExecutionView, "status" | "outcome">) {
+  return outcome === null && status !== "queued" && status !== "running";
 }
 
 /**
@@ -166,17 +137,15 @@ export function cellNeedsRun({
   interrupted,
   staleInputs,
   disabled,
-  status,
+  blocked,
 }: {
   edited: boolean;
   interrupted: boolean;
   staleInputs: boolean;
   disabled: boolean | undefined;
-  status: RuntimeState;
+  blocked: boolean;
 }): boolean {
-  const disabledOrAncestorDisabled =
-    disabled || status === "disabled-transitively";
-  return edited || interrupted || (staleInputs && !disabledOrAncestorDisabled);
+  return edited || interrupted || (staleInputs && !(disabled || blocked));
 }
 
 export function cellStatusClasses({
@@ -184,20 +153,20 @@ export function cellStatusClasses({
   errored,
   stopped,
   disabled,
-  status,
+  blocked,
 }: {
   needsRun: boolean;
   errored: boolean;
   stopped: boolean;
   disabled: boolean | undefined;
-  status: RuntimeState;
+  blocked: boolean;
 }) {
   return {
     "needs-run": needsRun,
     "has-error": errored,
     stopped,
     disabled: disabled ?? false,
-    stale: status === "disabled-transitively",
+    stale: blocked,
   };
 }
 
