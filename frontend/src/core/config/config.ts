@@ -2,7 +2,7 @@
 import { dequal } from "dequal";
 import { atom, useAtom, useAtomValue, useSetAtom } from "jotai";
 import { selectAtom } from "jotai/vanilla/utils";
-import { mergeWith } from "lodash-es";
+import { cloneDeep, get, has, isPlainObject, mergeWith, set } from "lodash-es";
 import { OverridingHotkeyProvider } from "../hotkeys/hotkeys";
 import { type Platform, resolvePlatform } from "../hotkeys/shortcuts";
 import { confirmedDocumentAtom } from "../session/active-notebook";
@@ -15,16 +15,41 @@ import {
 } from "./config-schema";
 
 /**
- * Deep-merge config objects, replacing arrays instead of merging them by
- * index. Lodash `merge` keeps leftover tail items. Python `deep_merge` replaces arrays.
+ * Match Python configuration merging, including array and record replacement.
  */
 export function mergeConfig<T extends object>(...sources: object[]): T {
-  return mergeWith({}, ...sources, (_obj: unknown, src: unknown) => {
-    if (Array.isArray(src)) {
-      return [...src];
+  const result = {};
+  for (const source of sources) {
+    const replacements = [
+      "keymap.overrides",
+      "ai.custom_providers",
+      "signing.trusted_signers",
+    ]
+      .filter((path) => has(source, path))
+      .map((path) => {
+        const previous = get(result, path);
+        const incoming = get(source, path);
+        const value =
+          path !== "keymap.overrides" && isPlainObject(incoming)
+            ? Object.fromEntries(
+                Object.entries(incoming).map(([key, value]) => [
+                  key,
+                  isPlainObject(previous?.[key]) && isPlainObject(value)
+                    ? { ...previous[key], ...(value as object) }
+                    : value,
+                ]),
+              )
+            : incoming;
+        return { path, value };
+      });
+    mergeWith(result, source, (_obj: unknown, src: unknown) => {
+      return Array.isArray(src) ? [...src] : undefined;
+    });
+    for (const { path, value } of replacements) {
+      set(result, path, cloneDeep(value));
     }
-    return undefined;
-  }) as T;
+  }
+  return result as T;
 }
 
 /**

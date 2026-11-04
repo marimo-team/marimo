@@ -21,6 +21,7 @@ import msgspec
 from marimo import _loggers
 from marimo._ast.app_config import _AppConfig
 from marimo._config.config import MarimoConfig
+from marimo._config.provenance import ConfigPath
 from marimo._data.models import DataTableSource
 from marimo._messaging.notebook.document import NotebookCell
 from marimo._messaging.notebook.outputs import CellOutputs
@@ -590,6 +591,8 @@ class UpdateUserConfigCommand(Command):
 
     # MarimoConfig TypedDict
     config: MarimoConfig
+    # User-file saves apply only edited fields and retain higher-priority overrides.
+    edited_paths: tuple[ConfigPath, ...] | None = None
 
     def __repr__(self) -> str:
         return "UpdateUserConfigCommand(config=...)"

@@ -13,7 +13,7 @@ import sys
 import threading
 import time
 import traceback
-from copy import copy
+from copy import copy, deepcopy
 from multiprocessing import connection
 from typing import (
     TYPE_CHECKING,
@@ -2310,6 +2310,26 @@ class Kernel:
 
     @kernel_tracer.start_as_current_span("set_user_config")
     def set_user_config(self, request: UpdateUserConfigCommand) -> None:
+        if request.edited_paths is not None:
+            config = deepcopy(self.user_config)
+            for path in request.edited_paths:
+                if any(
+                    path[: len(override)] == override
+                    or override[: len(path)] == path
+                    for override in self.config_overrides
+                ):
+                    continue
+                source: Any = request.config
+                target: Any = config
+                for key in path[:-1]:
+                    source = source.get(key, {})
+                    target = target.setdefault(key, {})
+                if path[-1] in source:
+                    target[path[-1]] = deepcopy(source[path[-1]])
+                else:
+                    target.pop(path[-1], None)
+            self._update_runtime_from_user_config(config)
+            return
         # A settings update contains a full snapshot; only changed values are
         # new explicit overrides, not unchanged file/environment settings.
         for path in config_paths(cast(dict[str, Any], request.config)):
