@@ -4343,3 +4343,58 @@ def test_violin_click_with_empty_point_numbers_produces_no_rows() -> None:
 
     result = plot._convert_value(selection)
     assert result == []
+
+
+def test_bar_chart_date_x_axis_selection() -> None:
+    """Range selection on bar charts with date or datetime64 x-axis (#11653)."""
+    import datetime
+
+    import numpy as np
+
+    days = [
+        datetime.date(2026, 1, 5),
+        datetime.date(2026, 1, 6),
+        datetime.date(2026, 1, 7),
+    ]
+    variants = {
+        "date_objects": days,
+        "datetime64_D": np.array(days, dtype="datetime64[D]"),
+        "datetime64_us": np.array(days, dtype="datetime64[us]"),
+        "iso_strings": [d.isoformat() for d in days],
+    }
+
+    selection: dict[str, Any] = {
+        "range": {
+            "x": ["2026-01-05", "2026-01-06 12:00"],
+            "y": [0, 3],
+        },
+        "points": [],
+        "indices": [],
+    }
+
+    for name, x in variants.items():
+        fig = go.Figure(go.Bar(x=x, y=[1, 2, 3]))
+        plot = plotly(fig)
+        result = plot._convert_value(selection)
+        assert len(result) == 2, (
+            f"Failed for {name}: expected 2 bars, got {len(result)}"
+        )
+        assert result[0]["pointIndex"] == 0
+        assert result[1]["pointIndex"] == 1
+
+        fallback_bars = _extract_bars_fallback(
+            fig, "2026-01-05T00:00:00Z", "2026-01-06T12:00:00Z", 0, 3
+        )
+        assert len(fallback_bars) == 2, f"Fallback failed for {name}"
+
+        utc_result = plot._convert_value(
+            {
+                "range": {
+                    "x": ["2026-01-05T00:00:00Z", "2026-01-06T12:00:00Z"],
+                    "y": [0, 3],
+                },
+                "points": [],
+                "indices": [],
+            }
+        )
+        assert len(utc_result) == 2, f"UTC bounds failed for {name}"

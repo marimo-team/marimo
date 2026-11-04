@@ -54,6 +54,12 @@ def _is_orderable_value(value: Any) -> bool:
     if isinstance(value, (int, float, datetime.datetime, datetime.date)):
         return True
 
+    dtype = getattr(value, "dtype", None)
+    if dtype is not None and str(dtype).startswith(
+        ("int", "uint", "float", "datetime64")
+    ):
+        return True
+
     # Check for ISO format datetime strings (sent from frontend via JSON)
     if isinstance(value, str):
         try:
@@ -75,6 +81,13 @@ def _parse_datetime_bound(value: Any) -> Any:
 
     if isinstance(value, (datetime.datetime, datetime.date)):
         return value
+
+    dtype = getattr(value, "dtype", None)
+    if dtype is not None and str(dtype).startswith("datetime64"):
+        try:
+            return datetime.datetime.fromisoformat(str(value))
+        except (ValueError, AttributeError):
+            pass
 
     if isinstance(value, str):
         try:
@@ -110,8 +123,10 @@ def _is_orderable_axis(arr: Any, bound_value: Any) -> bool:
     if np.issubdtype(arr.dtype, np.datetime64):
         return True
 
-    # For object arrays, check element types and bound value compatibility
-    if arr.dtype == np.object_ and len(arr) > 0:
+    # For object or string arrays, check element types and bound value compatibility
+    if (np.issubdtype(arr.dtype, np.str_) or arr.dtype == np.object_) and len(
+        arr
+    ) > 0:
         first_elem = arr[0]
         # Check if elements are datetime-like
         if isinstance(first_elem, (datetime.datetime, datetime.date)):
@@ -125,8 +140,62 @@ def _is_orderable_axis(arr: Any, bound_value: Any) -> bool:
                     return True
                 except (ValueError, AttributeError):
                     pass
+        elif isinstance(first_elem, str):
+            try:
+                datetime.datetime.fromisoformat(first_elem)
+                if isinstance(bound_value, (datetime.datetime, datetime.date)):
+                    return True
+                if isinstance(bound_value, str):
+                    try:
+                        datetime.datetime.fromisoformat(bound_value)
+                        return True
+                    except (ValueError, AttributeError):
+                        pass
+            except (ValueError, AttributeError):
+                pass
 
     return False
+
+
+def _normalize_naive_datetime(value: Any) -> Any:
+    """Normalize a date or datetime value to a naive datetime (UTC if tz-aware)."""
+    import datetime
+
+    if isinstance(value, datetime.datetime):
+        if value.tzinfo is not None:
+            return value.astimezone(datetime.UTC).replace(tzinfo=None)
+        return value
+    if isinstance(value, datetime.date):
+        return datetime.datetime.combine(value, datetime.time())
+    return value
+
+
+def _compute_orderable_mask(arr: Any, min_parsed: Any, max_parsed: Any) -> Any:
+    """Compute boolean mask for orderable axis bounds, handling datetime/date/numeric."""
+    import datetime
+
+    import numpy as np
+
+    if isinstance(
+        min_parsed, (datetime.datetime, datetime.date)
+    ) or np.issubdtype(arr.dtype, np.datetime64):
+        try:
+            if arr.dtype == np.object_ or np.issubdtype(arr.dtype, np.str_):
+                arr_dt = np.array(
+                    [
+                        _normalize_naive_datetime(_parse_datetime_bound(v))
+                        for v in arr
+                    ],
+                    dtype="datetime64[us]",
+                )
+            else:
+                arr_dt = np.array(arr, dtype="datetime64[us]")
+            dt_min = np.datetime64(_normalize_naive_datetime(min_parsed), "us")
+            dt_max = np.datetime64(_normalize_naive_datetime(max_parsed), "us")
+            return (arr_dt >= dt_min) & (arr_dt <= dt_max)
+        except Exception:
+            return (arr >= min_parsed) & (arr <= max_parsed)
+    return (arr >= min_parsed) & (arr <= max_parsed)
 
 
 def _to_numeric_coord(value: Any) -> float | None:
@@ -683,7 +752,7 @@ def _extract_heatmap_cells_numpy(
 
         # Compute masks for valid indices
         if x_is_orderable:
-            x_mask = (x_arr >= x_min_parsed) & (x_arr <= x_max_parsed)
+            x_mask = _compute_orderable_mask(x_arr, x_min_parsed, x_max_parsed)
         else:
             # Categorical: cell spans (index - 0.5) to (index + 0.5)
             # Strict overlap: x_max > cell_x_min and x_min < cell_x_max
@@ -691,7 +760,7 @@ def _extract_heatmap_cells_numpy(
             x_mask = (x_max > x_indices - 0.5) & (x_min < x_indices + 0.5)
 
         if y_is_orderable:
-            y_mask = (y_arr >= y_min_parsed) & (y_arr <= y_max_parsed)
+            y_mask = _compute_orderable_mask(y_arr, y_min_parsed, y_max_parsed)
         else:
             # Categorical: cell spans (index - 0.5) to (index + 0.5)
             # Strict overlap: y_max > cell_y_min and y_min < cell_y_max
@@ -1798,8 +1867,8 @@ def _extract_bars_numpy(
             # Orderable axis: direct range comparison
             # TODO: Consider bar width in future implementations
             # Currently treating bars as points at their position value
-            pos_mask = (position_data >= pos_min_parsed) & (
-                position_data <= pos_max_parsed
+            pos_mask = _compute_orderable_mask(
+                position_data, pos_min_parsed, pos_max_parsed
             )
         else:
             # Categorical axis: each bar spans (index - 0.5) to (index + 0.5)
@@ -1854,6 +1923,8 @@ def _extract_bars_fallback(
     y_max: float,
 ) -> list[dict[str, Any]]:
     """Extract bars using pure Python (fallback when numpy unavailable)."""
+    import datetime
+
     selected_bars: list[dict[str, Any]] = []
 
     for trace_idx, trace in enumerate(figure.data):
@@ -1894,9 +1965,18 @@ def _extract_bars_fallback(
                 # Parse datetime bounds (frontend sends ISO strings)
                 pos_min_p = _parse_datetime_bound(pos_min)
                 pos_max_p = _parse_datetime_bound(pos_max)
+                pos_val_p = _parse_datetime_bound(pos_val)
+                if isinstance(
+                    pos_min_p, (datetime.datetime, datetime.date)
+                ) and isinstance(
+                    pos_val_p, (datetime.datetime, datetime.date)
+                ):
+                    pos_min_p = _normalize_naive_datetime(pos_min_p)
+                    pos_max_p = _normalize_naive_datetime(pos_max_p)
+                    pos_val_p = _normalize_naive_datetime(pos_val_p)
                 # TODO: Consider bar width in future implementations
                 # Currently treating bars as points at their position value
-                pos_in_range = pos_min_p <= pos_val <= pos_max_p
+                pos_in_range = pos_min_p <= pos_val_p <= pos_max_p
             else:
                 # Categorical axis: each bar spans (index - 0.5) to (index + 0.5)
                 # Include bar if selection range strictly overlaps with bar bounds
