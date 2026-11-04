@@ -465,6 +465,7 @@ class CellMetadata:
     config: CellConfig = dataclasses.field(default_factory=CellConfig)
     # Retain validated source even when a syntax error prevents registration.
     code: str | None = None
+    code_fingerprint: str | None = None
 
 
 @dataclasses.dataclass(frozen=True)
@@ -1324,15 +1325,17 @@ class Kernel:
             pending = self._uninstantiated_execution_requests.pop(
                 er.cell_id, None
             )
-            self.cell_metadata.setdefault(
+            metadata = self.cell_metadata.setdefault(
                 er.cell_id, CellMetadata()
-            ).code = er.code
+            )
             old_children, error = self._maybe_register_cell(
                 er.cell_id,
                 er.code,
                 stale=er.cell_id in cells_starting_stale
                 or pending is not None,
             )
+            metadata.code = er.code
+            metadata.code_fingerprint = er.code_fingerprint
             cells_that_were_children_of_mutated_cells |= old_children
             if error is None:
                 registered_cell_ids.add(er.cell_id)
@@ -1448,7 +1451,6 @@ class Kernel:
             self._invalidate_cell_state(cid, exclude_defs=keep_alive_defs)
 
         self.errors = all_errors
-        submitted_code = {er.cell_id: er.code for er in execution_requests}
         for cid in self.errors:
             cell = self.graph.cells.get(cid, None)
             if (
@@ -1467,9 +1469,7 @@ class Kernel:
                 # On syntax errors, we don't have a cell object.
                 CellNotificationUtils.broadcast_stale(cell_id=cid, stale=False)
 
-            execution = ExecutionAttempt.plan(
-                cid, submitted_code.get(cid, cell.code if cell else "")
-            )
+            execution = self._plan_execution(cid)
             with execution.activate():
                 CellNotificationUtils.broadcast_error(
                     data=self.errors[cid],
@@ -1860,6 +1860,7 @@ class Kernel:
             execution_context=self._install_execution_context,
             hooks=run_hooks,
             get_inputs=self._read_inputs,
+            plan_execution=self._plan_execution,
             user_config=self.user_config,
         )
 
@@ -2090,6 +2091,14 @@ class Kernel:
         )
         return requests
 
+    def _plan_execution(self, cell_id: CellId_t) -> ExecutionAttempt:
+        metadata = self.cell_metadata.get(cell_id)
+        if metadata is not None and metadata.code is not None:
+            return ExecutionAttempt.plan(
+                cell_id, metadata.code, metadata.code_fingerprint
+            )
+        return ExecutionAttempt.plan(cell_id, self.graph.cells[cell_id].code)
+
     @kernel_tracer.start_as_current_span("run")
     async def run(
         self,
@@ -2189,8 +2198,12 @@ class Kernel:
         await self.maybe_autorun_cells(roots)
 
     @kernel_tracer.start_as_current_span("run_scratchpad")
-    async def run_scratchpad(self, code: str) -> None:
-        execution = ExecutionAttempt.plan(SCRATCH_CELL_ID, code)
+    async def run_scratchpad(
+        self, code: str, *, code_fingerprint: str | None = None
+    ) -> None:
+        execution = ExecutionAttempt.plan(
+            SCRATCH_CELL_ID, code, code_fingerprint
+        )
         with execution.activate():
             try:
                 await self._run_scratchpad(code, execution)

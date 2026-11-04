@@ -63,11 +63,11 @@ from marimo._session.types import (
     QueueManager,
     Session,
 )
-from marimo._types.ids import ConsumerId, StableSessionId
+from marimo._types.ids import CellId_t, ConsumerId, StableSessionId
 from marimo._utils.repr import format_repr
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator
+    from collections.abc import Iterator, Mapping
 
     from marimo._environments.sandbox import NotebookSandbox
     from marimo._runtime.virtual_file import VirtualFileStorageType
@@ -522,6 +522,7 @@ class SessionImpl(Session):
         request: InstantiateNotebookRequest,
         *,
         http_request: HTTPRequest | None,
+        code_fingerprints: Mapping[CellId_t, str] | None = None,
     ) -> None:
         """Instantiate the app."""
         app = self.app_file_manager.app
@@ -535,6 +536,7 @@ class SessionImpl(Session):
             ExecuteCellCommand(
                 cell_id=cell_id,
                 code=code,
+                code_fingerprint=(code_fingerprints or {}).get(cell_id, ""),
                 request=http_request,
             )
             for cell_id, code in codes.items()

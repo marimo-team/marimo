@@ -58,7 +58,10 @@ class FakeSession:
                 consumer.on_detach()
                 return
 
-    def instantiate(self, request: Any, *, http_request: Any) -> None:
+    def instantiate(
+        self, request: Any, *, http_request: Any, code_fingerprints: Any = None
+    ) -> None:
+        self.code_fingerprints = code_fingerprints
         del http_request
         self.instantiations.append(request)
 

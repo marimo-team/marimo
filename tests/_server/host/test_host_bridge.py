@@ -12,6 +12,7 @@ import pytest
 from starlette.datastructures import State
 
 from marimo._core import protocol
+from marimo._core.code import code_fingerprint
 from marimo._core.errors import Conflict, DecisionRequired, EditConflict
 from marimo._core.stream import RoutedEvent
 from marimo._messaging.notification import (
@@ -334,6 +335,7 @@ async def test_removed_runs_release_backend_translation_state(
                 cell_id=cell_id,
                 phase=phase,
                 code="42",
+                code_fingerprint=code_fingerprint("42"),
             )
         )
     session.broadcast(
@@ -1083,6 +1085,7 @@ async def test_session_notifications_join_the_notebook_stream_once(
         cell_id="cell-1",
         phase="planned",
         code="x = 1",
+        code_fingerprint=code_fingerprint("x = 1"),
     )
     session.broadcast(variables)
     session.broadcast(planned)

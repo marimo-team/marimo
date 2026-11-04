@@ -40,12 +40,12 @@ class HostAnalyzer:
 
 @dataclass(frozen=True)
 class _CachedCell:
-    code_fingerprint: str
+    code: str
     result: CellImpl | protocol.Error
 
 
 class CellAnalyzer:
-    """Reuse compilation by cell identity and code hash across revisions."""
+    """Reuse compilation by cell identity and exact source across revisions."""
 
     def __init__(self) -> None:
         self._cache: dict[protocol.CellId, _CachedCell] = {}
@@ -57,17 +57,14 @@ class CellAnalyzer:
         graph = DirectedGraph()
         for cell in document:
             cached = self._cache.get(cell.id)
-            if (
-                cached is None
-                or cached.code_fingerprint != cell.code_fingerprint
-            ):
+            if cached is None or cached.code != cell.code:
                 try:
                     result: CellImpl | protocol.Error = compile_cell(
                         cell.code, CellId_t(cell.id)
                     )
                 except (SyntaxError, ValueError) as error:
                     result = _syntax_error(cell.code, error)
-                cached = _CachedCell(cell.code_fingerprint, result)
+                cached = _CachedCell(cell.code, result)
             cache[cell.id] = cached
             if isinstance(cached.result, CellImpl):
                 graph.register_cell(CellId_t(cell.id), cached.result)

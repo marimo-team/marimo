@@ -9,7 +9,7 @@ import re
 from dataclasses import dataclass, field
 
 from marimo._core import backend as be, protocol
-from marimo._core.document import code_fingerprint
+from marimo._core.code import code_fingerprint
 from marimo._messaging.cell_output import CellChannel
 from marimo._messaging.errors import (
     Error,
@@ -130,7 +130,8 @@ class RunTranslator:
         )
         self._executions[notification.execution_id] = execution
         parent = self._executions.get(notification.caused_by or "")
-        code = notification.code or ""
+        code = notification.code
+        assert notification.code_fingerprint is not None
         return be.Planned(
             self.run_id,
             (
@@ -139,7 +140,7 @@ class RunTranslator:
                     None
                     if execution.cell_id == SCRATCH_CELL_ID
                     else execution.cell_id,
-                    code_fingerprint(code),
+                    notification.code_fingerprint,
                     code if execution.cell_id == SCRATCH_CELL_ID else None,
                     caused_by=parent.id if parent is not None else None,
                 ),
@@ -199,6 +200,7 @@ class RunTranslator:
                         run_id=self.run_id,
                         phase="planned",
                         code=self._code,
+                        code_fingerprint=code_fingerprint(self._code),
                     )
                 )
             )

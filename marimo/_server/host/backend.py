@@ -204,10 +204,16 @@ class SessionBackend(SessionConsumer):
         previous = self._accept_run(run)
         try:
             codes = {CellId_t(cell.id): cell.code for cell in document}
+            fingerprints = {
+                CellId_t(cell.id): cell.code_fingerprint for cell in document
+            }
             targets = [CellId_t(cell_id) for cell_id in cell_ids]
             command = ExecuteCellsCommand(
                 cell_ids=targets,
                 codes=[codes[cell_id] for cell_id in targets],
+                code_fingerprints=[
+                    fingerprints[cell_id] for cell_id in targets
+                ],
                 request=self._http_request(session),
                 run_id=run_id,
                 allow_stdin=False,
@@ -215,11 +221,12 @@ class SessionBackend(SessionConsumer):
             if previous is not None and not previous.submitted.is_set():
                 # A scratch run ahead is still waiting for the scratchpad.
                 self._watch_run(
-                    run, self._run_cells_after(previous, run, codes, command)
+                    run,
+                    self._run_cells_after(previous, run, document, command),
                 )
                 return
             # Enqueue before returning so later document edits follow the run.
-            self._submit_cells(run, codes, command)
+            self._submit_cells(run, document, command)
         except Exception as exception:
             self._finish_run(run, exception)
             return
@@ -247,14 +254,20 @@ class SessionBackend(SessionConsumer):
     def _submit_cells(
         self,
         run: _Run,
-        codes: dict[CellId_t, str],
+        document: Document,
         command: ExecuteCellsCommand,
     ) -> None:
         run.session.instantiate(
             InstantiateNotebookRequest(
-                object_ids=[], values=[], auto_run=False, codes=codes
+                object_ids=[],
+                values=[],
+                auto_run=False,
+                codes={CellId_t(cell.id): cell.code for cell in document},
             ),
             http_request=None,
+            code_fingerprints={
+                CellId_t(cell.id): cell.code_fingerprint for cell in document
+            },
         )
         self._submit(run, command)
 
@@ -262,11 +275,11 @@ class SessionBackend(SessionConsumer):
         self,
         previous: _Run,
         run: _Run,
-        codes: dict[CellId_t, str],
+        document: Document,
         command: ExecuteCellsCommand,
     ) -> None:
         await previous.submitted.wait()
-        self._submit_cells(run, codes, command)
+        self._submit_cells(run, document, command)
         await run.done.wait()
 
     def _watch_run(

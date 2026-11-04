@@ -4833,6 +4833,8 @@ export interface components {
      *         Attributes:
      *             cell_ids: Cells to execute.
      *             codes: Python code for each cell. Must match length of cell_ids.
+     *             code_fingerprints: Fingerprints in the same order as `codes`.
+     *                 Computed from `codes` when omitted.
      *             request: HTTP request context if available.
      *             timestamp: Unix timestamp when command was created.
      *             run_id: Optional correlation ID. When set, the run's notifications
@@ -4843,6 +4845,8 @@ export interface components {
       /** @default true */
       allowStdin?: boolean;
       cellIds: components["schemas"]["CellId"][];
+      /** @default [] */
+      codeFingerprints?: string[];
       codes: string[];
       /** @default null */
       request?: components["schemas"]["HTTPRequest"] | null;
@@ -4869,6 +4873,7 @@ export interface components {
      *
      *         Attributes:
      *             code: Python code to execute.
+     *             code_fingerprint: Code fingerprint. Computed from `code` when omitted.
      *             request: HTTP request context if available.
      *             notebook_cells: Snapshot of notebook cells from the session document.
      *                 Used to populate the document ContextVar so code_mode can read
@@ -4893,6 +4898,8 @@ export interface components {
       /** @default null */
       cellOutputs?: components["schemas"]["CellOutputs"] | null;
       code: string;
+      /** @default  */
+      codeFingerprint?: string;
       /** @default null */
       notebookCells?: components["schemas"]["NotebookCell"][] | null;
       /** @default null */
@@ -4909,6 +4916,8 @@ export interface components {
       /** @default null */
       cellOutputs?: components["schemas"]["CellOutputs"] | null;
       code: string;
+      /** @default  */
+      codeFingerprint?: string;
       /** @default null */
       notebookCells?: components["schemas"]["NotebookCell"][] | null;
       /** @default null */
@@ -4920,7 +4929,8 @@ export interface components {
      * ExecutionNotification
      * @description An attempt's lifecycle, independent of a cell's displayed status.
      *
-     *         `planned` supplies the source and identity before output is reported.
+     *         `planned` includes the execution ID and code fingerprint before any output.
+     *         `code` is null when source is withheld.
      *         `running` means evaluation began. `completed` follows the final output
      *         and errors, including for attempts that never ran. Buffered and background
      *         console output may still arrive with the completed attempt's identity.
@@ -4931,6 +4941,8 @@ export interface components {
       cell_id: components["schemas"]["CellId"];
       /** @default null */
       code?: string | null;
+      /** @default null */
+      code_fingerprint?: string | null;
       /** @default null */
       depends_on?: {
         [key: string]: components["schemas"]["Revision"] | null;

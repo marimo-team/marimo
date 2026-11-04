@@ -16,7 +16,7 @@ from typing import TYPE_CHECKING, Any, Protocol
 if TYPE_CHECKING:
     import asyncio
     import threading
-    from collections.abc import Iterator
+    from collections.abc import Iterator, Mapping
 
     from marimo._config.manager import MarimoConfigManager
     from marimo._environments.sandbox import NotebookSandbox
@@ -34,7 +34,7 @@ if TYPE_CHECKING:
     from marimo._session.queue import ProcessLike, QueueType
     from marimo._session.room import Room
     from marimo._session.state.session_view import SessionView
-    from marimo._types.ids import ConsumerId, StableSessionId
+    from marimo._types.ids import CellId_t, ConsumerId, StableSessionId
     from marimo._utils.typed_connection import TypedConnection
 
 
@@ -233,6 +233,7 @@ class Session(Protocol):
         request: Any,
         *,
         http_request: commands.HTTPRequest | None,
+        code_fingerprints: Mapping[CellId_t, str] | None = None,
     ) -> None:
         """Instantiate the app."""
         ...

@@ -230,7 +230,9 @@ class KernelRequestHandlers:
             notebook_outputs_context(request.cell_outputs),
             http_request_context(request.request),
         ):
-            await self._kernel.run_scratchpad(request.code)
+            await self._kernel.run_scratchpad(
+                request.code, code_fingerprint=request.code_fingerprint
+            )
 
     async def _handle_execute_stale(
         self, request: ExecuteStaleCellsCommand
