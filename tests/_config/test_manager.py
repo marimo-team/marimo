@@ -45,13 +45,119 @@ def restore_config(f: F) -> F:
 def test_save_config(mock_dump: Any) -> None:
     mock_config = merge_default_config(PartialMarimoConfig())
     manager = UserConfigStore()
-    manager._load_config = lambda: mock_config
+    manager._load_config = lambda _path: mock_config
 
     result = manager.save_config(mock_config)
 
     assert result == mock_config
 
     assert mock_dump.mock_calls[0][1][0] == mock_config
+
+
+@pytest.mark.parametrize(
+    "invalid_toml",
+    ['[keymap]\npreset = "default"\n', "[display\n"],
+)
+def test_save_config_preserves_unparseable_file(
+    tmp_path: Path, invalid_toml: str
+) -> None:
+    config_path = tmp_path / "marimo.toml"
+    original = (
+        '[keymap]\npreset = "vim"\n'
+        '[ai]\nrules = "prefer polars"\n' + invalid_toml
+    ).encode()
+    config_path.write_bytes(original)
+    store = UserConfigStore()
+
+    with patch.object(store, "get_config_path", return_value=str(config_path)):
+        # Reads remain tolerant, but saving must not turn the fallback into a write.
+        assert store.read() == {}
+        with pytest.raises(
+            ValueError, match="Fix the file before saving"
+        ) as exc:
+            store.save_config({"display": {"theme": "dark"}})
+
+    assert str(config_path) in str(exc.value)
+    assert exc.value.__cause__ is not None
+    assert str(exc.value.__cause__) in str(exc.value)
+    assert config_path.read_bytes() == original
+
+
+def test_save_config_preserves_existing_settings(tmp_path: Path) -> None:
+    from marimo._utils.toml import toml_reader
+
+    config_path = tmp_path / "marimo.toml"
+    config_path.write_text(
+        '[keymap]\npreset = "vim"\n[ai]\nrules = "prefer polars"\n'
+    )
+    store = UserConfigStore()
+    with patch.object(store, "get_config_path", return_value=str(config_path)):
+        store.save_config({"display": {"theme": "dark"}})
+
+    config = toml_reader.read(config_path)
+    assert (
+        config["keymap"]["preset"],
+        config["ai"]["rules"],
+        config["display"]["theme"],
+    ) == ("vim", "prefer polars", "dark")
+
+
+def test_save_config_merges_the_validated_snapshot(tmp_path: Path) -> None:
+    from marimo._config.reader import read_marimo_config
+    from marimo._utils.toml import toml_reader
+
+    config_path = tmp_path / "marimo.toml"
+    config_path.write_text('[ai]\nrules = "prefer polars"\n')
+    original = read_marimo_config(str(config_path))
+    store = UserConfigStore()
+    with (
+        patch.object(store, "get_config_path", return_value=str(config_path)),
+        patch(
+            "marimo._config.manager.read_marimo_config",
+            side_effect=[
+                original,
+                ValueError("file changed before rereading"),
+            ],
+        ) as read_config,
+    ):
+        store.save_config({"display": {"theme": "dark"}})
+
+    read_config.assert_called_once_with(str(config_path))
+    config = toml_reader.read(config_path)
+    assert (config["ai"]["rules"], config["display"]["theme"]) == (
+        "prefer polars",
+        "dark",
+    )
+
+
+def test_save_config_creates_missing_file(tmp_path: Path) -> None:
+    config_path = tmp_path / "marimo.toml"
+    store = UserConfigStore()
+    with patch.object(store, "get_config_path", return_value=str(config_path)):
+        assert store.read() == {}
+        saved = store.save_config({"display": {"theme": "dark"}})
+
+    assert config_path.is_file()
+    assert saved["display"]["theme"] == "dark"
+
+
+def test_save_config_preserves_unreadable_file(tmp_path: Path) -> None:
+    config_path = tmp_path / "marimo.toml"
+    original = '[ai]\nrules = "prefer polars"\n'
+    config_path.write_text(original)
+    store = UserConfigStore()
+    with (
+        patch.object(store, "get_config_path", return_value=str(config_path)),
+        patch(
+            "marimo._config.manager.read_marimo_config",
+            side_effect=PermissionError("Permission denied"),
+        ),
+    ):
+        assert store.read() == {}
+        with pytest.raises(ValueError, match="Permission denied"):
+            store.save_config({"display": {"theme": "dark"}})
+
+    assert config_path.read_text() == original
 
 
 @restore_config
@@ -156,11 +262,11 @@ def test_save_config_is_deterministic(tmp_path: Path) -> None:
         },
     )
 
-    manager._load_config = lambda: cast(MarimoConfig, dict(a))
+    manager._load_config = lambda _path: cast(MarimoConfig, dict(a))
     manager.save_config(a)
     bytes_a = config_path.read_bytes()
 
-    manager._load_config = lambda: cast(MarimoConfig, dict(b))
+    manager._load_config = lambda _path: cast(MarimoConfig, dict(b))
     manager.save_config(b)
     bytes_b = config_path.read_bytes()
 
@@ -175,7 +281,7 @@ def test_save_config_none_deletes_key(mock_dump: Any) -> None:
         PartialMarimoConfig(ai={"max_tokens": 8192, "rules": "be terse"})
     )
     manager = UserConfigStore()
-    manager._load_config = lambda: mock_config
+    manager._load_config = lambda _path: mock_config
 
     manager.save_config(
         cast(
@@ -200,7 +306,7 @@ def test_save_config_with_none_does_not_raise(tmp_path: Path) -> None:
         PartialMarimoConfig(ai={"max_tokens": 8192, "rules": "be terse"})
     )
     manager = UserConfigStore()
-    manager._load_config = lambda: mock_config
+    manager._load_config = lambda _path: mock_config
 
     with patch.object(
         manager, "get_config_path", return_value=str(config_path)
@@ -281,14 +387,14 @@ def test_drop_none_values_strips_nested_none() -> None:
 def test_can_save_secrets(mock_dump: Any) -> None:
     mock_config = merge_default_config(PartialMarimoConfig())
     manager = UserConfigStore()
-    manager._load_config = lambda: mock_config
+    manager._load_config = lambda _path: mock_config
 
     new_config = manager.save_config(
         merge_default_config(
             PartialMarimoConfig(ai={"open_ai": {"api_key": "super_secret"}})
         )
     )
-    manager._load_config = lambda: new_config
+    manager._load_config = lambda _path: new_config
 
     assert (
         mock_dump.mock_calls[0][1][0]["ai"]["open_ai"]["api_key"]
@@ -313,7 +419,7 @@ def test_can_read_secrets() -> None:
     mock_config = merge_default_config(
         PartialMarimoConfig(ai={"open_ai": {"api_key": "super_secret"}})
     )
-    manager._load_config = lambda: mock_config
+    manager._load_config = lambda _path: mock_config
 
     assert (
         MarimoConfigManager(manager).get_user_config()["ai"]["open_ai"][
@@ -333,7 +439,7 @@ def test_can_read_secrets() -> None:
 def test_get_config() -> None:
     mock_config = merge_default_config(PartialMarimoConfig())
     manager = UserConfigStore()
-    manager._load_config = lambda: mock_config
+    manager._load_config = lambda _path: mock_config
 
     result = MarimoConfigManager(manager).get_user_config()
 
@@ -344,7 +450,7 @@ def test_get_config() -> None:
 def test_get_config_with_override() -> None:
     mock_config = merge_default_config(PartialMarimoConfig())
     user = UserConfigStore()
-    user._load_config = lambda: mock_config
+    user._load_config = lambda _path: mock_config
 
     manager = MarimoConfigManager(
         user,
@@ -1383,7 +1489,7 @@ def test_restrict_sharing_overrides_user_config(
     monkeypatch.setattr(
         user,
         "_load_config",
-        lambda: merge_default_config(
+        lambda _path: merge_default_config(
             {"sharing": {"wasm": True, "html": True, "molab": True}}
         ),
     )

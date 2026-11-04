@@ -671,11 +671,19 @@ class UserConfigStore(ConfigReader):
         import tomlkit
 
         config_path = self.get_config_path()
+        try:
+            existing_config = self._load_config(config_path)
+        except (OSError, ValueError) as e:
+            raise ValueError(
+                f"Cannot save configuration to {config_path}: "
+                f'the existing file could not be read: "{e}". '
+                "Fix the file before saving settings. The file was not changed."
+            ) from e
         LOGGER.info("Saving user configuration to %s", config_path)
         # Remove the secret placeholders from the incoming config
         config = remove_secret_placeholders(config)
         # Merge the current config with the new config
-        current_config = resolve_config(DEFAULT_CONFIG, (self.read(),))
+        current_config = resolve_config(DEFAULT_CONFIG, (existing_config,))
         merged = merge_config(current_config, config)
         # None-as-delete: any key whose merged value is None (typically because
         # the incoming config explicitly sent null) is removed from disk. Lets
@@ -698,47 +706,44 @@ class UserConfigStore(ConfigReader):
 
     def read(self) -> PartialMarimoConfig:
         """Read explicit user settings without applying defaults or masking."""
-        return cast(PartialMarimoConfig, deep_copy(self._load_config()))
+        try:
+            path = self.get_config_path()
+        except OSError as e:
+            LOGGER.warning(
+                "Encountered error when searching for config: %s", e
+            )
+            return {}
+
+        try:
+            return cast(
+                PartialMarimoConfig, deep_copy(self._load_config(path))
+            )
+        except Exception as e:
+            LOGGER.error(
+                'Could not load configuration from %s: "%s"\n'
+                "Settings from this file were skipped; other configuration sources still apply.",
+                path,
+                e,
+                extra={"omit_log_prefix": True},
+            )
+            return {}
 
     def get_config_path(self) -> str:
         return get_or_create_user_config_path()
 
-    def _load_config(self) -> PartialMarimoConfig:
-        """
-        Load configuration, taking into account user config file, if any.
-        """
+    def _load_config(self, path: str) -> PartialMarimoConfig:
+        """Read and sanitize a file, returning empty settings only if it is missing."""
+        LOGGER.debug("Using config at %s", path)
         try:
-            path = self.get_config_path()
-        except OSError as e:
-            path = None
-            LOGGER.warning(
-                "Encountered error when searching for config: %s", e
+            user_config = read_marimo_config(path)
+        except FileNotFoundError:
+            return {}
+        if not is_trusted_user_config_path(path):
+            # Workspace configuration cannot establish cache-signing trust.
+            user_config = strip_untrusted_config(
+                user_config, is_user_layer=True
             )
-
-        if path is not None:
-            LOGGER.debug("Using config at %s", path)
-            try:
-                user_config = read_marimo_config(path)
-            except Exception as e:
-                LOGGER.error(
-                    'Could not load configuration from %s: "%s"\n'
-                    "Settings from this file were skipped; other configuration sources still apply.",
-                    path,
-                    e,
-                    extra={"omit_log_prefix": True},
-                )
-                return {}
-            if not is_trusted_user_config_path(path):
-                # A `.marimo.toml` discovered by walking up from the cwd is
-                # project-origin, not user-owned. Strip its cache-trust keys
-                # like any other untrusted layer.
-                user_config = strip_untrusted_config(
-                    user_config, is_user_layer=True
-                )
-            return user_config
-        else:
-            LOGGER.debug("No config found; loading default settings.")
-        return {}
+        return user_config
 
 
 class OverrideConfigReader(ConfigReader):
