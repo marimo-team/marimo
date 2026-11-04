@@ -34,7 +34,7 @@
 }
 
 .marimo-cell .cm-scroller {
-  /* this needs to be visible to show RTC cursors and inline AI edit buttons */
+  /* this needs to be visible to show inline AI edit buttons */
   overflow: visible;
 }
 

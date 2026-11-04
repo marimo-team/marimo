@@ -22,10 +22,8 @@ import React, { useCallback, useMemo, useState } from "react";
 import type { CellId } from "@/core/cells/ids";
 import { useAppConfig } from "@/core/config/config";
 import { Arrays } from "@/utils/arrays";
-import type { CellColumnId, MultiColumn } from "@/utils/id-tree";
 import { invariant } from "@/utils/invariant";
-import { getNotebook } from "../../core/cells/cells";
-import { findColumn, layoutAtom } from "../../core/cells/layout";
+import { findColumn, isColumnId, layoutAtom } from "../../core/cells/layout";
 import { store } from "../../core/state/jotai";
 import { useCellActions } from "../../core/cells/actions";
 import { useEvent } from "../../hooks/useEvent";
@@ -50,9 +48,6 @@ const SortableCellsProviderInternal = ({
     useCellActions();
 
   const [activeId, setActiveId] = useState<UniqueIdentifier | null>(null);
-  const [clonedItems, setClonedItems] = useState<MultiColumn<CellId> | null>(
-    null,
-  );
 
   const config = useAppConfig();
   const modifiers = useMemo(() => {
@@ -76,20 +71,10 @@ const SortableCellsProviderInternal = ({
 
   const handleDragStart = useEvent((event: DragStartEvent) => {
     setActiveId(event.active.id);
-    const notebook = getNotebook();
-    setClonedItems(notebook.cellIds);
   });
 
   const handleDragCancel = useEvent(() => {
-    // TODO: restore cloned items
-    if (clonedItems) {
-      // Reset items to their original state in case items have been
-      // Dragged across containers
-      // setItems(clonedItems);
-    }
-
     setActiveId(null);
-    setClonedItems(null);
   });
 
   /**
@@ -236,9 +221,5 @@ const SortableCellsProviderInternal = ({
 export const SortableCellsProvider = React.memo(SortableCellsProviderInternal);
 
 function isCellId(id: UniqueIdentifier): id is CellId {
-  return typeof id === "string" && !id.startsWith("tree_");
-}
-
-function isColumnId(id: UniqueIdentifier): id is CellColumnId {
-  return typeof id === "string" && id.startsWith("tree_");
+  return typeof id === "string" && !isColumnId(id);
 }

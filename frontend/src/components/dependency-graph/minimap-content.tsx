@@ -7,10 +7,11 @@ import {
   cellGraphsAtom,
   isVariableAffectedBySelectedCell,
 } from "@/components/editor/chrome/wrapper/minimap-state";
-import { useCellData, useCellIds, useCellRuntime } from "@/core/cells/cells";
+import { useCellData, useCellRuntime } from "@/core/cells/cells";
 import { useCellActions } from "@/core/cells/actions";
 import { cellFocusAtom, useCellFocusActions } from "@/core/cells/focus";
 import type { CellId } from "@/core/cells/ids";
+import { useLayout } from "@/core/cells/layout";
 import { useVariables } from "@/core/variables/state";
 import { cn } from "@/utils/cn";
 import { extractCellPreview } from "./utils/cell-preview";
@@ -380,28 +381,25 @@ function isNonReferenceableCell(graph: CellGraph): boolean {
  * Shows a scrollable list of cells with dependency visualization.
  */
 export const MinimapContent: React.FC = () => {
-  const cellIds = useCellIds();
-  const cellPositions: Record<CellId, number> = Object.fromEntries(
-    cellIds.inOrderIds.map((id, idx) => [id, idx]),
+  const layout = useLayout();
+  const rows = layout.columns.flatMap((column, index) =>
+    column.ids.map((cellId, position) => ({
+      cellId,
+      startsColumn: index > 0 && position === 0,
+    })),
   );
-  const columnBoundaries: number[] = [];
-  let cellCount = 0;
-  for (const [idx, column] of cellIds.getColumns().entries()) {
-    if (idx > 0) {
-      columnBoundaries.push(cellCount);
-    }
-    cellCount += column.inOrderIds.length;
-  }
+  const cellPositions: Record<CellId, number> = Object.fromEntries(
+    rows.map(({ cellId }, idx) => [cellId, idx]),
+  );
 
   return (
     <div className="overflow-y-auto overflow-x-hidden flex-1 scrollbar-none h-full max-w-80">
       <div className="py-3 pl-3 pr-4 relative min-h-full">
-        {cellIds.inOrderIds.map((cellId, idx) => {
-          const isColumnBoundary = columnBoundaries.includes(idx);
+        {rows.map(({ cellId, startsColumn }, idx) => {
           return (
             <React.Fragment key={cellId}>
               {/* Subtle visual divider between nodes */}
-              {isColumnBoundary && (
+              {startsColumn && (
                 <div
                   className="absolute left-5 w-[36px] h-px bg-(--gray-4) pointer-events-none"
                   aria-hidden="true"

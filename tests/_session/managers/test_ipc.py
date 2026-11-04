@@ -348,14 +348,12 @@ class TestCloseKernel:
         return manager
 
     def test_graceful_waits_bounded_for_exit(self) -> None:
-        from marimo._runtime import commands
         from marimo._session.managers.ipc import GRACEFUL_EXIT_TIMEOUT
 
         manager = self._closable_manager()
         manager.close_kernel(graceful=True)
 
-        (request,), _ = manager.queue_manager.put_control_request.call_args
-        assert isinstance(request, commands.StopKernelCommand)
+        manager.queue_manager.request_kernel_stop.assert_called_once_with()
         manager.queue_manager.close_queues.assert_called_once()
         manager._process.wait.assert_called_once_with(
             timeout=GRACEFUL_EXIT_TIMEOUT
@@ -365,6 +363,58 @@ class TestCloseKernel:
         manager = self._closable_manager()
         manager.close_kernel()
         manager._process.wait.assert_not_called()
+
+    @pytest.mark.requires("zmq")
+    @pytest.mark.parametrize("returncode", [None, 0])
+    def test_close_without_kernel_receiver(
+        self, returncode: int | None, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        import zmq
+
+        from marimo._ipc.queue_manager import QueueManager
+        from marimo._session.managers.ipc import IPCQueueManagerImpl
+
+        original_send = zmq.Socket.send
+        sent = False
+
+        def send(
+            socket: zmq.Socket[bytes], data: bytes, *, flags: int = 0
+        ) -> None:
+            nonlocal sent
+            # Check before sending so a blocking regression fails, not hangs.
+            assert flags == zmq.DONTWAIT
+            sent = True
+            original_send(socket, data, flags=flags)
+
+        monkeypatch.setattr(zmq.Socket, "send", send)
+        ipc, _ = QueueManager.create()
+        manager = self._closable_manager()
+        manager.queue_manager = IPCQueueManagerImpl(ipc)
+        manager._process.poll.return_value = returncode
+        try:
+            manager.close_kernel()
+            assert ipc.conn.context.closed
+            assert sent == (returncode is None)
+        finally:
+            ipc.close_queues()
+
+    @pytest.mark.requires("zmq")
+    def test_stop_reaches_connected_kernel(self) -> None:
+        import zmq
+
+        from marimo._ipc.queue_manager import QueueManager
+        from marimo._runtime.commands import StopKernelCommand
+        from marimo._session.managers.ipc import IPCQueueManagerImpl
+
+        host, info = QueueManager.create()
+        kernel = QueueManager.connect(info)
+        try:
+            assert host.conn.control.socket.poll(1000, zmq.POLLOUT)
+            IPCQueueManagerImpl(host).request_kernel_stop()
+            assert kernel.control_queue.get(timeout=1) == StopKernelCommand()
+        finally:
+            kernel.close_queues()
+            host.close_queues()
 
     def test_profiling_close_waits_for_flush(self) -> None:
         from marimo._session.managers.ipc import PROFILE_FLUSH_TIMEOUT

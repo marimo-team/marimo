@@ -6,6 +6,7 @@ import time
 from collections.abc import AsyncIterable, Callable
 from dataclasses import dataclass
 from http.client import HTTPResponse, HTTPSConnection
+from ipaddress import ip_address
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -107,6 +108,116 @@ class AuthBackend(AuthenticationBackend):
             return AuthCredentials(["read", "edit"]), SimpleUser("user")
 
         raise ValueError(f"Invalid session mode: {mode}")
+
+
+class WebSocketOriginMiddleware:
+    """Apply the server's origin policy to WebSocket handshakes."""
+
+    def __init__(
+        self,
+        app: ASGIApp,
+        *,
+        allow_origins: tuple[str, ...] = (),
+        host: str | None = None,
+    ) -> None:
+        self.app = app
+        self.trusted_hosts = {"localhost", "127.0.0.1", "::1"}
+        if host is not None:
+            self.trusted_hosts.add(host.strip("[]").lower())
+        self.allow_all_origins = "*" in allow_origins
+        self.allow_origins: set[tuple[str, str, int]] = set()
+        for value in allow_origins:
+            if value == "*":
+                continue
+            origin = self._parse_origin(value)
+            if origin is None:
+                LOGGER.warning(
+                    "Ignoring invalid WebSocket origin %r in allow_origins. "
+                    "Use an http:// or https:// origin with an optional port, "
+                    "without a path or trailing slash.",
+                    value,
+                )
+            else:
+                self.allow_origins.add(origin)
+
+    @staticmethod
+    def _parse_origin(value: str) -> tuple[str, str, int] | None:
+        if (
+            not value.isprintable()
+            or any(char.isspace() for char in value)
+            or "\\" in value
+        ):
+            return None
+        try:
+            parsed = urlparse(value)
+            if (
+                parsed.scheme not in ("http", "https")
+                or not parsed.hostname
+                or parsed.username is not None
+                or parsed.password is not None
+                or parsed.netloc.endswith(":")
+                or parsed.path
+                or parsed.params
+                or "?" in value
+                or "#" in value
+            ):
+                return None
+            port = parsed.port
+            authority = parsed.hostname
+            if ":" in authority:
+                authority = f"[{authority}]"
+            if port is not None:
+                authority += ":" + parsed.netloc.rsplit(":", 1)[1]
+            if authority.lower() != parsed.netloc.lower():
+                return None
+            if port is None:
+                port = 443 if parsed.scheme == "https" else 80
+            return parsed.scheme, parsed.hostname, port
+        except ValueError:
+            return None
+
+    def _is_trusted_host(self, hostname: str, scope: Scope) -> bool:
+        if hostname in self.trusted_hosts:
+            return True
+        server = scope.get("server")
+        if server is None:
+            return False
+        try:
+            # The local socket address also supports direct IP connections.
+            return ip_address(hostname) == ip_address(server[0])
+        except ValueError:
+            return False
+
+    async def __call__(
+        self, scope: Scope, receive: Receive, send: Send
+    ) -> None:
+        if scope["type"] != "websocket":
+            return await self.app(scope, receive, send)
+
+        websocket = WebSocket(scope, receive, send)
+        origins = websocket.headers.getlist("origin")
+        # Non-browser clients may omit Origin.
+        if not origins:
+            return await self.app(scope, receive, send)
+
+        origin = self._parse_origin(origins[0]) if len(origins) == 1 else None
+        scheme = "https" if scope["scheme"] == "wss" else "http"
+        server_origin = self._parse_origin(
+            f"{scheme}://{websocket.headers.get('host', '')}"
+        )
+        if origin is not None and (
+            (
+                origin == server_origin
+                and self._is_trusted_host(origin[1], scope)
+            )
+            or origin in self.allow_origins
+            or self.allow_all_origins
+        ):
+            return await self.app(scope, receive, send)
+
+        await websocket.close(
+            code=WebSocketCodes.FORBIDDEN, reason="Origin not allowed"
+        )
 
 
 class SkewProtectionMiddleware:

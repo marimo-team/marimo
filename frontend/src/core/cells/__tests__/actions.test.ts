@@ -5,7 +5,6 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { cellId } from "@/__tests__/branded";
 import { createStore } from "jotai";
 import { cell, CONFIG } from "@/core/notebook/document/__tests__/fixtures";
-import type { CellIndex } from "@/utils/id-tree";
 import {
   addSetupCellAtom,
   collapseAllCellsAtom,
@@ -17,9 +16,11 @@ import {
   focusCellAtom,
   moveToNextCellAtom,
   showCellIfHiddenAtom,
+  splitCellAtom,
   undoDeleteCellAtom,
+  undoSplitCellAtom,
 } from "../actions";
-import { moveCellsRelativeToAtom } from "../arrange";
+import { moveCellAtom, moveCellsRelativeToAtom } from "../arrange";
 import {
   cellDataAtom,
   cellHandleAtom,
@@ -95,7 +96,7 @@ describe("createCellAtom", () => {
   });
 
   it("names the column of a cell placed first in a later column", () => {
-    const { store, notebook, cellIn } = setup({
+    const { store, cellIn } = setup({
       c2: cell("c2", "y = 2", { config: { ...CONFIG, column: 1 } }),
     });
 
@@ -103,12 +104,14 @@ describe("createCellAtom", () => {
 
     expect(cellIn(id as string)?.config.column).toBe(1);
     expect(cellIn(c2)?.config.column).toBeNull();
-    expect(notebook().cellIds.atOrThrow(1).inOrderIds).toEqual([id, c2]);
-    expect(notebook().cellIds.atOrThrow(0).inOrderIds).toEqual([c1]);
+    expect(store.get(layoutAtom).columns.map((c) => c.ids)).toEqual([
+      [c1],
+      [id, c2],
+    ]);
   });
 
   it("places a cell in the column of its anchor, whatever config it carries", () => {
-    const { store, order, notebook, cellIn } = setup({
+    const { store, order, cellIn } = setup({
       c2: cell("c2", "y = 2", { config: { ...CONFIG, column: 1 } }),
     });
 
@@ -124,21 +127,23 @@ describe("createCellAtom", () => {
       hide_code: true,
       column: null,
     });
-    expect(notebook().cellIds.atOrThrow(1).inOrderIds).toEqual([c2, id]);
+    expect(store.get(layoutAtom).columns[1].ids).toEqual([c2, id]);
   });
 
-  it("names the column when appending to an empty column", () => {
-    const { store, notebook, cellIn } = setup();
-    store.set(notebookAtom, (state) => ({
-      ...state,
-      cellIds: state.cellIds.addColumn(state.cellIds.atOrThrow(0).id),
-    }));
-    const empty = notebook().cellIds.atOrThrow(1).id;
+  it("fills an emptied column, which keeps its id", () => {
+    const { store, columns, columnIds, cellIn } = setup({
+      c3: cell("c3", "z = 3", { config: { ...CONFIG, column: 1 } }),
+    });
+    const [first, second] = columnIds();
+    // Moving its only cell out leaves the column on the page, to add to.
+    store.set(moveCellAtom, { cellId: c3, direction: "left" });
+    expect(columns()).toEqual([[c3, c1, c2], []]);
 
-    const id = store.set(createCellAtom, { endOf: empty });
+    const id = store.set(createCellAtom, { endOf: second });
 
     expect(cellIn(id as string)?.config.column).toBe(1);
-    expect(notebook().cellIds.atOrThrow(1).inOrderIds).toEqual([id]);
+    expect(columns()).toEqual([[c3, c1, c2], [id]]);
+    expect(columnIds()).toEqual([first, second]);
   });
 
   it("creates nothing when a cell already has the code", () => {
@@ -158,6 +163,40 @@ describe("createCellAtom", () => {
     store.set(notebookAtom, exportedForTesting.initialNotebookState());
 
     expect(() => store.set(createCellAtom, {})).toThrow("no document");
+  });
+});
+
+describe("splitCellAtom", () => {
+  it("splits a cell at the cursor and undoes it", () => {
+    const { store, order, notebook, cellIn, mountEditor } = setup({
+      c1: cell("c1", "line1\nline2"),
+    });
+    const view = mountEditor(c1);
+    view.dispatch({ selection: { anchor: 5 } });
+
+    const id = store.set(splitCellAtom, { cellId: c1 }) as CellId;
+
+    expect(order()).toEqual([c1, id, c2]);
+    expect(cellIn(c1)?.code).toBe("line1");
+    expect(cellIn(id)?.code).toBe("line2");
+    expect(view.state.doc.toString()).toBe("line1");
+    expect(notebook().scrollKey).toBe(id);
+
+    store.set(undoSplitCellAtom, {
+      cellId: c1,
+      newCellId: id,
+      snapshot: "line1\nline2",
+    });
+
+    expect(order()).toEqual([c1, c2]);
+    expect(cellIn(c1)?.code).toBe("line1\nline2");
+    expect(view.state.doc.toString()).toBe("line1\nline2");
+  });
+
+  it("does nothing for a cell without an editor", () => {
+    const { store, order } = setup();
+    expect(store.set(splitCellAtom, { cellId: c1 })).toBeNull();
+    expect(order()).toEqual([c1, c2]);
   });
 });
 
@@ -218,14 +257,14 @@ describe("addSetupCellAtom", () => {
   });
 
   it("places the setup cell in an empty first column", () => {
-    const { store, notebook, cellIn } = setup({
+    const { store, columns, notebook, cellIn } = setup({
       c1: cell(c1, "x = 1", { config: { ...CONFIG, column: 1 } }),
     });
-    expect(notebook().cellIds.atOrThrow(0).inOrderIds).toEqual([]);
+    expect(columns()[0]).toEqual([]);
 
     store.set(addSetupCellAtom, { code: "import marimo as mo" });
 
-    expect(notebook().cellIds.atOrThrow(0).inOrderIds).toEqual([SETUP_CELL_ID]);
+    expect(columns()[0]).toEqual([SETUP_CELL_ID]);
     expect(cellIn(SETUP_CELL_ID)?.config.column).toBe(0);
     expect(notebook().scrollKey).toBe(SETUP_CELL_ID);
   });
@@ -297,16 +336,16 @@ describe("deleteCellsAtom", () => {
   });
 
   it("names the column of a cell that followed a deleted column start", () => {
-    const { store, notebook, cellIn } = setup({
+    const { store, cellIn } = setup({
       c2: cell("c2", "y = 2", { config: { ...CONFIG, column: 1 } }),
       c3: cell("c3", "z = 3"),
     });
-    expect(notebook().cellIds.atOrThrow(1).inOrderIds).toEqual([c2, c3]);
+    expect(store.get(layoutAtom).columns[1].ids).toEqual([c2, c3]);
 
     store.set(deleteCellsAtom, { cellIds: [c2] });
 
     expect(cellIn(c3)?.config.column).toBe(1);
-    expect(notebook().cellIds.atOrThrow(1).inOrderIds).toEqual([c3]);
+    expect(store.get(layoutAtom).columns[1].ids).toEqual([c3]);
   });
 
   it("forgets a deleted cell's editor-only state and its atoms", () => {
@@ -386,14 +425,14 @@ describe("undoDeleteCellAtom", () => {
     const { store, order, notebook } = setup({
       c3: cell("c3", "z = 3"),
     });
-    const column = notebook().cellIds.atOrThrow(0);
+    const column = store.get(layoutAtom).columns[0];
     store.set(moveCellsRelativeToAtom, {
       cellIds: [c1, c2],
       targetCellId: c3,
       position: "after",
       previousPlacements: [
-        { columnId: column.id, index: 0 as CellIndex },
-        { columnId: column.id, index: 1 as CellIndex },
+        { columnId: column.id, index: 0 },
+        { columnId: column.id, index: 1 },
       ],
     });
     expect(order()).toEqual([c3, c1, c2]);

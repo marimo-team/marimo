@@ -25,11 +25,24 @@ def pytest_addoption(parser: pytest.Parser) -> None:
     parser.addoption(
         "--record", help="Path to a running host's discovery record"
     )
-    parser.addoption("--host-timeout", type=float, default=10.0)
+    parser.addoption(
+        "--host-timeout",
+        type=float,
+        default=10.0,
+        help="Seconds to wait for host responses and events (default: %(default)s)",
+    )
     parser.addoption(
         "--slow", action="store_true", help="Include idle ping checks"
     )
-    parser.addoption("--require-operation", action="append", default=[])
+    parser.addoption(
+        "--require-operation",
+        action="append",
+        default=[],
+        help=(
+            "Require an operation instead of skipping when unavailable. "
+            "Repeat for multiple operations"
+        ),
+    )
 
 
 def pytest_configure(config: pytest.Config) -> None:

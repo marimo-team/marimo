@@ -6,11 +6,7 @@ import { atomFamily, selectAtom, splitAtom } from "jotai/utils";
 import { createRef, type ReducerWithoutAction } from "react";
 import type { CellHandle } from "@/components/editor/notebook-cell";
 import type { EditableDocument, Placement } from "@/core/notebook/document";
-import {
-  type CellColumnId,
-  type CellIndex,
-  MultiColumn,
-} from "@/utils/id-tree";
+import type { CellColumnId } from "./layout";
 import { invariant } from "@/utils/invariant";
 import { Logger } from "@/utils/Logger";
 import { Objects } from "@/utils/objects";
@@ -18,8 +14,6 @@ import { extractAllTracebackInfo, type TracebackInfo } from "@/utils/traceback";
 import { createReducerAndAtoms } from "../../utils/createReducer";
 import { foldAllBulk, unfoldAllBulk } from "../codemirror/editing/commands";
 import { editorMountScheduler } from "../codemirror/editor-mount-scheduler";
-import { prepareCellCodeUpdate } from "../codemirror/language/cell-code";
-import { splitEditor } from "../codemirror/language/utils";
 import type { SerializedEditorState } from "../codemirror/types";
 import { mergeOutlines } from "../dom/outline";
 import type { CellMessage } from "../kernel/messages";
@@ -28,9 +22,9 @@ import type { CellConfig } from "../network/types";
 import { createDeepEqualAtom, store } from "../state/jotai";
 import { isWasm } from "../wasm/utils";
 import { prepareCellForExecution, transitionCell } from "./cell";
-import { applyDocument, documentEditMiddleware } from "./document";
+import { applyDocument } from "./document";
 import { isCodeHidden, shownHiddenCodeAtom } from "./editor";
-import { CellId, SCRATCH_CELL_ID } from "./ids";
+import { type CellId, SCRATCH_CELL_ID } from "./ids";
 import { type CellLog, getCellLogsForMessage } from "./logs";
 import type { Outline } from "./outline";
 import { focusAndScrollCellIntoView } from "./scrollCellIntoView";
@@ -74,7 +68,7 @@ export interface UndoDeleteEntry {
 export interface UndoMoveEntry {
   type: "move";
   cellIds: CellId[];
-  placements: Array<{ columnId: CellColumnId; index: CellIndex }>;
+  placements: Array<{ columnId: CellColumnId; index: number }>;
 }
 
 export type HistoryEntry = UndoDeleteEntry | UndoMoveEntry;
@@ -86,7 +80,8 @@ export interface NotebookState {
   /**
    * Order of cells on the page.
    */
-  cellIds: MultiColumn<CellId>;
+  /** The cells in document order. */
+  cellIds: CellId[];
   /**
    * Map of cells to their view state
    */
@@ -144,7 +139,7 @@ function withScratchCell(notebookState: NotebookState): NotebookState {
  */
 export function initialNotebookState(): NotebookState {
   return withScratchCell({
-    cellIds: MultiColumn.from([]),
+    cellIds: [],
     cellData: {},
     cellRuntime: {},
     cellHandles: {},
@@ -159,118 +154,35 @@ export function initialNotebookState(): NotebookState {
  */
 const {
   reducer,
-  addMiddleware,
   createActions,
   useActions,
   valueAtom: notebookAtom,
 } = createReducerAndAtoms(initialNotebookState, {
-  moveColumn: (
-    state,
-    action: {
-      column: CellColumnId;
-      overColumn: CellColumnId | "_left_" | "_right_";
-    },
-  ) => {
-    if (action.column === action.overColumn) {
-      return state;
-    }
-    return {
-      ...state,
-      cellIds: state.cellIds.moveColumn(action.column, action.overColumn),
-    };
-  },
-  addColumn: (state, action: { columnId: CellColumnId }) => {
-    // Add column and new cell
-    const newCellId = CellId.create();
-    return {
-      ...state,
-      cellIds: state.cellIds.addColumn(action.columnId, [newCellId]),
-      cellData: {
-        ...state.cellData,
-        [newCellId]: createCell({
-          id: newCellId,
-        }),
-      },
-      cellRuntime: {
-        ...state.cellRuntime,
-        [newCellId]: createCellRuntimeState(),
-      },
-      cellHandles: {
-        ...state.cellHandles,
-        [newCellId]: createRef(),
-      },
-      scrollKey: newCellId,
-    };
-  },
-  addColumnBreakpoint: (state, action: { cellId: CellId }) => {
-    const { cellId } = action;
-    if (state.cellIds.getColumns()[0].inOrderIds[0] === cellId) {
-      return state;
-    }
-    return {
-      ...state,
-      cellIds: state.cellIds.insertBreakpoint(cellId),
-    };
-  },
-  deleteColumn: (state, action: { columnId: CellColumnId }) => {
-    // Move all cells in the column to the previous column
-    const { columnId } = action;
-    return {
-      ...state,
-      cellIds: state.cellIds.delete(columnId),
-    };
-  },
-  mergeAllColumns: (state) => {
-    return {
-      ...state,
-      cellIds: state.cellIds.mergeAllColumns(),
-    };
-  },
-  compactColumns: (state) => {
-    return {
-      ...state,
-      cellIds: state.cellIds.compact(),
-    };
-  },
   /**
-   * Put moved cells back where they were.
-   *
-   * TODO(MO-8028): Move to `undoDeleteCellAtom` with the order family.
+   * Keep a cell as run, or as edited, as it was before formatting rewrote
+   * its code from `before` to `after`. The code itself arrives through the
+   * document.
    */
-  updateCellCode: (
+  codeFormatted: (
     state,
-    action: {
-      cellId: CellId;
-      code: string;
-      /**
-       * Whether or not the update is a formatting change,
-       * if so, the 'edited' state will be handled differently.
-       */
-      formattingChange: boolean;
-    },
+    action: { cellId: CellId; before: string; after: string },
   ) => {
-    const { cellId, code, formattingChange } = action;
+    const { cellId, before, after } = action;
     if (!state.cellData[cellId]) {
       return state;
     }
-
     return updateCellData({
       state,
       cellId,
       cellReducer: (cell) => {
-        // Formatting-only change means we can re-use the last code run
-        // if it was not previously edited. And we don't change the edited state.
-        return formattingChange
-          ? {
-              ...cell,
-              code: code,
-              lastCodeRun: cell.edited ? cell.lastCodeRun : code,
-            }
-          : {
-              ...cell,
-              code: code,
-              edited: code.trim() !== cell.lastCodeRun,
-            };
+        const lastCodeRun = isEdited(cell.lastCodeRun, before)
+          ? cell.lastCodeRun
+          : after;
+        return {
+          ...cell,
+          lastCodeRun,
+          edited: isEdited(lastCodeRun, cell.code),
+        };
       },
     });
   },
@@ -332,7 +244,7 @@ const {
   /** Follow the host document's cells and order. */
   reconcileDocument: (state, document: EditableDocument) => {
     const nextState = applyDocument(state, document);
-    for (const cellId of state.cellIds.inOrderIds) {
+    for (const cellId of state.cellIds) {
       if (!(cellId in nextState.cellData)) {
         releaseCellAtoms(cellId);
       }
@@ -382,7 +294,7 @@ const {
     },
   ) => {
     const cellData = { ...state.cellData };
-    for (const cellId of state.cellIds.inOrderIds) {
+    for (const cellId of state.cellIds) {
       const cell = state.cellData[cellId];
       const lastCodeRun = action.lastCodeRun[cellId] ?? null;
       cellData[cellId] = {
@@ -402,7 +314,7 @@ const {
   resetCellRuntimes: (state) => {
     const preserveSnapshot = isWasm();
     const cellRuntime = { ...state.cellRuntime };
-    for (const cellId of [...state.cellIds.inOrderIds, SCRATCH_CELL_ID]) {
+    for (const cellId of [...state.cellIds, SCRATCH_CELL_ID]) {
       const previous = state.cellRuntime[cellId];
       const hasSnapshot =
         preserveSnapshot &&
@@ -419,12 +331,7 @@ const {
       return state;
     }
 
-    const column = state.cellIds.findWithId(scrollKey);
-    const index = column.indexOfOrThrow(scrollKey);
-
-    const cellId =
-      index === column.length - 1 ? column.last() : column.atOrThrow(index);
-
+    const cellId = scrollKey;
     focusAndScrollCellIntoView({
       cellId: cellId,
       cell: state.cellHandles[cellId],
@@ -462,110 +369,6 @@ const {
       cellLogs: [],
     };
   },
-  splitCell: (state, action: { cellId: CellId }) => {
-    const { cellId } = action;
-    const column = state.cellIds.findWithId(cellId);
-    const index = column.indexOfOrThrow(cellId);
-    const cell = state.cellData[cellId];
-    const cellHandle = state.cellHandles[cellId].current;
-
-    if (cellHandle?.editorView == null) {
-      return state;
-    }
-
-    const { beforeCursorCode, afterCursorCode } = splitEditor(
-      cellHandle.editorView,
-    );
-
-    const update = prepareCellCodeUpdate(
-      cellHandle.editorView.state,
-      beforeCursorCode,
-    );
-
-    if (update) {
-      cellHandle.editorView.dispatch(update);
-    }
-
-    const newCellId = CellId.create();
-
-    return {
-      ...state,
-      cellIds: state.cellIds.insertId(newCellId, column.id, index + 1),
-      cellData: {
-        ...state.cellData,
-        [cellId]: {
-          ...cell,
-          code: beforeCursorCode,
-          edited:
-            Boolean(beforeCursorCode) &&
-            beforeCursorCode.trim() !== cell.lastCodeRun?.trim(),
-        },
-        [newCellId]: createCell({
-          id: newCellId,
-          code: afterCursorCode,
-          edited: Boolean(afterCursorCode),
-        }),
-      },
-      cellRuntime: {
-        ...state.cellRuntime,
-        [cellId]: {
-          ...state.cellRuntime[cellId],
-          output: null,
-          consoleOutputs: [],
-        },
-        [newCellId]: createCellRuntimeState(),
-      },
-      cellHandles: {
-        ...state.cellHandles,
-        [newCellId]: createRef(),
-      },
-      scrollKey: newCellId,
-    };
-  },
-  undoSplitCell: (state, action: { cellId: CellId; snapshot: string }) => {
-    const { cellId, snapshot } = action;
-
-    const cell = state.cellData[cellId];
-    const cellHandle = state.cellHandles[cellId].current;
-
-    if (cellHandle?.editorView == null) {
-      return state;
-    }
-
-    const update = prepareCellCodeUpdate(cellHandle.editorView.state, snapshot);
-
-    if (update) {
-      cellHandle.editorView.dispatch(update);
-    }
-
-    return {
-      ...state,
-      cellIds: state.cellIds.transformWithCellId(cellId, (column) => {
-        const newCellIndex = column.indexOfOrThrow(cellId) + 1;
-        return column.deleteAtIndex(newCellIndex);
-      }),
-      cellData: {
-        ...state.cellData,
-        [cellId]: {
-          ...cell,
-          code: snapshot,
-          edited:
-            Boolean(snapshot) && snapshot?.trim() !== cell.lastCodeRun?.trim(),
-        },
-      },
-      cellRuntime: {
-        ...state.cellRuntime,
-        [cellId]: {
-          ...state.cellRuntime[cellId],
-          output: null,
-          consoleOutputs: [],
-        },
-      },
-      cellHandles: {
-        ...state.cellHandles,
-      },
-    };
-  },
   clearCellOutput: (state, action: { cellId: CellId }) => {
     const { cellId } = action;
     return updateCellRuntimeState({
@@ -594,7 +397,7 @@ const {
   },
   clearAllCellOutputs: (state) => {
     const newCellRuntime = { ...state.cellRuntime };
-    for (const cellId of state.cellIds.inOrderIds) {
+    for (const cellId of state.cellIds) {
       newCellRuntime[cellId] = {
         ...newCellRuntime[cellId],
         output: null,
@@ -607,11 +410,6 @@ const {
     };
   },
 });
-
-// We apply the middleware here (rather than inline in createReducerAndAtoms)
-// so that the document edit middleware can import CellActions and
-// strictly type the dispatched actions without creating a circular dependency.
-addMiddleware(documentEditMiddleware);
 
 // Helper function to update a cell in the array
 function updateCellRuntimeState({
@@ -660,43 +458,12 @@ function updateCellData({
   };
 }
 
+/** Each cell's config in order. The document's `column` configs are canonical. */
 export function getCellConfigs(state: NotebookState): CellConfig[] {
-  const cells = state.cellData;
-
-  // We set to null by default to prevent inconsistencies between undefined & null
-  const defaultCellConfig: Partial<CellConfig> = { column: null };
-
-  // Handle the case where there's only one column
-  // We don't want to set the column config
-  const hasMultipleColumns = state.cellIds.getColumns().length > 1;
-  if (!hasMultipleColumns) {
-    return state.cellIds.getColumns().flatMap((column) => {
-      return column.inOrderIds.map((cellId) => {
-        return {
-          ...cells[cellId].config,
-          ...defaultCellConfig,
-        };
-      });
-    });
-  }
-
-  return state.cellIds.getColumns().flatMap((column, columnIndex) => {
-    return column.inOrderIds.map((cellId, cellIndex) => {
-      const config: Partial<CellConfig> = { ...defaultCellConfig };
-
-      // Only set the column index for the first cell in the column
-      if (cellIndex === 0) {
-        config.column = columnIndex;
-      }
-
-      const newConfig = {
-        ...cells[cellId].config,
-        ...config,
-      };
-
-      return newConfig;
-    });
-  });
+  return state.cellIds.map((cellId) => ({
+    ...state.cellData[cellId].config,
+    column: state.cellData[cellId].config.column ?? null,
+  }));
 }
 
 export {
@@ -716,9 +483,7 @@ export const addLogs = imperativeActions.addLogs;
 
 export const cellIdsAtom = atom((get) => get(notebookAtom).cellIds);
 
-export const hasOnlyOneCellAtom = atom((get) =>
-  get(cellIdsAtom).hasOnlyOneId(),
-);
+export const hasOnlyOneCellAtom = atom((get) => get(cellIdsAtom).length === 1);
 
 export const hasDisabledCellsAtom = atom(
   (get) => disabledCellIds(get(notebookAtom)).length > 0,
@@ -736,7 +501,7 @@ export const needsRunAtom = atom((get) => notebookNeedsRun(get(notebookAtom)));
 
 export const cellErrorsAtom = atom((get) => {
   const { cellIds, cellRuntime, cellData } = get(notebookAtom);
-  const errors = cellIds.inOrderIds
+  const errors = cellIds
     .map((cellId) => {
       const cell = cellRuntime[cellId];
       const { name } = cellData[cellId];
@@ -785,9 +550,7 @@ export const cellOutlinesAtom = createDeepEqualAtom(
 export const notebookOutline = atom((get) => {
   const cellIds = get(cellIdsAtom);
   const cellRuntime = get(cellsRuntimeAtom);
-  const outlines = cellIds.inOrderIds.map(
-    (cellId) => cellRuntime[cellId].outline,
-  );
+  const outlines = cellIds.map((cellId) => cellRuntime[cellId].outline);
   return mergeOutlines(outlines);
 });
 
@@ -797,7 +560,7 @@ export const cellIdToNamesMap = createDeepEqualAtom(
   atom((get) => {
     const { cellIds, cellData } = get(notebookAtom);
     const names: Record<CellId, string | undefined> = Objects.fromEntries(
-      cellIds.inOrderIds.map((cellId) => [cellId, cellData[cellId]?.name]),
+      cellIds.map((cellId) => [cellId, cellData[cellId]?.name]),
     );
     return names;
   }),
@@ -854,12 +617,12 @@ export const getCells = () => store.get(notebookAtom).cellIds;
  */
 export const getCellNames = () => {
   const { cellIds, cellData } = store.get(notebookAtom);
-  return cellIds.inOrderIds.map((id) => cellData[id]?.name).filter(Boolean);
+  return cellIds.map((id) => cellData[id]?.name).filter(Boolean);
 };
 
 const cellDataAtoms = splitAtom(
   selectAtom(notebookAtom, (cells) =>
-    cells.cellIds.inOrderIds.map((id) => cells.cellData[id]),
+    cells.cellIds.map((id) => cells.cellData[id]),
   ),
 );
 export const useCellDataAtoms = () => useAtom(cellDataAtoms);
@@ -879,16 +642,7 @@ export const notebookQueuedOrRunningCountAtom = atom((get) =>
   notebookQueueOrRunningCount(get(notebookAtom)),
 );
 
-export const numColumnsAtom = atom(
-  (get) => get(notebookAtom).cellIds.colLength,
-);
-export const hasCellsAtom = atom(
-  (get) => get(notebookAtom).cellIds.idLength > 0,
-);
-export const columnIdsAtom = atom((get) =>
-  get(notebookAtom).cellIds.getColumnIds(),
-);
-
+export const hasCellsAtom = atom((get) => get(notebookAtom).cellIds.length > 0);
 export const cellDataAtom = atomFamily((cellId: CellId) =>
   atom((get) => get(notebookAtom).cellData[cellId]),
 );
@@ -929,7 +683,7 @@ export const useCellHandle = (cellId: CellId) =>
  */
 export const getAllEditorViews = () => {
   const { cellIds, cellHandles } = store.get(notebookAtom);
-  return cellIds.inOrderIds
+  return cellIds
     .map((cellId) => cellHandles[cellId]?.current?.editorViewOrNull)
     .filter(Boolean);
 };
@@ -953,12 +707,10 @@ export function flattenTopLevelNotebookCells(
   state: NotebookState,
 ): (CellData & CellRuntimeState)[] {
   const { cellIds, cellData, cellRuntime } = state;
-  return cellIds.getColumns().flatMap((column) =>
-    column.topLevelIds.map((cellId) => ({
-      ...cellData[cellId],
-      ...cellRuntime[cellId],
-    })),
-  );
+  return cellIds.map((cellId) => ({
+    ...cellData[cellId],
+    ...cellRuntime[cellId],
+  }));
 }
 
 export function createTracebackInfoAtom(

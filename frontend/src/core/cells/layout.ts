@@ -3,14 +3,82 @@
 /** The cells as they appear on the page: by column, with folded sections hidden. */
 
 import { atom, useAtomValue } from "jotai";
-import type { CellColumnId } from "@/utils/id-tree";
+import type { EditableDocument } from "@/core/notebook/document";
 import { findCollapseRange } from "../dom/outline";
-import { cellIdsAtom, cellOutlinesAtom } from "./cells";
-import type { CellId } from "./ids";
+import { activeDocumentModelAtom } from "../session/active-notebook";
+import { cellOutlinesAtom } from "./cells";
+import { groupByColumn } from "./columns";
+import { CellId } from "./ids";
 import type { Outline } from "./outline";
+
+/** A column's identity on this page, as drag and drop and saved widths refer to it. */
+export type CellColumnId = string & { __brand: "CellColumnId" };
 
 /** The headers whose sections the user folded. Only this browser knows. */
 export const collapsedAtom = atom<ReadonlySet<CellId>>(new Set<CellId>());
+
+/**
+ * This browser's names for the document's columns, by position. The
+ * document knows columns only by position, so `followColumnsAtom` names
+ * a column as it appears and forgets one as it goes, and the column
+ * operations carry the names along as they rearrange.
+ */
+export const columnIdsAtom = atom<readonly CellColumnId[]>([]);
+
+/**
+ * Trailing columns a rearrangement here emptied. The document cannot hold
+ * an empty column at its end, so the page keeps them, as drop targets for
+ * the cell being dragged, until a drop compacts them.
+ */
+export const emptyColumnIdsAtom = atom<readonly CellColumnId[]>([]);
+
+export function newColumnId(): CellColumnId {
+  return `column-${CellId.create()}` as CellColumnId;
+}
+
+export function isColumnId(id: unknown): id is CellColumnId {
+  return typeof id === "string" && id.startsWith("column-");
+}
+
+/**
+ * Name the document's columns as the document changes. A column that
+ * appears takes over an empty column the page keeps, or gets a fresh id;
+ * one that goes is forgotten.
+ */
+export const followColumnsAtom = atom(
+  null,
+  (get, set, document: EditableDocument): void => {
+    const count = groupByColumn(document).length;
+    const ids = get(columnIdsAtom);
+    if (ids.length === count) {
+      return;
+    }
+    const empty = get(emptyColumnIdsAtom);
+    const named = [...ids, ...empty].slice(0, count);
+    while (named.length < count) {
+      named.push(newColumnId());
+    }
+    set(columnIdsAtom, named);
+    set(emptyColumnIdsAtom, empty.slice(Math.max(0, count - ids.length)));
+  },
+);
+
+/** The document's columns, each with its id, then the empty ones the page keeps. */
+function columnsOf(
+  document: EditableDocument | null,
+  ids: readonly CellColumnId[],
+  empty: readonly CellColumnId[],
+): Array<{ id: CellColumnId; ids: CellId[] }> {
+  const groups = document === null ? [[]] : groupByColumn(document);
+  return [
+    ...groups.map((cells, index) => ({
+      // Before the first document names them, columns go by position.
+      id: ids[index] ?? (`column-${index}` as CellColumnId),
+      ids: cells,
+    })),
+    ...empty.map((id) => ({ id, ids: [] as CellId[] })),
+  ];
+}
 
 export interface LayoutColumn {
   readonly id: CellColumnId;
@@ -69,24 +137,25 @@ export function deriveLayout(
 }
 
 /**
- * The layout of the notebook's cells.
+ * The layout of the notebook's cells: the document's order and columns,
+ * this browser's column ids and folds, and the kernel's outlines.
  *
- * TODO(MO-8028): Order and columns come from the reducer's tree until the
- * arrange family edits the document; then they derive from the document and
- * the column ids this browser keeps. Outlines come from executions later.
+ * TODO(MO-8028): Outlines come from executions later.
  */
 export const layoutAtom = atom((get): Layout => {
+  const model = get(activeDocumentModelAtom);
+  const document = model === null ? null : get(model.documentAtom);
   const outlines = get(cellOutlinesAtom);
   return deriveLayout(
-    get(cellIdsAtom)
-      .getColumns()
-      .map((column) => ({ id: column.id, ids: column.inOrderIds })),
+    columnsOf(document, get(columnIdsAtom), get(emptyColumnIdsAtom)),
     (id) => outlines[id] ?? null,
     get(collapsedAtom),
   );
 });
 
 export const useLayout = () => useAtomValue(layoutAtom);
+
+export const numColumnsAtom = atom((get) => get(layoutAtom).columns.length);
 
 export function findColumn(
   layout: Layout,

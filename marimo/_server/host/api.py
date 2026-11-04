@@ -30,7 +30,6 @@ from marimo._server.api.endpoints.ws.ws_connection_validator import (
     ConnectionRejection,
     parse_connection_params,
 )
-from marimo._server.api.endpoints.ws_endpoint import DOC_MANAGER
 from marimo._server.api.utils import format_url_host, open_url_in_browser
 from marimo._server.host import (
     ATTACHMENT_IDENTITY,
@@ -264,7 +263,6 @@ async def _editor_events_ws(websocket: WebSocket) -> None:
         bridge=bridge,
         manager=manager,
         params=params,
-        doc_manager=DOC_MANAGER,
         types=types,
         cursor=cursor,
     ).start()

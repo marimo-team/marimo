@@ -29,7 +29,7 @@ export const useSetCodeVisibility = () => {
 
       const newConfigs: Record<CellId, Partial<CellConfig>> = {};
 
-      for (const cellId of notebook.cellIds.inOrderIds) {
+      for (const cellId of notebook.cellIds) {
         const cell = notebook.cellData[cellId];
         if (cell === undefined || cell.config.hide_code === hidden) {
           continue;

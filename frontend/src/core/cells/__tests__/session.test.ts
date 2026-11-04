@@ -6,7 +6,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { Mocks } from "@/__mocks__/common";
 import { cellId } from "@/__tests__/branded";
 import { parseOutline } from "@/core/dom/outline";
-import { visibleForTesting } from "@/utils/id-tree";
 import { invariant } from "@/utils/invariant";
 import { Logger } from "@/utils/Logger";
 import { SETUP_CELL_ID } from "../ids";
@@ -35,7 +34,6 @@ function cellIn(result: ReturnType<typeof readExport>, id: string) {
 describe("readExport", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    visibleForTesting.reset();
   });
 
   // Test data factories

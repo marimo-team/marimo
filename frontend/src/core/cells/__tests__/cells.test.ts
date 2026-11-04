@@ -24,11 +24,6 @@ import { adaptiveLanguageConfiguration } from "@/core/codemirror/language/extens
 import { OverridingHotkeyProvider } from "@/core/hotkeys/hotkeys";
 import type { OutputMessage } from "@/core/kernel/messages";
 import type { CellConfig } from "@/core/network/types";
-import {
-  type CollapsibleTree,
-  MultiColumn,
-  type CellColumnId,
-} from "@/utils/id-tree";
 import type { Seconds } from "@/utils/time";
 import {
   exportedForTesting,
@@ -61,8 +56,6 @@ vi.mock("../scrollCellIntoView", async (importOriginal) => {
   };
 });
 
-const FIRST_COLUMN = 0;
-
 const { initialNotebookState, reducer, createActions } = exportedForTesting;
 
 function formatCells(notebook: NotebookState) {
@@ -78,14 +71,7 @@ function formatCells(notebook: NotebookState) {
     const cells = cellsId.map((cellId) => cellData[cellId]);
     return cells.map((cell) => printCell(cell)).join("\n\n");
   };
-  const printColumn = (column: CollapsibleTree<CellId>, columnIdx: number) => {
-    return `> col ${columnIdx}\n${printCells(column.inOrderIds)}`;
-  };
-  const columns = cellIds.getColumns();
-  if (columns.length > 1) {
-    return wrap(columns.map(printColumn).join("\n\n"));
-  }
-  return wrap(printCells(cellIds.inOrderIds));
+  return wrap(printCells(cellIds));
 }
 
 function createEditor(content: string) {
@@ -152,7 +138,7 @@ describe("cell reducer", () => {
     hideCode,
     autoFocus = true,
   }: {
-    cellId: CellId | "__end__" | { type: "__end__"; columnId: CellColumnId };
+    cellId: CellId | "__end__";
     before: boolean;
     code?: string;
     name?: string;
@@ -161,26 +147,16 @@ describe("cell reducer", () => {
     hideCode?: boolean;
     autoFocus?: boolean;
   }): CellId {
-    let column: CollapsibleTree<CellId>;
-    let cellIndex: number;
-    if (cellId === "__end__") {
-      column = state.cellIds.atOrThrow(0);
-      cellIndex = column.length;
-    } else if (typeof cellId === "string") {
-      column = state.cellIds.findWithId(cellId);
-      cellIndex = column.topLevelIds.indexOf(cellId);
-    } else {
-      column = state.cellIds.get(cellId.columnId) ?? state.cellIds.atOrThrow(0);
-      cellIndex = column.length;
-    }
+    const cellIndex =
+      cellId === "__end__"
+        ? state.cellIds.length
+        : state.cellIds.indexOf(cellId);
     const id = newCellId ?? CellId.create();
+    const cellIds = [...state.cellIds];
+    cellIds.splice(before ? cellIndex : cellIndex + 1, 0, id);
     state = {
       ...state,
-      cellIds: state.cellIds.insertId(
-        id,
-        column.id,
-        before ? cellIndex : cellIndex + 1,
-      ),
+      cellIds,
       cellData: {
         ...state.cellData,
         [id]: createCell({
@@ -202,6 +178,38 @@ describe("cell reducer", () => {
     return id;
   }
 
+  /** Edit a cell's code as the document delivers it. */
+  function editCode(cellId: CellId, code: string) {
+    const cells = state.cellIds.map((id) => {
+      const cell = state.cellData[id];
+      return {
+        id,
+        code: id === cellId ? code : cell.code,
+        name: cell.name,
+        config: {
+          column: cell.config.column ?? null,
+          disabled: cell.config.disabled ?? false,
+          hide_code: cell.config.hide_code ?? false,
+          expand_output: cell.config.expand_output ?? false,
+        },
+      };
+    });
+    actions.reconcileDocument({
+      order: state.cellIds,
+      cells: new Map(cells.map((cell) => [cell.id, cell])),
+    });
+  }
+
+  /** Format a cell's code, as the editor reports it. */
+  function formatCode(cellId: CellId, code: string) {
+    actions.codeFormatted({
+      cellId,
+      before: state.cellData[cellId].code,
+      after: code,
+    });
+    editCode(cellId, code);
+  }
+
   let i = 0;
   const originalCreate = CellId.create.bind(CellId);
 
@@ -215,9 +223,8 @@ describe("cell reducer", () => {
     i = 0;
 
     state = initialNotebookState();
-    state.cellIds = MultiColumn.from([]);
     seedCell({ cellId: "__end__", before: false });
-    firstCellId = state.cellIds.inOrderIds[0];
+    firstCellId = state.cellIds[0];
   });
 
   afterAll(() => {
@@ -225,11 +232,7 @@ describe("cell reducer", () => {
   });
 
   it("can update a cell", () => {
-    actions.updateCellCode({
-      cellId: firstCellId,
-      code: "import numpy as np",
-      formattingChange: false,
-    });
+    editCode(firstCellId, "import numpy as np");
     expect(formatCells(state)).toMatchInlineSnapshot(`
       "
       [0] 'import numpy as np'
@@ -268,11 +271,7 @@ describe("cell reducer", () => {
       stale_inputs: null,
       timestamp: 1,
     });
-    actions.updateCellCode({
-      cellId: firstCellId,
-      code: "print('new code')",
-      formattingChange: false,
-    });
+    editCode(firstCellId, "print('new code')");
     actions.prepareForRun({ cellId: firstCellId });
     actions.handleCellMessage({
       cell_id: firstCellId,
@@ -300,11 +299,7 @@ describe("cell reducer", () => {
     expect(cell).toMatchSnapshot("initial state");
 
     // Update code
-    actions.updateCellCode({
-      cellId: firstCellId,
-      code: "import marimo as mo",
-      formattingChange: false,
-    });
+    editCode(firstCellId, "import marimo as mo");
     cell = cells[0];
     expect(cell.status).toBe("idle");
     expect(cell.lastCodeRun).toBe(null);
@@ -409,32 +404,20 @@ describe("cell reducer", () => {
     // EDITING BACK AND FORTH
     /////////////////
     // Update code again
-    actions.updateCellCode({
-      cellId: firstCellId,
-      code: "import marimo as mo\nimport numpy",
-      formattingChange: false,
-    });
+    editCode(firstCellId, "import marimo as mo\nimport numpy");
     cell = cells[0];
     expect(cell.status).toBe("idle");
     expect(cell.edited).toBe(true);
     expect(cell).toMatchSnapshot("code edited again");
 
     // Update code should be unedited
-    actions.updateCellCode({
-      cellId: firstCellId,
-      code: "import marimo as mo",
-      formattingChange: false,
-    });
+    editCode(firstCellId, "import marimo as mo");
     cell = cells[0];
     expect(cell.edited).toBe(false);
     expect(cell).toMatchSnapshot("code reverted");
 
     // Update code should be edited again
-    actions.updateCellCode({
-      cellId: firstCellId,
-      code: "import marimo as mo\nimport numpy",
-      formattingChange: false,
-    });
+    editCode(firstCellId, "import marimo as mo\nimport numpy");
     cell = cells[0];
     expect(cell.status).toBe("idle");
     expect(cell.lastCodeRun).toBe("import marimo as mo");
@@ -558,11 +541,7 @@ describe("cell reducer", () => {
     expect(cell).toMatchSnapshot("initial state");
 
     // Update code
-    actions.updateCellCode({
-      cellId: firstCellId,
-      code: "import marimo as mo",
-      formattingChange: false,
-    });
+    editCode(firstCellId, "import marimo as mo");
     cell = cells[0];
     expect(cell.status).toBe("idle");
     expect(cell.lastCodeRun).toBe(null);
@@ -614,11 +593,7 @@ describe("cell reducer", () => {
 
   it("can run a stale cell", () => {
     // Update code of first cell
-    actions.updateCellCode({
-      cellId: firstCellId,
-      code: "import marimo as mo",
-      formattingChange: false,
-    });
+    editCode(firstCellId, "import marimo as mo");
     // Add cell
     seedCell({
       cellId: firstCellId,
@@ -626,11 +601,7 @@ describe("cell reducer", () => {
     });
     const secondCell = cells[1].id;
     // Update code
-    actions.updateCellCode({
-      code: "mo.slider()",
-      cellId: secondCell,
-      formattingChange: false,
-    });
+    editCode(secondCell, "mo.slider()");
 
     // Prepare for run
     actions.prepareForRun({
@@ -674,11 +645,7 @@ describe("cell reducer", () => {
 
   it("can format code and update cell", () => {
     const firstCellId = cells[0].id;
-    actions.updateCellCode({
-      cellId: firstCellId,
-      code: "import marimo as    mo",
-      formattingChange: false,
-    });
+    editCode(firstCellId, "import marimo as    mo");
     let cell = cells[0];
     expect(cell.status).toBe("idle");
     expect(cell.lastCodeRun).toBe(null);
@@ -714,11 +681,7 @@ describe("cell reducer", () => {
     expect(cell.lastCodeRun).toBe("import marimo as    mo");
 
     // Format code
-    actions.updateCellCode({
-      cellId: firstCellId,
-      code: "import marimo as mo",
-      formattingChange: true,
-    });
+    formatCode(firstCellId, "import marimo as mo");
     cell = cells[0];
     expect(cell.status).toBe("idle");
     expect(cell.lastCodeRun).toBe("import marimo as mo");
@@ -727,11 +690,7 @@ describe("cell reducer", () => {
 
   it("can run a stopped cell", () => {
     // Update code of first cell
-    actions.updateCellCode({
-      cellId: firstCellId,
-      code: "mo.md('This has an ancestor that was stopped')",
-      formattingChange: false,
-    });
+    editCode(firstCellId, "mo.md('This has an ancestor that was stopped')");
 
     // Prepare for run
     actions.prepareForRun({
@@ -1156,37 +1115,6 @@ describe("cell reducer", () => {
     expect(state.cellLogs).toEqual([]);
   });
 
-  it("can split and undo split cells", () => {
-    seedCell({
-      cellId: firstCellId,
-      before: false,
-      code: "line1\nline2",
-    });
-    const nextCellId = state.cellIds.atOrThrow(FIRST_COLUMN).atOrThrow(1);
-
-    const originalCellCount = state.cellIds.atOrThrow(FIRST_COLUMN).length;
-    // Move cursor to the second line
-    const editor = state.cellHandles[nextCellId].current?.editorView;
-    if (!editor) {
-      throw new Error("Editor not found");
-    }
-    editor.dispatch({ selection: { anchor: 5, head: 5 } });
-    actions.splitCell({ cellId: nextCellId });
-    expect(state.cellIds.atOrThrow(FIRST_COLUMN).length).toBe(
-      originalCellCount + 1,
-    );
-    expect(state.cellData[nextCellId].code).toBe("line1");
-    expect(
-      state.cellData[state.cellIds.atOrThrow(FIRST_COLUMN).atOrThrow(2)].code,
-    ).toBe("line2");
-
-    actions.undoSplitCell({ cellId: nextCellId, snapshot: "line1\nline2" });
-    expect(state.cellIds.atOrThrow(FIRST_COLUMN).length).toBe(
-      originalCellCount,
-    );
-    expect(state.cellData[nextCellId].code).toBe("line1\nline2");
-  });
-
   it("can handle multiple console outputs", () => {
     const STDOUT1: OutputMessage = {
       channel: "stdout",
@@ -1221,228 +1149,6 @@ describe("cell reducer", () => {
         },
       ]
     `);
-  });
-
-  it("can add a column breakpoint", () => {
-    seedCell({ cellId: firstCellId, before: false });
-    seedCell({ cellId: cellId("1"), before: false });
-    seedCell({ cellId: cellId("2"), before: false });
-
-    expect(state.cellIds.getColumns().length).toBe(1);
-    expect(formatCells(state)).toMatchInlineSnapshot(`
-      "
-      [0] ''
-
-      [1] ''
-
-      [2] ''
-
-      [3] ''
-      "
-    `);
-
-    actions.addColumnBreakpoint({ cellId: cellId("2") });
-
-    expect(state.cellIds.getColumns().length).toBe(2);
-    expect(formatCells(state)).toMatchInlineSnapshot(`
-      "
-      > col 0
-      [0] ''
-
-      [1] ''
-
-      > col 1
-      [2] ''
-
-      [3] ''
-      "
-    `);
-
-    // Check that the cells are in the correct columns
-    expect(state.cellIds.getColumns()[0].topLevelIds).toEqual([
-      cellId("0"),
-      cellId("1"),
-    ]);
-    expect(state.cellIds.getColumns()[1].topLevelIds).toEqual([
-      cellId("2"),
-      cellId("3"),
-    ]);
-  });
-
-  it("cannot add a column breakpoint before the first cell", () => {
-    expect(state.cellIds.getColumns().length).toBe(1);
-    seedCell({ cellId: firstCellId, before: false });
-    seedCell({ cellId: cellId("1"), before: false });
-    actions.addColumnBreakpoint({ cellId: firstCellId });
-    expect(state.cellIds.getColumns().length).toBe(1);
-  });
-
-  it("can delete a column", () => {
-    seedCell({ cellId: firstCellId, before: false });
-    seedCell({ cellId: cellId("1"), before: false });
-    seedCell({ cellId: cellId("2"), before: false });
-    actions.addColumnBreakpoint({ cellId: cellId("2") });
-
-    expect(state.cellIds.getColumns().length).toBe(2);
-    expect(formatCells(state)).toMatchInlineSnapshot(`
-      "
-      > col 0
-      [0] ''
-
-      [1] ''
-
-      > col 1
-      [2] ''
-
-      [3] ''
-      "
-    `);
-
-    const columnId = state.cellIds.atOrThrow(0).id;
-    actions.deleteColumn({ columnId: columnId });
-
-    expect(state.cellIds.getColumns().length).toBe(1);
-    expect(formatCells(state)).toMatchInlineSnapshot(`
-      "
-      [2] ''
-
-      [3] ''
-
-      [0] ''
-
-      [1] ''
-      "
-    `);
-
-    // Check that all cells are now in the remaining column
-    expect(state.cellIds.getColumns()[0].topLevelIds).toEqual([
-      "2",
-      "3",
-      "0",
-      "1",
-    ]);
-  });
-
-  it("deleting the last column does nothing", () => {
-    seedCell({ cellId: firstCellId, before: false });
-    seedCell({ cellId: cellId("1"), before: false });
-
-    const initialState = { ...state };
-
-    actions.deleteColumn({ columnId: initialState.cellIds.atOrThrow(0).id });
-
-    // State should not change
-    expect(state).toEqual(initialState);
-  });
-
-  it("can drop a column over another column", () => {
-    seedCell({ cellId: firstCellId, before: false });
-    seedCell({ cellId: cellId("1"), before: false });
-    seedCell({ cellId: cellId("2"), before: false });
-    actions.addColumnBreakpoint({ cellId: cellId("2") });
-
-    expect(state.cellIds.getColumns().length).toBe(2);
-    expect(formatCells(state)).toMatchInlineSnapshot(`
-      "
-      > col 0
-      [0] ''
-
-      [1] ''
-
-      > col 1
-      [2] ''
-
-      [3] ''
-      "
-    `);
-
-    const columnId0 = state.cellIds.atOrThrow(0).id;
-    const columnId1 = state.cellIds.atOrThrow(1).id;
-    expect(columnId0).not.toBe(columnId1);
-    actions.moveColumn({ column: columnId1, overColumn: columnId0 });
-
-    expect(state.cellIds.getColumns().length).toBe(2);
-    expect(formatCells(state)).toMatchInlineSnapshot(`
-      "
-      > col 0
-      [2] ''
-
-      [3] ''
-
-      > col 1
-      [0] ''
-
-      [1] ''
-      "
-    `);
-
-    // Check that the columns have swapped positions
-    expect(state.cellIds.getColumns()[0].topLevelIds).toEqual([
-      cellId("2"),
-      cellId("3"),
-    ]);
-    expect(state.cellIds.getColumns()[1].topLevelIds).toEqual([
-      cellId("0"),
-      cellId("1"),
-    ]);
-  });
-
-  it("can compact columns", () => {
-    // Create initial state with 3 columns, including an empty one
-    seedCell({ cellId: firstCellId, before: false });
-    seedCell({ cellId: cellId("1"), before: false });
-    actions.addColumnBreakpoint({ cellId: cellId("1") });
-    actions.addColumnBreakpoint({ cellId: cellId("2") });
-    // A column emptied by a drag stays until the drop compacts it.
-    state = {
-      ...state,
-      cellIds: state.cellIds.addColumn(state.cellIds.getColumnIds()[1]),
-    };
-
-    expect(state.cellIds.getColumns().length).toBe(4);
-    expect(formatCells(state)).toMatchInlineSnapshot(`
-      "
-      > col 0
-      [0] ''
-
-      > col 1
-      [1] ''
-
-      > col 2
-
-
-      > col 3
-      [2] ''
-      "
-    `);
-
-    // Check initial column structure
-    expect(state.cellIds.getColumns()[0].topLevelIds).toEqual([cellId("0")]);
-    expect(state.cellIds.getColumns()[1].topLevelIds).toEqual([cellId("1")]);
-    expect(state.cellIds.getColumns()[2].topLevelIds).toEqual([]);
-    expect(state.cellIds.getColumns()[3].topLevelIds).toEqual([cellId("2")]);
-
-    // Compact columns
-    actions.compactColumns();
-
-    expect(state.cellIds.getColumns().length).toBe(3);
-    expect(formatCells(state)).toMatchInlineSnapshot(`
-      "
-      > col 0
-      [0] ''
-
-      > col 1
-      [1] ''
-
-      > col 2
-      [2] ''
-      "
-    `);
-
-    // Check compacted column structure
-    expect(state.cellIds.getColumns()[0].topLevelIds).toEqual([cellId("0")]);
-    expect(state.cellIds.getColumns()[1].topLevelIds).toEqual([cellId("1")]);
-    expect(state.cellIds.getColumns()[2].topLevelIds).toEqual([cellId("2")]);
   });
 
   it("can clear output of a single cell", () => {
@@ -1534,7 +1240,7 @@ describe("cell reducer", () => {
   it("can clear output of all cells", () => {
     // Create multiple cells with output
     seedCell({ cellId: firstCellId, before: false });
-    const secondCellId = state.cellIds.atOrThrow(FIRST_COLUMN).atOrThrow(1);
+    const secondCellId = state.cellIds[1];
 
     // Add output to both cells
     const outputMessage = {
@@ -1616,7 +1322,7 @@ describe("cell reducer", () => {
         exportedForTesting;
 
       seedCell({ cellId: firstCellId, before: false });
-      const newCellId = state.cellIds.inOrderIds[1];
+      const newCellId = state.cellIds[1];
 
       const dataAtom1 = cellDataAtom(newCellId);
       const runtimeAtom1 = cellRuntimeAtom(newCellId);

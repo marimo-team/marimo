@@ -1,6 +1,8 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { history, undo } from "@codemirror/commands";
+import { MySQL, PostgreSQL } from "@codemirror/lang-sql";
+import { language as activeLanguage } from "@codemirror/language";
 import { EditorSelection, EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import type { CellId } from "@marimo-team/client/protocol";
@@ -20,6 +22,10 @@ import {
   languageMetadataField,
   setLanguageMetadata,
 } from "../../../codemirror/language/metadata";
+import {
+  editorShowsCellCode,
+  getCellCode,
+} from "../../../codemirror/language/cell-code";
 import { SCHEMA_CACHE } from "../../../codemirror/language/languages/sql/completion-store";
 import type { Document } from "../../replica/resources/document";
 import { cellCodeBinding } from "../codemirror";
@@ -60,6 +66,7 @@ function languages(id: CellId) {
       aiCellCompletion: () => false,
       createManyBelow: vi.fn(),
       addOrAppendSetupCell: vi.fn(),
+      setCellCode: vi.fn(),
       createCell: vi.fn(),
       moveToNextCell: vi.fn(),
       addSetupCell: vi.fn(),
@@ -80,6 +87,14 @@ function languages(id: CellId) {
       dropCellOverColumn: vi.fn(),
       sendToTop: vi.fn(),
       sendToBottom: vi.fn(),
+      addColumn: vi.fn(),
+      addColumnBreakpoint: vi.fn(),
+      deleteColumn: vi.fn(),
+      mergeAllColumns: vi.fn(),
+      compactColumns: vi.fn(),
+      moveColumn: vi.fn(),
+      splitCell: vi.fn(),
+      undoSplitCell: vi.fn(),
       onRun: vi.fn(),
       deleteCell: vi.fn(),
       afterToggleMarkdown: vi.fn(),
@@ -519,14 +534,23 @@ describe("cellCodeBinding", () => {
     });
 
     it("sets the SQL dialect from the host's engine", async () => {
-      const { store, source } = setup({
+      const { store, source, view } = setup({
         adapters: true,
         initial: withCells(document(), {
           c1: cell("c1", 'df = mo.sql("SELECT 1")'),
         }),
       });
-      await settle();
-      const dialect = vi.spyOn(SCHEMA_CACHE, "getDialect");
+      await Promise.resolve();
+      const getDialect = SCHEMA_CACHE.getDialect.bind(SCHEMA_CACHE);
+      const dialects = new Map([
+        ["warehouse", PostgreSQL],
+        ["lake", MySQL],
+      ]);
+      const dialect = vi
+        .spyOn(SCHEMA_CACHE, "getDialect")
+        .mockImplementation(
+          (engine) => dialects.get(engine) ?? getDialect(engine),
+        );
       try {
         store.set(
           source,
@@ -534,8 +558,8 @@ describe("cellCodeBinding", () => {
             c1: cell("c1", '_df = mo.sql(f"""SELECT 1""", engine=warehouse)'),
           }),
         );
-        await settle();
-        expect(dialect).toHaveBeenLastCalledWith("warehouse");
+        await Promise.resolve();
+        expect(view.state.facet(activeLanguage)).toBe(PostgreSQL.language);
 
         store.set(
           source,
@@ -543,8 +567,8 @@ describe("cellCodeBinding", () => {
             c1: cell("c1", '_df = mo.sql(f"""SELECT 1""", engine=lake)'),
           }),
         );
-        await settle();
-        expect(dialect).toHaveBeenLastCalledWith("lake");
+        await Promise.resolve();
+        expect(view.state.facet(activeLanguage)).toBe(MySQL.language);
       } finally {
         dialect.mockRestore();
       }
@@ -564,4 +588,171 @@ describe("cellCodeBinding before the cell has source", () => {
     await settle();
     expect(view.state.field(languageAdapterState).type).toBe("markdown");
   });
+});
+
+describe("cellCodeBinding under random interleavings", () => {
+  // A small deterministic generator, so a failure names the seed to replay.
+  function generator(seed: number) {
+    let state = seed >>> 0;
+    return () => {
+      state = (Math.imul(state, 1664525) + 1013904223) >>> 0;
+      return state / 2 ** 32;
+    };
+  }
+
+  const TOKENS = ["x", " ", "\n", "= 1", "mo.md(", ")", '"""', "#", "y + 2"];
+  const REMOTE = [
+    "x = 2",
+    'mo.md(r"""hi""")',
+    "y = x + 1\nz = y",
+    "",
+    "# other",
+  ];
+
+  async function stress(seed: number, adapters: boolean) {
+    const random = generator(seed);
+    const pick = <T>(items: readonly T[]) =>
+      items[Math.floor(random() * items.length)];
+    const { store, source, model, view, editor, code } = setup({
+      adapters,
+      initial: withCells(document(), { c1: cell("c1", "x = 1") }),
+    });
+    const other = editor();
+    await settle();
+    let composing = false;
+    Object.defineProperty(view, "composing", { get: () => composing });
+    let version = 1;
+    let hostCode = "x = 1";
+    const host = (next: string | null) => {
+      version += 1;
+      store.set(
+        source,
+        withCells(document(), {
+          c1:
+            next === null
+              ? null
+              : cell("c1", next, { version, etag: `c1-${version}` }),
+        }),
+      );
+    };
+    const agrees = (state = view.state) => {
+      const current = code();
+      return typeof current !== "string" || editorShowsCellCode(state, current);
+    };
+    // Every write to the model is one local or host step. A binding that
+    // echoed its own pulls back as pushes would write many more.
+    let writes = 0;
+    let steps = 0;
+    // Checks inside the loop collect here, so one assertion reports them all.
+    const failures: string[] = [];
+    const check = (label: string, ok: boolean) => {
+      if (!ok) {
+        failures.push(label);
+      }
+    };
+    const unsubscribe = store.sub(model.documentAtom, () => {
+      writes += 1;
+    });
+
+    for (let step = 0; step < 200; step++) {
+      const roll = random();
+      steps += 1;
+      if (roll < 0.35) {
+        const length = view.state.doc.length;
+        const from = Math.floor(random() * (length + 1));
+        view.dispatch({
+          changes: { from, insert: pick(TOKENS) },
+          userEvent: "input.type",
+        });
+        // A local change reaches the model before the update returns.
+        check(`step ${step} after typing`, agrees());
+      } else if (roll < 0.45) {
+        const length = view.state.doc.length;
+        if (length > 0) {
+          const from = Math.floor(random() * length);
+          const to = Math.min(length, from + 1 + Math.floor(random() * 5));
+          view.dispatch({
+            changes: { from, to },
+            userEvent: "delete.backward",
+          });
+          check(`step ${step} after deleting`, agrees());
+        }
+      } else if (roll < 0.6) {
+        // The host confirms what this client wrote.
+        const current = code();
+        if (typeof current === "string") {
+          hostCode = current;
+          host(hostCode);
+        }
+      } else if (roll < 0.75) {
+        // Another client changes the cell.
+        hostCode = pick(REMOTE);
+        host(hostCode);
+      } else if (roll < 0.8) {
+        // The cell leaves the document and returns.
+        host(null);
+        await settle();
+        host(hostCode);
+      } else if (roll < 0.88) {
+        composing = !composing;
+        if (!composing) {
+          view.contentDOM.dispatchEvent(new Event("compositionend"));
+        }
+      } else if (roll < 0.94) {
+        other.dispatch({
+          changes: { from: other.state.doc.length, insert: pick(TOKENS) },
+          userEvent: "input.type",
+        });
+      } else if (roll < 0.97) {
+        // The host withholds the cell's source for a while.
+        version += 1;
+        store.set(
+          source,
+          withCells(document(), {
+            c1: cell("c1", "", { code: null, version, etag: `c1-${version}` }),
+          }),
+        );
+      } else {
+        // The document goes away and comes back.
+        store.set(source, null);
+        await settle();
+        host(hostCode);
+      }
+      if (random() < 0.5) {
+        await settle();
+        check(`step ${step} after settling`, composing || agrees());
+        check(`step ${step} other editor`, agrees(other.state));
+      }
+    }
+    unsubscribe();
+    check(`${writes} writes for ${steps} steps`, writes <= 2 * steps);
+
+    composing = false;
+    view.contentDOM.dispatchEvent(new Event("compositionend"));
+    host(hostCode);
+    await settle();
+    await settle();
+    const current = code();
+    check("cell present at the end", typeof current === "string");
+    check("editor agrees at the end", agrees());
+    check("other editor agrees at the end", agrees(other.state));
+    // Without adapters the agreement is plain text equality.
+    check(
+      "text equal at the end",
+      adapters || getCellCode(view.state) === current,
+    );
+    return failures;
+  }
+
+  const seeds = Array.from({ length: 16 }, (_, i) => i + 1);
+  for (const seed of seeds) {
+    it(`keeps editor and model in agreement, seed ${seed}`, async () => {
+      expect(await stress(seed, false)).toEqual([]);
+    });
+  }
+  for (const seed of seeds) {
+    it(`keeps editor and model in agreement with language adapters, seed ${seed}`, async () => {
+      expect(await stress(seed, true)).toEqual([]);
+    });
+  }
 });
