@@ -50,15 +50,34 @@ for (const count of [10, 25, 100, 1000]) {
         const target = ids[Math.floor(ids.length / 2)];
         let iteration = 0;
 
-        function edit() {
-          const action: CellAction = {
-            type: "updateCellCode",
+        // The document with the target cell's code in one of two versions,
+        // built once so the timed edit only applies it.
+        const actions = [0, 1].map((version): CellAction => {
+          const cells = ids.map((id) => {
+            const cell = state.cellData[id];
+            return {
+              id,
+              code: id === target ? `${code}\n# ${version}` : cell.code,
+              name: cell.name,
+              config: {
+                column: cell.config.column ?? null,
+                disabled: cell.config.disabled ?? false,
+                hide_code: cell.config.hide_code ?? false,
+                expand_output: cell.config.expand_output ?? false,
+              },
+            };
+          });
+          return {
+            type: "reconcileDocument",
             payload: {
-              cellId: target,
-              code: `${code}\n# ${iteration++ % 2}`,
-              formattingChange: false,
+              order: ids,
+              cells: new Map(cells.map((cell) => [cell.id, cell])),
             },
           };
+        });
+
+        function edit() {
+          const action = actions[iteration++ % 2];
           if (mode === "reducer") {
             state = notebookReducer(state, action);
           } else {

@@ -22,7 +22,7 @@ const { stagedGenerationAtom, createActions, reducer, initialState } =
 
 // Mock the dependencies
 const mockCreateCell = vi.fn();
-const mockUpdateCellCode = vi.fn();
+const mockSetCellCode = vi.fn();
 const mockDeleteCellCallback = vi.fn();
 
 // Mock cell handle with editor view
@@ -37,16 +37,13 @@ const mockCellHandle = {
 vi.mock("../../cells/actions", () => ({
   useCellActions: () => ({
     createCell: mockCreateCell,
-    updateCellCode: mockUpdateCellCode,
+    setCellCode: mockSetCellCode,
   }),
 }));
 vi.mock("../../cells/cells", async () => {
   const { atom } = await import("jotai");
   return {
     notebookAtom: atom({ cellData: {}, cellIds: [] }),
-    cellHandleAtom: vi.fn(() => ({
-      read: vi.fn(() => mockCellHandle),
-    })),
     getCellEditorView: vi.fn(() => mockCellHandle.current.editorViewOrNull),
   };
 });
@@ -403,6 +400,7 @@ describe("staged cell generation", () => {
     // No cell or cell update should have been called
     expect(mockCreateCell).not.toHaveBeenCalled();
     expect(prepareCellCodeUpdate).not.toHaveBeenCalled();
+    expect(mockSetCellCode).not.toHaveBeenCalled();
     expect(store.get(stagedGenerationInProgressAtom)).toBe(true);
   });
 
@@ -688,9 +686,10 @@ describe("staged cell generation", () => {
     expect(
       mockCellHandle.current.editorViewOrNull.dispatch,
     ).toHaveBeenCalledTimes(2);
+    expect(mockSetCellCode).not.toHaveBeenCalled();
   });
 
-  it("should update notebook state when the cell editor is not mounted", () => {
+  it("writes through the document when the cell editor is not mounted", () => {
     const { result } = renderGenerationHook();
     result.current.beginStagedCellGeneration();
 
@@ -710,10 +709,9 @@ describe("staged cell generation", () => {
       },
     });
 
-    expect(mockUpdateCellCode).toHaveBeenCalledWith({
+    expect(mockSetCellCode).toHaveBeenCalledWith({
       cellId: cellId("unmounted-cell"),
       code: "value = 1",
-      formattingChange: false,
     });
   });
 

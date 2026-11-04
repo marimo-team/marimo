@@ -1,32 +1,17 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { python } from "@codemirror/lang-python";
-import { EditorState } from "@codemirror/state";
-import { EditorView } from "@codemirror/view";
 import { atom } from "jotai";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cellId } from "@/__tests__/branded";
 import type {
-  DocumentEdit,
-  DocumentEditor,
   DocumentModel,
   DocumentSyncStatus,
   EditableCell,
   EditableDocument,
 } from "@/core/notebook/document";
-import {
-  adaptiveLanguageConfiguration,
-  languageAdapterState,
-} from "@/core/codemirror/language/extension";
-import { OverridingHotkeyProvider } from "@/core/hotkeys/hotkeys";
 import { store } from "@/core/state/jotai";
 import { activeDocumentModelAtom } from "@/core/session/active-notebook";
-import {
-  createNotebookActions,
-  exportedForTesting,
-  type NotebookState,
-  notebookReducer,
-} from "../cells";
+import { exportedForTesting, type NotebookState } from "../cells";
 import { applyDocument, flushDocument, followDocument } from "../document";
 import { type CellId, SCRATCH_CELL_ID } from "../ids";
 
@@ -58,29 +43,6 @@ function documentOf(cells: EditableCell[]): EditableDocument {
   };
 }
 
-/** A mounted cell editor, as the notebook's cells have. */
-function createEditor(content: string) {
-  const state = EditorState.create({
-    doc: content,
-    extensions: [
-      python(),
-      adaptiveLanguageConfiguration({
-        cellId: a,
-        completionConfig: {
-          activate_on_typing: true,
-          signature_hint_on_typing: false,
-          copilot: false,
-          codeium_api_key: null,
-        },
-        hotkeys: new OverridingHotkeyProvider({}),
-        placeholderType: "marimo-import",
-        lspConfig: {},
-      }),
-    ],
-  });
-  return new EditorView({ state, parent: globalThis.document.body });
-}
-
 /** A notebook that follows `cells`, as the session builds one. */
 function notebookOf(cells: EditableCell[]): NotebookState {
   return applyDocument(initialNotebookState(), documentOf(cells));
@@ -108,38 +70,6 @@ describe("applyDocument", () => {
     const state = notebookOf(cells);
 
     expect(applyDocument(state, documentOf(cells))).toBe(state);
-  });
-
-  it("brings a code change into the cell's editor", () => {
-    const state = notebookOf([cell(a), cell(b)]);
-    const view = createEditor("b = 1");
-    state.cellHandles[b].current = { editorView: view, editorViewOrNull: view };
-    state.cellData[b] = { ...state.cellData[b], lastCodeRun: "b = 1" };
-
-    const next = applyDocument(
-      state,
-      documentOf([cell(a), cell(b, { code: "b = 2" })]),
-    );
-
-    expect(next.cellData[b]).toMatchObject({ code: "b = 2", edited: true });
-    expect(next.cellData[a]).toBe(state.cellData[a]);
-    expect(view.state.doc.toString()).toBe("b = 2");
-  });
-
-  it("leaves an editor that already shows the document's code alone", () => {
-    const state = notebookOf([cell(a)]);
-    // The editor runs ahead of the notebook while this client types.
-    const view = createEditor('mo.md("hi")');
-    state.cellHandles[a].current = { editorView: view, editorViewOrNull: view };
-
-    const next = applyDocument(
-      state,
-      documentOf([cell(a, { code: 'mo.md("hi")' })]),
-    );
-
-    expect(next.cellData[a].code).toBe('mo.md("hi")');
-    expect(view.state.doc.toString()).toBe('mo.md("hi")');
-    expect(view.state.field(languageAdapterState).type).toBe("python");
   });
 
   it("keeps the code this client has when the host withholds source", () => {
@@ -179,74 +109,6 @@ describe("applyDocument", () => {
     expect(next.cellData[b]).toBeUndefined();
     expect(next.cellRuntime[b]).toBeUndefined();
     expect(next.cellHandles[b]).toBeUndefined();
-  });
-});
-
-describe("documentEditMiddleware", () => {
-  type Call = [string, ...unknown[]];
-  let calls: Call[];
-  let state: NotebookState;
-  const editor: DocumentEditor = {
-    setCode: (id, code) => calls.push(["setCode", id, code]),
-    setName: (id, name) => calls.push(["setName", id, name]),
-    updateConfig: (id, patch) => calls.push(["updateConfig", id, patch]),
-    createCell: (cell, placement) =>
-      calls.push(["createCell", cell, placement]),
-    deleteCell: (id) => calls.push(["deleteCell", id]),
-    setOrder: (order) => calls.push(["setOrder", order]),
-  };
-  const model: DocumentModel = {
-    documentAtom: atom(null),
-    editAtom: atom(null, (_get, _set, edit: DocumentEdit) => edit(editor)),
-    syncStatusAtom: atom<DocumentSyncStatus>({ status: "idle" }),
-    flush: vi.fn(),
-    retry: vi.fn(),
-    start: vi.fn(),
-  };
-  const actions = createNotebookActions((action) => {
-    state = notebookReducer(state, action);
-  });
-
-  beforeEach(() => {
-    calls = [];
-    state = notebookOf([cell(a), cell(b), cell(c)]);
-    store.set(activeDocumentModelAtom, model);
-  });
-
-  afterEach(() => {
-    store.set(activeDocumentModelAtom, null);
-  });
-
-  it("writes code", () => {
-    actions.updateCellCode({
-      cellId: a,
-      code: "a = 2",
-      formattingChange: false,
-    });
-
-    expect(calls).toEqual([["setCode", a, "a = 2"]]);
-  });
-
-  it("ignores the document and the kernel's run state", () => {
-    actions.prepareForRun({ cellId: a });
-    actions.setLastRun({
-      lastCodeRun: { [a]: "a = 0" },
-      lastExecutionTime: {},
-    });
-    actions.resetCellRuntimes();
-    actions.reconcileDocument(documentOf([cell(a)]));
-
-    expect(calls).toEqual([]);
-  });
-
-  it("leaves the scratchpad alone", () => {
-    actions.updateCellCode({
-      cellId: SCRATCH_CELL_ID,
-      code: "scratch",
-      formattingChange: false,
-    });
-
-    expect(calls).toEqual([]);
   });
 });
 
