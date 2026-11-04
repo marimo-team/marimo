@@ -45,7 +45,7 @@ dry_run_option = click.option(
     "--dry-run",
     is_flag=True,
     default=False,
-    help="Report what a run deletes and delete nothing.",
+    help="Report what deletions would occur.",
 )
 
 

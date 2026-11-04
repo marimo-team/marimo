@@ -117,6 +117,43 @@ def _(p_e_given_h, p_e_given_not_h, p_h):
 
 
 @app.cell
+def _(mo, p_e_given_h, p_e_given_not_h):
+    with mo.persistent_cache("posterior_grid"):
+        import numpy as np
+        import time
+
+        grid = np.linspace(0, 1, 201)
+        posterior = (
+            grid
+            * p_e_given_h.value
+            / (grid * p_e_given_h.value + (1 - grid) * p_e_given_not_h.value)
+        )
+        time.sleep(0.5)
+    posterior.round(3)[::50]
+
+
+@app.cell
+def _(mo, p_e_given_h, p_e_given_not_h, p_h):
+    @mo.persistent_cache
+    def likelihood_table(ph, peh, penh):
+        import time
+
+        time.sleep(0.3)
+        return {
+            "P(E)": ph * peh + (1 - ph) * penh,
+            "P(H|E)": ph * peh / (ph * peh + (1 - ph) * penh),
+            "P(H|not E)": ph
+            * (1 - peh)
+            / (ph * (1 - peh) + (1 - ph) * (1 - penh)),
+        }
+
+    table = likelihood_table(
+        p_h.value, p_e_given_h.value, p_e_given_not_h.value
+    )
+    table
+
+
+@app.cell
 def _(p_e_given_h, p_e_given_not_h, p_h):
     def construct_probability_plot():
         import matplotlib.pyplot as plt
