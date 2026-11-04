@@ -11,13 +11,19 @@
     :depth: 0
     :style: table
 
-## Listen to notebook events
+## Listen to events
+
+Follow the host catalog:
+
+```bash
+marimo pair events --url http://localhost:2718 --pretty
+```
 
 Use `marimo pair notebook list` to find a notebook's ID, then follow its host
 event stream:
 
 ```bash
-marimo pair notebook events <notebook-id> \
+marimo pair events --notebook <notebook-id> \
   --url http://localhost:2718 \
   --types runtime,execution
 ```
@@ -61,7 +67,7 @@ objects, expired results, and custom occurrences are absent. There is no
 `ready` event; its cursor is the top-level `cursor` field instead.
 
 Use `--types runtime,execution` to filter records. The same local host
-authentication and pretty-output color rules apply as for `notebook events`.
+authentication and pretty-output color rules apply as for `events`.
 Snapshot reads exit after the response and do not create a client attachment.
 
 The underlying HTTP routes are `GET /api/marimo/v1/snapshot` and

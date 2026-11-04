@@ -59,8 +59,8 @@ def test_events_colors_only_pretty_terminal_output(
         main,
         [
             "pair",
-            "notebook",
             "events",
+            "--notebook",
             "nb-one",
             "--url",
             "http://localhost:2718",
@@ -84,8 +84,9 @@ def test_events_colors_only_pretty_terminal_output(
     "types",
     [None, "ui_element,runtime,execution", " ui_element, runtime ,execution "],
 )
+@pytest.mark.parametrize("notebook", [None, "nb-one"])
 def test_events_prints_json_lines_and_passes_filters(
-    monkeypatch: pytest.MonkeyPatch, types: str | None
+    monkeypatch: pytest.MonkeyPatch, types: str | None, notebook: str | None
 ) -> None:
     payloads = [
         {
@@ -120,9 +121,8 @@ def test_events_prints_json_lines_and_passes_filters(
         main,
         [
             "pair",
-            "notebook",
             "events",
-            "nb-one",
+            *(["--notebook", notebook] if notebook is not None else []),
             "--url",
             "http://localhost:2718/base",
             *options,
@@ -133,14 +133,15 @@ def test_events_prints_json_lines_and_passes_filters(
         json.loads(line) for line in result.stdout.splitlines()
     ] == payloads
     request = transport.call_args.kwargs
-    assert (
-        urlsplit(request["url"]).path
-        == "/base/api/marimo/v1/notebooks/nb-one/events"
-    )
+    path = "/events" if notebook is None else "/notebooks/nb-one/events"
+    assert urlsplit(request["url"]).path == "/base/api/marimo/v1" + path
     assert parse_qs(urlsplit(request["url"]).query) == (
         {} if types is None else {"types": ["ui_element,runtime,execution"]}
     )
     assert request["headers"]["Authorization"] == "Bearer private"
+    assert ("Marimo-Attachment-Identity" in request["headers"]) is (
+        notebook is not None
+    )
     assert request["read_timeout"] is None
     assert response.closed
 
@@ -157,8 +158,8 @@ def test_events_rejects_empty_types_before_connecting(
         main,
         [
             "pair",
-            "notebook",
             "events",
+            "--notebook",
             "nb-one",
             "--url",
             "http://localhost:2718",
@@ -196,8 +197,8 @@ def test_events_closes_the_stream_on_interrupt_or_failure(
         main,
         [
             "pair",
-            "notebook",
             "events",
+            "--notebook",
             "nb-one",
             "--url",
             "http://localhost:2718",
@@ -220,8 +221,8 @@ def test_events_reports_host_errors_on_stderr(
         main,
         [
             "pair",
-            "notebook",
             "events",
+            "--notebook",
             "nb-one",
             "--url",
             "http://localhost:2718",

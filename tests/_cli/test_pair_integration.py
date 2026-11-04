@@ -340,22 +340,30 @@ def test_snapshot_reads_current_state_and_exits(
     assert "\x1b" not in result.stdout
 
 
-def test_notebook_events_streams_snapshot_and_live_changes(
+@pytest.mark.parametrize("scope", ["host", "notebook"])
+def test_events_streams_snapshot_and_live_changes(
     server: PairTestServer,
+    scope: str,
 ) -> None:
+    event_kind = "execution" if scope == "notebook" else "attachment"
     process = subprocess.Popen(
         [
             sys.executable,
             "-m",
             "marimo",
             "pair",
-            "notebook",
             "events",
-            server.notebook_id,
+            *(
+                ["--notebook", server.notebook_id]
+                if scope == "notebook"
+                else []
+            ),
             "--url",
             server.url,
             "--types",
-            "runtime,execution",
+            "runtime,execution"
+            if scope == "notebook"
+            else "runtime,attachment",
         ],
         text=True,
         stdout=subprocess.PIPE,
@@ -375,17 +383,17 @@ def test_notebook_events_streams_snapshot_and_live_changes(
     with ThreadPoolExecutor(max_workers=1) as executor:
         try:
             initial = executor.submit(read_until, "ready").result(timeout=10)
-            assert {event["event"] for event in initial} == {
-                "runtime",
-                "ready",
-            }
+            initial_kinds = {event["event"] for event in initial}
+            assert {"runtime", "ready"} <= initial_kinds
+            assert initial_kinds <= {"runtime", "ready", event_kind}
             assert process.poll() is None
             result = _run(server, "-c", "print('event stream test')")
             assert result.returncode == 0, result.stderr
-            live = executor.submit(read_until, "execution").result(timeout=10)
-            assert live[-1]["event"] == "execution"
+            live = executor.submit(read_until, event_kind).result(timeout=10)
+            assert live[-1]["event"] == event_kind
             assert all(
-                event["event"] in {"runtime", "execution"} for event in live
+                event["event"] in {"runtime", event_kind, "attachment.removed"}
+                for event in live
             )
             process.send_signal(signal.SIGINT)
             _stdout, stderr = process.communicate(timeout=10)

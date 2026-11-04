@@ -631,7 +631,7 @@ def get_snapshot(
 def open_events(
     *,
     url: str,
-    notebook: str,
+    notebook: str | None,
     token: str | None,
     identity: str,
     name: str,
@@ -640,18 +640,22 @@ def open_events(
     types: str | None = "custom,attachment",
     read_timeout: float | None = 45,
 ) -> EventStream:
-    headers = {
-        ATTACHMENT_IDENTITY: identity,
-        ATTACHMENT_KIND: kind,
-        ATTACHMENT_NAME: name,
-    }
+    headers = {}
+    path = "/events"
+    if notebook is not None:
+        path = f"/notebooks/{quote(notebook, safe='')}/events"
+        headers.update(
+            {
+                ATTACHMENT_IDENTITY: identity,
+                ATTACHMENT_KIND: kind,
+                ATTACHMENT_NAME: name,
+            }
+        )
     if token is not None:
         headers["Authorization"] = f"Bearer {token}"
     if cursor is not None:
         headers["Last-Event-ID"] = cursor
-    endpoint = _endpoint_url(
-        url, f"/notebooks/{quote(notebook, safe='')}/events"
-    )
+    endpoint = _endpoint_url(url, path)
     if types is not None:
         endpoint += "?" + urlencode({"types": types}, safe=",")
     return open_response(

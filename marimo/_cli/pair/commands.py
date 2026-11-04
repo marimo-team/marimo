@@ -674,8 +674,8 @@ def _group_notebooks(
 
 @click.group(
     cls=ColoredGroup,
-    help="Inspect live notebooks and their events.",
-    short_help="""Inspect live notebooks and their events.""",
+    help="Find active notebooks and their IDs.",
+    short_help="""Find active notebooks and their IDs.""",
 )
 def notebook() -> None:
     pass
@@ -838,23 +838,29 @@ def snapshot(
 @click.command(
     name="events",
     cls=ColoredCommand,
-    help="""Listen to a notebook's host event stream.
+    help="""Listen to host or notebook events.
 
     Print one JSON object per line, or use --pretty for indented JSON, including
     the event name, data, and cursor when present. The initial snapshot ends
     with ready, then live events follow.
     Omit --types to receive all event types. Unknown event types are preserved.
 
+    Use --notebook to follow one notebook's state and retained results.
+    Omit it to follow the host catalog. Only notebook streams create a client
+    attachment.
+
     Authentication uses the private local host record, as pair execute does.
     The stream ends on server disconnect or Ctrl-C; rerun to reconnect.
 
     \b
     Example:
-      marimo pair notebook events <ID> --url http://localhost:2718 --types runtime,execution
+      marimo pair events --url http://localhost:2718 --notebook <ID> --types runtime,execution
     """,
-    short_help="Listen to notebook events as JSON lines.",
+    short_help="Listen to host or notebook events as JSON lines.",
 )
-@click.argument("notebook_id", metavar="ID")
+@click.option(
+    "--notebook", "notebook_id", metavar="ID", help="Follow one notebook."
+)
 @click.option(
     "--url", required=True, metavar="URL", help="Local edit server URL."
 )
@@ -862,8 +868,8 @@ def snapshot(
 @click.option(
     "--pretty", is_flag=True, help="Print indented JSON for each event."
 )
-def notebook_events(
-    notebook_id: str, url: str, event_types: str | None, pretty: bool
+def events(
+    notebook_id: str | None, url: str, event_types: str | None, pretty: bool
 ) -> None:
     event_types = _parse_event_types(event_types)
     format_payload = _json_formatter(pretty)
@@ -875,7 +881,7 @@ def notebook_events(
                 notebook=notebook_id,
                 token=host.token,
                 identity=str(uuid4()),
-                name="pair notebook events",
+                name="pair events",
                 kind="client",
                 types=event_types,
                 read_timeout=None,
@@ -899,16 +905,15 @@ def notebook_events(
         raise click.ClickException(str(error)) from error
     except (OSError, http.client.HTTPException) as error:
         raise click.ClickException(
-            "The notebook event stream was disconnected."
+            "The event stream was disconnected."
         ) from error
     except ValueError as error:
         raise click.ClickException(
-            "The notebook event stream contained invalid JSON."
+            "The event stream contained invalid JSON."
         ) from error
 
 
 notebook.add_command(list_notebooks)
-notebook.add_command(notebook_events)
 
 
 @click.command(
@@ -1004,3 +1009,4 @@ pair.add_command(docs)
 pair.add_command(notebook)
 pair.add_command(prompt)
 pair.add_command(snapshot)
+pair.add_command(events)

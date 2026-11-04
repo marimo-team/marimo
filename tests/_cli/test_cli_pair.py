@@ -138,8 +138,9 @@ Commands:
   connect   Connect this harness inbox to a live...
   detach    Stop the forwarder and detach its notebook...
   docs      Read notebook guidance on demand.
+  events    Listen to host or notebook events as JSON lines.
   execute   Run Python in a live notebook.
-  notebook  Inspect live notebooks and their events.
+  notebook  Find active notebooks and their IDs.
   prompt    Generate a prompt for pair programming on...
   snapshot  Read a host or notebook snapshot as JSON.
 """)
@@ -1040,14 +1041,13 @@ class TestPairNotebooks:
         assert result.output == snapshot("""\
 Usage: main pair notebook [OPTIONS] COMMAND [ARGS]...
 
-  Inspect live notebooks and their events.
+  Find active notebooks and their IDs.
 
 Options:
   -h, --help  Show this message and exit.
 
 Commands:
-  events  Listen to notebook events as JSON lines.
-  list    List active notebooks and their host IDs.
+  list  List active notebooks and their host IDs.
 """)
 
     def test_notebook_list_help(self) -> None:
