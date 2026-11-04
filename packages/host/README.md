@@ -17,6 +17,24 @@ an implementation for each operation through `.handle("notebook.create", ...)`.
 Effect infers each handler's inputs, result, and allowed errors from the contract.
 Your implementation owns storage, runtime execution, idempotency, and event replay.
 
+`Host.layer(Handlers)` assembles the routes and problem-response middleware:
+
+```ts
+const Routes = Host.layer(Handlers).pipe(
+  Layer.provide(AuthorizationLive),
+  Layer.provide(NotebooksLive),
+);
+```
+
+Provide your services and an implementation of `Host.Authorization`, then serve
+`Routes` with an Effect HTTP server or `HttpRouter.toWebHandler`. The
+`catalogEvents` and `notebookEvents` helpers encode SSE responses with heartbeats
+and cancellation.
+
+For manual composition, use `Layer.provideMerge(Host.problems)` after providing
+the handlers to `HttpApiBuilder.layer(Host.api)`. It handles both handler and
+router failures, and installs middleware globally on the host's router.
+
 ## Generating OpenAPI
 
 Use `toOpenApi()` to export the contract programmatically, or run this command
@@ -33,4 +51,4 @@ pnpm --dir packages/host codegen:python --output-dir /tmp/host-python
 ```
 
 Add `--include-experimental` to either command to include document analysis.
-Hosts implementing that extension use `AnalysisHost.api`.
+Hosts implementing that extension use `AnalysisHost.api` and `AnalysisHost.layer`.

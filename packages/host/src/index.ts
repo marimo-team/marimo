@@ -7,3 +7,8 @@ export { Host as HostInfo } from "./catalog.ts";
 export * from "./models.ts";
 
 export { toOpenApi } from "./openapi.ts";
+export {
+  catalogEvents,
+  notebookEvents,
+  analysisNotebookEvents,
+} from "./stream.ts";
