@@ -324,7 +324,7 @@ class ServerConfig(Config, kw_only=True):
     transport: Annotated[
         Literal["websocket", "sse"] | UnsetType,
         Meta(
-            description='experimental. The transport used to stream kernel messages to the frontend, typically set with the `MARIMO_SERVER_TRANSPORT` environment variable. `"websocket"` (default) uses the `/ws` WebSocket endpoint; `"sse"` uses server-sent events over HTTP, for deployments behind proxies or services that do not support WebSockets. Terminal, LSP, and real-time collaboration still require WebSockets; RTC is disabled when using `"sse"`.'
+            description='experimental. The transport used to stream kernel messages to the frontend, typically set with the `MARIMO_SERVER_TRANSPORT` environment variable. `"websocket"` (default) uses the `/ws` WebSocket endpoint; `"sse"` uses server-sent events over HTTP, for deployments behind proxies or services that do not support WebSockets. The terminal and LSP still require WebSockets.'
         ),
     ] = UNSET
 
@@ -824,9 +824,6 @@ class ExperimentalConfig(Config, kw_only=True):
         Meta(
             description="Enable experimental layouts in WebAssembly notebooks."
         ),
-    ] = UNSET
-    rtc_v2: Annotated[
-        bool | UnsetType, Meta(description="Enable real-time collaboration.")
     ] = UNSET
     external_agents: Annotated[
         bool | UnsetType,

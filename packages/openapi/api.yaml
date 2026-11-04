@@ -5241,9 +5241,8 @@ components:
         \ frontend, typically set with the\n        `MARIMO_SERVER_TRANSPORT` environment\
         \ variable. `\"websocket\"`\n        (default) uses the `/ws` WebSocket endpoint;\
         \ `\"sse\"` uses\n        server-sent events over HTTP, for deployments behind\
-        \ proxies or\n        services that do not support WebSockets. Terminal, LSP,\
-        \ and\n        real-time collaboration still require WebSockets; RTC is disabled\n\
-        \        when using `\"sse\"`."
+        \ proxies or\n        services that do not support WebSockets. The terminal\
+        \ and LSP\n        still require WebSockets."
       properties:
         browser:
           anyOf:

@@ -370,7 +370,6 @@ def test_forwarded_headers_are_not_used_directly() -> None:
     "path",
     [
         "/ws",
-        "/ws_sync",
         "/terminal/ws",
         "/lsp/pylsp",
         "/api/marimo/v1/notebooks/test/events/ws",

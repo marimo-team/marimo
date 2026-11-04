@@ -11,10 +11,6 @@ from starlette.responses import JSONResponse, StreamingResponse
 from marimo import _loggers
 from marimo._runtime.commands import HTTPRequest, UpdateUIElementCommand
 from marimo._server.api.deps import AppState
-from marimo._server.api.endpoints.ws.ws_connection_validator import (
-    FILE_QUERY_PARAM_KEY,
-)
-from marimo._server.api.endpoints.ws_endpoint import DOC_MANAGER
 from marimo._server.api.utils import (
     dispatch_control_request,
     enforce_consumer_capability,
@@ -35,7 +31,6 @@ from marimo._server.models.models import (
 from marimo._server.router import APIRouter
 from marimo._server.sse import wait_for_http_disconnect
 from marimo._server.uvicorn_utils import close_uvicorn
-from marimo._server.workspace import MarimoFileKey
 from marimo._session.consumer_policy import (
     TakeoverDecision,
     can_take_over_editing,
@@ -527,20 +522,8 @@ async def restart_session(
     # This just closes the session, and the frontend will
     # do a full reload, which will restart the session.
     session_id = app_state.require_current_session_id()
-    session = app_state.require_current_session()
+    app_state.require_current_session()
     session_manager.close_session(session_id)
-
-    # Close RTC doc if it exists
-    file_key: MarimoFileKey | None = (
-        app_state.query_params(FILE_QUERY_PARAM_KEY)
-        or session_manager.workspace.get_unique_file_key()
-        or session.app_file_manager.path
-    )
-    if file_key is not None:
-        await DOC_MANAGER.remove_doc(file_key)
-    else:
-        LOGGER.warning("Unable to close RTC doc as no file key was provided")
-
     return SuccessResponse()
 
 

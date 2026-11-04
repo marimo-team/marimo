@@ -39,9 +39,6 @@ dependencies = [
     "python-multipart>=0.0.18",
     # websockets for use with starlette, and for lsp
     "websockets >= 14.2.0; sys_platform != 'emscripten'",
-    # loro for collaborative editing (native extension; server-only).
-    # No cp315 wheels as of 2026-10; drop the python_version marker when published.
-    "loro>=1.10.0; python_version < '3.15' and sys_platform != 'emscripten' and sys_platform != 'android'",
     # python <=3.11 compatibility
     "typing_extensions>=4.4.0; python_version < '3.12'",
     # for rst parsing; lowerbound determined by awscli requiring < 0.17,
@@ -271,7 +268,6 @@ typecheck = [
     "huggingface_hub>=1.24.0",
     "fsspec>=2026.2.0",
     "pydantic-ai-slim[google,anthropic,bedrock,openai]>=2.34.0,<3.0.0",
-    "loro>=1.5.0",
     "boto3-stubs>=1.38.46",
     "pandas-stubs>=1.5.3.230321",
     "pyiceberg>=0.9.0",

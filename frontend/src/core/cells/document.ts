@@ -21,7 +21,6 @@ import type {
 } from "@/core/notebook/document";
 import type { DispatchedActionOf } from "@/utils/createReducer";
 import { prepareCellCodeUpdate } from "../codemirror/language/cell-code";
-import { canUseRtc, isRtcEnabled } from "../rtc/state";
 import { store } from "../state/jotai";
 import { activeDocumentModelAtom } from "../session/active-notebook";
 import type { NotebookState, ReducerCellActions } from "./cells";
@@ -60,14 +59,12 @@ function followCell(
   if (code === current.code) {
     return { ...current, name: cell.name, config };
   }
-  // RTC cells follow Loro. Other editors take the host's code; one that
-  // shows it already, as the editor this client types in does, is left alone.
-  if (!isRtcEnabled() || !canUseRtc(current.id)) {
-    const view = handle?.current?.editorViewOrNull;
-    const update = view && prepareCellCodeUpdate(view.state, code);
-    if (update) {
-      view.dispatch(update);
-    }
+  // The editor takes the host's code; one that shows it already, as the
+  // editor this client types in does, is left alone.
+  const view = handle?.current?.editorViewOrNull;
+  const update = view && prepareCellCodeUpdate(view.state, code);
+  if (update) {
+    view.dispatch(update);
   }
   return {
     ...current,

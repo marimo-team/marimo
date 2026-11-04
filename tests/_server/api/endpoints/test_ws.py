@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import asyncio
-from contextlib import contextmanager
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -10,8 +9,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from starlette.websockets import WebSocket, WebSocketDisconnect
 
-from marimo._config.config import ExperimentalConfig
-from marimo._config.manager import MarimoConfigManager
 from marimo._messaging.notification import (
     EnvironmentOperationNotification,
     KernelReadyNotification,
@@ -22,7 +19,6 @@ from marimo._messaging.serde import serialize_kernel_message
 from marimo._server.api.endpoints.ws.ws_connection_validator import (
     ConnectionParams,
 )
-from marimo._server.api.endpoints.ws.ws_session_connector import ConnectionType
 from marimo._server.codes import WebSocketCodes
 from marimo._server.host.session import SessionEventStream
 from marimo._server.session_manager import SessionManager
@@ -39,7 +35,7 @@ from tests._server.api.endpoints.ws_helpers import (
     receive_notification,
     receive_until,
 )
-from tests._server.conftest import get_kernel_tasks, get_user_config_manager
+from tests._server.conftest import get_kernel_tasks
 from tests._server.mocks import get_session_manager
 
 if TYPE_CHECKING:
@@ -94,7 +90,6 @@ async def test_failed_startup_progress_delivery_detaches_session(
         connection=websocket,
         notebook=None,
         bridge=MagicMock(),
-        doc_manager=MagicMock(),
         types=None,
         cursor=None,
         manager=manager,
@@ -103,11 +98,10 @@ async def test_failed_startup_progress_delivery_detaches_session(
             file_key="test.py",
             kiosk=False,
             auto_instantiate=False,
-            rtc_enabled=False,
         ),
     )
 
-    async def connect(_connection: Any) -> tuple[Any, ConnectionType]:
+    async def connect(_connection: Any) -> None:
         handler.on_attach(session, MagicMock())
         # Progress reaches the startup queue only while the handler is still
         # connecting; once open, it travels with session messages instead.
@@ -119,7 +113,6 @@ async def test_failed_startup_progress_delivery_detaches_session(
             )
         )
         handler.status = ConnectionState.OPEN
-        return session, ConnectionType.NEW
 
     with patch.object(handler, "_connect_session", side_effect=connect):
         task = asyncio.create_task(handler.start())
@@ -231,21 +224,6 @@ def test_completed_startup_is_restored_on_reconnect_and_refresh(
             }
 
 
-def test_allows_multiple_connections_with_other_sessions(
-    client: TestClient,
-) -> None:
-    with rtc_enabled(get_user_config_manager(client)):
-        with client.websocket_connect(WS_URL) as websocket:
-            data = receive_notification(websocket)
-            assert_kernel_ready_response(data)
-            # Should allow second connection
-            with client.websocket_connect(OTHER_WS_URL) as other_websocket:
-                data = receive_notification(other_websocket)
-                assert_kernel_ready_response(
-                    data, create_response({"resumed": True})
-                )
-
-
 def test_second_connection_with_other_session_joins_as_viewer(
     client: TestClient,
 ) -> None:
@@ -258,23 +236,6 @@ def test_second_connection_with_other_session_joins_as_viewer(
                 receive_notification(other_websocket),
                 create_response({"kiosk": True, "resumed": True}),
             )
-
-
-def test_allows_multiple_connections_with_same_file(
-    client: TestClient,
-    temp_marimo_file: str,
-) -> None:
-    del temp_marimo_file
-    with rtc_enabled(get_user_config_manager(client)):
-        ws_1 = WS_URL
-        ws_2 = _create_ws_url("456")
-        with client.websocket_connect(ws_1) as websocket:
-            data = receive_notification(websocket)
-            assert_parse_ready_response(data)
-            # Should allow second connection
-            with client.websocket_connect(ws_2) as other_websocket:
-                data = receive_notification(other_websocket)
-                assert_parse_ready_response(data)
 
 
 def test_second_connection_with_same_file_joins_as_viewer(
@@ -386,66 +347,6 @@ async def test_cannot_connect_kiosk_with_run_session(
         assert exc_info.value.reason == "MARIMO_KIOSK_NOT_ALLOWED"
 
 
-async def test_connects_to_existing_session_with_same_file(
-    client: TestClient,
-    temp_marimo_file: str,
-) -> None:
-    ws_1 = f"{WS_URL}&file={temp_marimo_file}"
-    ws_2 = f"{OTHER_WS_URL}&file={temp_marimo_file}"
-
-    with rtc_enabled(get_user_config_manager(client)):
-        with client.websocket_connect(ws_1) as websocket1:
-            data = receive_notification(websocket1)
-            assert_parse_ready_response(data)
-            for op in (
-                "environment-state",
-                "environment-state",
-            ):
-                assert receive_notification(websocket1)["op"] == op
-
-            # Instantiate the session
-            client.post(
-                "/api/kernel/instantiate",
-                headers=headers("123"),
-                json={"objectIds": [], "values": [], "auto_run": True},
-            )
-
-            messages1 = flush_messages(websocket1, at_least=14)
-            # This can/may change if implementation changes, but this is a snapshot to
-            # make sure it doesn't change when we don't expect it to
-            assert len(messages1) == 14
-            assert messages1[0]["op"] == "notebook-document-transaction"
-
-            # Connect second client - should connect to same session
-            with client.websocket_connect(ws_2) as websocket2:
-                # Read the ready message before inspecting the room. Opening the
-                # websocket only waits for the server to accept the connection,
-                # which happens before the consumer joins the room. The ready
-                # message is sent after the join, so it is the earliest point at
-                # which the room membership is observable.
-                data2 = receive_notification(websocket2)
-                assert_parse_ready_response(data2)
-                for op in (
-                    "environment-state",
-                    "environment-state",
-                ):
-                    assert receive_notification(websocket2)["op"] == op
-
-                assert data2["data"]["resumed"] is True
-
-                # Check in the same room
-                session_manager = get_session_manager(client)
-                assert len(session_manager.sessions) == 1
-                room = session_manager.sessions[SessionId("123")].room
-                assert {"123", "456"} <= set(room.consumers)
-
-                messages2 = flush_messages(websocket2, at_least=3)
-                # This can/may change if implementation changes, but this is a snapshot to
-                # make sure it doesn't change when we don't expect it to
-                assert len(messages2) == 3
-                assert messages2[0]["op"] == "variables"
-
-
 def flush_messages(
     websocket: WebSocketTestSession, at_least: int = 0
 ) -> list[dict[str, Any]]:
@@ -456,17 +357,6 @@ def flush_messages(
     while len(messages) < at_least:
         messages.append(receive_notification(websocket))
     return messages
-
-
-@contextmanager
-def rtc_enabled(config: MarimoConfigManager):
-    prev_config = config.get_config()
-    try:
-        experimental_config = ExperimentalConfig(rtc_v2=True)
-        config.save_config({"experimental": experimental_config})
-        yield
-    finally:
-        config.save_config(prev_config)
 
 
 def test_ws_requires_authentication(client: TestClient) -> None:
@@ -489,17 +379,6 @@ def test_ws_rejects_invalid_token(client: TestClient) -> None:
             raise AssertionError(
                 "Should not be able to connect with an invalid token"
             )
-
-    assert exc_info.value.code == WebSocketCodes.UNAUTHORIZED
-    assert exc_info.value.reason == "MARIMO_UNAUTHORIZED"
-
-
-def test_ws_sync_requires_authentication(client: TestClient) -> None:
-    """Test that WebSocket sync endpoint requires authentication."""
-    # Try to connect without any authentication headers
-    with pytest.raises(WebSocketDisconnect) as exc_info:
-        with client.websocket_connect("/ws_sync?file=test"):
-            raise AssertionError("Should not be able to connect without auth")
 
     assert exc_info.value.code == WebSocketCodes.UNAUTHORIZED
     assert exc_info.value.reason == "MARIMO_UNAUTHORIZED"
@@ -805,24 +684,6 @@ def test_missing_file_key_closes_connection(client: TestClient) -> None:
 
         assert exc_info.value.code == WebSocketCodes.NORMAL_CLOSE
         assert exc_info.value.reason == "MARIMO_NO_FILE_KEY"
-
-
-async def test_rtc_config_with_loro_unavailable(client: TestClient) -> None:
-    """Regression test: connection works when RTC enabled but Loro unavailable."""
-    from unittest.mock import patch
-
-    # Enable RTC in config but mock Loro as unavailable
-    with (
-        rtc_enabled(get_user_config_manager(client)),
-        patch(
-            "marimo._server.api.endpoints.ws.ws_kernel_ready.is_rtc_available",
-            return_value=False,
-        ),
-    ):
-        # Connection should succeed without errors
-        with client.websocket_connect(WS_URL) as websocket:
-            data = receive_notification(websocket)
-            assert_kernel_ready_response(data)
 
 
 # ============================================================================
