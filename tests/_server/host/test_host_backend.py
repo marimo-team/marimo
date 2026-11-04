@@ -501,6 +501,45 @@ async def test_cell_submission_failure_ends_the_run(
     assert b._runs == {}
 
 
+@pytest.mark.parametrize("failure", ["missing_cell", "request_metadata"])
+async def test_cell_command_failure_ends_the_run(
+    manager: FakeManager,
+    observed: Observed,
+    monkeypatch: pytest.MonkeyPatch,
+    failure: str,
+) -> None:
+    b = backend(manager, observed)
+    session = manager.next_session
+    b.adopt(RT1, session)
+    observed.messages.clear()
+    document = Document([DocumentCell(protocol.CellId("a"), "42")], {})
+
+    def failed(*_args: object, **_kwargs: object) -> None:
+        raise RuntimeError("Request metadata unavailable")
+
+    with monkeypatch.context() as patch:
+        if failure == "request_metadata":
+            patch.setattr(b, "_request_metadata", failed)
+        b.run_cells(
+            protocol.RunId("failed"),
+            document,
+            [protocol.CellId("missing" if failure == "missing_cell" else "a")],
+        )
+
+    assert observed.messages == [be.Done(protocol.RunId("failed"), "failed")]
+    assert b._runs == {}
+    assert session.commands == []
+    assert session.instantiations == []
+
+    observed.messages.clear()
+    b.run_cells(protocol.RunId("next"), document, [protocol.CellId("a")])
+    await asyncio.wait_for(session.submitted.wait(), 5)
+    session.broadcast(CompletedRunNotification(run_id="next"))
+    await observed.wait_for(be.Done)
+    assert observed.messages == [be.Done(protocol.RunId("next"), "succeeded")]
+    assert b._runs == {}
+
+
 async def test_cell_runs_queue_in_the_kernel_in_order(
     manager: FakeManager, observed: Observed
 ) -> None:
@@ -594,8 +633,9 @@ async def test_a_cell_run_waits_for_a_scratch_run_accepted_just_before(
     assert await submitted(session, 2) == ["run-1", "run-2"]
 
 
-async def test_interrupting_a_cell_run_waiting_its_turn_never_submits_it(
-    manager: FakeManager, observed: Observed
+@pytest.mark.parametrize("accept_after_interrupt", [False, True])
+async def test_interrupting_a_waiting_cell_run_preserves_submission_order(
+    manager: FakeManager, observed: Observed, accept_after_interrupt: bool
 ) -> None:
     b = backend(manager, observed)
     session = manager.next_session
@@ -606,16 +646,26 @@ async def test_interrupting_a_cell_run_waiting_its_turn_never_submits_it(
     await submitted(session, 1)
     b.run(protocol.RunId("run-2"), "2")
     b.run_cells(protocol.RunId("run-3"), document, [protocol.CellId("a")])
+    if not accept_after_interrupt:
+        b.run_cells(protocol.RunId("run-4"), document, [protocol.CellId("a")])
 
     b.interrupt(protocol.RunId("run-3"))
     await observed.wait_for(be.Done)
+    if accept_after_interrupt:
+        b.run_cells(protocol.RunId("run-4"), document, [protocol.CellId("a")])
+    await asyncio.sleep(0)
 
     assert observed.messages == [
         be.Done(protocol.RunId("run-3"), "interrupted")
     ]
     assert session.interrupts == 0
+    assert [c.run_id for c in session.commands] == ["run-1"]
     session.broadcast(CompletedRunNotification(run_id="run-1"))
-    assert await submitted(session, 2) == ["run-1", "run-2"]
+    assert await submitted(session, 3) == ["run-1", "run-2", "run-4"]
+    for run_id in ("run-2", "run-4"):
+        session.broadcast(CompletedRunNotification(run_id=run_id))
+    await asyncio.gather(*(run.task for run in b._runs.values() if run.task))
+    assert b._runs == {}
 
 
 async def test_interrupting_a_queued_cell_run_cancels_it_in_the_kernel(

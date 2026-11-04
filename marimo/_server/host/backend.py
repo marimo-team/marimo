@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import asyncio
+from collections import deque
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
@@ -78,8 +79,9 @@ class _Run:
     translator: RunTranslator
     done: asyncio.Event = field(default_factory=asyncio.Event)
     task: asyncio.Task[object] | None = None
+    submission_finished: bool = False
     submitted: asyncio.Event = field(default_factory=asyncio.Event)
-    """Set once the command is in the kernel queue, or the run ended first."""
+    """Set once this run and all predecessors have submitted or ended."""
     interrupt_requested: bool = False
     """A cancellation was sent for this run while it was still queued."""
 
@@ -120,8 +122,7 @@ class SessionBackend(SessionConsumer):
         self._kernel: _Kernel | None = None
         self._runs: dict[protocol.RunId, _Run] = {}
         """Runs this backend submitted that have not finished, by run id."""
-        self._last_accepted: _Run | None = None
-        """The run accepted most recently. The next one submits after it."""
+        self._pending_submissions: deque[_Run] = deque()
         self._translators: dict[str, RunTranslator] = {}
 
     @property
@@ -187,8 +188,7 @@ class SessionBackend(SessionConsumer):
         if session is None:
             return
         run = _Run(session, RunTranslator(run_id, code))
-        self._runs[run_id] = run
-        previous, self._last_accepted = self._last_accepted, run
+        previous = self._accept_run(run)
         self._watch_run(run, self._run_code(run, code, previous))
 
     def run_cells(
@@ -201,30 +201,48 @@ class SessionBackend(SessionConsumer):
         if session is None:
             return
         run = _Run(session, RunTranslator(run_id, None))
-        self._runs[run_id] = run
-        codes = {CellId_t(cell.id): cell.code for cell in document}
-        targets = [CellId_t(cell_id) for cell_id in cell_ids]
-        command = ExecuteCellsCommand(
-            cell_ids=targets,
-            codes=[codes[cell_id] for cell_id in targets],
-            request=self._http_request(session),
-            run_id=run_id,
-            allow_stdin=False,
-        )
-        previous, self._last_accepted = self._last_accepted, run
-        if previous is not None and not previous.submitted.is_set():
-            # A scratch run ahead is still waiting for the scratchpad.
-            self._watch_run(
-                run, self._run_cells_after(previous, run, codes, command)
-            )
-            return
+        previous = self._accept_run(run)
         try:
+            codes = {CellId_t(cell.id): cell.code for cell in document}
+            targets = [CellId_t(cell_id) for cell_id in cell_ids]
+            command = ExecuteCellsCommand(
+                cell_ids=targets,
+                codes=[codes[cell_id] for cell_id in targets],
+                request=self._http_request(session),
+                run_id=run_id,
+                allow_stdin=False,
+            )
+            if previous is not None and not previous.submitted.is_set():
+                # A scratch run ahead is still waiting for the scratchpad.
+                self._watch_run(
+                    run, self._run_cells_after(previous, run, codes, command)
+                )
+                return
             # Enqueue before returning so later document edits follow the run.
             self._submit_cells(run, codes, command)
         except Exception as exception:
             self._finish_run(run, exception)
             return
         self._watch_run(run, run.done.wait())
+
+    def _accept_run(self, run: _Run) -> _Run | None:
+        previous = (
+            self._pending_submissions[-1]
+            if self._pending_submissions
+            else None
+        )
+        self._runs[run.translator.run_id] = run
+        self._pending_submissions.append(run)
+        return previous
+
+    def _finish_submission(self, run: _Run) -> None:
+        run.submission_finished = True
+        # Cancelling a middle run must not release its successors early.
+        while (
+            self._pending_submissions
+            and self._pending_submissions[0].submission_finished
+        ):
+            self._pending_submissions.popleft().submitted.set()
 
     def _submit_cells(
         self,
@@ -268,7 +286,7 @@ class SessionBackend(SessionConsumer):
         )
 
     def _submit(self, run: _Run, command: CommandMessage) -> None:
-        run.submitted.set()
+        self._finish_submission(run)
         self._translators[run.translator.run_id] = run.translator
         run.session.put_control_request(command, from_consumer_id=None)
 
@@ -325,8 +343,7 @@ class SessionBackend(SessionConsumer):
         )
 
     def _finish_run(self, run: _Run, exception: BaseException | None) -> None:
-        # Runs accepted after this one may be waiting to submit behind it.
-        run.submitted.set()
+        self._finish_submission(run)
         if self._runs.get(run.translator.run_id) is run:
             del self._runs[run.translator.run_id]
         error = None

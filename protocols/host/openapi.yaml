@@ -440,7 +440,8 @@ paths:
       description: |
         Ends the runtime for everyone attached to the notebook. A runtime
         that is still starting is cancelled; a running kernel is shut
-        down. Running executions end `interrupted`. Retained results stay
+        down. Active and queued runs and their unfinished executions complete
+        with outcome `interrupted`. Retained results stay
         and are no longer live. The notebook and its attachments stay,
         but Python state is lost. The client follows the
         runtime on a stream until `runtime.removed`. If the notebook has
@@ -470,7 +471,8 @@ paths:
         Stops the runtime and starts a new one with a new id. The stream
         shows the old runtime `terminating`, then `runtime.removed`, then
         the new runtime `starting`, keeping one runtime attached to the
-        notebook at a time. Running executions end `interrupted`. Retained
+        notebook at a time. Active and queued runs and their unfinished
+        executions complete with outcome `interrupted`. Retained
         results stay and are no longer live. The response carries the replacement
         runtime in its `starting` state. The client follows that id until
         it is `running` or has `failed`. If the notebook has no runtime,
