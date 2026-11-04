@@ -1,15 +1,19 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import sys
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import click
 
-from marimo import _loggers
 from marimo._cli.errors import MarimoCLIError
 from marimo._cli.help_formatter import ColoredGroup
+from marimo._config.settings import GLOBAL_SETTINGS
+from marimo._save.cache_dirs import CacheDirStats
 
-LOGGER = _loggers.marimo_logger()
+if TYPE_CHECKING:
+    from marimo._save.clean import CleanPlan
 
 path_argument = click.argument(
     "path",
@@ -27,6 +31,21 @@ recursive_option = click.option(
         "Search a directory PATH recursively for cache directories, "
         "skipping dot-folders."
     ),
+)
+
+yes_option = click.option(
+    "-y",
+    "--yes",
+    is_flag=True,
+    default=False,
+    help="Delete without asking for confirmation.",
+)
+
+dry_run_option = click.option(
+    "--dry-run",
+    is_flag=True,
+    default=False,
+    help="Report what deletions would occur.",
 )
 
 
@@ -59,48 +78,63 @@ def format_entries(entries: int) -> str:
     return f"{entries} entry" if entries == 1 else f"{entries} entries"
 
 
-def resolve_cache_dirs_or_error(path: Path, recursive: bool) -> list[Path]:
-    """Resolve PATH, reporting a resolution failure as a CLI error."""
-    from marimo._save.cache_dirs import CacheDirError, resolve_cache_dirs
+def _exit_if_incomplete(stats: CacheDirStats) -> None:
+    """Fail the command when some paths were not cleaned."""
+    if not stats.failures:
+        return
+    paths = (
+        "1 path was" if stats.failures == 1 else f"{stats.failures} paths were"
+    )
+    raise MarimoCLIError(f"{paths} not cleaned. See the warnings above.")
 
+
+def report(measured: list[tuple[Path, CacheDirStats]]) -> CacheDirStats:
+    """Print cache directory listing and total."""
+    total = CacheDirStats()
+    for cache_directory, stats in measured:
+        total += stats
+        click.echo(
+            f"{format_dir(cache_directory)}\t{format_bytes(stats.total_bytes)}"
+            f"\t{format_entries(stats.entries)}"
+        )
+    if len(measured) > 1:
+        click.echo(
+            f"Total\t{format_bytes(total.total_bytes)}"
+            f"\t{format_entries(total.entries)}"
+        )
+    return total
+
+
+def resolve_cache_dirs_or_error(
+    path: Path, recursive: bool, *, deleting: bool = False
+) -> list[Path]:
+    from marimo._save.cache_dirs import (
+        CacheDirError,
+        configured_store_dirs,
+        named_by_path,
+        resolve_cache_dirs,
+    )
+
+    if recursive and not path.is_dir():
+        raise click.UsageError(
+            f"-r/--recursive searches a directory, and {path} is a file."
+        )
     try:
-        cache_dirs = resolve_cache_dirs(path, recursive=recursive)
+        cache_dirs = resolve_cache_dirs(
+            path, recursive=recursive, deleting=deleting
+        )
     except CacheDirError as e:
         raise MarimoCLIError(str(e)) from e
-    configured = _configured_store_dirs(path, cache_dirs)
-    if configured is None:
-        return cache_dirs
-    return configured
-
-
-def _configured_store_dirs(
-    path: Path, cache_dirs: list[Path]
-) -> list[Path] | None:
-    """Directories of the store configuration, or `None`."""
-    from marimo._save.stores import (
-        cache_store_is_untrusted,
-        configured_cache_store,
-    )
-    from marimo._save.stores.file import FileStore
-    from marimo._save.stores.tiered import TieredStore
-
-    try:
-        store = configured_cache_store(current_path=str(path))
-        if store is None:
-            return None
-        untrusted = cache_store_is_untrusted(current_path=str(path))
-    except Exception:
-        LOGGER.warning("Could not read the cache store from the config")
-        return None
-
-    tiers = store.stores if isinstance(store, TieredStore) else [store]
-    directories: list[Path] = list(cache_dirs) if untrusted else []
-    for tier in tiers:
-        if isinstance(tier, FileStore) and tier.uses_default_path:
-            directories.extend(cache_dirs)
-        else:
-            directories.extend(tier.local_dirs())
-    return list(dict.fromkeys(directories))
+    configured = configured_store_dirs(path, cache_dirs)
+    if not deleting:
+        return configured
+    kept, unnamed = named_by_path(path, cache_dirs, configured)
+    for directory in unnamed:
+        click.echo(
+            f"Configured cache.store at {directory}; pass it as PATH "
+            "to act on it."
+        )
+    return kept
 
 
 @click.group(
@@ -164,25 +198,172 @@ Example usage:
 @path_argument
 @recursive_option
 def cache_size(path: Path, recursive: bool) -> None:
-    from marimo._save.cache_dirs import CacheDirStats, cache_dir_stats
+    from marimo._save.cache_dirs import cache_dir_stats
 
     cache_dirs = resolve_cache_dirs_or_error(path, recursive)
     if not cache_dirs:
         click.echo("No cache directories found.")
         return
 
-    total = CacheDirStats()
+    report(
+        [
+            (cache_directory, cache_dir_stats(cache_directory))
+            for cache_directory in cache_dirs
+        ]
+    )
+
+
+@cache.command(
+    name="clean",
+    help="""Delete all relevant cache entries for a notebook or directory.
+
+When this command is given a notebook path, it deletes the cache entries that
+correspond to the notebook. When given a directory path, it deletes all cache
+entries that correspond to notebooks in that directory and (optionally) its subdirectories.
+Additionally accepts one or more cache names, as given to `mo.persistent_cache`,
+to delete only those entries. Defaults to the current directory if no path is provided.
+
+Pass one or more arguments. Accepts `-r`/`--recursive` to search `path`
+recursively. A prompt is provided before deletion; use `-y`/`--yes` to
+skip the prompt, or `--dry-run` to simulate the deletion.
+
+Example usage:
+
+    marimo cache clean my_notebook.py
+
+    marimo cache clean my_notebook.py train
+
+    marimo cache clean notebooks/
+""",
+)
+@path_argument
+@click.argument("names", nargs=-1, metavar="[NAME]...")
+@recursive_option
+@yes_option
+@dry_run_option
+def cache_clean(
+    path: Path,
+    names: tuple[str, ...],
+    recursive: bool,
+    yes: bool,
+    dry_run: bool,
+) -> None:
+    cache_dirs = resolve_cache_dirs_or_error(path, recursive, deleting=True)
+    if not cache_dirs:
+        click.echo("No cache directories found.")
+        return
+
+    if path.is_dir():
+        _clean_blocks(cache_dirs, names, yes=yes, dry_run=dry_run)
+        return
     for cache_directory in cache_dirs:
-        stats = cache_dir_stats(cache_directory)
-        total += stats
-        label = format_dir(cache_directory)
-        click.echo(
-            f"{label}\t{format_bytes(stats.total_bytes)}"
-            f"\t{format_entries(stats.entries)}"
+        _clean_tracked_entries(
+            path, cache_directory, names, yes=yes, dry_run=dry_run
         )
 
-    if len(cache_dirs) > 1:
+
+def _clean_blocks(
+    cache_dirs: list[Path],
+    names: tuple[str, ...],
+    *,
+    yes: bool,
+    dry_run: bool,
+) -> None:
+    from marimo._save.clean import apply_block_clean, plan_block_clean
+
+    plans = [plan_block_clean(directory, names) for directory in cache_dirs]
+    planned = report([(plan.cache_dir, plan.freed) for plan in plans])
+    if not planned.entries and not planned.total_bytes:
+        click.echo("Nothing to delete.")
+        _exit_if_incomplete(planned)
+        return
+    if dry_run:
+        _report_deleted(planned, dry_run=True)
+        _exit_if_incomplete(planned)
+        return
+    if not _confirm(planned, yes=yes):
+        return
+    freed = sum((apply_block_clean(p) for p in plans), CacheDirStats())
+    _report_deleted(freed)
+    _exit_if_incomplete(freed)
+
+
+def _clean_tracked_entries(
+    notebook: Path,
+    cache_dir: Path,
+    names: tuple[str, ...],
+    *,
+    yes: bool,
+    dry_run: bool,
+) -> None:
+    from marimo._save.cache_dirs import CacheDirError
+    from marimo._save.clean import plan_clean
+    from marimo._save.manifest import ManifestError
+
+    try:
+        plan = plan_clean(cache_dir, notebook, names)
+    except (CacheDirError, ManifestError, OSError) as e:
+        raise MarimoCLIError(str(e)) from e
+    if not plan.tracked:
+        click.echo(format_dir(cache_dir))
+        click.echo(f"Nothing is tracked for {notebook}.")
+        return
+
+    report([(cache_dir, plan.freed)])
+    if not plan.entries:
+        click.echo("Nothing to delete.")
+        return
+
+    if plan.deletes_nothing():
+        # Forgetting a record no file answers to removes no cached value,
+        # so the command does not ask.
+        freed = CacheDirStats() if dry_run else _apply_or_error(plan)
+        click.echo("Nothing to delete.")
+        verb = "Would forget" if dry_run else "Forgot"
         click.echo(
-            f"Total\t{format_bytes(total.total_bytes)}"
-            f"\t{format_entries(total.entries)}"
+            f"{verb} {format_entries(len(plan.entries))} the cache no "
+            "longer holds."
         )
+        _exit_if_incomplete(freed)
+        return
+    if dry_run:
+        _report_deleted(plan.freed, dry_run=True)
+        return
+    if not _confirm(plan.freed, yes=yes):
+        return
+    freed = _apply_or_error(plan)
+    _report_deleted(freed)
+    _exit_if_incomplete(freed)
+
+
+def _apply_or_error(plan: CleanPlan) -> CacheDirStats:
+    from marimo._save.cache_dirs import CacheDirError
+    from marimo._save.clean import apply_clean
+    from marimo._save.manifest import ManifestError
+
+    try:
+        return apply_clean(plan)
+    except (CacheDirError, ManifestError, OSError) as e:
+        raise MarimoCLIError(str(e)) from e
+
+
+def _confirm(planned: CacheDirStats, *, yes: bool) -> bool:
+    """Confirm deletion. Without a terminal, only `-y` consents."""
+    if yes or GLOBAL_SETTINGS.YES:
+        return True
+    what = (
+        f"{format_entries(planned.entries)} "
+        f"({format_bytes(planned.total_bytes)})"
+    )
+    if not sys.stdin.isatty():
+        click.echo(f"Skipping {what}: rerun with -y to delete.")
+        return False
+    return click.confirm(f"Delete {what}?")
+
+
+def _report_deleted(freed: CacheDirStats, *, dry_run: bool = False) -> None:
+    verb = "Would delete" if dry_run else "Deleted"
+    click.echo(
+        f"{verb} {format_entries(freed.entries)}, "
+        f"freeing {format_bytes(freed.total_bytes)}."
+    )
