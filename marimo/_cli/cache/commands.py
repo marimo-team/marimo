@@ -13,7 +13,10 @@ from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._save.cache_dirs import CacheDirStats
 
 if TYPE_CHECKING:
-    from marimo._save.clean import CleanPlan
+    from collections.abc import Callable, Mapping, Sequence
+
+    from marimo._save.cache_dirs import CachePlan
+    from marimo._save.prune import PrunePlan
 
 path_argument = click.argument(
     "path",
@@ -88,7 +91,10 @@ def _exit_if_incomplete(stats: CacheDirStats) -> None:
     raise MarimoCLIError(f"{paths} not cleaned. See the warnings above.")
 
 
-def report(measured: list[tuple[Path, CacheDirStats]]) -> CacheDirStats:
+def report(
+    measured: list[tuple[Path, CacheDirStats]],
+    notes: Mapping[Path, Sequence[str]] | None = None,
+) -> CacheDirStats:
     """Print cache directory listing and total."""
     total = CacheDirStats()
     for cache_directory, stats in measured:
@@ -97,12 +103,22 @@ def report(measured: list[tuple[Path, CacheDirStats]]) -> CacheDirStats:
             f"{format_dir(cache_directory)}\t{format_bytes(stats.total_bytes)}"
             f"\t{format_entries(stats.entries)}"
         )
+        for note in (notes or {}).get(cache_directory, ()):
+            click.echo(f"  {note}")
     if len(measured) > 1:
         click.echo(
             f"Total\t{format_bytes(total.total_bytes)}"
             f"\t{format_entries(total.entries)}"
         )
     return total
+
+
+def report_plans(
+    plans: Sequence[CachePlan],
+    notes: Mapping[Path, Sequence[str]] | None = None,
+) -> CacheDirStats:
+    """Print what each plan frees, and return the total."""
+    return report([(plan.cache_dir, plan.freed) for plan in plans], notes)
 
 
 def resolve_cache_dirs_or_error(
@@ -217,11 +233,11 @@ def cache_size(path: Path, recursive: bool) -> None:
     name="clean",
     help="""Delete all relevant cache entries for a notebook or directory.
 
-When this command is given a notebook path, it deletes the cache entries that
-correspond to the notebook. When given a directory path, it deletes all cache
-entries that correspond to notebooks in that directory and (optionally) its subdirectories.
-Additionally accepts one or more cache names, as given to `mo.persistent_cache`,
-to delete only those entries. Defaults to the current directory if no path is provided.
+When this command is given a notebook path, it deletes all corresponding cache
+entries. When given a directory path, it deletes all cache entries that
+correspond to notebooks in that directory and (optionally) its subdirectories.
+Additionally accepts explicit cache keys, as provided to `mo.persistent_cache`.
+Defaults to the current directory if no path is provided.
 
 Pass one or more arguments. Accepts `-r`/`--recursive` to search `path`
 recursively. A prompt is provided before deletion; use `-y`/`--yes` to
@@ -272,7 +288,7 @@ def _clean_blocks(
     from marimo._save.clean import apply_block_clean, plan_block_clean
 
     plans = [plan_block_clean(directory, names) for directory in cache_dirs]
-    planned = report([(plan.cache_dir, plan.freed) for plan in plans])
+    planned = report_plans(plans)
     if not planned.entries and not planned.total_bytes:
         click.echo("Nothing to delete.")
         _exit_if_incomplete(planned)
@@ -297,7 +313,7 @@ def _clean_tracked_entries(
     dry_run: bool,
 ) -> None:
     from marimo._save.cache_dirs import CacheDirError
-    from marimo._save.clean import plan_clean
+    from marimo._save.clean import apply_clean, plan_clean
     from marimo._save.manifest import ManifestError
 
     try:
@@ -314,16 +330,15 @@ def _clean_tracked_entries(
         click.echo("Nothing to delete.")
         return
 
+    def apply() -> CacheDirStats:
+        return _apply_or_error(lambda: apply_clean(plan))
+
     if plan.deletes_nothing():
         # Forgetting a record no file answers to removes no cached value,
         # so the command does not ask.
-        freed = CacheDirStats() if dry_run else _apply_or_error(plan)
+        freed = CacheDirStats() if dry_run else apply()
         click.echo("Nothing to delete.")
-        verb = "Would forget" if dry_run else "Forgot"
-        click.echo(
-            f"{verb} {format_entries(len(plan.entries))} the cache no "
-            "longer holds."
-        )
+        _report_forgotten(len(plan.entries), dry_run=dry_run)
         _exit_if_incomplete(freed)
         return
     if dry_run:
@@ -331,18 +346,140 @@ def _clean_tracked_entries(
         return
     if not _confirm(plan.freed, yes=yes):
         return
-    freed = _apply_or_error(plan)
+    freed = apply()
     _report_deleted(freed)
     _exit_if_incomplete(freed)
 
 
-def _apply_or_error(plan: CleanPlan) -> CacheDirStats:
+@cache.command(
+    name="prune",
+    help="""Delete cache entries without an associated notebook or cell.
+
+This command deletes cache entries that cannot be reached within a notebook. For
+instance, when the notebook no longer has an associated cell, or the associated
+notebook is deleted.
+
+Files that may be part of a running write are not deleted by default, nor are
+files that may still be associated with a notebook. These files may still be
+active, so the flag `--force` should be provided to delete all unneeded files.
+
+Defaults to the current directory if no path is provided. Accepts
+`-r`/`--recursive` to search `path` recursively. A prompt is provided
+before deletion; use `-y`/`--yes` to skip the prompt, or `--dry-run` to
+simulate the deletion.
+
+Example usage:
+
+    marimo cache prune my_notebook.py
+
+    marimo cache prune --dry-run -r notebooks/
+
+    marimo cache prune -y notebooks/
+""",
+)
+@path_argument
+@recursive_option
+@yes_option
+@dry_run_option
+@click.option(
+    "--force",
+    is_flag=True,
+    default=False,
+    help=(
+        "Delete cache files from abandoned or active writes, and clear cache "
+        "files that may still be associated with a notebook. Use with caution."
+    ),
+)
+def cache_prune(
+    path: Path, recursive: bool, yes: bool, dry_run: bool, force: bool
+) -> None:
+    cache_dirs = resolve_cache_dirs_or_error(path, recursive, deleting=True)
+    if not cache_dirs:
+        click.echo("No cache directories found.")
+        return
+
+    _prune_cache_dirs(cache_dirs, force=force, yes=yes, dry_run=dry_run)
+
+
+def _prune_cache_dirs(
+    cache_dirs: list[Path],
+    *,
+    force: bool,
+    yes: bool,
+    dry_run: bool,
+) -> None:
     from marimo._save.cache_dirs import CacheDirError
-    from marimo._save.clean import apply_clean
+    from marimo._save.manifest import ManifestError
+    from marimo._save.prune import apply_prune, plan_prune
+
+    try:
+        plans = [
+            plan_prune(directory, force=force) for directory in cache_dirs
+        ]
+    except (CacheDirError, OSError) as e:
+        raise MarimoCLIError(str(e)) from e
+    planned = report_plans(
+        plans, notes={plan.cache_dir: _prune_notes(plan) for plan in plans}
+    )
+
+    def apply() -> CacheDirStats:
+        freed = CacheDirStats()
+        for plan in plans:
+            try:
+                freed += apply_prune(plan)
+            except (CacheDirError, ManifestError, OSError) as e:
+                # The other directories are still pruned, and the exit code
+                # reports this one.
+                click.echo(f"Skipping {plan.cache_dir}: {e}", err=True)
+                freed += CacheDirStats(failures=1)
+        return freed
+
+    if not planned.entries and not planned.total_bytes:
+        # Forgetting a record no file answers to removes no cached value,
+        # so the command does not ask.
+        forgotten = sum(plan.forgets() for plan in plans)
+        freed = planned if dry_run or not forgotten else apply()
+        click.echo("Nothing to delete.")
+        _report_forgotten(forgotten, dry_run=dry_run)
+        _exit_if_incomplete(freed)
+        return
+    if dry_run:
+        _report_deleted(planned, dry_run=True)
+        _exit_if_incomplete(planned)
+        return
+    if not _confirm(planned, yes=yes):
+        return
+    freed = apply()
+    _report_deleted(freed)
+    _exit_if_incomplete(freed)
+
+
+def _prune_notes(plan: PrunePlan) -> list[str]:
+    notes = list(plan.notes)
+    if plan.dead_nodes:
+        hashes = "path hash" if plan.dead_nodes == 1 else "path hashes"
+        notes.append(
+            f"{plan.dead_nodes} {hashes} of code the notebook no longer has."
+        )
+    if plan.untracked:
+        notes.append(
+            f"Kept {format_entries(plan.untracked)} that no manifest tracks."
+        )
+    if plan.claimed:
+        notes.append(
+            f"({plan.claimed}) cache entries are locked. Either the entry is "
+            "being written, or a notebook unexpectedly crashed while caching. "
+            "Pass --force to remove them."
+        )
+    return notes
+
+
+def _apply_or_error(apply: Callable[[], CacheDirStats]) -> CacheDirStats:
+    from marimo._save.cache_dirs import CacheDirError
     from marimo._save.manifest import ManifestError
 
     try:
-        return apply_clean(plan)
+        return apply()
     except (CacheDirError, ManifestError, OSError) as e:
         raise MarimoCLIError(str(e)) from e
 
@@ -367,3 +504,10 @@ def _report_deleted(freed: CacheDirStats, *, dry_run: bool = False) -> None:
         f"{verb} {format_entries(freed.entries)}, "
         f"freeing {format_bytes(freed.total_bytes)}."
     )
+
+
+def _report_forgotten(records: int, *, dry_run: bool) -> None:
+    if not records:
+        return
+    verb = "Would forget" if dry_run else "Forgot"
+    click.echo(f"{verb} {format_entries(records)} the cache no longer holds.")
