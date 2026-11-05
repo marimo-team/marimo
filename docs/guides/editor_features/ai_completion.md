@@ -1,6 +1,6 @@
 # In-editor AI assistance
 
-!!! tip "Using agents like Claude Code or OpenCode? Try marimo pair instead."
+!!! tip "Using coding agents? Try marimo pair instead."
 
     This guide covers AI assistance built into the marimo editor.
     To work with coding agents such as Claude Code or OpenCode, use [marimo
@@ -17,52 +17,43 @@ letting it code against your dataframe and database schemas.
 
 This guide provides an overview of these features and how to configure them.
 
-<div align="center">
-<video autoplay muted loop playsinline width="90%" height="90%" align="center">
-  <source src="/_static/readme-generate-with-ai.mp4" type="video/mp4">
-</video>
-</div>
-
-!!! tip "Locating your marimo.toml config file"
-
-    Various instructions in this guide refer to the marimo.toml configuration
-    file. Locate this file with `marimo config show | head`.
-
 ## Connecting to an LLM provider
 
-Connect to an LLM through the notebook settings menu.
+Connect to an LLM provider through the notebook settings menu; both
+commercial, open-source, and local providers are provided. See the [LLM
+providers guide](../configuration/llm_providers.md) for detailed instructions
+on how to configure each provider.
 
-You can configure the following providers:
+## Chat sidebar panel
 
-* OpenAI
-* GitHub Copilot
-* Anthropic
-* AWS Bedrock
-* Google AI
-* Ollama
-* and any OpenAI-compatible provider
+The chat panel in the sidebar lets you use AI to edit and generate
+notebook code, run cells, and more. The *Notebook access** selector lets
+you choose what the assistant can do:
 
-See the [llm_providers](../configuration/llm_providers.md) guide for detailed
-instructions on how to configure each provider.
+- **Read only**: The assistant can read notebook code, outputs, and variable previews.
+- **Suggest edits**: The assistant can read the notebook and propose cell changes for review.
+- **Full access**: The assistant can read, edit, and run cells, with Python scratchpad access.
 
-## Generating cells with AI
+!!! warning "Full access can execute arbitrary Python code"
+    The assistant can execute arbitrary Python on your machine, and it can change
+    notebook cells and runtime state without review. These changes can be destructive.
 
-marimo has built-in support for generating and refactoring code with LLMs.
+<video muted autoplay loop playsinline controls preload="metadata" width="100%"
+  aria-label="Open Chat and start generating notebook cells">
+  <source src="/_static/docs-chat-panel.mp4" type="video/mp4">
+</video>
 
-**Enabling AI code generation.** To enable AI code generation, first install
-required dependencies through the notebook settings.
+## Refactor existing cells
 
-<div align="center">
-<figure>
-<img src="/_static/docs-ai-install.png" width="740px"/>
-<figcaption>Install required dependencies for AI generation through the notebook settings.</figcaption>
-</figure>
-</div>
+Make edits to an existing cell by inputting `Ctrl/Cmd-shift-e` while a cell is
+focused. This opens a prompt box that has your cell's code as input.
 
-Then configure your LLM provider through the AI tab in the settings menu; see
-the section on [connecting your LLM](#connecting-to-an-llm-provider) for detailed instructions.
+<video muted autoplay loop playsinline controls preload="metadata" width="100%"
+  aria-label="Refactor a cell with AI">
+  <source src="/_static/docs-refactor-ai.mp4" type="video/mp4">
+</video>
 
-### Variable context
+## Variable context
 
 marimo provides models your notebook code as context. You can additionally
 supply variables and their values by referencing them by name
@@ -76,39 +67,12 @@ prompt, write `@df`.
 </figure>
 </div>
 
-### Generate new cells
 
-#### Generate with AI button
+## Custom rules
 
-At the bottom of every notebook is a button titled "Generate with AI". Click this
-button to add entirely new cells to your notebook.
-
-#### Chat panel
-
-The chat panel on the left sidebar lets you chat with an LLM and ask questions
-about your notebook. The LLM can also generate code cells that you can insert
-into your notebook.
-
-<iframe width="740" height="420" src="https://www.youtube.com/embed/4DC1E2UBwAM?si=zzrzl0VlvOU6JiZP" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" loading="lazy" allowfullscreen></iframe>
-
-Use the **Notebook access** selector to choose what the assistant can do:
-
-- **Read only**: The assistant can read notebook code, outputs, and variable previews.
-- **Suggest edits**: The assistant can read the notebook and propose cell changes for review.
-- **Full access**: The assistant can read, edit, and run cells, with Python scratchpad access.
-
-!!! warning "Full access can execute arbitrary Python"
-    The assistant can execute arbitrary Python on your machine, and it can change
-    notebook cells and runtime state without review. These changes can be destructive.
-
-### Refactor existing cells
-
-Make edits to an existing cell by inputting `Ctrl/Cmd-shift-e` while a cell is
-focused. This opens a prompt box that has your cell's code as input.
-
-### Custom rules
-
-You can customize how the AI assistant behaves by adding rules in the marimo settings. These rules help ensure consistent code generation across all AI providers. You can find more information about marimo's supported plotting libraries and data handling in the [plotting guide](../working_with_data/plotting.md#plotting) and [working with data guide](../working_with_data/index.md).
+You can customize how the AI assistant behaves by adding rules in the marimo
+settings. These rules help ensure consistent code generation across all AI
+providers.
 
 <div align="center">
   <figure>
@@ -159,13 +123,6 @@ an AI pair programmer, similar to VS Code:
 
 1. Install [Node.js](https://nodejs.org/en/download).
 2. Enable Copilot via the settings menu in the marimo editor.
-
-<div align="center">
-<figure>
-<img src="/_static/docs-ai-completion-gh.png" width="740px"/>
-<figcaption>Follow these instructions.</figcaption>
-</figure>
-</div>
 
 _GitHub Copilot is not yet available in our conda distribution; please install
 marimo using `pip`/`uv` if you need Copilot._
