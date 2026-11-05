@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from pathlib import Path
 from unittest.mock import MagicMock
 
 import msgspec
@@ -74,7 +75,7 @@ def test_listing_keeps_only_running_notebooks_and_closes_the_snapshot(
                 {
                     "id": "live",
                     "name": "live",
-                    "path": "/work/analysis.py",
+                    "path": str(Path("/work/analysis.py")),
                     "url": "http://127.0.0.1:2718/base",
                     "status": "running",
                 },
