@@ -178,22 +178,29 @@ export async function downloadHTMLAsImage(opts: {
   }
 }
 
-const DOWNLOAD_DATA_TYPES = new Set([
-  "text/plain",
-  "text/csv",
-  "text/tab-separated-values",
-  "application/json",
-  "application/octet-stream",
-  "application/pdf",
-  "application/zip",
-  "application/gzip",
-  "image/png",
-  "image/jpeg",
-  "image/gif",
-  "image/webp",
-  "image/avif",
-  "image/bmp",
-  "image/x-icon",
+const NON_DOWNLOAD_DATA_TYPES = new Set([
+  "text/html",
+  "text/xml",
+  "application/xml",
+  // JavaScript MIME types, including legacy aliases.
+  // https://mimesniff.spec.whatwg.org/#javascript-mime-type
+  "application/ecmascript",
+  "application/javascript",
+  "application/x-ecmascript",
+  "application/x-javascript",
+  "text/ecmascript",
+  "text/javascript",
+  "text/javascript1.0",
+  "text/javascript1.1",
+  "text/javascript1.2",
+  "text/javascript1.3",
+  "text/javascript1.4",
+  "text/javascript1.5",
+  "text/jscript",
+  "text/livescript",
+  "text/x-ecmascript",
+  "text/x-javascript",
+  "text/vbscript",
 ]);
 
 export function isDownloadUrl(url: string): boolean {
@@ -218,7 +225,14 @@ export function isDownloadUrl(url: string): boolean {
           .trim()
           .toLowerCase();
         // An omitted MIME type defaults to text/plain.
-        return DOWNLOAD_DATA_TYPES.has(mimeType || "text/plain");
+        if (!mimeType) {
+          return true;
+        }
+        return (
+          /^[\w!#$%&'*+.^`|~-]+\/[\w!#$%&'*+.^`|~-]+$/.test(mimeType) &&
+          !NON_DOWNLOAD_DATA_TYPES.has(mimeType) &&
+          !mimeType.endsWith("+xml")
+        );
       }
       default:
         return false;
