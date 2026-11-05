@@ -62,6 +62,9 @@ export function useNotebookReplica(options: Options): NotebookReplica {
     const lifetime = new AbortController();
     const elements = createUIElementModel({ store, replica });
     elements.start({ signal: lifetime.signal });
+    const disconnectFunctions = UI_ELEMENT_REGISTRY.connectFunctions((id) =>
+      elements.functionRequest(id),
+    );
     const disconnectElements = UI_ELEMENT_REGISTRY.connectHost({
       values: () => store.get(elements.valuesAtom),
       subscribe: (listener) => store.sub(elements.valuesAtom, listener),
@@ -73,6 +76,7 @@ export function useNotebookReplica(options: Options): NotebookReplica {
         onNotification({ data: notification as NotificationMessage }),
     });
     return () => {
+      disconnectFunctions();
       disconnectElements();
       lifetime.abort();
       disconnect();

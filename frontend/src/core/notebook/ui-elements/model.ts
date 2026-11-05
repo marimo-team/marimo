@@ -1,7 +1,12 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { idempotencyKey } from "@marimo-team/client";
+import type { UIElementOutput } from "@marimo-team/client/protocol";
 import { atom, type Atom, type createStore } from "jotai/vanilla";
+import {
+  createHostFunctionRequest,
+  type FunctionRequest,
+} from "@/core/functions/host-function";
 import type { NotebookBackend, NotebookReplica } from "../replica";
 
 interface Draft {
@@ -13,6 +18,7 @@ interface Draft {
 export interface UIElementModel {
   readonly valuesAtom: Atom<ReadonlyMap<string, unknown>>;
   update(id: string, value: unknown): Promise<void>;
+  functionRequest(id: string): FunctionRequest | undefined;
   start(options: { signal: AbortSignal }): void;
 }
 
@@ -29,6 +35,20 @@ export function createUIElementModel({
 }): UIElementModel {
   const draftsAtom = atom<ReadonlyMap<string, Draft>>(new Map());
   let lifetime: AbortSignal | undefined;
+  const ownedIds = new Set<string>();
+  const bindings = new Map<
+    string,
+    {
+      backend: NotebookBackend;
+      notebookId: string;
+      config: UIElementOutput["config"];
+      controller: AbortController;
+      request: FunctionRequest;
+    }
+  >();
+  const unavailable: FunctionRequest = async () => {
+    throw new Error("UI element functions are unavailable");
+  };
   const valuesAtom = atom((get) => {
     const drafts = get(draftsAtom);
     return new Map(
@@ -59,6 +79,22 @@ export function createUIElementModel({
       const reconcile = () => {
         const confirmed = store.get(replica.uiElementsAtom);
         const backend = store.get(replica.backendAtom);
+        const notebook = store.get(replica.notebookAtom);
+        for (const id of confirmed.keys()) {
+          ownedIds.add(id);
+        }
+        for (const [id, binding] of bindings) {
+          if (
+            // Partial updates preserve config identity; full records replace it.
+            confirmed.get(id)?.element.config !== binding.config ||
+            backend !== binding.backend ||
+            notebook?.id !== binding.notebookId ||
+            !notebook.operations.includes("ui_element.send")
+          ) {
+            binding.controller.abort();
+            bindings.delete(id);
+          }
+        }
         for (const [id, draft] of store.get(draftsAtom)) {
           const record = confirmed.get(id);
           if (
@@ -72,15 +108,64 @@ export function createUIElementModel({
       };
       const unsubscribeRecords = store.sub(replica.uiElementsAtom, reconcile);
       const unsubscribeBackend = store.sub(replica.backendAtom, reconcile);
+      const unsubscribeNotebook = store.sub(replica.notebookAtom, reconcile);
+      reconcile();
       signal.addEventListener(
         "abort",
         () => {
           unsubscribeRecords();
           unsubscribeBackend();
+          unsubscribeNotebook();
+          for (const binding of bindings.values()) {
+            binding.controller.abort();
+          }
+          bindings.clear();
+          ownedIds.clear();
           store.set(draftsAtom, new Map());
         },
         { once: true },
       );
+    },
+    functionRequest(id) {
+      const record = store.get(replica.uiElementsAtom).get(id);
+      if (!record && !ownedIds.has(id)) {
+        return undefined;
+      }
+      const backend = store.get(replica.backendAtom);
+      const notebook = store.get(replica.notebookAtom);
+      if (
+        !record ||
+        !lifetime ||
+        lifetime.aborted ||
+        !backend ||
+        !notebook?.operations.includes("ui_element.send")
+      ) {
+        return unavailable;
+      }
+      const existing = bindings.get(id);
+      if (existing) {
+        return existing.request;
+      }
+      const controller = new AbortController();
+      const signal = AbortSignal.any([lifetime, controller.signal]);
+      const send = createHostFunctionRequest(
+        backend.notebook(notebook.id),
+        signal,
+      );
+      const request: FunctionRequest = (args) => {
+        if (args.namespace !== id) {
+          return unavailable(args);
+        }
+        return send(args);
+      };
+      bindings.set(id, {
+        backend,
+        notebookId: notebook.id,
+        config: record.element.config,
+        controller,
+        request,
+      });
+      return request;
     },
     async update(id, value) {
       const signal = lifetime;

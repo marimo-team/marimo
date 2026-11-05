@@ -163,6 +163,7 @@ export function createStaticNotebookBackend(
         edit: (_changes, options) => unsupported(options),
         save: unsupported,
         updateUIElement: (_id, _state, options) => unsupported(options),
+        sendUIElement: (_id, _message, options) => unsupported(options),
       };
     },
   };

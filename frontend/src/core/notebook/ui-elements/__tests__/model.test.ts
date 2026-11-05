@@ -9,6 +9,7 @@ import type {
   EventOutput,
   NotebookOutput,
   UIElementUpdateResponseOutput,
+  UIElementSendResponseOutput,
 } from "@marimo-team/client/protocol";
 import { atom, createStore } from "jotai/vanilla";
 import { describe, expect, it, vi } from "vitest";
@@ -17,7 +18,7 @@ import type { NotebookBackend } from "../../replica";
 import { fakeBackend } from "../../replica/__tests__/fixtures";
 import { createUIElementModel } from "../model";
 
-function setup() {
+function setup(sendUIElement?: NotebookClient["sendUIElement"]) {
   const store = createStore();
   const reducer = createNotebookReducer({ uiElements });
   let state = reducer.initial;
@@ -28,7 +29,7 @@ function setup() {
     name: "Notebook",
     path: null,
     updated_at: null,
-    operations: ["ui_element.update"],
+    operations: ["ui_element.update", "ui_element.send"],
   });
   const replies: Deferred<Result<UIElementUpdateResponseOutput>>[] = [];
   const update = vi.fn<NotebookClient["updateUIElement"]>(() => {
@@ -36,7 +37,7 @@ function setup() {
     replies.push(reply);
     return reply.promise;
   });
-  const backend = fakeBackend({ updateUIElement: update });
+  const backend = fakeBackend({ updateUIElement: update, sendUIElement });
   const backendAtom = atom<NotebookBackend | null>(backend);
   const controller = new AbortController();
   const model = createUIElementModel({
@@ -87,6 +88,7 @@ function setup() {
     update,
     replies,
     backendAtom,
+    notebookAtom,
     controller,
     receive,
     echo,
@@ -160,6 +162,81 @@ describe("UI element drafts", () => {
     expect(s.value()).toBe(3);
     s.controller.abort();
   });
+});
+
+describe("UI element function lifetime", () => {
+  const args = {
+    namespace: "c1-0",
+    functionName: "search",
+    args: { query: "a" },
+  };
+  const result: Result<UIElementSendResponseOutput> = {
+    ok: true,
+    status: 200,
+    data: {
+      request_id: "r1",
+      result: {
+        found: true,
+        status: { code: "ok", title: null, message: null },
+        return_value: { rows: [1] },
+      },
+    },
+  };
+
+  it("keeps function calls valid across ordinary value updates", async () => {
+    const reply = new Deferred<Result<UIElementSendResponseOutput>>();
+    const send = vi.fn<NotebookClient["sendUIElement"]>(() => reply.promise);
+    const s = setup(send);
+    const request = s.model.functionRequest("c1-0");
+    expect(request).toBeDefined();
+    const pending = request!(args);
+    s.receive({
+      event: "ui_element.update",
+      data: { id: "c1-0", state: { value: [1] }, time: "2026-11-04T00:00:00Z" },
+    });
+    reply.resolve(result);
+    await expect(pending).resolves.toEqual(result.data.result);
+    expect(send).toHaveBeenCalledWith(
+      "c1-0",
+      { function: "search", args: { query: "a" } },
+      { signal: expect.any(AbortSignal) },
+    );
+    expect(s.model.functionRequest("legacy-id")).toBeUndefined();
+    s.controller.abort();
+  });
+
+  it.each(["remove", "replace", "backend", "permission", "dispose"])(
+    "rejects late results after %s and never redirects a captured call",
+    async (change) => {
+      const reply = new Deferred<Result<UIElementSendResponseOutput>>();
+      const send = vi.fn<NotebookClient["sendUIElement"]>(() => reply.promise);
+      const s = setup(send);
+      const request = s.model.functionRequest("c1-0")!;
+      const pending = request(args);
+      if (change === "remove") {
+        s.receive({ event: "ui_element.removed", data: { id: "c1-0" } });
+        s.create();
+      } else if (change === "replace") {
+        s.receive({ event: "reset", data: {} });
+        s.create();
+      } else if (change === "backend") {
+        s.store.set(s.backendAtom, fakeBackend());
+      } else if (change === "permission") {
+        s.store.set(
+          s.notebookAtom,
+          (notebook) => notebook && { ...notebook, operations: [] },
+        );
+      } else {
+        s.controller.abort();
+      }
+      expect(send.mock.calls[0][2]?.signal?.aborted).toBe(true);
+      reply.resolve(result);
+      await expect(pending).rejects.toThrow(/abort/i);
+      await expect(request(args)).rejects.toThrow(/abort/i);
+      expect(send).toHaveBeenCalledTimes(1);
+      s.controller.abort();
+    },
+  );
 });
 
 it("settles an unchanged value and preserves newer input after an older failure", async () => {

@@ -26,12 +26,14 @@ export function fakeBackend({
   edit = vi.fn<FakeEdit>(),
   save = vi.fn<FakeSave>(),
   updateUIElement = vi.fn<Commands["updateUIElement"]>(),
+  sendUIElement = vi.fn<Commands["sendUIElement"]>(),
   checkHealth,
 }: {
   transport?: NotebookTransport;
   edit?: FakeEdit;
   save?: FakeSave;
   updateUIElement?: Commands["updateUIElement"];
+  sendUIElement?: Commands["sendUIElement"];
   checkHealth?: () => Promise<boolean>;
 } = {}): NotebookBackend {
   return {
@@ -40,6 +42,7 @@ export function fakeBackend({
       edit: (...args) => edit(notebookId, ...args),
       save: (...args) => save(notebookId, ...args),
       updateUIElement,
+      sendUIElement,
     }),
     checkHealth,
   };
