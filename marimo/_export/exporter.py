@@ -63,6 +63,7 @@ from marimo._templates import (
     wasm_notebook_template,
 )
 from marimo._utils import async_path
+from marimo._utils.asyncio_utils import run_on_proactor_loop
 from marimo._utils.code import hash_code
 from marimo._utils.data_uri import build_data_url
 from marimo._utils.marimo_path import MarimoPath
@@ -669,6 +670,7 @@ class Exporter:
         return "skip"
 
     @staticmethod
+    @run_on_proactor_loop
     async def _export_slides_as_pdf(
         notebook: Any,
         include_inputs: bool,
