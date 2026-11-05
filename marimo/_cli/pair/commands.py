@@ -25,10 +25,8 @@ from marimo._cli.pair.client import (
     StaleNotebookError,
     display_url,
     execute as execute_code,
-    execute_editor,
     list_sessions,
     load_token,
-    resolve_execution_target,
     resolve_host,
 )
 from marimo._cli.pair.connection import (
@@ -39,6 +37,7 @@ from marimo._cli.pair.discovery import list_running_notebooks
 from marimo._cli.pair.forwarder import ForwarderConfig, start_forwarder
 from marimo._cli.pair.harnesses import detect_target, environment_identity
 from marimo._cli.pair.prompts import render_prompt
+from marimo._cli.pair.target import resolve_target
 from marimo._server.ai.skills import utils as skills_utils
 
 _REFERENCES_DIR = (
@@ -84,41 +83,36 @@ class _DocsCommand(ColoredCommand):
 
     \b
     Authentication:
-      Notebook discovery uses the editor token. Pass --token-file <PATH> to
-      pair list or execute without --notebook when a token is required.
-      Host commands read their token from the private local host record.
+      Local discovery and execution use private credentials automatically.
+      For explicit server access, pass --token or --token-file, or set
+      MARIMO_TOKEN. Explicit credentials override local discovery.
 
     \b
     Workflow:
-      If no server is running, start one in the background:
-        marimo edit <notebook.py> --no-token
-      If you do not have the server URL or notebook ID:
+      Start a notebook if needed:
+        marimo edit <notebook.py>
+      Find running local notebooks:
         marimo pair list
-      Connect to the notebook before waiting for work.
+      Execute using an ID from the list:
+        marimo pair execute --session <ID> --code 'print("hello")'
+      For multiline Python, use --file <PATH>, or --file - for stdin:
+        marimo pair execute --session <ID> --file - <<'PY'
+        import marimo._code_mode as cm
+        async with cm.get_context() as ctx:
+            for cell in ctx.cells.values():
+                print(cell.id, cell.code, cell.status)
+        PY
+      To receive notebook messages in a supported harness:
+        marimo pair connect --url <URL> --notebook <ID>
       Run marimo pair connect --help to check supported harnesses.
-      If your harness is supported, run:
-        marimo pair connect --url <URL> --notebook <NOTEBOOK>
-      Otherwise, work with the notebook using pair execute:
-      marimo pair execute --url <URL> --session <SESSION> --code-file - <<'PY'
-      import marimo._code_mode as cm
-      async with cm.get_context() as ctx:
-          ctx.packages.add("pandas")
-          cid = ctx.create_cell("import pandas as pd")
-          ctx.run_cell(cid)
-      PY
-      marimo pair execute --url <URL> --notebook <NOTEBOOK> --code-file - <<'PY'
-      import marimo._code_mode as cm
-      async with cm.get_context() as ctx:
-          cell = ctx.cells["<CELL_ID>"]
-          print(cell.status, cell.errors, [o.data for o in cell.console_outputs])
-      PY
 
     \b
     Target selection:
-      --session takes a stable session_id for editor execution.
-      --notebook takes notebook_id for host execution. It survives
-      kernel restarts and page reloads. Only saved notebooks inside the project
-      root have a host notebook ID. Host commands need a local edit server.
+      --session accepts a notebook ID from pair list, or an existing session ID.
+      Local notebook IDs resolve their URL automatically. Existing session IDs
+      require --url. --notebook remains an alias for notebook IDs.
+      With either selector, --url restricts discovery to that server.
+      With --url alone, the server must have exactly one running notebook.
       If several notebooks are open, ask the user which one.
       Do not switch notebooks after authentication or connection errors,
       or when execution is unconfirmed.
@@ -157,7 +151,7 @@ class _DocsCommand(ColoredCommand):
       ctx.delete_cell(cid)
       ctx.packages.add("pandas>=2")  # queued, installs on exit
       If a cm call fails, run help(cm):
-        marimo pair execute --url <URL> --notebook <NOTEBOOK> -c 'import marimo._code_mode as cm; help(cm)'
+        marimo pair execute --session <ID> --code 'import marimo._code_mode as cm; help(cm)'
     """,
 )
 def pair() -> None:
@@ -171,22 +165,26 @@ def pair() -> None:
 )
 @click.option(
     "--url",
-    required=True,
+    required=False,
     metavar="URL",
-    help="Server URL.",
+    help="Restrict notebook discovery and execution to this server.",
 )
 @click.option(
     "--notebook",
     "notebook_id",
     required=False,
     metavar="ID",
-    help="Host notebook_id from marimo pair list.",
+    help="Alias for --session when selecting a notebook ID.",
 )
 @click.option(
     "--session",
     "session_id",
     default=None,
-    help="Stable Session ID from pair list. Host execution is preferred when available.",
+    metavar="ID",
+    help="Notebook ID from pair list, or an existing session ID.",
+)
+@click.option(
+    "--token", help="Server token. Overrides MARIMO_TOKEN and local discovery."
 )
 @click.option(
     "--token-file",
@@ -195,12 +193,15 @@ def pair() -> None:
     help="Read the server token from a local file.",
 )
 @click.option(
+    "--code",
     "-c",
-    "code",
     help="Inline Python.",
 )
 @click.option(
+    "--file",
     "--code-file",
+    "-f",
+    "code_file",
     metavar="PATH",
     help="Read Python from a UTF-8 file, or from stdin when PATH is '-'. Supply exactly one input option.",
 )
@@ -213,18 +214,30 @@ def pair() -> None:
 @click.pass_context
 def execute(
     ctx: click.Context,
-    url: str,
+    url: str | None,
     notebook_id: str | None,
     session_id: str | None,
     token_file: Path | None,
+    token: str | None,
     code: str | None,
     code_file: str | None,
     stream: bool,
 ) -> None:
     if notebook_id is not None and session_id is not None:
         raise click.UsageError("Pass --session or --notebook, not both.")
+    if session_id == "" or notebook_id == "":
+        raise click.UsageError("The session ID must not be empty.")
     if (code is None) == (code_file is None):
-        raise click.UsageError("Specify -c or --code-file.")
+        raise click.UsageError("Specify exactly one of --code or --file.")
+
+    if token is not None and token_file is not None:
+        raise click.UsageError("Pass --token or --token-file, not both.")
+    if token == "":
+        raise click.UsageError("The token must not be empty.")
+    if url is None and session_id is None and notebook_id is None:
+        raise click.UsageError(
+            "Pass --session <ID> from `marimo pair list`, or --url <URL>."
+        )
 
     if code_file == "-":
         code = sys.stdin.read()
@@ -237,45 +250,33 @@ def execute(
     if not code:
         raise click.UsageError("Code must not be empty.")
 
-    editor = notebook_id is None
-    selector = "--session" if editor else "--notebook"
+    selector = "--notebook" if notebook_id is not None else "--session"
     try:
-        token = (
-            load_token(token_file, os.environ) if notebook_id is None else None
+        credential = (
+            token if token is not None else load_token(token_file, os.environ)
         )
-        if notebook_id is None:
-            notebook_id, session_id = resolve_execution_target(
-                url=url, token=token, session_id=session_id
-            )
-        editor = notebook_id is None
-        selector = "--session" if editor else "--notebook"
-        if editor:
-            assert session_id is not None
-            result = execute_editor(
-                url=url,
-                session_id=session_id,
-                token=token,
-                code=code,
-                stdout=sys.stdout,
-                stderr=sys.stderr,
-                stream=stream,
-            )
-        else:
-            assert notebook_id is not None
-            host = resolve_host(url)
-            result = execute_code(
-                url=host.url,
-                notebook_id=notebook_id,
-                token=host.token,
-                code=code,
-                stdout=sys.stdout,
-                stderr=sys.stderr,
-                stream=stream,
-            )
+        target = resolve_target(
+            url=url,
+            session_id=session_id,
+            notebook_id=notebook_id,
+            token=credential,
+        )
+        url = target.url
+        notebook_id = target.notebook_id
+        session_id = target.id if notebook_id is None else None
+        result = execute_code(
+            url=target.url,
+            session_id=target.id,
+            token=target.token,
+            code=code,
+            stdout=sys.stdout,
+            stderr=sys.stderr,
+            stream=stream,
+        )
     except PairError as error:
         error_text, next_text = _failure_guidance(
             error,
-            url=url,
+            url=url or "",
             notebook_id=notebook_id or session_id,
             selector=selector,
         )
@@ -320,12 +321,10 @@ def execute(
         "output": result.output,
         "stdout": result.stdout,
         "stderr": result.stderr,
-        ("session" if editor else "notebook"): {
-            "id": session_id if editor else notebook_id
+        ("session" if notebook_id is None else "notebook"): {
+            "id": session_id if notebook_id is None else notebook_id
         },
     }
-    if session_id is not None:
-        payload["session"] = {"id": session_id}
     if next_text:
         payload["next"] = next_text
     click.echo(json.dumps(payload, indent=2))
@@ -348,7 +347,7 @@ def _execute_prefix(url: str, notebook_id: str, selector: str) -> str:
 
 def _inspect_command(url: str, notebook_id: str, selector: str) -> str:
     return (
-        f"{_execute_prefix(url, notebook_id, selector)} --code-file - <<'PY'\n"
+        f"{_execute_prefix(url, notebook_id, selector)} --file - <<'PY'\n"
         "import marimo._code_mode as cm\n"
         "async with cm.get_context() as ctx:\n"
         "    for cell in ctx.cells.values():\n"
@@ -361,7 +360,7 @@ def _read_cell_command(
     url: str, notebook_id: str, cell_id: str, selector: str
 ) -> str:
     return (
-        f"{_execute_prefix(url, notebook_id, selector)} --code-file - <<'PY'\n"
+        f"{_execute_prefix(url, notebook_id, selector)} --file - <<'PY'\n"
         "import marimo._code_mode as cm\n"
         "async with cm.get_context() as ctx:\n"
         f"    cell = ctx.cells[{cell_id!r}]\n"
@@ -374,7 +373,7 @@ def _read_cell_command(
 def _help_cm_command(url: str, notebook_id: str, selector: str) -> str:
     return (
         f"{_execute_prefix(url, notebook_id, selector)} "
-        "-c 'import marimo._code_mode as cm; help(cm)'"
+        "--code 'import marimo._code_mode as cm; help(cm)'"
     )
 
 
@@ -434,6 +433,10 @@ def _failure_guidance(
             "Check the notebook's kernel state, then retry.",
         )
     if isinstance(error, AmbiguousNotebookError):
+        if not error.url:
+            return str(error), (
+                "Run `marimo pair list` and pass --url to select the server."
+            )
         lines = [
             f"Pass {selector} to choose one. Never switch notebooks silently."
         ]
@@ -444,6 +447,11 @@ def _failure_guidance(
         )
         return str(error), "\n".join(lines)
     if isinstance(error, NoNotebookError):
+        if not error.url:
+            return (
+                str(error),
+                "Run `marimo pair list` to find running local notebooks. Legacy session IDs require --url.",
+            )
         return str(error), (
             f"{_HEADLESS_NEXT} Ask the user to open it, then:\n"
             f"marimo pair list --url {display_url(error.url)}"
@@ -460,7 +468,7 @@ def _failure_guidance(
         return (
             (
                 f"No notebook {notebook_id or '<ID>'} on {safe_url}. "
-                "Run pair list to find the current host notebook."
+                "Run pair list to find the current notebook."
             ),
             f"marimo pair list --url {safe_url}",
         )
@@ -468,9 +476,10 @@ def _failure_guidance(
     if message == "Authentication failed.":
         return (
             message,
-            "Restart the local edit server and retry host discovery."
-            if selector == "--notebook"
-            else "Pass --token-file <path> or set MARIMO_TOKEN for editor authentication.",
+            (
+                "Run `marimo pair list` to refresh local discovery, or pass "
+                "--token / --token-file for explicit server authentication."
+            ),
         )
     if message.startswith("The server URL"):
         return message, ("Use the url field from:\nmarimo pair list")
@@ -569,7 +578,7 @@ def docs(topic: str | None) -> None:
     "--session",
     "session_id",
     default=None,
-    help="Stable Session ID from pair list. Host execution is preferred when available.",
+    help="Notebook ID or stable session ID to include in the prompt.",
 )
 @click.option("--claude", is_flag=True, hidden=True, expose_value=False)
 @click.option("--codex", is_flag=True, hidden=True, expose_value=False)
@@ -733,7 +742,7 @@ def list_notebooks(urls: tuple[str, ...], token_file: Path | None) -> None:
         listing["next"] = (
             "No sessions found. If a server is running, pass --url, and "
             "--token-file <path> if it needs a token. Otherwise start one in "
-            "the background: `marimo edit <notebook.py> --no-token`, then run "
+            "the background: `marimo edit <notebook.py>`, then run "
             "`marimo pair list` again."
         )
     click.echo(json.dumps(listing, indent=2))
