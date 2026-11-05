@@ -400,6 +400,25 @@ class TestMCPConfigComparator:
 class TestMCPPresets:
     """Test cases for MCP preset configuration system."""
 
+    def test_append_presets_preserves_unknown_config(self):
+        config = MCPConfig.from_dict(
+            {
+                "presets": ["marimo"],
+                "future": {"enabled": True},
+                "mcpServers": {
+                    "custom": {"command": "python", "future": {"value": 1}}
+                },
+            }
+        )
+        original = config.to_dict()
+        expected = config.to_dict()
+        expected["mcpServers"]["marimo"] = MCP_PRESETS["marimo"].to_dict()
+
+        result = append_presets(config)
+
+        assert result.to_dict() == expected
+        assert config.to_dict() == original
+
     def test_preset_definitions_exist(self):
         """Test that expected presets are defined."""
         assert "marimo" in MCP_PRESETS

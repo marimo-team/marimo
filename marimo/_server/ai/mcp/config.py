@@ -10,6 +10,7 @@ from marimo._config.config_schema import (
     MCPServerStreamableHttpConfig,
 )
 from marimo._config.schema_utils import default_if_unset
+from marimo._config.utils import deep_copy
 from marimo._server.ai.mcp.transport import MCPTransportType
 
 if TYPE_CHECKING:
@@ -39,22 +40,20 @@ def append_presets(config: MCPConfig) -> MCPConfig:
     Returns:
         Updated configuration with presets appended to mcpServers
     """
-    from marimo._config.config_schema import MCPConfig
-
     presets_to_add = config.presets
     if not presets_to_add:
         return config
 
     # Create a copy to avoid mutating the original
-    updated_config = MCPConfig(mcpServers=config.mcpServers.copy())
+    updated_config = deep_copy(config)
 
     # Add preset servers if not already present
     for preset_name in presets_to_add:
         if preset_name not in updated_config.mcpServers:
             if preset_name in MCP_PRESETS:
-                updated_config.mcpServers[preset_name] = MCP_PRESETS[
-                    preset_name
-                ]
+                updated_config.mcpServers[preset_name] = deep_copy(
+                    MCP_PRESETS[preset_name]
+                )
 
     return updated_config
 

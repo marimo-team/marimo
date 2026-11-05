@@ -1,11 +1,53 @@
 from __future__ import annotations
 
 from marimo._config.config import PartialMarimoConfig
+from marimo._config.config_schema import MarimoConfig
 from marimo._config.secrets import (
     SECRET_PLACEHOLDER,
+    redact_secrets,
     redact_secrets_partial,
     remove_secret_placeholders,
 )
+
+
+def test_redact_typed_config() -> None:
+    config = MarimoConfig.from_dict(
+        {
+            "ai": {
+                "open_ai": {"api_key": "openai-secret"},
+                "custom_providers": {
+                    "gateway": {
+                        "api_key": "gateway-secret",
+                        "base_url": "https://example.com",
+                    }
+                },
+                "bedrock": {
+                    "aws_access_key_id": "access-key",
+                    "aws_secret_access_key": "secret-key",
+                },
+            },
+            "server": {"session_secret": "session-secret"},
+            "runtime": {"dotenv": [".env"]},
+            "signing": {"private_key_path": "private.pem"},
+        }
+    )
+    original = config.to_dict()
+    expected = config.to_dict()
+    expected["ai"]["open_ai"]["api_key"] = SECRET_PLACEHOLDER
+    expected["ai"]["custom_providers"]["gateway"]["api_key"] = (
+        SECRET_PLACEHOLDER
+    )
+    expected["ai"]["bedrock"]["aws_access_key_id"] = SECRET_PLACEHOLDER
+    expected["ai"]["bedrock"]["aws_secret_access_key"] = SECRET_PLACEHOLDER
+    expected["server"]["session_secret"] = SECRET_PLACEHOLDER
+    expected["signing"]["private_key_path"] = SECRET_PLACEHOLDER
+    del expected["runtime"]["dotenv"]
+
+    redacted = redact_secrets(config)
+
+    assert isinstance(redacted, MarimoConfig)
+    assert redacted.to_dict() == expected
+    assert config.to_dict() == original
 
 
 def test_mask_secrets() -> None:

@@ -676,10 +676,7 @@ async def run_notebook(
         runtime_overrides["cache_cells"] = True
     config_manager = get_default_config_manager(
         current_path=file_manager.path
-    ).with_overrides(
-        # We cast because we don't want to override the other config values.
-        {"runtime": runtime_overrides}
-    )
+    ).with_overrides({"runtime": runtime_overrides})
 
     # Create a session
     session_consumer = RunUntilCompletionSessionConsumer()

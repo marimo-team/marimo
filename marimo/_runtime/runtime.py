@@ -2365,8 +2365,9 @@ class Kernel:
             return
         # A settings update contains a full snapshot; only changed values are
         # new explicit overrides, not unchanged file/environment settings.
+        previous_config = self.user_config.to_dict()
         for path in config_paths(cast(dict[str, Any], request.config)):
-            before: Any = self.user_config.to_dict()
+            before: Any = previous_config
             after: Any = request.config
             for key in path:
                 before = before.get(key) if isinstance(before, dict) else None

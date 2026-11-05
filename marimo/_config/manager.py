@@ -716,11 +716,12 @@ class UserConfigStore(ConfigReader):
         # the UI clear optional scalars (e.g. ai.max_tokens) without a separate
         # delete primitive.
         _drop_none_values(merged)
+        validated_config = merge_default_config(merged)
 
         with open(config_path, "w", encoding="utf-8") as f:
             tomlkit.dump(merged, f, sort_keys=True)
 
-        return merge_default_config(merged)
+        return validated_config
 
     def save_config_if_missing(self) -> None:
         try:

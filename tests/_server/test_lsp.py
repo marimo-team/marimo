@@ -2,19 +2,18 @@ from __future__ import annotations
 
 import signal
 from pathlib import Path
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING, Any, Literal
 from unittest import mock
 
 import pytest
 
 from marimo._config.config import merge_default_config
 from marimo._config.config_schema import (
-    CompletionConfig,
-    LanguageServersConfig,
     MarimoConfig,
 )
 from marimo._config.manager import (
     MarimoConfigManager,
+    UserConfigStore,
     get_default_config_manager,
 )
 from marimo._loggers import get_log_directory
@@ -423,11 +422,17 @@ def test_composite_server_probes_loopback_ports():
     assert [lsp.port for lsp in server.servers.values()] == list(ports)[1:]
 
 
-def test_composite_server():
+def test_composite_server(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setattr(
+        UserConfigStore,
+        "get_config_path",
+        lambda _: str(tmp_path / ".marimo.toml"),
+    )
+
     def as_reader(
-        completion_config: CompletionConfig, config: LanguageServersConfig
+        completion_config: dict[str, Any], config: dict[str, Any]
     ) -> MarimoConfigManager:
-        return get_default_config_manager(current_path=None).with_overrides(
+        return MarimoConfigManager(UserConfigStore()).with_overrides(
             {
                 "completion": completion_config,
                 "language_servers": config,
@@ -439,21 +444,17 @@ def test_composite_server():
         mock_dm.pylsp = mock.MagicMock()
         mock_dm.pylsp.has.return_value = True
         total_lsp_servers = 5
-        language_config = LanguageServersConfig.from_dict(
-            {
-                "pylsp": {"enabled": True},
-                "ty": {"enabled": True},
-                "pyrefly": {"enabled": True},
-                "basedpyright": {"enabled": True},
-            }
-        )
-        completion_config = CompletionConfig.from_dict(
-            {
-                "copilot": True,
-                "activate_on_typing": True,
-                "signature_hint_on_typing": False,
-            }
-        )
+        language_config = {
+            "pylsp": {"enabled": True},
+            "ty": {"enabled": True},
+            "pyrefly": {"enabled": True},
+            "basedpyright": {"enabled": True},
+        }
+        completion_config = {
+            "copilot": True,
+            "activate_on_typing": True,
+            "signature_hint_on_typing": False,
+        }
         config_reader = as_reader(completion_config, language_config)
         config = config_reader.get_config()
         server = CompositeLspServer(config_reader, min_port=8000)
@@ -467,16 +468,12 @@ def test_composite_server():
         assert server._is_enabled(config, "basedpyright") is True
 
         # Test with only pylsp
-        language_config = LanguageServersConfig.from_dict(
-            {"pylsp": {"enabled": True}}
-        )
-        completion_config = CompletionConfig.from_dict(
-            {
-                "copilot": False,
-                "activate_on_typing": True,
-                "signature_hint_on_typing": False,
-            }
-        )
+        language_config = {"pylsp": {"enabled": True}}
+        completion_config = {
+            "copilot": False,
+            "activate_on_typing": True,
+            "signature_hint_on_typing": False,
+        }
         config_reader = as_reader(completion_config, language_config)
         config = config_reader.get_config()
         server = CompositeLspServer(config_reader, min_port=8000)
@@ -487,21 +484,17 @@ def test_composite_server():
         assert server._is_enabled(config, "pyrefly") is False
 
         # Test with only ty enabled
-        language_config = LanguageServersConfig.from_dict(
-            {
-                "ty": {"enabled": True},
-                "pylsp": {"enabled": False},
-                "basedpyright": {"enabled": False},
-                "pyrefly": {"enabled": False},
-            }
-        )
-        completion_config = CompletionConfig.from_dict(
-            {
-                "copilot": False,
-                "activate_on_typing": True,
-                "signature_hint_on_typing": False,
-            }
-        )
+        language_config = {
+            "ty": {"enabled": True},
+            "pylsp": {"enabled": False},
+            "basedpyright": {"enabled": False},
+            "pyrefly": {"enabled": False},
+        }
+        completion_config = {
+            "copilot": False,
+            "activate_on_typing": True,
+            "signature_hint_on_typing": False,
+        }
         config_reader = as_reader(completion_config, language_config)
         config = config_reader.get_config()
         server = CompositeLspServer(config_reader, min_port=8000)
@@ -513,21 +506,17 @@ def test_composite_server():
         assert server._is_enabled(config, "pyrefly") is False
 
         # Test with only basedpyright enabled
-        language_config = LanguageServersConfig.from_dict(
-            {
-                "basedpyright": {"enabled": True},
-                "pylsp": {"enabled": False},
-                "ty": {"enabled": False},
-                "pyrefly": {"enabled": False},
-            }
-        )
-        completion_config = CompletionConfig.from_dict(
-            {
-                "copilot": False,
-                "activate_on_typing": True,
-                "signature_hint_on_typing": False,
-            }
-        )
+        language_config = {
+            "basedpyright": {"enabled": True},
+            "pylsp": {"enabled": False},
+            "ty": {"enabled": False},
+            "pyrefly": {"enabled": False},
+        }
+        completion_config = {
+            "copilot": False,
+            "activate_on_typing": True,
+            "signature_hint_on_typing": False,
+        }
         config_reader = as_reader(completion_config, language_config)
         config = config_reader.get_config()
         server = CompositeLspServer(config_reader, min_port=8000)
@@ -539,21 +528,17 @@ def test_composite_server():
         assert server._is_enabled(config, "pyrefly") is False
 
         # Test with only pyrefly enabled
-        language_config = LanguageServersConfig.from_dict(
-            {
-                "pyrefly": {"enabled": True},
-                "pylsp": {"enabled": False},
-                "basedpyright": {"enabled": False},
-                "ty": {"enabled": False},
-            }
-        )
-        completion_config = CompletionConfig.from_dict(
-            {
-                "copilot": False,
-                "activate_on_typing": True,
-                "signature_hint_on_typing": False,
-            }
-        )
+        language_config = {
+            "pyrefly": {"enabled": True},
+            "pylsp": {"enabled": False},
+            "basedpyright": {"enabled": False},
+            "ty": {"enabled": False},
+        }
+        completion_config = {
+            "copilot": False,
+            "activate_on_typing": True,
+            "signature_hint_on_typing": False,
+        }
         config_reader = as_reader(completion_config, language_config)
         config = config_reader.get_config()
         server = CompositeLspServer(config_reader, min_port=8000)
@@ -565,16 +550,12 @@ def test_composite_server():
         assert server._is_enabled(config, "pyrefly") is True
 
         # Test with nothing enabled
-        language_config = LanguageServersConfig.from_dict(
-            {"pylsp": {"enabled": False}}
-        )
-        completion_config = CompletionConfig.from_dict(
-            {
-                "copilot": False,
-                "activate_on_typing": True,
-                "signature_hint_on_typing": False,
-            }
-        )
+        language_config = {"pylsp": {"enabled": False}}
+        completion_config = {
+            "copilot": False,
+            "activate_on_typing": True,
+            "signature_hint_on_typing": False,
+        }
         config_reader = as_reader(completion_config, language_config)
         config = config_reader.get_config()
         server = CompositeLspServer(config_reader, min_port=8000)

@@ -18,8 +18,6 @@ from pathlib import Path
 from typing import TYPE_CHECKING, cast
 from uuid import uuid4
 
-from msgspec import UNSET
-
 from marimo import _loggers
 from marimo._config.config_schema import VenvConfig
 from marimo._config.manager import MarimoConfigManager
@@ -343,7 +341,7 @@ class IPCKernelManagerImpl(KernelManager):
             # NB. With MARIMO_SANDBOX_AUTO the manifest picks the environment
             # per notebook, so a configured venv is honored even here.
             ignore_venv = self._sandbox and not GLOBAL_SETTINGS.SANDBOX_AUTO
-            if ignore_venv and venv_config.path is not UNSET:
+            if ignore_venv and venv_config.path:
                 echo(
                     "Warning: ignoring [tool.marimo.venv] in sandbox mode. "
                     "Use --no-sandbox to edit with the configured environment.",

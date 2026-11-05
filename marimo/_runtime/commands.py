@@ -572,10 +572,9 @@ class UpdateUserConfigCommand(Command):
     Updates global marimo configuration (runtime settings, display options, editor preferences).
 
     Attributes:
-        config: Complete user configuration.
+        config: User configuration dictionary, which may be a sparse patch.
     """
 
-    # MarimoConfig TypedDict
     config: PartialMarimoConfig
     # User-file saves apply only edited fields and retain higher-priority overrides.
     edited_paths: tuple[ConfigPath, ...] | None = None

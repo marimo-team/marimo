@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, Any, TypeVar, cast
 from unittest.mock import patch
 
 import pytest
+from msgspec import ValidationError
 
 from marimo._config.config import PartialMarimoConfig, merge_default_config
 from marimo._config.manager import (
@@ -141,6 +142,25 @@ def test_save_config_creates_missing_file(tmp_path: Path) -> None:
 
     assert config_path.is_file()
     assert saved.display.theme == "dark"
+
+
+@pytest.mark.parametrize("existing", [True, False])
+def test_invalid_config_is_not_saved(tmp_path: Path, existing: bool) -> None:
+    config_path = tmp_path / "marimo.toml"
+    original = '[display]\ntheme = "dark"\n'
+    if existing:
+        config_path.write_text(original)
+    store = UserConfigStore()
+    with patch.object(store, "get_config_path", return_value=str(config_path)):
+        with pytest.raises(ValidationError):
+            store.save_config(
+                {"completion": {"activate_on_typing": "invalid"}}
+            )
+
+    if existing:
+        assert config_path.read_text() == original
+    else:
+        assert not config_path.exists()
 
 
 def test_save_config_preserves_unreadable_file(tmp_path: Path) -> None:
