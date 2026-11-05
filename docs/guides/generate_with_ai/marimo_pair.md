@@ -18,6 +18,8 @@ notebook yourself, letting you pair program with the agent.
 
 ## Installation
 
+<!-- TODO: Update installation instructions once the standalone Pair CLI and MCP are released. Keep CLI commands and flags in agent-facing help. -->
+
 The marimo pair skill teaches your agent how to connect to running notebooks.
 Choose the installation method for your agent.
 
