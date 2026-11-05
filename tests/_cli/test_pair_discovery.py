@@ -128,7 +128,7 @@ def test_snapshot_deadline_includes_heartbeat_traffic(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     ticks = iter([0.0, 1.0, 10.0])
-    monkeypatch.setattr(discovery.time, "monotonic", lambda: next(ticks))
+    monkeypatch.setattr(discovery, "monotonic", lambda: next(ticks))
     lines = discovery._bounded_lines([b": ping\n", b": ping\n"])
     assert next(lines) == b": ping\n"
     with pytest.raises(TimeoutError):

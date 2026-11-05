@@ -4,9 +4,9 @@
 from __future__ import annotations
 
 import http.client
-import time
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
+from time import monotonic
 from typing import TYPE_CHECKING
 
 import msgspec
@@ -64,9 +64,9 @@ def list_running_notebooks(
 
 
 def _bounded_lines(lines: Iterable[bytes]) -> Iterator[bytes]:
-    deadline = time.monotonic() + _TIMEOUT
+    deadline = monotonic() + _TIMEOUT
     for line in lines:
-        if time.monotonic() >= deadline:
+        if monotonic() >= deadline:
             raise TimeoutError("The notebook catalog did not finish in time.")
         yield line
 
