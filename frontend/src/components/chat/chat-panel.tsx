@@ -98,6 +98,7 @@ import { getCodes } from "@/core/codemirror/copilot/getCodes";
 import { focusInputAndMoveToEnd } from "@/core/codemirror/utils";
 import ScrollToBottomButton from "./acp/scroll-to-bottom-button";
 import { useChatControllerId } from "./use-chat-controller-id";
+import { useChatGeneration } from "./use-chat-generation";
 
 // Default mode for the AI
 const DEFAULT_MODE = "ask";
@@ -627,7 +628,7 @@ const ChatPanelBody = () => {
     },
   );
 
-  const isLoading = status === "submitted" || status === "streaming";
+  const isLoading = useChatGeneration(status);
   // useEvent reads the latest loading state, even when called after an await
   // (e.g. resolving @-context) that outlives the original render's closure.
   const submitOrQueue = useEvent((parts: ChatMessagePart[]) => {

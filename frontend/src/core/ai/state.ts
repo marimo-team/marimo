@@ -36,6 +36,8 @@ export interface PendingAiPrompt {
 
 export const pendingAiPromptAtom = atom<PendingAiPrompt | null>(null);
 
+export const chatGenerationInProgressAtom = atom(false);
+
 const CHAT_OPTIONS_KEY = "marimo:ai:chatOptions";
 export const chatOptionsAtom = atomWithStorage<Required<ChatOptions>>(
   CHAT_OPTIONS_KEY,
