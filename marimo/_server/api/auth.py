@@ -24,6 +24,11 @@ if TYPE_CHECKING:
     from starlette.types import ASGIApp, Receive, Scope, Send
 
 from marimo._server.api.deps import AppState
+from marimo._server.host.auth import (
+    bearer_matches,
+    host_header_ok,
+    is_loopback,
+)
 
 LOGGER = _loggers.marimo_logger()
 TOKEN_QUERY_PARAM = "access_token"
@@ -38,6 +43,22 @@ def validate_auth(
 ) -> bool:
     state = AppState.from_app(conn.app)
     auth_token = str(state.session_manager.auth_token)
+
+    context = state.host_context
+    client = conn.scope.get("client")
+    if (
+        conn.scope.get("method") == "POST"
+        and conn.scope["path"] == state.base_url + "/api/kernel/execute"
+        and context is not None
+        and context.bridge.app_sessions is None
+        and context.token
+        and client is not None
+        and is_loopback(client[0])
+        and host_header_ok(conn.headers.get("host"), context.port)
+        and bearer_matches(conn.headers.get("Authorization"), context.token)
+    ):
+        # Local agent credentials must not become browser login cookies.
+        return True
 
     # Check for session cookie
     session_secret = getattr(conn.app.state, "session_secret", SESSION_SECRET)

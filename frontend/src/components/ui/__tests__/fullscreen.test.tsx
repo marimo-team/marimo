@@ -1,8 +1,50 @@
 /* Copyright 2026 Marimo. All rights reserved. */
-import { act, render } from "@testing-library/react";
+import { act, render, renderHook } from "@testing-library/react";
 import { useRef } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { useIsFullScreen } from "../fullscreen";
+import { useFullScreenClass, useIsFullScreen } from "../fullscreen";
+
+describe("useFullScreenClass", () => {
+  let fullscreenElement: Element | null = null;
+
+  beforeEach(() => {
+    fullscreenElement = null;
+    Object.defineProperty(document, "fullscreenElement", {
+      configurable: true,
+      get: () => fullscreenElement,
+    });
+  });
+
+  afterEach(() => {
+    Reflect.deleteProperty(document, "fullscreenElement");
+    document.documentElement.classList.remove("marimo-fullscreen");
+  });
+
+  it("reflects fullscreen state at mount and on entry and exit", () => {
+    fullscreenElement = document.body;
+    const { unmount } = renderHook(useFullScreenClass);
+    expect(document.documentElement).toHaveClass("marimo-fullscreen");
+
+    fullscreenElement = null;
+    act(() => document.dispatchEvent(new Event("fullscreenchange")));
+    expect(document.documentElement).not.toHaveClass("marimo-fullscreen");
+
+    fullscreenElement = document.body;
+    act(() => document.dispatchEvent(new Event("fullscreenchange")));
+    expect(document.documentElement).toHaveClass("marimo-fullscreen");
+    unmount();
+  });
+
+  it("removes the class and listener on unmount", () => {
+    fullscreenElement = document.body;
+    const { unmount } = renderHook(useFullScreenClass);
+    unmount();
+    expect(document.documentElement).not.toHaveClass("marimo-fullscreen");
+
+    act(() => document.dispatchEvent(new Event("fullscreenchange")));
+    expect(document.documentElement).not.toHaveClass("marimo-fullscreen");
+  });
+});
 
 const FullScreenFlag = ({ label }: { label: string }) => {
   const ref = useRef<HTMLDivElement>(null);

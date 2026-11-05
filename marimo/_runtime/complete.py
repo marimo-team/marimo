@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import ast
 import html
+import os
 import re
 import sys
 import time
@@ -344,6 +345,14 @@ def _get_completion_option(
     compute_type: bool = True,
 ) -> CompletionOption:
     name = completion.name
+    # jedi ends directory completions with `os.path.sep`. On Windows that is
+    # a backslash, which escapes the next character inside a normal string
+    # literal and breaks follow-up completions. A forward slash is valid on
+    # Windows too. Windows file names cannot contain a backslash, so a
+    # trailing one is always the separator and no `completion.type` check
+    # is needed. POSIX file names can contain a backslash, so leave those.
+    if os.path.sep == "\\" and name.endswith("\\"):
+        name = name[:-1] + "/"
     # `completion.type` triggers jedi inference and can be surprisingly
     # expensive on cold caches for heavy libraries (pandas, numpy, torch).
     # When callers are already over budget they pass `compute_type=False`, in

@@ -233,6 +233,31 @@ def test_a_run_completes_only_after_its_executions_and_reports_failures() -> (
     ] == ["failed"]
 
 
+def test_a_run_with_skipped_cells_succeeds() -> None:
+    executions = Executions()
+    executions.begin(run("r1"), "request")
+    executions.observe(planned("r1", ("e1", "a"), ("e2", "b")), RUNTIME)
+    for eid in ("e1", "e2"):
+        executions.observe(be.Started(protocol.ExecutionId(eid)), RUNTIME)
+    complete(executions, "e1")
+    complete(
+        executions,
+        "e2",
+        protocol.SkippedOutcome(
+            reason="upstream-stopped",
+            message="This cell wasn't run because an ancestor was stopped",
+            related=(),
+        ),
+    )
+    done = executions.observe(
+        be.Done(protocol.RunId("r1"), "succeeded"), RUNTIME
+    )
+    assert [
+        change.outcome for change in done if isinstance(change, protocol.Run)
+    ] == ["succeeded"]
+    assert executions.current(protocol.CellId("b")) is not None
+
+
 def test_interrupting_completes_everything_in_flight() -> None:
     executions = Executions()
     executions.begin(run("r1"), "request")

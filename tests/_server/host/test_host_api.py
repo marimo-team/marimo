@@ -275,10 +275,10 @@ async def test_only_loopback_names_are_admitted(
     ["\xb2", "1234\xb2", "\xb9\xb2\xb3"],
 )
 def test_latin1_superscripts_are_not_a_port(port: str) -> None:
-    from marimo._server.host.middleware import _host_header_ok
+    from marimo._server.host.auth import host_header_ok
 
     assert port.isdigit()
-    assert _host_header_ok(f"127.0.0.1:{port}", PORT) is False
+    assert host_header_ok(f"127.0.0.1:{port}", PORT) is False
 
 
 @pytest.mark.parametrize(
@@ -2484,3 +2484,22 @@ async def test_cell_runs_over_http(harness: Harness) -> None:
         harness.app, "POST", runs, headers=key("r3"), body=both
     )
     assert invalid.status == 400
+
+
+def test_legacy_execution_does_not_start_a_cataloged_notebook(
+    harness: Harness,
+) -> None:
+    with TestClient(
+        with_client_address(harness.app), base_url=f"http://{AUTHORITY}"
+    ) as client:
+        response = client.post(
+            "/api/kernel/execute",
+            headers={**AUTH, "Marimo-Stable-Session-Id": harness.notebook_id},
+            json={"code": "print('do not start')"},
+        )
+    assert response.status_code == 409
+    assert response.json() == {
+        "detail": "The notebook has no running session."
+    }
+    assert harness.backends == {}
+    assert "set-cookie" not in response.headers

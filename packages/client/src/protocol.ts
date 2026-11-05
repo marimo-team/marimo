@@ -353,7 +353,7 @@ export type LifecycleOutput = zod.output<typeof Lifecycle>;
 export const RunOutcome = zod
   .enum(["succeeded", "failed", "interrupted"])
   .describe(
-    "How a run ended. `succeeded` means its work settled without an\nexecution error or interruption. `failed` means an execution\nfailed or the host could not finish the cycle. `interrupted`\nmeans the cycle was cut short by interruption, even if an earlier\nexecution failed. Execution outcomes retain their individual results.\n",
+    "How a run ended. `succeeded` means its work settled without an\nexecution error or interruption. `failed` means an execution's\ncode raised or the host could not finish the cycle. An execution\nskipped because of another cell does not fail its run. `interrupted`\nmeans the cycle was cut short by interruption, even if an earlier\nexecution failed. Execution outcomes retain their individual results.\n",
   );
 
 export type RunOutcome = zod.input<typeof RunOutcome>;
@@ -575,10 +575,28 @@ export const InterruptedOutcome = zod.object({
 export type InterruptedOutcome = zod.input<typeof InterruptedOutcome>;
 export type InterruptedOutcomeOutput = zod.output<typeof InterruptedOutcome>;
 
+export const SkippedOutcome = zod.object({
+  kind: zod.enum(["skipped"]),
+  reason: zod
+    .string()
+    .describe(
+      "Why the cell did not evaluate. The string is open. This protocol\ndefines `upstream-failed`, a cell it depends on did not produce\nits value because it raised or could not resolve a reference, and\n`upstream-stopped`, a cell it depends on stopped the cycle on\npurpose. Clients show unrecognized reasons as skipped, with the\nmessage.\n",
+    ),
+  message: zod
+    .string()
+    .describe("Why the cell did not run, to show in place of its output."),
+  related: zod
+    .array(Related)
+    .describe("The cells involved, the cause first and this cell last."),
+});
+
+export type SkippedOutcome = zod.input<typeof SkippedOutcome>;
+export type SkippedOutcomeOutput = zod.output<typeof SkippedOutcome>;
+
 export const Outcome = zod
-  .union([ValueOutcome, ErrorOutcome, InterruptedOutcome])
+  .union([ValueOutcome, ErrorOutcome, InterruptedOutcome, SkippedOutcome])
   .describe(
-    "How an execution ended, tagged on `kind`. A `value` carries the\nexecution's value as last rendered; while the execution is\nrunning it is the value so far, and it is final once the\nexecution is `completed`. An `error` carries the error that ended it.\nAn `interrupted` execution was cancelled before or during execution. Other\nkinds are defined by later versions of this protocol.\n",
+    "How an execution ended, tagged on `kind`. A `value` carries the\nexecution's value as last rendered; while the execution is\nrunning it is the value so far, and it is final once the\nexecution is `completed`. An `error` carries the error that ended it.\nAn `interrupted` execution was cancelled before or during execution.\nA `skipped` execution did not evaluate because of another cell; it\nhas no value and binds no variables. Other kinds are defined by\nlater versions of this protocol.\n",
   );
 
 export type Outcome = zod.input<typeof Outcome>;

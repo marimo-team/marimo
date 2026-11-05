@@ -404,3 +404,114 @@ def test_partial_server_config_defaults_to_insecure_local_cookie() -> None:
         if item.cls is CustomSessionMiddleware
     )
     assert middleware.kwargs["https_only"] is False
+
+
+@pytest.mark.parametrize("base_url", ["", "/nested/marimo"])
+@pytest.mark.parametrize(
+    ("method", "path", "peer", "authority", "token", "allowed"),
+    [
+        (
+            "POST",
+            "/api/kernel/execute",
+            "127.0.0.1",
+            "localhost:1234",
+            "local-secret",
+            True,
+        ),
+        (
+            "POST",
+            "/api/kernel/execute",
+            "::1",
+            "[::1]:1234",
+            "local-secret",
+            True,
+        ),
+        (
+            "POST",
+            "/api/kernel/execute",
+            "10.0.0.1",
+            "localhost:1234",
+            "local-secret",
+            False,
+        ),
+        (
+            "POST",
+            "/api/kernel/execute",
+            "127.0.0.1",
+            "example.com:1234",
+            "local-secret",
+            False,
+        ),
+        (
+            "POST",
+            "/api/kernel/execute",
+            "127.0.0.1",
+            "localhost:1235",
+            "local-secret",
+            False,
+        ),
+        (
+            "POST",
+            "/api/kernel/execute",
+            "127.0.0.1",
+            "localhost:1234",
+            "wrong",
+            False,
+        ),
+        (
+            "GET",
+            "/api/sessions",
+            "127.0.0.1",
+            "localhost:1234",
+            "local-secret",
+            False,
+        ),
+        (
+            "POST",
+            "/api/kernel/run",
+            "127.0.0.1",
+            "localhost:1234",
+            "local-secret",
+            False,
+        ),
+        (
+            "GET",
+            "/api/kernel/execute",
+            "127.0.0.1",
+            "localhost:1234",
+            "local-secret",
+            False,
+        ),
+    ],
+)
+def test_local_credential_is_scoped_to_execution(
+    base_url: str,
+    method: str,
+    path: str,
+    peer: str,
+    authority: str,
+    token: str,
+    allowed: bool,
+) -> None:
+    from marimo._server.host.bridge import SessionBridge
+    from marimo._server.host.context import HostContext
+
+    app = _app_with_base_url(base_url)
+    app.state.host_context = HostContext(
+        bridge=SessionBridge(app.state.session_manager),
+        token="local-secret",
+        port=1234,
+    )
+    conn = create_connection(app)
+    conn.scope.update(
+        method=method,
+        path=base_url + path,
+        client=(peer, 5000),
+        session={},
+        headers=[
+            (b"host", authority.encode()),
+            (b"authorization", f"Bearer {token}".encode()),
+        ],
+    )
+    assert validate_auth(conn) is allowed
+    assert conn.session == {}

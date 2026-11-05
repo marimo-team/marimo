@@ -76,7 +76,7 @@ export function getRawPrompt(
   const authentication = token
     ? formatPrompt(
         templates?.token ??
-          "\n\nFor authenticated notebook discovery, set `export MARIMO_TOKEN={token}` in the shell that runs marimo.",
+          "\n\nFor explicit server authentication, set `export MARIMO_TOKEN={token}` in the shell that runs marimo.",
         { token: shellQuote(token) },
       )
     : "";
@@ -87,9 +87,13 @@ export function getRawPrompt(
       command,
       url,
       notebook: notebook
-        ? formatPrompt(templates?.notebook ?? "Notebook: {notebook}\n", {
-            notebook,
-          })
+        ? formatPrompt(
+            templates?.notebook ??
+              "Notebook: {notebook} (use --session for execution)\n",
+            {
+              notebook,
+            },
+          )
         : "",
       session:
         session && !notebook

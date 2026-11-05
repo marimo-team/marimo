@@ -103,13 +103,13 @@ describe("getRawPrompt", () => {
       },
     );
     expect(prompt).toBe(
-      "custom marimo\nhttp://host/{session}\nNotebook: {command}/it's\n" +
-        `\n\nFor authenticated notebook discovery, set \`export MARIMO_TOKEN='tok'"'"'en {session} $&'\` in the shell that runs marimo.`,
+      "custom marimo\nhttp://host/{session}\nNotebook: {command}/it's (use --session for execution)\n" +
+        `\n\nFor explicit server authentication, set \`export MARIMO_TOKEN='tok'"'"'en {session} $&'\` in the shell that runs marimo.`,
     );
   });
   it.each([
     [CONNECTION_WITHOUT_TARGET, ""],
-    [CONNECTION, "Notebook: nb-one\n"],
+    [CONNECTION, "Notebook: nb-one (use --session for execution)\n"],
     [
       { ...CONNECTION_WITHOUT_TARGET, session: "stable-one" },
       "Session: stable-one\n",

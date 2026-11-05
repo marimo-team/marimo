@@ -26,10 +26,13 @@ from marimo._core.protocol import (
     InterruptedOutcome,
     Revision,
     RunId,
+    SkippedOutcome,
     ValueOutcome,
 )
 from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._messaging.errors import (
+    MarimoAncestorPreventedError,
+    MarimoAncestorStoppedError,
     MarimoExceptionRaisedError,
     MarimoInterruptionError,
 )
@@ -319,6 +322,41 @@ def test_unsubmitted_runs_have_distinct_executions() -> None:
             ErrorOutcome,
             "failed",
         ),
+        (
+            MarimoExceptionRaisedError(
+                "An ancestor raised an exception (RuntimeError): ",
+                "Ancestor raised",
+                CellId_t("a"),
+            ),
+            SkippedOutcome,
+            "succeeded",
+        ),
+        (
+            MarimoExceptionRaisedError(
+                "Name `x` is not defined. It was expected to be defined in ",
+                "NameError",
+                CellId_t("a"),
+            ),
+            ErrorOutcome,
+            "failed",
+        ),
+        (
+            MarimoAncestorStoppedError(
+                "This cell wasn't run because an ancestor was stopped with `mo.stop`: ",
+                CellId_t("a"),
+            ),
+            SkippedOutcome,
+            "succeeded",
+        ),
+        (
+            MarimoAncestorPreventedError(
+                "This cell wasn't run because an ancestor failed to resolve the reference `x` : ",
+                CellId_t("a"),
+                CellId_t("b"),
+            ),
+            SkippedOutcome,
+            "succeeded",
+        ),
     ],
 )
 def test_skipped_cells_report_their_error_after_becoming_idle(
@@ -384,3 +422,78 @@ def test_planned_fingerprint_is_preserved_without_rehashing(
             ),
         )
     ]
+
+
+@pytest.mark.parametrize(
+    ("error", "reason", "related"),
+    [
+        (
+            MarimoAncestorStoppedError(
+                msg="This cell wasn't run because an ancestor was stopped with `mo.stop`: ",
+                raising_cell=CellId_t("a"),
+            ),
+            "upstream-stopped",
+            [("a", "Stopped with `mo.stop`"), ("c", "Did not run")],
+        ),
+        (
+            MarimoExceptionRaisedError(
+                msg="An ancestor raised an exception (RuntimeError): ",
+                exception_type="Ancestor raised",
+                raising_cell=CellId_t("a"),
+            ),
+            "upstream-failed",
+            [("a", "Raised an exception"), ("c", "Did not run")],
+        ),
+        (
+            MarimoAncestorPreventedError(
+                msg="This cell wasn't run because an ancestor failed to resolve the reference `x` : ",
+                raising_cell=CellId_t("a"),
+                blamed_cell=CellId_t("b"),
+            ),
+            "upstream-failed",
+            [
+                ("a", "Could not resolve a reference"),
+                ("b", "Expected to define it"),
+                ("c", "Did not run"),
+            ],
+        ),
+    ],
+)
+def test_a_skipped_cell_names_its_reason_and_the_cells_involved(
+    error: object, reason: str, related: list[tuple[str, str]]
+) -> None:
+    translator = RunTranslator(RunId("r1"), None)
+    translator.feed(
+        ExecutionNotification(
+            cell_id=CellId_t("c"),
+            run_id="r1",
+            execution_id="skipped",
+            phase="planned",
+            code="x",
+            code_fingerprint=code_fingerprint("x"),
+        )
+    )
+    translator.feed(
+        CellNotification(
+            cell_id=CellId_t("c"),
+            run_id="r1",
+            execution_id="skipped",
+            output=CellOutput.errors([error]),  # type: ignore[list-item]
+        )
+    )
+    [completed] = translator.feed(
+        ExecutionNotification(
+            cell_id=CellId_t("c"),
+            run_id="r1",
+            execution_id="skipped",
+            phase="completed",
+        )
+    )
+    assert isinstance(completed, Completed)
+    outcome = completed.outcome
+    assert isinstance(outcome, SkippedOutcome)
+    assert outcome.reason == reason
+    assert outcome.message.startswith(("This cell wasn't run", "An ancestor"))
+    assert not outcome.message.endswith((":", " "))
+    assert [(r.cell_id, r.message) for r in outcome.related] == related
+    assert translator.finish() == [Done(RunId("r1"), "succeeded")]

@@ -148,7 +148,11 @@ Notebook
 Runs and executions move through `queued`, `running`, and `completed`.
 Hosts MUST complete a run only after its executions have ended and scheduling
 for that cycle has finished. An error in one execution may occur while others
-are still working.
+are still working. An execution that did not evaluate because of another
+cell, such as a dependent of a cell that raised or that stopped the cycle on
+purpose, completes with the outcome `skipped`, which names the reason and the
+cells involved. A skipped execution has no value, binds no variables, and does
+not fail its run.
 
 An execution can also lead to a later run. For example, a cell may create a UI
 element that a user later interacts with, triggering reactive evaluation. That
@@ -253,8 +257,10 @@ if the variable's `update` is higher. An execution was edited if its
 by an outdated execution is outdated for the same reason. The first of replaced,
 updated, and edited that applies is why the result is **outdated**.
 
-A cell without an execution has no result to compare. Scratch executions run in
-a local namespace, bind no variables, and are not compared.
+A cell without an execution has no result to compare. A skipped execution
+records the dependencies it would have read and is compared like any other.
+Scratch executions run in a local namespace, bind no variables, and are not
+compared.
 
 For example, cell `k7f2` reads `x`, which cell `c3` binds.
 

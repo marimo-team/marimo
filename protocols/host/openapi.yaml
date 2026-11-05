@@ -1044,8 +1044,9 @@ components:
       type: string
       description: |
         How a run ended. `succeeded` means its work settled without an
-        execution error or interruption. `failed` means an execution
-        failed or the host could not finish the cycle. `interrupted`
+        execution error or interruption. `failed` means an execution's
+        code raised or the host could not finish the cycle. An execution
+        skipped because of another cell does not fail its run. `interrupted`
         means the cycle was cut short by interruption, even if an earlier
         execution failed. Execution outcomes retain their individual results.
       enum: [succeeded, failed, interrupted]
@@ -1216,18 +1217,22 @@ components:
         execution's value as last rendered; while the execution is
         running it is the value so far, and it is final once the
         execution is `completed`. An `error` carries the error that ended it.
-        An `interrupted` execution was cancelled before or during execution. Other
-        kinds are defined by later versions of this protocol.
+        An `interrupted` execution was cancelled before or during execution.
+        A `skipped` execution did not evaluate because of another cell; it
+        has no value and binds no variables. Other kinds are defined by
+        later versions of this protocol.
       oneOf:
         - $ref: '#/components/schemas/ValueOutcome'
         - $ref: '#/components/schemas/ErrorOutcome'
         - $ref: '#/components/schemas/InterruptedOutcome'
+        - $ref: '#/components/schemas/SkippedOutcome'
       discriminator:
         propertyName: kind
         mapping:
           value: '#/components/schemas/ValueOutcome'
           error: '#/components/schemas/ErrorOutcome'
           interrupted: '#/components/schemas/InterruptedOutcome'
+          skipped: '#/components/schemas/SkippedOutcome'
     ValueOutcome:
       type: object
       required: [kind, display]
@@ -1253,6 +1258,29 @@ components:
         kind:
           type: string
           enum: [interrupted]
+    SkippedOutcome:
+      type: object
+      required: [kind, reason, message, related]
+      properties:
+        kind:
+          type: string
+          enum: [skipped]
+        reason:
+          type: string
+          description: |
+            Why the cell did not evaluate. The string is open. This protocol
+            defines `upstream-failed`, a cell it depends on did not produce
+            its value because it raised or could not resolve a reference, and
+            `upstream-stopped`, a cell it depends on stopped the cycle on
+            purpose. Clients show unrecognized reasons as skipped, with the
+            message.
+        message:
+          type: string
+          description: Why the cell did not run, to show in place of its output.
+        related:
+          type: array
+          items: { $ref: '#/components/schemas/Related' }
+          description: The cells involved, the cause first and this cell last.
     Execution:
       type: object
       description: |

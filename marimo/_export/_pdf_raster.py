@@ -26,6 +26,7 @@ from marimo._export.requests import (
 from marimo._export.serialization import serialize_notebook_snapshot
 from marimo._schemas.export_options import HTMLExportOptions
 from marimo._types.ids import CellId_t
+from marimo._utils.asyncio_utils import run_on_proactor_loop
 from marimo._utils.paths import marimo_package_path
 
 if TYPE_CHECKING:
@@ -554,6 +555,7 @@ async def _wait_for_target_ready(
         return True
 
 
+@run_on_proactor_loop
 async def _capture_pngs_from_page(
     *,
     page_url: str,
