@@ -3,7 +3,6 @@
 import type { RequestPermissionResponse } from "@zed-industries/agent-client-protocol";
 import {
   CheckCircleIcon,
-  CheckIcon,
   Loader2,
   PlugIcon,
   ShieldCheckIcon,
@@ -46,13 +45,7 @@ export const SimpleAccordion: React.FC<SimpleAccordionProps> = ({
       case "error":
         return <XCircleIcon className="h-3 w-3 text-destructive" />;
       case "success":
-        return (
-          <CheckIcon
-            className="size-3 shrink-0"
-            strokeWidth={1.5}
-            aria-hidden={true}
-          />
-        );
+        return null;
       default:
         return defaultIcon;
     }
@@ -68,7 +61,7 @@ export const SimpleAccordion: React.FC<SimpleAccordionProps> = ({
       <AccordionItem value="tool-call" className="border-0">
         <AccordionTrigger
           className={cn(
-            "h-auto px-2 py-1 gap-2 rounded text-xs font-normal text-muted-foreground hover:bg-(--slate-2) hover:text-foreground hover:no-underline",
+            "h-auto pl-0 pr-2 py-1 gap-2 rounded text-xs font-normal text-muted-foreground hover:bg-(--slate-2) hover:text-foreground hover:no-underline",
             status === "error" && "text-destructive/80",
           )}
         >
