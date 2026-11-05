@@ -40,7 +40,7 @@ from marimo._export._nbconvert import (
     _render_webpdf,
     inline_pdf_assets,
     print_pdf,
-    run_playwright,
+    run_playwright_on_html,
 )
 from marimo._export._status import emit_pdf_export_status
 from marimo._export.dependencies import require_export_dependencies
@@ -652,13 +652,6 @@ class Exporter:
                 )
 
     @staticmethod
-    def _to_file_uri(path: str) -> str:
-        import os
-        from urllib.request import pathname2url
-
-        return f"file://{pathname2url(os.path.abspath(path))}"
-
-    @staticmethod
     def _slide_type_for_cell(cell: Any, include_inputs: bool) -> str:
         if include_inputs:
             return "slide"
@@ -677,9 +670,6 @@ class Exporter:
         filename: str | None = None,
     ) -> bytes | None:
         """Render slides notebook to PDF using Playwright async API."""
-        import os
-        import tempfile
-
         from nbconvert import SlidesExporter
 
         # Add slideshow metadata so each cell becomes a slide.
@@ -699,16 +689,7 @@ class Exporter:
 
         html_data = inline_pdf_assets(html_data, filename)
 
-        # Write HTML to a temp file for Playwright to load
-        with tempfile.NamedTemporaryFile(
-            suffix=".html", delete=False, mode="w", encoding="utf-8"
-        ) as f:
-            f.write(html_data)
-            temp_path = f.name
-
-        temp_uri = Exporter._to_file_uri(temp_path)
-
-        async def print_slides() -> bytes:
+        async def print_slides(url: str) -> bytes:
             from playwright.async_api import (  # type: ignore[import-not-found]
                 async_playwright,
             )
@@ -719,7 +700,7 @@ class Exporter:
                     page = await browser.new_page()
                     # ?print-pdf tells reveal.js to use a linear print layout
                     await page.goto(
-                        f"{temp_uri}?print-pdf",
+                        f"{url}?print-pdf",
                         wait_until="networkidle",
                     )
                     await page.evaluate(
@@ -754,13 +735,9 @@ class Exporter:
                 finally:
                     await browser.close()
 
-        try:
-            pdf_data = await asyncio.to_thread(run_playwright, print_slides())
-        finally:
-            try:
-                os.unlink(temp_path)
-            except OSError:
-                LOGGER.debug("Failed to remove temp slide HTML: %s", temp_path)
+        pdf_data = await asyncio.to_thread(
+            run_playwright_on_html, html_data, print_slides
+        )
 
         if not isinstance(pdf_data, bytes):
             LOGGER.error("Slides PDF data is not bytes: %s", pdf_data)

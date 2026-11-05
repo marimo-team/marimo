@@ -16,7 +16,7 @@ from marimo._dependencies.dependencies import DependencyManager
 from marimo._export._limits import MAX_VIRTUAL_FILE_INLINE_BYTES
 
 if TYPE_CHECKING:
-    from collections.abc import Coroutine
+    from collections.abc import Callable, Coroutine
 
     from traitlets.config import Config
 
@@ -109,13 +109,14 @@ async def print_pdf(page: Any, **options: Any) -> bytes:
     The PDF carries an outline (bookmarks) of the page's headings when
     Playwright is 1.42 or newer, the first release with `tagged` and `outline`.
     """
+    defaults: dict[str, Any] = {"print_background": True}
     if DependencyManager.playwright.has_at_version(
         min_version="1.42.0", quiet=True
     ):
         # Chromium builds the outline from the tagged structure tree, so
         # `outline` has no effect without `tagged`.
-        options = {"tagged": True, "outline": True, **options}
-    pdf: bytes = await page.pdf(print_background=True, **options)
+        defaults |= {"tagged": True, "outline": True}
+    pdf: bytes = await page.pdf(**(defaults | options))
     return pdf
 
 
@@ -160,12 +161,23 @@ def run_playwright(main: Coroutine[Any, Any, T]) -> T:
         return runner.run(main)
 
 
-def _print_webpdf(html: str) -> bytes:
+def run_playwright_on_html(
+    html: str, main: Callable[[str], Coroutine[Any, Any, T]]
+) -> T:
+    """Write `html` to a temporary file and run `main(file_url)` on it.
+
+    The file lives as long as this call, so a caller that stops waiting on a
+    worker thread cannot remove the page while Chromium still loads it.
+    """
     with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as directory:
         # Load from a file URL so Chromium can read `file://` resources.
-        path = Path(directory) / "notebook.html"
+        path = Path(directory) / "page.html"
         path.write_text(html, encoding="utf-8")
-        return run_playwright(_print_webpdf_async(path.as_uri()))
+        return run_playwright(main(path.as_uri()))
+
+
+def _print_webpdf(html: str) -> bytes:
+    return run_playwright_on_html(html, _print_webpdf_async)
 
 
 def _render_webpdf(

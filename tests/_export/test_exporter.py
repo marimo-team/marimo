@@ -7,6 +7,7 @@ import pathlib
 import re
 import sys
 import textwrap
+import threading
 from copy import deepcopy
 from dataclasses import replace
 from typing import TYPE_CHECKING, Any
@@ -2705,6 +2706,19 @@ async def test_print_pdf_requests_outline_on_supported_playwright(
     page.pdf.assert_awaited_once_with(**expected)
 
 
+async def test_print_pdf_lets_caller_options_override_defaults() -> None:
+    from marimo._export._nbconvert import print_pdf
+
+    page = AsyncMock()
+    page.pdf.return_value = b"%PDF-"
+    with patch.object(
+        DependencyManager.playwright, "has_at_version", return_value=False
+    ):
+        await print_pdf(page, print_background=False, scale=0.5)
+
+    page.pdf.assert_awaited_once_with(print_background=False, scale=0.5)
+
+
 class TestWebPDFPrinter:
     """Drive the WebPDF printer through a stand-in `playwright.async_api`."""
 
@@ -2769,6 +2783,50 @@ class TestWebPDFPrinter:
             assert _print_webpdf("<html></html>") == b"%PDF-"
 
         assert install.await_count == (0 if installed else 1)
+
+
+@pytest.mark.requires("nbformat")
+async def test_cancelled_slides_export_keeps_page_until_chromium_loads_it() -> (
+    None
+):
+    import nbformat
+
+    module, page = TestWebPDFPrinter._fake_playwright(sys.executable)
+    loading = threading.Event()
+    resume = threading.Event()
+    loaded = threading.Event()
+    page_existed: list[bool] = []
+
+    def goto(url: str, **_kwargs: Any) -> None:
+        loading.set()
+        resume.wait(10)
+        path = pathlib.Path(url2pathname(urlsplit(url).path))
+        page_existed.append(path.exists())
+        loaded.set()
+
+    page.goto.side_effect = goto
+    nbconvert = MagicMock()
+    nbconvert.SlidesExporter.return_value.from_notebook_node.return_value = (
+        "<html></html>",
+        {},
+    )
+    with patch.dict(
+        sys.modules, {"nbconvert": nbconvert, "playwright.async_api": module}
+    ):
+        export = asyncio.create_task(
+            Exporter._export_slides_as_pdf(
+                nbformat.v4.new_notebook(),  # type: ignore[no-untyped-call]
+                include_inputs=True,
+            )
+        )
+        assert await asyncio.to_thread(loading.wait, 10)
+        export.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await export
+        resume.set()
+        assert await asyncio.to_thread(loaded.wait, 10)
+
+    assert page_existed == [True]
 
 
 @pytest.mark.requires("nbformat", "nbconvert", "playwright")
