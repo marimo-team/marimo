@@ -50,14 +50,7 @@ instructions on how to configure each provider.
 marimo has built-in support for generating and refactoring code with LLMs.
 
 **Enabling AI code generation.** To enable AI code generation, first install
-required dependencies through the notebook settings.
-
-<div align="center">
-<figure>
-<img src="/_static/docs-ai-install.png" width="740px"/>
-<figcaption>Install required dependencies for AI generation through the notebook settings.</figcaption>
-</figure>
-</div>
+required dependencies under **Optional Dependencies** in **User settings**.
 
 Then configure your LLM provider through the AI tab in the settings menu; see
 the section on [connecting your LLM](#connecting-to-an-llm-provider) for detailed instructions.
@@ -110,13 +103,6 @@ focused. This opens a prompt box that has your cell's code as input.
 
 You can customize how the AI assistant behaves by adding rules in the marimo settings. These rules help ensure consistent code generation across all AI providers. You can find more information about marimo's supported plotting libraries and data handling in the [plotting guide](../working_with_data/plotting.md#plotting) and [working with data guide](../working_with_data/index.md).
 
-<div align="center">
-  <figure>
-    <img src="/_static/docs-ai-completion-custom-assist-rules.png"/>
-    <figcaption>Configure custom AI rules in settings</figcaption>
-  </figure>
-</div>
-
 For example, you can add rules about:
 
 * Preferred plotting libraries (matplotlib, plotly, altair)
@@ -158,14 +144,8 @@ The marimo editor natively supports [GitHub Copilot](https://copilot.github.com/
 an AI pair programmer, similar to VS Code:
 
 1. Install [Node.js](https://nodejs.org/en/download).
-2. Enable Copilot via the settings menu in the marimo editor.
-
-<div align="center">
-<figure>
-<img src="/_static/docs-ai-completion-gh.png" width="740px"/>
-<figcaption>Follow these instructions.</figcaption>
-</figure>
-</div>
+2. Open **User settings**, select **AI**, and choose **github** as the provider under **Copilot** in the **AI features** tab.
+3. Click **Sign in to GitHub Copilot** and follow the sign-in instructions.
 
 _GitHub Copilot is not yet available in our conda distribution; please install
 marimo using `pip`/`uv` if you need Copilot._

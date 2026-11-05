@@ -65,7 +65,7 @@ right corner:
 
 <picture>
   <source srcset="/_static/docs-notebook-settings-snapshotting.webp" type="image/webp">
-  <img src="/_static/docs-notebook-settings-snapshotting.jpg" alt="Notebook settings dialog showing the Exporting outputs section with HTML and ipynb checkboxes" style="max-width: 700px; width: 100%;" />
+  <img src="/_static/docs-notebook-settings-snapshotting.jpg" alt="Notebook settings showing Save cell outputs with HTML and IPYNB checkboxes" style="max-width: 700px; width: 100%;" />
 </picture>
 
 ## Render live previews of notebooks with our browser extension

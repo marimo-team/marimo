@@ -469,7 +469,7 @@ The chart builder toggle lets you rapidly develop charts using a GUI, while also
 
 ## Preferences {#preferences}
 
-When you run a SQL cell in marimo, you can get the output returned as a dataframe. If you have a preference for a specific dataframe library as a default you can configure the "default SQL output" in the user settings by going to the "Runtime" tab.
+When you run a SQL cell in marimo, you can get the output returned as a dataframe. To choose a default dataframe library, open **User settings**, select **Packages & Data**, and change **Default SQL output** in the **SQL** section.
 
 
 <div align="center">

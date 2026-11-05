@@ -404,7 +404,7 @@ marimo will automatically discover the database connection and display the datab
 
     SQL cell autocompletion relies on discovery so it may not work if the schema has not been discovered. You can either use the Data Sources panel and expand the schemas and tables you want which will register the autocompletion semantics, or change the config set above.
 
-    You can also change these settings through the notebook settings menu (gear icon), under **Packages & Data**:
+    You can also change these settings by opening the notebook settings menu (gear icon), selecting **User settings**, and going to **Packages & Data**:
 
     <img width="700" src="/_static/docs-sql-discovery-settings.png" alt="Database schema discovery settings" />
 
