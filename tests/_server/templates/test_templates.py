@@ -1520,7 +1520,7 @@ class TestReplaceAssetUrls(unittest.TestCase):
         )
 
 
-def test_pair_command_uses_running_python() -> None:
+def test_pair_modal_command_uses_marimo() -> None:
     template = (Path(__file__).parent / "data" / "index.html").read_text()
     with patch("sys.executable", "/my env/bin/python"):
         result = templates.notebook_page_template(
@@ -1534,4 +1534,4 @@ def test_pair_command_uses_running_python() -> None:
             config_overrides={},
         )
     config = parse_mount_config(result)["pairConfig"]
-    assert config["command"] == "'/my env/bin/python' -m marimo"
+    assert config["command"] == "marimo"
