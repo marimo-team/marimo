@@ -845,14 +845,42 @@ def test_path_completion_uses_forward_slash_for_directories(
 def test_get_completion_option_normalizes_backslash_without_type() -> None:
     completion = _FakeCompletion("User-data\\", raise_on_type=True)
 
-    option = _get_completion_option(
-        completion,
-        compute_completion_info=False,
-        compute_type=False,
-    )
+    with mock.patch("os.path.sep", "\\"):
+        option = _get_completion_option(
+            completion,
+            compute_completion_info=False,
+            compute_type=False,
+        )
 
     assert option.name == "User-data/"
     assert completion.type_access_count == 0
+
+
+@pytest.mark.parametrize("sep", ["/", "\\"])
+def test_get_completion_option_keeps_backslash_inside_name(sep: str) -> None:
+    completion = _FakeCompletion("report\\draft.csv", raise_on_type=True)
+
+    with mock.patch("os.path.sep", sep):
+        option = _get_completion_option(
+            completion,
+            compute_completion_info=False,
+            compute_type=False,
+        )
+
+    assert option.name == "report\\draft.csv"
+
+
+def test_get_completion_option_keeps_trailing_backslash_on_posix() -> None:
+    completion = _FakeCompletion("odd\\", raise_on_type=True)
+
+    with mock.patch("os.path.sep", "/"):
+        option = _get_completion_option(
+            completion,
+            compute_completion_info=False,
+            compute_type=False,
+        )
+
+    assert option.name == "odd\\"
 
 
 def test_parameter_completion_omits_full_function_docstring() -> None:
