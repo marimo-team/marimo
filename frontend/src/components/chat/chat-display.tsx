@@ -12,7 +12,7 @@ import React from "react";
 import { renderHTML } from "@/plugins/core/RenderHTML";
 import { logNever } from "@/utils/assertNever";
 import { Logger } from "@/utils/Logger";
-import { MarkdownRenderer } from "../markdown/markdown-renderer";
+import { ChatMarkdown } from "./chat-markdown";
 import { AttachmentRenderer, SourceChip } from "./chat-components";
 import { ReasoningAccordion } from "./reasoning-accordion";
 import { ToolActivityGroup } from "./tool-call/tool-activity-group";
@@ -120,7 +120,7 @@ export const renderUIMessage = ({
             </React.Fragment>
           );
         }
-        return <MarkdownRenderer key={index} content={part.text} />;
+        return <ChatMarkdown key={index} content={part.text} />;
       case "reasoning":
         return (
           <ReasoningAccordion

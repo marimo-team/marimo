@@ -2,7 +2,7 @@
 
 import { EditorView } from "@codemirror/view";
 import { useAtomValue } from "jotai";
-import { memo, Suspense, useState } from "react";
+import { createContext, memo, Suspense, useContext, useState } from "react";
 import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
 import {
   defaultRehypePlugins,
@@ -23,6 +23,8 @@ import { copyToClipboard } from "@/utils/copy";
 import "./markdown-renderer.css";
 
 const extensions = [EditorView.lineWrapping];
+
+const NotebookInsertionContext = createContext(true);
 
 interface CodeBlockProps {
   code: string;
@@ -96,6 +98,7 @@ const InsertCodeBlockButton = ({ code, language }: CodeBlockProps) => {
 
 const CodeBlock = ({ code, language }: CodeBlockProps) => {
   const { theme } = useTheme();
+  const allowNotebookInsertion = useContext(NotebookInsertionContext);
   const [value, setValue] = useState(code);
 
   if (value !== code) {
@@ -124,7 +127,9 @@ const CodeBlock = ({ code, language }: CodeBlockProps) => {
         <CopyButton size="xs" variant="outline" onClick={handleCopyCode}>
           Copy
         </CopyButton>
-        <InsertCodeBlockButton code={value} language={language} />
+        {allowNotebookInsertion && (
+          <InsertCodeBlockButton code={value} language={language} />
+        )}
       </div>
     </div>
   );
@@ -199,17 +204,27 @@ const useMathPlugin = () => {
   return plugins;
 };
 
-export const MarkdownRenderer = memo(({ content }: { content: string }) => {
-  const plugins = useMathPlugin();
-  return (
-    <Streamdown
-      components={COMPONENTS}
-      plugins={plugins}
-      rehypePlugins={REHYPE_PLUGINS}
-      className="mo-markdown-renderer"
-    >
-      {content}
-    </Streamdown>
-  );
-});
+export const MarkdownRenderer = memo(
+  ({
+    content,
+    allowNotebookInsertion = true,
+  }: {
+    content: string;
+    allowNotebookInsertion?: boolean;
+  }) => {
+    const plugins = useMathPlugin();
+    return (
+      <NotebookInsertionContext.Provider value={allowNotebookInsertion}>
+        <Streamdown
+          components={COMPONENTS}
+          plugins={plugins}
+          rehypePlugins={REHYPE_PLUGINS}
+          className="mo-markdown-renderer"
+        >
+          {content}
+        </Streamdown>
+      </NotebookInsertionContext.Provider>
+    );
+  },
+);
 MarkdownRenderer.displayName = "MarkdownRenderer";

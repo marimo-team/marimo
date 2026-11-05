@@ -2,7 +2,7 @@
 
 import { BotMessageSquareIcon } from "lucide-react";
 import React from "react";
-import { MarkdownRenderer } from "@/components/markdown/markdown-renderer";
+import { ChatMarkdown } from "./chat-markdown";
 import {
   Accordion,
   AccordionContent,
@@ -51,7 +51,7 @@ export const ReasoningAccordion: React.FC<ReasoningAccordionProps> = ({
         <AccordionContent className="pb-2 px-2">
           <div className="bg-muted/30 border border-muted/50 rounded-md p-3 text-muted-foreground relative">
             <div className="pr-6">
-              <MarkdownRenderer content={reasoning} />
+              <ChatMarkdown content={reasoning} />
             </div>
           </div>
         </AccordionContent>

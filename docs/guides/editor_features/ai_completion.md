@@ -1,33 +1,28 @@
 # In-editor AI assistance
 
-!!! tip "Using coding agents? Try marimo pair instead."
+> **Using coding agents? Try marimo pair instead.**
+>
+> To use coding agents such as Claude Code, Codex, or OpenCode, use [marimo
+> pair](../generate_with_ai/marimo_pair.md) instead.
 
-    This guide covers AI assistance built into the marimo editor.
-    To work with coding agents such as Claude Code or OpenCode, use [marimo
-    pair](../generate_with_ai/marimo_pair.md) instead.
+The marimo's built-in AI features let you:
 
-marimo's editor lets you use AI to author and modify your notebook. Use AI to:
-
-* generate new cells and refactor existing ones;
+* edit notebook code, run cells, and more using a chat interface;
+* refactor existing cells;
+* supply variable values as context;
 * complete code snippets with copilots.
 
-Unlike traditional assistants that only have access to the text of your
-program, marimo's assistant has access to the values of variables in memory,
-letting it code against your dataframe and database schemas.
+## Connecting to a provider
 
-This guide provides an overview of these features and how to configure them.
+Connect to an LLM provider through the notebook settings menu; both hosted and
+local providers are available. See the [LLM providers
+guide](../configuration/llm_providers.md) for detailed instructions.
 
-## Connecting to an LLM provider
-
-Connect to an LLM provider through the notebook settings menu; both
-commercial, open-source, and local providers are provided. See the [LLM
-providers guide](../configuration/llm_providers.md) for detailed instructions
-on how to configure each provider.
 
 ## Chat sidebar panel
 
 The chat panel in the sidebar lets you use AI to edit and generate
-notebook code, run cells, and more. The *Notebook access** selector lets
+notebook code, run cells, and more. The **Notebook access** selector lets
 you choose what the assistant can do:
 
 - **Read only**: The assistant can read notebook code, outputs, and variable previews.
@@ -35,7 +30,7 @@ you choose what the assistant can do:
 - **Full access**: The assistant can read, edit, and run cells, with Python scratchpad access.
 
 !!! warning "Full access can execute arbitrary Python code"
-    The assistant can execute arbitrary Python on your machine, and it can change
+    Full access lets models execute arbitrary Python on your machine, and it can change
     notebook cells and runtime state without review. These changes can be destructive.
 
 <video muted autoplay loop playsinline controls preload="metadata" width="100%"
