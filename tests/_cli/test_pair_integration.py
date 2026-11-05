@@ -336,3 +336,23 @@ def test_legacy_execute_accepts_the_local_credential(
     )
     assert result.success, result.stderr
     assert result.stdout == "local credential\n"
+
+
+def test_list_discovers_an_authenticated_running_notebook(
+    editor_server: PairTestServer,
+) -> None:
+    result = subprocess.run(
+        [sys.executable, "-m", "marimo", "pair", "list"],
+        capture_output=True,
+        text=True,
+        timeout=20,
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr
+    listing = json.loads(result.stdout)
+    [notebook] = [
+        n for n in listing["notebooks"] if n["id"] == editor_server.notebook_id
+    ]
+    assert notebook["status"] == "running"
+    assert notebook["path"].endswith(".py")
+    assert "pair-editor-private-token" not in result.stdout

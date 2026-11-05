@@ -23,9 +23,9 @@ from marimo._cli.pair.client import (
     NoNotebookError,
     NotebookUnsupportedError,
     PairError,
-    PairInputError,
     StaleNotebookError,
 )
+from marimo._cli.pair.discovery import Listing
 
 _runner = CliRunner()
 
@@ -62,14 +62,14 @@ Usage: main pair [OPTIONS] COMMAND [ARGS]...
 
   Authentication:
     Notebook discovery uses the editor token. Pass --token-file <PATH> to
-    notebook list or execute without --notebook when a token is required.
+    pair list or execute without --notebook when a token is required.
     Host commands read their token from the private local host record.
 
   Workflow:
     If no server is running, start one in the background:
       marimo edit <notebook.py> --no-token
     If you do not have the server URL or notebook ID:
-      marimo pair notebook list
+      marimo pair list
     Connect to the notebook before waiting for work.
     Run marimo pair connect --help to check supported harnesses.
     If your harness is supported, run:
@@ -135,12 +135,12 @@ Options:
   -h, --help  Show this message and exit.
 
 Commands:
-  connect   Connect this harness inbox to a live...
-  detach    Stop the forwarder and detach its notebook...
-  docs      Read notebook guidance on demand.
-  execute   Run Python in a live notebook.
-  notebook  Find active notebooks and their IDs.
-  prompt    Generate a prompt for pair programming on...
+  connect  Connect this harness inbox to a live...
+  detach   Stop the forwarder and detach its notebook...
+  docs     Read notebook guidance on demand.
+  execute  Run Python in a live notebook.
+  list     List active notebooks and their host IDs.
+  prompt   Generate a prompt for pair programming on...
 """)
 
     def test_prompt_help(self) -> None:
@@ -176,8 +176,8 @@ Usage: main pair execute [OPTIONS]
 
 Options:
   --url URL          Server URL.  [required]
-  --notebook ID      Host notebook_id from marimo pair notebook list.
-  --session TEXT     Stable Session ID from notebook list. Host execution is
+  --notebook ID      Host notebook_id from marimo pair list.
+  --session TEXT     Stable Session ID from pair list. Host execution is
                      preferred when available.
   --token-file PATH  Read the server token from a local file.
   -c TEXT            Inline Python.
@@ -563,8 +563,8 @@ Options:
         assert result.stdout == ""
         assert result.stderr == (
             "error: No notebook s_old on http://one. "
-            "Run notebook list to find the current host notebook.\n"
-            "  next: marimo pair notebook list --url http://one\n"
+            "Run pair list to find the current host notebook.\n"
+            "  next: marimo pair list --url http://one\n"
         )
 
     def test_execute_auth_failure_has_token_next(
@@ -612,7 +612,7 @@ Options:
         assert result.exit_code == 2
         payload = json.loads(result.output)
         assert payload["error"] == "The server URL must use http or https."
-        assert payload["next"].endswith("marimo pair notebook list")
+        assert payload["next"].endswith("marimo pair list")
 
     def test_execute_reports_pair_error(
         self, monkeypatch: pytest.MonkeyPatch
@@ -846,9 +846,7 @@ Options:
         payload = json.loads(result.output)
         assert payload["success"] is False
         assert payload["error"] == "No running session on http://one."
-        assert payload["next"].endswith(
-            "marimo pair notebook list --url http://one"
-        )
+        assert payload["next"].endswith("marimo pair list --url http://one")
         assert payload["notebook"] == {"id": None}
         assert "password" not in result.output
         assert "secret" not in result.output
@@ -956,11 +954,9 @@ Options:
         payload = json.loads(result.output)
         assert payload["error"] == (
             "No notebook sess-old on http://one. "
-            "Run notebook list to find the current host notebook."
+            "Run pair list to find the current host notebook."
         )
-        assert payload["next"].endswith(
-            "marimo pair notebook list --url http://one"
-        )
+        assert payload["next"].endswith("marimo pair list --url http://one")
         assert "password" not in result.output
         assert "secret" not in result.output
 
@@ -1032,30 +1028,12 @@ rich-representations  Rich Representations
 
 
 class TestPairNotebooks:
-    def test_notebook_help(self) -> None:
-        result = _runner.invoke(cli_main, ["pair", "notebook", "--help"])
+    def test_list_help(self) -> None:
+        result = _runner.invoke(cli_main, ["pair", "list", "--help"])
 
         assert result.exit_code == 0
         assert result.output == snapshot("""\
-Usage: main pair notebook [OPTIONS] COMMAND [ARGS]...
-
-  Find active notebooks and their IDs.
-
-Options:
-  -h, --help  Show this message and exit.
-
-Commands:
-  list  List active notebooks and their host IDs.
-""")
-
-    def test_notebook_list_help(self) -> None:
-        result = _runner.invoke(
-            cli_main, ["pair", "notebook", "list", "--help"]
-        )
-
-        assert result.exit_code == 0
-        assert result.output == snapshot("""\
-Usage: main pair notebook list [OPTIONS]
+Usage: main pair list [OPTIONS]
 
   List active notebooks and their host IDs.
 
@@ -1089,7 +1067,7 @@ Options:
 
         result = _runner.invoke(
             cli_main,
-            ["pair", "notebook", "list", "--url", "http://one"],
+            ["pair", "list", "--url", "http://one"],
         )
 
         assert result.exit_code == 0
@@ -1120,7 +1098,6 @@ Options:
             cli_main,
             [
                 "pair",
-                "notebook",
                 "list",
                 "--url",
                 "http://one",
@@ -1141,7 +1118,6 @@ Options:
             cli_main,
             [
                 "pair",
-                "notebook",
                 "list",
                 "--url",
                 "http://one",
@@ -1157,7 +1133,7 @@ Options:
     def test_list_rejects_invalid_explicit_url(self) -> None:
         result = _runner.invoke(
             cli_main,
-            ["pair", "notebook", "list", "--url", "ftp://invalid"],
+            ["pair", "list", "--url", "ftp://invalid"],
         )
 
         assert result.exit_code == 2
@@ -1187,7 +1163,6 @@ Options:
             cli_main,
             [
                 "pair",
-                "notebook",
                 "list",
                 "--url",
                 "http://two",
@@ -1226,7 +1201,7 @@ Options:
 
         result = _runner.invoke(
             cli_main,
-            ["pair", "notebook", "list", "--url", "http://one"],
+            ["pair", "list", "--url", "http://one"],
         )
 
         assert result.exit_code == 0
@@ -1261,7 +1236,6 @@ Options:
             cli_main,
             [
                 "pair",
-                "notebook",
                 "list",
                 "--url",
                 "http://bad",
@@ -1314,7 +1288,7 @@ Options:
         monkeypatch.setattr(commands, "list_sessions", fake_list_sessions)
         result = _runner.invoke(
             cli_main,
-            ["pair", "notebook", "list", "--url", raw_url],
+            ["pair", "list", "--url", raw_url],
         )
 
         assert result.exit_code == 0
@@ -1324,29 +1298,6 @@ Options:
         }
         assert "password" not in result.output
         assert "secret" not in result.output
-
-    def test_list_warns_for_invalid_discovered_url(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        def fail_list_sessions(**_kwargs: Any) -> None:
-            raise PairInputError("The server URL must use http or https.")
-
-        monkeypatch.setattr(commands, "registry_urls", lambda: ["ftp://bad"])
-        monkeypatch.setattr(commands, "list_sessions", fail_list_sessions)
-
-        result = _runner.invoke(cli_main, ["pair", "notebook", "list"])
-
-        assert result.exit_code == 0
-        payload = json.loads(result.output)
-        assert payload["notebooks"] == []
-        assert payload["warnings"] == [
-            (
-                "Server ftp://bad could not be read: "
-                "The server URL must use http or https."
-            )
-        ]
-        assert payload["next"].startswith("No sessions found.")
-        assert "marimo edit <notebook.py> --no-token" in payload["next"]
 
     def test_list_warns_when_server_has_no_stable_sessions(
         self, monkeypatch: pytest.MonkeyPatch
@@ -1358,7 +1309,7 @@ Options:
 
         result = _runner.invoke(
             cli_main,
-            ["pair", "notebook", "list", "--url", "http://one"],
+            ["pair", "list", "--url", "http://one"],
         )
 
         assert result.exit_code == 0
@@ -1371,24 +1322,19 @@ Options:
             )
         ]
 
-    def test_list_empty_registry_succeeds(
+    def test_list_empty_discovery_succeeds(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        monkeypatch.setattr(commands, "registry_urls", list)
         monkeypatch.setattr(
-            commands,
-            "list_sessions",
-            lambda **_kwargs: pytest.fail("No server should be queried"),
+            commands, "list_running_notebooks", lambda: Listing([], [])
         )
-
-        result = _runner.invoke(cli_main, ["pair", "notebook", "list"])
-
+        result = _runner.invoke(cli_main, ["pair", "list"])
         assert result.exit_code == 0
-        payload = json.loads(result.output)
-        assert payload["notebooks"] == []
-        assert payload["warnings"] == []
-        assert payload["next"].startswith("No sessions found.")
-        assert "marimo edit <notebook.py> --no-token" in payload["next"]
+        assert json.loads(result.output) == {
+            "notebooks": [],
+            "warnings": [],
+            "next": "No running notebooks found. Open a notebook with `marimo edit <notebook.py>`, then run `marimo pair list` again.",
+        }
 
     def test_list_uses_token_only_for_explicit_urls(
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
@@ -1411,14 +1357,13 @@ Options:
         monkeypatch.setattr(commands, "load_token", fake_load_token)
         monkeypatch.setattr(commands, "list_sessions", fake_list_sessions)
         monkeypatch.setattr(
-            commands, "registry_urls", lambda: ["http://discovered"]
+            commands, "list_running_notebooks", lambda: Listing([], [])
         )
 
         discovered = _runner.invoke(
             cli_main,
             [
                 "pair",
-                "notebook",
                 "list",
                 "--token-file",
                 str(token_file),
@@ -1428,7 +1373,6 @@ Options:
             cli_main,
             [
                 "pair",
-                "notebook",
                 "list",
                 "--url",
                 "http://explicit",
@@ -1441,7 +1385,6 @@ Options:
         assert explicit.exit_code == 0
         assert load_calls == [token_file]
         assert session_calls == [
-            ("http://discovered", None),
             ("http://explicit", "secret"),
         ]
 
