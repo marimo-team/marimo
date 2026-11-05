@@ -432,7 +432,7 @@ def test_planned_fingerprint_is_preserved_without_rehashing(
                 msg="This cell wasn't run because an ancestor was stopped with `mo.stop`: ",
                 raising_cell=CellId_t("a"),
             ),
-            "ancestor-stopped",
+            "upstream-stopped",
             [("a", "Stopped with `mo.stop`"), ("c", "Did not run")],
         ),
         (
@@ -441,7 +441,7 @@ def test_planned_fingerprint_is_preserved_without_rehashing(
                 exception_type="Ancestor raised",
                 raising_cell=CellId_t("a"),
             ),
-            "ancestor-raised",
+            "upstream-failed",
             [("a", "Raised an exception"), ("c", "Did not run")],
         ),
         (
@@ -450,7 +450,7 @@ def test_planned_fingerprint_is_preserved_without_rehashing(
                 raising_cell=CellId_t("a"),
                 blamed_cell=CellId_t("b"),
             ),
-            "ancestor-prevented",
+            "upstream-failed",
             [
                 ("a", "Could not resolve a reference"),
                 ("b", "Expected to define it"),

@@ -580,7 +580,7 @@ export const SkippedOutcome = zod.object({
   reason: zod
     .string()
     .describe(
-      "Why the cell did not evaluate. Open; this protocol defines\n`ancestor-stopped` for an ancestor that stopped the cycle on\npurpose, `ancestor-raised` for an ancestor that raised, and\n`ancestor-prevented` for an ancestor that could not resolve a\nreference. Clients show unrecognized reasons as skipped, with\nthe message.\n",
+      "Why the cell did not evaluate. The string is open. This protocol\ndefines `upstream-failed`, a cell it depends on did not produce\nits value because it raised or could not resolve a reference, and\n`upstream-stopped`, a cell it depends on stopped the cycle on\npurpose. Clients show unrecognized reasons as skipped, with the\nmessage.\n",
     ),
   message: zod
     .string()

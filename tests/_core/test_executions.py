@@ -244,7 +244,7 @@ def test_a_run_with_skipped_cells_succeeds() -> None:
         executions,
         "e2",
         protocol.SkippedOutcome(
-            reason="ancestor-stopped",
+            reason="upstream-stopped",
             message="This cell wasn't run because an ancestor was stopped",
             related=(),
         ),
