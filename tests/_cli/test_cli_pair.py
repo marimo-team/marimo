@@ -1437,19 +1437,20 @@ class TestPairPrompt:
         assert "--token-file" not in result.stdout
 
     @pytest.mark.parametrize(
-        "executable", ["/env/bin/python", "/my env/bin/python"]
+        ("editable", "command"),
+        [(True, "uv run marimo"), (False, "uvx marimo@latest")],
     )
-    def test_uses_existing_marimo_installation(
-        self, monkeypatch: pytest.MonkeyPatch, executable: str
+    def test_installation_command(
+        self, monkeypatch: pytest.MonkeyPatch, editable: bool, command: str
     ) -> None:
-        monkeypatch.setattr(sys, "executable", executable)
+        monkeypatch.setattr(
+            "marimo._cli.pair.prompts.is_editable", lambda _: editable
+        )
         result = _runner.invoke(
             cli_main, ["pair", "prompt", "--url", TEST_URL]
         )
         assert result.exit_code == 0
-        command = f"{shlex.quote(sys.executable)} -m marimo"
-        assert f"Run `{command} pair --help` first." in result.output
-        assert f"Use `{command}` for all marimo commands." in result.output
+        assert f"{command} pair --help" in result.output
 
 
 @pytest.mark.parametrize("agent", ["--claude", "--codex", "--opencode"])

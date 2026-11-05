@@ -12,7 +12,7 @@ from textwrap import dedent
 from typing import TYPE_CHECKING, Any, Literal, cast
 
 from marimo._ast.app_config import _AppConfig
-from marimo._cli.pair.prompts import load_prompt_templates
+from marimo._cli.pair.prompts import get_pair_command, load_prompt_templates
 from marimo._config.config import MarimoConfig, PartialMarimoConfig
 from marimo._convert.common.filename import parse_title
 from marimo._convert.converters import MarimoConvert
@@ -156,7 +156,7 @@ def _render_page_config(
 
     pair_config = json_script(
         {
-            "command": "marimo",
+            "command": get_pair_command(),
             "templates": asdict(load_prompt_templates()),
             "hostEnabled": mode == "edit",
         }

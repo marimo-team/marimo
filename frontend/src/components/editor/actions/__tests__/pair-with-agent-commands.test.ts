@@ -5,6 +5,7 @@ import { PAIR_CONFIG } from "@/__tests__/fixtures/pair-config";
 import { shellQuote } from "@/utils/shell";
 import {
   type ConnectionInfo,
+  getMarimoCommand,
   getRawPrompt,
   getTerminalCommand,
   maskToken,
@@ -81,7 +82,7 @@ describe("getTerminalCommand", () => {
       CONNECTION_WITHOUT_TARGET,
       false,
     );
-    expect(command).toContain("marimo pair prompt");
+    expect(command).toContain(`${getMarimoCommand()} pair prompt`);
     expect(command).not.toMatch(
       /--claude|MARIMO_PAIR_NEXT|--file|--session|--notebook/,
     );
@@ -123,7 +124,10 @@ describe("getRawPrompt", () => {
   });
   it("matches the shared prompt without injected templates", () => {
     expect(getRawPrompt(CONNECTION, "secret-token")).toBe(
-      getRawPrompt(CONNECTION, "secret-token", PAIR_CONFIG),
+      getRawPrompt(CONNECTION, "secret-token", {
+        ...PAIR_CONFIG,
+        command: getMarimoCommand(),
+      }),
     );
   });
 });

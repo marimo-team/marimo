@@ -813,6 +813,12 @@ class TestHomePageTemplate(unittest.TestCase):
 
 class TestStaticNotebookTemplate(unittest.TestCase):
     def setUp(self) -> None:
+        editable = patch(
+            "marimo._cli.pair.prompts.is_editable", return_value=True
+        )
+        editable.start()
+        self.addCleanup(editable.stop)
+
         tmp_path = Path(tempfile.mkdtemp())
         self.tmp_path = tmp_path
         root = Path(__file__).parent / "data"
@@ -1520,9 +1526,13 @@ class TestReplaceAssetUrls(unittest.TestCase):
         )
 
 
-def test_pair_modal_command_uses_marimo() -> None:
+@pytest.mark.parametrize(
+    ("editable", "command"),
+    [(True, "uv run marimo"), (False, "uvx marimo@latest")],
+)
+def test_pair_modal_command(editable: bool, command: str) -> None:
     template = (Path(__file__).parent / "data" / "index.html").read_text()
-    with patch("sys.executable", "/my env/bin/python"):
+    with patch("marimo._cli.pair.prompts.is_editable", return_value=editable):
         result = templates.notebook_page_template(
             html=template,
             base_url="",
@@ -1534,4 +1544,4 @@ def test_pair_modal_command_uses_marimo() -> None:
             config_overrides={},
         )
     config = parse_mount_config(result)["pairConfig"]
-    assert config["command"] == "marimo"
+    assert config["command"] == command

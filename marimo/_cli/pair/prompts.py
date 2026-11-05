@@ -2,11 +2,15 @@
 from __future__ import annotations
 
 import shlex
-import sys
 from dataclasses import dataclass
 from pathlib import Path
 
 from marimo._utils.parse_dataclass import parse_raw
+from marimo._utils.versions import is_editable
+
+
+def get_pair_command() -> str:
+    return "uv run marimo" if is_editable("marimo") else "uvx marimo@latest"
 
 
 @dataclass(frozen=True)
@@ -25,11 +29,6 @@ def load_prompt_templates() -> PromptTemplates:
     )
 
 
-def get_marimo_command() -> str:
-    """Use the running installation without requiring an activated environment."""
-    return f"{shlex.quote(sys.executable)} -m marimo"
-
-
 def render_prompt(
     *,
     url: str,
@@ -39,7 +38,7 @@ def render_prompt(
 ) -> str:
     templates = load_prompt_templates()
     return templates.prompt.format(
-        command=get_marimo_command(),
+        command=get_pair_command(),
         url=url,
         notebook=(
             templates.notebook.format(notebook=notebook_id)

@@ -17,6 +17,10 @@ export const AGENT_LABELS: Record<AgentTab, string> = {
   prompt: "Other Agents",
 };
 
+export function getMarimoCommand(): string {
+  return import.meta.env.DEV ? "uv run marimo" : "uvx marimo@latest";
+}
+
 /** Identifies the specific running notebook to pair on. */
 export interface ConnectionInfo {
   url: string;
@@ -36,7 +40,7 @@ export function getTerminalCommand(
   withToken: boolean,
   config?: PairConfig,
 ): string {
-  const command = config?.command ?? "marimo";
+  const command = config?.command ?? getMarimoCommand();
   const base = [
     `${command} pair prompt`,
     `--url ${shellQuote(url)}`,
@@ -71,7 +75,7 @@ export function getRawPrompt(
   token: string | null,
   config?: PairConfig,
 ): string {
-  const command = config?.command ?? "marimo";
+  const command = config?.command ?? getMarimoCommand();
   const templates = config?.templates;
   const authentication = token
     ? formatPrompt(
