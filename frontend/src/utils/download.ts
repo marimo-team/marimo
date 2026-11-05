@@ -178,33 +178,18 @@ export async function downloadHTMLAsImage(opts: {
   }
 }
 
+// mo.download supports arbitrary file formats, so a MIME allowlist is too restrictive.
 const NON_DOWNLOAD_DATA_TYPES = new Set([
   "text/html",
   "text/xml",
   "application/xml",
-  // JavaScript MIME types, including legacy aliases.
-  // https://mimesniff.spec.whatwg.org/#javascript-mime-type
-  "application/ecmascript",
-  "application/javascript",
-  "application/x-ecmascript",
-  "application/x-javascript",
-  "text/ecmascript",
-  "text/javascript",
-  "text/javascript1.0",
-  "text/javascript1.1",
-  "text/javascript1.2",
-  "text/javascript1.3",
-  "text/javascript1.4",
-  "text/javascript1.5",
   "text/jscript",
   "text/livescript",
-  "text/x-ecmascript",
-  "text/x-javascript",
   "text/vbscript",
 ]);
 
-export function isDownloadUrl(url: string): boolean {
-  if (!url.trim()) {
+export function isDownloadUrl(url: unknown): url is string {
+  if (typeof url !== "string" || !url.trim()) {
     return false;
   }
   try {
@@ -231,6 +216,10 @@ export function isDownloadUrl(url: string): boolean {
         return (
           /^[\w!#$%&'*+.^`|~-]+\/[\w!#$%&'*+.^`|~-]+$/.test(mimeType) &&
           !NON_DOWNLOAD_DATA_TYPES.has(mimeType) &&
+          // Include versioned and x- aliases without enumerating each version.
+          !/^(?:text|application)\/(?:x-)?(?:java|ecma)script(?:\d+(?:\.\d+)*)?$/.test(
+            mimeType,
+          ) &&
           !mimeType.endsWith("+xml")
         );
       }
@@ -249,14 +238,20 @@ export function downloadByURL(url: string, filename?: string) {
   const a = document.createElement("a");
   a.href = url;
   a.download = filename ?? "";
-  a.click();
-  a.remove();
+  try {
+    a.click();
+  } finally {
+    a.remove();
+  }
 }
 
 export function downloadBlob(blob: Blob, filename: string) {
   const url = URL.createObjectURL(blob);
-  downloadByURL(url, filename);
-  URL.revokeObjectURL(url);
+  try {
+    downloadByURL(url, filename);
+  } finally {
+    URL.revokeObjectURL(url);
+  }
 }
 
 export function downloadExportedFile({

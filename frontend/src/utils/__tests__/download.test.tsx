@@ -11,6 +11,7 @@ import {
   downloadExportedFile,
   downloadHTMLAsImage,
   getImageDataUrlForCell,
+  isDownloadUrl,
   withLoadingToast,
 } from "../download";
 
@@ -633,6 +634,9 @@ describe("downloadByURL", () => {
     "data:,hello",
     "data:;base64,aGVsbG8=",
     "data:text/plain,",
+    "data:text/plain,javascript:alert(1)",
+    "data:text/plain,hello?name=world#fragment",
+    "data:application/javascript-source,source%20code",
     " https://example.com/results.csv ",
   ])("downloads %s without an explicit filename", (url) => {
     downloadByURL(url);
@@ -693,28 +697,92 @@ describe("downloadByURL", () => {
     expect(mockAnchor.click).not.toHaveBeenCalled();
   });
 
-  it("downloads an exported file with its returned metadata", async () => {
-    let downloadedBlob: Blob | undefined;
-    vi.stubGlobal(
-      "URL",
-      class extends URL {
-        public static override createObjectURL = vi.fn((blob: Blob) => {
-          downloadedBlob = blob;
-          return "blob:export";
-        });
-        public static override revokeObjectURL = vi.fn();
-      },
-    );
+  it.each(Array.from({ length: 33 }, (_, code) => code))(
+    "rejects a script scheme with leading ASCII character %i",
+    (code) => {
+      const url = `${String.fromCharCode(code)}JaVa\nScRi\tPt:alert(1)`;
+      expect(() => downloadByURL(url)).toThrow("Unsupported download URL");
+      expect(document.createElement).not.toHaveBeenCalled();
+    },
+  );
 
-    downloadExportedFile({
-      contents: "notebook",
-      filename: "résumé.qmd",
-      mediaType: "text/plain; charset=utf-8",
-    });
-
-    expect(downloadedBlob?.type).toBe("text/plain; charset=utf-8");
-    expect(await downloadedBlob?.text()).toBe("notebook");
-    expect(mockAnchor.download).toBe("résumé.qmd");
-    expect(URL.revokeObjectURL).toHaveBeenCalledWith("blob:export");
+  it.each([
+    "text/html",
+    "application/xhtml+xml",
+    "image/svg+xml",
+    "application/custom+xml",
+    "text/javascript1.4",
+    "text/javascript2.0",
+    "application/x-javascript2.0",
+    "text/ecmascript2026",
+    "text/livescript",
+  ])("rejects normalized and parameterized data MIME type %s", (mimeType) => {
+    const urls = [
+      `DATA:${mimeType.toUpperCase()},payload`,
+      `data: ${mimeType} ;charset=utf-8,payload`,
+      `data:${mimeType};charset="utf-8";base64,cGF5bG9hZA==`,
+      `da\tta:${mimeType};name=file.txt,payload?query#fragment`,
+    ];
+    for (const url of urls) {
+      expect(() => downloadByURL(url)).toThrow("Unsupported download URL");
+    }
+    expect(document.createElement).not.toHaveBeenCalled();
   });
+
+  it.each([
+    null,
+    undefined,
+    42,
+    false,
+    {},
+    [],
+    new String("https://example.com"),
+  ])("rejects non-string input %j without throwing or coercing it", (url) => {
+    expect(isDownloadUrl(url)).toBe(false);
+  });
+
+  it.each([false, true])(
+    "releases exported files after a click (fails=%s)",
+    async (fails) => {
+      let downloadedBlob: Blob | undefined;
+      vi.stubGlobal(
+        "URL",
+        class extends URL {
+          public static override createObjectURL = vi.fn((blob: Blob) => {
+            downloadedBlob = blob;
+            return "blob:export";
+          });
+          public static override revokeObjectURL = vi.fn();
+        },
+      );
+
+      if (fails) {
+        vi.mocked(mockAnchor.click).mockImplementation(() => {
+          throw new Error("Download failed");
+        });
+      }
+      const download = () =>
+        downloadExportedFile({
+          contents: "notebook",
+          filename: "résumé.qmd",
+          mediaType: "text/plain; charset=utf-8",
+        });
+      let caughtError: unknown;
+      try {
+        download();
+      } catch (error) {
+        caughtError = error;
+      }
+
+      expect(caughtError).toEqual(
+        fails ? new Error("Download failed") : undefined,
+      );
+
+      expect(downloadedBlob?.type).toBe("text/plain; charset=utf-8");
+      expect(await downloadedBlob?.text()).toBe("notebook");
+      expect(mockAnchor.download).toBe("résumé.qmd");
+      expect(mockAnchor.remove).toHaveBeenCalledOnce();
+      expect(URL.revokeObjectURL).toHaveBeenCalledWith("blob:export");
+    },
+  );
 });
