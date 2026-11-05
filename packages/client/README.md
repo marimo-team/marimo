@@ -120,6 +120,15 @@ behavior. [OpenAPI](../../protocols/host/openapi.yaml) defines the routes and
 payloads. `@marimo-team/client/protocol` exports the TypeScript types and Zod
 schemas generated from it.
 
+To install from a GitHub revision with pnpm, select this package's subdirectory:
+
+```sh
+pnpm add 'github:marimo-team/marimo#<commit>&path:/packages/client'
+```
+
+The `prepare` script compiles the checked-in sources into `dist`. pnpm may
+require allowing the build for that Git revision in `allowBuilds`.
+
 Run these commands from the repository root. See
 [CONTRIBUTING.md](../../CONTRIBUTING.md) for setup.
 
