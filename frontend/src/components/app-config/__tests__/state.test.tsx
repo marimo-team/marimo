@@ -31,6 +31,7 @@ function OpenAiSettings() {
 describe("useOpenSettingsToTab", () => {
   it("opens the settings dialog on the AI category from an external button", () => {
     const store = createStore();
+    store.set(aiSettingsSubTabAtom, "ai-providers");
     render(
       <Provider store={store}>
         <TooltipProvider>

@@ -81,6 +81,14 @@ describe("clickablePlaceholderExtension", () => {
 
     // Check text content
     expect(placeholder.textContent).toBe("Click here to continue");
+    expect(
+      [...placeholder.querySelectorAll('[aria-hidden="true"]')].map(
+        (node) => node.textContent,
+      ),
+    ).toEqual(["Click ", " to continue"]);
+    expect(
+      placeholder.querySelector("button")?.closest('[aria-hidden="true"]'),
+    ).toBeNull();
 
     // Find and check the clickable link
     const link = placeholder.querySelector(".cm-clickable-placeholder")!;

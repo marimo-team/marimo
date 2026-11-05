@@ -5,7 +5,7 @@
 > To use coding agents such as Claude Code, Codex, or OpenCode, use [marimo
 > pair](../generate_with_ai/marimo_pair.md) instead.
 
-The marimo's built-in AI features let you:
+marimo's built-in AI features let you:
 
 * edit notebook code, run cells, and more using a chat interface;
 * refactor existing cells;
@@ -18,6 +18,8 @@ Connect to an LLM provider through the notebook settings menu; both hosted and
 local providers are available. See the [LLM providers
 guide](../configuration/llm_providers.md) for detailed instructions.
 
+
+<a id="chat-panel"></a>
 
 ## Chat sidebar panel
 

@@ -71,7 +71,10 @@ export function clickablePlaceholderExtension(opts: {
       const wrapper = document.createElement("span");
       wrapper.className = "cm-placeholder";
       wrapper.contentEditable = "false";
-      wrapper.append(document.createTextNode(beforeText));
+      const before = document.createElement("span");
+      before.textContent = beforeText;
+      before.setAttribute("aria-hidden", "true");
+      wrapper.append(before);
       const button = document.createElement("button");
       button.type = "button";
       button.textContent = linkText;
@@ -80,7 +83,10 @@ export function clickablePlaceholderExtension(opts: {
         event.stopPropagation();
         onClick(ev);
       };
-      wrapper.append(button, document.createTextNode(afterText));
+      const after = document.createElement("span");
+      after.textContent = afterText;
+      after.setAttribute("aria-hidden", "true");
+      wrapper.append(button, after);
       return wrapper;
     }
 

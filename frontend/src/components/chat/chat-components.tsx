@@ -101,7 +101,7 @@ export const SendButton = ({
         aria-label={isLoading ? "Stop" : "Submit"}
         variant="text"
         size="sm"
-        className="chat-control h-6 min-w-6 p-0 cursor-pointer"
+        className="chat-control h-6 min-w-6 p-0 hover:bg-muted/30 cursor-pointer"
         onClick={isLoading ? onStop : onSendClick}
         disabled={isLoading ? false : isEmpty}
       >

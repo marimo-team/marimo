@@ -1436,13 +1436,20 @@ class TestPairPrompt:
         assert token_file.read_text() == "previous"
         assert "--token-file" not in result.stdout
 
-    def test_uses_existing_marimo_installation(self) -> None:
+    @pytest.mark.parametrize(
+        "executable", ["/env/bin/python", "/my env/bin/python"]
+    )
+    def test_uses_existing_marimo_installation(
+        self, monkeypatch: pytest.MonkeyPatch, executable: str
+    ) -> None:
+        monkeypatch.setattr(sys, "executable", executable)
         result = _runner.invoke(
             cli_main, ["pair", "prompt", "--url", TEST_URL]
         )
         assert result.exit_code == 0
-        assert "Run `marimo pair --help` first." in result.output
-        assert "Use `marimo` for all marimo commands." in result.output
+        command = f"{shlex.quote(sys.executable)} -m marimo"
+        assert f"Run `{command} pair --help` first." in result.output
+        assert f"Use `{command}` for all marimo commands." in result.output
 
 
 @pytest.mark.parametrize("agent", ["--claude", "--codex", "--opencode"])

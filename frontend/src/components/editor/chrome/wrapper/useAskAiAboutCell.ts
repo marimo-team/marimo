@@ -9,12 +9,12 @@ import type { CellId } from "@/core/cells/ids";
 import { aiAtom } from "@/core/config/config";
 import { Logger } from "@/utils/Logger";
 import { useChromeActions } from "../state";
-import { useAiPanelTab } from "./useAiPanel";
+import { aiPanelTabAtom } from "./useAiPanel";
 
 export function useAskAiAboutCell() {
   const store = useStore();
   const { openApplication } = useChromeActions();
-  const { setAiPanelTab } = useAiPanelTab();
+  const setAiPanelTab = useSetAtom(aiPanelTabAtom);
   const { saveModeChange } = useAIConfigActions();
   const setPendingPrompt = useSetAtom(pendingAiPromptAtom);
 

@@ -579,7 +579,7 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
         {/* Panel content */}
         <Suspense fallback={<div />}>
           <PanelSectionProvider value="developer-panel">
-            <div className="flex-1 overflow-hidden">
+            <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
               {Object.entries(DEVELOPER_PANELS).map(([key, Panel]) => (
                 <LazyActivity
                   key={key}

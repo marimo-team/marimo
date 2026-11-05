@@ -69,8 +69,8 @@ export const PromptInput = ({
   additionalCompletions,
   maxHeight,
 }: PromptInputProps) => {
-  const handleSubmit = onSubmit;
-  const handleEscape = onClose;
+  const handleSubmit = useEvent(onSubmit);
+  const handleEscape = useEvent(onClose);
   const store = useStore();
   const { theme } = useTheme();
 
@@ -131,19 +131,7 @@ export const PromptInput = ({
               // Mod+Enter does add a new line already by codemirror
               // But Shift+Enter does not, so we need to handle it manually
               if (event.key === "Enter" && event.shiftKey) {
-                const cursorPosition = view.state.selection.main.from;
-                // Insert a new line
-                view.dispatch({
-                  changes: {
-                    from: cursorPosition,
-                    to: cursorPosition,
-                    insert: "\n",
-                  },
-                  selection: {
-                    anchor: cursorPosition + 1,
-                    head: cursorPosition + 1,
-                  },
-                });
+                view.dispatch(view.state.replaceSelection("\n"));
                 event.preventDefault();
                 event.stopPropagation();
                 return true;

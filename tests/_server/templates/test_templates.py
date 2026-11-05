@@ -1518,3 +1518,20 @@ class TestReplaceAssetUrls(unittest.TestCase):
             result
             == '<link crossorigin="anonymous" href="https://cdn.example.com/assets/style.css" rel="stylesheet">'
         )
+
+
+def test_pair_command_uses_running_python() -> None:
+    template = (Path(__file__).parent / "data" / "index.html").read_text()
+    with patch("sys.executable", "/my env/bin/python"):
+        result = templates.notebook_page_template(
+            html=template,
+            base_url="",
+            server_token=SkewProtectionToken("token"),
+            app_config=_AppConfig(),
+            filename=None,
+            mode=SessionMode.EDIT,
+            user_config=default_config,
+            config_overrides={},
+        )
+    config = parse_mount_config(result)["pairConfig"]
+    assert config["command"] == "'/my env/bin/python' -m marimo"

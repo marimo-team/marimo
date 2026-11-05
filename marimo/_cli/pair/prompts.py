@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import shlex
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -24,6 +25,11 @@ def load_prompt_templates() -> PromptTemplates:
     )
 
 
+def get_marimo_command() -> str:
+    """Use the running installation without requiring an activated environment."""
+    return f"{shlex.quote(sys.executable)} -m marimo"
+
+
 def render_prompt(
     *,
     url: str,
@@ -33,7 +39,7 @@ def render_prompt(
 ) -> str:
     templates = load_prompt_templates()
     return templates.prompt.format(
-        command="marimo",
+        command=get_marimo_command(),
         url=url,
         notebook=(
             templates.notebook.format(notebook=notebook_id)

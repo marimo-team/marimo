@@ -38,7 +38,10 @@ export class CellContextProvider extends AIContextProvider<CellContextItem> {
   }
 
   public formatCompletion(item: CellContextItem) {
-    return this.createBasicCompletion(item);
+    return {
+      ...this.createBasicCompletion(item),
+      label: `${this.mentionPrefix}${item.name}`,
+    };
   }
 
   public formatContext(item: CellContextItem) {

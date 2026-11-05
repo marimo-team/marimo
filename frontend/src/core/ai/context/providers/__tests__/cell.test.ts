@@ -30,3 +30,20 @@ it("resolves empty cells and reads their latest code when preparing context", ()
   store.set(notebookAtom, MockNotebook.notebookState());
   expect(getAIContextRegistry(store).formatContextForAI([uri])).toBe("");
 });
+
+it("completes cell names while inserting stable cell references", () => {
+  const store = createStore();
+  const cellId = CellId.create();
+  store.set(
+    notebookAtom,
+    MockNotebook.notebookState({
+      cellData: { [cellId]: { name: "my_analysis", code: "x = 1" } },
+    }),
+  );
+  const provider = new CellContextProvider(store);
+  expect(provider.formatCompletion(provider.getItems()[0])).toMatchObject({
+    label: "@my_analysis",
+    displayLabel: "my_analysis",
+    apply: `@cell://${cellId}`,
+  });
+});
