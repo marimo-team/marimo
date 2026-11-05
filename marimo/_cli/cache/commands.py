@@ -382,9 +382,7 @@ Example usage:
     "--force",
     is_flag=True,
     default=False,
-    help=(
-        "Also prune potentially orphaned cache entries."
-    ),
+    help=("Also prune potentially orphaned cache entries."),
 )
 def cache_prune(
     path: Path, recursive: bool, yes: bool, dry_run: bool, force: bool
