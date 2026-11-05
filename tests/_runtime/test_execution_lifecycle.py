@@ -168,6 +168,51 @@ async def test_nested_commands_can_evaluate_an_outer_queued_cell(
     assert len({m.execution_id for m in attempts[:3]}) == 1
 
 
+async def test_a_nested_edit_supersedes_the_outer_queued_attempt(
+    mocked_kernel: MockedKernel,
+) -> None:
+    inner = (
+        "x = 42\n"
+        "import marimo._code_mode as cm\n"
+        "from marimo._runtime.commands import ExecuteCellCommand, ExecuteCellsCommand\n"
+        "await cm.get_context().execute_command(ExecuteCellsCommand("
+        "execution_requests=[ExecuteCellCommand(cell_id='b', code='print(x + 1)')]))"
+    )
+    await KernelRequestHandlers(mocked_kernel.k)._handle_execute_scratchpad(
+        ExecuteScratchpadCommand(
+            run_id="superseded",
+            notebook_cells=(),
+            code=(
+                "import marimo._code_mode as cm\n"
+                "from marimo._runtime.commands import ExecuteCellCommand, ExecuteCellsCommand\n"
+                "await cm.get_context().execute_command(ExecuteCellsCommand("
+                f"execution_requests=[ExecuteCellCommand(cell_id='a', code={inner!r}), ExecuteCellCommand(cell_id='b', code='print(x)')]))"
+            ),
+        )
+    )
+    attempts = [
+        m
+        for m in MockStream(mocked_kernel.stream).parsed_operations
+        if isinstance(m, ExecutionNotification) and m.cell_id == "b"
+    ]
+    # The outer run's attempt for `print(x)` ends unrun once the nested
+    # command changes `b`. The nested command and then the outer run each
+    # plan an attempt for `print(x + 1)`.
+    assert [(m.phase, m.skipped) for m in attempts] == [
+        ("planned", None),
+        ("completed", "superseded"),
+        ("planned", None),
+        ("running", None),
+        ("completed", None),
+        ("planned", None),
+        ("running", None),
+        ("completed", None),
+    ]
+    assert len({m.execution_id for m in attempts}) == 3
+    assert attempts[0].code == "print(x)"
+    assert attempts[2].code == attempts[5].code == "print(x + 1)"
+
+
 async def test_a_reactive_run_plans_every_cell_before_the_first_starts(
     mocked_kernel: MockedKernel,
 ) -> None:

@@ -7,6 +7,7 @@ import pytest
 from dirty_equals import IsStr
 from inline_snapshot import snapshot
 
+from marimo._core import backend as be, protocol
 from marimo._core.backend import (
     Completed,
     Concluded,
@@ -64,6 +65,43 @@ def attempt(phase: str, **fields: object) -> ExecutionNotification:
         else None,
         **fields,
     )  # type: ignore[arg-type]
+
+
+def test_a_superseded_attempt_is_skipped_and_its_run_succeeds() -> None:
+    t = RunTranslator(RunId("r1"), None)
+    planned = ExecutionNotification(
+        cell_id=CellId_t("b"),
+        run_id="r1",
+        execution_id="b1",
+        phase="planned",
+        code="print(x)",
+        code_fingerprint=code_fingerprint("print(x)"),
+    )
+    superseded = ExecutionNotification(
+        cell_id=CellId_t("b"),
+        run_id="r1",
+        execution_id="b1",
+        phase="completed",
+        skipped="superseded",
+    )
+    messages = t.feed(planned)
+    messages.extend(t.feed(superseded))
+    messages.extend(t.feed(CompletedRunNotification(run_id="r1")))
+    messages.extend(t.finish())
+
+    completed = next(m for m in messages if isinstance(m, be.Completed))
+    assert completed.outcome == protocol.SkippedOutcome(
+        reason="superseded",
+        message="Replaced by a newer execution of this cell before it started",
+        related=(
+            protocol.Related(
+                cell_id=protocol.CellId("b"),
+                range=None,
+                message="Changed while queued",
+            ),
+        ),
+    )
+    assert messages[-1] == be.Done(RunId("r1"), "succeeded")
 
 
 def test_a_run_that_prints_and_shows_a_value() -> None:

@@ -158,7 +158,10 @@ class Runner:
         execution_context: ExecutionContextManager | None = None,
         user_config: MarimoConfig | None = None,
         executions: dict[CellId_t, ExecutionAttempt] | None = None,
-        plan_execution: Callable[[CellId_t], ExecutionAttempt] | None = None,
+        plan_execution: Callable[
+            [CellId_t, ExecutionAttempt | None], ExecutionAttempt
+        ]
+        | None = None,
         get_inputs: Callable[[CellImpl], dict[str, Revision | None] | None]
         | None = None,
     ):
@@ -171,8 +174,12 @@ class Runner:
         self._executions = executions if executions is not None else {}
         self._get_inputs = get_inputs
         self._plan_execution = plan_execution or (
-            lambda cell_id: ExecutionAttempt.plan(
-                cell_id, self.graph.cells[cell_id].code
+            lambda cell_id, planned: (
+                planned
+                if planned is not None
+                else ExecutionAttempt.plan(
+                    cell_id, self.graph.cells[cell_id].code
+                )
             )
         )
 
@@ -812,13 +819,12 @@ class Runner:
         """The attempt planned for the cell, or a new one.
 
         Planned when a run was dispatched, this one or the outer run a
-        nested command came from. A cell that reaches its turn without an
+        nested command came from. The planner replaces an attempt whose
+        source has changed since. A cell that reaches its turn without an
         attempt, requeued for a rerun, is planned now.
         """
         planned = self._executions.pop(cell_id, None)
-        return (
-            planned if planned is not None else self._plan_execution(cell_id)
-        )
+        return self._plan_execution(cell_id, planned)
 
     async def _run_one(
         self,
@@ -1037,7 +1043,7 @@ class Runner:
         # The stream shows the whole run queued before its first cell starts.
         for cell_id in runnable:
             if cell_id not in self._executions:
-                self._executions[cell_id] = self._plan_execution(cell_id)
+                self._executions[cell_id] = self._plan_execution(cell_id, None)
 
         for batch in self._scheduler.batch():
             for cell_id in batch:

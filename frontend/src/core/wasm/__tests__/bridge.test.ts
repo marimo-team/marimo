@@ -269,7 +269,7 @@ it("raises the interrupt buffer for a running run before the worker takes the ca
   const run = {
     id: "run-1",
     notebook_id: "n1",
-    caused_by: null,
+    cells: [],
     status: "running",
     outcome: null,
     started_at: "2026-10-01T09:20:11Z",

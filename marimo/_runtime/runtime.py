@@ -1477,9 +1477,7 @@ class Kernel:
                 # On syntax errors, we don't have a cell object.
                 CellNotificationUtils.broadcast_stale(cell_id=cid, stale=False)
 
-            execution = self._planned.pop(cid, None) or self._plan_execution(
-                cid
-            )
+            execution = self._plan_execution(cid, self._planned.pop(cid, None))
             with execution.activate():
                 CellNotificationUtils.broadcast_error(
                     data=self.errors[cid],
@@ -2102,13 +2100,25 @@ class Kernel:
         )
         return requests
 
-    def _plan_execution(self, cell_id: CellId_t) -> ExecutionAttempt:
+    def _plan_execution(
+        self, cell_id: CellId_t, planned: ExecutionAttempt | None = None
+    ) -> ExecutionAttempt:
+        """Plan an attempt for the cell's current source.
+
+        An attempt planned earlier is kept while it still describes that
+        source. One planned for source a nested command has since changed
+        is superseded, so no attempt runs code other than its own.
+        """
         metadata = self.cell_metadata.get(cell_id)
         if metadata is not None and metadata.code is not None:
-            return ExecutionAttempt.plan(
-                cell_id, metadata.code, metadata.code_fingerprint
-            )
-        return ExecutionAttempt.plan(cell_id, self.graph.cells[cell_id].code)
+            code, code_fingerprint = metadata.code, metadata.code_fingerprint
+        else:
+            code, code_fingerprint = self.graph.cells[cell_id].code, None
+        if planned is not None:
+            if planned.code == code:
+                return planned
+            planned.supersede()
+        return ExecutionAttempt.plan(cell_id, code, code_fingerprint)
 
     @kernel_tracer.start_as_current_span("run")
     async def run(

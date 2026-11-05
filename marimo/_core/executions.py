@@ -261,7 +261,7 @@ class Executions:
         """Apply a backend update and return its changes in publication order."""
         changes: list[Change] = []
         match msg:
-            case be.Scheduled(run_id=run_id, caused_by=caused_by):
+            case be.Scheduled(run_id=run_id):
                 if run_id not in self._runs:
                     runtime = self._require(runtime)
                     changes.append(
@@ -270,7 +270,7 @@ class Executions:
                                 id=run_id,
                                 notebook_id=runtime.notebook_id,
                                 runtime_id=runtime.id,
-                                caused_by=caused_by,
+                                cells=(),
                                 status="queued",
                                 outcome=None,
                                 started_at=None,

@@ -455,9 +455,9 @@ class Notebook:
         """Queue scratch code, or cells of the document, on the runtime.
 
         Runs start in acceptance order, one at a time, each with the
-        document it was accepted in. Each requested cell must be in the
-        document. One that names an `etag` the cell no longer has is a
-        conflict, and nothing runs.
+        document it was accepted in, recording the requested cells. Each
+        requested cell must be in the document. One that names an `etag`
+        the cell no longer has is a conflict, and nothing runs.
 
         Raises:
             Invalid: If the request names neither code nor cells, or both,
@@ -491,7 +491,7 @@ class Notebook:
                 id=mint(protocol.RunId, "run"),
                 notebook_id=self.id,
                 runtime_id=runtime.id,
-                caused_by=None,
+                cells=tuple(targets),
                 status="queued",
                 outcome=None,
                 started_at=None,
@@ -541,8 +541,7 @@ class Notebook:
             "name": name or None,
             "since": utcnow(),
         }
-        if identity is not None:
-            fields["identity"] = identity
+        fields["identity"] = identity
         attachment = msgspec.convert(fields, protocol.Attachment)
         self._attachments[attachment.id] = attachment
         self._publish(attachment, None)
