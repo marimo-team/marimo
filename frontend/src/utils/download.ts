@@ -178,26 +178,18 @@ export async function downloadHTMLAsImage(opts: {
   }
 }
 
-const DOWNLOAD_DATA_TYPES = new Set([
-  "text/plain",
-  "text/csv",
-  "text/tab-separated-values",
-  "application/json",
-  "application/octet-stream",
-  "application/pdf",
-  "application/zip",
-  "application/gzip",
-  "image/png",
-  "image/jpeg",
-  "image/gif",
-  "image/webp",
-  "image/avif",
-  "image/bmp",
-  "image/x-icon",
+// mo.download supports arbitrary file formats, so a MIME allowlist is too restrictive.
+const NON_DOWNLOAD_DATA_TYPES = new Set([
+  "text/html",
+  "text/xml",
+  "application/xml",
+  "text/jscript",
+  "text/livescript",
+  "text/vbscript",
 ]);
 
-export function isDownloadUrl(url: string): boolean {
-  if (!url.trim()) {
+export function isDownloadUrl(url: unknown): url is string {
+  if (typeof url !== "string" || !url.trim()) {
     return false;
   }
   try {
@@ -218,7 +210,18 @@ export function isDownloadUrl(url: string): boolean {
           .trim()
           .toLowerCase();
         // An omitted MIME type defaults to text/plain.
-        return DOWNLOAD_DATA_TYPES.has(mimeType || "text/plain");
+        if (!mimeType) {
+          return true;
+        }
+        return (
+          /^[\w!#$%&'*+.^`|~-]+\/[\w!#$%&'*+.^`|~-]+$/.test(mimeType) &&
+          !NON_DOWNLOAD_DATA_TYPES.has(mimeType) &&
+          // Include versioned and x- aliases without enumerating each version.
+          !/^(?:text|application)\/(?:x-)?(?:java|ecma)script(?:\d+(?:\.\d+)*)?$/.test(
+            mimeType,
+          ) &&
+          !mimeType.endsWith("+xml")
+        );
       }
       default:
         return false;
@@ -235,14 +238,20 @@ export function downloadByURL(url: string, filename?: string) {
   const a = document.createElement("a");
   a.href = url;
   a.download = filename ?? "";
-  a.click();
-  a.remove();
+  try {
+    a.click();
+  } finally {
+    a.remove();
+  }
 }
 
 export function downloadBlob(blob: Blob, filename: string) {
   const url = URL.createObjectURL(blob);
-  downloadByURL(url, filename);
-  URL.revokeObjectURL(url);
+  try {
+    downloadByURL(url, filename);
+  } finally {
+    URL.revokeObjectURL(url);
+  }
 }
 
 export function downloadExportedFile({
