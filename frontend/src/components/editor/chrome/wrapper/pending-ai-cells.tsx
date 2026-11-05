@@ -4,10 +4,7 @@ import { useAtomValue, useStore } from "jotai";
 import { ChevronDown, ChevronUp, SparklesIcon } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import {
-  stagedAICellsAtom,
-  useStagedCells,
-} from "@/core/ai/staged-cells";
+import { stagedAICellsAtom, useStagedCells } from "@/core/ai/staged-cells";
 import type { CellId } from "@/core/cells/ids";
 import { getNextIndex } from "@/utils/arrays";
 import { cn } from "@/utils/cn";
