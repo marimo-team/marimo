@@ -1,6 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { isValid } from "date-fns";
+import { dequal as isEqual } from "dequal";
 import { debounce } from "lodash-es";
 import { HelpCircleIcon } from "lucide-react";
 import { type JSX, useEffect, useMemo, useRef, useState } from "react";
@@ -146,7 +147,10 @@ const LoadedVegaComponent = ({
   // Update the value when the selection changes
   // Keep the old value from other signals
   const handleUpdateValue = useEvent((newValue: VegaComponentState) => {
-    setValue({ ...value, ...newValue });
+    const nextValue = { ...value, ...newValue };
+    if (!isEqual(value, nextValue)) {
+      setValue(nextValue);
+    }
   });
 
   const debouncedSignalHandler = useMemo(
