@@ -41,7 +41,12 @@ export const MCPStatusIndicator: React.FC = () => {
     <Popover>
       <Tooltip content="MCP Status">
         <PopoverTrigger asChild={true}>
-          <Button aria-label="MCP status" variant="text" size="icon">
+          <Button
+            className="chat-control"
+            aria-label="MCP status"
+            variant="text"
+            size="icon"
+          >
             <PlugIcon
               className={cn(
                 "h-4 w-4 text-muted-foreground",

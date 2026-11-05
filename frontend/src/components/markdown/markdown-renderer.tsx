@@ -2,7 +2,6 @@
 
 import { EditorView } from "@codemirror/view";
 import { useAtomValue } from "jotai";
-import { BetweenHorizontalStartIcon } from "lucide-react";
 import { memo, Suspense, useState } from "react";
 import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
 import {
@@ -91,7 +90,6 @@ const InsertCodeBlockButton = ({ code, language }: CodeBlockProps) => {
   return (
     <Button size="xs" variant="outline" onClick={handleInsertCode}>
       Add to Notebook
-      <BetweenHorizontalStartIcon className="ml-2 h-4 w-4" />
     </Button>
   );
 };
@@ -122,7 +120,7 @@ const CodeBlock = ({ code, language }: CodeBlockProps) => {
           onChange={setValue}
         />
       </Suspense>
-      <div className="flex justify-end mt-2 space-x-2">
+      <div className="flex justify-end mt-3 gap-2">
         <CopyButton size="xs" variant="outline" onClick={handleCopyCode}>
           Copy
         </CopyButton>
@@ -174,8 +172,10 @@ const COMPONENTS: Components = {
     if (language && typeof children === "string") {
       const code = children.trim();
       return (
-        <div>
-          <div className="text-xs text-muted-foreground pl-1">{language}</div>
+        <div className="my-4">
+          <div className="mb-1 text-xs text-muted-foreground pl-1">
+            {language}
+          </div>
           <CodeBlock code={code} language={language} />
         </div>
       );

@@ -1,11 +1,10 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import { PAIR_CONFIG } from "@/__tests__/fixtures/pair-config";
 import { shellQuote } from "@/utils/shell";
 import {
   type ConnectionInfo,
-  getMarimoCommand,
   getRawPrompt,
   getTerminalCommand,
   maskToken,
@@ -44,18 +43,6 @@ describe("shellQuote", () => {
   });
 });
 
-describe("getMarimoCommand", () => {
-  afterEach(() => vi.unstubAllEnvs());
-  it("uses the checkout command in development", () => {
-    vi.stubEnv("DEV", true);
-    expect(getMarimoCommand()).toBe("uv run marimo");
-  });
-  it("uses uvx outside development", () => {
-    vi.stubEnv("DEV", false);
-    expect(getMarimoCommand()).toBe("uvx marimo@latest");
-  });
-});
-
 describe("getTerminalCommand", () => {
   it.each([
     ["claude", "claude"],
@@ -63,7 +50,7 @@ describe("getTerminalCommand", () => {
     ["opencode", "opencode --prompt"],
   ] as const)("launches %s through the public CLI", (agent, cli) => {
     expect(getTerminalCommand(agent, CONNECTION, true, PAIR_CONFIG)).toBe(
-      `${cli} "$(uvx marimo@latest pair prompt \\\n  --url http://localhost:8000 \\\n  --notebook nb-one \\\n  --with-token)"`,
+      `${cli} "$(marimo pair prompt \\\n  --url http://localhost:8000 \\\n  --notebook nb-one \\\n  --with-token)"`,
     );
   });
   it("uses a stable Session ID for editor execution", () => {
@@ -89,20 +76,15 @@ describe("getTerminalCommand", () => {
     expect(command).not.toContain("--with-token");
   });
   it("uses the CLI without injected configuration", () => {
-    vi.stubEnv("DEV", true);
-    try {
-      const command = getTerminalCommand(
-        "claude",
-        CONNECTION_WITHOUT_TARGET,
-        false,
-      );
-      expect(command).toContain("uv run marimo pair prompt");
-      expect(command).not.toMatch(
-        /--claude|MARIMO_PAIR_NEXT|--file|--session|--notebook/,
-      );
-    } finally {
-      vi.unstubAllEnvs();
-    }
+    const command = getTerminalCommand(
+      "claude",
+      CONNECTION_WITHOUT_TARGET,
+      false,
+    );
+    expect(command).toContain("marimo pair prompt");
+    expect(command).not.toMatch(
+      /--claude|MARIMO_PAIR_NEXT|--file|--session|--notebook/,
+    );
   });
 });
 
@@ -133,21 +115,16 @@ describe("getRawPrompt", () => {
       "Session: stable-one\n",
     ],
   ])("renders the shared CLI prompt for %j", (connection, target) => {
-    const expected = `Pair with me on this running marimo notebook.\n\nURL: http://localhost:8000\n${target}\nRun \`uvx marimo@latest pair --help\` first.\nUse \`uvx marimo@latest\` for all marimo commands.`;
+    const expected = `Pair with me on this running marimo notebook.\n\nURL: http://localhost:8000\n${target}\nRun \`marimo pair --help\` first.\nUse \`marimo\` for all marimo commands.`;
     expect(getRawPrompt(connection, null, PAIR_CONFIG)).toBe(expected);
     expect(
       getRawPrompt(connection, null, { ...PAIR_CONFIG, hostEnabled: false }),
     ).toBe(expected);
   });
   it("matches the shared prompt without injected templates", () => {
-    vi.stubEnv("DEV", false);
-    try {
-      expect(getRawPrompt(CONNECTION, "secret-token")).toBe(
-        getRawPrompt(CONNECTION, "secret-token", PAIR_CONFIG),
-      );
-    } finally {
-      vi.unstubAllEnvs();
-    }
+    expect(getRawPrompt(CONNECTION, "secret-token")).toBe(
+      getRawPrompt(CONNECTION, "secret-token", PAIR_CONFIG),
+    );
   });
 });
 

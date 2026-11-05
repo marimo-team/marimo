@@ -20,6 +20,7 @@ import {
 import { memo, useEffect, useMemo, useRef, useState } from "react";
 import useEvent from "react-use-event-hook";
 import { Button } from "@/components/ui/button";
+import { LoadingEllipsis } from "@/components/icons/loading-ellipsis";
 import { replaceMessagesInChat } from "@/core/ai/chat-utils";
 import { useAIConfigActions } from "@/core/ai/config";
 import { AI_SDK_UI_THROTTLE_MS } from "@/core/ai/constants";
@@ -57,6 +58,7 @@ import {
   resolveChatContext,
 } from "../editor/ai/completion-utils";
 import { StreamingChunkTransport } from "../editor/ai/transport/chat-transport";
+import { PanelHeaderActions } from "../editor/chrome/panels/panel-header";
 import { PanelEmptyState } from "../editor/chrome/panels/empty-state";
 import { CopyClipboardIcon } from "../icons/copy-icon";
 import "./chat-typography.css";
@@ -112,7 +114,7 @@ const QueuedMessageDisplay = memo(
 
     return (
       <div className="flex justify-end">
-        <div className="w-[95%] bg-background border border-dashed p-2 rounded-sm opacity-70">
+        <div className="w-[95%] bg-background border border-dashed p-2 rounded-[10px] opacity-70">
           {fileParts.map((filePart, idx) => (
             <AttachmentRenderer attachment={filePart} key={idx} />
           ))}
@@ -145,38 +147,41 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
   const { handleClick } = useOpenSettingsToTab();
 
   return (
-    <div className="flex shrink-0 flex-col gap-1 border-b px-3 py-2">
-      <div className="flex items-center gap-1">
-        <Button
-          variant="ghost"
-          size="sm"
-          className="gap-1.5"
-          onClick={onNewChat}
-        >
-          <PlusIcon className="size-4" aria-hidden={true} />
-          New chat
-        </Button>
-        <ChatHistoryPopover
-          activeChatId={activeChatId}
-          setActiveChat={setActiveChat}
-          onDeleteChats={onDeleteChats}
-          isLoading={isLoading}
-        />
-        <div className="ml-auto flex items-center gap-2">
-          <MCPStatusIndicator />
-          <Tooltip content="AI Settings">
-            <Button
-              aria-label="AI Settings"
-              variant="ghost"
-              size="icon"
-              onClick={() => handleClick("ai")}
-            >
-              <SettingsIcon className="size-4" aria-hidden={true} />
-            </Button>
-          </Tooltip>
+    <PanelHeaderActions>
+      <div className="mo-ai-panel flex w-full shrink-0 items-center font-sans text-sm">
+        <div className="flex w-full items-center gap-1">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="chat-control chat-new-thread gap-1.5"
+            onClick={onNewChat}
+          >
+            <PlusIcon className="size-4" aria-hidden={true} />
+            New chat
+          </Button>
+          <ChatHistoryPopover
+            activeChatId={activeChatId}
+            setActiveChat={setActiveChat}
+            onDeleteChats={onDeleteChats}
+            isLoading={isLoading}
+          />
+          <div className="ml-auto flex items-center gap-2">
+            <MCPStatusIndicator />
+            <Tooltip content="AI Settings">
+              <Button
+                className="chat-control"
+                aria-label="AI Settings"
+                variant="ghost"
+                size="icon"
+                onClick={() => handleClick("ai")}
+              >
+                <SettingsIcon className="size-4" aria-hidden={true} />
+              </Button>
+            </Tooltip>
+          </div>
         </div>
       </div>
-    </div>
+    </PanelHeaderActions>
   );
 };
 
@@ -210,14 +215,14 @@ const ChatMessageDisplay: React.FC<ChatMessageProps> = memo(
       );
 
       return (
-        <div className="w-[95%] bg-background border p-1 rounded-sm">
+        <div className="w-[95%] bg-background border p-1 rounded-[10px]">
           {fileParts?.map((filePart, idx) => (
             <AttachmentRenderer attachment={filePart} key={idx} />
           ))}
           <PromptInput
             key={message.id}
             value={content}
-            placeholder="Type your message..."
+            placeholder="Type your message."
             onChange={() => {
               // noop
             }}
@@ -243,7 +248,7 @@ const ChatMessageDisplay: React.FC<ChatMessageProps> = memo(
 
       return (
         <div className="w-[95%] wrap-break-word">
-          <div className="absolute right-1 top-1 opacity-0 group-hover:opacity-100 transition-opacity">
+          <div className="absolute right-1 top-1 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity">
             <CopyClipboardIcon className="h-3 w-3" value={content || ""} />
           </div>
           {renderUIMessage({
@@ -305,22 +310,22 @@ const ChatInputFooter: React.FC<ChatInputFooterProps> = memo(
 
     return (
       <TooltipProvider>
-        <div className="px-3 py-2 border-t border-border/20 flex flex-wrap items-center gap-1">
-          <div className="flex flex-wrap items-center gap-1">
+        <div className="chat-input-footer px-3 py-2 border-t border-border/20 flex items-center gap-2">
+          <div className="chat-input-selectors flex min-w-0 flex-1 items-center gap-1">
             <NotebookAccessSelector
               value={currentMode}
               onValueChange={saveModeChange}
             />
             <AIModelDropdown
               placeholder="Model"
-              triggerClassName="h-6 text-xs shadow-none! ring-0! bg-muted hover:bg-muted/30 rounded-sm max-w-[200px]"
+              triggerClassName="chat-control chat-selector h-6 text-xs rounded-sm min-w-0 max-w-[200px] flex-1"
               iconSize="small"
               showAddCustomModelDocs={true}
               forRole="chat"
             />
-            <CapabilitiesPopover />
           </div>
-          <div className="flex flex-row ml-auto">
+          <div className="chat-input-actions flex shrink-0 items-center gap-0.5 ml-auto">
+            <CapabilitiesPopover />
             <AddContextButton
               handleAddContext={onAddContext}
               isLoading={isLoading}
@@ -349,7 +354,6 @@ ChatInputFooter.displayName = "ChatInputFooter";
 
 interface ChatInputProps {
   input: string;
-  inputClassName?: string;
   setInput: (value: string) => void;
   onSubmit: (e: KeyboardEvent | undefined, value: string) => void;
   inputRef: React.RefObject<ReactCodeMirrorRef | null>;
@@ -363,7 +367,6 @@ interface ChatInputProps {
 const ChatInput: React.FC<ChatInputProps> = memo(
   ({
     input,
-    inputClassName,
     setInput,
     onSubmit,
     inputRef,
@@ -381,7 +384,7 @@ const ChatInput: React.FC<ChatInputProps> = memo(
           : {
               beforeText: "Type your message or ",
               linkText: "pair your own coding agent",
-              afterText: "...",
+              afterText: ".",
               onClick: openPairWithAgentModal,
             },
       [openPairWithAgentModal],
@@ -394,8 +397,8 @@ const ChatInput: React.FC<ChatInputProps> = memo(
     });
 
     return (
-      <div className="relative shrink-0 flex flex-col border-t">
-        <div className={cn("px-2 py-1.5", inputClassName)}>
+      <div className="relative shrink-0 flex flex-col">
+        <div className="px-2 py-1.5">
           <PromptInput
             className="max-h-[400px]"
             inputRef={inputRef}
@@ -404,7 +407,7 @@ const ChatInput: React.FC<ChatInputProps> = memo(
             onSubmit={onSubmit}
             onClose={onClose}
             onAddFiles={onAddFiles}
-            placeholder="Type your message..."
+            placeholder="Type your message."
             placeholderAction={placeholderAction}
           />
         </div>
@@ -877,7 +880,6 @@ const ChatPanelBody = () => {
       key="new-thread-input"
       input={newThreadInput}
       inputRef={newThreadInputRef}
-      inputClassName="px-1 py-0"
       setInput={setNewThreadInput}
       onSubmit={handleNewThreadSubmit}
       isLoading={isLoading}
@@ -901,12 +903,7 @@ const ChatPanelBody = () => {
   );
 
   const filesPills = files && files.length > 0 && (
-    <div
-      className={cn(
-        "flex flex-row gap-1 flex-wrap p-1",
-        isNewThread && "py-2 px-1",
-      )}
-    >
+    <div className="flex flex-row gap-1 flex-wrap px-3 pt-2">
       {files?.map((file) => (
         <FileAttachmentPill
           file={file}
@@ -917,8 +914,15 @@ const ChatPanelBody = () => {
     </div>
   );
 
+  const composer = (
+    <div className="@container rounded-[10px] border border-border bg-background">
+      {filesPills}
+      {chatInput}
+    </div>
+  );
+
   return (
-    <div className="mo-ai-panel flex flex-col h-[calc(100%-53px)] font-sans text-sm leading-6">
+    <div className="mo-ai-panel flex flex-col flex-1 min-h-0 font-prose text-sm leading-6">
       <TooltipProvider>
         <ChatHeader
           onNewChat={handleNewChat}
@@ -931,19 +935,10 @@ const ChatPanelBody = () => {
 
       <div className="flex-1 flex flex-col overflow-hidden relative min-h-0">
         <div
-          className="flex-1 px-3 bg-(--slate-1) gap-4 py-3 flex flex-col overflow-y-auto"
+          className="flex-1 px-3 bg-background gap-4 py-3 flex flex-col overflow-y-auto"
           ref={scrollContainerRef}
           onScroll={handleScroll}
         >
-          {isNewThread && (
-            <div className="flex flex-col gap-2">
-              <div className="rounded-md border bg-background">
-                {filesPills}
-                {chatInput}
-              </div>
-            </div>
-          )}
-
           {messages.map((message, idx) => (
             <ChatMessageDisplay
               key={message.id}
@@ -960,12 +955,6 @@ const ChatPanelBody = () => {
           {queuedMessages.map((message) => (
             <QueuedMessageDisplay key={message.id} message={message} />
           ))}
-
-          {isLoading && (
-            <div className="flex justify-center py-4">
-              <Loader2 className="h-4 w-4 animate-spin" />
-            </div>
-          )}
 
           {error && (
             <div className="flex items-center justify-center space-x-2 mb-4">
@@ -995,20 +984,30 @@ const ChatPanelBody = () => {
       </div>
 
       {isLoading && (
-        <div className="w-full flex justify-center items-center z-20 border-t">
-          <Button variant="linkDestructive" size="sm" onClick={stop}>
-            Stop
+        <div className="flex shrink-0 items-center gap-2 px-3 pt-2 text-xs text-muted-foreground">
+          <div className="flex items-center gap-1.5">
+            <div aria-hidden={true}>
+              <LoadingEllipsis
+                size={3}
+                gap="gap-0.5"
+                className="motion-reduce:[&_svg]:animate-none"
+              />
+            </div>
+            <output>Working</output>
+          </div>
+          <span aria-hidden={true} className="h-3 w-px bg-border" />
+          <Button
+            variant="text"
+            size="xs"
+            className="chat-control"
+            onClick={stop}
+          >
+            Stop generation
           </Button>
         </div>
       )}
 
-      {/* For existing threads, we place the chat input at the bottom */}
-      {!isNewThread && (
-        <>
-          {filesPills}
-          {chatInput}
-        </>
-      )}
+      <div className="shrink-0 p-3">{composer}</div>
     </div>
   );
 };

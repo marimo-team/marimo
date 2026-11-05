@@ -17,11 +17,6 @@ export const AGENT_LABELS: Record<AgentTab, string> = {
   prompt: "Other Agents",
 };
 
-/** How to invoke marimo: from the local checkout in dev, else via uvx. */
-export function getMarimoCommand(): string {
-  return import.meta.env.DEV ? "uv run marimo" : "uvx marimo@latest";
-}
-
 /** Identifies the specific running notebook to pair on. */
 export interface ConnectionInfo {
   url: string;
@@ -41,7 +36,7 @@ export function getTerminalCommand(
   withToken: boolean,
   config?: PairConfig,
 ): string {
-  const command = config?.command ?? getMarimoCommand();
+  const command = config?.command ?? "marimo";
   const base = [
     `${command} pair prompt`,
     `--url ${shellQuote(url)}`,
@@ -76,7 +71,7 @@ export function getRawPrompt(
   token: string | null,
   config?: PairConfig,
 ): string {
-  const command = config?.command ?? getMarimoCommand();
+  const command = config?.command ?? "marimo";
   const templates = config?.templates;
   const authentication = token
     ? formatPrompt(

@@ -44,9 +44,6 @@ def _isolate_pair_command(monkeypatch: pytest.MonkeyPatch) -> None:
             "host-secret",
         ),
     )
-    monkeypatch.setattr(
-        "marimo._cli.pair.prompts.is_editable", lambda _: False
-    )
 
 
 class TestPairGroup:
@@ -1513,21 +1510,13 @@ class TestPairPrompt:
         assert token_file.read_text() == "previous"
         assert "--token-file" not in result.stdout
 
-    @pytest.mark.parametrize(
-        ("editable", "command"),
-        [(True, "uv run marimo"), (False, "uvx marimo@latest")],
-    )
-    def test_installation_command(
-        self, monkeypatch: pytest.MonkeyPatch, editable: bool, command: str
-    ) -> None:
-        monkeypatch.setattr(
-            "marimo._cli.pair.prompts.is_editable", lambda _: editable
-        )
+    def test_uses_existing_marimo_installation(self) -> None:
         result = _runner.invoke(
             cli_main, ["pair", "prompt", "--url", TEST_URL]
         )
         assert result.exit_code == 0
-        assert f"{command} pair --help" in result.output
+        assert "Run `marimo pair --help` first." in result.output
+        assert "Use `marimo` for all marimo commands." in result.output
 
 
 @pytest.mark.parametrize("agent", ["--claude", "--codex", "--opencode"])

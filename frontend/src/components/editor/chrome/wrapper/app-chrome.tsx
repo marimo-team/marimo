@@ -4,6 +4,7 @@ import React, {
   Suspense,
   useEffect,
   useMemo,
+  useState,
 } from "react";
 import {
   type ImperativePanelHandle,
@@ -33,6 +34,7 @@ import { cn } from "@/utils/cn";
 import { ErrorBoundary } from "../../boundary/ErrorBoundary";
 import { raf2 } from "../../navigation/focus-utils";
 import { ContextAwarePanel } from "../panels/context-aware-panel/context-aware-panel";
+import { PanelHeaderActionsContext } from "../panels/panel-header";
 import { PanelSectionProvider } from "../panels/panel-context";
 import { RuntimeStatusToggle } from "../panels/runtime-status-toggle";
 import { useTheme } from "@/theme/useTheme";
@@ -327,99 +329,114 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
     cache: <LazyCachePanel.Component />,
   };
 
+  const [headerActionsTarget, setHeaderActionsTarget] =
+    useState<HTMLDivElement | null>(null);
+
   const helpPaneBody = (
     <ErrorBoundary>
       <PanelSectionProvider value="sidebar">
-        <div className="flex flex-col h-full flex-1 overflow-hidden mr-[-4px]">
-          <div className="p-3 border-b flex justify-between items-center">
-            {selectedPanel === "dependencies" ? (
-              <div className="flex items-center justify-between flex-1">
-                <span className="text-sm text-(--slate-11) uppercase tracking-wide font-semibold">
-                  Dependencies
-                </span>
+        <PanelHeaderActionsContext.Provider
+          value={
+            selectedPanel === "ai" && (!agentsEnabled || aiPanelTab === "chat")
+              ? headerActionsTarget
+              : null
+          }
+        >
+          <div className="@container flex flex-col h-full flex-1 overflow-hidden mr-[-4px]">
+            <div className="p-3 border-b flex shrink-0 flex-wrap justify-between items-center gap-y-1">
+              {selectedPanel === "dependencies" ? (
+                <div className="flex items-center justify-between flex-1">
+                  <span className="text-sm text-(--slate-11) uppercase tracking-wide font-semibold">
+                    Dependencies
+                  </span>
+                  <Tabs
+                    value={dependencyPanelTab}
+                    onValueChange={(value) => {
+                      if (value === "minimap" || value === "graph") {
+                        setDependencyPanelTab(value);
+                      }
+                    }}
+                  >
+                    <TabsList>
+                      <TabsTrigger
+                        value="minimap"
+                        className="py-0.5 text-xs uppercase tracking-wide font-bold"
+                      >
+                        Minimap
+                      </TabsTrigger>
+                      <TabsTrigger
+                        value="graph"
+                        className="py-0.5 text-xs uppercase tracking-wide font-bold"
+                      >
+                        Graph
+                      </TabsTrigger>
+                    </TabsList>
+                  </Tabs>
+                </div>
+              ) : selectedPanel === "ai" && agentsEnabled ? (
                 <Tabs
-                  value={dependencyPanelTab}
+                  value={aiPanelTab}
                   onValueChange={(value) => {
-                    if (value === "minimap" || value === "graph") {
-                      setDependencyPanelTab(value);
+                    if (value === "chat" || value === "agents") {
+                      setAiPanelTab(value);
                     }
                   }}
                 >
                   <TabsList>
                     <TabsTrigger
-                      value="minimap"
+                      value="chat"
                       className="py-0.5 text-xs uppercase tracking-wide font-bold"
                     >
-                      Minimap
+                      Chat
                     </TabsTrigger>
                     <TabsTrigger
-                      value="graph"
+                      value="agents"
                       className="py-0.5 text-xs uppercase tracking-wide font-bold"
                     >
-                      Graph
+                      Agents
                     </TabsTrigger>
                   </TabsList>
                 </Tabs>
-              </div>
-            ) : selectedPanel === "ai" && agentsEnabled ? (
-              <Tabs
-                value={aiPanelTab}
-                onValueChange={(value) => {
-                  if (value === "chat" || value === "agents") {
-                    setAiPanelTab(value);
-                  }
-                }}
+              ) : (
+                <span className="text-sm text-(--slate-11) uppercase tracking-wide font-semibold flex-1">
+                  {selectedPanel === "ai" ? "Chat" : selectedPanel}
+                </span>
+              )}
+              <div
+                ref={setHeaderActionsTarget}
+                className="sidebar-panel-actions ml-auto min-w-0"
+              />
+              {selectedPanel === "packages" && (
+                <RuntimeStatusToggle section="sidebar" />
+              )}
+              <Button
+                data-testid="close-helper-pane"
+                className="m-0"
+                size="xs"
+                variant="text"
+                onClick={() => setIsSidebarOpen(false)}
               >
-                <TabsList>
-                  <TabsTrigger
-                    value="chat"
-                    className="py-0.5 text-xs uppercase tracking-wide font-bold"
+                <XIcon className="w-4 h-4" />
+              </Button>
+            </div>
+            <Suspense>
+              <TooltipProvider>
+                {Object.entries(SIDEBAR_PANELS).map(([key, Panel]) => (
+                  <LazyActivity
+                    key={key}
+                    mode={
+                      isSidebarOpen && selectedPanel === key
+                        ? "visible"
+                        : "hidden"
+                    }
                   >
-                    Chat
-                  </TabsTrigger>
-                  <TabsTrigger
-                    value="agents"
-                    className="py-0.5 text-xs uppercase tracking-wide font-bold"
-                  >
-                    Agents
-                  </TabsTrigger>
-                </TabsList>
-              </Tabs>
-            ) : (
-              <span className="text-sm text-(--slate-11) uppercase tracking-wide font-semibold flex-1">
-                {selectedPanel}
-              </span>
-            )}
-            {selectedPanel === "packages" && (
-              <RuntimeStatusToggle section="sidebar" />
-            )}
-            <Button
-              data-testid="close-helper-pane"
-              className="m-0"
-              size="xs"
-              variant="text"
-              onClick={() => setIsSidebarOpen(false)}
-            >
-              <XIcon className="w-4 h-4" />
-            </Button>
+                    {Panel}
+                  </LazyActivity>
+                ))}
+              </TooltipProvider>
+            </Suspense>
           </div>
-          <Suspense>
-            <TooltipProvider>
-              {Object.entries(SIDEBAR_PANELS).map(([key, Panel]) => (
-                <LazyActivity
-                  key={key}
-                  mode={
-                    isSidebarOpen && selectedPanel === key
-                      ? "visible"
-                      : "hidden"
-                  }
-                >
-                  {Panel}
-                </LazyActivity>
-              ))}
-            </TooltipProvider>
-          </Suspense>
-        </div>
+        </PanelHeaderActionsContext.Provider>
       </PanelSectionProvider>
     </ErrorBoundary>
   );

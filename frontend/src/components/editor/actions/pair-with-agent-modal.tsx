@@ -118,9 +118,10 @@ export const PairWithAgentModal: React.FC<{
       <DialogHeader>
         <DialogTitle>Pair an agent</DialogTitle>
         <DialogDescription>
-          Use an AI coding agent to pair program on this notebook.{" "}
+          Choose your coding agent, then follow the instructions below to
+          connect it to this notebook using marimo pair.{" "}
           <a
-            href="https://links.marimo.app/marimo-pair"
+            href="https://links.marimo.app/docs-marimo-pair"
             target="_blank"
             rel="noopener noreferrer"
             className="underline"
@@ -160,7 +161,7 @@ export const PairWithAgentModal: React.FC<{
             >
               <Step
                 index={hasToken ? 1 : undefined}
-                title="Run in your terminal"
+                title="Run this command in your terminal:"
                 hint={
                   hostEnabled && tab === "opencode"
                     ? "Agent connections require OpenCode 2.x."
@@ -178,7 +179,7 @@ export const PairWithAgentModal: React.FC<{
                 />
               </Step>
               {hasToken && authToken && (
-                <Step index={2} title="Paste when prompted for a token">
+                <Step index={2} title="When prompted, paste this token:">
                   <CommandBlock
                     command={authToken}
                     display={maskToken(authToken)}
@@ -191,7 +192,7 @@ export const PairWithAgentModal: React.FC<{
 
           <TabsContent value="prompt" className="mt-4 flex flex-col gap-4">
             <Step
-              title="Copy this prompt into your agent"
+              title="Paste this prompt into your coding agent:"
               hint={
                 hasToken
                   ? "Includes your auth token — keep it private."

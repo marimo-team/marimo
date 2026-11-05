@@ -86,10 +86,18 @@ describe("clickablePlaceholderExtension", () => {
     const link = placeholder.querySelector(".cm-clickable-placeholder")!;
     expect(link).toBeTruthy();
     expect(link.textContent).toBe("here");
+    expect(link.tagName).toBe("BUTTON");
+    expect(link.closest('[aria-hidden="true"]')).toBeNull();
+    expect(link.getAttribute("type")).toBe("button");
 
     // Simulate click
     (link as HTMLElement).click();
     expect(onClick).toHaveBeenCalled();
+
+    view.dispatch({ changes: { from: 0, insert: "Hello" } });
+    expect(view.dom.querySelector(".cm-clickable-placeholder")).toBeNull();
+    view.dispatch({ changes: { from: 0, to: 5 } });
+    expect(view.dom.querySelector("button")?.textContent).toBe("here");
 
     // Check theme classes
     expect(link.classList.contains("cm-clickable-placeholder")).toBe(true);

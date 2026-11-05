@@ -46,7 +46,7 @@ export const renderUIMessage = ({
           toolName={part.type}
           result={part.output}
           errorText={part.state === "output-error" ? part.errorText : undefined}
-          className="my-2"
+          className="my-1"
           state={part.state}
           input={part.input}
           approval={part.approval}

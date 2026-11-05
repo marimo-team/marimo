@@ -1,6 +1,49 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 .mo-ai-panel {
+  .chat-control {
+    color: var(--muted-foreground);
+    background: transparent;
+    border-color: transparent;
+    box-shadow: none;
+    opacity: 1;
+
+    &.chat-new-thread {
+      color: var(--foreground);
+    }
+
+    &.chat-selector {
+      color: var(--foreground);
+      background: var(--slate-2);
+      border-color: var(--border);
+    }
+
+    &:not(:disabled):is(:hover, [data-state="open"], [data-active="true"]) {
+      color: var(--foreground);
+      background: var(--slate-3);
+    }
+
+    &[data-active="true"] {
+      border-color: var(--border);
+    }
+
+    &:focus-visible {
+      outline: 1px solid var(--muted-foreground);
+      outline-offset: 2px;
+    }
+
+    &:disabled {
+      opacity: 0.5;
+    }
+  }
+
+  .lucide-chevron-down {
+    width: 0.75rem;
+    height: 0.75rem;
+    stroke-width: 1.5;
+    opacity: 0.5;
+  }
+
   .mo-markdown-renderer {
     font-family: inherit;
     font-size: 0.875rem;
@@ -33,11 +76,37 @@
   }
 
   .mo-ai-prompt {
+    font-family: var(--text-font), sans-serif;
+    .cm-clickable-placeholder:hover {
+      color: var(--foreground);
+    }
+
+    .cm-placeholder {
+      font-family: var(--text-font), sans-serif;
+    }
+
     .cm-editor,
     .cm-scroller {
       font-family: inherit;
       font-size: inherit;
       line-height: inherit;
     }
+  }
+}
+
+@container (max-width: 380px) {
+  .chat-input-footer {
+    flex-wrap: wrap;
+  }
+
+  .chat-input-selectors {
+    flex-basis: 100%;
+  }
+}
+
+@container (max-width: 360px) {
+  .sidebar-panel-actions:not(:empty) {
+    order: 1;
+    flex-basis: 100%;
   }
 }
