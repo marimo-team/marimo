@@ -7,7 +7,7 @@ import dataclasses
 import hashlib
 import inspect
 import sys
-import types
+import textwrap
 from typing import TYPE_CHECKING, Any, NamedTuple
 
 from marimo._ast.transformers import DeprivateVisitor
@@ -17,6 +17,7 @@ from marimo._ast.variables import (
     unmangle_local,
 )
 from marimo._ast.visitor import ImportData, Name, ScopedVisitor
+from marimo._core.code import ast_fingerprint, code_fingerprint
 from marimo._plugins.ui._core.ui_element import UIElement
 from marimo._runtime.context import (
     ContextNotInitializedError,
@@ -43,6 +44,7 @@ from marimo._save.encode import (
     common_container_to_bytes,
     data_to_buffer,
     deterministic_dumps,
+    iterable_sign,
     primitive_to_bytes,
     type_sign,
 )
@@ -51,7 +53,6 @@ from marimo._types.ids import CellId_t
 
 if TYPE_CHECKING:
     from collections.abc import Callable
-    from types import CodeType
 
     from marimo._ast.cell import CellImpl
     from marimo._runtime.context.types import RuntimeContext
@@ -72,79 +73,99 @@ class SerialRefs(NamedTuple):
     stateful_refs: set[Name]
 
 
-def hash_module(code: CodeType | None, hash_type: str = DEFAULT_HASH) -> bytes:
-    hash_alg = hashlib.new(hash_type, usedforsecurity=False)
-    if not code:
-        # Hash of zeros, in the case of no code object as a recognizable noop.
-        # Artifact of typing for mypy, but reasonable fallback.
-        return b"0" * len(hash_alg.digest())
+def hash_function_source(fn: Callable[..., Any]) -> bytes:
+    """Fingerprint a function's own source, as parsed.
 
-    def process(code_obj: CodeType) -> None:
-        # Recursively hash the constants that are also code objects
-        for const in code_obj.co_consts:
-            if isinstance(const, types.CodeType):
-                process(const)
-            elif isinstance(const, frozenset) and len(const) > 1:
-                # Set literals fold to frozensets whose str()/iteration order is
-                # PYTHONHASHSEED-dependent once there are 2+ elements.
-                # Sort the element reprs for a deterministic order.
-                hash_alg.update(
-                    ",".join(sorted(map(repr, const))).encode("utf8")
-                )
-            else:
-                hash_alg.update(str(const).encode("utf8"))
-        # Concatenate the names and bytecode of the current code object
-        # Will cause invalidation of variable naming at the top level
-
-        names = [unmangle_local(name).name for name in code_obj.co_names]
-        hash_alg.update(bytes("|".join(names), "utf8"))
-        hash_alg.update(code_obj.co_code)
-
-    process(code)
-    return hash_alg.digest()
+    Raises `TypeError` when the source is unavailable or ambiguous, so the
+    caller falls back to producer identity.
+    """
+    code = fn.__code__
+    try:
+        # The code object, not the function: `inspect.getsource` unwraps a
+        # function to the one it decorates, and a wrapper has its own source.
+        source = textwrap.dedent(inspect.getsource(code))
+        tree = ast.parse(source)
+    except (OSError, SyntaxError, ValueError) as e:
+        raise TypeError(f"No source for {code.co_qualname}") from e
+    if code.co_name == "<lambda>":
+        # A lambda's source is the statement around it. Fingerprint only the
+        # lambda, and give up when the statement holds more than one.
+        nodes: list[ast.AST] = [
+            n for n in ast.walk(tree) if isinstance(n, ast.Lambda)
+        ]
+    else:
+        nodes = [
+            n
+            for n in ast.walk(tree)
+            if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))
+            and n.name == code.co_name
+        ]
+    if len(nodes) != 1:
+        raise TypeError(f"Ambiguous source for {code.co_qualname}")
+    return ast_fingerprint(nodes[0]).encode("utf-8")
 
 
 def hash_wrapped_functions(
-    wrapped: Callable[..., Any], hash_type: str = DEFAULT_HASH
+    wrapped: Callable[..., Any],
+    hash_type: str = DEFAULT_HASH,
+    _seen: set[int] | None = None,
 ) -> bytes:
-    seen = set()
+    # `_seen` is shared with the value encoder so a function reached again
+    # through a default or a closure cell contributes once instead of looping.
+    seen: set[int] = set() if _seen is None else _seen
 
-    # there is a chance for a circular reference
-    # likely manually created, but easy to guard against.
     def process_function(fn: Callable[..., Any]) -> bytes:
+        # There is a chance for a circular reference, likely manually created,
+        # but easy to guard against.
+        if id(fn) in seen:
+            return b""
+        seen.add(id(fn))
+        hash_alg = hashlib.new(hash_type, usedforsecurity=False)
         if not inspect.isbuiltin(fn):
-            fn_hash = hash_module(fn.__code__, hash_type)
+            hash_alg.update(hash_function_source(fn))
+            hash_alg.update(
+                type_sign(
+                    deterministic_dumps(
+                        (fn.__defaults__, fn.__kwdefaults__),
+                        hash_type,
+                        _seen=seen,
+                    ),
+                    "defaults",
+                )
+            )
         else:
-            # Builtin functions are not hashable, so we use their name.
-            fn_hash = type_sign(bytes(fn.__name__, "utf-8"), "builtin")
-        if fn_hash not in seen and hasattr(fn, "__wrapped__"):
-            child_hash = hash_wrapped_functions(fn.__wrapped__, hash_type)
+            # Builtin functions do not expose Python bytecode, so use their
+            # qualified name to distinguish functions from different modules.
+            parts = [primitive_to_bytes((fn.__module__, fn.__qualname__))]
+            # A bound builtin method ([1].copy, "".join) closes over its
+            # receiver, and the name alone cannot tell [1].copy from [2].copy.
+            # An unpicklable receiver raises, which routes the function to
+            # producer identity.
+            receiver = getattr(fn, "__self__", None)
+            if receiver is not None and not inspect.ismodule(receiver):
+                parts.append(
+                    deterministic_dumps(receiver, hash_type, _seen=seen)
+                )
+            hash_alg.update(iterable_sign(parts, "builtin"))
+        fn_hash = hash_alg.digest()
+        if hasattr(fn, "__wrapped__"):
+            child_hash = process_function(fn.__wrapped__)
             return child_hash + fn_hash
-        seen.add(fn_hash)
         return fn_hash
 
     return process_function(wrapped)
 
 
-def hash_raw_module(
-    module: ast.Module, hash_type: str = DEFAULT_HASH
-) -> bytes:
-    # AST has to be compiled to code object prior to process.
-    return hash_module(
-        compile(
-            DeprivateVisitor().visit(module),
-            "<hash>",
-            mode="exec",
-            flags=ast.PyCF_ALLOW_TOP_LEVEL_AWAIT,
-        ),
-        hash_type,
-    )
+def hash_raw_module(module: ast.Module) -> bytes:
+    # Cell-local names are mangled in a compiled module. Strip the prefixes so
+    # moving code between cells preserves the hash.
+    return ast_fingerprint(DeprivateVisitor().visit(module)).encode("utf-8")
 
 
-def hash_cell_impl(cell: CellImpl, hash_type: str = DEFAULT_HASH) -> bytes:
-    return hash_module(cell.body, hash_type) + hash_module(
-        cell.last_expr, hash_type
-    )
+def hash_cell_impl(cell: CellImpl) -> bytes:
+    # The cell's own source, so the cache and the host agree on code identity,
+    # including output suppression by a trailing semicolon.
+    return code_fingerprint(cell.code).encode("utf-8")
 
 
 def hash_cell_group(
@@ -156,7 +177,7 @@ def hash_cell_group(
     hashes = []
     for cell_id in cell_ids:
         cell_impl = graph.cells[cell_id]
-        hashes.append(hash_cell_impl(cell_impl, hash_alg.name))
+        hashes.append(hash_cell_impl(cell_impl))
 
     # Sort results post hash, to ensure deterministic ordering.
     for hashed_cell in sorted(hashes):
@@ -403,7 +424,7 @@ class BlockHasher:
 
         # Finally, utilize the unrun block itself, and clean up.
         self.cache_type = cache_type
-        module_hash = hash_raw_module(module, hash_type)
+        module_hash = hash_raw_module(module)
         self.hash_alg.update(module_hash)
         # Update execution path without content data.
         self.exe_alg.update(module_hash)
@@ -805,7 +826,10 @@ class BlockHasher:
                         version = getattr(module, "__version__", "") or ""
 
                 content_serialization[ref] = type_sign(
-                    bytes(f"module:{ref}:{version}", "utf-8"), "module"
+                    primitive_to_bytes(
+                        (ref, imports[import_key].module, version)
+                    ),
+                    "module",
                 )
                 # No need to watch the module otherwise. If the block depends
                 # on it then it should be caught when hashing the block.
@@ -837,9 +861,15 @@ class BlockHasher:
             elif is_pure_function(
                 local_ref, value, scope, self.fn_cache, self.graph
             ):
-                serial_value = hash_wrapped_functions(
-                    value, self.hash_alg.name
-                )
+                try:
+                    serial_value = hash_wrapped_functions(
+                        value, self.hash_alg.name
+                    )
+                except Exception:  # noqa: S112
+                    # Encoding runs user reducers, which raise any exception
+                    # type. A default that cannot be encoded needs producer
+                    # identity.
+                    continue
             # A restored stub — a placeholder left in scope for a value we
             # could not materialize here (e.g. a tensor whose optional dep is
             # absent in this environment). The `__marimo_unhashable__` protocol
@@ -1101,7 +1131,7 @@ class BlockHasher:
             "This is unexpected, please report this issue to "
             "https://github.com/marimo-team/marimo/issues"
         )
-        self.hash_alg.update(hash_raw_module(context, self.hash_alg.name))
+        self.hash_alg.update(hash_raw_module(context))
         # refs have been accounted for at this point. Nothing to return
 
     def collect_and_hash_side_effects(

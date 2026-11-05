@@ -1,11 +1,11 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-import sys
+import ast
 
 import pytest
 
-from marimo._core.code import code_fingerprint
+from marimo._core.code import ast_fingerprint, code_fingerprint
 from marimo._core.document import DocumentCell
 from marimo._core.protocol import CellId
 
@@ -49,13 +49,24 @@ def test_meaningful_changes_change_fingerprints(
     assert code_fingerprint(before) != code_fingerprint(after)
 
 
-def test_fingerprint_scheme_includes_python_version() -> None:
-    fingerprint = code_fingerprint("x = 1")
-    prefix = f"py-ast-v1:{sys.version_info.major}.{sys.version_info.minor}:"
-    assert fingerprint.startswith(prefix)
-    digest = fingerprint.removeprefix(prefix)
-    assert len(digest) == 64
-    assert int(digest, 16) >= 0
+def test_fingerprint_is_stable_across_python_versions() -> None:
+    # No version gate: every supported Python must produce this digest.
+    assert code_fingerprint("import os\nx = {1: 'a'}\nx[1]") == (
+        "ad8658a8c42531146be6bce07d450918d1d3f733d05c8d7cd1cdb5a861683da6"
+    )
+
+
+@pytest.mark.parametrize(
+    ("before", "after"),
+    [
+        ("match x:\n case None: pass", "match x:\n case False: pass"),
+        ("x = 0", "x = False"),
+        ("f(**d)", "f(x=d)"),
+        ("from . import x", "from .. import x"),
+    ],
+)
+def test_falsy_literals_are_not_dropped(before: str, after: str) -> None:
+    assert code_fingerprint(before) != code_fingerprint(after)
 
 
 def test_formatting_changes_etags_without_changing_fingerprints() -> None:
@@ -65,14 +76,14 @@ def test_formatting_changes_etags_without_changing_fingerprints() -> None:
     assert before.etag != after.etag
 
 
-@pytest.mark.parametrize("stage", ["parse", "dump"])
+@pytest.mark.parametrize("stage", ["ast.parse", "_feed"])
 def test_ast_limits_preserve_document_source(
     monkeypatch: pytest.MonkeyPatch, stage: str
 ) -> None:
     def exhausted(*_args: object, **_kwargs: object) -> None:
         raise RecursionError
 
-    monkeypatch.setattr(f"marimo._core.code.ast.{stage}", exhausted)
+    monkeypatch.setattr(f"marimo._core.code.{stage}", exhausted)
     source = "x = 1"
     cell = DocumentCell(CellId("a"), source)
     edited = DocumentCell(CellId("a"), source + " # edited")
@@ -84,3 +95,11 @@ def test_ast_limits_preserve_document_source(
 def test_deep_expression_can_be_stored() -> None:
     source = "x = " + "+".join(["1"] * 10000)
     assert DocumentCell(CellId("a"), source).code == source
+
+
+def test_ast_fingerprint_matches_source_fingerprint() -> None:
+    source = "x = 1\nx"
+    assert ast_fingerprint(ast.parse(source)) == code_fingerprint(source)
+    assert ast_fingerprint(ast.parse(source), suppress_output=True) == (
+        code_fingerprint(source + ";")
+    )

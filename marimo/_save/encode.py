@@ -8,6 +8,7 @@ containers, arbitrary picklable objects) into canonical byte sequences.
 from __future__ import annotations
 
 import hashlib
+import inspect
 import io
 import itertools
 import numbers
@@ -235,14 +236,50 @@ def attempt_signed_bytes(value: bytes, label: str) -> bytes:
         return value
 
 
-def deterministic_dumps(obj: Any, hash_type: str) -> bytes:
+def deterministic_dumps(
+    obj: Any, hash_type: str, _seen: set[int] | None = None
+) -> bytes:
     """`pickle.dumps` replacement that produces more deterministic bytes."""
+    from marimo._save.hash import hash_wrapped_functions
     from marimo._save.stubs import maybe_get_custom_stub
+
+    # `_seen` holds the functions already fingerprinted on this call path,
+    # including through the function hasher, so self-referential closures
+    # terminate.
+    seen: set[int] = set() if _seen is None else _seen
 
     class _ContentHashPickler(pickle.Pickler):
         def reducer_override(self, obj: Any) -> Any:
             if stub := maybe_get_custom_stub(obj):
                 return (bytes, (stub.to_bytes(),))
+            if inspect.isfunction(obj):
+                # Pickle stores functions by reference, so an edit to a
+                # callback held as a default or inside a value does not change
+                # the key. Fingerprint code, defaults, and captured closure
+                # values instead. Reduce to plain bytes, because a
+                # function-valued reduce callable gets fingerprinted in turn
+                # and recurses forever.
+                if id(obj) in seen:
+                    # Already fingerprinted on this path, such as a closure
+                    # that captures itself. The first occurrence carries the
+                    # content.
+                    return (bytes, (type_sign(b"", "function"),))
+                try:
+                    captured = tuple(
+                        cell.cell_contents for cell in obj.__closure__ or ()
+                    )
+                except ValueError:
+                    # An empty cell. Fall back to the default pickle reducer.
+                    return NotImplemented
+                # hash_wrapped_functions records `obj` in `seen`.
+                fingerprint = hash_wrapped_functions(
+                    obj, hash_type, _seen=seen
+                )
+                if captured:
+                    fingerprint += deterministic_dumps(
+                        captured, hash_type, _seen=seen
+                    )
+                return (bytes, (type_sign(fingerprint, "function"),))
             try:
                 if not is_primitive(obj) and is_data_primitive(obj):
                     h = hashlib.new(hash_type, usedforsecurity=False)
