@@ -654,6 +654,10 @@ class Kernel:
             cell_id: CellMetadata(config=config)
             for cell_id, config in cell_configs.items()
         }
+        # Planned attempts not yet started, consumed by whichever run next
+        # evaluates or skips the cell, so a nested command does not open a
+        # second attempt for a cell the outer run has planned.
+        self._planned: dict[CellId_t, ExecutionAttempt] = {}
         self.module_registry = ModuleRegistry(
             self.graph, excluded_modules=set()
         )
@@ -1473,7 +1477,9 @@ class Kernel:
                 # On syntax errors, we don't have a cell object.
                 CellNotificationUtils.broadcast_stale(cell_id=cid, stale=False)
 
-            execution = self._plan_execution(cid)
+            execution = self._planned.pop(cid, None) or self._plan_execution(
+                cid
+            )
             with execution.activate():
                 CellNotificationUtils.broadcast_error(
                     data=self.errors[cid],
@@ -1864,6 +1870,7 @@ class Kernel:
             execution_context=self._install_execution_context,
             hooks=run_hooks,
             get_inputs=self._read_inputs,
+            executions=self._planned,
             plan_execution=self._plan_execution,
             user_config=self.user_config,
         )
