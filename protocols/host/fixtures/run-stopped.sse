@@ -24,7 +24,7 @@ data: {"execution":{"id":"e15","run_id":"run-stopped","cell_id":"c3","code_finge
 
 id: 146
 event: execution
-data: {"execution":{"id":"e16","run_id":"run-stopped","cell_id":"k7f2","code_fingerprint":"db2b9ee97e1ecf4c","depends_on":{"x":null},"status":"completed","outcome":{"kind":"skipped","reason":"ancestor-stopped","message":"This cell wasn't run because an ancestor was stopped with `mo.stop`","related":[{"cell_id":"c3","message":"Stopped with `mo.stop`","range":null},{"cell_id":"k7f2","message":"Did not run","range":null}]},"started_at":null,"completed_at":"2026-10-01T09:23:01Z","runtime_id":"r1","caused_by":"e15","code":null},"request_id":"5d3c2b1a-9f8e-4d7c-b6a5-4e3d2c1b0a9f","time":"2026-10-01T09:23:01Z"}
+data: {"execution":{"id":"e16","run_id":"run-stopped","cell_id":"k7f2","code_fingerprint":"db2b9ee97e1ecf4c","depends_on":{"x":null},"status":"completed","outcome":{"kind":"skipped","reason":"upstream-stopped","message":"This cell wasn't run because an ancestor was stopped with `mo.stop`","related":[{"cell_id":"c3","message":"Stopped with `mo.stop`","range":null},{"cell_id":"k7f2","message":"Did not run","range":null}]},"started_at":null,"completed_at":"2026-10-01T09:23:01Z","runtime_id":"r1","caused_by":"e15","code":null},"request_id":"5d3c2b1a-9f8e-4d7c-b6a5-4e3d2c1b0a9f","time":"2026-10-01T09:23:01Z"}
 
 id: 147
 event: run

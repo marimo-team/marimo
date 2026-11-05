@@ -270,16 +270,16 @@ def _plain(text: str) -> str:
 def _skip_reason(error: Error) -> str | None:
     """The reason a kernel error means the cell did not evaluate, if it does."""
     if isinstance(error, MarimoAncestorStoppedError):
-        return "ancestor-stopped"
+        return "upstream-stopped"
     if isinstance(error, MarimoAncestorPreventedError):
-        return "ancestor-prevented"
+        return "upstream-failed"
     if (
         isinstance(error, MarimoExceptionRaisedError)
         # A NameError blamed on another cell names that cell too, so the
         # exception type is what tells a cancelled cell from one that ran.
         and error.exception_type == ANCESTOR_RAISED
     ):
-        return "ancestor-raised"
+        return "upstream-failed"
     return None
 
 

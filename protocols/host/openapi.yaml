@@ -1268,12 +1268,12 @@ components:
         reason:
           type: string
           description: |
-            Why the cell did not evaluate. Open; this protocol defines
-            `ancestor-stopped` for an ancestor that stopped the cycle on
-            purpose, `ancestor-raised` for an ancestor that raised, and
-            `ancestor-prevented` for an ancestor that could not resolve a
-            reference. Clients show unrecognized reasons as skipped, with
-            the message.
+            Why the cell did not evaluate. The string is open. This protocol
+            defines `upstream-failed`, a cell it depends on did not produce
+            its value because it raised or could not resolve a reference, and
+            `upstream-stopped`, a cell it depends on stopped the cycle on
+            purpose. Clients show unrecognized reasons as skipped, with the
+            message.
         message:
           type: string
           description: Why the cell did not run, to show in place of its output.
