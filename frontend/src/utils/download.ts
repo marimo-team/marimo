@@ -12,6 +12,7 @@ import { captureExternalIframes } from "./iframe";
 import { Logger } from "./Logger";
 import { ProgressState } from "./progress";
 import { ToastProgress } from "./toast-progress";
+import { asURL } from "./url";
 
 const FINISH_TOAST_DURATION_MS = 1200;
 type ToastConfig = Omit<Parameters<typeof toast>[0], "id">;
@@ -177,12 +178,63 @@ export async function downloadHTMLAsImage(opts: {
   }
 }
 
+const DOWNLOAD_DATA_TYPES = new Set([
+  "text/plain",
+  "text/csv",
+  "text/tab-separated-values",
+  "application/json",
+  "application/octet-stream",
+  "application/pdf",
+  "application/zip",
+  "application/gzip",
+  "image/png",
+  "image/jpeg",
+  "image/gif",
+  "image/webp",
+  "image/avif",
+  "image/bmp",
+  "image/x-icon",
+]);
+
+export function isDownloadUrl(url: string): boolean {
+  if (!url.trim()) {
+    return false;
+  }
+  try {
+    const parsed = asURL(url);
+    switch (parsed.protocol) {
+      case "http:":
+      case "https:":
+      case "blob:":
+        return true;
+      case "data:": {
+        const comma = parsed.pathname.indexOf(",");
+        if (comma === -1) {
+          return false;
+        }
+        const mimeType = parsed.pathname
+          .slice(0, comma)
+          .split(";", 1)[0]
+          .trim()
+          .toLowerCase();
+        // An omitted MIME type defaults to text/plain.
+        return DOWNLOAD_DATA_TYPES.has(mimeType || "text/plain");
+      }
+      default:
+        return false;
+    }
+  } catch {
+    return false;
+  }
+}
+
 export function downloadByURL(url: string, filename?: string) {
+  if (!isDownloadUrl(url)) {
+    throw new Error("Unsupported download URL");
+  }
   const a = document.createElement("a");
   a.href = url;
-  if (filename) {
-    a.download = filename;
-  }
+  a.download = filename ?? "";
   a.click();
   a.remove();
 }
