@@ -15,6 +15,7 @@ from click.testing import CliRunner
 
 from marimo._cli.cache.commands import cache, format_bytes
 from marimo._cli.cli import main
+from marimo._save.cache_dirs import CacheDirStats
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -276,6 +277,19 @@ def write_manifest(
         ).to_bytes()
     )
     return path
+
+
+def live_manifest(cache_dir: Path, root: Path) -> Path:
+    """Record the entry `C_{H}` of block `train` as live for a notebook in
+    `root`, so that `cache_dir` is a cache that prune manages."""
+    notebook = root / "nb.py"
+    notebook.write_text(NOTEBOOK)
+    write_manifest(
+        cache_dir,
+        notebook,
+        {path_hash_of(notebook, "x"): {"train": {f"C_{H}"}}},
+    )
+    return notebook
 
 
 def write_orphan_blobs(cache_dir: Path, block: str, entry_hash: str) -> Path:
@@ -847,8 +861,8 @@ DEAD_NODE = "1 path hash of code the notebook no longer has."
 NO_MANIFEST = "No manifest records this cache, so its entries are kept."
 KEPT_WHOLE = "does not read as a whole notebook, so its entries are kept."
 CLAIMED = (
-    "1 blob directory is being written, or was left by a writer that did "
-    "not finish. Pass --force to remove it."
+    "(1) cache entries are locked. Either the entry is being written, or a "
+    "notebook unexpectedly crashed while caching. Pass --force to remove them."
 )
 
 
@@ -908,7 +922,7 @@ async def test_prune_deletes_what_edited_code_cannot_produce_again(
     notebook.write_text(CACHING_NOTEBOOK)
     cache_dir = tmp_path / "__marimo__" / "cache"
     await run_notebook(notebook, cache_dir, exec_req)
-    (entry,) = list((cache_dir / "train").iterdir())
+    (entry,) = (cache_dir / "train").glob("*.jsonl")
     manifest = cache_dir / manifest_name(notebook)
     recorded = read_manifest(manifest)
     assert recorded
@@ -978,6 +992,7 @@ def test_prune_removes_blob_directories_that_no_marker_reads(
     because a store pointed at a project puts the project's own
     directories beside the blocks."""
     cache_dir = make_cache_dir(tmp_path)
+    live_manifest(cache_dir, tmp_path)
     write_lazy_entry(cache_dir, "train", H)
     write_orphan_blobs(cache_dir, "train", H2)
     write_orphan_blobs(cache_dir, "evaluate", H3)
@@ -987,7 +1002,6 @@ def test_prune_removes_blob_directories_that_no_marker_reads(
     assert result.exit_code == 0, result.output
     assert result.output.splitlines() == [
         f"{cache_dir}\t20 B\t1 entry",
-        f"  {NO_MANIFEST}",
         "Deleted 1 entry, freeing 20 B.",
     ]
     assert (cache_dir / "train" / H / "return.pickle").exists()
@@ -1012,6 +1026,7 @@ def test_prune_leaves_claimed_blob_directories_unless_forced(
         claim = cache_dir / "train" / partial_write_name(f"C_{H}.jsonl")
     else:
         cache_dir = make_cache_dir(tmp_path)
+        live_manifest(cache_dir, tmp_path)
         if shape == "orphan":
             write_lazy_entry(cache_dir, "train", H)
         blobs = write_orphan_blobs(cache_dir, "train", H3)
@@ -1043,6 +1058,7 @@ def test_prune_takes_root_blob_directories_only_with_force(
     so a root directory is named in the report and deleted only when
     `--force` is given and the deletion is confirmed."""
     cache_dir = make_cache_dir(tmp_path)
+    live_manifest(cache_dir, tmp_path)
     write_entry(cache_dir, "", f"C_{H}.pickle", 10)
     root = write_orphan_blobs(cache_dir, "", H3)
 
@@ -1059,9 +1075,8 @@ def test_prune_takes_root_blob_directories_only_with_force(
     )
 
     assert refused.exit_code == 0, refused.output
-    assert refused.output.splitlines()[:3] == [
+    assert refused.output.splitlines()[:2] == [
         f"{cache_dir}\t20 B\t1 entry",
-        f"  {NO_MANIFEST}",
         f"  {H3} at the cache root holds blobs that no entry reads.",
     ]
     assert "Delete 1 entry (20 B)?" in refused.output
@@ -1117,6 +1132,7 @@ def test_prune_dry_run_reports_what_the_real_run_frees(
         {**RECORD, path_hash_of(notebook, "x"): {"train": {f"C_{H2}"}}},
     )
     second = make_cache_dir(tmp_path, "b")
+    live_manifest(second, tmp_path / "b")
     write_lazy_entry(second, "train", H)
     write_orphan_blobs(second, "train", H3)
     before = snapshot(tmp_path)
@@ -1133,7 +1149,6 @@ def test_prune_dry_run_reports_what_the_real_run_frees(
         f"{first}\t30 B\t1 entry",
         f"  {DEAD_NODE}",
         f"{second}\t20 B\t1 entry",
-        f"  {NO_MANIFEST}",
         "Total\t50 B\t2 entries",
         "Would delete 2 entries, freeing 50 B.",
     ]
@@ -1190,11 +1205,15 @@ def test_prune_skips_the_prompt_with_no_one_to_answer(tmp_path: Path) -> None:
 
 def test_prune_leaves_a_cache_nothing_records(tmp_path: Path) -> None:
     """A cache written before manifests existed has no records to prune
-    from, and entries that no manifest tracks are kept beside tracked ones."""
+    from, so nothing in it goes, blobs that no marker reads included.
+    Entries that no manifest tracks are kept beside tracked ones."""
     cache_dir = make_cache_dir(tmp_path)
     write_entry(cache_dir, "train", f"C_{H}.pickle", 10)
+    orphan = write_orphan_blobs(cache_dir, "train", H3)
 
-    result = CliRunner().invoke(main, ["cache", "prune", str(tmp_path), "-y"])
+    result = CliRunner().invoke(
+        main, ["cache", "prune", str(tmp_path), "--force", "-y"]
+    )
 
     assert result.exit_code == 0, result.output
     assert result.output.splitlines() == [
@@ -1203,6 +1222,8 @@ def test_prune_leaves_a_cache_nothing_records(tmp_path: Path) -> None:
         "Nothing to delete.",
     ]
     assert (cache_dir / "train" / f"C_{H}.pickle").exists()
+    assert (orphan / "return.pickle").exists()
+    shutil.rmtree(orphan)
 
     notebook = tmp_path / "nb.py"
     notebook.write_text(NOTEBOOK)
@@ -1400,6 +1421,42 @@ def test_prune_of_a_cache_directory_that_does_not_exist(
     ]
 
 
+def test_prune_recursive_continues_past_a_directory_that_fails(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A directory that fails while the plan is applied is reported in the
+    exit code, and the other directories are still pruned."""
+    from marimo._save import prune
+
+    dirs = []
+    for name in ("a", "b"):
+        notebook = tmp_path / name / "nb.py"
+        notebook.parent.mkdir()
+        notebook.write_text(NOTEBOOK)
+        cache_dir = make_cache_dir(tmp_path, name)
+        write_entry(cache_dir, "train", f"C_{H}.pickle", 1024)
+        write_manifest(cache_dir, notebook, {"dead": {"train": {f"C_{H}"}}})
+        dirs.append(cache_dir)
+    apply_prune = prune.apply_prune
+
+    def fail_first(plan: prune.PrunePlan) -> CacheDirStats:
+        if plan.cache_dir == dirs[0]:
+            raise OSError("disk went away")
+        return apply_prune(plan)
+
+    monkeypatch.setattr(prune, "apply_prune", fail_first)
+    result = CliRunner().invoke(
+        main, ["cache", "prune", "-r", str(tmp_path), "-y"]
+    )
+
+    assert result.exit_code == 1
+    assert "Deleted 1 entry, freeing 1.0 KB." in result.output
+    assert f"Skipping {dirs[0]}: disk went away" in result.stderr
+    assert "1 path was not cleaned" in result.stderr
+    assert (dirs[0] / "train" / f"C_{H}.pickle").exists()
+    assert not (dirs[1] / "train").exists()
+
+
 def test_prune_recursive_reports_a_total(tmp_path: Path) -> None:
     dirs = []
     for name, key in (("a", f"C_{H}"), ("b", f"C_{H2}")):
@@ -1499,6 +1556,7 @@ def test_prune_exits_nonzero_when_a_path_cannot_be_listed(
     exit code. A cache root that cannot be listed is a failure too, never
     an empty plan."""
     cache_dir = make_cache_dir(tmp_path)
+    live_manifest(cache_dir, tmp_path)
     write_lazy_entry(cache_dir, "train", H)
     write_orphan_blobs(cache_dir, "train", H2)
     write_lazy_entry(cache_dir, "evaluate", H)

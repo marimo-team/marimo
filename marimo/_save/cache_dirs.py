@@ -403,11 +403,15 @@ def orphan_blob_dirs(
             claims[name] = frozenset(index.claims_by_hash)
         # A first write that died leaves a block with a claim and blobs but
         # no entry. The claim is the evidence that the blobs are a cache's.
+        # A claim with no marker is a write that is not finished or that
+        # died, whether or not it got as far as a directory of blobs.
+        unfinished = index.claims_by_hash.keys() - index.markers_by_hash.keys()
         if not index.files_by_key and not (force and index.claims_by_hash):
             if not force:
-                claimed += len(index.dir_names & index.claims_by_hash.keys())
+                claimed += len(unfinished)
             continue
-        found: set[str] = set()
+        found: set[str] = set(unfinished - index.dir_names) if force else set()
+        claimed += 0 if force else len(unfinished - index.dir_names)
         for child in index.dir_names:
             try:
                 if not _is_orphan_blob_dir(block / child, index):
@@ -469,10 +473,13 @@ def delete_blob_dirs(
                 )
                 continue
             blob_dir = block_dir / key_hash
-            try:
-                orphan = key_hash in index.dir_names and _is_orphan_blob_dir(
-                    blob_dir, index
+            if key_hash not in index.dir_names:
+                freed += _delete_bare_claim(
+                    block_dir, key_hash, index, dry_run=dry_run, force=force
                 )
+                continue
+            try:
+                orphan = _is_orphan_blob_dir(blob_dir, index)
             except OSError as e:
                 LOGGER.warning("Could not list %s: %s", blob_dir, e)
                 freed += CacheDirStats(failures=1)
@@ -510,6 +517,35 @@ def delete_blob_dirs(
                 total_bytes=bytes_freed, entries=1, failures=stuck
             )
     return freed
+
+
+def _delete_bare_claim(
+    block: Path,
+    key_hash: str,
+    index: _BlockIndex,
+    *,
+    dry_run: bool,
+    force: bool,
+) -> CacheDirStats:
+    """Delete the partial markers of `key_hash` when nothing else is left.
+
+    A write that died before its first blob leaves only its claim. Only
+    `force` takes it, and only while no marker names the hash.
+    """
+    claims = index.claims_by_hash.get(key_hash, [])
+    if not (force and claims) or key_hash in index.markers_by_hash:
+        return CacheDirStats()
+    if dry_run:
+        return CacheDirStats(
+            total_bytes=sum(_file_bytes(claim) for claim in claims), entries=1
+        )
+    if has_marker(block, key_hash):
+        return CacheDirStats()
+    bytes_freed = sum(_unlink(claim) for claim in claims)
+    stuck = sum(claim.exists() for claim in claims)
+    return CacheDirStats(
+        total_bytes=bytes_freed, entries=0 if stuck else 1, failures=stuck
+    )
 
 
 def _is_orphan_blob_dir(path: Path, index: _BlockIndex) -> bool:

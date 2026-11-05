@@ -106,24 +106,20 @@ def plan_prune(cache_dir: Path, *, force: bool = False) -> PrunePlan:
             freed=delete_blob_dirs(cache_dir, unlisted, dry_run=True),
             force=force,
         )
+    if not keys:
+        # A cache that no manifest records is left alone, blobs that no
+        # marker reads included.
+        return PrunePlan(
+            cache_dir,
+            force=force,
+            notes=(NO_MANIFEST,) if cache_dir.is_dir() else (),
+        )
     scan = orphan_blob_dirs(cache_dir, root=force, force=force)
     orphans = scan.selection
     root_notes = [
         f"{name} at the cache root holds blobs that no entry reads."
         for name in sorted(orphans.get("") or ())
     ]
-    if not keys:
-        no_manifest = [NO_MANIFEST] if cache_dir.is_dir() else []
-        return PrunePlan(
-            cache_dir,
-            orphans=orphans,
-            freed=delete_blob_dirs(
-                cache_dir, orphans, dry_run=True, force=force
-            ),
-            claimed=scan.claimed,
-            force=force,
-            notes=tuple(no_manifest + root_notes),
-        )
 
     store = FileStore(save_path=str(cache_dir))
     recorded: set[tuple[str, str]] = set()

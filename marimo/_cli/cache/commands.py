@@ -1,7 +1,6 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-import functools
 import sys
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -403,6 +402,7 @@ def _prune_cache_dirs(
     dry_run: bool,
 ) -> None:
     from marimo._save.cache_dirs import CacheDirError
+    from marimo._save.manifest import ManifestError
     from marimo._save.prune import apply_prune, plan_prune
 
     try:
@@ -416,13 +416,16 @@ def _prune_cache_dirs(
     )
 
     def apply() -> CacheDirStats:
-        return sum(
-            (
-                _apply_or_error(functools.partial(apply_prune, plan))
-                for plan in plans
-            ),
-            CacheDirStats(),
-        )
+        freed = CacheDirStats()
+        for plan in plans:
+            try:
+                freed += apply_prune(plan)
+            except (CacheDirError, ManifestError, OSError) as e:
+                # The other directories are still pruned, and the exit code
+                # reports this one.
+                click.echo(f"Skipping {plan.cache_dir}: {e}", err=True)
+                freed += CacheDirStats(failures=1)
+        return freed
 
     if not planned.entries and not planned.total_bytes:
         # Forgetting a record no file answers to removes no cached value,

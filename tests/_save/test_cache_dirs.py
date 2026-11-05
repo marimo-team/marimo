@@ -992,6 +992,9 @@ def populate_orphan_blobs(block: Path, entry_hash: str) -> Path:
     return blobs
 
 
+@pytest.mark.skipif(
+    sys.platform == "win32", reason="symlinks need a privileged user"
+)
 def test_orphan_blob_dirs_names_only_blobs_no_marker_reads(
     tmp_path: Path,
 ) -> None:
@@ -1074,6 +1077,9 @@ def test_delete_blob_dirs_reports_the_blobs_as_an_entry(
     assert block.is_dir()
 
 
+@pytest.mark.skipif(
+    sys.platform == "win32", reason="symlinks need a privileged user"
+)
 def test_delete_blob_dirs_refuses_a_name_that_leaves_the_cache(
     tmp_path: Path,
 ) -> None:
@@ -1151,6 +1157,28 @@ def test_delete_blob_dirs_takes_a_claimed_directory_only_when_forced(
         assert freed == CacheDirStats(total_bytes=24, entries=1)
     assert blobs.exists() is not force
     assert claim.exists() is (not force or stuck)
+
+
+def test_force_sweeps_a_claim_that_has_no_blobs(tmp_path: Path) -> None:
+    """A write that died before its first blob leaves only its claim. It
+    counts with the claimed directories, and only `force` takes it."""
+    cache_dir = make_cache_dir(tmp_path)
+    block = populate_lazy_block(cache_dir)
+    claim = block / partial_write_name(f"C_{H3}.jsonl")
+    claim.write_bytes(b"c" * 4)
+
+    scan = orphan_blob_dirs(cache_dir)
+
+    assert scan == OrphanScan(claimed=1, claims={"train": frozenset({H3})})
+    assert orphan_blob_dirs(cache_dir, force=True).selection == {
+        "train": frozenset({H3})
+    }
+    assert delete_blob_dirs(cache_dir, {"train": {H3}}) == CacheDirStats()
+    assert claim.exists()
+    assert delete_blob_dirs(
+        cache_dir, {"train": {H3}}, force=True
+    ) == CacheDirStats(total_bytes=4, entries=1)
+    assert not claim.exists()
 
 
 @pytest.mark.parametrize(

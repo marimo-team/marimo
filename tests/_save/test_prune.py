@@ -14,6 +14,7 @@ from tests._cli.test_cli_cache import (
     NOTEBOOK,
     RECORD,
     H,
+    live_manifest,
     path_hash_of,
     read_manifest,
     tracked_notebook,
@@ -75,6 +76,7 @@ def test_apply_keeps_a_blob_directory_a_marker_came_to_read(
     the deletion. Its marker now reads them, so they are kept."""
     cache_dir = tmp_path / "__marimo__" / "cache"
     cache_dir.mkdir(parents=True)
+    live_manifest(cache_dir, tmp_path)
     write_lazy_entry(cache_dir, "train", H2)
     blobs = write_orphan_blobs(cache_dir, "train", H)
     plan = plan_prune(cache_dir)
