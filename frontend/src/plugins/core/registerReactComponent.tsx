@@ -30,7 +30,6 @@ import { isUninstantiated } from "@/core/cells/utils";
 import { createInputEvent, MarimoValueUpdateEvent } from "@/core/dom/events";
 import { getUIElementObjectId } from "@/core/dom/ui-element";
 import { UIElementRegistry } from "@/core/dom/uiregistry";
-import { FUNCTIONS_REGISTRY } from "@/core/functions/FunctionRegistry";
 import { LocaleProvider } from "@/core/i18n/locale-provider";
 import { store } from "@/core/state/jotai";
 import { isStaticNotebook } from "@/core/static/static-state";
@@ -223,7 +222,9 @@ function PluginSlotInternal<T>(
           input,
           output,
           getNamespace: () => getUIElementObjectId(hostElement),
-          request: (request) => FUNCTIONS_REGISTRY.request(request),
+          request: UIElementRegistry.INSTANCE.functionRequest(
+            getUIElementObjectId(hostElement),
+          ),
         });
       };
     }

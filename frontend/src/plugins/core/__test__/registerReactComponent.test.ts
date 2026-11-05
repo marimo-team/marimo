@@ -3,6 +3,8 @@
 import ReactDOM from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { z } from "zod";
+import { UIElementRegistry } from "@/core/dom/uiregistry";
+import type { FunctionRequest } from "@/core/functions/host-function";
 import { FUNCTIONS_REGISTRY } from "@/core/functions/FunctionRegistry";
 import type { FunctionCallResultMessage } from "@/core/kernel/messages";
 import { FunctionNotFoundError } from "@/utils/errors";
@@ -327,6 +329,27 @@ describe("plugin function: not-found recovery", () => {
 
     await expect(run({})).resolves.toEqual({ ok: true });
     expect(requestMock).toHaveBeenCalledTimes(2);
+  });
+
+  test("routes a plugin function through its element binding", async () => {
+    const host = vi.fn<FunctionRequest>().mockResolvedValue(OK);
+    const disconnect = UIElementRegistry.INSTANCE.connectFunctions((id) =>
+      id === "test-object-id" ? host : undefined,
+    );
+    try {
+      const run = await mountWithFunction();
+      await expect(run({ query: "a" })).resolves.toEqual({ ok: true });
+      expect(host).toHaveBeenCalledWith({
+        namespace: "test-object-id",
+        functionName: "run",
+        args: { query: "a" },
+      });
+      host.mockRejectedValueOnce(new Error("host failed"));
+      await expect(run({})).rejects.toThrow("host failed");
+      expect(requestMock).not.toHaveBeenCalled();
+    } finally {
+      disconnect();
+    }
   });
 
   test("throws FunctionNotFoundError after retries are exhausted", async () => {
