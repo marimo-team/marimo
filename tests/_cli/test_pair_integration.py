@@ -564,6 +564,9 @@ def test_url_does_not_discover_a_notebook_on_another_server(
     )
     assert result.returncode == 2, (result.stdout, result.stderr)
     payload = json.loads(result.stdout)
-    assert "No running notebook matches" in payload["error"]
-    assert server.url in payload["error"]
+    assert payload["error"] == (
+        f"No running notebook matches {editor_server.notebook_id!r} on {server.url}."
+        if selector == "--notebook"
+        else f"No notebook {editor_server.notebook_id} on {server.url}. Run pair list to find the current notebook."
+    )
     assert "must not execute" not in result.stdout

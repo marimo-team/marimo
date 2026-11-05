@@ -36,11 +36,16 @@ TEST_URL = "https://localhost:8000?auth=tok123"
 @pytest.fixture(autouse=True)
 def _isolate_pair_command(monkeypatch: pytest.MonkeyPatch) -> None:
     def resolve(
-        *, url: str | None, session_id: str | None, token: str | None
+        *,
+        url: str | None,
+        session_id: str | None,
+        notebook_id: str | None,
+        token: str | None,
     ) -> ExecutionTarget:
         assert url is not None
-        assert session_id is not None
-        return ExecutionTarget(url, session_id, token, session_id)
+        selected_id = notebook_id or session_id
+        assert selected_id is not None
+        return ExecutionTarget(url, selected_id, token, selected_id)
 
     monkeypatch.setattr(commands, "resolve_target", resolve)
     monkeypatch.delenv("MARIMO_TOKEN", raising=False)
@@ -791,7 +796,12 @@ Options:
 
         assert result.exit_code == 0
         assert resolve_calls == [
-            {"url": "http://one", "token": None, "session_id": None}
+            {
+                "url": "http://one",
+                "token": None,
+                "session_id": None,
+                "notebook_id": None,
+            }
         ]
         assert execute_calls[0]["session_id"] == "sess-one"
 
@@ -1496,6 +1506,7 @@ def test_execute_credential_precedence(
         {
             "url": None,
             "session_id": "nb-one",
+            "notebook_id": None,
             "token": {
                 "token": "argument-secret",
                 "file": "file-secret",

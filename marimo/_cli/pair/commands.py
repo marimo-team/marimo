@@ -250,14 +250,16 @@ def execute(
     if not code:
         raise click.UsageError("Code must not be empty.")
 
-    selected_id = session_id or notebook_id
     selector = "--notebook" if notebook_id is not None else "--session"
     try:
         credential = (
             token if token is not None else load_token(token_file, os.environ)
         )
         target = resolve_target(
-            url=url, session_id=selected_id, token=credential
+            url=url,
+            session_id=session_id,
+            notebook_id=notebook_id,
+            token=credential,
         )
         url = target.url
         notebook_id = target.notebook_id

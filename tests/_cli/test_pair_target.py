@@ -81,13 +81,26 @@ def test_local_url_uses_catalog_without_editor_authentication(
     ) == ExecutionTarget(NOTEBOOK.url, NOTEBOOK.id, HOST.token, NOTEBOOK.id)
 
 
-def test_explicit_local_session_does_not_need_catalog_discovery(
+@pytest.mark.parametrize(
+    "identifier",
+    [
+        "sess-one",
+        "session-1",
+        "92a5d2d7-74b1-42f7-9b5d-540bd1a610db",
+        "nb-opaque",
+    ],
+)
+def test_explicit_local_session_defers_to_the_selected_server(
     monkeypatch: pytest.MonkeyPatch,
+    identifier: str,
 ) -> None:
     monkeypatch.setattr(target, "find_host", lambda _: HOST)
+    monkeypatch.setattr(
+        target, "list_running_notebooks", lambda _: Listing([NOTEBOOK], [])
+    )
     assert target.resolve_target(
-        url=NOTEBOOK.url, session_id="sess-one", token=None
-    ) == ExecutionTarget(NOTEBOOK.url, "sess-one", HOST.token)
+        url=NOTEBOOK.url, session_id=identifier, token=None
+    ) == ExecutionTarget(NOTEBOOK.url, identifier, HOST.token)
 
 
 def test_multiple_notebooks_require_selection(
@@ -159,14 +172,20 @@ def test_url_restricts_notebook_discovery_to_one_local_host(
     monkeypatch.setattr(target, "list_running_notebooks", listing)
     if known:
         assert target.resolve_target(
-            url=NOTEBOOK.url, session_id=NOTEBOOK.id, token=None
+            url=NOTEBOOK.url,
+            notebook_id=NOTEBOOK.id,
+            session_id=None,
+            token=None,
         ) == ExecutionTarget(
             NOTEBOOK.url, NOTEBOOK.id, HOST.token, NOTEBOOK.id
         )
     else:
         with pytest.raises(PairError, match="No running notebook matches"):
             target.resolve_target(
-                url=NOTEBOOK.url, session_id=NOTEBOOK.id, token=None
+                url=NOTEBOOK.url,
+                notebook_id=NOTEBOOK.id,
+                session_id=None,
+                token=None,
             )
     assert seen == [[HOST]]
 
@@ -184,4 +203,39 @@ def test_remote_scope_does_not_substitute_an_unrelated_notebook(
     with pytest.raises(PairError, match="No running notebook matches"):
         target.resolve_target(
             url="https://remote", session_id="nb-missing", token="explicit"
+        )
+
+
+@pytest.mark.parametrize("selector", ["session_id", "notebook_id"])
+@pytest.mark.parametrize("identifier", ["sess-not-a-session", "opaque-id"])
+def test_catalog_membership_identifies_notebooks(
+    monkeypatch: pytest.MonkeyPatch, selector: str, identifier: str
+) -> None:
+    notebook = RunningNotebook(
+        identifier, NOTEBOOK.name, NOTEBOOK.path, NOTEBOOK.url, "running"
+    )
+    monkeypatch.setattr(target, "find_host", lambda _: HOST)
+    monkeypatch.setattr(
+        target, "list_running_notebooks", lambda _: Listing([notebook], [])
+    )
+    assert target.resolve_target(
+        url=NOTEBOOK.url,
+        session_id=identifier if selector == "session_id" else None,
+        notebook_id=identifier if selector == "notebook_id" else None,
+        token=None,
+    ) == ExecutionTarget(NOTEBOOK.url, identifier, HOST.token, identifier)
+
+
+def test_local_session_resolution_does_not_ignore_discovery_errors(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(target, "find_host", lambda _: HOST)
+    monkeypatch.setattr(
+        target,
+        "list_running_notebooks",
+        lambda _: Listing([], ["Could not read the catalog."]),
+    )
+    with pytest.raises(PairError, match="Could not read the catalog"):
+        target.resolve_target(
+            url=NOTEBOOK.url, session_id="opaque-id", token=None
         )
