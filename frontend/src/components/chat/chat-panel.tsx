@@ -223,7 +223,7 @@ const ChatMessageDisplay: React.FC<ChatMessageProps> = memo(
           <PromptInput
             key={message.id}
             value={content}
-            placeholder="Type your message."
+            placeholder="Type your message. Use @ to reference variables and cells."
             onChange={() => {
               // noop
             }}
@@ -385,7 +385,7 @@ const ChatInput: React.FC<ChatInputProps> = memo(
           : {
               beforeText: "Type your message or ",
               linkText: "pair your own coding agent",
-              afterText: ".",
+              afterText: ". Use @ to reference variables and cells.",
               onClick: openPairWithAgentModal,
             },
       [openPairWithAgentModal],
@@ -408,7 +408,7 @@ const ChatInput: React.FC<ChatInputProps> = memo(
             onSubmit={onSubmit}
             onClose={onClose}
             onAddFiles={onAddFiles}
-            placeholder="Type your message."
+            placeholder="Type your message. Use @ to reference variables and cells."
             placeholderAction={placeholderAction}
           />
         </div>
