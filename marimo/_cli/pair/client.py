@@ -12,14 +12,12 @@ from typing import TYPE_CHECKING
 from urllib.parse import quote, urlsplit
 from uuid import uuid4
 
-from marimo._server.api.utils import format_url_host
 from marimo._server.host import (
     ATTACHMENT_IDENTITY,
     ATTACHMENT_KIND,
     ATTACHMENT_NAME,
     HOST_API_PATH,
 )
-from marimo._server.server_registry import _servers_dir
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Iterator, Mapping
@@ -771,39 +769,3 @@ def resolve_execution_target(
     stable_id = selected["session_id"]
     assert stable_id is not None
     return selected.get("notebook_id"), stable_id
-
-
-def registry_urls() -> list[str]:
-    import psutil
-
-    urls: list[str] = []
-    for path in sorted(_servers_dir().glob("*.json")):
-        try:
-            with path.open(encoding="utf-8") as file:
-                entry = json.load(file)
-        except (OSError, UnicodeError, json.JSONDecodeError):
-            continue
-        if not isinstance(entry, dict):
-            continue
-        pid = entry.get("pid")
-        host = entry.get("host")
-        port = entry.get("port")
-        base_url = entry.get("base_url")
-        if (
-            type(pid) is not int
-            or not psutil.pid_exists(pid)
-            or not isinstance(host, str)
-            or type(port) is not int
-            or not 1 <= port <= 65535
-            or not isinstance(base_url, str)
-        ):
-            continue
-
-        url_host = format_url_host(host, port, route_bind_all_to_loopback=True)
-        if port == 80:
-            urls.append(f"http://{url_host}{base_url}")
-        elif port == 443:
-            urls.append(f"https://{url_host}{base_url}")
-        else:
-            urls.append(f"http://{url_host}:{port}{base_url}")
-    return urls

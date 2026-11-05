@@ -10,6 +10,7 @@ import sys
 from pathlib import Path
 
 import click
+import msgspec
 
 from marimo._cli.help_formatter import ColoredCommand, ColoredGroup
 from marimo._cli.pair.client import (
@@ -27,7 +28,6 @@ from marimo._cli.pair.client import (
     execute_editor,
     list_sessions,
     load_token,
-    registry_urls,
     resolve_execution_target,
     resolve_host,
 )
@@ -35,6 +35,7 @@ from marimo._cli.pair.connection import (
     ConnectionStore,
     connection_identity,
 )
+from marimo._cli.pair.discovery import list_running_notebooks
 from marimo._cli.pair.forwarder import ForwarderConfig, start_forwarder
 from marimo._cli.pair.harnesses import detect_target, environment_identity
 from marimo._cli.pair.prompts import render_prompt
@@ -693,7 +694,20 @@ def list_notebooks(urls: tuple[str, ...], token_file: Path | None) -> None:
         token = load_token(token_file, os.environ) if urls else None
     except PairInputError as error:
         raise click.UsageError(str(error)) from error
-    selected_urls = list(urls) if urls else registry_urls()
+    if not urls:
+        local_listing = list_running_notebooks()
+        payload = msgspec.to_builtins(local_listing)
+        if not local_listing.notebooks:
+            payload["next"] = (
+                "No running notebooks found. Open a notebook with "
+                "`marimo edit <notebook.py>`, then run `marimo pair list` again."
+                if not local_listing.warnings
+                else "Some local servers could not be listed. Check the warnings, "
+                "then run `marimo pair list` again."
+            )
+        click.echo(json.dumps(payload, indent=2))
+        return
+    selected_urls = list(urls)
     notebooks: list[dict[str, object]] = []
     warnings: list[str] = []
 
@@ -828,4 +842,5 @@ pair.add_command(detach)
 pair.add_command(execute)
 pair.add_command(docs)
 pair.add_command(notebook)
+pair.add_command(list_notebooks)
 pair.add_command(prompt)

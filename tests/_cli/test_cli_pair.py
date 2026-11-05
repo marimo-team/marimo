@@ -23,9 +23,9 @@ from marimo._cli.pair.client import (
     NoNotebookError,
     NotebookUnsupportedError,
     PairError,
-    PairInputError,
     StaleNotebookError,
 )
+from marimo._cli.pair.discovery import Listing
 
 _runner = CliRunner()
 
@@ -139,6 +139,7 @@ Commands:
   detach    Stop the forwarder and detach its notebook...
   docs      Read notebook guidance on demand.
   execute   Run Python in a live notebook.
+  list      List active notebooks and their host IDs.
   notebook  Find active notebooks and their IDs.
   prompt    Generate a prompt for pair programming on...
 """)
@@ -1325,29 +1326,6 @@ Options:
         assert "password" not in result.output
         assert "secret" not in result.output
 
-    def test_list_warns_for_invalid_discovered_url(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        def fail_list_sessions(**_kwargs: Any) -> None:
-            raise PairInputError("The server URL must use http or https.")
-
-        monkeypatch.setattr(commands, "registry_urls", lambda: ["ftp://bad"])
-        monkeypatch.setattr(commands, "list_sessions", fail_list_sessions)
-
-        result = _runner.invoke(cli_main, ["pair", "notebook", "list"])
-
-        assert result.exit_code == 0
-        payload = json.loads(result.output)
-        assert payload["notebooks"] == []
-        assert payload["warnings"] == [
-            (
-                "Server ftp://bad could not be read: "
-                "The server URL must use http or https."
-            )
-        ]
-        assert payload["next"].startswith("No sessions found.")
-        assert "marimo edit <notebook.py> --no-token" in payload["next"]
-
     def test_list_warns_when_server_has_no_stable_sessions(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
@@ -1371,24 +1349,20 @@ Options:
             )
         ]
 
-    def test_list_empty_registry_succeeds(
-        self, monkeypatch: pytest.MonkeyPatch
+    @pytest.mark.parametrize("spelling", [["list"], ["notebook", "list"]])
+    def test_list_empty_discovery_succeeds(
+        self, monkeypatch: pytest.MonkeyPatch, spelling: list[str]
     ) -> None:
-        monkeypatch.setattr(commands, "registry_urls", list)
         monkeypatch.setattr(
-            commands,
-            "list_sessions",
-            lambda **_kwargs: pytest.fail("No server should be queried"),
+            commands, "list_running_notebooks", lambda: Listing([], [])
         )
-
-        result = _runner.invoke(cli_main, ["pair", "notebook", "list"])
-
+        result = _runner.invoke(cli_main, ["pair", *spelling])
         assert result.exit_code == 0
-        payload = json.loads(result.output)
-        assert payload["notebooks"] == []
-        assert payload["warnings"] == []
-        assert payload["next"].startswith("No sessions found.")
-        assert "marimo edit <notebook.py> --no-token" in payload["next"]
+        assert json.loads(result.output) == {
+            "notebooks": [],
+            "warnings": [],
+            "next": "No running notebooks found. Open a notebook with `marimo edit <notebook.py>`, then run `marimo pair list` again.",
+        }
 
     def test_list_uses_token_only_for_explicit_urls(
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
@@ -1411,7 +1385,7 @@ Options:
         monkeypatch.setattr(commands, "load_token", fake_load_token)
         monkeypatch.setattr(commands, "list_sessions", fake_list_sessions)
         monkeypatch.setattr(
-            commands, "registry_urls", lambda: ["http://discovered"]
+            commands, "list_running_notebooks", lambda: Listing([], [])
         )
 
         discovered = _runner.invoke(
@@ -1441,7 +1415,6 @@ Options:
         assert explicit.exit_code == 0
         assert load_calls == [token_file]
         assert session_calls == [
-            ("http://discovered", None),
             ("http://explicit", "secret"),
         ]
 
