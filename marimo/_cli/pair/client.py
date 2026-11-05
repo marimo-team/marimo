@@ -626,14 +626,7 @@ class HostEndpoint:
 
 
 def resolve_host(url: str, *, root: Path | None = None) -> HostEndpoint:
-    import os
-    import stat
-
-    import msgspec
-    import psutil
-
-    from marimo._core import protocol
-    from marimo._utils.xdg import marimo_state_dir
+    from marimo._server.host.record import discover_hosts
 
     def normalized(value: str) -> tuple[str, str | None, int, str]:
         parsed = urlsplit(value)
@@ -655,45 +648,9 @@ def resolve_host(url: str, *, root: Path | None = None) -> HostEndpoint:
         selected = normalized(url)
     except ValueError as error:
         raise PairInputError("The server URL is invalid.") from error
-    directory = root if root is not None else marimo_state_dir() / "hosts-v1"
-    for path in sorted(directory.glob("*.json")):
-        try:
-            descriptor = os.open(
-                path,
-                os.O_RDONLY
-                | getattr(os, "O_NOFOLLOW", 0)
-                | getattr(os, "O_NONBLOCK", 0),
-            )
-            with os.fdopen(descriptor, "rb") as record_file:
-                info = os.fstat(record_file.fileno())
-                if not stat.S_ISREG(info.st_mode):
-                    continue
-                if os.name == "posix" and (
-                    info.st_uid != os.getuid() or info.st_mode & 0o077
-                ):
-                    continue
-                record = msgspec.json.decode(
-                    record_file.read(), type=protocol.HostRecord
-                )
-            if normalized(record.url) != selected:
-                continue
-            process = psutil.Process(record.process.pid)
-            if (
-                not process.is_running()
-                or process.status() == psutil.STATUS_ZOMBIE
-            ):
-                continue
-            if (
-                abs(
-                    process.create_time()
-                    - record.process.started_at.timestamp()
-                )
-                > 1e-6
-            ):
-                continue
+    for record in discover_hosts(root=root):
+        if normalized(record.url) == selected:
             return HostEndpoint(record.url, record.token)
-        except (OSError, ValueError, msgspec.DecodeError, psutil.Error):
-            continue
     raise PairError(
         "No live host record matches this URL. Start a local edit server, or restart the existing server."
     )
