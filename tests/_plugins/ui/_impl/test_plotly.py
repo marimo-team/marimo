@@ -4363,16 +4363,15 @@ def test_bar_chart_date_x_axis_selection() -> None:
         "iso_strings": [d.isoformat() for d in days],
     }
 
-    selection: dict[str, Any] = {
-        "range": {
-            "x": ["2026-01-05", "2026-01-06 12:00"],
-            "y": [0, 3],
-        },
-        "points": [],
-        "indices": [],
-    }
-
     for name, x in variants.items():
+        selection: dict[str, Any] = {
+            "range": {
+                "x": ["2026-01-05", "2026-01-06 12:00"],
+                "y": [0, 3],
+            },
+            "points": [],
+            "indices": [],
+        }
         fig = go.Figure(go.Bar(x=x, y=[1, 2, 3]))
         plot = plotly(fig)
         result = plot._convert_value(selection)
