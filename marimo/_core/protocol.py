@@ -508,7 +508,7 @@ else:
 RunOutcome: TypeAlias = Annotated[
     Literal["succeeded", "failed", "interrupted"],
     Meta(
-        description="How a run ended. `succeeded` means its work settled without an\nexecution error or interruption. `failed` means an execution\nfailed or the host could not finish the cycle. `interrupted`\nmeans the cycle was cut short by interruption, even if an earlier\nexecution failed. Execution outcomes retain their individual results.\n"
+        description="How a run ended. `succeeded` means its work settled without an\nexecution error or interruption. `failed` means an execution's\ncode raised or the host could not finish the cycle. An execution\nskipped because of another cell does not fail its run. `interrupted`\nmeans the cycle was cut short by interruption, even if an earlier\nexecution failed. Execution outcomes retain their individual results.\n"
     ),
 ]
 
@@ -606,6 +606,27 @@ class SetOrder(Struct, frozen=True, tag_field="kind", tag="set_order"):
         tuple[CellId, ...],
         Meta(
             description="Every cell id exactly once, in the new order, counting cells this edit creates and leaving out cells it deletes."
+        ),
+    ]
+
+
+class SkippedOutcome(Struct, frozen=True, tag_field="kind", tag="skipped"):
+    message: Annotated[
+        str,
+        Meta(
+            description="Why the cell did not run, to show in place of its output."
+        ),
+    ]
+    reason: Annotated[
+        str,
+        Meta(
+            description="Why the cell did not evaluate. Open; this protocol defines\n`ancestor-stopped` for an ancestor that stopped the cycle on\npurpose, `ancestor-raised` for an ancestor that raised, and\n`ancestor-prevented` for an ancestor that could not resolve a\nreference. Clients show unrecognized reasons as skipped, with\nthe message.\n"
+        ),
+    ]
+    related: Annotated[
+        tuple[Related, ...],
+        Meta(
+            description="The cells involved, the cause first and this cell last."
         ),
     ]
 
@@ -1397,9 +1418,9 @@ class NotebookRemovedEvent(
 
 
 Outcome: TypeAlias = Annotated[
-    ValueOutcome | ErrorOutcome | InterruptedOutcome,
+    ValueOutcome | ErrorOutcome | InterruptedOutcome | SkippedOutcome,
     Meta(
-        description="How an execution ended, tagged on `kind`. A `value` carries the\nexecution's value as last rendered; while the execution is\nrunning it is the value so far, and it is final once the\nexecution is `completed`. An `error` carries the error that ended it.\nAn `interrupted` execution was cancelled before or during execution. Other\nkinds are defined by later versions of this protocol.\n"
+        description="How an execution ended, tagged on `kind`. A `value` carries the\nexecution's value as last rendered; while the execution is\nrunning it is the value so far, and it is final once the\nexecution is `completed`. An `error` carries the error that ended it.\nAn `interrupted` execution was cancelled before or during execution.\nA `skipped` execution did not evaluate because of another cell; it\nhas no value and binds no variables. Other kinds are defined by\nlater versions of this protocol.\n"
     ),
 ]
 

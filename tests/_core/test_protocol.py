@@ -365,6 +365,7 @@ def assert_document_hash(
         ("run-cells.sse", "succeeded"),
         ("run-failed.sse", "failed"),
         ("run-interrupted.sse", "interrupted"),
+        ("run-stopped.sse", "succeeded"),
         ("notebook-events.sse", "succeeded"),
     ],
 )
