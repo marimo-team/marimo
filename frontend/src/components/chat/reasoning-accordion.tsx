@@ -49,7 +49,7 @@ export const ReasoningAccordion: React.FC<ReasoningAccordionProps> = ({
           </span>
         </AccordionTrigger>
         <AccordionContent className="pb-2 px-2">
-          <div className="bg-muted/30 border border-muted/50 rounded-md p-3 italic text-muted-foreground/90 relative">
+          <div className="bg-muted/30 border border-muted/50 rounded-md p-3 text-muted-foreground relative">
             <div className="pr-6">
               <MarkdownRenderer content={reasoning} />
             </div>

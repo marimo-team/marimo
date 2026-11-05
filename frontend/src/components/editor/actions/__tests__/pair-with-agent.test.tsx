@@ -7,7 +7,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { ModalProvider } from "@/components/modal/ImperativeModal";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { store } from "@/core/state/jotai";
-import { PairWithAgentBanner, PairWithAgentButton } from "../pair-with-agent";
+import { PairWithAgentBanner } from "../pair-with-agent";
 
 const mocks = vi.hoisted(() => ({
   isWasm: vi.fn(() => false),
@@ -78,26 +78,10 @@ describe("PairWithAgent", () => {
     expect(screen.getByRole("dialog", { name: "Pair an agent" })).toBeVisible();
   });
 
-  it("opens the pairing dialog and preserves a passed click handler", () => {
-    const onClick = vi.fn();
-    stubTokenFetch();
-    render(<PairWithAgentButton onClick={onClick} />, { wrapper });
-
-    fireEvent.click(screen.getByRole("button", { name: "Pair your agent" }));
-
-    expect(onClick).toHaveBeenCalledOnce();
-    expect(screen.getByRole("dialog", { name: "Pair an agent" })).toBeVisible();
-  });
-
   it("hides pairing controls in WASM", () => {
     mocks.isWasm.mockReturnValue(true);
 
-    const { container, rerender } = render(<PairWithAgentButton />, {
-      wrapper,
-    });
-    expect(container).toBeEmptyDOMElement();
-
-    rerender(<PairWithAgentBanner />);
+    const { container } = render(<PairWithAgentBanner />, { wrapper });
     expect(container).toBeEmptyDOMElement();
   });
 });

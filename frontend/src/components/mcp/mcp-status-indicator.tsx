@@ -11,7 +11,7 @@ import { useMCPStatus } from "./hooks";
 
 /**
  * MCP Status indicator component
- * Shows a small icon with status color and a popover with detailed information
+ * Shows connection details and highlights states that need attention
  */
 export const MCPStatusIndicator: React.FC = () => {
   const { data: status, refetch, isFetching } = useMCPStatus();
@@ -44,10 +44,9 @@ export const MCPStatusIndicator: React.FC = () => {
           <Button aria-label="MCP status" variant="text" size="icon">
             <PlugIcon
               className={cn(
-                "h-4 w-4",
-                status?.status === "ok" && "text-green-500",
-                status?.status === "partial" && "text-yellow-500",
-                status?.status === "error" && hasServers && "text-red-500",
+                "h-4 w-4 text-muted-foreground",
+                status?.status === "partial" && "text-(--amber-11)",
+                status?.status === "error" && hasServers && "text-destructive",
               )}
             />
           </Button>
@@ -79,7 +78,7 @@ export const MCPStatusIndicator: React.FC = () => {
                 </div>
               )}
               {status.error && (
-                <div className="text-xs text-red-500 bg-red-50 dark:bg-red-950/20 p-2 rounded">
+                <div className="text-xs text-destructive bg-destructive/10 p-2 rounded">
                   {status.error}
                 </div>
               )}
@@ -129,13 +128,13 @@ export const McpStatusText: React.FC<{
     <span
       className={cn(
         "text-xs font-medium",
-        status === "ok" && "text-green-500",
-        status === "partial" && "text-yellow-500",
-        status === "error" && "text-red-500",
-        status === "failed" && "text-red-500",
-        status === "disconnected" && "text-gray-500",
-        status === "pending" && "text-yellow-500",
-        status === "connected" && "text-green-500",
+        status === "ok" && "text-muted-foreground",
+        status === "partial" && "text-(--amber-11)",
+        status === "error" && "text-destructive",
+        status === "failed" && "text-destructive",
+        status === "disconnected" && "text-muted-foreground",
+        status === "pending" && "text-(--amber-11)",
+        status === "connected" && "text-muted-foreground",
       )}
     >
       {status}

@@ -13,13 +13,11 @@ import {
 import { useAtom, useAtomValue, useSetAtom, useStore } from "jotai";
 import {
   BotMessageSquareIcon,
-  ArrowRightIcon,
   Loader2,
   PlusIcon,
-  SparklesIcon,
   SettingsIcon,
 } from "lucide-react";
-import { memo, useEffect, useRef, useState } from "react";
+import { memo, useEffect, useMemo, useRef, useState } from "react";
 import useEvent from "react-use-event-hook";
 import { Button } from "@/components/ui/button";
 import { replaceMessagesInChat } from "@/core/ai/chat-utils";
@@ -50,20 +48,18 @@ import { AIModelDropdown } from "../ai/ai-model-dropdown";
 import { useOpenSettingsToTab } from "../app-config/state";
 import {
   PairWithAgentBanner,
-  PairWithAgentButton,
+  usePairWithAgentModal,
 } from "../editor/actions/pair-with-agent";
-import { PairWithAgentModal } from "../editor/actions/pair-with-agent-modal";
-import { PromptInput } from "../editor/ai/add-cell-with-ai";
+import { PromptInput } from "../editor/ai/prompt-input";
 import {
   addContextCompletion,
-  CONTEXT_TRIGGER,
   isContextAttachment,
   resolveChatContext,
 } from "../editor/ai/completion-utils";
 import { StreamingChunkTransport } from "../editor/ai/transport/chat-transport";
 import { PanelEmptyState } from "../editor/chrome/panels/empty-state";
 import { CopyClipboardIcon } from "../icons/copy-icon";
-import { useImperativeModal } from "../modal/ImperativeModal";
+import "./chat-typography.css";
 import { MCPStatusIndicator } from "../mcp/mcp-status-indicator";
 import { Tooltip, TooltipProvider } from "../ui/tooltip";
 import {
@@ -149,38 +145,36 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
   const { handleClick } = useOpenSettingsToTab();
 
   return (
-    <div className="flex border-b px-2 py-1 justify-between shrink-0 items-center">
-      <Tooltip content="New chat">
+    <div className="flex shrink-0 flex-col gap-1 border-b px-3 py-2">
+      <div className="flex items-center gap-1">
         <Button
-          aria-label="New chat"
-          variant="text"
-          size="icon"
+          variant="ghost"
+          size="sm"
+          className="gap-1.5"
           onClick={onNewChat}
         >
-          <PlusIcon className="h-4 w-4" />
+          <PlusIcon className="size-4" aria-hidden={true} />
+          New chat
         </Button>
-      </Tooltip>
-      <div className="flex items-center gap-2">
-        <Tooltip content="Pair your agent">
-          <PairWithAgentButton className="mr-1" label="Pair" />
-        </Tooltip>
-        <MCPStatusIndicator />
-        <Tooltip content="AI Settings">
-          <Button
-            variant="text"
-            size="xs"
-            className="hover:bg-foreground/10 py-2"
-            onClick={() => handleClick("ai")}
-          >
-            <SettingsIcon className="h-4 w-4" />
-          </Button>
-        </Tooltip>
         <ChatHistoryPopover
           activeChatId={activeChatId}
           setActiveChat={setActiveChat}
           onDeleteChats={onDeleteChats}
           isLoading={isLoading}
         />
+        <div className="ml-auto flex items-center gap-2">
+          <MCPStatusIndicator />
+          <Tooltip content="AI Settings">
+            <Button
+              aria-label="AI Settings"
+              variant="ghost"
+              size="icon"
+              onClick={() => handleClick("ai")}
+            >
+              <SettingsIcon className="size-4" aria-hidden={true} />
+            </Button>
+          </Tooltip>
+        </div>
       </div>
     </div>
   );
@@ -354,7 +348,6 @@ const ChatInputFooter: React.FC<ChatInputFooterProps> = memo(
 ChatInputFooter.displayName = "ChatInputFooter";
 
 interface ChatInputProps {
-  placeholder?: string;
   input: string;
   inputClassName?: string;
   setInput: (value: string) => void;
@@ -369,7 +362,6 @@ interface ChatInputProps {
 
 const ChatInput: React.FC<ChatInputProps> = memo(
   ({
-    placeholder,
     input,
     inputClassName,
     setInput,
@@ -381,6 +373,20 @@ const ChatInput: React.FC<ChatInputProps> = memo(
     onAddFiles,
     onClose,
   }) => {
+    const openPairWithAgentModal = usePairWithAgentModal();
+    const placeholderAction = useMemo(
+      () =>
+        isWasm()
+          ? undefined
+          : {
+              beforeText: "Type your message or ",
+              linkText: "pair your own coding agent",
+              afterText: "...",
+              onClick: openPairWithAgentModal,
+            },
+      [openPairWithAgentModal],
+    );
+
     const handleSendClick = useEvent(() => {
       if (input.trim()) {
         onSubmit(undefined, input);
@@ -398,7 +404,8 @@ const ChatInput: React.FC<ChatInputProps> = memo(
             onSubmit={onSubmit}
             onClose={onClose}
             onAddFiles={onAddFiles}
-            placeholder={placeholder || "Type your message..."}
+            placeholder="Type your message..."
+            placeholderAction={placeholderAction}
           />
         </div>
         <ChatInputFooter
@@ -416,26 +423,6 @@ const ChatInput: React.FC<ChatInputProps> = memo(
 );
 
 ChatInput.displayName = "ChatInput";
-
-const PairWithAgentCallout: React.FC<{
-  onPairWithAgent: () => void;
-}> = ({ onPairWithAgent }) => {
-  if (isWasm()) {
-    return null;
-  }
-
-  return (
-    <Button
-      variant="text"
-      className="gap-1.5 text-sm text-link hover:underline"
-      onClick={onPairWithAgent}
-    >
-      <SparklesIcon className="h-3.5 w-3.5 shrink-0" />
-      <span>Pair your own agent with this notebook</span>
-      <ArrowRightIcon className="h-3 w-3 shrink-0" />
-    </Button>
-  );
-};
 
 const ChatPanel = () => {
   const aiConfigured = useAtomValue(aiModelConfiguredAtom);
@@ -494,7 +481,6 @@ const ChatPanelBody = () => {
   });
   const runtimeManager = useRuntimeManager();
   const { invokeAiTool } = useRequestClient();
-  const { openModal, closeModal } = useImperativeModal();
 
   const activeChatId = activeChat?.id;
   const { chatControllerId, renewDraftChatId } =
@@ -784,10 +770,6 @@ const ChatPanelBody = () => {
     });
   });
 
-  const handlePairWithAgent = useEvent(() => {
-    openModal(<PairWithAgentModal onClose={closeModal} />);
-  });
-
   const handleMessageEdit = useEvent(
     async (index: number, newValue: string) => {
       const editedMessage = messages[index];
@@ -893,7 +875,6 @@ const ChatPanelBody = () => {
   const chatInput = isNewThread ? (
     <ChatInput
       key="new-thread-input"
-      placeholder={`Ask anything, ${CONTEXT_TRIGGER} to include context about tables or dataframes`}
       input={newThreadInput}
       inputRef={newThreadInputRef}
       inputClassName="px-1 py-0"
@@ -937,7 +918,7 @@ const ChatPanelBody = () => {
   );
 
   return (
-    <div className="flex flex-col h-[calc(100%-53px)]">
+    <div className="mo-ai-panel flex flex-col h-[calc(100%-53px)] font-sans text-sm leading-6">
       <TooltipProvider>
         <ChatHeader
           onNewChat={handleNewChat}
@@ -960,7 +941,6 @@ const ChatPanelBody = () => {
                 {filesPills}
                 {chatInput}
               </div>
-              <PairWithAgentCallout onPairWithAgent={handlePairWithAgent} />
             </div>
           )}
 

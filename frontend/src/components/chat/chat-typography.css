@@ -1,0 +1,43 @@
+/* Copyright 2026 Marimo. All rights reserved. */
+
+.mo-ai-panel {
+  .mo-markdown-renderer {
+    font-family: inherit;
+    font-size: 0.875rem;
+    line-height: 1.5;
+
+    :is(h1, h2, h3, h4, h5, h6) {
+      font-family: inherit;
+      font-size: 0.875rem;
+      font-weight: 600;
+      line-height: 1.5;
+      margin-block: 1rem 0.5rem;
+    }
+
+    :is(h1, h2) {
+      font-size: 1rem;
+    }
+
+    > :first-child {
+      margin-top: 0;
+    }
+
+    :is(pre, code, .cm-editor) {
+      font-family: var(--monospace-font);
+    }
+
+    .cm-editor {
+      font-size: 0.8125rem;
+      line-height: 1.5;
+    }
+  }
+
+  .mo-ai-prompt {
+    .cm-editor,
+    .cm-scroller {
+      font-family: inherit;
+      font-size: inherit;
+      line-height: inherit;
+    }
+  }
+}

@@ -13,20 +13,17 @@ import {
   SquareMIcon,
 } from "lucide-react";
 import { useEffect } from "react";
-import { useOpenSettingsToTab } from "@/components/app-config/state";
 import { StartupLogsAlert } from "@/components/editor/alerts/startup-logs-alert";
 import { Cell } from "@/components/editor/notebook-cell";
 import { PackageAlert } from "@/components/editor/package-alert";
 import { SortableCellsProvider } from "@/components/sort/SortableCellsProvider";
 import { Button } from "@/components/ui/button";
-import { Tooltip } from "@/components/ui/tooltip";
 import { maybeAddMarimoImport } from "@/core/cells/add-missing-import";
 import { SETUP_CELL_ID } from "@/core/cells/ids";
 import { LanguageAdapters } from "@/core/codemirror/language/LanguageAdapters";
 import { MARKDOWN_INITIAL_HIDE_CODE } from "@/core/codemirror/language/languages/markdown";
-import { aiEnabledAtom, aiFeaturesEnabledAtom } from "@/core/config/config";
+import { aiAtom, aiEnabledAtom } from "@/core/config/config";
 import { canInteractWithAppAtom } from "@/core/network/connection";
-import { useBoolean } from "@/hooks/useBoolean";
 import { cn } from "@/utils/cn";
 import { Functions } from "@/utils/functions";
 import { type CellColumnId, findColumn, useLayout } from "@/core/cells/layout";
@@ -38,7 +35,9 @@ import type { AppConfig, UserConfig } from "../../../core/config/config-schema";
 import type { AppMode } from "../../../core/mode";
 import { useHotkey } from "../../../hooks/useHotkey";
 import { type Theme, useTheme } from "../../../theme/useTheme";
-import { AddCellWithAI } from "../ai/add-cell-with-ai";
+import { useAIConfigActions } from "@/core/ai/config";
+import { Logger } from "@/utils/Logger";
+import { useAiPanelTab } from "../chrome/wrapper/useAiPanel";
 import { NotStartedConnectionAlert } from "../alerts/connecting-alert";
 import { FloatingOutline } from "../chrome/panels/outline/floating-outline";
 import { useChromeActions } from "../chrome/state";
@@ -259,29 +258,31 @@ const CellColumn: React.FC<{
   );
 };
 
-const AddCellButtons: React.FC<{
+export const AddCellButtons: React.FC<{
   columnId: CellColumnId;
   className?: string;
 }> = ({ columnId, className }) => {
   const { createCell } = useCellActions();
-  const [isAiButtonOpen, isAiButtonOpenActions] = useBoolean(false);
+  const { openApplication } = useChromeActions();
+  const { setAiPanelTab } = useAiPanelTab();
+  const { saveModeChange } = useAIConfigActions();
+  const aiConfig = useAtomValue(aiAtom);
   const aiEnabled = useAtomValue(aiEnabledAtom);
-  const aiFeaturesEnabled = useAtomValue(aiFeaturesEnabledAtom);
   const canInteractWithApp = useAtomValue(canInteractWithAppAtom);
-  const { handleClick } = useOpenSettingsToTab();
 
   const buttonClass = cn(
     "mb-0 rounded-none sm:px-4 md:px-5 lg:px-8 tracking-wide no-wrap whitespace-nowrap",
     "font-semibold opacity-70 hover:opacity-90 uppercase text-xs",
   );
 
-  const renderBody = () => {
-    if (aiEnabled && isAiButtonOpen) {
-      return <AddCellWithAI onClose={isAiButtonOpenActions.toggle} />;
-    }
-
-    return (
-      <>
+  return (
+    <div className="flex justify-center mt-4 pt-6 pb-32 group gap-4 w-full print:hidden">
+      <div
+        className={cn(
+          "border border-border rounded transition-all duration-200 overflow-hidden divide-x divide-border flex w-fit shadow-sm-solid-shade",
+          className,
+        )}
+      >
         <Button
           className={buttonClass}
           variant="text"
@@ -328,49 +329,28 @@ const AddCellButtons: React.FC<{
           SQL
         </Button>
         {aiEnabled && (
-          <Tooltip
-            content={
-              aiFeaturesEnabled ? null : (
-                <span>AI provider not found or Edit model not selected</span>
-              )
-            }
-            delayDuration={100}
-            asChild={false}
-          >
-            <Button
-              className={buttonClass}
-              variant="text"
-              size="sm"
-              disabled={!canInteractWithApp}
-              onClick={
-                aiFeaturesEnabled
-                  ? isAiButtonOpenActions.toggle
-                  : () => handleClick("ai", "ai-providers")
+          <Button
+            className={buttonClass}
+            variant="text"
+            size="sm"
+            disabled={!canInteractWithApp}
+            onClick={async () => {
+              if (
+                aiConfig?.mode !== "code_mode" &&
+                aiConfig?.mode !== "agent"
+              ) {
+                await saveModeChange("agent").catch(() =>
+                  Logger.error("Failed to save mode change"),
+                );
               }
-            >
-              <SparklesIcon className="mr-2 size-4 shrink-0" />
-              Generate with AI
-            </Button>
-          </Tooltip>
+              setAiPanelTab("chat");
+              openApplication("ai");
+            }}
+          >
+            <SparklesIcon className="mr-2 size-4 shrink-0" />
+            Generate with AI
+          </Button>
         )}
-      </>
-    );
-  };
-
-  return (
-    <div className="flex justify-center mt-4 pt-6 pb-32 group gap-4 w-full print:hidden">
-      <div
-        className={cn(
-          "border border-border rounded transition-all duration-200 overflow-hidden divide-x divide-border flex",
-          !isAiButtonOpen && "w-fit shadow-sm-solid-shade",
-          isAiButtonOpen &&
-            "w-full max-w-4xl shadow-md-solid-shade shadow-(color:--blue-3)",
-          className,
-          // Always show the AI input when it's open
-          isAiButtonOpen && "opacity-100",
-        )}
-      >
-        {renderBody()}
       </div>
     </div>
   );

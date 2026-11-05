@@ -1,11 +1,10 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { useAtomValue, useStore } from "jotai";
+import { useStore } from "jotai";
 import { SparklesIcon } from "lucide-react";
 import { Tooltip } from "@/components/ui/tooltip";
 import {
   type Edit,
-  stagedGenerationInProgressAtom,
   useStagedAICell,
   useStagedCells,
 } from "@/core/ai/staged-cells";
@@ -49,7 +48,6 @@ export const StagedAICellFooter: React.FC<{ cellId: CellId }> = ({
   cellId,
 }) => {
   const store = useStore();
-  const generationInProgress = useAtomValue(stagedGenerationInProgressAtom);
   const stagedAiCell = useStagedAICell(cellId);
   const runCell = useRunCell(cellId);
 
@@ -93,7 +91,7 @@ export const StagedAICellFooter: React.FC<{ cellId: CellId }> = ({
       </div>
       <div className="flex items-center gap-1.5">
         <CompletionActionsCellFooter
-          isLoading={generationInProgress}
+          isLoading={false}
           onAccept={() => handleCompletion("accept")}
           onDecline={() => handleCompletion("reject")}
           size="xs"

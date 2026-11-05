@@ -12,7 +12,7 @@ import type { ComponentProps } from "react";
 import { JsonRpcError } from "use-acp";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { MockRequestClient } from "@/__mocks__/requests";
-import type { PromptInput } from "@/components/editor/ai/add-cell-with-ai";
+import type { PromptInput } from "@/components/editor/ai/prompt-input";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { toast } from "@/components/ui/use-toast";
 import { pendingAiPromptAtom } from "@/core/ai/state";
@@ -54,7 +54,7 @@ vi.mock("use-acp", async (importOriginal) => ({
   useAcpClient: () => client,
 }));
 
-vi.mock("@/components/editor/ai/add-cell-with-ai", () => ({
+vi.mock("@/components/editor/ai/prompt-input", () => ({
   PromptInput: ({
     value,
     onChange,

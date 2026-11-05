@@ -171,7 +171,7 @@ export const ReadyToChatBlock = () => {
           <BotMessageSquareIcon className="h-6 w-6 text-(--blue-10)" />
         </div>
         <div>
-          <h3 className="text-lg font-medium text-foreground mb-1">
+          <h3 className="text-base font-semibold text-foreground mb-1">
             Agent is connected
           </h3>
           <p className="text-sm text-muted-foreground">
@@ -318,7 +318,7 @@ export const PlansBlock = (props: { data: PlanNotificationEvent[] }) => {
   plans = uniqueByTakeLast(plans, (item) => item.content);
 
   return (
-    <div className="rounded-lg border bg-background p-2 text-xs">
+    <div className="rounded-lg border bg-background p-2 text-sm">
       <div className="flex items-center justify-between mb-2">
         <span className="font-medium text-muted-foreground">
           To-dos{" "}
@@ -345,7 +345,7 @@ export const PlansBlock = (props: { data: PlanNotificationEvent[] }) => {
             />
             <span
               className={cn(
-                "text-xs",
+                "text-sm",
                 item.status === "completed" &&
                   "line-through text-muted-foreground",
               )}
@@ -361,7 +361,7 @@ export const PlansBlock = (props: { data: PlanNotificationEvent[] }) => {
 
 export const UserMessagesBlock = (props: { data: UserNotificationEvent[] }) => {
   return (
-    <div className="flex flex-col gap-2 text-muted-foreground border p-2 bg-background rounded wrap-break-word overflow-x-hidden">
+    <div className="flex flex-col gap-2 text-foreground border p-2 bg-background rounded wrap-break-word overflow-x-hidden">
       <ContentBlocks data={props.data.map((item) => item.content)} />
     </div>
   );

@@ -6,7 +6,6 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   stagedAICellsAtom,
-  stagedGenerationInProgressAtom,
   useStagedCells,
 } from "@/core/ai/staged-cells";
 import type { CellId } from "@/core/cells/ids";
@@ -24,7 +23,6 @@ export const PendingAICells: React.FC = () => {
   const [currentIndex, setCurrentIndex] = useState<number | null>(null);
 
   const stagedAiCells = useAtomValue(stagedAICellsAtom);
-  const generationInProgress = useAtomValue(stagedGenerationInProgressAtom);
   const listStagedCells = [...stagedAiCells.keys()];
   const store = useStore();
   const { deleteStagedCell, removeStagedCell } = useStagedCells(store);
@@ -108,7 +106,7 @@ export const PendingAICells: React.FC = () => {
         <AcceptCompletionButton
           multipleCompletions={true}
           onAccept={acceptAllCompletions}
-          isLoading={generationInProgress}
+          isLoading={false}
           label="Keep all"
           size="xs"
           buttonStyles="h-6.5"
@@ -118,7 +116,6 @@ export const PendingAICells: React.FC = () => {
         <RejectCompletionButton
           multipleCompletions={true}
           onDecline={rejectAllCompletions}
-          disabled={generationInProgress}
           size="xs"
           label="Discard all"
           className="h-6.5"

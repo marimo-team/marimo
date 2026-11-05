@@ -1,11 +1,11 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { act, fireEvent, render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { createStore, Provider } from "jotai";
 import { describe, expect, it, vi } from "vitest";
 import { cellId } from "@/__tests__/branded";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { stagedAICellsAtom, visibleForTesting } from "@/core/ai/staged-cells";
+import { stagedAICellsAtom } from "@/core/ai/staged-cells";
 import { scrollAndHighlightCell } from "../../../links/cell-link";
 import { PendingAICells } from "../pending-ai-cells";
 
@@ -86,51 +86,5 @@ describe("PendingAICells", () => {
     fireEvent.click(previous);
     expect(scrollAndHighlightCell).toHaveBeenLastCalledWith(third, "focus");
     expect(screen.getByText("3 / 3")).toBeInTheDocument();
-  });
-
-  it("disables bulk actions while cells are still generating", () => {
-    const store = createStore();
-    const generationId = Symbol("staged-cell-generation");
-    store.set(
-      stagedAICellsAtom,
-      new Map([[cellId("generated-cell"), { type: "add_cell" }]]),
-    );
-    store.set(visibleForTesting.stagedGenerationAtom, {
-      id: generationId,
-      status: "in_progress",
-      cellIds: [cellId("generated-cell")],
-    });
-
-    const view = (
-      <Provider store={store}>
-        <TooltipProvider>
-          <PendingAICells />
-        </TooltipProvider>
-      </Provider>
-    );
-    const { rerender } = render(view);
-
-    const acceptButton = screen.getByRole("button", { name: "Keep all" });
-    const acceptButtons = within(
-      acceptButton.parentElement as HTMLElement,
-    ).getAllByRole("button");
-    expect(acceptButtons).toHaveLength(2);
-    for (const button of acceptButtons) {
-      expect(button).toBeDisabled();
-    }
-    expect(screen.getByRole("button", { name: "Discard all" })).toBeDisabled();
-
-    act(() => {
-      store.set(visibleForTesting.stagedGenerationAtom, {
-        id: generationId,
-        status: "complete",
-      });
-    });
-    rerender(view);
-
-    for (const button of acceptButtons) {
-      expect(button).toBeEnabled();
-    }
-    expect(screen.getByRole("button", { name: "Discard all" })).toBeEnabled();
   });
 });
