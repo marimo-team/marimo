@@ -314,3 +314,25 @@ def test_host_run_without_runtime_reports_error(tmp_path: Path) -> None:
         payload = json.loads(result.stdout)
         assert "runtime" in payload["error"].lower()
         assert "kernel" in payload["next"]
+
+
+@pytest.mark.parametrize("identifier", ["notebook_id", "stable_session_id"])
+def test_legacy_execute_accepts_the_local_credential(
+    editor_server: PairTestServer, identifier: str
+) -> None:
+    import io
+
+    from marimo._cli.pair.client import execute_editor, resolve_host
+
+    host = resolve_host(editor_server.url)
+    result = execute_editor(
+        url=editor_server.url,
+        session_id=getattr(editor_server, identifier),
+        token=host.token,
+        code="print('local credential')",
+        stdout=io.StringIO(),
+        stderr=io.StringIO(),
+        stream=False,
+    )
+    assert result.success, result.stderr
+    assert result.stdout == "local credential\n"
