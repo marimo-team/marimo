@@ -85,7 +85,7 @@ class _DocsCommand(ColoredCommand):
     \b
     Authentication:
       Notebook discovery uses the editor token. Pass --token-file <PATH> to
-      notebook list or execute without --notebook when a token is required.
+      pair list or execute without --notebook when a token is required.
       Host commands read their token from the private local host record.
 
     \b
@@ -93,7 +93,7 @@ class _DocsCommand(ColoredCommand):
       If no server is running, start one in the background:
         marimo edit <notebook.py> --no-token
       If you do not have the server URL or notebook ID:
-        marimo pair notebook list
+        marimo pair list
       Connect to the notebook before waiting for work.
       Run marimo pair connect --help to check supported harnesses.
       If your harness is supported, run:
@@ -180,13 +180,13 @@ def pair() -> None:
     "notebook_id",
     required=False,
     metavar="ID",
-    help="Host notebook_id from marimo pair notebook list.",
+    help="Host notebook_id from marimo pair list.",
 )
 @click.option(
     "--session",
     "session_id",
     default=None,
-    help="Stable Session ID from notebook list. Host execution is preferred when available.",
+    help="Stable Session ID from pair list. Host execution is preferred when available.",
 )
 @click.option(
     "--token-file",
@@ -446,7 +446,7 @@ def _failure_guidance(
     if isinstance(error, NoNotebookError):
         return str(error), (
             f"{_HEADLESS_NEXT} Ask the user to open it, then:\n"
-            f"marimo pair notebook list --url {display_url(error.url)}"
+            f"marimo pair list --url {display_url(error.url)}"
         )
     if isinstance(error, NotebookUnsupportedError):
         return (
@@ -460,9 +460,9 @@ def _failure_guidance(
         return (
             (
                 f"No notebook {notebook_id or '<ID>'} on {safe_url}. "
-                "Run notebook list to find the current host notebook."
+                "Run pair list to find the current host notebook."
             ),
-            f"marimo pair notebook list --url {safe_url}",
+            f"marimo pair list --url {safe_url}",
         )
     message = str(error)
     if message == "Authentication failed.":
@@ -473,10 +473,10 @@ def _failure_guidance(
             else "Pass --token-file <path> or set MARIMO_TOKEN for editor authentication.",
         )
     if message.startswith("The server URL"):
-        return message, ("Use the url field from:\nmarimo pair notebook list")
+        return message, ("Use the url field from:\nmarimo pair list")
     if isinstance(error, PairConnectionError):
         return f"Could not connect to {safe_url}.", (
-            "Check the URL. To find live servers: marimo pair notebook list"
+            "Check the URL. To find live servers: marimo pair list"
         )
     if message == (
         "The execution response ended before completion was confirmed."
@@ -569,7 +569,7 @@ def docs(topic: str | None) -> None:
     "--session",
     "session_id",
     default=None,
-    help="Stable Session ID from notebook list. Host execution is preferred when available.",
+    help="Stable Session ID from pair list. Host execution is preferred when available.",
 )
 @click.option("--claude", is_flag=True, hidden=True, expose_value=False)
 @click.option("--codex", is_flag=True, hidden=True, expose_value=False)
@@ -661,15 +661,6 @@ def _group_notebooks(
     return list(grouped.values())
 
 
-@click.group(
-    cls=ColoredGroup,
-    help="Find active notebooks and their IDs.",
-    short_help="""Find active notebooks and their IDs.""",
-)
-def notebook() -> None:
-    pass
-
-
 @click.command(
     name="list",
     cls=ColoredCommand,
@@ -734,7 +725,7 @@ def list_notebooks(urls: tuple[str, ...], token_file: Path | None) -> None:
     listing: dict[str, object] = {"notebooks": notebooks, "warnings": warnings}
     if any("Authentication failed" in warning for warning in warnings):
         listing["next"] = (
-            "Pass --token-file <path>, then run notebook list --url again. "
+            "Pass --token-file <path>, then run pair list --url again. "
             "If no file exists, check for MARIMO_TOKEN with "
             '`test -n "$MARIMO_TOKEN"`. Never print the token.'
         )
@@ -743,12 +734,9 @@ def list_notebooks(urls: tuple[str, ...], token_file: Path | None) -> None:
             "No sessions found. If a server is running, pass --url, and "
             "--token-file <path> if it needs a token. Otherwise start one in "
             "the background: `marimo edit <notebook.py> --no-token`, then run "
-            "`marimo pair notebook list` again."
+            "`marimo pair list` again."
         )
     click.echo(json.dumps(listing, indent=2))
-
-
-notebook.add_command(list_notebooks)
 
 
 @click.command(
@@ -765,7 +753,7 @@ notebook.add_command(list_notebooks)
     "--notebook",
     "notebook_id",
     required=True,
-    help="Host notebook ID from notebook list.",
+    help="Host notebook ID from pair list.",
 )
 @click.option(
     "--harness",
@@ -813,7 +801,7 @@ def connect(
     "--notebook",
     "notebook_id",
     required=True,
-    help="Host notebook ID from notebook list.",
+    help="Host notebook ID from pair list.",
 )
 @click.option(
     "--harness",
@@ -841,6 +829,5 @@ pair.add_command(connect)
 pair.add_command(detach)
 pair.add_command(execute)
 pair.add_command(docs)
-pair.add_command(notebook)
 pair.add_command(list_notebooks)
 pair.add_command(prompt)
