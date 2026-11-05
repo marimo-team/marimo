@@ -1,9 +1,10 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING
 
 from marimo import _loggers
+from marimo._config.schema_utils import default_if_unset
 from marimo._messaging.notification import (
     CacheClearedNotification,
     CacheInfoNotification,
@@ -12,10 +13,9 @@ from marimo._messaging.notification_utils import broadcast_notification
 from marimo._runtime.commands import ClearCacheCommand, GetCacheInfoCommand
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Mapping
-    from typing import Any
+    from collections.abc import Callable
 
-    from marimo._config.config import MarimoConfig
+    from marimo._config.config_schema import MarimoConfig
     from marimo._runtime.callbacks.protocol import GlobalsView
     from marimo._runtime.request_router import RequestRouter
     from marimo._save.cache import CacheContext
@@ -38,8 +38,7 @@ def _cache_loader(context: CacheContext) -> Loader | None:
 
 def cache_cells_enabled(user_config: MarimoConfig) -> bool:
     """Whether `[tool.marimo.runtime] cache_cells` is on (default `False`)."""
-    runtime = cast("Mapping[str, Any]", user_config.get("runtime", {}))
-    return bool(runtime.get("cache_cells", False))
+    return bool(default_if_unset(user_config.runtime.cache_cells, False))
 
 
 class CacheCallbacks:

@@ -1,8 +1,5 @@
 # Copyright 2026 Marimo. All rights reserved.
-"""Struct schema for configuration defaults and field metadata.
-
-The dictionary interfaces in `config.py` remain in use during migration.
-"""
+"""Typed configuration settings, defaults, and field metadata."""
 
 from __future__ import annotations
 
@@ -783,7 +780,8 @@ class StoreConfig(Config, kw_only=True):
     """Configuration for a single cache store."""
 
     type: Annotated[
-        StoreKey | UnsetType, Meta(description="Cache store backend.")
+        StoreKey | str | UnsetType,
+        Meta(description="Cache store backend or installed entry-point name."),
     ] = UNSET
     args: Annotated[
         dict[str, Any] | UnsetType,

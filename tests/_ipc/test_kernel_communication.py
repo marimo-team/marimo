@@ -61,7 +61,7 @@ x = 42""",
             cell.cell_id: CellConfig()
             for cell in execute_request.execution_requests
         },
-        user_config=DEFAULT_CONFIG,
+        user_config=DEFAULT_CONFIG.to_dict(),
         log_level=GLOBAL_SETTINGS.LOG_LEVEL,
         app_metadata=AppMetadata(
             query_params={}, cli_args={}, app_config=_AppConfig()
@@ -418,7 +418,7 @@ def test_kernel_args_preserve_explicit_config_overrides() -> None:
         app_metadata=AppMetadata(
             query_params={}, cli_args={}, app_config=_AppConfig()
         ),
-        user_config=DEFAULT_CONFIG,
+        user_config=DEFAULT_CONFIG.to_dict(),
         log_level=30,
         profile_path=None,
         connection_info=ConnectionInfo(

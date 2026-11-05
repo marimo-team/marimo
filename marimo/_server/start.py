@@ -12,6 +12,7 @@ import uvicorn
 from marimo._cli.print import echo
 from marimo._config.config import PartialMarimoConfig
 from marimo._config.manager import get_default_config_manager
+from marimo._config.schema_utils import default_if_unset
 from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._environments.sandbox import Backend
 from marimo._mcp.setup import McpType, setup_mcp_server
@@ -303,8 +304,8 @@ def start(
         )
 
     is_multi = workspace.get_unique_file_key() is None
-    isolate_apps = is_multi and config_reader.experimental.get(
-        "isolate_apps", False
+    isolate_apps = is_multi and default_if_unset(
+        config_reader.experimental.isolate_apps, False
     )
 
     # Apply CLI overrides for runtime config if explicitly set
@@ -357,7 +358,7 @@ def start(
     from marimo._server.main import create_starlette_app
 
     app = create_starlette_app(
-        server_config=config_reader.get_config(hide_secrets=False)["server"],
+        server_config=config_reader.get_config(hide_secrets=False).server,
         base_url=base_url,
         host=external_host,
         lifespan=Lifespans(lifespans_list),

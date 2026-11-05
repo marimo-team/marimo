@@ -11,6 +11,7 @@ from typing import (
     Any,
     ClassVar,
     Self,
+    TypeVar,
     Union,
     get_args,
     get_origin,
@@ -18,11 +19,14 @@ from typing import (
 )
 
 import msgspec
-from msgspec import UNSET, Meta
+from msgspec import UNSET, Meta, UnsetType
 from msgspec.structs import fields
 
+T = TypeVar("T")
+D = TypeVar("D")
 
-def default_if_unset(value: Any, default: Any) -> Any:
+
+def default_if_unset(value: T | UnsetType, default: D) -> T | D:
     """Use a fallback only for absent values, preserving explicit None."""
     return default if value is UNSET else value
 
@@ -107,6 +111,18 @@ class Config(msgspec.Struct, dict=True, kw_only=True):
 
     def __post_init__(self) -> None:
         self._extra_fields: dict[str, object] = {}
+
+    def __deepcopy__(self, memo: dict[int, Any]) -> Self:
+        copied = msgspec.structs.replace(self)
+        memo[id(self)] = copied
+        for item in fields(self):
+            setattr(
+                copied,
+                item.name,
+                copy.deepcopy(getattr(self, item.name), memo),
+            )
+        copied._extra_fields = copy.deepcopy(self._extra_fields, memo)
+        return copied
 
     def __rich_repr__(self) -> list[tuple[str, Any]]:
         metadata = {

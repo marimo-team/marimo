@@ -1,13 +1,9 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any
 
-from marimo._config.config import (
-    MarimoConfig,
-    PartialMarimoConfig,
-    merge_config,
-)
+from marimo._config.config import PartialMarimoConfig, merge_config_dict
 from marimo._config.provenance import (
     ConfigLayer,
     ConfigPath,
@@ -23,28 +19,26 @@ def merge_config_patches(
     patches: Iterable[PartialMarimoConfig],
 ) -> PartialMarimoConfig:
     """Merge sparse patches in order, with later patches taking precedence."""
-    merged = cast(MarimoConfig, {})
+    merged: PartialMarimoConfig = {}
     for patch in patches:
-        merged = merge_config(merged, deep_copy(patch))
-    return cast(PartialMarimoConfig, deep_copy(merged))
+        merged = merge_config_dict(merged, deep_copy(patch))
+    return deep_copy(merged)
 
 
 def resolve_config(
-    defaults: MarimoConfig,
+    defaults: PartialMarimoConfig,
     patches: Iterable[PartialMarimoConfig],
     *,
     fallback: PartialMarimoConfig | None = None,
-) -> MarimoConfig:
+) -> PartialMarimoConfig:
     """Resolve defaults and ordered patches without reading or masking sources.
 
     Contextual fallback values fill gaps in the schema defaults. Explicit
     patches take precedence over both kinds of defaults.
     """
-    config = merge_config(
-        cast(MarimoConfig, deep_copy(fallback or {})), deep_copy(defaults)
-    )
+    config = merge_config_dict(deep_copy(fallback or {}), deep_copy(defaults))
     for patch in patches:
-        config = merge_config(config, deep_copy(patch))
+        config = merge_config_dict(config, deep_copy(patch))
     return config
 
 
@@ -67,14 +61,12 @@ def resolve_config_with_sources(
     layers: Iterable[ConfigLayer],
 ) -> ResolvedConfig:
     """Track explicit writes while applying the normal configuration merge rules."""
-    resolved = ResolvedConfig(cast(MarimoConfig, {}), {})
+    resolved = ResolvedConfig({}, {})
     for layer in layers:
-        supplied = dict.fromkeys(
-            config_paths(cast(dict[str, Any], layer.config)), layer.source
-        )
+        supplied = dict.fromkeys(config_paths(layer.config), layer.source)
         resolved = merge_resolved_configs(
             resolved,
-            ResolvedConfig(cast(MarimoConfig, layer.config), supplied),
+            ResolvedConfig(layer.config, supplied),
         )
     return resolved
 
@@ -83,12 +75,12 @@ def merge_resolved_configs(
     base: ResolvedConfig, overrides: ResolvedConfig
 ) -> ResolvedConfig:
     """Merge resolved groups without losing their original field sources."""
-    config = merge_config(base.config, deep_copy(overrides.config))
+    config = merge_config_dict(base.config, deep_copy(overrides.config))
     # Keep only surviving fields after record replacements and deletions.
     origins = {
         path: overrides.origins[path]
         if path in overrides.origins
         else base.origins[path]
-        for path in config_paths(cast(dict[str, Any], config))
+        for path in config_paths(config)
     }
     return ResolvedConfig(config, origins)

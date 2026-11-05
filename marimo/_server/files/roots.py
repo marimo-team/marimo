@@ -5,7 +5,8 @@ import os
 from pathlib import Path
 
 from marimo import _loggers
-from marimo._config.config import FileBrowserConfig
+from marimo._config.config_schema import FileBrowserConfig
+from marimo._config.schema_utils import default_if_unset
 from marimo._server.models.files import FileRoot
 
 LOGGER = _loggers.marimo_logger()
@@ -26,19 +27,12 @@ def resolve_file_roots(
     ]
     seen = {_deduplication_key(primary_path)}
 
-    if config is not None and not isinstance(config, dict):
-        _warn_invalid_root(config, "file_browser must be a table")
-        return roots
-    folders = (config or {}).get("folders", [])
-    if not isinstance(folders, list):
-        _warn_invalid_root(folders, "folders must be a list")
-        return roots
+    folders = (
+        default_if_unset(config.folders, []) if config is not None else []
+    )
 
     for folder in folders:
-        if not isinstance(folder, dict):
-            _warn_invalid_root(folder, "folder must be a table")
-            continue
-        path = folder.get("path")
+        path = folder.path
         if not isinstance(path, str) or not path:
             _warn_invalid_root(path, "path must be a non-empty string")
             continue
@@ -70,7 +64,7 @@ def resolve_file_roots(
             continue
         seen.add(key)
 
-        configured_name = folder.get("name")
+        configured_name = default_if_unset(folder.name, None)
         name = (
             configured_name.strip()
             if isinstance(configured_name, str) and configured_name.strip()

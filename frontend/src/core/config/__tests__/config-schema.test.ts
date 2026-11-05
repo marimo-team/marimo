@@ -69,7 +69,9 @@ test("default UserConfig - empty", () => {
         "copilot": false,
         "signature_hint_on_typing": false,
       },
-      "diagnostics": {},
+      "diagnostics": {
+        "sql_linter": true,
+      },
       "display": {
         "cell_output": "below",
         "code_editor_font_size": 14,
@@ -92,7 +94,21 @@ test("default UserConfig - empty", () => {
         "overrides": {},
         "preset": "default",
       },
-      "mcp": {},
+      "language_servers": {
+        "pylsp": {
+          "enable_flake8": false,
+          "enable_mypy": true,
+          "enable_pydocstyle": false,
+          "enable_pyflakes": false,
+          "enable_pylint": false,
+          "enable_ruff": true,
+          "enabled": false,
+        },
+      },
+      "mcp": {
+        "mcpServers": {},
+        "presets": [],
+      },
       "package_management": {
         "manager": "pip",
       },
@@ -112,6 +128,10 @@ test("default UserConfig - empty", () => {
         "format_on_save": false,
       },
       "server": {},
+      "snippets": {
+        "custom_paths": [],
+        "include_default_snippets": true,
+      },
     }
   `);
 });
@@ -146,7 +166,9 @@ test("default UserConfig - one level", () => {
         "copilot": false,
         "signature_hint_on_typing": false,
       },
-      "diagnostics": {},
+      "diagnostics": {
+        "sql_linter": true,
+      },
       "display": {
         "cell_output": "below",
         "code_editor_font_size": 14,
@@ -169,7 +191,21 @@ test("default UserConfig - one level", () => {
         "overrides": {},
         "preset": "default",
       },
-      "mcp": {},
+      "language_servers": {
+        "pylsp": {
+          "enable_flake8": false,
+          "enable_mypy": true,
+          "enable_pydocstyle": false,
+          "enable_pyflakes": false,
+          "enable_pylint": false,
+          "enable_ruff": true,
+          "enabled": false,
+        },
+      },
+      "mcp": {
+        "mcpServers": {},
+        "presets": [],
+      },
       "package_management": {
         "manager": "pip",
       },
@@ -189,6 +225,10 @@ test("default UserConfig - one level", () => {
         "format_on_save": false,
       },
       "server": {},
+      "snippets": {
+        "custom_paths": [],
+        "include_default_snippets": true,
+      },
     }
   `);
 

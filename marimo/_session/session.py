@@ -13,7 +13,9 @@ from typing import TYPE_CHECKING
 from uuid import uuid4
 
 from marimo import _loggers
+from marimo._config.config_schema import VenvConfig
 from marimo._config.manager import MarimoConfigManager, ScriptConfigReader
+from marimo._config.schema_utils import default_if_unset
 from marimo._core.ids import mint
 from marimo._messaging.notebook.document import NotebookDocument
 from marimo._messaging.notification import (
@@ -118,7 +120,9 @@ class SessionImpl(Session):
             ScriptConfigReader(app_file_manager.path)
         )
         config = config_manager.get_config(hide_secrets=False)
-        configured_venv = config.get("venv", {}).get("path")
+        configured_venv = default_if_unset(
+            default_if_unset(config.venv, VenvConfig()).path, None
+        )
 
         configs = app_file_manager.app.cell_manager.config_map()
 
@@ -192,8 +196,9 @@ class SessionImpl(Session):
             cache_enabled = not auto_instantiate
             cache_mode = CacheMode.READ_WRITE
         else:
-            cache_enabled = config_manager.get_config()["runtime"].get(
-                "serve_cached_sessions_in_apps", False
+            cache_enabled = default_if_unset(
+                config_manager.get_config().runtime.serve_cached_sessions_in_apps,
+                False,
             )
             cache_mode = CacheMode.READ
 

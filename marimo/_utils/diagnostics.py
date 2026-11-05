@@ -7,7 +7,9 @@ from pathlib import Path
 from typing import Any, cast
 
 from marimo import _loggers
+from marimo._config.config_schema import ExperimentalConfig
 from marimo._config.manager import get_default_config_manager
+from marimo._config.schema_utils import default_if_unset
 from marimo._utils.health import (
     get_chrome_version,
     get_node_version,
@@ -36,10 +38,12 @@ def is_win11() -> bool:
 def get_experimental_flags() -> dict[str, str | bool | dict[str, Any]]:
     try:
         config = get_default_config_manager(current_path=None).get_config()
-        experimental_config = config.get("experimental", {})
+        experimental_config = default_if_unset(
+            config.experimental, ExperimentalConfig()
+        )
         return {
             k: v
-            for k, v in experimental_config.items()
+            for k, v in experimental_config.to_dict().items()
             if isinstance(v, (str, bool, dict))
         }
     except Exception:

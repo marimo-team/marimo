@@ -18,6 +18,7 @@ from typing import TYPE_CHECKING
 
 from marimo import _loggers
 from marimo._cli.print import echo
+from marimo._config.schema_utils import default_if_unset
 from marimo._environments.process import run_command
 from marimo._environments.uv import UvCommandError, uv_async
 from marimo._version import __version__
@@ -25,7 +26,7 @@ from marimo._version import __version__
 if TYPE_CHECKING:
     from collections.abc import Callable
 
-    from marimo._config.config import VenvConfig
+    from marimo._config.config_schema import VenvConfig
 
 LOGGER = _loggers.marimo_logger()
 
@@ -70,7 +71,7 @@ def get_configured_venv_python(
     Raises:
         ValueError: If venv is configured but invalid.
     """
-    venv_path = venv_config.get("path")
+    venv_path = default_if_unset(venv_config.path, None)
 
     if not venv_path:
         return None

@@ -39,7 +39,7 @@ def _show_tracebacks_enabled() -> bool:
 
     try:
         ctx = get_context()
-        return bool(ctx.marimo_config["runtime"].get("show_tracebacks", False))
+        return bool(ctx.marimo_config.runtime.show_tracebacks)
     except ContextNotInitializedError:
         return True  # no context → not in run mode, always show
 

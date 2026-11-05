@@ -5,25 +5,25 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from marimo import _loggers
+from marimo._config.config_schema import (
+    MCPServerStdioConfig,
+    MCPServerStreamableHttpConfig,
+)
+from marimo._config.schema_utils import default_if_unset
 from marimo._server.ai.mcp.transport import MCPTransportType
 
 if TYPE_CHECKING:
-    from marimo._config.config import (
-        MCPConfig,
-        MCPServerConfig,
-    )
+    from marimo._config.config_schema import MCPConfig, MCPServerConfig
 
 LOGGER = _loggers.marimo_logger()
 
 
 # MCP Server Presets
 MCP_PRESETS: dict[str, MCPServerConfig] = {
-    "marimo": {
-        "url": "https://mcp.marimo.app/mcp",
-    },
-    "context7": {
-        "url": "https://mcp.context7.com/mcp",
-    },
+    "marimo": MCPServerStreamableHttpConfig(url="https://mcp.marimo.app/mcp"),
+    "context7": MCPServerStreamableHttpConfig(
+        url="https://mcp.context7.com/mcp"
+    ),
 }
 
 
@@ -39,20 +39,20 @@ def append_presets(config: MCPConfig) -> MCPConfig:
     Returns:
         Updated configuration with presets appended to mcpServers
     """
-    from marimo._config.config import MCPConfig
+    from marimo._config.config_schema import MCPConfig
 
-    presets_to_add = config.get("presets", [])
+    presets_to_add = config.presets
     if not presets_to_add:
         return config
 
     # Create a copy to avoid mutating the original
-    updated_config = MCPConfig(mcpServers=config["mcpServers"].copy())
+    updated_config = MCPConfig(mcpServers=config.mcpServers.copy())
 
     # Add preset servers if not already present
     for preset_name in presets_to_add:
-        if preset_name not in updated_config["mcpServers"]:
+        if preset_name not in updated_config.mcpServers:
             if preset_name in MCP_PRESETS:
-                updated_config["mcpServers"][preset_name] = MCP_PRESETS[
+                updated_config.mcpServers[preset_name] = MCP_PRESETS[
                     preset_name
                 ]
 
@@ -63,7 +63,7 @@ def is_mcp_config_empty(config: MCPConfig | None) -> bool:
     """Check if the MCP configuration is empty."""
     if config is None:
         return True
-    return not config.get("mcpServers") and not config.get("presets")
+    return not config.mcpServers and not config.presets
 
 
 @dataclass
@@ -110,19 +110,20 @@ class MCPServerDefinitionFactory:
         Raises:
             ValueError: If configuration type is not supported
         """
-        if "command" in config:
+        if isinstance(config, MCPServerStdioConfig):
             return MCPServerDefinition(
                 name=name,
                 transport=MCPTransportType.STDIO,
                 config=config,
                 timeout=30.0,  # default timeout for STDIO
             )
-        elif "url" in config:
+        elif isinstance(config, MCPServerStreamableHttpConfig):
+            timeout = default_if_unset(config.timeout, None)
             return MCPServerDefinition(
                 name=name,
                 transport=MCPTransportType.STREAMABLE_HTTP,
                 config=config,
-                timeout=config.get("timeout") or 30.0,
+                timeout=timeout or 30.0,
             )
         else:
             raise ValueError(f"Unsupported config type: {type(config)}")

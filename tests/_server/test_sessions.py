@@ -796,8 +796,8 @@ async def test_watch_mode_does_not_override_config(tmp_path: Path) -> None:
     try:
         # Verify that the config was not overridden for watch mode
         config = session_manager._config_manager.get_config()
-        assert config["save"]["autosave"] == "after_delay"
-        assert config["save"]["format_on_save"] is True
+        assert config.save.autosave == "after_delay"
+        assert config.save.format_on_save is True
 
     finally:
         # Cleanup
@@ -1178,13 +1178,9 @@ async def test_session_with_script_config_overrides(
     assert session.session_view is startup.view
 
     # Verify that the session's config is affected by the script config
+    assert session.config_manager.get_config().formatting.line_length == 999
     assert (
-        session.config_manager.get_config()["formatting"]["line_length"] == 999
-    )
-    assert (
-        session._kernel_manager.config_manager.get_config()["formatting"][
-            "line_length"
-        ]
+        session._kernel_manager.config_manager.get_config().formatting.line_length
         == 999
     )
 
@@ -1261,7 +1257,7 @@ async def test_sandbox_ignores_configured_venv(
         adapter.sync_async.assert_awaited_once()
         assert "ignoring [tool.marimo.venv]" in capsys.readouterr().err
         assert (
-            session.config_manager.get_config()["venv"]["path"]
+            session.config_manager.get_config().to_dict()["venv"]["path"]
             == venv_path.as_posix()
         )
     finally:
@@ -1455,12 +1451,12 @@ async def test_session_script_dotenv_reaches_the_kernel_config(
         kernel_config = session._kernel_manager.config_manager.get_config(
             hide_secrets=False
         )
-        assert kernel_config["runtime"]["dotenv"] == [
+        assert kernel_config.runtime.dotenv == [
             str(tmp_path / ".env"),
             str(tmp_path / ".env.local"),
         ]
         masked = session.config_manager.get_config()
-        assert "dotenv" not in masked["runtime"]
+        assert "dotenv" not in masked.runtime.to_dict()
     finally:
         session.close()
 

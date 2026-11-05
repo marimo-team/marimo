@@ -8,14 +8,12 @@ from typing import (
     cast,
 )
 
+from msgspec import UNSET
 from starlette.exceptions import HTTPException
 
-from marimo._config.config import (
-    AiConfig,
-    CopilotMode,
-    MarimoConfig,
-    PartialMarimoConfig,
-)
+from marimo._config.config_schema import AiConfig, MarimoConfig, OpenAiConfig
+from marimo._config.schema_utils import Config, default_if_unset
+from marimo._config.types import CopilotMode
 from marimo._server.ai.constants import DEFAULT_MODEL
 from marimo._server.ai.ids import AiModelId
 from marimo._server.ai.tools.tool_manager import get_tool_manager
@@ -104,9 +102,7 @@ class AnyProviderConfig:
         secret_resolver: SecretResolver | None = None,
     ) -> AnyProviderConfig:
         """Get config for a custom provider by name."""
-        custom_providers = cast(
-            dict[str, Any], config.get("custom_providers", {})
-        )
+        custom_providers = config.custom_providers
         if provider_name not in custom_providers:
             raise HTTPException(
                 status_code=HTTPStatus.BAD_REQUEST,
@@ -114,7 +110,7 @@ class AnyProviderConfig:
                 "Go to Settings > AI to configure.",
             )
 
-        provider_config = cast(dict[str, Any], custom_providers[provider_name])
+        provider_config = custom_providers[provider_name].to_dict()
         return cls._for_openai_like(
             config,
             key=provider_name,
@@ -263,7 +259,7 @@ class AnyProviderConfig:
             "ca_bundle_path": ca_bundle_path,
             "client_pem": ai_config.get("client_pem", None),
             "extra_headers": ai_config.get("extra_headers", None),
-            "tools": _get_tools(config.get("mode", "ask")),
+            "tools": _get_tools(default_if_unset(config.mode, "ask")),
         }
 
         return AnyProviderConfig(**kwargs)
@@ -289,7 +285,7 @@ class AnyProviderConfig:
         return cls(
             base_url=_get_base_url(ai_config),
             api_key=key,
-            tools=_get_tools(config.get("mode", "ask")),
+            tools=_get_tools(default_if_unset(config.mode, "ask")),
         )
 
     @classmethod
@@ -314,7 +310,7 @@ class AnyProviderConfig:
             base_url=_get_base_url(ai_config),
             api_key=key,
             ssl_verify=True,
-            tools=_get_tools(config.get("mode", "ask")),
+            tools=_get_tools(default_if_unset(config.mode, "ask")),
         )
 
     @classmethod
@@ -324,7 +320,7 @@ class AnyProviderConfig:
         return cls(
             base_url=_get_base_url(ai_config, "Bedrock"),
             api_key=key,
-            tools=_get_tools(config.get("mode", "ask")),
+            tools=_get_tools(default_if_unset(config.mode, "ask")),
         )
 
     @classmethod
@@ -361,9 +357,7 @@ class AnyProviderConfig:
                 config, secret_resolver=secret_resolver
             )
         else:
-            custom_providers = cast(
-                dict[str, Any], config.get("custom_providers", {})
-            )
+            custom_providers = config.custom_providers
             if model_id.provider in custom_providers:
                 return cls.for_custom_provider(
                     config,
@@ -372,7 +366,7 @@ class AnyProviderConfig:
                 )
 
             # Catch-all: use OpenAI compatible when it is configured.
-            if "open_ai_compatible" in config:
+            if config.open_ai_compatible is not UNSET:
                 return cls.for_openai_compatible(
                     config, secret_resolver=secret_resolver
                 )
@@ -403,44 +397,40 @@ def _get_tools(mode: CopilotMode) -> list[ToolDefinition]:
 
 
 def _get_ai_config(config: AiConfig, key: str) -> dict[str, Any]:
-    if key not in config:
-        return {}
-    return cast(dict[str, Any], config.get(key, {}))
+    section = getattr(config, key, UNSET)
+    return section.to_dict() if isinstance(section, Config) else {}
 
 
 def get_chat_model(config: AiConfig) -> str:
     """Get the chat model from the config."""
+    model = default_if_unset(config.models.chat_model, None)
+    legacy_model = default_if_unset(
+        default_if_unset(config.open_ai, OpenAiConfig()).model, None
+    )
     return (
         # Current config
-        config.get("models", {}).get("chat_model")
+        model
         # Legacy config
-        or config.get("open_ai", {}).get("model")
+        or legacy_model
         or DEFAULT_MODEL
     )
 
 
 def get_edit_model(config: AiConfig) -> str:
     """Get the edit model from the config."""
-    return config.get("models", {}).get("edit_model") or get_chat_model(config)
+    model = default_if_unset(config.models.edit_model, None)
+    return model or get_chat_model(config)
 
 
-def get_autocomplete_model(
-    config: MarimoConfig | PartialMarimoConfig,
-) -> str:
+def get_autocomplete_model(config: MarimoConfig) -> str:
     """Get the autocomplete model from the config."""
-    return (
-        # Current config
-        config.get("ai", {}).get("models", {}).get("autocomplete_model")
-        # Legacy config
-        or config.get("completion", {}).get("model")
-        or DEFAULT_MODEL
-    )
+    model = default_if_unset(config.ai.models.autocomplete_model, None)
+    legacy_model = default_if_unset(config.completion.model, None)
+    return model or legacy_model or DEFAULT_MODEL
 
 
 def get_max_tokens(config: MarimoConfig) -> int | None:
-    if "ai" not in config or "max_tokens" not in config["ai"]:
-        return None
-    return config["ai"]["max_tokens"]
+    return default_if_unset(config.ai.max_tokens, None)
 
 
 def _get_key(

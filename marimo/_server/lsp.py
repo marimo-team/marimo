@@ -15,7 +15,7 @@ from pathlib import Path
 from typing import Any, Literal, cast
 
 from marimo import _loggers
-from marimo._config.config import MarimoConfig
+from marimo._config.config_schema import MarimoConfig
 from marimo._config.manager import MarimoConfigManager
 from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._dependencies.dependencies import DependencyManager
@@ -850,12 +850,12 @@ class CompositeLspServer(LspServer):
 
     def _is_enabled(self, config: MarimoConfig, server_name: str) -> bool:
         if server_name == "copilot":
-            copilot = config["completion"]["copilot"]
+            copilot = config.completion.copilot
             return copilot is True or copilot == "github"
 
         return cast(
             bool,
-            cast(Any, config.get("language_servers", {}))
+            config.language_servers.to_dict()
             .get(server_name, {})
             .get("enabled", False),
         )
@@ -1004,10 +1004,10 @@ class CompositeLspServer(LspServer):
 
 def any_lsp_server_running(config: MarimoConfig) -> bool:
     # Check if any language servers or copilot are enabled
-    copilot_enabled = config["completion"]["copilot"]
-    language_servers = config.get("language_servers", {})
+    copilot_enabled = config.completion.copilot
+    language_servers = config.language_servers
     language_servers_enabled = any(
         cast(dict[str, Any], server).get("enabled", False)
-        for server in language_servers.values()
+        for server in language_servers.to_dict().values()
     )
     return (copilot_enabled is not False) or language_servers_enabled

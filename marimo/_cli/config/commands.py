@@ -52,7 +52,9 @@ def show(notebook: str | None = None, show_sources: bool = False) -> None:
         import tomlkit
 
         output = highlight_toml_headers(
-            tomlkit.dumps(config_manager.get_config(), sort_keys=True)
+            tomlkit.dumps(
+                config_manager.get_config().to_dict(), sort_keys=True
+            )
         )
     echo(output)
 

@@ -10,7 +10,9 @@ from starlette.middleware import Middleware
 from starlette.middleware.cors import CORSMiddleware
 
 from marimo import _loggers
-from marimo._config.config import DEFAULT_CONFIG, ServerConfig
+from marimo._config.config import DEFAULT_CONFIG
+from marimo._config.config_schema import ServerConfig
+from marimo._config.schema_utils import default_if_unset
 from marimo._server.api.auth import (
     SESSION_SECRET,
     CustomAuthenticationMiddleware,
@@ -63,11 +65,11 @@ def create_starlette_app(
     server_config: ServerConfig | None = None,
 ) -> Starlette:
     server_config = (
-        server_config
-        if server_config is not None
-        else DEFAULT_CONFIG["server"]
+        server_config if server_config is not None else DEFAULT_CONFIG.server
     )
-    session_secret = server_config.get("session_secret") or SESSION_SECRET
+    session_secret = (
+        default_if_unset(server_config.session_secret, None) or SESSION_SECRET
+    )
     final_middlewares: list[Middleware] = [
         Middleware(
             WebSocketOriginMiddleware,
@@ -89,9 +91,7 @@ def create_starlette_app(
                 Middleware(
                     CustomSessionMiddleware,
                     secret_key=session_secret,
-                    https_only=server_config.get(
-                        "session_cookie_secure", False
-                    ),
+                    https_only=server_config.session_cookie_secure,
                 ),
             ]
         )

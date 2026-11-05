@@ -3,7 +3,7 @@ from __future__ import annotations
 from marimo._config.config import PartialMarimoConfig
 from marimo._config.secrets import (
     SECRET_PLACEHOLDER,
-    redact_secrets,
+    redact_secrets_partial,
     remove_secret_placeholders,
 )
 
@@ -38,7 +38,7 @@ def test_mask_secrets() -> None:
         == "bedrock_secret_access_key"
     )
 
-    new_config = redact_secrets(config)
+    new_config = redact_secrets_partial(config)
     assert "dotenv" not in new_config["runtime"]
     assert config["runtime"]["dotenv"] == [".env"]
     assert new_config["ai"]["open_ai"]["api_key"] == SECRET_PLACEHOLDER
@@ -74,7 +74,7 @@ def test_mask_secrets_list() -> None:
         ai={"open_ai": [{"api_key": "super_secret"}]},
     )
     assert config["ai"]["open_ai"][0]["api_key"] == "super_secret"
-    new_config = redact_secrets(config)
+    new_config = redact_secrets_partial(config)
     assert new_config["ai"]["open_ai"][0]["api_key"] == SECRET_PLACEHOLDER
 
     # Ensure the original config is not modified
@@ -95,7 +95,7 @@ def test_mask_secrets_empty() -> None:
     )
     assert config["ai"]["open_ai"]["model"] == "davinci"
 
-    new_config = redact_secrets(config)
+    new_config = redact_secrets_partial(config)
     assert new_config["ai"]["open_ai"]["model"] == "davinci"
     # Not added until the key is present
     assert "api_key" not in new_config["ai"]["open_ai"]
@@ -110,7 +110,7 @@ def test_mask_secrets_empty() -> None:
     config["ai"]["google"]["api_key"] = ""
     config["ai"]["anthropic"]["api_key"] = ""
     config["ai"]["openrouter"]["api_key"] = ""
-    new_config = redact_secrets(config)
+    new_config = redact_secrets_partial(config)
     assert new_config["ai"]["open_ai"]["api_key"] == ""
     assert new_config["ai"]["google"]["api_key"] == ""
     assert new_config["ai"]["anthropic"]["api_key"] == ""
@@ -137,7 +137,7 @@ def test_mask_secrets_non_dict_values() -> None:
             "custom_providers": "oops",
         },
     )
-    new_config = redact_secrets(config)
+    new_config = redact_secrets_partial(config)
     assert new_config["ai"]["open_ai"]["api_key"] == SECRET_PLACEHOLDER
     assert new_config["ai"]["bedrock"] is None
     assert new_config["ai"]["custom_providers"] == "oops"
@@ -200,7 +200,7 @@ def test_mask_secrets_custom_providers() -> None:
     )
 
     # Mask secrets
-    new_config = redact_secrets(config)
+    new_config = redact_secrets_partial(config)
 
     # Verify api_keys are masked
     assert (
@@ -284,7 +284,7 @@ def test_mask_secrets_signing_private_key_path() -> None:
             "trusted_signers": {"SHA256:abc": "alice"},
         },
     )
-    masked = redact_secrets(config)
+    masked = redact_secrets_partial(config)
     assert masked["signing"]["private_key_path"] == SECRET_PLACEHOLDER
     # trusted_signers are public fingerprints — not masked.
     assert masked["signing"]["trusted_signers"] == {"SHA256:abc": "alice"}

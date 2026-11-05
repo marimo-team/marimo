@@ -6,7 +6,7 @@ from unittest import mock
 
 import pytest
 
-from marimo._config.config import SqlOutputType
+from marimo._config.types import SqlOutputType
 from marimo._data.models import DataSourceConnection
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._sql.engines.clickhouse import ClickhouseEmbedded, ClickhouseServer

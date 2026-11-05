@@ -145,3 +145,30 @@ def test_openapi_known_unions_reference_named_exports() -> None:
         },
         "required": ["notification", "command", "error", "data_type"],
     }
+
+
+def test_config_schema_describes_resolved_settings_without_internal_tags() -> (
+    None
+):
+    import json
+
+    schemas = generate_server_api_schema()["components"]["schemas"]
+    assert schemas["MarimoConfig"]["required"] == [
+        "completion",
+        "display",
+        "formatting",
+        "keymap",
+        "runtime",
+        "save",
+        "server",
+        "package_management",
+        "ai",
+        "language_servers",
+        "diagnostics",
+        "snippets",
+        "mcp",
+    ]
+    assert schemas["ExperimentalConfig"]["additionalProperties"] is True
+    assert schemas["MCPServerStdioConfig"]["required"] == ["command"]
+    assert schemas["MCPServerStreamableHttpConfig"]["required"] == ["url"]
+    assert "__marimo_transport__" not in json.dumps(schemas)

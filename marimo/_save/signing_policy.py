@@ -15,6 +15,8 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from marimo import _loggers
+from marimo._config.config_schema import CacheConfig, SigningConfig
+from marimo._config.schema_utils import default_if_unset
 from marimo._save.signing import (
     DEFAULT_VERIFICATION,
     CacheSigner,
@@ -24,7 +26,7 @@ from marimo._save.signing import (
 )
 
 if TYPE_CHECKING:
-    from marimo._config.config import MarimoConfig
+    from marimo._config.config_schema import MarimoConfig
 
 LOGGER = _loggers.marimo_logger()
 
@@ -56,14 +58,16 @@ class SigningPolicy:
 
     @classmethod
     def from_config(cls, config: MarimoConfig) -> SigningPolicy:
-        signing = config.get("signing") or {}
-        cache = config.get("cache") or {}
+        signing = default_if_unset(config.signing, SigningConfig())
+        cache = default_if_unset(config.cache, CacheConfig())
 
         verification = normalize_verification(
-            cache.get("verification", DEFAULT_VERIFICATION)
+            default_if_unset(cache.verification, DEFAULT_VERIFICATION)
         )
 
-        trusted = _resolve_trusted_signers(signing.get("trusted_signers"))
+        trusted = _resolve_trusted_signers(
+            default_if_unset(signing.trusted_signers, None)
+        )
         # A public key in the inherited environment is a trusted *verifier*, not
         # this loader's own signing identity — record it as a trusted
         # fingerprint (so it must be named to be trusted) rather than an
@@ -72,7 +76,9 @@ class SigningPolicy:
         if env_public is not None:
             trusted.add(env_public)
 
-        signer = _resolve_write_signer(signing.get("private_key_path") or None)
+        signer = _resolve_write_signer(
+            default_if_unset(signing.private_key_path, None) or None
+        )
         return cls(
             verification=verification,
             trusted_signers=frozenset(trusted),

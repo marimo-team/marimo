@@ -218,10 +218,31 @@ export const UserConfigSchema = z
         transport: z.enum(["websocket", "sse"]).optional(),
       })
       .prefault(() => ({})),
+    language_servers: z
+      .looseObject({
+        pylsp: z
+          .looseObject({
+            enabled: z.boolean().prefault(false),
+            enable_mypy: z.boolean().prefault(true),
+            enable_ruff: z.boolean().prefault(true),
+            enable_flake8: z.boolean().prefault(false),
+            enable_pydocstyle: z.boolean().prefault(false),
+            enable_pylint: z.boolean().prefault(false),
+            enable_pyflakes: z.boolean().prefault(false),
+          })
+          .prefault({}),
+      })
+      .prefault({}),
+    snippets: z
+      .looseObject({
+        custom_paths: z.array(z.string()).prefault([]),
+        include_default_snippets: z.boolean().prefault(true),
+      })
+      .prefault({}),
     diagnostics: z
       .looseObject({
         enabled: z.boolean().optional(),
-        sql_linter: z.boolean().optional(),
+        sql_linter: z.boolean().prefault(true),
       })
       .prefault(() => ({})),
     file_browser: z
@@ -246,7 +267,8 @@ export const UserConfigSchema = z
       .optional(),
     mcp: z
       .looseObject({
-        presets: z.array(z.enum(["marimo", "context7"])).optional(),
+        presets: z.array(z.enum(["marimo", "context7"])).prefault([]),
+        mcpServers: z.record(z.string(), z.unknown()).prefault({}),
       })
       .optional()
       .prefault({}),
@@ -260,6 +282,8 @@ export const UserConfigSchema = z
     runtime: {},
     display: {},
     diagnostics: {},
+    language_servers: {},
+    snippets: {},
     file_browser: {},
     experimental: {},
     server: {},
@@ -369,6 +393,8 @@ export function defaultUserConfig(): UserConfig {
     runtime: {},
     display: {},
     diagnostics: {},
+    language_servers: {},
+    snippets: {},
     file_browser: {},
     experimental: {},
     server: {},

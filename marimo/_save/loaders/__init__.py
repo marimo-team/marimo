@@ -5,6 +5,8 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Literal, cast
 
 from marimo import _loggers
+from marimo._config.config_schema import CacheConfig
+from marimo._config.schema_utils import default_if_unset
 from marimo._entrypoints.registry import EntryPointRegistry
 from marimo._save.loaders.json import JsonLoader
 from marimo._save.loaders.lazy import (
@@ -24,7 +26,8 @@ from marimo._save.loaders.pickle import PickleLoader
 from marimo._utils.platform import is_pyodide
 
 if TYPE_CHECKING:
-    from marimo._config.config import CacheLoader, MarimoConfig
+    from marimo._config.config_schema import MarimoConfig
+    from marimo._config.types import CacheLoader
 
 LOGGER = _loggers.marimo_logger()
 
@@ -147,7 +150,11 @@ def get_loader_key(
         config = get_default_config_manager(
             current_path=current_path
         ).get_config()
-    return normalize_loader_key((config.get("cache") or {}).get("loader"))
+    return normalize_loader_key(
+        default_if_unset(
+            default_if_unset(config.cache, CacheConfig()).loader, None
+        )
+    )
 
 
 __all__ = [

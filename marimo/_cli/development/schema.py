@@ -220,6 +220,45 @@ def _enrich_branded_types(
         )
 
 
+def _enrich_config_types(component_schemas: dict[str, Any]) -> None:
+    from marimo._config import config_schema
+    from marimo._config.schema_utils import Config
+
+    for cls in vars(config_schema).values():
+        if not isinstance(cls, type) or not issubclass(cls, Config):
+            continue
+        schema = component_schemas.get(cls.__name__)
+        if schema is None:
+            continue
+        # Export resolved settings, whose defaults are always populated.
+        schema["required"] = [
+            item.encode_name
+            for item in msgspec.structs.fields(cls)
+            if item.default is not msgspec.UNSET
+        ]
+        if cls is config_schema.ExperimentalConfig:
+            schema["additionalProperties"] = True
+        if cls.__struct_config__.tag is not None:
+            schema["properties"].pop(cls.__struct_config__.tag_field, None)
+
+    def remove_transport_tags(value: Any) -> None:
+        if isinstance(value, dict):
+            if (
+                value.get("discriminator", {}).get("propertyName")
+                == "__marimo_transport__"
+            ):
+                del value["discriminator"]
+                if "oneOf" in value:
+                    value["anyOf"] = value.pop("oneOf")
+            for item in value.values():
+                remove_transport_tags(item)
+        elif isinstance(value, list):
+            for item in value:
+                remove_transport_tags(item)
+
+    remove_transport_tags(component_schemas)
+
+
 def generate_server_api_schema() -> dict[str, Any]:
     from starlette.schemas import SchemaGenerator
 
@@ -228,7 +267,7 @@ def generate_server_api_schema() -> dict[str, Any]:
     import marimo._secrets.models as secrets_models
     from marimo._ai._types import ChatMessage
     from marimo._ast.cell import CellConfig, RuntimeStateType
-    from marimo._config import config
+    from marimo._config import config_schema as config
     from marimo._messaging.cell_output import CellChannel, CellOutput
     from marimo._messaging.mimetypes import KnownMimeType
     from marimo._metadata import opengraph
@@ -398,6 +437,7 @@ def generate_server_api_schema() -> dict[str, Any]:
         "DataType": DataType,
     }
     component_schemas = _generate_schema_components(roots, named_exports)
+    _enrich_config_types(component_schemas)
 
     # Preserve existing consumers while they migrate to the named exports.
     legacy_exports = {

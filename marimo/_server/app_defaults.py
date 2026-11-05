@@ -4,7 +4,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from marimo._config.config import ExportType, SqlOutputType, WidthType
+from marimo._config.types import ExportType, SqlOutputType, WidthType
 
 if TYPE_CHECKING:
     from marimo._config.manager import MarimoConfigManager

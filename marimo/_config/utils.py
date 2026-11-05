@@ -1,9 +1,10 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import copy
 import os
 from functools import lru_cache
-from typing import Any
+from typing import TypeVar
 
 from marimo import _loggers
 from marimo._utils.xdg import marimo_config_path
@@ -150,9 +151,8 @@ def is_trusted_user_config_path(path: str) -> bool:
     return real in trusted
 
 
-def deep_copy(obj: Any) -> Any:
-    if isinstance(obj, dict):
-        return {k: deep_copy(v) for k, v in obj.items()}  # type: ignore
-    if isinstance(obj, list):
-        return [deep_copy(v) for v in obj]  # type: ignore
-    return obj
+T = TypeVar("T")
+
+
+def deep_copy(obj: T) -> T:
+    return copy.deepcopy(obj)

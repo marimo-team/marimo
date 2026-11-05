@@ -3,8 +3,10 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from marimo._config.schema_utils import default_if_unset
+
 if TYPE_CHECKING:
-    from marimo._config.config import LintConfig
+    from marimo._config.config_schema import LintConfig
     from marimo._lint.rules.base import LintRule
 
 
@@ -45,8 +47,8 @@ def resolve_rules(
 
         all_rules = RULE_CODES
 
-    select = config.get("select")
-    ignore = config.get("ignore")
+    select = default_if_unset(config.select, None)
+    ignore = default_if_unset(config.ignore, None)
 
     # Step 1: base set — use only default rules unless explicitly selected
     if select:

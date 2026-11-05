@@ -458,7 +458,7 @@ def test_launch_kernel_handshake_reports_identity() -> None:
         "from unittest.mock import patch, MagicMock\n"
         "import marimo._ipc.launch_kernel as lk\n"
         "with patch.object(\n"
-        "    lk.KernelArgs, 'decode_json', return_value=MagicMock()\n"
+        "    lk.KernelArgs, 'decode_json', return_value=MagicMock(user_config={})\n"
         "), patch.object(lk.QueueManager, 'connect', MagicMock()), \\\n"
         "        patch.object(lk.runtime, 'launch_kernel', MagicMock()):\n"
         "    lk.main()\n"

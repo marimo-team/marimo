@@ -52,17 +52,10 @@ def config_tree(
     monkeypatch.setattr(GLOBAL_SETTINGS, "RESTRICT_SHARING", False)
     # These defaults are inferred at module import, before fixture isolation.
     # Package-manager inference has its own suite in test_config_packages.py.
-    monkeypatch.setitem(
-        DEFAULT_CONFIG, "package_management", {"manager": "pip"}
-    )
-    monkeypatch.setitem(
-        DEFAULT_CONFIG,
-        "runtime",
-        {
-            **DEFAULT_CONFIG["runtime"],
-            "output_max_bytes": 8_000_000,
-            "std_stream_max_bytes": 1_000_000,
-        },
+    monkeypatch.setattr(DEFAULT_CONFIG.package_management, "manager", "pip")
+    monkeypatch.setattr(DEFAULT_CONFIG.runtime, "output_max_bytes", 8_000_000)
+    monkeypatch.setattr(
+        DEFAULT_CONFIG.runtime, "std_stream_max_bytes", 1_000_000
     )
     get_user_config_path.cache_clear()
     original_path = get_or_create_user_config_path
@@ -108,7 +101,7 @@ def write_script(path: Path, settings: str) -> None:
 def test_default_configuration_snapshot(config_tree: Path) -> None:
     manager = get_default_config_manager(current_path=None)
     assert normalized(
-        manager.get_config(hide_secrets=False), config_tree
+        (manager.get_config(hide_secrets=False)).to_dict(), config_tree
     ) == snapshot(
         {
             "display": {
@@ -229,9 +222,11 @@ def test_layered_configuration_snapshot(
     monkeypatch.setattr(GLOBAL_SETTINGS, "RESTRICT_SHARING", True)
     # Masked reads must not mutate the following unmasked reads.
     views = {
-        "resolved_masked": manager.get_config(),
-        "resolved_unmasked": manager.get_config(hide_secrets=False),
-        "user_masked": manager.get_user_config(),
+        "resolved_masked": (manager.get_config()).to_dict(),
+        "resolved_unmasked": (
+            manager.get_config(hide_secrets=False)
+        ).to_dict(),
+        "user_masked": (manager.get_user_config()).to_dict(),
         "overrides_unmasked": manager.get_config_overrides(hide_secrets=False),
         "script_unmasked": ScriptConfigReader(str(notebook)).read(),
     }
@@ -508,10 +503,12 @@ def test_dotenv_fallbacks_snapshot(config_tree: Path) -> None:
         manager = get_default_config_manager(current_path=str(current_path))
         cases[name] = {
             "defaults": manager.get_config_defaults(hide_secrets=False),
-            "dotenv": manager.get_config(hide_secrets=False)["runtime"].get(
-                "dotenv"
-            ),
-            "masked_dotenv": manager.get_config()["runtime"].get("dotenv"),
+            "dotenv": (manager.get_config(hide_secrets=False))
+            .to_dict()["runtime"]
+            .get("dotenv"),
+            "masked_dotenv": (manager.get_config())
+            .to_dict()["runtime"]
+            .get("dotenv"),
             "overrides": manager.get_config_overrides(hide_secrets=False),
         }
     (project / "pyproject.toml").write_text(
@@ -532,9 +529,9 @@ def test_dotenv_fallbacks_snapshot(config_tree: Path) -> None:
         get_user_config_path.cache_clear()
         manager = get_default_config_manager(current_path=str(notebook))
         cases[name] = {
-            "dotenv": manager.get_config(hide_secrets=False)["runtime"].get(
-                "dotenv"
-            )
+            "dotenv": (manager.get_config(hide_secrets=False))
+            .to_dict()["runtime"]
+            .get("dotenv")
         }
     assert normalized(cases, config_tree) == snapshot(
         {
@@ -614,19 +611,26 @@ def test_persistence_snapshot(config_tree: Path) -> None:
     )
     manager = get_default_config_manager(current_path=None)
     # The endpoint accepts deep partial patches and null-as-delete values.
-    manager.save_config(
-        cast(
-            "PartialMarimoConfig",
-            {
-                "display": {"theme": "dark"},
-                "ai": {"open_ai": {"api_key": "********"}, "max_tokens": None},
-            },
+    (
+        manager.save_config(
+            cast(
+                "PartialMarimoConfig",
+                {
+                    "display": {"theme": "dark"},
+                    "ai": {
+                        "open_ai": {"api_key": "********"},
+                        "max_tokens": None,
+                    },
+                },
+            )
         )
-    )
+    ).to_dict()
     first_save = path.read_text(encoding="utf-8")
-    manager.save_config(
-        cast("PartialMarimoConfig", {"display": {"theme": "dark"}})
-    )
+    (
+        manager.save_config(
+            cast("PartialMarimoConfig", {"display": {"theme": "dark"}})
+        )
+    ).to_dict()
     assert path.read_text(encoding="utf-8") == first_save
     assert normalized(first_save, config_tree) == snapshot("""\
 [ai]
@@ -715,11 +719,13 @@ skip_update_check = false
 custom_paths = []
 include_default_snippets = true
 """)
+    assert (manager.get_config(hide_secrets=False)).to_dict()["ai"]["open_ai"][
+        "api_key"
+    ] == "keep-me"
     assert (
-        manager.get_config(hide_secrets=False)["ai"]["open_ai"]["api_key"]
-        == "keep-me"
+        "max_tokens"
+        not in (manager.get_config(hide_secrets=False)).to_dict()["ai"]
     )
-    assert "max_tokens" not in manager.get_config(hide_secrets=False)["ai"]
 
 
 def test_invalid_and_missing_inputs_snapshot(config_tree: Path) -> None:
@@ -802,9 +808,11 @@ def test_trust_origins_snapshot(config_tree: Path) -> None:
     ]:
         path.write_text(settings, encoding="utf-8")
         get_user_config_path.cache_clear()
-        config = get_default_config_manager(current_path=None).get_config(
-            hide_secrets=False
-        )
+        config = (
+            get_default_config_manager(
+                current_path=None
+            ).get_config_with_sources(hide_secrets=False)
+        ).config
         cases[name] = {
             "signing": config.get("signing"),
             "cache": config.get("cache"),
@@ -844,9 +852,9 @@ def test_secret_roundtrip_snapshot(config_tree: Path) -> None:
         encoding="utf-8",
     )
     manager = get_default_config_manager(current_path=None)
-    masked = manager.get_user_config()
-    manager.save_config(masked)
-    unmasked = manager.get_user_config(hide_secrets=False)
+    masked = (manager.get_user_config()).to_dict()
+    (manager.save_config(masked)).to_dict()
+    unmasked = (manager.get_user_config(hide_secrets=False)).to_dict()
     assert {
         "masked": {
             key: masked.get(key) for key in ("ai", "runtime", "signing")
@@ -925,7 +933,7 @@ def test_invalid_user_file_snapshot(config_tree: Path) -> None:
     ]:
         path.write_text(content, encoding="utf-8")
         manager = get_default_config_manager(current_path=None)
-        config = manager.get_user_config(hide_secrets=False)
+        config = (manager.get_user_config(hide_secrets=False)).to_dict()
         cases[name] = {
             "theme": config["display"]["theme"],
             "future": config.get("future"),
@@ -1000,11 +1008,11 @@ def test_dotenv_explicit_precedence_snapshot(config_tree: Path) -> None:
             manager = manager.with_overrides(
                 cast("PartialMarimoConfig", {"runtime": {"dotenv": overrides}})
             )
-        masked = manager.get_config()
+        masked = (manager.get_config()).to_dict()
         cases[name] = {
-            "resolved": manager.get_config(hide_secrets=False)["runtime"].get(
-                "dotenv"
-            ),
+            "resolved": (manager.get_config(hide_secrets=False))
+            .to_dict()["runtime"]
+            .get("dotenv"),
             "masked": masked["runtime"].get("dotenv"),
             "overrides": manager.get_config_overrides(hide_secrets=False).get(
                 "runtime"
@@ -1084,13 +1092,15 @@ def test_dotenv_workspace_session_snapshot(config_tree: Path) -> None:
             ScriptConfigReader(str(script) if script is not None else None)
         )
         cases[name] = {
-            "workspace": manager.get_config(hide_secrets=False)["runtime"].get(
-                "dotenv"
-            ),
-            "masked_session": session.get_config()["runtime"].get("dotenv"),
-            "session": session.get_config(hide_secrets=False)["runtime"].get(
-                "dotenv"
-            ),
+            "workspace": (manager.get_config(hide_secrets=False))
+            .to_dict()["runtime"]
+            .get("dotenv"),
+            "masked_session": (session.get_config())
+            .to_dict()["runtime"]
+            .get("dotenv"),
+            "session": (session.get_config(hide_secrets=False))
+            .to_dict()["runtime"]
+            .get("dotenv"),
             "overrides": session.get_config_overrides(hide_secrets=False),
         }
     assert normalized(cases, config_tree) == snapshot(
@@ -1131,9 +1141,9 @@ def test_dotenv_home_and_nested_project_snapshot(
     def capture(name: str, path: Path) -> None:
         manager = get_default_config_manager(current_path=str(path))
         cases[name] = {
-            "dotenv": manager.get_config(hide_secrets=False)["runtime"].get(
-                "dotenv"
-            ),
+            "dotenv": (manager.get_config(hide_secrets=False))
+            .to_dict()["runtime"]
+            .get("dotenv"),
             "defaults": manager.get_config_defaults(hide_secrets=False),
         }
 
@@ -1187,18 +1197,23 @@ def test_merge_semantics_snapshot() -> None:
 
     from marimo._config.config import merge_config, merge_default_config
 
-    base = merge_default_config(
-        cast(
-            "PartialMarimoConfig",
-            {
-                "keymap": {"overrides": {"old": "Ctrl-A"}},
-                "ai": {"custom_providers": {"old": {"api_key": "old"}}},
-                "signing": {"trusted_signers": {"old": "old-key"}},
-                "runtime": {"dotenv": ["old.env"], "auto_instantiate": True},
-                "display": {"theme": "dark", "default_width": "full"},
-            },
+    base = (
+        merge_default_config(
+            cast(
+                "PartialMarimoConfig",
+                {
+                    "keymap": {"overrides": {"old": "Ctrl-A"}},
+                    "ai": {"custom_providers": {"old": {"api_key": "old"}}},
+                    "signing": {"trusted_signers": {"old": "old-key"}},
+                    "runtime": {
+                        "dotenv": ["old.env"],
+                        "auto_instantiate": True,
+                    },
+                    "display": {"theme": "dark", "default_width": "full"},
+                },
+            )
         )
-    )
+    ).to_dict()
     original = deepcopy(base)
     cases: dict[str, Any] = {}
     for name, replacements in [
@@ -1226,7 +1241,7 @@ def test_merge_semantics_snapshot() -> None:
             },
         )
         original_patch = deepcopy(patch)
-        merged = merge_config(base, patch)
+        merged = (merge_config(base, patch)).to_dict()
         assert base == original
         assert patch == original_patch
         cases[name] = {
@@ -1238,10 +1253,14 @@ def test_merge_semantics_snapshot() -> None:
             "display": merged["display"],
         }
     for value in [False, True, "detect", "off", "lazy", "autorun"]:
-        merged = merge_config(
-            base,
-            cast("PartialMarimoConfig", {"runtime": {"auto_reload": value}}),
-        )
+        merged = (
+            merge_config(
+                base,
+                cast(
+                    "PartialMarimoConfig", {"runtime": {"auto_reload": value}}
+                ),
+            )
+        ).to_dict()
         cases[f"auto_reload_{value}"] = merged["runtime"]["auto_reload"]
     assert cases == snapshot(
         {
@@ -1321,7 +1340,7 @@ def test_dotenv_loading_boundary_snapshot(
         encoding="utf-8",
     )
     manager = get_default_config_manager(current_path=str(project))
-    config = manager.get_config(hide_secrets=False)
+    config = manager.get_config_with_sources(hide_secrets=False).config
 
     def environment() -> dict[str, str | None]:
         return {
@@ -1377,29 +1396,31 @@ def test_save_scope_and_refresh_snapshot(config_tree: Path) -> None:
     )
 
     def capture() -> dict[str, Any]:
-        resolved = manager.get_config(hide_secrets=False)
-        user_config = manager.get_user_config(hide_secrets=False)
+        resolved = (manager.get_config(hide_secrets=False)).to_dict()
+        user_config = (manager.get_user_config(hide_secrets=False)).to_dict()
         return {
             "user_theme": user_config["display"]["theme"],
             "resolved_theme": resolved["display"]["theme"],
             "user_dotenv": user_config["runtime"].get("dotenv"),
             "resolved_dotenv": resolved["runtime"].get("dotenv"),
             "resolved_line_length": resolved["formatting"]["line_length"],
-            "overridden_line_length": overridden.get_config(
-                hide_secrets=False
-            )["formatting"]["line_length"],
+            "overridden_line_length": (
+                overridden.get_config(hide_secrets=False)
+            ).to_dict()["formatting"]["line_length"],
         }
 
     before = capture()
-    manager.save_config(
-        cast(
-            "PartialMarimoConfig",
-            {
-                "display": {"theme": "system"},
-                "runtime": {"dotenv": ["user.env"]},
-            },
+    (
+        manager.save_config(
+            cast(
+                "PartialMarimoConfig",
+                {
+                    "display": {"theme": "system"},
+                    "runtime": {"dotenv": ["user.env"]},
+                },
+            )
         )
-    )
+    ).to_dict()
     after = capture()
     assert pyproject.read_bytes() == original_project
     assert notebook.read_bytes() == original_script
@@ -1520,9 +1541,11 @@ def _get_path(config: Any, dotted: str) -> Any:
 
 def _resolve_for_trust(current_path: Path | None) -> Any:
     get_user_config_path.cache_clear()
-    return get_default_config_manager(
-        current_path=None if current_path is None else str(current_path)
-    ).get_config(hide_secrets=False)
+    return (
+        get_default_config_manager(
+            current_path=None if current_path is None else str(current_path)
+        ).get_config_with_sources(hide_secrets=False)
+    ).config
 
 
 def _dropped_probe_paths(config: Any, baseline: Any) -> list[str]:

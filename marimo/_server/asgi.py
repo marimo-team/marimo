@@ -13,6 +13,8 @@ from typing import (
     cast,
 )
 
+from marimo._config.schema_utils import default_if_unset
+
 if TYPE_CHECKING:
     from typing import TypeAlias
 
@@ -562,16 +564,16 @@ def create_asgi_app(
                 auth_token=auth_token,
                 redirect_console_to_browser=redirect_console_to_browser,
                 ttl_seconds=session_ttl,
-                isolate_apps=config_reader.experimental.get(
-                    "isolate_apps", False
+                isolate_apps=default_if_unset(
+                    config_reader.experimental.isolate_apps, False
                 ),
                 execute_opengraph_generators=execute_opengraph_generators,
             )
             enable_auth = not AuthToken.is_empty(auth_token)
             app = create_starlette_app(
-                server_config=app_config_reader.get_config(hide_secrets=False)[
-                    "server"
-                ],
+                server_config=app_config_reader.get_config(
+                    hide_secrets=False
+                ).server,
                 base_url="",
                 lifespan=Lifespans(
                     [

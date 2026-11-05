@@ -9,8 +9,8 @@ from typing import TYPE_CHECKING, Any, Literal, cast
 
 from marimo import _loggers
 from marimo._ast.names import DEFAULT_CELL_NAME
-from marimo._config.config import (
-    DEFAULT_CONFIG,
+from marimo._config.config import DEFAULT_CONFIG
+from marimo._config.config_schema import (
     DisplayConfig,
     MarimoConfig,
     SharingConfig,
@@ -203,9 +203,9 @@ class Exporter:
     ) -> MarimoConfig:
         """Prepare config with display and sharing settings for static notebook."""
         config: MarimoConfig = deep_copy(DEFAULT_CONFIG)
-        config["display"] = display_config
+        config.display = display_config
         if sharing_config:
-            config["sharing"] = sharing_config
+            config.sharing = sharing_config
         return config
 
     @staticmethod
@@ -444,7 +444,7 @@ class Exporter:
             request.display_config, request.sharing_config
         )
         # Remove autosave
-        config["save"]["autosave"] = "off"
+        config.save.autosave = "off"
 
         html = wasm_notebook_template(
             html=index_html,

@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING, Any
 
 from marimo._ast.app import AppKernelRunnerRegistry
 from marimo._cli.parse_args import args_from_argv
-from marimo._config.config import MarimoConfig
+from marimo._config.config_schema import MarimoConfig
 from marimo._config.manager import get_default_config_manager
 from marimo._plugins.ui._core.ids import NoIDProviderException
 from marimo._plugins.ui._core.registry import UIElementRegistry

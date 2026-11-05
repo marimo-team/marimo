@@ -15,6 +15,7 @@ from starlette.responses import (
 )
 
 from marimo import _loggers
+from marimo._config.schema_utils import default_if_unset
 from marimo._convert.common.filename import (
     get_download_filename,
     make_download_headers,
@@ -255,10 +256,10 @@ async def export_as_html(
                 drop_virtual_file_outputs=False,
                 include_model_notifications=True,
             ),
-            display_config=resolved_config["display"],
+            display_config=resolved_config.display,
             options=to_html_export_options(body),
             layout=layout,
-            sharing_config=resolved_config.get("sharing"),
+            sharing_config=default_if_unset(resolved_config.sharing, None),
         )
     )
 
@@ -340,7 +341,7 @@ async def auto_export_as_html(
                     drop_virtual_file_outputs=False,
                     include_model_notifications=True,
                 ),
-                display_config=session.config_manager.get_config()["display"],
+                display_config=session.config_manager.get_config().display,
                 options=to_html_export_options(body),
                 layout=layout,
             )

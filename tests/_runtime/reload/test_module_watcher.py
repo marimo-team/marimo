@@ -66,8 +66,8 @@ async def test_reload_function(
     )
 
     config = copy.deepcopy(DEFAULT_CONFIG)
-    config["runtime"]["auto_reload"] = "lazy"
-    k.set_user_config(UpdateUserConfigCommand(config=config))
+    config.runtime.auto_reload = "lazy"
+    k.set_user_config(UpdateUserConfigCommand(config=config.to_dict()))
     await k.run(
         [
             er_1 := exec_req.get(f"from {py_modname} import foo"),
@@ -128,19 +128,19 @@ async def test_disable_and_reenable_reload(
 
     config = copy.deepcopy(DEFAULT_CONFIG)
     # enable reloading ...
-    config["runtime"]["auto_reload"] = "lazy"
-    k.set_user_config(UpdateUserConfigCommand(config=config))
+    config.runtime.auto_reload = "lazy"
+    k.set_user_config(UpdateUserConfigCommand(config=config.to_dict()))
 
     # disable it ...
-    config["runtime"]["auto_reload"] = "off"
-    k.set_user_config(UpdateUserConfigCommand(config=config))
+    config.runtime.auto_reload = "off"
+    k.set_user_config(UpdateUserConfigCommand(config=config.to_dict()))
 
     # TODO: Invesitigate flaky on minimal CI
     await asyncio.sleep(INTERVAL / 2)
 
     # ... and re-enable it
-    config["runtime"]["auto_reload"] = "lazy"
-    k.set_user_config(UpdateUserConfigCommand(config=config))
+    config.runtime.auto_reload = "lazy"
+    k.set_user_config(UpdateUserConfigCommand(config=config.to_dict()))
     await k.run(
         [
             er_1 := exec_req.get(f"from {py_modname} import foo"),
@@ -210,8 +210,8 @@ async def test_reload_nested_module_function(
     )
 
     config = copy.deepcopy(DEFAULT_CONFIG)
-    config["runtime"]["auto_reload"] = "lazy"
-    k.set_user_config(UpdateUserConfigCommand(config=config))
+    config.runtime.auto_reload = "lazy"
+    k.set_user_config(UpdateUserConfigCommand(config=config.to_dict()))
     await k.run(
         [
             er_1 := exec_req.get(f"from {py_modname} import foo"),
@@ -275,8 +275,8 @@ async def test_reload_nested_module_import_module(
     )
 
     config = copy.deepcopy(DEFAULT_CONFIG)
-    config["runtime"]["auto_reload"] = "lazy"
-    k.set_user_config(UpdateUserConfigCommand(config=config))
+    config.runtime.auto_reload = "lazy"
+    k.set_user_config(UpdateUserConfigCommand(config=config.to_dict()))
     await k.run(
         [
             er_1 := exec_req.get(f"from {py_modname} import foo"),
@@ -341,8 +341,8 @@ async def test_reload_nested_module_import_module_autorun(
     queue = Queue()
     k.enqueue_control_request = lambda req: queue.put(req)
     config = copy.deepcopy(DEFAULT_CONFIG)
-    config["runtime"]["auto_reload"] = "autorun"
-    k.set_user_config(UpdateUserConfigCommand(config=config))
+    config.runtime.auto_reload = "autorun"
+    k.set_user_config(UpdateUserConfigCommand(config=config.to_dict()))
     await k.run(
         [
             er_1 := exec_req.get(f"from {py_modname} import foo"),
@@ -390,8 +390,8 @@ async def test_reload_package(
     nested_module.write_text("func = lambda: 1")
 
     config = copy.deepcopy(DEFAULT_CONFIG)
-    config["runtime"]["auto_reload"] = "lazy"
-    k.set_user_config(UpdateUserConfigCommand(config=config))
+    config.runtime.auto_reload = "lazy"
+    k.set_user_config(UpdateUserConfigCommand(config=config.to_dict()))
     await k.run(
         [
             er_1 := exec_req.get(f"import {b_name}"),
@@ -451,8 +451,8 @@ async def test_reload_third_party(
     )
 
     config = copy.deepcopy(DEFAULT_CONFIG)
-    config["runtime"]["auto_reload"] = "lazy"
-    k.set_user_config(UpdateUserConfigCommand(config=config))
+    config.runtime.auto_reload = "lazy"
+    k.set_user_config(UpdateUserConfigCommand(config=config.to_dict()))
     await k.run(
         [
             er_1 := exec_req.get(f"from {py_modname} import foo"),
@@ -507,8 +507,8 @@ async def test_reload_with_modified_cell(
     )
 
     config = copy.deepcopy(DEFAULT_CONFIG)
-    config["runtime"]["auto_reload"] = "lazy"
-    k.set_user_config(UpdateUserConfigCommand(config=config))
+    config.runtime.auto_reload = "lazy"
+    k.set_user_config(UpdateUserConfigCommand(config=config.to_dict()))
     await k.run(
         [
             er_1 := exec_req.get(f"from {py_modname} import foo"),
@@ -574,8 +574,8 @@ async def test_reload_function_in_import_block(
     )
 
     config = copy.deepcopy(DEFAULT_CONFIG)
-    config["runtime"]["auto_reload"] = "lazy"
-    k.set_user_config(UpdateUserConfigCommand(config=config))
+    config.runtime.auto_reload = "lazy"
+    k.set_user_config(UpdateUserConfigCommand(config=config.to_dict()))
     await k.run(
         [
             # We will modify py_modname but not "random" ...
@@ -657,8 +657,8 @@ async def test_reload_self_import_cycle(
     k.app_metadata.filename = str(py_file)
 
     config = copy.deepcopy(DEFAULT_CONFIG)
-    config["runtime"]["auto_reload"] = "lazy"
-    k.set_user_config(UpdateUserConfigCommand(config=config))
+    config.runtime.auto_reload = "lazy"
+    k.set_user_config(UpdateUserConfigCommand(config=config.to_dict()))
     await k.run(
         [
             er_1 := exec_req.get(f"from {py_modname}_helper import foo"),
@@ -762,8 +762,8 @@ async def test_reload_self_import_cycle_race_with_other_cell(
     k.app_metadata.filename = str(py_file)
 
     config = copy.deepcopy(DEFAULT_CONFIG)
-    config["runtime"]["auto_reload"] = "autorun"
-    k.set_user_config(UpdateUserConfigCommand(config=config))
+    config.runtime.auto_reload = "autorun"
+    k.set_user_config(UpdateUserConfigCommand(config=config.to_dict()))
     await k.run(
         [
             er_1 := exec_req.get(f"from {py_modname}_helper import foo"),
@@ -1155,8 +1155,8 @@ class TestModuleWatcherStop:
         del exec_req
         k = execution_kernel
         config = copy.deepcopy(DEFAULT_CONFIG)
-        config["runtime"]["auto_reload"] = "lazy"
-        k.set_user_config(UpdateUserConfigCommand(config=config))
+        config.runtime.auto_reload = "lazy"
+        k.set_user_config(UpdateUserConfigCommand(config=config.to_dict()))
 
         # Give watcher time to start
         await asyncio.sleep(INTERVAL)
@@ -1178,8 +1178,8 @@ class TestModuleWatcherStop:
         del exec_req
         k = execution_kernel
         config = copy.deepcopy(DEFAULT_CONFIG)
-        config["runtime"]["auto_reload"] = "lazy"
-        k.set_user_config(UpdateUserConfigCommand(config=config))
+        config.runtime.auto_reload = "lazy"
+        k.set_user_config(UpdateUserConfigCommand(config=config.to_dict()))
 
         # Give watcher time to start
         await asyncio.sleep(INTERVAL)
@@ -1215,8 +1215,8 @@ class TestModuleWatcherEdgeCases:
         )
 
         config = copy.deepcopy(DEFAULT_CONFIG)
-        config["runtime"]["auto_reload"] = "lazy"
-        k.set_user_config(UpdateUserConfigCommand(config=config))
+        config.runtime.auto_reload = "lazy"
+        k.set_user_config(UpdateUserConfigCommand(config=config.to_dict()))
 
         await k.run(
             [
@@ -1265,8 +1265,8 @@ class TestModuleWatcherEdgeCases:
         py_file.write_text("def foo(): return 1")
 
         config = copy.deepcopy(DEFAULT_CONFIG)
-        config["runtime"]["auto_reload"] = "lazy"
-        k.set_user_config(UpdateUserConfigCommand(config=config))
+        config.runtime.auto_reload = "lazy"
+        k.set_user_config(UpdateUserConfigCommand(config=config.to_dict()))
 
         # Run a cell with import
         await k.run([er_1 := exec_req.get(f"from {py_modname} import foo")])
@@ -1307,14 +1307,14 @@ class TestAutoreloadManagerLifecycle:
         k = execution_kernel
         config = copy.deepcopy(DEFAULT_CONFIG)
 
-        config["runtime"]["auto_reload"] = "lazy"
-        k.set_user_config(UpdateUserConfigCommand(config=config))
+        config.runtime.auto_reload = "lazy"
+        k.set_user_config(UpdateUserConfigCommand(config=config.to_dict()))
         lazy_watcher = k.autoreload_manager.watcher
         assert lazy_watcher is not None
         assert lazy_watcher.mode == "lazy"
 
-        config["runtime"]["auto_reload"] = "autorun"
-        k.set_user_config(UpdateUserConfigCommand(config=config))
+        config.runtime.auto_reload = "autorun"
+        k.set_user_config(UpdateUserConfigCommand(config=config.to_dict()))
         autorun_watcher = k.autoreload_manager.watcher
         assert autorun_watcher is not None
         assert autorun_watcher.mode == "autorun"
@@ -1331,13 +1331,13 @@ class TestAutoreloadManagerLifecycle:
         k = execution_kernel
         config = copy.deepcopy(DEFAULT_CONFIG)
 
-        config["runtime"]["auto_reload"] = "lazy"
-        k.set_user_config(UpdateUserConfigCommand(config=config))
+        config.runtime.auto_reload = "lazy"
+        k.set_user_config(UpdateUserConfigCommand(config=config.to_dict()))
         reloader = k.autoreload_manager.reloader
         assert reloader is not None
 
-        config["runtime"]["auto_reload"] = "autorun"
-        k.set_user_config(UpdateUserConfigCommand(config=config))
+        config.runtime.auto_reload = "autorun"
+        k.set_user_config(UpdateUserConfigCommand(config=config.to_dict()))
         assert k.autoreload_manager.reloader is reloader
 
     async def test_disable_clears_manager_state(
@@ -1347,13 +1347,13 @@ class TestAutoreloadManagerLifecycle:
         k = execution_kernel
         config = copy.deepcopy(DEFAULT_CONFIG)
 
-        config["runtime"]["auto_reload"] = "lazy"
-        k.set_user_config(UpdateUserConfigCommand(config=config))
+        config.runtime.auto_reload = "lazy"
+        k.set_user_config(UpdateUserConfigCommand(config=config.to_dict()))
         assert k.autoreload_manager.watcher is not None
         assert k.autoreload_manager.reloader is not None
 
-        config["runtime"]["auto_reload"] = "off"
-        k.set_user_config(UpdateUserConfigCommand(config=config))
+        config.runtime.auto_reload = "off"
+        k.set_user_config(UpdateUserConfigCommand(config=config.to_dict()))
         assert k.autoreload_manager.watcher is None
         assert k.autoreload_manager.reloader is None
 
@@ -1366,8 +1366,8 @@ class TestAutoreloadManagerLifecycle:
         runs."""
         k = execution_kernel
         config = copy.deepcopy(DEFAULT_CONFIG)
-        config["runtime"]["auto_reload"] = "lazy"
-        k.set_user_config(UpdateUserConfigCommand(config=config))
+        config.runtime.auto_reload = "lazy"
+        k.set_user_config(UpdateUserConfigCommand(config=config.to_dict()))
 
         watcher = k.autoreload_manager.watcher
         assert watcher is not None
@@ -1397,8 +1397,8 @@ async def test_watcher_does_not_restale_cells_rerun_after_reload(
     py_file.write_text("def foo():\n    return 1\n")
 
     config = copy.deepcopy(DEFAULT_CONFIG)
-    config["runtime"]["auto_reload"] = "lazy"
-    k.set_user_config(UpdateUserConfigCommand(config=config))
+    config.runtime.auto_reload = "lazy"
+    k.set_user_config(UpdateUserConfigCommand(config=config.to_dict()))
     await k.run(
         [
             er_1 := exec_req.get(f"from {py_modname} import foo"),
@@ -1447,8 +1447,8 @@ async def test_watcher_marks_cell_whose_context_ran_without_rerun(
     py_file.write_text("def foo():\n    return 1\n")
 
     config = copy.deepcopy(DEFAULT_CONFIG)
-    config["runtime"]["auto_reload"] = "lazy"
-    k.set_user_config(UpdateUserConfigCommand(config=config))
+    config.runtime.auto_reload = "lazy"
+    k.set_user_config(UpdateUserConfigCommand(config=config.to_dict()))
     await k.run([er_1 := exec_req.get(f"from {py_modname} import foo")])
 
     parked, release = _park_watcher_in_crawl(monkeypatch)
@@ -1486,8 +1486,8 @@ async def test_watcher_skips_cell_that_reran_before_its_poll(
     py_file.write_text("def foo():\n    return 1\n")
 
     config = copy.deepcopy(DEFAULT_CONFIG)
-    config["runtime"]["auto_reload"] = "lazy"
-    k.set_user_config(UpdateUserConfigCommand(config=config))
+    config.runtime.auto_reload = "lazy"
+    k.set_user_config(UpdateUserConfigCommand(config=config.to_dict()))
     await k.run(
         [
             er_1 := exec_req.get(f"from {py_modname} import foo"),
@@ -1548,8 +1548,8 @@ async def test_watcher_marks_descendant_when_import_cell_did_not_rerun(
     py_file.write_text("value = 1\n")
 
     config = copy.deepcopy(DEFAULT_CONFIG)
-    config["runtime"]["auto_reload"] = "lazy"
-    k.set_user_config(UpdateUserConfigCommand(config=config))
+    config.runtime.auto_reload = "lazy"
+    k.set_user_config(UpdateUserConfigCommand(config=config.to_dict()))
     await k.run(
         [
             er_1 := exec_req.get(f"from {py_modname} import value"),
@@ -1590,8 +1590,8 @@ async def test_watcher_marks_reader_that_ran_before_its_importer(
     py_file.write_text("value = 1\n")
 
     config = copy.deepcopy(DEFAULT_CONFIG)
-    config["runtime"]["auto_reload"] = "lazy"
-    k.set_user_config(UpdateUserConfigCommand(config=config))
+    config.runtime.auto_reload = "lazy"
+    k.set_user_config(UpdateUserConfigCommand(config=config.to_dict()))
     await k.run(
         [
             er_1 := exec_req.get(f"from {py_modname} import value"),
@@ -1632,8 +1632,8 @@ async def test_watcher_marks_every_importer_of_a_module(
     py_file.write_text("value = 1\n")
 
     config = copy.deepcopy(DEFAULT_CONFIG)
-    config["runtime"]["auto_reload"] = "lazy"
-    k.set_user_config(UpdateUserConfigCommand(config=config))
+    config.runtime.auto_reload = "lazy"
+    k.set_user_config(UpdateUserConfigCommand(config=config.to_dict()))
     await k.run(
         [
             er_a := exec_req.get(f"from {py_modname} import value as a"),
@@ -1668,8 +1668,8 @@ async def test_watcher_survives_cell_deleted_during_crawl(
     other_file.write_text("w = 1\n")
 
     config = copy.deepcopy(DEFAULT_CONFIG)
-    config["runtime"]["auto_reload"] = "lazy"
-    k.set_user_config(UpdateUserConfigCommand(config=config))
+    config.runtime.auto_reload = "lazy"
+    k.set_user_config(UpdateUserConfigCommand(config=config.to_dict()))
     await k.run(
         [
             er_1 := exec_req.get(f"from {py_modname} import value"),
@@ -1706,8 +1706,8 @@ async def test_watcher_marks_descendants_of_a_stale_reader(
     py_file.write_text("value = 1\n")
 
     config = copy.deepcopy(DEFAULT_CONFIG)
-    config["runtime"]["auto_reload"] = "lazy"
-    k.set_user_config(UpdateUserConfigCommand(config=config))
+    config.runtime.auto_reload = "lazy"
+    k.set_user_config(UpdateUserConfigCommand(config=config.to_dict()))
     await k.run(
         [
             er_a := exec_req.get(f"from {py_modname} import value"),
@@ -1752,8 +1752,8 @@ async def test_watcher_checks_fresh_imports_of_a_stale_importer(
     second.write_text("value = 1\n")
 
     config = copy.deepcopy(DEFAULT_CONFIG)
-    config["runtime"]["auto_reload"] = "lazy"
-    k.set_user_config(UpdateUserConfigCommand(config=config))
+    config.runtime.auto_reload = "lazy"
+    k.set_user_config(UpdateUserConfigCommand(config=config.to_dict()))
     code = (
         f"from {py_modname} import value as a\n"
         f"from {py_modname}_second import value as b"
@@ -1799,8 +1799,8 @@ async def test_reload_in_cell_run_can_create_ui_elements(
     )
 
     config = copy.deepcopy(DEFAULT_CONFIG)
-    config["runtime"]["auto_reload"] = "lazy"
-    k.set_user_config(UpdateUserConfigCommand(config=config))
+    config.runtime.auto_reload = "lazy"
+    k.set_user_config(UpdateUserConfigCommand(config=config.to_dict()))
     await k.run([er := exec_req.get(f"from {py_modname} import slider")])
     assert k.globals["slider"].value == 1
 
@@ -1827,8 +1827,8 @@ async def test_reload_output_goes_to_the_cell(
     py_file.write_text("value = 1\n")
 
     config = copy.deepcopy(DEFAULT_CONFIG)
-    config["runtime"]["auto_reload"] = "lazy"
-    k.set_user_config(UpdateUserConfigCommand(config=config))
+    config.runtime.auto_reload = "lazy"
+    k.set_user_config(UpdateUserConfigCommand(config=config.to_dict()))
     await k.run([er := exec_req.get(f"import {py_modname}")])
 
     mocked_kernel.stdout.messages.clear()

@@ -18,9 +18,12 @@ from pathlib import Path
 from typing import TYPE_CHECKING, cast
 from uuid import uuid4
 
+from msgspec import UNSET
+
 from marimo import _loggers
-from marimo._config.config import VenvConfig
+from marimo._config.config_schema import VenvConfig
 from marimo._config.manager import MarimoConfigManager
+from marimo._config.schema_utils import default_if_unset
 from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._environments.overlay import runtime_overlay
 from marimo._messaging.notification import (
@@ -65,7 +68,7 @@ LOGGER = _loggers.marimo_logger()
 def _get_venv_config(config_manager: MarimoConfigManager) -> VenvConfig:
     """Get the [tool.marimo.venv] config from a config manager."""
     config = config_manager.get_config(hide_secrets=False)
-    return cast(VenvConfig, config.get("venv", {}))
+    return cast(VenvConfig, default_if_unset(config.venv, VenvConfig()))
 
 
 # How long close_kernel waits for the kernel to dump its profile, and
@@ -340,7 +343,7 @@ class IPCKernelManagerImpl(KernelManager):
             # NB. With MARIMO_SANDBOX_AUTO the manifest picks the environment
             # per notebook, so a configured venv is honored even here.
             ignore_venv = self._sandbox and not GLOBAL_SETTINGS.SANDBOX_AUTO
-            if ignore_venv and venv_config.get("path"):
+            if ignore_venv and venv_config.path is not UNSET:
                 echo(
                     "Warning: ignoring [tool.marimo.venv] in sandbox mode. "
                     "Use --no-sandbox to edit with the configured environment.",
@@ -367,7 +370,7 @@ class IPCKernelManagerImpl(KernelManager):
                 )
                 venv_python = configured_python
 
-                writable = venv_config.get("writable", False)
+                writable = default_if_unset(venv_config.writable, False)
 
                 # Configured environments are assumed to be read-only.
                 # If not, then install marimo by default to ensure that the

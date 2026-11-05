@@ -1,5 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
+import { defaultUserConfig } from "@/core/config/config-schema";
+
 import { python } from "@codemirror/lang-python";
 import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
@@ -82,6 +84,7 @@ function createEditor(content: string) {
       adaptiveLanguageConfiguration({
         cellId: cellId("cell1"),
         completionConfig: {
+          ...defaultUserConfig().completion,
           activate_on_typing: true,
           signature_hint_on_typing: false,
           copilot: false,
@@ -89,7 +92,7 @@ function createEditor(content: string) {
         },
         hotkeys: new OverridingHotkeyProvider({}),
         placeholderType: "marimo-import",
-        lspConfig: {},
+        lspConfig: { ...defaultUserConfig().language_servers },
       }),
     ],
   });

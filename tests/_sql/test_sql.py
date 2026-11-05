@@ -8,7 +8,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from marimo._config.config import SqlOutputType
+from marimo._config.types import SqlOutputType
 from marimo._dependencies.dependencies import Dependency, DependencyManager
 from marimo._dependencies.errors import ManyModulesNotFoundError
 from marimo._output.formatting import Plain

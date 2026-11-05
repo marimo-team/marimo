@@ -6,7 +6,7 @@ from typing import cast
 import pytest
 
 from marimo._ast.visitor import Language
-from marimo._config.config import CopilotMode
+from marimo._config.types import CopilotMode
 from marimo._server.ai.prompts import (
     FIM_SUFFIX_TAG,
     _common_chat_sections,

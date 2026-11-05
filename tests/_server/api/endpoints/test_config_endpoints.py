@@ -35,7 +35,7 @@ def test_save_user_config_no_session(client: TestClient) -> None:
         "/api/kernel/save_user_config",
         headers=HEADERS,
         json={
-            "config": user_config_manager.get_config(),
+            "config": user_config_manager.get_config().to_dict(),
         },
     )
     assert response.status_code == 200, response.text
@@ -119,7 +119,7 @@ def test_save_user_config_with_session(client: TestClient) -> None:
         "/api/kernel/save_user_config",
         headers=HEADERS,
         json={
-            "config": user_config_manager.get_config(),
+            "config": user_config_manager.get_config().to_dict(),
         },
     )
     assert response.status_code == 200, response.text

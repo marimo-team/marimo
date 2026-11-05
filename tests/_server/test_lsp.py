@@ -7,11 +7,11 @@ from unittest import mock
 
 import pytest
 
-from marimo._config.config import (
+from marimo._config.config import merge_default_config
+from marimo._config.config_schema import (
     CompletionConfig,
     LanguageServersConfig,
     MarimoConfig,
-    merge_default_config,
 )
 from marimo._config.manager import (
     MarimoConfigManager,
@@ -439,7 +439,7 @@ def test_composite_server():
         mock_dm.pylsp = mock.MagicMock()
         mock_dm.pylsp.has.return_value = True
         total_lsp_servers = 5
-        config = LanguageServersConfig(
+        language_config = LanguageServersConfig.from_dict(
             {
                 "pylsp": {"enabled": True},
                 "ty": {"enabled": True},
@@ -447,14 +447,14 @@ def test_composite_server():
                 "basedpyright": {"enabled": True},
             }
         )
-        completion_config = CompletionConfig(
+        completion_config = CompletionConfig.from_dict(
             {
                 "copilot": True,
                 "activate_on_typing": True,
                 "signature_hint_on_typing": False,
             }
         )
-        config_reader = as_reader(completion_config, config)
+        config_reader = as_reader(completion_config, language_config)
         config = config_reader.get_config()
         server = CompositeLspServer(config_reader, min_port=8000)
         assert (
@@ -467,15 +467,17 @@ def test_composite_server():
         assert server._is_enabled(config, "basedpyright") is True
 
         # Test with only pylsp
-        config = LanguageServersConfig({"pylsp": {"enabled": True}})
-        completion_config = CompletionConfig(
+        language_config = LanguageServersConfig.from_dict(
+            {"pylsp": {"enabled": True}}
+        )
+        completion_config = CompletionConfig.from_dict(
             {
                 "copilot": False,
                 "activate_on_typing": True,
                 "signature_hint_on_typing": False,
             }
         )
-        config_reader = as_reader(completion_config, config)
+        config_reader = as_reader(completion_config, language_config)
         config = config_reader.get_config()
         server = CompositeLspServer(config_reader, min_port=8000)
         assert len(server.servers) == total_lsp_servers
@@ -485,7 +487,7 @@ def test_composite_server():
         assert server._is_enabled(config, "pyrefly") is False
 
         # Test with only ty enabled
-        config = LanguageServersConfig(
+        language_config = LanguageServersConfig.from_dict(
             {
                 "ty": {"enabled": True},
                 "pylsp": {"enabled": False},
@@ -493,14 +495,14 @@ def test_composite_server():
                 "pyrefly": {"enabled": False},
             }
         )
-        completion_config = CompletionConfig(
+        completion_config = CompletionConfig.from_dict(
             {
                 "copilot": False,
                 "activate_on_typing": True,
                 "signature_hint_on_typing": False,
             }
         )
-        config_reader = as_reader(completion_config, config)
+        config_reader = as_reader(completion_config, language_config)
         config = config_reader.get_config()
         server = CompositeLspServer(config_reader, min_port=8000)
         assert len(server.servers) == total_lsp_servers
@@ -511,7 +513,7 @@ def test_composite_server():
         assert server._is_enabled(config, "pyrefly") is False
 
         # Test with only basedpyright enabled
-        config = LanguageServersConfig(
+        language_config = LanguageServersConfig.from_dict(
             {
                 "basedpyright": {"enabled": True},
                 "pylsp": {"enabled": False},
@@ -519,14 +521,14 @@ def test_composite_server():
                 "pyrefly": {"enabled": False},
             }
         )
-        completion_config = CompletionConfig(
+        completion_config = CompletionConfig.from_dict(
             {
                 "copilot": False,
                 "activate_on_typing": True,
                 "signature_hint_on_typing": False,
             }
         )
-        config_reader = as_reader(completion_config, config)
+        config_reader = as_reader(completion_config, language_config)
         config = config_reader.get_config()
         server = CompositeLspServer(config_reader, min_port=8000)
         assert len(server.servers) == total_lsp_servers
@@ -537,7 +539,7 @@ def test_composite_server():
         assert server._is_enabled(config, "pyrefly") is False
 
         # Test with only pyrefly enabled
-        config = LanguageServersConfig(
+        language_config = LanguageServersConfig.from_dict(
             {
                 "pyrefly": {"enabled": True},
                 "pylsp": {"enabled": False},
@@ -545,14 +547,14 @@ def test_composite_server():
                 "ty": {"enabled": False},
             }
         )
-        completion_config = CompletionConfig(
+        completion_config = CompletionConfig.from_dict(
             {
                 "copilot": False,
                 "activate_on_typing": True,
                 "signature_hint_on_typing": False,
             }
         )
-        config_reader = as_reader(completion_config, config)
+        config_reader = as_reader(completion_config, language_config)
         config = config_reader.get_config()
         server = CompositeLspServer(config_reader, min_port=8000)
         assert len(server.servers) == total_lsp_servers
@@ -563,15 +565,17 @@ def test_composite_server():
         assert server._is_enabled(config, "pyrefly") is True
 
         # Test with nothing enabled
-        config = LanguageServersConfig({"pylsp": {"enabled": False}})
-        completion_config = CompletionConfig(
+        language_config = LanguageServersConfig.from_dict(
+            {"pylsp": {"enabled": False}}
+        )
+        completion_config = CompletionConfig.from_dict(
             {
                 "copilot": False,
                 "activate_on_typing": True,
                 "signature_hint_on_typing": False,
             }
         )
-        config_reader = as_reader(completion_config, config)
+        config_reader = as_reader(completion_config, language_config)
         config = config_reader.get_config()
         server = CompositeLspServer(config_reader, min_port=8000)
         assert len(server.servers) == total_lsp_servers

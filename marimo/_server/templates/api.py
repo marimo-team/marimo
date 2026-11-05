@@ -12,7 +12,8 @@ from pathlib import Path
 from typing import Any, Literal, cast
 
 from marimo._ast.app_config import _AppConfig
-from marimo._config.config import MarimoConfig, PartialMarimoConfig
+from marimo._config.config import PartialMarimoConfig
+from marimo._config.config_schema import MarimoConfig
 from marimo._convert.converters import MarimoConvert
 from marimo._runtime.layout.layout import parse_layout_config
 from marimo._schemas.notebook import NotebookV1
@@ -39,8 +40,8 @@ def _get_html_template() -> str:
 def _parse_config(config: dict[str, Any] | None) -> MarimoConfig:
     """Parse config dict to MarimoConfig."""
     if config is None:
-        return cast(MarimoConfig, {})
-    return cast(MarimoConfig, config)
+        return MarimoConfig()
+    return MarimoConfig.from_dict(config)
 
 
 def _parse_partial_config(

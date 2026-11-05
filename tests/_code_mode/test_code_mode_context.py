@@ -543,7 +543,7 @@ class TestUpdateCell:
         await k.run([ExecuteCellCommand(cell_id=CellId_t("0"), code="x = 1")])
 
         with (
-            patch.dict(k.user_config["save"], {"format_on_save": False}),
+            patch.dict(k.user_config.save, {"format_on_save": False}),
             patch(
                 "marimo._code_mode._context.DefaultFormatter.format",
                 new_callable=AsyncMock,
@@ -560,7 +560,7 @@ class TestUpdateCell:
         await k.run([ExecuteCellCommand(cell_id=CellId_t("0"), code="x = 1")])
 
         with (
-            patch.dict(k.user_config["save"], {"format_on_save": True}),
+            patch.dict(k.user_config.save, {"format_on_save": True}),
             patch(
                 "marimo._code_mode._context.DefaultFormatter.format",
                 new=AsyncMock(return_value={"0": "x = 42"}),

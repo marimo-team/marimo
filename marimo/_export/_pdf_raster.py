@@ -9,7 +9,7 @@ from html import unescape
 from typing import TYPE_CHECKING, Any, Literal, cast
 
 from marimo import _loggers
-from marimo._config.config import DisplayConfig
+from marimo._config.config_schema import DisplayConfig
 from marimo._config.manager import get_default_config_manager
 from marimo._export._html_asset_server import HtmlAssetServer
 from marimo._export._raster_mime import (
@@ -315,7 +315,7 @@ def _to_display_config(filepath: str | None) -> DisplayConfig:
     """Resolve display config for exporter rendering settings."""
 
     config = get_default_config_manager(current_path=filepath).get_config()
-    return cast(DisplayConfig, config["display"])
+    return config.display
 
 
 def _to_data_url(image: bytes) -> str:
