@@ -3,6 +3,7 @@
 import type {
   ChatAddToolApproveResponseFunction,
   DataUIPart,
+  DynamicToolUIPart,
   ToolUIPart,
   UIMessage,
 } from "ai";
@@ -14,6 +15,7 @@ import { Logger } from "@/utils/Logger";
 import { MarkdownRenderer } from "../markdown/markdown-renderer";
 import { AttachmentRenderer, SourceChip } from "./chat-components";
 import { ReasoningAccordion } from "./reasoning-accordion";
+import { ToolActivityGroup } from "./tool-call/tool-activity-group";
 import { ToolCallView } from "./tool-call/tool-call-view";
 
 export const renderUIMessage = ({
@@ -30,9 +32,52 @@ export const renderUIMessage = ({
   isActive: boolean;
   addToolApprovalResponse?: ChatAddToolApproveResponseFunction;
 }) => {
-  return (
-    <>{message.parts.map((part, index) => renderUIMessagePart(part, index))}</>
-  );
+  const content: React.ReactNode[] = [];
+  let activity: { part: ToolUIPart | DynamicToolUIPart; index: number }[] = [];
+
+  const flushActivity = () => {
+    if (activity.length === 0) {
+      return;
+    }
+    content.push(
+      <ToolActivityGroup
+        key={activity[0].index}
+        tools={activity.map(({ part }) => ({
+          toolName: part.type === "dynamic-tool" ? part.toolName : part.type,
+          state: part.state,
+        }))}
+        isActive={isActive && isLast}
+      >
+        {activity.map(({ part, index }) => renderUIMessagePart(part, index))}
+      </ToolActivityGroup>,
+    );
+    activity = [];
+  };
+
+  message.parts.forEach((part, index) => {
+    // SDK step boundaries and invisible parts should not split visible activity.
+    if (
+      part.type === "step-start" ||
+      isDataPart(part) ||
+      (part.type === "text" && !part.text.trim())
+    ) {
+      return;
+    }
+    if (
+      (isToolPart(part) || part.type === "dynamic-tool") &&
+      part.state !== "output-error" &&
+      part.state !== "output-denied" &&
+      part.state !== "approval-requested"
+    ) {
+      activity.push({ part, index });
+      return;
+    }
+    flushActivity();
+    content.push(renderUIMessagePart(part, index));
+  });
+  flushActivity();
+
+  return content;
 
   function renderUIMessagePart(
     part: UIMessage["parts"][number],
