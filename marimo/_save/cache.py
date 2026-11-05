@@ -48,7 +48,7 @@ if TYPE_CHECKING:
     from marimo._types.ids import CellId_t
 
 # NB. Increment on cache breaking changes.
-MARIMO_CACHE_VERSION: int = 6
+MARIMO_CACHE_VERSION: int = 7
 
 CacheType = Literal[
     "ContextExecutionPath",
