@@ -63,6 +63,7 @@ function languages(id: CellId) {
     cellActionsState.of({
       ...createNotebookActions(vi.fn()),
       toggleHideCode: () => false,
+      askAiAboutCell: () => undefined,
       aiCellCompletion: () => false,
       createManyBelow: vi.fn(),
       addOrAppendSetupCell: vi.fn(),

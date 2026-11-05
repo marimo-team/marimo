@@ -75,7 +75,9 @@ describe("PairWithAgent", () => {
       }),
     );
 
-    expect(screen.getByRole("dialog", { name: "Pair an agent" })).toBeVisible();
+    expect(
+      screen.getByRole("dialog", { name: "Pair an agent to this notebook" }),
+    ).toBeVisible();
   });
 
   it("hides pairing controls in WASM", () => {

@@ -116,7 +116,7 @@ export const PairWithAgentModal: React.FC<{
   return (
     <DialogContent className="sm:max-w-2xl">
       <DialogHeader>
-        <DialogTitle>Pair an agent</DialogTitle>
+        <DialogTitle>Pair an agent to this notebook</DialogTitle>
         <DialogDescription>
           Choose your coding agent, then follow the instructions below to
           connect it to this notebook using marimo pair.{" "}
@@ -162,11 +162,6 @@ export const PairWithAgentModal: React.FC<{
               <Step
                 index={hasToken ? 1 : undefined}
                 title="Run this command in your terminal:"
-                hint={
-                  hostEnabled && tab === "opencode"
-                    ? "Agent connections require OpenCode 2.x."
-                    : undefined
-                }
               >
                 <CommandBlock
                   command={getTerminalCommand(

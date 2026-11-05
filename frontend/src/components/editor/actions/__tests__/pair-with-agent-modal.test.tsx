@@ -100,9 +100,6 @@ describe("PairWithAgentModal", () => {
       expect(panel).not.toHaveTextContent("File:");
       expect(panel).not.toHaveTextContent("notebook.py");
       expect(
-        panel.textContent?.includes("Agent connections require OpenCode 2.x"),
-      ).toBe(tab === "OpenCode");
-      expect(
         within(panel).getByText(
           tab === "Other Agents"
             ? "Paste this prompt into your coding agent:"

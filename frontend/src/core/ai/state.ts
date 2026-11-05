@@ -31,6 +31,7 @@ export const aiCompletionCellAtom = atom<AiCompletionCell | null>(null);
 export interface PendingAiPrompt {
   prompt: string;
   submit: boolean;
+  append?: boolean;
 }
 
 export const pendingAiPromptAtom = atom<PendingAiPrompt | null>(null);

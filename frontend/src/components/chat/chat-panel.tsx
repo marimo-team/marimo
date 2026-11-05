@@ -153,7 +153,7 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
           <Button
             variant="ghost"
             size="sm"
-            className="chat-control chat-new-thread gap-1.5"
+            className="chat-control gap-1.5 font-normal"
             onClick={onNewChat}
           >
             <PlusIcon className="size-4" aria-hidden={true} />
@@ -863,14 +863,20 @@ const ChatPanelBody = () => {
       return;
     }
     setPendingPrompt(null);
-    const { prompt, submit } = pendingPrompt;
+    const { prompt, submit, append } = pendingPrompt;
+    const applyPrompt = (draft: string) =>
+      append
+        ? draft.includes(prompt.trim())
+          ? draft
+          : `${draft}${draft ? " " : ""}${prompt}`
+        : prompt;
     if (submit) {
       void submitPendingPrompt(prompt);
     } else if (isNewThread) {
-      setNewThreadInput(prompt);
+      setNewThreadInput(applyPrompt);
       focusInputAndMoveToEnd(newThreadInputRef);
     } else {
-      setInput(prompt);
+      setInput(applyPrompt);
       focusInputAndMoveToEnd(newMessageInputRef);
     }
   }, [pendingPrompt, setPendingPrompt, isNewThread, submitPendingPrompt]);

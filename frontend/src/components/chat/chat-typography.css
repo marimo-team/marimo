@@ -8,10 +8,6 @@
     box-shadow: none;
     opacity: 1;
 
-    &.chat-new-thread {
-      color: var(--foreground);
-    }
-
     &.chat-selector {
       color: var(--foreground);
       background: var(--slate-2);

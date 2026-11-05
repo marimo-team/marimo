@@ -6,12 +6,7 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { useAtomValue } from "jotai";
-import {
-  DatabaseIcon,
-  SparklesIcon,
-  SquareCodeIcon,
-  SquareMIcon,
-} from "lucide-react";
+import { DatabaseIcon, SquareCodeIcon, SquareMIcon } from "lucide-react";
 import { useEffect } from "react";
 import { StartupLogsAlert } from "@/components/editor/alerts/startup-logs-alert";
 import { Cell } from "@/components/editor/notebook-cell";
@@ -22,7 +17,6 @@ import { maybeAddMarimoImport } from "@/core/cells/add-missing-import";
 import { SETUP_CELL_ID } from "@/core/cells/ids";
 import { LanguageAdapters } from "@/core/codemirror/language/LanguageAdapters";
 import { MARKDOWN_INITIAL_HIDE_CODE } from "@/core/codemirror/language/languages/markdown";
-import { aiAtom, aiEnabledAtom } from "@/core/config/config";
 import { canInteractWithAppAtom } from "@/core/network/connection";
 import { cn } from "@/utils/cn";
 import { Functions } from "@/utils/functions";
@@ -35,9 +29,6 @@ import type { AppConfig, UserConfig } from "../../../core/config/config-schema";
 import type { AppMode } from "../../../core/mode";
 import { useHotkey } from "../../../hooks/useHotkey";
 import { type Theme, useTheme } from "../../../theme/useTheme";
-import { useAIConfigActions } from "@/core/ai/config";
-import { Logger } from "@/utils/Logger";
-import { useAiPanelTab } from "../chrome/wrapper/useAiPanel";
 import { NotStartedConnectionAlert } from "../alerts/connecting-alert";
 import { FloatingOutline } from "../chrome/panels/outline/floating-outline";
 import { useChromeActions } from "../chrome/state";
@@ -263,11 +254,6 @@ export const AddCellButtons: React.FC<{
   className?: string;
 }> = ({ columnId, className }) => {
   const { createCell } = useCellActions();
-  const { openApplication } = useChromeActions();
-  const { setAiPanelTab } = useAiPanelTab();
-  const { saveModeChange } = useAIConfigActions();
-  const aiConfig = useAtomValue(aiAtom);
-  const aiEnabled = useAtomValue(aiEnabledAtom);
   const canInteractWithApp = useAtomValue(canInteractWithAppAtom);
 
   const buttonClass = cn(
@@ -328,29 +314,6 @@ export const AddCellButtons: React.FC<{
           <DatabaseIcon className="mr-2 size-4 shrink-0" />
           SQL
         </Button>
-        {aiEnabled && (
-          <Button
-            className={buttonClass}
-            variant="text"
-            size="sm"
-            disabled={!canInteractWithApp}
-            onClick={async () => {
-              if (
-                aiConfig?.mode !== "code_mode" &&
-                aiConfig?.mode !== "agent"
-              ) {
-                await saveModeChange("agent").catch(() =>
-                  Logger.error("Failed to save mode change"),
-                );
-              }
-              setAiPanelTab("chat");
-              openApplication("ai");
-            }}
-          >
-            <SparklesIcon className="mr-2 size-4 shrink-0" />
-            Generate with AI
-          </Button>
-        )}
       </div>
     </div>
   );
