@@ -353,11 +353,15 @@ def _clean_tracked_entries(
 
 @cache.command(
     name="prune",
-    help="""Delete unused cache entries.
+    help="""Delete cache entries without an associated notebook or cell.
 
-Determines which cache entries are addressable in a given notebook or directory,
-and deletes the rest.
-Ambiguous orphans are cleaned when `--force` is applied.
+This command deletes cache entries that cannot be reached within a notebook. For
+instance, when the notebook no longer has an associated cell, or the associated
+notebook is deleted.
+
+Files that may be part of a running write are not deleted by default, nor are
+files that may still be associated with a notebook. These files may still be
+active, so the flag `--force` should be provided to delete all unneeded files.
 
 Defaults to the current directory if no path is provided. Accepts
 `-r`/`--recursive` to search `path` recursively. A prompt is provided
@@ -381,7 +385,10 @@ Example usage:
     "--force",
     is_flag=True,
     default=False,
-    help=("Also prune potentially orphaned cache entries."),
+    help=(
+        "Delete cache files from abandoned or active writes, and clear cache "
+        "files that may still be associated with a notebook. Use with caution."
+    ),
 )
 def cache_prune(
     path: Path, recursive: bool, yes: bool, dry_run: bool, force: bool
