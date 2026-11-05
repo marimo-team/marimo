@@ -343,7 +343,12 @@ def _get_completion_option(
     compute_completion_info: bool,
     compute_type: bool = True,
 ) -> CompletionOption:
-    name = completion.name
+    # jedi ends directory completions with `os.path.sep`. On Windows that is
+    # a backslash, which escapes the next character inside a normal string
+    # literal and breaks follow-up completions. A forward slash is valid on
+    # every platform. Identifiers never contain a backslash, so this check
+    # only affects path completions and avoids the cost of `completion.type`.
+    name = completion.name.replace("\\", "/")
     # `completion.type` triggers jedi inference and can be surprisingly
     # expensive on cold caches for heavy libraries (pandas, numpy, torch).
     # When callers are already over budget they pass `compute_type=False`, in

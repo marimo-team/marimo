@@ -831,6 +831,30 @@ def test_path_completion_still_works(tmp_path: Any) -> None:
     )
 
 
+def test_path_completion_uses_forward_slash_for_directories(
+    tmp_path: Any,
+) -> None:
+    """Directory completions end with `/` even when `os.path.sep` is `\\`."""
+    (tmp_path / "User-data").mkdir()
+    with mock.patch("os.path.sep", "\\"):
+        content = _run_complete(f'open("{tmp_path}/User-d')
+    names = [option["name"] for option in content["options"]]
+    assert names == ["User-data/"]
+
+
+def test_get_completion_option_normalizes_backslash_without_type() -> None:
+    completion = _FakeCompletion("User-data\\", raise_on_type=True)
+
+    option = _get_completion_option(
+        completion,
+        compute_completion_info=False,
+        compute_type=False,
+    )
+
+    assert option.name == "User-data/"
+    assert completion.type_access_count == 0
+
+
 def test_parameter_completion_omits_full_function_docstring() -> None:
     """Completing a parameter must not dump the whole function docstring.
 
