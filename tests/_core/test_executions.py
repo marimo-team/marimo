@@ -38,7 +38,7 @@ def run(run_id: str) -> protocol.Run:
         id=protocol.RunId(run_id),
         notebook_id=NOTEBOOK,
         runtime_id=RUNTIME.id,
-        caused_by=None,
+        cells=(),
         status="queued",
         outcome=None,
         started_at=None,

@@ -629,7 +629,7 @@ class TestRun:
         assert [runs[-1], executions[-1], *consoles] == snapshot(
             [
                 Run(
-                    caused_by=None,
+                    cells=(),
                     completed_at=IsDatetime(),
                     id=run.id,
                     notebook_id=NotebookId("n1"),
@@ -769,7 +769,7 @@ class TestRunCompletion:
         notebook.observe(be.Completed(ExecutionId("e1"), value("9")))
         notebook.observe(be.Done(original.id, "succeeded"))
         log.clear()
-        notebook.observe(be.Scheduled(RunId("later"), ExecutionId("e1")))
+        notebook.observe(be.Scheduled(RunId("later")))
         notebook.observe(be.Done(RunId("later"), "succeeded"))
         assert request_ids(log) == [UNSET, UNSET]
         assert all(event.run_id == "later" for event in log)
@@ -779,7 +779,6 @@ class TestRunCompletion:
             if isinstance(event.event.data, RunMessage)
         )
         assert isinstance(final, RunMessage)
-        assert final.run.caused_by == "e1"
         assert notebook.executions.run(original.id) is None
 
     @pytest.mark.parametrize("outcome", ["failed", "interrupted"])
@@ -1046,14 +1045,14 @@ class TestAttachments:
         assert names(log) == ["attachment.removed"]
         assert _attachment_ids(notebook) == {second.id}
 
-    def test_attach_without_an_identity_omits_it_on_the_wire(
+    def test_attach_without_an_identity_sends_it_as_null(
         self, notebook: Notebook, log: list[RoutedEvent]
     ) -> None:
         att = notebook.attach()
 
-        assert att.identity is UNSET
+        assert att.identity is None
         wire = msgspec.json.decode(msgspec.json.encode(log[0].event.data))
-        assert "identity" not in wire["attachment"]
+        assert wire["attachment"]["identity"] is None
 
 
 class TestEmit:
@@ -1545,3 +1544,16 @@ async def test_a_cell_run_needs_at_least_one_target(
 
     assert notebook.backend.calls == calls  # type: ignore[attr-defined]
     assert notebook.executions.active() is None
+
+
+def test_an_accepted_cell_run_records_its_cells(
+    notebook: Notebook, backend: ScriptedBackend
+) -> None:
+    running(notebook, backend)
+    notebook.replace([DocumentCell(CellId("c1"), "x = 1")], {})
+    run = notebook.run(
+        cells=[protocol.RequestedCell(id=CellId("c1"))],
+        request_id="cells",
+    )
+    assert run.cells == (CellId("c1"),)
+    assert notebook.run("1", request_id="scratch").cells == ()

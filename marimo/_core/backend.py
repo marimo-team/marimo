@@ -122,7 +122,6 @@ class Scheduled:
     """The runtime scheduled a run independently of a host API request."""
 
     run_id: protocol.RunId
-    caused_by: protocol.ExecutionId | None = None
 
 
 @dataclass(frozen=True)
