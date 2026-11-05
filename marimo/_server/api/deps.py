@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, Any, cast
 from marimo import _loggers as loggers
 from marimo._cli.tips import CliTip
 from marimo._config.manager import MarimoConfigManager, ScriptConfigReader
+from marimo._core import protocol
 from marimo._server.config import StarletteServerState
 from marimo._server.session_manager import SessionManager
 from marimo._server.tokens import SkewProtectionToken
@@ -188,8 +189,10 @@ class AppState(AppStateBase):
             raise ValueError(f"Invalid session id: {session_id}")
         return session
 
-    def require_current_session_with_stable_id(self) -> Session:
-        """Resolve a session from the stable or browser routing header."""
+    def require_current_session_with_stable_id(
+        self, *, allow_notebook_id: bool = False
+    ) -> Session:
+        """Resolve a session, optionally accepting notebook IDs for execution."""
         stable_session_id = self.request.headers.get(STABLE_SESSION_ID_HEADER)
         if stable_session_id is None:
             return self.require_current_session()
@@ -202,6 +205,19 @@ class AppState(AppStateBase):
                 ),
             )
 
+        context = self.host_context
+        if allow_notebook_id and context is not None:
+            record = context.bridge.host.notebooks.get(
+                protocol.NotebookId(stable_session_id)
+            )
+            if record is not None:
+                session = context.bridge.session_for_notebook(record.id)
+                if session is None:
+                    raise HTTPException(
+                        status_code=409,
+                        detail="The notebook has no running session.",
+                    )
+                return session
         return self.session_by_stable_id(stable_session_id)
 
     def session_by_stable_id(self, stable_id: str) -> Session:
