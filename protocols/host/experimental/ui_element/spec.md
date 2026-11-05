@@ -1,7 +1,12 @@
 # Experimental UI elements
 
-This experiment publishes edit-mode sliders and provides shared transport for
+This experiment publishes edit-mode sliders and tables and provides shared transport for
 registered UIElement functions. Other element families are not yet published.
+
+Tables retain their selection as the wire value. Search, paging, summaries,
+and export functions use the shared send operation with their existing arguments
+and results. Query state remains local to each view; the kernel's existing
+search context and selection conversion are unchanged.
 
 A `ui_element` record describes the current wire value and constructor config
 of an element owned by `cell_id`. HTML remains the render path. Clients MUST

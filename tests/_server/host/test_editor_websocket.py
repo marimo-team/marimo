@@ -522,8 +522,15 @@ def test_untitled_editor_bootstraps_and_reconnects_with_host_events(
             client.portal.call(bridge.close)
 
 
-def test_slider_host_write_reaches_both_editor_attachments(
-    client: TestClient, editor_host: SessionBridge
+@pytest.mark.parametrize(
+    ("expression", "value"),
+    [
+        ("mo.ui.slider(0, 10, value=3)", 4),
+        ("mo.ui.table(['apple', 'banana'])", ["1"]),
+    ],
+)
+def test_widget_host_write_reaches_both_editor_attachments(
+    client: TestClient, editor_host: SessionBridge, expression: str, value: Any
 ) -> None:
     (notebook_id,) = editor_host.host.notebooks
     with client.websocket_connect(socket_url(editor_host)) as first:
@@ -535,7 +542,7 @@ def test_slider_host_write_reaches_both_editor_attachments(
             json={
                 "cellIds": [cell_id],
                 "codes": [
-                    "import marimo as mo\nslider = mo.ui.slider(0, 10, value=3)\nslider"
+                    f"import marimo as mo\nwidget = {expression}\nwidget"
                 ],
             },
         )
@@ -564,7 +571,7 @@ def test_slider_host_write_reaches_both_editor_attachments(
             accepted = client.post(
                 f"{HOST_API_PATH}/notebooks/{notebook_id}/ui-elements/{created['id']}/update",
                 headers={**headers("s1"), "Idempotency-Key": "headless-write"},
-                json={"state": {"value": 4}},
+                json={"state": {"value": value}},
             )
             assert accepted.status_code == 202, accepted.text
             for socket in (first, second):
@@ -577,5 +584,38 @@ def test_slider_host_write_reaches_both_editor_attachments(
                         }
                     if event["event"] == "ui_element.update":
                         assert event["data"]["request_id"] == "headless-write"
-                        assert event["data"]["state"] == {"value": 4}
+                        assert event["data"]["state"] == {"value": value}
+                        cursor = event["id"]
                         break
+        accepted = client.post(
+            f"{HOST_API_PATH}/notebooks/{notebook_id}/ui-elements/{created['id']}/update",
+            headers={**headers("s1"), "Idempotency-Key": "offline-write"},
+            json={"state": created["state"]},
+        )
+        assert accepted.status_code == 202, accepted.text
+        while True:
+            event = first.receive_json()
+            if (
+                event["event"] == "ui_element.update"
+                and event["data"].get("request_id") == "offline-write"
+            ):
+                break
+        with client.websocket_connect(
+            f"{socket_url(editor_host, 's2')}&cursor={cursor}"
+        ) as resumed:
+            replay = socket_snapshot(resumed)
+            assert any(
+                event["event"] == "ui_element.update"
+                and event["data"].get("request_id") == "offline-write"
+                and event["data"]["state"] == created["state"]
+                for event in replay
+            )
+        with client.websocket_connect(
+            socket_url(editor_host, "s3")
+        ) as refreshed:
+            initial = socket_snapshot(refreshed)
+            assert any(
+                event["event"] == "ui_element"
+                and event["data"]["ui_element"]["state"] == created["state"]
+                for event in initial
+            )

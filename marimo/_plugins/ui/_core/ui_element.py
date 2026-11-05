@@ -294,7 +294,7 @@ class UIElement(Html, Generic[S, T]):
         super().__init__(text=text)
         self._host_published = (
             self._host_publish
-            and component_name == "marimo-slider"
+            and component_name in {"marimo-slider", "marimo-table"}
             and self._ctx is not None
             and self._ctx.parent is None
             and get_mode() == "edit"
