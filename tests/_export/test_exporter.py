@@ -2532,6 +2532,11 @@ class TestPDFExport:
                 patch.object(
                     DependencyManager.playwright, "has", return_value=True
                 ),
+                patch.object(
+                    DependencyManager.playwright,
+                    "has_at_version",
+                    return_value=True,
+                ),
             ):
                 events: list[PDFExportStatusEvent] = []
                 result = await exporter.export_as_slides_pdf(
@@ -2568,10 +2573,11 @@ class TestPDFExport:
             assert mock_page.evaluate.await_count >= 1
             mock_page.wait_for_timeout.assert_called_once_with(300)
             mock_page.add_style_tag.assert_called_once()
-            mock_page.pdf.assert_called_once()
-            assert mock_page.pdf.call_args.kwargs["print_background"] is True
-            assert (
-                mock_page.pdf.call_args.kwargs["prefer_css_page_size"] is True
+            mock_page.pdf.assert_called_once_with(
+                print_background=True,
+                tagged=True,
+                outline=True,
+                prefer_css_page_size=True,
             )
         finally:
             if orig_nbconvert is not None:
@@ -2645,6 +2651,11 @@ class TestPDFExport:
                 patch.object(
                     DependencyManager.playwright, "has", return_value=True
                 ),
+                patch.object(
+                    DependencyManager.playwright,
+                    "has_at_version",
+                    return_value=True,
+                ),
             ):
                 result = await exporter.export_as_slides_pdf(
                     _pdf_export_request(
@@ -2666,10 +2677,11 @@ class TestPDFExport:
                 for cell in notebook.cells
             ]
             assert set(slide_types) == {"skip"}
-            mock_page.pdf.assert_called_once()
-            assert mock_page.pdf.call_args.kwargs["print_background"] is True
-            assert (
-                mock_page.pdf.call_args.kwargs["prefer_css_page_size"] is True
+            mock_page.pdf.assert_called_once_with(
+                print_background=True,
+                tagged=True,
+                outline=True,
+                prefer_css_page_size=True,
             )
         finally:
             if orig_nbconvert is not None:
@@ -2834,11 +2846,15 @@ class TestPDFOutline:
     """Print real PDFs and read the outline (bookmarks) Chromium writes."""
 
     @pytest.fixture(autouse=True)
-    async def _require_chromium(self) -> None:
+    async def _require_outline_support(self) -> None:
         from marimo._export.dependencies import (
             _is_playwright_chromium_installed,
         )
 
+        if not DependencyManager.playwright.has_at_version(
+            min_version="1.42.0", quiet=True
+        ):
+            pytest.skip("PDF outlines require Playwright 1.42 or newer")
         # The WebPDF printer would download Chromium otherwise.
         if not await _is_playwright_chromium_installed():
             pytest.skip("Playwright Chromium is not installed")
