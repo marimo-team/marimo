@@ -4,13 +4,15 @@ import asyncio
 import base64
 import json
 import pathlib
+import re
 import sys
 import textwrap
-from concurrent.futures import ThreadPoolExecutor
 from copy import deepcopy
 from dataclasses import replace
 from typing import TYPE_CHECKING, Any
 from unittest.mock import AsyncMock, MagicMock, patch
+from urllib.parse import urlsplit
+from urllib.request import url2pathname
 
 import pytest
 
@@ -2132,18 +2134,13 @@ class TestPDFExport:
         file_manager = AppFileManager.from_app(InternalApp(app))
         exporter = Exporter()
 
-        mock_exporter_instance = MagicMock()
-        mock_exporter_instance.run_playwright.return_value = (
-            b"mock_webpdf_data"
-        )
-
         with (
             patch.object(DependencyManager, "require_many"),
-            patch.object(sys, "platform", "linux"),
-            patch("nbconvert.WebPDFExporter") as mock_webpdf_exporter,
+            patch(
+                "marimo._export._nbconvert._print_webpdf",
+                return_value=b"mock_webpdf_data",
+            ) as print_webpdf,
         ):
-            mock_webpdf_exporter.return_value = mock_exporter_instance
-
             result = exporter.export_as_pdf(
                 _pdf_export_request(
                     app=file_manager.app,
@@ -2153,99 +2150,31 @@ class TestPDFExport:
             )
 
             assert result == b"mock_webpdf_data"
-            mock_webpdf_exporter.assert_called_once_with(
-                allow_chromium_download=True
-            )
             html = BeautifulSoup(
-                mock_exporter_instance.run_playwright.call_args.args[0],
+                print_webpdf.call_args.args[0],
                 "html.parser",
             )
             assert html.select_one(".jp-InputArea") is not None
 
-    @pytest.mark.skipif(
-        sys.platform != "win32" or not DependencyManager.nbformat.has(),
-        reason="requires Windows and nbformat",
-    )
-    def test_webpdf_render_preserves_parent_event_loop_policy(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        import nbformat
+    @pytest.mark.skipif(sys.platform != "win32", reason="requires Windows")
+    def test_run_playwright_can_spawn_subprocess_on_windows(self) -> None:
+        from marimo._export._nbconvert import run_playwright
 
-        from marimo._export._nbconvert import _render_webpdf
-
-        (tmp_path / "nbconvert.py").write_text(
-            textwrap.dedent(
-                """
-                class HTMLExporter:
-                    def __init__(self, config, template_name):
-                        self.config = config
-                        self.preprocessors = []
-
-                    def register_preprocessor(self, preprocessor, enabled=False):
-                        self.preprocessors.append((preprocessor, enabled))
-
-                    def from_notebook_node(self, notebook):
-                        return "<html></html>", {}
-
-                class WebPDFExporter:
-                    def __init__(self, allow_chromium_download):
-                        pass
-
-                    def run_playwright(self, html):
-                        return b"mock_webpdf_data"
-                """
-            ),
-            encoding="utf-8",
-        )
-        monkeypatch.syspath_prepend(str(tmp_path))
-        with (
-            patch.object(
-                asyncio, "set_event_loop_policy"
-            ) as set_event_loop_policy,
-        ):
-            result = _render_webpdf(
-                nbformat.v4.new_notebook(),  # type: ignore[no-untyped-call]
-                include_inputs=True,
-            )
-
-        assert result == b"mock_webpdf_data"
-        set_event_loop_policy.assert_not_called()
-
-    @pytest.mark.skipif(
-        sys.platform != "win32" or not DependencyManager.nbconvert.has(),
-        reason="requires Windows and nbconvert",
-    )
-    def test_webpdf_worker_can_spawn_subprocess_on_windows(self) -> None:
-        from marimo._export._nbconvert import (
-            _print_webpdf,
-        )
-
-        async def spawn_process() -> None:
+        async def spawn_process() -> int:
             process = await asyncio.create_subprocess_exec(
                 sys.executable, "-c", "pass"
             )
-            assert await process.wait() == 0
+            return await process.wait()
 
-        mock_exporter_instance = MagicMock()
-
-        def render(*_args: Any, **_kwargs: Any) -> bytes:
-            with ThreadPoolExecutor(max_workers=1) as pool:
-                pool.submit(asyncio.run, spawn_process()).result()
-            return b"mock_webpdf_data"
-
-        mock_exporter_instance.run_playwright.side_effect = render
         original_policy = asyncio.get_event_loop_policy()
-        selector_policy = asyncio.WindowsSelectorEventLoopPolicy()
+        # marimo installs this policy on Windows, and its loops cannot start
+        # subprocesses such as Playwright's driver.
+        selector_policy = asyncio.WindowsSelectorEventLoopPolicy()  # type: ignore[attr-defined]
         asyncio.set_event_loop_policy(selector_policy)
 
         try:
-            with patch(
-                "nbconvert.WebPDFExporter", create=True
-            ) as mock_webpdf_exporter:
-                mock_webpdf_exporter.return_value = mock_exporter_instance
-                result = _print_webpdf("<html></html>")
-
-            assert result == b"mock_webpdf_data"
+            assert run_playwright(spawn_process()) == 0
+            assert asyncio.get_event_loop_policy() is selector_policy
         finally:
             asyncio.set_event_loop_policy(original_policy)
 
@@ -2270,18 +2199,13 @@ class TestPDFExport:
         file_manager = AppFileManager.from_app(InternalApp(app))
         exporter = Exporter()
 
-        mock_exporter_instance = MagicMock()
-        mock_exporter_instance.run_playwright.return_value = (
-            b"mock_webpdf_data_no_inputs"
-        )
-
         with (
             patch.object(DependencyManager, "require_many"),
-            patch.object(sys, "platform", "linux"),
-            patch("nbconvert.WebPDFExporter") as mock_webpdf_exporter,
+            patch(
+                "marimo._export._nbconvert._print_webpdf",
+                return_value=b"mock_webpdf_data_no_inputs",
+            ) as print_webpdf,
         ):
-            mock_webpdf_exporter.return_value = mock_exporter_instance
-
             result = exporter.export_as_pdf(
                 _pdf_export_request(
                     app=file_manager.app,
@@ -2292,11 +2216,8 @@ class TestPDFExport:
             )
 
             assert result == b"mock_webpdf_data_no_inputs"
-            mock_webpdf_exporter.assert_called_once_with(
-                allow_chromium_download=True
-            )
             html = BeautifulSoup(
-                mock_exporter_instance.run_playwright.call_args.args[0],
+                print_webpdf.call_args.args[0],
                 "html.parser",
             )
             assert html.select_one(".jp-InputArea") is None
@@ -2370,20 +2291,15 @@ class TestPDFExport:
             "xelatex not found"
         )
 
-        # Mock WebPDFExporter to succeed
-        mock_webpdf_exporter_instance = MagicMock()
-        mock_webpdf_exporter_instance.run_playwright.return_value = (
-            b"fallback_webpdf_data"
-        )
-
         with (
             patch.object(DependencyManager, "require_many"),
-            patch.object(sys, "platform", "linux"),
             patch("nbconvert.PDFExporter") as mock_pdf_exporter,
-            patch("nbconvert.WebPDFExporter") as mock_webpdf_exporter,
+            patch(
+                "marimo._export._nbconvert._print_webpdf",
+                return_value=b"fallback_webpdf_data",
+            ) as print_webpdf,
         ):
             mock_pdf_exporter.return_value = mock_pdf_exporter_instance
-            mock_webpdf_exporter.return_value = mock_webpdf_exporter_instance
 
             result = exporter.export_as_pdf(
                 _pdf_export_request(
@@ -2400,11 +2316,8 @@ class TestPDFExport:
             mock_pdf_exporter.assert_called_once()
             mock_pdf_exporter_instance.from_notebook_node.assert_called_once()
             assert mock_pdf_exporter_instance.exclude_input is True
-            # WebPDFExporter was used as fallback
-            mock_webpdf_exporter.assert_called_once_with(
-                allow_chromium_download=True
-            )
-            mock_webpdf_exporter_instance.run_playwright.assert_called_once()
+            # WebPDF was used as fallback
+            print_webpdf.assert_called_once()
 
     @pytest.mark.skipif(
         not DependencyManager.nbformat.has()
@@ -2434,19 +2347,15 @@ class TestPDFExport:
             PandocMissing()
         )
 
-        mock_webpdf_exporter_instance = MagicMock()
-        mock_webpdf_exporter_instance.run_playwright.return_value = (
-            b"fallback_webpdf_data"
-        )
-
         with (
             patch.object(DependencyManager, "require_many"),
-            patch.object(sys, "platform", "linux"),
             patch("nbconvert.PDFExporter") as mock_pdf_exporter,
-            patch("nbconvert.WebPDFExporter") as mock_webpdf_exporter,
+            patch(
+                "marimo._export._nbconvert._print_webpdf",
+                return_value=b"fallback_webpdf_data",
+            ) as print_webpdf,
         ):
             mock_pdf_exporter.return_value = mock_pdf_exporter_instance
-            mock_webpdf_exporter.return_value = mock_webpdf_exporter_instance
 
             result = exporter.export_as_pdf(
                 _pdf_export_request(
@@ -2459,10 +2368,7 @@ class TestPDFExport:
             assert result == b"fallback_webpdf_data"
             mock_pdf_exporter.assert_called_once()
             mock_pdf_exporter_instance.from_notebook_node.assert_called_once()
-            mock_webpdf_exporter.assert_called_once_with(
-                allow_chromium_download=True
-            )
-            mock_webpdf_exporter_instance.run_playwright.assert_called_once()
+            print_webpdf.assert_called_once()
 
     @pytest.mark.skipif(
         not DependencyManager.nbformat.has()
@@ -2489,19 +2395,15 @@ class TestPDFExport:
             RuntimeError("unexpected template error")
         )
 
-        mock_webpdf_exporter_instance = MagicMock()
-        mock_webpdf_exporter_instance.run_playwright.return_value = (
-            b"fallback_webpdf_data"
-        )
-
         with (
             patch.object(DependencyManager, "require_many"),
-            patch.object(sys, "platform", "linux"),
             patch("nbconvert.PDFExporter") as mock_pdf_exporter,
-            patch("nbconvert.WebPDFExporter") as mock_webpdf_exporter,
+            patch(
+                "marimo._export._nbconvert._print_webpdf",
+                return_value=b"fallback_webpdf_data",
+            ) as print_webpdf,
         ):
             mock_pdf_exporter.return_value = mock_pdf_exporter_instance
-            mock_webpdf_exporter.return_value = mock_webpdf_exporter_instance
 
             result = exporter.export_as_pdf(
                 _pdf_export_request(
@@ -2513,9 +2415,7 @@ class TestPDFExport:
 
             assert result == b"fallback_webpdf_data"
             mock_pdf_exporter.assert_called_once()
-            mock_webpdf_exporter.assert_called_once_with(
-                allow_chromium_download=True
-            )
+            print_webpdf.assert_called_once()
 
     @pytest.mark.skipif(
         not DependencyManager.nbformat.has()
@@ -2541,19 +2441,15 @@ class TestPDFExport:
             "xelatex not found"
         )
 
-        mock_webpdf_exporter_instance = MagicMock()
-        mock_webpdf_exporter_instance.run_playwright.return_value = (
-            b"fallback_webpdf_data"
-        )
-
         with (
             patch.object(DependencyManager, "require_many"),
-            patch.object(sys, "platform", "linux"),
             patch("nbconvert.PDFExporter") as mock_pdf_exporter,
-            patch("nbconvert.WebPDFExporter") as mock_webpdf_exporter,
+            patch(
+                "marimo._export._nbconvert._print_webpdf",
+                return_value=b"fallback_webpdf_data",
+            ),
         ):
             mock_pdf_exporter.return_value = mock_pdf_exporter_instance
-            mock_webpdf_exporter.return_value = mock_webpdf_exporter_instance
 
             result = exporter.export_as_pdf(
                 _pdf_export_request(
@@ -2671,9 +2567,10 @@ class TestPDFExport:
             assert mock_page.evaluate.await_count >= 1
             mock_page.wait_for_timeout.assert_called_once_with(300)
             mock_page.add_style_tag.assert_called_once()
-            mock_page.pdf.assert_called_once_with(
-                print_background=True,
-                prefer_css_page_size=True,
+            mock_page.pdf.assert_called_once()
+            assert mock_page.pdf.call_args.kwargs["print_background"] is True
+            assert (
+                mock_page.pdf.call_args.kwargs["prefer_css_page_size"] is True
             )
         finally:
             if orig_nbconvert is not None:
@@ -2768,9 +2665,10 @@ class TestPDFExport:
                 for cell in notebook.cells
             ]
             assert set(slide_types) == {"skip"}
-            mock_page.pdf.assert_called_once_with(
-                print_background=True,
-                prefer_css_page_size=True,
+            mock_page.pdf.assert_called_once()
+            assert mock_page.pdf.call_args.kwargs["print_background"] is True
+            assert (
+                mock_page.pdf.call_args.kwargs["prefer_css_page_size"] is True
             )
         finally:
             if orig_nbconvert is not None:
@@ -2781,6 +2679,150 @@ class TestPDFExport:
                 sys.modules["playwright.async_api"] = orig_playwright
             else:
                 sys.modules.pop("playwright.async_api", None)
+
+
+@pytest.mark.parametrize(
+    ("supports_outline", "expected"),
+    [
+        (True, {"print_background": True, "tagged": True, "outline": True}),
+        (False, {"print_background": True}),
+    ],
+)
+async def test_print_pdf_requests_outline_on_supported_playwright(
+    supports_outline: bool, expected: dict[str, bool]
+) -> None:
+    from marimo._export._nbconvert import print_pdf
+
+    page = AsyncMock()
+    page.pdf.return_value = b"%PDF-"
+    with patch.object(
+        DependencyManager.playwright,
+        "has_at_version",
+        return_value=supports_outline,
+    ):
+        assert await print_pdf(page) == b"%PDF-"
+
+    page.pdf.assert_awaited_once_with(**expected)
+
+
+class TestWebPDFPrinter:
+    """Drive the WebPDF printer through a stand-in `playwright.async_api`."""
+
+    @staticmethod
+    def _fake_playwright(executable_path: str) -> tuple[Any, AsyncMock]:
+        page = AsyncMock()
+        page.pdf.return_value = b"%PDF-"
+        browser = AsyncMock()
+        browser.new_page.return_value = page
+        playwright = MagicMock()
+        playwright.chromium.executable_path = executable_path
+        playwright.chromium.launch = AsyncMock(return_value=browser)
+        context = AsyncMock()
+        context.__aenter__.return_value = playwright
+        module = MagicMock()
+        module.async_playwright = MagicMock(return_value=context)
+        return module, page
+
+    def test_prints_html_from_file_url_with_outline(self) -> None:
+        from marimo._export._nbconvert import _print_webpdf
+
+        module, page = self._fake_playwright(sys.executable)
+        loaded: list[str] = []
+
+        def goto(url: str, **_kwargs: Any) -> None:
+            path = url2pathname(urlsplit(url).path)
+            loaded.append(pathlib.Path(path).read_text(encoding="utf-8"))
+
+        page.goto.side_effect = goto
+        with (
+            patch.dict(sys.modules, {"playwright.async_api": module}),
+            patch.object(
+                DependencyManager.playwright,
+                "has_at_version",
+                return_value=True,
+            ),
+        ):
+            assert _print_webpdf("<h1>Results</h1>") == b"%PDF-"
+
+        assert loaded == ["<h1>Results</h1>"]
+        page.emulate_media.assert_awaited_once_with(media="print")
+        page.pdf.assert_awaited_once_with(
+            print_background=True, tagged=True, outline=True
+        )
+
+    @pytest.mark.parametrize("installed", [True, False])
+    def test_installs_chromium_only_when_missing(
+        self, tmp_path: pathlib.Path, installed: bool
+    ) -> None:
+        from marimo._export._nbconvert import _print_webpdf
+
+        executable = tmp_path / "chromium"
+        if installed:
+            executable.write_text("")
+        module, _page = self._fake_playwright(str(executable))
+        with (
+            patch.dict(sys.modules, {"playwright.async_api": module}),
+            patch(
+                "marimo._export.dependencies._install_playwright_chromium"
+            ) as install,
+        ):
+            assert _print_webpdf("<html></html>") == b"%PDF-"
+
+        assert install.await_count == (0 if installed else 1)
+
+
+@pytest.mark.requires("nbformat", "nbconvert", "playwright")
+class TestPDFOutline:
+    """Print real PDFs and read the outline (bookmarks) Chromium writes."""
+
+    @pytest.fixture(autouse=True)
+    async def _require_chromium(self) -> None:
+        from marimo._export.dependencies import (
+            _is_playwright_chromium_installed,
+        )
+
+        # The WebPDF printer would download Chromium otherwise.
+        if not await _is_playwright_chromium_installed():
+            pytest.skip("Playwright Chromium is not installed")
+
+    @staticmethod
+    def _notebook() -> Any:
+        import nbformat
+
+        # `Method` comes from a cell output, as `mo.md(f"...")` exports, and
+        # lands on the second slide, which reveal.js hides until shown.
+        method = nbformat.v4.new_output(  # type: ignore[no-untyped-call]
+            "display_data", data={"text/markdown": "## Method"}
+        )
+        return nbformat.v4.new_notebook(  # type: ignore[no-untyped-call]
+            cells=[
+                nbformat.v4.new_markdown_cell("# Results"),  # type: ignore[no-untyped-call]
+                nbformat.v4.new_code_cell("x = 1", outputs=[method]),  # type: ignore[no-untyped-call]
+            ]
+        )
+
+    @staticmethod
+    def _outline_titles(pdf: bytes) -> list[bytes]:
+        assert pdf.startswith(b"%PDF-")
+        assert b"/Outlines" in pdf
+        # Chromium writes ASCII titles as literal strings. The document
+        # title also matches, so callers check for a subset.
+        return re.findall(rb"/Title \((.*?)\)", pdf)
+
+    async def test_webpdf_outlines_markdown_headings(self) -> None:
+        from marimo._export._nbconvert import _render_webpdf
+
+        pdf = _render_webpdf(self._notebook(), include_inputs=True)
+
+        assert {b"Results", b"Method"} <= set(self._outline_titles(pdf))
+
+    async def test_slides_pdf_outlines_markdown_headings(self) -> None:
+        pdf = await Exporter._export_slides_as_pdf(
+            self._notebook(), include_inputs=True
+        )
+
+        assert pdf is not None
+        assert {b"Results", b"Method"} <= set(self._outline_titles(pdf))
 
 
 @pytest.mark.skipif(not HAS_NBFORMAT, reason="nbformat not installed")

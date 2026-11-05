@@ -32,6 +32,10 @@ To exclude code cells:
 marimo export pdf --no-include-inputs notebook.py -o notebook.pdf
 ```
 
+PDFs printed with Chromium include an outline (bookmarks) built from the
+notebook's Markdown headings, including headings in cell outputs. The outline
+requires Playwright 1.42 or newer.
+
 To see all options, use
 
 ```bash

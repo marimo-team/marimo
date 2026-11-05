@@ -3,18 +3,24 @@ from __future__ import annotations
 
 import asyncio
 import sys
+import tempfile
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, TypeVar
 
 from marimo._convert.common.dom_traversal import (
     replace_public_files_with_data_uris,
     replace_virtual_files_with_data_uris,
 )
 from marimo._convert.ipynb.from_ir import NBCONVERT_REMOVE_INPUT_TAG
+from marimo._dependencies.dependencies import DependencyManager
 from marimo._export._limits import MAX_VIRTUAL_FILE_INLINE_BYTES
 
 if TYPE_CHECKING:
+    from collections.abc import Coroutine
+
     from traitlets.config import Config
+
+T = TypeVar("T")
 
 
 def inline_pdf_assets(html: str, filename: str | None) -> str:
@@ -97,31 +103,78 @@ def _render_webpdf_html(
     return inline_pdf_assets(html, filename)
 
 
-def _print_webpdf(html: str) -> Any:
-    if sys.platform == "win32":
-        # marimo installs the Selector policy during import. The spawned render
-        # process restores Proactor before Playwright creates its subprocess loop.
-        asyncio.set_event_loop_policy(None)
+async def print_pdf(page: Any, **options: Any) -> bytes:
+    """Print a loaded Playwright page to PDF.
 
-    from nbconvert import WebPDFExporter  # type: ignore[import-not-found]
+    The PDF carries an outline (bookmarks) of the page's headings when
+    Playwright is 1.42 or newer, the first release with `tagged` and `outline`.
+    """
+    if DependencyManager.playwright.has_at_version(
+        min_version="1.42.0", quiet=True
+    ):
+        # Chromium builds the outline from the tagged structure tree, so
+        # `outline` has no effect without `tagged`.
+        options = {"tagged": True, "outline": True, **options}
+    pdf: bytes = await page.pdf(print_background=True, **options)
+    return pdf
 
-    exporter = WebPDFExporter(allow_chromium_download=True)  # type: ignore[no-untyped-call]
-    return exporter.run_playwright(html)  # type: ignore[no-untyped-call]
+
+async def _print_webpdf_async(url: str) -> bytes:
+    from playwright.async_api import (  # type: ignore[import-not-found]
+        async_playwright,
+    )
+
+    from marimo._export.dependencies import _install_playwright_chromium
+    from marimo._utils.async_path import isfile
+
+    async with async_playwright() as playwright:
+        if not await isfile(playwright.chromium.executable_path):
+            await _install_playwright_chromium()
+        browser = await playwright.chromium.launch()
+        try:
+            page = await browser.new_page()
+            await page.emulate_media(media="print")
+            await page.goto(url, wait_until="networkidle")
+            # Give MathJax time to typeset after load (nbconvert's default
+            # `page_render_timeout`).
+            await page.wait_for_timeout(100)
+            return await print_pdf(page)
+        finally:
+            await browser.close()
+
+
+def run_playwright(main: Coroutine[Any, Any, T]) -> T:
+    """Run Playwright code on a new event loop in the calling thread.
+
+    Call it from a worker thread: the loop cannot share a thread with a running
+    one, and Playwright blocks it while Chromium prints.
+    """
+    # marimo installs the Selector policy on Windows, whose loops cannot start
+    # Playwright's driver subprocess.
+    loop_factory = (
+        asyncio.ProactorEventLoop  # type: ignore[attr-defined]
+        if sys.platform == "win32"
+        else None
+    )
+    with asyncio.Runner(loop_factory=loop_factory) as runner:
+        return runner.run(main)
+
+
+def _print_webpdf(html: str) -> bytes:
+    with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as directory:
+        # Load from a file URL so Chromium can read `file://` resources.
+        path = Path(directory) / "notebook.html"
+        path.write_text(html, encoding="utf-8")
+        return run_playwright(_print_webpdf_async(path.as_uri()))
 
 
 def _render_webpdf(
     notebook: Any, include_inputs: bool, filename: str | None = None
-) -> Any:
-    # Resolve process-local virtual files before crossing the spawn boundary.
+) -> bytes:
+    from concurrent.futures import ThreadPoolExecutor
+
     html = _render_webpdf_html(notebook, include_inputs, filename)
-    if sys.platform != "win32":
-        return _print_webpdf(html)
-
-    from concurrent.futures import ProcessPoolExecutor
-    from multiprocessing import get_context
-
-    with ProcessPoolExecutor(
-        max_workers=1,
-        mp_context=get_context("spawn"),
-    ) as pool:
+    # Playwright runs its own event loop, which cannot share a thread with the
+    # caller's running loop.
+    with ThreadPoolExecutor(max_workers=1) as pool:
         return pool.submit(_print_webpdf, html).result()

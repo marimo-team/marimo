@@ -39,6 +39,8 @@ from marimo._export._nbconvert import (
     _nbconvert_tag_remove_config,
     _render_webpdf,
     inline_pdf_assets,
+    print_pdf,
+    run_playwright,
 )
 from marimo._export._status import emit_pdf_export_status
 from marimo._export.dependencies import require_export_dependencies
@@ -704,7 +706,9 @@ class Exporter:
             f.write(html_data)
             temp_path = f.name
 
-        try:
+        temp_uri = Exporter._to_file_uri(temp_path)
+
+        async def print_slides() -> bytes:
             from playwright.async_api import (  # type: ignore[import-not-found]
                 async_playwright,
             )
@@ -714,7 +718,6 @@ class Exporter:
                 try:
                     page = await browser.new_page()
                     # ?print-pdf tells reveal.js to use a linear print layout
-                    temp_uri = Exporter._to_file_uri(temp_path)
                     await page.goto(
                         f"{temp_uri}?print-pdf",
                         wait_until="networkidle",
@@ -729,6 +732,12 @@ class Exporter:
                           ) {
                             reveal.layout();
                           }
+                          // reveal.js hides inactive slides from assistive
+                          // technology, which also drops their headings from
+                          // the tagged PDF outline. Every slide is printed.
+                          document
+                            .querySelectorAll(".reveal .slides section[aria-hidden]")
+                            .forEach((el) => el.removeAttribute("aria-hidden"));
                         }
                         """
                     )
@@ -741,12 +750,12 @@ class Exporter:
                             "}"
                         )
                     )
-                    pdf_data = await page.pdf(
-                        print_background=True,
-                        prefer_css_page_size=True,
-                    )
+                    return await print_pdf(page, prefer_css_page_size=True)
                 finally:
                     await browser.close()
+
+        try:
+            pdf_data = await asyncio.to_thread(run_playwright, print_slides())
         finally:
             try:
                 os.unlink(temp_path)
