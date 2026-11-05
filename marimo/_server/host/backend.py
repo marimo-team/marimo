@@ -4,7 +4,6 @@
 from __future__ import annotations
 
 import asyncio
-from collections import deque
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
@@ -32,6 +31,7 @@ from marimo._runtime.commands import (
 )
 from marimo._runtime.scratch import SCRATCH_CELL_ID
 from marimo._server.host.events import notification_event
+from marimo._server.host.handover import Handover, Turn
 from marimo._server.host.translate import RunTranslator
 from marimo._server.scratchpad import snapshot_for_scratchpad
 from marimo._session.consumer import SessionConsumer
@@ -78,13 +78,13 @@ class _Kernel:
 class _Run:
     session: Session
     translator: RunTranslator
+    turn: Turn
     done: asyncio.Event = field(default_factory=asyncio.Event)
     task: asyncio.Task[object] | None = None
-    submission_finished: bool = False
-    submitted: asyncio.Event = field(default_factory=asyncio.Event)
-    """Set once this run and all predecessors have submitted or ended."""
+    submitted: bool = False
+    """The kernel has this run's command."""
     interrupt_requested: bool = False
-    """A cancellation was sent for this run while it was still queued."""
+    """A cancellation was sent for this run while the kernel had it queued."""
 
 
 class SessionBackend(SessionConsumer):
@@ -123,7 +123,7 @@ class SessionBackend(SessionConsumer):
         self._kernel: _Kernel | None = None
         self._runs: dict[protocol.RunId, _Run] = {}
         """Runs this backend submitted that have not finished, by run id."""
-        self._pending_submissions: deque[_Run] = deque()
+        self._handover = Handover()
         self._translators: dict[str, RunTranslator] = {}
 
     @property
@@ -188,9 +188,8 @@ class SessionBackend(SessionConsumer):
         session = self.session
         if session is None:
             return
-        run = _Run(session, RunTranslator(run_id, code))
-        previous = self._accept_run(run)
-        self._watch_run(run, self._run_code(run, code, previous))
+        run = self._accept(session, RunTranslator(run_id, code))
+        self._watch_run(run, self._run_code(run, code))
 
     def run_cells(
         self,
@@ -201,8 +200,7 @@ class SessionBackend(SessionConsumer):
         session = self.session
         if session is None:
             return
-        run = _Run(session, RunTranslator(run_id, None))
-        previous = self._accept_run(run)
+        run = self._accept(session, RunTranslator(run_id, None))
         try:
             request = self._http_request(session)
             cells = {
@@ -220,13 +218,12 @@ class SessionBackend(SessionConsumer):
                 run_id=run_id,
                 allow_stdin=False,
             )
-            if previous is not None and not previous.submitted.is_set():
-                # A scratch run ahead is still waiting for the scratchpad.
+            if not run.turn.ready:
+                # A run ahead is still preparing, such as a scratch run
+                # waiting for the scratchpad.
                 self._watch_run(
                     run,
-                    self._run_cells_after(
-                        previous, run, execution_requests, command
-                    ),
+                    self._run_cells_after(run, execution_requests, command),
                 )
                 return
             # Enqueue before returning so later document edits follow the run.
@@ -236,24 +233,10 @@ class SessionBackend(SessionConsumer):
             return
         self._watch_run(run, run.done.wait())
 
-    def _accept_run(self, run: _Run) -> _Run | None:
-        previous = (
-            self._pending_submissions[-1]
-            if self._pending_submissions
-            else None
-        )
-        self._runs[run.translator.run_id] = run
-        self._pending_submissions.append(run)
-        return previous
-
-    def _finish_submission(self, run: _Run) -> None:
-        run.submission_finished = True
-        # Cancelling a middle run must not release its successors early.
-        while (
-            self._pending_submissions
-            and self._pending_submissions[0].submission_finished
-        ):
-            self._pending_submissions.popleft().submitted.set()
+    def _accept(self, session: Session, translator: RunTranslator) -> _Run:
+        run = _Run(session, translator, self._handover.take())
+        self._runs[translator.run_id] = run
+        return run
 
     def _submit_cells(
         self,
@@ -274,12 +257,11 @@ class SessionBackend(SessionConsumer):
 
     async def _run_cells_after(
         self,
-        previous: _Run,
         run: _Run,
         execution_requests: Sequence[ExecuteCellCommand],
         command: ExecuteCellsCommand,
     ) -> None:
-        await previous.submitted.wait()
+        await run.turn.wait()
         self._submit_cells(run, execution_requests, command)
         await run.done.wait()
 
@@ -300,16 +282,14 @@ class SessionBackend(SessionConsumer):
         )
 
     def _submit(self, run: _Run, command: CommandMessage) -> None:
-        self._finish_submission(run)
+        run.submitted = True
         self._translators[run.translator.run_id] = run.translator
         run.session.put_control_request(command, from_consumer_id=None)
+        self._handover.finish(run.turn)
 
-    async def _run_code(
-        self, run: _Run, code: str, previous: _Run | None
-    ) -> None:
+    async def _run_code(self, run: _Run, code: str) -> None:
+        await run.turn.wait()
         session = run.session
-        if previous is not None:
-            await previous.submitted.wait()
         async with session.scratchpad_lock:
             # Register notebook definitions once, without executing cells.
             session.instantiate(
@@ -357,7 +337,7 @@ class SessionBackend(SessionConsumer):
         )
 
     def _finish_run(self, run: _Run, exception: BaseException | None) -> None:
-        self._finish_submission(run)
+        self._handover.finish(run.turn)
         if self._runs.get(run.translator.run_id) is run:
             del self._runs[run.translator.run_id]
         error = None
@@ -393,13 +373,14 @@ class SessionBackend(SessionConsumer):
             return
         if run.done.is_set():
             return
-        if not run.submitted.is_set():
+        if not run.submitted:
             if run.task is not None:
                 run.task.cancel()
         elif run.translator.started:
             run.session.try_interrupt()
         else:
-            # The kernel discards a queued run when its command arrives.
+            # The kernel drops a queued run when the cancellation reaches it.
+            # One that started first is interrupted on its next report.
             run.interrupt_requested = True
             run.session.put_control_request(
                 CancelRunCommand(run_id=run_id), from_consumer_id=None
