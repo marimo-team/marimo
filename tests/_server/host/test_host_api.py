@@ -275,10 +275,10 @@ async def test_only_loopback_names_are_admitted(
     ["\xb2", "1234\xb2", "\xb9\xb2\xb3"],
 )
 def test_latin1_superscripts_are_not_a_port(port: str) -> None:
-    from marimo._server.host.middleware import _host_header_ok
+    from marimo._server.host.auth import host_header_ok
 
     assert port.isdigit()
-    assert _host_header_ok(f"127.0.0.1:{port}", PORT) is False
+    assert host_header_ok(f"127.0.0.1:{port}", PORT) is False
 
 
 @pytest.mark.parametrize(
