@@ -22,6 +22,7 @@ from marimo._schemas.export_options import (
 )
 from marimo._utils.assert_never import assert_never
 from marimo._utils.async_path import isfile
+from marimo._utils.asyncio_utils import run_on_proactor_loop
 
 LOGGER = _loggers.marimo_logger()
 
@@ -132,14 +133,10 @@ async def get_missing_export_setup(
 
 async def _is_playwright_chromium_installed() -> bool:
     """Return whether Playwright's matching Chromium executable exists."""
-    executable = (
-        await asyncio.to_thread(_get_playwright_chromium_executable_on_windows)
-        if sys.platform == "win32"
-        else await _get_playwright_chromium_executable()
-    )
-    return await isfile(executable)
+    return await isfile(await _get_playwright_chromium_executable())
 
 
+@run_on_proactor_loop
 async def _get_playwright_chromium_executable() -> str:
     """Return the executable expected by the installed Playwright version."""
 
@@ -149,21 +146,6 @@ async def _get_playwright_chromium_executable() -> str:
 
     async with async_playwright() as playwright:
         return cast(str, playwright.chromium.executable_path)
-
-
-def _get_playwright_chromium_executable_on_windows() -> str:
-    # The server uses a Windows SelectorEventLoop, which cannot start the
-    # Playwright driver subprocess. This worker thread owns a Proactor loop.
-    assert sys.platform == "win32"
-    loop = asyncio.ProactorEventLoop()  # type: ignore[attr-defined]
-    try:
-        return cast(
-            str,
-            loop.run_until_complete(_get_playwright_chromium_executable()),
-        )
-    finally:
-        loop.run_until_complete(loop.shutdown_asyncgens())
-        loop.close()
 
 
 def require_export_dependencies(
