@@ -595,24 +595,77 @@ describe("downloadByURL", () => {
   });
 
   it("should create anchor, set attributes, click, and remove", () => {
-    downloadByURL("data:test", "filename.png");
+    downloadByURL("data:image/png;base64,AAA=", "filename.png");
 
     expect(document.createElement).toHaveBeenCalledWith("a");
-    expect(mockAnchor.href).toBe("data:test");
+    expect(mockAnchor.href).toBe("data:image/png;base64,AAA=");
     expect(mockAnchor.download).toBe("filename.png");
     expect(mockAnchor.click).toHaveBeenCalled();
     expect(mockAnchor.remove).toHaveBeenCalled();
   });
 
+  it.each([
+    "https://example.com/results.csv",
+    "http://example.com/results.csv",
+    "//example.com/results.csv",
+    "./@file/123-results.csv",
+    "/files/results.csv?download=1#data",
+    "../results.csv",
+    "blob:http://localhost/123",
+    "data:text/csv;charset=utf-8,a%2Cb",
+    "DATA:TEXT/PLAIN;base64,aGVsbG8=",
+    "data:application/json,%7B%7D",
+    "data:application/octet-stream;base64,AAA=",
+    "data:,hello",
+    "data:;base64,aGVsbG8=",
+    "data:text/plain,",
+    " https://example.com/results.csv ",
+  ])("downloads %s without an explicit filename", (url) => {
+    downloadByURL(url);
+
+    expect(mockAnchor.getAttribute("href")).toBe(url);
+    expect(mockAnchor.getAttribute("download")).toBe("");
+    expect(mockAnchor.click).toHaveBeenCalledOnce();
+  });
+
+  it.each([
+    "javascript:alert(1)",
+    "JaVaScRiPt:alert(1)",
+    " \u0000javascript:alert(1)",
+    "java\tscript:alert(1)",
+    "java\nscript:alert(1)",
+    "java\rscript:alert(1)",
+    "vbscript:msgbox(1)",
+    "file:///tmp/results.csv",
+    "ftp://example.com/results.csv",
+    "mailto:example@example.com",
+    "data:text/html,<h1>hello</h1>",
+    "data:TEXT/HTML;charset=utf-8;base64,AAA=",
+    "data:image/svg+xml,<svg/>",
+    "data:application/xhtml+xml,<html/>",
+    "data:text/javascript,alert(1)",
+    "data:text/plain",
+    "https://[invalid",
+    "",
+    " \n\t",
+  ])("rejects %j before creating a download link", (url) => {
+    expect(() => downloadByURL(url)).toThrow("Unsupported download URL");
+    expect(document.createElement).not.toHaveBeenCalled();
+    expect(mockAnchor.click).not.toHaveBeenCalled();
+  });
+
   it("downloads an exported file with its returned metadata", async () => {
     let downloadedBlob: Blob | undefined;
-    vi.stubGlobal("URL", {
-      createObjectURL: vi.fn((blob: Blob) => {
-        downloadedBlob = blob;
-        return "blob:export";
-      }),
-      revokeObjectURL: vi.fn(),
-    });
+    vi.stubGlobal(
+      "URL",
+      class extends URL {
+        public static override createObjectURL = vi.fn((blob: Blob) => {
+          downloadedBlob = blob;
+          return "blob:export";
+        });
+        public static override revokeObjectURL = vi.fn();
+      },
+    );
 
     downloadExportedFile({
       contents: "notebook",
