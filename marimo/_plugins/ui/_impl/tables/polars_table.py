@@ -4,6 +4,7 @@ from __future__ import annotations
 import functools
 import io
 import json
+import math
 from functools import cached_property
 from typing import Any
 
@@ -30,6 +31,16 @@ from marimo._plugins.ui._impl.tables.table_manager import (
 LOGGER = _loggers.marimo_logger()
 
 
+def _sanitize_map_json(value: object) -> object:
+    if isinstance(value, float) and not math.isfinite(value):
+        return None
+    if isinstance(value, list):
+        return [_sanitize_map_json(item) for item in value]
+    if isinstance(value, dict):
+        return {key: _sanitize_map_json(item) for key, item in value.items()}
+    return value
+
+
 class PolarsTableManagerFactory(TableManagerFactory):
     @staticmethod
     def package_name() -> str:
@@ -41,6 +52,22 @@ class PolarsTableManagerFactory(TableManagerFactory):
         import polars as pl
 
         map_dtype = getattr(pl, "Map", None)
+
+        def supports_native_json(
+            dtype: pl.DataType | pl.datatypes.DataTypeClass,
+        ) -> bool:
+            # Native JSON encoding can panic on unsupported nested dtypes.
+            if isinstance(dtype, (pl.List, pl.Array)):
+                return supports_native_json(dtype.inner)
+            if isinstance(dtype, pl.Struct):
+                return all(
+                    supports_native_json(field.dtype) for field in dtype.fields
+                )
+            return (
+                dtype in (pl.String, pl.Boolean, pl.Null)
+                or dtype.is_integer()
+                or dtype.is_float()
+            )
 
         class PolarsTableManager(
             NarwhalsTableManager[pl.DataFrame, pl.LazyFrame]
@@ -107,23 +134,8 @@ class PolarsTableManagerFactory(TableManagerFactory):
                         elif map_dtype is not None and isinstance(
                             dtype, map_dtype
                         ):
-                            # Entry arrays preserve non-string and repeated keys.
                             result = result.with_columns(
-                                pl.Series(
-                                    column.name,
-                                    [
-                                        json.dumps(
-                                            entries,
-                                            default=enc_hook,
-                                            ensure_ascii=False,
-                                            separators=(",", ":"),
-                                        )
-                                        if entries is not None
-                                        else None
-                                        for entries in column.map.entries().to_list()
-                                    ],
-                                    dtype=pl.String,
-                                )
+                                self._map_to_json(column)
                             )
                         elif isinstance(dtype, pl.List):
                             result = result.with_columns(
@@ -144,6 +156,32 @@ class PolarsTableManagerFactory(TableManagerFactory):
                                 result, column
                             )
                     return result.write_csv(separator=resolved_separator)
+
+            def _map_to_json(self, column: pl.Series) -> pl.Series:
+                # Entry arrays preserve non-string and repeated keys.
+                entries = column.map.entries()
+                if supports_native_json(entries.dtype):
+                    encoded = entries.list.eval(
+                        pl.element().struct.json_encode()
+                    ).list.join(",")
+                    return ("[" + encoded + "]").alias(column.name)
+
+                return pl.Series(
+                    column.name,
+                    [
+                        json.dumps(
+                            _sanitize_map_json(value),
+                            default=enc_hook,
+                            ensure_ascii=False,
+                            allow_nan=False,
+                            separators=(",", ":"),
+                        )
+                        if value is not None
+                        else None
+                        for value in entries.to_list()
+                    ],
+                    dtype=pl.String,
+                )
 
             def to_json_str(
                 self,
