@@ -532,7 +532,8 @@ const ChatPanelBody = () => {
       isAbort,
       finishReason,
     }) => {
-      // useChat routes every chat's callbacks to the latest one.
+      // useChat routes every chat's callbacks to the latest one. Its
+      // setMessages isn't a React setter: the updater runs synchronously.
       const finished: { messages?: typeof finishedMessages } = {};
       setMessages((current) => {
         if (current.at(-1)?.id !== finishedMessages.at(-1)?.id) {
