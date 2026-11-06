@@ -261,7 +261,7 @@ else:
 Lifecycle: TypeAlias = Annotated[
     Literal["queued", "running", "completed"],
     Meta(
-        description="Where a run or execution is in its lifecycle. An execution is\n`queued` until it starts, `running` while code executes, and\n`completed` once it has ended. How it ended is its `outcome`.\n"
+        description="Where a run or execution is in its lifecycle. An execution is\n`queued` until it starts, `running` while code executes, and\n`completed` once it has ended. A run is `queued` until its first\nexecution starts, `running` until its cycle has settled or been cut\nshort, and `completed` once no more work can join it. How either\nended is its `outcome`.\n"
     ),
 ]
 
@@ -620,7 +620,7 @@ class SkippedOutcome(Struct, frozen=True, tag_field="kind", tag="skipped"):
     reason: Annotated[
         str,
         Meta(
-            description="Why the cell did not evaluate. The string is open. This protocol\ndefines `upstream-failed`, a cell it depends on did not produce\nits value because it raised or could not resolve a reference, and\n`upstream-stopped`, a cell it depends on stopped the cycle on\npurpose. Clients show unrecognized reasons as skipped, with the\nmessage.\n"
+            description="Why the cell did not evaluate. The string is open. This protocol\ndefines `upstream-failed`, a cell it depends on did not produce\nits value because it raised or could not resolve a reference,\n`upstream-stopped`, a cell it depends on stopped the cycle on\npurpose, and `superseded`, a later execution of the same cell\nreplaced this one before it started because the cell's source\nchanged while it waited. Clients show unrecognized reasons as\nskipped, with the message.\n"
         ),
     ]
     related: Annotated[
@@ -738,6 +738,18 @@ class VariableRemovedEvent(
 
 class Attachment(Struct, frozen=True):
     id: AttachmentId
+    identity: (
+        Annotated[
+            str,
+            Meta(
+                description="The opaque client identity supplied by `Marimo-Attachment-Identity`.\nNull when none was supplied. Consumers can group attachments\nwith the same identity within a host. It does not identify an\nindividual connection or change its lifetime.\n",
+                max_length=128,
+                min_length=1,
+                pattern="^[!-~]+$",
+            ),
+        ]
+        | None
+    )
     kind: Annotated[
         str,
         Meta(
@@ -757,18 +769,6 @@ class Attachment(Struct, frozen=True):
     )
     notebook_id: NotebookId
     since: Annotated[datetime, Meta(description="When it attached.")]
-    identity: (
-        Annotated[
-            str,
-            Meta(
-                description="The opaque client identity supplied by `Marimo-Attachment-Identity`.\nOmitted when none was supplied. Consumers can group attachments\nwith the same identity within a host. It does not identify an\nindividual connection or change its lifetime.\n",
-                max_length=128,
-                min_length=1,
-                pattern="^[!-~]+$",
-            ),
-        ]
-        | UnsetType
-    ) = UNSET
 
 
 class AttachmentMessage(Struct, frozen=True):
@@ -1539,15 +1539,12 @@ class ProjectRemovedEvent(
 
 
 class Run(Struct, frozen=True):
-    caused_by: (
-        Annotated[
-            ExecutionId,
-            Meta(
-                description="The execution that caused this runtime-scheduled run. This records provenance, not membership in that execution's run, and does not extend the earlier run's lifetime. Null for a client request or when the runtime does not know the source."
-            ),
-        ]
-        | None
-    )
+    cells: Annotated[
+        tuple[CellId, ...],
+        Meta(
+            description="The cells the run was requested for. Fixed when the run is accepted, so a client can tell which cells a queued run will reach before the runtime has planned their executions. Each one's execution in this run reports the fingerprint of the source accepted for it. Empty for scratch code and for a run the runtime scheduled itself."
+        ),
+    ]
     completed_at: (
         Annotated[
             datetime,
@@ -1766,7 +1763,7 @@ class Execution(Struct, frozen=True):
         Annotated[
             ExecutionId,
             Meta(
-                description="The execution in the same run that initiated this evaluation. Null for executions requested directly."
+                description="The execution in the same run whose code scheduled this one, such as scratch code that ran cells or set a UI element's value. Null for an execution a client requested directly, and for a cell the scheduler ran because of one."
             ),
         ]
         | None
@@ -1790,7 +1787,10 @@ class Execution(Struct, frozen=True):
         | None
     )
     code_fingerprint: Annotated[
-        CodeFingerprint, Meta(description="Fingerprint of the evaluated code.")
+        CodeFingerprint,
+        Meta(
+            description="Fingerprint of the code the execution evaluates. Fixed when the execution is published, while it is still queued."
+        ),
     ]
     completed_at: (
         Annotated[

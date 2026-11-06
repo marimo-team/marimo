@@ -148,16 +148,22 @@ Notebook
 Runs and executions move through `queued`, `running`, and `completed`.
 Hosts MUST complete a run only after its executions have ended and scheduling
 for that cycle has finished. An error in one execution may occur while others
-are still working. An execution that did not evaluate because of another
-cell, such as a dependent of a cell that raised or that stopped the cycle on
-purpose, completes with the outcome `skipped`, which names the reason and the
+are still working. An execution that did not evaluate because of other work in
+the notebook, such as a dependent of a cell that raised or that stopped the
+cycle on purpose, or a queued execution that a later one of the same cell
+replaced, completes with the outcome `skipped`, which names the reason and the
 cells involved. A skipped execution has no value, binds no variables, and does
 not fail its run.
 
+A host publishes an execution as `queued` when the runtime schedules the cell,
+including work the run discovers as it goes, such as cells a state update marks
+for another evaluation. The execution's cell and code fingerprint are fixed from
+then on. A queued execution that will not run completes without starting, as
+`skipped` or `interrupted`.
+
 An execution can also lead to a later run. For example, a cell may create a UI
 element that a user later interacts with, triggering reactive evaluation. That
-work belongs to a new run, which can identify the earlier execution as its cause
-without extending the original run's lifetime.
+work belongs to a new run and does not extend the original run's lifetime.
 
 ```text
 Notebook
@@ -165,7 +171,7 @@ Notebook
 ├── Run A · evaluate a cell
 │   └── Cell execution A1 · create a UI element
 │
-└── Run B · respond to a later UI interaction (Run.caused_by = A1)
+└── Run B · respond to a later UI interaction
     ├── Cell execution · a dependent cell
     └── Cell execution · another dependent cell
 ```
@@ -235,7 +241,8 @@ since. Clients compare revisions for equality.
 
 Hosts MUST publish a cell execution's variables before its `completed` status,
 and MUST remove a cell's previous execution and its items before publishing
-the next one. A cell has one latest execution on the stream.
+the next one, which they do only once the previous one has completed. A cell
+has one latest execution on the stream and at most one that is not completed.
 
 An execution's `depends_on` records the variable revisions its result is valid
 against. A name that no retained cell execution had bound is recorded as null.
@@ -435,8 +442,10 @@ the notebook stream for all attached clients. Clients that need to observe the
 full sequence open the stream before submitting work. Hosts that offer execution
 MUST execute one run at a time, accept further requests as `queued` runs, and
 start them in the order they were accepted. A run's requested cells and their
-source are fixed when it is accepted. Editing continues while runs are queued
-or running, and a result from source the document no longer has is outdated.
+source are fixed when it is accepted, and the run's `cells` names them, so a
+client can tell which cells a queued run will reach before the runtime has
+planned their executions. Editing continues while runs are queued or running,
+and a result from source the document no longer has is outdated.
 Hosts MUST support interruption, and interrupting a run that has not started
 cancels it. Completion means the work has finished, including any interruption
 that was requested.
