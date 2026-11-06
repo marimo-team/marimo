@@ -232,6 +232,14 @@ def hash_function_source(fn: Callable[..., Any]) -> bytes:
     return ast_fingerprint(nodes[0]).encode("utf-8") + settings
 
 
+def _scoped_name(fn: Callable[..., Any]) -> str:
+    """`__qualname__` after its last `<locals>`, with cell prefixes stripped."""
+    parts = fn.__qualname__.split(".")
+    if "<locals>" in parts:
+        parts = parts[len(parts) - parts[::-1].index("<locals>") :]
+    return ".".join(unmangle_local(part).name for part in parts)
+
+
 def _soft_dumps(
     payload: Any, label: str, hash_type: str, state: HashState
 ) -> bytes:
@@ -265,12 +273,11 @@ def hash_wrapped_functions(
         if not inspect.isbuiltin(fn):
             hash_alg.update(hash_function_source(fn))
             # The module: two modules can define the same source over
-            # different globals. The name and not the qualname: a restored
-            # FunctionStub loses its `<locals>` path.
+            # different globals. The qualname from the last `<locals>` on: a
+            # method's class mangles its `__attr` names, and a restored
+            # FunctionStub loses its enclosing functions.
             hash_alg.update(
-                primitive_to_bytes(
-                    (fn.__module__, unmangle_local(fn.__name__).name)
-                )
+                primitive_to_bytes((fn.__module__, _scoped_name(fn)))
             )
             hash_alg.update(
                 _soft_dumps(
