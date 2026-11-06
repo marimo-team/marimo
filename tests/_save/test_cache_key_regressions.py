@@ -894,3 +894,78 @@ def test_library_function_hash_walks_its_module_once(
     monkeypatch.setattr(hash_module.ast, "walk", counting)
     hash_wrapped_functions(json.dumps)
     assert walks == 0
+
+
+def test_source_less_slice_constant() -> None:
+    sliced = eval("lambda x: x[1:3]")  # noqa: S307
+    assert isinstance(hash_wrapped_functions(sliced), bytes)
+
+
+def test_restored_stub_keeps_future_annotations(tmp_path: Path) -> None:
+    import importlib
+    import sys
+
+    from marimo._save.stubs.function_stub import FunctionStub
+
+    (tmp_path / "future_stub.py").write_text(
+        "from __future__ import annotations\n\n\n"
+        "def f(x: Missing):\n    return x\n"
+    )
+    sys.path.insert(0, str(tmp_path))
+    try:
+        f = importlib.import_module("future_stub").f
+    finally:
+        sys.path.remove(str(tmp_path))
+    # The kernel passes its globals, which carry the module name.
+    restored = FunctionStub.from_dump(FunctionStub(f).dump()).load(
+        {"__name__": f.__module__}
+    )
+    assert restored(1) == 1
+    assert restored.__annotations__ == {"x": "Missing"}
+    assert hash_wrapped_functions(restored) == hash_wrapped_functions(f)
+
+
+@pytest.mark.parametrize("factory_first", [True, False])
+def test_restored_factory_and_helper_keep_their_hashes(
+    factory_first: bool,
+) -> None:
+    import linecache
+
+    from marimo._ast.compiler import compile_cell
+    from marimo._save.stubs.function_stub import FunctionStub
+
+    cell = compile_cell(
+        "def make():\n    def helper():\n        return 1\n    return helper\n"
+        "h = make()",
+        cell_id=CellId_t(f"stub-nested-{factory_first}"),
+    )
+    namespace: dict[str, Any] = {}
+    exec(cell.body, namespace)  # noqa: S102
+    functions = [namespace["make"], namespace["h"]]
+    if not factory_first:
+        functions.reverse()
+    before = [hash_wrapped_functions(fn) for fn in functions]
+    stubs = [FunctionStub(fn) for fn in functions]
+    linecache.cache.pop(functions[0].__code__.co_filename, None)
+    restored = [stub.load({}) for stub in stubs]
+    assert [hash_wrapped_functions(fn) for fn in restored] == before
+
+
+def test_restored_stub_survives_a_shifted_file(tmp_path: Path) -> None:
+    import importlib
+    import sys
+
+    from marimo._save.stubs.function_stub import FunctionStub
+
+    module = tmp_path / "shifted.py"
+    module.write_text("def f():\n    return 1\n")
+    sys.path.insert(0, str(tmp_path))
+    try:
+        f = importlib.import_module("shifted").f
+    finally:
+        sys.path.remove(str(tmp_path))
+    before = hash_wrapped_functions(f)
+    stub = FunctionStub(f)
+    module.write_text("# a comment\n" + module.read_text())
+    restored = stub.load({"__name__": f.__module__})
+    assert hash_wrapped_functions(restored) == before

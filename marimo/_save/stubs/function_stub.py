@@ -1,14 +1,33 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
+import __future__
 
 import ast
+import functools
 import inspect
 import linecache
-import os
+import operator
+import sys
 import textwrap
 from typing import Any
 
-__all__ = ["FunctionStub"]
+__all__ = ["FUTURE_FLAGS", "FunctionStub"]
+
+# Compiler flags of the __future__ features still optional in this
+# interpreter. A mandatory feature is always on, and its bit can mean
+# something else: nested_scopes shares CO_NESTED.
+FUTURE_FLAGS = functools.reduce(
+    operator.or_,
+    (
+        feature.compiler_flag
+        for feature in (
+            getattr(__future__, name) for name in __future__.all_feature_names
+        )
+        if feature.getMandatoryRelease() is None
+        or feature.getMandatoryRelease() > sys.version_info
+    ),
+    0,
+)
 
 
 class FunctionStub:
@@ -26,6 +45,9 @@ class FunctionStub:
         self.code = textwrap.dedent(inspect.getsource(function))
         self.filename = f"<{function.__name__}>"
         self.lineno = 1
+        # The snippet holds the definition alone, not the module's
+        # `from __future__` imports that governed it.
+        self.flags = function.__code__.co_flags & FUTURE_FLAGS
         if is_cached:
             # NB. keep the synthetic filename: the wrapper re-hashes its own
             # source per call, and the real path is absent on restore.
@@ -39,48 +61,52 @@ class FunctionStub:
 
     def load(self, glbls: dict[str, Any]) -> Any:
         """Reconstruct the function by executing its source code."""
-        if self.filename.startswith("<") or not os.path.exists(self.filename):
-            # A synthetic name, or a cell file from another process. Serve
-            # the stored source at its original line so the restored
-            # function hashes like the definition it stands in for. Several
-            # stubs can come from one cell, so overlay onto lines already
-            # served for it.
-            entry = linecache.cache.get(self.filename)
-            lines: list[str] = []
-            if entry is not None and len(entry) == 4 and entry[1] is None:
-                lines = list(entry[2])
-            fragment = [line + "\n" for line in self.code.splitlines()]
-            end = self.lineno - 1 + len(fragment)
-            lines.extend(["\n"] * (end - len(lines)))
-            lines[self.lineno - 1 : end] = fragment
-            linecache.cache[self.filename] = (
-                sum(map(len, lines)),
-                None,
-                lines,
-                self.filename,
-            )
+        fragment = [line + "\n" for line in self.code.splitlines()]
+        filename = self.filename
+        on_disk: list[str] = []
+        if not filename.startswith("<"):
+            linecache.checkcache(filename)
+            on_disk = linecache.getlines(filename)
+        window = on_disk[self.lineno - 1 : self.lineno - 1 + len(fragment)]
+        if not window or textwrap.dedent("".join(window)) != self.code:
+            # The file belongs to another process, or has shifted since.
+            # Serve the stored source under a name of its own, at its
+            # original line, so the restored function hashes like the
+            # definition it stands in for.
+            if not filename.startswith("<"):
+                filename = f"<{filename}:{self.lineno}>"
+            lines = ["\n"] * (self.lineno - 1) + fragment
+            linecache.cache[filename] = (len(self.code), None, lines, filename)
 
-        # At its original line, so the restored function is found at the
-        # same place in its file as the definition it stands in for.
         tree = ast.increment_lineno(ast.parse(self.code), self.lineno - 1)
-        # dont_inherit: only the snippet's own __future__ imports apply, not
-        # this module's.
-        code_obj = compile(tree, self.filename, "exec", dont_inherit=True)
+        # The snippet's own future flags and no others: not this module's,
+        # which `compile` would inherit.
+        code_obj = compile(
+            tree, filename, "exec", flags=self.flags, dont_inherit=True
+        )
         lcls: dict[str, Any] = {}
         exec(code_obj, glbls, lcls)
         for value in lcls.values():
             return value
 
-    def dump(self) -> tuple[str, str, int, bool]:
+    def dump(self) -> tuple[str, str, int, bool, int]:
         """Dump stored source code and metadata for lazy serialization."""
-        return self.code, self.filename, self.lineno, self.is_cached
+        return (
+            self.code,
+            self.filename,
+            self.lineno,
+            self.is_cached,
+            self.flags,
+        )
 
     @classmethod
-    def from_dump(cls, data: tuple[str, str, int, bool]) -> FunctionStub:
+    def from_dump(cls, data: tuple[str, str, int, bool, int]) -> FunctionStub:
         """Reconstruct a `FunctionStub` from a `dump()` tuple.
 
         Skips `__init__` (which requires a live function to introspect).
         """
         stub = cls.__new__(cls)
-        stub.code, stub.filename, stub.lineno, stub.is_cached = data
+        stub.code, stub.filename, stub.lineno, stub.is_cached, stub.flags = (
+            data
+        )
         return stub
