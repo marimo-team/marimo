@@ -83,8 +83,32 @@ def test_defaults_are_independent() -> None:
     first.ai.models.displayed_models.append("custom-model")
     first.keymap.overrides["run"] = "Ctrl-Enter"
     first.mcp.presets.append("marimo")
+    first.runtime.pythonpath.append("/custom")
+    first.runtime.default_auto_download.append("html")
 
     assert second.to_dict() == before
+
+
+def test_optional_sections_default_to_none() -> None:
+    config = MarimoConfig()
+    assert {
+        "sharing": config.sharing,
+        "file_browser": config.file_browser,
+    } == {
+        "sharing": None,
+        "file_browser": None,
+    }
+    assert (
+        MarimoConfig.from_dict(config.to_dict()).to_dict() == config.to_dict()
+    )
+
+
+@pytest.mark.parametrize("field", ["dotenv", "sql_default_limit"])
+def test_contextual_defaults_keep_omission_distinct(field: str) -> None:
+    assert field not in MarimoConfig().runtime.to_dict()
+    value = [] if field == "dotenv" else None
+    config = MarimoConfig.from_dict({"runtime": {field: value}})
+    assert config.runtime.to_dict()[field] == value
 
 
 @pytest.mark.parametrize(
@@ -113,8 +137,16 @@ def test_nested_conversion_preserves_presence() -> None:
     )
     assert config.to_dict() == {
         "enabled": True,
+        "rules": "",
+        "mode": "ask",
         "allow_provider_config": True,
-        "models": {"displayed_models": [], "custom_models": []},
+        "models": {
+            "chat_model": None,
+            "edit_model": None,
+            "autocomplete_model": None,
+            "displayed_models": [],
+            "custom_models": [],
+        },
         "max_tokens": None,
         "open_ai": {"api_key": "secret"},
         "custom_providers": {"gateway": {"base_url": "https://example.com"}},
@@ -127,7 +159,7 @@ def test_list_and_union_conversion() -> None:
         {"folders": [{"path": "/data"}]}
     )
     assert folders.folders == [config_schema.FolderConfig(path="/data")]
-    assert folders.to_dict() == {"folders": [{"path": "/data"}]}
+    assert folders.to_dict() == {"folders": [{"path": "/data", "name": None}]}
 
     mcp = config_schema.MCPConfig.from_dict(
         {
@@ -164,6 +196,9 @@ def test_unknown_fields_survive_resolution_and_merging() -> None:
     assert serialized["future_section"] == {"value": [1, 2]}
     assert serialized["runtime"]["future_setting"] is None
     assert serialized["experimental"] == {
+        "isolate_apps": False,
+        "line_timing": False,
+        "execution_type": "relaxed",
         "multi_column": True,
         "debugger": False,
     }
@@ -171,7 +206,13 @@ def test_unknown_fields_survive_resolution_and_merging() -> None:
         "gateway": {"future_option": "value"}
     }
     assert MarimoConfig.from_dict(serialized).to_dict() == serialized
-    assert config.to_dict()["experimental"] == {"multi_column": True}
+    assert config.to_dict()["experimental"] == {
+        "isolate_apps": False,
+        "debugger": False,
+        "line_timing": False,
+        "execution_type": "relaxed",
+        "multi_column": True,
+    }
 
 
 def test_unknown_fields_are_copied() -> None:
@@ -197,6 +238,9 @@ def test_saving_config_preserves_unknown_fields(
     saved = store.save_config({"experimental": {"debugger": False}})
 
     assert saved.to_dict()["experimental"] == {
+        "isolate_apps": False,
+        "line_timing": False,
+        "execution_type": "relaxed",
         "multi_column": True,
         "debugger": False,
     }
@@ -268,8 +312,8 @@ def test_unknown_fields_in_lists_follow_their_objects() -> None:
     config.folders.reverse()
     assert config.to_dict() == {
         "folders": [
-            {"path": "/second", "label": "retained"},
-            {"path": "/first", "future": {"value": [1]}},
+            {"path": "/second", "name": None, "label": "retained"},
+            {"path": "/first", "name": None, "future": {"value": [1]}},
         ]
     }
     serialized = config.to_dict()
@@ -301,16 +345,24 @@ def test_metadata_describes_and_hides_secrets() -> None:
 def test_cache_loader_accepts_builtin_and_custom_names(loader: str) -> None:
     config = config_schema.CacheConfig.from_dict({"loader": loader})
     assert config.loader == loader
-    assert config.to_dict() == {"loader": loader}
+    assert config.to_dict() == {
+        "verification": "off",
+        "store": None,
+        "loader": loader,
+    }
 
 
 def test_cache_store_union_uses_struct_conversion() -> None:
     for store in (
         {"type": "file", "args": {"path": "/cache"}},
-        [{"type": "file"}, {"type": "redis"}],
+        [{"type": "file", "args": {}}, {"type": "redis", "args": {}}],
     ):
         config = config_schema.CacheConfig.from_dict({"store": store})
-        assert config.to_dict() == {"store": store}
+        assert config.to_dict() == {
+            "verification": "off",
+            "store": store,
+            "loader": "lazy",
+        }
         if isinstance(config.store, list):
             assert all(
                 isinstance(item, config_schema.StoreConfig)
@@ -445,4 +497,4 @@ def test_configuration_wire_round_trip_preserves_external_format() -> None:
 )
 def test_cache_store_accepts_builtin_and_custom_names(store: str) -> None:
     config = config_schema.StoreConfig.from_dict({"type": store})
-    assert config.to_dict() == {"type": store}
+    assert config.to_dict() == {"type": store, "args": {}}

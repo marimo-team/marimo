@@ -122,16 +122,30 @@ def test_default_configuration_snapshot(config_tree: Path) -> None:
                 "default_csv_encoding": "utf-8",
                 "reactive_tests": True,
                 "auto_instantiate": False,
+                "serve_cached_sessions_in_apps": False,
                 "on_cell_change": "autorun",
+                "pythonpath": [],
                 "default_sql_output": "auto",
                 "output_max_bytes": 8000000,
+                "default_auto_download": [],
                 "std_stream_max_bytes": 1000000,
                 "show_tracebacks": False,
+                "cache_cells": False,
+                "pin_modules": True,
             },
             "ai": {
                 "enabled": True,
+                "rules": "",
+                "max_tokens": None,
+                "mode": "ask",
                 "allow_provider_config": True,
-                "models": {"displayed_models": [], "custom_models": []},
+                "models": {
+                    "chat_model": None,
+                    "edit_model": None,
+                    "autocomplete_model": None,
+                    "displayed_models": [],
+                    "custom_models": [],
+                },
                 "custom_providers": {},
             },
             "language_servers": {
@@ -164,9 +178,13 @@ def test_default_configuration_snapshot(config_tree: Path) -> None:
             "server": {
                 "skip_update_check": False,
                 "session_cookie_secure": False,
+                "session_secret": None,
                 "browser": "default",
                 "follow_symlink": False,
+                "disable_file_downloads": False,
             },
+            "file_browser": None,
+            "sharing": None,
             "diagnostics": {"sql_linter": True},
         }
     )
@@ -250,8 +268,16 @@ def test_layered_configuration_snapshot(
                     "copilot": False,
                     "auto_close_pairs": True,
                 },
-                "experimental": {},
-                "signing": {"private_key_path": "********"},
+                "experimental": {
+                    "isolate_apps": False,
+                    "debugger": False,
+                    "line_timing": False,
+                    "execution_type": "relaxed",
+                },
+                "signing": {
+                    "trusted_signers": {},
+                    "private_key_path": "********",
+                },
                 "mcp": {"mcpServers": {}, "presets": []},
                 "runtime": {
                     "watcher_on_save": "lazy",
@@ -260,17 +286,23 @@ def test_layered_configuration_snapshot(
                     "reactive_tests": True,
                     "auto_instantiate": True,
                     "on_cell_change": "autorun",
+                    "serve_cached_sessions_in_apps": False,
                     "pythonpath": ["<root>/home/project/src"],
                     "default_sql_output": "auto",
                     "output_max_bytes": 8000000,
+                    "default_auto_download": [],
                     "std_stream_max_bytes": 1000000,
                     "show_tracebacks": False,
+                    "cache_cells": False,
+                    "pin_modules": True,
                 },
                 "server": {
                     "skip_update_check": False,
                     "follow_symlink": False,
+                    "session_secret": None,
                     "browser": "default",
                     "session_cookie_secure": False,
+                    "disable_file_downloads": False,
                     "transport": "sse",
                 },
                 "snippets": {
@@ -297,12 +329,22 @@ def test_layered_configuration_snapshot(
                     "cell_output": "below",
                 },
                 "ai": {
-                    "models": {"displayed_models": [], "custom_models": []},
+                    "models": {
+                        "chat_model": None,
+                        "edit_model": None,
+                        "autocomplete_model": None,
+                        "displayed_models": [],
+                        "custom_models": [],
+                    },
+                    "rules": "",
+                    "max_tokens": None,
+                    "mode": "ask",
                     "enabled": True,
                     "custom_providers": {},
                     "open_ai": {"api_key": "********"},
                     "allow_provider_config": True,
                 },
+                "file_browser": None,
                 "sharing": {"molab": False, "html": False, "wasm": False},
                 "keymap": {
                     "overrides": {},
@@ -329,8 +371,16 @@ def test_layered_configuration_snapshot(
                     "copilot": False,
                     "auto_close_pairs": True,
                 },
-                "experimental": {},
-                "signing": {"private_key_path": "user.key"},
+                "experimental": {
+                    "isolate_apps": False,
+                    "debugger": False,
+                    "line_timing": False,
+                    "execution_type": "relaxed",
+                },
+                "signing": {
+                    "trusted_signers": {},
+                    "private_key_path": "user.key",
+                },
                 "mcp": {"mcpServers": {}, "presets": []},
                 "runtime": {
                     "dotenv": ["<root>/home/project/script.env"],
@@ -339,18 +389,24 @@ def test_layered_configuration_snapshot(
                     "default_csv_encoding": "utf-8",
                     "reactive_tests": True,
                     "auto_instantiate": True,
+                    "serve_cached_sessions_in_apps": False,
                     "on_cell_change": "autorun",
                     "pythonpath": ["<root>/home/project/src"],
                     "default_sql_output": "auto",
                     "output_max_bytes": 8000000,
+                    "default_auto_download": [],
                     "std_stream_max_bytes": 1000000,
                     "show_tracebacks": False,
+                    "cache_cells": False,
+                    "pin_modules": True,
                 },
                 "server": {
                     "skip_update_check": False,
                     "follow_symlink": False,
+                    "session_secret": None,
                     "browser": "default",
                     "session_cookie_secure": False,
+                    "disable_file_downloads": False,
                     "transport": "sse",
                 },
                 "snippets": {
@@ -377,12 +433,22 @@ def test_layered_configuration_snapshot(
                     "cell_output": "below",
                 },
                 "ai": {
-                    "models": {"displayed_models": [], "custom_models": []},
+                    "models": {
+                        "chat_model": None,
+                        "edit_model": None,
+                        "autocomplete_model": None,
+                        "displayed_models": [],
+                        "custom_models": [],
+                    },
+                    "rules": "",
+                    "max_tokens": None,
+                    "mode": "ask",
                     "enabled": True,
                     "custom_providers": {},
                     "open_ai": {"api_key": "project-secret"},
                     "allow_provider_config": True,
                 },
+                "file_browser": None,
                 "sharing": {"molab": False, "html": False, "wasm": False},
                 "keymap": {
                     "overrides": {},
@@ -405,7 +471,16 @@ def test_layered_configuration_snapshot(
                     "cell_output": "below",
                 },
                 "ai": {
-                    "models": {"displayed_models": [], "custom_models": []},
+                    "models": {
+                        "chat_model": None,
+                        "edit_model": None,
+                        "autocomplete_model": None,
+                        "displayed_models": [],
+                        "custom_models": [],
+                    },
+                    "rules": "",
+                    "max_tokens": None,
+                    "mode": "ask",
                     "open_ai": {"api_key": "********"},
                     "enabled": True,
                     "custom_providers": {},
@@ -422,7 +497,10 @@ def test_layered_configuration_snapshot(
                         "enable_pyflakes": False,
                     }
                 },
-                "signing": {"private_key_path": "********"},
+                "signing": {
+                    "trusted_signers": {},
+                    "private_key_path": "********",
+                },
                 "formatting": {"infer_types": "off", "line_length": 70},
                 "completion": {
                     "activate_on_typing": True,
@@ -443,21 +521,30 @@ def test_layered_configuration_snapshot(
                     "default_csv_encoding": "utf-8",
                     "reactive_tests": True,
                     "auto_instantiate": False,
+                    "serve_cached_sessions_in_apps": False,
                     "default_sql_output": "auto",
+                    "pythonpath": [],
                     "on_cell_change": "autorun",
+                    "default_auto_download": [],
                     "std_stream_max_bytes": 1000000,
                     "show_tracebacks": False,
+                    "cache_cells": False,
+                    "pin_modules": True,
                 },
                 "save": {
                     "autosave": "after_delay",
                     "autosave_delay": 1000,
                     "format_on_save": False,
                 },
+                "file_browser": None,
+                "sharing": None,
                 "server": {
                     "skip_update_check": False,
                     "session_cookie_secure": False,
+                    "session_secret": None,
                     "browser": "default",
                     "follow_symlink": False,
+                    "disable_file_downloads": False,
                 },
                 "diagnostics": {"sql_linter": True},
             },
@@ -636,6 +723,8 @@ def test_persistence_snapshot(config_tree: Path) -> None:
 [ai]
 allow_provider_config = true
 enabled = true
+mode = "ask"
+rules = ""
 
 [ai.custom_providers]
 
@@ -695,11 +784,16 @@ manager = "pip"
 [runtime]
 auto_instantiate = false
 auto_reload = "off"
+cache_cells = false
+default_auto_download = []
 default_csv_encoding = "utf-8"
 default_sql_output = "auto"
 on_cell_change = "autorun"
 output_max_bytes = 8000000
+pin_modules = true
+pythonpath = []
 reactive_tests = true
+serve_cached_sessions_in_apps = false
 show_tracebacks = false
 std_stream_max_bytes = 1000000
 watcher_on_save = "lazy"
@@ -711,6 +805,7 @@ format_on_save = false
 
 [server]
 browser = "default"
+disable_file_downloads = false
 follow_symlink = false
 session_cookie_secure = false
 skip_update_check = false
@@ -722,10 +817,8 @@ include_default_snippets = true
     assert (manager.get_config(hide_secrets=False)).to_dict()["ai"]["open_ai"][
         "api_key"
     ] == "keep-me"
-    assert (
-        "max_tokens"
-        not in (manager.get_config(hide_secrets=False)).to_dict()["ai"]
-    )
+    assert manager.get_config(hide_secrets=False).ai.max_tokens is None
+    assert "max_tokens" not in manager.user_config_mgr.read()["ai"]
 
 
 def test_invalid_and_missing_inputs_snapshot(config_tree: Path) -> None:
@@ -867,6 +960,9 @@ def test_secret_roundtrip_snapshot(config_tree: Path) -> None:
             "masked": {
                 "ai": {
                     "enabled": True,
+                    "rules": "",
+                    "max_tokens": None,
+                    "mode": "ask",
                     "allow_provider_config": True,
                     "custom_providers": {"local": {"api_key": "********"}},
                     "open_ai": {"api_key": "********"},
@@ -874,7 +970,13 @@ def test_secret_roundtrip_snapshot(config_tree: Path) -> None:
                         "aws_access_key_id": "********",
                         "aws_secret_access_key": "********",
                     },
-                    "models": {"displayed_models": [], "custom_models": []},
+                    "models": {
+                        "chat_model": None,
+                        "edit_model": None,
+                        "autocomplete_model": None,
+                        "displayed_models": [],
+                        "custom_models": [],
+                    },
                 },
                 "runtime": {
                     "reactive_tests": True,
@@ -883,19 +985,36 @@ def test_secret_roundtrip_snapshot(config_tree: Path) -> None:
                     "output_max_bytes": 8000000,
                     "show_tracebacks": False,
                     "default_csv_encoding": "utf-8",
+                    "serve_cached_sessions_in_apps": False,
                     "auto_reload": "off",
+                    "pythonpath": [],
                     "std_stream_max_bytes": 1000000,
+                    "default_auto_download": [],
                     "on_cell_change": "autorun",
                     "watcher_on_save": "lazy",
+                    "cache_cells": False,
+                    "pin_modules": True,
                 },
-                "signing": {"private_key_path": "********"},
+                "signing": {
+                    "trusted_signers": {},
+                    "private_key_path": "********",
+                },
             },
             "roundtrip": {
                 "ai": {
                     "custom_providers": {
                         "local": {"api_key": "custom-secret"}
                     },
-                    "models": {"custom_models": [], "displayed_models": []},
+                    "rules": "",
+                    "max_tokens": None,
+                    "mode": "ask",
+                    "models": {
+                        "chat_model": None,
+                        "edit_model": None,
+                        "autocomplete_model": None,
+                        "custom_models": [],
+                        "displayed_models": [],
+                    },
                     "enabled": True,
                     "allow_provider_config": True,
                     "open_ai": {"api_key": "openai-secret"},
@@ -911,13 +1030,21 @@ def test_secret_roundtrip_snapshot(config_tree: Path) -> None:
                     "std_stream_max_bytes": 1000000,
                     "watcher_on_save": "lazy",
                     "reactive_tests": True,
+                    "serve_cached_sessions_in_apps": False,
                     "show_tracebacks": False,
+                    "pythonpath": [],
                     "output_max_bytes": 8000000,
                     "dotenv": ["secrets.env"],
+                    "default_auto_download": [],
                     "auto_reload": "off",
                     "on_cell_change": "autorun",
+                    "cache_cells": False,
+                    "pin_modules": True,
                 },
-                "signing": {"private_key_path": "identity.key"},
+                "signing": {
+                    "trusted_signers": {},
+                    "private_key_path": "identity.key",
+                },
             },
         }
     )
@@ -1270,7 +1397,10 @@ def test_merge_semantics_snapshot() -> None:
                     "preset": "default",
                 },
                 "custom_providers": {"new": {"api_key": "new"}},
-                "signing": {"trusted_signers": {"new": "new-key"}},
+                "signing": {
+                    "trusted_signers": {"new": "new-key"},
+                    "private_key_path": None,
+                },
                 "dotenv": ["new.env"],
                 "auto_instantiate": True,
                 "display": {
@@ -1288,7 +1418,7 @@ def test_merge_semantics_snapshot() -> None:
             "empty_records": {
                 "keymap": {"overrides": {}, "preset": "default"},
                 "custom_providers": {},
-                "signing": {"trusted_signers": {}},
+                "signing": {"trusted_signers": {}, "private_key_path": None},
                 "dotenv": [],
                 "auto_instantiate": True,
                 "display": {

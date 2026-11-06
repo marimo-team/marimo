@@ -10,7 +10,6 @@ from starlette.exceptions import HTTPException
 from starlette.responses import FileResponse
 
 from marimo import _loggers
-from marimo._config.schema_utils import default_if_unset
 from marimo._convert.common.filename import make_download_headers
 from marimo._server.api.deps import AppState
 from marimo._server.api.utils import parse_multipart_request, parse_request
@@ -96,9 +95,7 @@ def file_roots(*, request: Request) -> FileRootsResponse:
     primary_root = (
         app_state.session_manager.workspace.directory or file_system.get_root()
     )
-    config = default_if_unset(
-        app_state.config_manager.get_config().file_browser, None
-    )
+    config = app_state.config_manager.get_config().file_browser
     return FileRootsResponse(
         roots=resolve_file_roots(primary_root, config),
     )
@@ -201,7 +198,7 @@ def download_file(
     # HTTPException, whose status code reaches the client unchanged. A Starlette
     # 403 is globally converted to a 401 to prompt re-authentication; a
     # downloads-disabled policy cannot be satisfied by re-auth, so it stays 403.
-    if default_if_unset(server_config.disable_file_downloads, False):
+    if server_config.disable_file_downloads:
         raise MarimoHTTPException(
             status_code=403, detail="File downloads are disabled"
         )

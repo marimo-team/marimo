@@ -259,7 +259,7 @@ class AnyProviderConfig:
             "ca_bundle_path": ca_bundle_path,
             "client_pem": ai_config.get("client_pem", None),
             "extra_headers": ai_config.get("extra_headers", None),
-            "tools": _get_tools(default_if_unset(config.mode, "ask")),
+            "tools": _get_tools(config.mode),
         }
 
         return AnyProviderConfig(**kwargs)
@@ -285,7 +285,7 @@ class AnyProviderConfig:
         return cls(
             base_url=_get_base_url(ai_config),
             api_key=key,
-            tools=_get_tools(default_if_unset(config.mode, "ask")),
+            tools=_get_tools(config.mode),
         )
 
     @classmethod
@@ -310,7 +310,7 @@ class AnyProviderConfig:
             base_url=_get_base_url(ai_config),
             api_key=key,
             ssl_verify=True,
-            tools=_get_tools(default_if_unset(config.mode, "ask")),
+            tools=_get_tools(config.mode),
         )
 
     @classmethod
@@ -320,7 +320,7 @@ class AnyProviderConfig:
         return cls(
             base_url=_get_base_url(ai_config, "Bedrock"),
             api_key=key,
-            tools=_get_tools(default_if_unset(config.mode, "ask")),
+            tools=_get_tools(config.mode),
         )
 
     @classmethod
@@ -403,7 +403,7 @@ def _get_ai_config(config: AiConfig, key: str) -> dict[str, Any]:
 
 def get_chat_model(config: AiConfig) -> str:
     """Get the chat model from the config."""
-    model = default_if_unset(config.models.chat_model, None)
+    model = config.models.chat_model
     legacy_model = default_if_unset(
         default_if_unset(config.open_ai, OpenAiConfig()).model, None
     )
@@ -418,19 +418,19 @@ def get_chat_model(config: AiConfig) -> str:
 
 def get_edit_model(config: AiConfig) -> str:
     """Get the edit model from the config."""
-    model = default_if_unset(config.models.edit_model, None)
+    model = config.models.edit_model
     return model or get_chat_model(config)
 
 
 def get_autocomplete_model(config: MarimoConfig) -> str:
     """Get the autocomplete model from the config."""
-    model = default_if_unset(config.ai.models.autocomplete_model, None)
+    model = config.ai.models.autocomplete_model
     legacy_model = default_if_unset(config.completion.model, None)
     return model or legacy_model or DEFAULT_MODEL
 
 
 def get_max_tokens(config: MarimoConfig) -> int | None:
-    return default_if_unset(config.ai.max_tokens, None)
+    return config.ai.max_tokens
 
 
 def _get_key(

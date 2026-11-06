@@ -165,7 +165,7 @@ class MarimoConfigManager:
 
     @property
     def default_auto_download(self) -> list[ExportType]:
-        return default_if_unset(self._config.runtime.default_auto_download, [])
+        return self._config.runtime.default_auto_download
 
     @property
     def default_sql_output(self) -> SqlOutputType:

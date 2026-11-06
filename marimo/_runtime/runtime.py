@@ -598,7 +598,7 @@ class Kernel:
             cb.register(self.router)
 
         # Apply pythonpath from config at initialization
-        pythonpath = default_if_unset(user_config.runtime.pythonpath, None)
+        pythonpath = user_config.runtime.pythonpath
         if pythonpath:
             for path in pythonpath:
                 if path not in sys.path:
@@ -668,11 +668,8 @@ class Kernel:
             user_config.runtime.on_cell_change
         )
         self.execution_type: ExecutionType = default_if_unset(
-            default_if_unset(
-                user_config.experimental, ExperimentalConfig()
-            ).execution_type,
-            "relaxed",
-        )
+            user_config.experimental, ExperimentalConfig()
+        ).execution_type
         self._update_runtime_from_user_config(user_config)
 
         # initializers to override construction of ui elements

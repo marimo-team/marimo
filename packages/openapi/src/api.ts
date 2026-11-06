@@ -3788,13 +3788,17 @@ export interface components {
       google?: components["schemas"]["GoogleAiConfig"];
       /** @description if `True`, enable inline AI tooltip suggestions */
       inline_tooltip?: boolean;
-      /** @description the maximum number of tokens to use in AI completions */
-      max_tokens?: number | null;
+      /**
+       * @description the maximum number of tokens to use in AI completions
+       * @default null
+       */
+      max_tokens: number | null;
       /**
        * @description notebook access for the built-in assistant: `"ask"` (read only), `"agent"` (suggest edits), or `"code_mode"` (full access). Defaults to `"ask"`.
+       * @default ask
        * @enum {unknown}
        */
-      mode?: "agent" | "ask" | "code_mode" | "manual";
+      mode: "agent" | "ask" | "code_mode" | "manual";
       /** @description the models to use for AI completions */
       models: components["schemas"]["AiModelConfig"];
       /** @description the Ollama config */
@@ -3810,8 +3814,11 @@ export interface components {
       opencode_go?: components["schemas"]["OpenAiConfig"];
       /** @description the OpenRouter config */
       openrouter?: components["schemas"]["OpenAiConfig"];
-      /** @description custom rules to include in all AI completion prompts */
-      rules?: string;
+      /**
+       * @description custom rules to include in all AI completion prompts
+       * @default
+       */
+      rules: string;
       /** @description the Weights & Biases config */
       wandb?: components["schemas"]["OpenAiConfig"];
     };
@@ -3830,10 +3837,16 @@ export interface components {
      * @description Configuration options for an AI model.
      */
     AiModelConfig: {
-      /** @description the model to use for code completion/autocomplete */
-      autocomplete_model?: string | null;
-      /** @description the model to use for chat completions */
-      chat_model?: string | null;
+      /**
+       * @description the model to use for code completion/autocomplete
+       * @default null
+       */
+      autocomplete_model: string | null;
+      /**
+       * @description the model to use for chat completions
+       * @default null
+       */
+      chat_model: string | null;
       /**
        * @description a list of custom models to use that are not from the default list
        * @default []
@@ -3844,8 +3857,11 @@ export interface components {
        * @default []
        */
       displayed_models: string[];
-      /** @description the model to use for edit completions */
-      edit_model?: string | null;
+      /**
+       * @description the model to use for edit completions
+       * @default null
+       */
+      edit_model: string | null;
     };
     /**
      * AlertNotification
@@ -3948,17 +3964,25 @@ export interface components {
      * @description Configuration for caching.
      */
     CacheConfig: {
-      /** @description Default loader for mo.persistent_cache. */
-      loader?: ("json" | "lazy" | "pickle") | string;
-      /** @description Backing cache store, or a list of stores composed into a tiered store. */
-      store?:
+      /**
+       * @description Default loader for mo.persistent_cache.
+       * @default lazy
+       */
+      loader: ("json" | "lazy" | "pickle") | string;
+      /**
+       * @description Backing cache store, or a list of stores composed into a tiered store.
+       * @default null
+       */
+      store:
         | components["schemas"]["StoreConfig"][]
-        | components["schemas"]["StoreConfig"];
+        | components["schemas"]["StoreConfig"]
+        | null;
       /**
        * @description Cache signature verification posture: off, on, or strict.
+       * @default off
        * @enum {unknown}
        */
-      verification?: "off" | "on" | "strict";
+      verification: "off" | "on" | "strict";
     };
     /**
      * CacheInfoNotification
@@ -5026,22 +5050,32 @@ export interface components {
      *     Features exposed on the frontend must match the frontend config.
      */
     ExperimentalConfig: {
-      /** @description Enable live debugging with gutter breakpoints and pdb. */
-      debugger?: boolean;
+      /**
+       * @description Enable live debugging with gutter breakpoints and pdb.
+       * @default false
+       */
+      debugger: boolean;
       /**
        * @description Experimental cell declaration handling: relaxed or strict.
+       * @default relaxed
        * @enum {unknown}
        */
-      execution_type?: "relaxed" | "strict";
+      execution_type: "relaxed" | "strict";
       /**
        * @deprecated
        * @description Deprecated; prefer marimo pair. Enable external agents such as Claude Code and Codex.
        */
       external_agents?: boolean;
-      /** @description Run applications in separate processes. */
-      isolate_apps?: boolean;
-      /** @description Highlight the active line and show per-line execution timing. */
-      line_timing?: boolean;
+      /**
+       * @description Run applications in separate processes.
+       * @default false
+       */
+      isolate_apps: boolean;
+      /**
+       * @description Highlight the active line and show per-line execution timing.
+       * @default false
+       */
+      line_timing: boolean;
       /** @description Enable experimental Markdown notebook features. */
       markdown?: boolean;
       /** @description Enable experimental layouts in WebAssembly notebooks. */
@@ -5124,8 +5158,11 @@ export interface components {
      * @description Configuration for the file browser panel.
      */
     FileBrowserConfig: {
-      /** @description additional absolute folders to show in the file browser */
-      folders?: components["schemas"]["FolderConfig"][];
+      /**
+       * @description additional absolute folders to show in the file browser
+       * @default []
+       */
+      folders: components["schemas"]["FolderConfig"][];
     };
     /** FileCopyRequest */
     FileCopyRequest: {
@@ -5316,8 +5353,11 @@ export interface components {
      * @description Configuration for an additional file browser root.
      */
     FolderConfig: {
-      /** @description an optional display name for the folder */
-      name?: string;
+      /**
+       * @description an optional display name for the folder
+       * @default null
+       */
+      name: string | null;
       /** @description the absolute path to the folder */
       path: string;
     };
@@ -5706,10 +5746,16 @@ export interface components {
      *     during `marimo check`.
      */
     LintConfig: {
-      /** @description list of rule code prefixes to remove from the enabled set. */
-      ignore?: string[];
-      /** @description list of rule code prefixes that replaces the default enabled set. Use `"ALL"` to select all rules. Example: `["MB", "MR001"]` */
-      select?: string[];
+      /**
+       * @description list of rule code prefixes to remove from the enabled set.
+       * @default []
+       */
+      ignore: string[];
+      /**
+       * @description list of rule code prefixes that replaces the default enabled set. Use `"ALL"` to select all rules. Example: `["MB", "MR001"]`
+       * @default []
+       */
+      select: string[];
     };
     /**
      * ListDataSourceConnectionCommand
@@ -5986,8 +6032,11 @@ export interface components {
       display: components["schemas"]["DisplayConfig"];
       /** @description Configuration for experimental features. */
       experimental?: components["schemas"]["ExperimentalConfig"];
-      /** @description Configuration for the file browser panel. */
-      file_browser?: components["schemas"]["FileBrowserConfig"];
+      /**
+       * @description Configuration for the file browser panel.
+       * @default null
+       */
+      file_browser: components["schemas"]["FileBrowserConfig"] | null;
       /** @description Configuration for code formatting. */
       formatting: components["schemas"]["FormattingConfig"];
       /** @description Configuration for keymaps. */
@@ -6006,8 +6055,11 @@ export interface components {
       save: components["schemas"]["SaveConfig"];
       /** @description Configuration for the server. */
       server: components["schemas"]["ServerConfig"];
-      /** @description Configuration for sharing features. */
-      sharing?: components["schemas"]["SharingConfig"];
+      /**
+       * @description Configuration for sharing features.
+       * @default null
+       */
+      sharing: components["schemas"]["SharingConfig"] | null;
       /** @description Cache-signing trust and identity. */
       signing?: components["schemas"]["SigningConfig"];
       /** @description Configuration for snippets. */
@@ -6744,10 +6796,16 @@ export interface components {
        * @enum {unknown}
        */
       auto_reload: "autorun" | "lazy" | "off";
-      /** @description Enable experimental automatic cell caching. */
-      cache_cells?: boolean;
-      /** @description an Optional list of export types to automatically snapshot your notebook as: `html`, `markdown`, `ipynb`. */
-      default_auto_download?: ("html" | "ipynb" | "markdown")[];
+      /**
+       * @description Enable experimental automatic cell caching.
+       * @default false
+       */
+      cache_cells: boolean;
+      /**
+       * @description an Optional list of export types to automatically snapshot your notebook as: `html`, `markdown`, `ipynb`.
+       * @default []
+       */
+      default_auto_download: ("html" | "ipynb" | "markdown")[];
       /**
        * @description the default encoding for CSV exports.
        * @default utf-8
@@ -6782,17 +6840,26 @@ export interface components {
        * @default 8000000
        */
       output_max_bytes: number;
-      /** @description Pin imported modules when caching cells. */
-      pin_modules?: boolean;
-      /** @description a list of directories to add to the Python search path. Directories will be added to the head of sys.path. Similar to the `PYTHONPATH` environment variable, the directories will be included in where Python will look for imported modules. */
-      pythonpath?: string[];
+      /**
+       * @description Pin imported modules when caching cells.
+       * @default true
+       */
+      pin_modules: boolean;
+      /**
+       * @description a list of directories to add to the Python search path. Directories will be added to the head of sys.path. Similar to the `PYTHONPATH` environment variable, the directories will be included in where Python will look for imported modules.
+       * @default []
+       */
+      pythonpath: string[];
       /**
        * @description If `True`, automatically run pytest on cells containing only test functions and test classes.
        * @default true
        */
       reactive_tests: boolean;
-      /** @description if `True`, initialize applications with session cache. */
-      serve_cached_sessions_in_apps?: boolean;
+      /**
+       * @description if `True`, initialize applications with session cache.
+       * @default false
+       */
+      serve_cached_sessions_in_apps: boolean;
       /**
        * @description if `True`, show detailed error tracebacks in run mode. When enabled, exceptions will display a clickable toast that opens a modal with the full traceback.
        * @default false
@@ -7040,8 +7107,11 @@ export interface components {
        * @default default
        */
       browser: "default" | string;
-      /** @description if true, the file download button will be hidden in the file explorer. */
-      disable_file_downloads?: boolean;
+      /**
+       * @description if true, the file download button will be hidden in the file explorer.
+       * @default false
+       */
+      disable_file_downloads: boolean;
       /**
        * @description if true, the server will follow symlinks it finds inside its static assets directory.
        * @default false
@@ -7052,8 +7122,11 @@ export interface components {
        * @default false
        */
       session_cookie_secure: boolean;
-      /** @description Secret used to sign session cookies. Set a stable value to preserve sessions across restarts or replicas; otherwise a random secret is generated per process. */
-      session_secret?: string;
+      /**
+       * @description Secret used to sign session cookies. Set a stable value to preserve sessions across restarts or replicas; otherwise a random secret is generated per process.
+       * @default null
+       */
+      session_secret: string | null;
       /**
        * @description Skip checking for marimo updates when starting the editor.
        * @default false
@@ -7135,10 +7208,16 @@ export interface components {
      * @description Cache-signing trust and identity.
      */
     SigningConfig: {
-      /** @description Absolute path to this machine's private signing key. Not exposed to the frontend. */
-      private_key_path?: string;
-      /** @description Trusted key fingerprints (SHA256:<base64>) mapped to advisory labels. Trust permits code execution when restoring cached Python objects. */
-      trusted_signers?: {
+      /**
+       * @description Absolute path to this machine's private signing key. Not exposed to the frontend.
+       * @default null
+       */
+      private_key_path: string | null;
+      /**
+       * @description Trusted key fingerprints (SHA256:<base64>) mapped to advisory labels. Trust permits code execution when restoring cached Python objects.
+       * @default {}
+       */
+      trusted_signers: {
         [key: string]: string;
       };
     };
@@ -7388,10 +7467,16 @@ export interface components {
      * @description Configuration for a single cache store.
      */
     StoreConfig: {
-      /** @description Keyword arguments passed to the cache store constructor. */
-      args?: Record<string, any>;
-      /** @description Cache store backend or installed entry-point name. */
-      type?: ("file" | "redis" | "rest" | "tiered") | string;
+      /**
+       * @description Keyword arguments passed to the cache store constructor.
+       * @default {}
+       */
+      args: Record<string, any>;
+      /**
+       * @description Cache store backend or installed entry-point name.
+       * @default file
+       */
+      type: ("file" | "redis" | "rest" | "tiered") | string;
     };
     /** SuccessResponse */
     SuccessResponse: {
@@ -7723,10 +7808,16 @@ export interface components {
      *     single notebooks and directories when editing without `--sandbox`.
      */
     VenvConfig: {
-      /** @description path to a virtualenv directory (absolute or relative to pyproject.toml) */
-      path?: string;
-      /** @description if true, marimo will manage script metadata (inline dependencies). Defaults to false. */
-      writable?: boolean;
+      /**
+       * @description path to a virtualenv directory (absolute or relative to pyproject.toml)
+       * @default null
+       */
+      path: string | null;
+      /**
+       * @description if true, marimo will manage script metadata (inline dependencies). Defaults to false.
+       * @default false
+       */
+      writable: boolean;
     };
     /** Format: widget-model-id */
     WidgetModelId: TypedString<"WidgetModelId">;

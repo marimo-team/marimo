@@ -61,13 +61,9 @@ class SigningPolicy:
         signing = default_if_unset(config.signing, SigningConfig())
         cache = default_if_unset(config.cache, CacheConfig())
 
-        verification = normalize_verification(
-            default_if_unset(cache.verification, DEFAULT_VERIFICATION)
-        )
+        verification = normalize_verification(cache.verification)
 
-        trusted = _resolve_trusted_signers(
-            default_if_unset(signing.trusted_signers, None)
-        )
+        trusted = _resolve_trusted_signers(signing.trusted_signers)
         # A public key in the inherited environment is a trusted *verifier*, not
         # this loader's own signing identity — record it as a trusted
         # fingerprint (so it must be named to be trusted) rather than an
@@ -76,9 +72,7 @@ class SigningPolicy:
         if env_public is not None:
             trusted.add(env_public)
 
-        signer = _resolve_write_signer(
-            default_if_unset(signing.private_key_path, None) or None
-        )
+        signer = _resolve_write_signer(signing.private_key_path or None)
         return cls(
             verification=verification,
             trusted_signers=frozenset(trusted),

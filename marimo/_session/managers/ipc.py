@@ -368,7 +368,7 @@ class IPCKernelManagerImpl(KernelManager):
                 )
                 venv_python = configured_python
 
-                writable = default_if_unset(venv_config.writable, False)
+                writable = venv_config.writable
 
                 # Configured environments are assumed to be read-only.
                 # If not, then install marimo by default to ensure that the

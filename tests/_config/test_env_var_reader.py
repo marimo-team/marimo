@@ -183,6 +183,7 @@ def test_migrated_settings_from_user_file(
     config = manager.get_config(hide_secrets=False).to_dict()
     assert config["runtime"]["sql_default_limit"] == 200
     assert config["server"] == {
+        "disable_file_downloads": False,
         "browser": "default",
         "follow_symlink": False,
         "skip_update_check": True,

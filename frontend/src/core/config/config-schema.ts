@@ -63,9 +63,9 @@ const AiConfigSchema = z
   .loose();
 
 const AiModelsSchema = z.object({
-  chat_model: z.string().nullish(),
-  edit_model: z.string().nullish(),
-  autocomplete_model: z.string().nullish(),
+  chat_model: z.string().nullish().prefault(null),
+  edit_model: z.string().nullish().prefault(null),
+  autocomplete_model: z.string().nullish().prefault(null),
   displayed_models: z.array(z.string()).default([]),
   custom_models: z.array(z.string()).default([]),
 });
@@ -137,6 +137,10 @@ export const UserConfigSchema = z
           .array(z.enum(AUTO_DOWNLOAD_FORMATS))
           .prefault([]),
         show_tracebacks: z.boolean().prefault(false),
+        pythonpath: z.array(z.string()).prefault([]),
+        cache_cells: z.boolean().prefault(false),
+        pin_modules: z.boolean().prefault(true),
+        serve_cached_sessions_in_apps: z.boolean().prefault(false),
       })
       .prefault({}),
     display: z
@@ -170,7 +174,7 @@ export const UserConfigSchema = z
       .looseObject({
         enabled: z.boolean().prefault(true),
         rules: z.string().prefault(""),
-        max_tokens: z.number().int().positive().nullable().optional(),
+        max_tokens: z.number().int().positive().nullable().prefault(null),
         mode: z
           .enum(COPILOT_MODES)
           .transform((mode) => (mode === "manual" ? "ask" : mode))
@@ -213,8 +217,8 @@ export const UserConfigSchema = z
       .looseObject({
         skip_update_check: z.boolean().optional(),
         session_cookie_secure: z.boolean().optional(),
-        session_secret: z.string().optional(),
-        disable_file_downloads: z.boolean().optional(),
+        session_secret: z.string().nullish().prefault(null),
+        disable_file_downloads: z.boolean().prefault(false),
         transport: z.enum(["websocket", "sse"]).optional(),
       })
       .prefault(() => ({})),
@@ -251,20 +255,21 @@ export const UserConfigSchema = z
           .array(
             z.object({
               path: z.string(),
-              name: z.string().optional(),
+              name: z.string().nullish().prefault(null),
             }),
           )
-          .optional(),
+          .prefault([]),
       })
-      .optional()
-      .prefault({}),
+      .nullish()
+      .prefault(null),
     sharing: z
       .looseObject({
         html: z.boolean().optional(),
         wasm: z.boolean().optional(),
         molab: z.boolean().optional(),
       })
-      .optional(),
+      .nullish()
+      .prefault(null),
     mcp: z
       .looseObject({
         presets: z.array(z.enum(["marimo", "context7"])).prefault([]),
@@ -284,7 +289,8 @@ export const UserConfigSchema = z
     diagnostics: {},
     language_servers: {},
     snippets: {},
-    file_browser: {},
+    file_browser: null,
+    sharing: null,
     experimental: {},
     server: {},
     ai: {},
@@ -395,7 +401,8 @@ export function defaultUserConfig(): UserConfig {
     diagnostics: {},
     language_servers: {},
     snippets: {},
-    file_browser: {},
+    file_browser: null,
+    sharing: null,
     experimental: {},
     server: {},
     ai: {},

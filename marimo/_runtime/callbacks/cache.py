@@ -4,7 +4,6 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from marimo import _loggers
-from marimo._config.schema_utils import default_if_unset
 from marimo._messaging.notification import (
     CacheClearedNotification,
     CacheInfoNotification,
@@ -38,7 +37,7 @@ def _cache_loader(context: CacheContext) -> Loader | None:
 
 def cache_cells_enabled(user_config: MarimoConfig) -> bool:
     """Whether `[tool.marimo.runtime] cache_cells` is on (default `False`)."""
-    return bool(default_if_unset(user_config.runtime.cache_cells, False))
+    return user_config.runtime.cache_cells
 
 
 class CacheCallbacks:

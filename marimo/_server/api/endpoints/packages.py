@@ -323,11 +323,7 @@ def _runs_in_configured_venv(state: AppState, path: str) -> bool:
     if not GLOBAL_SETTINGS.SANDBOX_AUTO:
         return False
     config = state.config_manager_at_file(path).get_config(hide_secrets=False)
-    return bool(
-        default_if_unset(
-            default_if_unset(config.venv, VenvConfig()).path, None
-        )
-    )
+    return bool(default_if_unset(config.venv, VenvConfig()).path)
 
 
 def _sandbox_source(

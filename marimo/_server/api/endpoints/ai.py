@@ -14,7 +14,6 @@ from starlette.responses import (
 from marimo import _loggers
 from marimo._ai._pydantic_ai_utils import create_simple_prompt, generate_id
 from marimo._config.config_schema import AiConfig, MarimoConfig
-from marimo._config.schema_utils import default_if_unset
 from marimo._config.types import CopilotMode
 from marimo._secrets.secrets import get_secret_value
 from marimo._server.ai.config import (
@@ -149,7 +148,7 @@ async def ai_completion(
     )
     ai_config = get_ai_config(config)
 
-    custom_rules = default_if_unset(ai_config.rules, None)
+    custom_rules = ai_config.rules
     messages, support_multiple_cells = resolve_completion_messages(body)
 
     system_prompt = get_refactor_or_insert_notebook_cell_system_prompt(
@@ -234,9 +233,9 @@ async def ai_chat(
         request, cls=ChatRequest, allow_unknown_keys=True
     )
     ai_config = get_ai_config(config)
-    custom_rules = default_if_unset(ai_config.rules, None)
+    custom_rules = ai_config.rules
 
-    mode: CopilotMode = default_if_unset(ai_config.mode, "ask")
+    mode: CopilotMode = ai_config.mode
     if mode == "manual":
         mode = "ask"
     system_prompt = get_chat_system_prompt(

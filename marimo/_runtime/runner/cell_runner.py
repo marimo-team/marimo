@@ -216,9 +216,7 @@ class Runner:
         lifecycles: list[ExecutionLifecycle] = []
         if execution_type == "strict":
             lifecycles.append(StrictLifecycle(self.graph))
-        if user_config is not None and default_if_unset(
-            user_config.runtime.cache_cells, False
-        ):
+        if user_config is not None and user_config.runtime.cache_cells:
             from marimo._runtime.executor.lifecycles.cached import (
                 CachedLifecycle,
             )
@@ -226,11 +224,7 @@ class Runner:
             lifecycles.append(
                 CachedLifecycle(
                     self.graph,
-                    # Default pin_modules to True for a stronger backwards compatibility
-                    # guarantee.
-                    pin_modules=bool(
-                        default_if_unset(user_config.runtime.pin_modules, True)
-                    ),
+                    pin_modules=user_config.runtime.pin_modules,
                 )
             )
         # Live debugger and line-timing highlight share one frame-watching
@@ -243,12 +237,8 @@ class Runner:
             if self.user_config is not None
             else ExperimentalConfig()
         )
-        debugger_on = self.debugger is not None and bool(
-            default_if_unset(experimental.debugger, False)
-        )
-        line_timing_on = bool(
-            default_if_unset(experimental.line_timing, False)
-        )
+        debugger_on = self.debugger is not None and experimental.debugger
+        line_timing_on = experimental.line_timing
         if debugger_on or line_timing_on:
             lifecycles.append(
                 DebuggerLifecycle(self.debugger if debugger_on else None)

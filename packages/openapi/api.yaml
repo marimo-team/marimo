@@ -162,8 +162,10 @@ components:
           anyOf:
           - type: integer
           - type: 'null'
+          default: null
           description: the maximum number of tokens to use in AI completions
         mode:
+          default: ask
           description: 'notebook access for the built-in assistant: `"ask"` (read
             only), `"agent"` (suggest edits), or `"code_mode"` (full access). Defaults
             to `"ask"`.'
@@ -192,6 +194,7 @@ components:
           $ref: '#/components/schemas/OpenAiConfig'
           description: the OpenRouter config
         rules:
+          default: ''
           description: custom rules to include in all AI completion prompts
           type: string
         wandb:
@@ -199,6 +202,9 @@ components:
           description: the Weights & Biases config
       required:
       - enabled
+      - rules
+      - max_tokens
+      - mode
       - allow_provider_config
       - models
       - custom_providers
@@ -228,11 +234,13 @@ components:
           anyOf:
           - type: string
           - type: 'null'
+          default: null
           description: the model to use for code completion/autocomplete
         chat_model:
           anyOf:
           - type: string
           - type: 'null'
+          default: null
           description: the model to use for chat completions
         custom_models:
           default: []
@@ -251,8 +259,12 @@ components:
           anyOf:
           - type: string
           - type: 'null'
+          default: null
           description: the model to use for edit completions
       required:
+      - chat_model
+      - edit_model
+      - autocomplete_model
       - displayed_models
       - custom_models
       title: AiModelConfig
@@ -405,6 +417,7 @@ components:
             - lazy
             - pickle
           - type: string
+          default: lazy
           description: Default loader for mo.persistent_cache.
         store:
           anyOf:
@@ -412,15 +425,21 @@ components:
               $ref: '#/components/schemas/StoreConfig'
             type: array
           - $ref: '#/components/schemas/StoreConfig'
+          - type: 'null'
+          default: null
           description: Backing cache store, or a list of stores composed into a tiered
             store.
         verification:
+          default: 'off'
           description: 'Cache signature verification posture: off, on, or strict.'
           enum:
           - 'off'
           - 'on'
           - strict
-      required: []
+      required:
+      - verification
+      - store
+      - loader
       title: CacheConfig
       type: object
     CacheInfoNotification:
@@ -2212,9 +2231,11 @@ components:
         Features exposed on the frontend must match the frontend config.'
       properties:
         debugger:
+          default: false
           description: Enable live debugging with gutter breakpoints and pdb.
           type: boolean
         execution_type:
+          default: relaxed
           description: 'Experimental cell declaration handling: relaxed or strict.'
           enum:
           - relaxed
@@ -2225,9 +2246,11 @@ components:
             as Claude Code and Codex.
           type: boolean
         isolate_apps:
+          default: false
           description: Run applications in separate processes.
           type: boolean
         line_timing:
+          default: false
           description: Highlight the active line and show per-line execution timing.
           type: boolean
         markdown:
@@ -2236,7 +2259,11 @@ components:
         wasm_layouts:
           description: Enable experimental layouts in WebAssembly notebooks.
           type: boolean
-      required: []
+      required:
+      - isolate_apps
+      - debugger
+      - line_timing
+      - execution_type
       title: ExperimentalConfig
       type: object
     ExportAsHTMLRequest:
@@ -2388,11 +2415,13 @@ components:
       description: Configuration for the file browser panel.
       properties:
         folders:
+          default: []
           description: additional absolute folders to show in the file browser
           items:
             $ref: '#/components/schemas/FolderConfig'
           type: array
-      required: []
+      required:
+      - folders
       title: FileBrowserConfig
       type: object
     FileCopyRequest:
@@ -2778,13 +2807,17 @@ components:
       description: Configuration for an additional file browser root.
       properties:
         name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
           description: an optional display name for the folder
-          type: string
         path:
           description: the absolute path to the folder
           type: string
       required:
       - path
+      - name
       title: FolderConfig
       type: object
     FormatCellsRequest:
@@ -3360,17 +3393,21 @@ components:
         during `marimo check`.'
       properties:
         ignore:
+          default: []
           description: list of rule code prefixes to remove from the enabled set.
           items:
             type: string
           type: array
         select:
+          default: []
           description: 'list of rule code prefixes that replaces the default enabled
             set. Use `"ALL"` to select all rules. Example: `["MB", "MR001"]`'
           items:
             type: string
           type: array
-      required: []
+      required:
+      - select
+      - ignore
       title: LintConfig
       type: object
     ListDataSourceConnectionCommand:
@@ -3834,7 +3871,10 @@ components:
           $ref: '#/components/schemas/ExperimentalConfig'
           description: Configuration for experimental features.
         file_browser:
-          $ref: '#/components/schemas/FileBrowserConfig'
+          anyOf:
+          - $ref: '#/components/schemas/FileBrowserConfig'
+          - type: 'null'
+          default: null
           description: Configuration for the file browser panel.
         formatting:
           $ref: '#/components/schemas/FormattingConfig'
@@ -3864,7 +3904,10 @@ components:
           $ref: '#/components/schemas/ServerConfig'
           description: Configuration for the server.
         sharing:
-          $ref: '#/components/schemas/SharingConfig'
+          anyOf:
+          - $ref: '#/components/schemas/SharingConfig'
+          - type: 'null'
+          default: null
           description: Configuration for sharing features.
         signing:
           $ref: '#/components/schemas/SigningConfig'
@@ -3888,6 +3931,8 @@ components:
       - language_servers
       - diagnostics
       - snippets
+      - file_browser
+      - sharing
       - mcp
       title: MarimoConfig
       type: object
@@ -5094,9 +5139,11 @@ components:
           - lazy
           - 'off'
         cache_cells:
+          default: false
           description: Enable experimental automatic cell caching.
           type: boolean
         default_auto_download:
+          default: []
           description: 'an Optional list of export types to automatically snapshot
             your notebook as: `html`, `markdown`, `ipynb`.'
           items:
@@ -5146,9 +5193,11 @@ components:
             affect frontend performance
           type: integer
         pin_modules:
+          default: true
           description: Pin imported modules when caching cells.
           type: boolean
         pythonpath:
+          default: []
           description: a list of directories to add to the Python search path. Directories
             will be added to the head of sys.path. Similar to the `PYTHONPATH` environment
             variable, the directories will be included in where Python will look for
@@ -5162,6 +5211,7 @@ components:
             test functions and test classes.
           type: boolean
         serve_cached_sessions_in_apps:
+          default: false
           description: if `True`, initialize applications with session cache.
           type: boolean
         show_tracebacks:
@@ -5196,10 +5246,15 @@ components:
       - on_cell_change
       - watcher_on_save
       - output_max_bytes
+      - serve_cached_sessions_in_apps
       - std_stream_max_bytes
+      - pythonpath
       - default_sql_output
+      - default_auto_download
       - default_csv_encoding
       - show_tracebacks
+      - cache_cells
+      - pin_modules
       title: RuntimeConfig
       type: object
     SQLDatabaseMetadata:
@@ -5551,6 +5606,7 @@ components:
           description: the web browser to use. `"default"` or a browser registered
             with Python's webbrowser module (eg, `"firefox"` or `"chrome"`)
         disable_file_downloads:
+          default: false
           description: if true, the file download button will be hidden in the file
             explorer.
           type: boolean
@@ -5565,10 +5621,13 @@ components:
             TLS.
           type: boolean
         session_secret:
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
           description: Secret used to sign session cookies. Set a stable value to
             preserve sessions across restarts or replicas; otherwise a random secret
             is generated per process.
-          type: string
         skip_update_check:
           default: false
           description: Skip checking for marimo updates when starting the editor.
@@ -5585,8 +5644,10 @@ components:
       required:
       - skip_update_check
       - session_cookie_secure
+      - session_secret
       - browser
       - follow_symlink
+      - disable_file_downloads
       title: ServerConfig
       type: object
     SessionId:
@@ -5719,16 +5780,22 @@ components:
       description: Cache-signing trust and identity.
       properties:
         private_key_path:
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
           description: Absolute path to this machine's private signing key. Not exposed
             to the frontend.
-          type: string
         trusted_signers:
           additionalProperties:
             type: string
+          default: {}
           description: Trusted key fingerprints (SHA256:<base64>) mapped to advisory
             labels. Trust permits code execution when restoring cached Python objects.
           type: object
-      required: []
+      required:
+      - trusted_signers
+      - private_key_path
       title: SigningConfig
       type: object
     Snippet:
@@ -6132,6 +6199,7 @@ components:
       description: Configuration for a single cache store.
       properties:
         args:
+          default: {}
           description: Keyword arguments passed to the cache store constructor.
           type: object
         type:
@@ -6142,8 +6210,11 @@ components:
             - rest
             - tiered
           - type: string
+          default: file
           description: Cache store backend or installed entry-point name.
-      required: []
+      required:
+      - type
+      - args
       title: StoreConfig
       type: object
     SuccessResponse:
@@ -6672,13 +6743,19 @@ components:
         single notebooks and directories when editing without `--sandbox`.'
       properties:
         path:
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
           description: path to a virtualenv directory (absolute or relative to pyproject.toml)
-          type: string
         writable:
+          default: false
           description: if true, marimo will manage script metadata (inline dependencies).
             Defaults to false.
           type: boolean
-      required: []
+      required:
+      - path
+      - writable
       title: VenvConfig
       type: object
     WidgetModelId:

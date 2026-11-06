@@ -108,6 +108,23 @@ def make_user(
     return user
 
 
+def test_schema_defaults_do_not_become_explicit_overrides(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    user = make_user(tmp_path, monkeypatch)
+    manager = MarimoConfigManager(user).with_overrides(
+        {"runtime": {"cache_cells": False, "pythonpath": []}}
+    )
+    resolved = manager.get_config_with_sources(hide_secrets=False)
+
+    assert set(resolved.override_paths) == {
+        ("runtime", "cache_cells"),
+        ("runtime", "pythonpath"),
+    }
+    assert resolved.origins[("runtime", "pin_modules")] == "default"
+    assert user.read() == {}
+
+
 def test_environment_output_limits_override_files(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

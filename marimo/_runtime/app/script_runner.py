@@ -4,7 +4,6 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 from marimo._ast.names import SETUP_CELL_NAME
-from marimo._config.schema_utils import default_if_unset
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.types import NoopStream
 from marimo._runtime import dataflow
@@ -309,19 +308,14 @@ class AppScriptRunner:
             # A cache key can hash the code of the cells that define a ref
             # instead of its value, so with overrides a run would restore,
             # and save, results under the keys of the cells they replace.
-            if (
-                default_if_unset(runtime_config.cache_cells, False)
-                and not self._has_overrides
-            ):
+            if runtime_config.cache_cells and not self._has_overrides:
                 from marimo._runtime.executor.lifecycles.cached import (
                     CachedLifecycle,
                 )
 
                 self._cache = CachedLifecycle(
                     self.app.graph,
-                    pin_modules=bool(
-                        default_if_unset(runtime_config.pin_modules, True)
-                    ),
+                    pin_modules=runtime_config.pin_modules,
                 )
                 self._evaluator.lifecycles = [self._cache]
 

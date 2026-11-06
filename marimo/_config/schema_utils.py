@@ -178,7 +178,11 @@ def config_leaf_types(cls: type[Config]) -> dict[tuple[str, ...], Any]:
             if get_origin(annotation) in (Union, types.UnionType)
             else (annotation,)
         )
-        present = [arg for arg in variants if arg is not msgspec.UnsetType]
+        present = [
+            arg
+            for arg in variants
+            if arg not in (msgspec.UnsetType, type(None))
+        ]
         nested = present[0] if len(present) == 1 else None
         if isinstance(nested, type) and issubclass(nested, Config):
             for path, leaf_type in config_leaf_types(nested).items():

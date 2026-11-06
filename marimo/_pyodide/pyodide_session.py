@@ -11,7 +11,6 @@ from typing import TYPE_CHECKING, Any, TypeVar, cast
 from marimo import _loggers
 from marimo._config.config import PartialMarimoConfig, merge_config
 from marimo._config.config_schema import MarimoConfig
-from marimo._config.schema_utils import default_if_unset
 from marimo._export.exporter import Exporter, export_markdown, export_script
 from marimo._export.requests import (
     HTMLExportRequest,
@@ -392,9 +391,7 @@ class PyodideBridge:
     def file_roots(self) -> str:
         roots = resolve_file_roots(
             self.file_system.get_root(),
-            default_if_unset(
-                self.session._initial_user_config.file_browser, None
-            ),
+            self.session._initial_user_config.file_browser,
         )
         return self._dump(FileRootsResponse(roots=roots))
 

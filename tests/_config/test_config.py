@@ -47,7 +47,7 @@ def test_configure_file_browser_folders() -> None:
             file_browser={
                 "folders": [
                     {"path": "/data", "name": "Data"},
-                    {"path": "/shared"},
+                    {"path": "/shared", "name": None},
                 ]
             }
         )

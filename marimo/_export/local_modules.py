@@ -28,7 +28,6 @@ from operator import attrgetter
 from pathlib import Path
 from typing import TYPE_CHECKING, Literal
 
-from marimo._config.schema_utils import default_if_unset
 from marimo._environments.uv import UvNotFoundError, require_uv_bin
 
 if TYPE_CHECKING:
@@ -132,7 +131,7 @@ def resolve_notebook_local_modules(
     config = get_default_config_manager(
         current_path=marimo_path.absolute_name
     ).get_config()
-    pythonpath = default_if_unset(config.runtime.pythonpath, None) or []
+    pythonpath = config.runtime.pythonpath
     roots = tuple(reversed([Path(path) for path in pythonpath]))
     return resolve_local_modules(
         marimo_path.path, roots=roots, exclude_names=exclude_names

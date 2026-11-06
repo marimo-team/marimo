@@ -56,10 +56,14 @@ test("default UserConfig - empty", () => {
         "custom_providers": {},
         "enabled": true,
         "inline_tooltip": false,
+        "max_tokens": null,
         "mode": "ask",
         "models": {
+          "autocomplete_model": null,
+          "chat_model": null,
           "custom_models": [],
           "displayed_models": [],
+          "edit_model": null,
         },
         "rules": "",
       },
@@ -84,7 +88,7 @@ test("default UserConfig - empty", () => {
         "theme": "light",
       },
       "experimental": {},
-      "file_browser": {},
+      "file_browser": null,
       "formatting": {
         "infer_types": "off",
         "line_length": 79,
@@ -115,10 +119,14 @@ test("default UserConfig - empty", () => {
       "runtime": {
         "auto_instantiate": true,
         "auto_reload": "off",
+        "cache_cells": false,
         "default_auto_download": [],
         "default_sql_output": "auto",
         "on_cell_change": "autorun",
+        "pin_modules": true,
+        "pythonpath": [],
         "reactive_tests": true,
+        "serve_cached_sessions_in_apps": false,
         "show_tracebacks": false,
         "watcher_on_save": "lazy",
       },
@@ -127,7 +135,11 @@ test("default UserConfig - empty", () => {
         "autosave_delay": 1000,
         "format_on_save": false,
       },
-      "server": {},
+      "server": {
+        "disable_file_downloads": false,
+        "session_secret": null,
+      },
+      "sharing": null,
       "snippets": {
         "custom_paths": [],
         "include_default_snippets": true,
@@ -153,10 +165,14 @@ test("default UserConfig - one level", () => {
         "custom_providers": {},
         "enabled": true,
         "inline_tooltip": false,
+        "max_tokens": null,
         "mode": "ask",
         "models": {
+          "autocomplete_model": null,
+          "chat_model": null,
           "custom_models": [],
           "displayed_models": [],
+          "edit_model": null,
         },
         "rules": "",
       },
@@ -181,7 +197,7 @@ test("default UserConfig - one level", () => {
         "theme": "light",
       },
       "experimental": {},
-      "file_browser": {},
+      "file_browser": null,
       "formatting": {
         "infer_types": "off",
         "line_length": 79,
@@ -212,10 +228,14 @@ test("default UserConfig - one level", () => {
       "runtime": {
         "auto_instantiate": true,
         "auto_reload": "off",
+        "cache_cells": false,
         "default_auto_download": [],
         "default_sql_output": "auto",
         "on_cell_change": "autorun",
+        "pin_modules": true,
+        "pythonpath": [],
         "reactive_tests": true,
+        "serve_cached_sessions_in_apps": false,
         "show_tracebacks": false,
         "watcher_on_save": "lazy",
       },
@@ -224,7 +244,11 @@ test("default UserConfig - one level", () => {
         "autosave_delay": 1000,
         "format_on_save": false,
       },
-      "server": {},
+      "server": {
+        "disable_file_downloads": false,
+        "session_secret": null,
+      },
+      "sharing": null,
       "snippets": {
         "custom_paths": [],
         "include_default_snippets": true,
@@ -270,7 +294,7 @@ test("UserConfig with file browser folders", () => {
 
   expect(config.file_browser?.folders).toEqual([
     { path: "/data", name: "Data" },
-    { path: "/shared" },
+    { path: "/shared", name: null },
   ]);
 });
 

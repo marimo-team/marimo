@@ -6,7 +6,6 @@ from pathlib import Path
 
 from marimo import _loggers
 from marimo._config.config_schema import FileBrowserConfig
-from marimo._config.schema_utils import default_if_unset
 from marimo._server.models.files import FileRoot
 
 LOGGER = _loggers.marimo_logger()
@@ -27,9 +26,7 @@ def resolve_file_roots(
     ]
     seen = {_deduplication_key(primary_path)}
 
-    folders = (
-        default_if_unset(config.folders, []) if config is not None else []
-    )
+    folders = config.folders if config is not None else []
 
     for folder in folders:
         path = folder.path
@@ -64,7 +61,7 @@ def resolve_file_roots(
             continue
         seen.add(key)
 
-        configured_name = default_if_unset(folder.name, None)
+        configured_name = folder.name
         name = (
             configured_name.strip()
             if isinstance(configured_name, str) and configured_name.strip()

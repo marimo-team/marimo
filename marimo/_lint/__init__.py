@@ -50,7 +50,7 @@ def resolve_lint_config(
     # CLI --ignore appends to config ignore
     if ignore_rules is not None:
         parsed = [s.strip() for s in ignore_rules.split(",") if s.strip()]
-        existing = list(default_if_unset(lint_config.ignore, []))
+        existing = list(lint_config.ignore)
         lint_config.ignore = existing + parsed
 
     return lint_config if lint_config.to_dict() else None

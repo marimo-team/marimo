@@ -8,7 +8,6 @@ from marimo._config.config_schema import (
     CacheStoreConfig,
     MarimoConfig,
 )
-from marimo._config.schema_utils import default_if_unset
 from marimo._config.types import StoreKey
 from marimo._entrypoints.registry import EntryPointRegistry
 from marimo._save.stores.file import FileStore
@@ -37,7 +36,7 @@ _STORE_REGISTRY = EntryPointRegistry[StoreType](
 def _store_config(config: MarimoConfig) -> CacheStoreConfig | None:
     """Return the configured store, preserving absent sections."""
     cache = config.cache
-    return default_if_unset(cache.store, None) if cache is not UNSET else None
+    return cache.store if cache is not UNSET else None
 
 
 def get_store(current_path: str | None = None) -> Store:
@@ -100,13 +99,13 @@ def _get_store_from_config(
             return sub_stores[0]
         return TieredStore(sub_stores)
     else:
-        store_type = default_if_unset(config.type, DEFAULT_STORE_KEY)
+        store_type = config.type
         if store_type not in cache_stores:
             LOGGER.error(f"Invalid store type: {store_type}")
             store_type = DEFAULT_STORE_KEY
 
         try:
-            store_args = default_if_unset(config.args, {})
+            store_args = config.args
             return cache_stores[store_type](**store_args)
         except Exception as e:
             LOGGER.error(f"Error creating store: {e}")

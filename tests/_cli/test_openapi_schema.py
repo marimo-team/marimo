@@ -182,6 +182,8 @@ def test_config_schema_describes_resolved_settings_without_internal_tags() -> (
         "language_servers",
         "diagnostics",
         "snippets",
+        "file_browser",
+        "sharing",
         "mcp",
     ]
     assert schemas["ExperimentalConfig"]["additionalProperties"] is True

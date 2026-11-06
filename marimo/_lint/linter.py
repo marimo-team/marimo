@@ -10,7 +10,6 @@ from marimo._ast.load import get_notebook_status
 from marimo._ast.parse import MarimoFileError
 from marimo._cli.print import red
 from marimo._config.manager import get_default_config_manager
-from marimo._config.schema_utils import default_if_unset
 from marimo._convert.converters import MarimoConvert
 from marimo._lint.diagnostic import Diagnostic, Severity
 from marimo._lint.formatters import LintResultJSON
@@ -138,10 +137,10 @@ class Linter:
             else LintConfig()
         )
         if "select" in file_lint:
-            existing = list(default_if_unset(merged.select, []))
+            existing = list(merged.select)
             merged.select = existing + file_lint["select"]
         if "ignore" in file_lint:
-            existing = list(default_if_unset(merged.ignore, []))
+            existing = list(merged.ignore)
             merged.ignore = existing + file_lint["ignore"]
 
         return RuleEngine.create_default(

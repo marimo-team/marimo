@@ -15,7 +15,6 @@ from marimo._ast.load import load_app
 from marimo._config.manager import (
     get_default_config_manager,
 )
-from marimo._config.schema_utils import default_if_unset
 from marimo._convert.common.filename import get_download_filename
 from marimo._convert.converters import MarimoConvert
 from marimo._export._status import emit_pdf_export_status
@@ -267,7 +266,7 @@ async def export_wasm(
                 code=code,
                 options=options,
                 layout=layout,
-                sharing_config=default_if_unset(resolved.sharing, None),
+                sharing_config=resolved.sharing,
             )
         )
         return ExportResult(
@@ -415,9 +414,7 @@ async def export_html(
             options=request.options,
             layout=layout,
             sharing_config=(
-                default_if_unset(resolved.sharing, None)
-                if request.execution is not None
-                else None
+                resolved.sharing if request.execution is not None else None
             ),
         )
     )
@@ -565,7 +562,7 @@ async def _export_wasm_with_execution(
             layout=layout,
             session_snapshot=snapshot.session,
             notebook_snapshot=snapshot.notebook,
-            sharing_config=default_if_unset(resolved.sharing, None),
+            sharing_config=resolved.sharing,
         )
     )
     return ExportResult(

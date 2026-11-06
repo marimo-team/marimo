@@ -10,6 +10,7 @@ import pytest
 from msgspec import ValidationError
 
 from marimo._config.config import PartialMarimoConfig, merge_default_config
+from marimo._config.config_schema import MarimoConfig
 from marimo._config.manager import (
     EnvVarReader,
     MarimoConfigManager,
@@ -54,7 +55,10 @@ def test_save_config(mock_dump: Any) -> None:
 
     assert result == mock_config
 
-    assert mock_dump.mock_calls[0][1][0] == mock_config
+    assert (
+        MarimoConfig.from_dict(mock_dump.mock_calls[0][1][0]).to_dict()
+        == mock_config
+    )
 
 
 @pytest.mark.parametrize(
@@ -1690,8 +1694,12 @@ def test_workspace_marimo_toml_strips_signing_and_verification(
     ).to_dict()
 
     assert "signing" not in config
-    assert config.get("cache", {}).get("verification") is None
-    assert config.get("cache", {}).get("loader") is None
+    assert config.get("cache", {}).get("verification") == "off"
+    assert (
+        UserConfigStore().read().get("cache", {}).get("verification") is None
+    )
+    assert config.get("cache", {}).get("loader") == "lazy"
+    assert UserConfigStore().read().get("cache", {}).get("loader") is None
     # The store goes too, unlike the project and script layers. A store set
     # here would load as the user layer, so `cache_store_is_untrusted` could
     # not tell it apart from one the operator chose, and the unsigned pickle

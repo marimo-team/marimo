@@ -151,9 +151,7 @@ def get_loader_key(
             current_path=current_path
         ).get_config()
     return normalize_loader_key(
-        default_if_unset(
-            default_if_unset(config.cache, CacheConfig()).loader, None
-        )
+        default_if_unset(config.cache, CacheConfig()).loader
     )
 
 
