@@ -4,6 +4,7 @@ from __future__ import annotations
 import ast
 import inspect
 import linecache
+import os
 import textwrap
 from typing import Any
 
@@ -38,17 +39,22 @@ class FunctionStub:
 
     def load(self, glbls: dict[str, Any]) -> Any:
         """Reconstruct the function by executing its source code."""
-        if self.filename.startswith("<") or not linecache.getlines(
-            self.filename
-        ):
+        if self.filename.startswith("<") or not os.path.exists(self.filename):
             # A synthetic name, or a cell file from another process. Serve
             # the stored source at its original line so the restored
-            # function hashes like the definition it stands in for.
-            lines = ["\n"] * (self.lineno - 1) + [
-                line + "\n" for line in self.code.splitlines()
-            ]
+            # function hashes like the definition it stands in for. Several
+            # stubs can come from one cell, so overlay onto lines already
+            # served for it.
+            entry = linecache.cache.get(self.filename)
+            lines: list[str] = []
+            if entry is not None and len(entry) == 4 and entry[1] is None:
+                lines = list(entry[2])
+            fragment = [line + "\n" for line in self.code.splitlines()]
+            end = self.lineno - 1 + len(fragment)
+            lines.extend(["\n"] * (end - len(lines)))
+            lines[self.lineno - 1 : end] = fragment
             linecache.cache[self.filename] = (
-                len(self.code),
+                sum(map(len, lines)),
                 None,
                 lines,
                 self.filename,

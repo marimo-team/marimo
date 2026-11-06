@@ -42,6 +42,7 @@ from marimo._runtime.state import SetFunctor, State
 from marimo._runtime.watch._path import PathState
 from marimo._save.cache import Cache, CacheType, HashMemoCleanup
 from marimo._save.encode import (
+    HashState,
     attempt_signed_bytes,
     common_container_to_bytes,
     data_to_buffer,
@@ -201,67 +202,61 @@ def _unmangled_qualname(fn: Callable[..., Any]) -> str:
     )
 
 
-def _closure_bytes(
-    fn: Callable[..., Any], hash_type: str, seen: set[int]
+def _soft_dumps(
+    payload: Any, label: str, hash_type: str, state: HashState
 ) -> bytes:
-    """Encode keyword defaults and captured closure values.
+    """Encode `payload`, or a marker when it cannot be encoded.
 
-    A captured module is keyed by name. When a capture cannot be encoded,
-    only the function's own source keys it, as before closures were hashed.
+    A default or captured value that cannot be encoded leaves the function
+    keyed by its source, as it was before defaults and closures were hashed.
     """
     try:
-        captured = tuple(
-            cell.cell_contents.__name__
-            if inspect.ismodule(cell.cell_contents)
-            else cell.cell_contents
-            for cell in fn.__closure__ or ()
-        )
-        # `seen` already holds `fn`, so a closure over itself terminates.
         return type_sign(
-            deterministic_dumps(
-                (fn.__kwdefaults__, captured), hash_type, _seen=seen
-            ),
-            "closure",
+            deterministic_dumps(payload, hash_type, _seen=state), label
         )
     except Exception:
-        return type_sign(b"", "closure-unencoded")
+        return type_sign(b"", label + "-unencoded")
 
 
 def hash_wrapped_functions(
     wrapped: Callable[..., Any],
     hash_type: str = DEFAULT_HASH,
-    _seen: set[int] | None = None,
+    _seen: HashState | None = None,
 ) -> bytes:
-    # `_seen` is shared with the value encoder so a function reached again
-    # through a default or a closure cell contributes once instead of looping.
-    seen: set[int] = set() if _seen is None else _seen
+    state = HashState() if _seen is None else _seen
 
     def process_function(fn: Callable[..., Any]) -> bytes:
-        # There is a chance for a circular reference, likely manually created,
-        # but easy to guard against.
-        if id(fn) in seen:
-            return b""
-        seen.add(id(fn))
+        if id(fn) in state.functions:
+            # In progress (a closure over itself) contributes nothing;
+            # finished contributes the same bytes as the first time.
+            return state.functions[id(fn)] or b""
+        state.functions[id(fn)] = None
         hash_alg = hashlib.new(hash_type, usedforsecurity=False)
         if not inspect.isbuiltin(fn):
             hash_alg.update(hash_function_source(fn))
             # Module and qualname: two modules can define the same source
             # over different globals.
             hash_alg.update(
-                type_sign(
-                    deterministic_dumps(
-                        (
-                            fn.__module__,
-                            _unmangled_qualname(fn),
-                            fn.__defaults__,
-                        ),
-                        hash_type,
-                        _seen=seen,
-                    ),
-                    "function",
+                primitive_to_bytes((fn.__module__, _unmangled_qualname(fn)))
+            )
+            hash_alg.update(
+                _soft_dumps(
+                    (fn.__defaults__, fn.__kwdefaults__),
+                    "defaults",
+                    hash_type,
+                    state,
                 )
             )
-            hash_alg.update(_closure_bytes(fn, hash_type, seen))
+            try:
+                captured = tuple(
+                    cell.cell_contents.__name__
+                    if inspect.ismodule(cell.cell_contents)
+                    else cell.cell_contents
+                    for cell in fn.__closure__ or ()
+                )
+            except ValueError:
+                captured = ("<empty cell>",)
+            hash_alg.update(_soft_dumps(captured, "closure", hash_type, state))
         else:
             # Builtin functions do not expose Python bytecode, so use their
             # qualified name to distinguish functions from different modules.
@@ -273,13 +268,13 @@ def hash_wrapped_functions(
             receiver = getattr(fn, "__self__", None)
             if receiver is not None and not inspect.ismodule(receiver):
                 parts.append(
-                    deterministic_dumps(receiver, hash_type, _seen=seen)
+                    deterministic_dumps(receiver, hash_type, _seen=state)
                 )
             hash_alg.update(iterable_sign(parts, "builtin"))
         fn_hash = hash_alg.digest()
         if hasattr(fn, "__wrapped__"):
-            child_hash = process_function(fn.__wrapped__)
-            return child_hash + fn_hash
+            fn_hash = process_function(fn.__wrapped__) + fn_hash
+        state.functions[id(fn)] = fn_hash
         return fn_hash
 
     return process_function(wrapped)
