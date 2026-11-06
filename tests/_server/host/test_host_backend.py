@@ -624,6 +624,31 @@ async def test_cell_runs_queue_in_the_kernel_in_order(
     assert observed.messages == expected
 
 
+async def test_task_cancellation_preserves_a_completed_run(
+    manager: FakeManager, observed: Observed
+) -> None:
+    b = backend(manager, observed)
+    session = manager.next_session
+    b.adopt(RT1, session)
+    observed.messages.clear()
+    document = Document([DocumentCell(protocol.CellId("a"), "x = 1")], {})
+    run_id = protocol.RunId("run-1")
+    b.run_cells(run_id, document, [protocol.CellId("a")])
+    run = b._runs[run_id]
+    task = run.task
+    assert task is not None
+    await asyncio.sleep(0)
+
+    session.broadcast(CompletedRunNotification(run_id=run_id))
+    task.cancel()
+    await asyncio.gather(task, return_exceptions=True)
+    await asyncio.sleep(0)
+
+    assert not run.translator.interrupted
+    assert observed.messages == [be.Done(run_id, "succeeded")]
+    assert b._runs == {}
+
+
 async def submitted(session: FakeSession, count: int) -> list[str]:
     """Wait until the session has received `count` commands."""
 
