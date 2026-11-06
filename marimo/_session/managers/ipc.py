@@ -730,7 +730,10 @@ class IPCKernelManagerImpl(KernelManager):
                 # so user-code subprocesses die too, then the launcher.
                 if self._kernel_pid is not None and sys.platform != "win32":
                     try:
-                        os.killpg(os.getpgid(self._kernel_pid), signal.SIGTERM)
+                        pgid = os.getpgid(self._kernel_pid)
+                        # The ready handshake can precede the kernel's setsid.
+                        if pgid != os.getpgrp():
+                            os.killpg(pgid, signal.SIGTERM)
                     except (ProcessLookupError, PermissionError):
                         pass
                 try:
