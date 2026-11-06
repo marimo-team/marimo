@@ -6,6 +6,7 @@ import pathlib
 import sys
 import textwrap
 import threading
+import time
 import types
 from queue import Queue
 from typing import TYPE_CHECKING, Any
@@ -31,6 +32,7 @@ from tests.conftest import ExecReqProvider, MockedKernel
 
 if TYPE_CHECKING:
     from collections.abc import Callable
+    from contextlib import AbstractContextManager
 
 INTERVAL = 0.2
 
@@ -1430,6 +1432,66 @@ async def test_watcher_does_not_restale_cells_rerun_after_reload(
     assert k.graph.cells[er_1.cell_id].import_workspace.imported_defs == {
         "foo"
     }
+
+
+async def test_watcher_does_not_restale_reader_queued_behind_importer(
+    tmp_path: pathlib.Path,
+    py_modname: str,
+    execution_kernel: Kernel,
+    exec_req: ExecReqProvider,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """A reader marked stale mid-run, after its importer reran but before
+    the reader ran, ends the run fresh.
+
+    The kernel clears staleness when it queues a run. Without the clear at
+    run time, the watcher's mark outlives the rerun of the reader (MO-8332).
+    """
+    k = execution_kernel
+    sys.path.append(str(tmp_path))
+    py_file = tmp_path / pathlib.Path(py_modname + ".py")
+    py_file.write_text("def foo():\n    return 1\n")
+
+    config = copy.deepcopy(DEFAULT_CONFIG)
+    config["runtime"]["auto_reload"] = "lazy"
+    k.set_user_config(UpdateUserConfigCommand(config=config))
+    await k.run(
+        [
+            er_1 := exec_req.get(f"from {py_modname} import foo"),
+            er_2 := exec_req.get("x = foo()"),
+        ]
+    )
+
+    update_file(py_file, "def foo():\n    return 2\n")
+    assert await _wait_for(lambda: k.graph.cells[er_1.cell_id].stale)
+
+    parked, release = _park_watcher_in_crawl(monkeypatch)
+    update_file(py_file, "def foo():\n    return 3\n")
+    assert await _wait_for(parked.is_set)
+
+    # Let the watcher mark once the importer reran and before the reader
+    # enters its run.
+    manager = k.autoreload_manager
+    real_cell_scope = manager.cell_scope
+    marked = threading.Event()
+
+    def cell_scope() -> AbstractContextManager[None]:
+        if manager._running_cell == er_2.cell_id and not release.is_set():
+            release.set()
+            for _ in range(50):
+                if k.graph.cells[er_2.cell_id].stale:
+                    marked.set()
+                    break
+                time.sleep(INTERVAL / 2)
+        return real_cell_scope()
+
+    monkeypatch.setattr(manager, "cell_scope", cell_scope)
+
+    await k.run_stale_cells()
+    assert k.globals["x"] == 3
+    assert marked.is_set(), "watcher did not mark the reader mid-run"
+    assert not k.graph.cells[er_1.cell_id].stale
+    assert not k.graph.cells[er_2.cell_id].stale
 
 
 async def test_watcher_marks_cell_whose_context_ran_without_rerun(

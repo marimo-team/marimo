@@ -205,7 +205,10 @@ def watch_modules(
             LOGGER.debug(
                 "Found stale modules; acquiring lock to update graph."
             )
-            with graph.lock:
+            # The reloader lock serializes deciding and marking with the
+            # kernel recording a run, so a mark never lands after the run
+            # of the cell it targets.
+            with graph.lock, reloader.lock:
                 LOGGER.debug("Acquired graph lock.")
                 stale_importers: set[CellId_t] = set()
                 fresh_importers: dict[CellId_t, set[str]] = {}
