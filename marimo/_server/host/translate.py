@@ -9,8 +9,6 @@ import re
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
-import msgspec
-
 from marimo._core import backend as be, protocol
 from marimo._core.code import code_fingerprint
 from marimo._messaging.cell_output import CellChannel
@@ -36,7 +34,7 @@ from marimo._messaging.tracebacks import is_code_highlighting
 from marimo._runtime.scratch import SCRATCH_CELL_ID
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Iterator
+    from collections.abc import Iterator
 
 
 @dataclass
@@ -297,16 +295,9 @@ class RunTranslators:
         self._translators.clear()
 
     def feed(
-        self,
-        notification: NotificationMessage,
-        *,
-        recover_code: Callable[[str], str | None] | None = None,
+        self, notification: NotificationMessage
     ) -> tuple[RunTranslator | None, list[be.Message]]:
-        """Translate a notification about a run, if it concerns one.
-
-        `recover_code` supplies a planned execution's source when the kernel
-        omits it, as run kernels do, so revision hashes stay computable.
-        """
+        """Translate a notification about a run, if it concerns one."""
         if not isinstance(
             notification,
             (
@@ -336,15 +327,6 @@ class RunTranslators:
             )
             self.add(translator)
             out.append(be.Scheduled(translator.run_id))
-        if (
-            recover_code is not None
-            and isinstance(notification, ExecutionNotification)
-            and notification.phase == "planned"
-            and notification.code is None
-        ):
-            code = recover_code(notification.cell_id)
-            if code is not None:
-                notification = msgspec.structs.replace(notification, code=code)
         out.extend(translator.feed(notification))
         return translator, out
 

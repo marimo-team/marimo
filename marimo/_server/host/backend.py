@@ -32,7 +32,7 @@ from marimo._server.host.translate import (
 )
 from marimo._server.scratchpad import snapshot_for_scratchpad
 from marimo._session.consumer import SessionConsumer
-from marimo._session.model import ConnectionState, SessionMode
+from marimo._session.model import ConnectionState
 from marimo._session.requests import InstantiateNotebookRequest
 from marimo._session.types import KernelState
 from marimo._types.ids import CellId_t, ConsumerId, SessionId
@@ -477,15 +477,7 @@ class SessionBackend(SessionConsumer):
             return
         if self.session is None:
             return
-        # Run kernels omit source from native notifications. App documents
-        # are immutable, so recover the submitted source for host revision
-        # hashes. The native message stays unchanged in the shared log.
-        translator, reports = self._translators.feed(
-            message,
-            recover_code=self._recover_code
-            if self._manager.mode is SessionMode.RUN
-            else None,
-        )
+        translator, reports = self._translators.feed(message)
         for reported in reports:
             self._observe(reported)
         if translator is None:
@@ -508,10 +500,3 @@ class SessionBackend(SessionConsumer):
             else:
                 for reported in translator.finish():
                     self._observe(reported)
-
-    def _recover_code(self, cell_id: str) -> str | None:
-        session = self.session
-        if session is None:
-            return None
-        cell = session.document.get(CellId_t(cell_id))
-        return None if cell is None else cell.code

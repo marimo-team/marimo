@@ -359,7 +359,9 @@ async def test_live_notifications_reach_each_subscription_until_it_closes(
         bridge.session.session_view.add_raw_notification,
         bridge._on_message,
     ]
-    assert len(bridge.session.consumers) == 3
+    backend = bridge.notebook._backend
+    assert backend is not None
+    assert bridge.session.consumers[2:] == [backend._notify]
 
 
 def save_call(bridge, key="save-1", if_match=None):
