@@ -9,7 +9,7 @@ import type { Figure } from "./Plot";
 import "./plotly.css";
 import "./mapbox.css";
 import { set } from "lodash-es";
-import { type JSX, lazy, memo, useMemo } from "react";
+import { type JSX, lazy, memo, useEffect, useMemo } from "react";
 import useEvent from "react-use-event-hook";
 import { useDeepCompareMemoize } from "@/hooks/useDeepCompareMemoize";
 import { useScript } from "@/hooks/useScript";
@@ -27,6 +27,11 @@ import {
   shouldHandleClickSelection,
 } from "./selection";
 import { usePlotlyLayout } from "./usePlotlyLayout";
+import {
+  captureCameraState,
+  type PlotlyCameraState,
+  pruneCameraState,
+} from "./camera-state";
 
 interface Data {
   figure: Figure;
@@ -51,6 +56,7 @@ type T =
       dragmode?: Plotly.Layout["dragmode"];
       xaxis?: Partial<Plotly.LayoutAxis>;
       yaxis?: Partial<Plotly.LayoutAxis>;
+      cameras?: PlotlyCameraState;
     }
   | undefined;
 
@@ -92,11 +98,28 @@ export const PlotlyComponent = memo(
     );
     const isScriptLoaded = scriptStatus === "ready";
 
-    const { figure, layout, setLayout, handleReset } = usePlotlyLayout({
-      originalFigure,
-      initialValue: value,
-      isScriptLoaded,
+    const { figure, layout, setLayout, handleReset, cameraState } =
+      usePlotlyLayout({
+        originalFigure,
+        initialValue: value,
+        cameraState: value?.cameras,
+        isScriptLoaded,
+      });
+
+    // A stale camera left in the value would come back on the next capture or
+    // remount, even after the figure returns to the revision it was saved at.
+    const pruneStaleCameras = useEvent((figure: Figure) => {
+      if (pruneCameraState(figure, value?.cameras) === value?.cameras) {
+        return;
+      }
+      setValue((prev) => {
+        const cameras = pruneCameraState(figure, prev?.cameras);
+        return cameras === prev?.cameras ? prev : { ...prev, cameras };
+      });
     });
+    useEffect(() => {
+      pruneStaleCameras(originalFigure);
+    }, [originalFigure, pruneStaleCameras]);
 
     const handleResetWithClear = useEvent(() => {
       handleReset();
@@ -151,6 +174,18 @@ export const PlotlyComponent = memo(
         {...figure}
         layout={layout}
         onRelayout={(layoutUpdate) => {
+          if (
+            Object.keys(layoutUpdate).some((key) => key.includes(".camera"))
+          ) {
+            setValue((prev) => {
+              const cameras = captureCameraState(
+                originalFigure,
+                layoutUpdate,
+                prev?.cameras ?? cameraState,
+              );
+              return cameras ? { ...prev, cameras } : prev;
+            });
+          }
           // Persist dragmode in the state to keep it across re-renders
           if ("dragmode" in layoutUpdate) {
             setValue((prev) => ({ ...prev, dragmode: layoutUpdate.dragmode }));
