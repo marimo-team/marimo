@@ -1,12 +1,33 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
+import __future__
 
+import ast
+import functools
 import inspect
 import linecache
+import operator
+import sys
 import textwrap
 from typing import Any
 
-__all__ = ["FunctionStub"]
+__all__ = ["FUTURE_FLAGS", "FunctionStub"]
+
+# Compiler flags of the __future__ features still optional in this
+# interpreter. A mandatory feature is always on, and its bit can mean
+# something else: nested_scopes shares CO_NESTED.
+FUTURE_FLAGS = functools.reduce(
+    operator.or_,
+    (
+        feature.compiler_flag
+        for feature in (
+            getattr(__future__, name) for name in __future__.all_feature_names
+        )
+        if feature.getMandatoryRelease() is None
+        or feature.getMandatoryRelease() > sys.version_info
+    ),
+    0,
+)
 
 
 class FunctionStub:
@@ -24,6 +45,13 @@ class FunctionStub:
         self.code = textwrap.dedent(inspect.getsource(function))
         self.filename = f"<{function.__name__}>"
         self.lineno = 1
+        # The snippet holds the definition alone, not the module's
+        # `from __future__` imports that governed it. The flags come from the
+        # same function `getsource` read: a decorator's wrapper may differ.
+        self.flags = inspect.unwrap(function).__code__.co_flags & FUTURE_FLAGS
+        # Restored at top level, the function would otherwise lose the class
+        # that keys it.
+        self.qualname = function.__qualname__
         if is_cached:
             # NB. keep the synthetic filename: the wrapper re-hashes its own
             # source per call, and the real path is absent on restore.
@@ -37,30 +65,62 @@ class FunctionStub:
 
     def load(self, glbls: dict[str, Any]) -> Any:
         """Reconstruct the function by executing its source code."""
-        if self.filename.startswith("<"):
-            linecache.cache[self.filename] = (
-                len(self.code),
-                None,
-                [line + "\n" for line in self.code.splitlines()],
-                self.filename,
-            )
+        fragment = [line + "\n" for line in self.code.splitlines()]
+        filename = self.filename
+        on_disk: list[str] = []
+        if not filename.startswith("<"):
+            linecache.checkcache(filename)
+            on_disk = linecache.getlines(filename)
+        window = on_disk[self.lineno - 1 : self.lineno - 1 + len(fragment)]
+        if not window or textwrap.dedent("".join(window)) != self.code:
+            # The file belongs to another process, or has shifted since.
+            # Serve the stored source under a name of its own, at its
+            # original line, so the restored function hashes like the
+            # definition it stands in for.
+            if not filename.startswith("<"):
+                filename = f"<{filename}:{self.lineno}>"
+            lines = ["\n"] * (self.lineno - 1) + fragment
+            linecache.cache[filename] = (len(self.code), None, lines, filename)
 
-        code_obj = compile(self.code, self.filename, "exec")
+        tree = ast.increment_lineno(ast.parse(self.code), self.lineno - 1)
+        # The snippet's own future flags and no others: not this module's,
+        # which `compile` would inherit.
+        code_obj = compile(
+            tree, filename, "exec", flags=self.flags, dont_inherit=True
+        )
         lcls: dict[str, Any] = {}
         exec(code_obj, glbls, lcls)
         for value in lcls.values():
+            if getattr(value, "__qualname__", None) is not None:
+                value.__qualname__ = self.qualname
             return value
 
-    def dump(self) -> tuple[str, str, int, bool]:
+    def dump(self) -> tuple[str, str, int, bool, int, str]:
         """Dump stored source code and metadata for lazy serialization."""
-        return self.code, self.filename, self.lineno, self.is_cached
+        return (
+            self.code,
+            self.filename,
+            self.lineno,
+            self.is_cached,
+            self.flags,
+            self.qualname,
+        )
 
     @classmethod
-    def from_dump(cls, data: tuple[str, str, int, bool]) -> FunctionStub:
+    def from_dump(
+        cls, data: tuple[str, str, int, bool, int, str]
+    ) -> FunctionStub:
         """Reconstruct a `FunctionStub` from a `dump()` tuple.
 
         Skips `__init__` (which requires a live function to introspect).
         """
         stub = cls.__new__(cls)
-        stub.code, stub.filename, stub.lineno, stub.is_cached = data
+        (
+            stub.code,
+            stub.filename,
+            stub.lineno,
+            stub.is_cached,
+            stub.flags,
+            stub.qualname,
+        ) = data
         return stub

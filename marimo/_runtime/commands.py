@@ -20,9 +20,9 @@ import msgspec
 
 from marimo import _loggers
 from marimo._ast.app_config import _AppConfig
+from marimo._ast.fingerprint import code_fingerprint as source_fingerprint
 from marimo._config.config import MarimoConfig
 from marimo._config.provenance import ConfigPath
-from marimo._core.code import code_fingerprint as source_fingerprint
 from marimo._data.models import DataTableSource
 from marimo._messaging.notebook.document import NotebookCell
 from marimo._messaging.notebook.outputs import CellOutputs

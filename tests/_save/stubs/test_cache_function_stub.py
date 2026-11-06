@@ -91,7 +91,14 @@ def test_manifest_round_trip() -> None:
     stub = _cache()._convert_to_stub_if_needed(_as_notebook(add))
     item = to_item(Path("cache/add"), stub, var_name="add")
     # Inlined in the function field, carrying the is_cached flag.
-    assert item.function == (stub.code, stub.filename, stub.lineno, True)
+    assert item.function == (
+        stub.code,
+        stub.filename,
+        stub.lineno,
+        True,
+        stub.flags,
+        stub.qualname,
+    )
     assert item.reference is None
 
     back = from_item(item, "add")
