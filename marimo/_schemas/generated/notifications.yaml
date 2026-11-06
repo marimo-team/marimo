@@ -118,7 +118,6 @@ components:
         \ Unique identifier of the cell being updated.\n        output: Cell's output.\
         \ Use CellOutput.empty() to clear.\n        console: Console messages. Single/list\
         \ appends, [] clears, None unchanged.\n        status: Execution status (idle/running/stale/queued/disabled-transitively).\n\
-        \        stale_inputs: Whether cell has stale inputs from changed dependencies.\n\
         \        run_id: Execution run ID for tracing. Auto-set from context.\n  \
         \      execution_id: Evaluation of this cell producing the update, when known.\n\
         \        serialization: Top-level reusability hint. UNSET unchanged, None\
@@ -156,11 +155,6 @@ components:
           anyOf:
           - type: string
           - type: 'null'
-        stale_inputs:
-          anyOf:
-          - type: boolean
-          - type: 'null'
-          default: null
         status:
           anyOf:
           - enum:

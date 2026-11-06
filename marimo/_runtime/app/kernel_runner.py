@@ -191,7 +191,7 @@ class AppKernelRunner:
             # mode to lazy. We also make all cells stale to ensure
             # that ancestors aren't run.
             for c in graph.cells.values():
-                c.set_stale(stale=False, broadcast=False)
+                c.set_stale(stale=False)
             self._kernel.reactive_execution_mode = "lazy"
             with self._runtime_context.install():
                 await self._kernel.run(execution_requests)

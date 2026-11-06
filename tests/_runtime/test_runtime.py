@@ -505,24 +505,7 @@ class TestExecution:
         assert len(k._uninstantiated_execution_requests) == 3
 
         await k.run([er1])
-        stream = MockStream(k.stream)
-        cell_notifications = [
-            deserialize_kernel_message(msg) for msg in stream.messages
-        ]
-        cell_notifications = [
-            op for op in cell_notifications if isinstance(op, CellNotification)
-        ]
-        er1_set_not_stale_before_run = False
-        for op in cell_notifications:
-            if op.cell_id == er1.cell_id and op.status == "running":
-                break
-            if (
-                op.cell_id == er1.cell_id
-                and op.stale_inputs is not None
-                and not op.stale_inputs
-            ):
-                er1_set_not_stale_before_run = True
-        assert er1_set_not_stale_before_run
+        assert not k.graph.cells[er1.cell_id].stale
 
     async def test_instantiate_autorun_false_delete_cells(
         self, any_kernel: Kernel
@@ -586,53 +569,6 @@ class TestExecution:
         await k.run([er2])
         assert not k._uninstantiated_execution_requests
         assert k.globals["z"] == 3
-
-    async def test_instantiate_autorun_false_empty_cells_not_stale(
-        self, any_kernel: Kernel
-    ) -> None:
-        """Tests that empty cells are not marked as stale during instantiation."""
-        k = any_kernel
-        await k.instantiate(
-            CreateNotebookCommand(
-                execution_requests=(
-                    ExecuteCellCommand(cell_id="0", code="x=0"),
-                    ExecuteCellCommand(cell_id="1", code=""),
-                    ExecuteCellCommand(cell_id="2", code="  \n  "),
-                    ExecuteCellCommand(cell_id="3", code="y=x+1"),
-                ),
-                cell_ids=("0", "1", "2", "3"),
-                set_ui_element_value_request=UpdateUIElementCommand.from_ids_and_values(
-                    []
-                ),
-                auto_run=False,
-            )
-        )
-
-        # Check that all cells are in uninstantiated requests
-        assert len(k._uninstantiated_execution_requests) == 4
-
-        # Check the stream for stale broadcasts
-        stream = MockStream(k.stream)
-        cell_notifications = [
-            op
-            for op in stream.parsed_operations
-            if isinstance(op, CellNotification)
-        ]
-
-        # Filter for stale broadcasts
-        stale_broadcasts = [
-            op
-            for op in cell_notifications
-            if op.stale_inputs is not None and op.stale_inputs
-        ]
-
-        # Only cells 0 and 3 should be marked as stale (non-empty cells)
-        stale_cell_ids = {op.cell_id for op in stale_broadcasts}
-        assert stale_cell_ids == {"0", "3"}
-
-        # Cells 1 and 2 (empty/whitespace) should not be marked as stale
-        assert "1" not in stale_cell_ids
-        assert "2" not in stale_cell_ids
 
     # Test errors in marimo semantics
     async def test_kernel_simultaneous_multiple_definition_error(
@@ -4704,9 +4640,6 @@ class TestMarkdownHandling:
             op for op in cell_notifications if op.cell_id == "md_cell"
         ]
 
-        # Should have at least one output operation and one stale operation
-        assert len(md_cell_notifications) >= 2
-
         # Check that there's an output operation with HTML content
         output_ops = [
             op for op in md_cell_notifications if op.output is not None
@@ -4719,25 +4652,6 @@ class TestMarkdownHandling:
         assert "Hello World" in output_op.output.data
         assert "<h1" in output_op.output.data  # Should be rendered as HTML
         assert output_op.status == "idle"
-
-        # Check that the cell was marked as not stale
-        stale_ops = [
-            op for op in md_cell_notifications if op.stale_inputs is not None
-        ]
-        assert len(stale_ops) == 1
-        assert stale_ops[0].stale_inputs is False
-
-        # Check that regular cell was marked as stale
-        regular_cell_notifications = [
-            op for op in cell_notifications if op.cell_id == "regular_cell"
-        ]
-        regular_stale_ops = [
-            op
-            for op in regular_cell_notifications
-            if op.stale_inputs is not None
-        ]
-        assert len(regular_stale_ops) == 1
-        assert regular_stale_ops[0].stale_inputs is True
 
     @pytest.mark.skipif(
         sys.version_info < (3, 14), reason="Template strings only on 3.14"
@@ -4861,27 +4775,7 @@ class TestMarkdownHandling:
         assert "cell1" in k._uninstantiated_execution_requests
         assert "cell2" in k._uninstantiated_execution_requests
 
-        # Check that all cells were marked as stale
-        cell_notifications = [
-            deserialize_kernel_message(msg) for msg in stream.messages
-        ]
-        cell_notifications = [
-            op for op in cell_notifications if isinstance(op, CellNotification)
-        ]
-
-        for cell_id in ["cell1", "cell2"]:
-            cell_notifications_for_id = [
-                op for op in cell_notifications if op.cell_id == cell_id
-            ]
-            stale_ops = [
-                op
-                for op in cell_notifications_for_id
-                if op.stale_inputs is not None
-            ]
-            assert len(stale_ops) == 1
-            assert stale_ops[0].stale_inputs is True
-
-    async def test_malformed_markdown_cells_marked_stale(
+    async def test_malformed_markdown_cells_stay_uninstantiated(
         self, mocked_kernel: MockedKernel
     ) -> None:
         """Test that cells with syntax errors are marked as stale, not processed."""
@@ -4929,16 +4823,6 @@ class TestMarkdownHandling:
             op for op in cell_notifications if isinstance(op, CellNotification)
         ]
 
-        # Bad cell should be marked as stale
-        bad_cell_notifications = [
-            op for op in cell_notifications if op.cell_id == "bad_cell"
-        ]
-        bad_stale_ops = [
-            op for op in bad_cell_notifications if op.stale_inputs is not None
-        ]
-        assert len(bad_stale_ops) == 1
-        assert bad_stale_ops[0].stale_inputs is True
-
         # Good cell should have output and be marked as not stale
         good_cell_notifications = [
             op for op in cell_notifications if op.cell_id == "good_md"
@@ -4949,10 +4833,10 @@ class TestMarkdownHandling:
         assert len(good_output_ops) == 1
         assert "Good" in good_output_ops[0].output.data
 
-    async def test_no_mo_available_all_cells_stale(
+    async def test_no_mo_available_leaves_cells_uninstantiated(
         self, mocked_kernel: MockedKernel
     ) -> None:
-        """Test that when 'mo' is not available, all cells are marked as stale."""
+        """Test that when 'mo' is not available, no cell is instantiated."""
         k = mocked_kernel.k
         stream = mocked_kernel.stream
 
@@ -4985,25 +4869,12 @@ class TestMarkdownHandling:
         assert "md_cell2" in k._uninstantiated_execution_requests
         assert "regular_cell" in k._uninstantiated_execution_requests
 
-        # Check that all cells were marked as stale
         cell_notifications = [
             deserialize_kernel_message(msg) for msg in stream.messages
         ]
         cell_notifications = [
             op for op in cell_notifications if isinstance(op, CellNotification)
         ]
-
-        for cell_id in ["md_cell1", "md_cell2", "regular_cell"]:
-            cell_notifications_for_id = [
-                op for op in cell_notifications if op.cell_id == cell_id
-            ]
-            stale_ops = [
-                op
-                for op in cell_notifications_for_id
-                if op.stale_inputs is not None
-            ]
-            assert len(stale_ops) == 1
-            assert stale_ops[0].stale_inputs is True
 
         # No cells should have output operations
         output_ops = [op for op in cell_notifications if op.output is not None]
