@@ -99,28 +99,12 @@ def form_toolsets(
 
 def convert_to_pydantic_messages(
     messages: list[ServerUIMessage],
-    part_processor: Callable[[UIMessagePart], UIMessagePart] | None = None,
 ) -> list[UIMessage]:
     """
     The frontend SDK tends to generate messages with a messageId even though it's not valid.
     Remove them to prevent validation errors.
-    If a part processor is provided, it will be applied to the parts of the message.
     """
     from pydantic_ai.ui.vercel_ai.request_types import UIMessage
-
-    def safe_part_processor(
-        part: UIMessagePart,
-        part_processor: Callable[[UIMessagePart], UIMessagePart],
-    ) -> UIMessagePart:
-        try:
-            return part_processor(part)
-        except Exception as e:
-            LOGGER.error(
-                "Error processing %s: %s",
-                type(part).__name__,
-                type(e).__name__,
-            )
-            return part
 
     pydantic_messages: list[UIMessage] = []
     for message in messages:
@@ -143,17 +127,8 @@ def convert_to_pydantic_messages(
 
         if role == "user":
             ui_message.parts = [
-                safe_part_processor(part, _inline_text_file)
-                for part in ui_message.parts
+                _inline_text_file(part) for part in ui_message.parts
             ]
-
-        # Process parts after casting so the processor will work on typed parts
-        if ui_message.parts and part_processor:
-            new_parts = [
-                safe_part_processor(part, part_processor)
-                for part in ui_message.parts
-            ]
-            ui_message.parts = new_parts
         pydantic_messages.append(ui_message)
 
     return pydantic_messages
@@ -165,7 +140,15 @@ def _inline_text_file(part: UIMessagePart) -> UIMessagePart:
     # Inline local text files so text-only models can read them too.
     if not isinstance(part, FileUIPart) or not part.url.startswith("data:"):
         return part
-    text = _decode_text_attachment(part.media_type, part.url)
+    try:
+        text = _decode_text_attachment(part.media_type, part.url)
+    except Exception as error:
+        LOGGER.error(
+            "Error processing %s: %s",
+            type(part).__name__,
+            type(error).__name__,
+        )
+        return part
     if text is None:
         return part
     return TextUIPart(
