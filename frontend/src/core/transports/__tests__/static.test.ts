@@ -5,6 +5,7 @@ import * as Protocol from "@marimo-team/client/protocol";
 import { afterEach, assert, describe, expect, it, vi } from "vitest";
 import type { NotebookBackend } from "../../notebook/replica";
 import { document as documentResource } from "../../notebook/replica/resources/document";
+import { results as resultsResource } from "../../notebook/replica/resources/results";
 import {
   createStaticNotebookBackend,
   emptySnapshot,
@@ -99,6 +100,42 @@ describe("static notebook backend", () => {
       cells: new Map(source.cells.map((cell) => [cell.id, cell])),
     });
     expect(stream.status).toBe("connected");
+  });
+
+  it("delivers embedded results as completed executions after the document", async () => {
+    const source = snapshot();
+    const cell = source.cells[0];
+    const result: Protocol.Execution = {
+      id: "embedded:result",
+      run_id: "embedded:run",
+      runtime_id: "embedded",
+      caused_by: null,
+      cell_id: cell.id,
+      code: null,
+      code_fingerprint: cell.code_fingerprint,
+      depends_on: {},
+      status: "completed",
+      outcome: {
+        kind: "value",
+        display: { mimetype: "text/html", data: "<b>1</b>" },
+      },
+      started_at: null,
+      completed_at: null,
+    };
+    const { events } = await read(
+      createStaticNotebookBackend({ ...source, results: [result] }),
+    );
+    const reducer = createNotebookReducer({
+      document: documentResource,
+      results: resultsResource,
+    });
+    const state = events.reduce(reducer.reduce, reducer.initial);
+    expect(events.map((event) => event.event).slice(-3)).toEqual([
+      "document",
+      "execution",
+      "ready",
+    ]);
+    expect(state.resources.results.get(cell.id)).toEqual(result);
   });
 
   it("preserves withheld source and its revision metadata", async () => {

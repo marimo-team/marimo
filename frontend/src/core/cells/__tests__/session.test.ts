@@ -91,6 +91,79 @@ describe("readExport", () => {
     cells,
   });
 
+  describe("results", () => {
+    it("carries a data output as a completed execution of the snapshot's source", () => {
+      const result = readExport({
+        session: createSession([
+          createSessionCell(
+            "c1",
+            [{ type: "data", data: { "text/html": "<b>1</b>" } }],
+            [],
+            "hash-1",
+          ),
+        ]),
+        notebook: createNotebook([
+          createNotebookCell("c1", { code: "1", code_hash: "hash-1" }),
+        ]),
+        filename: null,
+        appConfig: {},
+      });
+      invariant(result.snapshot, "no snapshot");
+      expect(result.snapshot.results).toEqual([
+        expect.objectContaining({
+          cell_id: "c1",
+          code_fingerprint: "hash-1",
+          status: "completed",
+          outcome: {
+            kind: "value",
+            display: { mimetype: "text/html", data: "<b>1</b>" },
+          },
+        }),
+      ]);
+    });
+
+    it("carries an error output as an exception outcome, and nothing for an empty cell", () => {
+      const result = readExport({
+        session: createSession([
+          createSessionCell(
+            "c1",
+            [
+              {
+                type: "error",
+                ename: "ValueError",
+                evalue: "bad",
+                traceback: ["Traceback\n", "ValueError: bad"],
+              },
+            ],
+            [],
+            "hash-1",
+          ),
+          createSessionCell("c2", [], [], "hash-2"),
+        ]),
+        notebook: createNotebook([
+          createNotebookCell("c1", { code: "x", code_hash: "hash-1" }),
+          createNotebookCell("c2", { code: "", code_hash: "hash-2" }),
+        ]),
+        filename: null,
+        appConfig: {},
+      });
+      invariant(result.snapshot, "no snapshot");
+      expect(result.snapshot.results?.map((r) => r.cell_id)).toEqual(["c1"]);
+      expect(result.snapshot.results?.[0]?.outcome).toEqual({
+        kind: "error",
+        error: expect.objectContaining({
+          kind: "exception",
+          name: "ValueError",
+          message: "bad",
+          traceback: {
+            mimetype: "text/plain",
+            data: "Traceback\nValueError: bad",
+          },
+        }),
+      });
+    });
+  });
+
   describe("validation", () => {
     it("logs error for both session and notebook null/undefined", () => {
       const result = readExport({
