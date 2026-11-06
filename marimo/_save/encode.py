@@ -255,10 +255,16 @@ def deterministic_dumps(
             # members by their own encoding. The output is hashed, never
             # loaded, so the id need not resolve.
             if type(obj) in (set, frozenset):
+                if id(obj) in seen:
+                    # Reached again while ordering its own members.
+                    return ("set-cycle",)
+                # A copy: ordering must not mark functions as seen before the
+                # real pass encodes them.
+                ordering = seen | {id(obj)}
                 members = sorted(
                     obj,
                     key=lambda item: deterministic_dumps(
-                        item, hash_type, _seen=seen
+                        item, hash_type, _seen=ordering
                     ),
                 )
                 return (type(obj).__name__, tuple(members))

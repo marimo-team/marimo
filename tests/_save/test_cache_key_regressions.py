@@ -503,3 +503,97 @@ async def test_identical_source_in_different_modules(tmp_path: Path) -> None:
             ]
         )
         assert (k.globals.get("r1"), k.globals.get("r2")) == (1, 2)
+
+
+async def test_reloaded_module_function_invalidates(tmp_path: Path) -> None:
+    module = tmp_path / "reloaded.py"
+
+    def write(value: int) -> None:
+        module.write_text(f"def cb():\n    return {value}\n")
+
+    write(1)
+    with mocked_kernel_session() as tk:
+        k = tk.kernel
+        await k.run(
+            [
+                command(
+                    0,
+                    "import importlib\nimport sys\nimport marimo as mo\n"
+                    f"sys.path.insert(0, {str(tmp_path)!r})\n"
+                    "import reloaded",
+                ),
+                command(
+                    1,
+                    "@mo.cache\ndef f(cb):\n    return cb()\nr=f(reloaded.cb)",
+                ),
+            ]
+        )
+        assert k.globals["r"] == 1
+        # A different size: the import system keys a stale .pyc on the
+        # source's size and whole-second mtime.
+        write(100)
+        await k.run(
+            [
+                command(
+                    1,
+                    "importlib.reload(reloaded)\n"
+                    "@mo.cache\ndef f(cb):\n    return cb()\nr=f(reloaded.cb)",
+                )
+            ]
+        )
+        assert k.globals["r"] == 100
+
+
+async def test_source_less_callback_remains_callable() -> None:
+    with mocked_kernel_session() as tk:
+        k = tk.kernel
+        await k.run(
+            [
+                command(0, "import marimo as mo"),
+                command(1, "cb = eval('lambda: 7')"),
+                command(2, "@mo.cache\ndef f(cb):\n    return cb()\nr=f(cb)"),
+            ]
+        )
+        assert k.globals.get("r") == 7
+        await k.run([command(1, "cb = eval('lambda: 8')")])
+        assert k.globals["r"] == 8
+
+
+async def test_nested_lambda_edit_invalidates() -> None:
+    with mocked_kernel_session() as tk:
+        k = tk.kernel
+        await k.run(
+            [
+                command(0, "import marimo as mo"),
+                command(1, "cb = lambda: (lambda: 3)"),
+                command(
+                    2, "@mo.cache\ndef f(cb):\n    return cb()()\nr=f(cb)"
+                ),
+            ]
+        )
+        assert k.globals.get("r") == 3
+        await k.run([command(1, "cb = lambda: (lambda: 4)")])
+        assert k.globals["r"] == 4
+
+
+def test_set_of_functions_keyed_by_member_content() -> None:
+    def one() -> int:
+        return 1
+
+    def two() -> int:
+        return 2
+
+    assert deterministic_dumps({one}, "sha256") != deterministic_dumps(
+        {two}, "sha256"
+    )
+
+
+class _Node:
+    def __init__(self) -> None:
+        self.children: set[_Node] = set()
+
+
+def test_set_back_reference_terminates() -> None:
+    node = _Node()
+    node.children.add(node)
+    assert isinstance(deterministic_dumps(node, "sha256"), bytes)
