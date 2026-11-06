@@ -674,16 +674,16 @@ class data_editor(
         validated_column_types = _validate_column_types(
             data, column_names, column_types or {}
         )
-        validation_data = (
-            deepcopy(data) if isinstance(data, (list, dict)) else data
-        )
-        normalized_data = apply_edits(
-            validation_data,
-            {"edits": []},
-            column_names=column_names,
-            column_types=validated_column_types,
-        )
         if "boolean" in validated_column_types.values():
+            validation_data = (
+                deepcopy(data) if isinstance(data, (list, dict)) else data
+            )
+            normalized_data = apply_edits(
+                validation_data,
+                {"edits": []},
+                column_names=column_names,
+                column_types=validated_column_types,
+            )
             table_manager = get_table_manager(normalized_data)
         self._column_types = validated_column_types
         field_types = _editor_field_types(
