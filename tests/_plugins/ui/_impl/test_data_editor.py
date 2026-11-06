@@ -589,6 +589,36 @@ def test_data_editor_sends_field_types_for_row_data():
     ]
 
 
+@pytest.mark.parametrize(
+    ("data", "expected"),
+    [
+        ({}, None),
+        ({"empty": []}, None),
+        (
+            {"empty": [], "score": [1, None, 2.5], "code": ["01"]},
+            [
+                ("empty", ("string", "object")),
+                ("score", ("number", "object")),
+                ("code", ("string", "str")),
+            ],
+        ),
+        (
+            {"code": ["01"], "score": [1, 2.5], "empty": []},
+            [
+                ("code", ("string", "str")),
+                ("score", ("number", "object")),
+                ("empty", ("string", "object")),
+            ],
+        ),
+    ],
+)
+def test_data_editor_preserves_empty_and_ragged_field_types(data, expected):
+    editor = data_editor(data)
+
+    assert editor._component_args["field-types"] == expected
+    assert editor._component_args["column-names"] == list(data)
+
+
 def test_data_editor_preserves_numeric_string_column_order():
     editor = data_editor([{"10": "x", "2": "y"}])
     edits: DataEdits = {"edits": [{"columnIdx": 0, "type": "remove"}]}

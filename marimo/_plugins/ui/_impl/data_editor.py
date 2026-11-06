@@ -34,7 +34,7 @@ from marimo._utils.deprecated import deprecated
 LOGGER = _loggers.marimo_logger()
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Sequence
+    from collections.abc import Callable, Iterable, Sequence
 
     from narwhals.dtypes import DType
     from typing_extensions import TypeIs
@@ -869,12 +869,28 @@ def _editor_field_types(
     if not field_types and isinstance(table_manager, DefaultTableManager):
         # Without explicit types the frontend guesses each column's type
         # from CSV text, which turns strings such as "01" into numbers.
-        rows = DefaultTableManager._normalize_data(table_manager.data)
-        if rows:
-            field_types = [
-                (column, _infer_field_type([row.get(column) for row in rows]))
-                for column in column_names
-            ]
+        data = table_manager.data
+        if isinstance(data, dict) and all(
+            isinstance(values, (list, tuple)) for values in data.values()
+        ):
+            if any(data.values()):
+                field_types = [
+                    (
+                        column,
+                        _infer_field_type(cast("Iterable[Any]", data[column])),
+                    )
+                    for column in column_names
+                ]
+        else:
+            rows = DefaultTableManager._normalize_data(data)
+            if rows:
+                field_types = [
+                    (
+                        column,
+                        _infer_field_type(row.get(column) for row in rows),
+                    )
+                    for column in column_names
+                ]
     return [
         (column, ("string", "str"))
         if isinstance(column_types.get(column), list)
@@ -883,36 +899,40 @@ def _editor_field_types(
     ]
 
 
-def _infer_field_type(values: list[Any]) -> tuple[FieldType, str]:
-    present = [value for value in values if value is not None]
-    value_types = {type(value) for value in present}
+def _infer_field_type(values: Iterable[Any]) -> tuple[FieldType, str]:
+    value_types = {type(value) for value in values if value is not None}
     external_type = (
         next(iter(value_types)).__name__ if len(value_types) == 1 else "object"
     )
-    if not present:
+    if not value_types:
         return "string", external_type
-    if all(isinstance(value, bool) for value in present):
+    if all(issubclass(value_type, bool) for value_type in value_types):
         return "boolean", external_type
     if all(
-        isinstance(value, numbers.Integral) and not isinstance(value, bool)
-        for value in present
+        issubclass(value_type, numbers.Integral)
+        and not issubclass(value_type, bool)
+        for value_type in value_types
     ):
         return "integer", external_type
     if all(
-        isinstance(value, (numbers.Real, Decimal))
-        and not isinstance(value, bool)
-        for value in present
+        issubclass(value_type, (numbers.Real, Decimal))
+        and not issubclass(value_type, bool)
+        for value_type in value_types
     ):
         return "number", external_type
-    if all(isinstance(value, datetime.datetime) for value in present):
+    if all(
+        issubclass(value_type, datetime.datetime) for value_type in value_types
+    ):
         return "datetime", external_type
     if all(
-        isinstance(value, datetime.date)
-        and not isinstance(value, datetime.datetime)
-        for value in present
+        issubclass(value_type, datetime.date)
+        and not issubclass(value_type, datetime.datetime)
+        for value_type in value_types
     ):
         return "date", external_type
-    if all(isinstance(value, datetime.time) for value in present):
+    if all(
+        issubclass(value_type, datetime.time) for value_type in value_types
+    ):
         return "time", external_type
     return "string", external_type
 
