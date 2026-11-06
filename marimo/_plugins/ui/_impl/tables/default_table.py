@@ -20,6 +20,8 @@ from marimo._plugins.ui._impl.tables.format import (
 )
 
 if TYPE_CHECKING:
+    from typing import TypeGuard
+
     from marimo._plugins.ui._impl.table import SortArgs
 from marimo._plugins.ui._impl.tables.pandas_table import (
     PandasTableManagerFactory,
@@ -533,7 +535,9 @@ class DefaultTableManager(TableManager[JsonTableData]):
         return cast(list[dict[str, Any]], data)
 
 
-def _is_column_oriented(data: JsonTableData) -> bool:
+def _is_column_oriented(
+    data: JsonTableData,
+) -> TypeGuard[dict[str, Sequence[object]]]:
     return isinstance(data, dict) and all(
         isinstance(value, (list, tuple)) for value in data.values()
     )
