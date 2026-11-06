@@ -256,6 +256,13 @@ def state(
       [slider, number]
       ```
 
+    Note:
+      State lives as long as the cell that created it. If that cell re-runs,
+      for example because it reads a UI element, `mo.state()` creates a fresh
+      state and the previous value is lost. To keep state across
+      interactions, create it in a cell that doesn't reference UI elements or
+      other state.
+
     Warning:
       Do not store `marimo.ui` elements in state; doing so can cause
       hard-to-diagnose bugs.
