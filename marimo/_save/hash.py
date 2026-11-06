@@ -9,6 +9,7 @@ import hashlib
 import inspect
 import linecache
 import sys
+import types
 from typing import TYPE_CHECKING, Any, NamedTuple
 
 from marimo._ast.fingerprint import ast_fingerprint, code_fingerprint
@@ -74,6 +75,28 @@ class SerialRefs(NamedTuple):
     stateful_refs: set[Name]
 
 
+def _code_object_bytes(code: types.CodeType) -> bytes:
+    """Encode a code object that has no source, such as one built by eval."""
+    constants = tuple(
+        _code_object_bytes(const)
+        if isinstance(const, types.CodeType)
+        else const
+        for const in code.co_consts
+    )
+    return primitive_to_bytes(
+        (
+            code.co_name,
+            code.co_argcount,
+            code.co_kwonlyargcount,
+            code.co_names,
+            code.co_varnames,
+            code.co_freevars,
+            constants,
+            code.co_code,
+        )
+    )
+
+
 @functools.lru_cache(maxsize=32)
 def _parse_source(filename: str, source: str) -> ast.Module:
     del filename  # Part of the key: the same text in two files is two trees.
@@ -89,10 +112,12 @@ def hash_function_source(fn: Callable[..., Any]) -> bytes:
     code = fn.__code__
     # The whole file, not `inspect.getsource`: a fragment has to be dedented,
     # which rewrites multiline string literals, and a lambda's fragment may
-    # not parse on its own.
+    # not parse on its own. A reloaded module has new lines on disk.
+    linecache.checkcache(code.co_filename)
     lines = linecache.getlines(code.co_filename)
     if not lines:
-        raise TypeError(f"No source for {code.co_qualname}")
+        # Built by exec or eval. Only the compiled form exists.
+        return type_sign(_code_object_bytes(code), "code")
     try:
         tree = _parse_source(code.co_filename, "".join(lines))
     except (SyntaxError, ValueError) as e:
@@ -100,8 +125,9 @@ def hash_function_source(fn: Callable[..., Any]) -> bytes:
     first = code.co_firstlineno
     nodes: list[ast.AST]
     if code.co_name == "<lambda>":
-        # Several lambdas can share a line. The code's instruction positions
-        # fall inside the one that produced it.
+        # Several lambdas can share a line, or nest. The code's instruction
+        # positions fall inside the one that produced it, and its arity and
+        # number of nested lambdas tell an outer lambda from its inner one.
         span = next(
             (
                 ((line, col), (end_line, end_col))
@@ -114,11 +140,22 @@ def hash_function_source(fn: Callable[..., Any]) -> bytes:
             ),
             None,
         )
+        nested = sum(
+            isinstance(const, types.CodeType) and const.co_name == "<lambda>"
+            for const in code.co_consts
+        )
         nodes = [
             n
             for n in ast.walk(tree)
             if isinstance(n, ast.Lambda)
             and n.lineno == first
+            and len(n.args.args) + len(n.args.posonlyargs) == code.co_argcount
+            and sum(
+                isinstance(child, ast.Lambda)
+                for child in ast.walk(n.body)
+                if child is not n
+            )
+            == nested
             and (
                 span is None
                 or (n.lineno, n.col_offset) <= span[0]
