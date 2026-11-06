@@ -128,8 +128,8 @@ export function describeToolCall(
     };
   }
 
-  const known = KNOWN_TOOLS[name];
-  if (known) {
+  if (Object.hasOwn(KNOWN_TOOLS, name)) {
+    const known = KNOWN_TOOLS[name];
     return { label: known[phase], icon: known.icon };
   }
 
@@ -147,7 +147,7 @@ function getEdit(
     return undefined;
   }
   const { type, code } = input.edit;
-  if (typeof type !== "string" || !(type in EDIT_LABELS)) {
+  if (typeof type !== "string" || !Object.hasOwn(EDIT_LABELS, type)) {
     return undefined;
   }
   return {

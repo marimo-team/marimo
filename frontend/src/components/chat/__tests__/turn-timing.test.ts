@@ -14,25 +14,45 @@ const assistant = (metadata?: unknown): UIMessage => ({
 
 describe("withTurnTiming", () => {
   it("stamps the turn start and finish on the trailing assistant message", () => {
-    const [, stamped] = withTurnTiming([user, assistant()], 100, 500);
-    expect(getTurnTiming(stamped)).toEqual({ startedAt: 100, finishedAt: 500 });
+    const [, stamped] = withTurnTiming(
+      [user, assistant()],
+      { startedAt: 100, stopped: false },
+      500,
+    );
+    expect(getTurnTiming(stamped)).toEqual({
+      startedAt: 100,
+      finishedAt: 500,
+      stopped: false,
+    });
   });
 
   it("keeps the original start across follow-up requests in the same turn", () => {
-    const first = withTurnTiming([user, assistant({ other: 1 })], 100, 500);
-    const [, stamped] = withTurnTiming(first, 400, 900);
+    const first = withTurnTiming(
+      [user, assistant({ other: 1 })],
+      { startedAt: 100, stopped: false },
+      500,
+    );
+    const [, stamped] = withTurnTiming(
+      first,
+      { startedAt: 400, stopped: true },
+      900,
+    );
     expect(stamped.metadata).toEqual({
       other: 1,
       startedAt: 100,
       finishedAt: 900,
+      stopped: true,
     });
   });
 
   it("leaves messages untouched without an assistant reply or start time", () => {
     const pending = [user];
-    expect(withTurnTiming(pending, 100, 500)).toBe(pending);
+    const turn = { startedAt: 100, stopped: false };
+    expect(withTurnTiming(pending, turn, 500)).toBe(pending);
     const unknownStart = [user, assistant()];
-    expect(withTurnTiming(unknownStart, null, 500)).toBe(unknownStart);
+    expect(
+      withTurnTiming(unknownStart, { ...turn, startedAt: null }, 500),
+    ).toBe(unknownStart);
   });
 });
 

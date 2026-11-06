@@ -23,6 +23,7 @@ describe("ToolStep", () => {
     fireEvent.click(row);
     expect(row.getAttribute("aria-expanded")).toBe("true");
     expect(screen.getByText("Tool Request")).toBeTruthy();
+    expect(screen.getByText("Tool Result")).toBeTruthy();
   });
 
   it("shows the error text of a failed call", () => {

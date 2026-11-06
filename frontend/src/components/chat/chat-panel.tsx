@@ -534,13 +534,16 @@ const ChatPanelBody = () => {
       finishReason,
     }) => {
       // useChat routes every chat's callbacks to the latest one.
-      let isCurrentChat = false;
-      const messages = turn.finish(finishedMessages, { isAbort, isError });
+      const finished: { messages?: typeof finishedMessages } = {};
       setMessages((current) => {
-        isCurrentChat = current.at(-1)?.id === finishedMessages.at(-1)?.id;
-        return isCurrentChat ? messages : current;
+        if (current.at(-1)?.id !== finishedMessages.at(-1)?.id) {
+          return current;
+        }
+        finished.messages = turn.finish(finishedMessages, { isAbort, isError });
+        return finished.messages;
       });
-      if (!isCurrentChat) {
+      const { messages } = finished;
+      if (!messages) {
         return;
       }
       setChatState((prev) => {

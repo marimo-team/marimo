@@ -36,7 +36,7 @@ function show(
   {
     isActive = false,
     metadata,
-  }: { isActive?: boolean; metadata?: Record<string, number> } = {},
+  }: { isActive?: boolean; metadata?: Record<string, number | boolean> } = {},
 ) {
   return render(
     <div>
@@ -126,6 +126,15 @@ describe("assistant turn rendering", () => {
     show([reasoning("Plan"), tool("edit_notebook_tool", "input-available")]);
     const summary = screen.getByRole("button", { name: "Stopped" });
     expect(summary.getAttribute("aria-expanded")).toBe("true");
+  });
+
+  it("labels a stopped turn even without pending tools", () => {
+    show([reasoning("Plan"), { type: "text", text: "Partial" }], {
+      metadata: { startedAt: 0, finishedAt: 3_000, stopped: true },
+    });
+    expect(
+      screen.getByRole("button", { name: "Stopped after 3s" }),
+    ).toBeTruthy();
   });
 
   it("flags failed steps in the summary", () => {

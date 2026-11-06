@@ -60,7 +60,9 @@ export const renderUIMessage = ({
           (work.length === 0 || work.at(-1)?.part.type === "reasoning")
         }
         interrupted={
-          !running && tools.some((part) => PENDING_TOOL_STATES.has(part.state))
+          !running &&
+          (timing?.stopped === true ||
+            tools.some((part) => PENDING_TOOL_STATES.has(part.state)))
         }
         defaultOpen={!rest.some(({ part }) => !isPendingApproval(part))}
         timing={timing}

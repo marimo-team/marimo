@@ -26,7 +26,24 @@ describe("describeToolCall", () => {
   it("falls back to a generic edit label while the input is still streaming", () => {
     expect(
       describeToolCall("tool-edit_notebook_tool", { edit: {} }, "running"),
+    ).toEqual(expect.objectContaining({ label: "Editing notebook" }));
+    expect(
+      describeToolCall("tool-edit_notebook_tool", { edit: {} }, "running"),
     ).not.toHaveProperty("detail");
+  });
+
+  it("ignores inherited object keys in tool names and edit types", () => {
+    expect(describeToolCall("tool-constructor", {}, "done")).toMatchObject({
+      label: "Called",
+      detail: "constructor",
+    });
+    expect(
+      describeToolCall(
+        "edit_notebook_tool",
+        { edit: { type: "toString" } },
+        "done",
+      ).label,
+    ).toBe("Edited notebook");
   });
 
   it("summarizes code-mode runs by their first meaningful line", () => {

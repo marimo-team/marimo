@@ -45,6 +45,12 @@ describe("useAssistantTurn", () => {
     expect(result.current.isActive(idle)).toBe(false);
 
     act(() => result.current.start());
+    act(() => {
+      result.current.finish(awaitingTool, { isAbort: false, isError: true });
+    });
+    expect(result.current.isActive(idle)).toBe(false);
+
+    act(() => result.current.start());
     expect(result.current.isActive({ ...idle, hasError: true })).toBe(false);
 
     act(() => result.current.reset());

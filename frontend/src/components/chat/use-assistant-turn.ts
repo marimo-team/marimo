@@ -22,7 +22,10 @@ export function useAssistantTurn() {
       if (opts.isAbort || opts.isError) {
         setTurn((prev) => prev && { ...prev, ended: true });
       }
-      return withTurnTiming(finished, turn?.startedAt ?? null);
+      return withTurnTiming(finished, {
+        startedAt: turn?.startedAt ?? null,
+        stopped: opts.isAbort,
+      });
     },
   );
 

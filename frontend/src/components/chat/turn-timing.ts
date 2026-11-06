@@ -5,6 +5,7 @@ import type { UIMessage } from "ai";
 export interface TurnTiming {
   startedAt: number;
   finishedAt?: number;
+  stopped?: boolean;
 }
 
 export function getTurnTiming(message: UIMessage): TurnTiming | undefined {
@@ -12,26 +13,30 @@ export function getTurnTiming(message: UIMessage): TurnTiming | undefined {
   if (typeof metadata !== "object" || metadata === null) {
     return undefined;
   }
-  const { startedAt, finishedAt } = metadata as Record<string, unknown>;
+  const { startedAt, finishedAt, stopped } = metadata as Record<
+    string,
+    unknown
+  >;
   if (typeof startedAt !== "number") {
     return undefined;
   }
   return {
     startedAt,
     finishedAt: typeof finishedAt === "number" ? finishedAt : undefined,
+    stopped: stopped === true,
   };
 }
 
 export function withTurnTiming(
   messages: UIMessage[],
-  turnStartedAt: number | null,
+  turn: { startedAt: number | null; stopped: boolean },
   now = Date.now(),
 ): UIMessage[] {
   const last = messages.at(-1);
   if (last?.role !== "assistant") {
     return messages;
   }
-  const startedAt = getTurnTiming(last)?.startedAt ?? turnStartedAt;
+  const startedAt = getTurnTiming(last)?.startedAt ?? turn.startedAt;
   if (startedAt == null) {
     return messages;
   }
@@ -41,7 +46,15 @@ export function withTurnTiming(
       : {};
   return [
     ...messages.slice(0, -1),
-    { ...last, metadata: { ...metadata, startedAt, finishedAt: now } },
+    {
+      ...last,
+      metadata: {
+        ...metadata,
+        startedAt,
+        finishedAt: now,
+        stopped: turn.stopped,
+      },
+    },
   ];
 }
 
