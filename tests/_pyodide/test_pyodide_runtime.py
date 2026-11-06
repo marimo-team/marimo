@@ -114,9 +114,12 @@ async def call(
 
 
 async def settle() -> None:
-    """Let submissions run their course."""
-    for _ in range(4):
+    """Let the backend's tasks run until they are done or blocked."""
+    current = asyncio.current_task()
+    for _ in range(50):
         await asyncio.sleep(0)
+        if all(t.done() for t in asyncio.all_tasks() if t is not current):
+            return
 
 
 async def started(bridge: PyodideBridge) -> list[dict[str, Any]]:
