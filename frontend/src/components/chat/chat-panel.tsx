@@ -20,7 +20,6 @@ import {
 import { memo, useEffect, useMemo, useRef, useState } from "react";
 import useEvent from "react-use-event-hook";
 import { Button } from "@/components/ui/button";
-import { LoadingEllipsis } from "@/components/icons/loading-ellipsis";
 import { replaceMessagesInChat } from "@/core/ai/chat-utils";
 import { useAIConfigActions } from "@/core/ai/config";
 import { AI_SDK_UI_THROTTLE_MS } from "@/core/ai/constants";
@@ -43,7 +42,6 @@ import { useRequestClient } from "@/core/network/requests";
 import { useRuntimeManager } from "@/core/runtime/config";
 import { isWasm } from "@/core/wasm/utils";
 import { ErrorBanner } from "@/plugins/impl/common/error-banner";
-import { cn } from "@/utils/cn";
 import { Logger } from "@/utils/Logger";
 import { AIModelDropdown } from "../ai/ai-model-dropdown";
 import { useOpenSettingsToTab } from "../app-config/state";
@@ -77,7 +75,8 @@ import {
   getAbortReasonFromChunk,
   resolveChatAbortReason,
 } from "./chat-abort";
-import { renderUIMessage } from "./chat-display";
+import { AgentActivity } from "./agent-activity";
+import { getAnswerText, renderUIMessage } from "./chat-display";
 import { ChatHistoryPopover } from "./chat-history-popover";
 import { CapabilitiesPopover } from "./capabilities-popover";
 import { NotebookAccessSelector } from "./notebook-access-selector";
@@ -88,7 +87,6 @@ import {
   handleToolCall,
   hasPendingToolCalls,
   hasUnresolvedToolCalls,
-  isLastMessageReasoning,
   PROVIDERS_THAT_SUPPORT_ATTACHMENTS,
   type QueuedUserMessage,
   shouldFlushQueue,
@@ -99,7 +97,9 @@ import { getCodes } from "@/core/codemirror/copilot/getCodes";
 import { focusInputAndMoveToEnd } from "@/core/codemirror/utils";
 import ScrollToBottomButton from "./acp/scroll-to-bottom-button";
 import { useChatControllerId } from "./use-chat-controller-id";
-import { useChatGeneration } from "./use-chat-generation";
+import { isChatBusy, useChatGeneration } from "./use-chat-generation";
+import { useAssistantTurn } from "./use-assistant-turn";
+import { UserMessage } from "./user-message";
 
 // Default mode for the AI
 const DEFAULT_MODE = "ask";
@@ -191,9 +191,9 @@ interface ChatMessageProps {
   message: UIMessage;
   index: number;
   onEdit: (index: number, newValue: string) => void;
-  isStreamingReasoning: boolean;
   isLast: boolean;
   isActive: boolean;
+  turnStartedAt: number | null;
   addToolApprovalResponse?: ChatAddToolApproveResponseFunction;
 }
 
@@ -202,78 +202,40 @@ const ChatMessageDisplay: React.FC<ChatMessageProps> = memo(
     message,
     index,
     onEdit,
-    isStreamingReasoning,
     isLast,
     isActive,
+    turnStartedAt,
     addToolApprovalResponse,
   }) => {
-    const renderUserMessage = (message: UIMessage) => {
-      const textParts = message.parts?.filter(
-        (p): p is TextUIPart => p.type === "text",
-      );
-      const content = textParts?.map((p) => p.text).join("\n");
-      const fileParts = message.parts?.filter(
-        (p): p is FileUIPart => p.type === "file",
-      );
-
+    if (message.role === "user") {
       return (
-        <div className="w-[95%] bg-background border p-1 rounded-[10px]">
-          {fileParts?.map((filePart, idx) => (
-            <AttachmentRenderer attachment={filePart} key={idx} />
-          ))}
-          <PromptInput
-            key={message.id}
-            value={content}
-            placeholder="Type your message. Use @ to reference variables and cells."
-            onChange={() => {
-              // noop
-            }}
-            onSubmit={(_e, newValue) => {
-              if (!newValue.trim()) {
-                return;
-              }
-              onEdit(index, newValue);
-            }}
-            onClose={() => {
-              // noop
-            }}
+        <div className="group flex justify-end">
+          <UserMessage
+            message={message}
+            canEdit={!isActive}
+            onEdit={(newValue) => onEdit(index, newValue)}
           />
         </div>
       );
-    };
+    }
 
-    const renderOtherMessage = (message: UIMessage) => {
-      const textParts = message.parts.filter(
-        (p): p is TextUIPart => p.type === "text",
-      );
-      const content = textParts.map((p) => p.text).join("\n");
-
-      return (
+    return (
+      <div className="group relative flex justify-start">
         <div className="w-[95%] wrap-break-word">
           <div className="absolute right-1 top-1 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity">
-            <CopyClipboardIcon className="h-3 w-3" value={content || ""} />
+            <CopyClipboardIcon
+              className="h-3 w-3"
+              value={() => getAnswerText(message)}
+            />
           </div>
           {renderUIMessage({
             message,
-            isStreamingReasoning,
             isLast,
             isActive,
+            turnStartedAt,
             addToolApprovalResponse,
           })}
         </div>
-      );
-    };
-
-    return (
-      <div
-        className={cn(
-          "flex group relative",
-          message.role === "user" ? "justify-end" : "justify-start",
-        )}
-      >
-        {message.role === "user"
-          ? renderUserMessage(message)
-          : renderOtherMessage(message)}
       </div>
     );
   },
@@ -484,6 +446,8 @@ const ChatPanelBody = () => {
     lastAbortReasonRef.current = null;
     setAbortNotice(null);
   });
+  const turn = useAssistantTurn();
+  const resetTurn = turn.reset;
   const runtimeManager = useRuntimeManager();
   const { invokeAiTool } = useRequestClient();
 
@@ -506,6 +470,7 @@ const ChatPanelBody = () => {
     error,
     status,
     regenerate,
+    setMessages,
     stop,
     addToolOutput,
     addToolApprovalResponse,
@@ -513,7 +478,8 @@ const ChatPanelBody = () => {
   } = useChat({
     id: chatControllerId,
     throttle: AI_SDK_UI_THROTTLE_MS,
-    sendAutomaticallyWhen: ({ messages }) => hasPendingToolCalls(messages),
+    sendAutomaticallyWhen: ({ messages }) =>
+      !turn.hasEnded && hasPendingToolCalls(messages),
     messages: activeChat?.messages || [], // initial messages
     transport: new StreamingChunkTransport(
       {
@@ -560,7 +526,26 @@ const ChatPanelBody = () => {
         }
       },
     ),
-    onFinish: ({ messages, isError, isAbort, finishReason }) => {
+    onFinish: ({
+      messages: finishedMessages,
+      isError,
+      isAbort,
+      finishReason,
+    }) => {
+      // useChat routes every chat's callbacks to the latest one. Its
+      // setMessages isn't a React setter: the updater runs synchronously.
+      const finished: { messages?: typeof finishedMessages } = {};
+      setMessages((current) => {
+        if (current.at(-1)?.id !== finishedMessages.at(-1)?.id) {
+          return current;
+        }
+        finished.messages = turn.finish(finishedMessages, { isAbort, isError });
+        return finished.messages;
+      });
+      const { messages } = finished;
+      if (!messages) {
+        return;
+      }
       setChatState((prev) => {
         return replaceMessagesInChat({
           chatState: prev,
@@ -605,6 +590,7 @@ const ChatPanelBody = () => {
 
   const sendUserMessage = useEvent((parts: ChatMessagePart[]) => {
     clearAbortState();
+    turn.start();
     sendMessage({ role: "user", parts });
   });
 
@@ -629,11 +615,43 @@ const ChatPanelBody = () => {
     },
   );
 
-  const isLoading = useChatGeneration(status);
+  const isLoading = isChatBusy(status);
+  const isTurnActive = turn.isActive({
+    isLoading,
+    hasError: error != null,
+    messages,
+  });
+  useChatGeneration(isTurnActive);
+
+  const stopTurn = useEvent(() => {
+    if (isLoading) {
+      turn.stop();
+      void stop();
+      return;
+    }
+    // Between requests there is no stream to abort, so `onFinish` won't run.
+    const stopped = turn.finish(messages, { isAbort: true, isError: false });
+    setMessages(stopped);
+    setChatState((prev) =>
+      replaceMessagesInChat({
+        chatState: prev,
+        chatId: prev.activeChatId,
+        messages: stopped,
+      }),
+    );
+    tryFlushQueuedMessages(stopped, { isError: false, isAbort: true });
+  });
+
+  const respondToApproval = useEvent(
+    (response: Parameters<ChatAddToolApproveResponseFunction>[0]) => {
+      turn.resume(messages.at(-1));
+      return addToolApprovalResponse(response);
+    },
+  );
   // useEvent reads the latest loading state, even when called after an await
   // (e.g. resolving @-context) that outlives the original render's closure.
   const submitOrQueue = useEvent((parts: ChatMessagePart[]) => {
-    if (isLoading || hasQueuedRef.current) {
+    if (isTurnActive || hasQueuedRef.current) {
       enqueueUserMessage(parts);
     } else {
       sendUserMessage(parts);
@@ -666,16 +684,17 @@ const ChatPanelBody = () => {
     });
   });
 
-  // Check if we're currently streaming reasoning in the latest message
-  const isStreamingReasoning =
-    isLoading && messages.length > 0 && isLastMessageReasoning(messages);
-
   // Pin to the bottom while the user is already there.
   useEffect(() => {
     setIsScrolledToBottom(true);
     clearQueuedMessages();
     clearAbortState();
   }, [activeChatId, clearQueuedMessages, clearAbortState]);
+
+  // Creating a chat keeps the draft's controller, so its turn survives.
+  useEffect(() => {
+    resetTurn();
+  }, [chatControllerId, resetTurn]);
 
   useEffect(() => {
     if (!isScrolledToBottom) {
@@ -731,6 +750,7 @@ const ChatPanelBody = () => {
       const { contextPart, attachments } =
         await resolveChatContext(initialMessage);
 
+      turn.start();
       sendMessage({
         role: "user",
         parts: [
@@ -788,6 +808,7 @@ const ChatPanelBody = () => {
       const { contextPart, attachments } = await resolveChatContext(newValue);
 
       const messageId = editedMessage.id;
+      turn.start();
       sendMessage({
         messageId: messageId, // replace the message
         role: "user",
@@ -826,6 +847,7 @@ const ChatPanelBody = () => {
 
   const handleReload = () => {
     clearAbortState();
+    turn.start();
     regenerate();
   };
 
@@ -890,8 +912,8 @@ const ChatPanelBody = () => {
       inputRef={newThreadInputRef}
       setInput={setNewThreadInput}
       onSubmit={handleNewThreadSubmit}
-      isLoading={isLoading}
-      onStop={stop}
+      isLoading={isTurnActive}
+      onStop={stopTurn}
       fileInputRef={fileInputRef}
       onAddFiles={addFiles}
       onClose={handleOnCloseThread}
@@ -902,8 +924,8 @@ const ChatPanelBody = () => {
       setInput={setInput}
       onSubmit={handleChatInputSubmit}
       inputRef={newMessageInputRef}
-      isLoading={isLoading}
-      onStop={stop}
+      isLoading={isTurnActive}
+      onStop={stopTurn}
       onClose={() => newMessageInputRef.current?.editor?.blur()}
       fileInputRef={fileInputRef}
       onAddFiles={addFiles}
@@ -947,18 +969,35 @@ const ChatPanelBody = () => {
           ref={scrollContainerRef}
           onScroll={handleScroll}
         >
-          {messages.map((message, idx) => (
-            <ChatMessageDisplay
-              key={message.id}
-              message={message}
-              index={idx}
-              onEdit={handleMessageEdit}
-              isStreamingReasoning={isStreamingReasoning}
-              isLast={idx === messages.length - 1}
-              isActive={isLoading}
-              addToolApprovalResponse={addToolApprovalResponse}
+          <TooltipProvider>
+            {messages.map((message, idx) => {
+              const isLast = idx === messages.length - 1;
+              return (
+                <ChatMessageDisplay
+                  key={message.id}
+                  message={message}
+                  index={idx}
+                  onEdit={handleMessageEdit}
+                  isLast={isLast}
+                  isActive={isTurnActive}
+                  turnStartedAt={isLast ? turn.startedAt : null}
+                  addToolApprovalResponse={respondToApproval}
+                />
+              );
+            })}
+          </TooltipProvider>
+
+          {isTurnActive && messages.at(-1)?.role === "user" && (
+            <AgentActivity
+              running={true}
+              thinking={true}
+              timing={
+                turn.startedAt == null
+                  ? undefined
+                  : { startedAt: turn.startedAt }
+              }
             />
-          ))}
+          )}
 
           {queuedMessages.map((message) => (
             <QueuedMessageDisplay key={message.id} message={message} />
@@ -991,31 +1030,7 @@ const ChatPanelBody = () => {
         />
       </div>
 
-      {isLoading && (
-        <div className="flex shrink-0 items-center gap-2 border-t border-border px-3 py-2 text-sm text-muted-foreground">
-          <div className="flex items-center gap-1.5">
-            <div aria-hidden={true}>
-              <LoadingEllipsis
-                size={3}
-                gap="gap-0.5"
-                className="motion-reduce:[&_svg]:animate-none"
-              />
-            </div>
-            <output>Working</output>
-          </div>
-          <span aria-hidden={true} className="h-3 w-px bg-border" />
-          <Button
-            variant="text"
-            size="xs"
-            className="chat-control text-sm"
-            onClick={stop}
-          >
-            Stop generation
-          </Button>
-        </div>
-      )}
-
-      {!isLoading && <PendingAICells />}
+      {!isTurnActive && <PendingAICells />}
       <div className="shrink-0 p-3">{composer}</div>
     </div>
   );

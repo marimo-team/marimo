@@ -5,6 +5,7 @@ import { useCellIds, useCellNames } from "@/core/cells/cells";
 import { useCellActions } from "@/core/cells/actions";
 import { type CellId, HTMLCellId, SCRATCH_CELL_ID } from "@/core/cells/ids";
 import { displayCellName } from "@/core/cells/names";
+import { scrollToCell } from "@/core/cells/scrollCellIntoView";
 import { goToCellLine } from "@/core/codemirror/go-to-definition/utils";
 import { useFilename } from "@/core/saving/filename";
 import { cn } from "@/utils/cn";
@@ -106,15 +107,14 @@ export function scrollAndHighlightCell(
   skipScroll?: boolean,
 ): boolean {
   const cellHtmlId = HTMLCellId.create(cellId);
-  const cell: HTMLElement | null = document.getElementById(cellHtmlId);
+  const cell = skipScroll
+    ? document.getElementById(cellHtmlId)
+    : scrollToCell(cellId);
   const isCellErrored = cell?.classList.contains("has-error");
 
   if (cell === null) {
     Logger.error(`Cell ${cellHtmlId} not found on page.`);
     return false;
-  }
-  if (!skipScroll) {
-    cell.scrollIntoView({ behavior: "smooth", block: "center" });
   }
 
   if (variant === "destructive" || (isCellErrored && variant === undefined)) {

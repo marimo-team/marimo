@@ -2,18 +2,24 @@
 
 import { useAtomValue, useStore } from "jotai";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { stagedAICellsAtom, useStagedCells } from "@/core/ai/staged-cells";
-import { chatGenerationInProgressAtom } from "@/core/ai/state";
-import type { CellId } from "@/core/cells/ids";
-import { getNextIndex } from "@/utils/arrays";
 import {
-  acceptStagedCell,
-  rejectStagedCell,
-  useStagedAICellActions,
-} from "../../cell/StagedAICell";
-import { scrollAndHighlightCell } from "../../links/cell-link";
+  type Edit,
+  stagedAICellsAtom,
+  useStagedCells,
+} from "@/core/ai/staged-cells";
+import { chatGenerationInProgressAtom } from "@/core/ai/state";
+import { type CellId, HTMLCellId } from "@/core/cells/ids";
+import { scrollToCell } from "@/core/cells/scrollCellIntoView";
+import { getNextIndex } from "@/utils/arrays";
+
+const REVIEW_LABELS: Record<Edit["type"], { accept: string; reject: string }> =
+  {
+    add_cell: { accept: "Keep", reject: "Discard" },
+    update_cell: { accept: "Keep", reject: "Discard" },
+    delete_cell: { accept: "Delete cell", reject: "Keep cell" },
+  };
 
 export const PendingAICells: React.FC = () => {
   const [selectedCellId, setSelectedCellId] = useState<CellId | null>(null);
@@ -24,16 +30,18 @@ export const PendingAICells: React.FC = () => {
   const selectedIndex =
     selectedCellId === null ? -1 : listStagedCells.indexOf(selectedCellId);
   const currentIndex = Math.max(0, selectedIndex);
-  const selectedActions = useStagedAICellActions(listStagedCells[currentIndex]);
   const store = useStore();
-  const { deleteStagedCell, removeStagedCell } = useStagedCells(store);
+  const { acceptStagedCell, rejectStagedCell } = useStagedCells();
+  const reviewedCellId = selectedIndex === -1 ? null : selectedCellId;
+  useReviewedCellMarker(reviewedCellId);
 
   if (stagedAiCells.size === 0) {
     return null;
   }
 
-  const scrollToCell = (cellId: CellId) => {
-    scrollAndHighlightCell(cellId, "focus");
+  const selectCell = (cellId: CellId) => {
+    setSelectedCellId(cellId);
+    scrollToCell(cellId);
   };
 
   const clickNext = (direction: "up" | "down") => {
@@ -42,24 +50,40 @@ export const PendingAICells: React.FC = () => {
       listStagedCells.length,
       direction,
     );
-    setSelectedCellId(listStagedCells[newIndex]);
-    scrollToCell(listStagedCells[newIndex]);
+    selectCell(listStagedCells[newIndex]);
   };
 
   const acceptAllCompletions = () => {
     for (const [cellId, edit] of stagedAiCells) {
-      acceptStagedCell(cellId, edit, removeStagedCell, deleteStagedCell);
+      acceptStagedCell(cellId, edit);
     }
   };
 
   const rejectAllCompletions = () => {
     for (const [cellId, edit] of stagedAiCells) {
-      rejectStagedCell(cellId, edit, removeStagedCell, deleteStagedCell);
+      rejectStagedCell(cellId, edit);
     }
   };
 
-  const selectedEdit = stagedAiCells.get(listStagedCells[currentIndex]);
+  const selectedCell = listStagedCells[currentIndex];
+  const selectedEdit = stagedAiCells.get(selectedCell);
   const hasMultipleCells = listStagedCells.length > 1;
+
+  const resolveSelected = (decision: "accept" | "reject") => {
+    if (!selectedEdit || store.get(chatGenerationInProgressAtom)) {
+      return;
+    }
+    if (decision === "accept") {
+      acceptStagedCell(selectedCell, selectedEdit);
+    } else {
+      rejectStagedCell(selectedCell, selectedEdit);
+    }
+    if (hasMultipleCells) {
+      clickNext("up");
+    } else {
+      setSelectedCellId(null);
+    }
+  };
 
   return (
     <section
@@ -115,7 +139,7 @@ export const PendingAICells: React.FC = () => {
               variant="ghost"
               size="sm"
               className="chat-control h-6 px-1 rounded-sm font-normal tabular-nums whitespace-nowrap"
-              onClick={() => scrollToCell(listStagedCells[currentIndex])}
+              onClick={() => selectCell(selectedCell)}
             >
               <span aria-live="polite">
                 {hasMultipleCells
@@ -135,32 +159,32 @@ export const PendingAICells: React.FC = () => {
               </Button>
             )}
           </div>
-          {selectedActions.map((action, index) => (
-            <Button
-              key={action.label}
-              aria-label={action.label}
-              variant="outline"
-              size="sm"
-              className="chat-control chat-selector h-7 px-2 rounded-sm font-normal"
-              disabled={action.disabled}
-              onClick={() => {
-                action.handle();
-                if (hasMultipleCells) {
-                  clickNext("up");
-                } else {
-                  setSelectedCellId(null);
-                }
-              }}
-            >
-              {selectedEdit?.type === "delete_cell"
-                ? action.label
-                : index === 0
-                  ? "Keep"
-                  : "Discard"}
-            </Button>
-          ))}
+          {selectedEdit &&
+            (["accept", "reject"] as const).map((decision) => (
+              <Button
+                key={decision}
+                variant="outline"
+                size="sm"
+                className="chat-control chat-selector h-7 px-2 rounded-sm font-normal"
+                disabled={isGenerating}
+                onClick={() => resolveSelected(decision)}
+              >
+                {REVIEW_LABELS[selectedEdit.type][decision]}
+              </Button>
+            ))}
         </div>
       </div>
     </section>
   );
 };
+
+function useReviewedCellMarker(cellId: CellId | null) {
+  useEffect(() => {
+    if (cellId === null) {
+      return;
+    }
+    const cell = document.getElementById(HTMLCellId.create(cellId));
+    cell?.setAttribute("data-ai-review-selected", "");
+    return () => cell?.removeAttribute("data-ai-review-selected");
+  }, [cellId]);
+}

@@ -1,6 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { useAtomValue, useStore } from "jotai";
+import { atom, useAtomValue, useStore } from "jotai";
+import { useMemo } from "react";
 import {
   type Edit,
   stagedAICellsAtom,
@@ -8,11 +9,7 @@ import {
   useStagedCells,
 } from "@/core/ai/staged-cells";
 import { chatGenerationInProgressAtom } from "@/core/ai/state";
-import { getCellEditorView } from "@/core/cells/cells";
 import type { CellId } from "@/core/cells/ids";
-import { prepareCellCodeUpdate } from "@/core/codemirror/language/cell-code";
-import { cn } from "@/utils/cn";
-import { Logger } from "@/utils/Logger";
 import { AI_EDIT_ACTION_LABELS } from "../ai/completion-handlers";
 import type { ActionButton } from "../actions/types";
 
@@ -23,32 +20,32 @@ const actionLabels: Record<Edit["type"], { accept: string; decline: string }> =
     delete_cell: { accept: "Delete cell", decline: "Keep cell" },
   };
 
-export const StagedAICellBackground: React.FC<{
-  cellId: CellId;
-  className?: string;
-}> = ({ cellId, className }) => {
-  const stagedCell = useStagedAICell(cellId);
-
-  if (!stagedCell) {
-    return null;
-  }
-
-  const cellClass =
-    stagedCell.type === "delete_cell"
-      ? "mo-ai-deleted-cell"
-      : "mo-ai-generated-cell";
-
-  return <div className={cn(cellClass, className)} />;
-};
+export const StagedAIDeletionMarker: React.FC<{ cellId: CellId }> = ({
+  cellId,
+}) =>
+  useStagedAICell(cellId)?.type === "delete_cell" ? (
+    <div className="mo-ai-deleted-cell" />
+  ) : null;
 
 export function useStagedAICellActions(
   cellId: CellId | undefined,
 ): ActionButton[] {
   const store = useStore();
-  const stagedCells = useAtomValue(stagedAICellsAtom);
-  const isGenerating = useAtomValue(chatGenerationInProgressAtom);
-  const { deleteStagedCell, removeStagedCell } = useStagedCells(store);
-  const edit = cellId === undefined ? undefined : stagedCells.get(cellId);
+  const edit = useStagedAICell(cellId);
+  // Every cell calls this; only cells with a pending edit care about the lock.
+  const isLocked = useAtomValue(
+    useMemo(
+      () =>
+        atom(
+          (get) =>
+            cellId !== undefined &&
+            get(stagedAICellsAtom).has(cellId) &&
+            get(chatGenerationInProgressAtom),
+        ),
+      [cellId],
+    ),
+  );
+  const { acceptStagedCell, rejectStagedCell } = useStagedCells();
 
   if (!edit || cellId === undefined) {
     return [];
@@ -58,82 +55,21 @@ export function useStagedAICellActions(
   return [
     {
       label: labels.accept,
-      disabled: isGenerating,
+      disabled: isLocked,
       handle: () => {
         if (!store.get(chatGenerationInProgressAtom)) {
-          acceptStagedCell(cellId, edit, removeStagedCell, deleteStagedCell);
+          acceptStagedCell(cellId, edit);
         }
       },
     },
     {
       label: labels.decline,
-      disabled: isGenerating,
+      disabled: isLocked,
       handle: () => {
         if (!store.get(chatGenerationInProgressAtom)) {
-          rejectStagedCell(cellId, edit, removeStagedCell, deleteStagedCell);
+          rejectStagedCell(cellId, edit);
         }
       },
     },
   ];
-}
-
-/**
- * Accept a staged cell and apply the changes.
- */
-export function acceptStagedCell(
-  cellId: CellId,
-  edit: Edit,
-  removeStagedCell: (cellId: CellId) => void,
-  deleteStagedCell: (cellId: CellId) => void,
-): void {
-  switch (edit.type) {
-    case "delete_cell":
-      // For delete cells, the cell is deleted when the completion is accepted
-      deleteStagedCell(cellId);
-      break;
-    default:
-      removeStagedCell(cellId);
-      break;
-  }
-}
-
-/**
- * Reject a staged cell and revert the changes.
- */
-export function rejectStagedCell(
-  cellId: CellId,
-  edit: Edit,
-  removeStagedCell: (cellId: CellId) => void,
-  deleteStagedCell: (cellId: CellId) => void,
-): void {
-  switch (edit.type) {
-    case "update_cell": {
-      // Revert cell code
-      const editorView = getCellEditorView(cellId);
-      if (!editorView) {
-        Logger.error("Editor for this cell not found", { cellId });
-        break;
-      }
-
-      const update = prepareCellCodeUpdate(
-        editorView.state,
-        edit.previousCode,
-        { initialize: true },
-      );
-
-      if (update) {
-        editorView.dispatch(update);
-      }
-      removeStagedCell(cellId);
-      break;
-    }
-    case "add_cell":
-      // Delete the cell since it's newly created
-      deleteStagedCell(cellId);
-      break;
-    case "delete_cell":
-      // Just remove the deletion marker - cell stays in notebook
-      removeStagedCell(cellId);
-      break;
-  }
 }

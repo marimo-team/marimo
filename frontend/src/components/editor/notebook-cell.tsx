@@ -78,7 +78,7 @@ import { CollapsedCellBanner, CollapseToggle } from "./cell/collapse";
 import { DeleteButton } from "./cell/DeleteButton";
 import { PendingDeleteConfirmation } from "./cell/PendingDeleteConfirmation";
 import { RunButton } from "./cell/RunButton";
-import { StagedAICellBackground } from "./cell/StagedAICell";
+import { StagedAIDeletionMarker } from "./cell/StagedAICell";
 import { useDeleteCellCallback } from "./cell/useDeleteCell";
 import { useRunCell } from "./cell/useRunCells";
 import { cellDomProps } from "./common";
@@ -671,7 +671,7 @@ const EditableCellComponent = ({
               data-has-output-above={hasOutputAbove}
               data-hidden={isMarkdownCodeHidden}
             >
-              <StagedAICellBackground cellId={cellId} />
+              <StagedAIDeletionMarker cellId={cellId} />
               <div className="absolute right-2 -top-4 z-10">
                 <CellToolbar
                   edited={cellData.edited}
@@ -1194,10 +1194,7 @@ const SetupCellComponent = ({
               data-has-output-above={false}
               data-hidden={!isCellCodeShown}
             >
-              <StagedAICellBackground
-                cellId={cellId}
-                className="mo-ai-setup-cell"
-              />
+              <StagedAIDeletionMarker cellId={cellId} />
               <div className="absolute right-2 -top-4 z-10">
                 <CellToolbar
                   edited={cellData.edited}
