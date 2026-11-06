@@ -207,8 +207,9 @@ def watch_modules(
             )
             # The reloader lock serializes deciding and marking with the
             # kernel recording a run, so a mark never lands after the run
-            # of the cell it targets.
-            with graph.lock, reloader.lock:
+            # of the cell it targets. Take it first: a reload in progress
+            # holds it, and waiting there must not block graph readers.
+            with reloader.lock, graph.lock:
                 LOGGER.debug("Acquired graph lock.")
                 stale_importers: set[CellId_t] = set()
                 fresh_importers: dict[CellId_t, set[str]] = {}

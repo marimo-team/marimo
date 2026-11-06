@@ -1448,7 +1448,7 @@ async def test_watcher_does_not_restale_reader_queued_behind_importer(
     run time, the watcher's mark outlives the rerun of the reader (MO-8332).
     """
     k = execution_kernel
-    sys.path.append(str(tmp_path))
+    monkeypatch.syspath_prepend(str(tmp_path))
     py_file = tmp_path / pathlib.Path(py_modname + ".py")
     py_file.write_text("def foo():\n    return 1\n")
 
