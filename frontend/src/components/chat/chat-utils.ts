@@ -363,11 +363,14 @@ export function useMessageQueue() {
   const messagesRef = useRef<QueuedUserMessage[]>([]);
   const hasQueuedRef = useRef(false);
 
-  const enqueue = useEvent((parts: ChatMessagePart[]) => {
-    const next = [...messagesRef.current, { id: generateUUID(), parts }];
+  const updateQueue = useEvent((next: QueuedUserMessage[]) => {
     messagesRef.current = next;
-    hasQueuedRef.current = true;
+    hasQueuedRef.current = next.length > 0;
     setMessages(next);
+  });
+
+  const enqueue = useEvent((parts: ChatMessagePart[]) => {
+    updateQueue([...messagesRef.current, { id: generateUUID(), parts }]);
   });
 
   const flushNext = useEvent(
@@ -383,24 +386,17 @@ export function useMessageQueue() {
       if (canSend && !canSend(next.parts)) {
         return;
       }
-      messagesRef.current = rest;
-      hasQueuedRef.current = rest.length > 0;
-      setMessages(rest);
+      updateQueue(rest);
       send(next.parts);
     },
   );
 
   const clear = useEvent(() => {
-    messagesRef.current = [];
-    hasQueuedRef.current = false;
-    setMessages([]);
+    updateQueue([]);
   });
 
   const remove = useEvent((id: string) => {
-    const next = messagesRef.current.filter((message) => message.id !== id);
-    messagesRef.current = next;
-    hasQueuedRef.current = next.length > 0;
-    setMessages(next);
+    updateQueue(messagesRef.current.filter((message) => message.id !== id));
   });
 
   return { messages, enqueue, flushNext, clear, remove, hasQueuedRef };
