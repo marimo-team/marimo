@@ -23,7 +23,7 @@ import {
 } from "@/core/cells/utils";
 import type { CellData, CellRuntimeState } from "@/core/cells/types";
 import type { LanguageAdapterType } from "@/core/codemirror/language/types";
-import { useCellExecution } from "@/core/executions";
+import { useCellExecution, useCellFreshness } from "@/core/executions";
 import { connectionAtom } from "@/core/network/connection";
 import { useTheme } from "@/theme/useTheme";
 import { cn } from "@/utils/cn";
@@ -64,6 +64,7 @@ export const SlideCellView = ({ cell }: { cell: RuntimeCell }) => {
   const cellOutputPosition = userConfig.display.cell_output;
   const hasOutput = cell.output != null;
   const execution = useCellExecution(cell.id);
+  const freshness = useCellFreshness(cell.id);
   const errored = execution.outcome === "error";
   const interrupted = execution.outcome === "interrupted";
   const stopped = execution.outcome === "skipped";
@@ -71,9 +72,8 @@ export const SlideCellView = ({ cell }: { cell: RuntimeCell }) => {
   const uninstantiated = isUninstantiated(execution);
 
   const needsRun = cellNeedsRun({
-    edited: cell.edited,
+    freshness,
     interrupted,
-    staleInputs: cell.staleInputs,
     disabled: cell.config.disabled,
     blocked: execution.blocked,
   });
@@ -96,7 +96,7 @@ export const SlideCellView = ({ cell }: { cell: RuntimeCell }) => {
       cellId={cell.id}
       status={execution.status}
       output={cell.output}
-      stale={outputIsStale(execution, cell.staleInputs, false)}
+      stale={outputIsStale(execution, freshness, false)}
     />
   );
 
@@ -106,8 +106,7 @@ export const SlideCellView = ({ cell }: { cell: RuntimeCell }) => {
         editing={true}
         status={execution.status}
         disabled={cell.config.disabled ?? false}
-        staleInputs={cell.staleInputs}
-        edited={cell.edited}
+        freshness={freshness}
         interrupted={interrupted}
         elapsedTime={execution.duration}
         startedAt={execution.startedAt}
@@ -123,7 +122,7 @@ export const SlideCellView = ({ cell }: { cell: RuntimeCell }) => {
       />
       <div className="flex items-center shadow-none gap-1">
         <RunButton
-          edited={cell.edited}
+          edited={freshness.sourceChanged}
           status={execution.status}
           blocked={execution.blocked}
           needsRun={needsRun}
@@ -192,6 +191,7 @@ export const SlideCellReadOnlyView = ({ cell }: { cell: RuntimeCell }) => {
   const [userConfig] = useUserConfig();
   const cellOutputPosition = userConfig.display.cell_output;
   const execution = useCellExecution(cell.id);
+  const freshness = useCellFreshness(cell.id);
 
   const display = useMemo(() => getReadonlyCodeDisplay(cell.code), [cell.code]);
 
@@ -200,7 +200,7 @@ export const SlideCellReadOnlyView = ({ cell }: { cell: RuntimeCell }) => {
       cellId={cell.id}
       status={execution.status}
       output={cell.output}
-      stale={outputIsStale(execution, cell.staleInputs, false)}
+      stale={outputIsStale(execution, freshness, false)}
     />
   );
 

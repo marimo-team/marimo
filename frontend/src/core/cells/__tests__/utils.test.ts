@@ -5,8 +5,10 @@ import { MockExecutions } from "@/__mocks__/executions";
 import { initialNotebookState, type NotebookState } from "@/core/cells/cells";
 import { CellId } from "@/core/cells/ids";
 import type { CellData } from "@/core/cells/types";
+import type { CellFreshnessLookup } from "@/core/executions";
 import type { OutputMessage } from "@/core/kernel/messages";
 import {
+  cellNeedsRun,
   disabledCellIds,
   enabledCellIds,
   isUninstantiated,
@@ -14,80 +16,147 @@ import {
   staleCellIds,
 } from "../utils";
 
-function notebook(
-  cells: Record<
-    string,
-    { edited?: boolean; disabled?: boolean; staleInputs?: boolean }
-  >,
-): NotebookState {
+type Cells = Record<
+  string,
+  { edited?: boolean; disabled?: boolean; staleInputs?: boolean }
+>;
+
+function notebook(cells: Cells): NotebookState {
   return {
     cellIds: Object.keys(cells),
     cellData: Object.fromEntries(
       Object.entries(cells).map(([id, cell]) => [
         id,
-        { edited: cell.edited ?? false, config: { disabled: cell.disabled } },
+        { config: { disabled: cell.disabled } },
       ]),
     ),
-    cellRuntime: Object.fromEntries(
-      Object.entries(cells).map(([id, cell]) => [
-        id,
-        { staleInputs: cell.staleInputs ?? false },
-      ]),
-    ),
+    cellRuntime: Object.fromEntries(Object.keys(cells).map((id) => [id, {}])),
   } as any;
+}
+
+/** Freshness as the host would report it for `cells`. */
+function freshness(cells: Cells): CellFreshnessLookup {
+  return (id) => {
+    const cell = cells[id];
+    return {
+      sourceChanged: cell?.edited ?? false,
+      inputsChanged: cell?.staleInputs ?? false,
+    };
+  };
 }
 
 describe("staleCellIds", () => {
   it("should return cell IDs that have never run", () => {
-    const state = notebook({ cell1: {}, cell2: {} });
+    const cells: Cells = { cell1: {}, cell2: {} };
+    const state = notebook(cells);
     const executions = MockExecutions.inputs([
       MockExecutions.completed("cell2"),
     ]);
 
-    expect(staleCellIds(state, executions)).toEqual(["cell1"]);
+    expect(staleCellIds(state, executions, freshness(cells))).toEqual([
+      "cell1",
+    ]);
   });
 
   it("should return cell IDs that are edited", () => {
-    const state = notebook({ cell1: { edited: true }, cell2: {} });
+    const cells: Cells = { cell1: { edited: true }, cell2: {} };
+    const state = notebook(cells);
     const executions = MockExecutions.inputs([
       MockExecutions.completed("cell1"),
       MockExecutions.completed("cell2"),
     ]);
 
-    expect(staleCellIds(state, executions)).toEqual(["cell1"]);
+    expect(staleCellIds(state, executions, freshness(cells))).toEqual([
+      "cell1",
+    ]);
   });
 
   it("should return cell IDs that are interrupted", () => {
-    const state = notebook({ cell1: {}, cell2: {} });
+    const cells: Cells = { cell1: {}, cell2: {} };
+    const state = notebook(cells);
     const executions = MockExecutions.inputs([
       MockExecutions.interrupted("cell1"),
       MockExecutions.completed("cell2"),
     ]);
 
-    expect(staleCellIds(state, executions)).toEqual(["cell1"]);
+    expect(staleCellIds(state, executions, freshness(cells))).toEqual([
+      "cell1",
+    ]);
   });
 
   it("should return cell IDs with stale inputs", () => {
-    const state = notebook({ cell1: { staleInputs: true }, cell2: {} });
+    const cells: Cells = { cell1: { staleInputs: true }, cell2: {} };
+    const state = notebook(cells);
     const executions = MockExecutions.inputs([
       MockExecutions.completed("cell1"),
       MockExecutions.completed("cell2"),
     ]);
 
-    expect(staleCellIds(state, executions)).toEqual(["cell1"]);
+    expect(staleCellIds(state, executions, freshness(cells))).toEqual([
+      "cell1",
+    ]);
   });
 
   it("should not return cell IDs that are disabled", () => {
-    const state = notebook({
+    const cells: Cells = {
       cell1: { disabled: true, staleInputs: true },
       cell2: { staleInputs: true },
-    });
+    };
+    const state = notebook(cells);
     const executions = MockExecutions.inputs(
       [MockExecutions.completed("cell1"), MockExecutions.completed("cell2")],
       { blocked: new Set(["cell2"]) },
     );
 
-    expect(staleCellIds(state, executions)).toEqual([]);
+    expect(staleCellIds(state, executions, freshness(cells))).toEqual([]);
+  });
+});
+
+describe("staleCellIds with a run in progress", () => {
+  it("leaves a running cell alone unless its source changed since", () => {
+    const cells: Cells = { cell1: {}, cell2: { edited: true } };
+    const state = notebook(cells);
+    const executions = MockExecutions.inputs([
+      MockExecutions.running("cell1"),
+      MockExecutions.running("cell2"),
+    ]);
+
+    expect(staleCellIds(state, executions, freshness(cells))).toEqual([
+      "cell2",
+    ]);
+  });
+
+  it("leaves a submitted cell alone until the host has planned its run", () => {
+    const cells: Cells = { cell1: { edited: true } };
+    const state = notebook(cells);
+    const ran = MockExecutions.completed("cell1");
+    const executions = MockExecutions.inputs([ran], {
+      submissions: new Map([["cell1", ran.id]]),
+    });
+
+    expect(staleCellIds(state, executions, freshness(cells))).toEqual([]);
+  });
+});
+
+describe("cellNeedsRun", () => {
+  const blocked = { interrupted: false, disabled: false, blocked: true };
+
+  it("flags a blocked cell whose source changed, whatever its inputs did", () => {
+    expect(
+      cellNeedsRun({
+        ...blocked,
+        freshness: freshness({ c: { edited: true, staleInputs: true } })("c"),
+      }),
+    ).toBe(true);
+  });
+
+  it("does not flag a blocked cell for changed inputs alone", () => {
+    expect(
+      cellNeedsRun({
+        ...blocked,
+        freshness: freshness({ c: { staleInputs: true } })("c"),
+      }),
+    ).toBe(false);
   });
 });
 

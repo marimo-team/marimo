@@ -11,6 +11,11 @@ import { cellId } from "@/__tests__/branded";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { notebookAtom } from "@/core/cells/cells";
 import { DocumentProvider } from "@/core/notebook/document";
+import {
+  cell,
+  document as documentOf,
+  withCells,
+} from "@/core/notebook/document/__tests__/fixtures";
 import type { CellRuntimeState } from "@/core/cells/types";
 import { createCellRuntimeState } from "@/core/cells/types";
 import { defaultUserConfig } from "@/core/config/config-schema";
@@ -188,11 +193,22 @@ describe("output persistence across mode changes", () => {
 
   it("does not dim edited-but-not-run outputs as stale while presenting", () => {
     const { store, wrapper } = createTestWrapper();
+    // The host holds newer source than the cell last ran with
+    MockExecutions.seed(
+      store,
+      [MockExecutions.completed(cid, { code_fingerprint: "ran" })],
+      null,
+      withCells(
+        documentOf(),
+        {
+          c1: null,
+          c2: null,
+          [cid]: cell(cid, "1 + 1", { code_fingerprint: "edited" }),
+        },
+        [cid],
+      ),
+    );
     seedNotebook(store);
-    // Mark the cell as edited without re-running it
-    const notebook = store.get(notebookAtom);
-    notebook.cellData[cid] = { ...notebook.cellData[cid], edited: true };
-    store.set(notebookAtom, { ...notebook });
 
     const { container, rerender } = render(renderCell("edit"), { wrapper });
     expect(container.querySelector(".marimo-output-stale")).toBeTruthy();
