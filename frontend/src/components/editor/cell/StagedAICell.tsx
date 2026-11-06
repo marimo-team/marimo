@@ -1,10 +1,9 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { useAtomValue, useStore } from "jotai";
-import { SparklesIcon } from "lucide-react";
-import { Tooltip } from "@/components/ui/tooltip";
 import {
   type Edit,
+  stagedAICellsAtom,
   useStagedAICell,
   useStagedCells,
 } from "@/core/ai/staged-cells";
@@ -14,11 +13,8 @@ import type { CellId } from "@/core/cells/ids";
 import { prepareCellCodeUpdate } from "@/core/codemirror/language/cell-code";
 import { cn } from "@/utils/cn";
 import { Logger } from "@/utils/Logger";
-import {
-  AI_EDIT_ACTION_LABELS,
-  CompletionActionsCellFooter,
-} from "../ai/completion-handlers";
-import { useRunCell } from "./useRunCells";
+import { AI_EDIT_ACTION_LABELS } from "../ai/completion-handlers";
+import type { ActionButton } from "../actions/types";
 
 const actionLabels: Record<Edit["type"], { accept: string; decline: string }> =
   {
@@ -45,66 +41,41 @@ export const StagedAICellBackground: React.FC<{
   return <div className={cn(cellClass, className)} />;
 };
 
-export const StagedAICellFooter: React.FC<{ cellId: CellId }> = ({
-  cellId,
-}) => {
+export function useStagedAICellActions(
+  cellId: CellId | undefined,
+): ActionButton[] {
   const store = useStore();
-  const stagedAiCell = useStagedAICell(cellId);
+  const stagedCells = useAtomValue(stagedAICellsAtom);
   const isGenerating = useAtomValue(chatGenerationInProgressAtom);
-  const runCell = useRunCell(cellId);
-
   const { deleteStagedCell, removeStagedCell } = useStagedCells(store);
+  const edit = cellId === undefined ? undefined : stagedCells.get(cellId);
 
-  if (!stagedAiCell) {
-    return null;
+  if (!edit || cellId === undefined) {
+    return [];
   }
 
-  const isDeletion = stagedAiCell.type === "delete_cell";
-  const labels = actionLabels[stagedAiCell.type];
-
-  const handleCompletion = (type: "accept" | "reject") => {
-    const completionFunc =
-      type === "accept" ? acceptStagedCell : rejectStagedCell;
-    completionFunc(cellId, stagedAiCell, removeStagedCell, deleteStagedCell);
-  };
-
-  const tooltipContent =
-    stagedAiCell.type === "add_cell"
-      ? "AI-generated cell"
-      : isDeletion
-        ? "AI suggests deleting this cell"
-        : "AI changed this cell";
-
-  return (
-    <div className="mo-ai-cell-footer">
-      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-        <Tooltip content={tooltipContent}>
-          <span
-            className="inline-flex items-center gap-1.5"
-            aria-label={tooltipContent}
-          >
-            <SparklesIcon
-              aria-hidden="true"
-              className="size-3.5 text-(--blue-11)"
-            />
-            <span>AI</span>
-          </span>
-        </Tooltip>
-      </div>
-      <div className="flex items-center gap-1.5">
-        <CompletionActionsCellFooter
-          isLoading={isGenerating}
-          onAccept={() => handleCompletion("accept")}
-          onDecline={() => handleCompletion("reject")}
-          size="xs"
-          runCell={isDeletion ? undefined : runCell}
-          acceptLabel={labels.accept}
-          declineLabel={labels.decline}
-        />
-      </div>
-    </div>
-  );
-};
+  const labels = actionLabels[edit.type];
+  return [
+    {
+      label: labels.accept,
+      disabled: isGenerating,
+      handle: () => {
+        if (!store.get(chatGenerationInProgressAtom)) {
+          acceptStagedCell(cellId, edit, removeStagedCell, deleteStagedCell);
+        }
+      },
+    },
+    {
+      label: labels.decline,
+      disabled: isGenerating,
+      handle: () => {
+        if (!store.get(chatGenerationInProgressAtom)) {
+          rejectStagedCell(cellId, edit, removeStagedCell, deleteStagedCell);
+        }
+      },
+    },
+  ];
+}
 
 /**
  * Accept a staged cell and apply the changes.

@@ -78,10 +78,7 @@ import { CollapsedCellBanner, CollapseToggle } from "./cell/collapse";
 import { DeleteButton } from "./cell/DeleteButton";
 import { PendingDeleteConfirmation } from "./cell/PendingDeleteConfirmation";
 import { RunButton } from "./cell/RunButton";
-import {
-  StagedAICellBackground,
-  StagedAICellFooter,
-} from "./cell/StagedAICell";
+import { StagedAICellBackground } from "./cell/StagedAICell";
 import { useDeleteCellCallback } from "./cell/useDeleteCell";
 import { useRunCell } from "./cell/useRunCells";
 import { cellDomProps } from "./common";
@@ -837,7 +834,6 @@ const EditableCellComponent = ({
               />
             )}
             <PendingDeleteConfirmation cellId={cellId} />
-            {!isPresenting && <StagedAICellFooter cellId={cellId} />}
           </div>
           {isCollapsed && !isPresenting && (
             <CollapsedCellBanner
@@ -1326,7 +1322,6 @@ const SetupCellComponent = ({
               cellId={cellId}
               debuggerActive={cellRuntime.debuggerActive}
             />
-            <StagedAICellFooter cellId={cellId} />
           </div>
         </div>
       </CellActionsContextMenu>

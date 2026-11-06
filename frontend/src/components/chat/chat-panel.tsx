@@ -52,6 +52,7 @@ import {
   usePairWithAgentModal,
 } from "../editor/actions/pair-with-agent";
 import { PromptInput } from "../editor/ai/prompt-input";
+import { PendingAICells } from "../editor/chrome/wrapper/pending-ai-cells";
 import {
   addContextCompletion,
   isContextAttachment,
@@ -991,7 +992,7 @@ const ChatPanelBody = () => {
       </div>
 
       {isLoading && (
-        <div className="flex shrink-0 items-center gap-2 px-3 pt-2 text-xs text-muted-foreground">
+        <div className="flex shrink-0 items-center gap-2 border-t border-border px-3 py-2 text-sm text-muted-foreground">
           <div className="flex items-center gap-1.5">
             <div aria-hidden={true}>
               <LoadingEllipsis
@@ -1006,7 +1007,7 @@ const ChatPanelBody = () => {
           <Button
             variant="text"
             size="xs"
-            className="chat-control"
+            className="chat-control text-sm"
             onClick={stop}
           >
             Stop generation
@@ -1014,6 +1015,7 @@ const ChatPanelBody = () => {
         </div>
       )}
 
+      {!isLoading && <PendingAICells />}
       <div className="shrink-0 p-3">{composer}</div>
     </div>
   );

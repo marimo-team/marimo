@@ -27,20 +27,9 @@
     outline: none;
   }
 
-  &:has(.mo-ai-generated-cell) {
-    border-color: var(--blue-7);
-  }
-
   /* Styling for cells marked for deletion by AI */
   &:has(.mo-ai-deleted-cell) {
-    position: relative;
-    border-color: var(--red-7);
-
-    .output-area,
-    .cm-gutters,
-    .cm {
-      background-color: var(--red-2);
-    }
+    box-shadow: -2px 0 0 var(--red-7);
 
     /* Add strikethrough effect to the code */
     .cm-content {
@@ -303,20 +292,6 @@
   @apply bg-background;
 }
 
-.mo-ai-cell-footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-  width: 100%;
-  padding: 0.375rem 0.5rem;
-  background: var(--gray-2);
-}
-
-.dark .mo-ai-cell-footer {
-  background: var(--gray-3);
-}
-
 .dark .marimo-cell {
   @apply border-border;
 
@@ -353,14 +328,6 @@
       box-shadow: none;
     }
   }
-}
-
-.dark .marimo-cell:has(.mo-ai-generated-cell) {
-  border-color: var(--blue-8);
-}
-
-.dark .marimo-cell:has(.mo-ai-deleted-cell) {
-  border-color: var(--red-8);
 }
 
 #cell-setup,

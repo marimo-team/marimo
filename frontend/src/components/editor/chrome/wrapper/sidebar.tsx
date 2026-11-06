@@ -22,6 +22,7 @@ import {
   PANELS,
   type PanelDescriptor,
 } from "../types";
+import { PendingAIChangesBadge } from "./pending-ai-changes-badge";
 import { PANEL_PRELOADERS } from "./lazy-panels";
 
 export const Sidebar: React.FC = () => {
@@ -150,6 +151,11 @@ export const Sidebar: React.FC = () => {
           >
             {panel.type === "errors" ? (
               <ErrorPanelIcon Icon={panel.Icon} />
+            ) : panel.type === "ai" ? (
+              <span className="relative">
+                {renderIcon(panel)}
+                <PendingAIChangesBadge className="absolute -top-2 -right-2" />
+              </span>
             ) : (
               renderIcon(panel)
             )}

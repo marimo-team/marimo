@@ -9,11 +9,13 @@ import { cellId } from "@/__tests__/branded";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { stagedAICellsAtom } from "@/core/ai/staged-cells";
 import { scrollAndHighlightCell } from "../../../links/cell-link";
-import { StagedAICellFooter } from "../../../cell/StagedAICell";
 import { PendingAICells } from "../pending-ai-cells";
+import { PendingAIChangesBadge } from "../pending-ai-changes-badge";
+
+const deleteCell = vi.hoisted(() => vi.fn());
 
 vi.mock("@/components/editor/cell/useDeleteCell", () => ({
-  useDeleteCellCallback: () => vi.fn(),
+  useDeleteCellCallback: () => deleteCell,
 }));
 
 vi.mock("@/core/cells/cells", () => ({
@@ -63,33 +65,33 @@ describe("PendingAICells", () => {
       name: "Previous pending AI cell",
     });
 
-    fireEvent.click(next);
+    fireEvent.click(screen.getByRole("button", { name: "Cell 1 of 3" }));
     expect(scrollAndHighlightCell).toHaveBeenLastCalledWith(first, "focus");
-    expect(screen.getByText("1 / 3")).toBeInTheDocument();
+    expect(screen.getByText("Cell 1 of 3")).toBeInTheDocument();
 
     fireEvent.click(next);
     expect(scrollAndHighlightCell).toHaveBeenLastCalledWith(second, "focus");
-    expect(screen.getByText("2 / 3")).toBeInTheDocument();
+    expect(screen.getByText("Cell 2 of 3")).toBeInTheDocument();
 
     fireEvent.click(previous);
     expect(scrollAndHighlightCell).toHaveBeenLastCalledWith(first, "focus");
-    expect(screen.getByText("1 / 3")).toBeInTheDocument();
+    expect(screen.getByText("Cell 1 of 3")).toBeInTheDocument();
 
     fireEvent.click(next);
     expect(scrollAndHighlightCell).toHaveBeenLastCalledWith(second, "focus");
-    expect(screen.getByText("2 / 3")).toBeInTheDocument();
+    expect(screen.getByText("Cell 2 of 3")).toBeInTheDocument();
 
     fireEvent.click(next);
     expect(scrollAndHighlightCell).toHaveBeenLastCalledWith(third, "focus");
-    expect(screen.getByText("3 / 3")).toBeInTheDocument();
+    expect(screen.getByText("Cell 3 of 3")).toBeInTheDocument();
 
     fireEvent.click(next);
     expect(scrollAndHighlightCell).toHaveBeenLastCalledWith(first, "focus");
-    expect(screen.getByText("1 / 3")).toBeInTheDocument();
+    expect(screen.getByText("Cell 1 of 3")).toBeInTheDocument();
 
     fireEvent.click(previous);
     expect(scrollAndHighlightCell).toHaveBeenLastCalledWith(third, "focus");
-    expect(screen.getByText("3 / 3")).toBeInTheDocument();
+    expect(screen.getByText("Cell 3 of 3")).toBeInTheDocument();
   });
 });
 
@@ -101,22 +103,22 @@ function ChatGeneration({ status }: { status: ChatStatus }) {
 it("locks staged edits during generation and unlocks after completion, stop, error, or unmount", () => {
   const store = createStore();
   const pendingCell = cellId("pending-cell");
-  store.set(stagedAICellsAtom, new Map([[pendingCell, { type: "add_cell" }]]));
+  store.set(
+    stagedAICellsAtom,
+    new Map([
+      [pendingCell, { type: "add_cell" }],
+      [cellId("other-pending-cell"), { type: "add_cell" }],
+    ]),
+  );
   const ui = (status?: ChatStatus) => (
     <Provider store={store}>
       <TooltipProvider>
         {status && <ChatGeneration status={status} />}
         <PendingAICells />
-        <StagedAICellFooter cellId={pendingCell} />
       </TooltipProvider>
     </Provider>
   );
   const { rerender } = render(ui("ready"));
-  const keep = screen.getByRole("button", { name: "Keep all" });
-  const discard = screen.getByRole("button", { name: "Discard all" });
-  const keepCell = screen.getByRole("button", { name: "Keep cell" });
-  const discardCell = screen.getByRole("button", { name: "Discard cell" });
-  const keepAndRun = keep.parentElement!.querySelectorAll("button")[1];
   for (const status of [
     "submitted",
     "streaming",
@@ -130,15 +132,111 @@ it("locks staged edits during generation and unlocks after completion, stop, err
   ] as const) {
     rerender(ui(status));
     const isGenerating = status === "submitted" || status === "streaming";
-    for (const button of [keep, discard, keepAndRun, keepCell, discardCell]) {
+    const keep = screen.getByRole("button", { name: "Keep all" });
+    expect(keep.hasAttribute("disabled")).toBe(isGenerating);
+    expect(
+      screen.queryByRole("button", { name: "Keep all" }),
+    ).toBeInTheDocument();
+    const keepCell = screen.getByRole("button", { name: "Keep cell" });
+    const discardCell = screen.getByRole("button", { name: "Discard cell" });
+    for (const button of [keepCell, discardCell]) {
       expect(button.hasAttribute("disabled")).toBe(isGenerating);
       if (isGenerating) {
         fireEvent.click(button);
       }
     }
     expect(store.get(stagedAICellsAtom).has(pendingCell)).toBe(true);
+    expect(
+      screen.queryByRole("button", { name: "Keep cell" }),
+    ).toBeInTheDocument();
   }
 
-  fireEvent.click(keep);
+  fireEvent.click(screen.getByRole("button", { name: "Keep all" }));
   expect(store.get(stagedAICellsAtom).size).toBe(0);
+});
+
+it.each(["Delete cell", "Keep cell"])(
+  "resolves a proposed deletion with %s and advances review",
+  (label) => {
+    deleteCell.mockClear();
+    const store = createStore();
+    const first = cellId("deleted-cell");
+    const second = cellId("added-cell");
+    store.set(
+      stagedAICellsAtom,
+      new Map([
+        [first, { type: "delete_cell", previousCode: "x = 1" }],
+        [second, { type: "add_cell" }],
+      ]),
+    );
+    render(
+      <Provider store={store}>
+        <PendingAICells />
+      </Provider>,
+    );
+    fireEvent.click(screen.getByRole("button", { name: label }));
+    expect(store.get(stagedAICellsAtom).has(first)).toBe(false);
+    expect(deleteCell).toHaveBeenCalledTimes(label === "Delete cell" ? 1 : 0);
+    expect(scrollAndHighlightCell).toHaveBeenLastCalledWith(second, "focus");
+    expect(screen.getByText("1 cell changed")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Keep all" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Discard all" }),
+    ).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Keep cell" }));
+    expect(
+      screen.queryByRole("region", { name: "Review AI changes" }),
+    ).not.toBeInTheDocument();
+  },
+);
+
+it("keeps batch discard visible and locks it during generation", () => {
+  deleteCell.mockClear();
+  const store = createStore();
+  const pendingCell = cellId("discarded-cell");
+  store.set(
+    stagedAICellsAtom,
+    new Map([
+      [pendingCell, { type: "add_cell" }],
+      [cellId("other-pending-cell"), { type: "add_cell" }],
+    ]),
+  );
+  const ui = (status: ChatStatus) => (
+    <Provider store={store}>
+      <ChatGeneration status={status} />
+      <PendingAICells />
+    </Provider>
+  );
+  const { rerender } = render(ui("streaming"));
+  const discard = screen.getByRole("button", { name: "Discard all" });
+  expect(discard).toBeVisible();
+  expect(discard).toBeDisabled();
+  fireEvent.click(discard);
+  expect(store.get(stagedAICellsAtom).has(pendingCell)).toBe(true);
+  rerender(ui("ready"));
+  expect(discard).toBeEnabled();
+  fireEvent.click(discard);
+  expect(deleteCell).toHaveBeenCalledWith({ cellId: pendingCell });
+  expect(store.get(stagedAICellsAtom).size).toBe(0);
+});
+
+it("clears the panel badge when all pending changes are accepted", () => {
+  const store = createStore();
+  store.set(
+    stagedAICellsAtom,
+    new Map([[cellId("pending"), { type: "add_cell" }]]),
+  );
+  render(
+    <Provider store={store}>
+      <PendingAIChangesBadge />
+      <PendingAICells />
+    </Provider>,
+  );
+  expect(screen.getByLabelText("1 pending AI change")).toHaveTextContent("1");
+  fireEvent.click(screen.getByRole("button", { name: "Keep cell" }));
+  expect(
+    screen.queryByLabelText("1 pending AI change"),
+  ).not.toBeInTheDocument();
 });

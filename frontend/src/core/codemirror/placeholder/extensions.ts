@@ -90,6 +90,29 @@ export function clickablePlaceholderExtension(opts: {
       return wrapper;
     }
 
+    public override coordsAt(dom: HTMLElement) {
+      // A wrapped placeholder must not make the caret span every line.
+      const walker = document.createTreeWalker(dom, NodeFilter.SHOW_TEXT);
+      let text = walker.nextNode();
+      while (text && !text.textContent) {
+        text = walker.nextNode();
+      }
+      if (!text) {
+        return null;
+      }
+      const range = document.createRange();
+      range.selectNodeContents(text);
+      const rect = range.getClientRects()[0];
+      if (!rect) {
+        return null;
+      }
+      const left =
+        window.getComputedStyle(dom).direction === "rtl"
+          ? rect.right
+          : rect.left;
+      return { left, right: left, top: rect.top, bottom: rect.bottom };
+    }
+
     public override ignoreEvent(event: Event) {
       return (
         event.target instanceof Element &&
