@@ -571,15 +571,81 @@ async def test_cell_runs_queue_in_the_kernel_in_order(
         ("run-1", ["a"]),
         ("run-2", ["b"]),
     ]
+    tasks = [run.task for run in b._runs.values() if run.task is not None]
     session.broadcast(CompletedRunNotification(run_id="run-1"))
-    await observed.wait_for(be.Done)
-    assert observed.messages == [be.Done(protocol.RunId("run-1"), "succeeded")]
+    session.broadcast(
+        ExecutionNotification(
+            run_id="run-2",
+            execution_id="attempt-2",
+            cell_id="b",
+            phase="planned",
+            code="y = 2",
+            code_fingerprint=code_fingerprint("y = 2"),
+        )
+    )
+    session.broadcast(
+        ExecutionNotification(
+            run_id="run-2",
+            execution_id="attempt-2",
+            cell_id="b",
+            phase="running",
+        )
+    )
+    # Notifications can arrive together, before the run tasks get a turn.
+    assert observed.messages == [
+        be.Done(protocol.RunId("run-1"), "succeeded"),
+        be.Planned(
+            protocol.RunId("run-2"),
+            (
+                be.PlannedExecution(
+                    protocol.ExecutionId("attempt-2"),
+                    "b",
+                    code_fingerprint("y = 2"),
+                    None,
+                ),
+            ),
+        ),
+        be.Started(protocol.ExecutionId("attempt-2")),
+    ]
     assert list(b._runs) == ["run-2"]
 
     observed.messages.clear()
     session.broadcast(CompletedRunNotification(run_id="run-2"))
-    await observed.wait_for(be.Done)
-    assert observed.messages == [be.Done(protocol.RunId("run-2"), "succeeded")]
+    expected = [
+        be.Completed(
+            protocol.ExecutionId("attempt-2"), protocol.ValueOutcome(None)
+        ),
+        be.Done(protocol.RunId("run-2"), "succeeded"),
+    ]
+    assert observed.messages == expected
+    assert b._runs == {}
+    await asyncio.gather(*tasks)
+    await asyncio.sleep(0)
+    assert observed.messages == expected
+
+
+async def test_task_cancellation_preserves_a_completed_run(
+    manager: FakeManager, observed: Observed
+) -> None:
+    b = backend(manager, observed)
+    session = manager.next_session
+    b.adopt(RT1, session)
+    observed.messages.clear()
+    document = Document([DocumentCell(protocol.CellId("a"), "x = 1")], {})
+    run_id = protocol.RunId("run-1")
+    b.run_cells(run_id, document, [protocol.CellId("a")])
+    run = b._runs[run_id]
+    task = run.task
+    assert task is not None
+    await asyncio.sleep(0)
+
+    session.broadcast(CompletedRunNotification(run_id=run_id))
+    task.cancel()
+    await asyncio.gather(task, return_exceptions=True)
+    await asyncio.sleep(0)
+
+    assert not run.translator.interrupted
+    assert observed.messages == [be.Done(run_id, "succeeded")]
     assert b._runs == {}
 
 

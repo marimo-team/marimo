@@ -334,9 +334,10 @@ class SessionBackend(SessionConsumer):
         )
 
     def _finish_run(self, run: _Run, exception: BaseException | None) -> None:
+        if self._runs.get(run.translator.run_id) is not run:
+            return
+        del self._runs[run.translator.run_id]
         self._handover.finish(run.turn)
-        if self._runs.get(run.translator.run_id) is run:
-            del self._runs[run.translator.run_id]
         error = None
         if isinstance(exception, asyncio.CancelledError):
             run.translator.interrupted = True
@@ -496,6 +497,8 @@ class SessionBackend(SessionConsumer):
             run.session.try_interrupt()
         if translator.completed:
             if run is not None:
+                # Publish completion before processing the next run's events.
+                self._finish_run(run, None)
                 run.done.set()
             else:
                 for reported in translator.finish():
