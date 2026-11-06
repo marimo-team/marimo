@@ -74,6 +74,8 @@ export class PyodideBridge implements RunRequests, EditRequests {
   private saveRpc: SaveWorker | undefined;
   private notebookConsumers = new Map<string, (event: unknown) => void>();
   private interruptBuffer?: Uint8Array;
+  /** Runs asked to stop before they ran; the buffer is raised once they do. */
+  private pendingInterrupts = new Set<string>();
 
   public initialized = new Deferred<void>();
 
@@ -136,7 +138,9 @@ export class PyodideBridge implements RunRequests, EditRequests {
     this.rpc.send.bootstrap(runtimeConfig);
 
     this.rpc.addMessageListener("notebookEvent", ({ id, event }) => {
-      this.notebookConsumers.get(id)?.(JSON.parse(event));
+      const parsed: unknown = JSON.parse(event);
+      this.raisePendingInterrupt(parsed);
+      this.notebookConsumers.get(id)?.(parsed);
     });
 
     // Listeners
@@ -249,17 +253,41 @@ export class PyodideBridge implements RunRequests, EditRequests {
         }
       },
       call: (call) => {
-        if (
-          call.operation === "runtime.interrupt" &&
-          this.isRunning(call.params.run_id)
-        ) {
+        if (call.operation === "runtime.interrupt") {
           // The worker cannot take the call while a cell runs; raise the
-          // interrupt there first. A queued run is cancelled by the worker.
-          void this.sendInterrupt();
+          // interrupt there first. A queued run is cancelled by the worker,
+          // unless it starts before the call arrives: then it is raised
+          // when the run is reported running.
+          if (this.isRunning(call.params.run_id)) {
+            void this.sendInterrupt();
+          } else {
+            this.pendingInterrupts.add(call.params.run_id);
+          }
         }
         return this.rpc.proxy.request.notebookCall(call);
       },
     });
+  }
+
+  /** Raise the buffer for a pending interrupt whose run has started. */
+  private raisePendingInterrupt(event: unknown): void {
+    if (this.pendingInterrupts.size === 0) {
+      return;
+    }
+    const frame = event as {
+      event?: string;
+      data?: { run?: { id: string; status: string } };
+    };
+    const run = frame.event === "run" ? frame.data?.run : undefined;
+    if (run === undefined || !this.pendingInterrupts.has(run.id)) {
+      return;
+    }
+    if (run.status === "running") {
+      this.pendingInterrupts.delete(run.id);
+      void this.sendInterrupt();
+    } else if (run.status === "completed") {
+      this.pendingInterrupts.delete(run.id);
+    }
   }
 
   /** Whether the host reports `runId` as running, so a cell is executing. */

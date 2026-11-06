@@ -296,11 +296,65 @@ it("raises the interrupt buffer for a running run before the worker takes the ca
     expect((await notebook.interrupt("run-1")).ok).toBe(true);
     expect(interrupt).toHaveBeenCalledOnce();
     expect(mockNotebookCall).toHaveBeenCalledOnce();
+    expect(interrupt.mock.invocationCallOrder[0]).toBeLessThan(
+      mockNotebookCall.mock.invocationCallOrder[0],
+    );
 
     store.set(activeNotebookReplicaAtom, replicaWith("queued"));
     expect((await notebook.interrupt("run-1")).ok).toBe(true);
     expect(interrupt).toHaveBeenCalledOnce();
     expect(mockNotebookCall).toHaveBeenCalledTimes(2);
+  } finally {
+    interrupt.mockRestore();
+    store.set(activeNotebookReplicaAtom, null);
+    store.set(initialModeAtom, undefined);
+  }
+});
+
+it("raises the interrupt buffer once a run interrupted while queued starts", async () => {
+  vi.clearAllMocks();
+  store.set(initialModeAtom, "read");
+  rpcListeners.initialized();
+  const run = {
+    id: "run-1",
+    notebook_id: "n1",
+    caused_by: null,
+    status: "queued",
+    outcome: null,
+    started_at: null,
+    completed_at: null,
+  };
+  store.set(activeNotebookReplicaAtom, {
+    executionsAtom: atom({
+      runs: new Map([["run-1", run]]),
+      executions: new Map(),
+      latest: new Map(),
+    }),
+  } as unknown as NotebookReplica);
+  const interrupt = vi
+    .spyOn(PyodideBridge.INSTANCE, "sendInterrupt")
+    .mockResolvedValue(null);
+  mockNotebookCall.mockResolvedValue({ status: 202, body: run });
+  const deliver = (status: string) =>
+    rpcListeners.notebookEvent({
+      id: "sub",
+      event: JSON.stringify({
+        event: "run",
+        data: { run: { ...run, status } },
+      }),
+    });
+  try {
+    const backend = await PyodideBridge.INSTANCE.createNotebookBackend();
+    const notebook = backend.notebook("n1") as unknown as NotebookClient;
+    expect((await notebook.interrupt("run-1")).ok).toBe(true);
+    expect(interrupt).not.toHaveBeenCalled();
+
+    // The worker took the run before the cancellation reached it.
+    deliver("running");
+    expect(interrupt).toHaveBeenCalledOnce();
+    deliver("running");
+    deliver("completed");
+    expect(interrupt).toHaveBeenCalledOnce();
   } finally {
     interrupt.mockRestore();
     store.set(activeNotebookReplicaAtom, null);
