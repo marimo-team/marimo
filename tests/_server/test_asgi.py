@@ -251,6 +251,91 @@ class TestASGIAppBuilder(unittest.TestCase):
         response = client.get("/marimo/app1/health")
         assert response.status_code == 200, response.text
 
+    def test_nested_submount_redirect(self) -> None:
+        """Test that submount paths redirect to absolute path with trailing slash without duplication."""
+        builder = (
+            create_asgi_app(quiet=True, include_code=True)
+            .with_app(path="/sales", root=self.app1)
+            .with_app(path="/sales/invoices", root=self.app2)
+        )
+        app = builder.build()
+        client = TestClient(app)
+
+        # Single path redirects to absolute /sales/
+        response = client.get("/sales", follow_redirects=False)
+        assert response.status_code == 301
+        assert response.headers["location"] == "/sales/"
+
+        # Nested path redirects to absolute /sales/invoices/, not relative sales/invoices/
+        response = client.get("/sales/invoices", follow_redirects=False)
+        assert response.status_code == 301
+        assert response.headers["location"] == "/sales/invoices/"
+
+        # Following redirect resolves correctly to /sales/invoices/ (not /sales/sales/invoices/)
+        response = client.get("/sales/invoices", follow_redirects=True)
+        assert response.status_code == 200
+        assert str(response.url) == "http://testserver/sales/invoices/"
+        assert "app2.py" in response.text
+
+    def test_nested_submount_redirect_preserves_query_params(self) -> None:
+        """Test that redirects preserve query parameters."""
+        builder = create_asgi_app(quiet=True, include_code=True).with_app(
+            path="/sales/invoices", root=self.app2
+        )
+        app = builder.build()
+        client = TestClient(app)
+
+        response = client.get(
+            "/sales/invoices?date=2024&tab=overview",
+            follow_redirects=False,
+        )
+        assert response.status_code == 301
+        assert (
+            response.headers["location"]
+            == "/sales/invoices/?date=2024&tab=overview"
+        )
+
+    def test_nested_submount_redirect_mounted_at_non_root(self) -> None:
+        """Test nested redirects when the ASGI app is mounted under a parent path."""
+        builder = (
+            create_asgi_app(quiet=True, include_code=True)
+            .with_app(path="/sales", root=self.app1)
+            .with_app(path="/sales/invoices", root=self.app2)
+        )
+        app = builder.build()
+
+        base_app = Starlette()
+        base_app.mount("/portal", app)
+        client = TestClient(base_app)
+
+        # Direct access to submount under parent prefix
+        response = client.get(
+            "/portal/sales/invoices",
+            follow_redirects=False,
+        )
+        assert response.status_code == 301
+        assert response.headers["location"] == "/portal/sales/invoices/"
+
+        # With query params
+        response = client.get(
+            "/portal/sales/invoices?query=test",
+            follow_redirects=False,
+        )
+        assert response.status_code == 301
+        assert (
+            response.headers["location"]
+            == "/portal/sales/invoices/?query=test"
+        )
+
+        # Following redirect loads correctly
+        response = client.get(
+            "/portal/sales/invoices",
+            follow_redirects=True,
+        )
+        assert response.status_code == 200
+        assert str(response.url) == "http://testserver/portal/sales/invoices/"
+        assert "app2.py" in response.text
+
     def test_app_with_middleware(self):
         # Create a simple middleware
         class TestMiddleware:
