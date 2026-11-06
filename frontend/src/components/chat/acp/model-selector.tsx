@@ -35,7 +35,7 @@ export const ModelSelector = memo<ModelSelectorProps>(
         onValueChange={onModelChange}
         disabled={disabled}
       >
-        <SelectTrigger className="h-6 text-xs border-border shadow-none! ring-0! bg-muted hover:bg-muted/30 py-0 px-2 gap-1">
+        <SelectTrigger className="chat-control chat-selector h-6 text-xs border-border py-0 px-2 gap-1">
           {displayName}
         </SelectTrigger>
         <SelectContent>

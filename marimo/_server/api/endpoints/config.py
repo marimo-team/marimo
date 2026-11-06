@@ -9,6 +9,9 @@ from starlette.responses import JSONResponse
 
 from marimo import _loggers
 from marimo._config.config import MarimoConfig, PartialMarimoConfig
+from marimo._config.config_schema import MarimoConfig as MarimoConfigSchema
+from marimo._config.resolver import config_paths
+from marimo._config.schema_utils import config_leaf_types
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.msgspec_encoder import asdict
 from marimo._messaging.notification import MissingPackageAlertNotification
@@ -80,9 +83,15 @@ async def save_user_config(
 
     # TODO: we may want to validate deep-partial here, but validating with PartialMarimoConfig it too strict
     # so we just cast to PartialMarimoConfig
-    config = app_state.config_manager.save_config(
+    app_state.config_manager.save_config(
         cast(PartialMarimoConfig, body.config)
     )
+    config_manager = (
+        session.config_manager
+        if session is not None
+        else app_state.config_manager
+    )
+    config = config_manager.get_config(hide_secrets=False)
 
     async def handle_background_tasks() -> None:
         # Update the server's view of the config
@@ -128,7 +137,17 @@ async def save_user_config(
     # Session could be None if the user is on the home page
     if session is not None:
         session.put_control_request(
-            UpdateUserConfigCommand(config),
+            UpdateUserConfigCommand(
+                config,
+                edited_paths=tuple(
+                    config_paths(
+                        body.config,
+                        leaf_paths=frozenset(
+                            config_leaf_types(MarimoConfigSchema)
+                        ),
+                    )
+                ),
+            ),
             from_consumer_id=ConsumerId(
                 app_state.require_current_session_id()
             ),

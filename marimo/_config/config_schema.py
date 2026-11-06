@@ -206,6 +206,12 @@ class RuntimeConfig(Config, kw_only=True):
             extra={"sensitive": True},
         ),
     ] = UNSET
+    sql_default_limit: Annotated[
+        Annotated[int, Meta(ge=0)] | UnsetType | None,
+        Meta(
+            description="Default maximum number of SQL result rows when a query has no LIMIT. Must be non-negative; None means no limit."
+        ),
+    ] = UNSET
     default_sql_output: Annotated[
         SqlOutputType,
         Meta(
@@ -303,6 +309,25 @@ class FormattingConfig(Config, kw_only=True):
 class ServerConfig(Config, kw_only=True):
     """Configuration for the server."""
 
+    skip_update_check: Annotated[
+        bool,
+        Meta(
+            description="Skip checking for marimo updates when starting the editor."
+        ),
+    ] = False
+    session_cookie_secure: Annotated[
+        bool,
+        Meta(
+            description="Only send session cookies over HTTPS. Enable when serving behind TLS."
+        ),
+    ] = False
+    session_secret: Annotated[
+        str | UnsetType,
+        Meta(
+            description="Secret used to sign session cookies. Set a stable value to preserve sessions across restarts or replicas; otherwise a random secret is generated per process.",
+            extra={"sensitive": True},
+        ),
+    ] = UNSET
     browser: Annotated[
         Literal["default"] | str,
         Meta(
@@ -324,7 +349,7 @@ class ServerConfig(Config, kw_only=True):
     transport: Annotated[
         Literal["websocket", "sse"] | UnsetType,
         Meta(
-            description='experimental. The transport used to stream kernel messages to the frontend, typically set with the `MARIMO_SERVER_TRANSPORT` environment variable. `"websocket"` (default) uses the `/ws` WebSocket endpoint; `"sse"` uses server-sent events over HTTP, for deployments behind proxies or services that do not support WebSockets. Terminal, LSP, and real-time collaboration still require WebSockets; RTC is disabled when using `"sse"`.'
+            description='experimental. The transport used to stream kernel messages to the frontend, typically set with the `MARIMO_SERVER_TRANSPORT` environment variable. `"websocket"` (default) uses the `/ws` WebSocket endpoint; `"sse"` uses server-sent events over HTTP, for deployments behind proxies or services that do not support WebSockets. The terminal and LSP still require WebSockets.'
         ),
     ] = UNSET
 
@@ -388,7 +413,7 @@ class AiConfig(Config, kw_only=True):
     mode: Annotated[
         CopilotMode | UnsetType,
         Meta(
-            description='the mode to use for AI completions. Can be one of: `"ask"` or `"manual"`'
+            description='notebook access for the built-in assistant: `"ask"` (read only), `"agent"` (suggest edits), or `"code_mode"` (full access). Defaults to `"ask"`.'
         ),
     ] = UNSET
     inline_tooltip: Annotated[
@@ -825,8 +850,13 @@ class ExperimentalConfig(Config, kw_only=True):
             description="Enable experimental layouts in WebAssembly notebooks."
         ),
     ] = UNSET
-    rtc_v2: Annotated[
-        bool | UnsetType, Meta(description="Enable real-time collaboration.")
+    external_agents: Annotated[
+        bool | UnsetType,
+        Meta(
+            description="Deprecated; prefer marimo pair. Enable external agents such as Claude Code and Codex.",
+            extra={"deprecated": True},
+            extra_json_schema={"deprecated": True},
+        ),
     ] = UNSET
     isolate_apps: Annotated[
         bool | UnsetType,

@@ -11,16 +11,18 @@ import { getEditorCodeAsPython } from "@/core/codemirror/language/utils";
 export function useSplitCellCallback() {
   const { splitCell, undoSplitCell } = useCellActions();
 
-  return useEvent((opts: { cellId: CellId }) => {
+  return useEvent((opts: { cellId: CellId }): CellId | null => {
     // Save snapshot of code for undo
     const cellEditorView = getCellEditorView(opts.cellId);
     if (!cellEditorView) {
-      return;
+      return null;
     }
     const code = getEditorCodeAsPython(cellEditorView);
 
-    // Optimistic update
-    splitCell(opts);
+    const newCellId = splitCell(opts);
+    if (newCellId === null) {
+      return null;
+    }
 
     const { dismiss } = toast({
       title: "Cell split",
@@ -30,7 +32,7 @@ export function useSplitCellCallback() {
           size="sm"
           variant="outline"
           onClick={() => {
-            undoSplitCell({ ...opts, snapshot: code });
+            undoSplitCell({ ...opts, newCellId, snapshot: code });
             dismiss();
           }}
         >
@@ -38,5 +40,6 @@ export function useSplitCellCallback() {
         </UndoButton>
       ),
     });
+    return newCellId;
   });
 }

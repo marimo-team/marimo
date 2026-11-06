@@ -5,10 +5,10 @@ import { SparklesIcon } from "lucide-react";
 import { Tooltip } from "@/components/ui/tooltip";
 import {
   type Edit,
-  stagedGenerationInProgressAtom,
   useStagedAICell,
   useStagedCells,
 } from "@/core/ai/staged-cells";
+import { chatGenerationInProgressAtom } from "@/core/ai/state";
 import { getCellEditorView } from "@/core/cells/cells";
 import type { CellId } from "@/core/cells/ids";
 import { prepareCellCodeUpdate } from "@/core/codemirror/language/cell-code";
@@ -49,8 +49,8 @@ export const StagedAICellFooter: React.FC<{ cellId: CellId }> = ({
   cellId,
 }) => {
   const store = useStore();
-  const generationInProgress = useAtomValue(stagedGenerationInProgressAtom);
   const stagedAiCell = useStagedAICell(cellId);
+  const isGenerating = useAtomValue(chatGenerationInProgressAtom);
   const runCell = useRunCell(cellId);
 
   const { deleteStagedCell, removeStagedCell } = useStagedCells(store);
@@ -93,7 +93,7 @@ export const StagedAICellFooter: React.FC<{ cellId: CellId }> = ({
       </div>
       <div className="flex items-center gap-1.5">
         <CompletionActionsCellFooter
-          isLoading={generationInProgress}
+          isLoading={isGenerating}
           onAccept={() => handleCompletion("accept")}
           onDecline={() => handleCompletion("reject")}
           size="xs"

@@ -1,8 +1,8 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+from types import SimpleNamespace
 from typing import Any, Literal
-from unittest.mock import patch
 
 import msgspec
 import pytest
@@ -82,6 +82,18 @@ updated_output = CellOutput(
     data="Updated output",
     mimetype="text/plain",
 )
+
+
+@pytest.fixture
+def fixed_time(monkeypatch: pytest.MonkeyPatch) -> None:
+    clock = SimpleNamespace(time=lambda: 123)
+    for module in (
+        "marimo._messaging.cell_output",
+        "marimo._messaging.notification",
+        "marimo._session.state.session_view",
+    ):
+        monkeypatch.setattr(f"{module}.time", clock)
+
 
 initial_status: RuntimeStateType = "running"
 updated_status: RuntimeStateType = "running"
@@ -720,8 +732,9 @@ class TestModelReplayState:
 def test_last_run_code(session_view: SessionView) -> None:
     session_view.add_control_request(
         ExecuteCellsCommand(
-            cell_ids=[cell_id],
-            codes=["print('hello')"],
+            execution_requests=[
+                ExecuteCellCommand(cell_id=cell_id, code="print('hello')")
+            ]
         )
     )
     assert session_view.last_executed_code[cell_id] == "print('hello')"
@@ -729,8 +742,14 @@ def test_last_run_code(session_view: SessionView) -> None:
     # Can overwrite values and add multiple
     session_view.add_control_request(
         ExecuteCellsCommand(
-            cell_ids=[cell_id, "cell_2"],
-            codes=["print('hello world')", "print('hello world')"],
+            execution_requests=[
+                ExecuteCellCommand(
+                    cell_id=cell_id, code="print('hello world')"
+                ),
+                ExecuteCellCommand(
+                    cell_id="cell_2", code="print('hello world')"
+                ),
+            ]
         )
     )
     assert session_view.last_executed_code[cell_id] == "print('hello world')"
@@ -1252,12 +1271,8 @@ def test_add_cell_notification(session_view: SessionView) -> None:
     assert session_view.cell_notifications[cell_id].status == initial_status
 
 
-# patch time
-@patch("time.time", return_value=123)
-def test_combine_console_outputs(
-    time_mock: Any, session_view: SessionView
-) -> None:
-    del time_mock
+@pytest.mark.usefixtures("fixed_time")
+def test_combine_console_outputs(session_view: SessionView) -> None:
     session_view.add_notification(
         CellNotification(
             cell_id=cell_id,
@@ -1314,12 +1329,11 @@ def test_combine_console_outputs(
     ]
 
 
-@patch("time.time", return_value=123)
+@pytest.mark.usefixtures("fixed_time")
 def test_explicit_empty_console_clears_mid_run(
-    time_mock: Any, session_view: SessionView
+    session_view: SessionView,
 ) -> None:
     """An explicit `console=[]` clears the session view, even while running."""
-    del time_mock
     session_view.add_notification(
         CellNotification(
             cell_id=cell_id,
@@ -1359,9 +1373,8 @@ def test_explicit_empty_console_clears_mid_run(
     assert session_view.cell_notifications[cell_id].console == []
 
 
-@patch("time.time", return_value=123)
-def test_stdin(time_mock: Any, session_view: SessionView) -> None:
-    del time_mock
+@pytest.mark.usefixtures("fixed_time")
+def test_stdin(session_view: SessionView) -> None:
     session_view.add_notification(
         CellNotification(
             cell_id=cell_id,
@@ -1390,12 +1403,11 @@ def test_stdin(time_mock: Any, session_view: SessionView) -> None:
     ]
 
 
-@patch("time.time", return_value=123)
+@pytest.mark.usefixtures("fixed_time")
 def test_merge_consecutive_text_plain_outputs(
-    time_mock: Any, session_view: SessionView
+    session_view: SessionView,
 ) -> None:
     """Test that consecutive text/plain outputs with same channel are merged."""
-    del time_mock
 
     # Add multiple consecutive stdout outputs
     session_view.add_notification(
@@ -1432,12 +1444,11 @@ def test_merge_consecutive_text_plain_outputs(
     )
 
 
-@patch("time.time", return_value=123)
+@pytest.mark.usefixtures("fixed_time")
 def test_merge_different_channels_not_merged(
-    time_mock: Any, session_view: SessionView
+    session_view: SessionView,
 ) -> None:
     """Test that outputs with different channels are not merged."""
-    del time_mock
 
     session_view.add_notification(
         CellNotification(
@@ -1466,12 +1477,11 @@ def test_merge_different_channels_not_merged(
     )
 
 
-@patch("time.time", return_value=123)
+@pytest.mark.usefixtures("fixed_time")
 def test_merge_different_mimetypes_not_merged(
-    time_mock: Any, session_view: SessionView
+    session_view: SessionView,
 ) -> None:
     """Test that outputs with different mimetypes are not merged."""
-    del time_mock
 
     session_view.add_notification(
         CellNotification(
@@ -1500,12 +1510,11 @@ def test_merge_different_mimetypes_not_merged(
     )
 
 
-@patch("time.time", return_value=123)
+@pytest.mark.usefixtures("fixed_time")
 def test_merge_with_non_string_data_not_merged(
-    time_mock: Any, session_view: SessionView
+    session_view: SessionView,
 ) -> None:
     """Test that outputs with non-string data are not merged."""
-    del time_mock
 
     session_view.add_notification(
         CellNotification(
@@ -1530,9 +1539,8 @@ def test_merge_with_non_string_data_not_merged(
     assert len(session_view.cell_notifications[cell_id].console) == 2
 
 
-@patch("time.time", return_value=123)
-def test_get_cell_outputs(time_mock: Any, session_view: SessionView) -> None:
-    del time_mock
+@pytest.mark.usefixtures("fixed_time")
+def test_get_cell_outputs(session_view: SessionView) -> None:
     cell_2_id = "cell_2"
     session_view.add_notification(
         CellNotification(
@@ -1577,11 +1585,8 @@ def test_get_cell_outputs(time_mock: Any, session_view: SessionView) -> None:
     }
 
 
-@patch("time.time", return_value=123)
-def test_get_cell_console_outputs(
-    time_mock: Any, session_view: SessionView
-) -> None:
-    del time_mock
+@pytest.mark.usefixtures("fixed_time")
+def test_get_cell_console_outputs(session_view: SessionView) -> None:
     cell_2_id = "cell_2"
     session_view.add_notification(
         CellNotification(

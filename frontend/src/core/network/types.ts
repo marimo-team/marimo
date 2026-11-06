@@ -95,7 +95,7 @@ export type ExecuteCellsRequest = schemas["ExecuteCellsRequest"];
 export type ExecuteScratchpadRequest = schemas["ExecuteScratchpadRequest"];
 export type SaveAppConfigurationRequest =
   schemas["SaveAppConfigurationRequest"];
-export type SaveNotebookRequest = schemas["SaveNotebookRequest"];
+export type SaveLayoutRequest = schemas["SaveLayoutRequest"];
 export type CopyNotebookRequest = schemas["CopyNotebookRequest"];
 export type SaveUserConfigurationRequest =
   schemas["SaveUserConfigurationRequest"];
@@ -158,7 +158,11 @@ export interface RunRequests {
  */
 export interface EditRequests {
   sendRename: (request: RenameNotebookRequest) => Promise<null>;
-  sendSave: (request: SaveNotebookRequest) => Promise<null>;
+  /**
+   * Write the notebook's layout beside it. The host protocol carries no
+   * layout yet, so this stays a request to the host serving the page.
+   */
+  saveLayout: (request: SaveLayoutRequest) => Promise<null>;
   sendCopy: (request: CopyNotebookRequest) => Promise<null>;
   sendStdin: (request: StdinRequest) => Promise<null>;
   sendRun: (request: ExecuteCellsRequest) => Promise<null>;

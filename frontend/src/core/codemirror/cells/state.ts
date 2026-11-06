@@ -6,13 +6,9 @@ import type { CellId } from "@/core/cells/ids";
 
 export interface CodemirrorCellActions extends CellActions {
   toggleHideCode: () => boolean;
+  askAiAboutCell: () => void;
   aiCellCompletion: () => boolean;
   createManyBelow: (content: string[]) => void;
-  /**
-   * Create the setup cell with the given code, or append the code to the
-   * existing setup cell if one already exists.
-   */
-  addOrAppendSetupCell: (code: string) => void;
   onRun: () => void;
   deleteCell: () => void;
   afterToggleMarkdown: () => void;

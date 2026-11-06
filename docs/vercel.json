@@ -717,7 +717,7 @@
     },
     {
       "source": "/guides/generate_with_ai/text_to_notebook/",
-      "destination": "/cli/#marimo-new",
+      "destination": "/guides/generate_with_ai/",
       "permanent": true
     },
     {

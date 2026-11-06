@@ -39,7 +39,6 @@ if TYPE_CHECKING:
     from marimo._config.manager import MarimoConfigManager
     from marimo._server.models.models import (
         CopyNotebookRequest,
-        SaveNotebookRequest,
     )
 
 
@@ -79,8 +78,8 @@ class AppFileManager:
         # Load the app
         self.app = self._load_app(self.path)
 
-        # TODO(MO-7927): The host follows the editor's writes through this
-        # hook until the notebook owns persistence and no second writer
+        # TODO(MO-7927): The host follows the editor's writes through these
+        # hooks until the notebook owns persistence and no second writer
         # remains to follow.
         self.on_persisted: (
             Callable[[Sequence[NotebookCell], dict[str, Any]], None] | None
@@ -90,6 +89,8 @@ class AppFileManager:
         The cells are the snapshot the save was given, not the live
         document, which another thread may have changed meanwhile.
         """
+        self.on_config_changed: Callable[[], None] | None = None
+        """Called after the app config changes, on the changing thread."""
 
         # Serializes concurrent writers. Public entry points wrap the full
         # "mutate app + _save_file" sequence and the writer re-acquires.
@@ -391,93 +392,57 @@ class AppFileManager:
             Serialized notebook content
         """
         with self._save_lock:
-            self.app.update_config(config)
+            self._update_config(config)
             if self._filename is not None:
                 self._invalidate_autosaves()
-                return self._save_file(
+                contents = self._save_file(
                     self._filename,
                     notebook=self.app.to_ir(),
                     persist=True,
                 )
-            return ""
-
-    def save(
-        self,
-        request: SaveNotebookRequest,
-        *,
-        on_document_transaction: Callable[[Transaction], None] | None = None,
-    ) -> str:
-        """Save the notebook.
-
-        Args:
-            request: Save request with cell data and options
-            on_document_transaction: Called with the applied in-memory
-                document transaction before the file is persisted.
-
-        Returns:
-            Serialized notebook content
-
-        Raises:
-            HTTPException: If save fails or tries to rename
-        """
-        cell_ids, codes, configs, names, filename, layout = (
-            request.cell_ids,
-            request.codes,
-            request.configs,
-            request.names,
-            request.filename,
-            request.layout,
-        )
-
-        filename_path = Path(canonicalize_filename(filename))
-
-        with self._save_lock:
-            if self.is_notebook_named and not self._is_same_path(
-                filename_path
-            ):
-                raise HTTPException(
-                    status_code=HTTPStatus.BAD_REQUEST,
-                    detail="Save handler cannot rename files.",
-                )
-
-            transaction = self.app.apply_data(
-                cell_ids=cell_ids,
-                codes=codes,
-                names=names,
-                configs=configs,
-            )
-            if on_document_transaction is not None and transaction.changes:
-                on_document_transaction(transaction)
-
-            # Save layout if provided
-            if layout is not None:
-                app_dir = filename_path.parent
-                app_name = filename_path.name
-                layout_filename = save_layout_config(
-                    app_dir, app_name, LayoutConfig(**layout)
-                )
-                self.app.update_config({"layout_file": layout_filename})
-            else:
-                # Remove the layout from the config
-                self.app.update_config({"layout_file": None})
-
-            if request.persist:
-                self._invalidate_autosaves()
-            contents = self._save_file(
-                filename_path,
-                notebook=self.app.to_ir(),
-                persist=request.persist,
-            )
-            if request.persist:
                 self._persisted(
                     [
-                        NotebookCell(id=i, code=c, name=n, config=f)
-                        for i, c, n, f in zip(
-                            cell_ids, codes, names, configs, strict=True
+                        NotebookCell(
+                            id=data.cell_id,
+                            code=data.code,
+                            name=data.name,
+                            config=data.config,
                         )
+                        for data in self.app.cell_manager.cell_data()
                     ]
                 )
-            return contents
+                return contents
+            return ""
+
+    def _update_config(self, config: dict[str, Any]) -> None:
+        before = self.app.config.asdict()
+        self.app.update_config(config)
+        callback = self.on_config_changed
+        if callback is not None and self.app.config.asdict() != before:
+            callback()
+
+    def save_layout(self, layout: dict[str, Any] | None) -> None:
+        """Write the layout file beside the notebook and point the app config
+        at it, or clear the config when `layout` is None.
+
+        Raises:
+            HTTPException: If the notebook has no file to sit beside.
+        """
+        with self._save_lock:
+            if self._filename is None:
+                raise HTTPException(
+                    status_code=HTTPStatus.BAD_REQUEST,
+                    detail="Save the notebook before saving its layout.",
+                )
+            if layout is None:
+                self._update_config({"layout_file": None})
+                return
+            layout_filename = save_layout_config(
+                self._filename.parent,
+                self._filename.name,
+                LayoutConfig(**layout),
+            )
+            self._update_config({"layout_file": layout_filename})
 
     def _persisted(self, cells: Sequence[NotebookCell]) -> None:
         callback = self.on_persisted

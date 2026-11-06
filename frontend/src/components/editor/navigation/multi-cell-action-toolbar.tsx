@@ -30,12 +30,9 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  getCellEditorView,
-  hasOnlyOneCellAtom,
-  notebookAtom,
-} from "@/core/cells/cells";
+import { getCellEditorView, hasOnlyOneCellAtom } from "@/core/cells/cells";
 import { useCellActions } from "@/core/cells/actions";
+import { columnOf, layoutAtom } from "@/core/cells/layout";
 import { useNotebookDocumentEdit } from "@/core/notebook/document";
 import type { CellId } from "@/core/cells/ids";
 import { usePendingDeleteService } from "@/core/cells/pending-delete-service";
@@ -142,10 +139,8 @@ export function useMultiCellActionButtons(cellIds: CellId[]) {
       /// If moving down, make sure the last cell is not at the bottom of the notebook
       if (direction === "down") {
         const lastCellId = cellIds[cellIds.length - 1];
-        const notebook = store.get(notebookAtom);
-        const isLast =
-          notebook.cellIds.findWithId(lastCellId).last() === lastCellId;
-        if (isLast) {
+        const layout = store.get(layoutAtom);
+        if (columnOf(layout, lastCellId).visible.at(-1) === lastCellId) {
           return;
         }
       }
@@ -153,10 +148,8 @@ export function useMultiCellActionButtons(cellIds: CellId[]) {
       // If moving up, make sure the first cell is not at the top of the notebook
       if (direction === "up") {
         const firstCellId = cellIds[0];
-        const notebook = store.get(notebookAtom);
-        const isFirst =
-          notebook.cellIds.findWithId(firstCellId).first() === firstCellId;
-        if (isFirst) {
+        const layout = store.get(layoutAtom);
+        if (columnOf(layout, firstCellId).visible[0] === firstCellId) {
           return;
         }
       }

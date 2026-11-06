@@ -46,7 +46,6 @@ async def test_connect_kiosk_with_session(client: TestClient) -> None:
     ) as websocket:
         snapshot = socket_snapshot(websocket)
         notebook_id = notebook_id_of(snapshot)
-        cells = [e["data"]["cell"] for e in snapshot if e["event"] == "cell"]
         editor_ready = receive_notification(websocket)
         assert_kernel_ready_response(editor_ready)
 
@@ -86,36 +85,6 @@ async def test_connect_kiosk_with_session(client: TestClient) -> None:
             # Assert kiosk session received the document transaction
             data = receive_notification(other_websocket)
             assert data["op"] == "notebook-document-transaction"
-
-            # A full save replaces the canonical document. Viewers receive
-            # the applied diff even when it includes edits that bypassed the
-            # incremental document endpoint during recovery.
-            filename = client.app.state.session_manager.workspace.get_unique_file_key()
-            assert filename
-            replacement_code = cells[0]["code"] + "\n# saved"
-            response = client.post(
-                "/api/kernel/save",
-                headers=HEADERS,
-                json={
-                    "cellIds": [cell["id"] for cell in cells],
-                    "filename": filename,
-                    "codes": [
-                        replacement_code,
-                        *(cell["code"] for cell in cells[1:]),
-                    ],
-                    "names": [cell["name"] for cell in cells],
-                    "configs": [cell["config"] for cell in cells],
-                },
-            )
-            assert response.status_code == 200, response.text
-            data = receive_until(
-                "notebook-document-transaction", other_websocket
-            )
-            assert any(
-                change["type"] == "set-code"
-                and change["code"] == replacement_code
-                for change in data["data"]["transaction"]["changes"]
-            )
 
             # Send run single cell
             response = client.post(

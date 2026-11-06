@@ -17,7 +17,7 @@ export async function requestOutputDocumentation(
   qualifiedName: string,
 ): Promise<void> {
   // We need any valid cell_id for the completion request.
-  const cellId = getCells().inOrderIds.at(0);
+  const cellId = getCells().at(0);
   if (!cellId) {
     return;
   }

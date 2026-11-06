@@ -8,10 +8,11 @@ import signal
 import sys
 import tempfile
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import Literal
 from unittest.mock import Mock, call, patch
 
 import pytest
+from starlette.testclient import TestClient
 from starlette.websockets import WebSocketDisconnect
 
 from marimo._server.api.endpoints.terminal import (
@@ -24,14 +25,15 @@ from marimo._server.api.endpoints.terminal import (
     _setup_child_process,
     _should_close_on_command,
 )
+from marimo._server.main import create_starlette_app
 from marimo._server.session_manager import SessionManager
 from marimo._session.model import SessionMode
-from tests._server.mocks import get_session_manager
+from tests._server.mocks import (
+    get_session_manager,
+    get_starlette_server_state_init,
+)
 
 TERMINAL_WS_URL = "/terminal/ws?access_token=fake-token"
-
-if TYPE_CHECKING:
-    from starlette.testclient import TestClient
 
 is_windows = sys.platform == "win32"
 is_mac = sys.platform == "darwin"
@@ -46,12 +48,22 @@ is_mac = sys.platform == "darwin"
         "client; see https://docs.python.org/3/library/pty.html"
     ),
 )
-def test_terminal_ws(client: TestClient) -> None:
+@pytest.mark.timeout(10)
+@pytest.mark.parametrize("chunk_size", [1, 8192])
+def test_terminal_ws(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+    chunk_size: int,
+) -> None:
+    monkeypatch.setattr(
+        "marimo._server.api.endpoints.terminal.MAX_CHUNK_SIZE", chunk_size
+    )
     with client.websocket_connect(TERMINAL_WS_URL) as websocket:
-        # Send echo message
         websocket.send_text("echo hello")
-        data = websocket.receive_text()
-        assert "echo hello" in data
+        # PTY reads can split the echoed command across websocket messages.
+        data = ""
+        while "echo hello" not in data:
+            data += websocket.receive_text()
 
 
 @pytest.mark.skipif(
@@ -168,6 +180,98 @@ def test_terminal_ws_wrong_token(client: TestClient) -> None:
         with client.websocket_connect("/terminal/ws?access_token=wrong-token"):
             pass
     assert exc_info.value.code == 3000
+
+
+@pytest.mark.parametrize("base_url", ["", "/notebook"])
+@pytest.mark.parametrize(
+    ("origins", "allow_origins", "cookie", "expected_code"),
+    [
+        (["https://marimo.corp.example.com"], None, "valid", 1011),
+        (["https://MARIMO.corp.example.com:443"], None, "valid", 1011),
+        ([], None, "valid", 1011),
+        (["https://sibling.corp.example.com"], None, "valid", 1008),
+        (["https://marimo.corp.example.com:8443"], None, "valid", 1008),
+        (["http://marimo.corp.example.com"], None, "valid", 1008),
+        (["null"], None, "valid", 1008),
+        ([""], None, "valid", 1008),
+        (["https://marimo.corp.example.com/path"], None, "valid", 1008),
+        (["https://marimo.corp.example.com"] * 2, None, "valid", 1008),
+        (
+            ["https://editor.corp.example.com"],
+            ("https://editor.corp.example.com",),
+            "valid",
+            1011,
+        ),
+        (
+            ["https://sibling.corp.example.com"],
+            ("https://editor.corp.example.com",),
+            "valid",
+            1008,
+        ),
+        (["https://editor.corp.example.com"], ("*",), "valid", 1011),
+        (["null"], ("*",), "valid", 1008),
+        (["https://marimo.corp.example.com"], None, "missing", 3000),
+        (["https://marimo.corp.example.com"], None, "invalid", 3000),
+        (["https://editor.corp.example.com"], ("*",), "missing", 3000),
+    ],
+)
+def test_terminal_ws_origin_and_cookie_validation(
+    base_url: str,
+    origins: list[str],
+    allow_origins: tuple[str, ...] | None,
+    cookie: Literal["valid", "missing", "invalid"],
+    expected_code: int,
+) -> None:
+    app = create_starlette_app(
+        base_url=base_url,
+        host="marimo.corp.example.com",
+        allow_origins=allow_origins,
+    )
+    get_starlette_server_state_init(base_url=base_url).apply(app.state)
+    client = TestClient(app, base_url="https://marimo.corp.example.com")
+    if cookie != "missing":
+        response = client.post(
+            f"{base_url}/auth/login",
+            data={"password": "fake-token"},
+            follow_redirects=False,
+        )
+        assert response.status_code == 302
+        assert client.cookies
+        if cookie == "invalid":
+            for name in list(client.cookies):
+                client.cookies.set(
+                    name,
+                    "invalid",
+                    domain="marimo.corp.example.com",
+                    path=base_url or "/",
+                )
+
+    client.headers = [("Origin", origin) for origin in origins]
+    # Exercise the real handshake without starting a shell on any platform.
+    pty = Mock()
+    pty.fork.side_effect = OSError("PTY unavailable")
+    with (
+        patch.dict(sys.modules, {"pty": pty}),
+        patch(
+            "marimo._server.api.endpoints.terminal.supports_terminal",
+            return_value=True,
+        ),
+        pytest.raises(WebSocketDisconnect) as exc_info,
+        client.websocket_connect(
+            f"wss://marimo.corp.example.com{base_url}/terminal/ws"
+        ) as websocket,
+    ):
+        websocket.receive_text()
+
+    assert (exc_info.value.code, exc_info.value.reason) == (
+        expected_code,
+        {
+            1008: "Origin not allowed",
+            3000: "MARIMO_UNAUTHORIZED",
+            1011: "Failed to initialize terminal",
+        }[expected_code],
+    )
+    assert pty.fork.call_count == int(expected_code == 1011)
 
 
 # Unit tests for terminal utility functions

@@ -2426,47 +2426,6 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  "/api/kernel/save": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    post: {
-      parameters: {
-        query?: never;
-        header: {
-          "Marimo-Session-Id": string;
-        };
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: {
-        content: {
-          "application/json": components["schemas"]["SaveNotebookRequest"];
-        };
-      };
-      responses: {
-        /** @description Save the current app */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            "text/plain": string;
-          };
-        };
-      };
-    };
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
   "/api/kernel/save_app_config": {
     parameters: {
       query?: never;
@@ -2498,6 +2457,47 @@ export interface paths {
           };
           content: {
             "text/plain": string;
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/kernel/save_layout": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header: {
+          "Marimo-Session-Id": string;
+        };
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: {
+        content: {
+          "application/json": components["schemas"]["SaveLayoutRequest"];
+        };
+      };
+      responses: {
+        /** @description Write the notebook's layout file and point its app config at it */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["SuccessResponse"];
           };
         };
       };
@@ -3763,7 +3763,7 @@ export interface components {
      *         - `enabled`: if `False`, hide AI actions and panels in the marimo UI
      *         - `rules`: custom rules to include in all AI completion prompts
      *         - `max_tokens`: the maximum number of tokens to use in AI completions
-     *         - `mode`: the mode to use for AI completions. Can be one of: `"ask"` or `"manual"`
+     *         - `mode`: notebook access for the built-in assistant: `"ask"` (read only), `"agent"` (suggest edits), or `"code_mode"` (full access). Defaults to `"ask"`.
      *         - `inline_tooltip`: if `True`, enable inline AI tooltip suggestions
      *         - `allow_provider_config`: if `False`, lock provider setup in the settings UI, making them read-only. Users cannot bring their own credentials or add custom providers. Default `True`.
      *         - `models`: the models to use for AI completions
@@ -4824,26 +4824,45 @@ export interface components {
       url: string;
     };
     /**
-     * ExecuteCellsCommand
-     * @description Execute multiple cells in a batch.
+     * ExecuteCellCommand
+     * @description Execute a single cell.
      *
-     *         Executes multiple cells with their corresponding code. The kernel manages
-     *         dependency tracking and reactive execution.
+     *         Executes a cell with the provided code. Dependent cells may be
+     *         re-executed based on the reactive execution mode.
      *
      *         Attributes:
-     *             cell_ids: Cells to execute.
-     *             codes: Python code for each cell. Must match length of cell_ids.
+     *             cell_id: Cell to execute.
+     *             code: Python code to execute.
+     *             code_fingerprint: Code fingerprint. Computed from `code` when omitted.
      *             request: HTTP request context if available.
      *             timestamp: Unix timestamp when command was created.
-     *             run_id: Optional correlation ID. When set, the run's notifications
-     *                 and its `CompletedRunNotification` carry it.
+     */
+    ExecuteCellCommand: {
+      cellId: components["schemas"]["CellId"];
+      code: string;
+      /** @default  */
+      codeFingerprint?: string;
+      /** @default null */
+      request?: components["schemas"]["HTTPRequest"] | null;
+      timestamp?: number;
+      /** @enum {unknown} */
+      type: "execute-cell";
+    };
+    /**
+     * ExecuteCellsCommand
+     * @description Execute cells and their reactive dependents in one batch.
+     *
+     *         Attributes:
+     *             execution_requests: The cells and source identities to execute.
+     *             request: HTTP request context for the batch.
+     *             timestamp: Unix timestamp when the batch was created.
+     *             run_id: Correlates the run's notifications and completion.
      *             allow_stdin: Whether cells may request interactive input.
      */
     ExecuteCellsCommand: {
       /** @default true */
       allowStdin?: boolean;
-      cellIds: components["schemas"]["CellId"][];
-      codes: string[];
+      executionRequests: components["schemas"]["ExecuteCellCommand"][];
       /** @default null */
       request?: components["schemas"]["HTTPRequest"] | null;
       /** @default null */
@@ -4869,6 +4888,7 @@ export interface components {
      *
      *         Attributes:
      *             code: Python code to execute.
+     *             code_fingerprint: Code fingerprint. Computed from `code` when omitted.
      *             request: HTTP request context if available.
      *             notebook_cells: Snapshot of notebook cells from the session document.
      *                 Used to populate the document ContextVar so code_mode can read
@@ -4893,6 +4913,8 @@ export interface components {
       /** @default null */
       cellOutputs?: components["schemas"]["CellOutputs"] | null;
       code: string;
+      /** @default  */
+      codeFingerprint?: string;
       /** @default null */
       notebookCells?: components["schemas"]["NotebookCell"][] | null;
       /** @default null */
@@ -4909,6 +4931,8 @@ export interface components {
       /** @default null */
       cellOutputs?: components["schemas"]["CellOutputs"] | null;
       code: string;
+      /** @default  */
+      codeFingerprint?: string;
       /** @default null */
       notebookCells?: components["schemas"]["NotebookCell"][] | null;
       /** @default null */
@@ -4920,7 +4944,8 @@ export interface components {
      * ExecutionNotification
      * @description An attempt's lifecycle, independent of a cell's displayed status.
      *
-     *         `planned` supplies the source and identity before output is reported.
+     *         `planned` includes the execution ID and code fingerprint before any output.
+     *         `code` is null when source is withheld.
      *         `running` means evaluation began. `completed` follows the final output
      *         and errors, including for attempts that never ran. Buffered and background
      *         console output may still arrive with the completed attempt's identity.
@@ -4931,6 +4956,8 @@ export interface components {
       cell_id: components["schemas"]["CellId"];
       /** @default null */
       code?: string | null;
+      /** @default null */
+      code_fingerprint?: string | null;
       /** @default null */
       depends_on?: {
         [key: string]: components["schemas"]["Revision"] | null;
@@ -6620,6 +6647,7 @@ export interface components {
       reactive_tests: boolean;
       serve_cached_sessions_in_apps?: boolean;
       show_tracebacks?: boolean;
+      sql_default_limit?: number | null;
       std_stream_max_bytes: number;
       /** @enum {unknown} */
       watcher_on_save: "autorun" | "lazy";
@@ -6766,17 +6794,13 @@ export interface components {
       autosave_delay: number;
       format_on_save: boolean;
     };
-    /** SaveNotebookRequest */
-    SaveNotebookRequest: {
-      cellIds: components["schemas"]["CellId"][];
-      codes: string[];
-      configs: components["schemas"]["CellConfig"][];
-      filename: string;
+    /**
+     * SaveLayoutRequest
+     * @description The notebook's layout, written beside it; `None` removes it.
+     */
+    SaveLayoutRequest: {
       /** @default null */
       layout?: Record<string, any> | null;
-      names: string[];
-      /** @default true */
-      persist?: boolean;
     };
     /** SaveUserConfigurationRequest */
     SaveUserConfigurationRequest: {
@@ -6857,14 +6881,16 @@ export interface components {
      *             `MARIMO_SERVER_TRANSPORT` environment variable. `"websocket"`
      *             (default) uses the `/ws` WebSocket endpoint; `"sse"` uses
      *             server-sent events over HTTP, for deployments behind proxies or
-     *             services that do not support WebSockets. Terminal, LSP, and
-     *             real-time collaboration still require WebSockets; RTC is disabled
-     *             when using `"sse"`.
+     *             services that do not support WebSockets. The terminal and LSP
+     *             still require WebSockets.
      */
     ServerConfig: {
       browser: "default" | string;
       disable_file_downloads?: boolean;
       follow_symlink: boolean;
+      session_cookie_secure?: boolean;
+      session_secret?: string;
+      skip_update_check?: boolean;
       /** @enum {unknown} */
       transport?: "sse" | "websocket";
     };

@@ -15,7 +15,7 @@ vi.mock("@/core/cells/actions", () => ({
   useCellActions: () => ({ showCellIfHidden }),
 }));
 vi.mock("@/core/cells/cells", () => ({
-  useCellIds: () => ({ inOrderIds: [targetId] }),
+  useCellIds: () => [targetId],
   useCellNames: () => ({ [targetId]: "Target" }),
 }));
 vi.mock("@/core/saving/filename", () => ({ useFilename: () => "notebook.py" }));

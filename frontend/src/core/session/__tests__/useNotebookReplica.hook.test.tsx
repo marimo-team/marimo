@@ -48,6 +48,7 @@ function setup(strict = false) {
   const store = createStore();
   const options = {
     static: false,
+    snapshot: null,
     transportType: "websocket" as const,
     url: () => "ws://localhost/ws",
     headers: () => ({}),

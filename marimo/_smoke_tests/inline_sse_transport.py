@@ -46,8 +46,8 @@ def _(mo):
     4. Kill the server: the "disconnected / shutdown" UX should appear.
        Restart it: the client should reconnect and resume the session.
 
-    Note: with the SSE transport, RTC is auto-disabled and the terminal /
-    LSP features still require websockets.
+    Note: with the SSE transport, the terminal and LSP features still
+    require websockets.
     """)
     return
 

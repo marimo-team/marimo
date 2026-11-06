@@ -21,6 +21,8 @@ import msgspec
 from marimo import _loggers
 from marimo._ast.app_config import _AppConfig
 from marimo._config.config import MarimoConfig
+from marimo._config.provenance import ConfigPath
+from marimo._core.code import code_fingerprint as source_fingerprint
 from marimo._data.models import DataTableSource
 from marimo._messaging.notebook.document import NotebookCell
 from marimo._messaging.notebook.outputs import CellOutputs
@@ -253,6 +255,7 @@ class ExecuteCellCommand(Command):
     Attributes:
         cell_id: Cell to execute.
         code: Python code to execute.
+        code_fingerprint: Code fingerprint. Computed from `code` when omitted.
         request: HTTP request context if available.
         timestamp: Unix timestamp when command was created.
     """
@@ -262,6 +265,11 @@ class ExecuteCellCommand(Command):
     # incoming request, e.g. from Starlette or FastAPI
     request: HTTPRequest | None = None
     timestamp: float = msgspec.field(default_factory=time.time)
+    code_fingerprint: str = ""
+
+    def __post_init__(self) -> None:
+        if not self.code_fingerprint:
+            self.code_fingerprint = source_fingerprint(self.code)
 
     def __repr__(self) -> str:
         preview = self.code[:10].replace("\n", " ")
@@ -286,56 +294,29 @@ class ExecuteStaleCellsCommand(Command):
 
 # TODO(MO-8007): Run roots against a document revision.
 class ExecuteCellsCommand(Command):
-    """Execute multiple cells in a batch.
-
-    Executes multiple cells with their corresponding code. The kernel manages
-    dependency tracking and reactive execution.
+    """Execute cells and their reactive dependents in one batch.
 
     Attributes:
-        cell_ids: Cells to execute.
-        codes: Python code for each cell. Must match length of cell_ids.
-        request: HTTP request context if available.
-        timestamp: Unix timestamp when command was created.
-        run_id: Optional correlation ID. When set, the run's notifications
-            and its `CompletedRunNotification` carry it.
+        execution_requests: The cells and source identities to execute.
+        request: HTTP request context for the batch.
+        timestamp: Unix timestamp when the batch was created.
+        run_id: Correlates the run's notifications and completion.
         allow_stdin: Whether cells may request interactive input.
     """
 
-    # ids of cells to run
-    cell_ids: list[CellId_t]
-    # code to register/run for each cell
-    codes: list[str]
-    # incoming request, e.g. from Starlette or FastAPI
+    execution_requests: list[ExecuteCellCommand]
     request: HTTPRequest | None = None
-    # time at which the request was received
     timestamp: float = msgspec.field(default_factory=time.time)
     run_id: str | None = None
     allow_stdin: bool = True
 
-    def __repr__(self) -> str:
-        return f"ExecuteCellsCommand(cells={len(self.cell_ids)})"
-
-    @property
-    def execution_requests(self) -> list[ExecuteCellCommand]:
-        """Convert to individual cell execution commands.
-
-        Returns:
-            List of ExecuteCellCommand instances, one per cell.
-        """
-        return [
-            ExecuteCellCommand(
-                cell_id=cell_id,
-                code=code,
-                request=self.request,
-                timestamp=self.timestamp,
-            )
-            for cell_id, code in zip(self.cell_ids, self.codes, strict=False)
-        ]
-
     def __post_init__(self) -> None:
-        assert len(self.cell_ids) == len(self.codes), (
-            "Mismatched cell_ids and codes"
-        )
+        for cell in self.execution_requests:
+            cell.request = self.request
+            cell.timestamp = self.timestamp
+
+    def __repr__(self) -> str:
+        return f"ExecuteCellsCommand(cells={len(self.execution_requests)})"
 
 
 # TODO(MO-8007): Reconcile the graph as part of a run.
@@ -411,6 +392,7 @@ class ExecuteScratchpadCommand(Command):
 
     Attributes:
         code: Python code to execute.
+        code_fingerprint: Code fingerprint. Computed from `code` when omitted.
         request: HTTP request context if available.
         notebook_cells: Snapshot of notebook cells from the session document.
             Used to populate the document ContextVar so code_mode can read
@@ -439,6 +421,11 @@ class ExecuteScratchpadCommand(Command):
     cell_outputs: CellOutputs | None = None
     run_id: str | None = None
     allow_stdin: bool = True
+    code_fingerprint: str = ""
+
+    def __post_init__(self) -> None:
+        if not self.code_fingerprint:
+            self.code_fingerprint = source_fingerprint(self.code)
 
 
 # TODO(MO-8007): Move renaming to the notebook entry.
@@ -590,6 +577,8 @@ class UpdateUserConfigCommand(Command):
 
     # MarimoConfig TypedDict
     config: MarimoConfig
+    # User-file saves apply only edited fields and retain higher-priority overrides.
+    edited_paths: tuple[ConfigPath, ...] | None = None
 
     def __repr__(self) -> str:
         return "UpdateUserConfigCommand(config=...)"
@@ -637,6 +626,19 @@ class StopKernelCommand(Command):
     Signals the kernel to stop processing and shut down gracefully.
     Used when closing a notebook or terminating a session.
     """
+
+
+# TODO(MO-8007): Fold into Backend.interrupt.
+class CancelRunCommand(Command):
+    """Cancel a run that is still waiting in the control queue.
+
+    The control loop applies it to the run it names before handling that
+    run, and the kernel then completes the run `interrupted` without
+    executing it. A cancellation that arrives after its run has started
+    does nothing.
+    """
+
+    run_id: str
 
 
 class CodeCompletionCommand(Command):
@@ -1010,6 +1012,7 @@ NotebookCommand = (
     | ExecuteStaleCellsCommand
     | RenameNotebookCommand
     | StopKernelCommand
+    | CancelRunCommand
 )
 """Commands whose subject is the whole notebook, issued by its owner.
 

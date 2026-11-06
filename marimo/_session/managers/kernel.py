@@ -70,6 +70,9 @@ class KernelManagerImpl(KernelManager):
         # with a SIGINT; we don't mind the additional memory consumption,
         # since there's only one client session
         is_edit_mode = self.mode == SessionMode.EDIT
+        resolved = self.config_manager.get_config_with_sources(
+            hide_secrets=False
+        )
         listener = None
         if is_edit_mode:
             # Need to use a socket for windows compatibility
@@ -87,7 +90,7 @@ class KernelManagerImpl(KernelManager):
                     is_edit_mode,
                     self.configs,
                     self.app_metadata,
-                    self.config_manager.get_config(hide_secrets=False),
+                    resolved.config,
                     self._virtual_file_storage,
                     self.redirect_console_to_browser,
                     self.queue_manager.win32_interrupt_queue,
@@ -97,6 +100,7 @@ class KernelManagerImpl(KernelManager):
                     False,
                     # PID
                     os.getpid(),
+                    resolved.override_paths,
                 ),
                 # The process can't be a daemon, because daemonic processes
                 # can't create children
@@ -142,7 +146,7 @@ class KernelManagerImpl(KernelManager):
                     is_edit_mode,
                     self.configs,
                     self.app_metadata,
-                    self.config_manager.get_config(hide_secrets=False),
+                    resolved.config,
                     self._virtual_file_storage,
                     self.redirect_console_to_browser,
                     # win32 interrupt queue
@@ -151,6 +155,9 @@ class KernelManagerImpl(KernelManager):
                     None,
                     # log level
                     GLOBAL_SETTINGS.LOG_LEVEL,
+                    False,
+                    None,
+                    resolved.override_paths,
                 ),
                 # daemon threads can create child processes, unlike
                 # daemon processes

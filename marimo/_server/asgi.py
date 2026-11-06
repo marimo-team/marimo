@@ -569,6 +569,9 @@ def create_asgi_app(
             )
             enable_auth = not AuthToken.is_empty(auth_token)
             app = create_starlette_app(
+                server_config=app_config_reader.get_config(hide_secrets=False)[
+                    "server"
+                ],
                 base_url="",
                 lifespan=Lifespans(
                     [

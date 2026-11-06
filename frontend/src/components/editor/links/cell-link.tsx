@@ -27,7 +27,7 @@ export const CellLink = (props: Props): JSX.Element => {
   const { className, cellId, variant, onClick, formatCellName, skipScroll } =
     props;
   const cellName = useCellNames()[cellId] ?? "";
-  const cellIndex = useCellIds().inOrderIds.indexOf(cellId);
+  const cellIndex = useCellIds().indexOf(cellId);
   const { showCellIfHidden } = useCellActions();
   const formatName = formatCellName ?? ((name: string) => name);
 

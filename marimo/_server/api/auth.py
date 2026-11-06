@@ -17,7 +17,6 @@ from starlette.middleware.sessions import SessionMiddleware
 from starlette.responses import JSONResponse
 
 from marimo import _loggers
-from marimo._config.settings import GLOBAL_SETTINGS
 
 if TYPE_CHECKING:
     from starlette.authentication import AuthenticationError
@@ -25,6 +24,11 @@ if TYPE_CHECKING:
     from starlette.types import ASGIApp, Receive, Scope, Send
 
 from marimo._server.api.deps import AppState
+from marimo._server.host.auth import (
+    bearer_matches,
+    host_header_ok,
+    is_loopback,
+)
 
 LOGGER = _loggers.marimo_logger()
 TOKEN_QUERY_PARAM = "access_token"
@@ -40,13 +44,31 @@ def validate_auth(
     state = AppState.from_app(conn.app)
     auth_token = str(state.session_manager.auth_token)
 
+    context = state.host_context
+    client = conn.scope.get("client")
+    if (
+        conn.scope.get("method") == "POST"
+        and conn.scope["path"] == state.base_url + "/api/kernel/execute"
+        and context is not None
+        and context.bridge.app_sessions is None
+        and context.token
+        and client is not None
+        and is_loopback(client[0])
+        and host_header_ok(conn.headers.get("host"), context.port)
+        and bearer_matches(conn.headers.get("Authorization"), context.token)
+    ):
+        # Local agent credentials must not become browser login cookies.
+        return True
+
     # Check for session cookie
-    cookie_session = CookieSession(conn.session)
+    session_secret = getattr(conn.app.state, "session_secret", SESSION_SECRET)
+    cookie_session = CookieSession(conn.session, secret=session_secret)
 
     # Validate the cookie. The cookie stores a keyed hash of the token,
     # never the token itself.
     if _matches(
-        cookie_session.get_access_token(), hash_access_token(auth_token)
+        cookie_session.get_access_token(),
+        hash_access_token(auth_token, secret=session_secret),
     ):
         return True  # Success
 
@@ -139,15 +161,13 @@ def on_auth_error(
     )
 
 
-# Random/new for each server process unless overridden via
-# MARIMO_SESSION_SECRET. Used both to sign the session cookie and to hash the
-# auth token stored inside it.
-SESSION_SECRET = Secret(
-    GLOBAL_SETTINGS.SESSION_SECRET or secrets.token_hex(32)
-)
+# Used when no stable server.session_secret is configured.
+SESSION_SECRET = Secret(secrets.token_hex(32))
 
 
-def hash_access_token(token: str) -> str:
+def hash_access_token(
+    token: str, *, secret: str | Secret = SESSION_SECRET
+) -> str:
     """Keyed hash of the auth token, safe to store in the session cookie.
 
     The session cookie is signed by starlette (tamper-proof) but not
@@ -157,7 +177,7 @@ def hash_access_token(token: str) -> str:
     bearer token or `?access_token=` query param.
     """
     return hmac.new(
-        str(SESSION_SECRET).encode(), token.encode(), hashlib.sha256
+        str(secret).encode(), token.encode(), hashlib.sha256
     ).hexdigest()
 
 
@@ -166,8 +186,14 @@ class CookieSession:
     Wrapper around starlette's Session to add typesafety
     """
 
-    def __init__(self, session_state: dict[str, Any]) -> None:
+    def __init__(
+        self,
+        session_state: dict[str, Any],
+        *,
+        secret: str | Secret = SESSION_SECRET,
+    ) -> None:
         self.session_state = session_state
+        self.secret = secret
 
     def get_access_token(self) -> str:
         """Returns the hashed access token stored in the session, or ""."""
@@ -180,7 +206,9 @@ class CookieSession:
 
     def set_access_token(self, token: str) -> None:
         """Stores a keyed hash of `token`; the raw token never hits the cookie."""
-        self.session_state["access_token"] = hash_access_token(token)
+        self.session_state["access_token"] = hash_access_token(
+            token, secret=self.secret
+        )
 
     def set_username(self, username: str) -> None:
         self.session_state["username"] = username

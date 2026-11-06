@@ -123,8 +123,26 @@ class CacheManifest:
                 evicted.update((block, key) for key in keys)
         return evicted
 
+    def discard(self, entries: Collection[tuple[str, str]]) -> None:
+        """Drop `entries` from every path hash that lists them.
+
+        A path hash left listing nothing is dropped too, because it says
+        only that a cell once ran, and the notebook source shows which
+        cells are live.
+        """
+        doomed: dict[str, set[str]] = {}
+        for block, key in entries:
+            doomed.setdefault(block, set()).add(key)
+        for node, blocks in list(self.nodes.items()):
+            for block, keys in list(blocks.items()):
+                keys.difference_update(doomed.get(block, ()))
+                if not keys:
+                    del blocks[block]
+            if not blocks:
+                del self.nodes[node]
+
     def entries(self) -> set[tuple[str, str]]:
-        """Every `(block, key)` this manifest attests."""
+        """Every `(block, key)` this manifest lists."""
         return {
             (block, key)
             for blocks in self.nodes.values()
@@ -295,7 +313,7 @@ def flush_cache_manifest(ctx: RuntimeContext, store: Store) -> bool:
     settled = True
     for tier in _manifest_stores(store):
         try:
-            with _manifest_lock(tier, key):
+            with manifest_lock(tier, key):
                 if not _merge_records(records, ctx.filename, key, tier):
                     settled = False
         except Exception:
@@ -326,7 +344,8 @@ def _manifest_stores(store: Store) -> Iterator[Store]:
         yield store
 
 
-def _manifest_lock(store: Store, key: str) -> AbstractContextManager[None]:
+def manifest_lock(store: Store, key: str) -> AbstractContextManager[None]:
+    """Hold the lock that serializes writes to the manifest `key`."""
     from marimo._save.loaders.lazy import LazyStore
     from marimo._save.stores.file import FileStore
     from marimo._utils.file_lock import file_lock

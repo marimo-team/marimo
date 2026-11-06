@@ -60,10 +60,10 @@ async def test_get_cache_info_measures_the_loaders_cache_directory(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     cache_dir = tmp_path / "__marimo__" / "cache"
-    write_entry(cache_dir, "train", "C_ab12.pickle", 100)
+    write_entry(cache_dir, "train", "C_ab12ab12ab12ab12ab12ab.pickle", 100)
     # A block no cache in scope owns. It counts as disk used, but purging
     # the notebook's caches does not free it.
-    write_entry(cache_dir, "stale", "C_77e0.pickle", 40)
+    write_entry(cache_dir, "stale", "C_77e077e077e077e077e077.pickle", 40)
     scope = SimpleNamespace(globals={"train": make_cache(cache_dir, "train")})
     sent = capture_notifications(monkeypatch)
 
@@ -83,8 +83,13 @@ async def test_get_cache_info_follows_a_custom_save_path(
     # `save_path=` moves a cache off the notebook-adjacent directory, and a
     # same-named block left behind there belongs to no cache in scope.
     elsewhere = tmp_path / "scratch"
-    write_entry(elsewhere, "train", "C_ab12.pickle", 100)
-    write_entry(tmp_path / "__marimo__" / "cache", "train", "C_77e0.pickle", 7)
+    write_entry(elsewhere, "train", "C_ab12ab12ab12ab12ab12ab.pickle", 100)
+    write_entry(
+        tmp_path / "__marimo__" / "cache",
+        "train",
+        "C_77e077e077e077e077e077.pickle",
+        7,
+    )
     scope = SimpleNamespace(globals={"train": make_cache(elsewhere, "train")})
     sent = capture_notifications(monkeypatch)
 
@@ -103,7 +108,7 @@ async def test_get_cache_info_reports_no_disk_for_a_memory_cache(
     # An in-memory cache holds no disk, whatever a directory of the same name
     # beside the notebook happens to hold.
     cache_dir = tmp_path / "__marimo__" / "cache"
-    write_entry(cache_dir, "train", "C_ab12.pickle", 100)
+    write_entry(cache_dir, "train", "C_ab12ab12ab12ab12ab12ab.pickle", 100)
     scope = SimpleNamespace(
         globals={"train": FakeCache(MemoryLoader("train", max_size=10))}
     )
@@ -122,10 +127,10 @@ async def test_get_cache_info_promises_only_what_purging_frees(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     cache_dir = tmp_path / "__marimo__" / "cache"
-    write_entry(cache_dir, "train", "C_ab12.pickle", 100)
-    # A value too large to inline is stored as a directory of blobs, which
-    # purging leaves behind.
-    write_entry(cache_dir, "train", "ab12/return.npy", 500)
+    write_entry(cache_dir, "train", "C_ab12ab12ab12ab12ab12ab.pickle", 100)
+    # Only a lazy marker names a directory of blobs, so purging an inline
+    # entry leaves the directory beside it alone.
+    write_entry(cache_dir, "train", "ab12ab12ab12ab12ab12ab/return.npy", 500)
     cache = make_cache(cache_dir, "train")
     scope = SimpleNamespace(globals={"train": cache})
     sent = capture_notifications(monkeypatch)
@@ -149,7 +154,7 @@ async def test_get_cache_info_promises_a_shared_block_once(
     """Two names can land in one block once made path components. The
     files there are promised once, not once per cache."""
     cache_dir = tmp_path / "__marimo__" / "cache"
-    write_entry(cache_dir, "train_v2", "C_ab12.pickle", 100)
+    write_entry(cache_dir, "train_v2", "C_ab12ab12ab12ab12ab12ab.pickle", 100)
     scope = SimpleNamespace(
         globals={
             "a": make_cache(cache_dir, "train/v2"),
@@ -167,12 +172,14 @@ async def test_get_cache_info_promises_a_shared_block_once(
     assert sent[0].disk_to_free == 100
 
 
-async def test_get_cache_info_reports_lazy_manifest_bytes(
+async def test_get_cache_info_promises_the_blobs_of_a_lazy_cache(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     cache_dir = tmp_path / "__marimo__" / "cache"
-    write_entry(cache_dir, "cell_cache", "P_ab12.jsonl", 100)
-    write_entry(cache_dir, "cell_cache", "ab12/return.npy", 500)
+    write_entry(cache_dir, "cell_cache", "P_ab12ab12ab12ab12ab12ab.jsonl", 100)
+    write_entry(
+        cache_dir, "cell_cache", "ab12ab12ab12ab12ab12ab/return.npy", 500
+    )
     loader = LazyLoader(
         "cell_cache",
         store=LazyStore(FileStore(str(cache_dir))),
@@ -189,8 +196,8 @@ async def test_get_cache_info_reports_lazy_manifest_bytes(
     await callbacks.get_cache_info(GetCacheInfoCommand())
 
     assert sent[0].disk_total == 600
-    assert sent[0].disk_to_free == 100
-    assert sent[-1].disk_total == 500
+    assert sent[0].disk_to_free == 600
+    assert sent[-1].disk_total == 0
     assert sent[-1].disk_to_free == 0
 
 
@@ -200,7 +207,7 @@ async def test_get_cache_info_ignores_a_cache_without_a_loader(
     # `mo.cache(pin_modules=True)` assigned to a name is a cache waiting for
     # a function. Reading its loader raises.
     cache_dir = tmp_path / "__marimo__" / "cache"
-    write_entry(cache_dir, "train", "C_ab12.pickle", 100)
+    write_entry(cache_dir, "train", "C_ab12ab12ab12ab12ab12ab.pickle", 100)
     cache = make_cache(cache_dir, "train")
     cache.loader._hits = 3
     scope = SimpleNamespace(
@@ -226,7 +233,7 @@ async def test_get_cache_info_when_the_cache_cannot_be_measured(
 
     monkeypatch.setattr("marimo._save.cache_dirs.cache_dir_stats", unreadable)
     cache_dir = tmp_path / "__marimo__" / "cache"
-    write_entry(cache_dir, "train", "C_ab12.pickle", 100)
+    write_entry(cache_dir, "train", "C_ab12ab12ab12ab12ab12ab.pickle", 100)
     cache = make_cache(cache_dir, "train")
     cache.loader._hits = 2
     scope = SimpleNamespace(globals={"train": cache})
@@ -249,7 +256,7 @@ async def test_get_cache_info_without_a_notebook_filename(
     # A notebook run from a buffer has no path to derive a cache directory
     # from. The loader still knows where it writes.
     cache_dir = tmp_path / "__marimo__" / "cache"
-    write_entry(cache_dir, "train", "C_ab12.pickle", 100)
+    write_entry(cache_dir, "train", "C_ab12ab12ab12ab12ab12ab.pickle", 100)
     cache = make_cache(cache_dir, "train")
     cache.loader._hits = 3
     scope = SimpleNamespace(globals={"train": cache})
