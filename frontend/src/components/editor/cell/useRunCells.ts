@@ -115,7 +115,12 @@ export async function runCells({
     codes.push(code);
     prepareForRun({ cellId });
   }
-  submitCells(store, cellIds);
+  // The kernel sets a disabled cell aside without planning an execution,
+  // so a submission for it would never be superseded.
+  submitCells(
+    store,
+    cellIds.filter((cellId) => !cellData[cellId]?.config.disabled),
+  );
 
   // Send the run request to the Kernel
   await sendRun({ cellIds: cellIds, codes: codes }).catch((error) => {

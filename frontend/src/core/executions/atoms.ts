@@ -82,7 +82,8 @@ export async function waitForRuntimeRunning(): Promise<void> {
  * Record a run request for `cellIds` so they read as queued at once.
  *
  * Cells blocked by a disabled ancestor stay blocked: the kernel will not
- * queue them.
+ * queue them. A disabled cell is not queued either; the caller leaves it
+ * out, since its configuration lives in the notebook state.
  */
 export function submitCells(
   store: Store,
