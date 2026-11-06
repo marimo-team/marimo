@@ -571,15 +571,53 @@ async def test_cell_runs_queue_in_the_kernel_in_order(
         ("run-1", ["a"]),
         ("run-2", ["b"]),
     ]
+    # One notification batch can finish a run and start the next without yielding.
     session.broadcast(CompletedRunNotification(run_id="run-1"))
-    await observed.wait_for(be.Done)
-    assert observed.messages == [be.Done(protocol.RunId("run-1"), "succeeded")]
-    assert list(b._runs) == ["run-2"]
-
-    observed.messages.clear()
+    session.broadcast(
+        ExecutionNotification(
+            cell_id=CellId_t("b"),
+            phase="planned",
+            execution_id="e2",
+            code="y = 2",
+            code_fingerprint=code_fingerprint("y = 2"),
+            run_id="run-2",
+        )
+    )
+    session.broadcast(
+        ExecutionNotification(
+            cell_id=CellId_t("b"),
+            phase="running",
+            execution_id="e2",
+            run_id="run-2",
+        )
+    )
     session.broadcast(CompletedRunNotification(run_id="run-2"))
-    await observed.wait_for(be.Done)
-    assert observed.messages == [be.Done(protocol.RunId("run-2"), "succeeded")]
+
+    async def finished() -> None:
+        while b._runs:
+            observed.changed.clear()
+            await observed.changed.wait()
+
+    await asyncio.wait_for(finished(), 5)
+    assert observed.messages == [
+        be.Done(protocol.RunId("run-1"), "succeeded"),
+        be.Planned(
+            protocol.RunId("run-2"),
+            (
+                be.PlannedExecution(
+                    protocol.ExecutionId("e2"),
+                    protocol.CellId("b"),
+                    code_fingerprint("y = 2"),
+                    None,
+                ),
+            ),
+        ),
+        be.Started(protocol.ExecutionId("e2")),
+        be.Completed(
+            protocol.ExecutionId("e2"), protocol.ValueOutcome(None), {}
+        ),
+        be.Done(protocol.RunId("run-2"), "succeeded"),
+    ]
     assert b._runs == {}
 
 

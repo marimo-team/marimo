@@ -497,6 +497,8 @@ class SessionBackend(SessionConsumer):
         if translator.completed:
             if run is not None:
                 run.done.set()
+                # Report completion before processing the next kernel notification.
+                self._finish_run(run, None)
             else:
                 for reported in translator.finish():
                     self._observe(reported)
