@@ -9,6 +9,7 @@ import pytest
 
 pytest.importorskip("pydantic_ai", reason="pydantic_ai not installed")
 
+from marimo import _loggers
 from marimo._ai._pydantic_ai_utils import (
     convert_to_pydantic_messages,
     create_simple_prompt,
@@ -664,6 +665,35 @@ class TestConvertToPydanticMessages:
                 ],
             )
         ]
+
+    def test_part_processor_error_redacts_attachment_and_exception(
+        self,
+    ) -> None:
+        from pydantic_ai.ui.vercel_ai.request_types import (
+            FileUIPart,
+            UIMessagePart,
+        )
+
+        part = {
+            "type": "file",
+            "mediaType": "image/png",
+            "filename": "private.png",
+            "url": "data:image/png;base64,c2Vuc2l0aXZlLWNvbnRlbnQ=",
+        }
+
+        def failing_processor(part: UIMessagePart) -> UIMessagePart:
+            raise ValueError(f"Failed to process attachment: {part}")
+
+        with _loggers.capture_output() as (_, _, records):
+            result = convert_to_pydantic_messages(
+                [{"id": "user-1", "role": "user", "parts": [part]}],
+                part_processor=failing_processor,
+            )
+
+        assert [
+            (record.getMessage(), record.exc_info) for record in records
+        ] == [("Error processing FileUIPart: ValueError", None)]
+        assert result[0].parts == [FileUIPart.model_validate(part)]
 
     def test_convert_with_part_processor_empty_parts(self):
         """Test that part_processor is not called when parts is empty."""

@@ -114,7 +114,11 @@ def convert_to_pydantic_messages(
         try:
             return part_processor(part)
         except Exception as e:
-            LOGGER.error(f"Error processing part {part}: {e}")
+            LOGGER.error(
+                "Error processing %s: %s",
+                type(part).__name__,
+                type(e).__name__,
+            )
             return part
 
     pydantic_messages: list[UIMessage] = []
