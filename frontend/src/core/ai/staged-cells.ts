@@ -36,6 +36,18 @@ const {
     const { cellId, edit } = action;
     return new Map([...state, [cellId, edit]]);
   },
+  reconcileStagedCells: (state, cellIds: readonly string[]) => {
+    const existing = new Set(cellIds);
+    const removed = [...state.keys()].filter((id) => !existing.has(id));
+    if (removed.length === 0) {
+      return state;
+    }
+    const next = new Map(state);
+    for (const id of removed) {
+      next.delete(id);
+    }
+    return next;
+  },
   removeStagedCell: (state, cellId: CellId) => {
     if (!state.has(cellId)) {
       return state;

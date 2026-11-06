@@ -10,6 +10,7 @@ import {
   notebookAtom,
   useReducerActions,
 } from "@/core/cells/cells";
+import { useStagedAICellsActions } from "@/core/ai/staged-cells";
 import { followDocument } from "@/core/cells/document";
 import { AUTOCOMPLETER } from "@/core/codemirror/completion/Autocompleter";
 import { createDocumentModel } from "@/core/notebook/document";
@@ -96,6 +97,7 @@ export function useNotebookSession(opts: {
     setLastRun,
     resetCellRuntimes,
   } = useReducerActions();
+  const { reconcileStagedCells } = useStagedAICellsActions();
   const { addCellNotification } = useRunsActions();
   const setKernelState = useSetAtom(kernelStateAtom);
   const setInitialRunCompleted = useSetAtom(initialRunCompletedAtom);
@@ -441,7 +443,10 @@ export function useNotebookSession(opts: {
     followDocument({
       store,
       model: documentModel,
-      reconcile: reconcileDocument,
+      reconcile: (document) => {
+        reconcileDocument(document);
+        reconcileStagedCells(document.order);
+      },
       signal: controller.signal,
     });
     return () => {
@@ -450,7 +455,7 @@ export function useNotebookSession(opts: {
         store.set(activeDocumentModelAtom, null);
       }
     };
-  }, [documentModel, store, reconcileDocument]);
+  }, [documentModel, store, reconcileDocument, reconcileStagedCells]);
 
   // Subscribe before passive connection setup: static/WASM transports can emit synchronously.
   useLayoutEffect(() => {

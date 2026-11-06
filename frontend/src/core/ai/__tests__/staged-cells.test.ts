@@ -7,6 +7,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { cellId } from "@/__tests__/branded";
 import { CellId } from "@/core/cells/ids";
 import {
+  type Edit,
   stagedAICellsAtom,
   useStagedAICell,
   useStagedCells,
@@ -141,6 +142,31 @@ describe("staged-cells", () => {
         type: "delete_cell",
         previousCode: "deleted code",
       });
+    });
+
+    it("drops a replaced cell while preserving the four remaining pending edits", () => {
+      const original = cellId("original");
+      const remaining = [cellId("a"), cellId("b"), cellId("c"), cellId("d")];
+      const state = new Map<CellId, Edit>([
+        [original, { type: "add_cell" }],
+        [remaining[0], { type: "add_cell" }],
+        [remaining[1], { type: "add_cell" }],
+        [remaining[2], { type: "update_cell", previousCode: "x = 1" }],
+        [remaining[3], { type: "delete_cell", previousCode: "y = 2" }],
+      ]);
+      const next = reducer(state, {
+        type: "reconcileStagedCells",
+        payload: remaining,
+      });
+      expect(next).toEqual(
+        new Map([...state].filter(([id]) => id !== original)),
+      );
+      expect(
+        reducer(next, { type: "reconcileStagedCells", payload: remaining }),
+      ).toBe(next);
+      expect(
+        reducer(next, { type: "reconcileStagedCells", payload: [] }),
+      ).toEqual(new Map());
     });
 
     it("should remove cell IDs", () => {
