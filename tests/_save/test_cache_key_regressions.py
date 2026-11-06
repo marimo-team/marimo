@@ -1017,3 +1017,15 @@ def test_decorated_future_annotations_survive_restoration(
         sys.path.remove(str(tmp_path))
     restored = FunctionStub(g).load({"__name__": "wrapped_future"})
     assert restored.__annotations__ == {"x": "Missing"}
+
+
+def test_methods_of_different_classes_are_distinct() -> None:
+    class A:
+        def read(self, obj: Any) -> Any:
+            return obj.__value
+
+    class B:
+        def read(self, obj: Any) -> Any:
+            return obj.__value
+
+    assert hash_wrapped_functions(A.read) != hash_wrapped_functions(B.read)
