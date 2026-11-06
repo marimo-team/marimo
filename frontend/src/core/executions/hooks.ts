@@ -5,8 +5,14 @@ import { dequal } from "dequal";
 import { useAtomValue } from "jotai";
 import { selectAtom } from "jotai/utils";
 import { useMemo } from "react";
-import { cellExecutionInputsAtom, cellFreshnessAtom } from "./atoms";
+import { parseOutline } from "@/core/dom/outline";
+import {
+  cellExecutionInputsAtom,
+  cellFreshnessAtom,
+  cellOutputInputsAtom,
+} from "./atoms";
 import type { CellFreshness } from "./freshness";
+import { type CellOutput, cellOutputView, scratchOutputView } from "./output";
 import { type CellExecutionView, cellExecutionView } from "./select";
 
 /**
@@ -32,11 +38,10 @@ export function useCellExecution(id: Protocol.CellId): CellExecutionView {
 }
 
 /**
- * Whether a cell's result is current, by the host protocol's rules over
- * the confirmed document and the executions mirror.
+ * Whether a cell's result is current, by the host protocol's rules.
  *
- * The confirmed document is what the host has accepted, so an edit reads
- * as such once the model has flushed it, not on the keystroke.
+ * The comparison reads the confirmed document, so an edit counts once the
+ * host has it, not on the keystroke.
  */
 export function useCellFreshness(id: Protocol.CellId): CellFreshness {
   const cellAtom = useMemo(
@@ -44,4 +49,38 @@ export function useCellFreshness(id: Protocol.CellId): CellFreshness {
     [id],
   );
   return useAtomValue(cellAtom);
+}
+
+/** What the cell shows: its running value so far, else its result's outcome. */
+export function useCellOutput(id: Protocol.CellId): CellOutput | null {
+  const cellAtom = useMemo(
+    () =>
+      selectAtom(
+        cellOutputInputsAtom,
+        (inputs) => cellOutputView(inputs, id),
+        dequal,
+      ),
+    [id],
+  );
+  return useAtomValue(cellAtom);
+}
+
+/** The headings in the cell's output, for the table of contents. */
+export function useCellOutline(id: Protocol.CellId) {
+  const output = useCellOutput(id);
+  return useMemo(() => parseOutline(output), [output]);
+}
+
+/** What the scratchpad shows, from its latest scratch execution. */
+export function useScratchOutput(): CellOutput | null {
+  const scratchAtom = useMemo(
+    () =>
+      selectAtom(
+        cellOutputInputsAtom,
+        (inputs) => scratchOutputView(inputs.executions),
+        dequal,
+      ),
+    [],
+  );
+  return useAtomValue(scratchAtom);
 }

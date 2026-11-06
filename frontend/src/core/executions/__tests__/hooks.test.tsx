@@ -11,7 +11,8 @@ import {
   document as documentOf,
   withCells,
 } from "@/core/notebook/document/__tests__/fixtures";
-import { useCellFreshness } from "../hooks";
+import { clearCellOutputs } from "../atoms";
+import { useCellFreshness, useCellOutput } from "../hooks";
 
 const C1 = cellId("c1");
 const C2 = cellId("c2");
@@ -102,5 +103,49 @@ describe("useCellFreshness", () => {
 
     expect(result.current).toBe(before.value);
     expect(renders).toBe(before.renders);
+  });
+});
+
+describe("useCellOutput", () => {
+  const shown = (id: string) =>
+    MockExecutions.completed(id, {
+      code_fingerprint: `${id}-hash`,
+      outcome: {
+        kind: "value",
+        display: { mimetype: "text/plain", data: `${id} value` },
+      },
+    });
+
+  it("reads the result's value and hides it once cleared, until a newer result", () => {
+    const { store, replica, wrapper } = setup([shown(C1)]);
+    const { result } = renderHook(() => useCellOutput(C1), { wrapper });
+    expect(result.current?.data).toBe("c1 value");
+
+    act(() => {
+      clearCellOutputs(store, [C1]);
+    });
+    expect(result.current).toBeNull();
+
+    act(() => {
+      const next = MockExecutions.inputs([shown(C1)]);
+      store.set(replica.executionsAtom, next.executions);
+      store.set(replica.resultsAtom, next.results);
+    });
+    expect(result.current?.data).toBe("c1 value");
+  });
+
+  it("forgets what was cleared when the replica follows another notebook", () => {
+    const { store, replica, wrapper } = setup([shown(C1)]);
+    const { result } = renderHook(() => useCellOutput(C1), { wrapper });
+    act(() => {
+      clearCellOutputs(store, [C1]);
+    });
+    expect(result.current).toBeNull();
+
+    act(() => {
+      const notebook = store.get(replica.notebookAtom);
+      store.set(replica.notebookAtom, { ...notebook, id: "n2" });
+    });
+    expect(result.current?.data).toBe("c1 value");
   });
 });
