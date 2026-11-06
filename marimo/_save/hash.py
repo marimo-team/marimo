@@ -117,11 +117,18 @@ def _nested_lambda_count(code: types.CodeType) -> int:
     )
 
 
+# Features still optional in this interpreter. A mandatory one is always on,
+# and its bit can mean something else: nested_scopes shares CO_NESTED.
+_FUTURE_FEATURES = [
+    getattr(__future__, name) for name in __future__.all_feature_names
+]
 _FUTURE_FLAGS = functools.reduce(
     operator.or_,
     (
-        getattr(__future__, name).compiler_flag
-        for name in __future__.all_feature_names
+        feature.compiler_flag
+        for feature in _FUTURE_FEATURES
+        if feature.getMandatoryRelease() is None
+        or feature.getMandatoryRelease() > sys.version_info
     ),
     0,
 )
