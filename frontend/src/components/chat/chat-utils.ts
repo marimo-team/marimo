@@ -23,7 +23,7 @@ import type {
   InvokeAiToolRequest,
   InvokeAiToolResponse,
 } from "@/core/network/types";
-import { blobToString } from "@/utils/fileToBase64";
+import { serializeBlob } from "@/utils/blob";
 import { Logger } from "@/utils/Logger";
 import { generateUUID } from "@/utils/uuid";
 import { getAICompletionBodyWithAttachments } from "../editor/ai/completion-utils";
@@ -45,7 +45,7 @@ export async function convertToFileUIPart(
         type: "file" as const,
         mediaType: normalizedFile.type,
         filename: file.name,
-        url: await blobToString(normalizedFile, "dataUrl"),
+        url: await serializeBlob(normalizedFile),
       };
       return part;
     }),

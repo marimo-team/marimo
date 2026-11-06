@@ -1,22 +1,23 @@
 # Copyright 2025 Marimo. All rights reserved.
 from __future__ import annotations
 
-import base64
+import re
 import uuid
 from dataclasses import dataclass
 from functools import lru_cache
 from typing import TYPE_CHECKING, Any, get_args
 
 from marimo import _loggers
-from marimo._ai._convert import extract_text
 from marimo._messaging.msgspec_encoder import asdict
 from marimo._server.ai.tools.types import ToolDefinition, ToolSource
 from marimo._server.models.completion import UIMessage as ServerUIMessage
+from marimo._utils.data_uri import from_data_uri
 
 if TYPE_CHECKING:
     from pydantic_ai import ModelProfile
 
 LOGGER = _loggers.marimo_logger()
+_BINARY_CONTROL_CHARACTERS = re.compile(r"[\x00-\x08\x0b\x0e-\x1f]")
 
 
 def profile_get(profile: ModelProfile, key: str, default: Any) -> Any:
@@ -162,27 +163,26 @@ def _inline_text_file(part: UIMessagePart) -> UIMessagePart:
     from pydantic_ai.ui.vercel_ai.request_types import FileUIPart, TextUIPart
 
     # Inline local text files so text-only models can read them too.
-    if (
-        isinstance(part, FileUIPart)
-        and part.url.startswith("data:")
-        and _is_text_attachment(part.media_type, part.url)
-    ):
-        return TextUIPart(
-            type="text",
-            text=extract_text(part.url),
-            provider_metadata=part.provider_metadata,
-        )
-    return part
+    if not isinstance(part, FileUIPart) or not part.url.startswith("data:"):
+        return part
+    text = _decode_text_attachment(part.media_type, part.url)
+    if text is None:
+        return part
+    return TextUIPart(
+        type="text",
+        text=text,
+        provider_metadata=part.provider_metadata,
+    )
 
 
-def _is_text_attachment(media_type: str, url: str) -> bool:
+def _decode_text_attachment(media_type: str, url: str) -> str | None:
     media_type = media_type.split(";", 1)[0].strip().lower()
     if (
         media_type.startswith(("image/", "audio/", "video/"))
         or media_type == "application/pdf"
     ):
-        return False
-    if (
+        return None
+    is_text_mime_type = (
         media_type.startswith("text/")
         or media_type.endswith(("+json", "+xml"))
         or media_type
@@ -193,14 +193,19 @@ def _is_text_attachment(media_type: str, url: str) -> bool:
             "application/yaml",
             "application/x-yaml",
         }
-    ):
-        return True
+    )
     try:
-        data = base64.b64decode(url.partition(",")[2], validate=True)
-        data.decode("utf-8")
+        _, data = from_data_uri(url, validate=not is_text_mime_type)
+        text = data.decode("utf-8")
+    except UnicodeDecodeError:
+        return data.decode("latin1") if is_text_mime_type else None
     except ValueError:
-        return False
-    return not any(byte < 32 and byte not in (9, 10, 12, 13) for byte in data)
+        if is_text_mime_type:
+            raise
+        return None
+    if not is_text_mime_type and _BINARY_CONTROL_CHARACTERS.search(text):
+        return None
+    return text
 
 
 def _prepare_parts(raw_parts: list[Any]) -> list[Any]:

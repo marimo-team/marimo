@@ -77,7 +77,10 @@ describe("normalizeAttachment", () => {
     ["application/octet-stream", "script.unlisted-extension"],
     ["application/javascript", "script.js"],
   ])("recognizes text by contents for %s, %s", async (type, name) => {
-    const file = new File(["Hello, 世界!\n"], name, { type, lastModified: 42 });
+    const file = new File(["Hello, 世界!\t\n\f\r"], name, {
+      type,
+      lastModified: 42,
+    });
     const normalized = await normalizeAttachment(file);
     expect({
       name: normalized.name,
@@ -88,7 +91,7 @@ describe("normalizeAttachment", () => {
       name,
       type: "text/plain",
       lastModified: 42,
-      text: "Hello, 世界!\n",
+      text: "Hello, 世界!\t\n\f\r",
     });
   });
 
@@ -96,6 +99,9 @@ describe("normalizeAttachment", () => {
     new Uint8Array([0xff, 0xfe]),
     new Uint8Array([65, 0, 66]),
     new Uint8Array([65, 1, 66]),
+    new Uint8Array([65, 8, 66]),
+    new Uint8Array([65, 11, 66]),
+    new Uint8Array([65, 31, 66]),
   ])("preserves binary data despite a text filename", async (bytes) => {
     const file = new File([bytes], "script.py", {
       type: "application/octet-stream",

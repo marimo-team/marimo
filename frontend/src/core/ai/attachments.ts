@@ -4,6 +4,8 @@ import { AiModelId } from "./ids/ids";
 import { getKnownModelMaps } from "./model-registry";
 
 const IMAGE_TYPES = ["image/png", "image/jpeg", "image/gif", "image/webp"];
+// oxlint-disable-next-line no-control-regex -- Binary detection deliberately matches control characters.
+const BINARY_CONTROL_CHARACTERS = /[\x00-\x08\x0B\x0E-\x1F]/;
 const TEXT_TYPES = [
   "text/*",
   "application/json",
@@ -37,8 +39,8 @@ export async function normalizeAttachment(file: File): Promise<File> {
   ) {
     const bytes = new Uint8Array(await file.arrayBuffer());
     try {
-      new TextDecoder("utf-8", { fatal: true }).decode(bytes);
-      if (!bytes.some((byte) => byte < 32 && ![9, 10, 12, 13].includes(byte))) {
+      const text = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+      if (!BINARY_CONTROL_CHARACTERS.test(text)) {
         mediaType = "text/plain";
       }
     } catch {

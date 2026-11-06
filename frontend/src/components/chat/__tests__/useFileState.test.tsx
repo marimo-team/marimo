@@ -181,4 +181,21 @@ describe("useFileState", () => {
     expect(result.current.files).toEqual([]);
     expect(toast).not.toHaveBeenCalled();
   });
+
+  it("reports failures when serializing an attachment", async () => {
+    const read = vi
+      .spyOn(FileReader.prototype, "readAsDataURL")
+      .mockImplementation(function (this: FileReader) {
+        this.dispatchEvent(new Event("error"));
+      });
+    try {
+      await expect(
+        convertToFileUIPart([
+          new File(["hello"], "notes.txt", { type: "text/plain" }),
+        ]),
+      ).rejects.toThrow("Failed to read blob: error");
+    } finally {
+      read.mockRestore();
+    }
+  });
 });

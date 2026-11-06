@@ -355,6 +355,42 @@ class TestConvertToPydanticMessages:
         assert result[0].parts == [TextUIPart(type="text", text="hello")]
 
     @pytest.mark.parametrize(
+        ("media_type", "contents", "expected_text"),
+        [
+            ("text/plain", b"\xe9", "é"),
+            ("application/octet-stream", b"", ""),
+            ("application/octet-stream", b"a\t\n\f\rb", "a\t\n\f\rb"),
+            ("application/octet-stream", b"\xff", None),
+            ("application/octet-stream", b"text\x08", None),
+            ("application/octet-stream", b"text\x0b", None),
+            ("application/octet-stream", b"text\x1f", None),
+        ],
+    )
+    def test_attachment_text_decoding(
+        self, media_type: str, contents: bytes, expected_text: str | None
+    ) -> None:
+        from pydantic_ai.ui.vercel_ai.request_types import (
+            FileUIPart,
+            TextUIPart,
+        )
+
+        part = {
+            "type": "file",
+            "mediaType": media_type,
+            "url": f"data:{media_type};base64,{base64.b64encode(contents).decode()}",
+        }
+        result = convert_to_pydantic_messages(
+            [{"id": "user-1", "role": "user", "parts": [part]}]
+        )
+
+        expected = (
+            FileUIPart.model_validate(part)
+            if expected_text is None
+            else TextUIPart(type="text", text=expected_text)
+        )
+        assert result[0].parts == [expected]
+
+    @pytest.mark.parametrize(
         ("filename", "media_type", "contents"),
         [
             ("archive.zip", "application/octet-stream", b"PK\x03\x04"),

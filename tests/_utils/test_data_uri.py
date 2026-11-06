@@ -77,6 +77,13 @@ def test_from_data_uri_invalid_input():
         from_data_uri("data:text/plain;base64,not-base64!")
 
 
+def test_from_data_uri_strict_validation():
+    uri = "data:text/plain;base64,aGVs\nbG8="
+    assert from_data_uri(uri) == ("text/plain", b"hello")
+    with pytest.raises(ValueError):
+        from_data_uri(uri, validate=True)
+
+
 def test_build_data_url_invalid_input():
     with pytest.raises(AssertionError):
         build_data_url(None, b"data")  # type: ignore
