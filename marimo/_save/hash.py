@@ -299,15 +299,24 @@ def hash_wrapped_functions(
                     state,
                 )
             )
+            # Values with their names: `x + y` capturing x=1 is not `x + y`
+            # capturing y=1.
             try:
                 captured = tuple(
-                    cell.cell_contents.__name__
-                    if inspect.ismodule(cell.cell_contents)
-                    else cell.cell_contents
-                    for cell in fn.__closure__ or ()
+                    (
+                        name,
+                        cell.cell_contents.__name__
+                        if inspect.ismodule(cell.cell_contents)
+                        else cell.cell_contents,
+                    )
+                    for name, cell in zip(
+                        fn.__code__.co_freevars,
+                        fn.__closure__ or (),
+                        strict=True,
+                    )
                 )
             except ValueError:
-                captured = ("<empty cell>",)
+                captured = (("<empty cell>", None),)
             hash_alg.update(_soft_dumps(captured, "closure", hash_type, state))
         else:
             # Builtin functions do not expose Python bytecode, so use their
@@ -325,7 +334,14 @@ def hash_wrapped_functions(
             hash_alg.update(iterable_sign(parts, "builtin"))
         fn_hash = hash_alg.digest()
         if hasattr(fn, "__wrapped__"):
-            fn_hash = process_function(fn.__wrapped__) + fn_hash
+            wrapped = fn.__wrapped__
+            if inspect.isfunction(wrapped) or inspect.isbuiltin(wrapped):
+                fn_hash = process_function(wrapped) + fn_hash
+            else:
+                # `functools.wraps` around a callable object.
+                fn_hash = (
+                    _soft_dumps(wrapped, "wrapped", hash_type, state) + fn_hash
+                )
         state.functions[id(fn)] = fn_hash
         return fn_hash
 
