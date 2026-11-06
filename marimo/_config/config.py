@@ -31,6 +31,17 @@ def parse_config(values: PartialMarimoConfig) -> MarimoConfig:
             section = values
             for key in path[:-1]:
                 section = section[key]
+            if path == ["file_browser", "folders"]:
+                index = re.search(r"\[(\d+)\]", match[1])
+                if index is not None:
+                    folders = section[path[-1]]
+                    folder_index = int(index[1])
+                    folder = folders[folder_index]
+                    if isinstance(folder, dict) and match[1].endswith(".name"):
+                        del folder["name"]
+                    else:
+                        del folders[folder_index]
+                    continue
             if path == ["mcp", "mcpServers"] and isinstance(
                 section[path[-1]], dict
             ):

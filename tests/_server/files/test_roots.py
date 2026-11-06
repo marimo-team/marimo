@@ -7,11 +7,29 @@ from unittest.mock import Mock
 import msgspec
 import pytest
 
+from marimo._config.config import parse_config
 from marimo._config.config_schema import FileBrowserConfig
 from marimo._server.files.roots import resolve_file_roots
 
 if TYPE_CHECKING:
     from pathlib import Path
+
+
+def test_file_browser_recovers_invalid_folder_names(tmp_path: Path) -> None:
+    primary = tmp_path / "project"
+    shared = tmp_path / "shared"
+    primary.mkdir()
+    shared.mkdir()
+    config = parse_config(
+        {"file_browser": {"folders": [{"path": str(shared), "name": 123}]}}
+    )
+
+    roots = resolve_file_roots(str(primary), config.file_browser)
+
+    assert [(root.path, root.name) for root in roots] == [
+        (str(primary.resolve()), "project"),
+        (str(shared.resolve()), "shared"),
+    ]
 
 
 def test_resolve_file_roots_orders_and_names_roots(tmp_path: Path) -> None:

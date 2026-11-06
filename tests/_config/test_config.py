@@ -15,6 +15,34 @@ from marimo._config.config import (
 from marimo._config.config_schema import MarimoConfig
 
 
+@pytest.mark.parametrize("malformed", [None, "invalid", {}, {"path": 123}])
+def test_parse_config_preserves_valid_file_browser_folders(
+    malformed: object,
+) -> None:
+    values = {
+        "file_browser": {
+            "folders": [
+                {"path": "/first", "name": "First"},
+                malformed,
+                {"path": "/last"},
+                malformed,
+            ]
+        }
+    }
+    original = copy.deepcopy(values)
+
+    resolved = parse_config(values)
+
+    assert resolved.file_browser is not None
+    assert resolved.file_browser.to_dict() == {
+        "folders": [
+            {"path": "/first", "name": "First"},
+            {"path": "/last", "name": None},
+        ]
+    }
+    assert values == original
+
+
 @pytest.mark.parametrize(
     "malformed",
     [
