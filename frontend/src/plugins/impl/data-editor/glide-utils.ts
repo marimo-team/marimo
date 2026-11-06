@@ -132,7 +132,6 @@ export function pasteCells(options: {
   const { range } = selection.current;
   const { x: startCol, y: startRow } = range;
 
-  // Read clipboard data
   navigator.clipboard
     .readText()
     .then((clipboardText) => {
@@ -140,43 +139,25 @@ export function pasteCells(options: {
         return;
       }
 
-      // Parse tab-separated values
-      const rows = clipboardText.split("\n").filter((row) => row.trim());
-      const parsedData: string[][] = [];
-
-      for (const row of rows) {
-        const cells = row.split("\t");
-        parsedData.push(cells);
-      }
-
-      if (parsedData.length === 0) {
-        return;
-      }
+      const parsedData = clipboardText
+        .split("\n")
+        .filter((row) => row.trim())
+        .map((row) => row.split("\t"));
 
       const edits: Edits["edits"] = [];
       const editableColumnSet =
         editableColumns === "all" ? null : new Set(editableColumns);
 
       for (const [rowIndex, dataRow] of parsedData.entries()) {
-        if (!dataRow) {
-          continue;
-        }
-
         const targetRowIdx = startRow + rowIndex;
 
-        // Check if we've exceeded the data bounds
         if (targetRowIdx >= data.length) {
           break;
         }
 
         for (const [colIndex, cellValue] of dataRow.entries()) {
-          if (cellValue === undefined) {
-            continue;
-          }
-
           const targetColIdx = startCol + colIndex;
 
-          // Check if we've exceeded the column bounds
           if (targetColIdx >= columns.length) {
             break;
           }
@@ -191,13 +172,13 @@ export function pasteCells(options: {
             continue;
           }
 
-          // Convert the value based on the cell type
           let convertedValue: unknown = cellValue;
 
-          if (Array.isArray(columnType)) {
-            if (!isValidCellValue(dataType, cellValue, columnType)) {
-              continue;
-            }
+          if (
+            Array.isArray(columnType) &&
+            !isValidCellValue(dataType, cellValue, columnType)
+          ) {
+            continue;
           }
 
           switch (dataType) {
@@ -243,12 +224,9 @@ export function pasteCells(options: {
               continue;
           }
 
-          // Get the column ID from the columns array using the title
-          const columnId = columns[targetColIdx].title;
-
           edits.push({
             rowIdx: targetRowIdx,
-            columnId,
+            columnId: column.title,
             value: convertedValue,
           });
         }

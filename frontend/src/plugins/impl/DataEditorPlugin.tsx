@@ -92,13 +92,9 @@ interface Props {
 const LoadingDataEditor = (props: Props) => {
   const [editorState, setEditorState] = useState<EditorState | null>(null);
 
-  // Load the data
   const { data: loadedState, error } = useAsyncData(async () => {
     const withoutExternalTypes = toFieldTypes(props.fieldTypes ?? []);
 
-    // If we already have the data, return it
-    // Otherwise, load the data from the URL. Vega's CSV parser takes a
-    // plain `Record`; column order doesn't matter for parsing.
     const localData = Array.isArray(props.data)
       ? props.data
       : await vegaLoadData<EditorRow>(
