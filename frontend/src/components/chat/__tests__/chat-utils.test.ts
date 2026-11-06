@@ -577,7 +577,6 @@ describe("willAutoContinue", () => {
     ["input-available", true],
     ["output-available", true],
     ["approval-requested", false],
-    // Input can only still be streaming if the response was cut off.
     ["input-streaming", false],
   ])("returns %s → %s", (state, expected) => {
     expect(

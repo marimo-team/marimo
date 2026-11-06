@@ -21,7 +21,6 @@ import { formatToolName } from "./shared";
 
 interface ToolDescription {
   label: string;
-  /** Short identifying text, e.g. the first line of an added cell. */
   detail?: string;
   icon: LucideIcon;
 }
@@ -98,7 +97,6 @@ const EDIT_LABELS = {
   },
 } as const;
 
-/** Describe a tool call in plain language for the activity timeline. */
 export function describeToolCall(
   toolName: string,
   input: unknown,
@@ -158,7 +156,6 @@ function getEdit(
   };
 }
 
-/** The first line that says what the code does, skipping imports and comments. */
 function summarizeCode(code: unknown): string | undefined {
   if (typeof code !== "string") {
     return undefined;

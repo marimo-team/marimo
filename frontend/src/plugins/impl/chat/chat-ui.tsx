@@ -482,8 +482,7 @@ export const Chatbot: React.FC<Props> = (props) => {
                 className={`max-w-[80%] p-3 rounded-lg ${
                   message.role === "user"
                     ? "bg-(--sky-11) text-(--slate-1) whitespace-pre-wrap"
-                    : // Muted text needs more contrast on this gray bubble.
-                      "bg-(--slate-4) text-(--slate-12) [--muted-foreground:var(--slate-11)]"
+                    : "bg-(--slate-4) text-(--slate-12) [--muted-foreground:var(--slate-11)]"
                 }`}
               >
                 {renderUIMessage({
@@ -514,7 +513,6 @@ export const Chatbot: React.FC<Props> = (props) => {
           );
         })}
 
-        {/* Once a reply streams in, its own activity block shows progress. */}
         {isLoading && messages.at(-1)?.role !== "assistant" && (
           <div className="flex items-center justify-center mb-4">
             <Spinner size="small" />

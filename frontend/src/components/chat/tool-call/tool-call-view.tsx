@@ -26,8 +26,6 @@ export const ToolCallView: React.FC<ToolCallViewProps> = ({
   ...props
 }) => {
   if (state === "approval-requested") {
-    // Approval blocks the turn, so it gets a prominent card. Without the
-    // approval wiring (shouldn't happen in practice) show it as running.
     return approval != null && onApprove != null ? (
       <ToolApprovalCard
         toolName={toolName}

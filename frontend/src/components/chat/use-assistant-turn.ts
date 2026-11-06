@@ -6,7 +6,6 @@ import useEvent from "react-use-event-hook";
 import { willAutoContinue } from "./chat-utils";
 import { withTurnTiming } from "./turn-timing";
 
-/** Tracks the assistant turn started by the latest user message. */
 export function useAssistantTurn() {
   const [turn, setTurn] = useState<{
     startedAt: number;
@@ -18,7 +17,6 @@ export function useAssistantTurn() {
   );
   const reset = useEvent(() => setTurn(null));
 
-  /** Stamp timing on the reply; stops or errors end the turn outright. */
   const finish = useEvent(
     (finished: UIMessage[], opts: { isAbort: boolean; isError: boolean }) => {
       if (opts.isAbort || opts.isError) {
@@ -28,11 +26,7 @@ export function useAssistantTurn() {
     },
   );
 
-  /**
-   * A turn can span several requests (e.g. after frontend tool calls). Between
-   * them the SDK briefly reports "ready", so this also covers the gap while
-   * the SDK is about to continue on its own.
-   */
+  // Between requests of one turn the SDK briefly reports "ready".
   const isActive = (state: {
     isLoading: boolean;
     hasError: boolean;

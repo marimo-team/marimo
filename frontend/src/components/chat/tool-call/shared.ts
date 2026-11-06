@@ -8,7 +8,6 @@ export type ToolState = ToolUIPart["state"];
 // rather than exporting a named type, so we derive ours from there.
 export type ToolApproval = NonNullable<ToolUIPart["approval"]>;
 
-/** States in which a tool call has started but not produced a result. */
 export const PENDING_TOOL_STATES: ReadonlySet<ToolState> = new Set([
   "input-streaming",
   "input-available",

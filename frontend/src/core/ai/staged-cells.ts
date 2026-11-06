@@ -103,9 +103,7 @@ export function useStagedCells(store: JotaiStore) {
     writeCellCode(cellId, code);
   };
 
-  // The AI may change the cell's language, and only the editor infers one.
-  // Without a mounted editor (e.g. in a collapsed section) the code goes
-  // through the document instead.
+  // Only a mounted editor infers the cell's language; otherwise use the document.
   const writeCellCode = (cellId: CellId, code: string) => {
     const editorView = getCellEditorView(cellId);
     if (editorView) {

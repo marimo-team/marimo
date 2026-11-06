@@ -6,26 +6,16 @@ import { cn } from "@/utils/cn";
 import { formatDuration, type TurnTiming } from "./turn-timing";
 
 interface AgentActivityProps {
-  /** Whether the turn is still streaming. */
   running: boolean;
-  /** Whether the model is currently emitting reasoning. */
   thinking?: boolean;
-  /** Whether the turn ended with tool calls still pending. */
   interrupted?: boolean;
-  /** Whether to start expanded once the turn is over. */
   defaultOpen?: boolean;
   timing?: TurnTiming;
   toolCount?: number;
   failedCount?: number;
-  /** Timeline steps: reasoning, tool calls, and interim narration. */
   steps?: React.ReactNode[];
 }
 
-/**
- * Collapsible summary of the work behind an assistant turn ("Worked for 1m 5s").
- * Opens while the turn runs so progress is visible, then collapses to keep the
- * final answer in focus, unless the user toggled it.
- */
 export const AgentActivity: React.FC<AgentActivityProps> = ({
   running,
   thinking = false,

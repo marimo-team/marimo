@@ -2,7 +2,6 @@
 
 import type { UIMessage } from "ai";
 
-/** Wall-clock span of an assistant turn, stored in `UIMessage.metadata`. */
 export interface TurnTiming {
   startedAt: number;
   finishedAt?: number;
@@ -23,12 +22,6 @@ export function getTurnTiming(message: UIMessage): TurnTiming | undefined {
   };
 }
 
-/**
- * Stamp the turn's timing onto the trailing assistant message.
- *
- * A turn can span several requests (e.g. after frontend tool calls), so the
- * original start is kept and the finish time is moved forward each time.
- */
 export function withTurnTiming(
   messages: UIMessage[],
   turnStartedAt: number | null,
@@ -52,7 +45,6 @@ export function withTurnTiming(
   ];
 }
 
-/** Format a duration like `8s`, `1m 5s`, or `1h 2m`. */
 export function formatDuration(ms: number): string {
   const totalSeconds = Math.max(1, Math.round(ms / 1000));
   const hours = Math.floor(totalSeconds / 3600);

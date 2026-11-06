@@ -24,10 +24,6 @@ interface IndexedPart {
   index: number;
 }
 
-/**
- * Render an assistant (or system) message as a single activity block holding
- * the reasoning, tool calls, and interim narration, followed by the answer.
- */
 export const renderUIMessage = ({
   message,
   isLast,
@@ -39,7 +35,6 @@ export const renderUIMessage = ({
   isLast: boolean;
   /** Whether the chat is currently streaming/submitting a response. */
   isActive: boolean;
-  /** When the in-flight turn started; used for the live timer. */
   turnStartedAt?: number | null;
   addToolApprovalResponse?: ChatAddToolApproveResponseFunction;
 }): React.ReactNode[] => {
@@ -67,7 +62,6 @@ export const renderUIMessage = ({
         interrupted={
           !running && tools.some((part) => PENDING_TOOL_STATES.has(part.state))
         }
-        // Without an answer below, the work is all there is to read.
         defaultOpen={!rest.some(({ part }) => !isPendingApproval(part))}
         timing={timing}
         toolCount={tools.length}
@@ -173,10 +167,6 @@ export const renderUIMessage = ({
   }
 };
 
-/**
- * Everything up to the last reasoning or tool part is work; the rest is the
- * answer. Pending approvals always stay out of the work so they're prominent.
- */
 function splitTurn(parts: UIMessage["parts"]): {
   work: IndexedPart[];
   rest: IndexedPart[];
@@ -210,8 +200,7 @@ function isVisible(part: Part): boolean {
     case "text":
       return part.text.trim().length > 0;
     case "reasoning":
-      // Some reasoning models (e.g. OpenAI's o-series) mark reasoning
-      // boundaries without surfacing any content.
+      // Some models (e.g. OpenAI's o-series) emit empty reasoning parts.
       return part.text.trim().length > 0;
     default:
       return !isDataPart(part);

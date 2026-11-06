@@ -174,11 +174,6 @@ export function hasPendingToolCalls(messages: UIMessage[]): boolean {
   );
 }
 
-/**
- * True when a finished request will be followed by another without user input:
- * the message ends in tool results ready to send back (see
- * `hasPendingToolCalls`) or in a tool that is still executing.
- */
 export function willAutoContinue(messages: UIMessage[]): boolean {
   const lastMessage = messages.at(-1);
   const lastPart =

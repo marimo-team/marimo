@@ -13,12 +13,10 @@ import { AttachmentRenderer } from "./chat-components";
 
 interface UserMessageProps {
   message: UIMessage;
-  /** Editing is disabled while a response is streaming. */
   canEdit: boolean;
   onEdit: (newValue: string) => void;
 }
 
-/** A sent prompt: read-only until the user chooses to edit and resend it. */
 export const UserMessage: React.FC<UserMessageProps> = ({
   message,
   canEdit,

@@ -18,7 +18,6 @@ import { ToolArgsRenderer } from "./tool-args";
 import { describeToolCall } from "./tool-labels";
 import { ResultRenderer } from "./tool-result";
 
-/** Every state except a pending approval, which needs its own card. */
 type ToolStepState = Exclude<ToolState, "approval-requested">;
 
 interface ToolStepProps {
@@ -28,12 +27,10 @@ interface ToolStepProps {
   result?: unknown;
   errorText?: string;
   approval?: ToolApproval;
-  /** Whether the turn this step belongs to is still running. */
   isActive?: boolean;
   className?: string;
 }
 
-/** One tool call in the activity timeline; expands to show input and output. */
 export const ToolStep: React.FC<ToolStepProps> = ({
   toolName,
   state,
@@ -80,8 +77,7 @@ export const ToolStep: React.FC<ToolStepProps> = ({
         <StatusIcon
           aria-hidden={true}
           className={cn(
-            // Offset lucide's built-in padding so the glyph lines up with
-            // the prose above and below.
+            // Offsets lucide's built-in padding.
             "-ml-px size-3 shrink-0",
             pending && !interrupted && "animate-spin",
           )}

@@ -533,8 +533,7 @@ const ChatPanelBody = () => {
       isAbort,
       finishReason,
     }) => {
-      // Callbacks always reach the latest chat, so a stream stopped by
-      // switching chats must not write into the chat that replaced it.
+      // useChat routes every chat's callbacks to the latest one.
       let isCurrentChat = false;
       const messages = turn.finish(finishedMessages, { isAbort, isError });
       setMessages((current) => {
