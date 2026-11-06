@@ -672,16 +672,23 @@ class UserConfigStore(ConfigReader):
         current_config = resolve_config(
             DEFAULT_CONFIG.to_dict(), (existing_config,)
         )
+        # Reject invalid edits without rejecting unrelated invalid disk values.
+        candidate = merge_config_dict(
+            parse_config(current_config).to_dict(), copy.deepcopy(config)
+        )
+        drop_none_values(candidate)
+        validated_config = merge_default_config(candidate)
+
         merged = merge_config_dict(current_config, config)
         # None-as-delete: any key whose merged value is None (typically because
         # the incoming config explicitly sent null) is removed from disk. Lets
         # the UI clear optional scalars (e.g. ai.max_tokens) without a separate
         # delete primitive.
         drop_none_values(merged)
-        validated_config = merge_default_config(merged)
+        serialized = tomlkit.dumps(merged, sort_keys=True)
 
         with open(config_path, "w", encoding="utf-8") as f:
-            tomlkit.dump(merged, f, sort_keys=True)
+            f.write(serialized)
 
         return validated_config
 

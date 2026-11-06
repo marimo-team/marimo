@@ -1,13 +1,46 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import copy
+
+import pytest
+
 from marimo._config.config import (
     DEFAULT_CONFIG,
     PartialMarimoConfig,
     merge_config,
     merge_default_config,
+    parse_config,
 )
 from marimo._config.config_schema import MarimoConfig
+
+
+@pytest.mark.parametrize(
+    "malformed",
+    [
+        None,
+        {},
+        {"command": 123},
+        {"command": "python", "args": [123]},
+        {"url": 123},
+    ],
+)
+def test_parse_config_preserves_valid_mcp_servers(malformed: object) -> None:
+    servers = {
+        "stdio": {"command": "python", "args": ["server.py"]},
+        "http": {"url": "https://example.com/mcp"},
+        "invalid": malformed,
+    }
+    values = {"mcp": {"mcpServers": servers, "presets": ["marimo"]}}
+    original = copy.deepcopy(values)
+
+    resolved = parse_config(values)
+
+    assert resolved.mcp.to_dict() == {
+        "mcpServers": {"stdio": servers["stdio"], "http": servers["http"]},
+        "presets": ["marimo"],
+    }
+    assert values == original
 
 
 def assert_config(override: MarimoConfig | PartialMarimoConfig) -> None:

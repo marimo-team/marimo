@@ -44,6 +44,26 @@ def test_save_user_config_no_session(client: TestClient) -> None:
     assert "success" in response.json()
 
 
+def test_save_user_config_with_unrelated_invalid_setting(
+    client: TestClient, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    manager = get_user_config_manager(client)
+    store = manager.user_config_mgr
+    config_path = tmp_path / "marimo.toml"
+    config_path.write_text('[completion]\ncopilot = "invalid"\n')
+    monkeypatch.setattr(store, "get_config_path", lambda: str(config_path))
+
+    response = client.post(
+        "/api/kernel/save_user_config",
+        headers=HEADERS,
+        json={"config": {"diagnostics": {"sql_linter": False}}},
+    )
+
+    assert response.status_code == 200, response.text
+    assert store.read()["completion"]["copilot"] == "invalid"
+    assert manager.get_config().diagnostics.sql_linter is False
+
+
 @pytest.mark.parametrize("override", [None, 60])
 @pytest.mark.parametrize("edit_sql", [False, True])
 def test_save_user_config_keeps_higher_priority_settings(

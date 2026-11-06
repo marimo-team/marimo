@@ -7,7 +7,7 @@ from typing import Any, TypeAlias
 
 import msgspec
 
-from marimo._config.config_schema import MarimoConfig
+from marimo._config.config_schema import MarimoConfig, MCPConfig
 from marimo._utils.deep_merge import deep_merge
 
 # Sparse external settings must not acquire defaults before layer resolution.
@@ -31,6 +31,19 @@ def parse_config(values: PartialMarimoConfig) -> MarimoConfig:
             section = values
             for key in path[:-1]:
                 section = section[key]
+            if path == ["mcp", "mcpServers"] and isinstance(
+                section[path[-1]], dict
+            ):
+                # msgspec hides record keys in error paths; check each server.
+                servers = section[path[-1]]
+                for name in list(servers):
+                    try:
+                        MCPConfig.from_dict(
+                            {"mcpServers": {name: servers[name]}}
+                        )
+                    except msgspec.ValidationError:
+                        del servers[name]
+                continue
             if path == ["cache", "verification"]:
                 section[path[-1]] = "on"
             else:

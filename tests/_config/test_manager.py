@@ -45,7 +45,7 @@ def restore_config(f: F) -> F:
 
 
 @restore_config
-@patch("tomlkit.dump")
+@patch("tomlkit.dumps", return_value="")
 def test_save_config(mock_dump: Any) -> None:
     mock_config = (merge_default_config(PartialMarimoConfig())).to_dict()
     manager = UserConfigStore()
@@ -146,6 +146,77 @@ def test_save_config_creates_missing_file(tmp_path: Path) -> None:
 
     assert config_path.is_file()
     assert saved.display.theme == "dark"
+
+
+@pytest.mark.parametrize("existing", [True, False])
+def test_serialization_failure_does_not_touch_config(
+    tmp_path: Path, existing: bool
+) -> None:
+    import tomlkit
+
+    config_path = tmp_path / "marimo.toml"
+    original = '[display]\ntheme = "dark"\n'
+    if existing:
+        config_path.write_text(original)
+    store = UserConfigStore()
+    with patch.object(store, "get_config_path", return_value=str(config_path)):
+        with pytest.raises(tomlkit.exceptions.ConvertError):
+            store.save_config({"future_setting": [None]})
+
+    if existing:
+        assert config_path.read_text() == original
+    else:
+        assert not config_path.exists()
+
+
+def test_save_config_round_trips_unnamed_folder(tmp_path: Path) -> None:
+    import tomlkit
+
+    config_path = tmp_path / "marimo.toml"
+    original = {"file_browser": {"folders": [{"path": "/data"}]}}
+    config_path.write_text(tomlkit.dumps(original))
+    store = UserConfigStore()
+    with patch.object(store, "get_config_path", return_value=str(config_path)):
+        manager = MarimoConfigManager(store)
+        before = manager.get_config()
+        saved = store.save_config(before)
+        assert (
+            manager.get_config().to_dict()
+            == saved.to_dict()
+            == before.to_dict()
+        )
+        assert store.read()["file_browser"] == original["file_browser"]
+
+
+@pytest.mark.parametrize(
+    "edit",
+    [
+        {"diagnostics": {"sql_linter": False}},
+        {"completion": {"signature_hint_on_typing": True}},
+    ],
+)
+def test_save_config_preserves_unrelated_invalid_values(
+    tmp_path: Path, edit: PartialMarimoConfig
+) -> None:
+    config_path = tmp_path / "marimo.toml"
+    config_path.write_text('[completion]\ncopilot = "invalid"\n')
+    store = UserConfigStore()
+    with patch.object(store, "get_config_path", return_value=str(config_path)):
+        saved = store.save_config(edit)
+        written = store.read()
+        assert written["completion"]["copilot"] == "invalid"
+        assert saved.completion.copilot is False
+        for section, fields in edit.items():
+            assert written[section].items() >= fields.items()
+
+        original = config_path.read_bytes()
+        with pytest.raises(ValidationError):
+            store.save_config({"completion": {"copilot": "still invalid"}})
+        assert config_path.read_bytes() == original
+
+        saved = store.save_config({"completion": {"copilot": "github"}})
+        assert store.read()["completion"]["copilot"] == "github"
+        assert saved.completion.copilot == "github"
 
 
 @pytest.mark.parametrize("existing", [True, False])
@@ -297,7 +368,7 @@ def test_save_config_is_deterministic(tmp_path: Path) -> None:
 
 
 @restore_config
-@patch("tomlkit.dump")
+@patch("tomlkit.dumps", return_value="")
 def test_save_config_none_deletes_key(mock_dump: Any) -> None:
     """None-as-delete: sending {ai: {max_tokens: None}} removes the key."""
     mock_config = (
@@ -422,7 +493,7 @@ def test_drop_none_values_strips_nested_none() -> None:
 
 
 @restore_config
-@patch("tomlkit.dump")
+@patch("tomlkit.dumps", return_value="")
 def test_can_save_secrets(mock_dump: Any) -> None:
     mock_config = (merge_default_config(PartialMarimoConfig())).to_dict()
     manager = UserConfigStore()
