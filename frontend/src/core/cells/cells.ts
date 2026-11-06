@@ -9,6 +9,7 @@ import type { EditableDocument, Placement } from "@/core/notebook/document";
 import {
   cellExecutionInputsAtom,
   cellExecutionView,
+  cellFreshnessAtom,
   withdrawCells,
 } from "@/core/executions";
 import type { CellColumnId } from "./layout";
@@ -492,7 +493,11 @@ export const canUndoDeletesAtom = atom((get) =>
 export const undoLabelAtom = atom((get) => getUndoLabel(get(notebookAtom)));
 
 export const needsRunAtom = atom((get) =>
-  notebookNeedsRun(get(notebookAtom), get(cellExecutionInputsAtom)),
+  notebookNeedsRun(
+    get(notebookAtom),
+    get(cellExecutionInputsAtom),
+    get(cellFreshnessAtom),
+  ),
 );
 
 export const cellErrorsAtom = atom((get) => {

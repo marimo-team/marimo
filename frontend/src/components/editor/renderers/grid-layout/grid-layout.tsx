@@ -37,7 +37,7 @@ import { NumberField } from "@/components/ui/number-field";
 import { Switch } from "@/components/ui/switch";
 import { outputIsLoading, outputIsStale } from "@/core/cells/cell";
 import type { CellId } from "@/core/cells/ids";
-import { useCellExecution } from "@/core/executions";
+import { useCellExecution, useCellFreshness } from "@/core/executions";
 import type { AppMode } from "@/core/mode";
 import { useIsDragging } from "@/hooks/useIsDragging";
 import { cn } from "@/utils/cn";
@@ -228,7 +228,6 @@ export const GridLayoutRenderer: React.FC<Props> = ({
               mode={mode}
               cellId={cell.id}
               output={cell.output}
-              staleInputs={cell.staleInputs}
               hideWithoutValue={true}
               isScrollable={isScrollable}
               side={side}
@@ -294,7 +293,6 @@ export const GridLayoutRenderer: React.FC<Props> = ({
                 mode={mode}
                 cellId={cell.id}
                 output={cell.output}
-                staleInputs={cell.staleInputs}
                 hideWithoutValue={false}
                 isScrollable={false}
               />
@@ -363,7 +361,6 @@ export const GridLayoutRenderer: React.FC<Props> = ({
                 mode={mode}
                 cellId={cell.id}
                 output={cell.output}
-                staleInputs={cell.staleInputs}
                 hideWithoutValue={false}
                 isScrollable={false}
               />
@@ -375,10 +372,7 @@ export const GridLayoutRenderer: React.FC<Props> = ({
   );
 };
 
-interface GridCellProps extends Pick<
-  CellRuntimeState,
-  "output" | "staleInputs"
-> {
+interface GridCellProps extends Pick<CellRuntimeState, "output"> {
   className?: string;
   code: string;
   cellId: CellId;
@@ -392,7 +386,6 @@ interface GridCellProps extends Pick<
 const GridCell = memo(
   ({
     output,
-    staleInputs,
     cellId,
     mode,
     code,
@@ -402,8 +395,9 @@ const GridCell = memo(
     className,
   }: GridCellProps) => {
     const execution = useCellExecution(cellId);
+    const freshness = useCellFreshness(cellId);
     const loading = outputIsLoading(execution.status);
-    const stale = outputIsStale(execution, staleInputs, false);
+    const stale = outputIsStale(execution, freshness, false);
     const hidden =
       hideWithoutValue &&
       execution.outcome !== null &&

@@ -3,6 +3,7 @@
 import { render } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import type { CellFreshness } from "@/core/executions";
 import { formatElapsedTime, type Milliseconds } from "@/utils/time";
 import {
   CellStatusComponent,
@@ -70,9 +71,8 @@ describe("CellStatusComponent", () => {
   // Base props that will be modified for different test cases
   const baseProps = {
     editing: true,
-    edited: false,
     disabled: false,
-    staleInputs: false,
+    freshness: { sourceChanged: false, inputsChanged: false } as CellFreshness,
     status: "idle" as const,
     interrupted: false,
     elapsedTime: null,
@@ -94,7 +94,7 @@ describe("CellStatusComponent", () => {
     const props = {
       ...baseProps,
       disabled: true,
-      staleInputs: true,
+      freshness: { sourceChanged: false, inputsChanged: true } as CellFreshness,
       startedAt: 1_704_096_000_000 as Milliseconds, // Jan 1, 2024 12:00:00
     };
 
@@ -140,7 +140,7 @@ describe("CellStatusComponent", () => {
     const props = {
       ...baseProps,
       blocked: true,
-      staleInputs: true,
+      freshness: { sourceChanged: false, inputsChanged: true } as CellFreshness,
       startedAt: 1_704_096_000_000 as Milliseconds,
     };
 
@@ -215,7 +215,7 @@ describe("CellStatusComponent", () => {
   test("renders edited state", () => {
     const props = {
       ...baseProps,
-      edited: true,
+      freshness: { sourceChanged: true, inputsChanged: false } as CellFreshness,
       elapsedTime: 1500 as Milliseconds,
       startedAt: 1_704_096_000_000 as Milliseconds,
     };
@@ -231,7 +231,7 @@ describe("CellStatusComponent", () => {
   test("renders stale inputs state", () => {
     const props = {
       ...baseProps,
-      staleInputs: true,
+      freshness: { sourceChanged: false, inputsChanged: true } as CellFreshness,
       elapsedTime: 1500 as Milliseconds,
       startedAt: 1_704_096_000_000 as Milliseconds,
     };

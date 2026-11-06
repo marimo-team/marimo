@@ -1,5 +1,9 @@
 /* Copyright 2026 Marimo. All rights reserved. */
-import type { CellExecutionView, CellRunStatus } from "@/core/executions";
+import type {
+  CellExecutionView,
+  CellFreshness,
+  CellRunStatus,
+} from "@/core/executions";
 import { extractAllTracebackInfo, type TracebackInfo } from "@/utils/traceback";
 import { parseOutline } from "../dom/outline";
 import type { CellMessage, OutputMessage } from "../kernel/messages";
@@ -115,31 +119,51 @@ export function outputIsLoading(status: CellRunStatus): boolean {
 }
 
 /**
- * A cell's output is stale if it has been edited, is loading, or has errored.
+ * A cell's output is stale if it is loading, an input it read has changed,
+ * or, while `editing`, its source has changed. A read view keeps showing
+ * the last result of edited source.
  */
 export function outputIsStale(
   execution: Pick<CellExecutionView, "status" | "outcome" | "rendered">,
-  staleInputs: boolean,
-  edited: boolean,
+  freshness: CellFreshness,
+  editing: boolean,
 ): boolean {
   const { status, outcome, rendered } = execution;
 
-  // If interrupted, the output is not stale
+  // A run in progress owns the output area: loading until the running cell
+  // has shown output (e.g. mo.output.append()), whatever the last result was.
+  if (outputIsLoading(status)) {
+    return !(status === "running" && rendered);
+  }
+  if (editing && freshness.sourceChanged) {
+    return true;
+  }
+  // An interrupted run's partial output stands as the record of that run.
   if (outcome === "interrupted") {
     return false;
   }
+  return freshness.inputsChanged;
+}
 
-  // If edited, the cell's output is stale
-  if (edited) {
+/**
+ * Console output is stale while a run is queued, since the run will clear
+ * it, and once a settled result is outdated. A run in progress owns it.
+ */
+export function consoleOutputIsStale(
+  execution: Pick<CellExecutionView, "status" | "outcome">,
+  freshness: CellFreshness,
+): boolean {
+  const { status, outcome } = execution;
+  if (outcome === "interrupted") {
+    return false;
+  }
+  if (status === "queued") {
     return true;
   }
-
-  // Loading, unless the running cell has shown output (e.g. mo.output.append())
-  if (outputIsLoading(status) && !(status === "running" && rendered)) {
-    return true;
+  if (status === "running") {
+    return false;
   }
-
-  return staleInputs;
+  return freshness.sourceChanged || freshness.inputsChanged;
 }
 
 /**

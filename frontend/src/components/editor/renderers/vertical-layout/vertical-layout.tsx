@@ -32,7 +32,11 @@ import { getReadonlyCodeDisplay } from "@/core/cells/readonly-code-display";
 import { MarkdownLanguageAdapter } from "@/core/codemirror/language/languages/markdown";
 import { useResolvedMarimoConfig } from "@/core/config/config";
 import { CSSClasses } from "@/core/constants";
-import { runtimeStatusAtom, useCellExecution } from "@/core/executions";
+import {
+  runtimeStatusAtom,
+  useCellExecution,
+  useCellFreshness,
+} from "@/core/executions";
 import { useNotebookCodeAvailable } from "@/core/meta/code-visibility";
 import { showCodeInRunModeAtom } from "@/core/meta/state";
 import {
@@ -103,7 +107,6 @@ const VerticalLayoutRenderer: React.FC<VerticalLayoutProps> = ({
         cellOutputArea={userConfig.display.cell_output}
         showCode={showCode && canShowCode}
         mode={mode}
-        staleInputs={cell.staleInputs}
         name={cell.name}
         kiosk={kioskMode}
         showErrorTracebacks={userConfig.runtime.show_tracebacks ?? false}
@@ -300,7 +303,7 @@ const ActionButtons: React.FC<{
 
 interface VerticalCellProps extends Pick<
   CellRuntimeState,
-  "output" | "consoleOutputs" | "staleInputs"
+  "output" | "consoleOutputs"
 > {
   cellOutputArea: "above" | "below";
   cellId: CellId;
@@ -320,7 +323,6 @@ const VerticalCell = memo(
     cellOutputArea,
     cellId,
     config,
-    staleInputs,
     code,
     showCode,
     mode,
@@ -330,11 +332,12 @@ const VerticalCell = memo(
   }: VerticalCellProps) => {
     const cellRef = useRef<HTMLDivElement>(null);
     const execution = useCellExecution(cellId);
+    const freshness = useCellFreshness(cellId);
     const errored = execution.outcome === "error";
     const interrupted = execution.outcome === "interrupted";
     const stopped = execution.outcome === "skipped";
 
-    const outputStale = outputIsStale(execution, staleInputs, false);
+    const outputStale = outputIsStale(execution, freshness, false);
     const loading = outputIsLoading(execution.status);
 
     // Kiosk and not presenting

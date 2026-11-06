@@ -4,8 +4,11 @@ import type { EditorView } from "@codemirror/view";
 import {
   type CellExecutionInputs,
   type CellExecutionView,
+  type CellFreshness,
+  type CellFreshnessLookup,
   cellExecutionView,
 } from "@/core/executions";
+import type { Executions } from "@/core/notebook/replica";
 import { Objects } from "@/utils/objects";
 import type { MarimoError, OutputMessage } from "../kernel/messages";
 import { isErrorMime } from "../mime";
@@ -15,8 +18,9 @@ import type { CellId } from "./ids";
 export function notebookNeedsRun(
   state: NotebookState,
   executions: CellExecutionInputs,
+  freshness: CellFreshnessLookup,
 ) {
-  return staleCellIds(state, executions).length > 0;
+  return staleCellIds(state, executions, freshness).length > 0;
 }
 
 export function notebookCells(state: NotebookState) {
@@ -78,13 +82,13 @@ export function getUndoLabel(state: NotebookState): string {
  * errored, or running.
  */
 export function getDescendantsStatus(
-  state: NotebookState,
   executions: CellExecutionInputs,
+  freshness: CellFreshnessLookup,
   descendants: readonly CellId[],
 ) {
   const views = descendants.map((id) => cellExecutionView(executions, id));
   const stale = descendants.some(
-    (id) => state.cellRuntime[id]?.staleInputs || state.cellData[id]?.edited,
+    (id) => freshness(id).sourceChanged || freshness(id).inputsChanged,
   );
   const errored = views.some((view) => view.outcome === "error");
   const runningOrQueued = views.some(
@@ -104,19 +108,39 @@ export function getDescendantsStatus(
 export function staleCellIds(
   state: NotebookState,
   executions: CellExecutionInputs,
+  freshness: CellFreshnessLookup,
 ) {
-  const { cellIds, cellData, cellRuntime } = state;
+  const { cellIds, cellData } = state;
   return cellIds.filter((cellId) => {
     const execution = cellExecutionView(executions, cellId);
+    if (execution.status !== "idle") {
+      // A run in progress covers the source it was asked for. Only an edit
+      // since then, visible once the host has planned the run, needs another.
+      return (
+        inFlight(executions.executions, cellId) &&
+        freshness(cellId).sourceChanged
+      );
+    }
     return (
       isUninstantiated(execution) ||
-      cellData[cellId].edited ||
-      execution.outcome === "interrupted" ||
-      (cellRuntime[cellId].staleInputs &&
-        // if a cell is disabled, it can't be run ...
-        !(execution.blocked || cellData[cellId].config.disabled))
+      cellNeedsRun({
+        freshness: freshness(cellId),
+        interrupted: execution.outcome === "interrupted",
+        disabled: cellData[cellId].config.disabled,
+        blocked: execution.blocked,
+      })
     );
   });
+}
+
+/** Whether the host holds a planned or started execution of the cell that has not completed. */
+function inFlight(executions: Executions, cellId: CellId): boolean {
+  const latest = executions.latest.get(cellId);
+  const record =
+    latest === undefined
+      ? undefined
+      : executions.executions.get(latest)?.record;
+  return record !== undefined && record.status !== "completed";
 }
 
 /** Whether a cell has never run: no result to show and nothing in flight. */
@@ -128,24 +152,27 @@ export function isUninstantiated({
 }
 
 /**
- * Whether a cell needs to be run given its edited / interrupted / stale
- * inputs, while accounting for ancestor-disabled cells (which should not be
- * flagged as needing a run until re-enabled).
+ * Whether a cell needs to be run: its source changed, its last run was
+ * interrupted, or an input changed and the cell can run. A disabled cell,
+ * or one blocked by a disabled ancestor, is not flagged for changed inputs
+ * until it can run again.
  */
 export function cellNeedsRun({
-  edited,
+  freshness,
   interrupted,
-  staleInputs,
   disabled,
   blocked,
 }: {
-  edited: boolean;
+  freshness: CellFreshness;
   interrupted: boolean;
-  staleInputs: boolean;
   disabled: boolean | undefined;
   blocked: boolean;
 }): boolean {
-  return edited || interrupted || (staleInputs && !(disabled || blocked));
+  return (
+    freshness.sourceChanged ||
+    interrupted ||
+    (freshness.inputsChanged && !(disabled || blocked))
+  );
 }
 
 export function cellStatusClasses({

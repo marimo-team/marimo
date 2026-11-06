@@ -7,7 +7,7 @@ import {
 } from "lucide-react";
 import { useDateFormatter } from "react-aria";
 import { MultiIcon } from "@/components/icons/multi-icon";
-import type { CellRunStatus } from "@/core/executions";
+import type { CellFreshness, CellRunStatus } from "@/core/executions";
 import { Logger } from "@/utils/Logger";
 import { useElapsedTime } from "../../../hooks/useElapsedTime";
 import { Tooltip } from "../../ui/tooltip";
@@ -18,11 +18,11 @@ import { formatElapsedTime, type Milliseconds, Time } from "@/utils/time";
 
 export interface CellStatusComponentProps {
   editing: boolean;
-  edited: boolean;
   disabled: boolean;
   /** Whether a cell it depends on is disabled. */
   blocked: boolean;
-  staleInputs: boolean;
+  /** Whether the cell's result is current. */
+  freshness: CellFreshness;
   status: CellRunStatus;
   /** Whether the cell's last run was interrupted. */
   interrupted: boolean;
@@ -38,8 +38,7 @@ export const CellStatusComponent: React.FC<CellStatusComponentProps> = ({
   status,
   disabled,
   blocked,
-  staleInputs,
-  edited,
+  freshness,
   interrupted,
   elapsedTime,
   startedAt,
@@ -48,6 +47,8 @@ export const CellStatusComponent: React.FC<CellStatusComponentProps> = ({
   if (!editing) {
     return null;
   }
+  const edited = freshness.sourceChanged;
+  const staleInputs = freshness.inputsChanged;
 
   const lastRanTime = startedAt ? (
     <LastRanTime lastRanTime={startedAt} />

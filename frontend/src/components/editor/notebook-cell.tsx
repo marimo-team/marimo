@@ -25,7 +25,11 @@ import { StopButton } from "@/components/editor/cell/StopButton";
 import { Toolbar, ToolbarItem } from "@/components/editor/cell/toolbar";
 import { Tooltip, TooltipProvider } from "@/components/ui/tooltip";
 import { aiCompletionCellAtom } from "@/core/ai/state";
-import { outputIsLoading, outputIsStale } from "@/core/cells/cell";
+import {
+  consoleOutputIsStale,
+  outputIsLoading,
+  outputIsStale,
+} from "@/core/cells/cell";
 import { isOutputEmpty } from "@/core/cells/outputs";
 import { useIsPendingCut } from "@/core/cells/pending-cut-service";
 import { autocompletionKeymap } from "@/core/codemirror/cm";
@@ -39,8 +43,10 @@ import { connectionAtom } from "@/core/network/connection";
 import { useRequestClient } from "@/core/network/requests";
 import {
   type CellExecutionView,
+  type CellFreshness,
   type CellRunStatus,
   useCellExecution,
+  useCellFreshness,
 } from "@/core/executions";
 import type { CellConfig } from "@/core/network/types";
 import { useResizeObserver } from "@/hooks/useResizeObserver";
@@ -320,6 +326,7 @@ const ReadonlyCellComponent = forwardRef(
     const cellData = useCellData(cellId);
     const cellRuntime = useCellRuntime(cellId);
     const execution = useCellExecution(cellId);
+    const freshness = useCellFreshness(cellId);
     const errored = execution.outcome === "error";
     const interrupted = execution.outcome === "interrupted";
     const stopped = execution.outcome === "skipped";
@@ -354,11 +361,7 @@ const ReadonlyCellComponent = forwardRef(
           className={CSSClasses.outputArea}
           cellId={cellId}
           output={cellRuntime.output}
-          stale={outputIsStale(
-            execution,
-            cellRuntime.staleInputs,
-            cellData.edited,
-          )}
+          stale={outputIsStale(execution, freshness, true)}
           loading={outputIsLoading(execution.status)}
         />
       </div>
@@ -387,6 +390,7 @@ const EditableCellComponent = ({
   const cellData = useCellData(cellId);
   const cellRuntime = useCellRuntime(cellId);
   const execution = useCellExecution(cellId);
+  const freshness = useCellFreshness(cellId);
   const errored = execution.outcome === "error";
   const interrupted = execution.outcome === "interrupted";
   const stopped = execution.outcome === "skipped";
@@ -408,9 +412,8 @@ const EditableCellComponent = ({
   const uninstantiated = isUninstantiated(execution);
 
   const needsRun = cellNeedsRun({
-    edited: cellData.edited,
+    freshness,
     interrupted,
-    staleInputs: cellRuntime.staleInputs,
     disabled: cellData.config.disabled,
     blocked: execution.blocked,
   });
@@ -441,11 +444,7 @@ const EditableCellComponent = ({
 
   // console output is cleared immediately on run, so check for queued instead
   // of loading to determine staleness
-  const consoleOutputStale =
-    (execution.status === "queued" ||
-      cellData.edited ||
-      cellRuntime.staleInputs) &&
-    !interrupted;
+  const consoleOutputStale = consoleOutputIsStale(execution, freshness);
 
   // This getter is called during render, so useEvent cannot be used here.
   // oxlint-disable-next-line react/preserve-manual-memoization
@@ -481,11 +480,7 @@ const EditableCellComponent = ({
   const hasOutput = !isOutputEmpty(cellRuntime.output);
   // While presenting, pending edits do not dim the output as stale,
   // matching the read view.
-  const isStaleCell = outputIsStale(
-    execution,
-    cellRuntime.staleInputs,
-    cellData.edited && !isPresenting,
-  );
+  const isStaleCell = outputIsStale(execution, freshness, !isPresenting);
   const hasConsoleOutput = cellRuntime.consoleOutputs.length > 0;
   const cellOutput = userConfig.display.cell_output;
 
@@ -685,7 +680,7 @@ const EditableCellComponent = ({
               <StagedAIDeletionMarker cellId={cellId} />
               <div className="absolute right-2 -top-4 z-10">
                 <CellToolbar
-                  edited={cellData.edited}
+                  edited={freshness.sourceChanged}
                   status={execution.status}
                   blocked={execution.blocked}
                   cellConfig={cellData.config}
@@ -725,12 +720,11 @@ const EditableCellComponent = ({
                   className={cn(
                     isMarkdownCodeHidden && cellOutput === "below" && "top-14",
                   )}
-                  edited={cellData.edited}
                   execution={execution}
+                  freshness={freshness}
                   isCellStatusInline={isCellStatusInline}
                   uninstantiated={uninstantiated}
                   disabled={cellData.config.disabled}
-                  staleInputs={cellRuntime.staleInputs}
                 />
               )}
               <div className="shoulder-bottom hover-action">
@@ -860,29 +854,26 @@ const CellRightSideActions = memo(
   (props: {
     className?: string;
     disabled: boolean | undefined;
-    edited: boolean;
     execution: CellExecutionView;
+    freshness: CellFreshness;
     isCellStatusInline: boolean;
-    staleInputs: boolean;
     uninstantiated: boolean;
   }) => {
     const {
       className,
       disabled = false,
-      edited,
       execution,
+      freshness,
       isCellStatusInline,
-      staleInputs,
       uninstantiated,
     } = props;
 
     const cellStatusComponent = (
       <CellStatusComponent
         status={execution.status}
-        staleInputs={staleInputs}
+        freshness={freshness}
         interrupted={execution.outcome === "interrupted"}
         editing={true}
-        edited={edited}
         disabled={disabled}
         elapsedTime={execution.duration}
         startedAt={execution.startedAt}
@@ -1059,6 +1050,7 @@ const SetupCellComponent = ({
   const cellData = useCellData(cellId);
   const cellRuntime = useCellRuntime(cellId);
   const execution = useCellExecution(cellId);
+  const freshness = useCellFreshness(cellId);
   const errored = execution.outcome === "error";
   const interrupted = execution.outcome === "interrupted";
   const stopped = execution.outcome === "skipped";
@@ -1076,9 +1068,8 @@ const SetupCellComponent = ({
   const uninstantiated = isUninstantiated(execution);
 
   const needsRun = cellNeedsRun({
-    edited: cellData.edited,
+    freshness,
     interrupted,
-    staleInputs: cellRuntime.staleInputs,
     disabled: cellData.config.disabled,
     blocked: execution.blocked,
   });
@@ -1087,11 +1078,7 @@ const SetupCellComponent = ({
 
   // console output is cleared immediately on run, so check for queued instead
   // of loading to determine staleness
-  const consoleOutputStale =
-    (execution.status === "queued" ||
-      cellData.edited ||
-      cellRuntime.staleInputs) &&
-    !interrupted;
+  const consoleOutputStale = consoleOutputIsStale(execution, freshness);
 
   // This getter is called during render, so useEvent cannot be used here.
   // oxlint-disable-next-line react/preserve-manual-memoization
@@ -1199,7 +1186,7 @@ const SetupCellComponent = ({
               <StagedAIDeletionMarker cellId={cellId} />
               <div className="absolute right-2 -top-4 z-10">
                 <CellToolbar
-                  edited={cellData.edited}
+                  edited={freshness.sourceChanged}
                   status={execution.status}
                   blocked={execution.blocked}
                   cellConfig={cellData.config}
@@ -1237,12 +1224,11 @@ const SetupCellComponent = ({
                   frame for running cells. */}
               {!isPresenting && (
                 <CellRightSideActions
-                  edited={cellData.edited}
                   execution={execution}
+                  freshness={freshness}
                   isCellStatusInline={false}
                   uninstantiated={uninstantiated}
                   disabled={cellData.config.disabled}
-                  staleInputs={cellRuntime.staleInputs}
                 />
               )}
               <div className="shoulder-bottom hover-action">
