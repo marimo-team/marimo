@@ -35,20 +35,11 @@ const createLongReprNotebook = (
 
 print('hello')
 LongReprA()`,
-      edited: false,
       config: {
         hide_code: hideCode,
         disabled: false,
         column: null,
       },
-      lastCodeRun: `class LongReprA:
-    def __repr__(self):
-        return "<dlt.Relation(dataset='" + ("jaffle_ingest_dataset_" * 80) + \\
-            "', destination='<dlt.destinations.duckdb(destination_type=\\'duckdb\\'," + \\
-            " credentials=\\'local_jaffle.duckdb\\')>')>"
-
-print('hello')
-LongReprA()`,
     },
   },
   cellIds: [cellId],
@@ -68,7 +59,6 @@ LongReprA()`,
           timestamp: 1_686_863_705,
         },
       ],
-      staleInputs: false,
       debuggerActive: false,
       outline: null,
     }),

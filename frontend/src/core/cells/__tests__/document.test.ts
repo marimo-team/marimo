@@ -53,13 +53,8 @@ describe("applyDocument", () => {
     const state = notebookOf([cell(a), cell(b, { code: "" })]);
 
     expect(state.cellIds).toEqual([a, b]);
-    expect(state.cellData[a]).toMatchObject({
-      code: "a = 1",
-      name: "_",
-      edited: true,
-      lastCodeRun: null,
-    });
-    expect(state.cellData[b].edited).toBe(false);
+    expect(state.cellData[a]).toMatchObject({ code: "a = 1", name: "_" });
+    expect(state.cellData[b]).toMatchObject({ code: "", name: "_" });
     expect(state.cellRuntime[a]).toBeDefined();
     expect(state.cellHandles[a]).toBeDefined();
     expect(state.cellData[SCRATCH_CELL_ID]).toBeDefined();
@@ -96,7 +91,6 @@ describe("applyDocument", () => {
     expect(next.cellData[a]).toMatchObject({
       name: "renamed",
       config: { hide_code: true },
-      edited: true,
     });
   });
 

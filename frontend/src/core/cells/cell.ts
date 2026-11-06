@@ -45,7 +45,6 @@ export function transitionCell(
   }
 
   nextCell.output = message.output ?? nextCell.output;
-  nextCell.staleInputs = message.stale_inputs ?? nextCell.staleInputs;
   // Tri-state partial update: an omitted field (undefined) leaves the hint
   // unchanged; null explicitly clears it; a string sets it.
   if (message.serialization !== undefined) {

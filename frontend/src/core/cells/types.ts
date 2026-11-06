@@ -7,26 +7,12 @@ import { DEFAULT_CELL_NAME } from "./names";
 import type { Outline } from "./outline";
 
 /**
- * Whether a cell's code has changed since it last ran. A cell that never ran
- * is edited once it has code. Whitespace at the ends does not count.
- *
- * TODO(MO-8403): Delete with `lastCodeRun`.
- */
-export function isEdited(lastCodeRun: string | null, code: string): boolean {
-  return lastCodeRun === null
-    ? code.trim().length > 0
-    : lastCodeRun.trim() !== code.trim();
-}
-
-/**
  * Create a new cell with default state.
  */
 export function createCell({
   id,
   name = DEFAULT_CELL_NAME,
   code = "",
-  lastCodeRun = null,
-  edited = false,
   config,
 }: Partial<CellData> & { id: CellId }): CellData {
   return {
@@ -39,8 +25,6 @@ export function createCell({
     },
     name: name,
     code: code,
-    edited: edited,
-    lastCodeRun: lastCodeRun,
   };
 }
 
@@ -61,7 +45,6 @@ export function createCellRuntimeState(
     outline: null,
     output: null,
     consoleOutputs: [],
-    staleInputs: false,
     debuggerActive: false,
     ...state,
   };
@@ -76,10 +59,6 @@ export interface CellData {
   name: string;
   /** current contents of the editor */
   code: string;
-  /** whether this cell has been modified since its last run */
-  edited: boolean;
-  /** snapshot of code that was last run */
-  lastCodeRun: string | null;
   /** cell configuration */
   config: CellConfig;
 }
@@ -97,8 +76,6 @@ export interface CellRuntimeState {
   outline: Outline | null;
   /** messages encoding the cell's console outputs. TODO(MO-8405) */
   consoleOutputs: ConsoleOutputMessage[];
-  /** whether the cell has stale inputs. TODO(MO-8403) */
-  staleInputs: boolean;
   /** debugger active */
   debuggerActive: boolean;
   /** serialization message. TODO(MO-8414) */

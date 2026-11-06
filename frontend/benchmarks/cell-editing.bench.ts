@@ -40,7 +40,7 @@ for (const count of [10, 25, 100, 1000]) {
         );
         const cellData: Record<string, Partial<CellData>> = {};
         for (const id of ids) {
-          cellData[id] = { code, lastCodeRun: code };
+          cellData[id] = { code };
         }
         let state = MockNotebook.notebookState({ cellData });
         const store = createStore();

@@ -603,7 +603,6 @@ export function useCellActions() {
     handleCellMessage: _handleCellMessage,
     addLogs: _addLogs,
     reconcileDocument: _reconcileDocument,
-    setLastRun: _setLastRun,
     resetCellRuntimes: _resetCellRuntimes,
     ...operations
   } = useReducerActions();

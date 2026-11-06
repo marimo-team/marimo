@@ -46,7 +46,6 @@ function seedNotebook(
       [cid]: {
         code: "1 + 1",
         name: "test_cell",
-        edited: false,
         config: {
           disabled: false,
           hide_code: false,

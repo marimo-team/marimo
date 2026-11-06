@@ -418,7 +418,7 @@ describe("SendErrorReportButton", () => {
         store.set(
           notebookAtom,
           MockNotebook.notebookState({
-            cellData: { [CELL_ID]: { code: CODE, lastCodeRun: CODE } },
+            cellData: { [CELL_ID]: { code: CODE } },
             cellRuntime: { [CELL_ID]: { output } },
           }),
         );
@@ -429,7 +429,6 @@ describe("SendErrorReportButton", () => {
             [CELL_ID]: {
               ...state.cellData[CELL_ID],
               code: "print('edited')",
-              edited: true,
             },
           },
         }));
@@ -466,7 +465,7 @@ describe("SendErrorReportButton", () => {
       notebookAtom,
       MockNotebook.notebookState({
         cellData: {
-          [CELL_ID]: { code: "unrelated edit", lastCodeRun: "older run" },
+          [CELL_ID]: { code: "unrelated edit" },
         },
         cellRuntime: {
           [CELL_ID]: {

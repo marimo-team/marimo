@@ -39,7 +39,6 @@ import {
   type CellRuntimeState,
   createCell,
   createCellRuntimeState,
-  isEdited,
 } from "./types";
 import {
   canUndoDeletes,
@@ -162,76 +161,21 @@ const {
   useActions,
   valueAtom: notebookAtom,
 } = createReducerAndAtoms(initialNotebookState, {
-  /**
-   * Keep a cell as run, or as edited, as it was before formatting rewrote
-   * its code from `before` to `after`. The code itself arrives through the
-   * document.
-   */
-  codeFormatted: (
-    state,
-    action: { cellId: CellId; before: string; after: string },
-  ) => {
-    const { cellId, before, after } = action;
-    if (!state.cellData[cellId]) {
-      return state;
-    }
-    return updateCellData({
-      state,
-      cellId,
-      cellReducer: (cell) => {
-        const lastCodeRun = isEdited(cell.lastCodeRun, before)
-          ? cell.lastCodeRun
-          : after;
-        return {
-          ...cell,
-          lastCodeRun,
-          edited: isEdited(lastCodeRun, cell.code),
-        };
-      },
-    });
-  },
-  prepareForRun: (state, action: { cellId: CellId }) => {
-    const newState = updateCellRuntimeState({
+  prepareForRun: (state, action: { cellId: CellId }) =>
+    updateCellRuntimeState({
       state,
       cellId: action.cellId,
       cellReducer: (cell) => ({ ...cell, debuggerActive: false }),
-    });
-    return updateCellData({
-      state: newState,
-      cellId: action.cellId,
-      cellReducer: (cell) => {
-        return {
-          ...cell,
-          edited: false,
-          lastCodeRun: cell.code.trim(),
-        };
-      },
-    });
-  },
+    }),
   handleCellMessage: (state, message: CellMessage) => {
     const cellId = message.cell_id;
-    let nextState = updateCellRuntimeState({
+    const nextState = updateCellRuntimeState({
       state,
       cellId,
       cellReducer: (cell) => {
         return transitionCell(cell, message);
       },
     });
-    // When a cell is queued for execution, snapshot the current code
-    // as lastCodeRun. This clears staleness for cells executed by the
-    // kernel (e.g. via code_mode). If the user edits during execution,
-    // code !== lastCodeRun keeps the cell stale.
-    if (message.status === "queued") {
-      nextState = updateCellData({
-        state: nextState,
-        cellId,
-        cellReducer: (cell) => ({
-          ...cell,
-          lastCodeRun: cell.code.trim(),
-          edited: false,
-        }),
-      });
-    }
     return {
       ...nextState,
       cellLogs: [...nextState.cellLogs, ...getCellLogsForMessage(message)],
@@ -286,21 +230,6 @@ const {
         };
       },
     });
-  },
-  /** Record what the kernel last ran for each cell. */
-  setLastRun: (state, action: { lastCodeRun: Record<CellId, string> }) => {
-    const cellData = { ...state.cellData };
-    for (const cellId of state.cellIds) {
-      const cell = state.cellData[cellId];
-      const lastCodeRun = action.lastCodeRun[cellId] ?? null;
-      cellData[cellId] = {
-        ...cell,
-        lastCodeRun,
-        // A cell the kernel never ran is not stale on load.
-        edited: lastCodeRun !== null && isEdited(lastCodeRun, cell.code),
-      };
-    }
-    return { ...state, cellData };
   },
   /**
    * Start each cell's runtime over for a new kernel. WASM keeps the outputs
@@ -426,29 +355,6 @@ function updateCellRuntimeState({
     cellRuntime: {
       ...state.cellRuntime,
       [cellId]: cellReducer(state.cellRuntime[cellId]),
-    },
-  };
-}
-
-function updateCellData({
-  state,
-  cellId,
-  cellReducer,
-}: {
-  state: NotebookState;
-  cellId: CellId;
-  cellReducer: ReducerWithoutAction<CellData>;
-}) {
-  if (!(cellId in state.cellData)) {
-    Logger.warn(`Cell ${cellId} not found in state`);
-    return state;
-  }
-
-  return {
-    ...state,
-    cellData: {
-      ...state.cellData,
-      [cellId]: cellReducer(state.cellData[cellId]),
     },
   };
 }
