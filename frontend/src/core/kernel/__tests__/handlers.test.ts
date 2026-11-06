@@ -70,8 +70,6 @@ describe("buildLayoutState", () => {
       layout: null,
       resumed: false,
       ui_values: {},
-      last_executed_code: {},
-      last_execution_time: {},
       app_config: {
         width: "normal",
         app_title: null,
@@ -112,8 +110,6 @@ describe("buildLayoutState", () => {
       },
       resumed: false,
       ui_values: {},
-      last_executed_code: {},
-      last_execution_time: {},
       app_config: {
         width: "normal",
         app_title: null,

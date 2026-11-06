@@ -370,8 +370,6 @@ it.each(["kernel-ready", "reconnected"])(
         layout: null,
         resumed: true,
         ui_values: {},
-        last_executed_code: {},
-        last_execution_time: {},
         app_config: { width: "normal" },
         kiosk: false,
         capabilities: { terminal: false },
