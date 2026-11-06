@@ -1,13 +1,12 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { createStore, Provider } from "jotai";
 import { describe, expect, it, vi } from "vitest";
-import type { ChatStatus } from "ai";
-import { useChatGeneration } from "@/components/chat/use-chat-generation";
 import { cellId } from "@/__tests__/branded";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { stagedAICellsAtom } from "@/core/ai/staged-cells";
+import { type ChatId, runningChatIdsAtom } from "@/core/ai/state";
 import { scrollAndHighlightCell } from "../../../links/cell-link";
 import { StagedAICellFooter } from "../../../cell/StagedAICell";
 import { PendingAICells } from "../pending-ai-cells";
@@ -93,43 +92,28 @@ describe("PendingAICells", () => {
   });
 });
 
-function ChatGeneration({ status }: { status: ChatStatus }) {
-  useChatGeneration(status);
-  return null;
-}
-
-it("locks staged edits during generation and unlocks after completion, stop, error, or unmount", () => {
+it("locks staged edits while any chat is generating", () => {
   const store = createStore();
   const pendingCell = cellId("pending-cell");
   store.set(stagedAICellsAtom, new Map([[pendingCell, { type: "add_cell" }]]));
-  const ui = (status?: ChatStatus) => (
+  render(
     <Provider store={store}>
       <TooltipProvider>
-        {status && <ChatGeneration status={status} />}
         <PendingAICells />
         <StagedAICellFooter cellId={pendingCell} />
       </TooltipProvider>
-    </Provider>
+    </Provider>,
   );
-  const { rerender } = render(ui("ready"));
   const keep = screen.getByRole("button", { name: "Keep all" });
   const discard = screen.getByRole("button", { name: "Discard all" });
   const keepCell = screen.getByRole("button", { name: "Keep cell" });
   const discardCell = screen.getByRole("button", { name: "Discard cell" });
   const keepAndRun = keep.parentElement!.querySelectorAll("button")[1];
-  for (const status of [
-    "submitted",
-    "streaming",
-    "ready",
-    "submitted",
-    "ready",
-    "submitted",
-    "error",
-    "streaming",
-    undefined,
-  ] as const) {
-    rerender(ui(status));
-    const isGenerating = status === "submitted" || status === "streaming";
+  const chatA = "chat-a" as ChatId;
+  const chatB = "chat-b" as ChatId;
+  for (const runningIds of [[chatA], [chatA, chatB], [chatB], []]) {
+    act(() => store.set(runningChatIdsAtom, new Set(runningIds)));
+    const isGenerating = runningIds.length > 0;
     for (const button of [keep, discard, keepAndRun, keepCell, discardCell]) {
       expect(button.hasAttribute("disabled")).toBe(isGenerating);
       if (isGenerating) {
