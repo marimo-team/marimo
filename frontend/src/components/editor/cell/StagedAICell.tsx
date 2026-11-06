@@ -10,7 +10,6 @@ import {
 } from "@/core/ai/staged-cells";
 import { chatGenerationInProgressAtom } from "@/core/ai/state";
 import type { CellId } from "@/core/cells/ids";
-import { cn } from "@/utils/cn";
 import { AI_EDIT_ACTION_LABELS } from "../ai/completion-handlers";
 import type { ActionButton } from "../actions/types";
 
@@ -21,23 +20,12 @@ const actionLabels: Record<Edit["type"], { accept: string; decline: string }> =
     delete_cell: { accept: "Delete cell", decline: "Keep cell" },
   };
 
-export const StagedAICellBackground: React.FC<{
-  cellId: CellId;
-  className?: string;
-}> = ({ cellId, className }) => {
-  const stagedCell = useStagedAICell(cellId);
-
-  if (!stagedCell) {
-    return null;
-  }
-
-  const cellClass =
-    stagedCell.type === "delete_cell"
-      ? "mo-ai-deleted-cell"
-      : "mo-ai-generated-cell";
-
-  return <div className={cn(cellClass, className)} />;
-};
+export const StagedAIDeletionMarker: React.FC<{ cellId: CellId }> = ({
+  cellId,
+}) =>
+  useStagedAICell(cellId)?.type === "delete_cell" ? (
+    <div className="mo-ai-deleted-cell" />
+  ) : null;
 
 export function useStagedAICellActions(
   cellId: CellId | undefined,
@@ -57,7 +45,7 @@ export function useStagedAICellActions(
       [cellId],
     ),
   );
-  const { acceptStagedCell, rejectStagedCell } = useStagedCells(store);
+  const { acceptStagedCell, rejectStagedCell } = useStagedCells();
 
   if (!edit || cellId === undefined) {
     return [];

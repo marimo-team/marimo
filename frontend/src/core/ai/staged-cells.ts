@@ -4,13 +4,11 @@ import { useAtomValue } from "jotai";
 import { selectAtom } from "jotai/utils";
 import { useMemo } from "react";
 import { useDeleteCellCallback } from "@/components/editor/cell/useDeleteCell";
-import { CellId } from "@/core/cells/ids";
+import type { CellId } from "@/core/cells/ids";
 import { createReducerAndAtoms } from "@/utils/createReducer";
-import { Logger } from "@/utils/Logger";
 import { getCellEditorView } from "../cells/cells";
 import { useCellActions } from "../cells/actions";
 import { prepareCellCodeUpdate } from "../codemirror/language/cell-code";
-import type { JotaiStore } from "../state/jotai";
 import type { EditType } from "./tools/edit-notebook-tool";
 
 /** Pending AI edits shared by chat and agent workflows. */
@@ -73,35 +71,11 @@ export function useStagedAICell(cellId: CellId | undefined): Edit | undefined {
   return useAtomValue(stagedCellAtom);
 }
 
-interface UpdateStagedCellAction {
-  cellId: CellId;
-  code: string;
-}
-
-/** Manage staged cells without assuming which AI workflow owns them. */
-export function useStagedCells(store: JotaiStore) {
-  const { addStagedCell, removeStagedCell } = useStagedAICellsActions();
-  const { setCellCode, createCell } = useCellActions();
+/** Keep or discard staged cells, whichever AI workflow staged them. */
+export function useStagedCells() {
+  const { removeStagedCell } = useStagedAICellsActions();
+  const { setCellCode } = useCellActions();
   const deleteCellCallback = useDeleteCellCallback();
-
-  const createStagedCell = (code: string): CellId => {
-    const newCellId = CellId.create();
-    addStagedCell({ cellId: newCellId, edit: { type: "add_cell" } });
-    createCell({ code, id: newCellId });
-    return newCellId;
-  };
-
-  const updateStagedCell = (opts: UpdateStagedCellAction) => {
-    const { cellId, code } = opts;
-    const stagedAICells = store.get(stagedAICellsAtom);
-
-    if (!stagedAICells.has(cellId)) {
-      Logger.error("Staged cell not found", { cellId });
-      return;
-    }
-
-    writeCellCode(cellId, code);
-  };
 
   // Only a mounted editor infers the cell's language; otherwise use the document.
   const writeCellCode = (cellId: CellId, code: string) => {
@@ -146,15 +120,7 @@ export function useStagedCells(store: JotaiStore) {
     }
   };
 
-  return {
-    createStagedCell,
-    updateStagedCell,
-    addStagedCell,
-    removeStagedCell,
-    deleteStagedCell,
-    acceptStagedCell,
-    rejectStagedCell,
-  };
+  return { acceptStagedCell, rejectStagedCell };
 }
 
 export { stagedAICellsAtom };

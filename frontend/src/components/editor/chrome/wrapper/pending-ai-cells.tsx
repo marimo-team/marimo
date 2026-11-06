@@ -31,7 +31,7 @@ export const PendingAICells: React.FC = () => {
     selectedCellId === null ? -1 : listStagedCells.indexOf(selectedCellId);
   const currentIndex = Math.max(0, selectedIndex);
   const store = useStore();
-  const { acceptStagedCell, rejectStagedCell } = useStagedCells(store);
+  const { acceptStagedCell, rejectStagedCell } = useStagedCells();
 
   if (stagedAiCells.size === 0) {
     return null;
