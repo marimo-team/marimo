@@ -596,6 +596,19 @@ class data_editor(
         editor = mo.ui.data_editor(data=data, label="Edit Data")
         ```
 
+        Configure checkbox and dropdown columns:
+
+        ```python
+        data = [{"task": "Review", "done": "yes", "priority": "high"}]
+        editor = mo.ui.data_editor(
+            data=data,
+            column_types={
+                "done": "boolean",
+                "priority": ["low", "medium", "high"],
+            },
+        )
+        ```
+
     Attributes:
         value (ScalarData | RowOrientedData | ColumnOrientedData | IntoDataFrame): The current state of the edited data.
         data (ScalarData | RowOrientedData | ColumnOrientedData | IntoDataFrame): The original data passed to the editor.
