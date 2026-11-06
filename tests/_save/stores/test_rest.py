@@ -95,6 +95,11 @@ def server() -> Iterator[tuple[str, type[_RecordingHandler]]]:
         ("my cache/P_repro.json", "/my%20cache/P_repro.json"),
         # An already-escaped key is a logical name, so it is escaped again.
         ("my%20cache/P_repro.json", "/my%2520cache/P_repro.json"),
+        (
+            "my?cache#name/P_repro.json",
+            "/my%3Fcache%23name/P_repro.json",
+        ),
+        ("café/P_repro.json", "/caf%C3%A9/P_repro.json"),
     ],
 )
 def test_round_trip_encodes_key_path(
