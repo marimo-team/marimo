@@ -1,10 +1,11 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { type Atom, createStore } from "jotai";
-import { bench, describe, expect, vi } from "vitest";
+import { bench, describe, expect } from "vitest";
 import { MockNotebook } from "@/__mocks__/notebook";
 import { cellId } from "@/__tests__/branded";
 import {
+  type ReducerCellActions,
   cellDataAtom,
   cellErrorsAtom,
   cellHandleAtom,
@@ -18,20 +19,9 @@ import {
   notebookReducer,
 } from "@/core/cells/cells";
 import type { CellData } from "@/core/cells/types";
-import type { CellAction } from "@/core/cells/document-changes";
-import { layoutStateAtom } from "@/core/layout/state";
-import { lastSavedNotebookAtom, needsSaveAtom } from "@/core/saving/state";
+import type { DispatchedActionOf } from "@/utils/createReducer";
 
-// Keep action-to-document conversion, but exclude the network queue and timers.
-// Otherwise a throughput benchmark queues millions of artificial keystrokes.
-vi.mock("@/core/cells/document-changes", async (importOriginal) => {
-  const actual =
-    await importOriginal<typeof import("@/core/cells/document-changes")>();
-  return {
-    ...actual,
-    documentTransactionMiddleware: actual.toDocumentChanges,
-  };
-});
+type CellAction = DispatchedActionOf<ReducerCellActions>;
 
 const options = { time: 500, warmupTime: 200, iterations: 100 };
 const code = Array.from({ length: 20 }, (_, i) => `value_${i} = ${i}`).join(
@@ -60,15 +50,34 @@ for (const count of [10, 25, 100, 1000]) {
         const target = ids[Math.floor(ids.length / 2)];
         let iteration = 0;
 
-        function edit() {
-          const action: CellAction = {
-            type: "updateCellCode",
+        // The document with the target cell's code in one of two versions,
+        // built once so the timed edit only applies it.
+        const actions = [0, 1].map((version): CellAction => {
+          const cells = ids.map((id) => {
+            const cell = state.cellData[id];
+            return {
+              id,
+              code: id === target ? `${code}\n# ${version}` : cell.code,
+              name: cell.name,
+              config: {
+                column: cell.config.column ?? null,
+                disabled: cell.config.disabled ?? false,
+                hide_code: cell.config.hide_code ?? false,
+                expand_output: cell.config.expand_output ?? false,
+              },
+            };
+          });
+          return {
+            type: "reconcileDocument",
             payload: {
-              cellId: target,
-              code: `${code}\n# ${iteration++ % 2}`,
-              formattingChange: false,
+              order: ids,
+              cells: new Map(cells.map((cell) => [cell.id, cell])),
             },
           };
+        });
+
+        function edit() {
+          const action = actions[iteration++ % 2];
           if (mode === "reducer") {
             state = notebookReducer(state, action);
           } else {
@@ -82,12 +91,6 @@ for (const count of [10, 25, 100, 1000]) {
           state = MockNotebook.notebookState({ cellData });
           iteration = 0;
           store.set(notebookAtom, state);
-          store.set(lastSavedNotebookAtom, {
-            codes: ids.map(() => code),
-            names: ids.map((id) => state.cellData[id].name),
-            configs: ids.map((id) => state.cellData[id].config),
-            layout: store.get(layoutStateAtom),
-          });
           const subscribe = (value: Atom<unknown>) => {
             unsubscribes.push(store.sub(value, () => undefined));
           };
@@ -106,7 +109,6 @@ for (const count of [10, 25, 100, 1000]) {
               notebookIsRunningAtom,
               notebookQueuedOrRunningCountAtom,
               needsRunAtom,
-              needsSaveAtom,
             ]) {
               subscribe(value);
             }

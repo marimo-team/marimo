@@ -44,6 +44,8 @@ export const DEFAULT_AI_MODEL = "openai/gpt-4o";
  */
 const AUTO_DOWNLOAD_FORMATS = ["html", "markdown", "ipynb"] as const;
 
+export const TYPE_INFERENCE_MODES = ["off", "jedi"] as const;
+
 export type CopilotMode = NonNullable<schemas["AiConfig"]["mode"]>;
 export const COPILOT_MODES: CopilotMode[] = [
   "manual",
@@ -112,6 +114,7 @@ export const UserConfigSchema = z
           .nonnegative()
           .prefault(79)
           .transform((n) => Math.min(n, 1000)),
+        infer_types: z.enum(TYPE_INFERENCE_MODES).prefault("off"),
       })
       .prefault({}),
     keymap: z
@@ -128,6 +131,7 @@ export const UserConfigSchema = z
         auto_reload: z.enum(["off", "lazy", "autorun"]).prefault("off"),
         reactive_tests: z.boolean().prefault(true),
         watcher_on_save: z.enum(["lazy", "autorun"]).prefault("lazy"),
+        sql_default_limit: z.number().int().nullable().optional(),
         default_sql_output: z.enum(VALID_SQL_OUTPUT_FORMATS).prefault("auto"),
         default_auto_download: z
           .array(z.enum(AUTO_DOWNLOAD_FORMATS))
@@ -167,7 +171,10 @@ export const UserConfigSchema = z
         enabled: z.boolean().prefault(true),
         rules: z.string().prefault(""),
         max_tokens: z.number().int().positive().nullable().optional(),
-        mode: z.enum(COPILOT_MODES).prefault("manual"),
+        mode: z
+          .enum(COPILOT_MODES)
+          .transform((mode) => (mode === "manual" ? "ask" : mode))
+          .prefault("ask"),
         inline_tooltip: z.boolean().prefault(false),
         allow_provider_config: z.boolean().prefault(true),
         open_ai: AiConfigSchema.optional(),
@@ -198,13 +205,15 @@ export const UserConfigSchema = z
     experimental: z
       .looseObject({
         markdown: z.boolean().optional(),
-        rtc: z.boolean().optional(),
         // Add new experimental features here
       })
       // Pass through so that we don't remove any extra keys that the user has added.
       .prefault(() => ({})),
     server: z
       .looseObject({
+        skip_update_check: z.boolean().optional(),
+        session_cookie_secure: z.boolean().optional(),
+        session_secret: z.string().optional(),
         disable_file_downloads: z.boolean().optional(),
         transport: z.enum(["websocket", "sse"]).optional(),
       })
@@ -272,11 +281,15 @@ export const SqlOutputSchema = z
   .enum(VALID_SQL_OUTPUT_FORMATS)
   .prefault("auto");
 
+/**
+ * The notebook's app config. The defaults are Python's `_AppConfig` defaults,
+ * since the host document carries only what differs from them.
+ */
 export const AppConfigSchema = z
   .object({
     width: z
       .enum(VALID_APP_WIDTHS)
-      .prefault("medium")
+      .prefault("compact")
       .transform((width) => {
         if (width === "normal") {
           return "compact";
@@ -290,7 +303,7 @@ export const AppConfigSchema = z
     sql_output: SqlOutputSchema,
   })
   .prefault(() => ({
-    width: "medium" as const,
+    width: "compact" as const,
     auto_download: [],
     sql_output: "auto" as const,
   }));

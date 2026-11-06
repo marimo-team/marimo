@@ -268,7 +268,7 @@ async def test_kernel_ready_follows_the_snapshot(bridge):
     assert set(kinds[4:]) == {"marimo"}
     kernel_ready = frames[4]["data"]["marimo"]
     assert kernel_ready["op"] == "kernel-ready"
-    assert kernel_ready["codes"] == ["x = 1"]
+    assert "codes" not in kernel_ready
     assert kernel_ready["resumed"] is False
 
 
@@ -466,32 +466,40 @@ async def test_save_serializes_writes_and_checks_revision_after_waiting(
     assert notebook.saved_etag == notebook.document.etag
 
 
-async def test_editor_transactions_config_layout_and_reload(bridge):
+async def test_host_edits_config_layout_and_reload(bridge):
     events = await snapshot(bridge)
-    messages = []
-    bridge.session.consumers.append(messages.append)
-    cell_id = events[1]["data"]["cell"]["id"]
-    await bridge.notebook.transaction(
-        json.dumps(
-            {
+    cell = next(e["data"]["cell"] for e in events if e["event"] == "cell")
+    edited = await send(
+        bridge,
+        {
+            "operation": "notebook.edit",
+            "params": {"notebook_id": bridge.notebook.id},
+            "headers": {"idempotency-key": "edit-1"},
+            "body": {
                 "changes": [
-                    {"type": "set-code", "cellId": cell_id, "code": "x = 9"},
-                    {"type": "set-name", "cellId": cell_id, "name": "example"},
                     {
-                        "type": "create-cell",
-                        "cellId": "new",
-                        "code": "y = 2",
-                        "name": "_",
-                        "config": {},
+                        "kind": "put_cell",
+                        "base_etag": cell["etag"],
+                        "cell": {
+                            "id": cell["id"],
+                            "code": "x = 9",
+                            "name": "example",
+                            "config": cell["config"],
+                        },
                     },
-                    {"type": "reorder-cells", "cellIds": ["new", cell_id]},
+                    {
+                        "kind": "put_cell",
+                        "base_etag": None,
+                        "before": cell["id"],
+                        "cell": {"id": "new", "code": "y = 2"},
+                    },
                 ]
-            }
-        )
+            },
+        },
     )
-    assert not messages  # Do not echo old typing into the editor.
+    assert edited["status"] == 200, edited
     await bridge.save_app_config(json.dumps({"config": {"width": "full"}}))
-    layout = {"type": "slides", "data": {"slides": [[cell_id]]}}
+    layout = {"type": "slides", "data": {"slides": [[cell["id"]]]}}
     await bridge.notebook.set_layout(json.dumps(layout))
     path = bridge.session.app_manager.filename
 
@@ -507,18 +515,39 @@ async def test_editor_transactions_config_layout_and_reload(bridge):
     assert list(restored.app.cell_manager.names()) == ["_", "example"]
     assert restored.app.config.width == "full"
     assert restored.read_layout_config() == LayoutConfig(**layout)
-    await bridge.notebook.transaction(
-        json.dumps(
-            {
+    deleted = await send(
+        bridge,
+        {
+            "operation": "notebook.edit",
+            "params": {"notebook_id": bridge.notebook.id},
+            "headers": {"idempotency-key": "edit-2"},
+            "body": {
                 "changes": [
-                    {"type": "delete-cell", "cellId": "new"},
+                    {
+                        "kind": "delete_cell",
+                        "id": "new",
+                        "base_etag": edited["body"]["cells"]["new"]["etag"],
+                    }
                 ]
-            }
-        )
+            },
+        },
     )
+    assert deleted["status"] == 200, deleted
     assert list(bridge.session.app_manager.app.cell_manager.codes()) == [
         "x = 9"
     ]
+
+
+async def test_app_config_changes_are_written_when_persistence_is_set(bridge):
+    await snapshot(bridge)
+    notebook = await bridge.notebook.host.notebook(bridge.notebook.id)
+    persist = AsyncMock()
+    bridge.notebook.set_persistence(persist)
+    await bridge.save_app_config(json.dumps({"config": {"width": "full"}}))
+    persist.assert_awaited_once()
+    contents, _filename = persist.await_args.args
+    assert 'width="full"' in contents
+    assert notebook.saved_etag == notebook.document.etag
 
 
 async def test_save_includes_kernel_document_edits(bridge):

@@ -16,7 +16,7 @@ import { cellId } from "@/__tests__/branded";
 import { PAIR_CONFIG } from "@/__tests__/fixtures/pair-config";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { toast } from "@/components/ui/use-toast";
-import type { Attachment } from "@/core/attachments/state";
+import type { Attachment } from "@/core/notebook/attachments";
 import { exportedForTesting, notebookAtom } from "@/core/cells/cells";
 import {
   type CellOutputMessage,
@@ -24,8 +24,7 @@ import {
   ERROR_MESSAGE_INSTRUCTIONS,
 } from "@/core/cells/error-report";
 import { pairConfigAtom } from "@/core/config/pair";
-import { notebookStateFromSession } from "@/core/cells/session";
-import { createNotebookReplica } from "@/core/host/replica";
+import { readExport } from "@/core/cells/session";
 import type { MarimoError, OutputMessage } from "@/core/kernel/messages";
 import {
   type StableSessionId,
@@ -33,8 +32,7 @@ import {
 } from "@/core/kernel/session";
 import { API } from "@/core/network/api";
 import { connectionAtom } from "@/core/network/connection";
-import { notebookReplicaAtom } from "@/core/websocket/state";
-import { ConnectionState } from "@/core/websocket/types";
+import { ConnectionState } from "@/core/session/types";
 import { Deferred } from "@/utils/Deferred";
 import { HTTPError } from "@/utils/errors";
 import { MarimoErrorOutput } from "../../output/MarimoErrorOutput";
@@ -51,6 +49,10 @@ vi.mock("@/components/editor/chrome/wrapper/useOpenAiAssistant", () => ({
 const CELL_ID = cellId("test-cell");
 const STABLE_ID = "stable/test" as StableSessionId;
 const attachmentsAtom = atom<Attachment[]>([]);
+vi.mock("@/core/session/active-notebook", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/core/session/active-notebook")>()),
+  activeNotebookReplicaAtom: atom(() => ({ attachmentsAtom })),
+}));
 
 const AGENT: Attachment = {
   id: "a1",
@@ -97,11 +99,6 @@ function renderButton({
   const store = createStore();
   store.set(connectionAtom, { state: ConnectionState.OPEN });
   store.set(pairConfigAtom, { ...PAIR_CONFIG, hostEnabled: preview });
-  store.set(notebookReplicaAtom, {
-    ...createNotebookReplica(store),
-    connectionAtom: atom({ state: ConnectionState.OPEN }),
-    attachmentsAtom,
-  });
   store.set(attachmentsAtom, attachments);
   store.set(stableSessionIdAtom, stableId);
   const wrapper = ({ children }: { children: React.ReactNode }) => (
@@ -320,8 +317,8 @@ describe("SendErrorReportButton", () => {
   });
 
   it("sends the restored exception type and complete traceback", async () => {
-    const state = notebookStateFromSession(
-      {
+    const { cellRuntime } = readExport({
+      session: {
         version: "1",
         metadata: { marimo_version: "1", script_metadata_hash: null },
         cells: [
@@ -345,9 +342,11 @@ describe("SendErrorReportButton", () => {
           },
         ],
       },
-      null,
-    );
-    const message = state?.cellRuntime[CELL_ID].output;
+      notebook: null,
+      filename: null,
+      appConfig: {},
+    });
+    const message = cellRuntime[CELL_ID].output;
     expect(message).toBeDefined();
     renderButton({
       content: message && <OutputRenderer cellId={CELL_ID} message={message} />,
@@ -423,11 +422,17 @@ describe("SendErrorReportButton", () => {
             cellRuntime: { [CELL_ID]: { output } },
           }),
         );
-        actions.updateCellCode({
-          cellId: CELL_ID,
-          code: "print('edited')",
-          formattingChange: false,
-        });
+        store.set(notebookAtom, (state) => ({
+          ...state,
+          cellData: {
+            ...state.cellData,
+            [CELL_ID]: {
+              ...state.cellData[CELL_ID],
+              code: "print('edited')",
+              edited: true,
+            },
+          },
+        }));
         if (queue) {
           actions.prepareForRun({ cellId: CELL_ID });
           actions.handleCellMessage({

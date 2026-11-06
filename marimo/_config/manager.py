@@ -1,10 +1,14 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import json
 import os
+import re
 from functools import cached_property, lru_cache
 from pathlib import Path
-from typing import Any, cast
+from typing import Annotated, Any, cast, get_args, get_origin
+
+import msgspec
 
 from marimo import _loggers
 from marimo._config.config import (
@@ -23,7 +27,17 @@ from marimo._config.config import (
     merge_config,
     merge_default_config,
 )
+from marimo._config.config_schema import MarimoConfig as MarimoConfigSchema
 from marimo._config.packages import PackageManagerKind
+from marimo._config.provenance import (
+    DEPRECATED_ENV_VARS,
+    ConfigLayer,
+    ConfigPath,
+    ConfigSource,
+    ResolvedConfig,
+    env_var_name,
+    format_config_source,
+)
 from marimo._config.reader import (
     ALLOWED_SCRIPT_CONFIG_TOP_KEYS,
     ConfigReader,
@@ -35,7 +49,13 @@ from marimo._config.reader import (
     sanitize_pyproject_dict,
     strip_untrusted_config,
 )
-from marimo._config.resolver import merge_config_patches, resolve_config
+from marimo._config.resolver import (
+    merge_config_patches,
+    merge_resolved_configs,
+    resolve_config,
+    resolve_config_with_sources,
+)
+from marimo._config.schema_utils import config_leaf_types
 from marimo._config.secrets import (
     redact_secrets,
     redact_secrets_partial,
@@ -45,11 +65,50 @@ from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._config.utils import (
     deep_copy,
     get_or_create_user_config_path,
+    get_user_config_path,
     is_trusted_user_config_path,
 )
-from marimo._utils.env import env_to_value
 
 LOGGER = _loggers.marimo_logger()
+
+
+def _validate_config(resolved: ResolvedConfig) -> None:
+    try:
+        MarimoConfigSchema.from_dict(cast(dict[str, object], resolved.config))
+    except (
+        msgspec.ValidationError,
+        TypeError,
+        ValueError,
+        AttributeError,
+    ) as error:
+        match = re.search(r" - at `\$(.*?)`$", str(error))
+        # msgspec hides dictionary keys as [...] and indexes into lists whose
+        # provenance is tracked as a single value.
+        path = (
+            [
+                field or None
+                for field, index in re.findall(
+                    r"\.([^.[\]]+)|\[(\.\.\.|\d+)\]", match[1]
+                )
+                if not index.isdigit()
+            ]
+            if match
+            else []
+        )
+        sources = dict.fromkeys(
+            format_config_source(origin, source)
+            for origin, source in resolved.origins.items()
+            if all(
+                field is None or field == key
+                for field, key in zip(path, origin, strict=False)
+            )
+        )
+        LOGGER.error(
+            "Invalid configuration from %s: %s",
+            ", ".join(sources),
+            error,
+            extra={"omit_log_prefix": True},
+        )
 
 
 def get_default_config_manager(
@@ -72,7 +131,8 @@ def get_default_config_manager(
         UserConfigStore(),
         PyprojectConfigReader(current_path),
         ScriptConfigReader(current_path),
-        EnvConfigReader(),
+        EnvVarReader(deprecated=True),
+        EnvVarReader(),
         # Always merged last; see SecurityConfigReader.
         SecurityConfigReader(),
     )
@@ -144,7 +204,9 @@ class MarimoConfigManager:
 
     def get_user_config(self, *, hide_secrets: bool = True) -> MarimoConfig:
         """Get the user configuration"""
-        config = resolve_config(DEFAULT_CONFIG, (self.user_config_mgr.read(),))
+        config = resolve_config(
+            DEFAULT_CONFIG, (self.user_config_mgr.read_layer().config,)
+        )
         return redact_secrets(config) if hide_secrets else config
 
     def get_config_overrides(
@@ -160,7 +222,7 @@ class MarimoConfigManager:
 
     def _read_overrides(self) -> PartialMarimoConfig:
         return merge_config_patches(
-            reader.read()
+            reader.read_layer().config
             for reader in (*self.partials, *self.security_partials)
         )
 
@@ -179,15 +241,51 @@ class MarimoConfigManager:
 
     def get_config(self, *, hide_secrets: bool = True) -> MarimoConfig:
         """Get the configuration, by merging the user configuration and the configuration overrides"""
-        # NB. Defaults go under the user configuration, overrides over it. A
-        # default a partial computes from the notebook location is not
-        # something anyone wrote, so it must lose to a value the user set.
-        config = resolve_config(
-            DEFAULT_CONFIG,
-            (self.user_config_mgr.read(), self._read_overrides()),
-            fallback=self._read_defaults(),
+        return self.get_config_with_sources(hide_secrets=hide_secrets).config
+
+    def get_config_with_sources(
+        self, *, hide_secrets: bool = True
+    ) -> ResolvedConfig:
+        """Resolve settings and their winning sources without collapsing layers."""
+        readers = (*self.partials, *self.security_partials)
+        layers = [
+            ConfigLayer(
+                _contextual_defaults(reader),
+                "inferred",
+            )
+            for reader in readers
+        ]
+        layers.append(
+            ConfigLayer(
+                cast(PartialMarimoConfig, DEFAULT_CONFIG),
+                "default",
+            )
         )
-        return redact_secrets(config) if hide_secrets else config
+        layers.append(
+            ConfigLayer(
+                {
+                    "package_management": {
+                        "manager": DEFAULT_CONFIG["package_management"][
+                            "manager"
+                        ]
+                    }
+                },
+                "inferred",
+            )
+        )
+        layers.append(self.user_config_mgr.read_layer())
+        overrides = resolve_config_with_sources(
+            reader.read_layer() for reader in readers
+        )
+        # Record-replacement merges are not associative. Preserve the existing
+        # grouping of overrides before merging them with user settings.
+        resolved = merge_resolved_configs(
+            resolve_config_with_sources(layers), overrides
+        )
+        _validate_config(resolved)
+        if hide_secrets:
+            resolved.config = redact_secrets(resolved.config)
+        return resolved
 
     def save_config(
         self, config: MarimoConfig | PartialMarimoConfig
@@ -211,11 +309,20 @@ class MarimoConfigManager:
         The source is read unmasked during resolution; masking is applied only
         when configuration values are returned to callers.
         """
+        partials = list(self.partials)
+        index = len(partials)
+        if isinstance(partial, ScriptConfigReader):
+            index = next(
+                (
+                    i
+                    for i, reader in enumerate(partials)
+                    if isinstance(reader, (EnvVarReader, OverrideConfigReader))
+                ),
+                index,
+            )
+        partials.insert(index, partial)
         return MarimoConfigManager(
-            self.user_config_mgr,
-            *self.partials,
-            partial,
-            *self.security_partials,
+            self.user_config_mgr, *partials, *self.security_partials
         )
 
 
@@ -225,6 +332,14 @@ class PyprojectConfigReader(ConfigReader):
     def __init__(self, start_path: str) -> None:
         self.start_path = start_path
         self.pyproject_path = find_nearest_pyproject_toml(start_path)
+
+    @property
+    def source(self) -> ConfigSource:
+        return (
+            self.pyproject_path
+            if self.pyproject_path is not None
+            else "default"
+        )
 
     @property
     def _dotenv_root(self) -> Path:
@@ -262,7 +377,13 @@ class PyprojectConfigReader(ConfigReader):
             # project, so an allowlist here adds little protection.
             project_config = strip_untrusted_config(project_config)
         except Exception as e:
-            LOGGER.warning("Failed to read project config: %s", e)
+            LOGGER.error(
+                'Could not load project configuration from %s: "%s"\n'
+                "Settings from this file were skipped; other configuration sources still apply.",
+                self.source,
+                e,
+                extra={"omit_log_prefix": True},
+            )
             return {}
 
         return project_config
@@ -322,7 +443,7 @@ class PyprojectConfigReader(ConfigReader):
             return config
 
         display = config["display"]
-        custom_css = display.get("custom_css", [])
+        custom_css = display.get("custom_css")
 
         if not isinstance(custom_css, list):
             return config
@@ -366,58 +487,88 @@ class PyprojectConfigReader(ConfigReader):
         }
 
 
-class EnvConfigReader(ConfigReader):
-    def _maybe_override_from_env(
-        self,
-        key: str,
-        path: list[str],
-        config: PartialMarimoConfig,
-        allowed_values: tuple[Any, ...] | None = None,
-    ) -> None:
-        loaded_value = env_to_value(key)
-        if not isinstance(loaded_value, tuple):
-            return
-        value = loaded_value[0]
-        if allowed_values is not None and value not in allowed_values:
-            LOGGER.warning(
-                "Ignoring invalid value %r for %s; expected one of %s",
-                value,
-                key,
-                ", ".join(map(repr, allowed_values)),
+class EnvVarReader(ConfigReader):
+    """Read `MARIMO_<PATH>` overrides for schema-declared leaves."""
+
+    def __init__(self, *, deprecated: bool = False) -> None:
+        self.deprecated = deprecated
+
+    @property
+    def source(self) -> ConfigSource:
+        return "deprecated_env_var" if self.deprecated else "env_var"
+
+    def read(
+        self, *, paths: tuple[ConfigPath, ...] | None = None
+    ) -> PartialMarimoConfig:
+        """Read schema-declared leaves, skipping malformed environment values."""
+        config: dict[str, Any] = {}
+        for path, annotation in config_leaf_types(MarimoConfigSchema).items():
+            if paths is not None and path not in paths:
+                continue
+            canonical = env_var_name(path)
+            key = (
+                DEPRECATED_ENV_VARS.get(path) if self.deprecated else canonical
             )
-            return
-
-        current = cast(dict[str, Any], config)
-        for p in path[:-1]:
-            if p not in current or not isinstance(current[p], dict):
-                current[p] = {}
-            current = current[p]
-        current[path[-1]] = value
-        return
-
-    def read(self) -> PartialMarimoConfig:
-        """Get the configuration, as a partial configuration"""
-        project_config: PartialMarimoConfig = {}
-        # We could do this dynamically, but list explicitly for now to reduce
-        # surface area
-        self._maybe_override_from_env(
-            "_MARIMO_CONFIG_OVERLOAD_RUNTIME_AUTO_INSTANTIATE",
-            ["runtime", "auto_instantiate"],
-            project_config,
-        )
-        self._maybe_override_from_env(
-            "MARIMO_SERVER_TRANSPORT",
-            ["server", "transport"],
-            project_config,
-            allowed_values=("websocket", "sse"),
-        )
-        self._maybe_override_from_env(
-            "MARIMO_RUNTIME_ON_CELL_CHANGE",
-            ["runtime", "on_cell_change"],
-            project_config,
-            allowed_values=("lazy", "autorun"),
-        )
-        return project_config
+            if key is None:
+                continue
+            raw = os.environ.get(key)
+            if raw is None:
+                continue
+            # TODO: Remove legacy environment-variable support in marimo 1.0.
+            if self.deprecated:
+                LOGGER.warning(
+                    "Environment variable %s is deprecated and will be removed "
+                    "in marimo 1.0. Use %s instead.",
+                    key,
+                    canonical,
+                    extra={"omit_log_prefix": True},
+                )
+                # The canonical name wins even when its value is malformed.
+                if canonical in os.environ:
+                    continue
+            try:
+                # Preserve strings verbatim; use JSON for collections and null.
+                if self.deprecated and (
+                    any(
+                        variant is int
+                        or (
+                            get_origin(variant) is Annotated
+                            and get_args(variant)[0] is int
+                        )
+                        for variant in (get_args(annotation) or (annotation,))
+                    )
+                ):
+                    value: Any = int(raw)
+                elif raw == "null" and type(None) in get_args(annotation):
+                    value = None
+                else:
+                    try:
+                        value = msgspec.convert(
+                            raw, type=annotation, strict=False
+                        )
+                    except msgspec.ValidationError:
+                        value = json.loads(raw)
+                partial: dict[str, Any] = {}
+                current = partial
+                for component in path[:-1]:
+                    current = current.setdefault(component, {})
+                current[path[-1]] = value
+                # Validate just this override, including legacy MCP normalization.
+                MarimoConfigSchema.from_dict(partial)
+            except (ValueError, TypeError):
+                LOGGER.warning(
+                    "Ignoring malformed configuration value from %s. "
+                    "This environment override was skipped; "
+                    "run `marimo config describe` for accepted types.",
+                    key,
+                    extra={"omit_log_prefix": True},
+                )
+                continue
+            current = config
+            for component in path[:-1]:
+                current = current.setdefault(component, {})
+            current[path[-1]] = value
+        return cast(PartialMarimoConfig, config)
 
 
 class SecurityConfigReader(ConfigReader):
@@ -432,6 +583,10 @@ class SecurityConfigReader(ConfigReader):
     This is the surface area for future required enforcements; today it only
     handles `MARIMO_RESTRICT_SHARING`.
     """
+
+    @property
+    def source(self) -> ConfigSource:
+        return "MARIMO_RESTRICT_SHARING"
 
     def read(self) -> PartialMarimoConfig:
         config: PartialMarimoConfig = {}
@@ -458,6 +613,10 @@ class ScriptConfigReader(ConfigReader):
 
     def __init__(self, filename: str | None) -> None:
         self.filename = filename
+
+    @property
+    def source(self) -> ConfigSource:
+        return Path(self.filename) if self.filename is not None else "default"
 
     def read(self) -> PartialMarimoConfig:
         return cast(PartialMarimoConfig, deep_copy(self._read_config()))
@@ -492,7 +651,7 @@ class ScriptConfigReader(ConfigReader):
             )
 
             marimo_config = get_marimo_config_from_pyproject_dict(
-                script_config
+                script_config, location=self.filename
             )
             if marimo_config is None:
                 return {}
@@ -505,7 +664,13 @@ class ScriptConfigReader(ConfigReader):
             marimo_config = strip_untrusted_config(marimo_config)
 
         except Exception as e:
-            LOGGER.warning("Failed to read script config: %s", e)
+            LOGGER.error(
+                'Could not load script configuration from %s: "%s"\n'
+                "Settings from this file were skipped; other configuration sources still apply.",
+                self.source,
+                e,
+                extra={"omit_log_prefix": True},
+            )
             return {}
 
         return marimo_config
@@ -514,17 +679,35 @@ class ScriptConfigReader(ConfigReader):
 class UserConfigStore(ConfigReader):
     """Read and write the user configuration"""
 
+    def __init__(self, *, create_if_missing: bool = True) -> None:
+        self.create_if_missing = create_if_missing
+
+    @property
+    def source(self) -> ConfigSource:
+        try:
+            return Path(self.get_config_path())
+        except OSError:
+            return "default"
+
     def save_config(
         self, config: MarimoConfig | PartialMarimoConfig
     ) -> MarimoConfig:
         import tomlkit
 
         config_path = self.get_config_path()
+        try:
+            existing_config = self._load_config(config_path)
+        except (OSError, ValueError) as e:
+            raise ValueError(
+                f"Cannot save configuration to {config_path}: "
+                f'the existing file could not be read: "{e}". '
+                "Fix the file before saving settings. The file was not changed."
+            ) from e
         LOGGER.info("Saving user configuration to %s", config_path)
         # Remove the secret placeholders from the incoming config
         config = remove_secret_placeholders(config)
         # Merge the current config with the new config
-        current_config = resolve_config(DEFAULT_CONFIG, (self.read(),))
+        current_config = resolve_config(DEFAULT_CONFIG, (existing_config,))
         merged = merge_config(current_config, config)
         # None-as-delete: any key whose merged value is None (typically because
         # the incoming config explicitly sent null) is removed from disk. Lets
@@ -547,42 +730,48 @@ class UserConfigStore(ConfigReader):
 
     def read(self) -> PartialMarimoConfig:
         """Read explicit user settings without applying defaults or masking."""
-        return cast(PartialMarimoConfig, deep_copy(self._load_config()))
-
-    def get_config_path(self) -> str:
-        return get_or_create_user_config_path()
-
-    def _load_config(self) -> PartialMarimoConfig:
-        """
-        Load configuration, taking into account user config file, if any.
-        """
         try:
             path = self.get_config_path()
         except OSError as e:
-            path = None
             LOGGER.warning(
                 "Encountered error when searching for config: %s", e
             )
+            return {}
 
-        if path is not None:
-            LOGGER.debug("Using config at %s", path)
-            try:
-                user_config = read_marimo_config(path)
-            except Exception as e:
-                LOGGER.error("Failed to read user config at %s", path)
-                LOGGER.error(str(e))
-                return {}
-            if not is_trusted_user_config_path(path):
-                # A `.marimo.toml` discovered by walking up from the cwd is
-                # project-origin, not user-owned. Strip its cache-trust keys
-                # like any other untrusted layer.
-                user_config = strip_untrusted_config(
-                    user_config, is_user_layer=True
-                )
-            return _drop_hollow_dotenv(user_config)
-        else:
-            LOGGER.debug("No config found; loading default settings.")
-        return {}
+        try:
+            return cast(
+                PartialMarimoConfig, deep_copy(self._load_config(path))
+            )
+        except Exception as e:
+            LOGGER.error(
+                'Could not load configuration from %s: "%s"\n'
+                "Settings from this file were skipped; other configuration sources still apply.",
+                path,
+                e,
+                extra={"omit_log_prefix": True},
+            )
+            return {}
+
+    def get_config_path(self) -> str:
+        if self.create_if_missing:
+            return get_or_create_user_config_path()
+        from marimo._utils.xdg import marimo_config_path
+
+        return get_user_config_path() or str(marimo_config_path())
+
+    def _load_config(self, path: str) -> PartialMarimoConfig:
+        """Read and sanitize a file, returning empty settings only if it is missing."""
+        LOGGER.debug("Using config at %s", path)
+        try:
+            user_config = read_marimo_config(path)
+        except FileNotFoundError:
+            return {}
+        if not is_trusted_user_config_path(path):
+            # Workspace configuration cannot establish cache-signing trust.
+            user_config = strip_untrusted_config(
+                user_config, is_user_layer=True
+            )
+        return user_config
 
 
 class OverrideConfigReader(ConfigReader):
@@ -596,7 +785,7 @@ class OverrideConfigReader(ConfigReader):
 
 
 def _contextual_defaults(reader: ConfigReader) -> PartialMarimoConfig:
-    """Infer dotenv paths separately from settings supplied by a source."""
+    """Infer fallback dotenv paths; the runtime loads the selected files later."""
     if isinstance(reader, ScriptConfigReader):
         if reader.filename is None:
             return {}
@@ -621,19 +810,6 @@ def _is_home_directory(path: Path) -> bool:
     if home == "~":
         return False
     return os.path.realpath(path) == os.path.realpath(home)
-
-
-def _drop_hollow_dotenv(config: PartialMarimoConfig) -> PartialMarimoConfig:
-    """Drop an empty `runtime.dotenv`, which is a masked value and not a choice."""
-    # NB. Reading the configuration blanks runtime.dotenv by emptying the list,
-    # and marimo 0.18 and earlier saved that masked copy straight back to disk,
-    # so an empty list there means "hidden", not "load nothing". Keeping it
-    # would let a stale file suppress the .env next to the notebook.
-    runtime = config.get("runtime")
-    if runtime is None or runtime.get("dotenv") != []:
-        return config
-    without_dotenv = {k: v for k, v in runtime.items() if k != "dotenv"}
-    return {**config, "runtime": cast(RuntimeConfig, without_dotenv)}
 
 
 def _drop_none_values(d: dict[str, Any]) -> None:

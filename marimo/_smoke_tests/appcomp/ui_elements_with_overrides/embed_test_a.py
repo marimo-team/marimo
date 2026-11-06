@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.19.2"
+__generated_with = "0.25.2"
 app = marimo.App(width="full")
 
 
@@ -8,12 +8,12 @@ app = marimo.App(width="full")
 def _():
     # https://github.com/marimo-team/marimo/issues/7685
     import marimo as mo
-    return
 
 
 @app.cell
 def _():
     import embed_test_b
+
     return (embed_test_b,)
 
 
@@ -43,7 +43,6 @@ async def _(clone_b, embed_a):
             defs={"value": embed_a.defs["value"], "label": "their", "kind": "warn"}
         )
     ).output
-    return
 
 
 @app.cell

@@ -7,7 +7,7 @@ import { memoizeLastValue } from "@/utils/once";
 import { waitForKernelToBeInstantiated } from "../kernel/state";
 import type { RuntimeManager } from "../runtime/runtime";
 import { store } from "../state/jotai";
-import { ConnectionState } from "../websocket/types";
+import { ConnectionState } from "../session/types";
 import { connectionAtom, waitForConnectionOpen } from "./connection";
 import type { EditRequests, RunRequests } from "./types";
 
@@ -52,10 +52,8 @@ const ACTIONS: Record<keyof AllRequests, Action> = {
   sendModelValue: "startConnection",
   sendInstantiate: "startConnectionWithoutKernel",
   sendRun: "startConnection",
-  sendDeleteCell: "startConnection",
   sendRunScratchpad: "startConnection",
   saveAppConfig: "startConnection",
-  saveCellConfig: "startConnection",
   discoverDataSources: "startConnection",
 
   // Export operations start a connection
@@ -72,7 +70,7 @@ const ACTIONS: Record<keyof AllRequests, Action> = {
   sendRestart: "throwError",
 
   // These wait until the connection is open, but don't start a connection
-  sendSave: "waitForConnectionOpen",
+  saveLayout: "waitForConnectionOpen",
   invokeAiTool: "waitForConnectionOpen",
   sendFunctionRequest: "waitForConnectionOpen",
 
@@ -144,7 +142,6 @@ const ACTIONS: Record<keyof AllRequests, Action> = {
   downloadStorage: "waitForConnectionOpen",
 
   // Sync operations that wait for connection
-  sendDocumentTransaction: "waitForConnectionOpen",
   sendCodeCompletionRequest: "waitForConnectionOpen",
 };
 

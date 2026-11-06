@@ -1,19 +1,21 @@
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
 @app.cell
 def _():
     import marimo as mo
+
     return (mo,)
 
 
 @app.cell
 def _(mo):
-    mo.md(r"""If you run this first, then this should run and the `import marimo` cell should run, but nothing else""")
-    return
+    mo.md(r"""
+    If you run this first, then this should run and the `import marimo` cell should run, but nothing else
+    """)
 
 
 @app.cell
@@ -25,11 +27,10 @@ def _():
 
 
 @app.cell
-def _(x):
+def _(x: int):
     # If you run this first, then this should run and `x = 2`
     y = x + 2
     y
-    return
 
 
 if __name__ == "__main__":

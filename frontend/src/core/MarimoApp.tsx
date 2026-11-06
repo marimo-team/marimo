@@ -7,6 +7,7 @@ import { Provider as SlotzProvider } from "@marimo-team/react-slotz";
 import type React from "react";
 import { memo, type PropsWithChildren, Suspense } from "react";
 import { TailwindIndicator } from "@/components/debug/indicator";
+import { useFullScreenClass } from "@/components/ui/fullscreen";
 import { useAppConfig, useResolvedMarimoConfig } from "@/core/config/config";
 import { getInitialAppMode } from "@/core/mode";
 import { CssVariables } from "@/theme/ThemeProvider";
@@ -58,8 +59,9 @@ export function preloadPage(mode: string) {
  * The root component of the Marimo app.
  */
 export const MarimoApp: React.FC = memo(() => {
+  useFullScreenClass();
   const [userConfig] = useResolvedMarimoConfig();
-  const [appConfig] = useAppConfig();
+  const appConfig = useAppConfig();
   const editorFontSize = toRem(userConfig.display.code_editor_font_size);
 
   const renderBody = () => {

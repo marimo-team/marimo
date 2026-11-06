@@ -1,6 +1,5 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 import type { components, paths } from "@marimo-team/marimo-api";
-import type { CellId } from "../cells/ids";
 
 export type schemas = components["schemas"];
 export type AiCompletionRequest = schemas["AiCompletionRequest"];
@@ -16,7 +15,6 @@ export type CellConfig = schemas["CellConfig"];
  */
 export type RuntimeState = schemas["CellNotification"]["status"];
 export type CodeCompletionRequest = schemas["CodeCompletionRequest"];
-export type DeleteCellRequest = schemas["DeleteCellRequest"];
 export type AutoExportAsIPYNBRequest = schemas["AutoExportAsIPYNBRequest"];
 export type AutoExportAsMarkdownRequest =
   schemas["AutoExportAsMarkdownRequest"];
@@ -97,13 +95,10 @@ export type ExecuteCellsRequest = schemas["ExecuteCellsRequest"];
 export type ExecuteScratchpadRequest = schemas["ExecuteScratchpadRequest"];
 export type SaveAppConfigurationRequest =
   schemas["SaveAppConfigurationRequest"];
-export type SaveNotebookRequest = schemas["SaveNotebookRequest"];
+export type SaveLayoutRequest = schemas["SaveLayoutRequest"];
 export type CopyNotebookRequest = schemas["CopyNotebookRequest"];
 export type SaveUserConfigurationRequest =
   schemas["SaveUserConfigurationRequest"];
-export interface SetCellConfigRequest {
-  configs: Record<CellId, Partial<CellConfig>>;
-}
 /**
  * Client-side shape for creating a file/directory/notebook. The HTTP
  * transport sends this as multipart/form-data; the WASM bridge base64-encodes
@@ -117,8 +112,6 @@ export interface FileCreateInput {
 }
 export type UpdateUIElementRequest = schemas["UpdateUIElementRequest"];
 export type ModelRequest = schemas["ModelRequest"];
-export type NotebookDocumentTransactionRequest =
-  schemas["NotebookDocumentTransactionRequest"];
 export type UpdateUserConfigRequest = schemas["UpdateUserConfigRequest"];
 export type ShutdownSessionRequest = schemas["ShutdownSessionRequest"];
 export type Snippet = schemas["Snippet"];
@@ -165,7 +158,11 @@ export interface RunRequests {
  */
 export interface EditRequests {
   sendRename: (request: RenameNotebookRequest) => Promise<null>;
-  sendSave: (request: SaveNotebookRequest) => Promise<null>;
+  /**
+   * Write the notebook's layout beside it. The host protocol carries no
+   * layout yet, so this stays a request to the host serving the page.
+   */
+  saveLayout: (request: SaveLayoutRequest) => Promise<null>;
   sendCopy: (request: CopyNotebookRequest) => Promise<null>;
   sendStdin: (request: StdinRequest) => Promise<null>;
   sendRun: (request: ExecuteCellsRequest) => Promise<null>;
@@ -173,15 +170,10 @@ export interface EditRequests {
   sendInterrupt: () => Promise<null>;
   sendShutdown: () => Promise<null>;
   sendFormat: (request: FormatCellsRequest) => Promise<FormatResponse>;
-  sendDeleteCell: (request: DeleteCellRequest) => Promise<null>;
   sendCodeCompletionRequest: (request: CodeCompletionRequest) => Promise<null>;
   saveUserConfig: (request: SaveUserConfigurationRequest) => Promise<null>;
   saveAppConfig: (request: SaveAppConfigurationRequest) => Promise<null>;
-  saveCellConfig: (request: SetCellConfigRequest) => Promise<null>;
   sendRestart: () => Promise<null>;
-  sendDocumentTransaction: (
-    request: NotebookDocumentTransactionRequest,
-  ) => Promise<null>;
   sendInstallMissingPackages: (
     request: InstallPackagesRequest,
   ) => Promise<null>;

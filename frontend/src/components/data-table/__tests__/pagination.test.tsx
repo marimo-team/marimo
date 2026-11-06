@@ -9,9 +9,11 @@ import { DataTablePagination, matchingPageRanges } from "../pagination";
 function PaginationHarness({
   totalPages = 3,
   loading = false,
+  hasNextPage,
 }: {
   totalPages?: number;
   loading?: boolean;
+  hasNextPage?: boolean;
 }) {
   const table = useReactTable({
     locale: "en-US",
@@ -23,7 +25,11 @@ function PaginationHarness({
   });
   return (
     <TooltipProvider>
-      <DataTablePagination table={table} tableLoading={loading} />
+      <DataTablePagination
+        table={table}
+        tableLoading={loading}
+        hasNextPage={hasNextPage}
+      />
     </TooltipProvider>
   );
 }
@@ -139,4 +145,25 @@ test("prefix 1 with small totalPages", () => {
 
 test("prefix 1 with totalPages=1", () => {
   expect(matchingPageRanges("1", 1)).toEqual([[1, 1]]);
+});
+
+test("unknown totals use lookahead for navigation without a last page or page picker", () => {
+  const { rerender } = render(
+    <PaginationHarness totalPages={-1} hasNextPage={true} />,
+  );
+  expect(screen.getByText("1")).toBeInTheDocument();
+  expect(
+    screen.queryByRole("button", { name: "Last page" }),
+  ).not.toBeInTheDocument();
+  expect(
+    screen.queryByRole("button", { name: /Choose page/ }),
+  ).not.toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Previous page" })).toBeDisabled();
+  fireEvent.click(screen.getByRole("button", { name: "Next page" }));
+  expect(screen.getByText("2")).toBeInTheDocument();
+  rerender(<PaginationHarness totalPages={-1} hasNextPage={false} />);
+  expect(screen.getByRole("button", { name: "Next page" })).toBeDisabled();
+  fireEvent.click(screen.getByRole("button", { name: "Previous page" }));
+  expect(screen.getByText("1")).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Previous page" })).toBeDisabled();
 });

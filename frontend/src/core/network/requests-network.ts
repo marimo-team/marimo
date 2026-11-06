@@ -70,28 +70,10 @@ export function createNetworkRequests(): EditRequests & RunRequests {
         })
         .then(handleResponseReturnNull);
     },
-    sendDocumentTransaction: async (request) => {
-      await waitForConnectionOpen();
-      return getClient()
-        .POST("/api/document/transaction", {
-          body: request,
-          params: getParams(),
-        })
-        .then(handleResponseReturnNull);
-    },
     sendRename: (request) => {
       return getClient()
         .POST("/api/kernel/rename", {
           body: request,
-          params: getParams(),
-        })
-        .then(handleResponseReturnNull);
-    },
-    sendSave: (request) => {
-      return getClient()
-        .POST("/api/kernel/save", {
-          body: request,
-          parseAs: "text",
           params: getParams(),
         })
         .then(handleResponseReturnNull);
@@ -151,14 +133,6 @@ export function createNetworkRequests(): EditRequests & RunRequests {
         })
         .then(handleResponseReturnNull);
     },
-    sendDeleteCell: (request) => {
-      return getClient()
-        .POST("/api/kernel/delete", {
-          body: request,
-          params: getParams(),
-        })
-        .then(handleResponseReturnNull);
-    },
     sendCodeCompletionRequest: async (request) => {
       await waitForConnectionOpen();
       return getClient()
@@ -175,19 +149,19 @@ export function createNetworkRequests(): EditRequests & RunRequests {
         })
         .then(handleResponseReturnNull);
     },
+    saveLayout: (request) => {
+      return getClient()
+        .POST("/api/kernel/save_layout", {
+          body: request,
+          params: getParams(),
+        })
+        .then(handleResponseReturnNull);
+    },
     saveAppConfig: (request) => {
       return getClient()
         .POST("/api/kernel/save_app_config", {
           body: request,
           parseAs: "text",
-          params: getParams(),
-        })
-        .then(handleResponseReturnNull);
-    },
-    saveCellConfig: (request) => {
-      return getClient()
-        .POST("/api/kernel/set_cell_config", {
-          body: request,
           params: getParams(),
         })
         .then(handleResponseReturnNull);

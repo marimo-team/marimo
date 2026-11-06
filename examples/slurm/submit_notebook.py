@@ -15,7 +15,7 @@
 
 import marimo
 
-__generated_with = "0.23.16"
+__generated_with = "0.25.2"
 app = marimo.App(app_title="Slurm batch example")
 
 with app.setup:
@@ -40,7 +40,6 @@ def _():
     The `#SBATCH` directives, the dependencies (PEP 723), and the code all
     live in this one file.
     """)
-    return
 
 
 @app.cell
@@ -74,9 +73,8 @@ def _(n, seed):
 
 
 @app.cell
-def _(elapsed, n, pi_estimate):
+def _(elapsed: float, n, pi_estimate: float):
     print(f"pi ~= {pi_estimate:.6f} (n={n:,}, {elapsed:.2f}s)")
-    return
 
 
 if __name__ == "__main__":

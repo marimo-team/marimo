@@ -182,6 +182,7 @@ class RuntimeConfig(TypedDict):
     std_stream_max_bytes: int
     pythonpath: NotRequired[list[str]]
     dotenv: NotRequired[list[str]]
+    sql_default_limit: NotRequired[int | None]
     default_sql_output: SqlOutputType
     default_auto_download: NotRequired[list[ExportType]]
     default_csv_encoding: NotRequired[str]
@@ -232,6 +233,7 @@ class FormattingConfig(TypedDict):
     """
 
     line_length: int
+    infer_types: NotRequired[Literal["off", "jedi"]]
 
 
 @dataclass
@@ -251,11 +253,13 @@ class ServerConfig(TypedDict):
         `MARIMO_SERVER_TRANSPORT` environment variable. `"websocket"`
         (default) uses the `/ws` WebSocket endpoint; `"sse"` uses
         server-sent events over HTTP, for deployments behind proxies or
-        services that do not support WebSockets. Terminal, LSP, and
-        real-time collaboration still require WebSockets; RTC is disabled
-        when using `"sse"`.
+        services that do not support WebSockets. The terminal and LSP
+        still require WebSockets.
     """
 
+    skip_update_check: NotRequired[bool]
+    session_cookie_secure: NotRequired[bool]
+    session_secret: NotRequired[str]
     browser: Literal["default"] | str
     follow_symlink: bool
     disable_file_downloads: NotRequired[bool]
@@ -305,7 +309,7 @@ class AiConfig(TypedDict, total=False):
     - `enabled`: if `False`, hide AI actions and panels in the marimo UI
     - `rules`: custom rules to include in all AI completion prompts
     - `max_tokens`: the maximum number of tokens to use in AI completions
-    - `mode`: the mode to use for AI completions. Can be one of: `"ask"` or `"manual"`
+    - `mode`: notebook access for the built-in assistant: `"ask"` (read only), `"agent"` (suggest edits), or `"code_mode"` (full access). Defaults to `"ask"`.
     - `inline_tooltip`: if `True`, enable inline AI tooltip suggestions
     - `allow_provider_config`: if `False`, lock provider setup in the settings UI, making them read-only. Users cannot bring their own credentials or add custom providers. Default `True`.
     - `models`: the models to use for AI completions
@@ -652,12 +656,13 @@ class ExperimentalConfig(TypedDict, total=False):
     """
     Configuration for experimental features.
 
-    Features exposed on the frontend must match the frontend config.
+    Features exposed on the frontend must match the frontend config. A key
+    for a removed feature, such as `rtc_v2`, still loads and does nothing;
+    the server warns about it at startup.
     """
 
     markdown: bool  # Used in playground (community cloud)
     wasm_layouts: bool  # Used in playground (community cloud)
-    rtc_v2: bool
     isolate_apps: bool
     debugger: bool  # Live frame-watching debugger (gutter breakpoints + pdb)
     line_timing: bool  # Active-line highlight + per-line timer (sys.settrace)

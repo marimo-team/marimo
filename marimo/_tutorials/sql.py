@@ -10,7 +10,8 @@
 #     "plotly==6.7.0",
 #     "polars==1.27.1",
 #     "pyarrow==19.0.1",
-#     "sqlglot==26.13.0",
+#     "sqlglot[c]>=30.11.0; python_version < '3.15'",
+#     "sqlglot[c]>=30.23.0; python_version >= '3.15'",
 # ]
 # ///
 
@@ -71,7 +72,7 @@ def _():
 
 
 @app.cell(hide_code=True)
-def _(has_duckdb_installed, mo):
+def _(has_duckdb_installed: bool, mo):
     if has_duckdb_installed:
         mo.output.replace(
             mo.md(
@@ -153,7 +154,7 @@ def _(mo):
 
 
 @app.cell(hide_code=True)
-def _(has_polars_installed):
+def _(has_polars_installed: bool):
     _SIZE = 1000
 
 

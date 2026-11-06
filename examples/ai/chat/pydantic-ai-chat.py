@@ -9,7 +9,7 @@
 
 import marimo
 
-__generated_with = "0.23.10"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 with app.setup(hide_code=True):
@@ -50,7 +50,6 @@ def _():
 
     The following example uses [`mo.ui.chat`](https://docs.marimo.io/api/inputs/chat.html#marimo.ui.chat) to build a chatbot backed by Pydantic-AI.
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -139,9 +138,9 @@ def _(
     delete_file_tool,
     fetch_dog_tool,
     input_key,
-    model_name,
+    model_name: None,
     models,
-    os_key,
+    os_key: None | str,
     structured,
     thinking,
 ):
@@ -197,11 +196,12 @@ def _(
         def delete_file(path: str) -> str:
             """Pretend to delete the file at `path`."""
             return f"File {path!r} deleted"
+
     return (agent,)
 
 
 @app.cell
-def _(agent):
+def _(agent: Agent):
     chatbot = mo.ui.chat(
         mo.ai.llm.pydantic_ai(agent),
         prompts=[
@@ -221,7 +221,6 @@ def _(agent):
 @app.cell
 def _(chatbot):
     chatbot.value
-    return
 
 
 @app.cell(hide_code=True)
@@ -237,7 +236,6 @@ def _():
 
     Try the abort prompt to see the frontend’s “Generation stopped” notice.
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -581,7 +579,6 @@ def _():
 @app.cell
 def _(custom_chat):
     custom_chat.value
-    return
 
 
 if __name__ == "__main__":

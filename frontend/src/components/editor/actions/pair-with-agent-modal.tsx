@@ -116,9 +116,9 @@ export const PairWithAgentModal: React.FC<{
   return (
     <DialogContent className="sm:max-w-2xl">
       <DialogHeader>
-        <DialogTitle>Pair with an agent</DialogTitle>
+        <DialogTitle>Pair an agent</DialogTitle>
         <DialogDescription>
-          Use an AI coding agent to pair-program on this notebook.{" "}
+          Use an AI coding agent to pair program on this notebook.{" "}
           <a
             href="https://links.marimo.app/marimo-pair"
             target="_blank"
@@ -159,7 +159,7 @@ export const PairWithAgentModal: React.FC<{
               className="mt-4 flex flex-col gap-4"
             >
               <Step
-                index={1}
+                index={hasToken ? 1 : undefined}
                 title="Run in your terminal"
                 hint={
                   hostEnabled && tab === "opencode"
@@ -191,7 +191,6 @@ export const PairWithAgentModal: React.FC<{
 
           <TabsContent value="prompt" className="mt-4 flex flex-col gap-4">
             <Step
-              index={1}
               title="Copy this prompt into your agent"
               hint={
                 hasToken
@@ -224,7 +223,7 @@ export const PairWithAgentModal: React.FC<{
 };
 
 const Step: React.FC<{
-  index: number;
+  index?: number;
   title: string;
   hint?: string;
   children: React.ReactNode;
@@ -232,7 +231,8 @@ const Step: React.FC<{
   <div className="flex flex-col gap-2">
     <div className="flex items-baseline gap-2">
       <span className="text-sm font-medium">
-        {index}. {title}
+        {index !== undefined && `${index}. `}
+        {title}
       </span>
       {hint && <span className="text-xs text-muted-foreground">{hint}</span>}
     </div>

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import token as token_types
+from dataclasses import replace
 from enum import Enum
 from io import BytesIO
 from tokenize import tokenize
@@ -16,7 +17,7 @@ from marimo._ast.names import (
     TOPLEVEL_CELL_PREFIX,
 )
 from marimo._ast.variables import BUILTINS
-from marimo._ast.visitor import Name, VariableData
+from marimo._ast.visitor import AnnotationData, Name, VariableData
 from marimo._runtime.dataflow import topological_sort
 from marimo._runtime.dataflow.topology import GraphTopology
 from marimo._types.ids import CellId_t
@@ -387,6 +388,18 @@ class TopLevelExtraction:
                     variables[var] = toplevel_variable
         self._variables = variables
         return variables
+
+    def add_default_annotations(
+        self, annotations: dict[Name, AnnotationData]
+    ) -> None:
+        """Add inferred annotations to variables without explicit annotations."""
+        variables = self.variables
+        for name, annotation in annotations.items():
+            data = variables.get(name)
+            if data is None:
+                variables[name] = VariableData(annotation_data=annotation)
+            elif data.annotation_data is None:
+                variables[name] = replace(data, annotation_data=annotation)
 
     @classmethod
     def from_graph(

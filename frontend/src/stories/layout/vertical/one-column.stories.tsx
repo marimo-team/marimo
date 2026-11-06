@@ -3,16 +3,17 @@
 import type { Meta } from "@storybook/react-vite";
 import { createStore, Provider } from "jotai";
 import { createRef } from "react";
+import { mockDocumentModel } from "@/__mocks__/document";
 import { cellId } from "@/__tests__/branded";
 import { type NotebookState, notebookAtom } from "@/core/cells/cells";
 import { createCellRuntimeState } from "@/core/cells/types";
 import { defaultUserConfig, parseAppConfig } from "@/core/config/config-schema";
 import { showCodeInRunModeAtom } from "@/core/meta/state";
+import { DocumentProvider } from "@/core/notebook/document";
 import { connectionAtom } from "@/core/network/connection";
 import { requestClientAtom } from "@/core/network/requests";
 import { resolveRequestClient } from "@/core/network/resolve";
-import { ConnectionState } from "@/core/websocket/types";
-import { MultiColumn } from "@/utils/id-tree";
+import { ConnectionState } from "@/core/session/types";
 import type { Milliseconds, Seconds } from "@/utils/time";
 import { CellArray } from "../../../components/editor/renderers/cell-array";
 import { CellsRenderer } from "../../../components/editor/renderers/cells-renderer";
@@ -36,7 +37,6 @@ const createLongReprNotebook = (
 print('hello')
 LongReprA()`,
       edited: false,
-      serializedEditorState: null,
       config: {
         hide_code: hideCode,
         disabled: false,
@@ -53,7 +53,7 @@ LongReprA()`,
       lastExecutionTime: null,
     },
   },
-  cellIds: MultiColumn.from([[cellId]]),
+  cellIds: [cellId],
   cellRuntime: {
     [cellId]: createCellRuntimeState({
       output: {
@@ -88,7 +88,6 @@ LongReprA()`,
   cellLogs: [],
   history: [],
   scrollKey: null,
-  untouchedNewCells: new Set(),
 });
 
 export default {
@@ -108,18 +107,21 @@ const EditModeCodeShown = () => {
   store.set(connectionAtom, { state: ConnectionState.OPEN });
   store.set(requestClientAtom, resolveRequestClient());
   store.set(showCodeInRunModeAtom, true);
+  const { model } = mockDocumentModel(store, null);
 
   return (
     <Provider store={store}>
-      <TooltipProvider>
-        <CellsRenderer appConfig={parseAppConfig({})} mode="edit">
-          <CellArray
-            mode="edit"
-            userConfig={defaultUserConfig()}
-            appConfig={parseAppConfig({})}
-          />
-        </CellsRenderer>
-      </TooltipProvider>
+      <DocumentProvider model={model}>
+        <TooltipProvider>
+          <CellsRenderer appConfig={parseAppConfig({})} mode="edit">
+            <CellArray
+              mode="edit"
+              userConfig={defaultUserConfig()}
+              appConfig={parseAppConfig({})}
+            />
+          </CellsRenderer>
+        </TooltipProvider>
+      </DocumentProvider>
     </Provider>
   );
 };
@@ -133,18 +135,21 @@ const EditModeCodeHidden = () => {
   store.set(connectionAtom, { state: ConnectionState.OPEN });
   store.set(requestClientAtom, resolveRequestClient());
   store.set(showCodeInRunModeAtom, true);
+  const { model } = mockDocumentModel(store, null);
 
   return (
     <Provider store={store}>
-      <TooltipProvider>
-        <CellsRenderer appConfig={parseAppConfig({})} mode="edit">
-          <CellArray
-            mode="edit"
-            userConfig={defaultUserConfig()}
-            appConfig={parseAppConfig({})}
-          />
-        </CellsRenderer>
-      </TooltipProvider>
+      <DocumentProvider model={model}>
+        <TooltipProvider>
+          <CellsRenderer appConfig={parseAppConfig({})} mode="edit">
+            <CellArray
+              mode="edit"
+              userConfig={defaultUserConfig()}
+              appConfig={parseAppConfig({})}
+            />
+          </CellsRenderer>
+        </TooltipProvider>
+      </DocumentProvider>
     </Provider>
   );
 };

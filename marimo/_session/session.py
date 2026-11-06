@@ -67,7 +67,7 @@ from marimo._types.ids import ConsumerId, StableSessionId
 from marimo._utils.repr import format_repr
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator
+    from collections.abc import Iterator, Sequence
 
     from marimo._environments.sandbox import NotebookSandbox
     from marimo._runtime.virtual_file import VirtualFileStorageType
@@ -246,6 +246,8 @@ class SessionImpl(Session):
         self.initialization_id = initialization_id
         self._stable_id = mint(StableSessionId, "sess")
         self.app_file_manager = app_file_manager
+        # Read configuration on each save to pick up later edits.
+        self.app_file_manager.config_reader = config_manager
         self.room = Room()
         self.connection_generation = 0
         self._kernel_manager = kernel_manager
@@ -520,27 +522,23 @@ class SessionImpl(Session):
         request: InstantiateNotebookRequest,
         *,
         http_request: HTTPRequest | None,
+        execution_requests: Sequence[ExecuteCellCommand] | None = None,
     ) -> None:
         """Instantiate the app."""
         app = self.app_file_manager.app
 
-        # If codes are provided, use them instead of the file codes
-        # This is used when the frontend has local edits that should be
-        # used instead of the stored file (e.g. local editing before connecting).
-        codes = request.codes or app.cell_manager.code_map()
-
-        execution_requests = tuple(
-            ExecuteCellCommand(
-                cell_id=cell_id,
-                code=code,
-                request=http_request,
-            )
-            for cell_id, code in codes.items()
-        )
+        if execution_requests is None:
+            codes = request.codes or app.cell_manager.code_map()
+            execution_requests = [
+                ExecuteCellCommand(
+                    cell_id=cell_id, code=code, request=http_request
+                )
+                for cell_id, code in codes.items()
+            ]
 
         self.put_control_request(
             CreateNotebookCommand(
-                execution_requests=execution_requests,
+                execution_requests=tuple(execution_requests),
                 cell_ids=tuple(app.cell_manager.cell_ids()),
                 set_ui_element_value_request=UpdateUIElementCommand(
                     object_ids=request.object_ids,

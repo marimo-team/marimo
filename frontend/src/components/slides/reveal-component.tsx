@@ -69,6 +69,8 @@ import {
 } from "./speaker-view";
 
 const ASPECT_RATIO = 16 / 9;
+const SLIDE_WIDTH = 1280;
+const SLIDE_HEIGHT = SLIDE_WIDTH / ASPECT_RATIO;
 const CODE_TOGGLE_KEY_CODE = 67;
 
 // Reveal retains custom key bindings after initialization. Replace the `C`
@@ -133,8 +135,11 @@ function classifyNavKey(event: KeyboardEvent): 1 | -1 | 0 {
   return 0;
 }
 
-function useSlideDimensions(ref: React.RefObject<HTMLDivElement | null>) {
-  const [dims, setDims] = useState({ width: 960, height: 540 });
+function useSlideViewportSize(ref: React.RefObject<HTMLDivElement | null>) {
+  const [dims, setDims] = useState({
+    width: SLIDE_WIDTH,
+    height: SLIDE_HEIGHT,
+  });
 
   useEffect(() => {
     const el = ref.current;
@@ -482,8 +487,21 @@ const RevealSlidesComponent = ({
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const deckRef = useRef<RevealApi | null>(null);
-  const { width, height } = useSlideDimensions(containerRef);
+  const { width, height } = useSlideViewportSize(containerRef);
   const isFullscreen = useFullScreenElement() != null;
+  const [slideScale, setSlideScale] = useState(1);
+
+  useEffect(() => {
+    // Embedded decks also resize when panels change, without a window resize.
+    const frame = requestAnimationFrame(() => {
+      const deck = deckRef.current;
+      if (deck) {
+        deck.layout();
+        setSlideScale(deck.getScale());
+      }
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [width, height, isFullscreen]);
 
   // A receiver frame cannot spawn another speaker view. WebAssembly exports
   // also omit the plugin because each receiver would start another runtime.
@@ -501,7 +519,7 @@ const RevealSlidesComponent = ({
   const [showCodeOverrides, setShowCodeOverrides] = useState<
     ReadonlySet<CellId>
   >(() => new Set());
-  const codeAvailable = useNotebookCodeAvailable(slideCells);
+  const codeAvailable = useNotebookCodeAvailable();
   const codeRenderingEnabled = !isIslands() && codeAvailable;
   const isSpeakerReceiver = isSpeakerViewReceiver(
     kioskMode,
@@ -589,10 +607,10 @@ const RevealSlidesComponent = ({
   const revealConfig: RevealConfig = useMemo(
     () => ({
       embedded: true,
-      width,
-      height,
+      width: SLIDE_WIDTH,
+      height: SLIDE_HEIGHT,
       center: false,
-      minScale: 0.2,
+      minScale: 0,
       maxScale: 2,
       transition: deckTransition,
       keyboardCondition: (event: KeyboardEvent) => !Events.fromInput(event),
@@ -602,7 +620,7 @@ const RevealSlidesComponent = ({
       // `@revealjs/react` owns, which crashes on `reveal.sync()` re-renders.
       scrollActivationWidth: 0,
     }),
-    [width, height, deckTransition, kioskUrl],
+    [deckTransition, kioskUrl],
   );
 
   const navigateDeckToActiveCell = useEvent((deck: RevealApi) => {
@@ -703,6 +721,7 @@ const RevealSlidesComponent = ({
   });
 
   const handleDeckReady = useEvent((deck: RevealApi) => {
+    setSlideScale(deck.getScale());
     navigateDeckToActiveCell(deck);
     if (canResolveInitialHash) {
       reportDeckCell(deck);
@@ -829,22 +848,33 @@ const RevealSlidesComponent = ({
                 <span>{parkedPreviewLabel}</span>
               </div>
             )}
-            <div className="flex-1 overflow-auto flex">
-              <div
-                className={
-                  parkedShowsSource
-                    ? "mo-slide-content flex flex-col gap-3"
-                    : "mo-slide-content"
-                }
-                style={slideContentStyle}
-              >
-                <ParkedPreviewContent
-                  cell={parkedPreviewCell}
-                  isNoOutputPreview={isNoOutputPreview}
-                  isEditable={isEditable}
-                  showCode={parkedShowCode}
-                />
-              </div>
+            <div
+              className="reveal mo-slides-theme prose-slides absolute left-1/2 top-1/2"
+              data-testid="slide-preview-canvas"
+              style={{
+                position: "absolute",
+                width: SLIDE_WIDTH,
+                height: SLIDE_HEIGHT,
+                transform: `translate(-50%, -50%) scale(${slideScale})`,
+              }}
+            >
+              <SlideScrollContainer>
+                <div
+                  className={
+                    parkedShowsSource
+                      ? "mo-slide-content flex flex-col gap-3"
+                      : "mo-slide-content"
+                  }
+                  style={slideContentStyle}
+                >
+                  <ParkedPreviewContent
+                    cell={parkedPreviewCell}
+                    isNoOutputPreview={isNoOutputPreview}
+                    isEditable={isEditable}
+                    showCode={parkedShowCode}
+                  />
+                </div>
+              </SlideScrollContainer>
             </div>
           </div>
         )}

@@ -80,7 +80,7 @@ export function getCellErrorEntries(store: JotaiStore): CellErrorEntry[] {
   const { cellIds, cellRuntime, cellData } = store.get(notebookAtom);
   const entries: CellErrorEntry[] = [];
 
-  for (const [cellIndex, cellId] of cellIds.inOrderIds.entries()) {
+  for (const [cellIndex, cellId] of cellIds.entries()) {
     const cell = cellRuntime[cellId];
     const output = cell.output;
     if (!output || !isErrorMime(output.mimetype)) {
@@ -120,6 +120,9 @@ export function describeError(error: MarimoError): string {
     return `The variable '${error.name}' was defined by another cell`;
   }
   if (error.type === "import-star") {
+    return error.msg;
+  }
+  if (error.type === "lazy-import") {
     return error.msg;
   }
   if (error.type === "ancestor-stopped") {

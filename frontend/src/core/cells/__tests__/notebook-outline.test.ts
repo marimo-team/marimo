@@ -1,16 +1,16 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { createStore } from "jotai";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { MockNotebook } from "@/__mocks__/notebook";
 import { cellId } from "@/__tests__/branded";
+import { CONFIG } from "@/core/notebook/document/__tests__/fixtures";
 import {
   createNotebookActions,
   notebookAtom,
   notebookOutline,
   notebookReducer,
 } from "../cells";
-import { exportedForTesting } from "../document-changes";
 import type { Outline } from "../outline";
 
 const first = cellId("first");
@@ -40,22 +40,20 @@ function setup() {
   return { store, actions };
 }
 
-afterEach(() => {
-  exportedForTesting.cancelPendingChanges();
-});
-
 describe("notebookOutline", () => {
   it("does not notify outline subscribers when cell code changes", () => {
-    const { store, actions } = setup();
+    const { store } = setup();
     const initial = store.get(notebookOutline);
     const listener = vi.fn();
     const unsubscribe = store.sub(notebookOutline, listener);
 
-    actions.updateCellCode({
-      cellId: first,
-      code: "x = 2",
-      formattingChange: false,
-    });
+    store.set(notebookAtom, (state) => ({
+      ...state,
+      cellData: {
+        ...state.cellData,
+        [first]: { ...state.cellData[first], code: "x = 2" },
+      },
+    }));
 
     expect(store.get(notebookOutline)).toBe(initial);
     expect(listener).not.toHaveBeenCalled();
@@ -84,12 +82,23 @@ describe("notebookOutline", () => {
 
   it("keeps headings in cell order after moving and deleting cells", () => {
     const { store, actions } = setup();
-    actions.moveCell({ cellId: second, before: true });
+    actions.reconcileDocument({
+      order: [second, first],
+      cells: new Map([
+        [first, { id: first, code: "x = 1", name: "_", config: CONFIG }],
+        [second, { id: second, code: "y = 2", name: "_", config: CONFIG }],
+      ]),
+    });
     expect(store.get(notebookOutline)).toEqual({
       items: [...secondOutline.items, ...firstOutline.items],
     });
 
-    actions.deleteCell({ cellId: second });
+    actions.reconcileDocument({
+      order: [first],
+      cells: new Map([
+        [first, { id: first, code: "x = 1", name: "_", config: CONFIG }],
+      ]),
+    });
     expect(store.get(notebookOutline)).toEqual(firstOutline);
   });
 

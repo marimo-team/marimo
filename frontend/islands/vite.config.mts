@@ -7,7 +7,6 @@ import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import react from "@vitejs/plugin-react";
 import { defineConfig, type Plugin } from "vite";
-import wasm from "vite-plugin-wasm";
 import { createViteLogger, reactCompilerConfig } from "../vite.shared.mts";
 import packageJson from "../package.json";
 
@@ -121,7 +120,6 @@ export default defineConfig({
       // React Compiler backed by Oxc (oxc-transform-react)
       compiler: reactCompilerConfig,
     }),
-    wasm(),
   ],
   build: {
     emptyOutDir: true,

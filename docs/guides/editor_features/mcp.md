@@ -3,7 +3,7 @@
 !!! warning "Experimental Feature"
     MCP features are currently experimental and under active development. Features and APIs may change.
 
-marimo supports the Model Context Protocol (MCP) in two ways: as an [MCP server](mcp.md#mcp-server) that exposes marimo's [AI tools](tools.md) to external applications, and as an [MCP client](mcp.md#mcp-client) that connects [supported servers](mcp.md#supported-servers) to marimo's [chat panel](ai_completion.md#chat-panel).
+marimo supports the Model Context Protocol (MCP) in two ways: as an [MCP server](mcp.md#mcp-server) that exposes marimo's AI tools to external applications, and as an [MCP client](mcp.md#mcp-client) that connects [supported servers](mcp.md#supported-servers) to marimo's [chat panel](ai_completion.md#chat-panel).
 
 ## Prerequisites
 
@@ -36,7 +36,10 @@ marimo edit notebook.py --mcp --no-token
 
 ## MCP Server
 
-marimo can expose its [AI tools](tools.md) through an MCP server endpoint, allowing external AI applications to interact with your notebooks. If your goal is to have a coding agent drive a live notebook, see [marimo pair](../generate_with_ai/marimo_pair.md) instead; the MCP server exposes lower-level, read-only tools.
+marimo can expose its AI tools through an MCP server endpoint, allowing
+external AI applications to interact with your notebooks. If your goal is to
+have a coding agent manipulate a running notebook, see [marimo
+pair](../generate_with_ai/marimo_pair.md) instead.
 
 <video autoplay loop muted playsinline width="100%" height="100%" align="center">
   <source src="/_static/docs-mcp-server.mp4" type="video/mp4">
@@ -44,7 +47,37 @@ marimo can expose its [AI tools](tools.md) through an MCP server endpoint, allow
 
 ### Available tools
 
-When connected to marimo's MCP server, external applications can access all [AI tools](tools.md).
+When connected to marimo's MCP server, external applications can access the following categories of tools.
+
+#### Inspection
+
+| Tool | Description |
+|------|-------------|
+| **get_active_notebooks** | List all currently active marimo notebooks. Returns summary statistics and notebook details including names, paths, and session IDs. Start here to discover which notebooks are available. |
+| **get_lightweight_cell_map** | Get an overview of notebook structure showing a preview of each cell. Takes a `session_id` and optional `preview_lines` parameter. Returns cell IDs, preview text, line counts, cell types (code, markdown, SQL), runtime state (`idle`, `running`, `queued`, etc.), and `has_output`/`has_console_output` flags. |
+| **get_cell_runtime_data** | Get detailed runtime information for one or more cells. Takes `session_id` and `cell_ids` (list) parameters. Returns full cell code, error details, runtime metadata (execution time, runtime state), and variables defined by each cell. |
+| **get_cell_outputs** | Get execution output from one or more cells. Takes `session_id` and `cell_ids` (list) parameters. Returns visual output (HTML, charts, tables, etc.) with mimetype, stdout messages, and stderr messages for each cell. |
+| **get_cell_dependency_graph** | Get the cell dependency graph showing variable ownership and cell relationships. Takes `session_id` and optional `cell_id` and `depth` parameters. Returns cell dependency info (defined variables with kind and runtime type, referenced variables, parent/child cells), a variable ownership map, multiply-defined variables, and cycle information. Use `cell_id` to center on a specific cell and `depth` to limit traversal hops. |
+
+#### Data
+
+| Tool | Description |
+|------|-------------|
+| **get_tables_and_variables** | Get information about variables and data tables in a session. Takes `session_id` and `variable_names` parameters (empty list returns all). Returns table metadata (columns, primary keys, indexes, row counts) and variable values with data types. |
+| **get_database_tables** | Get database schema information with optional query filtering. Takes `session_id` and optional `query` parameter (supports regex). Returns tables with connection name, database, schema, and table details. |
+
+#### Debugging
+
+| Tool | Description |
+|------|-------------|
+| **get_notebook_errors** | Get all errors in the notebook organized by cell. Takes `session_id` parameter. Returns error summary (total errors, affected cells) and per-cell error details (type, message, traceback). |
+| **lint_notebook** | Get all marimo lint errors in the notebook. Takes a `session_id` parameter. Returns lint errors as defined in the [lint rules documentation](../lint_rules/index.md). |
+
+#### Reference
+
+| Tool | Description |
+|------|-------------|
+| **get_marimo_rules** | Returns marimo's rules and best practices for AI assistants. |
 
 ### Available prompts
 
@@ -120,6 +153,9 @@ marimo currently supports the following MCP servers:
 | `marimo` | Provides marimo's official documentation, API reference, and code examples |
 | `context7` | Fetches up-to-date, version-specific documentation and code examples from official sources |
 
+
+Support for custom MCP server configuration is not yet available.
+
 ### Configuration
 
 Enable MCP client servers through the marimo settings UI:
@@ -138,12 +174,7 @@ Alternatively, configure MCP servers in your marimo configuration file:
 presets = ["marimo", "context7"]
 ```
 
-Once configured, tools from these servers will be automatically available in the [chat panel when using ask mode](ai_completion.md#chat-panel).
-
-!!! info "Custom MCP servers"
-    Support for custom MCP server configuration is not yet available.
-
-## Related documentation
-
-- [AI tools](tools.md) - Available tools exposed by the MCP server
-- [AI-assisted coding](ai_completion.md#chat-panel) - Using the chat panel with MCP tools
+Configured servers provide tools to the [chat panel](ai_completion.md#chat-panel)
+with **Read only** or **Suggest edits** access. These access levels restrict
+marimo's built-in notebook tools. They do not restrict what connected MCP tools
+can do.

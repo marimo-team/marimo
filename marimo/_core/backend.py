@@ -59,9 +59,9 @@ class Backend(Protocol):
     ) -> None:
         """Run cells of `document` and report the run's progress and output.
 
-        The kernel registers the requested cells and any pending ancestors
-        from initialization before running them. Dependents run as the
-        runtime's configuration says.
+        Requested cells and pending ancestors are registered before execution.
+        Dependent cells follow the runtime's execution configuration. Each
+        execution reports the fingerprint submitted with its cell.
         """
 
     def interrupt(self, run_id: protocol.RunId) -> None:
@@ -119,7 +119,7 @@ class Scheduled:
 class PlannedExecution:
     id: protocol.ExecutionId
     cell_id: str | None
-    code_hash: str
+    code_fingerprint: str
     code: str | None
     caused_by: protocol.ExecutionId | None = None
 

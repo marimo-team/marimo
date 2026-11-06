@@ -13,7 +13,7 @@
 
 import marimo
 
-__generated_with = "0.22.0"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -33,7 +33,6 @@ def _(mo):
     Pressing **K** while focused in any input should type the letter,
     *not* trigger the button.
     """)
-    return
 
 
 @app.cell
@@ -63,7 +62,6 @@ def _(fire_count, mo, trigger_button):
             mo.md("---"),
         ]
     )
-    return
 
 
 @app.cell
@@ -71,7 +69,6 @@ def _(mo):
     mo.md("""
     ## Edge Case: Single-key shortcut vs text input
     """)
-    return
 
 
 @app.cell
@@ -81,7 +78,6 @@ def _(mo):
         placeholder="type here…",
     )
     text_input
-    return
 
 
 @app.cell
@@ -91,7 +87,6 @@ def _(mo):
         placeholder="type here…",
     )
     text_area
-    return
 
 
 @app.cell
@@ -103,7 +98,6 @@ def _(mo):
         value=42,
     )
     number_input
-    return
 
 
 @app.cell
@@ -113,7 +107,6 @@ def _(mo):
         options=["apple", "kiwi", "kumquat"],
     )
     dropdown
-    return
 
 
 @app.cell
@@ -121,7 +114,6 @@ def _(mo):
     mo.md("""
     ## Edge Case: Modifier-key shortcut
     """)
-    return
 
 
 @app.cell
@@ -143,7 +135,7 @@ def _(mo):
 
 
 @app.cell
-def _(key, mo, mod_button, mod_count):
+def _(key: str, mo, mod_button, mod_count):
     mc = mod_count()
     mo.vstack(
         [
@@ -155,7 +147,6 @@ def _(key, mo, mod_button, mod_count):
             ),
         ]
     )
-    return
 
 
 @app.cell
@@ -163,7 +154,6 @@ def _(mo):
     mo.md("""
     ## Edge Case: Multiple buttons with different single-key shortcuts
     """)
-    return
 
 
 @app.cell
@@ -198,7 +188,6 @@ def _(a_count, b_count, btn_a, btn_b, mo):
             ),
         ]
     )
-    return
 
 
 @app.cell
@@ -208,7 +197,6 @@ def _(mo):
         placeholder="type here…",
     )
     multi_text
-    return
 
 
 if __name__ == "__main__":

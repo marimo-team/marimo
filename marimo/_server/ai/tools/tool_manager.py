@@ -82,6 +82,8 @@ class ToolManager:
         Returns:
             A list of tool definitions available for the given mode.
         """
+        if mode == "manual":
+            mode = "ask"
         all_tools = self._get_all_tools()
         return [tool for tool in all_tools if mode in tool.mode]
 

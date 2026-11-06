@@ -19,6 +19,7 @@ from marimo._runtime.primitives import (
     CLONE_PRIMITIVES,
     build_ref_predicate_for_primitives,
     from_unclonable_module,
+    is_module,
     is_unclonable_type,
 )
 from marimo._runtime.runner.result import RunResult
@@ -113,7 +114,7 @@ class StrictLifecycle:
     def _sanitize_ref(self, name: str, value: Any) -> Any:
         if (
             isinstance(value, ZeroCopy)
-            or inspect.ismodule(value)
+            or is_module(value)
             or inspect.isfunction(value)
             or from_unclonable_module(value)
             or is_unclonable_type(value)

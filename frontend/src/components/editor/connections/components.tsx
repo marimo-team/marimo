@@ -18,7 +18,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { maybeAddMarimoImport } from "@/core/cells/add-missing-import";
-import { useCellActions } from "@/core/cells/cells";
+import { useCellActions } from "@/core/cells/actions";
 import { useLastFocusedCellId } from "@/core/cells/focus";
 import { autoInstantiateAtom } from "@/core/config/config";
 import type { DetectedDataSource } from "@/core/datasets/data-source-discovery";
@@ -112,7 +112,7 @@ export const ConnectionFormFooter = <L extends string>({
  * Returns a callback that inserts code into a new cell after the last focused cell.
  */
 export function useInsertCode() {
-  const { createNewCell } = useCellActions();
+  const { createCell } = useCellActions();
   const lastFocusedCellId = useLastFocusedCellId();
   const autoInstantiate = useAtomValue(autoInstantiateAtom);
 
@@ -121,17 +121,12 @@ export function useInsertCode() {
     if (/\bmo\./.test(code)) {
       maybeAddMarimoImport({
         autoInstantiate,
-        createNewCell,
+        createCell,
         fromCellId: lastFocusedCellId,
       });
     }
 
-    createNewCell({
-      code,
-      before: false,
-      cellId: lastFocusedCellId ?? "__end__",
-      skipIfCodeExists: true,
-    });
+    createCell({ after: lastFocusedCellId, code, skipIfCodeExists: true });
   };
 }
 

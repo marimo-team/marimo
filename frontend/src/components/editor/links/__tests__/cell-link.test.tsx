@@ -11,9 +11,11 @@ import { CellLink, CellLinkTraceback } from "../cell-link";
 const showCellIfHidden = vi.hoisted(() => vi.fn());
 const targetId = cellId("target");
 
-vi.mock("@/core/cells/cells", () => ({
+vi.mock("@/core/cells/actions", () => ({
   useCellActions: () => ({ showCellIfHidden }),
-  useCellIds: () => ({ inOrderIds: [targetId] }),
+}));
+vi.mock("@/core/cells/cells", () => ({
+  useCellIds: () => [targetId],
   useCellNames: () => ({ [targetId]: "Target" }),
 }));
 vi.mock("@/core/saving/filename", () => ({ useFilename: () => "notebook.py" }));

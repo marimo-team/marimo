@@ -7,7 +7,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { cellId } from "@/__tests__/branded";
 import { CellId } from "@/core/cells/ids";
 import { getCellEditorView } from "../../cells/cells";
-import { updateEditorCodeFromPython } from "../../codemirror/language/utils";
+import { prepareCellCodeUpdate } from "../../codemirror/language/cell-code";
 import {
   stagedAICellsAtom,
   stagedGenerationInProgressAtom,
@@ -21,8 +21,8 @@ const { stagedGenerationAtom, createActions, reducer, initialState } =
   visibleForTesting;
 
 // Mock the dependencies
-const mockCreateNewCell = vi.fn();
-const mockUpdateCellCode = vi.fn();
+const mockCreateCell = vi.fn();
+const mockSetCellCode = vi.fn();
 const mockDeleteCellCallback = vi.fn();
 
 // Mock cell handle with editor view
@@ -34,17 +34,16 @@ const mockCellHandle = {
   },
 };
 
+vi.mock("../../cells/actions", () => ({
+  useCellActions: () => ({
+    createCell: mockCreateCell,
+    setCellCode: mockSetCellCode,
+  }),
+}));
 vi.mock("../../cells/cells", async () => {
   const { atom } = await import("jotai");
   return {
-    notebookAtom: atom({ cellData: {}, cellIds: { inOrderIds: [] } }),
-    useCellActions: () => ({
-      createNewCell: mockCreateNewCell,
-      updateCellCode: mockUpdateCellCode,
-    }),
-    cellHandleAtom: vi.fn(() => ({
-      read: vi.fn(() => mockCellHandle),
-    })),
+    notebookAtom: atom({ cellData: {}, cellIds: [] }),
     getCellEditorView: vi.fn(() => mockCellHandle.current.editorViewOrNull),
   };
 });
@@ -57,8 +56,8 @@ vi.mock("@/core/network/requests", () => ({
   getRequestClient: () => ({ sendRun: vi.fn() }),
 }));
 
-vi.mock("../../codemirror/language/utils", () => ({
-  updateEditorCodeFromPython: vi.fn(),
+vi.mock("../../codemirror/language/cell-code", () => ({
+  prepareCellCodeUpdate: vi.fn(() => ({ effects: [] })),
 }));
 
 // Mock CellId.create
@@ -261,11 +260,9 @@ describe("staged-cells", () => {
       const returnedCellId = result.current.createStagedCell(testCode);
 
       expect(returnedCellId).toBe(mockCellId);
-      expect(mockCreateNewCell).toHaveBeenCalledWith({
-        cellId: "__end__",
+      expect(mockCreateCell).toHaveBeenCalledWith({
         code: testCode,
-        before: false,
-        newCellId: mockCellId,
+        id: mockCellId,
       });
     });
 
@@ -330,7 +327,7 @@ describe("staged-cells", () => {
 
       // Verify it was created and added
       expect(createdCellId).toBe(mockCellId);
-      expect(mockCreateNewCell).toHaveBeenCalled();
+      expect(mockCreateCell).toHaveBeenCalled();
 
       let state = store.get(stagedAICellsAtom);
       expect(state.has(mockCellId)).toBe(true);
@@ -401,8 +398,9 @@ describe("staged cell generation", () => {
     result.current.beginStagedCellGeneration();
 
     // No cell or cell update should have been called
-    expect(mockCreateNewCell).not.toHaveBeenCalled();
-    expect(updateEditorCodeFromPython).not.toHaveBeenCalled();
+    expect(mockCreateCell).not.toHaveBeenCalled();
+    expect(prepareCellCodeUpdate).not.toHaveBeenCalled();
+    expect(mockSetCellCode).not.toHaveBeenCalled();
     expect(store.get(stagedGenerationInProgressAtom)).toBe(true);
   });
 
@@ -610,11 +608,9 @@ describe("staged cell generation", () => {
       },
     });
 
-    expect(mockCreateNewCell).toHaveBeenCalledWith({
-      cellId: "__end__",
+    expect(mockCreateCell).toHaveBeenCalledWith({
       code: "print('```')",
-      before: false,
-      newCellId: "mock-cell-id",
+      id: "mock-cell-id",
     });
   });
 
@@ -636,16 +632,16 @@ describe("staged cell generation", () => {
       },
     });
 
-    expect(mockCreateNewCell).toHaveBeenCalledWith(
+    expect(mockCreateCell).toHaveBeenCalledWith(
       expect.objectContaining({
         code: "value = 1",
-        newCellId: "first-cell",
+        id: "first-cell",
       }),
     );
-    expect(mockCreateNewCell).toHaveBeenCalledWith(
+    expect(mockCreateCell).toHaveBeenCalledWith(
       expect.objectContaining({
         code: "value",
-        newCellId: "second-cell",
+        id: "second-cell",
       }),
     );
   });
@@ -683,13 +679,17 @@ describe("staged cell generation", () => {
       },
     });
 
-    expect(mockCreateNewCell).toHaveBeenCalledTimes(2);
+    expect(mockCreateCell).toHaveBeenCalledTimes(2);
     expect(store.get(stagedAICellsAtom).has(cellId("first-cell"))).toBe(true);
     expect(store.get(stagedAICellsAtom).has(cellId("second-cell"))).toBe(true);
-    expect(updateEditorCodeFromPython).toHaveBeenCalledTimes(2);
+    expect(prepareCellCodeUpdate).toHaveBeenCalledTimes(2);
+    expect(
+      mockCellHandle.current.editorViewOrNull.dispatch,
+    ).toHaveBeenCalledTimes(2);
+    expect(mockSetCellCode).not.toHaveBeenCalled();
   });
 
-  it("should update notebook state when the cell editor is not mounted", () => {
+  it("writes through the document when the cell editor is not mounted", () => {
     const { result } = renderGenerationHook();
     result.current.beginStagedCellGeneration();
 
@@ -709,10 +709,9 @@ describe("staged cell generation", () => {
       },
     });
 
-    expect(mockUpdateCellCode).toHaveBeenCalledWith({
+    expect(mockSetCellCode).toHaveBeenCalledWith({
       cellId: cellId("unmounted-cell"),
       code: "value = 1",
-      formattingChange: false,
     });
   });
 

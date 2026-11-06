@@ -19,7 +19,7 @@ export const FilenameForm = ({
     updateFilename(newFilename).then((name) => {
       // When creating a new file (was unnamed), also save the content
       if (name !== null && wasUnnamed) {
-        saveNotebook(name, true);
+        saveNotebook(true);
       }
     });
   };

@@ -15,9 +15,11 @@ vi.mock("@/components/editor/cell/useDeleteCell", () => ({
 
 vi.mock("@/core/cells/cells", () => ({
   getCellEditorView: vi.fn(),
+}));
+vi.mock("@/core/cells/actions", () => ({
   useCellActions: () => ({
-    createNewCell: vi.fn(),
-    updateCellCode: vi.fn(),
+    createCell: vi.fn(),
+    setCellCode: vi.fn(),
   }),
 }));
 

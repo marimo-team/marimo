@@ -16,7 +16,6 @@ import {
   useCallback,
   useEffect,
   useImperativeHandle,
-  useMemo,
   useRef,
   useState,
 } from "react";
@@ -43,13 +42,15 @@ import { useResizeObserver } from "@/hooks/useResizeObserver";
 import { cn } from "@/utils/cn";
 import type { Milliseconds, Seconds } from "@/utils/time";
 import {
-  type CellActions,
-  createUntouchedCellAtom,
-  useCellActions,
   useCellData,
   useCellHandle,
   useCellRuntime,
 } from "../../core/cells/cells";
+import { type CellActions, useCellActions } from "../../core/cells/actions";
+import {
+  showHiddenCodeAtom,
+  useShowsHiddenCode,
+} from "../../core/cells/editor";
 import { type CellId, SETUP_CELL_ID } from "../../core/cells/ids";
 import {
   cellNeedsRun,
@@ -59,7 +60,7 @@ import {
   shouldHidePublishedCell,
 } from "../../core/cells/utils";
 import type { UserConfig } from "../../core/config/config-schema";
-import { isAppInteractionDisabled } from "../../core/websocket/connection-utils";
+import { isAppInteractionDisabled } from "../../core/session/connection-utils";
 import { useCellRenderCount } from "../../hooks/useCellRenderCount";
 import type { Theme } from "../../theme/useTheme";
 import { Functions } from "../../utils/functions";
@@ -86,10 +87,6 @@ import { useRunCell } from "./cell/useRunCells";
 import { cellDomProps } from "./common";
 import { SqlValidationErrorBanner } from "./errors/sql-validation-errors";
 import { useCellNavigationProps } from "./navigation/navigation";
-import {
-  useTemporarilyShownCode,
-  useTemporarilyShownCodeActions,
-} from "./navigation/state";
 import { type OnRefactorWithAI, OutputArea } from "./Output";
 import { ConsoleOutput } from "./output/console/ConsoleOutput";
 import { CellDragHandle, SortableCell } from "./SortableCell";
@@ -168,15 +165,12 @@ function useCellHiddenLogic({
   editorView: React.RefObject<EditorView | null>;
   editorViewParentRef: React.RefObject<HTMLDivElement | null>;
 }) {
-  const temporarilyVisible = useTemporarilyShownCode(cellId);
-  const temporarilyShownCodeActions = useTemporarilyShownCodeActions();
-  const isUntouched = useAtomValue(
-    useMemo(() => createUntouchedCellAtom(cellId), [cellId]),
-  );
+  const showsHiddenCode = useShowsHiddenCode(cellId);
+  const showHiddenCodeNow = useSetAtom(showHiddenCodeAtom);
 
-  // The cell code is shown if the cell is not configured to be hidden or if the code is temporarily visible (i.e. when focused).
-  const isCellCodeShown =
-    !cellConfig.hide_code || temporarilyVisible || isUntouched;
+  // The code is shown unless the cell hides it, and then still while it is
+  // being edited or was just created.
+  const isCellCodeShown = !cellConfig.hide_code || showsHiddenCode;
   const isMarkdown = languageAdapter === "markdown";
   const isMarkdownCodeHidden = isMarkdown && !isCellCodeShown;
 
@@ -189,7 +183,7 @@ function useCellHiddenLogic({
 
     // Default to true
     const focus = opts?.focus ?? true;
-    temporarilyShownCodeActions.add(cellId);
+    showHiddenCodeNow({ cellId });
 
     if (focus) {
       editorView.current?.focus();
@@ -215,15 +209,10 @@ function useCellHiddenLogic({
 
 export type CellComponentActions = Pick<
   CellActions,
-  | "updateCellCode"
-  | "createNewCell"
   | "focusCell"
   | "moveCell"
   | "collapseCell"
   | "expandCell"
-  | "moveToNextCell"
-  | "updateCellConfig"
-  | "clearSerializedEditorState"
   | "setStdinResponse"
   | "clearCellConsoleOutput"
   | "sendToBottom"
@@ -708,7 +697,6 @@ const EditableCellComponent = ({
                 code={cellData.code}
                 config={cellData.config}
                 status={cellRuntime.status}
-                serializedEditorState={cellData.serializedEditorState}
                 runCell={runCell}
                 setEditorView={setEditorView}
                 userConfig={userConfig}
@@ -928,15 +916,16 @@ const CellLeftSideActions = memo(
     actions: CellComponentActions;
   }) => {
     const connection = useAtomValue(connectionAtom);
-    const { className, actions, cellId } = props;
+    const { className, cellId } = props;
+    const { createCell } = useCellActions();
 
     const createBelow = useEvent(
-      (opts: { code?: string; hideCode?: boolean } = {}) =>
-        actions.createNewCell({ cellId, before: false, ...opts }),
+      ({ code, hideCode }: { code?: string; hideCode?: boolean } = {}) =>
+        createCell({ after: cellId, code, config: { hide_code: hideCode } }),
     );
     const createAbove = useEvent(
-      (opts: { code?: string; hideCode?: boolean } = {}) =>
-        actions.createNewCell({ cellId, before: true, ...opts }),
+      ({ code, hideCode }: { code?: string; hideCode?: boolean } = {}) =>
+        createCell({ before: cellId, code, config: { hide_code: hideCode } }),
     );
 
     const oneClickShortcut = "mod";
@@ -1236,7 +1225,6 @@ const SetupCellComponent = ({
                 code={cellData.code}
                 config={cellData.config}
                 status={cellRuntime.status}
-                serializedEditorState={cellData.serializedEditorState}
                 runCell={runCell}
                 setEditorView={setEditorView}
                 userConfig={userConfig}

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import os
+import runpy
 import threading
 from concurrent.futures import ThreadPoolExecutor, wait
 from typing import TYPE_CHECKING
@@ -9,12 +10,16 @@ from unittest.mock import patch
 
 import pytest
 
+from marimo._ast.cell import CellConfig
+from marimo._ast.type_inference import Inferred
+from marimo._messaging.notebook.document import NotebookCell
 from marimo._session.notebook import (
     AppFileManager,
     load_notebook,
     new_notebook,
     read_css_file,
 )
+from marimo._utils.http import HTTPException
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -122,7 +127,6 @@ def test_manifest_and_cell_saves_preserve_each_other(
     first_writer: str,
 ) -> None:
     from marimo._environments import script_metadata
-    from marimo._server.models.models import SaveNotebookRequest
     from marimo._session.notebook.serializer import get_notebook_serializer
 
     path = tmp_path / f"notebook{suffix}"
@@ -164,16 +168,13 @@ def test_manifest_and_cell_saves_preserve_each_other(
         )
 
     def save_cells():
-        return manager.save(
-            SaveNotebookRequest(
-                cell_ids=list(manager.app.cell_manager.cell_ids()),
-                codes=["x = 2"],
-                names=["__"],
-                configs=[{}],
-                filename=str(path),
-                layout=None,
-                persist=True,
-            )
+        return manager.save_from_cells(
+            [
+                NotebookCell(
+                    id=cell_id, code="x = 2", name="__", config=CellConfig()
+                )
+                for cell_id in manager.app.cell_manager.cell_ids()
+            ]
         )
 
     first, second = (
@@ -215,10 +216,149 @@ def test_manifest_and_cell_saves_preserve_each_other(
     ]
 
 
+_NOTEBOOK_WITH_PARAMETER = """
+import marimo
+
+app = marimo.App()
+
+
+@app.cell
+def _():
+    x = 1
+    return (x,)
+
+
+@app.cell
+def _(x):
+    print(x)
+    return
+"""
+
+
+class _ConfigReader:
+    """Provide formatting configuration for save tests."""
+
+    def __init__(self, infer_types: str) -> None:
+        self.infer_types = infer_types
+
+    def get_config(self, *, hide_secrets: bool = True) -> dict:
+        del hide_secrets
+        return {"formatting": {"infer_types": self.infer_types}}
+
+
+class _FakeBackend:
+    """Infer `x` as `int` and record the module search path."""
+
+    def __init__(self) -> None:
+        self.search_paths: list[Path | None] = []
+
+    def infer_definitions(
+        self, source: str, names: set[str], search_path: Path | None
+    ) -> dict[str, list[Inferred]]:
+        del source, names
+        self.search_paths.append(search_path)
+        return {"x": [Inferred("builtins.int", "instance", "int")]}
+
+    def resolve(
+        self, source: str, expressions: list[str], search_path: Path | None
+    ) -> list[Inferred | None]:
+        del source, search_path
+        return [None] * len(expressions)
+
+
+def _cells_to_save(fm: AppFileManager) -> list[NotebookCell]:
+    return [
+        NotebookCell(
+            id=data.cell_id, code=data.code, name=data.name, config=data.config
+        )
+        for data in fm.app.cell_manager.cell_data()
+    ]
+
+
+def test_infer_types_defaults_off_without_config(tmp_path: Path) -> None:
+    fm = load_notebook(_write_notebook(tmp_path / "nb.py"))
+    assert fm.config_reader is None
+    assert fm.infer_types == "off"
+
+
+def test_infer_types_follows_live_config(tmp_path: Path) -> None:
+    fm = load_notebook(_write_notebook(tmp_path / "nb.py"))
+    reader = _ConfigReader(infer_types="off")
+    fm.config_reader = reader  # type: ignore[assignment]
+    assert fm.infer_types == "off"
+    reader.infer_types = "jedi"
+    assert fm.infer_types == "jedi"
+
+
+def test_save_writes_inferred_types_to_disk_when_enabled(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    nb = tmp_path / "nb.py"
+    nb.write_text(_NOTEBOOK_WITH_PARAMETER)
+    fm = load_notebook(nb)
+    fm.config_reader = _ConfigReader(infer_types="jedi")  # type: ignore[assignment]
+    backend = _FakeBackend()
+    monkeypatch.setattr(
+        "marimo._ast.type_inference.JediBackend", lambda: backend
+    )
+
+    fm.save_from_cells(_cells_to_save(fm))
+
+    assert "def _(x: int):" in nb.read_text()
+    assert backend.search_paths == [tmp_path]
+
+
+def test_save_normalizes_nonbreaking_spaces_with_inference(
+    tmp_path: Path,
+) -> None:
+    nb = tmp_path / "nb.py"
+    nb.write_text(_NOTEBOOK_WITH_PARAMETER)
+    fm = load_notebook(nb)
+    fm.config_reader = _ConfigReader(infer_types="jedi")  # type: ignore[assignment]
+    cells = _cells_to_save(fm)
+    cells[0] = NotebookCell(
+        id=cells[0].id,
+        code="x\u00a0=\u00a02",
+        name=cells[0].name,
+        config=cells[0].config,
+    )
+
+    fm.save_from_cells(cells)
+
+    assert "def _(x: int):" in nb.read_text()
+    _, values = runpy.run_path(str(nb))["app"].run()
+    assert values["x"] == 2
+
+
+def test_to_code_skips_type_inference_when_disabled(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    nb = tmp_path / "nb.py"
+    nb.write_text(_NOTEBOOK_WITH_PARAMETER)
+    fm = load_notebook(nb)
+    fm.config_reader = _ConfigReader(infer_types="off")  # type: ignore[assignment]
+
+    def explode() -> None:
+        raise AssertionError("the type inference backend must not run")
+
+    monkeypatch.setattr("marimo._ast.type_inference.JediBackend", explode)
+    assert "def _(x):" in fm.to_code()
+
+
+def test_line_length_follows_config_and_defaults_to_79(tmp_path: Path) -> None:
+    fm = load_notebook(_write_notebook(tmp_path / "nb.py"))
+    assert fm.line_length == 79
+    reader = _ConfigReader(infer_types="jedi")
+    reader.get_config = lambda **_: {  # type: ignore[method-assign]
+        "formatting": {"infer_types": "jedi", "line_length": 100}
+    }
+    fm.config_reader = reader  # type: ignore[assignment]
+    assert fm.line_length == 100
+
+
 def test_on_persisted_reports_the_cells_and_config_written(
     tmp_path: Path,
 ) -> None:
-    from marimo._ast.cell import CellConfig
     from marimo._messaging.notebook.document import NotebookCell
     from marimo._types.ids import CellId_t
 
@@ -233,3 +373,49 @@ def test_on_persisted_reports_the_cells_and_config_written(
     fm.save_from_cells(cells)
 
     assert seen == [(cells, {"width": "full"})]
+
+
+def test_on_config_changed_fires_only_when_the_config_changes(
+    tmp_path: Path,
+) -> None:
+    nb = tmp_path / "nb.py"
+    nb.write_text(_NOTEBOOK_SOURCE)
+    fm = AppFileManager(str(nb))
+    changes: list[None] = []
+    fm.on_config_changed = lambda: changes.append(None)
+
+    fm.save_app_config({})
+    assert changes == []
+
+    fm.save_app_config({"width": "full"})
+    assert len(changes) == 1
+
+    fm.save_app_config({"width": "full"})
+    assert len(changes) == 1
+
+
+def test_save_layout_writes_the_sidecar_and_points_the_config_at_it(
+    tmp_path: Path,
+) -> None:
+    path = tmp_path / "nb.py"
+    path.write_text("import marimo\napp = marimo.App()\n")
+    manager = AppFileManager(str(path))
+    changes: list[None] = []
+    manager.on_config_changed = lambda: changes.append(None)
+
+    manager.save_layout({"type": "grid", "data": {"columns": 24, "cells": []}})
+
+    assert manager.app.config.layout_file == "layouts/nb.grid.json"
+    assert (tmp_path / "layouts" / "nb.grid.json").exists()
+    assert len(changes) == 1
+
+    manager.save_layout(None)
+
+    assert manager.app.config.layout_file is None
+    assert len(changes) == 2
+
+
+def test_save_layout_needs_a_named_notebook() -> None:
+    manager = AppFileManager(None)
+    with pytest.raises(HTTPException):
+        manager.save_layout({"type": "grid", "data": {}})

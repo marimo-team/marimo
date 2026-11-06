@@ -16,13 +16,18 @@ import {
   UserConfigSchema,
 } from "../config-schema";
 
+test("legacy Manual config resolves to Read only", () => {
+  const config = UserConfigSchema.parse({ ai: { mode: "manual" } });
+  expect(config).toEqual(UserConfigSchema.parse({ ai: { mode: "ask" } }));
+});
+
 test("default AppConfig", () => {
   const defaultConfig = AppConfigSchema.parse({});
   expect(defaultConfig).toMatchInlineSnapshot(`
     {
       "auto_download": [],
       "sql_output": "auto",
-      "width": "medium",
+      "width": "compact",
     }
   `);
 });
@@ -51,7 +56,7 @@ test("default UserConfig - empty", () => {
         "custom_providers": {},
         "enabled": true,
         "inline_tooltip": false,
-        "mode": "manual",
+        "mode": "ask",
         "models": {
           "custom_models": [],
           "displayed_models": [],
@@ -79,6 +84,7 @@ test("default UserConfig - empty", () => {
       "experimental": {},
       "file_browser": {},
       "formatting": {
+        "infer_types": "off",
         "line_length": 79,
       },
       "keymap": {
@@ -127,7 +133,7 @@ test("default UserConfig - one level", () => {
         "custom_providers": {},
         "enabled": true,
         "inline_tooltip": false,
-        "mode": "manual",
+        "mode": "ask",
         "models": {
           "custom_models": [],
           "displayed_models": [],
@@ -155,6 +161,7 @@ test("default UserConfig - one level", () => {
       "experimental": {},
       "file_browser": {},
       "formatting": {
+        "infer_types": "off",
         "line_length": 79,
       },
       "keymap": {
@@ -273,7 +280,7 @@ test("resolvedMarimoConfigAtom overrides correctly and does not mutate the origi
       autosave_delay: 1000,
       format_on_save: false,
     },
-    formatting: { line_length: 79 },
+    formatting: { line_length: 79, infer_types: "off" },
   };
 
   const overrides = {
@@ -299,7 +306,7 @@ test("resolvedMarimoConfigAtom overrides correctly and does not mutate the origi
       autosave_delay: 1000,
       format_on_save: false,
     },
-    formatting: { line_length: 79 },
+    formatting: { line_length: 79, infer_types: "off" },
     display: { theme: "dark" },
   });
 
@@ -314,7 +321,7 @@ test("resolvedMarimoConfigAtom overrides correctly and does not mutate the origi
       autosave_delay: 1000,
       format_on_save: false,
     },
-    formatting: { line_length: 79 },
+    formatting: { line_length: 79, infer_types: "off" },
   });
 });
 
@@ -361,3 +368,46 @@ test("mergeConfig replaces arrays instead of merging by index", () => {
     },
   });
 });
+
+test.each([{}, { "run-cell": "Alt-Enter" }])(
+  "mergeConfig replaces shortcut dictionaries with %j",
+  (overrides) => {
+    const original = {
+      keymap: {
+        preset: "vim",
+        overrides: { "run-all": "Ctrl-Enter" },
+      },
+    };
+    expect(mergeConfig(original, { keymap: { overrides } })).toEqual({
+      keymap: { preset: "vim", overrides },
+    });
+    expect(original.keymap.overrides).toEqual({ "run-all": "Ctrl-Enter" });
+  },
+);
+
+test.each(["ai.custom_providers", "signing.trusted_signers"])(
+  "mergeConfig replaces records at %s while preserving retained record fields",
+  (path) => {
+    const [section, name] = path.split(".");
+    const original = {
+      [section]: {
+        [name]: {
+          retained: { name: "before", api_key: "secret" },
+          removed: { name: "removed" },
+        },
+      },
+    };
+    expect(
+      mergeConfig(original, {
+        [section]: { [name]: { retained: { name: "after" } } },
+      }),
+    ).toEqual({
+      [section]: {
+        [name]: { retained: { name: "after", api_key: "secret" } },
+      },
+    });
+    expect(mergeConfig(original, { [section]: { [name]: {} } })).toEqual({
+      [section]: { [name]: {} },
+    });
+  },
+);

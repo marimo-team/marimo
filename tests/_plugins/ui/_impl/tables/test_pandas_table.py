@@ -43,6 +43,12 @@ def _normalize_pandas_dtypes(text: str) -> str:
     - interval resolutions changed accordingly
     - NaT/None serialization differences in to_dict() output
 
+    Pandas 3.1 changed:
+    - DatetimeIndex/TimedeltaIndex reprs wrap onto a new line before `dtype=`
+    - TimedeltaIndex pads every element to the widest sub-second precision
+      in the index, so `.000030` renders as `.000030000` next to a
+      nanosecond-precision sibling
+
     Normalize all to pandas 2.x representations so snapshots work across versions.
     """
     text = re.sub(r"datetime64\[\w+\]", "datetime64[ns]", text)
@@ -50,6 +56,8 @@ def _normalize_pandas_dtypes(text: str) -> str:
     # Pandas 3.x uses "str" instead of "object" for string columns.
     # Normalize ["string", "str"] -> ["string", "object"] for snapshot comparisons.
     text = re.sub(r'\["string",\s*"str"\]', '["string", "object"]', text)
+    text = re.sub(r",\n\s+(dtype=)", r", \1", text)
+    text = re.sub(r"(:\d{2}\.\d{6})000(?!\d)", r"\1", text)
     return text
 
 
@@ -154,10 +162,10 @@ class TestPandasTableManager(unittest.TestCase):
                     end=pd.Timestamp("2017-01-04"),
                 ),
                 "delta": [
-                    pd.to_timedelta(["1 days 06:05:01.00003"]),
-                    pd.to_timedelta(["1 days 06:05:01.00003", "15.5us"]),
+                    pd.to_timedelta(["1 days 06:05:01.000030001"]),
+                    pd.to_timedelta(["1 days 06:05:01.000030001", "15.5us"]),
                     pd.to_timedelta(
-                        ["1 days 06:05:01.00003", "15.5us", "nan"]
+                        ["1 days 06:05:01.000030001", "15.5us", "nan"]
                     ),
                 ],
                 "none": [
@@ -315,7 +323,9 @@ class TestPandasTableManager(unittest.TestCase):
 
     def test_to_csv_complex(self) -> None:
         complex_data = self.get_complex_data()
-        data = complex_data.to_csv()
+        # Cap the width to ensure different pandas versions do not churn snapshots
+        with pd.option_context("display.width", 1000):
+            data = complex_data.to_csv()
         assert isinstance(data, bytes)
         snapshot("pandas.csv", _normalize_pandas_dtypes(data.decode("utf-8")))
 

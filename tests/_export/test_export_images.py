@@ -125,13 +125,11 @@ async def test_webpdf_inlines_images_relative_to_notebook(
     image_notebook: Path, include_outputs: bool
 ) -> None:
     from bs4 import BeautifulSoup
-    from nbconvert import WebPDFExporter
 
     with (
         patch("marimo._export.exporter.require_export_dependencies"),
-        patch("marimo._export._nbconvert.sys", platform="linux"),
-        patch.object(
-            WebPDFExporter, "run_playwright", return_value=b"pdf"
+        patch(
+            "marimo._export._nbconvert._print_webpdf", return_value=b"pdf"
         ) as print_pdf,
     ):
         result = await export_pdf(
@@ -165,7 +163,7 @@ async def test_webpdf_inlines_images_relative_to_notebook(
 
 
 @pytest.mark.requires("nbformat", "nbconvert")
-def test_webpdf_resolves_virtual_images_before_spawning(
+def test_webpdf_resolves_virtual_images(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     import nbformat
@@ -176,8 +174,6 @@ def test_webpdf_resolves_virtual_images_before_spawning(
         VirtualFileStorageManager,
     )
 
-    # Import optional dependencies before simulating the Windows branch.
-    pytest.importorskip("nbconvert")
     storage = InMemoryStorage()
     storage.store("image.svg", b"<svg/>")
     monkeypatch.setattr(VirtualFileStorageManager(), "storage", storage)
@@ -193,14 +189,11 @@ def test_webpdf_resolves_virtual_images_before_spawning(
             )
         ]
     )
-    with (
-        patch("marimo._export._nbconvert.sys", platform="win32"),
-        patch("concurrent.futures.ProcessPoolExecutor") as pool,
-    ):
-        worker = pool.return_value.__enter__.return_value
-        worker.submit.return_value.result.return_value = b"pdf"
+    with patch(
+        "marimo._export._nbconvert._print_webpdf", return_value=b"pdf"
+    ) as print_pdf:
         assert _render_webpdf(notebook, include_inputs=False) == b"pdf"
 
-    html = worker.submit.call_args.args[1]
+    html = print_pdf.call_args.args[0]
     assert 'src="data:image/svg+xml;base64,PHN2Zy8+"' in html
     assert "./@file/" not in html

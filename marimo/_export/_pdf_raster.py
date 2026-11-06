@@ -26,6 +26,7 @@ from marimo._export.requests import (
 from marimo._export.serialization import serialize_notebook_snapshot
 from marimo._schemas.export_options import HTMLExportOptions
 from marimo._types.ids import CellId_t
+from marimo._utils.asyncio_utils import run_on_proactor_loop
 from marimo._utils.paths import marimo_package_path
 
 if TYPE_CHECKING:
@@ -554,6 +555,7 @@ async def _wait_for_target_ready(
         return True
 
 
+@run_on_proactor_loop
 async def _capture_pngs_from_page(
     *,
     page_url: str,
@@ -640,7 +642,10 @@ async def _capture_pngs_from_page(
 
             # In live notebook mode, output wrappers often use `display: contents`,
             # which cannot be directly screenshotted, so we target a concrete child node.
-            locator = page.locator(f"#output-{target.cell_id} > .output").first
+            locator = page.locator(
+                f"#output-{target.cell_id} > .output, "
+                f"#output-{target.cell_id} > .vega-embed"
+            ).first
             if not await _wait_for_target_ready(
                 page=page,
                 target=target,

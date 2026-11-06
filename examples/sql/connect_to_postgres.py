@@ -11,7 +11,7 @@
 
 import marimo
 
-__generated_with = "0.17.2"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -26,7 +26,6 @@ def _(mo):
 
     For advanced usage, see [duckdb's documentation](https://duckdb.org/docs/extensions/postgres).
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -68,7 +67,6 @@ def _(mo):
             )
         }
     )
-    return
 
 
 @app.cell
@@ -80,7 +78,7 @@ def _():
 
 
 @app.cell
-def _(PASSWORD, mo):
+def _(PASSWORD: str, mo):
     _df = mo.sql(
         f"""
         -- Boilerplate: detach the database so this cell works when you re-run it
@@ -97,7 +95,6 @@ def _(PASSWORD, mo):
         SHOW ALL TABLES;
         """
     )
-    return
 
 
 @app.cell(hide_code=True)
@@ -106,7 +103,6 @@ def _(mo):
     Once the database is attached, you can query it with SQL. Note that this involves copying data from Postgres SQL and
     executing it in duckdb. See later sections of this example on how to execute queries directly in Postgres.
     """)
-    return
 
 
 @app.cell
@@ -117,7 +113,6 @@ def _(mo):
         SELECT * FROM db.public.test_table;
         """
     )
-    return
 
 
 @app.cell(hide_code=True)
@@ -128,7 +123,6 @@ def _(mo):
         the {mo.icon("lucide:database")} icon in the left sidebar to open it.
         """
     )
-    return
 
 
 @app.cell(hide_code=True)
@@ -138,7 +132,6 @@ def _(mo):
 
     To prevent duckdb from continuously re-reading tables from PostgreSQL, you can copy the PostgreSQL databases into DuckDB. Note that this will consume your system's RAM.
     """)
-    return
 
 
 @app.cell
@@ -150,7 +143,6 @@ def _(mo):
         SELECT * FROM duckdb_table;
         """
     )
-    return
 
 
 @app.cell(hide_code=True)
@@ -160,7 +152,6 @@ def _(mo):
 
     Run queries directly in PostgreSQL using duckdb's `postgres_query` function. In some cases this may be faster than executing queries in duckdb.
     """)
-    return
 
 
 @app.cell
@@ -170,7 +161,6 @@ def _(mo):
         SELECT * FROM postgres_query('db', 'SELECT * FROM test_table');
         """
     )
-    return
 
 
 if __name__ == "__main__":

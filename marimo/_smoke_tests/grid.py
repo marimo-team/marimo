@@ -2,7 +2,7 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.25.2"
 app = marimo.App(layout_file="layouts/grid.grid.json")
 
 
@@ -25,12 +25,13 @@ def _(mo):
 
 @app.cell
 def _(mo):
-    mo.md("""# Horizontal Stack: `hstack`""")
-    return
+    mo.md("""
+    # Horizontal Stack: `hstack`
+    """)
 
 
 @app.cell
-def _(align, boxes, gap, justify, mo, wrap):
+def _(align, boxes: list, gap, justify, mo, wrap):
     mo.hstack(
         boxes,
         align=align.value,
@@ -38,23 +39,22 @@ def _(align, boxes, gap, justify, mo, wrap):
         gap=gap.value,
         wrap=wrap.value,
     )
-    return
 
 
 @app.cell
 def _(mo):
-    mo.md("""# Vertical Stack: `vstack`""")
-    return
+    mo.md("""
+    # Vertical Stack: `vstack`
+    """)
 
 
 @app.cell
-def _(align, boxes, gap, mo):
+def _(align, boxes: list, gap, mo):
     mo.vstack(
         boxes,
         align=align.value,
         gap=gap.value,
     )
-    return
 
 
 @app.cell
@@ -73,6 +73,7 @@ def _(mo, size):
 @app.cell
 def _():
     import marimo as mo
+
     return (mo,)
 
 

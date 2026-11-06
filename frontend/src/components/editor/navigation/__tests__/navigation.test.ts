@@ -3,15 +3,38 @@
 
 import type { EditorView } from "@codemirror/view";
 import { act, renderHook } from "@testing-library/react";
-import { Provider } from "jotai";
 import React, { createRef } from "react";
-import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  afterAll,
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
 import { Mocks } from "@/__mocks__/common";
+
+const { mockCreateCell, mockMoveToNextCell } = vi.hoisted(() => ({
+  mockCreateCell: vi.fn(),
+  mockMoveToNextCell: vi.fn(),
+}));
+
+import { DocumentWrapper, mockDocumentModel } from "@/__mocks__/document";
 import { MockNotebook } from "@/__mocks__/notebook";
 import { MockRequestClient } from "@/__mocks__/requests";
 import { aiCompletionCellAtom } from "@/core/ai/state";
-import type { CellActions } from "@/core/cells/cells";
+import type { CellActions } from "@/core/cells/actions";
 import { notebookAtom } from "@/core/cells/cells";
+import type { CellId } from "@/core/cells/ids";
+import { layoutAtom } from "@/core/cells/layout";
+import type { DocumentModel } from "@/core/notebook/document";
+import {
+  cell,
+  CONFIG,
+  document as documentOf,
+  withCells,
+} from "@/core/notebook/document/__tests__/fixtures";
 import { LanguageAdapters } from "@/core/codemirror/language/LanguageAdapters";
 import { signatureHintField } from "@/core/codemirror/completion/signature-hint";
 import {
@@ -30,9 +53,11 @@ import {
 } from "../navigation";
 
 // Mock only the essential dependencies that we need to control
+vi.mock("@/core/cells/actions", () => ({
+  useCellActions: vi.fn(),
+}));
 vi.mock("@/core/cells/cells", async (importOriginal) => ({
   ...(await importOriginal()),
-  useCellActions: vi.fn(),
 }));
 
 vi.mock("@/core/cells/focus", async (importOriginal) => ({
@@ -80,7 +105,7 @@ vi.mock("@codemirror/autocomplete", () => ({
 
 // Get mocked functions
 const mockUseCellActions = vi.mocked(
-  await import("@/core/cells/cells"),
+  await import("@/core/cells/actions"),
 ).useCellActions;
 
 const mockUseSaveNotebook = vi.mocked(
@@ -93,12 +118,13 @@ const mockUseCellClipboard = vi.mocked(
   await import("../clipboard"),
 ).useCellClipboard;
 
+afterEach(() => stopModel());
+
 afterAll(() => {
   vi.resetAllMocks();
 });
 
 import { defaultUserConfig } from "@/core/config/config-schema";
-import { MultiColumn } from "@/utils/id-tree";
 import { focusCell, focusCellEditor } from "../focus-utils";
 import {
   type CellSelectionState,
@@ -107,11 +133,17 @@ import {
   useIsCellSelected,
 } from "../selection";
 
+// The document the hooks edit, with cellId3's code hidden
+let model: DocumentModel;
+let stopModel = () => {};
+const hideCodeOf = (id: CellId) =>
+  store.get(model.documentAtom)?.cells.get(id)?.config.hide_code;
+
 // Shared render helper
 const renderWithProvider = <T>(hook: () => T) => {
   return renderHook(hook, {
     wrapper: ({ children }) =>
-      React.createElement(Provider, { store }, children),
+      React.createElement(DocumentWrapper, { store, model }, children),
   });
 };
 
@@ -125,17 +157,15 @@ const mockCutCell = vi.fn().mockResolvedValue(undefined);
 const mockPasteCell = vi.fn();
 
 const mockCellActions = MockNotebook.cellActions({
+  createCell: mockCreateCell,
+  moveToNextCell: mockMoveToNextCell,
   focusCell: vi.fn(),
-  moveToNextCell: vi.fn(),
   focusTopCell: vi.fn(),
   focusBottomCell: vi.fn(),
-  createNewCell: vi.fn(),
   moveCell: vi.fn(),
   sendToTop: vi.fn(),
   sendToBottom: vi.fn(),
-  updateCellConfig: vi.fn(),
-  markTouched: vi.fn(),
-  deleteCell: vi.fn(),
+  deleteCells: vi.fn(),
   undoDeleteCell: vi.fn(),
 });
 
@@ -207,6 +237,23 @@ describe("useCellNavigationProps", () => {
       },
     });
     store.set(notebookAtom, notebookState);
+    stopModel();
+    ({ model, stop: stopModel } = mockDocumentModel(
+      store,
+      withCells(
+        documentOf(),
+        {
+          c1: null,
+          c2: null,
+          [cellId1]: cell(cellId1, ""),
+          [cellId2]: cell(cellId2, ""),
+          [cellId3]: cell(cellId3, "", {
+            config: { ...CONFIG, hide_code: true },
+          }),
+        },
+        [cellId1, cellId2, cellId3],
+      ),
+    ));
 
     // Clear AI completion state
     store.set(aiCompletionCellAtom, null);
@@ -270,7 +317,7 @@ describe("useCellNavigationProps", () => {
       selectionActions.select({ cellId: cellId1 });
       selectionActions.extend({
         cellId: cellId2,
-        allCellIds: store.get(notebookAtom).cellIds,
+        layout: store.get(layoutAtom),
       });
 
       const { result } = renderWithProvider(() =>
@@ -367,7 +414,7 @@ describe("useCellNavigationProps", () => {
       });
 
       expect(mockRunCell).toHaveBeenCalled();
-      expect(mockCellActions.moveToNextCell).toHaveBeenCalledWith({
+      expect(mockMoveToNextCell).toHaveBeenCalledWith({
         cellId: mockCellId,
         before: false,
       });
@@ -399,11 +446,7 @@ describe("useCellNavigationProps", () => {
         result.current.onKeyDown?.(mockEvent);
       });
 
-      expect(mockCellActions.createNewCell).toHaveBeenCalledWith({
-        cellId: mockCellId,
-        before: true,
-        autoFocus: true,
-      });
+      expect(mockCreateCell).toHaveBeenCalledWith({ before: mockCellId });
     });
 
     it("should create cell after when 'b' key is pressed", () => {
@@ -417,11 +460,7 @@ describe("useCellNavigationProps", () => {
         result.current.onKeyDown?.(mockEvent);
       });
 
-      expect(mockCellActions.createNewCell).toHaveBeenCalledWith({
-        cellId: mockCellId,
-        before: false,
-        autoFocus: true,
-      });
+      expect(mockCreateCell).toHaveBeenCalledWith({ after: mockCellId });
     });
 
     it("should add an import before and a SQL cell after when 'q' is pressed", () => {
@@ -435,18 +474,15 @@ describe("useCellNavigationProps", () => {
         result.current.onKeyDown?.(Mocks.keyboardEvent({ key: "q" }));
       });
 
-      expect(mockCellActions.createNewCell).toHaveBeenNthCalledWith(
+      expect(mockCreateCell).toHaveBeenNthCalledWith(
         1,
         expect.objectContaining({
-          cellId: mockCellId,
-          before: true,
+          before: mockCellId,
           code: "import marimo as mo",
         }),
       );
-      expect(mockCellActions.createNewCell).toHaveBeenNthCalledWith(2, {
-        cellId: mockCellId,
-        before: false,
-        autoFocus: true,
+      expect(mockCreateCell).toHaveBeenNthCalledWith(2, {
+        after: mockCellId,
         code: LanguageAdapters.sql.defaultCode,
       });
     });
@@ -813,7 +849,7 @@ describe("useCellNavigationProps", () => {
       selectionActions.select({ cellId: cellId1 });
       selectionActions.extend({
         cellId: cellId2,
-        allCellIds: store.get(notebookAtom).cellIds,
+        layout: store.get(layoutAtom),
       });
 
       const { result } = renderWithProvider(() =>
@@ -836,7 +872,7 @@ describe("useCellNavigationProps", () => {
       selectionActions.select({ cellId: cellId1 });
       selectionActions.extend({
         cellId: cellId3,
-        allCellIds: store.get(notebookAtom).cellIds,
+        layout: store.get(layoutAtom),
       });
 
       const { result } = renderWithProvider(() =>
@@ -859,7 +895,7 @@ describe("useCellNavigationProps", () => {
       selectionActions.select({ cellId: cellId1 });
       selectionActions.extend({
         cellId: cellId3,
-        allCellIds: store.get(notebookAtom).cellIds,
+        layout: store.get(layoutAtom),
       });
 
       const { result } = renderWithProvider(() =>
@@ -882,7 +918,7 @@ describe("useCellNavigationProps", () => {
       selectionActions.select({ cellId: cellId2 });
       selectionActions.extend({
         cellId: cellId3,
-        allCellIds: store.get(notebookAtom).cellIds,
+        layout: store.get(layoutAtom),
       });
 
       const { result } = renderWithProvider(() =>
@@ -917,7 +953,7 @@ describe("useCellNavigationProps", () => {
       selectionActions.select({ cellId: cellId1 });
       selectionActions.extend({
         cellId: cellId2,
-        allCellIds: store.get(notebookAtom).cellIds,
+        layout: store.get(layoutAtom),
       });
 
       const { result } = renderWithProvider(() =>
@@ -953,7 +989,7 @@ describe("useCellNavigationProps", () => {
       selectionActions.select({ cellId: cellId2 });
       selectionActions.extend({
         cellId: cellId3,
-        allCellIds: store.get(notebookAtom).cellIds,
+        layout: store.get(layoutAtom),
       });
 
       const { result } = renderWithProvider(() =>
@@ -986,7 +1022,7 @@ describe("useCellNavigationProps", () => {
       selectionActions.select({ cellId: cellId1 });
       selectionActions.extend({
         cellId: cellId2,
-        allCellIds: store.get(notebookAtom).cellIds,
+        layout: store.get(layoutAtom),
       });
 
       const { result } = renderWithProvider(() =>
@@ -1019,7 +1055,7 @@ describe("useCellNavigationProps", () => {
       selectionActions.select({ cellId: cellId1 });
       selectionActions.extend({
         cellId: cellId2,
-        allCellIds: store.get(notebookAtom).cellIds,
+        layout: store.get(layoutAtom),
       });
 
       const { result } = renderWithProvider(() =>
@@ -1034,7 +1070,7 @@ describe("useCellNavigationProps", () => {
 
       expect(mockRunCell).toHaveBeenCalledWith([cellId1, cellId2]);
       // Should move to next cell after the last selected cell
-      expect(mockCellActions.moveToNextCell).toHaveBeenCalledWith({
+      expect(mockMoveToNextCell).toHaveBeenCalledWith({
         cellId: cellId2,
         before: false,
       });
@@ -1047,7 +1083,7 @@ describe("useCellNavigationProps", () => {
       selectionActions.select({ cellId: cellId2 });
       selectionActions.extend({
         cellId: cellId3,
-        allCellIds: store.get(notebookAtom).cellIds,
+        layout: store.get(layoutAtom),
       });
 
       const { result } = renderWithProvider(() =>
@@ -1066,7 +1102,7 @@ describe("useCellNavigationProps", () => {
 
       expect(mockRunCell).toHaveBeenCalledWith([cellId2, cellId3]);
       // Should move to previous cell before the first selected cell
-      expect(mockCellActions.moveToNextCell).toHaveBeenCalledWith({
+      expect(mockMoveToNextCell).toHaveBeenCalledWith({
         cellId: cellId2,
         before: true,
       });
@@ -1101,7 +1137,7 @@ describe("useCellNavigationProps", () => {
       selectionActions.select({ cellId: cellId1 });
       selectionActions.extend({
         cellId: cellId2,
-        allCellIds: store.get(notebookAtom).cellIds,
+        layout: store.get(layoutAtom),
       });
 
       const { result } = renderWithProvider(() =>
@@ -1129,7 +1165,7 @@ describe("useCellNavigationProps", () => {
       selectionActions.select({ cellId: cellId1 });
       selectionActions.extend({
         cellId: cellId2,
-        allCellIds: store.get(notebookAtom).cellIds,
+        layout: store.get(layoutAtom),
       });
 
       const { result } = renderWithProvider(() =>
@@ -1167,15 +1203,7 @@ describe("useCellNavigationProps", () => {
         result.current.onKeyDown?.(mockEvent);
       });
 
-      expect(mockRequestClient.saveCellConfig).toHaveBeenCalledWith({
-        configs: {
-          [cellId1]: { hide_code: true },
-        },
-      });
-      expect(mockCellActions.updateCellConfig).toHaveBeenCalledWith({
-        cellId: cellId1,
-        config: { hide_code: true },
-      });
+      expect(hideCodeOf(cellId1)).toBe(true);
       expect(mockEvent.preventDefault).toHaveBeenCalled();
     });
 
@@ -1190,15 +1218,7 @@ describe("useCellNavigationProps", () => {
         result.current.onKeyDown?.(mockEvent);
       });
 
-      expect(mockRequestClient.saveCellConfig).toHaveBeenCalledWith({
-        configs: {
-          [cellId3]: { hide_code: false },
-        },
-      });
-      expect(mockCellActions.updateCellConfig).toHaveBeenCalledWith({
-        cellId: cellId3,
-        config: { hide_code: false },
-      });
+      expect(hideCodeOf(cellId3)).toBe(false);
     });
 
     it("should toggle hide code for multiple selected cells", () => {
@@ -1207,7 +1227,7 @@ describe("useCellNavigationProps", () => {
       selectionActions.select({ cellId: cellId1 });
       selectionActions.extend({
         cellId: cellId2,
-        allCellIds: store.get(notebookAtom).cellIds,
+        layout: store.get(layoutAtom),
       });
 
       const { result } = renderWithProvider(() =>
@@ -1220,20 +1240,8 @@ describe("useCellNavigationProps", () => {
         result.current.onKeyDown?.(mockEvent);
       });
 
-      expect(mockRequestClient.saveCellConfig).toHaveBeenCalledWith({
-        configs: {
-          [cellId1]: { hide_code: true },
-          [cellId2]: { hide_code: true },
-        },
-      });
-      expect(mockCellActions.updateCellConfig).toHaveBeenCalledWith({
-        cellId: cellId1,
-        config: { hide_code: true },
-      });
-      expect(mockCellActions.updateCellConfig).toHaveBeenCalledWith({
-        cellId: cellId2,
-        config: { hide_code: true },
-      });
+      expect(hideCodeOf(cellId1)).toBe(true);
+      expect(hideCodeOf(cellId2)).toBe(true);
     });
   });
 
@@ -1418,12 +1426,27 @@ describe("useCellNavigationProps", () => {
           },
         },
       });
-      // Override cellIds to be multi-column
-      notebookState.cellIds = MultiColumn.from([
-        [cellId1, cellId3],
-        [cellId2, cellId4, cellId5],
-      ]);
       store.set(notebookAtom, notebookState);
+      // The layout reads columns from the document's cells.
+      stopModel();
+      const inColumn = (id: CellId, column: number) =>
+        cell(id, "", { config: { ...CONFIG, column } });
+      ({ model, stop: stopModel } = mockDocumentModel(
+        store,
+        withCells(
+          documentOf(),
+          {
+            c1: null,
+            c2: null,
+            [cellId1]: inColumn(cellId1, 0),
+            [cellId3]: inColumn(cellId3, 0),
+            [cellId2]: inColumn(cellId2, 1),
+            [cellId4]: inColumn(cellId4, 1),
+            [cellId5]: inColumn(cellId5, 1),
+          },
+          [cellId1, cellId3, cellId2, cellId4, cellId5],
+        ),
+      ));
 
       // Mock DOM elements and their positions
       const mockGetElementById = vi.spyOn(document, "getElementById");
@@ -1613,7 +1636,7 @@ describe("useCellNavigationProps", () => {
       selectionActions.select({ cellId: cellId1 });
       selectionActions.extend({
         cellId: cellId2,
-        allCellIds: store.get(notebookAtom).cellIds,
+        layout: store.get(layoutAtom),
       });
 
       const { result } = renderWithProvider(() =>
@@ -1701,7 +1724,7 @@ describe("useCellNavigationProps", () => {
         result.current.onKeyDown?.(mockEvent);
       });
 
-      expect(mockCellActions.createNewCell).not.toHaveBeenCalled();
+      expect(mockCreateCell).not.toHaveBeenCalled();
       expect(mockEvent.preventDefault).not.toHaveBeenCalled();
     });
 
@@ -1716,7 +1739,7 @@ describe("useCellNavigationProps", () => {
         result.current.onKeyDown?.(mockEvent);
       });
 
-      expect(mockCellActions.createNewCell).not.toHaveBeenCalled();
+      expect(mockCreateCell).not.toHaveBeenCalled();
       expect(mockEvent.preventDefault).not.toHaveBeenCalled();
     });
   });

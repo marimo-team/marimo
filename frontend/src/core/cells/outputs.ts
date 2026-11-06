@@ -1,15 +1,15 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { useAtomValue } from "jotai";
-import { selectAtom } from "jotai/utils";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useEvent } from "@/hooks/useEvent";
-import { Logger } from "@/utils/Logger";
+import {
+  useNotebookCellConfig,
+  useNotebookDocumentEdit,
+} from "../notebook/document";
 import type { OutputMessage } from "../kernel/messages";
 import { viewStateAtom } from "../mode";
-import { getRequestClient } from "../network/requests";
-import { cellDataAtom, useCellActions } from "./cells";
-import type { CellId } from "./ids";
+import { type CellId, SCRATCH_CELL_ID } from "./ids";
 
 // This does not need to be overcomplicated. We can just store the expanded
 // state in a global map instead of Jotai since state is not shared between cells.
@@ -27,20 +27,9 @@ const expandedConsoleOutputs: Record<CellId, boolean> = {};
  */
 export function useExpandedOutput(cellId: CellId) {
   const { mode } = useAtomValue(viewStateAtom);
-  const { updateCellConfig } = useCellActions();
-  // Select just the flag: every output would otherwise re-render on each
-  // keystroke in its cell.
-  const isConfigExpanded = useAtomValue(
-    useMemo(
-      () =>
-        selectAtom(
-          cellDataAtom(cellId),
-          (data) => data?.config.expand_output ?? false,
-          Object.is,
-        ),
-      [cellId],
-    ),
-  );
+  const edit = useNotebookDocumentEdit();
+  const isConfigExpanded =
+    useNotebookCellConfig(cellId)?.expand_output ?? false;
   const [isSessionExpanded, setIsSessionExpanded] = useState(
     () => expandedOutputs[cellId] ?? isConfigExpanded,
   );
@@ -55,16 +44,11 @@ export function useExpandedOutput(cellId: CellId) {
 
   const setIsExpanded = useEvent((expanded: boolean) => {
     setIsSessionExpanded(expanded);
-    if (!isEditable) {
+    // The scratchpad is not in the document.
+    if (!isEditable || cellId === SCRATCH_CELL_ID) {
       return;
     }
-    const config = { expand_output: expanded };
-    updateCellConfig({ cellId, config });
-    getRequestClient()
-      .saveCellConfig({ configs: { [cellId]: config } })
-      .catch((error) => {
-        Logger.error("Failed to save expand_output config", error);
-      });
+    edit((tx) => tx.updateConfig(cellId, { expand_output: expanded }));
   });
 
   return [isExpanded, setIsExpanded] as const;

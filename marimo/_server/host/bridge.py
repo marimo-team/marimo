@@ -299,7 +299,7 @@ class SessionBridge(SessionEventListener):
             if if_match is not None:
                 notebook.require_revision(if_match)
             revision = notebook.document
-            session = self._session_of(notebook.id)
+            session = self.session_for_notebook(notebook.id)
             if session is None and await self._file_changed(notebook.id, file):
                 answer = (decisions or {}).get(_FILE_CHANGED.id)
                 if answer is None:
@@ -417,7 +417,7 @@ class SessionBridge(SessionEventListener):
         """
         notebook = await self.host.notebook(notebook_id)
         response = notebook.edit(changes, request_id=request_id)
-        session = self._session_of(notebook.id)
+        session = self.session_for_notebook(notebook.id)
         if session is None:
             return response
         self._mirrored.pop(notebook.id, None)
@@ -433,7 +433,7 @@ class SessionBridge(SessionEventListener):
         self, notebook_id: protocol.NotebookId
     ) -> list[RoutedEvent]:
         """Return retained marimo events for one client without publishing them."""
-        session = self._session_of(notebook_id)
+        session = self.session_for_notebook(notebook_id)
         if session is None:
             return []
         return [
@@ -441,7 +441,10 @@ class SessionBridge(SessionEventListener):
             for notification in session.session_view.snapshot_notifications()
         ]
 
-    def _session_of(self, notebook_id: protocol.NotebookId) -> Session | None:
+    def session_for_notebook(
+        self, notebook_id: protocol.NotebookId
+    ) -> Session | None:
+        """Return the existing session without loading or starting a notebook."""
         backend = self._backends.get(notebook_id)
         return None if backend is None else backend.session
 
@@ -453,10 +456,11 @@ class SessionBridge(SessionEventListener):
         session has the file as it is now, so its contents replace the
         host's earlier read and are the saved revision.
         """
-        session = self._session_of(notebook_id)
+        session = self.session_for_notebook(notebook_id)
         notebook = self.host.peek_notebook(notebook_id)
         if session is None or notebook is None:
             return
+        self._follow_config(notebook_id, session)
         if self.app_sessions is not None:
             cells, app_config = documents.from_session(session)
             notebook.replace(cells, app_config, saved=True)
@@ -470,6 +474,26 @@ class SessionBridge(SessionEventListener):
             return
         cells, app_config = documents.from_session(session)
         notebook.replace(cells, app_config, saved=True)
+
+    # TODO(MO-7927): Following the editor's config ends when the notebook
+    # owns the app config and the editor changes it through the host.
+    def _follow_config(
+        self, notebook_id: protocol.NotebookId, session: Session
+    ) -> None:
+        """Mirror the document when the editor changes the app config.
+
+        The legacy endpoint changes it in the session, which fires no
+        document transaction, so the file manager reports it instead.
+        """
+        loop = asyncio.get_running_loop()
+
+        def config_changed() -> None:
+            if _running_loop() is loop:
+                self._mirror(notebook_id)
+            else:
+                loop.call_soon_threadsafe(self._mirror, notebook_id)
+
+        session.app_file_manager.on_config_changed = config_changed
 
     # TODO(MO-7927): Following the editor's writes ends when the notebook
     # owns persistence and the editor saves through it.
@@ -506,6 +530,7 @@ class SessionBridge(SessionEventListener):
         Its baseline for external changes is the file as the editor
         left it, read off the event loop before the next save compares.
         """
+        session.app_file_manager.on_config_changed = None
         if self.app_sessions is not None:
             return
         session.app_file_manager.on_persisted = None
@@ -553,7 +578,7 @@ class SessionBridge(SessionEventListener):
 
     def _mirror(self, notebook_id: protocol.NotebookId) -> None:
         """Bring the document up to date with the session's after it changed."""
-        session = self._session_of(notebook_id)
+        session = self.session_for_notebook(notebook_id)
         try:
             notebook = self.host.peek_notebook(notebook_id)
         except NotFound:

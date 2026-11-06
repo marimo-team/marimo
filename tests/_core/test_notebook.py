@@ -641,7 +641,7 @@ class TestRun:
                     caused_by=None,
                     cell_id=None,
                     code="3 * 3",
-                    code_hash="9f",
+                    code_fingerprint="9f",
                     completed_at=IsDatetime(),
                     depends_on={},
                     id=ExecutionId("e7"),
@@ -670,39 +670,55 @@ class TestRun:
     ) -> None:
         running(notebook, backend)
         first = notebook.run("1", request_id="same")
-        with pytest.raises(Conflict, match=first.id):
-            notebook.run("1", request_id="same")
-        notebook.observe(be.Done(first.id, "succeeded"))
-        second = notebook.run("2", request_id="same")
+        second = notebook.run("1", request_id="same")
         assert second.id != first.id
+        notebook.observe(be.Done(first.id, "succeeded"))
+        third = notebook.run("2", request_id="same")
+        assert third.id not in (first.id, second.id)
         # A completed run with no executions is released at once.
         assert backend.calls == [
             ("run", first.id, "1"),
+            ("run", second.id, "1"),
             ("forget", first.id),
-            ("run", second.id, "2"),
+            ("run", third.id, "2"),
         ]
 
-    def test_one_run_at_a_time(
+    def test_runs_queue_in_acceptance_order(
         self,
         notebook: Notebook,
         backend: ScriptedBackend,
         log: list[RoutedEvent],
     ) -> None:
         running(notebook, backend)
+        log.clear()
         first = notebook.run("1", request_id="first")
-        with pytest.raises(Conflict, match=first.id):
-            notebook.run("2", request_id="second")
+        second = notebook.run("2", request_id="second")
+
+        assert second.id != first.id
+        assert (first.status, second.status) == ("queued", "queued")
+        assert backend.calls == [
+            ("run", first.id, "1"),
+            ("run", second.id, "2"),
+        ]
+
         notebook.observe(be.Done(first.id, "succeeded"))
-        final = next(
-            event.event.data
-            for event in reversed(log)
+        assert notebook.executions.run(second.id) == second
+        notebook.observe(be.Done(second.id, "succeeded"))
+
+        runs = [
+            event.event.data.run
+            for event in log
             if isinstance(event.event.data, RunMessage)
-        )
-        assert isinstance(final, RunMessage)
-        assert final.run.status == "completed"
-        assert final.run.started_at is None
-        assert final.run.completed_at is not None
-        assert notebook.run("2", request_id="second").status == "queued"
+        ]
+        assert [(run.id, run.status) for run in runs] == [
+            (first.id, "queued"),
+            (second.id, "queued"),
+            (first.id, "completed"),
+            (second.id, "completed"),
+        ]
+        assert runs[2].started_at is None
+        assert runs[2].completed_at is not None
+        assert request_ids(log) == ["first", "second", "first", "second"]
 
     def test_an_item_replaces_itself_by_id(
         self, host: Host, notebook: Notebook, backend: ScriptedBackend
@@ -1340,7 +1356,8 @@ async def test_edits_preserve_results_and_deletion_removes_them() -> None:
     notebook.replace([DocumentCell(CellId("c1"), "43")], {})
     assert notebook.executions.current(CellId("c1")) == retained
     assert (
-        next(iter(notebook.document)).code_hash != retained.execution.code_hash
+        next(iter(notebook.document)).code_fingerprint
+        != retained.execution.code_fingerprint
     )
     live: list[RoutedEvent] = []
     host.subscribe(live.append, notebook_id=notebook.id)
@@ -1452,9 +1469,7 @@ async def test_running_cells_hands_the_backend_the_document() -> None:
     assert c1 is not None
 
     run = notebook.run(
-        cells=[
-            protocol.RequestedCell(id=CellId("c1"), code_hash=c1.code_hash)
-        ],
+        cells=[protocol.RequestedCell(id=CellId("c1"), etag=c1.etag)],
         request_id="run-1",
     )
 
@@ -1467,17 +1482,36 @@ async def test_running_cells_hands_the_backend_the_document() -> None:
     )
 
 
-async def test_running_a_cell_whose_code_changed_is_a_conflict() -> None:
+@pytest.mark.parametrize(
+    "replacement",
+    [
+        DocumentCell(CellId("c1"), "x=1"),
+        DocumentCell(CellId("c1"), "x = 1", name="renamed"),
+        DocumentCell(
+            CellId("c1"),
+            "x = 1",
+            config=protocol.CellConfig(
+                column=None,
+                disabled=True,
+                hide_code=False,
+                expand_output=False,
+            ),
+        ),
+    ],
+)
+async def test_running_a_cell_whose_content_changed_is_a_conflict(
+    replacement: DocumentCell,
+) -> None:
     _, notebook = await host_at(Clock())
-    notebook.replace([DocumentCell(CellId("c1"), "x = 1")], {})
+    original = DocumentCell(CellId("c1"), "x = 1")
+    notebook.replace([original], {})
+    notebook.replace([replacement], {})
     calls = len(notebook.backend.calls)  # type: ignore[attr-defined]
 
     with pytest.raises(Conflict, match="changed"):
         notebook.run(
             cells=[
-                protocol.RequestedCell(
-                    id=CellId("c1"), code_hash=protocol.Etag("0" * 16)
-                )
+                protocol.RequestedCell(id=CellId("c1"), etag=original.etag)
             ],
             request_id="run-1",
         )
