@@ -107,6 +107,10 @@ class _BlobStatus(Enum):
 # signature to this purpose and format version independent of payload shape.
 _MANIFEST_SIG_CONTEXT = b"marimo-cache-manifest:v1:"
 
+# The stem is not a Python identifier, so no def blob (`{var}.{loader}`)
+# can take this key.
+_UI_BLOB = "ui-elements.pickle"
+
 
 def _signable_bytes(schema: CacheSchema) -> bytes:
     """Return the canonical bytes to sign or verify for a cache manifest.
@@ -314,7 +318,7 @@ def to_item(
             type_hint=type_hint,
         )
     if loader == "ui":
-        return Item(reference=(path / "ui.pickle").as_posix())
+        return Item(reference=(path / _UI_BLOB).as_posix())
     if isinstance(value, FunctionStub):
         return Item(function=value.dump())
     if isinstance(value, ClassStub):
@@ -1203,7 +1207,6 @@ class LazyLoader(BasePersistenceLoader):
             cache_data, verification
         )
 
-        base = Path(self.name) / cache_data.hash
         blob_hash_map = cache_data.meta.blob_hashes  # {} for unsigned entries
 
         # Collect references to load
@@ -1218,8 +1221,8 @@ class LazyLoader(BasePersistenceLoader):
         # type_hint so the `UnhashableStub` can name what it stood in for.
         unresolvable: dict[str, str | None] = {}
         for var_name, item in cache_data.defs.items():
-            if var_name in cache_data.ui_defs:
-                ref_vars[var_name] = (base / "ui.pickle").as_posix()
+            if item.reference is not None and var_name in cache_data.ui_defs:
+                ref_vars[var_name] = item.reference
             elif item.reference is not None:
                 if item.type_hint and item.type_hint.startswith("__main__."):
                     deferred[var_name] = (
@@ -1665,7 +1668,7 @@ class LazyLoader(BasePersistenceLoader):
                             "return",
                         )
                     if ui_vars:
-                        ui_key = (path / "ui.pickle").as_posix()
+                        ui_key = (path / _UI_BLOB).as_posix()
                         ui_ok = _put_or_mark_unserializable(
                             ui_key,
                             ui_vars,
@@ -1674,7 +1677,7 @@ class LazyLoader(BasePersistenceLoader):
                             "ui",
                         )
                         if not ui_ok:
-                            # UI defs restore via `ui_defs` → `ui.pickle`,
+                            # UI defs restore from the UI blob through `ui_defs`,
                             # bypassing the per-Item marks. Drop them from
                             # `ui_defs` so restore routes through the now-marked
                             # Items instead, and clear any stale blob lingering
