@@ -266,14 +266,14 @@ def deterministic_dumps(
                 if id(obj) in sets:
                     return ("set-alias", sets[id(obj)])
                 sets[id(obj)] = len(sets)
-                # A copy: ordering must not mark functions as seen before the
+                # Each member is encoded once and the encodings are what get
+                # ordered and pickled, so nested sets stay linear. A copy of
+                # `seen`: ordering must not mark functions as seen before the
                 # real pass encodes them.
                 ordering = seen | {id(obj)}
                 members = sorted(
-                    obj,
-                    key=lambda item: deterministic_dumps(
-                        item, hash_type, _seen=ordering
-                    ),
+                    deterministic_dumps(item, hash_type, _seen=ordering)
+                    for item in obj
                 )
                 return (type(obj).__name__, sets[id(obj)], tuple(members))
             return None

@@ -661,3 +661,70 @@ def test_restored_function_stub_keeps_its_hash(tmp_path: Path) -> None:
     helper = namespace["helper"]
     restored = FunctionStub(helper).load({})
     assert hash_wrapped_functions(restored) == hash_wrapped_functions(helper)
+
+
+async def test_folded_nested_lambda_remains_callable() -> None:
+    with mocked_kernel_session() as tk:
+        k = tk.kernel
+        await k.run(
+            [
+                command(0, "import marimo as mo"),
+                command(1, "cb = lambda: True or (lambda: 2)"),
+                command(2, "@mo.cache\ndef f(cb):\n    return cb()\nr=f(cb)"),
+            ]
+        )
+        assert k.globals.get("r") is True
+
+
+def test_nested_sets_encode_linearly(monkeypatch: pytest.MonkeyPatch) -> None:
+    from marimo._save import encode
+
+    calls = 0
+    original = encode.deterministic_dumps
+
+    def counting(*args: Any, **kwargs: Any) -> bytes:
+        nonlocal calls
+        calls += 1
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(encode, "deterministic_dumps", counting)
+    value: frozenset[Any] = frozenset()
+    for _ in range(12):
+        value = frozenset({value})
+    counting(value, "sha256")
+    assert calls < 40
+
+
+def test_cell_local_helper_hash_is_cell_independent() -> None:
+    from marimo._ast.compiler import compile_cell
+
+    def helper(cell_id: str) -> Any:
+        cell = compile_cell(
+            "def _helper():\n    return 1", cell_id=CellId_t(cell_id)
+        )
+        namespace: dict[str, Any] = {}
+        exec(cell.body, namespace)  # noqa: S102
+        return next(v for k, v in namespace.items() if k.endswith("helper"))
+
+    assert hash_wrapped_functions(helper("abcd")) == hash_wrapped_functions(
+        helper("wxyz")
+    )
+
+
+def test_restored_stub_without_its_file_keeps_its_hash() -> None:
+    import linecache
+
+    from marimo._ast.compiler import compile_cell
+    from marimo._save.stubs.function_stub import FunctionStub
+
+    cell = compile_cell(
+        "x = 1\n\n\ndef helper():\n    return 1", cell_id=CellId_t("c")
+    )
+    namespace: dict[str, Any] = {}
+    exec(cell.body, namespace)  # noqa: S102
+    helper = namespace["helper"]
+    before = hash_wrapped_functions(helper)
+    stub = FunctionStub(helper)
+    # Another kernel process has no linecache entry for this cell file.
+    linecache.cache.pop(helper.__code__.co_filename, None)
+    assert hash_wrapped_functions(stub.load({})) == before

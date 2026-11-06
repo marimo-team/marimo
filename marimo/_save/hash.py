@@ -123,10 +123,11 @@ def _parse_source(filename: str, source: str) -> ast.Module:
 def hash_function_source(fn: Callable[..., Any]) -> bytes:
     """Fingerprint a function's own definition, located in its source file.
 
-    Raises `TypeError` when the source is unavailable or the definition
-    cannot be told apart, so the caller falls back to pickling by reference.
+    Without source, or when the definition cannot be told apart from its
+    neighbours, the code object is encoded instead.
     """
     code = fn.__code__
+    fallback = type_sign(_code_object_bytes(code), "code")
     # The whole file, not `inspect.getsource`: a fragment has to be dedented,
     # which rewrites multiline string literals, and a lambda's fragment may
     # not parse on its own. A reloaded module has new lines on disk, and a
@@ -136,11 +137,11 @@ def hash_function_source(fn: Callable[..., Any]) -> bytes:
     lines = linecache.getlines(code.co_filename)
     if not lines:
         # Built by exec or eval. Only the compiled form exists.
-        return type_sign(_code_object_bytes(code), "code")
+        return fallback
     try:
         tree = _parse_source(code.co_filename, "".join(lines))
-    except (SyntaxError, ValueError) as e:
-        raise TypeError(f"Unparsable source for {code.co_qualname}") from e
+    except (SyntaxError, ValueError):
+        return fallback
     first = code.co_firstlineno
     nodes: list[ast.AST]
     if code.co_name == "<lambda>":
@@ -186,8 +187,18 @@ def hash_function_source(fn: Callable[..., Any]) -> bytes:
             == first
         ]
     if len(nodes) != 1:
-        raise TypeError(f"Ambiguous source for {code.co_qualname}")
+        # Nothing, or several, for example when the compiler folded a nested
+        # lambda away, as in `lambda: True or (lambda: 2)`.
+        return fallback
     return ast_fingerprint(nodes[0]).encode("utf-8")
+
+
+def _unmangled_qualname(fn: Callable[..., Any]) -> str:
+    """`__qualname__` with cell-local prefixes stripped from each part."""
+    return ".".join(
+        part if part == "<locals>" else unmangle_local(part).name
+        for part in fn.__qualname__.split(".")
+    )
 
 
 def _closure_bytes(
@@ -239,7 +250,11 @@ def hash_wrapped_functions(
             hash_alg.update(
                 type_sign(
                     deterministic_dumps(
-                        (fn.__module__, fn.__qualname__, fn.__defaults__),
+                        (
+                            fn.__module__,
+                            _unmangled_qualname(fn),
+                            fn.__defaults__,
+                        ),
                         hash_type,
                         _seen=seen,
                     ),
@@ -980,9 +995,9 @@ class BlockHasher:
                         value, self.hash_alg.name
                     )
                 except Exception:  # noqa: S112
-                    # No source, or a default or captured value that cannot
-                    # be encoded. Leave the ref queued: it is pickled by
-                    # reference with the other unhashable refs.
+                    # A default that cannot be encoded. Leave the ref queued:
+                    # it is pickled by reference with the other unhashable
+                    # refs.
                     continue
             # A restored stub — a placeholder left in scope for a value we
             # could not materialize here (e.g. a tensor whose optional dep is
