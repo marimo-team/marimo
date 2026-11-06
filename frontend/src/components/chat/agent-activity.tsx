@@ -119,7 +119,6 @@ function useNow(ticking: boolean): number {
     if (!ticking) {
       return;
     }
-    setNow(Date.now());
     const id = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(id);
   }, [ticking]);

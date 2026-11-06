@@ -5,6 +5,7 @@ import {
   ChevronRightIcon,
   CircleSlashIcon,
   Loader2Icon,
+  type LucideIcon,
   XCircleIcon,
 } from "lucide-react";
 import React from "react";
@@ -43,23 +44,12 @@ export const ToolStep: React.FC<ToolStepProps> = ({
 }) => {
   const [open, setOpen] = React.useState(false);
   const pending = PENDING_TOOL_STATES.has(state);
-  const interrupted = pending && !isActive;
-  const {
-    label,
-    detail,
-    icon: Icon,
-  } = describeToolCall(toolName, input, pending ? "running" : "done");
-
-  const status = interrupted
-    ? { icon: CircleSlashIcon, suffix: "Stopped" }
-    : state === "output-error"
-      ? { icon: XCircleIcon, suffix: "Failed" }
-      : state === "output-denied"
-        ? { icon: BanIcon, suffix: "Denied" }
-        : pending
-          ? { icon: Loader2Icon, suffix: undefined }
-          : { icon: Icon, suffix: undefined };
-  const StatusIcon = status.icon;
+  const { label, detail, icon } = describeToolCall(
+    toolName,
+    input,
+    pending ? "running" : "done",
+  );
+  const status = getStatus(state, pending && !isActive, icon);
   const failed = state === "output-error";
 
   return (
@@ -74,12 +64,12 @@ export const ToolStep: React.FC<ToolStepProps> = ({
           failed && "text-(--red-11) hover:bg-(--red-3) hover:text-(--red-11)",
         )}
       >
-        <StatusIcon
+        <status.icon
           aria-hidden={true}
           className={cn(
             // Offsets lucide's built-in padding.
             "-ml-px size-3 shrink-0",
-            pending && !interrupted && "animate-spin",
+            status.spinning && "animate-spin",
           )}
         />
         <span className="shrink-0">{label}</span>
@@ -100,24 +90,56 @@ export const ToolStep: React.FC<ToolStepProps> = ({
         />
       </button>
       {open && (
-        <div className="mt-1 mb-2 ml-5.5 space-y-3">
-          <ToolArgsRenderer input={input} />
-          {state === "output-available" && result != null && (
-            <ResultRenderer result={result} />
-          )}
-          {state === "output-error" && errorText && (
-            <pre className="max-h-64 overflow-auto rounded border border-(--red-6) bg-(--red-2) p-2 text-xs leading-relaxed whitespace-pre-wrap text-(--red-11) scrollbar-thin">
-              {errorText}
-            </pre>
-          )}
-          {state === "output-denied" && (
-            <p className="text-xs text-muted-foreground">
-              Tool execution was denied
-              {approval?.reason ? `: ${approval.reason}` : "."}
-            </p>
-          )}
-        </div>
+        <ToolStepDetails
+          state={state}
+          input={input}
+          result={result}
+          errorText={errorText}
+          approval={approval}
+        />
       )}
     </div>
   );
 };
+
+function getStatus(
+  state: ToolStepState,
+  interrupted: boolean,
+  doneIcon: LucideIcon,
+): { icon: LucideIcon; suffix?: string; spinning?: boolean } {
+  if (interrupted) {
+    return { icon: CircleSlashIcon, suffix: "Stopped" };
+  }
+  switch (state) {
+    case "output-error":
+      return { icon: XCircleIcon, suffix: "Failed" };
+    case "output-denied":
+      return { icon: BanIcon, suffix: "Denied" };
+    case "output-available":
+      return { icon: doneIcon };
+    default:
+      return { icon: Loader2Icon, spinning: true };
+  }
+}
+
+const ToolStepDetails: React.FC<
+  Pick<ToolStepProps, "state" | "input" | "result" | "errorText" | "approval">
+> = ({ state, input, result, errorText, approval }) => (
+  <div className="mt-1 mb-2 ml-5.5 space-y-3">
+    <ToolArgsRenderer input={input} />
+    {state === "output-available" && result != null && (
+      <ResultRenderer result={result} />
+    )}
+    {state === "output-error" && errorText && (
+      <pre className="max-h-64 overflow-auto rounded border border-(--red-6) bg-(--red-2) p-2 text-xs leading-relaxed whitespace-pre-wrap text-(--red-11) scrollbar-thin">
+        {errorText}
+      </pre>
+    )}
+    {state === "output-denied" && (
+      <p className="text-xs text-muted-foreground">
+        Tool execution was denied
+        {approval?.reason ? `: ${approval.reason}` : "."}
+      </p>
+    )}
+  </div>
+);

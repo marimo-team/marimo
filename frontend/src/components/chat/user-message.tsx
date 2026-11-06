@@ -35,11 +35,10 @@ export const UserMessage: React.FC<UserMessageProps> = ({
   const editButtonRef = React.useRef<HTMLButtonElement>(null);
   const editing = draft != null;
 
-  React.useEffect(() => {
-    if (editing) {
-      focusInputAndMoveToEnd(inputRef);
-    }
-  }, [editing]);
+  const startEditing = () => {
+    setDraft(content);
+    focusInputAndMoveToEnd(inputRef);
+  };
 
   const cancel = () => {
     setDraft(null);
@@ -103,7 +102,7 @@ export const UserMessage: React.FC<UserMessageProps> = ({
             aria-label="Edit message"
             className="chat-control"
             disabled={!canEdit}
-            onClick={() => setDraft(content)}
+            onClick={startEditing}
           >
             <PencilIcon className="size-3" />
           </Button>
