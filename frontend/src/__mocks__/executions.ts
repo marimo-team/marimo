@@ -48,14 +48,19 @@ function mirror(records: Protocol.Execution[]): Executions {
   const executions = new Map<Protocol.ExecutionId, Execution>();
   const latest = new Map<Protocol.CellId, Protocol.ExecutionId>();
   for (const record of records) {
+    if (record.cell_id !== null) {
+      // The host retains one execution per cell on the stream.
+      const previous = latest.get(record.cell_id);
+      if (previous !== undefined) {
+        executions.delete(previous);
+      }
+      latest.set(record.cell_id, record.id);
+    }
     executions.set(record.id, {
       record,
       items: new Map(),
       variables: new Map(),
     });
-    if (record.cell_id !== null) {
-      latest.set(record.cell_id, record.id);
-    }
   }
   return { runs: new Map(), executions, latest };
 }

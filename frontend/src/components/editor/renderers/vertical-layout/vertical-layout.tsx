@@ -129,8 +129,9 @@ const VerticalLayoutRenderer: React.FC<VerticalLayoutProps> = ({
     }
 
     if (cells.length === 0 && !invisible) {
-      // Until the host reports the runtime running, show loading state
-      if (runtimeStatus !== "running") {
+      // Until the host reports the runtime running, show loading state.
+      // A static notebook has no runtime to wait for.
+      if (runtimeStatus !== "running" && !isStaticNotebook()) {
         return (
           <div className="flex-1 flex flex-col items-center justify-center py-8">
             <Loader2Icon className="w-8 h-8 animate-spin text-muted-foreground" />

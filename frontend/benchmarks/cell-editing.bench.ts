@@ -16,10 +16,6 @@ import {
   notebookOutline,
   notebookReducer,
 } from "@/core/cells/cells";
-import {
-  notebookIsRunningAtom,
-  notebookQueuedOrRunningCountAtom,
-} from "@/core/executions";
 import type { CellData } from "@/core/cells/types";
 import type { DispatchedActionOf } from "@/utils/createReducer";
 
@@ -108,8 +104,6 @@ for (const count of [10, 25, 100, 1000]) {
               cellErrorsAtom,
               notebookOutline,
               cellIdToNamesMap,
-              notebookIsRunningAtom,
-              notebookQueuedOrRunningCountAtom,
               needsRunAtom,
             ]) {
               subscribe(value);

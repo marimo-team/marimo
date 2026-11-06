@@ -43,6 +43,20 @@ describe("observeCellMessage", () => {
     expect(store.get(notebookQueuedOrRunningCountAtom)).toBe(0);
   });
 
+  it("forgets submissions and blocked cells with the replica they were made for", () => {
+    const store = createStore();
+    MockExecutions.seed(store, []);
+    submitCells(store, [C1]);
+    observeCellMessage(store, cellOp("disabled-transitively"));
+
+    MockExecutions.seed(store, []);
+
+    const view = cellExecutionView(store.get(cellExecutionInputsAtom), C1);
+    expect(view.status).toBe("idle");
+    expect(view.blocked).toBe(false);
+    expect(store.get(notebookQueuedOrRunningCountAtom)).toBe(0);
+  });
+
   it("keeps a submission while the cell is merely queued", () => {
     const store = createStore();
     MockExecutions.seed(store, []);

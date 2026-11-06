@@ -8,7 +8,13 @@ import { useMemo } from "react";
 import { cellExecutionInputsAtom } from "./atoms";
 import { type CellExecutionView, cellExecutionView } from "./select";
 
-/** A cell's status, timing, and how it last ended, as the host reports them. */
+/**
+ * A cell's status, timing, and how it last ended.
+ *
+ * Read from the host's executions, with the editor's own marks for a run
+ * it has requested and the kernel has not planned yet, and for a cell the
+ * kernel reports blocked by a disabled ancestor.
+ */
 export function useCellExecution(id: Protocol.CellId): CellExecutionView {
   // One atom per mounted cell, kept for its subscription and compared by
   // value so the cell renders only when its own view changes.

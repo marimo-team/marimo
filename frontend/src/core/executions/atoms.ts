@@ -5,7 +5,11 @@
 import type * as Protocol from "@marimo-team/client/protocol";
 import { atom, type createStore } from "jotai";
 import type { CellMessage } from "@/core/kernel/messages";
-import type { Executions, Results } from "@/core/notebook/replica";
+import type {
+  Executions,
+  NotebookReplica,
+  Results,
+} from "@/core/notebook/replica";
 import { activeNotebookReplicaAtom } from "@/core/session/active-notebook";
 import { waitFor } from "@/core/state/jotai";
 import {
@@ -23,6 +27,23 @@ const NO_EXECUTIONS: Executions = {
   latest: new Map(),
 };
 const NO_RESULTS: Results = new Map();
+const NO_SUBMISSIONS: ReadonlyMap<
+  Protocol.CellId,
+  Protocol.ExecutionId | null
+> = new Map();
+const NO_BLOCKED: ReadonlySet<Protocol.CellId> = new Set();
+
+/**
+ * What the editor marks about cells of one replica's notebook.
+ *
+ * The marks are keyed by cell id, which another notebook, or the same one
+ * after a reconnect, reuses with different executions behind it. They
+ * therefore count only while `replica` is the active one.
+ */
+interface Marks<T> {
+  readonly replica: NotebookReplica | null;
+  readonly value: T;
+}
 
 /**
  * Cells a run was requested for, with the execution each had at the time.
@@ -34,8 +55,8 @@ const NO_RESULTS: Results = new Map();
  * `submitCells`, `withdrawCells`, and `observeCellMessage`.
  */
 const submissionsAtom = atom<
-  ReadonlyMap<Protocol.CellId, Protocol.ExecutionId | null>
->(new Map<Protocol.CellId, Protocol.ExecutionId | null>());
+  Marks<ReadonlyMap<Protocol.CellId, Protocol.ExecutionId | null>>
+>({ replica: null, value: NO_SUBMISSIONS });
 
 /**
  * Cells the kernel reports as blocked by a disabled ancestor. Written only
@@ -44,9 +65,18 @@ const submissionsAtom = atom<
  * TODO(MO-8403): Derive this from the document and the analysis stream
  * once the editor reads dependencies from the host.
  */
-const blockedCellsAtom = atom<ReadonlySet<Protocol.CellId>>(
-  new Set<Protocol.CellId>(),
-);
+const blockedCellsAtom = atom<Marks<ReadonlySet<Protocol.CellId>>>({
+  replica: null,
+  value: NO_BLOCKED,
+});
+
+function current<T>(
+  marks: Marks<T>,
+  replica: NotebookReplica | null,
+  empty: T,
+): T {
+  return marks.replica === replica ? marks.value : empty;
+}
 
 /** What every cell's view derives from. Pair with `cellExecutionView`. */
 export const cellExecutionInputsAtom = atom((get): CellExecutionInputs => {
@@ -54,8 +84,8 @@ export const cellExecutionInputsAtom = atom((get): CellExecutionInputs => {
   return {
     executions: replica === null ? NO_EXECUTIONS : get(replica.executionsAtom),
     results: replica === null ? NO_RESULTS : get(replica.resultsAtom),
-    submissions: get(submissionsAtom),
-    blocked: get(blockedCellsAtom),
+    submissions: current(get(submissionsAtom), replica, NO_SUBMISSIONS),
+    blocked: current(get(blockedCellsAtom), replica, NO_BLOCKED),
   };
 });
 
@@ -90,13 +120,23 @@ export function submitCells(
   cellIds: readonly Protocol.CellId[],
 ): void {
   const inputs = store.get(cellExecutionInputsAtom);
-  const next = new Map(store.get(submissionsAtom));
+  const next = new Map(inputs.submissions);
   for (const cellId of cellIds) {
     if (!inputs.blocked.has(cellId)) {
       next.set(cellId, latestExecutionId(inputs, cellId));
     }
   }
-  store.set(submissionsAtom, next);
+  setSubmissions(store, next);
+}
+
+function setSubmissions(
+  store: Store,
+  value: ReadonlyMap<Protocol.CellId, Protocol.ExecutionId | null>,
+): void {
+  store.set(submissionsAtom, {
+    replica: store.get(activeNotebookReplicaAtom),
+    value,
+  });
 }
 
 /** Forget a run request the host rejected. */
@@ -104,11 +144,11 @@ export function withdrawCells(
   store: Store,
   cellIds: readonly Protocol.CellId[],
 ): void {
-  const next = new Map(store.get(submissionsAtom));
+  const next = new Map(store.get(cellExecutionInputsAtom).submissions);
   for (const cellId of cellIds) {
     next.delete(cellId);
   }
-  store.set(submissionsAtom, next);
+  setSubmissions(store, next);
 }
 
 function setCellBlocked(
@@ -116,17 +156,20 @@ function setCellBlocked(
   cellId: Protocol.CellId,
   blocked: boolean,
 ): void {
-  const current = store.get(blockedCellsAtom);
-  if (current.has(cellId) === blocked) {
+  const known = store.get(cellExecutionInputsAtom).blocked;
+  if (known.has(cellId) === blocked) {
     return;
   }
-  const next = new Set(current);
+  const next = new Set(known);
   if (blocked) {
     next.add(cellId);
   } else {
     next.delete(cellId);
   }
-  store.set(blockedCellsAtom, next);
+  store.set(blockedCellsAtom, {
+    replica: store.get(activeNotebookReplicaAtom),
+    value: next,
+  });
 }
 
 /**

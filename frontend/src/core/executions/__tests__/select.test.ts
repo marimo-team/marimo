@@ -14,6 +14,7 @@ import {
 
 const T0 = "2026-10-01T09:20:11Z";
 const T1 = "2026-10-01T09:20:12.500Z";
+const T2 = "2026-10-01T09:20:20Z";
 
 function record(
   overrides: Partial<Protocol.Execution> & { id: string },
@@ -92,6 +93,7 @@ describe("cellExecutionView", () => {
           id: "e1",
           status: "running",
           outcome: null,
+          started_at: T2,
           completed_at: null,
         }),
       ],
@@ -101,7 +103,7 @@ describe("cellExecutionView", () => {
       status: "running",
       blocked: false,
       outcome: null,
-      startedAt: Date.parse(T0),
+      startedAt: Date.parse(T2),
       duration: null,
       rendered: false,
     });
