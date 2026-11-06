@@ -140,7 +140,94 @@ describe("pending chat prompts", () => {
     sendMessage.mockReset();
     vi.stubGlobal("requestAnimationFrame", () => 0);
   });
-  afterEach(() => vi.unstubAllGlobals());
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  it.each(["new", "existing"])(
+    "preserves the draft and attachments after a read failure (%s chat)",
+    async (chat) => {
+      vi.mocked(resolveChatContext).mockResolvedValue({
+        contextPart: null,
+        attachments: [],
+      });
+      sendMessage.mockImplementation(
+        (message: { parts: UIMessage["parts"] }) => {
+          messages.push({
+            id: `sent-${messages.length}`,
+            role: "user",
+            parts: message.parts,
+          });
+        },
+      );
+      const store = setup();
+      if (chat === "existing") {
+        act(() =>
+          store.set(pendingAiPromptAtom, { prompt: "hello", submit: true }),
+        );
+        await screen.findByRole("textbox", { name: "Message" });
+        sendMessage.mockClear();
+      }
+
+      const fileInput =
+        document.querySelector<HTMLInputElement>('input[type="file"]');
+      if (!fileInput) {
+        throw new Error("Missing attachment input");
+      }
+      fireEvent.change(fileInput, {
+        target: {
+          files: [new File(["hello"], "notes.txt", { type: "text/plain" })],
+        },
+      });
+      const attachmentPill = await screen.findByText("notes.txt");
+      fireEvent.change(screen.getByRole("textbox", { name: "Prompt" }), {
+        target: { value: "read my notes" },
+      });
+      const chatState = store.get(chatStateAtom);
+      const read = vi
+        .spyOn(FileReader.prototype, "readAsDataURL")
+        .mockImplementation(function (this: FileReader) {
+          this.dispatchEvent(new Event("error"));
+        });
+
+      fireEvent.click(screen.getByRole("button", { name: "Submit" }));
+
+      await waitFor(() =>
+        expect(toast).toHaveBeenCalledWith({
+          title: "Could not read attachments",
+          description: "Try selecting the files again.",
+          variant: "danger",
+        }),
+      );
+      expect(sendMessage).not.toHaveBeenCalled();
+      expect(store.get(chatStateAtom)).toEqual(chatState);
+      expect(screen.getByRole("textbox", { name: "Prompt" })).toHaveValue(
+        "read my notes",
+      );
+      expect(attachmentPill).toBeInTheDocument();
+
+      read.mockRestore();
+      fireEvent.click(screen.getByRole("button", { name: "Submit" }));
+
+      await waitFor(() =>
+        expect(sendMessage).toHaveBeenCalledExactlyOnceWith({
+          role: "user",
+          parts: [
+            { type: "text", text: "read my notes" },
+            {
+              type: "file",
+              filename: "notes.txt",
+              mediaType: "text/plain",
+              url: "data:text/plain;base64,aGVsbG8=",
+            },
+          ],
+        }),
+      );
+      expect(screen.getByRole("textbox", { name: "Prompt" })).toHaveValue("");
+      expect(attachmentPill).not.toBeInTheDocument();
+    },
+  );
 
   it("keeps a rejected pending prompt as a draft without creating an empty chat", async () => {
     vi.mocked(resolveChatContext).mockResolvedValue({

@@ -65,6 +65,7 @@ import { CopyClipboardIcon } from "../icons/copy-icon";
 import "./chat-typography.css";
 import { MCPStatusIndicator } from "../mcp/mcp-status-indicator";
 import { Tooltip, TooltipProvider } from "../ui/tooltip";
+import { toast } from "../ui/use-toast";
 import {
   AddContextButton,
   AttachFileButton,
@@ -103,6 +104,21 @@ import { useChatGeneration } from "./use-chat-generation";
 
 // Default mode for the AI
 const DEFAULT_MODE = "ask";
+
+async function readChatAttachments(
+  files: File[],
+): Promise<FileUIPart[] | null> {
+  try {
+    return await convertToFileUIPart(files);
+  } catch {
+    toast({
+      title: "Could not read attachments",
+      description: "Try selecting the files again.",
+      variant: "danger",
+    });
+    return null;
+  }
+}
 
 const QueuedMessageDisplay = memo(
   ({
@@ -765,17 +781,17 @@ const ChatPanelBody = () => {
       if (!validateFiles(initialAttachments ?? [])) {
         return;
       }
-      const fileParts =
-        initialAttachments && initialAttachments.length > 0
-          ? await convertToFileUIPart(initialAttachments)
-          : undefined;
+      const fileParts = await readChatAttachments(initialAttachments ?? []);
+      if (fileParts === null) {
+        return;
+      }
       const { contextPart, attachments } =
         await resolveChatContext(initialMessage);
 
       const parts: ChatMessagePart[] = [
         { type: "text" as const, text: initialMessage },
         ...(contextPart ? [contextPart] : []),
-        ...(fileParts ?? []),
+        ...fileParts,
         ...attachments,
       ];
       if (!validateMessageAttachments(parts)) {
@@ -850,14 +866,17 @@ const ChatPanelBody = () => {
       if (newMessageInputRef.current?.view) {
         storePrompt(newMessageInputRef.current.view);
       }
-      const fileParts = files ? await convertToFileUIPart(files) : undefined;
+      const fileParts = await readChatAttachments(files);
+      if (fileParts === null) {
+        return;
+      }
       const { contextPart, attachments } = await resolveChatContext(newValue);
 
       e?.preventDefault();
       const submitted = submitOrQueue([
         { type: "text", text: newValue },
         ...(contextPart ? [contextPart] : []),
-        ...(fileParts ?? []),
+        ...fileParts,
         ...attachments,
       ]);
       if (!submitted) {
