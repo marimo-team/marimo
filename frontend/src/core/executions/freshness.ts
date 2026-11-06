@@ -21,7 +21,7 @@ import type * as Protocol from "@marimo-team/client/protocol";
 import type { Executions, Results } from "@/core/notebook/replica";
 
 export interface CellFreshness {
-  /** This cell's source changed since its result. */
+  /** This cell's source differs from its pending execution, or its last result. */
   readonly sourceChanged: boolean;
   /**
    * A value the result read changed since, by a rerun or an update, here
@@ -117,21 +117,18 @@ export function freshnessOf(inputs: CellFreshnessInputs): CellFreshnessLookup {
     return false;
   }
 
-  /** Whether a newer execution of the cell already runs its current source. */
-  function coveredByPending(
+  /** Compare against pending work before the result it will replace. */
+  function sourceChanged(
     cell: Protocol.Cell,
-    record: Protocol.Execution,
+    result: Protocol.Execution,
   ): boolean {
     const latest = inputs.executions.latest.get(cell.id);
-    if (latest === undefined || latest === record.id) {
-      return false;
-    }
-    const pending = recordOf(latest);
-    return (
-      pending !== undefined &&
-      pending.status !== "completed" &&
-      pending.code_fingerprint === cell.code_fingerprint
-    );
+    const pending = latest === undefined ? undefined : recordOf(latest);
+    const source =
+      pending !== undefined && pending.status !== "completed"
+        ? pending
+        : result;
+    return cell.code_fingerprint !== source.code_fingerprint;
   }
 
   function ofRecord(
@@ -145,10 +142,7 @@ export function freshnessOf(inputs: CellFreshnessInputs): CellFreshnessLookup {
     const cell =
       record.cell_id === null ? undefined : inputs.cells.get(record.cell_id);
     const freshness: CellFreshness = {
-      sourceChanged:
-        cell === undefined ||
-        (cell.code_fingerprint !== record.code_fingerprint &&
-          !coveredByPending(cell, record)),
+      sourceChanged: cell === undefined || sourceChanged(cell, record),
       inputsChanged: inputsChanged(record, visiting),
     };
     memo.set(record.id, freshness);
