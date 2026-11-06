@@ -1314,7 +1314,7 @@ components:
           description: The runtime that produced this execution. Live when it equals the current runtime's id. Null when the producer is unknown.
         caused_by:
           oneOf: [{ $ref: '#/components/schemas/ExecutionId' }, { type: 'null' }]
-          description: The execution in the same run whose code scheduled this one, such as scratch code that ran cells or set a UI element's value. Null for an execution a client requested directly, and for a cell the scheduler ran because of one.
+          description: The execution in the same run whose code was running when this one was scheduled, such as scratch code that ran a cell, set a UI element's value, or wrote state, and the cells that reacted to it. Null for an execution a client requested and for the cells that reacted to one.
         cell_id:
           oneOf: [{ $ref: '#/components/schemas/CellId' }, { type: 'null' }]
           description: The cell this execution belongs to. Null for scratch code, a cell outside the document.
