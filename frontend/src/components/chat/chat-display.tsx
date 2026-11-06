@@ -7,7 +7,7 @@ import type {
   ToolUIPart,
   UIMessage,
 } from "ai";
-import { ExternalLinkIcon, FileTextIcon } from "lucide-react";
+import { BrainIcon, ExternalLinkIcon, FileTextIcon } from "lucide-react";
 import React from "react";
 import { renderHTML } from "@/plugins/core/RenderHTML";
 import { logNever } from "@/utils/assertNever";
@@ -111,17 +111,24 @@ export const renderUIMessage = ({
           );
         }
         return (
-          <div
-            key={index}
-            className={inActivity ? "py-1.5 text-muted-foreground" : undefined}
-          >
+          <div key={index} className={inActivity ? "py-1.5" : undefined}>
             <ChatMarkdown content={part.text} />
           </div>
         );
       case "reasoning":
         return (
-          <div key={index} className="py-1.5 text-muted-foreground [&_p]:my-1">
-            <ChatMarkdown content={part.text} />
+          <div
+            key={index}
+            className="flex gap-1.5 py-1.5 text-muted-foreground"
+          >
+            <BrainIcon
+              aria-hidden={true}
+              className="-ml-px mt-1 size-3 shrink-0"
+            />
+            <div className="min-w-0 italic [&_p]:my-1 [&_p:first-child]:mt-0">
+              <span className="sr-only">Reasoning: </span>
+              <ChatMarkdown content={part.text} />
+            </div>
           </div>
         );
       case "file":
