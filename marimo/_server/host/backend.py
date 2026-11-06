@@ -102,11 +102,14 @@ class SessionBackend(SessionConsumer):
         session_attached: Callable[[], None] | None = None,
         session_detached: Callable[[Session], None] | None = None,
         *,
+        cell_order: Callable[[], Sequence[str]] = tuple,
         request_metadata: RequestMetadata | None = None,
     ) -> None:
         self._notebook_id = notebook_id
         self._file = file
         """Resolve the notebook's current path after file moves."""
+        self._cell_order = cell_order
+        """The document's cell ids in order, for errors that name cells."""
         self._manager = manager
         self._observe = observe
         self._sink = sink
@@ -121,7 +124,7 @@ class SessionBackend(SessionConsumer):
         self._runs: dict[protocol.RunId, _Run] = {}
         """Runs this backend submitted that have not finished, by run id."""
         self._handover = Handover()
-        self._translators = RunTranslators()
+        self._translators = RunTranslators(cell_order)
 
     @property
     def session(self) -> Session | None:
@@ -191,7 +194,9 @@ class SessionBackend(SessionConsumer):
         session = self.session
         if session is None:
             return
-        run = self._accept(session, RunTranslator(run_id, code))
+        run = self._accept(
+            session, RunTranslator(run_id, code, self._cell_order)
+        )
         # Server adapters pass HTTPRequest through the core's RequestInfo protocol.
         self._watch_run(
             run, self._run_code(run, code, cast(HTTPRequest | None, request))
@@ -208,7 +213,9 @@ class SessionBackend(SessionConsumer):
         session = self.session
         if session is None:
             return
-        run = self._accept(session, RunTranslator(run_id, None))
+        run = self._accept(
+            session, RunTranslator(run_id, None, self._cell_order)
+        )
         try:
             cells = {
                 cell.id: ExecuteCellCommand(
