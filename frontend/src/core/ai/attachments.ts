@@ -15,6 +15,9 @@ const TEXT_TYPES = [
 
 export function getAttachmentMediaType(mediaType: string): string {
   const normalized = mediaType.split(";", 1)[0].trim().toLowerCase();
+  if (/^(image|audio|video)\//.test(normalized)) {
+    return normalized;
+  }
   if (
     isSupportedAttachmentType(normalized, TEXT_TYPES) ||
     normalized.endsWith("+json") ||

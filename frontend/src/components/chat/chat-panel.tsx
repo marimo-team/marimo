@@ -16,6 +16,7 @@ import {
   Loader2,
   PlusIcon,
   SettingsIcon,
+  XIcon,
 } from "lucide-react";
 import { memo, useEffect, useMemo, useRef, useState } from "react";
 import useEvent from "react-use-event-hook";
@@ -108,10 +109,12 @@ const QueuedMessageDisplay = memo(
     message,
     isLoading,
     onSend,
+    onRemove,
   }: {
     message: QueuedUserMessage;
     isLoading: boolean;
     onSend?: () => void;
+    onRemove: () => void;
   }) => {
     const textParts = message.parts.filter(
       (p): p is TextUIPart => p.type === "text",
@@ -137,6 +140,14 @@ const QueuedMessageDisplay = memo(
                 Send
               </Button>
             )}
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label="Remove queued message"
+              onClick={onRemove}
+            >
+              <XIcon className="h-3.5 w-3.5" />
+            </Button>
           </div>
         </div>
       </div>
@@ -485,6 +496,7 @@ const ChatPanelBody = () => {
     enqueue: enqueueUserMessage,
     flushNext: flushNextQueuedMessage,
     clear: clearQueuedMessages,
+    remove: removeQueuedMessage,
     hasQueuedRef,
   } = useMessageQueue();
   const newThreadInputRef = useRef<ReactCodeMirrorRef>(null);
@@ -873,19 +885,27 @@ const ChatPanelBody = () => {
 
   const handleOnCloseThread = () => newThreadInputRef.current?.editor?.blur();
 
-  const submitPendingPrompt = useEvent(async (prompt: string) => {
-    if (activeChatId == null) {
+  const startPendingChat = useEvent((prompt: string) => {
+    if (store.get(chatStateAtom).activeChatId == null) {
       startNewChatState(prompt);
-      // Starting a chat swaps the new-thread input for the regular input;
-      // carry over any draft the user had typed so it isn't lost.
+      // Context resolution can outlive the render that started it.
       setInput(newThreadInput);
     }
+  });
+
+  const submitPendingPrompt = useEvent(async (prompt: string) => {
     const { contextPart, attachments } = await resolveChatContext(prompt);
-    submitOrQueue([
+    const parts: ChatMessagePart[] = [
       { type: "text", text: prompt },
       ...(contextPart ? [contextPart] : []),
       ...attachments,
-    ]);
+    ];
+    if (!validateMessageAttachments(parts)) {
+      setPendingPrompt({ prompt, submit: false, append: true });
+      return;
+    }
+    startPendingChat(prompt);
+    submitOrQueue(parts);
   });
 
   const isNewThread = messages.length === 0;
@@ -997,6 +1017,15 @@ const ChatPanelBody = () => {
               key={message.id}
               message={message}
               isLoading={isLoading}
+              onRemove={() => {
+                removeQueuedMessage(message.id);
+                if (idx === 0 && !isLoading) {
+                  tryFlushQueuedMessages(messages, {
+                    isError: error != null,
+                    isAbort: false,
+                  });
+                }
+              }}
               onSend={
                 idx === 0 &&
                 !isLoading &&

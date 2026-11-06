@@ -103,7 +103,13 @@ describe("normalizeAttachment", () => {
     expect(await normalizeAttachment(file)).toBe(file);
   });
 
-  it.each(["image/png", "application/pdf", "audio/wav", "video/mp4"])(
+  it.each([
+    "image/png",
+    "image/svg+xml",
+    "application/pdf",
+    "audio/wav",
+    "video/mp4",
+  ])(
     "preserves declared %s files even if their contents are valid UTF-8",
     async (type) => {
       const file = new File(["ASCII payload"], "file.txt", { type });
@@ -133,7 +139,7 @@ describe("isSupportedAttachmentType", () => {
   it("rejects unsupported image formats even for vision models", () => {
     expect(
       isSupportedAttachmentType(
-        "image/svg+xml",
+        getAttachmentMediaType("image/svg+xml"),
         getSupportedAttachmentTypes("ollama/vision"),
       ),
     ).toBe(false);

@@ -396,5 +396,12 @@ export function useMessageQueue() {
     setMessages([]);
   });
 
-  return { messages, enqueue, flushNext, clear, hasQueuedRef };
+  const remove = useEvent((id: string) => {
+    const next = messagesRef.current.filter((message) => message.id !== id);
+    messagesRef.current = next;
+    hasQueuedRef.current = next.length > 0;
+    setMessages(next);
+  });
+
+  return { messages, enqueue, flushNext, clear, remove, hasQueuedRef };
 }

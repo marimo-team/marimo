@@ -158,7 +158,7 @@ describe("useMessageQueue", () => {
             mediaType: "image/png",
             filename: "cell.png",
             url: "data:image/png;base64,aW1hZ2U=",
-            providerMetadata: { marimo: { contextAttachment: true } },
+            providerMetadata: { marimo: { source: "context" } },
           },
         ],
         ["text/*"],
@@ -173,6 +173,37 @@ describe("useMessageQueue", () => {
     act(() => result.current.enqueue([textPart("second")]));
     act(() => result.current.clear());
 
+    expect(result.current.messages).toEqual([]);
+    expect(result.current.hasQueuedRef.current).toBe(false);
+  });
+
+  it("allows later messages to send after removing a blocked head", () => {
+    const { result } = renderHook(() => useMessageQueue());
+    const blocked: ChatMessagePart[] = [
+      {
+        type: "file",
+        mediaType: "image/png",
+        url: "data:image/png;base64,aW1hZ2U=",
+      },
+    ];
+    const later = [textPart("never mind, just answer this")];
+    const send = vi.fn();
+    const canSend = (parts: ChatMessagePart[]) =>
+      validateChatAttachments(parts, ["text/*"]);
+    act(() => {
+      result.current.enqueue(blocked);
+      result.current.enqueue(later);
+      result.current.flushNext(send, canSend);
+    });
+    expect(send).not.toHaveBeenCalled();
+    const blockedId = result.current.messages[0].id;
+
+    act(() => {
+      result.current.remove(blockedId);
+      result.current.flushNext(send, canSend);
+    });
+
+    expect(send).toHaveBeenCalledExactlyOnceWith(later);
     expect(result.current.messages).toEqual([]);
     expect(result.current.hasQueuedRef.current).toBe(false);
   });

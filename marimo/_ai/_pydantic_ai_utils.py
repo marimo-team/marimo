@@ -174,6 +174,11 @@ def _inline_text_file(part: UIMessagePart) -> UIMessagePart:
 def _is_text_attachment(media_type: str, url: str) -> bool:
     media_type = media_type.split(";", 1)[0].strip().lower()
     if (
+        media_type.startswith(("image/", "audio/", "video/"))
+        or media_type == "application/pdf"
+    ):
+        return False
+    if (
         media_type.startswith("text/")
         or media_type.endswith(("+json", "+xml"))
         or media_type
@@ -186,11 +191,6 @@ def _is_text_attachment(media_type: str, url: str) -> bool:
         }
     ):
         return True
-    if (
-        media_type.startswith(("image/", "audio/", "video/"))
-        or media_type == "application/pdf"
-    ):
-        return False
     try:
         data = base64.b64decode(url.partition(",")[2], validate=True)
         data.decode("utf-8")

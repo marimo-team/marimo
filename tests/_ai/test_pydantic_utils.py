@@ -331,6 +331,52 @@ class TestConvertToPydanticMessages:
 
         assert result[0].parts == [FileUIPart.model_validate(part)]
 
+    def test_inlines_uploaded_text_without_context_metadata(self) -> None:
+        from pydantic_ai.ui.vercel_ai.request_types import TextUIPart
+
+        result = convert_to_pydantic_messages(
+            [
+                {
+                    "id": "user-1",
+                    "role": "user",
+                    "parts": [
+                        {
+                            "type": "file",
+                            "mediaType": "text/plain",
+                            "filename": "notes.txt",
+                            "url": "data:text/plain;base64,aGVsbG8=",
+                        }
+                    ],
+                }
+            ]
+        )
+
+        assert result[0].parts == [TextUIPart(type="text", text="hello")]
+
+    @pytest.mark.parametrize(
+        ("filename", "media_type", "contents"),
+        [
+            ("archive.zip", "application/octet-stream", b"PK\x03\x04"),
+            ("image.svg", "image/svg+xml", b"<svg/>"),
+        ],
+    )
+    def test_preserves_binary_upload_without_context_metadata(
+        self, filename: str, media_type: str, contents: bytes
+    ) -> None:
+        from pydantic_ai.ui.vercel_ai.request_types import FileUIPart
+
+        part = {
+            "type": "file",
+            "mediaType": media_type,
+            "filename": filename,
+            "url": f"data:{media_type};base64,{base64.b64encode(contents).decode()}",
+        }
+        result = convert_to_pydantic_messages(
+            [{"id": "user-1", "role": "user", "parts": [part]}]
+        )
+
+        assert result[0].parts == [FileUIPart.model_validate(part)]
+
     def test_convert_empty_messages(self):
         result = convert_to_pydantic_messages([])
         assert result == []
