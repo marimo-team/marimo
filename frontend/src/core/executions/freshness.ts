@@ -87,11 +87,24 @@ export function freshnessOf(inputs: CellFreshnessInputs): CellFreshnessLookup {
     for (const [name, revision] of Object.entries(record.depends_on)) {
       const variables = bound.get(name) ?? [];
       if (revision === null) {
-        // A result retained from an earlier runtime binds nothing here.
+        // Older runtimes bind nothing here, but a later binding invalidates
+        // the result even if its runtime has since stopped.
         if (
-          variables.some(
-            (v) => recordOf(v.execution_id)?.runtime_id === record.runtime_id,
-          )
+          variables.some((v) => {
+            const binder = recordOf(v.execution_id);
+            if (binder === undefined) {
+              return false;
+            }
+            if (binder.runtime_id === record.runtime_id) {
+              return true;
+            }
+            const boundAt = binder.completed_at ?? binder.started_at;
+            return (
+              boundAt !== null &&
+              record.completed_at !== null &&
+              Date.parse(boundAt) > Date.parse(record.completed_at)
+            );
+          })
         ) {
           return true;
         }
