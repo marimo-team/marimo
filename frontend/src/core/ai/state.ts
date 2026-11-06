@@ -31,9 +31,12 @@ export const aiCompletionCellAtom = atom<AiCompletionCell | null>(null);
 export interface PendingAiPrompt {
   prompt: string;
   submit: boolean;
+  append?: boolean;
 }
 
 export const pendingAiPromptAtom = atom<PendingAiPrompt | null>(null);
+
+export const chatGenerationInProgressAtom = atom(false);
 
 const CHAT_OPTIONS_KEY = "marimo:ai:chatOptions";
 export const chatOptionsAtom = atomWithStorage<Required<ChatOptions>>(

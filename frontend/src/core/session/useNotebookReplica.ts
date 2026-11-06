@@ -22,7 +22,7 @@ type Options = EditorBackendOptions & {
 
 export function useNotebookReplica(options: Options): NotebookReplica {
   const store = useStore();
-  const { static: isStatic, transportType } = options;
+  const { static: isStatic, snapshot, transportType } = options;
   const replica = useMemo(() => createNotebookReplica(store), [store]);
   const url = useEvent(options.url);
   const headers = useEvent(options.headers);
@@ -35,6 +35,7 @@ export function useNotebookReplica(options: Options): NotebookReplica {
     () =>
       createEditorBackend({
         static: isStatic,
+        snapshot,
         transportType,
         url,
         headers,
@@ -44,6 +45,7 @@ export function useNotebookReplica(options: Options): NotebookReplica {
       }),
     [
       isStatic,
+      snapshot,
       transportType,
       url,
       headers,

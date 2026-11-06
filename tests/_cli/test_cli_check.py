@@ -14,7 +14,7 @@ from marimo._ast.cell import CellConfig
 from marimo._ast.codegen import generate_filecontents
 from marimo._cli.cli import check
 from marimo._config.manager import UserConfigStore, get_default_config_manager
-from marimo._server.models.models import SaveNotebookRequest
+from marimo._messaging.notebook.document import NotebookCell
 from marimo._session.notebook import load_notebook
 
 
@@ -75,15 +75,16 @@ def test_fix_uses_each_notebooks_formatting_config(
         assert signature in contents
         manager = load_notebook(file)
         manager.config_reader = get_default_config_manager(current_path=file)
-        cells = manager.app.cell_manager
-        manager.save(
-            SaveNotebookRequest(
-                cell_ids=list(cells.cell_ids()),
-                codes=list(cells.codes()),
-                names=list(cells.names()),
-                configs=list(cells.configs()),
-                filename=file,
-            )
+        manager.save_from_cells(
+            [
+                NotebookCell(
+                    id=data.cell_id,
+                    code=data.code,
+                    name=data.name,
+                    config=data.config,
+                )
+                for data in manager.app.cell_manager.cell_data()
+            ]
         )
         assert Path(file).read_text() == contents
 

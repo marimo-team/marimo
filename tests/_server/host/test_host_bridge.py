@@ -12,6 +12,7 @@ import pytest
 from starlette.datastructures import State
 
 from marimo._core import protocol
+from marimo._core.code import code_fingerprint
 from marimo._core.errors import Conflict, DecisionRequired, EditConflict
 from marimo._core.stream import RoutedEvent
 from marimo._messaging.notification import (
@@ -334,6 +335,7 @@ async def test_removed_runs_release_backend_translation_state(
                 cell_id=cell_id,
                 phase=phase,
                 code="42",
+                code_fingerprint=code_fingerprint("42"),
             )
         )
     session.broadcast(
@@ -850,6 +852,45 @@ async def test_save_with_a_session_writes_through_the_editors_file_manager(
     bridge.close()
 
 
+async def test_the_editor_changing_the_app_config_is_mirrored(
+    manager: FakeManager, tmp_path: Path
+) -> None:
+    from marimo._session.notebook import AppFileManager
+
+    prepare(manager, tmp_path, "a.py")
+    path = tmp_path / "a.py"
+    path.write_text(NOTEBOOK)
+    bridge = SessionBridge(manager)  # type: ignore[arg-type]
+    await bridge.open()
+    record = bridge.index.notebook_for(str(path))
+    assert record is not None
+    notebook = await bridge.host.notebook(record.id)
+    session = FakeSession(str(path))
+    session.app_file_manager = AppFileManager(str(path))
+    session.document = session.app_file_manager.app.cell_manager.document
+    manager.sessions["browser-1"] = session
+    await manager.event_bus.emit_session_created(session)  # type: ignore[arg-type]
+    events: list[RoutedEvent] = []
+    bridge.host.subscribe(events.append, notebook_id=record.id)
+    assert notebook.document.app_config == {}
+
+    # The legacy endpoint changes the config in the session and writes
+    # the file; the host document follows, and the write counts as saved.
+    session.app_file_manager.save_app_config({"width": "full"})
+
+    assert notebook.document.app_config == {"width": "full"}
+    assert notebook.saved_etag == notebook.document.etag
+    # One revision for the change, one for the write that saved it.
+    assert names(events) == ["document", "document"]
+    last = events[-1].event.data.document  # type: ignore[union-attr]
+    assert last.saved_etag == last.etag
+    assert 'width="full"' in path.read_text()
+
+    manager.close_session("browser-1")
+    assert session.app_file_manager.on_config_changed is None
+    bridge.close()
+
+
 async def test_the_editor_saving_marks_the_host_document_saved(
     manager: FakeManager, tmp_path: Path
 ) -> None:
@@ -1044,6 +1085,7 @@ async def test_session_notifications_join_the_notebook_stream_once(
         cell_id="cell-1",
         phase="planned",
         code="x = 1",
+        code_fingerprint=code_fingerprint("x = 1"),
     )
     session.broadcast(variables)
     session.broadcast(planned)
@@ -1112,9 +1154,9 @@ async def test_bridge_supplies_metadata_for_the_current_session(
         "extra": 7,
     }
     assert session.commands[-1].request.user == {}
-    session.broadcast(CompletedRunNotification(run_id=run.id))
     backend = bridge._backends[notebook.id]
-    assert backend._run is not None
-    assert backend._run.task is not None
-    await backend._run.task
+    task = backend._runs[run.id].task
+    assert task is not None
+    session.broadcast(CompletedRunNotification(run_id=run.id))
+    await task
     bridge.close()

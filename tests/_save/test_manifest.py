@@ -53,49 +53,110 @@ class TestManifestFormat:
     def test_round_trip() -> None:
         manifest = CacheManifest(
             notebook="../../nb.py",
-            nodes={"3f9c": {"train": {"C_ab12", "C_77e0"}}},
+            nodes={
+                "3f9c": {
+                    "train": {
+                        "C_ab12ab12ab12ab12ab12ab",
+                        "C_77e077e077e077e077e077",
+                    }
+                }
+            },
             written_at="2026-09-01T00:00:00+00:00",
         )
         assert CacheManifest.from_bytes(manifest.to_bytes()) == manifest
 
     @staticmethod
     def test_merge_unions_keys() -> None:
-        manifest = CacheManifest(nodes={"3f9c": {"train": {"C_ab12"}}})
+        manifest = CacheManifest(
+            nodes={"3f9c": {"train": {"C_ab12ab12ab12ab12ab12ab"}}}
+        )
         manifest.merge(
             CacheManifest(
                 nodes={
-                    "3f9c": {"train": {"C_77e0"}, "eval": {"E_0001"}},
+                    "3f9c": {
+                        "train": {"C_77e077e077e077e077e077"},
+                        "eval": {"E_0001"},
+                    },
                     "8d21": {"train": {"C_e4f9"}},
                 }
             )
         )
         assert manifest.nodes == {
-            "3f9c": {"train": {"C_ab12", "C_77e0"}, "eval": {"E_0001"}},
+            "3f9c": {
+                "train": {
+                    "C_ab12ab12ab12ab12ab12ab",
+                    "C_77e077e077e077e077e077",
+                },
+                "eval": {"E_0001"},
+            },
             "8d21": {"train": {"C_e4f9"}},
         }
 
     @staticmethod
     def test_merge_does_not_alias_the_other_manifest() -> None:
-        records = {"3f9c": {"train": {"C_ab12"}}}
+        records = {"3f9c": {"train": {"C_ab12ab12ab12ab12ab12ab"}}}
         manifest = CacheManifest()
         manifest.merge(CacheManifest(nodes=records))
-        records["3f9c"]["train"].add("C_77e0")
-        assert manifest.nodes == {"3f9c": {"train": {"C_ab12"}}}
+        records["3f9c"]["train"].add("C_77e077e077e077e077e077")
+        assert manifest.nodes == {
+            "3f9c": {"train": {"C_ab12ab12ab12ab12ab12ab"}}
+        }
 
     @staticmethod
     def test_evict_dead_returns_entries_and_keeps_live() -> None:
         manifest = CacheManifest(
             nodes={
-                "dead": {"train": {"C_ab12", "C_77e0"}},
+                "dead": {
+                    "train": {
+                        "C_ab12ab12ab12ab12ab12ab",
+                        "C_77e077e077e077e077e077",
+                    }
+                },
                 "live": {"train": {"C_e4f9"}},
             }
         )
         assert manifest.evict_dead({"live"}) == {
-            ("train", "C_ab12"),
-            ("train", "C_77e0"),
+            ("train", "C_ab12ab12ab12ab12ab12ab"),
+            ("train", "C_77e077e077e077e077e077"),
         }
         assert manifest.nodes == {"live": {"train": {"C_e4f9"}}}
         assert manifest.entries() == {("train", "C_e4f9")}
+
+    @staticmethod
+    def test_discard_forgets_entries_wherever_they_were_recorded() -> None:
+        manifest = CacheManifest(
+            nodes={
+                "3f9c": {
+                    "train": {
+                        "C_ab12ab12ab12ab12ab12ab",
+                        "C_77e077e077e077e077e077",
+                    },
+                    "eval": {"E_0001"},
+                },
+                "8d21": {"train": {"C_ab12ab12ab12ab12ab12ab"}},
+            }
+        )
+
+        manifest.discard(
+            {("train", "C_ab12ab12ab12ab12ab12ab"), ("eval", "E_0001")}
+        )
+
+        # A path hash left listing nothing goes with its last entry.
+        assert manifest.nodes == {
+            "3f9c": {"train": {"C_77e077e077e077e077e077"}}
+        }
+
+    @staticmethod
+    def test_discard_of_an_entry_no_node_lists() -> None:
+        manifest = CacheManifest(
+            nodes={"3f9c": {"train": {"C_ab12ab12ab12ab12ab12ab"}}}
+        )
+
+        manifest.discard({("eval", "C_ab12ab12ab12ab12ab12ab")})
+
+        assert manifest.nodes == {
+            "3f9c": {"train": {"C_ab12ab12ab12ab12ab12ab"}}
+        }
 
     @staticmethod
     def test_corrupt_manifest_raises() -> None:
@@ -109,7 +170,12 @@ class TestManifestFormat:
         with pytest.raises(CorruptManifestError):
             CacheManifest.from_bytes(
                 json.dumps(
-                    {"version": 1, "nodes": {"3f9c": {"train": "C_ab12"}}}
+                    {
+                        "version": 1,
+                        "nodes": {
+                            "3f9c": {"train": "C_ab12ab12ab12ab12ab12ab"}
+                        },
+                    }
                 ).encode()
             )
 
@@ -158,13 +224,15 @@ class TestManifestFormat:
         # Other bookkeeping a cache directory holds, and an entry.
         assert not is_manifest_name(export_manifest_name("nb.py"))
         assert not is_manifest_name("nb-0123456789abcdef.json.tmp0a1b2c3d")
-        assert not is_manifest_name("C_ab12.pickle")
+        assert not is_manifest_name("C_ab12ab12ab12ab12ab12ab.pickle")
 
     @staticmethod
     def test_load_manifest_reads_what_put_stored(tmp_path: Path) -> None:
         store = FileStore(save_path=str(tmp_path))
         assert load_manifest(store, "absent.json") is None
-        manifest = CacheManifest(nodes={"3f9c": {"train": {"C_ab12"}}})
+        manifest = CacheManifest(
+            nodes={"3f9c": {"train": {"C_ab12ab12ab12ab12ab12ab"}}}
+        )
         store.put("m.json", manifest.to_bytes())
         loaded = load_manifest(store, "m.json")
         assert loaded is not None
@@ -205,8 +273,10 @@ class TestAtomicPut:
         store = FileStore(save_path=str(tmp_path))
         block = tmp_path / "train"
         block.mkdir()
-        (block / "C_ab12.pickle").write_bytes(b"value")
-        leftover = block / partial_write_name("C_77e0.pickle")
+        (block / "C_ab12ab12ab12ab12ab12ab.pickle").write_bytes(b"value")
+        leftover = block / partial_write_name(
+            "C_77e077e077e077e077e077.pickle"
+        )
         leftover.write_bytes(b"half")
 
         PickleLoader("train", store=store).clear()
@@ -840,7 +910,7 @@ class TestRecording:
         payload = json.dumps(
             {
                 "version": MANIFEST_VERSION + 1,
-                "nodes": {"3f9c": {"train": ["C_ab12"]}},
+                "nodes": {"3f9c": {"train": ["C_ab12ab12ab12ab12ab12ab"]}},
             }
         ).encode()
         with _notebook_kernel(tmp_path) as (k, notebook, cache_dir):

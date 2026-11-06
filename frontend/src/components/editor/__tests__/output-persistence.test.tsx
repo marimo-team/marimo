@@ -41,7 +41,6 @@ function seedNotebook(
         code: "1 + 1",
         name: "test_cell",
         edited: false,
-        serializedEditorState: null,
         config: {
           disabled: false,
           hide_code: false,

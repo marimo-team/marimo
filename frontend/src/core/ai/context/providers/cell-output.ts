@@ -93,7 +93,7 @@ export class CellOutputContextProvider extends AIContextProvider<CellOutputConte
     const notebook = this.store.get(notebookAtom);
     const items: CellOutputContextItem[] = [];
 
-    for (const cellId of notebook.cellIds.inOrderIds) {
+    for (const cellId of notebook.cellIds) {
       const cellContextData = getCellContextData(cellId, notebook);
       const cellOutput = cellContextData.cellOutput;
 
@@ -358,7 +358,7 @@ export function getCellContextData(
   const cellRuntime = notebook.cellRuntime[cellId];
 
   const cellData = notebook.cellData[cellId];
-  const cellIndex = notebook.cellIds.inOrderIds.indexOf(cellId);
+  const cellIndex = notebook.cellIds.indexOf(cellId);
   const cellName = displayCellName(cellData.name, cellIndex);
 
   let consoleOutputs: BaseOutput[] | undefined;

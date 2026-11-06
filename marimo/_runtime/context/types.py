@@ -26,6 +26,7 @@ if TYPE_CHECKING:
         InternalApp,
     )
     from marimo._config.config import MarimoConfig
+    from marimo._config.provenance import ConfigPath
     from marimo._messaging.types import Stderr, Stdout, Stream
     from marimo._plugins.ui._core.registry import UIElementRegistry
     from marimo._runtime import dataflow
@@ -124,6 +125,11 @@ class RuntimeContext(abc.ABC):
         Get the marimo configuration.
         This is a merged configuration from the user config and project config.
         """
+
+    @property
+    def config_overrides(self) -> frozenset[ConfigPath]:
+        """Settings explicitly overridden in this runtime."""
+        return frozenset()
 
     @property
     def request(self) -> HTTPRequest | None:

@@ -9,7 +9,7 @@ import subprocess
 import sys
 import time
 from typing import cast
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 import pytest
 
@@ -172,7 +172,10 @@ async def test_try_kill_process_and_group_sigkills_stubborn_child(
     async def short_sleep(_delay: float) -> None:
         await real_sleep(0.05)
 
-    monkeypatch.setattr(asyncio, "sleep", short_sleep)
+    monkeypatch.setattr(
+        "marimo._utils.subprocess.asyncio",
+        Mock(wraps=asyncio, sleep=short_sleep),
+    )
 
     script = (
         "import signal, time\n"

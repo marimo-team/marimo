@@ -67,6 +67,10 @@ class MarimoAncestorStoppedError(msgspec.Struct, tag="ancestor-stopped"):
         return self.msg
 
 
+ANCESTOR_RAISED = "Ancestor raised"
+"""The exception type reported for a cell cancelled by an ancestor's exception."""
+
+
 class MarimoExceptionRaisedError(msgspec.Struct, tag="exception"):
     msg: str
     exception_type: str

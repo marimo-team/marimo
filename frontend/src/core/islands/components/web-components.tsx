@@ -104,7 +104,7 @@ export class MarimoIslandElement extends HTMLElement {
    */
   private getCellIdFromIndex(idx: number): CellId | undefined {
     const { cellIds } = store.get(notebookAtom);
-    return cellIds.inOrderIds.at(idx);
+    return cellIds.at(idx);
   }
 
   /**

@@ -25,7 +25,7 @@ export const CellLinkList: React.FC<Props> = ({
 }) => {
   const cellIndex = useCellIds();
   const sortedCellIds = cellIds.toSorted((a, b) => {
-    return cellIndex.inOrderIds.indexOf(a) - cellIndex.inOrderIds.indexOf(b);
+    return cellIndex.indexOf(a) - cellIndex.indexOf(b);
   });
 
   if (cellIds.length === 0) {

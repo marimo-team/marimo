@@ -16,7 +16,7 @@ from typing import TYPE_CHECKING, Any, Protocol
 if TYPE_CHECKING:
     import asyncio
     import threading
-    from collections.abc import Iterator
+    from collections.abc import Iterator, Sequence
 
     from marimo._config.manager import MarimoConfigManager
     from marimo._environments.sandbox import NotebookSandbox
@@ -233,6 +233,8 @@ class Session(Protocol):
         request: Any,
         *,
         http_request: commands.HTTPRequest | None,
+        execution_requests: Sequence[commands.ExecuteCellCommand]
+        | None = None,
     ) -> None:
         """Instantiate the app."""
         ...

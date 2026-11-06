@@ -997,11 +997,11 @@ class TestLspProxyAuth:
             def exchange():
                 client = TestClient(app)
                 with client.websocket_connect(
-                    "/notebook/lsp/test-lsp/ws",
+                    "ws://localhost/notebook/lsp/test-lsp/ws",
                     headers={
                         **token_header("fake-token"),
                         "Marimo-LSP-Token": "client-cannot-override-this",
-                        "Origin": "http://testserver",
+                        "Origin": "http://localhost",
                     },
                 ) as websocket:
                     websocket.send_text("LSP message")

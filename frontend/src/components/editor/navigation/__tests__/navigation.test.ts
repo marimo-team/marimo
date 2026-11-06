@@ -27,6 +27,7 @@ import { aiCompletionCellAtom } from "@/core/ai/state";
 import type { CellActions } from "@/core/cells/actions";
 import { notebookAtom } from "@/core/cells/cells";
 import type { CellId } from "@/core/cells/ids";
+import { layoutAtom } from "@/core/cells/layout";
 import type { DocumentModel } from "@/core/notebook/document";
 import {
   cell,
@@ -124,7 +125,6 @@ afterAll(() => {
 });
 
 import { defaultUserConfig } from "@/core/config/config-schema";
-import { MultiColumn } from "@/utils/id-tree";
 import { focusCell, focusCellEditor } from "../focus-utils";
 import {
   type CellSelectionState,
@@ -165,7 +165,6 @@ const mockCellActions = MockNotebook.cellActions({
   moveCell: vi.fn(),
   sendToTop: vi.fn(),
   sendToBottom: vi.fn(),
-  markTouched: vi.fn(),
   deleteCells: vi.fn(),
   undoDeleteCell: vi.fn(),
 });
@@ -318,7 +317,7 @@ describe("useCellNavigationProps", () => {
       selectionActions.select({ cellId: cellId1 });
       selectionActions.extend({
         cellId: cellId2,
-        allCellIds: store.get(notebookAtom).cellIds,
+        layout: store.get(layoutAtom),
       });
 
       const { result } = renderWithProvider(() =>
@@ -850,7 +849,7 @@ describe("useCellNavigationProps", () => {
       selectionActions.select({ cellId: cellId1 });
       selectionActions.extend({
         cellId: cellId2,
-        allCellIds: store.get(notebookAtom).cellIds,
+        layout: store.get(layoutAtom),
       });
 
       const { result } = renderWithProvider(() =>
@@ -873,7 +872,7 @@ describe("useCellNavigationProps", () => {
       selectionActions.select({ cellId: cellId1 });
       selectionActions.extend({
         cellId: cellId3,
-        allCellIds: store.get(notebookAtom).cellIds,
+        layout: store.get(layoutAtom),
       });
 
       const { result } = renderWithProvider(() =>
@@ -896,7 +895,7 @@ describe("useCellNavigationProps", () => {
       selectionActions.select({ cellId: cellId1 });
       selectionActions.extend({
         cellId: cellId3,
-        allCellIds: store.get(notebookAtom).cellIds,
+        layout: store.get(layoutAtom),
       });
 
       const { result } = renderWithProvider(() =>
@@ -919,7 +918,7 @@ describe("useCellNavigationProps", () => {
       selectionActions.select({ cellId: cellId2 });
       selectionActions.extend({
         cellId: cellId3,
-        allCellIds: store.get(notebookAtom).cellIds,
+        layout: store.get(layoutAtom),
       });
 
       const { result } = renderWithProvider(() =>
@@ -954,7 +953,7 @@ describe("useCellNavigationProps", () => {
       selectionActions.select({ cellId: cellId1 });
       selectionActions.extend({
         cellId: cellId2,
-        allCellIds: store.get(notebookAtom).cellIds,
+        layout: store.get(layoutAtom),
       });
 
       const { result } = renderWithProvider(() =>
@@ -990,7 +989,7 @@ describe("useCellNavigationProps", () => {
       selectionActions.select({ cellId: cellId2 });
       selectionActions.extend({
         cellId: cellId3,
-        allCellIds: store.get(notebookAtom).cellIds,
+        layout: store.get(layoutAtom),
       });
 
       const { result } = renderWithProvider(() =>
@@ -1023,7 +1022,7 @@ describe("useCellNavigationProps", () => {
       selectionActions.select({ cellId: cellId1 });
       selectionActions.extend({
         cellId: cellId2,
-        allCellIds: store.get(notebookAtom).cellIds,
+        layout: store.get(layoutAtom),
       });
 
       const { result } = renderWithProvider(() =>
@@ -1056,7 +1055,7 @@ describe("useCellNavigationProps", () => {
       selectionActions.select({ cellId: cellId1 });
       selectionActions.extend({
         cellId: cellId2,
-        allCellIds: store.get(notebookAtom).cellIds,
+        layout: store.get(layoutAtom),
       });
 
       const { result } = renderWithProvider(() =>
@@ -1084,7 +1083,7 @@ describe("useCellNavigationProps", () => {
       selectionActions.select({ cellId: cellId2 });
       selectionActions.extend({
         cellId: cellId3,
-        allCellIds: store.get(notebookAtom).cellIds,
+        layout: store.get(layoutAtom),
       });
 
       const { result } = renderWithProvider(() =>
@@ -1138,7 +1137,7 @@ describe("useCellNavigationProps", () => {
       selectionActions.select({ cellId: cellId1 });
       selectionActions.extend({
         cellId: cellId2,
-        allCellIds: store.get(notebookAtom).cellIds,
+        layout: store.get(layoutAtom),
       });
 
       const { result } = renderWithProvider(() =>
@@ -1166,7 +1165,7 @@ describe("useCellNavigationProps", () => {
       selectionActions.select({ cellId: cellId1 });
       selectionActions.extend({
         cellId: cellId2,
-        allCellIds: store.get(notebookAtom).cellIds,
+        layout: store.get(layoutAtom),
       });
 
       const { result } = renderWithProvider(() =>
@@ -1228,7 +1227,7 @@ describe("useCellNavigationProps", () => {
       selectionActions.select({ cellId: cellId1 });
       selectionActions.extend({
         cellId: cellId2,
-        allCellIds: store.get(notebookAtom).cellIds,
+        layout: store.get(layoutAtom),
       });
 
       const { result } = renderWithProvider(() =>
@@ -1427,12 +1426,27 @@ describe("useCellNavigationProps", () => {
           },
         },
       });
-      // Override cellIds to be multi-column
-      notebookState.cellIds = MultiColumn.from([
-        [cellId1, cellId3],
-        [cellId2, cellId4, cellId5],
-      ]);
       store.set(notebookAtom, notebookState);
+      // The layout reads columns from the document's cells.
+      stopModel();
+      const inColumn = (id: CellId, column: number) =>
+        cell(id, "", { config: { ...CONFIG, column } });
+      ({ model, stop: stopModel } = mockDocumentModel(
+        store,
+        withCells(
+          documentOf(),
+          {
+            c1: null,
+            c2: null,
+            [cellId1]: inColumn(cellId1, 0),
+            [cellId3]: inColumn(cellId3, 0),
+            [cellId2]: inColumn(cellId2, 1),
+            [cellId4]: inColumn(cellId4, 1),
+            [cellId5]: inColumn(cellId5, 1),
+          },
+          [cellId1, cellId3, cellId2, cellId4, cellId5],
+        ),
+      ));
 
       // Mock DOM elements and their positions
       const mockGetElementById = vi.spyOn(document, "getElementById");
@@ -1622,7 +1636,7 @@ describe("useCellNavigationProps", () => {
       selectionActions.select({ cellId: cellId1 });
       selectionActions.extend({
         cellId: cellId2,
-        allCellIds: store.get(notebookAtom).cellIds,
+        layout: store.get(layoutAtom),
       });
 
       const { result } = renderWithProvider(() =>

@@ -14,6 +14,7 @@ import { Toolbar } from "@/components/layout/toolbar";
 import { Button } from "@/components/ui/button";
 import { Tooltip } from "@/components/ui/tooltip";
 import { useNotebook } from "@/core/cells/cells";
+import { columnOf, useLayout } from "@/core/cells/layout";
 import type { CellId } from "@/core/cells/ids";
 import { getDescendantsStatus } from "@/core/cells/utils";
 import { cn } from "@/utils/cn";
@@ -64,7 +65,11 @@ export const CollapsedCellBanner: React.FC<{
   count: number;
 }> = memo(({ onClick, count, cellId }) => {
   const notebook = useNotebook();
-  const states = getDescendantsStatus(notebook, cellId);
+  const layout = useLayout();
+  const states = getDescendantsStatus(
+    notebook,
+    columnOf(layout, cellId).folds.get(cellId) ?? [],
+  );
 
   return (
     <button

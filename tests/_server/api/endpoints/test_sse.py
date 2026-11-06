@@ -23,9 +23,6 @@ from marimo._messaging.serde import serialize_kernel_message
 from marimo._server.api.endpoints.ws.ws_connection_validator import (
     ConnectionParams,
 )
-from marimo._server.api.endpoints.ws.ws_session_connector import (
-    ConnectionType,
-)
 from marimo._server.host.session import SessionEventStream
 from marimo._server.sse import format_close_event, format_sse_event
 from marimo._session.managers.ipc import KernelStartupError
@@ -492,7 +489,6 @@ def _make_handler(
         file_key="test.py",
         kiosk=False,
         auto_instantiate=False,
-        rtc_enabled=False,
     )
     handler = SessionEventStream(
         connection=request,
@@ -502,7 +498,6 @@ def _make_handler(
         cursor=None,
         manager=MagicMock(mode=mode),
         params=params,
-        doc_manager=MagicMock(),
         heartbeat_seconds=60,
     )
     handler.status = ConnectionState.OPEN
@@ -515,9 +510,8 @@ def _make_handler(
     )
     handler.manager.get_session.return_value = session
 
-    async def connect(_request: Any) -> tuple[Any, ConnectionType]:
+    async def connect(_request: Any) -> None:
         handler.on_attach(session, MagicMock())
-        return session, ConnectionType.NEW
 
     handler._connect_session = AsyncMock(  # type: ignore[method-assign]
         side_effect=connect

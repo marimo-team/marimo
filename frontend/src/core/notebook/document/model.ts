@@ -31,8 +31,6 @@ export interface DocumentModel {
   flush(): Promise<Protocol.Document>;
   /** Retry a rejection against fresh state, or repeat an uncertain request exactly. */
   retry(): Promise<Protocol.Document>;
-  /** Keep edits local until the returned release is called. A no-op while stopped. */
-  hold(): () => void;
   /**
    * Edit and synchronize until the signal aborts, which discards local drafts.
    * The model can start again once stopped.
@@ -80,7 +78,6 @@ export function createDocumentModel({
     }),
     flush: () => store.get(runningAtom)?.sync.flush() ?? stopped(),
     retry: () => store.get(runningAtom)?.sync.retry() ?? stopped(),
-    hold: () => store.get(runningAtom)?.sync.hold() ?? (() => undefined),
     start({ signal }) {
       signal.throwIfAborted();
       if (store.get(runningAtom)) {

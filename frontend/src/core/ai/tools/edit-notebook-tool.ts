@@ -7,7 +7,11 @@ import { type NotebookState, notebookAtom } from "@/core/cells/cells";
 import type { CreateCellOptions } from "@/core/cells/actions";
 import { CellId } from "@/core/cells/ids";
 import { prepareCellCodeUpdate } from "@/core/codemirror/language/cell-code";
-import type { CellColumnId } from "@/utils/id-tree";
+import {
+  type CellColumnId,
+  type Layout,
+  layoutAtom,
+} from "@/core/cells/layout";
 import { stagedAICellsAtom } from "../staged-cells";
 import {
   type AiTool,
@@ -21,7 +25,7 @@ import type { CopilotMode } from "./registry";
 
 const description: ToolDescription = {
   baseDescription:
-    "Perform editing operations on the current notebook. You should prefer to create new cells unless you need to edit existing cells. Call this tool multiple times to perform multiple edits. Separate code into logical individual cells to take advantage of the notebook's reactive execution model.",
+    "Propose cell edits for the user to review in the current notebook. You should prefer to create new cells unless you need to edit existing cells. Call this tool multiple times to perform multiple edits. Separate code into logical individual cells to take advantage of the notebook's reactive execution model.",
   prerequisites: [
     "If you are updating existing cells, you need the cellIds. If they are not known, call the lightweight_cell_map_tool to find out.",
   ],
@@ -201,7 +205,10 @@ export class EditNotebookTool implements AiTool<
             }
 
             placement = {
-              endOf: this.getColumnId(position.columnIndex, notebook),
+              endOf: this.getColumnId(
+                position.columnIndex,
+                store.get(layoutAtom),
+              ),
             };
             break;
 
@@ -254,14 +261,12 @@ export class EditNotebookTool implements AiTool<
       next_steps: [
         "If you need to perform more edits, call this tool again.",
         "You should use the lint notebook tool to check for errors and lint issues. Fix them by editing the notebook.",
-        "You should use the run stale cells tool to run the cells that have been edited or newly added. This allows you to see the output of the cells and fix any errors.",
       ],
     };
   };
 
   private validateCellIdExists(cellId: CellId, notebook: NotebookState) {
-    const cellIds = notebook.cellIds;
-    if (!cellIds.getColumns().some((column) => column.idSet.has(cellId))) {
+    if (!notebook.cellIds.includes(cellId)) {
       throw new ToolExecutionError("Cell not found", {
         code: "CELL_NOT_FOUND",
         isRetryable: false,
@@ -270,12 +275,8 @@ export class EditNotebookTool implements AiTool<
     }
   }
 
-  private getColumnId(
-    columnIndex: number,
-    notebook: NotebookState,
-  ): CellColumnId {
-    const cellIds = notebook.cellIds;
-    const columns = cellIds.getColumns();
+  private getColumnId(columnIndex: number, layout: Layout): CellColumnId {
+    const { columns } = layout;
 
     if (columnIndex < 0 || columnIndex >= columns.length) {
       throw new ToolExecutionError("Column index is out of range", {

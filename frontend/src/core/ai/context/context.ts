@@ -7,6 +7,7 @@ import {
 import { getRequestClient } from "@/core/network/requests";
 import type { JotaiStore } from "@/core/state/jotai";
 import { variablesAtom } from "@/core/variables/state";
+import { CellContextProvider } from "./providers/cell";
 import { CellOutputContextProvider } from "./providers/cell-output";
 import { DatasourceContextProvider } from "./providers/datasource";
 import { ErrorContextProvider } from "./providers/error";
@@ -25,6 +26,7 @@ export function getAIContextRegistry(store: JotaiStore) {
     .register(new VariableContextProvider(variables, tablesMap))
     .register(new ErrorContextProvider(store))
     .register(new CellOutputContextProvider(store))
+    .register(new CellContextProvider(store))
     .register(
       new DatasourceContextProvider(datasource.connectionsMap, tablesMap),
     );

@@ -272,7 +272,7 @@ describe("useNotebookSession document model", () => {
     });
 
     let notebook = store.get(notebookAtom);
-    expect(notebook.cellIds.inOrderIds).toEqual(["c1", "c3", "k7f2"]);
+    expect(notebook.cellIds).toEqual(["c1", "c3", "k7f2"]);
     expect(notebook.cellData[cellId("k7f2")]).toMatchObject({
       code: "y = x * 2",
       config: { hide_code: true },

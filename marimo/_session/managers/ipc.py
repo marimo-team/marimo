@@ -179,6 +179,9 @@ class IPCQueueManagerImpl(QueueManager):
     def close_queues(self) -> None:
         self._ipc.close_queues()
 
+    def request_kernel_stop(self) -> None:
+        self._ipc.request_kernel_stop()
+
     def put_control_request(self, request: commands.CommandMessage) -> None:
         route_control_request(
             request,
@@ -308,10 +311,14 @@ class IPCKernelManagerImpl(KernelManager):
         from marimo._cli.print import echo, muted
         from marimo._ipc.types import KernelArgs
 
+        resolved = self.config_manager.get_config_with_sources(
+            hide_secrets=False
+        )
         kernel_args = KernelArgs(
             configs=self.configs,
             app_metadata=self.app_metadata,
-            user_config=self.config_manager.get_config(hide_secrets=False),
+            user_config=resolved.config,
+            config_overrides=resolved.override_paths,
             log_level=GLOBAL_SETTINGS.LOG_LEVEL,
             profile_path=self.profile_path,
             connection_info=self.connection_info,
@@ -697,9 +704,8 @@ class IPCKernelManagerImpl(KernelManager):
 
     def close_kernel(self, *, graceful: bool = False) -> None:
         if self._process is not None:
-            self.queue_manager.put_control_request(
-                commands.StopKernelCommand()
-            )
+            if self.is_alive():
+                self.queue_manager.request_kernel_stop()
             # A clean stop lets the kernel flush pending work (the
             # profile dump, cache writes) before we kill it. Unlike the
             # multiprocessing manager, every wait here is bounded.

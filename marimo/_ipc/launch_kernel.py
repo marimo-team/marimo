@@ -46,6 +46,7 @@ def main() -> None:
         app_metadata=args.app_metadata,
         log_level=args.log_level,
         user_config=args.user_config,
+        config_overrides=args.config_overrides,
         configs=args.configs,
         profile_path=args.profile_path,
         # None (the default) means no web server serves /@file/ URLs, so

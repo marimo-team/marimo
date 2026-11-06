@@ -13,8 +13,6 @@ import { notebookCellEditorViews } from "../cells/utils";
 import { getResolvedMarimoConfig } from "../config/config";
 import type { ConnectionName } from "../datasets/engines";
 import { getRequestClient } from "../network/requests";
-import { cellActionsState } from "./cells/state";
-import { cellIdState } from "./config/extension";
 import { languageAdapterState } from "./language/extension";
 import { SCHEMA_CACHE } from "./language/languages/sql/completion-store";
 import { isKnownDialect } from "./language/languages/sql/utils";
@@ -54,15 +52,9 @@ export async function formatEditorViews(views: Record<CellId, EditorView>) {
       continue;
     }
 
-    const actions = view.state.facet(cellActionsState);
-    actions.updateCellCode({
-      cellId,
-      code: formattedCode,
-      formattingChange: true,
-    });
     const update = prepareCellCodeUpdate(view.state, formattedCode);
     if (update) {
-      view.dispatch(update);
+      view.dispatch(update, { effects: formattingChangeEffect.of(true) });
     }
   }
 }
@@ -110,16 +102,6 @@ export async function formatSQL(editor: EditorView, engine: ConnectionName) {
     Logger.error("Error formatting SQL", { error });
     return;
   }
-
-  // Update Python in the notebook state
-  const codeAsPython = languageAdapter.transformIn(formattedSQL)[0];
-  const actions = editor.state.facet(cellActionsState);
-  const cellId = editor.state.facet(cellIdState);
-  actions.updateCellCode({
-    cellId,
-    code: codeAsPython,
-    formattingChange: true,
-  });
 
   // Update editor with formatted SQL
   replaceEditorContent(editor, formattedSQL, {

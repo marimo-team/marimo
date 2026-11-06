@@ -4,13 +4,18 @@ from __future__ import annotations
 import contextlib
 import os
 import re
+import shutil
 from pathlib import Path
 
 from marimo import _loggers
 from marimo._runtime.runtime import notebook_dir
 from marimo._save.cache_dirs import partial_write_name
 from marimo._save.stores.store import Store
-from marimo._utils.paths import MARIMO_DIR_NAME, notebook_output_dir
+from marimo._utils.paths import (
+    MARIMO_DIR_NAME,
+    normalize_path,
+    notebook_output_dir,
+)
 
 LOGGER = _loggers.marimo_logger()
 
@@ -101,6 +106,11 @@ class FileStore(Store):
             return [self._resolved_save_path]
         return [self._default_target()]
 
+    def clearable_root(self) -> Path | None:
+        # Resolved, unlike `local_dirs`: `clear` acts on the fallback when
+        # the default target cannot be written.
+        return self.save_path
+
     def get(self, key: str) -> bytes | None:
         if not self._initialized:
             self._init_save_path()
@@ -137,9 +147,17 @@ class FileStore(Store):
         return _valid_path(path)
 
     def clear(self, key: str) -> bool:
-        path = self.save_path / key
-        path.parent.mkdir(parents=True, exist_ok=True)
-        if not _valid_path(path):
+        root = self.save_path.resolve()
+        path = root / key
+        # A parent symlink can escape the store despite a relative key.
+        path = normalize_path(path.parent.resolve() / path.name)
+        if path == root or not path.is_relative_to(root):
             return False
-        path.unlink()
+        if path.is_dir() and not path.is_symlink():
+            shutil.rmtree(path, ignore_errors=True)
+            return not path.exists()
+        try:
+            path.unlink()
+        except FileNotFoundError:
+            return False
         return True

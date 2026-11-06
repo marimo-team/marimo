@@ -50,6 +50,7 @@ def redact_secrets(config: MarimoConfig) -> MarimoConfig:
             deep_remove_from_path(remaining_path, obj[key])
 
     secrets = (
+        ("server", "session_secret"),
         ("ai", "*", "api_key"),
         ("ai", "custom_providers", "*", "api_key"),
         ("ai", "bedrock", "aws_access_key_id"),

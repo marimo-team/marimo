@@ -8,7 +8,6 @@ import { getResolvedMarimoConfig } from "./config";
 export interface ExperimentalFeatures {
   markdown: boolean; // Used in playground (community cloud)
   wasm_layouts: boolean; // Used in playground (community cloud)
-  rtc_v2: boolean;
   cache_panel: boolean;
   external_agents: boolean;
   debugger: boolean; // Live frame-watching debugger (gutter breakpoints + pdb)
@@ -19,7 +18,6 @@ export interface ExperimentalFeatures {
 const defaultValues: ExperimentalFeatures = {
   markdown: true,
   wasm_layouts: false,
-  rtc_v2: false,
   cache_panel: import.meta.env.DEV,
   external_agents: import.meta.env.DEV,
   debugger: false,
