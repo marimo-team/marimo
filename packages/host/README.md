@@ -9,6 +9,17 @@ and event streams.
 implementations typed requests, responses, errors, and events, and describe the
 same protocol for clients and code generators.
 
+## Installing from GitHub
+
+Select this package's subdirectory at a GitHub revision:
+
+```sh
+pnpm add 'github:marimo-team/marimo#<commit>&path:/packages/host'
+```
+
+The `prepare` script compiles the checked-in sources into `dist`. pnpm may
+require allowing the build for that Git revision in `allowBuilds`.
+
 ## Implementing a host
 
 Import `{ Host }` from `@marimo-team/host` and create a handler layer with

@@ -10,6 +10,7 @@
   "files": ["dist"],
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
+    "prepare": "npm run build",
     "typecheck": "tsgo",
     "test": "vitest",
     "openapi": "node --experimental-strip-types scripts/export-openapi.ts",
