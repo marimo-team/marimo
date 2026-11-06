@@ -96,8 +96,6 @@ async def websocket_messages(
         ("wss://example.com/ws", "https://example.com:443"),
         ("wss://example.com:443/ws", "https://example.com"),
         ("wss://example.com:8443/ws", "https://EXAMPLE.COM:8443"),
-        ("http://example.com/ws", "http://example.com"),
-        ("https://example.com:443/ws", "https://example.com"),
         ("ws://localhost:2718/ws", None),
     ],
 )

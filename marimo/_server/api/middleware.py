@@ -201,8 +201,7 @@ class WebSocketOriginMiddleware:
             return await self.app(scope, receive, send)
 
         origin = self._parse_origin(origins[0]) if len(origins) == 1 else None
-        # Older Uvicorn versions preserve HTTP schemes from trusted proxies.
-        scheme = "https" if scope["scheme"] in ("https", "wss") else "http"
+        scheme = "https" if scope["scheme"] == "wss" else "http"
         server_origin = self._parse_origin(
             f"{scheme}://{websocket.headers.get('host', '')}"
         )
