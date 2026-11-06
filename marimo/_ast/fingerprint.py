@@ -15,8 +15,9 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from collections.abc import Callable
 
-# Source positions, expression context, and the string prefix carry no
-# meaning. `type_comment` is version dependent.
+# Source positions and expression context carry no meaning, and
+# `type_comment` is version dependent. The `u` string prefix stays: it is
+# kept in a postponed annotation.
 _SKIPPED_FIELDS = frozenset(
     {
         "lineno",
@@ -24,7 +25,6 @@ _SKIPPED_FIELDS = frozenset(
         "end_lineno",
         "end_col_offset",
         "ctx",
-        "kind",
         "type_comment",
     }
 )
@@ -73,7 +73,8 @@ def _feed(node: object, write: Callable[[bytes], object]) -> None:
             if name in _SKIPPED_FIELDS:
                 continue
             value = getattr(node, name, None)
-            if not literal and not value and not isinstance(value, str):
+            keep = literal and name == "value"
+            if not keep and not value and not isinstance(value, str):
                 continue
             write(b" " + name.encode("utf-8") + b"=")
             _feed(value, write)

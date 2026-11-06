@@ -1111,3 +1111,41 @@ async def test_wrapper_around_callable_object_remains_callable() -> None:
             ]
         )
         assert k.globals.get("r") == 4
+
+
+def test_stale_function_object_after_reload_keys_apart(tmp_path: Path) -> None:
+    import importlib
+    import sys
+
+    module = tmp_path / "kept_alive.py"
+    module.write_text("def cb():\n    return 1\n")
+    sys.path.insert(0, str(tmp_path))
+    try:
+        mod = importlib.import_module("kept_alive")
+        old = mod.cb
+        module.write_text("def cb():\n    return 123\n")
+        importlib.reload(mod)
+    finally:
+        sys.path.remove(str(tmp_path))
+    assert old() == 1
+    assert mod.cb() == 123
+    assert hash_wrapped_functions(old) != hash_wrapped_functions(mod.cb)
+
+
+def test_restored_method_keeps_its_class_in_the_key() -> None:
+    import linecache
+
+    from marimo._ast.compiler import compile_cell
+    from marimo._save.stubs.function_stub import FunctionStub
+
+    cell = compile_cell(
+        "class A:\n    def method(self):\n        return 1\ncb = A.method",
+        cell_id=CellId_t("stub-method"),
+    )
+    namespace: dict[str, Any] = {}
+    exec(cell.body, namespace)  # noqa: S102
+    method = namespace["cb"]
+    before = hash_wrapped_functions(method)
+    stub = FunctionStub(method)
+    linecache.cache.pop(method.__code__.co_filename, None)
+    assert hash_wrapped_functions(stub.load({})) == before
