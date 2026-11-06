@@ -19,7 +19,7 @@ type ExtensionEvent<Name extends string> = Name extends unknown
 export type StreamEvent<K extends string = Protocol.ObjectTypeOutput> =
   | Extract<
       Protocol.EventOutput,
-      { event: K | `${K}.removed` | "ready" | "reset" }
+      { event: K | `${K}.removed` | `${K}.update` | "ready" | "reset" }
     >
   | ExtensionEvent<Exclude<K, Protocol.ObjectTypeOutput>>;
 
@@ -90,8 +90,12 @@ export class EventStream<const K extends string = Protocol.ObjectTypeOutput> {
       "ready",
       "reset",
       ...(init.types ?? kinds).flatMap((kind) => {
-        const removed = `${kind}.removed`;
-        return PROTOCOL_EVENTS.has(removed) ? [kind, removed] : [kind];
+        return [
+          kind,
+          ...[`${kind}.removed`, `${kind}.update`].filter((event) =>
+            PROTOCOL_EVENTS.has(event),
+          ),
+        ];
       }),
     ]);
   }

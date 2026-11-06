@@ -42,3 +42,8 @@ export {
   type NotebookResourceEvent,
 } from "./reducers/notebook.ts";
 export type { HandlerContext } from "./reducers/resources.ts";
+export {
+  uiElements,
+  type UIElements,
+  type ConfirmedUIElement,
+} from "./notebook/ui-elements.ts";

@@ -2,6 +2,8 @@
 
 import { Logger } from "@/utils/Logger";
 import type { CellId, UIElementId } from "../cells/ids";
+import { FUNCTIONS_REGISTRY } from "../functions/FunctionRegistry";
+import type { FunctionRequest } from "../functions/host-function";
 import {
   MarimoIncomingMessageEvent,
   MarimoValueReadyEvent,
@@ -44,6 +46,26 @@ interface UIElementEntry {
  * Expects object IDs to have the form <cellId>-<suffixId>
  */
 export class UIElementRegistry {
+  private functionSource:
+    | ((id: string) => FunctionRequest | undefined)
+    | undefined;
+
+  public connectFunctions(source: (id: string) => FunctionRequest | undefined) {
+    this.functionSource = source;
+    return () => {
+      if (this.functionSource === source) {
+        this.functionSource = undefined;
+      }
+    };
+  }
+
+  public functionRequest(id: string | null): FunctionRequest {
+    return (
+      (id === null ? undefined : this.functionSource?.(id)) ??
+      ((request) => FUNCTIONS_REGISTRY.request(request))
+    );
+  }
+
   // maps UIElement objectIds to entries.
   public entries: Map<UIElementId, UIElementEntry>;
 

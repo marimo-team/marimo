@@ -141,6 +141,32 @@ class NotebookOperations {
     });
   }
 
+  /** Request a partial UI element state update. Applied state arrives on the stream. */
+  public updateUIElement(
+    elementId: string,
+    state: Protocol.UIElementPartialState,
+    options?: MutationOptions,
+  ): Promise<Result<Protocol.UIElementUpdateResponseOutput>> {
+    return this.#send("ui_element.update", {
+      params: { element_id: elementId },
+      body: { state },
+      options,
+    });
+  }
+
+  /** Call a registered function and receive its result without stream events. */
+  public sendUIElement(
+    elementId: string,
+    message: Protocol.UIElementFunctionCall,
+    options?: MutationOptions,
+  ): Promise<Result<Protocol.UIElementSendResponseOutput>> {
+    return this.#send("ui_element.send", {
+      params: { element_id: elementId },
+      body: { message },
+      options,
+    });
+  }
+
   /** Interrupt a run. */
   public interrupt(
     runId: Protocol.RunId,

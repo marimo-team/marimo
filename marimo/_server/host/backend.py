@@ -12,7 +12,11 @@ from marimo import _loggers
 from marimo._core import backend as be, protocol
 from marimo._messaging.notification import (
     NotebookDocumentTransactionNotification,
+    RemoveUIElementsNotification,
     StartupProgressNotification,
+    UIElementCreatedNotification,
+    UIElementResultNotification,
+    UIElementUpdatedNotification,
     VariableValuesNotification,
 )
 from marimo._messaging.serde import deserialize_kernel_message
@@ -22,6 +26,8 @@ from marimo._runtime.commands import (
     ExecuteCellsCommand,
     ExecuteScratchpadCommand,
     HTTPRequest,
+    InvokeFunctionCommand,
+    UpdateUIElementCommand,
 )
 from marimo._server.host.events import notification_event
 from marimo._server.host.handover import Handover, Turn
@@ -35,7 +41,13 @@ from marimo._session.consumer import SessionConsumer
 from marimo._session.model import ConnectionState
 from marimo._session.requests import InstantiateNotebookRequest
 from marimo._session.types import KernelState
-from marimo._types.ids import CellId_t, ConsumerId, SessionId
+from marimo._types.ids import (
+    CellId_t,
+    ConsumerId,
+    RequestId,
+    SessionId,
+    UIElementId,
+)
 from marimo._version import __version__
 
 if TYPE_CHECKING:
@@ -180,6 +192,43 @@ class SessionBackend(SessionConsumer):
                 return
         # Closing an unregistered session still detaches its consumers.
         session.close()
+
+    def update_ui_element(
+        self,
+        element_id: str,
+        state: protocol.UIElementPartialState,
+        request_id: str,
+    ) -> None:
+        session = self.session
+        assert session is not None
+        session.put_control_request(
+            UpdateUIElementCommand(
+                object_ids=[UIElementId(element_id)],
+                values=[None if state.value is msgspec.UNSET else state.value],
+                value_supplied=state.value is not msgspec.UNSET,
+                request_id=request_id,
+            ),
+            from_consumer_id=None,
+        )
+
+    def send_ui_element(
+        self,
+        element_id: str,
+        message: protocol.UIElementFunctionCall,
+        call_id: str,
+    ) -> None:
+        session = self.session
+        assert session is not None
+        session.put_control_request(
+            InvokeFunctionCommand(
+                function_call_id=RequestId(call_id),
+                namespace=element_id,
+                function_name=message.function,
+                args=message.args,
+                host_call=True,
+            ),
+            from_consumer_id=None,
+        )
 
     def run(self, run_id: protocol.RunId, code: str) -> None:
         session = self.session
@@ -458,10 +507,79 @@ class SessionBackend(SessionConsumer):
     def notify(self, notification: KernelMessage) -> None:
         message = deserialize_kernel_message(notification)
         with self._sink.deferred():
-            self._sink.append(notification_event(self._notebook_id, message))
+            if not isinstance(
+                message,
+                (
+                    UIElementCreatedNotification,
+                    UIElementUpdatedNotification,
+                    UIElementResultNotification,
+                ),
+            ):
+                self._sink.append(
+                    notification_event(self._notebook_id, message)
+                )
             self._handle_notification(message)
 
     def _handle_notification(self, message: NotificationMessage) -> None:
+        if isinstance(message, UIElementResultNotification):
+            if self._kernel is not None:
+                self._observe(
+                    be.UIElementResult(
+                        self._kernel.runtime_id,
+                        message.function_call_id,
+                        protocol.UIElementFunctionResult(
+                            return_value=message.return_value,
+                            found=message.found,
+                            status=protocol.UIElementFunctionStatus(
+                                code=message.status.code,
+                                title=message.status.title,
+                                message=message.status.message,
+                            ),
+                        ),
+                    )
+                )
+            return
+        if isinstance(message, UIElementUpdatedNotification):
+            if self._kernel is not None:
+                self._observe(
+                    be.UIElementUpdated(
+                        self._kernel.runtime_id,
+                        message.id,
+                        msgspec.convert(
+                            message.state, type=protocol.UIElementPartialState
+                        ),
+                        message.request_id,
+                    )
+                )
+            return
+        if isinstance(message, RemoveUIElementsNotification):
+            if self._kernel is not None:
+                self._observe(
+                    be.UIElementsRemoved(
+                        self._kernel.runtime_id,
+                        protocol.CellId(message.cell_id),
+                    )
+                )
+            return
+        if isinstance(message, UIElementCreatedNotification):
+            if self._kernel is not None:
+                self._observe(
+                    be.UIElementCreated(
+                        self._kernel.runtime_id,
+                        protocol.UIElement(
+                            id=message.id,
+                            kind="element",
+                            cell_id=protocol.CellId(message.cell_id),
+                            config=protocol.UIElementConfig(
+                                component=message.component,
+                                label=message.label,
+                                args=message.args,
+                            ),
+                            state=protocol.UIElementState(value=message.value),
+                        ),
+                    )
+                )
+            return
         if isinstance(message, VariableValuesNotification):
             for out in variable_messages(message):
                 self._observe(out)

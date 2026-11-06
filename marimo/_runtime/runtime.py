@@ -67,6 +67,7 @@ from marimo._messaging.notification import (
     NotebookDocumentTransactionNotification,
     RemoveUIElementsNotification,
     UIElementMessageNotification,
+    UIElementUpdatedNotification,
     VariableDeclarationNotification,
     VariableRemoval,
     VariablesNotification,
@@ -2417,6 +2418,16 @@ class Kernel:
         Returns True if any ui elements were set, False otherwise
         """
         updated_components: list[UIElement[Any, Any]] = []
+        request_id = request.request_id
+        if not request.value_supplied:
+            for object_id in request.object_ids:
+                broadcast_notification(
+                    UIElementUpdatedNotification(
+                        id=object_id, state={}, request_id=request_id
+                    ),
+                    self.stream,
+                )
+            return False
 
         # Resolve lenses on request, if any: any element that is a view
         # of another parent element is resolved to its parent. In particular,
@@ -2424,6 +2435,7 @@ class Kernel:
         # source (parent).
         ctx = get_context()
         resolved_requests: dict[UIElementId, Any] = {}
+        report_host_state = ctx.parent is None
         referring_cells: set[CellId_t] = set()
         ui_element_registry = ctx.ui_element_registry
         for object_id, value in request.ids_and_values:
@@ -2485,9 +2497,12 @@ class Kernel:
                 ui_element_registry.get_cell(object_id),
                 setting_element_value=True,
             ):
+                previous_value = component._value_frontend
                 try:
                     component._update(value)
                 except MarimoConvertValueException:
+                    if report_host_state and component._host_published:
+                        component._value_frontend = previous_value
                     # Internal marimo error
                     sys.stderr.write(
                         "An exception was raised when updating a UIElement's "
@@ -2522,6 +2537,16 @@ class Kernel:
                                     "type": "marimo-ui-value-update",
                                     "value": value,
                                 },
+                            ),
+                            self.stream,
+                        )
+                finally:
+                    if report_host_state and component._host_published:
+                        broadcast_notification(
+                            UIElementUpdatedNotification(
+                                id=object_id,
+                                state={"value": component._value_frontend},
+                                request_id=request_id,
                             ),
                             self.stream,
                         )

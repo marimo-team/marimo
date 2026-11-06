@@ -77,11 +77,27 @@ class Backend(Protocol):
         the kernel could not stop at once is stopped as it progresses.
         """
 
+    def update_ui_element(
+        self,
+        element_id: str,
+        state: protocol.UIElementPartialState,
+        request_id: str,
+    ) -> None:
+        """Apply state and report the kernel's value with the request identity."""
+
     def forget(self, run_id: protocol.RunId) -> None:
         """Release a run the host no longer retains.
 
         Later kernel messages for the run are dropped.
         """
+
+    def send_ui_element(
+        self,
+        element_id: str,
+        message: protocol.UIElementFunctionCall,
+        call_id: str,
+    ) -> None:
+        """Invoke a registered function and report its caller-only result."""
 
 
 # Runtime reports
@@ -198,6 +214,39 @@ class Done:
     outcome: protocol.RunOutcome
 
 
+@dataclass(frozen=True)
+class UIElementCreated:
+    """A UI element created by the current runtime."""
+
+    runtime_id: protocol.RuntimeId
+    element: protocol.UIElement
+
+
+@dataclass(frozen=True)
+class UIElementsRemoved:
+    """The current runtime invalidated a cell's UI elements."""
+
+    runtime_id: protocol.RuntimeId
+    cell_id: protocol.CellId
+
+
+@dataclass(frozen=True)
+class UIElementUpdated:
+    runtime_id: protocol.RuntimeId
+    element_id: str
+    state: protocol.UIElementPartialState
+    request_id: str | None
+
+
+@dataclass(frozen=True)
+class UIElementResult:
+    """A function reply, never retained or published on the shared stream."""
+
+    runtime_id: protocol.RuntimeId
+    call_id: str
+    result: protocol.UIElementFunctionResult
+
+
 Message = (
     Starting
     | Running
@@ -210,4 +259,8 @@ Message = (
     | Unbound
     | Concluded
     | Done
+    | UIElementCreated
+    | UIElementsRemoved
+    | UIElementUpdated
+    | UIElementResult
 )

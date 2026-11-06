@@ -8,7 +8,7 @@ import {
   NotebookClient,
   type unstable_NotebookCall,
 } from "../notebook/client.ts";
-import type { OperationsBelow } from "../request.ts";
+import type { OperationsBelow, Result } from "../request.ts";
 import type * as Protocol from "../protocol.ts";
 
 const fixtures = new NodeUrl.URL(
@@ -52,6 +52,58 @@ afterEach(() => {
 });
 
 describe("NotebookClient", () => {
+  it("returns a function result directly with the caller's retry key", async () => {
+    const response = {
+      request_id: "r1",
+      result: {
+        status: { code: "ok", title: null, message: null },
+        return_value: { rows: [1] },
+        found: true,
+      },
+    };
+    const { notebook, sent } = connect(() => json(200, response));
+    const message = { function: "search", args: { query: "a" } };
+    expect(
+      await notebook.sendUIElement("c1-0", message, { idempotencyKey: "r1" }),
+    ).toEqual({ ok: true, status: 200, data: response });
+    expect(sent().url).toBe(
+      "http://127.0.0.1:2718/api/marimo/v1/notebooks/n1/ui-elements/c1-0/send",
+    );
+    expect(sent().headers.get("Idempotency-Key")).toBe("r1");
+    expect(await sent().json()).toEqual({ message });
+  });
+
+  it("accepts the experimental function timeout problem", async () => {
+    const problem = {
+      type: "tag:marimo.io,2026:host/timeout",
+      title: "Result timeout",
+      status: 504,
+    };
+    const { notebook } = connect(() =>
+      json(504, problem, "application/problem+json"),
+    );
+    expect(
+      await notebook.sendUIElement("c1-0", { function: "search", args: {} }),
+    ).toEqual({ ok: false, status: 504, problem });
+  });
+  it("submits a slider update with the caller's request identity", async () => {
+    const response = { id: "Hbol-0", state: { value: 4 }, request_id: "r1" };
+    const { notebook, sent } = connect(() => json(202, response));
+    expect(
+      await notebook.updateUIElement(
+        "Hbol-0",
+        { value: 4 },
+        { idempotencyKey: "r1" },
+      ),
+    ).toEqual({ ok: true, status: 202, data: response });
+    const request = sent();
+    expect(request.url).toBe(
+      "http://127.0.0.1:2718/api/marimo/v1/notebooks/n1/ui-elements/Hbol-0/update",
+    );
+    expect(request.headers.get("Idempotency-Key")).toBe("r1");
+    expect(await request.json()).toEqual({ state: { value: 4 } });
+  });
+
   it("sends an edit below the notebook's URL and returns the validated response", async () => {
     const response = readFixture("edit-response.json");
     const { notebook, sent } = connect(() => json(200, response));
@@ -68,28 +120,6 @@ describe("NotebookClient", () => {
     expect(request.headers.get("Authorization")).toBe("Bearer secret");
     expect(request.headers.get("Idempotency-Key")).toMatch(/^[\da-f-]{36}$/);
     expect(await request.json()).toEqual({ changes });
-  });
-
-  it("addresses an input and preserves its reply key and empty answer", async () => {
-    const response = readFixture("input-reply-response.json");
-    const { notebook, sent } = connect(() => json(200, response));
-
-    expect(
-      await notebook.input(
-        "i/1",
-        { value: "" },
-        {
-          idempotencyKey: "reply-1",
-        },
-      ),
-    ).toEqual({ ok: true, status: 200, data: response });
-    const request = sent();
-    expect(request.method).toBe("POST");
-    expect(request.url).toBe(
-      "http://127.0.0.1:2718/api/marimo/v1/notebooks/n1/runtime/inputs/i%2F1/reply",
-    );
-    expect(request.headers.get("Idempotency-Key")).toBe("reply-1");
-    expect(await request.json()).toEqual({ value: "" });
   });
 
   it("keeps the notebook URL's query string and ignores a trailing slash", async () => {
@@ -209,6 +239,28 @@ describe("NotebookClient", () => {
     );
   });
 
+  it("addresses an input and preserves its reply key and empty answer", async () => {
+    const response = readFixture("input-reply-response.json");
+    const { notebook, sent } = connect(() => json(200, response));
+
+    expect(
+      await notebook.input(
+        "i/1",
+        { value: "" },
+        {
+          idempotencyKey: "reply-1",
+        },
+      ),
+    ).toEqual({ ok: true, status: 200, data: response });
+    const request = sent();
+    expect(request.method).toBe("POST");
+    expect(request.url).toBe(
+      "http://127.0.0.1:2718/api/marimo/v1/notebooks/n1/runtime/inputs/i%2F1/reply",
+    );
+    expect(request.headers.get("Idempotency-Key")).toBe("reply-1");
+    expect(await request.json()).toEqual({ value: "" });
+  });
+
   it("has a method for each request below a notebook", () => {
     // A new operation below a notebook fails this until it has a method.
     expectTypeOf({
@@ -223,6 +275,8 @@ describe("NotebookClient", () => {
       "runtime.run": "run",
       "runtime.input": "input",
       "runtime.interrupt": "interrupt",
+      "ui_element.update": "updateUIElement",
+      "ui_element.send": "sendUIElement",
     } as const).toExtend<Record<NotebookOperationId, keyof NotebookClient>>();
   });
 });
@@ -235,6 +289,27 @@ function over(reply: (call: unstable_NotebookCall) => unknown) {
 }
 
 describe("NotebookClient.unstable_over", () => {
+  it("sends function calls over a non-HTTP transport", async () => {
+    const response = {
+      request_id: "r1",
+      result: {
+        status: { code: "ok", title: null, message: null },
+        return_value: null,
+        found: true,
+      },
+    };
+    const { notebook, send } = over(() => ({ status: 200, body: response }));
+    const message = { function: "read", args: {} };
+    expect(
+      await notebook.sendUIElement("c1-0", message, { idempotencyKey: "r1" }),
+    ).toEqual({ ok: true, status: 200, data: response });
+    expect(send).toHaveBeenCalledWith({
+      operation: "ui_element.send",
+      params: { notebook_id: "n1", element_id: "c1-0" },
+      headers: { "idempotency-key": "r1" },
+      body: { message },
+    });
+  });
   it("sends each method as its call", async () => {
     const response = readFixture("edit-response.json");
     const { notebook, send } = over(() => ({ status: 200, body: response }));

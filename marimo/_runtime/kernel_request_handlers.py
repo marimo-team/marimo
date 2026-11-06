@@ -20,6 +20,7 @@ from marimo._messaging.notebook.outputs import notebook_outputs_context
 from marimo._messaging.notification import (
     CompletedRunNotification,
     FunctionCallResultNotification,
+    UIElementResultNotification,
 )
 from marimo._messaging.notification_utils import broadcast_notification
 from marimo._plugins.ui._impl.anywidget.init import WIDGET_COMM_MANAGER
@@ -295,8 +296,13 @@ class KernelRequestHandlers:
                 request
             )
             LOGGER.debug("Function returned with status %s", status)
+            notification = (
+                UIElementResultNotification
+                if request.host_call
+                else FunctionCallResultNotification
+            )
             broadcast_notification(
-                FunctionCallResultNotification(
+                notification(
                     function_call_id=request.function_call_id,
                     return_value=ret,
                     status=status,

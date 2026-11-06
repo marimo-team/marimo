@@ -24,6 +24,9 @@ from marimo._core.operations import Mutations, problem
 from marimo._messaging.notebook.outputs import scratchpad_snapshot
 from marimo._messaging.notification import (
     NotebookDocumentTransactionNotification,
+    UIElementCreatedNotification,
+    UIElementResultNotification,
+    UIElementUpdatedNotification,
 )
 from marimo._messaging.serde import (
     deserialize_kernel_message,
@@ -250,6 +253,26 @@ class WorkerBackend:
         scheduler.cancel_all()
         self._halting.discard(run_id)
 
+    def update_ui_element(
+        self,
+        element_id: str,
+        state: protocol.UIElementPartialState,
+        request_id: str,
+    ) -> None:
+        raise NotImplementedError(
+            "Worker UI element operations are not exposed"
+        )
+
+    def send_ui_element(
+        self,
+        element_id: str,
+        message: protocol.UIElementFunctionCall,
+        call_id: str,
+    ) -> None:
+        raise NotImplementedError(
+            "Worker UI element operations are not exposed"
+        )
+
     def forget(self, run_id: protocol.RunId) -> None:
         self._translators.forget(run_id)
 
@@ -450,6 +473,15 @@ class PyodideNotebook:
         self.unsubscribe(subscription_id)
 
         def notify(notification: NotificationMessage) -> None:
+            if isinstance(
+                notification,
+                (
+                    UIElementCreatedNotification,
+                    UIElementUpdatedNotification,
+                    UIElementResultNotification,
+                ),
+            ):
+                return
             emit(serialize_event(notification_event(self.id, notification)))
 
         def consume(message: KernelMessage) -> None:

@@ -198,6 +198,14 @@ class FunctionCallResultNotification(Notification, tag="function-call-result"):
     found: bool
 
 
+class UIElementResultNotification(
+    FunctionCallResultNotification, tag="ui-element-result"
+):
+    """A host function reply, excluded from editor and replay streams."""
+
+    name: ClassVar[str] = "ui-element-result"
+
+
 class RemoveUIElementsNotification(Notification, tag="remove-ui-elements"):
     """Removes UI elements associated with a cell.
 
@@ -209,6 +217,27 @@ class RemoveUIElementsNotification(Notification, tag="remove-ui-elements"):
 
     name: ClassVar[str] = "remove-ui-elements"
     cell_id: CellId_t
+
+
+class UIElementCreatedNotification(Notification, tag="ui-element-created"):
+    """Constructor data and initial wire state for a host UI element."""
+
+    name: ClassVar[str] = "ui-element-created"
+    id: UIElementId
+    cell_id: CellId_t
+    component: str
+    label: str | None
+    args: dict[str, Any]
+    value: Any
+
+
+class UIElementUpdatedNotification(Notification, tag="ui-element-updated"):
+    """Wire state after the kernel processes an element update."""
+
+    name: ClassVar[str] = "ui-element-updated"
+    id: UIElementId
+    state: dict[str, Any]
+    request_id: str | None
 
 
 class UIElementMessageNotification(
@@ -1119,7 +1148,10 @@ NotificationMessage = (
     CellNotification
     | ExecutionNotification
     | FunctionCallResultNotification
+    | UIElementResultNotification
     | UIElementMessageNotification
+    | UIElementCreatedNotification
+    | UIElementUpdatedNotification
     | ModelLifecycleNotification
     | RemoveUIElementsNotification
     # Notebook lifecycle
