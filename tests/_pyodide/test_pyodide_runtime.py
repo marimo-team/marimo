@@ -25,6 +25,7 @@ from marimo._runtime.commands import (
     AppMetadata,
     CancelRunCommand,
     CreateNotebookCommand,
+    EditCellsCommand,
     ExecuteCellsCommand,
     ExecuteScratchpadCommand,
 )
@@ -315,6 +316,50 @@ async def test_runs_reach_the_kernel_in_acceptance_order(bridge):
         first["body"]["id"],
         second["body"]["id"],
     ]
+
+
+async def test_an_edit_waits_behind_a_run_loading_packages(bridge):
+    gate = asyncio.Event()
+
+    async def load(code: str) -> None:
+        del code
+        await gate.wait()
+
+    bridge.notebook.set_package_loader(load)
+    bridge.session.instantiated = True
+    events = await started(bridge)
+    cell = latest(events, "cell")
+    run = await call(bridge, "runtime.run", {"cells": [{"id": cell["id"]}]})
+    edit = await call(
+        bridge,
+        "notebook.edit",
+        {
+            "changes": [
+                {
+                    "kind": "put_cell",
+                    "base_etag": cell["etag"],
+                    "cell": {
+                        "id": cell["id"],
+                        "code": "x = 2",
+                        "name": cell["name"],
+                        "config": cell["config"],
+                    },
+                }
+            ]
+        },
+        key="edit-1",
+    )
+    assert edit["status"] == 200
+    await settle()
+    # The edit was accepted after the run, so the kernel sees it after.
+    assert queued(bridge) == []
+
+    gate.set()
+    await settle()
+    execute, update = queued(bridge)
+    assert isinstance(execute, ExecuteCellsCommand)
+    assert execute.run_id == run["body"]["id"]
+    assert isinstance(update, EditCellsCommand)
 
 
 async def test_a_failed_package_load_fails_the_run(bridge):
