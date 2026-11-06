@@ -150,6 +150,7 @@ async def test_snapshot_edit_and_retry(bridge):
         bridge.notebook.mutations,
         bridge.notebook,
         msgspec.json.decode(json.dumps(request), type=EditCall),
+        request=None,
     )
     assert msgspec.json.decode(msgspec.json.encode(direct)) == [
         response["status"],

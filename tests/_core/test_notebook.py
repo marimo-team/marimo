@@ -90,7 +90,7 @@ def running(notebook: Notebook, backend: ScriptedBackend) -> Runtime:
 
 
 def scratch(notebook: Notebook, run_id: str = "run-1") -> Run:
-    run = notebook.run("3 * 3", request_id=run_id)
+    run = notebook.run("3 * 3", request_id=run_id, request=None)
     notebook.observe(
         be.Planned(
             run.id,
@@ -111,7 +111,7 @@ class TestStart:
         with pytest.raises(AttributeError):
             notebook.runtime = replace(runtime, status="running")
         with pytest.raises(Conflict, match="starting"):
-            notebook.run("1", request_id="too-early")
+            notebook.run("1", request_id="too-early", request=None)
 
         for events in (
             host.events(notebook_id=notebook.id),
@@ -459,7 +459,7 @@ class TestAdoption:
             "ready",
         ]
         assert backend.calls == []
-        run = notebook.run("1", request_id="after-relaunch")
+        run = notebook.run("1", request_id="after-relaunch", request=None)
         assert backend.calls == [("run", run.id, "1")]
 
     def test_a_kernel_that_dies_on_its_own_fails_and_keeps_results(
@@ -517,7 +517,7 @@ class TestRun:
             live.append, notebook_id=notebook.id, run_id=run.id
         )
 
-        notebook.run("2", request_id="next")
+        notebook.run("2", request_id="next", request=None)
         notebook.attach()
         # Completed scratch outputs live in the host history; late reports
         # cannot recreate notebook state.
@@ -537,10 +537,10 @@ class TestRun:
 
     def test_needs_a_running_runtime(self, notebook: Notebook) -> None:
         with pytest.raises(NoRuntime):
-            notebook.run("1", request_id="r")
+            notebook.run("1", request_id="r", request=None)
         notebook.start()
         with pytest.raises(Conflict, match="starting"):
-            notebook.run("1", request_id="r")
+            notebook.run("1", request_id="r", request=None)
 
     def test_a_scratch_run_from_queued_to_completed(
         self,
@@ -553,7 +553,7 @@ class TestRun:
         log.clear()
         key = "7c1e9a3f"
 
-        run = notebook.run("3 * 3", request_id=key)
+        run = notebook.run("3 * 3", request_id=key, request=None)
         assert run.started_at is None
 
         notebook.observe(
@@ -670,11 +670,11 @@ class TestRun:
         self, notebook: Notebook, backend: ScriptedBackend
     ) -> None:
         running(notebook, backend)
-        first = notebook.run("1", request_id="same")
-        second = notebook.run("1", request_id="same")
+        first = notebook.run("1", request_id="same", request=None)
+        second = notebook.run("1", request_id="same", request=None)
         assert second.id != first.id
         notebook.observe(be.Done(first.id, "succeeded"))
-        third = notebook.run("2", request_id="same")
+        third = notebook.run("2", request_id="same", request=None)
         assert third.id not in (first.id, second.id)
         # A completed run with no executions is released at once.
         assert backend.calls == [
@@ -692,8 +692,8 @@ class TestRun:
     ) -> None:
         running(notebook, backend)
         log.clear()
-        first = notebook.run("1", request_id="first")
-        second = notebook.run("2", request_id="second")
+        first = notebook.run("1", request_id="first", request=None)
+        second = notebook.run("2", request_id="second", request=None)
 
         assert second.id != first.id
         assert (first.status, second.status) == ("queued", "queued")
@@ -790,7 +790,7 @@ class TestRunCompletion:
         outcome: RunOutcome,
     ) -> None:
         running(notebook, backend)
-        run = notebook.run("pass", request_id="never-started")
+        run = notebook.run("pass", request_id="never-started", request=None)
         assert run.outcome is None
         notebook.observe(be.Done(run.id, outcome))
         final = next(
@@ -922,7 +922,7 @@ class TestCellResults:
         same_run: bool,
     ) -> None:
         running(notebook, backend)
-        first = notebook.run("pass", request_id="first")
+        first = notebook.run("pass", request_id="first", request=None)
         old, new = ExecutionId("old"), ExecutionId("new")
         notebook.observe(
             be.Planned(
@@ -955,7 +955,7 @@ class TestCellResults:
             second = first
         else:
             notebook.observe(be.Done(first.id, "failed"))
-            second = notebook.run("pass", request_id="second")
+            second = notebook.run("pass", request_id="second", request=None)
         log.clear()
         notebook.observe(
             be.Planned(
@@ -990,7 +990,7 @@ class TestCellResults:
         self, notebook: Notebook, backend: ScriptedBackend
     ) -> None:
         running(notebook, backend)
-        run = notebook.run("pass", request_id="first")
+        run = notebook.run("pass", request_id="first", request=None)
         notebook.observe(
             be.Planned(
                 run.id,
@@ -1106,7 +1106,7 @@ async def test_outputs_follow_their_execution_through_updates_and_removal(
 ) -> None:
     clock = Clock()
     host, notebook = await host_at(clock)
-    run = notebook.run("code", request_id="request")
+    run = notebook.run("code", request_id="request", request=None)
     first = plan(notebook, run, "first", "a" if cleanup != "expire" else None)
     second = plan(
         notebook, run, "second", "b" if cleanup != "expire" else None
@@ -1159,7 +1159,9 @@ async def test_outputs_follow_their_execution_through_updates_and_removal(
         clock.now = 10
         host.expire()
     elif cleanup == "replace":
-        replacement = notebook.run("code", request_id="replacement")
+        replacement = notebook.run(
+            "code", request_id="replacement", request=None
+        )
         plan(notebook, replacement, "new", "a")
     else:
         host.remove_notebook(notebook.id)
@@ -1224,7 +1226,7 @@ async def test_initial_results_are_published_and_replaced_by_live_execution(
 
     notebook.start()
     notebook.observe(be.Running(runtime_id_of(notebook)))
-    run = notebook.run("42", request_id="run")
+    run = notebook.run("42", request_id="run", request=None)
     execution_id = plan(notebook, run, "new", cell="c1")
     state = fold(host.events(notebook_id=notebook.id))
     assert set(state) == {("run", run.id), ("execution", execution_id)}
@@ -1234,7 +1236,7 @@ async def test_initial_results_are_published_and_replaced_by_live_execution(
 async def test_current_cell_results_can_seed_another_notebook() -> None:
     _, notebook = await host_at(Clock())
     notebook.replace([DocumentCell(CellId("c1"), "code")], {})
-    run = notebook.run("code", request_id="request")
+    run = notebook.run("code", request_id="request", request=None)
     execution = plan(notebook, run, "cell", "c1")
     notebook.observe(
         be.Produced(Console(execution, ItemId("out"), "stdout", 0, "x"))
@@ -1378,7 +1380,7 @@ async def test_restoration_excludes_live_work_and_cleans_up_deleted_active_cells
     _, notebook = await host_at(Clock())
     notebook.replace([DocumentCell(CellId("c1"), "code")], {})
     notebook.attach()
-    run = notebook.run("code", request_id="request")
+    run = notebook.run("code", request_id="request", request=None)
     execution = plan(notebook, run, "active", "c1")
     notebook.observe(
         be.Produced(Console(execution, ItemId("out"), "stdout", 0, "x"))
@@ -1414,7 +1416,7 @@ async def test_source_edits_keep_live_results_until_the_cell_is_deleted() -> (
 ):
     host, notebook = await host_at(Clock())
     notebook.replace([DocumentCell("c1", "42")], {})
-    run = notebook.run("42", request_id="run")
+    run = notebook.run("42", request_id="run", request=None)
     execution = plan(notebook, run, "result", "c1")
     notebook.observe(
         be.Produced(Console(execution, ItemId("out"), "stdout", 0, "hello"))
@@ -1445,7 +1447,7 @@ async def test_deleting_an_active_cell_releases_its_result_when_the_run_ends() -
 ):
     host, notebook = await host_at(Clock())
     notebook.replace([DocumentCell("c1", "42")], {})
-    run = notebook.run("42", request_id="run")
+    run = notebook.run("42", request_id="run", request=None)
     execution = plan(notebook, run, "result", "c1")
     notebook.replace([], {})
     notebook.observe(
@@ -1470,6 +1472,7 @@ async def test_running_cells_hands_the_backend_the_document() -> None:
     run = notebook.run(
         cells=[protocol.RequestedCell(id=CellId("c1"), etag=c1.etag)],
         request_id="run-1",
+        request=None,
     )
 
     assert run.status == "queued"
@@ -1513,11 +1516,13 @@ async def test_running_a_cell_whose_content_changed_is_a_conflict(
                 protocol.RequestedCell(id=CellId("c1"), etag=original.etag)
             ],
             request_id="run-1",
+            request=None,
         )
     with pytest.raises(Invalid, match="not in the document"):
         notebook.run(
             cells=[protocol.RequestedCell(id=CellId("ghost"))],
             request_id="run-2",
+            request=None,
         )
 
     assert len(notebook.backend.calls) == calls  # type: ignore[attr-defined]
@@ -1527,9 +1532,9 @@ async def test_running_a_cell_whose_content_changed_is_a_conflict(
 async def test_a_run_names_code_or_cells() -> None:
     _, notebook = await host_at(Clock())
     with pytest.raises(Invalid):
-        notebook.run(request_id="run-1")  # type: ignore[call-overload]
+        notebook.run(request_id="run-1", request=None)  # type: ignore[call-overload]
     with pytest.raises(Invalid):
-        notebook.run("1", cells=[], request_id="run-2")  # type: ignore[call-overload]
+        notebook.run("1", cells=[], request_id="run-2", request=None)  # type: ignore[call-overload]
 
 
 @pytest.mark.parametrize("cells", [[], ()])
@@ -1540,7 +1545,7 @@ async def test_a_cell_run_needs_at_least_one_target(
     calls = list(notebook.backend.calls)  # type: ignore[attr-defined]
 
     with pytest.raises(Invalid, match="at least one cell"):
-        notebook.run(cells=cells, request_id="empty")
+        notebook.run(cells=cells, request_id="empty", request=None)
 
     assert notebook.backend.calls == calls  # type: ignore[attr-defined]
     assert notebook.executions.active() is None
@@ -1554,6 +1559,7 @@ def test_an_accepted_cell_run_records_its_cells(
     run = notebook.run(
         cells=[protocol.RequestedCell(id=CellId("c1"))],
         request_id="cells",
+        request=None,
     )
     assert run.cells == (CellId("c1"),)
-    assert notebook.run("1", request_id="scratch").cells == ()
+    assert notebook.run("1", request_id="scratch", request=None).cells == ()
