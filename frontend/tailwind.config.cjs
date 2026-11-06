@@ -5,7 +5,11 @@ const { fontFamily } = require("tailwindcss/defaultTheme");
 
 /** @type {import('tailwindcss').Config} */
 module.exports = {
-  darkMode: ["class"],
+  // Resolved-light namespaces override the host page's dark class.
+  darkMode: [
+    "variant",
+    "&:is(.dark *):not(:where(.marimo.light, .marimo.light *))",
+  ],
   content: ["./src/**/*.{ts,tsx,mdx}"],
   theme: {
     container: {
