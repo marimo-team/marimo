@@ -181,6 +181,7 @@ def test_config_schema_describes_resolved_settings_without_internal_tags() -> (
         "ai",
         "language_servers",
         "diagnostics",
+        "experimental",
         "snippets",
         "file_browser",
         "sharing",

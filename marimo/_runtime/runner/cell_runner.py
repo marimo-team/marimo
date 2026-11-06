@@ -15,7 +15,6 @@ from marimo._ast.variables import (
     unmangle_local,
 )
 from marimo._config.config_schema import ExperimentalConfig, MarimoConfig
-from marimo._config.schema_utils import default_if_unset
 from marimo._config.types import ExecutionType, OnCellChangeType
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._dependencies.errors import ManyModulesNotFoundError
@@ -231,9 +230,7 @@ class Runner:
         # lifecycle (a single `sys.settrace` hook). Gated here so there is
         # zero tracing overhead when disabled.
         experimental = (
-            default_if_unset(
-                self.user_config.experimental, ExperimentalConfig()
-            )
+            self.user_config.experimental
             if self.user_config is not None
             else ExperimentalConfig()
         )

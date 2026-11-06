@@ -160,8 +160,9 @@ async def install_export_requirements(
     """
     app_state = AppState(request)
     body = await parse_request(request, cls=InstallExportRequirementsRequest)
+    config = app_state.app_config_manager.get_config()
     command = InstallPackagesCommand(
-        manager=app_state.app_config_manager.package_manager,
+        manager=config.package_management.manager,
         versions={},
         source="server",
     )

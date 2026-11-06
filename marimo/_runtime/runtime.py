@@ -35,7 +35,7 @@ from marimo._ast.errors import ImportStarError, LazyImportError
 from marimo._ast.names import SETUP_CELL_NAME
 from marimo._ast.variables import BUILTINS, is_local
 from marimo._ast.visitor import ImportData, Name, VariableData
-from marimo._config.config_schema import ExperimentalConfig, MarimoConfig
+from marimo._config.config_schema import MarimoConfig
 from marimo._config.provenance import ConfigPath
 from marimo._config.resolver import config_paths
 from marimo._config.schema_utils import default_if_unset
@@ -667,9 +667,9 @@ class Kernel:
         self.reactive_execution_mode: OnCellChangeType = (
             user_config.runtime.on_cell_change
         )
-        self.execution_type: ExecutionType = default_if_unset(
-            user_config.experimental, ExperimentalConfig()
-        ).execution_type
+        self.execution_type: ExecutionType = (
+            user_config.experimental.execution_type
+        )
         self._update_runtime_from_user_config(user_config)
 
         # initializers to override construction of ui elements

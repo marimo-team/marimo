@@ -1001,9 +1001,9 @@ class MarimoConfig(Config, kw_only=True):
         Meta(description="Configuration for lint rule selection."),
     ] = UNSET
     experimental: Annotated[
-        ExperimentalConfig | UnsetType,
+        ExperimentalConfig,
         Meta(description="Configuration for experimental features."),
-    ] = UNSET
+    ] = field(default_factory=ExperimentalConfig)
     snippets: Annotated[
         SnippetsConfig, Meta(description="Configuration for snippets.")
     ] = field(default_factory=SnippetsConfig)

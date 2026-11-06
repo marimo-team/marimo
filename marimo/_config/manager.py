@@ -20,13 +20,9 @@ from marimo._config.config import (
     parse_config,
 )
 from marimo._config.config_schema import (
-    CompletionConfig,
-    ExperimentalConfig,
-    LanguageServersConfig,
     MarimoConfig,
     SharingConfig,
 )
-from marimo._config.packages import PackageManagerKind
 from marimo._config.provenance import (
     DEPRECATED_ENV_VARS,
     ConfigLayer,
@@ -53,13 +49,12 @@ from marimo._config.resolver import (
     resolve_config,
     resolve_config_with_sources,
 )
-from marimo._config.schema_utils import config_leaf_types, default_if_unset
+from marimo._config.schema_utils import config_leaf_types
 from marimo._config.secrets import (
     redact_secrets_partial,
     remove_secret_placeholders,
 )
 from marimo._config.settings import GLOBAL_SETTINGS
-from marimo._config.types import ExportType, SqlOutputType, Theme, WidthType
 from marimo._config.utils import (
     get_or_create_user_config_path,
     get_user_config_path,
@@ -160,42 +155,8 @@ class MarimoConfigManager:
         return self.get_config()
 
     @property
-    def default_width(self) -> WidthType:
-        return self._config.display.default_width
-
-    @property
-    def default_auto_download(self) -> list[ExportType]:
-        return self._config.runtime.default_auto_download
-
-    @property
-    def default_sql_output(self) -> SqlOutputType:
-        return self._config.runtime.default_sql_output
-
-    @property
-    def theme(self) -> Theme:
-        return self._config.display.theme
-
-    @property
-    def package_manager(self) -> PackageManagerKind:
-        return self._config.package_management.manager
-
-    @property
-    def completion(self) -> CompletionConfig:
-        return self._config.completion
-
-    @property
-    def language_servers(self) -> LanguageServersConfig:
-        return self._config.language_servers
-
-    @property
     def is_auto_save_enabled(self) -> bool:
         return self._config.save.autosave == "after_delay"
-
-    @property
-    def experimental(self) -> ExperimentalConfig:
-        return default_if_unset(
-            self._config.experimental, ExperimentalConfig()
-        )
 
     def get_user_config(self, *, hide_secrets: bool = True) -> MarimoConfig:
         """Get the user configuration"""

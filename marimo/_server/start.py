@@ -303,7 +303,9 @@ def start(
         )
 
     is_multi = workspace.get_unique_file_key() is None
-    isolate_apps = is_multi and config_reader.experimental.isolate_apps
+    isolate_apps = (
+        is_multi and config_reader.get_config().experimental.isolate_apps
+    )
 
     # Apply CLI overrides for runtime config if explicitly set
     if show_tracebacks is not None:

@@ -3930,6 +3930,7 @@ components:
       - ai
       - language_servers
       - diagnostics
+      - experimental
       - snippets
       - file_browser
       - sharing

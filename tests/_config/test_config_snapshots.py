@@ -175,6 +175,12 @@ def test_default_configuration_snapshot(config_tree: Path) -> None:
                 "autosave_delay": 1000,
                 "format_on_save": False,
             },
+            "experimental": {
+                "isolate_apps": False,
+                "debugger": False,
+                "line_timing": False,
+                "execution_type": "relaxed",
+            },
             "server": {
                 "skip_update_check": False,
                 "session_cookie_secure": False,
@@ -531,6 +537,12 @@ def test_layered_configuration_snapshot(
                     "cache_cells": False,
                     "pin_modules": True,
                 },
+                "experimental": {
+                    "isolate_apps": False,
+                    "debugger": False,
+                    "line_timing": False,
+                    "execution_type": "relaxed",
+                },
                 "save": {
                     "autosave": "after_delay",
                     "autosave_delay": 1000,
@@ -754,6 +766,12 @@ default_table_page_size = 10
 default_width = "medium"
 reference_highlighting = true
 theme = "dark"
+
+[experimental]
+debugger = false
+execution_type = "relaxed"
+isolate_apps = false
+line_timing = false
 
 [formatting]
 infer_types = "off"

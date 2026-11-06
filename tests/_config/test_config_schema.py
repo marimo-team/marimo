@@ -85,6 +85,7 @@ def test_defaults_are_independent() -> None:
     first.mcp.presets.append("marimo")
     first.runtime.pythonpath.append("/custom")
     first.runtime.default_auto_download.append("html")
+    first.experimental.debugger = True
 
     assert second.to_dict() == before
 
@@ -245,6 +246,9 @@ def test_saving_config_preserves_unknown_fields(
         "debugger": False,
     }
     assert store.read()["experimental"] == {
+        "isolate_apps": False,
+        "line_timing": False,
+        "execution_type": "relaxed",
         "multi_column": True,
         "debugger": False,
     }

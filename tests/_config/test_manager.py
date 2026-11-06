@@ -1217,16 +1217,6 @@ def test_script_config_manager_ai_base_url_does_not_override(
     assert config == {}
 
 
-def test_marimo_config_reader_properties() -> None:
-    """Test the convenience properties on MarimoConfigManager"""
-
-    manager = get_default_config_manager(current_path=None)
-    assert manager.default_width is not None
-    assert manager.default_sql_output is not None
-    assert manager.theme is not None
-    assert manager.package_manager is not None
-
-
 def test_project_config_manager_resolve_paths(tmp_path: Path) -> None:
     # Create a pyproject.toml with pythonpath and dotenv settings
     pyproject_path = tmp_path / "pyproject.toml"

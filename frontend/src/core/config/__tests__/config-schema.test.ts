@@ -87,7 +87,12 @@ test("default UserConfig - empty", () => {
         "reference_highlighting": true,
         "theme": "light",
       },
-      "experimental": {},
+      "experimental": {
+        "debugger": false,
+        "execution_type": "relaxed",
+        "isolate_apps": false,
+        "line_timing": false,
+      },
       "file_browser": null,
       "formatting": {
         "infer_types": "off",
@@ -196,7 +201,12 @@ test("default UserConfig - one level", () => {
         "reference_highlighting": true,
         "theme": "light",
       },
-      "experimental": {},
+      "experimental": {
+        "debugger": false,
+        "execution_type": "relaxed",
+        "isolate_apps": false,
+        "line_timing": false,
+      },
       "file_browser": null,
       "formatting": {
         "infer_types": "off",

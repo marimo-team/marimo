@@ -4,11 +4,13 @@ from __future__ import annotations
 import os
 import sys
 
-from msgspec import UNSET
-
 from marimo._cli.print import bold, green, light_blue, muted, yellow
 from marimo._cli.tips import CliTip
-from marimo._config.config_schema import MarimoConfig, MCPConfig
+from marimo._config.config_schema import (
+    ExperimentalConfig,
+    MarimoConfig,
+    MCPConfig,
+)
 from marimo._utils.print import print_, print_tabbed
 
 UTF8_SUPPORTED = False
@@ -160,10 +162,12 @@ def _format_startup_tip(tip: CliTip) -> tuple[str, str | None]:
 
 
 def print_experimental_features(config: MarimoConfig) -> None:
-    if config.experimental is UNSET:
-        return
-
-    keys = set(config.experimental.to_dict().keys())
+    defaults = ExperimentalConfig().to_dict()
+    keys = {
+        key
+        for key, value in config.experimental.to_dict().items()
+        if key not in defaults or value != defaults[key]
+    }
 
     # These experiments were removed. Their keys still load, and do nothing.
     removed_experiments = {"rtc", "rtc_v2"}

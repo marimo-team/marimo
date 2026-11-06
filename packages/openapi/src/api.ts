@@ -6031,7 +6031,7 @@ export interface components {
       /** @description Configuration for display. */
       display: components["schemas"]["DisplayConfig"];
       /** @description Configuration for experimental features. */
-      experimental?: components["schemas"]["ExperimentalConfig"];
+      experimental: components["schemas"]["ExperimentalConfig"];
       /**
        * @description Configuration for the file browser panel.
        * @default null
