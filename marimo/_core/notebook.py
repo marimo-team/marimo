@@ -454,9 +454,10 @@ class Notebook:
     ) -> protocol.Run:
         """Queue scratch code, or cells of the document, on the runtime.
 
-        Runs start in acceptance order, one at a time. Each requested cell
-        must be in the document. One that names an `etag` the cell no
-        longer has is a conflict, and nothing runs.
+        Runs start in acceptance order, one at a time, each with the
+        document it was accepted in. Each requested cell must be in the
+        document. One that names an `etag` the cell no longer has is a
+        conflict, and nothing runs.
 
         Raises:
             Invalid: If the request names neither code nor cells, or both,

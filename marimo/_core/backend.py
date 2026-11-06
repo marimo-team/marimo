@@ -49,7 +49,11 @@ class Backend(Protocol):
         """Stop the runtime's kernel and report `Exited` once it has."""
 
     def run(self, run_id: protocol.RunId, code: str) -> None:
-        """Evaluate scratch code and report the run's progress and output."""
+        """Evaluate scratch code and report the run's progress and output.
+
+        Runs are handed over in acceptance order and reach the kernel in
+        that order, however long each takes to prepare.
+        """
 
     def run_cells(
         self,
@@ -59,13 +63,19 @@ class Backend(Protocol):
     ) -> None:
         """Run cells of `document` and report the run's progress and output.
 
-        Requested cells and pending ancestors are registered before execution.
-        Dependent cells follow the runtime's execution configuration. Each
-        execution reports the fingerprint submitted with its cell.
+        Handed over like `run`, with the document the run was accepted in.
+        Requested cells and pending ancestors are registered before
+        execution. Dependent cells follow the runtime's execution
+        configuration. Each execution reports the fingerprint submitted
+        with its cell.
         """
 
     def interrupt(self, run_id: protocol.RunId) -> None:
-        """Interrupt a run and report an `interrupted` execution outcome."""
+        """End a run and report its `interrupted` outcome.
+
+        A run the kernel has not started completes without running. One
+        the kernel could not stop at once is stopped as it progresses.
+        """
 
     def forget(self, run_id: protocol.RunId) -> None:
         """Release a run the host no longer retains.
