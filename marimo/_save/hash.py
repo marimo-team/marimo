@@ -11,7 +11,7 @@ import linecache
 import os
 import sys
 import types
-from typing import TYPE_CHECKING, Any, NamedTuple
+from typing import TYPE_CHECKING, Any, NamedTuple, cast
 
 from marimo._ast.fingerprint import ast_fingerprint, code_fingerprint
 from marimo._ast.transformers import DeprivateVisitor
@@ -138,12 +138,97 @@ class _SourceIndex:
 
     functions: dict[tuple[str, int], list[ast.AST]]
     lambdas: dict[int, list[ast.Lambda]]
+    # The shape of a definition compiled on its own, by node and flags.
+    shapes: dict[tuple[int, int], _Shape | None]
+
+
+_Shape = tuple[frozenset[str], tuple[str, ...]]
+
+
+def _bare_name(name: str) -> str:
+    name = unmangle_local(name).name
+    # Class-private mangling: `_A__value` is `__value` compiled inside `A`.
+    if name.startswith("_") and not name.startswith("__") and "__" in name[1:]:
+        return name[name.index("__", 1) :]
+    return name
+
+
+def _const_key(value: Any) -> str:
+    if isinstance(value, frozenset):
+        return "frozenset(" + ",".join(sorted(map(_const_key, value))) + ")"
+    if isinstance(value, tuple):
+        return "(" + ",".join(map(_const_key, value)) + ")"
+    return f"{type(value).__name__}:{value!r}"
+
+
+def _code_shape(code: types.CodeType) -> _Shape:
+    """Identifiers and constants of a code object and everything nested.
+
+    Sets, not sequences, and names without their binding kind, so a
+    definition compiled inside a class or function compares equal to the
+    same definition compiled on its own.
+    """
+    names: set[str] = set()
+    constants: list[str] = []
+    stack = [code]
+    while stack:
+        current = stack.pop()
+        names.update(
+            map(
+                _bare_name,
+                current.co_names
+                + current.co_varnames
+                + current.co_freevars
+                + current.co_cellvars,
+            )
+        )
+        for const in current.co_consts:
+            if isinstance(const, types.CodeType):
+                stack.append(const)
+            else:
+                constants.append(_const_key(const))
+    return frozenset(names), tuple(sorted(constants))
+
+
+def _node_shape(
+    index: _SourceIndex, node: ast.AST, code: types.CodeType
+) -> _Shape | None:
+    """Shape of `node` compiled on its own, or None when it cannot be."""
+    flags = code.co_flags & FUTURE_FLAGS
+    key = (id(node), flags)
+    if key not in index.shapes:
+        tree: Any
+        if isinstance(node, ast.Lambda):
+            tree, mode = ast.Expression(body=node), "eval"
+        else:
+            tree = ast.Module(body=[cast(ast.stmt, node)], type_ignores=[])
+            mode = "exec"
+        shape = None
+        try:
+            compiled = compile(
+                tree,
+                "<shape>",
+                mode,
+                flags=flags,
+                dont_inherit=True,
+                optimize=sys.flags.optimize,
+            )
+        except (SyntaxError, ValueError, RecursionError):
+            pass
+        else:
+            name = unmangle_local(code.co_name).name
+            for const in compiled.co_consts:
+                if isinstance(const, types.CodeType) and const.co_name == name:
+                    shape = _code_shape(const)
+                    break
+        index.shapes[key] = shape
+    return index.shapes[key]
 
 
 @functools.lru_cache(maxsize=32)
 def _index_source(filename: str, source: str) -> _SourceIndex:
     del filename  # Part of the key: the same text in two files is two trees.
-    index = _SourceIndex({}, {})
+    index = _SourceIndex({}, {}, {})
     for node in ast.walk(ast.parse(source)):
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
             first = node.decorator_list[0] if node.decorator_list else node
@@ -175,10 +260,8 @@ def hash_function_source(fn: Callable[..., Any]) -> bytes:
         return fallback()
     # The whole file, not `inspect.getsource`: a fragment has to be dedented,
     # which rewrites multiline string literals, and a lambda's fragment may
-    # not parse on its own. A reloaded module has new lines on disk, and a
-    # function object kept alive from before the reload hashes as the new
-    # source too. That is the price of hashing by source. The globals let
-    # linecache ask the loader, as for a zip import.
+    # not parse on its own. A reloaded module has new lines on disk. The
+    # globals let linecache ask the loader, as for a zip import.
     linecache.checkcache(code.co_filename)
     lines = linecache.getlines(
         code.co_filename, getattr(fn, "__globals__", None)
@@ -233,6 +316,11 @@ def hash_function_source(fn: Callable[..., Any]) -> bytes:
     if len(nodes) != 1:
         # Nothing, or several, for example when the compiler folded a nested
         # lambda away, as in `lambda: True or (lambda: 2)`.
+        return fallback()
+    if _node_shape(index, nodes[0], code) != _code_shape(code):
+        # The file no longer holds the code this function runs: a module
+        # reloaded while this object stayed alive, or a different optimize
+        # level than the interpreter's.
         return fallback()
     return ast_fingerprint(nodes[0]).encode("utf-8") + settings
 

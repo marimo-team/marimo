@@ -63,6 +63,7 @@ def test_fingerprint_is_stable_across_python_versions() -> None:
         ("x = 0", "x = False"),
         ("f(**d)", "f(x=d)"),
         ("from . import x", "from .. import x"),
+        ("def f(x: u'hey'): pass", "def f(x: 'hey'): pass"),
     ],
 )
 def test_falsy_literals_are_not_dropped(before: str, after: str) -> None:

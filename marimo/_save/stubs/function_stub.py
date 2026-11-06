@@ -49,6 +49,9 @@ class FunctionStub:
         # `from __future__` imports that governed it. The flags come from the
         # same function `getsource` read: a decorator's wrapper may differ.
         self.flags = inspect.unwrap(function).__code__.co_flags & FUTURE_FLAGS
+        # Restored at top level, the function would otherwise lose the class
+        # that keys it.
+        self.qualname = function.__qualname__
         if is_cached:
             # NB. keep the synthetic filename: the wrapper re-hashes its own
             # source per call, and the real path is absent on restore.
@@ -88,9 +91,11 @@ class FunctionStub:
         lcls: dict[str, Any] = {}
         exec(code_obj, glbls, lcls)
         for value in lcls.values():
+            if getattr(value, "__qualname__", None) is not None:
+                value.__qualname__ = self.qualname
             return value
 
-    def dump(self) -> tuple[str, str, int, bool, int]:
+    def dump(self) -> tuple[str, str, int, bool, int, str]:
         """Dump stored source code and metadata for lazy serialization."""
         return (
             self.code,
@@ -98,16 +103,24 @@ class FunctionStub:
             self.lineno,
             self.is_cached,
             self.flags,
+            self.qualname,
         )
 
     @classmethod
-    def from_dump(cls, data: tuple[str, str, int, bool, int]) -> FunctionStub:
+    def from_dump(
+        cls, data: tuple[str, str, int, bool, int, str]
+    ) -> FunctionStub:
         """Reconstruct a `FunctionStub` from a `dump()` tuple.
 
         Skips `__init__` (which requires a live function to introspect).
         """
         stub = cls.__new__(cls)
-        stub.code, stub.filename, stub.lineno, stub.is_cached, stub.flags = (
-            data
-        )
+        (
+            stub.code,
+            stub.filename,
+            stub.lineno,
+            stub.is_cached,
+            stub.flags,
+            stub.qualname,
+        ) = data
         return stub
