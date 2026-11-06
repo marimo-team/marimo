@@ -38,11 +38,19 @@ class FunctionStub:
 
     def load(self, glbls: dict[str, Any]) -> Any:
         """Reconstruct the function by executing its source code."""
-        if self.filename.startswith("<"):
+        if self.filename.startswith("<") or not linecache.getlines(
+            self.filename
+        ):
+            # A synthetic name, or a cell file from another process. Serve
+            # the stored source at its original line so the restored
+            # function hashes like the definition it stands in for.
+            lines = ["\n"] * (self.lineno - 1) + [
+                line + "\n" for line in self.code.splitlines()
+            ]
             linecache.cache[self.filename] = (
                 len(self.code),
                 None,
-                [line + "\n" for line in self.code.splitlines()],
+                lines,
                 self.filename,
             )
 
