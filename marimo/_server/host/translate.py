@@ -165,7 +165,8 @@ class RunTranslator:
         )
         self._executions[notification.execution_id] = execution
         parent = self._executions.get(notification.caused_by or "")
-        assert notification.code_fingerprint is not None
+        if notification.code_fingerprint is None:
+            raise RuntimeError("Planned cell has no code fingerprint")
         return be.Planned(
             self.run_id,
             (
@@ -469,7 +470,8 @@ def _skipped(error: Error, cell_id: str) -> protocol.SkippedOutcome:
     so the trailing colon goes and the cause is named in `related`.
     """
     reason = _skip_reason(error)
-    assert reason is not None
+    if reason is None:
+        raise RuntimeError("Expected a skipped execution reason")
     involved: list[tuple[str, str]] = []
     if isinstance(error, MarimoAncestorStoppedError):
         involved.append((error.raising_cell, "Stopped with `mo.stop`"))
@@ -478,7 +480,8 @@ def _skipped(error: Error, cell_id: str) -> protocol.SkippedOutcome:
         if error.blamed_cell is not None:
             involved.append((error.blamed_cell, "Expected to define it"))
     elif isinstance(error, MarimoExceptionRaisedError):
-        assert error.raising_cell is not None
+        if error.raising_cell is None:
+            raise RuntimeError("Ancestor exception has no raising cell")
         involved.append((error.raising_cell, "Raised an exception"))
     involved = [(cell, part) for cell, part in involved if cell != cell_id]
     involved.append((cell_id, "Did not run"))
