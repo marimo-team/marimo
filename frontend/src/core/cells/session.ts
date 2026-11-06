@@ -194,6 +194,17 @@ function primaryOutputOf(sessionCell: SessionCell | null | undefined) {
   );
 }
 
+function normalizeTraceback(lines: readonly string[]): string | null {
+  if (lines.length === 0) {
+    return null;
+  }
+  return lines
+    .map((line, index) =>
+      index < lines.length - 1 && !line.endsWith("\n") ? `${line}\n` : line,
+    )
+    .join("");
+}
+
 /**
  * The cell's last result as a host would report it.
  *
@@ -209,6 +220,7 @@ function resultRecord(
   if (primary === undefined) {
     return null;
   } else if (primary.type === "error") {
+    const traceback = normalizeTraceback(primary.traceback);
     outcome = {
       kind: "error",
       error: {
@@ -219,9 +231,9 @@ function resultRecord(
         severity: "error",
         range: null,
         traceback:
-          primary.traceback.length === 0
+          traceback === null
             ? null
-            : { mimetype: "text/plain", data: primary.traceback.join("") },
+            : { mimetype: "text/plain", data: traceback },
         related: [],
       },
     };
@@ -265,12 +277,7 @@ function createCellRuntimeFromSession(
     return runtimeState;
   }
 
-  // Handle outputs - prioritize by type and use first available
-  const outputs = sessionCell.outputs || [];
-  const primaryOutput =
-    outputs.find((output) => output.type === "data") ||
-    outputs.find((output) => output.type === "error") ||
-    outputs[0];
+  const primaryOutput = primaryOutputOf(sessionCell);
 
   if (primaryOutput) {
     if (primaryOutput.type === "error") {
@@ -282,16 +289,7 @@ function createCellRuntimeFromSession(
             exception_type: primaryOutput.ename,
             msg: primaryOutput.evalue,
             raising_cell: null,
-            traceback:
-              primaryOutput.traceback.length === 0
-                ? null
-                : primaryOutput.traceback
-                    .map((line, index, lines) =>
-                      index < lines.length - 1 && !line.endsWith("\n")
-                        ? `${line}\n`
-                        : line,
-                    )
-                    .join(""),
+            traceback: normalizeTraceback(primaryOutput.traceback),
           },
         ],
         mimetype: "application/vnd.marimo+error",
