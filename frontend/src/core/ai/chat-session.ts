@@ -56,6 +56,19 @@ export function createChatSession({
       void sendMessage({ role: "user", parts: next.parts });
     }
   };
+  const tryFlushQueueWhenReady = (generation: number) => {
+    if (
+      !stopped &&
+      generation === toolGeneration &&
+      controller.status === "ready"
+    ) {
+      tryFlushQueue({
+        messages: controller.messages,
+        isError: false,
+        isAbort: false,
+      });
+    }
+  };
   const controller = new ChatController<UIMessage>({
     ...options,
     onFinish: (finish) => {
@@ -77,20 +90,8 @@ export function createChatSession({
         addToolOutput: (output) => {
           // A tool may finish after Stop, or after another turn has started.
           if (!stopped && generation === toolGeneration) {
-            return Promise.resolve(controller.addToolOutput(output)).then(
-              () => {
-                if (
-                  !stopped &&
-                  generation === toolGeneration &&
-                  controller.status === "ready"
-                ) {
-                  tryFlushQueue({
-                    messages: controller.messages,
-                    isError: false,
-                    isAbort: false,
-                  });
-                }
-              },
+            return Promise.resolve(controller.addToolOutput(output)).then(() =>
+              tryFlushQueueWhenReady(generation),
             );
           }
         },
@@ -175,7 +176,10 @@ export function createChatSession({
       if (closed) {
         return Promise.resolve();
       }
-      return controller.addToolApprovalResponse(...args);
+      const generation = toolGeneration;
+      return Promise.resolve(controller.addToolApprovalResponse(...args)).then(
+        () => tryFlushQueueWhenReady(generation),
+      );
     };
 
   return {

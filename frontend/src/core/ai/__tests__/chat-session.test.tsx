@@ -3,6 +3,11 @@
 import { act, render, screen, waitFor } from "@testing-library/react";
 import type { ChatTransport, UIMessage, UIMessageChunk } from "ai";
 import { describe, expect, it, vi } from "vitest";
+import {
+  hasPendingToolCalls,
+  hasUnresolvedToolCalls,
+  shouldFlushQueue,
+} from "@/components/chat/chat-utils";
 import { LazyActivity } from "@/components/utils/lazy-mount";
 import { type ChatSession, createChatSession } from "../chat-session";
 import type { ChatId } from "../state";
@@ -61,7 +66,116 @@ function SessionView({ session }: { session: ChatSession }) {
   return <output>{JSON.stringify({ messages, status })}</output>;
 }
 
+async function createApprovalSession({
+  trailingText,
+}: {
+  trailingText: boolean;
+}) {
+  const { transport, write, finish, sendMessages } = createTransport();
+  const session = createChatSession({
+    id: CHAT_A,
+    transport,
+    saveMessages: vi.fn(),
+    onToolCall: vi.fn().mockResolvedValue(undefined),
+    sendAutomaticallyWhen: ({ messages }) => hasPendingToolCalls(messages),
+    shouldFlushQueue: ({ messages, isError, isAbort }) =>
+      shouldFlushQueue({
+        isError,
+        isAbort,
+        hasPendingToolCalls: hasPendingToolCalls(messages),
+        hasUnresolvedToolCalls: hasUnresolvedToolCalls(messages),
+      }),
+  });
+  const followUp = [
+    { type: "text", text: "Follow-up" },
+  ] satisfies UIMessage["parts"];
+  const request = session.sendMessage(USER_MESSAGE);
+  session.submitOrQueue(followUp);
+  write(
+    CHAT_A,
+    {
+      type: "tool-input-available",
+      toolCallId: "call-1",
+      toolName: "lookup",
+      input: {},
+      providerExecuted: true,
+    },
+    {
+      type: "tool-approval-request",
+      toolCallId: "call-1",
+      approvalId: "approval-1",
+    },
+  );
+  if (trailingText) {
+    write(
+      CHAT_A,
+      { type: "text-start", id: "text" },
+      { type: "text-delta", id: "text", delta: "Please approve." },
+      { type: "text-end", id: "text" },
+    );
+  }
+  finish(CHAT_A);
+  await request;
+  return { session, write, finish, sendMessages, followUp };
+}
+
 describe("chat sessions", () => {
+  it.each([true, false])(
+    "releases queued input when approval with trailing text resolves (approved=%s)",
+    async (approved) => {
+      const { session, finish, sendMessages, followUp } =
+        await createApprovalSession({ trailingText: true });
+      expect(sendMessages).toHaveBeenCalledOnce();
+      expect(session.store.get(session.queuedMessagesAtom)).toEqual([
+        { id: expect.any(String), parts: followUp },
+      ]);
+
+      await session.addToolApprovalResponse({ id: "approval-1", approved });
+      await waitFor(() => expect(sendMessages).toHaveBeenCalledTimes(2));
+      expect(sendMessages.mock.lastCall?.[0].messages.at(-1)).toEqual({
+        id: expect.any(String),
+        role: "user",
+        parts: followUp,
+      });
+      expect(session.store.get(session.queuedMessagesAtom)).toEqual([]);
+      finish(CHAT_A);
+      await waitFor(() => expect(session.controller.status).toBe("ready"));
+    },
+  );
+
+  it.each([true, false])(
+    "waits for the approval continuation before releasing queued input (approved=%s)",
+    async (approved) => {
+      const { session, write, finish, sendMessages, followUp } =
+        await createApprovalSession({ trailingText: false });
+      await session.addToolApprovalResponse({ id: "approval-1", approved });
+      await waitFor(() => expect(sendMessages).toHaveBeenCalledTimes(2));
+      expect(session.store.get(session.queuedMessagesAtom)).toEqual([
+        { id: expect.any(String), parts: followUp },
+      ]);
+      expect(sendMessages.mock.calls[1][0].messages.at(-1)?.role).toBe(
+        "assistant",
+      );
+
+      write(
+        CHAT_A,
+        { type: "text-start", id: "answer" },
+        { type: "text-delta", id: "answer", delta: "Approval handled." },
+        { type: "text-end", id: "answer" },
+      );
+      finish(CHAT_A);
+      await waitFor(() => expect(sendMessages).toHaveBeenCalledTimes(3));
+      expect(sendMessages.mock.lastCall?.[0].messages.at(-1)).toEqual({
+        id: expect.any(String),
+        role: "user",
+        parts: followUp,
+      });
+      expect(session.store.get(session.queuedMessagesAtom)).toEqual([]);
+      finish(CHAT_A);
+      await waitFor(() => expect(session.controller.status).toBe("ready"));
+    },
+  );
+
   it("keeps concurrent streams and their saved messages separate when switching chats", async () => {
     const { transport, write, finish } = createTransport();
     const saveA = vi.fn();
