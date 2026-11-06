@@ -385,3 +385,121 @@ async def test_signed_automatic_cell_cache_invalidates(tmp_path: Path) -> None:
                 loader.flush()
             await k.run([command(0, 'x="1"')])
             assert k.globals["x"] == "1"
+
+
+async def test_private_helper_edit_invalidates() -> None:
+    # An underscore name is cell-local, so the helper, the cached function,
+    # and the call share a cell. The compiled name is mangled; the source is
+    # not.
+    def cell(value: int) -> str:
+        return (
+            f"def _helper():\n    return {value}\n"
+            "@mo.cache\ndef f(cb):\n    return _helper() + cb()\n"
+            "result=f(_helper)"
+        )
+
+    with mocked_kernel_session() as tk:
+        k = tk.kernel
+        await k.run([command(0, "import marimo as mo"), command(1, cell(1))])
+        assert k.globals["result"] == 2
+        await k.run([command(1, cell(2))])
+        assert k.globals["result"] == 4
+
+
+async def test_multiline_string_edit_invalidates() -> None:
+    def helper(literal: str) -> str:
+        return f"def helper():\n    return {literal}"
+
+    with mocked_kernel_session() as tk:
+        k = tk.kernel
+        await k.run(
+            [
+                command(0, "import marimo as mo"),
+                command(1, helper("'''a\n  \nb'''")),
+                command(
+                    2, "@mo.cache\ndef f():\n    return helper()\nresult=f()"
+                ),
+            ]
+        )
+        assert k.globals["result"] == "a\n  \nb"
+        await k.run([command(1, helper("'''a\n\nb'''"))])
+        assert k.globals["result"] == "a\n\nb"
+
+
+@pytest.mark.parametrize("wrapped", [False, True])
+@pytest.mark.parametrize("container", [False, True])
+async def test_closure_value_edit_invalidates(
+    wrapped: bool, container: bool
+) -> None:
+    make = (
+        "import functools\n"
+        "def make(n):\n"
+        "    def inner():\n"
+        "        return n\n"
+        + (
+            "    @functools.wraps(inner)\n"
+            "    def outer():\n"
+            "        return inner()\n"
+            "    return outer"
+            if wrapped
+            else "    return inner"
+        )
+    )
+    arg, call = ("[cb]", "cbs[0]()") if container else ("cb", "cbs()")
+    with mocked_kernel_session() as tk:
+        k = tk.kernel
+        await k.run(
+            [
+                command(0, "import marimo as mo"),
+                command(1, make),
+                command(2, "cb = make(1)"),
+                command(
+                    3,
+                    f"@mo.cache\ndef f(cbs):\n    return {call}\nresult=f({arg})",
+                ),
+            ]
+        )
+        assert k.globals["result"] == 1
+        await k.run([command(2, "cb = make(2)")])
+        assert k.globals["result"] == 2
+
+
+async def test_lambdas_sharing_a_line_remain_callable() -> None:
+    with mocked_kernel_session() as tk:
+        k = tk.kernel
+        await k.run(
+            [
+                command(0, "import marimo as mo"),
+                command(1, "a, b = lambda: 1, lambda: 2"),
+                command(
+                    2,
+                    "@mo.cache\ndef f(cb):\n    return cb()\nr1=f(a)\nr2=f(b)",
+                ),
+            ]
+        )
+        assert (k.globals.get("r1"), k.globals.get("r2")) == (1, 2)
+
+
+async def test_identical_source_in_different_modules(tmp_path: Path) -> None:
+    for name, value in (("m_one", 1), ("m_two", 2)):
+        (tmp_path / f"{name}.py").write_text(
+            f"VALUE = {value}\n\n\ndef callback():\n    return VALUE\n"
+        )
+    with mocked_kernel_session() as tk:
+        k = tk.kernel
+        await k.run(
+            [
+                command(
+                    0,
+                    "import sys\nimport marimo as mo\n"
+                    f"sys.path.insert(0, {str(tmp_path)!r})\n"
+                    "import m_one\nimport m_two",
+                ),
+                command(
+                    1,
+                    "@mo.cache\ndef f(cbs):\n    return cbs[0]()\n"
+                    "r1=f([m_one.callback])\nr2=f([m_two.callback])",
+                ),
+            ]
+        )
+        assert (k.globals.get("r1"), k.globals.get("r2")) == (1, 2)

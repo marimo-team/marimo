@@ -243,42 +243,43 @@ def deterministic_dumps(
     from marimo._save.hash import hash_wrapped_functions
     from marimo._save.stubs import maybe_get_custom_stub
 
-    # `_seen` holds the functions already fingerprinted on this call path,
-    # including through the function hasher, so self-referential closures
-    # terminate.
+    # `_seen` holds the functions already fingerprinted on this call path, so
+    # a closure over itself terminates.
     seen: set[int] = set() if _seen is None else _seen
 
     class _ContentHashPickler(pickle.Pickler):
+        def persistent_id(self, obj: Any) -> Any:
+            # The pickler never asks `reducer_override` about a set, but it
+            # asks `persistent_id` about everything. Iteration order of a set
+            # follows hash randomization, so stand in an id that orders the
+            # members by their own encoding. The output is hashed, never
+            # loaded, so the id need not resolve.
+            if type(obj) in (set, frozenset):
+                members = sorted(
+                    obj,
+                    key=lambda item: deterministic_dumps(
+                        item, hash_type, _seen=seen
+                    ),
+                )
+                return (type(obj).__name__, tuple(members))
+            return None
+
         def reducer_override(self, obj: Any) -> Any:
             if stub := maybe_get_custom_stub(obj):
                 return (bytes, (stub.to_bytes(),))
             if inspect.isfunction(obj):
-                # Pickle stores functions by reference, so an edit to a
-                # callback held as a default or inside a value does not change
-                # the key. Fingerprint code, defaults, and captured closure
-                # values instead. Reduce to plain bytes, because a
-                # function-valued reduce callable gets fingerprinted in turn
-                # and recurses forever.
-                if id(obj) in seen:
-                    # Already fingerprinted on this path, such as a closure
-                    # that captures itself. The first occurrence carries the
-                    # content.
-                    return (bytes, (type_sign(b"", "function"),))
+                # Pickle stores a function by reference, so an edit to a
+                # callback held inside a value would not change the key.
+                # Fingerprint it by content, and reduce to plain bytes: a
+                # function-valued reduce callable gets fingerprinted in turn.
                 try:
-                    captured = tuple(
-                        cell.cell_contents for cell in obj.__closure__ or ()
+                    fingerprint = hash_wrapped_functions(
+                        obj, hash_type, _seen=seen
                     )
-                except ValueError:
-                    # An empty cell. Fall back to the default pickle reducer.
+                except Exception:
+                    # No source, or an unencodable default or closure value.
+                    # By reference, as before.
                     return NotImplemented
-                # hash_wrapped_functions records `obj` in `seen`.
-                fingerprint = hash_wrapped_functions(
-                    obj, hash_type, _seen=seen
-                )
-                if captured:
-                    fingerprint += deterministic_dumps(
-                        captured, hash_type, _seen=seen
-                    )
                 return (bytes, (type_sign(fingerprint, "function"),))
             try:
                 if not is_primitive(obj) and is_data_primitive(obj):
