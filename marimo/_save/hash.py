@@ -1,5 +1,6 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
+import __future__
 
 import ast
 import base64
@@ -8,6 +9,7 @@ import functools
 import hashlib
 import inspect
 import linecache
+import operator
 import sys
 import types
 from typing import TYPE_CHECKING, Any, NamedTuple
@@ -115,10 +117,44 @@ def _nested_lambda_count(code: types.CodeType) -> int:
     )
 
 
+_FUTURE_FLAGS = functools.reduce(
+    operator.or_,
+    (
+        getattr(__future__, name).compiler_flag
+        for name in __future__.all_feature_names
+    ),
+    0,
+)
+
+
+def _compile_settings(code: types.CodeType | None = None) -> bytes:
+    # `python -O` folds `__debug__` and drops asserts, and a `__future__`
+    # import changes what the same source means. Neither is in the AST.
+    future = code.co_flags & _FUTURE_FLAGS if code is not None else 0
+    return primitive_to_bytes((sys.flags.optimize, future))
+
+
+@dataclasses.dataclass
+class _SourceIndex:
+    """Definitions of a parsed file, by the line a code object reports."""
+
+    functions: dict[tuple[str, int], list[ast.AST]]
+    lambdas: dict[int, list[ast.Lambda]]
+
+
 @functools.lru_cache(maxsize=32)
-def _parse_source(filename: str, source: str) -> ast.Module:
+def _index_source(filename: str, source: str) -> _SourceIndex:
     del filename  # Part of the key: the same text in two files is two trees.
-    return ast.parse(source)
+    index = _SourceIndex({}, {})
+    for node in ast.walk(ast.parse(source)):
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            first = node.decorator_list[0] if node.decorator_list else node
+            index.functions.setdefault((node.name, first.lineno), []).append(
+                node
+            )
+        elif isinstance(node, ast.Lambda):
+            index.lambdas.setdefault(node.lineno, []).append(node)
+    return index
 
 
 def hash_function_source(fn: Callable[..., Any]) -> bytes:
@@ -128,19 +164,23 @@ def hash_function_source(fn: Callable[..., Any]) -> bytes:
     neighbours, the code object is encoded instead.
     """
     code = fn.__code__
-    fallback = type_sign(_code_object_bytes(code), "code")
+    settings = _compile_settings(code)
+    fallback = type_sign(_code_object_bytes(code), "code") + settings
     # The whole file, not `inspect.getsource`: a fragment has to be dedented,
     # which rewrites multiline string literals, and a lambda's fragment may
     # not parse on its own. A reloaded module has new lines on disk, and a
     # function object kept alive from before the reload hashes as the new
-    # source too. That is the price of hashing by source.
+    # source too. That is the price of hashing by source. The globals let
+    # linecache ask the loader, as for a zip import.
     linecache.checkcache(code.co_filename)
-    lines = linecache.getlines(code.co_filename)
+    lines = linecache.getlines(
+        code.co_filename, getattr(fn, "__globals__", None)
+    )
     if not lines:
         # Built by exec or eval. Only the compiled form exists.
         return fallback
     try:
-        tree = _parse_source(code.co_filename, "".join(lines))
+        index = _index_source(code.co_filename, "".join(lines))
     except (SyntaxError, ValueError):
         return fallback
     first = code.co_firstlineno
@@ -164,10 +204,8 @@ def hash_function_source(fn: Callable[..., Any]) -> bytes:
         nested = _nested_lambda_count(code)
         nodes = [
             n
-            for n in ast.walk(tree)
-            if isinstance(n, ast.Lambda)
-            and n.lineno == first
-            and len(n.args.args) + len(n.args.posonlyargs) == code.co_argcount
+            for n in index.lambdas.get(first, [])
+            if len(n.args.args) + len(n.args.posonlyargs) == code.co_argcount
             and sum(isinstance(c, ast.Lambda) for c in ast.walk(n.body))
             == nested
             and (
@@ -179,27 +217,12 @@ def hash_function_source(fn: Callable[..., Any]) -> bytes:
     else:
         # A cell-local function has a mangled co_name; the source does not.
         name = unmangle_local(code.co_name).name
-        nodes = [
-            n
-            for n in ast.walk(tree)
-            if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))
-            and n.name == name
-            and (n.decorator_list[0] if n.decorator_list else n).lineno
-            == first
-        ]
+        nodes = index.functions.get((name, first), [])
     if len(nodes) != 1:
         # Nothing, or several, for example when the compiler folded a nested
         # lambda away, as in `lambda: True or (lambda: 2)`.
         return fallback
-    return ast_fingerprint(nodes[0]).encode("utf-8")
-
-
-def _unmangled_qualname(fn: Callable[..., Any]) -> str:
-    """`__qualname__` with cell-local prefixes stripped from each part."""
-    return ".".join(
-        part if part == "<locals>" else unmangle_local(part).name
-        for part in fn.__qualname__.split(".")
-    )
+    return ast_fingerprint(nodes[0]).encode("utf-8") + settings
 
 
 def _soft_dumps(
@@ -234,10 +257,13 @@ def hash_wrapped_functions(
         hash_alg = hashlib.new(hash_type, usedforsecurity=False)
         if not inspect.isbuiltin(fn):
             hash_alg.update(hash_function_source(fn))
-            # Module and qualname: two modules can define the same source
-            # over different globals.
+            # The module: two modules can define the same source over
+            # different globals. The name and not the qualname: a restored
+            # FunctionStub loses its `<locals>` path.
             hash_alg.update(
-                primitive_to_bytes((fn.__module__, _unmangled_qualname(fn)))
+                primitive_to_bytes(
+                    (fn.__module__, unmangle_local(fn.__name__).name)
+                )
             )
             hash_alg.update(
                 _soft_dumps(
@@ -283,13 +309,16 @@ def hash_wrapped_functions(
 def hash_raw_module(module: ast.Module) -> bytes:
     # Cell-local names are mangled in a compiled module. Strip the prefixes so
     # moving code between cells preserves the hash.
-    return ast_fingerprint(DeprivateVisitor().visit(module)).encode("utf-8")
+    fingerprint = ast_fingerprint(DeprivateVisitor().visit(module))
+    return fingerprint.encode("utf-8") + _compile_settings()
 
 
 def hash_cell_impl(cell: CellImpl) -> bytes:
     # The cell's own source, so the cache and the host agree on code identity,
     # including output suppression by a trailing semicolon.
-    return code_fingerprint(cell.code).encode("utf-8")
+    return code_fingerprint(cell.code).encode("utf-8") + _compile_settings(
+        cell.body
+    )
 
 
 def hash_cell_group(

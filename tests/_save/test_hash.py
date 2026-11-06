@@ -64,7 +64,7 @@ class TestHash:
             from marimo._save.save import persistent_cache
             from tests._save.loaders.mocks import MockLoader
 
-            expected_hash = "K5ujdC0rX0HFWCq4gym-haMo6LSMUH5HVfVEokd7Lrs"
+            expected_hash = "UszlA_TOaB1yD0rnLeRL-9kPCWLhqHgxhzX_M0LhjUw"
 
             return expected_hash, persistent_cache, MockLoader
 
@@ -190,7 +190,7 @@ class TestHash:
             # Cannot be reused/ shared, because it will change the hash.
             assert (
                 _cache._cache.hash
-                == "iJEx72FtmbV1FRDY3fqu9odYks1liTMoGWytHm2Rbhc"
+                == "INP2nw6Lb1r7vtxmW5SN1DTtZSjrk6bxwfCaDwJ-uPc"
             ), _cache._cache.hash
             assert _cache._cache.cache_type == "ContextExecutionPath"
             return
@@ -211,7 +211,7 @@ class TestHash:
             assert _X == 7
             assert (
                 _cache._cache.hash
-                == "iJEx72FtmbV1FRDY3fqu9odYks1liTMoGWytHm2Rbhc"
+                == "INP2nw6Lb1r7vtxmW5SN1DTtZSjrk6bxwfCaDwJ-uPc"
             ), _cache._cache.hash
             assert _cache._cache.cache_type == "ContextExecutionPath"
             # and a post block difference
@@ -238,7 +238,7 @@ class TestHash:
             # Cannot be reused/ shared, because it will change the hash.
             assert (
                 _cache._cache.hash
-                == "iJEx72FtmbV1FRDY3fqu9odYks1liTMoGWytHm2Rbhc"
+                == "INP2nw6Lb1r7vtxmW5SN1DTtZSjrk6bxwfCaDwJ-uPc"
             ), _cache._cache.hash
             assert _cache._cache.cache_type == "ContextExecutionPath"
             return
@@ -259,7 +259,7 @@ class TestHash:
             assert _X == 7
             assert (
                 _cache._cache.hash
-                == "iJEx72FtmbV1FRDY3fqu9odYks1liTMoGWytHm2Rbhc"
+                == "INP2nw6Lb1r7vtxmW5SN1DTtZSjrk6bxwfCaDwJ-uPc"
             ), _cache._cache.hash
             assert _cache._cache.cache_type == "ContextExecutionPath"
             # and a post block difference
@@ -798,7 +798,7 @@ class TestDataHash:
             from marimo._save.save import persistent_cache
             from tests._save.loaders.mocks import MockLoader
 
-            expected_hash = "jpM7QAVh71ZoZc-ng2t5VGpv7K6dbFdnvgyOk5UlBgk"
+            expected_hash = "TwaA3J4lWnXBt0eAcu5qhlwTTa5Xm8zJ4YGO6l2Gcrk"
             return MockLoader, persistent_cache, expected_hash, np
 
         @app.cell
@@ -851,7 +851,7 @@ class TestDataHash:
             from marimo._save.save import persistent_cache
             from tests._save.loaders.mocks import MockLoader
 
-            expected_hash = "Ls2O1tnuuWt39tlVNq4IQtu0GUOSv0Sq2F7WsaseFWE"
+            expected_hash = "LgDhJZ9SoggG97wRqabzenjKnbb-qWogMvTA60lBETA"
             return MockLoader, persistent_cache, expected_hash, np
 
         @app.cell
@@ -904,7 +904,7 @@ class TestDataHash:
             from marimo._save.save import persistent_cache
             from tests._save.loaders.mocks import MockLoader
 
-            expected_hash = "AovfmVPSlKuiKh1cn5uiXiClZT77rQsnAna8FgBLNfA"
+            expected_hash = "w_CSK_Gc7yX2BV0q2XhS5xfL1xa75-DFk6HxVzH502I"
             return MockLoader, persistent_cache, expected_hash, torch
 
         @app.cell
@@ -964,7 +964,7 @@ class TestDataHash:
             from marimo._save.save import persistent_cache
             from tests._save.loaders.mocks import MockLoader
 
-            expected_hash = "jvm3Raa-02hj0jc93SS8J0anb8LLiSlSu96o-cRaB30"
+            expected_hash = "800n2ixT9COdjtSbKIq970sSZEPojbKHPRZzMt9qaLs"
             return MockLoader, persistent_cache, expected_hash, torch
 
         @app.cell
@@ -1004,7 +1004,7 @@ class TestDataHash:
             from marimo._save.save import persistent_cache
             from tests._save.loaders.mocks import MockLoader
 
-            expected_hash = "icjiSbusfhuhL1-A7gORy8iZjOqWojK3ODxTIMYErUY"
+            expected_hash = "0nVI8lbeGLPRdF-saO7_pnqNi-2wzuGxaa7jE3e9dcA"
             return MockLoader, persistent_cache, expected_hash, DNA, copy
 
         @app.cell
@@ -1042,7 +1042,7 @@ class TestDataHash:
             from marimo._save.save import persistent_cache
             from tests._save.loaders.mocks import MockLoader
 
-            expected_hash = "WVatEllkdgkVKdS3S6wYpwaZ3QXrfcBC6L02WXYVRiw"
+            expected_hash = "pWUr4gwnOHCQLfFXLId5UouUvW5C6-Y_vtFnJeIOiTo"
             return MockLoader, persistent_cache, expected_hash, np, pd
 
         @app.cell
@@ -1106,7 +1106,7 @@ class TestDataHash:
             from marimo._save.save import persistent_cache
             from tests._save.loaders.mocks import MockLoader
 
-            expected_hash = "BAoj0_8rVsC0_sQAieXusPdgEtn6o92-Z_da-HoPqfw"
+            expected_hash = "jC6k8yHeSERvOk9Q9fhd6TEkiJoQf5CjNOCCl61GQB0"
             return MockLoader, persistent_cache, expected_hash, np, pd
 
         @app.cell
@@ -1147,7 +1147,7 @@ class TestDataHash:
             from marimo._save.save import persistent_cache
             from tests._save.loaders.mocks import MockLoader
 
-            expected_hash = "1ZmLu3ZWjFkLmM1oy7SLGSdpnAlT50E14GBAnptv5kk"
+            expected_hash = "HrioJlRM1tWJwniZn0_mRnMgF0SwHspQmQkBvcSuLRU"
             return MockLoader, persistent_cache, expected_hash, pl
 
         @app.cell
@@ -1204,7 +1204,7 @@ class TestDataHash:
             from marimo._save.save import persistent_cache
             from tests._save.loaders.mocks import MockLoader
 
-            expected_hash = "A3WdtIfCC2Dn79pq1jh6TekKMhVRDQ1ySOJWn8QzDYM"
+            expected_hash = "SlDEce1H9ENwlFXHavumCn5YW1vM048MNgNdYgbePVI"
             return MockLoader, persistent_cache, expected_hash, pl
 
         @app.cell

@@ -793,3 +793,101 @@ def test_two_restored_stubs_from_one_cell_keep_their_hashes() -> None:
     linecache.cache.pop(one.__code__.co_filename, None)
     restored = tuple(stub.load({}) for stub in stubs)
     assert tuple(map(hash_wrapped_functions, restored)) == before
+
+
+def test_optimize_level_is_part_of_the_key() -> None:
+    import subprocess
+    import sys
+
+    program = (
+        "import ast\nfrom marimo._save.hash import hash_raw_module\n"
+        "print(hash_raw_module(ast.parse('x = 1')).hex())"
+    )
+    plain, optimized = (
+        subprocess.run(
+            [sys.executable, *flags, "-c", program],
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout
+        for flags in ((), ("-O",))
+    )
+    assert plain != optimized
+
+
+def test_future_import_is_part_of_the_key(tmp_path: Path) -> None:
+    import importlib
+    import sys
+
+    body = "def f(x: int):\n    return x\n"
+    (tmp_path / "plain_future.py").write_text(body)
+    (tmp_path / "annotated_future.py").write_text(
+        "from __future__ import annotations\n" + body
+    )
+    sys.path.insert(0, str(tmp_path))
+    try:
+        plain = importlib.import_module("plain_future").f
+        annotated = importlib.import_module("annotated_future").f
+    finally:
+        sys.path.remove(str(tmp_path))
+    assert hash_wrapped_functions(plain) != hash_wrapped_functions(annotated)
+
+
+def test_restored_factory_helper_keeps_its_hash() -> None:
+    import linecache
+
+    from marimo._ast.compiler import compile_cell
+    from marimo._save.stubs.function_stub import FunctionStub
+
+    cell = compile_cell(
+        "def make():\n    def helper():\n        return 1\n    return helper\n"
+        "h = make()",
+        cell_id=CellId_t("c"),
+    )
+    namespace: dict[str, Any] = {}
+    exec(cell.body, namespace)  # noqa: S102
+    helper = namespace["h"]
+    before = hash_wrapped_functions(helper)
+    stub = FunctionStub(helper)
+    linecache.cache.pop(helper.__code__.co_filename, None)
+    assert hash_wrapped_functions(stub.load({})) == before
+
+
+def test_zip_imported_function_hashes_by_source(tmp_path: Path) -> None:
+    import importlib
+    import inspect
+    import sys
+    import zipfile
+
+    archive = tmp_path / "zipped.zip"
+    with zipfile.ZipFile(archive, "w") as zf:
+        zf.writestr("zipped_module.py", "def f():\n    return 1\n")
+    sys.path.insert(0, str(archive))
+    try:
+        f = importlib.import_module("zipped_module").f
+    finally:
+        sys.path.remove(str(archive))
+    before = hash_wrapped_functions(f)
+    inspect.getsource(f)
+    assert hash_wrapped_functions(f) == before
+
+
+def test_library_function_hash_walks_its_module_once(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import json
+
+    import marimo._save.hash as hash_module
+
+    hash_wrapped_functions(json.dumps)
+    walks = 0
+    original = hash_module.ast.walk
+
+    def counting(node: Any) -> Any:
+        nonlocal walks
+        walks += 1
+        return original(node)
+
+    monkeypatch.setattr(hash_module.ast, "walk", counting)
+    hash_wrapped_functions(json.dumps)
+    assert walks == 0
