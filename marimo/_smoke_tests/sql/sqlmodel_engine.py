@@ -6,14 +6,15 @@
 #     "marimo",
 #     "polars==1.21.0",
 #     "psycopg[binary]==3.2.4",
-#     "sqlglot==26.3.9",
+#     "sqlglot[c]>=30.11.0; python_version < '3.15'",
+#     "sqlglot[c]>=30.23.0; python_version >= '3.15'",
 #     "sqlmodel==0.0.22",
 # ]
 # ///
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -21,25 +22,29 @@ app = marimo.App(width="medium")
 def _():
     import altair as alt
     import marimo as mo
+
     return (mo,)
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md("""# SQLModel with `mo.sql()`""")
-    return
+    mo.md("""
+    # SQLModel with `mo.sql()`
+    """)
 
 
 @app.cell
 def _():
     from sqlmodel import text, create_engine
+
     return (create_engine,)
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md("""## sqlite""")
-    return
+    mo.md("""
+    ## sqlite
+    """)
 
 
 @app.cell
@@ -77,7 +82,7 @@ def _(create_engine, mo):
 
 
 @app.cell
-def _(mo, sqlite):
+def _(mo, products, sqlite):
     products_df = mo.sql(
         f"""
         SELECT name, price, category
@@ -91,8 +96,9 @@ def _(mo, sqlite):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md("""### All Products (sorted by price)""")
-    return
+    mo.md("""
+    ### All Products (sorted by price)
+    """)
 
 
 @app.cell(hide_code=True)
@@ -109,17 +115,17 @@ def _(mo, products_df):
             ),
         ]
     )
-    return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""### Category Summary""")
-    return
+    mo.md(r"""
+    ### Category Summary
+    """)
 
 
 @app.cell
-def _(mo, sqlite):
+def _(mo, products, sqlite):
     _df = mo.sql(
         f"""
         -- Category summary
@@ -135,7 +141,6 @@ def _(mo, sqlite):
         """,
         engine=sqlite
     )
-    return
 
 
 @app.cell(hide_code=True)
@@ -149,7 +154,7 @@ def _(mo):
 
 
 @app.cell
-def _(mo, price_threshold, sqlite):
+def _(mo, price_threshold, products, sqlite):
     _df = mo.sql(
         f"""
         SELECT name, price, category
@@ -159,13 +164,13 @@ def _(mo, price_threshold, sqlite):
         """,
         engine=sqlite
     )
-    return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""## postgresql""")
-    return
+    mo.md(r"""
+    ## postgresql
+    """)
 
 
 @app.cell
@@ -205,7 +210,6 @@ def _(mo, my_postgres):
         """,
         engine=my_postgres
     )
-    return
 
 
 @app.cell
@@ -216,18 +220,16 @@ def _(connection, mo):
         """,
         engine=connection
     )
-    return
 
 
 @app.cell
-def _(mo, sqlite):
+def _(mo, products, sqlite):
     _df = mo.sql(
         f"""
         SELECT * FROM products LIMIT 100
         """,
         engine=sqlite
     )
-    return
 
 
 @app.cell
@@ -238,7 +240,6 @@ def _(mo):
         FROM 'hf://datasets/julien040/hacker-news-posts/story.parquet' LIMIT 500
         """
     )
-    return
 
 
 @app.cell
@@ -248,7 +249,6 @@ def _(mo):
         SELECT "id" FROM memory.main.foo LIMIT 100
         """
     )
-    return
 
 
 if __name__ == "__main__":

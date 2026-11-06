@@ -6,8 +6,11 @@ from __future__ import annotations
 import dataclasses
 import typing
 
+import msgspec
+
 from marimo._ipc.connection import Connection
 from marimo._ipc.types import ConnectionInfo
+from marimo._runtime.commands import StopKernelCommand
 
 if typing.TYPE_CHECKING:
     from marimo._messaging.types import KernelMessage
@@ -74,6 +77,18 @@ class QueueManager:
     def close_queues(self) -> None:
         """Close all queues and cleanup resources."""
         self.conn.close()
+
+    def request_kernel_stop(self) -> None:
+        """Request shutdown without waiting for a receiver or queue capacity."""
+        import zmq
+
+        try:
+            self.conn.control.socket.send(
+                msgspec.msgpack.encode(StopKernelCommand()),
+                flags=zmq.DONTWAIT,
+            )
+        except zmq.Again:
+            pass
 
     @classmethod
     def create(

@@ -393,11 +393,9 @@ file_state_type = type(file_state).__name__
 '''
 
 # Use the bridge to run the code in the execution context
-# ExecuteCellsCommand expects cell_ids and codes arrays
 bridge.put_control_request(json.dumps({
     "type": "execute-cells",
-    "cellIds": ["test_watch_cell"],
-    "codes": [code_to_run]
+    "executionRequests": [{"type": "execute-cell", "cellId": "test_watch_cell", "code": code_to_run}]
 }))
 
 # Wait for execution to complete

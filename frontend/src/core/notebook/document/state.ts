@@ -13,6 +13,7 @@ import {
   type CellEdit,
   createCell,
   deleteCell,
+  restoreCell,
   type Draft,
   type EditableDocument,
   editCell,
@@ -30,6 +31,7 @@ export interface DocumentEditor {
   setCode(id: Protocol.CellId, code: string): void;
   setName(id: Protocol.CellId, name: string): void;
   updateConfig(id: Protocol.CellId, patch: Partial<Protocol.CellConfig>): void;
+  /** Create a cell, or bring back one this draft deletes with this content. */
   createCell(cell: Protocol.CellInput, placement?: Placement): void;
   deleteCell(id: Protocol.CellId): void;
   /** A permutation of the cells present at this point in the transaction. */
@@ -330,7 +332,7 @@ function editDocument(
       updateCell(id, { config: Protocol.CellConfig.partial().parse(patch) }),
     createCell: (cell, placement = {}) => {
       assertActive();
-      if (confirmed.cells.has(cell.id) || hasCell(cell.id)) {
+      if (hasCell(cell.id)) {
         throw new Error(`Cell ${cell.id} already exists`);
       }
       if (placement.after !== undefined && placement.before !== undefined) {
@@ -340,7 +342,9 @@ function editDocument(
       if (anchor !== undefined) {
         requireCell(anchor);
       }
-      next = createCell(next, cell, { ...placement });
+      next = confirmed.cells.has(cell.id)
+        ? restoreCell(confirmed, next, cell, { ...placement }, sent)
+        : createCell(next, cell, { ...placement });
     },
     deleteCell: (id) => {
       requireCell(id);

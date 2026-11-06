@@ -12,7 +12,7 @@ Bug: The main app's setup cell should NOT rerun when the inner app is embedded.
 
 import marimo
 
-__generated_with = "0.18.4"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 with app.setup:
@@ -32,7 +32,6 @@ def _():
     The outer app's setup cell should only run **once**, not rerun when
     the inner app is embedded.
     """)
-    return
 
 
 @app.cell
@@ -55,11 +54,10 @@ def _(result):
     mo.md(f"""
     Inner app value: **{result.defs.get('inner_value')}**
     """)
-    return
 
 
 @app.cell
-def _(setup_count_before_embed):
+def _(setup_count_before_embed: int):
     setup_count_after_embed = setup_tracker["count"]
 
     # This is the key assertion - setup should still be 1
@@ -74,7 +72,6 @@ def _(setup_count_before_embed):
 
     Expected setup to run exactly **1** time.
     """)
-    return
 
 
 if __name__ == "__main__":

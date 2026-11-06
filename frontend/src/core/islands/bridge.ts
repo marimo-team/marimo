@@ -1,13 +1,16 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 /* oxlint-disable typescript/no-explicit-any */
 
+import type { NotebookTransport } from "@marimo-team/client";
 import { getWorkerRPC } from "@/core/wasm/rpc";
+import { Arrays } from "@/utils/arrays";
 import { Deferred } from "@/utils/Deferred";
 import { throwNotImplemented } from "@/utils/functions";
 import { Logger } from "@/utils/Logger";
 import { jsonParseWithSpecialChar } from "@/utils/json/json-parser";
 import { generateUUID } from "@/utils/uuid";
 import { initialNotebookState, notebookAtom } from "../cells/cells";
+import type { NotebookBackend } from "../notebook/replica";
 import type { ClientCommand, NotificationMessage } from "../kernel/messages";
 import type { EditRequests, RunRequests } from "../network/types";
 import { store as defaultStore } from "../state/jotai";
@@ -70,8 +73,36 @@ export class IslandsPyodideBridge implements RunRequests, EditRequests {
   private readonly activeSessionGenerations = new Set<number>();
   private appTransition = Promise.resolve();
   private workerReady = new Deferred<void>();
+  /** Where the managed session's host events go while a replica follows them. */
+  private stream: Parameters<NotebookTransport>[1] | undefined;
 
   public initialized = new Deferred<void>();
+
+  /**
+   * The managed session's host stream, for a replica to follow. Replacing
+   * or stopping the session resets the stream, and the next session's
+   * snapshot follows.
+   */
+  public readonly notebookBackend: NotebookBackend = {
+    transport: ({ signal }, handlers) =>
+      new Promise((resolve) => {
+        this.stream = handlers;
+        handlers.open();
+        signal.addEventListener(
+          "abort",
+          () => {
+            if (this.stream === handlers) {
+              this.stream = undefined;
+            }
+            resolve();
+          },
+          { once: true },
+        );
+      }),
+    notebook: () => {
+      throw new Error("Islands do not edit notebooks");
+    },
+  };
 
   public constructor(config: IslandsBridgeConfig = {}) {
     this.store = config.store || defaultStore;
@@ -119,16 +150,27 @@ export class IslandsPyodideBridge implements RunRequests, EditRequests {
         if (!this.activeSessionGenerations.has(sessionGeneration)) {
           return;
         }
-        // Islands follow only the notebook's marimo notifications.
         const frame = jsonParseWithSpecialChar(event) as {
           event: string;
           data: { marimo?: NotificationMessage };
         };
-        if (frame.event === "marimo" && frame.data.marimo) {
-          this.notificationConsumer?.(frame.data.marimo, sessionGeneration);
+        if (frame.event === "marimo") {
+          if (frame.data.marimo) {
+            this.notificationConsumer?.(frame.data.marimo, sessionGeneration);
+          }
+          return;
+        }
+        // The replica follows the managed session's host document.
+        if (sessionGeneration === this.session?.sessionGeneration) {
+          this.stream?.message(frame);
         }
       },
     );
+  }
+
+  /** The managed session is gone, so its stream starts over. */
+  private resetNotebookStream(): void {
+    this.stream?.message({ event: "reset", data: {} });
   }
 
   public async initializeApps(): Promise<void> {
@@ -185,6 +227,7 @@ export class IslandsPyodideBridge implements RunRequests, EditRequests {
       const replacesSession = managesSingleApp && previousSession !== undefined;
       this.activeSessionGenerations.add(request.sessionGeneration);
       if (replacesSession) {
+        this.resetNotebookStream();
         this.store.set(notebookAtom, initialNotebookState());
       }
       if (managesSingleApp || !previousSession) {
@@ -236,6 +279,7 @@ export class IslandsPyodideBridge implements RunRequests, EditRequests {
       this.store.set(islandsPendingInitialRunsAtom, null);
       this.session = undefined;
       this.sessionReady = new Deferred<AppSession>();
+      this.resetNotebookStream();
       this.store.set(notebookAtom, initialNotebookState());
     });
   }
@@ -319,7 +363,14 @@ export class IslandsPyodideBridge implements RunRequests, EditRequests {
     await this.putControlRequest(
       {
         type: "execute-cells",
-        ...request,
+        request: request.request,
+        executionRequests: Arrays.zip(request.cellIds, request.codes).map(
+          ([cellId, code]) => ({
+            type: "execute-cell",
+            cellId,
+            code,
+          }),
+        ),
       },
       session,
     );
@@ -333,21 +384,18 @@ export class IslandsPyodideBridge implements RunRequests, EditRequests {
   public getUsageStats = throwNotImplemented;
   public getEnvironmentInfo = throwNotImplemented;
   public sendRename = throwNotImplemented;
-  public sendSave = throwNotImplemented;
+  public saveLayout = throwNotImplemented;
   public sendCopy = throwNotImplemented;
   public sendRunScratchpad = throwNotImplemented;
   public sendStdin = throwNotImplemented;
   public sendInterrupt = throwNotImplemented;
   public sendShutdown = throwNotImplemented;
   public sendFormat = throwNotImplemented;
-  public sendDeleteCell = throwNotImplemented;
   public sendInstallMissingPackages = throwNotImplemented;
   public sendCodeCompletionRequest = throwNotImplemented;
   public saveUserConfig = throwNotImplemented;
   public saveAppConfig = throwNotImplemented;
-  public saveCellConfig = throwNotImplemented;
   public sendRestart = throwNotImplemented;
-  public sendDocumentTransaction = throwNotImplemented;
   public readCode = throwNotImplemented;
   public readSnippets = throwNotImplemented;
   public previewDatasetColumn = throwNotImplemented;

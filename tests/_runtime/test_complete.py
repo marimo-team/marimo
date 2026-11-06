@@ -5,7 +5,7 @@ import threading
 import time
 from collections.abc import Mapping
 from inspect import signature
-from types import ModuleType
+from types import ModuleType, SimpleNamespace
 from typing import Any
 from unittest import mock
 
@@ -831,6 +831,58 @@ def test_path_completion_still_works(tmp_path: Any) -> None:
     )
 
 
+def test_path_completion_uses_forward_slash_for_directories(
+    tmp_path: Any,
+) -> None:
+    """Directory completions end with `/` even when `os.path.sep` is `\\`."""
+    (tmp_path / "User-data").mkdir()
+    with mock.patch("os.path.sep", "\\"):
+        content = _run_complete(f'open("{tmp_path}/User-d')
+    names = [option["name"] for option in content["options"]]
+    assert names == ["User-data/"]
+
+
+def test_get_completion_option_normalizes_backslash_without_type() -> None:
+    completion = _FakeCompletion("User-data\\", raise_on_type=True)
+
+    with mock.patch("os.path.sep", "\\"):
+        option = _get_completion_option(
+            completion,
+            compute_completion_info=False,
+            compute_type=False,
+        )
+
+    assert option.name == "User-data/"
+    assert completion.type_access_count == 0
+
+
+@pytest.mark.parametrize("sep", ["/", "\\"])
+def test_get_completion_option_keeps_backslash_inside_name(sep: str) -> None:
+    completion = _FakeCompletion("report\\draft.csv", raise_on_type=True)
+
+    with mock.patch("os.path.sep", sep):
+        option = _get_completion_option(
+            completion,
+            compute_completion_info=False,
+            compute_type=False,
+        )
+
+    assert option.name == "report\\draft.csv"
+
+
+def test_get_completion_option_keeps_trailing_backslash_on_posix() -> None:
+    completion = _FakeCompletion("odd\\", raise_on_type=True)
+
+    with mock.patch("os.path.sep", "/"):
+        option = _get_completion_option(
+            completion,
+            compute_completion_info=False,
+            compute_type=False,
+        )
+
+    assert option.name == "odd\\"
+
+
 def test_parameter_completion_omits_full_function_docstring() -> None:
     """Completing a parameter must not dump the whole function docstring.
 
@@ -1001,8 +1053,8 @@ def test_get_completion_options_bails_out_when_timeout_elapsed() -> None:
     times = iter([0.0, 0.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0])
 
     with mock.patch(
-        "marimo._runtime.complete.time.monotonic",
-        side_effect=lambda: next(times, original_monotonic()),
+        "marimo._runtime.complete.time",
+        SimpleNamespace(monotonic=lambda: next(times, original_monotonic())),
     ):
         options = _get_completion_options(
             completions, prefix="", limit=100, timeout=1.0
@@ -1171,8 +1223,8 @@ def test_infer_skipped_once_timeout_elapsed() -> None:
     times = iter([0.0, 0.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0])
 
     with mock.patch(
-        "marimo._runtime.complete.time.monotonic",
-        side_effect=lambda: next(times, original_monotonic()),
+        "marimo._runtime.complete.time",
+        SimpleNamespace(monotonic=lambda: next(times, original_monotonic())),
     ):
         _get_completion_options(completions, prefix="", limit=100, timeout=1.0)
 

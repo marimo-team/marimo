@@ -97,6 +97,10 @@ If you prefer a slideshow-like experience, you can use the slides layout. Enable
 - Add speaker notes at the bottom of each slide and launch speaker view by pressing `S`.
 - Powered by [reveal.js](https://revealjs.com/), so you can use most of its features like keyboard shortcuts, navigation, etc.
 
+Slides use a fixed 1280×720 canvas that scales to fit the available space,
+preserving the layout when you enter fullscreen or switch displays. Content
+that exceeds this canvas can still be scrolled.
+
 #### Export slides
 
 Export a notebook that uses the slides layout as static HTML or WebAssembly HTML:

@@ -460,9 +460,7 @@ async def test_run_cells(host, scratch):
                     "cells": [
                         {
                             "id": "check_a",
-                            "code_hash": answer["cells"]["check_a"][
-                                "code_hash"
-                            ],
+                            "etag": answer["cells"]["check_a"]["etag"],
                         }
                     ]
                 },
@@ -477,7 +475,7 @@ async def test_run_cells(host, scratch):
         response = await host.request(
             "POST",
             path + "/runtime/runs",
-            json={"cells": [{"id": "check_a", "code_hash": "stale"}]},
+            json={"cells": [{"id": "check_a", "etag": "stale"}]},
         )
         conflict = problem(response, 409, "conflict")["edit"]
         assert conflict["change"] == 0
@@ -487,7 +485,7 @@ async def test_run_cells(host, scratch):
         assert conflict["cell"]["id"] == "check_a"
 
 
-async def test_run_conflict_and_interruption(host, scratch):
+async def test_runs_queue_behind_the_active_run_and_interrupt(host, scratch):
     require(scratch, "runtime.start", "runtime.stop", "runtime.run")
     path = notebook_path(scratch)
     async with host.watch(path + "/events") as watch:
@@ -511,15 +509,24 @@ async def test_run_conflict_and_interruption(host, scratch):
                 and f.message()["run"]["status"] == "running"
             )
         )
-        problem(
+        # A run accepted while another executes waits its turn.
+        queued_key = uuid4().hex
+        queued = accepted(
             await host.request(
-                "POST", path + "/runtime/runs", json={"code": "pass"}
+                "POST",
+                path + "/runtime/runs",
+                key=queued_key,
+                json={"code": "pass"},
             ),
-            409,
-            "conflict",
+            202,
+            "Run",
         )
+        assert queued["id"] != run["id"]
+        assert queued["status"] == "queued"
         endpoint = path + "/runtime/runs/" + quote(run["id"], safe="")
         accepted(await host.request("DELETE", endpoint), 202, "Run")
         _, executions = await finish_run(watch, run, key, "interrupted")
         assert all(e["outcome"]["kind"] == "interrupted" for e in executions)
         problem(await host.request("DELETE", endpoint), 409, "conflict")
+        # The interruption releases the runtime for the queued run.
+        await finish_run(watch, queued, queued_key, "succeeded")

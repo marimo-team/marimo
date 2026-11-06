@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.17.0"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium", sql_output="native")
 
 
@@ -11,6 +11,7 @@ def _():
     import numpy as np
     import sqlglot
     import pyarrow
+
     return np, pd
 
 
@@ -36,7 +37,6 @@ def _(example_df):
         """,
     )
     print(res)
-    return
 
 
 if __name__ == "__main__":

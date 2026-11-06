@@ -1,12 +1,23 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import type { Milliseconds, Seconds } from "@/utils/time";
-import type { SerializedEditorState } from "../codemirror/types";
 import type { OutputMessage } from "../kernel/messages";
 import type { CellConfig, RuntimeState } from "../network/types";
 import type { CellId } from "./ids";
 import { DEFAULT_CELL_NAME } from "./names";
 import type { Outline } from "./outline";
+
+/**
+ * Whether a cell's code has changed since it last ran. A cell that never ran
+ * is edited once it has code. Whitespace at the ends does not count.
+ *
+ * TODO(MO-8028): Temporary until staleness comes from the host's executions.
+ */
+export function isEdited(lastCodeRun: string | null, code: string): boolean {
+  return lastCodeRun === null
+    ? code.trim().length > 0
+    : lastCodeRun.trim() !== code.trim();
+}
 
 /**
  * Create a new cell with default state.
@@ -19,7 +30,6 @@ export function createCell({
   lastExecutionTime = null,
   edited = false,
   config,
-  serializedEditorState = null,
 }: Partial<CellData> & { id: CellId }): CellData {
   return {
     id: id,
@@ -34,7 +44,6 @@ export function createCell({
     edited: edited,
     lastCodeRun: lastCodeRun,
     lastExecutionTime: lastExecutionTime,
-    serializedEditorState: serializedEditorState,
   };
 }
 
@@ -85,8 +94,6 @@ export interface CellData {
   lastExecutionTime: number | null;
   /** cell configuration */
   config: CellConfig;
-  /** serialized state of the underlying editor */
-  serializedEditorState: SerializedEditorState | null;
 }
 
 export interface CellRuntimeState {

@@ -17,7 +17,7 @@ from inline_snapshot import snapshot
 from marimo._config import manager as config_module
 from marimo._config.config import DEFAULT_CONFIG
 from marimo._config.manager import (
-    EnvConfigReader,
+    EnvVarReader,
     PyprojectConfigReader,
     ScriptConfigReader,
     get_default_config_manager,
@@ -47,9 +47,7 @@ def config_tree(
     monkeypatch.setenv("USERPROFILE", str(home))
     monkeypatch.setenv("XDG_CONFIG_HOME", str(root / "xdg"))
     monkeypatch.chdir(project)
-    monkeypatch.delenv(
-        "_MARIMO_CONFIG_OVERLOAD_RUNTIME_AUTO_INSTANTIATE", raising=False
-    )
+    monkeypatch.delenv("MARIMO_RUNTIME_AUTO_INSTANTIATE", raising=False)
     monkeypatch.delenv("MARIMO_SERVER_TRANSPORT", raising=False)
     monkeypatch.setattr(GLOBAL_SETTINGS, "RESTRICT_SHARING", False)
     # These defaults are inferred at module import, before fixture isolation.
@@ -170,7 +168,12 @@ def test_default_configuration_snapshot(config_tree: Path) -> None:
                 "autosave_delay": 1000,
                 "format_on_save": False,
             },
-            "server": {"browser": "default", "follow_symlink": False},
+            "server": {
+                "skip_update_check": False,
+                "session_cookie_secure": False,
+                "browser": "default",
+                "follow_symlink": False,
+            },
             "diagnostics": {"sql_linter": True},
         }
     )
@@ -213,9 +216,7 @@ def test_layered_configuration_snapshot(
         "[tool.marimo.experimental]\nisolate_apps = true\n"
         '[tool.marimo.ai.open_ai]\napi_key = "ignored-script-secret"\n',
     )
-    monkeypatch.setenv(
-        "_MARIMO_CONFIG_OVERLOAD_RUNTIME_AUTO_INSTANTIATE", "true"
-    )
+    monkeypatch.setenv("MARIMO_RUNTIME_AUTO_INSTANTIATE", "true")
     monkeypatch.setenv("MARIMO_SERVER_TRANSPORT", "sse")
     manager = get_default_config_manager(
         current_path=str(notebook)
@@ -258,7 +259,6 @@ def test_layered_configuration_snapshot(
                 "signing": {"private_key_path": "********"},
                 "mcp": {"mcpServers": {}, "presets": []},
                 "runtime": {
-                    "dotenv": [],
                     "watcher_on_save": "lazy",
                     "auto_reload": "off",
                     "default_csv_encoding": "utf-8",
@@ -272,8 +272,10 @@ def test_layered_configuration_snapshot(
                     "show_tracebacks": False,
                 },
                 "server": {
+                    "skip_update_check": False,
                     "follow_symlink": False,
                     "browser": "default",
+                    "session_cookie_secure": False,
                     "transport": "sse",
                 },
                 "snippets": {
@@ -350,8 +352,10 @@ def test_layered_configuration_snapshot(
                     "show_tracebacks": False,
                 },
                 "server": {
+                    "skip_update_check": False,
                     "follow_symlink": False,
                     "browser": "default",
+                    "session_cookie_secure": False,
                     "transport": "sse",
                 },
                 "snippets": {
@@ -442,7 +446,6 @@ def test_layered_configuration_snapshot(
                     "output_max_bytes": 8000000,
                     "auto_reload": "off",
                     "default_csv_encoding": "utf-8",
-                    "dotenv": [],
                     "reactive_tests": True,
                     "auto_instantiate": False,
                     "default_sql_output": "auto",
@@ -455,7 +458,12 @@ def test_layered_configuration_snapshot(
                     "autosave_delay": 1000,
                     "format_on_save": False,
                 },
-                "server": {"browser": "default", "follow_symlink": False},
+                "server": {
+                    "skip_update_check": False,
+                    "session_cookie_secure": False,
+                    "browser": "default",
+                    "follow_symlink": False,
+                },
                 "diagnostics": {"sql_linter": True},
             },
             "overrides_unmasked": {
@@ -535,7 +543,7 @@ def test_dotenv_fallbacks_snapshot(config_tree: Path) -> None:
                     "runtime": {"dotenv": ["<root>/home/project/.env"]}
                 },
                 "dotenv": ["<root>/home/project/.env"],
-                "masked_dotenv": [],
+                "masked_dotenv": None,
                 "overrides": {},
             },
             "standalone_notebook": {
@@ -545,7 +553,7 @@ def test_dotenv_fallbacks_snapshot(config_tree: Path) -> None:
                     }
                 },
                 "dotenv": ["<root>/home/project/notebooks/.env"],
-                "masked_dotenv": [],
+                "masked_dotenv": None,
                 "overrides": {"formatting": {"line_length": 100}},
             },
             "home": {
@@ -560,7 +568,7 @@ def test_dotenv_fallbacks_snapshot(config_tree: Path) -> None:
                 }
             },
             "explicit_user": {"dotenv": ["chosen.env"]},
-            "masked_empty_user": {"dotenv": ["<root>/home/project/.env"]},
+            "masked_empty_user": {"dotenv": []},
         }
     )
 
@@ -700,6 +708,8 @@ format_on_save = false
 [server]
 browser = "default"
 follow_symlink = false
+session_cookie_secure = false
+skip_update_check = false
 
 [snippets]
 custom_paths = []
@@ -758,10 +768,8 @@ def test_environment_snapshot(
         ("invalid", "true"),
     ]:
         monkeypatch.setenv("MARIMO_SERVER_TRANSPORT", transport)
-        monkeypatch.setenv(
-            "_MARIMO_CONFIG_OVERLOAD_RUNTIME_AUTO_INSTANTIATE", instantiate
-        )
-        cases[transport] = EnvConfigReader().read()
+        monkeypatch.setenv("MARIMO_RUNTIME_AUTO_INSTANTIATE", instantiate)
+        cases[transport] = EnvVarReader().read()
     assert cases == snapshot(
         {
             "sse": {
@@ -817,7 +825,7 @@ def test_trust_origins_snapshot(config_tree: Path) -> None:
             },
             "workspace": {"signing": None, "cache": {}},
             "pyproject": {
-                "display": {"theme": "dark", "custom_css": []},
+                "display": {"theme": "dark"},
                 "cache": {"store": "disk"},
             },
         }
@@ -861,7 +869,6 @@ def test_secret_roundtrip_snapshot(config_tree: Path) -> None:
                     "models": {"displayed_models": [], "custom_models": []},
                 },
                 "runtime": {
-                    "dotenv": [],
                     "reactive_tests": True,
                     "auto_instantiate": False,
                     "default_sql_output": "auto",
@@ -898,6 +905,7 @@ def test_secret_roundtrip_snapshot(config_tree: Path) -> None:
                     "reactive_tests": True,
                     "show_tracebacks": False,
                     "output_max_bytes": 8000000,
+                    "dotenv": ["secrets.env"],
                     "auto_reload": "off",
                     "on_cell_change": "autorun",
                 },
@@ -1006,7 +1014,7 @@ def test_dotenv_explicit_precedence_snapshot(config_tree: Path) -> None:
         {
             "user_only": {
                 "resolved": ["user.env"],
-                "masked": [],
+                "masked": None,
                 "overrides": {},
             },
             "project_replaces_user": {
@@ -1014,7 +1022,7 @@ def test_dotenv_explicit_precedence_snapshot(config_tree: Path) -> None:
                     "<root>/home/project/first.env",
                     "<root>/home/project/../shared.env",
                 ],
-                "masked": [],
+                "masked": None,
                 "overrides": {
                     "dotenv": [
                         "<root>/home/project/first.env",
@@ -1029,7 +1037,7 @@ def test_dotenv_explicit_precedence_snapshot(config_tree: Path) -> None:
             },
             "script_replaces_project": {
                 "resolved": ["<root>/home/project/script.env"],
-                "masked": [],
+                "masked": None,
                 "overrides": {"dotenv": ["<root>/home/project/script.env"]},
             },
             "script_empty": {
@@ -1044,12 +1052,12 @@ def test_dotenv_explicit_precedence_snapshot(config_tree: Path) -> None:
             },
             "memory_replaces_script": {
                 "resolved": ["memory.env"],
-                "masked": [],
+                "masked": None,
                 "overrides": {"dotenv": ["memory.env"]},
             },
             "absolute_path": {
                 "resolved": ["<root>/home/project/absolute.env"],
-                "masked": [],
+                "masked": None,
                 "overrides": {"dotenv": ["<root>/home/project/absolute.env"]},
             },
         }
@@ -1089,19 +1097,19 @@ def test_dotenv_workspace_session_snapshot(config_tree: Path) -> None:
         {
             "standalone_session": {
                 "workspace": ["<root>/home/project/.env"],
-                "masked_session": [],
+                "masked_session": None,
                 "session": ["<root>/home/project/notebooks/.env"],
                 "overrides": {},
             },
             "unsaved_session": {
                 "workspace": ["<root>/home/project/.env"],
-                "masked_session": [],
+                "masked_session": None,
                 "session": ["<root>/home/project/.env"],
                 "overrides": {},
             },
             "project_session": {
                 "workspace": ["<root>/home/project/.env"],
-                "masked_session": [],
+                "masked_session": None,
                 "session": ["<root>/home/project/.env"],
                 "overrides": {},
             },
@@ -1293,7 +1301,7 @@ def test_dotenv_loading_boundary_snapshot(
     from marimo._secrets.load_dotenv import load_dotenv_with_fallback
 
     project = config_tree / "home" / "project"
-    prefix = "MARIMO_CONFIG_SNAPSHOT_"
+    prefix = "MARIMO_SNAPSHOT_"
     for key in ["EXISTING", "SHARED", "FIRST", "SECOND", "EXPANDED"]:
         # Register cleanup for keys created by the dotenv loader as well.
         monkeypatch.setenv(prefix + key, "")

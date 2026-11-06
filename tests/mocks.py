@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+import asyncio
 import difflib
 import re
+import sys
 from html.parser import HTMLParser
 from pathlib import Path
 from typing import Protocol
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -355,3 +358,21 @@ EDGE_CASE_FILENAMES = [
     # Injection attempts
     *(NON_WINDOWS_EDGE_CASE_FILENAMES if not is_windows() else []),
 ]
+
+
+def fake_async_playwright(playwright: object) -> MagicMock:
+    """Fake `async_playwright` whose driver is a real subprocess.
+
+    Playwright starts its Node driver as a subprocess, which a Windows
+    SelectorEventLoop cannot create.
+    """
+
+    async def start_driver(*_: object) -> object:
+        driver = await asyncio.create_subprocess_exec(sys.executable, "-c", "")
+        await driver.wait()
+        return playwright
+
+    manager = MagicMock()
+    manager.__aenter__.side_effect = start_driver
+    manager.__aexit__.return_value = False
+    return MagicMock(return_value=manager)

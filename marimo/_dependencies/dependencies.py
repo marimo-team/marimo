@@ -265,7 +265,6 @@ class DependencyManager:
         "docstring_to_markdown", min_version="0.17.0"
     )
     tomlkit = Dependency("tomlkit")
-    loro = Dependency("loro")
     boto3 = Dependency("boto3")
 
     redshift_connector = Dependency("redshift_connector")

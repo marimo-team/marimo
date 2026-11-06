@@ -1,7 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from tests._server.api.endpoints.ws_helpers import (
     HEADERS as _HEADERS,
@@ -10,6 +10,7 @@ from tests._server.api.endpoints.ws_helpers import (
     receive_notification,
     receive_until,
 )
+from tests._server.host.drive import socket_snapshot
 
 if TYPE_CHECKING:
     from starlette.testclient import TestClient
@@ -21,11 +22,30 @@ HEADERS = {
 }
 
 
+def notebook_id_of(snapshot: list[dict[str, Any]]) -> str:
+    return next(
+        event["data"]["notebook"]["id"]
+        for event in snapshot
+        if event["event"] == "notebook"
+    )
+
+
+def new_cell(cell_id: str) -> dict[str, Any]:
+    """A host edit that adds a cell, which every consumer hears about."""
+    return {
+        "kind": "put_cell",
+        "base_etag": None,
+        "cell": {"id": cell_id, "code": f"{cell_id} = 1"},
+    }
+
+
 async def test_connect_kiosk_with_session(client: TestClient) -> None:
     # Create the first session
     with client.websocket_connect(
         "/ws?session_id=123", headers=_HEADERS
     ) as websocket:
+        snapshot = socket_snapshot(websocket)
+        notebook_id = notebook_id_of(snapshot)
         editor_ready = receive_notification(websocket)
         assert_kernel_ready_response(editor_ready)
 
@@ -54,54 +74,17 @@ async def test_connect_kiosk_with_session(client: TestClient) -> None:
                     == "environment-state"
                 )
 
-            # Send document transaction to reorder cells
+            # Edit the notebook through the host
             response = client.post(
-                "/api/document/transaction",
-                headers=HEADERS,
-                json={
-                    "changes": [
-                        {
-                            "type": "reorder-cells",
-                            "cellIds": ["cell-123"],
-                        }
-                    ],
-                },
+                f"/api/marimo/v1/notebooks/{notebook_id}/edits",
+                headers={**HEADERS, "Idempotency-Key": "edit-1"},
+                json={"changes": [new_cell("fresh")]},
             )
             assert response.status_code == 200, response.text
 
             # Assert kiosk session received the document transaction
             data = receive_notification(other_websocket)
             assert data["op"] == "notebook-document-transaction"
-
-            # A full save replaces the canonical document. Viewers receive
-            # the applied diff even when it includes edits that bypassed the
-            # incremental document endpoint during recovery.
-            filename = client.app.state.session_manager.workspace.get_unique_file_key()
-            assert filename
-            replacement_code = editor_ready["data"]["codes"][0] + "\n# saved"
-            response = client.post(
-                "/api/kernel/save",
-                headers=HEADERS,
-                json={
-                    "cellIds": editor_ready["data"]["cell_ids"],
-                    "filename": filename,
-                    "codes": [
-                        replacement_code,
-                        *editor_ready["data"]["codes"][1:],
-                    ],
-                    "names": editor_ready["data"]["names"],
-                    "configs": editor_ready["data"]["configs"],
-                },
-            )
-            assert response.status_code == 200, response.text
-            data = receive_until(
-                "notebook-document-transaction", other_websocket
-            )
-            assert any(
-                change["type"] == "set-code"
-                and change["code"] == replacement_code
-                for change in data["data"]["transaction"]["changes"]
-            )
 
             # Send run single cell
             response = client.post(
@@ -173,6 +156,7 @@ def test_takeover_ping_pong_preserves_membership(client: TestClient) -> None:
 
 def test_third_viewer_survives_takeover(client: TestClient) -> None:
     with client.websocket_connect("/ws?session_id=a", headers=_HEADERS) as ta:
+        notebook_id = notebook_id_of(socket_snapshot(ta))
         assert_kernel_ready_response(receive_notification(ta))
         with client.websocket_connect(
             "/ws?session_id=b", headers=_HEADERS
@@ -192,13 +176,13 @@ def test_third_viewer_survives_takeover(client: TestClient) -> None:
 
                 # New editor (b) broadcasts; the third viewer (c) still gets it.
                 resp = client.post(
-                    "/api/document/transaction",
-                    headers={**HEADERS, "Marimo-Session-Id": "b"},
-                    json={
-                        "changes": [
-                            {"type": "reorder-cells", "cellIds": ["cell-123"]}
-                        ]
+                    f"/api/marimo/v1/notebooks/{notebook_id}/edits",
+                    headers={
+                        **HEADERS,
+                        "Marimo-Session-Id": "b",
+                        "Idempotency-Key": "edit-1",
                     },
+                    json={"changes": [new_cell("fresh")]},
                 )
                 assert resp.status_code == 200, resp.text
                 data = receive_until("notebook-document-transaction", tc)

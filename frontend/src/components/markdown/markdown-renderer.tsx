@@ -2,8 +2,7 @@
 
 import { EditorView } from "@codemirror/view";
 import { useAtomValue } from "jotai";
-import { BetweenHorizontalStartIcon } from "lucide-react";
-import { memo, Suspense, useState } from "react";
+import { createContext, memo, Suspense, useContext, useState } from "react";
 import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
 import {
   defaultRehypePlugins,
@@ -12,7 +11,7 @@ import {
 } from "streamdown";
 import { Button, type ButtonProps } from "@/components/ui/button";
 import { maybeAddMarimoImport } from "@/core/cells/add-missing-import";
-import { useCellActions } from "@/core/cells/cells";
+import { useCellActions } from "@/core/cells/actions";
 import { useLastFocusedCellId } from "@/core/cells/focus";
 import { MarkdownLanguageAdapter } from "@/core/codemirror/language/languages/markdown";
 import { SQLLanguageAdapter } from "@/core/codemirror/language/languages/sql/sql";
@@ -24,6 +23,8 @@ import { copyToClipboard } from "@/utils/copy";
 import "./markdown-renderer.css";
 
 const extensions = [EditorView.lineWrapping];
+
+const NotebookInsertionContext = createContext(true);
 
 interface CodeBlockProps {
   code: string;
@@ -71,7 +72,7 @@ function maybeTransform(
 }
 
 const InsertCodeBlockButton = ({ code, language }: CodeBlockProps) => {
-  const { createNewCell } = useCellActions();
+  const { createCell } = useCellActions();
   const lastFocusedCellId = useLastFocusedCellId();
   const autoInstantiate = useAtomValue(autoInstantiateAtom);
 
@@ -81,27 +82,23 @@ const InsertCodeBlockButton = ({ code, language }: CodeBlockProps) => {
     if (language === "sql") {
       maybeAddMarimoImport({
         autoInstantiate,
-        createNewCell,
+        createCell,
         fromCellId: lastFocusedCellId,
       });
     }
-    createNewCell({
-      code: result.code,
-      before: false,
-      cellId: lastFocusedCellId ?? "__end__",
-    });
+    createCell({ after: lastFocusedCellId, code: result.code });
   };
 
   return (
     <Button size="xs" variant="outline" onClick={handleInsertCode}>
       Add to Notebook
-      <BetweenHorizontalStartIcon className="ml-2 h-4 w-4" />
     </Button>
   );
 };
 
 const CodeBlock = ({ code, language }: CodeBlockProps) => {
   const { theme } = useTheme();
+  const allowNotebookInsertion = useContext(NotebookInsertionContext);
   const [value, setValue] = useState(code);
 
   if (value !== code) {
@@ -126,11 +123,13 @@ const CodeBlock = ({ code, language }: CodeBlockProps) => {
           onChange={setValue}
         />
       </Suspense>
-      <div className="flex justify-end mt-2 space-x-2">
+      <div className="flex justify-end mt-3 gap-2">
         <CopyButton size="xs" variant="outline" onClick={handleCopyCode}>
           Copy
         </CopyButton>
-        <InsertCodeBlockButton code={value} language={language} />
+        {allowNotebookInsertion && (
+          <InsertCodeBlockButton code={value} language={language} />
+        )}
       </div>
     </div>
   );
@@ -178,8 +177,10 @@ const COMPONENTS: Components = {
     if (language && typeof children === "string") {
       const code = children.trim();
       return (
-        <div>
-          <div className="text-xs text-muted-foreground pl-1">{language}</div>
+        <div className="my-4">
+          <div className="mb-1 text-xs text-muted-foreground pl-1">
+            {language}
+          </div>
           <CodeBlock code={code} language={language} />
         </div>
       );
@@ -203,17 +204,27 @@ const useMathPlugin = () => {
   return plugins;
 };
 
-export const MarkdownRenderer = memo(({ content }: { content: string }) => {
-  const plugins = useMathPlugin();
-  return (
-    <Streamdown
-      components={COMPONENTS}
-      plugins={plugins}
-      rehypePlugins={REHYPE_PLUGINS}
-      className="mo-markdown-renderer"
-    >
-      {content}
-    </Streamdown>
-  );
-});
+export const MarkdownRenderer = memo(
+  ({
+    content,
+    allowNotebookInsertion = true,
+  }: {
+    content: string;
+    allowNotebookInsertion?: boolean;
+  }) => {
+    const plugins = useMathPlugin();
+    return (
+      <NotebookInsertionContext.Provider value={allowNotebookInsertion}>
+        <Streamdown
+          components={COMPONENTS}
+          plugins={plugins}
+          rehypePlugins={REHYPE_PLUGINS}
+          className="mo-markdown-renderer"
+        >
+          {content}
+        </Streamdown>
+      </NotebookInsertionContext.Provider>
+    );
+  },
+);
 MarkdownRenderer.displayName = "MarkdownRenderer";

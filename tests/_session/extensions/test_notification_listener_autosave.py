@@ -27,7 +27,6 @@ from marimo._messaging.notification import (
 )
 from marimo._messaging.serde import serialize_kernel_message
 from marimo._messaging.types import KernelMessage
-from marimo._server.models.models import SaveNotebookRequest
 from marimo._session.extensions.extensions import (
     NotificationListenerExtension,
 )
@@ -555,14 +554,15 @@ class TestAutosaveOrdering:
 
         renamed_path = notebook_path.with_name("renamed_after_autosave.py")
         app_file_manager.rename(str(renamed_path))
-        app_file_manager.save(
-            SaveNotebookRequest(
-                cell_ids=[existing_cell_id],
-                filename=str(renamed_path),
-                codes=["new = 2"],
-                names=[""],
-                configs=[CellConfig()],
-            )
+        app_file_manager.save_from_cells(
+            [
+                NotebookCell(
+                    id=existing_cell_id,
+                    code="new = 2",
+                    name="",
+                    config=CellConfig(),
+                )
+            ]
         )
 
         work, _on_error = queued_work.pop()

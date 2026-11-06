@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -9,13 +9,15 @@ def _():
     import marimo as mo
     import polars as pl
     import numpy as np
+
     return mo, np, pl
 
 
 @app.cell
 def _(mo):
-    mo.md(r"""# Lazy polars""")
-    return
+    mo.md(r"""
+    # Lazy polars
+    """)
 
 
 @app.cell
@@ -41,13 +43,15 @@ def _(lazy_df):
 
 @app.cell
 def _(mo):
-    mo.md(r"""# Lazy ibis""")
-    return
+    mo.md(r"""
+    # Lazy ibis
+    """)
 
 
 @app.cell
 def _():
     import ibis
+
     return (ibis,)
 
 
@@ -67,7 +71,6 @@ def _(execution_timer, ibis, ibis_table, mo):
     ibis.options.interactive = False
     with execution_timer("as_html, interactive = False"):
         mo.output.replace(ibis_table)
-    return
 
 
 @app.cell
@@ -77,7 +80,6 @@ def _(execution_timer, ibis, ibis_table, mo):
     with execution_timer("as_html, interactive = True"):
         mo.output.replace(ibis_table)
     ibis.options.interactive = False
-    return
 
 
 @app.cell
@@ -93,7 +95,6 @@ def _(execution_timer, ibis_table):
     # This should be ~300-500ms
     with execution_timer("t.count().execute()"):
         count = ibis_table.count().execute()
-    return
 
 
 @app.cell
@@ -127,6 +128,7 @@ def _(execution_timer, ibis):
         with execution_timer("to_sql"):
             if "ibis" in str(type(tm)).lower():
                 ibis.to_sql(tm.take(100, 0).take(10, 0).data.count())
+
     return (time_things,)
 
 
@@ -134,14 +136,12 @@ def _(execution_timer, ibis):
 def _(ibis_table, time_things):
     # Ibis
     time_things(ibis_table)
-    return
 
 
 @app.cell
 def _(polars_df, time_things):
     # Polars
     time_things(polars_df)
-    return
 
 
 @app.cell
@@ -150,7 +150,6 @@ def _(execution_timer, ibis_table, mo):
     with execution_timer("mo.ui.dataframe"):
         _df_viewer = mo.ui.dataframe(ibis_table)
     _df_viewer
-    return
 
 
 @app.cell
@@ -159,7 +158,6 @@ def _(execution_timer, ibis_table, mo):
     with execution_timer("mo.ui.dataframe(limit=10)"):
         _df_viewer = mo.ui.dataframe(ibis_table, limit=10)
     _df_viewer
-    return
 
 
 @app.cell(hide_code=True)
@@ -186,6 +184,7 @@ def _():
                 print(
                     f"\033[91m[SLOW]\033[0m {self.name} time: {duration} seconds"
                 )
+
     return (execution_timer,)
 
 

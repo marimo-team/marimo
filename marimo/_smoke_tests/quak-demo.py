@@ -11,7 +11,7 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -21,6 +21,7 @@ def _():
     import polars as pl
     import quak
     from vega_datasets import data
+
     return data, mo, quak
 
 
@@ -35,7 +36,6 @@ def _(df, mo, quak):
     qwidget = quak.Widget(df)
     w = mo.ui.anywidget(qwidget)
     w
-    return
 
 
 @app.cell

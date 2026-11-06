@@ -32,6 +32,8 @@ MODELS = {
     "edit-response.json": protocol.EditResponse,
     "execution-restored.json": protocol.Execution,
     "run-cells-request.json": protocol.RunRequest,
+    "input-reply-request.json": protocol.InputReplyRequest,
+    "input-reply-response.json": protocol.Input,
 }
 
 
@@ -85,16 +87,19 @@ def assert_content_hashes(value: Any) -> None:
             assert_content_hashes(child)
     elif isinstance(value, dict):
         for key, child in value.items():
-            if key in {"etag", "code_hash"} or key.endswith("_etag"):
+            if key == "etag" or key.endswith("_etag"):
                 if child is not None and child != "*":
                     assert re.fullmatch(r"[0-9a-f]{16}", child), (key, child)
             assert_content_hashes(child)
-        if "code_hash" in value and isinstance(value.get("code"), str):
-            assert value["code_hash"] == content_hash(value["code"])
-        if {"etag", "config", "name", "code_hash"} <= value.keys():
+        if "code_fingerprint" in value:
+            assert isinstance(value["code_fingerprint"], str)
+            assert value["code_fingerprint"]
+        if {"etag", "config", "name"} <= value.keys() and isinstance(
+            value.get("code"), str
+        ):
             config = value["config"]
             parts = [
-                value["code_hash"],
+                content_hash(value["code"]),
                 value["name"],
                 *(
                     canonical_json(config[key])
@@ -360,6 +365,7 @@ def assert_document_hash(
         ("run-cells.sse", "succeeded"),
         ("run-failed.sse", "failed"),
         ("run-interrupted.sse", "interrupted"),
+        ("run-stopped.sse", "succeeded"),
         ("notebook-events.sse", "succeeded"),
     ],
 )
@@ -405,7 +411,7 @@ def test_run_lifecycles(name: str, outcome: str) -> None:
                     "run_id",
                     "runtime_id",
                     "cell_id",
-                    "code_hash",
+                    "code_fingerprint",
                     "caused_by",
                 ):
                     assert execution[field] == previous[field]
@@ -456,9 +462,7 @@ def test_cell_run_request_and_results() -> None:
     request = json.loads(
         (FIXTURES / "run-cells-request.json").read_text(encoding="utf-8")
     )
-    assert request == {
-        "cells": [{"id": "c3", "code_hash": cells["c3"]["code_hash"]}]
-    }
+    assert request == {"cells": [{"id": "c3", "etag": cells["c3"]["etag"]}]}
     executions = {
         m["execution"]["id"]: m["execution"]
         for m in messages("run-cells.sse", "execution")
@@ -473,7 +477,8 @@ def test_cell_run_request_and_results() -> None:
     }
     for execution in executions.values():
         assert (
-            execution["code_hash"] == cells[execution["cell_id"]]["code_hash"]
+            execution["code_fingerprint"]
+            == cells[execution["cell_id"]]["code_fingerprint"]
         )
         assert execution["outcome"] == {"kind": "value", "display": None}
     variables = {
@@ -529,7 +534,8 @@ def test_edit_request_response_and_events() -> None:
             assert all(updated[key] == value for key, value in cell.items())
             cells[cell["id"]] = updated
             touched[cell["id"]] = {
-                key: updated[key] for key in ("etag", "code_hash", "version")
+                key: updated[key]
+                for key in ("etag", "code_fingerprint", "version")
             }
         else:
             assert change["kind"] == "delete_cell"
@@ -581,7 +587,7 @@ def test_restored_result_matches_source() -> None:
         (FIXTURES / "execution-restored.json").read_text(encoding="utf-8")
     )
     assert restored["cell_id"] == source["id"]
-    assert restored["code_hash"] == content_hash(source["code"])
+    assert restored["code_fingerprint"] == source["code_fingerprint"]
     assert restored["run_id"] is None
     assert restored["runtime_id"] is None
 

@@ -612,47 +612,6 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  "/api/document/transaction": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    post: {
-      parameters: {
-        query?: never;
-        header: {
-          "Marimo-Session-Id": string;
-        };
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: {
-        content: {
-          "application/json": components["schemas"]["NotebookDocumentTransactionRequest"];
-        };
-      };
-      responses: {
-        /** @description Apply a document transaction */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": components["schemas"]["SuccessResponse"];
-          };
-        };
-      };
-    };
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
   "/api/documentation/snippets": {
     parameters: {
       query?: never;
@@ -1975,47 +1934,6 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  "/api/kernel/delete": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    post: {
-      parameters: {
-        query?: never;
-        header: {
-          "Marimo-Session-Id": string;
-        };
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: {
-        content: {
-          "application/json": components["schemas"]["DeleteCellRequest"];
-        };
-      };
-      responses: {
-        /** @description Delete a cell */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": components["schemas"]["SuccessResponse"];
-          };
-        };
-      };
-    };
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
   "/api/kernel/focus_cell": {
     parameters: {
       query?: never;
@@ -2508,47 +2426,6 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  "/api/kernel/save": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    post: {
-      parameters: {
-        query?: never;
-        header: {
-          "Marimo-Session-Id": string;
-        };
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: {
-        content: {
-          "application/json": components["schemas"]["SaveNotebookRequest"];
-        };
-      };
-      responses: {
-        /** @description Save the current app */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            "text/plain": string;
-          };
-        };
-      };
-    };
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
   "/api/kernel/save_app_config": {
     parameters: {
       query?: never;
@@ -2580,6 +2457,47 @@ export interface paths {
           };
           content: {
             "text/plain": string;
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/kernel/save_layout": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header: {
+          "Marimo-Session-Id": string;
+        };
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: {
+        content: {
+          "application/json": components["schemas"]["SaveLayoutRequest"];
+        };
+      };
+      responses: {
+        /** @description Write the notebook's layout file and point its app config at it */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["SuccessResponse"];
           };
         };
       };
@@ -2656,47 +2574,6 @@ export interface paths {
       };
       responses: {
         /** @description Run the scratchpad */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": components["schemas"]["SuccessResponse"];
-          };
-        };
-      };
-    };
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/kernel/set_cell_config": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    post: {
-      parameters: {
-        query?: never;
-        header: {
-          "Marimo-Session-Id": string;
-        };
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: {
-        content: {
-          "application/json": components["schemas"]["UpdateCellConfigRequest"];
-        };
-      };
-      responses: {
-        /** @description Set the configuration of a cell */
         200: {
           headers: {
             [name: string]: unknown;
@@ -3886,7 +3763,7 @@ export interface components {
      *         - `enabled`: if `False`, hide AI actions and panels in the marimo UI
      *         - `rules`: custom rules to include in all AI completion prompts
      *         - `max_tokens`: the maximum number of tokens to use in AI completions
-     *         - `mode`: the mode to use for AI completions. Can be one of: `"ask"` or `"manual"`
+     *         - `mode`: notebook access for the built-in assistant: `"ask"` (read only), `"agent"` (suggest edits), or `"code_mode"` (full access). Defaults to `"ask"`.
      *         - `inline_tooltip`: if `True`, enable inline AI tooltip suggestions
      *         - `allow_provider_config`: if `False`, lock provider setup in the settings UI, making them read-only. Users cannot bring their own credentials or add custom providers. Default `True`.
      *         - `models`: the models to use for AI completions
@@ -4708,10 +4585,6 @@ export interface components {
       /** @enum {unknown} */
       type: "delete-cell";
     };
-    /** DeleteCellRequest */
-    DeleteCellRequest: {
-      cellId: components["schemas"]["CellId"];
-    };
     /** DeleteSecretRequest */
     DeleteSecretRequest: {
       key: string;
@@ -4951,26 +4824,45 @@ export interface components {
       url: string;
     };
     /**
-     * ExecuteCellsCommand
-     * @description Execute multiple cells in a batch.
+     * ExecuteCellCommand
+     * @description Execute a single cell.
      *
-     *         Executes multiple cells with their corresponding code. The kernel manages
-     *         dependency tracking and reactive execution.
+     *         Executes a cell with the provided code. Dependent cells may be
+     *         re-executed based on the reactive execution mode.
      *
      *         Attributes:
-     *             cell_ids: Cells to execute.
-     *             codes: Python code for each cell. Must match length of cell_ids.
+     *             cell_id: Cell to execute.
+     *             code: Python code to execute.
+     *             code_fingerprint: Code fingerprint. Computed from `code` when omitted.
      *             request: HTTP request context if available.
      *             timestamp: Unix timestamp when command was created.
-     *             run_id: Optional correlation ID. When set, the run's notifications
-     *                 and its `CompletedRunNotification` carry it.
+     */
+    ExecuteCellCommand: {
+      cellId: components["schemas"]["CellId"];
+      code: string;
+      /** @default  */
+      codeFingerprint?: string;
+      /** @default null */
+      request?: components["schemas"]["HTTPRequest"] | null;
+      timestamp?: number;
+      /** @enum {unknown} */
+      type: "execute-cell";
+    };
+    /**
+     * ExecuteCellsCommand
+     * @description Execute cells and their reactive dependents in one batch.
+     *
+     *         Attributes:
+     *             execution_requests: The cells and source identities to execute.
+     *             request: HTTP request context for the batch.
+     *             timestamp: Unix timestamp when the batch was created.
+     *             run_id: Correlates the run's notifications and completion.
      *             allow_stdin: Whether cells may request interactive input.
      */
     ExecuteCellsCommand: {
       /** @default true */
       allowStdin?: boolean;
-      cellIds: components["schemas"]["CellId"][];
-      codes: string[];
+      executionRequests: components["schemas"]["ExecuteCellCommand"][];
       /** @default null */
       request?: components["schemas"]["HTTPRequest"] | null;
       /** @default null */
@@ -4996,6 +4888,7 @@ export interface components {
      *
      *         Attributes:
      *             code: Python code to execute.
+     *             code_fingerprint: Code fingerprint. Computed from `code` when omitted.
      *             request: HTTP request context if available.
      *             notebook_cells: Snapshot of notebook cells from the session document.
      *                 Used to populate the document ContextVar so code_mode can read
@@ -5020,6 +4913,8 @@ export interface components {
       /** @default null */
       cellOutputs?: components["schemas"]["CellOutputs"] | null;
       code: string;
+      /** @default  */
+      codeFingerprint?: string;
       /** @default null */
       notebookCells?: components["schemas"]["NotebookCell"][] | null;
       /** @default null */
@@ -5036,6 +4931,8 @@ export interface components {
       /** @default null */
       cellOutputs?: components["schemas"]["CellOutputs"] | null;
       code: string;
+      /** @default  */
+      codeFingerprint?: string;
       /** @default null */
       notebookCells?: components["schemas"]["NotebookCell"][] | null;
       /** @default null */
@@ -5047,7 +4944,8 @@ export interface components {
      * ExecutionNotification
      * @description An attempt's lifecycle, independent of a cell's displayed status.
      *
-     *         `planned` supplies the source and identity before output is reported.
+     *         `planned` includes the execution ID and code fingerprint before any output.
+     *         `code` is null when source is withheld.
      *         `running` means evaluation began. `completed` follows the final output
      *         and errors, including for attempts that never ran. Buffered and background
      *         console output may still arrive with the completed attempt's identity.
@@ -5058,6 +4956,8 @@ export interface components {
       cell_id: components["schemas"]["CellId"];
       /** @default null */
       code?: string | null;
+      /** @default null */
+      code_fingerprint?: string | null;
       /** @default null */
       depends_on?: {
         [key: string]: components["schemas"]["Revision"] | null;
@@ -5625,11 +5525,7 @@ export interface components {
      * @description Kernel ready for execution. First notification sent at startup.
      *
      *         Attributes:
-     *             cell_ids: Cell IDs in order.
-     *             codes: Source code for each cell.
-     *             names: Cell names/titles.
      *             layout: Notebook layout config.
-     *             configs: Per-cell configuration.
      *             resumed: Whether resumed from previous session.
      *             ui_values: Previous UI element values if resumed.
      *             last_executed_code: Last executed code per cell if resumed.
@@ -5646,9 +5542,6 @@ export interface components {
       /** @default false */
       auto_instantiated?: boolean;
       capabilities: components["schemas"]["KernelCapabilitiesNotification"];
-      cell_ids: components["schemas"]["CellId"][];
-      codes: string[];
-      configs: components["schemas"]["CellConfig"][];
       consumer_capabilities: components["schemas"]["ConsumerCapabilities"];
       kiosk: boolean;
       last_executed_code: {
@@ -5658,7 +5551,6 @@ export interface components {
         [key: string]: number;
       } | null;
       layout: components["schemas"]["LayoutConfig"] | null;
-      names: string[];
       /** @enum {unknown} */
       op: "kernel-ready";
       resumed: boolean;
@@ -6303,18 +6195,6 @@ export interface components {
       op: "notebook-document-transaction";
       transaction: components["schemas"]["Transaction"];
     };
-    /** NotebookDocumentTransactionRequest */
-    NotebookDocumentTransactionRequest: {
-      changes: (
-        | components["schemas"]["CreateCell"]
-        | components["schemas"]["DeleteCell"]
-        | components["schemas"]["MoveCell"]
-        | components["schemas"]["ReorderCells"]
-        | components["schemas"]["SetCode"]
-        | components["schemas"]["SetName"]
-        | components["schemas"]["SetConfig"]
-      )[];
-    };
     NotificationMessage:
       | components["schemas"]["CellNotification"]
       | components["schemas"]["ExecutionNotification"]
@@ -6767,6 +6647,7 @@ export interface components {
       reactive_tests: boolean;
       serve_cached_sessions_in_apps?: boolean;
       show_tracebacks?: boolean;
+      sql_default_limit?: number | null;
       std_stream_max_bytes: number;
       /** @enum {unknown} */
       watcher_on_save: "autorun" | "lazy";
@@ -6913,17 +6794,13 @@ export interface components {
       autosave_delay: number;
       format_on_save: boolean;
     };
-    /** SaveNotebookRequest */
-    SaveNotebookRequest: {
-      cellIds: components["schemas"]["CellId"][];
-      codes: string[];
-      configs: components["schemas"]["CellConfig"][];
-      filename: string;
+    /**
+     * SaveLayoutRequest
+     * @description The notebook's layout, written beside it; `None` removes it.
+     */
+    SaveLayoutRequest: {
       /** @default null */
       layout?: Record<string, any> | null;
-      names: string[];
-      /** @default true */
-      persist?: boolean;
     };
     /** SaveUserConfigurationRequest */
     SaveUserConfigurationRequest: {
@@ -7004,14 +6881,16 @@ export interface components {
      *             `MARIMO_SERVER_TRANSPORT` environment variable. `"websocket"`
      *             (default) uses the `/ws` WebSocket endpoint; `"sse"` uses
      *             server-sent events over HTTP, for deployments behind proxies or
-     *             services that do not support WebSockets. Terminal, LSP, and
-     *             real-time collaboration still require WebSockets; RTC is disabled
-     *             when using `"sse"`.
+     *             services that do not support WebSockets. The terminal and LSP
+     *             still require WebSockets.
      */
     ServerConfig: {
       browser: "default" | string;
       disable_file_downloads?: boolean;
       follow_symlink: boolean;
+      session_cookie_secure?: boolean;
+      session_secret?: string;
+      skip_update_check?: boolean;
       /** @enum {unknown} */
       transport?: "sse" | "websocket";
     };
@@ -7454,12 +7333,6 @@ export interface components {
       };
       /** @enum {unknown} */
       type: "update-cell-config";
-    };
-    /** UpdateCellConfigRequest */
-    UpdateCellConfigRequest: {
-      configs: {
-        [key: string]: Record<string, any>;
-      };
     };
     /** UpdateCellOutputsRequest */
     UpdateCellOutputsRequest: {

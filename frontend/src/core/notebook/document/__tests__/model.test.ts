@@ -52,14 +52,14 @@ function setup({ connected = true } = {}) {
       sent({ notebookId, changes, ...options }),
   });
   const backendAtom = atom<NotebookBackend | null>(connected ? backend : null);
-  const controller = new AbortController();
-  lifetimes.push(controller);
   const model = createDocumentModel({
     store,
     documentAtom: source,
     backendAtom,
-    signal: controller.signal,
   });
+  const controller = new AbortController();
+  lifetimes.push(controller);
+  model.start({ signal: controller.signal });
   return {
     store,
     source,
@@ -85,26 +85,82 @@ afterEach(() => {
 });
 
 describe("document synchronization", () => {
-  it("rejects an aborted lifetime before subscribing or sending", () => {
+  it("subscribes to nothing until started", async () => {
     const store = createStore();
     const source = atom<Document | null>(document());
     const mounted = vi.fn();
     source.onMount = mounted;
-    const controller = new AbortController();
-    const reason = new Error("Session ended");
-    controller.abort(reason);
     const edit = vi.fn<FakeEdit>();
-    expect(() =>
-      createDocumentModel({
-        store,
-        documentAtom: source,
-        backendAtom: atom(fakeBackend({ edit })),
-        signal: controller.signal,
-      }),
-    ).toThrow(reason);
+    const model = createDocumentModel({
+      store,
+      documentAtom: source,
+      backendAtom: atom(fakeBackend({ edit })),
+    });
+    store.set(model.editAtom, (tx) => tx.setCode("c1", "local"));
+    await expect(model.flush()).rejects.toThrow("not started");
+    expect(store.get(model.documentAtom)).toBeNull();
+    expect(store.get(model.syncStatusAtom)).toEqual({ status: "unavailable" });
     expect(mounted).not.toHaveBeenCalled();
     expect(edit).not.toHaveBeenCalled();
     expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("rejects an aborted signal before subscribing", () => {
+    const store = createStore();
+    const source = atom<Document | null>(document());
+    const mounted = vi.fn();
+    source.onMount = mounted;
+    const model = createDocumentModel({
+      store,
+      documentAtom: source,
+      backendAtom: atom(fakeBackend({ edit: vi.fn<FakeEdit>() })),
+    });
+    const reason = new Error("Session ended");
+    expect(() => model.start({ signal: AbortSignal.abort(reason) })).toThrow(
+      reason,
+    );
+    expect(mounted).not.toHaveBeenCalled();
+  });
+
+  it("starts again after a subscriber aborts during startup", async () => {
+    const store = createStore();
+    const model = createDocumentModel({
+      store,
+      documentAtom: atom(document()),
+      backendAtom: atom(null),
+    });
+    const controller = new AbortController();
+    lifetimes.push(controller);
+    const unsubscribe = store.sub(model.documentAtom, () => {
+      if (store.get(model.documentAtom)) {
+        controller.abort();
+      }
+    });
+    model.start({ signal: controller.signal });
+    unsubscribe();
+    expect(controller.signal.aborted).toBe(true);
+    expect(store.get(model.documentAtom)).toBeNull();
+    await expect(model.flush()).rejects.toThrow("not started");
+
+    const next = new AbortController();
+    lifetimes.push(next);
+    model.start({ signal: next.signal });
+    expect(store.get(model.documentAtom)?.cells.get("c1")?.code).toBe("x = 1");
+  });
+
+  it("starts again without the drafts of a stopped run", () => {
+    const { store, model, controller, edit, value } = setup();
+    expect(() => model.start({ signal: new AbortController().signal })).toThrow(
+      "already started",
+    );
+    edit("local");
+    controller.abort();
+    const next = new AbortController();
+    lifetimes.push(next);
+    model.start({ signal: next.signal });
+    expect(value()?.code).toBe("x = 1");
+    store.set(model.editAtom, (tx) => tx.setCode("c1", "restarted"));
+    expect(value()?.code).toBe("restarted");
   });
 
   it("fails without repeating a request when the response names another notebook", async () => {

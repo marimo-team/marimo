@@ -2,16 +2,110 @@ from __future__ import annotations
 
 import os
 import tempfile
+from typing import TYPE_CHECKING
 
 import pytest
 
+from marimo import _loggers
 from marimo._config.config import merge_default_config
+from marimo._config.manager import UserConfigStore, get_default_config_manager
 from marimo._runtime.commands import (
     CreateNotebookCommand,
     UpdateUIElementCommand,
 )
 from marimo._utils.platform import is_windows
 from tests.conftest import MockedKernel
+
+if TYPE_CHECKING:
+    from pathlib import Path
+
+
+@pytest.mark.parametrize(
+    ("source", "expected"),
+    [
+        ("inferred", "inferred"),
+        ("user", "custom"),
+        ("project", "custom"),
+        ("script", "custom"),
+        ("multiple", "custom"),
+        ("empty_user", None),
+        ("empty_project", None),
+        ("empty_script", None),
+    ],
+)
+def test_load_resolved_dotenv_paths(
+    mocked_kernel: MockedKernel,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    source: str,
+    expected: str | None,
+) -> None:
+    for key in (
+        "DOTENV_READER_VALUE",
+        "DOTENV_READER_DEFAULT_ONLY",
+        "DOTENV_READER_SECONDARY",
+    ):
+        monkeypatch.setenv(key, "before")
+        monkeypatch.delenv(key)
+    monkeypatch.setenv("DOTENV_READER_EXISTING", "shell")
+    (tmp_path / ".env").write_text(
+        "DOTENV_READER_VALUE=inferred\nDOTENV_READER_DEFAULT_ONLY=present\n"
+    )
+    custom = tmp_path / "custom.env"
+    custom.write_text(
+        "DOTENV_READER_VALUE=custom\nDOTENV_READER_EXISTING=file\n"
+    )
+    (tmp_path / "shared.env").write_text(
+        "DOTENV_READER_VALUE=second\nDOTENV_READER_SECONDARY=second\n"
+    )
+    user = tmp_path / "marimo.toml"
+    user.write_text(
+        f'[runtime]\ndotenv = ["{custom.as_posix()}"]\n'
+        if source == "user"
+        else "[runtime]\ndotenv = []\n"
+        if source == "empty_user"
+        else ""
+    )
+    monkeypatch.setattr(
+        UserConfigStore, "get_config_path", lambda _self: str(user)
+    )
+    project = tmp_path / "pyproject.toml"
+    project_settings = {
+        "project": '[tool.marimo.runtime]\ndotenv = ["custom.env"]\n',
+        "empty_project": "[tool.marimo.runtime]\ndotenv = []\n",
+        "multiple": '[tool.marimo.runtime]\ndotenv = ["custom.env", "shared.env"]\n',
+    }
+    project.write_text(project_settings.get(source, ""))
+    notebooks = tmp_path / "notebooks"
+    notebooks.mkdir()
+    notebook = notebooks / "app.py"
+    notebook.write_text(
+        '# /// script\n# [tool.marimo.runtime]\n# dotenv = ["custom.env"]\n# ///\n'
+        if source == "script"
+        else "# /// script\n# [tool.marimo.runtime]\n# dotenv = []\n# ///\n"
+        if source == "empty_script"
+        else ""
+    )
+    manager = get_default_config_manager(current_path=str(notebook))
+    mocked_kernel.k.user_config = manager.get_config(hide_secrets=False)
+    mocked_kernel.k.load_dotenv()
+    assert {
+        key: os.environ.get(key)
+        for key in (
+            "DOTENV_READER_VALUE",
+            "DOTENV_READER_DEFAULT_ONLY",
+            "DOTENV_READER_EXISTING",
+            "DOTENV_READER_SECONDARY",
+        )
+    } == {
+        "DOTENV_READER_VALUE": expected,
+        "DOTENV_READER_DEFAULT_ONLY": "present"
+        if source == "inferred"
+        else None,
+        "DOTENV_READER_EXISTING": "shell",
+        "DOTENV_READER_SECONDARY": "second" if source == "multiple" else None,
+    }
+
 
 # These tests work with and without python-dotenv installed.
 
@@ -45,20 +139,33 @@ def test_load_dotenv_success(mocked_kernel: MockedKernel):
         assert os.environ.get("ANOTHER_VAR") == "another_value"
 
 
-def test_load_dotenv_nonexistent_file(mocked_kernel: MockedKernel):
-    # Create a config with a nonexistent .env file
+def test_load_dotenv_nonexistent_file(
+    mocked_kernel: MockedKernel,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    missing = tmp_path / "missing.env"
+    other_missing = tmp_path / "also-missing.env"
+    valid = tmp_path / "valid.env"
+    valid.write_text("DOTENV_AFTER_MISSING=loaded\n")
+    monkeypatch.setenv("DOTENV_AFTER_MISSING", "before")
+    monkeypatch.delenv("DOTENV_AFTER_MISSING")
     custom_config = merge_default_config(
         {
             "runtime": {
-                "dotenv": ["nonexistent.env"],
+                "dotenv": [str(missing), str(valid), str(other_missing)],
             },
         }
     )
     mocked_kernel.k.user_config = custom_config
 
-    # Create a kernel with our custom config
-    # This should not raise an exception
-    mocked_kernel.k.load_dotenv()
+    with _loggers.capture_output() as (_, _, records):
+        mocked_kernel.k.load_dotenv()
+    assert [(record.levelname, record.getMessage()) for record in records] == [
+        ("WARNING", f"Dotenv file not found: {missing}"),
+        ("WARNING", f"Dotenv file not found: {other_missing}"),
+    ]
+    assert os.environ["DOTENV_AFTER_MISSING"] == "loaded"
 
 
 @pytest.mark.skipif(
@@ -97,3 +204,63 @@ async def test_load_dotenv_on_instantiate(mocked_kernel: MockedKernel):
 
         # Check that the environment variable was set
         assert os.environ.get("INSTANTIATE_TEST_VAR") == "instantiate_value"
+
+
+@pytest.mark.parametrize(
+    "variable",
+    ["MARIMO_SQL_DEFAULT_LIMIT", "MARIMO_RUNTIME_SQL_DEFAULT_LIMIT"],
+)
+@pytest.mark.parametrize("override", [None, 60])
+def test_sql_limit_reads_dotenv_below_explicit_runtime_overrides(
+    mocked_kernel: MockedKernel,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    variable: str,
+    override: int | None,
+) -> None:
+    import copy
+
+    from marimo._config.manager import MarimoConfigManager
+    from marimo._runtime.commands import UpdateUserConfigCommand
+    from marimo._sql.sql import get_default_result_limit
+
+    for name in (
+        "MARIMO_SQL_DEFAULT_LIMIT",
+        "MARIMO_RUNTIME_SQL_DEFAULT_LIMIT",
+    ):
+        monkeypatch.setenv(name, "")
+        monkeypatch.delenv(name)
+    dotenv = tmp_path / ".env"
+    dotenv.write_text(f"{variable}=45\n")
+    config_path = tmp_path / "marimo.toml"
+    config_path.write_text(
+        f'[runtime]\nsql_default_limit = 25\ndotenv = ["{dotenv.as_posix()}"]\n'
+    )
+    user = UserConfigStore()
+    monkeypatch.setattr(user, "get_config_path", lambda: str(config_path))
+    manager = MarimoConfigManager(user)
+    if override is not None:
+        manager = manager.with_overrides(
+            {"runtime": {"sql_default_limit": override}}
+        )
+    resolved = manager.get_config_with_sources(hide_secrets=False)
+    mocked_kernel.k.user_config = resolved.config
+    mocked_kernel.k.config_overrides = set(resolved.override_paths)
+    assert get_default_result_limit() == (
+        override if override is not None else 25
+    )
+    mocked_kernel.k.load_dotenv()
+    assert get_default_result_limit() == (
+        override if override is not None else 45
+    )
+    # An unrelated settings edit must not pin the old file-supplied SQL limit.
+    updated = copy.deepcopy(mocked_kernel.k.user_config)
+    updated["save"]["autosave_delay"] = 2000
+    mocked_kernel.k.set_user_config(UpdateUserConfigCommand(config=updated))
+    assert get_default_result_limit() == (
+        override if override is not None else 45
+    )
+    updated = copy.deepcopy(mocked_kernel.k.user_config)
+    updated["runtime"]["sql_default_limit"] = 70
+    mocked_kernel.k.set_user_config(UpdateUserConfigCommand(config=updated))
+    assert get_default_result_limit() == 70

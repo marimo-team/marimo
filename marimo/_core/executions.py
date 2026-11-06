@@ -90,6 +90,13 @@ Record = (
 Change = Record | Removed | Released
 
 
+def _settled(outcome: protocol.Outcome | None) -> bool:
+    """Whether an outcome lets its run succeed: a value, or a skip by design."""
+    return isinstance(
+        outcome, (protocol.ValueOutcome, protocol.SkippedOutcome)
+    )
+
+
 class Executions:
     """Runs in progress and each cell's current result.
 
@@ -177,7 +184,7 @@ class Executions:
         return tracked.run if tracked is not None else None
 
     def active(self) -> protocol.Run | None:
-        """The run in progress, if any."""
+        """The oldest unfinished run, if any."""
         return next(
             (
                 tracked.run
@@ -343,9 +350,7 @@ class Executions:
                     if outcome == "succeeded" and (
                         not all(tracked.retired.values())
                         or any(
-                            not isinstance(
-                                execution.outcome, protocol.ValueOutcome
-                            )
+                            not _settled(execution.outcome)
                             for execution in members
                         )
                     ):
@@ -446,7 +451,7 @@ class Executions:
                         if entry.cell_id is not None
                         else None,
                         code=entry.code,
-                        code_hash=entry.code_hash,
+                        code_fingerprint=entry.code_fingerprint,
                         depends_on={},
                         status="queued",
                         outcome=None,
@@ -527,9 +532,7 @@ class Executions:
             else None
         )
         if tracked is not None and tracked.run.status != "completed":
-            tracked.retired[execution.id] = isinstance(
-                execution.outcome, protocol.ValueOutcome
-            )
+            tracked.retired[execution.id] = _settled(execution.outcome)
         changes: list[Change] = list(self._remove_execution(execution_id))
         if tracked is not None:
             changes.extend(self._prune_run(tracked))

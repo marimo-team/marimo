@@ -98,16 +98,19 @@ def test_openapi_exports_only_client_commands() -> None:
     }
 
     assert command_names & schemas.keys() == {
-        command.__name__ for command in get_args(commands.ClientCommand)
+        command.__name__
+        for command in (
+            *get_args(commands.ClientCommand),
+            commands.ExecuteCellCommand,
+        )
     }
 
 
 def test_openapi_preserves_brands_in_client_commands() -> None:
     schemas = generate_server_api_schema()["components"]["schemas"]
 
-    assert schemas["ExecuteCellsCommand"]["properties"]["cellIds"] == {
-        "type": "array",
-        "items": {"$ref": "#/components/schemas/CellId"},
+    assert schemas["ExecuteCellCommand"]["properties"]["cellId"] == {
+        "$ref": "#/components/schemas/CellId",
     }
     assert schemas["UpdateUIElementCommand"]["properties"]["objectIds"] == {
         "type": "array",

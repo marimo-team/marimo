@@ -7,7 +7,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { ModalProvider } from "@/components/modal/ImperativeModal";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { store } from "@/core/state/jotai";
-import { PairWithAgentBanner, PairWithAgentButton } from "../pair-with-agent";
+import { PairWithAgentBanner } from "../pair-with-agent";
 
 const mocks = vi.hoisted(() => ({
   isWasm: vi.fn(() => false),
@@ -60,48 +60,30 @@ describe("PairWithAgent", () => {
     ).toBeVisible();
     expect(
       screen.getByRole("button", {
-        name: "Learn more.",
+        name: "Set up pairing",
       }),
     ).toBeVisible();
   });
 
-  it("opens the pairing dialog from the banner description", () => {
+  it("opens the pairing dialog from the banner button", () => {
     stubTokenFetch();
     render(<PairWithAgentBanner />, { wrapper });
 
     fireEvent.click(
       screen.getByRole("button", {
-        name: "Learn more.",
+        name: "Set up pairing",
       }),
     );
 
     expect(
-      screen.getByRole("dialog", { name: "Pair with an agent" }),
-    ).toBeVisible();
-  });
-
-  it("opens the pairing dialog and preserves a passed click handler", () => {
-    const onClick = vi.fn();
-    stubTokenFetch();
-    render(<PairWithAgentButton onClick={onClick} />, { wrapper });
-
-    fireEvent.click(screen.getByRole("button", { name: "Connect your agent" }));
-
-    expect(onClick).toHaveBeenCalledOnce();
-    expect(
-      screen.getByRole("dialog", { name: "Pair with an agent" }),
+      screen.getByRole("dialog", { name: "Pair an agent to this notebook" }),
     ).toBeVisible();
   });
 
   it("hides pairing controls in WASM", () => {
     mocks.isWasm.mockReturnValue(true);
 
-    const { container, rerender } = render(<PairWithAgentButton />, {
-      wrapper,
-    });
-    expect(container).toBeEmptyDOMElement();
-
-    rerender(<PairWithAgentBanner />);
+    const { container } = render(<PairWithAgentBanner />, { wrapper });
     expect(container).toBeEmptyDOMElement();
   });
 });

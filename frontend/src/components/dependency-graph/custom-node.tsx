@@ -30,7 +30,7 @@ const EQUALITY_CHECK = (
 export const CustomNode = memo((props: CustomNodeProps) => {
   const { data, selected } = props; // must match the equality check
   const cell = useAtomValue(data.atom);
-  const cellIndex = useCellIds().inOrderIds.indexOf(cell.id);
+  const cellIndex = useCellIds().indexOf(cell.id);
   const handleColor = selected ? "var(--gray-9)" : "var(--gray-3)";
   const edgeMarkers = use(EdgeMarkerContext);
 

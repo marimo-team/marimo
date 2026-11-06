@@ -2,9 +2,9 @@
 
 import { useDeleteCellCallback } from "@/components/editor/cell/useDeleteCell";
 import { outputIsStale } from "@/core/cells/cell";
-import { useCellActions, useCellIds } from "@/core/cells/cells";
+import { useCellActions } from "@/core/cells/actions";
 import type { CellId } from "@/core/cells/ids";
-import type { CellColumnId } from "@/utils/id-tree";
+import { type CellColumnId, type Layout, useLayout } from "@/core/cells/layout";
 import { useEffect, useRef, useState } from "react";
 import type { ICellRendererProps } from "../editor/renderers/types";
 import type {
@@ -49,7 +49,6 @@ import { SLIDE_TYPE_OPTIONS_BY_VALUE } from "./slide-form";
 
 type Props = ICellRendererProps<SlidesLayout>;
 type SlideCell = Props["cells"][number];
-type CellIdsState = ReturnType<typeof useCellIds>;
 type DropPosition = "before" | "after";
 
 interface ProjectedDropTarget {
@@ -228,8 +227,8 @@ export const SlidesMinimap = ({
   slideTypes,
   onSlideClick,
 }: SlidesMinimapProps) => {
-  const cellIds = useCellIds();
-  const { moveCellToIndex, createNewCell } = useCellActions();
+  const layout = useLayout();
+  const { moveCellToIndex, createCell } = useCellActions();
   const deleteCell = useDeleteCellCallback();
   const containerRef = useRef<HTMLDivElement>(null);
   const visibleIds = useVisibleCellIds(containerRef);
@@ -240,7 +239,10 @@ export const SlidesMinimap = ({
   const dimensions = computeThumbnailDimensions(thumbnailWidth);
 
   const insertCell = (cellId: CellId, before: boolean) => {
-    createNewCell({ cellId, before, code: "", autoFocus: false });
+    createCell({
+      ...(before ? { before: cellId } : { after: cellId }),
+      focus: false,
+    });
   };
 
   useEffect(() => {
@@ -293,7 +295,7 @@ export const SlidesMinimap = ({
     try {
       if (activeId && dropTarget) {
         const resolvedTarget = resolveDropTarget({
-          cellIds,
+          layout,
           activeId,
           target: dropTarget,
         });
@@ -747,24 +749,27 @@ function projectDropTarget(
 }
 
 function resolveDropTarget({
-  cellIds,
+  layout,
   activeId,
   target,
 }: {
-  cellIds: CellIdsState;
+  layout: Layout;
   activeId: CellId;
   target: ProjectedDropTarget;
 }): ResolvedDropTarget | null {
   if (activeId === target.overId) {
     return null;
   }
-  if (cellIds.colLength !== 1) {
+  if (layout.columns.length !== 1) {
     Logger.warn("Multi-column mode is not supported");
     return null;
   }
 
-  const column = cellIds.findWithId(target.overId);
-  const overIndex = column.indexOfOrThrow(target.overId);
+  const [column] = layout.columns;
+  const overIndex = column.ids.indexOf(target.overId);
+  if (overIndex === -1) {
+    return null;
+  }
 
   return {
     cellId: activeId,

@@ -10,7 +10,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { maybeAddMarimoImport } from "@/core/cells/add-missing-import";
-import { useCellActions } from "@/core/cells/cells";
+import { useCellActions } from "@/core/cells/actions";
 import { LanguageAdapters } from "@/core/codemirror/language/LanguageAdapters";
 import { MARKDOWN_INITIAL_HIDE_CODE } from "@/core/codemirror/language/languages/markdown";
 import {
@@ -33,7 +33,7 @@ export const CreateCellButton = ({
   onClick: ((opts: { code: string; hideCode?: boolean }) => void) | undefined;
   oneClickShortcut: "shift" | "mod";
 }) => {
-  const { createNewCell, addSetupCellIfDoesntExist } = useCellActions();
+  const { createCell, addSetupCell } = useCellActions();
   const shortcut = `${oneClickShortcut}-Click`;
   const [open, setOpen] = useState(false);
   // Time the dropdown last opened, to ignore the click that opened it
@@ -62,7 +62,7 @@ export const CreateCellButton = ({
   // enabled; the user experience is confusing otherwise (how does the user
   // know they need to run import marimo as mo. first?).
   const addMarkdownCell = () => {
-    maybeAddMarimoImport({ autoInstantiate: true, createNewCell });
+    maybeAddMarimoImport({ autoInstantiate: true, createCell });
     onClick?.({
       code: LanguageAdapters.markdown.defaultCode,
       hideCode: MARKDOWN_INITIAL_HIDE_CODE,
@@ -70,12 +70,8 @@ export const CreateCellButton = ({
   };
 
   const addSQLCell = () => {
-    maybeAddMarimoImport({ autoInstantiate: true, createNewCell });
+    maybeAddMarimoImport({ autoInstantiate: true, createCell });
     onClick?.({ code: LanguageAdapters.sql.defaultCode });
-  };
-
-  const addSetupCell = () => {
-    addSetupCellIfDoesntExist({});
   };
 
   const renderIcon = (icon: React.ReactNode) => {
@@ -170,7 +166,7 @@ export const CreateCellButton = ({
           {renderIcon(<DatabaseIcon size={13} strokeWidth={1.5} />)}
           SQL cell
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={addSetupCell}>
+        <DropdownMenuItem onClick={() => addSetupCell()}>
           {renderIcon(<DiamondPlusIcon size={13} strokeWidth={1.5} />)}
           Setup cell
         </DropdownMenuItem>

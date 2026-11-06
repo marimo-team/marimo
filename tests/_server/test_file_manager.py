@@ -10,8 +10,8 @@ from marimo import __version__
 from marimo._ast.app import App, InternalApp
 from marimo._ast.cell import CellConfig
 from marimo._config.settings import GLOBAL_SETTINGS
+from marimo._messaging.notebook.document import NotebookCell
 from marimo._server.app_defaults import AppDefaults
-from marimo._server.models.models import SaveNotebookRequest
 from marimo._session.notebook import AppFileManager
 from marimo._types.ids import CellId_t
 from marimo._utils.cell_matching import similarity_score
@@ -20,14 +20,6 @@ from marimo._utils.http import HTTPException, HTTPStatus
 if TYPE_CHECKING:
     from collections.abc import Generator
     from pathlib import Path
-
-save_request = SaveNotebookRequest(
-    cell_ids=["1"],
-    filename="save_existing.py",
-    codes=["import marimo as mo"],
-    names=["my_cell"],
-    configs=[CellConfig(hide_code=True)],
-)
 
 
 @pytest.fixture
@@ -200,15 +192,16 @@ def test_save_mystmd_preserves_frontmatter_and_marimo_config(
     assert 'dependencies = ["polars"]' in manager.app.to_ir().header.value
 
     cells = list(manager.app.cell_manager.cell_data())
-    manager.save(
-        SaveNotebookRequest(
-            cell_ids=[cell.cell_id for cell in cells],
-            filename=str(temp_file),
-            codes=[cell.code for cell in cells],
-            names=[cell.name for cell in cells],
-            configs=[cell.config for cell in cells],
-            persist=True,
-        )
+    manager.save_from_cells(
+        [
+            NotebookCell(
+                id=cell.cell_id,
+                code=cell.code,
+                name=cell.name,
+                config=cell.config,
+            )
+            for cell in cells
+        ]
     )
 
     contents = temp_file.read_text(encoding="utf-8")
@@ -249,51 +242,10 @@ def test_save_app_config_exception(app_file_manager: AppFileManager) -> None:
     assert e.value.status_code == HTTPStatus.SERVER_ERROR
 
 
-def test_save_filename_change_not_allowed(
-    app_file_manager: AppFileManager,
-) -> None:
-    app_file_manager.filename = "original.py"
-    save_request.filename = "new.py"
-    with pytest.raises(HTTPException) as e:
-        app_file_manager.save(save_request)
-    assert e.value.status_code == HTTPStatus.BAD_REQUEST
-
-
-def test_save_existing_filename(app_file_manager: AppFileManager) -> None:
-    existing_filename = "existing_file.py"
-    with open(existing_filename, "w") as f:
-        f.write("This is a test file.")
-    save_request.filename = existing_filename
-    try:
-        with pytest.raises(HTTPException) as e:
-            app_file_manager.save(save_request)
-        assert e.value.status_code == HTTPStatus.BAD_REQUEST
-    finally:
-        os.remove(existing_filename)
-
-
-def test_save_successful(app_file_manager: AppFileManager) -> None:
-    save_request.filename = app_file_manager.filename or ""
-    try:
-        app_file_manager.save(save_request)
-        assert os.path.exists(save_request.filename)
-    finally:
-        os.remove(save_request.filename)
-
-
-def test_save_cannot_rename(app_file_manager: AppFileManager) -> None:
-    save_request.filename = "/invalid/path/save_exception.py"
-    with pytest.raises(HTTPException) as e:
-        app_file_manager.save(save_request)
-    assert e.value.status_code == HTTPStatus.BAD_REQUEST
-
-
 def test_save_from_cells_persists_cells(
     app_file_manager: AppFileManager,
 ) -> None:
     """`save_from_cells` should round-trip cells through the serializer."""
-    from marimo._messaging.notebook.document import NotebookCell
-
     app_file_manager.save_from_cells(
         [
             NotebookCell(
@@ -319,8 +271,6 @@ def test_save_from_cells_leaves_the_document_alone(
     An autosave runs on a worker thread with a copy of the cells. An
     edit that lands meanwhile must not be replaced by the older copy.
     """
-    from marimo._messaging.notebook.document import NotebookCell
-
     document = app_file_manager.app.cell_manager.document
     (cell,) = document.cells
     version = document.version
@@ -375,8 +325,6 @@ def test_save_from_cells_empty_name_normalizes(
 ) -> None:
     """Empty cell names must serialize as the default `_` rather than
     falling back to the unparsable-cell path."""
-    from marimo._messaging.notebook.document import NotebookCell
-
     app_file_manager.save_from_cells(
         [
             NotebookCell(
@@ -408,8 +356,6 @@ def test_save_from_cells_preserves_layout_file(
     app_file_manager: AppFileManager,
 ) -> None:
     """`save_from_cells` must keep `layout_file` in app config."""
-    from marimo._messaging.notebook.document import NotebookCell
-
     app_file_manager.app.update_config({"layout_file": "layouts/x.grid.json"})
     app_file_manager.save_from_cells(
         [
@@ -422,71 +368,6 @@ def test_save_from_cells_preserves_layout_file(
         ]
     )
     assert app_file_manager.app.config.layout_file == "layouts/x.grid.json"
-
-
-def test_save_and_save_from_cells_serialize_under_lock(
-    app_file_manager: AppFileManager,
-) -> None:
-    """Concurrent `save` + `save_from_cells` on the same manager must
-    produce a valid (non-torn) file. Also regression-tests that the
-    reentrant lock covers both entry points."""
-    import threading
-
-    from marimo._messaging.notebook.document import NotebookCell
-
-    assert app_file_manager.filename is not None
-    save_request.filename = app_file_manager.filename
-    errors: list[Exception] = []
-
-    def _frontend_save() -> None:
-        try:
-            for _ in range(20):
-                app_file_manager.save(save_request)
-        except Exception as e:  # pragma: no cover — should never happen
-            errors.append(e)
-
-    def _autosave() -> None:
-        cells = [
-            NotebookCell(
-                id=CellId_t("auto"),
-                code="auto = 1",
-                name="",
-                config=CellConfig(),
-            )
-        ]
-        try:
-            for _ in range(20):
-                app_file_manager.save_from_cells(cells)
-        except Exception as e:  # pragma: no cover
-            errors.append(e)
-
-    try:
-        t1 = threading.Thread(target=_frontend_save)
-        t2 = threading.Thread(target=_autosave)
-        t1.start()
-        t2.start()
-        t1.join(timeout=10)
-        t2.join(timeout=10)
-
-        assert not t1.is_alive(), (
-            "frontend save thread did not terminate within 10s "
-            "(likely deadlock in AppFileManager write lock)"
-        )
-        assert not t2.is_alive(), (
-            "autosave thread did not terminate within 10s "
-            "(likely deadlock in AppFileManager write lock)"
-        )
-        assert not errors, f"unexpected errors: {errors}"
-        # File ends in a parseable state — the serializer's codegen would
-        # raise on a torn write, and the final content must be one of the
-        # two write paths, never a mix.
-        with open(save_request.filename, encoding="utf-8") as f:
-            contents = f.read()
-        assert "import marimo" in contents
-        assert "app = marimo.App" in contents
-    finally:
-        if os.path.exists(save_request.filename):
-            os.remove(save_request.filename)
 
 
 def test_save_with_header(
@@ -506,14 +387,15 @@ def _():
 """)
     app_file_manager.filename = str(file)
     assert app_file_manager.path is not None
-    app_file_manager.save(
-        SaveNotebookRequest(
-            cell_ids=[CellId_t("1")],
-            filename=str(file),
-            codes=["print(2)"],
-            names=["_"],
-            configs=[CellConfig(hide_code=True)],
-        )
+    app_file_manager.save_from_cells(
+        [
+            NotebookCell(
+                id=CellId_t("1"),
+                code="print(2)",
+                name="_",
+                config=CellConfig(hide_code=True),
+            )
+        ]
     )
     new_contents = file.read_text()
     assert "# This is a header" in new_contents
@@ -1137,15 +1019,15 @@ if __name__ == "__main__":
     assert manager.file_content_matches_last_save() is False
 
     # Save the file
-    manager.save(
-        SaveNotebookRequest(
-            cell_ids=[CellId_t("1")],
-            filename=str(temp_file),
-            codes=["x = 1"],
-            names=["cell1"],
-            configs=[CellConfig()],
-            persist=True,
-        )
+    manager.save_from_cells(
+        [
+            NotebookCell(
+                id=CellId_t("1"),
+                code="x = 1",
+                name="cell1",
+                config=CellConfig(),
+            )
+        ]
     )
 
     # Now the file should match the last save
@@ -1228,15 +1110,15 @@ if __name__ == "__main__":
     manager = AppFileManager(filename=str(temp_file))
 
     # Save the file
-    manager.save(
-        SaveNotebookRequest(
-            cell_ids=[CellId_t("1")],
-            filename=str(temp_file),
-            codes=["x = 1"],
-            names=["cell1"],
-            configs=[CellConfig()],
-            persist=True,
-        )
+    manager.save_from_cells(
+        [
+            NotebookCell(
+                id=CellId_t("1"),
+                code="x = 1",
+                name="cell1",
+                config=CellConfig(),
+            )
+        ]
     )
 
     # Verify it matches
@@ -1272,15 +1154,15 @@ if __name__ == "__main__":
     manager = AppFileManager(filename=str(temp_file))
 
     # Save the file
-    manager.save(
-        SaveNotebookRequest(
-            cell_ids=[CellId_t("1")],
-            filename=str(temp_file),
-            codes=["x = 1"],
-            names=["cell1"],
-            configs=[CellConfig()],
-            persist=True,
-        )
+    manager.save_from_cells(
+        [
+            NotebookCell(
+                id=CellId_t("1"),
+                code="x = 1",
+                name="cell1",
+                config=CellConfig(),
+            )
+        ]
     )
 
     # Should match (content is the same)
@@ -1321,15 +1203,15 @@ if __name__ == "__main__":
     )
 
     manager = AppFileManager(filename=str(temp_file))
-    manager.save(
-        SaveNotebookRequest(
-            cell_ids=[CellId_t("1")],
-            filename=str(temp_file),
-            codes=["x = 1"],
-            names=["cell1"],
-            configs=[CellConfig()],
-            persist=True,
-        )
+    manager.save_from_cells(
+        [
+            NotebookCell(
+                id=CellId_t("1"),
+                code="x = 1",
+                name="cell1",
+                config=CellConfig(),
+            )
+        ]
     )
 
     temp_file.write_text(
@@ -1363,29 +1245,29 @@ if __name__ == "__main__":
     manager = AppFileManager(filename=str(temp_file))
 
     # First save
-    manager.save(
-        SaveNotebookRequest(
-            cell_ids=[CellId_t("1")],
-            filename=str(temp_file),
-            codes=["x = 1"],
-            names=["cell1"],
-            configs=[CellConfig()],
-            persist=True,
-        )
+    manager.save_from_cells(
+        [
+            NotebookCell(
+                id=CellId_t("1"),
+                code="x = 1",
+                name="cell1",
+                config=CellConfig(),
+            )
+        ]
     )
 
     assert manager.file_content_matches_last_save() is True
 
     # Second save with different content
-    manager.save(
-        SaveNotebookRequest(
-            cell_ids=[CellId_t("1")],
-            filename=str(temp_file),
-            codes=["x = 2"],
-            names=["cell1"],
-            configs=[CellConfig()],
-            persist=True,
-        )
+    manager.save_from_cells(
+        [
+            NotebookCell(
+                id=CellId_t("1"),
+                code="x = 2",
+                name="cell1",
+                config=CellConfig(),
+            )
+        ]
     )
 
     # Should still match after second save

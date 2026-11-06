@@ -8,22 +8,33 @@ import copy
 import json
 import os
 import shutil
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
+from threading import Barrier
 from typing import TYPE_CHECKING, Any
+from unittest.mock import MagicMock, patch
+from urllib.error import HTTPError, URLError
 
 import pytest
 
 from marimo._config.config import DEFAULT_CONFIG
+from marimo._runtime.context import get_context
+from marimo._save.loaders.lazy import LazyStore, WasmLazyStore
 from marimo._save.manifest import (
     MANIFEST_VERSION,
     CacheManifest,
     CorruptManifestError,
     UnsupportedManifestVersionError,
+    flush_cache_manifest,
+    flush_dirty_manifests,
     is_manifest_name,
     load_manifest,
     manifest_name,
 )
+from marimo._save.stores.dict_store import DictStore
 from marimo._save.stores.file import FileStore
+from marimo._save.stores.rest import RestStore
+from marimo._save.stores.tiered import TieredStore
 from tests._runtime._helpers.factories import default_app_metadata
 from tests._runtime._helpers.session import mocked_kernel_session
 
@@ -42,49 +53,110 @@ class TestManifestFormat:
     def test_round_trip() -> None:
         manifest = CacheManifest(
             notebook="../../nb.py",
-            nodes={"3f9c": {"train": {"C_ab12", "C_77e0"}}},
+            nodes={
+                "3f9c": {
+                    "train": {
+                        "C_ab12ab12ab12ab12ab12ab",
+                        "C_77e077e077e077e077e077",
+                    }
+                }
+            },
             written_at="2026-09-01T00:00:00+00:00",
         )
         assert CacheManifest.from_bytes(manifest.to_bytes()) == manifest
 
     @staticmethod
     def test_merge_unions_keys() -> None:
-        manifest = CacheManifest(nodes={"3f9c": {"train": {"C_ab12"}}})
+        manifest = CacheManifest(
+            nodes={"3f9c": {"train": {"C_ab12ab12ab12ab12ab12ab"}}}
+        )
         manifest.merge(
             CacheManifest(
                 nodes={
-                    "3f9c": {"train": {"C_77e0"}, "eval": {"E_0001"}},
+                    "3f9c": {
+                        "train": {"C_77e077e077e077e077e077"},
+                        "eval": {"E_0001"},
+                    },
                     "8d21": {"train": {"C_e4f9"}},
                 }
             )
         )
         assert manifest.nodes == {
-            "3f9c": {"train": {"C_ab12", "C_77e0"}, "eval": {"E_0001"}},
+            "3f9c": {
+                "train": {
+                    "C_ab12ab12ab12ab12ab12ab",
+                    "C_77e077e077e077e077e077",
+                },
+                "eval": {"E_0001"},
+            },
             "8d21": {"train": {"C_e4f9"}},
         }
 
     @staticmethod
     def test_merge_does_not_alias_the_other_manifest() -> None:
-        records = {"3f9c": {"train": {"C_ab12"}}}
+        records = {"3f9c": {"train": {"C_ab12ab12ab12ab12ab12ab"}}}
         manifest = CacheManifest()
         manifest.merge(CacheManifest(nodes=records))
-        records["3f9c"]["train"].add("C_77e0")
-        assert manifest.nodes == {"3f9c": {"train": {"C_ab12"}}}
+        records["3f9c"]["train"].add("C_77e077e077e077e077e077")
+        assert manifest.nodes == {
+            "3f9c": {"train": {"C_ab12ab12ab12ab12ab12ab"}}
+        }
 
     @staticmethod
     def test_evict_dead_returns_entries_and_keeps_live() -> None:
         manifest = CacheManifest(
             nodes={
-                "dead": {"train": {"C_ab12", "C_77e0"}},
+                "dead": {
+                    "train": {
+                        "C_ab12ab12ab12ab12ab12ab",
+                        "C_77e077e077e077e077e077",
+                    }
+                },
                 "live": {"train": {"C_e4f9"}},
             }
         )
         assert manifest.evict_dead({"live"}) == {
-            ("train", "C_ab12"),
-            ("train", "C_77e0"),
+            ("train", "C_ab12ab12ab12ab12ab12ab"),
+            ("train", "C_77e077e077e077e077e077"),
         }
         assert manifest.nodes == {"live": {"train": {"C_e4f9"}}}
         assert manifest.entries() == {("train", "C_e4f9")}
+
+    @staticmethod
+    def test_discard_forgets_entries_wherever_they_were_recorded() -> None:
+        manifest = CacheManifest(
+            nodes={
+                "3f9c": {
+                    "train": {
+                        "C_ab12ab12ab12ab12ab12ab",
+                        "C_77e077e077e077e077e077",
+                    },
+                    "eval": {"E_0001"},
+                },
+                "8d21": {"train": {"C_ab12ab12ab12ab12ab12ab"}},
+            }
+        )
+
+        manifest.discard(
+            {("train", "C_ab12ab12ab12ab12ab12ab"), ("eval", "E_0001")}
+        )
+
+        # A path hash left listing nothing goes with its last entry.
+        assert manifest.nodes == {
+            "3f9c": {"train": {"C_77e077e077e077e077e077"}}
+        }
+
+    @staticmethod
+    def test_discard_of_an_entry_no_node_lists() -> None:
+        manifest = CacheManifest(
+            nodes={"3f9c": {"train": {"C_ab12ab12ab12ab12ab12ab"}}}
+        )
+
+        manifest.discard({("eval", "C_ab12ab12ab12ab12ab12ab")})
+
+        assert manifest.nodes == {
+            "3f9c": {"train": {"C_ab12ab12ab12ab12ab12ab"}}
+        }
 
     @staticmethod
     def test_corrupt_manifest_raises() -> None:
@@ -98,7 +170,12 @@ class TestManifestFormat:
         with pytest.raises(CorruptManifestError):
             CacheManifest.from_bytes(
                 json.dumps(
-                    {"version": 1, "nodes": {"3f9c": {"train": "C_ab12"}}}
+                    {
+                        "version": 1,
+                        "nodes": {
+                            "3f9c": {"train": "C_ab12ab12ab12ab12ab12ab"}
+                        },
+                    }
                 ).encode()
             )
 
@@ -147,13 +224,15 @@ class TestManifestFormat:
         # Other bookkeeping a cache directory holds, and an entry.
         assert not is_manifest_name(export_manifest_name("nb.py"))
         assert not is_manifest_name("nb-0123456789abcdef.json.tmp0a1b2c3d")
-        assert not is_manifest_name("C_ab12.pickle")
+        assert not is_manifest_name("C_ab12ab12ab12ab12ab12ab.pickle")
 
     @staticmethod
     def test_load_manifest_reads_what_put_stored(tmp_path: Path) -> None:
         store = FileStore(save_path=str(tmp_path))
         assert load_manifest(store, "absent.json") is None
-        manifest = CacheManifest(nodes={"3f9c": {"train": {"C_ab12"}}})
+        manifest = CacheManifest(
+            nodes={"3f9c": {"train": {"C_ab12ab12ab12ab12ab12ab"}}}
+        )
         store.put("m.json", manifest.to_bytes())
         loaded = load_manifest(store, "m.json")
         assert loaded is not None
@@ -194,8 +273,10 @@ class TestAtomicPut:
         store = FileStore(save_path=str(tmp_path))
         block = tmp_path / "train"
         block.mkdir()
-        (block / "C_ab12.pickle").write_bytes(b"value")
-        leftover = block / partial_write_name("C_77e0.pickle")
+        (block / "C_ab12ab12ab12ab12ab12ab.pickle").write_bytes(b"value")
+        leftover = block / partial_write_name(
+            "C_77e077e077e077e077e077.pickle"
+        )
         leftover.write_bytes(b"half")
 
         PickleLoader("train", store=store).clear()
@@ -577,6 +658,35 @@ class TestRecording:
         assert all(is_manifest_name(key) for key in keys)
 
     @staticmethod
+    async def test_repeated_cell_hit_does_not_rewrite_manifest(
+        tmp_path: Path,
+        exec_req: ExecReqProvider,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        request = exec_req.get("x = 42")
+        with _notebook_kernel(tmp_path, cache_cells=True) as (k, _, _):
+            await k.run([request])
+
+        with _recorded_puts(monkeypatch) as keys:
+            with _notebook_kernel(tmp_path, cache_cells=True) as (
+                k,
+                notebook,
+                cache_dir,
+            ):
+                await k.run([request])
+                assert not k.stderr.messages
+                assert k.globals["x"] == 42
+                assert keys == [manifest_name(notebook)]
+                recorded = _manifest(notebook, cache_dir)
+                keys.clear()
+
+                await k.run([request])
+                assert not k.stderr.messages
+                assert k.globals["x"] == 42
+                assert keys == []
+                assert _manifest(notebook, cache_dir) == recorded
+
+    @staticmethod
     async def test_teardown_writes_what_a_failed_flush_left_pending(
         tmp_path: Path,
         exec_req: ExecReqProvider,
@@ -800,7 +910,7 @@ class TestRecording:
         payload = json.dumps(
             {
                 "version": MANIFEST_VERSION + 1,
-                "nodes": {"3f9c": {"train": ["C_ab12"]}},
+                "nodes": {"3f9c": {"train": ["C_ab12ab12ab12ab12ab12ab"]}},
             }
         ).encode()
         with _notebook_kernel(tmp_path) as (k, notebook, cache_dir):
@@ -826,14 +936,14 @@ class TestRecording:
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         """Bookkeeping about a cache must never break the run it happens in."""
-        original_get = FileStore.get
+        original_read = Path.read_bytes
 
-        def refuse_manifest(self: FileStore, key: str) -> bytes | None:
-            if is_manifest_name(key):
-                raise PermissionError(f"unreadable: {key}")
-            return original_get(self, key)
+        def refuse_manifest(self: Path) -> bytes:
+            if is_manifest_name(self.name):
+                raise PermissionError(f"unreadable: {self.name}")
+            return original_read(self)
 
-        monkeypatch.setattr(FileStore, "get", refuse_manifest)
+        monkeypatch.setattr(Path, "read_bytes", refuse_manifest)
 
         with _notebook_kernel(tmp_path) as (k, notebook, cache_dir):
             await k.run(
@@ -891,3 +1001,264 @@ class TestRecording:
             # The entry is on disk. Nothing in the notebook records it.
             assert list((cache_dir / "scratch").iterdir())
             assert not (cache_dir / manifest_name(notebook)).exists()
+
+
+class TestManifestFlush:
+    @staticmethod
+    @pytest.mark.parametrize("wasm", [False, True])
+    @pytest.mark.parametrize("status", [200, 404, 403, 503])
+    def test_http_manifest_read(wasm: bool, status: int) -> None:
+        store: Store = (
+            WasmLazyStore(DictStore())
+            if wasm
+            else RestStore(
+                base_url="https://example.invalid", api_key="test-key"
+            )
+        )
+        manifest = CacheManifest(nodes={"node": {"block": {"C_old"}}})
+        response = MagicMock()
+        response.__enter__.return_value = response
+        response.status = 200
+        response.read.return_value = manifest.to_bytes()
+        key = "nb-0123456789abcdef.json"
+        with patch("urllib.request.urlopen", return_value=response) as request:
+            if status != 200:
+                request.side_effect = HTTPError(
+                    "https://example.invalid", status, "Unavailable", {}, None
+                )
+            if status in (200, 404):
+                loaded = load_manifest(store, key)
+                if status == 404:
+                    assert loaded is None
+                else:
+                    assert loaded is not None
+                    assert loaded.nodes == manifest.nodes
+                    if wasm:
+                        assert store.export_keys() == [key]
+            else:
+                with pytest.raises(HTTPError):
+                    load_manifest(store, key)
+                assert store.get(key) is None
+
+    @staticmethod
+    @pytest.mark.parametrize("wrapped", [False, True])
+    def test_each_tier_retains_its_history(
+        tmp_path: Path, wrapped: bool
+    ) -> None:
+        fast = FileStore(str(tmp_path / "fast"))
+        slow = FileStore(str(tmp_path / "slow"))
+        store: Store = TieredStore([fast, TieredStore([slow])])
+        if wrapped:
+            store = LazyStore(LazyStore(store))
+        with _notebook_kernel(tmp_path, store=store) as (_, notebook, _):
+            key = manifest_name(notebook)
+            for tier, entry in [(fast, "C_fast"), (slow, "C_slow")]:
+                tier.put(
+                    key,
+                    CacheManifest(
+                        nodes={"node": {"block": {entry}}}
+                    ).to_bytes(),
+                )
+            ctx = get_context()
+            ctx.cache.manifest_records[store] = {"node": {"block": {"C_new"}}}
+            ctx.cache.manifest_dirty.add(store)
+
+            flush_dirty_manifests(ctx)
+
+            for tier, entry in [(fast, "C_fast"), (slow, "C_slow")]:
+                manifest = load_manifest(tier, key)
+                assert manifest is not None
+                assert manifest.nodes == {"node": {"block": {entry, "C_new"}}}
+            assert not ctx.cache.manifest_dirty
+            if wrapped:
+                assert store.export_keys() == [key]
+
+    @staticmethod
+    @pytest.mark.parametrize("failure", [403, 503, "connection", "write"])
+    def test_failed_read_preserves_history_until_retry(
+        tmp_path: Path, failure: int | str
+    ) -> None:
+        remote = RestStore(
+            base_url="https://example.invalid", api_key="test-key"
+        )
+        local = FileStore(str(tmp_path / "local"))
+        store = LazyStore(TieredStore([remote, local]))
+        with _notebook_kernel(tmp_path, store=store) as (_, notebook, _):
+            key = manifest_name(notebook)
+            history = CacheManifest(
+                nodes={"node": {"block": {"C_remote"}}}
+            ).to_bytes()
+            remote_data = {key: history}
+            local.put(
+                key,
+                CacheManifest(
+                    nodes={"node": {"block": {"C_local"}}}
+                ).to_bytes(),
+            )
+            ctx = get_context()
+            ctx.cache.manifest_records[store] = {"node": {"block": {"C_new"}}}
+            ctx.cache.manifest_dirty.add(store)
+            failing = True
+
+            def urlopen(request: Any, **_kwargs: Any) -> MagicMock:
+                if (
+                    failing
+                    and failure == "write"
+                    and request.get_method() == "PUT"
+                ):
+                    raise URLError("Connection failed")
+                if (
+                    request.get_method() == "GET"
+                    and failing
+                    and failure != "write"
+                ):
+                    if isinstance(failure, int):
+                        raise HTTPError(
+                            request.full_url, failure, "Unavailable", {}, None
+                        )
+                    raise URLError("Connection failed")
+                response = MagicMock()
+                response.status = 200
+                response.__enter__.return_value = response
+                if request.get_method() == "PUT":
+                    remote_data[key] = request.data
+                else:
+                    response.read.return_value = remote_data[key]
+                return response
+
+            with patch("urllib.request.urlopen", side_effect=urlopen):
+                flush_dirty_manifests(ctx)
+                assert remote_data[key] == history
+                local_manifest = load_manifest(local, key)
+                assert local_manifest is not None
+                assert local_manifest.nodes == {
+                    "node": {"block": {"C_local", "C_new"}}
+                }
+                assert store in ctx.cache.manifest_dirty
+
+                failing = False
+                flush_dirty_manifests(ctx)
+
+            assert CacheManifest.from_bytes(remote_data[key]).nodes == {
+                "node": {"block": {"C_remote", "C_new"}}
+            }
+            assert not ctx.cache.manifest_dirty
+
+    @staticmethod
+    def test_newer_tier_is_untouched_while_another_updates(
+        tmp_path: Path,
+    ) -> None:
+        newer = FileStore(str(tmp_path / "newer"))
+        current = FileStore(str(tmp_path / "current"))
+        store = TieredStore([newer, current])
+        payload = json.dumps(
+            {
+                "version": MANIFEST_VERSION + 1,
+                "nodes": {"future": {"block": ["C_old"]}},
+            }
+        ).encode()
+        with _notebook_kernel(tmp_path, store=store) as (_, notebook, _):
+            key = manifest_name(notebook)
+            newer.put(key, payload)
+            ctx = get_context()
+            ctx.cache.manifest_records[store] = {"node": {"block": {"C_new"}}}
+            ctx.cache.manifest_dirty.add(store)
+
+            flush_dirty_manifests(ctx)
+
+            assert newer.read(key) == payload
+            manifest = load_manifest(current, key)
+            assert manifest is not None
+            assert manifest.nodes == {"node": {"block": {"C_new"}}}
+            assert not ctx.cache.manifest_dirty
+
+    @staticmethod
+    def test_wasm_checks_all_inner_tiers_before_http(tmp_path: Path) -> None:
+        first, second = DictStore(), DictStore()
+        store = WasmLazyStore(TieredStore([first, second]))
+        with _notebook_kernel(tmp_path, store=store) as (_, notebook, _):
+            key = manifest_name(notebook)
+            second.put(
+                key,
+                CacheManifest(nodes={"node": {"block": {"C_old"}}}).to_bytes(),
+            )
+            ctx = get_context()
+            ctx.cache.manifest_records[store] = {"node": {"block": {"C_new"}}}
+            ctx.cache.manifest_dirty.add(store)
+
+            with patch(
+                "urllib.request.urlopen", side_effect=URLError("Offline")
+            ) as request:
+                flush_dirty_manifests(ctx)
+            request.assert_not_called()
+
+            for tier in (first, second):
+                manifest = load_manifest(tier, key)
+                assert manifest is not None
+                assert manifest.nodes == {
+                    "node": {"block": {"C_old", "C_new"}}
+                }
+            assert not ctx.cache.manifest_dirty
+            assert store.export_keys() == [key]
+
+    @staticmethod
+    def test_concurrent_flushes_keep_both_writers(
+        tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from marimo._utils.file_lock import file_lock
+
+        path = str(tmp_path / "cache")
+        first = LazyStore(FileStore(path))
+        second = LazyStore(FileStore(path))
+        original_read = FileStore.read
+        original_put = FileStore.put
+
+        def assert_locked(key: str) -> None:
+            with pytest.raises(BlockingIOError):
+                with file_lock(Path(path) / f"{key}.lock", blocking=False):
+                    pass
+
+        def read(self: FileStore, key: str) -> bytes | None:
+            assert_locked(key)
+            return original_read(self, key)
+
+        def put(self: FileStore, key: str, value: bytes) -> bool:
+            assert_locked(key)
+            return original_put(self, key, value)
+
+        with _notebook_kernel(tmp_path) as (_, notebook, _):
+            ctx = get_context()
+            ctx.cache.manifest_records[first] = {
+                "node": {"block": {"C_first"}}
+            }
+            ctx.cache.manifest_records[second] = {
+                "node": {"block": {"C_second"}}
+            }
+            key = manifest_name(notebook)
+            first.put(
+                key,
+                CacheManifest(nodes={"node": {"block": {"C_old"}}}).to_bytes(),
+            )
+            start = Barrier(2)
+
+            def flush(store: Store) -> bool:
+                start.wait(timeout=30)
+                return flush_cache_manifest(ctx, store)
+
+            with (
+                monkeypatch.context() as patcher,
+                ThreadPoolExecutor(max_workers=2) as pool,
+            ):
+                patcher.setattr(FileStore, "read", read)
+                patcher.setattr(FileStore, "put", put)
+                writers = [
+                    pool.submit(flush, store) for store in (first, second)
+                ]
+                for writer in writers:
+                    assert writer.result(timeout=30)
+
+            manifest = load_manifest(FileStore(path), key)
+            assert manifest is not None
+            assert manifest.nodes == {
+                "node": {"block": {"C_old", "C_first", "C_second"}}
+            }

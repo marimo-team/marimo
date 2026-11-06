@@ -4,13 +4,18 @@ import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { getDefaultStore } from "jotai";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { mockDocumentModel } from "@/__mocks__/document";
 import { MockNotebook } from "@/__mocks__/notebook";
 import { cellId } from "@/__tests__/branded";
 import { notebookAtom } from "@/core/cells/cells";
 import type { CellId } from "@/core/cells/ids";
-import { updateEditorCodeFromPython } from "@/core/codemirror/language/utils";
 import { OverridingHotkeyProvider } from "@/core/hotkeys/hotkeys";
-import { MultiColumn } from "@/utils/id-tree";
+import {
+  cell,
+  CONFIG,
+  document as documentOf,
+  withCells,
+} from "@/core/notebook/document/__tests__/fixtures";
 import { cellConfigExtension } from "../../../codemirror/config/extension";
 import { adaptiveLanguageConfiguration } from "../../../codemirror/language/extension";
 import { stagedAICellsAtom } from "../../staged-cells";
@@ -20,11 +25,6 @@ import { EditNotebookTool } from "../edit-notebook-tool";
 // Mock scrollAndHighlightCell
 vi.mock("@/components/editor/links/cell-link", () => ({
   scrollAndHighlightCell: vi.fn(),
-}));
-
-// Mock updateEditorCodeFromPython
-vi.mock("@/core/codemirror/language/utils", () => ({
-  updateEditorCodeFromPython: vi.fn(),
 }));
 
 function createMockEditorView(code: string): EditorView {
@@ -67,12 +67,9 @@ describe("EditNotebookTool", () => {
   let tool: EditNotebookTool;
   let cellId1: CellId;
   let cellId2: CellId;
-  let cellId3: CellId;
   let toolContext: {
     addStagedCell: ReturnType<typeof vi.fn>;
-    createNewCell: ReturnType<typeof vi.fn>;
-    prepareForRun: ReturnType<typeof vi.fn>;
-    sendRun: ReturnType<typeof vi.fn>;
+    createCell: ReturnType<typeof vi.fn>;
     store: ReturnType<typeof getDefaultStore>;
   };
 
@@ -87,16 +84,13 @@ describe("EditNotebookTool", () => {
         const current = store.get(stagedAICellsAtom);
         store.set(stagedAICellsAtom, new Map(current).set(cellId, edit));
       }),
-      createNewCell: vi.fn(),
-      prepareForRun: vi.fn(),
-      sendRun: vi.fn().mockResolvedValue(null),
+      createCell: vi.fn(),
       store,
     };
     tool = new EditNotebookTool();
 
     cellId1 = cellId("cell-1");
     cellId2 = cellId("cell-2");
-    cellId3 = cellId("cell-3");
 
     // Reset mocks
     vi.clearAllMocks();
@@ -106,7 +100,7 @@ describe("EditNotebookTool", () => {
     it("should have correct metadata", () => {
       expect(tool.name).toBe("edit_notebook_tool");
       expect(tool.description).toBeDefined();
-      expect(tool.description.baseDescription).toContain("editing operations");
+      expect(tool.description.baseDescription).toContain("Propose cell edits");
       expect(tool.schema).toBeDefined();
       expect(tool.outputSchema).toBeDefined();
       expect(tool.mode).toEqual(["agent"]);
@@ -140,10 +134,7 @@ describe("EditNotebookTool", () => {
       );
 
       expect(result.status).toBe("success");
-      expect(vi.mocked(updateEditorCodeFromPython)).toHaveBeenCalledWith(
-        editorView,
-        newCode,
-      );
+      expect(editorView.state.doc.toString()).toBe(newCode);
 
       // Check that cell was staged
       const stagedCells = store.get(stagedAICellsAtom);
@@ -166,10 +157,7 @@ describe("EditNotebookTool", () => {
       );
 
       expect(result2.status).toBe("success");
-      expect(vi.mocked(updateEditorCodeFromPython)).toHaveBeenCalledWith(
-        editorView,
-        "x = 3",
-      );
+      expect(editorView.state.doc.toString()).toBe("x = 3");
 
       const stagedCells2 = store.get(stagedAICellsAtom);
       expect(stagedCells2.has(cellId1)).toBe(true);
@@ -206,7 +194,7 @@ describe("EditNotebookTool", () => {
 
       // Should NOT stage the cell or update the editor
       expect(toolContext.addStagedCell).not.toHaveBeenCalled();
-      expect(vi.mocked(updateEditorCodeFromPython)).not.toHaveBeenCalled();
+      expect(editorView.state.doc.toString()).toBe(code);
 
       // No staged cells
       const stagedCells = store.get(stagedAICellsAtom);
@@ -459,27 +447,37 @@ describe("EditNotebookTool", () => {
           [cellId2]: { code: "x = 2" },
         },
       });
-      // Create multi-column layout
-      notebook.cellIds = MultiColumn.from([[cellId1], [cellId2]]);
       store.set(notebookAtom, notebook);
-
-      const newCode = "y = 2";
-      const result = await tool.handler(
-        {
-          edit: {
-            type: "add_cell",
-            position: { type: "column_end", columnIndex: 1 },
-            code: newCode,
-          },
-        },
-        toolContext as never,
+      // The layout reads columns from the document's cells.
+      const { stop } = mockDocumentModel(
+        store,
+        withCells(documentOf(), {
+          c1: null,
+          c2: null,
+          [cellId1]: cell(cellId1, "x = 1"),
+          [cellId2]: cell(cellId2, "x = 2", {
+            config: { ...CONFIG, column: 1 },
+          }),
+        }),
       );
 
-      expect(result.status).toBe("success");
+      try {
+        const result = await tool.handler(
+          {
+            edit: {
+              type: "add_cell",
+              position: { type: "column_end", columnIndex: 1 },
+              code: "y = 2",
+            },
+          },
+          toolContext as never,
+        );
 
-      // Check that a new cell was staged
-      const stagedCells = store.get(stagedAICellsAtom);
-      expect(stagedCells.size).toBe(1);
+        expect(result.status).toBe("success");
+        expect(store.get(stagedAICellsAtom).size).toBe(1);
+      } finally {
+        stop();
+      }
     });
 
     it("should throw error when cell ID doesn't exist for position", async () => {
@@ -711,52 +709,6 @@ describe("EditNotebookTool", () => {
           toolContext as never,
         ),
       ).rejects.toThrow("Cell ID is required for delete_cell");
-    });
-  });
-
-  describe("validation", () => {
-    it("should validate cell exists in multi-column notebook", async () => {
-      const notebook = MockNotebook.notebookState({
-        cellData: {
-          [cellId1]: { code: "x = 1" },
-          [cellId2]: { code: "x = 2" },
-          [cellId3]: { code: "x = 3" },
-        },
-      });
-      // Create multi-column layout
-      notebook.cellIds = MultiColumn.from([[cellId1, cellId2], [cellId3]]);
-      store.set(notebookAtom, notebook);
-
-      // Should not throw for cells in different columns
-      const editorView = createMockEditorView("x = 1");
-      notebook.cellHandles[cellId1] = { current: { editorView } } as never;
-      notebook.cellHandles[cellId3] = { current: { editorView } } as never;
-
-      await expect(
-        tool.handler(
-          {
-            edit: {
-              type: "update_cell",
-              position: { cellId: cellId1 },
-              code: "y = 1",
-            },
-          },
-          toolContext as never,
-        ),
-      ).resolves.toBeDefined();
-
-      await expect(
-        tool.handler(
-          {
-            edit: {
-              type: "update_cell",
-              position: { cellId: cellId3 },
-              code: "y = 3",
-            },
-          },
-          toolContext as never,
-        ),
-      ).resolves.toBeDefined();
     });
   });
 

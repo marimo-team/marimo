@@ -5,13 +5,14 @@
 #     "pandas==2.2.3",
 #     "polars[pyarrow]==1.30.0",
 #     "redshift-connector[full]==2.1.7",
-#     "sqlglot==26.23.0",
+#     "sqlglot[c]>=30.11.0; python_version < '3.15'",
+#     "sqlglot[c]>=30.23.0; python_version >= '3.15'",
 # ]
 # ///
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -20,13 +21,13 @@ def _():
     import marimo as mo
     import redshift_connector
     import os
+
     return mo, os, redshift_connector
 
 
 @app.cell
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     # Connecting to Redshift via redshift_connector
 
     Steps:
@@ -34,9 +35,7 @@ def _(mo):
     1. Make sure the instance is publicly accessible
     2. Check VPC/subnets is public traffic is allowed
     3. Navigate to redshift -> workgroup -> obtain connection details
-    """
-    )
-    return
+    """)
 
 
 @app.cell
@@ -91,7 +90,6 @@ def _(cursor):
         ('sarah_jones', 'sarah.jones@email.com', '2024-04-05'),
         ('alex_brown', 'alex.brown@email.com', '2024-05-12');
     """)
-    return
 
 
 @app.cell
@@ -102,7 +100,6 @@ def _(conn, mo):
         """,
         engine=conn
     )
-    return
 
 
 @app.function
@@ -124,8 +121,7 @@ def close_prepared_statements_sample():
 
 @app.cell
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ## Introspection
 
     get_tables() ->
@@ -201,9 +197,7 @@ def _(mo):
     4. column_name
     5. key_sequence
     6. pk_name
-    """
-    )
-    return
+    """)
 
 
 if __name__ == "__main__":

@@ -33,6 +33,7 @@ from tests._server.api.endpoints.ws_helpers import (
     headers,
     receive_notification,
 )
+from tests._server.host.drive import socket_snapshot
 from tests._server.mocks import get_session_manager, workspace_scope
 
 if TYPE_CHECKING:
@@ -170,39 +171,54 @@ def test_refresh_resumes_directory_workspace_session(
         session_manager.close_session(SessionId("dir2"))
 
 
-def test_save_session(client: TestClient) -> None:
-    filename = (
-        get_session_manager(client)
-        .workspace.get_single_app_file_manager()
-        .filename
-    )
+def test_edited_document_survives_resume(client: TestClient) -> None:
     with client.websocket_connect(_create_ws_url("123")) as websocket:
+        snapshot = socket_snapshot(websocket)
+        notebook_id = next(
+            e["data"]["notebook"]["id"]
+            for e in snapshot
+            if e["event"] == "notebook"
+        )
         data = receive_notification(websocket)
         assert_kernel_ready_response(data, create_response({}))
-        # Send save request
-        client.post(
-            "/api/kernel/save",
-            headers=headers("123"),
+        # Replace the notebook's cells through the host.
+        session = get_session(client, SessionId("123"))
+        assert session is not None
+        response = client.post(
+            f"/api/marimo/v1/notebooks/{notebook_id}/edits",
+            headers={**headers("123"), "Idempotency-Key": "edit-1"},
             json={
-                "cellIds": ["2", "1"],
-                "filename": filename,
-                "codes": [
-                    "slider = mo.ui.slider(0, 100)",
-                    "import marimo as mo",
-                ],
-                "names": ["cell_0", "cell_1"],
-                "configs": [
+                "changes": [
+                    *(
+                        {
+                            "kind": "delete_cell",
+                            "id": cell_id,
+                            "base_etag": "*",
+                        }
+                        for cell_id in session.document.cell_ids
+                    ),
                     {
-                        "hideCode": True,
-                        "disabled": True,
+                        "kind": "put_cell",
+                        "base_etag": None,
+                        "cell": {
+                            "id": "2",
+                            "code": "slider = mo.ui.slider(0, 100)",
+                            "name": "cell_0",
+                        },
                     },
                     {
-                        "hideCode": False,
-                        "disabled": False,
+                        "kind": "put_cell",
+                        "base_etag": None,
+                        "cell": {
+                            "id": "1",
+                            "code": "import marimo as mo",
+                            "name": "cell_1",
+                        },
                     },
-                ],
+                ]
             },
         )
+        assert response.status_code == 200, response.text
 
     # Check the session still exists after closing the websocket
     assert get_session(client, "123")
@@ -217,30 +233,12 @@ def test_save_session(client: TestClient) -> None:
         data = receive_notification(websocket)
         assert_kernel_ready_response(
             data,
-            create_response(
-                {
-                    # The cell IDs that were saved should be the ones that are
-                    # resumed
-                    "cell_ids": ["2", "1"],
-                    "names": ["cell_0", "cell_1"],
-                    "codes": [
-                        "slider = mo.ui.slider(0, 100)",
-                        "import marimo as mo",
-                    ],
-                    "configs": [
-                        {
-                            "hideCode": True,
-                            "disabled": True,
-                        },
-                        {
-                            "hideCode": False,
-                            "disabled": False,
-                        },
-                    ],
-                    "resumed": True,
-                }
-            ),
+            create_response({"resumed": True}),
         )
+        # The edited cells are the resumed session's document
+        session = get_session(client, SessionId("456"))
+        assert session is not None
+        assert list(session.document.cell_ids) == ["2", "1"]
 
     # Check the session switch IDs
     assert not get_session(client, "123")

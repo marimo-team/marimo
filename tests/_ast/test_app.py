@@ -711,6 +711,59 @@ class TestApp:
         assert not runtime_context_installed()
 
     @staticmethod
+    @pytest.mark.parametrize("execution", ["sync", "async", "running-loop"])
+    @pytest.mark.parametrize("phase", ["writes", "manifest"])
+    def test_run_tears_down_context_after_interrupted_flush(
+        monkeypatch: pytest.MonkeyPatch, execution: str, phase: str
+    ) -> None:
+        import asyncio
+
+        from marimo._runtime.context.types import (
+            runtime_context_installed,
+            teardown_context,
+        )
+        from marimo._save import loaders, manifest
+
+        app = App()
+        if execution == "sync":
+
+            @app.cell
+            def _():
+                x = 1
+                return (x,)
+
+        else:
+
+            @app.cell
+            async def _():
+                import asyncio
+
+                await asyncio.sleep(0)
+                x = 1
+                return (x,)
+
+        def interrupt(*_args: Any) -> None:
+            raise KeyboardInterrupt("interrupted flush")
+
+        if phase == "writes":
+            monkeypatch.setattr(loaders, "flush_active_caches", interrupt)
+        else:
+            monkeypatch.setattr(manifest, "flush_dirty_manifests", interrupt)
+
+        async def run() -> None:
+            app.run()
+
+        try:
+            with pytest.raises(KeyboardInterrupt, match="interrupted flush"):
+                if execution == "running-loop":
+                    asyncio.run(run())
+                else:
+                    app.run()
+            assert not runtime_context_installed()
+        finally:
+            teardown_context()
+
+    @staticmethod
     async def test_run_async_from_running_event_loop_propagates_error() -> (
         None
     ):
@@ -1330,6 +1383,43 @@ def test_cli_args(tmp_path: pathlib.Path) -> None:
     assert "value1" in output
     assert "bar" in output
     assert "value2" in output
+
+
+@pytest.mark.skipif(
+    condition=not DependencyManager.matplotlib.has(),
+    reason="requires matplotlib",
+)
+def test_script_run_does_not_import_matplotlib(
+    tmp_path: pathlib.Path,
+) -> None:
+    """A script run leaves matplotlib alone until a cell imports it.
+
+    Loading it costs a font-cache build on a fresh machine, which can
+    take longer than the notebook itself.
+    """
+    py_file = tmp_path / "no_mpl_script.py"
+    content = """
+    import marimo
+    app = marimo.App()
+
+    @app.cell
+    def __():
+        import sys
+        print("matplotlib" in sys.modules)
+        return
+
+    if __name__ == "__main__":
+        app.run()
+    """
+    py_file.write_text(textwrap.dedent(content))
+    p = subprocess.run(
+        [sys.executable, str(py_file)],
+        capture_output=True,
+        text=True,
+        timeout=120,
+    )
+    assert p.returncode == 0, p.stderr
+    assert p.stdout.strip() == "False"
 
 
 # TODO(akshayka): Many of the app composition and embedding tests are flaky in

@@ -6,43 +6,29 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { useAtomValue } from "jotai";
-import {
-  DatabaseIcon,
-  SparklesIcon,
-  SquareCodeIcon,
-  SquareMIcon,
-} from "lucide-react";
+import { DatabaseIcon, SquareCodeIcon, SquareMIcon } from "lucide-react";
 import { useEffect } from "react";
-import { useOpenSettingsToTab } from "@/components/app-config/state";
 import { StartupLogsAlert } from "@/components/editor/alerts/startup-logs-alert";
 import { Cell } from "@/components/editor/notebook-cell";
 import { PackageAlert } from "@/components/editor/package-alert";
 import { SortableCellsProvider } from "@/components/sort/SortableCellsProvider";
 import { Button } from "@/components/ui/button";
-import { Tooltip } from "@/components/ui/tooltip";
 import { maybeAddMarimoImport } from "@/core/cells/add-missing-import";
 import { SETUP_CELL_ID } from "@/core/cells/ids";
 import { LanguageAdapters } from "@/core/codemirror/language/LanguageAdapters";
 import { MARKDOWN_INITIAL_HIDE_CODE } from "@/core/codemirror/language/languages/markdown";
-import { aiEnabledAtom, aiFeaturesEnabledAtom } from "@/core/config/config";
 import { canInteractWithAppAtom } from "@/core/network/connection";
-import { useBoolean } from "@/hooks/useBoolean";
 import { cn } from "@/utils/cn";
 import { Functions } from "@/utils/functions";
-import type { CellColumnId } from "@/utils/id-tree";
+import { type CellColumnId, findColumn, useLayout } from "@/core/cells/layout";
 import { invariant } from "@/utils/invariant";
-import {
-  columnIdsAtom,
-  useCellActions,
-  useCellIds,
-  useScrollKey,
-} from "../../../core/cells/cells";
+import { useCellIds, useScrollKey } from "../../../core/cells/cells";
+import { useCellActions } from "../../../core/cells/actions";
 import { formatAll } from "../../../core/codemirror/format";
 import type { AppConfig, UserConfig } from "../../../core/config/config-schema";
 import type { AppMode } from "../../../core/mode";
 import { useHotkey } from "../../../hooks/useHotkey";
 import { type Theme, useTheme } from "../../../theme/useTheme";
-import { AddCellWithAI } from "../ai/add-cell-with-ai";
 import { NotStartedConnectionAlert } from "../alerts/connecting-alert";
 import { FloatingOutline } from "../chrome/panels/outline/floating-outline";
 import { useChromeActions } from "../chrome/state";
@@ -60,7 +46,7 @@ interface CellArrayProps {
 }
 
 export const CellArray: React.FC<CellArrayProps> = (props) => {
-  const columnIds = useAtomValue(columnIdsAtom);
+  const columnIds = useLayout().columns.map((column) => column.id);
 
   // Setup context for sorting
   return (
@@ -115,7 +101,7 @@ const CellArrayInternal: React.FC<CellArrayProps> = ({
 
   const cellIds = useCellIds();
   const scrollKey = useScrollKey();
-  const columnIds = cellIds.getColumnIds();
+  const columnIds = useLayout().columns.map((column) => column.id);
 
   // Scroll to a cell targeted by a previous action
   const scrollToTarget = actions.scrollToTarget;
@@ -139,7 +125,7 @@ const CellArrayInternal: React.FC<CellArrayProps> = ({
       <StdinBlockingAlert />
       <NotebookBanner width={appConfig.width} />
       {/* Only show if not cells, otherwise running a single cell will start the connection */}
-      {cellIds.idLength === 0 && <NotStartedConnectionAlert />}
+      {cellIds.length === 0 && <NotStartedConnectionAlert />}
       <div
         className={cn(
           appConfig.width === "columns" &&
@@ -188,11 +174,11 @@ const CellColumn: React.FC<{
   hideControls,
 }) => {
   const cellIds = useCellIds();
-  const column = cellIds.get(columnId);
+  const column = findColumn(useLayout(), columnId);
   invariant(column, `Expected column for: ${columnId}`);
 
-  const hasOnlyOneCell = cellIds.hasOnlyOneId();
-  const hasSetupCell = cellIds.inOrderIds.includes(SETUP_CELL_ID);
+  const hasOnlyOneCell = cellIds.length === 1;
+  const hasSetupCell = cellIds.includes(SETUP_CELL_ID);
   const isPresenting = mode === "present";
 
   return (
@@ -218,7 +204,7 @@ const CellColumn: React.FC<{
     >
       <SortableContext
         id={`column-${index + 1}`}
-        items={column.topLevelIds}
+        items={[...column.visible]}
         strategy={verticalListSortingStrategy}
       >
         {/* Render the setup cell first, always */}
@@ -237,7 +223,7 @@ const CellColumn: React.FC<{
           />
         )}
 
-        {column.topLevelIds.map((cellId) => {
+        {column.visible.map((cellId) => {
           // Skip the setup cell later
           if (cellId === SETUP_CELL_ID) {
             return null;
@@ -252,8 +238,8 @@ const CellColumn: React.FC<{
               canDelete={!hasOnlyOneCell}
               mode={mode}
               userConfig={userConfig}
-              isCollapsed={column.isCollapsed(cellId)}
-              collapseCount={column.getCount(cellId)}
+              isCollapsed={column.folds.has(cellId)}
+              collapseCount={column.folds.get(cellId)?.length ?? 0}
               canMoveX={appConfig.width === "columns"}
             />
           );
@@ -263,40 +249,32 @@ const CellColumn: React.FC<{
   );
 };
 
-const AddCellButtons: React.FC<{
+export const AddCellButtons: React.FC<{
   columnId: CellColumnId;
   className?: string;
 }> = ({ columnId, className }) => {
-  const { createNewCell } = useCellActions();
-  const [isAiButtonOpen, isAiButtonOpenActions] = useBoolean(false);
-  const aiEnabled = useAtomValue(aiEnabledAtom);
-  const aiFeaturesEnabled = useAtomValue(aiFeaturesEnabledAtom);
+  const { createCell } = useCellActions();
   const canInteractWithApp = useAtomValue(canInteractWithAppAtom);
-  const { handleClick } = useOpenSettingsToTab();
 
   const buttonClass = cn(
     "mb-0 rounded-none sm:px-4 md:px-5 lg:px-8 tracking-wide no-wrap whitespace-nowrap",
     "font-semibold opacity-70 hover:opacity-90 uppercase text-xs",
   );
 
-  const renderBody = () => {
-    if (aiEnabled && isAiButtonOpen) {
-      return <AddCellWithAI onClose={isAiButtonOpenActions.toggle} />;
-    }
-
-    return (
-      <>
+  return (
+    <div className="flex justify-center mt-4 pt-6 pb-32 group gap-4 w-full print:hidden">
+      <div
+        className={cn(
+          "border border-border rounded transition-all duration-200 overflow-hidden divide-x divide-border flex w-fit shadow-sm-solid-shade",
+          className,
+        )}
+      >
         <Button
           className={buttonClass}
           variant="text"
           size="sm"
           disabled={!canInteractWithApp}
-          onClick={() =>
-            createNewCell({
-              cellId: { type: "__end__", columnId },
-              before: false,
-            })
-          }
+          onClick={() => createCell({ endOf: columnId })}
         >
           <SquareCodeIcon className="mr-2 size-4 shrink-0" />
           Python
@@ -307,13 +285,12 @@ const AddCellButtons: React.FC<{
           size="sm"
           disabled={!canInteractWithApp}
           onClick={() => {
-            maybeAddMarimoImport({ autoInstantiate: true, createNewCell });
+            maybeAddMarimoImport({ autoInstantiate: true, createCell });
 
-            createNewCell({
-              cellId: { type: "__end__", columnId },
-              before: false,
+            createCell({
+              endOf: columnId,
               code: LanguageAdapters.markdown.defaultCode,
-              hideCode: MARKDOWN_INITIAL_HIDE_CODE,
+              config: { hide_code: MARKDOWN_INITIAL_HIDE_CODE },
             });
           }}
         >
@@ -326,11 +303,10 @@ const AddCellButtons: React.FC<{
           size="sm"
           disabled={!canInteractWithApp}
           onClick={() => {
-            maybeAddMarimoImport({ autoInstantiate: true, createNewCell });
+            maybeAddMarimoImport({ autoInstantiate: true, createCell });
 
-            createNewCell({
-              cellId: { type: "__end__", columnId },
-              before: false,
+            createCell({
+              endOf: columnId,
               code: LanguageAdapters.sql.defaultCode,
             });
           }}
@@ -338,50 +314,6 @@ const AddCellButtons: React.FC<{
           <DatabaseIcon className="mr-2 size-4 shrink-0" />
           SQL
         </Button>
-        {aiEnabled && (
-          <Tooltip
-            content={
-              aiFeaturesEnabled ? null : (
-                <span>AI provider not found or Edit model not selected</span>
-              )
-            }
-            delayDuration={100}
-            asChild={false}
-          >
-            <Button
-              className={buttonClass}
-              variant="text"
-              size="sm"
-              disabled={!canInteractWithApp}
-              onClick={
-                aiFeaturesEnabled
-                  ? isAiButtonOpenActions.toggle
-                  : () => handleClick("ai", "ai-providers")
-              }
-            >
-              <SparklesIcon className="mr-2 size-4 shrink-0" />
-              Generate with AI
-            </Button>
-          </Tooltip>
-        )}
-      </>
-    );
-  };
-
-  return (
-    <div className="flex justify-center mt-4 pt-6 pb-32 group gap-4 w-full print:hidden">
-      <div
-        className={cn(
-          "border border-border rounded transition-all duration-200 overflow-hidden divide-x divide-border flex",
-          !isAiButtonOpen && "w-fit shadow-sm-solid-shade",
-          isAiButtonOpen &&
-            "w-full max-w-4xl shadow-md-solid-shade shadow-(color:--blue-3)",
-          className,
-          // Always show the AI input when it's open
-          isAiButtonOpen && "opacity-100",
-        )}
-      >
-        {renderBody()}
       </div>
     </div>
   );

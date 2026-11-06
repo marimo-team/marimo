@@ -27,6 +27,24 @@ The sidebar provides quick access to panels you'll use frequently while working 
 
 Toggle the sidebar with `Cmd/Ctrl-Shift-S`.
 
+### Show additional folders { #additional-file-browser-roots }
+
+To browse folders outside your notebook's workspace in the **Files** panel,
+add them to your project's `pyproject.toml`:
+
+```toml title="pyproject.toml"
+[tool.marimo.file_browser]
+folders = [{ path = "/absolute/path/to/data", name = "Data" }]
+```
+
+Replace `/absolute/path/to/data` with the full path to a local folder. That
+folder will appear as **Data** in the Files panel. The `name` sets its display
+label and can be omitted. Invalid or duplicate paths are ignored.
+
+To configure this through your [user configuration file](../configuration/index.md#user-configuration-file),
+use `[file_browser]` instead of `[tool.marimo.file_browser]`. This setting affects
+only the Files panel and cannot be set through notebook script metadata.
+
 ## Developer Panel
 
 The developer panel houses tools for debugging, tracing execution, and other advanced functionality. It appears at the bottom of the editor, similar to the developer tools in VS Code or browser DevTools.

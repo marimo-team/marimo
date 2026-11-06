@@ -14,10 +14,9 @@ export const AGENT_LABELS: Record<AgentTab, string> = {
   claude: "Claude",
   codex: "Codex",
   opencode: "OpenCode",
-  prompt: "Prompt",
+  prompt: "Other Agents",
 };
 
-/** How to invoke marimo: from the local checkout in dev, else via uvx. */
 export function getMarimoCommand(): string {
   return import.meta.env.DEV ? "uv run marimo" : "uvx marimo@latest";
 }
@@ -67,7 +66,7 @@ export function getTerminalCommand(
 }
 
 /**
- * The raw prompt for the "Prompt" tab. Mirrors the output of
+ * The raw prompt for the "Other Agents" tab. Mirrors the output of
  * `marimo pair prompt` (see `marimo/_cli/pair/commands.py`) so pasting it into
  * an agent behaves the same as the terminal commands.
  */
@@ -81,7 +80,7 @@ export function getRawPrompt(
   const authentication = token
     ? formatPrompt(
         templates?.token ??
-          "\n\nFor authenticated notebook discovery, set `export MARIMO_TOKEN={token}` in the shell that runs marimo.",
+          "\n\nFor explicit server authentication, set `export MARIMO_TOKEN={token}` in the shell that runs marimo.",
         { token: shellQuote(token) },
       )
     : "";
@@ -92,9 +91,13 @@ export function getRawPrompt(
       command,
       url,
       notebook: notebook
-        ? formatPrompt(templates?.notebook ?? "Notebook: {notebook}\n", {
-            notebook,
-          })
+        ? formatPrompt(
+            templates?.notebook ??
+              "Notebook: {notebook} (use --session for execution)\n",
+            {
+              notebook,
+            },
+          )
         : "",
       session:
         session && !notebook

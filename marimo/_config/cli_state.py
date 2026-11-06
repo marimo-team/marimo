@@ -10,7 +10,6 @@ from marimo._utils.config.config import ConfigReader
 class MarimoCLIState:
     latest_version: str | None = None
     last_checked_at: str | None = None
-    accepted_text_to_notebook_terms_at: str | None = None
     notices: list[str] | None = None
 
 

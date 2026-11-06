@@ -11,12 +11,9 @@ import { Spinner } from "@/components/icons/spinner";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/utils/cn";
 import { CellsRenderer } from "../components/editor/renderers/cells-renderer";
-import {
-  hasCellsAtom,
-  notebookIsRunningAtom,
-  useCellActions,
-} from "./cells/cells";
+import { hasCellsAtom, notebookIsRunningAtom } from "./cells/cells";
 import type { AppConfig } from "./config/config-schema";
+import { DocumentProvider } from "./notebook/document";
 import { RuntimeState } from "./kernel/RuntimeState";
 import { getSessionId } from "./kernel/session";
 import { connectionAtom } from "./network/connection";
@@ -40,7 +37,6 @@ const canPaintRunAppAtom = atom(
 );
 
 export const RunApp: React.FC<AppProps> = ({ appConfig, hideHeader }) => {
-  const { setCells } = useCellActions();
   const { sendComponentValues } = useRequestClient();
 
   // Initialize RuntimeState event-listeners
@@ -51,9 +47,8 @@ export const RunApp: React.FC<AppProps> = ({ appConfig, hideHeader }) => {
     };
   }, [sendComponentValues]);
 
-  const { connection, reconnect } = useNotebookSession({
+  const { connection, reconnect, documentModel } = useNotebookSession({
     autoInstantiate: true,
-    setCells: setCells,
     sessionId: getSessionId(),
   });
 
@@ -73,47 +68,49 @@ export const RunApp: React.FC<AppProps> = ({ appConfig, hideHeader }) => {
   })();
 
   return (
-    <AppContainer
-      connection={connection}
-      isRunning={isRunning}
-      width={appConfig.width}
-      onReconnect={reconnect}
-    >
-      <KernelStartupErrorModal />
-      <AppHeader
+    <DocumentProvider model={documentModel}>
+      <AppContainer
         connection={connection}
-        className={hideHeader ? "hidden" : "sm:pt-8"}
+        isRunning={isRunning}
+        width={appConfig.width}
+        onReconnect={reconnect}
       >
-        {galleryHref && (
-          <div className="flex items-center px-6 pt-4 sm:-mt-8">
-            <a
-              href={galleryHref}
-              aria-label="Back to gallery"
-              className={cn(
-                buttonVariants({ variant: "text", size: "sm" }),
-                "gap-2 px-0 text-muted-foreground hover:text-foreground",
-              )}
-            >
-              <ArrowLeftIcon className="size-4" aria-hidden={true} />
-              <span>Back</span>
-            </a>
-          </div>
-        )}
-      </AppHeader>
-      <ProgressiveBoundary
-        requires={canPaintRunAppAtom}
-        delay={2000}
-        fallback={
-          <>
-            <Spinner className="mx-auto" />
-            <p className="text-center text-sm text-muted-foreground mt-2">
-              Connecting...
-            </p>
-          </>
-        }
-      >
-        <CellsRenderer appConfig={appConfig} mode="read" />
-      </ProgressiveBoundary>
-    </AppContainer>
+        <KernelStartupErrorModal />
+        <AppHeader
+          connection={connection}
+          className={hideHeader ? "hidden" : "sm:pt-8"}
+        >
+          {galleryHref && (
+            <div className="flex items-center px-6 pt-4 sm:-mt-8">
+              <a
+                href={galleryHref}
+                aria-label="Back to gallery"
+                className={cn(
+                  buttonVariants({ variant: "text", size: "sm" }),
+                  "gap-2 px-0 text-muted-foreground hover:text-foreground",
+                )}
+              >
+                <ArrowLeftIcon className="size-4" aria-hidden={true} />
+                <span>Back</span>
+              </a>
+            </div>
+          )}
+        </AppHeader>
+        <ProgressiveBoundary
+          requires={canPaintRunAppAtom}
+          delay={2000}
+          fallback={
+            <>
+              <Spinner className="mx-auto" />
+              <p className="text-center text-sm text-muted-foreground mt-2">
+                Connecting...
+              </p>
+            </>
+          }
+        >
+          <CellsRenderer appConfig={appConfig} mode="read" />
+        </ProgressiveBoundary>
+      </AppContainer>
+    </DocumentProvider>
   );
 };

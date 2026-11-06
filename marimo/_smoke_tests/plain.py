@@ -10,7 +10,7 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -19,6 +19,7 @@ def _():
     import marimo as mo
     from vega_datasets import data
     import polars as pl
+
     return data, mo, pl
 
 
@@ -32,25 +33,21 @@ def _(data, pl):
 @app.cell
 def _(df, mo):
     mo.ui.table(df)
-    return
 
 
 @app.cell
 def _(df, mo):
     mo.plain(df)
-    return
 
 
 @app.cell
 def _(df, mo):
     mo.hstack(["hstack", mo.vstack(["vstack", df])])
-    return
 
 
 @app.cell
 def _(df, mo):
     mo.hstack(["hstack", mo.vstack(["vstack", mo.plain(df)])])
-    return
 
 
 if __name__ == "__main__":

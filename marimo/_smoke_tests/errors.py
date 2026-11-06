@@ -2,7 +2,7 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.25.2"
 app = marimo.App()
 
 
@@ -26,20 +26,17 @@ def _(x):
 
 
 @app.cell
-def _(b):
+def _(b: int):
     a = 0
     del b
     c = 0
-    return
 
 
 app._unparsable_cell(
     r"""
-
-        a =
-
+    a =
     """,
-    name="_"
+    name="_",
 )
 
 

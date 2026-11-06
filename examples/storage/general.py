@@ -12,7 +12,7 @@
 
 import marimo
 
-__generated_with = "0.19.11"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -33,7 +33,6 @@ def _():
 @app.cell
 def _(LocalFileSystem):
     local = LocalFileSystem(asynchronous=True)
-    return
 
 
 @app.cell
@@ -60,17 +59,15 @@ def _(GithubFileSystem):
 @app.cell
 def _(marimo_repo):
     print(marimo_repo.read_text("github://AGENTS.md"))
-    return
 
 
 @app.cell
-def _(os, s3fs, url):
+def _(os, s3fs, url: None | str):
     s3_client = s3fs.S3FileSystem(
         endpoint_url=url,
         key=os.getenv("CLOUDFLARE_ACCESS_KEY_ID"),
         secret=os.getenv("CLOUDFLARE_SECRET_ACCESS_KEY"),
     )
-    return
 
 
 if __name__ == "__main__":

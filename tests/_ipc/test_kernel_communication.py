@@ -22,6 +22,7 @@ from marimo._runtime.commands import (
     BatchableCommand,
     CodeCompletionCommand,
     CommandMessage,
+    ExecuteCellCommand,
     ExecuteCellsCommand,
     HTTPRequest,
     ModelCommand,
@@ -40,21 +41,26 @@ def test_kernel_launch_and_execute_cells():
     from marimo._ipc import KernelArgs, QueueManager
 
     execute_request = ExecuteCellsCommand(
-        cell_ids=[CellId_t("cell1")],
-        codes=[
-            """\
+        execution_requests=[
+            ExecuteCellCommand(
+                cell_id=CellId_t("cell1"),
+                code="""\
 import sys
 print("stdout")
 print("stderr", file=sys.stderr)
-x = 42"""
-        ],
+x = 42""",
+            )
+        ]
     )
 
     queue_manager, connection_info = QueueManager.create()
     kernel_args = KernelArgs(
         connection_info=connection_info,
         profile_path=None,
-        configs={cid: CellConfig() for cid in execute_request.cell_ids},
+        configs={
+            cell.cell_id: CellConfig()
+            for cell in execute_request.execution_requests
+        },
         user_config=DEFAULT_CONFIG,
         log_level=GLOBAL_SETTINGS.LOG_LEVEL,
         app_metadata=AppMetadata(
@@ -261,8 +267,9 @@ def test_queue_manager_connection():
     client_manager = QueueManager.connect(connection_info)
 
     test_request = ExecuteCellsCommand(
-        cell_ids=[CellId_t("cell1")],
-        codes=["print('test')"],
+        execution_requests=[
+            ExecuteCellCommand(cell_id=CellId_t("cell1"), code="print('test')")
+        ]
     )
     host_manager.control_queue.put(test_request)
     assert client_manager.control_queue.get(timeout=1) == test_request
@@ -291,7 +298,9 @@ class TestMsgpackIPC:
 
     def test_control_channel(self) -> None:
         """CommandMessage union dispatches to the correct subtype."""
-        cmd = ExecuteCellsCommand(cell_ids=["c1"], codes=["x=1"])
+        cmd = ExecuteCellsCommand(
+            execution_requests=[ExecuteCellCommand(cell_id="c1", code="x=1")]
+        )
         encoded = msgspec.msgpack.encode(cmd)
         decoded = msgspec.msgpack.Decoder(CommandMessage).decode(encoded)
         assert decoded == cmd
@@ -308,7 +317,12 @@ class TestMsgpackIPC:
             meta={},
             user={},
         )
-        cmd = ExecuteCellsCommand(cell_ids=["c1"], codes=["x=1"], request=req)
+        cmd = ExecuteCellsCommand(
+            execution_requests=[
+                ExecuteCellCommand(cell_id="c1", code="x=1", request=req)
+            ],
+            request=req,
+        )
         encoded = msgspec.msgpack.encode(cmd)
         decoded = msgspec.msgpack.Decoder(CommandMessage).decode(encoded)
         assert decoded.request is not None
@@ -359,25 +373,18 @@ class TestMsgpackIPC:
         """
 
         # A "V2" struct with the same tag but an extra field
-        class ExecuteCellsCommandV2(
-            msgspec.Struct,
-            rename="camel",
-            tag_field="type",
-            tag="execute-cells",
-        ):
-            cell_ids: list[str]
-            codes: list[str]
+        class ExecuteCellsCommandV2(ExecuteCellsCommand, tag="execute-cells"):
             new_field: str = "added_later"
 
         v2 = ExecuteCellsCommandV2(
-            cell_ids=["c1"], codes=["x=1"], new_field="extra"
+            execution_requests=[ExecuteCellCommand(cell_id="c1", code="x=1")],
+            new_field="extra",
         )
         encoded = msgspec.msgpack.encode(v2)
 
         decoded = msgspec.msgpack.Decoder(CommandMessage).decode(encoded)
         assert type(decoded) is ExecuteCellsCommand
-        assert decoded.cell_ids == ["c1"]
-        assert decoded.codes == ["x=1"]
+        assert decoded.execution_requests == v2.execution_requests
 
     def test_missing_optional_fields_get_defaults(self) -> None:
         """Decoder fills in defaults for fields the sender didn't include.
@@ -387,21 +394,47 @@ class TestMsgpackIPC:
         updated yet).
         """
 
-        class ExecuteCellsCommandV2(
-            msgspec.Struct,
-            rename="camel",
-            tag_field="type",
-            tag="execute-cells",
-        ):
-            cell_ids: list[str]
-            codes: list[str]
+        class ExecuteCellsCommandV2(ExecuteCellsCommand, tag="execute-cells"):
             new_field: str = "default_value"
 
-        old = ExecuteCellsCommand(cell_ids=["c1"], codes=["x=1"])
+        old = ExecuteCellsCommand(
+            execution_requests=[ExecuteCellCommand(cell_id="c1", code="x=1")]
+        )
         encoded = msgspec.msgpack.encode(old)
 
         decoded = msgspec.msgpack.Decoder(ExecuteCellsCommandV2).decode(
             encoded
         )
-        assert decoded.cell_ids == ["c1"]
+        assert decoded.execution_requests == old.execution_requests
         assert decoded.new_field == "default_value"
+
+
+def test_kernel_args_preserve_explicit_config_overrides() -> None:
+    from marimo._ipc.types import ConnectionInfo, KernelArgs
+    from marimo._runtime.commands import AppMetadata
+
+    args = KernelArgs(
+        configs={},
+        app_metadata=AppMetadata(
+            query_params={}, cli_args={}, app_config=_AppConfig()
+        ),
+        user_config=DEFAULT_CONFIG,
+        log_level=30,
+        profile_path=None,
+        connection_info=ConnectionInfo(
+            control=1,
+            ui_element=2,
+            completion=3,
+            win32_interrupt=None,
+            input=4,
+            stream=5,
+        ),
+        config_overrides=(
+            ("runtime", "sql_default_limit"),
+            ("display", "theme"),
+        ),
+    )
+    assert (
+        KernelArgs.decode_json(args.encode_json()).config_overrides
+        == args.config_overrides
+    )

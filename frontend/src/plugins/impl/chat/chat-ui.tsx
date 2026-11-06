@@ -39,7 +39,7 @@ import {
 import {
   type AdditionalCompletions,
   PromptInput,
-} from "@/components/editor/ai/add-cell-with-ai";
+} from "@/components/editor/ai/prompt-input";
 import { CopyClipboardIcon } from "@/components/icons/copy-icon";
 import { Spinner } from "@/components/icons/spinner";
 import { Button } from "@/components/ui/button";

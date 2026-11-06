@@ -7,7 +7,7 @@ import type { PopoverContent } from "@/components/ui/popover";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Chatbot } from "../chat-ui";
 
-vi.mock("@/components/editor/ai/add-cell-with-ai", () => ({
+vi.mock("@/components/editor/ai/prompt-input", () => ({
   PromptInput: ({ value }: { value: string }) => (
     <textarea aria-label="Chat prompt" value={value} readOnly={true} />
   ),

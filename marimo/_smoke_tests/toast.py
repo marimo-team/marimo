@@ -1,19 +1,21 @@
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
 @app.cell
 def _():
     import marimo as mo
+
     return (mo,)
 
 
 @app.cell
 def _(mo):
-    mo.md("""# Toast Notification Test""")
-    return
+    mo.md("""
+    # Toast Notification Test
+    """)
 
 
 @app.cell
@@ -21,6 +23,7 @@ def _(mo):
     def show_toast(title, description="", kind=None):
         mo.status.toast(title, description, kind)
         return None
+
     return (show_toast,)
 
 
@@ -34,8 +37,9 @@ def _(mo):
 
 @app.cell
 def _(mo):
-    mo.md("""Select a checkbox to trigger a toast notification:""")
-    return
+    mo.md("""
+    Select a checkbox to trigger a toast notification:
+    """)
 
 
 @app.cell
@@ -47,7 +51,6 @@ def _(danger_toast, html_toast, mo, simple_toast):
             danger_toast,
         ]
     )
-    return
 
 
 @app.cell
@@ -62,7 +65,6 @@ def _(danger_toast, html_toast, show_toast, simple_toast):
 
     if danger_toast.value:
         show_toast("Error Occurred", "Something went wrong!", kind="danger")
-    return
 
 
 if __name__ == "__main__":
