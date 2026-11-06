@@ -1067,3 +1067,47 @@ def test_lambdas_without_debug_ranges_do_not_collide(tmp_path: Path) -> None:
         check=True,
     )
     assert result.stdout.strip() == "True"
+
+
+def test_closures_binding_different_names_are_distinct() -> None:
+    def capture_x() -> Any:
+        x = 1
+
+        def f() -> int:
+            return x + y  # noqa: F821
+
+        return f
+
+    def capture_y() -> Any:
+        y = 1
+
+        def f() -> int:
+            return x + y  # noqa: F821
+
+        return f
+
+    assert hash_wrapped_functions(capture_x()) != hash_wrapped_functions(
+        capture_y()
+    )
+
+
+async def test_wrapper_around_callable_object_remains_callable() -> None:
+    with mocked_kernel_session() as tk:
+        k = tk.kernel
+        await k.run(
+            [
+                command(0, "import functools\nimport marimo as mo"),
+                command(
+                    1,
+                    "class Adder:\n    def __call__(self, x):\n        return x + 1\n"
+                    "adder = Adder()\n"
+                    "@functools.wraps(adder)\ndef g(x):\n    return adder(x)",
+                ),
+                command(
+                    2,
+                    "@mo.cache\ndef f(cb, cbs):\n    return cb(1) + cbs[0](1)\n"
+                    "r=f(g, [g])",
+                ),
+            ]
+        )
+        assert k.globals.get("r") == 4

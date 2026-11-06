@@ -303,9 +303,13 @@ def deterministic_dumps(
                 # callback held inside a value would not change the key.
                 # Fingerprint it by content, and reduce to plain bytes: a
                 # function-valued reduce callable gets fingerprinted in turn.
-                fingerprint = hash_wrapped_functions(
-                    obj, hash_type, _seen=state
-                )
+                try:
+                    fingerprint = hash_wrapped_functions(
+                        obj, hash_type, _seen=state
+                    )
+                except Exception:
+                    # By reference, as pickle would.
+                    return NotImplemented
                 return (bytes, (type_sign(fingerprint, "function"),))
             try:
                 if not is_primitive(obj) and is_data_primitive(obj):
