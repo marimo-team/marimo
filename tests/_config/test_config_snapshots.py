@@ -17,7 +17,7 @@ from inline_snapshot import snapshot
 from marimo._config import manager as config_module
 from marimo._config.config import DEFAULT_CONFIG
 from marimo._config.manager import (
-    EnvConfigReader,
+    EnvVarReader,
     PyprojectConfigReader,
     ScriptConfigReader,
     get_default_config_manager,
@@ -47,9 +47,7 @@ def config_tree(
     monkeypatch.setenv("USERPROFILE", str(home))
     monkeypatch.setenv("XDG_CONFIG_HOME", str(root / "xdg"))
     monkeypatch.chdir(project)
-    monkeypatch.delenv(
-        "_MARIMO_CONFIG_OVERLOAD_RUNTIME_AUTO_INSTANTIATE", raising=False
-    )
+    monkeypatch.delenv("MARIMO_RUNTIME_AUTO_INSTANTIATE", raising=False)
     monkeypatch.delenv("MARIMO_SERVER_TRANSPORT", raising=False)
     monkeypatch.setattr(GLOBAL_SETTINGS, "RESTRICT_SHARING", False)
     # These defaults are inferred at module import, before fixture isolation.
@@ -170,7 +168,12 @@ def test_default_configuration_snapshot(config_tree: Path) -> None:
                 "autosave_delay": 1000,
                 "format_on_save": False,
             },
-            "server": {"browser": "default", "follow_symlink": False},
+            "server": {
+                "skip_update_check": False,
+                "session_cookie_secure": False,
+                "browser": "default",
+                "follow_symlink": False,
+            },
             "diagnostics": {"sql_linter": True},
         }
     )
@@ -213,9 +216,7 @@ def test_layered_configuration_snapshot(
         "[tool.marimo.experimental]\nisolate_apps = true\n"
         '[tool.marimo.ai.open_ai]\napi_key = "ignored-script-secret"\n',
     )
-    monkeypatch.setenv(
-        "_MARIMO_CONFIG_OVERLOAD_RUNTIME_AUTO_INSTANTIATE", "true"
-    )
+    monkeypatch.setenv("MARIMO_RUNTIME_AUTO_INSTANTIATE", "true")
     monkeypatch.setenv("MARIMO_SERVER_TRANSPORT", "sse")
     manager = get_default_config_manager(
         current_path=str(notebook)
@@ -271,8 +272,10 @@ def test_layered_configuration_snapshot(
                     "show_tracebacks": False,
                 },
                 "server": {
+                    "skip_update_check": False,
                     "follow_symlink": False,
                     "browser": "default",
+                    "session_cookie_secure": False,
                     "transport": "sse",
                 },
                 "snippets": {
@@ -349,8 +352,10 @@ def test_layered_configuration_snapshot(
                     "show_tracebacks": False,
                 },
                 "server": {
+                    "skip_update_check": False,
                     "follow_symlink": False,
                     "browser": "default",
+                    "session_cookie_secure": False,
                     "transport": "sse",
                 },
                 "snippets": {
@@ -453,7 +458,12 @@ def test_layered_configuration_snapshot(
                     "autosave_delay": 1000,
                     "format_on_save": False,
                 },
-                "server": {"browser": "default", "follow_symlink": False},
+                "server": {
+                    "skip_update_check": False,
+                    "session_cookie_secure": False,
+                    "browser": "default",
+                    "follow_symlink": False,
+                },
                 "diagnostics": {"sql_linter": True},
             },
             "overrides_unmasked": {
@@ -698,6 +708,8 @@ format_on_save = false
 [server]
 browser = "default"
 follow_symlink = false
+session_cookie_secure = false
+skip_update_check = false
 
 [snippets]
 custom_paths = []
@@ -756,10 +768,8 @@ def test_environment_snapshot(
         ("invalid", "true"),
     ]:
         monkeypatch.setenv("MARIMO_SERVER_TRANSPORT", transport)
-        monkeypatch.setenv(
-            "_MARIMO_CONFIG_OVERLOAD_RUNTIME_AUTO_INSTANTIATE", instantiate
-        )
-        cases[transport] = EnvConfigReader().read()
+        monkeypatch.setenv("MARIMO_RUNTIME_AUTO_INSTANTIATE", instantiate)
+        cases[transport] = EnvVarReader().read()
     assert cases == snapshot(
         {
             "sse": {
@@ -1291,7 +1301,7 @@ def test_dotenv_loading_boundary_snapshot(
     from marimo._secrets.load_dotenv import load_dotenv_with_fallback
 
     project = config_tree / "home" / "project"
-    prefix = "MARIMO_CONFIG_SNAPSHOT_"
+    prefix = "MARIMO_SNAPSHOT_"
     for key in ["EXISTING", "SHARED", "FIRST", "SECOND", "EXPANDED"]:
         # Register cleanup for keys created by the dotenv loader as well.
         monkeypatch.setenv(prefix + key, "")

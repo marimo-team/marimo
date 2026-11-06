@@ -7,6 +7,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from marimo._runtime.commands import (
+    ExecuteCellCommand,
     ExecuteCellsCommand,
     ExecuteScratchpadCommand,
     InstallPackagesCommand,
@@ -30,9 +31,9 @@ async def test_nested_commands_complete_the_run_once(
             notebook_cells=(),
             code=(
                 "import marimo._code_mode as cm\n"
-                "from marimo._runtime.commands import ExecuteCellsCommand\n"
+                "from marimo._runtime.commands import ExecuteCellCommand, ExecuteCellsCommand\n"
                 "await cm.get_context().execute_command(ExecuteCellsCommand("
-                "cell_ids=['child'], codes=['x = 42']))"
+                "execution_requests=[ExecuteCellCommand(cell_id='child', code='x = 42')]))"
             ),
         )
     )
@@ -49,7 +50,10 @@ async def test_cell_runs_carry_the_requested_run_id(
 ) -> None:
     await KernelRequestHandlers(mocked_kernel.k)._handle_execute_multiple(
         ExecuteCellsCommand(
-            cell_ids=[CellId_t("a")], codes=["x = 1"], run_id="run-1"
+            execution_requests=[
+                ExecuteCellCommand(cell_id=CellId_t("a"), code="x = 1")
+            ],
+            run_id="run-1",
         )
     )
     messages = MockStream(mocked_kernel.stream).operations
@@ -108,7 +112,7 @@ async def test_a_failed_command_flushes_before_completing(
         pytest.raises(RuntimeError, match="failed"),
     ):
         await KernelRequestHandlers(mocked_kernel.k)._handle_execute_multiple(
-            ExecuteCellsCommand(cell_ids=[], codes=[])
+            ExecuteCellsCommand(execution_requests=[])
         )
     assert flushed == [[]]
     assert [
@@ -255,17 +259,23 @@ async def test_noninteractive_cell_input_is_scoped_to_the_command(
     kernel.globals["observed"] = []
     await handlers._handle_execute_multiple(
         ExecuteCellsCommand(
-            cell_ids=[CellId_t("a")],
-            codes=[
-                f"try:\n    {read}\nexcept EOFError:\n    observed.append('EOF')"
+            execution_requests=[
+                ExecuteCellCommand(
+                    cell_id=CellId_t("a"),
+                    code=f"try:\n    {read}\nexcept EOFError:\n    observed.append('EOF')",
+                )
             ],
             allow_stdin=False,
         )
     )
     await handlers._handle_execute_multiple(
         ExecuteCellsCommand(
-            cell_ids=[CellId_t("a")],
-            codes=["observed.append(input('interactive'))"],
+            execution_requests=[
+                ExecuteCellCommand(
+                    cell_id=CellId_t("a"),
+                    code="observed.append(input('interactive'))",
+                )
+            ]
         )
     )
     assert kernel.globals["observed"] == ["EOF", "interactive"]

@@ -32,6 +32,7 @@ describe("operations", () => {
       | "runtime.stop"
       | "runtime.restart"
       | "runtime.run"
+      | "runtime.input"
       | "runtime.interrupt"
     >();
   });

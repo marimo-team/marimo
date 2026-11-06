@@ -497,8 +497,7 @@ async function main() {
   await bridge.put_control_request(
     JSON.stringify({
       type: "execute-cells",
-      cellIds: ["wasm-concurrency-matrix"],
-      codes: [matrixCellCode],
+      executionRequests: [{ type: "execute-cell", cellId: "wasm-concurrency-matrix", code: matrixCellCode }],
     }),
   );
 
@@ -644,8 +643,7 @@ live_thread.start()
   await liveStopBridge.put_control_request(
     JSON.stringify({
       type: "execute-cells",
-      cellIds: ["live-stop-context"],
-      codes: [liveStopCellCode],
+      executionRequests: [{ type: "execute-cell", cellId: "live-stop-context", code: liveStopCellCode }],
     }),
   );
   await waitForFile(
@@ -722,8 +720,7 @@ with open(${JSON.stringify(postStopResultPath)}, "w") as f:
     await postStopBridge.put_control_request(
       JSON.stringify({
         type: "execute-cells",
-        cellIds: ["post-stop-context"],
-        codes: [postStopCellCode],
+        executionRequests: [{ type: "execute-cell", cellId: "post-stop-context", code: postStopCellCode }],
       }),
     );
     await waitForFile(

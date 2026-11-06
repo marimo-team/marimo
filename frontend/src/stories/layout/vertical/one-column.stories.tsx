@@ -3,11 +3,13 @@
 import type { Meta } from "@storybook/react-vite";
 import { createStore, Provider } from "jotai";
 import { createRef } from "react";
+import { mockDocumentModel } from "@/__mocks__/document";
 import { cellId } from "@/__tests__/branded";
 import { type NotebookState, notebookAtom } from "@/core/cells/cells";
 import { createCellRuntimeState } from "@/core/cells/types";
 import { defaultUserConfig, parseAppConfig } from "@/core/config/config-schema";
 import { showCodeInRunModeAtom } from "@/core/meta/state";
+import { DocumentProvider } from "@/core/notebook/document";
 import { connectionAtom } from "@/core/network/connection";
 import { requestClientAtom } from "@/core/network/requests";
 import { resolveRequestClient } from "@/core/network/resolve";
@@ -105,18 +107,21 @@ const EditModeCodeShown = () => {
   store.set(connectionAtom, { state: ConnectionState.OPEN });
   store.set(requestClientAtom, resolveRequestClient());
   store.set(showCodeInRunModeAtom, true);
+  const { model } = mockDocumentModel(store, null);
 
   return (
     <Provider store={store}>
-      <TooltipProvider>
-        <CellsRenderer appConfig={parseAppConfig({})} mode="edit">
-          <CellArray
-            mode="edit"
-            userConfig={defaultUserConfig()}
-            appConfig={parseAppConfig({})}
-          />
-        </CellsRenderer>
-      </TooltipProvider>
+      <DocumentProvider model={model}>
+        <TooltipProvider>
+          <CellsRenderer appConfig={parseAppConfig({})} mode="edit">
+            <CellArray
+              mode="edit"
+              userConfig={defaultUserConfig()}
+              appConfig={parseAppConfig({})}
+            />
+          </CellsRenderer>
+        </TooltipProvider>
+      </DocumentProvider>
     </Provider>
   );
 };
@@ -130,18 +135,21 @@ const EditModeCodeHidden = () => {
   store.set(connectionAtom, { state: ConnectionState.OPEN });
   store.set(requestClientAtom, resolveRequestClient());
   store.set(showCodeInRunModeAtom, true);
+  const { model } = mockDocumentModel(store, null);
 
   return (
     <Provider store={store}>
-      <TooltipProvider>
-        <CellsRenderer appConfig={parseAppConfig({})} mode="edit">
-          <CellArray
-            mode="edit"
-            userConfig={defaultUserConfig()}
-            appConfig={parseAppConfig({})}
-          />
-        </CellsRenderer>
-      </TooltipProvider>
+      <DocumentProvider model={model}>
+        <TooltipProvider>
+          <CellsRenderer appConfig={parseAppConfig({})} mode="edit">
+            <CellArray
+              mode="edit"
+              userConfig={defaultUserConfig()}
+              appConfig={parseAppConfig({})}
+            />
+          </CellsRenderer>
+        </TooltipProvider>
+      </DocumentProvider>
     </Provider>
   );
 };

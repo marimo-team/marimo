@@ -1,6 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 import { historyField } from "@codemirror/commands";
-import { EditorState, StateEffect } from "@codemirror/state";
+import { EditorState, type Extension, StateEffect } from "@codemirror/state";
 import { EditorView, ViewPlugin } from "@codemirror/view";
 import { useIntersectionObserver } from "@uidotdev/usehooks";
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
@@ -8,18 +8,18 @@ import React, { memo, useEffect, useMemo, useRef, useState } from "react";
 import useEvent from "react-use-event-hook";
 import { aiCompletionCellAtom } from "@/core/ai/state";
 import { maybeAddMarimoImport } from "@/core/cells/add-missing-import";
-import { getNotebook } from "@/core/cells/cells";
 import { useCellActions } from "@/core/cells/actions";
 import {
   showHiddenCodeAtom,
   takeRestoredEditorStateAtom,
   useRestoredEditorState,
 } from "@/core/cells/editor";
-import { useNotebookDocumentEdit } from "@/core/notebook/document";
-import { SETUP_CELL_ID } from "@/core/cells/ids";
+import {
+  useNotebookCellCodeExtension,
+  useNotebookDocumentEdit,
+} from "@/core/notebook/document";
 import { usePendingDeleteService } from "@/core/cells/pending-delete-service";
 import type { CellData, CellRuntimeState } from "@/core/cells/types";
-import { notebookCellEditorViews } from "@/core/cells/utils";
 import { setupCodeMirror } from "@/core/codemirror/cm";
 import { acceptCompletionOnEnterAtom } from "@/core/codemirror/completion/accept-on-enter-atom";
 import { editorMountScheduler } from "@/core/codemirror/editor-mount-scheduler";
@@ -29,11 +29,13 @@ import {
   reconfigureLanguageEffect,
   switchLanguage,
 } from "@/core/codemirror/language/extension";
-import { prepareCellCodeUpdate } from "@/core/codemirror/language/cell-code";
-import { getEditorCodeAsPython } from "@/core/codemirror/language/utils";
 import { MARKDOWN_INITIAL_HIDE_CODE } from "@/core/codemirror/language/languages/markdown";
 import type { LanguageAdapterType } from "@/core/codemirror/language/types";
-import { autoInstantiateAtom, isAiFeatureEnabled } from "@/core/config/config";
+import {
+  autoInstantiateAtom,
+  isAiEnabled,
+  isAiFeatureEnabled,
+} from "@/core/config/config";
 import type { UserConfig } from "@/core/config/config-schema";
 import { OverridingHotkeyProvider } from "@/core/hotkeys/hotkeys";
 import { useSaveNotebook } from "@/core/saving/save-component";
@@ -41,6 +43,7 @@ import type { Theme } from "@/theme/useTheme";
 import { cn } from "@/utils/cn";
 import { invariant } from "@/utils/invariant";
 import { mergeRefs } from "@/utils/mergeRefs";
+import { useAskAiAboutCell } from "../../chrome/wrapper/useAskAiAboutCell";
 import { AiCompletionEditor } from "../../ai/ai-completion-editor";
 import {
   closeSignatureHelp,
@@ -88,6 +91,8 @@ export interface CellEditorProps
    * defaults to `#App`.
    */
   tooltipParentSelector?: string;
+  /** Further editor extensions, for an editor outside the notebook. */
+  extensions?: Extension[];
 }
 
 const CellEditorInternal = ({
@@ -111,6 +116,7 @@ const CellEditorInternal = ({
   inlineAiTooltip,
   outputArea,
   tooltipParentSelector,
+  extensions: extraExtensions,
 }: CellEditorProps) => {
   const [aiCompletionCell, setAiCompletionCell] = useAtom(aiCompletionCellAtom);
   const serializedEditorState = useRestoredEditorState(cellId);
@@ -120,6 +126,7 @@ const CellEditorInternal = ({
   const { saveOrNameNotebook } = useSaveNotebook();
   const pendingDeleteService = usePendingDeleteService();
   const edit = useNotebookDocumentEdit();
+  const codeBinding = useNotebookCellCodeExtension(cellId);
 
   const loading = status === "running" || status === "queued";
   const cellActions = useCellActions();
@@ -187,12 +194,15 @@ const CellEditorInternal = ({
   });
 
   const aiFeaturesEnabled = isAiFeatureEnabled(userConfig);
+  const askAiAboutCell = useAskAiAboutCell();
+  const aiChatEnabled = isAiEnabled(userConfig);
 
   const extensions = useMemo(() => {
     const extensions = setupCodeMirror({
       cellId,
       showPlaceholder,
       enableAI: aiFeaturesEnabled,
+      enableAIChat: aiChatEnabled,
       cellActions: {
         ...cellActions,
         afterToggleMarkdown,
@@ -209,37 +219,11 @@ const CellEditorInternal = ({
             });
           }
         },
-        addOrAppendSetupCell: (code) => {
-          const notebook = getNotebook();
-          // No setup cell yet: create one with this code at the top.
-          if (!notebook.cellIds.includes(SETUP_CELL_ID)) {
-            cellActions.addSetupCell({ code });
-            return;
-          }
-          // Setup cell exists: append the pasted code to it. Prefer updating
-          // the mounted editor (keeps the view and state in sync, like
-          // formatting does); fall back to a plain state update otherwise.
-          const view = notebookCellEditorViews(notebook)[SETUP_CELL_ID];
-          const existing = view
-            ? getEditorCodeAsPython(view)
-            : notebook.cellData[SETUP_CELL_ID].code;
-          const merged = existing.trim()
-            ? `${existing.trimEnd()}\n\n${code}`
-            : code;
-          if (view) {
-            const update = prepareCellCodeUpdate(view.state, merged);
-            if (update) {
-              view.dispatch(update);
-            }
-          }
-          cellActions.updateCellCode({
-            cellId: SETUP_CELL_ID,
-            code: merged,
-            formattingChange: false,
-          });
-        },
         splitCell,
         toggleHideCode,
+        askAiAboutCell: () => {
+          void askAiAboutCell(cellId);
+        },
         aiCellCompletion: () => {
           if (!aiFeaturesEnabled) {
             return false;
@@ -270,6 +254,8 @@ const CellEditorInternal = ({
     });
 
     extensions.push(
+      codeBinding,
+      ...(extraExtensions ?? []),
       // Listen to code changes if we can use markdown
       // Also update the language adapter
       ViewPlugin.define((view) => {
@@ -309,6 +295,8 @@ const CellEditorInternal = ({
     return extensions;
   }, [
     cellId,
+    codeBinding,
+    extraExtensions,
     acceptCompletionOnEnter,
     userConfig.keymap,
     userConfig.completion,
@@ -319,6 +307,8 @@ const CellEditorInternal = ({
     inlineAiTooltip,
     tooltipParentSelector,
     aiFeaturesEnabled,
+    aiChatEnabled,
+    askAiAboutCell,
     theme,
     showPlaceholder,
     cellActions,

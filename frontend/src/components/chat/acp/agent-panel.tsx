@@ -16,7 +16,7 @@ import {
 import {
   type AdditionalCompletions,
   PromptInput,
-} from "@/components/editor/ai/add-cell-with-ai";
+} from "@/components/editor/ai/prompt-input";
 import { PanelEmptyState } from "@/components/editor/chrome/panels/empty-state";
 import { Spinner } from "@/components/icons/spinner";
 import { Button } from "@/components/ui/button";
@@ -39,6 +39,7 @@ import {
 } from "./state";
 import { AgentThread } from "./thread";
 import "./agent-panel.css";
+import "../chat-typography.css";
 import type { Completion } from "@codemirror/autocomplete";
 import type { ReactCodeMirrorRef } from "@uiw/react-codemirror";
 import type {
@@ -441,7 +442,7 @@ const ModeSelector = memo<ModeSelectorProps>(
 
     return (
       <Select value={currentModeId} onValueChange={onModeChange}>
-        <SelectTrigger className="h-6 text-xs border-border shadow-none! ring-0! bg-muted hover:bg-muted/30 py-0 px-2 gap-1 capitalize">
+        <SelectTrigger className="chat-control chat-selector h-6 text-xs border-border py-0 px-2 gap-1 capitalize">
           {currentMode?.label ?? currentModeId}
         </SelectTrigger>
         <SelectContent>
@@ -1266,7 +1267,7 @@ const AgentPanel: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col flex-1 overflow-hidden mo-agent-panel">
+    <div className="mo-ai-panel flex flex-col flex-1 overflow-hidden mo-agent-panel font-prose text-sm leading-6">
       <AgentPanelHeader
         connectionState={connectionState}
         currentAgentId={selectedTab?.agentId}

@@ -18,6 +18,7 @@ from marimo._messaging.notification import (
 from marimo._runtime import runtime
 from marimo._runtime.commands import (
     DeleteCellCommand,
+    ExecuteCellCommand,
     ExecuteCellsCommand,
     ExecuteScratchpadCommand,
     UpdateCellConfigCommand,
@@ -39,8 +40,14 @@ if TYPE_CHECKING:
 async def run(kernel: Kernel, **cells: str) -> None:
     await kernel.router.dispatch(
         ExecuteCellsCommand(
-            cell_ids=[CellId_t(cid) for cid in cells],
-            codes=list(cells.values()),
+            execution_requests=[
+                ExecuteCellCommand(cell_id=cell_id, code=code)
+                for cell_id, code in zip(
+                    [CellId_t(cid) for cid in cells],
+                    list(cells.values()),
+                    strict=True,
+                )
+            ]
         )
     )
 

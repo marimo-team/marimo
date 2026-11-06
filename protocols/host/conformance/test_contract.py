@@ -31,6 +31,8 @@ MODELS = {
     "edit-response.json": "EditResponse",
     "execution-restored.json": "Execution",
     "run-cells-request.json": "RunRequest",
+    "input-reply-request.json": "InputReplyRequest",
+    "input-reply-response.json": "Input",
 }
 
 
@@ -72,6 +74,31 @@ async def test_sse_preserves_multiline_data_comments_and_explicit_ids():
         Frame(event="future", data="one\n two", id="7"),
         Frame(event="ready", data="{}"),
     ]
+
+
+@pytest.mark.parametrize(
+    ("event", "known"),
+    [
+        ("display.removed", True),
+        ("execution.removed", True),
+        ("input.removed", False),
+        ("document.removed", False),
+        ("host.removed", False),
+    ],
+)
+async def test_only_declared_removal_events_require_a_removed_message(
+    event, known
+):
+    stream = f"event: {event}\ndata: {{}}\n\nevent: ready\ndata: {{}}\n\n"
+    watch = Watch(frames(lines(stream)), timeout=1)
+    if known:
+        with pytest.raises(ValidationError, match="'id' is a required"):
+            await watch.ready()
+    else:
+        assert [frame.event for frame in await watch.ready()] == [
+            event,
+            "ready",
+        ]
 
 
 def test_required_nullable_fields_and_future_fields():
@@ -118,7 +145,7 @@ async def test_document_checker_accepts_withheld_source_and_checks_etags():
     )
     cell = next(frame for frame in snapshot if frame.event == "cell")
     message = cell.message()
-    message["cell"]["code_hash"] = "0000000000000000"
+    message["cell"]["etag"] = "0000000000000000"
     cell.data = json.dumps(message)
     with pytest.raises(AssertionError):
         document_state(snapshot)
@@ -168,3 +195,12 @@ async def test_pings_do_not_extend_a_wait_for_ready():
     watch = Watch(pings(), timeout=0.01)
     with pytest.raises(TimeoutError):
         await watch.ready()
+
+
+def test_code_fingerprints_are_opaque():
+    cell = json.loads((FIXTURES / "cell.json").read_text())
+    cell["code_fingerprint"] = "custom:v1:opaque"
+    validate("Cell", cell)
+    cell["code_fingerprint"] = ""
+    with pytest.raises(ValidationError):
+        validate("Cell", cell)

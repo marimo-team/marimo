@@ -9,7 +9,11 @@ import {
   NotebookEvents,
   StreamStopped,
 } from "@marimo-team/client";
-import type { Attachment, NotebookOutput } from "@marimo-team/client/protocol";
+import type {
+  Attachment,
+  NotebookOutput,
+  Runtime,
+} from "@marimo-team/client/protocol";
 import { type Atom, atom, type createStore } from "jotai/vanilla";
 import { z } from "zod";
 import type { NotebookBackend } from "./backend";
@@ -20,9 +24,28 @@ import {
 } from "./connection";
 import { attachments } from "./resources/attachments";
 import { type Document, document } from "./resources/document";
+import { type Executions, executions } from "./resources/executions";
+import { type Results, results } from "./resources/results";
+import { runtime } from "./resources/runtime";
 
-/** The kinds the editor reads, with marimo's own notifications. */
-const TYPES = ["notebook", "cell", "document", "attachment", "marimo"] as const;
+/**
+ * The kinds the editor reads, with marimo's own notifications.
+ *
+ * Console and display items stay out until the editor reads outputs from
+ * the replica. The native notifications still carry them.
+ */
+const TYPES = [
+  "notebook",
+  "cell",
+  "document",
+  "attachment",
+  "runtime",
+  "run",
+  "execution",
+  "input",
+  "variable",
+  "marimo",
+] as const;
 
 type EditorEvent = NotebookEvent<(typeof TYPES)[number]>;
 
@@ -52,6 +75,19 @@ export interface NotebookReplica {
   readonly backendAtom: Atom<NotebookBackend | null>;
   /** Live attachments, empty until the stream is ready or while disconnected. */
   readonly attachmentsAtom: Atom<readonly Attachment[]>;
+  /** The notebook's runtime, null while it has none or the stream is not ready. */
+  readonly runtimeAtom: Atom<Runtime | null>;
+  /**
+   * Runs and executions as the stream reports them.
+   *
+   * Visible as events arrive, including during a snapshot, so a consumer
+   * joins with `documentAtom`, which is null until the snapshot is ready.
+   * Kept across a temporary disconnection, like the document, and cleared
+   * on reset or removal.
+   */
+  readonly executionsAtom: Atom<Executions>;
+  /** Each document cell's last completed execution record, kept while it runs again. */
+  readonly resultsAtom: Atom<Results>;
   /**
    * Follow a backend, replacing any current connection.
    *
@@ -110,7 +146,13 @@ export function createNotebookReplica(
     state: ConnectionState.NOT_STARTED,
   });
   // One atom holds the whole stream, which resource atoms derive from.
-  const reducer = createNotebookReducer({ document, attachments });
+  const reducer = createNotebookReducer({
+    document,
+    attachments,
+    runtime,
+    executions,
+    results,
+  });
   const streamAtom = atom(reducer.initial);
   // A resumed stream is live, but presence waits for this connection's ready.
   const readyAtom = atom(false);
@@ -129,6 +171,11 @@ export function createNotebookReplica(
       ? get(streamAtom).resources.attachments
       : attachments.initial,
   );
+  const runtimeAtom = atom((get) =>
+    get(presentAtom) ? get(streamAtom).resources.runtime : null,
+  );
+  const executionsAtom = atom((get) => get(streamAtom).resources.executions);
+  const resultsAtom = atom((get) => get(streamAtom).resources.results);
   const backendAtom = atom<NotebookBackend | null>(null);
   /** The connection this replica follows. Connecting again ends it. */
   let current: { end(): void; reconnect(): Promise<void> } | undefined;
@@ -150,6 +197,9 @@ export function createNotebookReplica(
     documentAtom,
     backendAtom,
     attachmentsAtom,
+    runtimeAtom,
+    executionsAtom,
+    resultsAtom,
     connect,
     reconnect: async () => current?.reconnect(),
   };

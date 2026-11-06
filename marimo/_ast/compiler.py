@@ -4,15 +4,12 @@ from __future__ import annotations
 import ast
 import functools
 import inspect
-import io
 import linecache
 import os
 import re
 import sys
 import textwrap
-import token as token_types
 import warnings
-from tokenize import TokenError, tokenize
 from types import CodeType, FrameType
 from typing import TYPE_CHECKING, Any, TypeAlias, cast
 
@@ -35,6 +32,7 @@ from marimo._ast.visitor import (
     ScopedVisitor,
     get_closure_refs,
 )
+from marimo._core.code import ends_with_semicolon
 from marimo._schemas.serialization import CellDef, ClassCell, FunctionCell
 from marimo._types.ids import CellId_t
 from marimo._utils.tmpdir import get_tmpdir
@@ -84,37 +82,6 @@ def get_filename(cell_id: CellId_t, suffix: str = "") -> str:
     """Get a temporary Python filename that encodes the cell id in it."""
     basename = f"__marimo__cell_{cell_id}_"
     return os.path.join(get_tmpdir(), basename + suffix + ".py")
-
-
-def ends_with_semicolon(code: str) -> bool:
-    """Returns True if the cell's code ends with a semicolon, ignoring whitespace and comments.
-
-    Args:
-        code: The cell's source code
-    Returns:
-        bool: True if the last non-comment line ends with a semicolon
-    """
-    # Tokenize to check for semicolon
-    try:
-        tokens = list(
-            tokenize(io.BytesIO(code.strip().encode("utf-8")).readline)
-        )
-    except (TokenError, SyntaxError):
-        # Fallback for code with syntax errors (e.g., unterminated strings)
-        return code.rstrip().endswith(";")
-    for token in reversed(tokens):
-        if token.type in (
-            token_types.ENDMARKER,
-            token_types.NEWLINE,
-            token_types.NL,
-            token_types.COMMENT,
-            token_types.INDENT,
-            token_types.DEDENT,
-            token_types.ENCODING,
-        ):
-            continue
-        return token.string == ";"
-    return False
 
 
 def contains_only_tests(tree: ast.Module) -> bool:

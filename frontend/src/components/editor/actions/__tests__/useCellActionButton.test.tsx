@@ -1,14 +1,19 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
+import type { NotebookOutput } from "@marimo-team/client/protocol";
 import { renderHook } from "@testing-library/react";
-import { createStore, Provider } from "jotai";
+import { atom, createStore } from "jotai";
 import type { ReactNode } from "react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
+import { DocumentWrapper, mockDocumentModel } from "@/__mocks__/document";
+import { partial } from "@/__mocks__/partial";
 import { MockRequestClient } from "@/__mocks__/requests";
 import { ModalProvider } from "@/components/modal/ImperativeModal";
 import { toast } from "@/components/ui/use-toast";
 import { CellId } from "@/core/cells/ids";
 import { requestClientAtom } from "@/core/network/requests";
+import type { NotebookReplica } from "@/core/notebook/replica";
+import { activeNotebookReplicaAtom } from "@/core/session/active-notebook";
 import { copyToClipboard } from "@/utils/copy";
 import type { ActionButton } from "../types";
 import { useCellActionButtons } from "../useCellActionButton";
@@ -18,11 +23,22 @@ vi.mock("@/components/ui/use-toast", () => ({ toast: vi.fn() }));
 
 function renderActions(cellId: CellId, name: string) {
   const store = createStore();
+  const { model, documentAtom, stop } = mockDocumentModel(store);
+  onTestFinished(stop);
   store.set(requestClientAtom, MockRequestClient.create());
+  store.set(
+    activeNotebookReplicaAtom,
+    partial<NotebookReplica>({
+      documentAtom,
+      notebookAtom: atom(
+        partial<NotebookOutput>({ operations: ["notebook.edit"] }),
+      ),
+    }),
+  );
   const wrapper = ({ children }: { children: ReactNode }) => (
-    <Provider store={store}>
+    <DocumentWrapper store={store} model={model}>
       <ModalProvider>{children}</ModalProvider>
-    </Provider>
+    </DocumentWrapper>
   );
   const { result } = renderHook(
     () =>

@@ -1,6 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import type { EditorView } from "@codemirror/view";
+import { EditorView } from "@codemirror/view";
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import {
   BetweenHorizontalStartIcon,
@@ -10,7 +10,7 @@ import {
   PlayIcon,
 } from "lucide-react";
 import type React from "react";
-import { Suspense, useRef, useState } from "react";
+import { Suspense, useMemo, useRef, useState } from "react";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import useEvent from "react-use-event-hook";
 import { useNotebook } from "@/core/cells/cells";
@@ -19,6 +19,8 @@ import { useLastFocusedCellId } from "@/core/cells/focus";
 import { HTMLCellId, SCRATCH_CELL_ID } from "@/core/cells/ids";
 import { DEFAULT_CELL_NAME } from "@/core/cells/names";
 import type { LanguageAdapterType } from "@/core/codemirror/language/types";
+import { prepareCellCodeUpdate } from "@/core/codemirror/language/cell-code";
+import { getEditorCodeAsPython } from "@/core/codemirror/language/utils";
 import { useResolvedMarimoConfig } from "@/core/config/config";
 import { CSSClasses } from "@/core/constants";
 import { useRequestClient } from "@/core/network/requests";
@@ -44,6 +46,7 @@ import {
   historyVisibleAtom,
   scratchpadHistoryAtom,
 } from "./scratchpad-history";
+import { scratchpadCodeAtom } from "./state";
 
 const scratchpadCellConfig: CellConfig = {
   hide_code: false,
@@ -56,7 +59,7 @@ export const ScratchPad: React.FC = () => {
   const { theme } = useTheme();
   const ref = useRef<EditorView | null>(null);
   const lastFocusedCellId = useLastFocusedCellId();
-  const { updateCellCode, createCell } = useCellActions();
+  const { createCell } = useCellActions();
   const { sendRunScratchpad } = useRequestClient();
   const orientation = usePanelOrientation();
   const section = usePanelSection();
@@ -66,8 +69,17 @@ export const ScratchPad: React.FC = () => {
   const output = cellRuntime?.output;
   const status = cellRuntime?.status;
   const consoleOutputs = cellRuntime?.consoleOutputs;
-  const cellData = notebookState.cellData[cellId];
-  const code = cellData?.code ?? "";
+  const [code, setCode] = useAtom(scratchpadCodeAtom);
+  const codeListener = useMemo(
+    () => [
+      EditorView.updateListener.of((update) => {
+        if (update.docChanged) {
+          setCode(getEditorCodeAsPython(update.view));
+        }
+      }),
+    ],
+    [setCode],
+  );
 
   const addToHistory = useSetAtom(addToHistoryAtom);
   const [historyVisible, setHistoryVisible] = useAtom(historyVisibleAtom);
@@ -86,11 +98,7 @@ export const ScratchPad: React.FC = () => {
   });
 
   const handleClearCode = useEvent(() => {
-    updateCellCode({
-      cellId,
-      code: "",
-      formattingChange: false,
-    });
+    setCode("");
     void sendRunScratchpad({ code: "" });
     const ev = ref.current;
     if (ev) {
@@ -106,20 +114,13 @@ export const ScratchPad: React.FC = () => {
 
   const handleSelectHistoryItem = useEvent((item: string) => {
     setHistoryVisible(false);
-    updateCellCode({
-      cellId,
-      code: item,
-      formattingChange: false,
-    });
+    setCode(item);
     const ev = ref.current;
     if (ev) {
-      ev.dispatch({
-        changes: {
-          from: 0,
-          to: ev.state.doc.length,
-          insert: item,
-        },
-      });
+      const update = prepareCellCodeUpdate(ev.state, item);
+      if (update) {
+        ev.dispatch(update);
+      }
       ev.focus();
     }
   });
@@ -269,6 +270,7 @@ export const ScratchPad: React.FC = () => {
                 showHiddenCode={Functions.NOOP}
                 languageAdapter={languageAdapter}
                 setLanguageAdapter={setLanguageAdapter}
+                extensions={codeListener}
               />
             </div>
             {renderHistory()}

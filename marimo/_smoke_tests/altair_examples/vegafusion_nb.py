@@ -92,10 +92,10 @@ def _(mo):
     mo.md(r"""
     # Examples from vegafusion
 
-    The examples below still hit `MARIMO_OUTPUT_MAX_BYTES` limitations, and require increasing this before running this notebook:
+    The examples below still hit `MARIMO_RUNTIME_OUTPUT_MAX_BYTES` limitations, and require increasing this before running this notebook:
 
     ```
-    export MARIMO_OUTPUT_MAX_BYTES=100_000_000
+    export MARIMO_RUNTIME_OUTPUT_MAX_BYTES=100000000
     ```
     """)
 

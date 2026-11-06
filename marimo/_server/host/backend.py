@@ -23,12 +23,15 @@ from marimo._messaging.notification import (
 )
 from marimo._messaging.serde import deserialize_kernel_message
 from marimo._runtime.commands import (
+    CancelRunCommand,
+    ExecuteCellCommand,
     ExecuteCellsCommand,
     ExecuteScratchpadCommand,
     HTTPRequest,
 )
 from marimo._runtime.scratch import SCRATCH_CELL_ID
 from marimo._server.host.events import notification_event
+from marimo._server.host.handover import Handover, Turn
 from marimo._server.host.translate import RunTranslator
 from marimo._server.scratchpad import snapshot_for_scratchpad
 from marimo._session.consumer import SessionConsumer
@@ -75,9 +78,13 @@ class _Kernel:
 class _Run:
     session: Session
     translator: RunTranslator
+    turn: Turn
     done: asyncio.Event = field(default_factory=asyncio.Event)
     task: asyncio.Task[object] | None = None
     submitted: bool = False
+    """The kernel has this run's command."""
+    interrupt_requested: bool = False
+    """A cancellation was sent for this run while the kernel had it queued."""
 
 
 class SessionBackend(SessionConsumer):
@@ -114,7 +121,9 @@ class SessionBackend(SessionConsumer):
         """Called with the session that detached, before its exit is reported."""
         self._request_metadata = request_metadata
         self._kernel: _Kernel | None = None
-        self._run: _Run | None = None
+        self._runs: dict[protocol.RunId, _Run] = {}
+        """Runs this backend submitted that have not finished, by run id."""
+        self._handover = Handover()
         self._translators: dict[str, RunTranslator] = {}
 
     @property
@@ -179,8 +188,7 @@ class SessionBackend(SessionConsumer):
         session = self.session
         if session is None:
             return
-        run = _Run(session, RunTranslator(run_id, code))
-        self._run = run
+        run = self._accept(session, RunTranslator(run_id, code))
         self._watch_run(run, self._run_code(run, code))
 
     def run_cells(
@@ -192,32 +200,70 @@ class SessionBackend(SessionConsumer):
         session = self.session
         if session is None:
             return
-        run = _Run(session, RunTranslator(run_id, None))
-        self._run = run
-        codes = {CellId_t(cell.id): cell.code for cell in document}
-        targets = [CellId_t(cell_id) for cell_id in cell_ids]
+        run = self._accept(session, RunTranslator(run_id, None))
         try:
+            request = self._http_request(session)
+            cells = {
+                cell.id: ExecuteCellCommand(
+                    cell_id=CellId_t(cell.id),
+                    code=cell.code,
+                    code_fingerprint=cell.code_fingerprint,
+                )
+                for cell in document
+            }
+            execution_requests = tuple(cells.values())
+            command = ExecuteCellsCommand(
+                execution_requests=[cells[cell_id] for cell_id in cell_ids],
+                request=request,
+                run_id=run_id,
+                allow_stdin=False,
+            )
+            if not run.turn.ready:
+                # A run ahead is still preparing, such as a scratch run
+                # waiting for the scratchpad.
+                self._watch_run(
+                    run,
+                    self._run_cells_after(run, execution_requests, command),
+                )
+                return
             # Enqueue before returning so later document edits follow the run.
-            session.instantiate(
-                InstantiateNotebookRequest(
-                    object_ids=[], values=[], auto_run=False, codes=codes
-                ),
-                http_request=None,
-            )
-            self._submit(
-                run,
-                ExecuteCellsCommand(
-                    cell_ids=targets,
-                    codes=[codes[cell_id] for cell_id in targets],
-                    request=self._http_request(session),
-                    run_id=run_id,
-                    allow_stdin=False,
-                ),
-            )
+            self._submit_cells(run, execution_requests, command)
         except Exception as exception:
             self._finish_run(run, exception)
             return
         self._watch_run(run, run.done.wait())
+
+    def _accept(self, session: Session, translator: RunTranslator) -> _Run:
+        run = _Run(session, translator, self._handover.take())
+        self._runs[translator.run_id] = run
+        return run
+
+    def _submit_cells(
+        self,
+        run: _Run,
+        execution_requests: Sequence[ExecuteCellCommand],
+        command: ExecuteCellsCommand,
+    ) -> None:
+        run.session.instantiate(
+            InstantiateNotebookRequest(
+                object_ids=[],
+                values=[],
+                auto_run=False,
+            ),
+            http_request=None,
+            execution_requests=execution_requests,
+        )
+        self._submit(run, command)
+
+    async def _run_cells_after(
+        self,
+        run: _Run,
+        execution_requests: Sequence[ExecuteCellCommand],
+        command: ExecuteCellsCommand,
+    ) -> None:
+        await run.turn.wait()
+        self._submit_cells(run, execution_requests, command)
+        await run.done.wait()
 
     def _watch_run(
         self, run: _Run, coroutine: Coroutine[object, object, object]
@@ -239,8 +285,10 @@ class SessionBackend(SessionConsumer):
         run.submitted = True
         self._translators[run.translator.run_id] = run.translator
         run.session.put_control_request(command, from_consumer_id=None)
+        self._handover.finish(run.turn)
 
     async def _run_code(self, run: _Run, code: str) -> None:
+        await run.turn.wait()
         session = run.session
         async with session.scratchpad_lock:
             # Register notebook definitions once, without executing cells.
@@ -289,8 +337,9 @@ class SessionBackend(SessionConsumer):
         )
 
     def _finish_run(self, run: _Run, exception: BaseException | None) -> None:
-        if self._run is run:
-            self._run = None
+        self._handover.finish(run.turn)
+        if self._runs.get(run.translator.run_id) is run:
+            del self._runs[run.translator.run_id]
         error = None
         if isinstance(exception, asyncio.CancelledError):
             run.translator.interrupted = True
@@ -312,8 +361,8 @@ class SessionBackend(SessionConsumer):
                 self._observe(message)
 
     def interrupt(self, run_id: protocol.RunId) -> None:
-        run = self._run
-        if run is None or run.translator.run_id != run_id:
+        run = self._runs.get(run_id)
+        if run is None:
             translator = self._translators.get(run_id)
             if (
                 translator is not None
@@ -324,10 +373,18 @@ class SessionBackend(SessionConsumer):
             return
         if run.done.is_set():
             return
-        if run.submitted:
+        if not run.submitted:
+            if run.task is not None:
+                run.task.cancel()
+        elif run.translator.started:
             run.session.try_interrupt()
-        elif run.task is not None:
-            run.task.cancel()
+        else:
+            # The kernel drops a queued run when the cancellation reaches it.
+            # One that started first is interrupted on its next report.
+            run.interrupt_requested = True
+            run.session.put_control_request(
+                CancelRunCommand(run_id=run_id), from_consumer_id=None
+            )
 
     def forget(self, run_id: protocol.RunId) -> None:
         self._translators.pop(run_id, None)
@@ -380,9 +437,9 @@ class SessionBackend(SessionConsumer):
         if session.kernel_state() is KernelState.STOPPED:
             info = session.kernel_exit_info()
             reason = info.message if info is not None else "The kernel died"
-        run = self._run
-        if run is not None and run.task is not None:
-            run.task.cancel()
+        for run in list(self._runs.values()):
+            if run.task is not None:
+                run.task.cancel()
         self._translators.clear()
         self._observe(be.Exited(kernel.runtime_id, reason))
 
@@ -443,7 +500,6 @@ class SessionBackend(SessionConsumer):
         run_id = message.run_id
         if run_id is None:
             return
-        run = self._run
         translator = self._translators.get(run_id)
         if translator is None:
             if (
@@ -473,8 +529,20 @@ class SessionBackend(SessionConsumer):
                 message = msgspec.structs.replace(message, code=cell.code)
         for out in translator.feed(message):
             self._observe(out)
+        run = self._runs.get(protocol.RunId(run_id))
+        if run is not None and translator is not run.translator:
+            run = None
+        if (
+            run is not None
+            and run.interrupt_requested
+            and translator.started
+            and not translator.completed
+        ):
+            # The cancellation arrived after the kernel started this run.
+            run.interrupt_requested = False
+            run.session.try_interrupt()
         if translator.completed:
-            if run is not None and translator is run.translator:
+            if run is not None:
                 run.done.set()
             else:
                 for out in translator.finish():

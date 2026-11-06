@@ -328,7 +328,9 @@ async def execute_code(
 
     app_state = AppState(request)
     body = await parse_request(request, cls=ExecuteScratchpadRequest)
-    session = app_state.require_current_session_with_stable_id()
+    session = app_state.require_current_session_with_stable_id(
+        allow_notebook_id=True
+    )
 
     # Register cells into the graph without executing them so that
     # code_mode's run_cell can resolve dependencies. The kernel

@@ -23,7 +23,7 @@ import { createObservable } from "@/core/state/observable";
 import { formatKeymapExtension } from "../extensions";
 import { formattingChangeEffect } from "../format";
 import { goToDefinitionAtCursorPosition } from "../go-to-definition/utils";
-import { getEditorCodeAsPython } from "../language/utils";
+import { getCellCode } from "../language/cell-code";
 import { isAtEndOfEditor, isAtStartOfEditor } from "../utils";
 import {
   breakpointGutter,
@@ -323,26 +323,28 @@ function cellKeymaps({
  */
 function cellCodeEditing(hotkeys: HotkeyProvider): Extension[] {
   const onChangePlugin = EditorView.updateListener.of((update) => {
-    if (update.docChanged) {
-      // Check if the doc update was a formatting change
-      // e.g. changing from python to markdown
-      const isFormattingChange = update.transactions.some((tr) =>
-        tr.effects.some((effect) => effect.is(formattingChangeEffect)),
-      );
-      const nextCode = getEditorCodeAsPython(update.view);
-      const cellActions = update.view.state.facet(cellActionsState);
-      const cellId = update.view.state.facet(cellIdState);
-      cellActions.updateCellCode({
+    if (!update.docChanged) {
+      return;
+    }
+    const cellId = update.view.state.facet(cellIdState);
+    // The code itself reaches the document through the editor's binding.
+    // Formatting, including a language switch, rewrites the code without
+    // editing it, so the cell stays as run or as edited as it was.
+    const formatted = update.transactions.some((tr) =>
+      tr.effects.some((effect) => effect.is(formattingChangeEffect)),
+    );
+    if (formatted) {
+      update.view.state.facet(cellActionsState).codeFormatted({
         cellId,
-        code: nextCode,
-        formattingChange: isFormattingChange,
+        before: getCellCode(update.startState),
+        after: getCellCode(update.state),
       });
+    }
 
-      // Clear pending cut state if this cell was marked for cut
-      const pendingCutCellIds = store.get(pendingCutCellIdsAtom);
-      if (pendingCutCellIds.has(cellId)) {
-        store.set(clearPendingCutAtom);
-      }
+    // Clear pending cut state if this cell was marked for cut
+    const pendingCutCellIds = store.get(pendingCutCellIdsAtom);
+    if (pendingCutCellIds.has(cellId)) {
+      store.set(clearPendingCutAtom);
     }
   });
 

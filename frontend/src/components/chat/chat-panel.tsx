@@ -13,15 +13,14 @@ import {
 import { useAtom, useAtomValue, useSetAtom, useStore } from "jotai";
 import {
   BotMessageSquareIcon,
-  ArrowRightIcon,
   Loader2,
   PlusIcon,
-  SparklesIcon,
   SettingsIcon,
 } from "lucide-react";
-import { memo, useEffect, useRef, useState } from "react";
+import { memo, useEffect, useMemo, useRef, useState } from "react";
 import useEvent from "react-use-event-hook";
 import { Button } from "@/components/ui/button";
+import { LoadingEllipsis } from "@/components/icons/loading-ellipsis";
 import { replaceMessagesInChat } from "@/core/ai/chat-utils";
 import { useAIConfigActions } from "@/core/ai/config";
 import { AI_SDK_UI_THROTTLE_MS } from "@/core/ai/constants";
@@ -50,20 +49,19 @@ import { AIModelDropdown } from "../ai/ai-model-dropdown";
 import { useOpenSettingsToTab } from "../app-config/state";
 import {
   PairWithAgentBanner,
-  PairWithAgentButton,
+  usePairWithAgentModal,
 } from "../editor/actions/pair-with-agent";
-import { PairWithAgentModal } from "../editor/actions/pair-with-agent-modal";
-import { PromptInput } from "../editor/ai/add-cell-with-ai";
+import { PromptInput } from "../editor/ai/prompt-input";
 import {
   addContextCompletion,
-  CONTEXT_TRIGGER,
   isContextAttachment,
   resolveChatContext,
 } from "../editor/ai/completion-utils";
 import { StreamingChunkTransport } from "../editor/ai/transport/chat-transport";
+import { PanelHeaderActions } from "../editor/chrome/panels/panel-header";
 import { PanelEmptyState } from "../editor/chrome/panels/empty-state";
 import { CopyClipboardIcon } from "../icons/copy-icon";
-import { useImperativeModal } from "../modal/ImperativeModal";
+import "./chat-typography.css";
 import { MCPStatusIndicator } from "../mcp/mcp-status-indicator";
 import { Tooltip, TooltipProvider } from "../ui/tooltip";
 import {
@@ -100,6 +98,7 @@ import { getCodes } from "@/core/codemirror/copilot/getCodes";
 import { focusInputAndMoveToEnd } from "@/core/codemirror/utils";
 import ScrollToBottomButton from "./acp/scroll-to-bottom-button";
 import { useChatControllerId } from "./use-chat-controller-id";
+import { useChatGeneration } from "./use-chat-generation";
 
 // Default mode for the AI
 const DEFAULT_MODE = "ask";
@@ -116,7 +115,7 @@ const QueuedMessageDisplay = memo(
 
     return (
       <div className="flex justify-end">
-        <div className="w-[95%] bg-background border border-dashed p-2 rounded-sm opacity-70">
+        <div className="w-[95%] bg-background border border-dashed p-2 rounded-[10px] opacity-70">
           {fileParts.map((filePart, idx) => (
             <AttachmentRenderer attachment={filePart} key={idx} />
           ))}
@@ -149,40 +148,41 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
   const { handleClick } = useOpenSettingsToTab();
 
   return (
-    <div className="flex border-b px-2 py-1 justify-between shrink-0 items-center">
-      <Tooltip content="New chat">
-        <Button
-          aria-label="New chat"
-          variant="text"
-          size="icon"
-          onClick={onNewChat}
-        >
-          <PlusIcon className="h-4 w-4" />
-        </Button>
-      </Tooltip>
-      <div className="flex items-center gap-2">
-        <Tooltip content="Connect your agent">
-          <PairWithAgentButton className="mr-1" label="Connect" />
-        </Tooltip>
-        <MCPStatusIndicator />
-        <Tooltip content="AI Settings">
+    <PanelHeaderActions>
+      <div className="mo-ai-panel flex w-full shrink-0 items-center font-sans text-sm">
+        <div className="flex w-full items-center gap-1">
           <Button
-            variant="text"
-            size="xs"
-            className="hover:bg-foreground/10 py-2"
-            onClick={() => handleClick("ai")}
+            variant="ghost"
+            size="sm"
+            className="chat-control gap-1.5 font-normal"
+            onClick={onNewChat}
           >
-            <SettingsIcon className="h-4 w-4" />
+            <PlusIcon className="size-4" aria-hidden={true} />
+            New chat
           </Button>
-        </Tooltip>
-        <ChatHistoryPopover
-          activeChatId={activeChatId}
-          setActiveChat={setActiveChat}
-          onDeleteChats={onDeleteChats}
-          isLoading={isLoading}
-        />
+          <ChatHistoryPopover
+            activeChatId={activeChatId}
+            setActiveChat={setActiveChat}
+            onDeleteChats={onDeleteChats}
+            isLoading={isLoading}
+          />
+          <div className="ml-auto flex items-center gap-2">
+            <MCPStatusIndicator />
+            <Tooltip content="AI Settings">
+              <Button
+                className="chat-control"
+                aria-label="AI Settings"
+                variant="ghost"
+                size="icon"
+                onClick={() => handleClick("ai")}
+              >
+                <SettingsIcon className="size-4" aria-hidden={true} />
+              </Button>
+            </Tooltip>
+          </div>
+        </div>
       </div>
-    </div>
+    </PanelHeaderActions>
   );
 };
 
@@ -216,14 +216,14 @@ const ChatMessageDisplay: React.FC<ChatMessageProps> = memo(
       );
 
       return (
-        <div className="w-[95%] bg-background border p-1 rounded-sm">
+        <div className="w-[95%] bg-background border p-1 rounded-[10px]">
           {fileParts?.map((filePart, idx) => (
             <AttachmentRenderer attachment={filePart} key={idx} />
           ))}
           <PromptInput
             key={message.id}
             value={content}
-            placeholder="Type your message..."
+            placeholder="Type your message. Use @ to reference variables and cells."
             onChange={() => {
               // noop
             }}
@@ -249,7 +249,7 @@ const ChatMessageDisplay: React.FC<ChatMessageProps> = memo(
 
       return (
         <div className="w-[95%] wrap-break-word">
-          <div className="absolute right-1 top-1 opacity-0 group-hover:opacity-100 transition-opacity">
+          <div className="absolute right-1 top-1 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity">
             <CopyClipboardIcon className="h-3 w-3" value={content || ""} />
           </div>
           {renderUIMessage({
@@ -311,22 +311,22 @@ const ChatInputFooter: React.FC<ChatInputFooterProps> = memo(
 
     return (
       <TooltipProvider>
-        <div className="px-3 py-2 border-t border-border/20 flex flex-wrap items-center gap-1">
-          <div className="flex flex-wrap items-center gap-1">
+        <div className="chat-input-footer px-3 py-2 border-t border-border/20 flex items-center gap-2">
+          <div className="chat-input-selectors flex min-w-0 flex-1 items-center gap-1">
             <NotebookAccessSelector
               value={currentMode}
               onValueChange={saveModeChange}
             />
             <AIModelDropdown
               placeholder="Model"
-              triggerClassName="h-6 text-xs shadow-none! ring-0! bg-muted hover:bg-muted/30 rounded-sm max-w-[200px]"
+              triggerClassName="chat-control chat-selector h-6 text-xs rounded-sm min-w-0 max-w-[200px] flex-1"
               iconSize="small"
               showAddCustomModelDocs={true}
               forRole="chat"
             />
-            <CapabilitiesPopover />
           </div>
-          <div className="flex flex-row ml-auto">
+          <div className="chat-input-actions flex shrink-0 items-center gap-0.5 ml-auto">
+            <CapabilitiesPopover />
             <AddContextButton
               handleAddContext={onAddContext}
               isLoading={isLoading}
@@ -354,9 +354,7 @@ const ChatInputFooter: React.FC<ChatInputFooterProps> = memo(
 ChatInputFooter.displayName = "ChatInputFooter";
 
 interface ChatInputProps {
-  placeholder?: string;
   input: string;
-  inputClassName?: string;
   setInput: (value: string) => void;
   onSubmit: (e: KeyboardEvent | undefined, value: string) => void;
   inputRef: React.RefObject<ReactCodeMirrorRef | null>;
@@ -369,9 +367,7 @@ interface ChatInputProps {
 
 const ChatInput: React.FC<ChatInputProps> = memo(
   ({
-    placeholder,
     input,
-    inputClassName,
     setInput,
     onSubmit,
     inputRef,
@@ -381,6 +377,20 @@ const ChatInput: React.FC<ChatInputProps> = memo(
     onAddFiles,
     onClose,
   }) => {
+    const openPairWithAgentModal = usePairWithAgentModal();
+    const placeholderAction = useMemo(
+      () =>
+        isWasm()
+          ? undefined
+          : {
+              beforeText: "Type your message or ",
+              linkText: "pair your own coding agent",
+              afterText: ". Use @ to reference variables and cells.",
+              onClick: openPairWithAgentModal,
+            },
+      [openPairWithAgentModal],
+    );
+
     const handleSendClick = useEvent(() => {
       if (input.trim()) {
         onSubmit(undefined, input);
@@ -388,8 +398,8 @@ const ChatInput: React.FC<ChatInputProps> = memo(
     });
 
     return (
-      <div className="relative shrink-0 flex flex-col border-t">
-        <div className={cn("px-2 py-1.5", inputClassName)}>
+      <div className="relative shrink-0 flex flex-col">
+        <div className="px-2 py-1.5">
           <PromptInput
             className="max-h-[400px]"
             inputRef={inputRef}
@@ -398,7 +408,8 @@ const ChatInput: React.FC<ChatInputProps> = memo(
             onSubmit={onSubmit}
             onClose={onClose}
             onAddFiles={onAddFiles}
-            placeholder={placeholder || "Type your message..."}
+            placeholder="Type your message. Use @ to reference variables and cells."
+            placeholderAction={placeholderAction}
           />
         </div>
         <ChatInputFooter
@@ -416,26 +427,6 @@ const ChatInput: React.FC<ChatInputProps> = memo(
 );
 
 ChatInput.displayName = "ChatInput";
-
-const PairWithAgentCallout: React.FC<{
-  onPairWithAgent: () => void;
-}> = ({ onPairWithAgent }) => {
-  if (isWasm()) {
-    return null;
-  }
-
-  return (
-    <Button
-      variant="text"
-      className="gap-1.5 text-sm text-link hover:underline"
-      onClick={onPairWithAgent}
-    >
-      <SparklesIcon className="h-3.5 w-3.5 shrink-0" />
-      <span>Connect your own agent to this notebook</span>
-      <ArrowRightIcon className="h-3 w-3 shrink-0" />
-    </Button>
-  );
-};
 
 const ChatPanel = () => {
   const aiConfigured = useAtomValue(aiModelConfiguredAtom);
@@ -494,7 +485,6 @@ const ChatPanelBody = () => {
   });
   const runtimeManager = useRuntimeManager();
   const { invokeAiTool } = useRequestClient();
-  const { openModal, closeModal } = useImperativeModal();
 
   const activeChatId = activeChat?.id;
   const { chatControllerId, renewDraftChatId } =
@@ -638,7 +628,7 @@ const ChatPanelBody = () => {
     },
   );
 
-  const isLoading = status === "submitted" || status === "streaming";
+  const isLoading = useChatGeneration(status);
   // useEvent reads the latest loading state, even when called after an await
   // (e.g. resolving @-context) that outlives the original render's closure.
   const submitOrQueue = useEvent((parts: ChatMessagePart[]) => {
@@ -784,10 +774,6 @@ const ChatPanelBody = () => {
     });
   });
 
-  const handlePairWithAgent = useEvent(() => {
-    openModal(<PairWithAgentModal onClose={closeModal} />);
-  });
-
   const handleMessageEdit = useEvent(
     async (index: number, newValue: string) => {
       const editedMessage = messages[index];
@@ -878,14 +864,20 @@ const ChatPanelBody = () => {
       return;
     }
     setPendingPrompt(null);
-    const { prompt, submit } = pendingPrompt;
+    const { prompt, submit, append } = pendingPrompt;
+    const applyPrompt = (draft: string) =>
+      append
+        ? draft.includes(prompt.trim())
+          ? draft
+          : `${draft}${draft ? " " : ""}${prompt}`
+        : prompt;
     if (submit) {
       void submitPendingPrompt(prompt);
     } else if (isNewThread) {
-      setNewThreadInput(prompt);
+      setNewThreadInput(applyPrompt);
       focusInputAndMoveToEnd(newThreadInputRef);
     } else {
-      setInput(prompt);
+      setInput(applyPrompt);
       focusInputAndMoveToEnd(newMessageInputRef);
     }
   }, [pendingPrompt, setPendingPrompt, isNewThread, submitPendingPrompt]);
@@ -893,10 +885,8 @@ const ChatPanelBody = () => {
   const chatInput = isNewThread ? (
     <ChatInput
       key="new-thread-input"
-      placeholder={`Ask anything, ${CONTEXT_TRIGGER} to include context about tables or dataframes`}
       input={newThreadInput}
       inputRef={newThreadInputRef}
-      inputClassName="px-1 py-0"
       setInput={setNewThreadInput}
       onSubmit={handleNewThreadSubmit}
       isLoading={isLoading}
@@ -920,12 +910,7 @@ const ChatPanelBody = () => {
   );
 
   const filesPills = files && files.length > 0 && (
-    <div
-      className={cn(
-        "flex flex-row gap-1 flex-wrap p-1",
-        isNewThread && "py-2 px-1",
-      )}
-    >
+    <div className="flex flex-row gap-1 flex-wrap px-3 pt-2">
       {files?.map((file) => (
         <FileAttachmentPill
           file={file}
@@ -936,8 +921,15 @@ const ChatPanelBody = () => {
     </div>
   );
 
+  const composer = (
+    <div className="@container rounded-[10px] border border-border bg-background">
+      {filesPills}
+      {chatInput}
+    </div>
+  );
+
   return (
-    <div className="flex flex-col h-[calc(100%-53px)]">
+    <div className="mo-ai-panel flex flex-col flex-1 min-h-0 font-prose text-sm leading-6">
       <TooltipProvider>
         <ChatHeader
           onNewChat={handleNewChat}
@@ -950,20 +942,10 @@ const ChatPanelBody = () => {
 
       <div className="flex-1 flex flex-col overflow-hidden relative min-h-0">
         <div
-          className="flex-1 px-3 bg-(--slate-1) gap-4 py-3 flex flex-col overflow-y-auto"
+          className="flex-1 px-3 bg-background gap-4 py-3 flex flex-col overflow-y-auto"
           ref={scrollContainerRef}
           onScroll={handleScroll}
         >
-          {isNewThread && (
-            <div className="flex flex-col gap-2">
-              <div className="rounded-md border bg-background">
-                {filesPills}
-                {chatInput}
-              </div>
-              <PairWithAgentCallout onPairWithAgent={handlePairWithAgent} />
-            </div>
-          )}
-
           {messages.map((message, idx) => (
             <ChatMessageDisplay
               key={message.id}
@@ -980,12 +962,6 @@ const ChatPanelBody = () => {
           {queuedMessages.map((message) => (
             <QueuedMessageDisplay key={message.id} message={message} />
           ))}
-
-          {isLoading && (
-            <div className="flex justify-center py-4">
-              <Loader2 className="h-4 w-4 animate-spin" />
-            </div>
-          )}
 
           {error && (
             <div className="flex items-center justify-center space-x-2 mb-4">
@@ -1015,20 +991,30 @@ const ChatPanelBody = () => {
       </div>
 
       {isLoading && (
-        <div className="w-full flex justify-center items-center z-20 border-t">
-          <Button variant="linkDestructive" size="sm" onClick={stop}>
-            Stop
+        <div className="flex shrink-0 items-center gap-2 px-3 pt-2 text-xs text-muted-foreground">
+          <div className="flex items-center gap-1.5">
+            <div aria-hidden={true}>
+              <LoadingEllipsis
+                size={3}
+                gap="gap-0.5"
+                className="motion-reduce:[&_svg]:animate-none"
+              />
+            </div>
+            <output>Working</output>
+          </div>
+          <span aria-hidden={true} className="h-3 w-px bg-border" />
+          <Button
+            variant="text"
+            size="xs"
+            className="chat-control"
+            onClick={stop}
+          >
+            Stop generation
           </Button>
         </div>
       )}
 
-      {/* For existing threads, we place the chat input at the bottom */}
-      {!isNewThread && (
-        <>
-          {filesPills}
-          {chatInput}
-        </>
-      )}
+      <div className="shrink-0 p-3">{composer}</div>
     </div>
   );
 };

@@ -23,7 +23,7 @@ export function pasteBundle(): Extension[] {
         // The `with app.setup` block belongs in the special setup cell, not in
         // an ordinary cell.
         if (setup !== null) {
-          actions.addOrAppendSetupCell(setup);
+          actions.addOrAppendSetupCell({ code: setup });
         }
         if (cells.length > 0) {
           actions.createManyBelow(cells);

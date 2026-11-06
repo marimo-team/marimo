@@ -27,6 +27,8 @@ const records = {
   "edit-response.json": Protocol.EditResponse,
   "execution-restored.json": Protocol.Execution,
   "run-cells-request.json": Protocol.RunRequest,
+  "input-reply-request.json": Protocol.InputReplyRequest,
+  "input-reply-response.json": Protocol.Input,
 };
 
 describe("host protocol fixtures", () => {
