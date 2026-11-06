@@ -3790,6 +3790,65 @@ class TestSQL:
         # cell 1 should re-run but will fail to find t1
         assert "df" not in k.globals
 
+    async def test_sql_secure_view(self, k: Kernel) -> None:
+        import duckdb
+
+        from marimo._sql.utils import is_duckdb_v2
+
+        if not is_duckdb_v2():
+            pytest.skip("Secure views require DuckDB 2")
+
+        await k.run(
+            [
+                ExecuteCellCommand(cell_id="0", code="import marimo as mo"),
+                ExecuteCellCommand(
+                    cell_id="1",
+                    code="df = mo.sql('SELECT * FROM secure_view', output=False)",
+                ),
+                ExecuteCellCommand(
+                    cell_id="2",
+                    code="mo.sql('CREATE SECURE VIEW secure_view AS SELECT * FROM source_table', output=False)",
+                ),
+                ExecuteCellCommand(
+                    cell_id="3",
+                    code="mo.sql('CREATE TABLE source_table AS SELECT 42 AS value', output=False)",
+                ),
+            ]
+        )
+        assert not k.errors
+        assert k.globals["df"].to_dict(as_series=False) == {"value": [42]}
+
+        await k.run(
+            [
+                ExecuteCellCommand(
+                    cell_id="3",
+                    code="mo.sql('CREATE TABLE source_table AS SELECT 43 AS value', output=False)",
+                )
+            ]
+        )
+        assert not k.errors
+        assert k.globals["df"].to_dict(as_series=False) == {"value": [43]}
+
+        await k.run(
+            [
+                ExecuteCellCommand(
+                    cell_id="2",
+                    code="mo.sql('CREATE OR REPLACE SECURE VIEW secure_view AS SELECT value * 2 AS value FROM source_table', output=False)",
+                )
+            ]
+        )
+        assert not k.errors
+        assert k.globals["df"].to_dict(as_series=False) == {"value": [86]}
+
+        await k.delete_cell(DeleteCellCommand(cell_id="2"))
+        assert "df" not in k.globals
+        assert (
+            duckdb.sql(
+                "SELECT view_name FROM duckdb_views() WHERE view_name = 'secure_view'"
+            ).fetchall()
+            == []
+        )
+
     @pytest.mark.parametrize(
         ("catalog", "schema"),
         [
