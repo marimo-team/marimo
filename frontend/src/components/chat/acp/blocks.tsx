@@ -167,11 +167,11 @@ export const ReadyToChatBlock = () => {
   return (
     <div className="flex-1 flex items-center justify-center h-full min-h-[200px] flex-col">
       <div className="text-center space-y-3">
-        <div className="w-12 h-12 mx-auto rounded-full bg-(--blue-3) flex items-center justify-center">
-          <BotMessageSquareIcon className="h-6 w-6 text-(--blue-10)" />
+        <div className="w-12 h-12 mx-auto rounded-full bg-muted flex items-center justify-center">
+          <BotMessageSquareIcon className="h-6 w-6 text-muted-foreground" />
         </div>
         <div>
-          <h3 className="text-lg font-medium text-foreground mb-1">
+          <h3 className="text-base font-semibold text-foreground mb-1">
             Agent is connected
           </h3>
           <p className="text-sm text-muted-foreground">
@@ -203,10 +203,10 @@ export const ConnectionChangeBlock = (props: {
           icon: <WifiIcon className="h-4 w-4" />,
           title: "Connected to Agent",
           message: "Successfully established connection with the AI agent",
-          bgColor: "bg-(--blue-2)",
-          borderColor: "border-(--blue-6)",
-          textColor: "text-(--blue-11)",
-          iconColor: "text-(--blue-10)",
+          bgColor: "bg-transparent",
+          borderColor: "border-border",
+          textColor: "text-muted-foreground",
+          iconColor: "text-muted-foreground",
         };
       case "disconnected":
         return {
@@ -318,7 +318,7 @@ export const PlansBlock = (props: { data: PlanNotificationEvent[] }) => {
   plans = uniqueByTakeLast(plans, (item) => item.content);
 
   return (
-    <div className="rounded-lg border bg-background p-2 text-xs">
+    <div className="rounded-lg border bg-background p-2 text-sm">
       <div className="flex items-center justify-between mb-2">
         <span className="font-medium text-muted-foreground">
           To-dos{" "}
@@ -345,7 +345,7 @@ export const PlansBlock = (props: { data: PlanNotificationEvent[] }) => {
             />
             <span
               className={cn(
-                "text-xs",
+                "text-sm",
                 item.status === "completed" &&
                   "line-through text-muted-foreground",
               )}
@@ -361,7 +361,7 @@ export const PlansBlock = (props: { data: PlanNotificationEvent[] }) => {
 
 export const UserMessagesBlock = (props: { data: UserNotificationEvent[] }) => {
   return (
-    <div className="flex flex-col gap-2 text-muted-foreground border p-2 bg-background rounded wrap-break-word overflow-x-hidden">
+    <div className="flex flex-col gap-2 text-foreground border p-2 bg-background rounded wrap-break-word overflow-x-hidden">
       <ContentBlocks data={props.data.map((item) => item.content)} />
     </div>
   );

@@ -16,6 +16,7 @@
   ],
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
+    "prepare": "npm run build",
     "codegen": "node --experimental-strip-types scripts/generate-protocol.ts --include-experimental",
     "codegen:check": "node --experimental-strip-types scripts/generate-protocol.ts --include-experimental --check",
     "test": "vitest",

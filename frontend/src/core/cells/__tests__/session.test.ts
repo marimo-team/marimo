@@ -434,7 +434,7 @@ describe("readExport", () => {
           expand_output: false,
         },
         etag: `embedded:${CELL_1}`,
-        code_hash: `embedded:${CELL_1}:code`,
+        code_fingerprint: `embedded:${CELL_1}:code`,
         version: 1,
       });
     });
@@ -501,7 +501,7 @@ describe("readExport", () => {
           expand_output: false,
         },
         etag: `embedded:${CELL_1}`,
-        code_hash: `embedded:${CELL_1}:code`,
+        code_fingerprint: `embedded:${CELL_1}:code`,
         version: 1,
       });
     });
@@ -540,7 +540,7 @@ describe("readExport", () => {
           expand_output: false,
         },
         etag: `embedded:${SETUP_CELL_ID}`,
-        code_hash: `embedded:${SETUP_CELL_ID}:code`,
+        code_fingerprint: `embedded:${SETUP_CELL_ID}:code`,
         version: 1,
       });
     });
@@ -588,7 +588,7 @@ describe("readExport", () => {
           expand_output: false,
         },
         etag: `embedded:${CELL_1}`,
-        code_hash: `embedded:${CELL_1}:code`,
+        code_fingerprint: `embedded:${CELL_1}:code`,
         version: 1,
       });
       // Null result means no output.

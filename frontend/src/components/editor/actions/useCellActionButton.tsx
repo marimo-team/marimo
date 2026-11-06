@@ -159,7 +159,7 @@ export function useCellActionButtons({ cell, closePopover }: Props) {
       },
       {
         icon: <SparklesIcon size={13} strokeWidth={1.5} />,
-        label: "Refactor with AI",
+        label: "Refactor cell",
         hidden: !aiFeaturesEnabled,
         handle: () => {
           setAiCompletionCell((current) =>

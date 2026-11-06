@@ -49,13 +49,16 @@ def resolve_config(
 
 
 def config_paths(
-    config: dict[str, Any], path: ConfigPath = ()
+    config: dict[str, Any],
+    path: ConfigPath = (),
+    *,
+    leaf_paths: frozenset[ConfigPath] = frozenset(),
 ) -> Iterable[ConfigPath]:
     """Yield leaf paths, treating lists and empty tables as single values."""
     for key, value in config.items():
         field_path = (*path, key)
-        if isinstance(value, dict) and value:
-            yield from config_paths(value, field_path)
+        if isinstance(value, dict) and value and field_path not in leaf_paths:
+            yield from config_paths(value, field_path, leaf_paths=leaf_paths)
         else:
             yield field_path
 

@@ -1,12 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import {
-  BanIcon,
-  CheckCircleIcon,
-  CircleSlashIcon,
-  Loader2,
-  WrenchIcon,
-} from "lucide-react";
+import { BanIcon, CircleSlashIcon, Loader2, WrenchIcon } from "lucide-react";
 import React from "react";
 import {
   Accordion,
@@ -54,7 +48,7 @@ const StatusIcon: React.FC<{ state: HistoryState; interrupted: boolean }> = ({
     case "approval-responded":
       return <Loader2 className="h-3 w-3 animate-spin" />;
     case "output-available":
-      return <CheckCircleIcon className="h-3 w-3 text-(--grass-11)" />;
+      return null;
     case "output-denied":
       return <BanIcon className="h-3 w-3 text-muted-foreground" />;
     default:
@@ -62,22 +56,6 @@ const StatusIcon: React.FC<{ state: HistoryState; interrupted: boolean }> = ({
       return <WrenchIcon className="h-3 w-3" />;
   }
 };
-
-function getTriggerToneClass(state: HistoryState): string {
-  switch (state) {
-    case "output-available":
-      return "text-(--grass-11)/80";
-    case "output-denied":
-      return "text-muted-foreground";
-    case "input-streaming":
-    case "input-available":
-    case "approval-responded":
-      return "";
-    default:
-      logNever(state);
-      return "";
-  }
-}
 
 interface ToolHistoryRowProps {
   toolName: string;
@@ -109,12 +87,7 @@ export const ToolHistoryRow: React.FC<ToolHistoryRowProps> = ({
       className={cn("w-full", className)}
     >
       <AccordionItem value="tool-call" className="border-0">
-        <AccordionTrigger
-          className={cn(
-            "h-6 text-xs border-border shadow-none! ring-0! bg-muted/60 hover:bg-muted py-0 px-2 gap-1 rounded-sm [&[data-state=open]>svg]:rotate-180 hover:no-underline",
-            interrupted ? "text-muted-foreground" : getTriggerToneClass(state),
-          )}
-        >
+        <AccordionTrigger className="h-auto pl-0 pr-2 py-1 gap-2 rounded text-xs font-normal text-muted-foreground hover:bg-(--slate-2) hover:text-foreground hover:no-underline">
           <span className="flex items-center gap-1">
             <StatusIcon state={state} interrupted={interrupted} />
             {interrupted ? "Interrupted" : STATUS_LABEL[state]}:

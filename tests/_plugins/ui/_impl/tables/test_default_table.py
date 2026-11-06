@@ -1359,7 +1359,8 @@ _column_name = st.text(
 _column_names = st.lists(_column_name, min_size=1, max_size=10, unique=True)
 
 
-@settings(deadline=1000)
+# These correctness tests should tolerate variable CI scheduling delays.
+@settings(deadline=None)
 @given(cols=_column_names, data=st.data())
 def test_drop_columns_preserves_order_row_major(
     cols: list[str], data: st.DataObject
@@ -1378,7 +1379,7 @@ def test_drop_columns_preserves_order_row_major(
     assert mgr.drop_columns(to_drop).get_column_names() == expected
 
 
-@settings(deadline=1000)
+@settings(deadline=None)
 @given(cols=_column_names, data=st.data())
 def test_drop_columns_preserves_order_column_major(
     cols: list[str], data: st.DataObject
@@ -1392,7 +1393,7 @@ def test_drop_columns_preserves_order_column_major(
     assert mgr.drop_columns(to_drop).get_column_names() == expected
 
 
-@settings(deadline=1000)
+@settings(deadline=None)
 @given(cols=_column_names, data=st.data())
 def test_select_columns_preserves_caller_order_row_major(
     cols: list[str], data: st.DataObject
@@ -1411,7 +1412,7 @@ def test_select_columns_preserves_caller_order_row_major(
     assert mgr.select_columns(subset).get_column_names() == subset
 
 
-@settings(deadline=1000)
+@settings(deadline=None)
 @given(cols=_column_names, data=st.data())
 def test_select_columns_preserves_caller_order_column_major(
     cols: list[str], data: st.DataObject

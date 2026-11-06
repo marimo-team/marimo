@@ -25,7 +25,7 @@ def _session_with_capabilities(
 
 
 def _run_command() -> commands.CommandMessage:
-    return commands.ExecuteCellsCommand(cell_ids=[], codes=[])
+    return commands.ExecuteCellsCommand(execution_requests=[])
 
 
 def test_viewer_run_request_is_dropped() -> None:

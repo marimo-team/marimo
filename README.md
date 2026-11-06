@@ -109,8 +109,6 @@ is highly specialized for working with data, with context about your variables
 in memory. Customize the system prompt, bring your own API keys, or use local
 models.
 
-<img src="https://raw.githubusercontent.com/marimo-team/marimo/main/docs/_static/readme-generate-with-ai.gif" width="700px" />
-
 **Query data with SQL.** Build [SQL](https://docs.marimo.io/guides/working_with_data/sql.html) queries
 that depend on Python values and execute them against dataframes, databases, lakehouses,
 CSVs, Google Sheets, or anything else using our built-in SQL engine, which

@@ -504,8 +504,13 @@ class TestTraceContextPropagation:
             )
         }
         command = ExecuteCellsCommand(
-            cell_ids=["0"],
-            codes=["x = 1"],
+            execution_requests=[
+                ExecuteCellCommand(
+                    cell_id="0",
+                    code="x = 1",
+                    request=_http_request_with_headers(headers),
+                )
+            ],
             request=_http_request_with_headers(headers),
         )
 
@@ -519,7 +524,9 @@ class TestTraceContextPropagation:
     @staticmethod
     async def test_handle_message_without_request(k: Kernel) -> None:
         """Commands without a request pass no headers (no-op propagation)."""
-        command = ExecuteCellsCommand(cell_ids=["0"], codes=["x = 1"])
+        command = ExecuteCellsCommand(
+            execution_requests=[ExecuteCellCommand(cell_id="0", code="x = 1")]
+        )
 
         with patch(
             "marimo._runtime.runtime.attach_trace_context"

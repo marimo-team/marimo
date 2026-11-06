@@ -158,6 +158,7 @@ class Runner:
         execution_context: ExecutionContextManager | None = None,
         user_config: MarimoConfig | None = None,
         executions: dict[CellId_t, ExecutionAttempt] | None = None,
+        plan_execution: Callable[[CellId_t], ExecutionAttempt] | None = None,
         get_inputs: Callable[[CellImpl], dict[str, Revision | None] | None]
         | None = None,
     ):
@@ -169,6 +170,11 @@ class Runner:
         self.user_config = user_config
         self._executions = executions if executions is not None else {}
         self._get_inputs = get_inputs
+        self._plan_execution = plan_execution or (
+            lambda cell_id: ExecutionAttempt.plan(
+                cell_id, self.graph.cells[cell_id].code
+            )
+        )
 
         # runtime globals
         self.glbls = glbls
@@ -812,7 +818,7 @@ class Runner:
         # Capture the attempt and its source only when it is about to run.
         execution = self._executions.pop(
             cell_id, None
-        ) or ExecutionAttempt.plan(cell_id, self.graph.cells[cell_id].code)
+        ) or self._plan_execution(cell_id)
         if self._get_inputs is not None:
             execution.depends_on = self._get_inputs(self.graph.cells[cell_id])
         with execution.activate():
@@ -921,9 +927,7 @@ class Runner:
         )
         for cell_id in sorted(skipped):
             if cell_id not in self._executions:
-                self._executions[cell_id] = ExecutionAttempt.plan(
-                    cell_id, self.graph.cells[cell_id].code
-                )
+                self._executions[cell_id] = self._plan_execution(cell_id)
         finish_ctx = OnFinishHookContext(
             graph=self.graph,
             cells_to_run=self.cells_to_run,

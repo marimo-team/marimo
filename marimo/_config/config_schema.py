@@ -206,6 +206,12 @@ class RuntimeConfig(Config, kw_only=True):
             extra={"sensitive": True},
         ),
     ] = UNSET
+    sql_default_limit: Annotated[
+        Annotated[int, Meta(ge=0)] | UnsetType | None,
+        Meta(
+            description="Default maximum number of SQL result rows when a query has no LIMIT. Must be non-negative; None means no limit."
+        ),
+    ] = UNSET
     default_sql_output: Annotated[
         SqlOutputType,
         Meta(
@@ -303,6 +309,25 @@ class FormattingConfig(Config, kw_only=True):
 class ServerConfig(Config, kw_only=True):
     """Configuration for the server."""
 
+    skip_update_check: Annotated[
+        bool,
+        Meta(
+            description="Skip checking for marimo updates when starting the editor."
+        ),
+    ] = False
+    session_cookie_secure: Annotated[
+        bool,
+        Meta(
+            description="Only send session cookies over HTTPS. Enable when serving behind TLS."
+        ),
+    ] = False
+    session_secret: Annotated[
+        str | UnsetType,
+        Meta(
+            description="Secret used to sign session cookies. Set a stable value to preserve sessions across restarts or replicas; otherwise a random secret is generated per process.",
+            extra={"sensitive": True},
+        ),
+    ] = UNSET
     browser: Annotated[
         Literal["default"] | str,
         Meta(
@@ -823,6 +848,14 @@ class ExperimentalConfig(Config, kw_only=True):
         bool | UnsetType,
         Meta(
             description="Enable experimental layouts in WebAssembly notebooks."
+        ),
+    ] = UNSET
+    external_agents: Annotated[
+        bool | UnsetType,
+        Meta(
+            description="Deprecated; prefer marimo pair. Enable external agents such as Claude Code and Codex.",
+            extra={"deprecated": True},
+            extra_json_schema={"deprecated": True},
         ),
     ] = UNSET
     isolate_apps: Annotated[

@@ -108,22 +108,20 @@ nav:
           - Working in sandboxes: guides/package_management/sandboxes.md
           - Installing packages: guides/package_management/installing_packages.md
           - Importing local code: guides/package_management/importing_local_code.md
-      - Generate with AI:
-          - Generate with AI: guides/generate_with_ai/index.md
-          - Use agents with marimo pair: guides/generate_with_ai/marimo_pair.md
-          - In-editor AI assistance: guides/editor_features/ai_completion.md
+      - Using coding agents:
+          - Using coding agents: guides/generate_with_ai/index.md
+          - marimo pair: guides/generate_with_ai/marimo_pair.md
           - Skills: guides/generate_with_ai/skills.md
       - Editor features:
           - Editor features: guides/editor_features/index.md
           - Editor overview: guides/editor_features/overview.md
           - Home page: guides/editor_features/home.md
-          - Sidebar and Developer Panel: guides/editor_features/panels.md
+          - Sidebar and developer panel: guides/editor_features/panels.md
           - Understanding dataflow: guides/editor_features/dataflow.md
           - Module autoreloading: guides/editor_features/module_autoreloading.md
+          - In-editor AI assistance: guides/editor_features/ai_completion.md
           - Hotkeys: guides/editor_features/hotkeys.md
           - Model Context Protocol: guides/editor_features/mcp.md
-          - AI tools: guides/editor_features/tools.md
-          - Agents: guides/editor_features/agents.md
           - Language Server: guides/editor_features/language_server.md
       - Using your own editor: guides/editor_features/watching.md
       - Run notebooks as apps: guides/apps.md
@@ -319,6 +317,8 @@ plugins:
   - tags
   - redirects:
       redirect_maps:
+        guides/editor_features/agents.md: guides/generate_with_ai/marimo_pair.md
+        guides/editor_features/tools.md: guides/editor_features/mcp.md
         guides/package_management/using_uv.md: guides/package_management/index.md
         guides/package_management/notebooks_in_projects.md: guides/package_management/projects.md
         guides/package_management/inlining_dependencies.md: guides/package_management/sandboxes.md

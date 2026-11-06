@@ -10,7 +10,8 @@ import msgspec
 import pytest
 
 from marimo._core import backend as be, protocol, protocol_events
-from marimo._core.document import Document, DocumentCell, code_hash
+from marimo._core.code import code_fingerprint
+from marimo._core.document import Document, DocumentCell
 from marimo._core.executions import CellExecution, Executions
 from marimo._core.host import Host
 from marimo._core.notebook import Notebook
@@ -336,7 +337,7 @@ def retained_execution(
             caused_by=None,
             cell_id=None if cell_id is None else protocol.CellId(cell_id),
             code="42" if cell_id is None else None,
-            code_hash=code_hash("42"),
+            code_fingerprint=code_fingerprint("42"),
             depends_on={},
             status="completed",
             outcome=protocol.ValueOutcome(

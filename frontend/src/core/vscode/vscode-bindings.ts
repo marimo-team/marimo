@@ -1,6 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { Logger } from "@/utils/Logger";
+import { isRecord } from "@/utils/records";
 import { KnownQueryParams } from "../constants";
 import { isPlatformMac } from "../hotkeys/shortcuts";
 import { isWasm } from "../wasm/utils";
@@ -53,9 +54,20 @@ function registerCopyPaste() {
     });
   });
 
-  window.addEventListener("message", async (event) => {
+  window.addEventListener("message", async (event: MessageEvent<unknown>) => {
+    // VS Code assigns each parent webview a different origin.
+    if (event.source !== window.parent) {
+      return;
+    }
+    const message = event.data;
+    if (
+      !isRecord(message) ||
+      message.command !== "paste" ||
+      typeof message.text !== "string"
+    ) {
+      return;
+    }
     try {
-      const message = event.data;
       const isMac = isPlatformMac();
       switch (message.command) {
         case "paste":
