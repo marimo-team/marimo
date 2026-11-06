@@ -4955,6 +4955,61 @@ async def test_internal_error_classification(
     assert error.traceback is not None
 
 
+@pytest.mark.parametrize(
+    ("operation", "message"),
+    [
+        (
+            (
+                "_graph = DirectedGraph()\n"
+                "_graph.register_cell(_id, _cell)\n"
+                "_graph.register_cell(_id, _cell)"
+            ),
+            "Cell is already in the graph",
+        ),
+        (
+            (
+                "_cell = replace(_cell, last_expr=None)\n"
+                "DefaultExecutor().execute_cell(_cell, {})"
+            ),
+            "Compiled cell has no last expression",
+        ),
+        (
+            (
+                "_cell = replace(_cell, last_expr=None)\n"
+                "await DefaultExecutor().execute_cell_async(_cell, {})"
+            ),
+            "Compiled cell has no last expression",
+        ),
+    ],
+)
+async def test_internal_invariant_reported(
+    mocked_kernel: MockedKernel,
+    exec_req: ExecReqProvider,
+    operation: str,
+    message: str,
+) -> None:
+    code = (
+        "from dataclasses import replace\n"
+        "from marimo._ast.compiler import compile_cell\n"
+        "from marimo._runtime.dataflow import DirectedGraph\n"
+        "from marimo._runtime.executor import DefaultExecutor\n"
+        "from marimo._types.ids import CellId_t\n"
+        "_id = CellId_t('broken')\n"
+        "_cell = compile_cell('value = 1', cell_id=_id)\n"
+    ) + operation
+    await mocked_kernel.k.run([exec_req.get(code)])
+    errors = _parse_error_output(
+        _filter_to_error_ops(mocked_kernel.stream.cell_notifications)[0]
+    )
+    assert len(errors) == 1
+    error = errors[0]
+    assert isinstance(error, MarimoExceptionRaisedError)
+    assert error.is_internal is True
+    assert error.exception_type == "InternalError"
+    assert error.msg == message
+    assert error.traceback is not None
+
+
 async def test_internal_error_redacted_in_run_mode(
     run_mode_kernel: MockedKernel, exec_req: ExecReqProvider
 ) -> None:
