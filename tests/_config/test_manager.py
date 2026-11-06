@@ -326,7 +326,7 @@ def test_save_config_none_deletes_key(mock_dump: Any) -> None:
 @restore_config
 def test_save_config_with_none_does_not_raise(tmp_path: Path) -> None:
     """Regression guard: TOML has no null type, so a None value reaching
-    tomlkit.dump raises ConvertError. _drop_none_values must strip it first,
+    tomlkit.dump raises ConvertError. drop_none_values must strip it first,
     making the real (unmocked) save succeed and omit the key."""
     config_path = tmp_path / "marimo.toml"
     mock_config = (
@@ -405,15 +405,20 @@ def test_user_config_keeps_populated_dotenv(tmp_path: Path) -> None:
 
 
 def test_drop_none_values_strips_nested_none() -> None:
-    from marimo._config.manager import _drop_none_values
+    from marimo._config.utils import drop_none_values
 
     d: dict[str, Any] = {
         "keep": 1,
         "drop": None,
         "nested": {"keep": "x", "drop": None},
+        "tables": [{"keep": "x", "drop": None}],
     }
-    _drop_none_values(d)
-    assert d == {"keep": 1, "nested": {"keep": "x"}}
+    drop_none_values(d)
+    assert d == {
+        "keep": 1,
+        "nested": {"keep": "x"},
+        "tables": [{"keep": "x"}],
+    }
 
 
 @restore_config

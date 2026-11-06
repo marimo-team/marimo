@@ -56,6 +56,7 @@ from marimo._config.secrets import (
 )
 from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._config.utils import (
+    drop_none_values,
     get_or_create_user_config_path,
     get_user_config_path,
     is_trusted_user_config_path,
@@ -676,7 +677,7 @@ class UserConfigStore(ConfigReader):
         # the incoming config explicitly sent null) is removed from disk. Lets
         # the UI clear optional scalars (e.g. ai.max_tokens) without a separate
         # delete primitive.
-        _drop_none_values(merged)
+        drop_none_values(merged)
         validated_config = merge_default_config(merged)
 
         with open(config_path, "w", encoding="utf-8") as f:
@@ -774,13 +775,3 @@ def _is_home_directory(path: Path) -> bool:
     if home == "~":
         return False
     return os.path.realpath(path) == os.path.realpath(home)
-
-
-def _drop_none_values(d: dict[str, Any]) -> None:
-    """Recursively remove keys whose value is None, in place."""
-    for key in list(d):
-        v = d[key]
-        if v is None:
-            del d[key]
-        elif isinstance(v, dict):
-            _drop_none_values(v)

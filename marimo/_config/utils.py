@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import os
 from functools import lru_cache
+from typing import Any
 
 from marimo import _loggers
 from marimo._utils.xdg import marimo_config_path
@@ -10,6 +11,20 @@ from marimo._utils.xdg import marimo_config_path
 LOGGER = _loggers.marimo_logger()
 
 CONFIG_FILENAME = ".marimo.toml"
+
+
+def drop_none_values(values: dict[str, Any]) -> None:
+    """Remove null-valued keys in place because TOML cannot represent them."""
+    for key in list(values):
+        value = values[key]
+        if value is None:
+            del values[key]
+        elif isinstance(value, dict):
+            drop_none_values(value)
+        elif isinstance(value, list):
+            for item in value:
+                if isinstance(item, dict):
+                    drop_none_values(item)
 
 
 def _is_parent(parent_path: str, child_path: str) -> bool:

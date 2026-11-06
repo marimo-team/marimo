@@ -13,6 +13,7 @@ from marimo._cli.config.utils import (
 from marimo._cli.help_formatter import ColoredCommand, ColoredGroup
 from marimo._cli.print import echo
 from marimo._config.manager import get_default_config_manager
+from marimo._config.utils import drop_none_values
 
 
 @click.group(
@@ -51,11 +52,9 @@ def show(notebook: str | None = None, show_sources: bool = False) -> None:
     else:
         import tomlkit
 
-        output = highlight_toml_headers(
-            tomlkit.dumps(
-                config_manager.get_config().to_dict(), sort_keys=True
-            )
-        )
+        values = config_manager.get_config().to_dict()
+        drop_none_values(values)
+        output = highlight_toml_headers(tomlkit.dumps(values, sort_keys=True))
     echo(output)
 
 
