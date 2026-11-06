@@ -419,7 +419,7 @@ async def ensure_marimo_async(
 
 # Run before importing marimo: importing a module in this package would first
 # import marimo itself with pixi exec's *tool* environment still activated.
-# exec preserves Python's normal -m/-c/script argument handling and signal PID.
+# On POSIX, exec preserves Python's argument handling and signal PID.
 _ACTIVATE_NOTEBOOK = """\
 import json, os, sys
 root, paths = json.loads(sys.argv[1])
@@ -435,7 +435,13 @@ overlay_bin = os.path.dirname(sys.executable)
 os.environ["PATH"] = os.pathsep.join(dict.fromkeys([
     overlay_bin, *paths, *os.environ.get("PATH", "").split(os.pathsep)
 ]))
-os.execv(sys.executable, [sys.executable, *sys.argv[2:]])
+argv = [sys.executable, *sys.argv[2:]]
+if os.name == "nt":
+    # Windows exec exits the launcher before the child finishes.
+    import subprocess
+    sys.exit(subprocess.call(argv))
+else:
+    os.execv(sys.executable, argv)
 """
 
 
