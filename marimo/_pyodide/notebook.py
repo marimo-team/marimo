@@ -252,6 +252,15 @@ class WorkerBackend:
     def forget(self, run_id: protocol.RunId) -> None:
         self._translators.forget(run_id)
 
+    def apply(self, command: CommandMessage) -> None:
+        """Send the kernel a command in turn with the runs handed over.
+
+        An edit that followed a run must not reach the kernel before it.
+        """
+        self._handover.submit(
+            lambda: self._session.put_control_request(command)
+        )
+
     # Submission
 
     def _prepare(
@@ -520,7 +529,11 @@ class PyodideNotebook:
                 )
             )
         # Before instantiation the kernel receives the latest app cells.
-        if update is not None and self._session.instantiated:
+        if update is None or not self._session.instantiated:
+            return
+        if self._backend is not None:
+            self._backend.apply(update)
+        else:
             self._session.put_control_request(update)
 
     async def update_config(self, config: dict[str, Any]) -> None:
