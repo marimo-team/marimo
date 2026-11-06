@@ -167,21 +167,29 @@ export const MockExecutions = {
     store: Store,
     records: Protocol.Execution[],
     runtime: Protocol.Runtime | null = null,
-  ): void {
+  ) {
     const current = store.get(activeNotebookReplicaAtom);
-    const replica: NotebookReplica = {
+    const replica = {
       connectionAtom: atom<ConnectionStatus>({ state: ConnectionState.OPEN }),
-      notebookAtom: atom(null),
       documentAtom: atom(null),
       backendAtom: atom(null),
       attachmentsAtom: atom([]),
       connect: () => () => undefined,
       reconnect: () => Promise.resolve(),
       ...current,
+      notebookAtom: atom<Protocol.Notebook>({
+        id: "n1",
+        project_id: "p1",
+        path: null,
+        name: "Notebook",
+        operations: [],
+        updated_at: null,
+      }),
       runtimeAtom: atom(runtime),
       executionsAtom: atom(mirror(records)),
       resultsAtom: atom(results(records)),
-    };
+    } satisfies NotebookReplica;
     store.set(activeNotebookReplicaAtom, replica);
+    return replica;
   },
 };

@@ -68,4 +68,32 @@ describe("observeCellMessage", () => {
       cellExecutionView(store.get(cellExecutionInputsAtom), C1).status,
     ).toBe("queued");
   });
+
+  it("forgets acknowledged submissions and blocked cells when the replica follows a new notebook", () => {
+    const store = createStore();
+    const replica = MockExecutions.seed(store, []);
+    submitCells(store, [C1]);
+    observeCellMessage(store, {
+      ...cellOp("disabled-transitively"),
+      cell_id: cellId("c2"),
+    });
+
+    const completed = MockExecutions.inputs([MockExecutions.completed(C1)]);
+    store.set(replica.executionsAtom, completed.executions);
+    store.set(replica.resultsAtom, completed.results);
+    expect(
+      cellExecutionView(store.get(cellExecutionInputsAtom), C1).status,
+    ).toBe("idle");
+
+    const empty = MockExecutions.inputs([]);
+    store.set(replica.executionsAtom, empty.executions);
+    store.set(replica.resultsAtom, empty.results);
+    store.set(replica.notebookAtom, {
+      ...store.get(replica.notebookAtom),
+      id: "n2",
+    });
+
+    expect(store.get(cellExecutionInputsAtom)).toEqual(empty);
+    expect(store.get(notebookQueuedOrRunningCountAtom)).toBe(0);
+  });
 });
