@@ -229,6 +229,7 @@ export const GridLayoutRenderer: React.FC<Props> = ({
               cellId={cell.id}
               output={cell.output}
               staleInputs={cell.staleInputs}
+              hideWithoutValue={true}
               isScrollable={isScrollable}
               side={side}
             />
@@ -294,6 +295,7 @@ export const GridLayoutRenderer: React.FC<Props> = ({
                 cellId={cell.id}
                 output={cell.output}
                 staleInputs={cell.staleInputs}
+                hideWithoutValue={false}
                 isScrollable={false}
               />
             );
@@ -362,6 +364,7 @@ export const GridLayoutRenderer: React.FC<Props> = ({
                 cellId={cell.id}
                 output={cell.output}
                 staleInputs={cell.staleInputs}
+                hideWithoutValue={false}
                 isScrollable={false}
               />
             </div>
@@ -380,6 +383,8 @@ interface GridCellProps extends Pick<
   code: string;
   cellId: CellId;
   mode: AppMode;
+  /** Whether a cell whose last run ended without a value keeps its place but shows nothing. */
+  hideWithoutValue: boolean;
   isScrollable: boolean;
   side?: GridLayoutCellSide;
 }
@@ -391,6 +396,7 @@ const GridCell = memo(
     cellId,
     mode,
     code,
+    hideWithoutValue,
     isScrollable,
     side,
     className,
@@ -398,8 +404,10 @@ const GridCell = memo(
     const execution = useCellExecution(cellId);
     const loading = outputIsLoading(execution.status);
     const stale = outputIsStale(execution, staleInputs, false);
-    // Hide cells that did not produce a result
-    const hidden = execution.outcome !== null && execution.outcome !== "value";
+    const hidden =
+      hideWithoutValue &&
+      execution.outcome !== null &&
+      execution.outcome !== "value";
 
     const isOutputEmpty = output == null || output.data === "";
     // If not reading, show code when there is no output
