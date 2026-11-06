@@ -8,15 +8,9 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
-import msgspec
-
 from marimo import _loggers
 from marimo._core import backend as be, protocol
 from marimo._messaging.notification import (
-    CellNotification,
-    CompletedRunNotification,
-    ExecutionNotification,
-    InterruptedNotification,
     NotebookDocumentTransactionNotification,
     StartupProgressNotification,
     VariableValuesNotification,
@@ -29,13 +23,16 @@ from marimo._runtime.commands import (
     ExecuteScratchpadCommand,
     HTTPRequest,
 )
-from marimo._runtime.scratch import SCRATCH_CELL_ID
 from marimo._server.host.events import notification_event
 from marimo._server.host.handover import Handover, Turn
-from marimo._server.host.translate import RunTranslator
+from marimo._server.host.translate import (
+    RunTranslator,
+    RunTranslators,
+    variable_messages,
+)
 from marimo._server.scratchpad import snapshot_for_scratchpad
 from marimo._session.consumer import SessionConsumer
-from marimo._session.model import ConnectionState, SessionMode
+from marimo._session.model import ConnectionState
 from marimo._session.requests import InstantiateNotebookRequest
 from marimo._session.types import KernelState
 from marimo._types.ids import CellId_t, ConsumerId, SessionId
@@ -124,7 +121,7 @@ class SessionBackend(SessionConsumer):
         self._runs: dict[protocol.RunId, _Run] = {}
         """Runs this backend submitted that have not finished, by run id."""
         self._handover = Handover()
-        self._translators: dict[str, RunTranslator] = {}
+        self._translators = RunTranslators()
 
     @property
     def session(self) -> Session | None:
@@ -283,7 +280,7 @@ class SessionBackend(SessionConsumer):
 
     def _submit(self, run: _Run, command: CommandMessage) -> None:
         run.submitted = True
-        self._translators[run.translator.run_id] = run.translator
+        self._translators.add(run.translator)
         run.session.put_control_request(command, from_consumer_id=None)
         self._handover.finish(run.turn)
 
@@ -387,7 +384,7 @@ class SessionBackend(SessionConsumer):
             )
 
     def forget(self, run_id: protocol.RunId) -> None:
-        self._translators.pop(run_id, None)
+        self._translators.forget(run_id)
 
     def apply(self, command: CommandMessage) -> None:
         """Send the kernel a command in turn with the runs handed over.
@@ -466,32 +463,8 @@ class SessionBackend(SessionConsumer):
 
     def _handle_notification(self, message: NotificationMessage) -> None:
         if isinstance(message, VariableValuesNotification):
-            for removed in message.removed:
-                self._observe(
-                    be.Unbound(
-                        protocol.ExecutionId(removed.execution_id),
-                        removed.name,
-                    )
-                )
-            for value in message.variables:
-                if value.execution_id is None or value.revision is None:
-                    continue
-                self._observe(
-                    be.Produced(
-                        protocol.Variable(
-                            execution_id=protocol.ExecutionId(
-                                value.execution_id
-                            ),
-                            id=protocol.ItemId(
-                                f"{value.execution_id}-variable-{value.name}"
-                            ),
-                            name=value.name,
-                            preview=value.value,
-                            revision=value.revision,
-                            type=value.datatype,
-                        )
-                    )
-                )
+            for out in variable_messages(message):
+                self._observe(out)
             return
         if isinstance(message, NotebookDocumentTransactionNotification):
             if self._document_changed is not None and self.session is not None:
@@ -502,49 +475,14 @@ class SessionBackend(SessionConsumer):
                 phase = _PHASES.get(message.phase, message.phase)
                 self._observe(be.Starting(kernel.runtime_id, phase))
             return
-        if not isinstance(
-            message,
-            (
-                CellNotification,
-                ExecutionNotification,
-                CompletedRunNotification,
-                InterruptedNotification,
-            ),
-        ):
+        if self.session is None:
             return
-        run_id = message.run_id
-        if run_id is None:
-            return
-        translator = self._translators.get(run_id)
+        translator, reports = self._translators.feed(message)
+        for reported in reports:
+            self._observe(reported)
         if translator is None:
-            if (
-                not isinstance(message, ExecutionNotification)
-                or message.phase != "planned"
-                or self.session is None
-            ):
-                return
-            translator = RunTranslator(
-                protocol.RunId(run_id),
-                message.code if message.cell_id == SCRATCH_CELL_ID else None,
-            )
-            self._translators[run_id] = translator
-            self._observe(be.Scheduled(translator.run_id))
-        # Run kernels omit source from native notifications. App documents are
-        # immutable, so recover the submitted source for host revision hashes.
-        # Keep the native message private and unchanged in the shared log.
-        if (
-            isinstance(message, ExecutionNotification)
-            and message.phase == "planned"
-            and message.code is None
-            and self._manager.mode is SessionMode.RUN
-            and self.session is not None
-        ):
-            cell = self.session.document.get(message.cell_id)
-            if cell is not None:
-                message = msgspec.structs.replace(message, code=cell.code)
-        for out in translator.feed(message):
-            self._observe(out)
-        run = self._runs.get(protocol.RunId(run_id))
+            return
+        run = self._runs.get(translator.run_id)
         if run is not None and translator is not run.translator:
             run = None
         if (
@@ -560,5 +498,5 @@ class SessionBackend(SessionConsumer):
             if run is not None:
                 run.done.set()
             else:
-                for out in translator.finish():
-                    self._observe(out)
+                for reported in translator.finish():
+                    self._observe(reported)
