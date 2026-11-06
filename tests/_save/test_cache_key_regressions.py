@@ -969,3 +969,51 @@ def test_restored_stub_survives_a_shifted_file(tmp_path: Path) -> None:
     module.write_text("# a comment\n" + module.read_text())
     restored = stub.load({"__name__": f.__module__})
     assert hash_wrapped_functions(restored) == before
+
+
+def test_debugger_edits_key_on_the_live_code(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from marimo._ast.cell import SourcePosition
+    from marimo._ast.compiler import compile_cell
+
+    # Under debugpy a cell compiles under the notebook's filename. The saved
+    # file still holds the old body.
+    notebook = tmp_path / "notebook.py"
+    notebook.write_text("def helper():\n    return 1\n")
+    monkeypatch.setenv("DEBUGPY_RUNNING", "1")
+
+    def live(value: int) -> Any:
+        cell = compile_cell(
+            f"def helper():\n    return {value}",
+            cell_id=CellId_t(f"debug-{value}"),
+            source_position=SourcePosition(str(notebook), 1, 0),
+        )
+        namespace: dict[str, Any] = {"__name__": "__main__"}
+        exec(cell.body, namespace)  # noqa: S102
+        return namespace["helper"]
+
+    assert hash_wrapped_functions(live(1)) != hash_wrapped_functions(live(2))
+
+
+def test_decorated_future_annotations_survive_restoration(
+    tmp_path: Path,
+) -> None:
+    import importlib
+    import sys
+
+    from marimo._save.stubs.function_stub import FunctionStub
+
+    (tmp_path / "wrapped_future.py").write_text(
+        "from __future__ import annotations\n"
+        "import functools\n\n\n"
+        "def f(x: Missing):\n    return x\n\n\n"
+        "@functools.wraps(f)\ndef g(*args):\n    return f(*args)\n"
+    )
+    sys.path.insert(0, str(tmp_path))
+    try:
+        g = importlib.import_module("wrapped_future").g
+    finally:
+        sys.path.remove(str(tmp_path))
+    restored = FunctionStub(g).load({"__name__": "wrapped_future"})
+    assert restored.__annotations__ == {"x": "Missing"}
