@@ -115,8 +115,7 @@ class AutoreloadManager:
             )
             if cell_id is not None:
                 self._reloader.record_cell_run(cell_id)
-                # The watcher can mark a queued cell after the kernel cleared
-                # it for this run; that mark is stale once the cell runs.
+                # Ensure watcher queue is consistent with kernel state.
                 graph = self._kernel.graph
                 cell = graph.cells.get(cell_id)
                 if (
