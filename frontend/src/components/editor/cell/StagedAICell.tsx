@@ -1,8 +1,10 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { useAtomValue, useStore } from "jotai";
+import { atom, useAtomValue, useStore } from "jotai";
+import { useMemo } from "react";
 import {
   type Edit,
+  stagedAICellsAtom,
   useStagedAICell,
   useStagedCells,
 } from "@/core/ai/staged-cells";
@@ -42,7 +44,19 @@ export function useStagedAICellActions(
 ): ActionButton[] {
   const store = useStore();
   const edit = useStagedAICell(cellId);
-  const isGenerating = useAtomValue(chatGenerationInProgressAtom);
+  // Every cell calls this; only cells with a pending edit care about the lock.
+  const isLocked = useAtomValue(
+    useMemo(
+      () =>
+        atom(
+          (get) =>
+            cellId !== undefined &&
+            get(stagedAICellsAtom).has(cellId) &&
+            get(chatGenerationInProgressAtom),
+        ),
+      [cellId],
+    ),
+  );
   const { acceptStagedCell, rejectStagedCell } = useStagedCells(store);
 
   if (!edit || cellId === undefined) {
@@ -53,7 +67,7 @@ export function useStagedAICellActions(
   return [
     {
       label: labels.accept,
-      disabled: isGenerating,
+      disabled: isLocked,
       handle: () => {
         if (!store.get(chatGenerationInProgressAtom)) {
           acceptStagedCell(cellId, edit);
@@ -62,7 +76,7 @@ export function useStagedAICellActions(
     },
     {
       label: labels.decline,
-      disabled: isGenerating,
+      disabled: isLocked,
       handle: () => {
         if (!store.get(chatGenerationInProgressAtom)) {
           rejectStagedCell(cellId, edit);

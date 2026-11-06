@@ -46,43 +46,6 @@ export const createAiCompletionOnKeydown = (opts: {
   };
 };
 
-export const CompletionActionsCellFooter: React.FC<{
-  isLoading: boolean;
-  onAccept: () => void;
-  onDecline: () => void;
-  size?: "xs" | "sm";
-  multipleCompletions?: boolean;
-  runCell?: () => void;
-  acceptLabel?: string;
-  declineLabel?: string;
-}> = ({
-  isLoading,
-  onAccept,
-  onDecline,
-  runCell,
-  acceptLabel,
-  declineLabel,
-  size,
-}) => {
-  return (
-    <>
-      <AcceptCompletionButton
-        isLoading={isLoading}
-        onAccept={onAccept}
-        size={size}
-        runCell={runCell}
-        label={acceptLabel}
-      />
-      <RejectCompletionButton
-        onDecline={onDecline}
-        size={size}
-        label={declineLabel}
-        disabled={isLoading}
-      />
-    </>
-  );
-};
-
 export const AcceptCompletionButton: React.FC<{
   isLoading: boolean;
   onAccept: () => void;
