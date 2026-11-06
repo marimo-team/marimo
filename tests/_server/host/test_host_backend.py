@@ -761,3 +761,31 @@ async def test_interrupting_a_started_cell_run_interrupts_the_kernel(
 
     assert session.interrupts == 1
     assert not any(isinstance(c, CancelRunCommand) for c in session.commands)
+
+
+async def test_an_edit_reaches_the_kernel_at_once_when_nothing_is_ahead(
+    manager: FakeManager, observed: Observed
+) -> None:
+    b = backend(manager, observed)
+    session = manager.next_session
+    b.adopt(RT1, session)
+    b.apply(CancelRunCommand(run_id="edit"))
+    assert session.commands == [CancelRunCommand(run_id="edit")]
+
+
+async def test_an_edit_waits_behind_a_run_still_preparing(
+    manager: FakeManager, observed: Observed
+) -> None:
+    b = backend(manager, observed)
+    session = manager.next_session
+    b.adopt(RT1, session)
+    async with session.scratchpad_lock:
+        b.run(protocol.RunId("run-1"), "1")
+        await asyncio.sleep(0)
+        b.apply(CancelRunCommand(run_id="edit"))
+        await asyncio.sleep(0)
+        # The edit was accepted after the run, so it follows the run.
+        assert session.commands == []
+    assert await submitted(session, 2) == ["run-1", "edit"]
+    session.broadcast(CompletedRunNotification(run_id="run-1"))
+    await observed.wait_for(be.Done)

@@ -36,13 +36,14 @@ from marimo._utils.generated_with import (
 from marimo._utils.http import HTTPException, HTTPStatus
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping, Sequence
+    from collections.abc import Callable, Mapping, Sequence
     from pathlib import Path
 
     from marimo._config.manager import MarimoConfigManager
     from marimo._core.backend import Message
     from marimo._core.stream import RoutedEvent, Sink
     from marimo._messaging.notebook import NotebookCell
+    from marimo._runtime.commands import CommandMessage
     from marimo._server.session_manager import SessionManager
     from marimo._session.notebook import AppFileManager
     from marimo._session.session import Session
@@ -421,7 +422,9 @@ class SessionBridge(SessionEventListener):
         if session is None:
             return response
         self._mirrored.pop(notebook.id, None)
-        documents.apply_to_session(session, notebook.document)
+        documents.apply_to_session(
+            session, notebook.document, self._put_for(notebook.id)
+        )
         mirrored = self._mirrored.pop(notebook.id, None)
         if mirrored is None:
             return response
@@ -470,7 +473,9 @@ class SessionBridge(SessionEventListener):
         self._rebaselining.pop(notebook_id, None)
         self._follow_saves(notebook_id, session)
         if notebook.saved_etag != notebook.document.etag:
-            documents.apply_to_session(session, notebook.document)
+            documents.apply_to_session(
+                session, notebook.document, self._put_for(notebook_id)
+            )
             return
         cells, app_config = documents.from_session(session)
         notebook.replace(cells, app_config, saved=True)
@@ -705,6 +710,13 @@ class SessionBridge(SessionEventListener):
         except OSError as e:
             raise Conflict(f"The notebook cannot be moved: {e}") from e
         self.index.moved(notebook_id, str(target), request_id=request_id)
+
+    def _put_for(
+        self, notebook_id: protocol.NotebookId
+    ) -> Callable[[CommandMessage], None] | None:
+        """How an edit reaches the kernel: in turn with the backend's runs."""
+        backend = self._backends.get(notebook_id)
+        return None if backend is None else backend.apply
 
     def _make_backend(
         self, notebook_id: protocol.NotebookId, sink: Sink

@@ -389,6 +389,21 @@ class SessionBackend(SessionConsumer):
     def forget(self, run_id: protocol.RunId) -> None:
         self._translators.pop(run_id, None)
 
+    def apply(self, command: CommandMessage) -> None:
+        """Send the kernel a command in turn with the runs handed over.
+
+        An edit that followed a run must not reach the kernel before it.
+        """
+        session = self.session
+        if session is None:
+            return
+
+        def put() -> None:
+            if self.session is session:
+                session.put_control_request(command, from_consumer_id=None)
+
+        self._handover.submit(put)
+
     # Existing sessions
 
     def adopt(self, runtime_id: protocol.RuntimeId, session: Session) -> None:
