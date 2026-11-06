@@ -120,11 +120,13 @@ def test_project_id_prefix_is_not_encoded(
 ) -> None:
     base_url, handler = server
     store = rest.RestStore(
-        base_url=base_url, api_key="test-key", project_id="proj"
+        base_url=base_url, api_key="test-key", project_id="team%2Fproj"
     )
 
     assert store.put("my cache/P_repro.json", b"payload")
-    assert handler.requests == [("PUT", "/proj/my%20cache/P_repro.json")]
+    assert handler.requests == [
+        ("PUT", "/team%2Fproj/my%20cache/P_repro.json")
+    ]
 
 
 def test_json_loader_restores_cache_name_with_space(
