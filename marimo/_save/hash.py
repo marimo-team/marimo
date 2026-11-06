@@ -4,10 +4,11 @@ from __future__ import annotations
 import ast
 import base64
 import dataclasses
+import functools
 import hashlib
 import inspect
+import linecache
 import sys
-import textwrap
 from typing import TYPE_CHECKING, Any, NamedTuple
 
 from marimo._ast.fingerprint import ast_fingerprint, code_fingerprint
@@ -73,32 +74,67 @@ class SerialRefs(NamedTuple):
     stateful_refs: set[Name]
 
 
-def hash_function_source(fn: Callable[..., Any]) -> bytes:
-    """Fingerprint a function's own source, as parsed.
+@functools.lru_cache(maxsize=32)
+def _parse_source(filename: str, source: str) -> ast.Module:
+    del filename  # Part of the key: the same text in two files is two trees.
+    return ast.parse(source)
 
-    Raises `TypeError` when the source is unavailable or ambiguous, so the
-    caller falls back to producer identity.
+
+def hash_function_source(fn: Callable[..., Any]) -> bytes:
+    """Fingerprint a function's own definition, located in its source file.
+
+    Raises `TypeError` when the source is unavailable or the definition
+    cannot be told apart, so the caller falls back to pickling by reference.
     """
     code = fn.__code__
+    # The whole file, not `inspect.getsource`: a fragment has to be dedented,
+    # which rewrites multiline string literals, and a lambda's fragment may
+    # not parse on its own.
+    lines = linecache.getlines(code.co_filename)
+    if not lines:
+        raise TypeError(f"No source for {code.co_qualname}")
     try:
-        # The code object, not the function: `inspect.getsource` unwraps a
-        # function to the one it decorates, and a wrapper has its own source.
-        source = textwrap.dedent(inspect.getsource(code))
-        tree = ast.parse(source)
-    except (OSError, SyntaxError, ValueError) as e:
-        raise TypeError(f"No source for {code.co_qualname}") from e
+        tree = _parse_source(code.co_filename, "".join(lines))
+    except (SyntaxError, ValueError) as e:
+        raise TypeError(f"Unparsable source for {code.co_qualname}") from e
+    first = code.co_firstlineno
+    nodes: list[ast.AST]
     if code.co_name == "<lambda>":
-        # A lambda's source is the statement around it. Fingerprint only the
-        # lambda, and give up when the statement holds more than one.
-        nodes: list[ast.AST] = [
-            n for n in ast.walk(tree) if isinstance(n, ast.Lambda)
+        # Several lambdas can share a line. The code's instruction positions
+        # fall inside the one that produced it.
+        span = next(
+            (
+                ((line, col), (end_line, end_col))
+                for line, end_line, col, end_col in code.co_positions()
+                if line is not None
+                and col is not None
+                and end_line is not None
+                and end_col is not None
+                and (line, col) < (end_line, end_col)
+            ),
+            None,
+        )
+        nodes = [
+            n
+            for n in ast.walk(tree)
+            if isinstance(n, ast.Lambda)
+            and n.lineno == first
+            and (
+                span is None
+                or (n.lineno, n.col_offset) <= span[0]
+                and span[1] <= (n.end_lineno or 0, n.end_col_offset or 0)
+            )
         ]
     else:
+        # A cell-local function has a mangled co_name; the source does not.
+        name = unmangle_local(code.co_name).name
         nodes = [
             n
             for n in ast.walk(tree)
             if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))
-            and n.name == code.co_name
+            and n.name == name
+            and (n.decorator_list[0] if n.decorator_list else n).lineno
+            == first
         ]
     if len(nodes) != 1:
         raise TypeError(f"Ambiguous source for {code.co_qualname}")
@@ -123,14 +159,29 @@ def hash_wrapped_functions(
         hash_alg = hashlib.new(hash_type, usedforsecurity=False)
         if not inspect.isbuiltin(fn):
             hash_alg.update(hash_function_source(fn))
+            try:
+                captured = tuple(
+                    cell.cell_contents for cell in fn.__closure__ or ()
+                )
+            except ValueError as e:
+                raise TypeError("Empty closure cell") from e
+            # Module and qualname: two modules can define the same source
+            # over different globals. Captured values: `seen` already holds
+            # `fn`, so a closure over itself terminates.
             hash_alg.update(
                 type_sign(
                     deterministic_dumps(
-                        (fn.__defaults__, fn.__kwdefaults__),
+                        (
+                            fn.__module__,
+                            fn.__qualname__,
+                            fn.__defaults__,
+                            fn.__kwdefaults__,
+                            captured,
+                        ),
                         hash_type,
                         _seen=seen,
                     ),
-                    "defaults",
+                    "function",
                 )
             )
         else:
@@ -866,9 +917,9 @@ class BlockHasher:
                         value, self.hash_alg.name
                     )
                 except Exception:  # noqa: S112
-                    # Encoding runs user reducers, which raise any exception
-                    # type. A default that cannot be encoded needs producer
-                    # identity.
+                    # No source, or a default or captured value that cannot
+                    # be encoded. Leave the ref queued: it is pickled by
+                    # reference with the other unhashable refs.
                     continue
             # A restored stub — a placeholder left in scope for a value we
             # could not materialize here (e.g. a tensor whose optional dep is
