@@ -248,6 +248,10 @@ def deterministic_dumps(
     seen: set[int] = set() if _seen is None else _seen
 
     class _ContentHashPickler(pickle.Pickler):
+        # Sets already encoded in this pass, so a second reference to the
+        # same set is an alias and not a copy, as pickle's memo would record.
+        _sets: dict[int, int]
+
         def persistent_id(self, obj: Any) -> Any:
             # The pickler never asks `reducer_override` about a set, but it
             # asks `persistent_id` about everything. Iteration order of a set
@@ -258,6 +262,10 @@ def deterministic_dumps(
                 if id(obj) in seen:
                     # Reached again while ordering its own members.
                     return ("set-cycle",)
+                sets = self.__dict__.setdefault("_sets", {})
+                if id(obj) in sets:
+                    return ("set-alias", sets[id(obj)])
+                sets[id(obj)] = len(sets)
                 # A copy: ordering must not mark functions as seen before the
                 # real pass encodes them.
                 ordering = seen | {id(obj)}
@@ -267,7 +275,7 @@ def deterministic_dumps(
                         item, hash_type, _seen=ordering
                     ),
                 )
-                return (type(obj).__name__, tuple(members))
+                return (type(obj).__name__, sets[id(obj)], tuple(members))
             return None
 
         def reducer_override(self, obj: Any) -> Any:

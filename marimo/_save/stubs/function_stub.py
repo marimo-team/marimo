@@ -1,6 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import ast
 import inspect
 import linecache
 import textwrap
@@ -45,7 +46,10 @@ class FunctionStub:
                 self.filename,
             )
 
-        code_obj = compile(self.code, self.filename, "exec")
+        # At its original line, so the restored function is found at the
+        # same place in its file as the definition it stands in for.
+        tree = ast.increment_lineno(ast.parse(self.code), self.lineno - 1)
+        code_obj = compile(tree, self.filename, "exec")
         lcls: dict[str, Any] = {}
         exec(code_obj, glbls, lcls)
         for value in lcls.values():
