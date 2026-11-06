@@ -113,6 +113,102 @@ def test_map_csv_preserves_repeated_keys() -> None:
     ]
 
 
+@pytest.mark.requires("polars")
+@pytest.mark.parametrize("lazy", [False, True])
+@pytest.mark.parametrize(
+    "case", ["floats", "float_keys", "nested", "fallback"]
+)
+def test_map_csv_non_finite_values(lazy: bool, case: str) -> None:
+    import polars as pl
+
+    map_dtype = getattr(pl, "Map", None)
+    if map_dtype is None:
+        pytest.skip("Map dtype requires Polars 2")
+
+    numbers = [1.5, float("nan"), float("inf"), float("-inf"), None]
+    values: dict[object, object]
+    expected: list[dict[str, object]]
+    if case == "floats":
+        dtype = map_dtype(pl.String, pl.Float64)
+        values = dict(
+            zip(
+                ["finite", "nan", "inf", "negative_inf", "null"],
+                numbers,
+                strict=True,
+            )
+        )
+        expected = [
+            {"key": key, "value": 1.5 if key == "finite" else None}
+            for key in values
+        ]
+    elif case == "float_keys":
+        dtype = map_dtype(pl.Float64, pl.String)
+        values = {float("inf"): "positive", float("-inf"): "negative"}
+        expected = [
+            {"key": None, "value": "positive"},
+            {"key": None, "value": "negative"},
+        ]
+    else:
+        fields: dict[str, pl.DataType | type[pl.DataType]] = {
+            "numbers": pl.List(pl.Float64)
+        }
+        nested: dict[str, object] = {"numbers": numbers}
+        expected_value: dict[str, object] = {
+            "numbers": [1.5, None, None, None, None]
+        }
+        if case == "fallback":
+            fields["binary"] = pl.Binary
+            nested["binary"] = b"abc"
+            expected_value["binary"] = "abc"
+        dtype = map_dtype(pl.String, pl.Struct(fields))
+        values = {"nested": nested}
+        expected = [{"key": "nested", "value": expected_value}]
+
+    source = pl.DataFrame(
+        {"id": [0, 1, 2], "value": pl.Series([values, {}, None], dtype=dtype)}
+    )
+    manager = PolarsTableManagerFactory.create()(
+        source.lazy() if lazy else source
+    )
+    rows = list(csv.DictReader(io.StringIO(manager.to_csv_str())))
+
+    def reject_constant(value: str) -> None:
+        pytest.fail(f"Invalid JSON constant: {value}")
+
+    assert [
+        json.loads(row["value"], parse_constant=reject_constant)
+        if row["value"]
+        else None
+        for row in rows
+    ] == [expected, [], None]
+    assert manager.collect().equals(source)
+
+
+@pytest.mark.requires("polars")
+def test_map_csv_native_conversion(monkeypatch: pytest.MonkeyPatch) -> None:
+    import polars as pl
+
+    map_dtype = getattr(pl, "Map", None)
+    if map_dtype is None:
+        pytest.skip("Map dtype requires Polars 2")
+    source = pl.DataFrame(
+        {
+            "value": pl.Series(
+                [{1: [1, 2]}, {}, None],
+                dtype=map_dtype(pl.Int64, pl.List(pl.Int64)),
+            )
+        }
+    )
+    manager = PolarsTableManagerFactory.create()(source)
+
+    def reject_to_list(*_args: Any, **_kwargs: Any) -> None:
+        pytest.fail("Native Map export must not materialize Python values")
+
+    monkeypatch.setattr(pl.Series, "to_list", reject_to_list)
+    rows = list(csv.reader(io.StringIO(manager.to_csv_str())))
+    assert rows == [["value"], ['[{"key":1,"value":[1,2]}]'], ["[]"], []]
+
+
 def assert_frame_equal(a: Any, b: Any) -> bool:
     import polars.testing
 
