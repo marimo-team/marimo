@@ -119,8 +119,14 @@ function useNow(ticking: boolean): number {
     if (!ticking) {
       return;
     }
-    const id = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(id);
+    const tick = () => setNow(Date.now());
+    // Catch up at once when resuming, e.g. after a tool approval.
+    const frame = requestAnimationFrame(tick);
+    const id = setInterval(tick, 1000);
+    return () => {
+      cancelAnimationFrame(frame);
+      clearInterval(id);
+    };
   }, [ticking]);
   return now;
 }

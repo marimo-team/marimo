@@ -623,8 +623,22 @@ const ChatPanelBody = () => {
   useChatGeneration(isTurnActive);
 
   const stopTurn = useEvent(() => {
-    turn.stop();
-    void stop();
+    if (isLoading) {
+      turn.stop();
+      void stop();
+      return;
+    }
+    // Between requests there is no stream to abort, so `onFinish` won't run.
+    const stopped = turn.finish(messages, { isAbort: true, isError: false });
+    setMessages(stopped);
+    setChatState((prev) =>
+      replaceMessagesInChat({
+        chatState: prev,
+        chatId: prev.activeChatId,
+        messages: stopped,
+      }),
+    );
+    tryFlushQueuedMessages(stopped, { isError: false, isAbort: true });
   });
 
   const respondToApproval = useEvent(
