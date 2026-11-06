@@ -60,10 +60,14 @@ const {
 
 export { useStagedAICellsActions };
 
-export function useStagedAICell(cellId: CellId): Edit | undefined {
+export function useStagedAICell(cellId: CellId | undefined): Edit | undefined {
   const stagedCellAtom = useMemo(
     () =>
-      selectAtom(stagedAICellsAtom, (cells) => cells.get(cellId), Object.is),
+      selectAtom(
+        stagedAICellsAtom,
+        (cells) => (cellId === undefined ? undefined : cells.get(cellId)),
+        Object.is,
+      ),
     [cellId],
   );
   return useAtomValue(stagedCellAtom);
@@ -96,8 +100,13 @@ export function useStagedCells(store: JotaiStore) {
       return;
     }
 
-    // The AI may change the cell's language, and only the editor infers
-    // one. Without a mounted editor the code arrives through the document.
+    writeCellCode(cellId, code);
+  };
+
+  // The AI may change the cell's language, and only the editor infers one.
+  // Without a mounted editor (e.g. in a collapsed section) the code goes
+  // through the document instead.
+  const writeCellCode = (cellId: CellId, code: string) => {
     const editorView = getCellEditorView(cellId);
     if (editorView) {
       const update = prepareCellCodeUpdate(editorView.state, code, {
@@ -116,12 +125,37 @@ export function useStagedCells(store: JotaiStore) {
     deleteCellCallback({ cellId });
   };
 
+  const acceptStagedCell = (cellId: CellId, edit: Edit) => {
+    if (edit.type === "delete_cell") {
+      deleteStagedCell(cellId);
+    } else {
+      removeStagedCell(cellId);
+    }
+  };
+
+  const rejectStagedCell = (cellId: CellId, edit: Edit) => {
+    switch (edit.type) {
+      case "update_cell":
+        writeCellCode(cellId, edit.previousCode);
+        removeStagedCell(cellId);
+        break;
+      case "add_cell":
+        deleteStagedCell(cellId);
+        break;
+      case "delete_cell":
+        removeStagedCell(cellId);
+        break;
+    }
+  };
+
   return {
     createStagedCell,
     updateStagedCell,
     addStagedCell,
     removeStagedCell,
     deleteStagedCell,
+    acceptStagedCell,
+    rejectStagedCell,
   };
 }
 

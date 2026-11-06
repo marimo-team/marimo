@@ -13,6 +13,7 @@ import { PendingAICells } from "../pending-ai-cells";
 import { PendingAIChangesBadge } from "../pending-ai-changes-badge";
 
 const deleteCell = vi.hoisted(() => vi.fn());
+const setCellCode = vi.hoisted(() => vi.fn());
 
 vi.mock("@/components/editor/cell/useDeleteCell", () => ({
   useDeleteCellCallback: () => deleteCell,
@@ -24,7 +25,7 @@ vi.mock("@/core/cells/cells", () => ({
 vi.mock("@/core/cells/actions", () => ({
   useCellActions: () => ({
     createCell: vi.fn(),
-    setCellCode: vi.fn(),
+    setCellCode,
   }),
 }));
 
@@ -137,8 +138,8 @@ it("locks staged edits during generation and unlocks after completion, stop, err
     expect(
       screen.queryByRole("button", { name: "Keep all" }),
     ).toBeInTheDocument();
-    const keepCell = screen.getByRole("button", { name: "Keep cell" });
-    const discardCell = screen.getByRole("button", { name: "Discard cell" });
+    const keepCell = screen.getByRole("button", { name: "Keep" });
+    const discardCell = screen.getByRole("button", { name: "Discard" });
     for (const button of [keepCell, discardCell]) {
       expect(button.hasAttribute("disabled")).toBe(isGenerating);
       if (isGenerating) {
@@ -146,9 +147,7 @@ it("locks staged edits during generation and unlocks after completion, stop, err
       }
     }
     expect(store.get(stagedAICellsAtom).has(pendingCell)).toBe(true);
-    expect(
-      screen.queryByRole("button", { name: "Keep cell" }),
-    ).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Keep" })).toBeInTheDocument();
   }
 
   fireEvent.click(screen.getByRole("button", { name: "Keep all" }));
@@ -185,7 +184,7 @@ it.each(["Delete cell", "Keep cell"])(
     expect(
       screen.queryByRole("button", { name: "Discard all" }),
     ).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Keep cell" }));
+    fireEvent.click(screen.getByRole("button", { name: "Keep" }));
     expect(
       screen.queryByRole("region", { name: "Review AI changes" }),
     ).not.toBeInTheDocument();
@@ -218,6 +217,7 @@ it("keeps batch discard visible and locks it during generation", () => {
   rerender(ui("ready"));
   expect(discard).toBeEnabled();
   fireEvent.click(discard);
+  expect(deleteCell).toHaveBeenCalledTimes(2);
   expect(deleteCell).toHaveBeenCalledWith({ cellId: pendingCell });
   expect(store.get(stagedAICellsAtom).size).toBe(0);
 });
@@ -234,9 +234,28 @@ it("clears the panel badge when all pending changes are accepted", () => {
       <PendingAICells />
     </Provider>,
   );
-  expect(screen.getByLabelText("1 pending AI change")).toHaveTextContent("1");
-  fireEvent.click(screen.getByRole("button", { name: "Keep cell" }));
-  expect(
-    screen.queryByLabelText("1 pending AI change"),
-  ).not.toBeInTheDocument();
+  expect(screen.getByText("1 pending AI change")).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Keep" }));
+  expect(screen.queryByText("1 pending AI change")).not.toBeInTheDocument();
+});
+
+it("discards an edit to a cell whose editor is not mounted", () => {
+  setCellCode.mockClear();
+  const store = createStore();
+  const collapsed = cellId("collapsed-cell");
+  store.set(
+    stagedAICellsAtom,
+    new Map([[collapsed, { type: "update_cell", previousCode: "x = 1" }]]),
+  );
+  render(
+    <Provider store={store}>
+      <PendingAICells />
+    </Provider>,
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Discard" }));
+  expect(setCellCode).toHaveBeenCalledWith({
+    cellId: collapsed,
+    code: "x = 1",
+  });
+  expect(store.get(stagedAICellsAtom).size).toBe(0);
 });
