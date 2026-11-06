@@ -78,6 +78,7 @@ _EDIT_COMMANDS: frozenset[type] = frozenset(
         commands.RefreshSecretsCommand,
         commands.ClearCacheCommand,
         commands.StopKernelCommand,
+        commands.CancelRunCommand,
     }
 )
 

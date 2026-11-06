@@ -58,7 +58,14 @@ class FakeSession:
                 consumer.on_detach()
                 return
 
-    def instantiate(self, request: Any, *, http_request: Any) -> None:
+    def instantiate(
+        self,
+        request: Any,
+        *,
+        http_request: Any,
+        execution_requests: Any = None,
+    ) -> None:
+        self.execution_requests = execution_requests
         del http_request
         self.instantiations.append(request)
 

@@ -349,7 +349,7 @@ export function useNotebookActions({
               code: code.contents,
               baseUrl: `${Constants.molab}/new`,
             });
-            window.open(url, "_blank");
+            window.open(url, "_blank", "noopener");
           },
         },
       ],
@@ -662,35 +662,35 @@ export function useNotebookActions({
           icon: <BookMarkedIcon size={14} strokeWidth={1.5} />,
           label: "Documentation",
           handle: () => {
-            window.open(Constants.docsPage, "_blank");
+            window.open(Constants.docsPage, "_blank", "noopener");
           },
         },
         {
           icon: <GitHubIcon className="h-3.5 w-3.5" />,
           label: "GitHub",
           handle: () => {
-            window.open(Constants.githubPage, "_blank");
+            window.open(Constants.githubPage, "_blank", "noopener");
           },
         },
         {
           icon: <MessagesSquareIcon size={14} strokeWidth={1.5} />,
           label: "Discord Community",
           handle: () => {
-            window.open(Constants.discordLink, "_blank");
+            window.open(Constants.discordLink, "_blank", "noopener");
           },
         },
         {
           icon: <YouTubeIcon className="h-3.5 w-3.5" />,
           label: "YouTube",
           handle: () => {
-            window.open(Constants.youtube, "_blank");
+            window.open(Constants.youtube, "_blank", "noopener");
           },
         },
         {
           icon: <FileTextIcon size={14} strokeWidth={1.5} />,
           label: "Changelog",
           handle: () => {
-            window.open(Constants.releasesPage, "_blank");
+            window.open(Constants.releasesPage, "_blank", "noopener");
           },
         },
       ],

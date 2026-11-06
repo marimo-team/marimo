@@ -368,3 +368,46 @@ test("mergeConfig replaces arrays instead of merging by index", () => {
     },
   });
 });
+
+test.each([{}, { "run-cell": "Alt-Enter" }])(
+  "mergeConfig replaces shortcut dictionaries with %j",
+  (overrides) => {
+    const original = {
+      keymap: {
+        preset: "vim",
+        overrides: { "run-all": "Ctrl-Enter" },
+      },
+    };
+    expect(mergeConfig(original, { keymap: { overrides } })).toEqual({
+      keymap: { preset: "vim", overrides },
+    });
+    expect(original.keymap.overrides).toEqual({ "run-all": "Ctrl-Enter" });
+  },
+);
+
+test.each(["ai.custom_providers", "signing.trusted_signers"])(
+  "mergeConfig replaces records at %s while preserving retained record fields",
+  (path) => {
+    const [section, name] = path.split(".");
+    const original = {
+      [section]: {
+        [name]: {
+          retained: { name: "before", api_key: "secret" },
+          removed: { name: "removed" },
+        },
+      },
+    };
+    expect(
+      mergeConfig(original, {
+        [section]: { [name]: { retained: { name: "after" } } },
+      }),
+    ).toEqual({
+      [section]: {
+        [name]: { retained: { name: "after", api_key: "secret" } },
+      },
+    });
+    expect(mergeConfig(original, { [section]: { [name]: {} } })).toEqual({
+      [section]: { [name]: {} },
+    });
+  },
+);

@@ -540,7 +540,7 @@ class ReplayExtension(EventAwareExtension):
 
         # Collect cell ids and codes
         if isinstance(request, ExecuteCellsCommand):
-            cell_ids = request.cell_ids
+            cell_ids = [cell.cell_id for cell in request.execution_requests]
         else:
             cell_ids = request.run_ids
 

@@ -146,7 +146,9 @@ export async function handleToolCall({
       addToolOutput({
         tool: toolCall.toolName,
         toolCallId: toolCall.toolCallId,
-        output: response.result || response.error,
+        ...(response.error
+          ? { state: "output-error", errorText: response.error }
+          : { output: response.result }),
       });
     } else {
       // Invoke the backend/mcp tool
@@ -157,7 +159,9 @@ export async function handleToolCall({
       addToolOutput({
         tool: toolCall.toolName,
         toolCallId: toolCall.toolCallId,
-        output: response.result || response.error,
+        ...(response.error
+          ? { state: "output-error", errorText: response.error }
+          : { output: response.result }),
       });
     }
   } catch (error) {
@@ -165,7 +169,8 @@ export async function handleToolCall({
     addToolOutput({
       tool: toolCall.toolName,
       toolCallId: toolCall.toolCallId,
-      output: `Error: ${error instanceof Error ? error.message : String(error)}`,
+      state: "output-error",
+      errorText: error instanceof Error ? error.message : String(error),
     });
   }
 }

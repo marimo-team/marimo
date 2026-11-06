@@ -303,7 +303,7 @@ def test_index_with_directory_run_mode(
 
 
 def test_index_with_directory_respects_inline_theme(
-    client: TestClient, tmp_path: Path
+    client: TestClient, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     # Regression test for #10056: a directory workspace sends a relative file
     # key, and its inline theme must still be applied.
@@ -335,6 +335,11 @@ def test_index_with_directory_respects_inline_theme(
 
     app_state = AppState.from_app(cast(Any, client.app))
     app_state.session_manager.mode = SessionMode.RUN
+    from marimo._config.manager import EnvVarReader
+
+    app_state.state.config_manager = app_state.config_manager.with_partial(
+        EnvVarReader()
+    )
 
     with workspace_scope(
         client, DirectoryWorkspace(str(tmp_path), include_markdown=False)
@@ -342,6 +347,11 @@ def test_index_with_directory_respects_inline_theme(
         response = client.get("/?file=notebook.py", headers=token_header())
         assert response.status_code == 200, response.text
         assert '"theme": "dark"' in response.text
+
+        monkeypatch.setenv("MARIMO_DISPLAY_THEME", "light")
+        response = client.get("/?file=notebook.py", headers=token_header())
+        assert response.status_code == 200, response.text
+        assert '"theme": "light"' in response.text
 
 
 def test_config_manager_at_file_directory_keys(

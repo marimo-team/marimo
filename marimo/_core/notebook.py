@@ -247,14 +247,14 @@ class Notebook:
             name=cell.name,
             config=cell.config,
             etag=cell.etag,
-            code_hash=cell.code_hash,
+            code_fingerprint=cell.code_fingerprint,
             version=self._cell_versions[cell.id],
         )
 
     def _cell_version(self, cell: DocumentCell) -> protocol.CellVersion:
         return protocol.CellVersion(
             etag=cell.etag,
-            code_hash=cell.code_hash,
+            code_fingerprint=cell.code_fingerprint,
             version=self._cell_versions[cell.id],
         )
 
@@ -452,17 +452,19 @@ class Notebook:
         cells: Sequence[protocol.RequestedCell] | None = None,
         request_id: str,
     ) -> protocol.Run:
-        """Queue scratch code, or cells of the document, on an idle runtime.
+        """Queue scratch code, or cells of the document, on the runtime.
 
-        Each requested cell must be in the document. One that names a
-        `code_hash` the cell no longer has is a conflict, and nothing runs.
+        Runs start in acceptance order, one at a time, each with the
+        document it was accepted in. Each requested cell must be in the
+        document. One that names an `etag` the cell no longer has is a
+        conflict, and nothing runs.
 
         Raises:
             Invalid: If the request names neither code nor cells, or both,
                 an empty cell sequence, or a cell the document does not have.
             NoRuntime: If the notebook has no runtime.
-            Conflict: If the runtime is not running, a run is in progress,
-                or a requested cell's code has changed.
+            Conflict: If the runtime is not running or a requested cell
+                has changed.
         """
         if (code is None) == (cells is None):
             raise Invalid("a run names code or cells, not both")
@@ -473,9 +475,6 @@ class Notebook:
             runtime = self._require_runtime()
             if runtime.status != "running":
                 raise Conflict(f"the runtime is {runtime.status}.")
-            active = self.executions.active()
-            if active is not None:
-                raise Conflict(f"run {active.id} is in progress.")
             targets: list[protocol.CellId] = []
             for requested in cells or ():
                 cell = self._document.cell(requested.id)
@@ -483,10 +482,7 @@ class Notebook:
                     raise Invalid(
                         f"cell {requested.id} is not in the document."
                     )
-                if (
-                    requested.code_hash is not UNSET
-                    and requested.code_hash != cell.code_hash
-                ):
+                if requested.etag is not UNSET and requested.etag != cell.etag:
                     raise Conflict(
                         f"cell {requested.id} has changed since it was read."
                     )

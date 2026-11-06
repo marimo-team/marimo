@@ -5,11 +5,13 @@ from typing import Any, Literal
 
 import msgspec
 
+from marimo._config.config import MarimoConfig
 from marimo._runtime.commands import (
     ClearCacheCommand,
     CodeCompletionCommand,
     DebugCellCommand,
     DiscoverDataSourcesCommand,
+    ExecuteCellCommand,
     ExecuteCellsCommand,
     ExecuteScratchpadCommand,
     GetCacheInfoCommand,
@@ -182,7 +184,9 @@ class StorageDownloadRequest(StorageDownloadCommand, tag=False):
         )
 
 
-class UpdateUserConfigRequest(UpdateUserConfigCommand, tag=False):
+class UpdateUserConfigRequest(msgspec.Struct):
+    config: MarimoConfig
+
     def as_command(self) -> UpdateUserConfigCommand:
         return UpdateUserConfigCommand(config=self.config)
 
@@ -254,8 +258,12 @@ class ExecuteCellsRequest(msgspec.Struct, rename="camel"):
 
     def as_command(self) -> ExecuteCellsCommand:
         return ExecuteCellsCommand(
-            cell_ids=self.cell_ids,
-            codes=self.codes,
+            execution_requests=[
+                ExecuteCellCommand(cell_id=cell_id, code=code)
+                for cell_id, code in zip(
+                    self.cell_ids, self.codes, strict=True
+                )
+            ],
             request=self.request,
         )
 

@@ -14,7 +14,7 @@ permissions:
 
 env:
   TURBO_TEAM: marimo
-  MARIMO_SKIP_UPDATE_CHECK: 1
+  MARIMO_SERVER_SKIP_UPDATE_CHECK: 1
   UV_EXCLUDE_NEWER: "7 days"
 jobs:
   changes:

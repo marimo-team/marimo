@@ -70,6 +70,28 @@ describe("NotebookClient", () => {
     expect(await request.json()).toEqual({ changes });
   });
 
+  it("addresses an input and preserves its reply key and empty answer", async () => {
+    const response = readFixture("input-reply-response.json");
+    const { notebook, sent } = connect(() => json(200, response));
+
+    expect(
+      await notebook.input(
+        "i/1",
+        { value: "" },
+        {
+          idempotencyKey: "reply-1",
+        },
+      ),
+    ).toEqual({ ok: true, status: 200, data: response });
+    const request = sent();
+    expect(request.method).toBe("POST");
+    expect(request.url).toBe(
+      "http://127.0.0.1:2718/api/marimo/v1/notebooks/n1/runtime/inputs/i%2F1/reply",
+    );
+    expect(request.headers.get("Idempotency-Key")).toBe("reply-1");
+    expect(await request.json()).toEqual({ value: "" });
+  });
+
   it("keeps the notebook URL's query string and ignores a trailing slash", async () => {
     const problem = readFixture("problems/not-found.json");
     const { notebook, fetch } = connect(
@@ -199,6 +221,7 @@ describe("NotebookClient", () => {
       "runtime.stop": "stop",
       "runtime.restart": "restart",
       "runtime.run": "run",
+      "runtime.input": "input",
       "runtime.interrupt": "interrupt",
     } as const).toExtend<Record<NotebookOperationId, keyof NotebookClient>>();
   });

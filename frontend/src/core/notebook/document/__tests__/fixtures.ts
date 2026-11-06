@@ -22,7 +22,7 @@ export function cell(
     name: "_",
     config: CONFIG,
     etag: `${id}-etag`,
-    code_hash: `${id}-hash`,
+    code_fingerprint: `${id}-hash`,
     version: 1,
     ...overrides,
   };

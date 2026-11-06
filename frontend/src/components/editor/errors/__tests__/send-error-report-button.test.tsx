@@ -422,11 +422,17 @@ describe("SendErrorReportButton", () => {
             cellRuntime: { [CELL_ID]: { output } },
           }),
         );
-        actions.updateCellCode({
-          cellId: CELL_ID,
-          code: "print('edited')",
-          formattingChange: false,
-        });
+        store.set(notebookAtom, (state) => ({
+          ...state,
+          cellData: {
+            ...state.cellData,
+            [CELL_ID]: {
+              ...state.cellData[CELL_ID],
+              code: "print('edited')",
+              edited: true,
+            },
+          },
+        }));
         if (queue) {
           actions.prepareForRun({ cellId: CELL_ID });
           actions.handleCellMessage({

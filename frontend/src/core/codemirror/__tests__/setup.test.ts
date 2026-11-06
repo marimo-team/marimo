@@ -40,6 +40,7 @@ function getOpts() {
     enableAI: false,
     cellActions: {
       toggleHideCode: namedFunction("toggleHideCode"),
+      askAiAboutCell: namedFunction("askAiAboutCell"),
       aiCellCompletion: namedFunction("aiCellCompletion"),
       createManyBelow: namedFunction("createManyBelow"),
       onRun: namedFunction("onRun"),
@@ -239,4 +240,35 @@ test("ai adds more extensions", () => {
     })
     .flat();
   expect(withAI.length - 2).toBe(withoutAI.length);
+});
+
+test("empty-cell AI action opens chat without invoking the local refactor prompt", () => {
+  const askAiAboutCell = vi.fn();
+  const aiCellCompletion = vi.fn();
+  const view = new EditorView({
+    state: EditorState.create({
+      doc: "",
+      extensions: setup({
+        showPlaceholder: true,
+        enableAI: false,
+        enableAIChat: true,
+        cellActions: {
+          ...getOpts().cellActions,
+          askAiAboutCell,
+          aiCellCompletion,
+        },
+      }),
+    }),
+  });
+  try {
+    const button = view.dom.querySelector<HTMLButtonElement>(
+      ".cm-clickable-placeholder",
+    );
+    expect(button?.textContent).toBe("generate with AI");
+    button?.click();
+    expect(askAiAboutCell).toHaveBeenCalledOnce();
+    expect(aiCellCompletion).not.toHaveBeenCalled();
+  } finally {
+    view.destroy();
+  }
 });

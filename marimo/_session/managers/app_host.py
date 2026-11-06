@@ -176,11 +176,15 @@ class AppHostKernelManager(KernelManager):
         self.kernel_task: ProcessLike | threading.Thread | None = None
 
     async def start_kernel(self) -> None:
+        resolved = self._config_manager.get_config_with_sources(
+            hide_secrets=False
+        )
         response = self._app_host.create_kernel(
             session_id=self._session_id,
             configs=self._configs,
             app_metadata=self._app_metadata,
-            user_config=self._config_manager.get_config(hide_secrets=False),
+            user_config=resolved.config,
+            config_overrides=resolved.override_paths,
             # AppHost runs the kernel in a subprocess, so virtual files
             # must be stored in shared memory — otherwise the server
             # process can't serve them on /@file/...

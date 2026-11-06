@@ -196,6 +196,8 @@ async def test_pylsp_launcher(tmp_path: Path):
     try:
         assert await server.start() is None
         assert server.is_running()
+        # start() can return before the port is ready on slow CI workers.
+        assert await server._wait_until_ready(timeout_seconds=30)
         with pytest.raises(InvalidStatus):
             async with connect(f"ws://127.0.0.1:{server.port}"):
                 pytest.fail("Unauthorized connection accepted")

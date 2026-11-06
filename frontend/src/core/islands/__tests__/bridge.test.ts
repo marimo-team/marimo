@@ -770,8 +770,19 @@ describe("IslandsPyodideBridge", () => {
         functionName: "put_control_request",
         payload: {
           type: "execute-cells",
-          cellIds: ["cell-1", "cell-2"],
-          codes: ["print('hello')", "print('world')"],
+          request: undefined,
+          executionRequests: [
+            {
+              type: "execute-cell",
+              cellId: "cell-1",
+              code: "print('hello')",
+            },
+            {
+              type: "execute-cell",
+              cellId: "cell-2",
+              code: "print('world')",
+            },
+          ],
         },
         sessionGeneration: 1,
       });

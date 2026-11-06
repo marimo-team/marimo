@@ -15,6 +15,7 @@ from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._messaging.notification import CellNotification
 from marimo._schemas.export_options import PDFRasterizationOptions
 from marimo._session.state.session_view import SessionView
+from tests.mocks import fake_async_playwright
 
 
 def _cell_notification(
@@ -492,17 +493,6 @@ def test_capture_pngs_from_page_reports_progress_in_notebook_order() -> None:
     class _FakePlaywright:
         chromium: _FakeChromium
 
-    class _FakePlaywrightContextManager:
-        def __init__(self, playwright: _FakePlaywright) -> None:
-            self._playwright = playwright
-
-        async def __aenter__(self) -> _FakePlaywright:
-            return self._playwright
-
-        async def __aexit__(self, *args: object) -> bool:
-            del args
-            return False
-
     page = _FakePage()
     context = _FakeContext(page)
     browser = _FakeBrowser(context)
@@ -510,9 +500,7 @@ def test_capture_pngs_from_page_reports_progress_in_notebook_order() -> None:
 
     fake_async_api = ModuleType("playwright.async_api")
     fake_async_api.TimeoutError = _TimeoutError
-    fake_async_api.async_playwright = lambda: _FakePlaywrightContextManager(
-        playwright
-    )
+    fake_async_api.async_playwright = fake_async_playwright(playwright)
     fake_playwright = ModuleType("playwright")
     fake_playwright.async_api = fake_async_api  # type: ignore[attr-defined]
 
@@ -534,8 +522,9 @@ def test_capture_pngs_from_page_reports_progress_in_notebook_order() -> None:
             "_wait_for_target_ready",
             AsyncMock(return_value=True),
         ),
+        asyncio.Runner(loop_factory=asyncio.SelectorEventLoop) as runner,
     ):
-        captures = asyncio.run(
+        captures = runner.run(
             _pdf_raster._capture_pngs_from_page(
                 page_url="http://127.0.0.1:1234/demo.html",
                 targets=targets,

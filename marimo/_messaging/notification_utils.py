@@ -89,10 +89,10 @@ class CellNotificationUtils:
                 ```
 
                 to your pyproject.toml, or with the environment variable
-                `MARIMO_OUTPUT_MAX_BYTES`:
+                `MARIMO_RUNTIME_OUTPUT_MAX_BYTES`:
 
                 ```
-                export MARIMO_OUTPUT_MAX_BYTES=10_000_000
+                export MARIMO_RUNTIME_OUTPUT_MAX_BYTES=10000000
                 ```
 
                 Increasing the max output size may cause performance issues.
