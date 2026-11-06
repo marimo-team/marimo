@@ -10,7 +10,7 @@ if TYPE_CHECKING:
 
 
 class InternalError(RuntimeError):
-    """A broken marimo invariant, rather than invalid user input."""
+    """A broken marimo invariant, which we should report to users."""
 
 
 class HostError(Exception):
