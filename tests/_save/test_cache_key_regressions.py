@@ -1024,8 +1024,46 @@ def test_methods_of_different_classes_are_distinct() -> None:
         def read(self, obj: Any) -> Any:
             return obj.__value
 
+        def make(self) -> Any:
+            def read(obj: Any) -> Any:
+                return obj.__value
+
+            return read
+
     class B:
         def read(self, obj: Any) -> Any:
             return obj.__value
 
+        def make(self) -> Any:
+            def read(obj: Any) -> Any:
+                return obj.__value
+
+            return read
+
     assert hash_wrapped_functions(A.read) != hash_wrapped_functions(B.read)
+    assert hash_wrapped_functions(A().make()) != hash_wrapped_functions(
+        B().make()
+    )
+
+
+def test_lambdas_without_debug_ranges_do_not_collide(tmp_path: Path) -> None:
+    import subprocess
+    import sys
+
+    (tmp_path / "folded.py").write_text(
+        "a = lambda: 1 or (lambda: 0)\nb = lambda: 2 or (lambda: 0)\n"
+    )
+    program = (
+        "import sys\n"
+        f"sys.path.insert(0, {str(tmp_path)!r})\n"
+        "import folded\n"
+        "from marimo._save.hash import hash_wrapped_functions as h\n"
+        "print(h(folded.a) != h(folded.b))"
+    )
+    result = subprocess.run(
+        [sys.executable, "-X", "no_debug_ranges", "-c", program],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    assert result.stdout.strip() == "True"
