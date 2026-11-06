@@ -208,10 +208,15 @@ def hash_function_source(fn: Callable[..., Any]) -> bytes:
             ),
             None,
         )
+        candidates = index.lambdas.get(first, [])
+        if span is None and len(candidates) > 1:
+            # No debug ranges (`-X no_debug_ranges`): the lambdas sharing this
+            # line cannot be told apart by position.
+            return fallback()
         nested = _nested_lambda_count(code)
         nodes = [
             n
-            for n in index.lambdas.get(first, [])
+            for n in candidates
             if len(n.args.args) + len(n.args.posonlyargs) == code.co_argcount
             and sum(isinstance(c, ast.Lambda) for c in ast.walk(n.body))
             == nested
@@ -233,11 +238,20 @@ def hash_function_source(fn: Callable[..., Any]) -> bytes:
 
 
 def _scoped_name(fn: Callable[..., Any]) -> str:
-    """`__qualname__` after its last `<locals>`, with cell prefixes stripped."""
+    """`__qualname__` without its enclosing functions.
+
+    A class stays, because it mangles the `__attr` names of everything
+    defined inside it. A function goes, because a restored FunctionStub has
+    none. Cell-local prefixes are stripped.
+    """
     parts = fn.__qualname__.split(".")
-    if "<locals>" in parts:
-        parts = parts[len(parts) - parts[::-1].index("<locals>") :]
-    return ".".join(unmangle_local(part).name for part in parts)
+    kept = [
+        unmangle_local(part).name
+        for i, part in enumerate(parts)
+        if part != "<locals>"
+        and not (i + 1 < len(parts) and parts[i + 1] == "<locals>")
+    ]
+    return ".".join(kept)
 
 
 def _soft_dumps(
@@ -273,9 +287,7 @@ def hash_wrapped_functions(
         if not inspect.isbuiltin(fn):
             hash_alg.update(hash_function_source(fn))
             # The module: two modules can define the same source over
-            # different globals. The qualname from the last `<locals>` on: a
-            # method's class mangles its `__attr` names, and a restored
-            # FunctionStub loses its enclosing functions.
+            # different globals.
             hash_alg.update(
                 primitive_to_bytes((fn.__module__, _scoped_name(fn)))
             )
