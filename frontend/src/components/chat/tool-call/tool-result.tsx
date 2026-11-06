@@ -47,7 +47,7 @@ const PrettySuccessResult: React.FC<{ data: SuccessResult }> = ({ data }) => {
           Tool Result
         </h3>
         <div className="flex items-center gap-2">
-          <span className="text-xs px-2 py-0.5 bg-(--grass-2) text-(--grass-11) rounded-full font-medium capitalize">
+          <span className="text-xs text-muted-foreground capitalize">
             {status}
           </span>
           {auth_required && (

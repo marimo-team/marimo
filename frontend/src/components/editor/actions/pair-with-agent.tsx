@@ -4,7 +4,7 @@ import { ArrowUpRightIcon, BotIcon } from "lucide-react";
 import React from "react";
 import { AiProviderIcon } from "@/components/ai/ai-provider-icon";
 import { useImperativeModal } from "@/components/modal/ImperativeModal";
-import { Button, type ButtonProps } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import { isWasm } from "@/core/wasm/utils";
 import { cn } from "@/utils/cn";
 import { PairWithAgentModal } from "./pair-with-agent-modal";
@@ -31,38 +31,10 @@ export const usePairWithAgentModal = () => {
   );
 };
 
-export const PairWithAgentButton: React.FC<
-  ButtonProps & { label?: string }
-> = ({ className, label = "Pair your agent", onClick, ...props }) => {
-  const openPairWithAgentModal = usePairWithAgentModal();
-
-  if (isWasm()) {
-    return null;
-  }
-
-  return (
-    <Button
-      type="button"
-      variant="link"
-      size="xs"
-      className={cn("h-auto gap-1 px-0", className)}
-      onClick={(event) => {
-        onClick?.(event);
-        if (!event.defaultPrevented) {
-          openPairWithAgentModal();
-        }
-      }}
-      {...props}
-    >
-      {label}
-    </Button>
-  );
-};
-
 export const PairWithAgentBanner: React.FC<{
   label?: string;
   className?: string;
-}> = ({ label = "Pair your agent", className }) => {
+}> = ({ label = "Pair your coding agent", className }) => {
   const openPairWithAgentModal = usePairWithAgentModal();
 
   if (isWasm()) {
@@ -76,7 +48,7 @@ export const PairWithAgentBanner: React.FC<{
         className,
       )}
     >
-      <div className="flex items-center gap-2 text-sm font-semibold">
+      <div className="flex flex-wrap items-center gap-2 text-sm font-semibold">
         {label}
         <fieldset
           className="m-0 flex min-w-0 -space-x-1.5 border-0 p-0 mb-0.5"

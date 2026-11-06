@@ -100,13 +100,10 @@ describe("PairWithAgentModal", () => {
       expect(panel).not.toHaveTextContent("File:");
       expect(panel).not.toHaveTextContent("notebook.py");
       expect(
-        panel.textContent?.includes("Agent connections require OpenCode 2.x"),
-      ).toBe(tab === "OpenCode");
-      expect(
         within(panel).getByText(
           tab === "Other Agents"
-            ? "Copy this prompt into your agent"
-            : "Run in your terminal",
+            ? "Paste this prompt into your coding agent:"
+            : "Run this command in your terminal:",
           { exact: true },
         ),
       ).toBeInTheDocument();
@@ -367,15 +364,15 @@ describe("PairWithAgentModal", () => {
     });
 
     const panel = screen.getByRole("tabpanel");
-    expect(panel).toHaveTextContent("1. Run in your terminal");
-    expect(panel).toHaveTextContent("2. Paste when prompted for a token");
+    expect(panel).toHaveTextContent("1. Run this command in your terminal:");
+    expect(panel).toHaveTextContent("2. When prompted, paste this token:");
     expect(panel).not.toHaveTextContent("secret-token");
     fireEvent.click(
       within(panel).getByRole("button", { name: "Copy command" }),
     );
     await waitFor(() =>
       expect(copyToClipboard).toHaveBeenCalledWith(
-        String.raw`claude "$(uvx marimo@latest pair prompt \
+        String.raw`claude "$(marimo pair prompt \
   --url http://localhost:8000/ \
   --notebook ${NOTEBOOK_ID} \
   --with-token)"`,

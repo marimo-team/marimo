@@ -31,7 +31,11 @@ import {
 } from "@/core/codemirror/language/extension";
 import { MARKDOWN_INITIAL_HIDE_CODE } from "@/core/codemirror/language/languages/markdown";
 import type { LanguageAdapterType } from "@/core/codemirror/language/types";
-import { autoInstantiateAtom, isAiFeatureEnabled } from "@/core/config/config";
+import {
+  autoInstantiateAtom,
+  isAiEnabled,
+  isAiFeatureEnabled,
+} from "@/core/config/config";
 import type { UserConfig } from "@/core/config/config-schema";
 import { OverridingHotkeyProvider } from "@/core/hotkeys/hotkeys";
 import { useSaveNotebook } from "@/core/saving/save-component";
@@ -39,6 +43,7 @@ import type { Theme } from "@/theme/useTheme";
 import { cn } from "@/utils/cn";
 import { invariant } from "@/utils/invariant";
 import { mergeRefs } from "@/utils/mergeRefs";
+import { useAskAiAboutCell } from "../../chrome/wrapper/useAskAiAboutCell";
 import { AiCompletionEditor } from "../../ai/ai-completion-editor";
 import {
   closeSignatureHelp,
@@ -189,12 +194,15 @@ const CellEditorInternal = ({
   });
 
   const aiFeaturesEnabled = isAiFeatureEnabled(userConfig);
+  const askAiAboutCell = useAskAiAboutCell();
+  const aiChatEnabled = isAiEnabled(userConfig);
 
   const extensions = useMemo(() => {
     const extensions = setupCodeMirror({
       cellId,
       showPlaceholder,
       enableAI: aiFeaturesEnabled,
+      enableAIChat: aiChatEnabled,
       cellActions: {
         ...cellActions,
         afterToggleMarkdown,
@@ -213,6 +221,9 @@ const CellEditorInternal = ({
         },
         splitCell,
         toggleHideCode,
+        askAiAboutCell: () => {
+          void askAiAboutCell(cellId);
+        },
         aiCellCompletion: () => {
           if (!aiFeaturesEnabled) {
             return false;
@@ -296,6 +307,8 @@ const CellEditorInternal = ({
     inlineAiTooltip,
     tooltipParentSelector,
     aiFeaturesEnabled,
+    aiChatEnabled,
+    askAiAboutCell,
     theme,
     showPlaceholder,
     cellActions,

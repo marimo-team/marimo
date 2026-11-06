@@ -813,7 +813,6 @@ class TestHomePageTemplate(unittest.TestCase):
 
 class TestStaticNotebookTemplate(unittest.TestCase):
     def setUp(self) -> None:
-        # Keep the pair command stable across installation modes.
         editable = patch(
             "marimo._cli.pair.prompts.is_editable", return_value=True
         )
@@ -1525,3 +1524,24 @@ class TestReplaceAssetUrls(unittest.TestCase):
             result
             == '<link crossorigin="anonymous" href="https://cdn.example.com/assets/style.css" rel="stylesheet">'
         )
+
+
+@pytest.mark.parametrize(
+    ("editable", "command"),
+    [(True, "uv run marimo"), (False, "uvx marimo@latest")],
+)
+def test_pair_modal_command(editable: bool, command: str) -> None:
+    template = (Path(__file__).parent / "data" / "index.html").read_text()
+    with patch("marimo._cli.pair.prompts.is_editable", return_value=editable):
+        result = templates.notebook_page_template(
+            html=template,
+            base_url="",
+            server_token=SkewProtectionToken("token"),
+            app_config=_AppConfig(),
+            filename=None,
+            mode=SessionMode.EDIT,
+            user_config=default_config,
+            config_overrides={},
+        )
+    config = parse_mount_config(result)["pairConfig"]
+    assert config["command"] == command
