@@ -1591,8 +1591,9 @@ async def test_session_script_stays_below_environment_and_explicit_overrides(
         auto_instantiate=False,
     )
     try:
-        assert session._kernel_manager.config_manager.get_config()["runtime"][
-            "sql_default_limit"
-        ] == (override if override is not None else 45)
+        assert (
+            session._kernel_manager.config_manager.get_config().runtime.sql_default_limit
+            == (override if override is not None else 45)
+        )
     finally:
         session.close()
