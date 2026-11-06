@@ -1763,7 +1763,7 @@ class Execution(Struct, frozen=True):
         Annotated[
             ExecutionId,
             Meta(
-                description="The execution in the same run whose code scheduled this one, such as scratch code that ran cells or set a UI element's value. Null for an execution a client requested directly, and for a cell the scheduler ran because of one."
+                description="The execution in the same run whose code was running when this one was scheduled, such as scratch code that ran a cell, set a UI element's value, or wrote state, and the cells that reacted to it. Null for an execution a client requested and for the cells that reacted to one."
             ),
         ]
         | None
