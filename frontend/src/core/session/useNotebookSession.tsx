@@ -92,12 +92,8 @@ export function useNotebookSession(opts: {
   const { showBoundary } = useErrorBoundary();
   const store = useStore();
 
-  const {
-    handleCellMessage,
-    reconcileDocument,
-    setLastRun,
-    resetCellRuntimes,
-  } = useReducerActions();
+  const { handleCellMessage, reconcileDocument, resetCellRuntimes } =
+    useReducerActions();
   const { reconcileStagedCells } = useStagedAICellsActions();
   const { addCellNotification } = useRunsActions();
   const setInitialRunCompleted = useSetAtom(initialRunCompletedAtom);
@@ -154,7 +150,6 @@ export function useNotebookSession(opts: {
         const layout = handleKernelReady(msg.data, {
           autoInstantiate,
           cells: notebookCells(store.get(notebookAtom)),
-          setLastRun,
           resetCellRuntimes,
           setLayoutData,
           setCapabilities,

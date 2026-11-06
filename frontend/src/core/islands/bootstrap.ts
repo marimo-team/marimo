@@ -221,7 +221,6 @@ function handleNotification(
         handleKernelReady(msg, {
           autoInstantiate: true,
           cells: notebookCells(store.get(notebookAtom)),
-          setLastRun: actions.setLastRun,
           resetCellRuntimes: actions.resetCellRuntimes,
           setLayoutData: Functions.NOOP,
           setCapabilities: Functions.NOOP,

@@ -11,13 +11,10 @@ exports[`cell reducer > can initialize stdin > initial state 1`] = `
   },
   "consoleOutputs": [],
   "debuggerActive": false,
-  "edited": false,
   "id": "0",
-  "lastCodeRun": null,
   "name": "_",
   "outline": null,
   "output": null,
-  "staleInputs": false,
 }
 `;
 
@@ -32,13 +29,10 @@ exports[`cell reducer > can initialize stdin > prepared for run 1`] = `
   },
   "consoleOutputs": [],
   "debuggerActive": false,
-  "edited": false,
   "id": "0",
-  "lastCodeRun": "",
   "name": "_",
   "outline": null,
   "output": null,
-  "staleInputs": false,
 }
 `;
 
@@ -53,13 +47,10 @@ exports[`cell reducer > can initialize stdin > queued message received 1`] = `
   },
   "consoleOutputs": [],
   "debuggerActive": false,
-  "edited": false,
   "id": "0",
-  "lastCodeRun": "",
   "name": "_",
   "outline": null,
   "output": null,
-  "staleInputs": false,
 }
 `;
 
@@ -74,13 +65,10 @@ exports[`cell reducer > can initialize stdin > running message received 1`] = `
   },
   "consoleOutputs": [],
   "debuggerActive": false,
-  "edited": false,
   "id": "0",
-  "lastCodeRun": "",
   "name": "_",
   "outline": null,
   "output": null,
-  "staleInputs": false,
 }
 `;
 
@@ -117,14 +105,11 @@ exports[`cell reducer > can initialize stdin > second stdin requested 1`] = `
     },
   ],
   "debuggerActive": false,
-  "edited": false,
   "id": "0",
   "interrupted": false,
-  "lastCodeRun": "",
   "name": "_",
   "outline": null,
   "output": null,
-  "staleInputs": false,
 }
 `;
 
@@ -154,14 +139,11 @@ exports[`cell reducer > can initialize stdin > stdin answered 1`] = `
     },
   ],
   "debuggerActive": false,
-  "edited": false,
   "id": "0",
   "interrupted": false,
-  "lastCodeRun": "",
   "name": "_",
   "outline": null,
   "output": null,
-  "staleInputs": false,
 }
 `;
 
@@ -190,13 +172,10 @@ exports[`cell reducer > can initialize stdin > stdin requested 1`] = `
     },
   ],
   "debuggerActive": false,
-  "edited": false,
   "id": "0",
-  "lastCodeRun": "",
   "name": "_",
   "outline": null,
   "output": null,
-  "staleInputs": false,
 }
 `;
 
@@ -218,13 +197,10 @@ exports[`cell reducer > can initialize stdin > stdout received 1`] = `
     },
   ],
   "debuggerActive": false,
-  "edited": false,
   "id": "0",
-  "lastCodeRun": "",
   "name": "_",
   "outline": null,
   "output": null,
-  "staleInputs": false,
 }
 `;
 
@@ -246,13 +222,10 @@ exports[`cell reducer > can initialize stdin > stdout verified 1`] = `
     },
   ],
   "debuggerActive": false,
-  "edited": false,
   "id": "0",
-  "lastCodeRun": "",
   "name": "_",
   "outline": null,
   "output": null,
-  "staleInputs": false,
 }
 `;
 
@@ -267,13 +240,10 @@ exports[`cell reducer > can receive console when the cell is idle and will clear
   },
   "consoleOutputs": [],
   "debuggerActive": false,
-  "edited": false,
   "id": "0",
-  "lastCodeRun": "",
   "name": "_",
   "outline": null,
   "output": null,
-  "staleInputs": false,
 }
 `;
 
@@ -295,13 +265,10 @@ exports[`cell reducer > can receive console when the cell is idle and will clear
     },
   ],
   "debuggerActive": false,
-  "edited": false,
   "id": "0",
-  "lastCodeRun": "",
   "name": "_",
   "outline": null,
   "output": null,
-  "staleInputs": false,
 }
 `;
 
@@ -316,13 +283,10 @@ exports[`cell reducer > can receive console when the cell is idle and will clear
   },
   "consoleOutputs": [],
   "debuggerActive": false,
-  "edited": false,
   "id": "0",
-  "lastCodeRun": null,
   "name": "_",
   "outline": null,
   "output": null,
-  "staleInputs": false,
 }
 `;
 
@@ -344,13 +308,10 @@ exports[`cell reducer > can receive console when the cell is idle and will clear
     },
   ],
   "debuggerActive": false,
-  "edited": false,
   "id": "0",
-  "lastCodeRun": "",
   "name": "_",
   "outline": null,
   "output": null,
-  "staleInputs": false,
 }
 `;
 
@@ -372,13 +333,10 @@ exports[`cell reducer > can receive console when the cell is idle and will clear
     },
   ],
   "debuggerActive": false,
-  "edited": false,
   "id": "0",
-  "lastCodeRun": "",
   "name": "_",
   "outline": null,
   "output": null,
-  "staleInputs": false,
 }
 `;
 
@@ -393,13 +351,10 @@ exports[`cell reducer > can run a stale cell > queued message received 1`] = `
   },
   "consoleOutputs": [],
   "debuggerActive": false,
-  "edited": false,
   "id": "1",
-  "lastCodeRun": "mo.slider()",
   "name": "_",
   "outline": null,
   "output": null,
-  "staleInputs": false,
 }
 `;
 
@@ -414,13 +369,10 @@ exports[`cell reducer > can run a stale cell > stale inputs received 1`] = `
   },
   "consoleOutputs": [],
   "debuggerActive": false,
-  "edited": false,
   "id": "1",
-  "lastCodeRun": "mo.slider()",
   "name": "_",
   "outline": null,
   "output": null,
-  "staleInputs": true,
 }
 `;
 
@@ -435,9 +387,7 @@ exports[`cell reducer > can run a stopped cell > ancestor stopped 1`] = `
   },
   "consoleOutputs": [],
   "debuggerActive": false,
-  "edited": false,
   "id": "0",
-  "lastCodeRun": "mo.md('This has an ancestor that was stopped')",
   "name": "_",
   "outline": null,
   "output": {
@@ -452,7 +402,6 @@ exports[`cell reducer > can run a stopped cell > ancestor stopped 1`] = `
     "mimetype": "application/vnd.marimo+error",
     "timestamp": 20,
   },
-  "staleInputs": false,
 }
 `;
 
@@ -467,13 +416,10 @@ exports[`cell reducer > can run a stopped cell > idle message received 1`] = `
   },
   "consoleOutputs": [],
   "debuggerActive": false,
-  "edited": false,
   "id": "0",
-  "lastCodeRun": "mo.md('This has an ancestor that was stopped')",
   "name": "_",
   "outline": null,
   "output": null,
-  "staleInputs": false,
 }
 `;
 
@@ -488,9 +434,7 @@ exports[`cell reducer > can run a stopped cell > queued after stop 1`] = `
   },
   "consoleOutputs": [],
   "debuggerActive": false,
-  "edited": false,
   "id": "0",
-  "lastCodeRun": "mo.md('This has an ancestor that was stopped')",
   "name": "_",
   "outline": null,
   "output": {
@@ -505,7 +449,6 @@ exports[`cell reducer > can run a stopped cell > queued after stop 1`] = `
     "mimetype": "application/vnd.marimo+error",
     "timestamp": 20,
   },
-  "staleInputs": false,
 }
 `;
 
@@ -520,13 +463,10 @@ exports[`cell reducer > can run a stopped cell > queued message received 1`] = `
   },
   "consoleOutputs": [],
   "debuggerActive": false,
-  "edited": false,
   "id": "0",
-  "lastCodeRun": "mo.md('This has an ancestor that was stopped')",
   "name": "_",
   "outline": null,
   "output": null,
-  "staleInputs": false,
 }
 `;
 
@@ -541,13 +481,10 @@ exports[`cell reducer > can run a stopped cell > running after stop 1`] = `
   },
   "consoleOutputs": [],
   "debuggerActive": false,
-  "edited": false,
   "id": "0",
-  "lastCodeRun": "mo.md('This has an ancestor that was stopped')",
   "name": "_",
   "outline": null,
   "output": null,
-  "staleInputs": false,
 }
 `;
 
@@ -570,9 +507,7 @@ import numpy",
     },
   ],
   "debuggerActive": false,
-  "edited": true,
   "id": "0",
-  "lastCodeRun": "import marimo as mo",
   "name": "_",
   "outline": null,
   "output": {
@@ -581,7 +516,6 @@ import numpy",
     "mimetype": "text/plain",
     "timestamp": 0,
   },
-  "staleInputs": false,
 }
 `;
 
@@ -596,13 +530,10 @@ exports[`cell reducer > can run cell and receive cell messages > code edited 1`]
   },
   "consoleOutputs": [],
   "debuggerActive": false,
-  "edited": true,
   "id": "0",
-  "lastCodeRun": null,
   "name": "_",
   "outline": null,
   "output": null,
-  "staleInputs": false,
 }
 `;
 
@@ -625,9 +556,7 @@ import numpy",
     },
   ],
   "debuggerActive": false,
-  "edited": true,
   "id": "0",
-  "lastCodeRun": "import marimo as mo",
   "name": "_",
   "outline": null,
   "output": {
@@ -636,7 +565,6 @@ import numpy",
     "mimetype": "text/plain",
     "timestamp": 0,
   },
-  "staleInputs": false,
 }
 `;
 
@@ -658,9 +586,7 @@ exports[`cell reducer > can run cell and receive cell messages > code reverted 1
     },
   ],
   "debuggerActive": false,
-  "edited": false,
   "id": "0",
-  "lastCodeRun": "import marimo as mo",
   "name": "_",
   "outline": null,
   "output": {
@@ -669,7 +595,6 @@ exports[`cell reducer > can run cell and receive cell messages > code reverted 1
     "mimetype": "text/plain",
     "timestamp": 0,
   },
-  "staleInputs": false,
 }
 `;
 
@@ -691,13 +616,10 @@ exports[`cell reducer > can run cell and receive cell messages > console message
     },
   ],
   "debuggerActive": false,
-  "edited": false,
   "id": "0",
-  "lastCodeRun": "import marimo as mo",
   "name": "_",
   "outline": null,
   "output": null,
-  "staleInputs": false,
 }
 `;
 
@@ -720,10 +642,7 @@ import numpy",
     },
   ],
   "debuggerActive": false,
-  "edited": false,
   "id": "0",
-  "lastCodeRun": "import marimo as mo
-import numpy",
   "name": "_",
   "outline": null,
   "output": {
@@ -738,7 +657,6 @@ import numpy",
     "mimetype": "application/vnd.marimo+error",
     "timestamp": 0,
   },
-  "staleInputs": false,
 }
 `;
 
@@ -753,13 +671,10 @@ exports[`cell reducer > can run cell and receive cell messages > initial state 1
   },
   "consoleOutputs": [],
   "debuggerActive": false,
-  "edited": false,
   "id": "0",
-  "lastCodeRun": null,
   "name": "_",
   "outline": null,
   "output": null,
-  "staleInputs": false,
 }
 `;
 
@@ -782,10 +697,7 @@ import numpy",
     },
   ],
   "debuggerActive": false,
-  "edited": false,
   "id": "0",
-  "lastCodeRun": "import marimo as mo
-import numpy",
   "name": "_",
   "outline": null,
   "output": {
@@ -798,7 +710,6 @@ import numpy",
     "mimetype": "application/vnd.marimo+error",
     "timestamp": 0,
   },
-  "staleInputs": false,
 }
 `;
 
@@ -820,9 +731,7 @@ exports[`cell reducer > can run cell and receive cell messages > output received
     },
   ],
   "debuggerActive": false,
-  "edited": false,
   "id": "0",
-  "lastCodeRun": "import marimo as mo",
   "name": "_",
   "outline": null,
   "output": {
@@ -831,7 +740,6 @@ exports[`cell reducer > can run cell and receive cell messages > output received
     "mimetype": "text/plain",
     "timestamp": 0,
   },
-  "staleInputs": false,
 }
 `;
 
@@ -846,13 +754,10 @@ exports[`cell reducer > can run cell and receive cell messages > prepared for ru
   },
   "consoleOutputs": [],
   "debuggerActive": false,
-  "edited": false,
   "id": "0",
-  "lastCodeRun": "import marimo as mo",
   "name": "_",
   "outline": null,
   "output": null,
-  "staleInputs": false,
 }
 `;
 
@@ -867,13 +772,10 @@ exports[`cell reducer > can run cell and receive cell messages > queued message 
   },
   "consoleOutputs": [],
   "debuggerActive": false,
-  "edited": false,
   "id": "0",
-  "lastCodeRun": "import marimo as mo",
   "name": "_",
   "outline": null,
   "output": null,
-  "staleInputs": false,
 }
 `;
 
@@ -888,12 +790,9 @@ exports[`cell reducer > can run cell and receive cell messages > running message
   },
   "consoleOutputs": [],
   "debuggerActive": false,
-  "edited": false,
   "id": "0",
-  "lastCodeRun": "import marimo as mo",
   "name": "_",
   "outline": null,
   "output": null,
-  "staleInputs": false,
 }
 `;

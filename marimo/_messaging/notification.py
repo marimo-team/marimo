@@ -136,6 +136,7 @@ class CellNotification(Notification, tag="cell-op"):
     output: CellOutput | None = None
     console: CellOutput | list[CellOutput] | None = None
     status: RuntimeStateType | None = None
+    # TODO(MO-8471): Unread by the editor; delete with `broadcast_stale`.
     stale_inputs: bool | None = None
     run_id: RunId_t | None = None
     execution_id: str | None = None
@@ -461,6 +462,7 @@ class KernelReadyNotification(Notification, tag="kernel-ready"):
     layout: LayoutConfig | None
     resumed: bool
     ui_values: dict[str, JSONType] | None
+    # TODO(MO-8471): Unread by the editor; delete both.
     last_executed_code: dict[CellId_t, str] | None
     last_execution_time: dict[CellId_t, float] | None
     app_config: _AppConfig

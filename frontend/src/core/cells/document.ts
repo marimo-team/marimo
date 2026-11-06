@@ -27,7 +27,6 @@ import {
   createCell,
   createCellConfig,
   createCellRuntimeState,
-  isEdited,
 } from "./types";
 
 // Following the document ----------------------------------------------------
@@ -49,13 +48,7 @@ function followCell(current: CellData, cell: EditableCell): CellData {
   if (code === current.code) {
     return { ...current, name: cell.name, config };
   }
-  return {
-    ...current,
-    code,
-    name: cell.name,
-    config,
-    edited: isEdited(current.lastCodeRun, code),
-  };
+  return { ...current, code, name: cell.name, config };
 }
 
 /**
@@ -83,17 +76,13 @@ export function applyDocument(
       continue;
     }
     if (current === undefined) {
-      // A new cell with code is stale until it runs. The kernel's last run
-      // settles it on kernel-ready.
-      const code = cell.code ?? "";
       cellData = {
         ...cellData,
         [id]: createCell({
           id,
-          code,
+          code: cell.code ?? "",
           name: cell.name,
           config: createCellConfig(cell.config),
-          edited: isEdited(null, code),
         }),
       };
       cellRuntime = {

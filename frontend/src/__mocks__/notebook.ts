@@ -39,8 +39,6 @@ export const MockNotebook = {
           expand_output: false,
           ...data.config,
         },
-        edited: false,
-        lastCodeRun: null,
         serializedEditorState: null,
         ...data,
       })),

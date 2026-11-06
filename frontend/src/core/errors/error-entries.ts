@@ -93,9 +93,8 @@ export function getCellErrorEntries(store: JotaiStore): CellErrorEntry[] {
     }
 
     const cellName = displayCellName(cellData[cellId].name, cellIndex);
-    // Prefer the code from the last execution: runtime errors correspond to
-    // the previous run, while `code` may already contain unsaved edits.
-    const cellCode = cellData[cellId].lastCodeRun ?? cellData[cellId].code;
+    // The source that raised, since the cell may have been edited since.
+    const cellCode = output.code ?? cellData[cellId].code;
 
     entries.push({
       cellId,

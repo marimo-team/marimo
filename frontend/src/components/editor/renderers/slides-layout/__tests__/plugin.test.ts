@@ -13,8 +13,6 @@ function makeCell(id: string, code = "print('hi')"): CellData {
     id: cellId(id),
     name: id,
     code,
-    edited: false,
-    lastCodeRun: null,
     config: { hide_code: false, disabled: false, column: null },
   };
 }

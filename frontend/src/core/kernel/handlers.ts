@@ -60,7 +60,6 @@ export function handleKernelReady(
     autoInstantiate: boolean;
     /** The notebook's cells, as the host document provided them. */
     cells: CellData[];
-    setLastRun: ReducerCellActions["setLastRun"];
     resetCellRuntimes: ReducerCellActions["resetCellRuntimes"];
     setLayoutData: (payload: {
       layoutView: LayoutType;
@@ -73,7 +72,6 @@ export function handleKernelReady(
   const {
     autoInstantiate,
     cells,
-    setLastRun,
     resetCellRuntimes,
     setLayoutData,
     setCapabilities,
@@ -82,8 +80,6 @@ export function handleKernelReady(
   const { resumed, ui_values, capabilities, auto_instantiated } = data;
 
   resetCellRuntimes();
-  // TODO(MO-8403): Delete with `lastCodeRun`.
-  setLastRun({ lastCodeRun: data.last_executed_code ?? {} });
   const layoutState = buildLayoutState(data, cells, setLayoutData);
 
   setCapabilities(capabilities);
