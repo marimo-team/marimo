@@ -95,6 +95,8 @@ class ExecutionNotification(Notification, tag="execution"):
     `running` means evaluation began. `completed` follows the final output
     and errors, including for attempts that never ran. Buffered and background
     console output may still arrive with the completed attempt's identity.
+    A completed attempt that never ran and reported no error names why in
+    `skipped`, such as `superseded` when a newer attempt replaced it.
     """
 
     name: ClassVar[str] = "execution"
@@ -106,6 +108,7 @@ class ExecutionNotification(Notification, tag="execution"):
     code_fingerprint: str | None = None
     caused_by: str | None = None
     depends_on: dict[str, Revision | None] | None = None
+    skipped: str | None = None
 
 
 class CellNotification(Notification, tag="cell-op"):

@@ -4949,6 +4949,8 @@ export interface components {
      *         `running` means evaluation began. `completed` follows the final output
      *         and errors, including for attempts that never ran. Buffered and background
      *         console output may still arrive with the completed attempt's identity.
+     *         A completed attempt that never ran and reported no error names why in
+     *         `skipped`, such as `superseded` when a newer attempt replaced it.
      */
     ExecutionNotification: {
       /** @default null */
@@ -4968,6 +4970,8 @@ export interface components {
       /** @enum {unknown} */
       phase: "completed" | "planned" | "running";
       run_id: string | null;
+      /** @default null */
+      skipped?: string | null;
     };
     /**
      * ExportAsHTMLRequest

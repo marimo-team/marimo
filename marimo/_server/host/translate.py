@@ -100,7 +100,9 @@ class RunTranslator:
             if notification.phase == "running":
                 return [be.Started(execution.id)]
             return self._conclude(
-                execution, depends_on=notification.depends_on
+                execution,
+                depends_on=notification.depends_on,
+                skipped=notification.skipped,
             )
 
         execution = self._executions.get(notification.execution_id or "")
@@ -162,6 +164,7 @@ class RunTranslator:
         error: protocol.Error | None = None,
         interrupted: bool = False,
         depends_on: dict[str, protocol.Revision | None] | None = None,
+        skipped: str | None = None,
     ) -> list[be.Message]:
         if execution.ended:
             return []
@@ -173,6 +176,8 @@ class RunTranslator:
         ]
         if error is not None:
             execution.outcome = protocol.ErrorOutcome(error)
+        elif skipped is not None:
+            execution.outcome = _declined(skipped, execution.cell_id)
         elif exceptions:
             execution.outcome = protocol.ErrorOutcome(_describe(exceptions[0]))
         elif skips:
@@ -380,6 +385,26 @@ def _skip_reason(error: Error) -> str | None:
     ):
         return "upstream-failed"
     return None
+
+
+def _declined(reason: str, cell_id: str) -> protocol.SkippedOutcome:
+    """Describe an attempt the kernel ended without evaluating it."""
+    message = (
+        "Replaced by a newer execution of this cell before it started"
+        if reason == "superseded"
+        else "Did not run"
+    )
+    return protocol.SkippedOutcome(
+        reason=reason,
+        message=message,
+        related=(
+            protocol.Related(
+                cell_id=protocol.CellId(cell_id),
+                range=None,
+                message="Changed while queued",
+            ),
+        ),
+    )
 
 
 def _skipped(error: Error, cell_id: str) -> protocol.SkippedOutcome:

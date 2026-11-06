@@ -2075,7 +2075,9 @@ components:
         \ output.\n    `code` is null when source is withheld.\n    `running` means\
         \ evaluation began. `completed` follows the final output\n    and errors,\
         \ including for attempts that never ran. Buffered and background\n    console\
-        \ output may still arrive with the completed attempt's identity."
+        \ output may still arrive with the completed attempt's identity.\n    A completed\
+        \ attempt that never ran and reported no error names why in\n    `skipped`,\
+        \ such as `superseded` when a newer attempt replaced it."
       properties:
         caused_by:
           anyOf:
@@ -2117,6 +2119,11 @@ components:
           anyOf:
           - type: string
           - type: 'null'
+        skipped:
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
       required:
       - op
       - execution_id
