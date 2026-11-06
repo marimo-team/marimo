@@ -526,6 +526,20 @@ def _in_memory_qualified_name(
     return quote_qualified_name(catalog, schema, name)
 
 
+def _merge_lens_values(old: Any, new: Any) -> Any:
+    """Deep-merge two lens-resolved updates to the same element."""
+    if isinstance(old, dict) and isinstance(new, dict):
+        merged = dict(old)
+        for key, value in new.items():
+            merged[key] = (
+                _merge_lens_values(merged[key], value)
+                if key in merged
+                else value
+            )
+        return merged
+    return new
+
+
 class Kernel:
     """Kernel that manages the dependency graph and its execution.
 
@@ -2464,6 +2478,12 @@ class Kernel:
                     "Could not resolve UIElement with id%s", object_id
                 )
                 continue
+            # Siblings of one parent resolve to the same id: merge them, or
+            # every update but the last in this request is lost.
+            if resolved_id in resolved_requests:
+                resolved_value = _merge_lens_values(
+                    resolved_requests[resolved_id], resolved_value
+                )
             resolved_requests[resolved_id] = resolved_value
         del request
 
