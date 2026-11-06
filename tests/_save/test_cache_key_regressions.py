@@ -657,7 +657,10 @@ def test_restored_function_stub_keeps_its_hash(tmp_path: Path) -> None:
     module = tmp_path / "stubbed.py"
     module.write_text("x = 1\n\n\ndef helper():\n    return 1\n")
     namespace: dict[str, Any] = {}
-    exec(compile(module.read_text(), str(module), "exec"), namespace)  # noqa: S102
+    exec(  # noqa: S102
+        compile(module.read_text(), str(module), "exec", dont_inherit=True),
+        namespace,
+    )
     helper = namespace["helper"]
     restored = FunctionStub(helper).load({})
     assert hash_wrapped_functions(restored) == hash_wrapped_functions(helper)
@@ -718,7 +721,7 @@ def test_restored_stub_without_its_file_keeps_its_hash() -> None:
     from marimo._save.stubs.function_stub import FunctionStub
 
     cell = compile_cell(
-        "x = 1\n\n\ndef helper():\n    return 1", cell_id=CellId_t("c")
+        "x = 1\n\n\ndef helper():\n    return 1", cell_id=CellId_t("stub-one")
     )
     namespace: dict[str, Any] = {}
     exec(cell.body, namespace)  # noqa: S102
@@ -783,7 +786,7 @@ def test_two_restored_stubs_from_one_cell_keep_their_hashes() -> None:
 
     cell = compile_cell(
         "def one():\n    return 1\n\n\ndef two():\n    return 2",
-        cell_id=CellId_t("c"),
+        cell_id=CellId_t("stub-two"),
     )
     namespace: dict[str, Any] = {}
     exec(cell.body, namespace)  # noqa: S102
@@ -842,7 +845,7 @@ def test_restored_factory_helper_keeps_its_hash() -> None:
     cell = compile_cell(
         "def make():\n    def helper():\n        return 1\n    return helper\n"
         "h = make()",
-        cell_id=CellId_t("c"),
+        cell_id=CellId_t("stub-factory"),
     )
     namespace: dict[str, Any] = {}
     exec(cell.body, namespace)  # noqa: S102

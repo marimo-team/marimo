@@ -63,7 +63,9 @@ class FunctionStub:
         # At its original line, so the restored function is found at the
         # same place in its file as the definition it stands in for.
         tree = ast.increment_lineno(ast.parse(self.code), self.lineno - 1)
-        code_obj = compile(tree, self.filename, "exec")
+        # dont_inherit: only the snippet's own __future__ imports apply, not
+        # this module's.
+        code_obj = compile(tree, self.filename, "exec", dont_inherit=True)
         lcls: dict[str, Any] = {}
         exec(code_obj, glbls, lcls)
         for value in lcls.values():
