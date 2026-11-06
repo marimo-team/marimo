@@ -82,6 +82,7 @@ export function handleKernelReady(
   const { resumed, ui_values, capabilities, auto_instantiated } = data;
 
   resetCellRuntimes();
+  // TODO(MO-8403): Delete with `lastCodeRun`.
   setLastRun({ lastCodeRun: data.last_executed_code ?? {} });
   const layoutState = buildLayoutState(data, cells, setLayoutData);
 

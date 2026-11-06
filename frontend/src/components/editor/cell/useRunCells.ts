@@ -122,7 +122,7 @@ export async function runCells({
     cellIds.filter((cellId) => !cellData[cellId]?.config.disabled),
   );
 
-  // Send the run request to the Kernel
+  // TODO(MO-8346): Submit through the host's `runtime.run`.
   await sendRun({ cellIds: cellIds, codes: codes }).catch((error) => {
     withdrawCells(store, cellIds);
     Logger.error(error);

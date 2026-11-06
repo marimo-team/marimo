@@ -10,7 +10,7 @@ import type { Outline } from "./outline";
  * Whether a cell's code has changed since it last ran. A cell that never ran
  * is edited once it has code. Whitespace at the ends does not count.
  *
- * TODO(MO-8028): Temporary until staleness comes from the host's executions.
+ * TODO(MO-8403): Delete with `lastCodeRun`.
  */
 export function isEdited(lastCodeRun: string | null, code: string): boolean {
   return lastCodeRun === null
@@ -87,19 +87,21 @@ export interface CellData {
 /**
  * What the kernel's cell-ops still own. Status, timing, and how a cell last
  * ended come from the host's executions (see `@/core/executions`).
+ *
+ * TODO(MO-8407): Delete.
  */
 export interface CellRuntimeState {
-  /** a message encoding the cell's output */
+  /** a message encoding the cell's output. TODO(MO-8404) */
   output: OutputMessage | null;
-  /** TOC outline */
+  /** TOC outline. TODO(MO-8404) */
   outline: Outline | null;
-  /** messages encoding the cell's console outputs. */
+  /** messages encoding the cell's console outputs. TODO(MO-8405) */
   consoleOutputs: ConsoleOutputMessage[];
-  /** whether the cell has stale inputs*/
+  /** whether the cell has stale inputs. TODO(MO-8403) */
   staleInputs: boolean;
   /** debugger active */
   debuggerActive: boolean;
-  /** serialization message */
+  /** serialization message. TODO(MO-8414) */
   serialization?: string | null;
 }
 

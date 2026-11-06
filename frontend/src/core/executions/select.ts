@@ -22,7 +22,7 @@ export interface CellExecutionView {
   readonly startedAt: Milliseconds | null;
   /** How long the last completed execution took, null while the cell runs again. */
   readonly duration: Milliseconds | null;
-  /** Whether the running execution has shown a value so far. */
+  /** Whether the running execution has shown a value so far. TODO(MO-8404) */
   readonly rendered: boolean;
 }
 

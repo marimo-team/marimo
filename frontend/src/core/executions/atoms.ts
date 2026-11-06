@@ -64,8 +64,7 @@ const submissionsAtom =
  * Cells the kernel reports as blocked by a disabled ancestor. Written only
  * by `observeCellMessage`.
  *
- * TODO(MO-8403): Derive this from the document and the analysis stream
- * once the editor reads dependencies from the host.
+ * TODO(MO-8463): Derive from the document and the analysis stream.
  */
 const blockedCellsAtom = atom<Marks<ReadonlySet<Protocol.CellId>>>(null);
 
@@ -191,6 +190,9 @@ function setCellBlocked(
  * A status names whether the cell is blocked. A blocked cell and one whose
  * output is an error will not run, so a submission that never became an
  * execution is withdrawn, as it was when the editor set status itself.
+ *
+ * TODO(MO-8407): Delete with the cell-op case. The blocked read goes with
+ * MO-8463, the error read with MO-8346.
  */
 export function observeCellMessage(store: Store, message: CellMessage): void {
   const cellId = message.cell_id;
