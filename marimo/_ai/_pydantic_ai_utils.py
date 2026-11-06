@@ -4,9 +4,11 @@ from __future__ import annotations
 import uuid
 from dataclasses import dataclass
 from functools import lru_cache
+from pathlib import PurePath
 from typing import TYPE_CHECKING, Any, get_args
 
 from marimo import _loggers
+from marimo._ai._convert import extract_text
 from marimo._messaging.msgspec_encoder import asdict
 from marimo._server.ai.tools.types import ToolDefinition, ToolSource
 from marimo._server.models.completion import UIMessage as ServerUIMessage
@@ -134,6 +136,12 @@ def convert_to_pydantic_messages(
             repair_incomplete_tool_call(part) for part in ui_message.parts
         ]
 
+        if role == "user":
+            ui_message.parts = [
+                safe_part_processor(part, _inline_text_file)
+                for part in ui_message.parts
+            ]
+
         # Process parts after casting so the processor will work on typed parts
         if ui_message.parts and part_processor:
             new_parts = [
@@ -144,6 +152,80 @@ def convert_to_pydantic_messages(
         pydantic_messages.append(ui_message)
 
     return pydantic_messages
+
+
+def _inline_text_file(part: UIMessagePart) -> UIMessagePart:
+    from pydantic_ai.ui.vercel_ai.request_types import FileUIPart, TextUIPart
+
+    # Inline local text files so text-only models can read them too.
+    if (
+        isinstance(part, FileUIPart)
+        and part.url.startswith("data:")
+        and _is_text_attachment(part.media_type, part.filename)
+    ):
+        return TextUIPart(
+            type="text",
+            text=extract_text(part.url),
+            provider_metadata=part.provider_metadata,
+        )
+    return part
+
+
+def _is_text_attachment(media_type: str, filename: str | None) -> bool:
+    media_type = media_type.split(";", 1)[0].strip().lower()
+    if (
+        media_type.startswith("text/")
+        or media_type.endswith(("+json", "+xml"))
+        or media_type
+        in {
+            "application/json",
+            "application/xml",
+            "application/toml",
+            "application/yaml",
+            "application/x-yaml",
+            "application/javascript",
+            "application/ecmascript",
+            "application/x-javascript",
+            "application/sql",
+            "application/x-sh",
+            "application/jsonl",
+            "application/x-ndjson",
+        }
+    ):
+        return True
+    return (
+        media_type in {"", "application/octet-stream"}
+        and filename is not None
+        and PurePath(filename).suffix.lower()
+        in {
+            ".txt",
+            ".md",
+            ".markdown",
+            ".csv",
+            ".tsv",
+            ".json",
+            ".jsonl",
+            ".ndjson",
+            ".ipynb",
+            ".xml",
+            ".toml",
+            ".yaml",
+            ".yml",
+            ".py",
+            ".sql",
+            ".r",
+            ".js",
+            ".mjs",
+            ".cjs",
+            ".jsx",
+            ".ts",
+            ".tsx",
+            ".html",
+            ".htm",
+            ".css",
+            ".sh",
+        }
+    )
 
 
 def _prepare_parts(raw_parts: list[Any]) -> list[Any]:

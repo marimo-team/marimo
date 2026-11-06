@@ -2,7 +2,11 @@
 
 import { act, renderHook } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { type ChatMessagePart, useMessageQueue } from "../chat-utils";
+import {
+  type ChatMessagePart,
+  useMessageQueue,
+  validateChatAttachments,
+} from "../chat-utils";
 
 function textPart(text: string): ChatMessagePart {
   return { type: "text", text };
@@ -102,6 +106,64 @@ describe("useMessageQueue", () => {
 
     expect(send).not.toHaveBeenCalled();
     expect(result.current.messages).toEqual([]);
+  });
+
+  it("preserves a queued image when the model changes, then sends it after switching back", () => {
+    const { result, rerender } = renderHook(
+      ({ types }) => {
+        const queue = useMessageQueue();
+        return {
+          ...queue,
+          validate: (parts: ChatMessagePart[]) =>
+            validateChatAttachments(parts, types),
+        };
+      },
+      { initialProps: { types: ["text/*", "image/png"] } },
+    );
+    const parts: ChatMessagePart[] = [
+      textPart("describe this"),
+      {
+        type: "file",
+        mediaType: "image/png",
+        filename: "chart.png",
+        url: "data:image/png;base64,aW1hZ2U=",
+      },
+    ];
+    const send = vi.fn();
+    act(() => result.current.enqueue(parts));
+    const queued = result.current.messages;
+    rerender({ types: ["text/*"] });
+
+    act(() => result.current.flushNext(send, result.current.validate));
+
+    expect(send).not.toHaveBeenCalled();
+    expect(result.current.messages).toEqual(queued);
+    expect(result.current.hasQueuedRef.current).toBe(true);
+
+    rerender({ types: ["text/*", "image/png"] });
+    act(() => result.current.flushNext(send, result.current.validate));
+
+    expect(send).toHaveBeenCalledExactlyOnceWith(parts);
+    expect(result.current.messages).toEqual([]);
+    expect(result.current.hasQueuedRef.current).toBe(false);
+  });
+
+  it("rejects images resolved from context for a text-only model", () => {
+    expect(
+      validateChatAttachments(
+        [
+          textPart("describe @cell"),
+          {
+            type: "file",
+            mediaType: "image/png",
+            filename: "cell.png",
+            url: "data:image/png;base64,aW1hZ2U=",
+            providerMetadata: { marimo: { contextAttachment: true } },
+          },
+        ],
+        ["text/*"],
+      ),
+    ).toBe(false);
   });
 
   it("clear empties the queue", () => {

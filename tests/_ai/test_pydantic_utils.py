@@ -1,6 +1,7 @@
 # Copyright 2025 Marimo. All rights reserved.
 from __future__ import annotations
 
+import base64
 from dataclasses import dataclass
 from unittest.mock import AsyncMock, call
 
@@ -246,6 +247,82 @@ class TestFormToolsets:
 
 
 class TestConvertToPydanticMessages:
+    @pytest.mark.parametrize(
+        ("media_type", "filename"),
+        [
+            ("text/plain", "notes.txt"),
+            ("text/markdown", "notes.md"),
+            ("text/csv", "data.csv"),
+            ("application/json", "data.json"),
+            ("application/toml", "pyproject.toml"),
+            ("application/xml", "data.xml"),
+            ("application/yaml", "config.yaml"),
+            ("application/x-yaml", "config.yml"),
+            ("application/vnd.example+json", "data.json"),
+            ("application/vnd.example+xml", "data.xml"),
+            ("application/javascript", "script.js"),
+            ("application/x-ndjson", "data.ndjson"),
+            ("", "script.PY"),
+            ("application/octet-stream", "notebook.ipynb"),
+        ],
+    )
+    def test_inlines_user_text_files(
+        self, media_type: str, filename: str
+    ) -> None:
+        from pydantic_ai.ui.vercel_ai.request_types import TextUIPart
+
+        text = "Hello, 世界!"
+        encoded = base64.b64encode(text.encode()).decode()
+        metadata = {"marimo": {"contextAttachment": True}}
+        messages = [
+            {
+                "id": "user-1",
+                "role": "user",
+                "parts": [
+                    {
+                        "type": "file",
+                        "mediaType": media_type,
+                        "url": f"data:{media_type};base64,{encoded}",
+                        "filename": filename,
+                        "providerMetadata": metadata,
+                    }
+                ],
+            }
+        ]
+
+        result = convert_to_pydantic_messages(messages)
+
+        assert result[0].parts == [
+            TextUIPart(type="text", text=text, provider_metadata=metadata)
+        ]
+        assert messages[0]["parts"][0]["type"] == "file"
+
+    @pytest.mark.parametrize(
+        ("role", "media_type", "url"),
+        [
+            ("user", "image/png", "data:image/png;base64,aW1hZ2U="),
+            ("user", "application/pdf", "data:application/pdf;base64,cGRm"),
+            ("user", "text/plain", "https://example.com/context.txt"),
+            ("assistant", "text/plain", "data:text/plain;base64,dGV4dA=="),
+        ],
+    )
+    def test_preserves_other_file_parts(
+        self, role: str, media_type: str, url: str
+    ) -> None:
+        from pydantic_ai.ui.vercel_ai.request_types import FileUIPart
+
+        part = {
+            "type": "file",
+            "mediaType": media_type,
+            "url": url,
+            "filename": "attachment",
+        }
+        result = convert_to_pydantic_messages(
+            [{"id": "message-1", "role": role, "parts": [part]}]
+        )
+
+        assert result[0].parts == [FileUIPart.model_validate(part)]
+
     def test_convert_empty_messages(self):
         result = convert_to_pydantic_messages([])
         assert result == []

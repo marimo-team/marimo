@@ -12,7 +12,10 @@ import {
 } from "ai";
 import { useRef, useState } from "react";
 import useEvent from "react-use-event-hook";
-import type { ProviderId } from "@/core/ai/ids/ids";
+import {
+  getAttachmentMediaType,
+  isSupportedAttachmentType,
+} from "@/core/ai/attachments";
 import type { ToolNotebookContext } from "@/core/ai/tools/base";
 import { FRONTEND_TOOL_REGISTRY } from "@/core/ai/tools/registry";
 import type {
@@ -25,14 +28,6 @@ import { generateUUID } from "@/utils/uuid";
 import { getAICompletionBodyWithAttachments } from "../editor/ai/completion-utils";
 import { toast } from "../ui/use-toast";
 
-// We need to modify the backend to support attachments for other providers
-// And other types
-export const PROVIDERS_THAT_SUPPORT_ATTACHMENTS = new Set<ProviderId>([
-  "openai",
-  "google",
-  "anthropic",
-]);
-export const SUPPORTED_ATTACHMENT_TYPES = ["image/*", "text/*"];
 const MAX_ATTACHMENT_SIZE = 1024 * 1024 * 50; // 50MB
 
 export function generateChatTitle(message: string): string {
@@ -44,11 +39,12 @@ export async function convertToFileUIPart(
 ): Promise<FileUIPart[]> {
   const fileUIParts = await Promise.all(
     files.map(async (file) => {
+      const mediaType = getAttachmentMediaType(file.type, file.name);
       const part: FileUIPart = {
         type: "file" as const,
-        mediaType: file.type,
+        mediaType,
         filename: file.name,
-        url: await blobToString(file, "dataUrl"),
+        url: await blobToString(file.slice(0, file.size, mediaType), "dataUrl"),
       };
       return part;
     }),
@@ -231,11 +227,56 @@ function isUnresolvedToolState(state: ToolUIPart["state"]): boolean {
   }
 }
 
-export function useFileState() {
+export function validateChatAttachments(
+  parts: ChatMessagePart[],
+  supportedTypes: readonly string[],
+): boolean {
+  return validateAttachments(
+    parts.filter((part): part is FileUIPart => part.type === "file"),
+    supportedTypes,
+  );
+}
+
+function validateAttachments(
+  files: { mediaType: string; filename?: string }[],
+  supportedTypes: readonly string[],
+): boolean {
+  const unsupported = files.filter(
+    (file) =>
+      !isSupportedAttachmentType(
+        getAttachmentMediaType(file.mediaType, file.filename),
+        supportedTypes,
+      ),
+  );
+  if (unsupported.length > 0) {
+    toast({
+      title: "Unsupported attachment",
+      description: `These files are not supported by the selected model: ${unsupported.map((part) => part.filename || part.mediaType).join(", ")}`,
+      variant: "danger",
+    });
+    return false;
+  }
+  return true;
+}
+
+export function useFileState(supportedTypes?: readonly string[]) {
   const [files, setFiles] = useState<File[]>([]);
 
+  const validateFiles = useEvent((filesToValidate: File[]): boolean => {
+    return (
+      !supportedTypes ||
+      validateAttachments(
+        filesToValidate.map((file) => ({
+          mediaType: file.type,
+          filename: file.name,
+        })),
+        supportedTypes,
+      )
+    );
+  });
+
   const addFiles = useEvent((newFiles: File[]) => {
-    if (newFiles.length === 0) {
+    if (newFiles.length === 0 || !validateFiles(newFiles)) {
       return;
     }
 
@@ -256,7 +297,7 @@ export function useFileState() {
   const removeFile = (fileToRemove: File) =>
     setFiles((prev) => prev.filter((f) => f !== fileToRemove));
 
-  return { files, addFiles, clearFiles, removeFile };
+  return { files, addFiles, clearFiles, removeFile, validateFiles };
 }
 
 export type ChatMessagePart = UIMessage["parts"][number];
@@ -307,17 +348,25 @@ export function useMessageQueue() {
     setMessages(next);
   });
 
-  const flushNext = useEvent((send: (parts: ChatMessagePart[]) => void) => {
-    const queue = messagesRef.current;
-    if (queue.length === 0) {
-      return;
-    }
-    const [next, ...rest] = queue;
-    messagesRef.current = rest;
-    hasQueuedRef.current = rest.length > 0;
-    setMessages(rest);
-    send(next.parts);
-  });
+  const flushNext = useEvent(
+    (
+      send: (parts: ChatMessagePart[]) => void,
+      canSend?: (parts: ChatMessagePart[]) => boolean,
+    ) => {
+      const queue = messagesRef.current;
+      if (queue.length === 0) {
+        return;
+      }
+      const [next, ...rest] = queue;
+      if (canSend && !canSend(next.parts)) {
+        return;
+      }
+      messagesRef.current = rest;
+      hasQueuedRef.current = rest.length > 0;
+      setMessages(rest);
+      send(next.parts);
+    },
+  );
 
   const clear = useEvent(() => {
     messagesRef.current = [];
