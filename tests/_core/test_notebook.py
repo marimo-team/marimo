@@ -633,6 +633,7 @@ class TestRun:
                     completed_at=IsDatetime(),
                     id=run.id,
                     notebook_id=NotebookId("n1"),
+                    runtime_id=runtime_id_of(notebook),
                     outcome="succeeded",
                     started_at=IsDatetime(),
                     status="completed",
@@ -1116,8 +1117,7 @@ async def test_outputs_follow_their_execution_through_updates_and_removal(
         execution_id=first,
         id=ItemId("first-display"),
         seq=1,
-        mimetype="text/plain",
-        data="b",
+        content=DisplayData(mimetype="text/plain", data="b"),
     )
     second_console = Console(
         second, ItemId("second-console"), "stdout", 0, "c"
@@ -1126,8 +1126,7 @@ async def test_outputs_follow_their_execution_through_updates_and_removal(
         execution_id=second,
         id=ItemId("second-display"),
         seq=1,
-        mimetype="text/plain",
-        data="d",
+        content=DisplayData(mimetype="text/plain", data="d"),
     )
     for item in (second_console, first_console, second_display, first_display):
         notebook.observe(be.Produced(item))
@@ -1296,8 +1295,9 @@ def test_restoration_preserves_revisions_and_outputs(
                 execution_id=seed.execution.id,
                 id=ItemId("display"),
                 seq=1,
-                mimetype="application/json",
-                data='{"values": [1, 2]}',
+                content=DisplayData(
+                    mimetype="application/json", data='{"values": [1, 2]}'
+                ),
             ),
             replace(seed.outputs[0], id=ItemId("last"), seq=2),
         ),

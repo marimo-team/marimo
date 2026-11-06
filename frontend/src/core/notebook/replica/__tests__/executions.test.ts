@@ -118,8 +118,7 @@ describe("executions resource", () => {
       id: "d1",
       execution_id: "e12",
       seq: 1,
-      mimetype: "text/plain",
-      data: "figure",
+      content: { mimetype: "text/plain", data: "figure" },
     };
     const added = replay(
       [

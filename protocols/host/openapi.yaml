@@ -1067,10 +1067,13 @@ components:
         Hosts SHOULD retain ephemeral results briefly after completion to
         allow reconnection. Runs, executions, and items each have removal
         events; a cell result may outlive its run.
-      required: [id, notebook_id, caused_by, status, outcome, started_at, completed_at]
+      required: [id, notebook_id, runtime_id, caused_by, status, outcome, started_at, completed_at]
       properties:
         id: { $ref: '#/components/schemas/RunId' }
         notebook_id: { $ref: '#/components/schemas/NotebookId' }
+        runtime_id:
+          $ref: '#/components/schemas/RuntimeId'
+          description: The runtime that produced this run.
         caused_by:
           oneOf: [{ $ref: '#/components/schemas/ExecutionId' }, { type: 'null' }]
           description: The execution that caused this runtime-scheduled run. This records provenance, not membership in that execution's run, and does not extend the earlier run's lifetime. Null for a client request or when the runtime does not know the source.
@@ -1356,7 +1359,7 @@ components:
         A value an execution showed as a side effect, such as a figure
         from `plt.show()`. A producer replaces one by sending it again
         with the same id, which is how a progress bar updates in place.
-      required: [id, execution_id, seq, mimetype, data]
+      required: [id, execution_id, seq, content]
       properties:
         id: { $ref: '#/components/schemas/ItemId' }
         execution_id: { $ref: '#/components/schemas/ExecutionId' }
@@ -1364,12 +1367,9 @@ components:
           type: integer
           minimum: 0
           description: Position among the execution's items, increasing in the order they were produced.
-        mimetype:
-          type: string
-          description: The format of `data`, such as `image/png`.
-        data:
-          type: string
-          description: The rendered value, embedded so clients can display it independently of the runtime. JSON mimetypes are encoded as text and binary mimetypes as base64.
+        content:
+          $ref: '#/components/schemas/DisplayData'
+          description: The rendered value.
     Input:
       type: object
       description: |
