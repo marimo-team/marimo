@@ -496,6 +496,8 @@ class SessionBackend(SessionConsumer):
             run.session.try_interrupt()
         if translator.completed:
             if run is not None:
+                # Publish completion before processing the next run's events.
+                self._finish_run(run, None)
                 run.done.set()
             else:
                 for reported in translator.finish():

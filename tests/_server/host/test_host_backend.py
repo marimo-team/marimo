@@ -571,16 +571,57 @@ async def test_cell_runs_queue_in_the_kernel_in_order(
         ("run-1", ["a"]),
         ("run-2", ["b"]),
     ]
+    tasks = [run.task for run in b._runs.values() if run.task is not None]
     session.broadcast(CompletedRunNotification(run_id="run-1"))
-    await observed.wait_for(be.Done)
-    assert observed.messages == [be.Done(protocol.RunId("run-1"), "succeeded")]
+    session.broadcast(
+        ExecutionNotification(
+            run_id="run-2",
+            execution_id="attempt-2",
+            cell_id="b",
+            phase="planned",
+            code="y = 2",
+            code_fingerprint=code_fingerprint("y = 2"),
+        )
+    )
+    session.broadcast(
+        ExecutionNotification(
+            run_id="run-2",
+            execution_id="attempt-2",
+            cell_id="b",
+            phase="running",
+        )
+    )
+    # Notifications can arrive together, before the run tasks get a turn.
+    assert observed.messages == [
+        be.Done(protocol.RunId("run-1"), "succeeded"),
+        be.Planned(
+            protocol.RunId("run-2"),
+            (
+                be.PlannedExecution(
+                    protocol.ExecutionId("attempt-2"),
+                    "b",
+                    code_fingerprint("y = 2"),
+                    None,
+                ),
+            ),
+        ),
+        be.Started(protocol.ExecutionId("attempt-2")),
+    ]
     assert list(b._runs) == ["run-2"]
 
     observed.messages.clear()
     session.broadcast(CompletedRunNotification(run_id="run-2"))
-    await observed.wait_for(be.Done)
-    assert observed.messages == [be.Done(protocol.RunId("run-2"), "succeeded")]
+    expected = [
+        be.Completed(
+            protocol.ExecutionId("attempt-2"), protocol.ValueOutcome(None)
+        ),
+        be.Done(protocol.RunId("run-2"), "succeeded"),
+    ]
+    assert observed.messages == expected
     assert b._runs == {}
+    await asyncio.gather(*tasks)
+    await asyncio.sleep(0)
+    assert observed.messages == expected
 
 
 async def submitted(session: FakeSession, count: int) -> list[str]:
