@@ -1,6 +1,5 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
-import __future__
 
 import ast
 import base64
@@ -9,7 +8,6 @@ import functools
 import hashlib
 import inspect
 import linecache
-import operator
 import sys
 import types
 from typing import TYPE_CHECKING, Any, NamedTuple
@@ -54,6 +52,7 @@ from marimo._save.encode import (
     type_sign,
 )
 from marimo._save.stubs import maybe_get_custom_stub
+from marimo._save.stubs.function_stub import FUTURE_FLAGS
 from marimo._types.ids import CellId_t
 
 if TYPE_CHECKING:
@@ -92,6 +91,12 @@ def _code_object_bytes(code: types.CodeType) -> bytes:
             )
         if isinstance(value, tuple):
             return tuple(map(constant, value))
+        if isinstance(value, slice):
+            # Python 3.14 folds a constant slice.
+            return type_sign(
+                primitive_to_bytes((value.start, value.stop, value.step)),
+                "slice",
+            )
         return value
 
     return primitive_to_bytes(
@@ -119,25 +124,10 @@ def _nested_lambda_count(code: types.CodeType) -> int:
 
 # Features still optional in this interpreter. A mandatory one is always on,
 # and its bit can mean something else: nested_scopes shares CO_NESTED.
-_FUTURE_FEATURES = [
-    getattr(__future__, name) for name in __future__.all_feature_names
-]
-_FUTURE_FLAGS = functools.reduce(
-    operator.or_,
-    (
-        feature.compiler_flag
-        for feature in _FUTURE_FEATURES
-        if feature.getMandatoryRelease() is None
-        or feature.getMandatoryRelease() > sys.version_info
-    ),
-    0,
-)
-
-
 def _compile_settings(code: types.CodeType | None = None) -> bytes:
     # `python -O` folds `__debug__` and drops asserts, and a `__future__`
     # import changes what the same source means. Neither is in the AST.
-    future = code.co_flags & _FUTURE_FLAGS if code is not None else 0
+    future = code.co_flags & FUTURE_FLAGS if code is not None else 0
     return primitive_to_bytes((sys.flags.optimize, future))
 
 
@@ -172,7 +162,10 @@ def hash_function_source(fn: Callable[..., Any]) -> bytes:
     """
     code = fn.__code__
     settings = _compile_settings(code)
-    fallback = type_sign(_code_object_bytes(code), "code") + settings
+
+    def fallback() -> bytes:
+        return type_sign(_code_object_bytes(code), "code") + settings
+
     # The whole file, not `inspect.getsource`: a fragment has to be dedented,
     # which rewrites multiline string literals, and a lambda's fragment may
     # not parse on its own. A reloaded module has new lines on disk, and a
@@ -185,11 +178,11 @@ def hash_function_source(fn: Callable[..., Any]) -> bytes:
     )
     if not lines:
         # Built by exec or eval. Only the compiled form exists.
-        return fallback
+        return fallback()
     try:
         index = _index_source(code.co_filename, "".join(lines))
     except (SyntaxError, ValueError):
-        return fallback
+        return fallback()
     first = code.co_firstlineno
     nodes: list[ast.AST]
     if code.co_name == "<lambda>":
@@ -228,7 +221,7 @@ def hash_function_source(fn: Callable[..., Any]) -> bytes:
     if len(nodes) != 1:
         # Nothing, or several, for example when the compiler folded a nested
         # lambda away, as in `lambda: True or (lambda: 2)`.
-        return fallback
+        return fallback()
     return ast_fingerprint(nodes[0]).encode("utf-8") + settings
 
 
