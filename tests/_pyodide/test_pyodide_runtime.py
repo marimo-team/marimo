@@ -29,6 +29,7 @@ from marimo._runtime.commands import (
     ExecuteCellsCommand,
     ExecuteScratchpadCommand,
 )
+from marimo._runtime.kernel_request_handlers import KernelRequestHandlers
 from marimo._session.model import SessionMode
 from marimo._session.notebook import AppFileManager
 from marimo._types.ids import CellId_t
@@ -37,6 +38,7 @@ if TYPE_CHECKING:
     from pathlib import Path
 
     from marimo._messaging.notification import NotificationMessage
+    from marimo._messaging.types import KernelMessage
 
 
 @pytest.fixture
@@ -798,3 +800,123 @@ async def test_cancelling_a_middle_run_keeps_the_order(bridge):
     gate.set()
     await settle()
     assert [command.run_id for command in queued(bridge)] == [first, third]
+
+
+async def test_a_scratch_run_waits_for_the_scratch_run_ahead_to_complete(
+    bridge,
+):
+    bridge.session.instantiated = True
+    events = await started(bridge)
+    cell = latest(events, "cell")
+    first = (await call(bridge, "runtime.run", {"code": "1"}))["body"]["id"]
+    await settle()
+    assert [command.run_id for command in queued(bridge)] == [first]
+
+    second = (await call(bridge, "runtime.run", {"code": "2"}, key="run-2"))[
+        "body"
+    ]["id"]
+    # The cell run accepted behind the waiting scratch run waits its turn.
+    third = (
+        await call(
+            bridge, "runtime.run", {"cells": [{"id": cell["id"]}]}, key="run-3"
+        )
+    )["body"]["id"]
+    await settle()
+    assert queued(bridge) == []
+
+    deliver(
+        bridge, CompletedRunNotification(run_id=first, outcome="succeeded")
+    )
+    await settle()
+    assert [command.run_id for command in queued(bridge)] == [second, third]
+
+
+async def test_interrupting_a_scratch_run_waiting_for_the_scratchpad(bridge):
+    bridge.session.instantiated = True
+    events = await started(bridge)
+    first = (await call(bridge, "runtime.run", {"code": "1"}))["body"]["id"]
+    second = (await call(bridge, "runtime.run", {"code": "2"}, key="run-2"))[
+        "body"
+    ]["id"]
+    third = (await call(bridge, "runtime.run", {"code": "3"}, key="run-3"))[
+        "body"
+    ]["id"]
+    await settle()
+    assert [command.run_id for command in queued(bridge)] == [first]
+
+    reply = await call(
+        bridge, "runtime.interrupt", key="stop-1", run_id=second
+    )
+    assert reply["status"] == 202
+    await settle()
+    assert latest_by_id(events, "run")[second]["outcome"] == "interrupted"
+    assert queued(bridge) == []
+
+    deliver(
+        bridge, CompletedRunNotification(run_id=first, outcome="succeeded")
+    )
+    await settle()
+    assert [command.run_id for command in queued(bridge)] == [third]
+
+
+async def test_a_queued_scratch_run_reads_the_document_the_run_ahead_leaves(
+    bridge, mocked_kernel, monkeypatch: pytest.MonkeyPatch
+):
+    bridge.session.instantiated = True
+    events = await started(bridge)
+    cell = latest(events, "cell")
+    kernel = mocked_kernel.k
+    kernel._maybe_register_cell(cell["id"], "x = 1", stale=False)
+    handlers = KernelRequestHandlers(kernel)
+    write = mocked_kernel.stream.write
+
+    def forward(message: KernelMessage) -> None:
+        write(message)
+        bridge.session._on_message(message)
+
+    monkeypatch.setattr(mocked_kernel.stream, "write", forward)
+
+    first = (
+        await call(
+            bridge,
+            "runtime.run",
+            {
+                "code": (
+                    "import marimo._code_mode as cm\n"
+                    "async with cm.get_context() as ctx:\n"
+                    "    ctx.cells[0].code\n"
+                    '    ctx.edit_cell(ctx.cells[0].id, code="x = 2")\n'
+                )
+            },
+        )
+    )["body"]["id"]
+    second = (
+        await call(
+            bridge,
+            "runtime.run",
+            {
+                "code": (
+                    "import marimo._code_mode as cm\n"
+                    'assert cm.get_context().cells[0].code == "x = 2"\n'
+                )
+            },
+            key="run-2",
+        )
+    )["body"]["id"]
+    await settle()
+    [command] = queued(bridge)
+    assert command.run_id == first
+    await handlers._handle_execute_scratchpad(command)
+    await settle()
+    assert latest_by_id(events, "run")[first]["outcome"] == "succeeded", (
+        latest(events, "execution")
+    )
+    document = bridge.session.app_manager.app.cell_manager.document
+    assert document.cells[0].code == "x = 2"
+
+    [command] = queued(bridge)
+    assert command.run_id == second
+    await handlers._handle_execute_scratchpad(command)
+    runs = latest_by_id(events, "run")
+    assert runs[first]["outcome"] == "succeeded"
+    assert runs[second]["outcome"] == "succeeded"

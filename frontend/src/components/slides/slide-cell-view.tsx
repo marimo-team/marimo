@@ -23,6 +23,7 @@ import {
 } from "@/core/cells/utils";
 import type { CellData, CellRuntimeState } from "@/core/cells/types";
 import type { LanguageAdapterType } from "@/core/codemirror/language/types";
+import { useCellExecution } from "@/core/executions";
 import { connectionAtom } from "@/core/network/connection";
 import { useTheme } from "@/theme/useTheme";
 import { cn } from "@/utils/cn";
@@ -62,21 +63,19 @@ export const SlideCellView = ({ cell }: { cell: RuntimeCell }) => {
 
   const cellOutputPosition = userConfig.display.cell_output;
   const hasOutput = cell.output != null;
+  const execution = useCellExecution(cell.id);
+  const errored = execution.outcome === "error";
+  const interrupted = execution.outcome === "interrupted";
+  const stopped = execution.outcome === "skipped";
 
-  const uninstantiated = isUninstantiated({
-    executionTime: cell.runElapsedTimeMs ?? cell.lastExecutionTime,
-    status: cell.status,
-    errored: cell.errored,
-    interrupted: cell.interrupted,
-    stopped: cell.stopped,
-  });
+  const uninstantiated = isUninstantiated(execution);
 
   const needsRun = cellNeedsRun({
     edited: cell.edited,
-    interrupted: cell.interrupted,
+    interrupted,
     staleInputs: cell.staleInputs,
     disabled: cell.config.disabled,
-    status: cell.status,
+    blocked: execution.blocked,
   });
 
   const editorWrapperClassName = cn(
@@ -85,19 +84,19 @@ export const SlideCellView = ({ cell }: { cell: RuntimeCell }) => {
     "interactive",
     cellStatusClasses({
       needsRun,
-      errored: cell.errored,
-      stopped: cell.stopped,
+      errored,
+      stopped,
       disabled: cell.config.disabled,
-      status: cell.status,
+      blocked: execution.blocked,
     }),
   );
 
   const output = (
     <CellOutputSlide
       cellId={cell.id}
-      status={cell.status}
+      status={execution.status}
       output={cell.output}
-      stale={outputIsStale(cell, false)}
+      stale={outputIsStale(execution, cell.staleInputs, false)}
     />
   );
 
@@ -105,14 +104,14 @@ export const SlideCellView = ({ cell }: { cell: RuntimeCell }) => {
     <div className="absolute top-1 right-2 z-10 flex items-center gap-1.5">
       <CellStatusComponent
         editing={true}
-        status={cell.status}
+        status={execution.status}
         disabled={cell.config.disabled ?? false}
         staleInputs={cell.staleInputs}
         edited={cell.edited}
-        interrupted={cell.interrupted}
-        elapsedTime={cell.runElapsedTimeMs ?? cell.lastExecutionTime}
-        runStartTimestamp={cell.runStartTimestamp}
-        lastRunStartTimestamp={cell.lastRunStartTimestamp}
+        interrupted={interrupted}
+        elapsedTime={execution.duration}
+        startedAt={execution.startedAt}
+        blocked={execution.blocked}
         uninstantiated={uninstantiated}
       />
       <LanguageToggles
@@ -125,13 +124,17 @@ export const SlideCellView = ({ cell }: { cell: RuntimeCell }) => {
       <div className="flex items-center shadow-none gap-1">
         <RunButton
           edited={cell.edited}
-          status={cell.status}
+          status={execution.status}
+          blocked={execution.blocked}
           needsRun={needsRun}
           connectionState={connection.state}
           config={cell.config}
           onClick={runCell}
         />
-        <StopButton status={cell.status} connectionState={connection.state} />
+        <StopButton
+          status={execution.status}
+          connectionState={connection.state}
+        />
       </div>
     </div>
   );
@@ -148,7 +151,7 @@ export const SlideCellView = ({ cell }: { cell: RuntimeCell }) => {
         id={cell.id}
         code={cell.code}
         config={cell.config}
-        status={cell.status}
+        status={execution.status}
         runCell={runCell}
         setEditorView={(ev) => {
           editorViewRef.current = ev;
@@ -188,15 +191,16 @@ export const SlideCellView = ({ cell }: { cell: RuntimeCell }) => {
 export const SlideCellReadOnlyView = ({ cell }: { cell: RuntimeCell }) => {
   const [userConfig] = useUserConfig();
   const cellOutputPosition = userConfig.display.cell_output;
+  const execution = useCellExecution(cell.id);
 
   const display = useMemo(() => getReadonlyCodeDisplay(cell.code), [cell.code]);
 
   const output = (
     <CellOutputSlide
       cellId={cell.id}
-      status={cell.status}
+      status={execution.status}
       output={cell.output}
-      stale={outputIsStale(cell, false)}
+      stale={outputIsStale(execution, cell.staleInputs, false)}
     />
   );
 

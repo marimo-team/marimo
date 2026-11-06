@@ -7,10 +7,16 @@ import { getNotebook, type NotebookState } from "@/core/cells/cells";
 import { useCellActions } from "@/core/cells/actions";
 import type { CellId } from "@/core/cells/ids";
 import { enabledCellIds, staleCellIds } from "@/core/cells/utils";
+import {
+  cellExecutionInputsAtom,
+  submitCells,
+  withdrawCells,
+} from "@/core/executions";
 import { getCurrentLanguageAdapter } from "@/core/codemirror/language/commands";
 import { getEditorCodeAsPython } from "@/core/codemirror/language/utils";
 import { useRequestClient } from "@/core/network/requests";
 import type { ExecuteCellsRequest } from "@/core/network/types";
+import { store } from "@/core/state/jotai";
 import { Logger } from "@/utils/Logger";
 
 export const hasRunAnyCellAtom = atom<boolean>(false);
@@ -20,7 +26,9 @@ export const hasRunAnyCellAtom = atom<boolean>(false);
  */
 export function useRunStaleCells() {
   const runCells = useRunCells();
-  const runStaleCells = useEvent(() => runCells(staleCellIds(getNotebook())));
+  const runStaleCells = useEvent(() =>
+    runCells(staleCellIds(getNotebook(), store.get(cellExecutionInputsAtom))),
+  );
   return runStaleCells;
 }
 
@@ -107,9 +115,16 @@ export async function runCells({
     codes.push(code);
     prepareForRun({ cellId });
   }
+  // The kernel sets a disabled cell aside without planning an execution,
+  // so a submission for it would never be superseded.
+  submitCells(
+    store,
+    cellIds.filter((cellId) => !cellData[cellId]?.config.disabled),
+  );
 
-  // Send the run request to the Kernel
+  // TODO(MO-8346): Submit through the host's `runtime.run`.
   await sendRun({ cellIds: cellIds, codes: codes }).catch((error) => {
+    withdrawCells(store, cellIds);
     Logger.error(error);
   });
 }

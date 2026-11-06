@@ -41,7 +41,6 @@ export const MockNotebook = {
         },
         edited: false,
         lastCodeRun: null,
-        lastExecutionTime: null,
         serializedEditorState: null,
         ...data,
       })),

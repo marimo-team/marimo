@@ -24,9 +24,9 @@ import ReactDOM, { type Root } from "react-dom/client";
 import useEvent from "react-use-event-hook";
 import { type ZodSchema, z } from "zod";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { notebookAtom } from "@/core/cells/cells.ts";
 import { HTMLCellId } from "@/core/cells/ids.ts";
 import { isUninstantiated } from "@/core/cells/utils";
+import { cellExecutionInputsAtom, cellExecutionView } from "@/core/executions";
 import { createInputEvent, MarimoValueUpdateEvent } from "@/core/dom/events";
 import { getUIElementObjectId } from "@/core/dom/ui-element";
 import { UIElementRegistry } from "@/core/dom/uiregistry";
@@ -205,18 +205,9 @@ function PluginSlotInternal<T>(
         if (cellId && !isStatic) {
           // If the cell is not initialized, throw an error
           // Continue if the cell is static, so we can propagate a clearer error message.
-          const notebookState = store.get(notebookAtom);
-          const cellRuntime = notebookState.cellRuntime[cellId];
-          const cellData = notebookState.cellData[cellId];
-
-          const cellNotInitialized = isUninstantiated({
-            executionTime:
-              cellRuntime.runElapsedTimeMs ?? cellData.lastExecutionTime,
-            status: cellRuntime.status,
-            errored: cellRuntime.errored,
-            interrupted: cellRuntime.interrupted,
-            stopped: cellRuntime.stopped,
-          });
+          const cellNotInitialized = isUninstantiated(
+            cellExecutionView(store.get(cellExecutionInputsAtom), cellId),
+          );
 
           if (cellNotInitialized) {
             throw new CellNotInitializedError();

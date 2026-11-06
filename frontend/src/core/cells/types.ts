@@ -1,8 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import type { Milliseconds, Seconds } from "@/utils/time";
 import type { OutputMessage } from "../kernel/messages";
-import type { CellConfig, RuntimeState } from "../network/types";
+import type { CellConfig } from "../network/types";
 import type { CellId } from "./ids";
 import { DEFAULT_CELL_NAME } from "./names";
 import type { Outline } from "./outline";
@@ -11,7 +10,7 @@ import type { Outline } from "./outline";
  * Whether a cell's code has changed since it last ran. A cell that never ran
  * is edited once it has code. Whitespace at the ends does not count.
  *
- * TODO(MO-8028): Temporary until staleness comes from the host's executions.
+ * TODO(MO-8403): Delete with `lastCodeRun`.
  */
 export function isEdited(lastCodeRun: string | null, code: string): boolean {
   return lastCodeRun === null
@@ -27,7 +26,6 @@ export function createCell({
   name = DEFAULT_CELL_NAME,
   code = "",
   lastCodeRun = null,
-  lastExecutionTime = null,
   edited = false,
   config,
 }: Partial<CellData> & { id: CellId }): CellData {
@@ -43,7 +41,6 @@ export function createCell({
     code: code,
     edited: edited,
     lastCodeRun: lastCodeRun,
-    lastExecutionTime: lastExecutionTime,
   };
 }
 
@@ -64,14 +61,7 @@ export function createCellRuntimeState(
     outline: null,
     output: null,
     consoleOutputs: [],
-    status: "idle" as RuntimeState,
     staleInputs: false,
-    interrupted: false,
-    errored: false,
-    stopped: false,
-    runElapsedTimeMs: null,
-    runStartTimestamp: null,
-    lastRunStartTimestamp: null,
     debuggerActive: false,
     ...state,
   };
@@ -90,41 +80,28 @@ export interface CellData {
   edited: boolean;
   /** snapshot of code that was last run */
   lastCodeRun: string | null;
-  /** execution time on session start / resume */
-  lastExecutionTime: number | null;
   /** cell configuration */
   config: CellConfig;
 }
 
+/**
+ * What the kernel's cell-ops still own. Status, timing, and how a cell last
+ * ended come from the host's executions (see `@/core/executions`).
+ *
+ * TODO(MO-8407): Delete.
+ */
 export interface CellRuntimeState {
-  /** a message encoding the cell's output */
+  /** a message encoding the cell's output. TODO(MO-8404) */
   output: OutputMessage | null;
-  /** TOC outline */
+  /** TOC outline. TODO(MO-8404) */
   outline: Outline | null;
-  /** messages encoding the cell's console outputs. */
+  /** messages encoding the cell's console outputs. TODO(MO-8405) */
   consoleOutputs: ConsoleOutputMessage[];
-  /** current status of the cell */
-  status: RuntimeState;
-  /** whether the cell has stale inputs*/
+  /** whether the cell has stale inputs. TODO(MO-8403) */
   staleInputs: boolean;
-  /** whether this cell has been interrupted since its last run */
-  interrupted: boolean;
-  /** whether this cell was stopped with mo.stop */
-  stopped: boolean;
-  /**
-   * whether marimo encountered an error when trying to register or run
-   * this cell (such as a multiple definition error)
-   */
-  errored: boolean;
-  /** run start time, as seconds since epoch */
-  runStartTimestamp: Seconds | null;
-  /** run elapsed time, in milliseconds */
-  runElapsedTimeMs: Milliseconds | null;
-  /** last run timestamp, as seconds since epoch */
-  lastRunStartTimestamp: Seconds | null;
   /** debugger active */
   debuggerActive: boolean;
-  /** serialization message */
+  /** serialization message. TODO(MO-8414) */
   serialization?: string | null;
 }
 

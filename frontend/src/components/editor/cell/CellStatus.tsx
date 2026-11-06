@@ -7,24 +7,29 @@ import {
 } from "lucide-react";
 import { useDateFormatter } from "react-aria";
 import { MultiIcon } from "@/components/icons/multi-icon";
+import type { CellRunStatus } from "@/core/executions";
 import { Logger } from "@/utils/Logger";
-import type { CellRuntimeState } from "../../../core/cells/types";
 import { useElapsedTime } from "../../../hooks/useElapsedTime";
 import { Tooltip } from "../../ui/tooltip";
 
 import "./cell-status.css";
 import { formatDistanceToNow } from "date-fns";
-import { formatElapsedTime, Time } from "@/utils/time";
+import { formatElapsedTime, type Milliseconds, Time } from "@/utils/time";
 
-export interface CellStatusComponentProps extends Pick<
-  CellRuntimeState,
-  "status" | "runStartTimestamp" | "interrupted" | "lastRunStartTimestamp"
-> {
+export interface CellStatusComponentProps {
   editing: boolean;
   edited: boolean;
   disabled: boolean;
+  /** Whether a cell it depends on is disabled. */
+  blocked: boolean;
   staleInputs: boolean;
-  elapsedTime: number | null;
+  status: CellRunStatus;
+  /** Whether the cell's last run was interrupted. */
+  interrupted: boolean;
+  /** How long the last run took, once it has ended. */
+  elapsedTime: Milliseconds | null;
+  /** When the current run started, or the last one, since the epoch. */
+  startedAt: Milliseconds | null;
   uninstantiated: boolean;
 }
 
@@ -32,20 +37,21 @@ export const CellStatusComponent: React.FC<CellStatusComponentProps> = ({
   editing,
   status,
   disabled,
+  blocked,
   staleInputs,
   edited,
   interrupted,
   elapsedTime,
-  runStartTimestamp,
-  lastRunStartTimestamp,
+  startedAt,
   uninstantiated,
 }) => {
   if (!editing) {
     return null;
   }
 
-  const start = runStartTimestamp ?? lastRunStartTimestamp;
-  const lastRanTime = start ? <LastRanTime lastRanTime={start} /> : null;
+  const lastRanTime = startedAt ? (
+    <LastRanTime lastRanTime={startedAt} />
+  ) : null;
 
   // unexpected states
   if (disabled && status === "running") {
@@ -103,7 +109,7 @@ export const CellStatusComponent: React.FC<CellStatusComponentProps> = ({
   }
 
   // disabled from parent
-  if (!staleInputs && status === "disabled-transitively") {
+  if (!staleInputs && blocked) {
     return (
       <Tooltip
         content={
@@ -131,7 +137,7 @@ export const CellStatusComponent: React.FC<CellStatusComponentProps> = ({
   }
 
   // stale from parent being disabled
-  if (staleInputs && status === "disabled-transitively") {
+  if (staleInputs && blocked) {
     return (
       <Tooltip
         content={
@@ -175,9 +181,7 @@ export const CellStatusComponent: React.FC<CellStatusComponentProps> = ({
           data-testid="cell-status"
           data-status="running"
         >
-          <CellTimer
-            startTime={Time.fromSeconds(runStartTimestamp) || Time.now()}
-          />
+          <CellTimer startTime={startedAt ?? Time.now().toMilliseconds()} />
         </div>
       </Tooltip>
     );
@@ -307,7 +311,7 @@ export const ElapsedTime = (props: { elapsedTime: string }) => {
   );
 };
 const LastRanTime = (props: { lastRanTime: number }) => {
-  const date = new Date(props.lastRanTime * 1000);
+  const date = new Date(props.lastRanTime);
   const today = new Date();
 
   // Looks like HH:MM:SS.SSS AM/PM
@@ -348,7 +352,7 @@ const LastRanTime = (props: { lastRanTime: number }) => {
   );
 };
 
-const CellTimer = (props: { startTime: Time }) => {
-  const time = useElapsedTime(props.startTime.toMilliseconds());
+const CellTimer = (props: { startTime: Milliseconds }) => {
+  const time = useElapsedTime(props.startTime);
   return <span>{formatElapsedTime(time)}</span>;
 };

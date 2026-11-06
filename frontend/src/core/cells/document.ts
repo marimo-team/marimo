@@ -5,7 +5,7 @@
  * both. Edits go the other way through the document model directly: the
  * cell operations write it, and each cell editor is bound to its cell.
  *
- * TODO(MO-8028): Delete this module once components read cells from the
+ * TODO(MO-8349): Delete this module once components read cells from the
  * document model and `notebookAtom` holds only runtime and editor state.
  */
 
@@ -64,7 +64,7 @@ function followCell(current: CellData, cell: EditableCell): CellData {
  * Returns the same state when nothing differs, so a local edit that the
  * document already reflects changes nothing.
  *
- * TODO(MO-8028): Delete with `reconcileDocument` once cells are read from
+ * TODO(MO-8349): Delete with `reconcileDocument` once cells are read from
  * the document model.
  */
 export function applyDocument(
@@ -134,7 +134,7 @@ export function applyDocument(
  * Reconcile the model's document and name its columns, now and on each
  * change, until the signal aborts.
  *
- * TODO(MO-8028): Delete with `applyDocument`.
+ * TODO(MO-8349): Delete with `applyDocument`.
  */
 export function followDocument({
   store,

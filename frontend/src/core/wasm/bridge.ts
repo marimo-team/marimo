@@ -13,7 +13,7 @@ import { reloadSafe } from "@/utils/reload-safe";
 import { once } from "@/utils/once";
 import { generateUUID } from "@/utils/uuid";
 import { createModuleWorker } from "@/utils/worker";
-import { notebookIsRunningAtom } from "../cells/cells";
+import { notebookIsRunningAtom } from "../executions";
 import { activeNotebookReplicaAtom } from "../session/active-notebook";
 import { flushDocument } from "../cells/document";
 import { createWasmNotebookBackend } from "../transports/wasm";

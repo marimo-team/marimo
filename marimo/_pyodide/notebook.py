@@ -118,6 +118,9 @@ class WorkerBackend:
         """Runs handed over that the kernel does not have yet."""
         self._halting: set[protocol.RunId] = set()
         """Runs asked to stop whose halt has not taken yet."""
+        self._scratchpad = asyncio.Lock()
+        self._scratch_run: protocol.RunId | None = None
+        """The scratch run holding the scratchpad until it completes."""
         self._announce: asyncio.Task[None] | None = None
         session.consumers.append(self._notify)
 
@@ -186,7 +189,9 @@ class WorkerBackend:
                 allow_stdin=True,
             )
 
-        self._prepare(RunTranslator(run_id, code), [code], build)
+        self._prepare(
+            RunTranslator(run_id, code), [code], build, scratchpad=True
+        )
 
     def run_cells(
         self,
@@ -269,14 +274,25 @@ class WorkerBackend:
         translator: RunTranslator,
         sources: Sequence[str],
         build: Callable[[], CommandMessage],
+        *,
+        scratchpad: bool = False,
     ) -> None:
-        """Queue the command in turn, once the packages `sources` import are loaded."""
+        """Queue the command in turn, once the packages `sources` import are loaded.
+
+        A scratch run also waits for the scratchpad, which the scratch run
+        ahead holds until it completes, so `build` snapshots the document
+        and outputs that run leaves. As on the server, the runs behind it
+        wait their turn only until it submits.
+        """
         turn = self._handover.take()
 
         async def submit() -> None:
             await turn.wait()
             for source in sources:
                 await self._load_packages(source)
+            if scratchpad:
+                await self._scratchpad.acquire()
+                self._scratch_run = translator.run_id
             if not self._session.instantiated:
                 # The page registers the cells when it starts the kernel;
                 # a host run that comes first registers them itself.
@@ -323,6 +339,9 @@ class WorkerBackend:
     def _finish(
         self, translator: RunTranslator, *, error: protocol.Error | None = None
     ) -> None:
+        if self._scratch_run == translator.run_id:
+            self._scratch_run = None
+            self._scratchpad.release()
         for message in translator.finish(error=error):
             self._observe(message)
 

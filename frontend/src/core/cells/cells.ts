@@ -6,6 +6,11 @@ import { atomFamily, selectAtom, splitAtom } from "jotai/utils";
 import { createRef, type ReducerWithoutAction } from "react";
 import type { CellHandle } from "@/components/editor/notebook-cell";
 import type { EditableDocument, Placement } from "@/core/notebook/document";
+import {
+  cellExecutionInputsAtom,
+  cellExecutionView,
+  withdrawCells,
+} from "@/core/executions";
 import type { CellColumnId } from "./layout";
 import { invariant } from "@/utils/invariant";
 import { Logger } from "@/utils/Logger";
@@ -21,7 +26,7 @@ import { isErrorMime } from "../mime";
 import type { CellConfig } from "../network/types";
 import { createDeepEqualAtom, store } from "../state/jotai";
 import { isWasm } from "../wasm/utils";
-import { prepareCellForExecution, transitionCell } from "./cell";
+import { transitionCell } from "./cell";
 import { applyDocument } from "./document";
 import { isCodeHidden, shownHiddenCodeAtom } from "./editor";
 import { type CellId, SCRATCH_CELL_ID } from "./ids";
@@ -40,9 +45,7 @@ import {
   disabledCellIds,
   enabledCellIds,
   getUndoLabel,
-  notebookIsRunning,
   notebookNeedsRun,
-  notebookQueueOrRunningCount,
 } from "./utils";
 
 /** A deleted cell as it was, with where it went in the document. */
@@ -190,9 +193,7 @@ const {
     const newState = updateCellRuntimeState({
       state,
       cellId: action.cellId,
-      cellReducer: (cell) => {
-        return prepareCellForExecution(cell);
-      },
+      cellReducer: (cell) => ({ ...cell, debuggerActive: false }),
     });
     return updateCellData({
       state: newState,
@@ -286,13 +287,7 @@ const {
     });
   },
   /** Record what the kernel last ran for each cell. */
-  setLastRun: (
-    state,
-    action: {
-      lastCodeRun: Record<CellId, string>;
-      lastExecutionTime: Record<CellId, number>;
-    },
-  ) => {
+  setLastRun: (state, action: { lastCodeRun: Record<CellId, string> }) => {
     const cellData = { ...state.cellData };
     for (const cellId of state.cellIds) {
       const cell = state.cellData[cellId];
@@ -300,7 +295,6 @@ const {
       cellData[cellId] = {
         ...cell,
         lastCodeRun,
-        lastExecutionTime: action.lastExecutionTime[cellId] ?? null,
         // A cell the kernel never ran is not stale on load.
         edited: lastCodeRun !== null && isEdited(lastCodeRun, cell.code),
       };
@@ -497,7 +491,9 @@ export const canUndoDeletesAtom = atom((get) =>
 
 export const undoLabelAtom = atom((get) => getUndoLabel(get(notebookAtom)));
 
-export const needsRunAtom = atom((get) => notebookNeedsRun(get(notebookAtom)));
+export const needsRunAtom = atom((get) =>
+  notebookNeedsRun(get(notebookAtom), get(cellExecutionInputsAtom)),
+);
 
 export const cellErrorsAtom = atom((get) => {
   const { cellIds, cellRuntime, cellData } = get(notebookAtom);
@@ -629,19 +625,6 @@ export const useCellDataAtoms = () => useAtom(cellDataAtoms);
 
 export const cellsRuntimeAtom = atom((get) => get(notebookAtom).cellRuntime);
 
-export const notebookIsRunningAtom = atom((get) =>
-  notebookIsRunning(get(notebookAtom)),
-);
-export const onlyScratchpadIsRunningAtom = atom((get) => {
-  const { cellRuntime } = get(notebookAtom);
-  return Object.entries(cellRuntime).every(
-    ([id, rt]) => rt.status !== "running" || id === SCRATCH_CELL_ID,
-  );
-});
-export const notebookQueuedOrRunningCountAtom = atom((get) =>
-  notebookQueueOrRunningCount(get(notebookAtom)),
-);
-
 export const hasCellsAtom = atom((get) => get(notebookAtom).cellIds.length > 0);
 export const cellDataAtom = atomFamily((cellId: CellId) =>
   atom((get) => get(notebookAtom).cellData[cellId]),
@@ -666,6 +649,7 @@ export function releaseCellAtoms(cellId: CellId) {
   cellDataAtom.remove(cellId);
   cellRuntimeAtom.remove(cellId);
   cellHandleAtom.remove(cellId);
+  withdrawCells(store, [cellId]);
 }
 
 /** Subscribes to reactive updates of the cell's data. */
@@ -726,7 +710,8 @@ export function createTracebackInfoAtom(
       return undefined;
     }
 
-    if (data.status === "queued" || data.status === "running") {
+    const { status } = cellExecutionView(get(cellExecutionInputsAtom), cellId);
+    if (status === "queued" || status === "running") {
       return undefined;
     }
 

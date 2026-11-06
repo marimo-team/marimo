@@ -52,6 +52,7 @@ function renderActions(cellId: CellId, name: string, edit?: Edit) {
           name,
           config: { disabled: false, hide_code: false, column: null },
           status: "idle",
+          blocked: false,
           hasOutput: false,
           hasConsoleOutput: false,
           getEditorView: () => null,

@@ -14,7 +14,6 @@ import { connectionAtom } from "@/core/network/connection";
 import { requestClientAtom } from "@/core/network/requests";
 import { resolveRequestClient } from "@/core/network/resolve";
 import { ConnectionState } from "@/core/session/types";
-import type { Milliseconds, Seconds } from "@/utils/time";
 import { CellArray } from "../../../components/editor/renderers/cell-array";
 import { CellsRenderer } from "../../../components/editor/renderers/cells-renderer";
 import { TooltipProvider } from "../../../components/ui/tooltip";
@@ -50,7 +49,6 @@ LongReprA()`,
 
 print('hello')
 LongReprA()`,
-      lastExecutionTime: null,
     },
   },
   cellIds: [cellId],
@@ -62,8 +60,6 @@ LongReprA()`,
         mimetype: "text/plain",
         timestamp: 1_686_863_710,
       },
-      runElapsedTimeMs: 8 as Milliseconds,
-      status: "idle",
       consoleOutputs: [
         {
           channel: "stdout",
@@ -72,12 +68,7 @@ LongReprA()`,
           timestamp: 1_686_863_705,
         },
       ],
-      interrupted: false,
-      errored: false,
-      stopped: false,
       staleInputs: false,
-      runStartTimestamp: 0 as Seconds,
-      lastRunStartTimestamp: 0 as Seconds,
       debuggerActive: false,
       outline: null,
     }),

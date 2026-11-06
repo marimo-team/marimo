@@ -22,6 +22,7 @@ import {
   visibleNeighbor,
 } from "@/core/cells/layout";
 import { useCellActions } from "@/core/cells/actions";
+import { cellExecutionInputsAtom, cellExecutionView } from "@/core/executions";
 import { useNotebookDocumentEdit } from "@/core/notebook/document";
 import { useCellFocusActions } from "@/core/cells/focus";
 import type { CellId } from "@/core/cells/ids";
@@ -582,9 +583,9 @@ export function useCellNavigationProps(
             selectedCells.size >= 2 ? [...selectedCells] : [cellId];
 
           // Cannot delete running cells
-          const notebook = store.get(notebookAtom);
+          const executions = store.get(cellExecutionInputsAtom);
           const hasRunningCell = cellIds.some((id) => {
-            const { status } = notebook.cellRuntime[id];
+            const { status } = cellExecutionView(executions, id);
             return status === "running" || status === "queued";
           });
 
