@@ -12,114 +12,152 @@ vi.mock("../../markdown/markdown-renderer", () => ({
   MarkdownRenderer: ({ content }: { content: string }) => <p>{content}</p>,
 }));
 
-const done = (name = "edit_notebook_tool"): ToolUIPart => ({
-  type: `tool-${name}`,
-  toolCallId: crypto.randomUUID(),
-  state: "output-available",
-  input: {},
-  output: {},
+const tool = (
+  name = "edit_notebook_tool",
+  state: ToolUIPart["state"] = "output-available",
+): ToolUIPart =>
+  ({
+    type: `tool-${name}`,
+    toolCallId: crypto.randomUUID(),
+    state,
+    input: {},
+    output: {},
+    approval: state === "approval-requested" ? { id: "approval" } : undefined,
+  }) as ToolUIPart;
+
+const reasoning = (text: string): UIMessage["parts"][number] => ({
+  type: "reasoning",
+  text,
+  state: "done",
 });
 
-function show(parts: UIMessage["parts"], isActive = false) {
+function show(
+  parts: UIMessage["parts"],
+  {
+    isActive = false,
+    metadata,
+  }: { isActive?: boolean; metadata?: Record<string, number> } = {},
+) {
   return render(
-    renderUIMessage({
-      message: { id: "message", role: "assistant", parts },
-      isStreamingReasoning: false,
-      isLast: true,
-      isActive,
-    }),
+    <div>
+      {renderUIMessage({
+        message: { id: "message", role: "assistant", parts, metadata },
+        isLast: true,
+        isActive,
+      })}
+    </div>,
   );
 }
 
-describe("chat tool activity", () => {
-  it("collapses consecutive edits across SDK step boundaries and exposes details on demand", () => {
-    show([done(), { type: "step-start" }, done(), done(), done()]);
+describe("assistant turn rendering", () => {
+  it("folds interleaved reasoning, narration, and tools into one block above the answer", () => {
+    show([
+      reasoning("Plan the cells"),
+      tool("get_lightweight_cell_map"),
+      { type: "step-start" },
+      { type: "text", text: "Adding the function now." },
+      reasoning("Write fib"),
+      tool(),
+      { type: "text", text: "Added `fib`." },
+    ]);
+
     const summary = screen.getByRole("button", {
-      name: "Edited notebook · 4 operations",
+      name: "Worked through 2 steps",
     });
     expect(summary.getAttribute("aria-expanded")).toBe("false");
-    expect(screen.queryByText("tool-edit_notebook_tool")).toBeNull();
+    expect(screen.getByText("Added `fib`.")).toBeTruthy();
+    expect(screen.queryByText("Plan the cells")).toBeNull();
+
     fireEvent.click(summary);
-    expect(screen.getAllByText("tool-edit_notebook_tool")).toHaveLength(4);
+    expect(screen.getByText("Plan the cells")).toBeTruthy();
+    expect(screen.getByText("Adding the function now.")).toBeTruthy();
+    expect(screen.getByText("tool-get_lightweight_cell_map")).toBeTruthy();
+    expect(screen.getByText("tool-edit_notebook_tool")).toBeTruthy();
   });
 
-  it("starts a new group after prose and summarizes mixed tool calls", () => {
-    show([
-      done(),
-      { type: "text", text: "Checking the result." },
-      done("lint_notebook"),
-      {
-        type: "dynamic-tool",
-        toolName: "get_lightweight_cell_map",
-        toolCallId: "dynamic",
-        state: "output-available",
-        input: {},
-        output: {},
-      },
-    ]);
-    expect(screen.getByText("Checking the result.")).toBeTruthy();
+  it("reports how long the turn took", () => {
+    const view = show([tool(), { type: "text", text: "Done." }], {
+      metadata: { startedAt: 0, finishedAt: 65_000 },
+    });
     expect(
-      screen.getByRole("button", { name: "Edited notebook · 1 operation" }),
-    ).toBeTruthy();
-    expect(
-      screen.getByRole("button", { name: "Completed 2 steps" }),
-    ).toBeTruthy();
-  });
-
-  it("keeps errors, denials, and approval requests outside collapsed groups", () => {
-    show([
-      done(),
-      {
-        type: "tool-failed",
-        toolCallId: "error",
-        state: "output-error",
-        input: {},
-        errorText: "Failed",
-      },
-      {
-        type: "tool-approval",
-        toolCallId: "approval",
-        state: "approval-requested",
-        input: {},
-        approval: { id: "approval" },
-      },
-      {
-        type: "tool-denied",
-        toolCallId: "denied",
-        state: "output-denied",
-        input: {},
-        approval: { id: "denied", approved: false },
-      },
-      done(),
-    ]);
-    expect(screen.getByText("tool-failed")).toBeTruthy();
-    expect(screen.getByText("tool-approval")).toBeTruthy();
-    expect(screen.getByText("tool-denied")).toBeTruthy();
-    expect(
-      screen.getAllByRole("button", { name: "Edited notebook · 1 operation" }),
-    ).toHaveLength(2);
-  });
-
-  it("distinguishes running edits from interrupted activity", () => {
-    const parts: UIMessage["parts"] = [
-      done(),
-      {
-        type: "tool-edit_notebook_tool",
-        toolCallId: "pending",
-        state: "input-available",
-        input: {},
-      },
-    ];
-    const view = show(parts, true);
-    expect(
-      screen.getByRole("button", { name: "Editing notebook…" }),
+      screen.getByRole("button", { name: "Worked for 1m 5s" }),
     ).toBeTruthy();
     view.unmount();
-    show(parts);
+
+    show([reasoning("Hmm"), { type: "text", text: "Hi." }], {
+      metadata: { startedAt: 0, finishedAt: 8_000 },
+    });
+    expect(screen.getByRole("button", { name: "Thought for 8s" })).toBeTruthy();
+  });
+
+  it("stays open while running and collapses once the answer is in", () => {
+    const parts: UIMessage["parts"] = [
+      reasoning("Plan"),
+      tool("edit_notebook_tool", "input-available"),
+    ];
+    const view = show(parts, { isActive: true });
+    expect(screen.getByRole("status").textContent).toBe("Working…");
+    expect(screen.getByText("tool-edit_notebook_tool")).toBeTruthy();
+
+    view.rerender(
+      <div>
+        {renderUIMessage({
+          message: {
+            id: "message",
+            role: "assistant",
+            parts: [
+              ...parts.slice(0, 1),
+              tool(),
+              { type: "text", text: "Done." },
+            ],
+          },
+          isLast: true,
+          isActive: false,
+        })}
+      </div>,
+    );
+    const summary = screen.getByRole("button", {
+      name: "Worked through 1 step",
+    });
+    expect(summary.getAttribute("aria-expanded")).toBe("false");
+  });
+
+  it("leaves a stopped turn open since there is no answer to read", () => {
+    show([reasoning("Plan"), tool("edit_notebook_tool", "input-available")]);
+    const summary = screen.getByRole("button", { name: "Stopped" });
+    expect(summary.getAttribute("aria-expanded")).toBe("true");
+  });
+
+  it("flags failed steps in the summary", () => {
+    show([
+      tool("lint_notebook", "output-error"),
+      { type: "text", text: "Hm." },
+    ]);
+    expect(screen.getByRole("button", { name: /1 failed/ })).toBeTruthy();
+  });
+
+  it("shows a thinking indicator before any content arrives", () => {
+    show([reasoning("")], { isActive: true });
+    expect(screen.getByRole("status").textContent).toBe("Thinking…");
+    expect(screen.queryByRole("button")).toBeNull();
+  });
+
+  it("keeps pending approvals, and the text explaining them, outside the block", () => {
+    show([
+      reasoning("Needs approval"),
+      { type: "text", text: "I'll run a query." },
+      tool("run_query", "approval-requested"),
+    ]);
+    expect(screen.getByText("I'll run a query.")).toBeTruthy();
+    expect(screen.getByText("tool-run_query")).toBeTruthy();
     expect(
-      screen.getByRole("button", {
-        name: "Stopped before completing all steps",
-      }),
+      screen.getByRole("button", { name: "Thought process" }),
     ).toBeTruthy();
+  });
+
+  it("renders plain answers without an activity block", () => {
+    show([{ type: "text", text: "Hello!" }]);
+    expect(screen.getByText("Hello!")).toBeTruthy();
+    expect(screen.queryByRole("button")).toBeNull();
   });
 });

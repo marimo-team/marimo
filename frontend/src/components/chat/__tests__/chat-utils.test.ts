@@ -9,6 +9,7 @@ import {
   hasPendingToolCalls,
   hasUnresolvedToolCalls,
   shouldFlushQueue,
+  willAutoContinue,
 } from "../chat-utils";
 
 /**
@@ -557,6 +558,48 @@ describe("handleToolCall", () => {
         hasTool.mockRestore();
         invokeFrontend.mockRestore();
       }
+    },
+  );
+});
+
+describe("willAutoContinue", () => {
+  const toolPart = (state: string) =>
+    ({
+      type: "tool-run_query",
+      toolCallId: "call-1",
+      state,
+      input: {},
+      output: {},
+      approval: { id: "approval-1" },
+    }) as unknown as UIMessage["parts"][number];
+
+  it.each([
+    ["input-available", true],
+    ["output-available", true],
+    ["approval-requested", false],
+    // Input can only still be streaming if the response was cut off.
+    ["input-streaming", false],
+  ])("returns %s → %s", (state, expected) => {
+    expect(
+      willAutoContinue([
+        userMessage("run it"),
+        assistantToolMessage([toolPart(state)]),
+      ]),
+    ).toBe(expected);
+  });
+
+  it.each(["output-available", "input-available"])(
+    "returns false once text follows a tool that is %s",
+    (state) => {
+      expect(
+        willAutoContinue([
+          userMessage("run it"),
+          assistantToolMessage([
+            toolPart(state),
+            { type: "text", text: "Done." },
+          ]),
+        ]),
+      ).toBe(false);
     },
   );
 });
