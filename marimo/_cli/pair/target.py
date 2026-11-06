@@ -84,7 +84,8 @@ def resolve_target(
             and session_id is not None
             and not require_notebook
         ):
-            assert url is not None
+            if url is None:
+                raise RuntimeError("Execution target URL is missing")
             return ExecutionTarget(url, session_id, host.token)
         _require_one([n.id for n in found], url, selected_id)
         notebook = found[0]
