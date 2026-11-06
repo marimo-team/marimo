@@ -5529,8 +5529,6 @@ export interface components {
      *             layout: Notebook layout config.
      *             resumed: Whether resumed from previous session.
      *             ui_values: Previous UI element values if resumed.
-     *             last_executed_code: Last executed code per cell if resumed.
-     *             last_execution_time: Last execution time per cell if resumed.
      *             app_config: Application configuration.
      *             kiosk: Whether running in kiosk mode.
      *             capabilities: Available kernel capabilities.
@@ -5545,12 +5543,6 @@ export interface components {
       capabilities: components["schemas"]["KernelCapabilitiesNotification"];
       consumer_capabilities: components["schemas"]["ConsumerCapabilities"];
       kiosk: boolean;
-      last_executed_code: {
-        [key: string]: string;
-      } | null;
-      last_execution_time: {
-        [key: string]: number;
-      } | null;
       layout: components["schemas"]["LayoutConfig"] | null;
       /** @enum {unknown} */
       op: "kernel-ready";

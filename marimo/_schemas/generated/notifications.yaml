@@ -1103,13 +1103,11 @@ components:
       description: "Kernel ready for execution. First notification sent at startup.\n\
         \n    Attributes:\n        layout: Notebook layout config.\n        resumed:\
         \ Whether resumed from previous session.\n        ui_values: Previous UI element\
-        \ values if resumed.\n        last_executed_code: Last executed code per cell\
-        \ if resumed.\n        last_execution_time: Last execution time per cell if\
-        \ resumed.\n        app_config: Application configuration.\n        kiosk:\
-        \ Whether running in kiosk mode.\n        capabilities: Available kernel capabilities.\n\
-        \        auto_instantiated: Whether cells already executed (run mode).\n \
-        \       stable_session_id: Server-owned Session identity that survives\n \
-        \           browser reconnects. None where no server Session exists."
+        \ values if resumed.\n        app_config: Application configuration.\n   \
+        \     kiosk: Whether running in kiosk mode.\n        capabilities: Available\
+        \ kernel capabilities.\n        auto_instantiated: Whether cells already executed\
+        \ (run mode).\n        stable_session_id: Server-owned Session identity that\
+        \ survives\n            browser reconnects. None where no server Session exists."
       properties:
         app_config:
           $ref: '#/components/schemas/_AppConfig'
@@ -1122,18 +1120,6 @@ components:
           $ref: '#/components/schemas/ConsumerCapabilities'
         kiosk:
           type: boolean
-        last_executed_code:
-          anyOf:
-          - additionalProperties:
-              type: string
-            type: object
-          - type: 'null'
-        last_execution_time:
-          anyOf:
-          - additionalProperties:
-              type: number
-            type: object
-          - type: 'null'
         layout:
           anyOf:
           - $ref: '#/components/schemas/LayoutConfig'
@@ -1157,8 +1143,6 @@ components:
       - layout
       - resumed
       - ui_values
-      - last_executed_code
-      - last_execution_time
       - app_config
       - kiosk
       - capabilities

@@ -445,8 +445,6 @@ class KernelReadyNotification(Notification, tag="kernel-ready"):
         layout: Notebook layout config.
         resumed: Whether resumed from previous session.
         ui_values: Previous UI element values if resumed.
-        last_executed_code: Last executed code per cell if resumed.
-        last_execution_time: Last execution time per cell if resumed.
         app_config: Application configuration.
         kiosk: Whether running in kiosk mode.
         capabilities: Available kernel capabilities.
@@ -459,9 +457,6 @@ class KernelReadyNotification(Notification, tag="kernel-ready"):
     layout: LayoutConfig | None
     resumed: bool
     ui_values: dict[str, JSONType] | None
-    # TODO(MO-8471): Unread by the editor; delete both.
-    last_executed_code: dict[CellId_t, str] | None
-    last_execution_time: dict[CellId_t, float] | None
     app_config: _AppConfig
     kiosk: bool
     capabilities: KernelCapabilitiesNotification
