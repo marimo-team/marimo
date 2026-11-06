@@ -519,8 +519,9 @@ async def test_expiration_converges_for_live_replay_and_snapshot(
                 execution_id=execution,
                 id=protocol.ItemId("display"),
                 seq=1,
-                mimetype="text/html",
-                data="value",
+                content=protocol.DisplayData(
+                    mimetype="text/html", data="value"
+                ),
             )
         )
     )

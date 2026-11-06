@@ -1008,17 +1008,9 @@ class Decision(Struct, frozen=True):
 
 
 class Display(Struct, frozen=True):
-    data: Annotated[
-        str,
-        Meta(
-            description="The rendered value, embedded so clients can display it independently of the runtime. JSON mimetypes are encoded as text and binary mimetypes as base64."
-        ),
-    ]
+    content: Annotated[DisplayData, Meta(description="The rendered value.")]
     execution_id: ExecutionId
     id: ItemId
-    mimetype: Annotated[
-        str, Meta(description="The format of `data`, such as `image/png`.")
-    ]
     seq: Annotated[
         int,
         Meta(
@@ -1576,6 +1568,9 @@ class Run(Struct, frozen=True):
         ]
         | None
     )
+    runtime_id: Annotated[
+        RuntimeId, Meta(description="The runtime that produced this run.")
+    ]
     started_at: (
         Annotated[
             datetime,

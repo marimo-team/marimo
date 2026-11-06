@@ -490,6 +490,7 @@ class Notebook:
             run = protocol.Run(
                 id=mint(protocol.RunId, "run"),
                 notebook_id=self.id,
+                runtime_id=runtime.id,
                 caused_by=None,
                 status="queued",
                 outcome=None,

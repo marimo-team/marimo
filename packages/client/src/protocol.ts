@@ -363,6 +363,7 @@ export const Run = zod
   .object({
     id: RunId,
     notebook_id: NotebookId,
+    runtime_id: RuntimeId.describe("The runtime that produced this run."),
     caused_by: zod
       .union([ExecutionId, zod.null()])
       .describe(
@@ -709,14 +710,7 @@ export const Display = zod
       .describe(
         "Position among the execution's items, increasing in the order they were produced.",
       ),
-    mimetype: zod
-      .string()
-      .describe("The format of `data`, such as `image/png`."),
-    data: zod
-      .string()
-      .describe(
-        "The rendered value, embedded so clients can display it independently of the runtime. JSON mimetypes are encoded as text and binary mimetypes as base64.",
-      ),
+    content: DisplayData.describe("The rendered value."),
   })
   .describe(
     "A value an execution showed as a side effect, such as a figure\nfrom `plt.show()`. A producer replaces one by sending it again\nwith the same id, which is how a progress bar updates in place.\n",

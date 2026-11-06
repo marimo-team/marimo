@@ -1,10 +1,10 @@
 id: 90
 event: run
-data: {"run":{"id":"run-scratch","notebook_id":"n1","status":"queued","started_at":null,"completed_at":null,"caused_by":null,"outcome":null},"request_id":"7c1e9a3f-5b2d-4e8a-9f10-3c6d7e8f9a0b","time":"2026-10-01T09:20:00Z"}
+data: {"run":{"id":"run-scratch","notebook_id":"n1","runtime_id":"r1","status":"queued","started_at":null,"completed_at":null,"caused_by":null,"outcome":null},"request_id":"7c1e9a3f-5b2d-4e8a-9f10-3c6d7e8f9a0b","time":"2026-10-01T09:20:00Z"}
 
 id: 91
 event: run
-data: {"run":{"id":"run-scratch","notebook_id":"n1","status":"running","started_at":"2026-10-01T09:20:01Z","completed_at":null,"caused_by":null,"outcome":null},"request_id":"7c1e9a3f-5b2d-4e8a-9f10-3c6d7e8f9a0b","time":"2026-10-01T09:20:01Z"}
+data: {"run":{"id":"run-scratch","notebook_id":"n1","runtime_id":"r1","status":"running","started_at":"2026-10-01T09:20:01Z","completed_at":null,"caused_by":null,"outcome":null},"request_id":"7c1e9a3f-5b2d-4e8a-9f10-3c6d7e8f9a0b","time":"2026-10-01T09:20:01Z"}
 
 id: 92
 event: execution
@@ -30,5 +30,5 @@ data: {"execution":{"id":"e7","run_id":"run-scratch","cell_id":null,"code_finger
 
 id: 97
 event: run
-data: {"run":{"id":"run-scratch","notebook_id":"n1","status":"completed","started_at":"2026-10-01T09:20:01Z","completed_at":"2026-10-01T09:20:04Z","caused_by":null,"outcome":"succeeded"},"request_id":"7c1e9a3f-5b2d-4e8a-9f10-3c6d7e8f9a0b","time":"2026-10-01T09:20:04Z"}
+data: {"run":{"id":"run-scratch","notebook_id":"n1","runtime_id":"r1","status":"completed","started_at":"2026-10-01T09:20:01Z","completed_at":"2026-10-01T09:20:04Z","caused_by":null,"outcome":"succeeded"},"request_id":"7c1e9a3f-5b2d-4e8a-9f10-3c6d7e8f9a0b","time":"2026-10-01T09:20:04Z"}
 

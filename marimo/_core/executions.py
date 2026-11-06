@@ -269,6 +269,7 @@ class Executions:
                             protocol.Run(
                                 id=run_id,
                                 notebook_id=runtime.notebook_id,
+                                runtime_id=runtime.id,
                                 caused_by=caused_by,
                                 status="queued",
                                 outcome=None,

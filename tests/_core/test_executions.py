@@ -37,6 +37,7 @@ def run(run_id: str) -> protocol.Run:
     return protocol.Run(
         id=protocol.RunId(run_id),
         notebook_id=NOTEBOOK,
+        runtime_id=RUNTIME.id,
         caused_by=None,
         status="queued",
         outcome=None,
@@ -444,8 +445,9 @@ def test_current_result_keeps_its_outputs_as_the_execution_changes() -> None:
         execution_id=protocol.ExecutionId("e1"),
         id=protocol.ItemId("d1"),
         seq=0,
-        mimetype="application/json",
-        data='{"values":[1]}',
+        content=protocol.DisplayData(
+            mimetype="application/json", data='{"values":[1]}'
+        ),
     )
     executions.observe(be.Produced(output), RUNTIME)
     assert executions.current(cell_id) is None
@@ -458,11 +460,12 @@ def test_current_result_keeps_its_outputs_as_the_execution_changes() -> None:
         execution_id=output.execution_id,
         id=output.id,
         seq=output.seq,
-        mimetype=output.mimetype,
-        data='{"values":[1,2]}',
+        content=protocol.DisplayData(
+            mimetype=output.content.mimetype, data='{"values":[1,2]}'
+        ),
     )
     executions.observe(be.Produced(updated), RUNTIME)
     current = executions.current(cell_id)
     assert current is not None
     assert current.outputs == (updated,)
-    assert result.outputs[0].data == '{"values":[1]}'
+    assert result.outputs[0].content.data == '{"values":[1]}'
