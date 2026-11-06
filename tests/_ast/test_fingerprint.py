@@ -5,7 +5,7 @@ import ast
 
 import pytest
 
-from marimo._core.code import ast_fingerprint, code_fingerprint
+from marimo._ast.fingerprint import ast_fingerprint, code_fingerprint
 from marimo._core.document import DocumentCell
 from marimo._core.protocol import CellId
 
@@ -83,7 +83,7 @@ def test_ast_limits_preserve_document_source(
     def exhausted(*_args: object, **_kwargs: object) -> None:
         raise RecursionError
 
-    monkeypatch.setattr(f"marimo._core.code.{stage}", exhausted)
+    monkeypatch.setattr(f"marimo._ast.fingerprint.{stage}", exhausted)
     source = "x = 1"
     cell = DocumentCell(CellId("a"), source)
     edited = DocumentCell(CellId("a"), source + " # edited")

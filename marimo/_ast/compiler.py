@@ -22,6 +22,7 @@ from marimo._ast.cell import (
     SourcePosition,
 )
 from marimo._ast.dedent import smart_dedent
+from marimo._ast.fingerprint import ends_with_semicolon
 from marimo._ast.names import SETUP_CELL_NAME, TOPLEVEL_CELL_PREFIX
 from marimo._ast.pytest import has_fixture_decorator
 from marimo._ast.transformers import ContainedExtractWithBlock
@@ -32,7 +33,6 @@ from marimo._ast.visitor import (
     ScopedVisitor,
     get_closure_refs,
 )
-from marimo._core.code import ends_with_semicolon
 from marimo._schemas.serialization import CellDef, ClassCell, FunctionCell
 from marimo._types.ids import CellId_t
 from marimo._utils.tmpdir import get_tmpdir
