@@ -51,9 +51,8 @@ for (const host of ["html", "body", "shadow"] as const) {
       <div id="mount" class="marimo"></div>
     </body></html>`);
     await page.addStyleTag({ content: css });
-    await page.evaluate(
-      ({ css, host }) => {
-        const mount = document.querySelector("#mount")!;
+    await page.locator("#mount").evaluate(
+      (mount, { css, host }) => {
         const target =
           host === "shadow" ? mount.attachShadow({ mode: "open" }) : mount;
         if (target instanceof ShadowRoot) {
@@ -82,11 +81,11 @@ for (const host of ["html", "body", "shadow"] as const) {
       });
     const lightColors = await readColors();
     expect(lightColors.scheme).toBe("light");
-    await page.evaluate((host) => {
-      document
-        .querySelector(host === "shadow" ? "body" : host)!
-        .classList.add("dark");
-    }, host);
+    await page
+      .locator(host === "shadow" ? "body" : host)
+      .evaluate((element) => {
+        element.classList.add("dark");
+      });
     expect(await readColors()).toEqual(lightColors);
     await expect(namespace).toHaveCSS("display", "block");
     await expect(probe).toHaveCSS("display", "block");
