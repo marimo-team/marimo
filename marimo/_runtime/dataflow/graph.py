@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING, Literal
 from marimo import _loggers
 from marimo._ast.compiler import code_key
 from marimo._ast.variables import is_mangled_local
+from marimo._core.errors import InternalError
 from marimo._runtime.dataflow import edges
 from marimo._runtime.dataflow.cycles import CycleTracker
 from marimo._runtime.dataflow.definitions import DefinitionRegistry
@@ -100,7 +101,7 @@ class DirectedGraph(GraphTopology):
         with self.lock:
             LOGGER.debug("Acquired graph lock.")
             if cell_id in self.topology.cells:
-                raise RuntimeError("Cell is already in the graph")
+                raise InternalError("Cell is already in the graph")
 
             parents, children = edges.register_cell_dependencies(
                 cell_id, cell, self.topology, self.definition_registry
