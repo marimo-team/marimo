@@ -390,6 +390,31 @@ describe("cellFreshness", () => {
     });
   });
 
+  it.each(["queued", "running"] as const)(
+    "flags reverting to completed source while different source is %s",
+    (status) => {
+      const pending = record({
+        id: "e14",
+        cell_id: "c3",
+        code_fingerprint: "ffff000011112222",
+        status,
+        outcome: null,
+        started_at: status === "running" ? T0 : null,
+        completed_at: null,
+      });
+      const state = inputs({
+        cells: [c3],
+        executions: [execution(pending)],
+        results: [e12],
+      });
+
+      expect(freshnessOf(state)("c3")).toEqual({
+        sourceChanged: true,
+        inputsChanged: false,
+      });
+    },
+  );
+
   it("does not report changed source while a newer execution runs it", () => {
     const edited = cell("c3", "ffff000011112222");
     const running = record({
