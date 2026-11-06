@@ -597,3 +597,67 @@ def test_set_back_reference_terminates() -> None:
     node = _Node()
     node.children.add(node)
     assert isinstance(deterministic_dumps(node, "sha256"), bytes)
+
+
+async def test_nested_lambda_depth_edit_invalidates() -> None:
+    with mocked_kernel_session() as tk:
+        k = tk.kernel
+        await k.run(
+            [
+                command(0, "import marimo as mo"),
+                command(1, "cb = lambda: lambda: lambda: 3"),
+                command(
+                    2,
+                    "@mo.cache\ndef f(cb):\n    return type(cb()()).__name__\n"
+                    "r=f(cb)",
+                ),
+            ]
+        )
+        assert k.globals.get("r") == "function"
+        await k.run([command(1, "cb = lambda: lambda: 3")])
+        assert k.globals["r"] == "int"
+
+
+def test_source_less_set_constants() -> None:
+    strings = eval("lambda x: x in {'a', 'b'}")  # noqa: S307
+    assert isinstance(hash_wrapped_functions(strings), bytes)
+    ints = eval("lambda x: x in {65, 66}")  # noqa: S307
+    raw = eval("lambda x: x in b'AB'")  # noqa: S307
+    assert hash_wrapped_functions(ints) != hash_wrapped_functions(raw)
+
+
+async def test_callback_capturing_a_module_remains_callable() -> None:
+    with mocked_kernel_session() as tk:
+        k = tk.kernel
+        await k.run(
+            [
+                command(0, "import marimo as mo"),
+                command(
+                    1,
+                    "def make():\n    import math\n"
+                    "    def cb(x):\n        return math.sqrt(x)\n"
+                    "    return cb\ncb = make()",
+                ),
+                command(2, "@mo.cache\ndef f(cb):\n    return cb(4)\nr=f(cb)"),
+            ]
+        )
+        assert k.globals.get("r") == 2.0
+
+
+def test_shared_set_references_are_observable() -> None:
+    shared = {1}
+    assert deterministic_dumps((shared, shared), "sha256") != (
+        deterministic_dumps((shared, shared.copy()), "sha256")
+    )
+
+
+def test_restored_function_stub_keeps_its_hash(tmp_path: Path) -> None:
+    from marimo._save.stubs.function_stub import FunctionStub
+
+    module = tmp_path / "stubbed.py"
+    module.write_text("x = 1\n\n\ndef helper():\n    return 1\n")
+    namespace: dict[str, Any] = {}
+    exec(compile(module.read_text(), str(module), "exec"), namespace)  # noqa: S102
+    helper = namespace["helper"]
+    restored = FunctionStub(helper).load({})
+    assert hash_wrapped_functions(restored) == hash_wrapped_functions(helper)

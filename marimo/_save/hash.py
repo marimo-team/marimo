@@ -77,12 +77,20 @@ class SerialRefs(NamedTuple):
 
 def _code_object_bytes(code: types.CodeType) -> bytes:
     """Encode a code object that has no source, such as one built by eval."""
-    constants = tuple(
-        _code_object_bytes(const)
-        if isinstance(const, types.CodeType)
-        else const
-        for const in code.co_consts
-    )
+
+    def constant(value: Any) -> Any:
+        if isinstance(value, types.CodeType):
+            return _code_object_bytes(value)
+        if isinstance(value, frozenset):
+            # A folded set literal. Its iteration order follows the hash seed.
+            return iterable_sign(
+                sorted(primitive_to_bytes(constant(m)) for m in value),
+                "frozenset",
+            )
+        if isinstance(value, tuple):
+            return tuple(map(constant, value))
+        return value
+
     return primitive_to_bytes(
         (
             code.co_name,
@@ -91,9 +99,18 @@ def _code_object_bytes(code: types.CodeType) -> bytes:
             code.co_names,
             code.co_varnames,
             code.co_freevars,
-            constants,
+            constant(code.co_consts),
             code.co_code,
         )
+    )
+
+
+def _nested_lambda_count(code: types.CodeType) -> int:
+    """Lambda code objects reachable from `code`, at any depth."""
+    nested = [c for c in code.co_consts if isinstance(c, types.CodeType)]
+    return sum(
+        (child.co_name == "<lambda>") + _nested_lambda_count(child)
+        for child in nested
     )
 
 
@@ -112,7 +129,9 @@ def hash_function_source(fn: Callable[..., Any]) -> bytes:
     code = fn.__code__
     # The whole file, not `inspect.getsource`: a fragment has to be dedented,
     # which rewrites multiline string literals, and a lambda's fragment may
-    # not parse on its own. A reloaded module has new lines on disk.
+    # not parse on its own. A reloaded module has new lines on disk, and a
+    # function object kept alive from before the reload hashes as the new
+    # source too. That is the price of hashing by source.
     linecache.checkcache(code.co_filename)
     lines = linecache.getlines(code.co_filename)
     if not lines:
@@ -127,7 +146,7 @@ def hash_function_source(fn: Callable[..., Any]) -> bytes:
     if code.co_name == "<lambda>":
         # Several lambdas can share a line, or nest. The code's instruction
         # positions fall inside the one that produced it, and its arity and
-        # number of nested lambdas tell an outer lambda from its inner one.
+        # count of nested lambdas tell an outer lambda from its inner ones.
         span = next(
             (
                 ((line, col), (end_line, end_col))
@@ -140,21 +159,14 @@ def hash_function_source(fn: Callable[..., Any]) -> bytes:
             ),
             None,
         )
-        nested = sum(
-            isinstance(const, types.CodeType) and const.co_name == "<lambda>"
-            for const in code.co_consts
-        )
+        nested = _nested_lambda_count(code)
         nodes = [
             n
             for n in ast.walk(tree)
             if isinstance(n, ast.Lambda)
             and n.lineno == first
             and len(n.args.args) + len(n.args.posonlyargs) == code.co_argcount
-            and sum(
-                isinstance(child, ast.Lambda)
-                for child in ast.walk(n.body)
-                if child is not n
-            )
+            and sum(isinstance(c, ast.Lambda) for c in ast.walk(n.body))
             == nested
             and (
                 span is None
@@ -178,6 +190,32 @@ def hash_function_source(fn: Callable[..., Any]) -> bytes:
     return ast_fingerprint(nodes[0]).encode("utf-8")
 
 
+def _closure_bytes(
+    fn: Callable[..., Any], hash_type: str, seen: set[int]
+) -> bytes:
+    """Encode keyword defaults and captured closure values.
+
+    A captured module is keyed by name. When a capture cannot be encoded,
+    only the function's own source keys it, as before closures were hashed.
+    """
+    try:
+        captured = tuple(
+            cell.cell_contents.__name__
+            if inspect.ismodule(cell.cell_contents)
+            else cell.cell_contents
+            for cell in fn.__closure__ or ()
+        )
+        # `seen` already holds `fn`, so a closure over itself terminates.
+        return type_sign(
+            deterministic_dumps(
+                (fn.__kwdefaults__, captured), hash_type, _seen=seen
+            ),
+            "closure",
+        )
+    except Exception:
+        return type_sign(b"", "closure-unencoded")
+
+
 def hash_wrapped_functions(
     wrapped: Callable[..., Any],
     hash_type: str = DEFAULT_HASH,
@@ -196,31 +234,19 @@ def hash_wrapped_functions(
         hash_alg = hashlib.new(hash_type, usedforsecurity=False)
         if not inspect.isbuiltin(fn):
             hash_alg.update(hash_function_source(fn))
-            try:
-                captured = tuple(
-                    cell.cell_contents for cell in fn.__closure__ or ()
-                )
-            except ValueError as e:
-                raise TypeError("Empty closure cell") from e
             # Module and qualname: two modules can define the same source
-            # over different globals. Captured values: `seen` already holds
-            # `fn`, so a closure over itself terminates.
+            # over different globals.
             hash_alg.update(
                 type_sign(
                     deterministic_dumps(
-                        (
-                            fn.__module__,
-                            fn.__qualname__,
-                            fn.__defaults__,
-                            fn.__kwdefaults__,
-                            captured,
-                        ),
+                        (fn.__module__, fn.__qualname__, fn.__defaults__),
                         hash_type,
                         _seen=seen,
                     ),
                     "function",
                 )
             )
+            hash_alg.update(_closure_bytes(fn, hash_type, seen))
         else:
             # Builtin functions do not expose Python bytecode, so use their
             # qualified name to distinguish functions from different modules.
