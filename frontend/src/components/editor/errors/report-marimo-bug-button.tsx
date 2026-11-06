@@ -38,10 +38,7 @@ export function ReportMarimoBugButton({
     const evidence: CellErrorEntry = {
       cellId,
       cellName: cell
-        ? displayCellName(
-            cell.name,
-            notebook.cellIds.indexOf(cellId),
-          )
+        ? displayCellName(cell.name, notebook.cellIds.indexOf(cellId))
         : "Cell",
       cellCode: code ?? "",
       errorData: internalErrors,
