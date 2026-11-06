@@ -44,3 +44,11 @@
 ///
 
 ::: marimo.ui.table
+
+## Downloading Polars maps
+
+CSV and TSV downloads encode Polars `Map` cells as JSON arrays of key-value
+entries. For example, `{1: "one"}` becomes `[{"key":1,"value":"one"}]`.
+This preserves non-string keys and repeated keys. Empty maps become `[]`,
+while null maps become empty fields. Nested lists and structs are encoded
+as JSON values within each entry.

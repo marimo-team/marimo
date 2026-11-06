@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import csv
 import datetime
 import decimal
+import io
 import json
 import math
 import unittest
@@ -27,6 +29,88 @@ from tests.mocks import snapshotter
 HAS_DEPS = DependencyManager.polars.has()
 
 snapshot = snapshotter(__file__)
+
+
+@pytest.mark.requires("polars")
+@pytest.mark.parametrize("lazy", [False, True])
+@pytest.mark.parametrize("separator", [",", "\t"])
+@pytest.mark.parametrize("empty", [False, True])
+def test_map_csv_export(lazy: bool, separator: str, empty: bool) -> None:
+    import polars as pl
+
+    map_dtype = getattr(pl, "Map", None)
+    if map_dtype is None:
+        pytest.skip("Map dtype requires Polars 2")
+
+    source = pl.DataFrame(
+        {
+            "id": [0, 1, 2],
+            "text": pl.Series(
+                [{'a,"\n': "こんにちは", "null": None}, {}, None],
+                dtype=map_dtype(pl.String, pl.String),
+            ),
+            "nested": pl.Series(
+                [{42: {"values": [1, 2]}}, {}, None],
+                dtype=map_dtype(
+                    pl.Int64, pl.Struct({"values": pl.List(pl.Int64)})
+                ),
+            ),
+            "binary": pl.Series(
+                [{1: b"abc"}, {}, None], dtype=map_dtype(pl.Int64, pl.Binary)
+            ),
+        }
+    )
+    if empty:
+        source = source.head(0)
+    manager = PolarsTableManagerFactory.create()(
+        source.lazy() if lazy else source
+    )
+    exported = manager.to_csv_str(separator=separator)
+    rows = list(csv.DictReader(io.StringIO(exported), delimiter=separator))
+    decoded = [
+        {
+            key: json.loads(value) if value else None
+            for key, value in row.items()
+        }
+        for row in rows
+    ]
+    assert decoded == (
+        []
+        if empty
+        else [
+            {
+                "id": 0,
+                "text": [
+                    {"key": 'a,"\n', "value": "こんにちは"},
+                    {"key": "null", "value": None},
+                ],
+                "nested": [{"key": 42, "value": {"values": [1, 2]}}],
+                "binary": [{"key": 1, "value": "abc"}],
+            },
+            {"id": 1, "text": [], "nested": [], "binary": []},
+            {"id": 2, "text": None, "nested": None, "binary": None},
+        ]
+    )
+    assert manager.collect().equals(source)
+
+
+@pytest.mark.requires("polars", "pyarrow")
+def test_map_csv_preserves_repeated_keys() -> None:
+    import polars as pl
+    import pyarrow as pa
+
+    if not hasattr(pl, "Map"):
+        pytest.skip("Map dtype requires Polars 2")
+    values = pa.array(
+        [[("a", 1), ("a", 2)]], type=pa.map_(pa.string(), pa.int64())
+    )
+    source = pl.from_arrow(pa.table({"value": values}))
+    manager = PolarsTableManagerFactory.create()(source)
+    row = next(csv.DictReader(io.StringIO(manager.to_csv_str())))
+    assert json.loads(row["value"]) == [
+        {"key": "a", "value": 1},
+        {"key": "a", "value": 2},
+    ]
 
 
 def assert_frame_equal(a: Any, b: Any) -> bool:
