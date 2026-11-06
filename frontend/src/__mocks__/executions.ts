@@ -8,6 +8,7 @@ import type { CellExecutionInputs } from "@/core/executions";
 import {
   ConnectionState,
   type ConnectionStatus,
+  type Document,
   type Execution,
   type Executions,
   type NotebookReplica,
@@ -162,16 +163,16 @@ export const MockExecutions = {
     };
   },
 
-  /** Make the store's active replica report `records` and `runtime`. */
+  /** Make the store's active replica report `records`, `runtime`, and `document`. */
   seed(
     store: Store,
     records: Protocol.Execution[],
     runtime: Protocol.Runtime | null = null,
+    document: Document | null = null,
   ) {
     const current = store.get(activeNotebookReplicaAtom);
     const replica = {
       connectionAtom: atom<ConnectionStatus>({ state: ConnectionState.OPEN }),
-      documentAtom: atom(null),
       backendAtom: atom(null),
       attachmentsAtom: atom([]),
       connect: () => () => undefined,
@@ -185,6 +186,7 @@ export const MockExecutions = {
         operations: [],
         updated_at: null,
       }),
+      documentAtom: atom<Document | null>(document),
       runtimeAtom: atom(runtime),
       executionsAtom: atom(mirror(records)),
       resultsAtom: atom(results(records)),

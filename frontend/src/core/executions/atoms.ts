@@ -12,6 +12,7 @@ import type {
 } from "@/core/notebook/replica";
 import { activeNotebookReplicaAtom } from "@/core/session/active-notebook";
 import { waitFor } from "@/core/state/jotai";
+import { type CellFreshnessInputs, freshnessOf } from "./freshness";
 import {
   anyRunning,
   type CellExecutionInputs,
@@ -27,6 +28,7 @@ const NO_EXECUTIONS: Executions = {
   latest: new Map(),
 };
 const NO_RESULTS: Results = new Map();
+const NO_CELLS: ReadonlyMap<Protocol.CellId, Protocol.Cell> = new Map();
 const NO_SUBMISSIONS: ReadonlyMap<
   Protocol.CellId,
   Protocol.ExecutionId | null
@@ -106,6 +108,26 @@ export const cellExecutionInputsAtom = atom((get): CellExecutionInputs => {
     blocked: current(get(blockedCellsAtom), replica, notebookId, NO_BLOCKED),
   };
 });
+
+const cellFreshnessInputsAtom = atom((get): CellFreshnessInputs => {
+  const replica = get(activeNotebookReplicaAtom);
+  const document = replica === null ? null : get(replica.documentAtom);
+  // Results can arrive before the confirmed document on a snapshot. Until
+  // the document is ready there is nothing to compare them against.
+  if (replica === null || document === null) {
+    return { cells: NO_CELLS, executions: NO_EXECUTIONS, results: NO_RESULTS };
+  }
+  return {
+    cells: document.cells,
+    executions: get(replica.executionsAtom),
+    results: get(replica.resultsAtom),
+  };
+});
+
+/** Freshness by cell id, indexed once per change to its inputs. */
+export const cellFreshnessAtom = atom((get) =>
+  freshnessOf(get(cellFreshnessInputsAtom)),
+);
 
 /** The runtime's status, null while the notebook has none or the stream is not ready. */
 export const runtimeStatusAtom = atom((get) => {
