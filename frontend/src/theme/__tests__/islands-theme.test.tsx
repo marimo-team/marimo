@@ -208,7 +208,7 @@ describe("islands host theme", () => {
   });
 
   it("keeps the VS Code override and returns to the host after it is removed", async () => {
-    document.body.style.colorScheme = "dark";
+    document.body.classList.add("dark");
     const { container, unmount } = render(
       <StyleNamespace>Widget</StyleNamespace>,
     );
