@@ -63,6 +63,7 @@ import { copyToClipboard } from "@/utils/copy";
 import { downloadCellOutputAsImage } from "@/utils/download";
 import { MarkdownIcon, PythonIcon } from "../cell/code/icons";
 import { useDeleteCellCallback } from "../cell/useDeleteCell";
+import { useStagedAICellActions } from "../cell/StagedAICell";
 import { useRunCell } from "../cell/useRunCells";
 import { useSplitCellCallback } from "../cell/useSplitCell";
 import { NameCellInput } from "./name-cell-input";
@@ -93,6 +94,7 @@ export function useCellActionButtons({ cell, closePopover }: Props) {
     clearCellOutput,
     createCell,
   } = useCellActions();
+  const stagedActions = useStagedAICellActions(cell?.cellId);
   const showHiddenCode = useSetAtom(showHiddenCodeAtom);
   const edit = useNotebookDocumentEdit();
   const splitCell = useSplitCellCallback();
@@ -144,6 +146,7 @@ export function useCellActionButtons({ cell, closePopover }: Props) {
 
   // Actions
   const actions: ActionButton[][] = [
+    stagedActions,
     [
       {
         icon: <PlayIcon size={13} strokeWidth={1.5} />,

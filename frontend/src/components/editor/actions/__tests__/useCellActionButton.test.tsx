@@ -10,6 +10,7 @@ import { partial } from "@/__mocks__/partial";
 import { MockRequestClient } from "@/__mocks__/requests";
 import { ModalProvider } from "@/components/modal/ImperativeModal";
 import { toast } from "@/components/ui/use-toast";
+import { type Edit, stagedAICellsAtom } from "@/core/ai/staged-cells";
 import { CellId } from "@/core/cells/ids";
 import { requestClientAtom } from "@/core/network/requests";
 import type { NotebookReplica } from "@/core/notebook/replica";
@@ -21,8 +22,11 @@ import { useCellActionButtons } from "../useCellActionButton";
 vi.mock("@/utils/copy", () => ({ copyToClipboard: vi.fn() }));
 vi.mock("@/components/ui/use-toast", () => ({ toast: vi.fn() }));
 
-function renderActions(cellId: CellId, name: string) {
+function renderActions(cellId: CellId, name: string, edit?: Edit) {
   const store = createStore();
+  if (edit) {
+    store.set(stagedAICellsAtom, new Map([[cellId, edit]]));
+  }
   const { model, documentAtom, stop } = mockDocumentModel(store);
   onTestFinished(stop);
   store.set(requestClientAtom, MockRequestClient.create());
@@ -110,4 +114,17 @@ describe("useCellActionButtons", () => {
     expect(getAction(groups, "Copy link to cell").disabled).toBe(true);
     expect(getAction(groups, "Copy cell ID").disabled).toBeUndefined();
   });
+});
+
+it("offers individual AI review actions in the cell menu only for pending changes", () => {
+  const id = CellId.create();
+  const pending = renderActions(id, "_", { type: "add_cell" });
+  expect(pending[0].map((action) => action.label)).toEqual([
+    "Keep cell",
+    "Discard cell",
+  ]);
+  const ordinary = renderActions(id, "_");
+  expect(ordinary.flat().some((action) => action.label === "Keep cell")).toBe(
+    false,
+  );
 });
