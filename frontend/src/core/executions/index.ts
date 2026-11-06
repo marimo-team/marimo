@@ -10,6 +10,7 @@
 
 export {
   cellExecutionInputsAtom,
+  cellFreshnessAtom,
   notebookIsRunningAtom,
   notebookQueuedOrRunningCountAtom,
   observeCellMessage,
@@ -19,7 +20,7 @@ export {
   withdrawCells,
 } from "./atoms";
 export type { CellFreshness, CellFreshnessLookup } from "./freshness";
-export { useCellExecution } from "./hooks";
+export { useCellExecution, useCellFreshness } from "./hooks";
 export {
   type CellExecutionInputs,
   type CellExecutionView,

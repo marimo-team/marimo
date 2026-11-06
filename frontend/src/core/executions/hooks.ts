@@ -5,7 +5,8 @@ import { dequal } from "dequal";
 import { useAtomValue } from "jotai";
 import { selectAtom } from "jotai/utils";
 import { useMemo } from "react";
-import { cellExecutionInputsAtom } from "./atoms";
+import { cellExecutionInputsAtom, cellFreshnessAtom } from "./atoms";
+import type { CellFreshness } from "./freshness";
 import { type CellExecutionView, cellExecutionView } from "./select";
 
 /**
@@ -25,6 +26,21 @@ export function useCellExecution(id: Protocol.CellId): CellExecutionView {
         (inputs) => cellExecutionView(inputs, id),
         dequal,
       ),
+    [id],
+  );
+  return useAtomValue(cellAtom);
+}
+
+/**
+ * Whether a cell's result is current, by the host protocol's rules over
+ * the confirmed document and the executions mirror.
+ *
+ * The confirmed document is what the host has accepted, so an edit reads
+ * as such once the model has flushed it, not on the keystroke.
+ */
+export function useCellFreshness(id: Protocol.CellId): CellFreshness {
+  const cellAtom = useMemo(
+    () => selectAtom(cellFreshnessAtom, (freshness) => freshness(id), dequal),
     [id],
   );
   return useAtomValue(cellAtom);
