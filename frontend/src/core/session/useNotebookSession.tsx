@@ -11,6 +11,7 @@ import {
   useReducerActions,
 } from "@/core/cells/cells";
 import { useStagedAICellsActions } from "@/core/ai/staged-cells";
+import { followCollapsedHeadings } from "@/core/cells/collapsed-storage";
 import { followDocument } from "@/core/cells/document";
 import { AUTOCOMPLETER } from "@/core/codemirror/completion/Autocompleter";
 import { createDocumentModel } from "@/core/notebook/document";
@@ -437,6 +438,7 @@ export function useNotebookSession(opts: {
       },
       signal: controller.signal,
     });
+    followCollapsedHeadings({ store, signal: controller.signal });
     return () => {
       controller.abort();
       if (store.get(activeDocumentModelAtom) === documentModel) {
