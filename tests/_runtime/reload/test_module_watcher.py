@@ -1453,8 +1453,8 @@ async def test_watcher_does_not_restale_reader_queued_behind_importer(
     py_file.write_text("def foo():\n    return 1\n")
 
     config = copy.deepcopy(DEFAULT_CONFIG)
-    config["runtime"]["auto_reload"] = "lazy"
-    k.set_user_config(UpdateUserConfigCommand(config=config))
+    config.runtime.auto_reload = "lazy"
+    k.set_user_config(UpdateUserConfigCommand(config=config.to_dict()))
     await k.run(
         [
             er_1 := exec_req.get(f"from {py_modname} import foo"),
