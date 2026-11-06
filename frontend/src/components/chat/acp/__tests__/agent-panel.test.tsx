@@ -254,19 +254,24 @@ describe("AgentPanel prompt submission", () => {
     });
   });
 
-  it("clears busy state when a cancelled prompt settles", async () => {
-    const response = Promise.withResolvers<{ stopReason: string }>();
-    agent.prompt.mockReturnValueOnce(response.promise);
-    await renderPanel();
-    submitPrompt();
-    await waitFor(() => expect(agent.prompt).toHaveBeenCalledOnce());
-    expect(screen.getByText("Agent is working...")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Stop" }));
-    await act(async () => response.resolve({ stopReason: "cancelled" }));
-    expect(agent.cancel).toHaveBeenCalledWith({ sessionId: "session-1" });
-    expect(screen.queryByText("Agent is working...")).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole("button", { name: "Dismiss" }),
-    ).not.toBeInTheDocument();
-  });
+  it.each([0, 1])(
+    "clears busy state after cancellation through Stop button %i",
+    async (buttonIndex) => {
+      const response = Promise.withResolvers<{ stopReason: string }>();
+      agent.prompt.mockReturnValueOnce(response.promise);
+      await renderPanel();
+      submitPrompt();
+      await waitFor(() => expect(agent.prompt).toHaveBeenCalledOnce());
+      expect(screen.getByText("Agent is working...")).toBeInTheDocument();
+      const stopButtons = screen.getAllByRole("button", { name: "Stop" });
+      expect(stopButtons).toHaveLength(2);
+      fireEvent.click(stopButtons[buttonIndex]);
+      await act(async () => response.resolve({ stopReason: "cancelled" }));
+      expect(agent.cancel).toHaveBeenCalledWith({ sessionId: "session-1" });
+      expect(screen.queryByText("Agent is working...")).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole("button", { name: "Dismiss" }),
+      ).not.toBeInTheDocument();
+    },
+  );
 });
