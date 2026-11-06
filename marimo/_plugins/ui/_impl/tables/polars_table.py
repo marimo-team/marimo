@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import functools
 import io
+import json
 from functools import cached_property
 from typing import Any
 
@@ -12,6 +13,7 @@ from marimo import _loggers
 from marimo._data.models import (
     ExternalDataType,
 )
+from marimo._messaging.msgspec_encoder import enc_hook
 from marimo._output.data.data import sanitize_json_bigint
 from marimo._plugins.ui._impl.tables.format import (
     FormatMapping,
@@ -37,6 +39,8 @@ class PolarsTableManagerFactory(TableManagerFactory):
     @functools.lru_cache(maxsize=1)
     def create() -> type[TableManager[Any]]:
         import polars as pl
+
+        map_dtype = getattr(pl, "Map", None)
 
         class PolarsTableManager(
             NarwhalsTableManager[pl.DataFrame, pl.LazyFrame]
@@ -99,6 +103,27 @@ class PolarsTableManagerFactory(TableManagerFactory):
                         if isinstance(dtype, pl.Struct):
                             result = result.with_columns(
                                 column.struct.json_encode()
+                            )
+                        elif map_dtype is not None and isinstance(
+                            dtype, map_dtype
+                        ):
+                            # Entry arrays preserve non-string and repeated keys.
+                            result = result.with_columns(
+                                pl.Series(
+                                    column.name,
+                                    [
+                                        json.dumps(
+                                            entries,
+                                            default=enc_hook,
+                                            ensure_ascii=False,
+                                            separators=(",", ":"),
+                                        )
+                                        if entries is not None
+                                        else None
+                                        for entries in column.map.entries().to_list()
+                                    ],
+                                    dtype=pl.String,
+                                )
                             )
                         elif isinstance(dtype, pl.List):
                             result = result.with_columns(

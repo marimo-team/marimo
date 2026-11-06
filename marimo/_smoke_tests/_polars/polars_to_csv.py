@@ -2,7 +2,7 @@
 # requires-python = ">=3.11"
 # dependencies = [
 #     "marimo",
-#     "polars",
+#     "polars>=2.0.0",
 # ]
 # ///
 # Copyright 2026 Marimo. All rights reserved.
@@ -43,7 +43,17 @@ def _():
             "list": [[1, 2], [3, 4], [5, 6]],
             "array": [[1, 2, 3], [4], []],
             "nulls": [None, "data", None],
-            "categorical": pl.Series(["cat", "dog", "mouse"]).cast(pl.Categorical),
+            "map_strings": pl.Series(
+                [{"greeting": "こんにちは", "quoted": 'a, "value"'}, {}, None],
+                dtype=pl.Map(pl.String, pl.String),
+            ),
+            "map_int_keys": pl.Series(
+                [{1: [1, 2], 2: None}, {}, None],
+                dtype=pl.Map(pl.Int64, pl.List(pl.Int64)),
+            ),
+            "categorical": pl.Series(["cat", "dog", "mouse"]).cast(
+                pl.Categorical
+            ),
             "time": [
                 datetime.time(12, 30),
                 datetime.time(13, 45),
@@ -74,6 +84,25 @@ def _(complex_data, mo):
 @app.cell
 def _(complex_data):
     complex_data
+    return
+
+
+@app.cell
+def _(complex_data, mo):
+    _maps = complex_data.select("int", "map_strings", "map_int_keys")
+    mo.vstack(
+        [
+            mo.md(
+                "## Map downloads\nDownload CSV or TSV from each table to compare eager and lazy exports."
+            ),
+            mo.ui.tabs(
+                {
+                    "Eager": mo.ui.table(_maps),
+                    "Lazy": mo.ui.table(_maps.lazy()),
+                }
+            ),
+        ]
+    )
     return
 
 
