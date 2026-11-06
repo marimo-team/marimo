@@ -269,15 +269,6 @@ class Extractor:
         end_lineno = _none_to_0(node.end_lineno)
         end_col_offset = node.end_col_offset
         assert len(node.body) > 0
-        if node.lineno - node.body[0].lineno == 0:
-            # Quirk where the ellipse token seems to have a line index at
-            # the end of the dots ...<
-            if _is_ellipsis(getattr(node.body[0], "value", None)):
-                col_offset += node.body[0].col_offset - 3
-            else:
-                col_offset += node.body[0].col_offset - 1
-        else:
-            col_offset = 0
 
         has_return = isinstance(node.body[-1], ast.Return)
         single_line = node.lineno - node.body[-1].lineno == 0
@@ -867,6 +858,8 @@ def extract_offsets_post_colon(
     while token := next(tokens):
         if token.type == token_types.OP and token.string == ":":
             break
+    assert token is not None
+    colon_line = token.start[0]
 
     after_colon = next(tokens)
     assert after_colon
@@ -898,10 +891,11 @@ def extract_offsets_post_colon(
         # """; return x
         fn_body_token = after_colon
         start_line = fn_body_token.start[0] - 1
-        start_col = fn_body_token.start[1]
+        # A backslash continuation moves the body to its own indented line.
+        on_colon_line = fn_body_token.start[0] == colon_line
+        start_col = fn_body_token.start[1] if on_colon_line else 0
 
-    col_offset = fn_body_token.end[1] - start_col
-    return start_line, col_offset
+    return start_line, start_col
 
 
 def is_equal_ast(
@@ -1041,14 +1035,6 @@ def is_body_cell(node: Node) -> bool:
             decorator, allowed=("cell", "function", "class_definition")
         )
     ) or is_unparsable_cell(node)
-
-
-def _is_ellipsis(node: Node | None) -> bool:
-    if node is None:
-        return False
-    # ast.Ellipsis is deprecated in 3.12+ and removed in 3.14
-    # Use ast.Constant check which works across all Python versions
-    return isinstance(node, ast.Constant) and node.value is ...
 
 
 def _is_setup_call(node: Node) -> bool:

@@ -235,6 +235,59 @@ class TestGetCodes:
         assert list(cell_manager.codes()) == ["c = a + b; print(c); ", "..."]
 
     @staticmethod
+    @pytest.mark.parametrize(
+        ("cell", "expected"),
+        [
+            (
+                'def _(): print("hello")  # body-note',
+                'print("hello")  # body-note',
+            ),
+            ("def _(): result = 1", "result = 1"),
+        ],
+    )
+    def test_get_codes_single_line_body_keeps_first_token(
+        load_app, tmp_path, cell: str, expected: str
+    ) -> None:
+        notebook_path = tmp_path / "notebook.py"
+        notebook_path.write_text(
+            f"import marimo\n\napp = marimo.App()\n\n@app.cell\n{cell}\n",
+            encoding="utf-8",
+        )
+        app = load_app(str(notebook_path))
+        assert app is not None
+        assert list(app._cell_manager.codes()) == [expected]
+
+    @staticmethod
+    def test_get_codes_body_after_backslash_continuation(
+        load_app, tmp_path
+    ) -> None:
+        notebook_path = tmp_path / "notebook.py"
+        notebook_path.write_text(
+            textwrap.dedent(
+                """\
+                import marimo
+
+                app = marimo.App()
+
+                @app.cell
+                def _():\\
+                    x = 1
+
+                @app.cell
+                def _():
+                    y = 2
+
+                if __name__ == "__main__":
+                    app.run()
+                """
+            ),
+            encoding="utf-8",
+        )
+        app = load_app(str(notebook_path))
+        assert app is not None
+        assert list(app._cell_manager.codes()) == ["x = 1", "y = 2"]
+
+    @staticmethod
     def test_get_codes_multiline_string(load_app) -> None:
         app = load_app(get_filepath("test_get_codes_multiline_string"))
         assert app is not None
