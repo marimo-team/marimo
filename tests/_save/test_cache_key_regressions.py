@@ -728,3 +728,68 @@ def test_restored_stub_without_its_file_keeps_its_hash() -> None:
     # Another kernel process has no linecache entry for this cell file.
     linecache.cache.pop(helper.__code__.co_filename, None)
     assert hash_wrapped_functions(stub.load({})) == before
+
+
+def test_revisited_callback_keeps_its_identity() -> None:
+    def a() -> int:
+        return 1
+
+    def b() -> int:
+        return 2
+
+    def h(x: Any = a, y: Any = b) -> int:
+        return x() + y()
+
+    assert deterministic_dumps([h, a], "sha256") != deterministic_dumps(
+        [h, b], "sha256"
+    )
+
+
+async def test_unencodable_default_keeps_source_identity() -> None:
+    def operation(value: int) -> str:
+        return (
+            "import threading\n"
+            f"def operation(lock=threading.Lock()):\n    return {value}"
+        )
+
+    with mocked_kernel_session() as tk:
+        k = tk.kernel
+        await k.run(
+            [
+                command(0, "import marimo as mo"),
+                command(1, operation(1)),
+                command(
+                    2, "@mo.cache\ndef f(op):\n    return op()\nr=f(operation)"
+                ),
+            ]
+        )
+        assert k.globals.get("r") == 1
+        await k.run([command(1, operation(2))])
+        assert k.globals["r"] == 2
+
+
+def test_set_member_aliases_with_surroundings_are_observable() -> None:
+    a, b = _Node(), _Node()
+    assert deterministic_dumps(({a}, a), "sha256") != deterministic_dumps(
+        ({a}, b), "sha256"
+    )
+
+
+def test_two_restored_stubs_from_one_cell_keep_their_hashes() -> None:
+    import linecache
+
+    from marimo._ast.compiler import compile_cell
+    from marimo._save.stubs.function_stub import FunctionStub
+
+    cell = compile_cell(
+        "def one():\n    return 1\n\n\ndef two():\n    return 2",
+        cell_id=CellId_t("c"),
+    )
+    namespace: dict[str, Any] = {}
+    exec(cell.body, namespace)  # noqa: S102
+    one, two = namespace["one"], namespace["two"]
+    before = (hash_wrapped_functions(one), hash_wrapped_functions(two))
+    stubs = (FunctionStub(one), FunctionStub(two))
+    linecache.cache.pop(one.__code__.co_filename, None)
+    restored = tuple(stub.load({}) for stub in stubs)
+    assert tuple(map(hash_wrapped_functions, restored)) == before

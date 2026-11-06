@@ -7,6 +7,7 @@ containers, arbitrary picklable objects) into canonical byte sequences.
 
 from __future__ import annotations
 
+import dataclasses
 import hashlib
 import inspect
 import io
@@ -236,19 +237,32 @@ def attempt_signed_bytes(value: bytes, label: str) -> bytes:
         return value
 
 
+@dataclasses.dataclass
+class HashState:
+    """State shared by every pickler of one key computation."""
+
+    # A function's fingerprint, or None while it is being computed, so a
+    # closure over itself terminates and a revisit contributes the same bytes.
+    functions: dict[int, bytes | None] = dataclasses.field(
+        default_factory=dict
+    )
+    # Ordering key of a set member, computed once per key computation.
+    member_keys: dict[int, bytes] = dataclasses.field(default_factory=dict)
+    # Sets whose members are being ordered right now.
+    ordering: set[int] = dataclasses.field(default_factory=set)
+
+
 def deterministic_dumps(
-    obj: Any, hash_type: str, _seen: set[int] | None = None
+    obj: Any, hash_type: str, _seen: HashState | None = None
 ) -> bytes:
     """`pickle.dumps` replacement that produces more deterministic bytes."""
     from marimo._save.hash import hash_wrapped_functions
     from marimo._save.stubs import maybe_get_custom_stub
 
-    # `_seen` holds the functions already fingerprinted on this call path, so
-    # a closure over itself terminates.
-    seen: set[int] = set() if _seen is None else _seen
+    state = HashState() if _seen is None else _seen
 
     class _ContentHashPickler(pickle.Pickler):
-        # Sets already encoded in this pass, so a second reference to the
+        # Sets already encoded by this pickler, so a second reference to the
         # same set is an alias and not a copy, as pickle's memo would record.
         _sets: dict[int, int]
 
@@ -256,27 +270,30 @@ def deterministic_dumps(
             # The pickler never asks `reducer_override` about a set, but it
             # asks `persistent_id` about everything. Iteration order of a set
             # follows hash randomization, so stand in an id that orders the
-            # members by their own encoding. The output is hashed, never
-            # loaded, so the id need not resolve.
-            if type(obj) in (set, frozenset):
-                if id(obj) in seen:
-                    # Reached again while ordering its own members.
-                    return ("set-cycle",)
-                sets = self.__dict__.setdefault("_sets", {})
-                if id(obj) in sets:
-                    return ("set-alias", sets[id(obj)])
-                sets[id(obj)] = len(sets)
-                # Each member is encoded once and the encodings are what get
-                # ordered and pickled, so nested sets stay linear. A copy of
-                # `seen`: ordering must not mark functions as seen before the
-                # real pass encodes them.
-                ordering = seen | {id(obj)}
-                members = sorted(
-                    deterministic_dumps(item, hash_type, _seen=ordering)
-                    for item in obj
-                )
-                return (type(obj).__name__, sets[id(obj)], tuple(members))
-            return None
+            # members by their own encoding. The members themselves still go
+            # through this pickler, so aliases with the surrounding value
+            # survive. The output is hashed, never loaded, so the id need not
+            # resolve.
+            if type(obj) not in (set, frozenset):
+                return None
+            if id(obj) in state.ordering:
+                # Reached again while ordering its own members.
+                return ("set-cycle",)
+            sets = self.__dict__.setdefault("_sets", {})
+            if id(obj) in sets:
+                return ("set-alias", sets[id(obj)])
+            sets[id(obj)] = len(sets)
+            state.ordering.add(id(obj))
+            try:
+                for item in obj:
+                    if id(item) not in state.member_keys:
+                        state.member_keys[id(item)] = deterministic_dumps(
+                            item, hash_type, _seen=state
+                        )
+            finally:
+                state.ordering.discard(id(obj))
+            members = sorted(obj, key=lambda item: state.member_keys[id(item)])
+            return (type(obj).__name__, sets[id(obj)], tuple(members))
 
         def reducer_override(self, obj: Any) -> Any:
             if stub := maybe_get_custom_stub(obj):
@@ -286,14 +303,9 @@ def deterministic_dumps(
                 # callback held inside a value would not change the key.
                 # Fingerprint it by content, and reduce to plain bytes: a
                 # function-valued reduce callable gets fingerprinted in turn.
-                try:
-                    fingerprint = hash_wrapped_functions(
-                        obj, hash_type, _seen=seen
-                    )
-                except Exception:
-                    # No source, or an unencodable default or closure value.
-                    # By reference, as before.
-                    return NotImplemented
+                fingerprint = hash_wrapped_functions(
+                    obj, hash_type, _seen=state
+                )
                 return (bytes, (type_sign(fingerprint, "function"),))
             try:
                 if not is_primitive(obj) and is_data_primitive(obj):
