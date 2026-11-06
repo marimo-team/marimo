@@ -28,7 +28,7 @@ export const UserMessage: React.FC<UserMessageProps> = ({
     .join("\n");
   const attachments = message.parts
     .filter((p): p is FileUIPart => p.type === "file")
-    .map((part, idx) => <AttachmentRenderer attachment={part} key={idx} />);
+    .map((part) => <AttachmentRenderer attachment={part} key={part.url} />);
 
   const [draft, setDraft] = React.useState<string | null>(null);
   const inputRef = React.useRef<ReactCodeMirrorRef>(null);
