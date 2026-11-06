@@ -28,7 +28,7 @@ from marimo._output.rich_help import mddoc
 from marimo._plugins.ui._core.ui_element import UIElement
 from marimo._plugins.ui._impl.tables.default_table import (
     DefaultTableManager,
-    _is_column_oriented,
+    is_column_oriented,
 )
 from marimo._plugins.ui._impl.tables.utils import get_table_manager
 from marimo._utils.assert_never import log_never
@@ -888,7 +888,7 @@ def _editor_field_types(
         # Without explicit types the frontend guesses each column's type
         # from CSV text, which turns strings such as "01" into numbers.
         data = table_manager.data
-        if _is_column_oriented(data):
+        if is_column_oriented(data):
             if any(data.values()):
                 field_types = [
                     (

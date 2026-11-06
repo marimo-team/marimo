@@ -57,7 +57,7 @@ class DefaultTableManager(TableManager[JsonTableData]):
 
     def __init__(self, data: JsonTableData):
         self.data = data
-        self.is_column_oriented = _is_column_oriented(data)
+        self.is_column_oriented = is_column_oriented(data)
 
     def apply_formatting(
         self, format_mapping: FormatMapping | None
@@ -490,7 +490,7 @@ class DefaultTableManager(TableManager[JsonTableData]):
     def _normalize_data(data: JsonTableData) -> list[dict[str, Any]]:
         # If it is a dict of lists (column major),
         # convert to list of dicts (row major)
-        if isinstance(data, dict) and _is_column_oriented(data):
+        if isinstance(data, dict) and is_column_oriented(data):
             # reshape column major
             #   { "col1": [1, 2, 3], "col2": [4, 5, 6], ... }
             # into row major
@@ -535,7 +535,7 @@ class DefaultTableManager(TableManager[JsonTableData]):
         return cast(list[dict[str, Any]], data)
 
 
-def _is_column_oriented(
+def is_column_oriented(
     data: JsonTableData,
 ) -> TypeGuard[dict[str, Sequence[object]]]:
     return isinstance(data, dict) and all(
