@@ -7,6 +7,7 @@ import html
 import json
 import re
 from dataclasses import dataclass, field
+from typing import TYPE_CHECKING
 
 from marimo._core import backend as be, protocol
 from marimo._core.code import code_fingerprint
@@ -27,9 +28,13 @@ from marimo._messaging.notification import (
     ExecutionNotification,
     InterruptedNotification,
     NotificationMessage,
+    VariableValuesNotification,
 )
 from marimo._messaging.tracebacks import is_code_highlighting
 from marimo._runtime.scratch import SCRATCH_CELL_ID
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
 
 
 @dataclass
@@ -95,7 +100,9 @@ class RunTranslator:
             if notification.phase == "running":
                 return [be.Started(execution.id)]
             return self._conclude(
-                execution, depends_on=notification.depends_on
+                execution,
+                depends_on=notification.depends_on,
+                skipped=notification.skipped,
             )
 
         execution = self._executions.get(notification.execution_id or "")
@@ -157,6 +164,7 @@ class RunTranslator:
         error: protocol.Error | None = None,
         interrupted: bool = False,
         depends_on: dict[str, protocol.Revision | None] | None = None,
+        skipped: str | None = None,
     ) -> list[be.Message]:
         if execution.ended:
             return []
@@ -168,6 +176,8 @@ class RunTranslator:
         ]
         if error is not None:
             execution.outcome = protocol.ErrorOutcome(error)
+        elif skipped is not None:
+            execution.outcome = _declined(skipped, execution.cell_id)
         elif exceptions:
             execution.outcome = protocol.ErrorOutcome(_describe(exceptions[0]))
         elif skips:
@@ -260,6 +270,100 @@ class RunTranslator:
         return out
 
 
+class RunTranslators:
+    """The translators for a kernel's runs, by run id.
+
+    A host submits some runs itself. The kernel schedules others, such as
+    a UI interaction's reactive work or a legacy client's request, and
+    those get a translator when their first execution is planned.
+    """
+
+    def __init__(self) -> None:
+        self._translators: dict[str, RunTranslator] = {}
+
+    def __iter__(self) -> Iterator[str]:
+        return iter(self._translators)
+
+    def __len__(self) -> int:
+        return len(self._translators)
+
+    def add(self, translator: RunTranslator) -> None:
+        self._translators[translator.run_id] = translator
+
+    def get(self, run_id: str) -> RunTranslator | None:
+        return self._translators.get(run_id)
+
+    def forget(self, run_id: str) -> None:
+        self._translators.pop(run_id, None)
+
+    def clear(self) -> None:
+        self._translators.clear()
+
+    def feed(
+        self, notification: NotificationMessage
+    ) -> tuple[RunTranslator | None, list[be.Message]]:
+        """Translate a notification about a run, if it concerns one."""
+        if not isinstance(
+            notification,
+            (
+                CellNotification,
+                ExecutionNotification,
+                CompletedRunNotification,
+                InterruptedNotification,
+            ),
+        ):
+            return None, []
+        run_id = notification.run_id
+        if run_id is None:
+            return None, []
+        out: list[be.Message] = []
+        translator = self._translators.get(run_id)
+        if translator is None:
+            if (
+                not isinstance(notification, ExecutionNotification)
+                or notification.phase != "planned"
+            ):
+                return None, []
+            translator = RunTranslator(
+                protocol.RunId(run_id),
+                notification.code
+                if notification.cell_id == SCRATCH_CELL_ID
+                else None,
+            )
+            self.add(translator)
+            out.append(be.Scheduled(translator.run_id))
+        out.extend(translator.feed(notification))
+        return translator, out
+
+
+def variable_messages(notification: NotificationMessage) -> list[be.Message]:
+    """Report the variables a notification binds or unbinds."""
+    if not isinstance(notification, VariableValuesNotification):
+        return []
+    out: list[be.Message] = [
+        be.Unbound(protocol.ExecutionId(removed.execution_id), removed.name)
+        for removed in notification.removed
+    ]
+    for value in notification.variables:
+        if value.execution_id is None or value.revision is None:
+            continue
+        out.append(
+            be.Produced(
+                protocol.Variable(
+                    execution_id=protocol.ExecutionId(value.execution_id),
+                    id=protocol.ItemId(
+                        f"{value.execution_id}-variable-{value.name}"
+                    ),
+                    name=value.name,
+                    preview=value.value,
+                    revision=value.revision,
+                    type=value.datatype,
+                )
+            )
+        )
+    return out
+
+
 def _plain(text: str) -> str:
     """Remove marimo's HTML syntax highlighting from console text."""
     if not is_code_highlighting(text):
@@ -281,6 +385,26 @@ def _skip_reason(error: Error) -> str | None:
     ):
         return "upstream-failed"
     return None
+
+
+def _declined(reason: str, cell_id: str) -> protocol.SkippedOutcome:
+    """Describe an attempt the kernel ended without evaluating it."""
+    message = (
+        "Replaced by a newer execution of this cell before it started"
+        if reason == "superseded"
+        else "Did not run"
+    )
+    return protocol.SkippedOutcome(
+        reason=reason,
+        message=message,
+        related=(
+            protocol.Related(
+                cell_id=protocol.CellId(cell_id),
+                range=None,
+                message="Changed while queued",
+            ),
+        ),
+    )
 
 
 def _skipped(error: Error, cell_id: str) -> protocol.SkippedOutcome:

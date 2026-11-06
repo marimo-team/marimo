@@ -281,17 +281,6 @@ class CellNotificationUtils:
         )
 
     @staticmethod
-    def broadcast_stale(
-        cell_id: CellId_t, stale: bool, stream: Stream | None = None
-    ) -> None:
-        # Import here to avoid circular dependency
-        from marimo._messaging.notification import CellNotification
-
-        broadcast_notification(
-            CellNotification(cell_id=cell_id, stale_inputs=stale), stream
-        )
-
-    @staticmethod
     def broadcast_serialization(
         cell_id: CellId_t,
         serialization: TopLevelStatus,

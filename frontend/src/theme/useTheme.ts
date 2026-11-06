@@ -21,61 +21,92 @@ function themeFromQueryParam(): Theme | undefined {
   return THEMES.includes(value as Theme) ? (value as Theme) : undefined;
 }
 
-const themeAtom = atom((get) => {
-  // If it is islands, try a few ways to infer if it is dark mode.
-  if (isIslands()) {
-    // If it has a dark mode class on the body, use dark mode.
-    if (
-      document.body.classList.contains("dark-mode") ||
-      document.body.classList.contains("dark")
-    ) {
-      return "dark";
-    }
+function getHostElements() {
+  return [document.body, document.documentElement];
+}
 
-    // If it has data-theme=dark or data-mode=dark on the body, use dark mode.
-    if (
-      document.body.dataset.theme === "dark" ||
-      document.body.dataset.mode === "dark" ||
-      getVsCodeTheme() === "dark"
-    ) {
-      return "dark";
-    }
+function getColorSchemeMedia() {
+  return typeof window === "undefined"
+    ? undefined
+    : window.matchMedia?.("(prefers-color-scheme: dark)");
+}
 
-    // Check the computed style for color-scheme
-    const computedStyle = window.getComputedStyle(document.body);
-    const colorScheme = computedStyle.getPropertyValue("color-scheme").trim();
-    if (colorScheme) {
-      return colorScheme.includes("dark") ? "dark" : "light";
+/** Body markers override HTML markers. CSS provides the fallback. */
+function getHostTheme(
+  prefersDark = getColorSchemeMedia()?.matches,
+): ResolvedTheme {
+  const elements = getHostElements();
+  for (const element of elements) {
+    for (const theme of ["dark", "light"] as const) {
+      if (
+        element.classList.contains(theme) ||
+        element.classList.contains(`${theme}-mode`) ||
+        element.classList.contains(`${theme}-theme`) ||
+        element.dataset.theme === theme ||
+        element.dataset.mode === theme
+      ) {
+        return theme;
+      }
     }
+  }
 
-    // Fallback: check for dark background color
-    const bgColor = computedStyle.getPropertyValue("background-color");
-    const rgb = bgColor.match(/\d+/g);
-    if (rgb) {
-      const [r, g, b] = rgb.map(Number);
-      const brightness = (r * 299 + g * 587 + b * 114) / 1000;
-      return brightness < 128 ? "dark" : "light";
-    }
-
-    // We don't want to infer from the system theme,
-    // since the island consumer may not support dark mode.
+  const styles = elements.map((element) => window.getComputedStyle(element));
+  const colorScheme = styles[0].colorScheme.split(/\s+/);
+  if (colorScheme.includes("dark")) {
+    return !colorScheme.includes("light") || prefersDark ? "dark" : "light";
+  }
+  if (colorScheme.includes("light")) {
     return "light";
   }
 
+  // Transparent backgrounds do not indicate a dark host page.
+  for (const style of styles) {
+    const rgb = style.backgroundColor.match(/[\d.]+/g)?.map(Number);
+    if (rgb && (rgb.length === 3 || rgb[3] > 0)) {
+      const [r, g, b] = rgb;
+      return (r * 299 + g * 587 + b * 114) / 1000 < 128 ? "dark" : "light";
+    }
+  }
+
+  // A dark system preference does not imply a dark host.
+  return "light";
+}
+
+const hostThemeAtom = atom<ResolvedTheme | undefined>(undefined);
+hostThemeAtom.onMount = (setTheme) => {
+  const media = getColorSchemeMedia();
+  const updateTheme = () => setTheme(getHostTheme(media?.matches));
+  const observer = new MutationObserver(updateTheme);
+  for (const element of getHostElements()) {
+    observer.observe(element, {
+      attributes: true,
+      attributeFilter: ["class", "data-theme", "data-mode", "style"],
+    });
+  }
+  media?.addEventListener("change", updateTheme);
+  updateTheme();
+  return () => {
+    observer.disconnect();
+    media?.removeEventListener("change", updateTheme);
+    // A later mount must read the current host theme.
+    setTheme(undefined);
+  };
+};
+
+const themeAtom = atom((get) => {
+  if (isIslands()) {
+    return get(hostThemeAtom) ?? getHostTheme();
+  }
   return themeFromQueryParam() ?? get(resolvedMarimoConfigAtom).display.theme;
 });
 
 const prefersDarkModeAtom = atom(false);
 
 function setupThemeListener(): void {
-  if (typeof window === "undefined") {
+  const media = getColorSchemeMedia();
+  if (!media) {
     return;
   }
-  if (!window.matchMedia) {
-    return;
-  }
-
-  const media = window.matchMedia("(prefers-color-scheme: dark)");
   store.set(prefersDarkModeAtom, media.matches);
   media.addEventListener("change", (e) => {
     store.set(prefersDarkModeAtom, e.matches);
@@ -126,8 +157,7 @@ export const resolvedThemeAtom = atom((get) => {
 });
 
 /**
- * React hook to get the theme of the app.
- * This is stored in the user config.
+ * Returns the resolved theme from VS Code, the Islands host, or notebook settings.
  */
 export function useTheme(): { theme: ResolvedTheme } {
   const theme = useAtomValue(resolvedThemeAtom, { store });

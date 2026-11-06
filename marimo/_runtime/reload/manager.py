@@ -63,7 +63,6 @@ class AutoreloadManager:
                     reloader=self._reloader,
                     enqueue_run_stale_cells=self._kernel._execute_stale_cells_callback,
                     mode=mode,
-                    stream=self._kernel.stream,
                 )
         else:
             self._reloader = None

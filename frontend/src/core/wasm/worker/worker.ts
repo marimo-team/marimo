@@ -82,6 +82,32 @@ async function getNotebook() {
   return session.bridge.notebook;
 }
 
+/** Load the packages `code` imports, with marimo's SQL heuristics. */
+async function loadPackagesForCode(code: string) {
+  const span = t.startSpan("loadPackages");
+  await pyodideReadyPromise; // Make sure loading is done
+
+  if (shouldLoadDuckDBPackages(code)) {
+    // Add pandas and duckdb to the code for mo.sql and for remote duckdb sources
+    code = `import pandas\n${code}`;
+    code = `import duckdb\n${code}`;
+    code = `import sqlglot\n${code}`;
+
+    // Polars + SQL requires pyarrow, and installing
+    // after notebook load does not work. As a heuristic,
+    // if it appears that the notebook uses polars, add pyarrow.
+    if (code.includes("polars")) {
+      code = `import pyarrow\n${code}`;
+    }
+  }
+
+  await self.pyodide.loadPackagesFromImports(code, {
+    messageCallback: Logger.log,
+    errorCallback: Logger.error,
+  });
+  span.end();
+}
+
 const requestHandler = createRPCRequestHandler({
   notebookSubscribe: (request: { id: string; cursor: string | null }) => {
     let canceled = false;
@@ -172,6 +198,8 @@ const requestHandler = createRPCRequestHandler({
           self.pyodide.FS.writeFile(WasmFileSystem.NOTEBOOK_FILENAME, contents);
           await rpc.proxy.request.persistNotebook({ filename, contents });
         });
+        // Host runs name cells, so the worker loads their imports itself.
+        notebook.set_package_loader(loadPackagesForCode);
       } finally {
         notebook.destroy();
       }
@@ -190,33 +218,7 @@ const requestHandler = createRPCRequestHandler({
     return;
   },
 
-  /**
-   * Load packages
-   */
-  loadPackages: async (code: string) => {
-    const span = t.startSpan("loadPackages");
-    await pyodideReadyPromise; // Make sure loading is done
-
-    if (shouldLoadDuckDBPackages(code)) {
-      // Add pandas and duckdb to the code for mo.sql and for remote duckdb sources
-      code = `import pandas\n${code}`;
-      code = `import duckdb\n${code}`;
-      code = `import sqlglot\n${code}`;
-
-      // Polars + SQL requires pyarrow, and installing
-      // after notebook load does not work. As a heuristic,
-      // if it appears that the notebook uses polars, add pyarrow.
-      if (code.includes("polars")) {
-        code = `import pyarrow\n${code}`;
-      }
-    }
-
-    await self.pyodide.loadPackagesFromImports(code, {
-      messageCallback: Logger.log,
-      errorCallback: Logger.error,
-    });
-    span.end();
-  },
+  loadPackages: (code: string) => loadPackagesForCode(code),
 
   /**
    * Read a file

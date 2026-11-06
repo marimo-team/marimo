@@ -64,7 +64,7 @@ export const NotebookAccessSelector = ({
       <SelectTrigger
         aria-label={`Notebook access: ${selected.label}`}
         title={`Notebook access: ${selected.description}`}
-        className="h-6 text-xs border-border shadow-none! ring-0! bg-muted hover:bg-muted/30 py-0 px-2 gap-1.5 shrink-0"
+        className="chat-control chat-selector h-6 text-xs border-border py-0 px-2 gap-1.5 shrink-0"
       >
         <selected.Icon className="h-3 w-3" />
         <span className="text-nowrap">{selected.label}</span>

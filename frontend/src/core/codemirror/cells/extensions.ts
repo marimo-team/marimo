@@ -23,7 +23,6 @@ import { createObservable } from "@/core/state/observable";
 import { formatKeymapExtension } from "../extensions";
 import { formattingChangeEffect } from "../format";
 import { goToDefinitionAtCursorPosition } from "../go-to-definition/utils";
-import { getCellCode } from "../language/cell-code";
 import { isAtEndOfEditor, isAtStartOfEditor } from "../utils";
 import {
   breakpointGutter,
@@ -327,19 +326,6 @@ function cellCodeEditing(hotkeys: HotkeyProvider): Extension[] {
       return;
     }
     const cellId = update.view.state.facet(cellIdState);
-    // The code itself reaches the document through the editor's binding.
-    // Formatting, including a language switch, rewrites the code without
-    // editing it, so the cell stays as run or as edited as it was.
-    const formatted = update.transactions.some((tr) =>
-      tr.effects.some((effect) => effect.is(formattingChangeEffect)),
-    );
-    if (formatted) {
-      update.view.state.facet(cellActionsState).codeFormatted({
-        cellId,
-        before: getCellCode(update.startState),
-        after: getCellCode(update.state),
-      });
-    }
 
     // Clear pending cut state if this cell was marked for cut
     const pendingCutCellIds = store.get(pendingCutCellIdsAtom);

@@ -40,10 +40,8 @@ def test_render_notebook_tolerates_invalid_config() -> None:
     ("editable", "command"),
     [(True, "uv run marimo"), (False, "uvx marimo@latest")],
 )
-def test_pair_cli_config_is_unconditional(
-    monkeypatch: pytest.MonkeyPatch,
-    editable: bool,
-    command: str,
+def test_pair_cli_config_uses_installation_command(
+    monkeypatch: pytest.MonkeyPatch, editable: bool, command: str
 ) -> None:
     monkeypatch.setattr(
         "marimo._cli.pair.prompts.is_editable", lambda _: editable

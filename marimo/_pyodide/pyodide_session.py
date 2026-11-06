@@ -146,6 +146,11 @@ class PyodideSession:
         self._queue_manager = AsyncQueueManager()
         self.session_view = SessionView()
         self.instantiated = False
+        self.started = asyncio.Event()
+        """Set once the kernel task exists and takes commands."""
+        self.stopped = asyncio.Event()
+        """Set once the kernel task has ended, with `exit_reason` if it failed."""
+        self.exit_reason: str | None = None
         self._initial_user_config = user_config
         self._enqueue_control_request = make_control_enqueuer(
             self._queue_manager.control_queue,
@@ -167,22 +172,51 @@ class PyodideSession:
                 LOGGER.exception("A notification consumer failed")
 
     async def start(self) -> None:
-        self.kernel_task = _launch_pyodide_kernel(
-            control_queue=self._queue_manager.control_queue,
-            set_ui_element_queue=self._queue_manager.set_ui_element_queue,
-            completion_queue=self._queue_manager.completion_queue,
-            input_queue=self._queue_manager.input_queue,
-            on_message=self._on_message,
-            session_mode=self.mode,
-            configs=self.app_manager.app.cell_manager.config_map(),
-            app_metadata=self.app_metadata,
-            user_config=self._initial_user_config,
-        )
-        await self.kernel_task.start()
+        try:
+            self.kernel_task = _launch_pyodide_kernel(
+                control_queue=self._queue_manager.control_queue,
+                set_ui_element_queue=self._queue_manager.set_ui_element_queue,
+                completion_queue=self._queue_manager.completion_queue,
+                input_queue=self._queue_manager.input_queue,
+                on_message=self._on_message,
+                session_mode=self.mode,
+                configs=self.app_manager.app.cell_manager.config_map(),
+                app_metadata=self.app_metadata,
+                user_config=self._initial_user_config,
+            )
+            self.started.set()
+            await self.kernel_task.start()
+        except asyncio.CancelledError:
+            raise
+        except BaseException as exception:
+            self.exit_reason = str(exception) or type(exception).__name__
+            raise
+        finally:
+            self.stopped.set()
 
     def put_control_request(self, request: commands.CommandMessage) -> None:
         self._enqueue_control_request(request)
         self.session_view.add_control_request(request)
+
+    def instantiate(self, *, auto_run: bool) -> None:
+        """Register the notebook's cells with the kernel, running them if `auto_run`."""
+        app = self.app_manager.app
+        self.instantiated = True
+        self.put_control_request(
+            commands.CreateNotebookCommand(
+                execution_requests=tuple(
+                    commands.ExecuteCellCommand(
+                        cell_id=cell.cell_id, code=cell.code, request=None
+                    )
+                    for cell in app.cell_manager.cell_data()
+                ),
+                cell_ids=tuple(app.cell_manager.cell_ids()),
+                set_ui_element_value_request=commands.UpdateUIElementCommand(
+                    object_ids=[], values=[], request=None
+                ),
+                auto_run=auto_run,
+            )
+        )
 
     def put_completion_request(
         self, request: commands.CodeCompletionCommand

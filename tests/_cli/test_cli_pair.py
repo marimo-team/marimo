@@ -59,9 +59,6 @@ def _isolate_pair_command(monkeypatch: pytest.MonkeyPatch) -> None:
             "host-secret",
         ),
     )
-    monkeypatch.setattr(
-        "marimo._cli.pair.prompts.is_editable", lambda _: False
-    )
 
 
 class TestPairGroup:

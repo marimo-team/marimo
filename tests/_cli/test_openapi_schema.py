@@ -26,6 +26,22 @@ class Write(msgspec.Struct, tag="write"):
     payloads: list[Payload]
 
 
+def test_component_descriptions_are_independent_of_python_docstring_dedenting() -> (
+    None
+):
+    class Described(msgspec.Struct):
+        pass
+
+    Described.__doc__ = (
+        "Summary.\n\n    Details:\n        An indented example.\n    "
+    )
+    schemas = _generate_schema_components([], {"Described": Described})
+
+    assert schemas["Described"]["description"] == (
+        "Summary.\n\nDetails:\n    An indented example."
+    )
+
+
 def test_named_union_preserves_discriminator_and_transitive_brands() -> None:
     schemas = _generate_schema_components([], {"Action": Read | Write})
 

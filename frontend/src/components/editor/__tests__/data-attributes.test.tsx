@@ -100,7 +100,6 @@ describe("Cell data attributes", () => {
           [cid]: {
             code: "",
             name: cellName,
-            edited: false,
             config: {
               disabled: false,
               hide_code: false,
@@ -111,16 +110,8 @@ describe("Cell data attributes", () => {
       });
 
       notebook.cellRuntime[cid] = createCellRuntimeState({
-        status: "idle",
         output: null,
         consoleOutputs: [],
-        interrupted: false,
-        errored: false,
-        stopped: false,
-        staleInputs: false,
-        runStartTimestamp: null,
-        lastRunStartTimestamp: null,
-        runElapsedTimeMs: null,
         debuggerActive: false,
         outline: null,
       });

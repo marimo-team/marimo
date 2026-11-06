@@ -1530,7 +1530,7 @@ class TestPendingExecutionRequests:
         )
         root = k.graph.cells["root"]
         root.configure({"disabled": True})
-        root.set_stale(True, broadcast=False)
+        root.set_stale(True)
         state_before = {
             cid: (cell.runtime_state, cell.stale, cell.config.asdict())
             for cid, cell in k.graph.cells.items()

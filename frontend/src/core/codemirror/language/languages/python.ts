@@ -422,11 +422,11 @@ function getPlaceholderExtension(placeholderType: PlaceholderType): Extension {
   if (placeholderType === "ai") {
     return clickablePlaceholderExtension({
       beforeText: "Start coding or ",
-      linkText: "generate",
-      afterText: " with AI.",
+      linkText: "generate with AI",
+      afterText: ".",
       onClick: (ev) => {
         const cellActions = ev.state.facet(cellActionsState);
-        cellActions.aiCellCompletion();
+        cellActions.askAiAboutCell();
       },
     });
   }

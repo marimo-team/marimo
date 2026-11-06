@@ -1,6 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import inspect
 from typing import Any
 
 import msgspec
@@ -20,6 +21,12 @@ def _generate_schema_components(
     schemas, components = msgspec.json.schema_components(
         types, ref_template="#/components/schemas/{name}"
     )
+    # Python 3.13+ dedents docstrings at compile time; older versions do not.
+    for component in components.values():
+        if "description" in component:
+            component["description"] = inspect.cleandoc(
+                component["description"]
+            )
     _enrich_branded_types(components, types)
     for name, schema in zip(named_exports, schemas[len(roots) :], strict=True):
         if name in components:

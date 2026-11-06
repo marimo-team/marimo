@@ -652,6 +652,10 @@ class Kernel:
             cell_id: CellMetadata(config=config)
             for cell_id, config in cell_configs.items()
         }
+        # Planned attempts not yet started, consumed by whichever run next
+        # evaluates or skips the cell, so a nested command does not open a
+        # second attempt for a cell the outer run has planned.
+        self._planned: dict[CellId_t, ExecutionAttempt] = {}
         self.module_registry = ModuleRegistry(
             self.graph, excluded_modules=set()
         )
@@ -914,7 +918,7 @@ class Kernel:
 
         self.graph.register_cell(cell_id, cell)
         if stale:
-            self.graph.cells[cell_id].set_stale(stale=True, broadcast=False)
+            self.graph.cells[cell_id].set_stale(stale=True)
         # leaky abstraction: the graph doesn't know about stale modules, so
         # we have to check for them here.
         self.autoreload_manager.flag_if_imports_stale(cell)
@@ -1064,9 +1068,8 @@ class Kernel:
                     if name in carried_values
                 }
             if error is not None and previous_cell is not None:
-                # The frontend keeps the cell around in the case of a
-                # registration error; let the FE know the cell is no longer
-                # stale.
+                # A registration error keeps the previous cell in the graph,
+                # and it is no longer stale.
                 previous_cell.set_stale(False)
 
             # For any newly imported namespaces, add them to the metadata
@@ -1470,11 +1473,8 @@ class Kernel:
             # The error is up-to-date, since we just processed the graph
             if cell is not None:
                 cell.set_stale(False)
-            else:
-                # On syntax errors, we don't have a cell object.
-                CellNotificationUtils.broadcast_stale(cell_id=cid, stale=False)
 
-            execution = self._plan_execution(cid)
+            execution = self._plan_execution(cid, self._planned.pop(cid, None))
             with execution.activate():
                 CellNotificationUtils.broadcast_error(
                     data=self.errors[cid],
@@ -1865,6 +1865,7 @@ class Kernel:
             execution_context=self._install_execution_context,
             hooks=run_hooks,
             get_inputs=self._read_inputs,
+            executions=self._planned,
             plan_execution=self._plan_execution,
             user_config=self.user_config,
         )
@@ -2096,13 +2097,25 @@ class Kernel:
         )
         return requests
 
-    def _plan_execution(self, cell_id: CellId_t) -> ExecutionAttempt:
+    def _plan_execution(
+        self, cell_id: CellId_t, planned: ExecutionAttempt | None = None
+    ) -> ExecutionAttempt:
+        """Plan an attempt for the cell's current source.
+
+        An attempt planned earlier is kept while it still describes that
+        source. One planned for source a nested command has since changed
+        is superseded, so no attempt runs code other than its own.
+        """
         metadata = self.cell_metadata.get(cell_id)
         if metadata is not None and metadata.code is not None:
-            return ExecutionAttempt.plan(
-                cell_id, metadata.code, metadata.code_fingerprint
-            )
-        return ExecutionAttempt.plan(cell_id, self.graph.cells[cell_id].code)
+            code, code_fingerprint = metadata.code, metadata.code_fingerprint
+        else:
+            code, code_fingerprint = self.graph.cells[cell_id].code, None
+        if planned is not None:
+            if planned.code == code:
+                return planned
+            planned.supersede()
+        return ExecutionAttempt.plan(cell_id, code, code_fingerprint)
 
     @kernel_tracer.start_as_current_span("run")
     async def run(
@@ -2755,15 +2768,6 @@ class Kernel:
             self.reset_ui_initializers()
         else:
             self._uninstantiated_execution_requests = execution_requests
-            for (
-                cell_id,
-                cell_request,
-            ) in self._uninstantiated_execution_requests.items():
-                # Only mark non-empty cells as stale
-                if cell_request.code.strip():
-                    CellNotificationUtils.broadcast_stale(
-                        cell_id=cell_id, stale=True
-                    )
 
     def _handle_markdown_cells_on_instantiate(
         self, execution_requests: dict[CellId_t, ExecuteCellCommand]
@@ -2828,9 +2832,6 @@ class Kernel:
                 cell_id=cell_id,
                 status="idle",
             )
-
-            # Mark the cell as not stale (already "run")
-            CellNotificationUtils.broadcast_stale(cell_id=cell_id, stale=False)
             del execution_requests[cell_id]
 
     def load_dotenv(self) -> None:

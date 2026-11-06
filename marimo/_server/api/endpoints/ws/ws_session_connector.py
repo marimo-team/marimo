@@ -205,8 +205,6 @@ class SessionConnector:
             session,
             resumed=False,
             ui_values={},
-            last_executed_code={},
-            last_execution_time={},
             kiosk=False,
             auto_instantiated=self._is_run_mode,
         )

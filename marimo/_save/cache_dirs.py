@@ -10,9 +10,9 @@ import hashlib
 import os
 import re
 import shutil
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Protocol
 from uuid import uuid4
 
 from marimo import _loggers
@@ -173,6 +173,24 @@ class CacheDirStats:
         )
 
 
+class CachePlan(Protocol):
+    """What a cache command plans for one cache directory.
+
+    A plan is made before anyone agrees to it, then reported, and then
+    applied or dropped. The commands read every plan through this shape.
+    """
+
+    @property
+    def cache_dir(self) -> Path: ...
+
+    @property
+    def freed(self) -> CacheDirStats: ...
+
+    def deletes_nothing(self) -> bool:
+        """Whether no file on disk answers to anything planned."""
+        ...
+
+
 def cache_dir_stats(cache_dir: Path) -> CacheDirStats:
     """Return byte and entry count in `cache_dir`.
 
@@ -263,11 +281,7 @@ def delete_blocks(
         if _children(block):
             LOGGER.warning("Kept %s: files remain in it.", block)
             continue
-        try:
-            block.rmdir()
-        except OSError as e:
-            LOGGER.warning("Could not remove %s: %s", block, e)
-            freed += CacheDirStats(failures=1)
+        freed += _remove_empty_block(block)
     return freed
 
 
@@ -283,15 +297,315 @@ def clean_cache_dir(
     )
 
 
+def remove_empty_blocks(
+    cache_dir: Path, blocks: Collection[str]
+) -> CacheDirStats:
+    """Remove the block directories named that hold nothing any more.
+
+    A directory that cannot be removed counts as a failure.
+    """
+    freed = CacheDirStats()
+    for block in blocks:
+        if block and block == block_dir_name(block):
+            freed += _remove_empty_block(cache_dir / block)
+    return freed
+
+
+def _remove_empty_block(block: Path) -> CacheDirStats:
+    try:
+        if not _is_directory(block) or _list(block):
+            return CacheDirStats()
+    except OSError:
+        # The listing that failed before this point was counted already.
+        return CacheDirStats()
+    try:
+        block.rmdir()
+    except OSError as e:
+        LOGGER.warning("Could not remove %s: %s", block, e)
+        return CacheDirStats(failures=1)
+    return CacheDirStats()
+
+
+def cache_entry_keys(cache_dir: Path) -> set[tuple[str, str]]:
+    """Return the `(block, key)` entries `cache_dir` holds.
+
+    A key is the name of an entry file without its suffix, as in `C_ab12`,
+    and a manifest records the entry by that key. Entries at the cache root
+    sit under the blank block name.
+    """
+    if not cache_dir.is_dir():
+        return set()
+    blocks = [cache_dir] + [
+        child for child in _children(cache_dir) if _is_directory(child)
+    ]
+    keys: set[tuple[str, str]] = set()
+    for block in blocks:
+        try:
+            found = _entry_keys(block)
+        except OSError as e:
+            LOGGER.warning("Could not list %s: %s", block, e)
+            continue
+        name = "" if block == cache_dir else block.name
+        keys.update((name, key) for key in found)
+    return keys
+
+
+@dataclass(frozen=True)
+class OrphanScan:
+    """The directories of blobs that no marker reads, found in one cache."""
+
+    # Per block, the directories to delete, or `None` for a block that
+    # cannot be listed. The cache root is the blank block.
+    selection: dict[str, frozenset[str] | None] = field(default_factory=dict)
+    # Directories that a partial marker claims for a writer. They are left
+    # alone unless the scan was forced, and then they are selected.
+    claimed: int = 0
+    # Per block, the hashes that a partial marker claims.
+    claims: dict[str, frozenset[str]] = field(default_factory=dict)
+
+
+def orphan_blob_dirs(
+    cache_dir: Path, *, root: bool = False, force: bool = False
+) -> OrphanScan:
+    """Return the directories of blobs in each block that no marker reads.
+
+    A reader reaches blobs only through the lazy marker that names their
+    hash. A kernel killed mid-write, or a marker removed on its own, leaves
+    a directory without one, and no reader can use its bytes. Only a block
+    that holds an entry is searched. A store pointed at a project puts the
+    project's own directories beside the blocks, and a directory with no
+    entry beside it is left alone whatever its shape. With `root`, the
+    cache root is searched too, under the blank block name. A block that
+    cannot be listed maps to `None`, and a directory that cannot be listed
+    is named so that deleting it reports the failure. A directory that a
+    partial marker claims is only counted, unless `force` selects it.
+
+    Raises:
+        OSError: If `cache_dir` cannot be listed.
+    """
+    if not cache_dir.is_dir():
+        return OrphanScan()
+    blocks = [child for child in _list(cache_dir) if _is_directory(child)]
+    if root:
+        blocks.append(cache_dir)
+    orphans: dict[str, frozenset[str] | None] = {}
+    claimed = 0
+    claims: dict[str, frozenset[str]] = {}
+    for block in blocks:
+        name = "" if block == cache_dir else block.name
+        try:
+            index = _index_block(block)
+        except OSError as e:
+            LOGGER.warning("Could not list %s: %s", block, e)
+            orphans[name] = None
+            continue
+        if index.claims_by_hash:
+            claims[name] = frozenset(index.claims_by_hash)
+        # A first write that died leaves a block with a claim and blobs but
+        # no entry. The claim is the evidence that the blobs are a cache's.
+        # A claim with no marker is a write that is not finished or that
+        # died, whether or not it got as far as a directory of blobs.
+        unfinished = index.claims_by_hash.keys() - index.markers_by_hash.keys()
+        if not index.files_by_key and not (force and index.claims_by_hash):
+            if not force:
+                claimed += len(unfinished)
+            continue
+        found: set[str] = set(unfinished - index.dir_names) if force else set()
+        claimed += 0 if force else len(unfinished - index.dir_names)
+        for child in index.dir_names:
+            try:
+                if not _is_orphan_blob_dir(block / child, index):
+                    continue
+            except OSError as e:
+                LOGGER.warning("Could not list %s: %s", block / child, e)
+            if child in index.claims_by_hash and not force:
+                claimed += 1
+                continue
+            found.add(child)
+        if found:
+            orphans[name] = frozenset(found)
+    return OrphanScan(orphans, claimed, claims)
+
+
+def delete_blob_dirs(
+    cache_dir: Path,
+    selection: Mapping[str, Collection[str] | None],
+    *,
+    dry_run: bool = False,
+    force: bool = False,
+) -> CacheDirStats:
+    """Delete the directories of blobs that `selection` names in each block.
+
+    Each directory is checked again before deletion, because a marker that
+    was written since the plan keeps it, and so does a partial marker that
+    claims it unless `force` is given. With `force`, the partial markers
+    go with the directory. A block that maps to `None` or cannot be listed,
+    a directory that cannot be listed, and a directory that stays count as
+    failures. With `dry_run`, only report what deleting would free.
+    """
+    freed = CacheDirStats()
+    for block, hashes in selection.items():
+        if hashes is None:
+            freed += CacheDirStats(failures=1)
+            continue
+        if block != block_dir_name(block):
+            LOGGER.warning(
+                "Not deleting %s: no block can be named that.", block
+            )
+            continue
+        block_dir = cache_dir / block
+        if not _is_directory(block_dir):
+            continue
+        try:
+            index = _index_block(block_dir)
+        except OSError as e:
+            LOGGER.warning("Could not list %s: %s", block_dir, e)
+            freed += CacheDirStats(failures=1)
+            continue
+        if not index.files_by_key and not (force and index.claims_by_hash):
+            continue
+        fresh: _BlockIndex | None = None
+        for key_hash in sorted(hashes):
+            if not _is_digest(key_hash):
+                LOGGER.warning(
+                    "Not deleting %s: no directory of blobs can be named that.",
+                    block_dir / key_hash,
+                )
+                continue
+            blob_dir = block_dir / key_hash
+            if key_hash not in index.dir_names:
+                freed += _delete_bare_claim(
+                    block_dir, key_hash, index, dry_run=dry_run, force=force
+                )
+                continue
+            try:
+                orphan = _is_orphan_blob_dir(blob_dir, index)
+            except OSError as e:
+                LOGGER.warning("Could not list %s: %s", blob_dir, e)
+                freed += CacheDirStats(failures=1)
+                continue
+            if not orphan:
+                continue
+            claims = index.claims_by_hash.get(key_hash, [])
+            if claims and not force:
+                continue
+            if dry_run:
+                freed += CacheDirStats(
+                    total_bytes=entry_bytes(blob_dir)
+                    + sum(_file_bytes(claim) for claim in claims),
+                    entries=1,
+                )
+                continue
+            # A writer can claim the blobs for a new write after the listing,
+            # so the block is listed once more right before its deletions.
+            # A write turns its claim into a marker, so the marker is
+            # checked last.
+            if fresh is None:
+                fresh = _index_block(block_dir)
+            claims = fresh.claims_by_hash.get(key_hash, [])
+            if claims and not force:
+                continue
+            if has_marker(block_dir, key_hash):
+                continue
+            bytes_freed = _remove_tree(blob_dir)
+            if blob_dir.exists():
+                freed += CacheDirStats(total_bytes=bytes_freed, failures=1)
+                continue
+            bytes_freed += sum(_unlink(claim) for claim in claims)
+            stuck = sum(claim.exists() for claim in claims)
+            freed += CacheDirStats(
+                total_bytes=bytes_freed, entries=1, failures=stuck
+            )
+    return freed
+
+
+def _delete_bare_claim(
+    block: Path,
+    key_hash: str,
+    index: _BlockIndex,
+    *,
+    dry_run: bool,
+    force: bool,
+) -> CacheDirStats:
+    """Delete the partial markers of `key_hash` when nothing else is left.
+
+    A write that died before its first blob leaves only its claim. Only
+    `force` takes it, and only while no marker names the hash.
+    """
+    claims = index.claims_by_hash.get(key_hash, [])
+    if not (force and claims) or key_hash in index.markers_by_hash:
+        return CacheDirStats()
+    if dry_run:
+        return CacheDirStats(
+            total_bytes=sum(_file_bytes(claim) for claim in claims), entries=1
+        )
+    if has_marker(block, key_hash):
+        return CacheDirStats()
+    bytes_freed = sum(_unlink(claim) for claim in claims)
+    stuck = sum(claim.exists() for claim in claims)
+    return CacheDirStats(
+        total_bytes=bytes_freed, entries=0 if stuck else 1, failures=stuck
+    )
+
+
+def _is_orphan_blob_dir(path: Path, index: _BlockIndex) -> bool:
+    """Whether `path` is a directory of blobs that no marker in its block reads.
+
+    A qualifying directory has the shape that the lazy loader leaves behind.
+    It is named by a digest and holds blob files and nothing else.
+
+    Raises:
+        OSError: If `path` cannot be listed.
+    """
+    if not _is_directory(path) or not _is_digest(path.name):
+        return False
+    if path.name in index.markers_by_hash:
+        return False
+    blobs = _list(path)
+    return bool(blobs) and all(
+        not _is_directory(blob)
+        and not blob.is_symlink()
+        and _is_blob_name(blob.name)
+        and entry_key(blob.name) is None
+        for blob in blobs
+    )
+
+
+def _is_blob_name(name: str) -> bool:
+    if is_partial_write(name):
+        name = name.rpartition(PARTIAL_WRITE_INFIX)[0]
+    stem, dot, suffix = name.rpartition(".")
+    return bool(stem) and bool(dot) and suffix in _blob_suffixes()
+
+
+def _blob_suffixes() -> frozenset[str]:
+    """The suffixes that a blob file can have, from the serializer tables."""
+    # The stores import this module, so the tables are imported here.
+    from marimo._save.stubs.lazy_stub import (
+        BLOB_DESERIALIZERS,
+        BLOB_SERIALIZERS,
+    )
+
+    return frozenset(
+        suffix.lstrip(".")
+        for suffix in (*BLOB_SERIALIZERS, *BLOB_DESERIALIZERS)
+    )
+
+
 def delete_cache_entries(
     cache_dir: Path,
     entries: Collection[tuple[str, str]],
     *,
     dry_run: bool = False,
+    protect_claims: bool = False,
+    sweep_claims: bool = False,
 ) -> CacheDirStats:
     """Delete the `(block, key)` entries named, reporting what that freed.
 
-    With `dry_run`, only report what would be freed (no deletion).
+    With `dry_run`, only report what would be freed (no deletion). With
+    `protect_claims`, an entry whose blobs a partial marker claims for a
+    writer is kept. With `sweep_claims`, the partial markers that claim a
+    deleted entry's blobs go with it.
 
     Raises:
         CacheDirError: If a block is a symbolic link.
@@ -309,7 +623,11 @@ def delete_cache_entries(
     freed = CacheDirStats()
     for block, keys in by_block.items():
         freed += _delete_block_entries(
-            cache_dir / block, keys, dry_run=dry_run
+            cache_dir / block,
+            keys,
+            dry_run=dry_run,
+            protect_claims=protect_claims,
+            sweep_claims=sweep_claims,
         )
     return freed
 
@@ -393,9 +711,18 @@ def entry_bytes(entry: Path) -> int:
 
 
 def _delete_block_entries(
-    block: Path, keys: set[str], *, dry_run: bool
+    block: Path,
+    keys: set[str],
+    *,
+    dry_run: bool,
+    protect_claims: bool = False,
+    sweep_claims: bool = False,
 ) -> CacheDirStats:
     """Delete the entries that `keys` name from one block directory.
+
+    With `protect_claims`, the entries of a hash that a partial marker
+    claims for a writer are kept. With `sweep_claims`, those partial
+    markers go with the entries.
 
     Raises:
         CacheDirError: If `block` is a symbolic link.
@@ -412,11 +739,19 @@ def _delete_block_entries(
         by_hash.setdefault(entry_hash(key), []).append(key)
 
     freed = CacheDirStats()
+    # A writer can claim a hash after the listing, so the block is listed
+    # once more right before the deletions.
+    claimed = index.claims_by_hash
+    if protect_claims and not dry_run:
+        claimed = {**claimed, **_index_block(block).claims_by_hash}
     # Entries with the same hash share blobs, even across cache types.
     for key_hash, shared_keys in by_hash.items():
         doomed = {key: index.files_by_key.get(key, []) for key in shared_keys}
         entry_files = {file for files in doomed.values() for file in files}
         if not entry_files:
+            continue
+        # A writer that is rewriting this hash claimed its blobs.
+        if protect_claims and key_hash in claimed:
             continue
         blob_dir = block / key_hash
         shared = bool(index.markers_by_hash.get(key_hash, set()) - entry_files)
@@ -429,9 +764,11 @@ def _delete_block_entries(
             and _is_directory(blob_dir)
         )
         entries = sum(bool(files) for files in doomed.values())
+        claims = index.claims_by_hash.get(key_hash, []) if sweep_claims else []
         if dry_run:
             bytes_freed = sum(_file_bytes(file) for file in entry_files)
             bytes_freed += entry_bytes(blob_dir) if has_blobs else 0
+            bytes_freed += sum(_file_bytes(claim) for claim in claims)
             freed += CacheDirStats(total_bytes=bytes_freed, entries=entries)
             continue
         bytes_freed = 0
@@ -453,10 +790,14 @@ def _delete_block_entries(
         }
         for key in remaining:
             LOGGER.warning("Could not remove %s from %s.", key, block)
+        stuck = 0
+        if not remaining:
+            bytes_freed += sum(_unlink(claim) for claim in claims)
+            stuck = sum(claim.exists() for claim in claims)
         freed += CacheDirStats(
             total_bytes=bytes_freed,
             entries=entries - len(remaining),
-            failures=len(remaining),
+            failures=len(remaining) + stuck,
         )
     return freed
 
@@ -488,6 +829,8 @@ class _BlockIndex:
     files_by_key: dict[str, list[Path]]
     markers_by_hash: dict[str, set[Path]]
     dir_names: frozenset[str]
+    # Partial markers, by the hash whose blobs they claim for a writer.
+    claims_by_hash: dict[str, list[Path]]
 
 
 def _index_block(block: Path) -> _BlockIndex:
@@ -499,17 +842,39 @@ def _index_block(block: Path) -> _BlockIndex:
     files_by_key: dict[str, list[Path]] = {}
     markers_by_hash: dict[str, set[Path]] = {}
     dir_names: set[str] = set()
+    claims_by_hash: dict[str, list[Path]] = {}
     for child in block.iterdir():
         if _is_directory(child):
             dir_names.add(child.name)
             continue
         key = entry_key(child.name)
         if key is None:
+            claimed = _claimed_hash(child.name)
+            if claimed is not None:
+                claims_by_hash.setdefault(claimed, []).append(child)
             continue
         files_by_key.setdefault(key, []).append(child)
         if child.name.endswith(LAZY_ENTRY_SUFFIX):
             markers_by_hash.setdefault(entry_hash(key), set()).add(child)
-    return _BlockIndex(files_by_key, markers_by_hash, frozenset(dir_names))
+    return _BlockIndex(
+        files_by_key, markers_by_hash, frozenset(dir_names), claims_by_hash
+    )
+
+
+def _claimed_hash(name: str) -> str | None:
+    """The hash that the partial marker `name` claims, or `None`.
+
+    A lazy writer creates the partial marker before its first blob, so the
+    blobs of that hash belong to a write that is not finished, or to a
+    writer that did not finish.
+    """
+    if not is_partial_write(name):
+        return None
+    marker = name.rpartition(PARTIAL_WRITE_INFIX)[0]
+    if not marker.endswith(LAZY_ENTRY_SUFFIX):
+        return None
+    key = entry_key(marker)
+    return None if key is None else entry_hash(key)
 
 
 def has_marker(block: Path, key_hash: str) -> bool:
@@ -586,12 +951,16 @@ def _names_an_entry(block: str, key: str) -> bool:
 
 def is_entry_key(key: str) -> bool:
     """Whether `key` is spelled as a cache write spells one."""
-    digest = key[2:]
-    return (
-        key[:2] in _cache_prefixes()
-        and _DIGEST.fullmatch(digest) is not None
-        and len(digest) % 4 != 1
-    )
+    return key[:2] in _cache_prefixes() and _is_digest(key[2:])
+
+
+def _is_digest(name: str) -> bool:
+    """Whether `name` is spelled as the url-safe base64 of a digest.
+
+    Unpadded base64 never has a length that is one more than a multiple of
+    four, which rules out most names that a person chooses.
+    """
+    return _DIGEST.fullmatch(name) is not None and len(name) % 4 != 1
 
 
 def _cache_prefixes() -> Collection[str]:

@@ -48,12 +48,22 @@ is_mac = sys.platform == "darwin"
         "client; see https://docs.python.org/3/library/pty.html"
     ),
 )
-def test_terminal_ws(client: TestClient) -> None:
+@pytest.mark.timeout(10)
+@pytest.mark.parametrize("chunk_size", [1, 8192])
+def test_terminal_ws(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+    chunk_size: int,
+) -> None:
+    monkeypatch.setattr(
+        "marimo._server.api.endpoints.terminal.MAX_CHUNK_SIZE", chunk_size
+    )
     with client.websocket_connect(TERMINAL_WS_URL) as websocket:
-        # Send echo message
         websocket.send_text("echo hello")
-        data = websocket.receive_text()
-        assert "echo hello" in data
+        # PTY reads can split the echoed command across websocket messages.
+        data = ""
+        while "echo hello" not in data:
+            data += websocket.receive_text()
 
 
 @pytest.mark.skipif(

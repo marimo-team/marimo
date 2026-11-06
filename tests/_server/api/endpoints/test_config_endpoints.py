@@ -6,6 +6,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 
+from marimo._config.config import parse_config
 from marimo._config.manager import EnvVarReader, MarimoConfigManager
 from marimo._runtime.commands import UpdateUserConfigCommand
 from marimo._sql.sql import get_default_result_limit
@@ -65,7 +66,7 @@ def test_save_user_config_keeps_higher_priority_settings(
             {"runtime": {"sql_default_limit": override}}
         )
     resolved = manager.get_config_with_sources(hide_secrets=False)
-    mocked_kernel.k.user_config = resolved.config
+    mocked_kernel.k.user_config = parse_config(resolved.config)
     mocked_kernel.k.config_overrides = set(resolved.override_paths)
     session = Mock(config_manager=manager)
 
@@ -105,7 +106,7 @@ def test_save_user_config_keeps_higher_priority_settings(
 
     assert response.status_code == 200, response.text
     session.put_control_request.assert_called_once()
-    assert mocked_kernel.k.user_config["save"]["autosave_delay"] == 2000
+    assert mocked_kernel.k.user_config.save.autosave_delay == 2000
     assert get_default_result_limit() == (
         override if override is not None else 45
     )

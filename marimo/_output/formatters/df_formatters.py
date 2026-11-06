@@ -49,7 +49,7 @@ def polars_dot_to_mermaid(dot: str) -> str:
 
     edge_regex = r"(?P<node1>\w+) -- (?P<node2>\w+)"
     directed_edge_regex = r"(?P<node1>\w+) -> (?P<node2>\w+)"
-    node_regex = r"(?P<node>\w+)(\s+)?\[label=\"(?P<label>.*)\"]"
+    node_regex = r'(?P<node>\w+)\s*\[label="(?P<label>(?:\\.|[^"\\])*)"'
 
     edges = re.finditer(edge_regex, dot)
     directed_edges = re.finditer(directed_edge_regex, dot)
@@ -128,15 +128,10 @@ class PolarsFormatter(FormatterFactory):
         def _show_marimo_lazyframe(
             df: pl.LazyFrame,
         ) -> tuple[KnownMimeType, str]:
+            dot = df.show_graph(show=False, raw_output=True)
             return tabs.tabs(
                 {
-                    # NB(Trevor): Use `optimized=True` to match other methods' defaults (`show_graph`, `collect`).
-                    # The _repr_html_ uses `optimized=False`, but "cost" is probably minimal and this is more
-                    # accurate/opinionated default.
-                    # See: https://github.com/pola-rs/polars/blob/911352/py-polars/polars/lazyframe/frame.py#L773-L790
-                    "Query plan": mermaid(
-                        polars_dot_to_mermaid(df._ldf.to_dot(optimized=True))
-                    ),
+                    "Query plan": mermaid(polars_dot_to_mermaid(dot or "")),
                     "Table": table.lazy(df),
                 }
             )._mime_()

@@ -79,6 +79,11 @@ describe("DownloadPlugin", () => {
     { data: "data:text/plain,hello", filename: "loaded.txt" },
     { data: "", filename: "renamed.csv" },
     { data: "data:text/plain,hello", filename: null },
+    { data: "data:audio/x-wav;base64,AAA=", filename: "audio.wav" },
+    {
+      data: "data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,AAA=",
+      filename: "results.xlsx",
+    },
   ])("downloads lazy data with metadata fallbacks: %j", async (loadedData) => {
     const load = vi.fn<Load>().mockResolvedValue(loadedData);
     const { button } = renderDownload({ lazy: true }, load);
@@ -93,6 +98,7 @@ describe("DownloadPlugin", () => {
       ]);
     });
     expect(load).toHaveBeenCalledExactlyOnceWith({});
+    expect(toast).not.toHaveBeenCalled();
   });
 
   it.each([false, true])("ignores disabled clicks (lazy=%s)", (lazy) => {
@@ -122,10 +128,13 @@ describe("DownloadPlugin", () => {
     },
   );
 
-  it("validates the lazy response even when the initial URL is valid", async () => {
-    const load = vi
-      .fn<Load>()
-      .mockResolvedValue({ data: "javascript:alert(1)" });
+  it.each([
+    "javascript:alert(1)",
+    "data:text/html,<h1>hello</h1>",
+    "data:image/svg+xml,<svg/>",
+    "data:application/x-javascript,alert(1)",
+  ])("validates the lazy response URL %s", async (data) => {
+    const load = vi.fn<Load>().mockResolvedValue({ data });
     const { button } = renderDownload({ lazy: true }, load);
     fireEvent.click(button);
 

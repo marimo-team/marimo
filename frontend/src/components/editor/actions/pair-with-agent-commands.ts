@@ -17,7 +17,6 @@ export const AGENT_LABELS: Record<AgentTab, string> = {
   prompt: "Other Agents",
 };
 
-/** How to invoke marimo: from the local checkout in dev, else via uvx. */
 export function getMarimoCommand(): string {
   return import.meta.env.DEV ? "uv run marimo" : "uvx marimo@latest";
 }

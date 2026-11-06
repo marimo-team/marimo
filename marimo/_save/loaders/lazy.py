@@ -28,6 +28,7 @@ from marimo._save.cache import (
     Cache,
     CacheState,
 )
+from marimo._save.cache_dirs import partial_write_name
 from marimo._save.encode import common_container_to_bytes, data_to_buffer
 from marimo._save.hash import DEFAULT_HASH, HashKey
 from marimo._save.loaders.loader import BasePersistenceLoader
@@ -454,6 +455,17 @@ def _write_export_manifest(
 
 def _posix_key(key: str) -> str:
     return key.replace("\\", "/")
+
+
+def _file_stores(store: Store) -> list[FileStore]:
+    """The file stores that `store` writes through, however it wraps them."""
+    if isinstance(store, FileStore):
+        return [store]
+    if isinstance(store, TieredStore):
+        return [tier for inner in store.stores for tier in _file_stores(inner)]
+    if isinstance(store, LazyStore):
+        return _file_stores(store._inner)
+    return []
 
 
 class LazyStore(Store):
@@ -1630,6 +1642,20 @@ class LazyLoader(BasePersistenceLoader):
             """Serialize and write blobs, then the manifest."""
             with write_context:
                 try:
+                    # An empty partial marker claims the blob directory until
+                    # the manifest lands, so a prune that runs meanwhile
+                    # leaves the blobs alone. A writer that dies leaves the
+                    # claim behind, and `marimo cache prune --force` sweeps
+                    # it with the blobs. Only the local file stores hold a
+                    # claim, because only they are pruned.
+                    claim = partial_write_name(manifest_key)
+                    for local in _file_stores(store):
+                        # A tier that cannot be written is skipped, as the
+                        # tiered store skips it for the blobs.
+                        try:
+                            local.put(claim, b"")
+                        except Exception as e:
+                            LOGGER.warning("Could not claim %s: %s", path, e)
                     if return_ref:
                         _put_or_mark_unserializable(
                             return_ref,
@@ -1674,6 +1700,11 @@ class LazyLoader(BasePersistenceLoader):
                     # writes, and it now carries any unserializable marks set above
                     # plus (when signing) the signed blob hashes and signature.
                     store.put(manifest_key, _encode_manifest())
+                    for local in _file_stores(store):
+                        try:
+                            local.clear(claim)
+                        except Exception as e:
+                            LOGGER.warning("Could not release %s: %s", path, e)
                 except Exception:
                     LOGGER.exception(
                         "Failed to write cache blobs for %s", path

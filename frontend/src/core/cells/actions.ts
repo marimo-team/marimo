@@ -6,6 +6,7 @@ import { historyField } from "@codemirror/commands";
 import { atom, type Getter, type Setter, useSetAtom } from "jotai";
 import { useMemo } from "react";
 import { scrollAndHighlightCell } from "@/components/editor/links/cell-link";
+import { cellExecutionInputsAtom, runningCellIds } from "@/core/executions";
 import type { EditableDocument } from "@/core/notebook/document";
 import { Logger } from "@/utils/Logger";
 import { clamp } from "@/utils/math";
@@ -602,7 +603,6 @@ export function useCellActions() {
     handleCellMessage: _handleCellMessage,
     addLogs: _addLogs,
     reconcileDocument: _reconcileDocument,
-    setLastRun: _setLastRun,
     resetCellRuntimes: _resetCellRuntimes,
     ...operations
   } = useReducerActions();
@@ -680,8 +680,10 @@ export type CellActions = ReturnType<typeof useCellActions>;
 
 /** Scroll to the first cell that is currently running. */
 export function notebookScrollToRunning() {
-  const { cellIds, cellRuntime } = store.get(notebookAtom);
-  const cellId = cellIds.find((id) => cellRuntime[id]?.status === "running");
+  const running = new Set(
+    runningCellIds(store.get(cellExecutionInputsAtom).executions),
+  );
+  const cellId = store.get(notebookAtom).cellIds.find((id) => running.has(id));
   if (!cellId) {
     return;
   }

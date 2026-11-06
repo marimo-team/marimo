@@ -9,14 +9,15 @@ import {
   RefreshCcw,
 } from "lucide-react";
 import type React from "react";
+import { useAtomValue } from "jotai";
 import { memo } from "react";
 import { Toolbar } from "@/components/layout/toolbar";
 import { Button } from "@/components/ui/button";
 import { Tooltip } from "@/components/ui/tooltip";
-import { useNotebook } from "@/core/cells/cells";
 import { columnOf, useLayout } from "@/core/cells/layout";
 import type { CellId } from "@/core/cells/ids";
 import { getDescendantsStatus } from "@/core/cells/utils";
+import { cellExecutionInputsAtom, cellFreshnessAtom } from "@/core/executions";
 import { cn } from "@/utils/cn";
 
 interface Props {
@@ -64,10 +65,12 @@ export const CollapsedCellBanner: React.FC<{
   cellId: CellId;
   count: number;
 }> = memo(({ onClick, count, cellId }) => {
-  const notebook = useNotebook();
+  const executions = useAtomValue(cellExecutionInputsAtom);
+  const freshness = useAtomValue(cellFreshnessAtom);
   const layout = useLayout();
   const states = getDescendantsStatus(
-    notebook,
+    executions,
+    freshness,
     columnOf(layout, cellId).folds.get(cellId) ?? [],
   );
 
