@@ -1147,7 +1147,7 @@ async def test_bridge_supplies_metadata_for_the_current_session(
     await bridge.open()
     notebook = bridge.notebook_for_session(session)  # type: ignore[arg-type]
     assert notebook is not None
-    run = notebook.run("print(1)", request_id="metadata-test")
+    run = notebook.run("print(1)", request_id="metadata-test", request=None)
     await session.submitted.wait()
     assert session.commands[-1].request.meta == {
         "file": str(tmp_path / "a.py"),

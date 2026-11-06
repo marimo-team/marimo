@@ -171,7 +171,14 @@ class WorkerBackend:
         del runtime_id
         LOGGER.warning("The worker's kernel stops with its page")
 
-    def run(self, run_id: protocol.RunId, code: str) -> None:
+    def run(
+        self,
+        run_id: protocol.RunId,
+        code: str,
+        *,
+        request: be.RequestInfo | None,
+    ) -> None:
+        del request  # The worker's runs arrive without an HTTP request.
         session = self._session
 
         def build() -> CommandMessage:
@@ -198,7 +205,11 @@ class WorkerBackend:
         run_id: protocol.RunId,
         document: Document,
         cell_ids: Sequence[protocol.CellId],
+        *,
+        request: be.RequestInfo | None,
     ) -> None:
+        del request  # The worker's runs arrive without an HTTP request.
+
         def build() -> CommandMessage:
             cells = {
                 cell.id: ExecuteCellCommand(
@@ -520,7 +531,9 @@ class PyodideNotebook:
             failure = problem(400, "invalid-request", str(e))
             status, body = failure.status, failure
         else:
-            status, body = await dispatch(self.mutations, self, call)
+            status, body = await dispatch(
+                self.mutations, self, call, request=None
+            )
         return msgspec.json.encode({"status": status, "body": body}).decode()
 
     async def edit(
