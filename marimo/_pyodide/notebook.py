@@ -186,7 +186,7 @@ class WorkerBackend:
                 allow_stdin=True,
             )
 
-        self._prepare(RunTranslator(run_id, code), code, build)
+        self._prepare(RunTranslator(run_id, code), [code], build)
 
     def run_cells(
         self,
@@ -210,10 +210,11 @@ class WorkerBackend:
                 allow_stdin=True,
             )
 
-        # Dependents run too, so every cell's imports are loaded.
+        # Dependents run too, so every cell's imports are loaded, each
+        # on its own: a cell that does not parse hides no other's imports.
         self._prepare(
             RunTranslator(run_id, None),
-            "\n".join(cell.code for cell in document),
+            [cell.code for cell in document],
             build,
         )
 
@@ -266,15 +267,16 @@ class WorkerBackend:
     def _prepare(
         self,
         translator: RunTranslator,
-        imports: str,
+        sources: Sequence[str],
         build: Callable[[], CommandMessage],
     ) -> None:
-        """Queue the command in turn, once the packages `imports` needs are loaded."""
+        """Queue the command in turn, once the packages `sources` import are loaded."""
         turn = self._handover.take()
 
         async def submit() -> None:
             await turn.wait()
-            await self._load_packages(imports)
+            for source in sources:
+                await self._load_packages(source)
             if not self._session.instantiated:
                 # The page registers the cells when it starts the kernel;
                 # a host run that comes first registers them itself.
