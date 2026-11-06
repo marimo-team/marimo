@@ -2,7 +2,7 @@
 
 import { useAtomValue, useStore } from "jotai";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   type Edit,
@@ -10,9 +10,9 @@ import {
   useStagedCells,
 } from "@/core/ai/staged-cells";
 import { chatGenerationInProgressAtom } from "@/core/ai/state";
-import type { CellId } from "@/core/cells/ids";
+import { type CellId, HTMLCellId } from "@/core/cells/ids";
 import { getNextIndex } from "@/utils/arrays";
-import { scrollAndHighlightCell } from "../../links/cell-link";
+import { scrollToCell } from "../../links/cell-link";
 
 const REVIEW_LABELS: Record<Edit["type"], { accept: string; reject: string }> =
   {
@@ -32,13 +32,16 @@ export const PendingAICells: React.FC = () => {
   const currentIndex = Math.max(0, selectedIndex);
   const store = useStore();
   const { acceptStagedCell, rejectStagedCell } = useStagedCells();
+  const reviewedCellId = selectedIndex === -1 ? null : selectedCellId;
+  useReviewedCellMarker(reviewedCellId);
 
   if (stagedAiCells.size === 0) {
     return null;
   }
 
-  const scrollToCell = (cellId: CellId) => {
-    scrollAndHighlightCell(cellId, "focus");
+  const selectCell = (cellId: CellId) => {
+    setSelectedCellId(cellId);
+    scrollToCell(cellId);
   };
 
   const clickNext = (direction: "up" | "down") => {
@@ -47,8 +50,7 @@ export const PendingAICells: React.FC = () => {
       listStagedCells.length,
       direction,
     );
-    setSelectedCellId(listStagedCells[newIndex]);
-    scrollToCell(listStagedCells[newIndex]);
+    selectCell(listStagedCells[newIndex]);
   };
 
   const acceptAllCompletions = () => {
@@ -137,7 +139,7 @@ export const PendingAICells: React.FC = () => {
               variant="ghost"
               size="sm"
               className="chat-control h-6 px-1 rounded-sm font-normal tabular-nums whitespace-nowrap"
-              onClick={() => scrollToCell(selectedCell)}
+              onClick={() => selectCell(selectedCell)}
             >
               <span aria-live="polite">
                 {hasMultipleCells
@@ -175,3 +177,14 @@ export const PendingAICells: React.FC = () => {
     </section>
   );
 };
+
+function useReviewedCellMarker(cellId: CellId | null) {
+  useEffect(() => {
+    if (cellId === null) {
+      return;
+    }
+    const cell = document.getElementById(HTMLCellId.create(cellId));
+    cell?.setAttribute("data-ai-review-selected", "");
+    return () => cell?.removeAttribute("data-ai-review-selected");
+  }, [cellId]);
+}

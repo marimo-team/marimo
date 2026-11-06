@@ -100,21 +100,26 @@ export const CellLinkTraceback = ({
   );
 };
 
+export function scrollToCell(cellId: CellId): HTMLElement | null {
+  const cell = document.getElementById(HTMLCellId.create(cellId));
+  cell?.scrollIntoView({ behavior: "smooth", block: "center" });
+  return cell;
+}
+
 export function scrollAndHighlightCell(
   cellId: CellId,
   variant?: "destructive" | "focus",
   skipScroll?: boolean,
 ): boolean {
   const cellHtmlId = HTMLCellId.create(cellId);
-  const cell: HTMLElement | null = document.getElementById(cellHtmlId);
+  const cell = skipScroll
+    ? document.getElementById(cellHtmlId)
+    : scrollToCell(cellId);
   const isCellErrored = cell?.classList.contains("has-error");
 
   if (cell === null) {
     Logger.error(`Cell ${cellHtmlId} not found on page.`);
     return false;
-  }
-  if (!skipScroll) {
-    cell.scrollIntoView({ behavior: "smooth", block: "center" });
   }
 
   if (variant === "destructive" || (isCellErrored && variant === undefined)) {

@@ -207,7 +207,8 @@
 
   /* Focus state */
 
-  &.focus-outline {
+  &.focus-outline,
+  &[data-ai-review-selected] {
     border-color: var(--blue-8) !important;
 
     /* custom shadow until our theme overrides can support colored shadow */

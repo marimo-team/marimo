@@ -9,9 +9,10 @@ import {
   useChatGeneration,
 } from "@/components/chat/use-chat-generation";
 import { cellId } from "@/__tests__/branded";
+import { HTMLCellId } from "@/core/cells/ids";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { stagedAICellsAtom } from "@/core/ai/staged-cells";
-import { scrollAndHighlightCell } from "../../../links/cell-link";
+import { scrollToCell } from "../../../links/cell-link";
 import { PendingAICells } from "../pending-ai-cells";
 import { PendingAIChangesBadge } from "../pending-ai-changes-badge";
 
@@ -38,7 +39,7 @@ vi.mock("@/components/editor/cell/useRunCells", () => ({
 }));
 
 vi.mock("@/components/editor/links/cell-link", () => ({
-  scrollAndHighlightCell: vi.fn(),
+  scrollToCell: vi.fn(),
 }));
 
 describe("PendingAICells", () => {
@@ -70,31 +71,31 @@ describe("PendingAICells", () => {
     });
 
     fireEvent.click(screen.getByRole("button", { name: "Cell 1 of 3" }));
-    expect(scrollAndHighlightCell).toHaveBeenLastCalledWith(first, "focus");
+    expect(scrollToCell).toHaveBeenLastCalledWith(first);
     expect(screen.getByText("Cell 1 of 3")).toBeInTheDocument();
 
     fireEvent.click(next);
-    expect(scrollAndHighlightCell).toHaveBeenLastCalledWith(second, "focus");
+    expect(scrollToCell).toHaveBeenLastCalledWith(second);
     expect(screen.getByText("Cell 2 of 3")).toBeInTheDocument();
 
     fireEvent.click(previous);
-    expect(scrollAndHighlightCell).toHaveBeenLastCalledWith(first, "focus");
+    expect(scrollToCell).toHaveBeenLastCalledWith(first);
     expect(screen.getByText("Cell 1 of 3")).toBeInTheDocument();
 
     fireEvent.click(next);
-    expect(scrollAndHighlightCell).toHaveBeenLastCalledWith(second, "focus");
+    expect(scrollToCell).toHaveBeenLastCalledWith(second);
     expect(screen.getByText("Cell 2 of 3")).toBeInTheDocument();
 
     fireEvent.click(next);
-    expect(scrollAndHighlightCell).toHaveBeenLastCalledWith(third, "focus");
+    expect(scrollToCell).toHaveBeenLastCalledWith(third);
     expect(screen.getByText("Cell 3 of 3")).toBeInTheDocument();
 
     fireEvent.click(next);
-    expect(scrollAndHighlightCell).toHaveBeenLastCalledWith(first, "focus");
+    expect(scrollToCell).toHaveBeenLastCalledWith(first);
     expect(screen.getByText("Cell 1 of 3")).toBeInTheDocument();
 
     fireEvent.click(previous);
-    expect(scrollAndHighlightCell).toHaveBeenLastCalledWith(third, "focus");
+    expect(scrollToCell).toHaveBeenLastCalledWith(third);
     expect(screen.getByText("Cell 3 of 3")).toBeInTheDocument();
   });
 });
@@ -179,7 +180,7 @@ it.each(["Delete cell", "Keep cell"])(
     fireEvent.click(screen.getByRole("button", { name: label }));
     expect(store.get(stagedAICellsAtom).has(first)).toBe(false);
     expect(deleteCell).toHaveBeenCalledTimes(label === "Delete cell" ? 1 : 0);
-    expect(scrollAndHighlightCell).toHaveBeenLastCalledWith(second, "focus");
+    expect(scrollToCell).toHaveBeenLastCalledWith(second);
     expect(screen.getByText("1 cell changed")).toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: "Keep all" }),
@@ -261,4 +262,44 @@ it("discards an edit to a cell whose editor is not mounted", () => {
     code: "x = 1",
   });
   expect(store.get(stagedAICellsAtom).size).toBe(0);
+});
+
+it("outlines only the reviewed cell, moving the outline with the selection", () => {
+  const store = createStore();
+  const first = cellId("outlined-first");
+  const second = cellId("outlined-second");
+  store.set(
+    stagedAICellsAtom,
+    new Map([
+      [first, { type: "add_cell" }],
+      [second, { type: "add_cell" }],
+    ]),
+  );
+  const cells = [first, second].map((id) => {
+    const element = document.createElement("div");
+    element.id = HTMLCellId.create(id);
+    document.body.append(element);
+    return element;
+  });
+  const { unmount } = render(
+    <Provider store={store}>
+      <TooltipProvider>
+        <PendingAICells />
+      </TooltipProvider>
+    </Provider>,
+  );
+  const outlined = () =>
+    cells.map((cell) => cell.hasAttribute("data-ai-review-selected"));
+
+  expect(outlined()).toEqual([false, false]);
+  fireEvent.click(screen.getByRole("button", { name: "Cell 1 of 2" }));
+  expect(outlined()).toEqual([true, false]);
+  fireEvent.click(screen.getByRole("button", { name: "Next pending AI cell" }));
+  expect(outlined()).toEqual([false, true]);
+
+  unmount();
+  expect(outlined()).toEqual([false, false]);
+  for (const cell of cells) {
+    cell.remove();
+  }
 });
