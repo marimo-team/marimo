@@ -1,6 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import copy
 import json
 import os
 import re
@@ -60,7 +61,6 @@ from marimo._config.secrets import (
 from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._config.types import ExportType, SqlOutputType, Theme, WidthType
 from marimo._config.utils import (
-    deep_copy,
     get_or_create_user_config_path,
     get_user_config_path,
     is_trusted_user_config_path,
@@ -353,7 +353,7 @@ class PyprojectConfigReader(ConfigReader):
         return start_path if start_path.is_dir() else start_path.parent
 
     def read(self) -> PartialMarimoConfig:
-        return deep_copy(self._read_config())
+        return copy.deepcopy(self._read_config())
 
     # Source changes are picked up after a server restart.
     @lru_cache(maxsize=2)  # noqa: B019
@@ -617,7 +617,7 @@ class ScriptConfigReader(ConfigReader):
         return Path(self.filename) if self.filename is not None else "default"
 
     def read(self) -> PartialMarimoConfig:
-        return deep_copy(self._read_config())
+        return copy.deepcopy(self._read_config())
 
     # Source changes are picked up after a server restart.
     @lru_cache(maxsize=2)  # noqa: B019
@@ -743,7 +743,7 @@ class UserConfigStore(ConfigReader):
 
         try:
             return cast(
-                PartialMarimoConfig, deep_copy(self._load_config(path))
+                PartialMarimoConfig, copy.deepcopy(self._load_config(path))
             )
         except Exception as e:
             LOGGER.error(
@@ -781,10 +781,10 @@ class OverrideConfigReader(ConfigReader):
     """Read the configuration, with overrides"""
 
     def __init__(self, override_config: PartialMarimoConfig) -> None:
-        self.override_config = deep_copy(override_config)
+        self.override_config = copy.deepcopy(override_config)
 
     def read(self) -> PartialMarimoConfig:
-        return deep_copy(self.override_config)
+        return copy.deepcopy(self.override_config)
 
 
 def _contextual_defaults(reader: ConfigReader) -> PartialMarimoConfig:

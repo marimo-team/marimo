@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import asyncio
 import base64
+import copy
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal, cast
@@ -16,7 +17,6 @@ from marimo._config.config_schema import (
     SharingConfig,
 )
 from marimo._config.settings import GLOBAL_SETTINGS
-from marimo._config.utils import deep_copy
 from marimo._convert.common.dom_traversal import (
     replace_public_files_with_data_uris,
     replace_virtual_files_with_data_uris,
@@ -132,8 +132,8 @@ class Exporter:
         )
 
         # Serialize notebook state
-        session_snapshot = deep_copy(request.snapshot.session)
-        notebook_snapshot = deep_copy(request.snapshot.notebook)
+        session_snapshot = copy.deepcopy(request.snapshot.session)
+        notebook_snapshot = copy.deepcopy(request.snapshot.notebook)
 
         # Replace virtual files in HTML outputs with data URIs
         session_snapshot, replaced_files = self._inline_virtual_files(
@@ -202,7 +202,7 @@ class Exporter:
         sharing_config: SharingConfig | None = None,
     ) -> MarimoConfig:
         """Prepare config with display and sharing settings for static notebook."""
-        config: MarimoConfig = deep_copy(DEFAULT_CONFIG)
+        config: MarimoConfig = copy.deepcopy(DEFAULT_CONFIG)
         config.display = display_config
         if sharing_config:
             config.sharing = sharing_config

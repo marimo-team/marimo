@@ -1,10 +1,8 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-import copy
 import os
 from functools import lru_cache
-from typing import TypeVar
 
 from marimo import _loggers
 from marimo._utils.xdg import marimo_config_path
@@ -149,10 +147,3 @@ def is_trusted_user_config_path(path: str) -> bool:
         except OSError:
             pass
     return real in trusted
-
-
-T = TypeVar("T")
-
-
-def deep_copy(obj: T) -> T:
-    return copy.deepcopy(obj)

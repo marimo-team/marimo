@@ -9,13 +9,13 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import copy
 import dataclasses
 import queue as _queue
 from collections import deque
 from typing import TYPE_CHECKING, Any, Protocol, TypeVar
 
 from marimo import _loggers
-from marimo._config.utils import deep_copy
 from marimo._runtime import patches
 from marimo._runtime.commands import (
     CancelRunCommand,
@@ -217,7 +217,7 @@ def create_kernel(
     user_config = args.user_config
     # Run mode forces autorun and disables the module autoreloader.
     if not args.is_edit_mode:
-        user_config = deep_copy(user_config)
+        user_config = copy.deepcopy(user_config)
         user_config.runtime.on_cell_change = "autorun"
         user_config.runtime.auto_reload = "off"
 

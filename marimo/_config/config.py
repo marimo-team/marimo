@@ -1,13 +1,13 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import copy
 import re
 from typing import Any, TypeAlias
 
 import msgspec
 
 from marimo._config.config_schema import MarimoConfig
-from marimo._config.utils import deep_copy
 from marimo._utils.deep_merge import deep_merge
 
 # Sparse external settings must not acquire defaults before layer resolution.
@@ -17,7 +17,7 @@ DEFAULT_CONFIG = MarimoConfig()
 
 def parse_config(values: PartialMarimoConfig) -> MarimoConfig:
     """Use schema defaults for invalid settings after reporting their source."""
-    values = deep_copy(values)
+    values = copy.deepcopy(values)
     while True:
         try:
             return MarimoConfig.from_dict(values)
@@ -76,7 +76,7 @@ def merge_config_dict(
     # so that they don't get merged into the new config
     if new_config.get("keymap", {}).get("overrides") is not None:
         # Clone config to avoid modifying the original
-        config = deep_copy(config)
+        config = copy.deepcopy(config)
         config.get("keymap", {}).pop("overrides", {})
 
     # Fields that should be replaced instead of merged.

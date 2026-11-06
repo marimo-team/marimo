@@ -1,6 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import copy
 from typing import TYPE_CHECKING, Any
 
 from marimo._config.config import PartialMarimoConfig, merge_config_dict
@@ -9,7 +10,6 @@ from marimo._config.provenance import (
     ConfigPath,
     ResolvedConfig,
 )
-from marimo._config.utils import deep_copy
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -21,8 +21,8 @@ def merge_config_patches(
     """Merge sparse patches in order, with later patches taking precedence."""
     merged: PartialMarimoConfig = {}
     for patch in patches:
-        merged = merge_config_dict(merged, deep_copy(patch))
-    return deep_copy(merged)
+        merged = merge_config_dict(merged, copy.deepcopy(patch))
+    return copy.deepcopy(merged)
 
 
 def resolve_config(
@@ -36,9 +36,11 @@ def resolve_config(
     Contextual fallback values fill gaps in the schema defaults. Explicit
     patches take precedence over both kinds of defaults.
     """
-    config = merge_config_dict(deep_copy(fallback or {}), deep_copy(defaults))
+    config = merge_config_dict(
+        copy.deepcopy(fallback or {}), copy.deepcopy(defaults)
+    )
     for patch in patches:
-        config = merge_config_dict(config, deep_copy(patch))
+        config = merge_config_dict(config, copy.deepcopy(patch))
     return config
 
 
@@ -75,7 +77,7 @@ def merge_resolved_configs(
     base: ResolvedConfig, overrides: ResolvedConfig
 ) -> ResolvedConfig:
     """Merge resolved groups without losing their original field sources."""
-    config = merge_config_dict(base.config, deep_copy(overrides.config))
+    config = merge_config_dict(base.config, copy.deepcopy(overrides.config))
     # Keep only surviving fields after record replacements and deletions.
     origins = {
         path: overrides.origins[path]

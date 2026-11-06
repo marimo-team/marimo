@@ -1,6 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import copy
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
@@ -10,7 +11,6 @@ from marimo._config.config_schema import (
     MCPServerStreamableHttpConfig,
 )
 from marimo._config.schema_utils import default_if_unset
-from marimo._config.utils import deep_copy
 from marimo._server.ai.mcp.transport import MCPTransportType
 
 if TYPE_CHECKING:
@@ -45,13 +45,13 @@ def append_presets(config: MCPConfig) -> MCPConfig:
         return config
 
     # Create a copy to avoid mutating the original
-    updated_config = deep_copy(config)
+    updated_config = copy.deepcopy(config)
 
     # Add preset servers if not already present
     for preset_name in presets_to_add:
         if preset_name not in updated_config.mcpServers:
             if preset_name in MCP_PRESETS:
-                updated_config.mcpServers[preset_name] = deep_copy(
+                updated_config.mcpServers[preset_name] = copy.deepcopy(
                     MCP_PRESETS[preset_name]
                 )
 

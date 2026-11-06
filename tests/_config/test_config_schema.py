@@ -1,6 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import copy
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -348,9 +349,7 @@ def test_credential_mappings_are_hidden_from_representations(
     assert config.to_dict()[field_name] == credentials
 
 
-def test_deep_copy_isolates_schema_settings() -> None:
-    from marimo._config.utils import deep_copy
-
+def test_deepcopy_isolates_schema_settings() -> None:
     original = MarimoConfig.from_dict(
         {
             "runtime": {"pythonpath": ["/original"]},
@@ -358,7 +357,7 @@ def test_deep_copy_isolates_schema_settings() -> None:
         }
     )
     before = original.to_dict()
-    copied = deep_copy(original)
+    copied = copy.deepcopy(original)
     copied.keymap.overrides["run"] = "Ctrl-Enter"
     paths = copied.runtime.pythonpath
     assert paths is not UNSET

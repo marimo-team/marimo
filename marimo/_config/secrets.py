@@ -1,11 +1,11 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import copy
 from typing import Any, TypeVar
 
 from marimo._config.config import PartialMarimoConfig
 from marimo._config.config_schema import MarimoConfig
-from marimo._config.utils import deep_copy
 
 SECRET_PLACEHOLDER = "********"
 
@@ -63,7 +63,7 @@ def _redact_dict(config: PartialMarimoConfig) -> PartialMarimoConfig:
         ("signing", "private_key_path"),
     )
 
-    new_config = deep_copy(config)
+    new_config = copy.deepcopy(config)
 
     for secret in secrets:
         deep_remove_from_path(list(secret), new_config)
@@ -89,4 +89,4 @@ def remove_secret_placeholders(config: T) -> T:
             return None
         return obj
 
-    return deep_remove(deep_copy(config))  # type: ignore
+    return deep_remove(copy.deepcopy(config))  # type: ignore
