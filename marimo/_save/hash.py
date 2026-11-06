@@ -10,6 +10,7 @@ import sys
 import textwrap
 from typing import TYPE_CHECKING, Any, NamedTuple
 
+from marimo._ast.fingerprint import ast_fingerprint, code_fingerprint
 from marimo._ast.transformers import DeprivateVisitor
 from marimo._ast.variables import (
     get_cell_from_local,
@@ -17,7 +18,6 @@ from marimo._ast.variables import (
     unmangle_local,
 )
 from marimo._ast.visitor import ImportData, Name, ScopedVisitor
-from marimo._core.code import ast_fingerprint, code_fingerprint
 from marimo._plugins.ui._core.ui_element import UIElement
 from marimo._runtime.context import (
     ContextNotInitializedError,

@@ -1,5 +1,5 @@
 # Copyright 2026 Marimo. All rights reserved.
-"""Code identity for comparing document cells with their executions."""
+"""Code identity from the AST, independent of formatting and Python version."""
 
 from __future__ import annotations
 

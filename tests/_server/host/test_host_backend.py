@@ -8,13 +8,13 @@ from dataclasses import replace
 
 import pytest
 
+from marimo._ast.fingerprint import code_fingerprint
 from marimo._code_mode.screenshot_meta import (
     SCREENSHOT_AUTH_TOKEN_KEY,
     SCREENSHOT_FILE_KEY,
     SCREENSHOT_SERVER_URL_KEY,
 )
 from marimo._core import backend as be, protocol
-from marimo._core.code import code_fingerprint
 from marimo._core.document import Document, DocumentCell
 from marimo._core.stream import Stream
 from marimo._messaging.notification import (

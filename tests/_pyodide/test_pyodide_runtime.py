@@ -11,8 +11,8 @@ import pytest
 
 import marimo._pyodide.notebook as worker
 from marimo._ast.app_config import _AppConfig
+from marimo._ast.fingerprint import code_fingerprint
 from marimo._config.config import DEFAULT_CONFIG
-from marimo._core.code import code_fingerprint
 from marimo._messaging.notification import (
     CellNotification,
     CompletedRunNotification,

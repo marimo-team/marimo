@@ -15,7 +15,7 @@ from threading import RLock
 from typing import Literal
 from uuid import uuid4
 
-from marimo._core.code import code_fingerprint as source_fingerprint
+from marimo._ast.fingerprint import code_fingerprint as source_fingerprint
 from marimo._core.protocol import Revision
 from marimo._messaging.context import (
     EXECUTION_CTX,

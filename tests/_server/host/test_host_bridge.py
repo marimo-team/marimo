@@ -11,8 +11,8 @@ from typing import TYPE_CHECKING
 import pytest
 from starlette.datastructures import State
 
+from marimo._ast.fingerprint import code_fingerprint
 from marimo._core import protocol
-from marimo._core.code import code_fingerprint
 from marimo._core.errors import Conflict, DecisionRequired, EditConflict
 from marimo._core.stream import RoutedEvent
 from marimo._messaging.notification import (
