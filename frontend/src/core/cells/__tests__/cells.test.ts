@@ -263,7 +263,6 @@ describe("cell reducer", () => {
         timestamp: 1,
       },
       status: "idle",
-      stale_inputs: null,
       timestamp: 1,
     });
     editCode(firstCellId, "print('new code')");
@@ -273,7 +272,6 @@ describe("cell reducer", () => {
       output: null,
       console: null,
       status: "queued",
-      stale_inputs: null,
       timestamp: 2,
     });
     const runtime = state.cellRuntime[firstCellId];
@@ -307,7 +305,6 @@ describe("cell reducer", () => {
       output: undefined,
       console: null,
       status: "queued",
-      stale_inputs: null,
       timestamp: new Date(10).getTime() as Seconds,
     });
     cell = cells[0];
@@ -319,7 +316,6 @@ describe("cell reducer", () => {
       output: undefined,
       console: null,
       status: "running",
-      stale_inputs: null,
       timestamp: new Date(20).getTime() as Seconds,
     });
     cell = cells[0];
@@ -336,7 +332,6 @@ describe("cell reducer", () => {
         timestamp: 0,
       },
       status: undefined,
-      stale_inputs: null,
       timestamp: new Date(22).getTime() as Seconds,
     });
     cell = cells[0];
@@ -358,7 +353,6 @@ describe("cell reducer", () => {
         timestamp: 0,
       },
       status: "idle",
-      stale_inputs: null,
       timestamp: new Date(33).getTime() as Seconds,
     });
     cell = cells[0];
@@ -395,7 +389,6 @@ describe("cell reducer", () => {
       output: undefined,
       console: null,
       status: "queued",
-      stale_inputs: null,
       timestamp: new Date(40).getTime() as Seconds,
     });
     cell = cells[0];
@@ -406,7 +399,6 @@ describe("cell reducer", () => {
       output: undefined,
       console: null,
       status: "running",
-      stale_inputs: null,
       timestamp: new Date(50).getTime() as Seconds,
     });
     cell = cells[0];
@@ -424,7 +416,6 @@ describe("cell reducer", () => {
       },
       console: null,
       status: "idle",
-      stale_inputs: null,
       timestamp: new Date(61).getTime() as Seconds,
     });
     cell = cells[0];
@@ -445,7 +436,6 @@ describe("cell reducer", () => {
       output: undefined,
       console: null,
       status: "queued",
-      stale_inputs: null,
       timestamp: new Date(40).getTime() as Seconds,
     });
     cell = cells[0];
@@ -456,7 +446,6 @@ describe("cell reducer", () => {
       output: undefined,
       console: null,
       status: "running",
-      stale_inputs: null,
       timestamp: new Date(50).getTime() as Seconds,
     });
     cell = cells[0];
@@ -472,7 +461,6 @@ describe("cell reducer", () => {
       },
       console: null,
       status: "idle",
-      stale_inputs: null,
       timestamp: new Date(61).getTime() as Seconds,
     });
     cell = cells[0];
@@ -502,7 +490,6 @@ describe("cell reducer", () => {
       output: undefined,
       console: null,
       status: "queued",
-      stale_inputs: null,
       timestamp: new Date(10).getTime() as Seconds,
     });
     let cell = cells[1];
@@ -514,7 +501,6 @@ describe("cell reducer", () => {
       output: undefined,
       console: null,
       status: undefined,
-      stale_inputs: true,
       timestamp: new Date(20).getTime() as Seconds,
     });
     cell = cells[1];
@@ -536,7 +522,6 @@ describe("cell reducer", () => {
       output: undefined,
       console: null,
       status: "queued",
-      stale_inputs: null,
       timestamp: new Date(10).getTime() as Seconds,
     });
     let cell = cells[0];
@@ -548,7 +533,6 @@ describe("cell reducer", () => {
       output: undefined,
       console: null,
       status: "idle",
-      stale_inputs: null,
       timestamp: new Date(20).getTime() as Seconds,
     });
     cell = cells[0];
@@ -571,7 +555,6 @@ describe("cell reducer", () => {
       },
       console: null,
       status: "idle",
-      stale_inputs: null,
       timestamp: new Date(20).getTime() as Seconds,
     });
     cell = cells[0];
@@ -587,7 +570,6 @@ describe("cell reducer", () => {
       output: undefined,
       console: null,
       status: "queued",
-      stale_inputs: null,
       timestamp: new Date(30).getTime() as Seconds,
     });
     cell = cells[0];
@@ -599,7 +581,6 @@ describe("cell reducer", () => {
       output: undefined,
       console: null,
       status: "running",
-      stale_inputs: null,
       timestamp: new Date(40).getTime() as Seconds,
     });
     cell = cells[0];
@@ -646,7 +627,6 @@ describe("cell reducer", () => {
       output: undefined,
       console: null,
       status: "queued",
-      stale_inputs: null,
       timestamp: new Date(10).getTime() as Seconds,
     });
     cell = cells[0];
@@ -658,7 +638,6 @@ describe("cell reducer", () => {
       output: undefined,
       console: null,
       status: "running",
-      stale_inputs: null,
       timestamp: new Date(20).getTime() as Seconds,
     });
     cell = cells[0];
@@ -670,7 +649,6 @@ describe("cell reducer", () => {
       output: undefined,
       console: STDOUT,
       status: undefined,
-      stale_inputs: null,
       timestamp: new Date(22).getTime() as Seconds,
     });
     cell = cells[0];
@@ -686,7 +664,6 @@ describe("cell reducer", () => {
       output: undefined,
       console: STD_IN_1,
       status: undefined,
-      stale_inputs: null,
       timestamp: new Date(22).getTime() as Seconds,
     });
     cell = cells[0];
@@ -713,7 +690,6 @@ describe("cell reducer", () => {
       output: undefined,
       console: STD_IN_2,
       status: undefined,
-      stale_inputs: null,
       timestamp: new Date(22).getTime() as Seconds,
     });
     cell = cells[0];
@@ -735,7 +711,6 @@ describe("cell reducer", () => {
       },
       console: null,
       status: "idle",
-      stale_inputs: null,
       timestamp: new Date(61).getTime() as Seconds,
     });
     cell = cells[0];
@@ -758,7 +733,6 @@ describe("cell reducer", () => {
       output: undefined,
       console: prompt,
       status: "running",
-      stale_inputs: null,
       timestamp: 1 as Seconds,
     });
 
@@ -790,7 +764,6 @@ describe("cell reducer", () => {
       output: undefined,
       console: null,
       status: "running",
-      stale_inputs: null,
       timestamp: new Date(20).getTime() as Seconds,
     });
     actions.handleCellMessage({
@@ -798,7 +771,6 @@ describe("cell reducer", () => {
       output: undefined,
       console: STDOUT,
       status: undefined,
-      stale_inputs: null,
       timestamp: new Date(22).getTime() as Seconds,
     });
 
@@ -841,7 +813,6 @@ describe("cell reducer", () => {
       output: undefined,
       console: [OLD_STDOUT],
       status: undefined,
-      stale_inputs: null,
       timestamp: new Date(1).getTime() as Seconds,
     });
 
@@ -859,7 +830,6 @@ describe("cell reducer", () => {
       output: undefined,
       console: null,
       status: "queued",
-      stale_inputs: null,
       timestamp: new Date(10).getTime() as Seconds,
     });
     cell = cells[0];
@@ -872,7 +842,6 @@ describe("cell reducer", () => {
       output: undefined,
       console: [], // Backend sends an empty array to clearu
       status: "running",
-      stale_inputs: null,
       timestamp: new Date(20).getTime() as Seconds,
     });
     cell = cells[0];
@@ -885,7 +854,6 @@ describe("cell reducer", () => {
       output: undefined,
       console: [STDOUT],
       status: "idle",
-      stale_inputs: null,
       timestamp: new Date(22).getTime() as Seconds,
     });
     cell = cells[0];
@@ -939,7 +907,6 @@ describe("cell reducer", () => {
       output: undefined,
       console: [STDOUT1, STDOUT2],
       status: "running",
-      stale_inputs: null,
       timestamp: new Date(20).getTime() as Seconds,
     });
 
@@ -973,7 +940,6 @@ describe("cell reducer", () => {
         timestamp: 0,
       },
       status: "idle",
-      stale_inputs: null,
       timestamp: new Date(33).getTime() as Seconds,
     });
 
@@ -1008,7 +974,6 @@ describe("cell reducer", () => {
         timestamp: 0,
       },
       status: "idle",
-      stale_inputs: null,
       timestamp: new Date(33).getTime() as Seconds,
     });
 
@@ -1022,7 +987,6 @@ describe("cell reducer", () => {
         timestamp: 0,
       },
       status: "idle",
-      stale_inputs: null,
       timestamp: new Date(34).getTime() as Seconds,
     });
 
@@ -1062,7 +1026,6 @@ describe("cell reducer", () => {
         timestamp: 0,
       },
       status: "idle",
-      stale_inputs: null,
       timestamp: new Date(33).getTime() as Seconds,
     } as const;
 

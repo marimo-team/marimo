@@ -124,7 +124,6 @@ class CellNotification(Notification, tag="cell-op"):
         output: Cell's output. Use CellOutput.empty() to clear.
         console: Console messages. Single/list appends, [] clears, None unchanged.
         status: Execution status (idle/running/stale/queued/disabled-transitively).
-        stale_inputs: Whether cell has stale inputs from changed dependencies.
         run_id: Execution run ID for tracing. Auto-set from context.
         execution_id: Evaluation of this cell producing the update, when known.
         serialization: Top-level reusability hint. UNSET unchanged, None clears, str sets.
@@ -136,8 +135,6 @@ class CellNotification(Notification, tag="cell-op"):
     output: CellOutput | None = None
     console: CellOutput | list[CellOutput] | None = None
     status: RuntimeStateType | None = None
-    # TODO(MO-8471): Unread by the editor; delete with `broadcast_stale`.
-    stale_inputs: bool | None = None
     run_id: RunId_t | None = None
     execution_id: str | None = None
     # Tri-state partial update: UNSET (omitted on the wire) leaves the cell's

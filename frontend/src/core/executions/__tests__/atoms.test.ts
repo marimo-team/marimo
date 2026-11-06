@@ -21,7 +21,6 @@ function cellOp(status: CellMessage["status"]): CellMessage {
     output: null,
     console: null,
     status,
-    stale_inputs: null,
     timestamp: 1,
   };
 }
