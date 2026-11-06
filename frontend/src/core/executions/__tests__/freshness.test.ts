@@ -354,6 +354,43 @@ describe("cellFreshness", () => {
     });
   });
 
+  it.each(["running", "completed"] as const)(
+    "detects a binding in a newer runtime while its execution is %s",
+    (status) => {
+      const reader = record({
+        id: "reader-r2",
+        cell_id: "k7f2",
+        runtime_id: "r2",
+        code_fingerprint: K7F2_FINGERPRINT,
+        depends_on: { x: null },
+        started_at: "2026-10-01T09:21:00Z",
+        completed_at: "2026-10-01T09:21:01Z",
+      });
+      const binder = record({
+        id: "binder-r3",
+        cell_id: "c3",
+        runtime_id: "r3",
+        code_fingerprint: C3_FINGERPRINT,
+        status,
+        started_at: "2026-10-01T09:22:00Z",
+        completed_at: status === "completed" ? "2026-10-01T09:22:01Z" : null,
+      });
+      const state = inputs({
+        cells: [c3, k7f2],
+        executions: [
+          execution(binder, [variable("x", binder.id)]),
+          execution(reader),
+        ],
+        results: [e12, reader],
+      });
+
+      expect(freshnessOf(state)("k7f2")).toEqual({
+        sourceChanged: false,
+        inputsChanged: true,
+      });
+    },
+  );
+
   it("treats a name bound only by an earlier runtime as unbound", () => {
     const reader = record({
       id: "e20",
