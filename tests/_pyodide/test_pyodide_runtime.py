@@ -276,7 +276,7 @@ async def test_running_a_cell_loads_the_imports_of_the_whole_document(
     assert isinstance(command, ExecuteCellsCommand)
     assert [r.cell_id for r in command.execution_requests] == [cell["id"]]
     # The dependent cell runs too, so its imports must be loaded as well.
-    assert loaded == ["x = 1\nimport json\ny = x"]
+    assert loaded == ["x = 1", "import json\ny = x"]
 
 
 async def test_scratch_code_runs_against_the_document(bridge):
@@ -360,6 +360,42 @@ async def test_an_edit_waits_behind_a_run_loading_packages(bridge):
     assert isinstance(execute, ExecuteCellsCommand)
     assert execute.run_id == run["body"]["id"]
     assert isinstance(update, EditCellsCommand)
+
+
+async def test_each_cell_loads_its_own_imports(bridge):
+    loaded: list[str] = []
+
+    async def load(code: str) -> None:
+        loaded.append(code)
+
+    bridge.notebook.set_package_loader(load)
+    bridge.session.instantiated = True
+    events = await started(bridge)
+    cell = latest(events, "cell")
+    # A cell mid-edit does not parse; it must not hide another's imports.
+    reply = await call(
+        bridge,
+        "notebook.edit",
+        {
+            "changes": [
+                {
+                    "kind": "put_cell",
+                    "base_etag": None,
+                    "cell": {
+                        "id": "c2",
+                        "code": "import numpy\ninvalid =",
+                        "name": "_",
+                        "config": cell["config"],
+                    },
+                }
+            ]
+        },
+        key="edit-1",
+    )
+    assert reply["status"] == 200
+    await call(bridge, "runtime.run", {"cells": [{"id": cell["id"]}]})
+    await settle()
+    assert loaded == ["x = 1", "import numpy\ninvalid ="]
 
 
 async def test_a_failed_package_load_fails_the_run(bridge):
