@@ -831,27 +831,35 @@ def _apply_edits_dataframe(
     column_types: ColumnTypes | None,
 ) -> IntoDataFrame:
     df = nw.from_native(native_df, eager_only=True)
-    column_oriented = df.to_dict(as_series=False)
-    schema = schema or nw.Schema(df.schema)
-
-    # TODO: We should try to find more performant methods of bulk edits for dataframes
-    table = _EditableTable.from_columns(column_oriented, schema, column_types)
-    table.normalize_configured_columns()
     if (
         not edits["edits"]
         and column_types
         and "boolean" in column_types.values()
     ):
+        column_names = df.columns
+        for column in column_types:
+            if column not in column_names:
+                raise ValueError(f"Column {column} is not in the data")
         return df.with_columns(
             nw.new_series(
                 column,
-                column_oriented[column],
+                [
+                    _normalize_boolean(value, column)
+                    for value in df.get_column(column).to_list()
+                ],
                 dtype=nw.Boolean(),
                 backend=nw.get_native_namespace(df),
             )
             for column, column_type in column_types.items()
             if column_type == "boolean"
         ).to_native()  # type: ignore[no-any-return]
+
+    column_oriented = df.to_dict(as_series=False)
+    schema = schema or nw.Schema(df.schema)
+
+    # TODO: We should try to find more performant methods of bulk edits for dataframes
+    table = _EditableTable.from_columns(column_oriented, schema, column_types)
+    table.normalize_configured_columns()
     table.apply(edits)
     new_native_df = nw.from_dict(
         column_oriented, backend=nw.get_native_namespace(df)
