@@ -203,7 +203,7 @@ def watch_modules(
             LOGGER.debug(
                 "Found stale modules; acquiring lock to update graph."
             )
-            with graph.lock:
+            with reloader.lock, graph.lock:
                 LOGGER.debug("Acquired graph lock.")
                 stale_importers: set[CellId_t] = set()
                 fresh_importers: dict[CellId_t, set[str]] = {}
