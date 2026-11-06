@@ -164,6 +164,41 @@ async def test_nested_commands_can_evaluate_an_outer_queued_cell(
         ["planned", "running", "completed", "planned", "running", "completed"]
     )
     assert len({m.execution_id for m in attempts}) == 2
+    # The nested command ran the attempt the outer run had planned for `b`.
+    assert len({m.execution_id for m in attempts[:3]}) == 1
+
+
+async def test_a_reactive_run_plans_every_cell_before_the_first_starts(
+    mocked_kernel: MockedKernel,
+) -> None:
+    kernel = mocked_kernel.k
+    await kernel.run(
+        [
+            ExecuteCellCommand(cell_id=CellId_t("a"), code="x = 1"),
+            ExecuteCellCommand(cell_id=CellId_t("b"), code="y = x"),
+        ]
+    )
+    await KernelRequestHandlers(kernel)._handle_execute_multiple(
+        ExecuteCellsCommand(
+            execution_requests=[
+                ExecuteCellCommand(cell_id=CellId_t("a"), code="x = 2")
+            ],
+            run_id="second",
+        )
+    )
+    lifecycle = [
+        (m.cell_id, m.phase)
+        for m in MockStream(mocked_kernel.stream).parsed_operations
+        if isinstance(m, ExecutionNotification) and m.run_id == "second"
+    ]
+    assert lifecycle == [
+        ("a", "planned"),
+        ("b", "planned"),
+        ("a", "running"),
+        ("a", "completed"),
+        ("b", "running"),
+        ("b", "completed"),
+    ]
 
 
 @pytest.mark.parametrize("second", ["y = 1 / 0", "raise KeyboardInterrupt"])
