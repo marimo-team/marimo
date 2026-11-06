@@ -33,10 +33,10 @@ class ExecutionAttempt:
     """One planned evaluation of a cell, including its output identity."""
 
     cell_id: CellId_t
+    code: str
+    """The source the attempt was planned for."""
     id: str = field(default_factory=lambda: str(uuid4()))
     run_id: str | None = field(default_factory=lambda: RUN_ID_CTX.get(None))
-    code: str | None = None
-    """The source the attempt was planned for."""
     completed: bool = False
     depends_on: dict[str, Revision | None] | None = None
     _lock: RLock = field(
