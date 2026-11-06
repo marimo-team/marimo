@@ -18,6 +18,7 @@ export {
   waitForRuntimeRunning,
   withdrawCells,
 } from "./atoms";
+export type { CellFreshness, CellFreshnessLookup } from "./freshness";
 export { useCellExecution } from "./hooks";
 export {
   type CellExecutionInputs,
