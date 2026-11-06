@@ -3930,11 +3930,16 @@ components:
       - ai
       - language_servers
       - diagnostics
+      - lint
       - experimental
       - snippets
+      - datasources
       - file_browser
       - sharing
       - mcp
+      - venv
+      - cache
+      - signing
       title: MarimoConfig
       type: object
     MarimoError:

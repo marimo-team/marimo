@@ -67,12 +67,18 @@ test("default UserConfig - empty", () => {
         },
         "rules": "",
       },
+      "cache": {
+        "loader": "lazy",
+        "store": null,
+        "verification": "off",
+      },
       "completion": {
         "activate_on_typing": true,
         "auto_close_pairs": true,
         "copilot": false,
         "signature_hint_on_typing": false,
       },
+      "datasources": {},
       "diagnostics": {
         "sql_linter": true,
       },
@@ -114,6 +120,10 @@ test("default UserConfig - empty", () => {
           "enabled": false,
         },
       },
+      "lint": {
+        "ignore": [],
+        "select": [],
+      },
       "mcp": {
         "mcpServers": {},
         "presets": [],
@@ -145,9 +155,17 @@ test("default UserConfig - empty", () => {
         "session_secret": null,
       },
       "sharing": null,
+      "signing": {
+        "private_key_path": null,
+        "trusted_signers": {},
+      },
       "snippets": {
         "custom_paths": [],
         "include_default_snippets": true,
+      },
+      "venv": {
+        "path": null,
+        "writable": false,
       },
     }
   `);
@@ -181,12 +199,18 @@ test("default UserConfig - one level", () => {
         },
         "rules": "",
       },
+      "cache": {
+        "loader": "lazy",
+        "store": null,
+        "verification": "off",
+      },
       "completion": {
         "activate_on_typing": true,
         "auto_close_pairs": true,
         "copilot": false,
         "signature_hint_on_typing": false,
       },
+      "datasources": {},
       "diagnostics": {
         "sql_linter": true,
       },
@@ -228,6 +252,10 @@ test("default UserConfig - one level", () => {
           "enabled": false,
         },
       },
+      "lint": {
+        "ignore": [],
+        "select": [],
+      },
       "mcp": {
         "mcpServers": {},
         "presets": [],
@@ -259,9 +287,17 @@ test("default UserConfig - one level", () => {
         "session_secret": null,
       },
       "sharing": null,
+      "signing": {
+        "private_key_path": null,
+        "trusted_signers": {},
+      },
       "snippets": {
         "custom_paths": [],
         "include_default_snippets": true,
+      },
+      "venv": {
+        "path": null,
+        "writable": false,
       },
     }
   `);

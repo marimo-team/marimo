@@ -6,8 +6,6 @@ from typing import TYPE_CHECKING
 
 from starlette.authentication import requires
 
-from marimo._config.config_schema import VenvConfig
-from marimo._config.schema_utils import default_if_unset
 from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._environments import script_metadata
 from marimo._environments.backends import backend_for
@@ -324,7 +322,7 @@ def _runs_in_configured_venv(state: AppState, path: str) -> bool:
     if not GLOBAL_SETTINGS.SANDBOX_AUTO:
         return False
     config = state.config_manager_at_file(path).get_config(hide_secrets=False)
-    return bool(default_if_unset(config.venv, VenvConfig()).path)
+    return bool(config.venv.path)
 
 
 def _sandbox_source(

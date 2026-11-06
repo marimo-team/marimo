@@ -175,6 +175,7 @@ def test_default_configuration_snapshot(config_tree: Path) -> None:
                 "autosave_delay": 1000,
                 "format_on_save": False,
             },
+            "lint": {"select": [], "ignore": []},
             "experimental": {
                 "isolate_apps": False,
                 "debugger": False,
@@ -189,9 +190,13 @@ def test_default_configuration_snapshot(config_tree: Path) -> None:
                 "follow_symlink": False,
                 "disable_file_downloads": False,
             },
+            "datasources": {},
             "file_browser": None,
             "sharing": None,
             "diagnostics": {"sql_linter": True},
+            "venv": {"path": None, "writable": False},
+            "cache": {"verification": "off", "store": None, "loader": "lazy"},
+            "signing": {"trusted_signers": {}, "private_key_path": None},
         }
     )
     assert normalized(
@@ -322,6 +327,7 @@ def test_layered_configuration_snapshot(
                 },
                 "package_management": {"manager": "pip"},
                 "diagnostics": {"sql_linter": True},
+                "lint": {"select": [], "ignore": []},
                 "display": {
                     "dataframes": "rich",
                     "theme": "light",
@@ -350,12 +356,19 @@ def test_layered_configuration_snapshot(
                     "open_ai": {"api_key": "********"},
                     "allow_provider_config": True,
                 },
+                "datasources": {},
                 "file_browser": None,
                 "sharing": {"molab": False, "html": False, "wasm": False},
                 "keymap": {
                     "overrides": {},
                     "vimrc": "<root>/home/project/editor.vim",
                     "preset": "default",
+                },
+                "venv": {"path": None, "writable": False},
+                "cache": {
+                    "verification": "off",
+                    "store": None,
+                    "loader": "lazy",
                 },
                 "formatting": {"infer_types": "off", "line_length": 130},
             },
@@ -426,6 +439,7 @@ def test_layered_configuration_snapshot(
                 },
                 "package_management": {"manager": "pip"},
                 "diagnostics": {"sql_linter": True},
+                "lint": {"select": [], "ignore": []},
                 "display": {
                     "dataframes": "rich",
                     "theme": "light",
@@ -454,12 +468,19 @@ def test_layered_configuration_snapshot(
                     "open_ai": {"api_key": "project-secret"},
                     "allow_provider_config": True,
                 },
+                "datasources": {},
                 "file_browser": None,
                 "sharing": {"molab": False, "html": False, "wasm": False},
                 "keymap": {
                     "overrides": {},
                     "vimrc": "<root>/home/project/editor.vim",
                     "preset": "default",
+                },
+                "venv": {"path": None, "writable": False},
+                "cache": {
+                    "verification": "off",
+                    "store": None,
+                    "loader": "lazy",
                 },
                 "formatting": {"infer_types": "off", "line_length": 130},
             },
@@ -537,6 +558,7 @@ def test_layered_configuration_snapshot(
                     "cache_cells": False,
                     "pin_modules": True,
                 },
+                "lint": {"select": [], "ignore": []},
                 "experimental": {
                     "isolate_apps": False,
                     "debugger": False,
@@ -548,6 +570,7 @@ def test_layered_configuration_snapshot(
                     "autosave_delay": 1000,
                     "format_on_save": False,
                 },
+                "datasources": {},
                 "file_browser": None,
                 "sharing": None,
                 "server": {
@@ -557,6 +580,12 @@ def test_layered_configuration_snapshot(
                     "browser": "default",
                     "follow_symlink": False,
                     "disable_file_downloads": False,
+                },
+                "venv": {"path": None, "writable": False},
+                "cache": {
+                    "verification": "off",
+                    "store": None,
+                    "loader": "lazy",
                 },
                 "diagnostics": {"sql_linter": True},
             },
@@ -747,11 +776,17 @@ displayed_models = []
 [ai.open_ai]
 api_key = "keep-me"
 
+[cache]
+loader = "lazy"
+verification = "off"
+
 [completion]
 activate_on_typing = true
 auto_close_pairs = true
 copilot = false
 signature_hint_on_typing = false
+
+[datasources]
 
 [diagnostics]
 sql_linter = true
@@ -791,6 +826,10 @@ enable_pylint = false
 enable_ruff = true
 enabled = false
 
+[lint]
+ignore = []
+select = []
+
 [mcp]
 presets = []
 
@@ -828,9 +867,14 @@ follow_symlink = false
 session_cookie_secure = false
 skip_update_check = false
 
+[signing.trusted_signers]
+
 [snippets]
 custom_paths = []
 include_default_snippets = true
+
+[venv]
+writable = false
 """)
     assert (manager.get_config(hide_secrets=False)).to_dict()["ai"]["open_ai"][
         "api_key"
@@ -940,9 +984,20 @@ def test_trust_origins_snapshot(config_tree: Path) -> None:
                     "private_key_path": "identity.key",
                     "trusted_signers": {"example": "owner"},
                 },
-                "cache": {"verification": "strict", "store": "disk"},
+                "cache": {
+                    "verification": "strict",
+                    "store": "disk",
+                    "loader": "lazy",
+                },
             },
-            "workspace": {"signing": None, "cache": {}},
+            "workspace": {
+                "signing": {"trusted_signers": {}, "private_key_path": None},
+                "cache": {
+                    "loader": "lazy",
+                    "store": None,
+                    "verification": "off",
+                },
+            },
             "pyproject": {
                 "display": {"theme": "dark"},
                 "cache": {"store": "disk"},

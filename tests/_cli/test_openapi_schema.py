@@ -181,11 +181,16 @@ def test_config_schema_describes_resolved_settings_without_internal_tags() -> (
         "ai",
         "language_servers",
         "diagnostics",
+        "lint",
         "experimental",
         "snippets",
+        "datasources",
         "file_browser",
         "sharing",
         "mcp",
+        "venv",
+        "cache",
+        "signing",
     ]
     assert schemas["ExperimentalConfig"]["additionalProperties"] is True
     assert schemas["MCPServerStdioConfig"]["required"] == ["command"]

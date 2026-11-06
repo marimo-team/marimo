@@ -5,8 +5,6 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Literal, cast
 
 from marimo import _loggers
-from marimo._config.config_schema import CacheConfig
-from marimo._config.schema_utils import default_if_unset
 from marimo._entrypoints.registry import EntryPointRegistry
 from marimo._save.loaders.json import JsonLoader
 from marimo._save.loaders.lazy import (
@@ -150,9 +148,7 @@ def get_loader_key(
         config = get_default_config_manager(
             current_path=current_path
         ).get_config()
-    return normalize_loader_key(
-        default_if_unset(config.cache, CacheConfig()).loader
-    )
+    return normalize_loader_key(config.cache.loader)
 
 
 __all__ = [

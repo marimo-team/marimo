@@ -86,6 +86,11 @@ def test_defaults_are_independent() -> None:
     first.runtime.pythonpath.append("/custom")
     first.runtime.default_auto_download.append("html")
     first.experimental.debugger = True
+    first.cache.loader = "json"
+    first.venv.writable = True
+    first.signing.trusted_signers["fingerprint"] = "label"
+    first.lint.ignore.append("MF001")
+    first.datasources.auto_discover_tables = False
 
     assert second.to_dict() == before
 

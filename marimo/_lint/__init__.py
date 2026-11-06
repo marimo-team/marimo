@@ -3,7 +3,6 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from marimo._config.schema_utils import default_if_unset
 from marimo._lint.diagnostic import Diagnostic, Severity
 from marimo._lint.linter import FileStatus, Linter
 from marimo._lint.rule_engine import EarlyStoppingConfig, RuleEngine
@@ -37,9 +36,7 @@ def resolve_lint_config(
 
     config_mgr = get_default_config_manager(current_path=os.getcwd())
     full_config = config_mgr.get_config(hide_secrets=False)
-    from marimo._config.config_schema import LintConfig
-
-    lint_config = default_if_unset(full_config.lint, LintConfig())
+    lint_config = full_config.lint
 
     # CLI --select replaces config select entirely
     if select_rules is not None:

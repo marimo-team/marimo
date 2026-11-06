@@ -997,9 +997,9 @@ class MarimoConfig(Config, kw_only=True):
         Meta(description="Configuration options for diagnostics."),
     ] = field(default_factory=DiagnosticsConfig)
     lint: Annotated[
-        LintConfig | UnsetType,
+        LintConfig,
         Meta(description="Configuration for lint rule selection."),
-    ] = UNSET
+    ] = field(default_factory=LintConfig)
     experimental: Annotated[
         ExperimentalConfig,
         Meta(description="Configuration for experimental features."),
@@ -1008,9 +1008,9 @@ class MarimoConfig(Config, kw_only=True):
         SnippetsConfig, Meta(description="Configuration for snippets.")
     ] = field(default_factory=SnippetsConfig)
     datasources: Annotated[
-        DatasourcesConfig | UnsetType,
+        DatasourcesConfig,
         Meta(description="Configuration for datasources panel."),
-    ] = UNSET
+    ] = field(default_factory=DatasourcesConfig)
     file_browser: Annotated[
         FileBrowserConfig | None,
         Meta(description="Configuration for the file browser panel."),
@@ -1023,16 +1023,16 @@ class MarimoConfig(Config, kw_only=True):
         MCPConfig, Meta(description="Configuration for MCP servers")
     ] = field(default_factory=MCPConfig)
     venv: Annotated[
-        VenvConfig | UnsetType,
+        VenvConfig,
         Meta(
             description="Configuration for an external Python environment in edit mode."
         ),
-    ] = UNSET
+    ] = field(default_factory=VenvConfig)
     cache: Annotated[
-        CacheConfig | UnsetType, Meta(description="Configuration for caching.")
-    ] = UNSET
+        CacheConfig, Meta(description="Configuration for caching.")
+    ] = field(default_factory=CacheConfig)
     signing: Annotated[
-        SigningConfig | UnsetType,
+        SigningConfig,
         Meta(description="Cache-signing trust and identity."),
-    ] = UNSET
+    ] = field(default_factory=SigningConfig)
     _mcp_path = ("mcp",)

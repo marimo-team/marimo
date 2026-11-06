@@ -6021,11 +6021,11 @@ export interface components {
       /** @description Configuration options for AI. */
       ai: components["schemas"]["AiConfig"];
       /** @description Configuration for caching. */
-      cache?: components["schemas"]["CacheConfig"];
+      cache: components["schemas"]["CacheConfig"];
       /** @description Configuration for code completion. */
       completion: components["schemas"]["CompletionConfig"];
       /** @description Configuration for datasources panel. */
-      datasources?: components["schemas"]["DatasourcesConfig"];
+      datasources: components["schemas"]["DatasourcesConfig"];
       /** @description Configuration options for diagnostics. */
       diagnostics: components["schemas"]["DiagnosticsConfig"];
       /** @description Configuration for display. */
@@ -6044,7 +6044,7 @@ export interface components {
       /** @description Configuration options for language servers. */
       language_servers: components["schemas"]["LanguageServersConfig"];
       /** @description Configuration for lint rule selection. */
-      lint?: components["schemas"]["LintConfig"];
+      lint: components["schemas"]["LintConfig"];
       /** @description Configuration for MCP servers */
       mcp: components["schemas"]["MCPConfig"];
       /** @description Configuration options for package management. */
@@ -6061,11 +6061,11 @@ export interface components {
        */
       sharing: components["schemas"]["SharingConfig"] | null;
       /** @description Cache-signing trust and identity. */
-      signing?: components["schemas"]["SigningConfig"];
+      signing: components["schemas"]["SigningConfig"];
       /** @description Configuration for snippets. */
       snippets: components["schemas"]["SnippetsConfig"];
       /** @description Configuration for an external Python environment in edit mode. */
-      venv?: components["schemas"]["VenvConfig"];
+      venv: components["schemas"]["VenvConfig"];
     };
     MarimoError:
       | components["schemas"]["SetupRootError"]

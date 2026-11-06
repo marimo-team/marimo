@@ -1,12 +1,9 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-from msgspec import UNSET
-
 from marimo import _loggers
 from marimo._config.config_schema import (
     CacheStoreConfig,
-    MarimoConfig,
 )
 from marimo._config.types import StoreKey
 from marimo._entrypoints.registry import EntryPointRegistry
@@ -33,17 +30,11 @@ _STORE_REGISTRY = EntryPointRegistry[StoreType](
 )
 
 
-def _store_config(config: MarimoConfig) -> CacheStoreConfig | None:
-    """Return the configured store, preserving absent sections."""
-    cache = config.cache
-    return cache.store if cache is not UNSET else None
-
-
 def get_store(current_path: str | None = None) -> Store:
     from marimo._config.manager import get_default_config_manager
 
     config = get_default_config_manager(current_path=current_path).get_config()
-    return _get_store_from_config(_store_config(config))
+    return _get_store_from_config(config.cache.store)
 
 
 def configured_cache_store(current_path: str | None = None) -> Store | None:
@@ -56,7 +47,7 @@ def configured_cache_store(current_path: str | None = None) -> Store | None:
     from marimo._config.manager import get_default_config_manager
 
     config = get_default_config_manager(current_path=current_path).get_config()
-    store_config = _store_config(config)
+    store_config = config.cache.store
     if store_config is None:
         return None
     return _get_store_from_config(store_config)

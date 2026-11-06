@@ -125,9 +125,7 @@ def engine_to_data_source_connection(
 
 def get_datasources_config() -> DatasourcesConfig:
     try:
-        return default_if_unset(
-            get_context().marimo_config.datasources, DatasourcesConfig()
-        )
+        return get_context().marimo_config.datasources
     except ContextNotInitializedError:
         pass
     except Exception as e:
@@ -136,11 +134,10 @@ def get_datasources_config() -> DatasourcesConfig:
         )
 
     try:
-        return default_if_unset(
+        return (
             get_default_config_manager(current_path=None)
             .get_config()
-            .datasources,
-            DatasourcesConfig(),
+            .datasources
         )
     except Exception as e:
         LOGGER.warning(

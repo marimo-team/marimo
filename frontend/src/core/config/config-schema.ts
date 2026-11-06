@@ -274,6 +274,44 @@ export const UserConfigSchema = z
       })
       .nullish()
       .prefault(null),
+    lint: z
+      .looseObject({
+        select: z.array(z.string()).prefault([]),
+        ignore: z.array(z.string()).prefault([]),
+      })
+      .prefault({}),
+    datasources: z
+      .looseObject({
+        auto_discover_schemas: z
+          .union([z.boolean(), z.literal("auto")])
+          .optional(),
+        auto_discover_tables: z
+          .union([z.boolean(), z.literal("auto")])
+          .optional(),
+        auto_discover_columns: z
+          .union([z.boolean(), z.literal("auto")])
+          .optional(),
+      })
+      .prefault({}),
+    venv: z
+      .looseObject({
+        path: z.string().nullable().prefault(null),
+        writable: z.boolean().prefault(false),
+      })
+      .prefault({}),
+    cache: z
+      .looseObject({
+        verification: z.enum(["off", "on", "strict"]).prefault("off"),
+        store: z.unknown().prefault(null),
+        loader: z.string().prefault("lazy"),
+      })
+      .prefault({}),
+    signing: z
+      .looseObject({
+        trusted_signers: z.record(z.string(), z.string()).prefault({}),
+        private_key_path: z.string().nullable().prefault(null),
+      })
+      .prefault({}),
     mcp: z
       .looseObject({
         presets: z.array(z.enum(["marimo", "context7"])).prefault([]),
@@ -300,6 +338,11 @@ export const UserConfigSchema = z
     ai: {},
     package_management: {},
     mcp: {},
+    cache: {},
+    venv: {},
+    signing: {},
+    lint: {},
+    datasources: {},
   }));
 export type UserConfig = MarimoConfig;
 export type SaveConfig = UserConfig["save"];
@@ -412,6 +455,11 @@ export function defaultUserConfig(): UserConfig {
     ai: {},
     package_management: {},
     mcp: {},
+    cache: {},
+    venv: {},
+    signing: {},
+    lint: {},
+    datasources: {},
   };
   return UserConfigSchema.parse(defaultConfig) as UserConfig;
 }

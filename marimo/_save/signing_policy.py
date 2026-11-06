@@ -15,8 +15,6 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from marimo import _loggers
-from marimo._config.config_schema import CacheConfig, SigningConfig
-from marimo._config.schema_utils import default_if_unset
 from marimo._save.signing import (
     DEFAULT_VERIFICATION,
     CacheSigner,
@@ -58,8 +56,8 @@ class SigningPolicy:
 
     @classmethod
     def from_config(cls, config: MarimoConfig) -> SigningPolicy:
-        signing = default_if_unset(config.signing, SigningConfig())
-        cache = default_if_unset(config.cache, CacheConfig())
+        signing = config.signing
+        cache = config.cache
 
         verification = normalize_verification(cache.verification)
 

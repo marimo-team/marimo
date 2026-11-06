@@ -13,9 +13,7 @@ from typing import TYPE_CHECKING
 from uuid import uuid4
 
 from marimo import _loggers
-from marimo._config.config_schema import VenvConfig
 from marimo._config.manager import MarimoConfigManager, ScriptConfigReader
-from marimo._config.schema_utils import default_if_unset
 from marimo._core.ids import mint
 from marimo._messaging.notebook.document import NotebookDocument
 from marimo._messaging.notification import (
@@ -120,7 +118,7 @@ class SessionImpl(Session):
             ScriptConfigReader(app_file_manager.path)
         )
         config = config_manager.get_config(hide_secrets=False)
-        configured_venv = default_if_unset(config.venv, VenvConfig()).path
+        configured_venv = config.venv.path
 
         configs = app_file_manager.app.cell_manager.config_map()
 

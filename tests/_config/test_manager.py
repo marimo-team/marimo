@@ -1683,7 +1683,11 @@ def test_workspace_marimo_toml_strips_signing_and_verification(
         )
     ).to_dict()
 
-    assert "signing" not in config
+    assert config["signing"] == {
+        "trusted_signers": {},
+        "private_key_path": None,
+    }
+    assert "signing" not in UserConfigStore().read()
     assert config.get("cache", {}).get("verification") == "off"
     assert (
         UserConfigStore().read().get("cache", {}).get("verification") is None
