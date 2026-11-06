@@ -111,7 +111,10 @@ export const renderUIMessage = ({
           );
         }
         return (
-          <div key={index} className={inActivity ? "py-1.5" : undefined}>
+          <div
+            key={index}
+            className={inActivity ? "py-1.5 text-muted-foreground" : undefined}
+          >
             <ChatMarkdown content={part.text} />
           </div>
         );
