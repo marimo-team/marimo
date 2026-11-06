@@ -8,6 +8,7 @@ import functools
 import hashlib
 import inspect
 import linecache
+import os
 import sys
 import types
 from typing import TYPE_CHECKING, Any, NamedTuple
@@ -166,6 +167,12 @@ def hash_function_source(fn: Callable[..., Any]) -> bytes:
     def fallback() -> bytes:
         return type_sign(_code_object_bytes(code), "code") + settings
 
+    if getattr(fn, "__module__", None) == "__main__" and os.environ.get(
+        "DEBUGPY_RUNNING"
+    ):
+        # Under a debugger, cells compile under the notebook's own filename,
+        # and the saved file can lag the edited cell.
+        return fallback()
     # The whole file, not `inspect.getsource`: a fragment has to be dedented,
     # which rewrites multiline string literals, and a lambda's fragment may
     # not parse on its own. A reloaded module has new lines on disk, and a

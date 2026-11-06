@@ -46,8 +46,9 @@ class FunctionStub:
         self.filename = f"<{function.__name__}>"
         self.lineno = 1
         # The snippet holds the definition alone, not the module's
-        # `from __future__` imports that governed it.
-        self.flags = function.__code__.co_flags & FUTURE_FLAGS
+        # `from __future__` imports that governed it. The flags come from the
+        # same function `getsource` read: a decorator's wrapper may differ.
+        self.flags = inspect.unwrap(function).__code__.co_flags & FUTURE_FLAGS
         if is_cached:
             # NB. keep the synthetic filename: the wrapper re-hashes its own
             # source per call, and the real path is absent on restore.
