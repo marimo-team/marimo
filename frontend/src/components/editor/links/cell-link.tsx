@@ -5,6 +5,7 @@ import { useCellIds, useCellNames } from "@/core/cells/cells";
 import { useCellActions } from "@/core/cells/actions";
 import { type CellId, HTMLCellId, SCRATCH_CELL_ID } from "@/core/cells/ids";
 import { displayCellName } from "@/core/cells/names";
+import { scrollToCell } from "@/core/cells/scrollCellIntoView";
 import { goToCellLine } from "@/core/codemirror/go-to-definition/utils";
 import { useFilename } from "@/core/saving/filename";
 import { cn } from "@/utils/cn";
@@ -99,12 +100,6 @@ export const CellLinkTraceback = ({
     />
   );
 };
-
-export function scrollToCell(cellId: CellId): HTMLElement | null {
-  const cell = document.getElementById(HTMLCellId.create(cellId));
-  cell?.scrollIntoView({ behavior: "smooth", block: "center" });
-  return cell;
-}
 
 export function scrollAndHighlightCell(
   cellId: CellId,

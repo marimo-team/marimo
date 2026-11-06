@@ -11,8 +11,8 @@ import {
 } from "@/core/ai/staged-cells";
 import { chatGenerationInProgressAtom } from "@/core/ai/state";
 import { type CellId, HTMLCellId } from "@/core/cells/ids";
+import { scrollToCell } from "@/core/cells/scrollCellIntoView";
 import { getNextIndex } from "@/utils/arrays";
-import { scrollToCell } from "../../links/cell-link";
 
 const REVIEW_LABELS: Record<Edit["type"], { accept: string; reject: string }> =
   {

@@ -10,9 +10,9 @@ import {
 } from "@/components/chat/use-chat-generation";
 import { cellId } from "@/__tests__/branded";
 import { HTMLCellId } from "@/core/cells/ids";
+import { scrollToCell } from "@/core/cells/scrollCellIntoView";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { stagedAICellsAtom } from "@/core/ai/staged-cells";
-import { scrollToCell } from "../../../links/cell-link";
 import { PendingAICells } from "../pending-ai-cells";
 import { PendingAIChangesBadge } from "../pending-ai-changes-badge";
 
@@ -38,7 +38,7 @@ vi.mock("@/components/editor/cell/useRunCells", () => ({
   useRunCell: () => vi.fn(),
 }));
 
-vi.mock("@/components/editor/links/cell-link", () => ({
+vi.mock("@/core/cells/scrollCellIntoView", () => ({
   scrollToCell: vi.fn(),
 }));
 
