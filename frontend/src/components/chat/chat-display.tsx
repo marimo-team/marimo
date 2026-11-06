@@ -47,10 +47,9 @@ export const renderUIMessage = ({
       isAnyToolPart(part) ? [part] : [],
     );
     const timing =
-      getTurnTiming(message) ??
-      (running && turnStartedAt != null
+      running && turnStartedAt != null
         ? { startedAt: turnStartedAt }
-        : undefined);
+        : getTurnTiming(message);
     content.push(
       <AgentActivity
         key="activity"
@@ -168,6 +167,14 @@ export const renderUIMessage = ({
     }
   }
 };
+
+export function getAnswerText(message: UIMessage): string {
+  const textOf = (parts: IndexedPart[]) =>
+    parts.flatMap(({ part }) => (part.type === "text" ? [part.text] : []));
+  const { work, rest } = splitTurn(message.parts);
+  const answer = textOf(rest);
+  return (answer.length > 0 ? answer : textOf(work)).join("\n");
+}
 
 function splitTurn(parts: UIMessage["parts"]): {
   work: IndexedPart[];

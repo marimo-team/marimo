@@ -36,7 +36,7 @@ export function withTurnTiming(
   if (last?.role !== "assistant") {
     return messages;
   }
-  const startedAt = getTurnTiming(last)?.startedAt ?? turn.startedAt;
+  const startedAt = turn.startedAt ?? getTurnTiming(last)?.startedAt;
   if (startedAt == null) {
     return messages;
   }

@@ -3,7 +3,7 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import type { ToolUIPart, UIMessage } from "ai";
 import { describe, expect, it, vi } from "vitest";
-import { renderUIMessage } from "../chat-display";
+import { getAnswerText, renderUIMessage } from "../chat-display";
 
 vi.mock("../tool-call/tool-call-view", () => ({
   ToolCallView: ({ toolName }: { toolName: string }) => <div>{toolName}</div>,
@@ -168,5 +168,29 @@ describe("assistant turn rendering", () => {
     show([{ type: "text", text: "Hello!" }]);
     expect(screen.getByText("Hello!")).toBeTruthy();
     expect(screen.queryByRole("button")).toBeNull();
+  });
+});
+
+describe("getAnswerText", () => {
+  it("copies the visible answer, not the narration folded into the block", () => {
+    const message: UIMessage = {
+      id: "m",
+      role: "assistant",
+      parts: [
+        { type: "text", text: "Adding the function now." },
+        tool(),
+        { type: "text", text: "Added `fib`." },
+      ],
+    };
+    expect(getAnswerText(message)).toBe("Added `fib`.");
+  });
+
+  it("falls back to the narration when there is no answer", () => {
+    const message: UIMessage = {
+      id: "m",
+      role: "assistant",
+      parts: [{ type: "text", text: "Starting." }, tool()],
+    };
+    expect(getAnswerText(message)).toBe("Starting.");
   });
 });

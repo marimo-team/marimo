@@ -26,7 +26,7 @@ describe("withTurnTiming", () => {
     });
   });
 
-  it("keeps the original start across follow-up requests in the same turn", () => {
+  it("prefers the live turn's start, which moves forward after approvals", () => {
     const first = withTurnTiming(
       [user, assistant({ other: 1 })],
       { startedAt: 100, stopped: false },
@@ -39,10 +39,24 @@ describe("withTurnTiming", () => {
     );
     expect(stamped.metadata).toEqual({
       other: 1,
-      startedAt: 100,
+      startedAt: 400,
       finishedAt: 900,
       stopped: true,
     });
+  });
+
+  it("keeps the stored start when no turn is live", () => {
+    const first = withTurnTiming(
+      [user, assistant()],
+      { startedAt: 100, stopped: false },
+      500,
+    );
+    const [, stamped] = withTurnTiming(
+      first,
+      { startedAt: null, stopped: false },
+      900,
+    );
+    expect(getTurnTiming(stamped)?.startedAt).toBe(100);
   });
 
   it("leaves messages untouched without an assistant reply or start time", () => {

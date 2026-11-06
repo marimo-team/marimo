@@ -76,7 +76,7 @@ import {
   resolveChatAbortReason,
 } from "./chat-abort";
 import { AgentActivity } from "./agent-activity";
-import { renderUIMessage } from "./chat-display";
+import { getAnswerText, renderUIMessage } from "./chat-display";
 import { ChatHistoryPopover } from "./chat-history-popover";
 import { CapabilitiesPopover } from "./capabilities-popover";
 import { NotebookAccessSelector } from "./notebook-access-selector";
@@ -97,7 +97,7 @@ import { getCodes } from "@/core/codemirror/copilot/getCodes";
 import { focusInputAndMoveToEnd } from "@/core/codemirror/utils";
 import ScrollToBottomButton from "./acp/scroll-to-bottom-button";
 import { useChatControllerId } from "./use-chat-controller-id";
-import { useChatGeneration } from "./use-chat-generation";
+import { isChatBusy, useChatGeneration } from "./use-chat-generation";
 import { useAssistantTurn } from "./use-assistant-turn";
 import { UserMessage } from "./user-message";
 
@@ -219,16 +219,14 @@ const ChatMessageDisplay: React.FC<ChatMessageProps> = memo(
       );
     }
 
-    const content = message.parts
-      .filter((p): p is TextUIPart => p.type === "text")
-      .map((p) => p.text)
-      .join("\n");
-
     return (
       <div className="group relative flex justify-start">
         <div className="w-[95%] wrap-break-word">
           <div className="absolute right-1 top-1 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity">
-            <CopyClipboardIcon className="h-3 w-3" value={content} />
+            <CopyClipboardIcon
+              className="h-3 w-3"
+              value={() => getAnswerText(message)}
+            />
           </div>
           {renderUIMessage({
             message,
@@ -480,7 +478,8 @@ const ChatPanelBody = () => {
   } = useChat({
     id: chatControllerId,
     throttle: AI_SDK_UI_THROTTLE_MS,
-    sendAutomaticallyWhen: ({ messages }) => hasPendingToolCalls(messages),
+    sendAutomaticallyWhen: ({ messages }) =>
+      !turn.hasEnded && hasPendingToolCalls(messages),
     messages: activeChat?.messages || [], // initial messages
     transport: new StreamingChunkTransport(
       {
@@ -615,12 +614,25 @@ const ChatPanelBody = () => {
     },
   );
 
-  const isLoading = useChatGeneration(status);
+  const isLoading = isChatBusy(status);
   const isTurnActive = turn.isActive({
     isLoading,
     hasError: error != null,
     messages,
   });
+  useChatGeneration(isTurnActive);
+
+  const stopTurn = useEvent(() => {
+    turn.stop();
+    void stop();
+  });
+
+  const respondToApproval = useEvent(
+    (response: Parameters<ChatAddToolApproveResponseFunction>[0]) => {
+      turn.resume(messages.at(-1));
+      return addToolApprovalResponse(response);
+    },
+  );
   // useEvent reads the latest loading state, even when called after an await
   // (e.g. resolving @-context) that outlives the original render's closure.
   const submitOrQueue = useEvent((parts: ChatMessagePart[]) => {
@@ -660,10 +672,14 @@ const ChatPanelBody = () => {
   // Pin to the bottom while the user is already there.
   useEffect(() => {
     setIsScrolledToBottom(true);
-    resetTurn();
     clearQueuedMessages();
     clearAbortState();
-  }, [activeChatId, clearQueuedMessages, clearAbortState, resetTurn]);
+  }, [activeChatId, clearQueuedMessages, clearAbortState]);
+
+  // Creating a chat keeps the draft's controller, so its turn survives.
+  useEffect(() => {
+    resetTurn();
+  }, [chatControllerId, resetTurn]);
 
   useEffect(() => {
     if (!isScrolledToBottom) {
@@ -881,8 +897,8 @@ const ChatPanelBody = () => {
       inputRef={newThreadInputRef}
       setInput={setNewThreadInput}
       onSubmit={handleNewThreadSubmit}
-      isLoading={isLoading}
-      onStop={stop}
+      isLoading={isTurnActive}
+      onStop={stopTurn}
       fileInputRef={fileInputRef}
       onAddFiles={addFiles}
       onClose={handleOnCloseThread}
@@ -893,8 +909,8 @@ const ChatPanelBody = () => {
       setInput={setInput}
       onSubmit={handleChatInputSubmit}
       inputRef={newMessageInputRef}
-      isLoading={isLoading}
-      onStop={stop}
+      isLoading={isTurnActive}
+      onStop={stopTurn}
       onClose={() => newMessageInputRef.current?.editor?.blur()}
       fileInputRef={fileInputRef}
       onAddFiles={addFiles}
@@ -950,7 +966,7 @@ const ChatPanelBody = () => {
                   isLast={isLast}
                   isActive={isTurnActive}
                   turnStartedAt={isLast ? turn.startedAt : null}
-                  addToolApprovalResponse={addToolApprovalResponse}
+                  addToolApprovalResponse={respondToApproval}
                 />
               );
             })}
@@ -999,7 +1015,7 @@ const ChatPanelBody = () => {
         />
       </div>
 
-      {!isLoading && <PendingAICells />}
+      {!isTurnActive && <PendingAICells />}
       <div className="shrink-0 p-3">{composer}</div>
     </div>
   );

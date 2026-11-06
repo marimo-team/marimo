@@ -4,7 +4,10 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { createStore, Provider } from "jotai";
 import { describe, expect, it, vi } from "vitest";
 import type { ChatStatus } from "ai";
-import { useChatGeneration } from "@/components/chat/use-chat-generation";
+import {
+  isChatBusy,
+  useChatGeneration,
+} from "@/components/chat/use-chat-generation";
 import { cellId } from "@/__tests__/branded";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { stagedAICellsAtom } from "@/core/ai/staged-cells";
@@ -97,7 +100,7 @@ describe("PendingAICells", () => {
 });
 
 function ChatGeneration({ status }: { status: ChatStatus }) {
-  useChatGeneration(status);
+  useChatGeneration(isChatBusy(status));
   return null;
 }
 

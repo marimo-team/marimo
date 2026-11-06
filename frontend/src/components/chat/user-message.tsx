@@ -28,7 +28,11 @@ export const UserMessage: React.FC<UserMessageProps> = ({
     .join("\n");
   const attachments = message.parts
     .filter((p): p is FileUIPart => p.type === "file")
-    .map((part) => <AttachmentRenderer attachment={part} key={part.url} />);
+    .map((part, idx) => (
+      // Sent parts never reorder, and a file attached twice repeats its URL.
+      // react-doctor-disable-next-line react-doctor/no-array-index-as-key
+      <AttachmentRenderer attachment={part} key={idx} />
+    ));
 
   const [draft, setDraft] = React.useState<string | null>(null);
   const inputRef = React.useRef<ReactCodeMirrorRef>(null);
@@ -91,7 +95,7 @@ export const UserMessage: React.FC<UserMessageProps> = ({
     <div className="flex max-w-[90%] flex-col items-end gap-1">
       {attachments}
       <div className="rounded-[10px] bg-(--slate-3) px-3 py-1.5 whitespace-pre-wrap wrap-break-word">
-        {content}
+        <MentionText text={content} />
       </div>
       <div className="flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
         <Tooltip content="Edit">
@@ -115,4 +119,27 @@ export const UserMessage: React.FC<UserMessageProps> = ({
       </div>
     </div>
   );
+};
+
+const MENTION = /([@#])[\w-]+:\/\/([\w./-]+)/g;
+
+const MentionText: React.FC<{ text: string }> = ({ text }) => {
+  const nodes: React.ReactNode[] = [];
+  let last = 0;
+  for (const match of text.matchAll(MENTION)) {
+    nodes.push(text.slice(last, match.index));
+    nodes.push(
+      <span
+        key={match.index}
+        title={match[0].slice(1)}
+        className="rounded-sm bg-(--slate-5) px-1 font-mono text-[0.85em]"
+      >
+        {match[1]}
+        {match[2]}
+      </span>,
+    );
+    last = match.index + match[0].length;
+  }
+  nodes.push(text.slice(last));
+  return nodes;
 };

@@ -69,4 +69,27 @@ describe("useAssistantTurn", () => {
       startedAt: result.current.startedAt,
     });
   });
+
+  it("excludes time spent waiting on an approval", () => {
+    const reply: UIMessage = {
+      id: "a",
+      role: "assistant",
+      parts: [],
+      metadata: { startedAt: 1_000, finishedAt: 4_000 },
+    };
+    const { result } = setup();
+    act(() => result.current.resume(reply));
+    expect(Date.now() - (result.current.startedAt ?? 0)).toBeGreaterThanOrEqual(
+      3_000,
+    );
+    expect(Date.now() - (result.current.startedAt ?? 0)).toBeLessThan(4_000);
+  });
+
+  it("stops auto-continuing once the user stops the turn", () => {
+    const { result } = setup();
+    act(() => result.current.start());
+    act(() => result.current.stop());
+    expect(result.current.hasEnded).toBe(true);
+    expect(result.current.isActive(idle)).toBe(false);
+  });
 });
