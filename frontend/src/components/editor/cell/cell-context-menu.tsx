@@ -221,7 +221,6 @@ export const CellActionsContextMenu = ({
           const action = pendingAction.current;
           pendingAction.current = null;
           if (action) {
-            // Match the cell dropdown: menu cleanup must precede the action.
             restoreFocus.onCloseAutoFocus(evt);
             evt.preventDefault();
             action();
