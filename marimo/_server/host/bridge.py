@@ -738,12 +738,22 @@ class SessionBridge(SessionEventListener):
             if notebook is not None:
                 notebook.observe(message)
 
+        def cell_order() -> Sequence[str]:
+            try:
+                notebook = self.host.peek_notebook(notebook_id)
+            except NotFound:
+                return ()
+            if notebook is None:
+                return ()
+            return [cell.id for cell in notebook.document]
+
         backend = SessionBackend(
             notebook_id,
             file,
             self._manager,
             observe,
             sink,
+            cell_order=cell_order,
             document_changed=lambda: self._mirror(notebook_id),
             session_attached=lambda: self._attach_document(notebook_id),
             session_detached=lambda session: self._detach_document(
