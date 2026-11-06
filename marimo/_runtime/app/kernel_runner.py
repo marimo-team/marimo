@@ -182,6 +182,10 @@ class AppKernelRunner:
             if (cell := self.app.cell_manager.cell_data_at(cid).cell)
             is not None
         ]
+        # Outputs from an earlier run belong to an earlier set of `defs`. A
+        # cell that is pruned now, or cancelled by an upstream error, would
+        # otherwise render its old output as current.
+        self._outputs.clear()
 
         execution_mode = self._kernel.reactive_execution_mode
         try:
