@@ -1,8 +1,12 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import base64
+import csv
 import datetime
+import io
 from copy import deepcopy
+from decimal import Decimal
 from typing import Any, cast
 from unittest.mock import Mock
 
@@ -73,6 +77,195 @@ def test_data_editor_editable_columns():
         data_editor(data=data, editable_columns=["C"])
 
 
+def test_data_editor_dropdown_column_type():
+    data = [{"priority": "low"}, {"priority": "high"}]
+    options = ["low", "medium", "high"]
+
+    editor = data_editor(data=data, column_types={"priority": options})
+
+    assert editor._component_args["column-types"] == {"priority": options}
+    options.append("urgent")
+    assert editor._component_args["column-types"] == {
+        "priority": ["low", "medium", "high"]
+    }
+
+
+@pytest.mark.parametrize(
+    ("column_types", "match"),
+    [
+        ({"missing": ["x"]}, "Column missing is not in the data"),
+        ({"status": []}, "column 'status' must not be empty"),
+        ({"status": ["open", "open"]}, "column 'status' must be unique"),
+        ({"status": ["open", 1]}, "column 'status' must all be strings"),
+    ],
+)
+def test_data_editor_rejects_invalid_dropdown_configuration(
+    column_types: Any, match: str
+):
+    with pytest.raises(ValueError, match=match):
+        data_editor([{"status": "open"}], column_types=column_types)
+
+
+@pytest.mark.parametrize(
+    "data",
+    [[{"status": "open"}], {"status": ["open"]}],
+)
+def test_data_editor_dropdown_only_without_edits(data):
+    editor = data_editor(data, column_types={"status": ["open", "closed"]})
+
+    assert editor.value == data
+    assert (
+        apply_edits(
+            data, {"edits": []}, column_types={"status": ["open", "closed"]}
+        )
+        is data
+    )
+
+
+@pytest.mark.skipif(not HAS_PANDAS, reason="Pandas not installed")
+def test_data_editor_dropdown_only_preserves_pandas_without_edits():
+    import pandas as pd
+
+    data = pd.DataFrame(
+        {
+            "status": pd.Categorical(["open", "closed"]),
+            "count": pd.array([1, None], dtype="Int8"),
+        },
+        index=pd.Index([10, 20], name="task_id"),
+    )
+    editor = data_editor(data, column_types={"status": ["open", "closed"]})
+
+    assert editor.value is data
+
+
+@pytest.mark.skipif(not HAS_POLARS, reason="Polars not installed")
+def test_data_editor_dropdown_only_preserves_polars_without_edits():
+    import polars as pl
+
+    data = pl.DataFrame(
+        {
+            "status": pl.Series(["open", "closed"], dtype=pl.Categorical),
+            "count": pl.Series([1, None], dtype=pl.Int8),
+        }
+    )
+    editor = data_editor(data, column_types={"status": ["open", "closed"]})
+
+    assert editor.value is data
+
+
+def test_data_editor_rejects_dropdown_initial_value():
+    with pytest.raises(
+        ValueError,
+        match="Invalid initial value for column 'status': 'closed'",
+    ):
+        data_editor(
+            [{"status": "closed"}],
+            column_types={"status": ["open"]},
+        )
+
+
+@pytest.mark.parametrize("status", [["open"], []])
+@pytest.mark.parametrize("options", [["open", "closed"], ["", "open"]])
+def test_data_editor_rejects_missing_column_oriented_dropdown_value(
+    status, options
+):
+    data = {"task": ["a", "b"], "status": status}
+    original = deepcopy(data)
+    with pytest.raises(ValueError) as exc:
+        data_editor(data, column_types={"status": options})
+
+    assert str(exc.value) == (
+        "Invalid initial value for column 'status': None; "
+        f"expected one of {options!r}"
+    )
+    assert data == original
+
+
+def test_data_editor_rejects_forged_dropdown_edit():
+    editor = data_editor(
+        [{"status": "open"}], column_types={"status": ["open", "closed"]}
+    )
+    edits: DataEdits = {
+        "edits": [{"rowIdx": 0, "columnId": "status", "value": "invalid"}]
+    }
+
+    with pytest.raises(
+        ValueError, match="Invalid value for column 'status': 'invalid'"
+    ):
+        editor._convert_value(edits)
+
+    assert editor.data == [{"status": "open"}]
+
+
+def test_dropdown_allows_empty_string_only_when_configured():
+    editor = data_editor(
+        [{"status": "open"}], column_types={"status": ["", "open"]}
+    )
+    edits: DataEdits = {
+        "edits": [{"rowIdx": 0, "columnId": "status", "value": ""}]
+    }
+
+    assert editor._convert_value(edits) == [{"status": ""}]
+
+
+def test_dropdown_configuration_tracks_rename_and_remove():
+    editor = data_editor(
+        [{"status": "open"}], column_types={"status": ["open", "closed"]}
+    )
+    renamed_edits: DataEdits = {
+        "edits": [
+            {"columnIdx": 0, "type": "rename", "newName": "state"},
+            {"rowIdx": 0, "columnId": "state", "value": "invalid"},
+        ]
+    }
+    with pytest.raises(ValueError, match="column 'state'"):
+        editor._convert_value(renamed_edits)
+
+    removed_edits: DataEdits = {
+        "edits": [
+            {"columnIdx": 0, "type": "remove"},
+            {"columnIdx": 0, "type": "insert", "newName": "status"},
+            {"rowIdx": 0, "columnId": "status", "value": "free-form"},
+        ]
+    }
+    assert editor._convert_value(removed_edits) == [{"status": "free-form"}]
+
+
+@pytest.mark.skipif(not HAS_PANDAS, reason="Pandas not installed")
+def test_data_editor_dropdown_dataframe():
+    import pandas as pd
+
+    editor = data_editor(
+        pd.DataFrame({"status": ["open", "closed"]}),
+        column_types={"status": ["open", "closed"]},
+    )
+    edits: DataEdits = {
+        "edits": [{"rowIdx": 0, "columnId": "status", "value": "closed"}]
+    }
+
+    result = editor._convert_value(edits)
+    assert result["status"].tolist() == ["closed", "closed"]
+
+
+@pytest.mark.skipif(not HAS_PANDAS, reason="Pandas not installed")
+@pytest.mark.parametrize("options", [["open", "closed"], ["1", "2"]])
+def test_data_editor_dropdown_keeps_string_in_empty_numeric_dataframe(
+    options: list[str],
+):
+    import pandas as pd
+
+    editor = data_editor(
+        pd.DataFrame({"status": pd.Series([], dtype="int64")}),
+        column_types={"status": options},
+    )
+    edits: DataEdits = {
+        "edits": [{"rowIdx": 0, "columnId": "status", "value": options[0]}]
+    }
+
+    result = editor._convert_value(edits)
+    assert result["status"].tolist() == [options[0]]
+
+
 @pytest.mark.skipif(
     not DependencyManager.polars.has(), reason="Polars not installed"
 )
@@ -80,6 +273,147 @@ def test_data_editor_with_column_oriented_data():
     data = {"A": [1, 2, 3], "B": ["a", "b", "c"]}
     editor = data_editor(data=data)
     assert editor._data == data
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [
+        (True, True),
+        (False, False),
+        (2, True),
+        (0, False),
+        ("true", True),
+        (" t ", True),
+        ("YES", True),
+        ("y", True),
+        ("1", True),
+        ("false", False),
+        ("f", False),
+        ("No", False),
+        ("n", False),
+        ("0", False),
+        ("", False),
+    ],
+)
+def test_data_editor_normalizes_explicit_boolean_column(value, expected):
+    editor = data_editor([{"A": value}], column_types={"A": "boolean"})
+
+    assert editor._component_args["column-types"] == {"A": "boolean"}
+    assert editor._convert_value({"edits": []}) == [{"A": expected}]
+
+
+def test_data_editor_rejects_invalid_initial_explicit_boolean_value():
+    with pytest.raises(
+        ValueError, match="Invalid boolean value 'maybe' for column 'A'"
+    ):
+        data_editor([{"A": "maybe"}], column_types={"A": "boolean"})
+
+
+def test_data_editor_rejects_invalid_explicit_boolean_edit():
+    editor = data_editor([{"A": True}], column_types={"A": "boolean"})
+    edits: DataEdits = {
+        "edits": [{"rowIdx": 0, "columnId": "A", "value": "maybe"}]
+    }
+
+    with pytest.raises(
+        ValueError, match="Invalid boolean value 'maybe' for column 'A'"
+    ):
+        editor._convert_value(edits)
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        float("nan"),
+        float("inf"),
+        float("-inf"),
+        Decimal("NaN"),
+        Decimal("sNaN"),
+        Decimal("Infinity"),
+    ],
+)
+def test_data_editor_rejects_non_finite_boolean_value(value: Any):
+    with pytest.raises(ValueError, match="Invalid boolean value"):
+        data_editor([{"A": value}], column_types={"A": "boolean"})
+
+
+def test_data_editor_rejects_non_finite_boolean_edit():
+    editor = data_editor([{"A": True}], column_types={"A": "boolean"})
+    edits: DataEdits = {
+        "edits": [{"rowIdx": 0, "columnId": "A", "value": float("nan")}]
+    }
+
+    with pytest.raises(ValueError, match="Invalid boolean value"):
+        editor._convert_value(edits)
+
+
+def test_data_editor_rejects_missing_boolean_value():
+    with pytest.raises(
+        ValueError, match="Invalid boolean value None for column 'done'"
+    ):
+        data_editor(
+            [{"task": "a", "done": True}, {"task": "b"}],
+            column_types={"done": "boolean"},
+        )
+
+
+@pytest.mark.parametrize("done", [[True], []])
+def test_data_editor_rejects_missing_column_oriented_boolean_value(done):
+    with pytest.raises(
+        ValueError, match="Invalid boolean value None for column 'done'"
+    ):
+        data_editor(
+            {"task": ["a", "b"], "done": done},
+            column_types={"done": "boolean"},
+        )
+
+
+def test_data_editor_normalizes_column_oriented_boolean_values():
+    editor = data_editor(
+        {"task": ["a", "b"], "done": ["true", "false"]},
+        column_types={"done": "boolean"},
+    )
+
+    assert editor._convert_value({"edits": []}) == {
+        "task": ["a", "b"],
+        "done": [True, False],
+    }
+
+
+@pytest.mark.skipif(not HAS_PANDAS, reason="Pandas not installed")
+def test_data_editor_rejects_nan_in_boolean_dataframe_column():
+    import pandas as pd
+
+    with pytest.raises(ValueError, match="Invalid boolean value"):
+        data_editor(
+            pd.DataFrame({"A": [1.0, 0.0, float("nan")]}),
+            column_types={"A": "boolean"},
+        )
+
+
+def test_data_editor_rejects_unknown_column_type_column():
+    with pytest.raises(ValueError, match="Column B is not in the data"):
+        data_editor([{"A": True}], column_types={"B": "boolean"})
+
+
+def test_data_editor_tracks_explicit_type_on_rename_and_remove():
+    editor = data_editor([{"A": True}], column_types={"A": "boolean"})
+    renamed: DataEdits = {
+        "edits": [
+            {"columnIdx": 0, "type": "rename", "newName": "B"},
+            {"rowIdx": 0, "columnId": "B", "value": "no"},
+        ]
+    }
+    removed: DataEdits = {
+        "edits": [
+            {"columnIdx": 0, "type": "remove"},
+            {"columnIdx": 0, "type": "insert", "newName": "A"},
+            {"rowIdx": 0, "columnId": "A", "value": "maybe"},
+        ]
+    }
+
+    assert editor._convert_value(renamed) == [{"B": False}]
+    assert editor._convert_value(removed) == [{"A": "maybe"}]
 
 
 @pytest.mark.skipif(
@@ -133,6 +467,156 @@ def test_data_editor_exposes_columns_for_empty_data(data, expected_columns):
 
     assert editor._component_args["column-names"] == expected_columns
     assert editor._component_args["field-types"] is None
+
+
+def test_data_editor_sends_dropdown_columns_as_strings_for_row_data():
+    editor = data_editor(
+        [{"count": 5, "level": "01"}, {"count": 6, "level": "02"}],
+        column_types={"level": ["01", "02"]},
+    )
+
+    assert editor._component_args["field-types"] == [
+        ("count", ("integer", "int")),
+        ("level", ("string", "str")),
+    ]
+
+
+@pytest.mark.parametrize(
+    "data",
+    [
+        [{"done": "yes", "label": "01"}, {"done": 2, "label": "02"}],
+        {"done": ["yes", 2], "label": ["01", "02"]},
+    ],
+)
+def test_data_editor_sends_normalized_boolean_payload(data):
+    original = deepcopy(data)
+    editor = data_editor(data, column_types={"done": "boolean"})
+    payload = base64.b64decode(
+        editor._component_args["data"].split(",", 1)[1]
+    ).decode()
+
+    assert list(csv.reader(io.StringIO(payload.lower()))) == [
+        ["done", "label"],
+        ["true", "01"],
+        ["true", "02"],
+    ]
+    assert editor._component_args["field-types"] == [
+        ("done", ("boolean", "bool")),
+        ("label", ("string", "str")),
+    ]
+    assert editor._data is data
+    assert data == original
+    assert editor.value == (
+        [{"done": True, "label": "01"}, {"done": True, "label": "02"}]
+        if isinstance(data, list)
+        else {"done": [True, True], "label": ["01", "02"]}
+    )
+
+
+@pytest.mark.skipif(not HAS_PANDAS, reason="Pandas not installed")
+def test_data_editor_sends_normalized_boolean_dataframe_payload():
+    import pandas as pd
+
+    data = pd.DataFrame(
+        {
+            "done": ["yes", 2],
+            "label": ["01", "02"],
+            "count": pd.array([1, None], dtype="Int8"),
+            "category": pd.Categorical(["a", "b"]),
+        },
+        index=pd.Index([10, 20], name="task_id"),
+    )
+    original = data.copy(deep=True)
+    editor = data_editor(data, column_types={"done": "boolean"})
+    payload = base64.b64decode(
+        editor._component_args["data"].split(",", 1)[1]
+    ).decode()
+
+    assert list(csv.reader(io.StringIO(payload.lower()))) == [
+        ["task_id", "done", "label", "count", "category"],
+        ["10", "true", "01", "1", "a"],
+        ["20", "true", "02", "", "b"],
+    ]
+    field_types = dict(editor._component_args["field-types"])
+    assert field_types["done"][0] == "boolean"
+    assert field_types["label"][0] == "string"
+    assert field_types["count"] == ("integer", "Int8")
+    assert editor._data is data
+    pd.testing.assert_frame_equal(data, original)
+    expected = data.copy()
+    expected["done"] = True
+    pd.testing.assert_frame_equal(editor.value, expected)
+
+
+def test_data_editor_sends_field_types_for_row_data():
+    editor = data_editor(
+        [
+            {
+                "i": 5,
+                "f": 1.5,
+                "b": True,
+                "s": "01",
+                "d": datetime.date(2024, 1, 2),
+                "dt": datetime.datetime(2024, 1, 2, 3, 4, 5),
+                "t": datetime.time(3, 4),
+                "n": None,
+                "mix": 1,
+            },
+            {
+                "i": 6,
+                "f": 2,
+                "b": False,
+                "s": "02",
+                "d": datetime.date(2024, 1, 3),
+                "dt": datetime.datetime(2024, 1, 3, 3, 4, 5),
+                "t": datetime.time(4, 5),
+                "n": 3,
+                "mix": "a",
+            },
+        ]
+    )
+
+    assert editor._component_args["field-types"] == [
+        ("i", ("integer", "int")),
+        ("f", ("number", "object")),
+        ("b", ("boolean", "bool")),
+        ("s", ("string", "str")),
+        ("d", ("date", "date")),
+        ("dt", ("datetime", "datetime")),
+        ("t", ("time", "time")),
+        ("n", ("integer", "int")),
+        ("mix", ("string", "object")),
+    ]
+
+
+@pytest.mark.parametrize(
+    ("data", "expected"),
+    [
+        ({}, None),
+        ({"empty": []}, None),
+        (
+            {"empty": [], "score": [1, None, 2.5], "code": ["01"]},
+            [
+                ("empty", ("string", "object")),
+                ("score", ("number", "object")),
+                ("code", ("string", "str")),
+            ],
+        ),
+        (
+            {"code": ["01"], "score": [1, 2.5], "empty": []},
+            [
+                ("code", ("string", "str")),
+                ("score", ("number", "object")),
+                ("empty", ("string", "object")),
+            ],
+        ),
+    ],
+)
+def test_data_editor_preserves_empty_and_ragged_field_types(data, expected):
+    editor = data_editor(data)
+
+    assert editor._component_args["field-types"] == expected
+    assert editor._component_args["column-names"] == list(data)
 
 
 def test_data_editor_preserves_numeric_string_column_order():
