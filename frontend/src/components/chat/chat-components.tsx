@@ -137,18 +137,16 @@ export const AddContextButton = ({
   );
 };
 
-const DEFAULT_ATTACHMENT_TYPES = ["image/*", "text/*"];
-
 export const AttachFileButton = ({
   fileInputRef,
   isLoading,
   onAddFiles,
-  supportedTypes = DEFAULT_ATTACHMENT_TYPES,
+  accept = "image/*,text/*",
 }: {
   fileInputRef: React.RefObject<HTMLInputElement | null>;
   isLoading: boolean;
   onAddFiles: (files: File[]) => void;
-  supportedTypes?: readonly string[];
+  accept?: string;
 }) => {
   return (
     <>
@@ -174,7 +172,7 @@ export const AttachFileButton = ({
             onAddFiles([...event.target.files]);
           }
         }}
-        accept={supportedTypes.join(",")}
+        accept={accept}
       />
     </>
   );

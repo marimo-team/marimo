@@ -5,6 +5,7 @@ import {
   getAttachmentMediaType,
   getSupportedAttachmentTypes,
   isSupportedAttachmentType,
+  normalizeAttachment,
 } from "../attachments";
 
 vi.mock("../model-registry", () => ({
@@ -20,21 +21,7 @@ vi.mock("../model-registry", () => ({
 
 describe("getSupportedAttachmentTypes", () => {
   it("allows text files for text-only models", () => {
-    const types = getSupportedAttachmentTypes("openai/text-only");
-    expect(types).toEqual(
-      expect.arrayContaining([
-        "text/*",
-        "application/json",
-        "application/toml",
-        "application/yaml",
-        "application/xml",
-        ".toml",
-        ".py",
-        ".ipynb",
-      ]),
-    );
-    expect(types).not.toContain("image/png");
-    expect(types).not.toContain("application/pdf");
+    expect(getSupportedAttachmentTypes("openai/text-only")).toEqual(["text/*"]);
   });
 
   it("allows images for vision models on other providers", () => {
@@ -68,24 +55,61 @@ describe("getSupportedAttachmentTypes", () => {
 
 describe("getAttachmentMediaType", () => {
   it.each([
-    ["application/toml", "pyproject.toml"],
-    ["application/yaml", "config.yaml"],
-    ["application/x-yaml", "config.yml"],
-    ["application/xml", "data.xml"],
-    ["application/vnd.example+json", "data.json"],
-    ["application/vnd.example+xml", "data.xml"],
-    ["Text/Plain; charset=utf-8", "notes.txt"],
-    ["", "script.PY"],
-    ["application/octet-stream", "notebook.ipynb"],
-  ])("normalizes %s for %s", (mediaType, filename) => {
-    expect(getAttachmentMediaType(mediaType, filename)).toBe("text/plain");
+    "application/toml",
+    "application/yaml",
+    "application/x-yaml",
+    "application/xml",
+    "application/vnd.example+json",
+    "application/vnd.example+xml",
+    "Text/Plain; charset=utf-8",
+  ])("normalizes %s", (mediaType) => {
+    expect(getAttachmentMediaType(mediaType)).toBe("text/plain");
   });
 
   it("does not treat a declared binary file as text based on its filename", () => {
-    expect(getAttachmentMediaType("application/pdf", "misnamed.txt")).toBe(
-      "application/pdf",
-    );
+    expect(getAttachmentMediaType("application/pdf")).toBe("application/pdf");
   });
+});
+
+describe("normalizeAttachment", () => {
+  it.each([
+    ["", "README"],
+    ["application/octet-stream", "script.unlisted-extension"],
+    ["application/javascript", "script.js"],
+  ])("recognizes text by contents for %s, %s", async (type, name) => {
+    const file = new File(["Hello, 世界!\n"], name, { type, lastModified: 42 });
+    const normalized = await normalizeAttachment(file);
+    expect({
+      name: normalized.name,
+      type: normalized.type,
+      lastModified: normalized.lastModified,
+      text: await normalized.text(),
+    }).toEqual({
+      name,
+      type: "text/plain",
+      lastModified: 42,
+      text: "Hello, 世界!\n",
+    });
+  });
+
+  it.each([
+    new Uint8Array([0xff, 0xfe]),
+    new Uint8Array([65, 0, 66]),
+    new Uint8Array([65, 1, 66]),
+  ])("preserves binary data despite a text filename", async (bytes) => {
+    const file = new File([bytes], "script.py", {
+      type: "application/octet-stream",
+    });
+    expect(await normalizeAttachment(file)).toBe(file);
+  });
+
+  it.each(["image/png", "application/pdf", "audio/wav", "video/mp4"])(
+    "preserves declared %s files even if their contents are valid UTF-8",
+    async (type) => {
+      const file = new File(["ASCII payload"], "file.txt", { type });
+      expect(await normalizeAttachment(file)).toBe(file);
+    },
+  );
 });
 
 describe("isSupportedAttachmentType", () => {
@@ -100,7 +124,7 @@ describe("isSupportedAttachmentType", () => {
   ])("checks %s against text-only inputs", (mediaType, expected) => {
     expect(
       isSupportedAttachmentType(
-        mediaType,
+        getAttachmentMediaType(mediaType),
         getSupportedAttachmentTypes("openai/text-only"),
       ),
     ).toBe(expected);

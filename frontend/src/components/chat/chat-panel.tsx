@@ -316,8 +316,6 @@ const ChatInputFooter: React.FC<ChatInputFooterProps> = memo(
   }) => {
     const ai = useAtomValue(aiAtom);
     const currentMode = ai?.mode || DEFAULT_MODE;
-    const currentModel = ai?.models?.chat_model || DEFAULT_AI_MODEL;
-    const supportedTypes = getSupportedAttachmentTypes(currentModel);
 
     const { saveModeChange } = useAIConfigActions();
 
@@ -347,7 +345,7 @@ const ChatInputFooter: React.FC<ChatInputFooterProps> = memo(
               fileInputRef={fileInputRef}
               isLoading={isLoading}
               onAddFiles={onAddFiles}
-              supportedTypes={supportedTypes}
+              accept=""
             />
             <SendButton
               isLoading={isLoading}

@@ -15,6 +15,7 @@ import useEvent from "react-use-event-hook";
 import {
   getAttachmentMediaType,
   isSupportedAttachmentType,
+  normalizeAttachment,
 } from "@/core/ai/attachments";
 import type { ToolNotebookContext } from "@/core/ai/tools/base";
 import { FRONTEND_TOOL_REGISTRY } from "@/core/ai/tools/registry";
@@ -39,12 +40,12 @@ export async function convertToFileUIPart(
 ): Promise<FileUIPart[]> {
   const fileUIParts = await Promise.all(
     files.map(async (file) => {
-      const mediaType = getAttachmentMediaType(file.type, file.name);
+      const normalizedFile = await normalizeAttachment(file);
       const part: FileUIPart = {
         type: "file" as const,
-        mediaType,
+        mediaType: normalizedFile.type,
         filename: file.name,
-        url: await blobToString(file.slice(0, file.size, mediaType), "dataUrl"),
+        url: await blobToString(normalizedFile, "dataUrl"),
       };
       return part;
     }),
@@ -244,7 +245,7 @@ function validateAttachments(
   const unsupported = files.filter(
     (file) =>
       !isSupportedAttachmentType(
-        getAttachmentMediaType(file.mediaType, file.filename),
+        getAttachmentMediaType(file.mediaType),
         supportedTypes,
       ),
   );
@@ -261,6 +262,7 @@ function validateAttachments(
 
 export function useFileState(supportedTypes?: readonly string[]) {
   const [files, setFiles] = useState<File[]>([]);
+  const generation = useRef(0);
 
   const validateFiles = useEvent((filesToValidate: File[]): boolean => {
     return (
@@ -275,8 +277,8 @@ export function useFileState(supportedTypes?: readonly string[]) {
     );
   });
 
-  const addFiles = useEvent((newFiles: File[]) => {
-    if (newFiles.length === 0 || !validateFiles(newFiles)) {
+  const addFiles = useEvent(async (newFiles: File[]) => {
+    if (newFiles.length === 0) {
       return;
     }
 
@@ -290,10 +292,30 @@ export function useFileState(supportedTypes?: readonly string[]) {
       return;
     }
 
-    setFiles((prev) => [...prev, ...newFiles]);
+    try {
+      const currentGeneration = generation.current;
+      const normalizedFiles = supportedTypes
+        ? await Promise.all(newFiles.map(normalizeAttachment))
+        : newFiles;
+      if (
+        currentGeneration === generation.current &&
+        validateFiles(normalizedFiles)
+      ) {
+        setFiles((prev) => [...prev, ...normalizedFiles]);
+      }
+    } catch {
+      toast({
+        title: "Could not read attachments",
+        description: "Try selecting the files again.",
+        variant: "danger",
+      });
+    }
   });
 
-  const clearFiles = () => setFiles([]);
+  const clearFiles = () => {
+    generation.current += 1;
+    setFiles([]);
+  };
   const removeFile = (fileToRemove: File) =>
     setFiles((prev) => prev.filter((f) => f !== fileToRemove));
 

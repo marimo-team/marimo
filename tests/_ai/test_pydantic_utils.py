@@ -264,6 +264,8 @@ class TestConvertToPydanticMessages:
             ("application/x-ndjson", "data.ndjson"),
             ("", "script.PY"),
             ("application/octet-stream", "notebook.ipynb"),
+            ("", "README"),
+            ("application/octet-stream", "file.unlisted-extension"),
         ],
     )
     def test_inlines_user_text_files(
@@ -304,6 +306,12 @@ class TestConvertToPydanticMessages:
             ("user", "application/pdf", "data:application/pdf;base64,cGRm"),
             ("user", "text/plain", "https://example.com/context.txt"),
             ("assistant", "text/plain", "data:text/plain;base64,dGV4dA=="),
+            ("user", "", "data:;base64,AP8="),
+            (
+                "user",
+                "application/octet-stream",
+                "data:application/octet-stream;base64,QQFC",
+            ),
         ],
     )
     def test_preserves_other_file_parts(

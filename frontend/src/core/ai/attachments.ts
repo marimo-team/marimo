@@ -11,47 +11,9 @@ const TEXT_TYPES = [
   "application/toml",
   "application/yaml",
   "application/x-yaml",
-  "application/javascript",
-  "application/ecmascript",
-  "application/x-javascript",
-  "application/sql",
-  "application/x-sh",
-  "application/jsonl",
-  "application/x-ndjson",
-];
-const TEXT_EXTENSIONS = [
-  ".txt",
-  ".md",
-  ".markdown",
-  ".csv",
-  ".tsv",
-  ".json",
-  ".jsonl",
-  ".ndjson",
-  ".ipynb",
-  ".xml",
-  ".toml",
-  ".yaml",
-  ".yml",
-  ".py",
-  ".sql",
-  ".r",
-  ".js",
-  ".mjs",
-  ".cjs",
-  ".jsx",
-  ".ts",
-  ".tsx",
-  ".html",
-  ".htm",
-  ".css",
-  ".sh",
 ];
 
-export function getAttachmentMediaType(
-  mediaType: string,
-  filename?: string,
-): string {
+export function getAttachmentMediaType(mediaType: string): string {
   const normalized = mediaType.split(";", 1)[0].trim().toLowerCase();
   if (
     isSupportedAttachmentType(normalized, TEXT_TYPES) ||
@@ -60,16 +22,32 @@ export function getAttachmentMediaType(
   ) {
     return "text/plain";
   }
-  if (
-    (!normalized || normalized === "application/octet-stream") &&
-    filename &&
-    TEXT_EXTENSIONS.some((extension) =>
-      filename.toLowerCase().endsWith(extension),
-    )
-  ) {
-    return "text/plain";
-  }
   return normalized;
+}
+
+export async function normalizeAttachment(file: File): Promise<File> {
+  let mediaType = getAttachmentMediaType(file.type);
+  if (
+    mediaType !== "text/plain" &&
+    !/^(image|audio|video)\//.test(mediaType) &&
+    mediaType !== "application/pdf"
+  ) {
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    try {
+      new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+      if (!bytes.some((byte) => byte < 32 && ![9, 10, 12, 13].includes(byte))) {
+        mediaType = "text/plain";
+      }
+    } catch {
+      // Invalid UTF-8 stays binary instead of being decoded with replacement characters.
+    }
+  }
+  return mediaType === file.type
+    ? file
+    : new File([file], file.name, {
+        type: mediaType,
+        lastModified: file.lastModified,
+      });
 }
 
 export function getSupportedAttachmentTypes(model: string): readonly string[] {
@@ -79,8 +57,7 @@ export function getSupportedAttachmentTypes(model: string): readonly string[] {
   // Missing metadata must not prevent custom endpoints from accepting files.
   const isUnknown = !inputTypes?.length;
   return [
-    ...TEXT_TYPES,
-    ...TEXT_EXTENSIONS,
+    "text/*",
     ...(isUnknown || inputTypes.includes("image") ? IMAGE_TYPES : []),
     ...(isUnknown || inputTypes.includes("pdf") ? ["application/pdf"] : []),
   ];

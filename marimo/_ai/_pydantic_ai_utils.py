@@ -1,10 +1,10 @@
 # Copyright 2025 Marimo. All rights reserved.
 from __future__ import annotations
 
+import base64
 import uuid
 from dataclasses import dataclass
 from functools import lru_cache
-from pathlib import PurePath
 from typing import TYPE_CHECKING, Any, get_args
 
 from marimo import _loggers
@@ -161,7 +161,7 @@ def _inline_text_file(part: UIMessagePart) -> UIMessagePart:
     if (
         isinstance(part, FileUIPart)
         and part.url.startswith("data:")
-        and _is_text_attachment(part.media_type, part.filename)
+        and _is_text_attachment(part.media_type, part.url)
     ):
         return TextUIPart(
             type="text",
@@ -171,7 +171,7 @@ def _inline_text_file(part: UIMessagePart) -> UIMessagePart:
     return part
 
 
-def _is_text_attachment(media_type: str, filename: str | None) -> bool:
+def _is_text_attachment(media_type: str, url: str) -> bool:
     media_type = media_type.split(";", 1)[0].strip().lower()
     if (
         media_type.startswith("text/")
@@ -183,49 +183,20 @@ def _is_text_attachment(media_type: str, filename: str | None) -> bool:
             "application/toml",
             "application/yaml",
             "application/x-yaml",
-            "application/javascript",
-            "application/ecmascript",
-            "application/x-javascript",
-            "application/sql",
-            "application/x-sh",
-            "application/jsonl",
-            "application/x-ndjson",
         }
     ):
         return True
-    return (
-        media_type in {"", "application/octet-stream"}
-        and filename is not None
-        and PurePath(filename).suffix.lower()
-        in {
-            ".txt",
-            ".md",
-            ".markdown",
-            ".csv",
-            ".tsv",
-            ".json",
-            ".jsonl",
-            ".ndjson",
-            ".ipynb",
-            ".xml",
-            ".toml",
-            ".yaml",
-            ".yml",
-            ".py",
-            ".sql",
-            ".r",
-            ".js",
-            ".mjs",
-            ".cjs",
-            ".jsx",
-            ".ts",
-            ".tsx",
-            ".html",
-            ".htm",
-            ".css",
-            ".sh",
-        }
-    )
+    if (
+        media_type.startswith(("image/", "audio/", "video/"))
+        or media_type == "application/pdf"
+    ):
+        return False
+    try:
+        data = base64.b64decode(url.partition(",")[2], validate=True)
+        data.decode("utf-8")
+    except ValueError:
+        return False
+    return not any(byte < 32 and byte not in (9, 10, 12, 13) for byte in data)
 
 
 def _prepare_parts(raw_parts: list[Any]) -> list[Any]:
