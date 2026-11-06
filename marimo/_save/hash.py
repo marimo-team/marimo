@@ -4,11 +4,13 @@ from __future__ import annotations
 import ast
 import base64
 import dataclasses
+import dis
 import functools
 import hashlib
 import inspect
 import linecache
 import os
+import re
 import sys
 import types
 from typing import TYPE_CHECKING, Any, NamedTuple, cast
@@ -142,7 +144,25 @@ class _SourceIndex:
     shapes: dict[tuple[int, int], _Shape | None]
 
 
-_Shape = tuple[frozenset[str], tuple[str, ...]]
+_Shape = tuple[tuple[tuple[str, str], ...], ...]
+
+# Instructions that depend on how a definition is nested, not on what it does.
+_PROLOGUE = frozenset(
+    {"RESUME", "MAKE_CELL", "COPY_FREE_VARS", "PUSH_NULL", "NOP", "CACHE"}
+)
+_VARIABLE_OPS = {
+    "LOAD": (
+        "LOAD_GLOBAL",
+        "LOAD_DEREF",
+        "LOAD_FAST",
+        "LOAD_NAME",
+        "LOAD_CLOSURE",
+        "LOAD_FROM_DICT_OR_DEREF",
+    ),
+    "STORE": ("STORE_GLOBAL", "STORE_DEREF", "STORE_FAST", "STORE_NAME"),
+    "DELETE": ("DELETE_GLOBAL", "DELETE_DEREF", "DELETE_FAST", "DELETE_NAME"),
+}
+_NULL_PREFIX = re.compile(r"^(NULL\|self|NULL) \+ ")
 
 
 def _bare_name(name: str) -> str:
@@ -154,6 +174,8 @@ def _bare_name(name: str) -> str:
 
 
 def _const_key(value: Any) -> str:
+    if isinstance(value, types.CodeType):
+        return "<code>"
     if isinstance(value, frozenset):
         return "frozenset(" + ",".join(sorted(map(_const_key, value))) + ")"
     if isinstance(value, tuple):
@@ -161,33 +183,45 @@ def _const_key(value: Any) -> str:
     return f"{type(value).__name__}:{value!r}"
 
 
-def _code_shape(code: types.CodeType) -> _Shape:
-    """Identifiers and constants of a code object and everything nested.
+def _instructions(code: types.CodeType) -> tuple[tuple[str, str], ...]:
+    """The instruction stream, without the way names happen to be bound."""
+    out: list[tuple[str, str]] = []
+    for ins in dis.get_instructions(code):
+        op = ins.opname
+        if op in _PROLOGUE:
+            continue
+        arg = _NULL_PREFIX.sub("", ins.argrepr)
+        if ins.opcode in dis.hasjrel or ins.opcode in dis.hasjabs:
+            # Offsets shift with the prologue.
+            arg = ""
+        elif ins.opcode in dis.hasconst or (
+            not arg and ins.argval is not None
+        ):
+            # LOAD_SMALL_INT on 3.14 shows its value only in argval.
+            arg = _const_key(ins.argval)
+        else:
+            for kind, prefixes in _VARIABLE_OPS.items():
+                if op.startswith(prefixes):
+                    op = kind
+                    break
+            if ins.opcode in dis.hasname or op in _VARIABLE_OPS:
+                arg = ", ".join(_bare_name(n) for n in arg.split(", "))
+        out.append((op, arg))
+    return tuple(out)
 
-    Sets, not sequences, and names without their binding kind, so a
-    definition compiled inside a class or function compares equal to the
-    same definition compiled on its own.
+
+def _code_shape(code: types.CodeType) -> _Shape:
+    """Instruction streams of a code object and everything nested in it.
+
+    Names without their binding kind, so a definition compiled inside a
+    class or function compares equal to the same definition compiled on its
+    own.
     """
-    names: set[str] = set()
-    constants: list[str] = []
-    stack = [code]
-    while stack:
-        current = stack.pop()
-        names.update(
-            map(
-                _bare_name,
-                current.co_names
-                + current.co_varnames
-                + current.co_freevars
-                + current.co_cellvars,
-            )
-        )
-        for const in current.co_consts:
-            if isinstance(const, types.CodeType):
-                stack.append(const)
-            else:
-                constants.append(_const_key(const))
-    return frozenset(names), tuple(sorted(constants))
+    shapes = [_instructions(code)]
+    for const in code.co_consts:
+        if isinstance(const, types.CodeType):
+            shapes.extend(_code_shape(const))
+    return tuple(shapes)
 
 
 def _node_shape(
@@ -1110,7 +1144,7 @@ class BlockHasher:
 
                 content_serialization[ref] = type_sign(
                     primitive_to_bytes(
-                        (ref, imports[import_key].module, version)
+                        (ref, imports[import_key].module, str(version))
                     ),
                     "module",
                 )

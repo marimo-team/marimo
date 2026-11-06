@@ -1115,21 +1115,34 @@ async def test_wrapper_around_callable_object_remains_callable() -> None:
 
 def test_stale_function_object_after_reload_keys_apart(tmp_path: Path) -> None:
     import importlib
+    import shutil
     import sys
 
     module = tmp_path / "kept_alive.py"
-    module.write_text("def cb():\n    return 1\n")
+
+    def reload_with(body: str) -> Any:
+        # The import system keys a stale .pyc on source size and whole-second
+        # mtime, so drop it.
+        shutil.rmtree(tmp_path / "__pycache__", ignore_errors=True)
+        module.write_text(f"def cb(x):\n    return {body}\n")
+        return importlib.reload(sys.modules["kept_alive"]).cb
+
+    module.write_text("def cb(x):\n    return 1\n")
     sys.path.insert(0, str(tmp_path))
     try:
-        mod = importlib.import_module("kept_alive")
-        old = mod.cb
-        module.write_text("def cb():\n    return 123\n")
-        importlib.reload(mod)
+        old = importlib.import_module("kept_alive").cb
+        new = reload_with("123")
+        assert old(0) == 1
+        assert new(0) == 123
+        assert hash_wrapped_functions(old) != hash_wrapped_functions(new)
+        # Same identifiers and constants, different instructions.
+        older = reload_with("x + 1")
+        newer = reload_with("x - 1")
+        assert older(3) == 4
+        assert newer(3) == 2
+        assert hash_wrapped_functions(older) != hash_wrapped_functions(newer)
     finally:
         sys.path.remove(str(tmp_path))
-    assert old() == 1
-    assert mod.cb() == 123
-    assert hash_wrapped_functions(old) != hash_wrapped_functions(mod.cb)
 
 
 def test_restored_method_keeps_its_class_in_the_key() -> None:
@@ -1149,3 +1162,28 @@ def test_restored_method_keeps_its_class_in_the_key() -> None:
     stub = FunctionStub(method)
     linecache.cache.pop(method.__code__.co_filename, None)
     assert hash_wrapped_functions(stub.load({})) == before
+
+
+async def test_non_string_module_version_with_pinning(tmp_path: Path) -> None:
+    (tmp_path / "versioned.py").write_text(
+        "class Version:\n    def __str__(self):\n        return '1.0'\n"
+        "__version__ = Version()\n\n\ndef f(x):\n    return x + 1\n"
+    )
+    with mocked_kernel_session() as tk:
+        k = tk.kernel
+        await k.run(
+            [
+                command(
+                    0,
+                    "import sys\nimport marimo as mo\n"
+                    f"sys.path.insert(0, {str(tmp_path)!r})\n"
+                    "import versioned",
+                ),
+                command(
+                    1,
+                    "@mo.cache(pin_modules=True)\ndef g(x):\n"
+                    "    return versioned.f(x)\nr=g(1)",
+                ),
+            ]
+        )
+        assert k.globals.get("r") == 2
