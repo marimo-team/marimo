@@ -1288,3 +1288,67 @@ def test_captured_module_differs_from_its_name() -> None:
     assert deterministic_dumps(
         [capture(math)], "sha256"
     ) != deterministic_dumps([capture("math")], "sha256")
+
+
+def _reloaded_pair(tmp_path: Path, name: str, before: str, after: str) -> Any:
+    import importlib
+    import shutil
+    import sys
+
+    module = tmp_path / f"{name}.py"
+    module.write_text(before)
+    sys.path.insert(0, str(tmp_path))
+    try:
+        old = importlib.import_module(name).cb
+        shutil.rmtree(tmp_path / "__pycache__", ignore_errors=True)
+        module.write_text(after)
+        new = importlib.reload(sys.modules[name]).cb
+    finally:
+        sys.path.remove(str(tmp_path))
+    return old, new
+
+
+@pytest.mark.parametrize(
+    ("before", "after"),
+    [
+        (
+            "def cb(x):\n    try:\n        return 1 / x\n"
+            "    except ZeroDivisionError:\n        return 42\n",
+            "def cb(x):\n    y = 1 / x\n    try:\n        return y\n"
+            "    except ZeroDivisionError:\n        return 42\n",
+        ),
+        (
+            "def cb(x):\n    'one'\n    return x\n",
+            "def cb(x):\n    'two'\n    return x\n",
+        ),
+        (
+            "def cb(obj):\n    return obj._A__value\n",
+            "def cb(obj):\n    return obj._B__value\n",
+        ),
+    ],
+    ids=["protected-range", "docstring", "explicit-mangled-attribute"],
+)
+def test_stale_function_object_metadata_keys_apart(
+    tmp_path: Path, before: str, after: str
+) -> None:
+    old, new = _reloaded_pair(tmp_path, "kept_meta", before, after)
+    assert hash_wrapped_functions(old) != hash_wrapped_functions(new)
+
+
+def test_wrapped_methods_of_different_classes_are_distinct() -> None:
+    import functools
+
+    def proto(self: Any, obj: Any) -> Any:
+        return obj
+
+    class A:
+        @functools.wraps(proto)
+        def read(self, obj: Any) -> Any:
+            return obj.__value
+
+    class B:
+        @functools.wraps(proto)
+        def read(self, obj: Any) -> Any:
+            return obj.__value
+
+    assert hash_wrapped_functions(A.read) != hash_wrapped_functions(B.read)

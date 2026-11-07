@@ -168,11 +168,45 @@ _NULL_PREFIX = re.compile(r"^(NULL\|self|NULL) \+ ")
 
 
 def _bare_name(name: str) -> str:
-    name = unmangle_local(name).name
-    # Class-private mangling: `_A__value` is `__value` compiled inside `A`.
-    if name.startswith("_") and not name.startswith("__") and "__" in name[1:]:
-        return name[name.index("__", 1) :]
-    return name
+    return unmangle_local(name).name
+
+
+_MANGLED = re.compile(r"^_([A-Za-z0-9_]+?)__\w")
+_PRIVATE = re.compile(r"^__\w+(?<!__)$")
+
+
+def _shapes_match(live: _Shape, standalone: _Shape) -> bool:
+    """Whether `standalone`, compiled outside any class, is `live`.
+
+    Inside a class, `__attr` compiles to `_Class__attr`. The standalone
+    copy keeps `__attr`, so it is mangled with each class prefix the live
+    code shows before comparing. A name written as `_A__attr` in source is
+    left alone on both sides.
+    """
+    if live == standalone:
+        return True
+    prefixes = {
+        m.group(1)
+        for stream in live
+        for _, arg in stream
+        for token in arg.split(", ")
+        if (m := _MANGLED.match(token))
+    }
+
+    def mangle(arg: str, prefix: str) -> str:
+        return ", ".join(
+            f"_{prefix}{token}" if _PRIVATE.match(token) else token
+            for token in arg.split(", ")
+        )
+
+    return any(
+        tuple(
+            tuple((op, mangle(arg, prefix)) for op, arg in stream)
+            for stream in standalone
+        )
+        == live
+        for prefix in prefixes
+    )
 
 
 def _const_key(value: Any) -> str:
@@ -214,6 +248,10 @@ def _instructions(code: types.CodeType) -> tuple[tuple[str, str], ...]:
                 arg = ", ".join(_bare_name(n) for n in arg.split(", "))
         kept.append((op, arg, ins.offset, target))
     offsets = [offset for _, _, offset, _ in kept]
+
+    def index_of(offset: int) -> str:
+        return str(bisect.bisect_left(offsets, offset))
+
     # Parameters are bindings without instructions: `def f(x): return x` and
     # `def f(y): return x` run the same stream.
     total = code.co_argcount + code.co_kwonlyargcount
@@ -224,13 +262,29 @@ def _instructions(code: types.CodeType) -> tuple[tuple[str, str], ...]:
         ", ".join(map(_bare_name, code.co_varnames[:total]))
         + f" /{code.co_posonlyargcount} *{code.co_kwonlyargcount}",
     )
-    return (signature,) + tuple(
+    # The protected ranges are not instructions either, and a docstring is
+    # a constant no instruction loads.
+    handlers = tuple(
         (
-            op,
-            str(bisect.bisect_left(offsets, target))
-            if target is not None
-            else arg,
+            "EXCEPT",
+            f"{index_of(e.start)}-{index_of(e.end)}>{index_of(e.target)}"
+            f" {e.depth} {int(e.lasti)}",
         )
+        # Not in typeshed.
+        for e in cast(Any, dis.Bytecode(code)).exception_entries
+    )
+    constants = (
+        "CONSTS",
+        ", ".join(
+            sorted(
+                _const_key(c)
+                for c in code.co_consts
+                if not isinstance(c, types.CodeType)
+            )
+        ),
+    )
+    return (signature, constants, *handlers) + tuple(
+        (op, index_of(target) if target is not None else arg)
         for op, arg, _, target in kept
     )
 
@@ -376,7 +430,8 @@ def hash_function_source(fn: Callable[..., Any]) -> bytes:
         # Nothing, or several, for example when the compiler folded a nested
         # lambda away, as in `lambda: True or (lambda: 2)`.
         return fallback()
-    if _node_shape(index, nodes[0], code) != _code_shape(code):
+    standalone = _node_shape(index, nodes[0], code)
+    if standalone is None or not _shapes_match(_code_shape(code), standalone):
         # The file no longer holds the code this function runs: a module
         # reloaded while this object stayed alive, or a different optimize
         # level than the interpreter's.
@@ -385,13 +440,14 @@ def hash_function_source(fn: Callable[..., Any]) -> bytes:
 
 
 def _scoped_name(fn: Callable[..., Any]) -> str:
-    """`__qualname__` without its enclosing functions.
+    """The code's qualname without its enclosing functions.
 
-    A class stays, because it mangles the `__attr` names of everything
-    defined inside it. A function goes, because a restored FunctionStub has
-    none. Cell-local prefixes are stripped.
+    From the code object, which `functools.wraps` does not copy. A class
+    stays, because it mangles the `__attr` names of everything defined
+    inside it. A function goes, because a restored FunctionStub has none.
+    Cell-local prefixes are stripped.
     """
-    parts = fn.__qualname__.split(".")
+    parts = fn.__code__.co_qualname.split(".")
     kept = [
         unmangle_local(part).name
         for i, part in enumerate(parts)
