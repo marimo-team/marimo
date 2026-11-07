@@ -32,6 +32,18 @@ class PairInputError(PairError):
     """Invalid local input that prevents a server operation."""
 
 
+class NoSupportedInboxError(PairInputError):
+    """No supported harness identified the current conversation."""
+
+
+class UnsupportedInboxError(PairInputError):
+    """The identified harness has no supported inbox interface."""
+
+
+class InboxConnectionError(PairError):
+    """Forwarder startup failed after harness readiness was confirmed."""
+
+
 class PairConnectionError(PairError):
     """A transport failure while connecting to the notebook server."""
 

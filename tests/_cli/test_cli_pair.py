@@ -33,6 +33,10 @@ TEST_URL = "https://localhost:8000?auth=tok123"
 
 @pytest.fixture(autouse=True)
 def _isolate_pair_command(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        commands, "ensure_connection", lambda *_args, **_kwargs: None
+    )
+
     def resolve(
         *,
         url: str | None,
@@ -79,8 +83,6 @@ Usage: main pair [OPTIONS] COMMAND [ARGS]...
           for cell in ctx.cells.values():
               print(cell.id, cell.code, cell.status)
       PY
-    To receive notebook messages in Claude Code, Codex, or OpenCode 2.0:
-      marimo pair connect --session <ID>
 
   Target selection:
     Use `marimo pair list` if you need to find the notebook ID.
@@ -94,6 +96,10 @@ Usage: main pair [OPTIONS] COMMAND [ARGS]...
     or when execution is unconfirmed.
 
   Agent messages (preview):
+    Execute automatically attempts an inbox connection in supported harnesses.
+    After identifying the notebook and conversation, setup is attempted once per owner process.
+    In a supported harness, retry once. If it fails, continue without messaging:
+      marimo pair connect --session <ID>
     Codex must use its shared daemon and support codex queue.
     Claude Code requires its native inbox on macOS or Linux.
     OpenCode 2.0 requires its registered local service.

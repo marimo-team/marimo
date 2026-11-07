@@ -30,36 +30,40 @@ class CodexHarness:
         env: Mapping[str, str],
         *,
         process: ProcessHandle | None = None,
+        check_ready: bool = True,
     ) -> DeliveryTarget | None:
         import psutil
 
         address = self.identity(env)
         if not address:
             return None
-        if process is not None:
-            self.check()
-            return DeliveryTarget(self.kind, address, "Codex", process=process)
-        owner = None
-        try:
-            for ancestor in psutil.Process().parents():
-                if Path(ancestor.name()).stem.lower().startswith("codex"):
-                    arguments = ancestor.cmdline()
-                    if "--no-daemon" in arguments or any(
-                        argument.endswith("stdio://") for argument in arguments
-                    ):
-                        raise PairInputError(
-                            "This Codex session does not use the shared daemon. "
-                            "Run connect inside a native Codex daemon session."
-                        )
-                    owner = ProcessHandle.capture(ancestor.pid)
-                    break
-        except psutil.Error as error:
-            raise PairInputError(
-                "Could not identify the Codex process."
-            ) from error
+        owner = process
+        if owner is None:
+            try:
+                for ancestor in psutil.Process().parents():
+                    if Path(ancestor.name()).stem.lower().startswith("codex"):
+                        arguments = ancestor.cmdline()
+                        if check_ready and (
+                            "--no-daemon" in arguments
+                            or any(
+                                argument.endswith("stdio://")
+                                for argument in arguments
+                            )
+                        ):
+                            raise PairInputError(
+                                "This Codex session does not use the shared daemon. "
+                                "Run connect inside a native Codex daemon session."
+                            )
+                        owner = ProcessHandle.capture(ancestor.pid)
+                        break
+            except psutil.Error as error:
+                raise PairInputError(
+                    "Could not identify the Codex process."
+                ) from error
         if owner is None:
             raise PairInputError("Run connect inside a native Codex session.")
-        self.check()
+        if check_ready:
+            self.check()
         return DeliveryTarget(self.kind, address, "Codex", process=owner)
 
     def identity(self, env: Mapping[str, str]) -> str | None:

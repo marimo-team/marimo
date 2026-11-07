@@ -5,6 +5,22 @@ import pytest
 
 
 @pytest.fixture(autouse=True)
+def _isolate_pair_harness_environment(monkeypatch: pytest.MonkeyPatch) -> None:
+    # CLI tests must not attach to the conversation running the test suite.
+    for key in (
+        "CODEX_SESSION_ID",
+        "CODEX_THREAD_ID",
+        "CLAUDE_PID",
+        "CLAUDE_CODE_MESSAGING_SOCKET",
+        "CLAUDE_CODE_MESSAGING_TOKEN",
+        "OPENCODE",
+        "OPENCODE_TERMINAL",
+        "OPENCODE_SESSION_ID",
+    ):
+        monkeypatch.delenv(key, raising=False)
+
+
+@pytest.fixture(autouse=True)
 def _no_configured_store(monkeypatch: pytest.MonkeyPatch) -> None:
     """Pin the default cache resolution.
 

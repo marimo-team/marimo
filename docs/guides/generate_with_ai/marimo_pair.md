@@ -153,7 +153,9 @@ Your work stays in a notebook that you can run again, modify, and share.
 
 ## Receive notebook messages
 
-Inside Claude Code, Codex, or OpenCode 2.0, connect to the notebook:
+Inside Claude Code, Codex, or OpenCode 2.0, the first `pair execute` attempts an inbox connection automatically.
+If notebook messaging is unavailable, execution continues.
+For supported harnesses, retry once. If it fails, continue without messaging:
 
 ```bash
 marimo pair connect --session <notebook-ID>

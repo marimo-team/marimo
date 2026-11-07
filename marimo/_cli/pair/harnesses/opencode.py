@@ -12,7 +12,11 @@ from urllib.parse import quote, urlencode, urlsplit
 
 import msgspec
 
-from marimo._cli.pair.client import PairError, PairInputError
+from marimo._cli.pair.client import (
+    PairError,
+    PairInputError,
+    UnsupportedInboxError,
+)
 from marimo._cli.pair.delivery import DeliveryTarget, ProcessHandle
 
 if TYPE_CHECKING:
@@ -127,13 +131,17 @@ class OpenCodeHarness:
         return target.address if target else None
 
     def detect(
-        self, env: Mapping[str, str], *, process: ProcessHandle | None = None
+        self,
+        env: Mapping[str, str],
+        *,
+        process: ProcessHandle | None = None,
+        check_ready: bool = True,
     ) -> DeliveryTarget | None:
         import psutil
 
         if env.get("OPENCODE_TERMINAL") != "1":
             if env.get("OPENCODE"):
-                raise PairInputError(_SETUP)
+                raise UnsupportedInboxError(_SETUP)
             return None
         self.check()
         state = Path(
@@ -170,11 +178,12 @@ class OpenCodeHarness:
                     ("opencode:" + service.password).encode()
                 ).decode()
             )
-        remote = _request(base + "/api/info", authorization, _Info)
-        if remote.pid != service.pid or remote.version != service.version:
-            raise PairInputError(
-                "The OpenCode service record does not match the running service."
-            )
+        if check_ready or not env.get("OPENCODE_SESSION_ID"):
+            remote = _request(base + "/api/info", authorization, _Info)
+            if remote.pid != service.pid or remote.version != service.version:
+                raise PairInputError(
+                    "The OpenCode service record does not match the running service."
+                )
         query = "?" + urlencode({"location[directory]": os.getcwd()})
         session = env.get("OPENCODE_SESSION_ID")
         if not session:
@@ -204,9 +213,14 @@ class OpenCodeHarness:
         if not owner.alive():
             raise PairInputError("The OpenCode inbox owner is not running.")
         address = base + "/api/session/" + quote(session, safe="")
-        current = _request(address + query, authorization, _SessionResponse)
-        if current.data.id != session:
-            raise PairInputError("OpenCode returned a different conversation.")
+        if check_ready:
+            current = _request(
+                address + query, authorization, _SessionResponse
+            )
+            if current.data.id != session:
+                raise PairInputError(
+                    "OpenCode returned a different conversation."
+                )
         return DeliveryTarget(
             self.kind,
             address + "/prompt" + query,
@@ -217,7 +231,7 @@ class OpenCodeHarness:
 
     def check(self) -> None:
         if os.name == "nt":
-            raise PairInputError(
+            raise UnsupportedInboxError(
                 "OpenCode inbox discovery requires macOS or Linux."
             )
 
