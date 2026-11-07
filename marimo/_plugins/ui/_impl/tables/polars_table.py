@@ -83,15 +83,19 @@ class PolarsTableManagerFactory(TableManagerFactory):
                     return expression.list.eval(inner)
                 return expression.arr.eval(inner)
             if isinstance(dtype, pl.Struct):
+                # Polars expands regex and wildcard field names as selectors.
+                expression = expression.struct.rename_fields(
+                    [str(index) for index in range(len(dtype.fields))]
+                )
                 return expression.struct.with_fields(
                     [
                         map_entries_expr(
-                            expression.struct.field(field.name), field.dtype
-                        ).alias(field.name)
-                        for field in dtype.fields
+                            expression.struct[index], field.dtype
+                        ).alias(str(index))
+                        for index, field in enumerate(dtype.fields)
                         if contains_map(field.dtype)
                     ]
-                )
+                ).struct.rename_fields([field.name for field in dtype.fields])
             return expression
 
         def supports_native_json(
@@ -200,10 +204,10 @@ class PolarsTableManagerFactory(TableManagerFactory):
 
             def _map_to_json(self, column: pl.Series) -> pl.Series:
                 # Entry arrays preserve non-string and repeated keys.
-                entries = column.map.entries()
+                entries = column.rename("map").map.entries()
                 if contains_map(entries.dtype):
                     expression = map_entries_expr(
-                        pl.col(column.name), entries.dtype
+                        pl.col(entries.name), entries.dtype
                     )
                     entries = entries.to_frame().select(expression).to_series()
                 if supports_native_json(entries.dtype):
