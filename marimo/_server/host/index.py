@@ -119,7 +119,8 @@ class WorkspaceIndex:
     def register_open_notebook(self, path: str) -> protocol.Notebook:
         """Register an authorized file, including files outside the workspace."""
         resolved = self._workspace.resolve(path)
-        assert resolved is not None
+        if resolved is None:
+            raise RuntimeError("Notebook path could not be resolved")
         existing = self.notebook_for(resolved) or self.ensure(resolved)
         if existing is not None:
             return existing
@@ -204,14 +205,16 @@ class WorkspaceIndex:
             )
         self._open_files.pop(notebook_id, None)
         self._ids[relative] = notebook_id
-        assert self._root is not None
+        if self._root is None:
+            raise RuntimeError("Workspace root is not initialized")
         file = self._root / relative
         try:
             modified: float | None = file.stat().st_mtime
         except OSError:
             modified = None
         record = self._publish(file, modified, request_id=request_id)
-        assert record is not None
+        if record is None:
+            raise RuntimeError("Notebook record could not be published")
         return record
 
     def rename(

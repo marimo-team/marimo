@@ -66,10 +66,10 @@ def test_from_data_uri():
 
 
 def test_from_data_uri_invalid_input():
-    with pytest.raises(AssertionError):
+    with pytest.raises(ValueError):
         from_data_uri("not-a-data-uri")
 
-    with pytest.raises(AssertionError):
+    with pytest.raises(TypeError):
         from_data_uri(123)  # type: ignore
 
     # Valid prefix but invalid base64
@@ -78,5 +78,5 @@ def test_from_data_uri_invalid_input():
 
 
 def test_build_data_url_invalid_input():
-    with pytest.raises(AssertionError):
+    with pytest.raises(TypeError):
         build_data_url(None, b"data")  # type: ignore

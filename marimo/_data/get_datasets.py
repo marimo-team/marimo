@@ -217,9 +217,12 @@ def _get_databases_from_duckdb_internal(
         if name in _SKIP_TABLES:
             continue
 
-        assert len(column_names) == len(column_types)
-        assert isinstance(column_names, list)
-        assert isinstance(column_types, list)
+        if len(column_names) != len(column_types):
+            raise RuntimeError("Mismatched column names and types")
+        if not isinstance(column_names, list):
+            raise RuntimeError("Expected column names to be a list")
+        if not isinstance(column_types, list):
+            raise RuntimeError("Expected column types to be a list")
 
         catalog_table = (
             len(column_names) == 1
@@ -385,11 +388,17 @@ def get_duckdb_databases_agg_query(
         cols,
     ) in tables_result:
         columns: list[DataTableColumn] = []
-        assert isinstance(cols, list)
+        if not isinstance(cols, list):
+            raise RuntimeError("Expected columns to be a list")
         for col in cols:
-            assert isinstance(col, dict)
-            assert NAME_KEY in col
-            assert DTYPE_KEY in col
+            if not isinstance(col, dict):
+                raise RuntimeError(
+                    "Expected column metadata to be a dictionary"
+                )
+            if NAME_KEY not in col:
+                raise RuntimeError("Column metadata is missing its name")
+            if DTYPE_KEY not in col:
+                raise RuntimeError("Column metadata is missing its data type")
             dtype = col[DTYPE_KEY]
             columns.append(
                 DataTableColumn(

@@ -52,7 +52,8 @@ def resolve_target(
         # The catalog has no legacy session IDs. Only an explicit --session
         # and URL can defer that lookup to the selected server.
         if not found and host is not None and session_id is not None:
-            assert url is not None
+            if url is None:
+                raise RuntimeError("Execution target URL is missing")
             return ExecutionTarget(url, session_id, host.token)
         _require_one([n.id for n in found], url, selected_id)
         notebook = found[0]

@@ -297,7 +297,8 @@ class OSFileSystem(FileSystem):
                             f"{MAX_UPLOAD_BYTES} bytes"
                         )
                     tmp.write(chunk)
-            assert tmp_path is not None
+            if tmp_path is None:
+                raise RuntimeError("Temporary upload path is not available")
             os.replace(tmp_path, full_path)
         except BaseException:
             # Both paths may or may not exist depending on where we failed;

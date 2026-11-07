@@ -90,12 +90,12 @@ def _make_request(
     If the URL already contains query parameters and new params are provided,
     they will be merged with new params taking precedence over existing ones.
     """
-    assert isinstance(url, str), "url must be a string"
+    if not isinstance(url, str):
+        raise TypeError("url must be a string")
     has_data = data is not None
     has_json_data = json_data is not None
-    assert not has_data or not has_json_data, (
-        "cannot pass both data and json_data"
-    )
+    if has_data and has_json_data:
+        raise ValueError("cannot pass both data and json_data")
 
     # Handle URL parameters
     if params:

@@ -170,7 +170,8 @@ class FrameWatcher:
         `MarimoStopError` (the same path as `mo.stop()`) rather than letting
         execution run on.
         """
-        assert self._debugger is not None
+        if self._debugger is None:
+            raise RuntimeError("Debugger is not initialized")
         debugger = self._debugger
         debugger.disable_sigint()
         debugger.reset()

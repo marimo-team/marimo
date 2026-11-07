@@ -401,7 +401,8 @@ class _EditableTable:
 
         column_idx = edit["columnIdx"]
         if edit["type"] == "insert":
-            assert new_column_name is not None
+            if new_column_name is None:
+                raise ValueError("New column name is required")
             if new_column_name in self.column_names:
                 raise ValueError(f"Column {new_column_name} already exists")
 
@@ -446,8 +447,10 @@ class _EditableTable:
             self.column_types.pop(old_name, None)
             return
 
-        assert edit["type"] == "rename"
-        assert new_column_name is not None
+        if edit["type"] != "rename":
+            raise ValueError("Expected a rename edit")
+        if new_column_name is None:
+            raise ValueError("New column name is required")
         if old_name == new_column_name:
             return
         if new_column_name in self.column_names:

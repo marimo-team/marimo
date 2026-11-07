@@ -14,9 +14,8 @@ class UpdateUIElementValuesRequest(msgspec.Struct, rename="camel"):
 
     # Validate same length
     def __post_init__(self) -> None:
-        assert len(self.object_ids) == len(self.values), (
-            "Mismatched object_ids and values"
-        )
+        if len(self.object_ids) != len(self.values):
+            raise ValueError("Mismatched object_ids and values")
 
 
 class InstantiateNotebookRequest(UpdateUIElementValuesRequest):

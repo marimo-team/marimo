@@ -128,7 +128,7 @@ class ClassStub:
             ctx = get_context().execution_context
             if ctx is not None:
                 return get_filename(ctx.cell_id, suffix=bare_name)
-        except (ContextNotInitializedError, AssertionError):
+        except ContextNotInitializedError:
             pass
         return f"<{bare_name}>"
 

@@ -4,6 +4,7 @@ from __future__ import annotations
 import ast
 from pathlib import Path
 
+import pytest
 from inline_snapshot import snapshot
 
 from marimo._ast.parse import (
@@ -18,6 +19,18 @@ DIR_PATH = Path(__file__).parent
 
 def get_filepath(name: str) -> Path:
     return DIR_PATH / f"codegen_data/{name}.py"
+
+
+def test_cell_decorator_rejects_classes() -> None:
+    source = (
+        "import marimo\n"
+        "app = marimo.App()\n"
+        "@app.cell\n"
+        "class Example:\n"
+        "    pass\n"
+    )
+    with pytest.raises(ValueError, match="cannot be used on classes"):
+        parse_notebook(source)
 
 
 # NB. Some barebones testing at the areas that seemed to be most sensitive.

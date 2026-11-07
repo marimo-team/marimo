@@ -751,7 +751,8 @@ def merge_cell_notification(
     if previous is None:
         return current
 
-    assert previous.cell_id == current.cell_id
+    if previous.cell_id != current.cell_id:
+        raise RuntimeError("Cannot merge outputs from different cells")
 
     if current.status is None:
         current.status = previous.status

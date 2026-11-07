@@ -141,9 +141,11 @@ def get_refactor_or_insert_notebook_cell_system_prompt(
 
     # When we are modifying or inserting into an existing cell, we need to
     if cell_code:
-        # Assertions, otherwise the system prompt will be wrong
         if is_insert:
-            assert "<insert_here>" in cell_code
+            if "<insert_here>" not in cell_code:
+                raise ValueError(
+                    "Cell code must contain <insert_here> for insertion."
+                )
             system_prompt += "The point you'll need to insert at is marked with <insert_here></insert_here>.\n"
         else:
             # If no selected text and <rewrite_this> is not present, we need to
@@ -151,7 +153,11 @@ def get_refactor_or_insert_notebook_cell_system_prompt(
             if "<rewrite_this>" not in cell_code and not selected_text:
                 cell_code = f"<rewrite_this>\n{cell_code}\n</rewrite_this>"
 
-            assert "<rewrite_this>" in cell_code
+            if "<rewrite_this>" not in cell_code:
+                raise ValueError(
+                    "Cell code must contain <rewrite_this> when selected text "
+                    "is provided."
+                )
             system_prompt += "The section you'll need to rewrite is marked with <rewrite_this></rewrite_this> tags.\n"
 
         if cell_code:

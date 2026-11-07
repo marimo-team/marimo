@@ -223,7 +223,8 @@ def open_response(
             timeout=5.0,
         )
         connection.connect()
-        assert connection.sock is not None
+        if connection.sock is None:
+            raise RuntimeError("Connection socket is not available")
         response_socket = connection.sock
         response_socket.settimeout(read_timeout)
         path = parsed.path or "/"
