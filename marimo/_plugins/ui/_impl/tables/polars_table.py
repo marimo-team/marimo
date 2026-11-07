@@ -3,6 +3,8 @@ from __future__ import annotations
 
 import functools
 import io
+import json
+import math
 from functools import cached_property
 from typing import Any
 
@@ -12,6 +14,7 @@ from marimo import _loggers
 from marimo._data.models import (
     ExternalDataType,
 )
+from marimo._messaging.msgspec_encoder import enc_hook
 from marimo._output.data.data import sanitize_json_bigint
 from marimo._plugins.ui._impl.tables.format import (
     FormatMapping,
@@ -28,6 +31,16 @@ from marimo._plugins.ui._impl.tables.table_manager import (
 LOGGER = _loggers.marimo_logger()
 
 
+def _sanitize_map_json(value: object) -> object:
+    if isinstance(value, float) and not math.isfinite(value):
+        return None
+    if isinstance(value, list):
+        return [_sanitize_map_json(item) for item in value]
+    if isinstance(value, dict):
+        return {key: _sanitize_map_json(item) for key, item in value.items()}
+    return value
+
+
 class PolarsTableManagerFactory(TableManagerFactory):
     @staticmethod
     def package_name() -> str:
@@ -37,6 +50,69 @@ class PolarsTableManagerFactory(TableManagerFactory):
     @functools.lru_cache(maxsize=1)
     def create() -> type[TableManager[Any]]:
         import polars as pl
+
+        map_dtype = getattr(pl, "Map", None)
+
+        def contains_map(
+            dtype: pl.DataType | pl.datatypes.DataTypeClass,
+        ) -> bool:
+            if map_dtype is not None and isinstance(dtype, map_dtype):
+                return True
+            if isinstance(dtype, (pl.List, pl.Array)):
+                return contains_map(dtype.inner)
+            if isinstance(dtype, pl.Struct):
+                return any(contains_map(field.dtype) for field in dtype.fields)
+            return False
+
+        def map_entries_expr(
+            expression: pl.Expr,
+            dtype: pl.DataType | pl.datatypes.DataTypeClass,
+        ) -> pl.Expr:
+            if not contains_map(dtype):
+                return expression
+            if map_dtype is not None and isinstance(dtype, map_dtype):
+                return map_entries_expr(
+                    expression.map.entries(),
+                    pl.List(
+                        pl.Struct({"key": dtype.key, "value": dtype.value})
+                    ),
+                )
+            if isinstance(dtype, (pl.List, pl.Array)):
+                inner = map_entries_expr(pl.element(), dtype.inner)
+                if isinstance(dtype, pl.List):
+                    return expression.list.eval(inner)
+                return expression.arr.eval(inner)
+            if isinstance(dtype, pl.Struct):
+                # Polars expands regex and wildcard field names as selectors.
+                expression = expression.struct.rename_fields(
+                    [str(index) for index in range(len(dtype.fields))]
+                )
+                return expression.struct.with_fields(
+                    [
+                        map_entries_expr(
+                            expression.struct[index], field.dtype
+                        ).alias(str(index))
+                        for index, field in enumerate(dtype.fields)
+                        if contains_map(field.dtype)
+                    ]
+                ).struct.rename_fields([field.name for field in dtype.fields])
+            return expression
+
+        def supports_native_json(
+            dtype: pl.DataType | pl.datatypes.DataTypeClass,
+        ) -> bool:
+            # Native JSON encoding can panic on unsupported nested dtypes.
+            if isinstance(dtype, (pl.List, pl.Array)):
+                return supports_native_json(dtype.inner)
+            if isinstance(dtype, pl.Struct):
+                return all(
+                    supports_native_json(field.dtype) for field in dtype.fields
+                )
+            return (
+                dtype in (pl.String, pl.Boolean, pl.Null)
+                or dtype.is_integer()
+                or dtype.is_float()
+            )
 
         class PolarsTableManager(
             NarwhalsTableManager[pl.DataFrame, pl.LazyFrame]
@@ -100,6 +176,12 @@ class PolarsTableManagerFactory(TableManagerFactory):
                             result = result.with_columns(
                                 column.struct.json_encode()
                             )
+                        elif map_dtype is not None and isinstance(
+                            dtype, map_dtype
+                        ):
+                            result = result.with_columns(
+                                self._map_to_json(column)
+                            )
                         elif isinstance(dtype, pl.List):
                             result = result.with_columns(
                                 column.cast(pl.List(pl.Utf8)).list.join(",")
@@ -119,6 +201,37 @@ class PolarsTableManagerFactory(TableManagerFactory):
                                 result, column
                             )
                     return result.write_csv(separator=resolved_separator)
+
+            def _map_to_json(self, column: pl.Series) -> pl.Series:
+                # Entry arrays preserve non-string and repeated keys.
+                entries = column.rename("map").map.entries()
+                if contains_map(entries.dtype):
+                    expression = map_entries_expr(
+                        pl.col(entries.name), entries.dtype
+                    )
+                    entries = entries.to_frame().select(expression).to_series()
+                if supports_native_json(entries.dtype):
+                    encoded = entries.list.eval(
+                        pl.element().struct.json_encode()
+                    ).list.join(",")
+                    return ("[" + encoded + "]").alias(column.name)
+
+                return pl.Series(
+                    column.name,
+                    [
+                        json.dumps(
+                            _sanitize_map_json(value),
+                            default=enc_hook,
+                            ensure_ascii=False,
+                            allow_nan=False,
+                            separators=(",", ":"),
+                        )
+                        if value is not None
+                        else None
+                        for value in entries.to_list()
+                    ],
+                    dtype=pl.String,
+                )
 
             def to_json_str(
                 self,
