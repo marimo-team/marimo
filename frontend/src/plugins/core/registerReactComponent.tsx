@@ -18,6 +18,7 @@ import React, {
   useEffect,
   useImperativeHandle,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import ReactDOM, { type Root } from "react-dom/client";
@@ -105,7 +106,17 @@ function PluginSlotInternal<T>(
 ): JSX.Element {
   const [childNodes, setChildNodes] = useState<ReactNode>(children);
   const [value, setValue] = useState<T>(getInitialValue);
+  // Mirrors the committed value so that consecutive plugin updates within one
+  // tick build on each other before React re-renders. React state updaters
+  // may run more than once, so the host input event is dispatched outside
+  // of them, which requires knowing the previous value up front.
+  const latestValue = useRef(value);
   const { theme } = useTheme();
+
+  const commitValue = (nextValue: T) => {
+    latestValue.current = nextValue;
+    setValue(nextValue);
+  };
 
   const [parsedResult, setParsedResult] = useState(() => {
     return plugin.validator.safeParse(parseDataset(hostElement));
@@ -119,7 +130,7 @@ function PluginSlotInternal<T>(
 
   useImperativeHandle(ref, () => ({
     reset: () => {
-      setValue(getInitialValue());
+      commitValue(getInitialValue());
       setParsedResult(plugin.validator.safeParse(parseDataset(hostElement)));
       setResetNonce((n) => n + 1);
     },
@@ -134,7 +145,7 @@ function PluginSlotInternal<T>(
     MarimoValueUpdateEvent.TYPE,
     (e) => {
       if (e.detail.element === hostElement) {
-        setValue(e.detail.value as T);
+        commitValue(e.detail.value as T);
       }
     },
   );
@@ -166,18 +177,14 @@ function PluginSlotInternal<T>(
 
   // When the value changes, send an input event
   const setValueAndSendInput = useEvent((value: SetStateAction<T>): void => {
-    setValue((prevValue) => {
-      const updater = Functions.asUpdater(value);
-      const nextValue = updater(prevValue);
-      // Shallow compare the values
-      // If the value hasn't changed, we don't need to send an input event
-      if (shallowCompare(nextValue, prevValue)) {
-        return nextValue;
-      }
-
-      hostElement.dispatchEvent(createInputEvent(nextValue, hostElement));
-      return nextValue;
-    });
+    const prevValue = latestValue.current;
+    const nextValue = Functions.asUpdater(value)(prevValue);
+    // If the value hasn't changed, we don't need to send an input event
+    if (shallowCompare(nextValue, prevValue)) {
+      return;
+    }
+    commitValue(nextValue);
+    hostElement.dispatchEvent(createInputEvent(nextValue, hostElement));
   });
 
   // Create a map of functions that can be called by the plugin
@@ -289,7 +296,7 @@ function PluginSlotInternal<T>(
   );
 }
 
-const PluginSlot: React.ForwardRefExoticComponent<
+export const PluginSlot: React.ForwardRefExoticComponent<
   // oxlint-disable-next-line typescript/no-explicit-any
   PluginSlotProps<any> & React.RefAttributes<PluginSlotHandle>
 > = React.forwardRef(PluginSlotInternal);
