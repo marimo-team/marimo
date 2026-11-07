@@ -46,7 +46,6 @@ from marimo._code_mode._better_inspect import _HelpableEnumMeta, helpable
 from marimo._code_mode._packages import (
     PackageResult,
     Packages,
-    _AddPackage,
 )
 from marimo._code_mode._plan import (
     _AddOp,
@@ -823,6 +822,7 @@ class AsyncCodeModeContext:
         # Flush queued package ops before cell ops so newly added
         # cells can import newly installed packages.
         package_ops = await self._packages._flush()
+        self._packages._results = tuple(package_ops)
 
         if ops:
             _validate_ops(ops)
@@ -870,24 +870,19 @@ class AsyncCodeModeContext:
         lines: list[str] = []
 
         for result in package_ops:
-            pkg_op = result.op
             if result.outcome == "restart-required":
                 lines.append(
-                    f"changes saved for {pkg_op.package}; restart the kernel to use them"
+                    f"changes saved for {result.requirement}; restart the kernel to use them"
                 )
                 continue
             if result.outcome == "failed":
-                action = (
-                    "install"
-                    if isinstance(pkg_op, _AddPackage)
-                    else "uninstall"
-                )
-                lines.append(f"failed to {action} {pkg_op.package}")
+                action = "install" if result.action == "add" else "uninstall"
+                lines.append(f"failed to {action} {result.requirement}")
                 continue
-            if isinstance(pkg_op, _AddPackage):
-                lines.append(f"installed {pkg_op.package}")
+            if result.action == "add":
+                lines.append(f"installed {result.requirement}")
             else:
-                lines.append(f"uninstalled {pkg_op.package}")
+                lines.append(f"uninstalled {result.requirement}")
 
         _run = cells_to_run or set()
         op_cell_ids: set[CellId_t] = set()
