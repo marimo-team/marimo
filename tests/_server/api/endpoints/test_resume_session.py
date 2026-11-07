@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import json
 import os
-import time
 from contextlib import contextmanager
 from typing import TYPE_CHECKING
 
@@ -11,7 +10,6 @@ import pytest
 
 from marimo._config.manager import MarimoConfigManager
 from marimo._messaging.notification import (
-    CellNotification,
     EnvironmentOperation,
     EnvironmentOperationNotification,
     EnvironmentOperationStatus,
@@ -61,13 +59,6 @@ def test_refresh_session(client: TestClient) -> None:
     assert session
     session_view = session.session_view
 
-    # Mimic cell execution time save
-    cell_notification = CellNotification("Hbol")
-    session_view.save_execution_time(cell_notification, "start")
-    time.sleep(0.123)
-    session_view.save_execution_time(cell_notification, "end")
-    last_exec_time = session_view.last_execution_time["Hbol"]
-
     # New session with new ID (simulates refresh)
     # We should resume the current session
     with client.websocket_connect(_create_ws_url("456")) as websocket:
@@ -81,7 +72,6 @@ def test_refresh_session(client: TestClient) -> None:
             create_response(
                 {
                     "resumed": True,
-                    "last_execution_time": {"Hbol": last_exec_time},
                 }
             ),
         )
@@ -117,7 +107,6 @@ def test_refresh_session(client: TestClient) -> None:
                         "ui-element-2": "value2",
                     },
                     "resumed": True,
-                    "last_execution_time": {"Hbol": last_exec_time},
                 }
             ),
         )

@@ -145,4 +145,63 @@ describe("clickablePlaceholderExtension", () => {
 
     view.destroy();
   });
+
+  describe("caret coordinates", () => {
+    const original = Range.prototype.getClientRects;
+    let rects: Array<Pick<DOMRect, "left" | "right" | "top" | "bottom">>;
+
+    beforeEach(() => {
+      rects = [{ left: 10, right: 50, top: 2, bottom: 18 }];
+      Range.prototype.getClientRects = () => rects as unknown as DOMRectList;
+    });
+
+    afterEach(() => {
+      Range.prototype.getClientRects = original;
+    });
+
+    function renderWidget(beforeText: string) {
+      const view = new EditorView({
+        state: EditorState.create({
+          doc: "",
+          extensions: clickablePlaceholderExtension({
+            beforeText,
+            linkText: "here",
+            afterText: "",
+            onClick: vi.fn(),
+          }),
+        }),
+      });
+      const widget = view.state
+        .facet(EditorView.decorations)
+        .flatMap((deco) => (typeof deco === "function" ? [deco(view)] : [deco]))
+        .map((set) => set.iter().value?.spec.widget)
+        .find(Boolean);
+      const dom = widget.toDOM(view);
+      document.body.append(dom);
+      return { view, widget, dom };
+    }
+
+    it("collapses the caret to the start of the first line of text", () => {
+      const { view, widget, dom } = renderWidget("Type or ");
+      expect(widget.coordsAt(dom, 0, 1)).toEqual({
+        left: 10,
+        right: 10,
+        top: 2,
+        bottom: 18,
+      });
+      dom.style.direction = "rtl";
+      expect(widget.coordsAt(dom, 0, 1)).toMatchObject({ left: 50, right: 50 });
+      dom.remove();
+      view.destroy();
+    });
+
+    it("skips empty text and falls back when nothing is laid out", () => {
+      const { view, widget, dom } = renderWidget("");
+      expect(widget.coordsAt(dom, 0, 1)).toMatchObject({ left: 10 });
+      rects = [];
+      expect(widget.coordsAt(dom, 0, 1)).toBeNull();
+      dom.remove();
+      view.destroy();
+    });
+  });
 });

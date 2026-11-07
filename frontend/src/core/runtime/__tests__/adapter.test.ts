@@ -3,7 +3,7 @@
 import { createStore } from "jotai";
 import { describe, expect, it } from "vitest";
 import { islandsInitializedAtom } from "../../islands/state";
-import { kernelStateAtom } from "../../kernel/state";
+import { MockExecutions } from "@/__mocks__/executions";
 import { connectionAtom } from "../../network/connection";
 import { wasmInitStateAtom } from "../../wasm/state";
 import { ConnectionState } from "../../session/types";
@@ -122,13 +122,13 @@ describe("islandsAdapter", () => {
 });
 
 describe("canRunCellsAtom", () => {
-  it("is false on a remote adapter until kernel acks", () => {
+  it("is false on a remote adapter until the host reports the runtime running", () => {
     const store = createStore();
     // Default adapter in test env is remote.
     store.set(connectionAtom, { state: ConnectionState.OPEN });
     expect(store.get(canRunCellsAtom)).toBe(false);
 
-    store.set(kernelStateAtom, { isInstantiated: true, error: null });
+    MockExecutions.seed(store, [], MockExecutions.runtime("running"));
     expect(store.get(canRunCellsAtom)).toBe(true);
   });
 

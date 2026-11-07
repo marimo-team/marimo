@@ -17,6 +17,7 @@ from marimo._server.host.context import HostContext
 from marimo._server.host.events import serialize_event
 from marimo._session.model import SessionMode
 from marimo._types.ids import SessionId
+from tests._server.conftest import get_kernel_tasks
 from tests._server.host.drive import socket_snapshot
 from tests._server.host.test_editor_websocket import receive_notification
 from tests._server.mocks import get_session_manager
@@ -163,7 +164,9 @@ def test_app_host_keeps_authentication(
 
 
 def test_app_host_is_removed_when_session_expires(
-    client: TestClient, app_host: SessionBridge
+    client: TestClient,
+    app_host: SessionBridge,
+    request: pytest.FixtureRequest,
 ) -> None:
     manager = get_session_manager(client)
     with client.websocket_connect(url("alice")) as ws:
@@ -171,6 +174,15 @@ def test_app_host_is_removed_when_session_expires(
         receive_notification(ws, "kernel-ready")
         session = manager.get_session(SessionId("alice"))
         assert session is not None
+        kernel_tasks = get_kernel_tasks(manager)
+
+        def join_expired_kernel() -> None:
+            # Expiry removes the session before the client fixture can join it.
+            for task in kernel_tasks:
+                task.join(timeout=5)
+                assert not task.is_alive()
+
+        request.addfinalizer(join_expired_kernel)
         session.ttl_seconds = 0.01
         notebook = app_host.notebook_for_session(session)
         assert notebook is not None

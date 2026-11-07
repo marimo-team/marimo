@@ -68,7 +68,7 @@ import {
 import { BackendConnectionStatus } from "./footer-items/backend-status";
 import { LspStatus } from "./footer-items/lsp-status";
 import { PanelsWrapper } from "./panels";
-import { PendingAICells } from "./pending-ai-cells";
+import { PendingAIChangesBadge } from "./pending-ai-changes-badge";
 import { useAiPanelTab } from "./useAiPanel";
 import { useDependencyPanelTab } from "./useDependencyPanelTab";
 import { handleDragging } from "./utils";
@@ -558,6 +558,7 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
                   )}
                 />
                 {panel.label}
+                {panel.type === "ai" && <PendingAIChangesBadge />}
               </div>
             )}
           />
@@ -618,7 +619,6 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
         </Panel>
         <ContextAwarePanel />
       </PanelGroup>
-      <PendingAICells />
       <ErrorBoundary>
         <TooltipProvider>
           <Footer />

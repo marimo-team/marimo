@@ -24,8 +24,8 @@ const { sendMessage, messages } = vi.hoisted(() => ({
 }));
 
 vi.mock("@ai-sdk/react", () => ({
-  useChat: () => ({
-    id: "draft-chat",
+  useChat: ({ id }: { id: string }) => ({
+    id,
     messages,
     sendMessage,
     status: "ready",
@@ -75,6 +75,9 @@ vi.mock("@/components/editor/actions/pair-with-agent", () => ({
   PairWithAgentBanner: () => null,
   usePairWithAgentModal: () => vi.fn(),
 }));
+vi.mock("@/components/editor/chrome/wrapper/pending-ai-cells", () => ({
+  PendingAICells: () => null,
+}));
 vi.mock("@/components/ai/ai-model-dropdown", () => ({
   AIModelDropdown: () => null,
 }));
@@ -83,7 +86,10 @@ vi.mock("../capabilities-popover", () => ({ CapabilitiesPopover: () => null }));
 vi.mock("../notebook-access-selector", () => ({
   NotebookAccessSelector: () => null,
 }));
-vi.mock("../chat-display", () => ({ renderUIMessage: () => null }));
+vi.mock("../chat-display", () => ({
+  renderUIMessage: () => null,
+  getAnswerText: () => "",
+}));
 vi.mock("@/components/mcp/mcp-status-indicator", () => ({
   MCPStatusIndicator: () => null,
 }));
@@ -166,7 +172,7 @@ describe("pending chat prompts", () => {
         act(() =>
           store.set(pendingAiPromptAtom, { prompt: "hello", submit: true }),
         );
-        await screen.findByRole("textbox", { name: "Message" });
+        await screen.findByRole("button", { name: "Edit message" });
         sendMessage.mockClear();
       }
 
@@ -286,13 +292,60 @@ describe("pending chat prompts", () => {
         parts: [{ type: "text", text: "hello" }],
       }),
     );
-    expect(store.get(chatStateAtom).activeChatId).toBe("draft-chat");
+    expect(store.get(chatStateAtom).activeChatId).toEqual(expect.any(String));
     expect(
       [...store.get(chatStateAtom).chats.values()].map((chat) => ({
         id: chat.id,
         title: chat.title,
       })),
-    ).toEqual([{ id: "draft-chat", title: "hello" }]);
+    ).toEqual([{ id: store.get(chatStateAtom).activeChatId, title: "hello" }]);
+  });
+
+  it("queues prompts between requests while the assistant's tool is still running", async () => {
+    vi.mocked(resolveChatContext).mockResolvedValue({
+      contextPart: null,
+      attachments: [],
+    });
+    sendMessage.mockImplementationOnce(() => {
+      messages.push({
+        id: "assistant-1",
+        role: "assistant",
+        parts: [
+          {
+            type: "tool-execute_code",
+            toolCallId: "call-1",
+            state: "input-available",
+            input: { code: "print(1)" },
+          },
+        ],
+      });
+    });
+    const store = setup();
+    act(() =>
+      store.set(pendingAiPromptAtom, { prompt: "run my code", submit: true }),
+    );
+    await screen.findByRole("button", { name: "Stop" });
+
+    act(() =>
+      store.set(pendingAiPromptAtom, {
+        prompt: "then explain it",
+        submit: true,
+      }),
+    );
+
+    await screen.findByText("then explain it");
+    expect(sendMessage).toHaveBeenCalledExactlyOnceWith({
+      role: "user",
+      parts: [{ type: "text", text: "run my code" }],
+    });
+    expect(
+      screen.queryByRole("button", { name: "Send" }),
+    ).not.toBeInTheDocument();
+    fireEvent.click(
+      screen.getByRole("button", { name: "Remove queued message" }),
+    );
+    expect(screen.queryByText("then explain it")).not.toBeInTheDocument();
+    expect(sendMessage).toHaveBeenCalledOnce();
   });
 
   it("carries over the latest draft typed while context is resolving", async () => {

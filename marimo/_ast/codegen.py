@@ -141,23 +141,21 @@ def format_tuple_elements(
 
 
 def _needs_trailing_blank_line(mod: ast.Module, code: str) -> bool:
-    """Check if AST ends with a statement requiring a blank line after.
-
-    Ruff formatter adds a blank line after imports, function defs, and class defs.
-    Only adds blank line if the statement is truly the last content (no trailing
-    comments).
-    """
+    """Match Ruff's separator after imports and trailing definitions."""
     if not mod.body:
         return False
     last_stmt = mod.body[-1]
-    # Check if there's trailing content (like comments) after the last statement
-    # If so, don't add a blank line - the existing formatting should be preserved
     code_lines = code.rstrip().count("\n") + 1
     if isinstance(last_stmt, (ast.Import, ast.ImportFrom)):
         return last_stmt.end_lineno == code_lines
     return any(
         isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef))
-        and node.end_lineno == code_lines
+        and node.end_lineno == last_stmt.end_lineno
+        and all(
+            not line.strip()
+            or len(line) - len(line.lstrip()) > node.col_offset
+            for line in code.splitlines()[node.end_lineno :]
+        )
         for node in ast.walk(last_stmt)
     )
 

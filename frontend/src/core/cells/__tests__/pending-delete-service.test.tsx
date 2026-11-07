@@ -3,13 +3,12 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { createStore, Provider } from "jotai";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { MockExecutions } from "@/__mocks__/executions";
 import { MockNotebook } from "@/__mocks__/notebook";
 import { variableName } from "@/__tests__/branded";
 import { notebookAtom } from "@/core/cells/cells";
 import { CellId } from "@/core/cells/ids";
-import { createCellRuntimeState } from "@/core/cells/types";
 import { variablesAtom } from "@/core/variables/state";
-import type { Milliseconds } from "@/utils/time";
 import {
   usePendingDelete,
   usePendingDeleteService,
@@ -46,9 +45,7 @@ describe("pending-delete-service", () => {
       },
     });
 
-    notebook.cellRuntime[cellId] = createCellRuntimeState({
-      runElapsedTimeMs: 1 as Milliseconds,
-    });
+    MockExecutions.seed(store, [MockExecutions.took(cellId, 1)]);
 
     store.set(notebookAtom, notebook);
     store.set(variablesAtom, {});
@@ -82,9 +79,7 @@ describe("pending-delete-service", () => {
       },
     });
 
-    notebook.cellRuntime[cellId] = createCellRuntimeState({
-      runElapsedTimeMs: 100_000 as Milliseconds,
-    });
+    MockExecutions.seed(store, [MockExecutions.took(cellId, 100_000)]);
 
     store.set(notebookAtom, notebook);
     store.set(variablesAtom, {});
@@ -129,12 +124,10 @@ describe("pending-delete-service", () => {
     });
 
     // Both have short execution times
-    notebook.cellRuntime[cell1Id] = createCellRuntimeState({
-      runElapsedTimeMs: 100 as Milliseconds,
-    });
-    notebook.cellRuntime[cell2Id] = createCellRuntimeState({
-      runElapsedTimeMs: 50 as Milliseconds,
-    });
+    MockExecutions.seed(store, [
+      MockExecutions.took(cell1Id, 100),
+      MockExecutions.took(cell2Id, 50),
+    ]);
 
     store.set(notebookAtom, notebook);
     store.set(variablesAtom, {
@@ -172,12 +165,10 @@ describe("pending-delete-service", () => {
       },
     });
 
-    notebook.cellRuntime[cell1Id] = createCellRuntimeState({
-      runElapsedTimeMs: 3000 as Milliseconds,
-    });
-    notebook.cellRuntime[cell2Id] = createCellRuntimeState({
-      runElapsedTimeMs: 4000 as Milliseconds,
-    });
+    MockExecutions.seed(store, [
+      MockExecutions.took(cell1Id, 3000),
+      MockExecutions.took(cell2Id, 4000),
+    ]);
 
     store.set(notebookAtom, notebook);
     store.set(variablesAtom, {});

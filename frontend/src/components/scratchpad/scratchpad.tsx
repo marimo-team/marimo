@@ -23,6 +23,7 @@ import { prepareCellCodeUpdate } from "@/core/codemirror/language/cell-code";
 import { getEditorCodeAsPython } from "@/core/codemirror/language/utils";
 import { useResolvedMarimoConfig } from "@/core/config/config";
 import { CSSClasses } from "@/core/constants";
+import { cellExecutionInputsAtom, scratchStatus } from "@/core/executions";
 import { useRequestClient } from "@/core/network/requests";
 import type { CellConfig } from "@/core/network/types";
 import { LazyAnyLanguageCodeMirror } from "@/plugins/impl/code/LazyAnyLanguageCodeMirror";
@@ -67,7 +68,9 @@ export const ScratchPad: React.FC = () => {
   const cellId = SCRATCH_CELL_ID;
   const cellRuntime = notebookState.cellRuntime[cellId];
   const output = cellRuntime?.output;
-  const status = cellRuntime?.status;
+  const status = scratchStatus(
+    useAtomValue(cellExecutionInputsAtom).executions,
+  );
   const consoleOutputs = cellRuntime?.consoleOutputs;
   const [code, setCode] = useAtom(scratchpadCodeAtom);
   const codeListener = useMemo(
