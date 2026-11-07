@@ -251,8 +251,10 @@ function validateAttachments(
 export function useFileState(supportedTypes?: readonly string[]) {
   const [files, setFiles] = useState<File[]>([]);
   const generation = useRef(0);
+  const pendingReads = useRef(0);
+  const [isReadingFiles, setIsReadingFiles] = useState(false);
 
-  const validateFiles = useEvent((filesToValidate: File[]): boolean => {
+  const validateFileTypes = useEvent((filesToValidate: File[]): boolean => {
     return (
       !supportedTypes ||
       validateAttachments(
@@ -264,6 +266,11 @@ export function useFileState(supportedTypes?: readonly string[]) {
       )
     );
   });
+
+  const validateFiles = useEvent(
+    (filesToValidate: File[]): boolean =>
+      pendingReads.current === 0 && validateFileTypes(filesToValidate),
+  );
 
   const addFiles = useEvent(async (newFiles: File[]) => {
     if (newFiles.length === 0) {
@@ -280,14 +287,16 @@ export function useFileState(supportedTypes?: readonly string[]) {
       return;
     }
 
+    const currentGeneration = generation.current;
+    pendingReads.current += 1;
+    setIsReadingFiles(true);
     try {
-      const currentGeneration = generation.current;
       const normalizedFiles = supportedTypes
         ? await Promise.all(newFiles.map(normalizeAttachment))
         : newFiles;
       if (
         currentGeneration === generation.current &&
-        validateFiles(normalizedFiles)
+        validateFileTypes(normalizedFiles)
       ) {
         setFiles((prev) => [...prev, ...normalizedFiles]);
       }
@@ -297,17 +306,31 @@ export function useFileState(supportedTypes?: readonly string[]) {
         description: "Try selecting the files again.",
         variant: "danger",
       });
+    } finally {
+      if (currentGeneration === generation.current) {
+        pendingReads.current -= 1;
+        setIsReadingFiles(pendingReads.current > 0);
+      }
     }
   });
 
   const clearFiles = () => {
     generation.current += 1;
+    pendingReads.current = 0;
+    setIsReadingFiles(false);
     setFiles([]);
   };
   const removeFile = (fileToRemove: File) =>
     setFiles((prev) => prev.filter((f) => f !== fileToRemove));
 
-  return { files, addFiles, clearFiles, removeFile, validateFiles };
+  return {
+    files,
+    addFiles,
+    clearFiles,
+    removeFile,
+    validateFiles,
+    isReadingFiles,
+  };
 }
 
 export type ChatMessagePart = UIMessage["parts"][number];

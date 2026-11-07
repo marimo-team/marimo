@@ -100,11 +100,17 @@ vi.mock("@/components/editor/ai/prompt-input", () => ({
     value,
     onChange,
     inputRef,
+    onSubmit,
   }: ComponentProps<typeof PromptInput>) => (
     <textarea
       aria-label={inputRef ? "Prompt" : "Message"}
       value={value}
       onChange={(event) => onChange(event.target.value)}
+      onKeyDown={(event) => {
+        if (event.key === "Enter") {
+          onSubmit(undefined, value);
+        }
+      }}
     />
   ),
 }));
@@ -149,6 +155,135 @@ describe("pending chat prompts", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
     vi.restoreAllMocks();
+  });
+
+  it.each(["new", "existing"])(
+    "waits for file normalization before submitting (%s chat)",
+    async (chat) => {
+      vi.mocked(resolveChatContext).mockResolvedValue({
+        contextPart: null,
+        attachments: [],
+      });
+      sendMessage.mockImplementation(
+        (message: { parts: UIMessage["parts"] }) => {
+          messages.push({
+            id: `sent-${messages.length}`,
+            role: "user",
+            parts: message.parts,
+          });
+        },
+      );
+      const store = setup();
+      if (chat === "existing") {
+        act(() =>
+          store.set(pendingAiPromptAtom, { prompt: "hello", submit: true }),
+        );
+        await screen.findByRole("button", { name: "Edit message" });
+        sendMessage.mockClear();
+      }
+      const file = new File(["hello"], "README");
+      const read = Promise.withResolvers<ArrayBuffer>();
+      vi.spyOn(file, "arrayBuffer").mockReturnValue(read.promise);
+      const fileInput =
+        document.querySelector<HTMLInputElement>('input[type="file"]');
+      if (!fileInput) {
+        throw new Error("Missing attachment input");
+      }
+      fireEvent.change(fileInput, { target: { files: [file] } });
+      const prompt = screen.getByRole("textbox", { name: "Prompt" });
+      fireEvent.change(prompt, { target: { value: "read my file" } });
+      expect(screen.getByRole("button", { name: "Submit" })).toBeDisabled();
+      fireEvent.keyDown(prompt, { key: "Enter" });
+      await act(async () => {
+        await Promise.resolve();
+      });
+      expect(sendMessage).not.toHaveBeenCalled();
+      await act(async () => {
+        read.resolve(new TextEncoder().encode("hello").buffer);
+        await read.promise;
+      });
+      await screen.findByText("README");
+      fireEvent.click(screen.getByRole("button", { name: "Submit" }));
+      await waitFor(() =>
+        expect(sendMessage).toHaveBeenCalledExactlyOnceWith({
+          role: "user",
+          parts: [
+            { type: "text", text: "read my file" },
+            {
+              type: "file",
+              filename: "README",
+              mediaType: "text/plain",
+              url: "data:text/plain;base64,aGVsbG8=",
+            },
+          ],
+        }),
+      );
+    },
+  );
+
+  it("keeps rejected edits open and allows retrying after switching models", async () => {
+    vi.mocked(resolveChatContext).mockResolvedValue({
+      contextPart: null,
+      attachments: [],
+    });
+    messages.push({
+      id: "image-message",
+      role: "user",
+      parts: [
+        { type: "text", text: "original text" },
+        {
+          type: "file",
+          filename: "chart.png",
+          mediaType: "image/png",
+          url: "data:image/png;base64,aW1hZ2U=",
+        },
+      ],
+    });
+    const store = setup();
+    fireEvent.click(screen.getByRole("button", { name: "Edit message" }));
+    const prompts = screen.getAllByRole("textbox", { name: "Prompt" });
+    const edit = prompts[0];
+    fireEvent.change(edit, { target: { value: "edited text" } });
+    fireEvent.click(screen.getByRole("button", { name: "Send" }));
+    await waitFor(() =>
+      expect(toast).toHaveBeenCalledWith(
+        expect.objectContaining({ title: "Unsupported attachment" }),
+      ),
+    );
+    expect(edit).toHaveValue("edited text");
+    expect(edit).toBeInTheDocument();
+    expect(sendMessage).not.toHaveBeenCalled();
+    act(() =>
+      store.set(userConfigAtom, (config) => ({
+        ...config,
+        ai: {
+          ...config.ai,
+          models: {
+            custom_models: [],
+            displayed_models: [],
+            ...config.ai?.models,
+            chat_model: "custom/vision",
+          },
+        },
+      })),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Send" }));
+    await waitFor(() =>
+      expect(sendMessage).toHaveBeenCalledExactlyOnceWith({
+        role: "user",
+        messageId: "image-message",
+        parts: [
+          { type: "text", text: "edited text" },
+          {
+            type: "file",
+            filename: "chart.png",
+            mediaType: "image/png",
+            url: "data:image/png;base64,aW1hZ2U=",
+          },
+        ],
+      }),
+    );
+    await waitFor(() => expect(edit).not.toBeInTheDocument());
   });
 
   it.each(["new", "existing"])(

@@ -198,4 +198,35 @@ describe("useFileState", () => {
       read.mockRestore();
     }
   });
+
+  it("keeps new reads pending when a cancelled read finishes", async () => {
+    const { result } = renderHook(() => useFileState(["text/*"]));
+    const oldFile = new File(["old"], "old");
+    const newFile = new File(["new"], "new");
+    const oldRead = Promise.withResolvers<ArrayBuffer>();
+    const newRead = Promise.withResolvers<ArrayBuffer>();
+    vi.spyOn(oldFile, "arrayBuffer").mockReturnValue(oldRead.promise);
+    vi.spyOn(newFile, "arrayBuffer").mockReturnValue(newRead.promise);
+    let addingOld: Promise<void>;
+    act(() => {
+      addingOld = result.current.addFiles([oldFile]);
+    });
+    act(() => result.current.clearFiles());
+    let addingNew: Promise<void>;
+    act(() => {
+      addingNew = result.current.addFiles([newFile]);
+    });
+    await act(async () => {
+      oldRead.resolve(new TextEncoder().encode("old").buffer);
+      await addingOld;
+    });
+    expect(result.current.isReadingFiles).toBe(true);
+    expect(result.current.validateFiles([])).toBe(false);
+    await act(async () => {
+      newRead.resolve(new TextEncoder().encode("new").buffer);
+      await addingNew;
+    });
+    expect(result.current.isReadingFiles).toBe(false);
+    expect(result.current.files.map((file) => file.name)).toEqual(["new"]);
+  });
 });

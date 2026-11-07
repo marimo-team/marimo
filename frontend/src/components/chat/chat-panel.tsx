@@ -232,7 +232,7 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
 interface ChatMessageProps {
   message: UIMessage;
   index: number;
-  onEdit: (index: number, newValue: string) => void;
+  onEdit: (index: number, newValue: string) => Promise<boolean>;
   isLast: boolean;
   isActive: boolean;
   turnStartedAt: number | null;
@@ -353,6 +353,7 @@ const ChatInputFooter: React.FC<ChatInputFooterProps> = memo(
 ChatInputFooter.displayName = "ChatInputFooter";
 
 interface ChatInputProps {
+  isReadingFiles: boolean;
   input: string;
   setInput: (value: string) => void;
   onSubmit: (e: KeyboardEvent | undefined, value: string) => void;
@@ -366,6 +367,7 @@ interface ChatInputProps {
 
 const ChatInput: React.FC<ChatInputProps> = memo(
   ({
+    isReadingFiles,
     input,
     setInput,
     onSubmit,
@@ -412,7 +414,7 @@ const ChatInput: React.FC<ChatInputProps> = memo(
           />
         </div>
         <ChatInputFooter
-          isEmpty={!input.trim()}
+          isEmpty={!input.trim() || isReadingFiles}
           onAddContext={() => addContextCompletion(inputRef)}
           onSendClick={handleSendClick}
           isLoading={isLoading}
@@ -468,8 +470,14 @@ const ChatPanelBody = () => {
   const supportedTypes = getSupportedAttachmentTypes(
     ai?.models?.chat_model || DEFAULT_AI_MODEL,
   );
-  const { files, addFiles, clearFiles, removeFile, validateFiles } =
-    useFileState(supportedTypes);
+  const {
+    files,
+    addFiles,
+    clearFiles,
+    removeFile,
+    validateFiles,
+    isReadingFiles,
+  } = useFileState(supportedTypes);
   const {
     messages: queuedMessages,
     enqueue: enqueueUserMessage,
@@ -872,9 +880,11 @@ const ChatPanelBody = () => {
         ...userFileParts,
         ...attachments,
       ];
-      if (validateMessageAttachments(parts)) {
-        sendUserMessage(parts, editedMessage.id);
+      if (!validateMessageAttachments(parts)) {
+        return false;
       }
+      sendUserMessage(parts, editedMessage.id);
+      return true;
     },
   );
 
@@ -978,6 +988,7 @@ const ChatPanelBody = () => {
   const chatInput = isNewThread ? (
     <ChatInput
       key="new-thread-input"
+      isReadingFiles={isReadingFiles}
       input={newThreadInput}
       inputRef={newThreadInputRef}
       setInput={setNewThreadInput}
@@ -990,6 +1001,7 @@ const ChatPanelBody = () => {
     />
   ) : (
     <ChatInput
+      isReadingFiles={isReadingFiles}
       input={input}
       setInput={setInput}
       onSubmit={handleChatInputSubmit}
@@ -1017,6 +1029,11 @@ const ChatPanelBody = () => {
   const composer = (
     <div className="@container rounded-[10px] border border-border bg-background">
       {filesPills}
+      {isReadingFiles && (
+        <output className="px-3 pt-2 text-xs text-muted-foreground">
+          Reading attachments…
+        </output>
+      )}
       {chatInput}
     </div>
   );
