@@ -27,7 +27,6 @@ from marimo._cli.pair.client import (
     execute as execute_code,
     list_sessions,
     load_token,
-    resolve_host,
 )
 from marimo._cli.pair.connection import (
     ConnectionStore,
@@ -39,6 +38,7 @@ from marimo._cli.pair.harnesses import detect_target, environment_identity
 from marimo._cli.pair.prompts import render_prompt
 from marimo._cli.pair.target import resolve_target
 from marimo._server.ai.skills import utils as skills_utils
+from marimo._server.host import HOST_API_PATH
 
 _REFERENCES_DIR = (
     Path(skills_utils.__file__).parent / "marimo-pair" / "references"
@@ -103,7 +103,7 @@ class _DocsCommand(ColoredCommand):
                 print(cell.id, cell.code, cell.status)
         PY
       To receive notebook messages in a supported harness:
-        marimo pair connect --url <URL> --notebook <ID>
+        marimo pair connect --session <ID>
       Run marimo pair connect --help to check supported harnesses.
 
     \b
@@ -120,7 +120,7 @@ class _DocsCommand(ColoredCommand):
     \b
     Agent messages (preview):
       Inside Codex, Claude Code, or OpenCode, run:
-        marimo pair connect --url <URL> --notebook <NOTEBOOK>.
+        marimo pair connect --session <NOTEBOOK>.
       Codex must use its shared daemon and support codex queue.
       Claude Code requires its native inbox on macOS or Linux.
       OpenCode 2.x requires its registered local service.
@@ -156,6 +156,27 @@ class _DocsCommand(ColoredCommand):
 )
 def pair() -> None:
     pass
+
+
+def _validate_target_options(
+    url: str | None,
+    notebook_id: str | None,
+    session_id: str | None,
+    token: str | None,
+    token_file: Path | None,
+) -> None:
+    if notebook_id is not None and session_id is not None:
+        raise click.UsageError("Pass --session or --notebook, not both.")
+    if session_id == "" or notebook_id == "":
+        raise click.UsageError("The session ID must not be empty.")
+    if token is not None and token_file is not None:
+        raise click.UsageError("Pass --token or --token-file, not both.")
+    if token == "":
+        raise click.UsageError("The token must not be empty.")
+    if url is None and session_id is None and notebook_id is None:
+        raise click.UsageError(
+            "Pass --session <ID> from `marimo pair list`, or --url <URL>."
+        )
 
 
 @click.command(
@@ -223,21 +244,9 @@ def execute(
     code_file: str | None,
     stream: bool,
 ) -> None:
-    if notebook_id is not None and session_id is not None:
-        raise click.UsageError("Pass --session or --notebook, not both.")
-    if session_id == "" or notebook_id == "":
-        raise click.UsageError("The session ID must not be empty.")
+    _validate_target_options(url, notebook_id, session_id, token, token_file)
     if (code is None) == (code_file is None):
         raise click.UsageError("Specify exactly one of --code or --file.")
-
-    if token is not None and token_file is not None:
-        raise click.UsageError("Pass --token or --token-file, not both.")
-    if token == "":
-        raise click.UsageError("The token must not be empty.")
-    if url is None and session_id is None and notebook_id is None:
-        raise click.UsageError(
-            "Pass --session <ID> from `marimo pair list`, or --url <URL>."
-        )
 
     if code_file == "-":
         code = sys.stdin.read()
@@ -757,12 +766,29 @@ def list_notebooks(urls: tuple[str, ...], token_file: Path | None) -> None:
         "For other harnesses, use pair execute to work with the notebook."
     ),
 )
-@click.option("--url", required=True, help="Server URL.")
+@click.option(
+    "--url", metavar="URL", help="Restrict notebook discovery to this server."
+)
 @click.option(
     "--notebook",
     "notebook_id",
-    required=True,
-    help="Host notebook ID from pair list.",
+    metavar="ID",
+    help="Alias for --session when selecting a notebook ID.",
+)
+@click.option(
+    "--session",
+    "session_id",
+    metavar="ID",
+    help="Notebook ID from pair list, or an existing session ID.",
+)
+@click.option(
+    "--token", help="Server token. Overrides MARIMO_TOKEN and local discovery."
+)
+@click.option(
+    "--token-file",
+    type=click.Path(path_type=Path, dir_okay=False),
+    metavar="PATH",
+    help="Read the server token from a local file.",
 )
 @click.option(
     "--harness",
@@ -778,11 +804,29 @@ def list_notebooks(urls: tuple[str, ...], token_file: Path | None) -> None:
     ),
 )
 def connect(
-    url: str, notebook_id: str, harness: str | None, pid: int | None
+    url: str | None,
+    notebook_id: str | None,
+    session_id: str | None,
+    token: str | None,
+    token_file: Path | None,
+    harness: str | None,
+    pid: int | None,
 ) -> None:
+    _validate_target_options(url, notebook_id, session_id, token, token_file)
     try:
+        credential = (
+            token if token is not None else load_token(token_file, os.environ)
+        )
+        selected = resolve_target(
+            url=url,
+            session_id=session_id,
+            notebook_id=notebook_id,
+            token=credential,
+            require_notebook=True,
+        )
+        assert selected.notebook_id is not None
+        notebook_id = selected.notebook_id
         _selected_harness, target = detect_target(os.environ, harness, pid)
-        host = resolve_host(url)
         identity = connection_identity(
             notebook_id, target.kind, target.address
         )
@@ -791,7 +835,12 @@ def connect(
             store.stop(identity)
             start_forwarder(
                 ForwarderConfig(
-                    host.url, notebook_id, identity, host.token, target
+                    selected.url.rstrip("/").removesuffix(HOST_API_PATH)
+                    + HOST_API_PATH,
+                    notebook_id,
+                    identity,
+                    selected.token,
+                    target,
                 ),
                 store,
             )

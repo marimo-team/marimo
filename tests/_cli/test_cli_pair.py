@@ -8,7 +8,6 @@ import sys
 from pathlib import Path
 from typing import Any
 from unittest.mock import patch
-from urllib.parse import urlsplit
 
 import pytest
 from click.testing import CliRunner
@@ -19,7 +18,6 @@ from marimo._cli.pair import commands, target
 from marimo._cli.pair.client import (
     AmbiguousNotebookError,
     ExecutionResult,
-    HostEndpoint,
     NoNotebookError,
     NotebookUnsupportedError,
     PairError,
@@ -41,7 +39,9 @@ def _isolate_pair_command(monkeypatch: pytest.MonkeyPatch) -> None:
         session_id: str | None,
         notebook_id: str | None,
         token: str | None,
+        require_notebook: bool = False,
     ) -> ExecutionTarget:
+        del require_notebook
         assert url is not None
         selected_id = notebook_id or session_id
         assert selected_id is not None
@@ -49,16 +49,6 @@ def _isolate_pair_command(monkeypatch: pytest.MonkeyPatch) -> None:
 
     monkeypatch.setattr(commands, "resolve_target", resolve)
     monkeypatch.delenv("MARIMO_TOKEN", raising=False)
-    monkeypatch.setattr(
-        commands,
-        "resolve_host",
-        lambda url: HostEndpoint(
-            urlsplit(url)
-            ._replace(path=urlsplit(url).path.rstrip("/") + "/api/marimo/v1")
-            .geturl(),
-            "host-secret",
-        ),
-    )
 
 
 class TestPairGroup:
@@ -92,7 +82,7 @@ Usage: main pair [OPTIONS] COMMAND [ARGS]...
               print(cell.id, cell.code, cell.status)
       PY
     To receive notebook messages in a supported harness:
-      marimo pair connect --url <URL> --notebook <ID>
+      marimo pair connect --session <ID>
     Run marimo pair connect --help to check supported harnesses.
 
   Target selection:
@@ -107,7 +97,7 @@ Usage: main pair [OPTIONS] COMMAND [ARGS]...
 
   Agent messages (preview):
     Inside Codex, Claude Code, or OpenCode, run:
-      marimo pair connect --url <URL> --notebook <NOTEBOOK>.
+      marimo pair connect --session <NOTEBOOK>.
     Codex must use its shared daemon and support codex queue.
     Claude Code requires its native inbox on macOS or Linux.
     OpenCode 2.x requires its registered local service.
