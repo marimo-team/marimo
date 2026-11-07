@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import ast
 import base64
+import bisect
 import dataclasses
 import dis
 import functools
@@ -184,16 +185,20 @@ def _const_key(value: Any) -> str:
 
 
 def _instructions(code: types.CodeType) -> tuple[tuple[str, str], ...]:
-    """The instruction stream, without the way names happen to be bound."""
-    out: list[tuple[str, str]] = []
+    """The instruction stream, without the way names happen to be bound.
+
+    A jump target is the index of the kept instruction at or after it, so
+    control flow compares equal whatever prologue was stripped.
+    """
+    kept: list[tuple[str, str, int, int | None]] = []
     for ins in dis.get_instructions(code):
         op = ins.opname
         if op in _PROLOGUE:
             continue
         arg = _NULL_PREFIX.sub("", ins.argrepr)
+        target: int | None = None
         if ins.opcode in dis.hasjrel or ins.opcode in dis.hasjabs:
-            # Offsets shift with the prologue.
-            arg = ""
+            target, arg = int(ins.argval), ""
         elif ins.opcode in dis.hasconst or (
             not arg and ins.argval is not None
         ):
@@ -206,8 +211,17 @@ def _instructions(code: types.CodeType) -> tuple[tuple[str, str], ...]:
                     break
             if ins.opcode in dis.hasname or op in _VARIABLE_OPS:
                 arg = ", ".join(_bare_name(n) for n in arg.split(", "))
-        out.append((op, arg))
-    return tuple(out)
+        kept.append((op, arg, ins.offset, target))
+    offsets = [offset for _, _, offset, _ in kept]
+    return tuple(
+        (
+            op,
+            str(bisect.bisect_left(offsets, target))
+            if target is not None
+            else arg,
+        )
+        for op, arg, _, target in kept
+    )
 
 
 def _code_shape(code: types.CodeType) -> _Shape:
