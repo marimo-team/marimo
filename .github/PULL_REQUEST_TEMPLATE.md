@@ -7,6 +7,14 @@ Detail the specific changes made in this pull request. Explain the problem addre
 -->
 Closes #
 
+## 👋 First time contributor introduction
+
+<!--
+If this is your first contribution to marimo, tell us a bit about yourself: who you are and how you use marimo. It helps us get to know you, understand the context of your contributions, and collaborate more effectively during the review process. 2-3 sentences are enough. We are not looking for your work history or expertise.
+
+You can delete this section if you have a merged PR in any marimo repo.
+-->
+
 ## 📋 Pre-Review Checklist
 <!-- These checks need to be completed before a PR is reviewed -->
 
