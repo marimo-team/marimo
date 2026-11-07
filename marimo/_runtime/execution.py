@@ -3,7 +3,9 @@
 
 An attempt has one identity from planning through completion, even when
 compilation fails or the cell is skipped. Output keeps that identity after
-completion, so a background thread cannot write into a later attempt.
+completion, so a background thread cannot write into a later attempt. An
+attempt planned for source that changes before it runs is superseded by a
+new one rather than evaluating code it was not planned for.
 """
 
 from __future__ import annotations
@@ -31,6 +33,8 @@ class ExecutionAttempt:
     """One planned evaluation of a cell, including its output identity."""
 
     cell_id: CellId_t
+    code: str
+    """The source the attempt was planned for."""
     id: str = field(default_factory=lambda: str(uuid4()))
     run_id: str | None = field(default_factory=lambda: RUN_ID_CTX.get(None))
     completed: bool = False
@@ -43,7 +47,7 @@ class ExecutionAttempt:
     def plan(
         cls, cell_id: CellId_t, code: str, code_fingerprint: str | None = None
     ) -> ExecutionAttempt:
-        attempt = cls(cell_id)
+        attempt = cls(cell_id, code=code)
         parent = EXECUTION_CTX.get()
         broadcast_notification(
             ExecutionNotification(
@@ -80,6 +84,26 @@ class ExecutionAttempt:
                 return
             self.completed = True
         self._notify("completed")
+
+    def supersede(self) -> None:
+        """End the attempt unrun, because a newer attempt replaces it.
+
+        The cell's source changed while this attempt waited, so the source
+        it was planned for will not run.
+        """
+        with self._lock:
+            if self.completed:
+                return
+            self.completed = True
+        broadcast_notification(
+            ExecutionNotification(
+                execution_id=self.id,
+                cell_id=self.cell_id,
+                run_id=self.run_id,
+                phase="completed",
+                skipped="superseded",
+            )
+        )
 
     def advance_inputs(self, revisions: dict[str, Revision]) -> None:
         """Keep this attempt current against the values it updated itself."""

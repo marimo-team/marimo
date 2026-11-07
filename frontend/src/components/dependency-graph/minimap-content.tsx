@@ -7,11 +7,12 @@ import {
   cellGraphsAtom,
   isVariableAffectedBySelectedCell,
 } from "@/components/editor/chrome/wrapper/minimap-state";
-import { useCellData, useCellRuntime } from "@/core/cells/cells";
+import { useCellData } from "@/core/cells/cells";
 import { useCellActions } from "@/core/cells/actions";
 import { cellFocusAtom, useCellFocusActions } from "@/core/cells/focus";
 import type { CellId } from "@/core/cells/ids";
 import { useLayout } from "@/core/cells/layout";
+import { useCellExecution } from "@/core/executions";
 import { useVariables } from "@/core/variables/state";
 import { cn } from "@/utils/cn";
 import { extractCellPreview } from "./utils/cell-preview";
@@ -32,7 +33,7 @@ const MinimapCell: React.FC<MinimapCellProps> = (props) => {
     id: props.cellId,
     graph: graphs[props.cellId],
     code: useCellData(props.cellId).code,
-    hasError: useCellRuntime(props.cellId).errored,
+    hasError: useCellExecution(props.cellId).outcome === "error",
   };
 
   let selectedCell: undefined | { id: CellId; graph: CellGraph };

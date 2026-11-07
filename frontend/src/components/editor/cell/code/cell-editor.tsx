@@ -19,7 +19,8 @@ import {
   useNotebookDocumentEdit,
 } from "@/core/notebook/document";
 import { usePendingDeleteService } from "@/core/cells/pending-delete-service";
-import type { CellData, CellRuntimeState } from "@/core/cells/types";
+import type { CellData } from "@/core/cells/types";
+import type { CellRunStatus } from "@/core/executions";
 import { setupCodeMirror } from "@/core/codemirror/cm";
 import { acceptCompletionOnEnterAtom } from "@/core/codemirror/completion/accept-on-enter-atom";
 import { editorMountScheduler } from "@/core/codemirror/editor-mount-scheduler";
@@ -54,10 +55,11 @@ import { useSplitCellCallback } from "../useSplitCell";
 import { CodePlaceholder } from "./code-placeholder";
 import { LanguageToggles } from "./language-toggle";
 
-export interface CellEditorProps
-  extends
-    Pick<CellRuntimeState, "status">,
-    Pick<CellData, "id" | "code" | "config"> {
+export interface CellEditorProps extends Pick<
+  CellData,
+  "id" | "code" | "config"
+> {
+  status: CellRunStatus;
   runCell: () => void;
   theme: Theme;
   showPlaceholder: boolean;

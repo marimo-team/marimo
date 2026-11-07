@@ -1,11 +1,14 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 /* oxlint-disable typescript/no-explicit-any */
 import { describe, expect, it } from "vitest";
+import { MockExecutions } from "@/__mocks__/executions";
 import { initialNotebookState, type NotebookState } from "@/core/cells/cells";
 import { CellId } from "@/core/cells/ids";
 import type { CellData } from "@/core/cells/types";
+import type { CellFreshnessLookup } from "@/core/executions";
 import type { OutputMessage } from "@/core/kernel/messages";
 import {
+  cellNeedsRun,
   disabledCellIds,
   enabledCellIds,
   isUninstantiated,
@@ -13,278 +16,172 @@ import {
   staleCellIds,
 } from "../utils";
 
+type Cells = Record<
+  string,
+  { edited?: boolean; disabled?: boolean; staleInputs?: boolean }
+>;
+
+function notebook(cells: Cells): NotebookState {
+  return {
+    cellIds: Object.keys(cells),
+    cellData: Object.fromEntries(
+      Object.entries(cells).map(([id, cell]) => [
+        id,
+        { config: { disabled: cell.disabled } },
+      ]),
+    ),
+    cellRuntime: Object.fromEntries(Object.keys(cells).map((id) => [id, {}])),
+  } as any;
+}
+
+/** Freshness as the host would report it for `cells`. */
+function freshness(cells: Cells): CellFreshnessLookup {
+  return (id) => {
+    const cell = cells[id];
+    return {
+      sourceChanged: cell?.edited ?? false,
+      inputsChanged: cell?.staleInputs ?? false,
+    };
+  };
+}
+
 describe("staleCellIds", () => {
-  it("should return cell IDs that have not been instantiated when auto-instantiate is false", () => {
-    const state: NotebookState = {
-      cellIds: ["cell1", "cell2"],
-      cellData: {
-        cell1: {
-          lastExecutionTime: null,
-          edited: false,
-          config: { disabled: false },
-        },
-        cell2: {
-          lastExecutionTime: 123,
-          edited: false,
-          config: { disabled: false },
-        },
-      },
-      cellRuntime: {
-        cell1: {
-          runElapsedTimeMs: null,
-          status: "idle",
-          errored: false,
-          interrupted: false,
-          stopped: false,
-          staleInputs: false,
-        },
-        cell2: {
-          runElapsedTimeMs: 456,
-          status: "idle",
-          errored: false,
-          interrupted: false,
-          stopped: false,
-          staleInputs: false,
-        },
-      },
-    } as any;
+  it("should return cell IDs that have never run", () => {
+    const cells: Cells = { cell1: {}, cell2: {} };
+    const state = notebook(cells);
+    const executions = MockExecutions.inputs([
+      MockExecutions.completed("cell2"),
+    ]);
 
-    const result = staleCellIds(state);
-
-    expect(result).toEqual(["cell1"]);
-  });
-
-  it("should use lastExecutionTime when runElapsedTimeMs is null", () => {
-    const state: NotebookState = {
-      cellIds: ["cell1", "cell2"],
-      cellData: {
-        cell1: {
-          lastExecutionTime: null,
-          edited: false,
-          config: { disabled: false },
-        },
-        cell2: {
-          lastExecutionTime: 123,
-          edited: false,
-          config: { disabled: false },
-        },
-      },
-      cellRuntime: {
-        cell1: {
-          runElapsedTimeMs: null,
-          status: "idle",
-          errored: false,
-          interrupted: false,
-          stopped: false,
-          staleInputs: false,
-        },
-        cell2: {
-          runElapsedTimeMs: null,
-          status: "idle",
-          errored: false,
-          interrupted: false,
-          stopped: false,
-          staleInputs: false,
-        },
-      },
-    } as any;
-
-    const result = staleCellIds(state);
-
-    expect(result).toEqual(["cell1"]);
+    expect(staleCellIds(state, executions, freshness(cells))).toEqual([
+      "cell1",
+    ]);
   });
 
   it("should return cell IDs that are edited", () => {
-    const state: NotebookState = {
-      cellIds: ["cell1", "cell2"],
-      cellData: {
-        cell1: {
-          lastExecutionTime: 123,
-          edited: true,
-          config: { disabled: false },
-        },
-        cell2: {
-          lastExecutionTime: 123,
-          edited: false,
-          config: { disabled: false },
-        },
-      },
-      cellRuntime: {
-        cell1: {
-          runElapsedTimeMs: 456,
-          status: "idle",
-          errored: false,
-          interrupted: false,
-          stopped: false,
-          staleInputs: false,
-        },
-        cell2: {
-          runElapsedTimeMs: 456,
-          status: "idle",
-          errored: false,
-          interrupted: false,
-          stopped: false,
-          staleInputs: false,
-        },
-      },
-    } as any;
+    const cells: Cells = { cell1: { edited: true }, cell2: {} };
+    const state = notebook(cells);
+    const executions = MockExecutions.inputs([
+      MockExecutions.completed("cell1"),
+      MockExecutions.completed("cell2"),
+    ]);
 
-    const result = staleCellIds(state);
-
-    expect(result).toEqual(["cell1"]);
+    expect(staleCellIds(state, executions, freshness(cells))).toEqual([
+      "cell1",
+    ]);
   });
 
   it("should return cell IDs that are interrupted", () => {
-    const state: NotebookState = {
-      cellIds: ["cell1", "cell2"],
-      cellData: {
-        cell1: {
-          lastExecutionTime: 123,
-          edited: false,
-          config: { disabled: false },
-        },
-        cell2: {
-          lastExecutionTime: 123,
-          edited: false,
-          config: { disabled: false },
-        },
-      },
-      cellRuntime: {
-        cell1: {
-          runElapsedTimeMs: 456,
-          status: "idle",
-          errored: false,
-          interrupted: true,
-          stopped: false,
-          staleInputs: false,
-        },
-        cell2: {
-          runElapsedTimeMs: 456,
-          status: "idle",
-          errored: false,
-          interrupted: false,
-          stopped: false,
-          staleInputs: false,
-        },
-      },
-    } as any;
+    const cells: Cells = { cell1: {}, cell2: {} };
+    const state = notebook(cells);
+    const executions = MockExecutions.inputs([
+      MockExecutions.interrupted("cell1"),
+      MockExecutions.completed("cell2"),
+    ]);
 
-    const result = staleCellIds(state);
+    expect(staleCellIds(state, executions, freshness(cells))).toEqual([
+      "cell1",
+    ]);
+  });
 
-    expect(result).toEqual(["cell1"]);
+  it("should return cell IDs with stale inputs", () => {
+    const cells: Cells = { cell1: { staleInputs: true }, cell2: {} };
+    const state = notebook(cells);
+    const executions = MockExecutions.inputs([
+      MockExecutions.completed("cell1"),
+      MockExecutions.completed("cell2"),
+    ]);
+
+    expect(staleCellIds(state, executions, freshness(cells))).toEqual([
+      "cell1",
+    ]);
   });
 
   it("should not return cell IDs that are disabled", () => {
-    const state: NotebookState = {
-      cellIds: ["cell1", "cell2"],
-      cellData: {
-        cell1: {
-          lastExecutionTime: 123,
-          edited: false,
-          config: { disabled: true },
-        },
-        cell2: {
-          lastExecutionTime: 123,
-          edited: false,
-          config: { disabled: false },
-        },
-      },
-      cellRuntime: {
-        cell1: {
-          runElapsedTimeMs: 456,
-          status: "disabled-transitively",
-          errored: false,
-          interrupted: false,
-          stopped: false,
-          staleInputs: true,
-        },
-        cell2: {
-          runElapsedTimeMs: 456,
-          status: "idle",
-          errored: false,
-          interrupted: false,
-          stopped: false,
-          staleInputs: false,
-        },
-      },
-    } as any;
+    const cells: Cells = {
+      cell1: { disabled: true, staleInputs: true },
+      cell2: { staleInputs: true },
+    };
+    const state = notebook(cells);
+    const executions = MockExecutions.inputs(
+      [MockExecutions.completed("cell1"), MockExecutions.completed("cell2")],
+      { blocked: new Set(["cell2"]) },
+    );
 
-    const result = staleCellIds(state);
+    expect(staleCellIds(state, executions, freshness(cells))).toEqual([]);
+  });
+});
 
-    expect(result).toEqual([]);
+describe("staleCellIds with a run in progress", () => {
+  it("leaves a running cell alone unless its source changed since", () => {
+    const cells: Cells = { cell1: {}, cell2: { edited: true } };
+    const state = notebook(cells);
+    const executions = MockExecutions.inputs([
+      MockExecutions.running("cell1"),
+      MockExecutions.running("cell2"),
+    ]);
+
+    expect(staleCellIds(state, executions, freshness(cells))).toEqual([
+      "cell2",
+    ]);
+  });
+
+  it("leaves a submitted cell alone until the host has planned its run", () => {
+    const cells: Cells = { cell1: { edited: true } };
+    const state = notebook(cells);
+    const ran = MockExecutions.completed("cell1");
+    const executions = MockExecutions.inputs([ran], {
+      submissions: new Map([["cell1", ran.id]]),
+    });
+
+    expect(staleCellIds(state, executions, freshness(cells))).toEqual([]);
+  });
+});
+
+describe("cellNeedsRun", () => {
+  const blocked = { interrupted: false, disabled: false, blocked: true };
+
+  it("flags a blocked cell whose source changed, whatever its inputs did", () => {
+    expect(
+      cellNeedsRun({
+        ...blocked,
+        freshness: freshness({ c: { edited: true, staleInputs: true } })("c"),
+      }),
+    ).toBe(true);
+  });
+
+  it("does not flag a blocked cell for changed inputs alone", () => {
+    expect(
+      cellNeedsRun({
+        ...blocked,
+        freshness: freshness({ c: { staleInputs: true } })("c"),
+      }),
+    ).toBe(false);
   });
 });
 
 describe("isUninstantiated", () => {
-  it("should return true if autoInstantiate is false and cell has not run", () => {
-    const result = isUninstantiated({
-      executionTime: null,
-      status: "idle",
-      errored: false,
-      interrupted: false,
-      stopped: false,
-    });
-    expect(result).toBe(true);
+  it("should return true if the cell has not run", () => {
+    expect(isUninstantiated({ status: "idle", outcome: null })).toBe(true);
   });
 
-  it("should return false if cell has run", () => {
-    const result = isUninstantiated({
-      executionTime: 123,
-      status: "idle",
-      errored: false,
-      interrupted: false,
-      stopped: false,
-    });
-    expect(result).toBe(false);
+  it("should return false if the cell has run", () => {
+    expect(isUninstantiated({ status: "idle", outcome: "value" })).toBe(false);
   });
 
-  it("should return false if cell is currently queued or running", () => {
-    let result = isUninstantiated({
-      executionTime: null,
-      status: "queued",
-      errored: false,
-      interrupted: false,
-      stopped: false,
-    });
-    expect(result).toBe(false);
-
-    result = isUninstantiated({
-      executionTime: null,
-      status: "running",
-      errored: false,
-      interrupted: false,
-      stopped: false,
-    });
-    expect(result).toBe(false);
+  it("should return false if the cell is currently queued or running", () => {
+    expect(isUninstantiated({ status: "queued", outcome: null })).toBe(false);
+    expect(isUninstantiated({ status: "running", outcome: null })).toBe(false);
   });
 
-  it("should return false if cell is in an error state", () => {
-    let result = isUninstantiated({
-      executionTime: null,
-      status: "idle",
-      errored: true,
-      interrupted: false,
-      stopped: false,
-    });
-    expect(result).toBe(false);
-
-    result = isUninstantiated({
-      executionTime: null,
-      status: "idle",
-      errored: false,
-      interrupted: true,
-      stopped: false,
-    });
-    expect(result).toBe(false);
-
-    result = isUninstantiated({
-      executionTime: null,
-      status: "idle",
-      errored: false,
-      interrupted: false,
-      stopped: true,
-    });
-    expect(result).toBe(false);
+  it("should return false if the cell ended without a value", () => {
+    expect(isUninstantiated({ status: "idle", outcome: "error" })).toBe(false);
+    expect(isUninstantiated({ status: "idle", outcome: "interrupted" })).toBe(
+      false,
+    );
+    expect(isUninstantiated({ status: "idle", outcome: "skipped" })).toBe(
+      false,
+    );
   });
 });
 

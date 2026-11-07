@@ -4,7 +4,7 @@ import { NoKernelConnectedError } from "@/utils/errors";
 import { Logger } from "@/utils/Logger";
 import { Objects } from "@/utils/objects";
 import { memoizeLastValue } from "@/utils/once";
-import { waitForKernelToBeInstantiated } from "../kernel/state";
+import { waitForRuntimeRunning } from "../executions";
 import type { RuntimeManager } from "../runtime/runtime";
 import { store } from "../state/jotai";
 import { ConnectionState } from "../session/types";
@@ -192,7 +192,7 @@ export function createLazyRequests(
         case "waitForConnectionOpen":
           // Wait for connection but don't start it
           await waitForConnectionOpen();
-          await waitForKernelToBeInstantiated();
+          await waitForRuntimeRunning();
           return request(...args);
 
         case "startConnectionWithoutKernel":
@@ -201,7 +201,7 @@ export function createLazyRequests(
           await initOnce(runtimeManager);
           await waitForConnectionOpen();
           if (action === "startConnection") {
-            await waitForKernelToBeInstantiated();
+            await waitForRuntimeRunning();
           }
           return request(...args);
 

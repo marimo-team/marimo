@@ -1,38 +1,47 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { useAtomValue, useStore } from "jotai";
-import { ChevronDown, ChevronUp, SparklesIcon } from "lucide-react";
-import { useState } from "react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { stagedAICellsAtom, useStagedCells } from "@/core/ai/staged-cells";
-import { chatGenerationInProgressAtom } from "@/core/ai/state";
-import type { CellId } from "@/core/cells/ids";
-import { getNextIndex } from "@/utils/arrays";
-import { cn } from "@/utils/cn";
 import {
-  AcceptCompletionButton,
-  RejectCompletionButton,
-} from "../../ai/completion-handlers";
-import { acceptStagedCell, rejectStagedCell } from "../../cell/StagedAICell";
-import { useRunCells } from "../../cell/useRunCells";
-import { scrollAndHighlightCell } from "../../links/cell-link";
+  type Edit,
+  stagedAICellsAtom,
+  useStagedCells,
+} from "@/core/ai/staged-cells";
+import { chatGenerationInProgressAtom } from "@/core/ai/state";
+import { type CellId, HTMLCellId } from "@/core/cells/ids";
+import { scrollToCell } from "@/core/cells/scrollCellIntoView";
+import { getNextIndex } from "@/utils/arrays";
+
+const REVIEW_LABELS: Record<Edit["type"], { accept: string; reject: string }> =
+  {
+    add_cell: { accept: "Keep", reject: "Discard" },
+    update_cell: { accept: "Keep", reject: "Discard" },
+    delete_cell: { accept: "Delete cell", reject: "Keep cell" },
+  };
 
 export const PendingAICells: React.FC = () => {
-  const [currentIndex, setCurrentIndex] = useState<number | null>(null);
+  const [selectedCellId, setSelectedCellId] = useState<CellId | null>(null);
 
   const stagedAiCells = useAtomValue(stagedAICellsAtom);
   const isGenerating = useAtomValue(chatGenerationInProgressAtom);
   const listStagedCells = [...stagedAiCells.keys()];
+  const selectedIndex =
+    selectedCellId === null ? -1 : listStagedCells.indexOf(selectedCellId);
+  const currentIndex = Math.max(0, selectedIndex);
   const store = useStore();
-  const { deleteStagedCell, removeStagedCell } = useStagedCells(store);
-  const runCell = useRunCells();
+  const { acceptStagedCell, rejectStagedCell } = useStagedCells();
+  const reviewedCellId = selectedIndex === -1 ? null : selectedCellId;
+  useReviewedCellMarker(reviewedCellId);
 
   if (stagedAiCells.size === 0) {
     return null;
   }
 
-  const scrollToCell = (cellId: CellId) => {
-    scrollAndHighlightCell(cellId, "focus");
+  const selectCell = (cellId: CellId) => {
+    setSelectedCellId(cellId);
+    scrollToCell(cellId);
   };
 
   const clickNext = (direction: "up" | "down") => {
@@ -41,86 +50,141 @@ export const PendingAICells: React.FC = () => {
       listStagedCells.length,
       direction,
     );
-    setCurrentIndex(newIndex);
-    scrollToCell(listStagedCells[newIndex]);
+    selectCell(listStagedCells[newIndex]);
   };
 
   const acceptAllCompletions = () => {
     for (const [cellId, edit] of stagedAiCells) {
-      acceptStagedCell(cellId, edit, removeStagedCell, deleteStagedCell);
+      acceptStagedCell(cellId, edit);
     }
   };
 
   const rejectAllCompletions = () => {
     for (const [cellId, edit] of stagedAiCells) {
-      rejectStagedCell(cellId, edit, removeStagedCell, deleteStagedCell);
+      rejectStagedCell(cellId, edit);
     }
   };
 
-  const runAllCells = () => {
-    const cellsToRun = listStagedCells.filter(
-      (cellId) => stagedAiCells.get(cellId)?.type !== "delete_cell",
-    );
-    runCell(cellsToRun);
+  const selectedCell = listStagedCells[currentIndex];
+  const selectedEdit = stagedAiCells.get(selectedCell);
+  const hasMultipleCells = listStagedCells.length > 1;
+
+  const resolveSelected = (decision: "accept" | "reject") => {
+    if (!selectedEdit || store.get(chatGenerationInProgressAtom)) {
+      return;
+    }
+    if (decision === "accept") {
+      acceptStagedCell(selectedCell, selectedEdit);
+    } else {
+      rejectStagedCell(selectedCell, selectedEdit);
+    }
+    if (hasMultipleCells) {
+      clickNext("up");
+    } else {
+      setSelectedCellId(null);
+    }
   };
 
-  const cyanShadow = "shadow-[0_0_6px_0_#00A2C733]";
-
   return (
-    <div
-      className={cn(
-        "fixed bottom-16 left-1/2 transform -translate-x-1/2 z-50 bg-background/95 backdrop-blur-sm supports-backdrop-filter:bg-background/80 border border-border rounded-lg px-3 py-2 flex items-center justify-between gap-2.5 w-100",
-        cyanShadow,
-      )}
+    <section
+      aria-label="Review AI changes"
+      className="@container/review shrink-0 border-t border-border bg-background px-3 py-2 text-sm"
     >
-      <SparklesIcon className="h-4 w-4 text-primary" />
-
-      <div className="flex items-center">
-        <Button
-          aria-label="Previous pending AI cell"
-          variant="ghost"
-          size="icon"
-          onClick={() => clickNext("down")}
-        >
-          <ChevronUp className="h-3.5 w-3.5" />
-        </Button>
-        <span className="text-xs font-mono min-w-14 text-center">
-          {currentIndex === null
-            ? `${listStagedCells.length} pending`
-            : `${currentIndex + 1} / ${listStagedCells.length}`}
-        </span>
-        <Button
-          aria-label="Next pending AI cell"
-          variant="ghost"
-          size="icon"
-          onClick={() => clickNext("up")}
-        >
-          <ChevronDown className="h-3.5 w-3.5" />
-        </Button>
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+        {hasMultipleCells && (
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="whitespace-nowrap text-muted-foreground">
+              {listStagedCells.length} cells changed
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              className="chat-control chat-selector h-7 px-2 rounded-sm font-normal"
+              onClick={acceptAllCompletions}
+              disabled={isGenerating}
+            >
+              Keep all
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="chat-control chat-selector h-7 px-2 rounded-sm font-normal"
+              onClick={rejectAllCompletions}
+              disabled={isGenerating}
+            >
+              Discard all
+            </Button>
+          </div>
+        )}
+        <div className="flex flex-wrap items-center gap-2">
+          {hasMultipleCells && (
+            <span
+              aria-hidden="true"
+              className="hidden h-4 w-px bg-border @min-[600px]/review:block"
+            />
+          )}
+          <div className="flex h-7 w-fit items-center">
+            {hasMultipleCells && (
+              <Button
+                aria-label="Previous pending AI cell"
+                variant="ghost"
+                size="icon"
+                className="chat-control size-6 rounded-sm"
+                onClick={() => clickNext("down")}
+              >
+                <ChevronLeft className="size-4" />
+              </Button>
+            )}
+            <Button
+              variant="ghost"
+              size="sm"
+              className="chat-control h-6 px-1 rounded-sm font-normal tabular-nums whitespace-nowrap"
+              onClick={() => selectCell(selectedCell)}
+            >
+              <span aria-live="polite">
+                {hasMultipleCells
+                  ? `Cell ${currentIndex + 1} of ${listStagedCells.length}`
+                  : "1 cell changed"}
+              </span>
+            </Button>
+            {hasMultipleCells && (
+              <Button
+                aria-label="Next pending AI cell"
+                variant="ghost"
+                size="icon"
+                className="chat-control size-6 rounded-sm"
+                onClick={() => clickNext("up")}
+              >
+                <ChevronRight className="size-4" />
+              </Button>
+            )}
+          </div>
+          {selectedEdit &&
+            (["accept", "reject"] as const).map((decision) => (
+              <Button
+                key={decision}
+                variant="outline"
+                size="sm"
+                className="chat-control chat-selector h-7 px-2 rounded-sm font-normal"
+                disabled={isGenerating}
+                onClick={() => resolveSelected(decision)}
+              >
+                {REVIEW_LABELS[selectedEdit.type][decision]}
+              </Button>
+            ))}
+        </div>
       </div>
-
-      <div className="h-5 w-px bg-border" />
-
-      <div className="flex items-center gap-1.5">
-        <AcceptCompletionButton
-          multipleCompletions={true}
-          onAccept={acceptAllCompletions}
-          isLoading={isGenerating}
-          label="Keep all"
-          size="xs"
-          buttonStyles="h-6.5"
-          playButtonStyles="h-6.5"
-          runCell={runAllCells}
-        />
-        <RejectCompletionButton
-          multipleCompletions={true}
-          onDecline={rejectAllCompletions}
-          disabled={isGenerating}
-          size="xs"
-          label="Discard all"
-          className="h-6.5"
-        />
-      </div>
-    </div>
+    </section>
   );
 };
+
+function useReviewedCellMarker(cellId: CellId | null) {
+  useEffect(() => {
+    if (cellId === null) {
+      return;
+    }
+    const cell = document.getElementById(HTMLCellId.create(cellId));
+    cell?.setAttribute("data-ai-review-selected", "");
+    return () => cell?.removeAttribute("data-ai-review-selected");
+  }, [cellId]);
+}

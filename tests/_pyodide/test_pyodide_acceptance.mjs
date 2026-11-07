@@ -276,8 +276,8 @@ for method in expected_methods:
 if missing_methods:
     raise AssertionError(f"Bridge missing methods: {missing_methods}")
 
-# Sleep until we get two messages (one after kernel-ready)
-while len(messages) < 2:
+# Wait for the startup run to end, so the host stream below is quiet.
+while not any(msg["op"] == "completed-run" for msg in messages):
     await asyncio.sleep(0.1)
 message_ops = [msg["op"] for msg in messages]
 

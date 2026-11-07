@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import urllib.error
 import urllib.request
+from urllib.parse import quote
 
 from marimo import _loggers
 from marimo._save.stores.store import Store
@@ -117,4 +118,5 @@ class RestStore(Store):
         url = self.base_url
         if self.project_id:
             url = f"{url}/{self.project_id}"
-        return f"{url}/{key}"
+        # Keys are logical paths, so even `%` is escaped; `/` stays a separator.
+        return f"{url}/{quote(key, safe='/')}"

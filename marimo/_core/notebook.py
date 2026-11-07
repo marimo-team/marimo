@@ -435,7 +435,13 @@ class Notebook:
     # ---- runs ----------------------------------------------------------
 
     @overload
-    def run(self, code: str, *, request_id: str) -> protocol.Run: ...
+    def run(
+        self,
+        code: str,
+        *,
+        request_id: str,
+        request: be.RequestInfo | None,
+    ) -> protocol.Run: ...
 
     @overload
     def run(
@@ -443,6 +449,7 @@ class Notebook:
         *,
         cells: Sequence[protocol.RequestedCell],
         request_id: str,
+        request: be.RequestInfo | None,
     ) -> protocol.Run: ...
 
     def run(
@@ -451,13 +458,16 @@ class Notebook:
         *,
         cells: Sequence[protocol.RequestedCell] | None = None,
         request_id: str,
+        request: be.RequestInfo | None,
     ) -> protocol.Run:
         """Queue scratch code, or cells of the document, on the runtime.
 
         Runs start in acceptance order, one at a time, each with the
-        document it was accepted in. Each requested cell must be in the
-        document. One that names an `etag` the cell no longer has is a
-        conflict, and nothing runs.
+        document it was accepted in, recording the requested cells. Each
+        requested cell must be in the document. One that names an `etag`
+        the cell no longer has is a conflict, and nothing runs. The code
+        reads `request`, the request that submitted the run, through
+        `mo.app_meta().request`.
 
         Raises:
             Invalid: If the request names neither code nor cells, or both,
@@ -490,7 +500,8 @@ class Notebook:
             run = protocol.Run(
                 id=mint(protocol.RunId, "run"),
                 notebook_id=self.id,
-                caused_by=None,
+                runtime_id=runtime.id,
+                cells=tuple(targets),
                 status="queued",
                 outcome=None,
                 started_at=None,
@@ -498,9 +509,11 @@ class Notebook:
             )
             self._apply(self.executions.begin(run, request_id))
             if code is not None:
-                self.backend.run(run.id, code)
+                self.backend.run(run.id, code, request=request)
             else:
-                self.backend.run_cells(run.id, self._document, targets)
+                self.backend.run_cells(
+                    run.id, self._document, targets, request=request
+                )
             return run
 
     def interrupt(self, run_id: str) -> protocol.Run:
@@ -540,8 +553,7 @@ class Notebook:
             "name": name or None,
             "since": utcnow(),
         }
-        if identity is not None:
-            fields["identity"] = identity
+        fields["identity"] = identity
         attachment = msgspec.convert(fields, protocol.Attachment)
         self._attachments[attachment.id] = attachment
         self._publish(attachment, None)

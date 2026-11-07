@@ -1,6 +1,6 @@
 id: 130
 event: run
-data: {"run":{"id":"run-interrupted","notebook_id":"n1","status":"running","started_at":"2026-10-01T09:22:00Z","completed_at":null,"caused_by":null,"outcome":null},"request_id":"9a8b7c6d-5e4f-4a3b-9c2d-1e0f9a8b7c6d","time":"2026-10-01T09:22:00Z"}
+data: {"run":{"id":"run-interrupted","notebook_id":"n1","runtime_id":"r1","cells":[],"status":"running","started_at":"2026-10-01T09:22:00Z","completed_at":null,"outcome":null},"request_id":"9a8b7c6d-5e4f-4a3b-9c2d-1e0f9a8b7c6d","time":"2026-10-01T09:22:00Z"}
 
 id: 131
 event: execution
@@ -16,5 +16,5 @@ data: {"execution":{"id":"e9","run_id":"run-interrupted","cell_id":null,"code_fi
 
 id: 134
 event: run
-data: {"run":{"id":"run-interrupted","notebook_id":"n1","status":"completed","started_at":"2026-10-01T09:22:00Z","completed_at":"2026-10-01T09:22:03Z","caused_by":null,"outcome":"interrupted"},"request_id":"9a8b7c6d-5e4f-4a3b-9c2d-1e0f9a8b7c6d","time":"2026-10-01T09:22:03Z"}
+data: {"run":{"id":"run-interrupted","notebook_id":"n1","runtime_id":"r1","cells":[],"status":"completed","started_at":"2026-10-01T09:22:00Z","completed_at":"2026-10-01T09:22:03Z","outcome":"interrupted"},"request_id":"9a8b7c6d-5e4f-4a3b-9c2d-1e0f9a8b7c6d","time":"2026-10-01T09:22:03Z"}
 

@@ -174,6 +174,29 @@ class TestFindSQLDefs:
         assert find_sql_defs(sql) == SQLDefs(views=[SQLRef(table="test_view")])
 
     @staticmethod
+    @pytest.mark.parametrize(
+        "modifier",
+        ["", "OR REPLACE ", "TEMP ", "TEMPORARY ", "OR REPLACE TEMPORARY "],
+    )
+    def test_find_sql_defs_secure_view(modifier: str) -> None:
+        sql = (
+            f"CREATE {modifier}SECURE /* view modifier */ VIEW "
+            '"memory"."main"."Secure View" AS SELECT * FROM source_table'
+        )
+        assert find_sql_defs(sql) == SQLDefs(
+            views=[
+                SQLRef(table="secure view", schema="main", catalog="memory")
+            ],
+        )
+
+    @staticmethod
+    def test_find_sql_defs_secure_only_modifies_views() -> None:
+        assert find_sql_defs("CREATE SECURE TABLE t (id INT)") == SQLDefs()
+        assert find_sql_defs('CREATE VIEW "secure" AS SELECT 1') == SQLDefs(
+            views=[SQLRef(table="secure")]
+        )
+
+    @staticmethod
     def test_find_sql_defs_unicode_comment_select() -> None:
         assert find_sql_defs("-- комментарий\nSELECT 1 AS x") == SQLDefs()
 
