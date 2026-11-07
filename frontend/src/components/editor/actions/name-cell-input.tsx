@@ -1,6 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Tooltip } from "@/components/ui/tooltip";
 import { getCellNames } from "@/core/cells/cells";
@@ -60,6 +60,10 @@ export const NameCellInput: React.FC<Props> = ({
       className="shadow-none! hover:shadow-none focus:shadow-none focus-visible:shadow-none"
       onKeyDown={Events.onEnter((e) => {
         Events.stopPropagation()(e);
+        // Commit before the parent closes the menu/dialog: the input is
+        // unmounted without a blur event (notably in Safari), which
+        // would otherwise drop the typed name.
+        inputProps.commitFromInput(e.currentTarget.value);
         onEnterKey?.();
       })}
       {...props}
@@ -115,12 +119,17 @@ export const NameCellContentEditable: React.FC<{
 function useCellNameInput(value: string, onChange: (newName: string) => void) {
   const [internalValue, setInternalValue] = useState(value);
   const [focusing, setFocusing] = useState(false);
+  // Last value we committed (or received), to avoid double commits
+  // (e.g. Enter + blur + unmount) which would make the name conflict with itself.
+  const lastCommitted = useRef(value);
+  lastCommitted.current = value;
 
   const commit = (newValue: string) => {
     // No change
-    if (newValue === value) {
+    if (newValue === lastCommitted.current) {
       return;
     }
+    lastCommitted.current = newValue;
 
     // Empty
     if (!newValue || isInternalCellName(newValue)) {
@@ -133,9 +142,20 @@ function useCellNameInput(value: string, onChange: (newName: string) => void) {
     onChange(validName);
   };
 
+  // Commit pending edits if the input is unmounted before it receives a blur
+  // (menu or dialog closing). Browsers don't reliably fire blur on removal.
+  const latest = useRef({ internalValue, commit });
+  latest.current = { internalValue, commit };
+  useEffect(() => {
+    return () => {
+      latest.current.commit(latest.current.internalValue);
+    };
+  }, []);
+
   return {
     value: isInternalCellName(internalValue) ? "" : internalValue,
     focusing,
+    commitFromInput: (raw: string) => commit(normalizeName(raw)),
     onChange: (evt: React.ChangeEvent<HTMLInputElement>) => {
       const newValue = evt.target.value;
       const normalized = normalizeName(newValue);
