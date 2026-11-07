@@ -1442,3 +1442,38 @@ def test_restored_decorated_function_stays_picklable() -> None:
     finally:
         del __main__.operation  # type: ignore[attr-defined]
     assert hash_wrapped_functions(restored) == before
+
+
+def test_unencodable_capture_does_not_hide_the_others() -> None:
+    import threading
+
+    def make(n: int) -> Any:
+        lock = threading.Lock()
+
+        def cb() -> int:
+            with lock:
+                return n
+
+        return cb
+
+    assert deterministic_dumps([make(1)], "sha256") != deterministic_dumps(
+        [make(2)], "sha256"
+    )
+
+
+def test_set_members_sharing_a_payload_stay_bounded() -> None:
+    import tracemalloc
+
+    payload = b"x" * (64 * 1024)
+    members = frozenset(_Node() for _ in range(50))
+    for node in members:
+        node.payload = payload  # type: ignore[attr-defined]
+    tracemalloc.start()
+    try:
+        deterministic_dumps(members, "sha256")
+        _, peak = tracemalloc.get_traced_memory()
+    finally:
+        tracemalloc.stop()
+    # Each member's dump holds the payload once while it is hashed; none is
+    # retained. Fifty retained copies would be over 3 MiB.
+    assert peak < 1024 * 1024
