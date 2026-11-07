@@ -53,37 +53,32 @@ class PolarsTableManagerFactory(TableManagerFactory):
 
         map_dtype = getattr(pl, "Map", None)
 
-        def map_children_to_entries(
-            expression: pl.Expr,
+        def map_entries_dtype(
             dtype: pl.DataType | pl.datatypes.DataTypeClass,
-        ) -> pl.Expr | None:
+        ) -> pl.DataType | pl.datatypes.DataTypeClass:
             if map_dtype is not None and isinstance(dtype, map_dtype):
-                entries = expression.map.entries()
-                fields = pl.Struct({"key": dtype.key, "value": dtype.value})
-                converted = map_children_to_entries(pl.element(), fields)
-                return (
-                    entries.list.eval(converted)
-                    if converted is not None
-                    else entries
-                )
-            if isinstance(dtype, (pl.List, pl.Array)):
-                inner = map_children_to_entries(pl.element(), dtype.inner)
-                if inner is None:
-                    return None
-                if isinstance(dtype, pl.List):
-                    return expression.list.eval(inner)
-                return expression.arr.eval(inner)
-            if isinstance(dtype, pl.Struct):
-                fields_to_update: list[pl.Expr] = []
-                for field in dtype.fields:
-                    converted = map_children_to_entries(
-                        expression.struct.field(field.name), field.dtype
+                return pl.List(
+                    pl.Struct(
+                        {
+                            "key": map_entries_dtype(dtype.key),
+                            "value": map_entries_dtype(dtype.value),
+                        }
                     )
-                    if converted is not None:
-                        fields_to_update.append(converted.alias(field.name))
-                if fields_to_update:
-                    return expression.struct.with_fields(fields_to_update)
-            return None
+                )
+            if isinstance(dtype, pl.List):
+                return pl.List(map_entries_dtype(dtype.inner))
+            if isinstance(dtype, pl.Array):
+                return pl.Array(
+                    map_entries_dtype(dtype.inner), shape=dtype.size
+                )
+            if isinstance(dtype, pl.Struct):
+                return pl.Struct(
+                    {
+                        field.name: map_entries_dtype(field.dtype)
+                        for field in dtype.fields
+                    }
+                )
+            return dtype
 
         def supports_native_json(
             dtype: pl.DataType | pl.datatypes.DataTypeClass,
@@ -192,11 +187,9 @@ class PolarsTableManagerFactory(TableManagerFactory):
             def _map_to_json(self, column: pl.Series) -> pl.Series:
                 # Entry arrays preserve non-string and repeated keys.
                 entries = column.map.entries()
-                converted = map_children_to_entries(
-                    pl.col(column.name), entries.dtype
-                )
-                if converted is not None:
-                    entries = entries.to_frame().select(converted).to_series()
+                dtype = map_entries_dtype(entries.dtype)
+                if dtype != entries.dtype:
+                    entries = entries.cast(dtype)
                 if supports_native_json(entries.dtype):
                     encoded = entries.list.eval(
                         pl.element().struct.json_encode()
