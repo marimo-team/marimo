@@ -24,11 +24,11 @@
     "codegen:stable": "node --experimental-strip-types scripts/generate-protocol.ts"
   },
   "dependencies": {
-    "zod": "^4.6.5"
+    "zod": "^4.6.7"
   },
   "devDependencies": {
-    "@types/node": "^24.13.6",
-    "orval": "8.40.0",
+    "@types/node": "^24.19.2",
+    "orval": "8.43.0",
     "typescript": "^5.9.3",
     "vitest": "^4.1.11",
     "yaml": "^2.9.1"
