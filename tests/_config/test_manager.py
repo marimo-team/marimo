@@ -152,15 +152,13 @@ def test_save_config_creates_missing_file(tmp_path: Path) -> None:
 def test_serialization_failure_does_not_touch_config(
     tmp_path: Path, existing: bool
 ) -> None:
-    import tomlkit
-
     config_path = tmp_path / "marimo.toml"
     original = '[display]\ntheme = "dark"\n'
     if existing:
         config_path.write_text(original)
     store = UserConfigStore()
     with patch.object(store, "get_config_path", return_value=str(config_path)):
-        with pytest.raises(tomlkit.exceptions.ConvertError):
+        with pytest.raises(TypeError, match="NoneType"):
             store.save_config({"future_setting": [None]})
 
     if existing:
