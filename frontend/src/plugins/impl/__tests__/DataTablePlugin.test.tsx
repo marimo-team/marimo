@@ -27,7 +27,7 @@ import {
 } from "../DataTablePlugin";
 
 // Default to normal (non-static) mode; individual tests flip this on.
-const mockIsStatic = vi.fn().mockReturnValue(false);
+const mockIsStatic = vi.hoisted(() => vi.fn().mockReturnValue(false));
 vi.mock("@/utils/download", () => ({
   downloadByURL: vi.fn(),
   withLoadingToast: vi.fn(async (_title, callback) => callback()),

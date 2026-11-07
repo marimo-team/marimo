@@ -122,13 +122,15 @@ def test_serialize_session_with_error(session_view: SessionView):
 
 
 @pytest.mark.parametrize("dictionary", [False, True])
+@pytest.mark.parametrize("is_internal", [False, True])
 def test_exception_type_survives_cache_round_trip(
-    session_view: SessionView, *, dictionary: bool
+    session_view: SessionView, *, dictionary: bool, is_internal: bool
 ) -> None:
     error = MarimoExceptionRaisedError(
         msg="bad value",
         exception_type="ValueError",
         raising_cell=None,
+        is_internal=is_internal,
     )
     session_view.cell_notifications[CELL1] = _make_cell_notification(
         CELL1,
@@ -146,6 +148,7 @@ def test_exception_type_survives_cache_round_trip(
             "ename": "ValueError",
             "evalue": "bad value",
             "traceback": [],
+            **({"is_internal": True} if is_internal else {}),
         }
     ]
     restored = deserialize_session(
@@ -1108,6 +1111,7 @@ def test_serialize_session_with_mixed_error_formats(session_view: SessionView):
             "msg": "Invalid value",
             "raising_cell": "cell1",
             "traceback": None,
+            "is_internal": False,
         },
         # Object format error
         UnknownError(msg="Runtime error occurred", error_type="RuntimeError"),

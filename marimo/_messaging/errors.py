@@ -78,6 +78,7 @@ class MarimoExceptionRaisedError(msgspec.Struct, tag="exception"):
     raising_cell: CellId_t | None
     # Formatted traceback HTML (optional, for displaying full stacktrace)
     traceback: str | None = None
+    is_internal: bool = False
 
     def describe(self) -> str:
         return self.msg

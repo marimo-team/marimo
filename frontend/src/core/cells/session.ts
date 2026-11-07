@@ -208,6 +208,7 @@ function createCellRuntimeFromSession(
           {
             type: "exception",
             exception_type: primaryOutput.ename,
+            ...(primaryOutput.is_internal ? { is_internal: true } : {}),
             msg: primaryOutput.evalue,
             raising_cell: null,
             traceback:
