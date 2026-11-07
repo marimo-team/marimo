@@ -20,8 +20,8 @@ if TYPE_CHECKING:
 
 T = TypeVar("T")
 _SETUP = (
-    "OpenCode agent messages require OpenCode 2.x. "
-    "Run connect in a native OpenCode 2.x shell with a registered local service."
+    "OpenCode agent messages require OpenCode 2.0. "
+    "Run connect in a native OpenCode 2.0 shell with a registered local service."
 )
 
 
@@ -118,7 +118,7 @@ class _SessionResponse(msgspec.Struct):
 
 
 class OpenCodeHarness:
-    """Verify an OpenCode 2.x session from native identity or its shell PID."""
+    """Verify an OpenCode 2.0 session from native identity or its shell PID."""
 
     kind = "opencode"
 
