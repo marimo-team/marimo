@@ -249,7 +249,8 @@ class HashState:
     functions: dict[int, tuple[Any, bytes | None]] = dataclasses.field(
         default_factory=dict
     )
-    # Ordering key of a set member, computed once per key computation.
+    # Ordering key of a set member, computed once per key computation. A
+    # digest, so members sharing a large payload do not each retain a copy.
     member_keys: dict[int, tuple[Any, bytes]] = dataclasses.field(
         default_factory=dict
     )
@@ -296,7 +297,11 @@ def deterministic_dumps(
                     if id(item) not in state.member_keys:
                         state.member_keys[id(item)] = (
                             item,
-                            deterministic_dumps(item, hash_type, _seen=state),
+                            hashlib.sha256(
+                                deterministic_dumps(
+                                    item, hash_type, _seen=state
+                                )
+                            ).digest(),
                         )
             finally:
                 state.ordering.discard(id(obj))

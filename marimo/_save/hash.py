@@ -60,7 +60,7 @@ from marimo._save.stubs.function_stub import FUTURE_FLAGS
 from marimo._types.ids import CellId_t
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    from collections.abc import Callable, Iterable
 
     from marimo._ast.cell import CellImpl
     from marimo._runtime.context.types import RuntimeContext
@@ -470,20 +470,25 @@ def _scoped_name(fn: Callable[..., Any]) -> str:
     return ".".join(kept)
 
 
-def _soft_dumps(
-    payload: Any, label: str, hash_type: str, state: HashState
+def _soft_items(
+    items: Iterable[tuple[Any, Any]],
+    label: str,
+    hash_type: str,
+    state: HashState,
 ) -> bytes:
-    """Encode `payload`, or a marker when it cannot be encoded.
+    """Encode named values one by one, marking any that cannot be encoded.
 
-    A default or captured value that cannot be encoded leaves the function
-    keyed by its source, as it was before defaults and closures were hashed.
+    One unencodable default or capture, such as a lock, must not hide the
+    others: a closure over `n` and a lock still keys on `n`.
     """
-    try:
-        return type_sign(
-            deterministic_dumps(payload, hash_type, _seen=state), label
-        )
-    except Exception:
-        return type_sign(b"", label + "-unencoded")
+    encoded = []
+    for name, value in items:
+        try:
+            payload = deterministic_dumps(value, hash_type, _seen=state)
+        except Exception:
+            payload = type_sign(b"", "unencoded")
+        encoded.append(primitive_to_bytes(name) + payload)
+    return iterable_sign(encoded, label)
 
 
 def hash_wrapped_functions(
@@ -508,8 +513,11 @@ def hash_wrapped_functions(
                 primitive_to_bytes((fn.__module__, _scoped_name(fn)))
             )
             hash_alg.update(
-                _soft_dumps(
-                    (fn.__defaults__, fn.__kwdefaults__),
+                _soft_items(
+                    [
+                        *enumerate(fn.__defaults__ or ()),
+                        *(fn.__kwdefaults__ or {}).items(),
+                    ],
                     "defaults",
                     hash_type,
                     state,
@@ -533,7 +541,7 @@ def hash_wrapped_functions(
                 )
             except ValueError:
                 captured = (("<empty cell>", None),)
-            hash_alg.update(_soft_dumps(captured, "closure", hash_type, state))
+            hash_alg.update(_soft_items(captured, "closure", hash_type, state))
         else:
             # Builtin functions do not expose Python bytecode, so use their
             # qualified name to distinguish functions from different modules.
@@ -556,7 +564,8 @@ def hash_wrapped_functions(
             else:
                 # `functools.wraps` around a callable object.
                 fn_hash = (
-                    _soft_dumps(wrapped, "wrapped", hash_type, state) + fn_hash
+                    _soft_items([("", wrapped)], "wrapped", hash_type, state)
+                    + fn_hash
                 )
         state.functions[id(fn)] = (fn, fn_hash)
         return fn_hash
