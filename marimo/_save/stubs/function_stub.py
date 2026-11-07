@@ -50,8 +50,9 @@ class FunctionStub:
         # same function `getsource` read: a decorator's wrapper may differ.
         self.flags = inspect.unwrap(function).__code__.co_flags & FUTURE_FLAGS
         # Restored at top level, the function would otherwise lose the class
-        # that keys it.
-        self.qualname = function.__qualname__
+        # that keys it. From the code object: `functools.wraps` copies the
+        # function's qualname but not the code's.
+        self.qualname = function.__code__.co_qualname
         if is_cached:
             # NB. keep the synthetic filename: the wrapper re-hashes its own
             # source per call, and the real path is absent on restore.
@@ -91,8 +92,11 @@ class FunctionStub:
         lcls: dict[str, Any] = {}
         exec(code_obj, glbls, lcls)
         for value in lcls.values():
-            if getattr(value, "__qualname__", None) is not None:
+            if inspect.isfunction(value):
                 value.__qualname__ = self.qualname
+                value.__code__ = value.__code__.replace(
+                    co_qualname=self.qualname
+                )
             return value
 
     def dump(self) -> tuple[str, str, int, bool, int, str]:
