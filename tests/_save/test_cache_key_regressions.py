@@ -1215,3 +1215,24 @@ def test_stale_function_object_control_flow_keys_apart(tmp_path: Path) -> None:
     assert (old(False, True), new(False, True)) == ([], [2])
     # Same instructions, different jump targets.
     assert hash_wrapped_functions(old) != hash_wrapped_functions(new)
+
+
+def test_stale_function_object_parameter_rename_keys_apart(
+    tmp_path: Path,
+) -> None:
+    import importlib
+    import shutil
+    import sys
+
+    module = tmp_path / "kept_param.py"
+    module.write_text("x = 99\n\n\ndef cb(x):\n    return x\n")
+    sys.path.insert(0, str(tmp_path))
+    try:
+        old = importlib.import_module("kept_param").cb
+        shutil.rmtree(tmp_path / "__pycache__", ignore_errors=True)
+        module.write_text("x = 99\n\n\ndef cb(y):\n    return x\n")
+        new = importlib.reload(sys.modules["kept_param"]).cb
+    finally:
+        sys.path.remove(str(tmp_path))
+    assert (old(10), new(10)) == (10, 99)
+    assert hash_wrapped_functions(old) != hash_wrapped_functions(new)

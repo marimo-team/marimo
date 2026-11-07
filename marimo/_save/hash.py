@@ -213,7 +213,17 @@ def _instructions(code: types.CodeType) -> tuple[tuple[str, str], ...]:
                 arg = ", ".join(_bare_name(n) for n in arg.split(", "))
         kept.append((op, arg, ins.offset, target))
     offsets = [offset for _, _, offset, _ in kept]
-    return tuple(
+    # Parameters are bindings without instructions: `def f(x): return x` and
+    # `def f(y): return x` run the same stream.
+    total = code.co_argcount + code.co_kwonlyargcount
+    total += bool(code.co_flags & inspect.CO_VARARGS)
+    total += bool(code.co_flags & inspect.CO_VARKEYWORDS)
+    signature = (
+        "PARAMS",
+        ", ".join(map(_bare_name, code.co_varnames[:total]))
+        + f" /{code.co_posonlyargcount} *{code.co_kwonlyargcount}",
+    )
+    return (signature,) + tuple(
         (
             op,
             str(bisect.bisect_left(offsets, target))
