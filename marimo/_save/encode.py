@@ -320,6 +320,12 @@ def deterministic_dumps(
                 except Exception:
                     # By reference, as pickle would.
                     return NotImplemented
+                if getattr(obj, "__module__", None) == "__main__":
+                    # A notebook function's globals are not in its
+                    # fingerprint, and inside a value no graph accounts for
+                    # them. Its mangled qualname carries the defining cell,
+                    # as pickling by reference did.
+                    fingerprint += primitive_to_bytes(obj.__qualname__)
                 return (bytes, (type_sign(fingerprint, "function"),))
             try:
                 if not is_primitive(obj) and is_data_primitive(obj):
