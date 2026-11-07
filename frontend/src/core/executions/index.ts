@@ -11,6 +11,8 @@
 export {
   cellExecutionInputsAtom,
   cellFreshnessAtom,
+  cellOutputInputsAtom,
+  clearCellOutputs,
   notebookIsRunningAtom,
   notebookQueuedOrRunningCountAtom,
   observeCellMessage,
@@ -20,7 +22,20 @@ export {
   withdrawCells,
 } from "./atoms";
 export type { CellFreshness, CellFreshnessLookup } from "./freshness";
-export { useCellExecution, useCellFreshness } from "./hooks";
+export {
+  useCellExecution,
+  useCellFreshness,
+  useCellOutline,
+  useCellOutput,
+  useScratchOutput,
+} from "./hooks";
+export {
+  type CellError,
+  type CellOutput,
+  cellOutputView,
+  type HostDiagnostic,
+  scratchOutputView,
+} from "./output";
 export {
   type CellExecutionInputs,
   type CellExecutionView,

@@ -13,6 +13,7 @@ import type {
 import { activeNotebookReplicaAtom } from "@/core/session/active-notebook";
 import { waitFor } from "@/core/state/jotai";
 import { type CellFreshnessInputs, freshnessOf } from "./freshness";
+import type { CellOutputInputs } from "./output";
 import {
   anyRunning,
   type CellExecutionInputs,
@@ -34,6 +35,8 @@ const NO_SUBMISSIONS: ReadonlyMap<
   Protocol.ExecutionId | null
 > = new Map();
 const NO_BLOCKED: ReadonlySet<Protocol.CellId> = new Set();
+const NO_CLEARED: ReadonlyMap<Protocol.CellId, Protocol.ExecutionId> =
+  new Map();
 
 /**
  * What the editor marks about cells of one replica's notebook.
@@ -128,6 +131,38 @@ const cellFreshnessInputsAtom = atom((get): CellFreshnessInputs => {
 export const cellFreshnessAtom = atom((get) =>
   freshnessOf(get(cellFreshnessInputsAtom)),
 );
+
+/** Results this browser cleared, by execution id, until a newer one lands. */
+const clearedOutputsAtom =
+  atom<Marks<ReadonlyMap<Protocol.CellId, Protocol.ExecutionId>>>(null);
+
+/** What every cell's output derives from. Pair with `cellOutputView`. */
+export const cellOutputInputsAtom = atom((get): CellOutputInputs => {
+  const replica = get(activeNotebookReplicaAtom);
+  const notebookId =
+    replica === null ? null : (get(replica.notebookAtom)?.id ?? null);
+  return {
+    executions: replica === null ? NO_EXECUTIONS : get(replica.executionsAtom),
+    results: replica === null ? NO_RESULTS : get(replica.resultsAtom),
+    cleared: current(get(clearedOutputsAtom), replica, notebookId, NO_CLEARED),
+  };
+});
+
+/** Hide what `cellIds` show now, until each has a newer result. */
+export function clearCellOutputs(
+  store: Store,
+  cellIds: readonly Protocol.CellId[],
+): void {
+  const inputs = store.get(cellOutputInputsAtom);
+  const next = new Map(inputs.cleared);
+  for (const cellId of cellIds) {
+    const result = inputs.results.get(cellId);
+    if (result !== null && result !== undefined) {
+      next.set(cellId, result.id);
+    }
+  }
+  store.set(clearedOutputsAtom, mark(store, next));
+}
 
 /** The runtime's status, null while the notebook has none or the stream is not ready. */
 export const runtimeStatusAtom = atom((get) => {
