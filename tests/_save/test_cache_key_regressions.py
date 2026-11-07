@@ -1325,8 +1325,22 @@ def _reloaded_pair(tmp_path: Path, name: str, before: str, after: str) -> Any:
             "def cb(obj):\n    return obj._A__value\n",
             "def cb(obj):\n    return obj._B__value\n",
         ),
+        (
+            "x = 42\n\n\ndef cb():\n    x: int\n    return x\n",
+            "x = 42\n\n\ndef cb():\n    return x\n",
+        ),
+        (
+            "def cb(x):\n    'one'\n    return 'two' if x else 'one'\n",
+            "def cb(x):\n    'two'\n    return 'two' if x else 'one'\n",
+        ),
     ],
-    ids=["protected-range", "docstring", "explicit-mangled-attribute"],
+    ids=[
+        "protected-range",
+        "docstring",
+        "explicit-mangled-attribute",
+        "annotated-local",
+        "docstring-slot",
+    ],
 )
 def test_stale_function_object_metadata_keys_apart(
     tmp_path: Path, before: str, after: str
