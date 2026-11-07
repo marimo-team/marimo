@@ -1187,3 +1187,31 @@ async def test_non_string_module_version_with_pinning(tmp_path: Path) -> None:
             ]
         )
         assert k.globals.get("r") == 2
+
+
+def test_stale_function_object_control_flow_keys_apart(tmp_path: Path) -> None:
+    import importlib
+    import shutil
+    import sys
+
+    module = tmp_path / "kept_flow.py"
+    nested = (
+        "def cb(x, y):\n    out = []\n    if x:\n        out.append(1)\n"
+        "        if y:\n            out.append(2)\n    return out\n"
+    )
+    flat = (
+        "def cb(x, y):\n    out = []\n    if x:\n        out.append(1)\n"
+        "    if y:\n        out.append(2)\n    return out\n"
+    )
+    module.write_text(nested)
+    sys.path.insert(0, str(tmp_path))
+    try:
+        old = importlib.import_module("kept_flow").cb
+        shutil.rmtree(tmp_path / "__pycache__", ignore_errors=True)
+        module.write_text(flat)
+        new = importlib.reload(sys.modules["kept_flow"]).cb
+    finally:
+        sys.path.remove(str(tmp_path))
+    assert (old(False, True), new(False, True)) == ([], [2])
+    # Same instructions, different jump targets.
+    assert hash_wrapped_functions(old) != hash_wrapped_functions(new)
