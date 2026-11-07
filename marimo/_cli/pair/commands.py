@@ -7,7 +7,9 @@ import os
 import re
 import shlex
 import sys
+from collections.abc import Callable
 from pathlib import Path
+from typing import TypeVar
 
 import click
 import msgspec
@@ -36,7 +38,7 @@ from marimo._cli.pair.discovery import list_running_notebooks
 from marimo._cli.pair.forwarder import ForwarderConfig, start_forwarder
 from marimo._cli.pair.harnesses import detect_target, environment_identity
 from marimo._cli.pair.prompts import render_prompt
-from marimo._cli.pair.target import resolve_target
+from marimo._cli.pair.target import ExecutionTarget, resolve_target
 from marimo._server.ai.skills import utils as skills_utils
 from marimo._server.host import HOST_API_PATH
 
@@ -46,6 +48,58 @@ _REFERENCES_DIR = (
 
 
 _cached_token_dir: Path | None = None
+
+F = TypeVar("F", bound=Callable[..., object])
+
+
+def url_option(
+    *,
+    required: bool = False,
+    multiple: bool = False,
+    help_text: str = "Restrict notebook selection to this server.",
+) -> Callable[[F], F]:
+    return click.option(
+        "--url",
+        "urls" if multiple else "url",
+        required=required,
+        multiple=multiple,
+        metavar="URL",
+        help=help_text,
+    )
+
+
+def notebook_option(
+    *,
+    required: bool = False,
+    help_text: str = "Alias for --session when selecting a notebook ID.",
+) -> Callable[[F], F]:
+    return click.option(
+        "--notebook",
+        "notebook_id",
+        required=required,
+        metavar="ID",
+        help=help_text,
+    )
+
+
+def session_option(
+    *,
+    help_text: str = "Notebook ID or existing stable session ID.",
+) -> Callable[[F], F]:
+    return click.option(
+        "--session", "session_id", metavar="ID", help=help_text
+    )
+
+
+token_option = click.option(
+    "--token", help="Server token. Overrides MARIMO_TOKEN and local discovery."
+)
+token_file_option = click.option(
+    "--token-file",
+    type=click.Path(path_type=Path, dir_okay=False),
+    metavar="PATH",
+    help="Read the server token from a local file.",
+)
 
 
 def _token_dir() -> Path:
@@ -91,9 +145,7 @@ class _DocsCommand(ColoredCommand):
     Workflow:
       Start a notebook if needed:
         marimo edit <notebook.py>
-      Find running local notebooks:
-        marimo pair list
-      Execute using an ID from the list:
+      Execute in the selected notebook:
         marimo pair execute --session <ID> --code 'print("hello")'
       For multiline Python, use --file <PATH>, or --file - for stdin:
         marimo pair execute --session <ID> --file - <<'PY'
@@ -102,13 +154,13 @@ class _DocsCommand(ColoredCommand):
             for cell in ctx.cells.values():
                 print(cell.id, cell.code, cell.status)
         PY
-      To receive notebook messages in a supported harness:
+      To receive notebook messages in Claude Code, Codex, or OpenCode 2.0:
         marimo pair connect --session <ID>
-      Run marimo pair connect --help to check supported harnesses.
 
     \b
     Target selection:
-      --session accepts a notebook ID from pair list, or an existing session ID.
+      Use `marimo pair list` if you need to find the notebook ID.
+      --session accepts a notebook ID or an existing stable session ID.
       Local notebook IDs resolve their URL automatically. Existing session IDs
       require --url. --notebook remains an alias for notebook IDs.
       With either selector, --url restricts discovery to that server.
@@ -119,11 +171,9 @@ class _DocsCommand(ColoredCommand):
 
     \b
     Agent messages (preview):
-      Inside Codex, Claude Code, or OpenCode, run:
-        marimo pair connect --session <NOTEBOOK>.
       Codex must use its shared daemon and support codex queue.
       Claude Code requires its native inbox on macOS or Linux.
-      OpenCode 2.x requires its registered local service.
+      OpenCode 2.0 requires its registered local service.
       Inbound message settings still apply; messages can be held or refused.
       Notebook agent messages arrive here as messages from marimo.
       Oversized agent messages include a complete JSON file on this machine.
@@ -179,40 +229,37 @@ def _validate_target_options(
         )
 
 
+def _resolve_cli_target(
+    *,
+    url: str | None,
+    notebook_id: str | None,
+    session_id: str | None,
+    token: str | None,
+    token_file: Path | None,
+    require_notebook: bool = False,
+) -> ExecutionTarget:
+    credential = (
+        token if token is not None else load_token(token_file, os.environ)
+    )
+    return resolve_target(
+        url=url,
+        notebook_id=notebook_id,
+        session_id=session_id,
+        token=credential,
+        require_notebook=require_notebook,
+    )
+
+
 @click.command(
     cls=ColoredCommand,
     help="""Run Python in the selected live notebook kernel's scratchpad.""",
     short_help="""Run Python in a live notebook.""",
 )
-@click.option(
-    "--url",
-    required=False,
-    metavar="URL",
-    help="Restrict notebook discovery and execution to this server.",
-)
-@click.option(
-    "--notebook",
-    "notebook_id",
-    required=False,
-    metavar="ID",
-    help="Alias for --session when selecting a notebook ID.",
-)
-@click.option(
-    "--session",
-    "session_id",
-    default=None,
-    metavar="ID",
-    help="Notebook ID from pair list, or an existing session ID.",
-)
-@click.option(
-    "--token", help="Server token. Overrides MARIMO_TOKEN and local discovery."
-)
-@click.option(
-    "--token-file",
-    type=click.Path(path_type=Path, dir_okay=False),
-    metavar="PATH",
-    help="Read the server token from a local file.",
-)
+@url_option()
+@notebook_option()
+@session_option()
+@token_option
+@token_file_option
 @click.option(
     "--code",
     "-c",
@@ -261,14 +308,12 @@ def execute(
 
     selector = "--notebook" if notebook_id is not None else "--session"
     try:
-        credential = (
-            token if token is not None else load_token(token_file, os.environ)
-        )
-        target = resolve_target(
+        target = _resolve_cli_target(
             url=url,
             session_id=session_id,
             notebook_id=notebook_id,
-            token=credential,
+            token=token,
+            token_file=token_file,
         )
         url = target.url
         notebook_id = target.notebook_id
@@ -570,24 +615,10 @@ def docs(topic: str | None) -> None:
     cls=ColoredCommand,
     help="""Generate a prompt for pair programming on a running marimo notebook.""",
 )
-@click.option(
-    "--url",
-    required=True,
-    type=str,
-    help="URL of the running marimo kernel.",
-)
-@click.option(
-    "--notebook",
-    "notebook_id",
-    default=None,
-    type=str,
-    help="Host notebook_id to include in the prompt.",
-)
-@click.option(
-    "--session",
-    "session_id",
-    default=None,
-    help="Notebook ID or stable session ID to include in the prompt.",
+@url_option(required=True, help_text="URL to include in the prompt.")
+@notebook_option(help_text="Notebook ID to include in the prompt.")
+@session_option(
+    help_text="Notebook ID or stable session ID to include in the prompt."
 )
 @click.option("--claude", is_flag=True, hidden=True, expose_value=False)
 @click.option("--codex", is_flag=True, hidden=True, expose_value=False)
@@ -685,19 +716,10 @@ def _group_notebooks(
     help="List active notebooks and their host IDs.",
     short_help="""List active notebooks and their host IDs.""",
 )
-@click.option(
-    "--url",
-    "urls",
-    multiple=True,
-    metavar="URL",
-    help="Server URL. Repeat to list more than one server.",
+@url_option(
+    multiple=True, help_text="Server URL. Repeat to list more than one server."
 )
-@click.option(
-    "--token-file",
-    type=click.Path(path_type=Path, dir_okay=False),
-    metavar="PATH",
-    help="Read the server token from a local file.",
-)
+@token_file_option
 def list_notebooks(urls: tuple[str, ...], token_file: Path | None) -> None:
     try:
         token = load_token(token_file, os.environ) if urls else None
@@ -762,34 +784,15 @@ def list_notebooks(urls: tuple[str, ...], token_file: Path | None) -> None:
     help=(
         "Connect this harness inbox to a live notebook.\n\n"
         "Supported harnesses: Codex, Claude Code, and OpenCode (macOS/Linux).\n\n"
-        "OpenCode 2.x requires its registered local service.\n\n"
+        "OpenCode 2.0 requires its registered local service.\n\n"
         "For other harnesses, use pair execute to work with the notebook."
     ),
 )
-@click.option(
-    "--url", metavar="URL", help="Restrict notebook discovery to this server."
-)
-@click.option(
-    "--notebook",
-    "notebook_id",
-    metavar="ID",
-    help="Alias for --session when selecting a notebook ID.",
-)
-@click.option(
-    "--session",
-    "session_id",
-    metavar="ID",
-    help="Notebook ID from pair list, or an existing session ID.",
-)
-@click.option(
-    "--token", help="Server token. Overrides MARIMO_TOKEN and local discovery."
-)
-@click.option(
-    "--token-file",
-    type=click.Path(path_type=Path, dir_okay=False),
-    metavar="PATH",
-    help="Read the server token from a local file.",
-)
+@url_option()
+@notebook_option()
+@session_option()
+@token_option
+@token_file_option
 @click.option(
     "--harness",
     type=click.Choice(["codex", "claude", "opencode"]),
@@ -814,14 +817,12 @@ def connect(
 ) -> None:
     _validate_target_options(url, notebook_id, session_id, token, token_file)
     try:
-        credential = (
-            token if token is not None else load_token(token_file, os.environ)
-        )
-        selected = resolve_target(
+        selected = _resolve_cli_target(
             url=url,
             session_id=session_id,
             notebook_id=notebook_id,
-            token=credential,
+            token=token,
+            token_file=token_file,
             require_notebook=True,
         )
         assert selected.notebook_id is not None
@@ -855,12 +856,7 @@ def connect(
     cls=ColoredCommand,
     help="Stop the forwarder and detach its notebook inbox.",
 )
-@click.option(
-    "--notebook",
-    "notebook_id",
-    required=True,
-    help="Host notebook ID from pair list.",
-)
+@notebook_option(required=True, help_text="Notebook ID to disconnect.")
 @click.option(
     "--harness",
     type=click.Choice(["codex", "claude", "opencode"]),

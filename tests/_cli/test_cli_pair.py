@@ -70,9 +70,7 @@ Usage: main pair [OPTIONS] COMMAND [ARGS]...
   Workflow:
     Start a notebook if needed:
       marimo edit <notebook.py>
-    Find running local notebooks:
-      marimo pair list
-    Execute using an ID from the list:
+    Execute in the selected notebook:
       marimo pair execute --session <ID> --code 'print("hello")'
     For multiline Python, use --file <PATH>, or --file - for stdin:
       marimo pair execute --session <ID> --file - <<'PY'
@@ -81,12 +79,12 @@ Usage: main pair [OPTIONS] COMMAND [ARGS]...
           for cell in ctx.cells.values():
               print(cell.id, cell.code, cell.status)
       PY
-    To receive notebook messages in a supported harness:
+    To receive notebook messages in Claude Code, Codex, or OpenCode 2.0:
       marimo pair connect --session <ID>
-    Run marimo pair connect --help to check supported harnesses.
 
   Target selection:
-    --session accepts a notebook ID from pair list, or an existing session ID.
+    Use `marimo pair list` if you need to find the notebook ID.
+    --session accepts a notebook ID or an existing stable session ID.
     Local notebook IDs resolve their URL automatically. Existing session IDs
     require --url. --notebook remains an alias for notebook IDs.
     With either selector, --url restricts discovery to that server.
@@ -96,11 +94,9 @@ Usage: main pair [OPTIONS] COMMAND [ARGS]...
     or when execution is unconfirmed.
 
   Agent messages (preview):
-    Inside Codex, Claude Code, or OpenCode, run:
-      marimo pair connect --session <NOTEBOOK>.
     Codex must use its shared daemon and support codex queue.
     Claude Code requires its native inbox on macOS or Linux.
-    OpenCode 2.x requires its registered local service.
+    OpenCode 2.0 requires its registered local service.
     Inbound message settings still apply; messages can be held or refused.
     Notebook agent messages arrive here as messages from marimo.
     Oversized agent messages include a complete JSON file on this machine.
@@ -172,12 +168,10 @@ Usage: main pair execute [OPTIONS]
   Run Python in the selected live notebook kernel's scratchpad.
 
 Options:
-  --url URL                     Restrict notebook discovery and execution to
-                                this server.
+  --url URL                     Restrict notebook selection to this server.
   --notebook ID                 Alias for --session when selecting a notebook
                                 ID.
-  --session ID                  Notebook ID from pair list, or an existing
-                                session ID.
+  --session ID                  Notebook ID or existing stable session ID.
   --token TEXT                  Server token. Overrides MARIMO_TOKEN and local
                                 discovery.
   --token-file PATH             Read the server token from a local file.
@@ -785,6 +779,7 @@ Options:
         assert resolve_calls == [
             {
                 "url": "http://one",
+                "require_notebook": False,
                 "token": None,
                 "session_id": None,
                 "notebook_id": None,
@@ -1492,6 +1487,7 @@ def test_execute_credential_precedence(
     assert calls == [
         {
             "url": None,
+            "require_notebook": False,
             "session_id": "nb-one",
             "notebook_id": None,
             "token": {
