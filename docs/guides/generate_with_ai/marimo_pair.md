@@ -150,3 +150,22 @@ Ask your agent to explore data, explain results, or modify cells.
 The agent can inspect variables and try code in a scratchpad before it changes the notebook.
 You can inspect the results and edit the same notebook yourself.
 Your work stays in a notebook that you can run again, modify, and share.
+
+## Receive notebook messages
+
+Inside Claude Code, Codex, or OpenCode, select a running notebook and connect its message inbox:
+
+```bash
+marimo pair list
+marimo pair connect --session <notebook-ID>
+```
+
+`connect` uses the same target selectors as `execute`.
+Local notebook IDs resolve the server URL and credentials automatically.
+To select an existing stable session ID, also pass `--url <server-URL>`.
+With `--url` alone, the server must have exactly one running notebook.
+`--notebook` remains an alias for selecting a notebook ID.
+
+For explicit authentication, use `--token`, `--token-file`, or `MARIMO_TOKEN`.
+Explicit credentials override local discovery credentials.
+Use `--harness` or `--pid` to select the receiving agent process when needed.

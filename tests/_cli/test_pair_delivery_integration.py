@@ -77,15 +77,26 @@ def test_detached_delivery_replacement_and_files(
             "--notebook",
             server.notebook_id,
         ]
-        connection_arguments = [
-            *arguments,
-            "--harness",
-            "codex",
-            "--pid",
-            str(owner.pid),
-        ]
         try:
-            for thread in ("first", "second"):
+            for thread, selection in (
+                ("first", ["--session", server.notebook_id]),
+                (
+                    "second",
+                    [
+                        "--url",
+                        server.url,
+                        "--session",
+                        server.stable_session_id,
+                    ],
+                ),
+            ):
+                connection_arguments = [
+                    *selection,
+                    "--harness",
+                    "codex",
+                    "--pid",
+                    str(owner.pid),
+                ]
                 monkeypatch.setenv("CODEX_SESSION_ID", thread)
                 result = runner.invoke(
                     cli_main, ["pair", "connect", *connection_arguments]
