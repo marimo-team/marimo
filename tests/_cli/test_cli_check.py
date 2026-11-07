@@ -157,6 +157,42 @@ def test_fix_preserves_ruff_formatting(
     assert path.read_text() == formatted
 
 
+def test_fix_preserves_ruff_after_function_body_comments(
+    tmp_path: Path,
+) -> None:
+    path = tmp_path / "notebook.py"
+    path.write_text(
+        generate_filecontents(
+            [
+                "if True:\n\n    def f():\n        return 1\n\n        # Save output",
+                "print(f())",
+            ],
+            ["_", "_"],
+            [CellConfig(), CellConfig()],
+        )
+    )
+    subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "ruff",
+            "format",
+            "--isolated",
+            "--line-length=79",
+            str(path),
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    formatted = path.read_text()
+
+    result = CliRunner().invoke(check, [str(path), "--fix"])
+
+    assert result.exit_code == 0, result.output
+    assert path.read_text() == formatted
+
+
 class TestLintCLI:
     """Test the check CLI command."""
 

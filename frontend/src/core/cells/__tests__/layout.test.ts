@@ -148,7 +148,6 @@ describe("layoutAtom", () => {
         },
         console: null,
         status: "idle",
-        stale_inputs: null,
         timestamp: 1,
       },
     });

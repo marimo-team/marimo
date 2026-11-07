@@ -41,8 +41,6 @@ def create_response(
         "layout": None,
         "resumed": False,
         "ui_values": {},
-        "last_executed_code": {},
-        "last_execution_time": {},
         "kiosk": False,
         "app_config": {"width": "full"},
         "capabilities": asdict(KernelCapabilitiesNotification()),
@@ -88,7 +86,6 @@ def assert_kernel_ready_response(
     assert data.ui_values == expected.ui_values
     assert data.app_config == expected.app_config
     assert data.kiosk == expected.kiosk
-    assert data.last_execution_time == expected.last_execution_time
     assert data.capabilities == expected.capabilities
     assert data.consumer_capabilities == expected.consumer_capabilities
 

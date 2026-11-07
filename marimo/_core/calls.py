@@ -19,6 +19,7 @@ from marimo._core.errors import Conflict, HostError, Invalid, NotFound
 from marimo._core.operations import Reply, problem_for
 
 if TYPE_CHECKING:
+    from marimo._core.backend import RequestInfo
     from marimo._core.operations import Mutations, NotebookBridge
 
 
@@ -148,15 +149,17 @@ class RunCall(_Call, frozen=True, tag="runtime.run"):
     body: protocol.RunRequest
 
     async def handle(
-        self, bridge: NotebookBridge
+        self, bridge: NotebookBridge, request: RequestInfo | None
     ) -> tuple[Literal[202], protocol.Run]:
         notebook = await bridge.host.notebook(self.params.notebook_id)
         key = self.headers.idempotency_key
         code, cells = self.body.code, self.body.cells
         if isinstance(code, str) and cells is msgspec.UNSET:
-            return 202, notebook.run(code, request_id=key)
+            return 202, notebook.run(code, request_id=key, request=request)
         if code is msgspec.UNSET and isinstance(cells, tuple):
-            return 202, notebook.run(cells=cells, request_id=key)
+            return 202, notebook.run(
+                cells=cells, request_id=key, request=request
+            )
         raise Invalid("A run names code or cells, not both")
 
 
@@ -208,16 +211,30 @@ CALLS: tuple[type[OperationCall], ...] = (
 
 
 async def dispatch(
-    mutations: Mutations, bridge: NotebookBridge, call: OperationCall
+    mutations: Mutations,
+    bridge: NotebookBridge,
+    call: OperationCall,
+    *,
+    request: RequestInfo | None,
 ) -> Reply:
-    """Serve a call once per idempotency key and describe a failure as a problem."""
+    """Serve a call once per idempotency key and describe a failure as a problem.
+
+    `request` is the HTTP request carrying the call, if any; runs hand it
+    to the code they execute.
+    """
+
+    async def serve() -> Reply:
+        if isinstance(call, RunCall):
+            return await call.handle(bridge, request)
+        return await call.handle(bridge)
+
     try:
         return await mutations.execute(
             str(call.__struct_config__.tag),
             notebook_id=call.params.notebook_id,
             key=call.headers.idempotency_key,
             payload=call,
-            call=lambda: call.handle(bridge),
+            call=serve,
         )
     except HostError as e:
         failure = problem_for(e)

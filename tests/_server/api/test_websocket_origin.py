@@ -333,7 +333,8 @@ def test_http_and_lifespan_passthrough() -> None:
         assert response.text == "ok"
 
 
-def test_trusted_proxy_scheme() -> None:
+@pytest.mark.parametrize("scheme", ["http", "https"])
+def test_trusted_proxy_scheme(scheme: str) -> None:
     client = TestClient(
         ProxyHeadersMiddleware(
             make_client(host="example.com").app, trusted_hosts=["testclient"]
@@ -343,8 +344,8 @@ def test_trusted_proxy_scheme() -> None:
         "ws://127.0.0.1:2718/ws",
         headers={
             "Host": "example.com",
-            "Origin": "https://example.com",
-            "X-Forwarded-Proto": "https",
+            "Origin": f"{scheme}://example.com",
+            "X-Forwarded-Proto": scheme,
         },
     ) as websocket:
         assert websocket.receive_text() == "connected"

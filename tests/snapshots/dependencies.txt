@@ -15,5 +15,5 @@ pyzmq>=27.1.0; sys_platform != 'emscripten'
 starlette>=0.37.2; sys_platform != 'emscripten'
 tomlkit>=0.12.0
 typing_extensions>=4.4.0; python_version < '3.12'
-uvicorn>=0.22.0; sys_platform != 'emscripten'
+uvicorn>=0.23.0; sys_platform != 'emscripten'
 websockets >= 14.2.0; sys_platform != 'emscripten'

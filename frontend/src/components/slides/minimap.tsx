@@ -2,6 +2,7 @@
 
 import { useDeleteCellCallback } from "@/components/editor/cell/useDeleteCell";
 import { outputIsStale } from "@/core/cells/cell";
+import { useCellExecution, useCellFreshness } from "@/core/executions";
 import { useCellActions } from "@/core/cells/actions";
 import type { CellId } from "@/core/cells/ids";
 import { type CellColumnId, type Layout, useLayout } from "@/core/cells/layout";
@@ -627,6 +628,8 @@ const SlideThumbnailCard = ({
   ...props
 }: SlideThumbnailCardProps) => {
   const { width, height, scale } = dimensions;
+  const execution = useCellExecution(cell.id);
+  const freshness = useCellFreshness(cell.id);
   const visual = isNoOutput ? NO_OUTPUT_VISUAL : getSlideTypeVisual(slideType);
   const isSkipped = isNoOutput || slideType === "skip";
 
@@ -675,9 +678,9 @@ const SlideThumbnailCard = ({
           ) : (
             <Slide
               cellId={cell.id}
-              status={cell.status}
+              status={execution.status}
               output={cell.output}
-              stale={outputIsStale(cell, false)}
+              stale={outputIsStale(execution, freshness, false)}
             />
           )}
         </div>

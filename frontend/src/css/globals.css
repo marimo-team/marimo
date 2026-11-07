@@ -128,14 +128,18 @@
     --cm-search-match-selected-background-dark: #6199ff88;
   }
 
+  .marimo.light {
+    color-scheme: light;
+  }
+
   :root:has(body.dark),
   .dark,
-  .marimo:is(.dark *) {
+  .marimo:not(.light):is(.dark *) {
     color-scheme: dark;
   }
 
   .dark,
-  .marimo:is(.dark *) {
+  .marimo:not(.light):is(.dark *) {
     --ring: var(--blue-8, #2870bd);
     --destructive: var(--red-6, #72232d);
     --destructive-hover: var(--red-7, #8c333a);
