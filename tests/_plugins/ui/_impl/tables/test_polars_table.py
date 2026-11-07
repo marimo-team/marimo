@@ -185,17 +185,24 @@ def test_map_csv_non_finite_values(lazy: bool, case: str) -> None:
 
 
 @pytest.mark.requires("polars")
-def test_map_csv_native_conversion(monkeypatch: pytest.MonkeyPatch) -> None:
+@pytest.mark.parametrize("nested", [False, True])
+def test_map_csv_native_conversion(
+    monkeypatch: pytest.MonkeyPatch, nested: bool
+) -> None:
     import polars as pl
 
     map_dtype = getattr(pl, "Map", None)
     if map_dtype is None:
         pytest.skip("Map dtype requires Polars 2")
+    dtype = (
+        map_dtype(pl.Int64, pl.List(pl.Int64)) if nested else pl.List(pl.Int64)
+    )
+    value = {42: [1, 2]} if nested else [1, 2]
     source = pl.DataFrame(
         {
             "value": pl.Series(
-                [{1: [1, 2]}, {}, None],
-                dtype=map_dtype(pl.Int64, pl.List(pl.Int64)),
+                [{1: value}, {}, None],
+                dtype=map_dtype(pl.Int64, dtype),
             )
         }
     )
@@ -206,7 +213,85 @@ def test_map_csv_native_conversion(monkeypatch: pytest.MonkeyPatch) -> None:
 
     monkeypatch.setattr(pl.Series, "to_list", reject_to_list)
     rows = list(csv.reader(io.StringIO(manager.to_csv_str())))
-    assert rows == [["value"], ['[{"key":1,"value":[1,2]}]'], ["[]"], []]
+    encoded = (
+        '[{"key":1,"value":[{"key":42,"value":[1,2]}]}]'
+        if nested
+        else '[{"key":1,"value":[1,2]}]'
+    )
+    assert rows == [["value"], [encoded], ["[]"], []]
+
+
+@pytest.mark.requires("polars", "pyarrow")
+@pytest.mark.parametrize("wrapper", ["direct", "struct", "list", "array"])
+@pytest.mark.parametrize("non_finite", [False, True])
+@pytest.mark.parametrize("fallback", [False, True])
+def test_map_csv_nested_keys(
+    wrapper: str, non_finite: bool, fallback: bool
+) -> None:
+    import polars as pl
+    import pyarrow as pa
+
+    if not hasattr(pl, "Map"):
+        pytest.skip("Map dtype requires Polars 2")
+    keys = (
+        [float("inf"), float("-inf"), float("nan")] if non_finite else [42, 42]
+    )
+    inner_type = pa.map_(
+        pa.float64() if non_finite else pa.int64(), pa.int64()
+    )
+    entries = [(key, index) for index, key in enumerate(keys)]
+    expected_entries = [
+        {"key": None if non_finite else key, "value": index}
+        for index, key in enumerate(keys)
+    ]
+    value: object = entries
+    expected: object = expected_entries
+    value_type = inner_type
+    if wrapper == "struct":
+        value_type = pa.struct({"inner": inner_type, "other": pa.string()})
+        value = {"inner": entries, "other": None}
+        expected = {"inner": expected_entries, "other": None}
+    elif wrapper in ("list", "array"):
+        value_type = (
+            pa.list_(inner_type, 3)
+            if wrapper == "array"
+            else pa.list_(inner_type)
+        )
+        value = [entries, [], None]
+        expected = [expected_entries, [], None]
+    if fallback:
+        value_type = pa.struct({"nested": value_type, "binary": pa.binary()})
+        value = {"nested": value, "binary": b"abc"}
+        expected = {"nested": expected, "binary": "abc"}
+    source = pl.from_arrow(
+        pa.table(
+            {
+                "value": pa.array(
+                    [[("outer", value)], [], None, [("outer", None)]],
+                    type=pa.map_(pa.string(), value_type),
+                ),
+                "id": [0, 1, 2, 3],
+            }
+        )
+    )
+    manager = PolarsTableManagerFactory.create()(source)
+    rows = list(csv.DictReader(io.StringIO(manager.to_csv_str())))
+
+    def reject_constant(value: str) -> None:
+        pytest.fail(f"Invalid JSON constant: {value}")
+
+    assert [
+        json.loads(row["value"], parse_constant=reject_constant)
+        if row["value"]
+        else None
+        for row in rows
+    ] == [
+        [{"key": "outer", "value": expected}],
+        [],
+        None,
+        [{"key": "outer", "value": None}],
+    ]
+    assert manager.collect().equals(source)
 
 
 def assert_frame_equal(a: Any, b: Any) -> bool:
