@@ -1236,3 +1236,55 @@ def test_stale_function_object_parameter_rename_keys_apart(
         sys.path.remove(str(tmp_path))
     assert (old(10), new(10)) == (10, 99)
     assert hash_wrapped_functions(old) != hash_wrapped_functions(new)
+
+
+class _SetState:
+    def __init__(self, x: int) -> None:
+        self.x = x
+
+    def __getstate__(self) -> set[int]:
+        # A temporary set, freed once pickled, so its id can be reused.
+        return {self.x}
+
+
+def test_temporary_sets_are_not_mistaken_for_aliases() -> None:
+    assert deterministic_dumps(
+        [_SetState(1), _SetState(2)], "sha256"
+    ) != deterministic_dumps([_SetState(1), _SetState(3)], "sha256")
+
+
+def test_stale_function_object_global_binding_keys_apart(
+    tmp_path: Path,
+) -> None:
+    import importlib
+    import shutil
+    import sys
+
+    module = tmp_path / "kept_global.py"
+    module.write_text(
+        "def cb():\n    global x\n    x = 1\n    return locals()\n"
+    )
+    sys.path.insert(0, str(tmp_path))
+    try:
+        old = importlib.import_module("kept_global").cb
+        shutil.rmtree(tmp_path / "__pycache__", ignore_errors=True)
+        module.write_text("def cb():\n    x = 1\n    return locals()\n")
+        new = importlib.reload(sys.modules["kept_global"]).cb
+    finally:
+        sys.path.remove(str(tmp_path))
+    assert (old(), new()) == ({}, {"x": 1})
+    assert hash_wrapped_functions(old) != hash_wrapped_functions(new)
+
+
+def test_captured_module_differs_from_its_name() -> None:
+    import math
+
+    def capture(value: Any) -> Any:
+        def cb() -> str:
+            return type(value).__name__
+
+        return cb
+
+    assert deterministic_dumps(
+        [capture(math)], "sha256"
+    ) != deterministic_dumps([capture("math")], "sha256")

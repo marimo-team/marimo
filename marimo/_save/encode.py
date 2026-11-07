@@ -241,13 +241,18 @@ def attempt_signed_bytes(value: bytes, label: str) -> bytes:
 class HashState:
     """State shared by every pickler of one key computation."""
 
+    # By id, with the object kept alive beside its entry: a temporary from
+    # `__getstate__` can be freed and its id reused within one computation.
+    #
     # A function's fingerprint, or None while it is being computed, so a
     # closure over itself terminates and a revisit contributes the same bytes.
-    functions: dict[int, bytes | None] = dataclasses.field(
+    functions: dict[int, tuple[Any, bytes | None]] = dataclasses.field(
         default_factory=dict
     )
     # Ordering key of a set member, computed once per key computation.
-    member_keys: dict[int, bytes] = dataclasses.field(default_factory=dict)
+    member_keys: dict[int, tuple[Any, bytes]] = dataclasses.field(
+        default_factory=dict
+    )
     # Sets whose members are being ordered right now.
     ordering: set[int] = dataclasses.field(default_factory=set)
 
@@ -264,7 +269,8 @@ def deterministic_dumps(
     class _ContentHashPickler(pickle.Pickler):
         # Sets already encoded by this pickler, so a second reference to the
         # same set is an alias and not a copy, as pickle's memo would record.
-        _sets: dict[int, int]
+        # The set is kept alive beside its index.
+        _sets: dict[int, tuple[Any, int]]
 
         def persistent_id(self, obj: Any) -> Any:
             # The pickler never asks `reducer_override` about a set, but it
@@ -281,19 +287,23 @@ def deterministic_dumps(
                 return ("set-cycle",)
             sets = self.__dict__.setdefault("_sets", {})
             if id(obj) in sets:
-                return ("set-alias", sets[id(obj)])
-            sets[id(obj)] = len(sets)
+                return ("set-alias", sets[id(obj)][1])
+            index = len(sets)
+            sets[id(obj)] = (obj, index)
             state.ordering.add(id(obj))
             try:
                 for item in obj:
                     if id(item) not in state.member_keys:
-                        state.member_keys[id(item)] = deterministic_dumps(
-                            item, hash_type, _seen=state
+                        state.member_keys[id(item)] = (
+                            item,
+                            deterministic_dumps(item, hash_type, _seen=state),
                         )
             finally:
                 state.ordering.discard(id(obj))
-            members = sorted(obj, key=lambda item: state.member_keys[id(item)])
-            return (type(obj).__name__, sets[id(obj)], tuple(members))
+            members = sorted(
+                obj, key=lambda item: state.member_keys[id(item)][1]
+            )
+            return (type(obj).__name__, index, tuple(members))
 
         def reducer_override(self, obj: Any) -> Any:
             if stub := maybe_get_custom_stub(obj):

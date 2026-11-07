@@ -160,8 +160,9 @@ _VARIABLE_OPS = {
         "LOAD_CLOSURE",
         "LOAD_FROM_DICT_OR_DEREF",
     ),
-    "STORE": ("STORE_GLOBAL", "STORE_DEREF", "STORE_FAST", "STORE_NAME"),
-    "DELETE": ("DELETE_GLOBAL", "DELETE_DEREF", "DELETE_FAST", "DELETE_NAME"),
+    # Not the GLOBAL forms: `global x; x = 1` and `x = 1` run differently.
+    "STORE": ("STORE_DEREF", "STORE_FAST", "STORE_NAME"),
+    "DELETE": ("DELETE_DEREF", "DELETE_FAST", "DELETE_NAME"),
 }
 _NULL_PREFIX = re.compile(r"^(NULL\|self|NULL) \+ ")
 
@@ -427,8 +428,8 @@ def hash_wrapped_functions(
         if id(fn) in state.functions:
             # In progress (a closure over itself) contributes nothing;
             # finished contributes the same bytes as the first time.
-            return state.functions[id(fn)] or b""
-        state.functions[id(fn)] = None
+            return state.functions[id(fn)][1] or b""
+        state.functions[id(fn)] = (fn, None)
         hash_alg = hashlib.new(hash_type, usedforsecurity=False)
         if not inspect.isbuiltin(fn):
             hash_alg.update(hash_function_source(fn))
@@ -451,7 +452,7 @@ def hash_wrapped_functions(
                 captured = tuple(
                     (
                         name,
-                        cell.cell_contents.__name__
+                        ("<module>", cell.cell_contents.__name__)
                         if inspect.ismodule(cell.cell_contents)
                         else cell.cell_contents,
                     )
@@ -488,7 +489,7 @@ def hash_wrapped_functions(
                 fn_hash = (
                     _soft_dumps(wrapped, "wrapped", hash_type, state) + fn_hash
                 )
-        state.functions[id(fn)] = fn_hash
+        state.functions[id(fn)] = (fn, fn_hash)
         return fn_hash
 
     return process_function(wrapped)
