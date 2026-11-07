@@ -74,6 +74,9 @@ def setup(
         lambda *_args, **_kwargs: (adapter, delivery),
     )
     monkeypatch.setattr(forwarder, "resolve_target", lambda **_: selected)
+    monkeypatch.setattr(
+        forwarder, "resolve_inbox_target", lambda selected: selected
+    )
     stop = Mock()
     monkeypatch.setattr(store, "stop", stop)
 
@@ -439,7 +442,7 @@ def test_connection_target_is_resolved_once(
     resolve = Mock(return_value=setup.selected)
     monkeypatch.setattr(forwarder, "resolve_target", resolve)
     assert ensure_connection(selected, setup.store, automatic=True) is not None
-    resolve.assert_called_once()
+    assert resolve.call_count == (0 if known_notebook else 1)
 
 
 def test_connection_resolution_cannot_change_notebooks(
@@ -447,7 +450,7 @@ def test_connection_resolution_cannot_change_notebooks(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     other = replace(setup.selected, id="nb-other", notebook_id="nb-other")
-    monkeypatch.setattr(forwarder, "resolve_target", lambda **_: other)
+    monkeypatch.setattr(forwarder, "resolve_inbox_target", lambda _: other)
     with pytest.raises(PairInputError, match="notebook changed"):
         ensure_connection(setup.selected, setup.store, automatic=True)
     setup.start.assert_not_called()

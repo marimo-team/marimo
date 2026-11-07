@@ -29,6 +29,18 @@ class ExecutionTarget:
     notebook_id: str | None = None
 
 
+def resolve_inbox_target(selected: ExecutionTarget) -> ExecutionTarget:
+    """Use the matching local host credential after session selection."""
+    if find_host(selected.url) is None:
+        return selected
+    return resolve_target(
+        url=selected.url,
+        session_id=selected.notebook_id,
+        token=None,
+        require_notebook=True,
+    )
+
+
 def resolve_target(
     *,
     url: str | None,

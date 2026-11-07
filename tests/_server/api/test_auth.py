@@ -481,7 +481,7 @@ def test_partial_server_config_defaults_to_insecure_local_cookie() -> None:
             "127.0.0.1",
             "localhost:1234",
             "local-secret",
-            False,
+            True,
         ),
         (
             "POST",
@@ -501,7 +501,7 @@ def test_partial_server_config_defaults_to_insecure_local_cookie() -> None:
         ),
     ],
 )
-def test_local_credential_is_scoped_to_execution(
+def test_local_credential_is_scoped_to_pair_endpoints(
     base_url: str,
     method: str,
     path: str,
