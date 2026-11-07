@@ -28,8 +28,8 @@ dependencies = [
     # for managing frontmatter headers in markdown
     "pyyaml>=6.0.1",
     # web server
-    # - 0.22.0 introduced timeout-graceful-shutdown, which we use
-    "uvicorn>=0.22.0; sys_platform != 'emscripten'",
+    # - 0.23.0 fixed WebSocket schemes behind trusted proxies
+    "uvicorn>=0.23.0; sys_platform != 'emscripten'",
     # web framework
     # - 0.29.0 introduced Middleware kwargs, which we use
     # - starlette 0.36.0 introduced a bug

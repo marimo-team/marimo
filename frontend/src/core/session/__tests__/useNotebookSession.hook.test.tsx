@@ -39,6 +39,7 @@ import { MockNotebook } from "@/__mocks__/notebook";
 import { Deferred } from "@/utils/Deferred";
 import { cellId } from "@/__tests__/branded";
 import { alertAtom, getPackageAlert } from "@/core/alerts/state";
+import { stagedAICellsAtom } from "@/core/ai/staged-cells";
 import { notebookAtom } from "@/core/cells/cells";
 import { AppConfigSchema } from "@/core/config/config-schema";
 import { ConnectionNotice } from "@/components/editor/alerts/connection-notice";
@@ -260,6 +261,39 @@ describe("useNotebookSession document model", () => {
     await expect(model.flush()).rejects.toThrow("not started");
   });
 
+  it("removes deleted cells from pending AI review while retaining surviving edits", async () => {
+    const fake = withTransport();
+    vi.mocked(useRuntimeManager).mockReturnValue(makeRuntimeManager());
+    const store = createStore();
+    const { result, unmount } = renderConnectionHook(store);
+    await started();
+    act(() => {
+      connection(fake).open();
+      fixtureMessages("notebook-events.sse").forEach(connection(fake).receive);
+    });
+    const removed = cellId("c3");
+    const retained = cellId("k7f2");
+    act(() =>
+      store.set(
+        stagedAICellsAtom,
+        new Map([
+          [removed, { type: "add_cell" }],
+          [retained, { type: "add_cell" }],
+        ]),
+      ),
+    );
+    act(() =>
+      store.set(result.current.documentModel.editAtom, (tx) =>
+        tx.deleteCell(removed),
+      ),
+    );
+    expect(store.get(notebookAtom).cellIds).not.toContain(removed);
+    expect(store.get(stagedAICellsAtom)).toEqual(
+      new Map([[retained, { type: "add_cell" }]]),
+    );
+    unmount();
+  });
+
   it("follows the host document into the notebook's cells", async () => {
     const fake = withTransport();
     vi.mocked(useRuntimeManager).mockReturnValue(makeRuntimeManager());
@@ -336,8 +370,6 @@ it.each(["kernel-ready", "reconnected"])(
         layout: null,
         resumed: true,
         ui_values: {},
-        last_executed_code: {},
-        last_execution_time: {},
         app_config: { width: "normal" },
         kiosk: false,
         capabilities: { terminal: false },

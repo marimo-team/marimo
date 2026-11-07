@@ -1,6 +1,6 @@
 id: 120
 event: run
-data: {"run":{"id":"run-failed","notebook_id":"n1","status":"running","started_at":"2026-10-01T09:21:10Z","completed_at":null,"caused_by":null,"outcome":null},"request_id":"0f4b2c1d-8e7a-4b6c-a5d4-1e2f3a4b5c6d","time":"2026-10-01T09:21:10Z"}
+data: {"run":{"id":"run-failed","notebook_id":"n1","runtime_id":"r1","cells":[],"status":"running","started_at":"2026-10-01T09:21:10Z","completed_at":null,"outcome":null},"request_id":"0f4b2c1d-8e7a-4b6c-a5d4-1e2f3a4b5c6d","time":"2026-10-01T09:21:10Z"}
 
 id: 121
 event: execution
@@ -16,5 +16,5 @@ data: {"execution":{"id":"e8","run_id":"run-failed","cell_id":null,"code_fingerp
 
 id: 124
 event: run
-data: {"run":{"id":"run-failed","notebook_id":"n1","status":"completed","started_at":"2026-10-01T09:21:10Z","completed_at":"2026-10-01T09:21:11Z","caused_by":null,"outcome":"failed"},"request_id":"0f4b2c1d-8e7a-4b6c-a5d4-1e2f3a4b5c6d","time":"2026-10-01T09:21:11Z"}
+data: {"run":{"id":"run-failed","notebook_id":"n1","runtime_id":"r1","cells":[],"status":"completed","started_at":"2026-10-01T09:21:10Z","completed_at":"2026-10-01T09:21:11Z","outcome":"failed"},"request_id":"0f4b2c1d-8e7a-4b6c-a5d4-1e2f3a4b5c6d","time":"2026-10-01T09:21:11Z"}
 

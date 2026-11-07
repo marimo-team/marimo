@@ -14,7 +14,6 @@ import { connectionAtom } from "@/core/network/connection";
 import { requestClientAtom } from "@/core/network/requests";
 import { resolveRequestClient } from "@/core/network/resolve";
 import { ConnectionState } from "@/core/session/types";
-import type { Milliseconds, Seconds } from "@/utils/time";
 import { CellArray } from "../../../components/editor/renderers/cell-array";
 import { CellsRenderer } from "../../../components/editor/renderers/cells-renderer";
 import { TooltipProvider } from "../../../components/ui/tooltip";
@@ -36,21 +35,11 @@ const createLongReprNotebook = (
 
 print('hello')
 LongReprA()`,
-      edited: false,
       config: {
         hide_code: hideCode,
         disabled: false,
         column: null,
       },
-      lastCodeRun: `class LongReprA:
-    def __repr__(self):
-        return "<dlt.Relation(dataset='" + ("jaffle_ingest_dataset_" * 80) + \\
-            "', destination='<dlt.destinations.duckdb(destination_type=\\'duckdb\\'," + \\
-            " credentials=\\'local_jaffle.duckdb\\')>')>"
-
-print('hello')
-LongReprA()`,
-      lastExecutionTime: null,
     },
   },
   cellIds: [cellId],
@@ -62,8 +51,6 @@ LongReprA()`,
         mimetype: "text/plain",
         timestamp: 1_686_863_710,
       },
-      runElapsedTimeMs: 8 as Milliseconds,
-      status: "idle",
       consoleOutputs: [
         {
           channel: "stdout",
@@ -72,12 +59,6 @@ LongReprA()`,
           timestamp: 1_686_863_705,
         },
       ],
-      interrupted: false,
-      errored: false,
-      stopped: false,
-      staleInputs: false,
-      runStartTimestamp: 0 as Seconds,
-      lastRunStartTimestamp: 0 as Seconds,
       debuggerActive: false,
       outline: null,
     }),

@@ -16,6 +16,8 @@ from marimo._core import operations, protocol
 from marimo._core.calls import CALLS, dispatch
 from marimo._core.errors import HostError
 from marimo._core.operations import Reply
+from marimo._runtime.commands import HTTPRequest
+from marimo._server.host.auth import bearer_matches
 
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable
@@ -128,10 +130,25 @@ def _endpoint(
         except msgspec.DecodeError as e:
             return problem(400, "invalid-request", str(e))
         context = _context(request)
-        status, body = await dispatch(context.mutations, context.bridge, call)
+        status, body = await dispatch(
+            context.mutations,
+            context.bridge,
+            call,
+            request=_submitting_request(request),
+        )
         return _response(status, body)
 
     return handle
+
+
+def _submitting_request(request: Request) -> HTTPRequest:
+    """Describe the request to notebook code without the token that admitted it."""
+    submitted = HTTPRequest.from_request(request)
+    if bearer_matches(
+        request.headers.get("authorization"), _context(request).token
+    ):
+        submitted.headers.pop("authorization", None)
+    return submitted
 
 
 def notebook_routes() -> list[Route]:

@@ -1,5 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
+import { PendingAICells } from "@/components/editor/chrome/wrapper/pending-ai-cells";
 import { useAtom } from "jotai";
 import {
   BotMessageSquareIcon,
@@ -1246,6 +1247,7 @@ const AgentPanel: React.FC = () => {
           </div>
         )}
 
+        {!isLoading && <PendingAICells />}
         <PromptArea
           isLoading={isLoading}
           activeSessionId={activeSessionId}

@@ -301,19 +301,6 @@ async def test_sse_kiosk_not_allowed_in_run_mode(client: TestClient) -> None:
     assert get_session_manager(client).sessions == {}
 
 
-async def test_sse_hides_code_when_include_code_false(
-    client: TestClient,
-) -> None:
-    session_manager = get_session_manager(client)
-    session_manager.mode = SessionMode.RUN
-    session_manager.include_code = False
-    async with _connect(client) as connection:
-        event = await connection.next_notification()
-        message = json.loads(event["data"])
-        assert message["op"] == "kernel-ready"
-        assert message["data"]["last_executed_code"] == {}  # hidden
-
-
 async def test_sse_kernel_startup_error(client: TestClient) -> None:
     with patch.object(
         SessionEventStream,

@@ -7,6 +7,7 @@ import msgspec
 import pytest
 
 from marimo._core import calls, protocol
+from marimo._core.backend import RequestInfo
 from marimo._core.calls import (
     CALLS,
     InterruptCall,
@@ -109,7 +110,12 @@ def test_calls_match_the_spec() -> None:
             )
 
         hints = get_type_hints(
-            kind.handle, {**vars(calls), "NotebookBridge": NotebookBridge}
+            kind.handle,
+            {
+                **vars(calls),
+                "NotebookBridge": NotebookBridge,
+                "RequestInfo": RequestInfo,
+            },
         )
         statuses, response = get_args(hints["return"])
         success = {

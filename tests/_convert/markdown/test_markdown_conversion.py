@@ -124,6 +124,28 @@ def test_markdown_frontmatter() -> None:
     assert app.cell_manager.cell_data_at(ids[1]).config.hide_code is False
 
 
+def test_markdown_frontmatter_list_values() -> None:
+    script = dedent(
+        """\
+        ---
+        title: My Title
+        auto_download: [html, markdown]
+        ---
+
+        ```python {.marimo}
+        print("Hello, World!")
+        ```
+        """
+    )
+
+    notebook_ir = convert_from_md_to_marimo_ir(script)
+    assert notebook_ir.app.options["app_title"] == "My Title"
+    assert notebook_ir.app.options["auto_download"] == ["html", "markdown"]
+
+    app = InternalApp(load_notebook_ir(notebook_ir))
+    assert app.config.auto_download == ["html", "markdown"]
+
+
 def test_mystmd_marimo_directives() -> None:
     script = dedent(
         remove_empty_lines(
