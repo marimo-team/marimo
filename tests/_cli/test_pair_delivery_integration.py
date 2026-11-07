@@ -97,7 +97,7 @@ def test_detached_delivery_replacement_and_files(
         monkeypatch.delenv(key, raising=False)
     runner = CliRunner()
     records = []
-    with pair_test_server(tmp_path) as server:
+    with pair_test_server(tmp_path, token="editor-test-secret") as server:
         arguments = [
             "--url",
             server.url,
@@ -107,6 +107,17 @@ def test_detached_delivery_replacement_and_files(
         try:
             for thread, selection in (
                 ("first", ["--session", server.notebook_id]),
+                (
+                    "editor",
+                    [
+                        "--url",
+                        server.url,
+                        "--session",
+                        server.stable_session_id,
+                        "--token",
+                        "editor-test-secret",
+                    ],
+                ),
                 (
                     "second",
                     [
@@ -159,7 +170,10 @@ def test_detached_delivery_replacement_and_files(
                 request = urllib.request.Request(
                     f"{server.url}/api/pair/notebooks/{server.stable_session_id}/messages",
                     data=json.dumps(payload).encode("utf-8"),
-                    headers={"Content-Type": "application/json"},
+                    headers={
+                        "Content-Type": "application/json",
+                        "Authorization": "Bearer editor-test-secret",
+                    },
                     method="POST",
                 )
                 with urllib.request.urlopen(request, timeout=5) as response:
@@ -175,18 +189,19 @@ def test_detached_delivery_replacement_and_files(
                     },
                 }
             )
-            first = wait_messages(inbox, 2)
+            first = wait_messages(inbox, 3)
             assert {message["thread"] for message in first} == {
                 "first",
                 "second",
+                "editor",
             }
             assert first[0]["message"] == first[1]["message"]
 
             large = {"lens": "😀" * 10000}
             send(large)
-            messages = wait_messages(inbox, 4)
+            messages = wait_messages(inbox, 6)
             references = []
-            for message in messages[2:]:
+            for message in messages[3:]:
                 assert len(message["message"].encode("utf-8")) <= 8192
                 path = Path(
                     message["message"].rsplit(

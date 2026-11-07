@@ -7,7 +7,7 @@ import queue
 import socket
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
-from urllib.parse import quote, urlsplit
+from urllib.parse import parse_qsl, quote, urlencode, urlsplit
 
 from marimo._server.host import (
     ATTACHMENT_IDENTITY,
@@ -137,6 +137,16 @@ def _endpoint_url(url: str, path: str) -> str:
     return parsed._replace(
         path=f"{parsed.path.rstrip('/')}{path}", fragment=""
     ).geturl()
+
+
+def host_api_url(url: str) -> str:
+    parsed = urlsplit(url)
+    return _endpoint_url(
+        parsed._replace(
+            path=parsed.path.rstrip("/").removesuffix(HOST_API_PATH)
+        ).geturl(),
+        HOST_API_PATH,
+    )
 
 
 def iter_sse(
@@ -435,10 +445,18 @@ def open_events(
         headers["Authorization"] = f"Bearer {token}"
     if cursor is not None:
         headers["Last-Event-ID"] = cursor
+    endpoint = urlsplit(
+        _endpoint_url(url, f"/notebooks/{quote(notebook, safe='')}/events")
+    )
+    query = [
+        (key, value)
+        for key, value in parse_qsl(endpoint.query, keep_blank_values=True)
+        if key != "types"
+    ]
+    query.append(("types", types))
     return open_response(
         method="GET",
-        url=_endpoint_url(url, f"/notebooks/{quote(notebook, safe='')}/events")
-        + f"?types={types}",
+        url=endpoint._replace(query=urlencode(query, safe=",")).geturl(),
         headers=headers,
         body=None,
         read_timeout=read_timeout,

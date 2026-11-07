@@ -26,6 +26,7 @@ from marimo._cli.pair.client import (
     PairInputError,
     SSEEvent,
     StaleNotebookError,
+    host_api_url,
     iter_sse,
     open_events,
     pump_events,
@@ -41,9 +42,12 @@ from marimo._cli.pair.harnesses import (
     harness_for,
     try_detect_target,
 )
-from marimo._cli.pair.target import ExecutionTarget, resolve_target
+from marimo._cli.pair.target import (
+    ExecutionTarget,
+    resolve_inbox_target,
+    resolve_target,
+)
 from marimo._messaging.messages import AGENT_MESSAGE_TYPE
-from marimo._server.host import HOST_API_PATH
 from marimo._utils.subprocess import kill_subprocess
 
 if TYPE_CHECKING:
@@ -89,15 +93,13 @@ def ensure_connection(
     owner = target.process
     if owner is None or not owner.alive():
         raise PairInputError("The inbox owner is not running.")
-    resolved: ExecutionTarget | None = None
     if selected.notebook_id is None:
-        resolved = resolve_target(
+        selected = resolve_target(
             url=selected.url,
             session_id=selected.id,
             token=selected.token,
             require_notebook=True,
         )
-        selected = resolved
     assert selected.notebook_id is not None
     notebook = selected.notebook_id
     identity = connection_identity(notebook, target.kind, target.address)
@@ -116,18 +118,11 @@ def ensure_connection(
                 raise PairInputError(
                     "This conversation has a forwarder owned by another harness process."
                 )
-        if automatic and resolved is None:
-            resolved = resolve_target(
-                url=selected.url,
-                session_id=selected.id,
-                token=selected.token,
-                require_notebook=True,
+        selected = resolve_inbox_target(selected)
+        if selected.notebook_id != notebook:
+            raise PairInputError(
+                "The notebook changed during connection setup."
             )
-            if resolved.notebook_id != notebook:
-                raise PairInputError(
-                    "The notebook changed during connection setup."
-                )
-            selected = resolved
         ready = adapter.detect(
             os.environ, process=owner if pid is not None else None
         )
@@ -140,8 +135,7 @@ def ensure_connection(
                 "The harness conversation changed during connection setup."
             )
         config = ForwarderConfig(
-            selected.url.rstrip("/").removesuffix(HOST_API_PATH)
-            + HOST_API_PATH,
+            host_api_url(selected.url),
             notebook,
             identity,
             selected.token,

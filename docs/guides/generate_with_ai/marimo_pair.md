@@ -150,16 +150,3 @@ Ask your agent to explore data, explain results, or modify cells.
 The agent can inspect variables and try code in a scratchpad before it changes the notebook.
 You can inspect the results and edit the same notebook yourself.
 Your work stays in a notebook that you can run again, modify, and share.
-
-## Receive notebook messages
-
-Inside Claude Code, Codex, or OpenCode 2.0, the first `pair execute` attempts an inbox connection automatically.
-If notebook messaging is unavailable, execution continues.
-For supported harnesses, retry once. If it fails, continue without messaging:
-
-```bash
-marimo pair connect --session <notebook-ID>
-```
-
-Target selection and authentication follow the shared Pair command rules in `marimo pair --help`.
-Run `marimo pair connect --help` for connection options.
