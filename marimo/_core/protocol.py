@@ -261,7 +261,7 @@ else:
 Lifecycle: TypeAlias = Annotated[
     Literal["queued", "running", "completed"],
     Meta(
-        description="Where a run or execution is in its lifecycle. An execution is\n`queued` until it starts, `running` while code executes, and\n`completed` once it has ended. How it ended is its `outcome`.\n"
+        description="Where a run or execution is in its lifecycle. An execution is\n`queued` until it starts, `running` while code executes, and\n`completed` once it has ended. A run is `queued` until its first\nexecution starts, `running` until its cycle has settled or been cut\nshort, and `completed` once no more work can join it. How either\nended is its `outcome`.\n"
     ),
 ]
 
@@ -508,7 +508,7 @@ else:
 RunOutcome: TypeAlias = Annotated[
     Literal["succeeded", "failed", "interrupted"],
     Meta(
-        description="How a run ended. `succeeded` means its work settled without an\nexecution error or interruption. `failed` means an execution\nfailed or the host could not finish the cycle. `interrupted`\nmeans the cycle was cut short by interruption, even if an earlier\nexecution failed. Execution outcomes retain their individual results.\n"
+        description="How a run ended. `succeeded` means its work settled without an\nexecution error or interruption. `failed` means an execution's\ncode raised or the host could not finish the cycle. An execution\nskipped because of another cell does not fail its run. `interrupted`\nmeans the cycle was cut short by interruption, even if an earlier\nexecution failed. Execution outcomes retain their individual results.\n"
     ),
 ]
 
@@ -606,6 +606,27 @@ class SetOrder(Struct, frozen=True, tag_field="kind", tag="set_order"):
         tuple[CellId, ...],
         Meta(
             description="Every cell id exactly once, in the new order, counting cells this edit creates and leaving out cells it deletes."
+        ),
+    ]
+
+
+class SkippedOutcome(Struct, frozen=True, tag_field="kind", tag="skipped"):
+    message: Annotated[
+        str,
+        Meta(
+            description="Why the cell did not run, to show in place of its output."
+        ),
+    ]
+    reason: Annotated[
+        str,
+        Meta(
+            description="Why the cell did not evaluate. The string is open. This protocol\ndefines `upstream-failed`, a cell it depends on did not produce\nits value because it raised or could not resolve a reference,\n`upstream-stopped`, a cell it depends on stopped the cycle on\npurpose, and `superseded`, a later execution of the same cell\nreplaced this one before it started because the cell's source\nchanged while it waited. Clients show unrecognized reasons as\nskipped, with the message.\n"
+        ),
+    ]
+    related: Annotated[
+        tuple[Related, ...],
+        Meta(
+            description="The cells involved, the cause first and this cell last."
         ),
     ]
 
@@ -717,6 +738,18 @@ class VariableRemovedEvent(
 
 class Attachment(Struct, frozen=True):
     id: AttachmentId
+    identity: (
+        Annotated[
+            str,
+            Meta(
+                description="The opaque client identity supplied by `Marimo-Attachment-Identity`.\nNull when none was supplied. Consumers can group attachments\nwith the same identity within a host. It does not identify an\nindividual connection or change its lifetime.\n",
+                max_length=128,
+                min_length=1,
+                pattern="^[!-~]+$",
+            ),
+        ]
+        | None
+    )
     kind: Annotated[
         str,
         Meta(
@@ -736,18 +769,6 @@ class Attachment(Struct, frozen=True):
     )
     notebook_id: NotebookId
     since: Annotated[datetime, Meta(description="When it attached.")]
-    identity: (
-        Annotated[
-            str,
-            Meta(
-                description="The opaque client identity supplied by `Marimo-Attachment-Identity`.\nOmitted when none was supplied. Consumers can group attachments\nwith the same identity within a host. It does not identify an\nindividual connection or change its lifetime.\n",
-                max_length=128,
-                min_length=1,
-                pattern="^[!-~]+$",
-            ),
-        ]
-        | UnsetType
-    ) = UNSET
 
 
 class AttachmentMessage(Struct, frozen=True):
@@ -987,17 +1008,9 @@ class Decision(Struct, frozen=True):
 
 
 class Display(Struct, frozen=True):
-    data: Annotated[
-        str,
-        Meta(
-            description="The rendered value, embedded so clients can display it independently of the runtime. JSON mimetypes are encoded as text and binary mimetypes as base64."
-        ),
-    ]
+    content: Annotated[DisplayData, Meta(description="The rendered value.")]
     execution_id: ExecutionId
     id: ItemId
-    mimetype: Annotated[
-        str, Meta(description="The format of `data`, such as `image/png`.")
-    ]
     seq: Annotated[
         int,
         Meta(
@@ -1397,9 +1410,9 @@ class NotebookRemovedEvent(
 
 
 Outcome: TypeAlias = Annotated[
-    ValueOutcome | ErrorOutcome | InterruptedOutcome,
+    ValueOutcome | ErrorOutcome | InterruptedOutcome | SkippedOutcome,
     Meta(
-        description="How an execution ended, tagged on `kind`. A `value` carries the\nexecution's value as last rendered; while the execution is\nrunning it is the value so far, and it is final once the\nexecution is `completed`. An `error` carries the error that ended it.\nAn `interrupted` execution was cancelled before or during execution. Other\nkinds are defined by later versions of this protocol.\n"
+        description="How an execution ended, tagged on `kind`. A `value` carries the\nexecution's value as last rendered; while the execution is\nrunning it is the value so far, and it is final once the\nexecution is `completed`. An `error` carries the error that ended it.\nAn `interrupted` execution was cancelled before or during execution.\nA `skipped` execution did not evaluate because of another cell; it\nhas no value and binds no variables. Other kinds are defined by\nlater versions of this protocol.\n"
     ),
 ]
 
@@ -1526,15 +1539,12 @@ class ProjectRemovedEvent(
 
 
 class Run(Struct, frozen=True):
-    caused_by: (
-        Annotated[
-            ExecutionId,
-            Meta(
-                description="The execution that caused this runtime-scheduled run. This records provenance, not membership in that execution's run, and does not extend the earlier run's lifetime. Null for a client request or when the runtime does not know the source."
-            ),
-        ]
-        | None
-    )
+    cells: Annotated[
+        tuple[CellId, ...],
+        Meta(
+            description="The cells the run was requested for. Fixed when the run is accepted, so a client can tell which cells a queued run will reach before the runtime has planned their executions. Each one's execution in this run reports the fingerprint of the source accepted for it. Empty for scratch code and for a run the runtime scheduled itself."
+        ),
+    ]
     completed_at: (
         Annotated[
             datetime,
@@ -1555,6 +1565,9 @@ class Run(Struct, frozen=True):
         ]
         | None
     )
+    runtime_id: Annotated[
+        RuntimeId, Meta(description="The runtime that produced this run.")
+    ]
     started_at: (
         Annotated[
             datetime,
@@ -1750,7 +1763,7 @@ class Execution(Struct, frozen=True):
         Annotated[
             ExecutionId,
             Meta(
-                description="The execution in the same run that initiated this evaluation. Null for executions requested directly."
+                description="The execution in the same run whose code was running when this one was scheduled, such as scratch code that ran a cell, set a UI element's value, or wrote state, and the cells that reacted to it. Null for an execution a client requested and for the cells that reacted to one."
             ),
         ]
         | None
@@ -1774,7 +1787,10 @@ class Execution(Struct, frozen=True):
         | None
     )
     code_fingerprint: Annotated[
-        CodeFingerprint, Meta(description="Fingerprint of the evaluated code.")
+        CodeFingerprint,
+        Meta(
+            description="Fingerprint of the code the execution evaluates. Fixed when the execution is published, while it is still queued."
+        ),
     ]
     completed_at: (
         Annotated[

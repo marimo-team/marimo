@@ -5,6 +5,7 @@ import {
   type CellStatusComponentProps,
 } from "@/components/editor/cell/CellStatus";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import type { Milliseconds } from "@/utils/time";
 
 const meta: Meta<typeof CellStatusComponent> = {
   title: "CellStatusComponent",
@@ -26,7 +27,7 @@ export const Idle = Template.bind({});
 Idle.args = {
   editing: true,
   status: "idle",
-  edited: false,
+  freshness: { sourceChanged: false, inputsChanged: false },
   interrupted: false,
   disabled: false,
   elapsedTime: null,
@@ -36,47 +37,47 @@ export const Edited = Template.bind({});
 Edited.args = {
   editing: true,
   status: "idle",
-  edited: true,
+  freshness: { sourceChanged: true, inputsChanged: false },
   interrupted: false,
   disabled: false,
-  elapsedTime: 100,
+  elapsedTime: 100 as Milliseconds,
 };
 
 export const Interrupted = Template.bind({});
 Interrupted.args = {
   editing: true,
   status: "idle",
-  edited: false,
+  freshness: { sourceChanged: false, inputsChanged: false },
   interrupted: true,
   disabled: false,
-  elapsedTime: 50,
+  elapsedTime: 50 as Milliseconds,
 };
 
 export const Running = Template.bind({});
 Running.args = {
   editing: true,
   status: "running",
-  edited: false,
+  freshness: { sourceChanged: false, inputsChanged: false },
   interrupted: true,
   disabled: false,
-  elapsedTime: 50,
+  elapsedTime: 50 as Milliseconds,
 };
 
 export const Queued = Template.bind({});
 Queued.args = {
   editing: true,
   status: "queued",
-  edited: false,
+  freshness: { sourceChanged: false, inputsChanged: false },
   interrupted: true,
   disabled: false,
-  elapsedTime: 50,
+  elapsedTime: 50 as Milliseconds,
 };
 
 export const Disabled = Template.bind({});
 Disabled.args = {
   editing: true,
   status: "idle",
-  edited: false,
+  freshness: { sourceChanged: false, inputsChanged: false },
   interrupted: false,
   disabled: true,
   elapsedTime: null,
@@ -85,8 +86,9 @@ Disabled.args = {
 export const DisabledTransitively = Template.bind({});
 DisabledTransitively.args = {
   editing: true,
-  status: "disabled-transitively",
-  edited: false,
+  status: "idle",
+  blocked: true,
+  freshness: { sourceChanged: false, inputsChanged: false },
   interrupted: false,
   disabled: false,
   elapsedTime: null,
@@ -95,8 +97,9 @@ DisabledTransitively.args = {
 export const DisabledTransitivelyAndEdited = Template.bind({});
 DisabledTransitivelyAndEdited.args = {
   editing: true,
-  status: "disabled-transitively",
-  edited: true,
+  status: "idle",
+  blocked: true,
+  freshness: { sourceChanged: true, inputsChanged: false },
   interrupted: false,
   disabled: false,
   elapsedTime: null,
@@ -105,9 +108,9 @@ DisabledTransitivelyAndEdited.args = {
 export const Stale = Template.bind({});
 Stale.args = {
   editing: true,
-  status: "disabled-transitively",
-  staleInputs: true,
-  edited: false,
+  status: "idle",
+  blocked: true,
+  freshness: { sourceChanged: false, inputsChanged: true },
   interrupted: false,
   disabled: false,
   elapsedTime: null,
@@ -116,9 +119,9 @@ Stale.args = {
 export const StaleAndDisabled = Template.bind({});
 StaleAndDisabled.args = {
   editing: true,
-  status: "disabled-transitively",
-  staleInputs: true,
-  edited: false,
+  status: "idle",
+  blocked: true,
+  freshness: { sourceChanged: false, inputsChanged: true },
   interrupted: false,
   disabled: true,
   elapsedTime: null,
@@ -127,8 +130,9 @@ StaleAndDisabled.args = {
 export const EditedStaleAndDisabled = Template.bind({});
 EditedStaleAndDisabled.args = {
   editing: true,
-  status: "disabled-transitively",
-  staleInputs: true,
+  status: "idle",
+  blocked: true,
+  freshness: { sourceChanged: false, inputsChanged: true },
   interrupted: false,
   disabled: true,
   elapsedTime: null,
@@ -137,8 +141,9 @@ EditedStaleAndDisabled.args = {
 export const EditedAndStale = Template.bind({});
 EditedAndStale.args = {
   editing: true,
-  status: "disabled-transitively",
-  edited: true,
+  status: "idle",
+  blocked: true,
+  freshness: { sourceChanged: true, inputsChanged: false },
   interrupted: false,
   disabled: false,
   elapsedTime: null,

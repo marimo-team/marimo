@@ -37,6 +37,7 @@ class TestAppHostCommands:
                 configs={},
                 app_metadata=app_metadata,
                 user_config=user_config,
+                config_overrides=(("runtime", "sql_default_limit"),),
                 virtual_file_storage="shared_memory",
                 redirect_console_to_browser=True,
                 log_level=10,

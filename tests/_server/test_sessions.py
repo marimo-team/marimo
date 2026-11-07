@@ -1556,3 +1556,47 @@ async def test_caching_extension_respects_mode_and_config() -> None:
     session_edit_disabled.close()
     session_run_disabled.close()
     session_run_enabled.close()
+
+
+@pytest.mark.parametrize("override", [None, 60])
+async def test_session_script_stays_below_environment_and_explicit_overrides(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    override: int | None,
+) -> None:
+    from marimo._config.manager import UserConfigStore
+
+    config_path = tmp_path / "marimo.toml"
+    config_path.write_text("")
+    monkeypatch.setattr(
+        UserConfigStore, "get_config_path", lambda _: str(config_path)
+    )
+    monkeypatch.setenv("MARIMO_RUNTIME_SQL_DEFAULT_LIMIT", "45")
+    notebook = tmp_path / "app.py"
+    notebook.write_text(
+        "# /// script\n# [tool.marimo.runtime]\n# sql_default_limit = 25\n# ///\nimport marimo\napp = marimo.App()\n"
+    )
+    manager = get_default_config_manager(current_path=str(tmp_path))
+    if override is not None:
+        manager = manager.with_overrides(
+            {"runtime": {"sql_default_limit": override}}
+        )
+    session = await SessionImpl.create(
+        startup=SessionStartup(),
+        initialization_id="test_id",
+        session_consumer=None,
+        mode=SessionMode.RUN,
+        app_metadata=app_metadata,
+        app_file_manager=AppFileManager(filename=str(notebook)),
+        config_manager=manager,
+        virtual_file_storage="in_memory",
+        redirect_console_to_browser=False,
+        ttl_seconds=None,
+        auto_instantiate=False,
+    )
+    try:
+        assert session._kernel_manager.config_manager.get_config()["runtime"][
+            "sql_default_limit"
+        ] == (override if override is not None else 45)
+    finally:
+        session.close()

@@ -24,9 +24,34 @@ from typing import TYPE_CHECKING, Protocol
 from marimo._core import protocol
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
+    from collections.abc import Mapping, Sequence
 
     from marimo._core.document import Document
+
+
+class RequestInfo(Protocol):
+    """The HTTP request that submitted a run, as cells read it.
+
+    Notebook code reads the request that ran it through
+    `mo.app_meta().request`, so a backend hands these fields to the kernel.
+    """
+
+    @property
+    def url(self) -> Mapping[str, object]: ...
+    @property
+    def base_url(self) -> Mapping[str, object]: ...
+    @property
+    def headers(self) -> Mapping[str, str]: ...
+    @property
+    def query_params(self) -> Mapping[str, Sequence[str]]: ...
+    @property
+    def path_params(self) -> Mapping[str, object]: ...
+    @property
+    def cookies(self) -> Mapping[str, str]: ...
+    @property
+    def user(self) -> object: ...
+    @property
+    def meta(self) -> Mapping[str, object]: ...
 
 
 class Backend(Protocol):
@@ -48,24 +73,44 @@ class Backend(Protocol):
     def stop(self, runtime_id: protocol.RuntimeId) -> None:
         """Stop the runtime's kernel and report `Exited` once it has."""
 
-    def run(self, run_id: protocol.RunId, code: str) -> None:
-        """Evaluate scratch code and report the run's progress and output."""
+    def run(
+        self,
+        run_id: protocol.RunId,
+        code: str,
+        *,
+        request: RequestInfo | None,
+    ) -> None:
+        """Evaluate scratch code and report the run's progress and output.
+
+        Runs are handed over in acceptance order and reach the kernel in
+        that order, however long each takes to prepare. `request` is the
+        request that submitted the run, if one did, for the code to read.
+        """
 
     def run_cells(
         self,
         run_id: protocol.RunId,
         document: Document,
         cell_ids: Sequence[protocol.CellId],
+        *,
+        request: RequestInfo | None,
     ) -> None:
         """Run cells of `document` and report the run's progress and output.
 
-        Requested cells and pending ancestors are registered before execution.
-        Dependent cells follow the runtime's execution configuration. Each
-        execution reports the fingerprint submitted with its cell.
+        Handed over like `run`, with the document the run was accepted in
+        and the request that submitted it.
+        Requested cells and pending ancestors are registered before
+        execution. Dependent cells follow the runtime's execution
+        configuration. Each execution reports the fingerprint submitted
+        with its cell.
         """
 
     def interrupt(self, run_id: protocol.RunId) -> None:
-        """Interrupt a run and report an `interrupted` execution outcome."""
+        """End a run and report its `interrupted` outcome.
+
+        A run the kernel has not started completes without running. One
+        the kernel could not stop at once is stopped as it progresses.
+        """
 
     def forget(self, run_id: protocol.RunId) -> None:
         """Release a run the host no longer retains.
@@ -112,7 +157,6 @@ class Scheduled:
     """The runtime scheduled a run independently of a host API request."""
 
     run_id: protocol.RunId
-    caused_by: protocol.ExecutionId | None = None
 
 
 @dataclass(frozen=True)

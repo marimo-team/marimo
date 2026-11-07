@@ -1,28 +1,33 @@
 /* Copyright 2026 Marimo. All rights reserved. */
-/* oxlint-disable typescript/no-explicit-any */
 
 import { atom, useSetAtom } from "jotai";
 import type { Reducer } from "react";
 import { Logger } from "@/utils/Logger";
 
-export type NoInfer<T> = [T][T extends any ? 0 : never];
+type ReducerHandlers<State, Payloads> = {
+  [Type in keyof Payloads]: (state: State, payload: Payloads[Type]) => State;
+};
 
-type Dispatch<RH> = (action: ReducerActionOf<RH>) => void;
-type IfUnknown<T, Y, N> = unknown extends T ? Y : N;
+type ReducerConstraints<State> = Record<
+  string,
+  (state: State, payload: never) => State
+>;
 
-type ReducerHandler<State, Payload> = (state: State, payload: Payload) => State;
-
-interface ReducerHandlers<State> {
-  [k: string]: ReducerHandler<State, any>;
-}
-
-type ReducerActions<RH> = {
+type PayloadsOf<RH> = {
   [Type in keyof RH]: RH[Type] extends (
     state: never,
     payload: infer Payload,
   ) => unknown
-    ? IfUnknown<Payload, () => void, (payload: Payload) => void>
+    ? Payload
     : never;
+};
+
+type Dispatch<Payloads> = (action: ReducerActionOf<Payloads>) => void;
+
+type ReducerActions<Payloads> = {
+  [Type in keyof Payloads]: unknown extends Payloads[Type]
+    ? () => void
+    : (payload: Payloads[Type]) => void;
 };
 
 /** Helper for typing middleware that receives dispatched actions. */
@@ -32,27 +37,16 @@ export type DispatchedActionOf<T> = {
     : never;
 }[keyof T & string];
 
-type ReducerActionOf<RH> = {
-  [Type in keyof RH]: RH[Type] extends (
-    state: never,
-    payload: infer Payload,
-  ) => unknown
-    ? { type: Type; payload: Payload }
-    : never;
-}[keyof RH & string];
+type ReducerActionOf<
+  Payloads,
+  Key extends keyof Payloads & string = keyof Payloads & string,
+> = {
+  [Type in Key]: { type: Type; payload: Payloads[Type] };
+}[Key];
 
-export interface ReducerCreatorResult<
-  State,
-  RH extends ReducerHandlers<State>,
-> {
-  /**
-   * The reducer function.
-   */
-  reducer: Reducer<State, ReducerActionOf<RH>>;
-  /**
-   * Given a dispatch function, returns an object containing all the actions.
-   */
-  createActions: (dispatch: Dispatch<RH>) => ReducerActions<RH>;
+export interface ReducerCreatorResult<State, Payloads> {
+  reducer: Reducer<State, ReducerActionOf<Payloads>>;
+  createActions: (dispatch: Dispatch<Payloads>) => ReducerActions<Payloads>;
 }
 
 /**
@@ -60,51 +54,64 @@ export interface ReducerCreatorResult<
  */
 export function createReducer<
   State,
-  RH extends ReducerHandlers<NoInfer<State>>,
->(initialState: () => State, reducers: RH): ReducerCreatorResult<State, RH> {
+  RH extends ReducerConstraints<NoInfer<State>>,
+>(
+  initialState: () => State,
+  reducers: RH & ReducerHandlers<NoInfer<State>, PayloadsOf<RH>>,
+): ReducerCreatorResult<State, PayloadsOf<RH>> {
+  type Payloads = PayloadsOf<RH>;
+  const handlers: ReducerHandlers<State, Payloads> = reducers;
   return {
-    reducer: (state, action: ReducerActionOf<RH>) => {
+    reducer: (state, action) => {
       state = state || initialState();
-      if (action.type in reducers) {
-        return reducers[action.type](state, action.payload);
+      if (action.type in handlers) {
+        return handlers[action.type](state, action.payload);
       }
 
       Logger.error(`Action type ${action.type} is not defined in reducers.`);
       return state;
     },
-    createActions: (dispatch: Dispatch<RH>) => {
-      const actions = {} as ReducerActions<RH>;
-      for (const type in reducers) {
-        (actions as any)[type] = (payload: any) => {
-          dispatch({ type, payload } as any);
-        };
+    createActions: (dispatch) => {
+      const actions: {
+        [Key in keyof Payloads]?: (payload: Payloads[Key]) => void;
+      } = {};
+      const addAction = <Key extends keyof Payloads & string>(type: Key) => {
+        actions[type] = (payload) => dispatch({ type, payload });
+      };
+      for (const type in handlers) {
+        addAction(type);
       }
-      return actions;
+      // The loop fills every key; payload-free creators receive undefined.
+      return actions as ReducerActions<Payloads>;
     },
   };
 }
 
-type Middleware<State, RH> = (
+type Middleware<State, Payloads> = (
   prevState: State,
   newState: State,
-  action: ReducerActionOf<RH>,
+  action: ReducerActionOf<Payloads>,
 ) => void;
 
 export function createReducerAndAtoms<
   State,
-  RH extends ReducerHandlers<NoInfer<State>>,
+  RH extends ReducerConstraints<NoInfer<State>>,
 >(
   initialState: () => State,
-  reducers: RH,
-  middleware?: Middleware<State, NoInfer<RH>>[],
+  reducers: RH & ReducerHandlers<NoInfer<State>, PayloadsOf<RH>>,
+  middleware?: NoInfer<Middleware<State, PayloadsOf<RH>>[]>,
 ) {
+  type Payloads = PayloadsOf<RH>;
   const allMiddleware = [...(middleware ?? [])];
-  const addMiddleware = (mw: Middleware<State, RH>) => {
+  const addMiddleware = (mw: Middleware<State, Payloads>) => {
     allMiddleware.push(mw);
   };
-  const { reducer, createActions } = createReducer(initialState, reducers);
+  const { reducer, createActions } = createReducer<State, RH>(
+    initialState,
+    reducers,
+  );
 
-  const reduceSafely = (state: State, action: ReducerActionOf<RH>) => {
+  const reduceSafely = (state: State, action: ReducerActionOf<Payloads>) => {
     try {
       return reducer(state, action);
     } catch (error) {
@@ -116,7 +123,7 @@ export function createReducerAndAtoms<
   const runMiddleware = (
     prev: State,
     next: State,
-    action: ReducerActionOf<RH>,
+    action: ReducerActionOf<Payloads>,
   ) => {
     for (const mw of allMiddleware) {
       try {
@@ -127,47 +134,49 @@ export function createReducerAndAtoms<
     }
   };
 
-  const reducerWithMiddleware = (state: State, action: ReducerActionOf<RH>) => {
+  const reducerWithMiddleware = (
+    state: State,
+    action: ReducerActionOf<Payloads>,
+  ) => {
     const next = reduceSafely(state, action);
     runMiddleware(state, next, action);
     return next;
   };
 
   const valueAtom = atom(initialState());
-  // map of SetAtom => Actions, with and without middleware
-  const actionsMap = new WeakMap();
-  const plainActionsMap = new WeakMap();
+  type ActionsCache = WeakMap<
+    ReturnType<typeof useSetAtom<typeof valueAtom>>,
+    ReducerActions<Payloads>
+  >;
+  const actionsMap: ActionsCache = new WeakMap();
+  const plainActionsMap: ActionsCache = new WeakMap();
 
   function useActions(
     options: { skipMiddleware?: boolean } = {},
-  ): ReducerActions<RH> {
+  ): ReducerActions<Payloads> {
     const setState = useSetAtom(valueAtom);
     const skipMiddleware = options.skipMiddleware === true;
     const cache = skipMiddleware ? plainActionsMap : actionsMap;
 
-    if (!cache.has(setState)) {
-      cache.set(
-        setState,
-        createActions((action: ReducerActionOf<RH>) => {
-          // Reduce inside the write. Middleware runs once the write has
-          // committed and its subscribers have run, so anything it sets in
-          // turn observes the new state rather than the one being replaced.
-          let prev: State | undefined;
-          let next: State | undefined;
-          setState((state: State) => {
-            prev = state;
-            next = reduceSafely(state, action);
-            return next;
-          });
-          if (!skipMiddleware && prev !== undefined && next !== undefined) {
-            runMiddleware(prev, next, action);
-          }
-        }),
-      );
+    const cachedActions = cache.get(setState);
+    if (cachedActions) {
+      return cachedActions;
     }
-
-    // oxlint-disable-next-line typescript/no-non-null-assertion
-    return cache.get(setState)!;
+    const actions = createActions((action) => {
+      // Middleware runs after the write commits so it observes the new state.
+      let prev: State | undefined;
+      let next: State | undefined;
+      setState((state: State) => {
+        prev = state;
+        next = reduceSafely(state, action);
+        return next;
+      });
+      if (!skipMiddleware && prev !== undefined && next !== undefined) {
+        runMiddleware(prev, next, action);
+      }
+    });
+    cache.set(setState, actions);
+    return actions;
   }
 
   return {

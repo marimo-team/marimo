@@ -349,7 +349,7 @@ async def test_removed_runs_release_backend_translation_state(
     retained = {"run"} if cell_id != SCRATCH_CELL_ID else set()
     assert set(backend._translators) == retained
     bridge.index.forget(record.id)
-    assert backend._translators == {}
+    assert set(backend._translators) == set()
     assert bridge._backends == {}
     bridge.close()
 
@@ -1147,7 +1147,7 @@ async def test_bridge_supplies_metadata_for_the_current_session(
     await bridge.open()
     notebook = bridge.notebook_for_session(session)  # type: ignore[arg-type]
     assert notebook is not None
-    run = notebook.run("print(1)", request_id="metadata-test")
+    run = notebook.run("print(1)", request_id="metadata-test", request=None)
     await session.submitted.wait()
     assert session.commands[-1].request.meta == {
         "file": str(tmp_path / "a.py"),

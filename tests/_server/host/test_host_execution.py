@@ -166,7 +166,11 @@ async def test_scratch_outcomes_from_the_kernel(
             outcome["kind"],
             outcome["error"]["kind"],
             outcome["error"]["name"],
-        ) == ("error", "syntax" if name is None else "exception", name)
+        ) == (
+            "error",
+            "invalid-syntax" if name is None else "exception",
+            name,
+        )
         assert outcome["error"]["message"]
 
 
@@ -871,11 +875,12 @@ async def test_nested_evaluations_keep_the_scratch_result_and_skipped_child(
     [root] = [e for e in executions if e["cell_id"] is None]
     assert root["outcome"]["kind"] == "value"
     assert "42" in root["outcome"]["display"]["data"]
-    assert all(
-        e["outcome"]["kind"] == "error" and e["caused_by"] == root["id"]
-        for e in executions
-        if e["cell_id"] is not None
-    )
+    children = [e for e in executions if e["cell_id"] is not None]
+    assert all(e["caused_by"] == root["id"] for e in children)
+    assert {e["code_fingerprint"]: e["outcome"]["kind"] for e in children} == {
+        code_fingerprint("x = 1/0"): "error",
+        code_fingerprint("y = x + 1"): "skipped",
+    }
 
 
 async def test_a_fixed_cell_replaces_its_failed_compilation(

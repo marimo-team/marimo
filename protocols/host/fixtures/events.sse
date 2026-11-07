@@ -11,7 +11,7 @@ event: runtime
 data: {"runtime":{"id":"r1","notebook_id":"n1","status":"running","message":null,"marimo_version":"0.25.0","started_at":"2026-10-01T09:14:02Z"}}
 
 event: attachment
-data: {"attachment":{"id":"a1","notebook_id":"n1","kind":"browser","name":"Chrome","since":"2026-10-01T09:14:30Z"}}
+data: {"attachment":{"id":"a1","notebook_id":"n1","identity":null,"kind":"browser","name":"Chrome","since":"2026-10-01T09:14:30Z"}}
 
 id: 41
 event: ready
@@ -19,7 +19,7 @@ data: {}
 
 id: 42
 event: attachment
-data: {"attachment":{"id":"a2","notebook_id":"n1","kind":"agent","name":"Notebook CLI","since":"2026-10-01T09:20:03Z"},"time":"2026-10-01T09:20:03Z"}
+data: {"attachment":{"id":"a2","notebook_id":"n1","identity":null,"kind":"agent","name":"Notebook CLI","since":"2026-10-01T09:20:03Z"},"time":"2026-10-01T09:20:03Z"}
 
 id: 43
 event: notebook

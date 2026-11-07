@@ -4,12 +4,18 @@ import { createStore, Provider } from "jotai";
 import { beforeAll, describe, expect, it } from "vitest";
 import { SetupMocks } from "@/__mocks__/common";
 import { mockDocumentModel } from "@/__mocks__/document";
+import { MockExecutions } from "@/__mocks__/executions";
 import { MockNotebook } from "@/__mocks__/notebook";
 import { MockRequestClient } from "@/__mocks__/requests";
 import { cellId } from "@/__tests__/branded";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { notebookAtom } from "@/core/cells/cells";
 import { DocumentProvider } from "@/core/notebook/document";
+import {
+  cell,
+  document as documentOf,
+  withCells,
+} from "@/core/notebook/document/__tests__/fixtures";
 import type { CellRuntimeState } from "@/core/cells/types";
 import { createCellRuntimeState } from "@/core/cells/types";
 import { defaultUserConfig } from "@/core/config/config-schema";
@@ -40,7 +46,6 @@ function seedNotebook(
       [cid]: {
         code: "1 + 1",
         name: "test_cell",
-        edited: false,
         config: {
           disabled: false,
           hide_code: false,
@@ -50,7 +55,6 @@ function seedNotebook(
     },
   });
   notebook.cellRuntime[cid] = createCellRuntimeState({
-    status: "idle",
     output: {
       channel: "output",
       mimetype: "text/html",
@@ -188,11 +192,22 @@ describe("output persistence across mode changes", () => {
 
   it("does not dim edited-but-not-run outputs as stale while presenting", () => {
     const { store, wrapper } = createTestWrapper();
+    // The host holds newer source than the cell last ran with
+    MockExecutions.seed(
+      store,
+      [MockExecutions.completed(cid, { code_fingerprint: "ran" })],
+      null,
+      withCells(
+        documentOf(),
+        {
+          c1: null,
+          c2: null,
+          [cid]: cell(cid, "1 + 1", { code_fingerprint: "edited" }),
+        },
+        [cid],
+      ),
+    );
     seedNotebook(store);
-    // Mark the cell as edited without re-running it
-    const notebook = store.get(notebookAtom);
-    notebook.cellData[cid] = { ...notebook.cellData[cid], edited: true };
-    store.set(notebookAtom, { ...notebook });
 
     const { container, rerender } = render(renderCell("edit"), { wrapper });
     expect(container.querySelector(".marimo-output-stale")).toBeTruthy();
@@ -207,8 +222,8 @@ describe("output persistence across mode changes", () => {
 
   it("hides errored cells while presenting without unmounting them", () => {
     const { store, wrapper } = createTestWrapper();
+    MockExecutions.seed(store, [MockExecutions.errored(cid)]);
     seedNotebook(store, {
-      errored: true,
       output: {
         channel: "marimo-error",
         mimetype: "application/vnd.marimo+error",

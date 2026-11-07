@@ -36,13 +36,14 @@ from marimo._utils.generated_with import (
 from marimo._utils.http import HTTPException, HTTPStatus
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping, Sequence
+    from collections.abc import Callable, Mapping, Sequence
     from pathlib import Path
 
     from marimo._config.manager import MarimoConfigManager
     from marimo._core.backend import Message
     from marimo._core.stream import RoutedEvent, Sink
     from marimo._messaging.notebook import NotebookCell
+    from marimo._runtime.commands import CommandMessage
     from marimo._server.session_manager import SessionManager
     from marimo._session.notebook import AppFileManager
     from marimo._session.session import Session
@@ -299,7 +300,7 @@ class SessionBridge(SessionEventListener):
             if if_match is not None:
                 notebook.require_revision(if_match)
             revision = notebook.document
-            session = self._session_of(notebook.id)
+            session = self.session_for_notebook(notebook.id)
             if session is None and await self._file_changed(notebook.id, file):
                 answer = (decisions or {}).get(_FILE_CHANGED.id)
                 if answer is None:
@@ -417,11 +418,13 @@ class SessionBridge(SessionEventListener):
         """
         notebook = await self.host.notebook(notebook_id)
         response = notebook.edit(changes, request_id=request_id)
-        session = self._session_of(notebook.id)
+        session = self.session_for_notebook(notebook.id)
         if session is None:
             return response
         self._mirrored.pop(notebook.id, None)
-        documents.apply_to_session(session, notebook.document)
+        documents.apply_to_session(
+            session, notebook.document, self._put_for(notebook.id)
+        )
         mirrored = self._mirrored.pop(notebook.id, None)
         if mirrored is None:
             return response
@@ -433,7 +436,7 @@ class SessionBridge(SessionEventListener):
         self, notebook_id: protocol.NotebookId
     ) -> list[RoutedEvent]:
         """Return retained marimo events for one client without publishing them."""
-        session = self._session_of(notebook_id)
+        session = self.session_for_notebook(notebook_id)
         if session is None:
             return []
         return [
@@ -441,7 +444,10 @@ class SessionBridge(SessionEventListener):
             for notification in session.session_view.snapshot_notifications()
         ]
 
-    def _session_of(self, notebook_id: protocol.NotebookId) -> Session | None:
+    def session_for_notebook(
+        self, notebook_id: protocol.NotebookId
+    ) -> Session | None:
+        """Return the existing session without loading or starting a notebook."""
         backend = self._backends.get(notebook_id)
         return None if backend is None else backend.session
 
@@ -453,7 +459,7 @@ class SessionBridge(SessionEventListener):
         session has the file as it is now, so its contents replace the
         host's earlier read and are the saved revision.
         """
-        session = self._session_of(notebook_id)
+        session = self.session_for_notebook(notebook_id)
         notebook = self.host.peek_notebook(notebook_id)
         if session is None or notebook is None:
             return
@@ -467,7 +473,9 @@ class SessionBridge(SessionEventListener):
         self._rebaselining.pop(notebook_id, None)
         self._follow_saves(notebook_id, session)
         if notebook.saved_etag != notebook.document.etag:
-            documents.apply_to_session(session, notebook.document)
+            documents.apply_to_session(
+                session, notebook.document, self._put_for(notebook_id)
+            )
             return
         cells, app_config = documents.from_session(session)
         notebook.replace(cells, app_config, saved=True)
@@ -575,7 +583,7 @@ class SessionBridge(SessionEventListener):
 
     def _mirror(self, notebook_id: protocol.NotebookId) -> None:
         """Bring the document up to date with the session's after it changed."""
-        session = self._session_of(notebook_id)
+        session = self.session_for_notebook(notebook_id)
         try:
             notebook = self.host.peek_notebook(notebook_id)
         except NotFound:
@@ -703,6 +711,13 @@ class SessionBridge(SessionEventListener):
             raise Conflict(f"The notebook cannot be moved: {e}") from e
         self.index.moved(notebook_id, str(target), request_id=request_id)
 
+    def _put_for(
+        self, notebook_id: protocol.NotebookId
+    ) -> Callable[[CommandMessage], None] | None:
+        """How an edit reaches the kernel: in turn with the backend's runs."""
+        backend = self._backends.get(notebook_id)
+        return None if backend is None else backend.apply
+
     def _make_backend(
         self, notebook_id: protocol.NotebookId, sink: Sink
     ) -> SessionBackend:
@@ -723,12 +738,22 @@ class SessionBridge(SessionEventListener):
             if notebook is not None:
                 notebook.observe(message)
 
+        def cell_order() -> Sequence[str]:
+            try:
+                notebook = self.host.peek_notebook(notebook_id)
+            except NotFound:
+                return ()
+            if notebook is None:
+                return ()
+            return [cell.id for cell in notebook.document]
+
         backend = SessionBackend(
             notebook_id,
             file,
             self._manager,
             observe,
             sink,
+            cell_order=cell_order,
             document_changed=lambda: self._mirror(notebook_id),
             session_attached=lambda: self._attach_document(notebook_id),
             session_detached=lambda session: self._detach_document(

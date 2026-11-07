@@ -5,6 +5,7 @@ import os
 import pickle
 import tempfile
 from abc import ABC, abstractmethod
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -586,21 +587,21 @@ class TestLazyLoader(ABCTestLoader):
 
     def test_unserializable_ui_clears_ui_defs_and_stale_blob(self) -> None:
         """A UI def that can't be pickled must not leave `ui_defs` pointing
-        at `ui.pickle`: restore loads UI defs via `ui_defs`, bypassing the
-        per-Item marks, so a stale `ui.pickle` from a prior run would load as
+        at the shared UI blob: restore loads UI defs via `ui_defs`, bypassing the
+        per-Item marks, so a stale UI blob from a prior run would load as
         a phantom hit. On failure `ui_defs` is cleared, each UI Item is
         marked, and the stale blob is removed."""
         from marimo._save.stubs.ui_element_stub import UIElementStub
 
         loader = self.instance()
         # A UIElementStub instance routes to the "ui" loader by type; give it
-        # an unpicklable attribute so the shared ui.pickle write fails.
+        # an unpicklable attribute so the shared UI blob write fails.
         ui_stub = UIElementStub.__new__(UIElementStub)
         ui_stub.data = {"bad": lambda: 1}  # type: ignore[attr-defined]
 
-        # Pre-seed a stale ui.pickle at the hash path from a "prior run".
+        # Pre-seed a stale UI blob at the hash path from a "prior run".
         base = Path("test") / "ui_fail_hash"
-        ui_key = (base / "ui.pickle").as_posix()
+        ui_key = (base / "ui-elements.pickle").as_posix()
         self.store.put(ui_key, pickle.dumps({"u": "stale"}))
 
         cache = Cache(
@@ -614,7 +615,7 @@ class TestLazyLoader(ABCTestLoader):
         assert loader.save_cache(cache)
         loader.flush()
 
-        # Stale ui.pickle removed; the serializable `ok` blob remains.
+        # Stale UI blob removed; the serializable `ok` blob remains.
         assert self.store.get(ui_key) is None
         cache_path = loader.build_path(key("ui_fail_hash", "Pure"))
         decoded = msgspec.json.decode(
@@ -629,6 +630,30 @@ class TestLazyLoader(ABCTestLoader):
         assert loaded is not None
         assert loaded.defs["ok"] == [1, 2, 3]
         assert isinstance(loaded.defs["u"], UnhashableStub)
+
+    def test_loads_legacy_ui_blob(self) -> None:
+        """A manifest that points its UI defs at the old `ui.pickle` blob
+        still loads."""
+        loader = self.instance()
+        ui_ref = (Path("test") / "legacy_ui" / "ui.pickle").as_posix()
+        self.store.put(ui_ref, pickle.dumps({"u": "restored"}))
+        self.store.put(
+            str(loader.build_path(key("legacy_ui", "Pure"))),
+            msgspec.json.encode(
+                CacheSchema(
+                    hash="legacy_ui",
+                    cache_type=CacheType("Pure"),
+                    defs={"u": Item(reference=ui_ref)},
+                    stateful_refs=[],
+                    meta=Meta(version=MARIMO_CACHE_VERSION),
+                    ui_defs=["u"],
+                )
+            ),
+        )
+
+        loaded = loader.load_cache(key("legacy_ui", "Pure"))
+        assert loaded is not None
+        assert loaded.defs["u"] == "restored"
 
     def test_corrupt_cache_returns_none(self) -> None:
         """Corrupt manifest triggers cache miss, not crash."""
@@ -993,3 +1018,94 @@ class TestLazyLoader(ABCTestLoader):
         assert loaded is not None
         assert loaded.defs["v"] == value
         assert loaded.meta["return"] == value
+
+
+@dataclass
+class _Opaque:
+    """Pickled as a blob rather than written inline."""
+
+    value: int
+
+
+def test_lazy_write_claims_its_blobs_before_the_first_blob(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A write that dies after the claim leaves a partial marker and no
+    entry, so a prune that runs meanwhile leaves the blobs alone."""
+    from marimo._save.cache import MARIMO_CACHE_VERSION, Cache
+    from marimo._save.cache_dirs import is_partial_write
+    from marimo._save.loaders.lazy import LazyLoader
+    from marimo._save.stores.file import FileStore
+
+    store = FileStore(save_path=str(tmp_path))
+    put = FileStore.put
+    claim_came_first: list[bool] = []
+
+    def die_at_first_blob(self: FileStore, key: str, value: bytes) -> bool:
+        if not is_partial_write(key.rsplit("/", 1)[-1]):
+            block = tmp_path / "train"
+            claim_came_first.append(
+                any(is_partial_write(p.name) for p in block.iterdir())
+            )
+            raise OSError("disk full")
+        return put(self, key, value)
+
+    monkeypatch.setattr(FileStore, "put", die_at_first_blob)
+    loader = LazyLoader("train", store=store)
+    cache = Cache(
+        defs={"model": _Opaque(1)},
+        hash="ab12ab12ab12ab12ab12ab",
+        cache_type="Pure",
+        stateful_refs=set(),
+        hit=False,
+        meta={"version": MARIMO_CACHE_VERSION},
+    )
+
+    assert loader.save_cache(cache)
+    loader.flush()
+
+    # The blob write and then the marker write both found the claim there.
+    assert claim_came_first == [True, True]
+    names = [p.name for p in (tmp_path / "train").iterdir()]
+    assert len(names) == 1
+    assert is_partial_write(names[0])
+    assert names[0].startswith("P_ab12ab12ab12ab12ab12ab.jsonl")
+
+
+@pytest.mark.parametrize("broken_tier", [False, True])
+def test_lazy_write_releases_its_claim_through_every_tier(
+    tmp_path: Path, broken_tier: bool
+) -> None:
+    """A tiered store writes through each file store, and a completed write
+    leaves no claim in any of them. A tier that cannot be written does not
+    stop the write to the others."""
+    from marimo._save.cache import MARIMO_CACHE_VERSION, Cache
+    from marimo._save.cache_dirs import is_partial_write
+    from marimo._save.loaders.lazy import LazyLoader
+    from marimo._save.stores.file import FileStore
+    from marimo._save.stores.tiered import TieredStore
+
+    tiers = [tmp_path / "fast", tmp_path / "slow"]
+    stores = [FileStore(save_path=str(tier)) for tier in tiers]
+    if broken_tier:
+        # A file where the directory belongs makes every write fail.
+        (tmp_path / "blocked").write_bytes(b"")
+        stores.insert(0, FileStore(save_path=str(tmp_path / "blocked")))
+    store = TieredStore(stores)
+    loader = LazyLoader("train", store=store)
+    cache = Cache(
+        defs={"model": _Opaque(1)},
+        hash="ab12ab12ab12ab12ab12ab",
+        cache_type="Pure",
+        stateful_refs=set(),
+        hit=False,
+        meta={"version": MARIMO_CACHE_VERSION},
+    )
+
+    assert loader.save_cache(cache)
+    loader.flush()
+
+    for tier in tiers:
+        names = {p.name for p in (tier / "train").iterdir()}
+        assert "P_ab12ab12ab12ab12ab12ab.jsonl" in names
+        assert not any(is_partial_write(name) for name in names)

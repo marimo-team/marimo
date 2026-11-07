@@ -5,6 +5,7 @@ from typing import Any, Literal
 
 import msgspec
 
+from marimo._config.config import MarimoConfig
 from marimo._runtime.commands import (
     ClearCacheCommand,
     CodeCompletionCommand,
@@ -183,7 +184,9 @@ class StorageDownloadRequest(StorageDownloadCommand, tag=False):
         )
 
 
-class UpdateUserConfigRequest(UpdateUserConfigCommand, tag=False):
+class UpdateUserConfigRequest(msgspec.Struct):
+    config: MarimoConfig
+
     def as_command(self) -> UpdateUserConfigCommand:
         return UpdateUserConfigCommand(config=self.config)
 

@@ -89,10 +89,10 @@ class CellNotificationUtils:
                 ```
 
                 to your pyproject.toml, or with the environment variable
-                `MARIMO_OUTPUT_MAX_BYTES`:
+                `MARIMO_RUNTIME_OUTPUT_MAX_BYTES`:
 
                 ```
-                export MARIMO_OUTPUT_MAX_BYTES=10_000_000
+                export MARIMO_RUNTIME_OUTPUT_MAX_BYTES=10000000
                 ```
 
                 Increasing the max output size may cause performance issues.
@@ -278,17 +278,6 @@ class CellNotificationUtils:
                 status=None,
                 execution_id=execution_id,
             )
-        )
-
-    @staticmethod
-    def broadcast_stale(
-        cell_id: CellId_t, stale: bool, stream: Stream | None = None
-    ) -> None:
-        # Import here to avoid circular dependency
-        from marimo._messaging.notification import CellNotification
-
-        broadcast_notification(
-            CellNotification(cell_id=cell_id, stale_inputs=stale), stream
         )
 
     @staticmethod

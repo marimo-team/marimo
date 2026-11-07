@@ -90,6 +90,13 @@ Record = (
 Change = Record | Removed | Released
 
 
+def _settled(outcome: protocol.Outcome | None) -> bool:
+    """Whether an outcome lets its run succeed: a value, or a skip by design."""
+    return isinstance(
+        outcome, (protocol.ValueOutcome, protocol.SkippedOutcome)
+    )
+
+
 class Executions:
     """Runs in progress and each cell's current result.
 
@@ -254,7 +261,7 @@ class Executions:
         """Apply a backend update and return its changes in publication order."""
         changes: list[Change] = []
         match msg:
-            case be.Scheduled(run_id=run_id, caused_by=caused_by):
+            case be.Scheduled(run_id=run_id):
                 if run_id not in self._runs:
                     runtime = self._require(runtime)
                     changes.append(
@@ -262,7 +269,8 @@ class Executions:
                             protocol.Run(
                                 id=run_id,
                                 notebook_id=runtime.notebook_id,
-                                caused_by=caused_by,
+                                runtime_id=runtime.id,
+                                cells=(),
                                 status="queued",
                                 outcome=None,
                                 started_at=None,
@@ -343,9 +351,7 @@ class Executions:
                     if outcome == "succeeded" and (
                         not all(tracked.retired.values())
                         or any(
-                            not isinstance(
-                                execution.outcome, protocol.ValueOutcome
-                            )
+                            not _settled(execution.outcome)
                             for execution in members
                         )
                     ):
@@ -527,9 +533,7 @@ class Executions:
             else None
         )
         if tracked is not None and tracked.run.status != "completed":
-            tracked.retired[execution.id] = isinstance(
-                execution.outcome, protocol.ValueOutcome
-            )
+            tracked.retired[execution.id] = _settled(execution.outcome)
         changes: list[Change] = list(self._remove_execution(execution_id))
         if tracked is not None:
             changes.extend(self._prune_run(tracked))

@@ -28,6 +28,7 @@ from marimo._save.cache import (
     Cache,
     CacheState,
 )
+from marimo._save.cache_dirs import partial_write_name
 from marimo._save.encode import common_container_to_bytes, data_to_buffer
 from marimo._save.hash import DEFAULT_HASH, HashKey
 from marimo._save.loaders.loader import BasePersistenceLoader
@@ -105,6 +106,10 @@ class _BlobStatus(Enum):
 # Domain-separation tag prepended to manifest signable bytes, binding a
 # signature to this purpose and format version independent of payload shape.
 _MANIFEST_SIG_CONTEXT = b"marimo-cache-manifest:v1:"
+
+# The stem is not a Python identifier, so no def blob (`{var}.{loader}`)
+# can take this key.
+_UI_BLOB = "ui-elements.pickle"
 
 
 def _signable_bytes(schema: CacheSchema) -> bytes:
@@ -313,7 +318,7 @@ def to_item(
             type_hint=type_hint,
         )
     if loader == "ui":
-        return Item(reference=(path / "ui.pickle").as_posix())
+        return Item(reference=(path / _UI_BLOB).as_posix())
     if isinstance(value, FunctionStub):
         return Item(function=value.dump())
     if isinstance(value, ClassStub):
@@ -454,6 +459,17 @@ def _write_export_manifest(
 
 def _posix_key(key: str) -> str:
     return key.replace("\\", "/")
+
+
+def _file_stores(store: Store) -> list[FileStore]:
+    """The file stores that `store` writes through, however it wraps them."""
+    if isinstance(store, FileStore):
+        return [store]
+    if isinstance(store, TieredStore):
+        return [tier for inner in store.stores for tier in _file_stores(inner)]
+    if isinstance(store, LazyStore):
+        return _file_stores(store._inner)
+    return []
 
 
 class LazyStore(Store):
@@ -1191,7 +1207,6 @@ class LazyLoader(BasePersistenceLoader):
             cache_data, verification
         )
 
-        base = Path(self.name) / cache_data.hash
         blob_hash_map = cache_data.meta.blob_hashes  # {} for unsigned entries
 
         # Collect references to load
@@ -1206,8 +1221,8 @@ class LazyLoader(BasePersistenceLoader):
         # type_hint so the `UnhashableStub` can name what it stood in for.
         unresolvable: dict[str, str | None] = {}
         for var_name, item in cache_data.defs.items():
-            if var_name in cache_data.ui_defs:
-                ref_vars[var_name] = (base / "ui.pickle").as_posix()
+            if item.reference is not None and var_name in cache_data.ui_defs:
+                ref_vars[var_name] = item.reference
             elif item.reference is not None:
                 if item.type_hint and item.type_hint.startswith("__main__."):
                     deferred[var_name] = (
@@ -1630,6 +1645,20 @@ class LazyLoader(BasePersistenceLoader):
             """Serialize and write blobs, then the manifest."""
             with write_context:
                 try:
+                    # An empty partial marker claims the blob directory until
+                    # the manifest lands, so a prune that runs meanwhile
+                    # leaves the blobs alone. A writer that dies leaves the
+                    # claim behind, and `marimo cache prune --force` sweeps
+                    # it with the blobs. Only the local file stores hold a
+                    # claim, because only they are pruned.
+                    claim = partial_write_name(manifest_key)
+                    for local in _file_stores(store):
+                        # A tier that cannot be written is skipped, as the
+                        # tiered store skips it for the blobs.
+                        try:
+                            local.put(claim, b"")
+                        except Exception as e:
+                            LOGGER.warning("Could not claim %s: %s", path, e)
                     if return_ref:
                         _put_or_mark_unserializable(
                             return_ref,
@@ -1639,7 +1668,7 @@ class LazyLoader(BasePersistenceLoader):
                             "return",
                         )
                     if ui_vars:
-                        ui_key = (path / "ui.pickle").as_posix()
+                        ui_key = (path / _UI_BLOB).as_posix()
                         ui_ok = _put_or_mark_unserializable(
                             ui_key,
                             ui_vars,
@@ -1648,7 +1677,7 @@ class LazyLoader(BasePersistenceLoader):
                             "ui",
                         )
                         if not ui_ok:
-                            # UI defs restore via `ui_defs` → `ui.pickle`,
+                            # UI defs restore from the UI blob through `ui_defs`,
                             # bypassing the per-Item marks. Drop them from
                             # `ui_defs` so restore routes through the now-marked
                             # Items instead, and clear any stale blob lingering
@@ -1674,6 +1703,11 @@ class LazyLoader(BasePersistenceLoader):
                     # writes, and it now carries any unserializable marks set above
                     # plus (when signing) the signed blob hashes and signature.
                     store.put(manifest_key, _encode_manifest())
+                    for local in _file_stores(store):
+                        try:
+                            local.clear(claim)
+                        except Exception as e:
+                            LOGGER.warning("Could not release %s: %s", path, e)
                 except Exception:
                     LOGGER.exception(
                         "Failed to write cache blobs for %s", path

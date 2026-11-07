@@ -6,7 +6,7 @@ import { z } from "zod";
 import { buttonVariants } from "@/components/ui/button";
 import { toast } from "@/components/ui/use-toast";
 import { cn } from "@/utils/cn";
-import { downloadByURL } from "@/utils/download";
+import { downloadByURL, isDownloadUrl } from "@/utils/download";
 import { Logger } from "@/utils/Logger";
 import { createPlugin } from "../core/builder";
 import { renderHTML } from "../core/RenderHTML";
@@ -80,7 +80,7 @@ const DownloadButton = ({
   const [isLoading, setIsLoading] = useState(false);
 
   const handleClick = async (e: React.MouseEvent) => {
-    if (data.disabled) {
+    if (data.disabled || isLoading) {
       e.preventDefault();
       e.stopPropagation();
       return;
@@ -88,15 +88,11 @@ const DownloadButton = ({
 
     e.preventDefault();
 
-    if (!data.lazy) {
-      downloadByURL(data.data, data.filename ?? undefined);
-      return;
-    }
-
-    setIsLoading(true);
-
     try {
-      const loadedData = await load({});
+      if (data.lazy) {
+        setIsLoading(true);
+      }
+      const loadedData = data.lazy ? await load({}) : data;
       downloadByURL(
         loadedData.data || data.data,
         loadedData.filename ?? data.filename ?? undefined,
@@ -117,7 +113,7 @@ const DownloadButton = ({
 
   return (
     <a
-      href={data.data}
+      href={isDownloadUrl(data.data) ? data.data : undefined}
       download={data.filename ?? ""}
       onClick={handleClick}
       className={buttonVariants({

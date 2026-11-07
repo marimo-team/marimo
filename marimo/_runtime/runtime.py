@@ -13,7 +13,7 @@ import sys
 import threading
 import time
 import traceback
-from copy import copy
+from copy import copy, deepcopy
 from multiprocessing import connection
 from typing import (
     TYPE_CHECKING,
@@ -40,6 +40,8 @@ from marimo._config.config import (
     MarimoConfig,
     OnCellChangeType,
 )
+from marimo._config.provenance import ConfigPath
+from marimo._config.resolver import config_paths
 from marimo._core.protocol import ExecutionId, Revision
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._entrypoints.registry import EntryPointRegistry
@@ -548,6 +550,7 @@ class Kernel:
         enqueue_control_request: Callable[[CommandMessage], None],
         hooks: NotebookCellHooks,
         debugger_override: marimo_pdb.MarimoPdb | None = None,
+        config_overrides: tuple[ConfigPath, ...] = (),
     ) -> None:
         self.app_metadata = app_metadata
         self.query_params = QueryParams(app_metadata.query_params)
@@ -651,6 +654,10 @@ class Kernel:
             cell_id: CellMetadata(config=config)
             for cell_id, config in cell_configs.items()
         }
+        # Planned attempts not yet started, consumed by whichever run next
+        # evaluates or skips the cell, so a nested command does not open a
+        # second attempt for a cell the outer run has planned.
+        self._planned: dict[CellId_t, ExecutionAttempt] = {}
         self.module_registry = ModuleRegistry(
             self.graph, excluded_modules=set()
         )
@@ -658,6 +665,7 @@ class Kernel:
 
         # Load runtime settings from user config
         self.user_config = user_config
+        self.config_overrides = set(config_overrides)
         self.reactive_execution_mode: OnCellChangeType = user_config[
             "runtime"
         ]["on_cell_change"]
@@ -909,7 +917,7 @@ class Kernel:
 
         self.graph.register_cell(cell_id, cell)
         if stale:
-            self.graph.cells[cell_id].set_stale(stale=True, broadcast=False)
+            self.graph.cells[cell_id].set_stale(stale=True)
         # leaky abstraction: the graph doesn't know about stale modules, so
         # we have to check for them here.
         self.autoreload_manager.flag_if_imports_stale(cell)
@@ -1059,9 +1067,8 @@ class Kernel:
                     if name in carried_values
                 }
             if error is not None and previous_cell is not None:
-                # The frontend keeps the cell around in the case of a
-                # registration error; let the FE know the cell is no longer
-                # stale.
+                # A registration error keeps the previous cell in the graph,
+                # and it is no longer stale.
                 previous_cell.set_stale(False)
 
             # For any newly imported namespaces, add them to the metadata
@@ -1465,11 +1472,8 @@ class Kernel:
             # The error is up-to-date, since we just processed the graph
             if cell is not None:
                 cell.set_stale(False)
-            else:
-                # On syntax errors, we don't have a cell object.
-                CellNotificationUtils.broadcast_stale(cell_id=cid, stale=False)
 
-            execution = self._plan_execution(cid)
+            execution = self._plan_execution(cid, self._planned.pop(cid, None))
             with execution.activate():
                 CellNotificationUtils.broadcast_error(
                     data=self.errors[cid],
@@ -1860,6 +1864,7 @@ class Kernel:
             execution_context=self._install_execution_context,
             hooks=run_hooks,
             get_inputs=self._read_inputs,
+            executions=self._planned,
             plan_execution=self._plan_execution,
             user_config=self.user_config,
         )
@@ -2091,13 +2096,25 @@ class Kernel:
         )
         return requests
 
-    def _plan_execution(self, cell_id: CellId_t) -> ExecutionAttempt:
+    def _plan_execution(
+        self, cell_id: CellId_t, planned: ExecutionAttempt | None = None
+    ) -> ExecutionAttempt:
+        """Plan an attempt for the cell's current source.
+
+        An attempt planned earlier is kept while it still describes that
+        source. One planned for source a nested command has since changed
+        is superseded, so no attempt runs code other than its own.
+        """
         metadata = self.cell_metadata.get(cell_id)
         if metadata is not None and metadata.code is not None:
-            return ExecutionAttempt.plan(
-                cell_id, metadata.code, metadata.code_fingerprint
-            )
-        return ExecutionAttempt.plan(cell_id, self.graph.cells[cell_id].code)
+            code, code_fingerprint = metadata.code, metadata.code_fingerprint
+        else:
+            code, code_fingerprint = self.graph.cells[cell_id].code, None
+        if planned is not None:
+            if planned.code == code:
+                return planned
+            planned.supersede()
+        return ExecutionAttempt.plan(cell_id, code, code_fingerprint)
 
     @kernel_tracer.start_as_current_span("run")
     async def run(
@@ -2336,6 +2353,36 @@ class Kernel:
 
     @kernel_tracer.start_as_current_span("set_user_config")
     def set_user_config(self, request: UpdateUserConfigCommand) -> None:
+        if request.edited_paths is not None:
+            config = deepcopy(self.user_config)
+            for path in request.edited_paths:
+                if any(
+                    path[: len(override)] == override
+                    or override[: len(path)] == path
+                    for override in self.config_overrides
+                ):
+                    continue
+                source: Any = request.config
+                target: Any = config
+                for key in path[:-1]:
+                    source = source.get(key, {})
+                    target = target.setdefault(key, {})
+                if path[-1] in source:
+                    target[path[-1]] = deepcopy(source[path[-1]])
+                else:
+                    target.pop(path[-1], None)
+            self._update_runtime_from_user_config(config)
+            return
+        # A settings update contains a full snapshot; only changed values are
+        # new explicit overrides, not unchanged file/environment settings.
+        for path in config_paths(cast(dict[str, Any], request.config)):
+            before: Any = self.user_config
+            after: Any = request.config
+            for key in path:
+                before = before.get(key) if isinstance(before, dict) else None
+                after = after[key]
+            if before != after:
+                self.config_overrides.add(path)
         self._update_runtime_from_user_config(request.config)
 
     @kernel_tracer.start_as_current_span("set_ui_element_value")
@@ -2715,15 +2762,6 @@ class Kernel:
             self.reset_ui_initializers()
         else:
             self._uninstantiated_execution_requests = execution_requests
-            for (
-                cell_id,
-                cell_request,
-            ) in self._uninstantiated_execution_requests.items():
-                # Only mark non-empty cells as stale
-                if cell_request.code.strip():
-                    CellNotificationUtils.broadcast_stale(
-                        cell_id=cell_id, stale=True
-                    )
 
     def _handle_markdown_cells_on_instantiate(
         self, execution_requests: dict[CellId_t, ExecuteCellCommand]
@@ -2788,9 +2826,6 @@ class Kernel:
                 cell_id=cell_id,
                 status="idle",
             )
-
-            # Mark the cell as not stale (already "run")
-            CellNotificationUtils.broadcast_stale(cell_id=cell_id, stale=False)
             del execution_requests[cell_id]
 
     def load_dotenv(self) -> None:
@@ -3063,6 +3098,7 @@ def launch_kernel(
     log_level: int | None = None,
     is_ipc: bool = False,
     parent_pid: int | None = None,
+    config_overrides: tuple[ConfigPath, ...] = (),
 ) -> None:
     from marimo._runtime.kernel_lifecycle import (
         KernelArgs,
@@ -3099,6 +3135,7 @@ def launch_kernel(
                 configs=configs,
                 app_metadata=app_metadata,
                 user_config=user_config,
+                config_overrides=config_overrides,
                 mode=SessionMode.EDIT if is_edit_mode else SessionMode.RUN,
                 control_queue=control_queue,
                 set_ui_element_queue=set_ui_element_queue,

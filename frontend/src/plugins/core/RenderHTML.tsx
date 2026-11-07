@@ -300,11 +300,9 @@ const CopyableCode = ({ children }: { children: ReactNode }) => {
           tooltip={false}
           className="p-1"
           value={() => {
-            const codeElement = ref.current?.firstChild;
-            if (codeElement) {
-              return codeElement.textContent || "";
-            }
-            return "";
+            const codeElement =
+              ref.current?.querySelector("pre code") ?? ref.current?.firstChild;
+            return codeElement?.textContent ?? "";
           }}
         />
       </div>

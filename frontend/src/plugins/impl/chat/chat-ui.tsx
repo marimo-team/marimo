@@ -39,7 +39,7 @@ import {
 import {
   type AdditionalCompletions,
   PromptInput,
-} from "@/components/editor/ai/add-cell-with-ai";
+} from "@/components/editor/ai/prompt-input";
 import { CopyClipboardIcon } from "@/components/icons/copy-icon";
 import { Spinner } from "@/components/icons/spinner";
 import { Button } from "@/components/ui/button";
@@ -482,12 +482,11 @@ export const Chatbot: React.FC<Props> = (props) => {
                 className={`max-w-[80%] p-3 rounded-lg ${
                   message.role === "user"
                     ? "bg-(--sky-11) text-(--slate-1) whitespace-pre-wrap"
-                    : "bg-(--slate-4) text-(--slate-12)"
+                    : "bg-(--slate-4) text-(--slate-12) [--muted-foreground:var(--slate-11)]"
                 }`}
               >
                 {renderUIMessage({
                   message,
-                  isStreamingReasoning: status === "streaming",
                   isLast,
                   isActive: isLoading,
                   addToolApprovalResponse: isLast
@@ -514,7 +513,7 @@ export const Chatbot: React.FC<Props> = (props) => {
           );
         })}
 
-        {isLoading && (
+        {isLoading && messages.at(-1)?.role !== "assistant" && (
           <div className="flex items-center justify-center mb-4">
             <Spinner size="small" />
           </div>

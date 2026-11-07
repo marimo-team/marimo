@@ -28,6 +28,7 @@ import { viewStateAtom } from "@/core/mode";
 import { renderHTML } from "@/plugins/core/RenderHTML";
 import { splitMangledLocals } from "@/utils/local-variables";
 import type { MarimoError } from "../../../core/kernel/messages";
+import type { CellError, HostDiagnostic } from "@/core/executions";
 import { cn } from "../../../utils/cn";
 import { Alert, AlertTitle } from "../../ui/alert";
 import { openPackageManager } from "../chrome/panels/packages-utils";
@@ -95,7 +96,7 @@ const Tip = (props: {
 
 interface Props {
   cellId: CellId | undefined;
-  errors: MarimoError[];
+  errors: readonly CellError[];
   code?: string;
   className?: string;
 }
@@ -217,6 +218,13 @@ export const MarimoErrorOutput = ({
     (e): e is Extract<MarimoError, { type: "sql-error" }> =>
       e.type === "sql-error",
   );
+  const diagnostics = errors.filter(
+    (e): e is HostDiagnostic => e.type === "diagnostic",
+  );
+  // The report describes kernel errors; a host diagnostic is already prose.
+  const kernelErrors = errors.filter(
+    (e): e is MarimoError => e.type !== "diagnostic",
+  );
   const openScratchpad = () => {
     chromeActions.openApplication("scratchpad");
   };
@@ -274,6 +282,32 @@ export const MarimoErrorOutput = ({
               cellId={cellId}
             />
           )}
+        </div>,
+      );
+    }
+
+    if (diagnostics.length > 0) {
+      messages.push(
+        <div key="diagnostics">
+          {diagnostics.map((diagnostic) => (
+            <div key={`${diagnostic.kind}:${diagnostic.msg}`}>
+              <p className="text-muted-foreground font-medium">
+                {diagnostic.msg}
+              </p>
+              {diagnostic.related.length > 0 && (
+                <ul className="list-disc">
+                  {diagnostic.related.map((cell) => (
+                    <li
+                      className={liStyle}
+                      key={`${cell.cell_id}:${cell.message}`}
+                    >
+                      <CellLinkError cellId={cell.cell_id} /> {cell.message}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          ))}
         </div>,
       );
     }
@@ -740,9 +774,11 @@ export const MarimoErrorOutput = ({
     >
       {title}
       <div className="flex flex-col gap-4">{renderMessages()}</div>
-      {cellId && errors.length > 0 && (
+      {cellId && kernelErrors.length > 0 && (
         <SendErrorReportButton
-          getContent={() => buildErrorReport(cellId, { code, errors })}
+          getContent={() =>
+            buildErrorReport(cellId, { code, errors: kernelErrors })
+          }
         />
       )}
     </Alert>

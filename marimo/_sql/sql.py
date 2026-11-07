@@ -2,14 +2,26 @@
 from __future__ import annotations
 
 import os
+from functools import lru_cache
 from typing import TYPE_CHECKING, Any, Literal, cast
 
 if TYPE_CHECKING:
     from collections.abc import Callable
 
 from marimo._config.config import SqlOutputType
+from marimo._config.manager import (
+    EnvVarReader,
+    MarimoConfigManager,
+    PyprojectConfigReader,
+    UserConfigStore,
+)
+from marimo._config.resolver import merge_config_patches
 from marimo._dependencies.dependencies import Dependency, DependencyManager
 from marimo._output.rich_help import mddoc
+from marimo._runtime.context.types import (
+    ContextNotInitializedError,
+    get_context,
+)
 from marimo._runtime.output import replace
 from marimo._sql.engines.dbapi import DBAPIConnection, DBAPIEngine
 from marimo._sql.engines.duckdb import DuckDBEngine
@@ -28,9 +40,50 @@ from marimo._utils.assert_never import log_never
 from marimo._utils.narwhals_utils import can_narwhalify_lazyframe
 
 
+@lru_cache(maxsize=1)
+def _standalone_sql_limit(directory: str) -> int | None:
+    # Standalone queries share file settings without creating a config file.
+    manager = MarimoConfigManager(
+        UserConfigStore(create_if_missing=False),
+        PyprojectConfigReader(directory),
+    )
+    return manager.get_config()["runtime"].get("sql_default_limit")
+
+
+@lru_cache(maxsize=16)
+def _sql_environment_config(
+    _canonical_value: str | None, _deprecated_value: str | None
+) -> dict[str, Any]:
+    # Cache by the current values, including variables loaded later from dotenv.
+    path = ("runtime", "sql_default_limit")
+    config = merge_config_patches(
+        reader.read(paths=(path,))
+        for reader in (EnvVarReader(deprecated=True), EnvVarReader())
+    )
+    return cast(dict[str, Any], config.get("runtime", {}))
+
+
 def get_default_result_limit() -> int | None:
-    limit = os.environ.get("MARIMO_SQL_DEFAULT_LIMIT")
-    return int(limit) if limit is not None else None
+    try:
+        context = get_context()
+    except ContextNotInitializedError:
+        context = None
+    path = ("runtime", "sql_default_limit")
+    if context is not None and path in context.config_overrides:
+        limit = context.marimo_config["runtime"].get("sql_default_limit")
+    else:
+        environment = _sql_environment_config(
+            os.environ.get("MARIMO_RUNTIME_SQL_DEFAULT_LIMIT"),
+            os.environ.get("MARIMO_SQL_DEFAULT_LIMIT"),
+        )
+        if "sql_default_limit" in environment:
+            limit = cast(int | None, environment["sql_default_limit"])
+        elif context is not None:
+            limit = context.marimo_config["runtime"].get("sql_default_limit")
+        else:
+            limit = _standalone_sql_limit(os.getcwd())
+    # File validation reports invalid settings, but keeps their original values.
+    return limit if limit is None or limit >= 0 else None
 
 
 def _resolve_default_duckdb_deps(

@@ -5,7 +5,7 @@ import { HourglassIcon, UnlinkIcon } from "lucide-react";
 import React from "react";
 import { Tooltip } from "@/components/ui/tooltip";
 import { notebookScrollToRunning } from "@/core/cells/actions";
-import { onlyScratchpadIsRunningAtom } from "@/core/cells/cells";
+import { cellExecutionInputsAtom, onlyScratchRunning } from "@/core/executions";
 import { viewStateAtom } from "@/core/mode";
 import {
   type ConnectionStatus,
@@ -77,7 +77,9 @@ const DisconnectedIcon: React.FC<{ onReconnect?: () => void }> = ({
 };
 
 const RunningIcon = () => {
-  const scratchpadOnly = useAtomValue(onlyScratchpadIsRunningAtom);
+  const scratchpadOnly = onlyScratchRunning(
+    useAtomValue(cellExecutionInputsAtom).executions,
+  );
   const tooltip = scratchpadOnly
     ? "Scratchpad is running"
     : "Jump to running cell";

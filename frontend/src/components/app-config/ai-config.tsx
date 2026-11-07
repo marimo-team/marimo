@@ -1351,7 +1351,7 @@ export const AiAssistConfig: React.FC<AiConfigProps> = ({
         description={
           <span>
             Model to use for code editing with the{" "}
-            <Kbd className="inline">Generate with AI</Kbd> button.
+            <Kbd className="inline">Edit with AI</Kbd> action.
           </span>
         }
         forRole="edit"

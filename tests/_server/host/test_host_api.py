@@ -275,10 +275,10 @@ async def test_only_loopback_names_are_admitted(
     ["\xb2", "1234\xb2", "\xb9\xb2\xb3"],
 )
 def test_latin1_superscripts_are_not_a_port(port: str) -> None:
-    from marimo._server.host.middleware import _host_header_ok
+    from marimo._server.host.auth import host_header_ok
 
     assert port.isdigit()
-    assert _host_header_ok(f"127.0.0.1:{port}", PORT) is False
+    assert host_header_ok(f"127.0.0.1:{port}", PORT) is False
 
 
 @pytest.mark.parametrize(
@@ -993,7 +993,7 @@ async def test_noop_and_rejected_lifecycle_requests_release_their_listeners(
 async def test_run_filter_over_http(harness: Harness) -> None:
     nid = await harness.running()
     notebook = await harness.host.notebook(nid)
-    first = notebook.run("1", request_id="first")
+    first = notebook.run("1", request_id="first", request=None)
     notebook.observe(
         be.Planned(
             first.id,
@@ -1004,7 +1004,7 @@ async def test_run_filter_over_http(harness: Harness) -> None:
         be.Completed(protocol.ExecutionId("e1"), protocol.ValueOutcome(None))
     )
     notebook.observe(be.Done(first.id, "succeeded"))
-    notebook.run("2", request_id="second")
+    notebook.run("2", request_id="second", request=None)
     response, task, disconnect = request(
         harness.app,
         "GET",
@@ -1130,6 +1130,59 @@ async def test_scratch_runs_over_http(harness: Harness) -> None:
     assert malformed.json()["type"].endswith("/invalid-request")
     unkeyed = await finished(app, "POST", runs, headers=AUTH, body=body)
     assert unkeyed.status == 400
+
+
+@pytest.mark.parametrize("editor_auth", [False, True])
+@pytest.mark.parametrize("cell_run", [False, True])
+async def test_a_run_hands_its_request_to_the_backend(
+    harness: Harness,
+    editor_auth: bool,
+    cell_run: bool,
+) -> None:
+    nid = await harness.running()
+    path = f"/notebooks/{nid}/runtime/runs"
+    headers = {**key("run"), "X-Trace": "abc", "Cookie": "session=s"}
+    query = "debug=1"
+    if editor_auth:
+        headers.update(
+            {
+                "Authorization": "Bearer application-token",
+                "Marimo-Server-Token": "skew-id-1",
+            }
+        )
+        query += (
+            f"&access_token={harness.app.state.session_manager.auth_token}"
+        )
+    notebook = await harness.host.notebook(nid)
+    body = (
+        msgspec.json.encode(
+            {"cells": [{"id": cell.id} for cell in notebook.document]}
+        )
+        if cell_run
+        else b'{"code":"1"}'
+    )
+    accepted = await finished(
+        harness.app,
+        "POST",
+        path,
+        headers=headers,
+        body=body,
+        query=query,
+    )
+    assert accepted.status == 202
+    [submitted] = harness.backend().requests
+    assert submitted is not None
+    # The editor serves the host routes below its own prefix.
+    assert submitted.url["path"].endswith(path)
+    assert submitted.url["query"] == query
+    assert submitted.headers["x-trace"] == "abc"
+    if editor_auth:
+        assert submitted.headers["authorization"] == "Bearer application-token"
+    else:
+        assert "authorization" not in submitted.headers
+    assert submitted.query_params == parse_qs(query)
+    assert submitted.path_params == {"notebook_id": nid}
+    assert submitted.cookies == {"session": "s"}
 
 
 @pytest.mark.parametrize(
@@ -2484,3 +2537,22 @@ async def test_cell_runs_over_http(harness: Harness) -> None:
         harness.app, "POST", runs, headers=key("r3"), body=both
     )
     assert invalid.status == 400
+
+
+def test_legacy_execution_does_not_start_a_cataloged_notebook(
+    harness: Harness,
+) -> None:
+    with TestClient(
+        with_client_address(harness.app), base_url=f"http://{AUTHORITY}"
+    ) as client:
+        response = client.post(
+            "/api/kernel/execute",
+            headers={**AUTH, "Marimo-Stable-Session-Id": harness.notebook_id},
+            json={"code": "print('do not start')"},
+        )
+    assert response.status_code == 409
+    assert response.json() == {
+        "detail": "The notebook has no running session."
+    }
+    assert harness.backends == {}
+    assert "set-cookie" not in response.headers

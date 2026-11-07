@@ -510,7 +510,8 @@ paths:
         `running`. The notebook stream carries the executions, their
         console and display output, their input requests, and the variables
         each cell execution bound. Each execution completes with a `value`,
-        `error`, or `interrupted` outcome, followed by the run's completion.
+        `error`, `interrupted`, or `skipped` outcome, followed by the run's
+        completion.
         Run and execution events carry this request's key. A client that
         needs the full stream opens it before sending the request.
 
@@ -1007,18 +1008,18 @@ components:
         creates one. It is removed when that connection closes, and not
         when the notebook's runtime stops or restarts. Each stream has its
         own attachment, even when several share a client identity.
-      required: [id, notebook_id, kind, name, since]
+      required: [id, notebook_id, identity, kind, name, since]
       properties:
         id: { $ref: '#/components/schemas/AttachmentId' }
         notebook_id: { $ref: '#/components/schemas/NotebookId' }
         identity:
-          type: string
+          type: [string, 'null']
           minLength: 1
           maxLength: 128
           pattern: '^[!-~]+$'
           description: |
             The opaque client identity supplied by `Marimo-Attachment-Identity`.
-            Omitted when none was supplied. Consumers can group attachments
+            Null when none was supplied. Consumers can group attachments
             with the same identity within a host. It does not identify an
             individual connection or change its lifetime.
         kind:
@@ -1038,14 +1039,18 @@ components:
       description: |
         Where a run or execution is in its lifecycle. An execution is
         `queued` until it starts, `running` while code executes, and
-        `completed` once it has ended. How it ended is its `outcome`.
+        `completed` once it has ended. A run is `queued` until its first
+        execution starts, `running` until its cycle has settled or been cut
+        short, and `completed` once no more work can join it. How either
+        ended is its `outcome`.
       enum: [queued, running, completed]
     RunOutcome:
       type: string
       description: |
         How a run ended. `succeeded` means its work settled without an
-        execution error or interruption. `failed` means an execution
-        failed or the host could not finish the cycle. `interrupted`
+        execution error or interruption. `failed` means an execution's
+        code raised or the host could not finish the cycle. An execution
+        skipped because of another cell does not fail its run. `interrupted`
         means the cycle was cut short by interruption, even if an earlier
         execution failed. Execution outcomes retain their individual results.
       enum: [succeeded, failed, interrupted]
@@ -1066,13 +1071,17 @@ components:
         Hosts SHOULD retain ephemeral results briefly after completion to
         allow reconnection. Runs, executions, and items each have removal
         events; a cell result may outlive its run.
-      required: [id, notebook_id, caused_by, status, outcome, started_at, completed_at]
+      required: [id, notebook_id, runtime_id, cells, status, outcome, started_at, completed_at]
       properties:
         id: { $ref: '#/components/schemas/RunId' }
         notebook_id: { $ref: '#/components/schemas/NotebookId' }
-        caused_by:
-          oneOf: [{ $ref: '#/components/schemas/ExecutionId' }, { type: 'null' }]
-          description: The execution that caused this runtime-scheduled run. This records provenance, not membership in that execution's run, and does not extend the earlier run's lifetime. Null for a client request or when the runtime does not know the source.
+        runtime_id:
+          $ref: '#/components/schemas/RuntimeId'
+          description: The runtime that produced this run.
+        cells:
+          type: array
+          items: { $ref: '#/components/schemas/CellId' }
+          description: The cells the run was requested for. Fixed when the run is accepted, so a client can tell which cells a queued run will reach before the runtime has planned their executions. Each one's execution in this run reports the fingerprint of the source accepted for it. Empty for scratch code and for a run the runtime scheduled itself.
         status:
           $ref: '#/components/schemas/Lifecycle'
           description: Queued until the first execution starts, running until the cycle has settled or been terminated, and completed once all member executions are terminal and no more can be scheduled in this run. A run can complete with no executions.
@@ -1216,18 +1225,22 @@ components:
         execution's value as last rendered; while the execution is
         running it is the value so far, and it is final once the
         execution is `completed`. An `error` carries the error that ended it.
-        An `interrupted` execution was cancelled before or during execution. Other
-        kinds are defined by later versions of this protocol.
+        An `interrupted` execution was cancelled before or during execution.
+        A `skipped` execution did not evaluate because of another cell; it
+        has no value and binds no variables. Other kinds are defined by
+        later versions of this protocol.
       oneOf:
         - $ref: '#/components/schemas/ValueOutcome'
         - $ref: '#/components/schemas/ErrorOutcome'
         - $ref: '#/components/schemas/InterruptedOutcome'
+        - $ref: '#/components/schemas/SkippedOutcome'
       discriminator:
         propertyName: kind
         mapping:
           value: '#/components/schemas/ValueOutcome'
           error: '#/components/schemas/ErrorOutcome'
           interrupted: '#/components/schemas/InterruptedOutcome'
+          skipped: '#/components/schemas/SkippedOutcome'
     ValueOutcome:
       type: object
       required: [kind, display]
@@ -1253,6 +1266,31 @@ components:
         kind:
           type: string
           enum: [interrupted]
+    SkippedOutcome:
+      type: object
+      required: [kind, reason, message, related]
+      properties:
+        kind:
+          type: string
+          enum: [skipped]
+        reason:
+          type: string
+          description: |
+            Why the cell did not evaluate. The string is open. This protocol
+            defines `upstream-failed`, a cell it depends on did not produce
+            its value because it raised or could not resolve a reference,
+            `upstream-stopped`, a cell it depends on stopped the cycle on
+            purpose, and `superseded`, a later execution of the same cell
+            replaced this one before it started because the cell's source
+            changed while it waited. Clients show unrecognized reasons as
+            skipped, with the message.
+        message:
+          type: string
+          description: Why the cell did not run, to show in place of its output.
+        related:
+          type: array
+          items: { $ref: '#/components/schemas/Related' }
+          description: The cells involved, the cause first and this cell last.
     Execution:
       type: object
       description: |
@@ -1262,7 +1300,9 @@ components:
         produced them, and items can arrive after completion while the
         execution remains retained. Each new input belongs to a running
         execution. Input calls from completed or removed executions raise
-        `EOFError` in the calling code.
+        `EOFError` in the calling code. Exactly one of `cell_id` and `code`
+        is null: a cell's execution carries the cell and no code, and a
+        scratch execution carries its code and no cell.
       required: [id, run_id, runtime_id, caused_by, cell_id, code, code_fingerprint, depends_on, status, outcome, started_at, completed_at]
       properties:
         id: { $ref: '#/components/schemas/ExecutionId' }
@@ -1274,7 +1314,7 @@ components:
           description: The runtime that produced this execution. Live when it equals the current runtime's id. Null when the producer is unknown.
         caused_by:
           oneOf: [{ $ref: '#/components/schemas/ExecutionId' }, { type: 'null' }]
-          description: The execution in the same run that initiated this evaluation. Null for executions requested directly.
+          description: The execution in the same run whose code was running when this one was scheduled, such as scratch code that ran a cell, set a UI element's value, or wrote state, and the cells that reacted to it. Null for an execution a client requested and for the cells that reacted to one.
         cell_id:
           oneOf: [{ $ref: '#/components/schemas/CellId' }, { type: 'null' }]
           description: The cell this execution belongs to. Null for scratch code, a cell outside the document.
@@ -1283,7 +1323,7 @@ components:
           description: The submitted code for an execution with no cell. Null for a cell's execution; its source is available through the cell when the host exposes it.
         code_fingerprint:
           $ref: '#/components/schemas/CodeFingerprint'
-          description: Fingerprint of the evaluated code.
+          description: Fingerprint of the code the execution evaluates. Fixed when the execution is published, while it is still queued.
         depends_on:
           type: object
           additionalProperties:
@@ -1328,7 +1368,7 @@ components:
         A value an execution showed as a side effect, such as a figure
         from `plt.show()`. A producer replaces one by sending it again
         with the same id, which is how a progress bar updates in place.
-      required: [id, execution_id, seq, mimetype, data]
+      required: [id, execution_id, seq, content]
       properties:
         id: { $ref: '#/components/schemas/ItemId' }
         execution_id: { $ref: '#/components/schemas/ExecutionId' }
@@ -1336,12 +1376,9 @@ components:
           type: integer
           minimum: 0
           description: Position among the execution's items, increasing in the order they were produced.
-        mimetype:
-          type: string
-          description: The format of `data`, such as `image/png`.
-        data:
-          type: string
-          description: The rendered value, embedded so clients can display it independently of the runtime. JSON mimetypes are encoded as text and binary mimetypes as base64.
+        content:
+          $ref: '#/components/schemas/DisplayData'
+          description: The rendered value.
     Input:
       type: object
       description: |

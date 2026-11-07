@@ -18,6 +18,10 @@ const config = {
             if (GLOBAL_SELECTORS.has(selector)) {
               return prefix;
             }
+            // Radix scales must match the namespace root and dark host ancestors.
+            if (selector === ".dark" || selector === ".dark-theme") {
+              return `${prefix}${selector}, ${prefix}:not(.light):is(${selector} *), ${prefix} ${selector}`;
+            }
             // Already scoped under .marimo
             if (selector.startsWith(".marimo")) {
               return selector;

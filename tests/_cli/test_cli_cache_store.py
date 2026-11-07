@@ -5,6 +5,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+import pytest
 from click.testing import CliRunner
 
 from marimo._cli.cli import main
@@ -12,8 +13,6 @@ from tests._cli.test_cli_cache import H2, NOTEBOOK, H, make_cache_dir
 
 if TYPE_CHECKING:
     from pathlib import Path
-
-    import pytest
 
     from marimo._save.stores import Store
 
@@ -250,3 +249,41 @@ def test_clean_acts_on_a_cache_dir_named_outright_whatever_the_store(
     ]
     assert not (own / "train").exists()
     assert (store_dir / "train" / f"C_{H2}.pickle").exists()
+
+
+@pytest.mark.parametrize("as_path", [False, True], ids=["notebook", "store"])
+def test_prune_acts_on_a_configured_store_only_when_path_names_it(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, as_path: bool
+) -> None:
+    """A manifest records its notebook relative to the store, so liveness is
+    read from the notebook even when the store sits elsewhere."""
+    from tests._cli.test_cli_cache import (
+        read_manifest,
+        write_lazy_entry,
+        write_manifest,
+    )
+
+    notebook = tmp_path / "nb.py"
+    notebook.write_text(NOTEBOOK)
+    store_dir = tmp_path / "elsewhere"
+    write_lazy_entry(store_dir, "train", H)
+    manifest = write_manifest(
+        store_dir, notebook, {"dead": {"train": {f"C_{H}"}}}
+    )
+    configure_store(monkeypatch, store_dir)
+
+    result = CliRunner().invoke(
+        main, ["cache", "prune", str(store_dir if as_path else notebook), "-y"]
+    )
+
+    assert result.exit_code == 0, result.output
+    if as_path:
+        assert "Deleted 1 entry, freeing 30 B." in result.output
+        assert not (store_dir / "train").exists()
+        assert read_manifest(manifest) == {}
+    else:
+        assert result.output.splitlines()[0].startswith(
+            f"Configured cache.store at {store_dir}; pass it as PATH"
+        )
+        assert result.output.splitlines()[1] == "No cache directories found."
+        assert (store_dir / "train" / H).exists()

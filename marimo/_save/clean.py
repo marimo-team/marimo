@@ -34,6 +34,10 @@ class BlockCleanPlan:
     selection: dict[Path, frozenset[str] | None] = field(default_factory=dict)
     freed: CacheDirStats = field(default_factory=CacheDirStats)
 
+    def deletes_nothing(self) -> bool:
+        """Whether no file on disk answers to any selected entry."""
+        return not self.freed.entries and not self.freed.total_bytes
+
 
 def plan_block_clean(
     cache_dir: Path, names: Collection[str] = ()

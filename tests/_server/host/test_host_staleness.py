@@ -491,13 +491,17 @@ async def test_replaced_inputs_take_precedence_over_updates_and_edits(
 
 
 @pytest.mark.parametrize(
-    ("code", "outcome"),
-    [("if False:\n    x = 2", "succeeded"), ("1 / 0\nx = 2", "failed")],
+    ("code", "outcome", "reader"),
+    [
+        ("if False:\n    x = 2", "succeeded", protocol.ErrorOutcome),
+        ("1 / 0\nx = 2", "failed", protocol.SkippedOutcome),
+    ],
 )
 async def test_a_rerun_that_does_not_bind_a_name_outdates_its_readers(
     tmp_path: Path,
     code: str,
     outcome: RunOutcome,
+    reader: type[protocol.Outcome],
 ) -> None:
     async with client(
         tmp_path,
@@ -513,10 +517,16 @@ async def test_a_rerun_that_does_not_bind_a_name_outdates_its_readers(
         }
         assert await c.outdated() == {"reader": "replaced"}
 
-        await c.run("reader", outcome="failed")
-        reader = (await c.snapshot()).latest(c.cells["reader"])
-        assert reader is not None
-        assert reader.depends_on == {"x": None}
+        await c.run(
+            "reader",
+            outcome="failed"
+            if reader is protocol.ErrorOutcome
+            else "succeeded",
+        )
+        latest = (await c.snapshot()).latest(c.cells["reader"])
+        assert latest is not None
+        assert isinstance(latest.outcome, reader)
+        assert latest.depends_on == {"x": None}
         assert await c.outdated() == {}
 
 

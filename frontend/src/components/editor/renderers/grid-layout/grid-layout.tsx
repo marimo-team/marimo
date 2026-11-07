@@ -37,6 +37,7 @@ import { NumberField } from "@/components/ui/number-field";
 import { Switch } from "@/components/ui/switch";
 import { outputIsLoading, outputIsStale } from "@/core/cells/cell";
 import type { CellId } from "@/core/cells/ids";
+import { useCellExecution, useCellFreshness } from "@/core/executions";
 import type { AppMode } from "@/core/mode";
 import { useIsDragging } from "@/hooks/useIsDragging";
 import { cn } from "@/utils/cn";
@@ -227,11 +228,9 @@ export const GridLayoutRenderer: React.FC<Props> = ({
               mode={mode}
               cellId={cell.id}
               output={cell.output}
-              status={cell.status}
-              stale={outputIsStale(cell, false)}
+              hideWithoutValue={true}
               isScrollable={isScrollable}
               side={side}
-              hidden={cell.errored || cell.interrupted || cell.stopped}
             />
           );
 
@@ -294,10 +293,8 @@ export const GridLayoutRenderer: React.FC<Props> = ({
                 mode={mode}
                 cellId={cell.id}
                 output={cell.output}
-                status={cell.status}
-                stale={outputIsStale(cell, false)}
+                hideWithoutValue={false}
                 isScrollable={false}
-                hidden={false}
               />
             );
           })}
@@ -364,10 +361,8 @@ export const GridLayoutRenderer: React.FC<Props> = ({
                 mode={mode}
                 cellId={cell.id}
                 output={cell.output}
+                hideWithoutValue={false}
                 isScrollable={false}
-                status={cell.status}
-                stale={outputIsStale(cell, false)}
-                hidden={false}
               />
             </div>
           ))}
@@ -377,31 +372,36 @@ export const GridLayoutRenderer: React.FC<Props> = ({
   );
 };
 
-interface GridCellProps extends Pick<CellRuntimeState, "output" | "status"> {
+interface GridCellProps extends Pick<CellRuntimeState, "output"> {
   className?: string;
   code: string;
   cellId: CellId;
   mode: AppMode;
-  hidden: boolean;
+  /** Whether a cell whose last run ended without a value keeps its place but shows nothing. */
+  hideWithoutValue: boolean;
   isScrollable: boolean;
   side?: GridLayoutCellSide;
-  stale: boolean;
 }
 
 const GridCell = memo(
   ({
     output,
     cellId,
-    status,
     mode,
     code,
-    hidden,
+    hideWithoutValue,
     isScrollable,
     side,
     className,
-    stale,
   }: GridCellProps) => {
-    const loading = outputIsLoading(status);
+    const execution = useCellExecution(cellId);
+    const freshness = useCellFreshness(cellId);
+    const loading = outputIsLoading(execution.status);
+    const stale = outputIsStale(execution, freshness, false);
+    const hidden =
+      hideWithoutValue &&
+      execution.outcome !== null &&
+      execution.outcome !== "value";
 
     const isOutputEmpty = output == null || output.data === "";
     // If not reading, show code when there is no output

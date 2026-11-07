@@ -3,10 +3,12 @@
 
 from __future__ import annotations
 
+import msgspec
 import pytest
 from dirty_equals import IsStr
 from inline_snapshot import snapshot
 
+from marimo._core import backend as be, protocol
 from marimo._core.backend import (
     Completed,
     Concluded,
@@ -17,21 +19,37 @@ from marimo._core.backend import (
     Started,
 )
 from marimo._core.code import code_fingerprint
+from marimo._core.document import Document, DocumentCell
 from marimo._core.protocol import (
+    CellId,
     Console,
     DisplayData,
     Error,
     ErrorOutcome,
     ExecutionId,
     InterruptedOutcome,
+    Position,
+    Range,
+    Related,
     Revision,
     RunId,
+    SkippedOutcome,
     ValueOutcome,
 )
 from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._messaging.errors import (
+    CycleError,
+    ImportStarError,
+    LazyImportError,
+    MarimoAncestorPreventedError,
+    MarimoAncestorStoppedError,
     MarimoExceptionRaisedError,
+    MarimoInternalError,
     MarimoInterruptionError,
+    MarimoSQLError,
+    MarimoStrictExecutionError,
+    MultipleDefinitionError,
+    SetupRootError,
 )
 from marimo._messaging.notification import (
     CellNotification,
@@ -39,6 +57,7 @@ from marimo._messaging.notification import (
     ExecutionNotification,
 )
 from marimo._runtime.scratch import SCRATCH_CELL_ID
+from marimo._server.host.analysis import CellAnalyzer
 from marimo._server.host.translate import RunTranslator
 from marimo._types.ids import CellId_t
 
@@ -61,6 +80,43 @@ def attempt(phase: str, **fields: object) -> ExecutionNotification:
         else None,
         **fields,
     )  # type: ignore[arg-type]
+
+
+def test_a_superseded_attempt_is_skipped_and_its_run_succeeds() -> None:
+    t = RunTranslator(RunId("r1"), None)
+    planned = ExecutionNotification(
+        cell_id=CellId_t("b"),
+        run_id="r1",
+        execution_id="b1",
+        phase="planned",
+        code="print(x)",
+        code_fingerprint=code_fingerprint("print(x)"),
+    )
+    superseded = ExecutionNotification(
+        cell_id=CellId_t("b"),
+        run_id="r1",
+        execution_id="b1",
+        phase="completed",
+        skipped="superseded",
+    )
+    messages = t.feed(planned)
+    messages.extend(t.feed(superseded))
+    messages.extend(t.feed(CompletedRunNotification(run_id="r1")))
+    messages.extend(t.finish())
+
+    completed = next(m for m in messages if isinstance(m, be.Completed))
+    assert completed.outcome == protocol.SkippedOutcome(
+        reason="superseded",
+        message="Replaced by a newer execution of this cell before it started",
+        related=(
+            protocol.Related(
+                cell_id=protocol.CellId("b"),
+                range=None,
+                message="Changed while queued",
+            ),
+        ),
+    )
+    assert messages[-1] == be.Done(RunId("r1"), "succeeded")
 
 
 def test_a_run_that_prints_and_shows_a_value() -> None:
@@ -319,6 +375,41 @@ def test_unsubmitted_runs_have_distinct_executions() -> None:
             ErrorOutcome,
             "failed",
         ),
+        (
+            MarimoExceptionRaisedError(
+                "An ancestor raised an exception (RuntimeError): ",
+                "Ancestor raised",
+                CellId_t("a"),
+            ),
+            SkippedOutcome,
+            "succeeded",
+        ),
+        (
+            MarimoExceptionRaisedError(
+                "Name `x` is not defined. It was expected to be defined in ",
+                "NameError",
+                CellId_t("a"),
+            ),
+            ErrorOutcome,
+            "failed",
+        ),
+        (
+            MarimoAncestorStoppedError(
+                "This cell wasn't run because an ancestor was stopped with `mo.stop`: ",
+                CellId_t("a"),
+            ),
+            SkippedOutcome,
+            "succeeded",
+        ),
+        (
+            MarimoAncestorPreventedError(
+                "This cell wasn't run because an ancestor failed to resolve the reference `x` : ",
+                CellId_t("a"),
+                CellId_t("b"),
+            ),
+            SkippedOutcome,
+            "succeeded",
+        ),
     ],
 )
 def test_skipped_cells_report_their_error_after_becoming_idle(
@@ -384,3 +475,326 @@ def test_planned_fingerprint_is_preserved_without_rehashing(
             ),
         )
     ]
+
+
+@pytest.mark.parametrize(
+    ("error", "reason", "related"),
+    [
+        (
+            MarimoAncestorStoppedError(
+                msg="This cell wasn't run because an ancestor was stopped with `mo.stop`: ",
+                raising_cell=CellId_t("a"),
+            ),
+            "upstream-stopped",
+            [("a", "Stopped with `mo.stop`"), ("c", "Did not run")],
+        ),
+        (
+            MarimoExceptionRaisedError(
+                msg="An ancestor raised an exception (RuntimeError): ",
+                exception_type="Ancestor raised",
+                raising_cell=CellId_t("a"),
+            ),
+            "upstream-failed",
+            [("a", "Raised an exception"), ("c", "Did not run")],
+        ),
+        (
+            MarimoAncestorPreventedError(
+                msg="This cell wasn't run because an ancestor failed to resolve the reference `x` : ",
+                raising_cell=CellId_t("a"),
+                blamed_cell=CellId_t("b"),
+            ),
+            "upstream-failed",
+            [
+                ("a", "Could not resolve a reference"),
+                ("b", "Expected to define it"),
+                ("c", "Did not run"),
+            ],
+        ),
+    ],
+)
+def test_a_skipped_cell_names_its_reason_and_the_cells_involved(
+    error: object, reason: str, related: list[tuple[str, str]]
+) -> None:
+    translator = RunTranslator(RunId("r1"), None)
+    translator.feed(
+        ExecutionNotification(
+            cell_id=CellId_t("c"),
+            run_id="r1",
+            execution_id="skipped",
+            phase="planned",
+            code="x",
+            code_fingerprint=code_fingerprint("x"),
+        )
+    )
+    translator.feed(
+        CellNotification(
+            cell_id=CellId_t("c"),
+            run_id="r1",
+            execution_id="skipped",
+            output=CellOutput.errors([error]),  # type: ignore[list-item]
+        )
+    )
+    [completed] = translator.feed(
+        ExecutionNotification(
+            cell_id=CellId_t("c"),
+            run_id="r1",
+            execution_id="skipped",
+            phase="completed",
+        )
+    )
+    assert isinstance(completed, Completed)
+    outcome = completed.outcome
+    assert isinstance(outcome, SkippedOutcome)
+    assert outcome.reason == reason
+    assert outcome.message.startswith(("This cell wasn't run", "An ancestor"))
+    assert not outcome.message.endswith((":", " "))
+    assert [(r.cell_id, r.message) for r in outcome.related] == related
+    assert translator.finish() == [Done(RunId("r1"), "succeeded")]
+
+
+def planned(cell_id: str, code: str) -> ExecutionNotification:
+    return ExecutionNotification(
+        cell_id=CellId_t(cell_id),
+        run_id="r1",
+        execution_id=f"{cell_id}1",
+        phase="planned",
+        code=code,
+        code_fingerprint=code_fingerprint(code),
+    )
+
+
+def running(cell_id: str) -> ExecutionNotification:
+    return ExecutionNotification(
+        cell_id=CellId_t(cell_id),
+        run_id="r1",
+        execution_id=f"{cell_id}1",
+        phase="running",
+    )
+
+
+def cell_output(cell_id: str, output: CellOutput) -> CellNotification:
+    return CellNotification(
+        cell_id=CellId_t(cell_id),
+        run_id="r1",
+        execution_id=f"{cell_id}1",
+        output=output,
+    )
+
+
+def _point(line: int, character: int = 0) -> Range:
+    position = Position(line=line, character=character)
+    return Range(start=position, end=position)
+
+
+@pytest.mark.parametrize(
+    ("error", "kind", "related", "range_"),
+    [
+        (
+            MarimoExceptionRaisedError(
+                msg="boom", exception_type="ValueError", raising_cell="a"
+            ),
+            "exception",
+            (Related(cell_id=CellId("a"), range=None, message="Raised it"),),
+            None,
+        ),
+        (
+            LazyImportError(msg="lazy import of foo", lineno=5),
+            "lazy-import",
+            (),
+            _point(4),
+        ),
+        (
+            CycleError(
+                edges_with_vars=(("a", ("x",), "b"), ("b", ("y", "z"), "a"))
+            ),
+            "cycle-dependencies",
+            (
+                Related(
+                    cell_id=CellId("a"),
+                    range=None,
+                    message="Depends on b through y, z",
+                ),
+                Related(
+                    cell_id=CellId("b"),
+                    range=None,
+                    message="Depends on a through x",
+                ),
+            ),
+            None,
+        ),
+        (
+            SetupRootError(edges_with_vars=(("setup", ("x",), "c"),)),
+            "setup-refs",
+            (
+                Related(
+                    cell_id=CellId("c"),
+                    range=None,
+                    message="Depends on setup through x",
+                ),
+            ),
+            None,
+        ),
+        (
+            MultipleDefinitionError(name="x", cells=("b", "a")),
+            "multiple-definitions",
+            (
+                Related(cell_id=CellId("a"), range=None, message="Defines x"),
+                Related(cell_id=CellId("b"), range=None, message="Defines x"),
+                Related(cell_id=CellId("c"), range=None, message="Defines x"),
+            ),
+            None,
+        ),
+        (
+            ImportStarError(msg="import * is not allowed", lineno=3),
+            "import-star",
+            (),
+            _point(2),
+        ),
+        (
+            MarimoStrictExecutionError(
+                msg="x is not defined", ref="x", blamed_cell="a"
+            ),
+            "strict-exception",
+            (Related(cell_id=CellId("a"), range=None, message="Defines x"),),
+            None,
+        ),
+        (
+            MarimoSQLError(
+                msg="no such table",
+                sql_statement="select * from t",
+                node_lineno=2,
+                node_col_offset=4,
+            ),
+            "sql",
+            (),
+            _point(1, 4),
+        ),
+    ],
+)
+def test_each_kernel_error_keeps_its_kind_and_names_the_cells_involved(
+    error: object,
+    kind: str,
+    related: tuple[Related, ...],
+    range_: Range | None,
+) -> None:
+    t = RunTranslator(RunId("r1"), None)
+    t.feed(planned("c", "x = 1\nmo.sql('select * from t')"))
+    t.feed(running("c"))
+    t.feed(cell_output("c", CellOutput.errors([error])))  # type: ignore[list-item]
+
+    completed = t.finish()[0]
+    assert isinstance(completed, Completed)
+    assert isinstance(completed.outcome, ErrorOutcome)
+    described = completed.outcome.error
+    assert described.source == "marimo"
+    assert described.kind == kind
+    assert described.related == related
+    assert described.range == range_
+
+
+def test_every_cell_in_a_cycle_describes_it_in_the_same_order() -> None:
+    edges = (("a", ("x",), "b"), ("b", ("y",), "c"), ("c", ("z",), "a"))
+    t = RunTranslator(RunId("r1"), None)
+    related = []
+    for cell, start in (("a", 2), ("b", 0), ("c", 1)):
+        rotated = CycleError(edges_with_vars=edges[start:] + edges[:start])
+        t.feed(planned(cell, "..."))
+        t.feed(running(cell))
+        t.feed(cell_output(cell, CellOutput.errors([rotated])))  # type: ignore[list-item]
+    for completed in t.finish()[:3]:
+        assert isinstance(completed, Completed)
+        assert isinstance(completed.outcome, ErrorOutcome)
+        related.append(completed.outcome.error.related)
+    assert related[0] == related[1] == related[2]
+    assert [r.cell_id for r in related[0]] == ["a", "b", "c"]
+
+
+def test_a_sql_error_keeps_its_hint_and_counts_its_column_in_utf16() -> None:
+    t = RunTranslator(RunId("r1"), None)
+    t.feed(planned("c", 'x = "𝄞"; mo.sql("select * from t")'))
+    t.feed(running("c"))
+    error = MarimoSQLError(
+        msg="no such table: t",
+        sql_statement="select * from t",
+        hint="Did you mean u?",
+        node_lineno=1,
+        node_col_offset=len('x = "𝄞"; '.encode()),
+    )
+    t.feed(cell_output("c", CellOutput.errors([error])))
+
+    completed = t.finish()[0]
+    assert isinstance(completed, Completed)
+    assert isinstance(completed.outcome, ErrorOutcome)
+    assert (
+        completed.outcome.error.message == "no such table: t\nDid you mean u?"
+    )
+    assert completed.outcome.error.range == _point(
+        0, len('x = "𝄞"; '.encode("utf-16-le")) // 2
+    )
+
+
+def test_definers_follow_the_document_when_the_translator_knows_it() -> None:
+    t = RunTranslator(RunId("r1"), None, lambda: ["c", "a", "b"])
+    t.feed(planned("a", "x = 1"))
+    t.feed(running("a"))
+    error = MultipleDefinitionError(name="x", cells=("b", "c"))
+    t.feed(cell_output("a", CellOutput.errors([error])))
+
+    completed = t.finish()[0]
+    assert isinstance(completed, Completed)
+    assert isinstance(completed.outcome, ErrorOutcome)
+    assert [r.cell_id for r in completed.outcome.error.related] == [
+        "c",
+        "a",
+        "b",
+    ]
+
+
+def test_a_conflict_reads_the_same_from_analysis_and_from_execution() -> None:
+    codes = {"b": "x = 2", "a": "x = 1"}
+    document = Document(
+        [DocumentCell(CellId(cid), code) for cid, code in codes.items()], {}
+    )
+    (analyzed,) = CellAnalyzer()(document)[CellId("a")].errors
+
+    t = RunTranslator(RunId("r1"), None, lambda: list(codes))
+    t.feed(planned("a", "x = 1"))
+    t.feed(running("a"))
+    error = MultipleDefinitionError(name="x", cells=("b",))
+    t.feed(cell_output("a", CellOutput.errors([error])))
+    completed = t.finish()[0]
+    assert isinstance(completed, Completed)
+    assert isinstance(completed.outcome, ErrorOutcome)
+    executed = completed.outcome.error
+
+    def without_ranges(described: Error) -> Error:
+        return msgspec.structs.replace(
+            described,
+            range=None,
+            related=tuple(
+                msgspec.structs.replace(r, range=None)
+                for r in described.related
+            ),
+        )
+
+    assert executed.range is None
+    assert without_ranges(executed) == without_ranges(analyzed)
+    assert [r.cell_id for r in executed.related] == ["b", "a"]
+
+
+def test_an_internal_error_is_named_by_its_id() -> None:
+    t = RunTranslator(RunId("r1"), "3 * 3")
+    t.feed(attempt("planned"))
+    t.feed(attempt("running"))
+    t.feed(
+        scratch(
+            output=CellOutput.errors([MarimoInternalError(error_id="abc123")])
+        )
+    )
+
+    completed = t.finish()[0]
+    assert isinstance(completed, Completed)
+    assert isinstance(completed.outcome, ErrorOutcome)
+    assert completed.outcome.error.kind == "internal"
+    assert completed.outcome.error.name == "abc123"
+    assert "abc123" in completed.outcome.error.message

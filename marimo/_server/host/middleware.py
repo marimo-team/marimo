@@ -9,9 +9,6 @@ authentication.
 
 from __future__ import annotations
 
-import hmac
-import re
-from ipaddress import IPv6Address, ip_address
 from typing import TYPE_CHECKING
 
 from starlette.exceptions import HTTPException
@@ -22,6 +19,11 @@ from starlette.websockets import WebSocket
 from marimo import _loggers
 from marimo._server.host import HOST_API_PATH
 from marimo._server.host.api import build_app, editor_routes
+from marimo._server.host.auth import (
+    bearer_matches,
+    host_header_ok,
+    is_loopback,
+)
 from marimo._server.host.notebook_api import problem
 
 if TYPE_CHECKING:
@@ -32,8 +34,6 @@ if TYPE_CHECKING:
     from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 LOGGER = _loggers.marimo_logger()
-
-_PORT = re.compile(r"[0-9]{1,5}")
 
 
 class HostApiMiddleware:
@@ -64,22 +64,22 @@ class HostApiMiddleware:
             response = problem(
                 404, "not-found", "App sessions do not expose a host catalog"
             )
-        elif self._for_editor(scope) and not _bearer_matches(
+        elif self._for_editor(scope) and not bearer_matches(
             request.headers.get("Authorization"), context.token
         ):
             # Let the editor middleware load the cookie before authenticating.
             await self.app(scope, receive, send)
             return
-        elif client is None or not _is_loopback(client[0]):
+        elif client is None or not is_loopback(client[0]):
             response = problem(
                 403, "forbidden", "The host API answers only this machine"
             )
-        elif not _host_header_ok(request.headers.get("host"), context.port):
+        elif not host_header_ok(request.headers.get("host"), context.port):
             # Reject remote domain names to prevent DNS rebinding attacks.
             response = problem(
                 403, "forbidden", "The host API answers only its own address"
             )
-        elif not _bearer_matches(
+        elif not bearer_matches(
             request.headers.get("Authorization"), context.token
         ):
             response = problem(
@@ -173,46 +173,3 @@ def _methods_declared_for(
         ):
             methods.update(route.methods or ())
     return methods
-
-
-def _is_loopback(host: str) -> bool:
-    if host.lower() == "localhost":
-        return True
-    try:
-        address = ip_address(host)
-    except ValueError:
-        return False
-    if isinstance(address, IPv6Address) and address.ipv4_mapped is not None:
-        address = address.ipv4_mapped
-    return address.is_loopback
-
-
-def _host_header_ok(header: str | None, port: int) -> bool:
-    """Check that the Host header names a loopback address and server port."""
-    if header is None:
-        return False
-    if header.startswith("["):
-        name, closed, after = header.partition("]")
-        if not closed or (after and not after.startswith(":")):
-            return False
-        name = name[1:]
-        given = after[1:]
-    else:
-        name, _, given = header.partition(":")
-    if not _is_loopback(name):
-        return False
-    if given == "":
-        return port == 80
-    return _PORT.fullmatch(given) is not None and int(given) == port
-
-
-def _bearer_matches(authorization: str | None, token: str) -> bool:
-    if authorization is None:
-        return False
-    scheme, _, credentials = authorization.partition(" ")
-    if scheme.lower() != "bearer":
-        return False
-    # Header text is latin-1, and compare_digest rejects non-ASCII str.
-    return hmac.compare_digest(
-        credentials.strip().encode("latin-1"), token.encode()
-    )

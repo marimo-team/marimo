@@ -5,9 +5,12 @@ from __future__ import annotations
 
 import atexit
 import os
+import stat
 import tempfile
 from datetime import UTC, datetime
 from ipaddress import IPv6Address, ip_address
+from typing import TYPE_CHECKING
+from urllib.parse import urlsplit
 from uuid import uuid4
 
 import msgspec
@@ -17,7 +20,85 @@ from marimo._core import protocol
 from marimo._server.host import HOST_API_PATH
 from marimo._utils.xdg import marimo_state_dir
 
+if TYPE_CHECKING:
+    from collections.abc import Iterator
+    from pathlib import Path
+
 LOGGER = _loggers.marimo_logger()
+
+
+def discover_hosts(
+    *, root: Path | None = None
+) -> Iterator[protocol.HostRecord]:
+    """Read private, loopback records belonging to live local processes.
+
+    Invalid and stale records are skipped without deleting them. Discovery
+    does not contact servers; a process can stop after its record is read.
+    """
+    import psutil
+
+    directory = root if root is not None else marimo_state_dir() / "hosts-v1"
+    try:
+        original = directory.lstat()
+        if not stat.S_ISDIR(original.st_mode) or not _private(original):
+            return
+        paths = sorted(directory.glob("*.json"))
+    except OSError:
+        return
+    for path in paths:
+        try:
+            descriptor = os.open(
+                path,
+                os.O_RDONLY
+                | getattr(os, "O_NOFOLLOW", 0)
+                | getattr(os, "O_NONBLOCK", 0),
+            )
+            with os.fdopen(descriptor, "rb") as file:
+                info = os.fstat(file.fileno())
+                if not stat.S_ISREG(info.st_mode) or not _private(info):
+                    continue
+                raw = file.read(65537)
+                if len(raw) > 65536:
+                    continue
+                record = msgspec.json.decode(raw, type=protocol.HostRecord)
+            current = directory.lstat()
+            if (current.st_dev, current.st_ino) != (
+                original.st_dev,
+                original.st_ino,
+            ) or not _private(current):
+                return
+            url = urlsplit(record.url)
+            if (
+                url.scheme != "http"
+                or url.hostname is None
+                or not ip_address(url.hostname).is_loopback
+                or url.username is not None
+                or url.password is not None
+                or url.query
+                or url.fragment
+                or any(c.isspace() or c == "\\" for c in record.url)
+                or url.port == 0
+            ):
+                continue
+            process = psutil.Process(record.process.pid)
+            if (
+                process.is_running()
+                and process.status() != psutil.STATUS_ZOMBIE
+                and abs(
+                    process.create_time()
+                    - record.process.started_at.timestamp()
+                )
+                < 1
+            ):
+                yield record
+        except (OSError, ValueError, msgspec.DecodeError, psutil.Error):
+            continue
+
+
+def _private(info: os.stat_result) -> bool:
+    return os.name != "posix" or (
+        info.st_uid == os.getuid() and info.st_mode & 0o077 == 0
+    )
 
 
 def host_url(host: str, port: int, base_url: str) -> str | None:

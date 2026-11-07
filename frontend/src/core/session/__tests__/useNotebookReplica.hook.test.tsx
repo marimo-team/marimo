@@ -6,6 +6,7 @@ import { createStore, Provider } from "jotai";
 import type { PropsWithChildren } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { NotebookTransport } from "@marimo-team/client";
+import type { AttachmentOutput } from "@marimo-team/client/protocol";
 import { ConnectionState } from "../types";
 import { createEditorBackend } from "../backend";
 import { useNotebookReplica } from "../useNotebookReplica";
@@ -101,11 +102,12 @@ describe("useNotebookReplica", () => {
       {
         id: "a2",
         notebook_id: "n1",
+        identity: null,
         kind: "agent",
         name: "Notebook CLI",
         since: "2026-10-01T09:20:03Z",
       },
-    ]);
+    ] satisfies AttachmentOutput[]);
     expect(attachments.result.current.all).toEqual(
       store.get(result.current.attachmentsAtom),
     );
