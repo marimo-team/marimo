@@ -294,6 +294,66 @@ def test_map_csv_nested_keys(
     assert manager.collect().equals(source)
 
 
+@pytest.mark.requires("polars", "pyarrow")
+@pytest.mark.parametrize("name", ["^value$", "*", ""])
+@pytest.mark.parametrize("fallback", [False, True])
+def test_map_csv_literal_names(name: str, fallback: bool) -> None:
+    import polars as pl
+    import pyarrow as pa
+
+    if not hasattr(pl, "Map"):
+        pytest.skip("Map dtype requires Polars 2")
+    value_type = pa.struct(
+        {
+            name: pa.map_(pa.int64(), pa.int64()),
+            "other": pa.binary() if fallback else pa.string(),
+        }
+    )
+    source = pl.from_arrow(
+        pa.table(
+            {
+                name: pa.array(
+                    [
+                        [
+                            (
+                                "outer",
+                                {
+                                    name: [(42, 1), (42, 2)],
+                                    "other": b"abc" if fallback else "abc",
+                                },
+                            )
+                        ],
+                        [],
+                        None,
+                        [("outer", None)],
+                    ],
+                    type=pa.map_(pa.string(), value_type),
+                ),
+                "id": [0, 1, 2, 3],
+            }
+        )
+    )
+    source = source.rename({source.columns[0]: name})
+    manager = PolarsTableManagerFactory.create()(source)
+    rows = list(csv.DictReader(io.StringIO(manager.to_csv_str())))
+    assert [json.loads(row[name]) if row[name] else None for row in rows] == [
+        [
+            {
+                "key": "outer",
+                "value": {
+                    name: [{"key": 42, "value": 1}, {"key": 42, "value": 2}],
+                    "other": "abc",
+                },
+            }
+        ],
+        [],
+        None,
+        [{"key": "outer", "value": None}],
+    ]
+    assert [row["id"] for row in rows] == ["0", "1", "2", "3"]
+    assert manager.collect().equals(source)
+
+
 def assert_frame_equal(a: Any, b: Any) -> bool:
     import polars.testing
 
