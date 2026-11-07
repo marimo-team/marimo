@@ -262,7 +262,7 @@ def deterministic_dumps(
     obj: Any, hash_type: str, _seen: HashState | None = None
 ) -> bytes:
     """`pickle.dumps` replacement that produces more deterministic bytes."""
-    from marimo._save.hash import hash_wrapped_functions
+    from marimo._save.hash import cell_bindings, hash_wrapped_functions
     from marimo._save.stubs import maybe_get_custom_stub
 
     state = HashState() if _seen is None else _seen
@@ -328,9 +328,12 @@ def deterministic_dumps(
                 if getattr(obj, "__module__", None) == "__main__":
                     # A notebook function's globals are not in its
                     # fingerprint, and inside a value no graph accounts for
-                    # them. Its mangled qualname carries the defining cell,
-                    # as pickling by reference did.
-                    fingerprint += primitive_to_bytes(obj.__qualname__)
+                    # them. Its mangled qualname and the cell-mangled names
+                    # it refers to carry the defining cell, as pickling by
+                    # reference did. A lambda has only the latter.
+                    fingerprint += primitive_to_bytes(
+                        (obj.__qualname__, cell_bindings(obj.__code__))
+                    )
                 return (bytes, (type_sign(fingerprint, "function"),))
             try:
                 if not is_primitive(obj) and is_data_primitive(obj):

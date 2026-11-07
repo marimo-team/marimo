@@ -1477,3 +1477,21 @@ def test_set_members_sharing_a_payload_stay_bounded() -> None:
     # Each member's dump holds the payload once while it is hashed; none is
     # retained. Fifty retained copies would be over 3 MiB.
     assert peak < 1024 * 1024
+
+
+async def test_lambdas_over_private_globals_in_two_cells_key_apart() -> None:
+    with mocked_kernel_session() as tk:
+        k = tk.kernel
+        await k.run(
+            [
+                command(0, "import marimo as mo"),
+                command(1, "_x = 1\na = [lambda: _x]"),
+                command(2, "_x = 2\nb = [lambda: _x]"),
+                command(
+                    3,
+                    "@mo.cache\ndef f(cbs):\n    return cbs[0]()\n"
+                    "r = (f(a), f(b))",
+                ),
+            ]
+        )
+        assert k.globals.get("r") == (1, 2)
