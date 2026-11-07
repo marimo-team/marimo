@@ -9,7 +9,11 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, ClassVar
 
-from marimo._cli.pair.client import PairError, PairInputError
+from marimo._cli.pair.client import (
+    PairError,
+    PairInputError,
+    UnsupportedInboxError,
+)
 from marimo._cli.pair.delivery import DeliveryTarget, ProcessHandle
 
 if TYPE_CHECKING:
@@ -52,61 +56,60 @@ class ClaudeHarness:
         env: Mapping[str, str],
         *,
         process: ProcessHandle | None = None,
+        check_ready: bool = True,
     ) -> DeliveryTarget | None:
         import psutil
 
         address = self.identity(env)
         if address is None:
             return None
-        self.check()
-        if not _socket_exists(address):
-            raise PairInputError(
-                "The Claude Code inbox socket is unavailable."
-            )
         token = env.get("CLAUDE_CODE_MESSAGING_TOKEN")
-        if not token:
+        if check_ready:
+            self.check()
+            if not _socket_exists(address):
+                raise PairInputError(
+                    "The Claude Code inbox socket is unavailable."
+                )
+            if not token:
+                raise PairInputError(
+                    "Claude Code did not export its inbox token. "
+                    "Run connect inside a current Claude Code session."
+                )
+        owner = process
+        if owner is None:
+            try:
+                owner_pid = int(env.get("CLAUDE_PID", ""))
+                if owner_pid <= 0:
+                    raise ValueError
+            except ValueError as error:
+                raise PairInputError(
+                    "Claude Code did not export a valid CLAUDE_PID. "
+                    "Run connect inside a current Claude Code session."
+                ) from error
+            try:
+                for ancestor in psutil.Process().parents():
+                    if ancestor.pid == owner_pid:
+                        owner = ProcessHandle.capture(ancestor.pid)
+                        break
+            except psutil.Error as error:
+                raise PairInputError(
+                    "Could not identify the Claude Code process."
+                ) from error
+        if owner is None:
             raise PairInputError(
-                "Claude Code did not export its inbox token. "
-                "Run connect inside a current Claude Code session."
+                "Run connect inside a native Claude Code session."
             )
-        if process is not None:
-            return DeliveryTarget(
-                self.kind,
-                address,
-                "Claude Code",
-                process=process,
-                auth_token=token,
-            )
-        try:
-            owner_pid = int(env.get("CLAUDE_PID", ""))
-            if owner_pid <= 0:
-                raise ValueError
-        except ValueError as error:
-            raise PairInputError(
-                "Claude Code did not export a valid CLAUDE_PID. "
-                "Run connect inside a current Claude Code session."
-            ) from error
-        try:
-            for ancestor in psutil.Process().parents():
-                if ancestor.pid == owner_pid:
-                    return DeliveryTarget(
-                        self.kind,
-                        address,
-                        "Claude Code",
-                        process=ProcessHandle.capture(ancestor.pid),
-                        auth_token=token,
-                    )
-        except psutil.Error as error:
-            raise PairInputError(
-                "Could not identify the Claude Code process."
-            ) from error
-        raise PairInputError(
-            "Run connect inside a native Claude Code session."
+        return DeliveryTarget(
+            self.kind,
+            address,
+            "Claude Code",
+            process=owner,
+            auth_token=token,
         )
 
     def check(self) -> None:
         if os.name == "nt" or not hasattr(socket, "AF_UNIX"):
-            raise PairInputError(
+            raise UnsupportedInboxError(
                 "Claude Code inbox delivery requires macOS or Linux."
             )
 

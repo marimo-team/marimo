@@ -364,14 +364,15 @@ def test_connect_and_detach_lifecycle(
     owner = ProcessHandle.capture(os.getpid())
     target = DeliveryTarget("codex", "thread", "Codex", process=owner)
     harness = Mock()
+    harness.detect.return_value = target
     check = Mock()
     monkeypatch.setattr(harness, "check", check)
     monkeypatch.setattr(
-        commands, "detect_target", lambda *_: (harness, target)
+        forwarder, "detect_target", lambda *_args, **_kwargs: (harness, target)
     )
     start = Mock(return_value=record(owner))
     stop = Mock()
-    monkeypatch.setattr(commands, "start_forwarder", start)
+    monkeypatch.setattr(forwarder, "start_forwarder", start)
     monkeypatch.setattr(ProcessHandle, "stop", stop)
     previous = record(owner)
     isolated_cli.save(previous)
@@ -575,8 +576,12 @@ def test_connect_target_options(
 ) -> None:
     owner = ProcessHandle.capture(os.getpid())
     delivery = DeliveryTarget("codex", "thread", "Codex", process=owner)
+    adapter = Mock()
+    adapter.detect.return_value = delivery
     monkeypatch.setattr(
-        commands, "detect_target", lambda *_: (Mock(), delivery)
+        forwarder,
+        "detect_target",
+        lambda *_args, **_kwargs: (adapter, delivery),
     )
     options: list[str] = []
     expected_token = None
@@ -603,7 +608,7 @@ def test_connect_target_options(
     )
     start = Mock()
     monkeypatch.setattr(commands, "resolve_target", resolve)
-    monkeypatch.setattr(commands, "start_forwarder", start)
+    monkeypatch.setattr(forwarder, "start_forwarder", start)
     result = CliRunner().invoke(
         cli_main, ["pair", "connect", *selector, *options]
     )
@@ -647,7 +652,7 @@ def test_connect_rejects_invalid_options_before_starting(
     error: str,
 ) -> None:
     start = Mock()
-    monkeypatch.setattr(commands, "start_forwarder", start)
+    monkeypatch.setattr(forwarder, "start_forwarder", start)
     result = CliRunner().invoke(cli_main, ["pair", "connect", *options])
     assert result.exit_code != 0
     assert error.lower() in result.output.lower()

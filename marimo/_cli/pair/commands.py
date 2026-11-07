@@ -17,6 +17,7 @@ import msgspec
 from marimo._cli.help_formatter import ColoredCommand, ColoredGroup
 from marimo._cli.pair.client import (
     AmbiguousNotebookError,
+    InboxConnectionError,
     NoNotebookError,
     NoRuntimeError,
     NotebookUnsupportedError,
@@ -30,17 +31,13 @@ from marimo._cli.pair.client import (
     list_sessions,
     load_token,
 )
-from marimo._cli.pair.connection import (
-    ConnectionStore,
-    connection_identity,
-)
+from marimo._cli.pair.connection import ConnectionStore
 from marimo._cli.pair.discovery import list_running_notebooks
-from marimo._cli.pair.forwarder import ForwarderConfig, start_forwarder
-from marimo._cli.pair.harnesses import detect_target, environment_identity
+from marimo._cli.pair.forwarder import ensure_connection
+from marimo._cli.pair.harnesses import environment_identity
 from marimo._cli.pair.prompts import render_prompt
 from marimo._cli.pair.target import ExecutionTarget, resolve_target
 from marimo._server.ai.skills import utils as skills_utils
-from marimo._server.host import HOST_API_PATH
 
 _REFERENCES_DIR = (
     Path(skills_utils.__file__).parent / "marimo-pair" / "references"
@@ -154,8 +151,6 @@ class _DocsCommand(ColoredCommand):
             for cell in ctx.cells.values():
                 print(cell.id, cell.code, cell.status)
         PY
-      To receive notebook messages in Claude Code, Codex, or OpenCode 2.0:
-        marimo pair connect --session <ID>
 
     \b
     Target selection:
@@ -171,6 +166,10 @@ class _DocsCommand(ColoredCommand):
 
     \b
     Agent messages (preview):
+      Execute automatically attempts an inbox connection in supported harnesses.
+      After identifying the notebook and conversation, setup is attempted once per owner process.
+      In a supported harness, retry once. If it fails, continue without messaging:
+        marimo pair connect --session <ID>
       Codex must use its shared daemon and support codex queue.
       Claude Code requires its native inbox on macOS or Linux.
       OpenCode 2.0 requires its registered local service.
@@ -318,6 +317,16 @@ def execute(
         url = target.url
         notebook_id = target.notebook_id
         session_id = target.id if notebook_id is None else None
+        try:
+            ensure_connection(target, ConnectionStore(), automatic=True)
+        except InboxConnectionError:
+            click.echo(
+                "Notebook messaging unavailable. Retry once. "
+                "If it fails, continue without messaging.",
+                err=True,
+            )
+        except (PairError, OSError):
+            pass
         result = execute_code(
             url=target.url,
             session_id=target.id,
@@ -826,27 +835,12 @@ def connect(
             require_notebook=True,
         )
         assert selected.notebook_id is not None
-        notebook_id = selected.notebook_id
-        _selected_harness, target = detect_target(os.environ, harness, pid)
-        identity = connection_identity(
-            notebook_id, target.kind, target.address
+        connection = ensure_connection(
+            selected, ConnectionStore(), harness=harness, pid=pid
         )
-        store = ConnectionStore()
-        with store.locked(identity):
-            store.stop(identity)
-            start_forwarder(
-                ForwarderConfig(
-                    selected.url.rstrip("/").removesuffix(HOST_API_PATH)
-                    + HOST_API_PATH,
-                    notebook_id,
-                    identity,
-                    selected.token,
-                    target,
-                ),
-                store,
-            )
+        assert connection is not None
         click.echo(
-            f"Connected as {target.label}. Agent messages from this notebook arrive here as messages from marimo."
+            f"Connected as {connection.harness_kind}. Agent messages from this notebook arrive here as messages from marimo."
         )
     except (PairError, OSError) as error:
         raise click.ClickException(str(error)) from error
