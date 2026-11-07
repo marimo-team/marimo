@@ -199,16 +199,21 @@ describe("cellError", () => {
     { kind: "exception", source: "marimo", isInternal: false },
     { kind: "internal-exception", source: "marimo", isInternal: true },
     { kind: "internal-exception", source: "other", isInternal: false },
-  ])("preserves internal classification for $kind from $source", ({ kind, source, isInternal }) => {
-    expect(cellError(hostError({ kind, source, name: "InternalError" }))).toEqual({
-      type: "exception",
-      exception_type: "InternalError",
-      msg: "boom",
-      raising_cell: null,
-      traceback: null,
-      ...(isInternal ? { is_internal: true } : {}),
-    });
-  });
+  ])(
+    "preserves internal classification for $kind from $source",
+    ({ kind, source, isInternal }) => {
+      expect(
+        cellError(hostError({ kind, source, name: "InternalError" })),
+      ).toEqual({
+        type: "exception",
+        exception_type: "InternalError",
+        msg: "boom",
+        raising_cell: null,
+        traceback: null,
+        ...(isInternal ? { is_internal: true } : {}),
+      });
+    },
+  );
 
   it("keeps a syntax error's line and an internal error's name", () => {
     expect(
