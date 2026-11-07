@@ -5,15 +5,16 @@ import { useSetAtom } from "jotai";
 import { useEffect } from "react";
 import { chatGenerationInProgressAtom } from "@/core/ai/state";
 
-export function useChatGeneration(status: ChatStatus) {
+export function isChatBusy(status: ChatStatus): boolean {
+  return status === "submitted" || status === "streaming";
+}
+
+export function useChatGeneration(isGenerating: boolean) {
   const setGenerating = useSetAtom(chatGenerationInProgressAtom);
-  const isGenerating = status === "submitted" || status === "streaming";
 
   useEffect(() => {
     setGenerating(isGenerating);
     // useChat stops its request when the panel unmounts or becomes hidden.
     return () => setGenerating(false);
   }, [isGenerating, setGenerating]);
-
-  return isGenerating;
 }

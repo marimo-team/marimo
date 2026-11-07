@@ -5,7 +5,7 @@
  * both. Edits go the other way through the document model directly: the
  * cell operations write it, and each cell editor is bound to its cell.
  *
- * TODO(MO-8028): Delete this module once components read cells from the
+ * TODO(MO-8349): Delete this module once components read cells from the
  * document model and `notebookAtom` holds only runtime and editor state.
  */
 
@@ -27,7 +27,6 @@ import {
   createCell,
   createCellConfig,
   createCellRuntimeState,
-  isEdited,
 } from "./types";
 
 // Following the document ----------------------------------------------------
@@ -49,13 +48,7 @@ function followCell(current: CellData, cell: EditableCell): CellData {
   if (code === current.code) {
     return { ...current, name: cell.name, config };
   }
-  return {
-    ...current,
-    code,
-    name: cell.name,
-    config,
-    edited: isEdited(current.lastCodeRun, code),
-  };
+  return { ...current, code, name: cell.name, config };
 }
 
 /**
@@ -64,7 +57,7 @@ function followCell(current: CellData, cell: EditableCell): CellData {
  * Returns the same state when nothing differs, so a local edit that the
  * document already reflects changes nothing.
  *
- * TODO(MO-8028): Delete with `reconcileDocument` once cells are read from
+ * TODO(MO-8349): Delete with `reconcileDocument` once cells are read from
  * the document model.
  */
 export function applyDocument(
@@ -83,17 +76,13 @@ export function applyDocument(
       continue;
     }
     if (current === undefined) {
-      // A new cell with code is stale until it runs. The kernel's last run
-      // settles it on kernel-ready.
-      const code = cell.code ?? "";
       cellData = {
         ...cellData,
         [id]: createCell({
           id,
-          code,
+          code: cell.code ?? "",
           name: cell.name,
           config: createCellConfig(cell.config),
-          edited: isEdited(null, code),
         }),
       };
       cellRuntime = {
@@ -134,7 +123,7 @@ export function applyDocument(
  * Reconcile the model's document and name its columns, now and on each
  * change, until the signal aborts.
  *
- * TODO(MO-8028): Delete with `applyDocument`.
+ * TODO(MO-8349): Delete with `applyDocument`.
  */
 export function followDocument({
   store,

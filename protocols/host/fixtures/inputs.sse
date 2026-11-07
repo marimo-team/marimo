@@ -1,6 +1,6 @@
 id: 300
 event: run
-data: {"run":{"id":"run-input","notebook_id":"n1","status":"running","started_at":"2026-11-03T14:00:00Z","completed_at":null,"caused_by":null,"outcome":null},"request_id":"start-input","time":"2026-11-03T14:00:00Z"}
+data: {"run":{"id":"run-input","notebook_id":"n1","runtime_id":"r1","cells":[],"status":"running","started_at":"2026-11-03T14:00:00Z","completed_at":null,"outcome":null},"request_id":"start-input","time":"2026-11-03T14:00:00Z"}
 
 id: 301
 event: execution
@@ -36,7 +36,7 @@ data: {"execution":{"id":"e-input","run_id":"run-input","runtime_id":"r1","cell_
 
 id: 310
 event: run
-data: {"run":{"id":"run-input","notebook_id":"n1","status":"completed","started_at":"2026-11-03T14:00:00Z","completed_at":"2026-11-03T14:00:08Z","caused_by":null,"outcome":"interrupted"},"request_id":"start-input","time":"2026-11-03T14:00:08Z"}
+data: {"run":{"id":"run-input","notebook_id":"n1","runtime_id":"r1","cells":[],"status":"completed","started_at":"2026-11-03T14:00:00Z","completed_at":"2026-11-03T14:00:08Z","outcome":"interrupted"},"request_id":"start-input","time":"2026-11-03T14:00:08Z"}
 
 id: 311
 event: execution.removed

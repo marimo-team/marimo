@@ -56,13 +56,15 @@ import {
   appWidthAtom,
   autoInstantiateAtom,
 } from "@/core/config/config";
-import type { CellConfig, RuntimeState } from "@/core/network/types";
+import type { CellRunStatus } from "@/core/executions";
+import type { CellConfig } from "@/core/network/types";
 import { canEditAtom } from "@/core/notebook";
 import { canLinkToCell, createCellLink } from "@/utils/cell-urls";
 import { copyToClipboard } from "@/utils/copy";
 import { downloadCellOutputAsImage } from "@/utils/download";
 import { MarkdownIcon, PythonIcon } from "../cell/code/icons";
 import { useDeleteCellCallback } from "../cell/useDeleteCell";
+import { useStagedAICellActions } from "../cell/StagedAICell";
 import { useRunCell } from "../cell/useRunCells";
 import { useSplitCellCallback } from "../cell/useSplitCell";
 import { NameCellInput } from "./name-cell-input";
@@ -73,7 +75,9 @@ export interface CellActionButtonProps extends Pick<
   "name" | "config"
 > {
   cellId: CellId;
-  status: RuntimeState;
+  status: CellRunStatus;
+  /** Whether a cell it depends on is disabled. */
+  blocked: boolean;
   hasOutput: boolean;
   hasConsoleOutput: boolean;
   getEditorView: () => EditorView | null;
@@ -93,6 +97,7 @@ export function useCellActionButtons({ cell, closePopover }: Props) {
     clearCellOutput,
     createCell,
   } = useCellActions();
+  const stagedActions = useStagedAICellActions(cell?.cellId);
   const showHiddenCode = useSetAtom(showHiddenCodeAtom);
   const edit = useNotebookDocumentEdit();
   const splitCell = useSplitCellCallback();
@@ -119,6 +124,7 @@ export function useCellActionButtons({ cell, closePopover }: Props) {
     hasOutput,
     hasConsoleOutput,
     status,
+    blocked,
   } = cell;
 
   const toggleDisabled = () => {
@@ -144,6 +150,7 @@ export function useCellActionButtons({ cell, closePopover }: Props) {
 
   // Actions
   const actions: ActionButton[][] = [
+    stagedActions,
     [
       {
         icon: <PlayIcon size={13} strokeWidth={1.5} />,
@@ -152,7 +159,7 @@ export function useCellActionButtons({ cell, closePopover }: Props) {
         hidden:
           status === "running" ||
           status === "queued" ||
-          status === "disabled-transitively" ||
+          blocked ||
           config.disabled,
         redundant: true,
         handle: () => runCell(),

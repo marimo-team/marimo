@@ -75,7 +75,7 @@ def save_layout_config(
     Returns: the path to the layout file
     """
     # remove py extension
-    app_name_without_ext = app_name.replace(".py", "")
+    app_name_without_ext = app_name.removesuffix(".py")
     # relative file path
     filepath = f"layouts/{app_name_without_ext}.{config.type}.json"
     # full file path

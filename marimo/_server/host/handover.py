@@ -5,6 +5,10 @@ from __future__ import annotations
 
 import asyncio
 from collections import deque
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 
 class Turn:
@@ -35,7 +39,8 @@ class Handover:
     scratch run waits for the scratchpad, a worker run loads packages. The
     run behind it takes its turn once every run ahead has submitted or
     ended, so ending a run in the middle does not let the ones behind it
-    pass an earlier one.
+    pass an earlier one. An edit takes a turn too, so a run reaches the
+    kernel with the document it was accepted in.
     """
 
     def __init__(self) -> None:
@@ -52,3 +57,22 @@ class Handover:
         turn.finished = True
         while self._turns and self._turns[0].finished:
             self._turns.popleft().passed.set()
+
+    def submit(self, put: Callable[[], None]) -> None:
+        """Call `put` in turn: at once when nothing is ahead, else when it is."""
+        turn = self.take()
+        if turn.ready:
+            try:
+                put()
+            finally:
+                self.finish(turn)
+            return
+
+        async def in_turn() -> None:
+            await turn.wait()
+            try:
+                put()
+            finally:
+                self.finish(turn)
+
+        asyncio.get_running_loop().create_task(in_turn())

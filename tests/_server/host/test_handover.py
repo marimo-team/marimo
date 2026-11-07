@@ -5,6 +5,8 @@ from __future__ import annotations
 
 import asyncio
 
+import pytest
+
 from marimo._server.host.handover import Handover, Turn
 
 
@@ -57,3 +59,35 @@ def test_finishing_a_turn_again_changes_nothing() -> None:
     handover.finish(first)
     assert second.ready
     assert not third.ready
+
+
+def test_a_submission_with_nothing_ahead_happens_at_once() -> None:
+    handover = Handover()
+    calls: list[str] = []
+    handover.submit(lambda: calls.append("edit"))
+    assert calls == ["edit"]
+    assert handover.take().ready
+
+
+async def test_a_submission_waits_its_turn_behind_a_run() -> None:
+    handover = Handover()
+    run = handover.take()
+    calls: list[str] = []
+    handover.submit(lambda: calls.append("edit"))
+    await asyncio.sleep(0)
+    assert calls == []
+    handover.finish(run)
+    await asyncio.sleep(0)
+    assert calls == ["edit"]
+    assert handover.take().ready
+
+
+def test_a_submission_that_fails_still_passes_its_turn() -> None:
+    handover = Handover()
+
+    def fail() -> None:
+        raise RuntimeError("queue closed")
+
+    with pytest.raises(RuntimeError):
+        handover.submit(fail)
+    assert handover.take().ready

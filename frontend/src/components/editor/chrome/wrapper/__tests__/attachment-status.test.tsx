@@ -41,6 +41,7 @@ const AGENT: Attachment = {
   name: "Pi",
   since: new Date().toISOString(),
   notebook_id: "nb-one",
+  identity: null,
 };
 
 function renderStatus(attachments: Attachment[] = [AGENT], preview = true) {

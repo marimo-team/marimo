@@ -470,7 +470,7 @@ def test_cell_run_request_and_results() -> None:
     assert cells["c3"]["code"] == "x = 21"
     assert cells["k7f2"]["code"] == "y = x * 2"
     assert executions["e12"]["caused_by"] is None
-    assert executions["e13"]["caused_by"] == "e12"
+    assert executions["e13"]["caused_by"] is None
     assert executions["e12"]["depends_on"] == {}
     assert executions["e13"]["depends_on"] == {
         "x": {"execution": "e12", "update": 0}

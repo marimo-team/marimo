@@ -2,6 +2,7 @@
 
 import { atom, useAtomValue } from "jotai";
 import { notebookAtom } from "@/core/cells/cells";
+import { cellExecutionInputsAtom, cellExecutionView } from "@/core/executions";
 import { Banner } from "@/plugins/impl/common/error-banner";
 import { Logger } from "@/utils/Logger";
 import { Button } from "../ui/button";
@@ -11,12 +12,13 @@ import { DelayMount } from "../utils/delay-mount";
 // Atom to check if there is a cell with unresolved stdin
 const hasBlockingStdinAtom = atom((get) => {
   const notebook = get(notebookAtom);
+  const executions = get(cellExecutionInputsAtom);
 
   // Check each cell in order
   for (const cellId of notebook.cellIds) {
     // Check if the cell is idle and has unresolved stdin
     const runtime = notebook.cellRuntime[cellId];
-    if (runtime.status === "idle") {
+    if (cellExecutionView(executions, cellId).status === "idle") {
       const hasUnresolvedStdin = runtime.consoleOutputs.some(
         (output) => output.channel === "stdin" && output.response === undefined,
       );

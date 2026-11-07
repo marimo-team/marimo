@@ -95,6 +95,8 @@ class ExecutionNotification(Notification, tag="execution"):
     `running` means evaluation began. `completed` follows the final output
     and errors, including for attempts that never ran. Buffered and background
     console output may still arrive with the completed attempt's identity.
+    A completed attempt that never ran and reported no error names why in
+    `skipped`, such as `superseded` when a newer attempt replaced it.
     """
 
     name: ClassVar[str] = "execution"
@@ -106,6 +108,7 @@ class ExecutionNotification(Notification, tag="execution"):
     code_fingerprint: str | None = None
     caused_by: str | None = None
     depends_on: dict[str, Revision | None] | None = None
+    skipped: str | None = None
 
 
 class CellNotification(Notification, tag="cell-op"):
@@ -121,7 +124,6 @@ class CellNotification(Notification, tag="cell-op"):
         output: Cell's output. Use CellOutput.empty() to clear.
         console: Console messages. Single/list appends, [] clears, None unchanged.
         status: Execution status (idle/running/stale/queued/disabled-transitively).
-        stale_inputs: Whether cell has stale inputs from changed dependencies.
         run_id: Execution run ID for tracing. Auto-set from context.
         execution_id: Evaluation of this cell producing the update, when known.
         serialization: Top-level reusability hint. UNSET unchanged, None clears, str sets.
@@ -133,7 +135,6 @@ class CellNotification(Notification, tag="cell-op"):
     output: CellOutput | None = None
     console: CellOutput | list[CellOutput] | None = None
     status: RuntimeStateType | None = None
-    stale_inputs: bool | None = None
     run_id: RunId_t | None = None
     execution_id: str | None = None
     # Tri-state partial update: UNSET (omitted on the wire) leaves the cell's
@@ -444,8 +445,6 @@ class KernelReadyNotification(Notification, tag="kernel-ready"):
         layout: Notebook layout config.
         resumed: Whether resumed from previous session.
         ui_values: Previous UI element values if resumed.
-        last_executed_code: Last executed code per cell if resumed.
-        last_execution_time: Last execution time per cell if resumed.
         app_config: Application configuration.
         kiosk: Whether running in kiosk mode.
         capabilities: Available kernel capabilities.
@@ -458,8 +457,6 @@ class KernelReadyNotification(Notification, tag="kernel-ready"):
     layout: LayoutConfig | None
     resumed: bool
     ui_values: dict[str, JSONType] | None
-    last_executed_code: dict[CellId_t, str] | None
-    last_execution_time: dict[CellId_t, float] | None
     app_config: _AppConfig
     kiosk: bool
     capabilities: KernelCapabilitiesNotification
