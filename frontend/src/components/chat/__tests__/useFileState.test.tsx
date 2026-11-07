@@ -199,6 +199,27 @@ describe("useFileState", () => {
     }
   });
 
+  it("allows selecting files again after normalization fails", async () => {
+    const { result } = renderHook(() => useFileState(["text/*"]));
+    const file = new File(["hello"], "README");
+    vi.spyOn(file, "arrayBuffer").mockRejectedValue(new Error("Read failed"));
+
+    await act(() => result.current.addFiles([file]));
+
+    expect(result.current.isReadingFiles).toBe(false);
+    expect(result.current.files).toEqual([]);
+    expect(result.current.validateFiles([])).toBe(true);
+    expect(toast).toHaveBeenCalledWith({
+      title: "Could not read attachments",
+      description: "Try selecting the files again.",
+      variant: "danger",
+    });
+
+    const retry = new File(["hello"], "notes.txt", { type: "text/plain" });
+    await act(() => result.current.addFiles([retry]));
+    expect(result.current.files).toEqual([retry]);
+  });
+
   it("keeps new reads pending when a cancelled read finishes", async () => {
     const { result } = renderHook(() => useFileState(["text/*"]));
     const oldFile = new File(["old"], "old");

@@ -306,11 +306,10 @@ export function useFileState(supportedTypes?: readonly string[]) {
         description: "Try selecting the files again.",
         variant: "danger",
       });
-    } finally {
-      if (currentGeneration === generation.current) {
-        pendingReads.current -= 1;
-        setIsReadingFiles(pendingReads.current > 0);
-      }
+    }
+    if (currentGeneration === generation.current) {
+      pendingReads.current -= 1;
+      setIsReadingFiles(pendingReads.current > 0);
     }
   });
 

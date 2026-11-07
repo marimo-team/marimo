@@ -59,9 +59,11 @@ export const UserMessage: React.FC<UserMessageProps> = ({
       if (await onEdit(value)) {
         setDraft((current) => (current === value ? null : current));
       }
-    } finally {
+    } catch (error) {
       setIsSubmitting(false);
+      throw error;
     }
+    setIsSubmitting(false);
   };
 
   if (editing) {
