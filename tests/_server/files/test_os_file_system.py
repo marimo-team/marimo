@@ -549,6 +549,17 @@ def test_natural_sort_key() -> None:
     assert sorted_files == expected_order
 
 
+@pytest.mark.parametrize("filename", ["²", "²1.csv", "２1.csv", "٢1.csv"])
+def test_list_files_with_unicode_digits(tmp_path: Path, filename: str) -> None:
+    filenames = ["10.txt", filename, "2.txt"]
+    for name in filenames:
+        (tmp_path / name).touch()
+
+    files = OSFileSystem().list_files(str(tmp_path))
+
+    assert [file.name for file in files] == ["2.txt", "10.txt", filename]
+
+
 def test_get_details_with_encoding_and_contents(
     test_dir: Path, fs: OSFileSystem
 ) -> None:

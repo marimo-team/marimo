@@ -823,6 +823,21 @@ def test_natural_sorting(tmp_path: Path) -> None:
     assert file_names == expected_order
 
 
+def test_natural_sorting_with_unicode_digits(tmp_path: Path) -> None:
+    for filename in ["10.txt", "²1.csv", "２1.csv", "2.txt"]:
+        (tmp_path / filename).touch()
+
+    fb = file_browser(initial_path=tmp_path)
+    response = fb._list_directory(ListDirectoryArgs(path=str(tmp_path)))
+
+    assert [file["name"] for file in response.files] == [
+        "2.txt",
+        "10.txt",
+        "²1.csv",
+        "２1.csv",
+    ]
+
+
 def test_directories_sorted_before_files(tmp_path: Path) -> None:
     """Test that directories are sorted before files."""
     # Create test directories and files
