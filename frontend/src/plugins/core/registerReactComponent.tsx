@@ -179,11 +179,13 @@ function PluginSlotInternal<T>(
   const setValueAndSendInput = useEvent((value: SetStateAction<T>): void => {
     const prevValue = latestValue.current;
     const nextValue = Functions.asUpdater(value)(prevValue);
-    // If the value hasn't changed, we don't need to send an input event
+    // Always adopt the new reference: consumers such as the form wrapper
+    // compare the committed value by identity to decide whether unsaved
+    // edits exist. Only the kernel notification is skipped for equal values.
+    commitValue(nextValue);
     if (shallowCompare(nextValue, prevValue)) {
       return;
     }
-    commitValue(nextValue);
     hostElement.dispatchEvent(createInputEvent(nextValue, hostElement));
   });
 

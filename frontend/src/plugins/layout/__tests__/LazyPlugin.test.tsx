@@ -19,7 +19,7 @@ type Props = IPluginProps<
   { load: (req: {}) => Promise<{ html: string }> }
 >;
 
-function renderLazy(value: boolean, setValue: Props["setValue"]) {
+function lazyElement(value: boolean, setValue: Props["setValue"]) {
   const load = vi.fn().mockResolvedValue({ html: "<p>loaded</p>" });
   const props: Props = {
     value,
@@ -28,7 +28,11 @@ function renderLazy(value: boolean, setValue: Props["setValue"]) {
     functions: { load },
     host: document.createElement("div"),
   };
-  return render(<>{LazyPlugin.render(props)}</>);
+  return <>{LazyPlugin.render(props)}</>;
+}
+
+function renderLazy(value: boolean, setValue: Props["setValue"]) {
+  return render(lazyElement(value, setValue));
 }
 
 describe("LazyPlugin visibility", () => {
@@ -44,11 +48,18 @@ describe("LazyPlugin visibility", () => {
   });
 
   test("marks the plugin loaded once when it becomes visible", () => {
-    intersection.entry = { isIntersecting: true };
+    intersection.entry = null;
     const setValue = vi.fn();
-    renderLazy(false, setValue);
+    const { rerender } = renderLazy(false, setValue);
+    expect(setValue).not.toHaveBeenCalled();
+
+    intersection.entry = { isIntersecting: true };
+    rerender(lazyElement(false, setValue));
     expect(setValue).toHaveBeenCalledTimes(1);
     expect(setValue).toHaveBeenCalledWith(true);
+
+    rerender(lazyElement(false, setValue));
+    expect(setValue).toHaveBeenCalledTimes(1);
   });
 
   test("does not change an already loaded value", () => {

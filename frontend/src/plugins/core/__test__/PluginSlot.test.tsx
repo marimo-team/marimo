@@ -133,11 +133,14 @@ describe.each([
     expect(m.events).toEqual([7, 4]);
   });
 
-  test("a host update to an equal value then a plugin change sends one event", () => {
+  test("equal host and plugin values send nothing, then a real change sends one event", () => {
     const m = mount({ strict, initial: 2 });
     act(() => pushHostValue(m.host, 2));
     act(() => m.setValue()(2));
     expect(m.events).toEqual([]);
+
+    act(() => m.setValue()(3));
+    expect(m.events).toEqual([3]);
   });
 });
 
@@ -160,21 +163,21 @@ describe("PluginSlot value dispatch (shared behavior)", () => {
     expect(seen).toEqual([{ value: 9, element: m.host }]);
   });
 
-  test("a shallow-equal object skips both the event and the re-render", () => {
+  test("a shallow-equal object skips the event but adopts the new reference", () => {
     const host = document.createElement("div");
     document.body.append(host);
     const events: unknown[] = [];
     host.addEventListener(MarimoValueInputEvent.TYPE, (e) => {
       events.push((e as CustomEvent<{ value: unknown }>).detail.value);
     });
-    let renders = 0;
     let setValue: Setter<{ a: number; b: string }> | undefined;
+    let committed: { a: number; b: string } | undefined;
     const plugin: IPlugin<{ a: number; b: string }, unknown> = {
       tagName: "marimo-test-object",
       validator: z.any(),
       render: (props) => {
-        renders++;
         setValue = props.setValue;
+        committed = props.value;
         return <span />;
       },
     };
@@ -185,14 +188,15 @@ describe("PluginSlot value dispatch (shared behavior)", () => {
         getInitialValue={() => ({ a: 1, b: "x" })}
       />,
     );
-    const rendersAfterMount = renders;
 
-    act(() => setValue?.((prev) => ({ ...prev, a: 1 })));
+    // A form resubmits an equal value with a fresh reference. The slot must
+    // adopt that reference so the form's identity check reads as saved.
+    const resubmitted = { a: 1, b: "x" };
+    act(() => setValue?.(resubmitted));
     expect(events).toEqual([]);
-    expect(renders).toBe(rendersAfterMount);
+    expect(committed).toBe(resubmitted);
 
     act(() => setValue?.((prev) => ({ ...prev, a: 2 })));
     expect(events).toEqual([{ a: 2, b: "x" }]);
-    expect(renders).toBe(rendersAfterMount + 1);
   });
 });
