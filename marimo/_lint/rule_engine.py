@@ -13,7 +13,7 @@ if TYPE_CHECKING:
     import logging
     from collections.abc import AsyncIterator
 
-    from marimo._config.config import LintConfig
+    from marimo._config.config_schema import LintConfig
     from marimo._lint.diagnostic import Diagnostic
     from marimo._lint.rules.base import LintRule
 

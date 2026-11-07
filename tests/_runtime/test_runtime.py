@@ -15,6 +15,7 @@ import pytest
 
 from marimo._ast.variables import is_mangled_local
 from marimo._config.config import DEFAULT_CONFIG
+from marimo._config.config_schema import MarimoConfig
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.cell_output import CellChannel
 from marimo._messaging.errors import (
@@ -1528,15 +1529,15 @@ except NameError:
 
         try:
             user_config = {
-                **DEFAULT_CONFIG,
+                **DEFAULT_CONFIG.to_dict(),
                 "runtime": {
-                    **DEFAULT_CONFIG["runtime"],
+                    **DEFAULT_CONFIG.runtime.to_dict(),
                     "pythonpath": [str(custom_path)],
                 },
             }
             with mocked_kernel_session(
                 app_metadata=default_app_metadata(filename=str(filename)),
-                user_config=user_config,  # type: ignore[arg-type]
+                user_config=MarimoConfig.from_dict(user_config),
             ) as tk:
                 await tk.kernel.run(
                     [
@@ -4431,7 +4432,7 @@ class TestErrorHandling:
         sanitized and should include a formatted traceback."""
         k = run_mode_kernel.k
         k.user_config = copy.deepcopy(k.user_config)
-        k.user_config["runtime"]["show_tracebacks"] = True
+        k.user_config.runtime.show_tracebacks = True
         await k.run([exec_req.get("raise ValueError('some secret error')")])
         cell_notifications = run_mode_kernel.stream.cell_notifications
         error_cell_notification = _filter_to_error_ops(cell_notifications)

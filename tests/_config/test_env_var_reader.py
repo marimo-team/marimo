@@ -180,19 +180,21 @@ def test_migrated_settings_from_user_file(
         "marimo._config.manager.is_trusted_user_config_path", lambda _: True
     )
     manager = MarimoConfigManager(user)
-    config = manager.get_config(hide_secrets=False)
+    config = manager.get_config(hide_secrets=False).to_dict()
     assert config["runtime"]["sql_default_limit"] == 200
     assert config["server"] == {
+        "disable_file_downloads": False,
         "browser": "default",
         "follow_symlink": False,
         "skip_update_check": True,
         "session_cookie_secure": True,
         "session_secret": "private-secret",
     }
-    assert manager.get_config()["server"]["session_secret"] == "********"
+    assert manager.get_config().server.session_secret == "********"
     assert (
         create_starlette_app(
-            base_url="", server_config=config["server"]
+            base_url="",
+            server_config=manager.get_config(hide_secrets=False).server,
         ).state.session_secret
         == "private-secret"
     )
@@ -219,7 +221,9 @@ def test_session_secret_from_project_is_ignored(
     )
     manager = MarimoConfigManager(user, PyprojectConfigReader(str(tmp_path)))
     assert (
-        manager.get_config(hide_secrets=False)["server"]["session_secret"]
+        manager.get_config(hide_secrets=False).to_dict()["server"][
+            "session_secret"
+        ]
         == "user-secret"
     )
 

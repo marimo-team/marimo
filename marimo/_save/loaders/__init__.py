@@ -24,7 +24,8 @@ from marimo._save.loaders.pickle import PickleLoader
 from marimo._utils.platform import is_pyodide
 
 if TYPE_CHECKING:
-    from marimo._config.config import CacheLoader, MarimoConfig
+    from marimo._config.config_schema import MarimoConfig
+    from marimo._config.types import CacheLoader
 
 LOGGER = _loggers.marimo_logger()
 
@@ -147,7 +148,7 @@ def get_loader_key(
         config = get_default_config_manager(
             current_path=current_path
         ).get_config()
-    return normalize_loader_key((config.get("cache") or {}).get("loader"))
+    return normalize_loader_key(config.cache.loader)
 
 
 __all__ = [

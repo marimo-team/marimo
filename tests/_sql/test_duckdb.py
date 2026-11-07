@@ -10,7 +10,8 @@ from unittest import mock
 
 import pytest
 
-from marimo._config.config import SqlOutputType
+from marimo._config.config_schema import DatasourcesConfig
+from marimo._config.types import SqlOutputType
 from marimo._data.models import Database, DataTable, DataTableColumn, Schema
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._plugins.ui._impl.table import SearchTableArgs, table
@@ -661,7 +662,7 @@ def test_duckdb_discovery_config(disable_discovery: bool) -> None:
             }
         with mock.patch(
             "marimo._sql.get_engines.get_datasources_config",
-            return_value=config,
+            return_value=DatasourcesConfig.from_dict(config),
         ):
             source = engine_to_data_source_connection(name, engine)
         if disable_discovery:

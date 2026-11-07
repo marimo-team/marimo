@@ -13,7 +13,8 @@ from typing import TYPE_CHECKING, Any, Literal, cast
 
 from marimo._ast.app_config import _AppConfig
 from marimo._cli.pair.prompts import get_pair_command, load_prompt_templates
-from marimo._config.config import MarimoConfig, PartialMarimoConfig
+from marimo._config.config import PartialMarimoConfig
+from marimo._config.config_schema import MarimoConfig
 from marimo._convert.common.filename import parse_title
 from marimo._convert.converters import MarimoConvert
 from marimo._messaging.notification import ModelLifecycleNotification
@@ -96,6 +97,7 @@ def _get_frontend_config(
     config: MarimoConfig | PartialMarimoConfig, *, readonly: bool
 ) -> PartialMarimoConfig:
     # Integration settings are only used by the editor.
+    config = config.to_dict() if isinstance(config, MarimoConfig) else config
     excluded = {"ai", "completion", "mcp"} if readonly else set()
     return cast(
         PartialMarimoConfig,
@@ -111,7 +113,7 @@ def _render_page_config(
     lsp_workspace: LspWorkspace | None = None,
     mode: Literal["edit", "home", "read", "gallery"],
     server_token: SkewProtectionToken,
-    user_config: MarimoConfig,
+    user_config: MarimoConfig | PartialMarimoConfig,
     config_overrides: PartialMarimoConfig,
     app_config: _AppConfig | None,
     version: str | None = None,
@@ -195,7 +197,7 @@ def _render_page_config(
 def home_page_template(
     html: str,
     base_url: str,
-    user_config: MarimoConfig,
+    user_config: MarimoConfig | PartialMarimoConfig,
     config_overrides: PartialMarimoConfig,
     server_token: SkewProtectionToken,
     mode: SessionMode,
@@ -302,7 +304,7 @@ def notebook_page_template(
     *,
     html: str,
     base_url: str,
-    user_config: MarimoConfig,
+    user_config: MarimoConfig | PartialMarimoConfig,
     config_overrides: PartialMarimoConfig,
     server_token: SkewProtectionToken,
     app_config: _AppConfig,
@@ -417,7 +419,7 @@ def get_default_asset_url() -> str:
 
 def static_notebook_template(
     html: str,
-    user_config: MarimoConfig,
+    user_config: MarimoConfig | PartialMarimoConfig,
     config_overrides: PartialMarimoConfig,
     server_token: SkewProtectionToken,
     app_config: _AppConfig,
@@ -533,7 +535,7 @@ def wasm_notebook_template(
     html: str,
     version: str,
     filename: str,
-    user_config: MarimoConfig,
+    user_config: MarimoConfig | PartialMarimoConfig,
     config_overrides: PartialMarimoConfig,
     app_config: _AppConfig,
     mode: Literal["edit", "run"],
@@ -701,6 +703,7 @@ def _inject_custom_css_for_config(
     filename: str | None = None,
 ) -> str:
     """Inject custom CSS from display config into HTML."""
+    config = config.to_dict() if isinstance(config, MarimoConfig) else config
     custom_css = config.get("display", {}).get("custom_css", [])
     if not custom_css:
         return html

@@ -8,6 +8,7 @@ import pytest
 import uvicorn
 from starlette.testclient import TestClient
 
+from marimo._config.config_schema import MarimoConfig
 from marimo._server.lsp import (
     BaseLspServer,
     CompositeLspServer,
@@ -248,10 +249,12 @@ class TestCompositeLspServer:
     @pytest.fixture
     def config_reader(self) -> MagicMock:
         reader = MagicMock()
-        reader.get_config.return_value = {
-            "completion": {"copilot": False},
-            "language_servers": {"pylsp": {"enabled": True}},
-        }
+        reader.get_config.return_value = MarimoConfig.from_dict(
+            {
+                "completion": {"copilot": False},
+                "language_servers": {"pylsp": {"enabled": True}},
+            }
+        )
         return reader
 
     @pytest.mark.asyncio
@@ -259,10 +262,12 @@ class TestCompositeLspServer:
         self, mock_ports: None, config_reader: MagicMock
     ) -> None:
         del mock_ports
-        config_reader.get_config.return_value = {
-            "completion": {"copilot": False},
-            "language_servers": {},
-        }
+        config_reader.get_config.return_value = MarimoConfig.from_dict(
+            {
+                "completion": {"copilot": False},
+                "language_servers": {},
+            }
+        )
         server = CompositeLspServer(config_reader, min_port=8000)
         health = await server.get_health()
         assert health.status == "healthy"
@@ -296,10 +301,12 @@ class TestCompositeLspServer:
         expected: bool,
     ) -> None:
         del mock_ports
-        config_reader.get_config.return_value = {
-            "completion": {"copilot": copilot_value},
-            "language_servers": {"pylsp": {"enabled": True}},
-        }
+        config_reader.get_config.return_value = MarimoConfig.from_dict(
+            {
+                "completion": {"copilot": copilot_value},
+                "language_servers": {"pylsp": {"enabled": True}},
+            }
+        )
         server = CompositeLspServer(config_reader, min_port=8000)
         config = config_reader.get_config()
         assert server._is_enabled(config, server_name) is expected

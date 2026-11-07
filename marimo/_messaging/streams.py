@@ -67,7 +67,7 @@ def output_max_bytes() -> int:
     from marimo._runtime.context import ContextNotInitializedError, get_context
 
     try:
-        return get_context().marimo_config["runtime"]["output_max_bytes"]
+        return get_context().marimo_config.runtime.output_max_bytes
     except ContextNotInitializedError:
         return 5_000_000  # 5MB
 
@@ -76,7 +76,7 @@ def std_stream_max_bytes() -> int:
     from marimo._runtime.context import ContextNotInitializedError, get_context
 
     try:
-        return get_context().marimo_config["runtime"]["std_stream_max_bytes"]
+        return get_context().marimo_config.runtime.std_stream_max_bytes
     except ContextNotInitializedError:
         return 1_000_000  # 1MB
 

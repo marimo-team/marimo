@@ -60,11 +60,7 @@ def get_default_csv_encoding() -> str:
         str: The default CSV encoding, falling back to "utf-8" if not configured.
     """
     try:
-        return (
-            get_context()
-            .marimo_config["runtime"]
-            .get("default_csv_encoding", DEFAULT_CSV_ENCODING)
-        )
+        return get_context().marimo_config.runtime.default_csv_encoding
     except ContextNotInitializedError:
         return DEFAULT_CSV_ENCODING
 

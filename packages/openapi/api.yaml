@@ -2,11 +2,11 @@ components:
   schemas:
     ActiveLineNotification:
       description: "Reports the line a cell's frame watcher is currently executing.\n\
-        \n    Emitted on a timed heartbeat while a cell runs (only when the line\n\
-        \    changed), so the editor can highlight the live line. A `None` line\n\
-        \    clears the highlight (e.g. when the cell finishes).\n\n    Attributes:\n\
-        \        cell_id: Cell whose frame is being watched.\n        line: 1-based\
-        \ line within the cell, or `None` to clear."
+        \nEmitted on a timed heartbeat while a cell runs (only when the line\nchanged),\
+        \ so the editor can highlight the live line. A `None` line\nclears the highlight\
+        \ (e.g. when the cell finishes).\n\nAttributes:\n    cell_id: Cell whose frame\
+        \ is being watched.\n    line: 1-based line within the cell, or `None` to\
+        \ clear."
       properties:
         cell_id:
           $ref: '#/components/schemas/CellId'
@@ -122,48 +122,53 @@ components:
       title: AiCompletionRequest
       type: object
     AiConfig:
-      description: "Configuration options for AI.\n\n    **Keys.**\n\n    - `enabled`:\
-        \ if `False`, hide AI actions and panels in the marimo UI\n    - `rules`:\
-        \ custom rules to include in all AI completion prompts\n    - `max_tokens`:\
-        \ the maximum number of tokens to use in AI completions\n    - `mode`: notebook\
-        \ access for the built-in assistant: `\"ask\"` (read only), `\"agent\"` (suggest\
-        \ edits), or `\"code_mode\"` (full access). Defaults to `\"ask\"`.\n    -\
-        \ `inline_tooltip`: if `True`, enable inline AI tooltip suggestions\n    -\
-        \ `allow_provider_config`: if `False`, lock provider setup in the settings\
-        \ UI, making them read-only. Users cannot bring their own credentials or add\
-        \ custom providers. Default `True`.\n    - `models`: the models to use for\
-        \ AI completions\n    - `open_ai`: the OpenAI config\n    - `anthropic`: the\
-        \ Anthropic config\n    - `google`: the Google AI config\n    - `bedrock`:\
-        \ the Bedrock config\n    - `azure`: the Azure config\n    - `ollama`: the\
-        \ Ollama config\n    - `github`: the GitHub Copilot config\n    - `openrouter`:\
-        \ the OpenRouter config\n    - `wandb`: the Weights & Biases config\n    -\
-        \ `opencode_go`: the OpenCode Go config\n    - `custom_providers`: a dict\
-        \ of custom OpenAI-compatible providers\n    - `open_ai_compatible`: the OpenAI-compatible\
-        \ config (deprecated, use custom_providers)"
+      description: Configuration options for AI.
       properties:
         allow_provider_config:
+          default: true
+          description: if `False`, lock provider setup in the settings UI, making
+            them read-only. Users cannot bring their own credentials or add custom
+            providers. Default `True`.
           type: boolean
         anthropic:
           $ref: '#/components/schemas/AnthropicConfig'
+          description: the Anthropic config
         azure:
           $ref: '#/components/schemas/OpenAiConfig'
+          description: the Azure config
         bedrock:
           $ref: '#/components/schemas/BedrockConfig'
+          description: the Bedrock config
         custom_providers:
           additionalProperties:
             $ref: '#/components/schemas/OpenAiConfig'
+          default: {}
+          description: a dict of custom OpenAI-compatible providers
           type: object
         enabled:
+          default: true
+          description: if `False`, hide AI actions and panels in the marimo UI
           type: boolean
         github:
           $ref: '#/components/schemas/GitHubConfig'
+          description: the GitHub Copilot config
         google:
           $ref: '#/components/schemas/GoogleAiConfig'
+          description: the Google AI config
         inline_tooltip:
+          description: if `True`, enable inline AI tooltip suggestions
           type: boolean
         max_tokens:
-          type: integer
+          anyOf:
+          - type: integer
+          - type: 'null'
+          default: null
+          description: the maximum number of tokens to use in AI completions
         mode:
+          default: ask
+          description: 'notebook access for the built-in assistant: `"ask"` (read
+            only), `"agent"` (suggest edits), or `"code_mode"` (full access). Defaults
+            to `"ask"`.'
           enum:
           - agent
           - ask
@@ -171,21 +176,38 @@ components:
           - manual
         models:
           $ref: '#/components/schemas/AiModelConfig'
+          description: the models to use for AI completions
         ollama:
           $ref: '#/components/schemas/OpenAiConfig'
+          description: the Ollama config
         open_ai:
           $ref: '#/components/schemas/OpenAiConfig'
+          description: the OpenAI config
         open_ai_compatible:
           $ref: '#/components/schemas/OpenAiConfig'
+          deprecated: true
+          description: the OpenAI-compatible config (deprecated, use custom_providers)
         opencode_go:
           $ref: '#/components/schemas/OpenAiConfig'
+          description: the OpenCode Go config
         openrouter:
           $ref: '#/components/schemas/OpenAiConfig'
+          description: the OpenRouter config
         rules:
+          default: ''
+          description: custom rules to include in all AI completion prompts
           type: string
         wandb:
           $ref: '#/components/schemas/OpenAiConfig'
-      required: []
+          description: the Weights & Biases config
+      required:
+      - enabled
+      - rules
+      - max_tokens
+      - mode
+      - allow_provider_config
+      - models
+      - custom_providers
       title: AiConfig
       type: object
     AiInlineCompletionRequest:
@@ -206,36 +228,51 @@ components:
       title: AiInlineCompletionRequest
       type: object
     AiModelConfig:
-      description: "Configuration options for an AI model.\n\n    **Keys.**\n\n  \
-        \  - `chat_model`: the model to use for chat completions\n    - `edit_model`:\
-        \ the model to use for edit completions\n    - `autocomplete_model`: the model\
-        \ to use for code completion/autocomplete\n    - `displayed_models`: a list\
-        \ of models to display in the UI\n    - `custom_models`: a list of custom\
-        \ models to use that are not from the default list"
+      description: Configuration options for an AI model.
       properties:
         autocomplete_model:
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
+          description: the model to use for code completion/autocomplete
         chat_model:
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
+          description: the model to use for chat completions
         custom_models:
+          default: []
+          description: a list of custom models to use that are not from the default
+            list
           items:
             type: string
           type: array
         displayed_models:
+          default: []
+          description: a list of models to display in the UI
           items:
             type: string
           type: array
         edit_model:
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
+          description: the model to use for edit completions
       required:
-      - custom_models
+      - chat_model
+      - edit_model
+      - autocomplete_model
       - displayed_models
+      - custom_models
       title: AiModelConfig
       type: object
     AlertNotification:
-      description: "User-facing alert message.\n\n    Attributes:\n        title:\
-        \ Alert title.\n        description: Alert body (may contain HTML).\n    \
-        \    variant: Visual variant (e.g., \"danger\")."
+      description: "User-facing alert message.\n\nAttributes:\n    title: Alert title.\n\
+        \    description: Alert body (may contain HTML).\n    variant: Visual variant\
+        \ (e.g., \"danger\")."
       properties:
         description:
           type: string
@@ -257,10 +294,10 @@ components:
       title: AlertNotification
       type: object
     AnthropicConfig:
-      description: "Configuration options for Anthropic.\n\n    **Keys.**\n\n    -\
-        \ `api_key`: the Anthropic API key or an `env:` reference"
+      description: Configuration options for Anthropic.
       properties:
         api_key:
+          description: the Anthropic API key or an `env:` reference
           type: string
       required: []
       title: AnthropicConfig
@@ -282,10 +319,10 @@ components:
       title: AutoExportAsMarkdownRequest
       type: object
     BannerNotification:
-      description: "Persistent banner message at top of notebook.\n\n    Attributes:\n\
-        \        title: Banner title.\n        description: Banner body (may contain\
-        \ HTML).\n        variant: Visual variant (e.g., \"danger\").\n        action:\
-        \ Optional user action (e.g., \"restart\")."
+      description: "Persistent banner message at top of notebook.\n\nAttributes:\n\
+        \    title: Banner title.\n    description: Banner body (may contain HTML).\n\
+        \    variant: Visual variant (e.g., \"danger\").\n    action: Optional user\
+        \ action (e.g., \"restart\")."
       properties:
         action:
           anyOf:
@@ -333,29 +370,31 @@ components:
         but we only use it for diagnostics.'
       properties:
         enabled:
+          description: Enable this language server.
           type: boolean
       required: []
       title: BasedpyrightServerConfig
       type: object
     BedrockConfig:
-      description: "Configuration options for Bedrock.\n\n    **Keys.**\n\n    - `profile_name`:\
-        \ the AWS profile to use\n    - `region_name`: the AWS region to use\n   \
-        \ - `aws_access_key_id`: the AWS access key ID\n    - `aws_secret_access_key`:\
-        \ the AWS secret access key"
+      description: Configuration options for Bedrock.
       properties:
         aws_access_key_id:
+          description: the AWS access key ID
           type: string
         aws_secret_access_key:
+          description: the AWS secret access key
           type: string
         profile_name:
+          description: the AWS profile to use
           type: string
         region_name:
+          description: the AWS region to use
           type: string
       required: []
       title: BedrockConfig
       type: object
     CacheClearedNotification:
-      description: "Execution cache cleared result.\n\n    Attributes:\n        bytes_freed:\
+      description: "Execution cache cleared result.\n\nAttributes:\n    bytes_freed:\
         \ Bytes freed by clearing cache."
       properties:
         bytes_freed:
@@ -369,9 +408,7 @@ components:
       title: CacheClearedNotification
       type: object
     CacheConfig:
-      description: "Configuration for caching.\n\n    `verification` is the signature-checking\
-        \ posture; `store` is the backing\n    store, or a list of stores composed\
-        \ into a `TieredStore`; `loader` is the\n    default `method` for `mo.persistent_cache`."
+      description: Configuration for caching.
       properties:
         loader:
           anyOf:
@@ -380,25 +417,36 @@ components:
             - lazy
             - pickle
           - type: string
+          default: lazy
+          description: Default loader for mo.persistent_cache.
         store:
           anyOf:
           - items:
               $ref: '#/components/schemas/StoreConfig'
             type: array
           - $ref: '#/components/schemas/StoreConfig'
+          - type: 'null'
+          default: null
+          description: Backing cache store, or a list of stores composed into a tiered
+            store.
         verification:
+          default: 'off'
+          description: 'Cache signature verification posture: off, on, or strict.'
           enum:
           - 'off'
           - 'on'
           - strict
-      required: []
+      required:
+      - verification
+      - store
+      - loader
       title: CacheConfig
       type: object
     CacheInfoNotification:
-      description: "Execution cache statistics.\n\n    Attributes:\n        hits:\
-        \ Cache hits.\n        misses: Cache misses.\n        time: Time spent on\
-        \ cache operations (seconds).\n        disk_to_free: Disk space that could\
-        \ be freed (bytes).\n        disk_total: Total disk space used (bytes)."
+      description: "Execution cache statistics.\n\nAttributes:\n    hits: Cache hits.\n\
+        \    misses: Cache misses.\n    time: Time spent on cache operations (seconds).\n\
+        \    disk_to_free: Disk space that could be freed (bytes).\n    disk_total:\
+        \ Total disk space used (bytes)."
       properties:
         disk_to_free:
           type: integer
@@ -459,18 +507,18 @@ components:
       format: cell-id
       type: string
     CellNotification:
-      description: "Updates a cell's state in the frontend.\n\n    This is a partial\
-        \ update: each field carries its own \"unchanged\" semantics,\n    documented\
-        \ per field below. Most fields treat None as \"unchanged\"; fields\n    that\
-        \ need to distinguish \"unchanged\" from \"clear\" use msgspec.UNSET for the\n\
-        \    former and None for the latter.\n\n    Attributes:\n        cell_id:\
-        \ Unique identifier of the cell being updated.\n        output: Cell's output.\
-        \ Use CellOutput.empty() to clear.\n        console: Console messages. Single/list\
-        \ appends, [] clears, None unchanged.\n        status: Execution status (idle/running/stale/queued/disabled-transitively).\n\
-        \        run_id: Execution run ID for tracing. Auto-set from context.\n  \
-        \      execution_id: Evaluation of this cell producing the update, when known.\n\
-        \        serialization: Top-level reusability hint. UNSET unchanged, None\
-        \ clears, str sets.\n        timestamp: Creation timestamp, auto-set."
+      description: "Updates a cell's state in the frontend.\n\nThis is a partial update:\
+        \ each field carries its own \"unchanged\" semantics,\ndocumented per field\
+        \ below. Most fields treat None as \"unchanged\"; fields\nthat need to distinguish\
+        \ \"unchanged\" from \"clear\" use msgspec.UNSET for the\nformer and None\
+        \ for the latter.\n\nAttributes:\n    cell_id: Unique identifier of the cell\
+        \ being updated.\n    output: Cell's output. Use CellOutput.empty() to clear.\n\
+        \    console: Console messages. Single/list appends, [] clears, None unchanged.\n\
+        \    status: Execution status (idle/running/stale/queued/disabled-transitively).\n\
+        \    run_id: Execution run ID for tracing. Auto-set from context.\n    execution_id:\
+        \ Evaluation of this cell producing the update, when known.\n    serialization:\
+        \ Top-level reusability hint. UNSET unchanged, None clears, str sets.\n  \
+        \  timestamp: Creation timestamp, auto-set."
       properties:
         cell_id:
           $ref: '#/components/schemas/CellId'
@@ -603,11 +651,18 @@ components:
       title: CellOutput
       type: object
     CellOutputs:
-      description: "Per-cell output snapshot delivered alongside the document snapshot.\n\
-        \n    `output` carries the cell's last main (rich display) output;\n    `console_outputs`\
-        \ carries the buffered stdout/stderr stream from\n    its last execution.\
-        \  Both are keyed by cell id; missing keys mean\n    \"no output captured\"\
-        \ (the cell never ran, or produced nothing on\n    that channel)."
+      description: 'Per-cell output snapshot delivered alongside the document snapshot.
+
+
+        `output` carries the cell''s last main (rich display) output;
+
+        `console_outputs` carries the buffered stdout/stderr stream from
+
+        its last execution.  Both are keyed by cell id; missing keys mean
+
+        "no output captured" (the cell never ran, or produced nothing on
+
+        that channel).'
       properties:
         console_outputs:
           additionalProperties:
@@ -886,31 +941,40 @@ components:
       title: CompletedRunNotification
       type: object
     CompletionConfig:
-      description: "Configuration for code completion.\n\n    A dict with key/value\
-        \ pairs configuring code completion in the marimo\n    editor.\n\n    **Keys.**\n\
-        \n    - `activate_on_typing`: if `False`, completion won't activate\n    until\
-        \ the completion hotkey is entered\n    - `signature_hint_on_typing`: if `False`,\
-        \ signature hint won't be shown when typing\n    - `copilot`: one of `\"github\"\
-        `, `\"codeium\"`, or `\"custom\"`\n    - `codeium_api_key`: the Codeium API\
-        \ key\n    - `auto_close_pairs`: if `False`, typing an opening bracket, parenthesis,\n\
-        \    or quote will not automatically insert the closing character"
+      description: 'Configuration for code completion.
+
+
+        Settings for code completion in the marimo editor.'
       properties:
         activate_on_typing:
+          default: true
+          description: if `False`, completion won't activate until the completion
+            hotkey is entered
           type: boolean
         api_key:
           anyOf:
           - type: string
           - type: 'null'
+          deprecated: true
+          description: Deprecated completion API key. Use an AI provider configuration
+            instead.
         auto_close_pairs:
+          default: true
+          description: if `False`, typing an opening bracket, parenthesis, or quote
+            will not automatically insert the closing character
           type: boolean
         base_url:
           anyOf:
           - type: string
           - type: 'null'
+          deprecated: true
+          description: Deprecated completion API endpoint. Use an AI provider configuration
+            instead.
         codeium_api_key:
           anyOf:
           - type: string
           - type: 'null'
+          description: the Codeium API key
         copilot:
           anyOf:
           - type: boolean
@@ -918,16 +982,24 @@ components:
             - codeium
             - custom
             - github
+          default: false
+          description: one of `"github"`, `"codeium"`, or `"custom"`
         model:
           anyOf:
           - type: string
           - type: 'null'
+          deprecated: true
+          description: Deprecated completion model. Use ai.models.autocomplete_model
+            instead.
         signature_hint_on_typing:
+          default: false
+          description: if `False`, signature hint won't be shown when typing
           type: boolean
       required:
       - activate_on_typing
-      - copilot
       - signature_hint_on_typing
+      - copilot
+      - auto_close_pairs
       title: CompletionConfig
       type: object
     CompletionOption:
@@ -947,9 +1019,9 @@ components:
       title: CompletionOption
       type: object
     CompletionResultNotification:
-      description: "Code completion result from language server.\n\n    Attributes:\n\
-        \        completion_id: Request ID this responds to.\n        prefix_length:\
-        \ Length of prefix to replace.\n        options: Completion options to display."
+      description: "Code completion result from language server.\n\nAttributes:\n\
+        \    completion_id: Request ID this responds to.\n    prefix_length: Length\
+        \ of prefix to replace.\n    options: Completion options to display."
       properties:
         completion_id:
           $ref: '#/components/schemas/RequestId'
@@ -971,15 +1043,15 @@ components:
       type: object
     ConsumerCapabilities:
       description: "Per-consumer access capabilities for a session connection.\n\n\
-        \    - editor: `{edit: True, interact: True}`\n    - interactor: `{edit: False,\
-        \ interact: True}` (default for a secondary\n      connection: drives UI state\
-        \ but cannot edit the notebook)\n    - read-only viewer: `{edit: False, interact:\
-        \ False}` (opt-in, set by a\n      deployment's capability provider)\n\n \
-        \   The server enforces these: control requests are gated against the issuing\n\
-        \    consumer's stored capabilities at the control-request chokepoint (the\n\
-        \    authority) and mirrored as an advisory HTTP 403 at the request handlers.\n\
-        \    Commands classified as `read` in `marimo._session.capabilities` (such\
-        \ as\n    completions and previews) are always permitted."
+        - editor: `{edit: True, interact: True}`\n- interactor: `{edit: False, interact:\
+        \ True}` (default for a secondary\n  connection: drives UI state but cannot\
+        \ edit the notebook)\n- read-only viewer: `{edit: False, interact: False}`\
+        \ (opt-in, set by a\n  deployment's capability provider)\n\nThe server enforces\
+        \ these: control requests are gated against the issuing\nconsumer's stored\
+        \ capabilities at the control-request chokepoint (the\nauthority) and mirrored\
+        \ as an advisory HTTP 403 at the request handlers.\nCommands classified as\
+        \ `read` in `marimo._session.capabilities` (such as\ncompletions and previews)\
+        \ are always permitted."
       properties:
         edit:
           type: boolean
@@ -1089,9 +1161,9 @@ components:
       title: CycleError
       type: object
     DataColumnPreviewNotification:
-      description: "Data column preview with stats and visualization.\n\n    Inherits\
-        \ all ColumnPreview attributes.\n\n    Attributes:\n        table_name: Table\
-        \ containing the column.\n        column_name: Column being previewed."
+      description: "Data column preview with stats and visualization.\n\nInherits\
+        \ all ColumnPreview attributes.\n\nAttributes:\n    table_name: Table containing\
+        \ the column.\n    column_name: Column being previewed."
       properties:
         chart_code:
           anyOf:
@@ -1175,8 +1247,8 @@ components:
       title: DataSourceConnection
       type: object
     DataSourceConnectionsNotification:
-      description: "Available data source connections for SQL cells.\n\n    Attributes:\n\
-        \        connections: Available data source connections."
+      description: "Available data source connections for SQL cells.\n\nAttributes:\n\
+        \    connections: Available data source connections."
       properties:
         connections:
           items:
@@ -1192,8 +1264,8 @@ components:
       type: object
     DataSourceDiscoveryResultNotification:
       description: "High-confidence datasource connections discovered by the kernel.\n\
-        \n    Attributes:\n        request_id: Request ID this responds to.\n    \
-        \    sources: Detected datasource connection configurations."
+        \nAttributes:\n    request_id: Request ID this responds to.\n    sources:\
+        \ Detected datasource connection configurations."
       properties:
         op:
           enum:
@@ -1356,9 +1428,9 @@ components:
       title: Database
       type: object
     DatasetsNotification:
-      description: "Available datasets for data explorer.\n\n    Attributes:\n   \
-        \     tables: Available data tables/datasets.\n        clear_channel: If set,\
-        \ clears tables from this channel first."
+      description: "Available datasets for data explorer.\n\nAttributes:\n    tables:\
+        \ Available data tables/datasets.\n    clear_channel: If set, clears tables\
+        \ from this channel first."
       properties:
         clear_channel:
           anyOf:
@@ -1382,27 +1454,26 @@ components:
       title: DatasetsNotification
       type: object
     DatasourcesConfig:
-      description: "Configuration for datasources panel.\n\n    **Keys.**\n\n    -\
-        \ `auto_discover_schemas`: if `True`, include schemas in the datasource\n\
-        \    - `auto_discover_tables`: if `True`, include tables in the datasource\n\
-        \    - `auto_discover_columns`: if `True`, include columns & table metadata\
-        \ in the datasource"
+      description: Configuration for datasources panel.
       properties:
         auto_discover_columns:
           anyOf:
           - type: boolean
           - enum:
             - auto
+          description: if `True`, include columns & table metadata in the datasource
         auto_discover_schemas:
           anyOf:
           - type: boolean
           - enum:
             - auto
+          description: if `True`, include schemas in the datasource
         auto_discover_tables:
           anyOf:
           - type: boolean
           - enum:
             - auto
+          description: if `True`, include tables in the datasource
       required: []
       title: DatasourcesConfig
       type: object
@@ -1433,9 +1504,9 @@ components:
       title: DeleteCell
       type: object
     DeleteCellCommand:
-      description: "Delete a cell from the notebook.\n\n    Removes cell from the\
-        \ dependency graph and cleans up its variables.\n    Dependent cells may become\
-        \ stale.\n\n    Attributes:\n        cell_id: Cell to delete."
+      description: "Delete a cell from the notebook.\n\nRemoves cell from the dependency\
+        \ graph and cleans up its variables.\nDependent cells may become stale.\n\n\
+        Attributes:\n    cell_id: Cell to delete."
       properties:
         cellId:
           $ref: '#/components/schemas/CellId'
@@ -1590,15 +1661,17 @@ components:
       title: DetectedDataSourceOrigin
       type: object
     DiagnosticsConfig:
-      description: "Configuration options for diagnostics.\n\n    **Keys.**\n\n  \
-        \  - `enabled`: if `True`, diagnostics will be shown in the editor\n    -\
-        \ `sql_linter`: if `True`, SQL cells will have linting enabled"
+      description: Configuration options for diagnostics.
       properties:
         enabled:
+          description: if `True`, diagnostics will be shown in the editor
           type: boolean
         sql_linter:
+          default: true
+          description: if `True`, SQL cells will have linting enabled
           type: boolean
-      required: []
+      required:
+      - sql_linter
       title: DiagnosticsConfig
       type: object
     DialectHidesWhen:
@@ -1619,8 +1692,8 @@ components:
       type: object
     DiscoverDataSourcesCommand:
       description: "Discover datasource connections from the live kernel environment\
-        \ and configuration.\n\n    Attributes:\n        request_id: Unique identifier\
-        \ for this request."
+        \ and configuration.\n\nAttributes:\n    request_id: Unique identifier for\
+        \ this request."
       properties:
         requestId:
           $ref: '#/components/schemas/RequestId'
@@ -1641,39 +1714,45 @@ components:
       title: DiscoverDataSourcesRequest
       type: object
     DisplayConfig:
-      description: "Configuration for display.\n\n    **Keys.**\n\n    - `theme`:\
-        \ `\"light\"`, `\"dark\"`, or `\"system\"`\n    - `code_editor_font_size`:\
-        \ font size for the code editor\n    - `cell_output`: `\"above\"` or `\"below\"\
-        `\n    - `dataframes`: `\"rich\"` or `\"plain\"`\n    - `custom_css`: list\
-        \ of paths to custom CSS files\n    - `default_table_page_size`: default number\
-        \ of rows to display in tables\n    - `default_table_max_columns`: default\
-        \ maximum number of columns to display in tables\n    - `reference_highlighting`:\
-        \ if `True`, highlight reactive variable references\n    - `code_lens`: if\
-        \ `True`, show inline icons in cell editors linking\n      datasources, storage\
-        \ buckets, and caches to their panels\n    - `locale`: locale for date formatting\
-        \ and internationalization (e.g., \"en-US\", \"en-GB\", \"de-DE\")"
+      description: Configuration for display.
       properties:
         cell_output:
+          default: below
+          description: '`"above"` or `"below"`'
           enum:
           - above
           - below
         code_editor_font_size:
+          default: 14
+          description: font size for the code editor
           type: integer
         code_lens:
+          default: true
+          description: if `True`, show inline icons in cell editors linking datasources,
+            storage buckets, and caches to their panels
           type: boolean
         custom_css:
+          description: list of paths to custom CSS files
           items:
             type: string
           type: array
         dataframes:
+          default: rich
+          description: '`"rich"` or `"plain"`'
           enum:
           - plain
           - rich
         default_table_max_columns:
+          default: 50
+          description: default maximum number of columns to display in tables
           type: integer
         default_table_page_size:
+          default: 10
+          description: default number of rows to display in tables
           type: integer
         default_width:
+          default: medium
+          description: Default notebook width.
           enum:
           - columns
           - compact
@@ -1684,21 +1763,29 @@ components:
           anyOf:
           - type: string
           - type: 'null'
+          description: locale for date formatting and internationalization (e.g.,
+            "en-US", "en-GB", "de-DE")
         reference_highlighting:
+          default: true
+          description: if `True`, highlight reactive variable references
           type: boolean
         theme:
+          default: light
+          description: '`"light"`, `"dark"`, or `"system"`'
           enum:
           - dark
           - light
           - system
       required:
-      - cell_output
-      - code_editor_font_size
-      - dataframes
-      - default_table_max_columns
-      - default_table_page_size
-      - default_width
       - theme
+      - code_editor_font_size
+      - cell_output
+      - default_width
+      - dataframes
+      - default_table_page_size
+      - default_table_max_columns
+      - reference_highlighting
+      - code_lens
       title: DisplayConfig
       type: object
     EnvironmentOperation:
@@ -1754,10 +1841,14 @@ components:
       title: EnvironmentOperation
       type: object
     EnvironmentOperationNotification:
-      description: "Current operation progress and changes to its named log streams.\n\
-        \n    Package statuses replace the previous map. Log chunks append to a stream,\n\
-        \    or replace it when `log_mode` is `replace`. The operation status determines\n\
-        \    completion independently of its packages and output streams."
+      description: 'Current operation progress and changes to its named log streams.
+
+
+        Package statuses replace the previous map. Log chunks append to a stream,
+
+        or replace it when `log_mode` is `replace`. The operation status determines
+
+        completion independently of its packages and output streams.'
       properties:
         action:
           enum:
@@ -1864,13 +1955,12 @@ components:
       type: object
     EsmSpec:
       description: "Where the frontend imports a widget's ESM from, and which version.\n\
-        \n    Specs travel only on kernel-authored notifications, never in model\n\
-        \    state: state is client-writable and echoed to peers, so executing\n \
-        \   code from it would let one client run code on another.\n\n    Attributes:\n\
-        \        url: URL to import the ESM from. A virtual file for inline\n    \
-        \        source; an external URL when `_esm` is itself a URL.\n        hash:\
-        \ Hash of the `_esm` string. Keys the frontend module cache\n            and\
-        \ signals code changes (hot reload)."
+        \nSpecs travel only on kernel-authored notifications, never in model\nstate:\
+        \ state is client-writable and echoed to peers, so executing\ncode from it\
+        \ would let one client run code on another.\n\nAttributes:\n    url: URL to\
+        \ import the ESM from. A virtual file for inline\n        source; an external\
+        \ URL when `_esm` is itself a URL.\n    hash: Hash of the `_esm` string. Keys\
+        \ the frontend module cache\n        and signals code changes (hot reload)."
       properties:
         hash:
           type: string
@@ -1882,12 +1972,12 @@ components:
       title: EsmSpec
       type: object
     ExecuteCellCommand:
-      description: "Execute a single cell.\n\n    Executes a cell with the provided\
-        \ code. Dependent cells may be\n    re-executed based on the reactive execution\
-        \ mode.\n\n    Attributes:\n        cell_id: Cell to execute.\n        code:\
-        \ Python code to execute.\n        code_fingerprint: Code fingerprint. Computed\
-        \ from `code` when omitted.\n        request: HTTP request context if available.\n\
-        \        timestamp: Unix timestamp when command was created."
+      description: "Execute a single cell.\n\nExecutes a cell with the provided code.\
+        \ Dependent cells may be\nre-executed based on the reactive execution mode.\n\
+        \nAttributes:\n    cell_id: Cell to execute.\n    code: Python code to execute.\n\
+        \    code_fingerprint: Code fingerprint. Computed from `code` when omitted.\n\
+        \    request: HTTP request context if available.\n    timestamp: Unix timestamp\
+        \ when command was created."
       properties:
         cellId:
           $ref: '#/components/schemas/CellId'
@@ -1914,11 +2004,11 @@ components:
       type: object
     ExecuteCellsCommand:
       description: "Execute cells and their reactive dependents in one batch.\n\n\
-        \    Attributes:\n        execution_requests: The cells and source identities\
-        \ to execute.\n        request: HTTP request context for the batch.\n    \
-        \    timestamp: Unix timestamp when the batch was created.\n        run_id:\
-        \ Correlates the run's notifications and completion.\n        allow_stdin:\
-        \ Whether cells may request interactive input."
+        Attributes:\n    execution_requests: The cells and source identities to execute.\n\
+        \    request: HTTP request context for the batch.\n    timestamp: Unix timestamp\
+        \ when the batch was created.\n    run_id: Correlates the run's notifications\
+        \ and completion.\n    allow_stdin: Whether cells may request interactive\
+        \ input."
       properties:
         allowStdin:
           default: true
@@ -1968,26 +2058,25 @@ components:
       title: ExecuteCellsRequest
       type: object
     ExecuteScratchpadCommand:
-      description: "Execute code in the scratchpad.\n\n    The scratchpad is a temporary\
-        \ execution environment that doesn't affect\n    the notebook's cells or dependencies.\
-        \ Runs in an isolated cell with a copy\n    of the global namespace, useful\
-        \ for experimentation.\n\n    Attributes:\n        code: Python code to execute.\n\
-        \        code_fingerprint: Code fingerprint. Computed from `code` when omitted.\n\
-        \        request: HTTP request context if available.\n        notebook_cells:\
-        \ Snapshot of notebook cells from the session document.\n            Used\
-        \ to populate the document ContextVar so code_mode can read\n            cell\
-        \ ordering, code, names, and configs.\n        cell_outputs: Snapshot of per-cell\
-        \ outputs (main + console) from the\n            session view. Populates a\
-        \ parallel ContextVar so code_mode can\n            expose `cell.output` and\
-        \ `cell.console_outputs`. Frozen at\n            scratchpad start \u2014 not\
-        \ refreshed when `ctx.run_cell` produces\n            new outputs in the same\
-        \ batch.\n        run_id: Optional correlation ID. When set, the\n       \
-        \     `CompletedRunNotification` emitted at the end of this command\n    \
-        \        carries the same `run_id` so a caller holding a\n            `ScratchCellListener`\
-        \ can filter for *its* completion and\n            ignore `CompletedRun` events\
-        \ from unrelated commands on the\n            same session.\n        allow_stdin:\
-        \ Whether code may request interactive input. When false,\n            input\
-        \ reads receive EOF for the duration of this command."
+      description: "Execute code in the scratchpad.\n\nThe scratchpad is a temporary\
+        \ execution environment that doesn't affect\nthe notebook's cells or dependencies.\
+        \ Runs in an isolated cell with a copy\nof the global namespace, useful for\
+        \ experimentation.\n\nAttributes:\n    code: Python code to execute.\n   \
+        \ code_fingerprint: Code fingerprint. Computed from `code` when omitted.\n\
+        \    request: HTTP request context if available.\n    notebook_cells: Snapshot\
+        \ of notebook cells from the session document.\n        Used to populate the\
+        \ document ContextVar so code_mode can read\n        cell ordering, code,\
+        \ names, and configs.\n    cell_outputs: Snapshot of per-cell outputs (main\
+        \ + console) from the\n        session view. Populates a parallel ContextVar\
+        \ so code_mode can\n        expose `cell.output` and `cell.console_outputs`.\
+        \ Frozen at\n        scratchpad start \u2014 not refreshed when `ctx.run_cell`\
+        \ produces\n        new outputs in the same batch.\n    run_id: Optional correlation\
+        \ ID. When set, the\n        `CompletedRunNotification` emitted at the end\
+        \ of this command\n        carries the same `run_id` so a caller holding a\n\
+        \        `ScratchCellListener` can filter for *its* completion and\n     \
+        \   ignore `CompletedRun` events from unrelated commands on the\n        same\
+        \ session.\n    allow_stdin: Whether code may request interactive input. When\
+        \ false,\n        input reads receive EOF for the duration of this command."
       properties:
         allowStdin:
           default: true
@@ -2064,14 +2153,22 @@ components:
       title: ExecuteScratchpadRequest
       type: object
     ExecutionNotification:
-      description: "An attempt's lifecycle, independent of a cell's displayed status.\n\
-        \n    `planned` includes the execution ID and code fingerprint before any\
-        \ output.\n    `code` is null when source is withheld.\n    `running` means\
-        \ evaluation began. `completed` follows the final output\n    and errors,\
-        \ including for attempts that never ran. Buffered and background\n    console\
-        \ output may still arrive with the completed attempt's identity.\n    A completed\
-        \ attempt that never ran and reported no error names why in\n    `skipped`,\
-        \ such as `superseded` when a newer attempt replaced it."
+      description: 'An attempt''s lifecycle, independent of a cell''s displayed status.
+
+
+        `planned` includes the execution ID and code fingerprint before any output.
+
+        `code` is null when source is withheld.
+
+        `running` means evaluation began. `completed` follows the final output
+
+        and errors, including for attempts that never ran. Buffered and background
+
+        console output may still arrive with the completed attempt''s identity.
+
+        A completed attempt that never ran and reported no error names why in
+
+        `skipped`, such as `superseded` when a newer attempt replaced it.'
       properties:
         caused_by:
           anyOf:
@@ -2126,11 +2223,58 @@ components:
       - phase
       title: ExecutionNotification
       type: object
+    ExperimentalConfig:
+      additionalProperties: true
+      description: 'Configuration for experimental features.
+
+
+        Features exposed on the frontend must match the frontend config.'
+      properties:
+        debugger:
+          default: false
+          description: Enable live debugging with gutter breakpoints and pdb.
+          type: boolean
+        execution_type:
+          default: relaxed
+          description: 'Experimental cell declaration handling: relaxed or strict.'
+          enum:
+          - relaxed
+          - strict
+        external_agents:
+          deprecated: true
+          description: Deprecated; prefer marimo pair. Enable external agents such
+            as Claude Code and Codex.
+          type: boolean
+        isolate_apps:
+          default: false
+          description: Run applications in separate processes.
+          type: boolean
+        line_timing:
+          default: false
+          description: Highlight the active line and show per-line execution timing.
+          type: boolean
+        markdown:
+          description: Enable experimental Markdown notebook features.
+          type: boolean
+        wasm_layouts:
+          description: Enable experimental layouts in WebAssembly notebooks.
+          type: boolean
+      required:
+      - isolate_apps
+      - debugger
+      - line_timing
+      - execution_type
+      title: ExperimentalConfig
+      type: object
     ExportAsHTMLRequest:
-      description: "Request a static HTML export.\n\n    `layout` carries the current\
-        \ client layout. An omitted field reads the\n    saved layout file, `null`\
-        \ selects the vertical layout, and an object uses\n    that serialized layout\
-        \ for this export."
+      description: 'Request a static HTML export.
+
+
+        `layout` carries the current client layout. An omitted field reads the
+
+        saved layout file, `null` selects the vertical layout, and an object uses
+
+        that serialized layout for this export.'
       properties:
         assetUrl:
           anyOf:
@@ -2268,14 +2412,16 @@ components:
       title: ExportSetupRequirement
       type: object
     FileBrowserConfig:
-      description: "Configuration for the file browser panel.\n\n    **Keys.**\n\n\
-        \    - `folders`: additional absolute folders to show in the file browser"
+      description: Configuration for the file browser panel.
       properties:
         folders:
+          default: []
+          description: additional absolute folders to show in the file browser
           items:
             $ref: '#/components/schemas/FolderConfig'
           type: array
-      required: []
+      required:
+      - folders
       title: FileBrowserConfig
       type: object
     FileCopyRequest:
@@ -2308,10 +2454,10 @@ components:
       title: FileCopyResponse
       type: object
     FileCreateMultipartRequest:
-      description: "multipart/form-data body for POST /api/files/create.\n\n    Schema-only:\
-        \ this struct exists to describe the multipart shape in\n    OpenAPI. At runtime,\
-        \ the endpoint reads the string fields from\n    `MultipartRequest.body` and\
-        \ the uploaded bytes from\n    `MultipartRequest.files[\"file\"]` \u2014 `body.file`\
+      description: "multipart/form-data body for POST /api/files/create.\n\nSchema-only:\
+        \ this struct exists to describe the multipart shape in\nOpenAPI. At runtime,\
+        \ the endpoint reads the string fields from\n`MultipartRequest.body` and the\
+        \ uploaded bytes from\n`MultipartRequest.files[\"file\"]` \u2014 `body.file`\
         \ is never populated."
       properties:
         file:
@@ -2636,8 +2782,8 @@ components:
       title: FileUpdateResponse
       type: object
     FocusCellNotification:
-      description: "Focuses a cell (kiosk mode).\n\n    Attributes:\n        cell_id:\
-        \ Cell to focus."
+      description: "Focuses a cell (kiosk mode).\n\nAttributes:\n    cell_id: Cell\
+        \ to focus."
       properties:
         cell_id:
           $ref: '#/components/schemas/CellId'
@@ -2658,16 +2804,20 @@ components:
       title: FocusCellRequest
       type: object
     FolderConfig:
-      description: "Configuration for an additional file browser root.\n\n    **Keys.**\n\
-        \n    - `path`: the absolute path to the folder\n    - `name`: an optional\
-        \ display name for the folder"
+      description: Configuration for an additional file browser root.
       properties:
         name:
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
+          description: an optional display name for the folder
         path:
+          description: the absolute path to the folder
           type: string
       required:
       - path
+      - name
       title: FolderConfig
       type: object
     FormatCellsRequest:
@@ -2694,29 +2844,32 @@ components:
       title: FormatResponse
       type: object
     FormattingConfig:
-      description: "Configuration for code formatting.\n\n    **Keys.**\n\n    - `line_length`:\
-        \ max line length"
+      description: Configuration for code formatting.
       properties:
         infer_types:
+          default: 'off'
+          description: infer type annotations for cell parameters on save
           enum:
           - jedi
           - 'off'
         line_length:
+          default: 79
+          description: max line length
           type: integer
       required:
       - line_length
+      - infer_types
       title: FormattingConfig
       type: object
     FunctionCallResultNotification:
-      description: "Result of a frontend-initiated function call.\n\n    Attributes:\n\
-        \        function_call_id: ID matching the original request.\n        return_value:\
-        \ Function return value as JSON.\n        status: Human-readable success/failure\
-        \ status.\n        found: Whether the requested function was located in the\
-        \ registry.\n            False signals a transient registry desync, so the\
-        \ request is safe\n            to retry. True means no retry will help: a\
-        \ non-ok status then\n            reflects a failure unrelated to lookup,\
-        \ such as the function\n            raising during execution or not being\
-        \ associated with a cell."
+      description: "Result of a frontend-initiated function call.\n\nAttributes:\n\
+        \    function_call_id: ID matching the original request.\n    return_value:\
+        \ Function return value as JSON.\n    status: Human-readable success/failure\
+        \ status.\n    found: Whether the requested function was located in the registry.\n\
+        \        False signals a transient registry desync, so the request is safe\n\
+        \        to retry. True means no retry will help: a non-ok status then\n \
+        \       reflects a failure unrelated to lookup, such as the function\n   \
+        \     raising during execution or not being associated with a cell."
       properties:
         found:
           type: boolean
@@ -2742,42 +2895,41 @@ components:
       title: GetCacheInfoRequest
       type: object
     GitHubConfig:
-      description: "Configuration options for GitHub Copilot.\n\n    **Keys.**\n\n\
-        \    - `api_key`: a GitHub Copilot token or an `env:` reference\n    - `base_url`:\
-        \ the base URL for the GitHub Copilot API\n    - `copilot_settings`: configuration\
-        \ settings for GitHub Copilot LSP.\n        Supports settings like `http`\
-        \ (proxy configuration), `telemetry`,\n        and `github-enterprise` (enterprise\
-        \ URI)."
+      description: Configuration options for GitHub Copilot.
       properties:
         api_key:
+          description: a GitHub Copilot token or an `env:` reference
           type: string
         base_url:
+          description: the base URL for the GitHub Copilot API
           type: string
         copilot_settings:
+          description: configuration settings for GitHub Copilot LSP. Supports settings
+            like `http` (proxy configuration), `telemetry`, and `github-enterprise`
+            (enterprise URI).
           type: object
       required: []
       title: GitHubConfig
       type: object
     GoogleAiConfig:
-      description: "Configuration options for Google AI.\n\n    **Keys.**\n\n    -\
-        \ `api_key`: the Google AI API key or an `env:` reference"
+      description: Configuration options for Google AI.
       properties:
         api_key:
+          description: the Google AI API key or an `env:` reference
           type: string
       required: []
       title: GoogleAiConfig
       type: object
     HTTPRequest:
-      description: "Serializable HTTP request representation.\n\n    Mimics Starlette/FastAPI\
-        \ Request but is pickle-able and contains only a safe\n    subset of data.\
-        \ Excludes session and auth to prevent exposing sensitive data.\n\n    Attributes:\n\
-        \        url: Serialized URL with path, port, scheme, netloc, query, hostname.\n\
-        \        base_url: Serialized base URL.\n        headers: Request headers\
-        \ (marimo-specific headers excluded).\n        query_params: Query parameters\
-        \ mapped to lists of values.\n        path_params: Path parameters from the\
-        \ URL route.\n        cookies: Request cookies.\n        meta: User-defined\
-        \ storage for custom data.\n        user: User info from authentication middleware\
-        \ (e.g., is_authenticated, username)."
+      description: "Serializable HTTP request representation.\n\nMimics Starlette/FastAPI\
+        \ Request but is pickle-able and contains only a safe\nsubset of data. Excludes\
+        \ session and auth to prevent exposing sensitive data.\n\nAttributes:\n  \
+        \  url: Serialized URL with path, port, scheme, netloc, query, hostname.\n\
+        \    base_url: Serialized base URL.\n    headers: Request headers (marimo-specific\
+        \ headers excluded).\n    query_params: Query parameters mapped to lists of\
+        \ values.\n    path_params: Path parameters from the URL route.\n    cookies:\
+        \ Request cookies.\n    meta: User-defined storage for custom data.\n    user:\
+        \ User info from authentication middleware (e.g., is_authenticated, username)."
       properties:
         base_url:
           type: object
@@ -2814,9 +2966,9 @@ components:
       title: HTTPRequest
       type: object
     HumanReadableStatus:
-      description: "Human-readable status for operation results.\n\n    Attributes:\n\
-        \        code: Status code (\"ok\" or \"error\").\n        title: Optional\
-        \ short title.\n        message: Optional detailed description."
+      description: "Human-readable status for operation results.\n\nAttributes:\n\
+        \    code: Status code (\"ok\" or \"error\").\n    title: Optional short title.\n\
+        \    message: Optional detailed description."
       properties:
         code:
           enum:
@@ -2867,19 +3019,18 @@ components:
       title: InstallExportRequirementsRequest
       type: object
     InstallPackagesCommand:
-      description: "Install Python packages.\n\n    Installs missing packages using\
-        \ the specified package manager. Triggered\n    automatically on import errors\
-        \ or manually by the user.\n\n    Attributes:\n        manager: Package manager\
-        \ to use ('pip', 'conda', 'uv', etc.).\n        versions: Package names mapped\
-        \ to version specifiers. Empty version\n                  means install latest.\n\
-        \        index_urls: Alternative package index URLs. Primary index first,\n\
-        \                    then extras. Honored by backends that support custom\n\
-        \                    indexes (currently micropip); other backends ignore it.\n\
-        \        source: Where to install. \"kernel\" (default) dispatches to the\
-        \ kernel\n                subprocess; \"server\" installs directly into the\
-        \ server's Python\n                environment (sys.executable), used when\
-        \ the server itself needs\n                a package (e.g. nbformat for IPYNB\
-        \ auto-export in sandbox mode)."
+      description: "Install Python packages.\n\nInstalls missing packages using the\
+        \ specified package manager. Triggered\nautomatically on import errors or\
+        \ manually by the user.\n\nAttributes:\n    manager: Package manager to use\
+        \ ('pip', 'conda', 'uv', etc.).\n    versions: Package names mapped to version\
+        \ specifiers. Empty version\n              means install latest.\n    index_urls:\
+        \ Alternative package index URLs. Primary index first,\n                then\
+        \ extras. Honored by backends that support custom\n                indexes\
+        \ (currently micropip); other backends ignore it.\n    source: Where to install.\
+        \ \"kernel\" (default) dispatches to the kernel\n            subprocess; \"\
+        server\" installs directly into the server's Python\n            environment\
+        \ (sys.executable), used when the server itself needs\n            a package\
+        \ (e.g. nbformat for IPYNB auto-export in sandbox mode)."
       properties:
         indexUrls:
           default: []
@@ -2996,11 +3147,11 @@ components:
       title: InvokeAiToolResponse
       type: object
     InvokeFunctionCommand:
-      description: "Invoke a function from a UI element.\n\n    Called when a UI element\
-        \ needs to invoke a Python function.\n\n    Attributes:\n        function_call_id:\
-        \ Unique identifier for this call.\n        namespace: Namespace where the\
-        \ function is registered.\n        function_name: Function to invoke.\n  \
-        \      args: Keyword arguments for the function."
+      description: "Invoke a function from a UI element.\n\nCalled when a UI element\
+        \ needs to invoke a Python function.\n\nAttributes:\n    function_call_id:\
+        \ Unique identifier for this call.\n    namespace: Namespace where the function\
+        \ is registered.\n    function_name: Function to invoke.\n    args: Keyword\
+        \ arguments for the function."
       properties:
         args:
           type: object
@@ -3039,11 +3190,11 @@ components:
       title: InvokeFunctionRequest
       type: object
     KernelCapabilitiesNotification:
-      description: "Kernel capabilities detected at startup.\n\n    All fields auto-detected\
-        \ in __post_init__.\n\n    Attributes:\n        terminal: Terminal access\
-        \ (unavailable on Windows/Pyodide).\n        pylsp: Python Language Server\
-        \ Protocol installed.\n        ty: ty type checker installed.\n        basedpyright:\
-        \ basedpyright type checker installed."
+      description: "Kernel capabilities detected at startup.\n\nAll fields auto-detected\
+        \ in __post_init__.\n\nAttributes:\n    terminal: Terminal access (unavailable\
+        \ on Windows/Pyodide).\n    pylsp: Python Language Server Protocol installed.\n\
+        \    ty: ty type checker installed.\n    basedpyright: basedpyright type checker\
+        \ installed."
       properties:
         basedpyright:
           default: false
@@ -3065,13 +3216,13 @@ components:
       type: object
     KernelReadyNotification:
       description: "Kernel ready for execution. First notification sent at startup.\n\
-        \n    Attributes:\n        layout: Notebook layout config.\n        resumed:\
-        \ Whether resumed from previous session.\n        ui_values: Previous UI element\
-        \ values if resumed.\n        app_config: Application configuration.\n   \
-        \     kiosk: Whether running in kiosk mode.\n        capabilities: Available\
-        \ kernel capabilities.\n        auto_instantiated: Whether cells already executed\
-        \ (run mode).\n        stable_session_id: Server-owned Session identity that\
-        \ survives\n            browser reconnects. None where no server Session exists."
+        \nAttributes:\n    layout: Notebook layout config.\n    resumed: Whether resumed\
+        \ from previous session.\n    ui_values: Previous UI element values if resumed.\n\
+        \    app_config: Application configuration.\n    kiosk: Whether running in\
+        \ kiosk mode.\n    capabilities: Available kernel capabilities.\n    auto_instantiated:\
+        \ Whether cells already executed (run mode).\n    stable_session_id: Server-owned\
+        \ Session identity that survives\n        browser reconnects. None where no\
+        \ server Session exists."
       properties:
         app_config:
           $ref: '#/components/schemas/_AppConfig'
@@ -3114,8 +3265,8 @@ components:
       title: KernelReadyNotification
       type: object
     KernelStartupErrorNotification:
-      description: "Kernel failed to start.\n\n    Attributes:\n        error: Error\
-        \ message describing failure."
+      description: "Kernel failed to start.\n\nAttributes:\n    error: Error message\
+        \ describing failure."
       properties:
         error:
           type: string
@@ -3139,19 +3290,20 @@ components:
       title: KernelStatusResponse
       type: object
     KeymapConfig:
-      description: "Configuration for keymaps.\n\n    **Keys.**\n\n    - `preset`:\
-        \ one of `\"default\"` or `\"vim\"`\n    - `overrides`: a dict of keymap actions\
-        \ to their keymap override\n    - `vimrc`: path to a vimrc file to load keymaps\
-        \ from\n    - `destructive_delete`: if `True`, allows deleting cells with\
-        \ content."
+      description: Configuration for keymaps.
       properties:
         destructive_delete:
+          description: if `True`, allows deleting cells with content.
           type: boolean
         overrides:
           additionalProperties:
             type: string
+          default: {}
+          description: a dict of keymap actions to their keymap override
           type: object
         preset:
+          default: default
+          description: one of `"default"` or `"vim"`
           enum:
           - default
           - vim
@@ -3159,8 +3311,10 @@ components:
           anyOf:
           - type: string
           - type: 'null'
+          description: path to a vimrc file to load keymaps from
       required:
       - preset
+      - overrides
       title: KeymapConfig
       type: object
     KnownUnions:
@@ -3184,19 +3338,22 @@ components:
       title: KnownUnions
       type: object
     LanguageServersConfig:
-      description: "Configuration options for language servers.\n\n    **Keys.**\n\
-        \n    - `pylsp`: the pylsp config\n    - `basedpyright`: the basedpyright\
-        \ config\n    - `ty`: the ty config\n    - `pyrefly`: the pyrefly config"
+      description: Configuration options for language servers.
       properties:
         basedpyright:
           $ref: '#/components/schemas/BasedpyrightServerConfig'
+          description: the basedpyright config
         pylsp:
           $ref: '#/components/schemas/PythonLanguageServerConfig'
+          description: the pylsp config
         pyrefly:
           $ref: '#/components/schemas/PyreflyLanguageServerConfig'
+          description: the pyrefly config
         ty:
           $ref: '#/components/schemas/TyLanguageServerConfig'
-      required: []
+          description: the ty config
+      required:
+      - pylsp
       title: LanguageServersConfig
       type: object
     LayoutConfig:
@@ -3228,28 +3385,34 @@ components:
       title: LazyImportError
       type: object
     LintConfig:
-      description: "Configuration for lint rule selection.\n\n    Follows ruff-inspired\
-        \ semantics for selecting which rules to run\n    during `marimo check`.\n\
-        \n    **Keys.**\n\n    - `select`: list of rule code prefixes that replaces\
-        \ the default\n      enabled set. Use `\"ALL\"` to select all rules.\n   \
-        \   Example: `[\"MB\", \"MR001\"]`\n    - `ignore`: list of rule code prefixes\
-        \ to remove from the\n      enabled set."
+      description: 'Configuration for lint rule selection.
+
+
+        Follows ruff-inspired semantics for selecting which rules to run
+
+        during `marimo check`.'
       properties:
         ignore:
+          default: []
+          description: list of rule code prefixes to remove from the enabled set.
           items:
             type: string
           type: array
         select:
+          default: []
+          description: 'list of rule code prefixes that replaces the default enabled
+            set. Use `"ALL"` to select all rules. Example: `["MB", "MR001"]`'
           items:
             type: string
           type: array
-      required: []
+      required:
+      - select
+      - ignore
       title: LintConfig
       type: object
     ListDataSourceConnectionCommand:
-      description: "List data source schemas.\n\n    Retrieves available schemas for\
-        \ a data source engine.\n\n    Attributes:\n        engine: Data source engine\
-        \ identifier."
+      description: "List data source schemas.\n\nRetrieves available schemas for a\
+        \ data source engine.\n\nAttributes:\n    engine: Data source engine identifier."
       properties:
         engine:
           type: string
@@ -3280,13 +3443,12 @@ components:
       title: ListPackagesResponse
       type: object
     ListSQLSchemasCommand:
-      description: "List schemas in an SQL database.\n\n    Retrieves names of all\
-        \ schemas in a database. Used by the SQL editor for\n    schema selection.\n\
-        \n    Attributes:\n        request_id: Unique identifier for this request.\n\
-        \        engine: SQL engine ('postgresql', 'mysql', 'duckdb', etc.).\n   \
-        \     database: Database to query.\n        schema_path: Parent schema path\
-        \ whose child schemas to list.\n            Empty lists the database's top-level\
-        \ schemas."
+      description: "List schemas in an SQL database.\n\nRetrieves names of all schemas\
+        \ in a database. Used by the SQL editor for\nschema selection.\n\nAttributes:\n\
+        \    request_id: Unique identifier for this request.\n    engine: SQL engine\
+        \ ('postgresql', 'mysql', 'duckdb', etc.).\n    database: Database to query.\n\
+        \    schema_path: Parent schema path whose child schemas to list.\n      \
+        \  Empty lists the database's top-level schemas."
       properties:
         database:
           type: string
@@ -3329,13 +3491,13 @@ components:
       title: ListSQLSchemasRequest
       type: object
     ListSQLTablesCommand:
-      description: "List tables in an SQL schema.\n\n    Retrieves names of all tables\
-        \ and views in a schema. Used by the SQL\n    editor for table selection.\n\
-        \n    Attributes:\n        request_id: Unique identifier for this request.\n\
-        \        engine: SQL engine ('postgresql', 'mysql', 'duckdb', etc.).\n   \
-        \     database: Database to query.\n        schema: Schema to list tables\
-        \ from.\n        schema_path: Path of nested schemas (relative to `database`)\
-        \ for\n            catalogs with nested schemas. Empty for the top level."
+      description: "List tables in an SQL schema.\n\nRetrieves names of all tables\
+        \ and views in a schema. Used by the SQL\neditor for table selection.\n\n\
+        Attributes:\n    request_id: Unique identifier for this request.\n    engine:\
+        \ SQL engine ('postgresql', 'mysql', 'duckdb', etc.).\n    database: Database\
+        \ to query.\n    schema: Schema to list tables from.\n    schema_path: Path\
+        \ of nested schemas (relative to `database`) for\n        catalogs with nested\
+        \ schemas. Empty for the top level."
       properties:
         database:
           type: string
@@ -3384,9 +3546,9 @@ components:
       title: ListSQLTablesRequest
       type: object
     ListSecretKeysCommand:
-      description: "List available secret keys.\n\n    Retrieves secret names without\
-        \ exposing values.\n\n    Attributes:\n        request_id: Unique identifier\
-        \ for this request."
+      description: "List available secret keys.\n\nRetrieves secret names without\
+        \ exposing values.\n\nAttributes:\n    request_id: Unique identifier for this\
+        \ request."
       properties:
         requestId:
           $ref: '#/components/schemas/RequestId'
@@ -3466,11 +3628,20 @@ components:
       title: LspRestartResponse
       type: object
     LspServerHealth:
-      description: "Health status for a single LSP server.\n\n    Status meanings:\n\
-        \    - starting: process launched, initializing\n    - running: healthy and\
-        \ responsive to pings\n    - stopped: not running (never started or cleanly\
-        \ stopped)\n    - crashed: exited with non-zero code\n    - unresponsive:\
-        \ process alive but not responding to pings"
+      description: 'Health status for a single LSP server.
+
+
+        Status meanings:
+
+        - starting: process launched, initializing
+
+        - running: healthy and responsive to pings
+
+        - stopped: not running (never started or cleanly stopped)
+
+        - crashed: exited with non-zero code
+
+        - unresponsive: process alive but not responding to pings'
       properties:
         error:
           anyOf:
@@ -3515,9 +3686,15 @@ components:
       properties:
         mcpServers:
           additionalProperties:
-            type: object
+            anyOf:
+            - $ref: '#/components/schemas/MCPServerStdioConfig'
+            - $ref: '#/components/schemas/MCPServerStreamableHttpConfig'
+          default: {}
+          description: Named MCP server configurations.
           type: object
         presets:
+          default: []
+          description: Built-in MCP server presets to enable.
           items:
             enum:
             - context7
@@ -3525,6 +3702,7 @@ components:
           type: array
       required:
       - mcpServers
+      - presets
       title: MCPConfig
       type: object
     MCPRefreshResponse:
@@ -3544,6 +3722,69 @@ components:
       required:
       - success
       title: MCPRefreshResponse
+      type: object
+    MCPServerStdioConfig:
+      description: Configuration for STDIO transport MCP servers
+      properties:
+        args:
+          anyOf:
+          - items:
+              type: string
+            type: array
+          - type: 'null'
+          description: Arguments passed to the MCP server command.
+        command:
+          description: Command used to launch the MCP server.
+          type: string
+        disabled:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          description: Disable this MCP server.
+        env:
+          anyOf:
+          - additionalProperties:
+              type: string
+            type: object
+          - type: 'null'
+          description: Environment variables supplied to the MCP server.
+      required:
+      - command
+      title: MCPServerStdioConfig
+      type: object
+    MCPServerStreamableHttpConfig:
+      description: Configuration for Streamable HTTP transport MCP servers
+      properties:
+        disabled:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          description: Disable this MCP server.
+        env:
+          anyOf:
+          - additionalProperties:
+              type: string
+            type: object
+          - type: 'null'
+          description: Environment variables used by the MCP server configuration.
+        headers:
+          anyOf:
+          - additionalProperties:
+              type: string
+            type: object
+          - type: 'null'
+          description: HTTP headers sent to the MCP server.
+        timeout:
+          anyOf:
+          - type: number
+          - type: 'null'
+          description: Timeout in seconds for MCP server requests.
+        url:
+          description: URL of the streamable HTTP MCP server.
+          type: string
+      required:
+      - url
+      title: MCPServerStreamableHttpConfig
       type: object
     MCPStatusResponse:
       properties:
@@ -3610,55 +3851,95 @@ components:
       properties:
         ai:
           $ref: '#/components/schemas/AiConfig'
+          description: Configuration options for AI.
         cache:
           $ref: '#/components/schemas/CacheConfig'
+          description: Configuration for caching.
         completion:
           $ref: '#/components/schemas/CompletionConfig'
+          description: Configuration for code completion.
         datasources:
           $ref: '#/components/schemas/DatasourcesConfig'
+          description: Configuration for datasources panel.
         diagnostics:
           $ref: '#/components/schemas/DiagnosticsConfig'
+          description: Configuration options for diagnostics.
         display:
           $ref: '#/components/schemas/DisplayConfig'
+          description: Configuration for display.
         experimental:
-          type: object
+          $ref: '#/components/schemas/ExperimentalConfig'
+          description: Configuration for experimental features.
         file_browser:
-          $ref: '#/components/schemas/FileBrowserConfig'
+          anyOf:
+          - $ref: '#/components/schemas/FileBrowserConfig'
+          - type: 'null'
+          default: null
+          description: Configuration for the file browser panel.
         formatting:
           $ref: '#/components/schemas/FormattingConfig'
+          description: Configuration for code formatting.
         keymap:
           $ref: '#/components/schemas/KeymapConfig'
+          description: Configuration for keymaps.
         language_servers:
           $ref: '#/components/schemas/LanguageServersConfig'
+          description: Configuration options for language servers.
         lint:
           $ref: '#/components/schemas/LintConfig'
+          description: Configuration for lint rule selection.
         mcp:
           $ref: '#/components/schemas/MCPConfig'
+          description: Configuration for MCP servers
         package_management:
           $ref: '#/components/schemas/PackageManagementConfig'
+          description: Configuration options for package management.
         runtime:
           $ref: '#/components/schemas/RuntimeConfig'
+          description: Configuration for runtime.
         save:
           $ref: '#/components/schemas/SaveConfig'
+          description: Configuration for saving.
         server:
           $ref: '#/components/schemas/ServerConfig'
+          description: Configuration for the server.
         sharing:
-          $ref: '#/components/schemas/SharingConfig'
+          anyOf:
+          - $ref: '#/components/schemas/SharingConfig'
+          - type: 'null'
+          default: null
+          description: Configuration for sharing features.
         signing:
           $ref: '#/components/schemas/SigningConfig'
+          description: Cache-signing trust and identity.
         snippets:
           $ref: '#/components/schemas/SnippetsConfig'
+          description: Configuration for snippets.
         venv:
           $ref: '#/components/schemas/VenvConfig'
+          description: Configuration for an external Python environment in edit mode.
       required:
       - completion
       - display
       - formatting
       - keymap
-      - package_management
       - runtime
       - save
       - server
+      - package_management
+      - ai
+      - language_servers
+      - diagnostics
+      - lint
+      - experimental
+      - snippets
+      - datasources
+      - file_browser
+      - sharing
+      - mcp
+      - venv
+      - cache
+      - signing
       title: MarimoConfig
       type: object
     MarimoError:
@@ -3852,12 +4133,12 @@ components:
       title: MarimoSyntaxError
       type: object
     MissingPackageAlertNotification:
-      description: "Alert for missing packages with install option.\n\n    Attributes:\n\
-        \        packages: Missing package names.\n        isolated: Whether auto-install\
-        \ is possible in this environment.\n        source: Which Python environment\
-        \ to install into. \"kernel\" (default)\n                installs in the kernel's\
-        \ venv; \"server\" installs in the\n                server's own Python env\
-        \ (e.g. for formatter tools like ruff)."
+      description: "Alert for missing packages with install option.\n\nAttributes:\n\
+        \    packages: Missing package names.\n    isolated: Whether auto-install\
+        \ is possible in this environment.\n    source: Which Python environment to\
+        \ install into. \"kernel\" (default)\n            installs in the kernel's\
+        \ venv; \"server\" installs in the\n            server's own Python env (e.g.\
+        \ for formatter tools like ruff)."
       properties:
         isolated:
           type: boolean
@@ -3890,11 +4171,11 @@ components:
       title: ModelClose
       type: object
     ModelCommand:
-      description: "Widget model message command.\n\n    Handles widget model communication\
-        \ between frontend and backend.\n\n    Attributes:\n        model_id: Widget\
-        \ model identifier.\n        message: Model message (update or custom).\n\
-        \        buffers: Base64-encoded binary buffers.\n        token: Unique identifier\
-        \ for deduplication across dual queues."
+      description: "Widget model message command.\n\nHandles widget model communication\
+        \ between frontend and backend.\n\nAttributes:\n    model_id: Widget model\
+        \ identifier.\n    message: Model message (update or custom).\n    buffers:\
+        \ Base64-encoded binary buffers.\n    token: Unique identifier for deduplication\
+        \ across dual queues."
       properties:
         buffers:
           items:
@@ -3941,7 +4222,7 @@ components:
       title: ModelCustom
       type: object
     ModelCustomMessage:
-      description: "Custom widget message.\n\n    Attributes:\n        content: Arbitrary\
+      description: "Custom widget message.\n\nAttributes:\n    content: Arbitrary\
         \ content for the custom message."
       properties:
         content: {}
@@ -3954,10 +4235,9 @@ components:
       title: ModelCustomMessage
       type: object
     ModelLifecycleNotification:
-      description: "Widget model lifecycle message.\n\n    Mirrors the Jupyter widget\
-        \ comm protocol with open/update/custom/close.\n\n    Attributes:\n      \
-        \  model_id: Widget model identifier.\n        message: The lifecycle message\
-        \ (open/update/custom/close)."
+      description: "Widget model lifecycle message.\n\nMirrors the Jupyter widget\
+        \ comm protocol with open/update/custom/close.\n\nAttributes:\n    model_id:\
+        \ Widget model identifier.\n    message: The lifecycle message (open/update/custom/close)."
       properties:
         message:
           anyOf:
@@ -3984,14 +4264,13 @@ components:
       title: ModelLifecycleNotification
       type: object
     ModelOpen:
-      description: "Initial widget state on creation.\n\n    For anywidgets, the widget's\
-        \ ESM does not travel in `state`: the\n    comm strips `_esm` and sends an\
-        \ `EsmSpec` instead. `None` for\n    models with no ESM (e.g. traditional\
-        \ ipywidgets).\n\n    Attributes:\n        state: Initial trait values, minus\
-        \ `_esm`.\n        buffer_paths: Paths into `state` whose binary values were\n\
-        \            extracted into `buffers`.\n        buffers: Binary payloads,\
-        \ parallel to `buffer_paths`.\n        esm_spec: Where to import this widget's\
-        \ ESM from."
+      description: "Initial widget state on creation.\n\nFor anywidgets, the widget's\
+        \ ESM does not travel in `state`: the\ncomm strips `_esm` and sends an `EsmSpec`\
+        \ instead. `None` for\nmodels with no ESM (e.g. traditional ipywidgets).\n\
+        \nAttributes:\n    state: Initial trait values, minus `_esm`.\n    buffer_paths:\
+        \ Paths into `state` whose binary values were\n        extracted into `buffers`.\n\
+        \    buffers: Binary payloads, parallel to `buffer_paths`.\n    esm_spec:\
+        \ Where to import this widget's ESM from."
       properties:
         buffer_paths:
           items:
@@ -4048,14 +4327,14 @@ components:
       title: ModelRequest
       type: object
     ModelUpdate:
-      description: "State sync - changed traits only.\n\n    Attributes:\n       \
-        \ state: Changed trait values, minus `_esm` (see `ModelOpen`).\n        buffer_paths:\
-        \ Paths into `state` whose binary values were\n            extracted into\
-        \ `buffers`.\n        buffers: Binary payloads, parallel to `buffer_paths`.\n\
-        \        esm_spec: Present only when the widget's `_esm` changed on a\n  \
-        \          live model (hot reload, edit mode only). A spec whose\n       \
-        \     `hash` differs from the current one tells the frontend the\n       \
-        \     widget's code changed and views must be rebuilt."
+      description: "State sync - changed traits only.\n\nAttributes:\n    state: Changed\
+        \ trait values, minus `_esm` (see `ModelOpen`).\n    buffer_paths: Paths into\
+        \ `state` whose binary values were\n        extracted into `buffers`.\n  \
+        \  buffers: Binary payloads, parallel to `buffer_paths`.\n    esm_spec: Present\
+        \ only when the widget's `_esm` changed on a\n        live model (hot reload,\
+        \ edit mode only). A spec whose\n        `hash` differs from the current one\
+        \ tells the frontend the\n        widget's code changed and views must be\
+        \ rebuilt."
       properties:
         buffer_paths:
           items:
@@ -4087,9 +4366,9 @@ components:
       title: ModelUpdate
       type: object
     ModelUpdateMessage:
-      description: "Widget model state update message.\n\n    Attributes:\n      \
-        \  state: Model state updates.\n        buffer_paths: Paths within state dict\
-        \ pointing to binary buffers."
+      description: "Widget model state update message.\n\nAttributes:\n    state:\
+        \ Model state updates.\n    buffer_paths: Paths within state dict pointing\
+        \ to binary buffers."
       properties:
         bufferPaths:
           items:
@@ -4152,8 +4431,8 @@ components:
       type: object
     NotebookCell:
       description: "A single cell in the document. Mutable \u2014 owned by the document.\n\
-        \n    `version` increments on each `SetCode` that actually changes\n    `code`.\
-        \ Other property changes don't bump it."
+        \n`version` increments on each `SetCode` that actually changes\n`code`. Other\
+        \ property changes don't bump it."
       properties:
         code:
           type: string
@@ -4174,9 +4453,12 @@ components:
       title: NotebookCell
       type: object
     NotebookDocumentTransactionNotification:
-      description: "Broadcasts an applied transaction to the frontend.\n\n    Sent\
-        \ by the session when the document changes (from any source).\n    The frontend\
-        \ applies the ops to update its local state."
+      description: 'Broadcasts an applied transaction to the frontend.
+
+
+        Sent by the session when the document changes (from any source).
+
+        The frontend applies the ops to update its local state.'
       properties:
         op:
           enum:
@@ -4282,42 +4564,48 @@ components:
           variables: '#/components/schemas/VariablesNotification'
         propertyName: op
     OpenAiConfig:
-      description: "Configuration options for OpenAI or OpenAI-compatible services.\n\
-        \n    **Keys.**\n\n    - `api_key`: the OpenAI API key or an `env:` reference\n\
-        \    - `base_url`: the base URL for the API\n    - `project`: the project\
-        \ ID for the OpenAI API\n    - `ssl_verify` : Boolean argument for httpx passed\
-        \ to open ai client. httpx defaults to true, but some use cases to let users\
-        \ override to False in some testing scenarios\n    - `ca_bundle_path`: custom\
-        \ ca bundle to be used for verifying SSL certificates. Used to create custom\
-        \ SSL context for httpx client\n    - `client_pem` : custom path of a client\
-        \ .pem cert used for verifying identity of client server\n    - `extra_headers`:\
-        \ extra headers to be passed to the OpenAI client"
+      description: Configuration options for OpenAI or OpenAI-compatible services.
       properties:
         api_key:
+          description: the OpenAI API key or an `env:` reference
           type: string
         base_url:
+          description: the base URL for the API
           type: string
         ca_bundle_path:
+          description: custom ca bundle to be used for verifying SSL certificates.
+            Used to create custom SSL context for httpx client
           type: string
         client_pem:
+          description: Path to a client PEM certificate for authenticating API requests.
           type: string
         extra_headers:
           additionalProperties:
             type: string
+          description: extra headers to be passed to the OpenAI client
           type: object
         model:
+          deprecated: true
+          description: Deprecated chat model. Use ai.models.chat_model instead.
           type: string
         project:
+          description: the project ID for the OpenAI API
           type: string
         ssl_verify:
+          description: Whether to verify TLS certificates for the API client.
           type: boolean
       required: []
       title: OpenAiConfig
       type: object
     OpenGraphMetadata:
-      description: "OpenGraph-style metadata for a notebook.\n\n    The `image` field\
-        \ may be either:\n    - a relative path (typically under `__marimo__/`), or\n\
-        \    - an absolute HTTPS URL."
+      description: 'OpenGraph-style metadata for a notebook.
+
+
+        The `image` field may be either:
+
+        - a relative path (typically under `__marimo__/`), or
+
+        - an absolute HTTPS URL.'
       properties:
         description:
           anyOf:
@@ -4426,10 +4714,10 @@ components:
       title: PackageDescription
       type: object
     PackageManagementConfig:
-      description: "Configuration options for package management.\n\n    **Keys.**\n\
-        \n    - `manager`: the package manager to use"
+      description: Configuration options for package management.
       properties:
         manager:
+          description: the package manager to use
           enum:
           - pip
           - pixi
@@ -4469,13 +4757,13 @@ components:
       title: PackageOperationResponse
       type: object
     PreviewDatasetColumnCommand:
-      description: "Preview a dataset column.\n\n    Retrieves and displays data from\
-        \ a single column (dataframe or SQL table).\n    Used by the data explorer\
-        \ UI.\n\n    Attributes:\n        source_type: Data source type ('dataframe',\
-        \ 'sql', etc.).\n        source: Source identifier (connection string or variable\
-        \ name).\n        table_name: Table or dataframe variable name.\n        column_name:\
-        \ Column to preview.\n        fully_qualified_table_name: Full database.schema.table\
-        \ name for SQL."
+      description: "Preview a dataset column.\n\nRetrieves and displays data from\
+        \ a single column (dataframe or SQL table).\nUsed by the data explorer UI.\n\
+        \nAttributes:\n    source_type: Data source type ('dataframe', 'sql', etc.).\n\
+        \    source: Source identifier (connection string or variable name).\n   \
+        \ table_name: Table or dataframe variable name.\n    column_name: Column to\
+        \ preview.\n    fully_qualified_table_name: Full database.schema.table name\
+        \ for SQL."
       properties:
         columnName:
           type: string
@@ -4532,14 +4820,13 @@ components:
       title: PreviewDatasetColumnRequest
       type: object
     PreviewSQLTableCommand:
-      description: "Preview SQL table details.\n\n    Retrieves metadata and sample\
-        \ data for a table. Used by the SQL editor\n    and data explorer.\n\n   \
-        \ Attributes:\n        request_id: Unique identifier for this request.\n \
-        \       engine: SQL engine ('postgresql', 'mysql', 'duckdb', etc.).\n    \
-        \    database: Database containing the table.\n        schema: Schema containing\
-        \ the table.\n        table_name: Table to preview.\n        schema_path:\
-        \ Path of nested schemas (relative to `database`) for\n            catalogs\
-        \ with nested schemas. Empty for the top level."
+      description: "Preview SQL table details.\n\nRetrieves metadata and sample data\
+        \ for a table. Used by the SQL editor\nand data explorer.\n\nAttributes:\n\
+        \    request_id: Unique identifier for this request.\n    engine: SQL engine\
+        \ ('postgresql', 'mysql', 'duckdb', etc.).\n    database: Database containing\
+        \ the table.\n    schema: Schema containing the table.\n    table_name: Table\
+        \ to preview.\n    schema_path: Path of nested schemas (relative to `database`)\
+        \ for\n        catalogs with nested schemas. Empty for the top level."
       properties:
         database:
           type: string
@@ -4600,6 +4887,7 @@ components:
         Pyrefly handles completion, hover, go-to-definition, and diagnostics.'
       properties:
         enabled:
+          description: Enable this language server.
           type: boolean
       required: []
       title: PyreflyLanguageServerConfig
@@ -4611,25 +4899,46 @@ components:
         pylsp handles completion, hover, go-to-definition, and diagnostics.'
       properties:
         enable_flake8:
+          default: false
+          description: Enable flake8 diagnostics in pylsp.
           type: boolean
         enable_mypy:
+          default: true
+          description: Enable mypy diagnostics in pylsp.
           type: boolean
         enable_pydocstyle:
+          default: false
+          description: Enable pydocstyle diagnostics in pylsp.
           type: boolean
         enable_pyflakes:
+          default: false
+          description: Enable pyflakes diagnostics in pylsp.
           type: boolean
         enable_pylint:
+          default: false
+          description: Enable pylint diagnostics in pylsp.
           type: boolean
         enable_ruff:
+          default: true
+          description: Enable ruff diagnostics in pylsp.
           type: boolean
         enabled:
+          default: false
+          description: Enable this language server.
           type: boolean
-      required: []
+      required:
+      - enabled
+      - enable_mypy
+      - enable_ruff
+      - enable_flake8
+      - enable_pydocstyle
+      - enable_pylint
+      - enable_pyflakes
       title: PythonLanguageServerConfig
       type: object
     QueryParamsAppendNotification:
-      description: "Appends value to URL query parameter.\n\n    Attributes:\n   \
-        \     key: Query parameter key.\n        value: Value to append."
+      description: "Appends value to URL query parameter.\n\nAttributes:\n    key:\
+        \ Query parameter key.\n    value: Value to append."
       properties:
         key:
           type: string
@@ -4655,9 +4964,9 @@ components:
       title: QueryParamsClearNotification
       type: object
     QueryParamsDeleteNotification:
-      description: "Deletes URL query parameter values.\n\n    Attributes:\n     \
-        \   key: Query parameter key.\n        value: Specific value to delete. If\
-        \ None, deletes all values for key."
+      description: "Deletes URL query parameter values.\n\nAttributes:\n    key: Query\
+        \ parameter key.\n    value: Specific value to delete. If None, deletes all\
+        \ values for key."
       properties:
         key:
           type: string
@@ -4675,8 +4984,8 @@ components:
       title: QueryParamsDeleteNotification
       type: object
     QueryParamsSetNotification:
-      description: "Sets URL query parameter, replacing existing values.\n\n    Attributes:\n\
-        \        key: Query parameter key.\n        value: Value(s) to set."
+      description: "Sets URL query parameter, replacing existing values.\n\nAttributes:\n\
+        \    key: Query parameter key.\n    value: Value(s) to set."
       properties:
         key:
           type: string
@@ -4747,9 +5056,9 @@ components:
       title: RemovePackageRequest
       type: object
     RemoveUIElementsNotification:
-      description: "Removes UI elements associated with a cell.\n\n    Sent when cell\
-        \ is re-executed or deleted.\n\n    Attributes:\n        cell_id: Cell whose\
-        \ UI elements should be removed."
+      description: "Removes UI elements associated with a cell.\n\nSent when cell\
+        \ is re-executed or deleted.\n\nAttributes:\n    cell_id: Cell whose UI elements\
+        \ should be removed."
       properties:
         cell_id:
           $ref: '#/components/schemas/CellId'
@@ -4770,9 +5079,12 @@ components:
       title: RenameNotebookRequest
       type: object
     ReorderCells:
-      description: "Replace the full cell ordering.\n\n    Cell IDs present in the\
-        \ document but missing from `cell_ids`\n    are appended at the end. IDs not\
-        \ in the document are ignored."
+      description: 'Replace the full cell ordering.
+
+
+        Cell IDs present in the document but missing from `cell_ids`
+
+        are appended at the end. IDs not in the document are ignored.'
       properties:
         cellIds:
           items:
@@ -4816,53 +5128,30 @@ components:
       title: RunningNotebooksResponse
       type: object
     RuntimeConfig:
-      description: "Configuration for runtime.\n\n    **Keys.**\n\n    - `auto_instantiate`:\
-        \ if `False`, cells won't automatically\n        run on startup. This only\
-        \ applies when editing a notebook,\n        and not when running as an application.\n\
-        \        The default is `True`.\n    - `auto_reload`: if `lazy`, cells importing\
-        \ modified modules will marked\n      as stale; if `autorun`, affected cells\
-        \ will be automatically run. similar\n      to IPython's %autoreload extension\
-        \ but with more code intelligence.\n    - `reactive_tests`: if `True`, marimo\
-        \ will automatically run pytest on cells containing only test functions and\
-        \ test classes.\n      execution.\n    - `on_cell_change`: if `lazy`, cells\
-        \ will be marked stale when their\n      ancestors run but won't autorun;\
-        \ if `autorun`, cells will automatically\n      run when their ancestors run.\n\
-        \    - `execution_type`: if `relaxed`, marimo will not clone cell declarations;\n\
-        \      if `strict` marimo will clone cell declarations by default, avoiding\n\
-        \      hidden potential state build up.\n    - `watcher_on_save`: how to handle\
-        \ file changes when saving. `\"lazy\"` marks\n        affected cells as stale,\
-        \ `\"autorun\"` automatically runs affected cells.\n    - `output_max_bytes`:\
-        \ the maximum size in bytes of cell outputs; larger\n        values may affect\
-        \ frontend performance\n    - `serve_cached_sessions_in_apps`: if `True`,\
-        \ initialize applications with session cache.\n        The default is `False`.\n\
-        \    - `std_stream_max_bytes`: the maximum size in bytes of console outputs;\n\
-        \      larger values may affect frontend performance\n    - `pythonpath`:\
-        \ a list of directories to add to the Python search path.\n        Directories\
-        \ will be added to the head of sys.path. Similar to the\n        `PYTHONPATH`\
-        \ environment variable, the directories will be included in\n        where\
-        \ Python will look for imported modules.\n    - `dotenv`: a list of paths\
-        \ to `.env` files to load.\n        If the file does not exist, it will be\
-        \ silently ignored. Relative\n        paths resolve against the directory\
-        \ holding the `pyproject.toml`,\n        or the notebook's directory when\
-        \ there is none. The default is\n        `[\".env\"]`.\n    - `default_sql_output`:\
-        \ the default output format for SQL queries. Can be one of:\n        `\"auto\"\
-        `, `\"native\"`, `\"polars\"`, `\"lazy-polars\"`, or `\"pandas\"`.\n     \
-        \   The default is `\"auto\"`.\n    - `default_auto_download`: an Optional\
-        \ list of export types to automatically snapshot your notebook as:\n     \
-        \  `html`, `markdown`, `ipynb`.\n       The default is None.\n    - `default_csv_encoding`:\
-        \ the default encoding for CSV exports.\n        The default is `\"utf-8\"\
-        `.\n    - `show_tracebacks`: if `True`, show detailed error tracebacks in\
-        \ run mode.\n        When enabled, exceptions will display a clickable toast\
-        \ that opens a modal with the full traceback.\n        The default is `False`."
+      description: Configuration for runtime.
       properties:
         auto_instantiate:
+          default: false
+          description: if `False`, cells won't automatically run on startup. This
+            only applies when editing a notebook, and not when running as an application.
           type: boolean
         auto_reload:
+          default: 'off'
+          description: If `lazy`, mark cells importing modified modules as stale;
+            if `autorun`, automatically run affected cells. Similar to IPython's %autoreload
+            extension, with dependency-aware execution.
           enum:
           - autorun
           - lazy
           - 'off'
+        cache_cells:
+          default: false
+          description: Enable experimental automatic cell caching.
+          type: boolean
         default_auto_download:
+          default: []
+          description: 'an Optional list of export types to automatically snapshot
+            your notebook as: `html`, `markdown`, `ipynb`.'
           items:
             enum:
             - html
@@ -4870,8 +5159,13 @@ components:
             - markdown
           type: array
         default_csv_encoding:
+          default: utf-8
+          description: the default encoding for CSV exports.
           type: string
         default_sql_output:
+          default: auto
+          description: 'the default output format for SQL queries. Can be one of:
+            `"auto"`, `"native"`, `"polars"`, `"lazy-polars"`, or `"pandas"`.'
           enum:
           - auto
           - lazy-polars
@@ -4879,51 +5173,100 @@ components:
           - pandas
           - polars
         dotenv:
+          description: Override .env discovery with a list of files to load. Use an
+            empty list to skip .env loading entirely. In project settings and script
+            metadata, paths are relative to the project folder, or the notebook's
+            folder if there is no project. In user settings, paths must be absolute.
           items:
             type: string
           type: array
+        execution_type:
+          description: 'Cell declaration handling: relaxed or strict.'
+          enum:
+          - relaxed
+          - strict
         on_cell_change:
+          default: autorun
+          description: if `lazy`, cells will be marked stale when their ancestors
+            run but won't autorun; if `autorun`, cells will automatically run when
+            their ancestors run.
           enum:
           - autorun
           - lazy
         output_max_bytes:
+          default: 8000000
+          description: the maximum size in bytes of cell outputs; larger values may
+            affect frontend performance
           type: integer
+        pin_modules:
+          default: true
+          description: Pin imported modules when caching cells.
+          type: boolean
         pythonpath:
+          default: []
+          description: a list of directories to add to the Python search path. Directories
+            will be added to the head of sys.path. Similar to the `PYTHONPATH` environment
+            variable, the directories will be included in where Python will look for
+            imported modules.
           items:
             type: string
           type: array
         reactive_tests:
+          default: true
+          description: If `True`, automatically run pytest on cells containing only
+            test functions and test classes.
           type: boolean
         serve_cached_sessions_in_apps:
+          default: false
+          description: if `True`, initialize applications with session cache.
           type: boolean
         show_tracebacks:
+          default: false
+          description: if `True`, show detailed error tracebacks in run mode. When
+            enabled, exceptions will display a clickable toast that opens a modal
+            with the full traceback.
           type: boolean
         sql_default_limit:
           anyOf:
-          - type: integer
+          - minimum: 0
+            type: integer
           - type: 'null'
+          description: Default maximum number of SQL result rows when a query has
+            no LIMIT. Must be non-negative; None means no limit.
         std_stream_max_bytes:
+          default: 1000000
+          description: the maximum size in bytes of console outputs; larger values
+            may affect frontend performance
           type: integer
         watcher_on_save:
+          default: lazy
+          description: how to handle file changes when saving. `"lazy"` marks affected
+            cells as stale, `"autorun"` automatically runs affected cells.
           enum:
           - autorun
           - lazy
       required:
       - auto_instantiate
       - auto_reload
-      - default_sql_output
-      - on_cell_change
-      - output_max_bytes
       - reactive_tests
-      - std_stream_max_bytes
+      - on_cell_change
       - watcher_on_save
+      - output_max_bytes
+      - serve_cached_sessions_in_apps
+      - std_stream_max_bytes
+      - pythonpath
+      - default_sql_output
+      - default_auto_download
+      - default_csv_encoding
+      - show_tracebacks
+      - cache_cells
+      - pin_modules
       title: RuntimeConfig
       type: object
     SQLDatabaseMetadata:
-      description: "SQL database metadata.\n\n    Attributes:\n        connection:\
-        \ Connection identifier.\n        database: Database name.\n        schema_path:\
-        \ Parent schema path the schemas belong under. Empty for\n            the\
-        \ database's top level."
+      description: "SQL database metadata.\n\nAttributes:\n    connection: Connection\
+        \ identifier.\n    database: Database name.\n    schema_path: Parent schema\
+        \ path the schemas belong under. Empty for\n        the database's top level."
       properties:
         connection:
           type: string
@@ -4940,10 +5283,10 @@ components:
       title: SQLDatabaseMetadata
       type: object
     SQLMetadata:
-      description: "SQL database and schema metadata.\n\n    Attributes:\n       \
-        \ connection: Connection identifier.\n        database: Database name.\n \
-        \       schema: Schema name.\n        schema_path: Path of nested schemas\
-        \ (relative to `database`). Empty\n            for the top level."
+      description: "SQL database and schema metadata.\n\nAttributes:\n    connection:\
+        \ Connection identifier.\n    database: Database name.\n    schema: Schema\
+        \ name.\n    schema_path: Path of nested schemas (relative to `database`).\
+        \ Empty\n        for the top level."
       properties:
         connection:
           type: string
@@ -4967,10 +5310,9 @@ components:
       title: SQLMetadata
       type: object
     SQLSchemaListPreviewNotification:
-      description: "List of SQL schemas in a database.\n\n    Attributes:\n      \
-        \  request_id: Request ID this responds to.\n        metadata: Database and\
-        \ schema metadata.\n        schemas: Schemas in database.\n        error:\
-        \ Error message if failed."
+      description: "List of SQL schemas in a database.\n\nAttributes:\n    request_id:\
+        \ Request ID this responds to.\n    metadata: Database and schema metadata.\n\
+        \    schemas: Schemas in database.\n    error: Error message if failed."
       properties:
         error:
           anyOf:
@@ -4996,9 +5338,9 @@ components:
       title: SQLSchemaListPreviewNotification
       type: object
     SQLTableListPreviewNotification:
-      description: "List of SQL tables in a schema.\n\n    Attributes:\n        request_id:\
-        \ Request ID this responds to.\n        metadata: Database and schema metadata.\n\
-        \        tables: Tables in schema.\n        error: Error message if failed."
+      description: "List of SQL tables in a schema.\n\nAttributes:\n    request_id:\
+        \ Request ID this responds to.\n    metadata: Database and schema metadata.\n\
+        \    tables: Tables in schema.\n    error: Error message if failed."
       properties:
         error:
           anyOf:
@@ -5024,10 +5366,9 @@ components:
       title: SQLTableListPreviewNotification
       type: object
     SQLTablePreviewNotification:
-      description: "SQL table preview.\n\n    Attributes:\n        request_id: Request\
-        \ ID this responds to.\n        metadata: Database and schema metadata.\n\
-        \        table: Table data (None if error).\n        error: Error message\
-        \ if failed."
+      description: "SQL table preview.\n\nAttributes:\n    request_id: Request ID\
+        \ this responds to.\n    metadata: Database and schema metadata.\n    table:\
+        \ Table data (None if error).\n    error: Error message if failed."
       properties:
         error:
           anyOf:
@@ -5120,18 +5461,21 @@ components:
       title: SaveAppConfigurationRequest
       type: object
     SaveConfig:
-      description: "Configuration for saving.\n\n    **Keys.**\n\n    - `autosave`:\
-        \ one of `\"off\"` or `\"after_delay\"`\n    - `delay`: number of milliseconds\
-        \ to wait before autosaving\n    - `format_on_save`: if `True`, format the\
-        \ code on save"
+      description: Configuration for saving.
       properties:
         autosave:
+          default: after_delay
+          description: one of `"off"` or `"after_delay"`
           enum:
           - after_delay
           - 'off'
         autosave_delay:
+          default: 1000
+          description: Delay in milliseconds before automatically saving.
           type: integer
         format_on_save:
+          default: false
+          description: if `True`, format the code on save
           type: boolean
       required:
       - autosave
@@ -5219,9 +5563,9 @@ components:
       title: SchemaTable
       type: object
     SecretKeysResultNotification:
-      description: "Available secret keys from secret providers.\n\n    Attributes:\n\
-        \        request_id: Request ID this responds to.\n        secrets: Secret\
-        \ keys with provider info."
+      description: "Available secret keys from secret providers.\n\nAttributes:\n\
+        \    request_id: Request ID this responds to.\n    secrets: Secret keys with\
+        \ provider info."
       properties:
         op:
           enum:
@@ -5257,41 +5601,59 @@ components:
       title: SecretKeysWithProvider
       type: object
     ServerConfig:
-      description: "Configuration for the server.\n\n    **Keys.**\n\n    - `browser`:\
-        \ the web browser to use. `\"default\"` or a browser registered\n        with\
-        \ Python's webbrowser module (eg, `\"firefox\"` or `\"chrome\"`)\n    - `follow_symlink`:\
-        \ if true, the server will follow symlinks it finds\n        inside its static\
-        \ assets directory.\n    - `disable_file_downloads`: if true, the file download\
-        \ button will be\n        hidden in the file explorer.\n    - `transport`:\
-        \ experimental. The transport used to stream kernel\n        messages to the\
-        \ frontend, typically set with the\n        `MARIMO_SERVER_TRANSPORT` environment\
-        \ variable. `\"websocket\"`\n        (default) uses the `/ws` WebSocket endpoint;\
-        \ `\"sse\"` uses\n        server-sent events over HTTP, for deployments behind\
-        \ proxies or\n        services that do not support WebSockets. The terminal\
-        \ and LSP\n        still require WebSockets."
+      description: Configuration for the server.
       properties:
         browser:
           anyOf:
           - enum:
             - default
           - type: string
+          default: default
+          description: the web browser to use. `"default"` or a browser registered
+            with Python's webbrowser module (eg, `"firefox"` or `"chrome"`)
         disable_file_downloads:
+          default: false
+          description: if true, the file download button will be hidden in the file
+            explorer.
           type: boolean
         follow_symlink:
+          default: false
+          description: if true, the server will follow symlinks it finds inside its
+            static assets directory.
           type: boolean
         session_cookie_secure:
+          default: false
+          description: Only send session cookies over HTTPS. Enable when serving behind
+            TLS.
           type: boolean
         session_secret:
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
+          description: Secret used to sign session cookies. Set a stable value to
+            preserve sessions across restarts or replicas; otherwise a random secret
+            is generated per process.
         skip_update_check:
+          default: false
+          description: Skip checking for marimo updates when starting the editor.
           type: boolean
         transport:
+          description: experimental. The transport used to stream kernel messages
+            to the frontend, typically set with the `MARIMO_SERVER_TRANSPORT` environment
+            variable. `"websocket"` (default) uses the `/ws` WebSocket endpoint; `"sse"`
+            uses server-sent events over HTTP, for deployments behind proxies or services
+            that do not support WebSockets. The terminal and LSP still require WebSockets.
           enum:
           - sse
           - websocket
       required:
+      - skip_update_check
+      - session_cookie_secure
+      - session_secret
       - browser
       - follow_symlink
+      - disable_file_downloads
       title: ServerConfig
       type: object
     SessionId:
@@ -5397,17 +5759,17 @@ components:
       title: SetupRootError
       type: object
     SharingConfig:
-      description: "Configuration for sharing features.\n\n    **Keys.**\n\n    -\
-        \ `html`: if `False`, HTML sharing options will be hidden from the UI\n  \
-        \  - `wasm`: if `False`, WebAssembly sharing options will be hidden from the\
-        \ UI\n    - `molab`: if `False`, molab sharing options will be hidden from\
-        \ the UI"
+      description: Configuration for sharing features.
       properties:
         html:
+          description: if `False`, HTML sharing options will be hidden from the UI
           type: boolean
         molab:
+          description: if `False`, molab sharing options will be hidden from the UI
           type: boolean
         wasm:
+          description: if `False`, WebAssembly sharing options will be hidden from
+            the UI
           type: boolean
       required: []
       title: SharingConfig
@@ -5421,20 +5783,25 @@ components:
       title: ShutdownSessionRequest
       type: object
     SigningConfig:
-      description: "Cache-signing trust and identity.\n\n    `trusted_signers` maps\
-        \ a key fingerprint (`\"SHA256:<base64>\"`) to an\n    advisory label. Trusting\
-        \ a key allows arbitrary code execution from its\n    holder on this machine\
-        \ \u2014 a cache restore is `pickle.loads` \u2014 so there is no\n    lesser\
-        \ cache-only grant. `private_key_path` is this machine's signing\n    identity;\
-        \ it is never serialized to the frontend."
+      description: Cache-signing trust and identity.
       properties:
         private_key_path:
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
+          description: Absolute path to this machine's private signing key. Not exposed
+            to the frontend.
         trusted_signers:
           additionalProperties:
             type: string
+          default: {}
+          description: Trusted key fingerprints (SHA256:<base64>) mapped to advisory
+            labels. Trust permits code execution when restoring cached Python objects.
           type: object
-      required: []
+      required:
+      - trusted_signers
+      - private_key_path
       title: SigningConfig
       type: object
     Snippet:
@@ -5479,16 +5846,21 @@ components:
       title: Snippets
       type: object
     SnippetsConfig:
-      description: "Configuration for snippets.\n\n    **Keys.**\n\n    - `custom_path`:\
-        \ the path to the custom snippets directory"
+      description: Configuration for snippets.
       properties:
         custom_paths:
+          default: []
+          description: Paths to directories containing custom snippets.
           items:
             type: string
           type: array
         include_default_snippets:
+          default: true
+          description: Include the built-in snippets.
           type: boolean
-      required: []
+      required:
+      - custom_paths
+      - include_default_snippets
       title: SnippetsConfig
       type: object
     SqlCatalogCheckResult:
@@ -5546,8 +5918,8 @@ components:
       title: SqlParseResult
       type: object
     StartupLogsNotification:
-      description: "Streaming kernel startup logs.\n\n    Attributes:\n        content:\
-        \ Log content to display.\n        status: Stream status (start/append/done)."
+      description: "Streaming kernel startup logs.\n\nAttributes:\n    content: Log\
+        \ content to display.\n    status: Stream status (start/append/done)."
       properties:
         content:
           type: string
@@ -5566,9 +5938,12 @@ components:
       title: StartupLogsNotification
       type: object
     StartupProgressNotification:
-      description: "Current startup phase and its output before the kernel is ready.\n\
-        \n    Output appends within a phase. Snapshots replace it, and changing phases\n\
-        \    starts a new stream. Environment preparation logs belong to its operation."
+      description: 'Current startup phase and its output before the kernel is ready.
+
+
+        Output appends within a phase. Snapshots replace it, and changing phases
+
+        starts a new stream. Environment preparation logs belong to its operation.'
       properties:
         log_mode:
           enum:
@@ -5599,12 +5974,12 @@ components:
       title: StdinRequest
       type: object
     StorageDownloadReadyNotification:
-      description: "Signals that a storage file download is ready.\n\n    The url\
-        \ may be a signed cloud URL (preferred) or a virtual file URL\n    (fallback\
-        \ for backends that don't support signing).\n\n    Attributes:\n        request_id:\
-        \ Request ID this responds to.\n        url: Signed or virtual-file URL to\
-        \ download from.\n        filename: Suggested filename for the download.\n\
-        \        error: Error message if the download failed."
+      description: "Signals that a storage file download is ready.\n\nThe url may\
+        \ be a signed cloud URL (preferred) or a virtual file URL\n(fallback for backends\
+        \ that don't support signing).\n\nAttributes:\n    request_id: Request ID\
+        \ this responds to.\n    url: Signed or virtual-file URL to download from.\n\
+        \    filename: Suggested filename for the download.\n    error: Error message\
+        \ if the download failed."
       properties:
         error:
           anyOf:
@@ -5649,13 +6024,13 @@ components:
       title: StorageDownloadRequest
       type: object
     StorageEntriesNotification:
-      description: "Result of a storage operation that returns entries.\n\n    Attributes:\n\
-        \        request_id: Request ID this responds to.\n        entries: Storage\
-        \ entries returned by the operation.\n        namespace: Variable name of\
-        \ the storage backend.\n        prefix: The prefix that was listed (set by\
-        \ list_entries).\n        query: The search query that was used (set by search).\n\
-        \        next_page_token: Token for fetching the next page of entries.\n \
-        \       error: Error message if the operation failed."
+      description: "Result of a storage operation that returns entries.\n\nAttributes:\n\
+        \    request_id: Request ID this responds to.\n    entries: Storage entries\
+        \ returned by the operation.\n    namespace: Variable name of the storage\
+        \ backend.\n    prefix: The prefix that was listed (set by list_entries).\n\
+        \    query: The search query that was used (set by search).\n    next_page_token:\
+        \ Token for fetching the next page of entries.\n    error: Error message if\
+        \ the operation failed."
       properties:
         entries:
           items:
@@ -5697,11 +6072,11 @@ components:
       type: object
     StorageEntry:
       description: "A storage entry is a file, directory, or object for external storage\
-        \ systems\n\n    Attributes:\n        path: The path of the storage entry.\n\
-        \        kind: The kind of the storage entry.\n        size: The size of the\
-        \ storage entry.\n        last_modified: The last modified time of the storage\
-        \ entry.\n        metadata: The metadata of the storage entry.\n        mime_type:\
-        \ The MIME type of the storage entry, or None for directories."
+        \ systems\n\nAttributes:\n    path: The path of the storage entry.\n    kind:\
+        \ The kind of the storage entry.\n    size: The size of the storage entry.\n\
+        \    last_modified: The last modified time of the storage entry.\n    metadata:\
+        \ The metadata of the storage entry.\n    mime_type: The MIME type of the\
+        \ storage entry, or None for directories."
       properties:
         kind:
           enum:
@@ -5777,12 +6152,12 @@ components:
       type: object
     StorageNamespace:
       description: "Represents external storage systems (filesystems and object storage)\n\
-        \n    Attributes:\n        name: The variable name of the storage namespace.\n\
-        \        display_name: The display name of the storage namespace.\n      \
-        \  protocol: The protocol of the storage namespace. E.g. s3, gcs, azure, http,\
-        \ file, in-memory.\n        root_path: The root path of the storage namespace.\n\
-        \        backend_type: The type of the storage backend (fsspec or obstore)\n\
-        \        storage_entries: The storage entries in the storage namespace."
+        \nAttributes:\n    name: The variable name of the storage namespace.\n   \
+        \ display_name: The display name of the storage namespace.\n    protocol:\
+        \ The protocol of the storage namespace. E.g. s3, gcs, azure, http, file,\
+        \ in-memory.\n    root_path: The root path of the storage namespace.\n   \
+        \ backend_type: The type of the storage backend (fsspec or obstore)\n    storage_entries:\
+        \ The storage entries in the storage namespace."
       properties:
         backendType:
           enum:
@@ -5811,8 +6186,8 @@ components:
       title: StorageNamespace
       type: object
     StorageNamespacesNotification:
-      description: "Available storage namespaces for storage inspector.\n\n    Attributes:\n\
-        \        namespaces: Available storage namespaces."
+      description: "Available storage namespaces for storage inspector.\n\nAttributes:\n\
+        \    namespaces: Available storage namespaces."
       properties:
         namespaces:
           items:
@@ -5830,14 +6205,22 @@ components:
       description: Configuration for a single cache store.
       properties:
         args:
+          default: {}
+          description: Keyword arguments passed to the cache store constructor.
           type: object
         type:
-          enum:
-          - file
-          - redis
-          - rest
-          - tiered
-      required: []
+          anyOf:
+          - enum:
+            - file
+            - redis
+            - rest
+            - tiered
+          - type: string
+          default: file
+          description: Cache store backend or installed entry-point name.
+      required:
+      - type
+      - args
       title: StoreConfig
       type: object
     SuccessResponse:
@@ -5898,9 +6281,14 @@ components:
       title: ToolDefinition
       type: object
     Transaction:
-      description: "An atomic batch of changes applied to a NotebookDocument.\n\n\
-        \    `source` identifies the writer (e.g. `\"frontend\"`, `\"kernel\"`).\n\
-        \    `version` is `None` when created and stamped by\n    `NotebookDocument.apply()`."
+      description: 'An atomic batch of changes applied to a NotebookDocument.
+
+
+        `source` identifies the writer (e.g. `"frontend"`, `"kernel"`).
+
+        `version` is `None` when created and stamped by
+
+        `NotebookDocument.apply()`.'
       properties:
         changes:
           items:
@@ -5950,6 +6338,7 @@ components:
         but we only use it for diagnostics.'
       properties:
         enabled:
+          description: Enable this language server.
           type: boolean
       required: []
       title: TyLanguageServerConfig
@@ -5958,9 +6347,9 @@ components:
       format: ui-element-id
       type: string
     UIElementMessageNotification:
-      description: "Sends a message to a UI element/widget.\n\n    Attributes:\n \
-        \       ui_element: UI element identifier.\n        message: Message payload\
-        \ as dictionary.\n        buffers: Optional binary buffers for large data."
+      description: "Sends a message to a UI element/widget.\n\nAttributes:\n    ui_element:\
+        \ UI element identifier.\n    message: Message payload as dictionary.\n  \
+        \  buffers: Optional binary buffers for large data."
       properties:
         buffers:
           anyOf:
@@ -6000,10 +6389,10 @@ components:
       title: UnknownError
       type: object
     UpdateCellConfigCommand:
-      description: "Update cell configuration.\n\n    Updates cell-level settings\
-        \ like disabled state, hide code, etc.\n\n    Attributes:\n        configs:\
-        \ Cell IDs mapped to their config updates. Each config dict\n            \
-        \     can contain partial updates."
+      description: "Update cell configuration.\n\nUpdates cell-level settings like\
+        \ disabled state, hide code, etc.\n\nAttributes:\n    configs: Cell IDs mapped\
+        \ to their config updates. Each config dict\n             can contain partial\
+        \ updates."
       properties:
         configs:
           additionalProperties:
@@ -6074,12 +6463,12 @@ components:
       title: UpdateManifestRequest
       type: object
     UpdateUIElementCommand:
-      description: "Update UI element values.\n\n    Triggered when users interact\
-        \ with UI elements (sliders, inputs, dropdowns, etc.).\n    Updates element\
-        \ values and re-executes dependent cells.\n\n    Attributes:\n        object_ids:\
-        \ UI elements to update.\n        values: New values for the elements. Must\
-        \ match length of object_ids.\n        request: HTTP request context if available.\n\
-        \        token: Unique request identifier for deduplication."
+      description: "Update UI element values.\n\nTriggered when users interact with\
+        \ UI elements (sliders, inputs, dropdowns, etc.).\nUpdates element values\
+        \ and re-executes dependent cells.\n\nAttributes:\n    object_ids: UI elements\
+        \ to update.\n    values: New values for the elements. Must match length of\
+        \ object_ids.\n    request: HTTP request context if available.\n    token:\
+        \ Unique request identifier for deduplication."
       properties:
         objectIds:
           items:
@@ -6139,19 +6528,19 @@ components:
     UpdateUserConfigRequest:
       properties:
         config:
-          $ref: '#/components/schemas/MarimoConfig'
+          type: object
       required:
       - config
       title: UpdateUserConfigRequest
       type: object
     ValidateSQLCommand:
-      description: "Validate an SQL query.\n\n    Checks if an SQL query is valid\
-        \ by parsing against a dialect (no DB connection)\n    or validating against\
-        \ an actual database.\n\n    Attributes:\n        request_id: Unique identifier\
-        \ for this request.\n        query: SQL query to validate.\n        only_parse:\
-        \ If True, only parse using dialect. If False, validate against DB.\n    \
-        \    engine: SQL engine (required if only_parse is False).\n        dialect:\
-        \ SQL dialect for parsing (required if only_parse is True)."
+      description: "Validate an SQL query.\n\nChecks if an SQL query is valid by parsing\
+        \ against a dialect (no DB connection)\nor validating against an actual database.\n\
+        \nAttributes:\n    request_id: Unique identifier for this request.\n    query:\
+        \ SQL query to validate.\n    only_parse: If True, only parse using dialect.\
+        \ If False, validate against DB.\n    engine: SQL engine (required if only_parse\
+        \ is False).\n    dialect: SQL dialect for parsing (required if only_parse\
+        \ is True)."
       properties:
         dialect:
           anyOf:
@@ -6204,10 +6593,9 @@ components:
       title: ValidateSQLRequest
       type: object
     ValidateSQLResultNotification:
-      description: "SQL query validation result.\n\n    Attributes:\n        request_id:\
-        \ Request ID this responds to.\n        parse_result: SQL parsing result.\n\
-        \        validate_result: Catalog validation result.\n        error: Error\
-        \ message if failed."
+      description: "SQL query validation result.\n\nAttributes:\n    request_id: Request\
+        \ ID this responds to.\n    parse_result: SQL parsing result.\n    validate_result:\
+        \ Catalog validation result.\n    error: Error message if failed."
       properties:
         error:
           anyOf:
@@ -6248,9 +6636,9 @@ components:
       title: VariableContext
       type: object
     VariableDeclarationNotification:
-      description: "Variable declaration and usage for dataflow graph.\n\n    Attributes:\n\
-        \        name: Variable name.\n        declared_by: Cell IDs that define this\
-        \ variable.\n        used_by: Cell IDs that use this variable."
+      description: "Variable declaration and usage for dataflow graph.\n\nAttributes:\n\
+        \    name: Variable name.\n    declared_by: Cell IDs that define this variable.\n\
+        \    used_by: Cell IDs that use this variable."
       properties:
         declared_by:
           items:
@@ -6284,9 +6672,9 @@ components:
       title: VariableRemoval
       type: object
     VariableValue:
-      description: "Variable value and type for variables panel.\n\n    Attributes:\n\
-        \        name: Variable name.\n        value: String representation of value.\n\
-        \        datatype: Data type as string."
+      description: "Variable value and type for variables panel.\n\nAttributes:\n\
+        \    name: Variable name.\n    value: String representation of value.\n  \
+        \  datatype: Data type as string."
       properties:
         datatype:
           anyOf:
@@ -6315,9 +6703,9 @@ components:
       title: VariableValue
       type: object
     VariableValuesNotification:
-      description: "Current variable values.\n\n    Attributes:\n        variables:\
-        \ Variables with current values and types.\n        removed: Bindings that\
-        \ no longer exist, identified by their producer."
+      description: "Current variable values.\n\nAttributes:\n    variables: Variables\
+        \ with current values and types.\n    removed: Bindings that no longer exist,\
+        \ identified by their producer."
       properties:
         op:
           enum:
@@ -6337,8 +6725,8 @@ components:
       title: VariableValuesNotification
       type: object
     VariablesNotification:
-      description: "Variable dataflow graph.\n\n    Attributes:\n        variables:\
-        \ Variable declarations and usage."
+      description: "Variable dataflow graph.\n\nAttributes:\n    variables: Variable\
+        \ declarations and usage."
       properties:
         op:
           enum:
@@ -6353,18 +6741,27 @@ components:
       title: VariablesNotification
       type: object
     VenvConfig:
-      description: "Configuration for an external Python environment in edit mode.\n\
-        \n    Launches the notebook kernel in an existing virtualenv. Applies to\n\
-        \    single notebooks and directories when editing without `--sandbox`.\n\n\
-        \    **Keys.**\n\n    - `path`: path to a virtualenv directory (absolute or\
-        \ relative to\n      pyproject.toml)\n    - `writable`: if true, marimo will\
-        \ manage script metadata (inline\n      dependencies). Defaults to false."
+      description: 'Configuration for an external Python environment in edit mode.
+
+
+        Launches the notebook kernel in an existing virtualenv. Applies to
+
+        single notebooks and directories when editing without `--sandbox`.'
       properties:
         path:
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
+          description: path to a virtualenv directory (absolute or relative to pyproject.toml)
         writable:
+          default: false
+          description: if true, marimo will manage script metadata (inline dependencies).
+            Defaults to false.
           type: boolean
-      required: []
+      required:
+      - path
+      - writable
       title: VenvConfig
       type: object
     WidgetModelId:
@@ -6398,8 +6795,12 @@ components:
       title: WorkspaceFilesResponse
       type: object
     _AppConfig:
-      description: "Program-specific configuration.\n\n    Configuration for frontends\
-        \ or runtimes that is specific to\n    a single marimo program."
+      description: 'Program-specific configuration.
+
+
+        Configuration for frontends or runtimes that is specific to
+
+        a single marimo program.'
       properties:
         app_title:
           anyOf:

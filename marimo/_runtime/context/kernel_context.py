@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 from marimo._ast.app import AppKernelRunnerRegistry
-from marimo._config.config import MarimoConfig
+from marimo._config.config_schema import MarimoConfig
 from marimo._config.provenance import ConfigPath
 from marimo._plugins.ui._core.ids import IDProvider, NoIDProviderException
 from marimo._runtime.cell_lifecycle_registry import CellLifecycleRegistry

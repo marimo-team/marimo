@@ -9,7 +9,7 @@ from marimo._lint.rule_engine import RuleEngine
 from marimo._schemas.serialization import NotebookSerializationV1
 
 if TYPE_CHECKING:
-    from marimo._config.config import LintConfig
+    from marimo._config.config_schema import LintConfig
 
 
 def lint_notebook(

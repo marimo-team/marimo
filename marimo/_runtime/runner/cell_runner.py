@@ -14,7 +14,8 @@ from marimo._ast.variables import (
     is_local,
     unmangle_local,
 )
-from marimo._config.config import ExecutionType, MarimoConfig, OnCellChangeType
+from marimo._config.config_schema import ExperimentalConfig, MarimoConfig
+from marimo._config.types import ExecutionType, OnCellChangeType
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._dependencies.errors import ManyModulesNotFoundError
 from marimo._loggers import marimo_logger
@@ -214,9 +215,7 @@ class Runner:
         lifecycles: list[ExecutionLifecycle] = []
         if execution_type == "strict":
             lifecycles.append(StrictLifecycle(self.graph))
-        if user_config is not None and user_config.get("runtime", {}).get(
-            "cache_cells", False
-        ):
+        if user_config is not None and user_config.runtime.cache_cells:
             from marimo._runtime.executor.lifecycles.cached import (
                 CachedLifecycle,
             )
@@ -224,25 +223,19 @@ class Runner:
             lifecycles.append(
                 CachedLifecycle(
                     self.graph,
-                    # Default pin_modules to True for a stronger backwards compatibility
-                    # guarantee.
-                    pin_modules=bool(
-                        user_config.get("runtime", {}).get("pin_modules", True)
-                    ),
+                    pin_modules=user_config.runtime.pin_modules,
                 )
             )
         # Live debugger and line-timing highlight share one frame-watching
         # lifecycle (a single `sys.settrace` hook). Gated here so there is
         # zero tracing overhead when disabled.
         experimental = (
-            self.user_config.get("experimental", {})
+            self.user_config.experimental
             if self.user_config is not None
-            else {}
+            else ExperimentalConfig()
         )
-        debugger_on = self.debugger is not None and bool(
-            experimental.get("debugger", False)
-        )
-        line_timing_on = bool(experimental.get("line_timing", False))
+        debugger_on = self.debugger is not None and experimental.debugger
+        line_timing_on = experimental.line_timing
         if debugger_on or line_timing_on:
             lifecycles.append(
                 DebuggerLifecycle(self.debugger if debugger_on else None)

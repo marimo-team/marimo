@@ -5,7 +5,8 @@ import os
 from typing import TYPE_CHECKING
 
 from marimo import _loggers
-from marimo._config.config import MarimoConfig
+from marimo._config.config_schema import MarimoConfig
+from marimo._config.schema_utils import default_if_unset
 from marimo._secrets.env_provider import (
     DotEnvSecretsProvider,
     EnvSecretsProvider,
@@ -27,7 +28,7 @@ def _get_providers(
     providers: list[SecretProvider] = [EnvSecretsProvider(original_environ)]
 
     # Add dotenv providers
-    dotenvs: list[str] = config.get("runtime", {}).get("dotenv", [])
+    dotenvs: list[str] = default_if_unset(config.runtime.dotenv, [])
     if dotenvs and isinstance(dotenvs, list):
         providers.extend(DotEnvSecretsProvider(dotenv) for dotenv in dotenvs)
 
@@ -45,7 +46,7 @@ def get_secret_value(
     mutating the server's process environment.
     """
     base_environment = os.environ if environ is None else environ
-    dotenvs = config.get("runtime", {}).get("dotenv", [])
+    dotenvs = default_if_unset(config.runtime.dotenv, [])
     if not isinstance(dotenvs, list):
         dotenvs = []
     return resolve_dotenv_value(key, dotenvs, base_environment)

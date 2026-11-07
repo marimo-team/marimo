@@ -8,7 +8,6 @@ from typing import TYPE_CHECKING, Any, Literal, cast
 if TYPE_CHECKING:
     from collections.abc import Callable
 
-from marimo._config.config import SqlOutputType
 from marimo._config.manager import (
     EnvVarReader,
     MarimoConfigManager,
@@ -16,6 +15,8 @@ from marimo._config.manager import (
     UserConfigStore,
 )
 from marimo._config.resolver import merge_config_patches
+from marimo._config.schema_utils import default_if_unset
+from marimo._config.types import SqlOutputType
 from marimo._dependencies.dependencies import Dependency, DependencyManager
 from marimo._output.rich_help import mddoc
 from marimo._runtime.context.types import (
@@ -47,7 +48,9 @@ def _standalone_sql_limit(directory: str) -> int | None:
         UserConfigStore(create_if_missing=False),
         PyprojectConfigReader(directory),
     )
-    return manager.get_config()["runtime"].get("sql_default_limit")
+    return default_if_unset(
+        manager.get_config().runtime.sql_default_limit, None
+    )
 
 
 @lru_cache(maxsize=16)
@@ -70,7 +73,9 @@ def get_default_result_limit() -> int | None:
         context = None
     path = ("runtime", "sql_default_limit")
     if context is not None and path in context.config_overrides:
-        limit = context.marimo_config["runtime"].get("sql_default_limit")
+        limit = default_if_unset(
+            context.marimo_config.runtime.sql_default_limit, None
+        )
     else:
         environment = _sql_environment_config(
             os.environ.get("MARIMO_RUNTIME_SQL_DEFAULT_LIMIT"),
@@ -79,7 +84,9 @@ def get_default_result_limit() -> int | None:
         if "sql_default_limit" in environment:
             limit = cast(int | None, environment["sql_default_limit"])
         elif context is not None:
-            limit = context.marimo_config["runtime"].get("sql_default_limit")
+            limit = default_if_unset(
+                context.marimo_config.runtime.sql_default_limit, None
+            )
         else:
             limit = _standalone_sql_limit(os.getcwd())
     # File validation reports invalid settings, but keeps their original values.

@@ -9,11 +9,8 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, TypeVar, cast
 
 from marimo import _loggers
-from marimo._config.config import (
-    MarimoConfig,
-    PartialMarimoConfig,
-    merge_config,
-)
+from marimo._config.config import PartialMarimoConfig, merge_config
+from marimo._config.config_schema import MarimoConfig
 from marimo._export.exporter import Exporter, export_markdown, export_script
 from marimo._export.requests import (
     HTMLExportRequest,
@@ -375,7 +372,7 @@ class PyodideBridge:
         )
         self.session._initial_user_config = config
         self.session.put_control_request(
-            UpdateUserConfigCommand(config=config)
+            UpdateUserConfigCommand(config=config.to_dict())
         )
 
     def rename_file(self, filename: str) -> None:
@@ -394,7 +391,7 @@ class PyodideBridge:
     def file_roots(self) -> str:
         roots = resolve_file_roots(
             self.file_system.get_root(),
-            self.session._initial_user_config.get("file_browser"),
+            self.session._initial_user_config.file_browser,
         )
         return self._dump(FileRootsResponse(roots=roots))
 
@@ -513,7 +510,7 @@ class PyodideBridge:
                     drop_virtual_file_outputs=False,
                     include_model_notifications=True,
                 ),
-                display_config=self.session._initial_user_config["display"],
+                display_config=self.session._initial_user_config.display,
                 options=to_html_export_options(parsed),
                 layout=(
                     to_html_export_layout(

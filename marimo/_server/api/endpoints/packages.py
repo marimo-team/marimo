@@ -273,13 +273,13 @@ async def dependency_tree(request: Request) -> DependencyTreeResponse:
 
 
 def _get_package_manager(request: Request) -> PackageManager:
-    session = AppState(request).get_current_session()
+    app_state = AppState(request)
+    session = app_state.get_current_session()
     if not session:
-        return create_package_manager(
-            AppState(request).config_manager.package_manager
-        )
+        config = app_state.config_manager.get_config()
+        return create_package_manager(config.package_management.manager)
 
-    config_manager = AppState(request).app_config_manager
+    config_manager = app_state.app_config_manager
 
     # Check if IPC mode - use kernel's venv Python
     python_exe: str | None = None
@@ -295,8 +295,9 @@ def _get_package_manager(request: Request) -> PackageManager:
         if isinstance(kernel_manager, IPCKernelManagerImpl):
             python_exe = kernel_manager.venv_python
 
+    config = config_manager.get_config()
     return create_package_manager(
-        config_manager.package_manager,
+        config.package_management.manager,
         python_exe=python_exe,
     )
 
@@ -321,7 +322,7 @@ def _runs_in_configured_venv(state: AppState, path: str) -> bool:
     if not GLOBAL_SETTINGS.SANDBOX_AUTO:
         return False
     config = state.config_manager_at_file(path).get_config(hide_secrets=False)
-    return bool(config.get("venv", {}).get("path"))
+    return bool(config.venv.path)
 
 
 def _sandbox_source(

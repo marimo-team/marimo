@@ -26,7 +26,7 @@ if TYPE_CHECKING:
 
     from starlette.applications import Starlette
 
-    from marimo._config.config import OnCellChangeType
+    from marimo._config.types import OnCellChangeType
     from marimo._core.protocol import RunOutcome
     from marimo._core.stream import RoutedEvent
     from tests._server.host.drive import Response
