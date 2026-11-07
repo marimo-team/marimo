@@ -53,32 +53,46 @@ class PolarsTableManagerFactory(TableManagerFactory):
 
         map_dtype = getattr(pl, "Map", None)
 
-        def map_entries_dtype(
+        def contains_map(
             dtype: pl.DataType | pl.datatypes.DataTypeClass,
-        ) -> pl.DataType | pl.datatypes.DataTypeClass:
+        ) -> bool:
             if map_dtype is not None and isinstance(dtype, map_dtype):
-                return pl.List(
-                    pl.Struct(
-                        {
-                            "key": map_entries_dtype(dtype.key),
-                            "value": map_entries_dtype(dtype.value),
-                        }
-                    )
-                )
-            if isinstance(dtype, pl.List):
-                return pl.List(map_entries_dtype(dtype.inner))
-            if isinstance(dtype, pl.Array):
-                return pl.Array(
-                    map_entries_dtype(dtype.inner), shape=dtype.size
-                )
+                return True
+            if isinstance(dtype, (pl.List, pl.Array)):
+                return contains_map(dtype.inner)
             if isinstance(dtype, pl.Struct):
-                return pl.Struct(
-                    {
-                        field.name: map_entries_dtype(field.dtype)
-                        for field in dtype.fields
-                    }
+                return any(contains_map(field.dtype) for field in dtype.fields)
+            return False
+
+        def map_entries_expr(
+            expression: pl.Expr,
+            dtype: pl.DataType | pl.datatypes.DataTypeClass,
+        ) -> pl.Expr:
+            if not contains_map(dtype):
+                return expression
+            if map_dtype is not None and isinstance(dtype, map_dtype):
+                return map_entries_expr(
+                    expression.map.entries(),
+                    pl.List(
+                        pl.Struct({"key": dtype.key, "value": dtype.value})
+                    ),
                 )
-            return dtype
+            if isinstance(dtype, (pl.List, pl.Array)):
+                inner = map_entries_expr(pl.element(), dtype.inner)
+                if isinstance(dtype, pl.List):
+                    return expression.list.eval(inner)
+                return expression.arr.eval(inner)
+            if isinstance(dtype, pl.Struct):
+                return expression.struct.with_fields(
+                    [
+                        map_entries_expr(
+                            expression.struct.field(field.name), field.dtype
+                        ).alias(field.name)
+                        for field in dtype.fields
+                        if contains_map(field.dtype)
+                    ]
+                )
+            return expression
 
         def supports_native_json(
             dtype: pl.DataType | pl.datatypes.DataTypeClass,
@@ -187,9 +201,11 @@ class PolarsTableManagerFactory(TableManagerFactory):
             def _map_to_json(self, column: pl.Series) -> pl.Series:
                 # Entry arrays preserve non-string and repeated keys.
                 entries = column.map.entries()
-                dtype = map_entries_dtype(entries.dtype)
-                if dtype != entries.dtype:
-                    entries = entries.cast(dtype)
+                if contains_map(entries.dtype):
+                    expression = map_entries_expr(
+                        pl.col(column.name), entries.dtype
+                    )
+                    entries = entries.to_frame().select(expression).to_series()
                 if supports_native_json(entries.dtype):
                     encoded = entries.list.eval(
                         pl.element().struct.json_encode()
