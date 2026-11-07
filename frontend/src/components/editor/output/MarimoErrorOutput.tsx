@@ -776,7 +776,11 @@ export const MarimoErrorOutput = ({
       {title}
       <div className="flex flex-col gap-4">{renderMessages()}</div>
       {cellId && (
-        <ReportMarimoBugButton cellId={cellId} errors={kernelErrors} code={code} />
+        <ReportMarimoBugButton
+          cellId={cellId}
+          errors={kernelErrors}
+          code={code}
+        />
       )}
       {cellId && kernelErrors.length > 0 && (
         <SendErrorReportButton
