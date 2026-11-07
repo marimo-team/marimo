@@ -1,6 +1,7 @@
 # Copyright 2025 Marimo. All rights reserved.
 from __future__ import annotations
 
+import re
 import uuid
 from dataclasses import dataclass
 from functools import lru_cache
@@ -10,11 +11,13 @@ from marimo import _loggers
 from marimo._messaging.msgspec_encoder import asdict
 from marimo._server.ai.tools.types import ToolDefinition, ToolSource
 from marimo._server.models.completion import UIMessage as ServerUIMessage
+from marimo._utils.data_uri import from_data_uri
 
 if TYPE_CHECKING:
     from pydantic_ai import ModelProfile
 
 LOGGER = _loggers.marimo_logger()
+_BINARY_CONTROL_CHARACTERS = re.compile(r"[\x00-\x08\x0b\x0e-\x1f]")
 
 
 def profile_get(profile: ModelProfile, key: str, default: Any) -> Any:
@@ -96,24 +99,12 @@ def form_toolsets(
 
 def convert_to_pydantic_messages(
     messages: list[ServerUIMessage],
-    part_processor: Callable[[UIMessagePart], UIMessagePart] | None = None,
 ) -> list[UIMessage]:
     """
     The frontend SDK tends to generate messages with a messageId even though it's not valid.
     Remove them to prevent validation errors.
-    If a part processor is provided, it will be applied to the parts of the message.
     """
     from pydantic_ai.ui.vercel_ai.request_types import UIMessage
-
-    def safe_part_processor(
-        part: UIMessagePart,
-        part_processor: Callable[[UIMessagePart], UIMessagePart],
-    ) -> UIMessagePart:
-        try:
-            return part_processor(part)
-        except Exception as e:
-            LOGGER.error(f"Error processing part {part}: {e}")
-            return part
 
     pydantic_messages: list[UIMessage] = []
     for message in messages:
@@ -134,16 +125,70 @@ def convert_to_pydantic_messages(
             repair_incomplete_tool_call(part) for part in ui_message.parts
         ]
 
-        # Process parts after casting so the processor will work on typed parts
-        if ui_message.parts and part_processor:
-            new_parts = [
-                safe_part_processor(part, part_processor)
-                for part in ui_message.parts
+        if role == "user":
+            ui_message.parts = [
+                _inline_text_file(part) for part in ui_message.parts
             ]
-            ui_message.parts = new_parts
         pydantic_messages.append(ui_message)
 
     return pydantic_messages
+
+
+def _inline_text_file(part: UIMessagePart) -> UIMessagePart:
+    from pydantic_ai.ui.vercel_ai.request_types import FileUIPart, TextUIPart
+
+    # Inline local text files so text-only models can read them too.
+    if not isinstance(part, FileUIPart) or not part.url.startswith("data:"):
+        return part
+    try:
+        text = _decode_text_attachment(part.media_type, part.url)
+    except Exception as error:
+        LOGGER.error(
+            "Error processing %s: %s",
+            type(part).__name__,
+            type(error).__name__,
+        )
+        return part
+    if text is None:
+        return part
+    return TextUIPart(
+        type="text",
+        text=text,
+        provider_metadata=part.provider_metadata,
+    )
+
+
+def _decode_text_attachment(media_type: str, url: str) -> str | None:
+    media_type = media_type.split(";", 1)[0].strip().lower()
+    if (
+        media_type.startswith(("image/", "audio/", "video/"))
+        or media_type == "application/pdf"
+    ):
+        return None
+    is_text_mime_type = (
+        media_type.startswith("text/")
+        or media_type.endswith(("+json", "+xml"))
+        or media_type
+        in {
+            "application/json",
+            "application/xml",
+            "application/toml",
+            "application/yaml",
+            "application/x-yaml",
+        }
+    )
+    try:
+        _, data = from_data_uri(url, validate=not is_text_mime_type)
+        text = data.decode("utf-8")
+    except UnicodeDecodeError:
+        return data.decode("latin1") if is_text_mime_type else None
+    except ValueError:
+        if is_text_mime_type:
+            raise
+        return None
+    if not is_text_mime_type and _BINARY_CONTROL_CHARACTERS.search(text):
+        return None
+    return text
 
 
 def _prepare_parts(raw_parts: list[Any]) -> list[Any]:

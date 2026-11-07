@@ -12,27 +12,23 @@ import {
 } from "ai";
 import { useRef, useState } from "react";
 import useEvent from "react-use-event-hook";
-import type { ProviderId } from "@/core/ai/ids/ids";
+import {
+  getAttachmentMediaType,
+  isSupportedAttachmentType,
+  normalizeAttachment,
+} from "@/core/ai/attachments";
 import type { ToolNotebookContext } from "@/core/ai/tools/base";
 import { FRONTEND_TOOL_REGISTRY } from "@/core/ai/tools/registry";
 import type {
   InvokeAiToolRequest,
   InvokeAiToolResponse,
 } from "@/core/network/types";
-import { blobToString } from "@/utils/fileToBase64";
+import { serializeBlob } from "@/utils/blob";
 import { Logger } from "@/utils/Logger";
 import { generateUUID } from "@/utils/uuid";
 import { getAICompletionBodyWithAttachments } from "../editor/ai/completion-utils";
 import { toast } from "../ui/use-toast";
 
-// We need to modify the backend to support attachments for other providers
-// And other types
-export const PROVIDERS_THAT_SUPPORT_ATTACHMENTS = new Set<ProviderId>([
-  "openai",
-  "google",
-  "anthropic",
-]);
-export const SUPPORTED_ATTACHMENT_TYPES = ["image/*", "text/*"];
 const MAX_ATTACHMENT_SIZE = 1024 * 1024 * 50; // 50MB
 
 export function generateChatTitle(message: string): string {
@@ -44,11 +40,12 @@ export async function convertToFileUIPart(
 ): Promise<FileUIPart[]> {
   const fileUIParts = await Promise.all(
     files.map(async (file) => {
+      const normalizedFile = await normalizeAttachment(file);
       const part: FileUIPart = {
         type: "file" as const,
-        mediaType: file.type,
+        mediaType: normalizedFile.type,
         filename: file.name,
-        url: await blobToString(file, "dataUrl"),
+        url: await serializeBlob(normalizedFile),
       };
       return part;
     }),
@@ -219,10 +216,63 @@ function isUnresolvedToolState(state: ToolUIPart["state"]): boolean {
   }
 }
 
-export function useFileState() {
-  const [files, setFiles] = useState<File[]>([]);
+export function validateChatAttachments(
+  parts: ChatMessagePart[],
+  supportedTypes: readonly string[],
+): boolean {
+  return validateAttachments(
+    parts.filter((part): part is FileUIPart => part.type === "file"),
+    supportedTypes,
+  );
+}
 
-  const addFiles = useEvent((newFiles: File[]) => {
+function validateAttachments(
+  files: { mediaType: string; filename?: string }[],
+  supportedTypes: readonly string[],
+): boolean {
+  const unsupported = files.filter(
+    (file) =>
+      !isSupportedAttachmentType(
+        getAttachmentMediaType(file.mediaType),
+        supportedTypes,
+      ),
+  );
+  if (unsupported.length > 0) {
+    toast({
+      title: "Unsupported attachment",
+      description: `These files are not supported by the selected model: ${unsupported.map((part) => part.filename || part.mediaType).join(", ")}`,
+      variant: "danger",
+    });
+    return false;
+  }
+  return true;
+}
+
+export function useFileState(supportedTypes?: readonly string[]) {
+  const [files, setFiles] = useState<File[]>([]);
+  const generation = useRef(0);
+  const pendingReads = useRef(0);
+  const [isReadingFiles, setIsReadingFiles] = useState(false);
+
+  const validateFileTypes = useEvent((filesToValidate: File[]): boolean => {
+    return (
+      !supportedTypes ||
+      validateAttachments(
+        filesToValidate.map((file) => ({
+          mediaType: file.type,
+          filename: file.name,
+        })),
+        supportedTypes,
+      )
+    );
+  });
+
+  const validateFiles = useEvent(
+    (filesToValidate: File[]): boolean =>
+      pendingReads.current === 0 && validateFileTypes(filesToValidate),
+  );
+
+  const addFiles = useEvent(async (newFiles: File[]) => {
     if (newFiles.length === 0) {
       return;
     }
@@ -237,14 +287,49 @@ export function useFileState() {
       return;
     }
 
-    setFiles((prev) => [...prev, ...newFiles]);
+    const currentGeneration = generation.current;
+    pendingReads.current += 1;
+    setIsReadingFiles(true);
+    try {
+      const normalizedFiles = supportedTypes
+        ? await Promise.all(newFiles.map(normalizeAttachment))
+        : newFiles;
+      if (
+        currentGeneration === generation.current &&
+        validateFileTypes(normalizedFiles)
+      ) {
+        setFiles((prev) => [...prev, ...normalizedFiles]);
+      }
+    } catch {
+      toast({
+        title: "Could not read attachments",
+        description: "Try selecting the files again.",
+        variant: "danger",
+      });
+    }
+    if (currentGeneration === generation.current) {
+      pendingReads.current -= 1;
+      setIsReadingFiles(pendingReads.current > 0);
+    }
   });
 
-  const clearFiles = () => setFiles([]);
+  const clearFiles = () => {
+    generation.current += 1;
+    pendingReads.current = 0;
+    setIsReadingFiles(false);
+    setFiles([]);
+  };
   const removeFile = (fileToRemove: File) =>
     setFiles((prev) => prev.filter((f) => f !== fileToRemove));
 
-  return { files, addFiles, clearFiles, removeFile };
+  return {
+    files,
+    addFiles,
+    clearFiles,
+    removeFile,
+    validateFiles,
+    isReadingFiles,
+  };
 }
 
 export type ChatMessagePart = UIMessage["parts"][number];
@@ -288,30 +373,41 @@ export function useMessageQueue() {
   const messagesRef = useRef<QueuedUserMessage[]>([]);
   const hasQueuedRef = useRef(false);
 
-  const enqueue = useEvent((parts: ChatMessagePart[]) => {
-    const next = [...messagesRef.current, { id: generateUUID(), parts }];
+  const updateQueue = useEvent((next: QueuedUserMessage[]) => {
     messagesRef.current = next;
-    hasQueuedRef.current = true;
+    hasQueuedRef.current = next.length > 0;
     setMessages(next);
   });
 
-  const flushNext = useEvent((send: (parts: ChatMessagePart[]) => void) => {
-    const queue = messagesRef.current;
-    if (queue.length === 0) {
-      return;
-    }
-    const [next, ...rest] = queue;
-    messagesRef.current = rest;
-    hasQueuedRef.current = rest.length > 0;
-    setMessages(rest);
-    send(next.parts);
+  const enqueue = useEvent((parts: ChatMessagePart[]) => {
+    updateQueue([...messagesRef.current, { id: generateUUID(), parts }]);
   });
+
+  const flushNext = useEvent(
+    (
+      send: (parts: ChatMessagePart[]) => void,
+      canSend?: (parts: ChatMessagePart[]) => boolean,
+    ) => {
+      const queue = messagesRef.current;
+      if (queue.length === 0) {
+        return;
+      }
+      const [next, ...rest] = queue;
+      if (canSend && !canSend(next.parts)) {
+        return;
+      }
+      updateQueue(rest);
+      send(next.parts);
+    },
+  );
 
   const clear = useEvent(() => {
-    messagesRef.current = [];
-    hasQueuedRef.current = false;
-    setMessages([]);
+    updateQueue([]);
   });
 
-  return { messages, enqueue, flushNext, clear, hasQueuedRef };
+  const remove = useEvent((id: string) => {
+    updateQueue(messagesRef.current.filter((message) => message.id !== id));
+  });
+
+  return { messages, enqueue, flushNext, clear, remove, hasQueuedRef };
 }
