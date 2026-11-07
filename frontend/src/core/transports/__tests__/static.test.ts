@@ -28,6 +28,7 @@ function snapshot(): StaticNotebookSnapshot {
     cells: events.flatMap((event) =>
       event.event === "cell" ? [event.data.cell] : [],
     ),
+    results: [],
   };
 }
 

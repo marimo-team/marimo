@@ -55,6 +55,7 @@ export function emptySnapshot(notebookId: string): StaticNotebookSnapshot {
       version: 1,
     },
     cells: [],
+    results: [],
   };
 }
 
