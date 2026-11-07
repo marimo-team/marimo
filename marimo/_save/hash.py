@@ -491,6 +491,30 @@ def _soft_items(
     return iterable_sign(encoded, label)
 
 
+def cell_bindings(code: types.CodeType) -> tuple[str, ...]:
+    """The cell-mangled names a code object and its nested code refer to.
+
+    The compiler stamps a cell-local name with its cell, so these carry a
+    notebook function's defining cell even when nothing else does, as for a
+    lambda.
+    """
+    names: set[str] = set()
+    stack = [code]
+    while stack:
+        current = stack.pop()
+        names.update(
+            name
+            for name in current.co_names + current.co_freevars
+            if unmangle_local(name).name != name
+        )
+        stack.extend(
+            const
+            for const in current.co_consts
+            if isinstance(const, types.CodeType)
+        )
+    return tuple(sorted(names))
+
+
 def hash_wrapped_functions(
     wrapped: Callable[..., Any],
     hash_type: str = DEFAULT_HASH,
