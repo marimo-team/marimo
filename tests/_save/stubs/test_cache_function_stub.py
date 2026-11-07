@@ -98,6 +98,7 @@ def test_manifest_round_trip() -> None:
         True,
         stub.flags,
         stub.qualname,
+        stub.code_qualname,
     )
     assert item.reference is None
 

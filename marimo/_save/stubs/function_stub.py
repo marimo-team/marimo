@@ -50,9 +50,11 @@ class FunctionStub:
         # same function `getsource` read: a decorator's wrapper may differ.
         self.flags = inspect.unwrap(function).__code__.co_flags & FUTURE_FLAGS
         # Restored at top level, the function would otherwise lose the class
-        # that keys it. From the code object: `functools.wraps` copies the
-        # function's qualname but not the code's.
-        self.qualname = function.__code__.co_qualname
+        # that keys it. Both names: `functools.wraps` copies the function's
+        # qualname, which pickling by reference needs, but not the code's,
+        # which keys it.
+        self.qualname = function.__qualname__
+        self.code_qualname = function.__code__.co_qualname
         if is_cached:
             # NB. keep the synthetic filename: the wrapper re-hashes its own
             # source per call, and the real path is absent on restore.
@@ -95,11 +97,11 @@ class FunctionStub:
             if inspect.isfunction(value):
                 value.__qualname__ = self.qualname
                 value.__code__ = value.__code__.replace(
-                    co_qualname=self.qualname
+                    co_qualname=self.code_qualname
                 )
             return value
 
-    def dump(self) -> tuple[str, str, int, bool, int, str]:
+    def dump(self) -> tuple[str, str, int, bool, int, str, str]:
         """Dump stored source code and metadata for lazy serialization."""
         return (
             self.code,
@@ -108,11 +110,12 @@ class FunctionStub:
             self.is_cached,
             self.flags,
             self.qualname,
+            self.code_qualname,
         )
 
     @classmethod
     def from_dump(
-        cls, data: tuple[str, str, int, bool, int, str]
+        cls, data: tuple[str, str, int, bool, int, str, str]
     ) -> FunctionStub:
         """Reconstruct a `FunctionStub` from a `dump()` tuple.
 
@@ -126,5 +129,6 @@ class FunctionStub:
             stub.is_cached,
             stub.flags,
             stub.qualname,
+            stub.code_qualname,
         ) = data
         return stub

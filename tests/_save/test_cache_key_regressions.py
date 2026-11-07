@@ -1386,3 +1386,59 @@ def test_source_less_set_constant_differs_from_bytes() -> None:
     in_set = eval("lambda x: x in {1, 2}")  # noqa: S307
     in_bytes = eval(f"lambda x: x in {members!r}")  # noqa: S307
     assert hash_wrapped_functions(in_set) != hash_wrapped_functions(in_bytes)
+
+
+async def test_identical_private_helpers_in_two_cells_key_apart() -> None:
+    def cell(value: int) -> str:
+        return (
+            f"_x = {value}\n"
+            "def _helper(n):\n    return _x if n == 0 else _helper(n - 1)\n"
+            f"cbs_{value} = [_helper]"
+        )
+
+    with mocked_kernel_session() as tk:
+        k = tk.kernel
+        await k.run(
+            [
+                command(0, "import marimo as mo"),
+                command(1, cell(1)),
+                command(2, cell(2)),
+                command(
+                    3,
+                    "@mo.cache\ndef f(cbs):\n    return cbs[0](2)\n"
+                    "r = (f(cbs_1), f(cbs_2))",
+                ),
+            ]
+        )
+        assert k.globals.get("r") == (1, 2)
+
+
+def test_restored_decorated_function_stays_picklable() -> None:
+    import pickle
+
+    from marimo._ast.compiler import compile_cell
+    from marimo._save.stubs.function_stub import FunctionStub
+
+    cell = compile_cell(
+        "import functools\n"
+        "def decorate(fn):\n    @functools.wraps(fn)\n"
+        "    def wrapped(*a):\n        return fn(*a)\n    return wrapped\n"
+        "@decorate\ndef operation(x):\n    return x",
+        cell_id=CellId_t("stub-decorated"),
+    )
+    namespace: dict[str, Any] = {"__name__": "__main__"}
+    exec(cell.body, namespace)  # noqa: S102
+    operation = namespace["operation"]
+    before = hash_wrapped_functions(operation)
+    # The decorator stays live and re-wraps the restored definition.
+    restored = FunctionStub(operation).load(namespace)
+    assert restored.__qualname__ == "operation"
+    namespace["operation"] = restored
+    import __main__
+
+    __main__.operation = restored  # type: ignore[attr-defined]
+    try:
+        assert pickle.loads(pickle.dumps(restored))(3) == 3
+    finally:
+        del __main__.operation  # type: ignore[attr-defined]
+    assert hash_wrapped_functions(restored) == before
