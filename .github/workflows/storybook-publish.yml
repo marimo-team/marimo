@@ -1,0 +1,145 @@
+name: Publish Storybook preview
+
+on:
+  workflow_run:
+    workflows: ['Build Storybook preview']
+    types: [completed]
+
+concurrency:
+  group: storybook-publish-${{ github.event.workflow_run.head_repository.full_name }}-${{ github.event.workflow_run.head_branch }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      actions: read
+      pull-requests: write
+    steps:
+      - name: Check publishing configuration
+        id: configuration
+        env:
+          CHROMATIC_PROJECT_TOKEN: ${{ secrets.CHROMATIC_PROJECT_TOKEN }}
+        run: |
+          if [[ -n "$CHROMATIC_PROJECT_TOKEN" ]]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Publishing is disabled. Add the CHROMATIC_PROJECT_TOKEN repository secret to enable Storybook previews." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Resolve current pull request
+        if: steps.configuration.outputs.enabled == 'true'
+        id: pr
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
+        with:
+          script: |
+            const run = context.payload.workflow_run;
+            const eventPulls = run.pull_requests ?? [];
+            let pulls;
+            if (eventPulls.length === 1) {
+              const { data: pr } = await github.rest.pulls.get({
+                ...context.repo,
+                pull_number: eventPulls[0].number,
+              });
+              pulls = [pr];
+            } else if (eventPulls.length > 1) {
+              core.notice('Skipping preview: the workflow run is associated with multiple pull requests.');
+              return;
+            } else {
+              // Fork workflow runs can have an empty pull_requests array.
+              pulls = await github.paginate(github.rest.repos.listPullRequestsAssociatedWithCommit, {
+                ...context.repo,
+                commit_sha: run.head_sha,
+              });
+            }
+            const candidates = pulls.filter(pr =>
+              pr.state === 'open' &&
+              pr.base.repo.full_name === context.payload.repository.full_name &&
+              pr.head.repo?.full_name === run.head_repository.full_name &&
+              pr.head.ref === run.head_branch &&
+              pr.head.sha === run.head_sha
+            );
+            if (candidates.length !== 1) {
+              core.notice('Skipping preview: no unique current pull request matches this workflow run.');
+              return;
+            }
+            const [pr] = candidates;
+            core.setOutput('number', pr.number);
+            core.setOutput('sha', pr.head.sha);
+            core.setOutput('branch', pr.head.repo.full_name === pr.base.repo.full_name
+              ? pr.head.ref
+              : `${pr.head.repo.owner.login}:${pr.head.ref}`);
+
+      # Only default-branch code is checked out in this privileged workflow.
+      # The PR artifact is downloaded separately and is never executed here.
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        if: steps.pr.outputs.number != ''
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          fetch-depth: 0
+          persist-credentials: false
+          path: source
+
+      - name: Fetch PR commit metadata
+        if: steps.pr.outputs.number != ''
+        working-directory: source
+        env:
+          PR_NUMBER: ${{ steps.pr.outputs.number }}
+        run: git fetch origin "refs/pull/$PR_NUMBER/head"
+
+      - uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
+        if: steps.pr.outputs.number != ''
+        with:
+          name: storybook-preview
+          path: preview
+          github-token: ${{ github.token }}
+          run-id: ${{ github.event.workflow_run.id }}
+
+      - name: Publish to Chromatic
+        if: steps.pr.outputs.number != ''
+        id: chromatic
+        uses: chromaui/action@38afd264ef2241136f12d039093c2724748bec08 # v18.11.0
+        with:
+          projectToken: ${{ secrets.CHROMATIC_PROJECT_TOKEN }}
+          workingDir: source/frontend
+          storybookBuildDir: ../../preview
+          chromaticSha: ${{ steps.pr.outputs.sha }}
+          branchName: ${{ steps.pr.outputs.branch }}
+          repositorySlug: ${{ github.repository }}
+          exitOnceUploaded: true
+
+      - name: Update preview link
+        if: steps.chromatic.outputs.storybookUrl != ''
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
+        env:
+          PR_NUMBER: ${{ steps.pr.outputs.number }}
+          PR_SHA: ${{ steps.pr.outputs.sha }}
+          STORYBOOK_URL: ${{ steps.chromatic.outputs.storybookUrl }}
+        with:
+          script: |
+            const number = Number(process.env.PR_NUMBER);
+            const { data: pr } = await github.rest.pulls.get({ ...context.repo, pull_number: number });
+            if (pr.state !== 'open' || pr.head.sha !== process.env.PR_SHA) {
+              core.notice('Skipping comment for a closed or outdated pull request.');
+              return;
+            }
+            const marker = '<!-- marimo-storybook-preview -->';
+            const body = `${marker}\n[Inspect the Storybook preview](${process.env.STORYBOOK_URL})\n\nBuilt from \`${process.env.PR_SHA}\`.`;
+            const comments = await github.paginate(github.rest.issues.listComments, {
+              ...context.repo, issue_number: number,
+            });
+            const existing = comments.find(comment =>
+              comment.user.login === 'github-actions[bot]' && comment.body?.startsWith(marker)
+            );
+            if (existing) {
+              await github.rest.issues.updateComment({ ...context.repo, comment_id: existing.id, body });
+            } else {
+              await github.rest.issues.createComment({ ...context.repo, issue_number: number, body });
+            }
+            await core.summary.addLink('Storybook preview', process.env.STORYBOOK_URL).write();
