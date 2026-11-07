@@ -1295,6 +1295,9 @@ def _reloaded_pair(tmp_path: Path, name: str, before: str, after: str) -> Any:
     import shutil
     import sys
 
+    # A name of its own per call: a module left in sys.modules would be
+    # returned by the next import instead of the newly written source.
+    name = f"{name}_{abs(hash((before, after)))}"
     module = tmp_path / f"{name}.py"
     module.write_text(before)
     sys.path.insert(0, str(tmp_path))
@@ -1305,6 +1308,7 @@ def _reloaded_pair(tmp_path: Path, name: str, before: str, after: str) -> Any:
         new = importlib.reload(sys.modules[name]).cb
     finally:
         sys.path.remove(str(tmp_path))
+        sys.modules.pop(name, None)
     return old, new
 
 
@@ -1326,6 +1330,10 @@ def _reloaded_pair(tmp_path: Path, name: str, before: str, after: str) -> Any:
             "def cb(obj):\n    return obj._B__value\n",
         ),
         (
+            "def cb(obj):\n    return obj._A__value\n",
+            "def cb(obj):\n    return obj.__value\n",
+        ),
+        (
             "x = 42\n\n\ndef cb():\n    x: int\n    return x\n",
             "x = 42\n\n\ndef cb():\n    return x\n",
         ),
@@ -1338,6 +1346,7 @@ def _reloaded_pair(tmp_path: Path, name: str, before: str, after: str) -> Any:
         "protected-range",
         "docstring",
         "explicit-mangled-attribute",
+        "explicit-to-private-attribute",
         "annotated-local",
         "docstring-slot",
     ],
@@ -1366,3 +1375,14 @@ def test_wrapped_methods_of_different_classes_are_distinct() -> None:
             return obj.__value
 
     assert hash_wrapped_functions(A.read) != hash_wrapped_functions(B.read)
+
+
+def test_source_less_set_constant_differs_from_bytes() -> None:
+    from marimo._save.encode import iterable_sign, primitive_to_bytes
+
+    members = iterable_sign(
+        sorted(primitive_to_bytes(m) for m in (1, 2)), "frozenset"
+    )
+    in_set = eval("lambda x: x in {1, 2}")  # noqa: S307
+    in_bytes = eval(f"lambda x: x in {members!r}")  # noqa: S307
+    assert hash_wrapped_functions(in_set) != hash_wrapped_functions(in_bytes)

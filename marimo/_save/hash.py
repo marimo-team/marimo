@@ -84,36 +84,40 @@ class SerialRefs(NamedTuple):
 def _code_object_bytes(code: types.CodeType) -> bytes:
     """Encode a code object that has no source, such as one built by eval."""
 
-    def constant(value: Any) -> Any:
+    def constant(value: Any) -> bytes:
+        # Every constant is framed by type, so a folded set literal cannot
+        # read as a bytes literal holding the same encoding.
         if isinstance(value, types.CodeType):
-            return _code_object_bytes(value)
+            return type_sign(_code_object_bytes(value), "code")
         if isinstance(value, frozenset):
-            # A folded set literal. Its iteration order follows the hash seed.
-            return iterable_sign(
-                sorted(primitive_to_bytes(constant(m)) for m in value),
-                "frozenset",
-            )
+            # Its iteration order follows the hash seed.
+            return iterable_sign(sorted(map(constant, value)), "frozenset")
         if isinstance(value, tuple):
-            return tuple(map(constant, value))
+            return iterable_sign(map(constant, value), "tuple")
         if isinstance(value, slice):
             # Python 3.14 folds a constant slice.
             return type_sign(
                 primitive_to_bytes((value.start, value.stop, value.step)),
                 "slice",
             )
-        return value
+        return type_sign(primitive_to_bytes(value), "const")
 
-    return primitive_to_bytes(
+    return iterable_sign(
         (
-            code.co_name,
-            code.co_argcount,
-            code.co_kwonlyargcount,
-            code.co_names,
-            code.co_varnames,
-            code.co_freevars,
-            constant(code.co_consts),
+            primitive_to_bytes(
+                (
+                    code.co_name,
+                    code.co_argcount,
+                    code.co_kwonlyargcount,
+                    code.co_names,
+                    code.co_varnames,
+                    code.co_freevars,
+                )
+            ),
+            iterable_sign(map(constant, code.co_consts), "consts"),
             code.co_code,
-        )
+        ),
+        "code",
     )
 
 
@@ -151,18 +155,14 @@ _Shape = tuple[tuple[tuple[str, str], ...], ...]
 _PROLOGUE = frozenset(
     {"RESUME", "MAKE_CELL", "COPY_FREE_VARS", "PUSH_NULL", "NOP", "CACHE"}
 )
+# A free variable of a nested definition is a global of the same definition
+# compiled on its own. Nothing else about binding is folded: a local stays a
+# local, and `global x; x = 1` differs from `x = 1`.
 _VARIABLE_OPS = {
-    "LOAD": (
-        "LOAD_GLOBAL",
-        "LOAD_DEREF",
-        "LOAD_FAST",
-        "LOAD_NAME",
-        "LOAD_CLOSURE",
-        "LOAD_FROM_DICT_OR_DEREF",
-    ),
-    # Not the GLOBAL forms: `global x; x = 1` and `x = 1` run differently.
-    "STORE": ("STORE_DEREF", "STORE_FAST", "STORE_NAME"),
-    "DELETE": ("DELETE_DEREF", "DELETE_FAST", "DELETE_NAME"),
+    "LOAD_NONLOCAL": ("LOAD_GLOBAL", "LOAD_DEREF"),
+    "LOAD_FAST": ("LOAD_FAST",),
+    "STORE": ("STORE_DEREF", "STORE_FAST"),
+    "DELETE": ("DELETE_DEREF", "DELETE_FAST"),
 }
 _NULL_PREFIX = re.compile(r"^(NULL\|self|NULL) \+ ")
 
@@ -171,41 +171,50 @@ def _bare_name(name: str) -> str:
     return unmangle_local(name).name
 
 
-_MANGLED = re.compile(r"^_([A-Za-z0-9_]+?)__\w")
 _PRIVATE = re.compile(r"^__\w+(?<!__)$")
 
 
-def _shapes_match(live: _Shape, standalone: _Shape) -> bool:
+def _enclosing_class(code: types.CodeType) -> str | None:
+    """The class a definition was compiled in, as its mangling prefix."""
+    parts = code.co_qualname.split(".")[:-1]
+    for i in range(len(parts) - 1, -1, -1):
+        if parts[i] == "<locals>":
+            # Beyond the nearest function, a class no longer mangles.
+            return None
+        if i + 1 < len(parts) and parts[i + 1] == "<locals>":
+            continue
+        return unmangle_local(parts[i]).name.lstrip("_") or None
+    return None
+
+
+def _shapes_match(
+    live: _Shape, standalone: _Shape, code: types.CodeType
+) -> bool:
     """Whether `standalone`, compiled outside any class, is `live`.
 
     Inside a class, `__attr` compiles to `_Class__attr`. The standalone
-    copy keeps `__attr`, so it is mangled with each class prefix the live
-    code shows before comparing. A name written as `_A__attr` in source is
-    left alone on both sides.
+    copy keeps `__attr`, so when the live code was compiled in a class it
+    is mangled with that class before comparing. A name written as
+    `_A__attr` in source is left alone on both sides.
     """
     if live == standalone:
         return True
-    prefixes = {
-        m.group(1)
-        for stream in live
-        for _, arg in stream
-        for token in arg.split(", ")
-        if (m := _MANGLED.match(token))
-    }
+    prefix = _enclosing_class(code)
+    if prefix is None:
+        return False
 
-    def mangle(arg: str, prefix: str) -> str:
+    def mangle(arg: str) -> str:
         return ", ".join(
             f"_{prefix}{token}" if _PRIVATE.match(token) else token
             for token in arg.split(", ")
         )
 
-    return any(
+    return (
         tuple(
-            tuple((op, mangle(arg, prefix)) for op, arg in stream)
+            tuple((op, mangle(arg)) for op, arg in stream)
             for stream in standalone
         )
         == live
-        for prefix in prefixes
     )
 
 
@@ -283,7 +292,9 @@ def _instructions(code: types.CodeType) -> tuple[tuple[str, str], ...]:
             )
         ),
     )
-    return (signature, constants, *handlers) + tuple(
+    # The first slot holds the docstring, and no instruction loads it.
+    first = ("DOC", _const_key(code.co_consts[0]) if code.co_consts else "")
+    return (signature, first, constants, *handlers) + tuple(
         (op, index_of(target) if target is not None else arg)
         for op, arg, _, target in kept
     )
@@ -431,7 +442,9 @@ def hash_function_source(fn: Callable[..., Any]) -> bytes:
         # lambda away, as in `lambda: True or (lambda: 2)`.
         return fallback()
     standalone = _node_shape(index, nodes[0], code)
-    if standalone is None or not _shapes_match(_code_shape(code), standalone):
+    if standalone is None or not _shapes_match(
+        _code_shape(code), standalone, code
+    ):
         # The file no longer holds the code this function runs: a module
         # reloaded while this object stayed alive, or a different optimize
         # level than the interpreter's.
