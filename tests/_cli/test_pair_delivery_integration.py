@@ -10,6 +10,7 @@ import threading
 import time
 import urllib.request
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import msgspec
 import pytest
@@ -21,7 +22,11 @@ from marimo._cli.pair.client import iter_sse, open_events, resolve_host
 from marimo._cli.pair.connection import ConnectionStore, connection_identity
 from marimo._cli.pair.delivery import DeliveryTarget, ProcessHandle
 from marimo._cli.pair.forwarder import ForwarderConfig
+from marimo._cli.pair.harnesses.codex import CodexHarness
 from tests._cli._pair_server import pair_test_server
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
 
 
 def wait_messages(path: Path, count: int) -> list[dict[str, str]]:
@@ -68,6 +73,28 @@ def test_detached_delivery_replacement_and_files(
     store = ConnectionStore(tmp_path / "state" / "connections-v1")
     monkeypatch.setattr(commands, "ConnectionStore", lambda: store)
     owner = ProcessHandle.capture(os.getpid())
+    original_detect = CodexHarness.detect
+
+    def detect(
+        self: CodexHarness,
+        env: Mapping[str, str],
+        *,
+        process: ProcessHandle | None = None,
+        check_ready: bool = True,
+    ) -> DeliveryTarget | None:
+        return original_detect(
+            self, env, process=process or owner, check_ready=check_ready
+        )
+
+    monkeypatch.setattr(CodexHarness, "detect", detect)
+    for key in (
+        "CLAUDE_PID",
+        "CLAUDE_CODE_MESSAGING_SOCKET",
+        "CLAUDE_CODE_MESSAGING_TOKEN",
+        "OPENCODE_TERMINAL",
+        "OPENCODE",
+    ):
+        monkeypatch.delenv(key, raising=False)
     runner = CliRunner()
     records = []
     with pair_test_server(tmp_path) as server:
@@ -77,18 +104,39 @@ def test_detached_delivery_replacement_and_files(
             "--notebook",
             server.notebook_id,
         ]
-        connection_arguments = [
-            *arguments,
-            "--harness",
-            "codex",
-            "--pid",
-            str(owner.pid),
-        ]
         try:
-            for thread in ("first", "second"):
+            for thread, selection in (
+                ("first", ["--session", server.notebook_id]),
+                (
+                    "second",
+                    [
+                        "--url",
+                        server.url,
+                        "--session",
+                        server.stable_session_id,
+                    ],
+                ),
+            ):
+                connection_arguments = [
+                    *selection,
+                    "--harness",
+                    "codex",
+                    "--pid",
+                    str(owner.pid),
+                ]
                 monkeypatch.setenv("CODEX_SESSION_ID", thread)
+                automatic = [
+                    "pair",
+                    "execute",
+                    *selection,
+                    "--code",
+                    "print('automatic')",
+                ]
                 result = runner.invoke(
-                    cli_main, ["pair", "connect", *connection_arguments]
+                    cli_main,
+                    automatic
+                    if thread == "first"
+                    else ["pair", "connect", *connection_arguments],
                 )
                 assert result.exit_code == 0, result.output
                 record = store.load(
@@ -101,6 +149,11 @@ def test_detached_delivery_replacement_and_files(
                 )
                 assert record.forwarder.alive()
                 records.append(record)
+                if thread == "first":
+                    again = runner.invoke(cli_main, automatic)
+                    assert again.exit_code == 0, again.output
+                    assert json.loads(again.stdout)["stdout"] == "automatic\n"
+                    assert store.load(record.identity) == record
 
             def send(payload: object) -> None:
                 request = urllib.request.Request(

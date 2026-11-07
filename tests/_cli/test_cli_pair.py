@@ -8,7 +8,6 @@ import sys
 from pathlib import Path
 from typing import Any
 from unittest.mock import patch
-from urllib.parse import urlsplit
 
 import pytest
 from click.testing import CliRunner
@@ -19,7 +18,6 @@ from marimo._cli.pair import commands, target
 from marimo._cli.pair.client import (
     AmbiguousNotebookError,
     ExecutionResult,
-    HostEndpoint,
     NoNotebookError,
     NotebookUnsupportedError,
     PairError,
@@ -35,13 +33,19 @@ TEST_URL = "https://localhost:8000?auth=tok123"
 
 @pytest.fixture(autouse=True)
 def _isolate_pair_command(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        commands, "ensure_connection", lambda *_args, **_kwargs: None
+    )
+
     def resolve(
         *,
         url: str | None,
         session_id: str | None,
         notebook_id: str | None,
         token: str | None,
+        require_notebook: bool = False,
     ) -> ExecutionTarget:
+        del require_notebook
         assert url is not None
         selected_id = notebook_id or session_id
         assert selected_id is not None
@@ -49,16 +53,6 @@ def _isolate_pair_command(monkeypatch: pytest.MonkeyPatch) -> None:
 
     monkeypatch.setattr(commands, "resolve_target", resolve)
     monkeypatch.delenv("MARIMO_TOKEN", raising=False)
-    monkeypatch.setattr(
-        commands,
-        "resolve_host",
-        lambda url: HostEndpoint(
-            urlsplit(url)
-            ._replace(path=urlsplit(url).path.rstrip("/") + "/api/marimo/v1")
-            .geturl(),
-            "host-secret",
-        ),
-    )
 
 
 class TestPairGroup:
@@ -80,9 +74,7 @@ Usage: main pair [OPTIONS] COMMAND [ARGS]...
   Workflow:
     Start a notebook if needed:
       marimo edit <notebook.py>
-    Find running local notebooks:
-      marimo pair list
-    Execute using an ID from the list:
+    Execute in the selected notebook:
       marimo pair execute --session <ID> --code 'print("hello")'
     For multiline Python, use --file <PATH>, or --file - for stdin:
       marimo pair execute --session <ID> --file - <<'PY'
@@ -91,12 +83,10 @@ Usage: main pair [OPTIONS] COMMAND [ARGS]...
           for cell in ctx.cells.values():
               print(cell.id, cell.code, cell.status)
       PY
-    To receive notebook messages in a supported harness:
-      marimo pair connect --url <URL> --notebook <ID>
-    Run marimo pair connect --help to check supported harnesses.
 
   Target selection:
-    --session accepts a notebook ID from pair list, or an existing session ID.
+    Use `marimo pair list` if you need to find the notebook ID.
+    --session accepts a notebook ID or an existing stable session ID.
     Local notebook IDs resolve their URL automatically. Existing session IDs
     require --url. --notebook remains an alias for notebook IDs.
     With either selector, --url restricts discovery to that server.
@@ -106,11 +96,13 @@ Usage: main pair [OPTIONS] COMMAND [ARGS]...
     or when execution is unconfirmed.
 
   Agent messages (preview):
-    Inside Codex, Claude Code, or OpenCode, run:
-      marimo pair connect --url <URL> --notebook <NOTEBOOK>.
+    Execute automatically attempts an inbox connection in supported harnesses.
+    After identifying the notebook and conversation, setup is attempted once per owner process.
+    In a supported harness, retry once. If it fails, continue without messaging:
+      marimo pair connect --session <ID>
     Codex must use its shared daemon and support codex queue.
     Claude Code requires its native inbox on macOS or Linux.
-    OpenCode 2.x requires its registered local service.
+    OpenCode 2.0 requires its registered local service.
     Inbound message settings still apply; messages can be held or refused.
     Notebook agent messages arrive here as messages from marimo.
     Oversized agent messages include a complete JSON file on this machine.
@@ -182,12 +174,10 @@ Usage: main pair execute [OPTIONS]
   Run Python in the selected live notebook kernel's scratchpad.
 
 Options:
-  --url URL                     Restrict notebook discovery and execution to
-                                this server.
+  --url URL                     Restrict notebook selection to this server.
   --notebook ID                 Alias for --session when selecting a notebook
                                 ID.
-  --session ID                  Notebook ID from pair list, or an existing
-                                session ID.
+  --session ID                  Notebook ID or existing stable session ID.
   --token TEXT                  Server token. Overrides MARIMO_TOKEN and local
                                 discovery.
   --token-file PATH             Read the server token from a local file.
@@ -795,6 +785,7 @@ Options:
         assert resolve_calls == [
             {
                 "url": "http://one",
+                "require_notebook": False,
                 "token": None,
                 "session_id": None,
                 "notebook_id": None,
@@ -1502,6 +1493,7 @@ def test_execute_credential_precedence(
     assert calls == [
         {
             "url": None,
+            "require_notebook": False,
             "session_id": "nb-one",
             "notebook_id": None,
             "token": {

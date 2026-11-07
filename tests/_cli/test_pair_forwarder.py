@@ -22,7 +22,6 @@ from marimo._cli.cli import main as cli_main
 from marimo._cli.pair import commands, forwarder
 from marimo._cli.pair.artifacts import AgentMessageFiles
 from marimo._cli.pair.client import (
-    HostEndpoint,
     PairConnectionError,
     PairError,
     SSEEvent,
@@ -31,6 +30,7 @@ from marimo._cli.pair.client import (
 from marimo._cli.pair.connection import ConnectionStore, connection_identity
 from marimo._cli.pair.delivery import DeliveryTarget, ProcessHandle
 from marimo._cli.pair.forwarder import ForwarderConfig, run_forwarder
+from marimo._cli.pair.target import ExecutionTarget
 from tests._cli.test_pair_delivery import record
 
 if TYPE_CHECKING:
@@ -348,8 +348,10 @@ def isolated_cli(
     monkeypatch.setenv("CODEX_SESSION_ID", "thread")
     monkeypatch.setattr(
         commands,
-        "resolve_host",
-        lambda _: HostEndpoint("http://server/api/marimo/v1", "host-token"),
+        "resolve_target",
+        lambda **_: ExecutionTarget(
+            "http://server", "s_one", "host-token", "s_one"
+        ),
     )
     store = ConnectionStore(tmp_path)
     monkeypatch.setattr(commands, "ConnectionStore", lambda: store)
@@ -362,14 +364,15 @@ def test_connect_and_detach_lifecycle(
     owner = ProcessHandle.capture(os.getpid())
     target = DeliveryTarget("codex", "thread", "Codex", process=owner)
     harness = Mock()
+    harness.detect.return_value = target
     check = Mock()
     monkeypatch.setattr(harness, "check", check)
     monkeypatch.setattr(
-        commands, "detect_target", lambda *_: (harness, target)
+        forwarder, "detect_target", lambda *_args, **_kwargs: (harness, target)
     )
     start = Mock(return_value=record(owner))
     stop = Mock()
-    monkeypatch.setattr(commands, "start_forwarder", start)
+    monkeypatch.setattr(forwarder, "start_forwarder", start)
     monkeypatch.setattr(ProcessHandle, "stop", stop)
     previous = record(owner)
     isolated_cli.save(previous)
@@ -550,3 +553,107 @@ def test_reset_replaces_attachment_without_second_ready(
     run_forwarder(config, inbox, ready=ready)
     ready.assert_called_once()
     assert inbox.messages[0].endswith('{"opaque": [1, null]}')
+
+
+@pytest.mark.parametrize(
+    "selector",
+    [
+        ["--session", "nb-one"],
+        ["--notebook", "nb-one"],
+        ["--url", "http://server/base"],
+        ["--url", "http://server/base", "--session", "sess-one"],
+    ],
+)
+@pytest.mark.parametrize(
+    "credential", ["discovery", "token", "file", "environment"]
+)
+@pytest.mark.usefixtures("isolated_cli")
+def test_connect_target_options(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    selector: list[str],
+    credential: str,
+) -> None:
+    owner = ProcessHandle.capture(os.getpid())
+    delivery = DeliveryTarget("codex", "thread", "Codex", process=owner)
+    adapter = Mock()
+    adapter.detect.return_value = delivery
+    monkeypatch.setattr(
+        forwarder,
+        "detect_target",
+        lambda *_args, **_kwargs: (adapter, delivery),
+    )
+    options: list[str] = []
+    expected_token = None
+    monkeypatch.delenv("MARIMO_TOKEN", raising=False)
+    if credential == "token":
+        options = ["--token", "explicit"]
+        expected_token = "explicit"
+        monkeypatch.setenv("MARIMO_TOKEN", "environment")
+    elif credential == "file":
+        path = tmp_path / "token"
+        path.write_text("from-file")
+        options = ["--token-file", str(path)]
+        expected_token = "from-file"
+    elif credential == "environment":
+        monkeypatch.setenv("MARIMO_TOKEN", "environment")
+        expected_token = "environment"
+    resolve = Mock(
+        return_value=ExecutionTarget(
+            "http://server/base",
+            "sess-one",
+            expected_token or "private",
+            "nb-one",
+        )
+    )
+    start = Mock()
+    monkeypatch.setattr(commands, "resolve_target", resolve)
+    monkeypatch.setattr(forwarder, "start_forwarder", start)
+    result = CliRunner().invoke(
+        cli_main, ["pair", "connect", *selector, *options]
+    )
+    assert result.exit_code == 0, result.output
+    assert resolve.call_args.kwargs["require_notebook"] is True
+    assert resolve.call_args.kwargs["token"] == expected_token
+    flags = dict(zip(selector[::2], selector[1::2], strict=True))
+    assert resolve.call_args.kwargs["url"] == flags.get("--url")
+    assert resolve.call_args.kwargs["session_id"] == flags.get("--session")
+    assert resolve.call_args.kwargs["notebook_id"] == flags.get("--notebook")
+    config = start.call_args.args[0]
+    assert config.notebook == "nb-one"
+    assert config.url == "http://server/base/api/marimo/v1"
+    assert config.token == (expected_token or "private")
+    assert config.token not in result.output
+
+
+@pytest.mark.parametrize(
+    ("options", "error"),
+    [
+        ([], "Pass --session"),
+        (["--session", ""], "must not be empty"),
+        (["--session", "one", "--notebook", "two"], "not both"),
+        (["--session", "one", "--token", ""], "token must not be empty"),
+        (
+            [
+                "--session",
+                "one",
+                "--token",
+                "secret",
+                "--token-file",
+                "unused",
+            ],
+            "not both",
+        ),
+    ],
+)
+def test_connect_rejects_invalid_options_before_starting(
+    monkeypatch: pytest.MonkeyPatch,
+    options: list[str],
+    error: str,
+) -> None:
+    start = Mock()
+    monkeypatch.setattr(forwarder, "start_forwarder", start)
+    result = CliRunner().invoke(cli_main, ["pair", "connect", *options])
+    assert result.exit_code != 0
+    assert error.lower() in result.output.lower()
+    start.assert_not_called()
