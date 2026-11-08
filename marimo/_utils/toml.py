@@ -24,12 +24,7 @@ class TomlReader:
     def read(self, file_path: str | Path) -> dict[str, Any]:
         """Read and parse a TOML file."""
         with open(file_path, "rb") as file:
-            try:
-                return self._load(file)
-            except UnicodeDecodeError as e:
-                raise tomllib.TOMLDecodeError(
-                    f"Failed to decode TOML file as UTF-8: {e}"
-                ) from e
+            return self._load(file)
 
     def reads(self, s: str) -> dict[str, Any]:
         """Read and parse a TOML string."""

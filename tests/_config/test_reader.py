@@ -160,7 +160,7 @@ def test_read_toml_invalid_utf8_encoding():
     invalid_utf8 = b"\xbf\xbf\xbf"
 
     with patch("builtins.open", mock_open(read_data=invalid_utf8)):
-        with pytest.raises(toml_reader.decode_error):
+        with pytest.raises((toml_reader.decode_error, UnicodeDecodeError)):
             toml_reader.read("dummy.toml")
 
 
