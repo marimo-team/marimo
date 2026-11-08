@@ -34,6 +34,7 @@ class ConsoleMsg:
     run_id: str | None = field(default_factory=lambda: RUN_ID_CTX.get(None))
     execution_id: str | None = None
     code: str | None = None
+    input_id: str | None = None
 
     def __post_init__(self) -> None:
         if self.execution_id is None:
@@ -56,6 +57,7 @@ def _write_console_output(
     run_id: str | None = None,
     execution_id: str | None = None,
     code: str | None = None,
+    input_id: str | None = None,
 ) -> None:
     from marimo._messaging.notification import CellNotification
     from marimo._messaging.notification_utils import broadcast_notification
@@ -70,6 +72,7 @@ def _write_console_output(
                 mimetype=mimetype,
                 data=data,
                 code=code if code is not None else msgspec.UNSET,
+                input_id=input_id if input_id is not None else msgspec.UNSET,
             ),
         ),
         stream,
@@ -83,6 +86,7 @@ def _can_merge_outputs(first: ConsoleMsg, second: ConsoleMsg) -> bool:
         and first.run_id == second.run_id
         and first.execution_id == second.execution_id
         and first.code == second.code
+        and first.input_id == second.input_id
     )
 
 
@@ -115,6 +119,7 @@ def _flush_outputs(
                 output.run_id,
                 output.execution_id,
                 output.code,
+                output.input_id,
             )
     outputs_buffered_per_cell.clear()
 

@@ -4,6 +4,7 @@ from __future__ import annotations
 import contextlib
 import io
 import os
+import queue
 import sys
 import threading
 from collections import deque
@@ -11,6 +12,7 @@ from typing import (
     TYPE_CHECKING,
     Protocol,
 )
+from uuid import uuid4
 
 from marimo import _loggers
 from marimo._messaging.cell_output import CellChannel
@@ -19,6 +21,7 @@ from marimo._messaging.console_output_worker import (
     FlushMarker,
     buffered_writer,
 )
+from marimo._messaging.input import InputReply, require_active_execution
 from marimo._messaging.mimetypes import ConsoleMimeType
 from marimo._messaging.types import (
     KernelMessage,
@@ -103,7 +106,7 @@ class ThreadSafeStream(Stream):
     def __init__(
         self,
         pipe: PipeProtocol,
-        input_queue: QueueType[str],
+        input_queue: QueueType[str | InputReply],
         redirect_console: bool,
         cell_id: CellId_t | None = None,
     ):
@@ -128,6 +131,7 @@ class ThreadSafeStream(Stream):
 
         # stdin messages are pulled from this queue
         self.input_queue = input_queue
+        self.input_lock = threading.Lock()
 
     def write(self, data: KernelMessage) -> None:
         # The interrupt handler also writes to this stream. Finish the send
@@ -155,6 +159,7 @@ class ThreadSafeStream(Stream):
             redirect_console=False,
             cell_id=self.cell_id,
         )
+        stream.input_lock = self.input_lock
         # The parent stream and thread copy write to the same pipe. Share the
         # transport lock so pipe.send() remains serialized across both views.
         stream.stream_lock = self.stream_lock
@@ -455,6 +460,11 @@ class ThreadSafeStdin(Stdin):
         self, prompt: str = "", password: bool = False
     ) -> str:
         """Read input from the standard in stream, with an optional prompt."""
+        with self._stream.input_lock:
+            return self._read_input(prompt, password)
+
+    def _read_input(self, prompt: str, password: bool) -> str:
+        require_active_execution()
         assert self._stream.cell_id is not None
         if not isinstance(prompt, str):
             raise TypeError(
@@ -469,6 +479,7 @@ class ThreadSafeStdin(Stdin):
                 + " ... "
             )
 
+        input_id = str(uuid4())
         mimetype: ConsoleMimeType = (
             "text/password" if password else "text/plain"
         )
@@ -480,11 +491,21 @@ class ThreadSafeStdin(Stdin):
                     cell_id=self._stream.cell_id,
                     data=prompt,
                     mimetype=mimetype,
+                    input_id=input_id,
                 )
             )
             self._stream.console_msg_cv.notify()
 
-        return self._stream.input_queue.get()
+        while True:
+            require_active_execution()
+            try:
+                reply = self._stream.input_queue.get(timeout=0.1)
+            except queue.Empty:
+                continue
+            if isinstance(reply, str):
+                return reply
+            if reply.input_id == input_id:
+                return reply.value
 
 
 @contextlib.contextmanager

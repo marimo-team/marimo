@@ -4,11 +4,13 @@ from __future__ import annotations
 import asyncio
 import sys
 from typing import TYPE_CHECKING
+from uuid import uuid4
 
 import msgspec
 
 from marimo import _loggers
 from marimo._messaging.cell_output import CellOutput
+from marimo._messaging.input import InputReply, require_active_execution
 from marimo._messaging.mimetypes import ConsoleMimeType
 from marimo._messaging.notification import CellNotification
 from marimo._messaging.notification_utils import broadcast_notification
@@ -34,7 +36,7 @@ class PyodideStream(Stream):
     def __init__(
         self,
         pipe: Callable[[KernelMessage], None],
-        input_queue: asyncio.Queue[str],
+        input_queue: asyncio.Queue[str | InputReply],
         cell_id: CellId_t | None = None,
     ):
         self.pipe = pipe
@@ -170,6 +172,7 @@ class PyodideStdin(Stdin):
         self, prompt: str = "", password: bool = False
     ) -> str:
         """Read input from the standard in stream, with an optional prompt."""
+        require_active_execution()
         assert self.stream.cell_id is not None
         if not isinstance(prompt, str):
             raise TypeError(
@@ -183,16 +186,25 @@ class PyodideStdin(Stdin):
                 + " ... "
             )
 
+        input_id = str(uuid4())
         broadcast_notification(
             CellNotification(
                 cell_id=self.stream.cell_id,
-                console=CellOutput.stdin(prompt, password=password),
+                console=CellOutput.stdin(
+                    prompt, password=password, input_id=input_id
+                ),
             ),
             self.stream,
         )
 
-        return self._get_response()
+        return self._get_response(input_id)
 
-    def _get_response(self) -> str:
+    def _get_response(self, input_id: str) -> str:
         loop = asyncio.get_event_loop()
-        return loop.run_until_complete(self.stream.input_queue.get())
+        while True:
+            require_active_execution()
+            reply = loop.run_until_complete(self.stream.input_queue.get())
+            if isinstance(reply, str):
+                return reply
+            if reply.input_id == input_id:
+                return reply.value

@@ -281,7 +281,7 @@ class SessionView:
             )
         )
 
-    def add_stdin(self, stdin: str) -> None:
+    def add_stdin(self, stdin: str, *, input_id: str | None = None) -> None:
         self._touch()
 
         """Add a stdin request to the session view."""
@@ -289,6 +289,8 @@ class SessionView:
         for cell_notif in self.cell_notifications.values():
             console_outputs: list[CellOutput] = as_list(cell_notif.console)
             for cell_output in console_outputs:
+                if input_id is not None and cell_output.input_id != input_id:
+                    continue
                 if cell_output.channel == CellChannel.STDIN:
                     cell_output.channel = CellChannel.STDOUT
                     if cell_output.mimetype == "text/password":

@@ -47,7 +47,7 @@ def pyodide_stderr(pyodide_: PyodideStream) -> PyodideStderr:
 def pyodide_stdin(pyodide_: PyodideStream) -> PyodideStdin:
     # bridge.ts -> put_input sends raw user text; readline() adds the "\n".
     stdin = PyodideStdin(pyodide_)
-    stdin._get_response = lambda: "test input"
+    stdin._get_response = lambda _input_id: "test input"
     return stdin
 
 
@@ -222,6 +222,6 @@ class TestPyodideStdin:
         pyodide_input_queue: asyncio.Queue[str],
     ) -> None:
         # Empty submission must be a blank line ("\n"), not "" (= EOF).
-        pyodide_stdin._get_response = lambda: ""
+        pyodide_stdin._get_response = lambda _input_id: ""
         await pyodide_input_queue.put("")
         assert pyodide_stdin.readline() == "\n"
