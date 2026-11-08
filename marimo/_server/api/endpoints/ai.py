@@ -253,7 +253,7 @@ async def list_provider_models(*, request: Request) -> Response:
             "id": model_id,
             "name": name if isinstance(name, str) and name else model_id,
         }
-    return StructResponse(
+    response = StructResponse(
         ProviderModelsResponse(
             models=[
                 ProviderModel(**model)
@@ -261,9 +261,10 @@ async def list_provider_models(*, request: Request) -> Response:
                     models.values(), key=lambda model: model["id"]
                 )
             ]
-        ),
-        headers={"Cache-Control": "no-store"},
+        )
     )
+    response.headers["Cache-Control"] = "no-store"
+    return response
 
 
 @router.post("/completion")

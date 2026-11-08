@@ -624,6 +624,67 @@ const AccordionFormItem = ({
   );
 };
 
+const ProviderModelDiscovery = ({
+  provider,
+  label,
+  form,
+  onSubmit,
+  disabled = false,
+}: {
+  provider: string;
+  label: string;
+  form: UseFormReturn<UserConfig>;
+  onSubmit: (values: UserConfig) => void;
+  disabled?: boolean;
+}) => {
+  const [modelName, setModelName] = useState("");
+  const customModels = useWatch({
+    control: form.control,
+    name: "ai.models.custom_models",
+  }) ?? [];
+  const modelId = modelName.trim();
+  const qualifiedId = new AiModelId(
+    provider as ProviderId,
+    modelId as ShortModelId,
+  ).id;
+  const alreadyAdded = customModels.includes(qualifiedId);
+
+  const addModel = () => {
+    const currentModels = form.getValues("ai.models.custom_models") ?? [];
+    if (!modelId || currentModels.includes(qualifiedId)) {
+      return;
+    }
+    form.setValue("ai.models.custom_models", [qualifiedId, ...currentModels], {
+      shouldDirty: true,
+      shouldTouch: true,
+    });
+    onSubmit(form.getValues());
+  };
+
+  return (
+    <div className="flex items-end gap-2">
+      <div className="min-w-0 flex-1">
+        <ModelDiscovery
+          provider={provider}
+          label={label}
+          value={modelName}
+          onValueChange={setModelName}
+          disabled={disabled}
+        />
+      </div>
+      <Button
+        type="button"
+        size="xs"
+        onClick={addModel}
+        disabled={!modelId || alreadyAdded}
+        title={alreadyAdded ? "Model already added" : undefined}
+      >
+        Add
+      </Button>
+    </div>
+  );
+};
+
 export const CustomProvidersConfig: React.FC<AiConfigProps> = ({
   form,
   config,
@@ -832,14 +893,16 @@ export const CustomProvidersConfig: React.FC<AiConfigProps> = ({
               />
               <div className="flex flex-col gap-2">
                 <p className="text-sm text-muted-secondary">
-                  Verify the connection by listing available models. To use a
-                  model in chat, add it from the “AI Models” tab, then select it
-                  in the chat model dropdown.
+                  Search available models, select or enter a model ID, then
+                  click Add to save it. Select the saved model in the chat
+                  model dropdown.
                 </p>
-                <ModelDiscovery
+                <ProviderModelDiscovery
                   key={providerName}
                   provider={providerName}
                   label={displayName}
+                  form={form}
+                  onSubmit={onSubmit}
                   disabled={!providerConfig.base_url?.trim()}
                 />
               </div>
@@ -1110,7 +1173,12 @@ export const AiProvidersConfig: React.FC<AiConfigProps> = ({
             placeholder="https://openrouter.ai/api/v1/"
             testId="ai-openrouter-base-url-input"
           />
-          <ModelDiscovery provider="openrouter" label="OpenRouter" />
+          <ProviderModelDiscovery
+            provider="openrouter"
+            label="OpenRouter"
+            form={form}
+            onSubmit={onSubmit}
+          />
         </AccordionFormItem>
 
         <AccordionFormItem
