@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import json
 import re
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any
 
 from marimo._messaging.notification import (
     CellNotification,
@@ -38,18 +38,13 @@ class MockStream(ThreadSafeStream):
         redirect_console: bool = False,
         cell_id: Any = None,
     ) -> None:
-        # Bypass `ThreadSafeStream.__init__`: no real pipe/input queue and
-        # we don't want a buffered-console thread. Accept the same kwargs so
-        # callers that clone via `type(stream)(pipe=..., ...)` keep working
-        # (e.g. `marimo.Thread`).
-        self.pipe = cast(Any, pipe)
-        self.input_queue = cast(Any, input_queue)
-        self.redirect_console = redirect_console
-        self.cell_id = cell_id
         self.messages: list[KernelMessage] = []
-        import threading
-
-        self.stream_lock = threading.Lock()
+        super().__init__(
+            pipe=pipe,
+            input_queue=input_queue,
+            redirect_console=redirect_console,
+            cell_id=cell_id,
+        )
 
     def write(self, data: KernelMessage) -> None:
         self.messages.append(data)

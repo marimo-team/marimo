@@ -42,16 +42,19 @@ class PyodideStream(Stream):
         self.pipe = pipe
         self.cell_id = cell_id
         self.input_queue = input_queue
+        self.input_lock = asyncio.Lock()
 
     def write(self, data: KernelMessage) -> None:
         self.pipe(data)
 
     def copy_for_thread(self) -> PyodideStream:
-        return PyodideStream(
+        stream = PyodideStream(
             pipe=self.pipe,
             input_queue=self.input_queue,
             cell_id=self.cell_id,
         )
+        stream.input_lock = self.input_lock
+        return stream
 
 
 class PyodideStdout(Stdout):
@@ -172,39 +175,41 @@ class PyodideStdin(Stdin):
         self, prompt: str = "", password: bool = False
     ) -> str:
         """Read input from the standard in stream, with an optional prompt."""
-        require_active_execution()
-        assert self.stream.cell_id is not None
-        if not isinstance(prompt, str):
-            raise TypeError(
-                f"prompt must be a str, not {type(prompt).__name__}"
-            )
-        max_bytes = std_stream_max_bytes()
-        if sys.getsizeof(prompt) > max_bytes:
-            prompt = (
-                "Warning: marimo truncated a very large console output.\n"
-                + prompt[: int(max_bytes)]
-                + " ... "
-            )
-
-        input_id = str(uuid4())
-        broadcast_notification(
-            CellNotification(
-                cell_id=self.stream.cell_id,
-                console=CellOutput.stdin(
-                    prompt, password=password, input_id=input_id
-                ),
-            ),
-            self.stream,
+        return asyncio.get_event_loop().run_until_complete(
+            self._read_input(prompt, password)
         )
 
-        return self._get_response(input_id)
-
-    def _get_response(self, input_id: str) -> str:
-        loop = asyncio.get_event_loop()
-        while True:
+    async def _read_input(self, prompt: str, password: bool) -> str:
+        async with self.stream.input_lock:
             require_active_execution()
-            reply = loop.run_until_complete(self.stream.input_queue.get())
-            if isinstance(reply, str):
-                return reply
-            if reply.input_id == input_id:
-                return reply.value
+            assert self.stream.cell_id is not None
+            if not isinstance(prompt, str):
+                raise TypeError(
+                    f"prompt must be a str, not {type(prompt).__name__}"
+                )
+            max_bytes = std_stream_max_bytes()
+            if sys.getsizeof(prompt) > max_bytes:
+                prompt = (
+                    "Warning: marimo truncated a very large console output.\n"
+                    + prompt[: int(max_bytes)]
+                    + " ... "
+                )
+
+            input_id = str(uuid4())
+            broadcast_notification(
+                CellNotification(
+                    cell_id=self.stream.cell_id,
+                    console=CellOutput.stdin(
+                        prompt, password=password, input_id=input_id
+                    ),
+                ),
+                self.stream,
+            )
+
+            while True:
+                require_active_execution()
+                reply = await self.stream.input_queue.get()
+                if isinstance(reply, str):
+                    return reply
+                if reply.input_id == input_id:
+                    return reply.value
