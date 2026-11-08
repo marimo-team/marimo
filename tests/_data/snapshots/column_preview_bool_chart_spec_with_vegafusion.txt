@@ -1,236 +1,148 @@
 {
-  "$schema": "https://vega.github.io/schema/vega/v6.json",
-  "autosize": {
-    "contains": "padding",
-    "type": "fit-x"
+  "$schema": "https://vega.github.io/schema/vega-lite/v6.4.1.json",
+  "config": {
+    "view": {
+      "continuousHeight": 300,
+      "continuousWidth": 300
+    }
   },
-  "background": "white",
-  "data": [
-    {
-      "name": "source_0"
+  "data": {
+    "format": {
+      "type": "csv"
     },
+    "url": "data:text/csv;base64,Ym9vbF9jb2wKVHJ1ZQpGYWxzZQpUcnVlCg=="
+  },
+  "layer": [
     {
-      "name": "data_0",
-      "values": [
-        {
-          "bool_col": true,
-          "count": 2,
-          "count_end": 3.0,
-          "count_start": 1.0,
-          "percentage": 0.6666666666666666
-        },
-        {
-          "bool_col": false,
-          "count": 1,
-          "count_end": 1.0,
-          "count_start": 0.0,
-          "percentage": 0.3333333333333333
-        }
-      ]
-    },
-    {
-      "name": "data_1",
-      "values": [
-        {
-          "bool_col": true,
-          "count": 2,
-          "count_end": 3.0,
-          "count_start": 1.0
-        },
-        {
-          "bool_col": false,
-          "count": 1,
-          "count_end": 1.0,
-          "count_start": 0.0
-        }
-      ]
-    },
-    {
-      "name": "data_1_color_domain_bool_col_0",
-      "values": [
-        {
-          "bool_col": true
-        },
-        {
-          "bool_col": false
-        }
-      ]
-    },
-    {
-      "name": "data_0_color_domain_bool_col_1",
-      "values": [
-        {
-          "bool_col": true
-        },
-        {
-          "bool_col": false
-        }
-      ]
-    }
-  ],
-  "height": 300,
-  "legends": [
-    {
-      "fill": "color",
-      "symbolType": "circle",
-      "title": "bool_col"
-    }
-  ],
-  "marks": [
-    {
-      "encode": {
-        "update": {
-          "endAngle": {
-            "field": "count_start",
-            "scale": "theta"
+      "encoding": {
+        "color": {
+          "field": "bool_col",
+          "legend": {
+            "title": "bool_col"
           },
-          "fill": {
+          "scale": {
+            "scheme": "category10"
+          },
+          "type": "nominal"
+        },
+        "theta": {
+          "field": "count",
+          "stack": true,
+          "type": "quantitative"
+        },
+        "tooltip": [
+          {
             "field": "bool_col",
-            "scale": "color"
-          },
-          "innerRadius": {
-            "value": 0
-          },
-          "outerRadius": {
-            "value": 85
-          },
-          "startAngle": {
-            "field": "count_end",
-            "scale": "theta"
-          },
-          "tooltip": {
-            "signal": "{\"bool_col\": isValid(datum[\"bool_col\"]) ? isArray(datum[\"bool_col\"]) ? join(datum[\"bool_col\"], '\\n') : datum[\"bool_col\"] : \"\"+datum[\"bool_col\"], \"Number of records\": format(datum[\"count\"], \",.0f\")}"
-          },
-          "x": {
-            "mult": 0.5,
-            "signal": "width"
-          },
-          "y": {
-            "mult": 0.5,
-            "signal": "height"
-          }
-        }
-      },
-      "from": {
-        "data": "data_1"
-      },
-      "name": "layer_0_marks",
-      "style": [
-        "arc"
-      ],
-      "type": "arc"
-    },
-    {
-      "encode": {
-        "update": {
-          "align": {
-            "value": "center"
-          },
-          "baseline": {
-            "value": "middle"
-          },
-          "fill": {
-            "field": "bool_col",
-            "scale": "color"
-          },
-          "fontSize": {
-            "value": 13
-          },
-          "radius": {
-            "value": 110
-          },
-          "text": {
-            "signal": "format(datum[\"percentage\"], \".2%\")"
-          },
-          "theta": {
-            "signal": "scale(\"theta\", 0.5 * datum[\"count_start\"] + 0.5 * datum[\"count_end\"])"
-          },
-          "tooltip": {
-            "signal": "{\"bool_col\": isValid(datum[\"bool_col\"]) ? isArray(datum[\"bool_col\"]) ? join(datum[\"bool_col\"], '\\n') : datum[\"bool_col\"] : \"\"+datum[\"bool_col\"], \"Number of records\": format(datum[\"count\"], \",.0f\")}"
-          },
-          "x": {
-            "mult": 0.5,
-            "signal": "width"
-          },
-          "y": {
-            "mult": 0.5,
-            "signal": "height"
-          }
-        }
-      },
-      "from": {
-        "data": "data_0"
-      },
-      "name": "layer_1_marks",
-      "style": [
-        "text"
-      ],
-      "type": "text"
-    }
-  ],
-  "padding": 5,
-  "scales": [
-    {
-      "domain": {
-        "fields": [
-          {
-            "data": "data_1",
-            "field": "count_start"
+            "title": "bool_col",
+            "type": "nominal"
           },
           {
-            "data": "data_1",
-            "field": "count_end"
-          },
-          {
-            "data": "data_0",
-            "field": "count_start"
-          },
-          {
-            "data": "data_0",
-            "field": "count_end"
+            "field": "count",
+            "format": ",.0f",
+            "title": "Number of records",
+            "type": "quantitative"
           }
         ]
       },
-      "name": "theta",
-      "range": [
-        0,
-        6.283185307179586
-      ],
-      "type": "linear",
-      "zero": true
+      "mark": {
+        "outerRadius": 85,
+        "type": "arc"
+      },
+      "transform": [
+        {
+          "aggregate": [
+            {
+              "as": "count",
+              "op": "count"
+            }
+          ],
+          "groupby": [
+            "bool_col"
+          ]
+        },
+        {
+          "joinaggregate": [
+            {
+              "as": "total",
+              "field": "count",
+              "op": "sum"
+            }
+          ]
+        },
+        {
+          "as": "percentage",
+          "calculate": "datum.count / datum.total"
+        }
+      ]
     },
     {
-      "domain": {
-        "fields": [
+      "encoding": {
+        "color": {
+          "field": "bool_col",
+          "legend": {
+            "title": "bool_col"
+          },
+          "scale": {
+            "scheme": "category10"
+          },
+          "type": "nominal"
+        },
+        "text": {
+          "field": "percentage",
+          "format": ".2%",
+          "type": "quantitative"
+        },
+        "theta": {
+          "field": "count",
+          "stack": true,
+          "type": "quantitative"
+        },
+        "tooltip": [
           {
-            "data": "data_1_color_domain_bool_col_0",
-            "field": "bool_col"
+            "field": "bool_col",
+            "title": "bool_col",
+            "type": "nominal"
           },
           {
-            "data": "data_0_color_domain_bool_col_1",
-            "field": "bool_col"
+            "field": "count",
+            "format": ",.0f",
+            "title": "Number of records",
+            "type": "quantitative"
           }
-        ],
-        "sort": true
+        ]
       },
-      "name": "color",
-      "range": {
-        "scheme": "category10"
+      "mark": {
+        "radius": 110,
+        "size": 13,
+        "type": "text"
       },
-      "type": "ordinal"
-    }
-  ],
-  "signals": [
-    {
-      "init": "isFinite(containerSize()[0]) ? containerSize()[0] : 300",
-      "name": "width",
-      "on": [
+      "transform": [
         {
-          "events": "window:resize",
-          "update": "isFinite(containerSize()[0]) ? containerSize()[0] : 300"
+          "aggregate": [
+            {
+              "as": "count",
+              "op": "count"
+            }
+          ],
+          "groupby": [
+            "bool_col"
+          ]
+        },
+        {
+          "joinaggregate": [
+            {
+              "as": "total",
+              "field": "count",
+              "op": "sum"
+            }
+          ]
+        },
+        {
+          "as": "percentage",
+          "calculate": "datum.count / datum.total"
         }
       ]
     }
   ],
-  "style": "view"
+  "width": "container"
 }
