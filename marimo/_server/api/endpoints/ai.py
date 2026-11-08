@@ -136,8 +136,6 @@ async def list_provider_models(*, request: Request) -> Response:
     """
     import ssl
 
-    from starlette.responses import JSONResponse
-
     try:
         import httpx
     except ImportError:
