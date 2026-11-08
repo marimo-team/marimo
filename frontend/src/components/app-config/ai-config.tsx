@@ -1874,18 +1874,36 @@ export const AddModelForm: React.FC<{
       >
         Model
       </Label>
-      <Input
-        id={modelNameInputId}
-        value={modelName}
-        onChange={(e) => setModelName(e.target.value)}
-        placeholder="gpt-5.6-sol"
-        className="text-xs mb-0"
-      />
+      {canDiscoverModels && providerName ? (
+        <ModelDiscovery
+          key={providerName}
+          provider={providerName}
+          label="Model"
+          inputId={modelNameInputId}
+          inputClassName="text-xs mb-0"
+          value={modelName}
+          onValueChange={setModelName}
+        />
+      ) : (
+        <Input
+          id={modelNameInputId}
+          value={modelName}
+          onChange={(e) => setModelName(e.target.value)}
+          placeholder="gpt-5.6-sol"
+          className="text-xs mb-0"
+        />
+      )}
     </div>
   );
 
   const inputForm = (
-    <div className="flex items-center gap-3 p-3 border border-border rounded-md">
+    <div
+      className={cn(
+        "flex items-center gap-3 p-3 border border-border rounded-md",
+        canDiscoverModels &&
+          "relative pb-12 [&_[data-testid^='model-discovery-']>button]:absolute [&_[data-testid^='model-discovery-']>button]:right-3 [&_[data-testid^='model-discovery-']>button]:bottom-3",
+      )}
+    >
       {providerSelect}
       {modelInput}
       <div
@@ -1904,23 +1922,6 @@ export const AddModelForm: React.FC<{
   return (
     <div>
       {isFormOpen && inputForm}
-      {isFormOpen && provider && providerName && canDiscoverModels && (
-        <div className="flex flex-col gap-2 p-3 border border-border rounded-md mt-2">
-          <p className="text-sm text-muted-secondary">
-            Choose a catalog model to fill the Model field with its provider
-            model ID, or enter one manually. Click Add above to save it.
-          </p>
-          <ModelDiscovery
-            provider={providerName}
-            label={
-              isCustomProvider
-                ? Strings.startCase(providerName)
-                : getProviderLabel(provider)
-            }
-            onSelect={setModelName}
-          />
-        </div>
-      )}
       <div className="flex flex-row text-sm">
         <AddButton
           isFormOpen={isFormOpen}

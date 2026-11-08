@@ -7,7 +7,8 @@ import { getRuntimeManager } from "@/core/runtime/config";
 import { isWasm } from "@/core/wasm/utils";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
-import { NativeSelect } from "../ui/native-select";
+import { Popover as PopoverPrimitive } from "radix-ui";
+import { Popover, PopoverContent } from "../ui/popover";
 
 const CatalogSchema = z.object({
   models: z.array(z.object({ id: z.string().min(1), name: z.string() })),
@@ -31,6 +32,10 @@ interface ModelDiscoveryProps {
   label: string;
   onSelect?: (modelId: string) => void;
   disabled?: boolean;
+  value?: string;
+  onValueChange?: (value: string) => void;
+  inputId?: string;
+  inputClassName?: string;
 }
 
 export function ModelDiscovery({
@@ -38,29 +43,34 @@ export function ModelDiscovery({
   label,
   onSelect,
   disabled = false,
+  value,
+  onValueChange,
+  inputId,
+  inputClassName,
 }: ModelDiscoveryProps) {
   const [models, setModels] = useState<z.infer<typeof CatalogSchema>["models"]>(
     [],
   );
   const [query, setQuery] = useState("");
-  const [selection, setSelection] = useState("");
+  const inputRef = useRef<HTMLInputElement | null>(null);
   const [loading, setLoading] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState("");
+  const [open, setOpen] = useState(false);
   const requestRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     requestRef.current?.abort();
     setModels([]);
     setQuery("");
-    setSelection("");
+    setOpen(false);
     setLoaded(false);
     setLoading(false);
     setError("");
     return () => requestRef.current?.abort();
   }, [provider]);
 
-  const search = query.trim().toLowerCase();
+  const search = (value ?? query).trim().toLowerCase();
   const filtered = models.filter((model) =>
     `${model.name} ${model.id}`.toLowerCase().includes(search),
   );
@@ -115,8 +125,8 @@ export function ModelDiscovery({
         return;
       }
       setModels(catalog.models);
-      setSelection("");
       setLoaded(true);
+      setOpen(true);
     } catch {
       if (!controller.signal.aborted) {
         setError(
@@ -132,67 +142,94 @@ export function ModelDiscovery({
 
   return (
     <div
-      className="flex flex-col gap-2"
+      className="flex flex-col gap-2 sm:flex-row sm:items-end sm:gap-4"
       data-testid={`model-discovery-${provider}`}
     >
+      <div className="relative min-w-0 flex-1">
+        <Popover open={open && loaded} onOpenChange={setOpen}>
+          <PopoverPrimitive.Anchor asChild>
+            <div>
+              <Input
+                ref={inputRef}
+                id={inputId}
+                className={inputClassName ?? "w-full"}
+                aria-label={label}
+                aria-haspopup="dialog"
+                aria-expanded={open && loaded}
+                placeholder="Type a model ID or search…"
+                value={value ?? query}
+                onChange={(event) => {
+                  setQuery(event.target.value);
+                  onValueChange?.(event.target.value);
+                  setOpen(true);
+                }}
+                onFocus={() => setOpen(true)}
+                onKeyDown={(event) => {
+                  if (event.key === "Escape") {
+                    setOpen(false);
+                  }
+                  if (event.key === "Enter") {
+                    event.preventDefault();
+                  }
+                  if (event.key === "ArrowDown" && loaded) {
+                    event.preventDefault();
+                    setOpen(true);
+                  }
+                }}
+              />
+            </div>
+          </PopoverPrimitive.Anchor>
+          <PopoverContent
+            align="start"
+            className="w-[var(--radix-popover-trigger-width)] min-w-64 max-w-[calc(100vw-2rem)] p-1 text-sm"
+            style={{ maxHeight: "min(18rem, var(--radix-popover-content-available-height))", overflowY: "auto" }}
+            onOpenAutoFocus={(event) => event.preventDefault()}
+            onCloseAutoFocus={(event) => event.preventDefault()}
+            onInteractOutside={(event) => {
+              if (event.target === inputRef.current) {
+                event.preventDefault();
+              }
+            }}
+          >
+            {filtered.length === 0 ? (
+              <p className="px-2 py-1">No models found</p>
+            ) : (
+              filtered.map((model) => (
+                <button
+                  type="button"
+                  key={model.id}
+                  className="block w-full cursor-pointer rounded-sm px-2 py-1 text-left hover:bg-accent focus:bg-accent focus:outline-hidden"
+                  onClick={() => {
+                    setQuery(model.id);
+                    onValueChange?.(model.id);
+                    setOpen(false);
+                    onSelect?.(model.id);
+                    inputRef.current?.focus();
+                    setOpen(false);
+                  }}
+                >
+                  {model.name} — {model.id}
+                </button>
+              ))
+            )}
+          </PopoverContent>
+        </Popover>
+        {error && (
+          <p role="alert" className="mt-1 text-sm text-destructive">
+            {error}
+          </p>
+        )}
+      </div>
       <Button
         type="button"
         variant="outline"
         size="xs"
-        className="self-start"
+        className="self-start sm:self-end"
         disabled={disabled || loading || isWasm()}
         onClick={load}
       >
-        {loading ? "Loading models…" : "Load available models"}
+        {loading ? "Loading models…" : "Search available models"}
       </Button>
-      {error && (
-        <p role="alert" className="text-sm text-destructive">
-          {error}
-        </p>
-      )}
-      {loaded && (
-        <>
-          <output className="text-sm text-muted-secondary">
-            {filtered.length} matching / {models.length} catalog models.
-            {onSelect
-              ? " Select a model to fill the Model field; click Add to save."
-              : " Preview only; nothing is saved."}
-          </output>
-          <Input
-            aria-label={`Search ${label} models`}
-            placeholder="Search models…"
-            value={query}
-            onChange={(event) => {
-              setQuery(event.target.value);
-              setSelection("");
-            }}
-            onKeyDown={(event) => {
-              if (event.key === "Enter") {
-                event.preventDefault();
-              }
-            }}
-          />
-          {filtered.length === 0 && <output>No models found</output>}
-          <NativeSelect
-            aria-label={`${label} catalog model`}
-            value={selection}
-            disabled={disabled || loading || filtered.length === 0}
-            onChange={(event) => {
-              const id = event.target.value;
-              setSelection(id);
-              setQuery(id);
-              onSelect?.(id);
-            }}
-          >
-            <option value="">Choose a model</option>
-            {filtered.map((model) => (
-              <option key={model.id} value={model.id}>
-                {model.name} — {model.id}
-              </option>
-            ))}
-          </NativeSelect>
-        </>
-      )}
     </div>
   );
 }
