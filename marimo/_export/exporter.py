@@ -39,8 +39,6 @@ from marimo._export._nbconvert import (
     _nbconvert_tag_remove_config,
     _render_webpdf,
     inline_pdf_assets,
-    print_pdf,
-    run_playwright_on_html,
 )
 from marimo._export._status import emit_pdf_export_status
 from marimo._export.dependencies import require_export_dependencies
@@ -65,7 +63,6 @@ from marimo._templates import (
     wasm_notebook_template,
 )
 from marimo._utils import async_path
-from marimo._utils.asyncio_utils import run_on_proactor_loop
 from marimo._utils.code import hash_code
 from marimo._utils.data_uri import build_data_url
 from marimo._utils.marimo_path import MarimoPath
@@ -191,6 +188,7 @@ class Exporter:
             layout=request.layout,
             model_notifications=model_notifications,
             asset_url=request.options.asset_url,
+            include_tab_variant_script=request.include_tab_variant_script,
         )
 
         download_filename = get_download_filename(filename, "html")
@@ -653,6 +651,13 @@ class Exporter:
                 )
 
     @staticmethod
+    def _to_file_uri(path: str) -> str:
+        import os
+        from urllib.request import pathname2url
+
+        return f"file://{pathname2url(os.path.abspath(path))}"
+
+    @staticmethod
     def _slide_type_for_cell(cell: Any, include_inputs: bool) -> str:
         if include_inputs:
             return "slide"
@@ -665,13 +670,15 @@ class Exporter:
         return "skip"
 
     @staticmethod
-    @run_on_proactor_loop
     async def _export_slides_as_pdf(
         notebook: Any,
         include_inputs: bool,
         filename: str | None = None,
     ) -> bytes | None:
         """Render slides notebook to PDF using Playwright async API."""
+        import os
+        import tempfile
+
         from nbconvert import SlidesExporter
 
         # Add slideshow metadata so each cell becomes a slide.
@@ -691,7 +698,14 @@ class Exporter:
 
         html_data = inline_pdf_assets(html_data, filename)
 
-        async def print_slides(url: str) -> bytes:
+        # Write HTML to a temp file for Playwright to load
+        with tempfile.NamedTemporaryFile(
+            suffix=".html", delete=False, mode="w", encoding="utf-8"
+        ) as f:
+            f.write(html_data)
+            temp_path = f.name
+
+        try:
             from playwright.async_api import (  # type: ignore[import-not-found]
                 async_playwright,
             )
@@ -701,8 +715,9 @@ class Exporter:
                 try:
                     page = await browser.new_page()
                     # ?print-pdf tells reveal.js to use a linear print layout
+                    temp_uri = Exporter._to_file_uri(temp_path)
                     await page.goto(
-                        f"{url}?print-pdf",
+                        f"{temp_uri}?print-pdf",
                         wait_until="networkidle",
                     )
                     await page.evaluate(
@@ -715,12 +730,6 @@ class Exporter:
                           ) {
                             reveal.layout();
                           }
-                          // reveal.js hides inactive slides from assistive
-                          // technology, which also drops their headings from
-                          // the tagged PDF outline. Every slide is printed.
-                          document
-                            .querySelectorAll(".reveal .slides section[aria-hidden]")
-                            .forEach((el) => el.removeAttribute("aria-hidden"));
                         }
                         """
                     )
@@ -733,13 +742,17 @@ class Exporter:
                             "}"
                         )
                     )
-                    return await print_pdf(page, prefer_css_page_size=True)
+                    pdf_data = await page.pdf(
+                        print_background=True,
+                        prefer_css_page_size=True,
+                    )
                 finally:
                     await browser.close()
-
-        pdf_data = await asyncio.to_thread(
-            run_playwright_on_html, html_data, print_slides
-        )
+        finally:
+            try:
+                os.unlink(temp_path)
+            except OSError:
+                LOGGER.debug("Failed to remove temp slide HTML: %s", temp_path)
 
         if not isinstance(pdf_data, bytes):
             LOGGER.error("Slides PDF data is not bytes: %s", pdf_data)
