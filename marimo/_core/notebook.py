@@ -443,6 +443,7 @@ class Notebook:
         *,
         request_id: str,
         request: be.RequestInfo | None,
+        allow_input: bool = False,
     ) -> protocol.Run: ...
 
     @overload
@@ -452,6 +453,7 @@ class Notebook:
         cells: Sequence[protocol.RequestedCell],
         request_id: str,
         request: be.RequestInfo | None,
+        allow_input: bool = False,
     ) -> protocol.Run: ...
 
     def run(
@@ -461,6 +463,7 @@ class Notebook:
         cells: Sequence[protocol.RequestedCell] | None = None,
         request_id: str,
         request: be.RequestInfo | None,
+        allow_input: bool = False,
     ) -> protocol.Run:
         """Queue scratch code, or cells of the document, on the runtime.
 
@@ -469,7 +472,8 @@ class Notebook:
         requested cell must be in the document. One that names an `etag`
         the cell no longer has is a conflict, and nothing runs. The code
         reads `request`, the request that submitted the run, through
-        `mo.app_meta().request`.
+        `mo.app_meta().request`. `allow_input` permits interactive prompts;
+        unattended runs raise `EOFError` when code requests input.
 
         Raises:
             Invalid: If the request names neither code nor cells, or both,
@@ -511,10 +515,16 @@ class Notebook:
             )
             self._apply(self.executions.begin(run, request_id))
             if code is not None:
-                self.backend.run(run.id, code, request=request)
+                self.backend.run(
+                    run.id, code, request=request, allow_input=allow_input
+                )
             else:
                 self.backend.run_cells(
-                    run.id, self._document, targets, request=request
+                    run.id,
+                    self._document,
+                    targets,
+                    request=request,
+                    allow_input=allow_input,
                 )
             return run
 

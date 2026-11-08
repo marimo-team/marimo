@@ -73,6 +73,7 @@ _OPERATIONS = (
     "notebook.edit",
     "notebook.save",
     "runtime.run",
+    "runtime.input",
     "runtime.interrupt",
 )
 
@@ -178,6 +179,7 @@ class WorkerBackend:
         code: str,
         *,
         request: be.RequestInfo | None,
+        allow_input: bool = False,
     ) -> None:
         del request  # The worker's runs arrive without an HTTP request.
         session = self._session
@@ -194,7 +196,7 @@ class WorkerBackend:
                 notebook_cells=cells,
                 cell_outputs=outputs,
                 run_id=run_id,
-                allow_stdin=True,
+                allow_stdin=allow_input,
             )
 
         self._prepare(
@@ -208,6 +210,7 @@ class WorkerBackend:
         cell_ids: Sequence[protocol.CellId],
         *,
         request: be.RequestInfo | None,
+        allow_input: bool = False,
     ) -> None:
         del request  # The worker's runs arrive without an HTTP request.
 
@@ -224,7 +227,7 @@ class WorkerBackend:
                 execution_requests=[cells[cell_id] for cell_id in cell_ids],
                 request=None,
                 run_id=run_id,
-                allow_stdin=True,
+                allow_stdin=allow_input,
             )
 
         # Dependents run too, so every cell's imports are loaded, each
@@ -536,7 +539,7 @@ class PyodideNotebook:
             status, body = failure.status, failure
         else:
             status, body = await dispatch(
-                self.mutations, self, call, request=None
+                self.mutations, self, call, request=None, allow_input=True
             )
         return msgspec.json.encode({"status": status, "body": body}).decode()
 

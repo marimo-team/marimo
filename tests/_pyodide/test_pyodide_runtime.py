@@ -13,6 +13,8 @@ import marimo._pyodide.notebook as worker
 from marimo._ast.app_config import _AppConfig
 from marimo._config.config import DEFAULT_CONFIG
 from marimo._core.code import code_fingerprint
+from marimo._messaging.cell_output import CellOutput
+from marimo._messaging.input import InputReply
 from marimo._messaging.notification import (
     CellNotification,
     CompletedRunNotification,
@@ -130,6 +132,47 @@ async def started(bridge: PyodideBridge) -> list[dict[str, Any]]:
     bridge.session.started.set()
     await settle()
     return events
+
+
+async def test_worker_input_reply_reaches_its_prompt(bridge: PyodideBridge):
+    events = await started(bridge)
+    cell_id = latest(events, "cell")["id"]
+    accepted = await call(bridge, "runtime.run", {"cells": [{"id": cell_id}]})
+    run_id = accepted["body"]["id"]
+    await settle()
+    deliver(bridge, planned(cell_id, run_id))
+    deliver(bridge, running(cell_id, run_id))
+    deliver(
+        bridge,
+        CellNotification(
+            cell_id=CellId_t(cell_id),
+            run_id=run_id,
+            execution_id="e1",
+            console=CellOutput.stdin(
+                "Password: ", password=True, input_id="prompt"
+            ),
+        ),
+    )
+    pending = latest(events, "input")
+    assert pending["status"] == "pending"
+    response = await call(
+        bridge,
+        "runtime.input",
+        {"value": "secret"},
+        input_id="prompt",
+        key="answer",
+    )
+    assert response == {
+        "status": 200,
+        "body": {**pending, "status": "answered"},
+    }
+    assert (
+        bridge.session._queue_manager.input_queue.get_nowait()
+        == InputReply("prompt", "secret")
+    )
+    assert "secret" not in json.dumps(
+        [event for event in events if event["event"] == "input"]
+    )
 
 
 def queued(bridge: PyodideBridge) -> list[Any]:

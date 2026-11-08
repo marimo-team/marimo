@@ -192,6 +192,7 @@ class SessionBackend(SessionConsumer):
         code: str,
         *,
         request: be.RequestInfo | None,
+        allow_input: bool = False,
     ) -> None:
         session = self.session
         if session is None:
@@ -201,7 +202,10 @@ class SessionBackend(SessionConsumer):
         )
         # Server adapters pass HTTPRequest through the core's RequestInfo protocol.
         self._watch_run(
-            run, self._run_code(run, code, cast(HTTPRequest | None, request))
+            run,
+            self._run_code(
+                run, code, cast(HTTPRequest | None, request), allow_input
+            ),
         )
 
     def run_cells(
@@ -211,6 +215,7 @@ class SessionBackend(SessionConsumer):
         cell_ids: Sequence[protocol.CellId],
         *,
         request: be.RequestInfo | None,
+        allow_input: bool = False,
     ) -> None:
         session = self.session
         if session is None:
@@ -232,7 +237,7 @@ class SessionBackend(SessionConsumer):
                 execution_requests=[cells[cell_id] for cell_id in cell_ids],
                 request=cast(HTTPRequest | None, request),
                 run_id=run_id,
-                allow_stdin=False,
+                allow_stdin=allow_input,
             )
             if not run.turn.ready:
                 # A run ahead is still preparing, such as a scratch run
@@ -304,7 +309,11 @@ class SessionBackend(SessionConsumer):
         self._handover.finish(run.turn)
 
     async def _run_code(
-        self, run: _Run, code: str, request: HTTPRequest | None
+        self,
+        run: _Run,
+        code: str,
+        request: HTTPRequest | None,
+        allow_input: bool,
     ) -> None:
         await run.turn.wait()
         session = run.session
@@ -325,7 +334,7 @@ class SessionBackend(SessionConsumer):
                     notebook_cells=cells,
                     cell_outputs=outputs,
                     run_id=run.translator.run_id,
-                    allow_stdin=False,
+                    allow_stdin=allow_input,
                 ),
             )
             await run.done.wait()
