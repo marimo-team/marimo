@@ -11,6 +11,8 @@ export interface StaticNotebookSnapshot {
   readonly notebook: Omit<Protocol.Notebook, "operations">;
   readonly document: Protocol.Document;
   readonly cells: readonly Protocol.Cell[];
+  /** What the cells last produced, as completed executions. */
+  readonly results: readonly Protocol.Execution[];
 }
 
 /** The events that describe a snapshot, in the order a host sends them. */
@@ -25,6 +27,10 @@ function snapshotFrames(snapshot: StaticNotebookSnapshot): Protocol.Event[] {
       data: { cell },
     })),
     { event: "document", data: { document: snapshot.document } },
+    ...snapshot.results.map((execution): Protocol.ExecutionEvent => ({
+      event: "execution",
+      data: { execution },
+    })),
   ];
 }
 
@@ -49,6 +55,7 @@ export function emptySnapshot(notebookId: string): StaticNotebookSnapshot {
       version: 1,
     },
     cells: [],
+    results: [],
   };
 }
 
