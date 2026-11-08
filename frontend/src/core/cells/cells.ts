@@ -24,7 +24,6 @@ import type { SerializedEditorState } from "../codemirror/types";
 import { mergeOutlines } from "../dom/outline";
 import type { CellMessage } from "../kernel/messages";
 import { isErrorMime } from "../mime";
-import type { CellConfig } from "../network/types";
 import { createDeepEqualAtom, store } from "../state/jotai";
 import { isWasm } from "../wasm/utils";
 import { transitionCell } from "./cell";
@@ -225,7 +224,6 @@ const {
 
         return {
           ...cell,
-          interrupted: false,
           consoleOutputs,
         };
       },
@@ -357,14 +355,6 @@ function updateCellRuntimeState({
       [cellId]: cellReducer(state.cellRuntime[cellId]),
     },
   };
-}
-
-/** Each cell's config in order. The document's `column` configs are canonical. */
-export function getCellConfigs(state: NotebookState): CellConfig[] {
-  return state.cellIds.map((cellId) => ({
-    ...state.cellData[cellId].config,
-    column: state.cellData[cellId].config.column ?? null,
-  }));
 }
 
 export {
