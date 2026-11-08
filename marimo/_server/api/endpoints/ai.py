@@ -178,7 +178,13 @@ async def list_provider_models(*, request: Request) -> Response:
         )
     from urllib.parse import urlsplit
 
-    target = urlsplit(base_url)
+    try:
+        target = urlsplit(base_url)
+    except ValueError:
+        raise HTTPException(
+            status_code=400, detail="Invalid provider base URL."
+        ) from None
+
     if (
         target.scheme not in ("http", "https")
         or not target.hostname
