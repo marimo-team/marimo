@@ -3,7 +3,14 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { createStore, Provider } from "jotai";
 import { createRef } from "react";
+import { MockExecutions } from "@/__mocks__/executions";
 import { cellId } from "@/__tests__/branded";
+import type { CellId } from "@/core/cells/ids";
+import {
+  cell,
+  document as documentOf,
+  withCells,
+} from "@/core/notebook/document/__tests__/fixtures";
 import { type NotebookState, notebookAtom } from "@/core/cells/cells";
 import {
   type CellRuntimeState,
@@ -15,24 +22,47 @@ import { requestClientAtom } from "@/core/network/requests";
 import { resolveRequestClient } from "@/core/network/resolve";
 import type { CellConfig } from "@/core/network/types";
 import { ConnectionState } from "@/core/session/types";
-import type { Milliseconds, Seconds } from "@/utils/time";
 import { Cell as EditorCell } from "../components/editor/notebook-cell";
 import { TooltipProvider } from "../components/ui/tooltip";
 
 type Story = StoryObj<typeof Cell>;
 
 interface CellOverrides {
-  runElapsedTimeMs?: Milliseconds;
   output?: CellRuntimeState["output"];
-  edited?: boolean;
-  interrupted?: boolean;
-  errored?: boolean;
-  status?: CellRuntimeState["status"];
-  staleInputs?: boolean;
+  /** How the cell's result is outdated, as the host would report it. */
+  freshness?: "edited" | "replaced" | "both";
   config?: CellConfig;
 }
 
 const EMPTY_OVERRIDES: Readonly<CellOverrides> = {};
+
+/**
+ * Give the replica a completed execution whose source was edited since,
+ * whose input a newer execution replaced, or both.
+ */
+function seedFreshness(
+  store: ReturnType<typeof createStore>,
+  cid: CellId,
+  freshness: NonNullable<CellOverrides["freshness"]>,
+) {
+  const ran = MockExecutions.completed(cid, {
+    code_fingerprint: "ran",
+    depends_on:
+      freshness === "edited" ? {} : { x: { execution: "gone", update: 0 } },
+  });
+  const document = withCells(
+    documentOf(),
+    {
+      c1: null,
+      c2: null,
+      [cid]: cell(cid, "import marimo as mo", {
+        code_fingerprint: freshness === "replaced" ? "ran" : "edited",
+      }),
+    },
+    [cid],
+  );
+  MockExecutions.seed(store, [ran], null, document);
+}
 
 const Cell: React.FC<{
   overrides?: CellOverrides;
@@ -44,29 +74,18 @@ const Cell: React.FC<{
         id: cid,
         name: "cell_1",
         code: "import marimo as mo",
-        edited: overrides.edited ?? false,
         config: {
           hide_code: overrides.config?.hide_code ?? false,
           disabled: overrides.config?.disabled ?? false,
           column: null,
         },
-        lastCodeRun: null,
-        lastExecutionTime: null,
       },
     },
     cellIds: [cid],
     cellRuntime: {
       [cid]: createCellRuntimeState({
         output: overrides.output ?? null,
-        runElapsedTimeMs: overrides.runElapsedTimeMs ?? (10 as Milliseconds),
-        status: overrides.status ?? "idle",
         consoleOutputs: [],
-        interrupted: overrides.interrupted ?? false,
-        errored: overrides.errored ?? false,
-        stopped: false,
-        staleInputs: overrides.staleInputs ?? false,
-        runStartTimestamp: 0 as Seconds,
-        lastRunStartTimestamp: 0 as Seconds,
         debuggerActive: false,
         outline: null,
       }),
@@ -81,6 +100,9 @@ const Cell: React.FC<{
 
   const store = createStore();
   store.set(notebookAtom, notebook);
+  if (overrides.freshness !== undefined) {
+    seedFreshness(store, cid, overrides.freshness);
+  }
   store.set(connectionAtom, { state: ConnectionState.OPEN });
   store.set(requestClientAtom, resolveRequestClient());
   return (
@@ -121,7 +143,6 @@ export const WithOutput: Story = {
     <div className="p-20 max-w-4xl">
       <Cell
         overrides={{
-          runElapsedTimeMs: 20 as Milliseconds,
           output: {
             channel: "output",
             data: "<span class='markdown'><h1>Layout</h1>\n<p><code>marimo</code> provides functions to help you lay out your output, such as\nin rows and columns, accordions, tabs, and callouts. This tutorial\nshows some examples.</p></span>",
@@ -139,7 +160,6 @@ export const WithLargeOutput: Story = {
     <div className="p-20 max-w-4xl">
       <Cell
         overrides={{
-          runElapsedTimeMs: 20 as Milliseconds,
           output: {
             channel: "output",
             data: "<span class='markdown'><h1>Layout</h1>\n<p><code>marimo</code> provides functions to help you lay out your output, such as\nin rows and columns, accordions, tabs, and callouts. This tutorial\nshows some examples.</p></span>".repeat(
@@ -160,8 +180,7 @@ export const UnsavedEditsOutput: Story = {
       <TooltipProvider>
         <Cell
           overrides={{
-            runElapsedTimeMs: 20 as Milliseconds,
-            edited: true,
+            freshness: "edited",
             output: {
               channel: "output",
               data: "<span class='markdown'><h1>Layout</h1>\n<p><code>marimo</code> provides functions to help you lay out your output, such as\nin rows and columns, accordions, tabs, and callouts. This tutorial\nshows some examples.</p></span>",
@@ -181,8 +200,6 @@ export const InterruptedOutput: Story = {
       <TooltipProvider>
         <Cell
           overrides={{
-            runElapsedTimeMs: 20 as Milliseconds,
-            interrupted: true,
             output: {
               channel: "output",
               data: "<span class='markdown'><h1>Layout</h1>\n<p><code>marimo</code> provides functions to help you lay out your output, such as\nin rows and columns, accordions, tabs, and callouts. This tutorial\nshows some examples.</p></span>",
@@ -201,8 +218,6 @@ export const WithError: Story = {
     <div className="p-20 max-w-4xl">
       <Cell
         overrides={{
-          runElapsedTimeMs: 20 as Milliseconds,
-          errored: true,
           output: {
             channel: "output",
             data: "<span class='markdown'><h1>Layout</h1>\n<p><code>marimo</code> provides functions to help you lay out your output, such as\nin rows and columns, accordions, tabs, and callouts. This tutorial\nshows some examples.</p></span>",
@@ -220,7 +235,6 @@ export const Disabled: Story = {
     <div className="p-20 max-w-4xl">
       <Cell
         overrides={{
-          runElapsedTimeMs: 20 as Milliseconds,
           config: {
             disabled: true,
             hide_code: false,
@@ -243,8 +257,6 @@ export const DisabledTransitively: Story = {
     <div className="p-20 max-w-4xl">
       <Cell
         overrides={{
-          runElapsedTimeMs: 20 as Milliseconds,
-          status: "disabled-transitively",
           output: {
             channel: "output",
             data: "This data is stale because a parent is disabled",
@@ -262,9 +274,7 @@ export const StaleStatus: Story = {
     <div className="p-20 max-w-4xl">
       <Cell
         overrides={{
-          runElapsedTimeMs: 20 as Milliseconds,
-          status: "disabled-transitively",
-          staleInputs: true,
+          freshness: "replaced",
           output: {
             channel: "output",
             data: "This data is stale because a parent is disabled",
@@ -282,10 +292,7 @@ export const StaleAndEditedStatus: Story = {
     <div className="p-20 max-w-4xl">
       <Cell
         overrides={{
-          runElapsedTimeMs: 20 as Milliseconds,
-          status: "disabled-transitively",
-          staleInputs: true,
-          edited: true,
+          freshness: "both",
           output: {
             channel: "output",
             data: "This data is stale because a parent is disabled, but this cell has been edited since.",
@@ -303,14 +310,12 @@ export const DisabledAndStaleStatus: Story = {
     <div className="p-20 max-w-4xl">
       <Cell
         overrides={{
-          runElapsedTimeMs: 20 as Milliseconds,
           config: {
             column: null,
             disabled: true,
             hide_code: false,
           },
-          status: "disabled-transitively",
-          staleInputs: true,
+          freshness: "replaced",
           output: {
             channel: "output",
             data: "<span class='markdown'><h1>Layout</h1>\n<p><code>marimo</code> provides functions to help you lay out your output, such as\nin rows and columns, accordions, tabs, and callouts. This tutorial\nshows some examples.</p></span>",
@@ -328,8 +333,6 @@ export const Running: Story = {
     <div className="p-20 max-w-4xl">
       <Cell
         overrides={{
-          runElapsedTimeMs: 20 as Milliseconds,
-          status: "running",
           output: {
             channel: "output",
             data: "<span class='markdown'><h1>Layout</h1>\n<p><code>marimo</code> provides functions to help you lay out your output, such as\nin rows and columns, accordions, tabs, and callouts. This tutorial\nshows some examples.</p></span>",

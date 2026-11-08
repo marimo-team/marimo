@@ -25,6 +25,7 @@ import { MarimoValueInputEvent } from "../dom/events";
 import { UI_ELEMENT_REGISTRY } from "../dom/uiregistry";
 import { FUNCTIONS_REGISTRY } from "../functions/FunctionRegistry";
 import { createNotebookReplica } from "../notebook/replica";
+import { observeCellMessage } from "../executions";
 import {
   handleCellNotificationeration,
   handleKernelReady,
@@ -35,6 +36,7 @@ import { queryParamHandlers } from "../kernel/queryParamHandlers";
 import { RuntimeState } from "../kernel/RuntimeState";
 import { initialModeAtom } from "../mode";
 import { requestClientAtom } from "../network/requests";
+import { activeNotebookReplicaAtom } from "../session/active-notebook";
 import { store as defaultStore } from "../state/jotai";
 import type { IslandsPyodideBridge } from "./bridge";
 import { MarimoIslandElement } from "./components/web-components";
@@ -131,6 +133,7 @@ export async function initializeIslands(
   // The notebook's cells follow the managed session's host document.
   const replica = createNotebookReplica(store);
   replica.connect(bridge.notebookBackend, { onNotification: Functions.NOOP });
+  store.set(activeNotebookReplicaAtom, replica);
   const documentModel = createDocumentModel({
     store,
     documentAtom: replica.documentAtom,
@@ -218,11 +221,9 @@ function handleNotification(
         handleKernelReady(msg, {
           autoInstantiate: true,
           cells: notebookCells(store.get(notebookAtom)),
-          setLastRun: actions.setLastRun,
           resetCellRuntimes: actions.resetCellRuntimes,
           setLayoutData: Functions.NOOP,
           setCapabilities: Functions.NOOP,
-          setKernelState: Functions.NOOP,
           onError: Logger.error,
         });
         if (!window.customElements?.get(ISLAND_TAG_NAMES.ISLAND)) {
@@ -247,6 +248,7 @@ function handleNotification(
         return;
 
       case "cell-op":
+        observeCellMessage(store, msg);
         handleCellNotificationeration(msg, actions.handleCellMessage);
         return;
 

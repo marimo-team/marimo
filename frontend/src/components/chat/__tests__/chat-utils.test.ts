@@ -1,11 +1,15 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import type { UIMessage } from "ai";
-import { describe, expect, it } from "vitest";
+import { createStore } from "jotai";
+import { FRONTEND_TOOL_REGISTRY } from "@/core/ai/tools/registry";
+import { describe, expect, it, vi } from "vitest";
 import {
+  handleToolCall,
   hasPendingToolCalls,
   hasUnresolvedToolCalls,
   shouldFlushQueue,
+  willAutoContinue,
 } from "../chat-utils";
 
 /**
@@ -509,4 +513,92 @@ describe("shouldFlushQueue", () => {
       }),
     ).toBe(false);
   });
+});
+
+describe("handleToolCall", () => {
+  it.each(["frontend", "backend", "exception"])(
+    "reports %s failures as errors rather than successful output",
+    async (source) => {
+      const hasTool = vi
+        .spyOn(FRONTEND_TOOL_REGISTRY, "has")
+        .mockReturnValue(source === "frontend");
+      const response = {
+        tool_name: "test_tool",
+        result: null,
+        error: "Edit failed",
+      };
+      const invokeFrontend = vi
+        .spyOn(FRONTEND_TOOL_REGISTRY, "invoke")
+        .mockResolvedValue(response);
+      const invokeAiTool = vi.fn().mockImplementation(async () => {
+        if (source === "exception") {
+          throw new Error("Edit failed");
+        }
+        return response;
+      });
+      const addToolOutput = vi.fn();
+      try {
+        await handleToolCall({
+          invokeAiTool,
+          addToolOutput,
+          toolCall: { toolName: "test_tool", toolCallId: "call-1", input: {} },
+          toolContext: {
+            store: createStore(),
+            addStagedCell: vi.fn(),
+            createCell: vi.fn(),
+          },
+        });
+        expect(addToolOutput).toHaveBeenCalledExactlyOnceWith({
+          tool: "test_tool",
+          toolCallId: "call-1",
+          state: "output-error",
+          errorText: "Edit failed",
+        });
+      } finally {
+        hasTool.mockRestore();
+        invokeFrontend.mockRestore();
+      }
+    },
+  );
+});
+
+describe("willAutoContinue", () => {
+  const toolPart = (state: string) =>
+    ({
+      type: "tool-run_query",
+      toolCallId: "call-1",
+      state,
+      input: {},
+      output: {},
+      approval: { id: "approval-1" },
+    }) as unknown as UIMessage["parts"][number];
+
+  it.each([
+    ["input-available", true],
+    ["output-available", true],
+    ["approval-requested", false],
+    ["input-streaming", false],
+  ])("returns %s → %s", (state, expected) => {
+    expect(
+      willAutoContinue([
+        userMessage("run it"),
+        assistantToolMessage([toolPart(state)]),
+      ]),
+    ).toBe(expected);
+  });
+
+  it.each(["output-available", "input-available"])(
+    "returns false once text follows a tool that is %s",
+    (state) => {
+      expect(
+        willAutoContinue([
+          userMessage("run it"),
+          assistantToolMessage([
+            toolPart(state),
+            { type: "text", text: "Done." },
+          ]),
+        ]),
+      ).toBe(false);
+    },
+  );
 });

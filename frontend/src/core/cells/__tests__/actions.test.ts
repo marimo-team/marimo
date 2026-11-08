@@ -384,7 +384,6 @@ describe("undoDeleteCellAtom", () => {
     expect(store.get(restoredEditorStatesAtom).get(c2)).toMatchObject({
       doc: "y = 2",
     });
-    expect(notebook().cellData[c2].edited).toBe(true);
     expect(notebook().scrollKey).toBe(c2);
     expect(notebook().history).toEqual([]);
   });

@@ -10,6 +10,7 @@ import { OBJECT_ID_ATTR } from "@/core/dom/ui-element-constants";
 import { UI_ELEMENT_REGISTRY } from "@/core/dom/uiregistry";
 import { LocaleProvider } from "@/core/i18n/locale-provider";
 import { renderHTML } from "@/plugins/core/RenderHTML";
+import { resolvedThemeAtom } from "@/theme/useTheme";
 import { invariant } from "@/utils/invariant";
 import type { CellId, UIElementId } from "../../cells/ids";
 import { store } from "../../state/jotai";
@@ -44,6 +45,7 @@ export class MarimoIslandElement extends HTMLElement {
   private runtimeAppId?: string;
   private runtimeCellId?: CellId;
   private unsubscribeCellIds?: () => void;
+  private unsubscribeTheme?: () => void;
 
   public static readonly tagName = ISLAND_TAG_NAMES.ISLAND;
   public static readonly outputTagName = ISLAND_TAG_NAMES.CELL_OUTPUT;
@@ -132,6 +134,13 @@ export class MarimoIslandElement extends HTMLElement {
       ? this.cellId
       : undefined;
     this.syncCellIdsSubscription();
+    const syncTheme = () => {
+      const theme = store.get(resolvedThemeAtom);
+      this.classList.toggle("dark", theme === "dark");
+      this.classList.toggle("light", theme === "light");
+    };
+    this.unsubscribeTheme = store.sub(resolvedThemeAtom, syncTheme);
+    syncTheme();
     queueMicrotask(() => {
       // Guard against disconnect between connectedCallback and microtask
       if (
@@ -297,6 +306,8 @@ export class MarimoIslandElement extends HTMLElement {
    * Cleanup when element is removed from DOM
    */
   public disconnectedCallback(): void {
+    this.unsubscribeTheme?.();
+    this.unsubscribeTheme = undefined;
     this.removeEventListener(
       ISLAND_SOURCE_CHANGED_EVENT,
       this.handleSourceChanged,

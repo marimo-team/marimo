@@ -17,9 +17,9 @@ The path to `marimo.toml` is printed at the top of the output.
 
 marimo uses three roles:
 
-* **`chat_model`**: chat panel
-* **`edit_model`**: refactor cells (Cmd/Ctrl-Shift-E) and Generate with AI
-* **`autocomplete_model`**: inline code completion
+* **`chat_model`** handles chat panel requests.
+* **`edit_model`** refactors existing cells with `Cmd/Ctrl-Shift-E`.
+* **`autocomplete_model`** provides inline code completion.
 
 Models are written as `provider/model`, and the provider prefix routes to the matching config section:
 
@@ -100,33 +100,9 @@ The first value takes precedence.
 
 ## Supported providers
 
-<div align="center">
-<figure>
-<img src="/_static/docs-provider-config.png" width="740px"/>
-<figcaption>Configure LLM providers in the notebook settings panel.</figcaption>
-</figure>
-</div>
-
-You can configure the following providers:
-
-* Anthropic
-* AWS Bedrock
-* Google AI
-* DeepSeek
-* xAI
-* LM Studio
-* Mistral
-* Ollama
-* OpenAI
-* GitHub Copilot
-* OpenCode Go
-* OpenRouter
-* Weights & Biases
-* Together AI
-* Vercel v0
-* and any OpenAI-compatible provider
-
-Below we describe how to connect marimo to your AI provider.
+Providers can be configured in the notebook settings. All major commercial and
+open providers are supported. Below we describe how to connect marimo to your
+AI provider.
 
 ### OpenAI
 

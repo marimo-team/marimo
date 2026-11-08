@@ -11,7 +11,6 @@ import {
 } from "@/components/ui/popover";
 import { Switch } from "@/components/ui/switch";
 import { chatOptionsAtom } from "@/core/ai/state";
-import { cn } from "@/utils/cn";
 
 export const CapabilitiesPopover: React.FC = () => {
   const [chatOptions, setChatOptions] = useAtom(chatOptionsAtom);
@@ -28,11 +27,7 @@ export const CapabilitiesPopover: React.FC = () => {
           data-active={webSearchOn || undefined}
           variant="text"
           size="icon"
-          className={cn(
-            "h-6 w-6 shrink-0 bg-muted hover:bg-muted/30",
-            webSearchOn &&
-              "bg-primary/15 text-primary ring-1 ring-primary/30 opacity-100 hover:bg-primary/20",
-          )}
+          className="chat-control h-6 w-6 shrink-0"
         >
           <SlidersHorizontalIcon className="h-3.5 w-3.5" />
         </Button>

@@ -10,6 +10,7 @@ import {
   notebookAtom,
   useReducerActions,
 } from "@/core/cells/cells";
+import { useStagedAICellsActions } from "@/core/ai/staged-cells";
 import { followDocument } from "@/core/cells/document";
 import { AUTOCOMPLETER } from "@/core/codemirror/completion/Autocompleter";
 import { createDocumentModel } from "@/core/notebook/document";
@@ -61,7 +62,8 @@ import {
   type StableSessionId,
   stableSessionIdAtom,
 } from "../kernel/session";
-import { initialRunCompletedAtom, kernelStateAtom } from "../kernel/state";
+import { observeCellMessage } from "../executions";
+import { initialRunCompletedAtom } from "../kernel/state";
 import { useLayoutActions } from "../layout/state";
 import { kioskModeAtom } from "../mode";
 import { connectionAtom, startupProgressAtom } from "../network/connection";
@@ -90,14 +92,10 @@ export function useNotebookSession(opts: {
   const { showBoundary } = useErrorBoundary();
   const store = useStore();
 
-  const {
-    handleCellMessage,
-    reconcileDocument,
-    setLastRun,
-    resetCellRuntimes,
-  } = useReducerActions();
+  const { handleCellMessage, reconcileDocument, resetCellRuntimes } =
+    useReducerActions();
+  const { reconcileStagedCells } = useStagedAICellsActions();
   const { addCellNotification } = useRunsActions();
-  const setKernelState = useSetAtom(kernelStateAtom);
   const setInitialRunCompleted = useSetAtom(initialRunCompletedAtom);
   const { setVariables, setMetadata } = useVariablesActions();
   const { addColumnPreview } = useDatasetsActions();
@@ -152,11 +150,9 @@ export function useNotebookSession(opts: {
         const layout = handleKernelReady(msg.data, {
           autoInstantiate,
           cells: notebookCells(store.get(notebookAtom)),
-          setLastRun,
           resetCellRuntimes,
           setLayoutData,
           setCapabilities,
-          setKernelState,
           onError: showBoundary,
         });
         store.set(savedLayoutAtom, layout);
@@ -220,6 +216,7 @@ export function useNotebookSession(opts: {
         FUNCTIONS_REGISTRY.resolve(msg.data.function_call_id, msg.data);
         return;
       case "cell-op": {
+        observeCellMessage(store, msg.data);
         handleCellNotificationeration(msg.data, handleCellMessage);
         const cellData = getNotebook().cellData[msg.data.cell_id];
         if (!cellData) {
@@ -441,7 +438,10 @@ export function useNotebookSession(opts: {
     followDocument({
       store,
       model: documentModel,
-      reconcile: reconcileDocument,
+      reconcile: (document) => {
+        reconcileDocument(document);
+        reconcileStagedCells(document.order);
+      },
       signal: controller.signal,
     });
     return () => {
@@ -450,7 +450,7 @@ export function useNotebookSession(opts: {
         store.set(activeDocumentModelAtom, null);
       }
     };
-  }, [documentModel, store, reconcileDocument]);
+  }, [documentModel, store, reconcileDocument, reconcileStagedCells]);
 
   // Subscribe before passive connection setup: static/WASM transports can emit synchronously.
   useLayoutEffect(() => {

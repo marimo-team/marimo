@@ -2,7 +2,7 @@
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { cellId, requestId, uiElementId } from "@/__tests__/branded";
-import { waitForKernelToBeInstantiated } from "../../kernel/state";
+import { waitForRuntimeRunning } from "../../executions";
 import type { RuntimeManager } from "../../runtime/runtime";
 import { waitForConnectionOpen } from "../connection";
 import { createLazyRequests } from "../requests-lazy";
@@ -22,8 +22,8 @@ vi.mock("../connection", async () => {
 });
 
 // Mock the kernel state module
-vi.mock("../../kernel/state", () => ({
-  waitForKernelToBeInstantiated: vi.fn().mockResolvedValue(undefined),
+vi.mock("../../executions", () => ({
+  waitForRuntimeRunning: vi.fn().mockResolvedValue(undefined),
 }));
 
 describe("createLazyRequests", () => {
@@ -119,7 +119,7 @@ describe("createLazyRequests", () => {
 
     expect(mockInit).toHaveBeenCalledOnce();
     expect(waitForConnectionOpen).toHaveBeenCalledOnce();
-    expect(waitForKernelToBeInstantiated).not.toHaveBeenCalled();
+    expect(waitForRuntimeRunning).not.toHaveBeenCalled();
     expect(mockDelegate.installExportRequirements).toHaveBeenCalledWith({
       format: "pdf",
     });
@@ -139,7 +139,7 @@ describe("createLazyRequests", () => {
 
     expect(mockInit).toHaveBeenCalledOnce();
     expect(waitForConnectionOpen).toHaveBeenCalledOnce();
-    expect(waitForKernelToBeInstantiated).not.toHaveBeenCalled();
+    expect(waitForRuntimeRunning).not.toHaveBeenCalled();
     expect(mockDelegate.sendInstantiate).toHaveBeenCalledWith(request);
   });
 

@@ -146,10 +146,6 @@ is highly specialized for working with data, with context about your variables
 in memory. Customize the system prompt, bring your own API keys, or use local
 models.
 
-<video autoplay muted loop playsinline width="700px" align="center">
-  <source src="/_static/readme-generate-with-ai.mp4" type="video/mp4">
-</video>
-
 **Query data with SQL.** Build [SQL](https://docs.marimo.io/guides/working_with_data/sql.html) queries
 that depend on Python values and execute them against dataframes, databases, lakehouses,
 CSVs, Google Sheets, or anything else using our built-in SQL engine, which

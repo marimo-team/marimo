@@ -1,8 +1,8 @@
 /* Copyright 2026 Marimo. All rights reserved. */
-import { renderHook } from "@testing-library/react";
-import { createStore, Provider } from "jotai";
+import { act, renderHook } from "@testing-library/react";
+import { createStore, getDefaultStore, Provider } from "jotai";
 import type { PropsWithChildren } from "react";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, expectTypeOf, it, vi } from "vitest";
 import { Logger } from "@/utils/Logger";
 import { createReducer, createReducerAndAtoms } from "../createReducer";
 
@@ -36,6 +36,68 @@ describe("createReducer", () => {
 
     actions.decrement(3);
     expect(dispatch).toHaveBeenCalledWith({ type: "decrement", payload: 3 });
+  });
+
+  it("preserves action names and payload types through reducers and atoms", () => {
+    const initialState = () => ({ count: 0 });
+    const { reducer, createActions, useActions } = createReducerAndAtoms(
+      initialState,
+      {
+        increment: (state, payload: number) => ({
+          count: state.count + payload,
+        }),
+        setFromText: (_state, payload: string) => ({ count: payload.length }),
+        reset: () => initialState(),
+      },
+      [
+        (_prevState, _newState, action) => {
+          if (action.type === "increment") {
+            expectTypeOf(action.payload).toEqualTypeOf<number>();
+          }
+          if (action.type === "setFromText") {
+            expectTypeOf(action.payload).toEqualTypeOf<string>();
+          }
+        },
+      ],
+    );
+    const dispatch = vi.fn();
+    const actions = createActions(dispatch);
+
+    expectTypeOf(actions).toEqualTypeOf<{
+      increment: (payload: number) => void;
+      setFromText: (payload: string) => void;
+      reset: () => void;
+    }>();
+    expectTypeOf<ReturnType<typeof useActions>>().toEqualTypeOf<
+      typeof actions
+    >();
+    expectTypeOf(reducer)
+      .parameter(1)
+      .toEqualTypeOf<
+        | { type: "increment"; payload: number }
+        | { type: "setFromText"; payload: string }
+        | { type: "reset"; payload: unknown }
+      >();
+
+    // @ts-expect-error - action names determine their payload types
+    expectTypeOf(reducer).toBeCallableWith(initialState(), {
+      type: "increment",
+      payload: "5",
+    });
+    // @ts-expect-error - action creators reject incorrect payloads
+    expectTypeOf(actions.setFromText).toBeCallableWith(5);
+
+    actions.increment(5);
+    actions.setFromText("hello");
+    actions.reset();
+    expect(dispatch.mock.calls).toEqual([
+      [{ type: "increment", payload: 5 }],
+      [{ type: "setFromText", payload: "hello" }],
+      [{ type: "reset", payload: undefined }],
+    ]);
+    expect(
+      reducer(initialState(), { type: "setFromText", payload: "hello" }),
+    ).toEqual({ count: 5 });
   });
 
   it("actions are the same reference", () => {
@@ -121,6 +183,41 @@ describe("createReducerAndAtoms", () => {
     expect(typeof result.createActions).toBe("function");
     expect(typeof result.valueAtom).toBe("object");
     expect(typeof result.useActions).toBe("function");
+  });
+
+  it("caches hook actions and supports bypassing middleware", () => {
+    const middleware = vi.fn();
+    const { useActions, valueAtom } = createReducerAndAtoms(
+      () => ({ count: 0 }),
+      {
+        increment: (state, payload: number) => ({
+          count: state.count + payload,
+        }),
+      },
+      [middleware],
+    );
+    const { result, rerender } = renderHook((options) => useActions(options), {
+      initialProps: { skipMiddleware: false },
+    });
+    const actions = result.current;
+    act(() => actions.increment(2));
+    rerender({ skipMiddleware: false });
+    expect(result.current).toBe(actions);
+    expect(getDefaultStore().get(valueAtom)).toEqual({ count: 2 });
+    expect(middleware).toHaveBeenCalledExactlyOnceWith(
+      { count: 0 },
+      { count: 2 },
+      { type: "increment", payload: 2 },
+    );
+
+    middleware.mockClear();
+    rerender({ skipMiddleware: true });
+    const plainActions = result.current;
+    rerender({ skipMiddleware: true });
+    expect(result.current).toBe(plainActions);
+    act(() => result.current.increment(3));
+    expect(getDefaultStore().get(valueAtom)).toEqual({ count: 5 });
+    expect(middleware).not.toHaveBeenCalled();
   });
 
   it("should apply middleware", () => {
