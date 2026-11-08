@@ -50,6 +50,8 @@ from marimo._server.models.models import (
     InvokeAiToolResponse,
     MCPRefreshResponse,
     MCPStatusResponse,
+    ProviderModel,
+    ProviderModelsResponse,
 )
 from marimo._server.responses import StructResponse
 from marimo._server.router import APIRouter
@@ -115,7 +117,23 @@ def get_provider_config(model: str, config: MarimoConfig) -> AnyProviderConfig:
 @router.get("/models/{provider_name}")
 @requires("edit")
 async def list_provider_models(*, request: Request) -> Response:
-    """List models for a supported provider without modifying configuration."""
+    """List models for a supported provider without modifying configuration.
+
+    parameters:
+      - in: path
+        name: provider_name
+        schema:
+          type: string
+        required: true
+        description: Provider identifier, such as `openrouter` or a custom-provider name.
+    responses:
+      200:
+        description: Available models for the provider.
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProviderModelsResponse"
+    """
     import ssl
 
     from starlette.responses import JSONResponse
@@ -231,8 +249,15 @@ async def list_provider_models(*, request: Request) -> Response:
             "id": model_id,
             "name": name if isinstance(name, str) and name else model_id,
         }
-    return JSONResponse(
-        {"models": sorted(models.values(), key=lambda model: model["id"])},
+    return StructResponse(
+        ProviderModelsResponse(
+            models=[
+                ProviderModel(**model)
+                for model in sorted(
+                    models.values(), key=lambda model: model["id"]
+                )
+            ]
+        ),
         headers={"Cache-Control": "no-store"},
     )
 

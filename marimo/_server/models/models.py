@@ -312,6 +312,15 @@ class InvokeAiToolResponse(BaseResponse):
     error: str | None = None
 
 
+class ProviderModel(msgspec.Struct, rename="camel"):
+    id: str
+    name: str
+
+
+class ProviderModelsResponse(msgspec.Struct, rename="camel"):
+    models: list[ProviderModel]
+
+
 class MCPStatusResponse(msgspec.Struct, rename="camel"):
     status: Literal["ok", "partial", "error"]
     error: str | None = None
