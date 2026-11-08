@@ -1110,10 +1110,7 @@ export const AiProvidersConfig: React.FC<AiConfigProps> = ({
             placeholder="https://openrouter.ai/api/v1/"
             testId="ai-openrouter-base-url-input"
           />
-          <ModelDiscovery
-            provider="openrouter"
-            label="OpenRouter"
-          />
+          <ModelDiscovery provider="openrouter" label="OpenRouter" />
         </AccordionFormItem>
 
         <AccordionFormItem
