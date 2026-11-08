@@ -476,11 +476,11 @@ class Notebook:
         unattended runs raise `EOFError` when code requests input.
 
         Raises:
-            Invalid: If the request names neither code nor cells, or both,
-                an empty cell sequence, or a cell the document does not have.
+            Invalid: If the request does not select exactly one of code
+                and cells, or selects an empty cell sequence.
             NoRuntime: If the notebook has no runtime.
-            Conflict: If the runtime is not running or a requested cell
-                has changed.
+            Conflict: If the runtime is not running.
+            EditConflict: If a requested cell is missing or has changed.
         """
         if (code is None) == (cells is None):
             raise Invalid("a run names code or cells, not both")
@@ -492,15 +492,21 @@ class Notebook:
             if runtime.status != "running":
                 raise Conflict(f"the runtime is {runtime.status}.")
             targets: list[protocol.CellId] = []
-            for requested in cells or ():
+            for index, requested in enumerate(cells or ()):
                 cell = self._document.cell(requested.id)
                 if cell is None:
-                    raise Invalid(
-                        f"cell {requested.id} is not in the document."
+                    raise EditConflict(
+                        f"cell {requested.id} is not in the document.",
+                        change=index,
+                        cell=None,
+                        document=self._document_record,
                     )
                 if requested.etag is not UNSET and requested.etag != cell.etag:
-                    raise Conflict(
-                        f"cell {requested.id} has changed since it was read."
+                    raise EditConflict(
+                        f"cell {requested.id} has changed since it was read.",
+                        change=index,
+                        cell=self._cell_record(cell),
+                        document=self._document_record,
                     )
                 targets.append(cell.id)
             run = protocol.Run(

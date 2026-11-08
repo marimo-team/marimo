@@ -2627,6 +2627,25 @@ async def test_cell_runs_over_http(harness: Harness) -> None:
     assert conflict.status == 409
     assert conflict.json()["type"].endswith("/conflict")
     assert "changed since it was read" in conflict.json()["detail"]
+    assert conflict.json()["edit"]["change"] == 0
+    assert conflict.json()["edit"]["cell"]["etag"] == cell.etag
+    assert (
+        conflict.json()["edit"]["document"]["etag"] == notebook.document.etag
+    )
+    missing = await finished(
+        harness.app,
+        "POST",
+        runs,
+        headers=key("missing"),
+        body=json.dumps(
+            {"cells": [{"id": cell.id}, {"id": "ghost"}]}
+        ).encode(),
+    )
+    assert missing.status == 409
+    assert missing.json()["type"].endswith("/conflict")
+    assert missing.json()["edit"]["change"] == 1
+    assert missing.json()["edit"]["cell"] is None
+    assert missing.json()["edit"]["document"]["etag"] == notebook.document.etag
 
     both = json.dumps({"code": "1", "cells": [{"id": cell.id}]}).encode()
     invalid = await finished(
