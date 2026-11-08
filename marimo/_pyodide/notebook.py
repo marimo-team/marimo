@@ -21,6 +21,7 @@ from marimo._core.host import Host
 from marimo._core.ids import mint
 from marimo._core.notebook import Notebook
 from marimo._core.operations import Mutations, problem
+from marimo._messaging.input import InputReply
 from marimo._messaging.notebook.outputs import scratchpad_snapshot
 from marimo._messaging.notification import (
     NotebookDocumentTransactionNotification,
@@ -233,6 +234,9 @@ class WorkerBackend:
             [cell.code for cell in document],
             build,
         )
+
+    def reply_input(self, input_id: protocol.ItemId, value: str) -> None:
+        self._session.put_input(InputReply(input_id, value))
 
     def interrupt(self, run_id: protocol.RunId) -> None:
         preparing = self._preparing.get(run_id)

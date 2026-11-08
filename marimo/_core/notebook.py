@@ -21,7 +21,7 @@ from marimo._core.errors import (
     NoRuntime,
     NotFound,
 )
-from marimo._core.executions import Executions, Released, Removed
+from marimo._core.executions import Executions, InputChanged, Released, Removed
 from marimo._core.ids import mint
 from marimo._core.stream import RoutedEvent, snapshot_event, utcnow
 
@@ -364,6 +364,7 @@ class Notebook:
                 return runtime
             terminating = replace(runtime, status="terminating")
             self._set_runtime(terminating)
+            self._apply(self.executions.cancel_inputs(), request_id=request_id)
             if runtime.status == "failed":
                 self._end_runtime()
             else:
@@ -387,6 +388,7 @@ class Notebook:
             self._replacement = replacement
             terminating = replace(runtime, status="terminating")
             self._set_runtime(terminating)
+            self._apply(self.executions.cancel_inputs(), request_id=request_id)
             self.backend.stop(runtime.id)
             return replacement
 
@@ -516,7 +518,9 @@ class Notebook:
                 )
             return run
 
-    def interrupt(self, run_id: str) -> protocol.Run:
+    def interrupt(
+        self, run_id: str, *, request_id: str | None = None
+    ) -> protocol.Run:
         """Request interruption of a run in progress."""
         self._require_open()
         run = self.executions.run(protocol.RunId(run_id))
@@ -524,8 +528,29 @@ class Notebook:
             raise NotFound(f"notebook {self.id} has no run {run_id}.")
         if run.status == "completed":
             raise Conflict(f"run {run_id} has already ended.")
-        self.backend.interrupt(run.id)
+        with self.sink.deferred():
+            self._apply(
+                self.executions.cancel_inputs(run.id), request_id=request_id
+            )
+            self.backend.interrupt(run.id)
         return run
+
+    def reply_input(
+        self, input_id: protocol.ItemId, value: str, *, request_id: str
+    ) -> protocol.Input:
+        """Accept one answer and publish its status under the reply's key."""
+        self._require_open()
+        item = self.executions.pending_input(input_id)
+        with self.sink.deferred():
+            self.backend.reply_input(input_id, value)
+            answered = self.executions.answer(item)
+            self.sink.publish(
+                answered,
+                notebook_id=self.id,
+                run_id=self.executions.run_id_of(answered),
+                request_id=request_id,
+            )
+        return answered
 
     # ---- attachments ---------------------------------------------------
 
@@ -716,7 +741,9 @@ class Notebook:
             request_id=request_id,
         )
 
-    def _apply(self, changes: Sequence[Change]) -> None:
+    def _apply(
+        self, changes: Sequence[Change], *, request_id: str | None = None
+    ) -> None:
         """Publish changes and release completed runs."""
         executions = self.executions
         with self.sink.deferred():
@@ -726,19 +753,26 @@ class Notebook:
                     self.backend.forget(change.run_id)
                     continue
                 run_id = executions.run_id_of(change)
-                request_id = executions.request_id(run_id)
+                originating_request = (
+                    request_id
+                    if isinstance(change, (protocol.Input, InputChanged))
+                    and request_id is not None
+                    else executions.request_id(run_id)
+                )
                 if isinstance(change, Removed):
                     self.sink.remove(
                         change.record_type,
                         change.id,
                         notebook_id=self.id,
                         run_id=run_id,
-                        request_id=request_id,
+                        request_id=originating_request,
                     )
                 else:
                     self.sink.publish(
-                        change,
+                        change.input
+                        if isinstance(change, InputChanged)
+                        else change,
                         notebook_id=self.id,
                         run_id=run_id,
-                        request_id=request_id,
+                        request_id=originating_request,
                     )

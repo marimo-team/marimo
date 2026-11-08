@@ -59,6 +59,9 @@ class ScriptedBackend:
     def interrupt(self, run_id: str) -> None:
         self.calls.append(("interrupt", run_id))
 
+    def reply_input(self, input_id: str, value: str) -> None:
+        self.calls.append(("reply_input", input_id, value))
+
     def forget(self, run_id: str) -> None:
         self.calls.append(("forget", run_id))
 

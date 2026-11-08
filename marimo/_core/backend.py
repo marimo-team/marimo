@@ -112,6 +112,9 @@ class Backend(Protocol):
         the kernel could not stop at once is stopped as it progresses.
         """
 
+    def reply_input(self, input_id: protocol.ItemId, value: str) -> None:
+        """Arrange delivery to this prompt, without retaining the answer."""
+
     def forget(self, run_id: protocol.RunId) -> None:
         """Release a run the host no longer retains.
 
@@ -201,7 +204,12 @@ class Produced:
     Reusing an item ID replaces its previous value.
     """
 
-    item: protocol.Console | protocol.Display | protocol.Variable
+    item: (
+        protocol.Console
+        | protocol.Display
+        | protocol.Variable
+        | protocol.Input
+    )
 
 
 @dataclass(frozen=True)
