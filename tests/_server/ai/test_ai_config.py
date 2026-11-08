@@ -1302,6 +1302,7 @@ class TestEdgeCases:
         assert exc_info.value.status_code == HTTPStatus.BAD_REQUEST
         assert "Anthropic API key not configured" in str(exc_info.value.detail)
 
+    @patch.dict(os.environ, {}, clear=True)
     def test_google_config_missing(self):
         """Test Google config defaults to empty key when config is missing."""
         config: AiConfig = {}
