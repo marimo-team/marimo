@@ -19,6 +19,7 @@ from starlette.websockets import WebSocketDisconnect
 from marimo._core import backend as be, protocol
 from marimo._core.host import Host
 from marimo._core.notebook import Notebook
+from marimo._core.operations import Mutations
 from marimo._core.protocol import ProjectMessage
 from marimo._core.run_log import RetentionPolicy
 from marimo._core.stream import RoutedEvent, event_name
@@ -1539,6 +1540,7 @@ async def test_operations_the_host_does_not_offer_are_501(
     host.update_project(project)
     host.add_notebook(harness.host.notebooks[notebook.id], make_notebook)
     harness.bridge.host = host
+    harness.bridge.mutations = Mutations(host)
     harness.app.state.host_context = HostContext(
         bridge=harness.bridge, token=TOKEN, port=PORT
     )

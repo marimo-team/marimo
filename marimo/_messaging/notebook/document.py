@@ -144,6 +144,11 @@ class NotebookDocument:
     # Transaction application
     # ------------------------------------------------------------------
 
+    def replace_snapshot(self, snapshot: NotebookDocument) -> None:
+        """Refresh a shared local mirror from an authoritative snapshot."""
+        self._cells = snapshot.cells
+        self._version = snapshot.version
+
     def apply(self, tx: Transaction) -> Transaction:
         """Validate and apply *tx*, return it with `version` assigned.
 

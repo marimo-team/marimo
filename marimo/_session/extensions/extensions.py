@@ -18,6 +18,9 @@ import msgspec
 
 from marimo import _loggers
 from marimo._cli.print import red
+from marimo._core.errors import Forbidden, HostError
+from marimo._core.operations import problem, problem_for
+from marimo._messaging.host import DocumentRequest
 from marimo._messaging.notebook.changes import TransactionSource
 from marimo._messaging.notebook.document import NotebookCell
 from marimo._messaging.notification import (
@@ -301,6 +304,33 @@ class NotificationListenerExtension(SessionExtension):
         applied_source: TransactionSource | None = None
 
         name = try_deserialize_kernel_notification_name(msg)
+        if name == DocumentRequest.name:
+            request = msgspec.json.decode(msg, type=DocumentRequest)
+
+            async def respond() -> None:
+                try:
+                    handler = session.document_request
+                    if handler is None:
+                        raise Forbidden(
+                            "Code mode requires an editable host notebook"
+                        )
+                    reply = await handler(request)
+                    if request.changes is not None and reply.problem is None:
+                        self._maybe_autosave(session, "code-mode")
+                except HostError as exc:
+                    reply = commands.DocumentReplyCommand(
+                        request_id=request.request_id, problem=problem_for(exc)
+                    )
+                except Exception:
+                    LOGGER.exception("Document request failed")
+                    reply = commands.DocumentReplyCommand(
+                        request_id=request.request_id,
+                        problem=problem(500, "internal"),
+                    )
+                session.put_control_request(reply, from_consumer_id=None)
+
+            asyncio.get_running_loop().create_task(respond())
+            return
         if name == NotebookDocumentTransactionNotification.name:
             try:
                 decoded = msgspec.json.decode(

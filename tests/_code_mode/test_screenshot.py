@@ -30,7 +30,6 @@ from marimo._messaging.context import http_request_context
 from marimo._messaging.notebook.document import (
     NotebookCell as _DocNotebookCell,
     NotebookDocument,
-    notebook_document_context,
 )
 from marimo._messaging.notebook.outputs import (
     CellOutputs,
@@ -39,6 +38,7 @@ from marimo._messaging.notebook.outputs import (
 from marimo._output.formatting import try_format
 from marimo._runtime.commands import HTTPRequest
 from marimo._types.ids import CellId_t
+from tests._code_mode._host import host_context
 
 if TYPE_CHECKING:
     from typing import Any
@@ -241,7 +241,9 @@ async def test_screenshot_after_run_ignores_stale_empty_snapshot(
         console_outputs={},
     )
     with (
-        notebook_document_context(NotebookDocument([doc_cell])),
+        host_context(
+            k, NotebookDocument([doc_cell]), skip_staleness_check=True
+        ),
         notebook_outputs_context(outputs),
         http_request_context(screenshot_request),
         patch(
@@ -297,7 +299,9 @@ async def test_screenshot_passes_credentials_and_reuses_browser(
         console_outputs={},
     )
     with (
-        notebook_document_context(NotebookDocument([doc_cell])),
+        host_context(
+            k, NotebookDocument([doc_cell]), skip_staleness_check=True
+        ),
         notebook_outputs_context(outputs if has_snapshot else None),
         http_request_context(screenshot_request),
         patch(

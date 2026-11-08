@@ -117,6 +117,7 @@ from marimo._runtime.commands import (
     CommandMessage,
     CreateNotebookCommand,
     DeleteCellCommand,
+    DocumentReplyCommand,
     EditCellsCommand,
     ExecuteCellCommand,
     ExecuteStaleCellsCommand,
@@ -138,6 +139,7 @@ from marimo._runtime.context.kernel_context import (
 )
 from marimo._runtime.context.utils import get_mode
 from marimo._runtime.control_flow import MarimoInterrupt
+from marimo._runtime.document_requests import DocumentRequests
 from marimo._runtime.execution import ExecutionAttempt
 from marimo._runtime.input_override import getpass_override
 from marimo._runtime.kernel_request_handlers import KernelRequestHandlers
@@ -569,6 +571,8 @@ class Kernel:
         sys.argv = self.argv
 
         self._streams = streams
+        self.document_requests = DocumentRequests(streams.stream.write)
+        self.inline_edits: set[str] = set()
         self.enqueue_control_request = enqueue_control_request
         # timestamp at which most recently processed interrupt was seen;
         # the kernel rejects run requests that were issued before that
@@ -735,6 +739,7 @@ class Kernel:
 
     def teardown(self) -> None:
         """Teardown resources owned by the kernel."""
+        self.document_requests.close()
         if self.stdout is not None:
             self.stdout._stop()
         if self.stderr is not None:
@@ -831,6 +836,8 @@ class Kernel:
             self.set_breakpoints(command)
         elif isinstance(command, CodeCompletionCommand):
             self.code_completion(command, docstrings_limit=docstrings_limit)
+        elif isinstance(command, DocumentReplyCommand):
+            self.document_requests.receive(command)
         else:
             # Exhaustiveness guard: a new OutOfBandCommand member without a
             # branch here would otherwise be silently dropped by the worker.
@@ -2016,6 +2023,12 @@ class Kernel:
         autorun, stale cells the edit enabled, which run the code the
         kernel holds for them.
         """
+        if (
+            request.inline_id is not None
+            and request.inline_id in self.inline_edits
+        ):
+            self.inline_edits.remove(request.inline_id)
+            return
         for cell_id, code in request.codes.items():
             if cell_id in self._uninstantiated_execution_requests:
                 self._uninstantiated_execution_requests[cell_id] = (
@@ -2038,6 +2051,7 @@ class Kernel:
         *,
         run_cell_ids: set[CellId_t] | None = None,
         deletion_requests: Sequence[DeleteCellCommand] = (),
+        pending_sources: Sequence[ExecuteCellCommand] = (),
     ) -> list[ExecuteCellCommand]:
         """Include pending ancestors before graph mutation, without executing.
 
@@ -2047,9 +2061,13 @@ class Kernel:
         `mutate_graph`, once their replacement is applied.
         """
         requests = list(execution_requests)
+        pending = {
+            **self._uninstantiated_execution_requests,
+            **{request.cell_id: request for request in pending_sources},
+        }
         if (
             not requests
-            or not self._uninstantiated_execution_requests
+            or not pending
             or (run_cell_ids is not None and not run_cell_ids)
         ):
             return requests
@@ -2058,7 +2076,7 @@ class Kernel:
         deleted_ids = {request.cell_id for request in deletion_requests}
         pending = {
             cid: request
-            for cid, request in self._uninstantiated_execution_requests.items()
+            for cid, request in pending.items()
             if cid not in requested_ids and cid not in deleted_ids
         }
         if not pending:

@@ -19,6 +19,7 @@ from marimo import _loggers
 from marimo._runtime import patches
 from marimo._runtime.commands import (
     CancelRunCommand,
+    DocumentReplyCommand,
     ExecuteCellsCommand,
     ExecuteScratchpadCommand,
     ModelCommand,
@@ -156,26 +157,29 @@ def cancel_pending_run(
 def collapse_out_of_band(
     queue: Any, *, first: OutOfBandCommand
 ) -> list[OutOfBandCommand]:
-    """Drain queued out-of-band commands, keeping the latest of each type.
+    """Drain replies and keep the latest completion and breakpoint updates.
 
     `first` is the already-dequeued command that unblocked the worker; the
-    rest of the queue is drained non-blockingly. Out-of-band commands are
-    idempotent "latest wins" updates, so older commands of the same type are
-    stale and dropped. Returns one command per type, in first-seen order.
+    rest of the queue is drained non-blockingly. Replies are all delivered;
+    only completion and breakpoint updates replace earlier ones of their type.
 
     Works for both `multiprocessing`/`queue.Queue` and `asyncio.Queue` (both
     expose a synchronous `get_nowait`); `empty()` is avoided because
     `multiprocessing.Queue.empty()` can lie.
     """
     latest: dict[type, OutOfBandCommand] = {}
+    replies: list[OutOfBandCommand] = []
     item: OutOfBandCommand | None = first
     while item is not None:
-        latest[type(item)] = item
+        if isinstance(item, DocumentReplyCommand):
+            replies.append(item)
+        else:
+            latest[type(item)] = item
         try:
             item = queue.get_nowait()
         except (asyncio.QueueEmpty, _queue.Empty):
             item = None
-    return list(latest.values())
+    return replies + list(latest.values())
 
 
 def _build_hooks(

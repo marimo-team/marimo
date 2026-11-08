@@ -5,6 +5,7 @@ from unittest.mock import Mock
 
 from marimo._runtime.commands import (
     CodeCompletionCommand,
+    DocumentReplyCommand,
     ModelCommand,
     ModelUpdateMessage,
     SetBreakpointsCommand,
@@ -17,6 +18,14 @@ from marimo._session.queue import route_control_request
 class TestRouteControlRequest:
     def _make_queues(self) -> tuple[Mock, Mock, Mock]:
         return Mock(), Mock(), Mock()
+
+    def test_document_reply_bypasses_the_occupied_control_queue(self) -> None:
+        control, completion, ui_element = self._make_queues()
+        reply = DocumentReplyCommand(request_id="request")
+        route_control_request(reply, control, completion, ui_element)
+        completion.put.assert_called_once_with(reply)
+        control.put.assert_not_called()
+        ui_element.put.assert_not_called()
 
     def test_completion_goes_to_completion_queue_only(self) -> None:
         control, completion, ui_element = self._make_queues()

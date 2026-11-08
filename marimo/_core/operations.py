@@ -172,16 +172,9 @@ class Mutations:
             reply.expires_at is not None and self.clock() >= reply.expires_at
         )
 
-    async def execute(
-        self,
-        operation: str,
-        *,
-        notebook_id: str | None,
-        key: str,
-        payload: object,
-        call: Callable[[], Awaitable[Reply]],
-    ) -> Reply:
-        """Run `call` once per idempotency key, and answer retries with its reply."""
+    def require_operation(
+        self, operation: str, *, notebook_id: str | None
+    ) -> None:
         capabilities = (
             {"runtime.run", "runtime.execute"}
             if operation == "runtime.interrupt"
@@ -194,6 +187,18 @@ class Mutations:
             record.operations
         ):
             raise Forbidden(f"This notebook does not allow {operation}")
+
+    async def execute(
+        self,
+        operation: str,
+        *,
+        notebook_id: str | None,
+        key: str,
+        payload: object,
+        call: Callable[[], Awaitable[Reply]],
+    ) -> Reply:
+        """Run `call` once per idempotency key, and answer retries with its reply."""
+        self.require_operation(operation, notebook_id=notebook_id)
         if not key:
             raise Invalid("Idempotency-Key is required")
         fingerprint = hashlib.sha256(

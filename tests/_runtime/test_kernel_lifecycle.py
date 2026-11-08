@@ -15,6 +15,7 @@ from marimo._runtime.commands import (
     CancelRunCommand,
     CodeCompletionCommand,
     CommandMessage,
+    DocumentReplyCommand,
     ExecuteCellCommand,
     ExecuteCellsCommand,
     ModelCommand,
@@ -385,6 +386,19 @@ def test_make_control_enqueuer_routes_plain_command_to_control_only() -> None:
 
     assert control.get_nowait() is cmd
     assert ui.empty()
+
+
+@pytest.mark.parametrize("queue_factory", [asyncio.Queue, _queue.Queue])
+def test_document_replies_are_not_collapsed(queue_factory: Any) -> None:
+    queue = queue_factory()
+    replies = [DocumentReplyCommand(request_id=str(i)) for i in range(3)]
+    queue.put_nowait(replies[1])
+    queue.put_nowait(SetBreakpointsCommand(breakpoints={}))
+    queue.put_nowait(replies[2])
+    assert collapse_out_of_band(queue, first=replies[0]) == [
+        *replies,
+        SetBreakpointsCommand(breakpoints={}),
+    ]
 
 
 def test_make_control_enqueuer_mirrors_ui_element_command() -> None:

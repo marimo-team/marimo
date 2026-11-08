@@ -20,11 +20,9 @@ from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.notebook.document import (
     NotebookCell,
     NotebookDocument,
-    notebook_document_context,
 )
 from marimo._messaging.notification import (
     EnvironmentOperationNotification,
-    NotebookDocumentTransactionNotification,
     OperationRunning,
 )
 from marimo._runtime import dataflow
@@ -37,6 +35,7 @@ from marimo._runtime.commands import (
 from marimo._runtime.packages.package_manager import PackageDescription
 from marimo._runtime.runtime import CellMetadata, Kernel
 from marimo._types.ids import CellId_t
+from tests._code_mode._host import host_context
 
 
 @contextmanager
@@ -56,22 +55,11 @@ def _ctx(
     if extra_doc_cells:
         cells.extend(extra_doc_cells)
     doc = NotebookDocument(cells)
-    with notebook_document_context(doc):
-        # Staleness check coverage lives in test_staleness.py.
-        ctx = AsyncCodeModeContext(k, skip_staleness_check=True)
+    with host_context(k, doc, skip_staleness_check=True) as ctx:
         # Use a deterministic seed in tests for snapshot stability.
         ctx._id_generator = CellIdGenerator(seed=7)
         ctx._id_generator.seen_ids = set(doc.cell_ids)
         yield ctx
-
-
-def _tx_ops(k: Kernel) -> list[dict[str, object]]:
-    """Serialize all document transaction ops for snapshot comparison."""
-    ops: list[dict[str, object]] = []
-    for notif in k.stream.operations:
-        if isinstance(notif, NotebookDocumentTransactionNotification):
-            ops.extend(msgspec.to_builtins(notif.transaction.changes))
-    return ops
 
 
 def _clear_messages(k: Kernel) -> None:
@@ -102,10 +90,7 @@ class TestAddCell:
             async with ctx as nb:
                 nb.create_cell("x = 1", name=name)
 
-            create = next(
-                op for op in _tx_ops(k) if op["type"] == "create-cell"
-            )
-            assert create["name"] == expected_name
+            assert ctx.cells[0].name == expected_name
 
     @pytest.mark.parametrize(
         ("name", "message"),
@@ -142,25 +127,8 @@ class TestAddCell:
             assert cell.code == "x = 1"
             assert k.globals["x"] == 1
 
-            assert _tx_ops(k) == snapshot(
-                [
-                    {
-                        "type": "create-cell",
-                        "cellId": "qhHd",
-                        "code": "x = 1",
-                        "name": "",
-                        "config": {
-                            "column": None,
-                            "disabled": False,
-                            "hide_code": True,
-                            "expand_output": False,
-                        },
-                        "before": None,
-                        "after": None,
-                    },
-                    {"type": "reorder-cells", "cellIds": ("qhHd",)},
-                ]
-            )
+            assert ctx.cells[cid].code == "x = 1"
+            assert ctx.cells[cid].config.hide_code
 
     async def test_add_with_expand_output(self, k: Kernel) -> None:
         with _ctx(k) as ctx:
@@ -189,11 +157,7 @@ class TestAddCell:
             assert k.globals["c"] == 30
 
             # New cell should be last in the ordering.
-            ops = _tx_ops(k)
-            reorder = [o for o in ops if o["type"] == "reorder-cells"]
-            assert len(reorder) == 1
-            assert reorder[0]["cellIds"][:2] == ("0", "1")
-            assert len(reorder[0]["cellIds"]) == 3
+            assert list(ctx.cells.keys()) == ["0", "1", cid]
 
     async def test_add_with_after(self, k: Kernel) -> None:
         await k.run(
@@ -208,11 +172,9 @@ class TestAddCell:
             async with ctx as nb:
                 nb.create_cell("c = a + b", after="0")
 
-            ops = _tx_ops(k)
-            reorder = next(o for o in ops if o["type"] == "reorder-cells")
-            assert reorder["cellIds"][0] == "0"
-            # New cell should be after "0", before "1".
-            assert reorder["cellIds"][2] == "1"
+            assert ctx.cells[0].id == "0"
+            assert ctx.cells[1].code == "c = a + b"
+            assert ctx.cells[2].id == "1"
 
     async def test_add_without_run_does_not_execute(self, k: Kernel) -> None:
         with _ctx(k) as ctx:
@@ -223,12 +185,7 @@ class TestAddCell:
 
             assert len(k.graph.cells) == 1
             assert "x" not in k.globals
-
-            # Cell should appear as a CreateCell op (frontend marks it stale).
-            ops = _tx_ops(k)
-            creates = [o for o in ops if o["type"] == "create-cell"]
-            assert len(creates) == 1
-            assert creates[0]["code"] == "x = 999"
+            assert ctx.cells[0].code == "x = 999"
 
     async def test_add_returns_cell_id(self, k: Kernel) -> None:
         with _ctx(k) as ctx:
@@ -269,12 +226,7 @@ class TestDeleteCell:
 
             assert _graph_codes(k) == snapshot({"0": "a = 1", "2": "c = 3"})
 
-            assert _tx_ops(k) == snapshot(
-                [
-                    {"type": "delete-cell", "cellId": "1"},
-                    {"type": "reorder-cells", "cellIds": ("0", "2")},
-                ]
-            )
+            assert list(ctx.cells.keys()) == ["0", "2"]
 
     async def test_delete_cleans_globals(self, k: Kernel) -> None:
         """Deleting a cell removes its defs from kernel globals."""
@@ -326,13 +278,7 @@ class TestUpdateCell:
             async with ctx as nb:
                 nb.edit_cell("0", name=name)
 
-            name_ops = [op for op in _tx_ops(k) if op["type"] == "set-name"]
-            if name is None:
-                assert not name_ops
-            else:
-                assert name_ops == [
-                    {"type": "set-name", "cellId": "0", "name": name}
-                ]
+            assert ctx.cells["0"].name == (name or "")
 
     @pytest.mark.parametrize(
         ("name", "message"),
@@ -358,7 +304,7 @@ class TestUpdateCell:
                     nb.edit_cell("0", name=name)
 
             assert _graph_codes(k) == {"0": "x = 1"}
-            assert not _tx_ops(k)
+            assert ctx.cells["0"].name == ""
 
     async def test_update_code(self, k: Kernel) -> None:
         await k.run([ExecuteCellCommand(cell_id=CellId_t("0"), code="x = 1")])
@@ -374,12 +320,7 @@ class TestUpdateCell:
             assert k.globals["x"] == 42
             assert _graph_codes(k) == snapshot({"0": "x = 42"})
 
-            assert _tx_ops(k) == snapshot(
-                [
-                    {"type": "set-code", "cellId": "0", "code": "x = 42"},
-                    {"type": "reorder-cells", "cellIds": ("0",)},
-                ]
-            )
+            assert ctx.cells["0"].code == "x = 42"
 
     async def test_update_cleans_stale_globals(self, k: Kernel) -> None:
         """Updating code removes old defs that are no longer defined."""
@@ -428,19 +369,7 @@ class TestUpdateCell:
 
             assert k.globals["x"] == 1
             assert _graph_codes(k) == snapshot({"0": "x = 1"})
-            assert _tx_ops(k) == snapshot(
-                [
-                    {
-                        "type": "set-config",
-                        "cellId": "0",
-                        "column": None,
-                        "disabled": False,
-                        "hideCode": True,
-                        "expandOutput": False,
-                    },
-                    {"type": "reorder-cells", "cellIds": ("0",)},
-                ]
-            )
+            assert ctx.cells["0"].config == CellConfig(hide_code=True)
 
     async def test_update_expand_output(self, k: Kernel) -> None:
         await k.run([ExecuteCellCommand(cell_id=CellId_t("0"), code="x = 1")])
@@ -453,19 +382,7 @@ class TestUpdateCell:
 
             assert k.cell_metadata["0"].config.expand_output is True
             assert k.graph.cells["0"].config.expand_output is True
-            assert _tx_ops(k) == snapshot(
-                [
-                    {
-                        "type": "set-config",
-                        "cellId": "0",
-                        "column": None,
-                        "disabled": False,
-                        "hideCode": False,
-                        "expandOutput": True,
-                    },
-                    {"type": "reorder-cells", "cellIds": ("0",)},
-                ]
-            )
+            assert ctx.cells["0"].config.expand_output
 
     async def test_update_preserves_expand_output(self, k: Kernel) -> None:
         """Editing another config field leaves expand_output untouched."""
@@ -554,7 +471,7 @@ class TestUpdateCell:
                     nb.edit_cell("0", code="x=  42")
 
         mock_format.assert_not_awaited()
-        assert _graph_codes(k) == {"0": "x=  42"}
+        assert ctx.cells["0"].code == "x=  42"
 
     async def test_update_code_formats_when_enabled(self, k: Kernel) -> None:
         await k.run([ExecuteCellCommand(cell_id=CellId_t("0"), code="x = 1")])
@@ -571,7 +488,7 @@ class TestUpdateCell:
                     nb.edit_cell("0", code="x=  42")
 
         mock_format.assert_awaited_once()
-        assert _graph_codes(k) == {"0": "x = 42"}
+        assert ctx.cells["0"].code == "x = 42"
 
 
 class TestCombined:
@@ -804,9 +721,7 @@ class TestResolveTarget:
             assert k.globals["y"] == 2
 
             # "first" should come before the second cell in ordering.
-            ops = _tx_ops(k)
-            reorder = next(o for o in ops if o["type"] == "reorder-cells")
-            assert len(reorder["cellIds"]) == 2
+            assert list(ctx.cells.keys()) == [cid1, cid2]
 
     async def test_create_after_renamed_cell(self, k: Kernel) -> None:
         """Can reference a cell by its new name after edit_cell renames it."""
@@ -827,10 +742,7 @@ class TestResolveTarget:
             assert k.globals["c"] == 3
 
             # New cell should be after "0" (renamed), before "1".
-            ops = _tx_ops(k)
-            reorder = next(o for o in ops if o["type"] == "reorder-cells")
-            assert reorder["cellIds"][0] == "0"
-            assert reorder["cellIds"][2] == "1"
+            assert list(ctx.cells.keys()) == ["0", cid, "1"]
 
 
 class TestPackages:
@@ -1266,10 +1178,8 @@ async def test_package_summary_reports_unsuccessful_outcomes(
 class TestAutorunStaleState:
     """In autorun mode, downstream cells should not be marked stale."""
 
-    async def test_dependent_chain_only_root_run(self, k: Kernel) -> None:
-        """Running the root cell should mark reactive descendants as
-        non-stale in autorun mode so the frontend doesn't show them
-        as 'needs run'."""
+    async def test_new_descendant_runs_inline(self, k: Kernel) -> None:
+        """An inline run retains autorun behavior for newly created descendants."""
         with _ctx(k) as ctx:
             _clear_messages(k)
 
@@ -1278,16 +1188,11 @@ class TestAutorunStaleState:
                 b = nb.create_cell("y = x + 1")
                 nb.run_cell(a)
 
-            # Both cells should have executed.
             assert k.globals["x"] == 1
             assert k.globals["y"] == 2
+            assert not k.graph.cells[b].stale
 
-            # Both cells should appear as CreateCell ops in the transaction.
-            ops = _tx_ops(k)
-            creates = [o for o in ops if o["type"] == "create-cell"]
-            assert len(creates) == 2
-            assert creates[0]["code"] == "x = 1"
-            assert creates[1]["code"] == "y = x + 1"
+            assert [cell.code for cell in ctx.cells] == ["x = 1", "y = x + 1"]
 
     async def test_dependent_chain_lazy_mode(
         self, lazy_kernel: Kernel
@@ -1307,12 +1212,7 @@ class TestAutorunStaleState:
             # b should NOT have executed in lazy mode.
             assert "y" not in k.globals
 
-            # Both cells should appear as CreateCell ops in the transaction.
-            ops = _tx_ops(k)
-            creates = [o for o in ops if o["type"] == "create-cell"]
-            assert len(creates) == 2
-            assert creates[0]["code"] == "x = 1"
-            assert creates[1]["code"] == "y = x + 1"
+            assert [cell.code for cell in ctx.cells] == ["x = 1", "y = x + 1"]
 
     async def test_two_step_edit_then_run(self, k: Kernel) -> None:
         """edit_cell in one flush, run_cell in a separate flush should
@@ -1629,7 +1529,7 @@ class TestPendingExecutionRequests:
 
     @pytest.mark.parametrize("explicit_ancestor", [False, True])
     @pytest.mark.parametrize("disabled", [False, True])
-    async def test_run_preserves_newer_ancestor_metadata(
+    async def test_run_uses_accepted_ancestor_config(
         self, any_kernel: Kernel, explicit_ancestor: bool, disabled: bool
     ) -> None:
         k = any_kernel
@@ -1637,6 +1537,7 @@ class TestPendingExecutionRequests:
         config = CellConfig(
             disabled=disabled, hide_code=True, expand_output=True, column=2
         )
+        cells[0].config = config
         k.cell_metadata[CellId_t("root")] = CellMetadata(config=config)
         with _ctx(k, extra_doc_cells=cells) as ctx:
             async with ctx as nb:
@@ -1768,3 +1669,68 @@ async def test_config_edit_retains_semantic_error_source(k: Kernel) -> None:
     )
     assert cid in k.errors
     assert k.cell_metadata[cid].code == source
+
+
+async def test_validation_uses_edited_source(k: Kernel) -> None:
+    await k.run([ExecuteCellCommand(cell_id=CellId_t("first"), code="x = 1")])
+    with _ctx(k) as ctx:
+        async with ctx:
+            ctx.edit_cell("first", code="y = 1")
+        async with ctx:
+            second = ctx.create_cell("x = 2")
+        assert ctx.cells[second].code == "x = 2"
+        assert k.graph.cells["first"].code == "y = 1"
+        assert "x" not in k.globals
+
+
+async def test_validation_includes_unrun_cells(k: Kernel) -> None:
+    with _ctx(k) as ctx:
+        async with ctx:
+            first = ctx.create_cell("x = 1")
+        await ctx.__aenter__()
+        ctx.create_cell("x = 2")
+        with pytest.raises(RuntimeError, match="Multiply-defined"):
+            await ctx.__aexit__(None, None, None)
+        assert list(ctx.cells.keys()) == [first]
+        assert k.graph.cells[first].code == "x = 1"
+
+
+@pytest.mark.usefixtures("k")
+def test_context_requires_agent_scratchpad() -> None:
+    from marimo._code_mode import get_context
+
+    with pytest.raises(RuntimeError, match="native agent scratchpad"):
+        get_context()
+
+
+async def test_new_ancestor_after_notebook_has_run(k: Kernel) -> None:
+    await k.run(
+        [ExecuteCellCommand(cell_id=CellId_t("existing"), code="x = 1")]
+    )
+    with _ctx(k) as ctx:
+        async with ctx:
+            ctx.create_cell("y = 2")
+            target = ctx.create_cell("z = x + y")
+            ctx.run_cell(target)
+        assert k.globals["z"] == 3
+
+
+async def test_queued_echo_does_not_repeat_inline_edits(k: Kernel) -> None:
+    from tests._code_mode._host import updates
+
+    k.globals["calls"] = []
+    with _ctx(k) as ctx:
+        async with ctx:
+            cid = ctx.create_cell("calls.append(1)\nx = 1")
+            ctx.run_cell(cid)
+        async with ctx:
+            ctx.edit_cell(cid, disabled=True)
+        async with ctx:
+            ctx.edit_cell(cid, disabled=False)
+            ctx.run_cell(cid)
+        before = list(k.globals["calls"])
+        assert before == [1, 1]
+        for command in updates[k]:
+            await k.edit_cells(command)
+        assert k.globals["calls"] == before
+        assert not k.inline_edits

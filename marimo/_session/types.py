@@ -18,10 +18,11 @@ from marimo._messaging.input import InputReply
 if TYPE_CHECKING:
     import asyncio
     import threading
-    from collections.abc import Iterator, Sequence
+    from collections.abc import Awaitable, Callable, Iterator, Sequence
 
     from marimo._config.manager import MarimoConfigManager
     from marimo._environments.sandbox import NotebookSandbox
+    from marimo._messaging.host import DocumentRequest
     from marimo._messaging.notebook.document import NotebookDocument
     from marimo._messaging.notification import NotificationMessage
     from marimo._messaging.types import KernelMessage
@@ -168,6 +169,11 @@ class Session(Protocol):
     def document(self) -> NotebookDocument:
         """The notebook document this session reflects."""
         ...
+
+    document_request: (
+        Callable[[DocumentRequest], Awaitable[commands.DocumentReplyCommand]]
+        | None
+    ) = None
 
     def kernel_state(self) -> KernelState:
         """Get the state of the kernel."""

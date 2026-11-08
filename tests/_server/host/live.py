@@ -42,10 +42,11 @@ async def open_host(
     source: str,
     *,
     on_cell_change: OnCellChangeType = "autorun",
+    filename: str = "notebook.py",
 ) -> AsyncIterator[tuple[Starlette, str, Response]]:
     """Serve `source` with a started runtime, following its events."""
     manager = get_mock_session_manager()
-    file = tmp_path / "notebook.py"
+    file = tmp_path / filename
     file.write_text(source)
     manager.workspace = SingleFileWorkspace.from_path(MarimoPath(file))
     manager.redirect_console_to_browser = True

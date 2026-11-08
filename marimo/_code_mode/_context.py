@@ -23,12 +23,14 @@ Usage::
 
 from __future__ import annotations
 
+import asyncio
 import keyword
 import sys
 import unicodedata
 from dataclasses import dataclass
 from enum import Enum
 from typing import TYPE_CHECKING, Any, Literal, Protocol, cast, overload
+from uuid import uuid4
 
 from msgspec.structs import replace as structs_replace
 
@@ -52,6 +54,7 @@ from marimo._code_mode._plan import (
     _AddOp,
     _build_plan,
     _DeleteOp,
+    _document_changes,
     _MoveOp,
     _Op,
     _PlanEntry,
@@ -63,18 +66,11 @@ from marimo._code_mode.screenshot_meta import (
     SCREENSHOT_FILE_KEY,
     SCREENSHOT_SERVER_URL_KEY,
 )
+from marimo._core import protocol
+from marimo._core.document import Document, DocumentCell
 from marimo._messaging.cell_output import CellOutput
 from marimo._messaging.errors import Error
-from marimo._messaging.notebook.changes import (
-    CreateCell,
-    DeleteCell,
-    DocumentChange,
-    ReorderCells,
-    SetCode,
-    SetConfig,
-    SetName,
-    Transaction,
-)
+from marimo._messaging.host import DocumentRequest
 from marimo._messaging.notebook.document import (
     NotebookCell as _NotebookCell,
     NotebookDocument,
@@ -84,18 +80,22 @@ from marimo._messaging.notebook.outputs import (
     get_current_outputs,
 )
 from marimo._messaging.notification import (
-    NotebookDocumentTransactionNotification,
     Notification,
 )
 from marimo._messaging.notification_utils import broadcast_notification
 from marimo._runtime.commands import (
     CommandMessage,
     DeleteCellCommand,
+    DocumentReplyCommand,
     ExecuteCellCommand,
     UpdateUIElementCommand,
 )
-from marimo._runtime.context import get_context as _get_runtime_context
+from marimo._runtime.context import (
+    get_context as _get_runtime_context,
+    safe_get_context,
+)
 from marimo._runtime.context.kernel_context import KernelRuntimeContext
+from marimo._runtime.dataflow import DirectedGraph
 from marimo._runtime.runtime import CellMetadata
 from marimo._types.ids import CellId_t, UIElementId
 from marimo._utils.formatter import DefaultFormatter
@@ -108,8 +108,21 @@ if TYPE_CHECKING:
 
     from marimo._ast.cell_manager import CellManager
     from marimo._code_mode.screenshot import _ScreenshotSession
-    from marimo._runtime.dataflow import DirectedGraph
     from marimo._runtime.runtime import Kernel
+
+
+def _cell_source(cell: _NotebookCell) -> DocumentCell:
+    return DocumentCell(
+        protocol.CellId(cell.id),
+        cell.code,
+        cell.name,
+        protocol.CellConfig(
+            column=cell.config.column,
+            disabled=cell.config.disabled,
+            hide_code=cell.config.hide_code,
+            expand_output=cell.config.expand_output,
+        ),
+    )
 
 
 def _validate_cell_name(name: str | None) -> None:
@@ -253,6 +266,8 @@ def get_context(
     runtime_ctx = _get_runtime_context()
     if not isinstance(runtime_ctx, KernelRuntimeContext):
         raise RuntimeError("code mode requires a running kernel context")
+    if sys.platform == "emscripten" or runtime_ctx.active_scheduler is None:
+        raise RuntimeError("Code mode requires a native agent scratchpad")
     cell_manager = runtime_ctx._app.cell_manager if runtime_ctx._app else None
     return AsyncCodeModeContext(
         runtime_ctx._kernel,
@@ -523,7 +538,11 @@ class _CellsView:
 
     @property
     def _doc(self) -> NotebookDocument:
-        return self._ctx._document
+        return (
+            self._ctx._document
+            if self._ctx._entered
+            else self._ctx._scratch_document
+        )
 
     def _cell_view(self, cell: _NotebookCell) -> NotebookCell:
         """Wrap a document cell with runtime state from the graph."""
@@ -537,8 +556,10 @@ class _CellsView:
             graph_errors = ()
             outputs = None
 
+        etag = _cell_source(cell).etag
+
         def record_read() -> None:
-            self._ctx._note_read(cell.id, cell.version)
+            self._ctx._kernel.agent.read_etags[cell.id] = etag
 
         return NotebookCell(
             cell,
@@ -701,8 +722,9 @@ class _CellsView:
 class AsyncCodeModeContext:
     """Async programmatic control of a running marimo notebook.
 
-    Use as an async context manager — mutations are queued during the
-    block and applied atomically on exit::
+    Use as an async context manager. Cell edits are queued during the
+    block and submitted together on exit. Requested runs finish before
+    the context returns; a failed run does not roll back accepted edits::
 
         async with cm.get_context() as ctx:
             ctx.create_cell("x = 1")
@@ -726,12 +748,25 @@ class AsyncCodeModeContext:
         document = get_current_document()
         if document is None:
             raise RuntimeError(
-                "NotebookDocument not available — code_mode must be invoked "
-                "via the /api/execute endpoint which sets the document "
-                "context variable"
+                "NotebookDocument not available — code_mode requires "
+                "a scratchpad execution with a notebook document"
             )
         self._kernel = kernel
         self._document = document
+        self._scratch_document = document
+        runtime = safe_get_context()
+        self._scheduler = (
+            runtime.active_scheduler
+            if isinstance(runtime, KernelRuntimeContext)
+            else None
+        )
+        self._host_document = Document(
+            [_cell_source(cell) for cell in document.cells], {}
+        )
+        try:
+            self._owner_task = asyncio.current_task()
+        except RuntimeError:
+            self._owner_task = None
         # Output snapshot is optional — callers that don't pass one
         # (e.g. the MCP code server) get `cell.output is None` and
         # `cell.console_outputs == []` for every cell, same as cells
@@ -766,9 +801,6 @@ class AsyncCodeModeContext:
                 "Without 'async with', operations are silently lost."
             )
 
-    def _note_read(self, cell_id: CellId_t, version: int) -> None:
-        self._kernel.agent.read_tracker.record_read(cell_id, version)
-
     def __getattr__(self, name: str) -> Any:
         # Legacy alias: `ctx.install_packages(...)` was the pre-namespace
         # API. Kept as a hidden shim for in-flight skills / examples;
@@ -791,12 +823,26 @@ class AsyncCodeModeContext:
     # Async context manager
     # ------------------------------------------------------------------
 
+    def _require_owner(self) -> None:
+        task = asyncio.current_task()
+        if (
+            self._owner_task is not None
+            and self._owner_task is not task
+            or self._scheduler is not None
+            and not self._scheduler.owns_task(task)
+        ):
+            raise RuntimeError(
+                "Code mode must flush in the task that created its context"
+            )
+
     async def __aenter__(self) -> Self:
+        self._require_owner()
         self._ops = []
         self._pending_adds = {}
         self._packages._reset()
         self._ui_updates = []
         self._cells_to_run = set()
+        await self._request_document()
         self._entered = True
         return self
 
@@ -806,6 +852,8 @@ class AsyncCodeModeContext:
         exc_val: BaseException | None,
         exc_tb: TracebackType | None,
     ) -> None:
+        self._require_owner()
+        self._entered = False
         ops = self._ops
         ui_updates = self._ui_updates
         cells_to_run = self._cells_to_run
@@ -824,22 +872,7 @@ class AsyncCodeModeContext:
         # cells can import newly installed packages.
         package_ops = await self._packages._flush()
 
-        if ops:
-            _validate_ops(ops)
-            if not self._skip_validation:
-                self._dry_run_compile(ops)
-            await self._apply_ops(ops, cells_to_run)
-        elif cells_to_run:
-            code_lookup = {c.id: c.code for c in self._document.cells}
-            await self._kernel.run(
-                [
-                    ExecuteCellCommand(
-                        cell_id=cid,
-                        code=code_lookup[cid],
-                    )
-                    for cid in cells_to_run
-                ]
-            )
+        await self._flush_document(ops, cells_to_run)
 
         # Flush queued UI updates as a single batch.
         if ui_updates:
@@ -1173,9 +1206,6 @@ class AsyncCodeModeContext:
                 continue
             if op.config is not None:
                 return op.config
-        meta = self._kernel.cell_metadata.get(cell_id)
-        if meta is not None:
-            return meta.config
         return self._document.get_cell(cell_id).config
 
     def edit_cell(
@@ -1255,33 +1285,21 @@ class AsyncCodeModeContext:
                 except KeyError:
                     pass
                 new_cell_id = setup_id
-                # Ensure code is populated — the new cell_id won't
-                # exist in the graph, so _apply_ops needs the code.
-                if code is None and cell_id in self.graph.cells:
-                    code = self.graph.cells[cell_id].code
+                if code is None:
+                    code = self._document.get_cell(cell_id).code
             # Setup is identified by cell_id alone — don't store a name.
             name = None
 
-        # Check after the setup-migration block so an implicit code-fill
-        # from the graph still trips the read-before-write guard.
-        if (
-            code is not None
-            and not self._skip_staleness_check
-            and cell_id not in self._pending_adds
-        ):
-            cell = self._document.get(cell_id)
-            tracker = self._kernel.agent.read_tracker
-            # Empty cells have no prior content to clobber. The agent's own
-            # writes record reads at __aexit__, so a follow-up edit in a
-            # later context passes the check normally.
-            if (
-                cell is not None
-                and cell.code.strip()
-                and not tracker.has_read(cell_id, cell.version)
-            ):
-                raise StaleCellError(
-                    cell_id, tracker.get_stale_cells(self._document)
-                )
+        if code is not None and not self._skip_staleness_check:
+            stale = frozenset(
+                CellId_t(cell.id)
+                for cell in self._host_document
+                if cell.code.strip()
+                and self._kernel.agent.read_etags.get(CellId_t(cell.id))
+                != cell.etag
+            )
+            if cell_id in stale:
+                raise StaleCellError(cell_id, stale)
 
         # Build config only if any config kwarg was explicitly set,
         # starting from the existing config so unspecified fields persist.
@@ -1621,255 +1639,229 @@ class AsyncCodeModeContext:
     # ------------------------------------------------------------------
 
     def _dry_run_compile(self, ops: list[_Op]) -> None:
-        """Compile and graph-check every op before mutating real state.
-
-        For each op with code:
-        1. `compile_cell` — validates syntax, extracts defs/refs.
-        2. Temporarily register in the graph to detect multiply-defined
-           names and cycles.
-        3. Always clean up so the graph is left unchanged.
-
-        Raises `SyntaxError` for invalid code or `RuntimeError` for
-        graph conflicts (multiply-defined names, cycles).
-        """
-        graph = self.graph
-        registered: list[CellId_t] = []
-        # For updates we must evict the old cell first; remember it
-        # so we can restore on cleanup.
-        evicted: dict[CellId_t, CellImpl] = {}
-
-        # Snapshot cell order before any mutations so we can restore it.
-        # The evict/re-register cycle appends cells to the end of the
-        # dict, which corrupts the ordering that _apply_ops relies on.
-        original_order = list(graph.cells.keys())
-
-        # Snapshot existing problems so we only flag *new* ones.
-        existing_multiply_defined = set(graph.get_multiply_defined())
-        existing_cycles = set(graph.cycles)
-
-        try:
-            for op in ops:
-                # For deletes, evict the cell so its defs don't conflict
-                # with later adds/updates that reuse the same names.
-                if isinstance(op, _DeleteOp):
-                    cell_id = op.cell_id
-                    if cell_id in graph.cells:
-                        evicted[cell_id] = graph.cells[cell_id]
-                        graph.delete_cell(cell_id)
-                    continue
-
-                code: str | None = getattr(op, "code", None)
-                if code is None:
-                    continue
-
-                cell_id = op.cell_id
-
-                # For updates, temporarily remove the existing cell so the
-                # new version can be registered in its place.
-                if isinstance(op, _UpdateOp) and cell_id in graph.cells:
-                    evicted[cell_id] = graph.cells[cell_id]
-                    graph.delete_cell(cell_id)
-
-                cell = compile_cell(code, cell_id=cell_id)
-                graph.register_cell(cell_id, cell)
-                registered.append(cell_id)
-
-            # Only error on problems *introduced* by these ops.
-            new_multiply_defined = (
-                set(graph.get_multiply_defined()) - existing_multiply_defined
-            )
-            new_cycles = set(graph.cycles) - existing_cycles
-
-            _skip_hint = (
-                "\n\nTo skip validation, use: "
-                "async with cm.get_context(skip_validation=True) as ctx"
-            )
-            if new_multiply_defined:
-                # Show which existing cell(s) already define each name.
-                # Only exclude cells that were actually (re)registered
-                # during this dry run.  Moves and config-only updates
-                # do not register code, so their pre-existing
-                # definitions should still appear in the error details.
-                registered_ids = set(registered)
-                details: list[str] = []
-                for name in sorted(new_multiply_defined):
-                    existing = graph.get_defining_cells(name) - registered_ids
-                    if existing:
-                        labels = ", ".join(
-                            self._cell_label(cid) for cid in sorted(existing)
-                        )
-                        details.append(
-                            f"  - {name!r} is already defined in cell {labels}"
-                        )
-                    else:
-                        details.append(f"  - {name!r}")
-                raise RuntimeError(
-                    "Multiply-defined names:\n"
-                    + "\n".join(details)
-                    + _skip_hint
+        """Reject new syntax and graph errors against the document being edited."""
+        baseline = DirectedGraph()
+        compiled: dict[CellId_t, CellImpl] = {}
+        for source in self._document.cells:
+            try:
+                compiled[source.id] = compile_cell(
+                    source.code, cell_id=source.id
                 )
-            if new_cycles:
-                raise RuntimeError(
-                    f"Cycles detected: {new_cycles}{_skip_hint}"
-                )
-        finally:
-            # Always clean up: remove dry-run cells, restore evicted ones.
-            for cid in registered:
-                if cid in graph.cells:
-                    graph.delete_cell(cid)
-            for cid, old_cell in evicted.items():
-                graph.register_cell(cid, old_cell)
-
-            # Restore original cell ordering.
-            if evicted:
-                graph.topology.reorder_nodes(original_order)
-
-    async def _apply_ops(
-        self, ops: list[_Op], explicit_run: set[CellId_t] | None = None
-    ) -> None:
-        """Validate, plan, format, and apply a batch of operations."""
-        existing_ids = list(self._document)
-        plan = _build_plan(existing_ids, ops)
-
-        # Auto-format new/changed code.
-        plan = await self._format_plan(plan)
-
-        # Diff the plan against the current document.
-        existing_id_set = set(self._document)
-        existing_code = {cell.id: cell.code for cell in self._document.cells}
-        plan_ids = {e.cell_id for e in plan}
-
-        # Classify each entry.
-        code_entries: list[_PlanEntry] = []  # new or changed code
-        config_entries: list[_PlanEntry] = []  # config-only changes
-
-        for entry in plan:
-            is_new = entry.cell_id not in existing_id_set
-            code_changed = (
-                entry.code is not None
-                and entry.code != existing_code.get(entry.cell_id)
-            )
-            if is_new or code_changed:
-                code_entries.append(entry)
-            elif entry.config is not None:
-                config_entries.append(entry)
-
-        # Resolve configs for all entries (code and config-only).
-        resolved_configs: dict[CellId_t, CellConfig] = {}
-        for entry in code_entries + config_entries:
-            if entry.config is not None:
-                resolved_configs[entry.cell_id] = entry.config
-            elif entry.cell_id not in existing_id_set:
-                resolved_configs[entry.cell_id] = CellConfig(hide_code=True)
-            else:
-                existing_meta = self._kernel.cell_metadata.get(entry.cell_id)
-                if existing_meta is not None:
-                    resolved_configs[entry.cell_id] = existing_meta.config
-                else:
-                    resolved_configs[entry.cell_id] = self._document.get_cell(
-                        entry.cell_id
-                    ).config
-
-        # Let mutate_graph handle all graph mutations: it properly
-        # cleans up globals, UI elements, and lifecycle hooks for
-        # deleted/replaced cells via _delete_cell / _deactivate_cell.
-        _run_set = explicit_run or set()
-        execution_requests = [
-            ExecuteCellCommand(cell_id=e.cell_id, code=e.code)
-            for e in code_entries
-            if e.code is not None
-        ]
-        requested_ids = {request.cell_id for request in execution_requests}
-        # Include every run target so preparation can discover pending
-        # ancestors using the complete batch's source.
-        for entry in plan:
-            if (
-                entry.cell_id in _run_set
-                and entry.cell_id not in requested_ids
-            ):
-                execution_requests.append(
-                    ExecuteCellCommand(
-                        cell_id=entry.cell_id,
-                        code=existing_code[entry.cell_id],
-                    )
-                )
-        deletion_requests = [
-            DeleteCellCommand(cell_id=cid)
-            for cid in existing_id_set - plan_ids
-        ]
-        execution_requests = self._kernel.prepare_execution_requests(
-            execution_requests,
-            run_cell_ids=_run_set,
-            deletion_requests=deletion_requests,
-        )
-        for request in execution_requests:
-            if request.cell_id in existing_id_set:
-                resolved_configs.setdefault(
-                    request.cell_id,
-                    self._current_config(request.cell_id),
-                )
-        cells_to_run = self._kernel.mutate_graph(
-            execution_requests, deletion_requests
-        )
-
-        # Restore cell ordering in the graph to match the plan.
-        # mutate_graph may reorder cells: _deactivate_cell removes a cell
-        # from the dict and _try_registering_cell re-adds it at the end.
-        target_order = [e.cell_id for e in plan]
-        self.graph.topology.reorder_nodes(target_order)
-
-        # Apply configs to all affected cells.
-        for cell_id, cfg in resolved_configs.items():
-            if cell_id in self.graph.cells:
-                self.graph.cells[cell_id].configure(cfg.asdict())
-            metadata = self._kernel.cell_metadata.setdefault(
-                cell_id, CellMetadata()
-            )
-            metadata.config = cfg
-
-        # Build document transaction ops from the plan and broadcast
-        # a single NotebookDocumentTransactionNotification.
-        doc_ops = _plan_to_document_ops(
-            plan=plan,
-            existing_ids=existing_id_set,
-            existing_code=existing_code,
-            resolved_configs=resolved_configs,
-            internal_ops=ops,
-        )
-        if doc_ops:
-            tx = Transaction(changes=tuple(doc_ops), source="code-mode")
-            # Apply to local snapshot so _cell_label can read names.
-            self._document.apply(tx)
-            self.broadcast_raw_notification(
-                NotebookDocumentTransactionNotification(transaction=tx)
-            )
-
-        # The agent wrote these cells in this batch — its effective view is
-        # the post-write version. Without this, a cell created in call N
-        # can't be edited in call N+1 without re-reading.
-        for op in ops:
-            if isinstance(op, _AddOp):
-                written_id = op.cell_id
-            elif isinstance(op, _UpdateOp) and op.code is not None:
-                written_id = op.new_cell_id or op.cell_id
-            else:
+            except SyntaxError:
+                # An existing invalid cell must not block unrelated edits.
                 continue
-            current = self._document.get_cell_version(written_id)
-            if current is not None:
-                self._note_read(written_id, current)
+            baseline.register_cell(source.id, compiled[source.id])
 
-        # Run queued cells (explicit run_cell + autorun descendants),
-        # filtered to cells that still exist after structural ops.
-        if _run_set and self._kernel.reactive_execution_mode == "autorun":
-            _run_set = _run_set | cells_to_run
-        if _run_set:
-            cells_to_run = _run_set & set(self.graph.cells.keys())
-            if cells_to_run:
-                await self._kernel._run_cells(cells_to_run)
+        graph = DirectedGraph()
+        written: set[CellId_t] = set()
+        for entry in _build_plan(list(self._document), ops):
+            if entry.code is not None:
+                cell = compile_cell(entry.code, cell_id=entry.cell_id)
+                written.add(entry.cell_id)
+            else:
+                existing_cell = compiled.get(entry.cell_id)
+                if existing_cell is None:
+                    continue
+                cell = existing_cell
+            graph.register_cell(entry.cell_id, cell)
 
-    # ------------------------------------------------------------------
-    # Formatting helpers
-    # ------------------------------------------------------------------
+        new_names = set(graph.get_multiply_defined()) - set(
+            baseline.get_multiply_defined()
+        )
+        new_cycles = set(graph.cycles) - set(baseline.cycles)
+        skip_hint = (
+            "\n\nTo skip validation, use: "
+            "async with cm.get_context(skip_validation=True) as ctx"
+        )
+        if new_names:
+            details: list[str] = []
+            for name in sorted(new_names):
+                existing = graph.get_defining_cells(name) - written
+                if existing:
+                    labels = ", ".join(
+                        self._cell_label(cid) for cid in sorted(existing)
+                    )
+                    details.append(
+                        f"  - {name!r} is already defined in cell {labels}"
+                    )
+                else:
+                    details.append(f"  - {name!r}")
+            raise RuntimeError(
+                "Multiply-defined names:\n" + "\n".join(details) + skip_hint
+            )
+        if new_cycles:
+            raise RuntimeError(f"Cycles detected: {new_cycles}{skip_hint}")
+
+    async def _request_document(
+        self,
+        *,
+        changes: tuple[protocol.Change, ...] | None = None,
+        cells: tuple[protocol.RequestedCell, ...] = (),
+    ) -> DocumentReplyCommand:
+        reply = await self._kernel.document_requests.request(
+            DocumentRequest(
+                request_id=str(uuid4()),
+                changes=changes,
+                cells=cells,
+            )
+        )
+        if reply.problem is not None:
+            detail = reply.problem.detail
+            raise RuntimeError(
+                detail if isinstance(detail, str) else reply.problem.title
+            )
+        assert reply.document is not None
+        self._host_document = reply.document.document()
+        self._document = NotebookDocument(
+            [
+                _NotebookCell(
+                    id=CellId_t(cell.id),
+                    code=cell.code,
+                    name=cell.name,
+                    config=CellConfig(
+                        column=cell.config.column,
+                        disabled=cell.config.disabled,
+                        hide_code=cell.config.hide_code,
+                        expand_output=cell.config.expand_output,
+                    ),
+                )
+                for cell in self._host_document
+            ]
+        )
+        self._scratch_document.replace_snapshot(self._document)
+        self._id_generator.seen_ids.update(self._document.cell_ids)
+        return reply
+
+    async def _flush_document(
+        self, ops: list[_Op], run_ids: set[CellId_t]
+    ) -> None:
+        document = self._host_document
+        requested = {
+            cell.id: cell.etag
+            for cell in document
+            if CellId_t(cell.id) in run_ids
+        }
+        affected: set[CellId_t] = set()
+        if ops:
+            _validate_ops(ops)
+            if not self._skip_validation:
+                self._dry_run_compile(ops)
+            plan = await self._format_plan(
+                _build_plan(list(self._document), ops)
+            )
+            changes = tuple(_document_changes(document, plan))
+            reply = await self._request_document(changes=changes)
+            written = {
+                change.cell.id
+                for change in changes
+                if isinstance(change, protocol.PutCell)
+            }
+            affected = self._apply_document(document, written, set())
+            if reply.inline_id is not None:
+                self._kernel.inline_edits.add(reply.inline_id)
+            source_writes = {
+                protocol.CellId(
+                    op.cell_id
+                    if isinstance(op, _AddOp)
+                    else op.new_cell_id or op.cell_id
+                )
+                for op in ops
+                if isinstance(op, _AddOp)
+                or isinstance(op, _UpdateOp)
+                and op.code is not None
+            }
+            for cell_id in written:
+                cell = self._host_document.cell(cell_id)
+                assert cell is not None
+                prior = document.cell(cell_id)
+                if cell_id in source_writes or (
+                    prior is not None
+                    and self._kernel.agent.read_etags.get(CellId_t(cell_id))
+                    == prior.etag
+                ):
+                    self._kernel.agent.read_etags[CellId_t(cell_id)] = (
+                        cell.etag
+                    )
+                if CellId_t(cell_id) in run_ids:
+                    requested[cell_id] = cell.etag
+        if run_ids:
+            await self._request_document(
+                cells=tuple(
+                    protocol.RequestedCell(
+                        id=protocol.CellId(cid),
+                        etag=requested[protocol.CellId(cid)],
+                    )
+                    for cid in sorted(run_ids)
+                )
+            )
+            affected |= self._apply_document(
+                self._host_document, set(), run_ids
+            )
+            if self._kernel.reactive_execution_mode == "autorun":
+                run_ids = run_ids | affected
+            await self._kernel._run_cells(run_ids & set(self.graph.cells))
+
+    def _apply_document(
+        self,
+        before: Document,
+        written: set[protocol.CellId],
+        run_ids: set[CellId_t],
+    ) -> set[CellId_t]:
+        """Apply accepted source using the existing inline execution path."""
+        document = self._host_document
+        requests = [
+            ExecuteCellCommand(
+                cell_id=CellId_t(cell.id),
+                code=cell.code,
+                code_fingerprint=cell.code_fingerprint,
+            )
+            for cell in document
+            if CellId_t(cell.id) in run_ids
+            or (
+                cell.id in written
+                and (
+                    (previous := before.cell(cell.id)) is None
+                    or previous.code != cell.code
+                )
+            )
+        ]
+        deletions = [
+            DeleteCellCommand(cell_id=cid)
+            for cid in self.graph.cells.keys()
+            | self._kernel._uninstantiated_execution_requests.keys()
+            | {CellId_t(cell.id) for cell in before}
+            if document.cell(protocol.CellId(cid)) is None
+        ]
+        requests = self._kernel.prepare_execution_requests(
+            requests,
+            run_cell_ids=run_ids,
+            deletion_requests=deletions,
+            pending_sources=[
+                ExecuteCellCommand(
+                    cell_id=CellId_t(cell.id),
+                    code=cell.code,
+                    code_fingerprint=cell.code_fingerprint,
+                )
+                for cell in document
+                if CellId_t(cell.id) not in self.graph.cells
+            ],
+        )
+        affected = self._kernel.mutate_graph(requests, deletions)
+        self.graph.topology.reorder_nodes(
+            [CellId_t(cell.id) for cell in document]
+        )
+        configured = written | {protocol.CellId(r.cell_id) for r in requests}
+        for source in document:
+            if source.id not in configured:
+                continue
+            cid = CellId_t(source.id)
+            config = self._document.get_cell(cid).config
+            if cid in self.graph.cells:
+                self.graph.cells[cid].configure(config.asdict())
+            self._kernel.cell_metadata.setdefault(
+                cid, CellMetadata()
+            ).config = config
+        return affected
 
     async def _format_plan(self, plan: list[_PlanEntry]) -> list[_PlanEntry]:
         """Format new/changed code when save-time formatting is enabled."""
@@ -1966,77 +1958,3 @@ class AsyncCodeModeContext:
         banner) and `AlertNotification` (modal dialog).
         """
         broadcast_notification(notification, stream=self._kernel.stream)  # type: ignore[arg-type]
-
-
-# ------------------------------------------------------------------
-# Plan → Document Ops conversion
-# ------------------------------------------------------------------
-
-
-def _plan_to_document_ops(
-    plan: list[_PlanEntry],
-    existing_ids: set[CellId_t],
-    existing_code: dict[CellId_t, str],
-    resolved_configs: dict[CellId_t, CellConfig],
-    internal_ops: list[_Op],
-) -> list[DocumentChange]:
-    """Convert a resolved plan diff into NotebookDocument changes."""
-    doc_ops: list[DocumentChange] = []
-    plan_ids = {e.cell_id for e in plan}
-
-    # Deletions: cells present before but absent from the plan.
-    for cid in sorted(existing_ids):
-        if cid not in plan_ids:
-            doc_ops.append(DeleteCell(cell_id=cid))
-
-    # Creations and property updates.
-    for entry in plan:
-        if entry.cell_id not in existing_ids:
-            # New cell.
-            cfg = resolved_configs.get(entry.cell_id, CellConfig())
-            doc_ops.append(
-                CreateCell(
-                    cell_id=entry.cell_id,
-                    code=entry.code or "",
-                    name=entry.name or "",
-                    config=cfg,
-                )
-            )
-        else:
-            # Existing cell — emit ops for changed properties.
-            if entry.code is not None and entry.code != existing_code.get(
-                entry.cell_id
-            ):
-                doc_ops.append(SetCode(cell_id=entry.cell_id, code=entry.code))
-
-    # Names from internal ops (covers both add and update).
-    for op in internal_ops:
-        op_name = getattr(op, "name", None)
-        if op_name is None:
-            continue
-        target_id = getattr(op, "new_cell_id", None) or op.cell_id
-        # Skip if the cell was just created (name is already in CreateCell).
-        if target_id not in existing_ids:
-            continue
-        doc_ops.append(SetName(cell_id=target_id, name=op_name))
-
-    # Config updates for existing cells.
-    for entry in plan:
-        if entry.cell_id in existing_ids and entry.config is not None:
-            resolved_cfg = resolved_configs.get(entry.cell_id)
-            if resolved_cfg is not None:
-                doc_ops.append(
-                    SetConfig(
-                        cell_id=entry.cell_id,
-                        column=resolved_cfg.column,
-                        disabled=resolved_cfg.disabled,
-                        hide_code=resolved_cfg.hide_code,
-                        expand_output=resolved_cfg.expand_output,
-                    )
-                )
-
-    # Final ordering.
-    target_order = tuple(e.cell_id for e in plan)
-    doc_ops.append(ReorderCells(cell_ids=target_order))
-
-    return doc_ops

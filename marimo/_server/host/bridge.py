@@ -6,7 +6,10 @@ from __future__ import annotations
 import asyncio
 import copy
 from dataclasses import dataclass
+from functools import partial
 from typing import TYPE_CHECKING, Any
+
+from msgspec.structs import replace
 
 from marimo import _loggers
 from marimo._core import protocol
@@ -14,13 +17,20 @@ from marimo._core.document import Document, DocumentCell
 from marimo._core.errors import (
     Conflict,
     DecisionRequired,
+    Forbidden,
     Invalid,
     NotFound,
 )
 from marimo._core.executions import Executions
 from marimo._core.host import Host
 from marimo._core.notebook import Notebook
-from marimo._runtime.commands import RenameNotebookCommand
+from marimo._core.operations import Mutations
+from marimo._messaging.host import DocumentRequest, DocumentSnapshot
+from marimo._runtime.commands import (
+    DocumentReplyCommand,
+    EditCellsCommand,
+    RenameNotebookCommand,
+)
 from marimo._server.host import OPERATIONS, document as documents
 from marimo._server.host.analysis import HostAnalyzer
 from marimo._server.host.backend import RequestMetadata, SessionBackend
@@ -117,6 +127,7 @@ class SessionBridge(SessionEventListener):
         self.host: Host = Host(
             operations=OPERATIONS if manager.mode is SessionMode.EDIT else ()
         )
+        self.mutations: Mutations = Mutations(self.host)
         self._backends: dict[protocol.NotebookId, SessionBackend] = {}
         self._index: WorkspaceIndex | None = (
             WorkspaceIndex(
@@ -405,6 +416,7 @@ class SessionBridge(SessionEventListener):
         changes: Sequence[protocol.Change],
         *,
         request_id: str,
+        put: Callable[[CommandMessage], None] | None = None,
     ) -> protocol.EditResponse:
         """Apply an edit to the document, and to the session when there is one.
 
@@ -423,7 +435,7 @@ class SessionBridge(SessionEventListener):
             return response
         self._mirrored.pop(notebook.id, None)
         documents.apply_to_session(
-            session, notebook.document, self._put_for(notebook.id)
+            session, notebook.document, put or self._put_for(notebook.id)
         )
         mirrored = self._mirrored.pop(notebook.id, None)
         if mirrored is None:
@@ -431,6 +443,83 @@ class SessionBridge(SessionEventListener):
         return protocol.EditResponse(
             cells=response.cells, document=mirrored.document
         )
+
+    async def _document_request(
+        self,
+        notebook_id: protocol.NotebookId,
+        session: Session,
+        request: DocumentRequest,
+    ) -> DocumentReplyCommand:
+        if (
+            self._manager.mode != SessionMode.EDIT
+            or self.session_for_notebook(notebook_id) is not session
+        ):
+            raise Forbidden(
+                "The kernel is not bound to an editable host notebook"
+            )
+        notebook = await self.host.notebook(notebook_id)
+
+        def snapshot(inline_id: str | None = None) -> DocumentReplyCommand:
+            document = notebook.document
+            return DocumentReplyCommand(
+                request_id=request.request_id,
+                document=DocumentSnapshot(
+                    cells=tuple(document), app_config=dict(document.app_config)
+                ),
+                inline_id=inline_id,
+            )
+
+        if request.changes is None:
+            if request.cells:
+                self.mutations.require_operation(
+                    "runtime.run", notebook_id=notebook_id
+                )
+            for requested in request.cells:
+                cell = notebook.document.cell(requested.id)
+                if cell is None or cell.etag != requested.etag:
+                    raise Conflict(
+                        f"Cell {requested.id} changed before the inline run"
+                    )
+            return snapshot()
+        if request.cells:
+            raise Invalid(
+                "An edit and a run require separate document requests"
+            )
+
+        async def commit() -> tuple[int, DocumentReplyCommand]:
+            inline_id: str | None = None
+            put = self._put_for(notebook_id)
+            if (
+                put is None
+                or self.session_for_notebook(notebook_id) is not session
+            ):
+                raise Conflict("The notebook session closed before the edit")
+
+            def queue(command: CommandMessage) -> None:
+                nonlocal inline_id
+                assert put is not None
+                assert isinstance(command, EditCellsCommand)
+                inline_id = request.request_id
+                put(replace(command, inline_id=inline_id))
+
+            assert request.changes is not None
+            await self.edit(
+                notebook_id,
+                request.changes,
+                request_id=request.request_id,
+                put=queue,
+            )
+            return 200, snapshot(inline_id)
+
+        _, reply = await self.mutations.execute(
+            "notebook.edit",
+            notebook_id=notebook_id,
+            key=request.request_id,
+            payload=request,
+            call=commit,
+        )
+        assert isinstance(reply, DocumentReplyCommand)
+        return reply
 
     def session_snapshot(
         self, notebook_id: protocol.NotebookId
@@ -463,6 +552,9 @@ class SessionBridge(SessionEventListener):
         notebook = self.host.peek_notebook(notebook_id)
         if session is None or notebook is None:
             return
+        session.document_request = partial(
+            self._document_request, notebook_id, session
+        )
         self._follow_config(notebook_id, session)
         if self.app_sessions is not None:
             cells, app_config = documents.from_session(session)
@@ -535,6 +627,7 @@ class SessionBridge(SessionEventListener):
         Its baseline for external changes is the file as the editor
         left it, read off the event loop before the next save compares.
         """
+        session.document_request = None
         session.app_file_manager.on_config_changed = None
         if self.app_sessions is not None:
             return

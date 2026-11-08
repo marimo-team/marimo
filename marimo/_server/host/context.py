@@ -22,4 +22,4 @@ class HostContext:
     mutations: Mutations = field(init=False)
 
     def __post_init__(self) -> None:
-        self.mutations = Mutations(self.bridge.host)
+        self.mutations = self.bridge.mutations

@@ -15,10 +15,10 @@ from marimo._messaging.notebook.changes import SetCode, Transaction
 from marimo._messaging.notebook.document import (
     NotebookCell,
     NotebookDocument,
-    notebook_document_context,
 )
 from marimo._runtime.commands import ExecuteCellCommand
 from marimo._types.ids import CellId_t
+from tests._code_mode._host import documents, host_context
 
 if TYPE_CHECKING:
     from collections.abc import Generator
@@ -37,10 +37,9 @@ def _ctx(
         for cid, cell in k.graph.cells.items()
     ]
     doc = NotebookDocument(cells)
-    with notebook_document_context(doc):
-        ctx = AsyncCodeModeContext(
-            k, skip_staleness_check=skip_staleness_check
-        )
+    with host_context(
+        k, doc, skip_staleness_check=skip_staleness_check
+    ) as ctx:
         ctx._id_generator = CellIdGenerator(seed=7)
         ctx._id_generator.seen_ids = set(doc.cell_ids)
         yield ctx
@@ -97,7 +96,7 @@ class TestStalenessBlocks:
                 _ = nb.cells["0"].code
 
         with _ctx(k) as ctx:
-            _bump_cell_version(ctx._document, "0", "a = 99")
+            _bump_cell_version(documents[k], "0", "a = 99")
             async with ctx as nb:
                 with pytest.raises(StaleCellError):
                     nb.edit_cell("0", "a = 2")
@@ -185,7 +184,7 @@ class TestFileWatchReload:
                 _ = nb.cells["0"].code
 
         with _ctx(k) as ctx:
-            ctx._document.apply(
+            documents[k].apply(
                 Transaction(
                     changes=(SetCode(cell_id=CellId_t("0"), code="a = 1"),),
                     source="file-watch",
@@ -201,7 +200,7 @@ class TestFileWatchReload:
                 _ = nb.cells["0"].code
 
         with _ctx(k) as ctx:
-            ctx._document.apply(
+            documents[k].apply(
                 Transaction(
                     changes=(SetCode(cell_id=CellId_t("0"), code="a = 100"),),
                     source="file-watch",
@@ -387,3 +386,21 @@ class TestCellsViewReadRecording:
             async with ctx as nb:
                 _ = repr(nb.cells[0])
                 nb.edit_cell("0", "a = 2")
+
+
+@pytest.mark.parametrize("read", [False, True])
+async def test_metadata_edits_preserve_but_do_not_establish_a_code_read(
+    k: Kernel, read: bool
+) -> None:
+    await _seed(k, "0", "a = 1")
+    with _ctx(k) as ctx:
+        async with ctx:
+            if read:
+                assert ctx.cells["0"].code == "a = 1"
+            ctx.edit_cell("0", disabled=True)
+        async with ctx:
+            if read:
+                ctx.edit_cell("0", code="a = 2")
+            else:
+                with pytest.raises(StaleCellError):
+                    ctx.edit_cell("0", code="a = 2")

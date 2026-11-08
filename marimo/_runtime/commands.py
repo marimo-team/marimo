@@ -23,7 +23,9 @@ from marimo._ast.app_config import _AppConfig
 from marimo._config.config import PartialMarimoConfig
 from marimo._config.provenance import ConfigPath
 from marimo._core.code import code_fingerprint as source_fingerprint
+from marimo._core.protocol import Problem
 from marimo._data.models import DataTableSource
+from marimo._messaging.host import DocumentSnapshot
 from marimo._messaging.notebook.document import NotebookCell
 from marimo._messaging.notebook.outputs import CellOutputs
 from marimo._types.encodable import Encodable
@@ -380,6 +382,7 @@ class EditCellsCommand(Command):
     codes: dict[CellId_t, str]
     configs: dict[CellId_t, dict[str, Any]]
     delete_ids: list[CellId_t]
+    inline_id: str | None = None
 
 
 # TODO(MO-8007): Run the scratch cell against a document revision.
@@ -961,6 +964,15 @@ class ModelCommand(Command):
 BatchableCommand = UpdateUIElementCommand | ModelCommand
 
 
+class DocumentReplyCommand(Command):
+    """Reply to a document request without waiting for the running cell."""
+
+    request_id: str
+    document: DocumentSnapshot | None = None
+    inline_id: str | None = None
+    problem: Problem | None = None
+
+
 class RefreshSecretsCommand(Command):
     """Refresh secrets from the secrets store.
 
@@ -1012,6 +1024,7 @@ NotebookCommand = (
     | RenameNotebookCommand
     | StopKernelCommand
     | CancelRunCommand
+    | DocumentReplyCommand
 )
 """Commands whose subject is the whole notebook, issued by its owner.
 
@@ -1039,12 +1052,15 @@ All commands that can be sent to the kernel.
 """
 
 
-OutOfBandCommand = CodeCompletionCommand | SetBreakpointsCommand
+OutOfBandCommand = (
+    CodeCompletionCommand | SetBreakpointsCommand | DocumentReplyCommand
+)
 """Commands processed off the main control loop.
 
 Unlike the rest of `CommandMessage` (which the kernel handles serially, and so
 cannot be delivered while a cell is executing), these are drained by a
-background worker and applied immediately. A command belongs here when it is
-fire-and-forget, cheap to apply, and useful mid-execution. Add a member to this
-union and a branch to `Kernel.dispatch_out_of_band` to introduce a new one.
+background worker and applied immediately. Applying one must be cheap and must
+not mutate the graph. Document replies are delivered individually; completion
+and breakpoint updates keep only the latest of their type. Add a member to
+this union and a branch to `Kernel.dispatch_out_of_band` to introduce a new one.
 """

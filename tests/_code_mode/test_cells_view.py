@@ -3,9 +3,14 @@ from __future__ import annotations
 
 import dataclasses
 from contextlib import contextmanager
+from types import SimpleNamespace
 from typing import TYPE_CHECKING
 
 import pytest
+
+from marimo._core.document import Document
+from marimo._runtime.agent import Agent
+from marimo._server.host.document import sources
 
 if TYPE_CHECKING:
     from collections.abc import Generator
@@ -24,12 +29,12 @@ from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._messaging.notebook.document import (
     NotebookCell,
     NotebookDocument,
-    notebook_document_context,
 )
 from marimo._messaging.notebook.outputs import CellOutputs
 from marimo._runtime.commands import ExecuteCellCommand
 from marimo._runtime.runtime import Kernel
 from marimo._types.ids import CellId_t
+from tests._code_mode._host import host_context
 
 
 def cmd(cell_id: str, code: str) -> ExecuteCellCommand:
@@ -45,8 +50,8 @@ def _ctx(k: Kernel) -> Generator[AsyncCodeModeContext, None, None]:
             for cid, cell in k.graph.cells.items()
         ]
     )
-    with notebook_document_context(doc):
-        yield AsyncCodeModeContext(k)
+    with host_context(k, doc) as ctx:
+        yield ctx
 
 
 class TestCellsViewIndex:
@@ -221,7 +226,13 @@ def _view(cells: list[NotebookCell]) -> _CellsView:
     ctx = type(
         "_MockCtx",
         (),
-        {"_document": doc, "_note_read": lambda *_args, **_kwargs: None},
+        {
+            "_document": doc,
+            "_scratch_document": doc,
+            "_entered": False,
+            "_host_document": Document(sources(cells), {}),
+            "_kernel": SimpleNamespace(agent=Agent()),
+        },
     )()
     return _CellsView(ctx)
 

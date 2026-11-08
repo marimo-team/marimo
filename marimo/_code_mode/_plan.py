@@ -6,6 +6,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from marimo._ast.cell import CellConfig
+from marimo._core import protocol
+from marimo._core.document import Document, DocumentCell
 from marimo._types.ids import CellId_t
 
 # ------------------------------------------------------------------
@@ -134,6 +136,77 @@ def _build_plan(
             raise TypeError(f"Unknown op type: {type(op)!r}")
 
     return plan
+
+
+def _document_changes(
+    document: Document, plan: list[_PlanEntry]
+) -> list[protocol.Change]:
+    """Describe a resolved plan using the revisions it was prepared against."""
+    cells: list[DocumentCell] = []
+    for entry in plan:
+        cell_id = protocol.CellId(entry.cell_id)
+        previous = document.cell(cell_id)
+        if previous is None:
+            if entry.code is None:
+                raise ValueError(f"New cell {cell_id!r} requires source")
+            code, name = entry.code, ""
+            config = protocol.CellConfig(
+                column=None,
+                disabled=False,
+                hide_code=True,
+                expand_output=False,
+            )
+        else:
+            code, name, config = previous.code, previous.name, previous.config
+        if entry.config is not None:
+            config = protocol.CellConfig(
+                column=entry.config.column,
+                disabled=entry.config.disabled,
+                hide_code=entry.config.hide_code,
+                expand_output=entry.config.expand_output,
+            )
+        cells.append(
+            DocumentCell(
+                cell_id,
+                code if entry.code is None else entry.code,
+                name if entry.name is None else entry.name,
+                config,
+            )
+        )
+
+    target, changed = document.replace(cells, document.app_config)
+    changes: list[protocol.Change] = []
+    for cell in document:
+        if target.cell(cell.id) is None:
+            changes.append(
+                protocol.DeleteCell(id=cell.id, base_etag=cell.etag)
+            )
+    for cell in changed.cells:
+        previous = document.cell(cell.id)
+        changes.append(
+            protocol.PutCell(
+                base_etag=None if previous is None else previous.etag,
+                cell=protocol.CellInput(
+                    id=cell.id,
+                    code=cell.code,
+                    name=cell.name,
+                    config=protocol.CellConfigInput(
+                        column=cell.config.column,
+                        disabled=cell.config.disabled,
+                        hide_code=cell.config.hide_code,
+                        expand_output=cell.config.expand_output,
+                    ),
+                ),
+            )
+        )
+    wanted = [cell.id for cell in target]
+    if [cell.id for cell in document] != wanted:
+        changes.append(
+            protocol.SetOrder(
+                base_etag=document.order_etag, order=tuple(wanted)
+            )
+        )
+    return changes
 
 
 # ------------------------------------------------------------------
