@@ -39,7 +39,8 @@ class FakeBackend:
     def __init__(self, root: Path) -> None:
         self.root = root
         self.sync_targets: list[str] = []
-        self.add_requests: list[str] = []
+        self.add_requests: list[list[str]] = []
+        self.remove_requests: list[list[str]] = []
         self.versions: dict[str, str] = {"obstore": "0.8.2"}
 
     def ensure_available(self) -> None:
@@ -51,13 +52,17 @@ class FakeBackend:
     def add(
         self,
         target: MaterializedScript,
-        package: str,
+        packages: list[str],
         *,
         upgrade: bool,
         on_output: LogCallback | None,
     ) -> None:
         del upgrade, on_output
-        self.add_requests.append(package)
+        self.add_requests.append(packages)
+        for requirement in packages:
+            self._add_one(target, requirement)
+
+    def _add_one(self, target: MaterializedScript, package: str) -> None:
         path = Path(target.path)
         content = path.read_text()
         project = script_metadata.loads(content)
@@ -84,11 +89,13 @@ class FakeBackend:
     def remove(
         self,
         target: MaterializedScript,
-        package: str,
+        packages: list[str],
         *,
         on_output: LogCallback | None,
     ) -> None:
         del on_output
+        self.remove_requests.append(packages)
+        names = {_requirement_name(requirement) for requirement in packages}
         path = Path(target.path)
         content = path.read_text()
         project = script_metadata.loads(content)
@@ -96,7 +103,7 @@ class FakeBackend:
         project["dependencies"] = [
             dependency
             for dependency in project.get("dependencies", [])
-            if _requirement_name(str(dependency)) != _requirement_name(package)
+            if _requirement_name(str(dependency)) not in names
         ]
         path.write_text(
             script_metadata.replace_block(
@@ -179,7 +186,7 @@ def test_add_pins_a_bare_requirement_to_the_resolved_version(
 
     sandbox.add("obstore")
 
-    assert adapter.add_requests == ["obstore", "obstore==0.8.2"]
+    assert adapter.add_requests == [["obstore"], ["obstore==0.8.2"]]
     assert '"obstore==0.8.2"' in notebook.read_text()
     # Only the final, pinned manifest needs synchronization.
     assert len(adapter.sync_targets) == 1
@@ -256,10 +263,10 @@ def test_restart_required_keeps_successful_manifest_changes(
         adapter, "sync", side_effect=SandboxRestartRequired("restart")
     ):
         with pytest.raises(SandboxRestartRequired):
-            sandbox.add("obstore")
+            sandbox.add(["obstore", "other>=1"])
 
     assert script_metadata.loads(notebook.read_text()) == {
-        "dependencies": ["obstore==0.8.2"]
+        "dependencies": ["obstore==0.8.2", "other>=1"]
     }
 
 
@@ -302,7 +309,7 @@ def test_add_keeps_declared_extras(tmp_path: Path, dependency: str) -> None:
 
     sandbox.add("obstore")
 
-    assert adapter.add_requests == ["obstore", "obstore[async]==0.8.2"]
+    assert adapter.add_requests == [["obstore"], ["obstore[async]==0.8.2"]]
     assert '"obstore[async]==0.8.2"' in notebook.read_text()
 
 
@@ -344,7 +351,7 @@ def test_add_writes_a_constrained_requirement_as_given(
 
     sandbox.add(requirement)
 
-    assert adapter.add_requests == [requirement]
+    assert adapter.add_requests == [[requirement]]
     assert requirement in notebook.read_text()
 
 
@@ -357,7 +364,7 @@ def test_add_never_pins_the_runtime_dependency(tmp_path: Path) -> None:
 
     sandbox.add("marimo")
 
-    assert adapter.add_requests == ["marimo"]
+    assert adapter.add_requests == [["marimo"]]
     assert '"marimo"' in notebook.read_text()
 
 
@@ -369,7 +376,7 @@ def test_add_leaves_an_unresolved_requirement_open(tmp_path: Path) -> None:
 
     sandbox.add("windows-curses")
 
-    assert adapter.add_requests == ["windows-curses"]
+    assert adapter.add_requests == [["windows-curses"]]
     assert '"windows-curses"' in notebook.read_text()
 
 
@@ -383,7 +390,7 @@ def test_upgrade_reopens_an_exact_pin(tmp_path: Path) -> None:
 
     sandbox.add("obstore", upgrade=True)
 
-    assert adapter.add_requests == ["obstore>=0.7.0", "obstore==0.8.2"]
+    assert adapter.add_requests == [["obstore>=0.7.0"], ["obstore==0.8.2"]]
     assert '"obstore==0.8.2"' in notebook.read_text()
 
 
@@ -400,7 +407,7 @@ def test_upgrade_floors_an_unpinned_requirement_at_the_environment(
 
     # The floor drops the local segment, which PEP 440 forbids in
     # ordered comparisons; the pin keeps it.
-    assert adapter.add_requests == ["obstore>=0.7.0", "obstore==0.7.0+cpu"]
+    assert adapter.add_requests == [["obstore>=0.7.0"], ["obstore==0.7.0+cpu"]]
 
 
 def test_upgrade_pin_keeps_declared_extras(tmp_path: Path) -> None:
@@ -414,8 +421,8 @@ def test_upgrade_pin_keeps_declared_extras(tmp_path: Path) -> None:
     sandbox.add("obstore", upgrade=True)
 
     assert adapter.add_requests == [
-        "obstore[async]>=0.7.0",
-        "obstore[async]==0.8.2",
+        ["obstore[async]>=0.7.0"],
+        ["obstore[async]==0.8.2"],
     ]
     assert '"obstore[async]==0.8.2"' in notebook.read_text()
 
@@ -747,3 +754,45 @@ def test_pixi_launch_does_not_require_uv(
     assert plan.argv[1:5] == ("exec", "--spec", pixi.UV_OVERLAY_SPEC, "uv")
     assert plan.env["CONDA_PREFIX"] == str(root)
     assert plan.env["CONDA_DEFAULT_ENV"] == root.name
+
+
+def test_batch_add_pins_together_and_syncs_once(tmp_path: Path) -> None:
+    notebook = tmp_path / "notebook.py"
+    notebook.write_text("# /// script\n# dependencies = []\n# ///\n")
+    adapter = FakeBackend(tmp_path / "environment")
+    adapter.versions = {"obstore": "0.8.2", "other": "1.0"}
+    sandbox = NotebookSandbox(str(notebook), "uv", adapter=adapter)
+
+    sandbox.add(["obstore", "other"])
+
+    assert adapter.add_requests == [
+        ["obstore", "other"],
+        ["obstore==0.8.2", "other==1.0"],
+    ]
+    assert script_metadata.loads(notebook.read_text()) == {
+        "dependencies": ["obstore==0.8.2", "other==1.0"]
+    }
+    assert len(adapter.sync_targets) == 1
+
+    sandbox.remove(["obstore", "other"])
+    assert adapter.remove_requests == [["obstore", "other"]]
+    assert script_metadata.loads(notebook.read_text()) == {"dependencies": []}
+    assert len(adapter.sync_targets) == 2
+
+
+def test_batch_remove_checks_runtime_dependency_before_edit(
+    tmp_path: Path,
+) -> None:
+    notebook = tmp_path / "notebook.py"
+    notebook.write_text('# /// script\n# dependencies = ["obstore"]\n# ///\n')
+    adapter = FakeBackend(tmp_path / "environment")
+    sandbox = NotebookSandbox(str(notebook), "uv", adapter=adapter)
+    with pytest.raises(
+        script_metadata.ScriptMetadataError, match="cannot be removed"
+    ):
+        sandbox.remove(["obstore", "marimo"])
+    assert adapter.remove_requests == []
+    assert adapter.sync_targets == []
+    assert script_metadata.loads(notebook.read_text()) == {
+        "dependencies": ["obstore"]
+    }

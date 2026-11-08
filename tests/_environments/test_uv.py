@@ -203,7 +203,7 @@ def test_uv_adapter_reports_the_exact_invocation(
         return_value=CompletedProcess([], 0, stdout="", stderr=""),
     ) as run:
         UvBackendAdapter(recorder).add(
-            target, "polars", upgrade=False, on_output=None
+            target, ["polars"], upgrade=False, on_output=None
         )
 
     expected = [

@@ -16,6 +16,7 @@ from marimo._ast.cell import CellConfig
 from marimo._ast.cell_id import CellIdGenerator
 from marimo._ast.compiler import compile_cell
 from marimo._code_mode._context import AsyncCodeModeContext
+from marimo._code_mode._packages import PackageResult
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.notebook.document import (
     NotebookCell,
@@ -841,13 +842,47 @@ class TestPackages:
             async with ctx as nb:
                 assert nb.packages is not None
 
+    async def test_results_lifecycle(self, k: Kernel) -> None:
+        from dataclasses import FrozenInstanceError
+
+        with _ctx(k) as ctx:
+            pm = k.packages_callbacks.package_manager
+            assert pm is not None
+            with patch.object(pm, "install_many", return_value=True):
+                async with ctx:
+                    ctx.packages.add("pandas>=2")
+                    assert ctx.packages.results == ()
+                results = ctx.packages.results
+                assert results == (
+                    PackageResult("pandas>=2", "add", "success"),
+                )
+                with pytest.raises(FrozenInstanceError):
+                    results[0].outcome = "failed"
+                async with ctx:
+                    assert ctx.packages.results == ()
+                assert ctx.packages.results == ()
+                assert results == (
+                    PackageResult("pandas>=2", "add", "success"),
+                )
+
+    async def test_results_without_manager(self, k: Kernel) -> None:
+        with _ctx(k) as ctx:
+            with patch.object(k.packages_callbacks, "package_manager", None):
+                async with ctx:
+                    ctx.packages.add("missing")
+                    ctx.packages.remove("old")
+            assert ctx.packages.results == (
+                PackageResult("missing", "add", "failed"),
+                PackageResult("old", "remove", "failed"),
+            )
+
     async def test_add_single(self, k: Kernel) -> None:
         with _ctx(k) as ctx:
             pm = k.packages_callbacks.package_manager
             assert pm is not None
 
             with patch.object(
-                pm, "install", new_callable=AsyncMock, return_value=True
+                pm, "install_many", new_callable=AsyncMock, return_value=True
             ) as mock_install:
                 async with ctx as nb:
                     nb.packages.add("pandas")
@@ -855,7 +890,7 @@ class TestPackages:
                     assert mock_install.call_count == 0
 
             assert mock_install.call_count == 1
-            assert mock_install.call_args_list[0].args[0] == "pandas"
+            assert mock_install.call_args_list[0].args[0] == ["pandas"]
 
     async def test_add_multiple(self, k: Kernel) -> None:
         with _ctx(k) as ctx:
@@ -863,13 +898,17 @@ class TestPackages:
             assert pm is not None
 
             with patch.object(
-                pm, "install", new_callable=AsyncMock, return_value=True
+                pm, "install_many", new_callable=AsyncMock, return_value=True
             ) as mock_install:
                 async with ctx as nb:
                     nb.packages.add("pandas", "numpy>=1.26")
 
-            assert mock_install.call_count == 2
-            installed = [call.args[0] for call in mock_install.call_args_list]
+            assert mock_install.call_count == 1
+            installed = [
+                pkg
+                for call in mock_install.call_args_list
+                for pkg in call.args[0]
+            ]
             assert "pandas" in installed
             assert "numpy>=1.26" in installed
 
@@ -885,17 +924,19 @@ class TestPackages:
                 package: str, **_kwargs: object
             ) -> bool:
                 del package
-                call_order.append("install")
+                call_order.append("install_many")
                 return True
 
-            with patch.object(pm, "install", side_effect=tracking_install):
+            with patch.object(
+                pm, "install_many", side_effect=tracking_install
+            ):
                 async with ctx as nb:
                     nb.packages.add("pandas")
                     cid = nb.create_cell("import pandas")
                     nb.run_cell(cid)
 
             # install should have been called (packages flush before cells)
-            assert "install" in call_order
+            assert "install_many" in call_order
 
     async def test_remove_single(self, k: Kernel) -> None:
         with _ctx(k) as ctx:
@@ -903,7 +944,7 @@ class TestPackages:
             assert pm is not None
 
             with patch.object(
-                pm, "uninstall", new_callable=AsyncMock, return_value=True
+                pm, "uninstall_many", new_callable=AsyncMock, return_value=True
             ) as mock_uninstall:
                 async with ctx as nb:
                     nb.packages.remove("pandas")
@@ -911,7 +952,7 @@ class TestPackages:
                     assert mock_uninstall.call_count == 0
 
             assert mock_uninstall.call_count == 1
-            assert mock_uninstall.call_args_list[0].args[0] == "pandas"
+            assert mock_uninstall.call_args_list[0].args[0] == ["pandas"]
 
     async def test_remove_multiple(self, k: Kernel) -> None:
         with _ctx(k) as ctx:
@@ -919,13 +960,17 @@ class TestPackages:
             assert pm is not None
 
             with patch.object(
-                pm, "uninstall", new_callable=AsyncMock, return_value=True
+                pm, "uninstall_many", new_callable=AsyncMock, return_value=True
             ) as mock_uninstall:
                 async with ctx as nb:
                     nb.packages.remove("pandas", "numpy")
 
-            assert mock_uninstall.call_count == 2
-            removed = [call.args[0] for call in mock_uninstall.call_args_list]
+            assert mock_uninstall.call_count == 1
+            removed = [
+                pkg
+                for call in mock_uninstall.call_args_list
+                for pkg in call.args[0]
+            ]
             assert "pandas" in removed
             assert "numpy" in removed
 
@@ -936,13 +981,17 @@ class TestPackages:
             assert pm is not None
 
             with patch.object(
-                pm, "install", new_callable=AsyncMock, return_value=True
+                pm, "install_many", new_callable=AsyncMock, return_value=True
             ) as mock_install:
                 async with ctx as nb:
                     nb.packages.add(["pandas", "numpy>=1.26"])
 
-            assert mock_install.call_count == 2
-            installed = [call.args[0] for call in mock_install.call_args_list]
+            assert mock_install.call_count == 1
+            installed = [
+                pkg
+                for call in mock_install.call_args_list
+                for pkg in call.args[0]
+            ]
             assert "pandas" in installed
             assert "numpy>=1.26" in installed
 
@@ -953,13 +1002,17 @@ class TestPackages:
             assert pm is not None
 
             with patch.object(
-                pm, "install", new_callable=AsyncMock, return_value=True
+                pm, "install_many", new_callable=AsyncMock, return_value=True
             ) as mock_install:
                 async with ctx as nb:
                     nb.packages.add("polars", ["pandas", "numpy"])
 
-            assert mock_install.call_count == 3
-            installed = [call.args[0] for call in mock_install.call_args_list]
+            assert mock_install.call_count == 1
+            installed = [
+                pkg
+                for call in mock_install.call_args_list
+                for pkg in call.args[0]
+            ]
             assert set(installed) == {"polars", "pandas", "numpy"}
 
     async def test_remove_accepts_list(self, k: Kernel) -> None:
@@ -969,13 +1022,17 @@ class TestPackages:
             assert pm is not None
 
             with patch.object(
-                pm, "uninstall", new_callable=AsyncMock, return_value=True
+                pm, "uninstall_many", new_callable=AsyncMock, return_value=True
             ) as mock_uninstall:
                 async with ctx as nb:
                     nb.packages.remove(["pandas", "numpy"])
 
-            assert mock_uninstall.call_count == 2
-            removed = [call.args[0] for call in mock_uninstall.call_args_list]
+            assert mock_uninstall.call_count == 1
+            removed = [
+                pkg
+                for call in mock_uninstall.call_args_list
+                for pkg in call.args[0]
+            ]
             assert "pandas" in removed
             assert "numpy" in removed
 
@@ -1005,7 +1062,7 @@ class TestPackages:
             # Mock install: queued ops still run on context exit and would
             # otherwise invoke `uv add pandas` against the test venv.
             with patch.object(
-                pm, "install", new_callable=AsyncMock, return_value=True
+                pm, "install_many", new_callable=AsyncMock, return_value=True
             ):
                 async with ctx as nb:
                     nb.packages.add("pandas")
@@ -1022,12 +1079,54 @@ class TestPackages:
             # otherwise invoke `uv remove pandas` against the test venv,
             # triggering a `uv sync` that wipes every test-group package.
             with patch.object(
-                pm, "uninstall", new_callable=AsyncMock, return_value=True
+                pm, "uninstall_many", new_callable=AsyncMock, return_value=True
             ):
                 async with ctx as nb:
                     nb.packages.remove("pandas")
                     with pytest.raises(RuntimeError):
                         nb.packages.list()
+
+    @pytest.mark.parametrize("success", [True, False])
+    async def test_batch_metadata_only_after_success(
+        self, k: Kernel, success: bool
+    ) -> None:
+        from marimo._config.settings import GLOBAL_SETTINGS
+
+        requirements = [
+            "/tmp/local wheels/package.whl",
+            'other>=1; python_version >= "3.10"',
+        ]
+        with _ctx(k) as ctx:
+            pm = k.packages_callbacks.package_manager
+            assert pm is not None
+            with (
+                patch.object(GLOBAL_SETTINGS, "MANAGE_SCRIPT_METADATA", True),
+                patch.object(k.app_metadata, "filename", "/tmp/notebook.py"),
+                patch.object(
+                    pm, "install_many", return_value=success
+                ) as install,
+                patch.object(
+                    pm, "update_notebook_script_metadata"
+                ) as metadata,
+            ):
+                async with ctx:
+                    ctx.packages.add(requirements[0])
+                    ctx.packages.add(requirements[1])
+            assert install.call_args.args == (requirements,)
+            if success:
+                metadata.assert_called_once_with(
+                    filepath="/tmp/notebook.py",
+                    packages_to_add=requirements,
+                    upgrade=False,
+                )
+            else:
+                metadata.assert_not_called()
+            assert ctx.packages.results == tuple(
+                PackageResult(
+                    requirement, "add", "success" if success else "failed"
+                )
+                for requirement in requirements
+            )
 
     async def test_add_and_remove_in_same_batch(self, k: Kernel) -> None:
         """add and remove can coexist in the same batch, executed in order."""
@@ -1036,19 +1135,25 @@ class TestPackages:
             pm = k.packages_callbacks.package_manager
             assert pm is not None
 
-            call_order: list[tuple[str, str]] = []
+            call_order: list[tuple[str, list[str]]] = []
 
-            async def track_install(package: str, **_kwargs: object) -> bool:
+            async def track_install(
+                package: list[str], **_kwargs: object
+            ) -> bool:
                 call_order.append(("add", package))
-                return package != "missing-package"
+                return "missing-package" not in package
 
-            async def track_uninstall(package: str, **_kwargs: object) -> bool:
+            async def track_uninstall(
+                package: list[str], **_kwargs: object
+            ) -> bool:
                 call_order.append(("remove", package))
                 return True
 
             with (
-                patch.object(pm, "install", side_effect=track_install),
-                patch.object(pm, "uninstall", side_effect=track_uninstall),
+                patch.object(pm, "install_many", side_effect=track_install),
+                patch.object(
+                    pm, "uninstall_many", side_effect=track_uninstall
+                ),
             ):
                 async with ctx as nb:
                     nb.packages.add("polars")
@@ -1056,11 +1161,16 @@ class TestPackages:
                     nb.packages.add("numpy", "missing-package")
 
             assert call_order == [
-                ("add", "polars"),
-                ("remove", "pandas"),
-                ("add", "numpy"),
-                ("add", "missing-package"),
+                ("add", ["polars"]),
+                ("remove", ["pandas"]),
+                ("add", ["numpy", "missing-package"]),
             ]
+            assert ctx.packages.results == (
+                PackageResult("polars", "add", "success"),
+                PackageResult("pandas", "remove", "success"),
+                PackageResult("numpy", "add", "failed"),
+                PackageResult("missing-package", "add", "failed"),
+            )
             notifications = [
                 notification
                 for notification in k.stream.operations
@@ -1084,7 +1194,7 @@ class TestPackages:
                     ("remove", {"pandas": "succeeded"}, "succeeded"),
                     (
                         "install",
-                        {"numpy": "succeeded", "missing-package": "failed"},
+                        {"numpy": "failed", "missing-package": "failed"},
                         "failed",
                     ),
                 ]
@@ -1095,7 +1205,10 @@ class TestPackages:
             )
             assert any(
                 n.logs
-                == {"missing-package": "Failed to install missing-package\n"}
+                == {
+                    "numpy": "Failed to install batch containing numpy\n",
+                    "missing-package": "Failed to install batch containing missing-package\n",
+                }
                 for n in notifications
             )
 
@@ -1106,7 +1219,7 @@ class TestPackages:
             assert pm is not None
 
             with patch.object(
-                pm, "install", new_callable=AsyncMock, return_value=True
+                pm, "install_many", new_callable=AsyncMock, return_value=True
             ) as mock_install:
                 try:
                     async with ctx as nb:
@@ -1116,6 +1229,7 @@ class TestPackages:
                     pass
 
             assert mock_install.call_count == 0
+            assert ctx.packages.results == ()
 
     async def test_noop_packages(self, k: Kernel) -> None:
         """No package ops means nothing happens."""
@@ -1125,10 +1239,10 @@ class TestPackages:
 
             with (
                 patch.object(
-                    pm, "install", new_callable=AsyncMock
+                    pm, "install_many", new_callable=AsyncMock
                 ) as mock_install,
                 patch.object(
-                    pm, "uninstall", new_callable=AsyncMock
+                    pm, "uninstall_many", new_callable=AsyncMock
                 ) as mock_uninstall,
             ):
                 async with ctx as nb:
@@ -1153,7 +1267,7 @@ class TestPackages:
             assert pm is not None
 
             with patch.object(
-                pm, "install", new_callable=AsyncMock, return_value=True
+                pm, "install_many", new_callable=AsyncMock, return_value=True
             ) as mock_install:
                 async with ctx as nb:
                     # Invoked via __getattr__
@@ -1162,8 +1276,12 @@ class TestPackages:
                     # again.
                     nb.install_packages("requests")
 
-            assert mock_install.call_count == 4
-            installed = [call.args[0] for call in mock_install.call_args_list]
+            assert mock_install.call_count == 1
+            installed = [
+                pkg
+                for call in mock_install.call_args_list
+                for pkg in call.args[0]
+            ]
             assert set(installed) == {"pandas", "numpy", "polars", "requests"}
 
             # The nudge is written to stderr exactly once.
@@ -1187,7 +1305,7 @@ class TestPackages:
             assert pm is not None
 
             with patch.object(
-                pm, "install", new_callable=AsyncMock, return_value=True
+                pm, "install_many", new_callable=AsyncMock, return_value=True
             ):
                 async with ctx as nb:
                     nb.packages.add("pandas")
@@ -1213,7 +1331,7 @@ async def test_package_summary_reports_unsuccessful_outcomes(
     with _ctx(k) as ctx:
         pm = k.packages_callbacks.package_manager
         assert pm is not None
-        method = "install" if operation == "add" else "uninstall"
+        method = "install_many" if operation == "add" else "uninstall_many"
         with (
             patch.object(
                 pm, method, new_callable=AsyncMock, return_value=False
@@ -1227,11 +1345,18 @@ async def test_package_summary_reports_unsuccessful_outcomes(
         ):
             async with ctx as nb:
                 getattr(nb.packages, operation)("boltons")
+        assert ctx.packages.results == (
+            PackageResult(
+                "boltons",
+                operation,
+                "restart-required" if restart_required else "failed",
+            ),
+        )
         output = capsys.readouterr().out
         assert (
             "changes saved for boltons; restart the kernel"
             if restart_required
-            else f"failed to {method} boltons"
+            else f"failed to {'install' if operation == 'add' else 'uninstall'} boltons"
         ) in output
         assert "installed boltons" not in output
         if operation == "add":

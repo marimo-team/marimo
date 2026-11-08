@@ -207,26 +207,29 @@ def _parse_sync_report(stderr: str) -> Environment:
 
 def add(
     script: str,
-    package: str,
+    packages: list[str],
     *,
     cwd: str,
     upgrade: bool = False,
     on_output: Callable[[str], None] | None = None,
     on_command: Callable[[Sequence[str]], None] | None = None,
 ) -> None:
-    """Add a PyPI dependency to a script, or refresh it when upgrading.
+    """Add PyPI dependencies to a script, or refresh them when upgrading.
 
     `pixi update` takes package names, not requirements; a constrained
     upgrade rewrites the manifest entry through `pixi add` instead, and
     the next solve advances within the new constraint.
     """
-    if upgrade and re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]*", package):
+    if upgrade and all(
+        re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]*", requirement)
+        for requirement in packages
+    ):
         args = [
             require_pixi_bin(),
             "update",
             "--script",
             os.path.abspath(script),
-            package,
+            *packages,
         ]
     else:
         args = [
@@ -235,7 +238,7 @@ def add(
             "--script",
             os.path.abspath(script),
             "--pypi",
-            package,
+            *packages,
         ]
     _run(
         args,
@@ -247,20 +250,20 @@ def add(
 
 def remove(
     script: str,
-    package: str,
+    packages: list[str],
     *,
     cwd: str,
     on_output: Callable[[str], None] | None = None,
     on_command: Callable[[Sequence[str]], None] | None = None,
 ) -> None:
-    """Remove a direct PyPI dependency from a script."""
+    """Remove direct PyPI dependencies from a script."""
     args = [
         require_pixi_bin(),
         "remove",
         "--script",
         os.path.abspath(script),
         "--pypi",
-        package,
+        *packages,
     ]
     _run(
         args,
