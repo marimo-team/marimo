@@ -638,10 +638,11 @@ const ProviderModelDiscovery = ({
   disabled?: boolean;
 }) => {
   const [modelName, setModelName] = useState("");
-  const customModels = useWatch({
-    control: form.control,
-    name: "ai.models.custom_models",
-  }) ?? [];
+  const customModels =
+    useWatch({
+      control: form.control,
+      name: "ai.models.custom_models",
+    }) ?? [];
   const modelId = modelName.trim();
   const qualifiedId = new AiModelId(
     provider as ProviderId,
@@ -894,8 +895,8 @@ export const CustomProvidersConfig: React.FC<AiConfigProps> = ({
               <div className="flex flex-col gap-2">
                 <p className="text-sm text-muted-secondary">
                   Search available models, select or enter a model ID, then
-                  click Add to save it. Select the saved model in the chat
-                  model dropdown.
+                  click Add to save it. Select the saved model in the chat model
+                  dropdown.
                 </p>
                 <ProviderModelDiscovery
                   key={providerName}
