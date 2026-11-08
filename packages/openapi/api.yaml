@@ -4593,6 +4593,27 @@ components:
       - tableName
       title: PreviewSQLTableRequest
       type: object
+    ProviderModel:
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+      required:
+      - id
+      - name
+      title: ProviderModel
+      type: object
+    ProviderModelsResponse:
+      properties:
+        models:
+          items:
+            $ref: '#/components/schemas/ProviderModel'
+          type: array
+      required:
+      - models
+      title: ProviderModelsResponse
+      type: object
     PyreflyLanguageServerConfig:
       description: 'Configuration options for Pyrefly Language Server.
 
@@ -6575,6 +6596,23 @@ paths:
               schema:
                 $ref: '#/components/schemas/MCPStatusResponse'
           description: Get MCP server status
+  /api/ai/models/{provider_name}:
+    get:
+      parameters:
+      - description: Provider identifier, such as `openrouter` or a custom-provider
+          name.
+        in: path
+        name: provider_name
+        required: true
+        schema:
+          type: string
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProviderModelsResponse'
+          description: Available models for the provider.
   /api/cache/clear:
     post:
       parameters:
