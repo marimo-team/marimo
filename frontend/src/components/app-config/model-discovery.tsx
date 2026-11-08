@@ -182,7 +182,11 @@ export function ModelDiscovery({
           <PopoverContent
             align="start"
             className="w-[var(--radix-popover-trigger-width)] min-w-64 max-w-[calc(100vw-2rem)] p-1 text-sm"
-            style={{ maxHeight: "min(18rem, var(--radix-popover-content-available-height))", overflowY: "auto" }}
+            style={{
+              maxHeight:
+                "min(18rem, var(--radix-popover-content-available-height))",
+              overflowY: "auto",
+            }}
             onOpenAutoFocus={(event) => event.preventDefault()}
             onCloseAutoFocus={(event) => event.preventDefault()}
             onInteractOutside={(event) => {
