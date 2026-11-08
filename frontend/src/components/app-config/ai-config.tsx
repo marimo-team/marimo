@@ -1113,7 +1113,6 @@ export const AiProvidersConfig: React.FC<AiConfigProps> = ({
           <ModelDiscovery
             provider="openrouter"
             label="OpenRouter"
-            disabled={!hasValue("ai.openrouter.api_key")}
           />
         </AccordionFormItem>
 

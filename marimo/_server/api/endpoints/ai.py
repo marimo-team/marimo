@@ -149,6 +149,12 @@ async def list_provider_models(*, request: Request) -> Response:
         raise HTTPException(
             status_code=404, detail="Model discovery is not available."
         )
+    if provider_name == "openrouter" and not provider.api_key:
+        raise HTTPException(
+            status_code=400,
+            detail="OpenRouter API key not configured. Go to Settings > AI to configure.",
+        )
+
     base_url = provider.base_url
     if not base_url:
         raise HTTPException(
