@@ -291,6 +291,7 @@ export interface paths {
       path?: never;
       cookie?: never;
     };
+    /** @description List models for a supported provider without modifying configuration. */
     get: {
       parameters: {
         query?: never;

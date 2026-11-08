@@ -117,8 +117,8 @@ def get_provider_config(model: str, config: MarimoConfig) -> AnyProviderConfig:
 @router.get("/models/{provider_name}")
 @requires("edit")
 async def list_provider_models(*, request: Request) -> Response:
-    """List models for a supported provider without modifying configuration.
-
+    """
+    description: List models for a supported provider without modifying configuration.
     parameters:
       - in: path
         name: provider_name
