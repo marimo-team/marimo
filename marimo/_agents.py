@@ -1,5 +1,5 @@
 # Copyright 2026 Marimo. All rights reserved.
-"""Send JSON content to agents connected to this live editor Notebook.
+"""Send JSON data to agents connected to a live editor notebook.
 
 Each call is a new send, including calls on reactive reruns. Prefer explicit
 callbacks for user actions. Submission does not mean reading or task completion.
@@ -86,7 +86,7 @@ def list(*, timeout: float = 30.0) -> tuple[AgentInfo, ...]:  # noqa: A001
         timeout (float, optional): Maximum wait in seconds. Defaults to 30.
 
     Returns:
-        An immutable tuple of logical agent connections in this Notebook.
+        A tuple of connected agents, or an empty tuple if none are connected.
     """
     timeout = validate_timeout(timeout)
     try:
@@ -110,18 +110,17 @@ def _send_result(value: Any) -> SendResult:
 def subscribe_connections(
     callback: Callable[[tuple[AgentInfo, ...]], None],
 ) -> Callable[[], None]:
-    """Observe connected agents in the current live editor Notebook.
+    """Run a callback as agents connect or disconnect.
 
     Args:
         callback (Callable): Synchronous function that receives an immutable
             tuple of `AgentInfo` values. An empty tuple means no agents.
 
     Returns:
-        An idempotent function that removes this subscription.
+        A function that removes this subscription. Repeated calls are safe.
 
-    The first callback runs after this function returns. Callbacks use normal
-    kernel dispatch and wait while the kernel is busy. Pending changes can
-    coalesce into the latest state. Updates do not rerun notebook cells.
+    The first callback runs after this function returns. A busy kernel delays
+    callbacks. Intermediate changes can be skipped. Callbacks do not rerun cells.
     Cell reruns, deletion, and runtime shutdown remove the subscription.
     Register from a cell or synchronous widget callback. Background thread
     registration, including `mo.Thread`, is unsupported.
@@ -161,18 +160,18 @@ def subscribe_connections(
 
 
 def send(message: Any, *, to: str, timeout: float = 30.0) -> SendResult:
-    """Send JSON content to one explicit agent and await its submission result.
+    """Send JSON data to one agent and return its submission result.
 
     Args:
         message (Any): A JSON value. Objects require string keys.
-        to (str): The opaque ID returned by `mo.agents.list()`.
+        to (str): An agent ID from `mo.agents.list()`.
         timeout (float, optional): Maximum wait in seconds. Defaults to 30.
 
     Returns:
         The selected agent's submission result. An absent target is rejected.
 
     A timeout stops the wait. It does not cancel delivery. An unknown outcome
-    means that another explicit send can duplicate the content.
+    means that another send can duplicate the message.
     """
     timeout = validate_timeout(timeout)
     validate_recipient(to)
@@ -183,14 +182,14 @@ def send(message: Any, *, to: str, timeout: float = 30.0) -> SendResult:
 
 
 def broadcast(message: Any, *, timeout: float = 30.0) -> SendResult:
-    """Send JSON content to a snapshot of all connected agents.
+    """Send JSON data to all connected agents.
 
     Args:
         message (Any): A JSON value. Objects require string keys.
         timeout (float, optional): One wait budget for all agents, in seconds.
 
     Returns:
-        One submission result per selected logical agent.
+        One submission result per selected agent.
 
     Raises:
         NoAgentsConnectedError: No agents are connected at acceptance.

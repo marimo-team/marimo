@@ -1,37 +1,33 @@
 # Agents
 
-Use `mo.agents` to observe and send JSON content to agents connected with `marimo pair connect`.
-Python sends and the editor's send controls use the same backend endpoints.
+Use `mo.agents` to send JSON data to connected agents and respond to connection changes.
+These functions work in live editor notebooks, including widget callbacks.
 
-Messaging requires a live edit Notebook. It works in cells and Python widget callbacks, without an active cell ID.
-Scripts, read-mode apps, static exports, WASM, and unrelated background threads raise `AgentContextUnavailableError`.
-A live Notebook with no agents returns an empty tuple from `mo.agents.list()`.
+## Send a message
 
-## Observe connections
-
-Use `subscribe_connections()` to receive immutable tuples of `AgentInfo` values.
-The initial callback runs after registration returns. An empty tuple means no agents are connected.
+Use `list()` to find connected agents and `send()` to send data to one agent:
 
 ```python
 import marimo as mo
 
-unsubscribe = mo.agents.subscribe_connections(
-    lambda agents: print([(agent.id, agent.name) for agent in agents])
-)
+
+def send_selection(_):
+    agents = mo.agents.list()
+    if len(agents) == 1:
+        mo.agents.send({"selected_rows": [1, 3]}, to=agents[0].id)
+
+
+mo.ui.button(label="Send selection", on_change=send_selection)
 ```
 
-Callbacks run on the normal kernel loop with their owning cell context.
-A busy kernel delays callbacks. Intermediate changes can coalesce into the latest state.
-Callbacks do not rerun notebook cells. They must be synchronous.
+With multiple agents, let the user choose a recipient.
+Use `mo.agents.broadcast(data)` to send to all connected agents.
+Each call sends a new message. Use callbacks to avoid sends on cell reruns.
 
-Register subscriptions from a notebook cell or a synchronous widget callback with an owning cell.
-Background thread registration, including `mo.Thread`, is unsupported.
-Cell reruns, deletion, and runtime shutdown remove subscriptions.
-Call `unsubscribe()` to remove one earlier. Repeated removal is safe.
-A callback that has started can finish. Removal prevents later callbacks from starting.
-Callback errors use normal runtime reporting and do not stop other subscribers.
+## Observe connections
 
-Libraries can update an existing widget model from the callback:
+Tools can use `subscribe_connections()` to update their interface as agents connect or disconnect.
+For an existing widget with an `agent_connected` trait:
 
 ```python
 unsubscribe = mo.agents.subscribe_connections(
@@ -39,65 +35,24 @@ unsubscribe = mo.agents.subscribe_connections(
 )
 ```
 
-The widget owns that trait and its display policy. Its close handler can call `unsubscribe()`.
-No marimo frontend import is needed. Presence indicates a live agent attachment, not native inbox readiness.
-Duplicate streams with the same logical identity represent one agent. The newest remaining stream supplies its name.
+The callback receives the connected agents, or an empty tuple if none are connected.
+Call `unsubscribe()` when the tool closes.
+marimo also removes the subscription when its cell reruns or is deleted.
 
-## Send from a callback
+## Results
 
-Each explicit call sends a new message. A reactive rerun also sends a new message.
-Use a callback to send content after a user action:
-
-```python
-import marimo as mo
-
-
-def send_selection(_):
-    connected = mo.agents.list()
-    if len(connected) == 1:
-        result = mo.agents.send(
-            {"selected_rows": [1, 3, 5]},
-            to=connected[0].id,
-        )
-        print(result.recipients)
-
-
-mo.ui.button(label="Send selection to the sole agent", on_change=send_selection)
-```
-
-With several agents, let the user choose an ID from `mo.agents.list()`.
-Names can be absent or repeated. IDs identify connections within this Notebook.
-Pair IDs survive stream reconnects. An attachment without a logical identity uses its attachment ID, which changes on reconnect.
-An absent target returns a `rejected` result. The service never substitutes another recipient.
-
-Use `mo.agents.broadcast(message)` for an explicit broadcast.
-The service selects connected recipients once, at acceptance. An empty broadcast raises `NoAgentsConnectedError`.
-
-Messages accept JSON values: strings, arrays, objects with string keys, finite numbers, booleans, and `None`.
-Messages need no required content fields. Unsupported values raise `TypeError` or `ValueError` before dispatch.
-
-## Interpret results
-
-`SendResult.recipients` contains one immutable result per selected agent.
+Sends return one result per recipient:
 
 | Status | Meaning |
 | --- | --- |
-| `submitted` | Native evidence confirms that the harness accepted the message. |
-| `rejected` | Submission did not occur, or the destination definitely refused it. |
-| `unknown` | The message can reach the agent without a confirmed outcome. |
+| `submitted` | The agent's harness accepted the message. |
+| `rejected` | The message was not submitted. |
+| `unknown` | Submission could not be confirmed. |
 
-`submitted` does not mean that the agent read the message or completed a task.
-Codex reports successful native queue admission. OpenCode reports a validated admission response for the selected conversation.
-Claude Code reports `unknown` after a completed socket write because its inbox does not confirm acceptance.
-Each result can include an explanatory `detail`.
+Submission does not mean the agent read the message or completed a task.
+After an unknown outcome, another send can duplicate the message.
 
-`list()`, `send()`, and `broadcast()` accept a positive, finite `timeout` in seconds, with a default of 30.
-Broadcast uses one wait budget for all recipients. A timeout stops the wait and does not cancel native delivery.
-If the overall response is lost after possible dispatch, sending raises `SendOutcomeUnknownError`.
-A listing timeout or subscription setup failure raises `AgentError`.
-
-The service does not retry sends automatically. After an unknown outcome, another send can duplicate the content.
-Connection loss or server shutdown can also leave an outcome unknown.
+## API reference
 
 ::: marimo.agents.list
 
