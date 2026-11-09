@@ -185,7 +185,7 @@ class KernelRequestHandlers:
             await self._kernel.set_cell_config(request)
 
     async def _handle_edit_cells(self, request: EditCellsCommand) -> None:
-        with self._run_context():
+        with self._run_context(request.edit_id):
             await self._kernel.edit_cells(request)
 
     async def _handle_instantiate(

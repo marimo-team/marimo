@@ -377,12 +377,14 @@ class EditCellsCommand(Command):
         codes: New code for each cell the edit created or changed.
         configs: New config for each cell the edit created or reconfigured.
         delete_ids: Cells the edit removed.
+        edit_id: Correlates the queued update with command completion and
+            any application performed inline by code mode.
     """
 
     codes: dict[CellId_t, str]
     configs: dict[CellId_t, dict[str, Any]]
     delete_ids: list[CellId_t]
-    inline_id: str | None = None
+    edit_id: str | None = None
 
 
 # TODO(MO-8007): Run the scratch cell against a document revision.

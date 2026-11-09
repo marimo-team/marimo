@@ -6,6 +6,7 @@ import json
 from typing import TYPE_CHECKING, Any
 
 import pytest
+from msgspec.structs import replace
 
 from marimo._core import protocol
 from marimo._messaging.host import DocumentRequest
@@ -92,10 +93,12 @@ async def test_inline_edit_and_run(host):
 
 
 @pytest.mark.parametrize("same_cell", [False, True])
+@pytest.mark.parametrize("run_cells", [False, True])
 async def test_competing_edit_before_flush(
     host: tuple[Starlette, str, Response],
     monkeypatch: pytest.MonkeyPatch,
     same_cell: bool,
+    run_cells: bool,
 ) -> None:
     app, notebook_id, events = host
     bridge = app.state.host_context.bridge
@@ -114,7 +117,8 @@ async def test_competing_edit_before_flush(
         return reply
 
     monkeypatch.setattr(session, "document_request", hold_read)
-    run_id = await submit(app, notebook_id, EDIT, "agent")
+    code = EDIT if run_cells else EDIT.split("    ctx.run_cell", maxsplit=1)[0]
+    run_id = await submit(app, notebook_id, code, "agent")
     await asyncio.wait_for(read.wait(), 5)
     cell = list(notebook.document)[0 if same_cell else 1]
     await bridge.edit(
@@ -139,11 +143,13 @@ async def test_competing_edit_before_flush(
     )
     release.set()
     assert (await completed(events, run_id))["outcome"] == (
-        "failed" if same_cell else "succeeded"
+        "failed" if same_cell or run_cells else "succeeded"
     )
     assert (await completed(events, other.id))["outcome"] == "succeeded"
     assert [c.code for c in notebook.document] == (
-        ["x = 99", "y = 2"] if same_cell else ["x = 42", "y = 99"]
+        ["x = 99", "y = 2"]
+        if same_cell
+        else ["x = 1" if run_cells else "x = 42", "y = 99"]
     )
 
 
@@ -178,6 +184,7 @@ async def test_edit_stays_committed_when_run_source_changes(
                 ],
                 request_id="competing-edit",
             )
+            assert await original(request) == reply
         return reply
 
     monkeypatch.setattr(session, "document_request", edit_again)
@@ -372,3 +379,91 @@ async def test_nested_context_preserves_disjoint_edits(
         "y = 2",
         "z = 3",
     ]
+
+
+@pytest.mark.parametrize("operation", ["edit", "run", "edit_and_run"])
+async def test_pending_config_rejects_inline_work_until_next_execution(
+    host: tuple[Starlette, str, Response],
+    monkeypatch: pytest.MonkeyPatch,
+    operation: str,
+) -> None:
+    app, notebook_id, events = host
+    warm = await submit(app, notebook_id, EDIT, "warm")
+    assert (await completed(events, warm))["outcome"] == "succeeded"
+    bridge = app.state.host_context.bridge
+    notebook = await bridge.host.notebook(notebook_id)
+    session = bridge.session_for_notebook(notebook.id)
+    assert session is not None
+    original = session.document_request
+    assert original is not None
+    injected = False
+
+    async def disable_before_read(
+        request: DocumentRequest,
+    ) -> DocumentReplyCommand:
+        nonlocal injected
+        if not injected:
+            injected = True
+            cell = next(iter(notebook.document))
+            await bridge.edit(
+                notebook_id,
+                [
+                    protocol.PutCell(
+                        base_etag=cell.etag,
+                        cell=protocol.CellInput(
+                            id=cell.id,
+                            code=cell.code,
+                            name=cell.name,
+                            config=replace(cell.config, disabled=True),
+                        ),
+                    )
+                ],
+                request_id="browser-disable",
+            )
+        return await original(request)
+
+    monkeypatch.setattr(session, "document_request", disable_before_read)
+    code = (
+        "import marimo._code_mode as cm\n"
+        "try:\n"
+        "    async with cm.get_context() as ctx:\n"
+        "        cell = ctx.cells[0]\n"
+        "        assert cell.config.disabled\n"
+    )
+    if operation != "run":
+        code += "        ctx.edit_cell(cell.id, disabled=False)\n"
+    if operation != "edit":
+        code += "        ctx.run_cell(cell.id)\n"
+    code += (
+        "except RuntimeError as error:\n"
+        "    assert 'pending' in str(error), str(error)\n"
+        "else:\n"
+        "    raise AssertionError('pending edit accepted')\n"
+    )
+    run_id = await submit(app, notebook_id, code, "rejected")
+    assert (await completed(events, run_id))["outcome"] == "succeeded"
+    assert next(iter(notebook.document)).config.disabled
+    assert not any(
+        r.get("event") == "execution"
+        and r["data"]["execution"]["cell_id"]
+        == next(iter(notebook.document)).id
+        and r["data"]["execution"]["run_id"] == run_id
+        for r in events.records
+    )
+
+    retry = await submit(
+        app,
+        notebook_id,
+        "import marimo._code_mode as cm\n"
+        "from marimo._runtime.context import get_context\n"
+        "async with cm.get_context() as ctx:\n"
+        "    cell = ctx.cells[0]\n"
+        "    assert get_context().graph.cells[cell.id].config.disabled\n"
+        "    ctx.edit_cell(cell.id, disabled=False)\n"
+        "    ctx.run_cell(cell.id)\n"
+        "assert not get_context().graph.cells[cell.id].config.disabled\n"
+        "assert ctx.globals['x'] == 42\n",
+        "retry",
+    )
+    assert (await completed(events, retry))["outcome"] == "succeeded"
+    assert not next(iter(notebook.document)).config.disabled

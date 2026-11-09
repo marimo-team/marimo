@@ -40,6 +40,7 @@ from marimo._server.host.sessions import AppSessionNotebooks
 from marimo._session.events import SessionEventListener
 from marimo._session.model import SessionMode
 from marimo._session.notebook.storage import rename_no_replace
+from marimo._types.ids import CellId_t
 from marimo._utils.generated_with import (
     contents_differ_excluding_generated_with,
 )
@@ -471,6 +472,9 @@ class SessionBridge(SessionEventListener):
 
         if request.changes is None:
             if request.cells:
+                self._backends[notebook_id].require_applied_edits(
+                    None, request.applied_edits
+                )
                 self.mutations.require_operation(
                     "runtime.run", notebook_id=notebook_id
                 )
@@ -500,9 +504,28 @@ class SessionBridge(SessionEventListener):
                 assert put is not None
                 assert isinstance(command, EditCellsCommand)
                 inline_id = request.request_id
-                put(replace(command, inline_id=inline_id))
+                put(replace(command, edit_id=inline_id))
 
             assert request.changes is not None
+            cells = {
+                CellId_t(change.cell.id)
+                if isinstance(change, protocol.PutCell)
+                else CellId_t(change.id)
+                for change in request.changes
+                if isinstance(change, (protocol.PutCell, protocol.DeleteCell))
+            }
+            self._backends[notebook_id].require_applied_edits(
+                None
+                if request.for_run
+                or any(
+                    isinstance(
+                        change, (protocol.SetOrder, protocol.DeleteCell)
+                    )
+                    for change in request.changes
+                )
+                else cells,
+                request.applied_edits,
+            )
             await self.edit(
                 notebook_id,
                 request.changes,

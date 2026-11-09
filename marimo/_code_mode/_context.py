@@ -731,6 +731,11 @@ class AsyncCodeModeContext:
             ctx.edit_cell("my_cell", code="x = 42")
             ctx.delete_cell("old_cell")
 
+    Pending notebook updates can reject cell edits and requested cell runs.
+    Requested runs require external updates to finish; edit-only batches
+    may proceed on unrelated cells.
+    Retry in a new agent execution so the kernel can process those updates.
+
     Read cells via `ctx.cells[key]` where *key* is an integer index,
     cell ID string, or cell name.
     """
@@ -1697,12 +1702,15 @@ class AsyncCodeModeContext:
         *,
         changes: tuple[protocol.Change, ...] | None = None,
         cells: tuple[protocol.RequestedCell, ...] = (),
+        for_run: bool = False,
     ) -> DocumentReplyCommand:
         reply = await self._kernel.document_requests.request(
             DocumentRequest(
                 request_id=str(uuid4()),
                 changes=changes,
                 cells=cells,
+                for_run=for_run,
+                applied_edits=tuple(sorted(self._kernel.inline_edits)),
             )
         )
         if reply.problem is not None:
@@ -1750,7 +1758,9 @@ class AsyncCodeModeContext:
                 _build_plan(list(self._document), ops)
             )
             changes = tuple(_document_changes(document, plan))
-            reply = await self._request_document(changes=changes)
+            reply = await self._request_document(
+                changes=changes, for_run=bool(run_ids)
+            )
             written = {
                 change.cell.id
                 for change in changes

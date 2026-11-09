@@ -7,12 +7,16 @@ import asyncio
 from collections.abc import Callable
 from dataclasses import dataclass, field, replace
 from typing import TYPE_CHECKING, cast
+from uuid import uuid4
+
+import msgspec
 
 from marimo import _loggers
 from marimo._core import backend as be, protocol
-from marimo._core.errors import NoRuntime
+from marimo._core.errors import Conflict, NoRuntime
 from marimo._messaging.input import InputReply
 from marimo._messaging.notification import (
+    CompletedRunNotification,
     NotebookDocumentTransactionNotification,
     StartupProgressNotification,
     VariableValuesNotification,
@@ -20,6 +24,7 @@ from marimo._messaging.notification import (
 from marimo._messaging.serde import deserialize_kernel_message
 from marimo._runtime.commands import (
     CancelRunCommand,
+    EditCellsCommand,
     ExecuteCellCommand,
     ExecuteCellsCommand,
     ExecuteScratchpadCommand,
@@ -125,6 +130,7 @@ class SessionBackend(SessionConsumer):
         self._kernel: _Kernel | None = None
         self._runs: dict[protocol.RunId, _Run] = {}
         """Runs this backend submitted that have not finished, by run id."""
+        self._pending_edits: dict[str, EditCellsCommand] = {}
         self._handover = Handover()
         self._translators = RunTranslators(cell_order)
 
@@ -433,6 +439,28 @@ class SessionBackend(SessionConsumer):
     def forget(self, run_id: protocol.RunId) -> None:
         self._translators.forget(run_id)
 
+    def require_applied_edits(
+        self, cells: set[CellId_t] | None, applied: tuple[str, ...]
+    ) -> None:
+        """Reject inline work that can overtake a pending document update.
+
+        Runs and structural edits require all updates to have finished.
+        A deletion can also affect cells outside an edit-only batch.
+        """
+        for edit_id, command in self._pending_edits.items():
+            if edit_id in applied:
+                continue
+            if (
+                cells is None
+                or command.delete_ids
+                or cells.intersection(command.codes)
+                or cells.intersection(command.configs)
+            ):
+                raise Conflict(
+                    "Notebook edits are still pending in the kernel. "
+                    "Retry code mode in a new execution after they finish."
+                )
+
     def apply(self, command: CommandMessage) -> None:
         """Send the kernel a command in turn with the runs handed over.
 
@@ -441,6 +469,11 @@ class SessionBackend(SessionConsumer):
         session = self.session
         if session is None:
             return
+
+        if isinstance(command, EditCellsCommand):
+            edit_id = command.edit_id or str(uuid4())
+            command = msgspec.structs.replace(command, edit_id=edit_id)
+            self._pending_edits[edit_id] = command
 
         def put() -> None:
             if self.session is session:
@@ -500,6 +533,7 @@ class SessionBackend(SessionConsumer):
             if run.task is not None:
                 run.task.cancel()
         self._translators.clear()
+        self._pending_edits.clear()
         self._observe(be.Exited(kernel.runtime_id, reason))
 
     def notify(self, notification: KernelMessage) -> None:
@@ -509,6 +543,11 @@ class SessionBackend(SessionConsumer):
             self._handle_notification(message)
 
     def _handle_notification(self, message: NotificationMessage) -> None:
+        if (
+            isinstance(message, CompletedRunNotification)
+            and message.run_id is not None
+        ):
+            self._pending_edits.pop(message.run_id, None)
         if isinstance(message, VariableValuesNotification):
             for out in variable_messages(message):
                 self._observe(out)

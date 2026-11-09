@@ -22,9 +22,15 @@ class DocumentSnapshot(msgspec.Struct, frozen=True):
 class DocumentRequest(
     msgspec.Struct, frozen=True, tag_field="op", tag="host-document-request"
 ):
-    """Read or edit the notebook bound to a scratchpad execution."""
+    """Read or edit the notebook bound to a scratchpad execution.
+
+    `for_run` checks pending updates before committing an edit-and-run batch.
+    `applied_edits` names queued updates already applied inline by the kernel.
+    """
 
     name: ClassVar[str] = "host-document-request"
     request_id: str
     changes: tuple[protocol.Change, ...] | None = None
     cells: tuple[protocol.RequestedCell, ...] = ()
+    for_run: bool = False
+    applied_edits: tuple[str, ...] = ()

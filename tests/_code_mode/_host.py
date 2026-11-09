@@ -62,7 +62,7 @@ def host_context(
                 notebook.edit(message.changes, request_id=message.request_id)
                 _, command = apply_to_document(document, notebook.document)
                 if command is not None:
-                    inline_id = command.inline_id = message.request_id
+                    inline_id = command.edit_id = message.request_id
                     queued.append(command)
             for target in message.cells:
                 cell = notebook.document.cell(target.id)

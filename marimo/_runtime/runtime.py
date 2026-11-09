@@ -2024,10 +2024,10 @@ class Kernel:
         kernel holds for them.
         """
         if (
-            request.inline_id is not None
-            and request.inline_id in self.inline_edits
+            request.edit_id is not None
+            and request.edit_id in self.inline_edits
         ):
-            self.inline_edits.remove(request.inline_id)
+            self.inline_edits.remove(request.edit_id)
             return
         for cell_id, code in request.codes.items():
             if cell_id in self._uninstantiated_execution_requests:

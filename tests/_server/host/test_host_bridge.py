@@ -9,6 +9,7 @@ from types import SimpleNamespace
 from typing import TYPE_CHECKING
 
 import pytest
+from dirty_equals import IsStr
 from starlette.datastructures import State
 
 from marimo._core import protocol
@@ -740,6 +741,7 @@ async def test_an_edit_reaches_the_kernel_as_one_command(
                 "new": {**default, "hide_code": True},
             },
             delete_ids=[second.id],
+            edit_id=IsStr(),
         )
     ]
 
@@ -759,7 +761,9 @@ async def test_an_edit_reaches_the_kernel_as_one_command(
         request_id="edit-2",
     )
     assert session.commands[1:] == [
-        EditCellsCommand(codes={"new": "z = 2"}, configs={}, delete_ids=[])
+        EditCellsCommand(
+            codes={"new": "z = 2"}, configs={}, delete_ids=[], edit_id=IsStr()
+        )
     ]
     bridge.close()
 

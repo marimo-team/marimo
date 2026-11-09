@@ -16,6 +16,7 @@ from marimo._code_mode.screenshot_meta import (
 from marimo._core import backend as be, protocol
 from marimo._core.code import code_fingerprint
 from marimo._core.document import Document, DocumentCell
+from marimo._core.errors import Conflict
 from marimo._core.stream import Stream
 from marimo._messaging.notification import (
     CellNotification,
@@ -26,6 +27,7 @@ from marimo._messaging.notification import (
 from marimo._messaging.serde import serialize_kernel_message
 from marimo._runtime.commands import (
     CancelRunCommand,
+    EditCellsCommand,
     ExecuteCellsCommand,
     HTTPRequest,
 )
@@ -934,3 +936,53 @@ async def test_an_edit_waits_behind_a_run_still_preparing(
     assert await submitted(session, 2) == ["run-1", "edit"]
     session.broadcast(CompletedRunNotification(run_id="run-1"))
     await observed.wait_for(be.Done)
+
+
+async def test_pending_edits_end_with_their_own_command(
+    manager: FakeManager,
+    observed: Observed,
+) -> None:
+    b = backend(manager, observed)
+    session = manager.next_session
+    b.adopt(RT1, session)
+    a, other = CellId_t("a"), CellId_t("other")
+    b.apply(
+        EditCellsCommand(
+            codes={}, configs={a: {"disabled": True}}, delete_ids=[]
+        )
+    )
+    first = session.commands[-1].edit_id
+    b.apply(EditCellsCommand(codes={a: "x = 2"}, configs={}, delete_ids=[]))
+    second = session.commands[-1].edit_id
+    assert first
+    assert second
+    assert first != second
+    b.require_applied_edits({other}, ())
+    with pytest.raises(Conflict, match="pending"):
+        b.require_applied_edits({a}, ())
+    with pytest.raises(Conflict, match="pending"):
+        b.require_applied_edits(None, (first,))
+    b.require_applied_edits(None, (first, second))
+    # An inline acknowledgment does not consume the queued fallback.
+    with pytest.raises(Conflict, match="pending"):
+        b.require_applied_edits(None, ())
+    session.broadcast(CompletedRunNotification(run_id=first))
+    with pytest.raises(Conflict, match="pending"):
+        b.require_applied_edits({a}, ())
+    session.broadcast(CompletedRunNotification(run_id=second))
+    b.require_applied_edits(None, ())
+
+
+async def test_pending_deletions_block_disjoint_edits_and_end_on_detach(
+    manager: FakeManager,
+    observed: Observed,
+) -> None:
+    b = backend(manager, observed)
+    session = manager.next_session
+    b.adopt(RT1, session)
+    b.apply(EditCellsCommand(codes={}, configs={}, delete_ids=[CellId_t("a")]))
+    with pytest.raises(Conflict, match="pending"):
+        b.require_applied_edits({CellId_t("other")}, ())
+    session.disconnect_consumer(b)
+    b.adopt(protocol.RuntimeId("rt2"), FakeSession())
+    b.require_applied_edits(None, ())
