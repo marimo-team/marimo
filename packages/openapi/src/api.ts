@@ -4141,7 +4141,9 @@ export interface components {
      */
     ChatOptions: {
       /** @default null */
-      reasoningEffort?: ("high" | "low" | "medium") | null;
+      reasoningEffort?:
+        | ("high" | "low" | "max" | "medium" | "minimal" | "none" | "xhigh")
+        | null;
       /** @default false */
       webSearch?: boolean;
     };

@@ -277,7 +277,7 @@ async def ai_chat(
             request=request,
             max_tokens=max_tokens,
             enable_capabilities=enable_capabilities,
-            thinking=body.options.reasoning_effort,
+            thinking=body.options.thinking,
             stream_options=stream_options,
         )
 
@@ -287,7 +287,7 @@ async def ai_chat(
         max_tokens=max_tokens,
         additional_tools=additional_tools,
         enable_capabilities=enable_capabilities,
-        thinking=body.options.reasoning_effort,
+        thinking=body.options.thinking,
         stream_options=stream_options,
     )
 

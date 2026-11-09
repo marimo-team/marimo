@@ -682,7 +682,11 @@ components:
           - enum:
             - high
             - low
+            - max
             - medium
+            - minimal
+            - none
+            - xhigh
           - type: 'null'
           default: null
         webSearch:

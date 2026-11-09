@@ -90,6 +90,25 @@ describe("ChatModelPicker", () => {
     });
   });
 
+  it("shows the selected model's full effort list", () => {
+    const { store } = renderPicker(true);
+    expect(
+      screen
+        .getAllByRole("radio")
+        .map((radio) => radio.closest("label")?.textContent),
+    ).toEqual(["Default", "Low", "Medium", "High", "Extra high", "Max"]);
+    fireEvent.click(screen.getByRole("radio", { name: "Extra high" }));
+    expect(store.get(chatOptionsAtom)).toEqual({
+      webSearch: false,
+      reasoningEffort: "xhigh",
+    });
+    fireEvent.click(screen.getByRole("radio", { name: "Max" }));
+    expect(store.get(chatOptionsAtom)).toEqual({
+      webSearch: false,
+      reasoningEffort: "max",
+    });
+  });
+
   it("hides effort choices for models without reasoning support", () => {
     renderPicker(false);
     expect(screen.queryByRole("radiogroup")).not.toBeInTheDocument();

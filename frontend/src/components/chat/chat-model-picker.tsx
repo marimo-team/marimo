@@ -10,6 +10,7 @@ import {
 import { useId, useState } from "react";
 import { AiProviderIcon } from "@/components/ai/ai-provider-icon";
 import { getProviderLabel } from "@/components/ai/ai-model-dropdown";
+import { getReasoningEffortOptions } from "@/components/ai/reasoning-options";
 import { listModelsForAiSettings } from "@/components/ai/ai-utils";
 import { useOpenSettingsToTab } from "@/components/app-config/state";
 import { Button } from "@/components/ui/button";
@@ -39,13 +40,6 @@ import { AiModelRegistry } from "@/core/ai/model-registry";
 import { chatOptionsAtom } from "@/core/ai/state";
 import { aiAtom } from "@/core/config/config";
 import { DEFAULT_AI_MODEL } from "@/core/config/config-schema";
-
-const REASONING_OPTIONS = [
-  { value: "default", label: "Default" },
-  { value: "low", label: "Low" },
-  { value: "medium", label: "Medium" },
-  { value: "high", label: "High" },
-] as const;
 
 export function ChatModelPicker() {
   const [open, setOpen] = useState(false);
@@ -80,15 +74,19 @@ export function ChatModelPicker() {
   );
   const visibleProvider = providerModels?.[0] ?? modelsByProvider[0]?.[0];
   const visibleModels = providerModels?.[1] ?? modelsByProvider[0]?.[1] ?? [];
+  const reasoningOptions = getReasoningEffortOptions(
+    currentModel?.reasoning_options,
+  );
   const supportsReasoning =
-    currentModel?.capabilities.includes("thinking") &&
+    reasoningOptions.length > 0 &&
     (current.providerId === "anthropic" ||
       current.providerId === "google" ||
+      current.providerId === "bedrock" ||
       (current.providerId === "openai" &&
         (!ai?.open_ai?.base_url ||
           ai.open_ai.base_url.includes("api.openai.com"))));
   const effort = supportsReasoning ? options.reasoningEffort : null;
-  const effortLabel = REASONING_OPTIONS.find(
+  const effortLabel = reasoningOptions.find(
     (option) => option.value === effort,
   )?.label;
   const displayName = currentModel?.name ?? current.shortModelId;
@@ -223,7 +221,7 @@ export function ChatModelPicker() {
                 className="gap-0"
                 value={effort ?? "default"}
                 onValueChange={(value) => {
-                  const choice = REASONING_OPTIONS.find(
+                  const choice = reasoningOptions.find(
                     (option) => option.value === value,
                   );
                   if (choice) {
@@ -235,7 +233,7 @@ export function ChatModelPicker() {
                   }
                 }}
               >
-                {REASONING_OPTIONS.map((option) => (
+                {reasoningOptions.map((option) => (
                   <label
                     key={option.value}
                     className="flex h-7 items-center justify-between gap-1.5 rounded px-1.5 text-xs cursor-pointer hover:bg-accent focus-within:ring-1 focus-within:ring-ring"
