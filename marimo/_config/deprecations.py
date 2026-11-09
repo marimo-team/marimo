@@ -8,7 +8,7 @@ from msgspec.inspect import (
     DictType,
     Metadata,
     StructType,
-    Type,
+    Type as MsgspecType,
     UnionType,
     type_info,
 )
@@ -30,12 +30,12 @@ LOGGER = _loggers.marimo_logger()
 
 
 @cache
-def _config_type_info() -> Type:
+def _config_type_info() -> MsgspecType:
     return type_info(MarimoConfig)
 
 
 def _deprecated_fields(
-    annotation: Type, value: object, path: ConfigPath = ()
+    annotation: MsgspecType, value: object, path: ConfigPath = ()
 ) -> Iterator[tuple[ConfigPath, str]]:
     if isinstance(annotation, Metadata):
         if (annotation.extra or {}).get("deprecated"):
