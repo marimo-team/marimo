@@ -8,14 +8,12 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Literal
 
 from marimo import _loggers
+from marimo._core.document import Document
 from marimo._messaging.context import (
     http_request_context,
     run_id_context,
 )
-from marimo._messaging.notebook.document import (
-    NotebookDocument,
-    notebook_document_context,
-)
+from marimo._messaging.host import sources
 from marimo._messaging.notebook.outputs import notebook_outputs_context
 from marimo._messaging.notification import (
     CompletedRunNotification,
@@ -45,6 +43,7 @@ from marimo._runtime.commands import (
 from marimo._runtime.context import safe_get_context
 from marimo._runtime.context.kernel_context import KernelRuntimeContext
 from marimo._runtime.redirect_streams import stdin_context
+from marimo._runtime.scratch import notebook_document_context
 from marimo._types.ids import UIElementId
 
 if TYPE_CHECKING:
@@ -219,7 +218,7 @@ class KernelRequestHandlers:
         self, request: ExecuteScratchpadCommand
     ) -> None:
         doc = (
-            NotebookDocument(list(request.notebook_cells))
+            Document(sources(request.notebook_cells), {})
             if request.notebook_cells is not None
             else None
         )

@@ -40,6 +40,8 @@ from marimo._config.provenance import ConfigPath
 from marimo._config.resolver import config_paths
 from marimo._config.schema_utils import default_if_unset
 from marimo._config.types import ExecutionType, OnCellChangeType
+from marimo._core import protocol
+from marimo._core.document import Document
 from marimo._core.protocol import ExecutionId, Revision
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._entrypoints.registry import EntryPointRegistry
@@ -59,6 +61,7 @@ from marimo._messaging.errors import (
     MarimoSyntaxError,
     UnknownError,
 )
+from marimo._messaging.host import runtime_config
 from marimo._messaging.input import InputReply
 from marimo._messaging.notebook.changes import ReorderCells, Transaction
 from marimo._messaging.notification import (
@@ -2009,6 +2012,70 @@ class Kernel:
         # Use existing mutate_graph infrastructure to update the graph
         self.mutate_graph(execution_requests, deletion_requests)
         await self.run(execution_requests)
+
+    def apply_document(
+        self,
+        document: Document,
+        *,
+        before: Document,
+        written: set[protocol.CellId],
+        run_ids: set[CellId_t],
+        edit_id: str | None = None,
+    ) -> set[CellId_t]:
+        """Apply accepted inline source before acknowledging its queued copy."""
+        requests = [
+            ExecuteCellCommand(
+                cell_id=CellId_t(cell.id),
+                code=cell.code,
+                code_fingerprint=cell.code_fingerprint,
+            )
+            for cell in document
+            if CellId_t(cell.id) in run_ids
+            or (
+                cell.id in written
+                and (
+                    (previous := before.cell(cell.id)) is None
+                    or previous.code != cell.code
+                )
+            )
+        ]
+        deletions = [
+            DeleteCellCommand(cell_id=cid)
+            for cid in self.graph.cells.keys()
+            | self._uninstantiated_execution_requests.keys()
+            | {CellId_t(cell.id) for cell in before}
+            if document.cell(protocol.CellId(cid)) is None
+        ]
+        requests = self.prepare_execution_requests(
+            requests,
+            run_cell_ids=run_ids,
+            deletion_requests=deletions,
+            pending_sources=[
+                ExecuteCellCommand(
+                    cell_id=CellId_t(cell.id),
+                    code=cell.code,
+                    code_fingerprint=cell.code_fingerprint,
+                )
+                for cell in document
+                if CellId_t(cell.id) not in self.graph.cells
+            ],
+        )
+        affected = self.mutate_graph(requests, deletions)
+        self.graph.topology.reorder_nodes(
+            [CellId_t(cell.id) for cell in document]
+        )
+        configured = written | {protocol.CellId(r.cell_id) for r in requests}
+        for source in document:
+            if source.id not in configured:
+                continue
+            cid = CellId_t(source.id)
+            config = runtime_config(source.config)
+            if cid in self.graph.cells:
+                self.graph.cells[cid].configure(config.asdict())
+            self.cell_metadata.setdefault(cid, CellMetadata()).config = config
+        if edit_id is not None:
+            self.inline_edits.add(edit_id)
+        return affected
 
     @kernel_tracer.start_as_current_span("edit_cells")
     async def edit_cells(self, request: EditCellsCommand) -> None:

@@ -4,7 +4,6 @@
 from __future__ import annotations
 
 from contextlib import contextmanager
-from copy import deepcopy
 from typing import TYPE_CHECKING
 from unittest.mock import Mock, patch
 from weakref import WeakKeyDictionary
@@ -17,13 +16,11 @@ from marimo._core.executions import Executions
 from marimo._core.notebook import Notebook
 from marimo._core.operations import problem_for
 from marimo._core.stream import Stream
-from marimo._messaging.host import DocumentRequest, DocumentSnapshot
-from marimo._messaging.notebook.document import (
-    NotebookDocument,
-    notebook_document_context,
-)
+from marimo._messaging.host import DocumentRequest, DocumentSnapshot, sources
+from marimo._messaging.notebook.document import NotebookDocument
 from marimo._runtime.commands import DocumentReplyCommand, EditCellsCommand
-from marimo._server.host.document import apply_to_document, sources
+from marimo._runtime.scratch import notebook_document_context
+from marimo._server.host.document import apply_to_document
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
@@ -81,7 +78,7 @@ def host_context(
             )
 
     with (
-        notebook_document_context(deepcopy(document)),
+        notebook_document_context(Document(sources(document.cells), {})),
         patch.object(kernel.document_requests, "request", request),
     ):
         yield AsyncCodeModeContext(

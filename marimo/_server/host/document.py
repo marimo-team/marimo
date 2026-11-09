@@ -23,6 +23,11 @@ from typing import TYPE_CHECKING, Any
 from marimo._ast.cell import CellConfig
 from marimo._core import protocol
 from marimo._core.document import DocumentCell
+from marimo._messaging.host import (
+    document_config,
+    runtime_config,
+    sources,
+)
 from marimo._messaging.notebook import (
     CreateCell,
     DeleteCell,
@@ -41,7 +46,7 @@ from marimo._runtime.commands import EditCellsCommand
 from marimo._types.ids import CellId_t
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Iterable
+    from collections.abc import Callable
 
     from marimo._core.document import Document
     from marimo._messaging.notebook import NotebookDocument
@@ -59,19 +64,6 @@ def from_session(
     )
 
 
-def sources(cells: Iterable[NotebookCell]) -> list[DocumentCell]:
-    """The document sources for the editor's cells."""
-    return [
-        DocumentCell(
-            protocol.CellId(cell.id),
-            cell.code,
-            cell.name,
-            _config(cell.config),
-        )
-        for cell in cells
-    ]
-
-
 def from_file_manager(
     manager: AppFileManager,
 ) -> tuple[list[DocumentCell], dict[str, Any]]:
@@ -80,29 +72,11 @@ def from_file_manager(
             protocol.CellId(data.cell_id),
             data.code,
             data.name,
-            _config(data.config),
+            document_config(data.config),
         )
         for data in manager.app.cell_manager.cell_data()
     ]
     return cells, manager.app.config.asdict_difference()
-
-
-def _config(config: CellConfig) -> protocol.CellConfig:
-    return protocol.CellConfig(
-        column=config.column,
-        disabled=config.disabled,
-        hide_code=config.hide_code,
-        expand_output=config.expand_output,
-    )
-
-
-def _cell_config(config: protocol.CellConfig) -> CellConfig:
-    return CellConfig(
-        column=config.column,
-        disabled=config.disabled,
-        hide_code=config.hide_code,
-        expand_output=config.expand_output,
-    )
 
 
 def to_notebook_cell(cell: DocumentCell) -> NotebookCell:
@@ -110,7 +84,7 @@ def to_notebook_cell(cell: DocumentCell) -> NotebookCell:
         id=CellId_t(cell.id),
         code=cell.code,
         name=cell.name,
-        config=_cell_config(cell.config),
+        config=runtime_config(cell.config),
     )
 
 
@@ -157,7 +131,7 @@ def apply_to_document(
     for cell in document:
         cell_id = CellId_t(cell.id)
         existing = current.get(cell_id)
-        config = _cell_config(cell.config)
+        config = runtime_config(cell.config)
         if existing is None:
             changes.append(
                 CreateCell(
@@ -177,7 +151,7 @@ def apply_to_document(
                 codes[cell_id] = cell.code
             if existing.name != cell.name:
                 changes.append(SetName(cell_id=cell_id, name=cell.name))
-            if _config(existing.config) != cell.config:
+            if document_config(existing.config) != cell.config:
                 changes.append(
                     SetConfig(
                         cell_id=cell_id,

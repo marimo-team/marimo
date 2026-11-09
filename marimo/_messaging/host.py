@@ -3,12 +3,18 @@
 
 from __future__ import annotations
 
-from typing import Any, ClassVar
+from typing import TYPE_CHECKING, Any, ClassVar
 
 import msgspec
 
+from marimo._ast.cell import CellConfig
 from marimo._core import protocol
 from marimo._core.document import Document, DocumentCell
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
+
+    from marimo._messaging.notebook.document import NotebookCell
 
 
 class DocumentSnapshot(msgspec.Struct, frozen=True):
@@ -34,3 +40,34 @@ class DocumentRequest(
     cells: tuple[protocol.RequestedCell, ...] = ()
     for_run: bool = False
     applied_edits: tuple[str, ...] = ()
+
+
+def sources(cells: Iterable[NotebookCell]) -> list[DocumentCell]:
+    """The document sources for the editor's cells."""
+    return [
+        DocumentCell(
+            protocol.CellId(cell.id),
+            cell.code,
+            cell.name,
+            document_config(cell.config),
+        )
+        for cell in cells
+    ]
+
+
+def document_config(config: CellConfig) -> protocol.CellConfig:
+    return protocol.CellConfig(
+        column=config.column,
+        disabled=config.disabled,
+        hide_code=config.hide_code,
+        expand_output=config.expand_output,
+    )
+
+
+def runtime_config(config: protocol.CellConfig) -> CellConfig:
+    return CellConfig(
+        column=config.column,
+        disabled=config.disabled,
+        hide_code=config.hide_code,
+        expand_output=config.expand_output,
+    )

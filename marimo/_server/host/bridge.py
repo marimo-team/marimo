@@ -25,7 +25,7 @@ from marimo._core.executions import Executions
 from marimo._core.host import Host
 from marimo._core.notebook import Notebook
 from marimo._core.operations import Mutations
-from marimo._messaging.host import DocumentRequest, DocumentSnapshot
+from marimo._messaging.host import DocumentRequest, DocumentSnapshot, sources
 from marimo._runtime.commands import (
     DocumentReplyCommand,
     EditCellsCommand,
@@ -367,7 +367,7 @@ class SessionBridge(SessionEventListener):
             manager = self._file_manager(path)
         text = manager.save_from_cells(cells)
         etag = Document(
-            documents.sources(cells), manager.app.config.asdict_difference()
+            sources(cells), manager.app.config.asdict_difference()
         ).etag
         return etag, text
 
@@ -634,7 +634,7 @@ class SessionBridge(SessionEventListener):
         def persisted(
             cells: Sequence[NotebookCell], app_config: dict[str, Any]
         ) -> None:
-            etag = Document(documents.sources(cells), app_config).etag
+            etag = Document(sources(cells), app_config).etag
             if _running_loop() is loop:
                 self._saved(notebook_id, etag)
             else:

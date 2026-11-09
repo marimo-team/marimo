@@ -8,9 +8,10 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from marimo._core.document import Document
+from marimo._core import protocol
+from marimo._core.document import Document, DocumentCell
 from marimo._runtime.agent import Agent
-from marimo._server.host.document import sources
+from marimo._runtime.scratch import ScratchpadDocument
 
 if TYPE_CHECKING:
     from collections.abc import Generator
@@ -215,22 +216,19 @@ class TestCellsViewIteration:
 # ------------------------------------------------------------------
 
 
-def _cell(cell_id: str, code: str, name: str = "") -> NotebookCell:
-    return NotebookCell(
-        id=CellId_t(cell_id), code=code, name=name, config=CellConfig()
-    )
+def _cell(cell_id: str, code: str, name: str = "") -> DocumentCell:
+    return DocumentCell(id=protocol.CellId(cell_id), code=code, name=name)
 
 
-def _view(cells: list[NotebookCell]) -> _CellsView:
-    doc = NotebookDocument(cells)
+def _view(cells: list[DocumentCell]) -> _CellsView:
+    doc = Document(cells, {})
     ctx = type(
         "_MockCtx",
         (),
         {
             "_document": doc,
-            "_scratch_document": doc,
+            "_scratch_document": ScratchpadDocument(doc),
             "_entered": False,
-            "_host_document": Document(sources(cells), {}),
             "_kernel": SimpleNamespace(agent=Agent()),
         },
     )()
@@ -290,40 +288,6 @@ CellsView(2 cells):
         assert "[14]" in r
         assert "... 4 more cells ..." in r
         assert "[11]" not in r
-
-
-# ------------------------------------------------------------------
-# NotebookCell.__repr__
-# ------------------------------------------------------------------
-
-
-class TestNotebookCellRepr:
-    def test_repr_basic(self) -> None:
-        c = _cell("a1", "x = 1")
-        assert repr(c) == "NotebookCell(id='a1', code='x = 1')"
-
-    def test_repr_with_name(self) -> None:
-        c = _cell("a1", "import marimo as mo", name="setup")
-        assert repr(c) == (
-            "NotebookCell(id='a1', name='setup', code='import marimo as mo')"
-        )
-
-    def test_repr_long_code_truncated(self) -> None:
-        long_code = "x = " + "a" * 100
-        c = _cell("a1", long_code)
-        r = repr(c)
-        assert "..." in r
-        assert long_code[:80] in r
-
-    def test_repr_multiline_shows_first_line(self) -> None:
-        c = _cell("a1", "line1\nline2\nline3")
-        r = repr(c)
-        assert "line1..." in r
-        assert "line2" not in r
-
-    def test_repr_empty_code(self) -> None:
-        c = _cell("a1", "")
-        assert repr(c) == "NotebookCell(id='a1', code='')"
 
 
 # ------------------------------------------------------------------

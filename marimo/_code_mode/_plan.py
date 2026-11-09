@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from marimo._ast.cell import CellConfig
 from marimo._core import protocol
 from marimo._core.document import Document, DocumentCell
+from marimo._messaging.host import document_config
 from marimo._types.ids import CellId_t
 
 # ------------------------------------------------------------------
@@ -159,12 +160,7 @@ def _document_changes(
         else:
             code, name, config = previous.code, previous.name, previous.config
         if entry.config is not None:
-            config = protocol.CellConfig(
-                column=entry.config.column,
-                disabled=entry.config.disabled,
-                hide_code=entry.config.hide_code,
-                expand_output=entry.config.expand_output,
-            )
+            config = document_config(entry.config)
         cells.append(
             DocumentCell(
                 cell_id,

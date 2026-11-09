@@ -70,11 +70,7 @@ from marimo._core import protocol
 from marimo._core.document import Document, DocumentCell
 from marimo._messaging.cell_output import CellOutput
 from marimo._messaging.errors import Error
-from marimo._messaging.host import DocumentRequest
-from marimo._messaging.notebook.document import (
-    NotebookCell as _NotebookCell,
-    NotebookDocument,
-)
+from marimo._messaging.host import DocumentRequest, runtime_config
 from marimo._messaging.notebook.outputs import (
     CellOutputs,
     get_current_outputs,
@@ -85,9 +81,7 @@ from marimo._messaging.notification import (
 from marimo._messaging.notification_utils import broadcast_notification
 from marimo._runtime.commands import (
     CommandMessage,
-    DeleteCellCommand,
     DocumentReplyCommand,
-    ExecuteCellCommand,
     UpdateUIElementCommand,
 )
 from marimo._runtime.context import (
@@ -96,7 +90,7 @@ from marimo._runtime.context import (
 )
 from marimo._runtime.context.kernel_context import KernelRuntimeContext
 from marimo._runtime.dataflow import DirectedGraph
-from marimo._runtime.runtime import CellMetadata
+from marimo._runtime.scratch import get_current_document
 from marimo._types.ids import CellId_t, UIElementId
 from marimo._utils.formatter import DefaultFormatter
 
@@ -109,20 +103,6 @@ if TYPE_CHECKING:
     from marimo._ast.cell_manager import CellManager
     from marimo._code_mode.screenshot import _ScreenshotSession
     from marimo._runtime.runtime import Kernel
-
-
-def _cell_source(cell: _NotebookCell) -> DocumentCell:
-    return DocumentCell(
-        protocol.CellId(cell.id),
-        cell.code,
-        cell.name,
-        protocol.CellConfig(
-            column=cell.config.column,
-            disabled=cell.config.disabled,
-            hide_code=cell.config.hide_code,
-            expand_output=cell.config.expand_output,
-        ),
-    )
 
 
 def _validate_cell_name(name: str | None) -> None:
@@ -349,7 +329,7 @@ class NotebookCell:
 
     def __init__(
         self,
-        cell: _NotebookCell,
+        cell: DocumentCell,
         cell_impl: CellRuntimeState | None,
         graph_errors: tuple[Error, ...] = (),
         outputs: CellOutputs | None = None,
@@ -366,7 +346,7 @@ class NotebookCell:
     @property
     def id(self) -> CellId_t:
         """The unique cell identifier."""
-        return self._cell.id
+        return CellId_t(self._cell.id)
 
     @property
     def code(self) -> str:
@@ -383,7 +363,7 @@ class NotebookCell:
     @property
     def config(self) -> CellConfig:
         """The cell's configuration (e.g. disabled, hide_code)."""
-        return self._cell.config
+        return runtime_config(self._cell.config)
 
     # -- runtime properties --
 
@@ -476,7 +456,7 @@ class NotebookCell:
         """
         if self._outputs is None:
             return None
-        return self._outputs.output.get(self._cell.id)
+        return self._outputs.output.get(self.id)
 
     @property
     def console_outputs(self) -> list[CellOutput]:
@@ -487,7 +467,7 @@ class NotebookCell:
         """
         if self._outputs is None:
             return []
-        return list(self._outputs.console_outputs.get(self._cell.id, ()))
+        return list(self._outputs.console_outputs.get(self.id, ()))
 
     # -- display --
 
@@ -537,29 +517,27 @@ class _CellsView:
         self._ctx = ctx
 
     @property
-    def _doc(self) -> NotebookDocument:
+    def _doc(self) -> Document:
         return (
             self._ctx._document
             if self._ctx._entered
-            else self._ctx._scratch_document
+            else self._ctx._scratch_document.document
         )
 
-    def _cell_view(self, cell: _NotebookCell) -> NotebookCell:
+    def _cell_view(self, cell: DocumentCell) -> NotebookCell:
         """Wrap a document cell with runtime state from the graph."""
         try:
             graph = self._ctx.graph
-            impl = graph.cells.get(cell.id)
-            graph_errors = self._ctx._kernel.errors.get(cell.id, ())
+            impl = graph.cells.get(CellId_t(cell.id))
+            graph_errors = self._ctx._kernel.errors.get(CellId_t(cell.id), ())
             outputs = self._ctx._outputs
         except AttributeError:
             impl = None
             graph_errors = ()
             outputs = None
 
-        etag = _cell_source(cell).etag
-
         def record_read() -> None:
-            self._ctx._kernel.agent.read_etags[cell.id] = etag
+            self._ctx._kernel.agent.read_etags[CellId_t(cell.id)] = cell.etag
 
         return NotebookCell(
             cell,
@@ -570,10 +548,10 @@ class _CellsView:
         )
 
     def _cell_ids(self) -> list[CellId_t]:
-        return list(self._doc)
+        return [CellId_t(cell.id) for cell in self._doc]
 
     def _cell_name(self, cell_id: CellId_t) -> str | None:
-        doc_cell = self._doc.get(cell_id)
+        doc_cell = self._doc.cell(protocol.CellId(cell_id))
         if doc_cell is None:
             return None
         return doc_cell.name or None
@@ -583,15 +561,15 @@ class _CellsView:
 
         Raises `KeyError` if not found.
         """
-        if target in self._doc:
+        if self._doc.cell(protocol.CellId(target)) is not None:
             return CellId_t(target)
 
         # Fall back to cell name.
-        for cell in self._doc.cells:
+        for cell in self._doc:
             if cell.name == target:
-                return cell.id
+                return CellId_t(cell.id)
 
-        available = ", ".join(c.id for c in self._doc.cells)
+        available = ", ".join(c.id for c in self._doc)
         raise KeyError(
             f"Cell {target!r} not found. "
             f"Available cell IDs: [{available}]. "
@@ -600,7 +578,7 @@ class _CellsView:
         )
 
     def __len__(self) -> int:
-        return len(self._doc)
+        return len(list(self._doc))
 
     @overload
     def __getitem__(self, key: int) -> NotebookCell: ...
@@ -609,12 +587,14 @@ class _CellsView:
 
     def __getitem__(self, key: int | str) -> NotebookCell:
         if isinstance(key, int):
-            return self._cell_view(self._doc.cells[key])
-        return self._cell_view(self._doc.get_cell(self._resolve(key)))
+            return self._cell_view(list(self._doc)[key])
+        cell = self._doc.cell(protocol.CellId(self._resolve(key)))
+        assert cell is not None
+        return self._cell_view(cell)
 
     def __iter__(self) -> Iterator[NotebookCell]:
-        for cell_id in self._doc.cell_ids:
-            yield self._cell_view(self._doc.get_cell(cell_id))
+        for cell in self._doc:
+            yield self._cell_view(cell)
 
     def __contains__(self, key: object) -> bool:
         if isinstance(key, int):
@@ -629,15 +609,15 @@ class _CellsView:
 
     def keys(self) -> Sequence[CellId_t]:
         """Return cell IDs in notebook order."""
-        return self._doc.cell_ids
+        return self._cell_ids()
 
     def values(self) -> Sequence[NotebookCell]:
         """Return cell data in notebook order."""
-        return [self._cell_view(c) for c in self._doc.cells]
+        return [self._cell_view(c) for c in self._doc]
 
     def items(self) -> Sequence[tuple[CellId_t, NotebookCell]]:
         """Return (cell_id, cell_data) pairs in notebook order."""
-        return [(c.id, self._cell_view(c)) for c in self._doc.cells]
+        return [(CellId_t(c.id), self._cell_view(c)) for c in self._doc]
 
     # ------------------------------------------------------------------
     # Content search
@@ -652,9 +632,7 @@ class _CellsView:
 
             ctx.cells.find("import marimo")
         """
-        return [
-            self._cell_view(c) for c in self._doc.cells if substring in c.code
-        ]
+        return [self._cell_view(c) for c in self._doc if substring in c.code]
 
     def grep(self, pattern: str) -> Sequence[NotebookCell]:
         r"""Return cells whose code matches the regex *pattern*.
@@ -670,9 +648,7 @@ class _CellsView:
 
         compiled = re.compile(pattern)
         return [
-            self._cell_view(c)
-            for c in self._doc.cells
-            if compiled.search(c.code)
+            self._cell_view(c) for c in self._doc if compiled.search(c.code)
         ]
 
     # ------------------------------------------------------------------
@@ -680,12 +656,12 @@ class _CellsView:
     # ------------------------------------------------------------------
 
     def __repr__(self) -> str:
-        doc_cells = self._doc.cells
+        doc_cells = list(self._doc)
         n = len(doc_cells)
         max_shown = 10
         lines = [f"CellsView({n} cell{'s' if n != 1 else ''}):"]
 
-        def _fmt(i: int, c: _NotebookCell) -> str:
+        def _fmt(i: int, c: DocumentCell) -> str:
             cv = self._cell_view(c)
             # Read through the wrapper so the staleness tracker sees
             # the preview as a read of the cell's source.
@@ -748,8 +724,6 @@ class AsyncCodeModeContext:
         skip_validation: bool = False,
         skip_staleness_check: bool = False,
     ) -> None:
-        from marimo._messaging.notebook.document import get_current_document
-
         document = get_current_document()
         if document is None:
             raise RuntimeError(
@@ -757,16 +731,13 @@ class AsyncCodeModeContext:
                 "a scratchpad execution with a notebook document"
             )
         self._kernel = kernel
-        self._document = document
+        self._document = document.document
         self._scratch_document = document
         runtime = safe_get_context()
         self._scheduler = (
             runtime.active_scheduler
             if isinstance(runtime, KernelRuntimeContext)
             else None
-        )
-        self._host_document = Document(
-            [_cell_source(cell) for cell in document.cells], {}
         )
         try:
             self._owner_task = asyncio.current_task()
@@ -788,7 +759,9 @@ class AsyncCodeModeContext:
         # never replay a prior session's ID sequence.  seen_ids from the
         # document prevents collisions with cells already on disk.
         self._id_generator = CellIdGenerator(seed=None)
-        self._id_generator.seen_ids = set(document.cell_ids)
+        self._id_generator.seen_ids = {
+            CellId_t(cell.id) for cell in document.document
+        }
         self._packages = Packages(self)
         self._ui_updates: list[tuple[UIElementId, Any]] = []
         self._cells_to_run: set[CellId_t] = set()
@@ -996,7 +969,7 @@ class AsyncCodeModeContext:
     def _cell_label(self, cell_id: CellId_t) -> str:
         """Return a display label: `'id' (name)` or `'id'`."""
         short = repr(str(cell_id)[:8])
-        doc_cell = self._document.get(cell_id)
+        doc_cell = self._document.cell(protocol.CellId(cell_id))
         if doc_cell and doc_cell.name:
             return f"{short} ({doc_cell.name})"
         return short
@@ -1211,7 +1184,7 @@ class AsyncCodeModeContext:
                 continue
             if op.config is not None:
                 return op.config
-        return self._document.get_cell(cell_id).config
+        return self.cells[cell_id].config
 
     def edit_cell(
         self,
@@ -1291,14 +1264,16 @@ class AsyncCodeModeContext:
                     pass
                 new_cell_id = setup_id
                 if code is None:
-                    code = self._document.get_cell(cell_id).code
+                    source = self._document.cell(protocol.CellId(cell_id))
+                    assert source is not None
+                    code = source.code
             # Setup is identified by cell_id alone — don't store a name.
             name = None
 
         if code is not None and not self._skip_staleness_check:
             stale = frozenset(
                 CellId_t(cell.id)
-                for cell in self._host_document
+                for cell in self._document
                 if cell.code.strip()
                 and self._kernel.agent.read_etags.get(CellId_t(cell.id))
                 != cell.etag
@@ -1647,19 +1622,23 @@ class AsyncCodeModeContext:
         """Reject new syntax and graph errors against the document being edited."""
         baseline = DirectedGraph()
         compiled: dict[CellId_t, CellImpl] = {}
-        for source in self._document.cells:
+        for source in self._document:
             try:
-                compiled[source.id] = compile_cell(
-                    source.code, cell_id=source.id
+                compiled[CellId_t(source.id)] = compile_cell(
+                    source.code, cell_id=CellId_t(source.id)
                 )
             except SyntaxError:
                 # An existing invalid cell must not block unrelated edits.
                 continue
-            baseline.register_cell(source.id, compiled[source.id])
+            baseline.register_cell(
+                CellId_t(source.id), compiled[CellId_t(source.id)]
+            )
 
         graph = DirectedGraph()
         written: set[CellId_t] = set()
-        for entry in _build_plan(list(self._document), ops):
+        for entry in _build_plan(
+            [CellId_t(cell.id) for cell in self._document], ops
+        ):
             if entry.code is not None:
                 cell = compile_cell(entry.code, cell_id=entry.cell_id)
                 written.add(entry.cell_id)
@@ -1719,31 +1698,17 @@ class AsyncCodeModeContext:
                 detail if isinstance(detail, str) else reply.problem.title
             )
         assert reply.document is not None
-        self._host_document = reply.document.document()
-        self._document = NotebookDocument(
-            [
-                _NotebookCell(
-                    id=CellId_t(cell.id),
-                    code=cell.code,
-                    name=cell.name,
-                    config=CellConfig(
-                        column=cell.config.column,
-                        disabled=cell.config.disabled,
-                        hide_code=cell.config.hide_code,
-                        expand_output=cell.config.expand_output,
-                    ),
-                )
-                for cell in self._host_document
-            ]
+        self._document = reply.document.document()
+        self._scratch_document.document = self._document
+        self._id_generator.seen_ids.update(
+            CellId_t(cell.id) for cell in self._document
         )
-        self._scratch_document.replace_snapshot(self._document)
-        self._id_generator.seen_ids.update(self._document.cell_ids)
         return reply
 
     async def _flush_document(
         self, ops: list[_Op], run_ids: set[CellId_t]
     ) -> None:
-        document = self._host_document
+        document = self._document
         requested = {
             cell.id: cell.etag
             for cell in document
@@ -1755,7 +1720,9 @@ class AsyncCodeModeContext:
             if not self._skip_validation:
                 self._dry_run_compile(ops)
             plan = await self._format_plan(
-                _build_plan(list(self._document), ops)
+                _build_plan(
+                    [CellId_t(cell.id) for cell in self._document], ops
+                )
             )
             changes = tuple(_document_changes(document, plan))
             reply = await self._request_document(
@@ -1766,9 +1733,13 @@ class AsyncCodeModeContext:
                 for change in changes
                 if isinstance(change, protocol.PutCell)
             }
-            affected = self._apply_document(document, written, set())
-            if reply.inline_id is not None:
-                self._kernel.inline_edits.add(reply.inline_id)
+            affected = self._kernel.apply_document(
+                self._document,
+                before=document,
+                written=written,
+                run_ids=set(),
+                edit_id=reply.inline_id,
+            )
             source_writes = {
                 protocol.CellId(
                     op.cell_id
@@ -1781,7 +1752,7 @@ class AsyncCodeModeContext:
                 and op.code is not None
             }
             for cell_id in written:
-                cell = self._host_document.cell(cell_id)
+                cell = self._document.cell(cell_id)
                 assert cell is not None
                 prior = document.cell(cell_id)
                 if cell_id in source_writes or (
@@ -1804,81 +1775,24 @@ class AsyncCodeModeContext:
                     for cid in sorted(run_ids)
                 )
             )
-            affected |= self._apply_document(
-                self._host_document, set(), run_ids
+            affected |= self._kernel.apply_document(
+                self._document,
+                before=self._document,
+                written=set(),
+                run_ids=run_ids,
             )
             if self._kernel.reactive_execution_mode == "autorun":
                 run_ids = run_ids | affected
             await self._kernel._run_cells(run_ids & set(self.graph.cells))
-
-    def _apply_document(
-        self,
-        before: Document,
-        written: set[protocol.CellId],
-        run_ids: set[CellId_t],
-    ) -> set[CellId_t]:
-        """Apply accepted source using the existing inline execution path."""
-        document = self._host_document
-        requests = [
-            ExecuteCellCommand(
-                cell_id=CellId_t(cell.id),
-                code=cell.code,
-                code_fingerprint=cell.code_fingerprint,
-            )
-            for cell in document
-            if CellId_t(cell.id) in run_ids
-            or (
-                cell.id in written
-                and (
-                    (previous := before.cell(cell.id)) is None
-                    or previous.code != cell.code
-                )
-            )
-        ]
-        deletions = [
-            DeleteCellCommand(cell_id=cid)
-            for cid in self.graph.cells.keys()
-            | self._kernel._uninstantiated_execution_requests.keys()
-            | {CellId_t(cell.id) for cell in before}
-            if document.cell(protocol.CellId(cid)) is None
-        ]
-        requests = self._kernel.prepare_execution_requests(
-            requests,
-            run_cell_ids=run_ids,
-            deletion_requests=deletions,
-            pending_sources=[
-                ExecuteCellCommand(
-                    cell_id=CellId_t(cell.id),
-                    code=cell.code,
-                    code_fingerprint=cell.code_fingerprint,
-                )
-                for cell in document
-                if CellId_t(cell.id) not in self.graph.cells
-            ],
-        )
-        affected = self._kernel.mutate_graph(requests, deletions)
-        self.graph.topology.reorder_nodes(
-            [CellId_t(cell.id) for cell in document]
-        )
-        configured = written | {protocol.CellId(r.cell_id) for r in requests}
-        for source in document:
-            if source.id not in configured:
-                continue
-            cid = CellId_t(source.id)
-            config = self._document.get_cell(cid).config
-            if cid in self.graph.cells:
-                self.graph.cells[cid].configure(config.asdict())
-            self._kernel.cell_metadata.setdefault(
-                cid, CellMetadata()
-            ).config = config
-        return affected
 
     async def _format_plan(self, plan: list[_PlanEntry]) -> list[_PlanEntry]:
         """Format new/changed code when save-time formatting is enabled."""
         if not self._kernel.user_config.save.format_on_save:
             return plan
 
-        existing_code = {cell.id: cell.code for cell in self._document.cells}
+        existing_code = {
+            CellId_t(cell.id): cell.code for cell in self._document
+        }
 
         to_format: dict[CellId_t, str] = {}
         for entry in plan:

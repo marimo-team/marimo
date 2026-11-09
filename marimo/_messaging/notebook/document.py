@@ -18,14 +18,12 @@ update on the same cell within one batch).
 
 from __future__ import annotations
 
-from contextlib import contextmanager
-from contextvars import ContextVar
 from typing import TYPE_CHECKING
 
 from marimo._utils.assert_never import assert_never
 
 if TYPE_CHECKING:
-    from collections.abc import Generator, Iterable, Iterator
+    from collections.abc import Iterable, Iterator
 
 import msgspec
 from msgspec.structs import replace as structs_replace
@@ -143,11 +141,6 @@ class NotebookDocument:
     # ------------------------------------------------------------------
     # Transaction application
     # ------------------------------------------------------------------
-
-    def replace_snapshot(self, snapshot: NotebookDocument) -> None:
-        """Refresh a shared local mirror from an authoritative snapshot."""
-        self._cells = snapshot.cells
-        self._version = snapshot.version
 
     def apply(self, tx: Transaction) -> Transaction:
         """Validate and apply *tx*, return it with `version` assigned.
@@ -309,36 +302,6 @@ class NotebookDocument:
             code_preview = c.code[:40].replace("\n", "\\n")
             lines.append(f"  {i}: {c.id} {code_preview!r}")
         return "\n".join(lines)
-
-
-# ------------------------------------------------------------------
-# Context variable
-# ------------------------------------------------------------------
-
-#: Document snapshot for the current scratchpad execution. Set by the
-#: kernel before running code_mode so `AsyncCodeModeContext` can read
-#: cell ordering, code, names, and configs without the kernel carrying
-#: mutable document state.
-_current_document: ContextVar[NotebookDocument | None] = ContextVar(
-    "_current_document", default=None
-)
-
-
-def get_current_document() -> NotebookDocument | None:
-    """Return the document for the current execution, if any."""
-    return _current_document.get()
-
-
-@contextmanager
-def notebook_document_context(
-    doc: NotebookDocument | None,
-) -> Generator[None, None, None]:
-    """Context manager for setting and resetting the current document."""
-    token = _current_document.set(doc)
-    try:
-        yield
-    finally:
-        _current_document.reset(token)
 
 
 # ------------------------------------------------------------------

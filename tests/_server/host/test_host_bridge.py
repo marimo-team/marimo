@@ -974,8 +974,8 @@ async def test_the_editor_saving_marks_the_host_document_saved(
 ) -> None:
     from marimo._ast.cell import CellConfig
     from marimo._core.document import Document
+    from marimo._messaging.host import sources
     from marimo._messaging.notebook import NotebookCell
-    from marimo._server.host.document import sources
     from marimo._session.notebook import AppFileManager
     from marimo._types.ids import CellId_t
 
