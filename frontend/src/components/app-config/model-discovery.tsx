@@ -17,6 +17,8 @@ const CatalogSchema = z.object({
 interface ModelDiscoveryProps {
   provider: string;
   label: string;
+  configurationKey: string;
+  configurationPending: boolean;
   onSelect?: (modelId: string) => void;
   disabled?: boolean;
   value?: string;
@@ -28,6 +30,8 @@ interface ModelDiscoveryProps {
 export function ModelDiscovery({
   provider,
   label,
+  configurationKey,
+  configurationPending,
   onSelect,
   disabled = false,
   value,
@@ -55,7 +59,7 @@ export function ModelDiscovery({
     setLoading(false);
     setError("");
     return () => requestRef.current?.abort();
-  }, [provider]);
+  }, [provider, configurationKey]);
 
   const search = (value ?? query).trim().toLowerCase();
   const filtered = models.filter((model) =>
@@ -209,7 +213,9 @@ export function ModelDiscovery({
         variant="outline"
         size="xs"
         className="self-start sm:self-end"
-        disabled={disabled || loading || isWasm()}
+        disabled={
+          disabled || loading || configurationPending || isWasm()
+        }
         onClick={load}
       >
         {loading ? "Loading models…" : "Search available models"}

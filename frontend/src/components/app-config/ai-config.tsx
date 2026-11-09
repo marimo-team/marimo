@@ -92,7 +92,10 @@ import {
   useConfigOverride,
 } from "./is-overridden";
 import { MCPConfig } from "./mcp-config";
-import { aiSettingsSubTabAtom } from "./state";
+import {
+  aiSettingsSubTabAtom,
+  pendingConfigSavesAtom,
+} from "./state";
 
 interface AiConfigProps {
   form: UseFormReturn<UserConfig>;
@@ -628,16 +631,24 @@ const ProviderModelDiscovery = ({
   provider,
   label,
   form,
+  config,
   onSubmit,
   disabled = false,
 }: {
   provider: string;
   label: string;
   form: UseFormReturn<UserConfig>;
+  config: UserConfig;
   onSubmit: (values: UserConfig) => void;
   disabled?: boolean;
 }) => {
   const [modelName, setModelName] = useState("");
+  const configurationPending = useAtomValue(pendingConfigSavesAtom) > 0;
+  const savedProviderConfig =
+    provider === "openrouter"
+      ? config.ai?.openrouter
+      : config.ai?.custom_providers?.[provider];
+  const configurationKey = JSON.stringify(savedProviderConfig ?? null);
   const customModels =
     useWatch({
       control: form.control,
@@ -668,6 +679,8 @@ const ProviderModelDiscovery = ({
         <ModelDiscovery
           provider={provider}
           label={label}
+          configurationKey={configurationKey}
+          configurationPending={configurationPending}
           value={modelName}
           onValueChange={setModelName}
           disabled={disabled}
@@ -903,6 +916,7 @@ export const CustomProvidersConfig: React.FC<AiConfigProps> = ({
                   provider={providerName}
                   label={displayName}
                   form={form}
+                  config={config}
                   onSubmit={onSubmit}
                   disabled={!providerConfig.base_url?.trim()}
                 />
@@ -1178,6 +1192,7 @@ export const AiProvidersConfig: React.FC<AiConfigProps> = ({
             provider="openrouter"
             label="OpenRouter"
             form={form}
+            config={config}
             onSubmit={onSubmit}
           />
         </AccordionFormItem>
@@ -1762,6 +1777,7 @@ export const AiModelDisplayConfig: React.FC<AiConfigProps> = ({
       </div>
       <AddModelForm
         form={form}
+        config={config}
         customModels={customModels}
         customProviderNames={customProviderNames}
         onSubmit={onSubmit}
@@ -1772,10 +1788,17 @@ export const AiModelDisplayConfig: React.FC<AiConfigProps> = ({
 
 export const AddModelForm: React.FC<{
   form: UseFormReturn<UserConfig>;
+  config: UserConfig;
   customModels: QualifiedModelId[];
   customProviderNames: string[];
   onSubmit: (values: UserConfig) => void;
-}> = ({ form, customModels, customProviderNames, onSubmit }) => {
+}> = ({
+  form,
+  config,
+  customModels,
+  customProviderNames,
+  onSubmit,
+}) => {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [modelAdded, setModelAdded] = useState(false);
   const [provider, setProvider] = useState<ProviderId | "custom" | null>(null);
@@ -1792,6 +1815,14 @@ export const AddModelForm: React.FC<{
     !!providerName &&
     (providerName === "openrouter" ||
       customProviderNames.includes(providerName));
+  const configurationPending = useAtomValue(pendingConfigSavesAtom) > 0;
+  const savedProviderConfig =
+    providerName === "openrouter"
+      ? config.ai?.openrouter
+      : providerName
+        ? config.ai?.custom_providers?.[providerName]
+        : undefined;
+  const configurationKey = JSON.stringify(savedProviderConfig ?? null);
   const hasValidValues = providerName?.trim() && modelName?.trim();
 
   const resetForm = () => {
@@ -1944,6 +1975,8 @@ export const AddModelForm: React.FC<{
           key={providerName}
           provider={providerName}
           label="Model"
+          configurationKey={configurationKey}
+          configurationPending={configurationPending}
           inputId={modelNameInputId}
           inputClassName="text-xs mb-0"
           value={modelName}
