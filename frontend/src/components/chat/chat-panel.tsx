@@ -43,7 +43,7 @@ import { useRuntimeManager } from "@/core/runtime/config";
 import { isWasm } from "@/core/wasm/utils";
 import { ErrorBanner } from "@/plugins/impl/common/error-banner";
 import { Logger } from "@/utils/Logger";
-import { AIModelDropdown } from "../ai/ai-model-dropdown";
+import { ChatModelPicker } from "./chat-model-picker";
 import { useOpenSettingsToTab } from "../app-config/state";
 import {
   PairWithAgentBanner,
@@ -52,7 +52,6 @@ import {
 import { PromptInput } from "../editor/ai/prompt-input";
 import { PendingAICells } from "../editor/chrome/wrapper/pending-ai-cells";
 import {
-  addContextCompletion,
   isContextAttachment,
   resolveChatContext,
 } from "../editor/ai/completion-utils";
@@ -64,7 +63,6 @@ import "./chat-typography.css";
 import { MCPStatusIndicator } from "../mcp/mcp-status-indicator";
 import { Tooltip, TooltipProvider } from "../ui/tooltip";
 import {
-  AddContextButton,
   AttachFileButton,
   AttachmentRenderer,
   FileAttachmentPill,
@@ -78,7 +76,6 @@ import {
 import { AgentActivity } from "./agent-activity";
 import { getAnswerText, renderUIMessage } from "./chat-display";
 import { ChatHistoryPopover } from "./chat-history-popover";
-import { CapabilitiesPopover } from "./capabilities-popover";
 import { NotebookAccessSelector } from "./notebook-access-selector";
 import {
   type ChatMessagePart,
@@ -249,19 +246,10 @@ interface ChatInputFooterProps {
   onStop: () => void;
   onAddFiles: (files: File[]) => void;
   fileInputRef: React.RefObject<HTMLInputElement | null>;
-  onAddContext: () => void;
 }
 
 const ChatInputFooter: React.FC<ChatInputFooterProps> = memo(
-  ({
-    isEmpty,
-    onSendClick,
-    isLoading,
-    onStop,
-    fileInputRef,
-    onAddFiles,
-    onAddContext,
-  }) => {
+  ({ isEmpty, onSendClick, isLoading, onStop, fileInputRef, onAddFiles }) => {
     const ai = useAtomValue(aiAtom);
     const currentMode = ai?.mode || DEFAULT_MODE;
     const currentModel = ai?.models?.chat_model || DEFAULT_AI_MODEL;
@@ -280,20 +268,9 @@ const ChatInputFooter: React.FC<ChatInputFooterProps> = memo(
               value={currentMode}
               onValueChange={saveModeChange}
             />
-            <AIModelDropdown
-              placeholder="Model"
-              triggerClassName="chat-control chat-selector h-6 text-xs rounded-sm min-w-0 max-w-[200px] flex-1"
-              iconSize="small"
-              showAddCustomModelDocs={true}
-              forRole="chat"
-            />
+            <ChatModelPicker />
           </div>
           <div className="chat-input-actions flex shrink-0 items-center gap-0.5 ml-auto">
-            <CapabilitiesPopover />
-            <AddContextButton
-              handleAddContext={onAddContext}
-              isLoading={isLoading}
-            />
             {isAttachmentSupported && (
               <AttachFileButton
                 fileInputRef={fileInputRef}
@@ -348,7 +325,7 @@ const ChatInput: React.FC<ChatInputProps> = memo(
           : {
               beforeText: "Type your message or ",
               linkText: "pair your own coding agent",
-              afterText: ". Use @ to reference variables and cells.",
+              afterText: ".",
               onClick: openPairWithAgentModal,
             },
       [openPairWithAgentModal],
@@ -371,13 +348,12 @@ const ChatInput: React.FC<ChatInputProps> = memo(
             onSubmit={onSubmit}
             onClose={onClose}
             onAddFiles={onAddFiles}
-            placeholder="Type your message. Use @ to reference variables and cells."
+            placeholder="Ask anything…"
             placeholderAction={placeholderAction}
           />
         </div>
         <ChatInputFooter
           isEmpty={!input.trim()}
-          onAddContext={() => addContextCompletion(inputRef)}
           onSendClick={handleSendClick}
           isLoading={isLoading}
           onStop={onStop}

@@ -106,3 +106,19 @@
     flex-basis: 100%;
   }
 }
+
+@media (max-width: 30rem) {
+  .chat-model-picker-layout {
+    flex-wrap: wrap;
+  }
+
+  .chat-model-reasoning {
+    width: 100%;
+    border-left: 0;
+    border-top: 1px solid var(--border);
+  }
+
+  .chat-model-reasoning [role="radiogroup"] {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
