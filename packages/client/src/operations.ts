@@ -129,7 +129,7 @@ export const operations = {
     responses: { 202: Protocol.Runtime },
     problems: [400, 401, 403, 404, 405, 409, 500, 501],
   },
-  /** Run document cells against the notebook's runtime. */
+  /** Run notebook cells. */
   "runtime.run": {
     method: "POST",
     path: "/notebooks/{notebook_id}/runtime/runs",
@@ -139,7 +139,7 @@ export const operations = {
     responses: { 202: Protocol.Run },
     problems: [400, 401, 403, 404, 405, 409, 500, 501],
   },
-  /** Execute scratch code against the notebook's runtime. */
+  /** Execute Python with notebook values. */
   "runtime.execute": {
     method: "POST",
     path: "/notebooks/{notebook_id}/runtime/execute",

@@ -120,7 +120,10 @@ class NotebookOperations {
     return this.#send("runtime.restart", { options });
   }
 
-  /** Run document cells in the notebook's runtime. */
+  /**
+   * Run notebook cells by id, with dependents chosen by the execution settings.
+   * Returns an accepted run. Follow the notebook stream for results.
+   */
   public run({
     cells,
     ...options
@@ -130,7 +133,13 @@ class NotebookOperations {
     return this.#send("runtime.run", { body: { cells }, options });
   }
 
-  /** Execute scratch code in the notebook's runtime. */
+  /**
+   * Execute Python with access to the notebook's current values.
+   * Assignments stay local to this call. Changes to shared objects persist.
+   * On marimo hosts, `marimo._code_mode.get_context()` provides access to
+   * cells, captured outputs, and notebook editing methods.
+   * Returns an accepted run. Follow the notebook stream for results.
+   */
   public execute({
     code,
     ...options

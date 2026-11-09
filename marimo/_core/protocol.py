@@ -178,7 +178,7 @@ class ExecuteRequest(Struct, frozen=True, forbid_unknown_fields=True):
     code: Annotated[
         str,
         Meta(
-            description="Python code to execute in a copy of the runtime namespace."
+            description="Python code that can read the notebook's current values.\nAssignments stay local to the call. Changes to shared objects persist.\n"
         ),
     ]
 
@@ -462,7 +462,7 @@ class RequestedCell(Struct, frozen=True):
         Annotated[
             Etag,
             Meta(
-                description="The cell's `etag` as last read. A cell whose source, name, or config differs is a `conflict`. Absent, the cell runs as it is."
+                description="The cell's `etag` when the client read it. If its code, name, or settings have changed, the host returns a `conflict`. Omit to run the cell as it is."
             ),
         ]
         | UnsetType
@@ -542,7 +542,7 @@ class RunRequest(Struct, frozen=True, forbid_unknown_fields=True):
     cells: Annotated[
         tuple[RequestedCell, ...],
         Meta(
-            description="Cells of the document to run, in no particular order. The runtime's execution configuration determines whether dependent cells run too.",
+            description="Cells to run by id. The notebook's execution settings determine their order and whether dependent cells run too.",
             min_length=1,
         ),
     ]

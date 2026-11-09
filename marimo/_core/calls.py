@@ -143,7 +143,7 @@ class RestartCall(_Call, frozen=True, tag="runtime.restart"):
 
 
 class RunCall(_Call, frozen=True, tag="runtime.run"):
-    """Run document cells against the notebook's runtime."""
+    """Run notebook cells by id under the runtime's execution settings."""
 
     METHOD = "POST"
     PATH = "/notebooks/{notebook_id}/runtime/runs"
@@ -169,7 +169,7 @@ class RunCall(_Call, frozen=True, tag="runtime.run"):
 
 
 class ExecuteCall(_Call, frozen=True, tag="runtime.execute"):
-    """Execute scratch code against the notebook's runtime."""
+    """Execute Python with access to notebook values and the code-mode context."""
 
     METHOD = "POST"
     PATH = "/notebooks/{notebook_id}/runtime/execute"

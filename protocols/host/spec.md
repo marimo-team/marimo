@@ -380,6 +380,10 @@ transient state. For example, a notebook can permit execution while its runtime
 is stopped. A client uses the notebook's current state to determine what
 preparation is needed before calling an operation.
 
+Hosts MUST authorize `runtime.run`, `runtime.execute`, and `notebook.edit`
+independently. A notebook may permit rerunning its cells without permitting
+edits or scratch execution.
+
 Source visibility and editing permission are independent. A client MAY display
 available source without `notebook.edit`. An editor for existing source needs
 both a non-null `code` and permission to edit. Withholding source does not
@@ -429,18 +433,21 @@ formatting, MUST reach clients through the document stream as well.
 
 ### Execution
 
-`runtime.run` runs existing document cells; `runtime.execute` executes submitted
-scratch code. Hosts MUST authorize these operations independently of each other
-and of `notebook.edit`. A notebook may permit rerunning its cells without
-permitting edits or scratch execution. `runtime.run` accepts only cell targets,
-with optional etags, and MUST reject submitted code.
+`runtime.run` runs notebook cells by id. A client can include each cell's `etag`
+to run it only if its code, name, and settings still match what the client read.
+The runtime's execution settings determine which dependent cells run too.
+A dependent left out keeps its execution, which becomes outdated when an
+execution it depends on is replaced.
 
-Cells execute under the runtime's execution configuration, which determines how
-dependent cells are scheduled. A dependent the configuration leaves out keeps
-its execution, which is outdated once a new execution replaces the one it
-depends on. Scratch code runs against a copy of the runtime namespace outside
-the document's dependency graph. Both operations create runs in the same queue
-and report results through the same notebook stream.
+`runtime.execute` evaluates Python with access to the notebook's current
+values without adding a cell. It uses a copy of the runtime's variables, so
+new variables and assignments stay within the call. The objects themselves
+are shared. Changing a list or dataframe can therefore affect the notebook.
+
+Marimo hosts provide the internal `marimo._code_mode.get_context()` API within
+`runtime.execute`. It exposes notebook cells and captured outputs, along with
+methods for editing and running cells. The outputs are captured when execution
+begins.
 
 An accepted execution request starts a run whose progress and results arrive on
 the notebook stream for all attached clients. Clients that need to observe the
