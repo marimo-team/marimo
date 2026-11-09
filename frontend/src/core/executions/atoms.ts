@@ -60,7 +60,7 @@ type Marks<T> = {
  * then the cell reads as queued from this record. The host's newer
  * execution supersedes it; a rejected request, a cell the kernel will not
  * run, or the cell leaving the document withdraws it. Written only by
- * `submitCells`, `withdrawCells`, and `observeCellMessage`.
+ * `submitCells`, `withdrawCells`, `acceptRun`, and `observeCellMessage`.
  */
 const submissionsAtom =
   atom<Marks<ReadonlyMap<Protocol.CellId, Protocol.ExecutionId | null>>>(null);
@@ -221,6 +221,69 @@ export function withdrawCells(
     next.delete(cellId);
   }
   setSubmissions(store, next);
+}
+
+/**
+ * Follow a run the host accepted for submitted cells.
+ *
+ * The run's executions supersede the submissions as the kernel plans them.
+ * A cell the kernel never plans, as when the run is interrupted first or
+ * the kernel drops the cell, gets none, so its submission is withdrawn once
+ * the run completes or leaves the stream. A submission made since then is
+ * another request and stays.
+ */
+export function acceptRun(store: Store, run: Protocol.Run): void {
+  const replica = store.get(activeNotebookReplicaAtom);
+  if (replica === null) {
+    return;
+  }
+  const submissions = store.get(cellExecutionInputsAtom).submissions;
+  const awaiting = new Map(
+    run.cells.flatMap((cellId) =>
+      submissions.has(cellId)
+        ? [[cellId, submissions.get(cellId) ?? null] as const]
+        : [],
+    ),
+  );
+  if (awaiting.size > 0) {
+    followRun(store, replica, run.id, awaiting);
+  }
+}
+
+/** Withdraw what is left of `awaiting` once the run has ended. */
+function followRun(
+  store: Store,
+  replica: NotebookReplica,
+  runId: Protocol.RunId,
+  awaiting: ReadonlyMap<Protocol.CellId, Protocol.ExecutionId | null>,
+): void {
+  // The response can land before the stream shows the run, so an absent
+  // run means removed only once it has been seen.
+  let seen = false;
+  const unsubscribe = store.sub(replica.executionsAtom, check);
+  function check() {
+    if (store.get(activeNotebookReplicaAtom) !== replica) {
+      unsubscribe();
+      return;
+    }
+    const current = store.get(replica.executionsAtom).runs.get(runId);
+    if (current !== undefined && current.status !== "completed") {
+      seen = true;
+      return;
+    }
+    if (current === undefined && !seen) {
+      return;
+    }
+    unsubscribe();
+    const now = store.get(cellExecutionInputsAtom).submissions;
+    withdrawCells(
+      store,
+      [...awaiting].flatMap(([cellId, executionId]) =>
+        now.has(cellId) && now.get(cellId) === executionId ? [cellId] : [],
+      ),
+    );
+  }
+  check();
 }
 
 function setCellBlocked(
