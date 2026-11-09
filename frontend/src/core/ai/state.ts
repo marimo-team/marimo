@@ -85,7 +85,6 @@ export interface ChatState {
 function removeEmptyChats(chatState: Map<ChatId, Chat>): Map<ChatId, Chat> {
   const result = new Map<ChatId, Chat>();
 
-  // Dedupe messages with the same id
   for (const [chatId, chat] of chatState.entries()) {
     if (chat.messages.length === 0) {
       continue;
@@ -155,7 +154,6 @@ export function closeChatTab(chatState: ChatState, chatId: ChatId): ChatState {
 
   const openChatIds = chatState.openChatIds.filter((id) => id !== chatId);
 
-  // When closing the active tab, fall back to the neighbor at the same index.
   const activeChatId =
     chatState.activeChatId === chatId
       ? (openChatIds[Math.min(closedIndex, openChatIds.length - 1)] ?? null)

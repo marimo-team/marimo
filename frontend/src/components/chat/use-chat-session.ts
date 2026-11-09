@@ -165,7 +165,7 @@ export function useChatSession(activeChat: Chat | null | undefined) {
           toolCall: {
             toolName: toolCall.toolName,
             toolCallId: toolCall.toolCallId,
-            input: toolCall.input as Record<string, never>,
+            input: toolCall.input,
           },
           toolContext,
         });

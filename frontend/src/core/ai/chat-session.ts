@@ -1,30 +1,39 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { Chat as ChatController } from "@ai-sdk/react";
-import type { ChatAddToolOutputFunction, ChatInit, UIMessage } from "ai";
+import type {
+  ChatAddToolOutputFunction,
+  ChatInit,
+  ChatOnFinishCallback,
+  ChatOnToolCallCallback,
+  UIMessage,
+} from "ai";
 import { atom, createStore } from "jotai";
+import type { JotaiStore } from "../state/jotai";
 import { generateUUID } from "@/utils/uuid";
 import { createAssistantTurn } from "./assistant-turn";
 import { type ChatId, chatStateAtom, runningChatIdsAtom } from "./state";
 export { runningChatIdsAtom } from "./state";
 
-type ChatFinish = Parameters<NonNullable<ChatInit<UIMessage>["onFinish"]>>[0];
+type ChatFinish = Parameters<ChatOnFinishCallback<UIMessage>>[0];
+type ChatCompletion = Pick<ChatFinish, "messages" | "isError" | "isAbort">;
 
 interface QueuedChatMessage {
   id: string;
   parts: UIMessage["parts"];
 }
 
-interface ChatSessionOptions extends Omit<ChatInit<UIMessage>, "onToolCall"> {
+interface ChatSessionOptions extends Pick<
+  ChatInit<UIMessage>,
+  "messages" | "transport" | "onFinish" | "onError" | "sendAutomaticallyWhen"
+> {
   id: ChatId;
-  store?: ReturnType<typeof createStore>;
+  store?: JotaiStore;
   saveMessages: (messages: UIMessage[]) => void;
   onRunningChange?: (isRunning: boolean) => void;
-  shouldFlushQueue?: (
-    finish: Pick<ChatFinish, "messages" | "isError" | "isAbort">,
-  ) => boolean;
+  shouldFlushQueue?: (finish: ChatCompletion) => boolean;
   onToolCall: (
-    options: Parameters<NonNullable<ChatInit<UIMessage>["onToolCall"]>>[0] & {
+    options: Parameters<ChatOnToolCallCallback<UIMessage>>[0] & {
       addToolOutput: ChatAddToolOutputFunction<UIMessage>;
     },
   ) => Promise<void>;
@@ -49,9 +58,7 @@ export function createChatSession({
   let stopped = false;
   let closed = false;
   let toolGeneration = 0;
-  const tryFlushQueue = (
-    finish: Pick<ChatFinish, "messages" | "isError" | "isAbort">,
-  ) => {
+  const tryFlushQueue = (finish: ChatCompletion) => {
     if (closed || !shouldFlushQueue?.(finish)) {
       return;
     }
@@ -254,7 +261,7 @@ export function deleteChats({
   store,
   chatId,
 }: {
-  store: ReturnType<typeof createStore>;
+  store: JotaiStore;
   chatId: ChatId | null;
 }) {
   const runningChatIds = store.get(runningChatIdsAtom);

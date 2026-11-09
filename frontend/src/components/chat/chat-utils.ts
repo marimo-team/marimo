@@ -12,6 +12,7 @@ import {
 } from "ai";
 import { useRef, useState } from "react";
 import useEvent from "react-use-event-hook";
+import { z } from "zod";
 import type { ProviderId } from "@/core/ai/ids/ids";
 import type { ToolNotebookContext } from "@/core/ai/tools/base";
 import { FRONTEND_TOOL_REGISTRY } from "@/core/ai/tools/registry";
@@ -96,6 +97,8 @@ export async function buildCompletionRequestBody(
   };
 }
 
+const toolArgumentsSchema = z.record(z.string(), z.unknown());
+
 export async function handleToolCall({
   invokeAiTool,
   addToolOutput, // Important that we don't await addToolOutput to prevent potential deadlocks
@@ -107,13 +110,12 @@ export async function handleToolCall({
   toolCall: {
     toolName: string;
     toolCallId: string;
-    input: Record<string, never>;
+    input: unknown;
   };
   toolContext: ToolNotebookContext;
 }) {
   try {
     if (FRONTEND_TOOL_REGISTRY.has(toolCall.toolName)) {
-      // Invoke the frontend tool
       const response = await FRONTEND_TOOL_REGISTRY.invoke({
         toolName: toolCall.toolName,
         rawArgs: toolCall.input,
@@ -127,10 +129,9 @@ export async function handleToolCall({
           : { output: response.result }),
       });
     } else {
-      // Invoke the backend/mcp tool
       const response = await invokeAiTool({
         toolName: toolCall.toolName,
-        arguments: toolCall.input ?? {}, // Some models pass in null, so we default to an empty object
+        arguments: toolArgumentsSchema.parse(toolCall.input ?? {}),
       });
       addToolOutput({
         tool: toolCall.toolName,

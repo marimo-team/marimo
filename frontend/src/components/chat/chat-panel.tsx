@@ -77,7 +77,6 @@ import { focusInputAndMoveToEnd } from "@/core/codemirror/utils";
 import ScrollToBottomButton from "./acp/scroll-to-bottom-button";
 import { useChatSession } from "./use-chat-session";
 
-// Default mode for the AI
 const DEFAULT_MODE = "ask";
 
 const QueuedMessageDisplay = memo(
@@ -453,7 +452,6 @@ const ChatPanelBody = () => {
     });
   });
 
-  // Pin to the bottom while the user is already there.
   useEffect(() => {
     setIsScrolledToBottom(true);
   }, [activeChatId]);
@@ -484,7 +482,6 @@ const ChatPanelBody = () => {
       updatedAt: now,
     };
 
-    // Create new chat, open it as a tab, and set as active
     setChatState((prev) => addChatAndOpenTab(prev, newChat));
     renewDraftChatId();
   });
@@ -534,9 +531,7 @@ const ChatPanelBody = () => {
   const handleMessageEdit = useEvent(
     async (index: number, newValue: string) => {
       const editedMessage = messages[index];
-      // Keep the user's own uploaded files, but drop the previous @-context
-      // snapshot (data part + its attachments) so we can re-resolve a fresh,
-      // point-in-time snapshot from the edited text below.
+      // Re-resolve @-context while preserving user uploads.
       const userFileParts =
         editedMessage.parts?.filter(
           (p) => p.type === "file" && !isContextAttachment(p),
@@ -545,7 +540,7 @@ const ChatPanelBody = () => {
 
       const messageId = editedMessage.id;
       sendMessage({
-        messageId: messageId, // replace the message
+        messageId,
         role: "user",
         parts: [
           { type: "text", text: newValue },
@@ -613,8 +608,6 @@ const ChatPanelBody = () => {
 
   const isNewThread = messages.length === 0;
 
-  // Deliver a prompt queued elsewhere (e.g. error auto-fix) to the chat,
-  // appending to the active thread or starting one if none exists.
   useEffect(() => {
     if (!pendingPrompt) {
       return;
