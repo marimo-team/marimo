@@ -124,30 +124,34 @@ cookie settings take effect when the server starts.
     also cannot set `cache.store`. See [project file security](../../security.md#project-files)
     and [cache signing and trust](../../api/caching.md#cache-signing-and-trust).
 
+## Cross-site session cookies
+
+For authenticated HTTPS embeds, enable partitioned cookies (CHIPS) in your configuration:
+
+```toml
+[server]
+session_cookie_partitioned = true
+```
+
+Alternatively, set `MARIMO_SERVER_SESSION_COOKIE_PARTITIONED=true` before server startup.
+The default is `false`. This option sets `HttpOnly; SameSite=None; Secure; Partitioned`
+on session cookies, including cookie deletion responses.
+
+The browser stores cookies separately for each top-level site. To authenticate in
+a separate kernel tab, open the URL with its access token.
+
+Cookie authentication requires the kernel's HTTPS Origin for WebSockets and
+state-changing HTTP requests. TLS proxies must preserve the public `Host`, including
+the port. For tunnels, configure `--allow-origins` with the public kernel origin.
+Forwarded host headers do not affect the cookie Origin check. Non-browser clients
+can omit Origin unless Fetch Metadata indicates a cross-origin request.
+Explicit tokens can authenticate HTTP requests independently of cookies.
+
+Browsers without CHIPS support can treat these cookies as ordinary cross-site
+cookies. The Origin check still applies. Browsers that block all cookies require
+a client that sends an explicit token on each request.
+
 ## Notebook settings
 
 Some notebook-specific settings, such as title, width, [custom CSS](theming.md),
 [HTML head](html_head.md), and automatic exports, are managed separately from the rest of marimo's configuration. These notebook-specific settings are stored in the notebook's `marimo.App(...)` Open the notebook menu (⚙️) in the top-right corner of the marimo editor to change them.
-
-### Cross-site session cookies
-
-For authenticated HTTPS embeds on a different site, set
-`MARIMO_SERVER_SESSION_COOKIE_PARTITIONED=true`. The browser stores the session cookie
-separately for each top-level site. Opening marimo in a new tab requires the
-original token-bearing URL to authenticate in that separate cookie partition.
-You can also set `server.session_cookie_partitioned = true` in marimo configuration.
-The browser chooses the partition; no parent-site query parameter is needed.
-
-In this mode, cookie-authenticated WebSockets and state-changing HTTP requests
-must originate from the kernel's own HTTPS origin. TLS-terminating proxies must
-preserve the public `Host` header, including a non-default port. When using a tunnel, configure
-`--allow-origins` with the public kernel origin for the WebSocket policy. The check does
-not trust client-supplied `X-Forwarded-Host` headers. Non-browser clients without
-Origin or conflicting Fetch Metadata headers remain supported. Explicit tokens
-can authenticate HTTP requests without cookies. WebSockets also remain subject
-to the server's configured Origin policy.
-
-Browsers that ignore `Partitioned` may treat the cookie as an ordinary cross-site
-cookie; the Origin check still applies. Browsers configured to reject cookies
-entirely cannot use cookie authentication. Use a separate window with cookies
-allowed, or a client that sends an explicit token on each request.

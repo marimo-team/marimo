@@ -45,19 +45,43 @@ def _cookie_origin_allowed(conn: HTTPConnection) -> bool:
     ):
         return True
 
-    origin = conn.headers.get("origin")
-    if origin is None:
+    origins = conn.headers.getlist("origin")
+    if not origins:
         # Non-browser clients can omit Origin. Fetch metadata must not
         # contradict that; a sibling origin is not trusted either.
         return conn.headers.get("sec-fetch-site") not in (
             "cross-site",
             "same-site",
         )
+    hosts = conn.headers.getlist("host")
+    if len(origins) != 1 or len(hosts) != 1:
+        return False
+    origin, host = origins[0], hosts[0]
+    # URL parsers normalize whitespace and empty delimiters, which are invalid
+    # in an Origin header. Reject them before comparing authorities.
+    if any(
+        not value.isprintable()
+        or any(char.isspace() for char in value)
+        or any(char in value for char in "\\?#")
+        or value.endswith(":")
+        for value in (origin, host)
+    ):
+        return False
     try:
         source = urlsplit(origin)
         # CHIPS requires HTTPS. Compare against the public Host, not the
         # ASGI scheme: a TLS-terminating tunnel may speak HTTP to marimo.
-        target = urlsplit("https://" + conn.headers.get("host", ""))
+        target = urlsplit("https://" + host)
+        for parsed in (source, target):
+            if parsed.hostname is None:
+                return False
+            authority = parsed.hostname
+            if ":" in authority:
+                authority = f"[{authority}]"
+            if parsed.port is not None:
+                authority += ":" + parsed.netloc.rsplit(":", 1)[1]
+            if authority != parsed.netloc.lower():
+                return False
         return (
             source.scheme == "https"
             and source.hostname is not None
@@ -67,6 +91,9 @@ def _cookie_origin_allowed(conn: HTTPConnection) -> bool:
             and source.username is None
             and source.password is None
             and not (source.path or source.query or source.fragment)
+            and target.username is None
+            and target.password is None
+            and not (target.path or target.query or target.fragment)
         )
     except ValueError:
         return False

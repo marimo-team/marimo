@@ -586,6 +586,13 @@ def test_partitioned_cookie_lifecycle(partitioned: bool, base_url: str):
         ("https://kernel.example/path", None, False),
         ("https://user@kernel.example", None, False),
         ("https://kernel.example:invalid", None, False),
+        ("https://kernel.example:65536", None, False),
+        ("https://kernel.example\\", None, False),
+        ("https://kernel.example:", None, False),
+        ("https://kernel.example?", None, False),
+        ("https://kernel.example#", None, False),
+        (" https://kernel.example", None, False),
+        ("https://kernel.exa\nmple", None, False),
         (None, None, True),
         (None, "cross-site", False),
         (None, "same-site", False),
@@ -705,3 +712,86 @@ def test_partitioned_navigation_does_not_require_kernel_origin(app: Starlette):
         ).raw,
     )
     assert validate_auth(conn) is True
+
+
+@pytest.mark.parametrize("method", ["POST", "PUT", "PATCH", "DELETE"])
+@pytest.mark.parametrize(
+    ("headers", "allowed"),
+    [
+        (
+            [
+                ("host", "kernel.example:8443"),
+                ("origin", "https://kernel.example:8443"),
+            ],
+            True,
+        ),
+        (
+            [
+                ("host", "kernel.example:8443"),
+                ("origin", "https://kernel.example"),
+            ],
+            False,
+        ),
+        ([("host", "[::1]:8443"), ("origin", "https://[::1]:8443")], True),
+        (
+            [("host", "[::1]:8443"), ("origin", "https://[::1]invalid:8443")],
+            False,
+        ),
+        (
+            [("host", "[::1]invalid:8443"), ("origin", "https://[::1]:8443")],
+            False,
+        ),
+        (
+            [
+                ("host", "kernel.example"),
+                ("origin", "https://kernel.example"),
+                ("origin", "https://attacker.example"),
+            ],
+            False,
+        ),
+        (
+            [
+                ("host", "kernel.example"),
+                ("host", "attacker.example"),
+                ("origin", "https://kernel.example"),
+            ],
+            False,
+        ),
+        (
+            [
+                ("host", "kernel.example/path"),
+                ("origin", "https://kernel.example"),
+            ],
+            False,
+        ),
+        (
+            [
+                ("host", "kernel.example"),
+                ("origin", "https://attacker.example"),
+                ("x-forwarded-host", "attacker.example"),
+            ],
+            False,
+        ),
+        (
+            [
+                ("host", "internal:2718"),
+                ("origin", "https://kernel.example"),
+                ("x-forwarded-host", "kernel.example"),
+            ],
+            False,
+        ),
+    ],
+)
+def test_partitioned_cookie_public_authority(
+    app: Starlette, method: str, headers: list[tuple[str, str]], allowed: bool
+):
+    conn = create_connection(app)
+    token = str(AppState.from_app(app).session_manager.auth_token)
+    conn.scope.update(
+        method=method,
+        scheme="http",
+        marimo_partitioned_session=True,
+        session={"access_token": hash_access_token(token)},
+        headers=[(key.encode(), value.encode()) for key, value in headers],
+    )
+    assert validate_auth(conn) is allowed
