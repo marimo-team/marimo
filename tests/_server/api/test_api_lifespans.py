@@ -35,6 +35,20 @@ async def test_signal_handler_stops_before_shutdown() -> None:
     state.session_manager.shutdown.assert_awaited_once_with()
 
 
+async def test_signal_handler_lifespan_in_worker_thread() -> None:
+    state = MagicMock()
+    state.session_manager.shutdown = AsyncMock()
+
+    async def run_lifespan() -> None:
+        async with lifespans.signal_handler(MagicMock()):
+            pass
+
+    with patch.object(lifespans.AppState, "from_app", return_value=state):
+        await asyncio.to_thread(lambda: asyncio.run(run_lifespan()))
+
+    state.session_manager.shutdown.assert_awaited_once_with()
+
+
 async def test_browser_launch_does_not_block_event_loop_or_lifespan() -> None:
     state = MagicMock()
     state.headless = False

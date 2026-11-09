@@ -152,8 +152,13 @@ def test_uvicorn_shutdown(mode: str) -> None:
             assert signal.getsignal(signal.SIGINT) == before
 
         async def interrupt():
-            while not server.started:
-                await asyncio.sleep(0.001)
+            async def wait_for_startup():
+                while not server.started:
+                    if server.should_exit:
+                        raise RuntimeError("Uvicorn exited during startup")
+                    await asyncio.sleep(0.001)
+
+            await asyncio.wait_for(wait_for_startup(), timeout=2)
             if mode == "programmatic":
                 close_uvicorn(server)
             elif mode == "sigterm":

@@ -4,6 +4,7 @@ from __future__ import annotations
 import asyncio
 import signal
 import sys
+import threading
 import time
 from typing import TYPE_CHECKING
 
@@ -27,6 +28,9 @@ class InterruptHandler:
         self.shutdown = shutdown
         self.loop = asyncio.get_running_loop()
         self.original_handler = signal.getsignal(signal.SIGINT)
+        self._is_main_thread = (
+            threading.current_thread() is threading.main_thread()
+        )
         self._time_of_last_confirmation: float | None = None
         self._shutdown_started_at: float | None = None
 
@@ -34,6 +38,8 @@ class InterruptHandler:
         if self._shutdown_started_at is not None:
             return
         self._shutdown_started_at = time.monotonic()
+        if not self._is_main_thread:
+            return
         try:
             self.loop.remove_signal_handler(signal.SIGINT)
         except NotImplementedError:
@@ -53,6 +59,8 @@ class InterruptHandler:
             signal.default_int_handler(signum, frame)
 
     def close(self) -> None:
+        if not self._is_main_thread:
+            return
         try:
             self.loop.remove_signal_handler(signal.SIGINT)
         except NotImplementedError:
@@ -138,4 +146,5 @@ class InterruptHandler:
         self._add_interrupt_handler()
 
     def register(self) -> None:
-        self._add_interrupt_handler()
+        if self._is_main_thread:
+            self._add_interrupt_handler()
