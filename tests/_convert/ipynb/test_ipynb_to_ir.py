@@ -527,6 +527,22 @@ def test_transform_exclamation_mark_pip_variants():
     assert all("# packages" in r for r in result.transformed_sources)
 
 
+@pytest.mark.parametrize(
+    "command",
+    [
+        "!pip install -r requirements.txt numpy",
+        "!pip install -c constraints.txt numpy",
+        "!pip install --index-url https://example.com/simple numpy",
+        "!pip install --index-url=https://example.com/simple numpy",
+        "!pip install numpy -t /tmp/target",
+        "!uv pip install --prerelease allow numpy",
+    ],
+)
+def test_transform_exclamation_mark_pip_option_values(command: str) -> None:
+    result = transform_exclamation_mark([command])
+    assert result.pip_packages == ["numpy"]
+
+
 def test_transform_exclamation_mark_pip_non_install():
     sources = [
         "!pip upgrade",

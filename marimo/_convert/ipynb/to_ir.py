@@ -51,6 +51,41 @@ _BARE_OPEN_P_RE = re.compile(r"<p\s*>", re.IGNORECASE)
 _ANY_OPEN_P_RE = re.compile(r"<p(?:\s[^>]*)?>", re.IGNORECASE)
 _CLOSE_P_RE = re.compile(r"</p>", re.IGNORECASE)
 
+_PIP_INSTALL_OPTIONS_WITH_VALUE = frozenset(
+    {
+        "-r",
+        "--requirement",
+        "-c",
+        "--constraint",
+        "-t",
+        "--target",
+        "-i",
+        "--index-url",
+        "--extra-index-url",
+        "--index",
+        "--default-index",
+        "-f",
+        "--find-links",
+        "--prefix",
+        "--root",
+        "--src",
+        "--platform",
+        "--python-version",
+        "--implementation",
+        "--abi",
+        "--upgrade-strategy",
+        "--no-binary",
+        "--only-binary",
+        "--trusted-host",
+        "--cache-dir",
+        "--python",
+        "--prerelease",
+        "--resolution",
+        "--index-strategy",
+        "--overrides",
+    }
+)
+
 
 def _strip_paragraph_tags(source: str) -> str:
     """Remove bare `<p>` / `</p>` HTML tags from markdown source.
@@ -570,9 +605,12 @@ def _extract_pip_install(
     # Collect packages and items for display, skipping flags
     packages = []  # Actual packages (no templates)
     templates = []  # Template placeholders
-    for token in command_tokens[install_idx + 1 :]:
+    tokens = iter(command_tokens[install_idx + 1 :])
+    for token in tokens:
         # Skip flags (starting with -)
         if token.startswith("-"):
+            if token in _PIP_INSTALL_OPTIONS_WITH_VALUE:
+                next(tokens, None)
             continue
         # Template placeholders stop package collection
         if token.startswith("{") and token.endswith("}"):
