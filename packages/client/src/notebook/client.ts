@@ -121,8 +121,10 @@ class NotebookOperations {
   }
 
   /**
-   * Run notebook cells by id, with dependents chosen by the execution settings.
-   * Returns an accepted run. Follow the notebook stream for results.
+   * Run notebook cells.
+   *
+   * The notebook's execution settings determine which dependent cells also run.
+   * Follow the notebook stream for progress and results.
    */
   public run({
     cells,
@@ -134,11 +136,14 @@ class NotebookOperations {
   }
 
   /**
-   * Execute Python with access to the notebook's current values.
-   * Assignments stay local to this call. Changes to shared objects persist.
+   * Execute Python code.
+   *
+   * The code can use the notebook's current values. Assignments stay local to
+   * this call, but changes to shared objects persist.
+   *
    * On marimo hosts, `marimo._code_mode.get_context()` provides access to
    * cells, captured outputs, and notebook editing methods.
-   * Returns an accepted run. Follow the notebook stream for results.
+   * Follow the notebook stream for progress and results.
    */
   public execute({
     code,
