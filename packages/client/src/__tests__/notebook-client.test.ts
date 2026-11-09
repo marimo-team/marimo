@@ -192,6 +192,44 @@ describe("NotebookClient", () => {
     });
   });
 
+  it.each(["run", "execute"] as const)(
+    "%s submits its payload with request options",
+    async (method) => {
+      const cells = [{ id: "c1", etag: "etag-1" }];
+      const code = "print('hi')";
+      const run: Protocol.Run = {
+        id: "run-1",
+        notebook_id: "n1",
+        runtime_id: "rt-1",
+        cells: method === "run" ? ["c1"] : [],
+        status: "queued",
+        started_at: null,
+        completed_at: null,
+        outcome: null,
+      };
+      const { notebook, sent } = connect(() => json(202, run));
+      const controller = new AbortController();
+      const options = { signal: controller.signal, idempotencyKey: "run-key" };
+      const result =
+        method === "run"
+          ? await notebook.run({ cells, ...options })
+          : await notebook.execute({ code, ...options });
+
+      expect(result).toEqual({ ok: true, status: 202, data: run });
+      const request = sent();
+      expect(request.method).toBe("POST");
+      expect(request.url).toBe(
+        "http://127.0.0.1:2718/api/marimo/v1/notebooks/n1/runtime/runs",
+      );
+      expect(request.headers.get("Idempotency-Key")).toBe("run-key");
+      expect(await request.json()).toEqual(
+        method === "run" ? { cells } : { code },
+      );
+      controller.abort();
+      expect(request.signal.aborted).toBe(true);
+    },
+  );
+
   it("validates requests before sending them", async () => {
     const { notebook, fetch } = connect(() => json(202, {}));
     await expect(notebook.run({ cells: [] })).rejects.toBeInstanceOf(

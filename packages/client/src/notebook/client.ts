@@ -120,12 +120,24 @@ class NotebookOperations {
     return this.#send("runtime.restart", { options });
   }
 
-  /** Run cells or scratch code in the notebook's runtime. */
-  public run(
-    request: Protocol.RunRequest,
-    options?: MutationOptions,
-  ): Promise<Result<Protocol.RunOutput>> {
-    return this.#send("runtime.run", { body: request, options });
+  /** Run document cells in the notebook's runtime. */
+  public run({
+    cells,
+    ...options
+  }: { readonly cells: Protocol.RequestedCell[] } & MutationOptions): Promise<
+    Result<Protocol.RunOutput>
+  > {
+    return this.#send("runtime.run", { body: { cells }, options });
+  }
+
+  /** Execute scratch code in the notebook's runtime. */
+  public execute({
+    code,
+    ...options
+  }: { readonly code: string } & MutationOptions): Promise<
+    Result<Protocol.RunOutput>
+  > {
+    return this.#send("runtime.run", { body: { code }, options });
   }
 
   /** Answer one pending input. Acceptance does not imply execution resumed. */
