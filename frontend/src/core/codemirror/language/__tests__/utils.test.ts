@@ -14,7 +14,7 @@ import {
   languageAdapterState,
   switchLanguage,
 } from "../extension";
-import { getEditorCodeAsPython, splitEditor } from "../utils";
+import { getEditorCodeAsPython, mergeCellCode, splitEditor } from "../utils";
 
 const views: EditorView[] = [];
 
@@ -341,5 +341,29 @@ Hello,
     const result = splitEditor(mockEditor);
     expect(result.beforeCursorCode).toEqual('mo.md(f"""{a}""")');
     expect(result.afterCursorCode).toEqual('mo.md(f"""{b}!""")');
+  });
+});
+
+describe("mergeCellCode", () => {
+  it("joins python on a new line", () => {
+    expect(mergeCellCode("x = 1", "y = 2")).toBe("x = 1\ny = 2");
+  });
+
+  it("keeps markdown paragraphs apart", () => {
+    expect(mergeCellCode('mo.md("# Title")', 'mo.md("Body")')).toBe(
+      'mo.md("""\n# Title\n\nBody\n""")',
+    );
+  });
+
+  it("takes the other cell's code when one is empty", () => {
+    expect(mergeCellCode("", 'mo.md("Body")')).toBe('mo.md("Body")');
+    expect(mergeCellCode("x = 1", "  \n")).toBe("x = 1");
+  });
+
+  it("refuses different languages, markdown prefixes, and SQL", () => {
+    expect(mergeCellCode("x = 1", 'mo.md("Body")')).toBeNull();
+    expect(mergeCellCode('mo.md("a")', 'mo.md(f"{b}")')).toBeNull();
+    const sql = '_df = mo.sql(f"""SELECT 1""")';
+    expect(mergeCellCode(sql, sql)).toBeNull();
   });
 });

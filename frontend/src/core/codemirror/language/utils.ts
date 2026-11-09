@@ -2,8 +2,9 @@
 
 import type { EditorState } from "@codemirror/state";
 import type { EditorView } from "@codemirror/view";
+import { dequal } from "dequal";
 import { getCellCode } from "./cell-code";
-import { languageAdapterState } from "./extension";
+import { languageAdapterFromCode, languageAdapterState } from "./extension";
 import { languageMetadataField } from "./metadata";
 
 /**
@@ -55,4 +56,33 @@ export function splitEditor(editor: EditorView) {
     beforeCursorCode,
     afterCursorCode,
   };
+}
+
+/**
+ * Join two cells' code, the first above the second, keeping their language.
+ * Null when they cannot be one cell: different languages or settings, or SQL,
+ * which holds a single query.
+ */
+export function mergeCellCode(above: string, below: string): string | null {
+  if (!below.trim()) {
+    return above;
+  }
+  if (!above.trim()) {
+    return below;
+  }
+  const adapter = languageAdapterFromCode(above);
+  if (adapter.type === "sql" || languageAdapterFromCode(below) !== adapter) {
+    return null;
+  }
+  const [aboveText, , metadata] = adapter.transformIn(above);
+  const [belowText, , belowMetadata] = adapter.transformIn(below);
+  if (!dequal(metadata, belowMetadata)) {
+    return null;
+  }
+  // A single newline would run two markdown paragraphs together.
+  const separator = adapter.type === "markdown" ? "\n\n" : "\n";
+  return adapter.transformOut(
+    `${aboveText}${separator}${belowText}`,
+    metadata,
+  )[0];
 }

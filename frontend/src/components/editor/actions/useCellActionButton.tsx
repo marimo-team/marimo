@@ -14,6 +14,7 @@ import {
   DatabaseIcon,
   EyeIcon,
   EyeOffIcon,
+  FoldVerticalIcon,
   HashIcon,
   ImageIcon,
   LinkIcon,
@@ -66,6 +67,7 @@ import { MarkdownIcon, PythonIcon } from "../cell/code/icons";
 import { useDeleteCellCallback } from "../cell/useDeleteCell";
 import { useStagedAICellActions } from "../cell/StagedAICell";
 import { useRunCell } from "../cell/useRunCells";
+import { useMergeCellBelowCallback } from "../cell/useMergeCell";
 import { useSplitCellCallback } from "../cell/useSplitCell";
 import { NameCellInput } from "./name-cell-input";
 import type { ActionButton } from "./types";
@@ -101,6 +103,7 @@ export function useCellActionButtons({ cell, closePopover }: Props) {
   const showHiddenCode = useSetAtom(showHiddenCodeAtom);
   const edit = useNotebookDocumentEdit();
   const splitCell = useSplitCellCallback();
+  const mergeCellBelow = useMergeCellBelowCallback();
   const runCell = useRunCell(cell?.cellId);
   const hasOnlyOneCell = useAtomValue(hasOnlyOneCellAtom);
   const canDelete = !hasOnlyOneCell;
@@ -180,6 +183,13 @@ export function useCellActionButtons({ cell, closePopover }: Props) {
         label: "Split",
         hotkey: "cell.splitCell",
         handle: () => splitCell({ cellId }),
+      },
+      {
+        icon: <FoldVerticalIcon size={13} strokeWidth={1.5} />,
+        label: "Merge with cell below",
+        hotkey: "cell.mergeCellBelow",
+        hidden: isSetupCell,
+        handle: () => mergeCellBelow({ cellId }),
       },
       {
         icon: <Code2Icon size={13} strokeWidth={1.5} />,

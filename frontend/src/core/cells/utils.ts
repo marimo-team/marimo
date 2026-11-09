@@ -70,11 +70,14 @@ export function canUndoDeletes(state: NotebookState) {
  * Label for the undo action based on the last history entry type.
  */
 export function getUndoLabel(state: NotebookState): string {
-  const last = state.history[state.history.length - 1];
-  if (!last) {
-    return "Undo cell deletion";
+  switch (state.history.at(-1)?.type) {
+    case "move":
+      return "Undo move";
+    case "merge":
+      return "Undo merge";
+    default:
+      return "Undo cell deletion";
   }
-  return last.type === "move" ? "Undo move" : "Undo cell deletion";
 }
 
 /**

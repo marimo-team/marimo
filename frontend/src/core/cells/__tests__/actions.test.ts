@@ -14,6 +14,7 @@ import {
   expandAllCellsAtom,
   expandCellAtom,
   focusCellAtom,
+  mergeCellBelowAtom,
   moveToNextCellAtom,
   showCellIfHiddenAtom,
   splitCellAtom,
@@ -197,6 +198,82 @@ describe("splitCellAtom", () => {
     const { store, order } = setup();
     expect(store.set(splitCellAtom, { cellId: c1 })).toBeNull();
     expect(order()).toEqual([c1, c2]);
+  });
+});
+
+describe("mergeCellBelowAtom", () => {
+  it("joins the cell below into the cell and undoes it", () => {
+    const { store, order, notebook, cellIn, mountEditor } = setup({
+      c3: cell("c3", "z = 3"),
+    });
+    const view = mountEditor(c1);
+
+    expect(store.set(mergeCellBelowAtom, { cellId: c1 })).toBe(true);
+
+    expect(order()).toEqual([c1, c3]);
+    expect(cellIn(c1)).toMatchObject({ code: "x = 1\ny = 2", name: "_" });
+    expect(view.state.doc.toString()).toBe("x = 1\ny = 2");
+    expect(notebook().scrollKey).toBe(c1);
+    expect(notebook().history).toEqual([
+      {
+        type: "merge",
+        cellId: c1,
+        code: "x = 1",
+        cells: [
+          {
+            cell: { id: c2, code: "y = 2", name: "_", config: CONFIG },
+            placement: { after: c1 },
+            serializedEditorState: null,
+          },
+        ],
+      },
+    ]);
+
+    store.set(undoDeleteCellAtom);
+
+    expect(order()).toEqual([c1, c2, c3]);
+    expect(cellIn(c1)?.code).toBe("x = 1");
+    expect(cellIn(c2)?.code).toBe("y = 2");
+    expect(view.state.doc.toString()).toBe("x = 1");
+    expect(notebook().history).toEqual([]);
+  });
+
+  it("does nothing for the last cell of a column", () => {
+    const { store, order, notebook } = setup();
+
+    expect(store.set(mergeCellBelowAtom, { cellId: c2 })).toBe(false);
+
+    expect(order()).toEqual([c1, c2]);
+    expect(notebook().history).toEqual([]);
+  });
+
+  it("does not reach into the next column", () => {
+    const { store, order } = setup({
+      c2: cell("c2", "y = 2", { config: { ...CONFIG, column: 1 } }),
+    });
+
+    expect(store.set(mergeCellBelowAtom, { cellId: c1 })).toBe(false);
+    expect(order()).toEqual([c1, c2]);
+  });
+
+  it("does not merge across languages", () => {
+    const { store, order, cellIn } = setup({
+      c2: cell("c2", 'mo.md("# Title")'),
+    });
+
+    expect(store.set(mergeCellBelowAtom, { cellId: c1 })).toBe(false);
+    expect(order()).toEqual([c1, c2]);
+    expect(cellIn(c1)?.code).toBe("x = 1");
+  });
+
+  it("leaves the setup cell alone", () => {
+    const { store, order } = setup();
+    store.set(addSetupCellAtom, { code: "import marimo as mo" });
+
+    expect(store.set(mergeCellBelowAtom, { cellId: SETUP_CELL_ID })).toBe(
+      false,
+    );
+    expect(order()).toEqual([SETUP_CELL_ID, c1, c2]);
   });
 });
 
