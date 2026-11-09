@@ -1,21 +1,18 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { useAtom, useAtomValue, useSetAtom } from "jotai";
+import { useAtomValue, useSetAtom, useStore } from "jotai";
 import { Loader2Icon, XIcon } from "lucide-react";
 import { memo, useId, useMemo } from "react";
 import useEvent from "react-use-event-hook";
 import { Button } from "@/components/ui/button";
-import {
-  chatSessionsAtom,
-  runningChatIdsAtom,
-  unreadChatIdsAtom,
-} from "@/core/ai/chat-session";
+import { getChatRuntime } from "@/core/ai/chat-runtime";
 import {
   activeChatAtom,
-  closeChatTab,
   type Chat,
   type ChatId,
   chatStateAtom,
+  runningChatIdsAtom,
+  unreadChatIdsAtom,
 } from "@/core/ai/state";
 import { cn } from "@/utils/cn";
 
@@ -96,9 +93,9 @@ const ChatTab = memo<ChatTabProps>(
 ChatTab.displayName = "ChatTab";
 
 export const ChatTabs = memo(() => {
-  const [chatState, setChatState] = useAtom(chatStateAtom);
+  const chatState = useAtomValue(chatStateAtom);
+  const runtime = getChatRuntime(useStore());
   const setActiveChat = useSetAtom(activeChatAtom);
-  const sessions = useAtomValue(chatSessionsAtom);
   const runningChatIds = useAtomValue(runningChatIdsAtom);
   const unreadChatIds = useAtomValue(unreadChatIdsAtom);
 
@@ -113,12 +110,7 @@ export const ChatTabs = memo(() => {
   });
 
   const handleCloseChat = useEvent((chatId: ChatId) => {
-    const session = sessions.get(chatId);
-    if (session) {
-      void session.close();
-      sessions.delete(chatId);
-    }
-    setChatState((prev) => closeChatTab(prev, chatId));
+    runtime.closeTab(chatId);
   });
 
   if (openChats.length === 0) {

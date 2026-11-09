@@ -18,7 +18,8 @@ import {
 import { memo, useEffect, useMemo, useRef, useState } from "react";
 import useEvent from "react-use-event-hook";
 import { Button } from "@/components/ui/button";
-import { deleteChats } from "@/core/ai/chat-session";
+import { getChatRuntime } from "@/core/ai/chat-runtime";
+import type { QueuedChatMessage } from "@/core/ai/chat-session";
 import { useAIConfigActions } from "@/core/ai/config";
 import { AiModelId } from "@/core/ai/ids/ids";
 import {
@@ -70,7 +71,6 @@ import {
   convertToFileUIPart,
   generateChatTitle,
   PROVIDERS_THAT_SUPPORT_ATTACHMENTS,
-  type QueuedUserMessage,
   useFileState,
 } from "./chat-utils";
 import { focusInputAndMoveToEnd } from "@/core/codemirror/utils";
@@ -80,7 +80,7 @@ import { useChatSession } from "./use-chat-session";
 const DEFAULT_MODE = "ask";
 
 const QueuedMessageDisplay = memo(
-  ({ message }: { message: QueuedUserMessage }) => {
+  ({ message }: { message: QueuedChatMessage }) => {
     const textParts = message.parts.filter(
       (p): p is TextUIPart => p.type === "text",
     );
@@ -521,7 +521,7 @@ const ChatPanelBody = () => {
 
   const handleDeleteChats = useEvent((id: ChatId | null) => {
     if (
-      deleteChats({ store, chatId: id }) &&
+      getChatRuntime(store).deleteChats(id) &&
       (id === null || id === activeChatId)
     ) {
       renewDraftChatId();

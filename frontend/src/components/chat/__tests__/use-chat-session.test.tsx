@@ -15,13 +15,8 @@ import {
 import { createStore, Provider, useAtomValue } from "jotai";
 import type { PropsWithChildren } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import {
-  chatSessionsAtom,
-  deleteChats,
-  runningChatIdsAtom,
-  unreadChatIdsAtom,
-  viewedChatIdAtom,
-} from "@/core/ai/chat-session";
+import { getChatRuntime } from "@/core/ai/chat-runtime";
+import { runningChatIdsAtom, unreadChatIdsAtom } from "@/core/ai/state";
 import {
   activeChatAtom,
   addChatAndOpenTab,
@@ -125,7 +120,7 @@ describe("useChatSession", () => {
   it("releases abandoned drafts when opening history chats", () => {
     const { result, store } = setup();
     const draftId = result.current.id;
-    const draft = store.get(chatSessionsAtom).get(draftId);
+    const draft = getChatRuntime(store).sessions.get(draftId);
     if (!draft) {
       throw new Error("Expected a draft session");
     }
@@ -135,7 +130,7 @@ describe("useChatSession", () => {
       store.set(chatStateAtom, (state) => addChatAndOpenTab(state, saved)),
     );
     expect(close).toHaveBeenCalledExactlyOnceWith({ discard: true });
-    expect([...store.get(chatSessionsAtom).keys()]).toEqual([saved.id]);
+    expect([...getChatRuntime(store).sessions.keys()]).toEqual([saved.id]);
   });
 
   it("selects a neighboring tab when deleting the active chat", () => {
@@ -143,7 +138,7 @@ describe("useChatSession", () => {
     const chatB = makeChat("Chat B");
     const { result, store } = setup([chatA, chatB]);
     act(() => {
-      expect(deleteChats({ store, chatId: chatA.id })).toBe(true);
+      expect(getChatRuntime(store).deleteChats(chatA.id)).toBe(true);
     });
     expect(result.current.id).toBe(chatB.id);
     expect(store.get(chatStateAtom)).toEqual({
@@ -156,10 +151,10 @@ describe("useChatSession", () => {
   it("keeps a draft controller through promotion and creates a fresh draft afterward", () => {
     const { result, rerender, store } = setup();
     const draftId = result.current.id;
-    const draftSession = store.get(chatSessionsAtom).get(draftId);
+    const draftSession = getChatRuntime(store).sessions.get(draftId);
     rerender();
     expect(result.current.id).toBe(draftId);
-    expect(store.get(chatSessionsAtom).get(draftId)).toBe(draftSession);
+    expect(getChatRuntime(store).sessions.get(draftId)).toBe(draftSession);
 
     act(() => {
       store.set(chatStateAtom, (state) =>
@@ -168,7 +163,7 @@ describe("useChatSession", () => {
       result.current.renewDraftChatId();
     });
     expect(result.current.id).toBe(draftId);
-    expect(store.get(chatSessionsAtom).get(draftId)).toBe(draftSession);
+    expect(getChatRuntime(store).sessions.get(draftId)).toBe(draftSession);
 
     act(() => {
       store.set(activeChatAtom, null);
@@ -183,7 +178,7 @@ describe("useChatSession", () => {
     const chatB = makeChat("Chat B");
     const { result, store, wrapper } = setup([chatA, chatB]);
     render(<ChatTabs />, { wrapper });
-    const sessionA = store.get(chatSessionsAtom).get(chatA.id);
+    const sessionA = getChatRuntime(store).sessions.get(chatA.id);
     let request: Promise<void>;
     act(() => {
       request = result.current.sendMessage({
@@ -198,8 +193,8 @@ describe("useChatSession", () => {
     expect(
       screen.getByRole("button", { name: chatA.title }),
     ).toHaveAccessibleDescription("Running");
-    expect(deleteChats({ store, chatId: chatA.id })).toBe(false);
-    expect(deleteChats({ store, chatId: null })).toBe(false);
+    expect(getChatRuntime(store).deleteChats(chatA.id)).toBe(false);
+    expect(getChatRuntime(store).deleteChats(null)).toBe(false);
     await act(async () => {
       finishResponse("Reply to A");
       await request;
@@ -222,7 +217,7 @@ describe("useChatSession", () => {
       screen.getByRole("button", { name: chatA.title }),
     ).not.toHaveAccessibleDescription("Unread response");
     expect(store.get(unreadChatIdsAtom).size).toBe(0);
-    expect(store.get(chatSessionsAtom).get(chatA.id)).toBe(sessionA);
+    expect(getChatRuntime(store).sessions.get(chatA.id)).toBe(sessionA);
     expect(result.current.messages).toEqual(messagesA);
   });
 
@@ -230,7 +225,7 @@ describe("useChatSession", () => {
     const finishResponse = mockChatResponse();
     const chatA = makeChat("Chat A");
     const { result, store } = setup([chatA]);
-    expect(store.get(viewedChatIdAtom)).toBe(chatA.id);
+    expect(getChatRuntime(store).viewedChatId).toBe(chatA.id);
     let request: Promise<void>;
     act(() => {
       request = result.current.sendMessage({
@@ -285,7 +280,7 @@ describe("useChatSession", () => {
     });
     visibility.mockReturnValue("hidden");
     fireEvent(document, new Event("visibilitychange"));
-    expect(store.get(viewedChatIdAtom)).toBeNull();
+    expect(getChatRuntime(store).viewedChatId).toBeNull();
     expect(store.get(chatGenerationInProgressAtom)).toBe(true);
     await act(async () => {
       finishResponse("Background reply");
@@ -294,7 +289,7 @@ describe("useChatSession", () => {
     expect(store.get(unreadChatIdsAtom)).toEqual(new Set([chatA.id]));
     visibility.mockReturnValue("visible");
     fireEvent(document, new Event("visibilitychange"));
-    expect(store.get(viewedChatIdAtom)).toBe(chatA.id);
+    expect(getChatRuntime(store).viewedChatId).toBe(chatA.id);
     expect(store.get(unreadChatIdsAtom).size).toBe(0);
   });
 
@@ -330,7 +325,7 @@ describe("useChatSession", () => {
     });
     visible = false;
     rerender();
-    expect(store.get(viewedChatIdAtom)).toBeNull();
+    expect(getChatRuntime(store).viewedChatId).toBeNull();
     await act(async () => {
       finishResponse("Sidebar was hidden");
       await request;
@@ -338,7 +333,7 @@ describe("useChatSession", () => {
     expect(store.get(unreadChatIdsAtom)).toEqual(new Set([chatA.id]));
     visible = true;
     rerender();
-    expect(store.get(viewedChatIdAtom)).toBe(chatA.id);
+    expect(getChatRuntime(store).viewedChatId).toBe(chatA.id);
     expect(store.get(unreadChatIdsAtom).size).toBe(0);
     expect(result.current.messages.at(-1)?.parts).toContainEqual({
       type: "text",
@@ -358,7 +353,7 @@ describe("useChatSession", () => {
     chatA.messages = [savedMessage];
     chatB.messages = [savedMessage];
     const { store } = setup([chatA, chatB]);
-    const sessions = store.get(chatSessionsAtom);
+    const sessions = getChatRuntime(store).sessions;
     expect(
       window.localStorage.getItem("marimo:ai:chatState:v5"),
     ).not.toBeNull();
@@ -369,7 +364,7 @@ describe("useChatSession", () => {
       });
     try {
       act(() => {
-        expect(deleteChats({ store, chatId: null })).toBe(true);
+        expect(getChatRuntime(store).deleteChats(null)).toBe(true);
       });
       expect(store.get(chatStateAtom)).toEqual({
         chats: new Map(),
@@ -389,7 +384,7 @@ describe("useChatSession", () => {
     const chatA = makeChat("Chat A");
     const chatB = makeChat("Chat B");
     const { result, store, wrapper } = setup([chatA, chatB]);
-    const sessionA = store.get(chatSessionsAtom).get(chatA.id);
+    const sessionA = getChatRuntime(store).sessions.get(chatA.id);
     const partialMessages: UIMessage[] = [
       {
         id: "reply",
@@ -404,7 +399,7 @@ describe("useChatSession", () => {
       sessionA.controller.messages = partialMessages;
       store.set(activeChatAtom, chatB.id);
     });
-    const sessionB = store.get(chatSessionsAtom).get(chatB.id);
+    const sessionB = getChatRuntime(store).sessions.get(chatB.id);
     if (!sessionA || !sessionB) {
       throw new Error("Expected sessions for both chats");
     }
@@ -415,9 +410,9 @@ describe("useChatSession", () => {
     fireEvent.click(screen.getByRole("button", { name: "Close Chat A" }));
     expect(closeA).toHaveBeenCalledOnce();
     expect(closeB).not.toHaveBeenCalled();
-    expect(store.get(chatSessionsAtom).has(chatA.id)).toBe(false);
+    expect(getChatRuntime(store).sessions.has(chatA.id)).toBe(false);
     expect(store.get(unreadChatIdsAtom).has(chatA.id)).toBe(false);
-    expect(store.get(chatSessionsAtom).get(chatB.id)).toBe(sessionB);
+    expect(getChatRuntime(store).sessions.get(chatB.id)).toBe(sessionB);
     expect(store.get(chatStateAtom)).toMatchObject({
       activeChatId: chatB.id,
       openChatIds: [chatB.id],
@@ -436,7 +431,7 @@ describe("useChatSession", () => {
     act(() => {
       store.set(activeChatAtom, chatA.id);
     });
-    expect(store.get(chatSessionsAtom).get(chatA.id)).not.toBe(sessionA);
+    expect(getChatRuntime(store).sessions.get(chatA.id)).not.toBe(sessionA);
     expect(result.current.messages).toEqual(partialMessages);
     expect(result.current.status).toBe("ready");
   });

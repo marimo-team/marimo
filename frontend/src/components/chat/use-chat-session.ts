@@ -4,15 +4,8 @@ import { safeValidateUIMessages } from "ai";
 import { useAtomValue, useStore } from "jotai";
 import { useEffect } from "react";
 import useEvent from "react-use-event-hook";
-import {
-  type ChatSession,
-  chatSessionsAtom,
-  createChatSession,
-  runningChatIdsAtom,
-  unreadChatIdsAtom,
-  viewedChatIdAtom,
-  markChatReadAtom,
-} from "@/core/ai/chat-session";
+import { createChatSession } from "@/core/ai/chat-session";
+import { getChatRuntime } from "@/core/ai/chat-runtime";
 import { replaceMessagesInChat } from "@/core/ai/chat-utils";
 import { useChatState } from "@/core/ai/use-chat-state";
 import { useStagedAICellsActions } from "@/core/ai/staged-cells";
@@ -42,8 +35,8 @@ import {
 import { useChatControllerId } from "./use-chat-controller-id";
 
 export function useChatSession(activeChat: Chat | null | undefined) {
-  const sessions = useAtomValue(chatSessionsAtom);
   const store = useStore();
+  const runtime = getChatRuntime(store);
   const runtimeManager = useRuntimeManager();
   const { invokeAiTool } = useRequestClient();
   const { addStagedCell } = useStagedAICellsActions();
@@ -56,10 +49,9 @@ export function useChatSession(activeChat: Chat | null | undefined) {
     store,
   };
 
-  let session = sessions.get(chatId);
-  if (!session) {
+  const session = runtime.getOrCreateSession(chatId, () => {
     let streamAbortReason: string | null = null;
-    const nextSession: ChatSession = createChatSession({
+    const nextSession = createChatSession({
       id: chatId,
       store,
       messages: activeChat?.messages ?? [],
@@ -71,23 +63,7 @@ export function useChatSession(activeChat: Chat | null | undefined) {
           hasPendingToolCalls: hasPendingToolCalls(messages),
           hasUnresolvedToolCalls: hasUnresolvedToolCalls(messages),
         }),
-      onRunningChange: (isRunning) => {
-        if (isRunning) {
-          store.set(markChatReadAtom, chatId);
-        }
-        store.set(runningChatIdsAtom, (prev) => {
-          if (prev.has(chatId) === isRunning) {
-            return prev;
-          }
-          const next = new Set(prev);
-          if (isRunning) {
-            next.add(chatId);
-          } else {
-            next.delete(chatId);
-          }
-          return next;
-        });
-      },
+      onRunningChange: (isRunning) => runtime.setRunning(chatId, isRunning),
       transport: new StreamingChunkTransport(
         {
           api: runtimeManager.getAiURL("chat").toString(),
@@ -137,26 +113,13 @@ export function useChatSession(activeChat: Chat | null | undefined) {
           streamReason: streamAbortReason,
         });
         streamAbortReason = null;
-        store.set(
-          nextSession.abortNoticeAtom,
+        nextSession.setAbortNotice(
           reason === null ? null : describeChatAbortReason(reason),
         );
         if (reason !== null) {
           Logger.debug("Chat stream aborted", { reason, finishReason });
         }
-        if (
-          !wasAborted &&
-          !isError &&
-          !hasPendingToolCalls(messages) &&
-          !hasUnresolvedToolCalls(messages) &&
-          store.get(nextSession.queuedMessagesAtom).length === 0 &&
-          store.get(viewedChatIdAtom) !== chatId &&
-          store.get(chatStateAtom).chats.has(chatId)
-        ) {
-          store.set(unreadChatIdsAtom, (prev) =>
-            prev.has(chatId) ? prev : new Set(prev).add(chatId),
-          );
-        }
+        runtime.finishChat({ chatId, messages, isAbort: wasAborted, isError });
       },
       onToolCall: async ({ toolCall, addToolOutput }) => {
         await handleToolCall({
@@ -174,42 +137,28 @@ export function useChatSession(activeChat: Chat | null | undefined) {
         Logger.error("An error occurred:", error);
       },
     });
-    session = nextSession;
-    sessions.set(chatId, session);
-  }
+    return nextSession;
+  });
 
   useEffect(() => {
-    const { chats } = store.get(chatStateAtom);
-    for (const [id, draft] of sessions) {
-      if (id !== chatId && !chats.has(id) && !draft.isActive()) {
-        void draft.close({ discard: true });
-        sessions.delete(id);
-      }
-    }
-  }, [chatId, sessions, store]);
+    runtime.pruneDrafts(chatId);
+  }, [chatId, runtime]);
   const chat = useChatState(session.controller);
-  const queuedMessages = useAtomValue(session.queuedMessagesAtom);
-  const abortNotice = useAtomValue(session.abortNoticeAtom);
-  const turnStartedAt = useAtomValue(session.turnStartedAtAtom);
+  const { queuedMessages, abortNotice, turn } = useAtomValue(session.stateAtom);
 
   const updateViewedChat = useEvent(() => {
     if (document.visibilityState === "visible") {
-      store.set(viewedChatIdAtom, chatId);
-      store.set(markChatReadAtom, chatId);
-    } else if (store.get(viewedChatIdAtom) === chatId) {
-      store.set(viewedChatIdAtom, null);
+      runtime.viewChat(chatId);
+    } else {
+      runtime.hideChat(chatId);
     }
   });
   useEventListener(document, "visibilitychange", updateViewedChat);
   useEffect(() => {
     updateViewedChat();
     // Activity cleans up effects when the sidebar hides, while streams continue.
-    return () => {
-      if (store.get(viewedChatIdAtom) === chatId) {
-        store.set(viewedChatIdAtom, null);
-      }
-    };
-  }, [chatId, store, updateViewedChat]);
+    return () => runtime.hideChat(chatId);
+  }, [chatId, runtime, updateViewedChat]);
 
   return {
     ...chat,
@@ -222,7 +171,7 @@ export function useChatSession(activeChat: Chat | null | undefined) {
     queuedMessages,
     abortNotice,
     isTurnActive: session.isActive(),
-    turnStartedAt,
+    turnStartedAt: turn?.startedAt ?? null,
     renewDraftChatId: renewDraftId,
   };
 }

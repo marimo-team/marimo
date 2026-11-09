@@ -120,6 +120,46 @@ async function createApprovalSession({
 }
 
 describe("chat sessions", () => {
+  it("drains synchronous follow-ups in order with distinct queue ids", async () => {
+    const { transport, write, finish, sendMessages } = createTransport();
+    const session = createChatSession({
+      id: CHAT_A,
+      transport,
+      saveMessages: vi.fn(),
+      onToolCall: vi.fn().mockResolvedValue(undefined),
+      shouldFlushQueue: () => true,
+    });
+    session.submitOrQueue(USER_MESSAGE.parts);
+    const followUps = ["First", "Second"].map(
+      (text) => [{ type: "text", text }] satisfies UIMessage["parts"],
+    );
+    for (const parts of followUps) {
+      session.submitOrQueue(parts);
+    }
+    const queued = session.store.get(session.stateAtom).queuedMessages;
+    expect(queued.map((message) => message.parts)).toEqual(followUps);
+    expect(new Set(queued.map((message) => message.id)).size).toBe(2);
+    for (const [index, parts] of followUps.entries()) {
+      write(
+        CHAT_A,
+        { type: "text-start", id: "answer" },
+        { type: "text-delta", id: "answer", delta: "Done" },
+        { type: "text-end", id: "answer" },
+      );
+      finish(CHAT_A);
+      await waitFor(() =>
+        expect(sendMessages).toHaveBeenCalledTimes(index + 2),
+      );
+      expect(sendMessages.mock.lastCall?.[0].messages.at(-1)?.parts).toEqual(
+        parts,
+      );
+    }
+    expect(session.store.get(session.stateAtom).queuedMessages).toEqual([]);
+    finish(CHAT_A);
+    await waitFor(() => expect(session.controller.status).toBe("ready"));
+    expect(sendMessages).toHaveBeenCalledTimes(3);
+  });
+
   it.each([
     { action: "close", restored: false },
     { action: "stop", restored: false },
@@ -176,7 +216,7 @@ describe("chat sessions", () => {
       const { session, finish, sendMessages, followUp } =
         await createApprovalSession({ trailingText: true });
       expect(sendMessages).toHaveBeenCalledOnce();
-      expect(session.store.get(session.queuedMessagesAtom)).toEqual([
+      expect(session.store.get(session.stateAtom).queuedMessages).toEqual([
         { id: expect.any(String), parts: followUp },
       ]);
 
@@ -187,7 +227,7 @@ describe("chat sessions", () => {
         role: "user",
         parts: followUp,
       });
-      expect(session.store.get(session.queuedMessagesAtom)).toEqual([]);
+      expect(session.store.get(session.stateAtom).queuedMessages).toEqual([]);
       finish(CHAT_A);
       await waitFor(() => expect(session.controller.status).toBe("ready"));
     },
@@ -200,7 +240,7 @@ describe("chat sessions", () => {
         await createApprovalSession({ trailingText: false });
       await session.addToolApprovalResponse({ id: "approval-1", approved });
       await waitFor(() => expect(sendMessages).toHaveBeenCalledTimes(2));
-      expect(session.store.get(session.queuedMessagesAtom)).toEqual([
+      expect(session.store.get(session.stateAtom).queuedMessages).toEqual([
         { id: expect.any(String), parts: followUp },
       ]);
       expect(sendMessages.mock.calls[1][0].messages.at(-1)?.role).toBe(
@@ -220,7 +260,7 @@ describe("chat sessions", () => {
         role: "user",
         parts: followUp,
       });
-      expect(session.store.get(session.queuedMessagesAtom)).toEqual([]);
+      expect(session.store.get(session.stateAtom).queuedMessages).toEqual([]);
       finish(CHAT_A);
       await waitFor(() => expect(session.controller.status).toBe("ready"));
     },
@@ -276,7 +316,7 @@ describe("chat sessions", () => {
     });
     expect(saveA).toHaveBeenLastCalledWith(sessionA.controller.messages);
     expect(sessionA.controller.messages.at(-1)?.metadata).toMatchObject({
-      startedAt: sessionA.store.get(sessionA.turnStartedAtAtom),
+      startedAt: sessionA.store.get(sessionA.stateAtom).turn?.startedAt,
       finishedAt: expect.any(Number),
       stopped: false,
     });
@@ -293,7 +333,7 @@ describe("chat sessions", () => {
     });
     expect(saveB).toHaveBeenLastCalledWith(sessionB.controller.messages);
     expect(sessionB.controller.messages.at(-1)?.metadata).toMatchObject({
-      startedAt: sessionB.store.get(sessionB.turnStartedAtAtom),
+      startedAt: sessionB.store.get(sessionB.stateAtom).turn?.startedAt,
       finishedAt: expect.any(Number),
       stopped: false,
     });
@@ -329,7 +369,7 @@ describe("chat sessions", () => {
       clock.mockReturnValue(4_000);
       finish(CHAT_A);
       await request;
-      expect(session.store.get(session.turnStartedAtAtom)).toBe(1_000);
+      expect(session.store.get(session.stateAtom).turn?.startedAt).toBe(1_000);
       const timing = session.controller.messages.at(-1)?.metadata;
       expect(timing).toMatchObject({ startedAt: 1_000, finishedAt: 4_000 });
 
@@ -339,7 +379,7 @@ describe("chat sessions", () => {
         approved: true,
       });
       await waitFor(() => expect(sendMessages).toHaveBeenCalledTimes(2));
-      expect(session.store.get(session.turnStartedAtAtom)).toBe(7_000);
+      expect(session.store.get(session.stateAtom).turn?.startedAt).toBe(7_000);
       clock.mockReturnValue(12_000);
       write(
         CHAT_A,
@@ -389,7 +429,7 @@ describe("chat sessions", () => {
     await session.stop();
     expect(sendMessages).toHaveBeenCalledTimes(2);
     expect(signals.get(CHAT_A)?.aborted).toBe(false);
-    expect(session.store.get(session.queuedMessagesAtom)).toEqual([]);
+    expect(session.store.get(session.stateAtom).queuedMessages).toEqual([]);
     expect(session.controller.messages.at(-2)?.metadata).toMatchObject({
       stopped: true,
     });
@@ -493,7 +533,7 @@ describe("chat sessions", () => {
     await requestA;
     expect(signals.get(CHAT_A)?.aborted).toBe(true);
     expect(signals.get(CHAT_B)?.aborted).toBe(false);
-    expect(sessionA.store.get(sessionA.queuedMessagesAtom)).toEqual([]);
+    expect(sessionA.store.get(sessionA.stateAtom).queuedMessages).toEqual([]);
     expect(sendMessages).toHaveBeenCalledTimes(2);
     expect(saveMessages).toHaveBeenLastCalledWith(sessionA.controller.messages);
     expect(saveMessages.mock.lastCall?.[0].at(-1).parts).toContainEqual({
@@ -529,7 +569,7 @@ describe("chat sessions", () => {
       sessionA.submitOrQueue(USER_MESSAGE.parts);
       sessionA.submitOrQueue([{ type: "text", text: "Follow-up for A" }]);
     });
-    expect(sessionA.store.get(sessionA.queuedMessagesAtom)).toEqual([
+    expect(sessionA.store.get(sessionA.stateAtom).queuedMessages).toEqual([
       {
         id: expect.any(String),
         parts: [{ type: "text", text: "Follow-up for A" }],
@@ -554,7 +594,7 @@ describe("chat sessions", () => {
     expect(sendMessages.mock.calls[1][0].messages.at(-1)?.parts).toEqual([
       { type: "text", text: "Follow-up for A" },
     ]);
-    expect(sessionA.store.get(sessionA.queuedMessagesAtom)).toEqual([]);
+    expect(sessionA.store.get(sessionA.stateAtom).queuedMessages).toEqual([]);
     view.rerender(
       <LazyActivity mode="visible">
         <SessionView session={sessionB} />

@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tooltip } from "@/components/ui/tooltip";
-import { runningChatIdsAtom } from "@/core/ai/chat-session";
+import { runningChatIdsAtom } from "@/core/ai/state";
 import { type ChatId, chatStateAtom } from "@/core/ai/state";
 import { cn } from "@/utils/cn";
 import { timeAgo } from "@/utils/dates";

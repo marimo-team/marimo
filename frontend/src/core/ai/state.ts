@@ -37,6 +37,7 @@ export interface PendingAiPrompt {
 
 export const pendingAiPromptAtom = atom<PendingAiPrompt | null>(null);
 
+export const unreadChatIdsAtom = atom<ReadonlySet<ChatId>>(new Set<ChatId>());
 export const runningChatIdsAtom = atom<ReadonlySet<ChatId>>(new Set<ChatId>());
 export const chatGenerationInProgressAtom = atom(
   (get) => get(runningChatIdsAtom).size > 0,

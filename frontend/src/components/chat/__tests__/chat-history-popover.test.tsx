@@ -5,7 +5,7 @@ import { createStore, Provider } from "jotai";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ModalProvider } from "@/components/modal/ImperativeModal";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { runningChatIdsAtom } from "@/core/ai/chat-session";
+import { runningChatIdsAtom } from "@/core/ai/state";
 import { type Chat, type ChatId, chatStateAtom } from "@/core/ai/state";
 import { ChatHistoryPopover } from "../chat-history-popover";
 

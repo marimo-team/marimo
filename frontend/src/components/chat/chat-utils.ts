@@ -10,7 +10,7 @@ import {
   type ToolUIPart,
   type UIMessage,
 } from "ai";
-import { useRef, useState } from "react";
+import { useState } from "react";
 import useEvent from "react-use-event-hook";
 import { z } from "zod";
 import type { ProviderId } from "@/core/ai/ids/ids";
@@ -22,7 +22,6 @@ import type {
 } from "@/core/network/types";
 import { blobToString } from "@/utils/fileToBase64";
 import { Logger } from "@/utils/Logger";
-import { generateUUID } from "@/utils/uuid";
 import { getAICompletionBodyWithAttachments } from "../editor/ai/completion-utils";
 import { toast } from "../ui/use-toast";
 
@@ -248,13 +247,6 @@ export function useFileState() {
   return { files, addFiles, clearFiles, removeFile };
 }
 
-export type ChatMessagePart = UIMessage["parts"][number];
-
-export interface QueuedUserMessage {
-  id: string;
-  parts: ChatMessagePart[];
-}
-
 /**
  * Decide whether the message queue should release its next message after a
  * chat request settles. `onFinish` fires on every completion — including
@@ -276,43 +268,4 @@ export function shouldFlushQueue(opts: {
     return true;
   }
   return !opts.hasPendingToolCalls && !opts.hasUnresolvedToolCalls;
-}
-
-/**
- * Queue of user messages typed while the assistant is still responding.
- * Messages are enqueued in order and released one at a time.
- */
-export function useMessageQueue() {
-  const [messages, setMessages] = useState<QueuedUserMessage[]>([]);
-  // Mirror the queue in a ref so `flushNext` reads the latest value even when
-  // invoked from a callback (e.g. `onFinish`) in the same tick as `enqueue`.
-  const messagesRef = useRef<QueuedUserMessage[]>([]);
-  const hasQueuedRef = useRef(false);
-
-  const enqueue = useEvent((parts: ChatMessagePart[]) => {
-    const next = [...messagesRef.current, { id: generateUUID(), parts }];
-    messagesRef.current = next;
-    hasQueuedRef.current = true;
-    setMessages(next);
-  });
-
-  const flushNext = useEvent((send: (parts: ChatMessagePart[]) => void) => {
-    const queue = messagesRef.current;
-    if (queue.length === 0) {
-      return;
-    }
-    const [next, ...rest] = queue;
-    messagesRef.current = rest;
-    hasQueuedRef.current = rest.length > 0;
-    setMessages(rest);
-    send(next.parts);
-  });
-
-  const clear = useEvent(() => {
-    messagesRef.current = [];
-    hasQueuedRef.current = false;
-    setMessages([]);
-  });
-
-  return { messages, enqueue, flushNext, clear, hasQueuedRef };
 }
