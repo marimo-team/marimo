@@ -10,7 +10,6 @@ import {
   cellExecutionInputsAtom,
   cellExecutionView,
   cellFreshnessAtom,
-  withdrawCells,
 } from "@/core/executions";
 import type { CellColumnId } from "./layout";
 import { invariant } from "@/utils/invariant";
@@ -550,7 +549,6 @@ export function releaseCellAtoms(cellId: CellId) {
   cellDataAtom.remove(cellId);
   cellRuntimeAtom.remove(cellId);
   cellHandleAtom.remove(cellId);
-  withdrawCells(store, [cellId]);
 }
 
 /** Subscribes to reactive updates of the cell's data. */

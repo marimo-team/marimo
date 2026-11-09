@@ -6,7 +6,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { MockExecutions } from "@/__mocks__/executions";
 import { cellId } from "@/__tests__/branded";
 import type { DocumentModel, EditableDocument } from "@/core/notebook/document";
-import { document as documentOf } from "@/core/notebook/document/__tests__/fixtures";
+import {
+  cell,
+  CONFIG,
+  document as documentOf,
+  withCells,
+} from "@/core/notebook/document/__tests__/fixtures";
 import {
   ConnectionClosedReason,
   ConnectionState,
@@ -123,6 +128,15 @@ describe("runCells", () => {
   });
 
   it("sends a disabled cell without reading it as queued", async () => {
+    const replica = MockExecutions.seed(
+      store,
+      [],
+      MockExecutions.runtime("running"),
+      withCells(documentOf(), {
+        c2: cell("c2", "y = 2", { config: { ...CONFIG, disabled: true } }),
+      }),
+    );
+    store.set(replica.backendAtom, fakeBackend({ run }));
     model(undefined, editable([C2]));
 
     await runCells(store, [C1, C2]);
@@ -152,6 +166,26 @@ describe("runCells", () => {
     store.set(replica.runtimeAtom, MockExecutions.runtime("running"));
     await pending;
     expect(run).toHaveBeenCalledOnce();
+  });
+
+  it("records the request once the stream has a notebook, as after a reconnect", async () => {
+    const replica = MockExecutions.seed(store, [], null, documentOf());
+    store.set(replica.backendAtom, fakeBackend({ run }));
+    store.set(replica.notebookAtom, null);
+    model();
+
+    const pending = runCells(store, [C1]);
+    await Promise.resolve();
+    expect(run).not.toHaveBeenCalled();
+
+    // The real replica reports both at once, from one snapshot.
+    store.set(replica.runtimeAtom, MockExecutions.runtime("running"));
+    store.set(replica.notebookAtom, MockExecutions.notebook());
+    await pending;
+
+    expect(run).toHaveBeenCalledWith("n1", { cells: [{ id: C1 }] });
+    expect(status(C1)).toBe("queued");
+    expect(toast).not.toHaveBeenCalled();
   });
 
   it("withdraws the submission and reports when the edits cannot sync", async () => {
@@ -268,7 +302,7 @@ describe("runCells", () => {
     expect(toast).not.toHaveBeenCalled();
   });
 
-  it("does not run when the notebook changed while the edits synced", async () => {
+  it("does not run when the notebook closed while the edits synced", async () => {
     model(async () => {
       store.set(activeDocumentModelAtom, null);
       return documentOf().revision;
@@ -278,6 +312,73 @@ describe("runCells", () => {
 
     expect(run).not.toHaveBeenCalled();
     expect(toast).not.toHaveBeenCalled();
+  });
+
+  it("does not run in a notebook that replaced the one the request was made in", async () => {
+    // Islands keep the replica and model while the worker's session changes.
+    const replica = MockExecutions.seed(
+      store,
+      [],
+      MockExecutions.runtime("running"),
+      documentOf(),
+    );
+    store.set(replica.backendAtom, fakeBackend({ run }));
+    model(async () => {
+      store.set(replica.notebookAtom, MockExecutions.notebook("n2"));
+      return documentOf("n2").revision;
+    });
+
+    const pending = runCells(store, [C1]);
+    expect(status(C1)).toBe("queued");
+    await pending;
+
+    expect(run).not.toHaveBeenCalled();
+    expect(status(C1)).toBe("idle");
+    expect(toast).not.toHaveBeenCalled();
+  });
+
+  it("leaves the replacing notebook's request when a late refusal lands", async () => {
+    const replica = MockExecutions.seed(
+      store,
+      [],
+      MockExecutions.runtime("running"),
+      documentOf(),
+    );
+    store.set(replica.backendAtom, fakeBackend({ run }));
+    model(
+      async () =>
+        documentOf(store.get(replica.notebookAtom)?.id ?? "n1").revision,
+    );
+    let refuse = (): void => undefined;
+    run.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          refuse = () =>
+            resolve({
+              ok: false,
+              status: 409,
+              problem: {
+                type: "tag:marimo.io,2026:host/conflict",
+                title: "Conflict",
+                status: 409,
+              },
+            });
+        }),
+    );
+
+    const first = runCells(store, [C1]);
+    await vi.waitFor(() => expect(run).toHaveBeenCalledOnce());
+    store.set(replica.notebookAtom, MockExecutions.notebook("n2"));
+    const second = runCells(store, [C1]);
+    await vi.waitFor(() => expect(run).toHaveBeenCalledTimes(2));
+    expect(status(C1)).toBe("queued");
+
+    refuse();
+    await first;
+    await second;
+
+    expect(run).toHaveBeenLastCalledWith("n2", { cells: [{ id: C1 }] });
+    expect(status(C1)).toBe("queued");
   });
 
   it("does nothing without an open notebook", async () => {

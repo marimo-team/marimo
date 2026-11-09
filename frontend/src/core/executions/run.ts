@@ -7,17 +7,15 @@ import type { createStore } from "jotai";
 import type { DocumentModel } from "@/core/notebook/document";
 import { toast } from "@/components/ui/use-toast";
 import { startRuntimeIfLazy } from "@/core/runtime/config";
-import {
-  activeDocumentModelAtom,
-  activeNotebookBackendAtom,
-} from "@/core/session/active-notebook";
+import { activeDocumentModelAtom } from "@/core/session/active-notebook";
 import { prettyError } from "@/utils/errors";
 import { Logger } from "@/utils/Logger";
 import {
   acceptRun,
-  submitCells,
+  isCurrent,
+  requestRun,
   waitForRuntimeRunning,
-  withdrawCells,
+  withdrawRequest,
 } from "./atoms";
 
 type Store = ReturnType<typeof createStore>;
@@ -47,10 +45,12 @@ export function syncEdits(model: DocumentModel): Promise<Protocol.Document> {
 /**
  * Run `cellIds` through the host once this browser's edits have reached it.
  *
- * The cells read as queued at once. The host's run supersedes that as the
- * kernel plans them; a request that does not reach the host withdraws it
- * and reports why. A disabled cell is sent so the kernel sets it aside,
- * but is not shown queued, since nothing is planned for it.
+ * The cells read as queued right away. When the host accepts the run, the
+ * stream shows it with the same cells named on it and takes over from the
+ * request. A request that never reaches the host is withdrawn, and the
+ * user is told why. The request belongs to the notebook it was made in, so
+ * if another notebook is shown by the time the edits have synced, it is
+ * dropped rather than sent there.
  */
 export async function runCells(
   store: Store,
@@ -64,21 +64,26 @@ export async function runCells(
     Logger.warn("No notebook is open to run cells in");
     return;
   }
-  const document = store.get(model.documentAtom);
-  submitCells(
-    store,
-    cellIds.filter(
-      (cellId) => document?.cells.get(cellId)?.config.disabled !== true,
-    ),
-  );
+  // The stream may have no notebook for a moment, as during a reconnect.
+  // The request is then recorded once the runtime, and with it the
+  // notebook, has been seen.
+  let request = requestRun(store, cellIds);
   try {
     await waitForRuntime(store);
+    request ??= requestRun(store, cellIds);
+    if (request === null) {
+      throw new Error("No notebook is shown");
+    }
     const { notebook_id } = await syncEdits(model);
-    // The request was for the notebook that was open when it was made.
-    if (store.get(activeDocumentModelAtom) !== model) {
+    if (
+      store.get(activeDocumentModelAtom) !== model ||
+      !isCurrent(store, request) ||
+      notebook_id !== request.notebook.id
+    ) {
+      withdrawRequest(store, request);
       return;
     }
-    const backend = store.get(activeNotebookBackendAtom);
+    const backend = store.get(request.notebook.replica.backendAtom);
     if (backend === null) {
       throw new Error("The notebook is not connected");
     }
@@ -86,10 +91,10 @@ export async function runCells(
       .notebook(notebook_id)
       .run({ cells: cellIds.map((id) => ({ id })) });
     if (result.ok) {
-      acceptRun(store, result.data);
+      acceptRun(store, request, result.data);
       return;
     }
-    withdrawCells(store, cellIds);
+    withdrawRequest(store, request);
     // The connection is read-only for this action, which the UI shows.
     if (result.status === 403) {
       Logger.warn("Run refused, connection is read-only", result.problem);
@@ -102,7 +107,9 @@ export async function runCells(
       variant: "danger",
     });
   } catch (error) {
-    withdrawCells(store, cellIds);
+    if (request !== null) {
+      withdrawRequest(store, request);
+    }
     Logger.error("Failed to run cells", error);
     toast({
       title: "Failed to run",

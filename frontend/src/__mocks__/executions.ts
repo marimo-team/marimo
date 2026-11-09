@@ -19,6 +19,12 @@ import { activeNotebookReplicaAtom } from "@/core/session/active-notebook";
 
 type Store = ReturnType<typeof createStore>;
 
+const CONFIG: Protocol.CellConfig = {
+  column: null,
+  disabled: false,
+  hide_code: false,
+  expand_output: false,
+};
 const T0 = "2026-10-01T09:20:11Z";
 const T1 = "2026-10-01T09:20:12.500Z";
 
@@ -139,6 +145,17 @@ export const MockExecutions = {
     });
   },
 
+  notebook(id: Protocol.NotebookId = "n1"): Protocol.Notebook {
+    return {
+      id,
+      project_id: "p1",
+      path: null,
+      name: "Notebook",
+      operations: [],
+      updated_at: null,
+    };
+  },
+
   runtime(status: Protocol.RuntimeStatus): Protocol.Runtime {
     return {
       id: "r1",
@@ -150,15 +167,24 @@ export const MockExecutions = {
     };
   },
 
-  /** What the selectors read, with `latest` and the results derived from `records`. */
+  /**
+   * What the selectors read. `latest` and the results are derived from
+   * `records`, and the document is taken to have every cell they name,
+   * with nothing keeping it from running.
+   */
   inputs(
     records: Protocol.Execution[],
-    extra: Partial<Pick<CellExecutionInputs, "submissions" | "blocked">> = {},
+    extra: Partial<Pick<CellExecutionInputs, "requested" | "blocked">> = {},
   ): CellExecutionInputs {
     return {
       executions: mirror(records),
       results: results(records),
-      submissions: new Map(),
+      cells: new Map(
+        records.flatMap((record) =>
+          record.cell_id === null ? [] : [[record.cell_id, { config: CONFIG }]],
+        ),
+      ),
+      requested: new Set(),
       blocked: new Set(),
       ...extra,
     };
@@ -181,14 +207,7 @@ export const MockExecutions = {
       // backend to command.
       connectionAtom: atom<ConnectionStatus>({ state: ConnectionState.OPEN }),
       backendAtom: atom<NotebookBackend | null>(null),
-      notebookAtom: atom<Protocol.Notebook>({
-        id: "n1",
-        project_id: "p1",
-        path: null,
-        name: "Notebook",
-        operations: [],
-        updated_at: null,
-      }),
+      notebookAtom: atom<Protocol.Notebook | null>(MockExecutions.notebook()),
       documentAtom: atom<Document | null>(document),
       runtimeAtom: atom(runtime),
       executionsAtom: atom(mirror(records)),

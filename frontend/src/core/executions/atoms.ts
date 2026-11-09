@@ -17,7 +17,6 @@ import type { CellOutputInputs } from "./output";
 import {
   anyRunning,
   type CellExecutionInputs,
-  latestExecutionId,
   queuedOrRunningCount,
 } from "./select";
 
@@ -30,40 +29,52 @@ const NO_EXECUTIONS: Executions = {
 };
 const NO_RESULTS: Results = new Map();
 const NO_CELLS: ReadonlyMap<Protocol.CellId, Protocol.Cell> = new Map();
-const NO_SUBMISSIONS: ReadonlyMap<
-  Protocol.CellId,
-  Protocol.ExecutionId | null
-> = new Map();
+const NO_REQUESTS: ReadonlySet<RunRequest> = new Set();
+const NO_REQUESTED: ReadonlySet<Protocol.CellId> = new Set();
 const NO_BLOCKED: ReadonlySet<Protocol.CellId> = new Set();
 const NO_CLEARED: ReadonlyMap<Protocol.CellId, Protocol.ExecutionId> =
   new Map();
 
+/** The notebook a replica is showing, which the editor's marks belong to. */
+interface ShownNotebook {
+  readonly replica: NotebookReplica;
+  readonly id: Protocol.NotebookId;
+}
+
 /**
  * What the editor marks about cells of one replica's notebook.
  *
- * The marks are keyed by cell id, which another notebook, or the same one
+ * The marks refer to cells by id, which another notebook, or the same one
  * after a reconnect, reuses with different executions behind it. They
  * therefore count only for the replica and host notebook they belong to.
  */
 type Marks<T> = {
-  readonly notebook: {
-    readonly replica: NotebookReplica;
-    readonly id: Protocol.NotebookId;
-  };
+  readonly notebook: ShownNotebook;
   readonly value: T;
 } | null;
 
 /**
- * Cells a run was requested for, with the execution each had at the time.
+ * A run this browser has asked the host for.
  *
- * The host shows a queued execution once the kernel plans the run. Until
- * then the cell reads as queued from this record. The host's newer
- * execution supersedes it; a rejected request, a cell the kernel will not
- * run, or the cell leaving the document withdraws it. Written only by
- * `submitCells`, `withdrawCells`, `acceptRun`, and `observeCellMessage`.
+ * The host answers some time after the request is made, and by then the
+ * notebook may have been replaced or the same cells asked for again. So
+ * the functions that handle the answer are given the request back, and
+ * they act only on it, in the notebook it was made in.
  */
-const submissionsAtom =
-  atom<Marks<ReadonlyMap<Protocol.CellId, Protocol.ExecutionId | null>>>(null);
+export interface RunRequest {
+  readonly notebook: ShownNotebook;
+  readonly cells: readonly Protocol.CellId[];
+}
+
+/**
+ * Requests whose run has not appeared on the stream yet.
+ *
+ * They let a requested cell read as queued right away. Once the host
+ * accepts the run, the stream shows it with the same cells named on it,
+ * and the request is no longer needed. A request the host refuses, or
+ * that the browser gives up on, is withdrawn instead.
+ */
+const requestsAtom = atom<Marks<ReadonlySet<RunRequest>>>(null);
 
 /**
  * Cells the kernel reports as blocked by a disabled ancestor. Written only
@@ -86,28 +97,58 @@ function current<T>(
     : empty;
 }
 
-function mark<T>(store: Store, value: T): Marks<T> {
+function shownNotebook(store: Store): ShownNotebook | null {
   const replica = store.get(activeNotebookReplicaAtom);
   const notebook = replica === null ? null : store.get(replica.notebookAtom);
   return replica === null || notebook === null
     ? null
-    : { notebook: { replica, id: notebook.id }, value };
+    : { replica, id: notebook.id };
 }
+
+function mark<T>(store: Store, value: T): Marks<T> {
+  const notebook = shownNotebook(store);
+  return notebook === null ? null : { notebook, value };
+}
+
+/**
+ * Whether `request` still belongs to the notebook being shown.
+ *
+ * Between a reset and the next snapshot the replica has no notebook for a
+ * moment. That says nothing about where the request belongs, so it does
+ * not count against it. Another replica, or another notebook on the same
+ * replica, does.
+ */
+export function isCurrent(store: Store, request: RunRequest): boolean {
+  const replica = store.get(activeNotebookReplicaAtom);
+  if (replica !== request.notebook.replica) {
+    return false;
+  }
+  const notebook = store.get(replica.notebookAtom);
+  return notebook === null || notebook.id === request.notebook.id;
+}
+
+/** Cells named by pending requests made in the notebook now shown. */
+const requestedCellsAtom = atom((get) => {
+  const replica = get(activeNotebookReplicaAtom);
+  const notebookId =
+    replica === null ? null : (get(replica.notebookAtom)?.id ?? null);
+  const requests = current(get(requestsAtom), replica, notebookId, NO_REQUESTS);
+  return requests.size === 0
+    ? NO_REQUESTED
+    : new Set([...requests].flatMap((request) => request.cells));
+});
 
 /** What every cell's view derives from. Pair with `cellExecutionView`. */
 export const cellExecutionInputsAtom = atom((get): CellExecutionInputs => {
   const replica = get(activeNotebookReplicaAtom);
   const notebookId =
     replica === null ? null : (get(replica.notebookAtom)?.id ?? null);
+  const document = replica === null ? null : get(replica.documentAtom);
   return {
     executions: replica === null ? NO_EXECUTIONS : get(replica.executionsAtom),
     results: replica === null ? NO_RESULTS : get(replica.resultsAtom),
-    submissions: current(
-      get(submissionsAtom),
-      replica,
-      notebookId,
-      NO_SUBMISSIONS,
-    ),
+    cells: document?.cells ?? NO_CELLS,
+    requested: get(requestedCellsAtom),
     blocked: current(get(blockedCellsAtom), replica, notebookId, NO_BLOCKED),
   };
 });
@@ -195,11 +236,14 @@ const runtimeReadinessAtom = atom((get): RuntimeReadiness => {
   if (get(replica.connectionAtom).state === ConnectionState.CLOSED) {
     return { refused: "The notebook is disconnected" };
   }
+  // Until the stream's snapshot is complete there is no notebook to speak
+  // of, and nothing it reports about the runtime counts yet.
+  if (get(replica.notebookAtom) === null) {
+    return "waiting";
+  }
   const runtime = get(replica.runtimeAtom);
   if (runtime === null) {
-    return get(replica.notebookAtom) === null
-      ? "waiting"
-      : { refused: "The notebook has no runtime" };
+    return { refused: "The notebook has no runtime" };
   }
   switch (runtime.status) {
     case "running":
@@ -232,104 +276,67 @@ export function waitForRuntimeRunning(store: Store): Promise<void> {
 }
 
 /**
- * Record a run request for `cellIds` so they read as queued at once.
+ * Record that this browser is asking the host to run `cellIds`, so that
+ * they read as queued before the host has answered.
  *
- * Cells blocked by a disabled ancestor stay blocked: the kernel will not
- * queue them. A disabled cell is not queued either; the caller leaves it
- * out, since its configuration lives in the notebook state.
+ * A disabled cell, or one the kernel reports as blocked, may be among them
+ * so the kernel can set it aside, but the views do not show it as queued.
+ * Returns null while no notebook is shown, since there is nothing to
+ * record the request against.
  */
-export function submitCells(
+export function requestRun(
   store: Store,
   cellIds: readonly Protocol.CellId[],
-): void {
-  const inputs = store.get(cellExecutionInputsAtom);
-  const next = new Map(inputs.submissions);
-  for (const cellId of cellIds) {
-    if (!inputs.blocked.has(cellId)) {
-      next.set(cellId, latestExecutionId(inputs, cellId));
-    }
+): RunRequest | null {
+  const notebook = shownNotebook(store);
+  if (notebook === null) {
+    return null;
   }
-  setSubmissions(store, next);
+  const request: RunRequest = { notebook, cells: [...cellIds] };
+  const marks = store.get(requestsAtom);
+  const kept =
+    marks !== null &&
+    marks.notebook.replica === notebook.replica &&
+    marks.notebook.id === notebook.id
+      ? marks.value
+      : NO_REQUESTS;
+  store.set(requestsAtom, { notebook, value: new Set(kept).add(request) });
+  return request;
 }
 
-function setSubmissions(
-  store: Store,
-  value: ReadonlyMap<Protocol.CellId, Protocol.ExecutionId | null>,
-): void {
-  store.set(submissionsAtom, mark(store, value));
-}
-
-/** Forget a run request the host rejected. */
-export function withdrawCells(
-  store: Store,
-  cellIds: readonly Protocol.CellId[],
-): void {
-  const next = new Map(store.get(cellExecutionInputsAtom).submissions);
-  for (const cellId of cellIds) {
-    next.delete(cellId);
+/** Forget a request the host refused or the browser gave up on. */
+export function withdrawRequest(store: Store, request: RunRequest): void {
+  const marks = store.get(requestsAtom);
+  if (marks === null || !marks.value.has(request)) {
+    return;
   }
-  setSubmissions(store, next);
+  const value = new Set(marks.value);
+  value.delete(request);
+  store.set(requestsAtom, { notebook: marks.notebook, value });
 }
 
 /**
- * Follow a run the host accepted for submitted cells.
- *
- * The run's executions supersede the submissions as the kernel plans them.
- * A cell the kernel never plans, as when the run is interrupted first or
- * the kernel drops the cell, gets none, so its submission is withdrawn once
- * the run completes or leaves the stream. A submission made since then is
- * another request and stays.
+ * Keep a request until the run the host accepted for it appears on the
+ * stream, which can happen after the response has arrived. From then on
+ * the run itself says which cells are queued. If the notebook is no
+ * longer shown by then, the request is simply dropped.
  */
-export function acceptRun(store: Store, run: Protocol.Run): void {
-  const replica = store.get(activeNotebookReplicaAtom);
-  if (replica === null) {
-    return;
-  }
-  const submissions = store.get(cellExecutionInputsAtom).submissions;
-  const awaiting = new Map(
-    run.cells.flatMap((cellId) =>
-      submissions.has(cellId)
-        ? [[cellId, submissions.get(cellId) ?? null] as const]
-        : [],
-    ),
-  );
-  if (awaiting.size > 0) {
-    followRun(store, replica, run.id, awaiting);
-  }
-}
-
-/** Withdraw what is left of `awaiting` once the run has ended. */
-function followRun(
+export function acceptRun(
   store: Store,
-  replica: NotebookReplica,
-  runId: Protocol.RunId,
-  awaiting: ReadonlyMap<Protocol.CellId, Protocol.ExecutionId | null>,
+  request: RunRequest,
+  run: Protocol.Run,
 ): void {
-  // The response can land before the stream shows the run, so an absent
-  // run means removed only once it has been seen.
-  let seen = false;
+  const { replica } = request.notebook;
   const unsubscribe = store.sub(replica.executionsAtom, check);
   function check() {
-    if (store.get(activeNotebookReplicaAtom) !== replica) {
-      unsubscribe();
-      return;
-    }
-    const current = store.get(replica.executionsAtom).runs.get(runId);
-    if (current !== undefined && current.status !== "completed") {
-      seen = true;
-      return;
-    }
-    if (current === undefined && !seen) {
+    if (
+      isCurrent(store, request) &&
+      !store.get(replica.executionsAtom).runs.has(run.id)
+    ) {
       return;
     }
     unsubscribe();
-    const now = store.get(cellExecutionInputsAtom).submissions;
-    withdrawCells(
-      store,
-      [...awaiting].flatMap(([cellId, executionId]) =>
-        now.has(cellId) && now.get(cellId) === executionId ? [cellId] : [],
-      ),
-    );
+    withdrawRequest(store, request);
   }
   check();
 }
@@ -353,22 +360,19 @@ function setCellBlocked(
 }
 
 /**
- * Keep the blocked set and the submissions in step with a cell-op.
- *
- * A status names whether the cell is blocked. A blocked cell will not run,
- * so its submission is withdrawn, as it was when the editor set status
- * itself.
+ * Learn from a cell-op whether the kernel considers the cell blocked by a
+ * disabled ancestor. A blocked cell will not run, so a run that names it
+ * does not show it as queued.
  *
  * TODO(MO-8407): Delete with the cell-op case. The blocked read goes with
  * MO-8463.
  */
 export function observeCellMessage(store: Store, message: CellMessage): void {
-  const cellId = message.cell_id;
-  const blocked = message.status === "disabled-transitively";
   if (message.status != null) {
-    setCellBlocked(store, cellId, blocked);
-  }
-  if (blocked) {
-    withdrawCells(store, [cellId]);
+    setCellBlocked(
+      store,
+      message.cell_id,
+      message.status === "disabled-transitively",
+    );
   }
 }
