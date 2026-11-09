@@ -1,6 +1,5 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import type { AiConfig } from "@/core/config/config-schema";
 import type { AiModel } from "./model-registry";
 import type { ReasoningOption } from "@marimo-team/llm-info";
 
@@ -42,15 +41,14 @@ export function getReasoningEffortOptions(
 
 export function getChatReasoningEffortOptions(
   model: AiModel | undefined,
-  ai: AiConfig | undefined,
+  baseUrl?: string,
 ) {
   switch (model?.provider) {
     case "anthropic":
     case "google":
     case "bedrock":
       return getReasoningEffortOptions(model.reasoning_options);
-    case "openai": {
-      const baseUrl = ai?.open_ai?.base_url;
+    case "openai":
       if (baseUrl) {
         try {
           if (new URL(baseUrl).hostname !== "api.openai.com") {
@@ -61,7 +59,6 @@ export function getChatReasoningEffortOptions(
         }
       }
       return getReasoningEffortOptions(model.reasoning_options);
-    }
     default:
       return [];
   }
