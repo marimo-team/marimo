@@ -202,7 +202,9 @@ async def list_provider_models(*, request: Request) -> Response:
         headers["Authorization"] = f"Bearer {provider.api_key}"
 
     class NoRedirect(HTTPRedirectHandler):
-        def redirect_request(self, req, fp, code, msg, headers, newurl) -> None:
+        def redirect_request(
+            self, req, fp, code, msg, headers, newurl
+        ) -> None:
             del req, fp, code, msg, headers, newurl
 
     def fetch_catalog() -> object:
