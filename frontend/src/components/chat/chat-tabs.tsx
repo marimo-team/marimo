@@ -37,15 +37,15 @@ const ChatTab = memo<ChatTabProps>(
     return (
       <div
         className={cn(
-          "group flex items-center gap-1 px-2 py-1 text-sm border-r border-border cursor-pointer min-w-0 max-w-[160px] transition-colors",
+          "group relative w-40 shrink-0 text-sm transition-colors",
           isActive
-            ? "bg-background text-foreground relative z-1"
+            ? "bg-background text-foreground z-1"
             : "bg-muted/30 text-muted-foreground hover:bg-muted/50 hover:text-foreground",
         )}
       >
         <button
           type="button"
-          className="flex items-center gap-1.5 flex-1 min-w-0 text-left"
+          className="flex w-full items-center gap-1.5 pl-2 pr-8 py-1 border-r border-border text-left cursor-pointer"
           title={chat.title}
           aria-label={chat.title}
           aria-describedby={statusDescription ? statusId : undefined}
@@ -76,13 +76,10 @@ const ChatTab = memo<ChatTabProps>(
           size="sm"
           aria-label={`Close ${chat.title}`}
           className={cn(
-            "h-4 w-4 p-0 shrink-0 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 hover:bg-destructive/20 hover:text-destructive",
+            "absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 p-0 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 hover:bg-destructive/20 hover:text-destructive",
             isActive && "opacity-100",
           )}
-          onClick={(e) => {
-            e.stopPropagation();
-            onClose(chat.id);
-          }}
+          onClick={() => onClose(chat.id)}
         >
           <XIcon className="h-3 w-3" />
         </Button>
