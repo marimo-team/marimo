@@ -206,7 +206,11 @@ async def test_worker_input_reply_reaches_its_prompt(
         (entry["input_id"], entry["channel"], entry["data"])
         for entry in console
     ] == [
-        ("prompt", "stdout", "Prompt: \n" if password else "Prompt:  secret\n"),
+        (
+            "prompt",
+            "stdout",
+            "Prompt: \n" if password else "Prompt:  secret\n",
+        ),
         ("next", "stdin", "Next: "),
     ]
     if password:
