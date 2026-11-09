@@ -14,19 +14,6 @@ const CatalogSchema = z.object({
   models: z.array(z.object({ id: z.string().min(1), name: z.string() })),
 });
 
-const SAFE_ERRORS = new Set([
-  "Model discovery requires the optional httpx dependency.",
-  "Provider rejected the configured credentials or access.",
-  "Provider model catalog request failed.",
-  "Provider model discovery timed out.",
-  "Unable to load the provider model catalog.",
-  "Provider returned an invalid model catalog.",
-  "Model discovery is not available.",
-  "A saved provider base URL is required.",
-  "Invalid provider base URL.",
-  "OpenRouter API key not configured. Go to Settings > AI to configure.",
-]);
-
 interface ModelDiscoveryProps {
   provider: string;
   label: string;
@@ -92,32 +79,25 @@ export function ModelDiscovery({
       });
       if (!response.ok) {
         const raw = await response.text();
-        let detail = raw.trim();
+        let detail = "";
+
         try {
           const parsed = z
             .object({ detail: z.string() })
             .safeParse(JSON.parse(raw));
+
           detail = parsed.success ? parsed.data.detail : "";
         } catch {
-          // Only allowlisted messages can be displayed, including plain text.
+          // The backend may return a non-JSON error response.
         }
-        const fallback: Record<number, string> = {
-          400: "Check the saved provider settings.",
-          401: "Marimo authentication is required. Reload the editor.",
-          403: "Access to model discovery was denied.",
-          404: "Model discovery is not available for this provider or backend.",
-          429: "Too many requests. Wait before retrying.",
-          500: "Internal backend error. Check the server terminal.",
-          501: "Live discovery is not supported for this provider yet. Use manual entry.",
-          502: "The provider returned an error or invalid catalog.",
-          503: "A required backend dependency or service is unavailable.",
-          504: "The provider request timed out.",
-        };
+
         if (!controller.signal.aborted) {
           setError(
-            `HTTP ${response.status}: ${SAFE_ERRORS.has(detail) ? detail : (fallback[response.status] ?? "Model discovery failed.")}`,
+            detail ||
+              "Unable to load the provider model catalog. Check the connection and retry.",
           );
         }
+
         return;
       }
       const catalog = CatalogSchema.parse(await response.json());
