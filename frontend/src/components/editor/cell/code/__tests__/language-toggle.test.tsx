@@ -7,7 +7,7 @@ import { createRef } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { switchLanguage } from "@/core/codemirror/language/extension";
-import { LanguageToggle } from "../language-toggle";
+import { LanguageToggle, LanguageToggles } from "../language-toggle";
 
 vi.mock("@/core/codemirror/language/extension", () => ({
   switchLanguage: vi.fn(),
@@ -47,6 +47,41 @@ describe("LanguageToggle", () => {
         language: "markdown",
       });
       expect(onAfterToggle).toHaveBeenCalledOnce();
+    } finally {
+      view.destroy();
+    }
+  });
+
+  it("uses the correct callback for each language toggle", () => {
+    const view = new EditorView({ state: EditorState.create() });
+    const editorViewRef = createRef<EditorView>();
+    editorViewRef.current = view;
+
+    const onAfterToggleSQL = vi.fn();
+    const onAfterToggleMarkdown = vi.fn();
+
+    try {
+      render(
+        <TooltipProvider>
+          <LanguageToggles
+            editorViewRef={editorViewRef}
+            code=""
+            currentLanguageAdapter="python"
+            onAfterToggleSQL={onAfterToggleSQL}
+            onAfterToggleMarkdown={onAfterToggleMarkdown}
+          />
+        </TooltipProvider>,
+      );
+
+      fireEvent.click(screen.getByRole("button", { name: "SQL" }));
+
+      expect(onAfterToggleSQL).toHaveBeenCalledOnce();
+      expect(onAfterToggleMarkdown).not.toHaveBeenCalled();
+
+      fireEvent.click(screen.getByRole("button", { name: "Markdown" }));
+
+      expect(onAfterToggleMarkdown).toHaveBeenCalledOnce();
+      expect(onAfterToggleSQL).toHaveBeenCalledOnce();
     } finally {
       view.destroy();
     }
