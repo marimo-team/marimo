@@ -17,8 +17,8 @@ if TYPE_CHECKING:
     from collections.abc import Callable
     from types import FrameType
 
-INTERRUPT_DEBOUNCE_SECONDS = 0.1
-SHUTDOWN_INTERRUPT_GRACE_SECONDS = 1.0
+_INTERRUPT_DEBOUNCE_SECONDS = 0.1
+_SHUTDOWN_INTERRUPT_GRACE_SECONDS = 1.0
 
 
 class InterruptHandler:
@@ -48,7 +48,7 @@ class InterruptHandler:
         # to force quit if teardown stalls.
         if (
             time.monotonic() - self._shutdown_started_at
-            >= SHUTDOWN_INTERRUPT_GRACE_SECONDS
+            >= _SHUTDOWN_INTERRUPT_GRACE_SECONDS
         ):
             signal.default_int_handler(signum, frame)
 
@@ -83,7 +83,7 @@ class InterruptHandler:
         if (
             self._time_of_last_confirmation is not None
             and (time.time() - self._time_of_last_confirmation)
-            < INTERRUPT_DEBOUNCE_SECONDS
+            < _INTERRUPT_DEBOUNCE_SECONDS
         ):
             # uv can send two SIGINTs for every one sent by the user's Ctrl+C;
             # this hack prevents us from spamming the user with confirm messages.
