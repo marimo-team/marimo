@@ -29,14 +29,20 @@ describe("outputExpansionConfigs", () => {
   });
 
   it("expands clamped cells with output and skips cells without output", () => {
+    // When expanding, cells without output are skipped since there is nothing
+    // to show; annotating them with expand_output: true would have no effect.
     expect(outputExpansionConfigs(notebook, true)).toEqual({
       [withOutput]: { expand_output: true },
     });
   });
 
-  it("clamps expanded cells with output and skips cells without output", () => {
+  it("clamps all expanded cells, including those without current output", () => {
+    // When clamping, expand_output: true must be cleared even on cells that
+    // currently have no output, because the flag persists and governs future
+    // renders — once the cell runs, its output would otherwise appear expanded.
     expect(outputExpansionConfigs(notebook, false)).toEqual({
       [expanded]: { expand_output: false },
+      [expandedWithoutOutput]: { expand_output: false },
     });
   });
 });
