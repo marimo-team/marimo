@@ -10,8 +10,14 @@ permissions:
 jobs:
   enforce-label:
     needs: validate-template
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     steps:
+      - name: Require valid pull request template
+        if: needs.validate-template.result != 'success'
+        run: |
+          echo "::error::Pull request template validation must pass before labels are checked."
+          exit 1
       - uses: yogevbd/enforce-label-action@a3c219da6b8fa73f6ba62b68ff09c469b3a1c024 # 2.2.2
         with:
           REQUIRED_LABELS_ANY: "enhancement,bug,documentation,internal,preview,dependencies,other"
@@ -41,17 +47,32 @@ jobs:
 
             const errors = [];
             const summary = (sections.get("summary") ?? "")
-              .replace(/^\s*Closes\s+#\s*$/gim, "")
+              .replace(/^[ \t]*(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?)[ \t]+(?:#\d*|https:\/\/github\.com\/[^\s]+\/issues\/\d+)[ \t]*\r?$/gim, "")
               .trim();
             if (!summary) {
               errors.push("Add a Summary section describing the problem and your changes.");
             }
 
-            for (const title of ["Pre-Review Checklist", "Merge Checklist"]) {
+            const checklists = new Map([
+              ["Pre-Review Checklist", [
+                "For large changes, or changes that affect the public API:",
+                "Any AI generated code has been reviewed line-by-line by the human PR author, who stands by it.",
+                "Video or media evidence is provided for any visual changes.",
+              ]],
+              ["Merge Checklist", [
+                "I have read the [contributor guidelines](",
+                "Documentation has been updated where applicable, including docstrings for API changes.",
+                "Tests have been added for the changes made.",
+              ]],
+            ]);
+            for (const [title, requiredItems] of checklists) {
               const section = sections.get(title.toLowerCase()) ?? "";
-              const items = section.match(/^[ \t]*-[ \t]+\[[ xX]\][ \t]+\S.*$/gm) ?? [];
-              if (items.length < 3) {
-                errors.push(`Include the ${title} section with all three checklist items.`);
+              const items = [...section.matchAll(/^[ \t]*-[ \t]+\[[ xX]\][ \t]+(\S.*)$/gm)]
+                .map((match) => match[1].trim());
+              for (const required of requiredItems) {
+                if (!items.some((item) => item.startsWith(required))) {
+                  errors.push(`Restore the ${title} item: ${required}`);
+                }
               }
             }
 
