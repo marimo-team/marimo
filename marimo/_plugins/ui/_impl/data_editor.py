@@ -206,6 +206,7 @@ class _EditableTable:
     conversion_examples: dict[str, Any]
     dtypes: dict[str, DType]
     column_types: ColumnTypes
+    has_row_changes: bool = False
 
     @classmethod
     def from_rows(
@@ -337,6 +338,7 @@ class _EditableTable:
         self._materialize_columns()
 
         if row_idx >= self.row_count:
+            self.has_row_changes = True
             new_row_count = row_idx + 1
             if isinstance(self.data, list):
                 self.data.extend(
@@ -373,6 +375,7 @@ class _EditableTable:
         row_idx = edit["rowIdx"]
         if edit["type"] != "remove" or not 0 <= row_idx < self.row_count:
             return
+        self.has_row_changes = True
         if isinstance(self.data, list):
             self.data.pop(row_idx)
         else:
@@ -826,6 +829,7 @@ def _apply_edits_dataframe(
 
     # TODO: We should try to find more performant methods of bulk edits for dataframes
     table = _EditableTable.from_columns(column_oriented, schema, column_types)
+    table.row_count = len(df)
     table.normalize_configured_columns()
     if (
         not edits["edits"]
@@ -843,6 +847,15 @@ def _apply_edits_dataframe(
             if column_type == "boolean"
         ).to_native()  # type: ignore[no-any-return]
     table.apply(edits)
+    if nw.dependencies.is_pandas_dataframe(native_df):
+        import pandas as pd
+
+        index = (
+            pd.RangeIndex(table.row_count)
+            if table.has_row_changes
+            else native_df.index
+        )
+        return pd.DataFrame(column_oriented, index=index)
     new_native_df = nw.from_dict(
         column_oriented, backend=nw.get_native_namespace(df)
     ).to_native()
