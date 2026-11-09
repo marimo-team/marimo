@@ -7,9 +7,13 @@ import { createRef, type ReducerWithoutAction } from "react";
 import type { CellHandle } from "@/components/editor/notebook-cell";
 import type { EditableDocument, Placement } from "@/core/notebook/document";
 import {
+  type CellOutput,
   cellExecutionInputsAtom,
   cellExecutionView,
   cellFreshnessAtom,
+  cellOutlineAtom,
+  cellOutputAtom,
+  releaseCellOutputAtoms,
 } from "@/core/executions";
 import type { CellColumnId } from "./layout";
 import { invariant } from "@/utils/invariant";
@@ -37,6 +41,7 @@ import {
   type CellRuntimeState,
   createCell,
   createCellRuntimeState,
+  type RuntimeCell,
 } from "./types";
 import {
   canUndoDeletes,
@@ -230,8 +235,8 @@ const {
     });
   },
   /**
-   * Start each cell's runtime over for a new kernel. WASM keeps the outputs
-   * its mount-time snapshot gave it.
+   * Start each cell's runtime over for a new kernel. WASM keeps the console
+   * output its mount-time snapshot gave it.
    */
   resetCellRuntimes: (state) => {
     const preserveSnapshot = isWasm();
@@ -241,7 +246,7 @@ const {
       const hasSnapshot =
         preserveSnapshot &&
         previous !== undefined &&
-        (previous.output != null || previous.consoleOutputs.length > 0);
+        previous.consoleOutputs.length > 0;
       cellRuntime[cellId] = hasSnapshot ? previous : createCellRuntimeState();
     }
     return { ...state, cellRuntime };
@@ -291,18 +296,6 @@ const {
       cellLogs: [],
     };
   },
-  clearCellOutput: (state, action: { cellId: CellId }) => {
-    const { cellId } = action;
-    return updateCellRuntimeState({
-      state,
-      cellId,
-      cellReducer: (cell) => ({
-        ...cell,
-        output: null,
-        consoleOutputs: [],
-      }),
-    });
-  },
   clearCellConsoleOutput: (state, action: { cellId: CellId }) => {
     const { cellId } = action;
     return updateCellRuntimeState({
@@ -316,20 +309,6 @@ const {
         ),
       }),
     });
-  },
-  clearAllCellOutputs: (state) => {
-    const newCellRuntime = { ...state.cellRuntime };
-    for (const cellId of state.cellIds) {
-      newCellRuntime[cellId] = {
-        ...newCellRuntime[cellId],
-        output: null,
-        consoleOutputs: [],
-      };
-    }
-    return {
-      ...state,
-      cellRuntime: newCellRuntime,
-    };
   },
 });
 
@@ -397,23 +376,23 @@ export const needsRunAtom = atom((get) =>
 );
 
 export const cellErrorsAtom = atom((get) => {
-  const { cellIds, cellRuntime, cellData } = get(notebookAtom);
+  const { cellIds, cellData } = get(notebookAtom);
   const errors = cellIds
     .map((cellId) => {
-      const cell = cellRuntime[cellId];
+      const output = get(cellOutputAtom(cellId));
       const { name } = cellData[cellId];
-      if (isErrorMime(cell.output?.mimetype)) {
+      if (output !== null && isErrorMime(output.mimetype)) {
         // Filter out ancestor-stopped errors
         // These are errors that are caused by a cell that was stopped,
         // but nothing the user can take action on.
-        invariant(Array.isArray(cell.output.data), "Expected array data");
-        const nonAncestorErrors = cell.output.data.filter(
+        invariant(Array.isArray(output.data), "Expected array data");
+        const nonAncestorErrors = output.data.filter(
           (error) => !error.type.includes("ancestor"),
         );
 
         if (nonAncestorErrors.length > 0) {
           return {
-            output: { ...cell.output, data: nonAncestorErrors },
+            output: { ...output, data: nonAncestorErrors },
             cellId: cellId,
             cellName: name,
           };
@@ -428,28 +407,25 @@ export const cellErrorsAtom = atom((get) => {
 
 /**
  * The outline of each cell whose output has a heading. Compared by value, so
- * readers are left alone by the runtime messages that change no heading.
+ * readers are left alone by the runs that change no heading.
  */
 export const cellOutlinesAtom = createDeepEqualAtom(
   atom((get) => {
     const outlines: Partial<Record<CellId, Outline>> = {};
-    for (const [id, runtime] of Objects.entries(
-      get(notebookAtom).cellRuntime,
-    )) {
-      if (runtime.outline !== null && runtime.outline.items.length > 0) {
-        outlines[id] = runtime.outline;
+    for (const cellId of get(cellIdsAtom)) {
+      const outline = get(cellOutlineAtom(cellId));
+      if (outline !== null && outline.items.length > 0) {
+        outlines[cellId] = outline;
       }
     }
     return outlines;
   }),
 );
 
-export const notebookOutline = atom((get) => {
-  const cellIds = get(cellIdsAtom);
-  const cellRuntime = get(cellsRuntimeAtom);
-  const outlines = cellIds.map((cellId) => cellRuntime[cellId].outline);
-  return mergeOutlines(outlines);
-});
+/** The notebook's table of contents, in document order. */
+export const notebookOutline = atom((get) =>
+  mergeOutlines(get(cellIdsAtom).map((cellId) => get(cellOutlineAtom(cellId)))),
+);
 
 export const cellErrorCount = atom((get) => get(cellErrorsAtom).length);
 
@@ -524,8 +500,6 @@ const cellDataAtoms = splitAtom(
 );
 export const useCellDataAtoms = () => useAtom(cellDataAtoms);
 
-export const cellsRuntimeAtom = atom((get) => get(notebookAtom).cellRuntime);
-
 export const hasCellsAtom = atom((get) => get(notebookAtom).cellIds.length > 0);
 export const cellDataAtom = atomFamily((cellId: CellId) =>
   atom((get) => get(notebookAtom).cellData[cellId]),
@@ -550,6 +524,7 @@ export function releaseCellAtoms(cellId: CellId) {
   cellDataAtom.remove(cellId);
   cellRuntimeAtom.remove(cellId);
   cellHandleAtom.remove(cellId);
+  releaseCellOutputAtoms(cellId);
 }
 
 /** Subscribes to reactive updates of the cell's data. */
@@ -587,13 +562,16 @@ export const ensureCellEditorView = (cellId: CellId) => {
   return getCellEditorView(cellId);
 };
 
+/** The document's cells with their runtime state and what each shows. */
 export function flattenTopLevelNotebookCells(
   state: NotebookState,
-): (CellData & CellRuntimeState)[] {
+  outputs: ReadonlyMap<CellId, CellOutput>,
+): RuntimeCell[] {
   const { cellIds, cellData, cellRuntime } = state;
   return cellIds.map((cellId) => ({
     ...cellData[cellId],
     ...cellRuntime[cellId],
+    output: outputs.get(cellId) ?? null,
   }));
 }
 
@@ -630,7 +608,7 @@ export function createTracebackInfoAtom(
     }
 
     // Syntax errors
-    const output = data.output;
+    const output = get(cellOutputAtom(cellId));
     if (output?.mimetype === "application/vnd.marimo+error") {
       const errors = output.data;
       if (Array.isArray(errors)) {

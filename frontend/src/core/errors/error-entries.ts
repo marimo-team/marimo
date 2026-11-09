@@ -3,7 +3,12 @@
 import { notebookAtom } from "@/core/cells/cells";
 import type { CellId } from "@/core/cells/ids";
 import { displayCellName } from "@/core/cells/names";
-import type { MarimoError, OutputMessage } from "@/core/kernel/messages";
+import {
+  type CellError,
+  type CellOutput,
+  cellOutputAtom,
+} from "@/core/executions";
+import type { OutputMessage } from "@/core/kernel/messages";
 import { isErrorMime, isMarimoErrorsMime, isTracebackMime } from "@/core/mime";
 import type { JotaiStore } from "@/core/state/jotai";
 import { logNever } from "@/utils/assertNever";
@@ -13,12 +18,12 @@ export interface CellErrorEntry {
   cellId: CellId;
   cellName: string;
   cellCode: string;
-  errorData: MarimoError[];
+  errorData: CellError[];
   tracebackHtml?: string;
 }
 
 function parseCellErrorOutput(
-  output: OutputMessage,
+  output: CellOutput,
 ): Pick<CellErrorEntry, "errorData" | "tracebackHtml"> | null {
   if (isMarimoErrorsMime(output.mimetype)) {
     if (!Array.isArray(output.data)) {
@@ -43,7 +48,7 @@ function parseCellErrorOutput(
   return null;
 }
 
-function errorDataHasTraceback(errorData: MarimoError[]): boolean {
+function errorDataHasTraceback(errorData: readonly CellError[]): boolean {
   return errorData.some((error) => "traceback" in error && error.traceback);
 }
 
@@ -81,9 +86,8 @@ export function getCellErrorEntries(store: JotaiStore): CellErrorEntry[] {
   const entries: CellErrorEntry[] = [];
 
   for (const [cellIndex, cellId] of cellIds.entries()) {
-    const cell = cellRuntime[cellId];
-    const output = cell.output;
-    if (!output || !isErrorMime(output.mimetype)) {
+    const output = store.get(cellOutputAtom(cellId));
+    if (output === null || !isErrorMime(output.mimetype)) {
       continue;
     }
 
@@ -93,7 +97,7 @@ export function getCellErrorEntries(store: JotaiStore): CellErrorEntry[] {
     }
 
     const cellName = displayCellName(cellData[cellId].name, cellIndex);
-    // The source that raised, since the cell may have been edited since.
+    // The source that raised, while the host still has it.
     const cellCode = output.code ?? cellData[cellId].code;
 
     entries.push({
@@ -101,14 +105,20 @@ export function getCellErrorEntries(store: JotaiStore): CellErrorEntry[] {
       cellName,
       cellCode,
       errorData: parsed.errorData,
-      tracebackHtml: resolveTracebackHtml(parsed, cell.consoleOutputs),
+      tracebackHtml: resolveTracebackHtml(
+        parsed,
+        cellRuntime[cellId].consoleOutputs,
+      ),
     });
   }
 
   return entries;
 }
 
-export function describeError(error: MarimoError): string {
+export function describeError(error: CellError): string {
+  if (error.type === "diagnostic") {
+    return error.msg;
+  }
   if (error.type === "setup-refs") {
     return "The setup cell cannot have references";
   }
@@ -155,7 +165,7 @@ export function describeError(error: MarimoError): string {
   return "Unknown error";
 }
 
-export function formatSingleError(error: MarimoError): string {
+export function formatSingleError(error: CellError): string {
   let text = describeError(error);
   if ("traceback" in error && error.traceback) {
     text += `\n\nTraceback:\n${parseHtmlContent(error.traceback)}`;

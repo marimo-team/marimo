@@ -1,12 +1,23 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 /* oxlint-disable typescript/no-explicit-any */
 
+import type * as Protocol from "@marimo-team/client/protocol";
 import { createStore } from "jotai";
 import { beforeEach, describe, expect, it } from "vitest";
 import { MockNotebook } from "@/__mocks__/notebook";
 import { notebookAtom } from "@/core/cells/cells";
 import { type CellId, CellId as CellIdClass } from "@/core/cells/ids";
 import { ErrorContextProvider } from "../error";
+
+const SYNTAX: Partial<Protocol.Error> = {
+  kind: "invalid-syntax",
+  message: "Invalid syntax",
+};
+const RUNTIME: Partial<Protocol.Error> = {
+  kind: "exception",
+  name: "RuntimeError",
+  message: "Runtime error",
+};
 
 describe("ErrorContextProvider", () => {
   let provider: ErrorContextProvider;
@@ -18,11 +29,8 @@ describe("ErrorContextProvider", () => {
   });
 
   const createMockNotebookWithErrors = (
-    errors: Parameters<typeof MockNotebook.notebookStateWithErrors>[0],
-  ) => {
-    const notebookState = MockNotebook.notebookStateWithErrors(errors);
-    store.set(notebookAtom, notebookState);
-  };
+    errors: Parameters<typeof MockNotebook.withErrors>[1],
+  ) => MockNotebook.withErrors(store, errors);
 
   describe("provider properties", () => {
     it("should have correct provider properties", () => {
@@ -43,16 +51,8 @@ describe("ErrorContextProvider", () => {
       const cellId2 = CellIdClass.create();
 
       createMockNotebookWithErrors([
-        {
-          cellId: cellId1,
-          cellName: "Cell 1",
-          errorData: [MockNotebook.errors.syntax("Invalid syntax")],
-        },
-        {
-          cellId: cellId2,
-          cellName: "Cell 2",
-          errorData: [MockNotebook.errors.exception("Runtime error")],
-        },
+        { cellId: cellId1, cellName: "Cell 1", error: SYNTAX },
+        { cellId: cellId2, cellName: "Cell 2", error: RUNTIME },
       ]);
 
       const items = provider.getItems();
@@ -95,13 +95,7 @@ describe("ErrorContextProvider", () => {
     it("should handle cells without names", () => {
       const cellId = CellIdClass.create();
 
-      createMockNotebookWithErrors([
-        {
-          cellId,
-          cellName: "",
-          errorData: [MockNotebook.errors.syntax("Invalid syntax")],
-        },
-      ]);
+      createMockNotebookWithErrors([{ cellId, cellName: "", error: SYNTAX }]);
 
       const items = provider.getItems();
       expect(items[1].data).toMatchObject({
@@ -119,16 +113,8 @@ describe("ErrorContextProvider", () => {
       const cellId2 = CellIdClass.create();
 
       createMockNotebookWithErrors([
-        {
-          cellId: cellId1,
-          cellName: "Cell 1",
-          errorData: [MockNotebook.errors.syntax("Invalid syntax")],
-        },
-        {
-          cellId: cellId2,
-          cellName: "Cell 2",
-          errorData: [MockNotebook.errors.exception("Runtime error")],
-        },
+        { cellId: cellId1, cellName: "Cell 1", error: SYNTAX },
+        { cellId: cellId2, cellName: "Cell 2", error: RUNTIME },
       ]);
 
       const items = provider.getItems();
@@ -169,11 +155,7 @@ describe("ErrorContextProvider", () => {
       const cellId = CellIdClass.create();
 
       createMockNotebookWithErrors([
-        {
-          cellId,
-          cellName: "Cell 1",
-          errorData: [MockNotebook.errors.syntax("Invalid syntax")],
-        },
+        { cellId, cellName: "Cell 1", error: SYNTAX },
       ]);
 
       const items = provider.getItems();
@@ -185,11 +167,7 @@ describe("ErrorContextProvider", () => {
       const cellId = CellIdClass.create();
 
       createMockNotebookWithErrors([
-        {
-          cellId,
-          cellName: "Cell 1",
-          errorData: [MockNotebook.errors.syntax("Invalid syntax")],
-        },
+        { cellId, cellName: "Cell 1", error: SYNTAX },
       ]);
 
       const items = provider.getItems();
@@ -230,11 +208,7 @@ describe("ErrorContextProvider", () => {
       const cellId = CellIdClass.create();
 
       createMockNotebookWithErrors([
-        {
-          cellId,
-          cellName: "Cell 1",
-          errorData: [MockNotebook.errors.syntax("Invalid syntax")],
-        },
+        { cellId, cellName: "Cell 1", error: SYNTAX },
       ]);
 
       const items = provider.getItems();
@@ -243,26 +217,19 @@ describe("ErrorContextProvider", () => {
       expect(context).toContain("Code:");
     });
 
-    it("should format context for multiple error types", () => {
+    it("should format context for several kinds of error", () => {
       const cellId1 = "cell-1" as CellId;
       const cellId2 = "cell-2" as CellId;
 
       createMockNotebookWithErrors([
-        {
-          cellId: cellId1,
-          cellName: "Cell 1",
-          errorData: [
-            MockNotebook.errors.syntax("Invalid syntax"),
-            MockNotebook.errors.exception("Runtime error"),
-          ],
-        },
+        { cellId: cellId1, cellName: "Cell 1", error: SYNTAX },
         {
           cellId: cellId2,
           cellName: "",
-          errorData: [
-            MockNotebook.errors.cycle(),
-            MockNotebook.errors.multipleDefs("variable_x"),
-          ],
+          error: {
+            kind: "cycle-dependencies",
+            message: "This cell is in a cycle",
+          },
         },
       ]);
 
@@ -270,23 +237,13 @@ describe("ErrorContextProvider", () => {
       const context = provider.formatContext(items[0]);
 
       expect(context).toContain("Invalid syntax");
-      expect(context).toContain("Runtime error");
       expect(context).toContain("This cell is in a cycle");
-      expect(context).toContain(
-        "The variable 'variable_x' was defined by another cell",
-      );
     });
 
     it("should handle cells without names", () => {
       const cellId = CellIdClass.create();
 
-      createMockNotebookWithErrors([
-        {
-          cellId,
-          cellName: "",
-          errorData: [MockNotebook.errors.syntax("Invalid syntax")],
-        },
-      ]);
+      createMockNotebookWithErrors([{ cellId, cellName: "", error: SYNTAX }]);
 
       const items = provider.getItems();
       const context = provider.formatContext(items[1]);
@@ -301,15 +258,15 @@ describe("ErrorContextProvider", () => {
         {
           cellId,
           cellName: "Cell 1",
-          errorData: [
-            {
-              type: "exception",
-              msg: "boom",
-              exception_type: "ValueError",
-              raising_cell: null,
-              traceback: "<pre>line 1\nline 2</pre>",
+          error: {
+            kind: "exception",
+            name: "ValueError",
+            message: "boom",
+            traceback: {
+              mimetype: "text/html",
+              data: "<pre>line 1\nline 2</pre>",
             },
-          ],
+          },
         },
       ]);
 
@@ -320,61 +277,18 @@ describe("ErrorContextProvider", () => {
       expect(context).toContain("line 2");
     });
 
-    it("includes traceback-only cell outputs", () => {
-      const cellId = CellIdClass.create();
-      const notebookState = MockNotebook.notebookState({
-        cellData: {
-          [cellId]: {
-            name: "Cell 1",
-            code: "raise ValueError('boom')",
-          },
-        },
-      });
-      notebookState.cellRuntime[cellId] = {
-        ...notebookState.cellRuntime[cellId],
-        output: {
-          channel: "marimo-error",
-          data: "<pre>ValueError: boom\n  line 1</pre>",
-          mimetype: "application/vnd.marimo+traceback",
-          timestamp: Date.now(),
-        },
-      };
-      store.set(notebookAtom, notebookState);
-
-      const items = provider.getItems();
-      expect(items).toHaveLength(2);
-      expect(items[1].description).toBe("ValueError: boom");
-      const context = provider.formatContext(items[1]);
-      expect(context).toContain("raise ValueError('boom')");
-      expect(context).toContain("ValueError: boom");
-      expect(context).toContain("line 1");
-    });
-
     it("includes console tracebacks for marimo error outputs", () => {
       const cellId = CellIdClass.create();
-      const notebookState = MockNotebook.notebookState({
-        cellData: {
-          [cellId]: {
-            name: "Cell 1",
-            code: "raise ValueError('boom')",
-          },
+      const notebookState = createMockNotebookWithErrors([
+        {
+          cellId,
+          cellName: "Cell 1",
+          code: "raise ValueError('boom')",
+          error: { kind: "exception", name: "ValueError", message: "boom" },
         },
-      });
+      ]);
       notebookState.cellRuntime[cellId] = {
         ...notebookState.cellRuntime[cellId],
-        output: {
-          channel: "marimo-error",
-          data: [
-            {
-              type: "exception",
-              msg: "boom",
-              exception_type: "ValueError",
-              raising_cell: null,
-            },
-          ],
-          mimetype: "application/vnd.marimo+error",
-          timestamp: Date.now(),
-        },
         consoleOutputs: [
           {
             channel: "stderr",
@@ -396,30 +310,24 @@ describe("ErrorContextProvider", () => {
 
     it("does not duplicate console traceback when error already has one", () => {
       const cellId = CellIdClass.create();
-      const notebookState = MockNotebook.notebookState({
-        cellData: {
-          [cellId]: {
-            name: "Cell 1",
-            code: "raise ValueError('boom')",
+      const notebookState = createMockNotebookWithErrors([
+        {
+          cellId,
+          cellName: "Cell 1",
+          code: "raise ValueError('boom')",
+          error: {
+            kind: "exception",
+            name: "ValueError",
+            message: "boom",
+            traceback: {
+              mimetype: "text/html",
+              data: "<pre>embedded line 1</pre>",
+            },
           },
         },
-      });
+      ]);
       notebookState.cellRuntime[cellId] = {
         ...notebookState.cellRuntime[cellId],
-        output: {
-          channel: "marimo-error",
-          data: [
-            {
-              type: "exception",
-              msg: "boom",
-              exception_type: "ValueError",
-              raising_cell: null,
-              traceback: "<pre>embedded line 1</pre>",
-            },
-          ],
-          mimetype: "application/vnd.marimo+error",
-          timestamp: Date.now(),
-        },
         consoleOutputs: [
           {
             channel: "stderr",
@@ -445,56 +353,41 @@ describe("ErrorContextProvider", () => {
   });
 
   describe("error description handling", () => {
-    it("should handle all error types correctly", () => {
-      // Note: ancestor-* error types are intentionally filtered out by cellErrorsAtom
-      const errorTypes = [
+    it("describes each kind of host error", () => {
+      const errors: { error: Partial<Protocol.Error>; expected: string }[] = [
         {
-          error: MockNotebook.errors.setupRefs(),
-          expected: "The setup cell cannot have references",
-        },
-        {
-          error: MockNotebook.errors.cycle(),
-          expected: "This cell is in a cycle",
-        },
-        {
-          error: MockNotebook.errors.multipleDefs("var_x"),
-          expected: "The variable 'var_x' was defined by another cell",
-        },
-        {
-          error: MockNotebook.errors.importStar("Import star error"),
-          expected: "Import star error",
-        },
-        {
-          error: MockNotebook.errors.exception("Runtime exception"),
+          error: { kind: "exception", message: "Runtime exception" },
           expected: "Runtime exception",
         },
         {
-          error: MockNotebook.errors.strictException("Strict exception", "ref"),
-          expected: "Strict exception",
-        },
-        {
-          error: MockNotebook.errors.interruption(),
-          expected: "This cell was interrupted and needs to be re-run",
-        },
-        {
-          error: MockNotebook.errors.syntax("Syntax error"),
+          error: { kind: "invalid-syntax", message: "Syntax error" },
           expected: "Syntax error",
         },
         {
-          error: MockNotebook.errors.unknown("Unknown error"),
+          error: { kind: "interrupted", message: "" },
+          expected: "This cell was interrupted and needs to be re-run",
+        },
+        {
+          error: { kind: "internal", message: "Unknown error" },
           expected: "Unknown error",
+        },
+        {
+          // Any other kind is a diagnostic, shown as the host wrote it.
+          error: {
+            kind: "multiple-definitions",
+            message: "x is defined twice",
+          },
+          expected: "x is defined twice",
         },
       ];
 
-      for (const { error, expected } of errorTypes) {
+      for (const { error, expected } of errors) {
         // Create a fresh store and provider for each error type
         const testStore = createStore();
         const testProvider = new ErrorContextProvider(testStore);
-
-        const { notebookState } = MockNotebook.cellWithErrors("Cell 1", [
-          error,
+        MockNotebook.withErrors(testStore, [
+          { cellId: CellIdClass.create(), cellName: "Cell 1", error },
         ]);
-        testStore.set(notebookAtom, notebookState);
 
         const items = testProvider.getItems();
         // One "all-errors" item plus one per-cell error item.
@@ -502,16 +395,6 @@ describe("ErrorContextProvider", () => {
         const context = testProvider.formatContext(items[0]);
         expect(context).toContain(expected);
       }
-    });
-
-    it("should handle unknown error type gracefully", () => {
-      const error = { type: "unknown-type" as any };
-      const { notebookState } = MockNotebook.cellWithErrors("Cell 1", [error]);
-      store.set(notebookAtom, notebookState);
-
-      const items = provider.getItems();
-      const context = provider.formatContext(items[0]);
-      expect(context).toContain("Unknown error");
     });
   });
 });

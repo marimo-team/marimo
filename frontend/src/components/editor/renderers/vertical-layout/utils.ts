@@ -1,7 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { isOutputEmpty } from "@/core/cells/outputs";
-import type { CellData, CellRuntimeState } from "@/core/cells/types";
+import type { RuntimeCell } from "@/core/cells/types";
 import { MarkdownLanguageAdapter } from "@/core/codemirror/language/languages/markdown";
 import { KnownQueryParams } from "@/core/constants";
 import type { OutputMessage } from "@/core/kernel/messages";
@@ -42,10 +42,10 @@ export function updateShowCodeQueryParam(showCode: boolean): void {
 }
 
 export function groupCellsByColumn(
-  cells: (CellRuntimeState & CellData)[],
-): [number, (CellRuntimeState & CellData)[]][] {
+  cells: RuntimeCell[],
+): [number, RuntimeCell[]][] {
   // Group cells by column
-  const cellsByColumn = new Map<number, (CellRuntimeState & CellData)[]>();
+  const cellsByColumn = new Map<number, RuntimeCell[]>();
   let lastSeenColumn = 0;
   cells.forEach((cell) => {
     const column = cell.config.column ?? lastSeenColumn;

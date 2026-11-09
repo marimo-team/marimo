@@ -17,6 +17,9 @@ import type { NotebookResource } from "@marimo-team/client";
  * it completes once. Cells precede their executions on the stream, so a
  * completion for a cell without an entry belongs to a cell the document
  * no longer has.
+ *
+ * An execution the host skipped as superseded never ran, and a newer one
+ * for the same cell is on its way, so it does not replace the result.
  */
 export type Results = ReadonlyMap<Protocol.CellId, Protocol.Execution | null>;
 
@@ -38,7 +41,9 @@ export const results: NotebookResource<Results, "cell" | "execution"> = {
       if (
         cellId === null ||
         execution.status !== "completed" ||
-        !state.has(cellId)
+        !state.has(cellId) ||
+        (execution.outcome?.kind === "skipped" &&
+          execution.outcome.reason === "superseded")
       ) {
         return state;
       }
