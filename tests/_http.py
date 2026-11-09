@@ -27,6 +27,7 @@ class HTTPEndpoint:
     body: bytes = b"response"
     delay: float = 0
     chunk_delay: float = 0
+    header_chunk_delay: float = 0
     content_length: int | None = None
     headers: dict[str, str] = field(default_factory=dict)
     requests: list[RecordedHTTPRequest] = field(default_factory=list)
@@ -37,6 +38,16 @@ def http_test_server() -> Iterator[HTTPEndpoint]:
     state = HTTPEndpoint()
 
     class Handler(BaseHTTPRequestHandler):
+        def flush_headers(self) -> None:
+            if not state.header_chunk_delay:
+                super().flush_headers()
+                return
+            for byte in b"".join(self._headers_buffer):
+                time.sleep(state.header_chunk_delay)
+                self.wfile.write(bytes([byte]))
+                self.wfile.flush()
+            self._headers_buffer.clear()
+
         def log_message(self, *_args: object) -> None:
             pass
 

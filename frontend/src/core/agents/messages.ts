@@ -5,6 +5,9 @@ import type { StableSessionId } from "@/core/kernel/session";
 import { API } from "@/core/network/api";
 import { HTTPError } from "@/utils/errors";
 
+const SUBMISSION_WAIT_SECONDS = 30;
+const RESPONSE_MARGIN_MS = 1_000;
+
 const sendResultSchema = z.object({
   recipients: z
     .array(
@@ -26,9 +29,10 @@ export type SendResult = z.infer<typeof sendResultSchema>;
 export type AgentRecipient = { to: string } | { broadcast: true };
 
 export class SendOutcomeUnknownError extends Error {
-  public constructor() {
+  public constructor(cause?: unknown) {
     super(
       "The submission outcome is unknown. Another send can duplicate the message.",
+      { cause },
     );
   }
 }
@@ -42,8 +46,12 @@ export async function sendAgentMessage(
   try {
     const result = await API.post<unknown, unknown>(
       `/pair/notebooks/${encodeURIComponent(sessionId)}/messages`,
-      { message: content, ...recipient },
-      { signal: AbortSignal.timeout(30_000) },
+      { message: content, ...recipient, timeout: SUBMISSION_WAIT_SECONDS },
+      {
+        signal: AbortSignal.timeout(
+          SUBMISSION_WAIT_SECONDS * 1000 + RESPONSE_MARGIN_MS,
+        ),
+      },
     );
     return sendResultSchema.parse(result);
   } catch (error) {
@@ -55,6 +63,6 @@ export async function sendAgentMessage(
     ) {
       throw error;
     }
-    throw new SendOutcomeUnknownError();
+    throw new SendOutcomeUnknownError(error);
   }
 }

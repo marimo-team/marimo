@@ -172,6 +172,8 @@ def send(message: Any, *, to: str, timeout: float = 30.0) -> SendResult:
 
     A timeout stops the wait. It does not cancel delivery. An unknown outcome
     means that another send can duplicate the message.
+    Other clients with access to the notebook event stream can observe the
+    message. Recipient selection does not restrict stream visibility.
     """
     timeout = validate_timeout(timeout)
     validate_recipient(to)

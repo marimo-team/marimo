@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass, field
+from threading import TIMEOUT_MAX
 from typing import Any, Literal
 
 import msgspec
@@ -85,6 +86,8 @@ def validate_timeout(timeout: float) -> float:
         raise ValueError("timeout must be positive and finite") from error
     if not math.isfinite(value) or value <= 0:
         raise ValueError("timeout must be positive and finite")
+    if value > TIMEOUT_MAX:
+        raise ValueError("timeout exceeds the platform limit")
     return value
 
 

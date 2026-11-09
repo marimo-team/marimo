@@ -62,7 +62,11 @@ const ROUTE = "/pair/notebooks/stable%2Ftest/messages";
 const SUBMITTED: SendResult = {
   recipients: [{ agent_id: "pi-thread", status: "submitted", detail: null }],
 };
-const requestFor = (message: unknown) => ({ message, to: "pi-thread" });
+const requestFor = (message: unknown) => ({
+  message,
+  to: "pi-thread",
+  timeout: 30,
+});
 const MESSAGE = "df is not defined";
 const CODE = "df.head()";
 const REPORT: CellOutputMessage<ErrorMessageOutput> = {

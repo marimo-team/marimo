@@ -29,7 +29,6 @@ from marimo._cli.pair.client import (
     _endpoint_url,
     iter_sse,
     open_events,
-    open_response,
     pump_events,
 )
 from marimo._cli.pair.connection import Connection, ConnectionStore
@@ -42,6 +41,7 @@ from marimo._messaging.agents import (
     SubmissionReport,
 )
 from marimo._messaging.messages import AGENT_MESSAGE_TYPE
+from marimo._utils.requests import RequestError, request
 from marimo._utils.subprocess import kill_subprocess
 
 if TYPE_CHECKING:
@@ -53,6 +53,7 @@ _LOGGER = logging.getLogger(__name__)
 _LIVENESS_SECONDS = 15.0
 _BURST_SECONDS = 1.0
 _RECONNECT_MAX_SECONDS = 5.0
+_REPORT_TIMEOUT_SECONDS = 5.0
 
 
 @dataclass(frozen=True)
@@ -203,17 +204,20 @@ def _report(
     if config.token is not None:
         headers["Authorization"] = f"Bearer {config.token}"
     try:
-        response = open_response(
-            method="POST",
-            url=_endpoint_url(
+        response = request(
+            "POST",
+            _endpoint_url(
                 config.url,
                 f"/notebooks/{quote(config.notebook, safe='')}/agent-messages/report",
             ),
             headers=headers,
-            body=msgspec.json.encode(report),
+            data=msgspec.json.encode(report),
+            deadline=time.monotonic() + _REPORT_TIMEOUT_SECONDS,
+            max_response_bytes=64 * 1024,
         )
-        response.close()
-    except (PairError, OSError, http.client.HTTPException):
+        if response.status_code >= 300:
+            raise RequestError("The host rejected the submission report.")
+    except RequestError:
         # A lost report never authorizes another native submission.
         _LOGGER.warning(
             "The submission result could not reach the notebook host."
@@ -331,6 +335,8 @@ def run_forwarder(
                             http.client.HTTPException,
                         ),
                     ):
+                        if isinstance(event, PairError):
+                            raise event
                         raise PairError(
                             "The agent message stream could not continue."
                         ) from event

@@ -47,7 +47,11 @@ const ROUTE = "/pair/notebooks/stable%2Ftest/messages";
 const SUBMITTED: SendResult = {
   recipients: [{ agent_id: "pi-thread", status: "submitted", detail: null }],
 };
-const requestFor = (message: unknown) => ({ message, to: "pi-thread" });
+const requestFor = (message: unknown) => ({
+  message,
+  to: "pi-thread",
+  timeout: 30,
+});
 const REPORT = { type: "selection", rows: [1, 3] };
 
 function renderButton({
@@ -169,6 +173,29 @@ describe("SendToAgentButton", () => {
     expect(screen.getByRole("button")).toBeEnabled();
   });
 
+  it("uses the menu's distinct labels in broadcast results", async () => {
+    vi.mocked(API.post).mockResolvedValue({
+      recipients: [
+        { agent_id: "pi-thread", status: "submitted", detail: null },
+        { agent_id: "another-thread", status: "submitted", detail: null },
+      ],
+    });
+    renderButton({
+      attachments: [AGENT, { ...AGENT, id: "a2", identity: "another-thread" }],
+    });
+    fireEvent.keyDown(screen.getByRole("button"), { key: "ArrowDown" });
+    fireEvent.click(
+      await screen.findByRole("menuitem", { name: "Send to all agents" }),
+    );
+    await waitFor(() =>
+      expect(toast).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: "Submitted to Pi (pi-thread), Pi (another-thread)",
+        }),
+      ),
+    );
+  });
+
   it("offers distinct recipients and explicit broadcast through the keyboard", async () => {
     renderButton({
       attachments: [AGENT, { ...AGENT, id: "a2", identity: "another-thread" }],
@@ -188,7 +215,7 @@ describe("SendToAgentButton", () => {
     await waitFor(() =>
       expect(API.post).toHaveBeenCalledWith(
         ROUTE,
-        { message: REPORT, to: "another-thread" },
+        { message: REPORT, to: "another-thread", timeout: 30 },
         expect.objectContaining({ signal: expect.any(AbortSignal) }),
       ),
     );
@@ -218,7 +245,7 @@ describe("SendToAgentButton", () => {
     await waitFor(() =>
       expect(API.post).toHaveBeenCalledWith(
         ROUTE,
-        { message: REPORT, broadcast: true },
+        { message: REPORT, broadcast: true, timeout: 30 },
         expect.objectContaining({ signal: expect.any(AbortSignal) }),
       ),
     );

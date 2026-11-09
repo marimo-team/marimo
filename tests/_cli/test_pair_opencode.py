@@ -519,3 +519,13 @@ def test_detached_forwarder_to_opencode(
             assert "private-password" not in store.path(identity).read_text()
         finally:
             store.stop(identity)
+
+
+@pytest.mark.parametrize("status", [401, 403])
+def test_discovery_refusal_is_not_a_submission(http_endpoint, status):
+    from marimo._cli.pair.harnesses.opencode import _Info, _request
+
+    http_endpoint.status = status
+    with pytest.raises(PairError) as caught:
+        _request(http_endpoint.url + "/api/info", None, _Info)
+    assert not isinstance(caught.value, SubmissionRejectedError)

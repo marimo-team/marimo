@@ -320,21 +320,39 @@ def test_pair_events_route_is_removed(
 
 
 @pytest.mark.parametrize(
-    "operation", ["messages", "attachments/detach", "agents/subscriptions"]
+    ("method", "operation"),
+    [
+        ("POST", "messages"),
+        ("POST", "attachments/detach"),
+        ("POST", "agents/subscriptions"),
+        ("GET", "agents"),
+    ],
 )
 def test_routes_require_authentication(
-    client: TestClient, target: tuple[SessionImpl, Notebook], operation: str
+    client: TestClient,
+    target: tuple[SessionImpl, Notebook],
+    method: str,
+    operation: str,
 ) -> None:
     session, notebook = target
-    response = client.post(path(session, operation), json={})
+    response = client.request(method, path(session, operation))
     assert (response.status_code, notebook.attachments) == (401, [])
 
 
 @pytest.mark.parametrize(
-    "operation", ["messages", "attachments/detach", "agents/subscriptions"]
+    ("method", "operation"),
+    [
+        ("POST", "messages"),
+        ("POST", "attachments/detach"),
+        ("POST", "agents/subscriptions"),
+        ("GET", "agents"),
+    ],
 )
 def test_routes_require_edit_mode(
-    client: TestClient, target: tuple[SessionImpl, Notebook], operation: str
+    client: TestClient,
+    target: tuple[SessionImpl, Notebook],
+    method: str,
+    operation: str,
 ) -> None:
     session, _ = target
     manager = get_session_manager(client)
@@ -342,8 +360,8 @@ def test_routes_require_edit_mode(
     headers = token_header(str(manager.auth_token))
     assert client.get("/api/version", headers=headers).status_code == 200
     assert (
-        client.post(
-            path(session, operation), json={}, headers=headers
+        client.request(
+            method, path(session, operation), headers=headers
         ).status_code
         == 401
     )

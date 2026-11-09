@@ -229,7 +229,11 @@ async def _agent_message_report(request: Request) -> Response:
         report,
         request.headers.get(REPORT_KEY_HEADER, ""),
     )
-    return Response(status_code=204 if accepted else 409)
+    if not accepted:
+        return problem(
+            409, "conflict", "The submission report is no longer accepted"
+        )
+    return Response(status_code=204)
 
 
 def editor_routes(base_url: str = "") -> list[BaseRoute]:

@@ -37,6 +37,14 @@ export function SendToAgentButton({
   const sessionId = useAtomValue(stableSessionIdAtom);
   const [sending, setSending] = useState(false);
   const pending = useRef(false);
+  const labels = new Map(
+    agents.map((agent) => [
+      agent.id,
+      agents.some((other) => other.id !== agent.id && other.name === agent.name)
+        ? `${agent.name} (${agent.id})`
+        : agent.name,
+    ]),
+  );
 
   if (!isEditMode || agents.length === 0) {
     return null;
@@ -48,10 +56,9 @@ export function SendToAgentButton({
     }
     pending.current = true;
     setSending(true);
-    const selected = new Map(agents.map((agent) => [agent.id, agent.name]));
     try {
       const result = await sendAgentMessage(sessionId, getContent(), recipient);
-      agentToast(formatAgentSendResult(result, selected));
+      agentToast(formatAgentSendResult(result, labels));
     } catch (error) {
       agentToast({
         variant: "danger",
@@ -93,9 +100,7 @@ export function SendToAgentButton({
             key={agent.id}
             onSelect={() => send({ to: agent.id })}
           >
-            {agents.filter((a) => a.name === agent.name).length > 1
-              ? `${agent.name} (${agent.id})`
-              : agent.name}
+            {labels.get(agent.id)}
           </DropdownMenuItem>
         ))}
         <DropdownMenuSeparator />

@@ -24,6 +24,9 @@ With multiple agents, let the user choose a recipient.
 Use `mo.agents.broadcast(data)` to send to all connected agents.
 Each call sends a new message. Use callbacks to avoid sends on cell reruns.
 
+The recipient selects which agent receives the native submission.
+Messages remain visible to clients with access to the notebook event stream, including replay.
+
 ## Observe connections
 
 Tools can use `subscribe_connections()` to update their interface as agents connect or disconnect.

@@ -60,7 +60,9 @@ function responseFor(url: string | URL | Request, token: string | null = null) {
 }
 
 describe("PairWithAgentModal", () => {
+  let previousViewState = store.get(viewStateAtom);
   beforeEach(() => {
+    previousViewState = store.get(viewStateAtom);
     vi.clearAllMocks();
     store.set(pairConfigAtom, PAIR_CONFIG);
     store.set(initialModeAtom, "edit");
@@ -78,6 +80,7 @@ describe("PairWithAgentModal", () => {
   });
 
   afterEach(() => {
+    store.set(viewStateAtom, previousViewState);
     store.set(pairConfigAtom, undefined);
     store.set(initialModeAtom, undefined);
     store.set(stableSessionIdAtom, null);

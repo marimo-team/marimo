@@ -205,6 +205,7 @@ def test_codex_send_preserves_message(monkeypatch: pytest.MonkeyPatch) -> None:
         OSError("secret"),
         FileNotFoundError("secret"),
         PermissionError("secret"),
+        ValueError("secret"),
         subprocess.TimeoutExpired("secret", 15),
     ],
 )
@@ -220,7 +221,7 @@ def test_codex_send_failure_does_not_leak(
     from marimo._cli.pair.client import SubmissionRejectedError
 
     assert isinstance(error.value, SubmissionRejectedError) == isinstance(
-        failure, (FileNotFoundError, PermissionError)
+        failure, (FileNotFoundError, PermissionError, ValueError)
     )
 
 
@@ -729,3 +730,26 @@ def test_delivery_does_not_add_error_instructions(
         assert json.loads(path.read_text(encoding="utf-8")) == payload
     else:
         assert json.loads(text.split("\n", 1)[1]) == payload
+
+
+@pytest.mark.parametrize("returncode", [0, 1])
+def test_codex_submission_result(monkeypatch, returncode):
+    from marimo._cli.pair.client import SubmissionRejectedError
+    from marimo._cli.pair.delivery import Submission
+
+    monkeypatch.setattr(
+        subprocess,
+        "run",
+        Mock(return_value=subprocess.CompletedProcess([], returncode, b"")),
+    )
+    inbox = CodexHarness().open_inbox(
+        DeliveryTarget("codex", "thread", "Codex")
+    )
+    if returncode:
+        with pytest.raises(PairError) as caught:
+            inbox.send("message")
+        assert not isinstance(caught.value, SubmissionRejectedError)
+    else:
+        assert inbox.send("message") == Submission(
+            "submitted", "Codex queue completed successfully."
+        )

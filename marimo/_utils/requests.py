@@ -3,6 +3,8 @@ from __future__ import annotations
 
 import http.client
 import json
+import socket
+import threading
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -150,11 +152,23 @@ def request(
         raise failure("Invalid HTTP endpoint") from error
 
     response: http.client.HTTPResponse | None = None
+    timer: threading.Timer | None = None
     try:
         connection.connect()
         connection.auto_open = 0
         transport = connection.sock
         assert transport is not None
+
+        def expire() -> None:
+            # An inactivity timeout does not bound a trickling HTTP header.
+            try:
+                transport.shutdown(socket.SHUT_RDWR)
+            except OSError:
+                pass
+
+        timer = threading.Timer(remaining(), expire)
+        timer.daemon = True
+        timer.start()
         transport.settimeout(remaining())
         path = endpoint.path or "/"
         if endpoint.query:
@@ -181,9 +195,16 @@ def request(
             raise failure("The response body is incomplete")
         remaining()
         return Response(status_code, b"".join(parts), dict(response.headers))
-    except (OSError, http.client.HTTPException) as error:
+    except (
+        OSError,
+        ValueError,
+        OverflowError,
+        http.client.HTTPException,
+    ) as error:
         raise failure("HTTP request failed") from error
     finally:
+        if timer is not None:
+            timer.cancel()
         if response is not None:
             response.close()
         connection.close()

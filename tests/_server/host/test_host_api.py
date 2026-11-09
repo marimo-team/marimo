@@ -2623,3 +2623,22 @@ def test_legacy_execution_does_not_start_a_cataloged_notebook(
     }
     assert harness.backends == {}
     assert "set-cookie" not in response.headers
+
+
+def test_agent_report_conflict_is_a_problem(harness: Harness) -> None:
+    with TestClient(
+        with_client_address(harness.app, LOOPBACK),
+        base_url=f"http://{AUTHORITY}",
+    ) as client:
+        response = client.post(
+            f"{HOST_API_PATH}/notebooks/{harness.notebook_id}/agent-messages/report",
+            headers=AUTH,
+            json={
+                "attachment_id": "missing",
+                "attempt_id": "expired",
+                "status": "submitted",
+            },
+        )
+    assert response.status_code == 409
+    assert response.headers["content-type"] == "application/problem+json"
+    assert response.json()["type"] == "tag:marimo.io,2026:host/conflict"

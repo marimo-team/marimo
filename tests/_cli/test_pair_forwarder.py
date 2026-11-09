@@ -212,6 +212,7 @@ def test_failed_native_attempt_and_lost_report_do_not_repeat_submission(
     )
     inbox = RecordingInbox()
     from marimo._cli.pair.client import SubmissionRejectedError
+    from marimo._utils.requests import RequestError
 
     failure = (
         SubmissionRejectedError("Definite refusal")
@@ -220,12 +221,12 @@ def test_failed_native_attempt_and_lost_report_do_not_repeat_submission(
     )
     send = Mock(side_effect=failure)
     monkeypatch.setattr(inbox, "send", send)
-    reports = Mock(side_effect=PairConnectionError("Lost report"))
-    monkeypatch.setattr(forwarder, "open_response", reports)
+    reports = Mock(side_effect=RequestError("Lost report"))
+    monkeypatch.setattr(forwarder, "request", reports)
     run_forwarder(config, inbox, ready=Mock())
     send.assert_called_once()
     reports.assert_called_once()
-    report = msgspec.json.decode(reports.call_args.kwargs["body"])
+    report = msgspec.json.decode(reports.call_args.kwargs["data"])
     assert report["status"] == ("rejected" if rejected else "unknown")
 
 
@@ -343,7 +344,7 @@ def test_authentication_failure_after_attachment_does_not_reconnect(
     calls = install_stream(
         monkeypatch, [[attached(), PairError("Authentication failed.")]]
     )
-    with pytest.raises(PairError, match="could not continue"):
+    with pytest.raises(PairError, match="Authentication failed"):
         run_forwarder(config, RecordingInbox(), ready=Mock())
     calls.assert_called_once()
 
@@ -695,3 +696,51 @@ def test_reset_retains_stream_attachment_without_second_ready(
     run_forwarder(config, inbox, ready=ready)
     ready.assert_called_once()
     assert inbox.messages[0].endswith('{"opaque": [1, null]}')
+
+
+def test_report_wait_is_bounded(config, http_endpoint, monkeypatch, caplog):
+    from marimo._messaging.agents import SubmissionReport
+
+    http_endpoint.delay = 0.3
+    monkeypatch.setattr(forwarder, "_REPORT_TIMEOUT_SECONDS", 0.05)
+    started = time.monotonic()
+    forwarder._report(
+        replace(config, url=http_endpoint.url),
+        SubmissionReport("attempt", "attachment", "submitted"),
+        "report-key",
+    )
+    assert time.monotonic() - started < 0.25
+    assert len(http_endpoint.requests) == 1
+    assert "could not reach" in caplog.text
+
+
+def test_stream_keeps_actionable_startup_error(config, monkeypatch):
+    detail = "The server does not support agent messaging. Restart it with matching marimo code."
+    install_stream(monkeypatch, [[PairError(detail)]])
+    with pytest.raises(
+        PairError, match="Restart it with matching marimo code"
+    ):
+        run_forwarder(config, RecordingInbox(), ready=Mock())
+
+
+@pytest.mark.parametrize(
+    ("status", "body"), [(204, b""), (409, b"conflict"), (500, b"\xff")]
+)
+def test_report_ignores_error_body_encoding(
+    config, http_endpoint, caplog, status, body
+):
+    from marimo._messaging.agents import SubmissionReport
+
+    http_endpoint.status = status
+    http_endpoint.body = body
+    forwarder._report(
+        replace(config, url=http_endpoint.url),
+        SubmissionReport(
+            attachment_id="attachment",
+            attempt_id="attempt",
+            status="submitted",
+        ),
+        "report-key",
+    )
+    assert len(http_endpoint.requests) == 1
+    assert ("could not reach" in caplog.text) == (status >= 300)

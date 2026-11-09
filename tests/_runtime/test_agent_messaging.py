@@ -231,3 +231,44 @@ def test_read_mode_is_unavailable() -> None:
 def test_invalid_arguments_fail_before_context_resolution(args, error) -> None:
     with pytest.raises(error):
         mo.agents.send(None, **args)
+
+
+def test_completed_response_is_not_lost_after_deadline(endpoint, monkeypatch):
+    from marimo._runtime import agent_messaging
+    from marimo._utils.requests import Response
+
+    config, _ = endpoint
+    now = [0.0]
+    monkeypatch.setattr(agent_messaging, "monotonic", lambda: now[0])
+
+    def completed(*_args: object, **_kwargs: object) -> Response:
+        now[0] = 2.0
+        return Response(200, b'{"recipients": []}', {})
+
+    monkeypatch.setattr(agent_messaging, "request", completed)
+    assert call(config, "send", timeout=1, message=None, to="agent") == {
+        "recipients": []
+    }
+
+
+def test_send_reserves_time_for_submission_response(endpoint, monkeypatch):
+    from marimo._runtime import agent_messaging
+    from marimo._utils.requests import Response
+
+    config, _ = endpoint
+    monkeypatch.setattr(agent_messaging, "monotonic", lambda: 0.0)
+
+    def capture(
+        _method: str,
+        _url: str,
+        *,
+        data: bytes,
+        deadline: float,
+        **_kwargs: object,
+    ) -> Response:
+        body = msgspec.json.decode(data)
+        assert 0 < body["timeout"] < deadline
+        return Response(200, b'{"recipients": []}', {})
+
+    monkeypatch.setattr(agent_messaging, "request", capture)
+    call(config, "send", timeout=30, message=None, to="agent")

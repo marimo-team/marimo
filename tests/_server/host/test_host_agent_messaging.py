@@ -210,6 +210,7 @@ async def test_cleanup_releases_waiters_and_capacity(setup, end: str) -> None:
         (-1, ValueError),
         (float("inf"), ValueError),
         (float("nan"), ValueError),
+        (1e10, ValueError),
     ],
 )
 async def test_invalid_timeout_never_dispatches(setup, timeout, error) -> None:

@@ -31,10 +31,11 @@ _SETUP = (
 )
 
 
-def _check_status(status: int | None) -> None:
+def _check_status(status: int | None, *, submitting: bool) -> None:
     if status in {401, 403}:
-        raise SubmissionRejectedError(
-            "OpenCode refused the inbox request before admission."
+        error_type = SubmissionRejectedError if submitting else PairError
+        raise error_type(
+            "OpenCode refused the inbox request. Check the credentials."
         )
     if status is not None and status != 200:
         raise PairError(
@@ -82,13 +83,16 @@ def _request(
             max_response_bytes=1024 * 1024,
         )
     except RequestError as error:
-        _check_status(error.status_code)
+        _check_status(error.status_code, submitting=text is not None)
         if error.dispatched is False:
-            raise SubmissionRejectedError(
+            error_type = (
+                SubmissionRejectedError if text is not None else PairError
+            )
+            raise error_type(
                 "Could not connect to the OpenCode inbox."
             ) from error
         raise PairError("Could not reach the OpenCode inbox.") from error
-    _check_status(response.status_code)
+    _check_status(response.status_code, submitting=text is not None)
     try:
         return msgspec.json.decode(response.content, type=result_type)
     except msgspec.DecodeError as error:

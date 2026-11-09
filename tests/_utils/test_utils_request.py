@@ -435,3 +435,26 @@ def test_direct_request_rejects_invalid_endpoints_before_dispatch(url):
         )
     assert error.value.dispatched is False
     assert error.value.status_code is None
+
+
+def test_direct_request_deadline_interrupts_slow_headers(endpoint):
+    url, state = endpoint
+    state.header_chunk_delay = 0.01
+    started = time.monotonic()
+    with pytest.raises(RequestError) as error:
+        request("GET", url, deadline=started + 0.12, max_response_bytes=100)
+    assert time.monotonic() - started < 0.4
+    assert error.value.dispatched is True
+    assert error.value.status_code is None
+
+
+def test_direct_request_normalizes_invalid_headers(endpoint):
+    url, _ = endpoint
+    with pytest.raises(RequestError):
+        request(
+            "GET",
+            url,
+            headers={"X-Test": "invalid\nheader"},
+            deadline=time.monotonic() + 1,
+            max_response_bytes=100,
+        )

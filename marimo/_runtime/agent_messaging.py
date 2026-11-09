@@ -22,6 +22,7 @@ from marimo._messaging.agents import (
 from marimo._utils.requests import RequestError, request
 
 _MAX_RESPONSE_BYTES = 4 * 1024 * 1024
+_RESPONSE_MARGIN_SECONDS = 1.0
 
 
 def _lost(operation: str) -> AgentError:
@@ -89,12 +90,14 @@ def call(
         body = msgspec.json.encode(subscription)
         path = "/agents/subscriptions"
     else:
+        remaining = max(0, deadline - monotonic())
+        response_margin = min(_RESPONSE_MARGIN_SECONDS, remaining / 10)
         body = msgspec.json.encode(
             MessageRequest(
                 message,
                 to=to,
                 broadcast=operation == "broadcast",
-                timeout=max(0, deadline - monotonic()),
+                timeout=remaining - response_margin,
             )
         )
         path = "/messages"
@@ -118,8 +121,6 @@ def call(
         raise _lost(operation) from error
     if response.status_code != 200:
         raise _http_error(response.status_code, response.content, operation)
-    if monotonic() >= deadline:
-        raise _lost(operation)
     try:
         return msgspec.json.decode(response.content)
     except msgspec.DecodeError as error:
