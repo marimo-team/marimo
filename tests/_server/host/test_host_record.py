@@ -164,7 +164,11 @@ async def test_idle_host_expires_results_and_stops_maintenance(
         now = 0.0
         host.clock = context.mutations.clock = lambda: now
         host.update_project(project())
-        notebook = await add_notebook(host, record(), ScriptedBackend())
+        notebook = await add_notebook(
+            host,
+            msgspec.structs.replace(record(), operations=("runtime.execute",)),
+            ScriptedBackend(),
+        )
         notebook.adopt(lambda _: None)
         notebook.observe(be.Running(runtime_id_of(notebook)))
         headers = {
@@ -174,7 +178,7 @@ async def test_idle_host_expires_results_and_stops_maintenance(
         response = await finished(
             app,
             "POST",
-            f"/notebooks/{notebook.id}/runtime/runs",
+            f"/notebooks/{notebook.id}/runtime/execute",
             headers=headers,
             body=b'{"code":"42"}',
         )

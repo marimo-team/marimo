@@ -2023,19 +2023,25 @@ export type RequestedCellOutput = zod.output<typeof RequestedCell>;
 
 export const RunRequest = zod
   .object({
-    code: zod
-      .string()
-      .optional()
-      .describe("Python code to run as scratch code."),
     cells: zod
       .array(RequestedCell)
       .min(1)
-      .optional()
       .describe(
         "Cells of the document to run, in no particular order. The runtime's execution configuration determines whether dependent cells run too.",
       ),
   })
-  .describe("What to run, exactly one of `code` and `cells`.");
+  .describe("Existing document cells to run.");
 
 export type RunRequest = zod.input<typeof RunRequest>;
 export type RunRequestOutput = zod.output<typeof RunRequest>;
+
+export const ExecuteRequest = zod
+  .object({
+    code: zod
+      .string()
+      .describe("Python code to execute in a copy of the runtime namespace."),
+  })
+  .describe("Scratch code to execute outside the document's dependency graph.");
+
+export type ExecuteRequest = zod.input<typeof ExecuteRequest>;
+export type ExecuteRequestOutput = zod.output<typeof ExecuteRequest>;

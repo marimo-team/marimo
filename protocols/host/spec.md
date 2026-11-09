@@ -429,13 +429,18 @@ formatting, MUST reach clients through the document stream as well.
 
 ### Execution
 
-Clients can request document cells or submit scratch code. Cells execute under
-the runtime's execution configuration, which determines how dependent cells
-are scheduled. A dependent the configuration leaves out keeps its execution,
-which is outdated once a new execution replaces the one it depends on. Scratch
-code runs against a copy of the runtime namespace outside the document's
-dependency graph. A client can ask the host to verify that a cell's code still
-matches what it read before executing it.
+`runtime.run` runs existing document cells; `runtime.execute` executes submitted
+scratch code. Hosts MUST authorize these operations independently of each other
+and of `notebook.edit`. A notebook may permit rerunning its cells without
+permitting edits or scratch execution. `runtime.run` accepts only cell targets,
+with optional etags, and MUST reject submitted code.
+
+Cells execute under the runtime's execution configuration, which determines how
+dependent cells are scheduled. A dependent the configuration leaves out keeps
+its execution, which is outdated once a new execution replaces the one it
+depends on. Scratch code runs against a copy of the runtime namespace outside
+the document's dependency graph. Both operations create runs in the same queue
+and report results through the same notebook stream.
 
 An accepted execution request starts a run whose progress and results arrive on
 the notebook stream for all attached clients. Clients that need to observe the
@@ -458,9 +463,10 @@ executions. Hosts MUST associate each new input with a running execution.
 Input calls from completed or removed executions MUST raise `EOFError` in the
 calling code, including calls from background work that outlives its execution.
 
-Hosts offering `runtime.run` MUST implement `runtime.input`. Any client
-permitted the operation may answer. This permission applies to the notebook
-and is independent of which client started the run or opened an event stream.
+Hosts offering `runtime.run` or `runtime.execute` MUST implement
+`runtime.input`. Any client permitted the operation may answer. This permission
+applies to the notebook and is independent of which client started the run or
+opened an event stream.
 The client sends the input id in the URL and its answer in the request body.
 
 ```http

@@ -31,6 +31,7 @@ MODELS = {
     "edit-conflict-request.json": protocol.EditRequest,
     "edit-response.json": protocol.EditResponse,
     "execution-restored.json": protocol.Execution,
+    "execute-request.json": protocol.ExecuteRequest,
     "run-cells-request.json": protocol.RunRequest,
     "input-reply-request.json": protocol.InputReplyRequest,
     "input-reply-response.json": protocol.Input,
@@ -138,9 +139,13 @@ def assert_immutable(value: object) -> None:
 def round_trip(model: type, text: str) -> None:
     wire = json.loads(text)
     assert_content_hashes(wire)
-    value = msgspec.json.decode(
-        json.dumps({**wire, "future_field": True}), type=model
-    )
+    value = msgspec.json.decode(text, type=model)
+    extended = json.dumps({**wire, "future_field": True})
+    if type(value).__struct_config__.forbid_unknown_fields:
+        with pytest.raises(msgspec.ValidationError, match="future_field"):
+            msgspec.json.decode(extended, type=model)
+    else:
+        assert msgspec.json.decode(extended, type=model) == value
     assert json.loads(msgspec.json.encode(value)) == wire
     assert_immutable(value)
 
@@ -283,7 +288,9 @@ def test_catalog_capabilities_and_runtime_stop() -> None:
             obj = data[kind]
             if kind in {"project", "notebook"}:
                 assert set(obj["operations"]) <= host_operations
-                if "runtime.run" in obj["operations"]:
+                if {"runtime.run", "runtime.execute"}.intersection(
+                    obj["operations"]
+                ):
                     assert "runtime.interrupt" in obj["operations"]
             if kind == "notebook":
                 assert obj["project_id"] in state["project"]

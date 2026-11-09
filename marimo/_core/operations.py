@@ -182,14 +182,18 @@ class Mutations:
         call: Callable[[], Awaitable[Reply]],
     ) -> Reply:
         """Run `call` once per idempotency key, and answer retries with its reply."""
-        capability = (
-            "runtime.run" if operation == "runtime.interrupt" else operation
+        capabilities = (
+            {"runtime.run", "runtime.execute"}
+            if operation == "runtime.interrupt"
+            else {operation}
         )
-        if capability not in self.host.operations:
-            raise Unsupported(f"This host does not offer {capability}")
+        if not capabilities.intersection(self.host.operations):
+            raise Unsupported(f"This host does not offer {operation}")
         record = self.host.notebooks.get(notebook_id) if notebook_id else None
-        if record is not None and capability not in record.operations:
-            raise Forbidden(f"This notebook does not allow {capability}")
+        if record is not None and not capabilities.intersection(
+            record.operations
+        ):
+            raise Forbidden(f"This notebook does not allow {operation}")
         if not key:
             raise Invalid("Idempotency-Key is required")
         fingerprint = hashlib.sha256(
@@ -210,7 +214,7 @@ class Mutations:
         self.replies[key] = mutation
         unsubscribe: Callable[[], None] | None = None
         lifecycle_accepted: Callable[[Reply], None] | None = None
-        if operation == "runtime.run":
+        if operation in {"runtime.run", "runtime.execute"}:
             # Retain the latest run without retaining its output payloads.
             def updated(event: RoutedEvent) -> None:
                 if isinstance(event.event, protocol.RunEvent):

@@ -124,7 +124,7 @@ class NotebookOperations {
   public run({
     cells,
     ...options
-  }: { readonly cells: Protocol.RequestedCell[] } & MutationOptions): Promise<
+  }: Protocol.RunRequest & MutationOptions): Promise<
     Result<Protocol.RunOutput>
   > {
     return this.#send("runtime.run", { body: { cells }, options });
@@ -134,10 +134,10 @@ class NotebookOperations {
   public execute({
     code,
     ...options
-  }: { readonly code: string } & MutationOptions): Promise<
+  }: Protocol.ExecuteRequest & MutationOptions): Promise<
     Result<Protocol.RunOutput>
   > {
-    return this.#send("runtime.run", { body: { code }, options });
+    return this.#send("runtime.execute", { body: { code }, options });
   }
 
   /** Answer one pending input. Acceptance does not imply execution resumed. */

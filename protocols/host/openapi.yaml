@@ -497,13 +497,13 @@ paths:
   /notebooks/{notebook_id}/runtime/runs:
     post:
       operationId: runtime.run
-      summary: Run code or cells against the notebook's runtime
+      summary: Run document cells against the notebook's runtime
       description: |
-        Runs `code` in a copy of the notebook runtime's namespace, or runs
-        `cells` of the document. Scratch code stays out of the graph and
-        its execution carries the submitted code. The runtime's execution
+        Runs existing cells of the document. The runtime's execution
         configuration determines whether dependent cells run too. Each cell
-        gets an execution with its `cell_id` and no code.
+        gets an execution with its `cell_id` and no code. This operation does
+        not accept submitted code and is permitted independently of
+        `notebook.edit` and `runtime.execute`.
 
         The host assigns a run id independent of the request's
         `Idempotency-Key` and answers `202` with the run `queued` or
@@ -526,7 +526,7 @@ paths:
         `etag` so that an edit it did not see is a conflict rather
         than a run of other code.
 
-        Runs execute one at a time in the order the host accepted them.
+        Cell and scratch runs share one queue in acceptance order.
         A run accepted while another is in progress is `queued` until the
         earlier runs complete. The host answers `no-runtime` when the
         notebook has no runtime. Within the host's retry window, repeating
@@ -540,6 +540,58 @@ paths:
         content:
           application/json:
             schema: { $ref: '#/components/schemas/RunRequest' }
+      responses:
+        '202':
+          description: The run was accepted. Follow it on the notebook's stream.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Run' }
+        '400': { $ref: '#/components/responses/InvalidRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '405': { $ref: '#/components/responses/MethodNotAllowed' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '500': { $ref: '#/components/responses/Internal' }
+        '501': { $ref: '#/components/responses/UnsupportedOperation' }
+  /notebooks/{notebook_id}/runtime/execute:
+    post:
+      operationId: runtime.execute
+      summary: Execute scratch code against the notebook's runtime
+      description: |
+        Executes submitted code in a copy of the notebook runtime's namespace.
+        Scratch code stays out of the document's dependency graph and its
+        execution carries the submitted code. This operation requires
+        `runtime.execute`, independently of `runtime.run` and `notebook.edit`.
+
+        The host assigns a run id independent of the request's
+        `Idempotency-Key` and answers `202` with the run `queued` or
+        `running`. The notebook stream carries the executions, their
+        console and display output, their input requests, and the variables
+        each cell execution bound. Each execution completes with a `value`,
+        `error`, `interrupted`, or `skipped` outcome, followed by the run's
+        completion.
+        Run and execution events carry this request's key. A client that
+        needs the full stream opens it before sending the request.
+
+        A running execution that requests input publishes a pending input
+        and waits for an answer or cancellation. Any client permitted
+        `runtime.input` may answer through the input's reply route.
+
+        Scratch and cell runs share one queue in acceptance order.
+        A run accepted while another is in progress is `queued` until the
+        earlier runs complete. The host answers `no-runtime` when the
+        notebook has no runtime. Within the host's retry window, repeating
+        the request returns its latest run record without executing again,
+        even if its outputs have expired.
+      parameters:
+        - $ref: '#/components/parameters/NotebookId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ExecuteRequest' }
       responses:
         '202':
           description: The run was accepted. Follow it on the notebook's stream.
@@ -571,8 +623,8 @@ paths:
         even after the execution is removed, under the protocol's
         idempotency rules.
 
-        Hosts offering `runtime.run` implement this operation. See
-        [Answering input](spec.md#answering-input) for delivery semantics.
+        Hosts offering `runtime.run` or `runtime.execute` implement this
+        operation. See [Answering input](spec.md#answering-input) for delivery semantics.
       parameters:
         - $ref: '#/components/parameters/NotebookId'
         - $ref: '#/components/parameters/InputId'
@@ -607,7 +659,8 @@ paths:
         interruption has taken effect. Queued executions end `interrupted` and
         the running one is interrupted. A run that has not started completes
         `interrupted` without executing. Once the run is completed, the host
-        answers `conflict`. A host that lists `runtime.run` supports this route.
+        answers `conflict`. A host that lists `runtime.run` or `runtime.execute`
+        supports this route.
       parameters:
         - $ref: '#/components/parameters/NotebookId'
         - $ref: '#/components/parameters/RunId'
@@ -2188,16 +2241,24 @@ components:
           description: Answers to the questions in a `decision-required` problem, as for `runtime.start`.
     RunRequest:
       type: object
-      description: What to run, exactly one of `code` and `cells`.
+      description: Existing document cells to run.
+      additionalProperties: false
+      required: [cells]
       properties:
-        code:
-          type: string
-          description: Python code to run as scratch code.
         cells:
           type: array
           minItems: 1
           items: { $ref: '#/components/schemas/RequestedCell' }
           description: Cells of the document to run, in no particular order. The runtime's execution configuration determines whether dependent cells run too.
+    ExecuteRequest:
+      type: object
+      description: Scratch code to execute outside the document's dependency graph.
+      additionalProperties: false
+      required: [code]
+      properties:
+        code:
+          type: string
+          description: Python code to execute in a copy of the runtime namespace.
     RequestedCell:
       type: object
       required: [id]

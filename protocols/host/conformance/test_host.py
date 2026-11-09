@@ -279,11 +279,11 @@ async def test_save(host, scratch):
 
 
 async def test_no_runtime(host, scratch):
-    require(scratch, "runtime.run")
+    require(scratch, "runtime.execute")
     problem(
         await host.request(
             "POST",
-            notebook_path(scratch) + "/runtime/runs",
+            notebook_path(scratch) + "/runtime/execute",
             json={"code": "1"},
         ),
         409,
@@ -344,7 +344,7 @@ async def finish_run(watch, run, key, outcome):
     ],
 )
 async def test_run(host, scratch, code, outcome, kind):
-    require(scratch, "runtime.start", "runtime.stop", "runtime.run")
+    require(scratch, "runtime.start", "runtime.stop", "runtime.execute")
     path = notebook_path(scratch)
     async with host.watch(path + "/events") as watch:
         await watch.ready()
@@ -352,7 +352,7 @@ async def test_run(host, scratch, code, outcome, kind):
         key = uuid4().hex
         run = accepted(
             await host.request(
-                "POST", path + "/runtime/runs", json={"code": code}, key=key
+                "POST", path + "/runtime/execute", json={"code": code}, key=key
             ),
             202,
             "Run",
@@ -370,7 +370,7 @@ async def test_run(host, scratch, code, outcome, kind):
             )
         replay = accepted(
             await host.request(
-                "POST", path + "/runtime/runs", json={"code": code}, key=key
+                "POST", path + "/runtime/execute", json={"code": code}, key=key
             ),
             202,
             "Run",
@@ -486,7 +486,7 @@ async def test_run_cells(host, scratch):
 
 
 async def test_runs_queue_behind_the_active_run_and_interrupt(host, scratch):
-    require(scratch, "runtime.start", "runtime.stop", "runtime.run")
+    require(scratch, "runtime.start", "runtime.stop", "runtime.execute")
     path = notebook_path(scratch)
     async with host.watch(path + "/events") as watch:
         await watch.ready()
@@ -495,7 +495,7 @@ async def test_runs_queue_behind_the_active_run_and_interrupt(host, scratch):
         run = accepted(
             await host.request(
                 "POST",
-                path + "/runtime/runs",
+                path + "/runtime/execute",
                 key=key,
                 json={"code": "import time\ntime.sleep(60)"},
             ),
@@ -514,7 +514,7 @@ async def test_runs_queue_behind_the_active_run_and_interrupt(host, scratch):
         queued = accepted(
             await host.request(
                 "POST",
-                path + "/runtime/runs",
+                path + "/runtime/execute",
                 key=queued_key,
                 json={"code": "pass"},
             ),

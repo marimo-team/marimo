@@ -174,6 +174,15 @@ Etag: TypeAlias = Annotated[
 ]
 
 
+class ExecuteRequest(Struct, frozen=True, forbid_unknown_fields=True):
+    code: Annotated[
+        str,
+        Meta(
+            description="Python code to execute in a copy of the runtime namespace."
+        ),
+    ]
+
+
 if TYPE_CHECKING:
     ExecutionId = NewType("ExecutionId", str)
 else:
@@ -529,21 +538,14 @@ class RunRemovedEvent(
     ) = UNSET
 
 
-class RunRequest(Struct, frozen=True):
-    cells: (
-        Annotated[
-            tuple[RequestedCell, ...],
-            Meta(
-                description="Cells of the document to run, in no particular order. The runtime's execution configuration determines whether dependent cells run too.",
-                min_length=1,
-            ),
-        ]
-        | UnsetType
-    ) = UNSET
-    code: (
-        Annotated[str, Meta(description="Python code to run as scratch code.")]
-        | UnsetType
-    ) = UNSET
+class RunRequest(Struct, frozen=True, forbid_unknown_fields=True):
+    cells: Annotated[
+        tuple[RequestedCell, ...],
+        Meta(
+            description="Cells of the document to run, in no particular order. The runtime's execution configuration determines whether dependent cells run too.",
+            min_length=1,
+        ),
+    ]
 
 
 if TYPE_CHECKING:
