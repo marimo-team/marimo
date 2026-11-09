@@ -16,7 +16,6 @@ import { focusCell } from "../navigation/focus-utils";
 interface Props {
   cellId: CellId;
   className?: string;
-  shouldScroll?: boolean;
   skipScroll?: boolean;
   onClick?: () => void;
   formatCellName?: (name: string) => string;

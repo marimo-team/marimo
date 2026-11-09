@@ -9,7 +9,6 @@ import { Button } from "../ui/button";
 interface AudioRecorderProps {
   onStart: () => void;
   onStop: () => void;
-  onPause: () => void;
   status: RecordingStatus;
   time?: string;
 }

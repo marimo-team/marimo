@@ -30,7 +30,7 @@ export class MicrophonePlugin implements IPlugin<Value, Data> {
 }
 
 const Microphone = ({ setValue, data }: IPluginProps<Value, Data>) => {
-  const { start, stop, pauseResume, recordingStatus, recordingTime, allowed } =
+  const { start, stop, recordingStatus, recordingTime, allowed } =
     useAudioRecorder({
       onDone: async (file) => {
         const base64 = await blobToString(file, "base64");
@@ -49,7 +49,6 @@ const Microphone = ({ setValue, data }: IPluginProps<Value, Data>) => {
       <AudioRecorder
         onStart={start}
         onStop={stop}
-        onPause={pauseResume}
         status={recordingStatus}
         time={recordingTime}
       />
