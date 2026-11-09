@@ -284,6 +284,47 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/ai/model_reasoning": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header: {
+          "Marimo-Session-Id": string;
+        };
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["AiModelReasoningRequest"];
+        };
+      };
+      responses: {
+        /** @description Reasoning efforts supported by the current adapter */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["AiModelReasoningResponse"];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/cache/clear": {
     parameters: {
       query?: never;
@@ -3832,6 +3873,22 @@ export interface components {
       custom_models: string[];
       displayed_models: string[];
       edit_model?: string;
+    };
+    /** AiModelReasoningRequest */
+    AiModelReasoningRequest: {
+      model: string;
+    };
+    /** AiModelReasoningResponse */
+    AiModelReasoningResponse: {
+      efforts: (
+        | "high"
+        | "low"
+        | "max"
+        | "medium"
+        | "minimal"
+        | "none"
+        | "xhigh"
+      )[];
     };
     /**
      * AlertNotification

@@ -42,7 +42,10 @@ from marimo._server.ai.tracing import (
     trace_completion,
     trace_stream,
 )
-from marimo._server.models.completion import UIMessage as ServerUIMessage
+from marimo._server.models.completion import (
+    ReasoningEffort,
+    UIMessage as ServerUIMessage,
+)
 from marimo._utils.assert_never import log_never
 from marimo._utils.http import HTTPStatus
 from marimo._utils.typing import override
@@ -194,7 +197,13 @@ class PydanticProvider(ABC, Generic[ProviderT_co]):
 
         settings = self._build_model_settings(model, max_tokens)
         if thinking is not None:
-            if not self._supports_thinking(model):
+            supported = (
+                self._supports_thinking(model)
+                if thinking is True
+                else ("none" if thinking is False else thinking)
+                in self.reasoning_efforts(model)
+            )
+            if not supported:
                 raise HTTPException(
                     status_code=HTTPStatus.BAD_REQUEST,
                     detail="Reasoning effort is not supported by this model's current provider integration.",
@@ -341,10 +350,72 @@ class PydanticProvider(ABC, Generic[ProviderT_co]):
     ) -> BaseModelSettings:
         """Shared request setting values, before provider-specific keys."""
         thinking = self._default_thinking(model)
-        if thinking is not None and not self._supports_thinking(model):
+        # Explicit effort validation must not change automatic provider defaults.
+        if thinking is not None and not (
+            profile_get(model.profile, "supports_thinking", False)
+            or profile_get(model.profile, "thinking_always_enabled", False)
+        ):
             thinking = None
 
         return BaseModelSettings(max_tokens=max_tokens, thinking=thinking)
+
+    def reasoning_efforts(
+        self, model: Model | None = None
+    ) -> list[ReasoningEffort]:
+        """Efforts the installed adapter can send without changing their meaning."""
+        model = model or self.create_model()
+        if not self._supports_thinking(model):
+            return []
+        profile = model.profile
+        efforts: list[ReasoningEffort] = []
+        if model.system == "openrouter":
+            return list(get_args(ReasoningEffort))
+        if model.system == "google":
+            levels = profile_get(profile, "google_thinking_levels", ())
+            return [
+                effort
+                for effort in get_args(ReasoningEffort)
+                if effort.upper() in levels
+            ]
+        variant = profile_get(profile, "bedrock_thinking_variant", None)
+        if profile_get(
+            profile, "anthropic_supports_effort", False
+        ) or profile_get(profile, "bedrock_supports_effort", False):
+            efforts = ["low", "medium", "high"]
+            if profile_get(profile, "anthropic_supports_xhigh_effort", False):
+                efforts.append("xhigh")
+            if profile_get(profile, "anthropic_supports_max_effort", True):
+                efforts.append("max")
+        elif variant == "openai":
+            efforts = ["low", "medium", "high"]
+        elif variant == "openai_responses":
+            efforts = ["low", "medium", "high", "xhigh"]
+            if not profile_get(profile, "thinking_always_enabled", False):
+                efforts.insert(0, "none")
+        elif variant == "xai":
+            efforts = ["low", "medium", "high", "xhigh"]
+        elif variant == "qwen":
+            efforts = ["none", "low", "high"]
+        else:
+            native_efforts = profile_get(
+                profile, "openai_reasoning_efforts", None
+            )
+            if native_efforts is None and model.system == "openai":
+                native_efforts = ("low", "medium", "high")
+            efforts = [
+                effort
+                for effort in get_args(ReasoningEffort)
+                if native_efforts is not None and effort in native_efforts
+            ]
+            max_key = "openai_chat_supports_max_reasoning_effort"
+            if model.system == "openai":
+                from pydantic_ai.models.openai import OpenAIResponsesModel
+
+                if isinstance(model, OpenAIResponsesModel):
+                    max_key = "openai_responses_supports_max_reasoning_effort"
+            if not profile_get(profile, max_key, False):
+                efforts = [effort for effort in efforts if effort != "max"]
+        return efforts
 
     def _supports_thinking(self, model: Model) -> bool:
         return profile_get(

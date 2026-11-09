@@ -101,6 +101,7 @@ export function createStaticRequests(): EditRequests & RunRequests {
     getDependencyTree: throwNotInEditMode,
     listSecretKeys: throwNotInEditMode,
     writeSecret: throwNotInEditMode,
+    getAiModelReasoning: async () => ({ efforts: [] }),
     invokeAiTool: throwNotInEditMode,
     clearCache: throwNotInEditMode,
     getCacheInfo: throwNotInEditMode,

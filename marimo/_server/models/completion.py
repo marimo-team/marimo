@@ -64,16 +64,26 @@ class AiInlineCompletionRequest(msgspec.Struct, rename="camel"):
     language: Language = "python"
 
 
+ReasoningEffort = Literal[
+    "none", "minimal", "low", "medium", "high", "xhigh", "max"
+]
+
+
+class AiModelReasoningRequest(msgspec.Struct, rename="camel"):
+    model: str
+
+
+class AiModelReasoningResponse(msgspec.Struct, rename="camel"):
+    efforts: list[ReasoningEffort]
+
+
 class ChatOptions(msgspec.Struct, rename="camel"):
     """
     Used to configure capabilities of the AI agent.
     """
 
     web_search: bool = False
-    reasoning_effort: (
-        Literal["none", "minimal", "low", "medium", "high", "xhigh", "max"]
-        | None
-    ) = None
+    reasoning_effort: ReasoningEffort | None = None
 
     @property
     def thinking(self) -> ThinkingLevel | None:

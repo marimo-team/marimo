@@ -1,6 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { useAtomValue, useSetAtom } from "jotai";
+import { useAtom, useAtomValue } from "jotai";
 import {
   CheckIcon,
   ChevronDownIcon,
@@ -28,6 +28,10 @@ import {
 } from "@/components/ui/popover";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Switch } from "@/components/ui/switch";
+import { useAsyncData } from "@/hooks/useAsyncData";
+import { useRequestClient } from "@/core/network/requests";
+import { toast } from "@/components/ui/use-toast";
+import { getChatReasoningOptions } from "@/core/ai/reasoning-options";
 import { cn } from "@/utils/cn";
 import type { ReasoningEffortChoice } from "@/core/ai/reasoning-options";
 import type { ChatOptions } from "@/core/network/types";
@@ -46,17 +50,50 @@ export function ChatModelPicker() {
     null,
   );
   const [search, setSearch] = useState("");
+  const [isSavingModel, setIsSavingModel] = useState(false);
   const webSearchId = useId();
   const ai = useAtomValue(aiAtom);
-  const storedOptions = useAtomValue(chatOptionsAtom);
-  const setOptions = useSetAtom(chatOptionsAtom);
+  const [storedOptions, setOptions] = useAtom(chatOptionsAtom);
+  const { getAiModelReasoning } = useRequestClient();
   const { saveModelChange } = useAIConfigActions();
   const { handleClick } = useOpenSettingsToTab();
-  const { current, registry, displayName, reasoningOptions } = useMemo(
+  const { current, currentModel, registry, displayName } = useMemo(
     () => getChatModelConfig(ai),
     [ai],
   );
+  const { data, isFetching } = useAsyncData(
+    async () => ({
+      model: current.id,
+      config: ai,
+      ...(await getAiModelReasoning({ model: current.id })),
+    }),
+    [ai, current.id, getAiModelReasoning],
+  );
+  const reasoningOptions = getChatReasoningOptions(
+    currentModel,
+    !isFetching && data?.model === current.id && data.config === ai
+      ? data.efforts
+      : [],
+  );
   const options = getEffectiveChatOptions(storedOptions, reasoningOptions);
+
+  const selectModel = async (modelId: QualifiedModelId) => {
+    if (isSavingModel || modelId === current.id) {
+      return;
+    }
+    setIsSavingModel(true);
+    try {
+      await saveModelChange(modelId, "chat");
+      setOptions((previous) => ({ ...previous, reasoningEffort: null }));
+    } catch {
+      toast({
+        title: "Couldn't change model",
+        description: "Your previous model settings were kept.",
+        variant: "danger",
+      });
+    }
+    setIsSavingModel(false);
+  };
   const modelsByProvider = listModelsForAiSettings(
     registry.getListModelsByProvider(),
     ai,
@@ -180,14 +217,9 @@ export function ChatModelPicker() {
                       value={modelId}
                       aria-label={`${model.name} (${getProviderLabel(model.provider)})`}
                       keywords={[model.name]}
+                      disabled={isSavingModel}
                       onSelect={() => {
-                        saveModelChange(modelId, "chat");
-                        if (modelId !== current.id) {
-                          setOptions((previous) => ({
-                            ...previous,
-                            reasoningEffort: null,
-                          }));
-                        }
+                        void selectModel(modelId);
                       }}
                       className="gap-2 h-8 text-xs"
                     >
@@ -203,6 +235,7 @@ export function ChatModelPicker() {
           </Command>
           <ReasoningControls
             options={reasoningOptions}
+            disabled={isSavingModel || isFetching}
             effort={effort}
             onChange={(reasoningEffort) =>
               setOptions((previous) => ({ ...previous, reasoningEffort }))
@@ -247,12 +280,14 @@ export function ChatModelPicker() {
 
 interface ReasoningControlsProps {
   options: ReasoningEffortChoice[];
+  disabled: boolean;
   effort: ChatOptions["reasoningEffort"];
   onChange: (effort: ChatOptions["reasoningEffort"]) => void;
 }
 
 function ReasoningControls({
   options,
+  disabled,
   effort,
   onChange,
 }: ReasoningControlsProps) {
@@ -267,6 +302,7 @@ function ReasoningControls({
       </div>
       {options.length > 0 ? (
         <RadioGroup
+          disabled={disabled}
           aria-labelledby={labelId}
           className="gap-0"
           value={effort ?? "default"}

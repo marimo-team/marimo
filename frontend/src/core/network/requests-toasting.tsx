@@ -82,6 +82,7 @@ export function createErrorToastingRequests(
     getDependencyTree: "Failed to get dependency tree",
     listSecretKeys: "Failed to fetch secrets",
     writeSecret: "Failed to write secret",
+    getAiModelReasoning: "Getting reasoning options",
     invokeAiTool: "Failed to invoke AI tool",
     clearCache: "Failed to clear cache",
     getCacheInfo: "", // No toast

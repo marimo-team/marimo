@@ -3,30 +3,31 @@
 import type { ReasoningOption } from "@marimo-team/llm-info";
 import { describe, expect, it } from "vitest";
 import { getChatReasoningOptions } from "../reasoning-options";
-import { getKnownModelMaps, type AiModel } from "../model-registry";
+import type { AiModelReasoningResponse } from "@/core/network/types";
 
-function modelWithOptions(
-  reasoningOptions: ReasoningOption[] | undefined,
-): AiModel {
-  const model = [...getKnownModelMaps().modelMap.values()].find(
-    (model) => model.provider === "openai",
-  );
-  if (!model) {
-    throw new Error("Expected a known OpenAI model");
-  }
-  return { ...model, reasoning_options: reasoningOptions };
-}
+const supported: AiModelReasoningResponse["efforts"] = [
+  "none",
+  "minimal",
+  "low",
+  "medium",
+  "high",
+  "xhigh",
+  "max",
+];
 
 describe("getChatReasoningOptions", () => {
   it("preserves the model's effort choices and ordering", () => {
     expect(
       getChatReasoningOptions(
-        modelWithOptions([
-          {
-            type: "effort",
-            values: ["none", "minimal", "low", "high", "xhigh", "max"],
-          },
-        ]),
+        {
+          reasoning_options: [
+            {
+              type: "effort",
+              values: ["none", "minimal", "low", "high", "xhigh", "max"],
+            },
+          ],
+        },
+        supported,
       ),
     ).toEqual([
       { value: "default", label: "Default" },
@@ -42,9 +43,12 @@ describe("getChatReasoningOptions", () => {
   it("offers one default choice for provider defaults and null", () => {
     expect(
       getChatReasoningOptions(
-        modelWithOptions([
-          { type: "effort", values: [null, "default", "medium", "medium"] },
-        ]),
+        {
+          reasoning_options: [
+            { type: "effort", values: [null, "default", "medium", "medium"] },
+          ],
+        },
+        supported,
       ),
     ).toEqual([
       { value: "default", label: "Default" },
@@ -59,6 +63,30 @@ describe("getChatReasoningOptions", () => {
     { options: [{ type: "budget_tokens", min: -1, max: 32768 }] },
     { options: [{ type: "effort", values: [] }] },
   ])("does not invent effort choices for $options", ({ options }) => {
-    expect(getChatReasoningOptions(modelWithOptions(options))).toEqual([]);
+    expect(
+      getChatReasoningOptions({ reasoning_options: options }, supported),
+    ).toEqual([]);
+  });
+  it("only offers efforts supported by both the catalog and runtime", () => {
+    expect(
+      getChatReasoningOptions(
+        {
+          reasoning_options: [
+            { type: "effort", values: ["low", "high", "max"] },
+          ],
+        },
+        ["low", "high"],
+      ),
+    ).toEqual([
+      { value: "default", label: "Default" },
+      { value: "low", label: "Low" },
+      { value: "high", label: "High" },
+    ]);
+    expect(
+      getChatReasoningOptions(
+        { reasoning_options: [{ type: "effort", values: ["max"] }] },
+        [],
+      ),
+    ).toEqual([]);
   });
 });

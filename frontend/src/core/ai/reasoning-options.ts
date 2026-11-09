@@ -1,6 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import type { AiModel } from "./model-registry";
+import type { AiModelReasoningResponse } from "@/core/network/types";
 import type { ReasoningOption } from "@marimo-team/llm-info";
 
 type ReasoningEffort = NonNullable<
@@ -24,31 +25,32 @@ export interface ReasoningEffortChoice {
 }
 
 export function getChatReasoningOptions(
-  model: AiModel | undefined,
-  baseUrl?: string,
+  model: Pick<AiModel, "reasoning_options"> | undefined,
+  supportedEfforts: AiModelReasoningResponse["efforts"],
 ): ReasoningEffortChoice[] {
-  if (!model || model.provider === "azure") {
+  if (!model) {
     return [];
   }
-  if (model.provider === "openai" && baseUrl) {
-    try {
-      if (new URL(baseUrl).hostname !== "api.openai.com") {
-        return [];
+  const values = new Set<ReasoningEffort>();
+  for (const option of model.reasoning_options ?? []) {
+    if (option.type !== "effort") {
+      continue;
+    }
+    for (const value of option.values) {
+      if (
+        value !== null &&
+        value !== "default" &&
+        supportedEfforts.some((effort) => effort === value)
+      ) {
+        values.add(value);
       }
-    } catch {
-      return [];
     }
   }
-  const options = model.reasoning_options ?? [];
-  const efforts = options.flatMap((option) =>
-    option.type === "effort" ? option.values : [],
-  );
-  if (efforts.length === 0) {
+  if (values.size === 0) {
     return [];
   }
-  const values = new Set<ReasoningEffort>([
-    "default",
-    ...efforts.filter((effort) => effort !== null),
-  ]);
-  return [...values].map((value) => ({ value, label: EFFORT_LABELS[value] }));
+  return [
+    { value: "default", label: EFFORT_LABELS.default },
+    ...[...values].map((value) => ({ value, label: EFFORT_LABELS[value] })),
+  ];
 }

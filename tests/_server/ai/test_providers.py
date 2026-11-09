@@ -1846,9 +1846,7 @@ def test_agent_reasoning_effort_respects_provider_support() -> None:
 
 
 @pytest.mark.requires("pydantic_ai")
-@pytest.mark.parametrize(
-    "model_id", ["openrouter/openai/gpt-5", "deepseek/deepseek-reasoner"]
-)
+@pytest.mark.parametrize("model_id", ["openrouter/openai/gpt-5"])
 def test_known_compatible_provider_honors_explicit_effort(
     model_id: str,
 ) -> None:
@@ -1906,3 +1904,113 @@ def test_unsupported_explicit_effort_is_not_silently_ignored(
         error.value.detail
         == "Reasoning effort is not supported by this model's current provider integration."
     )
+
+
+@pytest.mark.requires("pydantic_ai")
+@pytest.mark.parametrize(
+    ("model_id", "expected"),
+    [
+        ("openai/gpt-6.1-sol", ["low", "medium", "high", "xhigh", "max"]),
+        ("openai/daybreak-blue", []),
+        ("ollama/minimax-m3.1-flash", []),
+        ("wandb/reflection/Beam-1.0-501B-A23B", []),
+        ("opencode-go/kimi-k3.1-pro", []),
+        ("google/claude-haiku-5-5@default", []),
+        ("google/claude-opus-5-5@default", []),
+        ("google/gemini-4-argon", ["low", "medium", "high"]),
+        pytest.param(
+            "bedrock/global.openai.gpt-6.1-sol",
+            ["low", "medium", "high", "xhigh"],
+            marks=pytest.mark.requires("boto3"),
+        ),
+        pytest.param(
+            "bedrock/global.anthropic.claude-opus-5-5",
+            ["low", "medium", "high", "xhigh", "max"],
+            marks=pytest.mark.requires("boto3"),
+        ),
+    ],
+)
+def test_runtime_reasoning_capabilities_for_catalog_offerings(
+    model_id: str, expected: list[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("AWS_ACCESS_KEY_ID", "test-key")
+    monkeypatch.setenv("AWS_SECRET_ACCESS_KEY", "test-key")
+    provider = get_completion_provider(
+        AnyProviderConfig(
+            api_key="test-key:test-key"
+            if model_id.startswith("bedrock/")
+            else "test-key",
+            base_url="us-east-1" if model_id.startswith("bedrock/") else None,
+        ),
+        model=model_id,
+        session_id="test",
+    )
+    assert provider.reasoning_efforts() == expected
+
+
+@pytest.mark.requires("pydantic_ai")
+def test_custom_alias_preserves_automatic_thinking_defaults() -> None:
+    provider = CustomProvider(
+        AiModelId.from_model("custom-endpoint/gpt-5"),
+        AnyProviderConfig(
+            api_key="test-key", base_url="http://localhost:8080/v1"
+        ),
+    )
+    agent = provider.create_agent(
+        name="chat",
+        system_prompt="Help with the notebook.",
+        max_tokens=512,
+        enable_capabilities=False,
+    )
+    assert agent.model_settings == {"max_tokens": 512, "thinking": True}
+    assert provider.reasoning_efforts() == []
+
+
+@pytest.mark.requires("pydantic_ai")
+@pytest.mark.parametrize(
+    "model_id",
+    ["google/claude-haiku-5-5@default", "google/claude-opus-5-5@default"],
+)
+def test_vertex_claude_effort_is_not_downgraded_to_google_thinking(
+    model_id: str,
+) -> None:
+    from starlette.exceptions import HTTPException
+
+    provider = get_completion_provider(
+        AnyProviderConfig(api_key="test-key", base_url=None),
+        model=model_id,
+        session_id="test",
+    )
+    with pytest.raises(HTTPException):
+        provider.create_agent(
+            name="chat",
+            system_prompt="Help",
+            max_tokens=512,
+            enable_capabilities=False,
+            thinking="max",
+        )
+
+
+@pytest.mark.requires("pydantic_ai")
+async def test_advertised_max_effort_is_sent_without_downgrading() -> None:
+    from pydantic_ai.messages import ModelRequest, UserPromptPart
+    from pydantic_ai.models import ModelRequestParameters
+
+    provider = OpenAIProvider(
+        "gpt-6.1-sol", AnyProviderConfig(api_key="test-key", base_url=None)
+    )
+    model = provider.create_model()
+    assert "max" in provider.reasoning_efforts(model)
+    with patch.object(
+        model.client.responses,
+        "create",
+        new_callable=AsyncMock,
+        side_effect=RuntimeError("captured"),
+    ) as request:
+        with pytest.raises(RuntimeError, match="captured"):
+            await model.request(
+                [ModelRequest(parts=[UserPromptPart(content="Hello")])],
+                {"thinking": "max"},
+                ModelRequestParameters(),
+            )
+    assert request.call_args.kwargs["reasoning"]["effort"] == "max"

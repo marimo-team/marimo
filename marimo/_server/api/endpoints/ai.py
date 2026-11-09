@@ -42,6 +42,8 @@ from marimo._server.api.utils import parse_request
 from marimo._server.models.completion import (
     AiCompletionRequest,
     AiInlineCompletionRequest,
+    AiModelReasoningRequest,
+    AiModelReasoningResponse,
     ChatRequest,
     UIMessage,
 )
@@ -106,6 +108,43 @@ def get_provider_config(model: str, config: MarimoConfig) -> AnyProviderConfig:
         model,
         get_ai_config(config),
         secret_resolver=lambda key: get_secret_value(key, config),
+    )
+
+
+@router.post("/model_reasoning")
+@requires("edit")
+async def ai_model_reasoning(*, request: Request) -> Response:
+    """
+    parameters:
+        - in: header
+          name: Marimo-Session-Id
+          schema:
+            type: string
+          required: true
+    requestBody:
+        required: true
+        content:
+            application/json:
+                schema:
+                    $ref: "#/components/schemas/AiModelReasoningRequest"
+    responses:
+        200:
+            description: Reasoning efforts supported by the current adapter
+            content:
+                application/json:
+                    schema:
+                        $ref: "#/components/schemas/AiModelReasoningResponse"
+    """
+    app_state = AppState(request)
+    config = app_state.app_config_manager.get_config()
+    body = await parse_request(request, cls=AiModelReasoningRequest)
+    provider = get_completion_provider(
+        get_provider_config(body.model, config),
+        model=body.model,
+        session_id="model-reasoning",
+    )
+    return StructResponse(
+        AiModelReasoningResponse(efforts=provider.reasoning_efforts())
     )
 
 

@@ -232,6 +232,31 @@ components:
       - displayed_models
       title: AiModelConfig
       type: object
+    AiModelReasoningRequest:
+      properties:
+        model:
+          type: string
+      required:
+      - model
+      title: AiModelReasoningRequest
+      type: object
+    AiModelReasoningResponse:
+      properties:
+        efforts:
+          items:
+            enum:
+            - high
+            - low
+            - max
+            - medium
+            - minimal
+            - none
+            - xhigh
+          type: array
+      required:
+      - efforts
+      title: AiModelReasoningResponse
+      type: object
     AlertNotification:
       description: "User-facing alert message.\n\n    Attributes:\n        title:\
         \ Alert title.\n        description: Alert body (may contain HTML).\n    \
@@ -6587,6 +6612,27 @@ paths:
               schema:
                 $ref: '#/components/schemas/MCPStatusResponse'
           description: Get MCP server status
+  /api/ai/model_reasoning:
+    post:
+      parameters:
+      - in: header
+        name: Marimo-Session-Id
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AiModelReasoningRequest'
+        required: true
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AiModelReasoningResponse'
+          description: Reasoning efforts supported by the current adapter
   /api/cache/clear:
     post:
       parameters:

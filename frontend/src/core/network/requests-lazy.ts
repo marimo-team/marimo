@@ -71,6 +71,7 @@ const ACTIONS: Record<keyof AllRequests, Action> = {
 
   // These wait until the connection is open, but don't start a connection
   saveLayout: "waitForConnectionOpen",
+  getAiModelReasoning: "waitForConnectionOpen",
   invokeAiTool: "waitForConnectionOpen",
   sendFunctionRequest: "waitForConnectionOpen",
 
