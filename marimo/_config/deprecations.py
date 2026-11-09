@@ -1,12 +1,17 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-import types
 from functools import cache
-from typing import TYPE_CHECKING, Annotated, Union, get_args, get_origin
+from typing import TYPE_CHECKING
 
-from msgspec import Meta
-from msgspec.structs import fields
+from msgspec.inspect import (
+    DictType,
+    Metadata,
+    StructType,
+    Type,
+    UnionType,
+    type_info,
+)
 
 from marimo import _loggers
 from marimo._config.config_schema import MarimoConfig
@@ -16,7 +21,7 @@ from marimo._config.provenance import (
     format_config_source,
 )
 from marimo._config.resolver import config_paths
-from marimo._config.schema_utils import Config, config_leaf_types
+from marimo._config.schema_utils import config_leaf_types
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
@@ -24,35 +29,39 @@ if TYPE_CHECKING:
 LOGGER = _loggers.marimo_logger()
 
 
+@cache
+def _config_type_info() -> Type:
+    return type_info(MarimoConfig)
+
+
 def _deprecated_fields(
-    annotation: object, value: object, path: ConfigPath = ()
+    annotation: Type, value: object, path: ConfigPath = ()
 ) -> Iterator[tuple[ConfigPath, str]]:
-    if get_origin(annotation) is Annotated:
-        annotation, *extras = get_args(annotation)
-        for metadata in extras:
-            if isinstance(metadata, Meta) and (metadata.extra or {}).get(
-                "deprecated"
-            ):
-                yield path, metadata.description or ""
-                return
-    origin = get_origin(annotation)
-    if origin in (Union, types.UnionType):
-        for variant in get_args(annotation):
+    if isinstance(annotation, Metadata):
+        if (annotation.extra or {}).get("deprecated"):
+            guidance = (annotation.extra_json_schema or {}).get(
+                "description", ""
+            )
+            yield path, guidance
+            return
+        annotation = annotation.type
+    if isinstance(annotation, UnionType):
+        for variant in annotation.types:
             yield from _deprecated_fields(variant, value, path)
-    elif isinstance(annotation, type) and issubclass(annotation, Config):
+    elif isinstance(annotation, StructType):
         if isinstance(value, dict):
-            for item in fields(annotation):
+            for item in annotation.fields:
                 if item.encode_name in value:
                     yield from _deprecated_fields(
                         item.type,
                         value[item.encode_name],
                         (*path, item.encode_name),
                     )
-    elif origin is dict and isinstance(value, dict):
+    elif isinstance(annotation, DictType) and isinstance(value, dict):
         for entry in value.values():
             # Record keys are user values, so keep them out of diagnostics.
             yield from _deprecated_fields(
-                get_args(annotation)[1], entry, (*path, "*")
+                annotation.value_type, entry, (*path, "*")
             )
 
 
@@ -73,7 +82,9 @@ def warn_deprecated_fields(layer: ConfigLayer) -> None:
     """Warn once per explicitly supplied deprecated field and source."""
     if layer.source in ("default", "inferred"):
         return
-    for path, guidance in _deprecated_fields(MarimoConfig, layer.config):
+    for path, guidance in _deprecated_fields(
+        _config_type_info(), layer.config
+    ):
         source_paths = (
             config_paths(
                 layer.config,
