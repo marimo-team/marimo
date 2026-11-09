@@ -1,50 +1,200 @@
 {
-  "$schema": "https://vega.github.io/schema/vega-lite/v6.4.1.json",
-  "config": {
-    "view": {
-      "continuousHeight": 300,
-      "continuousWidth": 300,
-      "stroke": null
-    }
+  "$schema": "https://vega.github.io/schema/vega/v6.json",
+  "autosize": {
+    "contains": "padding",
+    "type": "fit-x"
   },
-  "data": {
-    "format": {
-      "type": "csv"
-    },
-    "url": "data:text/csv;base64,ZmxvYXRfY29sCjEuMQoyLjIKMy4zCg=="
-  },
-  "encoding": {
-    "tooltip": [
-      {
-        "bin": true,
-        "field": "float_col",
-        "format": ",.2f",
-        "title": "float_col",
-        "type": "quantitative"
+  "axes": [
+    {
+      "aria": false,
+      "domain": false,
+      "grid": true,
+      "gridScale": "x",
+      "labels": false,
+      "maxExtent": 0,
+      "minExtent": 0,
+      "orient": "left",
+      "scale": "y",
+      "tickCount": {
+        "signal": "ceil(height/40)"
       },
-      {
-        "aggregate": "count",
-        "format": ",.0f",
-        "title": "Number of records",
-        "type": "quantitative"
-      }
-    ],
-    "x": {
-      "bin": true,
-      "field": "float_col",
-      "title": "float_col",
-      "type": "quantitative"
+      "ticks": false,
+      "zindex": 0
     },
-    "y": {
-      "aggregate": "count",
+    {
+      "grid": false,
+      "labelFlush": true,
+      "labelOverlap": true,
+      "orient": "bottom",
+      "scale": "x",
+      "tickCount": {
+        "signal": "ceil(width/10)"
+      },
+      "title": "float_col",
+      "zindex": 0
+    },
+    {
+      "grid": false,
+      "labelOverlap": true,
+      "orient": "left",
+      "scale": "y",
+      "tickCount": {
+        "signal": "ceil(height/40)"
+      },
       "title": "Number of records",
-      "type": "quantitative"
+      "zindex": 0
+    }
+  ],
+  "background": "white",
+  "config": {
+    "style": {
+      "cell": {
+        "stroke": null
+      }
     }
   },
-  "mark": {
-    "color": "#be93e4",
-    "stroke": "#8e4ec6",
-    "type": "bar"
-  },
-  "width": "container"
+  "data": [
+    {
+      "name": "source_0",
+      "values": [
+        {
+          "__count": 1,
+          "bin_maxbins_10_float_col": 1.0,
+          "bin_maxbins_10_float_col_end": 1.5
+        },
+        {
+          "__count": 1,
+          "bin_maxbins_10_float_col": 2.0,
+          "bin_maxbins_10_float_col_end": 2.5
+        },
+        {
+          "__count": 1,
+          "bin_maxbins_10_float_col": 3.0,
+          "bin_maxbins_10_float_col_end": 3.5
+        }
+      ]
+    },
+    {
+      "name": "source_0_y_domain___count",
+      "values": [
+        {
+          "max": 1,
+          "min": 1
+        }
+      ]
+    }
+  ],
+  "height": 300,
+  "marks": [
+    {
+      "encode": {
+        "update": {
+          "fill": {
+            "value": "#be93e4"
+          },
+          "stroke": {
+            "value": "#8e4ec6"
+          },
+          "tooltip": {
+            "signal": "{\"float_col\": !isValid(datum[\"bin_maxbins_10_float_col\"]) || !isFinite(+datum[\"bin_maxbins_10_float_col\"]) ? \"null\" : format(datum[\"bin_maxbins_10_float_col\"], \",.2f\") + \" – \" + format(datum[\"bin_maxbins_10_float_col_end\"], \",.2f\"), \"Number of records\": format(datum[\"__count\"], \",.0f\")}"
+          },
+          "x": {
+            "field": "bin_maxbins_10_float_col_end",
+            "offset": {
+              "signal": "0.5 + (abs(scale(\"x\", datum[\"bin_maxbins_10_float_col_end\"]) - scale(\"x\", datum[\"bin_maxbins_10_float_col\"])) < 0.25 ? 0.5 * (0.25 - (abs(scale(\"x\", datum[\"bin_maxbins_10_float_col_end\"]) - scale(\"x\", datum[\"bin_maxbins_10_float_col\"])))) : -0.5)"
+            },
+            "scale": "x"
+          },
+          "x2": {
+            "field": "bin_maxbins_10_float_col",
+            "offset": {
+              "signal": "0.5 + (abs(scale(\"x\", datum[\"bin_maxbins_10_float_col_end\"]) - scale(\"x\", datum[\"bin_maxbins_10_float_col\"])) < 0.25 ? -0.5 * (0.25 - (abs(scale(\"x\", datum[\"bin_maxbins_10_float_col_end\"]) - scale(\"x\", datum[\"bin_maxbins_10_float_col\"])))) : 0.5)"
+            },
+            "scale": "x"
+          },
+          "y": {
+            "field": "__count",
+            "scale": "y"
+          },
+          "y2": {
+            "scale": "y",
+            "value": 0
+          }
+        }
+      },
+      "from": {
+        "data": "source_0"
+      },
+      "name": "marks",
+      "style": [
+        "bar"
+      ],
+      "type": "rect"
+    }
+  ],
+  "padding": 5,
+  "scales": [
+    {
+      "bins": {
+        "signal": "bin_maxbins_10_float_col_bins"
+      },
+      "domain": {
+        "signal": "[bin_maxbins_10_float_col_bins.start, bin_maxbins_10_float_col_bins.stop]"
+      },
+      "name": "x",
+      "range": [
+        0,
+        {
+          "signal": "width"
+        }
+      ],
+      "type": "linear",
+      "zero": false
+    },
+    {
+      "domain": [
+        {
+          "signal": "(data(\"source_0_y_domain___count\")[0] || {}).min"
+        },
+        {
+          "signal": "(data(\"source_0_y_domain___count\")[0] || {}).max"
+        }
+      ],
+      "name": "y",
+      "nice": true,
+      "range": [
+        {
+          "signal": "height"
+        },
+        0
+      ],
+      "type": "linear",
+      "zero": true
+    }
+  ],
+  "signals": [
+    {
+      "name": "bin_maxbins_10_float_col_bins",
+      "value": {
+        "fields": [
+          "float_col"
+        ],
+        "fname": "bin_float_col",
+        "start": 1.0,
+        "step": 0.5,
+        "stop": 3.5
+      }
+    },
+    {
+      "init": "isFinite(containerSize()[0]) ? containerSize()[0] : 300",
+      "name": "width",
+      "on": [
+        {
+          "events": "window:resize",
+          "update": "isFinite(containerSize()[0]) ? containerSize()[0] : 300"
+        }
+      ]
+    }
+  ],
+  "style": "cell"
 }

@@ -1,186 +1,242 @@
 {
-  "$schema": "https://vega.github.io/schema/vega-lite/v6.4.1.json",
+  "$schema": "https://vega.github.io/schema/vega/v6.json",
+  "autosize": {
+    "contains": "padding",
+    "type": "fit-x"
+  },
+  "axes": [
+    {
+      "grid": false,
+      "labelFlush": true,
+      "labelOverlap": true,
+      "orient": "bottom",
+      "scale": "x",
+      "tickCount": {
+        "signal": "ceil(width/40)"
+      },
+      "title": "Number of records",
+      "zindex": 0
+    },
+    {
+      "grid": false,
+      "orient": "left",
+      "scale": "y",
+      "zindex": 0
+    }
+  ],
+  "background": "white",
   "config": {
     "axis": {
       "grid": false
     },
-    "view": {
-      "continuousHeight": 300,
-      "continuousWidth": 300,
-      "stroke": null
+    "style": {
+      "cell": {
+        "stroke": null
+      }
     }
   },
-  "data": {
-    "format": {
-      "type": "csv"
-    },
-    "url": "data:text/csv;base64,Y2F0ZWdvcnlfY29sCmNhdDEKY2F0MgpjYXQxCg=="
-  },
-  "layer": [
+  "data": [
     {
-      "encoding": {
-        "tooltip": [
-          {
-            "field": "category_col",
-            "type": "nominal"
-          },
-          {
-            "field": "count",
-            "format": ",.0f",
-            "title": "Number of records",
-            "type": "quantitative"
-          }
-        ],
-        "x": {
-          "field": "count",
-          "title": "Number of records",
-          "type": "quantitative"
-        },
-        "y": {
-          "axis": {
-            "title": null
-          },
-          "field": "category_col",
-          "sort": "-x",
-          "type": "nominal"
-        }
-      },
-      "mark": {
-        "color": "#8ec8f6",
-        "type": "bar"
-      },
-      "transform": [
+      "name": "source_0"
+    },
+    {
+      "name": "data_1",
+      "values": [
         {
-          "aggregate": [
-            {
-              "as": "count",
-              "op": "count"
-            }
-          ],
-          "groupby": [
-            "category_col"
-          ]
+          "category_col": "cat1",
+          "count": 2,
+          "percentage": 0.6666666666666666
         },
         {
-          "sort": [
-            {
-              "field": "count",
-              "order": "descending"
-            },
-            {
-              "field": "category_col",
-              "order": "ascending"
-            }
-          ],
-          "window": [
-            {
-              "as": "rank",
-              "field": "",
-              "op": "rank"
-            }
-          ]
-        },
-        {
-          "joinaggregate": [
-            {
-              "as": "total_count",
-              "field": "count",
-              "op": "sum"
-            }
-          ]
-        },
-        {
-          "as": "percentage",
-          "calculate": "datum.count / datum.total_count"
+          "category_col": "cat2",
+          "count": 1,
+          "percentage": 0.3333333333333333
         }
       ]
     },
     {
-      "encoding": {
-        "text": {
-          "field": "percentage",
-          "format": ".2%",
-          "type": "quantitative"
+      "name": "data_2",
+      "values": [
+        {
+          "category_col": "cat1",
+          "count": 2,
+          "count_end": 2.0,
+          "count_start": 0.0
         },
-        "tooltip": [
-          {
-            "field": "category_col",
-            "type": "nominal"
-          },
-          {
-            "field": "count",
-            "format": ",.0f",
-            "title": "Number of records",
-            "type": "quantitative"
-          }
-        ],
-        "x": {
-          "field": "count",
-          "title": "Number of records",
-          "type": "quantitative"
-        },
-        "y": {
-          "axis": {
-            "title": null
-          },
-          "field": "category_col",
-          "sort": "-x",
-          "type": "nominal"
+        {
+          "category_col": "cat2",
+          "count": 1,
+          "count_end": 1.0,
+          "count_start": 0.0
         }
-      },
-      "mark": {
-        "align": "left",
-        "color": "black",
-        "dx": 3,
-        "type": "text"
-      },
-      "transform": [
+      ]
+    },
+    {
+      "name": "source_0_y_domain_category_col",
+      "values": [
         {
-          "aggregate": [
-            {
-              "as": "count",
-              "op": "count"
-            }
-          ],
-          "groupby": [
-            "category_col"
-          ]
+          "category_col": "cat1",
+          "sort_field": 2
         },
         {
-          "sort": [
-            {
-              "field": "count",
-              "order": "descending"
-            },
-            {
-              "field": "category_col",
-              "order": "ascending"
-            }
-          ],
-          "window": [
-            {
-              "as": "rank",
-              "field": "",
-              "op": "rank"
-            }
-          ]
-        },
-        {
-          "joinaggregate": [
-            {
-              "as": "total_count",
-              "field": "count",
-              "op": "sum"
-            }
-          ]
-        },
-        {
-          "as": "percentage",
-          "calculate": "datum.count / datum.total_count"
+          "category_col": "cat2",
+          "sort_field": 1
         }
       ]
     }
   ],
-  "title": "category_col",
-  "width": "container"
+  "marks": [
+    {
+      "encode": {
+        "update": {
+          "fill": {
+            "value": "#8ec8f6"
+          },
+          "height": {
+            "signal": "max(0.25, bandwidth('y'))"
+          },
+          "tooltip": {
+            "signal": "{\"category_col\": isValid(datum[\"category_col\"]) ? isArray(datum[\"category_col\"]) ? join(datum[\"category_col\"], '\\n') : datum[\"category_col\"] : \"\"+datum[\"category_col\"], \"Number of records\": format(datum[\"count\"], \",.0f\")}"
+          },
+          "x": {
+            "field": "count_end",
+            "scale": "x"
+          },
+          "x2": {
+            "field": "count_start",
+            "scale": "x"
+          },
+          "y": {
+            "field": "category_col",
+            "scale": "y"
+          }
+        }
+      },
+      "from": {
+        "data": "data_2"
+      },
+      "name": "layer_0_marks",
+      "style": [
+        "bar"
+      ],
+      "type": "rect"
+    },
+    {
+      "encode": {
+        "update": {
+          "align": {
+            "value": "left"
+          },
+          "baseline": {
+            "value": "middle"
+          },
+          "dx": {
+            "value": 3
+          },
+          "fill": {
+            "value": "black"
+          },
+          "text": {
+            "signal": "format(datum[\"percentage\"], \".2%\")"
+          },
+          "tooltip": {
+            "signal": "{\"category_col\": isValid(datum[\"category_col\"]) ? isArray(datum[\"category_col\"]) ? join(datum[\"category_col\"], '\\n') : datum[\"category_col\"] : \"\"+datum[\"category_col\"], \"Number of records\": format(datum[\"count\"], \",.0f\")}"
+          },
+          "x": {
+            "field": "count",
+            "scale": "x"
+          },
+          "y": {
+            "band": 0.5,
+            "field": "category_col",
+            "scale": "y"
+          }
+        }
+      },
+      "from": {
+        "data": "data_1"
+      },
+      "name": "layer_1_marks",
+      "style": [
+        "text"
+      ],
+      "type": "text"
+    }
+  ],
+  "padding": 5,
+  "scales": [
+    {
+      "domain": {
+        "fields": [
+          {
+            "data": "data_2",
+            "field": "count_start"
+          },
+          {
+            "data": "data_2",
+            "field": "count_end"
+          },
+          {
+            "data": "data_1",
+            "field": "count"
+          }
+        ]
+      },
+      "name": "x",
+      "nice": true,
+      "range": [
+        0,
+        {
+          "signal": "width"
+        }
+      ],
+      "type": "linear",
+      "zero": true
+    },
+    {
+      "domain": {
+        "data": "source_0_y_domain_category_col",
+        "field": "category_col",
+        "sort": {
+          "field": "sort_field",
+          "op": "max",
+          "order": "descending"
+        }
+      },
+      "name": "y",
+      "paddingInner": 0.1,
+      "paddingOuter": 0.05,
+      "range": {
+        "step": {
+          "signal": "y_step"
+        }
+      },
+      "type": "band"
+    }
+  ],
+  "signals": [
+    {
+      "init": "isFinite(containerSize()[0]) ? containerSize()[0] : 300",
+      "name": "width",
+      "on": [
+        {
+          "events": "window:resize",
+          "update": "isFinite(containerSize()[0]) ? containerSize()[0] : 300"
+        }
+      ]
+    },
+    {
+      "name": "y_step",
+      "value": 20
+    },
+    {
+      "name": "height",
+      "update": "bandspace(domain('y').length, 0.1, 0.05) * y_step"
+    }
+  ],
+  "style": "cell",
+  "title": {
+    "frame": "group",
+    "text": "category_col"
+  }
 }
