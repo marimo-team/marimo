@@ -1,11 +1,14 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import Any, Literal
+from typing import TYPE_CHECKING, Any, Literal
 
 import msgspec
 
 from marimo._server.ai.tools.types import ToolDefinition
+
+if TYPE_CHECKING:
+    from pydantic_ai.settings import ThinkingLevel
 
 
 class SchemaColumn(msgspec.Struct, rename="camel"):
@@ -67,7 +70,16 @@ class ChatOptions(msgspec.Struct, rename="camel"):
     """
 
     web_search: bool = False
-    reasoning_effort: Literal["low", "medium", "high"] | None = None
+    reasoning_effort: (
+        Literal["none", "minimal", "low", "medium", "high", "xhigh", "max"]
+        | None
+    ) = None
+
+    @property
+    def thinking(self) -> ThinkingLevel | None:
+        return (
+            False if self.reasoning_effort == "none" else self.reasoning_effort
+        )
 
 
 class ChatRequest(msgspec.Struct, rename="camel"):
