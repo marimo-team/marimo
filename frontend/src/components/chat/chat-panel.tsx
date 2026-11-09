@@ -17,7 +17,7 @@ import {
   PlusIcon,
   SettingsIcon,
 } from "lucide-react";
-import { memo, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 import useEvent from "react-use-event-hook";
 import { Button } from "@/components/ui/button";
 import { replaceMessagesInChat } from "@/core/ai/chat-utils";
@@ -40,15 +40,11 @@ import { aiAtom, aiModelConfiguredAtom } from "@/core/config/config";
 import { DEFAULT_AI_MODEL } from "@/core/config/config-schema";
 import { useRequestClient } from "@/core/network/requests";
 import { useRuntimeManager } from "@/core/runtime/config";
-import { isWasm } from "@/core/wasm/utils";
 import { ErrorBanner } from "@/plugins/impl/common/error-banner";
 import { Logger } from "@/utils/Logger";
 import { AIModelDropdown } from "../ai/ai-model-dropdown";
 import { useOpenSettingsToTab } from "../app-config/state";
-import {
-  PairWithAgentBanner,
-  usePairWithAgentModal,
-} from "../editor/actions/pair-with-agent";
+import { PairWithAgentBanner } from "../editor/actions/pair-with-agent";
 import { PromptInput } from "../editor/ai/prompt-input";
 import { PendingAICells } from "../editor/chrome/wrapper/pending-ai-cells";
 import {
@@ -78,6 +74,7 @@ import {
 import { AgentActivity } from "./agent-activity";
 import { getAnswerText, renderUIMessage } from "./chat-display";
 import { ChatHistoryPopover } from "./chat-history-popover";
+import { ChatEmptyState } from "./chat-empty-state";
 import { CapabilitiesPopover } from "./capabilities-popover";
 import { NotebookAccessSelector } from "./notebook-access-selector";
 import {
@@ -340,20 +337,6 @@ const ChatInput: React.FC<ChatInputProps> = memo(
     onAddFiles,
     onClose,
   }) => {
-    const openPairWithAgentModal = usePairWithAgentModal();
-    const placeholderAction = useMemo(
-      () =>
-        isWasm()
-          ? undefined
-          : {
-              beforeText: "Type your message or ",
-              linkText: "pair your own coding agent",
-              afterText: ". Use @ to reference variables and cells.",
-              onClick: openPairWithAgentModal,
-            },
-      [openPairWithAgentModal],
-    );
-
     const handleSendClick = useEvent(() => {
       if (input.trim()) {
         onSubmit(undefined, input);
@@ -372,7 +355,6 @@ const ChatInput: React.FC<ChatInputProps> = memo(
             onClose={onClose}
             onAddFiles={onAddFiles}
             placeholder="Type your message. Use @ to reference variables and cells."
-            placeholderAction={placeholderAction}
           />
         </div>
         <ChatInputFooter
@@ -969,6 +951,14 @@ const ChatPanelBody = () => {
           ref={scrollContainerRef}
           onScroll={handleScroll}
         >
+          {isNewThread && !isTurnActive && !error && (
+            <ChatEmptyState
+              onSelectPrompt={(prompt) => {
+                setNewThreadInput(prompt);
+                focusInputAndMoveToEnd(newThreadInputRef);
+              }}
+            />
+          )}
           <TooltipProvider>
             {messages.map((message, idx) => {
               const isLast = idx === messages.length - 1;
