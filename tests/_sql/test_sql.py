@@ -8,7 +8,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from marimo._config.config import SqlOutputType
+from marimo._config.types import SqlOutputType
 from marimo._dependencies.dependencies import Dependency, DependencyManager
 from marimo._dependencies.errors import ManyModulesNotFoundError
 from marimo._output.formatting import Plain
@@ -977,10 +977,10 @@ def test_standalone_sql_reads_files_once_without_creating_user_config(
 
 
 def test_negative_file_sql_limit_is_not_applied() -> None:
-    from marimo._config.config import merge_default_config
+    from marimo._config.config import parse_config
 
     context = MagicMock()
-    context.marimo_config = merge_default_config(
+    context.marimo_config = parse_config(
         {"runtime": {"sql_default_limit": -1}}
     )
     with patch("marimo._sql.sql.get_context", return_value=context):

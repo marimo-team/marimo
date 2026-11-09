@@ -405,7 +405,7 @@ def _broadcast_outputs(
         show_tracebacks = get_mode() == "edit"
         if ctx.user_config is not None:
             show_tracebacks = show_tracebacks or bool(
-                ctx.user_config["runtime"].get("show_tracebacks", False)
+                ctx.user_config.runtime.show_tracebacks
             )
 
         if show_tracebacks and (

@@ -5,7 +5,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Any, Generic, Literal, TypeVar
 
-from marimo._config.config import SqlOutputType
+from marimo._config.types import SqlOutputType
 from marimo._data.models import Database, DataTable, Schema
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._sql.parse import (

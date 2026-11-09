@@ -564,7 +564,7 @@ async def _open_notebook(request: Request) -> Reply:
     auth_token = state.session_manager.auth_token
     if not AuthToken.is_empty(auth_token):
         url += f"&{TOKEN_QUERY_PARAM}={quote(str(auth_token))}"
-    browser = state.config_manager.get_config()["server"]["browser"]
+    browser = state.config_manager.get_config().server.browser
     # Keep blocking browser discovery off the event loop.
     threading.Thread(
         target=_open_quietly, args=(browser, url), daemon=True

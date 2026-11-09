@@ -1,9 +1,9 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import Any
 from unittest.mock import MagicMock
 
+from marimo._config.config_schema import MarimoConfig
 from marimo._server.api.endpoints.ws.ws_connection_validator import (
     ConnectionParams,
     ConnectionRejection,
@@ -17,7 +17,9 @@ def _app_state(
     unique_file_key: str | None = "test.py",
 ) -> MagicMock:
     query = query or {}
-    config: dict[str, Any] = {"runtime": {"auto_instantiate": True}}
+    config: MarimoConfig = MarimoConfig.from_dict(
+        {"runtime": {"auto_instantiate": True}}
+    )
     app_state = MagicMock()
     app_state.query_params.side_effect = query.get
     workspace = app_state.session_manager.workspace

@@ -7,6 +7,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from marimo._config.config_schema import MarimoConfig
 from marimo._server.api import lifespans
 from marimo._session.model import SessionMode
 
@@ -14,9 +15,7 @@ from marimo._session.model import SessionMode
 async def test_browser_launch_does_not_block_event_loop_or_lifespan() -> None:
     state = MagicMock()
     state.headless = False
-    state.config_manager.get_config.return_value = {
-        "server": {"browser": "default"}
-    }
+    state.config_manager.get_config.return_value = MarimoConfig()
     loop = asyncio.get_running_loop()
     started = asyncio.Event()
     finished = asyncio.Event()

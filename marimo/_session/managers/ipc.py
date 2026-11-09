@@ -19,7 +19,6 @@ from typing import TYPE_CHECKING, cast
 from uuid import uuid4
 
 from marimo import _loggers
-from marimo._config.config import VenvConfig
 from marimo._config.manager import MarimoConfigManager
 from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._environments.overlay import runtime_overlay
@@ -60,12 +59,6 @@ if TYPE_CHECKING:
     from marimo._types.ids import CellId_t
 
 LOGGER = _loggers.marimo_logger()
-
-
-def _get_venv_config(config_manager: MarimoConfigManager) -> VenvConfig:
-    """Get the [tool.marimo.venv] config from a config manager."""
-    config = config_manager.get_config(hide_secrets=False)
-    return cast(VenvConfig, config.get("venv", {}))
 
 
 # How long close_kernel waits for the kernel to dump its profile, and
@@ -336,11 +329,13 @@ class IPCKernelManagerImpl(KernelManager):
         with environment_operation(
             "prepare", {}, "kernel", self._notify
         ) as operation:
-            venv_config = _get_venv_config(self.config_manager)
+            venv_config = self.config_manager.get_config(
+                hide_secrets=False
+            ).venv
             # NB. With MARIMO_SANDBOX_AUTO the manifest picks the environment
             # per notebook, so a configured venv is honored even here.
             ignore_venv = self._sandbox and not GLOBAL_SETTINGS.SANDBOX_AUTO
-            if ignore_venv and venv_config.get("path"):
+            if ignore_venv and venv_config.path:
                 echo(
                     "Warning: ignoring [tool.marimo.venv] in sandbox mode. "
                     "Use --no-sandbox to edit with the configured environment.",
@@ -367,7 +362,7 @@ class IPCKernelManagerImpl(KernelManager):
                 )
                 venv_python = configured_python
 
-                writable = venv_config.get("writable", False)
+                writable = venv_config.writable
 
                 # Configured environments are assumed to be read-only.
                 # If not, then install marimo by default to ensure that the
@@ -735,7 +730,10 @@ class IPCKernelManagerImpl(KernelManager):
                 # so user-code subprocesses die too, then the launcher.
                 if self._kernel_pid is not None and sys.platform != "win32":
                     try:
-                        os.killpg(os.getpgid(self._kernel_pid), signal.SIGTERM)
+                        pgid = os.getpgid(self._kernel_pid)
+                        # The ready handshake can precede the kernel's setsid.
+                        if pgid != os.getpgrp():
+                            os.killpg(pgid, signal.SIGTERM)
                     except (ProcessLookupError, PermissionError):
                         pass
                 try:

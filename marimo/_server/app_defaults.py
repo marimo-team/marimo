@@ -4,7 +4,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from marimo._config.config import ExportType, SqlOutputType, WidthType
+from marimo._config.types import ExportType, SqlOutputType, WidthType
 
 if TYPE_CHECKING:
     from marimo._config.manager import MarimoConfigManager
@@ -20,8 +20,9 @@ class AppDefaults:
 
     @staticmethod
     def from_config_manager(config: MarimoConfigManager) -> AppDefaults:
+        resolved = config.get_config()
         return AppDefaults(
-            width=config.default_width,
-            auto_download=config.default_auto_download,
-            sql_output=config.default_sql_output,
+            width=resolved.display.default_width,
+            auto_download=resolved.runtime.default_auto_download,
+            sql_output=resolved.runtime.default_sql_output,
         )

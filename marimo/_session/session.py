@@ -118,7 +118,7 @@ class SessionImpl(Session):
             ScriptConfigReader(app_file_manager.path)
         )
         config = config_manager.get_config(hide_secrets=False)
-        configured_venv = config.get("venv", {}).get("path")
+        configured_venv = config.venv.path
 
         configs = app_file_manager.app.cell_manager.config_map()
 
@@ -192,9 +192,7 @@ class SessionImpl(Session):
             cache_enabled = not auto_instantiate
             cache_mode = CacheMode.READ_WRITE
         else:
-            cache_enabled = config_manager.get_config()["runtime"].get(
-                "serve_cached_sessions_in_apps", False
-            )
+            cache_enabled = config_manager.get_config().runtime.serve_cached_sessions_in_apps
             cache_mode = CacheMode.READ
 
         extensions = [

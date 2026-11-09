@@ -15,6 +15,7 @@ import pytest
 
 from marimo._ast.app_config import _AppConfig
 from marimo._config.config import DEFAULT_CONFIG, merge_config
+from marimo._config.config_schema import FileBrowserConfig
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.types import KernelMessage
 from marimo._pyodide.pyodide_session import (
@@ -992,10 +993,12 @@ def test_pyodide_bridge_file_roots(
     monkeypatch.setattr(
         pyodide_bridge.file_system, "get_root", lambda: str(primary)
     )
-    monkeypatch.setitem(
+    monkeypatch.setattr(
         pyodide_bridge.session._initial_user_config,
         "file_browser",
-        {"folders": [{"path": str(shared), "name": "Shared"}]},
+        FileBrowserConfig.from_dict(
+            {"folders": [{"path": str(shared), "name": "Shared"}]}
+        ),
     )
 
     response = json.loads(pyodide_bridge.file_roots())

@@ -6,6 +6,7 @@ from __future__ import annotations
 import os
 import sys
 
+from marimo._config.config import parse_config
 from marimo._ipc.queue_manager import QueueManager
 from marimo._ipc.types import KernelArgs
 from marimo._runtime import runtime
@@ -45,7 +46,7 @@ def main() -> None:
         input_queue=queue_manager.input_queue,
         app_metadata=args.app_metadata,
         log_level=args.log_level,
-        user_config=args.user_config,
+        user_config=parse_config(args.user_config),
         config_overrides=args.config_overrides,
         configs=args.configs,
         profile_path=args.profile_path,

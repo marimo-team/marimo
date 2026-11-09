@@ -8,7 +8,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from starlette.exceptions import HTTPException
 
-from marimo._config.config import CopilotMode, MarimoConfig
+from marimo._config.config_schema import MarimoConfig
+from marimo._config.types import CopilotMode
 from marimo._server.ai.completion_output import (
     CELL_COMPLETION_DATA_TYPE,
     NOTEBOOK_CELLS_COMPLETION_DATA_TYPE,
@@ -43,17 +44,19 @@ HEADERS = {
 
 
 def _custom_provider_config(api_key: str, dotenvs: list[str]) -> MarimoConfig:
-    return MarimoConfig(
-        ai={
-            "models": {"chat_model": "gateway/custom-model"},
-            "custom_providers": {
-                "gateway": {
-                    "api_key": api_key,
-                    "base_url": "https://gateway.example.com/v1",
-                }
+    return MarimoConfig.from_dict(
+        {
+            "ai": {
+                "models": {"chat_model": "gateway/custom-model"},
+                "custom_providers": {
+                    "gateway": {
+                        "api_key": api_key,
+                        "base_url": "https://gateway.example.com/v1",
+                    }
+                },
             },
-        },
-        runtime={"dotenv": dotenvs},
+            "runtime": {"dotenv": dotenvs},
+        }
     )
 
 
@@ -102,9 +105,8 @@ def test_get_provider_config_resolves_default_dotenv_key(
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
     env_file = tmp_path / ".env"
     env_file.write_text("OPENAI_API_KEY=dotenv-key", encoding="utf-8")
-    config = MarimoConfig(
-        ai={"open_ai": {}},
-        runtime={"dotenv": [str(env_file)]},
+    config = MarimoConfig.from_dict(
+        {"ai": {"open_ai": {}}, "runtime": {"dotenv": [str(env_file)]}}
     )
 
     provider_config = get_provider_config("openai/gpt-4o", config)
@@ -581,15 +583,17 @@ class TestGoogleAiEndpoints:
             _mock_stream_completion_response()
         )
 
-        config = {
-            "ai": {
-                "open_ai": {"model": "gemini-1.5-pro"},
-                "google": {"api_key": "fake-key"},
-                "models": {
-                    "autocomplete_model": "google/gemini-1.5-pro-for-inline-completion",
+        config = MarimoConfig.from_dict(
+            {
+                "ai": {
+                    "open_ai": {"model": "gemini-1.5-pro"},
+                    "google": {"api_key": "fake-key"},
+                    "models": {
+                        "autocomplete_model": "google/gemini-1.5-pro-for-inline-completion",
+                    },
                 },
-            },
-        }
+            }
+        )
 
         with patch.object(
             user_config_manager, "get_config", return_value=config
@@ -622,12 +626,14 @@ class TestGoogleAiEndpoints:
             _mock_stream_completion_response()
         )
 
-        config = {
-            "ai": {
-                "open_ai": {"model": "gemini-1.5-pro"},
-                "google": {"api_key": ""},
-            },
-        }
+        config = MarimoConfig.from_dict(
+            {
+                "ai": {
+                    "open_ai": {"model": "gemini-1.5-pro"},
+                    "google": {"api_key": ""},
+                },
+            }
+        )
 
         with (
             patch.object(
@@ -691,94 +697,108 @@ class TestGoogleAiEndpoints:
             )
 
 
-def _openai_config() -> dict[str, Any]:
-    return {
-        "ai": {
-            "open_ai": {
-                "api_key": "fake-api",
-                "model": "openai/some-openai-model",
+def _openai_config() -> MarimoConfig:
+    return MarimoConfig.from_dict(
+        {
+            "ai": {
+                "open_ai": {
+                    "api_key": "fake-api",
+                    "model": "openai/some-openai-model",
+                },
+                "models": {
+                    "autocomplete_model": "gpt-marimo-for-inline-completion",
+                },
             },
-            "models": {
-                "autocomplete_model": "gpt-marimo-for-inline-completion",
-            },
-        },
-    }
+        }
+    )
 
 
 def _openai_config_custom_model():
-    return {
-        "ai": {
-            "open_ai": {
-                "api_key": "fake-api",
-                "model": "gpt-marimo",
+    return MarimoConfig.from_dict(
+        {
+            "ai": {
+                "open_ai": {
+                    "api_key": "fake-api",
+                    "model": "gpt-marimo",
+                },
+                "models": {
+                    "autocomplete_model": "gpt-marimo-for-inline-completion",
+                },
             },
-            "models": {
-                "autocomplete_model": "gpt-marimo-for-inline-completion",
-            },
-        },
-    }
+        }
+    )
 
 
 def _openai_config_custom_base_url():
-    return {
-        "ai": {
-            "open_ai": {
-                "api_key": "fake-api",
-                "base_url": "https://my-openai-instance.com",
-                "model": "openai/some-openai-model-with-base-url",
+    return MarimoConfig.from_dict(
+        {
+            "ai": {
+                "open_ai": {
+                    "api_key": "fake-api",
+                    "base_url": "https://my-openai-instance.com",
+                    "model": "openai/some-openai-model-with-base-url",
+                },
+                "models": {
+                    "autocomplete_model": "gpt-marimo-for-inline-completion",
+                },
             },
-            "models": {
-                "autocomplete_model": "gpt-marimo-for-inline-completion",
-            },
-        },
-    }
+        }
+    )
 
 
 def _no_openai_config():
-    return {
-        "ai": {
-            "open_ai": {"api_key": "", "model": ""},
-            "models": {
-                "autocomplete_model": "gpt-marimo-for-inline-completion",
+    return MarimoConfig.from_dict(
+        {
+            "ai": {
+                "open_ai": {"api_key": "", "model": ""},
+                "models": {
+                    "autocomplete_model": "gpt-marimo-for-inline-completion",
+                },
             },
-        },
-    }
+        }
+    )
 
 
 def _no_anthropic_config():
-    return {
-        "ai": {
-            "open_ai": {"model": "claude-3.5"},
-            "anthropic": {"api_key": ""},
-            "models": {
-                "autocomplete_model": "claude-3.5-for-inline-completion",
+    return MarimoConfig.from_dict(
+        {
+            "ai": {
+                "open_ai": {"model": "claude-3.5"},
+                "anthropic": {"api_key": ""},
+                "models": {
+                    "autocomplete_model": "claude-3.5-for-inline-completion",
+                },
             },
-        },
-    }
+        }
+    )
 
 
 def _anthropic_config():
-    return {
-        "ai": {
-            "open_ai": {"model": "claude-3.5"},
-            "anthropic": {"api_key": "fake-key"},
-            "models": {
-                "autocomplete_model": "anthropic/claude-3.5-for-inline-completion",
+    return MarimoConfig.from_dict(
+        {
+            "ai": {
+                "open_ai": {"model": "claude-3.5"},
+                "anthropic": {"api_key": "fake-key"},
+                "models": {
+                    "autocomplete_model": "anthropic/claude-3.5-for-inline-completion",
+                },
             },
-        },
-    }
+        }
+    )
 
 
 def _google_ai_config():
-    return {
-        "ai": {
-            "open_ai": {"model": "gemini-1.5-pro"},
-            "google": {"api_key": "fake-key"},
-            "models": {
-                "autocomplete_model": "google/gemini-1.5-pro-for-inline-completion",
+    return MarimoConfig.from_dict(
+        {
+            "ai": {
+                "open_ai": {"model": "gemini-1.5-pro"},
+                "google": {"api_key": "fake-key"},
+                "models": {
+                    "autocomplete_model": "google/gemini-1.5-pro-for-inline-completion",
+                },
             },
-        },
-    }
+        }
+    )
 
 
 @pytest.mark.requires("openai", "pydantic_ai")
@@ -792,7 +812,7 @@ def test_chat_without_code(
         user_config_manager = get_session_config_manager(client)
         config = _openai_config()
         if mode is not None:
-            config["ai"]["mode"] = mode
+            config.ai.mode = mode
 
         # Create a mock StreamingResponse
         from starlette.responses import StreamingResponse
@@ -887,9 +907,9 @@ def test_chat_with_code(
         )
 
 
-def _openai_config_code_mode() -> dict[str, Any]:
-    config: dict[str, Any] = _openai_config()
-    config["ai"]["mode"] = "code_mode"
+def _openai_config_code_mode() -> MarimoConfig:
+    config = _openai_config()
+    config.ai.mode = "code_mode"
     return config
 
 

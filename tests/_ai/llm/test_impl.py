@@ -19,6 +19,7 @@ from marimo._ai.llm._impl import (
     pydantic_ai,
     simple,
 )
+from marimo._config.config_schema import MarimoConfig
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._plugins.ui._impl.chat.chat import AI_SDK_VERSION
 
@@ -375,9 +376,9 @@ class TestOpenAI:
     def test_require_api_key_config(self, mock_get_context):
         """Test _require_api_key with config."""
         mock_context = MagicMock()
-        mock_context.marimo_config = {
-            "ai": {"open_ai": {"api_key": "config-key"}}
-        }
+        mock_context.marimo_config = MarimoConfig.from_dict(
+            {"ai": {"open_ai": {"api_key": "config-key"}}}
+        )
         mock_get_context.return_value = mock_context
 
         model = openai("gpt-4")
@@ -388,7 +389,9 @@ class TestOpenAI:
     def test_require_api_key_missing(self, mock_get_context):
         """Test _require_api_key with missing key."""
         mock_context = MagicMock()
-        mock_context.marimo_config = {"ai": {"open_ai": {"api_key": ""}}}
+        mock_context.marimo_config = MarimoConfig.from_dict(
+            {"ai": {"open_ai": {"api_key": ""}}}
+        )
         mock_get_context.return_value = mock_context
 
         model = openai("gpt-4")
@@ -785,9 +788,9 @@ class TestGoogle:
     def test_require_api_key_config(self, mock_get_context: MagicMock) -> None:
         """Test _require_api_key with config."""
         mock_context = MagicMock()
-        mock_context.marimo_config = {
-            "ai": {"google": {"api_key": "config-key"}}
-        }
+        mock_context.marimo_config = MarimoConfig.from_dict(
+            {"ai": {"google": {"api_key": "config-key"}}}
+        )
         mock_get_context.return_value = mock_context
 
         model = google("gemini-2.5-flash-preview-05-20")
@@ -800,7 +803,9 @@ class TestGoogle:
     ) -> None:
         """Test _require_api_key with missing key."""
         mock_context = MagicMock()
-        mock_context.marimo_config = {"ai": {"google": {"api_key": ""}}}
+        mock_context.marimo_config = MarimoConfig.from_dict(
+            {"ai": {"google": {"api_key": ""}}}
+        )
         mock_get_context.return_value = mock_context
 
         model = google("gemini-2.5-flash-preview-05-20")
@@ -997,9 +1002,9 @@ class TestAnthropic:
     def test_require_api_key_config(self, mock_get_context: MagicMock) -> None:
         """Test _require_api_key with config."""
         mock_context = MagicMock()
-        mock_context.marimo_config = {
-            "ai": {"anthropic": {"api_key": "config-key"}}
-        }
+        mock_context.marimo_config = MarimoConfig.from_dict(
+            {"ai": {"anthropic": {"api_key": "config-key"}}}
+        )
         mock_get_context.return_value = mock_context
 
         model = anthropic("claude-3-opus-20240229")
@@ -1012,7 +1017,9 @@ class TestAnthropic:
     ) -> None:
         """Test _require_api_key with missing key."""
         mock_context = MagicMock()
-        mock_context.marimo_config = {"ai": {"anthropic": {"api_key": ""}}}
+        mock_context.marimo_config = MarimoConfig.from_dict(
+            {"ai": {"anthropic": {"api_key": ""}}}
+        )
         mock_get_context.return_value = mock_context
 
         model = anthropic("claude-3-opus-20240229")

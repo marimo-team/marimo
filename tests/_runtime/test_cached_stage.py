@@ -113,7 +113,7 @@ def caching_kernel(
     """A kernel with cache_cells enabled and a tmp cache dir."""
     # Deep-copy so we don't mutate the shared DEFAULT_CONFIG dict.
     mocked_kernel.k.user_config = copy.deepcopy(mocked_kernel.k.user_config)
-    mocked_kernel.k.user_config["runtime"]["cache_cells"] = True
+    mocked_kernel.k.user_config.runtime.cache_cells = True
     return mocked_kernel
 
 
