@@ -782,9 +782,13 @@ def _google_ai_config():
 
 
 @pytest.mark.requires("openai", "pydantic_ai")
+@pytest.mark.parametrize("effort", [None, "high"])
 @pytest.mark.parametrize("mode", [None, "manual", "ask", "agent"])
 def test_chat_without_code(
-    client: TestClient, temp_marimo_file: str, mode: CopilotMode | None
+    client: TestClient,
+    temp_marimo_file: str,
+    mode: CopilotMode | None,
+    effort: str | None,
 ) -> None:
     @with_session(SESSION_ID)
     @patch("marimo._server.ai.providers.OpenAIProvider.stream_completion")
@@ -820,7 +824,10 @@ def test_chat_without_code(
                     "includeOtherCode": "",
                     "context": {},
                     "id": "123",
-                    "options": {"webSearch": True, "reasoningEffort": "high"},
+                    "options": {
+                        "webSearch": True,
+                        **({"reasoningEffort": effort} if effort else {}),
+                    },
                 },
             )
             assert response.status_code == 200, response.text
@@ -840,7 +847,7 @@ def test_chat_without_code(
             )
 
             assert (
-                mock_stream_completion.call_args.kwargs["thinking"] == "high"
+                mock_stream_completion.call_args.kwargs["thinking"] == effort
             )
 
     check_chat(client, temp_marimo_file)

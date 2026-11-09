@@ -622,6 +622,20 @@ def test_anthropic_process_part_text_file() -> None:
             False,
             id="openai_gpt5_litellm_proxy",
         ),
+        pytest.param(
+            "openai",
+            "gpt-5",
+            "https://api.openai.com.attacker.example/v1",
+            False,
+            id="openai_lookalike_host",
+        ),
+        pytest.param(
+            "openai",
+            "gpt-5",
+            "https://custom.example/api.openai.com",
+            False,
+            id="openai_hostname_in_path",
+        ),
         # Azure: thinking is always suppressed (only custom Azure deployments
         # support reasoning_effort, which we don't expose yet).
         pytest.param(

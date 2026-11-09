@@ -20,6 +20,7 @@ import {
 import { memo, useEffect, useMemo, useRef, useState } from "react";
 import useEvent from "react-use-event-hook";
 import { Button } from "@/components/ui/button";
+import { effectiveChatOptionsAtom } from "@/core/ai/chat-model-config";
 import { replaceMessagesInChat } from "@/core/ai/chat-utils";
 import { useAIConfigActions } from "@/core/ai/config";
 import { AI_SDK_UI_THROTTLE_MS } from "@/core/ai/constants";
@@ -29,7 +30,6 @@ import {
   activeChatAtom,
   type Chat,
   type ChatId,
-  chatOptionsAtom,
   chatStateAtom,
   pendingAiPromptAtom,
 } from "@/core/ai/state";
@@ -478,7 +478,7 @@ const ChatPanelBody = () => {
           const completionBody = {
             uiMessages: options.messages,
             includeOtherCode: getCodes(""),
-            options: store.get(chatOptionsAtom),
+            options: store.get(effectiveChatOptionsAtom),
           };
 
           // Call this here to ensure the value is not stale

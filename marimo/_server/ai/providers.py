@@ -732,11 +732,13 @@ class OpenAIProvider(OpenAIClientMixin, PydanticProvider["PydanticOpenAI"]):
         # OpenAI-compatible third-party endpoints (custom base_url) may not
         # accept `reasoning_effort` even when the model name looks like a
         # reasoning model. Suppress the unified thinking flag in that case.
-        if (
-            self.config.base_url
-            and "api.openai.com" not in self.config.base_url
-        ):
-            return None
+        if self.config.base_url:
+            try:
+                hostname = urlparse(self.config.base_url).hostname
+            except ValueError:
+                return None
+            if hostname != "api.openai.com":
+                return None
         return super()._default_thinking(model)
 
 

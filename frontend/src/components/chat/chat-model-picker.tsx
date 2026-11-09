@@ -1,6 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { useAtom, useAtomValue } from "jotai";
+import { useAtomValue, useSetAtom } from "jotai";
 import {
   CheckIcon,
   ChevronDownIcon,
@@ -10,7 +10,6 @@ import {
 import { useId, useState } from "react";
 import { AiProviderIcon } from "@/components/ai/ai-provider-icon";
 import { getProviderLabel } from "@/components/ai/ai-model-dropdown";
-import { getReasoningEffortOptions } from "@/components/ai/reasoning-options";
 import { listModelsForAiSettings } from "@/components/ai/ai-utils";
 import { useOpenSettingsToTab } from "@/components/app-config/state";
 import { Button } from "@/components/ui/button";
@@ -30,16 +29,16 @@ import {
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/utils/cn";
+import type { ReasoningEffortChoice } from "@/core/ai/reasoning-options";
+import type { ChatOptions } from "@/core/network/types";
 import { useAIConfigActions } from "@/core/ai/config";
+import type { ProviderId, QualifiedModelId } from "@/core/ai/ids/ids";
 import {
-  AiModelId,
-  type ProviderId,
-  type QualifiedModelId,
-} from "@/core/ai/ids/ids";
-import { AiModelRegistry } from "@/core/ai/model-registry";
+  chatModelConfigAtom,
+  effectiveChatOptionsAtom,
+} from "@/core/ai/chat-model-config";
 import { chatOptionsAtom } from "@/core/ai/state";
 import { aiAtom } from "@/core/config/config";
-import { DEFAULT_AI_MODEL } from "@/core/config/config-schema";
 
 export function ChatModelPicker() {
   const [open, setOpen] = useState(false);
@@ -47,18 +46,14 @@ export function ChatModelPicker() {
     null,
   );
   const [search, setSearch] = useState("");
-  const reasoningLabelId = useId();
   const webSearchId = useId();
   const ai = useAtomValue(aiAtom);
-  const [options, setOptions] = useAtom(chatOptionsAtom);
+  const options = useAtomValue(effectiveChatOptionsAtom);
+  const setOptions = useSetAtom(chatOptionsAtom);
   const { saveModelChange } = useAIConfigActions();
   const { handleClick } = useOpenSettingsToTab();
-  const current = AiModelId.parse(ai?.models?.chat_model || DEFAULT_AI_MODEL);
-  const registry = AiModelRegistry.create({
-    customModels: [...(ai?.models?.custom_models ?? []), current.id],
-    displayedModels: ai?.models?.displayed_models,
-  });
-  const currentModel = registry.getModel(current.id);
+  const { current, registry, displayName, reasoningOptions } =
+    useAtomValue(chatModelConfigAtom);
   const modelsByProvider = listModelsForAiSettings(
     registry.getListModelsByProvider(),
     ai,
@@ -74,22 +69,17 @@ export function ChatModelPicker() {
   );
   const visibleProvider = providerModels?.[0] ?? modelsByProvider[0]?.[0];
   const visibleModels = providerModels?.[1] ?? modelsByProvider[0]?.[1] ?? [];
-  const reasoningOptions = getReasoningEffortOptions(
-    currentModel?.reasoning_options,
-  );
-  const supportsReasoning =
-    reasoningOptions.length > 0 &&
-    (current.providerId === "anthropic" ||
-      current.providerId === "google" ||
-      current.providerId === "bedrock" ||
-      (current.providerId === "openai" &&
-        (!ai?.open_ai?.base_url ||
-          ai.open_ai.base_url.includes("api.openai.com"))));
-  const effort = supportsReasoning ? options.reasoningEffort : null;
+  const effort = options.reasoningEffort;
   const effortLabel = reasoningOptions.find(
     (option) => option.value === effort,
   )?.label;
-  const displayName = currentModel?.name ?? current.shortModelId;
+  const triggerLabel = [
+    `Model: ${displayName}`,
+    effortLabel && `reasoning: ${effortLabel}`,
+    options.webSearch && "web search enabled",
+  ]
+    .filter(Boolean)
+    .join(", ");
 
   return (
     <Popover
@@ -106,7 +96,7 @@ export function ChatModelPicker() {
         <Button
           variant="text"
           size="sm"
-          aria-label={`Model: ${displayName}${effortLabel ? `, reasoning: ${effortLabel}` : ""}`}
+          aria-label={triggerLabel}
           className="chat-control h-6 min-w-0 max-w-[200px] gap-1.5 px-2 text-xs font-normal"
         >
           <AiProviderIcon
@@ -122,7 +112,7 @@ export function ChatModelPicker() {
           {options.webSearch && (
             <GlobeIcon
               className="size-3 shrink-0 text-muted-foreground"
-              aria-label="Web search enabled"
+              aria-hidden={true}
             />
           )}
           <ChevronDownIcon className="size-3 shrink-0" />
@@ -208,50 +198,13 @@ export function ChatModelPicker() {
               </CommandGroup>
             </CommandList>
           </Command>
-          <div className="chat-model-reasoning w-28 shrink-0 border-l p-1.5">
-            <div
-              id={reasoningLabelId}
-              className="text-xs font-semibold text-muted-foreground h-6 px-1 flex items-center"
-            >
-              Reasoning
-            </div>
-            {supportsReasoning ? (
-              <RadioGroup
-                aria-labelledby={reasoningLabelId}
-                className="gap-0"
-                value={effort ?? "default"}
-                onValueChange={(value) => {
-                  const choice = reasoningOptions.find(
-                    (option) => option.value === value,
-                  );
-                  if (choice) {
-                    setOptions((previous) => ({
-                      ...previous,
-                      reasoningEffort:
-                        choice.value === "default" ? null : choice.value,
-                    }));
-                  }
-                }}
-              >
-                {reasoningOptions.map((option) => (
-                  <label
-                    key={option.value}
-                    className="flex h-7 items-center justify-between gap-1.5 rounded px-1.5 text-xs cursor-pointer hover:bg-accent focus-within:ring-1 focus-within:ring-ring"
-                  >
-                    <RadioGroupItem value={option.value} className="sr-only" />
-                    {option.label}
-                    {(effort ?? "default") === option.value && (
-                      <CheckIcon className="size-3.5" />
-                    )}
-                  </label>
-                ))}
-              </RadioGroup>
-            ) : (
-              <p className="text-xs text-muted-foreground leading-relaxed">
-                This model uses its default reasoning settings.
-              </p>
-            )}
-          </div>
+          <ReasoningControls
+            options={reasoningOptions}
+            effort={effort}
+            onChange={(reasoningEffort) =>
+              setOptions((previous) => ({ ...previous, reasoningEffort }))
+            }
+          />
         </div>
         <div className="flex items-center justify-between gap-2 border-t px-2 py-1.5">
           <label
@@ -286,5 +239,59 @@ export function ChatModelPicker() {
         </div>
       </PopoverContent>
     </Popover>
+  );
+}
+
+interface ReasoningControlsProps {
+  options: ReasoningEffortChoice[];
+  effort: ChatOptions["reasoningEffort"];
+  onChange: (effort: ChatOptions["reasoningEffort"]) => void;
+}
+
+function ReasoningControls({
+  options,
+  effort,
+  onChange,
+}: ReasoningControlsProps) {
+  const labelId = useId();
+  return (
+    <div className="chat-model-reasoning w-28 shrink-0 border-l p-1.5">
+      <div
+        id={labelId}
+        className="text-xs font-semibold text-muted-foreground h-6 px-1 flex items-center"
+      >
+        Reasoning
+      </div>
+      {options.length > 0 ? (
+        <RadioGroup
+          aria-labelledby={labelId}
+          className="gap-0"
+          value={effort ?? "default"}
+          onValueChange={(value) => {
+            const choice = options.find((option) => option.value === value);
+            if (choice) {
+              onChange(choice.value === "default" ? null : choice.value);
+            }
+          }}
+        >
+          {options.map((option) => (
+            <label
+              key={option.value}
+              className="flex h-7 items-center justify-between gap-1.5 rounded px-1.5 text-xs cursor-pointer hover:bg-accent focus-within:ring-1 focus-within:ring-ring"
+            >
+              <RadioGroupItem value={option.value} className="sr-only" />
+              {option.label}
+              {(effort ?? "default") === option.value && (
+                <CheckIcon className="size-3.5" />
+              )}
+            </label>
+          ))}
+        </RadioGroup>
+      ) : (
+        <p className="text-xs text-muted-foreground leading-relaxed">
+          This model uses its default reasoning settings.
+        </p>
+      )}
+    </div>
   );
 }
