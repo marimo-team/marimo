@@ -8,6 +8,8 @@ overrides:
   vite: "^8.3.0"
   form-data: ">=4.0.6"
   katex: "^0.18.7"
+  # docgen 0.9.1 replaces glob/minimatch with tinyglobby.
+  "@storybook/react-vite@10.6.2>@joshwooding/vite-plugin-react-docgen-typescript": "0.9.1"
 patchedDependencies:
   html-to-image@1.11.13: patches/html-to-image@1.11.13.patch
 peerDependencyRules:
@@ -15,6 +17,7 @@ peerDependencyRules:
     vite: "8"
 minimumReleaseAge: 20160
 minimumReleaseAgeExclude:
+  - "@joshwooding/vite-plugin-react-docgen-typescript@0.9.1"
   - "@marimo-team/*"
   - "@vitejs/plugin-react@6.1.0"
   - oxc-transform-react@0.145.0
@@ -33,6 +36,8 @@ minimumReleaseAgeExclude:
 blockExoticSubdeps: true
 trustPolicy: no-downgrade
 trustPolicyExclude:
+  # 0.9.1 uses upstream GitHub OIDC publishing but lacks the older SLSA attestation.
+  - "@joshwooding/vite-plugin-react-docgen-typescript@0.9.1"
   # Transitive/direct deps where the resolved version lacks SLSA provenance
   # but an earlier-published version had it. Verified no known takeovers as
   # of 2026-05-12 — these are publishing-pipeline changes, not incidents.
