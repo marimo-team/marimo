@@ -297,8 +297,6 @@ def generate_server_api_schema() -> dict[str, Any]:
         completion.AiCompletionRequest,
         completion.AiInlineCompletionRequest,
         completion.ChatRequest,
-        completion.AiModelReasoningRequest,
-        completion.AiModelReasoningResponse,
         export.AutoExportAsIPYNBRequest,
         export.AutoExportAsMarkdownRequest,
         export.ExportAsHTMLRequest,

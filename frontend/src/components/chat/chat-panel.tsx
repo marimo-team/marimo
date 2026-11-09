@@ -27,7 +27,6 @@ import {
 import { replaceMessagesInChat } from "@/core/ai/chat-utils";
 import { useAIConfigActions } from "@/core/ai/config";
 import { AI_SDK_UI_THROTTLE_MS } from "@/core/ai/constants";
-import { getChatReasoningOptions } from "@/core/ai/reasoning-options";
 import { AiModelId } from "@/core/ai/ids/ids";
 import { useStagedAICellsActions } from "@/core/ai/staged-cells";
 import {
@@ -430,7 +429,7 @@ const ChatPanelBody = () => {
   const turn = useAssistantTurn();
   const resetTurn = turn.reset;
   const runtimeManager = useRuntimeManager();
-  const { invokeAiTool, getAiModelReasoning } = useRequestClient();
+  const { invokeAiTool } = useRequestClient();
 
   const activeChatId = activeChat?.id;
   const { chatControllerId, renewDraftChatId } =
@@ -483,18 +482,14 @@ const ChatPanelBody = () => {
           const ai = store.get(aiAtom);
           const modelConfig = getChatModelConfig(ai);
           const storedOptions = store.get(chatOptionsAtom);
-          const { efforts } = storedOptions.reasoningEffort
-            ? await getAiModelReasoning({ model: modelConfig.current.id })
-            : { efforts: [] };
-          const reasoningOptions = getChatReasoningOptions(
-            modelConfig.currentModel,
-            efforts,
-          );
           const completionBody = {
             model: modelConfig.current.id,
             uiMessages: options.messages,
             includeOtherCode: getCodes(""),
-            options: getEffectiveChatOptions(storedOptions, reasoningOptions),
+            options: getEffectiveChatOptions(
+              storedOptions,
+              modelConfig.reasoningOptions,
+            ),
           };
 
           // Call this here to ensure the value is not stale

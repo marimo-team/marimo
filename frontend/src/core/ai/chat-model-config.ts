@@ -4,7 +4,10 @@ import { DEFAULT_AI_MODEL, type AiConfig } from "@/core/config/config-schema";
 import type { ChatOptions } from "@/core/network/types";
 import { AiModelId } from "./ids/ids";
 import { AiModelRegistry } from "./model-registry";
-import type { ReasoningEffortChoice } from "./reasoning-options";
+import {
+  getChatReasoningOptions,
+  type ReasoningEffortChoice,
+} from "./reasoning-options";
 
 export function getChatModelConfig(ai: AiConfig | undefined) {
   const current = AiModelId.parse(ai?.models?.chat_model || DEFAULT_AI_MODEL);
@@ -18,7 +21,7 @@ export function getChatModelConfig(ai: AiConfig | undefined) {
   return {
     current,
     registry,
-    currentModel,
+    reasoningOptions: getChatReasoningOptions(currentModel),
     displayName: currentModel?.name ?? current.shortModelId,
   };
 }

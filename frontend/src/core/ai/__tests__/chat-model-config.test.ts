@@ -1,40 +1,20 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { getChatReasoningOptions } from "../reasoning-options";
 import { describe, expect, it } from "vitest";
 import {
   getChatModelConfig,
   getEffectiveChatOptions,
 } from "../chat-model-config";
-import type {
-  ChatOptions,
-  AiModelReasoningResponse,
-} from "@/core/network/types";
+import type { ChatOptions } from "@/core/network/types";
 
-function resolveModel(
-  model = "openai/gpt-6-luna",
-  displayed: string[] = [],
-  efforts: AiModelReasoningResponse["efforts"] = [
-    "none",
-    "minimal",
-    "low",
-    "medium",
-    "high",
-    "xhigh",
-    "max",
-  ],
-) {
-  const config = getChatModelConfig({
+function resolveModel(model = "openai/gpt-6-luna", displayed: string[] = []) {
+  return getChatModelConfig({
     models: {
       chat_model: model,
       custom_models: [],
       displayed_models: displayed,
     },
   });
-  return {
-    ...config,
-    reasoningOptions: getChatReasoningOptions(config.currentModel, efforts),
-  };
 }
 
 describe("chat model configuration", () => {
@@ -92,13 +72,13 @@ describe("chat model configuration", () => {
     "ollama/minimax-m3.1-flash",
     "wandb/reflection/Beam-1.0-501B-A23B",
     "opencode-go/kimi-k3.1-pro",
-  ])("does not offer efforts rejected by the runtime for %s", (model) => {
-    const { reasoningOptions } = resolveModel(model, [], []);
+  ])("uses catalog efforts regardless of provider for %s", (model) => {
+    const { reasoningOptions } = resolveModel(model);
     expect(
       getEffectiveChatOptions(
         { webSearch: false, reasoningEffort: "max" },
         reasoningOptions,
       ),
-    ).toEqual({ webSearch: false, reasoningEffort: null });
+    ).toEqual({ webSearch: false, reasoningEffort: "max" });
   });
 });

@@ -758,8 +758,6 @@ export class PyodideBridge implements RunRequests, EditRequests {
   public autoExportAsIPYNB = throwNotImplemented;
   public updateCellOutputs = throwNotImplemented;
   public writeSecret = throwNotImplemented;
-  public getAiModelReasoning: EditRequests["getAiModelReasoning"] =
-    async () => ({ efforts: [] });
   public invokeAiTool = throwNotImplemented;
   public clearCache = throwNotImplemented;
   public getCacheInfo = throwNotImplemented;

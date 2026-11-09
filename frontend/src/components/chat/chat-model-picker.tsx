@@ -28,10 +28,7 @@ import {
 } from "@/components/ui/popover";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Switch } from "@/components/ui/switch";
-import { useAsyncData } from "@/hooks/useAsyncData";
-import { useRequestClient } from "@/core/network/requests";
 import { toast } from "@/components/ui/use-toast";
-import { getChatReasoningOptions } from "@/core/ai/reasoning-options";
 import { cn } from "@/utils/cn";
 import type { ReasoningEffortChoice } from "@/core/ai/reasoning-options";
 import type { ChatOptions } from "@/core/network/types";
@@ -54,26 +51,11 @@ export function ChatModelPicker() {
   const webSearchId = useId();
   const ai = useAtomValue(aiAtom);
   const [storedOptions, setOptions] = useAtom(chatOptionsAtom);
-  const { getAiModelReasoning } = useRequestClient();
   const { saveModelChange } = useAIConfigActions();
   const { handleClick } = useOpenSettingsToTab();
-  const { current, currentModel, registry, displayName } = useMemo(
+  const { current, reasoningOptions, registry, displayName } = useMemo(
     () => getChatModelConfig(ai),
     [ai],
-  );
-  const { data, isFetching } = useAsyncData(
-    async () => ({
-      model: current.id,
-      config: ai,
-      ...(await getAiModelReasoning({ model: current.id })),
-    }),
-    [ai, current.id, getAiModelReasoning],
-  );
-  const reasoningOptions = getChatReasoningOptions(
-    currentModel,
-    !isFetching && data?.model === current.id && data.config === ai
-      ? data.efforts
-      : [],
   );
   const options = getEffectiveChatOptions(storedOptions, reasoningOptions);
 
@@ -235,7 +217,7 @@ export function ChatModelPicker() {
           </Command>
           <ReasoningControls
             options={reasoningOptions}
-            disabled={isSavingModel || isFetching}
+            disabled={isSavingModel}
             effort={effort}
             onChange={(reasoningEffort) =>
               setOptions((previous) => ({ ...previous, reasoningEffort }))

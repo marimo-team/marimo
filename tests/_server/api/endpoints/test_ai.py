@@ -1440,31 +1440,3 @@ def test_ai_endpoints_forward_conversation_id(
         assert factory.call_args.kwargs["session_id"] == expected_session_id
 
     check_endpoint(client, temp_marimo_file)
-
-
-@pytest.mark.requires("pydantic_ai", "openai")
-@pytest.mark.parametrize(
-    ("model", "expected"),
-    [
-        ("openai/gpt-6.1-sol", ["low", "medium", "high", "xhigh", "max"]),
-        ("openai/daybreak-blue", []),
-    ],
-)
-def test_model_reasoning_capabilities(
-    client: TestClient, temp_marimo_file: str, model: str, expected: list[str]
-) -> None:
-    @with_session(SESSION_ID)
-    def check_model(client: TestClient) -> None:
-        manager = get_session_config_manager(client)
-        with patch.object(
-            manager, "get_config", return_value=_openai_config()
-        ):
-            response = client.post(
-                "/api/ai/model_reasoning",
-                headers=HEADERS,
-                json={"model": model},
-            )
-        assert response.status_code == 200, response.text
-        assert response.json() == {"efforts": expected}
-
-    check_model(client, temp_marimo_file)

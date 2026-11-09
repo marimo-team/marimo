@@ -442,8 +442,6 @@ export class IslandsPyodideBridge implements RunRequests, EditRequests {
   public shutdownSession = throwNotImplemented;
   public listSecretKeys = throwNotImplemented;
   public writeSecret = throwNotImplemented;
-  public getAiModelReasoning: EditRequests["getAiModelReasoning"] =
-    async () => ({ efforts: [] });
   public invokeAiTool = throwNotImplemented;
   public clearCache = throwNotImplemented;
   public getCacheInfo = throwNotImplemented;

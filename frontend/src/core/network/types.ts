@@ -133,8 +133,6 @@ export type TutorialId = OpenTutorialRequest["tutorialId"];
 export type InvokeAiToolRequest = schemas["InvokeAiToolRequest"];
 export type InvokeAiToolResponse = schemas["InvokeAiToolResponse"];
 export type ChatOptions = schemas["ChatOptions"];
-export type AiModelReasoningRequest = schemas["AiModelReasoningRequest"];
-export type AiModelReasoningResponse = schemas["AiModelReasoningResponse"];
 export type ClearCacheRequest = schemas["ClearCacheRequest"];
 export type GetCacheInfoRequest = schemas["GetCacheInfoRequest"];
 export type LspHealthResponse = schemas["LspHealthResponse"];
@@ -258,9 +256,6 @@ export interface EditRequests {
   listSecretKeys: (request: ListSecretKeysRequest) => Promise<null>;
   writeSecret: (request: CreateSecretRequest) => Promise<null>;
   // AI Tool requests
-  getAiModelReasoning: (
-    request: AiModelReasoningRequest,
-  ) => Promise<AiModelReasoningResponse>;
   invokeAiTool: (request: InvokeAiToolRequest) => Promise<InvokeAiToolResponse>;
   // Cache requests
   clearCache: () => Promise<null>;

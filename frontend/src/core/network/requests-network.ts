@@ -555,11 +555,6 @@ export function createNetworkRequests(): EditRequests & RunRequests {
         })
         .then(handleResponseReturnNull);
     },
-    getAiModelReasoning: async (request) => {
-      return getClient()
-        .POST("/api/ai/model_reasoning", { body: request, params: getParams() })
-        .then(handleResponse);
-    },
     invokeAiTool: async (request) => {
       return getClient()
         .POST("/api/ai/invoke_tool", {

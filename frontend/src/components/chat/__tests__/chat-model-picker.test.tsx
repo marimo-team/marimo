@@ -15,13 +15,10 @@ import { chatOptionsAtom } from "@/core/ai/state";
 import { userConfigAtom } from "@/core/config/config";
 import { ChatModelPicker } from "../chat-model-picker";
 
-const { saveModelChange, handleClick, getAiModelReasoning } = vi.hoisted(
-  () => ({
-    saveModelChange: vi.fn(),
-    getAiModelReasoning: vi.fn(),
-    handleClick: vi.fn(),
-  }),
-);
+const { saveModelChange, handleClick } = vi.hoisted(() => ({
+  saveModelChange: vi.fn(),
+  handleClick: vi.fn(),
+}));
 vi.mock("@/core/ai/config", () => ({
   useAIConfigActions: () => ({ saveModelChange }),
 }));
@@ -29,11 +26,7 @@ vi.mock("@/components/app-config/state", () => ({
   useOpenSettingsToTab: () => ({ handleClick }),
 }));
 
-vi.mock("@/core/network/requests", () => ({
-  useRequestClient: () => ({ getAiModelReasoning }),
-}));
-
-async function renderPicker(reasoning: boolean) {
+function renderPicker(reasoning: boolean) {
   const knownModel = [...getKnownModelMaps().modelMap.values()].find(
     (model) =>
       model.provider === "openai" &&
@@ -54,13 +47,11 @@ async function renderPicker(reasoning: boolean) {
       models: { chat_model: modelId, custom_models: [], displayed_models: [] },
     },
   });
-  await act(async () => {
-    render(
-      <Provider store={store}>
-        <ChatModelPicker />
-      </Provider>,
-    );
-  });
+  render(
+    <Provider store={store}>
+      <ChatModelPicker />
+    </Provider>,
+  );
   fireEvent.click(screen.getByRole("button", { name: `Model: ${model.name}` }));
   return { store, model, modelId };
 }
@@ -68,16 +59,13 @@ async function renderPicker(reasoning: boolean) {
 beforeEach(() => {
   vi.clearAllMocks();
   saveModelChange.mockResolvedValue(undefined);
-  getAiModelReasoning.mockResolvedValue({
-    efforts: ["none", "minimal", "low", "medium", "high", "xhigh", "max"],
-  });
   localStorage.clear();
   HTMLElement.prototype.scrollIntoView = vi.fn();
 });
 
 describe("ChatModelPicker", () => {
-  it("searches and selects a model while keeping reasoning accessible", async () => {
-    const { model } = await renderPicker(true);
+  it("searches and selects a model while keeping reasoning accessible", () => {
+    const { model } = renderPicker(true);
     fireEvent.change(screen.getByRole("combobox"), {
       target: { value: model.model },
     });
@@ -91,7 +79,7 @@ describe("ChatModelPicker", () => {
   });
 
   it("clears reasoning when selecting a different model", async () => {
-    const { store, modelId } = await renderPicker(true);
+    const { store, modelId } = renderPicker(true);
     const alternate = [...getKnownModelMaps().modelMap.entries()].find(
       ([id, model]) =>
         id !== modelId &&
@@ -120,7 +108,7 @@ describe("ChatModelPicker", () => {
   it.each(["resolve", "reject"] as const)(
     "preserves effort until model save succeeds (%s)",
     async (outcome) => {
-      const { store, modelId } = await renderPicker(true);
+      const { store, modelId } = renderPicker(true);
       const alternate = [...getKnownModelMaps().modelMap.entries()].find(
         ([id, model]) =>
           id !== modelId &&
@@ -156,14 +144,8 @@ describe("ChatModelPicker", () => {
     },
   );
 
-  it("hides catalog efforts when the runtime cannot send them", async () => {
-    getAiModelReasoning.mockResolvedValueOnce({ efforts: [] });
-    await renderPicker(true);
-    expect(screen.queryByRole("radiogroup")).not.toBeInTheDocument();
-  });
-
-  it("updates reasoning without losing other chat settings", async () => {
-    const { store, model } = await renderPicker(true);
+  it("updates reasoning without losing other chat settings", () => {
+    const { store, model } = renderPicker(true);
     store.set(chatOptionsAtom, { webSearch: true });
     fireEvent.click(screen.getByRole("radio", { name: "High" }));
     expect(store.get(chatOptionsAtom)).toEqual({
@@ -182,8 +164,8 @@ describe("ChatModelPicker", () => {
     });
   });
 
-  it("shows the selected model's full effort list", async () => {
-    const { store } = await renderPicker(true);
+  it("shows the selected model's full effort list", () => {
+    const { store } = renderPicker(true);
     expect(
       screen
         .getAllByRole("radio")
@@ -201,16 +183,16 @@ describe("ChatModelPicker", () => {
     });
   });
 
-  it("hides effort choices for models without reasoning support", async () => {
-    await renderPicker(false);
+  it("hides effort choices for models without reasoning support", () => {
+    renderPicker(false);
     expect(screen.queryByRole("radiogroup")).not.toBeInTheDocument();
     expect(
       screen.getByText("This model uses its default reasoning settings."),
     ).toBeInTheDocument();
   });
 
-  it("filters models by provider and clears the previous search", async () => {
-    await renderPicker(true);
+  it("filters models by provider and clears the previous search", () => {
+    renderPicker(true);
     const providers = screen.getByRole("navigation", {
       name: "Model providers",
     });
@@ -240,8 +222,8 @@ describe("ChatModelPicker", () => {
     ).toBe(true);
   });
 
-  it("toggles web search inside the picker without changing reasoning", async () => {
-    const { store } = await renderPicker(true);
+  it("toggles web search inside the picker without changing reasoning", () => {
+    const { store } = renderPicker(true);
     fireEvent.click(screen.getByRole("radio", { name: "High" }));
     fireEvent.click(screen.getByRole("switch", { name: "Web search" }));
     expect(store.get(chatOptionsAtom)).toEqual({
@@ -259,8 +241,8 @@ describe("ChatModelPicker", () => {
     });
   });
 
-  it("opens model settings", async () => {
-    await renderPicker(true);
+  it("opens model settings", () => {
+    renderPicker(true);
     fireEvent.click(screen.getByRole("button", { name: "Manage models" }));
     expect(handleClick).toHaveBeenCalledExactlyOnceWith("ai", "ai-models");
     expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
