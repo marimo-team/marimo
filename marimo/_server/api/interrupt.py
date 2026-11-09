@@ -15,6 +15,10 @@ from marimo._utils.print import (
 
 if TYPE_CHECKING:
     from collections.abc import Callable
+    from types import FrameType
+
+INTERRUPT_DEBOUNCE_SECONDS = 0.1
+SHUTDOWN_INTERRUPT_GRACE_SECONDS = 1.0
 
 
 class InterruptHandler:
@@ -24,19 +28,39 @@ class InterruptHandler:
         self.loop = asyncio.get_running_loop()
         self.original_handler = signal.getsignal(signal.SIGINT)
         self._time_of_last_confirmation: float | None = None
-        self._stopped = False
+        self._shutdown_started_at: float | None = None
 
     def stop(self) -> None:
-        self._stopped = True
+        if self._shutdown_started_at is not None:
+            return
+        self._shutdown_started_at = time.monotonic()
         try:
             self.loop.remove_signal_handler(signal.SIGINT)
         except NotImplementedError:
             pass
-        # Forwarded interrupts must not cancel asynchronous teardown.
-        signal.signal(signal.SIGINT, signal.SIG_IGN)
+        signal.signal(signal.SIGINT, self._interrupt_during_shutdown)
+
+    def _interrupt_during_shutdown(
+        self, signum: int, frame: FrameType | None
+    ) -> None:
+        assert self._shutdown_started_at is not None
+        # uv can forward SIGINT after a delay; keep a later Ctrl-C available
+        # to force quit if teardown stalls.
+        if (
+            time.monotonic() - self._shutdown_started_at
+            >= SHUTDOWN_INTERRUPT_GRACE_SECONDS
+        ):
+            signal.default_int_handler(signum, frame)
+
+    def close(self) -> None:
+        try:
+            self.loop.remove_signal_handler(signal.SIGINT)
+        except NotImplementedError:
+            pass
+        signal.signal(signal.SIGINT, self.original_handler)
 
     def _request_shutdown(self) -> None:
-        if self._stopped:
+        if self._shutdown_started_at is not None:
             return
         self.stop()
         self.shutdown()
@@ -54,11 +78,12 @@ class InterruptHandler:
             )
 
     def _interrupt_handler(self) -> None:
-        if self._stopped:
+        if self._shutdown_started_at is not None:
             return
         if (
             self._time_of_last_confirmation is not None
-            and (time.time() - self._time_of_last_confirmation) < 0.1
+            and (time.time() - self._time_of_last_confirmation)
+            < INTERRUPT_DEBOUNCE_SECONDS
         ):
             # uv can send two SIGINTs for every one sent by the user's Ctrl+C;
             # this hack prevents us from spamming the user with confirm messages.
