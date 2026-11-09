@@ -2774,6 +2774,34 @@ class TestPersistentCache:
         assert not k.stdout.messages, k.stdout
         assert not k.stderr.messages, k.stderr
 
+    async def test_lazy_def_named_ui_keeps_ui_state(
+        self, k: Kernel, tmp_path
+    ) -> None:
+        # A def named `ui` must not overwrite the blob that holds the UI
+        # elements.
+        cell = ExecuteCellCommand(
+            cell_id="cached",
+            code=textwrap.dedent(f"""
+            import marimo as mo
+            from marimo._save.loaders.lazy import LazyLoader
+
+            with mo.persistent_cache(
+                "lazy_ui", save_path="{tmp_path.as_posix()}", method="lazy"
+            ) as cache:
+                slider = mo.ui.slider(0, 10, value=3)
+                ui = [1, 2, 3]
+            LazyLoader.flush_all()
+            """),
+        )
+        await k.run([cell])
+        assert not k.globals["cache"]._cache.hit
+        await k.run([cell])
+
+        assert not k.stderr.messages, k.stderr
+        assert k.globals["cache"]._cache.hit
+        assert k.globals["ui"] == [1, 2, 3]
+        assert k.globals["slider"].value == 3
+
 
 class TestCacheStatistics:
     """Tests for cache statistics API (cache_info(), cache_clear())"""

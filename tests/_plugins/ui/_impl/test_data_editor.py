@@ -469,6 +469,29 @@ def test_data_editor_exposes_columns_for_empty_data(data, expected_columns):
     assert editor._component_args["field-types"] is None
 
 
+@pytest.mark.parametrize("done", [["yes", "no"], []])
+def test_boolean_normalization_preserves_other_dataframe_columns(done):
+    data = {"done": done, "label": ["01", "02"] if done else []}
+    for native in create_dataframes(
+        data, include=["pandas", "polars", "pyarrow"]
+    ):
+        original = nw.from_native(native, eager_only=True)
+        normalized = nw.from_native(
+            apply_edits(
+                native, {"edits": []}, column_types={"done": "boolean"}
+            ),
+            eager_only=True,
+        )
+        assert normalized.to_dict(as_series=False) == {
+            "done": [True, False] if done else [],
+            "label": data["label"],
+        }
+        assert normalized.schema == nw.Schema(
+            {"done": nw.Boolean(), "label": original.schema["label"]}
+        )
+        assert original.to_dict(as_series=False) == data
+
+
 def test_data_editor_sends_dropdown_columns_as_strings_for_row_data():
     editor = data_editor(
         [{"count": 5, "level": "01"}, {"count": 6, "level": "02"}],

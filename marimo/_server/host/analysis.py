@@ -17,13 +17,11 @@ from marimo._lint.validate_graph import (
 from marimo._lint.visitors import VariableLineVisitor
 from marimo._runtime.dataflow import DirectedGraph
 from marimo._runtime.dataflow.edges import resolve_cell_references
+from marimo._server.host import diagnostics
 from marimo._types.ids import CellId_t
 
 if TYPE_CHECKING:
     from marimo._core.document import Document
-    from marimo._messaging.errors import CycleError
-
-SOURCE = "marimo"
 
 
 class HostAnalyzer:
@@ -72,7 +70,7 @@ class CellAnalyzer:
 
         conflicts = check_for_multiple_definitions(graph)
         cycles = check_for_cycles(graph)
-        order = {cell.id: index for index, cell in enumerate(document)}
+        position = diagnostics.by_position([cell.id for cell in document])
         analyses: dict[protocol.CellId, protocol.CellAnalysis] = {}
         for cell in document:
             compiled = cache[cell.id].result
@@ -91,7 +89,7 @@ class CellAnalyzer:
                     defs=tuple(sorted(compiled.defs)),
                     refs=tuple(sorted(refs)),
                     errors=tuple(
-                        self._multiple_definitions(
+                        diagnostics.multiple_definitions(
                             cell.id,
                             error.name,
                             sorted(
@@ -102,13 +100,14 @@ class CellAnalyzer:
                                         for cid in error.cells
                                     ),
                                 ],
-                                key=order.__getitem__,
+                                key=position,
                             ),
+                            self._definition,
                         )
                         for error in conflicts.get(CellId_t(cell.id), ())
                     )
                     + tuple(
-                        _cycle(error)
+                        diagnostics.cycle(error)
                         for error in sorted(
                             cycles.get(CellId_t(cell.id), ()),
                             key=lambda error: error.edges_with_vars,
@@ -116,30 +115,6 @@ class CellAnalyzer:
                     ),
                 )
         return analyses
-
-    def _multiple_definitions(
-        self,
-        cell_id: protocol.CellId,
-        name: str,
-        definers: list[protocol.CellId],
-    ) -> protocol.Error:
-        return protocol.Error(
-            kind="multiple-definitions",
-            message=f"Multiple cells define {name}",
-            source=SOURCE,
-            severity="error",
-            range=self._definition(cell_id, name),
-            name=None,
-            traceback=None,
-            related=tuple(
-                protocol.Related(
-                    cell_id=definer,
-                    range=self._definition(definer, name),
-                    message=f"Defines {name}",
-                )
-                for definer in definers
-            ),
-        )
 
     def _definition(
         self, cell_id: protocol.CellId, name: str
@@ -155,64 +130,27 @@ class CellAnalyzer:
         return protocol.Range(
             start=protocol.Position(
                 line=line,
-                character=_utf16(compiled.code, line, location.column),
+                character=diagnostics.utf16(
+                    compiled.code, line, location.column
+                ),
             ),
             end=protocol.Position(
                 line=line,
-                character=_utf16(compiled.code, line, location.end_column),
+                character=diagnostics.utf16(
+                    compiled.code, line, location.end_column
+                ),
             ),
         )
-
-
-def _cycle(error: CycleError) -> protocol.Error:
-    edges = error.edges_with_vars
-    # Preserve dependency order, starting at the same cell for any rotation.
-    start = min(range(len(edges)), key=lambda index: edges[index][2])
-    edges = edges[start:] + edges[:start]
-    return protocol.Error(
-        kind="cycle-dependencies",
-        message=error.describe(),
-        source=SOURCE,
-        severity="error",
-        range=None,
-        name=None,
-        traceback=None,
-        related=tuple(
-            protocol.Related(
-                cell_id=protocol.CellId(child),
-                range=None,
-                message=f"Depends on {parent}"
-                + (f" through {', '.join(names)}" if names else ""),
-            )
-            for parent, names, child in edges
-        ),
-    )
 
 
 def _syntax_error(code: str, e: Exception) -> protocol.Error:
     where = None
     if isinstance(e, SyntaxError) and e.lineno is not None:
         line = e.lineno - 1
-        character = _utf16(code, line, (e.offset or 1) - 1)
+        character = diagnostics.utf16(code, line, (e.offset or 1) - 1)
         where = protocol.Range(
             start=protocol.Position(line=line, character=character),
             end=protocol.Position(line=line, character=character),
         )
     message = e.msg if isinstance(e, SyntaxError) else str(e)
-    return protocol.Error(
-        kind="invalid-syntax",
-        message=message,
-        source=SOURCE,
-        severity="error",
-        range=where,
-        name=None,
-        traceback=None,
-        related=(),
-    )
-
-
-def _utf16(code: str, line: int, column: int) -> int:
-    """Convert a source column to UTF-16 code units."""
-    lines = code.split("\n")
-    text = lines[line] if line < len(lines) else ""
-    return len(text[:column].encode("utf-16-le")) // 2
+    return diagnostics.error("invalid-syntax", message, range_=where)

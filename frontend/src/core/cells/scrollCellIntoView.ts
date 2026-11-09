@@ -160,3 +160,9 @@ export function scrollCellIntoView(cellId: CellId): void {
     );
   }
 }
+
+export function scrollToCell(cellId: CellId): HTMLElement | null {
+  const cell = document.getElementById(HTMLCellId.create(cellId));
+  cell?.scrollIntoView({ behavior: "smooth", block: "center" });
+  return cell;
+}

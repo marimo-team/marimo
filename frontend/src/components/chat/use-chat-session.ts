@@ -187,6 +187,7 @@ export function useChatSession(activeChat: Chat | null | undefined) {
   const chat = useChatState(session.controller);
   const queuedMessages = useAtomValue(session.queuedMessagesAtom);
   const abortNotice = useAtomValue(session.abortNoticeAtom);
+  const turnStartedAt = useAtomValue(session.turnStartedAtAtom);
 
   const updateViewedChat = useEvent(() => {
     if (document.visibilityState === "visible") {
@@ -217,6 +218,8 @@ export function useChatSession(activeChat: Chat | null | undefined) {
     submitOrQueue: session.submitOrQueue,
     queuedMessages,
     abortNotice,
+    isTurnActive: session.isActive(),
+    turnStartedAt,
     renewDraftChatId,
   };
 }

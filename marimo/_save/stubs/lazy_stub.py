@@ -137,7 +137,7 @@ class BlobAsset(msgspec.Struct, frozen=True):
 #
 # Strategies:
 #   "inline"  — stored as a primitive/function/module field in the Item struct
-#   "ui"      — shared ui.pickle blob (UIElement family)
+#   "ui"      — shared ui-elements.pickle blob (UIElement family)
 #   "pickle"  — per-variable .pickle blob (default fallback)
 #   "npy"     — numpy .npy blob
 #   "arrow"   — Arrow IPC .arrow blob (polars and pandas)

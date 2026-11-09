@@ -4,6 +4,7 @@ import { Chat as ChatController } from "@ai-sdk/react";
 import type { ChatAddToolOutputFunction, ChatInit, UIMessage } from "ai";
 import { atom, createStore } from "jotai";
 import { generateUUID } from "@/utils/uuid";
+import { createAssistantTurn } from "./assistant-turn";
 import { type ChatId, chatStateAtom, runningChatIdsAtom } from "./state";
 export { runningChatIdsAtom } from "./state";
 
@@ -41,6 +42,10 @@ export function createChatSession({
 }: ChatSessionOptions) {
   const queuedMessagesAtom = atom<QueuedChatMessage[]>([]);
   const abortNoticeAtom = atom<string | null>(null);
+  const turn = createAssistantTurn(store);
+  const turnStartedAtAtom = atom(
+    (get) => get(turn.stateAtom)?.startedAt ?? null,
+  );
   let stopped = false;
   let closed = false;
   let toolGeneration = 0;
@@ -73,12 +78,13 @@ export function createChatSession({
     ...options,
     onFinish: (finish) => {
       if (!stopped) {
-        saveMessages(finish.messages);
+        controller.messages = turn.finish(finish.messages, finish);
+        saveMessages(controller.messages);
       }
       if (!closed) {
-        onFinish?.(finish);
+        onFinish?.({ ...finish, messages: controller.messages });
       }
-      tryFlushQueue(finish);
+      tryFlushQueue({ ...finish, messages: controller.messages });
     },
     onToolCall: (options): Promise<void> | void => {
       if (stopped) {
@@ -98,15 +104,32 @@ export function createChatSession({
       });
     },
     sendAutomaticallyWhen: (options) =>
-      !stopped && (sendAutomaticallyWhen?.(options) ?? false),
+      !stopped &&
+      !store.get(turn.stateAtom)?.ended &&
+      (sendAutomaticallyWhen?.(options) ?? false),
   });
 
-  // Track SDK-initiated tool turns even when the panel has no React subscription.
-  const unsubscribeStatus = controller["~registerStatusCallback"](() => {
-    onRunningChange?.(
-      controller.status === "submitted" || controller.status === "streaming",
-    );
-  });
+  const isLoading = () =>
+    controller.status === "submitted" || controller.status === "streaming";
+  const isActive = () =>
+    turn.isActive({
+      isLoading: isLoading(),
+      hasError: controller.error != null,
+      messages: controller.messages,
+    });
+  let isRunning = false;
+  const updateRunning = () => {
+    const next = isActive();
+    if (next !== isRunning) {
+      isRunning = next;
+      onRunningChange?.(next);
+    }
+  };
+  // Tool turns outlive React subscriptions and can span multiple SDK requests.
+  const unsubscribeStatus =
+    controller["~registerStatusCallback"](updateRunning);
+  const unsubscribeMessages =
+    controller["~registerMessagesCallback"](updateRunning);
 
   const sendMessage: ChatController<UIMessage>["sendMessage"] = (...args) => {
     if (closed) {
@@ -115,6 +138,7 @@ export function createChatSession({
     stopped = false;
     store.set(abortNoticeAtom, null);
     toolGeneration++;
+    turn.start();
     const request = controller.sendMessage(...args);
     saveMessages(controller.messages);
     return request;
@@ -127,6 +151,7 @@ export function createChatSession({
     stopped = false;
     store.set(abortNoticeAtom, null);
     toolGeneration++;
+    turn.start();
     const request = controller.regenerate(...args);
     saveMessages(controller.messages);
     return request;
@@ -135,8 +160,21 @@ export function createChatSession({
   const stop = () => {
     stopped = true;
     toolGeneration++;
+    const wasLoading = isLoading();
+    controller.messages = turn.finish(controller.messages, {
+      isAbort: true,
+      isError: false,
+    });
     saveMessages(controller.messages);
-    return controller.stop();
+    if (wasLoading) {
+      return controller.stop();
+    }
+    tryFlushQueue({
+      messages: controller.messages,
+      isAbort: true,
+      isError: false,
+    });
+    return Promise.resolve();
   };
 
   const close = ({ discard = false }: { discard?: boolean } = {}) => {
@@ -144,6 +182,7 @@ export function createChatSession({
     store.set(markChatReadAtom, options.id);
     store.set(queuedMessagesAtom, []);
     unsubscribeStatus();
+    unsubscribeMessages();
     onRunningChange?.(false);
     if (discard) {
       stopped = true;
@@ -157,11 +196,7 @@ export function createChatSession({
     if (closed) {
       return;
     }
-    if (
-      controller.status === "submitted" ||
-      controller.status === "streaming" ||
-      store.get(queuedMessagesAtom).length > 0
-    ) {
+    if (isActive() || store.get(queuedMessagesAtom).length > 0) {
       store.set(queuedMessagesAtom, (messages) => [
         ...messages,
         { id: generateUUID(), parts },
@@ -176,6 +211,8 @@ export function createChatSession({
       if (closed) {
         return Promise.resolve();
       }
+      stopped = false;
+      turn.resume(controller.messages.at(-1));
       const generation = toolGeneration;
       return Promise.resolve(controller.addToolApprovalResponse(...args)).then(
         () => tryFlushQueueWhenReady(generation),
@@ -187,6 +224,8 @@ export function createChatSession({
     store,
     queuedMessagesAtom,
     abortNoticeAtom,
+    turnStartedAtAtom,
+    isActive,
     sendMessage,
     regenerate,
     stop,

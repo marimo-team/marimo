@@ -14,12 +14,20 @@ from marimo._core.code import code_fingerprint
 from marimo._messaging.cell_output import CellChannel
 from marimo._messaging.errors import (
     ANCESTOR_RAISED,
+    CycleError,
     Error,
+    ImportStarError,
+    LazyImportError,
     MarimoAncestorPreventedError,
     MarimoAncestorStoppedError,
     MarimoExceptionRaisedError,
+    MarimoInternalError,
     MarimoInterruptionError,
+    MarimoSQLError,
+    MarimoStrictExecutionError,
     MarimoSyntaxError,
+    MultipleDefinitionError,
+    SetupRootError,
     UnknownError,
 )
 from marimo._messaging.notification import (
@@ -32,9 +40,17 @@ from marimo._messaging.notification import (
 )
 from marimo._messaging.tracebacks import is_code_highlighting
 from marimo._runtime.scratch import SCRATCH_CELL_ID
+from marimo._server.host import diagnostics
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator
+    from collections.abc import Callable, Iterator, Sequence
+
+    CellOrder = Callable[[], Sequence[str]]
+    """The document's cell ids in order, read when an error names cells."""
+
+
+def _unordered() -> Sequence[str]:
+    return ()
 
 
 @dataclass
@@ -47,14 +63,21 @@ class _Execution:
     )
     errors: list[Error] = field(default_factory=list)
     seq: int = 0
+    code: str | None = None
 
 
 class RunTranslator:
     """Track evaluations within one bounded reactive cycle."""
 
-    def __init__(self, run_id: protocol.RunId, code: str | None) -> None:
+    def __init__(
+        self,
+        run_id: protocol.RunId,
+        code: str | None,
+        cell_order: CellOrder = _unordered,
+    ) -> None:
         self.run_id = run_id
         self._code = code
+        self._cell_order = cell_order
         self._finished = False
         self.completed = False
         self.interrupted = False
@@ -134,13 +157,14 @@ class RunTranslator:
         return out
 
     def _plan(self, notification: ExecutionNotification) -> be.Planned:
+        code = notification.code
         execution = _Execution(
             protocol.ExecutionId(notification.execution_id),
             notification.cell_id,
+            code=code,
         )
         self._executions[notification.execution_id] = execution
         parent = self._executions.get(notification.caused_by or "")
-        code = notification.code
         assert notification.code_fingerprint is not None
         return be.Planned(
             self.run_id,
@@ -179,7 +203,16 @@ class RunTranslator:
         elif skipped is not None:
             execution.outcome = _declined(skipped, execution.cell_id)
         elif exceptions:
-            execution.outcome = protocol.ErrorOutcome(_describe(exceptions[0]))
+            execution.outcome = protocol.ErrorOutcome(
+                _describe(
+                    exceptions[0],
+                    cell_id=None
+                    if execution.cell_id == SCRATCH_CELL_ID
+                    else execution.cell_id,
+                    code=execution.code,
+                    cell_order=self._cell_order,
+                )
+            )
         elif skips:
             execution.outcome = _skipped(skips[0], execution.cell_id)
         elif interrupted or execution.errors:
@@ -278,7 +311,8 @@ class RunTranslators:
     those get a translator when their first execution is planned.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, cell_order: CellOrder = _unordered) -> None:
+        self._cell_order = cell_order
         self._translators: dict[str, RunTranslator] = {}
 
     def __iter__(self) -> Iterator[str]:
@@ -329,6 +363,7 @@ class RunTranslators:
                 notification.code
                 if notification.cell_id == SCRATCH_CELL_ID
                 else None,
+                self._cell_order,
             )
             self.add(translator)
             out.append(be.Scheduled(translator.run_id))
@@ -441,8 +476,31 @@ def _skipped(error: Error, cell_id: str) -> protocol.SkippedOutcome:
     )
 
 
-def _describe(error: Error) -> protocol.Error:
-    """Convert a kernel error to a host protocol error."""
+def _point(
+    line: int | None, byte_column: int = 0, code: str | None = None
+) -> protocol.Range | None:
+    """A range at one position, from the kernel's one-based line and AST column."""
+    if line is None or line < 1:
+        return None
+    character = byte_column
+    if code is not None:
+        character = diagnostics.utf16_from_utf8(code, line - 1, byte_column)
+    position = protocol.Position(line=line - 1, character=character)
+    return protocol.Range(start=position, end=position)
+
+
+def _describe(
+    error: Error,
+    *,
+    cell_id: str | None = None,
+    code: str | None = None,
+    cell_order: CellOrder = _unordered,
+) -> protocol.Error:
+    """Convert a kernel error to a host protocol error.
+
+    Each kernel error keeps its own kind, so a client can tell them apart,
+    and names the cells involved in `related`, so it can link to them.
+    """
     if isinstance(error, MarimoExceptionRaisedError):
         traceback = None
         if error.traceback:
@@ -452,45 +510,78 @@ def _describe(error: Error) -> protocol.Error:
                 else "text/plain",
                 data=error.traceback,
             )
-        return protocol.Error(
-            kind="exception",
+        related: tuple[protocol.Related, ...] = ()
+        if error.raising_cell is not None:
+            related = (
+                protocol.Related(
+                    cell_id=protocol.CellId(error.raising_cell),
+                    range=None,
+                    message="Raised it",
+                ),
+            )
+        return diagnostics.error(
+            "exception",
+            error.msg,
             name=error.exception_type,
-            message=error.msg,
             traceback=traceback,
-            source="marimo",
-            severity="error",
-            range=None,
-            related=(),
+            related=related,
         )
     if isinstance(error, MarimoSyntaxError):
-        return protocol.Error(
-            kind="syntax",
-            name=None,
-            message=error.msg,
-            traceback=None,
-            source="marimo",
-            severity="error",
-            range=None,
-            related=(),
+        return diagnostics.error(
+            "invalid-syntax", error.msg, range_=_point(error.lineno)
         )
+    if isinstance(error, CycleError):
+        return diagnostics.cycle(error)
+    if isinstance(error, SetupRootError):
+        return diagnostics.error(
+            "setup-refs",
+            error.describe(),
+            related=diagnostics.depends_on(error.edges_with_vars),
+        )
+    if isinstance(error, MultipleDefinitionError):
+        definers: set[str] = set(error.cells)
+        if cell_id is not None:
+            definers.add(cell_id)
+        return diagnostics.multiple_definitions(
+            None if cell_id is None else protocol.CellId(cell_id),
+            error.name,
+            [
+                protocol.CellId(definer)
+                for definer in sorted(
+                    definers, key=diagnostics.by_position(cell_order())
+                )
+            ],
+        )
+    if isinstance(error, ImportStarError):
+        return diagnostics.error(
+            "import-star", error.msg, range_=_point(error.lineno)
+        )
+    if isinstance(error, LazyImportError):
+        return diagnostics.error(
+            "lazy-import", error.msg, range_=_point(error.lineno)
+        )
+    if isinstance(error, MarimoStrictExecutionError):
+        blamed: tuple[protocol.Related, ...] = ()
+        if error.blamed_cell is not None:
+            blamed = (
+                protocol.Related(
+                    cell_id=protocol.CellId(error.blamed_cell),
+                    range=None,
+                    message=f"Defines {error.ref}",
+                ),
+            )
+        return diagnostics.error("strict-exception", error.msg, related=blamed)
+    if isinstance(error, MarimoSQLError):
+        message = (
+            error.msg if error.hint is None else f"{error.msg}\n{error.hint}"
+        )
+        return diagnostics.error(
+            "sql",
+            message,
+            range_=_point(error.node_lineno, error.node_col_offset, code),
+        )
+    if isinstance(error, MarimoInternalError):
+        return diagnostics.error("internal", error.msg, name=error.error_id)
     if isinstance(error, UnknownError):
-        return protocol.Error(
-            kind="internal",
-            name=error.error_type,
-            message=error.msg,
-            traceback=None,
-            source="marimo",
-            severity="error",
-            range=None,
-            related=(),
-        )
-    return protocol.Error(
-        kind="internal",
-        name=None,
-        message=error.describe(),
-        traceback=None,
-        source="marimo",
-        severity="error",
-        range=None,
-        related=(),
-    )
+        return diagnostics.error("internal", error.msg, name=error.error_type)
+    return diagnostics.error("internal", error.describe())

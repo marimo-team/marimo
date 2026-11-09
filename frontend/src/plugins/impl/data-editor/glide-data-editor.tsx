@@ -55,11 +55,13 @@ import {
 } from "./types";
 
 function getEditedValue(newValue: EditableGridCell): unknown {
-  if (newValue.kind !== GridCellKind.Custom) {
-    return newValue.data;
+  if (
+    newValue.kind === GridCellKind.Custom &&
+    DropdownCellRenderer.isMatch(newValue)
+  ) {
+    return newValue.data.value;
   }
-  const data = newValue.data as { kind?: unknown; value?: unknown };
-  return data.kind === "dropdown-cell" ? data.value : newValue.data;
+  return newValue.data;
 }
 
 interface GlideDataEditorProps {
@@ -190,7 +192,6 @@ export const GlideDataEditor = ({
       const key = column.title;
 
       // Deletes are not handled by validateCell, so we need to handle them here.
-      // Custom dropdown cells carry their selected value inside their data.
       let newData = getEditedValue(newValue);
       if (Array.isArray(column.configuredType)) {
         if (

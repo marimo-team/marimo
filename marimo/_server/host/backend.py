@@ -5,8 +5,8 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import Callable
-from dataclasses import dataclass, field
-from typing import TYPE_CHECKING
+from dataclasses import dataclass, field, replace
+from typing import TYPE_CHECKING, cast
 
 from marimo import _loggers
 from marimo._core import backend as be, protocol
@@ -102,11 +102,14 @@ class SessionBackend(SessionConsumer):
         session_attached: Callable[[], None] | None = None,
         session_detached: Callable[[Session], None] | None = None,
         *,
+        cell_order: Callable[[], Sequence[str]] = tuple,
         request_metadata: RequestMetadata | None = None,
     ) -> None:
         self._notebook_id = notebook_id
         self._file = file
         """Resolve the notebook's current path after file moves."""
+        self._cell_order = cell_order
+        """The document's cell ids in order, for errors that name cells."""
         self._manager = manager
         self._observe = observe
         self._sink = sink
@@ -121,7 +124,7 @@ class SessionBackend(SessionConsumer):
         self._runs: dict[protocol.RunId, _Run] = {}
         """Runs this backend submitted that have not finished, by run id."""
         self._handover = Handover()
-        self._translators = RunTranslators()
+        self._translators = RunTranslators(cell_order)
 
     @property
     def session(self) -> Session | None:
@@ -181,25 +184,39 @@ class SessionBackend(SessionConsumer):
         # Closing an unregistered session still detaches its consumers.
         session.close()
 
-    def run(self, run_id: protocol.RunId, code: str) -> None:
+    def run(
+        self,
+        run_id: protocol.RunId,
+        code: str,
+        *,
+        request: be.RequestInfo | None,
+    ) -> None:
         session = self.session
         if session is None:
             return
-        run = self._accept(session, RunTranslator(run_id, code))
-        self._watch_run(run, self._run_code(run, code))
+        run = self._accept(
+            session, RunTranslator(run_id, code, self._cell_order)
+        )
+        # Server adapters pass HTTPRequest through the core's RequestInfo protocol.
+        self._watch_run(
+            run, self._run_code(run, code, cast(HTTPRequest | None, request))
+        )
 
     def run_cells(
         self,
         run_id: protocol.RunId,
         document: Document,
         cell_ids: Sequence[protocol.CellId],
+        *,
+        request: be.RequestInfo | None,
     ) -> None:
         session = self.session
         if session is None:
             return
-        run = self._accept(session, RunTranslator(run_id, None))
+        run = self._accept(
+            session, RunTranslator(run_id, None, self._cell_order)
+        )
         try:
-            request = self._http_request(session)
             cells = {
                 cell.id: ExecuteCellCommand(
                     cell_id=CellId_t(cell.id),
@@ -211,7 +228,7 @@ class SessionBackend(SessionConsumer):
             execution_requests = tuple(cells.values())
             command = ExecuteCellsCommand(
                 execution_requests=[cells[cell_id] for cell_id in cell_ids],
-                request=request,
+                request=cast(HTTPRequest | None, request),
                 run_id=run_id,
                 allow_stdin=False,
             )
@@ -284,7 +301,9 @@ class SessionBackend(SessionConsumer):
         run.session.put_control_request(command, from_consumer_id=None)
         self._handover.finish(run.turn)
 
-    async def _run_code(self, run: _Run, code: str) -> None:
+    async def _run_code(
+        self, run: _Run, code: str, request: HTTPRequest | None
+    ) -> None:
         await run.turn.wait()
         session = run.session
         async with session.scratchpad_lock:
@@ -300,7 +319,7 @@ class SessionBackend(SessionConsumer):
                 run,
                 ExecuteScratchpadCommand(
                     code=code,
-                    request=self._http_request(session),
+                    request=self._scratch_request(session, request),
                     notebook_cells=cells,
                     cell_outputs=outputs,
                     run_id=run.translator.run_id,
@@ -309,11 +328,21 @@ class SessionBackend(SessionConsumer):
             )
             await run.done.wait()
 
-    def _http_request(self, session: Session) -> HTTPRequest | None:
+    def _scratch_request(
+        self, session: Session, request: HTTPRequest | None
+    ) -> HTTPRequest | None:
+        """Add screenshot credentials only to scratch runs."""
+        meta: dict[str, Encodable] = (
+            {}
+            if self._request_metadata is None
+            else self._request_metadata(session)
+        )
+        if request is not None:
+            return replace(request, meta={**request.meta, **meta})
         if self._request_metadata is None:
             return None
-        # Host runs have no HTTP origin. Give the URL fields the same
-        # keys a real request has so notebook code can read them.
+        # A run without a request still reads a request, so give the URL
+        # fields the keys a real one has.
         empty_url: dict[str, Encodable] = {
             "path": "",
             "port": None,
@@ -330,13 +359,14 @@ class SessionBackend(SessionConsumer):
             path_params={},
             cookies={},
             user={},
-            meta=self._request_metadata(session),
+            meta=meta,
         )
 
     def _finish_run(self, run: _Run, exception: BaseException | None) -> None:
+        if self._runs.get(run.translator.run_id) is not run:
+            return
+        del self._runs[run.translator.run_id]
         self._handover.finish(run.turn)
-        if self._runs.get(run.translator.run_id) is run:
-            del self._runs[run.translator.run_id]
         error = None
         if isinstance(exception, asyncio.CancelledError):
             run.translator.interrupted = True
@@ -496,6 +526,8 @@ class SessionBackend(SessionConsumer):
             run.session.try_interrupt()
         if translator.completed:
             if run is not None:
+                # Publish completion before processing the next run's events.
+                self._finish_run(run, None)
                 run.done.set()
             else:
                 for reported in translator.finish():

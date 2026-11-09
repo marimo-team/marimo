@@ -917,7 +917,7 @@ class Kernel:
 
         self.graph.register_cell(cell_id, cell)
         if stale:
-            self.graph.cells[cell_id].set_stale(stale=True, broadcast=False)
+            self.graph.cells[cell_id].set_stale(stale=True)
         # leaky abstraction: the graph doesn't know about stale modules, so
         # we have to check for them here.
         self.autoreload_manager.flag_if_imports_stale(cell)
@@ -1067,9 +1067,8 @@ class Kernel:
                     if name in carried_values
                 }
             if error is not None and previous_cell is not None:
-                # The frontend keeps the cell around in the case of a
-                # registration error; let the FE know the cell is no longer
-                # stale.
+                # A registration error keeps the previous cell in the graph,
+                # and it is no longer stale.
                 previous_cell.set_stale(False)
 
             # For any newly imported namespaces, add them to the metadata
@@ -1473,9 +1472,6 @@ class Kernel:
             # The error is up-to-date, since we just processed the graph
             if cell is not None:
                 cell.set_stale(False)
-            else:
-                # On syntax errors, we don't have a cell object.
-                CellNotificationUtils.broadcast_stale(cell_id=cid, stale=False)
 
             execution = self._plan_execution(cid, self._planned.pop(cid, None))
             with execution.activate():
@@ -2766,15 +2762,6 @@ class Kernel:
             self.reset_ui_initializers()
         else:
             self._uninstantiated_execution_requests = execution_requests
-            for (
-                cell_id,
-                cell_request,
-            ) in self._uninstantiated_execution_requests.items():
-                # Only mark non-empty cells as stale
-                if cell_request.code.strip():
-                    CellNotificationUtils.broadcast_stale(
-                        cell_id=cell_id, stale=True
-                    )
 
     def _handle_markdown_cells_on_instantiate(
         self, execution_requests: dict[CellId_t, ExecuteCellCommand]
@@ -2839,9 +2826,6 @@ class Kernel:
                 cell_id=cell_id,
                 status="idle",
             )
-
-            # Mark the cell as not stale (already "run")
-            CellNotificationUtils.broadcast_stale(cell_id=cell_id, stale=False)
             del execution_requests[cell_id]
 
     def load_dotenv(self) -> None:

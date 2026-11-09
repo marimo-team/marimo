@@ -57,6 +57,7 @@ vi.mock("../chat-utils", () => ({
   handleToolCall: vi.fn(),
   hasPendingToolCalls: () => false,
   hasUnresolvedToolCalls: () => false,
+  willAutoContinue: () => false,
   shouldFlushQueue: () => false,
 }));
 

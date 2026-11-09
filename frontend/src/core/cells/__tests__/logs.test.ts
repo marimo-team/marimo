@@ -35,7 +35,6 @@ describe("getCellLogsForMessage", () => {
       ],
       output: null,
       status: "idle",
-      stale_inputs: null,
       timestamp: 0,
     };
 
@@ -63,7 +62,6 @@ describe("getCellLogsForMessage", () => {
       ],
       output: null,
       status: "idle",
-      stale_inputs: null,
       timestamp: 0,
     };
 
@@ -91,7 +89,6 @@ describe("getCellLogsForMessage", () => {
       ],
       output: null,
       status: "idle",
-      stale_inputs: null,
       timestamp: 0,
     };
 
@@ -119,7 +116,6 @@ describe("getCellLogsForMessage", () => {
       ],
       output: null,
       status: "idle",
-      stale_inputs: null,
       timestamp: 0,
     };
 
@@ -147,7 +143,6 @@ describe("getCellLogsForMessage", () => {
       ],
       output: null,
       status: "idle",
-      stale_inputs: null,
       timestamp: 0,
     };
 
@@ -185,7 +180,6 @@ describe("getCellLogsForMessage", () => {
       ],
       output: null,
       status: "idle",
-      stale_inputs: null,
       timestamp: 0,
     };
 
@@ -213,7 +207,6 @@ describe("getCellLogsForMessage", () => {
       ],
       output: null,
       status: "idle",
-      stale_inputs: null,
       timestamp: 0,
     };
 
@@ -236,7 +229,6 @@ describe("getCellLogsForMessage", () => {
       ],
       output: null,
       status: "idle",
-      stale_inputs: null,
       timestamp: 0,
     };
 
@@ -258,7 +250,6 @@ describe("getCellLogsForMessage", () => {
       ],
       output: null,
       status: "idle",
-      stale_inputs: null,
       timestamp: 0,
     };
 
@@ -273,7 +264,6 @@ describe("getCellLogsForMessage", () => {
       console: null as unknown as CellMessage["console"],
       output: null,
       status: "idle",
-      stale_inputs: null,
       timestamp: 0,
     };
 
@@ -295,7 +285,6 @@ describe("getCellLogsForMessage", () => {
       ],
       output: null,
       status: "idle",
-      stale_inputs: null,
       timestamp: 0,
     };
 
@@ -318,7 +307,6 @@ describe("getCellLogsForMessage", () => {
       ],
       output: null,
       status: "idle",
-      stale_inputs: null,
       timestamp: 0,
     };
 
@@ -369,7 +357,6 @@ describe("getCellLogsForMessage - internal error toast", () => {
       timestamp: 0,
     } as unknown as CellMessage["output"],
     status: "idle",
-    stale_inputs: null,
     timestamp: 0,
   });
 

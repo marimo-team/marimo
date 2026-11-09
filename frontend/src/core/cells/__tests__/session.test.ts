@@ -91,6 +91,107 @@ describe("readExport", () => {
     cells,
   });
 
+  describe("results", () => {
+    it("carries a data output as a completed execution of the snapshot's source", () => {
+      const result = readExport({
+        session: createSession([
+          createSessionCell(
+            "c1",
+            [{ type: "data", data: { "text/html": "<b>1</b>" } }],
+            [],
+            "hash-1",
+          ),
+        ]),
+        notebook: createNotebook([
+          createNotebookCell("c1", { code: "1", code_hash: "hash-1" }),
+        ]),
+        filename: null,
+        appConfig: {},
+      });
+      invariant(result.snapshot, "no snapshot");
+      expect(result.snapshot.results).toEqual([
+        expect.objectContaining({
+          cell_id: "c1",
+          code_fingerprint: "hash-1",
+          status: "completed",
+          outcome: {
+            kind: "value",
+            display: { mimetype: "text/html", data: "<b>1</b>" },
+          },
+        }),
+      ]);
+    });
+
+    it.each([
+      {
+        name: "lines without trailing newlines",
+        traceback: ["Traceback", "ValueError: bad"],
+        expectedTraceback: "Traceback\nValueError: bad",
+      },
+      {
+        name: "lines with trailing newlines",
+        traceback: ["Traceback\n", "ValueError: bad"],
+        expectedTraceback: "Traceback\nValueError: bad",
+      },
+      {
+        name: "no traceback",
+        traceback: [],
+        expectedTraceback: null,
+      },
+    ])(
+      "carries an exception with $name, and nothing for an empty cell",
+      ({ traceback, expectedTraceback }) => {
+        const result = readExport({
+          session: createSession([
+            createSessionCell(
+              "c1",
+              [
+                {
+                  type: "error",
+                  ename: "ValueError",
+                  evalue: "bad",
+                  traceback,
+                },
+              ],
+              [],
+              "hash-1",
+            ),
+            createSessionCell("c2", [], [], "hash-2"),
+          ]),
+          notebook: createNotebook([
+            createNotebookCell("c1", { code: "x", code_hash: "hash-1" }),
+            createNotebookCell("c2", { code: "", code_hash: "hash-2" }),
+          ]),
+          filename: null,
+          appConfig: {},
+        });
+        invariant(result.snapshot, "no snapshot");
+        expect(result.snapshot.results?.map((r) => r.cell_id)).toEqual(["c1"]);
+        expect(result.snapshot.results?.[0]?.outcome).toEqual({
+          kind: "error",
+          error: expect.objectContaining({
+            kind: "exception",
+            name: "ValueError",
+            message: "bad",
+            traceback:
+              expectedTraceback === null
+                ? null
+                : { mimetype: "text/plain", data: expectedTraceback },
+          }),
+        });
+        expect(result.cellRuntime[cellId("c1")].output?.data).toEqual([
+          {
+            type: "exception",
+            exception_type: "ValueError",
+            msg: "bad",
+            raising_cell: null,
+            traceback: expectedTraceback,
+          },
+        ]);
+      },
+    );
+  });
+
   describe("validation", () => {
     it("logs error for both session and notebook null/undefined", () => {
       const result = readExport({

@@ -225,6 +225,11 @@ describe("chat sessions", () => {
       await requestA;
     });
     expect(saveA).toHaveBeenLastCalledWith(sessionA.controller.messages);
+    expect(sessionA.controller.messages.at(-1)?.metadata).toMatchObject({
+      startedAt: sessionA.store.get(sessionA.turnStartedAtAtom),
+      finishedAt: expect.any(Number),
+      stopped: false,
+    });
     expect(saveB).not.toHaveBeenCalledWith(sessionA.controller.messages);
     expect(screen.getByRole("status")).toHaveTextContent("Reply B");
 
@@ -237,6 +242,121 @@ describe("chat sessions", () => {
       await requestB;
     });
     expect(saveB).toHaveBeenLastCalledWith(sessionB.controller.messages);
+    expect(sessionB.controller.messages.at(-1)?.metadata).toMatchObject({
+      startedAt: sessionB.store.get(sessionB.turnStartedAtAtom),
+      finishedAt: expect.any(Number),
+      stopped: false,
+    });
+  });
+
+  it("preserves turn timing across approval continuations without counting user wait time", async () => {
+    const clock = vi.spyOn(Date, "now").mockReturnValue(1_000);
+    try {
+      const { transport, write, finish, sendMessages } = createTransport();
+      const session = createChatSession({
+        id: CHAT_A,
+        transport,
+        saveMessages: vi.fn(),
+        onToolCall: vi.fn().mockResolvedValue(undefined),
+        sendAutomaticallyWhen: ({ messages }) => hasPendingToolCalls(messages),
+      });
+      const request = session.sendMessage(USER_MESSAGE);
+      write(
+        CHAT_A,
+        {
+          type: "tool-input-available",
+          toolCallId: "call-1",
+          toolName: "lookup",
+          input: {},
+          providerExecuted: true,
+        },
+        {
+          type: "tool-approval-request",
+          toolCallId: "call-1",
+          approvalId: "approval-1",
+        },
+      );
+      clock.mockReturnValue(4_000);
+      finish(CHAT_A);
+      await request;
+      expect(session.store.get(session.turnStartedAtAtom)).toBe(1_000);
+      const timing = session.controller.messages.at(-1)?.metadata;
+      expect(timing).toMatchObject({ startedAt: 1_000, finishedAt: 4_000 });
+
+      clock.mockReturnValue(10_000);
+      await session.addToolApprovalResponse({
+        id: "approval-1",
+        approved: true,
+      });
+      await waitFor(() => expect(sendMessages).toHaveBeenCalledTimes(2));
+      expect(session.store.get(session.turnStartedAtAtom)).toBe(7_000);
+      clock.mockReturnValue(12_000);
+      write(
+        CHAT_A,
+        { type: "text-start", id: "answer" },
+        { type: "text-delta", id: "answer", delta: "Approved." },
+        { type: "text-end", id: "answer" },
+      );
+      finish(CHAT_A);
+      await waitFor(() => expect(session.controller.status).toBe("ready"));
+      expect(session.controller.messages.at(-1)?.metadata).toMatchObject({
+        startedAt: 7_000,
+        finishedAt: 12_000,
+        stopped: false,
+      });
+    } finally {
+      clock.mockRestore();
+    }
+  });
+
+  it("keeps a tool turn active between requests and releases queued input when stopped", async () => {
+    const { transport, write, finish, sendMessages, signals } =
+      createTransport();
+    const onRunningChange = vi.fn();
+    const session = createChatSession({
+      id: CHAT_A,
+      transport,
+      saveMessages: vi.fn(),
+      onToolCall: vi.fn().mockResolvedValue(undefined),
+      onRunningChange,
+      shouldFlushQueue: ({ isAbort }) => isAbort,
+    });
+    const request = session.sendMessage(USER_MESSAGE);
+    write(CHAT_A, {
+      type: "tool-input-available",
+      toolCallId: "call-1",
+      toolName: "lookup",
+      input: {},
+    });
+    finish(CHAT_A);
+    await request;
+    expect(session.controller.status).toBe("ready");
+    expect(session.isActive()).toBe(true);
+    expect(onRunningChange.mock.calls).toEqual([[true]]);
+    session.submitOrQueue([{ type: "text", text: "Follow-up" }]);
+    expect(sendMessages).toHaveBeenCalledOnce();
+
+    await session.stop();
+    expect(sendMessages).toHaveBeenCalledTimes(2);
+    expect(signals.get(CHAT_A)?.aborted).toBe(false);
+    expect(session.store.get(session.queuedMessagesAtom)).toEqual([]);
+    expect(session.controller.messages.at(-2)?.metadata).toMatchObject({
+      stopped: true,
+    });
+    write(
+      CHAT_A,
+      { type: "text-start", id: "answer" },
+      { type: "text-delta", id: "answer", delta: "Follow-up handled." },
+      { type: "text-end", id: "answer" },
+    );
+    finish(CHAT_A);
+    await waitFor(() => expect(session.isActive()).toBe(false));
+    expect(onRunningChange.mock.calls).toEqual([
+      [true],
+      [false],
+      [true],
+      [false],
+    ]);
   });
 
   it("finishes and saves while the sidebar Activity is hidden", async () => {

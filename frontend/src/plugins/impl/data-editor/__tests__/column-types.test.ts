@@ -10,6 +10,11 @@ describe("normalizeConfiguredColumns", () => {
     vi.restoreAllMocks();
   });
 
+  it("preserves the data reference when no columns are configured", () => {
+    const data = [{ label: "01", done: "yes" }];
+    expect(normalizeConfiguredColumns(data, new Map())).toBe(data);
+  });
+
   it("normalizes large integer boolean values from the CSV loader", async () => {
     vi.spyOn(vegaLoader, "load").mockResolvedValueOnce(
       "done,label\n9007199254740992,01\n-9007199254740992,02\n0,03\n",
