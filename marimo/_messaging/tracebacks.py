@@ -31,18 +31,16 @@ def _highlight_traceback(traceback: str) -> str:
 
 
 def format_exception(exc: BaseException) -> str:
-    """Format `exc` and its traceback, as `traceback.format_exception` does.
+    """Format `exc` like `traceback.format_exception`.
 
-    Since Python 3.12, formatting a `NameError` iterates the locals of the
-    frame that raised it, to suggest a similar name. Libraries such as patsy
-    evaluate code against a custom mapping that cannot be iterated, so
-    formatting raises, even when the `NameError` is only the cause of `exc`.
-    When that happens, this function formats the traceback of `exc` alone,
-    without its causes, so that the user still sees the error.
+    If that formatting raises, format `exc` alone, without its causes.
     """
     try:
         return "".join(tb.format_exception(exc))
     except Exception:
+        # On Python 3.12+, formatting a chained `NameError` iterates the frame
+        # locals to suggest a similar name. Libraries such as patsy evaluate
+        # code against a mapping that cannot be iterated, so formatting raises.
         lines = tb.format_tb(exc.__traceback__)
         if lines:
             lines.insert(0, "Traceback (most recent call last):\n")
@@ -50,7 +48,11 @@ def format_exception(exc: BaseException) -> str:
         name = exc_type.__qualname__
         if exc_type.__module__ not in ("builtins", "__main__"):
             name = f"{exc_type.__module__}.{name}"
-        lines.append(f"{name}: {exc}\n")
+        try:
+            message = str(exc)
+        except Exception:
+            message = "<exception str() failed>"
+        lines.append(f"{name}: {message}\n" if message else f"{name}\n")
         return "".join(lines)
 
 

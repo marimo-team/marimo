@@ -4396,14 +4396,21 @@ class TestErrorHandling:
         assert errors[0].msg == "some secret error"
         assert errors[0].exception_type == "ValueError"
 
+    @pytest.mark.parametrize(
+        "kernel_fixture", ["mocked_kernel", "run_mode_kernel"]
+    )
     async def test_error_from_non_iterable_eval_locals(
-        self, mocked_kernel: MockedKernel, exec_req: ExecReqProvider
+        self,
+        kernel_fixture: str,
+        request: pytest.FixtureRequest,
+        exec_req: ExecReqProvider,
     ) -> None:
-        # Libraries like patsy evaluate code against a mapping without
-        # `__iter__` and re-raise the resulting `NameError` as their own
-        # error. On Python 3.12+, formatting that chain iterates the mapping
-        # to suggest a similar name, which raises.
+        # The same chain that patsy raises: a `NameError` from a mapping that
+        # has no `__iter__`, re-raised as another error.
+        mocked_kernel: MockedKernel = request.getfixturevalue(kernel_fixture)
         k = mocked_kernel.k
+        k.user_config = copy.deepcopy(k.user_config)
+        k.user_config.runtime.show_tracebacks = True
         await k.run(
             [
                 exec_req.get(
@@ -4429,6 +4436,8 @@ class TestErrorHandling:
         assert isinstance(errors[0], MarimoExceptionRaisedError)
         assert errors[0].msg == "formula failed"
         assert errors[0].exception_type == "ValueError"
+        assert errors[0].traceback is not None
+        assert "formula failed" in errors[0].traceback
 
     async def test_error_handling_in_run_mode(
         self, run_mode_kernel: MockedKernel, exec_req: ExecReqProvider
