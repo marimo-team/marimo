@@ -27,7 +27,7 @@ describe("chat model configuration", () => {
       registry
         .getListModelsByProvider()
         .flatMap(([, models]) => models.map((model) => model.name)),
-    ).toEqual(["GPT-6.1 Sol", "GPT-6 Luna"]);
+    ).toEqual(["GPT-6 Luna", "GPT-6.1 Sol"]);
     expect(displayName).toBe("GPT-6.1 Sol");
     expect(reasoningOptions.map((option) => option.value)).toEqual([
       "default",

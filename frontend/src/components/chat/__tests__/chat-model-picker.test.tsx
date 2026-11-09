@@ -12,7 +12,7 @@ import { createStore, Provider } from "jotai";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { getKnownModelMaps } from "@/core/ai/model-registry";
 import { chatOptionsAtom } from "@/core/ai/state";
-import { userConfigAtom } from "@/core/config/config";
+import { mergeConfig, userConfigAtom } from "@/core/config/config";
 import { ChatModelPicker } from "../chat-model-picker";
 
 const { saveModelChange, handleClick } = vi.hoisted(() => ({
@@ -103,6 +103,36 @@ describe("ChatModelPicker", () => {
         reasoningEffort: null,
       }),
     );
+  });
+
+  it("keeps model rows in place while changing model and reasoning", async () => {
+    const { store } = renderPicker(true);
+    const models = screen.getAllByRole("option");
+    const originalOrder = models.map((model) => model.textContent);
+    const alternate = models.at(-1);
+    if (!alternate) {
+      throw new Error("Expected another chat model");
+    }
+    saveModelChange.mockImplementationOnce(async (modelId: string) => {
+      store.set(userConfigAtom, (previous) =>
+        mergeConfig(previous, { ai: { models: { chat_model: modelId } } }),
+      );
+    });
+
+    fireEvent.click(alternate);
+    await waitFor(() =>
+      expect(alternate).toHaveAttribute("aria-disabled", "false"),
+    );
+    expect(screen.getAllByRole("option")).toEqual(models);
+    expect(
+      screen.getAllByRole("option").map((model) => model.textContent),
+    ).toEqual(originalOrder);
+    expect(alternate).toHaveAttribute("aria-selected", "true");
+
+    fireEvent.click(screen.getByRole("radio", { name: "High" }));
+    fireEvent.click(screen.getByRole("switch", { name: "Web search" }));
+    expect(screen.getAllByRole("option")).toEqual(models);
+    expect(alternate).toHaveAttribute("aria-selected", "true");
   });
 
   it.each(["resolve", "reject"] as const)(
