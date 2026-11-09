@@ -254,6 +254,7 @@ interface ChatInputFooterProps {
 
 const ChatInputFooter: React.FC<ChatInputFooterProps> = memo(
   ({ isEmpty, onSendClick, isLoading, onStop, fileInputRef, onAddFiles }) => {
+    const footerRef = useRef<HTMLDivElement>(null);
     const ai = useAtomValue(aiAtom);
     const currentMode = ai?.mode || DEFAULT_MODE;
     const currentModel = ai?.models?.chat_model || DEFAULT_AI_MODEL;
@@ -266,13 +267,16 @@ const ChatInputFooter: React.FC<ChatInputFooterProps> = memo(
 
     return (
       <TooltipProvider>
-        <div className="chat-input-footer px-3 py-2 border-t border-border/20 flex items-center gap-2">
+        <div
+          ref={footerRef}
+          className="chat-input-footer px-3 py-2 border-t border-border/20 flex items-center gap-2"
+        >
           <div className="chat-input-selectors flex min-w-0 flex-1 items-center gap-1">
             <NotebookAccessSelector
               value={currentMode}
               onValueChange={saveModeChange}
             />
-            <ChatModelPicker />
+            <ChatModelPicker anchorRef={footerRef} />
           </div>
           <div className="chat-input-actions flex shrink-0 items-center gap-0.5 ml-auto">
             {isAttachmentSupported && (
