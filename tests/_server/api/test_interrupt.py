@@ -107,13 +107,14 @@ async def test_shutdown_filters_duplicates_but_allows_force_quit(
             side_effect=NotImplementedError if windows else None,
         ),
         patch("signal.signal"),
-        patch("time.monotonic", return_value=10.0) as now,
+        patch("marimo._server.api.interrupt.time") as clock,
     ):
+        clock.monotonic.return_value = 10.0
         handler.stop()
-        now.return_value = 10.2
+        clock.monotonic.return_value = 10.2
         handler._interrupt_during_shutdown(signal.SIGINT, None)
         handler.stop()
-        now.return_value = 11.1
+        clock.monotonic.return_value = 11.1
         with pytest.raises(KeyboardInterrupt):
             handler._interrupt_during_shutdown(signal.SIGINT, None)
 
