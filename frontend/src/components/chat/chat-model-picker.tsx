@@ -205,7 +205,6 @@ export function ChatModelPicker({
                       value={modelId}
                       aria-label={`${model.name} (${getProviderLabel(model.provider)})`}
                       keywords={[model.name]}
-                      disabled={isSavingModel}
                       onSelect={() => {
                         void selectModel(modelId);
                       }}

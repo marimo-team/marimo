@@ -121,7 +121,7 @@ describe("ChatModelPicker", () => {
 
     fireEvent.click(alternate);
     await waitFor(() =>
-      expect(alternate).toHaveAttribute("aria-disabled", "false"),
+      expect(screen.getByRole("radio", { name: "High" })).not.toBeDisabled(),
     );
     expect(screen.getAllByRole("option")).toEqual(models);
     expect(
@@ -159,6 +159,13 @@ describe("ChatModelPicker", () => {
         reasoningEffort: "high",
       });
       expect(screen.getByRole("radio", { name: "High" })).toBeDisabled();
+      for (const row of screen.getAllByRole("option")) {
+        expect(row).toHaveAttribute("aria-disabled", "false");
+      }
+      fireEvent.click(
+        screen.getByRole("option", { name: `${alternate[1].name} (OpenAI)` }),
+      );
+      expect(saveModelChange).toHaveBeenCalledTimes(1);
       await act(async () => {
         if (outcome === "resolve") {
           pending.resolve(undefined);
