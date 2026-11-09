@@ -3,7 +3,12 @@
 /** The active notebook's executions and runtime as the editor reads them. */
 
 import type * as Protocol from "@marimo-team/client/protocol";
+import { dequal } from "dequal";
 import { atom, type createStore } from "jotai";
+import { atomFamily, selectAtom } from "jotai/utils";
+import type { CellId } from "@/core/cells/ids";
+import type { Outline } from "@/core/cells/outline";
+import { parseOutline } from "@/core/dom/outline";
 import type { CellMessage } from "@/core/kernel/messages";
 import {
   ConnectionState,
@@ -13,7 +18,11 @@ import {
 } from "@/core/notebook/replica";
 import { activeNotebookReplicaAtom } from "@/core/session/active-notebook";
 import { type CellFreshnessInputs, freshnessOf } from "./freshness";
-import type { CellOutputInputs } from "./output";
+import {
+  type CellOutput,
+  type CellOutputInputs,
+  cellOutputsView,
+} from "./output";
 import {
   anyRunning,
   type CellExecutionInputs,
@@ -97,7 +106,7 @@ function current<T>(
     : empty;
 }
 
-function shownNotebook(store: Store): ShownNotebook | null {
+function shownNotebook(store: Pick<Store, "get">): ShownNotebook | null {
   const replica = store.get(activeNotebookReplicaAtom);
   const notebook = replica === null ? null : store.get(replica.notebookAtom);
   return replica === null || notebook === null
@@ -105,7 +114,7 @@ function shownNotebook(store: Store): ShownNotebook | null {
     : { replica, id: notebook.id };
 }
 
-function mark<T>(store: Store, value: T): Marks<T> {
+function mark<T>(store: Pick<Store, "get">, value: T): Marks<T> {
   const notebook = shownNotebook(store);
   return notebook === null ? null : { notebook, value };
 }
@@ -186,12 +195,44 @@ export const cellOutputInputsAtom = atom((get): CellOutputInputs => {
     executions: replica === null ? NO_EXECUTIONS : get(replica.executionsAtom),
     results: replica === null ? NO_RESULTS : get(replica.resultsAtom),
     cleared: current(get(clearedOutputsAtom), replica, notebookId, NO_CLEARED),
+    cells:
+      replica === null
+        ? NO_CELLS
+        : (get(replica.documentAtom)?.cells ?? NO_CELLS),
   };
 });
 
+/** What every cell shows, by cell id. Pair with `cellOutputAtom` for one cell. */
+export const cellOutputsAtom = atom((get) =>
+  cellOutputsView(get(cellOutputInputsAtom)),
+);
+
+/**
+ * One cell's output, compared by value so its readers are left alone by
+ * other cells' runs. Released with the cell by `releaseCellOutputAtoms`.
+ */
+export const cellOutputAtom = atomFamily((cellId: CellId) =>
+  selectAtom(
+    cellOutputsAtom,
+    (outputs): CellOutput | null => outputs.get(cellId) ?? null,
+    dequal,
+  ),
+);
+
+/** The headings in a cell's output, for the table of contents and folding. */
+export const cellOutlineAtom = atomFamily((cellId: CellId) =>
+  atom((get): Outline | null => parseOutline(get(cellOutputAtom(cellId)))),
+);
+
+/** Drop the cached atoms of a cell that left the document. */
+export function releaseCellOutputAtoms(cellId: CellId): void {
+  cellOutputAtom.remove(cellId);
+  cellOutlineAtom.remove(cellId);
+}
+
 /** Hide what `cellIds` show now, until each has a newer result. */
 export function clearCellOutputs(
-  store: Store,
+  store: Pick<Store, "get" | "set">,
   cellIds: readonly Protocol.CellId[],
 ): void {
   const inputs = store.get(cellOutputInputsAtom);

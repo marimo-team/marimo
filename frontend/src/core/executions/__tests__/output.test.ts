@@ -4,6 +4,7 @@ import type * as Protocol from "@marimo-team/client/protocol";
 import { describe, expect, it } from "vitest";
 import { MockExecutions } from "@/__mocks__/executions";
 import { cellId } from "@/__tests__/branded";
+import { cell } from "@/core/notebook/document/__tests__/fixtures";
 import {
   type CellOutputInputs,
   cellError,
@@ -33,9 +34,10 @@ function hostError(overrides: Partial<Protocol.Error>): Protocol.Error {
 function inputs(
   records: Protocol.Execution[],
   cleared: CellOutputInputs["cleared"] = new Map(),
+  cells: CellOutputInputs["cells"] = new Map(),
 ): CellOutputInputs {
   const { executions, results } = MockExecutions.inputs(records);
-  return { executions, results, cleared };
+  return { executions, results, cleared, cells };
 }
 
 describe("cellOutputView", () => {
@@ -178,6 +180,30 @@ describe("cellOutputView", () => {
         blamed_cell: C3,
       },
     ]);
+  });
+
+  it("carries the source that ran while the confirmed cell still has it", () => {
+    const ran = MockExecutions.failed(C1, {}, { code_fingerprint: "ran" });
+    const same = new Map([
+      [C1, cell(C1, "1 / 0", { code_fingerprint: "ran" })],
+    ]);
+    expect(cellOutputView(inputs([ran], new Map(), same), C1)?.code).toBe(
+      "1 / 0",
+    );
+
+    const edited = new Map([
+      [C1, cell(C1, "1 / 1", { code_fingerprint: "edited" })],
+    ]);
+    expect(
+      cellOutputView(inputs([ran], new Map(), edited), C1)?.code,
+    ).toBeUndefined();
+
+    const withheld = new Map([
+      [C1, cell(C1, "", { code: null, code_fingerprint: "ran" })],
+    ]);
+    expect(
+      cellOutputView(inputs([ran], new Map(), withheld), C1)?.code,
+    ).toBeUndefined();
   });
 
   it("hides a cleared result until a newer one lands", () => {

@@ -1,9 +1,12 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { atom } from "jotai";
-import { hasCellsAtom, notebookAtom } from "../cells/cells";
+import { cellIdsAtom, hasCellsAtom } from "../cells/cells";
 import { isOutputEmpty } from "../cells/outputs";
-import { notebookQueuedOrRunningCountAtom } from "../executions";
+import {
+  cellOutputAtom,
+  notebookQueuedOrRunningCountAtom,
+} from "../executions";
 import { KnownQueryParams } from "../constants";
 import { showCodeInRunModeAtom } from "../meta/state";
 import { type AppMode, initialModeAtom } from "../mode";
@@ -80,8 +83,8 @@ function computeRenderPolicy(input: {
  * update.
  */
 const hasCachedOutputsAtom = atom((get) =>
-  Object.values(get(notebookAtom).cellRuntime).some(
-    (runtime) => !isOutputEmpty(runtime.output),
+  get(cellIdsAtom).some(
+    (cellId) => !isOutputEmpty(get(cellOutputAtom(cellId))),
   ),
 );
 

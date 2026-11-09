@@ -1,7 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import type { ZodType } from "zod";
-import type { CellData, CellRuntimeState } from "@/core/cells/types";
+import type { CellData, RuntimeCell } from "@/core/cells/types";
 import type { AppConfig } from "@/core/config/config-schema";
 import type { AppMode } from "@/core/mode";
 
@@ -17,7 +17,7 @@ export interface ICellRendererProps<L> {
   /**
    * The cells to render.
    */
-  cells: (CellRuntimeState & CellData)[];
+  cells: RuntimeCell[];
 
   /**
    * The layout configuration.

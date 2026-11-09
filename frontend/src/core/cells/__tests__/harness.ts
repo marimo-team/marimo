@@ -11,6 +11,7 @@ import { EditorView } from "@codemirror/view";
 import type * as Protocol from "@marimo-team/client/protocol";
 import { createStore } from "jotai";
 import { mockDocumentModel } from "@/__mocks__/document";
+import { MockExecutions } from "@/__mocks__/executions";
 import type { CellId } from "@/core/cells/ids";
 import { adaptiveLanguageConfiguration } from "@/core/codemirror/language/extension";
 import { OverridingHotkeyProvider } from "@/core/hotkeys/hotkeys";
@@ -35,6 +36,8 @@ export function setupNotebook(
   );
   const controller = new AbortController();
   stops.push(stop, () => controller.abort());
+  /** What the host shows for each cell, by cell id. */
+  const results = new Map<string, Protocol.Execution>();
   followDocument({
     store,
     model,
@@ -89,18 +92,17 @@ export function setupNotebook(
       };
       return view;
     },
-    /** Give a cell's output a heading, as the kernel's outline would. */
-    heading: (id: string, level: number) =>
-      store.set(notebookAtom, (state) => ({
-        ...state,
-        cellRuntime: {
-          ...state.cellRuntime,
-          [id]: {
-            ...state.cellRuntime[id as never],
-            outline: { items: [{ name: `H${level}`, level, by: { id } }] },
-          },
-        },
-      })),
+    /** Give a cell's output a heading, as the host would report it. */
+    heading: (id: string, level: number) => {
+      results.set(
+        id,
+        MockExecutions.shown(id, {
+          mimetype: "text/html",
+          data: `<h${level} id="${id}">H${level}</h${level}>`,
+        }),
+      );
+      MockExecutions.seed(store, [...results.values()]);
+    },
     visible: () => store.get(layoutAtom).columns[0].visible,
     /** Apply a reducer action, as `useReducerActions()` does. */
     dispatch: (action: Parameters<typeof notebookReducer>[1]) =>

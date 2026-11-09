@@ -1,10 +1,10 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
+import type { CellOutput } from "../executions";
 import type { OutputMessage } from "../kernel/messages";
 import type { CellConfig } from "../network/types";
 import type { CellId } from "./ids";
 import { DEFAULT_CELL_NAME } from "./names";
-import type { Outline } from "./outline";
 
 /**
  * Create a new cell with default state.
@@ -42,8 +42,6 @@ export function createCellRuntimeState(
   state?: Partial<CellRuntimeState>,
 ): CellRuntimeState {
   return {
-    outline: null,
-    output: null,
     consoleOutputs: [],
     debuggerActive: false,
     ...state,
@@ -70,10 +68,6 @@ export interface CellData {
  * TODO(MO-8407): Delete.
  */
 export interface CellRuntimeState {
-  /** a message encoding the cell's output. TODO(MO-8404) */
-  output: OutputMessage | null;
-  /** TOC outline. TODO(MO-8404) */
-  outline: Outline | null;
   /** messages encoding the cell's console outputs. TODO(MO-8405) */
   consoleOutputs: ConsoleOutputMessage[];
   /** debugger active */
@@ -82,7 +76,11 @@ export interface CellRuntimeState {
   serialization?: string | null;
 }
 
-export type RuntimeCell = CellRuntimeState & CellData;
+/** A cell as the layout renderers take it, with what it shows from the host. */
+export type RuntimeCell = CellData &
+  CellRuntimeState & {
+    output: CellOutput | null;
+  };
 
 export type WithResponse<T> = T & {
   /**

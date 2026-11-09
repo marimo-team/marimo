@@ -8,7 +8,6 @@ import { MockNotebook } from "@/__mocks__/notebook";
 import { getAIContextRegistry } from "@/core/ai/context/context";
 import { ErrorContextProvider } from "@/core/ai/context/providers/error";
 import { AIContextRegistry } from "@/core/ai/context/registry";
-import { notebookAtom } from "@/core/cells/cells";
 import { CellId } from "@/core/cells/ids";
 import { resourceExtension } from "../resources";
 
@@ -29,16 +28,13 @@ describe("resource tooltips", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     const store = createStore();
-    store.set(
-      notebookAtom,
-      MockNotebook.notebookStateWithErrors([
-        {
-          cellId: CellId.create(),
-          cellName: "Cell 1",
-          errorData: [MockNotebook.errors.exception(message)],
-        },
-      ]),
-    );
+    MockNotebook.withErrors(store, [
+      {
+        cellId: CellId.create(),
+        cellName: "Cell 1",
+        error: { kind: "exception", name: "RuntimeError", message },
+      },
+    ]);
     provider = new ErrorContextProvider(store);
     resource = provider.getItems()[1];
     vi.mocked(getAIContextRegistry).mockReturnValue(

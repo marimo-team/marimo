@@ -2,10 +2,10 @@
 
 import { describe, expect, it } from "vitest";
 import { MockNotebook } from "@/__mocks__/notebook";
-import type { OutputMessage } from "@/core/kernel/messages";
+import type { CellOutput } from "@/core/executions";
 import { outputExpansionConfigs } from "../useSetOutputsExpanded";
 
-const output: OutputMessage = {
+const output: CellOutput = {
   channel: "output",
   mimetype: "text/plain",
   data: "hello",
@@ -22,20 +22,18 @@ describe("outputExpansionConfigs", () => {
       [expanded]: { config: { expand_output: true } },
       [expandedWithoutOutput]: { config: { expand_output: true } },
     },
-    cellRuntime: {
-      [withOutput]: { output },
-      [expanded]: { output },
-    },
   });
+  const outputOf = (cellId: string) =>
+    cellId === withOutput || cellId === expanded ? output : null;
 
   it("expands clamped cells with output and skips cells without output", () => {
-    expect(outputExpansionConfigs(notebook, true)).toEqual({
+    expect(outputExpansionConfigs(notebook, outputOf, true)).toEqual({
       [withOutput]: { expand_output: true },
     });
   });
 
   it("clamps all expanded cells, including those without current output", () => {
-    expect(outputExpansionConfigs(notebook, false)).toEqual({
+    expect(outputExpansionConfigs(notebook, outputOf, false)).toEqual({
       [expanded]: { expand_output: false },
       [expandedWithoutOutput]: { expand_output: false },
     });

@@ -23,7 +23,7 @@ import { toast } from "@/components/ui/use-toast";
 import { useCellData, useCellRuntime } from "@/core/cells/cells";
 import { CellOutputId } from "@/core/cells/ids";
 import { isOutputEmpty } from "@/core/cells/outputs";
-import { useCellExecution } from "@/core/executions";
+import { useCellExecution, useCellOutput } from "@/core/executions";
 import { goToDefinitionWithLspFallback } from "@/core/codemirror/go-to-definition/utils";
 import { sendToPanelManager } from "@/core/vscode/vscode-bindings";
 import { copyImageToClipboard, copyToClipboard } from "@/utils/copy";
@@ -56,6 +56,7 @@ export const CellActionsContextMenu = ({
   const cellData = useCellData(cellId);
   const cellRuntime = useCellRuntime(cellId);
   const execution = useCellExecution(cellId);
+  const output = useCellOutput(cellId);
   const actions = useCellActionButtons({
     cell: {
       cellId: cellId,
@@ -63,7 +64,7 @@ export const CellActionsContextMenu = ({
       config: cellData.config,
       status: execution.status,
       blocked: execution.blocked,
-      hasOutput: !isOutputEmpty(cellRuntime.output),
+      hasOutput: !isOutputEmpty(output),
       hasConsoleOutput: cellRuntime.consoleOutputs.length > 0,
       getEditorView,
     },
