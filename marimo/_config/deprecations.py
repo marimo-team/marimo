@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import types
 from functools import cache
-from typing import TYPE_CHECKING, Annotated, Any, Union, get_args, get_origin
+from typing import TYPE_CHECKING, Annotated, Union, get_args, get_origin
 
 from msgspec import Meta
 from msgspec.structs import fields
@@ -25,7 +25,7 @@ LOGGER = _loggers.marimo_logger()
 
 
 def _deprecated_fields(
-    annotation: Any, value: object, path: ConfigPath = ()
+    annotation: object, value: object, path: ConfigPath = ()
 ) -> Iterator[tuple[ConfigPath, str]]:
     if get_origin(annotation) is Annotated:
         annotation, *extras = get_args(annotation)
