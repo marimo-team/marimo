@@ -41,6 +41,13 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed setup options.
 - Tests are good! Endless smoke tests, and "regression" tests are not so good. Tests are becoming cheaper to run, so you can always write more, run them, and discard any non-useful ones before committing to production.
 - Comments should be very minimal. They should be used to explain the why, not the what. Code should be written to be self-documenting, if you find the comment starts becoming verbose, consider refactoring the code.
 
+### Videos
+
+- Pace agent-generated videos and screen recordings for human viewers. Show one meaningful action at a time, with pauses before and after important interactions so viewers can understand the starting state, the action, and the result.
+- Keep text and results visible long enough to read comfortably. As a starting point, pause for 2–3 seconds around key steps and allow more time for longer text or complex changes.
+- Avoid rapid clicking, scrolling, scene changes, or sped-up playback that makes the workflow hard to follow. Trim idle waiting while preserving time to understand each step.
+- Watch the finished video at normal playback speed before sharing it. Slow down or re-record any sequence that requires pausing or replaying to understand.
+
 ### Python
 
 Most style rules are enforced by ruff (`pyproject.toml`) and pre-commit; run
