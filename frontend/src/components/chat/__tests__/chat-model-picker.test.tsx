@@ -70,6 +70,31 @@ describe("ChatModelPicker", () => {
     ).toBeInTheDocument();
   });
 
+  it("clears reasoning when selecting a different model", () => {
+    const { store, modelId } = renderPicker(true);
+    const alternate = [...getKnownModelMaps().modelMap.entries()].find(
+      ([id, model]) =>
+        id !== modelId &&
+        model.provider === "openai" &&
+        model.roles.includes("chat"),
+    );
+    if (!alternate) {
+      throw new Error("Expected another chat model");
+    }
+    fireEvent.click(screen.getByRole("radio", { name: "High" }));
+    fireEvent.click(
+      screen.getByRole("option", { name: `${alternate[1].name} (OpenAI)` }),
+    );
+    expect(saveModelChange).toHaveBeenCalledExactlyOnceWith(
+      alternate[0],
+      "chat",
+    );
+    expect(store.get(chatOptionsAtom)).toEqual({
+      webSearch: false,
+      reasoningEffort: null,
+    });
+  });
+
   it("updates reasoning without losing other chat settings", () => {
     const { store, model } = renderPicker(true);
     store.set(chatOptionsAtom, { webSearch: true });
@@ -80,7 +105,7 @@ describe("ChatModelPicker", () => {
     });
     expect(
       screen.getByRole("button", {
-        name: `Model: ${model.name}, reasoning: High`,
+        name: `Model: ${model.name}, reasoning: High, web search enabled`,
       }),
     ).toBeInTheDocument();
     fireEvent.click(screen.getByRole("radio", { name: "Default" }));
@@ -157,6 +182,9 @@ describe("ChatModelPicker", () => {
       reasoningEffort: "high",
     });
     expect(screen.getByRole("switch", { name: "Web search" })).toBeChecked();
+    expect(
+      screen.getByRole("button", { name: /Model: .*web search enabled/ }),
+    ).toBeInTheDocument();
     fireEvent.click(screen.getByRole("switch", { name: "Web search" }));
     expect(store.get(chatOptionsAtom)).toEqual({
       webSearch: false,

@@ -2,7 +2,7 @@
 
 import type { ReasoningOption } from "@marimo-team/llm-info";
 import { describe, expect, it } from "vitest";
-import { getReasoningEffortOptions } from "../reasoning-options";
+import { getReasoningEffortOptions } from "@/core/ai/reasoning-options";
 
 describe("getReasoningEffortOptions", () => {
   it("preserves the model's effort choices and ordering", () => {
