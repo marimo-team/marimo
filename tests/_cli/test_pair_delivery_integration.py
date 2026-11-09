@@ -45,12 +45,8 @@ def wait_messages(path: Path, count: int) -> list[dict[str, str]]:
     os.name != "posix", reason="The stub executable uses a POSIX shebang."
 )
 @pytest.mark.parametrize("ipc", [False, True])
-@pytest.mark.parametrize(
-    "widget",
-    [False, pytest.param(True, marks=pytest.mark.requires("anywidget"))],
-)
 def test_detached_delivery_replacement_and_files(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, ipc: bool, widget: bool
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, ipc: bool
 ) -> None:
     if ipc:
         (tmp_path / "pyproject.toml").write_text(
@@ -162,68 +158,78 @@ def test_detached_delivery_replacement_and_files(
                 python_messages[2]["message"].split("\n", 1)[1]
             ) == {"from": "python"}
 
-            if widget:
-                widget_code = (
-                    "import anywidget, builtins\n"
-                    "builtins._messaging_widget = anywidget.AnyWidget()\n"
-                    "builtins._widget_results = []\n"
-                    "def on_agent_message(widget, content, buffers):\n"
-                    "    import builtins, marimo as mo\n"
-                    "    from marimo._runtime.context import get_context\n"
-                    f"    result = mo.agents.send(content, to={records[0].identity!r})\n"
-                    "    builtins._widget_results.append((get_context().cell_id, result.recipients[0].status))\n"
-                    "builtins._messaging_widget.on_msg(on_agent_message)\n"
-                    "print(builtins._messaging_widget._model_id)\n"
-                )
-                result = runner.invoke(
-                    cli_main,
-                    ["pair", "execute", *arguments, "-c", widget_code],
-                )
-                assert result.exit_code == 0, result.output
-                model_id = json.loads(result.stdout)["stdout"].strip()
-                request = urllib.request.Request(
-                    f"{server.url}/api/kernel/set_model_value",
-                    data=json.dumps(
-                        {
-                            "modelId": model_id,
-                            "message": {
-                                "method": "custom",
-                                "content": {"from": "widget"},
-                            },
-                            "buffers": [],
-                        }
-                    ).encode(),
-                    headers={
-                        "Content-Type": "application/json",
-                        "Marimo-Session-Id": server.session_id,
-                        "Authorization": "Bearer editor-test-secret",
-                    },
-                    method="POST",
-                )
-                with urllib.request.urlopen(request, timeout=5) as response:
-                    assert response.status == 200
-                result = runner.invoke(
-                    cli_main,
-                    [
-                        "pair",
-                        "execute",
-                        *arguments,
-                        "-c",
-                        "import builtins\nprint(builtins._widget_results)\nbuiltins._messaging_widget.close()\ndel builtins._widget_results, builtins._messaging_widget",
-                    ],
-                )
-                assert result.exit_code == 0, result.output
-                assert (
-                    json.loads(result.stdout)["stdout"]
-                    == "[(None, 'submitted')]\n"
-                )
-                assert wait_messages(inbox, 4)[3]["thread"] == "first"
+            callback_code = (
+                "import builtins\n"
+                "from marimo._plugins.ui._impl.comm import MarimoComm\n"
+                "from marimo._plugins.ui._impl.anywidget.init import WIDGET_COMM_MANAGER\n"
+                "from marimo._types.ids import WidgetModelId\n"
+                "builtins._external_comm = MarimoComm(\n"
+                "    WidgetModelId('agent-callback'), WIDGET_COMM_MANAGER, 'test.external',\n"
+                "    data={'method': 'open', 'state': {}},\n"
+                ")\n"
+                "builtins._callback_results = []\n"
+                "def on_agent_message(message):\n"
+                "    import builtins, marimo as mo\n"
+                "    from marimo._runtime.context import get_context\n"
+                "    content = message['content']['data']['content']\n"
+                f"    result = mo.agents.send(content, to={records[0].identity!r})\n"
+                "    builtins._callback_results.append((get_context().cell_id, result.recipients[0].status))\n"
+                "builtins._external_comm.on_msg(on_agent_message)\n"
+                "print(builtins._external_comm.comm_id)\n"
+            )
+            result = runner.invoke(
+                cli_main,
+                ["pair", "execute", *arguments, "-c", callback_code],
+            )
+            assert result.exit_code == 0, result.output
+            model_id = json.loads(result.stdout)["stdout"].strip()
+            request = urllib.request.Request(
+                f"{server.url}/api/kernel/set_model_value",
+                data=json.dumps(
+                    {
+                        "modelId": model_id,
+                        "message": {
+                            "method": "custom",
+                            "content": {"from": "external"},
+                        },
+                        "buffers": [],
+                    }
+                ).encode(),
+                headers={
+                    "Content-Type": "application/json",
+                    "Marimo-Session-Id": server.session_id,
+                    "Authorization": "Bearer editor-test-secret",
+                },
+                method="POST",
+            )
+            with urllib.request.urlopen(request, timeout=5) as response:
+                assert response.status == 200
+            result = runner.invoke(
+                cli_main,
+                [
+                    "pair",
+                    "execute",
+                    *arguments,
+                    "-c",
+                    "import builtins\nprint(builtins._callback_results)\nbuiltins._external_comm.close()\ndel builtins._callback_results, builtins._external_comm",
+                ],
+            )
+            assert result.exit_code == 0, result.output
+            assert (
+                json.loads(result.stdout)["stdout"]
+                == "[(None, 'submitted')]\n"
+            )
+            callback_message = wait_messages(inbox, 4)[3]
+            assert callback_message["thread"] == "first"
+            assert json.loads(
+                callback_message["message"].split("\n", 1)[1]
+            ) == {"from": "external"}
 
             large = {"lens": "😀" * 10000}
             send(large)
-            messages = wait_messages(inbox, 5 + int(widget))
+            messages = wait_messages(inbox, 6)
             references = []
-            for message in messages[3 + int(widget) :]:
+            for message in messages[4:]:
                 assert len(message["message"].encode("utf-8")) <= 8192
                 path = Path(
                     message["message"].rsplit(

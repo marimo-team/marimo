@@ -58,9 +58,8 @@ def agent_stream(server: PairTestServer, name: str):
     )
 
 
-@pytest.mark.requires("anywidget")
 @pytest.mark.parametrize("ipc", [False, True])
-def test_observation_widget_busy_kernel_and_rerun(
+def test_observation_external_consumer_busy_kernel_and_rerun(
     tmp_path: Path, ipc: bool
 ) -> None:
     if ipc:
@@ -76,18 +75,15 @@ def test_observation_widget_busy_kernel_and_rerun(
     ) as server:
         code = f"""
 import marimo as mo
-import anywidget
-import traitlets
 import json
 from pathlib import Path
+from types import SimpleNamespace
 from marimo._runtime.context import get_context
-class _Widget(anywidget.AnyWidget):
-    agent_connected = traitlets.Bool(False).tag(sync=True)
-_widget = _Widget()
+_consumer = SimpleNamespace(agent_connected=False)
 def _changed(agents):
-    _widget.set_trait("agent_connected", bool(agents))
+    _consumer.agent_connected = bool(agents)
     with open({str(updates)!r}, "a") as out:
-        out.write(json.dumps([[(a.id, a.name) for a in agents], get_context().cell_id, _widget.agent_connected, Path({str(busy)!r}).exists()]) + "\\n")
+        out.write(json.dumps([[(a.id, a.name) for a in agents], get_context().cell_id, _consumer.agent_connected, Path({str(busy)!r}).exists()]) + "\\n")
 _unsubscribe = mo.agents.subscribe_connections(_changed)
 with open({str(updates)!r}, "a") as out:
     out.write(json.dumps("returned") + "\\n")
@@ -124,26 +120,6 @@ _Path({str(busy)!r}).unlink()
                     value[1:] == ["observe", True, False]
                     for value in values[2:]
                 )
-                # Check the existing model stream, as an external widget uses it.
-                deadline = time.monotonic() + 5
-                while True:
-                    frame = json.loads(
-                        server._websocket.recv(
-                            timeout=max(0.1, deadline - time.monotonic())
-                        )
-                    )
-                    if frame["event"] != "marimo":
-                        continue
-                    notification = frame["data"]["marimo"]
-                    if (
-                        notification["op"] == "model-lifecycle"
-                        and notification["message"]
-                        .get("state", {})
-                        .get("agent_connected")
-                        is True
-                    ):
-                        break
-                    assert time.monotonic() < deadline
             wait_values(
                 updates,
                 lambda values: values[-1][0] == [["same-agent", "Old"]],

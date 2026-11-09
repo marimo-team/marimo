@@ -16,8 +16,6 @@ from marimo._messaging.agents import (
     AgentContextUnavailableError,
     AgentError,
     AgentInfo,
-    NoAgentsConnectedError,
-    RecipientResult,
     SendOutcomeUnknownError,
     SendResult,
     validate_message,
@@ -29,20 +27,6 @@ if TYPE_CHECKING:
     from collections.abc import Callable
 
     from marimo._messaging.agents import AgentConnection
-
-__all__ = [
-    "AgentContextUnavailableError",
-    "AgentError",
-    "AgentInfo",
-    "NoAgentsConnectedError",
-    "RecipientResult",
-    "SendOutcomeUnknownError",
-    "SendResult",
-    "broadcast",
-    "list",
-    "send",
-    "subscribe_connections",
-]
 
 
 def _connection() -> AgentConnection:

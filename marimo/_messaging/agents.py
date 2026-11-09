@@ -21,7 +21,7 @@ SubmissionStatus = Literal["submitted", "rejected", "unknown"]
 class AgentInfo(msgspec.Struct, frozen=True):
     """A logical agent connection within one Notebook.
 
-    Args:
+    Attributes:
         id (str): Opaque recipient ID, stable across stream reconnects.
         name (str | None): Optional display label. Names are not unique.
     """
@@ -33,7 +33,7 @@ class AgentInfo(msgspec.Struct, frozen=True):
 class RecipientResult(msgspec.Struct, frozen=True):
     """The observed submission outcome for one selected agent.
 
-    Args:
+    Attributes:
         agent_id (str): The selected logical agent ID.
         status (str): `submitted`, `rejected`, or `unknown`.
         detail (str | None, optional): Explanation of the observed outcome.
@@ -47,7 +47,7 @@ class RecipientResult(msgspec.Struct, frozen=True):
 class SendResult(msgspec.Struct, frozen=True):
     """Submission outcomes for the recipients selected at acceptance.
 
-    Args:
+    Attributes:
         recipients (tuple[RecipientResult, ...]): One result per recipient.
     """
 
