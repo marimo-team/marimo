@@ -7,7 +7,8 @@ import {
   GlobeIcon,
   SettingsIcon,
 } from "lucide-react";
-import { useId, useMemo, useState } from "react";
+import { Popover as PopoverPrimitive } from "radix-ui";
+import { type RefObject, useId, useMemo, useState } from "react";
 import { AiProviderIcon } from "@/components/ai/ai-provider-icon";
 import { getProviderLabel } from "@/components/ai/ai-model-dropdown";
 import { listModelsForAiSettings } from "@/components/ai/ai-utils";
@@ -41,7 +42,11 @@ import {
 import { chatOptionsAtom } from "@/core/ai/state";
 import { aiAtom } from "@/core/config/config";
 
-export function ChatModelPicker() {
+export function ChatModelPicker({
+  anchorRef,
+}: {
+  anchorRef?: RefObject<HTMLElement | null>;
+}) {
   const [open, setOpen] = useState(false);
   const [selectedProvider, setSelectedProvider] = useState<ProviderId | null>(
     null,
@@ -114,6 +119,7 @@ export function ChatModelPicker() {
         }
       }}
     >
+      {anchorRef && <PopoverPrimitive.Anchor virtualRef={anchorRef} />}
       <PopoverTrigger asChild={true}>
         <Button
           variant="text"
@@ -142,7 +148,7 @@ export function ChatModelPicker() {
       </PopoverTrigger>
       <PopoverContent
         side="top"
-        align="end"
+        align="center"
         className="chat-model-picker w-[420px] max-w-[calc(100vw-1rem)] p-0 overflow-hidden"
       >
         <div className="chat-model-picker-layout flex">
