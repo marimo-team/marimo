@@ -45,6 +45,9 @@ def _cookie_origin_allowed(conn: HTTPConnection) -> bool:
     ):
         return True
 
+    hosts = conn.headers.getlist("host")
+    if len(hosts) != 1:
+        return False
     origins = conn.headers.getlist("origin")
     if not origins:
         # Non-browser clients can omit Origin. Fetch metadata must not
@@ -53,8 +56,7 @@ def _cookie_origin_allowed(conn: HTTPConnection) -> bool:
             "cross-site",
             "same-site",
         )
-    hosts = conn.headers.getlist("host")
-    if len(origins) != 1 or len(hosts) != 1:
+    if len(origins) != 1:
         return False
     origin, host = origins[0], hosts[0]
     # URL parsers normalize whitespace and empty delimiters, which are invalid

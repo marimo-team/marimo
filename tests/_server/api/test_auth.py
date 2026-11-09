@@ -8,7 +8,7 @@ from typing import Any
 
 import pytest
 from starlette.applications import Starlette
-from starlette.authentication import SimpleUser
+from starlette.authentication import SimpleUser, requires
 from starlette.datastructures import Headers, QueryParams
 from starlette.requests import HTTPConnection, Request
 from starlette.responses import Response
@@ -538,12 +538,14 @@ def test_local_credential_is_scoped_to_execution(
 @pytest.mark.parametrize("base_url", ["", "/nested/path"])
 def test_partitioned_cookie_lifecycle(partitioned: bool, base_url: str):
     app = _app_with_base_url(base_url, partitioned=partitioned)
+    token = str(AppState.from_app(app).session_manager.auth_token)
 
+    @requires("read")
     async def session(request: Request) -> Response:
         if request.method == "DELETE":
             request.session.clear()
         else:
-            CookieSession(request.session).set_access_token("test-token")
+            CookieSession(request.session).set_access_token(token)
         return Response()
 
     path = f"{base_url}/chips-session"
@@ -552,12 +554,15 @@ def test_partitioned_cookie_lifecycle(partitioned: bool, base_url: str):
     )
     skew_token = AppState.from_app(app).session_manager.skew_protection_token
     with TestClient(app, base_url="https://kernel.example") as client:
-        for method in ("GET", "GET", "DELETE"):
+        assert client.get(path).status_code == 401
+        for index, method in enumerate(("GET", "GET", "DELETE")):
             response = client.request(
                 method,
                 path,
+                params={"access_token": token} if index == 0 else None,
                 headers={"Marimo-Server-Token": str(skew_token)},
             )
+            assert response.status_code == 200
             cookie = response.headers["set-cookie"].lower()
             assert "; httponly" in cookie
             assert ("; partitioned" in cookie) is partitioned
@@ -570,6 +575,7 @@ def test_partitioned_cookie_lifecycle(partitioned: bool, base_url: str):
             assert f"path={base_url or '/'};" in cookie
             if method == "DELETE":
                 assert "expires=thu, 01 jan 1970" in cookie
+        assert client.get(path).status_code == 401
 
 
 @pytest.mark.parametrize(
@@ -652,6 +658,7 @@ def test_partitioned_websocket_rejects_unrelated_origin():
     app = _app_with_base_url("", partitioned=True)
     token = str(AppState.from_app(app).session_manager.auth_token)
 
+    @requires("read")
     async def session(request: Request) -> Response:
         CookieSession(request.session).set_access_token(token)
         return Response()
@@ -667,7 +674,10 @@ def test_partitioned_websocket_rejects_unrelated_origin():
     app.router.routes.insert(0, Route("/chips-session", session))
     app.router.routes.insert(0, WebSocketRoute("/chips-ws", websocket))
     with TestClient(app, base_url="https://kernel.example") as client:
-        cookie = client.get("/chips-session").headers["set-cookie"]
+        assert client.get("/chips-session").status_code == 401
+        response = client.get("/chips-session", params={"access_token": token})
+        assert response.status_code == 200
+        cookie = response.headers["set-cookie"]
         assert "partitioned" in cookie.lower()
         # Replay the cookie as a browser that ignores Partitioned would.
         headers = {"cookie": cookie.split(";", 1)[0]}
@@ -793,5 +803,30 @@ def test_partitioned_cookie_public_authority(
         marimo_partitioned_session=True,
         session={"access_token": hash_access_token(token)},
         headers=[(key.encode(), value.encode()) for key, value in headers],
+    )
+    assert validate_auth(conn) is allowed
+
+
+@pytest.mark.parametrize("connection_type", ["http", "websocket"])
+@pytest.mark.parametrize(
+    ("hosts", "allowed"),
+    [
+        ([], False),
+        (["kernel.example"], True),
+        (["kernel.example", "kernel.example"], False),
+        (["kernel.example", "attacker.example"], False),
+    ],
+)
+def test_partitioned_cookie_without_origin_requires_one_host(
+    app: Starlette, connection_type: str, hosts: list[str], allowed: bool
+):
+    conn = create_connection(app)
+    token = str(AppState.from_app(app).session_manager.auth_token)
+    conn.scope.update(
+        type=connection_type,
+        method="POST",
+        marimo_partitioned_session=True,
+        session={"access_token": hash_access_token(token)},
+        headers=[(b"host", host.encode()) for host in hosts],
     )
     assert validate_auth(conn) is allowed

@@ -140,9 +140,9 @@ on session cookies, including cookie deletion responses.
 The browser stores cookies separately for each top-level site. To authenticate in
 a separate kernel tab, open the URL with its access token.
 
-Cookie authentication requires the kernel's HTTPS Origin for WebSockets and
-state-changing HTTP requests. TLS proxies must preserve the public `Host`, including
-the port. For tunnels, configure `--allow-origins` with the public kernel origin.
+With partitioned cookies enabled, cookie authentication requires the kernel's HTTPS
+Origin for WebSockets and state-changing HTTP requests. TLS proxies must preserve
+the public `Host`, including the port. For tunnels, configure `--allow-origins` with the public kernel origin.
 Forwarded host headers do not affect the cookie Origin check. Non-browser clients
 can omit Origin unless Fetch Metadata indicates a cross-origin request.
 Explicit tokens can authenticate HTTP requests independently of cookies.
