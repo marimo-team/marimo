@@ -30,6 +30,30 @@ def _highlight_traceback(traceback: str) -> str:
     return f'<span class="codehilite">{body}</span>'
 
 
+def format_exception(exc: BaseException) -> str:
+    """Format `exc` and its traceback, as `traceback.format_exception` does.
+
+    Since Python 3.12, formatting a `NameError` iterates the locals of the
+    frame that raised it, to suggest a similar name. Libraries such as patsy
+    evaluate code against a custom mapping that cannot be iterated, so
+    formatting raises, even when the `NameError` is only the cause of `exc`.
+    When that happens, this function formats the traceback of `exc` alone,
+    without its causes, so that the user still sees the error.
+    """
+    try:
+        return "".join(tb.format_exception(exc))
+    except Exception:
+        lines = tb.format_tb(exc.__traceback__)
+        if lines:
+            lines.insert(0, "Traceback (most recent call last):\n")
+        exc_type = type(exc)
+        name = exc_type.__qualname__
+        if exc_type.__module__ not in ("builtins", "__main__"):
+            name = f"{exc_type.__module__}.{name}"
+        lines.append(f"{name}: {exc}\n")
+        return "".join(lines)
+
+
 def _show_tracebacks_enabled() -> bool:
     """Returns True if show_tracebacks is enabled in the current config."""
     from marimo._runtime.context.types import (
