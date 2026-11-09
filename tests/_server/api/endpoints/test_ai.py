@@ -820,7 +820,7 @@ def test_chat_without_code(
                     "includeOtherCode": "",
                     "context": {},
                     "id": "123",
-                    "options": {"webSearch": True},
+                    "options": {"webSearch": True, "reasoningEffort": "high"},
                 },
             )
             assert response.status_code == 200, response.text
@@ -837,6 +837,10 @@ def test_chat_without_code(
             assert (
                 mock_stream_completion.call_args.kwargs["enable_capabilities"]
                 is True
+            )
+
+            assert (
+                mock_stream_completion.call_args.kwargs["thinking"] == "high"
             )
 
     check_chat(client, temp_marimo_file)
@@ -932,7 +936,7 @@ def test_chat_code_mode_routes_to_harness(
                 "includeOtherCode": "",
                 "context": {},
                 "id": "123",
-                "options": {"webSearch": True},
+                "options": {"webSearch": True, "reasoningEffort": "high"},
             },
         )
 
@@ -946,6 +950,7 @@ def test_chat_code_mode_routes_to_harness(
     kwargs = mock_harness.call_args.kwargs
     assert kwargs["session"] is not None
     assert kwargs["enable_capabilities"] is True
+    assert kwargs["thinking"] == "high"
     assert "how to work with marimo" in kwargs["system_prompt"]
 
 

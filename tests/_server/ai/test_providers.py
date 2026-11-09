@@ -1810,3 +1810,38 @@ def test_session_headers_do_not_affect_other_providers() -> None:
         config, "openai/gpt-4o", session_id="chat-1"
     )
     assert provider.config.extra_headers is None
+
+
+@pytest.mark.requires("pydantic_ai")
+@pytest.mark.parametrize(
+    ("model_name", "base_url", "expected_settings"),
+    [
+        (
+            "gpt-5.1",
+            None,
+            {
+                "max_tokens": 512,
+                "thinking": "high",
+                "openai_reasoning_summary": "auto",
+            },
+        ),
+        ("gpt-4o", None, {"max_tokens": 512}),
+        ("gpt-5.1", "http://localhost:8080", {"max_tokens": 512}),
+    ],
+)
+def test_agent_reasoning_effort_respects_provider_support(
+    model_name: str,
+    base_url: str | None,
+    expected_settings: dict[str, Any],
+) -> None:
+    provider = OpenAIProvider(
+        model_name, AnyProviderConfig(api_key="test-key", base_url=base_url)
+    )
+    agent = provider.create_agent(
+        name="chat",
+        system_prompt="Help with the notebook.",
+        max_tokens=512,
+        enable_capabilities=False,
+        thinking="high",
+    )
+    assert agent.model_settings == expected_settings

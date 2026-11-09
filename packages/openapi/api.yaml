@@ -677,6 +677,14 @@ components:
     ChatOptions:
       description: Used to configure capabilities of the AI agent.
       properties:
+        reasoningEffort:
+          anyOf:
+          - enum:
+            - high
+            - low
+            - medium
+          - type: 'null'
+          default: null
         webSearch:
           default: false
           type: boolean
