@@ -7,7 +7,7 @@ import {
   GlobeIcon,
   SettingsIcon,
 } from "lucide-react";
-import { useId, useState } from "react";
+import { useId, useMemo, useState } from "react";
 import { AiProviderIcon } from "@/components/ai/ai-provider-icon";
 import { getProviderLabel } from "@/components/ai/ai-model-dropdown";
 import { listModelsForAiSettings } from "@/components/ai/ai-utils";
@@ -34,8 +34,8 @@ import type { ChatOptions } from "@/core/network/types";
 import { useAIConfigActions } from "@/core/ai/config";
 import type { ProviderId, QualifiedModelId } from "@/core/ai/ids/ids";
 import {
-  chatModelConfigAtom,
-  effectiveChatOptionsAtom,
+  getChatModelConfig,
+  getEffectiveChatOptions,
 } from "@/core/ai/chat-model-config";
 import { chatOptionsAtom } from "@/core/ai/state";
 import { aiAtom } from "@/core/config/config";
@@ -48,12 +48,15 @@ export function ChatModelPicker() {
   const [search, setSearch] = useState("");
   const webSearchId = useId();
   const ai = useAtomValue(aiAtom);
-  const options = useAtomValue(effectiveChatOptionsAtom);
+  const storedOptions = useAtomValue(chatOptionsAtom);
   const setOptions = useSetAtom(chatOptionsAtom);
   const { saveModelChange } = useAIConfigActions();
   const { handleClick } = useOpenSettingsToTab();
-  const { current, registry, displayName, reasoningOptions } =
-    useAtomValue(chatModelConfigAtom);
+  const { current, registry, displayName, reasoningOptions } = useMemo(
+    () => getChatModelConfig(ai),
+    [ai],
+  );
+  const options = getEffectiveChatOptions(storedOptions, reasoningOptions);
   const modelsByProvider = listModelsForAiSettings(
     registry.getListModelsByProvider(),
     ai,

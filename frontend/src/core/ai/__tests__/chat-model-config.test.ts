@@ -1,73 +1,33 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { createStore } from "jotai";
-import { beforeEach, describe, expect, it, vi } from "vitest";
-import { userConfigAtom } from "@/core/config/config";
+import { describe, expect, it } from "vitest";
 import {
-  chatModelConfigAtom,
-  effectiveChatOptionsAtom,
+  getChatModelConfig,
+  getEffectiveChatOptions,
 } from "../chat-model-config";
-import { chatOptionsAtom } from "../state";
+import type { ChatOptions } from "@/core/network/types";
 
-function createChatStore(
+function resolveModel(
   model = "openai/gpt-6-luna",
   displayed: string[] = [],
   baseUrl?: string,
 ) {
-  const store = createStore();
-  store.set(userConfigAtom, {
-    ...store.get(userConfigAtom),
-    ai: {
-      open_ai: { base_url: baseUrl },
-      models: {
-        chat_model: model,
-        custom_models: [],
-        displayed_models: displayed,
-      },
+  return getChatModelConfig({
+    open_ai: { base_url: baseUrl },
+    models: {
+      chat_model: model,
+      custom_models: [],
+      displayed_models: displayed,
     },
   });
-  return store;
 }
 
-beforeEach(() => localStorage.clear());
-
 describe("chat model configuration", () => {
-  it("keeps picker configuration stable across unrelated AI settings", () => {
-    const store = createChatStore();
-    const before = store.get(chatModelConfigAtom);
-    const listener = vi.fn();
-    const unsubscribe = store.sub(chatModelConfigAtom, listener);
-    store.set(userConfigAtom, (previous) => ({
-      ...previous,
-      ai: { ...previous.ai, mode: "ask" },
-    }));
-    expect(store.get(chatModelConfigAtom)).toBe(before);
-    expect(listener).not.toHaveBeenCalled();
-    unsubscribe();
-  });
-
-  it("keeps equivalent effective request options stable", () => {
-    const store = createChatStore("openai/custom-model");
-    store.set(chatOptionsAtom, { webSearch: true, reasoningEffort: "high" });
-    const before = store.get(effectiveChatOptionsAtom);
-    const listener = vi.fn();
-    const unsubscribe = store.sub(effectiveChatOptionsAtom, listener);
-    store.set(chatOptionsAtom, { webSearch: true, reasoningEffort: "max" });
-    expect(store.get(effectiveChatOptionsAtom)).toBe(before);
-    expect(listener).not.toHaveBeenCalled();
-    store.set(chatOptionsAtom, { webSearch: false, reasoningEffort: "max" });
-    expect(store.get(effectiveChatOptionsAtom)).toEqual({
-      webSearch: false,
-      reasoningEffort: null,
-    });
-    expect(listener).toHaveBeenCalledOnce();
-    unsubscribe();
-  });
-
   it("preserves the active model when excluded from the allowlist", () => {
-    const store = createChatStore("openai/gpt-6.1-sol", ["openai/gpt-6-luna"]);
-    const { registry, reasoningOptions, displayName } =
-      store.get(chatModelConfigAtom);
+    const { registry, reasoningOptions, displayName } = resolveModel(
+      "openai/gpt-6.1-sol",
+      ["openai/gpt-6-luna"],
+    );
     expect(
       registry
         .getListModelsByProvider()
@@ -85,36 +45,32 @@ describe("chat model configuration", () => {
   });
 
   it("checks persisted effort against the current model at request time", () => {
-    const store = createChatStore();
-    store.set(chatOptionsAtom, { webSearch: true, reasoningEffort: "none" });
-    expect(store.get(effectiveChatOptionsAtom)).toEqual({
+    const options: ChatOptions & { webSearch: boolean } = {
       webSearch: true,
       reasoningEffort: "none",
-    });
-    store.set(userConfigAtom, (previous) => ({
-      ...previous,
-      ai: {
-        ...previous.ai,
-        models: {
-          custom_models: [],
-          displayed_models: [],
-          chat_model: "openai/gpt-6.1-sol",
-        },
-      },
-    }));
-    expect(store.get(effectiveChatOptionsAtom)).toEqual({
-      webSearch: true,
-      reasoningEffort: null,
-    });
+    };
+    expect(
+      getEffectiveChatOptions(options, resolveModel().reasoningOptions),
+    ).toEqual({ webSearch: true, reasoningEffort: "none" });
+    expect(
+      getEffectiveChatOptions(
+        options,
+        resolveModel("openai/gpt-6.1-sol").reasoningOptions,
+      ),
+    ).toEqual({ webSearch: true, reasoningEffort: null });
   });
 
   it("does not send efforts for unknown models", () => {
-    const store = createChatStore("openai/custom-model");
-    store.set(chatOptionsAtom, { webSearch: false, reasoningEffort: "high" });
-    expect(store.get(effectiveChatOptionsAtom)).toEqual({
+    const options: ChatOptions & { webSearch: boolean } = {
       webSearch: false,
-      reasoningEffort: null,
-    });
+      reasoningEffort: "high",
+    };
+    expect(
+      getEffectiveChatOptions(
+        options,
+        resolveModel("openai/custom-model").reasoningOptions,
+      ),
+    ).toEqual({ webSearch: false, reasoningEffort: null });
   });
 
   it.each([
@@ -125,9 +81,17 @@ describe("chat model configuration", () => {
     ["https://custom.example/api.openai.com", false],
     ["invalid-url", false],
   ] as const)("checks the hostname of %s", (baseUrl, supported) => {
-    const store = createChatStore("openai/gpt-6.1-sol", [], baseUrl);
-    store.set(chatOptionsAtom, { webSearch: true, reasoningEffort: "high" });
-    expect(store.get(effectiveChatOptionsAtom)).toEqual({
+    const { reasoningOptions } = resolveModel(
+      "openai/gpt-6.1-sol",
+      [],
+      baseUrl,
+    );
+    expect(
+      getEffectiveChatOptions(
+        { webSearch: true, reasoningEffort: "high" },
+        reasoningOptions,
+      ),
+    ).toEqual({
       webSearch: true,
       reasoningEffort: supported ? "high" : null,
     });
