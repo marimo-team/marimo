@@ -11,6 +11,30 @@ from marimo._server.api import lifespans
 from marimo._session.model import SessionMode
 
 
+async def test_signal_handler_stops_before_shutdown() -> None:
+    state = MagicMock()
+    stopped = False
+
+    def stop() -> None:
+        nonlocal stopped
+        stopped = True
+
+    async def shutdown() -> None:
+        assert stopped
+
+    state.session_manager.shutdown = AsyncMock(side_effect=shutdown)
+    with (
+        patch.object(lifespans.AppState, "from_app", return_value=state),
+        patch.object(lifespans, "InterruptHandler") as handler,
+    ):
+        handler.return_value.stop.side_effect = stop
+        async with lifespans.signal_handler(MagicMock()):
+            handler.return_value.register.assert_called_once_with()
+            assert not stopped
+
+    state.session_manager.shutdown.assert_awaited_once_with()
+
+
 async def test_browser_launch_does_not_block_event_loop_or_lifespan() -> None:
     state = MagicMock()
     state.headless = False

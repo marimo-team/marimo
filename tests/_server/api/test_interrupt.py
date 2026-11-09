@@ -1,63 +1,93 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-import asyncio
-from typing import Any
+import signal
+import subprocess
+import sys
+import textwrap
 from unittest.mock import Mock, patch
+
+import pytest
 
 from marimo._server.api.interrupt import InterruptHandler
 
 
-@patch("sys.stdin.isatty", return_value=True)
-async def test_interrupt_handler(patch_isatty: Any) -> None:
-    del patch_isatty
-    shutdown_mock = Mock()
-
-    # Create an instance of InterruptHandler with quiet mode disabled
-    interrupt_handler = InterruptHandler(quiet=False, shutdown=shutdown_mock)
-
-    # Register the interrupt handler
-    interrupt_handler.register()
-
-    # Mock the input function before simulating Ctrl+C
-    with patch("builtins.input", return_value="y"):
-        # Simulate Ctrl+C signal
-        interrupt_handler.loop.call_soon(interrupt_handler._interrupt_handler)
-        await asyncio.sleep(0)  # Let the event loop process the signal
-
-        # Assert that the shutdown callable was called
-        shutdown_mock.assert_called_once()
-
-    # Reset the mock for the next test
-    shutdown_mock.reset_mock()
-
-    # Test with 'n' response
-    with patch("builtins.input", return_value="n"):
-        # Simulate Ctrl+C signal
-        interrupt_handler.loop.call_soon(interrupt_handler._interrupt_handler)
-        await asyncio.sleep(0)  # Let the event loop process the signal
-
-        # Assert that the shutdown callable was not called
-        shutdown_mock.assert_not_called()
-
-
-@patch("sys.stdin.isatty", return_value=False)
-async def test_interrupt_handler_non_interactive_terminal(
-    patch_isatty: Any,
+@pytest.mark.parametrize("quiet", [False, True])
+@pytest.mark.parametrize("interactive", [False, True])
+async def test_shutdown_is_requested_once(
+    quiet: bool, interactive: bool
 ) -> None:
-    del patch_isatty
-    shutdown_mock = Mock()
+    shutdown = Mock()
+    handler = InterruptHandler(quiet=quiet, shutdown=shutdown)
+    with (
+        patch.object(handler.loop, "remove_signal_handler"),
+        patch("signal.signal") as set_signal,
+        patch("sys.stdin.isatty", return_value=interactive),
+        patch("builtins.input", return_value="y") as prompt,
+    ):
+        handler._interrupt_handler()
+        handler._interrupt_handler()
 
-    # Create an instance of InterruptHandler with quiet mode disabled
-    interrupt_handler = InterruptHandler(quiet=False, shutdown=shutdown_mock)
+    shutdown.assert_called_once_with()
+    set_signal.assert_called_once_with(signal.SIGINT, signal.SIG_IGN)
+    assert prompt.call_count == int(interactive and not quiet)
 
-    # Register the interrupt handler
-    interrupt_handler.register()
 
-    # Simulate Ctrl+C signal
-    interrupt_handler.loop.call_soon(interrupt_handler._interrupt_handler)
-    await asyncio.sleep(0)  # Let the event loop process the signal
+async def test_declining_shutdown_keeps_interrupt_handler() -> None:
+    shutdown = Mock()
+    handler = InterruptHandler(quiet=False, shutdown=shutdown)
+    with (
+        patch.object(handler.loop, "remove_signal_handler"),
+        patch.object(handler, "_add_interrupt_handler") as register,
+        patch("sys.stdin.isatty", return_value=True),
+        patch("builtins.input", return_value="n"),
+    ):
+        handler._interrupt_handler()
 
-    # Assert that the shutdown callable was called immediately
-    # without prompting for user input
-    shutdown_mock.assert_called_once()
+    shutdown.assert_not_called()
+    register.assert_called_once_with()
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="Uses POSIX signals")
+def test_repeated_sigint_does_not_cancel_cleanup() -> None:
+    script = textwrap.dedent(
+        """
+        import asyncio
+        import signal
+        from unittest.mock import Mock
+
+        from marimo._server.api.interrupt import InterruptHandler
+        from marimo._server.uvicorn_utils import close_uvicorn
+
+        async def main():
+            finished = asyncio.Event()
+            tasks = []
+
+            async def cleanup():
+                signal.raise_signal(signal.SIGINT)
+                await asyncio.sleep(0.01)
+                close_uvicorn(Mock())
+                signal.raise_signal(signal.SIGINT)
+                await asyncio.sleep(0.01)
+                finished.set()
+
+            def shutdown():
+                tasks.append(asyncio.create_task(cleanup()))
+
+            handler = InterruptHandler(quiet=True, shutdown=shutdown)
+            handler.register()
+            signal.raise_signal(signal.SIGINT)
+            await asyncio.wait_for(finished.wait(), timeout=2)
+            await asyncio.gather(*tasks)
+            assert len(tasks) == 1
+
+        asyncio.run(main())
+        """
+    )
+    result = subprocess.run(
+        [sys.executable, "-c", script],
+        capture_output=True,
+        text=True,
+        timeout=10,
+    )
+    assert result.returncode == 0, result.stderr

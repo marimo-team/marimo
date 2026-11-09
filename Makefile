@@ -61,16 +61,16 @@ marimo/_lsp: $(shell find packages/lsp)
 .PHONY: dev
 dev: fe-codegen
 	@echo "Starting development servers..."
-	@# Start both processes, with marimo in background
-	@(trap 'kill %1; exit' INT; \
+	@(cleanup() { trap '' INT TERM; kill "$$backend" 2>/dev/null; wait "$$backend"; }; \
+	trap cleanup EXIT; trap 'exit 0' INT TERM; \
 	uv run marimo edit --no-token --headless /tmp --port 2718 & \
-	pnpm dev)
+	backend=$$!; pnpm --dir frontend exec vite)
 dev-sandbox:
 	@echo "Starting development servers..."
-	@# Start both processes, with marimo in background
-	@(trap 'kill %1; exit' INT; \
+	@(cleanup() { trap '' INT TERM; kill "$$backend" 2>/dev/null; wait "$$backend"; }; \
+	trap cleanup EXIT; trap 'exit 0' INT TERM; \
 	uv run marimo edit /tmp/notebook.py --no-token --headless --sandbox & \
-	pnpm dev)
+	backend=$$!; pnpm --dir frontend exec vite)
 
 #############
 # Testing   #

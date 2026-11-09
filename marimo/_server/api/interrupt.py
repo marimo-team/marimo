@@ -24,6 +24,22 @@ class InterruptHandler:
         self.loop = asyncio.get_running_loop()
         self.original_handler = signal.getsignal(signal.SIGINT)
         self._time_of_last_confirmation: float | None = None
+        self._stopped = False
+
+    def stop(self) -> None:
+        self._stopped = True
+        try:
+            self.loop.remove_signal_handler(signal.SIGINT)
+        except NotImplementedError:
+            pass
+        # Forwarded interrupts must not cancel asynchronous teardown.
+        signal.signal(signal.SIGINT, signal.SIG_IGN)
+
+    def _request_shutdown(self) -> None:
+        if self._stopped:
+            return
+        self.stop()
+        self.shutdown()
 
     def _add_interrupt_handler(self) -> None:
         try:
@@ -38,6 +54,8 @@ class InterruptHandler:
             )
 
     def _interrupt_handler(self) -> None:
+        if self._stopped:
+            return
         if (
             self._time_of_last_confirmation is not None
             and (time.time() - self._time_of_last_confirmation) < 0.1
@@ -56,17 +74,18 @@ class InterruptHandler:
             signal.signal(signal.SIGINT, self.original_handler)
 
         if self.quiet:
-            self.shutdown()
+            self._request_shutdown()
+            return
 
         try:
             try:
                 if GLOBAL_SETTINGS.YES:
-                    self.shutdown()
+                    self._request_shutdown()
                     return
 
                 # If not in an interactive terminal, just exit
                 if not sys.stdin.isatty():
-                    self.shutdown()
+                    self._request_shutdown()
                     return
 
                 response = input(
@@ -74,11 +93,11 @@ class InterruptHandler:
                 )
                 self._time_of_last_confirmation = time.time()
                 if response.lower().strip() == "y":
-                    self.shutdown()
+                    self._request_shutdown()
                     return
             except (KeyboardInterrupt, EOFError, asyncio.CancelledError):
                 print_()
-                self.shutdown()
+                self._request_shutdown()
                 return
         except KeyboardInterrupt:
             # This is a hack to workaround the fact that uv can send two SIGINT for
@@ -87,7 +106,7 @@ class InterruptHandler:
             # into three) causes marimo to hang or abort unceremoniously instead
             # of cleanly exiting.
             print_()
-            self.shutdown()
+            self._request_shutdown()
             return
 
         # Program is still alive: restore the interrupt handler

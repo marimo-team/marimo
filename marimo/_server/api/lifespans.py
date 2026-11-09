@@ -235,13 +235,15 @@ async def signal_handler(app: Starlette) -> AsyncIterator[None]:
             shutdown(), name="server.shutdown", registry=background_tasks
         )
 
-    InterruptHandler(
+    handler = InterruptHandler(
         quiet=state.quiet,
         shutdown=request_shutdown,
-    ).register()
+    )
+    handler.register()
     try:
         yield
     finally:
+        handler.stop()
         await manager.shutdown()
 
 
