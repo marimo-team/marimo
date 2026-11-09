@@ -24,23 +24,9 @@ export interface ReasoningEffortChoice {
 }
 
 export function getChatReasoningOptions(
-  model: AiModel | undefined,
-  baseUrl?: string,
+  model: Pick<AiModel, "reasoning_options"> | undefined,
 ): ReasoningEffortChoice[] {
-  if (!model || model.provider === "azure") {
-    return [];
-  }
-  if (model.provider === "openai" && baseUrl) {
-    try {
-      if (new URL(baseUrl).hostname !== "api.openai.com") {
-        return [];
-      }
-    } catch {
-      return [];
-    }
-  }
-  const options = model.reasoning_options ?? [];
-  const efforts = options.flatMap((option) =>
+  const efforts = (model?.reasoning_options ?? []).flatMap((option) =>
     option.type === "effort" ? option.values : [],
   );
   if (efforts.length === 0) {

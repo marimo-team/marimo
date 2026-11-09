@@ -3,31 +3,18 @@
 import type { ReasoningOption } from "@marimo-team/llm-info";
 import { describe, expect, it } from "vitest";
 import { getChatReasoningOptions } from "../reasoning-options";
-import { getKnownModelMaps, type AiModel } from "../model-registry";
-
-function modelWithOptions(
-  reasoningOptions: ReasoningOption[] | undefined,
-): AiModel {
-  const model = [...getKnownModelMaps().modelMap.values()].find(
-    (model) => model.provider === "openai",
-  );
-  if (!model) {
-    throw new Error("Expected a known OpenAI model");
-  }
-  return { ...model, reasoning_options: reasoningOptions };
-}
 
 describe("getChatReasoningOptions", () => {
   it("preserves the model's effort choices and ordering", () => {
     expect(
-      getChatReasoningOptions(
-        modelWithOptions([
+      getChatReasoningOptions({
+        reasoning_options: [
           {
             type: "effort",
             values: ["none", "minimal", "low", "high", "xhigh", "max"],
           },
-        ]),
-      ),
+        ],
+      }),
     ).toEqual([
       { value: "default", label: "Default" },
       { value: "none", label: "None" },
@@ -41,11 +28,11 @@ describe("getChatReasoningOptions", () => {
 
   it("offers one default choice for provider defaults and null", () => {
     expect(
-      getChatReasoningOptions(
-        modelWithOptions([
+      getChatReasoningOptions({
+        reasoning_options: [
           { type: "effort", values: [null, "default", "medium", "medium"] },
-        ]),
-      ),
+        ],
+      }),
     ).toEqual([
       { value: "default", label: "Default" },
       { value: "medium", label: "Medium" },
@@ -59,6 +46,6 @@ describe("getChatReasoningOptions", () => {
     { options: [{ type: "budget_tokens", min: -1, max: 32768 }] },
     { options: [{ type: "effort", values: [] }] },
   ])("does not invent effort choices for $options", ({ options }) => {
-    expect(getChatReasoningOptions(modelWithOptions(options))).toEqual([]);
+    expect(getChatReasoningOptions({ reasoning_options: options })).toEqual([]);
   });
 });

@@ -482,12 +482,14 @@ const ChatPanelBody = () => {
           }
 
           const ai = store.get(aiAtom);
-          const { reasoningOptions } = getChatModelConfig(ai);
+          const modelConfig = getChatModelConfig(ai);
+          const storedOptions = store.get(chatOptionsAtom);
           const completionBody = {
+            model: modelConfig.current.id,
             uiMessages: options.messages,
             options: getEffectiveChatOptions(
-              store.get(chatOptionsAtom),
-              reasoningOptions,
+              storedOptions,
+              modelConfig.reasoningOptions,
             ),
           };
 

@@ -1,6 +1,13 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import { createStore, Provider } from "jotai";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { getKnownModelMaps } from "@/core/ai/model-registry";
@@ -51,26 +58,27 @@ function renderPicker(reasoning: boolean) {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  saveModelChange.mockResolvedValue(undefined);
   localStorage.clear();
   HTMLElement.prototype.scrollIntoView = vi.fn();
 });
 
 describe("ChatModelPicker", () => {
   it("searches and selects a model while keeping reasoning accessible", () => {
-    const { model, modelId } = renderPicker(true);
+    const { model } = renderPicker(true);
     fireEvent.change(screen.getByRole("combobox"), {
       target: { value: model.model },
     });
     fireEvent.click(
       screen.getByRole("option", { name: `${model.name} (OpenAI)` }),
     );
-    expect(saveModelChange).toHaveBeenCalledExactlyOnceWith(modelId, "chat");
+    expect(saveModelChange).not.toHaveBeenCalled();
     expect(
       screen.getByRole("radiogroup", { name: "Reasoning" }),
     ).toBeInTheDocument();
   });
 
-  it("clears reasoning when selecting a different model", () => {
+  it("clears reasoning when selecting a different model", async () => {
     const { store, modelId } = renderPicker(true);
     const alternate = [...getKnownModelMaps().modelMap.entries()].find(
       ([id, model]) =>
@@ -89,11 +97,52 @@ describe("ChatModelPicker", () => {
       alternate[0],
       "chat",
     );
-    expect(store.get(chatOptionsAtom)).toEqual({
-      webSearch: false,
-      reasoningEffort: null,
-    });
+    await waitFor(() =>
+      expect(store.get(chatOptionsAtom)).toEqual({
+        webSearch: false,
+        reasoningEffort: null,
+      }),
+    );
   });
+
+  it.each(["resolve", "reject"] as const)(
+    "preserves effort until model save succeeds (%s)",
+    async (outcome) => {
+      const { store, modelId } = renderPicker(true);
+      const alternate = [...getKnownModelMaps().modelMap.entries()].find(
+        ([id, model]) =>
+          id !== modelId &&
+          model.provider === "openai" &&
+          model.roles.includes("chat"),
+      );
+      if (!alternate) {
+        throw new Error("Expected another chat model");
+      }
+      const pending = Promise.withResolvers<undefined>();
+      saveModelChange.mockReturnValueOnce(pending.promise);
+      fireEvent.click(screen.getByRole("radio", { name: "High" }));
+      fireEvent.click(
+        screen.getByRole("option", { name: `${alternate[1].name} (OpenAI)` }),
+      );
+      expect(store.get(chatOptionsAtom)).toEqual({
+        webSearch: false,
+        reasoningEffort: "high",
+      });
+      expect(screen.getByRole("radio", { name: "High" })).toBeDisabled();
+      await act(async () => {
+        if (outcome === "resolve") {
+          pending.resolve(undefined);
+        } else {
+          pending.reject(new Error("Save failed"));
+        }
+      });
+      expect(store.get(chatOptionsAtom)).toEqual({
+        webSearch: false,
+        reasoningEffort: outcome === "resolve" ? null : "high",
+      });
+      expect(screen.getByRole("radio", { name: "High" })).not.toBeDisabled();
+    },
+  );
 
   it("updates reasoning without losing other chat settings", () => {
     const { store, model } = renderPicker(true);

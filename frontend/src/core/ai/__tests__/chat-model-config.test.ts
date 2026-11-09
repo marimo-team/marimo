@@ -7,13 +7,8 @@ import {
 } from "../chat-model-config";
 import type { ChatOptions } from "@/core/network/types";
 
-function resolveModel(
-  model = "openai/gpt-6-luna",
-  displayed: string[] = [],
-  baseUrl?: string,
-) {
+function resolveModel(model = "openai/gpt-6-luna", displayed: string[] = []) {
   return getChatModelConfig({
-    open_ai: { base_url: baseUrl },
     models: {
       chat_model: model,
       custom_models: [],
@@ -77,7 +72,7 @@ describe("chat model configuration", () => {
     "ollama/minimax-m3.1-flash",
     "wandb/reflection/Beam-1.0-501B-A23B",
     "opencode-go/kimi-k3.1-pro",
-  ])("uses catalog efforts for %s without a provider allowlist", (model) => {
+  ])("uses catalog efforts regardless of provider for %s", (model) => {
     const { reasoningOptions } = resolveModel(model);
     expect(
       getEffectiveChatOptions(
@@ -85,34 +80,5 @@ describe("chat model configuration", () => {
         reasoningOptions,
       ),
     ).toEqual({ webSearch: false, reasoningEffort: "max" });
-  });
-
-  it("keeps Azure reasoning disabled while the backend suppresses it", () => {
-    const { reasoningOptions } = resolveModel("azure/gpt-6.1-sol");
-    expect(reasoningOptions).toEqual([]);
-  });
-
-  it.each([
-    [undefined, true],
-    ["https://api.openai.com/v1", true],
-    ["https://API.OPENAI.COM/v1", true],
-    ["https://api.openai.com.attacker.example/v1", false],
-    ["https://custom.example/api.openai.com", false],
-    ["invalid-url", false],
-  ] as const)("checks the hostname of %s", (baseUrl, supported) => {
-    const { reasoningOptions } = resolveModel(
-      "openai/gpt-6.1-sol",
-      [],
-      baseUrl,
-    );
-    expect(
-      getEffectiveChatOptions(
-        { webSearch: true, reasoningEffort: "high" },
-        reasoningOptions,
-      ),
-    ).toEqual({
-      webSearch: true,
-      reasoningEffort: supported ? "high" : null,
-    });
   });
 });

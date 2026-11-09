@@ -21,11 +21,8 @@ export function getChatModelConfig(ai: AiConfig | undefined) {
   return {
     current,
     registry,
+    reasoningOptions: getChatReasoningOptions(currentModel),
     displayName: currentModel?.name ?? current.shortModelId,
-    reasoningOptions: getChatReasoningOptions(
-      currentModel,
-      ai?.open_ai?.base_url,
-    ),
   };
 }
 
