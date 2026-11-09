@@ -74,6 +74,25 @@ describe("chat model configuration", () => {
   });
 
   it.each([
+    "ollama/minimax-m3.1-flash",
+    "wandb/reflection/Beam-1.0-501B-A23B",
+    "opencode-go/kimi-k3.1-pro",
+  ])("uses catalog efforts for %s without a provider allowlist", (model) => {
+    const { reasoningOptions } = resolveModel(model);
+    expect(
+      getEffectiveChatOptions(
+        { webSearch: false, reasoningEffort: "max" },
+        reasoningOptions,
+      ),
+    ).toEqual({ webSearch: false, reasoningEffort: "max" });
+  });
+
+  it("keeps Azure reasoning disabled while the backend suppresses it", () => {
+    const { reasoningOptions } = resolveModel("azure/gpt-6.1-sol");
+    expect(reasoningOptions).toEqual([]);
+  });
+
+  it.each([
     [undefined, true],
     ["https://api.openai.com/v1", true],
     ["https://API.OPENAI.COM/v1", true],
