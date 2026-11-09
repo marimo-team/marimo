@@ -620,6 +620,52 @@ class TestCombined:
 
             assert k.globals["x"] == 1
 
+    @pytest.mark.parametrize("kernel", ["k", "lazy_kernel"])
+    @pytest.mark.parametrize("created", [False, True])
+    async def test_delete_cancels_queued_run(
+        self, request: pytest.FixtureRequest, kernel: str, created: bool
+    ) -> None:
+        k: Kernel = request.getfixturevalue(kernel)
+        if not created:
+            await k.run(
+                [
+                    ExecuteCellCommand(cell_id=CellId_t("a"), code="x = 1"),
+                    ExecuteCellCommand(
+                        cell_id=CellId_t("b"), code="y = x + 1"
+                    ),
+                ]
+            )
+        with _ctx(k) as ctx:
+            async with ctx:
+                cid = ctx.create_cell("x = 1") if created else CellId_t("a")
+                ctx.run_cell(cid)
+                ctx.delete_cell(cid)
+            assert cid not in ctx.cells
+            assert cid not in k.graph.cells
+            assert "x" not in k.globals
+        if not created:
+            assert isinstance(
+                k.graph.cells[CellId_t("b")].exception, NameError
+            ) == (k.reactive_execution_mode == "autorun")
+
+    @pytest.mark.parametrize("kernel", ["k", "lazy_kernel"])
+    async def test_setup_conversion_preserves_queued_run_behavior(
+        self, request: pytest.FixtureRequest, kernel: str
+    ) -> None:
+        k: Kernel = request.getfixturevalue(kernel)
+        await k.run([ExecuteCellCommand(cell_id=CellId_t("a"), code="x = 1")])
+        with _ctx(k) as ctx:
+            async with ctx:
+                ctx.run_cell("a")
+                ctx.edit_cell("a", code="x = 2", name="setup")
+            assert [(cell.id, cell.code) for cell in ctx.cells] == [
+                ("setup", "x = 2")
+            ]
+            assert _graph_codes(k) == {"setup": "x = 2"}
+            assert k.globals.get("x") == (
+                2 if k.reactive_execution_mode == "autorun" else None
+            )
+
     async def test_run_deleted_cell_raises(self, k: Kernel) -> None:
         """Calling run_cell on a cell queued for deletion raises."""
         await k.run([ExecuteCellCommand(cell_id=CellId_t("0"), code="x = 1")])

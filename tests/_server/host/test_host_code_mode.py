@@ -153,8 +153,11 @@ async def test_competing_edit_before_flush(
     )
 
 
+@pytest.mark.parametrize("migrate", [False, True])
 async def test_edit_stays_committed_when_run_source_changes(
-    host: tuple[Starlette, str, Response], monkeypatch: pytest.MonkeyPatch
+    host: tuple[Starlette, str, Response],
+    monkeypatch: pytest.MonkeyPatch,
+    migrate: bool,
 ) -> None:
     app, notebook_id, events = host
     bridge = app.state.host_context.bridge
@@ -188,7 +191,17 @@ async def test_edit_stays_committed_when_run_source_changes(
         return reply
 
     monkeypatch.setattr(session, "document_request", edit_again)
-    run_id = await submit(app, notebook_id, EDIT, "agent")
+    code = (
+        "import marimo._code_mode as cm\n"
+        "async with cm.get_context() as ctx:\n"
+        "    cell = ctx.cells[0]\n"
+        "    assert cell.code == 'x = 1'\n"
+        "    ctx.run_cell(cell.id)\n"
+        "    ctx.edit_cell(cell.id, code='x = 42', name='setup')\n"
+        if migrate
+        else EDIT
+    )
+    run_id = await submit(app, notebook_id, code, "agent")
     assert (await completed(events, run_id))["outcome"] == "failed"
     assert next(iter(notebook.document)).code == "x = 99"
     assert not any(

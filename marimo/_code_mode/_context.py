@@ -1766,15 +1766,20 @@ class AsyncCodeModeContext:
                 if CellId_t(cell_id) in run_ids:
                     requested[cell_id] = cell.etag
         if run_ids:
-            await self._request_document(
-                cells=tuple(
-                    protocol.RequestedCell(
-                        id=protocol.CellId(cid),
-                        etag=requested[protocol.CellId(cid)],
-                    )
-                    for cid in sorted(run_ids)
+            run_ids = run_ids & {CellId_t(cell.id) for cell in self._document}
+            targets = run_ids
+            if self._kernel.reactive_execution_mode == "autorun":
+                targets = targets | affected
+            cells = tuple(
+                protocol.RequestedCell(
+                    id=cell.id, etag=requested.get(cell.id, cell.etag)
                 )
+                for cell in self._document
+                if CellId_t(cell.id) in targets
             )
+            if not cells:
+                return
+            await self._request_document(cells=cells)
             affected |= self._kernel.apply_document(
                 self._document,
                 before=self._document,
