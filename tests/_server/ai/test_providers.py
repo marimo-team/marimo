@@ -1827,29 +1827,9 @@ def test_session_headers_do_not_affect_other_providers() -> None:
 
 
 @pytest.mark.requires("pydantic_ai")
-@pytest.mark.parametrize(
-    ("model_name", "base_url", "expected_settings"),
-    [
-        (
-            "gpt-5.1",
-            None,
-            {
-                "max_tokens": 512,
-                "thinking": "high",
-                "openai_reasoning_summary": "auto",
-            },
-        ),
-        ("gpt-4o", None, {"max_tokens": 512}),
-        ("gpt-5.1", "http://localhost:8080", {"max_tokens": 512}),
-    ],
-)
-def test_agent_reasoning_effort_respects_provider_support(
-    model_name: str,
-    base_url: str | None,
-    expected_settings: dict[str, Any],
-) -> None:
+def test_agent_reasoning_effort_respects_provider_support() -> None:
     provider = OpenAIProvider(
-        model_name, AnyProviderConfig(api_key="test-key", base_url=base_url)
+        "gpt-5.1", AnyProviderConfig(api_key="test-key", base_url=None)
     )
     agent = provider.create_agent(
         name="chat",
@@ -1858,4 +1838,71 @@ def test_agent_reasoning_effort_respects_provider_support(
         enable_capabilities=False,
         thinking="high",
     )
-    assert agent.model_settings == expected_settings
+    assert agent.model_settings == {
+        "max_tokens": 512,
+        "thinking": "high",
+        "openai_reasoning_summary": "auto",
+    }
+
+
+@pytest.mark.requires("pydantic_ai")
+@pytest.mark.parametrize(
+    "model_id", ["openrouter/openai/gpt-5", "deepseek/deepseek-reasoner"]
+)
+def test_known_compatible_provider_honors_explicit_effort(
+    model_id: str,
+) -> None:
+    provider = CustomProvider(
+        AiModelId.from_model(model_id),
+        AnyProviderConfig(
+            api_key="test-key", base_url="http://localhost:8080/v1"
+        ),
+    )
+    model = provider.create_model()
+    default_settings = (
+        provider._build_model_settings(model, max_tokens=512) or {}
+    )
+    assert "thinking" not in default_settings
+    agent = provider.create_agent(
+        name="chat",
+        system_prompt="Help with the notebook.",
+        max_tokens=512,
+        enable_capabilities=False,
+        thinking="high",
+    )
+    assert agent.model_settings == {**default_settings, "thinking": "high"}
+
+
+@pytest.mark.requires("pydantic_ai")
+@pytest.mark.parametrize(
+    ("model_id", "base_url"),
+    [
+        ("openai/gpt-4o", None),
+        ("openai/gpt-5.1", "http://localhost:8080/v1"),
+        ("custom-endpoint/gpt-5", "http://localhost:8080/v1"),
+        ("ollama/unknown-model", "http://localhost:8080/v1"),
+    ],
+)
+def test_unsupported_explicit_effort_is_not_silently_ignored(
+    model_id: str, base_url: str | None
+) -> None:
+    from starlette.exceptions import HTTPException
+
+    provider = get_completion_provider(
+        AnyProviderConfig(api_key="test-key", base_url=base_url),
+        model=model_id,
+        session_id="test",
+    )
+    with pytest.raises(HTTPException) as error:
+        provider.create_agent(
+            name="chat",
+            system_prompt="Help with the notebook.",
+            max_tokens=512,
+            enable_capabilities=False,
+            thinking="high",
+        )
+    assert error.value.status_code == 400
+    assert (
+        error.value.detail
+        == "Reasoning effort is not supported by this model's current provider integration."
+    )

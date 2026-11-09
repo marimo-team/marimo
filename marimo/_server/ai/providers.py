@@ -193,11 +193,13 @@ class PydanticProvider(ABC, Generic[ProviderT_co]):
         )
 
         settings = self._build_model_settings(model, max_tokens)
-        if (
-            thinking is not None
-            and settings is not None
-            and "thinking" in settings
-        ):
+        if thinking is not None:
+            if not self._supports_thinking(model):
+                raise HTTPException(
+                    status_code=HTTPStatus.BAD_REQUEST,
+                    detail="Reasoning effort is not supported by this model's current provider integration.",
+                )
+            settings = settings or {}
             settings["thinking"] = thinking
 
         return Agent(
@@ -339,13 +341,15 @@ class PydanticProvider(ABC, Generic[ProviderT_co]):
     ) -> BaseModelSettings:
         """Shared request setting values, before provider-specific keys."""
         thinking = self._default_thinking(model)
-        if thinking is not None and not (
-            profile_get(model.profile, "supports_thinking", False)
-            or profile_get(model.profile, "thinking_always_enabled", False)
-        ):
+        if thinking is not None and not self._supports_thinking(model):
             thinking = None
 
         return BaseModelSettings(max_tokens=max_tokens, thinking=thinking)
+
+    def _supports_thinking(self, model: Model) -> bool:
+        return profile_get(
+            model.profile, "supports_thinking", False
+        ) or profile_get(model.profile, "thinking_always_enabled", False)
 
     def _default_thinking(self, model: Model) -> ThinkingLevel | None:
         """Default unified thinking flag. Return None to skip."""
@@ -726,6 +730,12 @@ class OpenAIProvider(OpenAIClientMixin, PydanticProvider["PydanticOpenAI"]):
             )
 
         return settings
+
+    @override
+    def _supports_thinking(self, model: Model) -> bool:
+        return self._default_thinking(
+            model
+        ) is not None and super()._supports_thinking(model)
 
     @override
     def _default_thinking(self, model: Model) -> ThinkingLevel | None:
@@ -1135,9 +1145,14 @@ class CustomProvider(OpenAIClientMixin, PydanticProvider["Provider"]):
         return model_settings
 
     @override
+    def _supports_thinking(self, model: Model) -> bool:
+        return _try_infer_provider_class(
+            self._provider_name
+        ) is not None and super()._supports_thinking(model)
+
+    @override
     def _default_thinking(self, model: Model) -> ThinkingLevel | None:
-        # Custom OpenAI-compatible endpoints (Together, vLLM, LM Studio, ...)
-        # often don't honor `reasoning_effort`
+        # Custom OpenAI-compatible endpoints often don't honor automatic thinking.
         if self._is_openai_compatible():
             return None
         return super()._default_thinking(model)

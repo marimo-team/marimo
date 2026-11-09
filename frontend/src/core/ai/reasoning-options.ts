@@ -43,23 +43,17 @@ export function getChatReasoningEffortOptions(
   model: AiModel | undefined,
   baseUrl?: string,
 ) {
-  switch (model?.provider) {
-    case "anthropic":
-    case "google":
-    case "bedrock":
-      return getReasoningEffortOptions(model.reasoning_options);
-    case "openai":
-      if (baseUrl) {
-        try {
-          if (new URL(baseUrl).hostname !== "api.openai.com") {
-            return [];
-          }
-        } catch {
-          return [];
-        }
-      }
-      return getReasoningEffortOptions(model.reasoning_options);
-    default:
-      return [];
+  if (!model || model.provider === "azure") {
+    return [];
   }
+  if (model.provider === "openai" && baseUrl) {
+    try {
+      if (new URL(baseUrl).hostname !== "api.openai.com") {
+        return [];
+      }
+    } catch {
+      return [];
+    }
+  }
+  return getReasoningEffortOptions(model.reasoning_options);
 }
