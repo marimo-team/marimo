@@ -239,15 +239,12 @@ async def signal_handler(app: Starlette) -> AsyncIterator[None]:
         quiet=state.quiet,
         shutdown=request_shutdown,
     )
-    handler.register()
-    try:
-        yield
-    finally:
-        handler.stop()
+    with handler.listen():
         try:
-            await manager.shutdown()
+            yield
         finally:
-            handler.close()
+            handler.begin_shutdown()
+            await manager.shutdown()
 
 
 @contextlib.asynccontextmanager

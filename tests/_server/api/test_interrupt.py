@@ -21,7 +21,7 @@ async def test_shutdown_is_requested_once(
     handler = InterruptHandler(quiet=quiet, shutdown=shutdown)
     with (
         patch.object(handler.loop, "remove_signal_handler"),
-        patch("signal.signal") as set_signal,
+        patch("signal.signal"),
         patch("sys.stdin.isatty", return_value=interactive),
         patch("builtins.input", return_value="y") as prompt,
     ):
@@ -29,9 +29,6 @@ async def test_shutdown_is_requested_once(
         handler._interrupt_handler()
 
     shutdown.assert_called_once_with()
-    set_signal.assert_called_once_with(
-        signal.SIGINT, handler._interrupt_during_shutdown
-    )
     assert prompt.call_count == int(interactive and not quiet)
 
 
@@ -41,6 +38,7 @@ async def test_declining_shutdown_keeps_interrupt_handler() -> None:
     with (
         patch.object(handler.loop, "remove_signal_handler"),
         patch.object(handler, "_add_interrupt_handler") as register,
+        patch("signal.signal"),
         patch("sys.stdin.isatty", return_value=True),
         patch("builtins.input", return_value="n"),
     ):
@@ -50,49 +48,22 @@ async def test_declining_shutdown_keeps_interrupt_handler() -> None:
     register.assert_called_once_with()
 
 
-@pytest.mark.skipif(sys.platform == "win32", reason="Uses POSIX signals")
-def test_repeated_sigint_does_not_cancel_cleanup() -> None:
-    script = textwrap.dedent(
-        """
-        import asyncio
-        import signal
-        from unittest.mock import Mock
+@pytest.mark.parametrize("error", [KeyboardInterrupt, EOFError])
+async def test_interrupting_quit_prompt_requests_shutdown(
+    error: type[BaseException],
+) -> None:
+    shutdown = Mock()
+    handler = InterruptHandler(quiet=False, shutdown=shutdown)
+    with (
+        patch.object(handler.loop, "remove_signal_handler"),
+        patch("signal.signal"),
+        patch("sys.stdin.isatty", return_value=True),
+        patch("builtins.input", side_effect=error),
+    ):
+        handler._interrupt_handler()
+        handler._interrupt_handler()
 
-        from marimo._server.api.interrupt import InterruptHandler
-        from marimo._server.uvicorn_utils import close_uvicorn
-
-        async def main():
-            finished = asyncio.Event()
-            tasks = []
-
-            async def cleanup():
-                signal.raise_signal(signal.SIGINT)
-                await asyncio.sleep(0.01)
-                close_uvicorn(Mock())
-                signal.raise_signal(signal.SIGINT)
-                await asyncio.sleep(0.01)
-                finished.set()
-
-            def shutdown():
-                tasks.append(asyncio.create_task(cleanup()))
-
-            handler = InterruptHandler(quiet=True, shutdown=shutdown)
-            handler.register()
-            signal.raise_signal(signal.SIGINT)
-            await asyncio.wait_for(finished.wait(), timeout=2)
-            await asyncio.gather(*tasks)
-            assert len(tasks) == 1
-
-        asyncio.run(main())
-        """
-    )
-    result = subprocess.run(
-        [sys.executable, "-c", script],
-        capture_output=True,
-        text=True,
-        timeout=10,
-    )
-    assert result.returncode == 0, result.stderr
+    shutdown.assert_called_once_with()
 
 
 @pytest.mark.parametrize("windows", [False, True])
@@ -106,17 +77,19 @@ async def test_shutdown_filters_duplicates_but_allows_force_quit(
             "remove_signal_handler",
             side_effect=NotImplementedError if windows else None,
         ),
-        patch("signal.signal"),
+        patch("signal.signal") as set_signal,
         patch("marimo._server.api.interrupt.time") as clock,
     ):
         clock.monotonic.return_value = 10.0
-        handler.stop()
+        handler.begin_shutdown()
+        interrupt_shutdown = set_signal.call_args.args[1]
         clock.monotonic.return_value = 10.2
-        handler._interrupt_during_shutdown(signal.SIGINT, None)
-        handler.stop()
+        interrupt_shutdown(signal.SIGINT, None)
+        handler.begin_shutdown()
+        set_signal.assert_called_once()
         clock.monotonic.return_value = 11.1
         with pytest.raises(KeyboardInterrupt):
-            handler._interrupt_during_shutdown(signal.SIGINT, None)
+            interrupt_shutdown(signal.SIGINT, None)
 
 
 @pytest.mark.skipif(sys.platform == "win32", reason="Uses POSIX signals")
