@@ -16,9 +16,6 @@ def _normalize_union_order(schema: Any) -> Any:
         result = {
             key: _normalize_union_order(value) for key, value in schema.items()
         }
-        # Python 3.13 strips common indentation from docstrings; older versions do not.
-        if isinstance(result.get("description"), str):
-            result["description"] = inspect.cleandoc(result["description"])
         # msgspec versions can emit equivalent union alternatives in a different order.
         for key in ("anyOf", "oneOf"):
             if isinstance(result.get(key), list):
