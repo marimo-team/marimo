@@ -145,6 +145,20 @@ anthropic:
     limits: {context: 200000, output: 64000}
 
 openai:
+  - name: GPT-6.1 Terra
+    model: gpt-6.1-terra
+    description: ""
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image, pdf]
+    output_types: [text]
+    release_date: 2026-10-26
+    cost: {input: 1, output: 5}
+    reasoning_options:
+      - type: effort
+        values: [none, low, medium, high, xhigh, max]
+    limits: {context: 1050000, output: 128000}
+
   - name: GPT-6.1 Sol
     model: gpt-6.1-sol
     description: "Reasoning model for agentic coding, computer use, and document-heavy professional work"
@@ -300,6 +314,20 @@ openai:
     limits: {context: 1050000, output: 128000}
 
 google:
+  - name: Nano Banana 2.1
+    model: gemini-nano-banana-2.1
+    description: ""
+    roles: [chat, edit]
+    capabilities: [thinking]
+    input_types: [text, image, pdf]
+    output_types: [text, image]
+    release_date: 2026-10-06
+    cost: {input: 1.5, output: 30}
+    reasoning_options:
+      - type: effort
+        values: [minimal, medium, high]
+    limits: {context: 131072, output: 32768}
+
   - name: Gemini 4 Argon
     model: gemini-4-argon
     description: "Reasoning model for complex software engineering, mathematical and scientific problem solving, and autonomous multi-step agents"
@@ -509,6 +537,78 @@ google:
     limits: {context: 1000000, output: 128000}
 
 bedrock:
+  - name: GPT-6.1 Terra (Global)
+    model: global.openai.gpt-6.1-terra
+    description: ""
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image]
+    output_types: [text]
+    release_date: 2026-10-26
+    cost: {input: 1, output: 5}
+    reasoning_options:
+      - type: effort
+        values: [none, low, medium, high, xhigh, max]
+    limits: {context: 1050000, output: 128000}
+
+  - name: GPT-6.1 Terra
+    model: openai.gpt-6.1-terra
+    description: ""
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image, pdf]
+    output_types: [text]
+    release_date: 2026-10-26
+    cost: {input: 1.1, output: 5.5}
+    reasoning_options:
+      - type: effort
+        values: [none, low, medium, high, xhigh, max]
+    limits: {context: 1050000, output: 128000}
+
+  - name: GPT-6.1 Terra (US)
+    model: us.openai.gpt-6.1-terra
+    description: ""
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image]
+    output_types: [text]
+    release_date: 2026-10-26
+    cost: {input: 1.1, output: 5.5}
+    reasoning_options:
+      - type: effort
+        values: [none, low, medium, high, xhigh, max]
+    limits: {context: 1050000, output: 128000}
+
+  - name: Claude Haiku 5.5
+    model: anthropic.claude-haiku-5-5
+    description: ""
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image, pdf]
+    output_types: [text]
+    release_date: 2026-10-07
+    cost: {input: 0.1, output: 0.5}
+    reasoning_options:
+      - type: toggle
+      - type: effort
+        values: [low, medium, high, xhigh, max]
+    limits: {context: 1000000, output: 128000}
+
+  - name: Claude Haiku 5.5 (AU)
+    model: au.anthropic.claude-haiku-5-5
+    description: ""
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image, pdf]
+    output_types: [text]
+    release_date: 2026-10-07
+    cost: {input: 0.11, output: 0.55}
+    reasoning_options:
+      - type: toggle
+      - type: effort
+        values: [low, medium, high, xhigh, max]
+    limits: {context: 1000000, output: 128000}
+
   - name: Claude Haiku 5.5 (Global)
     model: global.anthropic.claude-haiku-5-5
     description: "Small, fast model for high-volume, cost-sensitive work such as summarization, subagents, and browser use"
@@ -794,6 +894,20 @@ bedrock:
     limits: {context: 1000000, output: 128000}
 
 azure:
+  - name: GPT-6.1 Terra
+    model: gpt-6.1-terra
+    description: ""
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image, pdf]
+    output_types: [text]
+    release_date: 2026-10-26
+    cost: {input: 1, output: 5}
+    reasoning_options:
+      - type: effort
+        values: [none, low, medium, high, xhigh, max]
+    limits: {context: 1050000, output: 128000}
+
   - name: Claude Haiku 5.5
     model: claude-haiku-5-5
     description: "Small, fast model for high-volume, cost-sensitive work such as summarization, subagents, and browser use"
@@ -1116,6 +1230,21 @@ azure:
     limits: {context: 1000000, output: 384000}
 
 ollama:
+  - name: Kimi K3.1 Pro
+    model: kimi-k3.1-pro
+    description: ""
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image]
+    output_types: [text]
+    release_date: 2026-10-23
+    cost: {input: 2, output: 10}
+    reasoning_options:
+      - type: toggle
+      - type: effort
+        values: [low, medium, high, max]
+    limits: {context: 1048576, output: 131072}
+
   - name: MiniMax-M3.1-Flash
     model: minimax-m3.1-flash
     description: "Multimodal model from MiniMax for coding, computer use, and complex multi-step agent workflows"
@@ -1400,6 +1529,19 @@ ollama:
     cost: {input: 0.6, output: 3.6}
 
 wandb:
+  - name: DeepSeek V4.1 Flash 1017
+    model: deepseek-ai/DeepSeek-V4.1-Flash-1017
+    description: ""
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image]
+    output_types: [text]
+    release_date: 2026-10-17
+    cost: {input: 0.3, output: 1.2}
+    reasoning_options:
+      - type: toggle
+    limits: {context: 1048576, output: 1048576}
+
   - name: Beam 1.0
     model: reflection/Beam-1.0-501B-A23B
     description: "Open-weight reasoning model from Reflection for coding and long-running agent workflows, with 501B total and 23B active parameters"
@@ -1435,7 +1577,7 @@ wandb:
     input_types: [text, image]
     output_types: [text]
     release_date: 2026-09-10
-    cost: {input: 0.15, output: 0.65}
+    cost: {input: 0.13, output: 0.65}
     reasoning_options:
       - type: toggle
     limits: {context: 1048576, output: 1048576}
@@ -1448,7 +1590,7 @@ wandb:
     input_types: [text, image]
     output_types: [text]
     release_date: 2026-08-26
-    cost: {input: 0.15, output: 0.5}
+    cost: {input: 0.12, output: 0.38}
     reasoning_options: []
     limits: {context: 1048576, output: 1048576}
 
@@ -1460,7 +1602,7 @@ wandb:
     input_types: [text]
     output_types: [text]
     release_date: 2026-08-25
-    cost: {input: 0.1, output: 0.15}
+    cost: {input: 0.06, output: 0.15}
     reasoning_options:
       - type: toggle
     limits: {context: 131072, output: 131072}
@@ -1512,7 +1654,7 @@ wandb:
     input_types: [text]
     output_types: [text]
     release_date: 2026-07-31
-    cost: {input: 0.13, output: 0.28}
+    cost: {input: 0.13, output: 0.27}
     reasoning_options:
       - type: toggle
     limits: {context: 262144, output: 262144}
@@ -1627,6 +1769,46 @@ wandb:
     limits: {context: 131072, output: 131072}
 
 opencode-go:
+  - name: Hy4
+    model: hy4
+    description: ""
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image]
+    output_types: [text]
+    release_date: 2026-11-04
+    cost: {input: 0.834, output: 2.501}
+    reasoning_options:
+      - type: effort
+        values: [none, high]
+    limits: {context: 1048576, output: 65536}
+
+  - name: Crouton Alpha Free
+    model: crouton-alpha-free
+    description: ""
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image, pdf]
+    output_types: [text]
+    release_date: 2026-11-03
+    cost: {input: 0, output: 0}
+    reasoning_options:
+      - type: effort
+        values: [minimal, low, medium, high, xhigh, max]
+    limits: {context: 1048576, output: 270000}
+
+  - name: Iceman Contributor Free
+    model: iceman-contributor-free
+    description: ""
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text]
+    output_types: [text]
+    release_date: 2026-10-24
+    cost: {input: 0, output: 0}
+    reasoning_options: []
+    limits: {context: 262144, output: 131072}
+
   - name: Kimi K3.1 Pro
     model: kimi-k3.1-pro
     description: "Open-weight multimodal reasoning model from Moonshot AI for long-horizon coding, financial research, and agentic knowledge work"
