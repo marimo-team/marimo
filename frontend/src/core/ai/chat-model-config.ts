@@ -5,7 +5,7 @@ import type { ChatOptions } from "@/core/network/types";
 import { AiModelId } from "./ids/ids";
 import { AiModelRegistry } from "./model-registry";
 import {
-  getChatReasoningEffortOptions,
+  getChatReasoningOptions,
   type ReasoningEffortChoice,
 } from "./reasoning-options";
 
@@ -22,7 +22,7 @@ export function getChatModelConfig(ai: AiConfig | undefined) {
     current,
     registry,
     displayName: currentModel?.name ?? current.shortModelId,
-    reasoningOptions: getChatReasoningEffortOptions(
+    reasoningOptions: getChatReasoningOptions(
       currentModel,
       ai?.open_ai?.base_url,
     ),
