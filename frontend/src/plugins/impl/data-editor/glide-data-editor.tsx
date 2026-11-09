@@ -72,13 +72,40 @@ interface GlideDataEditorProps {
   onAddEdits: (edits: Edits["edits"]) => void;
 }
 
-export const GlideDataEditor = ({
+export const GlideDataEditor = (props: GlideDataEditorProps) => {
+  const [columnWidths, setColumnWidths] = useState<Record<string, number>>({});
+  const onColumnResize = useCallback((column: GridColumn, newSize: number) => {
+    setColumnWidths((prev) => ({
+      ...prev,
+      [column.title]: newSize,
+    }));
+  }, []);
+
+  return (
+    // Glide also owns overlay and focus state that must reset with the schema.
+    <GlideDataEditorInner
+      key={JSON.stringify([...props.columnFields])}
+      {...props}
+      columnWidths={columnWidths}
+      onColumnResize={onColumnResize}
+    />
+  );
+};
+
+interface GlideDataEditorInnerProps extends GlideDataEditorProps {
+  columnWidths: Readonly<Record<string, number>>;
+  onColumnResize: (column: GridColumn, newSize: number) => void;
+}
+
+const GlideDataEditorInner = ({
   data,
   columnFields,
   columnTypes,
   editableColumns,
   onAddEdits,
-}: GlideDataEditorProps) => {
+  columnWidths,
+  onColumnResize,
+}: GlideDataEditorInnerProps) => {
   const { theme } = useTheme();
   const dataEditorRef = useRef<DataEditorRef>(null);
   const portalElementRef = useRef<HTMLDivElement>(null);
@@ -90,7 +117,6 @@ export const GlideDataEditor = ({
     rows: CompactSelection.empty(),
   });
 
-  const [columnWidths, setColumnWidths] = useState<Record<string, number>>({});
   const editableColumnSet = useMemo(
     () => (editableColumns === "all" ? null : new Set(editableColumns)),
     [editableColumns],
@@ -214,13 +240,6 @@ export const GlideDataEditor = ({
     },
     [columns, onAddEdits],
   );
-
-  const onColumnResize = useCallback((column: GridColumn, newSize: number) => {
-    setColumnWidths((prev) => ({
-      ...prev,
-      [column.title]: newSize,
-    }));
-  }, []);
 
   // Only called when user edits a cell, not deletes
   const validateCell = useCallback(
