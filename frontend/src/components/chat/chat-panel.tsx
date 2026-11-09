@@ -524,7 +524,10 @@ const ChatPanelBody = () => {
       deleteChats({ store, chatId: id }) &&
       (id === null || id === activeChatId)
     ) {
-      handleNewChat();
+      renewDraftChatId();
+      setInput("");
+      setNewThreadInput("");
+      clearFiles();
     }
   });
 

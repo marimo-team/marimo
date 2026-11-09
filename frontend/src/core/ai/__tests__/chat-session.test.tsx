@@ -120,6 +120,56 @@ async function createApprovalSession({
 }
 
 describe("chat sessions", () => {
+  it.each([
+    { action: "close", restored: false },
+    { action: "stop", restored: false },
+    { action: "close", restored: true },
+    { action: "stop", restored: true },
+  ] as const)(
+    "preserves completed response timing on $action (restored=$restored)",
+    async ({ action, restored }) => {
+      const { transport, write, finish } = createTransport();
+      const saveMessages = vi.fn();
+      const session = createChatSession({
+        id: CHAT_A,
+        transport,
+        messages: restored
+          ? [
+              {
+                id: "saved-reply",
+                role: "assistant",
+                parts: [{ type: "text", text: "Completed response" }],
+                metadata: {
+                  startedAt: 1_000,
+                  finishedAt: 2_000,
+                  stopped: false,
+                },
+              },
+            ]
+          : [],
+        saveMessages,
+        onToolCall: vi.fn().mockResolvedValue(undefined),
+      });
+      if (!restored) {
+        const request = session.sendMessage(USER_MESSAGE);
+        write(
+          CHAT_A,
+          { type: "text-start", id: "answer" },
+          { type: "text-delta", id: "answer", delta: "Completed response" },
+          { type: "text-end", id: "answer" },
+        );
+        finish(CHAT_A);
+        await request;
+      }
+      const completed = session.controller.messages;
+      expect(session.isActive()).toBe(false);
+      expect(completed.at(-1)?.metadata).toMatchObject({ stopped: false });
+      await session[action]();
+      expect(session.controller.messages).toEqual(completed);
+      expect(saveMessages).toHaveBeenLastCalledWith(completed);
+    },
+  );
+
   it.each([true, false])(
     "releases queued input when approval with trailing text resolves (approved=%s)",
     async (approved) => {

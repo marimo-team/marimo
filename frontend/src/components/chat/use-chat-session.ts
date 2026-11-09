@@ -178,12 +178,15 @@ export function useChatSession(activeChat: Chat | null | undefined) {
     sessions.set(chatId, session);
   }
 
-  const renewDraftChatId = useEvent(() => {
-    if (!store.get(chatStateAtom).chats.has(chatId)) {
-      sessions.delete(chatId);
+  useEffect(() => {
+    const { chats } = store.get(chatStateAtom);
+    for (const [id, draft] of sessions) {
+      if (id !== chatId && !chats.has(id) && !draft.isActive()) {
+        void draft.close({ discard: true });
+        sessions.delete(id);
+      }
     }
-    renewDraftId();
-  });
+  }, [chatId, sessions, store]);
   const chat = useChatState(session.controller);
   const queuedMessages = useAtomValue(session.queuedMessagesAtom);
   const abortNotice = useAtomValue(session.abortNoticeAtom);
@@ -220,6 +223,6 @@ export function useChatSession(activeChat: Chat | null | undefined) {
     abortNotice,
     isTurnActive: session.isActive(),
     turnStartedAt,
-    renewDraftChatId,
+    renewDraftChatId: renewDraftId,
   };
 }

@@ -122,6 +122,37 @@ afterEach(() => {
 });
 
 describe("useChatSession", () => {
+  it("releases abandoned drafts when opening history chats", () => {
+    const { result, store } = setup();
+    const draftId = result.current.id;
+    const draft = store.get(chatSessionsAtom).get(draftId);
+    if (!draft) {
+      throw new Error("Expected a draft session");
+    }
+    const close = vi.spyOn(draft, "close");
+    const saved = makeChat("Saved chat");
+    act(() =>
+      store.set(chatStateAtom, (state) => addChatAndOpenTab(state, saved)),
+    );
+    expect(close).toHaveBeenCalledExactlyOnceWith({ discard: true });
+    expect([...store.get(chatSessionsAtom).keys()]).toEqual([saved.id]);
+  });
+
+  it("selects a neighboring tab when deleting the active chat", () => {
+    const chatA = makeChat("Chat A");
+    const chatB = makeChat("Chat B");
+    const { result, store } = setup([chatA, chatB]);
+    act(() => {
+      expect(deleteChats({ store, chatId: chatA.id })).toBe(true);
+    });
+    expect(result.current.id).toBe(chatB.id);
+    expect(store.get(chatStateAtom)).toEqual({
+      chats: new Map([[chatB.id, chatB]]),
+      activeChatId: chatB.id,
+      openChatIds: [chatB.id],
+    });
+  });
+
   it("keeps a draft controller through promotion and creates a fresh draft afterward", () => {
     const { result, rerender, store } = setup();
     const draftId = result.current.id;

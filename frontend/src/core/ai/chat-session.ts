@@ -12,7 +12,12 @@ import { atom, createStore } from "jotai";
 import type { JotaiStore } from "../state/jotai";
 import { generateUUID } from "@/utils/uuid";
 import { createAssistantTurn } from "./assistant-turn";
-import { type ChatId, chatStateAtom, runningChatIdsAtom } from "./state";
+import {
+  type ChatId,
+  chatStateAtom,
+  closeChatTab,
+  runningChatIdsAtom,
+} from "./state";
 export { runningChatIdsAtom } from "./state";
 
 type ChatFinish = Parameters<ChatOnFinishCallback<UIMessage>>[0];
@@ -165,13 +170,16 @@ export function createChatSession({
   };
 
   const stop = () => {
+    const wasActive = isActive();
     stopped = true;
     toolGeneration++;
     const wasLoading = isLoading();
-    controller.messages = turn.finish(controller.messages, {
-      isAbort: true,
-      isError: false,
-    });
+    if (wasActive) {
+      controller.messages = turn.finish(controller.messages, {
+        isAbort: true,
+        isError: false,
+      });
+    }
     saveMessages(controller.messages);
     if (wasLoading) {
       return controller.stop();
@@ -281,6 +289,7 @@ export function deleteChats({
     store.set(markChatReadAtom, chatId);
   }
   store.set(chatStateAtom, (prev) => {
+    const nextState = chatId === null ? prev : closeChatTab(prev, chatId);
     const chats = new Map(prev.chats);
     if (chatId === null) {
       chats.clear();
@@ -290,10 +299,10 @@ export function deleteChats({
     return {
       chats,
       activeChatId:
-        prev.activeChatId && chats.has(prev.activeChatId)
-          ? prev.activeChatId
+        nextState.activeChatId && chats.has(nextState.activeChatId)
+          ? nextState.activeChatId
           : null,
-      openChatIds: prev.openChatIds.filter((id) => chats.has(id)),
+      openChatIds: nextState.openChatIds.filter((id) => chats.has(id)),
     };
   });
   return true;
