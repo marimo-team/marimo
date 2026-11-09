@@ -171,13 +171,21 @@ class WorkspaceIndex:
         return record
 
     def untitled(self) -> protocol.Notebook:
-        """Register an editor document before it has a file."""
+        """Register an editor document before it has a file.
+
+        It can be edited and its runtime driven, but the operations that
+        need a file wait until it is saved under a path.
+        """
         record = protocol.Notebook(
             id=mint(protocol.NotebookId, "nb"),
             project_id=self.project_id,
             path=None,
             name="Untitled",
-            operations=("notebook.edit",),
+            operations=tuple(
+                op
+                for op in OPERATIONS
+                if op == "notebook.edit" or op.startswith("runtime.")
+            ),
             updated_at=None,
         )
         self._host.add_notebook(record, self._initialize)

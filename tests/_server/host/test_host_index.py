@@ -250,6 +250,25 @@ def test_register_open_notebook_keeps_workspace_files_in_the_workspace(
     ] == [index.project_id]
 
 
+def test_untitled_notebooks_offer_editing_and_the_runtime(
+    tmp_path: Path,
+) -> None:
+    index = WorkspaceIndex(
+        Host(operations=[]),
+        DirectoryWorkspace(str(tmp_path), include_markdown=False),
+        make_notebook,
+    )
+    index.refresh()
+    assert set(index.untitled().operations) == {
+        "notebook.edit",
+        "runtime.start",
+        "runtime.stop",
+        "runtime.restart",
+        "runtime.run",
+        "runtime.input",
+    }
+
+
 @pytest.mark.parametrize("untitled", [False, True])
 def test_saving_outside_the_workspace_preserves_identity(
     tmp_path: Path, untitled: bool

@@ -33,6 +33,7 @@ from marimo._server.host.translate import (
     variable_messages,
 )
 from marimo._server.scratchpad import snapshot_for_scratchpad
+from marimo._server.workspace import NEW_FILE
 from marimo._session.consumer import SessionConsumer
 from marimo._session.model import ConnectionState
 from marimo._session.requests import InstantiateNotebookRequest
@@ -123,6 +124,8 @@ class SessionBackend(SessionConsumer):
         """Called with the session that detached, before its exit is reported."""
         self._request_metadata = request_metadata
         self._kernel: _Kernel | None = None
+        self._session_key: str | None = None
+        """The last session's key, which its editor reconnects with."""
         self._runs: dict[protocol.RunId, _Run] = {}
         """Runs this backend submitted that have not finished, by run id."""
         self._handover = Handover()
@@ -143,22 +146,24 @@ class SessionBackend(SessionConsumer):
         )
 
     async def _start(self, kernel: _Kernel, session_id: SessionId) -> None:
-        file = self._file()
-        if file is None:
-            self._fail(kernel, "The notebook has no file to run")
-            return
+        # An untitled notebook starts from no file, as it does for the
+        # editor, under the key the editor's tab rejoins it by; the host's
+        # document reaches the session once it attaches.
+        file_key = (
+            self._file() or self._session_key or f"{NEW_FILE}{session_id}"
+        )
         try:
             await self._manager.create_session(
                 session_id,
                 self,
                 {},
-                file,
+                file_key,
                 auto_instantiate=False,
                 main=False,
             )
         except Exception as e:
             LOGGER.warning(
-                "Kernel for %s failed to start", file, exc_info=True
+                "Kernel for %s failed to start", file_key, exc_info=True
             )
             self._fail(kernel, str(e) or type(e).__name__)
             return
@@ -476,6 +481,7 @@ class SessionBackend(SessionConsumer):
 
     def on_attach(self, session: Session, event_bus: SessionEventBus) -> None:
         del event_bus
+        self._session_key = session.initialization_id
         kernel = self._kernel
         if kernel is None:
             return

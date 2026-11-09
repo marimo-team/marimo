@@ -35,6 +35,7 @@ class FakeSession:
         self.closed = False
         self.state = KernelState.RUNNING
         self.exit_info: Any = None
+        self.initialization_id = path or "__new__editor"
         self.app_file_manager = MagicMock()
         self.app_file_manager.path = path
         self.app_file_manager.app.config.asdict_difference.return_value = {}
