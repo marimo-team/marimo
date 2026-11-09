@@ -200,6 +200,7 @@ async def list_provider_models(*, request: Request) -> Response:
     headers = dict(provider.extra_headers or {})
     if provider.api_key:
         headers["Authorization"] = f"Bearer {provider.api_key}"
+
     class NoRedirect(HTTPRedirectHandler):
         def redirect_request(self, req, fp, code, msg, headers, newurl):
             return None
@@ -215,9 +216,7 @@ async def list_provider_models(*, request: Request) -> Response:
             context.verify_mode = ssl.CERT_NONE
         elif provider.client_pem:
             context.load_cert_chain(provider.client_pem)
-        opener = build_opener(
-            NoRedirect(), HTTPSHandler(context=context)
-        )
+        opener = build_opener(NoRedirect(), HTTPSHandler(context=context))
         upstream_request = URLRequest(
             f"{base_url.rstrip('/')}/models", headers=headers
         )
@@ -239,9 +238,7 @@ async def list_provider_models(*, request: Request) -> Response:
             else "Provider model catalog request failed."
         )
         exc.close()
-        raise HTTPException(
-            status_code=status_code, detail=detail
-        ) from None
+        raise HTTPException(status_code=status_code, detail=detail) from None
     except TimeoutError:
         raise HTTPException(
             status_code=504, detail="Provider model discovery timed out."
