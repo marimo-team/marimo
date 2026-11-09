@@ -1,8 +1,10 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import json
 import os
 import stat
+import subprocess
 import sys
 from typing import TYPE_CHECKING
 
@@ -402,6 +404,70 @@ def test_launch_activates_the_conda_prefix(
     )
     assert plan.env["PATH"] == os.pathsep.join([*expected_paths, "/usr/bin"])
     assert plan.start_new_session
+
+
+@pytest.mark.parametrize(
+    "emulate_windows",
+    [
+        False,
+        pytest.param(
+            True,
+            marks=pytest.mark.skipif(
+                os.name == "nt", reason="already running on Windows"
+            ),
+        ),
+    ],
+)
+def test_activation_waits_for_child_and_preserves_io(
+    tmp_path: Path, emulate_windows: bool
+) -> None:
+    script = tmp_path / "kernel with spaces.py"
+    script.write_text(
+        "import json, sys\n"
+        "payload = sys.stdin.read()\n"
+        "print(json.dumps([sys.argv[1:], payload]))\n"
+        "print('kernel stderr', file=sys.stderr)\n"
+        "sys.exit(7)\n"
+    )
+    bootstrap = pixi._ACTIVATE_NOTEBOOK
+    if emulate_windows:
+        # Windows exec starts a child and exits the launcher immediately.
+        # Import subprocess before changing os.name to use the host's APIs.
+        bootstrap = (
+            "import os, subprocess\n"
+            "def windows_execv(path, argv):\n"
+            "    subprocess.Popen(argv, executable=path)\n"
+            "    os._exit(0)\n"
+            "os.execv = windows_execv\n"
+            "os.name = 'nt'\n"
+        ) + bootstrap
+    arguments = ["argument with spaces", 'embedded "quotes"', ""]
+    with subprocess.Popen(
+        [
+            sys.executable,
+            "-c",
+            bootstrap,
+            json.dumps([str(tmp_path), []]),
+            str(script),
+            *arguments,
+        ],
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    ) as process:
+        try:
+            # The child cannot finish until we supply its startup input.
+            with pytest.raises(subprocess.TimeoutExpired):
+                process.wait(timeout=1)
+        finally:
+            stdout, stderr = process.communicate("kernel input", timeout=10)
+
+    assert (process.returncode, json.loads(stdout), stderr) == (
+        7,
+        [arguments, "kernel input"],
+        "kernel stderr\n",
+    )
 
 
 def test_fallback_plan_reflects_this_interpreter() -> None:
