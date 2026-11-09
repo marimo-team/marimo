@@ -100,6 +100,16 @@ invalid responses, and connection failures throw.
 You can also construct a `NotebookClient` directly when you already know
 the notebook's URL.
 
+## Run cells or execute code
+
+```ts
+await notebook.run({ cells: [{ id: "c1" }] });
+await notebook.execute({ code: "print('hi')" });
+```
+
+On success, both return a `Run` in `result.data`. Follow the notebook stream
+for its progress and results.
+
 ## Follow changes
 
 Keep iterating after `ready` to follow changes. Streams reconnect and resume
