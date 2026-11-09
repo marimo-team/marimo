@@ -213,9 +213,7 @@ export function ModelDiscovery({
         variant="outline"
         size="xs"
         className="self-start sm:self-end"
-        disabled={
-          disabled || loading || configurationPending || isWasm()
-        }
+        disabled={disabled || loading || configurationPending || isWasm()}
         onClick={load}
       >
         {loading ? "Loading models…" : "Search available models"}

@@ -92,10 +92,7 @@ import {
   useConfigOverride,
 } from "./is-overridden";
 import { MCPConfig } from "./mcp-config";
-import {
-  aiSettingsSubTabAtom,
-  pendingConfigSavesAtom,
-} from "./state";
+import { aiSettingsSubTabAtom, pendingConfigSavesAtom } from "./state";
 
 interface AiConfigProps {
   form: UseFormReturn<UserConfig>;
@@ -1792,13 +1789,7 @@ export const AddModelForm: React.FC<{
   customModels: QualifiedModelId[];
   customProviderNames: string[];
   onSubmit: (values: UserConfig) => void;
-}> = ({
-  form,
-  config,
-  customModels,
-  customProviderNames,
-  onSubmit,
-}) => {
+}> = ({ form, config, customModels, customProviderNames, onSubmit }) => {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [modelAdded, setModelAdded] = useState(false);
   const [provider, setProvider] = useState<ProviderId | "custom" | null>(null);
