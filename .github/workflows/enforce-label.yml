@@ -1,6 +1,4 @@
-name: 🏷️ Enforce Pull Request Label
-
-# Enforces that at least one label is selected on pull requests
+name: 📋 Pull Request Validation
 
 on:
   pull_request:
@@ -11,9 +9,63 @@ permissions:
 
 jobs:
   enforce-label:
+    needs: validate-template
     runs-on: ubuntu-latest
     steps:
       - uses: yogevbd/enforce-label-action@a3c219da6b8fa73f6ba62b68ff09c469b3a1c024 # 2.2.2
         with:
           REQUIRED_LABELS_ANY: "enhancement,bug,documentation,internal,preview,dependencies,other"
           REQUIRED_LABELS_ANY_DESCRIPTION: "🏷️ Select at least one label: ['enhancement','bug','documentation','internal','preview','dependencies','other']"
+
+  validate-template:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate pull request template
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+            const team = new Set(["OWNER", "MEMBER", "COLLABORATOR"]);
+            if (team.has(pr.author_association)) {
+              core.info("Internal team members are exempt from template validation.");
+              return;
+            }
+
+            const body = (pr.body ?? "").replace(/<!--[\s\S]*?(?:-->|$)/g, "");
+            const sections = new Map();
+            for (const section of body.split(/^##[ \t]+/m).slice(1)) {
+              const [heading, ...lines] = section.split("\n");
+              const title = heading.replace(/^[^\p{L}\p{N}]+/u, "").trim().toLowerCase();
+              sections.set(title, lines.join("\n").trim());
+            }
+
+            const errors = [];
+            const summary = (sections.get("summary") ?? "")
+              .replace(/^\s*Closes\s+#\s*$/gim, "")
+              .trim();
+            if (!summary) {
+              errors.push("Add a Summary section describing the problem and your changes.");
+            }
+
+            for (const title of ["Pre-Review Checklist", "Merge Checklist"]) {
+              const section = sections.get(title.toLowerCase()) ?? "";
+              const items = section.match(/^[ \t]*-[ \t]+\[[ xX]\][ \t]+\S.*$/gm) ?? [];
+              if (items.length < 3) {
+                errors.push(`Include the ${title} section with all three checklist items.`);
+              }
+            }
+
+            const mergeChecklist = sections.get("merge checklist") ?? "";
+            const guidelinesChecked = /^[ \t]*-[ \t]+\[[xX]\][ \t]+I have read the \[contributor guidelines\]\(/m;
+            if (!guidelinesChecked.test(mergeChecklist)) {
+              errors.push("Read the contributor guidelines and check the corresponding Merge Checklist item.");
+            }
+
+            if (errors.length > 0) {
+              core.setFailed([
+                "Please follow the pull request template:",
+                ...errors.map((error) => `- ${error}`),
+                "https://github.com/marimo-team/marimo/blob/main/.github/PULL_REQUEST_TEMPLATE.md",
+                "Edit the PR description to rerun this check.",
+              ].join("\n"));
+            }
