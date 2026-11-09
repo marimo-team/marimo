@@ -204,15 +204,16 @@ export function createChatSession({
       });
     }
     saveMessages(controller.messages);
+    const request = controller.stop();
     if (wasLoading) {
-      return controller.stop();
+      return request;
     }
     tryFlushQueue({
       messages: controller.messages,
       isAbort: true,
       isError: false,
     });
-    return Promise.resolve();
+    return request;
   };
 
   const close = ({ discard = false }: { discard?: boolean } = {}) => {

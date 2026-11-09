@@ -120,6 +120,25 @@ async function createApprovalSession({
 }
 
 describe("chat sessions", () => {
+  it.each(["stop", "close"] as const)(
+    "cancels pending SDK message preparation on %s",
+    async (action) => {
+      const { transport, sendMessages } = createTransport();
+      const session = createChatSession({
+        id: CHAT_A,
+        transport,
+        saveMessages: vi.fn(),
+        onToolCall: vi.fn().mockResolvedValue(undefined),
+      });
+      const request = session.sendMessage({ text: "Hello" });
+      expect(session.controller.status).toBe("ready");
+      await session[action]();
+      await request;
+      expect(sendMessages).not.toHaveBeenCalled();
+      expect(session.controller.messages).toEqual([]);
+    },
+  );
+
   it("drains synchronous follow-ups in order with distinct queue ids", async () => {
     const { transport, write, finish, sendMessages } = createTransport();
     const session = createChatSession({
@@ -744,7 +763,7 @@ describe("chat sessions", () => {
     expect(sendMessages).toHaveBeenCalledOnce();
   });
 
-  it("does not send after closing during asynchronous message preparation", async () => {
+  it("ignores sends and retries after close", async () => {
     const { transport, sendMessages } = createTransport();
     const session = createChatSession({
       id: CHAT_A,
