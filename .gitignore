@@ -6,6 +6,7 @@
 
 node_modules/
 .turbo/
+frontend/storybook-static/
 
 # Byte-compiled / optimized / DLL files
 __pycache__
