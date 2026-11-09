@@ -902,22 +902,6 @@ export const CustomProvidersConfig: React.FC<AiConfigProps> = ({
                   })
                 }
               />
-              <div className="flex flex-col gap-2">
-                <p className="text-sm text-muted-secondary">
-                  Search available models, select or enter a model ID, then
-                  click Add to save it. Select the saved model in the chat model
-                  dropdown.
-                </p>
-                <ProviderModelDiscovery
-                  key={providerName}
-                  provider={providerName}
-                  label={displayName}
-                  form={form}
-                  config={config}
-                  onSubmit={onSubmit}
-                  disabled={!providerConfig.base_url?.trim()}
-                />
-              </div>
               <Button
                 variant="destructive"
                 size="xs"
@@ -1184,13 +1168,6 @@ export const AiProvidersConfig: React.FC<AiConfigProps> = ({
             name="ai.openrouter.base_url"
             placeholder="https://openrouter.ai/api/v1/"
             testId="ai-openrouter-base-url-input"
-          />
-          <ProviderModelDiscovery
-            provider="openrouter"
-            label="OpenRouter"
-            form={form}
-            config={config}
-            onSubmit={onSubmit}
           />
         </AccordionFormItem>
 
@@ -1653,6 +1630,7 @@ const ProviderTreeItem: React.FC<ProviderTreeItemProps> = ({
 
 export const AiModelDisplayConfig: React.FC<AiConfigProps> = ({
   form,
+  config,
   onSubmit,
 }) => {
   const resolvedAi = useAtomValue(resolvedMarimoConfigAtom).ai;

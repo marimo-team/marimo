@@ -134,15 +134,16 @@ async def list_provider_models(*, request: Request) -> Response:
             schema:
               $ref: "#/components/schemas/ProviderModelsResponse"
     """
+    import asyncio
+    import json
     import ssl
-
-    try:
-        import httpx
-    except ImportError:
-        raise HTTPException(
-            status_code=503,
-            detail="Model discovery requires the optional httpx dependency.",
-        ) from None
+    from urllib.error import HTTPError, URLError
+    from urllib.request import (
+        HTTPRedirectHandler,
+        HTTPSHandler,
+        Request as URLRequest,
+        build_opener,
+    )
 
     app_state = AppState(request)
     app_state.require_current_session()
@@ -199,37 +200,63 @@ async def list_provider_models(*, request: Request) -> Response:
     headers = dict(provider.extra_headers or {})
     if provider.api_key:
         headers["Authorization"] = f"Bearer {provider.api_key}"
+    class NoRedirect(HTTPRedirectHandler):
+        def redirect_request(self, req, fp, code, msg, headers, newurl):
+            return None
+
+    def fetch_catalog():
+        context = ssl.create_default_context(
+            cafile=provider.ca_bundle_path
+            if provider.ssl_verify is not False
+            else None
+        )
+        if provider.ssl_verify is False:
+            context.check_hostname = False
+            context.verify_mode = ssl.CERT_NONE
+        elif provider.client_pem:
+            context.load_cert_chain(provider.client_pem)
+        opener = build_opener(
+            NoRedirect(), HTTPSHandler(context=context)
+        )
+        upstream_request = URLRequest(
+            f"{base_url.rstrip('/')}/models", headers=headers
+        )
+        with opener.open(upstream_request, timeout=20.0) as upstream:
+            if not 200 <= upstream.status < 300:
+                raise HTTPException(
+                    status_code=502,
+                    detail="Provider model catalog request failed.",
+                )
+            return json.load(upstream)
+
     try:
-        verify: bool | ssl.SSLContext = provider.ssl_verify is not False
-        if verify and (provider.ca_bundle_path or provider.client_pem):
-            context = ssl.create_default_context(
-                cafile=provider.ca_bundle_path
-            )
-            if provider.client_pem:
-                context.load_cert_chain(provider.client_pem)
-            verify = context
-        async with httpx.AsyncClient(
-            timeout=20.0, verify=verify, follow_redirects=False
-        ) as client:
-            upstream = await client.get(
-                f"{base_url.rstrip('/')}/models", headers=headers
-            )
-        if upstream.status_code in (401, 403):
-            raise HTTPException(
-                status_code=400,
-                detail="Provider rejected the configured credentials or access.",
-            )
-        if not upstream.is_success:
-            raise HTTPException(
-                status_code=502,
-                detail="Provider model catalog request failed.",
-            )
-        payload = upstream.json()
-    except httpx.TimeoutException:
+        payload = await asyncio.to_thread(fetch_catalog)
+    except HTTPError as exc:
+        status_code = 400 if exc.code in (401, 403) else 502
+        detail = (
+            "Provider rejected the configured credentials or access."
+            if exc.code in (401, 403)
+            else "Provider model catalog request failed."
+        )
+        exc.close()
+        raise HTTPException(
+            status_code=status_code, detail=detail
+        ) from None
+    except TimeoutError:
         raise HTTPException(
             status_code=504, detail="Provider model discovery timed out."
         ) from None
-    except (httpx.RequestError, ValueError, OSError):
+    except URLError as exc:
+        timed_out = isinstance(exc.reason, TimeoutError)
+        raise HTTPException(
+            status_code=504 if timed_out else 502,
+            detail=(
+                "Provider model discovery timed out."
+                if timed_out
+                else "Unable to load the provider model catalog."
+            ),
+        ) from None
+    except (ValueError, OSError):
         raise HTTPException(
             status_code=502,
             detail="Unable to load the provider model catalog.",
