@@ -1,6 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 from unittest.mock import patch
 
@@ -68,7 +69,7 @@ def test_deprecated_field_sources(
 
     with (
         patch.object(store, "get_config_path", return_value=str(user_path)),
-        _loggers.capture_output() as (_, _, records),
+        _loggers.capture_output(log_level=logging.WARNING) as (_, _, records),
     ):
         manager = MarimoConfigManager(store, *readers)
         manager.get_config()
@@ -87,7 +88,7 @@ def test_deprecated_field_sources(
 
 
 def test_deprecated_sections_and_record_fields() -> None:
-    with _loggers.capture_output() as (_, _, records):
+    with _loggers.capture_output(log_level=logging.WARNING) as (_, _, records):
         warn_deprecated_fields(
             ConfigLayer(
                 {
@@ -118,7 +119,7 @@ def test_environment_deprecated_section_reports_supplied_variable(
 ) -> None:
     monkeypatch.setenv("MARIMO_AI_OPEN_AI_COMPATIBLE_API_KEY", "private-key")
     monkeypatch.setenv("MARIMO_AI_OPEN_AI_COMPATIBLE_BASE_URL", "private-url")
-    with _loggers.capture_output() as (_, _, records):
+    with _loggers.capture_output(log_level=logging.WARNING) as (_, _, records):
         EnvVarReader().read_layer()
         EnvVarReader().read_layer()
     messages = [record.getMessage() for record in records]
@@ -130,7 +131,7 @@ def test_environment_deprecated_section_reports_supplied_variable(
 
 
 def test_only_explicit_deprecated_fields_warn() -> None:
-    with _loggers.capture_output() as (_, _, records):
+    with _loggers.capture_output(log_level=logging.WARNING) as (_, _, records):
         warn_deprecated_fields(
             ConfigLayer(DEFAULT_CONFIG.to_dict(), "default")
         )
@@ -147,7 +148,7 @@ def test_only_explicit_deprecated_fields_warn() -> None:
 
 
 def test_same_field_in_different_sources_warns_separately() -> None:
-    with _loggers.capture_output() as (_, _, records):
+    with _loggers.capture_output(log_level=logging.WARNING) as (_, _, records):
         for source in (Path("one.toml"), Path("two.toml"), Path("one.toml")):
             warn_deprecated_fields(
                 ConfigLayer({"completion": {"model": None}}, source)
