@@ -9,11 +9,6 @@ For available options, descriptions, types, and defaults, run:
 marimo config describe
 ```
 
-Deprecated options are labeled in this output. If you explicitly set a deprecated
-option, marimo prints a terminal warning identifying the field and its configuration
-file or environment variable, with migration guidance when available. Each field
-and source is reported once per process; configuration values are not included.
-
 For guidance on specific configuration options, see [runtime configuration](runtime_configuration.md),
 [AI assistance](../editor_features/ai_completion.md), and
 [theming](theming.md).
