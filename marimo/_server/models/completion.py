@@ -67,6 +67,7 @@ class ChatOptions(msgspec.Struct, rename="camel"):
     """
 
     web_search: bool = False
+    reasoning_effort: Literal["low", "medium", "high"] | None = None
 
 
 class ChatRequest(msgspec.Struct, rename="camel"):

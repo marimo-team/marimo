@@ -175,6 +175,7 @@ class PydanticProvider(ABC, Generic[ProviderT_co]):
         extra_capabilities: Sequence[AbstractCapability[None]] | None = None,
         enable_capabilities: bool = True,
         system_prompt: str,
+        thinking: ThinkingLevel | None = None,
     ) -> Agent[None, DeferredToolRequests | str]:
         """Create a Pydantic AI agent."""
         from pydantic_ai import Agent
@@ -191,10 +192,18 @@ class PydanticProvider(ABC, Generic[ProviderT_co]):
             tools or [], toolsets
         )
 
+        settings = self._build_model_settings(model, max_tokens)
+        if (
+            thinking is not None
+            and settings is not None
+            and "thinking" in settings
+        ):
+            settings["thinking"] = thinking
+
         return Agent(
             model,
             name=name,
-            model_settings=self._build_model_settings(model, max_tokens),
+            model_settings=settings,
             toolsets=agent_toolsets,
             instructions=system_prompt,
             capabilities=capabilities,
@@ -357,6 +366,7 @@ class PydanticProvider(ABC, Generic[ProviderT_co]):
         additional_tools: list[ToolDefinition],
         stream_options: StreamOptions,
         enable_capabilities: bool = True,
+        thinking: ThinkingLevel | None = None,
     ) -> StreamingResponse:
         """Return a streaming response from the given messages. The response are AI SDK events."""
         tools = (self.config.tools or []) + additional_tools
@@ -367,6 +377,7 @@ class PydanticProvider(ABC, Generic[ProviderT_co]):
             tools=tools,
             system_prompt=system_prompt,
             enable_capabilities=enable_capabilities,
+            thinking=thinking,
         )
         stream_options.span_info.tool_count = len(tools) + len(
             agent.root_capability.capabilities
@@ -446,6 +457,7 @@ class PydanticProvider(ABC, Generic[ProviderT_co]):
         max_tokens: int | None,
         stream_options: StreamOptions,
         enable_capabilities: bool = False,
+        thinking: ThinkingLevel | None = None,
     ) -> StreamingResponse:
         """Return code-mode streaming responses"""
         from marimo._server.ai.tools.code_mode import (
@@ -460,6 +472,7 @@ class PydanticProvider(ABC, Generic[ProviderT_co]):
             toolsets=[build_execute_code_toolset(session, request)],
             extra_capabilities=references_capability(),
             enable_capabilities=enable_capabilities,
+            thinking=thinking,
             system_prompt=system_prompt,
         )
 
