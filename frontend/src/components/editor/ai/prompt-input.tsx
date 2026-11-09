@@ -19,7 +19,6 @@ import { useStore } from "jotai";
 import { useMemo } from "react";
 import useEvent from "react-use-event-hook";
 import { z } from "zod";
-import { clickablePlaceholderExtension } from "@/core/codemirror/placeholder/extensions";
 import { resourceExtension } from "@/core/codemirror/ai/resources";
 import { useTheme } from "@/theme/useTheme";
 import { cn } from "@/utils/cn";
@@ -37,7 +36,6 @@ export interface AdditionalCompletions {
 interface PromptInputProps {
   inputRef?: React.RefObject<ReactCodeMirrorRef | null>;
   placeholder?: string;
-  placeholderAction?: Parameters<typeof clickablePlaceholderExtension>[0];
   value: string;
   className?: string;
   onKeyDown?: (e: React.KeyboardEvent<HTMLDivElement>) => void;
@@ -58,7 +56,6 @@ interface PromptInputProps {
 export const PromptInput = ({
   value,
   placeholder,
-  placeholderAction,
   inputRef,
   className,
   onChange,
@@ -92,9 +89,6 @@ export const PromptInput = ({
   const extensions = useMemo(() => {
     const markdownLanguage = markdown();
     return [
-      ...(placeholderAction
-        ? clickablePlaceholderExtension(placeholderAction)
-        : []),
       autocompletion({}),
       markdownLanguage,
       resourceExtension({
@@ -156,7 +150,6 @@ export const PromptInput = ({
     ];
   }, [
     store,
-    placeholderAction,
     onAddFiles,
     additionalCompletionsSource,
     handleSubmit,
@@ -179,10 +172,7 @@ export const PromptInput = ({
       onKeyDown={onKeyDown}
       theme={theme === "dark" ? "dark" : "light"}
       placeholder={
-        placeholderAction
-          ? undefined
-          : placeholder ||
-            `Generate with AI, ${CONTEXT_TRIGGER} to include context`
+        placeholder || `Generate with AI, ${CONTEXT_TRIGGER} to include context`
       }
     />
   );
