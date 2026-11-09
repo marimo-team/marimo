@@ -868,29 +868,3 @@ class pydantic_ai(ChatModel):
         async for event in event_stream:
             if serialized := self._serialize_vercel_ai_chunk(event):
                 yield serialized
-
-    async def _stream_text(
-        self, messages: list[ChatMessage], config: ChatModelConfig
-    ) -> AsyncGenerator[str, None]:
-        """Streams back text from the model.
-
-        Args:
-            messages: The messages to send to the model.
-            config: The model configuration.
-
-        Returns:
-            An asynchronous generator of text.
-        """
-        from pydantic_ai.ui.vercel_ai import VercelAIAdapter
-
-        ui_messages = self._build_ui_messages(messages)
-        pydantic_model_messages = VercelAIAdapter.load_messages(ui_messages)
-        model_settings = self._get_model_settings(config)
-
-        async with self.agent.run_stream(
-            user_prompt=None,
-            message_history=pydantic_model_messages,
-            model_settings=model_settings,
-        ) as result:
-            async for text in result.stream_text(delta=True):
-                yield text

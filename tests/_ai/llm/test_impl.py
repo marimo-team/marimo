@@ -1416,51 +1416,6 @@ class TestPydanticAI:
             _, kwargs = mock_adapter.call_args
             assert kwargs.get("sdk_version") == AI_SDK_VERSION
 
-    async def test_stream_text(self):
-        """Test _stream_text streams text from the model."""
-        mock_agent = MagicMock()
-        model = pydantic_ai(mock_agent)
-
-        messages = [
-            ChatMessage(
-                role="user",
-                content="Hello",
-                id="msg-1",
-                parts=[TextPart(type="text", text="Hello")],
-            ),
-        ]
-        config = ChatModelConfig(max_tokens=100)
-
-        # Mock VercelAIAdapter.load_messages
-        with patch("pydantic_ai.ui.vercel_ai.VercelAIAdapter") as mock_adapter:
-            mock_adapter.load_messages.return_value = []
-
-            # Mock the agent's run_stream as an async context manager
-            async def mock_stream_text(delta=True):  # noqa: ARG001
-                yield "Hello"
-                yield " World"
-
-            mock_result = MagicMock()
-            mock_result.stream_text = mock_stream_text
-
-            async def mock_aenter(self: Any):  # noqa: ARG001
-                return mock_result
-
-            async def mock_aexit(self: Any, *args: Any):
-                pass
-
-            mock_context = MagicMock()
-            mock_context.__aenter__ = mock_aenter
-            mock_context.__aexit__ = mock_aexit
-
-            mock_agent.run_stream.return_value = mock_context
-
-            chunks = []
-            async for chunk in model._stream_text(messages, config):
-                chunks.append(chunk)
-
-            assert chunks == ["Hello", " World"]
-
     def test_call_returns_stream_response(self):
         """Test that __call__ returns _stream_response result."""
         mock_agent = MagicMock()
