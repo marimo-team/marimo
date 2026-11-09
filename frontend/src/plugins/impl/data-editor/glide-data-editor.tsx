@@ -82,7 +82,8 @@ export const GlideDataEditor = (props: GlideDataEditorProps) => {
   }, []);
 
   return (
-    // Glide also owns overlay and focus state that must reset with the schema.
+    // Changing columns can leave the selection pointing to a removed column.
+    // Remount the grid to clear that selection before rendering the new schema.
     <GlideDataEditorInner
       key={JSON.stringify([...props.columnFields])}
       {...props}
