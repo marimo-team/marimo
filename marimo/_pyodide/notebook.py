@@ -240,6 +240,7 @@ class WorkerBackend:
 
     def reply_input(self, input_id: protocol.ItemId, value: str) -> None:
         self._session.put_input(InputReply(input_id, value))
+        self._session.session_view.add_stdin(value, input_id=input_id)
 
     def interrupt(self, run_id: protocol.RunId) -> None:
         preparing = self._preparing.get(run_id)
@@ -391,6 +392,7 @@ class PyodideNotebook:
         self._save_lock = asyncio.Lock()
         self._persist: Callable[[str, str], Awaitable[None]] | None = None
         self._load_packages: Callable[[str], Awaitable[None]] | None = None
+        self._allow_input = False
         self._backend: WorkerBackend | None = None
         self.host = Host(operations=_OPERATIONS)
         project_id = mint(protocol.ProjectId, "p")
@@ -460,6 +462,16 @@ class PyodideNotebook:
     ) -> None:
         """Load the packages a run's code imports before the kernel runs it."""
         self._load_packages = load
+
+    def allow_input(self, allowed: bool = True) -> None:
+        """Let runs prompt for input, as an editor's runs may.
+
+        A worker that serves no editor, such as the one behind islands,
+        leaves this off, so `input()` fails at once instead of waiting on
+        an answer that nothing can give. The server applies the same rule
+        by allowing input only for the notebook's own editor session.
+        """
+        self._allow_input = allowed
 
     def refresh(self) -> None:
         """Observe changes from session operations not yet exposed by the host."""
@@ -539,7 +551,11 @@ class PyodideNotebook:
             status, body = failure.status, failure
         else:
             status, body = await dispatch(
-                self.mutations, self, call, request=None, allow_input=True
+                self.mutations,
+                self,
+                call,
+                request=None,
+                allow_input=self._allow_input,
             )
         return msgspec.json.encode({"status": status, "body": body}).decode()
 

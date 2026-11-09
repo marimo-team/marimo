@@ -208,7 +208,14 @@ class PyodideStdin(Stdin):
 
             while True:
                 require_active_execution()
-                reply = await self.stream.input_queue.get()
+                try:
+                    reply = await asyncio.wait_for(
+                        self.stream.input_queue.get(), timeout=0.1
+                    )
+                except TimeoutError:
+                    continue
+                require_active_execution()
+                # TODO(MO-8506): Delete the unaddressed reply with the stdin endpoint.
                 if isinstance(reply, str):
                     return reply
                 if reply.input_id == input_id:

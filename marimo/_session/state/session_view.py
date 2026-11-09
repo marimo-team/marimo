@@ -729,6 +729,7 @@ def _merge_consecutive_console_outputs(
             and merged[-1].mimetype == "text/plain"
             and output.mimetype == "text/plain"
             and merged[-1].channel == output.channel
+            and merged[-1].input_id == output.input_id
             and isinstance(merged[-1].data, str)
             and isinstance(output.data, str)
         ):
@@ -738,6 +739,7 @@ def _merge_consecutive_console_outputs(
                 mimetype=merged[-1].mimetype,
                 data=merged[-1].data + output.data,
                 timestamp=merged[-1].timestamp,
+                input_id=merged[-1].input_id,
             )
         else:
             merged.append(output)

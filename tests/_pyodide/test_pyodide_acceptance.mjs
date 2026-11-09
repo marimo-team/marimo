@@ -326,6 +326,8 @@ session, bridge = create_session(
     query_params={},
     user_config={},
 )
+# This script stands in for the editor's worker, whose user can answer a prompt.
+bridge.notebook.allow_input()
 await bridge.notebook.subscribe("messages", None, receive)
 
 # Run the session

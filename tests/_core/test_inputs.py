@@ -99,8 +99,13 @@ def test_pending_inputs_cancel_before_execution_ends(
         and event.event.data.execution.status == "completed"
         for event in log[index + 1 :]
     )
-    with pytest.raises((Conflict, NotFound)):
-        notebook.reply_input(item.id, "late", request_id="late")
+    if ending == "exit":
+        # The runtime is gone, and the notebook forgets its executions.
+        with pytest.raises(NotFound):
+            notebook.reply_input(item.id, "late", request_id="late")
+    else:
+        with pytest.raises(Conflict, match="cancelled"):
+            notebook.reply_input(item.id, "late", request_id="late")
     notebook.observe(be.Produced(replace(item, id=protocol.ItemId("late"))))
     with pytest.raises(NotFound):
         notebook.reply_input(

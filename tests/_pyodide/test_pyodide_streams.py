@@ -5,13 +5,18 @@ from unittest.mock import Mock
 
 import pytest
 
+from marimo._messaging.cell_output import CellOutput
 from marimo._messaging.input import InputReply
+from marimo._messaging.notification import CellNotification
+from marimo._messaging.serde import deserialize_kernel_message
+from marimo._messaging.types import KernelMessage
 from marimo._pyodide.streams import (
     PyodideStderr,
     PyodideStdin,
     PyodideStdout,
     PyodideStream,
 )
+from marimo._runtime.execution import ExecutionAttempt
 from marimo._types.ids import CellId_t
 
 cell_id = CellId_t("test-cell-id")
@@ -157,6 +162,53 @@ class TestPyodideStderr:
 
 
 class TestPyodideStdin:
+    @pytest.mark.parametrize("cancelled", [False, True])
+    async def test_ended_reader_releases_next_prompt(
+        self, cancelled: bool
+    ) -> None:
+        messages: asyncio.Queue[KernelMessage] = asyncio.Queue()
+        replies: asyncio.Queue[str | InputReply] = asyncio.Queue()
+        stream = PyodideStream(messages.put_nowait, replies, cell_id)
+        attempt = ExecutionAttempt(cell_id, "input()")
+        with attempt.activate():
+            first = asyncio.create_task(
+                PyodideStdin(stream)._read_input("First", False)
+            )
+        second = None
+        try:
+            await asyncio.wait_for(messages.get(), timeout=1)
+            second = asyncio.create_task(
+                PyodideStdin(stream.copy_for_thread())._read_input(
+                    "Second", False
+                )
+            )
+            if cancelled:
+                first.cancel()
+            else:
+                attempt.completed = True
+            with pytest.raises(
+                asyncio.CancelledError if cancelled else EOFError
+            ):
+                await asyncio.wait_for(first, timeout=1)
+            message = deserialize_kernel_message(
+                await asyncio.wait_for(messages.get(), timeout=1)
+            )
+            assert isinstance(message, CellNotification)
+            assert isinstance(message.console, CellOutput)
+            assert isinstance(message.console.input_id, str)
+            assert message.console.data == "Second"
+            replies.put_nowait(InputReply(message.console.input_id, "answer"))
+            assert await asyncio.wait_for(second, timeout=1) == "answer"
+        finally:
+            first.cancel()
+            if second is not None:
+                second.cancel()
+            await asyncio.gather(
+                first,
+                *([second] if second is not None else []),
+                return_exceptions=True,
+            )
+
     def test_writable(self, pyodide_stdin: PyodideStdin) -> None:
         assert pyodide_stdin.writable() is False
 

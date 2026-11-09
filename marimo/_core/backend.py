@@ -117,7 +117,11 @@ class Backend(Protocol):
         """
 
     def reply_input(self, input_id: protocol.ItemId, value: str) -> None:
-        """Arrange delivery to this prompt, without retaining the answer."""
+        """Arrange delivery of `value` to the prompt `input_id` alone.
+
+        The answer is not retained. A reply to a prompt that is no longer
+        pending must not reach a later prompt.
+        """
 
     def forget(self, run_id: protocol.RunId) -> None:
         """Release a run the host no longer retains.
@@ -205,7 +209,8 @@ class Completed:
 class Produced:
     """An item produced by an execution.
 
-    Reusing an item ID replaces its previous value.
+    Reusing an item ID replaces its previous value, except for inputs:
+    each prompt is produced once, and the host owns its later status changes.
     """
 
     item: (

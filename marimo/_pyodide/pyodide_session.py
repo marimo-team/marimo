@@ -18,7 +18,7 @@ from marimo._export.requests import (
     ScriptExportRequest,
 )
 from marimo._export.serialization import serialize_notebook_snapshot
-from marimo._messaging.input import InputReply
+from marimo._messaging.input import InputReply, deliver_reply
 from marimo._messaging.msgspec_encoder import encode_json_str
 from marimo._messaging.notebook import Transaction
 from marimo._messaging.notebook.reconcile import reconcile_transaction
@@ -224,7 +224,7 @@ class PyodideSession:
         self._queue_manager.completion_queue.put_nowait(request)
 
     def put_input(self, text: str | InputReply) -> None:
-        self._queue_manager.input_queue.put_nowait(text)
+        deliver_reply(self._queue_manager.input_queue, text)
 
     def find_packages(self, code: str) -> list[str]:
         """

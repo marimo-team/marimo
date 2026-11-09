@@ -502,6 +502,7 @@ class ThreadSafeStdin(Stdin):
                 reply = self._stream.input_queue.get(timeout=0.1)
             except queue.Empty:
                 continue
+            # TODO(MO-8506): Delete the unaddressed reply with the stdin endpoint.
             if isinstance(reply, str):
                 return reply
             if reply.input_id == input_id:
