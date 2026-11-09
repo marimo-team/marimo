@@ -4,7 +4,7 @@ import { safeValidateUIMessages } from "ai";
 import { useAtomValue, useStore } from "jotai";
 import { useEffect } from "react";
 import useEvent from "react-use-event-hook";
-import { createChatSession } from "@/core/ai/chat-session";
+import type { ChatSession } from "@/core/ai/chat-session";
 import { getChatRuntime } from "@/core/ai/chat-runtime";
 import { replaceMessagesInChat } from "@/core/ai/chat-utils";
 import { useChatState } from "@/core/ai/use-chat-state";
@@ -27,11 +27,11 @@ import {
   USER_CANCELLED_ABORT_REASON,
 } from "./chat-abort";
 import {
-  handleToolCall,
   hasPendingToolCalls,
   hasUnresolvedToolCalls,
   shouldFlushQueue,
-} from "./chat-utils";
+} from "@/core/ai/tool-state";
+import { handleToolCall } from "./chat-utils";
 import { useChatControllerId } from "./use-chat-controller-id";
 
 export function useChatSession(activeChat: Chat | null | undefined) {
@@ -49,11 +49,9 @@ export function useChatSession(activeChat: Chat | null | undefined) {
     store,
   };
 
-  const session = runtime.getOrCreateSession(chatId, () => {
+  const session: ChatSession = runtime.getOrCreateSession(chatId, () => {
     let streamAbortReason: string | null = null;
-    const nextSession = createChatSession({
-      id: chatId,
-      store,
+    return {
       messages: activeChat?.messages ?? [],
       sendAutomaticallyWhen: ({ messages }) => hasPendingToolCalls(messages),
       shouldFlushQueue: ({ messages, isError, isAbort }) =>
@@ -63,7 +61,6 @@ export function useChatSession(activeChat: Chat | null | undefined) {
           hasPendingToolCalls: hasPendingToolCalls(messages),
           hasUnresolvedToolCalls: hasUnresolvedToolCalls(messages),
         }),
-      onRunningChange: (isRunning) => runtime.setRunning(chatId, isRunning),
       transport: new StreamingChunkTransport(
         {
           api: runtimeManager.getAiURL("chat").toString(),
@@ -113,7 +110,7 @@ export function useChatSession(activeChat: Chat | null | undefined) {
           streamReason: streamAbortReason,
         });
         streamAbortReason = null;
-        nextSession.setAbortNotice(
+        session.setAbortNotice(
           reason === null ? null : describeChatAbortReason(reason),
         );
         if (reason !== null) {
@@ -136,8 +133,7 @@ export function useChatSession(activeChat: Chat | null | undefined) {
       onError: (error) => {
         Logger.error("An error occurred:", error);
       },
-    });
-    return nextSession;
+    };
   });
 
   useEffect(() => {

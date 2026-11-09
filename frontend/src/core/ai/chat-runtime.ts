@@ -1,12 +1,13 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import type { UIMessage } from "ai";
-import {
-  hasPendingToolCalls,
-  hasUnresolvedToolCalls,
-} from "@/components/chat/chat-utils";
+import { hasPendingToolCalls, hasUnresolvedToolCalls } from "./tool-state";
 import type { JotaiStore } from "../state/jotai";
-import type { ChatSession } from "./chat-session";
+import {
+  type ChatSession,
+  type ChatSessionOptions,
+  createChatSession,
+} from "./chat-session";
 import {
   type ChatId,
   chatStateAtom,
@@ -14,6 +15,11 @@ import {
   runningChatIdsAtom,
   unreadChatIdsAtom,
 } from "./state";
+
+type RuntimeSessionOptions = Omit<
+  ChatSessionOptions,
+  "id" | "store" | "onRunningChange"
+>;
 
 function createChatRuntime(store: JotaiStore) {
   const sessions = new Map<ChatId, ChatSession>();
@@ -38,6 +44,24 @@ function createChatRuntime(store: JotaiStore) {
     markRead(chatId);
   };
 
+  const setRunning = (chatId: ChatId, isRunning: boolean) => {
+    if (isRunning) {
+      markRead(chatId);
+    }
+    store.set(runningChatIdsAtom, (prev) => {
+      if (prev.has(chatId) === isRunning) {
+        return prev;
+      }
+      const next = new Set(prev);
+      if (isRunning) {
+        next.add(chatId);
+      } else {
+        next.delete(chatId);
+      }
+      return next;
+    });
+  };
+
   return {
     get sessions(): ReadonlyMap<ChatId, ChatSession> {
       return sessions;
@@ -45,10 +69,18 @@ function createChatRuntime(store: JotaiStore) {
     get viewedChatId() {
       return viewedChatId;
     },
-    getOrCreateSession(chatId: ChatId, create: () => ChatSession): ChatSession {
+    getOrCreateSession(
+      chatId: ChatId,
+      createOptions: () => RuntimeSessionOptions,
+    ): ChatSession {
       let session = sessions.get(chatId);
       if (!session) {
-        session = create();
+        session = createChatSession({
+          ...createOptions(),
+          id: chatId,
+          store,
+          onRunningChange: (isRunning) => setRunning(chatId, isRunning),
+        });
         sessions.set(chatId, session);
       }
       return session;
@@ -61,23 +93,6 @@ function createChatRuntime(store: JotaiStore) {
       if (viewedChatId === chatId) {
         viewedChatId = null;
       }
-    },
-    setRunning(chatId: ChatId, isRunning: boolean) {
-      if (isRunning) {
-        markRead(chatId);
-      }
-      store.set(runningChatIdsAtom, (prev) => {
-        if (prev.has(chatId) === isRunning) {
-          return prev;
-        }
-        const next = new Set(prev);
-        if (isRunning) {
-          next.add(chatId);
-        } else {
-          next.delete(chatId);
-        }
-        return next;
-      });
     },
     finishChat({
       chatId,

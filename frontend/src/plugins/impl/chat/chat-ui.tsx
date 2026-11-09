@@ -31,11 +31,9 @@ import {
   getAbortReasonFromChunk,
   resolveChatAbortReason,
 } from "@/components/chat/chat-abort";
+import { hasPendingToolCalls } from "@/core/ai/tool-state";
 import { renderUIMessage } from "@/components/chat/chat-display";
-import {
-  convertToFileUIPart,
-  hasPendingToolCalls,
-} from "@/components/chat/chat-utils";
+import { convertToFileUIPart } from "@/components/chat/chat-utils";
 import {
   type AdditionalCompletions,
   PromptInput,

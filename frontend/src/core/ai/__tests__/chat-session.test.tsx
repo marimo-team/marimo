@@ -7,7 +7,7 @@ import {
   hasPendingToolCalls,
   hasUnresolvedToolCalls,
   shouldFlushQueue,
-} from "@/components/chat/chat-utils";
+} from "../tool-state";
 import { LazyActivity } from "@/components/utils/lazy-mount";
 import { type ChatSession, createChatSession } from "../chat-session";
 import type { ChatId } from "../state";

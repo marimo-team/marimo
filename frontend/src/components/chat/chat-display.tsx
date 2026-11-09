@@ -16,7 +16,7 @@ import { AttachmentRenderer, SourceChip } from "./chat-components";
 import { ChatMarkdown } from "./chat-markdown";
 import { PENDING_TOOL_STATES } from "./tool-call/shared";
 import { ToolCallView } from "./tool-call/tool-call-view";
-import { getTurnTiming } from "./turn-timing";
+import { getTurnTiming } from "@/core/ai/turn-timing";
 
 type Part = UIMessage["parts"][number];
 interface IndexedPart {

@@ -2,7 +2,7 @@
 
 import type { UIMessage } from "ai";
 import { describe, expect, it } from "vitest";
-import { formatDuration, getTurnTiming, withTurnTiming } from "../turn-timing";
+import { getTurnTiming, withTurnTiming } from "../turn-timing";
 
 const user: UIMessage = { id: "u", role: "user", parts: [] };
 const assistant = (metadata?: unknown): UIMessage => ({
@@ -67,18 +67,5 @@ describe("withTurnTiming", () => {
     expect(
       withTurnTiming(unknownStart, { ...turn, startedAt: null }, 500),
     ).toBe(unknownStart);
-  });
-});
-
-describe("formatDuration", () => {
-  it.each([
-    [200, "1s"],
-    [8_400, "8s"],
-    [60_000, "1m"],
-    [65_000, "1m 5s"],
-    [3_600_000, "1h"],
-    [3_780_000, "1h 3m"],
-  ])("%d ms → %s", (ms, expected) => {
-    expect(formatDuration(ms)).toBe(expected);
   });
 });

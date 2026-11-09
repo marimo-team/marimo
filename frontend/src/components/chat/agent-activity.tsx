@@ -3,7 +3,8 @@
 import { ChevronRightIcon } from "lucide-react";
 import React from "react";
 import { cn } from "@/utils/cn";
-import { formatDuration, type TurnTiming } from "./turn-timing";
+import type { TurnTiming } from "@/core/ai/turn-timing";
+import { formatDuration } from "./format-duration";
 
 interface AgentActivityProps {
   running: boolean;

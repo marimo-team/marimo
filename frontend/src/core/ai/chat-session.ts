@@ -33,7 +33,7 @@ export interface ChatSessionState {
   readonly turn: AssistantTurn | null;
 }
 
-interface ChatSessionOptions extends Pick<
+export interface ChatSessionOptions extends Pick<
   ChatInit<UIMessage>,
   "messages" | "transport" | "onFinish" | "onError" | "sendAutomaticallyWhen"
 > {
@@ -163,16 +163,20 @@ export function createChatSession({
   const unsubscribeMessages =
     controller["~registerMessagesCallback"](updateRunning);
 
-  const sendMessage: ChatController<UIMessage>["sendMessage"] = (...args) => {
-    if (closed) {
-      return Promise.resolve();
-    }
+  const beginTurn = () => {
     stopped = false;
     updateState({
       abortNotice: null,
       turn: { startedAt: Date.now(), ended: false },
     });
     toolGeneration++;
+  };
+
+  const sendMessage: ChatController<UIMessage>["sendMessage"] = (...args) => {
+    if (closed) {
+      return Promise.resolve();
+    }
+    beginTurn();
     const request = controller.sendMessage(...args);
     saveMessages(controller.messages);
     return request;
@@ -182,12 +186,7 @@ export function createChatSession({
     if (closed) {
       return Promise.resolve();
     }
-    stopped = false;
-    updateState({
-      abortNotice: null,
-      turn: { startedAt: Date.now(), ended: false },
-    });
-    toolGeneration++;
+    beginTurn();
     const request = controller.regenerate(...args);
     saveMessages(controller.messages);
     return request;

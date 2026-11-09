@@ -13,17 +13,14 @@ export function getTurnTiming(message: UIMessage): TurnTiming | undefined {
   if (typeof metadata !== "object" || metadata === null) {
     return undefined;
   }
-  const { startedAt, finishedAt, stopped } = metadata as Record<
-    string,
-    unknown
-  >;
-  if (typeof startedAt !== "number") {
+  if (!("startedAt" in metadata) || typeof metadata.startedAt !== "number") {
     return undefined;
   }
+  const finishedAt = "finishedAt" in metadata ? metadata.finishedAt : undefined;
   return {
-    startedAt,
+    startedAt: metadata.startedAt,
     finishedAt: typeof finishedAt === "number" ? finishedAt : undefined,
-    stopped: stopped === true,
+    stopped: "stopped" in metadata && metadata.stopped === true,
   };
 }
 
@@ -56,18 +53,4 @@ export function withTurnTiming(
       },
     },
   ];
-}
-
-export function formatDuration(ms: number): string {
-  const totalSeconds = Math.max(1, Math.round(ms / 1000));
-  const hours = Math.floor(totalSeconds / 3600);
-  const minutes = Math.floor((totalSeconds % 3600) / 60);
-  const seconds = totalSeconds % 60;
-  if (hours > 0) {
-    return minutes > 0 ? `${hours}h ${minutes}m` : `${hours}h`;
-  }
-  if (minutes > 0) {
-    return seconds > 0 ? `${minutes}m ${seconds}s` : `${minutes}m`;
-  }
-  return `${seconds}s`;
 }

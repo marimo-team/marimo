@@ -1,8 +1,8 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import type { UIMessage } from "ai";
-import { willAutoContinue } from "@/components/chat/chat-utils";
-import { getTurnTiming, withTurnTiming } from "@/components/chat/turn-timing";
+import { willAutoContinue } from "./tool-state";
+import { getTurnTiming, withTurnTiming } from "./turn-timing";
 
 export interface AssistantTurn {
   readonly startedAt: number;

@@ -48,8 +48,8 @@ vi.mock("@/core/codemirror/copilot/getCodes", () => ({ getCodes: () => "" }));
 vi.mock("@/core/ai/tools/registry", () => ({
   FRONTEND_TOOL_REGISTRY: { getToolSchemas: () => [], has: () => false },
 }));
-vi.mock("../chat-utils", () => ({
-  handleToolCall: vi.fn(),
+vi.mock("../chat-utils", () => ({ handleToolCall: vi.fn() }));
+vi.mock("@/core/ai/tool-state", () => ({
   hasPendingToolCalls: () => false,
   hasUnresolvedToolCalls: () => false,
   willAutoContinue: () => false,
