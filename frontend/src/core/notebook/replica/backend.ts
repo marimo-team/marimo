@@ -13,7 +13,9 @@ export interface NotebookBackend {
    *
    * Method presence is not permission. The notebook advertises its operations.
    */
-  notebook(id: NotebookId): Pick<NotebookClient, "edit" | "save" | "run">;
+  notebook(
+    id: NotebookId,
+  ): Pick<NotebookClient, "edit" | "save" | "run" | "input">;
   /** Whether the host is reachable before an explicit reconnect. Absent means always. */
   checkHealth?(): Promise<boolean>;
 }

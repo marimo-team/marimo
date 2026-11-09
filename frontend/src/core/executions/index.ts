@@ -21,6 +21,7 @@ export {
   waitForRuntimeRunning,
 } from "./atoms";
 export type { CellFreshness, CellFreshnessLookup } from "./freshness";
+export { replyInput } from "./input";
 export { runCells, syncEdits, waitForRuntime } from "./run";
 export {
   useCellExecution,

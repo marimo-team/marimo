@@ -167,6 +167,7 @@ export function createStaticNotebookBackend(
         edit: (_changes, options) => unsupported(options),
         save: unsupported,
         run: unsupported,
+        input: (_inputId, _reply, options) => unsupported(options),
       };
     },
   };
