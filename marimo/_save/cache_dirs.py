@@ -970,16 +970,6 @@ def _cache_prefixes() -> Collection[str]:
     return CACHE_PREFIX.values()
 
 
-def _entry_files(children: list[Path], key: str) -> list[Path]:
-    """The files holding entry `key`, the leftovers of a killed write too."""
-    return [
-        child
-        for child in children
-        if not _is_directory(child)
-        and (child.name == key or child.name.startswith(f"{key}."))
-    ]
-
-
 def _unlink(path: Path) -> int:
     """Remove one file, returning the bytes that freed."""
     size = _file_bytes(path)

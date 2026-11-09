@@ -13,17 +13,6 @@ LOGGER = _loggers.marimo_logger()
 CONFIG_FILENAME = ".marimo.toml"
 
 
-def _is_parent(parent_path: str, child_path: str) -> bool:
-    # Check if parent is actually a parent of child
-    # paths must be real/absolute paths
-    try:
-        return os.path.commonpath([parent_path]) == os.path.commonpath(
-            [parent_path, child_path]
-        )
-    except Exception:
-        return False
-
-
 def _check_directory_for_file(directory: str, filename: str) -> str | None:
     config_path = os.path.join(directory, filename)
     if os.path.isfile(config_path):

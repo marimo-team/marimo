@@ -15,7 +15,6 @@ class FlexibleIndentPreprocessor(preprocessors.Preprocessor):  # type: ignore[mi
     # Pattern to match lines that start list items (ordered or unordered)
     # Captures: (indentation, list_marker, trailing_space, content)
     LIST_PATTERN = re.compile(r"^(\s*)([*+-]|\d+\.)(\s+)(.*)$", re.MULTILINE)
-    INDENT_LEVELS = [2, 4]
     BASE_INDENT_SIZE = 4
     FOUR_SPACES = "    "
 
@@ -77,17 +76,6 @@ class FlexibleIndentPreprocessor(preprocessors.Preprocessor):  # type: ignore[mi
 
         # Always output using 4-space increments since that is what the markdown spec requires
         return " " * (4 * nesting_level)
-
-    def _get_list_depth(self, indent_str: str, base_level: int = 2) -> int:
-        """Calculate the nesting depth of a list item."""
-        normalized = indent_str.replace("\t", self.FOUR_SPACES)
-        indent_count = len(normalized)
-
-        if indent_count == 0:
-            return 0
-
-        # Calculate depth based on the base level
-        return max(1, round(indent_count / base_level))
 
     def run(self, lines: list[str]) -> list[str]:
         """Process the lines and normalize list indentation."""

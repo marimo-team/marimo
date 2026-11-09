@@ -548,15 +548,6 @@ class _CellsView:
             record_read=record_read,
         )
 
-    def _cell_ids(self) -> list[CellId_t]:
-        return list(self._doc)
-
-    def _cell_name(self, cell_id: CellId_t) -> str | None:
-        doc_cell = self._doc.get(cell_id)
-        if doc_cell is None:
-            return None
-        return doc_cell.name or None
-
     def _resolve(self, target: str) -> CellId_t:
         """Resolve a cell ID or cell name to a `CellId_t`.
 

@@ -832,12 +832,6 @@ class NarwhalsTableManager(
             bin_start = bin_end
         return bin_values
 
-    def _sample_indexes(self, size: int, total: int) -> list[int]:
-        """Sample evenly from a list of length `total`"""
-        if total <= size:
-            return list(range(total))
-        return [round(i * (total - 1) / (size - 1)) for i in range(size)]
-
     @cached_property
     def _lazy_num_rows(self) -> int:
         return int(self.as_lazy_frame().select(nw.len()).collect().item())

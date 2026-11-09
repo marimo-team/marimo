@@ -283,15 +283,6 @@ class BaseLspServer(LspServer):
         await asyncio.sleep(0.5)  # Brief delay for cleanup
         return await self.start()
 
-    def _get_status(self) -> LspServerStatus:
-        """Determine the current status of the server."""
-        if self.has_failed():
-            return "crashed"
-        if not self.is_running():
-            return "stopped"
-        # Process is running - will need to check responsiveness externally
-        return "running"
-
     async def get_health(self) -> LspHealthResponse:
         """Get health status of this single LSP server."""
         is_running = self.is_running()

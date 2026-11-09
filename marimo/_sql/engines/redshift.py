@@ -319,30 +319,6 @@ class RedshiftEngine(SQLConnection["Connection"]):
                     output_tables.append(detailed_table)
             return output_tables
 
-    def _get_columns_api(
-        self,
-        *,
-        catalog: str,
-        schema_name: str,
-        table_name: str,
-    ) -> tuple[tuple[str, ...], ...]:
-        """The API is unreliable hence this method is not preferred"""
-        columns: tuple[tuple[str, ...], ...] = ()
-        with self._connection.cursor() as cursor:
-            try:
-                # get_columns returns:
-                # [[catalog, schema, table_name, column_name, unknown, data type, unknown, ...], ...]
-                columns = cursor.get_columns(
-                    catalog=catalog,
-                    schema_pattern=schema_name,
-                    tablename_pattern=table_name,
-                )
-            except Exception as e:
-                LOGGER.debug(
-                    f"Failed to get columns for {catalog}.{schema_name}.{table_name} Reason: {e}"
-                )
-            return columns
-
     def get_table_details(
         self,
         *,

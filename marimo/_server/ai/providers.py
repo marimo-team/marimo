@@ -979,10 +979,6 @@ class CustomProvider(OpenAIClientMixin, PydanticProvider["Provider"]):
             or provider in self._chat_compatible
         )
 
-    def _supports_responses_api(self) -> bool:
-        """Check if the provider supports the OpenAI Responses API. We currently default to Pydantic's inferred model"""
-        return self._provider_name.lower() in self._responses_compatible
-
     @override
     def create_provider(self, config: AnyProviderConfig) -> Provider:
         """Create a provider based on the provider name.

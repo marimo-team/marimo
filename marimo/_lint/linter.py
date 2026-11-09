@@ -240,22 +240,6 @@ class Linter:
 
         return file_status
 
-    async def _run_stream(
-        self, files_to_check: list[Path]
-    ) -> AsyncIterator[FileStatus]:
-        """Asynchronously check files and yield results as they complete."""
-
-        # Create tasks for all files
-        tasks = [
-            asyncio.create_task(self._process_single_file(file_path))
-            for file_path in files_to_check
-        ]
-
-        # Yield results as they complete
-        for task in asyncio.as_completed(tasks):
-            file_status = await task
-            yield file_status
-
     def _pipe_file_status(self, file_status: FileStatus) -> None:
         """Send file status through pipe for real-time output."""
         for diagnostic in file_status.diagnostics:
