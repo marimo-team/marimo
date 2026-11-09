@@ -54,7 +54,6 @@ dependencies = [
     "msgspec>=0.22.0",
     # for IPC, required for marimo edit --sandbox, marimo run <multiple notebooks>
     "pyzmq>=27.1.0; sys_platform != 'emscripten'",
-    "anthropic>=1.17.0,<2",
 ]
 readme = "README.md"
 license = "Apache-2.0"
