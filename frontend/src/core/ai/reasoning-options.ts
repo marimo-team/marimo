@@ -23,26 +23,10 @@ export interface ReasoningEffortChoice {
   label: string;
 }
 
-export function getReasoningEffortOptions(
-  options: ReasoningOption[] = [],
-): ReasoningEffortChoice[] {
-  const efforts = options.flatMap((option) =>
-    option.type === "effort" ? option.values : [],
-  );
-  if (efforts.length === 0) {
-    return [];
-  }
-  const values = new Set<ReasoningEffort>([
-    "default",
-    ...efforts.filter((effort) => effort !== null),
-  ]);
-  return [...values].map((value) => ({ value, label: EFFORT_LABELS[value] }));
-}
-
-export function getChatReasoningEffortOptions(
+export function getChatReasoningOptions(
   model: AiModel | undefined,
   baseUrl?: string,
-) {
+): ReasoningEffortChoice[] {
   if (!model || model.provider === "azure") {
     return [];
   }
@@ -55,5 +39,16 @@ export function getChatReasoningEffortOptions(
       return [];
     }
   }
-  return getReasoningEffortOptions(model.reasoning_options);
+  const options = model.reasoning_options ?? [];
+  const efforts = options.flatMap((option) =>
+    option.type === "effort" ? option.values : [],
+  );
+  if (efforts.length === 0) {
+    return [];
+  }
+  const values = new Set<ReasoningEffort>([
+    "default",
+    ...efforts.filter((effort) => effort !== null),
+  ]);
+  return [...values].map((value) => ({ value, label: EFFORT_LABELS[value] }));
 }
