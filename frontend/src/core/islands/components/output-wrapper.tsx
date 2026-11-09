@@ -1,19 +1,17 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { useAtomValue } from "jotai";
-import { selectAtom } from "jotai/utils";
 import { Loader2Icon } from "lucide-react";
-import React, {
-  type PropsWithChildren,
-  useCallback,
-  useEffect,
-  useRef,
-} from "react";
+import React, { type PropsWithChildren, useEffect, useRef } from "react";
 import { OutputRenderer } from "@/components/editor/Output";
-import { type NotebookState, notebookAtom } from "@/core/cells/cells";
 import type { CellId } from "@/core/cells/ids";
 import { isOutputEmpty } from "@/core/cells/outputs";
-import { type CellRunStatus, useCellExecution } from "@/core/executions";
+import {
+  type CellRunStatus,
+  useCellExecution,
+  useCellHasResult,
+  useCellOutput,
+} from "@/core/executions";
 import { ISLAND_TAG_NAMES } from "../constants";
 import { islandsHydratedAtom } from "../state";
 import { IslandControls } from "./IslandControls";
@@ -60,11 +58,8 @@ export const MarimoOutputWrapper: React.FC<MarimoOutputWrapperProps> = ({
 }) => {
   const controlsVisible = useIslandControls(alwaysShowRun);
   const wrapperRef = useRef<HTMLDivElement>(null);
-  const selector = useCallback(
-    (s: NotebookState) => s.cellRuntime[cellId],
-    [cellId],
-  );
-  const runtime = useAtomValue(selectAtom(notebookAtom, selector));
+  const output = useCellOutput(cellId);
+  const hasResult = useCellHasResult(cellId);
   const isHydrated = useAtomValue(islandsHydratedAtom);
 
   // Sync cell status to the host <marimo-island> element as a data attribute
@@ -72,9 +67,9 @@ export const MarimoOutputWrapper: React.FC<MarimoOutputWrapperProps> = ({
   const { status } = useCellExecution(cellId);
   useSyncStatusToIsland(wrapperRef, status);
 
-  // If no runtime yet, show static content
-  // Keep static content mounted while the initial run is pending.
-  if (!isHydrated || !runtime?.output) {
+  // Show the static content until the cell has run here. Keep it mounted
+  // while the initial run is pending.
+  if (!isHydrated || (output === null && !hasResult)) {
     return (
       <div ref={wrapperRef} className="relative min-h-6 empty:hidden">
         {children}
@@ -82,14 +77,14 @@ export const MarimoOutputWrapper: React.FC<MarimoOutputWrapperProps> = ({
     );
   }
 
-  // No output to display
-  if (isOutputEmpty(runtime.output)) {
+  // The cell ran and shows nothing, so the static content is out of date.
+  if (output === null || isOutputEmpty(output)) {
     return <div ref={wrapperRef} />;
   }
 
   return (
     <div ref={wrapperRef} className="relative min-h-6">
-      <OutputRenderer message={runtime.output} />
+      <OutputRenderer message={output} />
       <RunningIndicator status={status} />
       <IslandControls
         cellId={cellId}

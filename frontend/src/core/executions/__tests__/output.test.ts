@@ -4,6 +4,7 @@ import type * as Protocol from "@marimo-team/client/protocol";
 import { describe, expect, it } from "vitest";
 import { MockExecutions } from "@/__mocks__/executions";
 import { cellId } from "@/__tests__/branded";
+import { cell } from "@/core/notebook/document/__tests__/fixtures";
 import {
   type CellOutputInputs,
   cellError,
@@ -15,6 +16,8 @@ const C1 = cellId("c1");
 const C2 = cellId("c2");
 
 const HTML: Protocol.DisplayData = { mimetype: "text/html", data: "<b>1</b>" };
+/** After every time the execution mocks use. */
+const LATER = "2026-10-01T09:30:00Z";
 
 function hostError(overrides: Partial<Protocol.Error>): Protocol.Error {
   return {
@@ -33,9 +36,10 @@ function hostError(overrides: Partial<Protocol.Error>): Protocol.Error {
 function inputs(
   records: Protocol.Execution[],
   cleared: CellOutputInputs["cleared"] = new Map(),
+  cells: CellOutputInputs["cells"] = new Map(),
 ): CellOutputInputs {
   const { executions, results } = MockExecutions.inputs(records);
-  return { executions, results, cleared };
+  return { executions, results, cleared, cells };
 }
 
 describe("cellOutputView", () => {
@@ -70,7 +74,7 @@ describe("cellOutputView", () => {
             kind: "error",
             error: hostError({
               traceback: { mimetype: "text/plain", data: "Traceback..." },
-              related: [{ cell_id: C2, range: null, message: "raised" }],
+              related: [{ cell_id: C2, range: null, message: "Raised it" }],
             }),
           },
         }),
@@ -122,6 +126,23 @@ describe("cellOutputView", () => {
         raising_cell: C2,
       },
     ]);
+  });
+
+  it("takes down a did-not-run notice once the cell runs", () => {
+    const skipped = MockExecutions.completed(C1, {
+      outcome: {
+        kind: "skipped",
+        reason: "upstream-stopped",
+        message: "An ancestor stopped",
+        related: [{ cell_id: C2, range: null, message: "stopped" }],
+      },
+    });
+    expect(
+      cellOutputView(inputs([skipped, MockExecutions.queued(C1)]), C1),
+    ).not.toBeNull();
+    expect(
+      cellOutputView(inputs([skipped, MockExecutions.running(C1)]), C1),
+    ).toBeNull();
   });
 
   it("prefers the running execution's value so far over the retained result", () => {
@@ -178,6 +199,30 @@ describe("cellOutputView", () => {
         blamed_cell: C3,
       },
     ]);
+  });
+
+  it("carries the source that ran while the confirmed cell still has it", () => {
+    const ran = MockExecutions.failed(C1, {}, { code_fingerprint: "ran" });
+    const same = new Map([
+      [C1, cell(C1, "1 / 0", { code_fingerprint: "ran" })],
+    ]);
+    expect(cellOutputView(inputs([ran], new Map(), same), C1)?.code).toBe(
+      "1 / 0",
+    );
+
+    const edited = new Map([
+      [C1, cell(C1, "1 / 1", { code_fingerprint: "edited" })],
+    ]);
+    expect(
+      cellOutputView(inputs([ran], new Map(), edited), C1)?.code,
+    ).toBeUndefined();
+
+    const withheld = new Map([
+      [C1, cell(C1, "", { code: null, code_fingerprint: "ran" })],
+    ]);
+    expect(
+      cellOutputView(inputs([ran], new Map(), withheld), C1)?.code,
+    ).toBeUndefined();
   });
 
   it("hides a cleared result until a newer one lands", () => {
@@ -262,5 +307,31 @@ describe("scratchOutputView", () => {
     expect(scratchOutputView(inputs([done, running]).executions)?.data).toBe(
       "so far",
     );
+  });
+
+  it("keeps the previous output until a newer run has one to show", () => {
+    const done = MockExecutions.completed("scratch", {
+      cell_id: null,
+      outcome: { kind: "value", display: HTML },
+    });
+    const silent = {
+      ...MockExecutions.running("scratch-2"),
+      cell_id: null,
+      started_at: LATER,
+    };
+    expect(scratchOutputView(inputs([done, silent]).executions)?.data).toBe(
+      "<b>1</b>",
+    );
+
+    // Interrupted before it started, so it has no start time to order by.
+    const interrupted = {
+      ...MockExecutions.interrupted("scratch-3"),
+      cell_id: null,
+      started_at: null,
+      completed_at: LATER,
+    };
+    expect(
+      scratchOutputView(inputs([done, interrupted]).executions)?.data,
+    ).toEqual([{ type: "interruption" }]);
   });
 });

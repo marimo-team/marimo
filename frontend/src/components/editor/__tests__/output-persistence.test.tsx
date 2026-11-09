@@ -16,14 +16,13 @@ import {
   document as documentOf,
   withCells,
 } from "@/core/notebook/document/__tests__/fixtures";
-import type { CellRuntimeState } from "@/core/cells/types";
-import { createCellRuntimeState } from "@/core/cells/types";
 import { defaultUserConfig } from "@/core/config/config-schema";
 import type { AppMode } from "@/core/mode";
 import { requestClientAtom } from "@/core/network/requests";
 import { Cell } from "../notebook-cell";
 
 const cid = cellId("test");
+const PERSIST = { mimetype: "text/html", data: "<span>persist me</span>" };
 
 function createTestWrapper() {
   const store = createStore();
@@ -37,10 +36,7 @@ function createTestWrapper() {
   return { wrapper, store };
 }
 
-function seedNotebook(
-  store: ReturnType<typeof createStore>,
-  runtimeOverrides: Partial<CellRuntimeState> = {},
-) {
+function seedNotebook(store: ReturnType<typeof createStore>) {
   const notebook = MockNotebook.notebookState({
     cellData: {
       [cid]: {
@@ -53,15 +49,6 @@ function seedNotebook(
         },
       },
     },
-  });
-  notebook.cellRuntime[cid] = createCellRuntimeState({
-    output: {
-      channel: "output",
-      mimetype: "text/html",
-      data: "<span>persist me</span>",
-      timestamp: 0,
-    },
-    ...runtimeOverrides,
   });
   store.set(notebookAtom, notebook);
 }
@@ -94,6 +81,7 @@ beforeAll(() => {
 describe("output persistence across mode changes", () => {
   it("preserves the output DOM node when toggling edit <-> present", () => {
     const { store, wrapper } = createTestWrapper();
+    MockExecutions.seed(store, [MockExecutions.shown(cid, PERSIST)]);
     seedNotebook(store);
 
     const { container, rerender } = render(renderCell("edit"), { wrapper });
@@ -144,6 +132,7 @@ describe("output persistence across mode changes", () => {
 
   it("hides all edit chrome while presenting", () => {
     const { store, wrapper } = createTestWrapper();
+    MockExecutions.seed(store, [MockExecutions.shown(cid, PERSIST)]);
     seedNotebook(store);
 
     const { container, rerender } = render(renderCell("edit"), { wrapper });
@@ -195,7 +184,7 @@ describe("output persistence across mode changes", () => {
     // The host holds newer source than the cell last ran with
     MockExecutions.seed(
       store,
-      [MockExecutions.completed(cid, { code_fingerprint: "ran" })],
+      [MockExecutions.shown(cid, PERSIST, { code_fingerprint: "ran" })],
       null,
       withCells(
         documentOf(),
@@ -223,14 +212,7 @@ describe("output persistence across mode changes", () => {
   it("hides errored cells while presenting without unmounting them", () => {
     const { store, wrapper } = createTestWrapper();
     MockExecutions.seed(store, [MockExecutions.errored(cid)]);
-    seedNotebook(store, {
-      output: {
-        channel: "marimo-error",
-        mimetype: "application/vnd.marimo+error",
-        data: [{ type: "exception", exception_type: "ValueError", msg: "!" }],
-        timestamp: 0,
-      },
-    });
+    seedNotebook(store);
 
     const { container, rerender } = render(renderCell("edit"), { wrapper });
 

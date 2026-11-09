@@ -83,6 +83,8 @@ function languages(id: CellId) {
       expandCell: vi.fn(),
       collapseAllCells: vi.fn(),
       expandAllCells: vi.fn(),
+      clearCellOutput: vi.fn(),
+      clearAllCellOutputs: vi.fn(),
       showCellIfHidden: vi.fn(),
       moveCell: vi.fn(),
       moveCellToIndex: vi.fn(),

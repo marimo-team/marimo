@@ -7,7 +7,7 @@ import {
   useNotebookCellConfig,
   useNotebookDocumentEdit,
 } from "../notebook/document";
-import type { OutputMessage } from "../kernel/messages";
+import type { CellOutput } from "../executions";
 import { viewStateAtom } from "../mode";
 import { type CellId, SCRATCH_CELL_ID } from "./ids";
 
@@ -73,7 +73,7 @@ export function useExpandedConsoleOutput(cellId: CellId) {
 }
 
 export function isOutputEmpty(
-  output: OutputMessage | undefined | null,
+  output: Pick<CellOutput, "data"> | undefined | null,
 ): boolean {
   if (output == null) {
     return true;

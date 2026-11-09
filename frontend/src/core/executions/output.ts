@@ -39,7 +39,11 @@ export interface CellOutputInputs {
   readonly results: Results;
   /** Results this browser cleared, by execution id, until a newer one lands. */
   readonly cleared: ReadonlyMap<Protocol.CellId, Protocol.ExecutionId>;
+  /** The confirmed document's cells, for the source an execution ran. */
+  readonly cells: ReadonlyMap<Protocol.CellId, Protocol.Cell>;
 }
+
+const NO_CELLS: ReadonlyMap<Protocol.CellId, Protocol.Cell> = new Map();
 
 const ERROR_MIMETYPE = "application/vnd.marimo+error";
 
@@ -89,9 +93,9 @@ function errorOutput(
   };
 }
 
-/** The cell an exception was blamed on, when the host names one. */
+/** The cell an exception was blamed on, which is the one cell the host relates to it. */
 function raisingCell(error: Protocol.Error): CellId | null {
-  const raised = error.related.find((cell) => cell.message === "raised");
+  const raised = error.related.at(0);
   return raised === undefined ? null : brand(raised.cell_id);
 }
 
@@ -170,8 +174,39 @@ function skippedOutput(
   ]);
 }
 
-/** What an execution's outcome shows, or null for an empty value. */
-export function outcomeOutput(record: Protocol.Execution): CellOutput | null {
+/**
+ * The source an execution ran, while the confirmed cell still has it.
+ *
+ * Fingerprints are opaque, so the editor cannot take one of its draft. The
+ * confirmed cell's fingerprint names the source the host holds, which is
+ * the execution's own until an edit is confirmed.
+ */
+function sourceOf(
+  record: Protocol.Execution,
+  cells: ReadonlyMap<Protocol.CellId, Protocol.Cell>,
+): string | undefined {
+  const cell = record.cell_id === null ? undefined : cells.get(record.cell_id);
+  return cell !== undefined &&
+    cell.code !== null &&
+    cell.code_fingerprint === record.code_fingerprint
+    ? cell.code
+    : undefined;
+}
+
+/**
+ * What an execution's outcome shows, or null for an empty value, with the
+ * source it ran when `cells` still holds it.
+ */
+export function outcomeOutput(
+  record: Protocol.Execution,
+  cells: ReadonlyMap<Protocol.CellId, Protocol.Cell> = NO_CELLS,
+): CellOutput | null {
+  const output = outcomeDisplay(record);
+  const code = sourceOf(record, cells);
+  return output === null || code === undefined ? output : { ...output, code };
+}
+
+function outcomeDisplay(record: Protocol.Execution): CellOutput | null {
   const outcome = record.outcome;
   if (outcome === null) {
     return null;
@@ -195,7 +230,8 @@ export function outcomeOutput(record: Protocol.Execution): CellOutput | null {
  *
  * A running execution's outcome is null until it shows something, so the
  * result stays up until then. Once it has shown, an empty display means
- * the cell cleared its output, and nothing shows.
+ * the cell cleared its output, and nothing shows. A result that says the
+ * cell did not run comes down as soon as it does run.
  */
 export function cellOutputView(
   inputs: CellOutputInputs,
@@ -208,7 +244,7 @@ export function cellOutputView(
       : inputs.executions.executions.get(latestId)?.record;
   if (latest !== undefined && latest.outcome !== null) {
     if (latest.status !== "completed") {
-      return outcomeOutput(latest);
+      return outcomeOutput(latest, inputs.cells);
     }
   }
   const result = inputs.results.get(id);
@@ -218,25 +254,52 @@ export function cellOutputView(
   if (inputs.cleared.get(id) === result.id) {
     return null;
   }
-  return outcomeOutput(result);
+  if (latest?.status === "running" && result.outcome?.kind === "skipped") {
+    return null;
+  }
+  return outcomeOutput(result, inputs.cells);
 }
 
-/** What the scratchpad shows, from its latest scratch execution. */
+/**
+ * What each cell with a result or a running execution shows, by cell id.
+ *
+ * Cells showing nothing are left out, so a reader can tell "no output"
+ * from "has a cell" without the document.
+ */
+export function cellOutputsView(
+  inputs: CellOutputInputs,
+): ReadonlyMap<CellId, CellOutput> {
+  const outputs = new Map<CellId, CellOutput>();
+  const cellIds = new Set([
+    ...inputs.results.keys(),
+    ...inputs.executions.latest.keys(),
+  ]);
+  for (const cellId of cellIds) {
+    const output = cellOutputView(inputs, cellId);
+    if (output !== null) {
+      outputs.set(brand(cellId), output);
+    }
+  }
+  return outputs;
+}
+
+/**
+ * What the scratchpad shows: the outcome of its latest scratch execution
+ * that has one.
+ *
+ * A newer run that has shown nothing yet leaves the previous output up,
+ * as a cell's does. One interrupted before it started has no start time,
+ * so executions are ordered by when they last changed.
+ */
 export function scratchOutputView(executions: Executions): CellOutput | null {
   let scratch: Protocol.Execution | undefined;
   for (const { record } of executions.executions.values()) {
-    if (record.cell_id !== null) {
+    if (record.cell_id !== null || record.outcome === null) {
       continue;
     }
-    if (
-      scratch === undefined ||
-      seconds(record.started_at) >= seconds(scratch.started_at)
-    ) {
+    if (scratch === undefined || endedAt(record) >= endedAt(scratch)) {
       scratch = record;
     }
   }
-  if (scratch === undefined) {
-    return null;
-  }
-  return outcomeOutput(scratch);
+  return scratch === undefined ? null : outcomeOutput(scratch);
 }

@@ -8,16 +8,17 @@ import {
   screen,
   waitFor,
 } from "@testing-library/react";
-import { atom, createStore, Provider, useAtomValue } from "jotai";
+import { atom, createStore, Provider } from "jotai";
 import type React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { MockExecutions } from "@/__mocks__/executions";
 import { MockNotebook } from "@/__mocks__/notebook";
 import { cellId } from "@/__tests__/branded";
 import { PAIR_CONFIG } from "@/__tests__/fixtures/pair-config";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { toast } from "@/components/ui/use-toast";
 import type { Attachment } from "@/core/notebook/attachments";
-import { exportedForTesting, notebookAtom } from "@/core/cells/cells";
+import { notebookAtom } from "@/core/cells/cells";
 import {
   type CellOutputMessage,
   type ErrorMessageOutput,
@@ -25,7 +26,13 @@ import {
 } from "@/core/cells/error-report";
 import { pairConfigAtom } from "@/core/config/pair";
 import { readExport } from "@/core/cells/session";
-import type { MarimoError, OutputMessage } from "@/core/kernel/messages";
+import { cellOutputView, useCellOutput } from "@/core/executions";
+import {
+  cell,
+  document as documentOf,
+  withCells,
+} from "@/core/notebook/document/__tests__/fixtures";
+import type { MarimoError } from "@/core/kernel/messages";
 import {
   type StableSessionId,
   stableSessionIdAtom,
@@ -48,10 +55,15 @@ vi.mock("@/components/editor/chrome/wrapper/useOpenAiAssistant", () => ({
 
 const CELL_ID = cellId("test-cell");
 const STABLE_ID = "stable/test" as StableSessionId;
-const attachmentsAtom = atom<Attachment[]>([]);
+// Hoisted with the module mock below, which reads it as modules load.
+const { attachmentsAtom } = await vi.hoisted(async () => {
+  const { atom } = await import("jotai");
+  return { attachmentsAtom: atom<Attachment[]>([]) };
+});
 vi.mock("@/core/session/active-notebook", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/core/session/active-notebook")>()),
-  activeNotebookReplicaAtom: atom(() => ({ attachmentsAtom })),
+  // Writable, so the execution mock can give the replica results.
+  activeNotebookReplicaAtom: atom({ attachmentsAtom }),
 }));
 
 const AGENT: Attachment = {
@@ -257,17 +269,14 @@ describe("SendErrorReportButton", () => {
       notebookAtom,
       MockNotebook.notebookState({
         cellData: { [CELL_ID]: { code: "later edit" } },
-        cellRuntime: {
-          [CELL_ID]: {
-            output: {
-              channel: "output",
-              mimetype: "text/plain",
-              data: "<Broken formatter>",
-            },
-          },
-        },
       }),
     );
+    MockExecutions.seed(store, [
+      MockExecutions.shown(CELL_ID, {
+        mimetype: "text/plain",
+        data: "<Broken formatter>",
+      }),
+    ]);
     send();
     await waitFor(() =>
       expect(API.post).toHaveBeenCalledWith(ROUTE, {
@@ -317,14 +326,14 @@ describe("SendErrorReportButton", () => {
   });
 
   it("sends the restored exception type and complete traceback", async () => {
-    const { cellRuntime } = readExport({
+    const { snapshot } = readExport({
       session: {
         version: "1",
         metadata: { marimo_version: "1", script_metadata_hash: null },
         cells: [
           {
             id: CELL_ID,
-            code_hash: null,
+            code_hash: "h",
             console: [],
             outputs: [
               {
@@ -342,12 +351,25 @@ describe("SendErrorReportButton", () => {
           },
         ],
       },
-      notebook: null,
+      notebook: {
+        version: "1",
+        metadata: { marimo_version: "1" },
+        cells: [
+          { id: CELL_ID, code: CODE, code_hash: "h", name: null, config: {} },
+        ],
+      },
       filename: null,
       appConfig: {},
     });
-    const message = cellRuntime[CELL_ID].output;
-    expect(message).toBeDefined();
+    const message = cellOutputView(
+      {
+        ...MockExecutions.inputs(snapshot?.results ?? []),
+        cleared: new Map(),
+        cells: new Map(snapshot?.cells.map((cell) => [cell.id, cell])),
+      },
+      CELL_ID,
+    );
+    expect(message).not.toBeNull();
     renderButton({
       content: message && <OutputRenderer cellId={CELL_ID} message={message} />,
     });
@@ -392,59 +414,54 @@ describe("SendErrorReportButton", () => {
     await waitFor(() => expect(API.post).toHaveBeenCalledWith(ROUTE, content));
   });
 
-  it.each([false, true])(
-    "retains failed code after edits and a queued run (%s)",
-    async (queue) => {
-      const output: OutputMessage = {
-        channel: "marimo-error",
-        mimetype: "application/vnd.marimo+error",
-        data: ERRORS,
-        code: CODE,
-      };
-      // Render from the store so reducer changes reach the button.
-      const StoreOutput = () => {
-        const message = useAtomValue(notebookAtom).cellRuntime[CELL_ID]?.output;
-        return message ? (
-          <OutputRenderer cellId={CELL_ID} message={message} />
-        ) : null;
-      };
-      const { store } = renderButton({ content: <StoreOutput /> });
-      const actions = exportedForTesting.createActions((action) => {
-        store.set(notebookAtom, (state) =>
-          exportedForTesting.reducer(state, action),
-        );
-      });
-      act(() => {
-        store.set(
-          notebookAtom,
-          MockNotebook.notebookState({
-            cellData: { [CELL_ID]: { code: CODE } },
-            cellRuntime: { [CELL_ID]: { output } },
-          }),
-        );
-        store.set(notebookAtom, (state) => ({
-          ...state,
-          cellData: {
-            ...state.cellData,
-            [CELL_ID]: {
-              ...state.cellData[CELL_ID],
-              code: "print('edited')",
-            },
-          },
-        }));
-        if (queue) {
-          actions.prepareForRun({ cellId: CELL_ID });
-          actions.handleCellMessage({
-            cell_id: CELL_ID,
-            status: "queued",
-            timestamp: 2,
-          });
-        }
-      });
-      send();
-      await waitFor(() => expect(API.post).toHaveBeenCalledWith(ROUTE, REPORT));
-    },
-  );
+  it("sends the source that raised while the host still has it", async () => {
+    const confirmed = (fingerprint: string) =>
+      withCells(
+        documentOf(),
+        {
+          c1: null,
+          c2: null,
+          [CELL_ID]: cell(CELL_ID, CODE, { code_fingerprint: fingerprint }),
+        },
+        [CELL_ID],
+      );
+    // Render from the store so the host's changes reach the button.
+    const StoreOutput = () => {
+      const message = useCellOutput(CELL_ID);
+      return message ? (
+        <OutputRenderer cellId={CELL_ID} message={message} />
+      ) : null;
+    };
+    const { store, rerender } = renderButton({ content: <div /> });
+    const replica = MockExecutions.seed(
+      store,
+      [
+        MockExecutions.failed(
+          CELL_ID,
+          { name: "NameError", message: MESSAGE },
+          { code_fingerprint: "ran" },
+        ),
+      ],
+      null,
+      confirmed("ran"),
+    );
+    rerender(<StoreOutput />);
+    send();
+    await waitFor(() => expect(API.post).toHaveBeenCalledWith(ROUTE, REPORT));
+
+    // Once an edit is confirmed, the source that raised is gone.
+    vi.mocked(API.post).mockClear();
+    act(() => {
+      store.set(replica.documentAtom, confirmed("edited"));
+    });
+    send();
+    await waitFor(() =>
+      expect(API.post).toHaveBeenCalledWith(ROUTE, {
+        ...REPORT,
+        code: undefined,
+      }),
+    );
+  });
 
   it("does not borrow an old console traceback for a cancelled descendant", async () => {
     const cancelled: MarimoError[] = [

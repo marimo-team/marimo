@@ -12,11 +12,9 @@ import {
   withCells,
 } from "@/core/notebook/document/__tests__/fixtures";
 import { type NotebookState, notebookAtom } from "@/core/cells/cells";
-import {
-  type CellRuntimeState,
-  createCellRuntimeState,
-} from "@/core/cells/types";
+import { createCellRuntimeState } from "@/core/cells/types";
 import { defaultUserConfig } from "@/core/config/config-schema";
+import type { CellOutput } from "@/core/executions";
 import { connectionAtom } from "@/core/network/connection";
 import { requestClientAtom } from "@/core/network/requests";
 import { resolveRequestClient } from "@/core/network/resolve";
@@ -28,7 +26,7 @@ import { TooltipProvider } from "../components/ui/tooltip";
 type Story = StoryObj<typeof Cell>;
 
 interface CellOverrides {
-  output?: CellRuntimeState["output"];
+  output?: CellOutput | null;
   /** How the cell's result is outdated, as the host would report it. */
   freshness?: "edited" | "replaced" | "both";
   config?: CellConfig;
@@ -37,30 +35,49 @@ interface CellOverrides {
 const EMPTY_OVERRIDES: Readonly<CellOverrides> = {};
 
 /**
- * Give the replica a completed execution whose source was edited since,
- * whose input a newer execution replaced, or both.
+ * Give the replica a completed execution that showed `output`, and whose
+ * source was edited since, whose input a newer execution replaced, or both.
  */
-function seedFreshness(
+function seedResult(
   store: ReturnType<typeof createStore>,
   cid: CellId,
-  freshness: NonNullable<CellOverrides["freshness"]>,
+  output: CellOutput | null,
+  freshness: CellOverrides["freshness"],
 ) {
   const ran = MockExecutions.completed(cid, {
     code_fingerprint: "ran",
     depends_on:
-      freshness === "edited" ? {} : { x: { execution: "gone", update: 0 } },
-  });
-  const document = withCells(
-    documentOf(),
-    {
-      c1: null,
-      c2: null,
-      [cid]: cell(cid, "import marimo as mo", {
-        code_fingerprint: freshness === "replaced" ? "ran" : "edited",
-      }),
+      freshness === undefined || freshness === "edited"
+        ? {}
+        : { x: { execution: "gone", update: 0 } },
+    outcome: {
+      kind: "value",
+      display:
+        output === null
+          ? null
+          : {
+              mimetype: output.mimetype,
+              data:
+                typeof output.data === "string"
+                  ? output.data
+                  : JSON.stringify(output.data),
+            },
     },
-    [cid],
-  );
+  });
+  const document =
+    freshness === undefined
+      ? null
+      : withCells(
+          documentOf(),
+          {
+            c1: null,
+            c2: null,
+            [cid]: cell(cid, "import marimo as mo", {
+              code_fingerprint: freshness === "replaced" ? "ran" : "edited",
+            }),
+          },
+          [cid],
+        );
   MockExecutions.seed(store, [ran], null, document);
 }
 
@@ -83,12 +100,7 @@ const Cell: React.FC<{
     },
     cellIds: [cid],
     cellRuntime: {
-      [cid]: createCellRuntimeState({
-        output: overrides.output ?? null,
-        consoleOutputs: [],
-        debuggerActive: false,
-        outline: null,
-      }),
+      [cid]: createCellRuntimeState(),
     },
     cellHandles: {
       [cid]: createRef(),
@@ -100,9 +112,7 @@ const Cell: React.FC<{
 
   const store = createStore();
   store.set(notebookAtom, notebook);
-  if (overrides.freshness !== undefined) {
-    seedFreshness(store, cid, overrides.freshness);
-  }
+  seedResult(store, cid, overrides.output ?? null, overrides.freshness);
   store.set(connectionAtom, { state: ConnectionState.OPEN });
   store.set(requestClientAtom, resolveRequestClient());
   return (
