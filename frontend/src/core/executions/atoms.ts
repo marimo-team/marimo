@@ -5,13 +5,13 @@
 import type * as Protocol from "@marimo-team/client/protocol";
 import { atom, type createStore } from "jotai";
 import type { CellMessage } from "@/core/kernel/messages";
-import type {
-  Executions,
-  NotebookReplica,
-  Results,
+import {
+  ConnectionState,
+  type Executions,
+  type NotebookReplica,
+  type Results,
 } from "@/core/notebook/replica";
 import { activeNotebookReplicaAtom } from "@/core/session/active-notebook";
-import { waitFor } from "@/core/state/jotai";
 import { type CellFreshnessInputs, freshnessOf } from "./freshness";
 import type { CellOutputInputs } from "./output";
 import {
@@ -178,9 +178,57 @@ export const notebookQueuedOrRunningCountAtom = atom((get) =>
   queuedOrRunningCount(get(cellExecutionInputsAtom)),
 );
 
-/** Resolve once the host reports the runtime running. */
-export async function waitForRuntimeRunning(): Promise<void> {
-  await waitFor(runtimeStatusAtom, (status) => status === "running");
+type RuntimeReadiness = "running" | "waiting" | { refused: string };
+
+/**
+ * Whether a run can go to the host now, should wait, or has nothing to wait for.
+ *
+ * A runtime that is starting, or a stream that has not reported yet, will
+ * settle one way or the other. A failed or absent runtime, or a connection
+ * that has closed, will not, so a run waiting on it is refused instead.
+ */
+const runtimeReadinessAtom = atom((get): RuntimeReadiness => {
+  const replica = get(activeNotebookReplicaAtom);
+  if (replica === null) {
+    return { refused: "No notebook is connected" };
+  }
+  if (get(replica.connectionAtom).state === ConnectionState.CLOSED) {
+    return { refused: "The notebook is disconnected" };
+  }
+  const runtime = get(replica.runtimeAtom);
+  if (runtime === null) {
+    return get(replica.notebookAtom) === null
+      ? "waiting"
+      : { refused: "The notebook has no runtime" };
+  }
+  switch (runtime.status) {
+    case "running":
+      return "running";
+    case "failed":
+      return { refused: runtime.message ?? "The runtime failed" };
+    default:
+      return "waiting";
+  }
+});
+
+/** Resolve once the host reports the runtime running; reject once it cannot. */
+export function waitForRuntimeRunning(store: Store): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const unsubscribe = store.sub(runtimeReadinessAtom, check);
+    function check() {
+      const readiness = store.get(runtimeReadinessAtom);
+      if (readiness === "waiting") {
+        return;
+      }
+      unsubscribe();
+      if (readiness === "running") {
+        resolve();
+      } else {
+        reject(new Error(readiness.refused));
+      }
+    }
+    check();
+  });
 }
 
 /**
@@ -307,12 +355,12 @@ function setCellBlocked(
 /**
  * Keep the blocked set and the submissions in step with a cell-op.
  *
- * A status names whether the cell is blocked. A blocked cell and one whose
- * output is an error will not run, so a submission that never became an
- * execution is withdrawn, as it was when the editor set status itself.
+ * A status names whether the cell is blocked. A blocked cell will not run,
+ * so its submission is withdrawn, as it was when the editor set status
+ * itself.
  *
  * TODO(MO-8407): Delete with the cell-op case. The blocked read goes with
- * MO-8463, the error read with MO-8346.
+ * MO-8463.
  */
 export function observeCellMessage(store: Store, message: CellMessage): void {
   const cellId = message.cell_id;
@@ -320,7 +368,7 @@ export function observeCellMessage(store: Store, message: CellMessage): void {
   if (message.status != null) {
     setCellBlocked(store, cellId, blocked);
   }
-  if (blocked || message.output?.mimetype === "application/vnd.marimo+error") {
+  if (blocked) {
     withdrawCells(store, [cellId]);
   }
 }

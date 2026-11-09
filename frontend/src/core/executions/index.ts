@@ -4,8 +4,9 @@
  * Cell status and timing read from the host's executions.
  *
  * Every atom here is derived, so it can be read but not set. The state
- * behind them changes only through `submitCells`, `withdrawCells`,
- * `acceptRun`, and `observeCellMessage`.
+ * behind them changes only through `runCells` and the functions it uses:
+ * `submitCells`, `withdrawCells`, and `acceptRun`, plus `observeCellMessage`
+ * while cell-ops remain.
  */
 
 export {
@@ -23,6 +24,7 @@ export {
   withdrawCells,
 } from "./atoms";
 export type { CellFreshness, CellFreshnessLookup } from "./freshness";
+export { runCells, syncEdits, waitForRuntime } from "./run";
 export {
   useCellExecution,
   useCellFreshness,

@@ -14,7 +14,7 @@ import type { EditRequests, RunRequests } from "../types";
 
 function requestsThatReject(error: unknown): EditRequests & RunRequests {
   return createErrorToastingRequests({
-    sendRun: vi.fn().mockRejectedValue(error),
+    sendRunScratchpad: vi.fn().mockRejectedValue(error),
   } as unknown as EditRequests & RunRequests);
 }
 
@@ -29,17 +29,17 @@ describe("createErrorToastingRequests", () => {
         detail: "This connection is read-only for this action.",
       }),
     );
-    await expect(requests.sendRun({} as never)).rejects.toBeInstanceOf(
-      HTTPError,
-    );
+    await expect(
+      requests.sendRunScratchpad({} as never),
+    ).rejects.toBeInstanceOf(HTTPError);
     expect(toastMock).not.toHaveBeenCalled();
   });
 
   it("shows a danger toast for other request errors", async () => {
     const requests = requestsThatReject(new HTTPError(500, "Server Error"));
-    await expect(requests.sendRun({} as never)).rejects.toBeInstanceOf(
-      HTTPError,
-    );
+    await expect(
+      requests.sendRunScratchpad({} as never),
+    ).rejects.toBeInstanceOf(HTTPError);
     expect(toastMock).toHaveBeenCalledWith(
       expect.objectContaining({ variant: "danger" }),
     );

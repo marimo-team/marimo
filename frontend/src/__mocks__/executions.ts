@@ -11,6 +11,7 @@ import {
   type Document,
   type Execution,
   type Executions,
+  type NotebookBackend,
   type NotebookReplica,
   type Results,
 } from "@/core/notebook/replica";
@@ -172,12 +173,14 @@ export const MockExecutions = {
   ) {
     const current = store.get(activeNotebookReplicaAtom);
     const replica = {
-      connectionAtom: atom<ConnectionStatus>({ state: ConnectionState.OPEN }),
-      backendAtom: atom(null),
       attachmentsAtom: atom([]),
       connect: () => () => undefined,
       reconnect: () => Promise.resolve(),
       ...current,
+      // Settable, so a test can close the connection or give the replica a
+      // backend to command.
+      connectionAtom: atom<ConnectionStatus>({ state: ConnectionState.OPEN }),
+      backendAtom: atom<NotebookBackend | null>(null),
       notebookAtom: atom<Protocol.Notebook>({
         id: "n1",
         project_id: "p1",
