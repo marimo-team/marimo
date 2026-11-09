@@ -4014,7 +4014,6 @@ export interface components {
      *             output: Cell's output. Use CellOutput.empty() to clear.
      *             console: Console messages. Single/list appends, [] clears, None unchanged.
      *             status: Execution status (idle/running/stale/queued/disabled-transitively).
-     *             stale_inputs: Whether cell has stale inputs from changed dependencies.
      *             run_id: Execution run ID for tracing. Auto-set from context.
      *             execution_id: Evaluation of this cell producing the update, when known.
      *             serialization: Top-level reusability hint. UNSET unchanged, None clears, str sets.
@@ -4036,8 +4035,6 @@ export interface components {
       /** @default null */
       run_id?: string | null;
       serialization?: string | null;
-      /** @default null */
-      stale_inputs?: boolean | null;
       /** @default null */
       status?: ("disabled-transitively" | "idle" | "queued" | "running") | null;
       timestamp?: number;
@@ -5532,8 +5529,6 @@ export interface components {
      *             layout: Notebook layout config.
      *             resumed: Whether resumed from previous session.
      *             ui_values: Previous UI element values if resumed.
-     *             last_executed_code: Last executed code per cell if resumed.
-     *             last_execution_time: Last execution time per cell if resumed.
      *             app_config: Application configuration.
      *             kiosk: Whether running in kiosk mode.
      *             capabilities: Available kernel capabilities.
@@ -5548,12 +5543,6 @@ export interface components {
       capabilities: components["schemas"]["KernelCapabilitiesNotification"];
       consumer_capabilities: components["schemas"]["ConsumerCapabilities"];
       kiosk: boolean;
-      last_executed_code: {
-        [key: string]: string;
-      } | null;
-      last_execution_time: {
-        [key: string]: number;
-      } | null;
       layout: components["schemas"]["LayoutConfig"] | null;
       /** @enum {unknown} */
       op: "kernel-ready";

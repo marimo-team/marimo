@@ -166,7 +166,11 @@ async def test_scratch_outcomes_from_the_kernel(
             outcome["kind"],
             outcome["error"]["kind"],
             outcome["error"]["name"],
-        ) == ("error", "syntax" if name is None else "exception", name)
+        ) == (
+            "error",
+            "invalid-syntax" if name is None else "exception",
+            name,
+        )
         assert outcome["error"]["message"]
 
 

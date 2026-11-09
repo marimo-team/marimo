@@ -18,7 +18,7 @@ export const notebookOperationsAtom = atom((get) => {
 /**
  * Whether this client may edit the document.
  *
- * TODO(MO-8028): The host advertises the same operations to every
+ * TODO(MO-8352): The host advertises the same operations to every
  * connection of a notebook, so a kiosk connection, an interactor that may
  * not edit, narrows it here. Once the host narrows `operations` per
  * connection by consumer capability, the kiosk term goes.

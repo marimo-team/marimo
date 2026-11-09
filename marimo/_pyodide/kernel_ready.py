@@ -25,8 +25,6 @@ def kernel_ready(
         layout=app_manager.read_layout_config(),
         resumed=view is not None,
         ui_values=dict(view.ui_values) if view else {},
-        last_executed_code=dict(view.last_executed_code) if view else {},
-        last_execution_time=dict(view.last_execution_time) if view else {},
         app_config=app.config,
         kiosk=False,
         capabilities=KernelCapabilitiesNotification(),

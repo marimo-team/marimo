@@ -31,12 +31,22 @@ export class Time {
     return new Time(Date.now() as Milliseconds);
   }
 
+  /** The instant an ISO 8601 timestamp names. */
+  public static parse(iso: string): Time {
+    return new Time(Date.parse(iso) as Milliseconds);
+  }
+
   private constructor(ms: Milliseconds) {
     this.ms = ms;
   }
 
   public toMilliseconds(): Milliseconds {
     return this.ms;
+  }
+
+  /** How long after `start` this instant is. */
+  public since(start: Time): Milliseconds {
+    return (this.ms - start.ms) as Milliseconds;
   }
 
   public toSeconds(): Seconds {

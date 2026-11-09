@@ -65,7 +65,11 @@ vi.mock("@glideapps/glide-data-grid", async () => {
 });
 
 vi.mock("@glideapps/glide-data-grid-cells", () => ({
-  DropdownCell: { kind: "dropdown-renderer" },
+  DropdownCell: {
+    kind: "dropdown-renderer",
+    isMatch: (cell: { data: { kind: string } }) =>
+      cell.data.kind === "dropdown-cell",
+  },
 }));
 
 vi.mock("@/theme/useTheme", () => ({
@@ -74,11 +78,11 @@ vi.mock("@/theme/useTheme", () => ({
 
 const editorProps = {
   data: [{ name: "alice" }],
-  columnFields: new Map([["name", "string"]]) as Map<string, "string">,
-  editableColumns: "all" as const,
+  columnFields: new Map([["name", "string"]]),
+  editableColumns: "all",
   columnTypes: new Map(),
   onAddEdits: vi.fn(),
-};
+} satisfies React.ComponentProps<typeof GlideDataEditor>;
 
 describe("GlideDataEditor portal", () => {
   let fullscreenElement: Element | null;
@@ -148,7 +152,7 @@ describe("GlideDataEditor portal", () => {
       },
     });
     expect(capturedDataEditor.customRenderers).toEqual([
-      { kind: "dropdown-renderer" },
+      { kind: "dropdown-renderer", isMatch: expect.any(Function) },
     ]);
   });
 

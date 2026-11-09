@@ -33,6 +33,9 @@ export function normalizeConfiguredColumns(
   data: EditorRow[],
   columnTypes: ColumnTypes,
 ): EditorRow[] {
+  if (columnTypes.size === 0) {
+    return data;
+  }
   return data.map((row) => {
     const normalizedRow = { ...row };
     for (const [columnName, columnType] of columnTypes) {

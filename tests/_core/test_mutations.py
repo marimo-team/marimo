@@ -39,7 +39,7 @@ def serve(bridge):
     mutations = Mutations(bridge.host)
 
     async def serve(call: OperationCall) -> Reply:
-        return await dispatch(mutations, bridge, call)
+        return await dispatch(mutations, bridge, call, request=None)
 
     return serve
 

@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import asyncio
+from dataclasses import replace
 
 import pytest
 
@@ -23,11 +24,16 @@ from marimo._messaging.notification import (
     StartupProgressNotification,
 )
 from marimo._messaging.serde import serialize_kernel_message
-from marimo._runtime.commands import CancelRunCommand, ExecuteCellsCommand
+from marimo._runtime.commands import (
+    CancelRunCommand,
+    ExecuteCellsCommand,
+    HTTPRequest,
+)
 from marimo._runtime.scratch import SCRATCH_CELL_ID
 from marimo._server.host.backend import SessionBackend
 from marimo._server.scratchpad import scratchpad_request_metadata
 from marimo._session.types import KernelExitInfo, KernelState
+from marimo._types.encodable import Encodable
 from marimo._types.ids import CellId_t
 from marimo._version import __version__
 from tests._server.host.conftest import (
@@ -191,7 +197,7 @@ async def test_interrupt_waits_for_the_kernel_result(
     b.start(RT1)
     await observed.wait_for(be.Running)
     session = manager.next_session
-    b.run(protocol.RunId("run-1"), "while True: pass")
+    b.run(protocol.RunId("run-1"), "while True: pass", request=None)
     await asyncio.wait_for(session.submitted.wait(), 5)
     # The kernel has started the run, so the backend interrupts it rather
     # than cancelling a queued command.
@@ -240,8 +246,8 @@ async def test_a_session_closing_mid_run_releases_every_run(
     b.start(RT1)
     await observed.wait_for(be.Running)
     session = manager.next_session
-    b.run(protocol.RunId("run-1"), "1")
-    b.run(protocol.RunId("run-2"), "2")
+    b.run(protocol.RunId("run-1"), "1", request=None)
+    b.run(protocol.RunId("run-2"), "2", request=None)
     await asyncio.wait_for(session.submitted.wait(), 5)
     tasks = [run.task for run in b._runs.values()]
     observed.messages.clear()
@@ -347,7 +353,7 @@ async def test_canceling_a_queued_run_preserves_other_execution(
     observed.messages.clear()
     async with lock:
         lock.entered.clear()
-        b.run(protocol.RunId("canceled"), "must_not_execute()")
+        b.run(protocol.RunId("canceled"), "must_not_execute()", request=None)
         if not before_start:
             await asyncio.wait_for(lock.entered.wait(), 5)
         b.interrupt(protocol.RunId("canceled"))
@@ -359,7 +365,7 @@ async def test_canceling_a_queued_run_preserves_other_execution(
         assert outcome == protocol.InterruptedOutcome()
 
     observed.messages.clear()
-    b.run(protocol.RunId("next"), "42")
+    b.run(protocol.RunId("next"), "42", request=None)
     await asyncio.wait_for(session.submitted.wait(), 5)
     assert [(c.run_id, c.code) for c in session.commands] == [("next", "42")]
     session.broadcast(CompletedRunNotification(run_id="next"))
@@ -377,7 +383,7 @@ async def test_submission_failure_is_an_error(
         raise RuntimeError("Kernel channel closed")
 
     monkeypatch.setattr(session, "put_control_request", failed)
-    b.run(protocol.RunId("failed"), "42")
+    b.run(protocol.RunId("failed"), "42", request=None)
     await observed.wait_for(be.Done)
     [outcome] = [
         m.outcome for m in observed.messages if isinstance(m, be.Completed)
@@ -397,7 +403,7 @@ async def test_submission_failure_is_an_error(
 
 
 @pytest.mark.parametrize("cell_run", [False, True])
-async def test_host_run_carries_screenshot_metadata(
+async def test_only_scratch_runs_carry_screenshot_metadata(
     manager: FakeManager, observed: Observed, cell_run: bool
 ) -> None:
     b = SessionBackend(
@@ -422,21 +428,88 @@ async def test_host_run_carries_screenshot_metadata(
             run_id,
             Document([DocumentCell(protocol.CellId("a"), "1")], {}),
             [protocol.CellId("a")],
+            request=None,
         )
     else:
-        b.run(run_id, "ctx.screenshot()")
+        b.run(run_id, "ctx.screenshot()", request=None)
     await asyncio.wait_for(manager.next_session.submitted.wait(), 5)
     command = manager.next_session.commands[-1]
-    assert command.request.meta == {
-        SCREENSHOT_SERVER_URL_KEY: "http://127.0.0.1:2718/base",
-        SCREENSHOT_AUTH_TOKEN_KEY: "editor-token",
-        SCREENSHOT_FILE_KEY: "/ws/forecasts.py",
-        "extra": {"enabled": True},
+    if cell_run:
+        assert command.request is None
+    else:
+        assert command.request.meta == {
+            SCREENSHOT_SERVER_URL_KEY: "http://127.0.0.1:2718/base",
+            SCREENSHOT_AUTH_TOKEN_KEY: "editor-token",
+            SCREENSHOT_FILE_KEY: "/ws/forecasts.py",
+            "extra": {"enabled": True},
+        }
+        assert command.request.headers == {}
+        assert command.request.url["path"] == ""
+        assert command.request.base_url["path"] == ""
+        assert "HTTPRequest(path=''" in repr(command.request)
+    task = b._runs[run_id].task
+    assert task is not None
+    manager.next_session.broadcast(CompletedRunNotification(run_id=run_id))
+    await task
+
+
+@pytest.mark.parametrize("cell_run", [False, True])
+@pytest.mark.parametrize("with_metadata", [False, True])
+async def test_host_run_carries_the_submitting_request(
+    manager: FakeManager,
+    observed: Observed,
+    cell_run: bool,
+    with_metadata: bool,
+) -> None:
+    b = SessionBackend(
+        protocol.NotebookId("n1"),
+        lambda: "/ws/forecasts.py",
+        manager,  # type: ignore[arg-type]
+        observed,
+        Stream(),
+        request_metadata=(
+            (lambda _: {"screenshot": "server"}) if with_metadata else None
+        ),
+    )
+    b.adopt(RT1, manager.next_session)
+    run_id = protocol.RunId("run-request")
+    url: dict[str, Encodable] = {
+        "path": "/notebooks/n1/runtime/runs",
+        "port": 2718,
+        "scheme": "http",
+        "netloc": "127.0.0.1:2718",
+        "query": "debug=1",
+        "hostname": "127.0.0.1",
     }
-    assert command.request.headers == {}
-    assert command.request.url["path"] == ""
-    assert command.request.base_url["path"] == ""
-    assert "HTTPRequest(path=''" in repr(command.request)
+    submitted = HTTPRequest(
+        url=url,
+        base_url={**url, "path": "/", "query": ""},
+        headers={"x-trace": "abc"},
+        query_params={"debug": ["1"]},
+        path_params={"notebook_id": "n1"},
+        cookies={"session": "s"},
+        user={"is_authenticated": True, "username": "ann"},
+        meta={"from": "request", "screenshot": "client"},
+    )
+    if cell_run:
+        b.run_cells(
+            run_id,
+            Document([DocumentCell(protocol.CellId("a"), "1")], {}),
+            [protocol.CellId("a")],
+            request=submitted,
+        )
+    else:
+        b.run(run_id, "mo.app_meta().request", request=submitted)
+    await asyncio.wait_for(manager.next_session.submitted.wait(), 5)
+    command = manager.next_session.commands[-1]
+    expected_meta = {
+        "from": "request",
+        "screenshot": "server" if with_metadata and not cell_run else "client",
+    }
+    assert command.request == replace(submitted, meta=expected_meta)
+    assert submitted.meta == {"from": "request", "screenshot": "client"}
+    if cell_run:
+        assert command.request is submitted
     task = b._runs[run_id].task
     assert task is not None
     manager.next_session.broadcast(CompletedRunNotification(run_id=run_id))
@@ -458,7 +531,9 @@ async def test_running_cells_instantiates_from_the_host_document(
         {},
     )
 
-    b.run_cells(protocol.RunId("run-1"), document, [protocol.CellId("b")])
+    b.run_cells(
+        protocol.RunId("run-1"), document, [protocol.CellId("b")], request=None
+    )
     await asyncio.wait_for(session.submitted.wait(), 5)
 
     (instantiation,) = session.instantiations
@@ -501,18 +576,16 @@ async def test_cell_submission_failure_ends_the_run(
         protocol.RunId("failed"),
         Document([DocumentCell(protocol.CellId("a"), "42")], {}),
         [protocol.CellId("a")],
+        request=None,
     )
 
     assert observed.messages == [be.Done(protocol.RunId("failed"), "failed")]
     assert b._runs == {}
 
 
-@pytest.mark.parametrize("failure", ["missing_cell", "request_metadata"])
 async def test_cell_command_failure_ends_the_run(
     manager: FakeManager,
     observed: Observed,
-    monkeypatch: pytest.MonkeyPatch,
-    failure: str,
 ) -> None:
     b = backend(manager, observed)
     session = manager.next_session
@@ -520,17 +593,12 @@ async def test_cell_command_failure_ends_the_run(
     observed.messages.clear()
     document = Document([DocumentCell(protocol.CellId("a"), "42")], {})
 
-    def failed(*_args: object, **_kwargs: object) -> None:
-        raise RuntimeError("Request metadata unavailable")
-
-    with monkeypatch.context() as patch:
-        if failure == "request_metadata":
-            patch.setattr(b, "_request_metadata", failed)
-        b.run_cells(
-            protocol.RunId("failed"),
-            document,
-            [protocol.CellId("missing" if failure == "missing_cell" else "a")],
-        )
+    b.run_cells(
+        protocol.RunId("failed"),
+        document,
+        [protocol.CellId("missing")],
+        request=None,
+    )
 
     assert observed.messages == [be.Done(protocol.RunId("failed"), "failed")]
     assert b._runs == {}
@@ -538,7 +606,9 @@ async def test_cell_command_failure_ends_the_run(
     assert session.instantiations == []
 
     observed.messages.clear()
-    b.run_cells(protocol.RunId("next"), document, [protocol.CellId("a")])
+    b.run_cells(
+        protocol.RunId("next"), document, [protocol.CellId("a")], request=None
+    )
     await asyncio.wait_for(session.submitted.wait(), 5)
     session.broadcast(CompletedRunNotification(run_id="next"))
     await observed.wait_for(be.Done)
@@ -561,8 +631,12 @@ async def test_cell_runs_queue_in_the_kernel_in_order(
         {},
     )
 
-    b.run_cells(protocol.RunId("run-1"), document, [protocol.CellId("a")])
-    b.run_cells(protocol.RunId("run-2"), document, [protocol.CellId("b")])
+    b.run_cells(
+        protocol.RunId("run-1"), document, [protocol.CellId("a")], request=None
+    )
+    b.run_cells(
+        protocol.RunId("run-2"), document, [protocol.CellId("b")], request=None
+    )
 
     assert [
         (c.run_id, [cell.cell_id for cell in c.execution_requests])
@@ -571,15 +645,81 @@ async def test_cell_runs_queue_in_the_kernel_in_order(
         ("run-1", ["a"]),
         ("run-2", ["b"]),
     ]
+    tasks = [run.task for run in b._runs.values() if run.task is not None]
     session.broadcast(CompletedRunNotification(run_id="run-1"))
-    await observed.wait_for(be.Done)
-    assert observed.messages == [be.Done(protocol.RunId("run-1"), "succeeded")]
+    session.broadcast(
+        ExecutionNotification(
+            run_id="run-2",
+            execution_id="attempt-2",
+            cell_id="b",
+            phase="planned",
+            code="y = 2",
+            code_fingerprint=code_fingerprint("y = 2"),
+        )
+    )
+    session.broadcast(
+        ExecutionNotification(
+            run_id="run-2",
+            execution_id="attempt-2",
+            cell_id="b",
+            phase="running",
+        )
+    )
+    # Notifications can arrive together, before the run tasks get a turn.
+    assert observed.messages == [
+        be.Done(protocol.RunId("run-1"), "succeeded"),
+        be.Planned(
+            protocol.RunId("run-2"),
+            (
+                be.PlannedExecution(
+                    protocol.ExecutionId("attempt-2"),
+                    "b",
+                    code_fingerprint("y = 2"),
+                    None,
+                ),
+            ),
+        ),
+        be.Started(protocol.ExecutionId("attempt-2")),
+    ]
     assert list(b._runs) == ["run-2"]
 
     observed.messages.clear()
     session.broadcast(CompletedRunNotification(run_id="run-2"))
-    await observed.wait_for(be.Done)
-    assert observed.messages == [be.Done(protocol.RunId("run-2"), "succeeded")]
+    expected = [
+        be.Completed(
+            protocol.ExecutionId("attempt-2"), protocol.ValueOutcome(None)
+        ),
+        be.Done(protocol.RunId("run-2"), "succeeded"),
+    ]
+    assert observed.messages == expected
+    assert b._runs == {}
+    await asyncio.gather(*tasks)
+    await asyncio.sleep(0)
+    assert observed.messages == expected
+
+
+async def test_task_cancellation_preserves_a_completed_run(
+    manager: FakeManager, observed: Observed
+) -> None:
+    b = backend(manager, observed)
+    session = manager.next_session
+    b.adopt(RT1, session)
+    observed.messages.clear()
+    document = Document([DocumentCell(protocol.CellId("a"), "x = 1")], {})
+    run_id = protocol.RunId("run-1")
+    b.run_cells(run_id, document, [protocol.CellId("a")], request=None)
+    run = b._runs[run_id]
+    task = run.task
+    assert task is not None
+    await asyncio.sleep(0)
+
+    session.broadcast(CompletedRunNotification(run_id=run_id))
+    task.cancel()
+    await asyncio.gather(task, return_exceptions=True)
+    await asyncio.sleep(0)
+
+    assert not run.translator.interrupted
+    assert observed.messages == [be.Done(run_id, "succeeded")]
     assert b._runs == {}
 
 
@@ -604,12 +744,14 @@ async def test_runs_reach_the_kernel_in_acceptance_order(
     observed.messages.clear()
     document = Document([DocumentCell(protocol.CellId("a"), "x = 1")], {})
 
-    b.run(protocol.RunId("run-1"), "1")
+    b.run(protocol.RunId("run-1"), "1", request=None)
     assert await submitted(session, 1) == ["run-1"]
     # The scratchpad is busy, so the next scratch run waits for it, and
     # the cell run accepted after that waits its turn too.
-    b.run(protocol.RunId("run-2"), "2")
-    b.run_cells(protocol.RunId("run-3"), document, [protocol.CellId("a")])
+    b.run(protocol.RunId("run-2"), "2", request=None)
+    b.run_cells(
+        protocol.RunId("run-3"), document, [protocol.CellId("a")], request=None
+    )
     await asyncio.sleep(0)
     assert [c.run_id for c in session.commands] == ["run-1"]
 
@@ -635,8 +777,10 @@ async def test_a_cell_run_waits_for_a_scratch_run_accepted_just_before(
     b.adopt(RT1, session)
     document = Document([DocumentCell(protocol.CellId("a"), "x = 1")], {})
 
-    b.run(protocol.RunId("run-1"), "1")
-    b.run_cells(protocol.RunId("run-2"), document, [protocol.CellId("a")])
+    b.run(protocol.RunId("run-1"), "1", request=None)
+    b.run_cells(
+        protocol.RunId("run-2"), document, [protocol.CellId("a")], request=None
+    )
 
     assert session.commands == []
     assert await submitted(session, 2) == ["run-1", "run-2"]
@@ -651,17 +795,29 @@ async def test_interrupting_a_waiting_cell_run_preserves_submission_order(
     b.adopt(RT1, session)
     observed.messages.clear()
     document = Document([DocumentCell(protocol.CellId("a"), "x = 1")], {})
-    b.run(protocol.RunId("run-1"), "1")
+    b.run(protocol.RunId("run-1"), "1", request=None)
     await submitted(session, 1)
-    b.run(protocol.RunId("run-2"), "2")
-    b.run_cells(protocol.RunId("run-3"), document, [protocol.CellId("a")])
+    b.run(protocol.RunId("run-2"), "2", request=None)
+    b.run_cells(
+        protocol.RunId("run-3"), document, [protocol.CellId("a")], request=None
+    )
     if not accept_after_interrupt:
-        b.run_cells(protocol.RunId("run-4"), document, [protocol.CellId("a")])
+        b.run_cells(
+            protocol.RunId("run-4"),
+            document,
+            [protocol.CellId("a")],
+            request=None,
+        )
 
     b.interrupt(protocol.RunId("run-3"))
     await observed.wait_for(be.Done)
     if accept_after_interrupt:
-        b.run_cells(protocol.RunId("run-4"), document, [protocol.CellId("a")])
+        b.run_cells(
+            protocol.RunId("run-4"),
+            document,
+            [protocol.CellId("a")],
+            request=None,
+        )
     await asyncio.sleep(0)
 
     assert observed.messages == [
@@ -686,7 +842,9 @@ async def test_interrupting_a_queued_cell_run_cancels_it_in_the_kernel(
     observed.messages.clear()
     document = Document([DocumentCell(protocol.CellId("a"), "x = 1")], {})
 
-    b.run_cells(protocol.RunId("run-1"), document, [protocol.CellId("a")])
+    b.run_cells(
+        protocol.RunId("run-1"), document, [protocol.CellId("a")], request=None
+    )
     b.interrupt(protocol.RunId("run-1"))
 
     assert session.interrupts == 0
@@ -710,7 +868,9 @@ async def test_a_cancelled_run_that_starts_anyway_is_interrupted(
     b.adopt(RT1, session)
     observed.messages.clear()
     document = Document([DocumentCell(protocol.CellId("a"), "x = 1")], {})
-    b.run_cells(protocol.RunId("run-1"), document, [protocol.CellId("a")])
+    b.run_cells(
+        protocol.RunId("run-1"), document, [protocol.CellId("a")], request=None
+    )
     b.interrupt(protocol.RunId("run-1"))
     assert session.interrupts == 0
 
@@ -745,7 +905,9 @@ async def test_interrupting_a_started_cell_run_interrupts_the_kernel(
     session = manager.next_session
     b.adopt(RT1, session)
     document = Document([DocumentCell(protocol.CellId("a"), "x = 1")], {})
-    b.run_cells(protocol.RunId("run-1"), document, [protocol.CellId("a")])
+    b.run_cells(
+        protocol.RunId("run-1"), document, [protocol.CellId("a")], request=None
+    )
     session.broadcast(
         ExecutionNotification(
             cell_id=CellId_t("a"),
@@ -780,7 +942,7 @@ async def test_an_edit_waits_behind_a_run_still_preparing(
     session = manager.next_session
     b.adopt(RT1, session)
     async with session.scratchpad_lock:
-        b.run(protocol.RunId("run-1"), "1")
+        b.run(protocol.RunId("run-1"), "1", request=None)
         await asyncio.sleep(0)
         b.apply(CancelRunCommand(run_id="edit"))
         await asyncio.sleep(0)
