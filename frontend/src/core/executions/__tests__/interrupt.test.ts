@@ -1,5 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
+import type { ProblemOf } from "@marimo-team/client";
 import type * as Protocol from "@marimo-team/client/protocol";
 import { createStore } from "jotai";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -10,6 +11,8 @@ import {
 } from "@/core/notebook/replica/__tests__/fixtures";
 import { activeNotebookReplicaAtom } from "@/core/session/active-notebook";
 import { interruptRuntime } from "../interrupt";
+
+type Refusal = ProblemOf<"runtime.interrupt">;
 
 const toast = vi.fn();
 vi.mock("@/components/ui/use-toast", () => ({
@@ -77,19 +80,25 @@ describe("interruptRuntime", () => {
     },
   );
 
-  it.each(["no-runtime", "conflict"])(
-    "tolerates a runtime that stopped before the request: %s",
-    async (type) => {
-      const status = 409;
+  it.each<Refusal>([
+    {
+      type: "urn:marimo:problem:no-runtime",
+      title: "The runtime has stopped",
+      status: 409,
+    },
+    {
+      type: "urn:marimo:problem:conflict",
+      title: "The runtime has stopped",
+      status: 409,
+    },
+  ])(
+    "tolerates a runtime that stopped before the request: $type",
+    async (problem) => {
       const { store, interrupt } = setup([]);
       interrupt.mockResolvedValue({
         ok: false,
-        status,
-        problem: {
-          type: `urn:marimo:problem:${type}`,
-          title: "The runtime has stopped",
-          status,
-        },
+        status: problem.status,
+        problem,
       });
 
       await interruptRuntime(store);
@@ -119,11 +128,21 @@ describe("interruptRuntime", () => {
     expect(toast).not.toHaveBeenCalled();
   });
 
-  it.each([
-    { status: 403, type: "forbidden", toasts: [] },
+  it.each<{ problem: Refusal; toasts: unknown[] }>([
     {
-      status: 404,
-      type: "not-found",
+      problem: {
+        type: "urn:marimo:problem:forbidden",
+        title: "Interrupt refused",
+        status: 403,
+      },
+      toasts: [],
+    },
+    {
+      problem: {
+        type: "urn:marimo:problem:not-found",
+        title: "Interrupt refused",
+        status: 404,
+      },
       toasts: [
         [
           {
@@ -135,8 +154,11 @@ describe("interruptRuntime", () => {
       ],
     },
     {
-      status: 500,
-      type: "internal",
+      problem: {
+        type: "urn:marimo:problem:internal",
+        title: "Interrupt refused",
+        status: 500,
+      },
       toasts: [
         [
           {
@@ -148,17 +170,13 @@ describe("interruptRuntime", () => {
       ],
     },
   ])(
-    "handles a host refusal with status $status",
-    async ({ status, type, toasts }) => {
+    "handles a host refusal with status $problem.status",
+    async ({ problem, toasts }) => {
       const { store, interrupt } = setup([run("running")]);
       interrupt.mockResolvedValue({
         ok: false,
-        status,
-        problem: {
-          type: `urn:marimo:problem:${type}`,
-          title: "Interrupt refused",
-          status,
-        },
+        status: problem.status,
+        problem,
       });
 
       await interruptRuntime(store);

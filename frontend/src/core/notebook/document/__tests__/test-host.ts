@@ -1,7 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { createHash } from "node:crypto";
-import type { Result } from "@marimo-team/client";
+import type { ProblemOf, ResultOf } from "@marimo-team/client";
 import * as Protocol from "@marimo-team/client/protocol";
 import type { Document } from "../../replica/resources/document";
 
@@ -12,7 +12,7 @@ export interface EditRequest {
 }
 
 interface Outcome {
-  readonly result: Result<Protocol.EditResponseOutput>;
+  readonly result: ResultOf<"notebook.edit">;
   /** Only a new commit produces a stream update; replaying a receipt does not. */
   readonly update?: Document;
 }
@@ -52,35 +52,8 @@ function record(
   };
 }
 
-const TITLES = {
-  conflict: "Conflict",
-  "invalid-request": "Invalid request",
-  "not-found": "Not found",
-  "precondition-failed": "Precondition failed",
-};
-
-function rejected(
-  status: number,
-  kind: keyof typeof TITLES,
-  detail: string,
-  stale?: Pick<
-    Protocol.PreconditionFailedProblem,
-    "index" | "cell" | "document"
-  >,
-): Outcome {
-  return {
-    result: {
-      ok: false,
-      status,
-      problem: {
-        type: `urn:marimo:problem:${kind}`,
-        title: TITLES[kind],
-        detail,
-        status,
-        ...stale,
-      },
-    },
-  };
+function rejected(problem: ProblemOf<"notebook.edit">): Outcome {
+  return { result: { ok: false, status: problem.status, problem } };
 }
 
 /** An independent implementation of the document edit protocol, without client draft logic. */
@@ -90,7 +63,7 @@ export function createTestHost(initial: Document) {
     string,
     {
       fingerprint: string;
-      result: Result<Protocol.EditResponseOutput>;
+      result: ResultOf<"notebook.edit">;
       expiresAt: number;
     }
   >();
@@ -103,7 +76,11 @@ export function createTestHost(initial: Document) {
     const matches = (id: Protocol.CellId, etag: string) =>
       etag === "*" || current.cells.get(id)?.etag === etag;
     const conflict = (index: number, id?: Protocol.CellId) =>
-      rejected(412, "precondition-failed", `Edit conflict at change ${index}`, {
+      rejected({
+        type: "urn:marimo:problem:precondition-failed",
+        title: "Precondition failed",
+        status: 412,
+        detail: `Edit conflict at change ${index}`,
         index,
         cell: id === undefined ? null : (current.cells.get(id) ?? null),
         document: current.revision,
@@ -118,19 +95,21 @@ export function createTestHost(initial: Document) {
               return conflict(index, id);
             }
             if (change.after !== undefined && change.before !== undefined) {
-              return rejected(
-                400,
-                "invalid-request",
-                "A cell cannot name both before and after",
-              );
+              return rejected({
+                type: "urn:marimo:problem:invalid-request",
+                title: "Invalid request",
+                status: 400,
+                detail: "A cell cannot name both before and after",
+              });
             }
             const anchor = change.after ?? change.before;
             if (anchor !== undefined && !order.includes(anchor)) {
-              return rejected(
-                400,
-                "invalid-request",
-                "The placement anchor does not exist",
-              );
+              return rejected({
+                type: "urn:marimo:problem:invalid-request",
+                title: "Invalid request",
+                status: 400,
+                detail: "The placement anchor does not exist",
+              });
             }
             const position =
               anchor === undefined
@@ -167,11 +146,12 @@ export function createTestHost(initial: Document) {
             new Set(change.order).size !== cells.size ||
             change.order.some((id) => !cells.has(id))
           ) {
-            return rejected(
-              400,
-              "invalid-request",
-              "Order must name every cell exactly once",
-            );
+            return rejected({
+              type: "urn:marimo:problem:invalid-request",
+              title: "Invalid request",
+              status: 400,
+              detail: "Order must name every cell exactly once",
+            });
           }
           order = [...change.order];
           break;
@@ -236,16 +216,22 @@ export function createTestHost(initial: Document) {
       if (receipt !== undefined && Date.now() < receipt.expiresAt) {
         return receipt.fingerprint === fingerprint
           ? { result: receipt.result }
-          : rejected(
-              409,
-              "conflict",
-              "Idempotency key was used for another request",
-            );
+          : rejected({
+              type: "urn:marimo:problem:conflict",
+              title: "Conflict",
+              status: 409,
+              detail: "Idempotency key was used for another request",
+            });
       }
       const outcome =
         request.notebookId === current.revision.notebook_id
           ? apply(request.changes)
-          : rejected(404, "not-found", "Notebook does not exist");
+          : rejected({
+              type: "urn:marimo:problem:not-found",
+              title: "Not found",
+              status: 404,
+              detail: "Notebook does not exist",
+            });
       receipts.set(request.idempotencyKey, {
         fingerprint,
         result: outcome.result,

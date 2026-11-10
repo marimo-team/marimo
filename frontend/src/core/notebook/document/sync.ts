@@ -3,7 +3,7 @@
 import {
   type ProblemOf,
   idempotencyKey,
-  type Result,
+  type ResultOf,
 } from "@marimo-team/client";
 import type * as Protocol from "@marimo-team/client/protocol";
 import { type Atom, atom, type createStore } from "jotai/vanilla";
@@ -171,7 +171,7 @@ export function createDocumentSync({
         () => controller.abort(new Error("The edit request timed out")),
         REQUEST_TIMEOUT_MS,
       );
-      let result: Result<Protocol.EditResponseOutput> | undefined;
+      let result: ResultOf<"notebook.edit"> | undefined;
       try {
         signal.throwIfAborted();
         request.controller.signal.throwIfAborted();
@@ -341,7 +341,7 @@ export function createDocumentSync({
     if (active?.problem) {
       const current = store.get(source);
       const rejectedAt =
-        "document" in active.problem
+        active.problem.type === "urn:marimo:problem:precondition-failed"
           ? active.problem.document.version
           : undefined;
       if (

@@ -2,7 +2,7 @@
 
 import * as z from "zod";
 import { type OperationId, operations } from "./operations.ts";
-import * as Protocol from "./protocol.ts";
+import { parseProblem, type Problem, type UnknownProblem } from "./problem.ts";
 
 /** How a client reaches and authenticates with a host. */
 export interface ClientOptions {
@@ -23,10 +23,7 @@ export interface ClientOptions {
  * A request throws when the host cannot be reached or when its answer is not
  * one the protocol describes.
  */
-export type Result<
-  T,
-  P = Protocol.ProblemOutput | Protocol.UnknownProblemOutput,
-> =
+export type Result<T, P = Problem> =
   | { readonly ok: true; readonly status: number; readonly data: T }
   | { readonly ok: false; readonly status: number; readonly problem: P };
 
@@ -38,7 +35,7 @@ export type Result<
  */
 export type ProblemOf<Id extends OperationId> =
   | z.output<Declared<Id>[keyof Declared<Id>][number]>
-  | Protocol.UnknownProblemOutput;
+  | UnknownProblem;
 
 type Declared<Id extends OperationId> = {
   readonly [
@@ -330,15 +327,23 @@ export async function request<
     return { ok: true, status, data };
   }
   if ((status < 200 || status >= 300) && answer.problem) {
-    const body = await answer.json();
+    const problem = parseProblem(await answer.json());
+    if (problem.status !== status) {
+      throw new Error(
+        `Problem status ${problem.status} does not match HTTP status ${status}`,
+      );
+    }
+    if (problem.type === "unknown") {
+      return { ok: false, status, problem };
+    }
     for (const schema of operation.problems[status] ?? []) {
-      const parsed = schema.safeParse(body);
+      const parsed = schema.safeParse(problem);
       if (parsed.success) {
         // SAFETY: `schema` is one the table lists for this status of `id`.
         return { ok: false, status, problem: parsed.data as ProblemOf<Id> };
       }
     }
-    return { ok: false, status, problem: Protocol.UnknownProblem.parse(body) };
+    throw new Error(`Unexpected problem ${problem.type} response to ${id}`);
   }
   throw new Error(`Unexpected ${status} response to ${id}`);
 }

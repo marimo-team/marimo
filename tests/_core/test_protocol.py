@@ -166,6 +166,37 @@ def test_json_models(path: Path) -> None:
 
 
 @pytest.mark.parametrize(
+    ("name", "field"),
+    [
+        ("precondition-failed", "index"),
+        ("precondition-failed", "cell"),
+        ("precondition-failed", "document"),
+        ("decision-required", "decisions"),
+    ],
+)
+def test_problems_require_their_type_specific_fields(
+    name: str, field: str
+) -> None:
+    value = json.loads((FIXTURES / "problems" / f"{name}.json").read_text())
+    del value[field]
+    with pytest.raises(msgspec.ValidationError, match=field):
+        msgspec.json.decode(json.dumps(value), type=protocol.Problem)
+
+
+def test_precondition_problem_requires_412_and_allows_a_missing_cell() -> None:
+    value = json.loads(
+        (FIXTURES / "problems/precondition-failed.json").read_text()
+    )
+    value["cell"] = None
+    decoded = msgspec.json.decode(json.dumps(value), type=protocol.Problem)
+    assert isinstance(decoded, protocol.PreconditionFailedProblem)
+    assert json.loads(msgspec.json.encode(decoded)) == value
+    value["status"] = 409
+    with pytest.raises(msgspec.ValidationError, match="status"):
+        msgspec.json.decode(json.dumps(value), type=protocol.Problem)
+
+
+@pytest.mark.parametrize(
     "path",
     sorted([*FIXTURES.glob("*.sse"), *EXPERIMENTAL_FIXTURES.glob("*.sse")]),
     ids=lambda path: path.name,

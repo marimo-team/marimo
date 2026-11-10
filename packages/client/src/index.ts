@@ -1,5 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
+export type { Problem, UnknownProblem } from "./problem.ts";
 export { Client } from "./client.ts";
 export type { ClientOptions } from "./request.ts";
 export {

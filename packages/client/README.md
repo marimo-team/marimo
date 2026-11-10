@@ -92,10 +92,25 @@ if (result.ok) {
 ```
 
 `ifMatch` makes the document's etag a precondition. If the document changes
-before the save, the host returns a conflict problem. Other actions, such
+before the save, the host returns a `precondition-failed` problem. Other actions, such
 as `edit` and `run`, use the same result shape. The notebook's advertised
 operations describe which actions it permits. Invalid request data,
 invalid responses, and connection failures throw.
+
+Problems form a discriminated union. Checking `type` makes the fields for that
+problem available without presence checks:
+
+```ts
+if (!result.ok && result.problem.type === "urn:marimo:problem:precondition-failed") {
+  console.log("Current document", result.problem.document.etag);
+  console.log("Stale entry", result.problem.index);
+}
+```
+
+The client represents unrecognized problem types as `type: "unknown"`, retaining
+the original type in `uri` and the common `status`, `title`, and optional `detail`
+fields. Handle these by status. Known types with missing required fields or an
+incorrect status are invalid responses and throw.
 
 You can also construct a `NotebookClient` directly when you already know
 the notebook's URL.

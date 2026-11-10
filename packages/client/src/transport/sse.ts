@@ -1,6 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import * as Protocol from "../protocol.ts";
+import { parseProblem } from "../problem.ts";
 import { type ClientOptions, isType } from "../request.ts";
 import { type Frame, type Transport, StreamStopped } from "./frame.ts";
 
@@ -130,11 +130,12 @@ export function sse(url: StreamUrl, options: SseOptions = {}): Transport {
       });
       const { status } = response;
       if (status >= 400 && status < 500 && !RETRY_STATUSES.has(status)) {
-        const problem = Protocol.Problem.or(Protocol.UnknownProblem).safeParse(
-          await response.json().catch(() => undefined),
-        );
+        const problem = await response
+          .json()
+          .then(parseProblem)
+          .catch(() => undefined);
         throw new StreamStopped(`The host refused the stream (${status})`, {
-          cause: problem.success ? problem.data : undefined,
+          cause: problem,
         });
       }
       if (!response.ok || response.body === null) {
