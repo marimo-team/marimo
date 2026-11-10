@@ -96,6 +96,52 @@ class TestExecution:
         assert not (expected_globals - set(k.globals.keys()))
         assert k.globals["success"] == 1
 
+    @pytest.mark.parametrize(
+        ("body", "result"),
+        [
+            ("x = 0\ndef value(self):\n    return x", "C().value()"),
+            ("def value(self):\n    return x\nx = 0", "C().value()"),
+            ("x = 0\nvalue = lambda self: x", "C().value()"),
+            ("x = 0\nvalues = [x for _ in (0,)]", "C.values[0]"),
+        ],
+    )
+    async def test_class_nested_scope_reacts_to_global(
+        self, k: Kernel, body: str, result: str
+    ) -> None:
+        await k.run(
+            [
+                ExecuteCellCommand(cell_id="0", code="x = 10"),
+                ExecuteCellCommand(
+                    cell_id="1",
+                    code="class C:\n"
+                    + textwrap.indent(body, "    ")
+                    + f"\nresult = {result}",
+                ),
+            ]
+        )
+        assert not k.errors
+        assert k.globals["result"] == 10
+
+        await k.run([ExecuteCellCommand(cell_id="0", code="x = 20")])
+        assert not k.errors
+        assert k.globals["result"] == 20
+
+    async def test_method_uses_cell_local_despite_class_attribute(
+        self, k: Kernel
+    ) -> None:
+        await k.run(
+            [
+                ExecuteCellCommand(
+                    cell_id="0",
+                    code="_x = 10\nclass C:\n    _x = 0\n"
+                    "    def value(self):\n        return _x",
+                ),
+                ExecuteCellCommand(cell_id="1", code="result = C().value()"),
+            ]
+        )
+        assert not k.errors
+        assert k.globals["result"] == 10
+
     async def test_triangle(self, any_kernel: Kernel) -> None:
         k = any_kernel
         # x
