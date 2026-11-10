@@ -1274,6 +1274,8 @@ def tutorial(
     config_manager = resolve_cli_config(
         current_path=path.absolute_name, overrides={}
     )
+    # Keep tutorials predictable: don't watch temporary notebook copies, and
+    # keep their console output in the terminal regardless of user defaults.
     config_manager = config_manager.with_overrides(
         {"server": {"redirect_console_to_browser": False, "watch": False}}
     )
