@@ -131,7 +131,9 @@ stream before submitting work to receive its progress and results.
 
 `notebook.interrupt()` stops active runtime work, including work without a run
 record, and ends queued runs as interrupted. It takes no runtime or run id.
-An idle runtime accepts the request without affecting future work.
+An idle `running` runtime accepts the request without affecting future work.
+An absent runtime returns `no-runtime`; a runtime that is not `running` returns
+`conflict`.
 
 `notebook.cancel({ runId })` cancels one queued or running run and leaves other
 runs untouched. Cancelling a completed run returns a conflict problem.

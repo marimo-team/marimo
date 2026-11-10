@@ -537,7 +537,7 @@ async def test_interrupt_and_cancel_have_different_queue_scope(
         else:
             method, endpoint, schema = (
                 "DELETE",
-                path + "/runtime/runs/" + run["id"],
+                path + "/runtime/runs/" + quote(run["id"], safe=""),
                 "Run",
             )
         control_key = uuid4().hex

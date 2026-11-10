@@ -935,6 +935,7 @@ async def test_a_runtime_interrupt_ends_every_run_and_signals_the_kernel_once(
     b.run(protocol.RunId("run-4"), "4", request=None)
     assert await submitted(session, 3) == ["run-1", "run-2", "run-3"]
 
+    tasks = [run.task for run in b._runs.values() if run.task]
     b.interrupt()
 
     assert session.interrupts == 1
@@ -947,10 +948,7 @@ async def test_a_runtime_interrupt_ends_every_run_and_signals_the_kernel_once(
         session.broadcast(
             CompletedRunNotification(run_id=run_id, outcome="interrupted")
         )
-    await asyncio.gather(
-        *(run.task for run in b._runs.values() if run.task),
-        return_exceptions=True,
-    )
+    await asyncio.gather(*tasks, return_exceptions=True)
 
     assert {
         m.run_id: m.outcome
