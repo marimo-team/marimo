@@ -7,6 +7,9 @@ import { waitForMarimoApp } from "./test-utils";
 
 const appUrl = getAppUrl("cells.py");
 
+// The host run endpoint, whatever notebook id and query string the URL carries.
+const isRunRequest = (url: string) => new URL(url).pathname.endsWith("/runtime/runs");
+
 test.beforeEach(async ({ page }) => {
   await page.goto(appUrl);
   await waitForMarimoApp(page);
@@ -28,11 +31,11 @@ for (const key of ["Enter", "Space"]) {
 
     const runs: string[] = [];
     page.on("request", (request) => {
-      if (request.url().endsWith("/api/kernel/run")) {
+      if (isRunRequest(request.url())) {
         runs.push(request.postData() ?? "");
       }
     });
-    const response = page.waitForResponse("**/api/kernel/run");
+    const response = page.waitForResponse((res) => isRunRequest(res.url()));
     await page.keyboard.press(key);
     expect((await response).ok()).toBe(true);
     await expect(runButton).toBeEnabled();
@@ -46,7 +49,7 @@ test("modified run shortcuts still work from a toolbar button", async ({ page })
   await cell.hover();
   await expect(runButton).toBeEnabled();
   await cell.getByTestId("cell-actions-button").focus();
-  const response = page.waitForResponse("**/api/kernel/run");
+  const response = page.waitForResponse((res) => isRunRequest(res.url()));
   await pressShortcut(page, "cell.run");
   expect((await response).ok()).toBe(true);
   await expect(page.getByPlaceholder("Search actions...")).not.toBeVisible();

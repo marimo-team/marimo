@@ -106,15 +106,6 @@ export function createNetworkRequests(): EditRequests & RunRequests {
         .POST("/api/kernel/shutdown")
         .then(handleResponseReturnNull);
     },
-    sendRun: async (request) => {
-      await waitForConnectionOpen();
-      return getClient()
-        .POST("/api/kernel/run", {
-          body: request,
-          params: getParams(),
-        })
-        .then(handleResponseReturnNull);
-    },
     sendRunScratchpad: async (request) => {
       await waitForConnectionOpen();
       return getClient()

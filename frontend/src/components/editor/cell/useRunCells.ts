@@ -4,22 +4,21 @@ import { closeCompletion } from "@codemirror/autocomplete";
 import { atom, useSetAtom } from "jotai";
 import useEvent from "react-use-event-hook";
 import { toast } from "@/components/ui/use-toast";
-import { getNotebook, type NotebookState } from "@/core/cells/cells";
+import { getNotebook } from "@/core/cells/cells";
 import { useCellActions } from "@/core/cells/actions";
 import type { CellId } from "@/core/cells/ids";
 import { enabledCellIds, staleCellIds } from "@/core/cells/utils";
 import {
   cellExecutionInputsAtom,
   cellFreshnessAtom,
-  submitCells,
-  withdrawCells,
+  runCells,
+  syncEdits,
+  waitForRuntime,
 } from "@/core/executions";
 import { getCurrentLanguageAdapter } from "@/core/codemirror/language/commands";
-import { getEditorCodeAsPython } from "@/core/codemirror/language/utils";
-import { useRequestClient } from "@/core/network/requests";
-import type { ExecuteCellsRequest } from "@/core/network/types";
 import { activeDocumentModelAtom } from "@/core/session/active-notebook";
 import { store } from "@/core/state/jotai";
+import { prettyError } from "@/utils/errors";
 import { Logger } from "@/utils/Logger";
 
 export const hasRunAnyCellAtom = atom<boolean>(false);
@@ -33,18 +32,36 @@ export function useRunStaleCells() {
     // Freshness reads the confirmed document, so an edit still in flight
     // reaches the host before the stale cells are chosen.
     const model = store.get(activeDocumentModelAtom);
+    if (model === null) {
+      return;
+    }
     try {
-      await model?.flush();
+      await waitForRuntime(store);
     } catch (error) {
       if (store.get(activeDocumentModelAtom) !== model) {
         return;
       }
-      Logger.warn("Running stale cells with unsynced edits", error);
+      Logger.warn("Stale cells not run without a runtime", error);
       toast({
-        title: "Edits not yet synced",
-        description: "Stale cells were chosen from the last synced source.",
+        title: "Failed to run",
+        description: prettyError(error),
         variant: "danger",
       });
+      return;
+    }
+    try {
+      await syncEdits(model);
+    } catch (error) {
+      if (store.get(activeDocumentModelAtom) !== model) {
+        return;
+      }
+      Logger.warn("Stale cells not run with unsynced edits", error);
+      toast({
+        title: "Edits not yet synced",
+        description: "Stale cells were not run. Retry once the edits sync.",
+        variant: "danger",
+      });
+      return;
     }
     // The request was for the notebook that was open when it was made.
     if (store.get(activeDocumentModelAtom) !== model) {
@@ -82,78 +99,34 @@ export function useRunAllCells() {
 }
 
 /**
- * Creates a function that runs the given cells.
+ * Creates a function that runs the given cells through the host.
+ *
+ * The editor settles each cell first: an open completion closes and the
+ * debugger view clears, as they would on any run.
  */
 export function useRunCells() {
   const { prepareForRun } = useCellActions();
-  const { sendRun } = useRequestClient();
   const setHasRunAnyCell = useSetAtom(hasRunAnyCellAtom);
 
   const runCellsMemoized = useEvent(async (cellIds: CellId[]) => {
     if (cellIds.length === 0) {
       return;
     }
-
-    const notebook = getNotebook();
-
     // Set a flag that a user has manually run at least one cell.
     setHasRunAnyCell(true);
 
-    return runCells({ cellIds, sendRun, prepareForRun, notebook });
+    const { cellHandles } = getNotebook();
+    for (const cellId of cellIds) {
+      const ev = cellHandles[cellId]?.current?.editorView;
+      // Skip close on markdown, since we autorun, otherwise we'll close the
+      // completion each time.
+      if (ev && getCurrentLanguageAdapter(ev) !== "markdown") {
+        closeCompletion(ev);
+      }
+      prepareForRun({ cellId });
+    }
+    return runCells(store, cellIds);
   });
 
   return runCellsMemoized;
-}
-
-export async function runCells({
-  cellIds,
-  sendRun,
-  prepareForRun,
-  notebook,
-}: {
-  cellIds: CellId[];
-  sendRun: (request: ExecuteCellsRequest) => Promise<null>;
-  prepareForRun: (action: { cellId: CellId }) => void;
-  notebook: NotebookState;
-}) {
-  if (cellIds.length === 0) {
-    return;
-  }
-
-  const { cellHandles, cellData } = notebook;
-
-  const codes: string[] = [];
-  for (const cellId of cellIds) {
-    const ref = cellHandles[cellId];
-    const ev = ref?.current?.editorView;
-    let code: string;
-    // Performs side-effects that must run whenever the cell is run, but doesn't
-    // actually run the cell.
-    if (ev) {
-      // Skip close on markdown, since we autorun, otherwise we'll close the
-      // completion each time.
-      if (getCurrentLanguageAdapter(ev) !== "markdown") {
-        closeCompletion(ev);
-      }
-      // Prefer code from editor
-      code = getEditorCodeAsPython(ev);
-    } else {
-      code = cellData[cellId]?.code || "";
-    }
-
-    codes.push(code);
-    prepareForRun({ cellId });
-  }
-  // The kernel sets a disabled cell aside without planning an execution,
-  // so a submission for it would never be superseded.
-  submitCells(
-    store,
-    cellIds.filter((cellId) => !cellData[cellId]?.config.disabled),
-  );
-
-  // TODO(MO-8346): Submit through the host's `runtime.run`.
-  await sendRun({ cellIds: cellIds, codes: codes }).catch((error) => {
-    withdrawCells(store, cellIds);
-    Logger.error(error);
-  });
 }

@@ -14,6 +14,7 @@ const knownQueryParams = new Set(Object.values(KnownQueryParams));
 
 export class RuntimeManager {
   private initialHealthyCheck = new Deferred<void>();
+  private starting: Promise<void> | undefined;
   private config: RuntimeConfig;
   private lazy: boolean;
 
@@ -47,7 +48,7 @@ export class RuntimeManager {
     return this.httpURL.origin === window.location.origin;
   }
 
-  private get isServerless(): boolean {
+  public get isServerless(): boolean {
     return isWasm() || isIslands() || isStaticNotebook();
   }
 
@@ -343,6 +344,25 @@ export class RuntimeManager {
    */
   public async waitForHealthy(): Promise<void> {
     return this.initialHealthyCheck.promise;
+  }
+
+  /**
+   * Start the runtime once and wait until it is healthy.
+   *
+   * A run, the connect button, and the notebook stream can each ask for
+   * the runtime, so the first call starts it and later calls join that
+   * attempt. An attempt that gave up is forgotten, so the next call tries
+   * again instead of failing on the old result.
+   */
+  public start(): Promise<void> {
+    this.starting ??= this.init()
+      .then(() => this.waitForHealthy())
+      .catch((error: unknown) => {
+        this.starting = undefined;
+        this.initialHealthyCheck = new Deferred<void>();
+        throw error;
+      });
+    return this.starting;
   }
 
   public headers(): KnownHeaders {

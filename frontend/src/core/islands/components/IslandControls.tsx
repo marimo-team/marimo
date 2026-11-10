@@ -1,11 +1,13 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
+import { useAtomValue, useStore } from "jotai";
 import { CopyIcon, PlayIcon } from "lucide-react";
 import type { JSX } from "react";
 import { Button } from "@/components/ui/button";
 import { Tooltip } from "@/components/ui/tooltip";
 import type { CellId } from "@/core/cells/ids";
-import { useRequestClient } from "@/core/network/requests";
+import { runCells } from "@/core/executions";
+import { activeDocumentModelAtom } from "@/core/session/active-notebook";
 import { copyToClipboard } from "@/utils/copy";
 import { Logger } from "@/utils/Logger";
 
@@ -66,21 +68,27 @@ export const IslandControls: React.FC<IslandControlsProps> = ({
   codeCallback,
   visible,
 }) => {
-  const { sendRun } = useRequestClient();
+  const store = useStore();
+  const model = useAtomValue(activeDocumentModelAtom);
 
   const handleCopy = () => {
     copyToClipboard(codeCallback());
   };
 
+  // The island's editor is a UI element, so its code reaches the document
+  // here rather than through an editor binding.
   const handleRun = async () => {
-    try {
-      await sendRun({
-        cellIds: [cellId],
-        codes: [codeCallback()],
-      });
-    } catch (error) {
-      Logger.error("Failed to run cell:", error);
+    if (model === null) {
+      return;
     }
+    const code = codeCallback();
+    try {
+      store.set(model.editAtom, (tx) => tx.setCode(cellId, code));
+    } catch (error) {
+      Logger.error("The island's cell is not in the document", error);
+      return;
+    }
+    await runCells(store, [cellId]);
   };
 
   return (
