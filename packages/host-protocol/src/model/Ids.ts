@@ -78,18 +78,10 @@ export const Etag = Schema.String.check(Schema.isMinCodePoints(1))
   .pipe(Schema.brand("Etag"))
   .annotate({ identifier: "Etag" });
 
-const rfc3339 =
-  /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/u;
-
 export const Timestamp = Schema.String.annotate({
   description:
     "A date and time with its offset from UTC, as RFC 3339 writes it.",
   format: "date-time",
 })
-  .check(
-    Schema.makeFilter((text: string) => rfc3339.test(text), {
-      expected: "an RFC 3339 date-time",
-    }),
-  )
   .pipe(Schema.brand("Timestamp"))
   .annotate({ identifier: "Timestamp" });

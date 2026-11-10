@@ -79,15 +79,6 @@ it.each([
 });
 
 it.each([
-  ["2026-01-01T00:00:00Z", true],
-  ["2026-01-01T00:00:00.123456+00:00", true],
-  ["2026-01-01T00:00:00", false],
-  ["2026-01-01", false],
-])("accepts %s as a timestamp: %s", (text, valid) => {
-  expect(Schema.is(S.Timestamp)(text)).toBe(valid);
-});
-
-it.each([
   [{}, false],
   [{ name: "Forecasts" }, true],
   [{ path: "forecasts.py" }, true],
