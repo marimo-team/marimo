@@ -303,7 +303,9 @@ def test_complex_exclamation_mark():
 
 def test_transform_exclamation_mark_skips_pip_option_values():
     # pip option values must not be recorded as packages (#11788)
-    result = transform_exclamation_mark(["!pip install -r requirements.txt numpy"])
+    result = transform_exclamation_mark(
+        ["!pip install -r requirements.txt numpy"]
+    )
     assert result.pip_packages == ["numpy"]
 
     result = transform_exclamation_mark(
