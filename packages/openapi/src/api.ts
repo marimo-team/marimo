@@ -2385,47 +2385,6 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  "/api/kernel/run": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    post: {
-      parameters: {
-        query?: never;
-        header: {
-          "Marimo-Session-Id": string;
-        };
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: {
-        content: {
-          "application/json": components["schemas"]["ExecuteCellsRequest"];
-        };
-      };
-      responses: {
-        /** @description Run a cell. Updates cell code in the kernel if needed; registers new cells for unseen cell IDs. Only allowed in edit mode. */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": components["schemas"]["SuccessResponse"];
-          };
-        };
-      };
-    };
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
   "/api/kernel/save_app_config": {
     parameters: {
       query?: never;
@@ -4941,13 +4900,6 @@ export interface components {
       timestamp?: number;
       /** @enum {unknown} */
       type: "execute-cells";
-    };
-    /** ExecuteCellsRequest */
-    ExecuteCellsRequest: {
-      cellIds: components["schemas"]["CellId"][];
-      codes: string[];
-      /** @default null */
-      request?: components["schemas"]["HTTPRequest"] | null;
     };
     /**
      * ExecuteScratchpadCommand
