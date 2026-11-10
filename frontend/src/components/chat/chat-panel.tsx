@@ -356,7 +356,7 @@ const ChatInput: React.FC<ChatInputProps> = memo(
             onSubmit={onSubmit}
             onClose={onClose}
             onAddFiles={onAddFiles}
-            placeholder="Type your message. Use @ to reference variables and cells."
+            placeholder="Ask anything. Use @ to reference variables and cells."
             placeholderAction={placeholderAction}
           />
         </div>
