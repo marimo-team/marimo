@@ -13,9 +13,10 @@ from starlette.routing import Route
 
 from marimo import _loggers
 from marimo._core import operations, protocol
-from marimo._core.calls import CALLS, dispatch
+from marimo._core.calls import CALLS, InputCall, dispatch
 from marimo._core.errors import HostError
 from marimo._core.operations import Reply
+from marimo._messaging.notification import ConsumerCapabilities
 from marimo._runtime.commands import HTTPRequest
 from marimo._server.api.deps import AppState
 from marimo._server.host.auth import bearer_matches
@@ -174,7 +175,7 @@ def editor_notebook_routes(prefix: str) -> list[Route]:
     return [
         Route(
             prefix + kind.PATH,
-            _editor_endpoint(_endpoint(kind)),
+            _editor_endpoint(kind),
             methods=[kind.METHOD],
         )
         for kind in CALLS
@@ -182,8 +183,10 @@ def editor_notebook_routes(prefix: str) -> list[Route]:
 
 
 def _editor_endpoint(
-    serve: Callable[[Request], Awaitable[Response]],
+    kind: type[OperationCall],
 ) -> Callable[[Request], Awaitable[Response]]:
+    serve = _endpoint(kind)
+
     async def handle(request: Request) -> Response:
         # The editor's middleware has already authenticated the request.
         scopes = request.auth.scopes
@@ -193,7 +196,7 @@ def _editor_endpoint(
             return problem(
                 403, "forbidden", "This editor cannot edit notebooks"
             )
-        if not _connection_may_edit(request):
+        if not _connection_may_call(request, kind):
             return problem(
                 403,
                 "forbidden",
@@ -204,18 +207,12 @@ def _editor_endpoint(
     return handle
 
 
-def _connection_may_edit(request: Request) -> bool:
-    """Whether the connection named by `Marimo-Session-Id`, if any, may edit.
+def _connection_may_call(request: Request, kind: type[OperationCall]) -> bool:
+    """Whether the connection may issue this notebook operation.
 
-    Every notebook operation mutates the notebook or its kernel, and the host
-    submits them as system-originated, so the session's chokepoint does not
-    see which connection asked. This check stands in for it on the editor
-    route: a viewer or kiosk tab of an authenticated user is refused, while
-    a request that names no connection acts on its scope alone. A connection
-    that is not in its session's room counts as a viewer.
+    Host commands are system-originated, so enforce connection capabilities
+    here. Headerless requests rely on the editor's scope alone.
     """
-    from marimo._messaging.notification import ConsumerCapabilities
-
     app_state = AppState(request)
     session_id = app_state.get_current_session_id()
     if session_id is None:
@@ -229,4 +226,4 @@ def _connection_may_edit(request: Request) -> bool:
         if consumer is not None
         else ConsumerCapabilities.VIEWER
     )
-    return capabilities.edit
+    return capabilities.interact if kind is InputCall else capabilities.edit
