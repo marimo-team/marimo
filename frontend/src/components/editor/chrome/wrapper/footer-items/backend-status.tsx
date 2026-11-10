@@ -10,7 +10,6 @@ import { useRuntimeManager } from "@/core/runtime/config";
 import { store } from "@/core/state/jotai";
 import { isWasm } from "@/core/wasm/utils";
 import {
-  isAppClosing,
   isAppConnected,
   isAppConnecting,
   isAppNotStarted,
@@ -100,10 +99,6 @@ export const BackendConnectionStatus: React.FC = () => {
   const getStatusIcon = () => {
     if (isFetching || isAppConnecting(connection)) {
       return <Spinner size="small" />;
-    }
-
-    if (isAppClosing(connection)) {
-      return <Spinner className="text-destructive" size="small" />;
     }
 
     if (isAppConnected(connection)) {
