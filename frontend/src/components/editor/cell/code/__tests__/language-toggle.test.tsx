@@ -73,12 +73,14 @@ describe("LanguageToggle", () => {
         </TooltipProvider>,
       );
 
-      fireEvent.click(screen.getByRole("button", { name: "SQL" }));
+      const toggleButtons = screen.getAllByTestId("language-toggle-button");
+
+      fireEvent.click(toggleButtons[0]);
 
       expect(onAfterToggleSQL).toHaveBeenCalledOnce();
       expect(onAfterToggleMarkdown).not.toHaveBeenCalled();
 
-      fireEvent.click(screen.getByRole("button", { name: "Markdown" }));
+      fireEvent.click(toggleButtons[1]);
 
       expect(onAfterToggleMarkdown).toHaveBeenCalledOnce();
       expect(onAfterToggleSQL).toHaveBeenCalledOnce();
