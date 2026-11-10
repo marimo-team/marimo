@@ -4736,6 +4736,92 @@ async def test_annotation_shadowed_by_parameter_reruns(
     assert k.globals["result"] == {annotation_name: str}
 
 
+@pytest.mark.skipif(
+    sys.version_info >= (3, 14),
+    reason="Python 3.14 disallows assignment expressions in annotations",
+)
+@pytest.mark.parametrize(
+    "signature",
+    [
+        "(x: (y := int))",
+        "() -> (y := int)",
+        "(x: [(y := int) for _ in range(1)])",
+        "(x: (lambda z=(y := int): z)())",
+    ],
+)
+async def test_annotation_walrus_defines_dependency(
+    k: Kernel, exec_req: ExecReqProvider, signature: str
+) -> None:
+    definition = exec_req.get(f"def f{signature}: pass")
+    dependent = exec_req.get("result = y")
+    await k.run([dependent, definition])
+    assert not k.errors
+    assert k.globals["result"] is int
+    assert k.graph.cells[definition.cell_id].defs == {"f", "y"}
+    assert k.graph.cells[dependent.cell_id].refs == {"y"}
+    assert k.graph.parents[dependent.cell_id] == {definition.cell_id}
+    assert not k.graph.cells[dependent.cell_id].stale
+    k.graph.set_stale({definition.cell_id})
+    assert k.graph.cells[dependent.cell_id].stale
+
+
+@pytest.mark.skipif(
+    sys.version_info >= (3, 14),
+    reason="Python 3.14 disallows assignment expressions in annotations",
+)
+@pytest.mark.parametrize(
+    "code",
+    [
+        "def f(x: (_y := int)): pass\nresult = _y",
+        (
+            "def outer():\n"
+            "    def f(x: (y := int)): pass\n"
+            "    return y\n"
+            "result = outer()"
+        ),
+        (
+            "class C:\n"
+            "    def f(self, x: (y := int)): pass\n"
+            "    seen = y\n"
+            "result = C.seen"
+        ),
+    ],
+    ids=["cell-local", "function", "class"],
+)
+async def test_annotation_walrus_respects_enclosing_scope(
+    k: Kernel, exec_req: ExecReqProvider, code: str
+) -> None:
+    native_globals: dict[str, object] = {}
+    exec(compile(code, "<native>", "exec", dont_inherit=True), native_globals)
+    definition = exec_req.get(code)
+    await k.run([definition])
+    assert not k.errors
+    assert k.globals["result"] is native_globals["result"] is int
+    assert k.graph.cells[definition.cell_id].refs == {"int"}
+
+
+async def test_annotation_walrus_in_lambda_stays_local(
+    k: Kernel, exec_req: ExecReqProvider
+) -> None:
+    definition = exec_req.get("y = int")
+    dependent = exec_req.get(
+        "def f(x: (lambda: (y := str))()): pass\n"
+        "annotation = f.__annotations__['x']\n"
+        "result = y"
+    )
+    await k.run([dependent, definition])
+    assert not k.errors
+    assert k.globals["result"] is int
+    assert k.globals["annotation"] is str
+    assert k.graph.cells[dependent.cell_id].defs == {
+        "f",
+        "annotation",
+        "result",
+    }
+    assert k.graph.cells[dependent.cell_id].refs == {"str", "y"}
+    assert k.graph.parents[dependent.cell_id] == {definition.cell_id}
+
+
 class TestMarkdownHandling:
     """Test markdown cell handling during kernel instantiation."""
 

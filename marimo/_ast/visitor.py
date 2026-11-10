@@ -992,15 +992,18 @@ class ScopedVisitor(ast.NodeVisitor):
     def visit_NamedExpr(self, node: ast.NamedExpr) -> ast.NamedExpr:
         self.visit(node.value)
         current_scope = self.block_stack[-1].scope_kind
-        if current_scope is LexicalScope.COMPREHENSION and isinstance(
-            node.target, ast.Name
-        ):
+        if current_scope in (
+            LexicalScope.COMPREHENSION,
+            LexicalScope.ANNOTATION,
+        ) and isinstance(node.target, ast.Name):
             for block_idx, block in reversed(
                 list(enumerate(self.block_stack))
             ):
-                # go up the block stack until we find the first
-                # non-comprehension block
-                if block.scope_kind is not LexicalScope.COMPREHENSION:
+                # Annotation and comprehension scopes do not own walrus bindings.
+                if block.scope_kind not in (
+                    LexicalScope.COMPREHENSION,
+                    LexicalScope.ANNOTATION,
+                ):
                     node.target.id = self._if_local_then_mangle(
                         node.target.id,
                         ignore_scope=(block == self.block_stack[0]),
