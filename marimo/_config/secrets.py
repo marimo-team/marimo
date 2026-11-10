@@ -27,6 +27,12 @@ def redact_secrets(config: MarimoConfig) -> MarimoConfig:
 
 @cache
 def _sensitive_paths(annotation: Any) -> tuple[tuple[str, ...], ...]:
+    """Find paths marked `sensitive` in schema metadata, including union variants.
+
+    Paths use encoded field names and `*` for every dictionary value or list
+    element. An empty path means the annotated value itself is sensitive;
+    an empty result means no sensitive fields were found.
+    """
     origin = get_origin(annotation)
     args = get_args(annotation)
     if origin is Annotated:
