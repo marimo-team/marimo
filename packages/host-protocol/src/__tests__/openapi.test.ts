@@ -47,6 +47,19 @@ it("puts descriptions beside their schemas and names each problem", () => {
     status: { type: "integer", enum: [404], default: 404 },
     title: { type: "string", default: "Not found" },
   });
+  for (const [name, schema] of Object.entries(schemas)) {
+    if (
+      !name.endsWith("Problem") ||
+      name === "Problem" ||
+      name === "UnknownProblem"
+    ) {
+      continue;
+    }
+    expect(schema.properties).toMatchObject({
+      status: { type: "integer", default: expect.any(Number) },
+      title: { type: "string", default: expect.any(String) },
+    });
+  }
 });
 
 it("lists the problems each route can answer with", () => {
