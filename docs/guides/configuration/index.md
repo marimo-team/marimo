@@ -126,30 +126,45 @@ cookie settings take effect when the server starts.
 
 ## Cross-site session cookies
 
-For authenticated HTTPS embeds, enable partitioned cookies (CHIPS) in your configuration:
+When you embed marimo in an iframe on another site, authentication can fail inside
+the embed. For example, a notebook inside your docs or dashboard can lose access
+to its session cookie because the browser blocks cross-site cookies.
+
+Partitioned cookies ([CHIPS](https://developer.mozilla.org/en-US/docs/Web/Privacy/Guides/Third-party_cookies/Partitioned_cookies))
+let compatible browsers accept the cookie and store it separately for each
+embedding site.
+
+Enable partitioned cookies in your configuration:
 
 ```toml
 [server]
 session_cookie_partitioned = true
 ```
 
-Alternatively, set `MARIMO_SERVER_SESSION_COOKIE_PARTITIONED=true` before server startup.
-The default is `false`. This option sets `HttpOnly; SameSite=None; Secure; Partitioned`
-on session cookies, including cookie deletion responses.
+Alternatively, set `MARIMO_SERVER_SESSION_COOKIE_PARTITIONED=true` before you
+start the server. The default is `false`, and the feature requires HTTPS.
 
-The browser stores cookies separately for each top-level site. To authenticate in
-a separate kernel tab, open the URL with its access token.
+With partitioned cookies enabled, marimo sets and deletes the session cookie with
+`HttpOnly; SameSite=None; Secure; Partitioned`. Each embedding site gets its own
+session cookie. To authenticate in a separate kernel tab, open the URL with its
+access token. If a browser blocks all cookies, use a client that sends an explicit
+token with each request.
 
-With partitioned cookies enabled, cookie authentication requires the kernel's HTTPS
-Origin for WebSockets and state-changing HTTP requests. TLS proxies must preserve
-the public `Host`, including the port. For tunnels, configure `--allow-origins` with the public kernel origin.
-Forwarded host headers do not affect the cookie Origin check. Non-browser clients
-can omit Origin unless Fetch Metadata indicates a cross-origin request.
-Explicit tokens can authenticate HTTP requests independently of cookies.
+Because these cookies support cross-site requests, marimo checks the origin of
+cookie-authenticated WebSocket connections and state-changing HTTP requests.
+With partitioned cookies enabled, these browser requests must come from the
+kernel's public HTTPS origin.
+
+If marimo runs behind a proxy or tunnel, configure it to expose that origin:
+
+- **TLS proxy:** pass through the public `Host` header, including the port. Forwarded host headers do not affect the cookie origin check.
+- **Tunnel:** set `--allow-origins` to the public kernel origin.
+
+Non-browser clients can omit `Origin` unless Fetch Metadata indicates a cross-origin
+request. Explicit tokens can authenticate HTTP requests independently of cookies.
 
 Browsers without CHIPS support can treat these cookies as ordinary cross-site
-cookies. The Origin check still applies. Browsers that block all cookies require
-a client that sends an explicit token on each request.
+cookies. The origin check still applies.
 
 ## Notebook settings
 
