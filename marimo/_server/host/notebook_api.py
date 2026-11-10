@@ -19,6 +19,7 @@ from marimo._core.operations import Reply
 from marimo._runtime.commands import HTTPRequest
 from marimo._server.api.deps import AppState
 from marimo._server.host.auth import bearer_matches
+from marimo._types.ids import ConsumerId
 
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable
@@ -186,12 +187,46 @@ def _editor_endpoint(
     async def handle(request: Request) -> Response:
         # The editor's middleware has already authenticated the request.
         scopes = request.auth.scopes
-        if "edit" in scopes:
-            return await serve(request)
-        if scopes:
+        if not scopes:
+            return problem(401, "unauthorized", "Sign in to the editor")
+        if "edit" not in scopes:
             return problem(
                 403, "forbidden", "This editor cannot edit notebooks"
             )
-        return problem(401, "unauthorized", "Sign in to the editor")
+        if not _connection_may_edit(request):
+            return problem(
+                403,
+                "forbidden",
+                "This connection is read-only for this action.",
+            )
+        return await serve(request)
 
     return handle
+
+
+def _connection_may_edit(request: Request) -> bool:
+    """Whether the connection named by `Marimo-Session-Id`, if any, may edit.
+
+    Every notebook operation mutates the notebook or its kernel, and the host
+    submits them as system-originated, so the session's chokepoint does not
+    see which connection asked. This check stands in for it on the editor
+    route: a viewer or kiosk tab of an authenticated user is refused, while
+    a request that names no connection acts on its scope alone. A connection
+    that is not in its session's room counts as a viewer.
+    """
+    from marimo._messaging.notification import ConsumerCapabilities
+
+    app_state = AppState(request)
+    session_id = app_state.get_current_session_id()
+    if session_id is None:
+        return True
+    session = app_state.get_current_session()
+    if session is None:
+        return False
+    consumer = session.room.get_consumer(ConsumerId(session_id))
+    capabilities = (
+        session.room.get_capabilities(consumer)
+        if consumer is not None
+        else ConsumerCapabilities.VIEWER
+    )
+    return capabilities.edit

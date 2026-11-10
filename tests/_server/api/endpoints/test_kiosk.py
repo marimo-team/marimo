@@ -102,6 +102,42 @@ async def test_connect_kiosk_with_session(client: TestClient) -> None:
             assert data["data"]["cell_id"] == "cell-3"
 
 
+def test_kiosk_connection_cannot_edit_or_run_through_the_host(
+    client: TestClient,
+) -> None:
+    with client.websocket_connect(
+        "/ws?session_id=123", headers=_HEADERS
+    ) as editor:
+        notebook_id = notebook_id_of(socket_snapshot(editor))
+        assert_kernel_ready_response(receive_notification(editor))
+        with client.websocket_connect(
+            "/ws?session_id=456&kiosk=true", headers=_HEADERS
+        ) as kiosk:
+            receive_until("kernel-ready", kiosk)
+            base = f"/api/marimo/v1/notebooks/{notebook_id}"
+            for connection in ("456", "never-connected"):
+                headers = {**HEADERS, "Marimo-Session-Id": connection}
+                edited = client.post(
+                    f"{base}/edits",
+                    headers={
+                        **headers,
+                        "Idempotency-Key": f"edit-{connection}",
+                    },
+                    json={"changes": [new_cell("fresh")]},
+                )
+                assert edited.status_code == 403, edited.text
+                assert edited.json()["type"].endswith("/forbidden")
+                ran = client.post(
+                    f"{base}/runtime/runs",
+                    headers={
+                        **headers,
+                        "Idempotency-Key": f"run-{connection}",
+                    },
+                    json={"cells": [{"id": "cell-1"}]},
+                )
+                assert ran.status_code == 403, ran.text
+
+
 def test_second_edit_connection_joins_as_viewer(client: TestClient) -> None:
     with client.websocket_connect(
         "/ws?session_id=ed1", headers=_HEADERS
