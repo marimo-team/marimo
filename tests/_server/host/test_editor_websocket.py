@@ -194,11 +194,9 @@ def test_reconnect_keeps_state_and_refresh_replays_it(
             assert event["event"] == "marimo"
             notification = event["data"]["marimo"]
             assert notification["op"] not in ("kernel-ready", "cell-op")
-            if notification["op"] == "reconnected":
+            if notification["op"] == "alert":
                 break
-        assert (
-            receive_notification(websocket, "alert")["title"] == "Reconnected"
-        )
+        assert notification["title"] == "Reconnected"
         cell = receive_notification(websocket, "cell-op")
         assert cell["cell_id"] == cell_id
         assert "retained output" in str(cell["console"])
@@ -259,7 +257,7 @@ def test_reconnect_recovers_offline_notifications(
         assert [event["event"] for event in opening] == (
             ["reset", "ready"] if replay == "reset" else ["ready"]
         )
-        receive_notification(socket, "reconnected")
+        assert receive_notification(socket, "alert")["title"] == "Reconnected"
         client.portal.call(
             session.notify,
             AlertNotification(title="marker", description=""),
@@ -459,7 +457,6 @@ def test_editor_resumes_host_events_without_replaying_private_notifications(
             "type": "test.missed",
             "data": {"text": "replayed"},
         }
-        receive_notification(socket, "reconnected")
         assert receive_notification(socket, "alert")["title"] == "Reconnected"
 
 
@@ -509,7 +506,9 @@ def test_untitled_editor_bootstraps_and_reconnects_with_host_events(
                 receive_notification(ws, "completed-run")
             with client.websocket_connect(url) as ws:
                 snapshot = socket_snapshot(ws)
-                receive_notification(ws, "reconnected")
+                assert (
+                    receive_notification(ws, "alert")["title"] == "Reconnected"
+                )
                 assert (
                     next(
                         e["data"]["notebook"]["id"]

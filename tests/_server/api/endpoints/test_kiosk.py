@@ -220,10 +220,6 @@ def test_refresh_resumes_as_editor(client: TestClient) -> None:
     with client.websocket_connect(
         "/ws?session_id=ed2", headers=_HEADERS
     ) as refreshed:
-        assert receive_notification(refreshed) == {
-            "op": "reconnected",
-            "data": {"op": "reconnected"},
-        }
         assert_kernel_ready_response(
             receive_until("kernel-ready", refreshed),
             create_response(

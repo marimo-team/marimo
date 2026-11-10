@@ -6379,7 +6379,6 @@ export interface components {
       | components["schemas"]["ModelLifecycleNotification"]
       | components["schemas"]["RemoveUIElementsNotification"]
       | components["schemas"]["ReloadNotification"]
-      | components["schemas"]["ReconnectedNotification"]
       | components["schemas"]["InterruptedNotification"]
       | components["schemas"]["CompletedRunNotification"]
       | components["schemas"]["KernelReadyNotification"]
@@ -6715,14 +6714,6 @@ export interface components {
     /** RecentFilesResponse */
     RecentFilesResponse: {
       files: components["schemas"]["MarimoFile"][];
-    };
-    /**
-     * ReconnectedNotification
-     * @description WebSocket reconnection confirmed.
-     */
-    ReconnectedNotification: {
-      /** @enum {unknown} */
-      op: "reconnected";
     };
     /**
      * ReloadNotification

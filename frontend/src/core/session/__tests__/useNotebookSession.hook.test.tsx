@@ -432,34 +432,31 @@ it("does not mark a static page connected", async () => {
   }
 });
 
-it.each(["kernel-ready", "reconnected"])(
-  "does not mark the session connected on %s alone",
-  async (op) => {
-    const store = createStore();
-    store.set(connectionAtom, { state: ConnectionState.CONNECTING });
-    const fake = withTransport();
-    vi.mocked(useRuntimeManager).mockReturnValue(makeRuntimeManager());
-    renderConnectionHook(store);
-    await started();
-    const conn = connection(fake);
-    await act(async () => conn.open());
+it("does not mark the session connected on kernel-ready alone", async () => {
+  const store = createStore();
+  store.set(connectionAtom, { state: ConnectionState.CONNECTING });
+  const fake = withTransport();
+  vi.mocked(useRuntimeManager).mockReturnValue(makeRuntimeManager());
+  renderConnectionHook(store);
+  await started();
+  const conn = connection(fake);
+  await act(async () => conn.open());
 
-    act(() =>
-      conn.send({
-        op,
-        layout: null,
-        resumed: true,
-        ui_values: {},
-        app_config: { width: "normal" },
-        kiosk: false,
-        capabilities: { terminal: false },
-        auto_instantiated: false,
-        consumer_capabilities: { edit: true, interact: true },
-      }),
-    );
-    expect(store.get(connectionAtom).state).toBe(ConnectionState.CONNECTING);
-  },
-);
+  act(() =>
+    conn.send({
+      op: "kernel-ready",
+      layout: null,
+      resumed: true,
+      ui_values: {},
+      app_config: { width: "normal" },
+      kiosk: false,
+      capabilities: { terminal: false },
+      auto_instantiated: false,
+      consumer_capabilities: { edit: true, interact: true },
+    }),
+  );
+  expect(store.get(connectionAtom).state).toBe(ConnectionState.CONNECTING);
+});
 
 describe("connection notice", () => {
   beforeEach(() => vi.useFakeTimers());
