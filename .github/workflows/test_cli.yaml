@@ -133,7 +133,7 @@ jobs:
           npm install --ignore-scripts pyodide@$pyodide_version
           wheel_file=$(ls dist/*.whl)
           echo "Testing wheel: $wheel_file"
-          node tests/_pyodide/test_pyodide_acceptance.mjs "$wheel_file"
+          node --experimental-wasm-jspi tests/_pyodide/test_pyodide_acceptance.mjs "$wheel_file"
 
   test_cli:
     needs: [changes, build_wheel]

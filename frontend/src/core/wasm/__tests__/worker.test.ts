@@ -79,6 +79,7 @@ async function startWorker(subscribing = Promise.resolve()) {
     unsubscribe: (id: string) => subscribers.delete(id),
     set_persistence: vi.fn(),
     set_package_loader: vi.fn(),
+    allow_input: vi.fn(),
     destroy: vi.fn(),
   };
   const bridge = { notebook, destroy: vi.fn() };
@@ -129,6 +130,8 @@ it("delivers startup notifications after a delayed first subscription, without r
     expect(notebook.set_persistence).toHaveBeenCalledExactlyOnceWith(
       expect.any(Function),
     );
+    // The editor's user can answer a prompt, so its runs may ask for one.
+    expect(notebook.allow_input).toHaveBeenCalledExactlyOnceWith(true);
     expect(pyodide.loadPackagesFromImports).toHaveResolved();
     expect(init).not.toHaveBeenCalled();
 

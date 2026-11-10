@@ -68,13 +68,12 @@ def test_calls_match_the_spec() -> None:
         if isinstance(operation, dict) and "operationId" in operation
     }
     assert set(get_args(OperationCall)) == set(CALLS)
-    # TODO: Remove the runtime.input exclusion when its host implementation lands.
     assert {kind.__struct_config__.tag for kind in CALLS} == {
         operation_id
         for operation_id in specified
         if operation_id.startswith("runtime.")
         or operation_id in {"notebook.edit", "notebook.save"}
-    } - {"runtime.input"}
+    }
 
     for kind in CALLS:
         method, path, item, operation = specified[

@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING
 from msgspec.structs import replace
 
 from marimo._core import backend as be, protocol
-from marimo._core.errors import NoRuntime
+from marimo._core.errors import Conflict, NoRuntime, NotFound
 from marimo._core.stream import utcnow
 
 if TYPE_CHECKING:
@@ -54,6 +54,7 @@ class _Result:
     variables: dict[protocol.ItemId, protocol.Variable] = field(
         default_factory=dict
     )
+    inputs: dict[protocol.ItemId, protocol.Input] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -67,6 +68,14 @@ class Removed:
         | protocol.Variable
     ]
     id: str
+    run_id: protocol.RunId | None
+
+
+@dataclass(frozen=True)
+class InputChanged:
+    """An input update, routable even when its execution is released."""
+
+    input: protocol.Input
     run_id: protocol.RunId | None
 
 
@@ -86,8 +95,9 @@ Record = (
     | protocol.Console
     | protocol.Display
     | protocol.Variable
+    | protocol.Input
 )
-Change = Record | Removed | Released
+Change = Record | Removed | Released | InputChanged
 
 
 def _settled(outcome: protocol.Outcome | None) -> bool:
@@ -206,16 +216,19 @@ class Executions:
                     for item in (
                         *result.outputs.values(),
                         *result.variables.values(),
+                        *result.inputs.values(),
                     )
                 ),
             ]
         )
 
-    def run_id_of(self, change: Record | Removed) -> protocol.RunId | None:
+    def run_id_of(
+        self, change: Record | Removed | InputChanged
+    ) -> protocol.RunId | None:
         """Resolve a record or removal to the run it belongs to."""
         if isinstance(change, protocol.Run):
             return change.id
-        if isinstance(change, (protocol.Execution, Removed)):
+        if isinstance(change, (protocol.Execution, Removed, InputChanged)):
             return change.run_id
         return self._results[change.execution_id].execution.run_id
 
@@ -232,6 +245,41 @@ class Executions:
         return None
 
     # ---- transitions ---------------------------------------------------
+
+    def pending_input(self, input_id: protocol.ItemId) -> protocol.Input:
+        for result in self._results.values():
+            if (item := result.inputs.get(input_id)) is not None:
+                if item.status != "pending":
+                    raise Conflict(f"input {input_id} is {item.status}.")
+                return item
+        raise NotFound(f"no input {input_id}.")
+
+    def answer(self, item: protocol.Input) -> protocol.Input:
+        answered = replace(item, status="answered")
+        self._results[item.execution_id].inputs[item.id] = answered
+        return answered
+
+    @staticmethod
+    def _cancel_inputs(result: _Result) -> list[InputChanged]:
+        cancelled = [
+            replace(item, status="cancelled")
+            for item in result.inputs.values()
+            if item.status == "pending"
+        ]
+        result.inputs.update((item.id, item) for item in cancelled)
+        return [
+            InputChanged(item, result.execution.run_id) for item in cancelled
+        ]
+
+    def cancel_inputs(
+        self, run_id: protocol.RunId | None = None
+    ) -> list[InputChanged]:
+        return [
+            item
+            for result in self._results.values()
+            if run_id is None or result.execution.run_id == run_id
+            for item in self._cancel_inputs(result)
+        ]
 
     def begin(self, run: protocol.Run, request_id: str) -> list[Change]:
         """Track a run the notebook requested."""
@@ -290,6 +338,7 @@ class Executions:
                 if (
                     result := self._results.get(execution_id)
                 ) is not None and result.execution.status != "completed":
+                    changes.extend(self._cancel_inputs(result))
                     changes.append(
                         self._set_execution(
                             replace(
@@ -305,7 +354,15 @@ class Executions:
                 if (
                     result := self._results.get(item.execution_id)
                 ) is not None:
-                    if isinstance(item, protocol.Variable):
+                    if isinstance(item, protocol.Input):
+                        if (
+                            result.execution.status != "running"
+                            or item.id in result.inputs
+                            or item.status != "pending"
+                        ):
+                            return []
+                        result.inputs[item.id] = item
+                    elif isinstance(item, protocol.Variable):
                         if result.execution.cell_id is None:
                             return []
                         result.variables[item.id] = item
@@ -380,6 +437,7 @@ class Executions:
         now = utcnow()
         for result in list(self._results.values()):
             if result.execution.status != "completed":
+                changes.extend(self._cancel_inputs(result))
                 changes.append(
                     self._set_execution(
                         replace(

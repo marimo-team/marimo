@@ -13,6 +13,8 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import TYPE_CHECKING, Any, Protocol
 
+from marimo._messaging.input import InputReply
+
 if TYPE_CHECKING:
     import asyncio
     import threading
@@ -44,7 +46,7 @@ class QueueManager(Protocol):
     control_queue: QueueType[commands.CommandMessage]
     set_ui_element_queue: QueueType[commands.BatchableCommand]
     completion_queue: QueueType[commands.OutOfBandCommand]
-    input_queue: QueueType[str]
+    input_queue: QueueType[str | InputReply]
     stream_queue: QueueType[KernelMessage | None] | None
     win32_interrupt_queue: QueueType[bool] | None
 
@@ -196,6 +198,10 @@ class Session(Protocol):
         from_consumer_id: ConsumerId | None,
     ) -> None:
         """Put a control request in the control queue."""
+        ...
+
+    def reply_input(self, reply: InputReply) -> None:
+        """Deliver an answer to a specific prompt, or raise on failure."""
         ...
 
     def put_input(self, text: str) -> None:

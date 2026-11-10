@@ -38,8 +38,14 @@ class ScriptedBackend:
         self.calls.append(("stop", runtime_id))
 
     def run(
-        self, run_id: str, code: str, *, request: be.RequestInfo | None
+        self,
+        run_id: str,
+        code: str,
+        *,
+        request: be.RequestInfo | None,
+        allow_input: bool = False,
     ) -> None:
+        del allow_input
         self.calls.append(("run", run_id, code))
         self.requests.append(request)
 
@@ -50,7 +56,9 @@ class ScriptedBackend:
         cell_ids: Sequence[str],
         *,
         request: be.RequestInfo | None,
+        allow_input: bool = False,
     ) -> None:
+        del allow_input
         self.calls.append(
             ("run_cells", run_id, document.etag, tuple(cell_ids))
         )
@@ -58,6 +66,9 @@ class ScriptedBackend:
 
     def interrupt(self, run_id: str) -> None:
         self.calls.append(("interrupt", run_id))
+
+    def reply_input(self, input_id: str, value: str) -> None:
+        self.calls.append(("reply_input", input_id, value))
 
     def forget(self, run_id: str) -> None:
         self.calls.append(("forget", run_id))

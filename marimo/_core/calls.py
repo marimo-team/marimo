@@ -31,6 +31,10 @@ class RunParams(NotebookParams, frozen=True):
     run_id: protocol.RunId
 
 
+class InputParams(NotebookParams, frozen=True):
+    input_id: protocol.ItemId
+
+
 class MutationHeaders(msgspec.Struct, frozen=True):
     idempotency_key: str = msgspec.field(name="idempotency-key", default="")
 
@@ -149,16 +153,25 @@ class RunCall(_Call, frozen=True, tag="runtime.run"):
     body: protocol.RunRequest
 
     async def handle(
-        self, bridge: NotebookBridge, request: RequestInfo | None
+        self,
+        bridge: NotebookBridge,
+        request: RequestInfo | None,
+        *,
+        allow_input: bool = False,
     ) -> tuple[Literal[202], protocol.Run]:
         notebook = await bridge.host.notebook(self.params.notebook_id)
         key = self.headers.idempotency_key
         code, cells = self.body.code, self.body.cells
         if isinstance(code, str) and cells is msgspec.UNSET:
-            return 202, notebook.run(code, request_id=key, request=request)
+            return 202, notebook.run(
+                code, request_id=key, request=request, allow_input=allow_input
+            )
         if code is msgspec.UNSET and isinstance(cells, tuple):
             return 202, notebook.run(
-                cells=cells, request_id=key, request=request
+                cells=cells,
+                request_id=key,
+                request=request,
+                allow_input=allow_input,
             )
         raise Invalid("A run names code or cells, not both")
 
@@ -178,11 +191,42 @@ class InterruptCall(_Call, frozen=True, tag="runtime.interrupt"):
         notebook_id, run_id = self.params.notebook_id, self.params.run_id
         notebook = await bridge.host.notebook(notebook_id)
         try:
-            return 202, notebook.interrupt(run_id)
+            return 202, notebook.interrupt(
+                run_id, request_id=self.headers.idempotency_key
+            )
         except NotFound:
             run = bridge.host.run(notebook_id, run_id)
             if run is not None and run.status == "completed":
                 raise Conflict(f"run {run_id} has already ended.") from None
+            raise
+
+
+class InputCall(_Call, frozen=True, tag="runtime.input"):
+    """Answer a pending input."""
+
+    METHOD = "POST"
+    PATH = "/notebooks/{notebook_id}/runtime/inputs/{input_id}/reply"
+
+    params: InputParams
+    headers: MutationHeaders
+    body: protocol.InputReplyRequest
+
+    async def handle(
+        self, bridge: NotebookBridge
+    ) -> tuple[Literal[200], protocol.Input]:
+        notebook_id, input_id = self.params.notebook_id, self.params.input_id
+        notebook = await bridge.host.notebook(notebook_id)
+        try:
+            return 200, notebook.reply_input(
+                input_id,
+                self.body.value,
+                request_id=self.headers.idempotency_key,
+            )
+        except NotFound:
+            if bridge.host.input(notebook_id, input_id) is not None:
+                raise Conflict(
+                    f"input {input_id} has already ended."
+                ) from None
             raise
 
 
@@ -194,6 +238,7 @@ OperationCall = (
     | RestartCall
     | RunCall
     | InterruptCall
+    | InputCall
 )
 """A request for any notebook operation, tagged by its operation id."""
 
@@ -207,6 +252,7 @@ CALLS: tuple[type[OperationCall], ...] = (
     RestartCall,
     RunCall,
     InterruptCall,
+    InputCall,
 )
 
 
@@ -216,6 +262,7 @@ async def dispatch(
     call: OperationCall,
     *,
     request: RequestInfo | None,
+    allow_input: bool = False,
 ) -> Reply:
     """Serve a call once per idempotency key and describe a failure as a problem.
 
@@ -225,7 +272,7 @@ async def dispatch(
 
     async def serve() -> Reply:
         if isinstance(call, RunCall):
-            return await call.handle(bridge, request)
+            return await call.handle(bridge, request, allow_input=allow_input)
         return await call.handle(bridge)
 
     try:
