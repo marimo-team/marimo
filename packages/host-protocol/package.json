@@ -21,6 +21,7 @@
   ],
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
+    "prepare": "npm run build",
     "openapi": "node scripts/openapi.ts",
     "test": "vitest run",
     "typecheck": "tsgo",
