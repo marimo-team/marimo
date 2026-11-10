@@ -6,11 +6,33 @@ import {
   Transaction,
   type TransactionSpec,
 } from "@codemirror/state";
+import { keymap } from "@codemirror/view";
 import { describe, expect, it } from "vitest";
+import { CellId } from "@/core/cells/ids";
+import { OverridingHotkeyProvider } from "@/core/hotkeys/hotkeys";
 import { formattingChangeEffect } from "../../format";
 import { exportedForTesting } from "../extensions";
 
-const { shouldAutorunMarkdownUpdate } = exportedForTesting;
+const { cellKeymaps, shouldAutorunMarkdownUpdate } = exportedForTesting;
+
+describe("cellKeymaps", () => {
+  const keys = (hotkeys: OverridingHotkeyProvider) =>
+    EditorState.create({
+      extensions: cellKeymaps({ cellId: CellId.create(), hotkeys }),
+    })
+      .facet(keymap)
+      .flat()
+      .map((binding) => binding.key);
+
+  it("binds merge only once the user sets a key", () => {
+    expect(keys(new OverridingHotkeyProvider({}))).not.toContain("");
+    expect(
+      keys(
+        new OverridingHotkeyProvider({ "cell.mergeCellBelow": "Mod-Shift-j" }),
+      ),
+    ).toContainEqual(expect.stringMatching(/Shift-j$/));
+  });
+});
 
 function createTransaction(spec: TransactionSpec) {
   return EditorState.create({ doc: "" }).update(spec);
