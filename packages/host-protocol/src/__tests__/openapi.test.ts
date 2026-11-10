@@ -1,12 +1,13 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
+import { OpenApi } from "effect/http-api";
 import { expect, it } from "vitest";
 import * as Analysis from "../experimental/Analysis.ts";
 import * as Host from "../Host.ts";
-import * as OpenApi from "../OpenApi.ts";
 
-const stable = OpenApi.fromApi(Host.Api);
-const experimental = OpenApi.fromApi(Analysis.Api);
+const { referencePolicy } = Host;
+const stable = OpenApi.fromApi(Host.Api, { referencePolicy });
+const experimental = OpenApi.fromApi(Analysis.Api, { referencePolicy });
 const schemas = stable.components.schemas;
 
 it("keeps objects open unless a schema closes itself", () => {
