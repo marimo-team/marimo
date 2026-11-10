@@ -3,7 +3,7 @@
 /** A notebook's kernel and the consumers attached to the notebook. */
 
 import { Schema } from "effect";
-import { NotebookId, RuntimeId, AttachmentId } from "./Ids.ts";
+import { NotebookId, RuntimeId, AttachmentId, Timestamp } from "./Ids.ts";
 
 export const RuntimeStatus = Schema.Literals([
   "starting",
@@ -28,9 +28,8 @@ export const Runtime = Schema.Struct({
     description:
       "The version of marimo running the kernel. Null until the host knows it.",
   }),
-  started_at: Schema.String.annotateKey({
+  started_at: Timestamp.annotateKey({
     description: "When this runtime started.",
-    format: "date-time",
   }),
 }).annotate({
   description:
@@ -65,9 +64,8 @@ export const Attachment = Schema.Struct({
     description:
       "A label to show people, supplied by `Marimo-Attachment-Name`, such as the browser or editor's name. Null when the header is omitted or empty.",
   }),
-  since: Schema.String.annotateKey({
+  since: Timestamp.annotateKey({
     description: "When it attached.",
-    format: "date-time",
   }),
 }).annotate({
   description:

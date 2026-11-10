@@ -148,25 +148,6 @@ class Custom(Struct, frozen=True):
     ]
 
 
-class CustomMessage(Struct, frozen=True):
-    custom: Custom
-    time: Annotated[
-        datetime,
-        Meta(
-            description="When the host emitted this event. Preserved on replay."
-        ),
-    ]
-    request_id: (
-        Annotated[
-            str,
-            Meta(
-                description="The `Idempotency-Key` of the request that caused this event. Omitted when no request did, and on snapshots unless that request's work is still in progress."
-            ),
-        ]
-        | UnsetType
-    ) = UNSET
-
-
 class DecisionOption(Struct, frozen=True):
     id: Annotated[str, Meta(description="Identifies this answer.")]
     label: Annotated[
@@ -249,28 +230,6 @@ class Host(Struct, frozen=True):
             description="The operations this host implements, such as `runtime.start`. Whether a client may call one on a given project or notebook is that object's `operations`. Clients accept names they do not recognize."
         ),
     ]
-
-
-class HostMessage(Struct, frozen=True):
-    host: Host
-    request_id: (
-        Annotated[
-            str,
-            Meta(
-                description="The `Idempotency-Key` of the request that caused this event. Omitted when no request did, and on snapshots unless that request's work is still in progress."
-            ),
-        ]
-        | UnsetType
-    ) = UNSET
-    time: (
-        Annotated[
-            datetime,
-            Meta(
-                description="When the host made this change. Present on live and replayed events; omitted on snapshots."
-            ),
-        ]
-        | UnsetType
-    ) = UNSET
 
 
 class InputReplyRequest(Struct, frozen=True):
@@ -431,13 +390,6 @@ class Position(Struct, frozen=True):
     ]
 
 
-class Process(Struct, frozen=True):
-    pid: Annotated[int, Meta(description="The process id.", ge=1)]
-    started_at: Annotated[
-        datetime, Meta(description="When the process started.")
-    ]
-
-
 if TYPE_CHECKING:
     ProjectId = NewType("ProjectId", str)
 else:
@@ -527,30 +479,6 @@ class Related(Struct, frozen=True):
     )
 
 
-class RemovedMessage(Struct, frozen=True):
-    id: Annotated[
-        str, Meta(description="The id of the object that was removed.")
-    ]
-    request_id: (
-        Annotated[
-            str,
-            Meta(
-                description="The `Idempotency-Key` of the request that caused this event. Omitted when no request did, and on snapshots unless that request's work is still in progress."
-            ),
-        ]
-        | UnsetType
-    ) = UNSET
-    time: (
-        Annotated[
-            datetime,
-            Meta(
-                description="When the host made this change. Present on live and replayed events; omitted on snapshots."
-            ),
-        ]
-        | UnsetType
-    ) = UNSET
-
-
 class RequestedCell(Struct, frozen=True):
     id: CellId
     etag: (
@@ -617,22 +545,6 @@ RunOutcome: TypeAlias = Annotated[
 ]
 
 
-class RunRemovedEvent(
-    Struct, frozen=True, tag_field="event", tag="run.removed"
-):
-    data: RemovedMessage
-    id: (
-        Annotated[
-            str,
-            Meta(
-                description="The resume cursor. Omitted on snapshot and reset events.",
-                min_length=1,
-            ),
-        ]
-        | UnsetType
-    ) = UNSET
-
-
 class RunRequest(Struct, frozen=True, forbid_unknown_fields=True):
     cells: Annotated[
         tuple[RequestedCell, ...],
@@ -656,22 +568,6 @@ else:
             ),
         ],
     )
-
-
-class RuntimeRemovedEvent(
-    Struct, frozen=True, tag_field="event", tag="runtime.removed"
-):
-    data: RemovedMessage
-    id: (
-        Annotated[
-            str,
-            Meta(
-                description="The resume cursor. Omitted on snapshot and reset events.",
-                min_length=1,
-            ),
-        ]
-        | UnsetType
-    ) = UNSET
 
 
 RuntimeStatus: TypeAlias = Annotated[
@@ -739,6 +635,14 @@ class StartRuntimeRequest(Struct, frozen=True):
         ]
         | UnsetType
     ) = UNSET
+
+
+Timestamp: TypeAlias = Annotated[
+    datetime,
+    Meta(
+        description="A date and time with its offset from UTC, as RFC 3339 writes it."
+    ),
+]
 
 
 class UnauthorizedProblem(
@@ -860,25 +764,9 @@ class VariableMessage(Struct, frozen=True):
     ) = UNSET
     time: (
         Annotated[
-            datetime,
+            Timestamp,
             Meta(
                 description="When the host made this change. Present on live and replayed events; omitted on snapshots."
-            ),
-        ]
-        | UnsetType
-    ) = UNSET
-
-
-class VariableRemovedEvent(
-    Struct, frozen=True, tag_field="event", tag="variable.removed"
-):
-    data: RemovedMessage
-    id: (
-        Annotated[
-            str,
-            Meta(
-                description="The resume cursor. Omitted on snapshot and reset events.",
-                min_length=1,
             ),
         ]
         | UnsetType
@@ -913,7 +801,7 @@ class Attachment(Struct, frozen=True):
         | None
     )
     notebook_id: NotebookId
-    since: Annotated[datetime, Meta(description="When it attached.")]
+    since: Annotated[Timestamp, Meta(description="When it attached.")]
 
 
 class AttachmentMessage(Struct, frozen=True):
@@ -929,25 +817,9 @@ class AttachmentMessage(Struct, frozen=True):
     ) = UNSET
     time: (
         Annotated[
-            datetime,
+            Timestamp,
             Meta(
                 description="When the host made this change. Present on live and replayed events; omitted on snapshots."
-            ),
-        ]
-        | UnsetType
-    ) = UNSET
-
-
-class AttachmentRemovedEvent(
-    Struct, frozen=True, tag_field="event", tag="attachment.removed"
-):
-    data: RemovedMessage
-    id: (
-        Annotated[
-            str,
-            Meta(
-                description="The resume cursor. Omitted on snapshot and reset events.",
-                min_length=1,
             ),
         ]
         | UnsetType
@@ -1007,25 +879,9 @@ class CellMessage(Struct, frozen=True):
     ) = UNSET
     time: (
         Annotated[
-            datetime,
+            Timestamp,
             Meta(
                 description="When the host made this change. Present on live and replayed events; omitted on snapshots."
-            ),
-        ]
-        | UnsetType
-    ) = UNSET
-
-
-class CellRemovedEvent(
-    Struct, frozen=True, tag_field="event", tag="cell.removed"
-):
-    data: RemovedMessage
-    id: (
-        Annotated[
-            str,
-            Meta(
-                description="The resume cursor. Omitted on snapshot and reset events.",
-                min_length=1,
             ),
         ]
         | UnsetType
@@ -1076,25 +932,9 @@ class ConsoleMessage(Struct, frozen=True):
     ) = UNSET
     time: (
         Annotated[
-            datetime,
+            Timestamp,
             Meta(
                 description="When the host made this change. Present on live and replayed events; omitted on snapshots."
-            ),
-        ]
-        | UnsetType
-    ) = UNSET
-
-
-class ConsoleRemovedEvent(
-    Struct, frozen=True, tag_field="event", tag="console.removed"
-):
-    data: RemovedMessage
-    id: (
-        Annotated[
-            str,
-            Meta(
-                description="The resume cursor. Omitted on snapshot and reset events.",
-                min_length=1,
             ),
         ]
         | UnsetType
@@ -1124,14 +964,19 @@ class CreateNotebookRequest(Struct, frozen=True):
     ) = UNSET
 
 
-class CustomEvent(Struct, frozen=True, tag_field="event", tag="custom"):
-    data: CustomMessage
-    id: (
+class CustomMessage(Struct, frozen=True):
+    custom: Custom
+    time: Annotated[
+        Timestamp,
+        Meta(
+            description="When the host emitted this event. Preserved on replay."
+        ),
+    ]
+    request_id: (
         Annotated[
             str,
             Meta(
-                description="The resume cursor. Omitted on snapshot and reset events.",
-                min_length=1,
+                description="The `Idempotency-Key` of the request that caused this event. Omitted when no request did, and on snapshots unless that request's work is still in progress."
             ),
         ]
         | UnsetType
@@ -1201,25 +1046,9 @@ class DisplayMessage(Struct, frozen=True):
     ) = UNSET
     time: (
         Annotated[
-            datetime,
+            Timestamp,
             Meta(
                 description="When the host made this change. Present on live and replayed events; omitted on snapshots."
-            ),
-        ]
-        | UnsetType
-    ) = UNSET
-
-
-class DisplayRemovedEvent(
-    Struct, frozen=True, tag_field="event", tag="display.removed"
-):
-    data: RemovedMessage
-    id: (
-        Annotated[
-            str,
-            Meta(
-                description="The resume cursor. Omitted on snapshot and reset events.",
-                min_length=1,
             ),
         ]
         | UnsetType
@@ -1291,7 +1120,7 @@ class DocumentMessage(Struct, frozen=True):
     ) = UNSET
     time: (
         Annotated[
-            datetime,
+            Timestamp,
             Meta(
                 description="When the host made this change. Present on live and replayed events; omitted on snapshots."
             ),
@@ -1376,65 +1205,26 @@ class ErrorOutcome(Struct, frozen=True, tag_field="kind", tag="error"):
     error: Error
 
 
-class ExecutionRemovedEvent(
-    Struct, frozen=True, tag_field="event", tag="execution.removed"
-):
-    data: RemovedMessage
-    id: (
+class HostMessage(Struct, frozen=True):
+    host: Host
+    request_id: (
         Annotated[
             str,
             Meta(
-                description="The resume cursor. Omitted on snapshot and reset events.",
-                min_length=1,
+                description="The `Idempotency-Key` of the request that caused this event. Omitted when no request did, and on snapshots unless that request's work is still in progress."
             ),
         ]
         | UnsetType
     ) = UNSET
-
-
-class HostEvent(Struct, frozen=True, tag_field="event", tag="host"):
-    data: HostMessage
-    id: (
+    time: (
         Annotated[
-            str,
+            Timestamp,
             Meta(
-                description="The resume cursor. Omitted on snapshot and reset events.",
-                min_length=1,
+                description="When the host made this change. Present on live and replayed events; omitted on snapshots."
             ),
         ]
         | UnsetType
     ) = UNSET
-
-
-class HostRecord(Struct, frozen=True):
-    name: Annotated[
-        str,
-        Meta(
-            description="A label for the host to show people, such as `VS Code` or `marimo`. Two hosts can share a name; the filename is the identity.",
-            examples=["marimo"],
-        ),
-    ]
-    process: Process
-    token: Annotated[
-        str,
-        Meta(
-            description="The secret a client sends to prove it read the record.",
-            min_length=1,
-        ),
-    ]
-    url: Annotated[
-        str,
-        Meta(
-            description="Where the host's API is. The scheme is `http`, and the host part is `127.0.0.1` or `[::1]`, written exactly that way.",
-            examples=["http://127.0.0.1:2718/api/marimo/v1"],
-        ),
-    ]
-    version: Annotated[
-        Literal[1],
-        Meta(
-            description="The version of this record's format. This document describes version 1."
-        ),
-    ]
 
 
 class Input(Struct, frozen=True):
@@ -1477,7 +1267,7 @@ class InputMessage(Struct, frozen=True):
     ) = UNSET
     time: (
         Annotated[
-            datetime,
+            Timestamp,
             Meta(
                 description="When the host made this change. Present on live and replayed events; omitted on snapshots."
             ),
@@ -1512,7 +1302,7 @@ class Notebook(Struct, frozen=True):
     project_id: ProjectId
     updated_at: (
         Annotated[
-            datetime,
+            Timestamp,
             Meta(
                 description="When the file was last modified, as of the host's last look at it. Null when the host does not know."
             ),
@@ -1534,25 +1324,9 @@ class NotebookMessage(Struct, frozen=True):
     ) = UNSET
     time: (
         Annotated[
-            datetime,
+            Timestamp,
             Meta(
                 description="When the host made this change. Present on live and replayed events; omitted on snapshots."
-            ),
-        ]
-        | UnsetType
-    ) = UNSET
-
-
-class NotebookRemovedEvent(
-    Struct, frozen=True, tag_field="event", tag="notebook.removed"
-):
-    data: RemovedMessage
-    id: (
-        Annotated[
-            str,
-            Meta(
-                description="The resume cursor. Omitted on snapshot and reset events.",
-                min_length=1,
             ),
         ]
         | UnsetType
@@ -1616,6 +1390,13 @@ Problem: TypeAlias = Annotated[
 ]
 
 
+class Process(Struct, frozen=True):
+    pid: Annotated[int, Meta(description="The process id.", ge=1)]
+    started_at: Annotated[
+        Timestamp, Meta(description="When the process started.")
+    ]
+
+
 class Project(Struct, frozen=True):
     id: ProjectId
     message: (
@@ -1664,7 +1445,7 @@ class ProjectMessage(Struct, frozen=True):
     ) = UNSET
     time: (
         Annotated[
-            datetime,
+            Timestamp,
             Meta(
                 description="When the host made this change. Present on live and replayed events; omitted on snapshots."
             ),
@@ -1673,16 +1454,24 @@ class ProjectMessage(Struct, frozen=True):
     ) = UNSET
 
 
-class ProjectRemovedEvent(
-    Struct, frozen=True, tag_field="event", tag="project.removed"
-):
-    data: RemovedMessage
-    id: (
+class RemovedMessage(Struct, frozen=True):
+    id: Annotated[
+        str, Meta(description="The id of the object that was removed.")
+    ]
+    request_id: (
         Annotated[
             str,
             Meta(
-                description="The resume cursor. Omitted on snapshot and reset events.",
-                min_length=1,
+                description="The `Idempotency-Key` of the request that caused this event. Omitted when no request did, and on snapshots unless that request's work is still in progress."
+            ),
+        ]
+        | UnsetType
+    ) = UNSET
+    time: (
+        Annotated[
+            Timestamp,
+            Meta(
+                description="When the host made this change. Present on live and replayed events; omitted on snapshots."
             ),
         ]
         | UnsetType
@@ -1698,7 +1487,7 @@ class Run(Struct, frozen=True):
     ]
     completed_at: (
         Annotated[
-            datetime,
+            Timestamp,
             Meta(
                 description="When the run ended. Null until the run is `completed`."
             ),
@@ -1721,7 +1510,7 @@ class Run(Struct, frozen=True):
     ]
     started_at: (
         Annotated[
-            datetime,
+            Timestamp,
             Meta(
                 description="When the first execution started. Null if none has started."
             ),
@@ -1749,9 +1538,25 @@ class RunMessage(Struct, frozen=True):
     ) = UNSET
     time: (
         Annotated[
-            datetime,
+            Timestamp,
             Meta(
                 description="When the host made this change. Present on live and replayed events; omitted on snapshots."
+            ),
+        ]
+        | UnsetType
+    ) = UNSET
+
+
+class RunRemovedEvent(
+    Struct, frozen=True, tag_field="event", tag="run.removed"
+):
+    data: RemovedMessage
+    id: (
+        Annotated[
+            str,
+            Meta(
+                description="The resume cursor. Omitted on snapshot and reset events.",
+                min_length=1,
             ),
         ]
         | UnsetType
@@ -1780,7 +1585,7 @@ class Runtime(Struct, frozen=True):
     )
     notebook_id: NotebookId
     started_at: Annotated[
-        datetime, Meta(description="When this runtime started.")
+        Timestamp, Meta(description="When this runtime started.")
     ]
     status: RuntimeStatus
 
@@ -1798,9 +1603,25 @@ class RuntimeMessage(Struct, frozen=True):
     ) = UNSET
     time: (
         Annotated[
-            datetime,
+            Timestamp,
             Meta(
                 description="When the host made this change. Present on live and replayed events; omitted on snapshots."
+            ),
+        ]
+        | UnsetType
+    ) = UNSET
+
+
+class RuntimeRemovedEvent(
+    Struct, frozen=True, tag_field="event", tag="runtime.removed"
+):
+    data: RemovedMessage
+    id: (
+        Annotated[
+            str,
+            Meta(
+                description="The resume cursor. Omitted on snapshot and reset events.",
+                min_length=1,
             ),
         ]
         | UnsetType
@@ -1821,10 +1642,42 @@ class VariableEvent(Struct, frozen=True, tag_field="event", tag="variable"):
     ) = UNSET
 
 
+class VariableRemovedEvent(
+    Struct, frozen=True, tag_field="event", tag="variable.removed"
+):
+    data: RemovedMessage
+    id: (
+        Annotated[
+            str,
+            Meta(
+                description="The resume cursor. Omitted on snapshot and reset events.",
+                min_length=1,
+            ),
+        ]
+        | UnsetType
+    ) = UNSET
+
+
 class AttachmentEvent(
     Struct, frozen=True, tag_field="event", tag="attachment"
 ):
     data: AttachmentMessage
+    id: (
+        Annotated[
+            str,
+            Meta(
+                description="The resume cursor. Omitted on snapshot and reset events.",
+                min_length=1,
+            ),
+        ]
+        | UnsetType
+    ) = UNSET
+
+
+class AttachmentRemovedEvent(
+    Struct, frozen=True, tag_field="event", tag="attachment.removed"
+):
+    data: RemovedMessage
     id: (
         Annotated[
             str,
@@ -1867,6 +1720,22 @@ class CellEvent(Struct, frozen=True, tag_field="event", tag="cell"):
     ) = UNSET
 
 
+class CellRemovedEvent(
+    Struct, frozen=True, tag_field="event", tag="cell.removed"
+):
+    data: RemovedMessage
+    id: (
+        Annotated[
+            str,
+            Meta(
+                description="The resume cursor. Omitted on snapshot and reset events.",
+                min_length=1,
+            ),
+        ]
+        | UnsetType
+    ) = UNSET
+
+
 class ConsoleEvent(Struct, frozen=True, tag_field="event", tag="console"):
     data: ConsoleMessage
     id: (
@@ -1881,8 +1750,54 @@ class ConsoleEvent(Struct, frozen=True, tag_field="event", tag="console"):
     ) = UNSET
 
 
+class ConsoleRemovedEvent(
+    Struct, frozen=True, tag_field="event", tag="console.removed"
+):
+    data: RemovedMessage
+    id: (
+        Annotated[
+            str,
+            Meta(
+                description="The resume cursor. Omitted on snapshot and reset events.",
+                min_length=1,
+            ),
+        ]
+        | UnsetType
+    ) = UNSET
+
+
+class CustomEvent(Struct, frozen=True, tag_field="event", tag="custom"):
+    data: CustomMessage
+    id: (
+        Annotated[
+            str,
+            Meta(
+                description="The resume cursor. Omitted on snapshot and reset events.",
+                min_length=1,
+            ),
+        ]
+        | UnsetType
+    ) = UNSET
+
+
 class DisplayEvent(Struct, frozen=True, tag_field="event", tag="display"):
     data: DisplayMessage
+    id: (
+        Annotated[
+            str,
+            Meta(
+                description="The resume cursor. Omitted on snapshot and reset events.",
+                min_length=1,
+            ),
+        ]
+        | UnsetType
+    ) = UNSET
+
+
+class DisplayRemovedEvent(
+    Struct, frozen=True, tag_field="event", tag="display.removed"
+):
+    data: RemovedMessage
     id: (
         Annotated[
             str,
@@ -1945,7 +1860,7 @@ class Execution(Struct, frozen=True):
     ]
     completed_at: (
         Annotated[
-            datetime,
+            Timestamp,
             Meta(
                 description="When the execution ended. Null until it is completed."
             ),
@@ -1988,7 +1903,7 @@ class Execution(Struct, frozen=True):
     )
     started_at: (
         Annotated[
-            datetime,
+            Timestamp,
             Meta(
                 description="When the code started executing. Null while queued or if the execution completed before starting."
             ),
@@ -2011,13 +1926,74 @@ class ExecutionMessage(Struct, frozen=True):
     ) = UNSET
     time: (
         Annotated[
-            datetime,
+            Timestamp,
             Meta(
                 description="When the host made this change. Present on live and replayed events; omitted on snapshots."
             ),
         ]
         | UnsetType
     ) = UNSET
+
+
+class ExecutionRemovedEvent(
+    Struct, frozen=True, tag_field="event", tag="execution.removed"
+):
+    data: RemovedMessage
+    id: (
+        Annotated[
+            str,
+            Meta(
+                description="The resume cursor. Omitted on snapshot and reset events.",
+                min_length=1,
+            ),
+        ]
+        | UnsetType
+    ) = UNSET
+
+
+class HostEvent(Struct, frozen=True, tag_field="event", tag="host"):
+    data: HostMessage
+    id: (
+        Annotated[
+            str,
+            Meta(
+                description="The resume cursor. Omitted on snapshot and reset events.",
+                min_length=1,
+            ),
+        ]
+        | UnsetType
+    ) = UNSET
+
+
+class HostRecord(Struct, frozen=True):
+    name: Annotated[
+        str,
+        Meta(
+            description="A label for the host to show people, such as `VS Code` or `marimo`. Two hosts can share a name; the filename is the identity.",
+            examples=["marimo"],
+        ),
+    ]
+    process: Process
+    token: Annotated[
+        str,
+        Meta(
+            description="The secret a client sends to prove it read the record.",
+            min_length=1,
+        ),
+    ]
+    url: Annotated[
+        str,
+        Meta(
+            description="Where the host's API is. The scheme is `http`, and the host part is `127.0.0.1` or `[::1]`, written exactly that way.",
+            examples=["http://127.0.0.1:2718/api/marimo/v1"],
+        ),
+    ]
+    version: Annotated[
+        Literal[1],
+        Meta(
+            description="The version of this record's format. This document describes version 1."
+        ),
+    ]
 
 
 class InputEvent(Struct, frozen=True, tag_field="event", tag="input"):
@@ -2048,8 +2024,40 @@ class NotebookEvent(Struct, frozen=True, tag_field="event", tag="notebook"):
     ) = UNSET
 
 
+class NotebookRemovedEvent(
+    Struct, frozen=True, tag_field="event", tag="notebook.removed"
+):
+    data: RemovedMessage
+    id: (
+        Annotated[
+            str,
+            Meta(
+                description="The resume cursor. Omitted on snapshot and reset events.",
+                min_length=1,
+            ),
+        ]
+        | UnsetType
+    ) = UNSET
+
+
 class ProjectEvent(Struct, frozen=True, tag_field="event", tag="project"):
     data: ProjectMessage
+    id: (
+        Annotated[
+            str,
+            Meta(
+                description="The resume cursor. Omitted on snapshot and reset events.",
+                min_length=1,
+            ),
+        ]
+        | UnsetType
+    ) = UNSET
+
+
+class ProjectRemovedEvent(
+    Struct, frozen=True, tag_field="event", tag="project.removed"
+):
+    data: RemovedMessage
     id: (
         Annotated[
             str,
@@ -2119,7 +2127,7 @@ class AnalysisMessage(Struct, frozen=True):
     ) = UNSET
     time: (
         Annotated[
-            datetime,
+            Timestamp,
             Meta(
                 description="When the host made this change. Present on live and replayed events; omitted on snapshots."
             ),

@@ -4,6 +4,13 @@
 
 import * as zod from "zod";
 
+export const Timestamp = zod.iso
+  .datetime({ offset: true })
+  .describe("A date and time with its offset from UTC, as RFC 3339 writes it.");
+
+export type Timestamp = zod.input<typeof Timestamp>;
+export type TimestampOutput = zod.output<typeof Timestamp>;
+
 export const Host = zod
   .object({
     operations: zod
@@ -27,12 +34,9 @@ export const HostMessage = zod
       .describe(
         "The `Idempotency-Key` of the request that caused this event. Omitted when no request did, and on snapshots unless that request's work is still in progress.",
       ),
-    time: zod.iso
-      .datetime({ offset: true })
-      .optional()
-      .describe(
-        "When the host made this change. Present on live and replayed events; omitted on snapshots.",
-      ),
+    time: Timestamp.optional().describe(
+      "When the host made this change. Present on live and replayed events; omitted on snapshots.",
+    ),
     host: Host,
   })
   .describe("The data of the `host` event. The host as it now is.");
@@ -114,12 +118,9 @@ export const ProjectMessage = zod
       .describe(
         "The `Idempotency-Key` of the request that caused this event. Omitted when no request did, and on snapshots unless that request's work is still in progress.",
       ),
-    time: zod.iso
-      .datetime({ offset: true })
-      .optional()
-      .describe(
-        "When the host made this change. Present on live and replayed events; omitted on snapshots.",
-      ),
+    time: Timestamp.optional().describe(
+      "When the host made this change. Present on live and replayed events; omitted on snapshots.",
+    ),
     project: Project,
   })
   .describe("The data of the `project` event. The project as it now is.");
@@ -172,7 +173,7 @@ export const Notebook = zod
         "Operations this client may call on the notebook, such as `notebook.edit` or `runtime.start`. A subset of `host.operations` selected by the client's permissions, independently of the notebook's current state. The `runtime` object shows whether a runtime is attached, and preconditions still apply when an operation is called. The host sends the notebook again when it changes.",
       ),
     updated_at: zod
-      .union([zod.string(), zod.null()])
+      .union([Timestamp, zod.null()])
       .describe(
         "When the file was last modified, as of the host's last look at it. Null when the host does not know.",
       ),
@@ -192,12 +193,9 @@ export const NotebookMessage = zod
       .describe(
         "The `Idempotency-Key` of the request that caused this event. Omitted when no request did, and on snapshots unless that request's work is still in progress.",
       ),
-    time: zod.iso
-      .datetime({ offset: true })
-      .optional()
-      .describe(
-        "When the host made this change. Present on live and replayed events; omitted on snapshots.",
-      ),
+    time: Timestamp.optional().describe(
+      "When the host made this change. Present on live and replayed events; omitted on snapshots.",
+    ),
     notebook: Notebook,
   })
   .describe("The data of the `notebook` event. The notebook as it now is.");
@@ -290,12 +288,9 @@ export const DocumentMessage = zod
       .describe(
         "The `Idempotency-Key` of the request that caused this event. Omitted when no request did, and on snapshots unless that request's work is still in progress.",
       ),
-    time: zod.iso
-      .datetime({ offset: true })
-      .optional()
-      .describe(
-        "When the host made this change. Present on live and replayed events; omitted on snapshots.",
-      ),
+    time: Timestamp.optional().describe(
+      "When the host made this change. Present on live and replayed events; omitted on snapshots.",
+    ),
     document: Document,
   })
   .describe("The data of the `document` event. The document as it now is.");
@@ -397,12 +392,9 @@ export const CellMessage = zod
       .describe(
         "The `Idempotency-Key` of the request that caused this event. Omitted when no request did, and on snapshots unless that request's work is still in progress.",
       ),
-    time: zod.iso
-      .datetime({ offset: true })
-      .optional()
-      .describe(
-        "When the host made this change. Present on live and replayed events; omitted on snapshots.",
-      ),
+    time: Timestamp.optional().describe(
+      "When the host made this change. Present on live and replayed events; omitted on snapshots.",
+    ),
     cell: Cell,
   })
   .describe("The data of the `cell` event. The cell as it now is.");
@@ -459,9 +451,7 @@ export const Runtime = zod
       .describe(
         "The version of marimo running the kernel. Null until the host knows it.",
       ),
-    started_at: zod.iso
-      .datetime({ offset: true })
-      .describe("When this runtime started."),
+    started_at: Timestamp.describe("When this runtime started."),
   })
   .describe(
     "A runtime is a kernel attached to one notebook, and a notebook has\nat most one. It ends when a client or the host stops it or its\nprocess exits, and the host then sends `runtime.removed`. Every start and restart creates\na new runtime with a new id. Results carry their producer's runtime\nid so clients can tell which are live.\n",
@@ -478,12 +468,9 @@ export const RuntimeMessage = zod
       .describe(
         "The `Idempotency-Key` of the request that caused this event. Omitted when no request did, and on snapshots unless that request's work is still in progress.",
       ),
-    time: zod.iso
-      .datetime({ offset: true })
-      .optional()
-      .describe(
-        "When the host made this change. Present on live and replayed events; omitted on snapshots.",
-      ),
+    time: Timestamp.optional().describe(
+      "When the host made this change. Present on live and replayed events; omitted on snapshots.",
+    ),
     runtime: Runtime,
   })
   .describe("The data of the `runtime` event. The runtime as it now is.");
@@ -549,7 +536,7 @@ export const Attachment = zod
       .describe(
         "A label to show people, supplied by `Marimo-Attachment-Name`, such as the browser or editor's name. Null when the header is omitted or empty.",
       ),
-    since: zod.iso.datetime({ offset: true }).describe("When it attached."),
+    since: Timestamp.describe("When it attached."),
   })
   .describe(
     "An attachment is a consumer connected to a notebook, such as a\nbrowser tab, an editor, or an agent. Opening the notebook's stream\ncreates one. It is removed when that connection closes, and not\nwhen the notebook's runtime stops or restarts. Each stream has its\nown attachment, even when several share a client identity.\n",
@@ -566,12 +553,9 @@ export const AttachmentMessage = zod
       .describe(
         "The `Idempotency-Key` of the request that caused this event. Omitted when no request did, and on snapshots unless that request's work is still in progress.",
       ),
-    time: zod.iso
-      .datetime({ offset: true })
-      .optional()
-      .describe(
-        "When the host made this change. Present on live and replayed events; omitted on snapshots.",
-      ),
+    time: Timestamp.optional().describe(
+      "When the host made this change. Present on live and replayed events; omitted on snapshots.",
+    ),
     attachment: Attachment,
   })
   .describe("The data of the `attachment` event. The attachment as it now is.");
@@ -643,10 +627,10 @@ export const Run = zod
         "Null until completed, then final. Published with the terminal status and completed_at. An execution failure does not complete a run while other work remains. Interruption must have taken effect, not merely been requested.",
       ),
     started_at: zod
-      .union([zod.string(), zod.null()])
+      .union([Timestamp, zod.null()])
       .describe("When the first execution started. Null if none has started."),
     completed_at: zod
-      .union([zod.string(), zod.null()])
+      .union([Timestamp, zod.null()])
       .describe("When the run ended. Null until the run is `completed`."),
   })
   .describe(
@@ -664,12 +648,9 @@ export const RunMessage = zod
       .describe(
         "The `Idempotency-Key` of the request that caused this event. Omitted when no request did, and on snapshots unless that request's work is still in progress.",
       ),
-    time: zod.iso
-      .datetime({ offset: true })
-      .optional()
-      .describe(
-        "When the host made this change. Present on live and replayed events; omitted on snapshots.",
-      ),
+    time: Timestamp.optional().describe(
+      "When the host made this change. Present on live and replayed events; omitted on snapshots.",
+    ),
     run: Run,
   })
   .describe("The data of the `run` event. The run as it now is.");
@@ -927,12 +908,12 @@ export const Execution = zod
         "How the execution ended. Null while queued; while running, a value carries the display so far; final once completed.",
       ),
     started_at: zod
-      .union([zod.string(), zod.null()])
+      .union([Timestamp, zod.null()])
       .describe(
         "When the code started executing. Null while queued or if the execution completed before starting.",
       ),
     completed_at: zod
-      .union([zod.string(), zod.null()])
+      .union([Timestamp, zod.null()])
       .describe("When the execution ended. Null until it is completed."),
   })
   .describe(
@@ -950,12 +931,9 @@ export const ExecutionMessage = zod
       .describe(
         "The `Idempotency-Key` of the request that caused this event. Omitted when no request did, and on snapshots unless that request's work is still in progress.",
       ),
-    time: zod.iso
-      .datetime({ offset: true })
-      .optional()
-      .describe(
-        "When the host made this change. Present on live and replayed events; omitted on snapshots.",
-      ),
+    time: Timestamp.optional().describe(
+      "When the host made this change. Present on live and replayed events; omitted on snapshots.",
+    ),
     execution: Execution,
   })
   .describe("The data of the `execution` event. The execution as it now is.");
@@ -1020,12 +998,9 @@ export const ConsoleMessage = zod
       .describe(
         "The `Idempotency-Key` of the request that caused this event. Omitted when no request did, and on snapshots unless that request's work is still in progress.",
       ),
-    time: zod.iso
-      .datetime({ offset: true })
-      .optional()
-      .describe(
-        "When the host made this change. Present on live and replayed events; omitted on snapshots.",
-      ),
+    time: Timestamp.optional().describe(
+      "When the host made this change. Present on live and replayed events; omitted on snapshots.",
+    ),
     console: Console,
   })
   .describe("The data of the `console` event. The console as it now is.");
@@ -1077,12 +1052,9 @@ export const DisplayMessage = zod
       .describe(
         "The `Idempotency-Key` of the request that caused this event. Omitted when no request did, and on snapshots unless that request's work is still in progress.",
       ),
-    time: zod.iso
-      .datetime({ offset: true })
-      .optional()
-      .describe(
-        "When the host made this change. Present on live and replayed events; omitted on snapshots.",
-      ),
+    time: Timestamp.optional().describe(
+      "When the host made this change. Present on live and replayed events; omitted on snapshots.",
+    ),
     display: Display,
   })
   .describe("The data of the `display` event. The display as it now is.");
@@ -1149,12 +1121,9 @@ export const InputMessage = zod
       .describe(
         "The `Idempotency-Key` of the request that caused this event. Omitted when no request did, and on snapshots unless that request's work is still in progress.",
       ),
-    time: zod.iso
-      .datetime({ offset: true })
-      .optional()
-      .describe(
-        "When the host made this change. Present on live and replayed events; omitted on snapshots.",
-      ),
+    time: Timestamp.optional().describe(
+      "When the host made this change. Present on live and replayed events; omitted on snapshots.",
+    ),
     input: Input,
   })
   .describe("The data of the `input` event. The input as it now is.");
@@ -1207,12 +1176,9 @@ export const VariableMessage = zod
       .describe(
         "The `Idempotency-Key` of the request that caused this event. Omitted when no request did, and on snapshots unless that request's work is still in progress.",
       ),
-    time: zod.iso
-      .datetime({ offset: true })
-      .optional()
-      .describe(
-        "When the host made this change. Present on live and replayed events; omitted on snapshots.",
-      ),
+    time: Timestamp.optional().describe(
+      "When the host made this change. Present on live and replayed events; omitted on snapshots.",
+    ),
     variable: Variable,
   })
   .describe("The data of the `variable` event. The variable as it now is.");
@@ -1279,12 +1245,9 @@ export const AnalysisMessage = zod
       .describe(
         "The `Idempotency-Key` of the request that caused this event. Omitted when no request did, and on snapshots unless that request's work is still in progress.",
       ),
-    time: zod.iso
-      .datetime({ offset: true })
-      .optional()
-      .describe(
-        "When the host made this change. Present on live and replayed events; omitted on snapshots.",
-      ),
+    time: Timestamp.optional().describe(
+      "When the host made this change. Present on live and replayed events; omitted on snapshots.",
+    ),
     analysis: Analysis,
   })
   .describe("The data of the `analysis` event. The analysis as it now is.");
@@ -1337,9 +1300,9 @@ export const CustomMessage = zod
       .describe(
         "The `Idempotency-Key` of the request that caused this event. Omitted when no request did, and on snapshots unless that request's work is still in progress.",
       ),
-    time: zod.iso
-      .datetime({ offset: true })
-      .describe("When the host emitted this event. Preserved on replay."),
+    time: Timestamp.describe(
+      "When the host emitted this event. Preserved on replay.",
+    ),
   })
   .describe(
     "The data of a `custom` event. This envelope is standardized; the custom type and payload are defined by their producer.",
@@ -1371,12 +1334,9 @@ export const RemovedMessage = zod
       .describe(
         "The `Idempotency-Key` of the request that caused this event. Omitted when no request did, and on snapshots unless that request's work is still in progress.",
       ),
-    time: zod.iso
-      .datetime({ offset: true })
-      .optional()
-      .describe(
-        "When the host made this change. Present on live and replayed events; omitted on snapshots.",
-      ),
+    time: Timestamp.optional().describe(
+      "When the host made this change. Present on live and replayed events; omitted on snapshots.",
+    ),
     id: zod.string().describe("The id of the object that was removed."),
   })
   .describe(
@@ -1644,9 +1604,7 @@ export type ObjectTypeOutput = zod.output<typeof ObjectType>;
 export const Process = zod
   .object({
     pid: zod.int().min(1).describe("The process id."),
-    started_at: zod.iso
-      .datetime({ offset: true })
-      .describe("When the process started."),
+    started_at: Timestamp.describe("When the process started."),
   })
   .describe(
     "The process that wrote a record. A client checks that a process\nwith this `pid` that started at `started_at` still exists. If it\ndoes not, the record is stale and may be removed.\n",

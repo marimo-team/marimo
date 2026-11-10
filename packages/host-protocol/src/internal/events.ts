@@ -1,6 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { Schema } from "effect";
+import { Timestamp } from "../model/Ids.ts";
 
 export const Cursor = Schema.String.check(
   Schema.isMinCodePoints(1),
@@ -19,10 +20,9 @@ export function message<const Fields extends Schema.Struct.Fields>(
       }),
     ),
     time: Schema.optionalKey(
-      Schema.String.annotateKey({
+      Timestamp.annotateKey({
         description:
           "When the host made this change. Present on live and replayed events; omitted on snapshots.",
-        format: "date-time",
       }),
     ),
     ...fields,

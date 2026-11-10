@@ -4,15 +4,15 @@
 
 import { Schema } from "effect";
 import { Integer } from "../internal/schema.ts";
+import { Timestamp } from "./Ids.ts";
 
 export const Process = Schema.Struct({
   pid: Integer.check(Schema.isGreaterThanOrEqualTo(1)).annotateKey({
     description: "The process id.",
     format: "int64",
   }),
-  started_at: Schema.String.annotateKey({
+  started_at: Timestamp.annotateKey({
     description: "When the process started.",
-    format: "date-time",
   }),
 }).annotate({
   description:

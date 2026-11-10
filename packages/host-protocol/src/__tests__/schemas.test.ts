@@ -78,6 +78,15 @@ it.each([
   expect(count).toBeGreaterThan(0);
 });
 
+it.each([
+  ["2026-01-01T00:00:00Z", true],
+  ["2026-01-01T00:00:00.123456+00:00", true],
+  ["2026-01-01T00:00:00", false],
+  ["2026-01-01", false],
+])("accepts %s as a timestamp: %s", (text, valid) => {
+  expect(Schema.is(S.Timestamp)(text)).toBe(valid);
+});
+
 it("retains nullable, omitted, arbitrary JSON, and forward-compatible field semantics", () => {
   const cell = Schema.decodeUnknownSync(S.Cell)(read("cell.json"));
   expect(
