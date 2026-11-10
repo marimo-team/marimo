@@ -94,13 +94,6 @@ export function createNetworkRequests(): EditRequests & RunRequests {
         })
         .then(handleResponse);
     },
-    sendInterrupt: () => {
-      return getClient()
-        .POST("/api/kernel/interrupt", {
-          params: getParams(),
-        })
-        .then(handleResponseReturnNull);
-    },
     sendShutdown: () => {
       return getClient()
         .POST("/api/kernel/shutdown")
