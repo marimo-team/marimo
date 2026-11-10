@@ -440,3 +440,38 @@ def test_tutorial_disables_watch_and_console_redirection(
     assert result.exit_code == 0, result.output
     server = launch.call_args.kwargs["config_manager"].get_config().server
     assert (server.watch, server.redirect_console_to_browser) == (False, False)
+
+
+@pytest.mark.parametrize("command", ["edit", "run"])
+def test_config_overrides_preserve_notebook_arguments(
+    command: str, launch: Mock
+) -> None:
+    notebook_args = [
+        "--lr",
+        "1e-4",
+        "--epochs",
+        "15",
+        "--config",
+        "notebook-value",
+    ]
+    result = CliRunner().invoke(
+        main,
+        [
+            command,
+            "--no-sandbox",
+            "notebook.py",
+            "--config",
+            "display.theme=dark",
+            "--",
+            *notebook_args,
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    kwargs = launch.call_args.kwargs
+    assert kwargs["cli_args"] == {
+        "lr": 1e-4,
+        "epochs": 15,
+        "config": "notebook-value",
+    }
+    assert kwargs["argv"] == notebook_args
+    assert kwargs["config_manager"].get_config().display.theme == "dark"

@@ -1,5 +1,7 @@
 # Command Line Arguments
 
+For marimo settings such as `--config`, see the [configuration guide](../guides/configuration/index.md).
+
 When running as a script with `python notebook.py`, command-line arguments
 are available to your program in `sys.argv`, just like any other Python
 program. This means you can use
@@ -15,7 +17,7 @@ following the `--` separator.
 For example, for
 
 ```bash
-marimo edit notebook.py -- --lr 1e-4 --epochs 15
+marimo edit notebook.py --config display.theme=dark -- --lr 1e-4 --epochs 15
 ```
 
 sets `sys.argv` to `["notebook.py", "--lr", "1e-4", "--epochs", "15"]`.
