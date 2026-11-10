@@ -4,7 +4,6 @@
 from __future__ import annotations
 
 import asyncio
-import hashlib
 import json
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
@@ -192,14 +191,10 @@ def objects(snapshot: list[Frame], kind: str) -> list[dict[str, Any]]:
     return [frame.message()[kind] for frame in snapshot if frame.event == kind]
 
 
-def etag(text: str) -> str:
-    return hashlib.sha256(text.encode("utf-8")).hexdigest()[:16]
-
-
 def document_state(
     snapshot: list[Frame],
 ) -> tuple[dict[str, Any], dict[str, Any]]:
-    """Check document ordering and hashes using only observed wire records."""
+    """Check document ordering using only observed wire records."""
     cells: dict[str, Any] = {}
     document = None
     for frame in snapshot:
@@ -217,29 +212,6 @@ def document_state(
         assert cell["notebook_id"] == document["notebook_id"]
         assert isinstance(cell["code_fingerprint"], str)
         assert cell["code_fingerprint"]
-        if cell["code"] is not None:
-            config = cell["config"]
-            parts = [etag(cell["code"]), cell["name"]]
-            parts.extend(
-                json.dumps(config[key])
-                for key in ("column", "disabled", "hide_code", "expand_output")
-            )
-            assert cell["etag"] == etag("\n".join(parts))
-    assert document["order_etag"] == etag(
-        json.dumps(
-            document["order"], separators=(",", ":"), ensure_ascii=False
-        )
-    )
-    canonical = json.dumps(
-        document["app_config"],
-        sort_keys=True,
-        separators=(",", ":"),
-        ensure_ascii=False,
-    )
-    assert document["app_config_etag"] == etag(canonical)
-    parts = [document["order_etag"], document["app_config_etag"]]
-    parts.extend(cells[cell_id]["etag"] for cell_id in document["order"])
-    assert document["etag"] == etag("\n".join(parts))
     assert document["version"] >= 1
     for cell in cells.values():
         assert 1 <= cell["version"] <= document["version"]

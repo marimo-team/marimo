@@ -617,6 +617,10 @@ def test_edit_request_response_and_events() -> None:
     assert len(stale_request["changes"]) == 1
     change = stale_request["changes"][0]
     assert change["base_etag"] != cells[change["cell"]["id"]]["etag"]
+    assert (failed["type"], failed["status"]) == (
+        "urn:marimo:problem:precondition-failed",
+        412,
+    )
     assert (failed["index"], failed["cell"], failed["document"]) == (
         0,
         cells["c3"],

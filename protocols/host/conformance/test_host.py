@@ -227,6 +227,7 @@ async def test_edit_atomicity_and_conflicts(host, scratch):
     stale = problem(response, 412, "precondition-failed")
     assert stale["index"] == 1
     assert stale["cell"] == cells["check_a"]
+    assert stale["document"] == before
     after, after_cells = document_state(await host.snapshot(path + "/events"))
     assert (after, after_cells) == (before, cells)
     problem(
@@ -269,13 +270,15 @@ async def test_save(host, scratch):
     )
     saved = accepted(response, 200, "EditResponse")["document"]
     assert saved["saved_etag"] == saved["etag"]
-    problem(
+    stale = problem(
         await host.request(
             "POST", path + "/save", json={}, headers={"If-Match": "stale"}
         ),
         412,
         "precondition-failed",
     )
+    assert (stale["index"], stale["cell"]) == (0, None)
+    assert stale["document"] == saved
 
 
 async def test_no_runtime(host, scratch):
@@ -481,6 +484,7 @@ async def test_run_cells(host, scratch):
         assert stale["index"] == 0
         assert stale["cell"] is not None, "run lost the cell from the document"
         assert stale["cell"]["id"] == "check_a"
+        assert stale["document"] == answer["document"]
 
 
 @pytest.mark.parametrize("operation", ["interrupt", "cancel"])

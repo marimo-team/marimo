@@ -4,7 +4,6 @@
 #   "datamodel-code-generator==0.72.0",
 #   "jinja2==3.1.6",
 #   "ruff==0.16.4",
-#   "msgspec[yaml]==0.22.0"
 # ]
 # ///
 """Generate Python bindings from the host OpenAPI document on stdin."""
@@ -52,7 +51,7 @@ class TupleArrays(ast.NodeTransformer):
 
 
 def sorted_keys(value: Any) -> Any:
-    """Keep model and field ordering independent of the YAML layout."""
+    """Keep model and field ordering independent of the document's layout."""
     if isinstance(value, dict):
         return {key: sorted_keys(value[key]) for key in sorted(value)}
     if isinstance(value, list):
@@ -201,7 +200,9 @@ def generate_models(document: dict[str, Any], output_path: Path) -> None:
             template_data[name]["base_class_kwargs"][
                 "forbid_unknown_fields"
             ] = "True"
-        if name.endswith("Id") and schema.get("type") == "string":
+        if schema.keys().isdisjoint({"enum", "format"}) and (
+            schema.get("type") == "string"
+        ):
             template_data[name]["newtype"] = True
 
     generate(
@@ -218,6 +219,7 @@ def generate_models(document: dict[str, Any], output_path: Path) -> None:
         enum_field_as_literal="all",
         strict_nullable=True,
         field_constraints=True,
+        apply_default_values_for_required_fields=True,
         use_annotated=True,
         custom_template_dir=Path(__file__).parent / "templates",
         extra_template_data=template_data,

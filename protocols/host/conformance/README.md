@@ -32,7 +32,7 @@ uv run --locked --project protocols/host/conformance \
   --record /path/to/hosts-v1/host.json
 ```
 
-Review skips for capabilities the host does not offer. Repeat
-`--require-operation <operation>` to assert advertised operations, and use
-`--slow` to include idle ping checks. Replace `--record` and its path with
-`--help` for all options.
+The suite skips tests for capabilities the host does not offer, so review the
+skipped tests. Repeat `--require-operation <operation>` to assert advertised
+operations, and use `--slow` to include idle ping checks. Replace `--record`
+and its path with `--help` for all options.

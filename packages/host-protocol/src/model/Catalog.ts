@@ -3,7 +3,7 @@
 /** The host and the projects and notebooks it presents. */
 
 import { Schema } from "effect";
-import { ProjectId, NotebookId } from "./Ids.ts";
+import { ProjectId, NotebookId, Timestamp } from "./Ids.ts";
 
 export const Host = Schema.Struct({
   operations: Schema.Array(Schema.String).annotateKey({
@@ -66,10 +66,9 @@ export const Notebook = Schema.Struct({
     description:
       "Operations this client may call on the notebook, such as `notebook.edit` or `runtime.start`. A subset of `host.operations` selected by the client's permissions, independently of the notebook's current state. The `runtime` object shows whether a runtime is attached, and preconditions still apply when an operation is called. The host sends the notebook again when it changes.",
   }),
-  updated_at: Schema.NullOr(Schema.String).annotateKey({
+  updated_at: Schema.NullOr(Timestamp).annotateKey({
     description:
       "When the file was last modified, as of the host's last look at it. Null when the host does not know.",
-    format: "date-time",
   }),
 }).annotate({
   description:

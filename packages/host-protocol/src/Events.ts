@@ -4,6 +4,7 @@
 
 import { Schema } from "effect";
 import { Cursor, event, message } from "./internal/events.ts";
+import { Timestamp } from "./model/Ids.ts";
 import { objects, type ObjectKind, type StreamName } from "./Objects.ts";
 
 const list = new Intl.ListFormat("en", { type: "conjunction" });
@@ -78,9 +79,8 @@ const CustomMessage = Schema.Struct({
         "The `Idempotency-Key` of the request that caused this event. Omitted when no request did, and on snapshots unless that request's work is still in progress.",
     }),
   ),
-  time: Schema.String.annotateKey({
+  time: Timestamp.annotateKey({
     description: "When the host emitted this event. Preserved on replay.",
-    format: "date-time",
   }),
 }).annotate({
   description:

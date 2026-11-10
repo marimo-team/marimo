@@ -26,6 +26,7 @@ const records = {
   "execute-request.json": S.ExecuteRequest,
   "input-reply-request.json": S.InputReplyRequest,
   "input-reply-response.json": S.Input,
+  "interrupt-runtime-response.json": S.Runtime,
   "../experimental/analysis/fixtures/analysis.json": Analysis.Analysis,
   "../experimental/analysis/fixtures/diagnostic.json": S.Error,
 };
@@ -75,6 +76,14 @@ it.each([
     count++;
   }
   expect(count).toBeGreaterThan(0);
+});
+
+it.each([
+  [{}, false],
+  [{ name: "Forecasts" }, true],
+  [{ path: "forecasts.py" }, true],
+])("accepts %j as a notebook update: %s", (body, valid) => {
+  expect(Schema.is(S.UpdateNotebookRequest)(body)).toBe(valid);
 });
 
 it("retains nullable, omitted, arbitrary JSON, and forward-compatible field semantics", () => {
@@ -169,7 +178,9 @@ const requestCases: {
 );
 it.each(requestCases)("validates $schema: $name", ({ schema, body, valid }) => {
   const requestSchema: Schema.Codec<unknown> = S[schema];
-  expect(
-    Schema.decodeUnknownResult(requestSchema)(body)._tag === "Success",
-  ).toBe(valid);
+  // The API decodes request bodies with this option.
+  const decode = Schema.decodeUnknownResult(requestSchema, {
+    onExcessProperty: "error",
+  });
+  expect(decode(body)._tag === "Success").toBe(valid);
 });

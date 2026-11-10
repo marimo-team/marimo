@@ -16,41 +16,84 @@ const annotations = new Set([
   "additionalProperties",
 ]);
 
-const problemType = "urn:marimo:problem:";
-const isProblem = (schema: unknown) =>
-  isNode(schema) &&
-  isNode(schema.properties) &&
-  isNode(schema.properties.type) &&
-  Array.isArray(schema.properties.type.enum) &&
-  String(schema.properties.type.enum[0]).startsWith(problemType);
+// Effect writes a literal as an enum with one member.
+const literal = (schema: unknown) =>
+  isNode(schema) && Array.isArray(schema.enum) ? schema.enum[0] : undefined;
 
-function adjust(value: unknown, closes = false): unknown {
+const problemType = "urn:marimo:problem:";
+
+const componentPrefix = "#/components/schemas/";
+
+/** The names of the component schemas that `value` refers to. */
+function references(value: unknown, found = new Set<string>()) {
   if (Array.isArray(value)) {
-    return value.map((item) => adjust(item));
+    for (const item of value) {
+      references(item, found);
+    }
+  } else if (isNode(value)) {
+    for (const [key, child] of Object.entries(value)) {
+      if (key !== "$ref") {
+        references(child, found);
+      } else if (typeof child === "string") {
+        found.add(child.slice(componentPrefix.length));
+      }
+    }
   }
-  return isNode(value) ? adjustNode(value, closes) : value;
+  return found;
 }
 
-function adjustNode(value: Node, closes: boolean): Node {
+/** The names of the component schemas that request bodies are made of. */
+function requestSchemas(paths: unknown, schemas: Node) {
+  const found = new Set<string>();
+  for (const item of Object.values(isNode(paths) ? paths : {})) {
+    for (const operation of Object.values(isNode(item) ? item : {})) {
+      references(isNode(operation) ? operation.requestBody : undefined, found);
+    }
+  }
+  // A set visits the members added while it is iterated.
+  for (const name of found) {
+    references(schemas[name], found);
+  }
+  return found;
+}
+
+function adjust(value: unknown, closed: boolean): unknown {
+  if (Array.isArray(value)) {
+    return value.map((item) => adjust(item, closed));
+  }
+  return isNode(value) ? adjustNode(value, closed) : value;
+}
+
+function adjustNode(value: Node, closed: boolean): Node {
   const node: Node = {};
   for (const [key, child] of Object.entries(value)) {
-    // Effect closes every object by default, and clients ignore members they
-    // do not recognize. A schema that closes itself says so inside `allOf`.
-    if (key === "additionalProperties" && child === false && !closes) {
+    // Effect closes every object. A host rejects members of a request body it
+    // does not recognize, and a client ignores them everywhere else. An object
+    // that declares no properties is empty on purpose.
+    if (
+      key === "additionalProperties" &&
+      child === false &&
+      !closed &&
+      "properties" in value
+    ) {
       continue;
     }
-    node[key] =
-      key === "allOf" && Array.isArray(child)
-        ? child.map((member) => adjust(member, true))
-        : adjust(child);
+    node[key] = adjust(child, closed || key === "requestBody");
   }
   // Effect tolerates a problem without `status` or `title`. A host sends both,
-  // and only `type` tells problems apart, so a client accepts any title.
-  if (isProblem(node) && Array.isArray(node.required)) {
+  // and only `type` tells problems apart, so a client accepts any title. The
+  // declared values are the defaults.
+  if (
+    isNode(node.properties) &&
+    Array.isArray(node.required) &&
+    String(literal(node.properties.type)).startsWith(problemType)
+  ) {
+    const status = literal(node.properties.status);
     node.required = [...node.required, "status", "title"];
     node.properties = {
-      ...(node.properties as Node),
-      title: { type: "string" },
+      ...node.properties,
+      status: { type: "integer", enum: [status], default: status },
+      title: { type: "string", default: literal(node.properties.title) },
     };
   }
   if (!Array.isArray(node.allOf)) {
@@ -85,10 +128,24 @@ function adjustNode(value: Node, closes: boolean): Node {
 /**
  * Adjust the document Effect generates for consumers in other languages.
  *
- * Objects stay open unless a schema closes itself, descriptions sit beside
- * the schema they describe, and each problem requires its `status` and
+ * Request bodies stay closed and other objects are open, descriptions sit
+ * beside the schema they describe, and each problem requires its `status` and
  * `title`.
  */
 export function forGenerators(spec: Record<string, unknown>) {
-  return adjustNode(spec, false);
+  const components = isNode(spec.components) ? spec.components : {};
+  const schemas = isNode(components.schemas) ? components.schemas : {};
+  const requests = requestSchemas(spec.paths, schemas);
+  return {
+    ...adjustNode(spec, false),
+    components: {
+      ...adjustNode(components, false),
+      schemas: Object.fromEntries(
+        Object.entries(schemas).map(([name, schema]) => [
+          name,
+          adjust(schema, requests.has(name)),
+        ]),
+      ),
+    },
+  };
 }

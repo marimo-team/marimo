@@ -11,7 +11,6 @@
     "./Host": "./dist/Host.js",
     "./Notebook": "./dist/Notebook.js",
     "./Objects": "./dist/Objects.js",
-    "./OpenApi": "./dist/OpenApi.js",
     "./Events": "./dist/Events.js",
     "./Schemas": "./dist/Schemas.js",
     "./Problems": "./dist/Problems.js",

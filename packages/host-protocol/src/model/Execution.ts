@@ -11,6 +11,7 @@ import {
   ExecutionId,
   CellId,
   CodeFingerprint,
+  Timestamp,
 } from "./Ids.ts";
 
 export const Lifecycle = Schema.Literals([
@@ -51,13 +52,11 @@ export const Run = Schema.Struct({
     description:
       "Null until completed, then final. Published with the terminal status and completed_at. An execution failure does not complete a run while other work remains. Interruption must have taken effect, not merely been requested.",
   }),
-  started_at: Schema.NullOr(Schema.String).annotateKey({
+  started_at: Schema.NullOr(Timestamp).annotateKey({
     description: "When the first execution started. Null if none has started.",
-    format: "date-time",
   }),
-  completed_at: Schema.NullOr(Schema.String).annotateKey({
+  completed_at: Schema.NullOr(Timestamp).annotateKey({
     description: "When the run ended. Null until the run is `completed`.",
-    format: "date-time",
   }),
 }).annotate({
   description:
@@ -250,14 +249,12 @@ export const Execution = Schema.Struct({
     description:
       "How the execution ended. Null while queued; while running, a value carries the display so far; final once completed.",
   }),
-  started_at: Schema.NullOr(Schema.String).annotateKey({
+  started_at: Schema.NullOr(Timestamp).annotateKey({
     description:
       "When the code started executing. Null while queued or if the execution completed before starting.",
-    format: "date-time",
   }),
-  completed_at: Schema.NullOr(Schema.String).annotateKey({
+  completed_at: Schema.NullOr(Timestamp).annotateKey({
     description: "When the execution ended. Null until it is completed.",
-    format: "date-time",
   }),
 }).annotate({
   description:

@@ -42,7 +42,7 @@ export const Cell = Schema.Struct({
   config: CellConfig,
   etag: Etag.annotateKey({
     description:
-      "Precondition for edits and cell runs. Covers exact source, name, and config. Its text is the newline-joined sequence of the first 16 hex characters of SHA-256 of the UTF-8 source, `name`, and the config values `column`, `disabled`, `hide_code`, and `expand_output`, in that order. Config values are JSON scalars.",
+      "Precondition for edits and cell runs. Covers exact source, name, and config.",
   }),
   code_fingerprint: CodeFingerprint.annotateKey({
     description:
@@ -72,7 +72,7 @@ export const Document = Schema.Struct({
   }),
   etag: Etag.annotateKey({
     description:
-      "Identifies the document as currently applied. Its text is `order_etag`, `app_config_etag`, and every cell's `etag` in order, so it changes when any of them does.",
+      "Identifies the document as currently applied. It changes when the order, the app config, or any cell's `etag` does.",
   }),
   saved_etag: Schema.NullOr(Etag).annotateKey({
     description:
@@ -80,11 +80,10 @@ export const Document = Schema.Struct({
   }),
   order_etag: Etag.annotateKey({
     description:
-      "Identifies the order alone. Its text is the cell IDs in order as a JSON array, with no whitespace and strings carrying only the escapes JSON requires. Editing a cell does not change it.",
+      "Identifies the order alone. Editing a cell does not change it.",
   }),
   app_config_etag: Etag.annotateKey({
-    description:
-      "Identifies the app config alone. Its text is the app config as canonical JSON, with keys sorted by code point, no whitespace, and strings carrying only the escapes JSON requires.",
+    description: "Identifies the app config alone.",
   }),
   version: Integer.check(Schema.isGreaterThanOrEqualTo(1)).annotateKey({
     description:

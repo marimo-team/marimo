@@ -31,8 +31,25 @@
     "name": "future field",
     "valid": false,
     "body": {
-      "code": "",
+      "cells": [
+        {
+          "id": "c"
+        }
+      ],
       "future": true
+    },
+    "schema": "RunRequest"
+  },
+  {
+    "name": "future field in a cell",
+    "valid": false,
+    "body": {
+      "cells": [
+        {
+          "id": "c",
+          "future": true
+        }
+      ]
     },
     "schema": "RunRequest"
   },

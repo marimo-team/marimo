@@ -4,6 +4,13 @@
 
 import * as zod from "zod";
 
+export const Timestamp = zod.iso
+  .datetime({ offset: true })
+  .describe("A date and time with its offset from UTC, as RFC 3339 writes it.");
+
+export type Timestamp = zod.input<typeof Timestamp>;
+export type TimestampOutput = zod.output<typeof Timestamp>;
+
 export const Host = zod
   .object({
     operations: zod
@@ -27,12 +34,9 @@ export const HostMessage = zod
       .describe(
         "The `Idempotency-Key` of the request that caused this event. Omitted when no request did, and on snapshots unless that request's work is still in progress.",
       ),
-    time: zod.iso
-      .datetime({ offset: true })
-      .optional()
-      .describe(
-        "When the host made this change. Present on live and replayed events; omitted on snapshots.",
-      ),
+    time: Timestamp.optional().describe(
+      "When the host made this change. Present on live and replayed events; omitted on snapshots.",
+    ),
     host: Host,
   })
   .describe("The data of the `host` event. The host as it now is.");
@@ -114,12 +118,9 @@ export const ProjectMessage = zod
       .describe(
         "The `Idempotency-Key` of the request that caused this event. Omitted when no request did, and on snapshots unless that request's work is still in progress.",
       ),
-    time: zod.iso
-      .datetime({ offset: true })
-      .optional()
-      .describe(
-        "When the host made this change. Present on live and replayed events; omitted on snapshots.",
-      ),
+    time: Timestamp.optional().describe(
+      "When the host made this change. Present on live and replayed events; omitted on snapshots.",
+    ),
     project: Project,
   })
   .describe("The data of the `project` event. The project as it now is.");
@@ -172,7 +173,7 @@ export const Notebook = zod
         "Operations this client may call on the notebook, such as `notebook.edit` or `runtime.start`. A subset of `host.operations` selected by the client's permissions, independently of the notebook's current state. The `runtime` object shows whether a runtime is attached, and preconditions still apply when an operation is called. The host sends the notebook again when it changes.",
       ),
     updated_at: zod
-      .union([zod.string(), zod.null()])
+      .union([Timestamp, zod.null()])
       .describe(
         "When the file was last modified, as of the host's last look at it. Null when the host does not know.",
       ),
@@ -192,12 +193,9 @@ export const NotebookMessage = zod
       .describe(
         "The `Idempotency-Key` of the request that caused this event. Omitted when no request did, and on snapshots unless that request's work is still in progress.",
       ),
-    time: zod.iso
-      .datetime({ offset: true })
-      .optional()
-      .describe(
-        "When the host made this change. Present on live and replayed events; omitted on snapshots.",
-      ),
+    time: Timestamp.optional().describe(
+      "When the host made this change. Present on live and replayed events; omitted on snapshots.",
+    ),
     notebook: Notebook,
   })
   .describe("The data of the `notebook` event. The notebook as it now is.");
@@ -234,8 +232,9 @@ export type CellIdOutput = zod.output<typeof CellId>;
 
 export const Etag = zod
   .string()
+  .min(1)
   .describe(
-    "An identifier derived from content, so that every host, kernel,\nand store computes the same value for the same state. It is the\nfirst 16 hexadecimal characters, in lower case, of SHA-256 over\nthe UTF-8 encoding of a canonical text. Each etag says what its\ntext is; a text made of several values is those values joined by\nnewlines. Clients do not compute etags. They read them from the\nstream and from responses, and send them back as preconditions.\n",
+    "An identifier a host derives from content, so the same content has the same etag. It is opaque to clients. They read etags from the stream and from responses, and send them back as preconditions.",
   );
 
 export type Etag = zod.input<typeof Etag>;
@@ -255,7 +254,7 @@ export const Document = zod
         "Notebook-level settings, the keyword arguments to `marimo.App` such as `width` and `app_title`. Informational for now; no change sets it over this protocol.",
       ),
     etag: Etag.describe(
-      "Identifies the document as currently applied. Its text is `order_etag`, `app_config_etag`, and every cell's `etag` in order, so it changes when any of them does.",
+      "Identifies the document as currently applied. It changes when the order, the app config, or any cell's `etag` does.",
     ),
     saved_etag: zod
       .union([Etag, zod.null()])
@@ -263,11 +262,9 @@ export const Document = zod
         "Identifies the document as last written to the host's store, computed the same way over that state. Equal to `etag` when every accepted change has been persisted. Null when nothing has been persisted, which is the case for a scratch copy.",
       ),
     order_etag: Etag.describe(
-      "Identifies the order alone. Its text is the cell IDs in order as a JSON array, with no whitespace and strings carrying only the escapes JSON requires. Editing a cell does not change it.",
+      "Identifies the order alone. Editing a cell does not change it.",
     ),
-    app_config_etag: Etag.describe(
-      "Identifies the app config alone. Its text is the app config as canonical JSON, with keys sorted by code point, no whitespace, and strings carrying only the escapes JSON requires.",
-    ),
+    app_config_etag: Etag.describe("Identifies the app config alone."),
     version: zod
       .int()
       .min(1)
@@ -290,12 +287,9 @@ export const DocumentMessage = zod
       .describe(
         "The `Idempotency-Key` of the request that caused this event. Omitted when no request did, and on snapshots unless that request's work is still in progress.",
       ),
-    time: zod.iso
-      .datetime({ offset: true })
-      .optional()
-      .describe(
-        "When the host made this change. Present on live and replayed events; omitted on snapshots.",
-      ),
+    time: Timestamp.optional().describe(
+      "When the host made this change. Present on live and replayed events; omitted on snapshots.",
+    ),
     document: Document,
   })
   .describe("The data of the `document` event. The document as it now is.");
@@ -370,7 +364,7 @@ export const Cell = zod
       ),
     config: CellConfig,
     etag: Etag.describe(
-      "Precondition for edits and cell runs. Covers exact source, name, and config. Its text is the newline-joined sequence of the first 16 hex characters of SHA-256 of the UTF-8 source, `name`, and the config values `column`, `disabled`, `hide_code`, and `expand_output`, in that order. Config values are JSON scalars.",
+      "Precondition for edits and cell runs. Covers exact source, name, and config.",
     ),
     code_fingerprint: CodeFingerprint.describe(
       "Fingerprint of the actual source, including when `code` is null. Formatting-only edits may preserve it. Independent of cell name, config, and source visibility.",
@@ -397,12 +391,9 @@ export const CellMessage = zod
       .describe(
         "The `Idempotency-Key` of the request that caused this event. Omitted when no request did, and on snapshots unless that request's work is still in progress.",
       ),
-    time: zod.iso
-      .datetime({ offset: true })
-      .optional()
-      .describe(
-        "When the host made this change. Present on live and replayed events; omitted on snapshots.",
-      ),
+    time: Timestamp.optional().describe(
+      "When the host made this change. Present on live and replayed events; omitted on snapshots.",
+    ),
     cell: Cell,
   })
   .describe("The data of the `cell` event. The cell as it now is.");
@@ -459,9 +450,7 @@ export const Runtime = zod
       .describe(
         "The version of marimo running the kernel. Null until the host knows it.",
       ),
-    started_at: zod.iso
-      .datetime({ offset: true })
-      .describe("When this runtime started."),
+    started_at: Timestamp.describe("When this runtime started."),
   })
   .describe(
     "A runtime is a kernel attached to one notebook, and a notebook has\nat most one. It ends when a client or the host stops it or its\nprocess exits, and the host then sends `runtime.removed`. Every start and restart creates\na new runtime with a new id. Results carry their producer's runtime\nid so clients can tell which are live.\n",
@@ -478,12 +467,9 @@ export const RuntimeMessage = zod
       .describe(
         "The `Idempotency-Key` of the request that caused this event. Omitted when no request did, and on snapshots unless that request's work is still in progress.",
       ),
-    time: zod.iso
-      .datetime({ offset: true })
-      .optional()
-      .describe(
-        "When the host made this change. Present on live and replayed events; omitted on snapshots.",
-      ),
+    time: Timestamp.optional().describe(
+      "When the host made this change. Present on live and replayed events; omitted on snapshots.",
+    ),
     runtime: Runtime,
   })
   .describe("The data of the `runtime` event. The runtime as it now is.");
@@ -549,7 +535,7 @@ export const Attachment = zod
       .describe(
         "A label to show people, supplied by `Marimo-Attachment-Name`, such as the browser or editor's name. Null when the header is omitted or empty.",
       ),
-    since: zod.iso.datetime({ offset: true }).describe("When it attached."),
+    since: Timestamp.describe("When it attached."),
   })
   .describe(
     "An attachment is a consumer connected to a notebook, such as a\nbrowser tab, an editor, or an agent. Opening the notebook's stream\ncreates one. It is removed when that connection closes, and not\nwhen the notebook's runtime stops or restarts. Each stream has its\nown attachment, even when several share a client identity.\n",
@@ -566,12 +552,9 @@ export const AttachmentMessage = zod
       .describe(
         "The `Idempotency-Key` of the request that caused this event. Omitted when no request did, and on snapshots unless that request's work is still in progress.",
       ),
-    time: zod.iso
-      .datetime({ offset: true })
-      .optional()
-      .describe(
-        "When the host made this change. Present on live and replayed events; omitted on snapshots.",
-      ),
+    time: Timestamp.optional().describe(
+      "When the host made this change. Present on live and replayed events; omitted on snapshots.",
+    ),
     attachment: Attachment,
   })
   .describe("The data of the `attachment` event. The attachment as it now is.");
@@ -643,10 +626,10 @@ export const Run = zod
         "Null until completed, then final. Published with the terminal status and completed_at. An execution failure does not complete a run while other work remains. Interruption must have taken effect, not merely been requested.",
       ),
     started_at: zod
-      .union([zod.string(), zod.null()])
+      .union([Timestamp, zod.null()])
       .describe("When the first execution started. Null if none has started."),
     completed_at: zod
-      .union([zod.string(), zod.null()])
+      .union([Timestamp, zod.null()])
       .describe("When the run ended. Null until the run is `completed`."),
   })
   .describe(
@@ -664,12 +647,9 @@ export const RunMessage = zod
       .describe(
         "The `Idempotency-Key` of the request that caused this event. Omitted when no request did, and on snapshots unless that request's work is still in progress.",
       ),
-    time: zod.iso
-      .datetime({ offset: true })
-      .optional()
-      .describe(
-        "When the host made this change. Present on live and replayed events; omitted on snapshots.",
-      ),
+    time: Timestamp.optional().describe(
+      "When the host made this change. Present on live and replayed events; omitted on snapshots.",
+    ),
     run: Run,
   })
   .describe("The data of the `run` event. The run as it now is.");
@@ -927,12 +907,12 @@ export const Execution = zod
         "How the execution ended. Null while queued; while running, a value carries the display so far; final once completed.",
       ),
     started_at: zod
-      .union([zod.string(), zod.null()])
+      .union([Timestamp, zod.null()])
       .describe(
         "When the code started executing. Null while queued or if the execution completed before starting.",
       ),
     completed_at: zod
-      .union([zod.string(), zod.null()])
+      .union([Timestamp, zod.null()])
       .describe("When the execution ended. Null until it is completed."),
   })
   .describe(
@@ -950,12 +930,9 @@ export const ExecutionMessage = zod
       .describe(
         "The `Idempotency-Key` of the request that caused this event. Omitted when no request did, and on snapshots unless that request's work is still in progress.",
       ),
-    time: zod.iso
-      .datetime({ offset: true })
-      .optional()
-      .describe(
-        "When the host made this change. Present on live and replayed events; omitted on snapshots.",
-      ),
+    time: Timestamp.optional().describe(
+      "When the host made this change. Present on live and replayed events; omitted on snapshots.",
+    ),
     execution: Execution,
   })
   .describe("The data of the `execution` event. The execution as it now is.");
@@ -1020,12 +997,9 @@ export const ConsoleMessage = zod
       .describe(
         "The `Idempotency-Key` of the request that caused this event. Omitted when no request did, and on snapshots unless that request's work is still in progress.",
       ),
-    time: zod.iso
-      .datetime({ offset: true })
-      .optional()
-      .describe(
-        "When the host made this change. Present on live and replayed events; omitted on snapshots.",
-      ),
+    time: Timestamp.optional().describe(
+      "When the host made this change. Present on live and replayed events; omitted on snapshots.",
+    ),
     console: Console,
   })
   .describe("The data of the `console` event. The console as it now is.");
@@ -1077,12 +1051,9 @@ export const DisplayMessage = zod
       .describe(
         "The `Idempotency-Key` of the request that caused this event. Omitted when no request did, and on snapshots unless that request's work is still in progress.",
       ),
-    time: zod.iso
-      .datetime({ offset: true })
-      .optional()
-      .describe(
-        "When the host made this change. Present on live and replayed events; omitted on snapshots.",
-      ),
+    time: Timestamp.optional().describe(
+      "When the host made this change. Present on live and replayed events; omitted on snapshots.",
+    ),
     display: Display,
   })
   .describe("The data of the `display` event. The display as it now is.");
@@ -1149,12 +1120,9 @@ export const InputMessage = zod
       .describe(
         "The `Idempotency-Key` of the request that caused this event. Omitted when no request did, and on snapshots unless that request's work is still in progress.",
       ),
-    time: zod.iso
-      .datetime({ offset: true })
-      .optional()
-      .describe(
-        "When the host made this change. Present on live and replayed events; omitted on snapshots.",
-      ),
+    time: Timestamp.optional().describe(
+      "When the host made this change. Present on live and replayed events; omitted on snapshots.",
+    ),
     input: Input,
   })
   .describe("The data of the `input` event. The input as it now is.");
@@ -1207,12 +1175,9 @@ export const VariableMessage = zod
       .describe(
         "The `Idempotency-Key` of the request that caused this event. Omitted when no request did, and on snapshots unless that request's work is still in progress.",
       ),
-    time: zod.iso
-      .datetime({ offset: true })
-      .optional()
-      .describe(
-        "When the host made this change. Present on live and replayed events; omitted on snapshots.",
-      ),
+    time: Timestamp.optional().describe(
+      "When the host made this change. Present on live and replayed events; omitted on snapshots.",
+    ),
     variable: Variable,
   })
   .describe("The data of the `variable` event. The variable as it now is.");
@@ -1279,12 +1244,9 @@ export const AnalysisMessage = zod
       .describe(
         "The `Idempotency-Key` of the request that caused this event. Omitted when no request did, and on snapshots unless that request's work is still in progress.",
       ),
-    time: zod.iso
-      .datetime({ offset: true })
-      .optional()
-      .describe(
-        "When the host made this change. Present on live and replayed events; omitted on snapshots.",
-      ),
+    time: Timestamp.optional().describe(
+      "When the host made this change. Present on live and replayed events; omitted on snapshots.",
+    ),
     analysis: Analysis,
   })
   .describe("The data of the `analysis` event. The analysis as it now is.");
@@ -1337,9 +1299,9 @@ export const CustomMessage = zod
       .describe(
         "The `Idempotency-Key` of the request that caused this event. Omitted when no request did, and on snapshots unless that request's work is still in progress.",
       ),
-    time: zod.iso
-      .datetime({ offset: true })
-      .describe("When the host emitted this event. Preserved on replay."),
+    time: Timestamp.describe(
+      "When the host emitted this event. Preserved on replay.",
+    ),
   })
   .describe(
     "The data of a `custom` event. This envelope is standardized; the custom type and payload are defined by their producer.",
@@ -1371,12 +1333,9 @@ export const RemovedMessage = zod
       .describe(
         "The `Idempotency-Key` of the request that caused this event. Omitted when no request did, and on snapshots unless that request's work is still in progress.",
       ),
-    time: zod.iso
-      .datetime({ offset: true })
-      .optional()
-      .describe(
-        "When the host made this change. Present on live and replayed events; omitted on snapshots.",
-      ),
+    time: Timestamp.optional().describe(
+      "When the host made this change. Present on live and replayed events; omitted on snapshots.",
+    ),
     id: zod.string().describe("The id of the object that was removed."),
   })
   .describe(
@@ -1558,7 +1517,7 @@ export const ResetEvent = zod
       .min(1)
       .optional()
       .describe("The resume cursor. Omitted on snapshot and reset events."),
-    data: zod.looseObject({}),
+    data: zod.object({}),
   })
   .describe("The `reset` event, carried by every stream.");
 
@@ -1572,7 +1531,7 @@ export const ReadyEvent = zod
       .string()
       .min(1)
       .describe("The resume cursor. Omitted on snapshot and reset events."),
-    data: zod.looseObject({}),
+    data: zod.object({}),
   })
   .describe("The `ready` event, carried by every stream.");
 
@@ -1644,9 +1603,7 @@ export type ObjectTypeOutput = zod.output<typeof ObjectType>;
 export const Process = zod
   .object({
     pid: zod.int().min(1).describe("The process id."),
-    started_at: zod.iso
-      .datetime({ offset: true })
-      .describe("When the process started."),
+    started_at: Timestamp.describe("When the process started."),
   })
   .describe(
     "The process that wrote a record. A client checks that a process\nwith this `pid` that started at `started_at` still exists. If it\ndoes not, the record is stale and may be removed.\n",
@@ -1685,12 +1642,15 @@ export const HostRecord = zod
 export type HostRecord = zod.input<typeof HostRecord>;
 export type HostRecordOutput = zod.output<typeof HostRecord>;
 
+export const invalidRequestProblemStatusDefault = 400;
+export const invalidRequestProblemTitleDefault = `Invalid request`;
+
 export const InvalidRequestProblem = zod.object({
   detail: zod.string().optional(),
   instance: zod.string().optional(),
   type: zod.enum(["urn:marimo:problem:invalid-request"]),
-  status: zod.literal(400),
-  title: zod.string(),
+  status: zod.literal(400).default(invalidRequestProblemStatusDefault),
+  title: zod.string().default(invalidRequestProblemTitleDefault),
 });
 
 export type InvalidRequestProblem = zod.input<typeof InvalidRequestProblem>;
@@ -1698,45 +1658,57 @@ export type InvalidRequestProblemOutput = zod.output<
   typeof InvalidRequestProblem
 >;
 
+export const unauthorizedProblemStatusDefault = 401;
+export const unauthorizedProblemTitleDefault = `Unauthorized`;
+
 export const UnauthorizedProblem = zod.object({
   detail: zod.string().optional(),
   instance: zod.string().optional(),
   type: zod.enum(["urn:marimo:problem:unauthorized"]),
-  status: zod.literal(401),
-  title: zod.string(),
+  status: zod.literal(401).default(unauthorizedProblemStatusDefault),
+  title: zod.string().default(unauthorizedProblemTitleDefault),
 });
 
 export type UnauthorizedProblem = zod.input<typeof UnauthorizedProblem>;
 export type UnauthorizedProblemOutput = zod.output<typeof UnauthorizedProblem>;
 
+export const forbiddenProblemStatusDefault = 403;
+export const forbiddenProblemTitleDefault = `Forbidden`;
+
 export const ForbiddenProblem = zod.object({
   detail: zod.string().optional(),
   instance: zod.string().optional(),
   type: zod.enum(["urn:marimo:problem:forbidden"]),
-  status: zod.literal(403),
-  title: zod.string(),
+  status: zod.literal(403).default(forbiddenProblemStatusDefault),
+  title: zod.string().default(forbiddenProblemTitleDefault),
 });
 
 export type ForbiddenProblem = zod.input<typeof ForbiddenProblem>;
 export type ForbiddenProblemOutput = zod.output<typeof ForbiddenProblem>;
 
+export const notFoundProblemStatusDefault = 404;
+export const notFoundProblemTitleDefault = `Not found`;
+
 export const NotFoundProblem = zod.object({
   detail: zod.string().optional(),
   instance: zod.string().optional(),
   type: zod.enum(["urn:marimo:problem:not-found"]),
-  status: zod.literal(404),
-  title: zod.string(),
+  status: zod.literal(404).default(notFoundProblemStatusDefault),
+  title: zod.string().default(notFoundProblemTitleDefault),
 });
 
 export type NotFoundProblem = zod.input<typeof NotFoundProblem>;
 export type NotFoundProblemOutput = zod.output<typeof NotFoundProblem>;
 
+export const methodNotAllowedProblemStatusDefault = 405;
+export const methodNotAllowedProblemTitleDefault = `Method not allowed`;
+
 export const MethodNotAllowedProblem = zod.object({
   detail: zod.string().optional(),
   instance: zod.string().optional(),
   type: zod.enum(["urn:marimo:problem:method-not-allowed"]),
-  status: zod.literal(405),
-  title: zod.string(),
+  status: zod.literal(405).default(methodNotAllowedProblemStatusDefault),
+  title: zod.string().default(methodNotAllowedProblemTitleDefault),
 });
 
 export type MethodNotAllowedProblem = zod.input<typeof MethodNotAllowedProblem>;
@@ -1744,23 +1716,29 @@ export type MethodNotAllowedProblemOutput = zod.output<
   typeof MethodNotAllowedProblem
 >;
 
+export const conflictProblemStatusDefault = 409;
+export const conflictProblemTitleDefault = `Conflict`;
+
 export const ConflictProblem = zod.object({
   detail: zod.string().optional(),
   instance: zod.string().optional(),
   type: zod.enum(["urn:marimo:problem:conflict"]),
-  status: zod.literal(409),
-  title: zod.string(),
+  status: zod.literal(409).default(conflictProblemStatusDefault),
+  title: zod.string().default(conflictProblemTitleDefault),
 });
 
 export type ConflictProblem = zod.input<typeof ConflictProblem>;
 export type ConflictProblemOutput = zod.output<typeof ConflictProblem>;
 
+export const noRuntimeProblemStatusDefault = 409;
+export const noRuntimeProblemTitleDefault = `No runtime`;
+
 export const NoRuntimeProblem = zod.object({
   detail: zod.string().optional(),
   instance: zod.string().optional(),
   type: zod.enum(["urn:marimo:problem:no-runtime"]),
-  status: zod.literal(409),
-  title: zod.string(),
+  status: zod.literal(409).default(noRuntimeProblemStatusDefault),
+  title: zod.string().default(noRuntimeProblemTitleDefault),
 });
 
 export type NoRuntimeProblem = zod.input<typeof NoRuntimeProblem>;
@@ -1791,6 +1769,9 @@ export const Decision = zod
 export type Decision = zod.input<typeof Decision>;
 export type DecisionOutput = zod.output<typeof Decision>;
 
+export const decisionRequiredProblemStatusDefault = 409;
+export const decisionRequiredProblemTitleDefault = `Decision required`;
+
 export const DecisionRequiredProblem = zod.object({
   detail: zod.string().optional(),
   instance: zod.string().optional(),
@@ -1800,8 +1781,8 @@ export const DecisionRequiredProblem = zod.object({
       "The choices the client has to make before the host can carry out the request.",
     ),
   type: zod.enum(["urn:marimo:problem:decision-required"]),
-  status: zod.literal(409),
-  title: zod.string(),
+  status: zod.literal(409).default(decisionRequiredProblemStatusDefault),
+  title: zod.string().default(decisionRequiredProblemTitleDefault),
 });
 
 export type DecisionRequiredProblem = zod.input<typeof DecisionRequiredProblem>;
@@ -1810,6 +1791,9 @@ export type DecisionRequiredProblemOutput = zod.output<
 >;
 
 export const preconditionFailedProblemIndexMin = 0;
+
+export const preconditionFailedProblemStatusDefault = 412;
+export const preconditionFailedProblemTitleDefault = `Precondition failed`;
 
 export const PreconditionFailedProblem = zod.object({
   detail: zod.string().optional(),
@@ -1827,8 +1811,8 @@ export const PreconditionFailedProblem = zod.object({
     ),
   document: Document.describe("The document as it now is."),
   type: zod.enum(["urn:marimo:problem:precondition-failed"]),
-  status: zod.literal(412),
-  title: zod.string(),
+  status: zod.literal(412).default(preconditionFailedProblemStatusDefault),
+  title: zod.string().default(preconditionFailedProblemTitleDefault),
 });
 
 export type PreconditionFailedProblem = zod.input<
@@ -1838,23 +1822,29 @@ export type PreconditionFailedProblemOutput = zod.output<
   typeof PreconditionFailedProblem
 >;
 
+export const internalProblemStatusDefault = 500;
+export const internalProblemTitleDefault = `Internal error`;
+
 export const InternalProblem = zod.object({
   detail: zod.string().optional(),
   instance: zod.string().optional(),
   type: zod.enum(["urn:marimo:problem:internal"]),
-  status: zod.literal(500),
-  title: zod.string(),
+  status: zod.literal(500).default(internalProblemStatusDefault),
+  title: zod.string().default(internalProblemTitleDefault),
 });
 
 export type InternalProblem = zod.input<typeof InternalProblem>;
 export type InternalProblemOutput = zod.output<typeof InternalProblem>;
 
+export const unsupportedOperationProblemStatusDefault = 501;
+export const unsupportedOperationProblemTitleDefault = `Unsupported operation`;
+
 export const UnsupportedOperationProblem = zod.object({
   detail: zod.string().optional(),
   instance: zod.string().optional(),
   type: zod.enum(["urn:marimo:problem:unsupported-operation"]),
-  status: zod.literal(501),
-  title: zod.string(),
+  status: zod.literal(501).default(unsupportedOperationProblemStatusDefault),
+  title: zod.string().default(unsupportedOperationProblemTitleDefault),
 });
 
 export type UnsupportedOperationProblem = zod.input<
@@ -1912,7 +1902,7 @@ export type UnknownProblem = zod.input<typeof UnknownProblem>;
 export type UnknownProblemOutput = zod.output<typeof UnknownProblem>;
 
 export const UpdateNotebookRequest = zod
-  .object({
+  .strictObject({
     path: zod
       .string()
       .optional()
@@ -1956,7 +1946,7 @@ export type EditResponse = zod.input<typeof EditResponse>;
 export type EditResponseOutput = zod.output<typeof EditResponse>;
 
 export const SaveRequest = zod
-  .object({
+  .strictObject({
     decisions: zod
       .record(zod.string(), zod.string())
       .optional()
@@ -1971,7 +1961,7 @@ export const SaveRequest = zod
 export type SaveRequest = zod.input<typeof SaveRequest>;
 export type SaveRequestOutput = zod.output<typeof SaveRequest>;
 
-export const StartRuntimeRequest = zod.object({
+export const StartRuntimeRequest = zod.strictObject({
   decisions: zod
     .record(zod.string(), zod.string())
     .optional()
@@ -1996,7 +1986,7 @@ export const ExecuteRequest = zod
 export type ExecuteRequest = zod.input<typeof ExecuteRequest>;
 export type ExecuteRequestOutput = zod.output<typeof ExecuteRequest>;
 
-export const RequestedCell = zod.object({
+export const RequestedCell = zod.strictObject({
   id: CellId,
   etag: Etag.optional().describe(
     "The cell's `etag` as last read. A cell whose source, name, or config differs is `precondition-failed`. Absent, the cell runs as it is.",
@@ -2021,7 +2011,7 @@ export type RunRequest = zod.input<typeof RunRequest>;
 export type RunRequestOutput = zod.output<typeof RunRequest>;
 
 export const InputReplyRequest = zod
-  .object({
+  .strictObject({
     value: zod
       .string()
       .describe(
@@ -2052,7 +2042,7 @@ export const cellConfigInputHideCodeDefault = false;
 export const cellConfigInputExpandOutputDefault = false;
 
 export const CellConfigInput = zod
-  .object({
+  .strictObject({
     column: zod
       .union([zod.int(), zod.null()])
       .default(cellConfigInputColumnDefault),
@@ -2070,7 +2060,7 @@ export type CellConfigInputOutput = zod.output<typeof CellConfigInput>;
 export const cellInputNameDefault = `_`;
 
 export const CellInput = zod
-  .object({
+  .strictObject({
     id: CellId.describe(
       "The cell's id. A client chooses the id of a cell it creates.",
     ),
@@ -2089,7 +2079,7 @@ export type CellInput = zod.input<typeof CellInput>;
 export type CellInputOutput = zod.output<typeof CellInput>;
 
 export const PutCell = zod
-  .object({
+  .strictObject({
     kind: zod.enum(["put_cell"]),
     base_etag: zod
       .union([zod.string(), zod.null()])
@@ -2110,7 +2100,7 @@ export type PutCell = zod.input<typeof PutCell>;
 export type PutCellOutput = zod.output<typeof PutCell>;
 
 export const DeleteCell = zod
-  .object({
+  .strictObject({
     kind: zod.enum(["delete_cell"]),
     id: CellId.describe("The cell to remove."),
     base_etag: zod.string().describe("The cell's etag as last read, or `*`."),
@@ -2121,7 +2111,7 @@ export type DeleteCell = zod.input<typeof DeleteCell>;
 export type DeleteCellOutput = zod.output<typeof DeleteCell>;
 
 export const SetOrder = zod
-  .object({
+  .strictObject({
     kind: zod.enum(["set_order"]),
     base_etag: zod
       .string()
@@ -2144,7 +2134,7 @@ export const Change = zod
 export type Change = zod.input<typeof Change>;
 export type ChangeOutput = zod.output<typeof Change>;
 
-export const EditRequest = zod.object({
+export const EditRequest = zod.strictObject({
   changes: zod
     .array(Change)
     .describe("The changes, applied in order as one unit."),
@@ -2154,7 +2144,7 @@ export type EditRequest = zod.input<typeof EditRequest>;
 export type EditRequestOutput = zod.output<typeof EditRequest>;
 
 export const CreateNotebookRequest = zod
-  .object({
+  .strictObject({
     project_id: ProjectId,
     path: zod
       .string()

@@ -112,6 +112,18 @@ describe("native HTTP implementation", () => {
     });
   });
 
+  it.each([
+    { cells: [{ id: "c" }], future: true },
+    { cells: [{ id: "c", future: true }] },
+  ])("rejects a request body with an unknown member: %j", async (body) => {
+    const response = await request("/notebooks/n/runtime/runs", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Idempotency-Key": "run" },
+      body: JSON.stringify(body),
+    });
+    expect(response.status).toBe(400);
+  });
+
   it("encodes a tagged error with its problem status, content type and wire fields", async () => {
     const response = await request("/notebooks/n/save", {
       method: "POST",

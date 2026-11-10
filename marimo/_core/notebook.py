@@ -247,14 +247,14 @@ class Notebook:
             name=cell.name,
             config=cell.config,
             etag=cell.etag,
-            code_fingerprint=cell.code_fingerprint,
+            code_fingerprint=protocol.CodeFingerprint(cell.code_fingerprint),
             version=self._cell_versions[cell.id],
         )
 
     def _cell_version(self, cell: DocumentCell) -> protocol.CellVersion:
         return protocol.CellVersion(
             etag=cell.etag,
-            code_fingerprint=cell.code_fingerprint,
+            code_fingerprint=protocol.CodeFingerprint(cell.code_fingerprint),
             version=self._cell_versions[cell.id],
         )
 

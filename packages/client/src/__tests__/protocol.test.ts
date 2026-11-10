@@ -225,7 +225,7 @@ describe("host protocol bindings", () => {
       throw new Error("Expected an invalid cell");
     }
     expect(result.error.issues).toEqual([
-      expect.objectContaining({ path: ["code"] }),
+      expect.objectContaining({ path: ["code"], code: "invalid_union" }),
     ]);
   });
 

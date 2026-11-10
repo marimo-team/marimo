@@ -415,8 +415,9 @@ automatically, then submit the request with its choice and a new key.
 Edits describe a group of changes to the document. Hosts MUST apply each group
 atomically. If a precondition is stale, the host rejects the whole group with a
 `412 precondition-failed` problem that names the first stale change and carries
-the cell and the document as they now are. Clients can inspect that state and
-decide how to revise their edit.
+the document as it now is. It also carries the cell that change named, or null
+when the document no longer has the cell or the change named the order.
+Clients can inspect that state and decide how to revise their edit.
 
 `put_cell` replaces the whole cell and MUST include string-valued source in
 `CellInput.code`. A client MUST NOT round-trip a withheld `code: null` as an
@@ -428,8 +429,9 @@ edit different parts of a document independently while detecting competing
 changes to the same part. For example, two clients can update different cells,
 but an edit based on an older version of the same cell fails its precondition.
 A save with a stale `If-Match` and a run that names a stale cell etag receive
-the same problem. A `409 conflict` means the current state does not allow the
-request, such as a file that already exists, so reading again does not help.
+the same problem. For a save, `index` is `0` and `cell` is null. A `409 conflict`
+means the current state does not allow the request, such as a file that already
+exists, so reading again does not help.
 
 An accepted edit answers with the version of each cell it touched and the
 document at the edit's revision or a later one. The client already has the
@@ -590,8 +592,10 @@ removed.
 
 Hosts can extend the protocol with new capabilities. Clients MUST ignore
 unfamiliar fields, operations, and events while continuing to process the parts
-they understand. A breaking change requires a new record version and API base
-path. Protocol versions are independent of marimo releases.
+they understand. Hosts MUST reject a request body that has an unrecognized
+member at any depth with `400 invalid-request`, so a client learns that the
+host cannot honor it. A breaking change requires a new record version and API
+base path. Protocol versions are independent of marimo releases.
 
 Conformance tests exercise the contract from a client's perspective. Hosts,
 including marimo's reference implementation, are responsible for the common
