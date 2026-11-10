@@ -2422,9 +2422,7 @@ class TestAppRunMemoryLeak:
 
     @staticmethod
     def test_accessed_values_freed_when_not_held() -> None:
-        """Values accessed via defs[key] are tracked and removed from
-        the module dict on namespace collection. If no strong reference
-        is held externally, they are freed immediately."""
+        """Accessed values are released when no strong references remain."""
         import weakref
 
         app = App()
@@ -2453,6 +2451,7 @@ class TestAppRunMemoryLeak:
         Check that scoped variables are capable of working until all references
         are cleaned up.
         """
+        import gc
         import weakref
 
         app = App()
@@ -2488,20 +2487,19 @@ class TestAppRunMemoryLeak:
 
             pure, uses_global, unref, ref = run_and_extract()
 
-            # tracker was accessed (tracked) — freed since no strong
-            # ref held externally.
-            assert unref() is None
+            # Functions retain their entire globals dictionary.
+            assert unref() is not None
             assert ref() is not None
             assert pure() == 1
-            # Known limitation: uses_global's dependency was tracked
-            # and freed, so __globals__ lookup fails.
             assert uses_global() == 2
-            return weakref.ref(uses_global)
+            return weakref.ref(uses_global), unref, ref
 
-        # No strong references exist at this point, so we should clean up.
-        uses_global_ref = scope_values()
-        # All strong refs dropped — function collected.
+        uses_global_ref, unref, ref = scope_values()
+        # Unreachable function/globals cycles can now be collected.
+        gc.collect()
         assert uses_global_ref() is None
+        assert unref() is None
+        assert ref() is None
 
     @staticmethod
     def test_repeated_runs_dont_accumulate() -> None:
