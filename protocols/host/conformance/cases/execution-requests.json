@@ -41,6 +41,19 @@
     "schema": "RunRequest"
   },
   {
+    "name": "future field in a cell",
+    "valid": false,
+    "body": {
+      "cells": [
+        {
+          "id": "c",
+          "future": true
+        }
+      ]
+    },
+    "schema": "RunRequest"
+  },
+  {
     "name": "missing cells",
     "valid": false,
     "body": {},

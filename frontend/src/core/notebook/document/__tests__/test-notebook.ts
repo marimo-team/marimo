@@ -112,8 +112,9 @@ export function createTestNotebook(
             kind: "put_cell",
             base_etag: cell.etag,
             cell: {
-              ...cell,
+              id,
               code: cell.code,
+              name: cell.name,
               ...patch,
               config: { ...cell.config, ...patch.config },
             },

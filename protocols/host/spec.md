@@ -591,8 +591,10 @@ removed.
 
 Hosts can extend the protocol with new capabilities. Clients MUST ignore
 unfamiliar fields, operations, and events while continuing to process the parts
-they understand. A breaking change requires a new record version and API base
-path. Protocol versions are independent of marimo releases.
+they understand. Hosts MUST reject a request body that has a member they do not
+recognize with `400 invalid-request`, so a client learns that the host cannot
+honor it. A breaking change requires a new record version and API base path.
+Protocol versions are independent of marimo releases.
 
 Conformance tests exercise the contract from a client's perspective. Hosts,
 including marimo's reference implementation, are responsible for the common

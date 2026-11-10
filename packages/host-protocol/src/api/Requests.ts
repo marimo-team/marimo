@@ -1,7 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { Schema } from "effect";
-import { Integer, closedStruct } from "../internal/schema.ts";
+import { Integer } from "../internal/schema.ts";
 import { ProjectId, CellId, Etag, CodeFingerprint } from "../model/Ids.ts";
 import { Document } from "../model/Document.ts";
 
@@ -209,7 +209,7 @@ export const RequestedCell = Schema.Struct({
   ),
 }).annotate({ identifier: "RequestedCell" });
 
-export const RunRequest = closedStruct({
+export const RunRequest = Schema.Struct({
   cells: Schema.Array(RequestedCell).check(Schema.isMinLength(1)).annotateKey({
     description:
       "Cells to run by id. The notebook's execution settings determine their order and whether dependent cells run too.",
@@ -219,7 +219,7 @@ export const RunRequest = closedStruct({
   identifier: "RunRequest",
 });
 
-export const ExecuteRequest = closedStruct({
+export const ExecuteRequest = Schema.Struct({
   code: Schema.String.annotateKey({
     description:
       "Python code that can read the notebook's current values.\nAssignments stay local to the call. Changes to shared objects persist.\n",

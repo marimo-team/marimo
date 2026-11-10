@@ -391,6 +391,20 @@ async def test_an_unknown_type_filter_is_a_400_problem(
     assert "bogus" in response.json()["detail"] or types == "Notebook"
 
 
+async def test_an_unknown_request_member_is_a_400_problem(
+    harness: Harness,
+) -> None:
+    response = await finished(
+        harness.app,
+        "PATCH",
+        f"/notebooks/{harness.notebook_id}",
+        headers=key("future"),
+        body=b'{"name":"Forecasts","future":true}',
+    )
+    assert response.status == 400
+    assert response.json()["type"].endswith(":invalid-request")
+
+
 async def test_an_empty_update_is_a_400_problem(harness: Harness) -> None:
     response = await finished(
         harness.app,

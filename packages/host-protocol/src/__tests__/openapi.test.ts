@@ -10,11 +10,29 @@ const stable = OpenApi.fromApi(Host.Api, { referencePolicy });
 const experimental = OpenApi.fromApi(Analysis.Api, { referencePolicy });
 const schemas = stable.components.schemas;
 
-it("keeps objects open unless a schema closes itself", () => {
+it("closes request bodies and keeps other objects open", () => {
   const closed = Object.entries(schemas)
     .filter(([, schema]) => schema.additionalProperties === false)
     .map(([name]) => name);
-  expect(closed.toSorted()).toEqual(["ExecuteRequest", "RunRequest"]);
+  expect(closed.toSorted()).toEqual([
+    "CellConfigInput",
+    "CellInput",
+    "CreateNotebookRequest",
+    "DeleteCell",
+    "EditRequest",
+    "ExecuteRequest",
+    "InputReplyRequest",
+    "PutCell",
+    "RequestedCell",
+    "RunRequest",
+    "SaveRequest",
+    "SetOrder",
+    "StartRuntimeRequest",
+    "UpdateNotebookRequest",
+  ]);
+  expect(schemas.ReadyEvent.properties).toMatchObject({
+    data: { type: "object", additionalProperties: false },
+  });
 });
 
 it("puts descriptions beside their schemas and names each problem", () => {

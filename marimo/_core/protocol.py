@@ -74,7 +74,7 @@ class CellConfig(Struct, frozen=True):
     ]
 
 
-class CellConfigInput(Struct, frozen=True):
+class CellConfigInput(Struct, frozen=True, forbid_unknown_fields=True):
     column: int | None | UnsetType = UNSET
     disabled: bool | UnsetType = False
     expand_output: bool | UnsetType = False
@@ -96,7 +96,7 @@ else:
     )
 
 
-class CellInput(Struct, frozen=True):
+class CellInput(Struct, frozen=True, forbid_unknown_fields=True):
     code: Annotated[str, Meta(description="The cell's source code.")]
     id: Annotated[
         CellId,
@@ -165,7 +165,13 @@ class DecisionOption(Struct, frozen=True):
     ]
 
 
-class DeleteCell(Struct, frozen=True, tag_field="kind", tag="delete_cell"):
+class DeleteCell(
+    Struct,
+    frozen=True,
+    forbid_unknown_fields=True,
+    tag_field="kind",
+    tag="delete_cell",
+):
     base_etag: Annotated[
         str, Meta(description="The cell's etag as last read, or `*`.")
     ]
@@ -245,7 +251,7 @@ class Host(Struct, frozen=True):
     ]
 
 
-class InputReplyRequest(Struct, frozen=True):
+class InputReplyRequest(Struct, frozen=True, forbid_unknown_fields=True):
     value: Annotated[
         str,
         Meta(
@@ -426,7 +432,13 @@ ProjectStatus: TypeAlias = Annotated[
 ]
 
 
-class PutCell(Struct, frozen=True, tag_field="kind", tag="put_cell"):
+class PutCell(
+    Struct,
+    frozen=True,
+    forbid_unknown_fields=True,
+    tag_field="kind",
+    tag="put_cell",
+):
     base_etag: (
         Annotated[
             str,
@@ -468,7 +480,7 @@ class Range(Struct, frozen=True):
 
 
 class ReadyEvent(Struct, frozen=True, tag_field="event", tag="ready"):
-    data: dict[str, Any]
+    data: Annotated[dict[str, Any], Meta(max_length=0)]
     id: Annotated[
         str,
         Meta(
@@ -492,7 +504,7 @@ class Related(Struct, frozen=True):
     )
 
 
-class RequestedCell(Struct, frozen=True):
+class RequestedCell(Struct, frozen=True, forbid_unknown_fields=True):
     id: CellId
     etag: (
         Annotated[
@@ -506,7 +518,7 @@ class RequestedCell(Struct, frozen=True):
 
 
 class ResetEvent(Struct, frozen=True, tag_field="event", tag="reset"):
-    data: dict[str, Any]
+    data: Annotated[dict[str, Any], Meta(max_length=0)]
     id: (
         Annotated[
             str,
@@ -591,7 +603,7 @@ RuntimeStatus: TypeAlias = Annotated[
 ]
 
 
-class SaveRequest(Struct, frozen=True):
+class SaveRequest(Struct, frozen=True, forbid_unknown_fields=True):
     decisions: (
         Annotated[
             dict[str, str],
@@ -603,7 +615,13 @@ class SaveRequest(Struct, frozen=True):
     ) = UNSET
 
 
-class SetOrder(Struct, frozen=True, tag_field="kind", tag="set_order"):
+class SetOrder(
+    Struct,
+    frozen=True,
+    forbid_unknown_fields=True,
+    tag_field="kind",
+    tag="set_order",
+):
     base_etag: Annotated[
         str,
         Meta(description="The document's `order_etag` as last read, or `*`."),
@@ -637,7 +655,7 @@ class SkippedOutcome(Struct, frozen=True, tag_field="kind", tag="skipped"):
     ]
 
 
-class StartRuntimeRequest(Struct, frozen=True):
+class StartRuntimeRequest(Struct, frozen=True, forbid_unknown_fields=True):
     decisions: (
         Annotated[
             dict[str, str],
@@ -709,7 +727,7 @@ class UnsupportedOperationProblem(
     title: str = "Unsupported operation"
 
 
-class UpdateNotebookRequest(Struct, frozen=True):
+class UpdateNotebookRequest(Struct, frozen=True, forbid_unknown_fields=True):
     name: (
         Annotated[str, Meta(description="The new label to show people.")]
         | UnsetType
@@ -954,7 +972,7 @@ class ConsoleMessage(Struct, frozen=True):
     ) = UNSET
 
 
-class CreateNotebookRequest(Struct, frozen=True):
+class CreateNotebookRequest(Struct, frozen=True, forbid_unknown_fields=True):
     project_id: ProjectId
     name: (
         Annotated[
@@ -1139,7 +1157,7 @@ class DocumentMessage(Struct, frozen=True):
     ) = UNSET
 
 
-class EditRequest(Struct, frozen=True):
+class EditRequest(Struct, frozen=True, forbid_unknown_fields=True):
     changes: Annotated[
         tuple[Change, ...],
         Meta(description="The changes, applied in order as one unit."),

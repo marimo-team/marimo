@@ -1517,7 +1517,7 @@ export const ResetEvent = zod
       .min(1)
       .optional()
       .describe("The resume cursor. Omitted on snapshot and reset events."),
-    data: zod.looseObject({}),
+    data: zod.object({}),
   })
   .describe("The `reset` event, carried by every stream.");
 
@@ -1531,7 +1531,7 @@ export const ReadyEvent = zod
       .string()
       .min(1)
       .describe("The resume cursor. Omitted on snapshot and reset events."),
-    data: zod.looseObject({}),
+    data: zod.object({}),
   })
   .describe("The `ready` event, carried by every stream.");
 
@@ -1902,7 +1902,7 @@ export type UnknownProblem = zod.input<typeof UnknownProblem>;
 export type UnknownProblemOutput = zod.output<typeof UnknownProblem>;
 
 export const UpdateNotebookRequest = zod
-  .object({
+  .strictObject({
     path: zod
       .string()
       .optional()
@@ -1946,7 +1946,7 @@ export type EditResponse = zod.input<typeof EditResponse>;
 export type EditResponseOutput = zod.output<typeof EditResponse>;
 
 export const SaveRequest = zod
-  .object({
+  .strictObject({
     decisions: zod
       .record(zod.string(), zod.string())
       .optional()
@@ -1961,7 +1961,7 @@ export const SaveRequest = zod
 export type SaveRequest = zod.input<typeof SaveRequest>;
 export type SaveRequestOutput = zod.output<typeof SaveRequest>;
 
-export const StartRuntimeRequest = zod.object({
+export const StartRuntimeRequest = zod.strictObject({
   decisions: zod
     .record(zod.string(), zod.string())
     .optional()
@@ -1986,7 +1986,7 @@ export const ExecuteRequest = zod
 export type ExecuteRequest = zod.input<typeof ExecuteRequest>;
 export type ExecuteRequestOutput = zod.output<typeof ExecuteRequest>;
 
-export const RequestedCell = zod.object({
+export const RequestedCell = zod.strictObject({
   id: CellId,
   etag: Etag.optional().describe(
     "The cell's `etag` as last read. A cell whose source, name, or config differs is `precondition-failed`. Absent, the cell runs as it is.",
@@ -2011,7 +2011,7 @@ export type RunRequest = zod.input<typeof RunRequest>;
 export type RunRequestOutput = zod.output<typeof RunRequest>;
 
 export const InputReplyRequest = zod
-  .object({
+  .strictObject({
     value: zod
       .string()
       .describe(
@@ -2042,7 +2042,7 @@ export const cellConfigInputHideCodeDefault = false;
 export const cellConfigInputExpandOutputDefault = false;
 
 export const CellConfigInput = zod
-  .object({
+  .strictObject({
     column: zod
       .union([zod.int(), zod.null()])
       .default(cellConfigInputColumnDefault),
@@ -2060,7 +2060,7 @@ export type CellConfigInputOutput = zod.output<typeof CellConfigInput>;
 export const cellInputNameDefault = `_`;
 
 export const CellInput = zod
-  .object({
+  .strictObject({
     id: CellId.describe(
       "The cell's id. A client chooses the id of a cell it creates.",
     ),
@@ -2079,7 +2079,7 @@ export type CellInput = zod.input<typeof CellInput>;
 export type CellInputOutput = zod.output<typeof CellInput>;
 
 export const PutCell = zod
-  .object({
+  .strictObject({
     kind: zod.enum(["put_cell"]),
     base_etag: zod
       .union([zod.string(), zod.null()])
@@ -2100,7 +2100,7 @@ export type PutCell = zod.input<typeof PutCell>;
 export type PutCellOutput = zod.output<typeof PutCell>;
 
 export const DeleteCell = zod
-  .object({
+  .strictObject({
     kind: zod.enum(["delete_cell"]),
     id: CellId.describe("The cell to remove."),
     base_etag: zod.string().describe("The cell's etag as last read, or `*`."),
@@ -2111,7 +2111,7 @@ export type DeleteCell = zod.input<typeof DeleteCell>;
 export type DeleteCellOutput = zod.output<typeof DeleteCell>;
 
 export const SetOrder = zod
-  .object({
+  .strictObject({
     kind: zod.enum(["set_order"]),
     base_etag: zod
       .string()
@@ -2134,7 +2134,7 @@ export const Change = zod
 export type Change = zod.input<typeof Change>;
 export type ChangeOutput = zod.output<typeof Change>;
 
-export const EditRequest = zod.object({
+export const EditRequest = zod.strictObject({
   changes: zod
     .array(Change)
     .describe("The changes, applied in order as one unit."),
@@ -2144,7 +2144,7 @@ export type EditRequest = zod.input<typeof EditRequest>;
 export type EditRequestOutput = zod.output<typeof EditRequest>;
 
 export const CreateNotebookRequest = zod
-  .object({
+  .strictObject({
     project_id: ProjectId,
     path: zod
       .string()

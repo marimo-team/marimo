@@ -187,7 +187,9 @@ const requestCases: {
 );
 it.each(requestCases)("validates $schema: $name", ({ schema, body, valid }) => {
   const requestSchema: Schema.Codec<unknown> = S[schema];
-  expect(
-    Schema.decodeUnknownResult(requestSchema)(body)._tag === "Success",
-  ).toBe(valid);
+  // The API decodes request bodies with this option.
+  const decode = Schema.decodeUnknownResult(requestSchema, {
+    onExcessProperty: "error",
+  });
+  expect(decode(body)._tag === "Success").toBe(valid);
 });

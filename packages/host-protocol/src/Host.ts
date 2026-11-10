@@ -94,6 +94,7 @@ export const make = <const Objects extends ReadonlyArray<ObjectKind>>(
   return HttpApi.make("Host")
     .add(group(derived.CatalogEvent), Notebook.group(derived.NotebookEvent))
     .middleware(HostToken)
+    .annotate(HttpApi.PayloadParseOptions, { onExcessProperty: "error" })
     .annotate(HttpApi.AdditionalSchemas, [
       derived.Event,
       derived.ObjectType,
@@ -105,7 +106,7 @@ export const make = <const Objects extends ReadonlyArray<ObjectKind>>(
     .annotate(OpenApi.Version, "1.0.0")
     .annotate(
       OpenApi.Description,
-      "The contract a marimo host serves so that other programs on the same\nmachine can find it, see what it has, and work with its notebooks. A\nhost is a program that runs marimo notebooks, such as the marimo CLI\nor the VS Code extension. A client is a program that talks to a host\nfrom the outside, such as Pair.\n\nA host writes a small file, the host record, that says where its API\nis and how to authenticate. A client reads that file, opens the host's\nevent stream to learn what it has, and calls the operations the host\nlists. There are two streams: `/events` carries the catalog, and\n`/notebooks/{notebook_id}/events` carries one notebook: its cells and\ndocument, its runtime, and the runs of code against it. Clients ignore\nfields, operation names, event\nnames, and problem types they do not recognize. A change that would\nbreak an existing client requires a new record version and a new base\npath.\n",
+      "The contract a marimo host serves so that other programs on the same\nmachine can find it, see what it has, and work with its notebooks. A\nhost is a program that runs marimo notebooks, such as the marimo CLI\nor the VS Code extension. A client is a program that talks to a host\nfrom the outside, such as Pair.\n\nA host writes a small file, the host record, that says where its API\nis and how to authenticate. A client reads that file, opens the host's\nevent stream to learn what it has, and calls the operations the host\nlists. There are two streams: `/events` carries the catalog, and\n`/notebooks/{notebook_id}/events` carries one notebook: its cells and\ndocument, its runtime, and the runs of code against it. Clients ignore\nfields, operation names, event\nnames, and problem types they do not recognize. A host rejects a request\nbody that has a member it does not recognize. A change that would\nbreak an existing client requires a new record version and a new base\npath.\n",
     )
     .annotate(OpenApi.Transform, forGenerators);
 };
