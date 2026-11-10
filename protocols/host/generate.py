@@ -217,6 +217,7 @@ def generate_models(document: dict[str, Any], output_path: Path) -> None:
         enum_field_as_literal="all",
         strict_nullable=True,
         field_constraints=True,
+        apply_default_values_for_required_fields=True,
         use_annotated=True,
         custom_template_dir=Path(__file__).parent / "templates",
         extra_template_data=template_data,

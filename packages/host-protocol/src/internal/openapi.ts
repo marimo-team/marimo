@@ -16,13 +16,11 @@ const annotations = new Set([
   "additionalProperties",
 ]);
 
+// Effect writes a literal as an enum with one member.
+const literal = (schema: unknown) =>
+  isNode(schema) && Array.isArray(schema.enum) ? schema.enum[0] : undefined;
+
 const problemType = "urn:marimo:problem:";
-const isProblem = (schema: unknown) =>
-  isNode(schema) &&
-  isNode(schema.properties) &&
-  isNode(schema.properties.type) &&
-  Array.isArray(schema.properties.type.enum) &&
-  String(schema.properties.type.enum[0]).startsWith(problemType);
 
 function adjust(value: unknown, closes = false): unknown {
   if (Array.isArray(value)) {
@@ -45,12 +43,19 @@ function adjustNode(value: Node, closes: boolean): Node {
         : adjust(child);
   }
   // Effect tolerates a problem without `status` or `title`. A host sends both,
-  // and only `type` tells problems apart, so a client accepts any title.
-  if (isProblem(node) && Array.isArray(node.required)) {
+  // and only `type` tells problems apart, so a client accepts any title. The
+  // declared values are the defaults.
+  if (
+    isNode(node.properties) &&
+    Array.isArray(node.required) &&
+    String(literal(node.properties.type)).startsWith(problemType)
+  ) {
+    const status = literal(node.properties.status);
     node.required = [...node.required, "status", "title"];
     node.properties = {
-      ...(node.properties as Node),
-      title: { type: "string" },
+      ...node.properties,
+      status: { type: "integer", enum: [status], default: status },
+      title: { type: "string", default: literal(node.properties.title) },
     };
   }
   if (!Array.isArray(node.allOf)) {

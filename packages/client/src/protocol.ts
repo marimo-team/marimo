@@ -1643,12 +1643,15 @@ export const HostRecord = zod
 export type HostRecord = zod.input<typeof HostRecord>;
 export type HostRecordOutput = zod.output<typeof HostRecord>;
 
+export const invalidRequestProblemStatusDefault = 400;
+export const invalidRequestProblemTitleDefault = `Invalid request`;
+
 export const InvalidRequestProblem = zod.object({
   detail: zod.string().optional(),
   instance: zod.string().optional(),
   type: zod.enum(["urn:marimo:problem:invalid-request"]),
-  status: zod.literal(400),
-  title: zod.string(),
+  status: zod.literal(400).default(invalidRequestProblemStatusDefault),
+  title: zod.string().default(invalidRequestProblemTitleDefault),
 });
 
 export type InvalidRequestProblem = zod.input<typeof InvalidRequestProblem>;
@@ -1656,45 +1659,57 @@ export type InvalidRequestProblemOutput = zod.output<
   typeof InvalidRequestProblem
 >;
 
+export const unauthorizedProblemStatusDefault = 401;
+export const unauthorizedProblemTitleDefault = `Unauthorized`;
+
 export const UnauthorizedProblem = zod.object({
   detail: zod.string().optional(),
   instance: zod.string().optional(),
   type: zod.enum(["urn:marimo:problem:unauthorized"]),
-  status: zod.literal(401),
-  title: zod.string(),
+  status: zod.literal(401).default(unauthorizedProblemStatusDefault),
+  title: zod.string().default(unauthorizedProblemTitleDefault),
 });
 
 export type UnauthorizedProblem = zod.input<typeof UnauthorizedProblem>;
 export type UnauthorizedProblemOutput = zod.output<typeof UnauthorizedProblem>;
 
+export const forbiddenProblemStatusDefault = 403;
+export const forbiddenProblemTitleDefault = `Forbidden`;
+
 export const ForbiddenProblem = zod.object({
   detail: zod.string().optional(),
   instance: zod.string().optional(),
   type: zod.enum(["urn:marimo:problem:forbidden"]),
-  status: zod.literal(403),
-  title: zod.string(),
+  status: zod.literal(403).default(forbiddenProblemStatusDefault),
+  title: zod.string().default(forbiddenProblemTitleDefault),
 });
 
 export type ForbiddenProblem = zod.input<typeof ForbiddenProblem>;
 export type ForbiddenProblemOutput = zod.output<typeof ForbiddenProblem>;
 
+export const notFoundProblemStatusDefault = 404;
+export const notFoundProblemTitleDefault = `Not found`;
+
 export const NotFoundProblem = zod.object({
   detail: zod.string().optional(),
   instance: zod.string().optional(),
   type: zod.enum(["urn:marimo:problem:not-found"]),
-  status: zod.literal(404),
-  title: zod.string(),
+  status: zod.literal(404).default(notFoundProblemStatusDefault),
+  title: zod.string().default(notFoundProblemTitleDefault),
 });
 
 export type NotFoundProblem = zod.input<typeof NotFoundProblem>;
 export type NotFoundProblemOutput = zod.output<typeof NotFoundProblem>;
 
+export const methodNotAllowedProblemStatusDefault = 405;
+export const methodNotAllowedProblemTitleDefault = `Method not allowed`;
+
 export const MethodNotAllowedProblem = zod.object({
   detail: zod.string().optional(),
   instance: zod.string().optional(),
   type: zod.enum(["urn:marimo:problem:method-not-allowed"]),
-  status: zod.literal(405),
-  title: zod.string(),
+  status: zod.literal(405).default(methodNotAllowedProblemStatusDefault),
+  title: zod.string().default(methodNotAllowedProblemTitleDefault),
 });
 
 export type MethodNotAllowedProblem = zod.input<typeof MethodNotAllowedProblem>;
@@ -1702,23 +1717,29 @@ export type MethodNotAllowedProblemOutput = zod.output<
   typeof MethodNotAllowedProblem
 >;
 
+export const conflictProblemStatusDefault = 409;
+export const conflictProblemTitleDefault = `Conflict`;
+
 export const ConflictProblem = zod.object({
   detail: zod.string().optional(),
   instance: zod.string().optional(),
   type: zod.enum(["urn:marimo:problem:conflict"]),
-  status: zod.literal(409),
-  title: zod.string(),
+  status: zod.literal(409).default(conflictProblemStatusDefault),
+  title: zod.string().default(conflictProblemTitleDefault),
 });
 
 export type ConflictProblem = zod.input<typeof ConflictProblem>;
 export type ConflictProblemOutput = zod.output<typeof ConflictProblem>;
 
+export const noRuntimeProblemStatusDefault = 409;
+export const noRuntimeProblemTitleDefault = `No runtime`;
+
 export const NoRuntimeProblem = zod.object({
   detail: zod.string().optional(),
   instance: zod.string().optional(),
   type: zod.enum(["urn:marimo:problem:no-runtime"]),
-  status: zod.literal(409),
-  title: zod.string(),
+  status: zod.literal(409).default(noRuntimeProblemStatusDefault),
+  title: zod.string().default(noRuntimeProblemTitleDefault),
 });
 
 export type NoRuntimeProblem = zod.input<typeof NoRuntimeProblem>;
@@ -1749,6 +1770,9 @@ export const Decision = zod
 export type Decision = zod.input<typeof Decision>;
 export type DecisionOutput = zod.output<typeof Decision>;
 
+export const decisionRequiredProblemStatusDefault = 409;
+export const decisionRequiredProblemTitleDefault = `Decision required`;
+
 export const DecisionRequiredProblem = zod.object({
   detail: zod.string().optional(),
   instance: zod.string().optional(),
@@ -1758,8 +1782,8 @@ export const DecisionRequiredProblem = zod.object({
       "The choices the client has to make before the host can carry out the request.",
     ),
   type: zod.enum(["urn:marimo:problem:decision-required"]),
-  status: zod.literal(409),
-  title: zod.string(),
+  status: zod.literal(409).default(decisionRequiredProblemStatusDefault),
+  title: zod.string().default(decisionRequiredProblemTitleDefault),
 });
 
 export type DecisionRequiredProblem = zod.input<typeof DecisionRequiredProblem>;
@@ -1768,6 +1792,9 @@ export type DecisionRequiredProblemOutput = zod.output<
 >;
 
 export const preconditionFailedProblemIndexMin = 0;
+
+export const preconditionFailedProblemStatusDefault = 412;
+export const preconditionFailedProblemTitleDefault = `Precondition failed`;
 
 export const PreconditionFailedProblem = zod.object({
   detail: zod.string().optional(),
@@ -1785,8 +1812,8 @@ export const PreconditionFailedProblem = zod.object({
     ),
   document: Document.describe("The document as it now is."),
   type: zod.enum(["urn:marimo:problem:precondition-failed"]),
-  status: zod.literal(412),
-  title: zod.string(),
+  status: zod.literal(412).default(preconditionFailedProblemStatusDefault),
+  title: zod.string().default(preconditionFailedProblemTitleDefault),
 });
 
 export type PreconditionFailedProblem = zod.input<
@@ -1796,23 +1823,29 @@ export type PreconditionFailedProblemOutput = zod.output<
   typeof PreconditionFailedProblem
 >;
 
+export const internalProblemStatusDefault = 500;
+export const internalProblemTitleDefault = `Internal error`;
+
 export const InternalProblem = zod.object({
   detail: zod.string().optional(),
   instance: zod.string().optional(),
   type: zod.enum(["urn:marimo:problem:internal"]),
-  status: zod.literal(500),
-  title: zod.string(),
+  status: zod.literal(500).default(internalProblemStatusDefault),
+  title: zod.string().default(internalProblemTitleDefault),
 });
 
 export type InternalProblem = zod.input<typeof InternalProblem>;
 export type InternalProblemOutput = zod.output<typeof InternalProblem>;
 
+export const unsupportedOperationProblemStatusDefault = 501;
+export const unsupportedOperationProblemTitleDefault = `Unsupported operation`;
+
 export const UnsupportedOperationProblem = zod.object({
   detail: zod.string().optional(),
   instance: zod.string().optional(),
   type: zod.enum(["urn:marimo:problem:unsupported-operation"]),
-  status: zod.literal(501),
-  title: zod.string(),
+  status: zod.literal(501).default(unsupportedOperationProblemStatusDefault),
+  title: zod.string().default(unsupportedOperationProblemTitleDefault),
 });
 
 export type UnsupportedOperationProblem = zod.input<

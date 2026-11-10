@@ -73,41 +73,23 @@ def problem(kind: PlainKind, detail: str | None = None) -> protocol.Problem:
     text = msgspec.UNSET if detail is None else detail
     match kind:
         case "invalid-request":
-            return protocol.InvalidRequestProblem(
-                status=400, title="Invalid request", detail=text
-            )
+            return protocol.InvalidRequestProblem(detail=text)
         case "unauthorized":
-            return protocol.UnauthorizedProblem(
-                status=401, title="Unauthorized", detail=text
-            )
+            return protocol.UnauthorizedProblem(detail=text)
         case "forbidden":
-            return protocol.ForbiddenProblem(
-                status=403, title="Forbidden", detail=text
-            )
+            return protocol.ForbiddenProblem(detail=text)
         case "not-found":
-            return protocol.NotFoundProblem(
-                status=404, title="Not found", detail=text
-            )
+            return protocol.NotFoundProblem(detail=text)
         case "method-not-allowed":
-            return protocol.MethodNotAllowedProblem(
-                status=405, title="Method not allowed", detail=text
-            )
+            return protocol.MethodNotAllowedProblem(detail=text)
         case "conflict":
-            return protocol.ConflictProblem(
-                status=409, title="Conflict", detail=text
-            )
+            return protocol.ConflictProblem(detail=text)
         case "no-runtime":
-            return protocol.NoRuntimeProblem(
-                status=409, title="No runtime", detail=text
-            )
+            return protocol.NoRuntimeProblem(detail=text)
         case "unsupported-operation":
-            return protocol.UnsupportedOperationProblem(
-                status=501, title="Unsupported operation", detail=text
-            )
+            return protocol.UnsupportedOperationProblem(detail=text)
         case "internal":
-            return protocol.InternalProblem(
-                status=500, title="Internal error", detail=text
-            )
+            return protocol.InternalProblem(detail=text)
     assert_never(kind)
 
 
@@ -119,15 +101,11 @@ def problem_for(error: HostError) -> protocol.Problem:
             return problem("no-runtime", detail)
         case DecisionRequired():
             return protocol.DecisionRequiredProblem(
-                status=409,
-                title="Decision required",
                 detail=detail,
                 decisions=error.decisions,
             )
         case PreconditionFailed():
             return protocol.PreconditionFailedProblem(
-                status=412,
-                title="Precondition failed",
                 detail=detail,
                 index=error.index,
                 cell=error.cell,

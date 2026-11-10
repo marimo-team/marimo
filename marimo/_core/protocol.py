@@ -126,10 +126,10 @@ CodeFingerprint: TypeAlias = Annotated[
 class ConflictProblem(
     Struct, frozen=True, tag_field="type", tag="urn:marimo:problem:conflict"
 ):
-    status: Literal[409]
-    title: str
     detail: str | UnsetType = UNSET
     instance: str | UnsetType = UNSET
+    status: Literal[409] = 409
+    title: str = "Conflict"
 
 
 class Custom(Struct, frozen=True):
@@ -217,10 +217,10 @@ else:
 class ForbiddenProblem(
     Struct, frozen=True, tag_field="type", tag="urn:marimo:problem:forbidden"
 ):
-    status: Literal[403]
-    title: str
     detail: str | UnsetType = UNSET
     instance: str | UnsetType = UNSET
+    status: Literal[403] = 403
+    title: str = "Forbidden"
 
 
 class Host(Struct, frozen=True):
@@ -252,10 +252,10 @@ InputStatus: TypeAlias = Annotated[
 class InternalProblem(
     Struct, frozen=True, tag_field="type", tag="urn:marimo:problem:internal"
 ):
-    status: Literal[500]
-    title: str
     detail: str | UnsetType = UNSET
     instance: str | UnsetType = UNSET
+    status: Literal[500] = 500
+    title: str = "Internal error"
 
 
 class InterruptedOutcome(
@@ -270,10 +270,10 @@ class InvalidRequestProblem(
     tag_field="type",
     tag="urn:marimo:problem:invalid-request",
 ):
-    status: Literal[400]
-    title: str
     detail: str | UnsetType = UNSET
     instance: str | UnsetType = UNSET
+    status: Literal[400] = 400
+    title: str = "Invalid request"
 
 
 if TYPE_CHECKING:
@@ -305,28 +305,28 @@ class MethodNotAllowedProblem(
     tag_field="type",
     tag="urn:marimo:problem:method-not-allowed",
 ):
-    status: Literal[405]
-    title: str
     detail: str | UnsetType = UNSET
     instance: str | UnsetType = UNSET
+    status: Literal[405] = 405
+    title: str = "Method not allowed"
 
 
 class NoRuntimeProblem(
     Struct, frozen=True, tag_field="type", tag="urn:marimo:problem:no-runtime"
 ):
-    status: Literal[409]
-    title: str
     detail: str | UnsetType = UNSET
     instance: str | UnsetType = UNSET
+    status: Literal[409] = 409
+    title: str = "No runtime"
 
 
 class NotFoundProblem(
     Struct, frozen=True, tag_field="type", tag="urn:marimo:problem:not-found"
 ):
-    status: Literal[404]
-    title: str
     detail: str | UnsetType = UNSET
     instance: str | UnsetType = UNSET
+    status: Literal[404] = 404
+    title: str = "Not found"
 
 
 if TYPE_CHECKING:
@@ -651,10 +651,10 @@ class UnauthorizedProblem(
     tag_field="type",
     tag="urn:marimo:problem:unauthorized",
 ):
-    status: Literal[401]
-    title: str
     detail: str | UnsetType = UNSET
     instance: str | UnsetType = UNSET
+    status: Literal[401] = 401
+    title: str = "Unauthorized"
 
 
 class UnknownProblem(Struct, frozen=True):
@@ -690,10 +690,10 @@ class UnsupportedOperationProblem(
     tag_field="type",
     tag="urn:marimo:problem:unsupported-operation",
 ):
-    status: Literal[501]
-    title: str
     detail: str | UnsetType = UNSET
     instance: str | UnsetType = UNSET
+    status: Literal[501] = 501
+    title: str = "Unsupported operation"
 
 
 class UpdateNotebookRequest(Struct, frozen=True):
@@ -1014,10 +1014,10 @@ class DecisionRequiredProblem(
             description="The choices the client has to make before the host can carry out the request."
         ),
     ]
-    status: Literal[409]
-    title: str
     detail: str | UnsetType = UNSET
     instance: str | UnsetType = UNSET
+    status: Literal[409] = 409
+    title: str = "Decision required"
 
 
 class Display(Struct, frozen=True):
@@ -1366,10 +1366,10 @@ class PreconditionFailedProblem(
             ge=0,
         ),
     ]
-    status: Literal[412]
-    title: str
     detail: str | UnsetType = UNSET
     instance: str | UnsetType = UNSET
+    status: Literal[412] = 412
+    title: str = "Precondition failed"
 
 
 Problem: TypeAlias = Annotated[

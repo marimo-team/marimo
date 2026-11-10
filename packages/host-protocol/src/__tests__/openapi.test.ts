@@ -25,6 +25,10 @@ it("puts descriptions beside their schemas and names each problem", () => {
   expect(schemas.NotFoundProblem.required).toEqual(
     expect.arrayContaining(["type", "status", "title"]),
   );
+  expect(schemas.NotFoundProblem.properties).toMatchObject({
+    status: { type: "integer", enum: [404], default: 404 },
+    title: { type: "string", default: "Not found" },
+  });
 });
 
 it("lists the problems each route can answer with", () => {
