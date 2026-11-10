@@ -31,8 +31,8 @@ from marimo._plugins.ui._impl.tables.default_table import (
     is_column_oriented,
 )
 from marimo._plugins.ui._impl.tables.utils import get_table_manager
-from marimo._utils.assert_never import log_never
 from marimo._utils.deprecated import deprecated
+from marimo._utils.log_never import log_never
 
 LOGGER = _loggers.marimo_logger()
 

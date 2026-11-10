@@ -5,12 +5,11 @@ import abc
 from dataclasses import dataclass
 from datetime import time
 from textwrap import dedent
-from typing import TYPE_CHECKING, Any, Literal, cast
+from typing import TYPE_CHECKING, Any, Literal, assert_never, cast
 
 import narwhals.stable.v2 as nw
 
 from marimo._data.models import DataType
-from marimo._utils import assert_never
 from marimo._utils.narwhals_utils import can_narwhalify
 from marimo._utils.theme import get_current_theme
 
