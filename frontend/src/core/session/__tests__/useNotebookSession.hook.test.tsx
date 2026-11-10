@@ -129,10 +129,7 @@ function connection(fake: FakeTransport) {
 function makeRuntimeManager(
   reconcileFromHealth = vi.fn<() => Promise<boolean>>().mockResolvedValue(true),
 ) {
-  const runtime = new RuntimeManager(
-    { url: "http://localhost", lazy: true },
-    true,
-  );
+  const runtime = new RuntimeManager({ url: "http://localhost" });
   vi.spyOn(runtime, "reconcileFromHealth").mockImplementation(
     reconcileFromHealth,
   );

@@ -30,9 +30,6 @@ const toast = vi.fn();
 vi.mock("@/components/ui/use-toast", () => ({
   toast: (...args: unknown[]) => toast(...args),
 }));
-vi.mock("@/core/runtime/config", () => ({
-  startRuntimeIfLazy: async () => undefined,
-}));
 
 const C1 = cellId("c1");
 const C2 = cellId("c2");

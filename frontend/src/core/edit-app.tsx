@@ -7,7 +7,6 @@ const TooltipProvider = Tooltip.Provider;
 
 import { useAtomValue } from "jotai";
 import { lazy, useEffect } from "react";
-import { NotStartedConnectionAlert } from "@/components/editor/alerts/connecting-alert";
 import { Controls } from "@/components/editor/controls/Controls";
 import { SandboxController } from "@/components/editor/chrome/panels/sandbox-controller";
 import { ConnectionNotice } from "@/components/editor/alerts/connection-notice";
@@ -196,12 +195,8 @@ export const EditApp: React.FC<EditAppProps> = ({
           canOpenPackages={!hideControls}
         />
 
-        {/* Don't render until we have a single cell. NotStartedConnectionAlert
-            still covers the "no remote runtime started" prompt. */}
-        <ProgressiveBoundary
-          requires={hasCellsAtom}
-          fallback={<NotStartedConnectionAlert />}
-        >
+        {/* Don't render until we have a single cell. */}
+        <ProgressiveBoundary requires={hasCellsAtom}>
           <CellsRenderer appConfig={appConfig} mode={viewState.mode}>
             {editableCellsArray}
           </CellsRenderer>

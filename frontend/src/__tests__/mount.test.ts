@@ -5,6 +5,7 @@ import { getSerializedLayout } from "@/core/layout/layout";
 import { initialLayoutState, layoutStateAtom } from "@/core/layout/state";
 import { kioskModeAtom } from "@/core/mode";
 import { connectionAtom } from "@/core/network/connection";
+import { RuntimeManager } from "@/core/runtime/runtime";
 import { store } from "@/core/state/jotai";
 import { isStaticNotebook } from "@/core/static/static-state";
 import { ConnectionState } from "@/core/session/types";
@@ -60,6 +61,7 @@ describe("mount", () => {
     store.set(kioskModeAtom, false);
     // Reset connection atom to initial state
     store.set(connectionAtom, { state: ConnectionState.NOT_STARTED });
+    vi.spyOn(RuntimeManager.prototype, "init").mockResolvedValue(undefined);
   });
 
   afterEach(() => {
@@ -100,12 +102,18 @@ describe("mount", () => {
     expect(store.get(pairConfigAtom)).toBeUndefined();
   });
 
+  it("starts looking for the page's runtime", () => {
+    mountRead();
+
+    expect(RuntimeManager.prototype.init).toHaveBeenCalledOnce();
+  });
+
   describe("connection state initialization", () => {
-    it("should set connection to CONNECTING when runtimeConfig has lazy=false", () => {
+    it("should set connection to CONNECTING for a remote runtime", () => {
       mount(
         {
           ...baseOptions,
-          runtimeConfig: [{ url: "http://localhost:8080", lazy: false }],
+          runtimeConfig: [{ url: "http://localhost:8080" }],
         },
         mockElement,
       );
@@ -114,7 +122,7 @@ describe("mount", () => {
       expect(connection.state).toBe(ConnectionState.CONNECTING);
     });
 
-    it("should keep connection as NOT_STARTED when runtimeConfig has lazy=true", () => {
+    it("should ignore a `lazy` key that an embedder still sends", () => {
       mount(
         {
           ...baseOptions,
@@ -124,7 +132,7 @@ describe("mount", () => {
       );
 
       const connection = store.get(connectionAtom);
-      expect(connection.state).toBe(ConnectionState.NOT_STARTED);
+      expect(connection.state).toBe(ConnectionState.CONNECTING);
     });
 
     it("should keep connection as NOT_STARTED when no runtimeConfig is provided", () => {
@@ -140,7 +148,7 @@ describe("mount", () => {
       expect(connection.state).toBe(ConnectionState.NOT_STARTED);
     });
 
-    it("should keep connection as NOT_STARTED for static notebooks even with lazy=false", () => {
+    it("should keep connection as NOT_STARTED for static notebooks with a remote runtime", () => {
       vi.mocked(isStaticNotebook).mockReturnValue(true);
 
       // Reset mount state to allow another mount
@@ -149,7 +157,7 @@ describe("mount", () => {
       mount(
         {
           ...baseOptions,
-          runtimeConfig: [{ url: "http://localhost:8080", lazy: false }],
+          runtimeConfig: [{ url: "http://localhost:8080" }],
         },
         mockElement,
       );
