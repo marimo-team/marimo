@@ -8,11 +8,105 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from tests._server.host.drive import finished, wait_for
+from marimo._messaging.notification import ConsumerCapabilities
+from marimo._server.host import HOST_API_PATH
+from marimo._types.ids import ConsumerId, SessionId
+from tests._server.api.endpoints.ws_helpers import headers, receive_until
+from tests._server.host.drive import finished, socket_snapshot, wait_for
 from tests._server.host.live import key, open_host
+from tests._server.mocks import get_session_manager
 
 if TYPE_CHECKING:
     from pathlib import Path
+
+    from starlette.testclient import TestClient
+
+
+@pytest.mark.parametrize("kiosk", [False, True])
+def test_editor_input_replies_require_interact(
+    client: TestClient, kiosk: bool
+) -> None:
+    with (
+        client,
+        client.websocket_connect(
+            "/ws?session_id=editor", headers=headers("editor")
+        ) as editor,
+    ):
+        snapshot = socket_snapshot(editor)
+        notebook_id = next(
+            event["data"]["notebook"]["id"]
+            for event in snapshot
+            if event["event"] == "notebook"
+        )
+        receive_until("kernel-ready", editor)
+        url = "/ws?session_id=other" + ("&kiosk=true" if kiosk else "")
+        with client.websocket_connect(url, headers=headers("other")) as other:
+            ready = receive_until("kernel-ready", other)
+            assert ready["data"]["consumer_capabilities"] == {
+                "edit": False,
+                "interact": True,
+            }
+            base = f"{HOST_API_PATH}/notebooks/{notebook_id}/runtime"
+            accepted = client.post(
+                f"{base}/execute",
+                headers={**headers("editor"), "Idempotency-Key": "run"},
+                json={"code": "assert input('Prompt: ') == 'answer'"},
+            )
+            assert accepted.status_code == 202, accepted.text
+            while True:
+                event = editor.receive_json()
+                if event["event"] == "run":
+                    run = event["data"]["run"]
+                    if run["id"] == accepted.json()["id"]:
+                        assert run["status"] != "completed", run
+                if event["event"] == "input":
+                    pending = event["data"]["input"]
+                    break
+            assert pending["status"] == "pending"
+            path = f"{base}/inputs/{pending['id']}/reply"
+
+            session = get_session_manager(client).get_session(
+                SessionId("other")
+            )
+            assert session is not None
+            consumer = session.room.get_consumer(ConsumerId("other"))
+            assert consumer is not None
+            session.room.add_consumer(
+                consumer, main=False, capabilities=ConsumerCapabilities.VIEWER
+            )
+            for connection in ("other", "never-connected"):
+                refused = client.post(
+                    path,
+                    headers={
+                        **headers(connection),
+                        "Idempotency-Key": f"refused-{connection}",
+                    },
+                    json={"value": "wrong answer"},
+                )
+                assert refused.status_code == 403, refused.text
+                assert refused.json()["type"].endswith("/forbidden")
+            session.room.add_consumer(
+                consumer,
+                main=False,
+                capabilities=ConsumerCapabilities.INTERACTOR,
+            )
+            reply = client.post(
+                path,
+                headers={**headers("other"), "Idempotency-Key": "answer"},
+                json={"value": "answer"},
+            )
+            assert reply.status_code == 200, reply.text
+            assert reply.json() == {**pending, "status": "answered"}
+            while True:
+                event = editor.receive_json()
+                if event["event"] == "run":
+                    run = event["data"]["run"]
+                    if (
+                        run["id"] == accepted.json()["id"]
+                        and run["status"] == "completed"
+                    ):
+                        break
+            assert run["outcome"] == "succeeded"
 
 
 @pytest.mark.parametrize("scratch", [False, True])
