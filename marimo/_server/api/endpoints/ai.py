@@ -24,6 +24,7 @@ from marimo._server.ai.config import (
     get_max_tokens,
 )
 from marimo._server.ai.mcp import MCPServerStatus, get_mcp_client
+from marimo._server.ai.model_discovery import discover_models
 from marimo._server.ai.prompts import (
     FIM_MIDDLE_TAG,
     FIM_PREFIX_TAG,
@@ -51,7 +52,6 @@ from marimo._server.models.models import (
     InvokeAiToolResponse,
     MCPRefreshResponse,
     MCPStatusResponse,
-    ProviderModel,
     ProviderModelsResponse,
 )
 from marimo._server.responses import StructResponse
@@ -135,27 +135,21 @@ async def list_provider_models(*, request: Request) -> Response:
             schema:
               $ref: "#/components/schemas/ProviderModelsResponse"
     """
-    import asyncio
-    import json
-    import ssl
-    from urllib.error import HTTPError, URLError
-    from urllib.request import (
-        HTTPRedirectHandler,
-        HTTPSHandler,
-        Request as URLRequest,
-        build_opener,
-    )
-
     app_state = AppState(request)
-    app_state.require_current_session()
-    config = app_state.app_config_manager.get_config(hide_secrets=False)
+    session = app_state.get_current_session()
+    config_manager = (
+        session.config_manager
+        if session is not None
+        else app_state.config_manager
+    )
+    config = config_manager.get_config(hide_secrets=False)
     ai_config = get_ai_config(config)
     provider_name = request.path_params["provider_name"]
 
     def secret_resolver(key: str) -> str | None:
         return get_secret_value(key, config)
 
-    if provider_name in (ai_config.custom_providers or {}):
+    if provider_name in ai_config.custom_providers:
         provider = AnyProviderConfig.for_custom_provider(
             ai_config, provider_name, secret_resolver=secret_resolver
         )
@@ -173,122 +167,8 @@ async def list_provider_models(*, request: Request) -> Response:
             detail="OpenRouter API key not configured. Go to Settings > AI to configure.",
         )
 
-    base_url = provider.base_url
-    if not base_url:
-        raise HTTPException(
-            status_code=400, detail="A saved provider base URL is required."
-        )
-    from urllib.parse import urlsplit
-
-    try:
-        target = urlsplit(base_url)
-    except ValueError:
-        raise HTTPException(
-            status_code=400, detail="Invalid provider base URL."
-        ) from None
-
-    if (
-        target.scheme not in ("http", "https")
-        or not target.hostname
-        or target.username is not None
-        or target.password is not None
-        or target.query
-        or target.fragment
-    ):
-        raise HTTPException(
-            status_code=400, detail="Invalid provider base URL."
-        )
-    headers = dict(provider.extra_headers or {})
-    if provider.api_key:
-        headers["Authorization"] = f"Bearer {provider.api_key}"
-
-    class NoRedirect(HTTPRedirectHandler):
-        def redirect_request(
-            self, req, fp, code, msg, headers, newurl
-        ) -> None:
-            del req, fp, code, msg, headers, newurl
-
-    def fetch_catalog() -> object:
-        context = ssl.create_default_context(
-            cafile=provider.ca_bundle_path
-            if provider.ssl_verify is not False
-            else None
-        )
-        if provider.ssl_verify is False:
-            context.check_hostname = False
-            context.verify_mode = ssl.CERT_NONE
-        elif provider.client_pem:
-            context.load_cert_chain(provider.client_pem)
-        opener = build_opener(NoRedirect(), HTTPSHandler(context=context))
-        upstream_request = URLRequest(
-            f"{base_url.rstrip('/')}/models", headers=headers
-        )
-        with opener.open(upstream_request, timeout=20.0) as upstream:
-            if not 200 <= upstream.status < 300:
-                raise HTTPException(
-                    status_code=502,
-                    detail="Provider model catalog request failed.",
-                )
-            return json.load(upstream)
-
-    try:
-        payload = await asyncio.to_thread(fetch_catalog)
-    except HTTPError as exc:
-        status_code = 400 if exc.code in (401, 403) else 502
-        detail = (
-            "Provider rejected the configured credentials or access."
-            if exc.code in (401, 403)
-            else "Provider model catalog request failed."
-        )
-        exc.close()
-        raise HTTPException(status_code=status_code, detail=detail) from None
-    except TimeoutError:
-        raise HTTPException(
-            status_code=504, detail="Provider model discovery timed out."
-        ) from None
-    except URLError as exc:
-        timed_out = isinstance(exc.reason, TimeoutError)
-        raise HTTPException(
-            status_code=504 if timed_out else 502,
-            detail=(
-                "Provider model discovery timed out."
-                if timed_out
-                else "Unable to load the provider model catalog."
-            ),
-        ) from None
-    except (ValueError, OSError):
-        raise HTTPException(
-            status_code=502,
-            detail="Unable to load the provider model catalog.",
-        ) from None
-
-    entries = payload.get("data") if isinstance(payload, dict) else None
-    if not isinstance(entries, list):
-        raise HTTPException(
-            status_code=502,
-            detail="Provider returned an invalid model catalog.",
-        )
-    models: dict[str, dict[str, str]] = {}
-    for entry in entries:
-        if not isinstance(entry, dict):
-            continue
-        model_id = entry.get("id")
-        if not isinstance(model_id, str) or not model_id.strip():
-            continue
-        name = entry.get("name")
-        models[model_id] = {
-            "id": model_id,
-            "name": name if isinstance(name, str) and name else model_id,
-        }
     response = StructResponse(
-        ProviderModelsResponse(
-            models=[
-                ProviderModel(**model)
-                for model in sorted(
-                    models.values(), key=lambda model: model["id"]
-                )
-            ]
-        )
+        ProviderModelsResponse(models=await discover_models(provider))
     )
     response.headers["Cache-Control"] = "no-store"
     return response
