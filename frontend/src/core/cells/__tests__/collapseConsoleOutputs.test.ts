@@ -759,3 +759,18 @@ describe("collapseConsoleOutputs", () => {
     });
   });
 });
+
+it("keeps a prompt's input id when the entry becomes stateful", () => {
+  const prompt: OutputMessage = {
+    channel: "stdin",
+    mimetype: "text/plain",
+    data: "Name: ",
+    timestamp: 1,
+    input_id: "prompt-1",
+  };
+
+  const [collapsed] = collapseConsoleOutputs([prompt]);
+
+  expect(collapsed.input_id).toBe("prompt-1");
+  expect(collapsed.channel).toBe("stdin");
+});

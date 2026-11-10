@@ -1,6 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import type { FieldPath, FieldValues } from "react-hook-form";
+import type { DeepPartial, FieldPath, FieldValues } from "react-hook-form";
 import type { UserConfig } from "@/core/config/config-schema";
 
 /**
@@ -39,12 +39,12 @@ export function getDirtyValues<T extends FieldValues>(
 
 type ManualInjector = (
   values: UserConfig,
-  dirtyValues: Partial<UserConfig>,
+  dirtyValues: DeepPartial<UserConfig>,
 ) => void;
 
 const modelsAiInjection = (
   values: UserConfig,
-  dirtyValues: Partial<UserConfig>,
+  dirtyValues: DeepPartial<UserConfig>,
 ) => {
   dirtyValues.ai = {
     ...dirtyValues.ai,
@@ -88,7 +88,7 @@ const isTouchedPath = (
 
 export const applyManualInjections = (opts: {
   values: UserConfig;
-  dirtyValues: Partial<UserConfig>;
+  dirtyValues: DeepPartial<UserConfig>;
   touchedFields: unknown;
 }) => {
   const { values, dirtyValues, touchedFields } = opts;

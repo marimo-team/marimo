@@ -1,28 +1,98 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import copy
+
+import pytest
+
 from marimo._config.config import (
     DEFAULT_CONFIG,
-    MarimoConfig,
     PartialMarimoConfig,
     merge_config,
     merge_default_config,
+    parse_config,
 )
+from marimo._config.config_schema import MarimoConfig
+
+
+@pytest.mark.parametrize("malformed", [None, "invalid", {}, {"path": 123}])
+def test_parse_config_preserves_valid_file_browser_folders(
+    malformed: object,
+) -> None:
+    values = {
+        "file_browser": {
+            "folders": [
+                {"path": "/first", "name": "First"},
+                malformed,
+                {"path": "/last"},
+                malformed,
+            ]
+        }
+    }
+    original = copy.deepcopy(values)
+
+    resolved = parse_config(values)
+
+    assert resolved.file_browser is not None
+    assert resolved.file_browser.to_dict() == {
+        "folders": [
+            {"path": "/first", "name": "First"},
+            {"path": "/last", "name": None},
+        ]
+    }
+    assert values == original
+
+
+@pytest.mark.parametrize(
+    "malformed",
+    [
+        None,
+        {},
+        {"command": 123},
+        {"command": "python", "args": [123]},
+        {"url": 123},
+    ],
+)
+def test_parse_config_preserves_valid_mcp_servers(malformed: object) -> None:
+    servers = {
+        "stdio": {"command": "python", "args": ["server.py"]},
+        "http": {"url": "https://example.com/mcp"},
+        "invalid": malformed,
+    }
+    values = {"mcp": {"mcpServers": servers, "presets": ["marimo"]}}
+    original = copy.deepcopy(values)
+
+    resolved = parse_config(values)
+
+    assert resolved.mcp.to_dict() == {
+        "mcpServers": {"stdio": servers["stdio"], "http": servers["http"]},
+        "presets": ["marimo"],
+    }
+    assert values == original
 
 
 def assert_config(override: MarimoConfig | PartialMarimoConfig) -> None:
-    user_config = merge_default_config(override)
-    assert user_config == {**DEFAULT_CONFIG, **override}
+    user_config = (merge_default_config(override)).to_dict()
+    assert user_config == {
+        **DEFAULT_CONFIG.to_dict(),
+        **(
+            override.to_dict()
+            if isinstance(override, MarimoConfig)
+            else override
+        ),
+    }
 
 
 def test_allow_provider_config_defaults_true() -> None:
-    assert DEFAULT_CONFIG["ai"]["allow_provider_config"] is True
+    assert DEFAULT_CONFIG.to_dict()["ai"]["allow_provider_config"] is True
 
 
 def test_allow_provider_config_can_be_disabled() -> None:
-    merged = merge_default_config(
-        PartialMarimoConfig(ai={"allow_provider_config": False})
-    )
+    merged = (
+        merge_default_config(
+            PartialMarimoConfig(ai={"allow_provider_config": False})
+        )
+    ).to_dict()
     assert merged["ai"]["allow_provider_config"] is False
 
 
@@ -38,7 +108,7 @@ def test_configure_file_browser_folders() -> None:
             file_browser={
                 "folders": [
                     {"path": "/data", "name": "Data"},
-                    {"path": "/shared"},
+                    {"path": "/shared", "name": None},
                 ]
             }
         )
@@ -72,18 +142,20 @@ def test_configure_unknown() -> None:
 
 
 def test_merge_config() -> None:
-    prev_config = merge_default_config(
-        PartialMarimoConfig(
-            ai={
-                "open_ai": {
-                    "api_key": "super_secret",
+    prev_config = (
+        merge_default_config(
+            PartialMarimoConfig(
+                ai={
+                    "open_ai": {
+                        "api_key": "super_secret",
+                    },
+                    "google": {
+                        "api_key": "google_secret",
+                    },
                 },
-                "google": {
-                    "api_key": "google_secret",
-                },
-            },
+            )
         )
-    )
+    ).to_dict()
     assert (
         prev_config.get("ai", {}).get("open_ai", {}).get("api_key")
         == "super_secret"
@@ -93,19 +165,21 @@ def test_merge_config() -> None:
         == "google_secret"
     )
 
-    new_config = merge_config(
-        prev_config,
-        PartialMarimoConfig(
-            ai={
-                "open_ai": {
-                    "model": "davinci",
+    new_config = (
+        merge_config(
+            prev_config,
+            PartialMarimoConfig(
+                ai={
+                    "open_ai": {
+                        "model": "davinci",
+                    },
+                    "google": {
+                        "api_key": "google_secret",
+                    },
                 },
-                "google": {
-                    "api_key": "google_secret",
-                },
-            },
-        ),
-    )
+            ),
+        )
+    ).to_dict()
 
     assert (
         new_config.get("ai", {}).get("open_ai", {}).get("api_key")
@@ -122,24 +196,26 @@ def test_merge_config() -> None:
 
 def test_configure_github_with_copilot_settings() -> None:
     """Test GitHub AI configuration with copilot_settings."""
-    config = merge_default_config(
-        PartialMarimoConfig(
-            ai={
-                "github": {
-                    "copilot_settings": {
-                        "http": {
-                            "proxy": "http://proxy.example.com:8888",
-                            "proxyStrictSSL": True,
+    config = (
+        merge_default_config(
+            PartialMarimoConfig(
+                ai={
+                    "github": {
+                        "copilot_settings": {
+                            "http": {
+                                "proxy": "http://proxy.example.com:8888",
+                                "proxyStrictSSL": True,
+                            },
+                            "telemetry": {"telemetryLevel": "off"},
+                            "github-enterprise": {
+                                "uri": "https://github.enterprise.com"
+                            },
                         },
-                        "telemetry": {"telemetryLevel": "off"},
-                        "github-enterprise": {
-                            "uri": "https://github.enterprise.com"
-                        },
-                    },
+                    }
                 }
-            }
+            )
         )
-    )
+    ).to_dict()
 
     github_config = config.get("ai", {}).get("github", {})
     assert github_config.get("copilot_settings") is not None
@@ -157,32 +233,36 @@ def test_configure_github_with_copilot_settings() -> None:
 
 
 def test_merge_config_with_keymap_overrides() -> None:
-    prev_config = merge_default_config(
-        PartialMarimoConfig(
-            keymap={
-                "preset": "default",
-                "overrides": {
-                    "run-all": "ctrl-enter",
+    prev_config = (
+        merge_default_config(
+            PartialMarimoConfig(
+                keymap={
+                    "preset": "default",
+                    "overrides": {
+                        "run-all": "ctrl-enter",
+                    },
                 },
-            },
+            )
         )
-    )
+    ).to_dict()
     assert "preset" in prev_config["keymap"]
     assert "overrides" in prev_config["keymap"]
     assert prev_config["keymap"]["preset"] == "default"
     assert prev_config["keymap"]["overrides"]["run-all"] == "ctrl-enter"
 
-    new_config = merge_config(
-        prev_config,
-        PartialMarimoConfig(
-            keymap={
-                "preset": "vim",
-                "overrides": {
-                    "run-cell": "ctrl-enter",
+    new_config = (
+        merge_config(
+            prev_config,
+            PartialMarimoConfig(
+                keymap={
+                    "preset": "vim",
+                    "overrides": {
+                        "run-cell": "ctrl-enter",
+                    },
                 },
-            },
-        ),
-    )
+            ),
+        )
+    ).to_dict()
 
     assert new_config["keymap"]["preset"] == "vim"
     assert "run-all" not in new_config.get("keymap", {}).get("overrides", {})
@@ -191,15 +271,17 @@ def test_merge_config_with_keymap_overrides() -> None:
         == "ctrl-enter"
     )
 
-    new_config = merge_config(
-        prev_config,
-        PartialMarimoConfig(
-            keymap={
-                "preset": "vim",
-                "overrides": {},
-            },
-        ),
-    )
+    new_config = (
+        merge_config(
+            prev_config,
+            PartialMarimoConfig(
+                keymap={
+                    "preset": "vim",
+                    "overrides": {},
+                },
+            ),
+        )
+    ).to_dict()
 
     assert new_config["keymap"]["preset"] == "vim"
     assert new_config.get("keymap", {}).get("overrides", {}) == {}
@@ -211,22 +293,24 @@ def test_merge_config_custom_providers_replaces_instead_of_merging() -> None:
     This is important because users can add/remove custom providers,
     and we want the new config to completely replace the old one.
     """
-    prev_config = merge_default_config(
-        PartialMarimoConfig(
-            ai={
-                "custom_providers": {
-                    "provider1": {
-                        "api_key": "key1",
-                        "base_url": "https://api1.example.com",
-                    },
-                    "provider2": {
-                        "api_key": "key2",
-                        "base_url": "https://api2.example.com",
+    prev_config = (
+        merge_default_config(
+            PartialMarimoConfig(
+                ai={
+                    "custom_providers": {
+                        "provider1": {
+                            "api_key": "key1",
+                            "base_url": "https://api1.example.com",
+                        },
+                        "provider2": {
+                            "api_key": "key2",
+                            "base_url": "https://api2.example.com",
+                        },
                     },
                 },
-            },
+            )
         )
-    )
+    ).to_dict()
 
     # Verify initial state
     custom_providers = prev_config.get("ai", {}).get("custom_providers", {})
@@ -234,20 +318,22 @@ def test_merge_config_custom_providers_replaces_instead_of_merging() -> None:
     assert "provider2" in custom_providers
 
     # Update with only provider1 (removing provider2)
-    new_config = merge_config(
-        prev_config,
-        PartialMarimoConfig(
-            ai={
-                "custom_providers": {
-                    "provider1": {
-                        "api_key": "key1_updated",
-                        "base_url": "https://api1.example.com",
+    new_config = (
+        merge_config(
+            prev_config,
+            PartialMarimoConfig(
+                ai={
+                    "custom_providers": {
+                        "provider1": {
+                            "api_key": "key1_updated",
+                            "base_url": "https://api1.example.com",
+                        },
+                        # provider2 is intentionally removed
                     },
-                    # provider2 is intentionally removed
                 },
-            },
-        ),
-    )
+            ),
+        )
+    ).to_dict()
 
     # provider2 should be gone (replaced, not merged)
     new_custom_providers = new_config.get("ai", {}).get("custom_providers", {})
@@ -258,28 +344,32 @@ def test_merge_config_custom_providers_replaces_instead_of_merging() -> None:
 
 def test_merge_config_custom_providers_can_be_emptied() -> None:
     """Test that custom_providers can be set to empty dict."""
-    prev_config = merge_default_config(
-        PartialMarimoConfig(
-            ai={
-                "custom_providers": {
-                    "provider1": {
-                        "api_key": "key1",
-                        "base_url": "https://api1.example.com",
+    prev_config = (
+        merge_default_config(
+            PartialMarimoConfig(
+                ai={
+                    "custom_providers": {
+                        "provider1": {
+                            "api_key": "key1",
+                            "base_url": "https://api1.example.com",
+                        },
                     },
                 },
-            },
+            )
         )
-    )
+    ).to_dict()
 
     # Update with empty custom_providers
-    new_config = merge_config(
-        prev_config,
-        PartialMarimoConfig(
-            ai={
-                "custom_providers": {},
-            },
-        ),
-    )
+    new_config = (
+        merge_config(
+            prev_config,
+            PartialMarimoConfig(
+                ai={
+                    "custom_providers": {},
+                },
+            ),
+        )
+    ).to_dict()
 
     # custom_providers should be empty
     assert new_config.get("ai", {}).get("custom_providers", {}) == {}
@@ -291,61 +381,71 @@ def test_merge_config_trusted_signers_replaces_for_revocation() -> None:
     revocation impossible)."""
     fp_a = "SHA256:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA0"
     fp_b = "SHA256:BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB0"
-    prev_config = merge_default_config(
-        PartialMarimoConfig(
-            signing={"trusted_signers": {fp_a: "a", fp_b: "b"}}
+    prev_config = (
+        merge_default_config(
+            PartialMarimoConfig(
+                signing={"trusted_signers": {fp_a: "a", fp_b: "b"}}
+            )
         )
-    )
+    ).to_dict()
 
     # A higher-priority layer keeps only fp_a.
-    new_config = merge_config(
-        prev_config,
-        PartialMarimoConfig(signing={"trusted_signers": {fp_a: "a"}}),
-    )
+    new_config = (
+        merge_config(
+            prev_config,
+            PartialMarimoConfig(signing={"trusted_signers": {fp_a: "a"}}),
+        )
+    ).to_dict()
     trusted = new_config.get("signing", {}).get("trusted_signers", {})
     assert fp_a in trusted
     assert fp_b not in trusted
 
     # And an empty map revokes all trust.
-    emptied = merge_config(
-        prev_config,
-        PartialMarimoConfig(signing={"trusted_signers": {}}),
-    )
+    emptied = (
+        merge_config(
+            prev_config,
+            PartialMarimoConfig(signing={"trusted_signers": {}}),
+        )
+    ).to_dict()
     assert emptied.get("signing", {}).get("trusted_signers", {}) == {}
 
 
 def test_merge_config_custom_providers_preserves_other_ai_settings() -> None:
     """Test that updating custom_providers doesn't affect other AI settings."""
-    prev_config = merge_default_config(
-        PartialMarimoConfig(
-            ai={
-                "open_ai": {
-                    "api_key": "openai_key",
-                },
-                "custom_providers": {
-                    "provider1": {
-                        "api_key": "key1",
-                        "base_url": "https://api1.example.com",
+    prev_config = (
+        merge_default_config(
+            PartialMarimoConfig(
+                ai={
+                    "open_ai": {
+                        "api_key": "openai_key",
+                    },
+                    "custom_providers": {
+                        "provider1": {
+                            "api_key": "key1",
+                            "base_url": "https://api1.example.com",
+                        },
                     },
                 },
-            },
+            )
         )
-    )
+    ).to_dict()
 
     # Update only custom_providers
-    new_config = merge_config(
-        prev_config,
-        PartialMarimoConfig(
-            ai={
-                "custom_providers": {
-                    "provider2": {
-                        "api_key": "key2",
-                        "base_url": "https://api2.example.com",
+    new_config = (
+        merge_config(
+            prev_config,
+            PartialMarimoConfig(
+                ai={
+                    "custom_providers": {
+                        "provider2": {
+                            "api_key": "key2",
+                            "base_url": "https://api2.example.com",
+                        },
                     },
                 },
-            },
-        ),
-    )
+            ),
+        )
+    ).to_dict()
 
     # OpenAI config should be preserved
     assert (
@@ -366,32 +466,36 @@ def test_merge_config_custom_providers_partial_update_preserves_fields() -> (
     This validates the merge-replace behavior: when updating only base_url,
     the api_key should be preserved (not lost due to replacement).
     """
-    prev_config = merge_default_config(
-        PartialMarimoConfig(
-            ai={
-                "custom_providers": {
-                    "provider1": {
-                        "api_key": "secret_key",
-                        "base_url": "https://old.example.com",
+    prev_config = (
+        merge_default_config(
+            PartialMarimoConfig(
+                ai={
+                    "custom_providers": {
+                        "provider1": {
+                            "api_key": "secret_key",
+                            "base_url": "https://old.example.com",
+                        },
                     },
                 },
-            },
+            )
         )
-    )
+    ).to_dict()
 
     # Update only base_url (simulates getDirtyValues sending partial update)
-    new_config = merge_config(
-        prev_config,
-        PartialMarimoConfig(
-            ai={
-                "custom_providers": {
-                    "provider1": {
-                        "base_url": "https://new.example.com",
+    new_config = (
+        merge_config(
+            prev_config,
+            PartialMarimoConfig(
+                ai={
+                    "custom_providers": {
+                        "provider1": {
+                            "base_url": "https://new.example.com",
+                        },
                     },
                 },
-            },
-        ),
-    )
+            ),
+        )
+    ).to_dict()
 
     # api_key should be preserved, base_url should be updated
     provider1 = (
@@ -411,32 +515,36 @@ def test_merge_config_custom_providers_partial_update_api_key_preserves_base_url
     None
 ):
     """Test that updating api_key preserves base_url (inverse of above test)."""
-    prev_config = merge_default_config(
-        PartialMarimoConfig(
-            ai={
-                "custom_providers": {
-                    "provider1": {
-                        "api_key": "old_key",
-                        "base_url": "https://api.example.com",
+    prev_config = (
+        merge_default_config(
+            PartialMarimoConfig(
+                ai={
+                    "custom_providers": {
+                        "provider1": {
+                            "api_key": "old_key",
+                            "base_url": "https://api.example.com",
+                        },
                     },
                 },
-            },
+            )
         )
-    )
+    ).to_dict()
 
     # Update only api_key
-    new_config = merge_config(
-        prev_config,
-        PartialMarimoConfig(
-            ai={
-                "custom_providers": {
-                    "provider1": {
-                        "api_key": "new_key",
+    new_config = (
+        merge_config(
+            prev_config,
+            PartialMarimoConfig(
+                ai={
+                    "custom_providers": {
+                        "provider1": {
+                            "api_key": "new_key",
+                        },
                     },
                 },
-            },
-        ),
-    )
+            ),
+        )
+    ).to_dict()
 
     provider1 = (
         new_config.get("ai", {})
@@ -451,37 +559,41 @@ def test_merge_config_custom_providers_partial_update_api_key_preserves_base_url
 
 def test_merge_config_custom_providers_add_new_keeps_existing() -> None:
     """Test that adding a new provider preserves existing providers."""
-    prev_config = merge_default_config(
-        PartialMarimoConfig(
-            ai={
-                "custom_providers": {
-                    "provider1": {
-                        "api_key": "key1",
-                        "base_url": "https://api1.example.com",
+    prev_config = (
+        merge_default_config(
+            PartialMarimoConfig(
+                ai={
+                    "custom_providers": {
+                        "provider1": {
+                            "api_key": "key1",
+                            "base_url": "https://api1.example.com",
+                        },
                     },
                 },
-            },
+            )
         )
-    )
+    ).to_dict()
 
     # Add provider2 while keeping provider1
-    new_config = merge_config(
-        prev_config,
-        PartialMarimoConfig(
-            ai={
-                "custom_providers": {
-                    "provider1": {
-                        "api_key": "key1",
-                        "base_url": "https://api1.example.com",
-                    },
-                    "provider2": {
-                        "api_key": "key2",
-                        "base_url": "https://api2.example.com",
+    new_config = (
+        merge_config(
+            prev_config,
+            PartialMarimoConfig(
+                ai={
+                    "custom_providers": {
+                        "provider1": {
+                            "api_key": "key1",
+                            "base_url": "https://api1.example.com",
+                        },
+                        "provider2": {
+                            "api_key": "key2",
+                            "base_url": "https://api2.example.com",
+                        },
                     },
                 },
-            },
-        ),
-    )
+            ),
+        )
+    ).to_dict()
 
     custom_providers = new_config.get("ai", {}).get("custom_providers", {})
     assert "provider1" in custom_providers, "provider1 should still exist"
@@ -492,40 +604,44 @@ def test_merge_config_custom_providers_add_new_keeps_existing() -> None:
 
 def test_merge_config_custom_providers_update_one_preserves_others() -> None:
     """Test that updating one provider doesn't affect other providers."""
-    prev_config = merge_default_config(
-        PartialMarimoConfig(
-            ai={
-                "custom_providers": {
-                    "provider1": {
-                        "api_key": "key1",
-                        "base_url": "https://api1.example.com",
-                    },
-                    "provider2": {
-                        "api_key": "key2",
-                        "base_url": "https://api2.example.com",
+    prev_config = (
+        merge_default_config(
+            PartialMarimoConfig(
+                ai={
+                    "custom_providers": {
+                        "provider1": {
+                            "api_key": "key1",
+                            "base_url": "https://api1.example.com",
+                        },
+                        "provider2": {
+                            "api_key": "key2",
+                            "base_url": "https://api2.example.com",
+                        },
                     },
                 },
-            },
+            )
         )
-    )
+    ).to_dict()
 
     # Update only provider1's base_url, provider2 included unchanged
-    new_config = merge_config(
-        prev_config,
-        PartialMarimoConfig(
-            ai={
-                "custom_providers": {
-                    "provider1": {
-                        "base_url": "https://new-api1.example.com",
-                    },
-                    "provider2": {
-                        "api_key": "key2",
-                        "base_url": "https://api2.example.com",
+    new_config = (
+        merge_config(
+            prev_config,
+            PartialMarimoConfig(
+                ai={
+                    "custom_providers": {
+                        "provider1": {
+                            "base_url": "https://new-api1.example.com",
+                        },
+                        "provider2": {
+                            "api_key": "key2",
+                            "base_url": "https://api2.example.com",
+                        },
                     },
                 },
-            },
-        ),
-    )
+            ),
+        )
+    ).to_dict()
 
     custom_providers = new_config.get("ai", {}).get("custom_providers", {})
 

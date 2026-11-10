@@ -9,6 +9,7 @@ from unittest.mock import ANY, AsyncMock, MagicMock, patch
 import msgspec
 import pytest
 
+from marimo._config.config_schema import MarimoConfig
 from marimo._environments.errors import (
     EnvironmentManagerError,
     SandboxRestartRequired,
@@ -890,7 +891,9 @@ def test_get_package_manager_uses_ipc_venv_python() -> None:
     # Mock app state
     mock_app_state = MagicMock()
     mock_app_state.get_current_session.return_value = mock_session
-    mock_app_state.app_config_manager.package_manager = "pip"
+    mock_app_state.app_config_manager.get_config.return_value = (
+        MarimoConfig.from_dict({"package_management": {"manager": "pip"}})
+    )
 
     mock_request = MagicMock()
 
@@ -925,7 +928,9 @@ def test_get_package_manager_without_ipc_session() -> None:
     # Mock app state
     mock_app_state = MagicMock()
     mock_app_state.get_current_session.return_value = mock_session
-    mock_app_state.app_config_manager.package_manager = "uv"
+    mock_app_state.app_config_manager.get_config.return_value = (
+        MarimoConfig.from_dict({"package_management": {"manager": "uv"}})
+    )
 
     mock_request = MagicMock()
 
@@ -951,7 +956,9 @@ def test_get_package_manager_no_session() -> None:
     # Mock app state with no session
     mock_app_state = MagicMock()
     mock_app_state.get_current_session.return_value = None
-    mock_app_state.config_manager.package_manager = "pip"
+    mock_app_state.config_manager.get_config.return_value = (
+        MarimoConfig.from_dict({"package_management": {"manager": "pip"}})
+    )
 
     mock_request = MagicMock()
 

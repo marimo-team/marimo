@@ -200,6 +200,8 @@ const requestHandler = createRPCRequestHandler({
         });
         // Host runs name cells, so the worker loads their imports itself.
         notebook.set_package_loader(loadPackagesForCode);
+        // This worker serves the editor, whose user can answer a prompt.
+        notebook.allow_input(true);
       } finally {
         notebook.destroy();
       }

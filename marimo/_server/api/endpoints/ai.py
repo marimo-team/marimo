@@ -13,7 +13,8 @@ from starlette.responses import (
 
 from marimo import _loggers
 from marimo._ai._pydantic_ai_utils import create_simple_prompt, generate_id
-from marimo._config.config import AiConfig, CopilotMode, MarimoConfig
+from marimo._config.config_schema import AiConfig, MarimoConfig
+from marimo._config.types import CopilotMode
 from marimo._secrets.secrets import get_secret_value
 from marimo._server.ai.config import (
     AnyProviderConfig,
@@ -92,7 +93,7 @@ def resolve_completion_messages(
 
 
 def get_ai_config(config: MarimoConfig) -> AiConfig:
-    ai_config = config.get("ai", None)
+    ai_config = config.ai
     if ai_config is None:
         raise HTTPException(
             status_code=HTTPStatus.BAD_REQUEST,
@@ -147,7 +148,7 @@ async def ai_completion(
     )
     ai_config = get_ai_config(config)
 
-    custom_rules = ai_config.get("rules", None)
+    custom_rules = ai_config.rules
     messages, support_multiple_cells = resolve_completion_messages(body)
 
     system_prompt = get_refactor_or_insert_notebook_cell_system_prompt(
@@ -232,9 +233,9 @@ async def ai_chat(
         request, cls=ChatRequest, allow_unknown_keys=True
     )
     ai_config = get_ai_config(config)
-    custom_rules = ai_config.get("rules", None)
+    custom_rules = ai_config.rules
 
-    mode: CopilotMode = ai_config.get("mode", "ask")
+    mode: CopilotMode = ai_config.mode
     if mode == "manual":
         mode = "ask"
     system_prompt = get_chat_system_prompt(
@@ -559,7 +560,7 @@ async def mcp_refresh(
 
         # Get current config
         config = app_state.app_config_manager.get_config(hide_secrets=False)
-        mcp_config = config.get("mcp")
+        mcp_config = config.mcp
 
         if mcp_config is None:
             return StructResponse(

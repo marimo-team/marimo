@@ -244,7 +244,7 @@ def test_sql_limit_reads_dotenv_below_explicit_runtime_overrides(
             {"runtime": {"sql_default_limit": override}}
         )
     resolved = manager.get_config_with_sources(hide_secrets=False)
-    mocked_kernel.k.user_config = resolved.config
+    mocked_kernel.k.user_config = manager.get_config(hide_secrets=False)
     mocked_kernel.k.config_overrides = set(resolved.override_paths)
     assert get_default_result_limit() == (
         override if override is not None else 25
@@ -255,12 +255,16 @@ def test_sql_limit_reads_dotenv_below_explicit_runtime_overrides(
     )
     # An unrelated settings edit must not pin the old file-supplied SQL limit.
     updated = copy.deepcopy(mocked_kernel.k.user_config)
-    updated["save"]["autosave_delay"] = 2000
-    mocked_kernel.k.set_user_config(UpdateUserConfigCommand(config=updated))
+    updated.save.autosave_delay = 2000
+    mocked_kernel.k.set_user_config(
+        UpdateUserConfigCommand(config=updated.to_dict())
+    )
     assert get_default_result_limit() == (
         override if override is not None else 45
     )
     updated = copy.deepcopy(mocked_kernel.k.user_config)
-    updated["runtime"]["sql_default_limit"] = 70
-    mocked_kernel.k.set_user_config(UpdateUserConfigCommand(config=updated))
+    updated.runtime.sql_default_limit = 70
+    mocked_kernel.k.set_user_config(
+        UpdateUserConfigCommand(config=updated.to_dict())
+    )
     assert get_default_result_limit() == 70

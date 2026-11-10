@@ -16,6 +16,7 @@ import pytest
 
 pytest.importorskip("cryptography", reason="cryptography not installed")
 
+from marimo._config.config_schema import CacheConfig, MarimoConfig
 from marimo._save.cache import MARIMO_CACHE_VERSION, Cache
 from marimo._save.hash import HashKey
 from marimo._save.loaders import LazyLoader
@@ -707,7 +708,7 @@ class TestVerificationAndCapabilityValidation(_FileStoreLoaderTest):
         monkeypatch.setattr(_loggers.marimo_logger(), "propagate", True)
         with caplog.at_level(logging.WARNING):
             policy = SigningPolicy.from_config(
-                {"cache": {"verification": "typo"}}
+                MarimoConfig(cache=CacheConfig(verification="typo"))  # type: ignore[arg-type]
             )
         assert policy.verification == "on"
         assert "Invalid cache verification 'typo'" in caplog.text

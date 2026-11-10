@@ -131,7 +131,7 @@ describe("staleCellIds with a run in progress", () => {
     const state = notebook(cells);
     const ran = MockExecutions.completed("cell1");
     const executions = MockExecutions.inputs([ran], {
-      submissions: new Map([["cell1", ran.id]]),
+      requested: new Set(["cell1"]),
     });
 
     expect(staleCellIds(state, executions, freshness(cells))).toEqual([]);

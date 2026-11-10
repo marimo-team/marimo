@@ -9,6 +9,7 @@ import pytest
 from marimo._messaging.context import HTTP_REQUEST_CTX, is_code_mode_request
 from marimo._messaging.tracebacks import (
     _highlight_traceback,
+    format_exception,
     format_exception_message,
     is_code_highlighting,
     write_traceback,
@@ -300,3 +301,40 @@ def test_run_mode_tracebacks_omit_full_source(redirected: bool) -> None:
         assert stderr._write_with_mimetype.call_args.kwargs["code"] is None
     else:
         assert broadcast.call_args.args[0].console.code is msgspec.UNSET
+
+
+def _raise_from_non_iterable_locals(exc: BaseException) -> BaseException:
+    class _Lookup:
+        def __getitem__(self, key: object) -> object:
+            raise KeyError(key)
+
+    try:
+        try:
+            eval("missing", {}, _Lookup())  # type: ignore[arg-type]
+        except NameError as e:
+            raise exc from e
+    except BaseException as raised:
+        return raised
+    raise AssertionError("unreachable")
+
+
+@pytest.mark.skipif(
+    sys.version_info < (3, 12),
+    reason="name suggestions in tracebacks start in Python 3.12",
+)
+class TestFormatExceptionFallback:
+    def test_empty_message_prints_bare_type(self) -> None:
+        formatted = format_exception(
+            _raise_from_non_iterable_locals(ValueError())
+        )
+        assert formatted.endswith("\nValueError\n")
+
+    def test_unprintable_message(self) -> None:
+        class Unprintable(Exception):
+            def __str__(self) -> str:
+                raise RuntimeError
+
+        formatted = format_exception(
+            _raise_from_non_iterable_locals(Unprintable())
+        )
+        assert formatted.endswith(": <exception str() failed>\n")

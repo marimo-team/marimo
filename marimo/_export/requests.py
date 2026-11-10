@@ -10,7 +10,7 @@ from typing import Protocol
 
 from marimo._ast.app import InternalApp
 from marimo._ast.app_config import _AppConfig
-from marimo._config.config import DisplayConfig, SharingConfig
+from marimo._config.config_schema import DisplayConfig, SharingConfig
 from marimo._export._status import PDFExportStatusCallback
 from marimo._runtime.commands import SerializedCLIArgs
 from marimo._runtime.layout.layout import LayoutConfig

@@ -36,7 +36,10 @@ import { queryParamHandlers } from "../kernel/queryParamHandlers";
 import { RuntimeState } from "../kernel/RuntimeState";
 import { initialModeAtom } from "../mode";
 import { requestClientAtom } from "../network/requests";
-import { activeNotebookReplicaAtom } from "../session/active-notebook";
+import {
+  activeDocumentModelAtom,
+  activeNotebookReplicaAtom,
+} from "../session/active-notebook";
 import { store as defaultStore } from "../state/jotai";
 import type { IslandsPyodideBridge } from "./bridge";
 import { MarimoIslandElement } from "./components/web-components";
@@ -141,6 +144,7 @@ export async function initializeIslands(
   });
   const lifetime = new AbortController();
   documentModel.start({ signal: lifetime.signal });
+  store.set(activeDocumentModelAtom, documentModel);
   followDocument({
     store,
     model: documentModel,

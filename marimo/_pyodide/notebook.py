@@ -21,6 +21,7 @@ from marimo._core.host import Host
 from marimo._core.ids import mint
 from marimo._core.notebook import Notebook
 from marimo._core.operations import Mutations, problem
+from marimo._messaging.input import InputReply
 from marimo._messaging.notebook.outputs import scratchpad_snapshot
 from marimo._messaging.notification import (
     NotebookDocumentTransactionNotification,
@@ -72,6 +73,7 @@ _OPERATIONS = (
     "notebook.edit",
     "notebook.save",
     "runtime.run",
+    "runtime.input",
     "runtime.interrupt",
 )
 
@@ -177,6 +179,7 @@ class WorkerBackend:
         code: str,
         *,
         request: be.RequestInfo | None,
+        allow_input: bool = False,
     ) -> None:
         del request  # The worker's runs arrive without an HTTP request.
         session = self._session
@@ -193,7 +196,7 @@ class WorkerBackend:
                 notebook_cells=cells,
                 cell_outputs=outputs,
                 run_id=run_id,
-                allow_stdin=True,
+                allow_stdin=allow_input,
             )
 
         self._prepare(
@@ -207,6 +210,7 @@ class WorkerBackend:
         cell_ids: Sequence[protocol.CellId],
         *,
         request: be.RequestInfo | None,
+        allow_input: bool = False,
     ) -> None:
         del request  # The worker's runs arrive without an HTTP request.
 
@@ -223,7 +227,7 @@ class WorkerBackend:
                 execution_requests=[cells[cell_id] for cell_id in cell_ids],
                 request=None,
                 run_id=run_id,
-                allow_stdin=True,
+                allow_stdin=allow_input,
             )
 
         # Dependents run too, so every cell's imports are loaded, each
@@ -233,6 +237,10 @@ class WorkerBackend:
             [cell.code for cell in document],
             build,
         )
+
+    def reply_input(self, input_id: protocol.ItemId, value: str) -> None:
+        self._session.put_input(InputReply(input_id, value))
+        self._session.session_view.add_stdin(value, input_id=input_id)
 
     def interrupt(self, run_id: protocol.RunId) -> None:
         preparing = self._preparing.get(run_id)
@@ -384,6 +392,7 @@ class PyodideNotebook:
         self._save_lock = asyncio.Lock()
         self._persist: Callable[[str, str], Awaitable[None]] | None = None
         self._load_packages: Callable[[str], Awaitable[None]] | None = None
+        self._allow_input = False
         self._backend: WorkerBackend | None = None
         self.host = Host(operations=_OPERATIONS)
         project_id = mint(protocol.ProjectId, "p")
@@ -453,6 +462,16 @@ class PyodideNotebook:
     ) -> None:
         """Load the packages a run's code imports before the kernel runs it."""
         self._load_packages = load
+
+    def allow_input(self, allowed: bool = True) -> None:
+        """Let runs prompt for input, as an editor's runs may.
+
+        A worker that serves no editor, such as the one behind islands,
+        leaves this off, so `input()` fails at once instead of waiting on
+        an answer that nothing can give. The server applies the same rule
+        by allowing input only for the notebook's own editor session.
+        """
+        self._allow_input = allowed
 
     def refresh(self) -> None:
         """Observe changes from session operations not yet exposed by the host."""
@@ -532,7 +551,11 @@ class PyodideNotebook:
             status, body = failure.status, failure
         else:
             status, body = await dispatch(
-                self.mutations, self, call, request=None
+                self.mutations,
+                self,
+                call,
+                request=None,
+                allow_input=self._allow_input,
             )
         return msgspec.json.encode({"status": status, "body": body}).decode()
 

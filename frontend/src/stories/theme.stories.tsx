@@ -1,5 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
+import { defaultUserConfig } from "@/core/config/config-schema";
+
 import { python } from "@codemirror/lang-python";
 import { EditorState, type Extension } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
@@ -16,6 +18,7 @@ import { store } from "../core/state/jotai";
 // Partial config for storybook demo
 const demoConfig: Partial<CodeMirrorSetupOpts> = {
   completionConfig: {
+    ...defaultUserConfig().completion,
     activate_on_typing: false,
     signature_hint_on_typing: false,
     copilot: false,
@@ -24,7 +27,7 @@ const demoConfig: Partial<CodeMirrorSetupOpts> = {
   hotkeys: new OverridingHotkeyProvider({}),
   showPlaceholder: false,
   enableAI: false,
-  keymapConfig: { preset: "default" },
+  keymapConfig: { ...defaultUserConfig().keymap, preset: "default" },
 };
 
 const meta: Meta = {

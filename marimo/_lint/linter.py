@@ -25,7 +25,7 @@ if TYPE_CHECKING:
     from collections.abc import AsyncIterator, Callable, Iterator
 
     from marimo._ast.type_inference import TypeInferenceMode
-    from marimo._config.config import LintConfig
+    from marimo._config.config_schema import LintConfig
     from marimo._lint.rules.base import LintRule
 
 
@@ -129,13 +129,19 @@ class Linter:
             return self.rule_engine
 
         # Merge: file-level config is additive to the global config
-        merged: LintConfig = {**self._lint_config} if self._lint_config else {}
+        from marimo._config.config_schema import LintConfig
+
+        merged = (
+            LintConfig.from_dict(self._lint_config.to_dict())
+            if self._lint_config
+            else LintConfig()
+        )
         if "select" in file_lint:
-            existing = list(merged.get("select") or [])
-            merged["select"] = existing + file_lint["select"]
+            existing = list(merged.select)
+            merged.select = existing + file_lint["select"]
         if "ignore" in file_lint:
-            existing = list(merged.get("ignore") or [])
-            merged["ignore"] = existing + file_lint["ignore"]
+            existing = list(merged.ignore)
+            merged.ignore = existing + file_lint["ignore"]
 
         return RuleEngine.create_default(
             self._early_stopping, lint_config=merged
@@ -402,11 +408,11 @@ class Linter:
             config = get_default_config_manager(
                 current_path=file_status.file
             ).get_config(hide_secrets=False)
-            formatting = config["formatting"]
+            formatting = config.formatting
             if infer_types is None:
-                infer_types = formatting.get("infer_types", "off")
+                infer_types = formatting.infer_types
             if line_length is None:
-                line_length = formatting["line_length"]
+                line_length = formatting.line_length
 
         # Generate file contents from (possibly modified) notebook
         generated_contents = Linter._generate_file_contents_from_notebook(

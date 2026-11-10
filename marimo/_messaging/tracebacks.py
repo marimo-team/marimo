@@ -30,6 +30,32 @@ def _highlight_traceback(traceback: str) -> str:
     return f'<span class="codehilite">{body}</span>'
 
 
+def format_exception(exc: BaseException) -> str:
+    """Format `exc` like `traceback.format_exception`.
+
+    If that formatting raises, format `exc` alone, without its causes.
+    """
+    try:
+        return "".join(tb.format_exception(exc))
+    except Exception:
+        # On Python 3.12+, formatting a chained `NameError` iterates the frame
+        # locals to suggest a similar name. Libraries such as patsy evaluate
+        # code against a mapping that cannot be iterated, so formatting raises.
+        lines = tb.format_tb(exc.__traceback__)
+        if lines:
+            lines.insert(0, "Traceback (most recent call last):\n")
+        exc_type = type(exc)
+        name = exc_type.__qualname__
+        if exc_type.__module__ not in ("builtins", "__main__"):
+            name = f"{exc_type.__module__}.{name}"
+        try:
+            message = str(exc)
+        except Exception:
+            message = "<exception str() failed>"
+        lines.append(f"{name}: {message}\n" if message else f"{name}\n")
+        return "".join(lines)
+
+
 def _show_tracebacks_enabled() -> bool:
     """Returns True if show_tracebacks is enabled in the current config."""
     from marimo._runtime.context.types import (
@@ -39,7 +65,7 @@ def _show_tracebacks_enabled() -> bool:
 
     try:
         ctx = get_context()
-        return bool(ctx.marimo_config["runtime"].get("show_tracebacks", False))
+        return bool(ctx.marimo_config.runtime.show_tracebacks)
     except ContextNotInitializedError:
         return True  # no context → not in run mode, always show
 

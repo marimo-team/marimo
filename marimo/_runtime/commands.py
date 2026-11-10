@@ -20,7 +20,7 @@ import msgspec
 
 from marimo import _loggers
 from marimo._ast.app_config import _AppConfig
-from marimo._config.config import MarimoConfig
+from marimo._config.config import PartialMarimoConfig
 from marimo._config.provenance import ConfigPath
 from marimo._core.code import code_fingerprint as source_fingerprint
 from marimo._data.models import DataTableSource
@@ -572,11 +572,10 @@ class UpdateUserConfigCommand(Command):
     Updates global marimo configuration (runtime settings, display options, editor preferences).
 
     Attributes:
-        config: Complete user configuration.
+        config: User configuration dictionary, which may be a sparse patch.
     """
 
-    # MarimoConfig TypedDict
-    config: MarimoConfig
+    config: PartialMarimoConfig
     # User-file saves apply only edited fields and retain higher-priority overrides.
     edited_paths: tuple[ConfigPath, ...] | None = None
 

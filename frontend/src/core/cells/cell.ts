@@ -72,6 +72,7 @@ export function transitionCell(
           data: output.data,
           timestamp: output.timestamp,
           id: output.id,
+          input_id: output.input_id,
           response: output.response ?? "",
         };
       }

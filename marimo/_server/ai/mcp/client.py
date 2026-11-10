@@ -8,7 +8,7 @@ from enum import Enum
 from typing import TYPE_CHECKING
 
 from marimo import _loggers
-from marimo._config.config import MCPConfig
+from marimo._config.config_schema import MCPConfig
 from marimo._server.ai.mcp.config import (
     MCPConfigComparator,
     MCPServerDefinition,
@@ -201,7 +201,7 @@ class MCPClient:
         """
         # Apply presets before parsing
         config = append_presets(config)
-        mcp_servers = config.get("mcpServers", {})
+        mcp_servers = config.mcpServers
         parsed_servers: dict[str, MCPServerDefinition] = {}
 
         for server_name, server_config in mcp_servers.items():

@@ -51,7 +51,6 @@ const ACTIONS: Record<keyof AllRequests, Action> = {
   sendComponentValues: "startConnection",
   sendModelValue: "startConnection",
   sendInstantiate: "startConnectionWithoutKernel",
-  sendRun: "startConnection",
   sendRunScratchpad: "startConnection",
   saveAppConfig: "startConnection",
   discoverDataSources: "startConnection",
@@ -192,7 +191,7 @@ export function createLazyRequests(
         case "waitForConnectionOpen":
           // Wait for connection but don't start it
           await waitForConnectionOpen();
-          await waitForRuntimeRunning();
+          await waitForRuntimeRunning(store);
           return request(...args);
 
         case "startConnectionWithoutKernel":
@@ -201,7 +200,7 @@ export function createLazyRequests(
           await initOnce(runtimeManager);
           await waitForConnectionOpen();
           if (action === "startConnection") {
-            await waitForRuntimeRunning();
+            await waitForRuntimeRunning(store);
           }
           return request(...args);
 

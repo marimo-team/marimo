@@ -114,7 +114,7 @@ async def mcp(app: Starlette) -> AsyncIterator[None]:
     state = AppState.from_app(app)
     session_mgr = state.session_manager
     user_config = state.config_manager.get_config()
-    mcp_config = user_config.get("mcp")
+    mcp_config = user_config.mcp
 
     # Only start MCP servers in Edit mode
     if session_mgr.mode != SessionMode.EDIT:
@@ -162,7 +162,7 @@ async def open_browser(app: Starlette) -> AsyncIterator[None]:
     if not state.headless:
         url = _startup_url(state)
         user_config = state.config_manager.get_config()
-        browser = user_config["server"]["browser"]
+        browser = user_config.server.browser
 
         def open_and_log() -> None:
             try:
