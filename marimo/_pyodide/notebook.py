@@ -75,6 +75,7 @@ _OPERATIONS = (
     "runtime.run",
     "runtime.input",
     "runtime.execute",
+    "runtime.interrupt",
     "runtime.cancel",
 )
 
@@ -242,6 +243,11 @@ class WorkerBackend:
     def reply_input(self, input_id: protocol.ItemId, value: str) -> None:
         self._session.put_input(InputReply(input_id, value))
         self._session.session_view.add_stdin(value, input_id=input_id)
+
+    def interrupt(self) -> None:
+        # The kernel's translators include the runs it scheduled itself.
+        for run_id in [*self._preparing, *self._translators]:
+            self.cancel(run_id)
 
     def cancel(self, run_id: protocol.RunId) -> None:
         preparing = self._preparing.get(run_id)

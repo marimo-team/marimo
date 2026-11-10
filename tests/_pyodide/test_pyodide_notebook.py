@@ -131,6 +131,7 @@ async def test_snapshot_edit_and_retry(bridge):
         "runtime.run",
         "runtime.input",
         "runtime.execute",
+        "runtime.interrupt",
         "runtime.cancel",
     ]
     request = edit(events)

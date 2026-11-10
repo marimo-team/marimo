@@ -99,11 +99,11 @@ describe("NotebookClient", () => {
       "http://localhost/api/marimo/v1/notebooks/n1/?session_id=s1",
     );
     await notebook.delete();
-    await notebook.cancel({ runId: "r/1" });
+    await notebook.interrupt();
     expect(fetch.mock.calls.map(([url]) => String(url))).toMatchInlineSnapshot(`
       [
         "http://localhost/api/marimo/v1/notebooks/n1?session_id=s1",
-        "http://localhost/api/marimo/v1/notebooks/n1/runtime/runs/r%2F1?session_id=s1",
+        "http://localhost/api/marimo/v1/notebooks/n1/runtime/interrupt?session_id=s1",
       ]
     `);
   });
@@ -127,6 +127,26 @@ describe("NotebookClient", () => {
       expect(fetch).not.toHaveBeenCalled();
     },
   );
+
+  it("interrupts without a body and returns the runtime acknowledgement", async () => {
+    const receipt = readFixture("interrupt-runtime-response.json");
+    const { notebook, sent } = connect(() => json(202, receipt));
+
+    expect(await notebook.interrupt({ idempotencyKey: "interrupt-1" })).toEqual(
+      {
+        ok: true,
+        status: 202,
+        data: receipt,
+      },
+    );
+    const request = sent();
+    expect(request.method).toBe("POST");
+    expect(request.url).toBe(
+      "http://127.0.0.1:2718/api/marimo/v1/notebooks/n1/runtime/interrupt",
+    );
+    expect(request.headers.get("Idempotency-Key")).toBe("interrupt-1");
+    expect(request.body).toBeNull();
+  });
 
   it("cancels a run by id and returns its record", async () => {
     const run: Protocol.Run = {
@@ -285,6 +305,7 @@ describe("NotebookClient", () => {
       "runtime.run": "run",
       "runtime.execute": "execute",
       "runtime.input": "input",
+      "runtime.interrupt": "interrupt",
       "runtime.cancel": "cancel",
     } as const).toExtend<Record<NotebookOperationId, keyof NotebookClient>>();
   });
@@ -379,6 +400,14 @@ describe("NotebookClient.unstable_over", () => {
     expectTypeOf<unstable_NotebookCall["operation"]>().toEqualTypeOf<
       OperationsBelow<"/notebooks/{notebook_id}">
     >();
+    expectTypeOf<
+      unstable_NotebookCall<"runtime.interrupt">["params"]
+    >().toEqualTypeOf<{
+      readonly notebook_id: string;
+    }>();
+    expectTypeOf<
+      unstable_NotebookCall<"runtime.interrupt">["body"]
+    >().toEqualTypeOf<undefined>();
     expectTypeOf<
       unstable_NotebookCall<"runtime.cancel">["params"]
     >().toEqualTypeOf<{

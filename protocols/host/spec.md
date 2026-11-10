@@ -461,6 +461,35 @@ and a result from source the document no longer has is outdated.
 Completion means the work has finished, including any interruption that was
 requested.
 
+### Interrupting a runtime
+
+Hosts offering `runtime.run` or `runtime.execute` MUST support
+`runtime.interrupt`. It requests that active work stop, including work with no
+run or execution record, and ends queued runs. Clients do not need to
+enumerate runs or supply a runtime id.
+
+```http
+POST /notebooks/{notebook_id}/runtime/interrupt
+Idempotency-Key: interrupt-1
+```
+
+This request has no body. An absent runtime is `no-runtime`; a runtime that is
+not `running` is a `conflict`. An idle running runtime accepts the request as a
+no-op and MUST NOT arm an interrupt for future work.
+
+Interruption keeps the runtime alive and does not roll back work already
+performed. The host MUST remove queued runs from the queue and complete them
+`interrupted` without executing. Pending inputs belonging to interrupted work
+MUST be cancelled. Work without a run record need not acquire one to be
+interrupted.
+
+The host answers `202` with the current `Runtime`. This acknowledges the
+request, not that active work has stopped. Runs and executions MUST report
+their actual outcomes once they settle; acceptance alone MUST NOT mark them
+`interrupted`. Within the retry window, repeating the same request MUST return
+the original acknowledgement without interrupting again, including after new
+work has started or the runtime has been replaced.
+
 ### Cancelling a run
 
 Hosts offering `runtime.run` or `runtime.execute` MUST support
@@ -510,7 +539,7 @@ Content-Type: application/json
 
 The runtime receives the text in `value` exactly as submitted, including an
 empty string when the answer is empty. Clients that want to stop the work
-waiting for input can cancel its run.
+waiting for input can cancel its run or interrupt its runtime.
 
 The host MUST accept at most one reply to each input and reject replies once
 it is cancelled. Before acknowledging a reply, the host MUST arrange delivery

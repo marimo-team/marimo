@@ -194,6 +194,22 @@ class ExecuteCall(_Call, frozen=True, tag="runtime.execute"):
         )
 
 
+class InterruptCall(_Call, frozen=True, tag="runtime.interrupt"):
+    """Interrupt the notebook's runtime."""
+
+    METHOD = "POST"
+    PATH = "/notebooks/{notebook_id}/runtime/interrupt"
+
+    params: NotebookParams
+    headers: MutationHeaders
+
+    async def handle(
+        self, bridge: NotebookBridge
+    ) -> tuple[Literal[202], protocol.Runtime]:
+        notebook = await bridge.host.notebook(self.params.notebook_id)
+        return 202, notebook.interrupt(request_id=self.headers.idempotency_key)
+
+
 class CancelCall(_Call, frozen=True, tag="runtime.cancel"):
     """Cancel a run."""
 
@@ -256,6 +272,7 @@ OperationCall = (
     | RestartCall
     | RunCall
     | ExecuteCall
+    | InterruptCall
     | CancelCall
     | InputCall
 )
@@ -271,6 +288,7 @@ CALLS: tuple[type[OperationCall], ...] = (
     RestartCall,
     RunCall,
     ExecuteCall,
+    InterruptCall,
     CancelCall,
     InputCall,
 )

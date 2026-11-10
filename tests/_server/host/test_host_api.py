@@ -1106,6 +1106,13 @@ async def test_execution_permissions_are_independent(
                 harness.app,
                 "DELETE",
                 f"/notebooks/{nid}/runtime/runs/{response.json()['id']}",
+                headers=key("cancel"),
+            )
+            assert interrupted.status == 202, interrupted.body
+            interrupted = await finished(
+                harness.app,
+                "POST",
+                f"/notebooks/{nid}/runtime/interrupt",
                 headers=key("interrupt"),
             )
             assert interrupted.status == 202, interrupted.body
@@ -1114,6 +1121,28 @@ async def test_execution_permissions_are_independent(
                 response.body
             )
             assert len(harness.backend().calls) == calls_before
+
+
+async def test_runtime_interrupt_over_http(harness: Harness) -> None:
+    app, nid = harness.app, harness.notebook_id
+    interrupt = f"/notebooks/{nid}/runtime/interrupt"
+
+    refused = await finished(app, "POST", interrupt, headers=key("i0"))
+    assert refused.status == 409
+    assert refused.json()["type"].endswith("/no-runtime")
+
+    await harness.running()
+    notebook = await harness.host.notebook(nid)
+    accepted = await finished(app, "POST", interrupt, headers=key("i1"))
+    assert accepted.status == 202
+    assert accepted.json()["id"] == runtime_id_of(notebook)
+    assert accepted.json()["status"] == "running"
+    assert harness.backend().calls[-1] == ("interrupt",)
+
+    # A retry answers with the first acknowledgement and interrupts nothing.
+    repeated = await finished(app, "POST", interrupt, headers=key("i1"))
+    assert (repeated.status, repeated.body) == (202, accepted.body)
+    assert harness.backend().calls.count(("interrupt",)) == 1
 
 
 async def test_scratch_runs_over_http(harness: Harness) -> None:

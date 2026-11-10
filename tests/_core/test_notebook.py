@@ -887,6 +887,39 @@ class TestRunCompletion:
         assert log == []
 
 
+class TestInterrupt:
+    def test_asks_the_backend_and_returns_the_runtime(
+        self, notebook: Notebook, backend: ScriptedBackend
+    ) -> None:
+        runtime = running(notebook, backend)
+        scratch(notebook)
+        backend.calls.clear()
+
+        assert notebook.interrupt() == runtime
+
+        assert backend.calls == [("interrupt",)]
+        assert notebook.runtime == runtime
+
+    def test_an_idle_runtime_accepts_it(
+        self, notebook: Notebook, backend: ScriptedBackend
+    ) -> None:
+        runtime = running(notebook, backend)
+
+        assert notebook.interrupt() == runtime
+
+        assert backend.calls == [("interrupt",)]
+
+    def test_needs_a_running_runtime(
+        self, notebook: Notebook, backend: ScriptedBackend
+    ) -> None:
+        with pytest.raises(NoRuntime):
+            notebook.interrupt()
+        notebook.start()
+        with pytest.raises(Conflict, match="starting"):
+            notebook.interrupt()
+        assert ("interrupt",) not in backend.calls
+
+
 class TestCancel:
     def test_asks_the_backend_while_in_progress(
         self, notebook: Notebook, backend: ScriptedBackend

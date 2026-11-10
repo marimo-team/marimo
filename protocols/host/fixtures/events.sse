@@ -1,11 +1,11 @@
 event: host
-data: {"host":{"operations":["notebook.create","notebook.update","notebook.delete","notebook.open","notebook.edit","notebook.save","runtime.start","runtime.stop","runtime.run","runtime.execute","runtime.cancel"]}}
+data: {"host":{"operations":["notebook.create","notebook.update","notebook.delete","notebook.open","notebook.edit","notebook.save","runtime.start","runtime.stop","runtime.run","runtime.execute","runtime.interrupt","runtime.cancel"]}}
 
 event: project
 data: {"project":{"id":"p1","name":"forecasting","root":"/Users/me/forecasting","status":"indexed","message":null,"operations":["notebook.create"]}}
 
 event: notebook
-data: {"notebook":{"id":"n1","project_id":"p1","path":"forecasts.py","name":"forecasts","operations":["notebook.update","notebook.delete","notebook.open","notebook.edit","notebook.save","runtime.start","runtime.stop","runtime.run","runtime.execute","runtime.cancel"],"updated_at":"2026-10-01T09:00:00Z"}}
+data: {"notebook":{"id":"n1","project_id":"p1","path":"forecasts.py","name":"forecasts","operations":["notebook.update","notebook.delete","notebook.open","notebook.edit","notebook.save","runtime.start","runtime.stop","runtime.run","runtime.execute","runtime.interrupt","runtime.cancel"],"updated_at":"2026-10-01T09:00:00Z"}}
 
 event: runtime
 data: {"runtime":{"id":"r1","notebook_id":"n1","status":"running","message":null,"marimo_version":"0.25.0","started_at":"2026-10-01T09:14:02Z"}}
@@ -23,7 +23,7 @@ data: {"attachment":{"id":"a2","notebook_id":"n1","identity":null,"kind":"agent"
 
 id: 43
 event: notebook
-data: {"notebook":{"id":"n1","project_id":"p1","path":"forecasts.py","name":"forecasts","operations":["notebook.update","notebook.delete","notebook.open","notebook.edit","notebook.save","runtime.start","runtime.stop","runtime.run","runtime.execute","runtime.cancel"],"updated_at":"2026-10-01T09:21:02Z"},"request_id":"save-9b1c6d2e","time":"2026-10-01T09:21:02Z"}
+data: {"notebook":{"id":"n1","project_id":"p1","path":"forecasts.py","name":"forecasts","operations":["notebook.update","notebook.delete","notebook.open","notebook.edit","notebook.save","runtime.start","runtime.stop","runtime.run","runtime.execute","runtime.interrupt","runtime.cancel"],"updated_at":"2026-10-01T09:21:02Z"},"request_id":"save-9b1c6d2e","time":"2026-10-01T09:21:02Z"}
 
 id: 44
 event: runtime

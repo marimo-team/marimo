@@ -167,6 +167,13 @@ class NotebookOperations {
     });
   }
 
+  /** Interrupt active work and end queued runs in the notebook's runtime. */
+  public interrupt(
+    options?: MutationOptions,
+  ): Promise<Result<Protocol.RuntimeOutput>> {
+    return this.#send("runtime.interrupt", { options });
+  }
+
   /** Cancel one run without affecting other runs. */
   public cancel({
     runId,

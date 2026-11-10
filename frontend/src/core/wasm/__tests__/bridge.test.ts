@@ -312,6 +312,85 @@ it("raises the interrupt buffer for a cancelled running run before the worker ta
   }
 });
 
+it.each(["running", "completed", null])(
+  "signals runtime work before the RPC with recorded run status %s",
+  async (status) => {
+    vi.clearAllMocks();
+    store.set(initialModeAtom, "read");
+    rpcListeners.initialized();
+    const run = {
+      id: "run-1",
+      notebook_id: "n1",
+      runtime_id: "r1",
+      cells: [],
+      status: "running",
+      outcome: null,
+      started_at: "2026-10-01T09:20:11Z",
+      completed_at: null,
+    };
+    const replicaWith = (status: string) =>
+      ({
+        executionsAtom: atom({
+          runs: new Map([["run-1", { ...run, status }]]),
+          executions: new Map(),
+          latest: new Map(),
+        }),
+      }) as unknown as NotebookReplica;
+    const interrupt = vi
+      .spyOn(PyodideBridge.INSTANCE, "sendInterrupt")
+      .mockResolvedValue(null);
+    mockNotebookCall.mockResolvedValue({
+      status: 202,
+      body: {
+        id: "r1",
+        notebook_id: "n1",
+        status: "running",
+        message: null,
+        marimo_version: null,
+        started_at: "2026-10-01T09:20:11Z",
+      },
+    });
+    try {
+      const backend = await PyodideBridge.INSTANCE.createNotebookBackend();
+      const notebook = backend.notebook("n1") as unknown as NotebookClient;
+
+      store.set(
+        activeNotebookReplicaAtom,
+        status === null ? null : replicaWith(status),
+      );
+      expect((await notebook.interrupt()).ok).toBe(true);
+      expect(interrupt).toHaveBeenCalledOnce();
+      expect(interrupt.mock.invocationCallOrder[0]).toBeLessThan(
+        mockNotebookCall.mock.invocationCallOrder[0],
+      );
+
+      // Nothing holds the worker, so it takes the call and ends queued runs.
+      store.set(activeNotebookReplicaAtom, replicaWith("queued"));
+      expect((await notebook.interrupt()).ok).toBe(true);
+      expect(interrupt).toHaveBeenCalledTimes(2);
+      expect(mockNotebookCall).toHaveBeenCalledTimes(2);
+
+      // The worker took the queued run before the interrupt reached it.
+      const deliver = (status: string) =>
+        rpcListeners.notebookEvent({
+          id: "sub",
+          event: JSON.stringify({
+            event: "run",
+            data: { run: { ...run, status } },
+          }),
+        });
+      deliver("running");
+      expect(interrupt).toHaveBeenCalledTimes(3);
+      deliver("completed");
+      expect(interrupt).toHaveBeenCalledTimes(3);
+    } finally {
+      interrupt.mockRestore();
+      store.set(activeNotebookReplicaAtom, null);
+      store.set(initialModeAtom, undefined);
+    }
+  },
+);
+
 it("raises the interrupt buffer once a run cancelled while queued starts", async () => {
   vi.clearAllMocks();
   store.set(initialModeAtom, "read");
@@ -387,4 +466,58 @@ describe("getWasmWorkerName", () => {
     ).__MARIMO_HAS_WASM_CONTROLLER__ = "true";
     expect(getWasmWorkerName()).toBe("marimo");
   });
+});
+
+it("signals an interrupt once across pending, completed, and lost-reply retries", async () => {
+  vi.clearAllMocks();
+  store.set(initialModeAtom, "read");
+  rpcListeners.initialized();
+  const interrupt = vi
+    .spyOn(PyodideBridge.INSTANCE, "sendInterrupt")
+    .mockResolvedValue(null);
+  const clock = vi.spyOn(performance, "now").mockReturnValue(0);
+  const pending = new Deferred<unknown>();
+  const accepted = {
+    status: 202,
+    body: {
+      id: "r1",
+      notebook_id: "n1",
+      status: "running",
+      message: null,
+      marimo_version: null,
+      started_at: "2026-10-01T09:20:11Z",
+    },
+  };
+  mockNotebookCall.mockImplementation(() => pending.promise);
+  try {
+    const backend = await PyodideBridge.INSTANCE.createNotebookBackend();
+    const notebook = backend.notebook("n1") as unknown as NotebookClient;
+    const options = { idempotencyKey: "retry-interrupt" };
+    const first = notebook.interrupt(options);
+    const retry = notebook.interrupt(options);
+    expect(interrupt).toHaveBeenCalledOnce();
+    pending.resolve(accepted);
+    expect(await retry).toEqual(await first);
+    await notebook.interrupt(options);
+    expect(interrupt).toHaveBeenCalledOnce();
+    expect(mockNotebookCall).toHaveBeenCalledTimes(3);
+
+    mockNotebookCall.mockRejectedValueOnce(new Error("Lost reply"));
+    await expect(
+      notebook.interrupt({ idempotencyKey: "lost-interrupt" }),
+    ).rejects.toThrow("Lost reply");
+    await notebook.interrupt({ idempotencyKey: "lost-interrupt" });
+    expect(interrupt).toHaveBeenCalledTimes(2);
+
+    // A new user action still signals; settled receipts expire with the worker's.
+    await notebook.interrupt();
+    expect(interrupt).toHaveBeenCalledTimes(3);
+    clock.mockReturnValue(300_001);
+    await notebook.interrupt(options);
+    expect(interrupt).toHaveBeenCalledTimes(4);
+  } finally {
+    interrupt.mockRestore();
+    clock.mockRestore();
+    store.set(initialModeAtom, undefined);
+  }
 });

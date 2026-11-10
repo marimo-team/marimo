@@ -626,6 +626,47 @@ paths:
         '409': { $ref: '#/components/responses/Conflict' }
         '500': { $ref: '#/components/responses/Internal' }
         '501': { $ref: '#/components/responses/UnsupportedOperation' }
+  /notebooks/{notebook_id}/runtime/interrupt:
+    post:
+      operationId: runtime.interrupt
+      summary: Interrupt the notebook's runtime
+      description: |
+        Requests interruption of active work in the notebook's current runtime,
+        including work with no run or execution record. Queued runs complete
+        interrupted without executing. The runtime stays alive. Interruption
+        does not roll back work already performed. Pending inputs belonging
+        to interrupted work are cancelled.
+
+        If the notebook has no runtime, the host answers `no-runtime`. If its
+        runtime is not `running`, the host answers `conflict`. An idle running
+        runtime accepts the request as a no-op and does not arm an interrupt
+        for future work.
+
+        The response contains the current runtime and acknowledges the request,
+        not that the work has stopped. Runs and executions report their actual
+        outcomes on the stream once they settle; acceptance alone does not
+        mark them interrupted. Work without a run record need not acquire one.
+        Within the retry window, repeating the same request returns the original
+        acknowledgement without interrupting again, including after new work
+        starts or the runtime is replaced. Hosts offering `runtime.run` or
+        `runtime.execute` support this operation.
+      parameters:
+        - $ref: '#/components/parameters/NotebookId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '202':
+          description: Interruption was requested for the notebook's runtime.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Runtime' }
+        '400': { $ref: '#/components/responses/InvalidRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '405': { $ref: '#/components/responses/MethodNotAllowed' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '500': { $ref: '#/components/responses/Internal' }
+        '501': { $ref: '#/components/responses/UnsupportedOperation' }
   /notebooks/{notebook_id}/runtime/runs/{run_id}:
     delete:
       operationId: runtime.cancel

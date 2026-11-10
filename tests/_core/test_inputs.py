@@ -66,14 +66,16 @@ def test_answer_is_final_and_never_retained(
 
 
 @pytest.mark.parametrize(
-    "ending", ["complete", "interrupt", "stop", "restart", "exit"]
+    "ending", ["complete", "cancel", "interrupt", "stop", "restart", "exit"]
 )
 def test_pending_inputs_cancel_before_execution_ends(
     notebook: Notebook, log: list[RoutedEvent], ending: str
 ) -> None:
     run, item = prompt(notebook)
-    if ending == "interrupt":
+    if ending == "cancel":
         notebook.cancel(run.id, request_id="cancel")
+    elif ending == "interrupt":
+        notebook.interrupt(request_id="cancel")
     elif ending == "stop":
         notebook.stop(request_id="cancel")
     elif ending == "restart":
@@ -92,7 +94,9 @@ def test_pending_inputs_cancel_before_execution_ends(
     [(index, message)] = cancelled
     assert message.input == replace(item, status="cancelled")
     assert message.request_id == (
-        "cancel" if ending in {"interrupt", "stop", "restart"} else "run"
+        "cancel"
+        if ending in {"cancel", "interrupt", "stop", "restart"}
+        else "run"
     )
     assert any(
         isinstance(event.event, protocol.ExecutionEvent)
