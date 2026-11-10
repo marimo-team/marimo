@@ -25,7 +25,7 @@ export async function interruptRuntime(
       return;
     }
     // The runtime can stop before the request arrives.
-    if (result.status === 409 || result.status === 404) {
+    if (result.status === 409) {
       return;
     }
     if (result.status === 403) {

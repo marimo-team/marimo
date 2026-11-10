@@ -77,15 +77,16 @@ describe("interruptRuntime", () => {
     },
   );
 
-  it.each([404, 409])(
+  it.each(["no-runtime", "conflict"])(
     "tolerates a runtime that stopped before the request: %s",
-    async (status) => {
+    async (type) => {
+      const status = 409;
       const { store, interrupt } = setup([]);
       interrupt.mockResolvedValue({
         ok: false,
         status,
         problem: {
-          type: `tag:marimo.io,2026:host/${status === 404 ? "no-runtime" : "conflict"}`,
+          type: `tag:marimo.io,2026:host/${type}`,
           title: "The runtime has stopped",
           status,
         },
@@ -119,9 +120,23 @@ describe("interruptRuntime", () => {
   });
 
   it.each([
-    { status: 403, toasts: [] },
+    { status: 403, type: "forbidden", toasts: [] },
+    {
+      status: 404,
+      type: "not-found",
+      toasts: [
+        [
+          {
+            title: "Failed to interrupt",
+            description: "Interrupt refused",
+            variant: "danger",
+          },
+        ],
+      ],
+    },
     {
       status: 500,
+      type: "internal",
       toasts: [
         [
           {
@@ -134,13 +149,13 @@ describe("interruptRuntime", () => {
     },
   ])(
     "handles a host refusal with status $status",
-    async ({ status, toasts }) => {
+    async ({ status, type, toasts }) => {
       const { store, interrupt } = setup([run("running")]);
       interrupt.mockResolvedValue({
         ok: false,
         status,
         problem: {
-          type: `tag:marimo.io,2026:host/${status === 403 ? "forbidden" : "internal"}`,
+          type: `tag:marimo.io,2026:host/${type}`,
           title: "Interrupt refused",
           status,
         },
