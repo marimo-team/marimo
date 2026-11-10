@@ -116,8 +116,14 @@ function connection(fake: FakeTransport) {
     send: (notification: unknown) =>
       current().receive({ event: "marimo", data: { marimo: notification } }),
     /** Deliver a snapshot of the notebook, ending in the stream's `ready`. */
-    ready: () =>
-      fixtureMessages("notebook-events.sse").forEach(current().receive),
+    ready: () => {
+      for (const message of fixtureMessages("notebook-events.sse")) {
+        current().receive(message);
+        if (message.event === "ready") {
+          break;
+        }
+      }
+    },
     /** End the connection so the stream reconnects. */
     drop: () => current().drop(),
     /** Close the connection with a reason the editor treats as final. */
@@ -364,8 +370,16 @@ it("waits for the stream's snapshot before marking the session connected", async
   expect(store.get(connectionAtom).state).toBe(ConnectionState.CONNECTING);
 
   // A host that is not marimo never sends kernel-ready.
-  act(() => conn.ready());
-  expect(store.get(connectionAtom).state).toBe(ConnectionState.OPEN);
+  for (const message of fixtureMessages("notebook-events.sse")) {
+    act(() => conn.receive(message));
+    if (message.event === "ready") {
+      break;
+    }
+    expect(store.get(connectionAtom)).toEqual({
+      state: ConnectionState.CONNECTING,
+    });
+  }
+  expect(store.get(connectionAtom)).toEqual({ state: ConnectionState.OPEN });
 });
 
 it("waits for another ready snapshot after the stream resets", async () => {
