@@ -232,8 +232,9 @@ export type CellIdOutput = zod.output<typeof CellId>;
 
 export const Etag = zod
   .string()
+  .min(1)
   .describe(
-    "An identifier derived from content, so that every host, kernel,\nand store computes the same value for the same state. It is the\nfirst 16 hexadecimal characters, in lower case, of SHA-256 over\nthe UTF-8 encoding of a canonical text. Each etag says what its\ntext is; a text made of several values is those values joined by\nnewlines. Clients do not compute etags. They read them from the\nstream and from responses, and send them back as preconditions.\n",
+    "An identifier a host derives from content, so the same content has the same etag. It is opaque to clients. They read etags from the stream and from responses, and send them back as preconditions.",
   );
 
 export type Etag = zod.input<typeof Etag>;
@@ -253,7 +254,7 @@ export const Document = zod
         "Notebook-level settings, the keyword arguments to `marimo.App` such as `width` and `app_title`. Informational for now; no change sets it over this protocol.",
       ),
     etag: Etag.describe(
-      "Identifies the document as currently applied. Its text is `order_etag`, `app_config_etag`, and every cell's `etag` in order, so it changes when any of them does.",
+      "Identifies the document as currently applied. It changes when the order, the app config, or any cell's `etag` does.",
     ),
     saved_etag: zod
       .union([Etag, zod.null()])
@@ -261,11 +262,9 @@ export const Document = zod
         "Identifies the document as last written to the host's store, computed the same way over that state. Equal to `etag` when every accepted change has been persisted. Null when nothing has been persisted, which is the case for a scratch copy.",
       ),
     order_etag: Etag.describe(
-      "Identifies the order alone. Its text is the cell IDs in order as a JSON array, with no whitespace and strings carrying only the escapes JSON requires. Editing a cell does not change it.",
+      "Identifies the order alone. Editing a cell does not change it.",
     ),
-    app_config_etag: Etag.describe(
-      "Identifies the app config alone. Its text is the app config as canonical JSON, with keys sorted by code point, no whitespace, and strings carrying only the escapes JSON requires.",
-    ),
+    app_config_etag: Etag.describe("Identifies the app config alone."),
     version: zod
       .int()
       .min(1)
@@ -365,7 +364,7 @@ export const Cell = zod
       ),
     config: CellConfig,
     etag: Etag.describe(
-      "Precondition for edits and cell runs. Covers exact source, name, and config. Its text is the newline-joined sequence of the first 16 hex characters of SHA-256 of the UTF-8 source, `name`, and the config values `column`, `disabled`, `hide_code`, and `expand_output`, in that order. Config values are JSON scalars.",
+      "Precondition for edits and cell runs. Covers exact source, name, and config.",
     ),
     code_fingerprint: CodeFingerprint.describe(
       "Fingerprint of the actual source, including when `code` is null. Formatting-only edits may preserve it. Independent of cell name, config, and source visibility.",

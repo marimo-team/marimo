@@ -70,10 +70,11 @@ export const CodeFingerprint = Schema.String.check(Schema.isMinCodePoints(1))
   .pipe(Schema.brand("CodeFingerprint"))
   .annotate({ identifier: "CodeFingerprint" });
 
-export const Etag = Schema.String.annotate({
-  description:
-    "An identifier derived from content, so that every host, kernel,\nand store computes the same value for the same state. It is the\nfirst 16 hexadecimal characters, in lower case, of SHA-256 over\nthe UTF-8 encoding of a canonical text. Each etag says what its\ntext is; a text made of several values is those values joined by\nnewlines. Clients do not compute etags. They read them from the\nstream and from responses, and send them back as preconditions.\n",
-})
+export const Etag = Schema.String.check(Schema.isMinCodePoints(1))
+  .annotate({
+    description:
+      "An identifier a host derives from content, so the same content has the same etag. It is opaque to clients. They read etags from the stream and from responses, and send them back as preconditions.",
+  })
   .pipe(Schema.brand("Etag"))
   .annotate({ identifier: "Etag" });
 

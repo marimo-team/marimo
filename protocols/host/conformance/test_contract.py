@@ -4,7 +4,6 @@
 from __future__ import annotations
 
 import asyncio
-import copy
 import json
 
 import httpx
@@ -154,7 +153,7 @@ def test_cell_source_is_required_but_nullable_only_in_records():
     validate("CellInput", {"id": cell["id"], "code": ""})
 
 
-async def test_document_checker_accepts_withheld_source_and_checks_etags():
+async def test_document_checker_accepts_withheld_source():
     snapshot = []
     async for frame in frames(
         lines((FIXTURES / "notebook-events.sse").read_text())
@@ -172,15 +171,9 @@ async def test_document_checker_accepts_withheld_source_and_checks_etags():
         document,
         {key: {**cell, "code": None} for key, cell in cells.items()},
     )
-    cell = next(frame for frame in snapshot if frame.event == "cell")
-    message = cell.message()
-    message["cell"]["etag"] = "0000000000000000"
-    cell.data = json.dumps(message)
-    with pytest.raises(AssertionError):
-        document_state(snapshot)
 
 
-async def test_document_checker_rejects_wrong_hashes_and_ordering():
+async def test_document_checker_rejects_cells_after_the_document():
     snapshot = []
     async for frame in frames(
         lines((FIXTURES / "notebook-events.sse").read_text())
@@ -189,13 +182,6 @@ async def test_document_checker_rejects_wrong_hashes_and_ordering():
             break
         snapshot.append(frame)
     document_state(snapshot)
-    broken = copy.deepcopy(snapshot)
-    cell = next(frame for frame in broken if frame.event == "cell")
-    message = cell.message()
-    message["cell"]["code"] += "\n# changed"
-    cell.data = json.dumps(message)
-    with pytest.raises(AssertionError):
-        document_state(broken)
     with pytest.raises(AssertionError, match="cell arrived after"):
         document_state(
             sorted(snapshot, key=lambda frame: frame.event != "document")

@@ -196,7 +196,8 @@ else:
         Annotated[
             str,
             Meta(
-                description="An identifier derived from content, so that every host, kernel,\nand store computes the same value for the same state. It is the\nfirst 16 hexadecimal characters, in lower case, of SHA-256 over\nthe UTF-8 encoding of a canonical text. Each etag says what its\ntext is; a text made of several values is those values joined by\nnewlines. Clients do not compute etags. They read them from the\nstream and from responses, and send them back as preconditions.\n"
+                description="An identifier a host derives from content, so the same content has the same etag. It is opaque to clients. They read etags from the stream and from responses, and send them back as preconditions.",
+                min_length=1,
             ),
         ],
     )
@@ -858,7 +859,7 @@ class Cell(Struct, frozen=True):
     etag: Annotated[
         Etag,
         Meta(
-            description="Precondition for edits and cell runs. Covers exact source, name, and config. Its text is the newline-joined sequence of the first 16 hex characters of SHA-256 of the UTF-8 source, `name`, and the config values `column`, `disabled`, `hide_code`, and `expand_output`, in that order. Config values are JSON scalars."
+            description="Precondition for edits and cell runs. Covers exact source, name, and config."
         ),
     ]
     id: CellId
@@ -1075,15 +1076,12 @@ class Document(Struct, frozen=True):
         ),
     ]
     app_config_etag: Annotated[
-        Etag,
-        Meta(
-            description="Identifies the app config alone. Its text is the app config as canonical JSON, with keys sorted by code point, no whitespace, and strings carrying only the escapes JSON requires."
-        ),
+        Etag, Meta(description="Identifies the app config alone.")
     ]
     etag: Annotated[
         Etag,
         Meta(
-            description="Identifies the document as currently applied. Its text is `order_etag`, `app_config_etag`, and every cell's `etag` in order, so it changes when any of them does."
+            description="Identifies the document as currently applied. It changes when the order, the app config, or any cell's `etag` does."
         ),
     ]
     notebook_id: Annotated[
@@ -1098,7 +1096,7 @@ class Document(Struct, frozen=True):
     order_etag: Annotated[
         Etag,
         Meta(
-            description="Identifies the order alone. Its text is the cell IDs in order as a JSON array, with no whitespace and strings carrying only the escapes JSON requires. Editing a cell does not change it."
+            description="Identifies the order alone. Editing a cell does not change it."
         ),
     ]
     saved_etag: (
