@@ -18,8 +18,9 @@ const Slider = React.forwardRef<
   React.ElementRef<typeof SliderPrimitive.Root>,
   React.ComponentPropsWithoutRef<typeof SliderPrimitive.Root> & {
     valueMap: (sliderValue: number) => number;
+    maximumFractionDigits?: number;
   }
->(({ className, valueMap, ...props }, ref) => {
+>(({ className, valueMap, maximumFractionDigits, ...props }, ref) => {
   const [open, openActions] = useBoolean(false);
   const { locale } = useLocale();
 
@@ -70,7 +71,10 @@ const Slider = React.forwardRef<
           <TooltipPortal>
             {props.value != null && props.value.length === 1 && (
               <TooltipContent key={props.value[0]}>
-                {prettyScientificNumber(valueMap(props.value[0]), { locale })}
+                {prettyScientificNumber(valueMap(props.value[0]), {
+                  locale,
+                  maximumFractionDigits,
+                })}
               </TooltipContent>
             )}
           </TooltipPortal>
