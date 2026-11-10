@@ -142,8 +142,6 @@ export function useNotebookSession(opts: {
         return;
       }
       case "kernel-ready": {
-        setKernelStartupError(null);
-        setConnection({ state: ConnectionState.OPEN });
         setInitialRunCompleted(
           Boolean(msg.data.resumed || msg.data.auto_instantiated),
         );
@@ -360,8 +358,7 @@ export function useNotebookSession(opts: {
         return;
 
       case "reconnected":
-        setKernelStartupError(null);
-        setConnection({ state: ConnectionState.OPEN });
+        // The stream's snapshot says when the session is usable again.
         return;
 
       case "focus-cell":
@@ -461,7 +458,13 @@ export function useNotebookSession(opts: {
       }
       if (status.state === ConnectionState.OPEN) {
         updateStartupProgress(null);
-        return; // kernel-ready, not the socket, establishes session readiness.
+        // The stream's snapshot, not the socket, establishes readiness. A
+        // static page has a snapshot but no host to be connected to.
+        if (!isStaticNotebook() && store.get(replica.notebookAtom) !== null) {
+          setKernelStartupError(null);
+          setConnection({ state: ConnectionState.OPEN });
+        }
+        return;
       }
       if (status.state === ConnectionState.CONNECTING) {
         setKernelStartupError(null);
@@ -486,9 +489,12 @@ export function useNotebookSession(opts: {
         return status;
       });
     };
-    const unsubscribe = store.sub(replica.connectionAtom, updateConnection);
+    const unsubscribes = [
+      store.sub(replica.connectionAtom, updateConnection),
+      store.sub(replica.notebookAtom, updateConnection),
+    ];
     updateConnection();
-    return unsubscribe;
+    return () => unsubscribes.forEach((unsubscribe) => unsubscribe());
   }, [
     replica,
     store,
