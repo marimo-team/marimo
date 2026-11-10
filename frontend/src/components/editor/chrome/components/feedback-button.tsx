@@ -29,6 +29,7 @@ import {
   formatErrorsSection,
 } from "@/core/diagnostics/issue-details";
 import {
+  type CellErrorEntry,
   formatCellError,
   getCellErrorEntries,
 } from "@/core/errors/error-entries";
@@ -106,7 +107,8 @@ export const FeedbackButton: React.FC<PropsWithChildren> = ({ children }) => {
 
 export const FeedbackModal: React.FC<{
   onClose?: () => void;
-}> = () => {
+  initialErrors?: CellErrorEntry[];
+}> = ({ initialErrors }) => {
   const requestClient = useAtomValue(requestClientAtom);
   const environmentRequest = useAsyncData(async () => {
     if (requestClient == null) {
@@ -115,7 +117,7 @@ export const FeedbackModal: React.FC<{
     return requestClient.getEnvironmentInfo();
   }, [requestClient]);
 
-  const errors = getCellErrorEntries(store);
+  const errors = initialErrors ?? getCellErrorEntries(store);
   const codeAvailable = useNotebookCodeAvailable();
   const filename = useAtomValue(filenameAtom);
   const connection = useAtomValue(connectionAtom);
@@ -127,9 +129,8 @@ export const FeedbackModal: React.FC<{
   });
   const notebookSourceAvailable = notebookSourceReason === undefined;
 
-  const [includeErrors, setIncludeErrors] = useLocalStorage(
-    "marimo:issue-report:include-errors",
-    false,
+  const [includeErrors, setIncludeErrors] = useState(
+    initialErrors !== undefined,
   );
   const [includeCode, setIncludeCode] = useLocalStorage(
     "marimo:issue-report:include-code",

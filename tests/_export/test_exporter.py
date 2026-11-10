@@ -1116,6 +1116,7 @@ def test_export_as_html_code_hash_consistency(
                     "exception_type": "ValueError",
                     "raising_cell": None,
                     "traceback": None,
+                    "is_internal": False,
                 }
             ],
             code="private_source_sentinel = 42",

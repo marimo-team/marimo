@@ -520,6 +520,7 @@ def _describe(
 
     Each kernel error keeps its own kind, so a client can tell them apart,
     and names the cells involved in `related`, so it can link to them.
+    Marimo invariants use the producer-scoped `internal-exception` kind.
     """
     if isinstance(error, MarimoExceptionRaisedError):
         traceback = None
@@ -540,7 +541,7 @@ def _describe(
                 ),
             )
         return diagnostics.error(
-            "exception",
+            "internal-exception" if error.is_internal else "exception",
             error.msg,
             name=error.exception_type,
             traceback=traceback,
