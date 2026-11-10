@@ -90,7 +90,7 @@ async def test_connect_kiosk_with_session(client: TestClient) -> None:
             # Run a single cell through the host
             response = run_cells(
                 client,
-                "123",
+                notebook_id,
                 {"cell-3": "print('Hello, cell-3')"},
                 headers=HEADERS,
             )

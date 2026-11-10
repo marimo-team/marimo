@@ -34,6 +34,7 @@ from tests._server.api.endpoints.ws_helpers import (
 )
 from tests._server.mocks import (
     get_session_manager,
+    get_single_notebook_id,
     run_cells,
     token_header,
     with_read_session,
@@ -244,7 +245,7 @@ class TestExecutionRoutes_EditMode:
     def test_run_cell(client: TestClient) -> None:
         response = run_cells(
             client,
-            SESSION_ID,
+            get_single_notebook_id(client),
             {
                 "cell-1": "print('Hello, cell-1')",
                 "cell-2": "print('Hello, cell-2')",
@@ -572,7 +573,7 @@ class TestExecutionRoutes_EditMode:
     def test_app_meta_request(client: TestClient) -> None:
         response = run_cells(
             client,
-            SESSION_ID,
+            get_single_notebook_id(client),
             {
                 "test-1": (
                     "import marimo as mo\n"
@@ -746,7 +747,7 @@ class TestExecutionRoutes_RunMode:
     def test_app_meta_request(client: TestClient) -> None:
         response = run_cells(
             client,
-            SESSION_ID,
+            get_single_notebook_id(client),
             {
                 "test-1": (
                     "import marimo as mo\n"

@@ -42,6 +42,7 @@ from marimo._utils.http import HTTPException
 from marimo._utils.platform import is_windows
 from tests._server.mocks import (
     get_session_manager,
+    get_single_notebook_id,
     run_cells,
     token_header,
     with_read_session,
@@ -1277,7 +1278,10 @@ def test_auto_export_ipynb_with_new_cell(
 
     # The editor creates the cell in the document, then runs it.
     create_cell_response = run_cells(
-        client, SESSION_ID, {"new_cell": "3.14"}, headers=HEADERS
+        client,
+        get_single_notebook_id(client),
+        {"new_cell": "3.14"},
+        headers=HEADERS,
     )
     assert create_cell_response.status_code == 202
 

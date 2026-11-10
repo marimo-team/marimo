@@ -14,6 +14,7 @@ from marimo._utils.platform import is_windows
 from tests._server.api.endpoints.ws_helpers import receive_notification
 from tests._server.mocks import (
     get_session_manager,
+    get_single_notebook_id,
     run_cells,
     token_header,
     with_read_session,
@@ -369,7 +370,7 @@ def test_rename_propagates(
 
     initial_response = run_cells(
         client,
-        SESSION_ID,
+        get_single_notebook_id(client),
         {"cell-1": "b = __file__", "cell-2": "a = 'x' + __file__"},
         headers=HEADERS,
     )

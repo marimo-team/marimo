@@ -12,6 +12,7 @@ from marimo._config.manager import (
     UserConfigStore,
     get_default_config_manager,
 )
+from marimo._server.api.deps import AppState
 from marimo._server.config import StarletteServerStateInit
 from marimo._server.lsp import NoopLspServer
 from marimo._server.session_manager import SessionManager
@@ -21,7 +22,7 @@ from marimo._server.workspace import (
     SingleFileWorkspace,
 )
 from marimo._session.model import SessionMode
-from marimo._types.ids import CellId_t, SessionId
+from marimo._types.ids import CellId_t
 from marimo._utils.marimo_path import MarimoPath
 
 if TYPE_CHECKING:
@@ -35,22 +36,28 @@ def get_session_manager(client: TestClient) -> SessionManager:
     return client.app.state.session_manager  # type: ignore
 
 
+def get_single_notebook_id(client: TestClient) -> str:
+    context = AppState.from_app(client.app).host_context
+    assert context is not None
+    (notebook_id,) = context.bridge.host.notebooks
+    return notebook_id
+
+
 def run_cells(
     client: TestClient,
-    session_id: str,
+    notebook_id: str,
     cells: dict[str, str],
     *,
     headers: dict[str, str],
 ) -> Response:
-    """Put `cells` in the session's document and run them through the host.
+    """Put `cells` in the notebook's document and run them through the host.
 
     This is what the editor does: the document holds the code, and the run
     names the cells. Cells already in the document are replaced.
     """
-    session = get_session_manager(client).get_session(SessionId(session_id))
-    assert session is not None
-    bridge = client.app.state.host_context.bridge  # type: ignore[union-attr]
-    notebook = bridge.notebook_for_session(session)
+    context = AppState.from_app(client.app).host_context
+    assert context is not None
+    notebook = context.bridge.host.peek_notebook(notebook_id)
     assert notebook is not None
     base = f"/api/marimo/v1/notebooks/{notebook.id}"
 

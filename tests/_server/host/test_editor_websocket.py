@@ -135,9 +135,10 @@ def test_editor_starts_and_runs_through_the_host_socket(
             assert names[0] == "notebook"
             assert names.index("cell") < names.index("document")
         cell_id = first_cell_id(client, "s1")
+        (notebook_id,) = editor_host.host.notebooks
         response = run_cells(
             client,
-            "s1",
+            notebook_id,
             {cell_id: "print('host socket')"},
             headers=headers("s1"),
         )
@@ -212,9 +213,10 @@ def test_reconnect_keeps_state_and_refresh_replays_it(
     with client.websocket_connect(url) as websocket:
         receive_notification(websocket, "kernel-ready")
         cell_id = first_cell_id(client, "s1")
+        (notebook_id,) = editor_host.host.notebooks
         response = run_cells(
             client,
-            "s1",
+            notebook_id,
             {cell_id: "print('retained output')"},
             headers=headers("s1"),
         )
@@ -526,7 +528,7 @@ def test_untitled_editor_bootstraps_and_reconnects_with_host_events(
                 )
                 response = run_cells(
                     client,
-                    "new",
+                    notebook_id,
                     {first_cell_id(client, "new"): "x = 42"},
                     headers=headers("new"),
                 )
@@ -573,7 +575,10 @@ def test_untitled_editor_restarts_its_runtime_through_the_host(
                 )
                 cell_id = first_cell_id(client, "new")
                 response = run_cells(
-                    client, "new", {cell_id: "x = 42"}, headers=headers("new")
+                    client,
+                    notebook_id,
+                    {cell_id: "x = 42"},
+                    headers=headers("new"),
                 )
                 assert response.status_code == 202, response.text
                 receive_completed_run(ws, response.json()["id"])
@@ -584,17 +589,13 @@ def test_untitled_editor_restarts_its_runtime_through_the_host(
                 )
                 assert restarted.status_code == 202, restarted.text
                 replacement = restarted.json()["id"]
-                try:
-                    while True:
-                        event = ws.receive_json()
-                        if (
-                            event["event"] == "runtime"
-                            and event["data"]["runtime"]["id"] == replacement
-                            and event["data"]["runtime"]["status"] == "running"
-                        ):
-                            break
-                except WebSocketDisconnect:
-                    pass
+                while True:
+                    try:
+                        ws.receive_json()
+                    except WebSocketDisconnect as exc:
+                        disconnect = (exc.code, exc.reason)
+                        break
+                assert disconnect == (1000, "MARIMO_SHUTDOWN")
             with client.websocket_connect(url) as ws:
                 snapshot = socket_snapshot(ws)
                 assert (
@@ -615,7 +616,10 @@ def test_untitled_editor_restarts_its_runtime_through_the_host(
                     "running",
                 )
                 response = run_cells(
-                    client, "new", {cell_id: "x = 43"}, headers=headers("new")
+                    client,
+                    notebook_id,
+                    {cell_id: "x = 43"},
+                    headers=headers("new"),
                 )
                 assert response.status_code == 202, response.text
                 receive_completed_run(ws, response.json()["id"])
