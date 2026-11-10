@@ -4,7 +4,6 @@
 #   "datamodel-code-generator==0.72.0",
 #   "jinja2==3.1.6",
 #   "ruff==0.16.4",
-#   "msgspec[yaml]==0.22.0"
 # ]
 # ///
 """Generate Python bindings from the host OpenAPI document on stdin."""
@@ -52,7 +51,7 @@ class TupleArrays(ast.NodeTransformer):
 
 
 def sorted_keys(value: Any) -> Any:
-    """Keep model and field ordering independent of the YAML layout."""
+    """Keep model and field ordering independent of the document's layout."""
     if isinstance(value, dict):
         return {key: sorted_keys(value[key]) for key in sorted(value)}
     if isinstance(value, list):
