@@ -116,6 +116,8 @@ class CellNotificationUtils:
         cell_id: CellId_t | None,
         status: RuntimeStateType | None,
         stream: Stream | None = None,
+        *,
+        code: str | None = None,
     ) -> None:
         # Import here to avoid circular dependency
         from marimo._messaging.notification import CellNotification
@@ -134,6 +136,9 @@ class CellNotificationUtils:
                     channel=channel,
                     mimetype=mimetype,
                     data=data,
+                    code=code
+                    if code is not None and get_mode() == "edit"
+                    else msgspec.UNSET,
                 ),
                 status=status,
             ),

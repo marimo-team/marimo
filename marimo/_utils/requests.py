@@ -1,10 +1,14 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import http.client
 import json
+import socket
+import threading
 import urllib.error
 import urllib.parse
 import urllib.request
+from time import monotonic
 from typing import Any
 
 from marimo._version import __version__
@@ -18,8 +22,16 @@ MARIMO_USER_AGENT = f"marimo/{__version__}"
 class RequestError(Exception):
     """Exception raised when a request fails."""
 
-    def __init__(self, message: str):
+    def __init__(
+        self,
+        message: str,
+        *,
+        dispatched: bool | None = None,
+        status_code: int | None = None,
+    ):
         self.message = message
+        self.dispatched = dispatched
+        self.status_code = status_code
         super().__init__(self.message)
 
 
@@ -73,6 +85,129 @@ class Response:
                 f"Request failed: {self.status_code}. {self.text()}"
             )
         return self
+
+
+def request(
+    method: str,
+    url: str,
+    *,
+    deadline: float,
+    max_response_bytes: int,
+    data: bytes | None = None,
+    headers: dict[str, str] | None = None,
+) -> Response:
+    """Make one direct HTTP request within a monotonic deadline.
+
+    Redirects, environment proxies, and automatic retries are disabled.
+    A failure after dispatch can leave a remote operation's outcome unknown.
+
+    Args:
+        method (str): HTTP method.
+        url (str): Absolute HTTP or HTTPS URL without credentials or fragments.
+        deadline (float): Absolute deadline from `time.monotonic()`.
+        max_response_bytes (int): Maximum response body size in bytes.
+        data (bytes, optional): Encoded request body.
+        headers (dict[str, str], optional): Request headers.
+
+    Raises:
+        RequestError: The request fails or exceeds its deadline or size limit.
+            `dispatched` indicates whether request transmission started.
+            `status_code` contains the HTTP status if headers arrived.
+    """
+    dispatched = False
+    status_code = None
+
+    def failure(message: str) -> RequestError:
+        return RequestError(
+            message, dispatched=dispatched, status_code=status_code
+        )
+
+    def remaining() -> float:
+        value = deadline - monotonic()
+        if value <= 0:
+            raise failure("The request deadline expired")
+        return value
+
+    if max_response_bytes < 0:
+        raise ValueError("max_response_bytes must be non-negative")
+    try:
+        endpoint = urllib.parse.urlsplit(url)
+        if (
+            endpoint.scheme not in {"http", "https"}
+            or endpoint.hostname is None
+            or endpoint.username is not None
+            or endpoint.password is not None
+            or endpoint.fragment
+        ):
+            raise ValueError("Invalid HTTP endpoint")
+        connection_type = (
+            http.client.HTTPSConnection
+            if endpoint.scheme == "https"
+            else http.client.HTTPConnection
+        )
+        connection = connection_type(
+            endpoint.hostname, endpoint.port, timeout=remaining()
+        )
+    except ValueError as error:
+        raise failure("Invalid HTTP endpoint") from error
+
+    response: http.client.HTTPResponse | None = None
+    timer: threading.Timer | None = None
+    try:
+        connection.connect()
+        connection.auto_open = 0
+        transport = connection.sock
+        assert transport is not None
+
+        def expire() -> None:
+            # An inactivity timeout does not bound a trickling HTTP header.
+            try:
+                transport.shutdown(socket.SHUT_RDWR)
+            except OSError:
+                pass
+
+        timer = threading.Timer(remaining(), expire)
+        timer.daemon = True
+        timer.start()
+        transport.settimeout(remaining())
+        path = endpoint.path or "/"
+        if endpoint.query:
+            path += "?" + endpoint.query
+        dispatched = True
+        connection.request(method, path, body=data, headers=headers or {})
+        transport.settimeout(remaining())
+        response = connection.getresponse()
+        status_code = response.status
+        parts: list[bytes] = []
+        size = 0
+        while not response.isclosed():
+            transport.settimeout(remaining())
+            part = response.read1(
+                min(64 * 1024, max_response_bytes + 1 - size)
+            )
+            if not part:
+                break
+            parts.append(part)
+            size += len(part)
+            if size > max_response_bytes:
+                raise failure("The response body exceeds its size limit")
+        if response.length not in (None, 0):
+            raise failure("The response body is incomplete")
+        remaining()
+        return Response(status_code, b"".join(parts), dict(response.headers))
+    except (
+        OSError,
+        ValueError,
+        OverflowError,
+        http.client.HTTPException,
+    ) as error:
+        raise failure("HTTP request failed") from error
+    finally:
+        if timer is not None:
+            timer.cancel()
+        if response is not None:
+            response.close()
+        connection.close()
 
 
 def _make_request(

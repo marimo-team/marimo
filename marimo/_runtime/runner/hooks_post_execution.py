@@ -350,6 +350,7 @@ def _broadcast_outputs(
             data=formatted_output.data,
             cell_id=cell.cell_id,
             status=None,
+            code=cell.code,
         )
     elif isinstance(run_result.exception, MarimoStrictExecutionError):
         LOGGER.debug("Cell %s raised a strict error", cell.cell_id)

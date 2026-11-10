@@ -6,6 +6,18 @@ MarimoIslandGenerator
 MarimoStopError
 Thread
 accordion
+agents
+  AgentContextUnavailableError
+  AgentError
+  AgentInfo
+  NoAgentsConnectedError
+  RecipientResult
+  SendOutcomeUnknownError
+  SendResult
+  broadcast
+  list
+  send
+  subscribe_connections
 ai
   ChatAttachment
   ChatMessage

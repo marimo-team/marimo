@@ -4,6 +4,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Protocol
 
+from marimo._messaging.agents import SubmissionStatus
+
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
@@ -103,12 +105,20 @@ class Harness(Protocol):
     def open_inbox(self, target: DeliveryTarget) -> Inbox: ...
 
 
+@dataclass(frozen=True)
+class Submission:
+    """Native evidence of submission, without a claim of task completion."""
+
+    status: SubmissionStatus
+    detail: str | None = None
+
+
 class Inbox(Protocol):
     """Delivery and lifetime checks for one already-selected conversation."""
 
     @property
     def inbox_bytes(self) -> int: ...
 
-    def send(self, text: str) -> None: ...
+    def send(self, text: str) -> Submission: ...
 
     def alive(self) -> bool: ...

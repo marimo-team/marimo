@@ -43,6 +43,16 @@ if TYPE_CHECKING:
     from typing import Self
 
     from marimo._runtime.runtime import Kernel
+    from tests._http import HTTPEndpoint
+
+
+@pytest.fixture
+def http_endpoint() -> Generator[HTTPEndpoint, None, None]:
+    from tests._http import http_test_server
+
+    with http_test_server() as endpoint:
+        yield endpoint
+
 
 # register import hooks for third-party module formatters
 register_formatters()

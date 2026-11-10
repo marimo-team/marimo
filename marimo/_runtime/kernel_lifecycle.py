@@ -48,6 +48,7 @@ if TYPE_CHECKING:
     from marimo._ast.cell import CellConfig
     from marimo._config.config_schema import MarimoConfig
     from marimo._config.provenance import ConfigPath
+    from marimo._messaging.agents import AgentConnection
     from marimo._messaging.types import KernelStreams
     from marimo._runtime import marimo_pdb
     from marimo._runtime.commands import (
@@ -80,6 +81,7 @@ class KernelArgs:
     set_ui_element_queue: UIElementQueue
     virtual_file_storage: VirtualFileStorageType | None
     config_overrides: tuple[ConfigPath, ...] = ()
+    agent_messaging: AgentConnection | None = None
 
     @property
     def is_edit_mode(self) -> bool:
@@ -242,6 +244,8 @@ def create_kernel(
         ),
         hooks=_build_hooks(args.is_edit_mode, user_config),
     )
+    if args.is_edit_mode and args.agent_messaging is not None:
+        kernel.agent_messaging = args.agent_messaging
     ctx = initialize_kernel_context(
         kernel=kernel,
         streams=args.streams,

@@ -5,7 +5,6 @@ import { z } from "zod";
 
 export const pairConfigSchema = z.object({
   command: z.string(),
-  hostEnabled: z.boolean().default(false),
   templates: z.object({
     prompt: z.string(),
     notebook: z.string(),

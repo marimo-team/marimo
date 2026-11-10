@@ -1,0 +1,113 @@
+/* Copyright 2026 Marimo. All rights reserved. */
+
+import { useAtomValue } from "jotai";
+import { SendIcon } from "lucide-react";
+import { useRef, useState } from "react";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  type AgentRecipient,
+  sendAgentMessage,
+  SendOutcomeUnknownError,
+} from "@/core/agents/messages";
+import { connectedAgentsAtom } from "@/core/agents/state";
+import {
+  agentToast,
+  formatAgentSendResult,
+} from "@/components/editor/agent-toast";
+import { stableSessionIdAtom } from "@/core/kernel/session";
+import { initialModeAtom } from "@/core/mode";
+import { prettyError } from "@/utils/errors";
+
+export function SendToAgentButton({
+  getContent,
+  children,
+}: {
+  getContent: () => unknown;
+  children: React.ReactNode;
+}) {
+  const isEditMode = useAtomValue(initialModeAtom) === "edit";
+  const agents = useAtomValue(connectedAgentsAtom);
+  const sessionId = useAtomValue(stableSessionIdAtom);
+  const [sending, setSending] = useState(false);
+  const pending = useRef(false);
+  const labels = new Map(
+    agents.map((agent) => [
+      agent.id,
+      agents.some((other) => other.id !== agent.id && other.name === agent.name)
+        ? `${agent.name} (${agent.id})`
+        : agent.name,
+    ]),
+  );
+
+  if (!isEditMode || agents.length === 0) {
+    return null;
+  }
+
+  const send = async (recipient: AgentRecipient) => {
+    if (pending.current || !sessionId) {
+      return;
+    }
+    pending.current = true;
+    setSending(true);
+    try {
+      const result = await sendAgentMessage(sessionId, getContent(), recipient);
+      agentToast(formatAgentSendResult(result, labels));
+    } catch (error) {
+      agentToast({
+        variant: "danger",
+        title:
+          error instanceof SendOutcomeUnknownError
+            ? "Submission outcome unknown"
+            : "Could not send message",
+        description: prettyError(error),
+      });
+    } finally {
+      pending.current = false;
+      setSending(false);
+    }
+  };
+
+  const button = (
+    <Button
+      size="xs"
+      variant="outline"
+      disabled={sending || !sessionId}
+      onClick={
+        agents.length === 1 ? () => send({ to: agents[0].id }) : undefined
+      }
+    >
+      <SendIcon className="h-3 w-3 mr-2" />
+      {children}
+    </Button>
+  );
+
+  if (agents.length === 1) {
+    return button;
+  }
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild={true}>{button}</DropdownMenuTrigger>
+      <DropdownMenuContent align="start">
+        {agents.map((agent) => (
+          <DropdownMenuItem
+            key={agent.id}
+            onSelect={() => send({ to: agent.id })}
+          >
+            {labels.get(agent.id)}
+          </DropdownMenuItem>
+        ))}
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onSelect={() => send({ broadcast: true })}>
+          Send to all agents
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}

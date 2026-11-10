@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import re
 import socket
 import subprocess
 import sys
@@ -9,7 +10,7 @@ import time
 import urllib.request
 import uuid
 from contextlib import contextmanager
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
 import websockets.sync.client
@@ -30,13 +31,17 @@ class PairTestServer:
     _process: subprocess.Popen[bytes]
     _websocket: ClientConnection
     _stderr_path: Path
-    _token: str | None = None
+    _token: str | None = field(default=None, repr=False)
+    _server_token: str | None = field(default=None, repr=False)
 
     @property
     def _headers(self) -> dict[str, str]:
-        return (
+        headers = (
             {"Authorization": f"Bearer {self._token}"} if self._token else {}
         )
+        if self._server_token is not None:
+            headers["Marimo-Server-Token"] = self._server_token
+        return headers
 
     def wait_for_kernel(
         self,
@@ -177,6 +182,8 @@ def _start_server(
     *,
     token: str | None,
     attempts: int = 3,
+    base_url: str = "",
+    skew_protection: bool = False,
 ) -> tuple[subprocess.Popen[bytes], str]:
     for attempt in range(attempts):
         port = _free_port()
@@ -194,7 +201,8 @@ def _start_server(
                         if token
                         else ["--no-token"]
                     ),
-                    "--no-skew-protection",
+                    *([] if skew_protection else ["--no-skew-protection"]),
+                    *(["--base-url", base_url] if base_url else []),
                     "--port",
                     str(port),
                 ],
@@ -202,7 +210,7 @@ def _start_server(
                 stderr=stderr_file,
                 cwd=notebook.parent,
             )
-        url = f"http://127.0.0.1:{port}"
+        url = f"http://127.0.0.1:{port}{base_url}"
         try:
             _wait_for_server(url, process, stderr_path, token=token)
         except RuntimeError:
@@ -216,13 +224,23 @@ def _start_server(
 
 @contextmanager
 def pair_test_server(
-    tmp_path: Path, *, token: str | None = None
+    tmp_path: Path,
+    *,
+    token: str | None = None,
+    base_url: str = "",
+    skew_protection: bool = False,
 ) -> Generator[PairTestServer, None, None]:
     notebook = tmp_path / "pair-integration.py"
     notebook.write_text("import marimo\napp = marimo.App()\n")
     stderr_path = tmp_path / "marimo-stderr.log"
 
-    process, url = _start_server(notebook, stderr_path, token=token)
+    process, url = _start_server(
+        notebook,
+        stderr_path,
+        token=token,
+        base_url=base_url,
+        skew_protection=skew_protection,
+    )
     try:
         session_id = f"pair_{uuid.uuid4().hex[:8]}"
         websocket = websockets.sync.client.connect(
@@ -241,6 +259,19 @@ def pair_test_server(
             sessions = json.load(response)
         assert sessions[session_id]["notebook_id"] == notebook_id
         stable_session_id = sessions[session_id]["session_id"]
+        server_token = None
+        if skew_protection:
+            request = urllib.request.Request(
+                url,
+                headers={"Authorization": f"Bearer {token}"} if token else {},
+            )
+            with urllib.request.urlopen(request, timeout=5) as response:
+                html = response.read().decode()
+            match = re.search(
+                r'<marimo-server-token data-token="([^"]+)"', html
+            )
+            assert match is not None
+            server_token = match.group(1)
         server = PairTestServer(
             url=url,
             session_id=session_id,
@@ -250,6 +281,7 @@ def pair_test_server(
             _websocket=websocket,
             _stderr_path=stderr_path,
             _token=token,
+            _server_token=server_token,
         )
         try:
             yield server

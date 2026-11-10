@@ -200,17 +200,29 @@ def test_codex_send_preserves_message(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 @pytest.mark.parametrize(
-    "failure", [OSError("secret"), subprocess.TimeoutExpired("secret", 15)]
+    "failure",
+    [
+        OSError("secret"),
+        FileNotFoundError("secret"),
+        PermissionError("secret"),
+        ValueError("secret"),
+        subprocess.TimeoutExpired("secret", 15),
+    ],
 )
 def test_codex_send_failure_does_not_leak(
     failure: Exception, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.setattr(subprocess, "run", Mock(side_effect=failure))
-    with pytest.raises(PairError, match="Could not deliver") as error:
+    with pytest.raises(PairError) as error:
         CodexHarness().open_inbox(
             DeliveryTarget("codex", "thread", "Codex")
         ).send("message")
     assert "secret" not in str(error.value)
+    from marimo._cli.pair.client import SubmissionRejectedError
+
+    assert isinstance(error.value, SubmissionRejectedError) == isinstance(
+        failure, (FileNotFoundError, PermissionError, ValueError)
+    )
 
 
 def test_process_identity_guards_pid_reuse(owner: ProcessHandle) -> None:
@@ -718,3 +730,26 @@ def test_delivery_does_not_add_error_instructions(
         assert json.loads(path.read_text(encoding="utf-8")) == payload
     else:
         assert json.loads(text.split("\n", 1)[1]) == payload
+
+
+@pytest.mark.parametrize("returncode", [0, 1])
+def test_codex_submission_result(monkeypatch, returncode):
+    from marimo._cli.pair.client import SubmissionRejectedError
+    from marimo._cli.pair.delivery import Submission
+
+    monkeypatch.setattr(
+        subprocess,
+        "run",
+        Mock(return_value=subprocess.CompletedProcess([], returncode, b"")),
+    )
+    inbox = CodexHarness().open_inbox(
+        DeliveryTarget("codex", "thread", "Codex")
+    )
+    if returncode:
+        with pytest.raises(PairError) as caught:
+            inbox.send("message")
+        assert not isinstance(caught.value, SubmissionRejectedError)
+    else:
+        assert inbox.send("message") == Submission(
+            "submitted", "Codex queue completed successfully."
+        )

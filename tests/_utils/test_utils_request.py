@@ -1,3 +1,5 @@
+import socket
+import time
 from typing import Any
 from unittest.mock import MagicMock, patch
 
@@ -11,6 +13,7 @@ from marimo._utils.requests import (
     get,
     post,
     put,
+    request,
 )
 
 
@@ -321,3 +324,137 @@ def test_url_parameter_handling(
         # Verify the URL was constructed correctly
         request_arg = mock_urlopen.call_args[0][0]
         assert request_arg.full_url == expected_url
+
+
+@pytest.fixture
+def endpoint(http_endpoint):
+    http_endpoint.headers["Location"] = "/redirect-target"
+    return http_endpoint.url, http_endpoint
+
+
+@pytest.mark.parametrize("status", [200, 302, 307, 400, 403, 503])
+def test_direct_request_does_not_follow_redirects_or_use_proxies(
+    endpoint, monkeypatch, status
+):
+    url, state = endpoint
+    state.status = status
+    monkeypatch.setenv("http_proxy", "http://127.0.0.1:1")
+    monkeypatch.setenv("no_proxy", "")
+    response = request(
+        "POST",
+        url + "/message?target=one",
+        data=b"payload",
+        headers={"Authorization": "Bearer private-token"},
+        deadline=time.monotonic() + 1,
+        max_response_bytes=len(state.body),
+    )
+    assert response.status_code == status
+    assert response.content == state.body
+    assert response.headers["Location"] == "/redirect-target"
+    assert [
+        (r.method, r.path, r.headers.get("Authorization"), r.body)
+        for r in state.requests
+    ] == [("POST", "/message?target=one", "Bearer private-token", b"payload")]
+
+
+def test_direct_request_limits_response_bytes(endpoint):
+    url, state = endpoint
+    with pytest.raises(RequestError, match="size limit") as error:
+        request(
+            "GET", url, deadline=time.monotonic() + 1, max_response_bytes=2
+        )
+    assert error.value.dispatched is True
+    assert error.value.status_code == 200
+    assert len(state.requests) == 1
+
+
+def test_direct_request_rejects_truncated_body(endpoint):
+    url, state = endpoint
+    state.content_length = len(state.body) + 10
+    with pytest.raises(RequestError, match="incomplete") as error:
+        request(
+            "GET", url, deadline=time.monotonic() + 1, max_response_bytes=100
+        )
+    assert error.value.dispatched is True
+    assert error.value.status_code == 200
+    assert len(state.requests) == 1
+
+
+def test_direct_request_uses_one_deadline_for_streamed_body(endpoint):
+    url, state = endpoint
+    state.chunk_delay = 0.04
+    started = time.monotonic()
+    with pytest.raises(RequestError) as error:
+        request("GET", url, deadline=started + 0.1, max_response_bytes=100)
+    assert time.monotonic() - started < 0.25
+    assert error.value.dispatched is True
+    assert error.value.status_code == 200
+    assert len(state.requests) == 1
+
+
+def test_direct_request_expired_deadline_prevents_dispatch(endpoint):
+    url, state = endpoint
+    with pytest.raises(RequestError, match="deadline") as error:
+        request(
+            "POST", url, deadline=time.monotonic() - 1, max_response_bytes=100
+        )
+    assert error.value.dispatched is False
+    assert error.value.status_code is None
+    assert state.requests == []
+
+
+def test_direct_request_connection_failure_precedes_dispatch():
+    with socket.socket() as closed:
+        closed.bind(("127.0.0.1", 0))
+        port = closed.getsockname()[1]
+        with pytest.raises(RequestError) as error:
+            request(
+                "POST",
+                f"http://127.0.0.1:{port}",
+                deadline=time.monotonic() + 1,
+                max_response_bytes=100,
+            )
+    assert error.value.dispatched is False
+    assert error.value.status_code is None
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "file:///tmp/message",
+        "http:///message",
+        "http://private-token@localhost/message",
+        "http://localhost/message#fragment",
+        "http://localhost:invalid/message",
+    ],
+)
+def test_direct_request_rejects_invalid_endpoints_before_dispatch(url):
+    with pytest.raises(RequestError, match="Invalid HTTP endpoint") as error:
+        request(
+            "POST", url, deadline=time.monotonic() + 1, max_response_bytes=100
+        )
+    assert error.value.dispatched is False
+    assert error.value.status_code is None
+
+
+def test_direct_request_deadline_interrupts_slow_headers(endpoint):
+    url, state = endpoint
+    state.header_chunk_delay = 0.01
+    started = time.monotonic()
+    with pytest.raises(RequestError) as error:
+        request("GET", url, deadline=started + 0.12, max_response_bytes=100)
+    assert time.monotonic() - started < 0.4
+    assert error.value.dispatched is True
+    assert error.value.status_code is None
+
+
+def test_direct_request_normalizes_invalid_headers(endpoint):
+    url, _ = endpoint
+    with pytest.raises(RequestError):
+        request(
+            "GET",
+            url,
+            headers={"X-Test": "invalid\nheader"},
+            deadline=time.monotonic() + 1,
+            max_response_bytes=100,
+        )

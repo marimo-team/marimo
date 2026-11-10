@@ -5,7 +5,8 @@ import { act, render, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Toaster } from "@/components/ui/toaster";
 import { clearToasts, toast, useToast } from "@/components/ui/use-toast";
-import { agentToast } from "../agent-toast";
+import type { SendResult } from "@/core/agents/messages";
+import { agentToast, formatAgentSendResult } from "../agent-toast";
 
 describe("agent notifications", () => {
   beforeEach(() => {
@@ -54,5 +55,87 @@ describe("agent notifications", () => {
     expect(result.current.toasts[0].open).toBe(true);
     act(() => vi.advanceTimersByTime(1000));
     expect(result.current.toasts[0].open).toBe(false);
+  });
+});
+
+describe("agent send result formatting", () => {
+  it.each<{
+    name: string;
+    recipients: SendResult["recipients"];
+    expected: Parameters<typeof agentToast>[0];
+  }>([
+    {
+      name: "all submitted",
+      recipients: [
+        { agent_id: "pi", status: "submitted", detail: null },
+        { agent_id: "claude", status: "submitted", detail: null },
+      ],
+      expected: { title: "Submitted to Pi, Claude" },
+    },
+    {
+      name: "rejected",
+      recipients: [
+        { agent_id: "pi", status: "rejected", detail: "Disconnected" },
+      ],
+      expected: {
+        variant: "danger",
+        title: "Message rejected",
+        description: "Pi: Disconnected",
+      },
+    },
+    {
+      name: "unknown with a missing label and detail",
+      recipients: [{ agent_id: "unlabeled", status: "unknown", detail: null }],
+      expected: {
+        variant: "danger",
+        title: "Submission outcome unknown",
+        description:
+          "unlabeled: unknown\nAnother send can duplicate the message.",
+      },
+    },
+    {
+      name: "partially rejected",
+      recipients: [
+        { agent_id: "pi", status: "submitted", detail: null },
+        { agent_id: "claude", status: "rejected", detail: null },
+      ],
+      expected: {
+        variant: "danger",
+        title: "Some messages were not confirmed",
+        description: "Pi: submitted\nClaude: rejected",
+      },
+    },
+    {
+      name: "partially unknown",
+      recipients: [
+        { agent_id: "pi", status: "submitted", detail: null },
+        { agent_id: "claude", status: "unknown", detail: "No receipt" },
+      ],
+      expected: {
+        variant: "danger",
+        title: "Some messages were not confirmed",
+        description:
+          "Pi: submitted\nClaude: No receipt\nAnother send can duplicate the message.",
+      },
+    },
+    {
+      name: "rejected and unknown",
+      recipients: [
+        { agent_id: "pi", status: "rejected", detail: null },
+        { agent_id: "claude", status: "unknown", detail: null },
+      ],
+      expected: {
+        variant: "danger",
+        title: "Submission outcome unknown",
+        description:
+          "Pi: rejected\nClaude: unknown\nAnother send can duplicate the message.",
+      },
+    },
+  ])("formats $name", ({ recipients, expected }) => {
+    const labels = new Map([
+      ["pi", "Pi"],
+      ["claude", "Claude"],
+    ]);
+    expect(formatAgentSendResult({ recipients }, labels)).toEqual(expected);
   });
 });

@@ -29,6 +29,7 @@ from marimo._utils.typed_connection import TypedConnection
 if TYPE_CHECKING:
     from marimo._ast.cell import CellConfig
     from marimo._config.manager import MarimoConfigManager
+    from marimo._messaging.agents import AgentConnection
     from marimo._runtime.commands import AppMetadata
     from marimo._runtime.virtual_file import VirtualFileStorageType
     from marimo._types.ids import CellId_t
@@ -57,6 +58,7 @@ class KernelManagerImpl(KernelManager):
         self.kernel_task: ProcessLike | threading.Thread | None = None
         self.queue_manager = queue_manager
         self.mode = mode
+        self.agent_messaging: AgentConnection | None = None
         self.configs = configs
         self.app_metadata = app_metadata
         self.config_manager = config_manager
@@ -81,6 +83,7 @@ class KernelManagerImpl(KernelManager):
             listener = connection.Listener(family="AF_INET")
             self.kernel_task = get_context("spawn").Process(
                 target=runtime.launch_kernel,
+                kwargs={"agent_messaging": self.agent_messaging},
                 args=(
                     self.queue_manager.control_queue,
                     self.queue_manager.set_ui_element_queue,
@@ -118,8 +121,9 @@ class KernelManagerImpl(KernelManager):
             # naturally exit before cleaning up resources
             def launch_kernel_with_cleanup(
                 *args: Any,
+                **kwargs: Any,
             ) -> None:
-                runtime.launch_kernel(*args)
+                runtime.launch_kernel(*args, **kwargs)
 
             # Install formatter import hooks once in the host process. Every
             # kernel thread shares them.
@@ -137,6 +141,7 @@ class KernelManagerImpl(KernelManager):
             # down all client sessions
             self.kernel_task = threading.Thread(
                 target=launch_kernel_with_cleanup,
+                kwargs={"agent_messaging": self.agent_messaging},
                 args=(
                     self.queue_manager.control_queue,
                     self.queue_manager.set_ui_element_queue,

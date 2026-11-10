@@ -24,6 +24,12 @@ from marimo._core.errors import (
     NotFound,
 )
 from marimo._core.operations import Reply
+from marimo._messaging.agents import (
+    ATTACHMENT_HEADER,
+    MESSAGING_HEADER,
+    REPORT_KEY_HEADER,
+    SubmissionReport,
+)
 from marimo._server.api.auth import TOKEN_QUERY_PARAM, validate_auth
 from marimo._server.api.deps import AppState, AppStateBase
 from marimo._server.api.endpoints.ws.ws_connection_validator import (
@@ -90,6 +96,11 @@ def build_app() -> Router:
             "/notebooks/{notebook_id}/events",
             _notebook_events,
             methods=["GET"],
+        ),
+        Route(
+            "/notebooks/{notebook_id}/agent-messages/report",
+            _agent_message_report,
+            methods=["POST"],
         ),
         WebSocketRoute(
             "/notebooks/{notebook_id}/events/ws", _notebook_events_ws
@@ -182,14 +193,47 @@ async def _notebook_events(request: Request) -> Response:
         )
     except msgspec.ValidationError as e:
         return problem(400, "invalid-request", _attachment_problem(e))
-    return _stream(
+    key = None
+    if (
+        request.headers.get(MESSAGING_HEADER) == "1"
+        and attachment.kind == "agent"
+    ):
+        key = context.agents.register(notebook, attachment.id)
+
+    def detach() -> None:
+        context.agents.unregister(attachment.id)
+        notebook.detach(attachment.id)
+
+    response = _stream(
         context,
         cursor,
         types,
         notebook_id=notebook.id,
         run_id=run_id,
-        on_close=lambda: notebook.detach(attachment.id),
+        on_close=detach,
     )
+    if key is not None:
+        response.headers[ATTACHMENT_HEADER] = attachment.id
+        response.headers[REPORT_KEY_HEADER] = key
+    return response
+
+
+async def _agent_message_report(request: Request) -> Response:
+    """Receive a private forwarder outcome through host authentication."""
+    try:
+        report = await _decode(request, SubmissionReport)
+    except msgspec.DecodeError:
+        return problem(400, "invalid-request", "Invalid submission report")
+    accepted = _context(request).agents.report(
+        request.path_params["notebook_id"],
+        report,
+        request.headers.get(REPORT_KEY_HEADER, ""),
+    )
+    if not accepted:
+        return problem(
+            409, "conflict", "The submission report is no longer accepted"
+        )
+    return Response(status_code=204)
 
 
 def editor_routes(base_url: str = "") -> list[BaseRoute]:

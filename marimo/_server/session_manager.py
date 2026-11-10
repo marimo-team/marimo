@@ -12,10 +12,13 @@ import asyncio
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
+from urllib.parse import quote
 from weakref import WeakValueDictionary
 
 from marimo import _loggers
 from marimo._config.manager import MarimoConfigManager
+from marimo._core.ids import mint
+from marimo._messaging.agents import AgentConnection
 from marimo._runtime.commands import (
     SerializedCLIArgs,
     SerializedQueryParams,
@@ -115,6 +118,7 @@ class SessionManager:
         self._config_manager = config_manager
         self.sandbox = sandbox
         self.execute_opengraph_generators = execute_opengraph_generators
+        self.agent_messaging_url: str | None = None
 
         # When running multiple apps, each app runs in an isolated  host
         # process, to avoid collisions in sys.modules and other Python global
@@ -378,7 +382,23 @@ class SessionManager:
                 )
             )
 
+        stable_id = mint(StableSessionId, "sess")
+        agent_messaging = (
+            AgentConnection(
+                url=(
+                    f"{self.agent_messaging_url}/api/pair/notebooks/"
+                    f"{quote(stable_id, safe='')}"
+                ),
+                auth_token=str(self.auth_token),
+                server_token=str(self.skew_protection_token),
+            )
+            if self.mode is SessionMode.EDIT
+            and self.agent_messaging_url is not None
+            else None
+        )
         session = await SessionImpl.create(
+            stable_id=stable_id,
+            agent_messaging=agent_messaging,
             initialization_id=file_key,
             startup=startup,
             session_consumer=None,

@@ -14,6 +14,7 @@ from dataclasses import dataclass
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 from typing import TYPE_CHECKING, TypedDict
+from urllib.parse import quote
 
 import msgspec
 
@@ -24,14 +25,23 @@ from marimo._cli.pair.client import (
     PairError,
     SSEEvent,
     StaleNotebookError,
+    SubmissionRejectedError,
+    _endpoint_url,
     iter_sse,
     open_events,
     pump_events,
 )
 from marimo._cli.pair.connection import Connection, ConnectionStore
-from marimo._cli.pair.delivery import DeliveryTarget, ProcessHandle
+from marimo._cli.pair.delivery import DeliveryTarget, ProcessHandle, Submission
 from marimo._cli.pair.harnesses import harness_for
+from marimo._messaging.agents import (
+    ATTACHMENT_HEADER,
+    MESSAGE_TYPE,
+    REPORT_KEY_HEADER,
+    SubmissionReport,
+)
 from marimo._messaging.messages import AGENT_MESSAGE_TYPE
+from marimo._utils.requests import RequestError, request
 from marimo._utils.subprocess import kill_subprocess
 
 if TYPE_CHECKING:
@@ -43,6 +53,7 @@ _LOGGER = logging.getLogger(__name__)
 _LIVENESS_SECONDS = 15.0
 _BURST_SECONDS = 1.0
 _RECONNECT_MAX_SECONDS = 5.0
+_REPORT_TIMEOUT_SECONDS = 5.0
 
 
 @dataclass(frozen=True)
@@ -164,15 +175,81 @@ def _read_stream(
             identity=config.identity,
             cursor=cursor,
             name=config.target.label,
+            messaging=True,
         )
         responses.append(response)
         try:
             if not stopped.is_set():
+                attachment = response.response.getheader(ATTACHMENT_HEADER)
+                key = response.response.getheader(REPORT_KEY_HEADER)
+                if not attachment or not key:
+                    raise PairError(
+                        "The server does not support agent messaging. Restart it with matching marimo code."
+                    )
+                yield SSEEvent(
+                    "pair.stream",
+                    json.dumps({"attachment": attachment, "key": key}),
+                )
                 yield from iter_sse(response)
         finally:
             response.close()
 
     pump_events(events(), incoming, stopped)
+
+
+def _report(
+    config: ForwarderConfig, report: SubmissionReport, key: str
+) -> None:
+    headers = {REPORT_KEY_HEADER: key, "Content-Type": "application/json"}
+    if config.token is not None:
+        headers["Authorization"] = f"Bearer {config.token}"
+    try:
+        response = request(
+            "POST",
+            _endpoint_url(
+                config.url,
+                f"/notebooks/{quote(config.notebook, safe='')}/agent-messages/report",
+            ),
+            headers=headers,
+            data=msgspec.json.encode(report),
+            deadline=time.monotonic() + _REPORT_TIMEOUT_SECONDS,
+            max_response_bytes=64 * 1024,
+        )
+        if response.status_code >= 300:
+            raise RequestError("The host rejected the submission report.")
+    except RequestError:
+        # A lost report never authorizes another native submission.
+        _LOGGER.warning(
+            "The submission result could not reach the notebook host."
+        )
+
+
+def _submit(
+    inbox: Inbox,
+    content: object,
+    *,
+    notebook: str,
+    files: AgentMessageFiles,
+) -> Submission:
+    try:
+        message = inbox_message(
+            content, notebook=notebook, budget=inbox.inbox_bytes, files=files
+        )
+    except (PairError, OSError, ValueError, TypeError):
+        return Submission(
+            "rejected", "The message could not be prepared for the agent."
+        )
+    if not inbox.alive():
+        return Submission("rejected", "The agent inbox is unavailable.")
+    try:
+        return inbox.send(message)
+    except SubmissionRejectedError as error:
+        return Submission("rejected", str(error))
+    except (PairError, OSError, ValueError):
+        return Submission(
+            "unknown",
+            "The native operation failed after possible submission.",
+        )
 
 
 def _wait_reconnect(inbox: Inbox, delay: float) -> bool:
@@ -200,6 +277,7 @@ def run_forwarder(
     attachment: str | None = None
     cursor: str | None = None
     reconnect_delay = 0.1
+    report_key: str | None = None
 
     def flush() -> None:
         nonlocal pending
@@ -209,6 +287,7 @@ def run_forwarder(
 
     while inbox.alive():
         attachment = None
+        report_key = None
         incoming: queue.Queue[SSEEvent | Exception | None] = queue.Queue(
             maxsize=64
         )
@@ -256,22 +335,28 @@ def run_forwarder(
                             http.client.HTTPException,
                         ),
                     ):
+                        if isinstance(event, PairError):
+                            raise event
                         raise PairError(
                             "The agent message stream could not continue."
                         ) from event
                     reconnect = True
                     break
-                if event.name == "reset":
-                    attachment = None
+                if event.name == "pair.stream":
+                    stream = json.loads(event.data)
+                    attachment = stream["attachment"]
+                    report_key = stream["key"]
                 elif event.name == "attachment":
                     payload = json.loads(event.data)["attachment"]
-                    if payload.get("identity") == config.identity:
-                        attachment = payload["id"]
+                    if (
+                        payload.get("identity") == config.identity
+                        and payload["id"] == attachment
+                    ):
                         if not attached:
                             attached = True
                             ready()
                 elif event.name == "ready":
-                    if attachment is None:
+                    if not attached:
                         raise PairError(
                             "The notebook stream did not confirm its attachment."
                         )
@@ -282,6 +367,31 @@ def run_forwarder(
                         return
                 elif event.name == "custom":
                     payload = json.loads(event.data)["custom"]
+                    if payload["type"] == MESSAGE_TYPE:
+                        data = payload["data"]
+                        if data["attachment_id"] == attachment:
+                            assert report_key is not None
+                            if event.id is not None:
+                                cursor = event.id
+                            submission = _submit(
+                                inbox,
+                                data["message"],
+                                notebook=config.notebook,
+                                files=files,
+                            )
+                            _report(
+                                config,
+                                SubmissionReport(
+                                    attachment_id=attachment,
+                                    attempt_id=data["attempt_id"],
+                                    status=submission.status,
+                                    detail=submission.detail,
+                                ),
+                                report_key,
+                            )
+                        if event.id is not None:
+                            cursor = event.id
+                        continue
                     if payload["type"] != AGENT_MESSAGE_TYPE:
                         if event.id is not None:
                             cursor = event.id

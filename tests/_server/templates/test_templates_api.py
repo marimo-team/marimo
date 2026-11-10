@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import unittest
 from dataclasses import asdict
+from typing import Literal
 
 import pytest
 
@@ -40,27 +41,21 @@ def test_render_notebook_tolerates_invalid_config() -> None:
     ("editable", "command"),
     [(True, "uv run marimo"), (False, "uvx marimo@latest")],
 )
-def test_pair_cli_config_uses_installation_command(
-    monkeypatch: pytest.MonkeyPatch, editable: bool, command: str
+@pytest.mark.parametrize("mode", ["edit", "read"])
+def test_pair_cli_config_is_unconditional(
+    monkeypatch: pytest.MonkeyPatch,
+    editable: bool,
+    command: str,
+    mode: Literal["edit", "read"],
 ) -> None:
     monkeypatch.setattr(
         "marimo._cli.pair.prompts.is_editable", lambda _: editable
     )
-    html = render_notebook(
-        code="import marimo\napp = marimo.App()", mode="edit"
-    )
+    html = render_notebook(code="import marimo\napp = marimo.App()", mode=mode)
     assert parse_mount_config(html)["pairConfig"] == {
         "command": command,
         "templates": asdict(load_prompt_templates()),
-        "hostEnabled": True,
     }
-
-
-def test_read_mode_disables_agent_aware_ui() -> None:
-    html = render_notebook(
-        code="import marimo\napp = marimo.App()", mode="read"
-    )
-    assert parse_mount_config(html)["pairConfig"]["hostEnabled"] is False
 
 
 class TestRenderNotebook(unittest.TestCase):

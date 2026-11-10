@@ -7,6 +7,7 @@ import msgspec.json
 from marimo._ast.cell import CellConfig
 from marimo._config.config import PartialMarimoConfig
 from marimo._config.provenance import ConfigPath
+from marimo._messaging.agents import AgentConnection
 from marimo._messaging.msgspec_encoder import encode_json_bytes
 from marimo._runtime.commands import AppMetadata
 from marimo._runtime.virtual_file.storage import VirtualFileStorageType
@@ -43,6 +44,7 @@ class KernelArgs(msgspec.Struct):
     # (e.g. marimo-lsp). A server-managed kernel passes "shared_memory".
     # Unknown to older kernels, which ignore it and behave as None.
     virtual_file_storage: VirtualFileStorageType | None = None
+    agent_messaging: AgentConnection | None = None
 
     config_overrides: tuple[ConfigPath, ...] = ()
 

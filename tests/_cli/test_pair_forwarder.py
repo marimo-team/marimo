@@ -15,6 +15,7 @@ from types import SimpleNamespace
 from typing import TYPE_CHECKING
 from unittest.mock import Mock
 
+import msgspec
 import pytest
 from click.testing import CliRunner
 
@@ -29,8 +30,9 @@ from marimo._cli.pair.client import (
     StaleNotebookError,
 )
 from marimo._cli.pair.connection import ConnectionStore, connection_identity
-from marimo._cli.pair.delivery import DeliveryTarget, ProcessHandle
+from marimo._cli.pair.delivery import DeliveryTarget, ProcessHandle, Submission
 from marimo._cli.pair.forwarder import ForwarderConfig, run_forwarder
+from marimo._messaging.agents import MESSAGE_TYPE
 from tests._cli.test_pair_delivery import record
 
 if TYPE_CHECKING:
@@ -47,8 +49,9 @@ class RecordingInbox:
     def alive(self) -> bool:
         return self.living
 
-    def send(self, text: str) -> None:
+    def send(self, text: str) -> Submission:
         self.messages.append(text)
+        return Submission("submitted")
 
 
 @pytest.fixture
@@ -81,7 +84,12 @@ def install_stream(
         _cursor: str | None = None,
     ) -> None:
         calls(config)
-        for event in scripts.pop(0):
+        script = scripts.pop(0)
+        if not (
+            isinstance(script[0], SSEEvent) and script[0].name == "pair.stream"
+        ):
+            incoming.put(stream_credentials())
+        for event in script:
             if event is None:
                 event = SSEEvent(
                     "attachment.removed",
@@ -104,6 +112,13 @@ def attached(identity: str = "identity") -> SSEEvent:
     )
 
 
+def stream_credentials(attachment: str = "att-one") -> SSEEvent:
+    return SSEEvent(
+        "pair.stream",
+        json.dumps({"attachment": attachment, "key": "private-key"}),
+    )
+
+
 def agent_message(value: object) -> SSEEvent:
     return SSEEvent(
         "custom",
@@ -111,6 +126,133 @@ def agent_message(value: object) -> SSEEvent:
             {"custom": {"type": "marimo.pair.agent-message", "data": value}}
         ),
     )
+
+
+def routed_message(
+    attempt: str, value: object, attachment: str = "att-one"
+) -> SSEEvent:
+    return SSEEvent(
+        "custom",
+        json.dumps(
+            {
+                "custom": {
+                    "type": MESSAGE_TYPE,
+                    "data": {
+                        "attempt_id": attempt,
+                        "attachment_id": attachment,
+                        "message": value,
+                    },
+                }
+            }
+        ),
+        attempt,
+    )
+
+
+def test_stream_binding_ignores_sibling_identity_and_other_recipients(
+    config, monkeypatch
+) -> None:
+    install_stream(
+        monkeypatch,
+        [
+            [
+                stream_credentials(),
+                attached(),
+                SSEEvent(
+                    "attachment",
+                    json.dumps(
+                        {
+                            "attachment": {
+                                "id": "sibling",
+                                "identity": config.identity,
+                            }
+                        }
+                    ),
+                ),
+                routed_message(
+                    "other", "private to another recipient", "sibling"
+                ),
+                SSEEvent("attachment.removed", json.dumps({"id": "sibling"})),
+                routed_message("attempt-one", {"opaque": [True, None]}),
+                routed_message("attempt-two", "another explicit send"),
+                None,
+            ]
+        ],
+    )
+    report = Mock()
+    monkeypatch.setattr(forwarder, "_report", report)
+    inbox = RecordingInbox()
+    run_forwarder(config, inbox, ready=Mock())
+    assert len(inbox.messages) == 2
+    assert inbox.messages[0].endswith('{"opaque": [true, null]}')
+    assert inbox.messages[1].endswith("another explicit send")
+    assert [
+        (c.args[1].attempt_id, c.args[1].status, c.args[2])
+        for c in report.call_args_list
+    ] == [
+        ("attempt-one", "submitted", "private-key"),
+        ("attempt-two", "submitted", "private-key"),
+    ]
+
+
+@pytest.mark.parametrize("rejected", [False, True])
+def test_failed_native_attempt_and_lost_report_do_not_repeat_submission(
+    config, monkeypatch, rejected
+) -> None:
+    install_stream(
+        monkeypatch,
+        [
+            [
+                stream_credentials(),
+                attached(),
+                routed_message("once", "one send"),
+                None,
+            ]
+        ],
+    )
+    inbox = RecordingInbox()
+    from marimo._cli.pair.client import SubmissionRejectedError
+    from marimo._utils.requests import RequestError
+
+    failure = (
+        SubmissionRejectedError("Definite refusal")
+        if rejected
+        else PairError("Possible submission")
+    )
+    send = Mock(side_effect=failure)
+    monkeypatch.setattr(inbox, "send", send)
+    reports = Mock(side_effect=RequestError("Lost report"))
+    monkeypatch.setattr(forwarder, "request", reports)
+    run_forwarder(config, inbox, ready=Mock())
+    send.assert_called_once()
+    reports.assert_called_once()
+    report = msgspec.json.decode(reports.call_args.kwargs["data"])
+    assert report["status"] == ("rejected" if rejected else "unknown")
+
+
+def test_message_file_failure_is_a_rejection_before_native_delivery(
+    config, monkeypatch
+) -> None:
+    install_stream(
+        monkeypatch,
+        [
+            [
+                stream_credentials(),
+                attached(),
+                routed_message("file", "😀" * 1000),
+                None,
+            ]
+        ],
+    )
+    monkeypatch.setattr(
+        AgentMessageFiles, "write", Mock(side_effect=PairError("Cannot save"))
+    )
+    report = Mock()
+    monkeypatch.setattr(forwarder, "_report", report)
+    inbox = RecordingInbox()
+    run_forwarder(config, inbox, ready=Mock())
+    assert inbox.messages == []
+    assert report.call_args.args[1].status == "rejected"
 
 
 def test_coalescing_bounds_final_messages(
@@ -202,7 +344,7 @@ def test_authentication_failure_after_attachment_does_not_reconnect(
     calls = install_stream(
         monkeypatch, [[attached(), PairError("Authentication failed.")]]
     )
-    with pytest.raises(PairError, match="could not continue"):
+    with pytest.raises(PairError, match="Authentication failed"):
         run_forwarder(config, RecordingInbox(), ready=Mock())
     calls.assert_called_once()
 
@@ -280,6 +422,7 @@ def test_dead_harness_closes_reader(
         _responses: object,
         _cursor: str | None = None,
     ) -> None:
+        incoming.put(stream_credentials())
         incoming.put(attached())
         stopped.wait(timeout=2)
         closed.set()
@@ -515,6 +658,9 @@ def test_reconnect_uses_processed_cursor_and_ignores_old_removal(
         cursor: str | None = None,
     ) -> None:
         cursors.append(cursor)
+        incoming.put(
+            stream_credentials("att-one" if len(cursors) == 1 else "att-two")
+        )
         for event in scripts.pop(0):
             incoming.put(event)
 
@@ -530,7 +676,7 @@ def test_reconnect_uses_processed_cursor_and_ignores_old_removal(
     ready.assert_called_once()
 
 
-def test_reset_replaces_attachment_without_second_ready(
+def test_reset_retains_stream_attachment_without_second_ready(
     config: ForwarderConfig, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     install_stream(
@@ -550,3 +696,51 @@ def test_reset_replaces_attachment_without_second_ready(
     run_forwarder(config, inbox, ready=ready)
     ready.assert_called_once()
     assert inbox.messages[0].endswith('{"opaque": [1, null]}')
+
+
+def test_report_wait_is_bounded(config, http_endpoint, monkeypatch, caplog):
+    from marimo._messaging.agents import SubmissionReport
+
+    http_endpoint.delay = 0.3
+    monkeypatch.setattr(forwarder, "_REPORT_TIMEOUT_SECONDS", 0.05)
+    started = time.monotonic()
+    forwarder._report(
+        replace(config, url=http_endpoint.url),
+        SubmissionReport("attempt", "attachment", "submitted"),
+        "report-key",
+    )
+    assert time.monotonic() - started < 0.25
+    assert len(http_endpoint.requests) == 1
+    assert "could not reach" in caplog.text
+
+
+def test_stream_keeps_actionable_startup_error(config, monkeypatch):
+    detail = "The server does not support agent messaging. Restart it with matching marimo code."
+    install_stream(monkeypatch, [[PairError(detail)]])
+    with pytest.raises(
+        PairError, match="Restart it with matching marimo code"
+    ):
+        run_forwarder(config, RecordingInbox(), ready=Mock())
+
+
+@pytest.mark.parametrize(
+    ("status", "body"), [(204, b""), (409, b"conflict"), (500, b"\xff")]
+)
+def test_report_ignores_error_body_encoding(
+    config, http_endpoint, caplog, status, body
+):
+    from marimo._messaging.agents import SubmissionReport
+
+    http_endpoint.status = status
+    http_endpoint.body = body
+    forwarder._report(
+        replace(config, url=http_endpoint.url),
+        SubmissionReport(
+            attachment_id="attachment",
+            attempt_id="attempt",
+            status="submitted",
+        ),
+        "report-key",
+    )
+    assert len(http_endpoint.requests) == 1
+    assert ("could not reach" in caplog.text) == (status >= 300)

@@ -7,8 +7,12 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, ClassVar
 
-from marimo._cli.pair.client import PairError, PairInputError
-from marimo._cli.pair.delivery import DeliveryTarget, ProcessHandle
+from marimo._cli.pair.client import (
+    PairError,
+    PairInputError,
+    SubmissionRejectedError,
+)
+from marimo._cli.pair.delivery import DeliveryTarget, ProcessHandle, Submission
 from marimo._utils.platform import is_windows
 
 if TYPE_CHECKING:
@@ -120,7 +124,7 @@ class CodexInbox:
     # Leave room for the executable and options within Windows command limits.
     inbox_bytes: ClassVar[int] = 8 * 1024
 
-    def send(self, text: str) -> None:
+    def send(self, text: str) -> Submission:
         try:
             result = subprocess.run(
                 [
@@ -135,15 +139,20 @@ class CodexInbox:
                 timeout=15,
                 check=False,
             )
-        except (OSError, ValueError, subprocess.TimeoutExpired) as error:
+        except (FileNotFoundError, PermissionError, ValueError) as error:
+            raise SubmissionRejectedError(
+                "The Codex queue command could not start."
+            ) from error
+        except (OSError, subprocess.TimeoutExpired) as error:
             raise PairError(
                 "Could not deliver the message to Codex."
             ) from error
         if result.returncode != 0:
             raise PairError(
-                "Codex rejected the message. Check that the conversation "
+                "Codex did not confirm submission. Check that the conversation "
                 "uses the shared daemon and supports codex queue."
             )
+        return Submission("submitted", "Codex queue completed successfully.")
 
     def alive(self) -> bool:
         return self.target.process is not None and self.target.process.alive()
