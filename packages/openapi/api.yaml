@@ -2039,26 +2039,6 @@ components:
       - executionRequests
       title: ExecuteCellsCommand
       type: object
-    ExecuteCellsRequest:
-      properties:
-        cellIds:
-          items:
-            $ref: '#/components/schemas/CellId'
-          type: array
-        codes:
-          items:
-            type: string
-          type: array
-        request:
-          anyOf:
-          - $ref: '#/components/schemas/HTTPRequest'
-          - type: 'null'
-          default: null
-      required:
-      - cellIds
-      - codes
-      title: ExecuteCellsRequest
-      type: object
     ExecuteScratchpadCommand:
       description: "Execute code in the scratchpad.\n\nThe scratchpad is a temporary\
         \ execution environment that doesn't affect\nthe notebook's cells or dependencies.\
@@ -7888,27 +7868,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/SuccessResponse'
           description: Restart the current session without affecting other sessions.
-  /api/kernel/run:
-    post:
-      parameters:
-      - in: header
-        name: Marimo-Session-Id
-        required: true
-        schema:
-          type: string
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ExecuteCellsRequest'
-      responses:
-        200:
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/SuccessResponse'
-          description: Run a cell. Updates cell code in the kernel if needed; registers
-            new cells for unseen cell IDs. Only allowed in edit mode.
   /api/kernel/save_app_config:
     post:
       parameters:

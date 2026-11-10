@@ -15,8 +15,8 @@ notification ordering aren't testable there. These tests share one
 the full HTTP surface: a websocket for session setup and
 `completed-run` synchronization, host edits to populate
 `session.document` (required for `code_mode` cell
-lookup by name), `/api/kernel/run` to register and execute cells,
-and `/api/kernel/execute` to hit the scratchpad. Each test gets a
+lookup by name), host runs to execute cells, and
+`/api/kernel/execute` to hit the scratchpad. Each test gets a
 fresh session via a per-test `session` fixture that calls
 `/api/kernel/restart_session` on teardown. The response body is
 snapshotted as SSE lines with volatile paths and version-specific
@@ -237,11 +237,12 @@ class _Session:
             else:
                 self.cells[cell_id] = cell["etag"]
 
-    def run_cells(self, cell_ids: list[str], codes: list[str]) -> None:
-        """Register + run cells in the kernel graph, then wait for idle."""
+    def run_cells(self, cell_ids: list[str]) -> None:
+        """Run cells of the document through the host, then wait for idle."""
         self._post(
-            "/api/kernel/run",
-            {"cellIds": cell_ids, "codes": codes},
+            f"/api/marimo/v1/notebooks/{self.notebook_id}/runtime/runs",
+            {"cells": [{"id": cid} for cid in cell_ids]},
+            headers={"Idempotency-Key": uuid.uuid4().hex},
         )
         self.wait_for_completed_run()
 
@@ -253,8 +254,7 @@ class _Session:
     ) -> None:
         """Make the notebook hold exactly these cells, then run them.
 
-        `/api/kernel/run` only touches the graph; `ctx.edit_cell` /
-        `ctx.run_cell` in code_mode look up cells from
+        `ctx.edit_cell` / `ctx.run_cell` in code_mode look up cells from
         `session.document`, which host edits keep in sync. The host
         notebook outlives the session, so cells from earlier tests are
         deleted here.
@@ -280,7 +280,7 @@ class _Session:
                 ),
             ]
         )
-        self.run_cells(cell_ids, codes)
+        self.run_cells(cell_ids)
 
     def execute(self, code: str) -> list[str]:
         """Run `code` via /api/kernel/execute; return normalized SSE lines."""
