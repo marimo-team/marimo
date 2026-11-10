@@ -61,16 +61,23 @@ def _redact_dict(config: PartialMarimoConfig) -> PartialMarimoConfig:
             return
         if isinstance(obj, list):
             remaining = path[1:] if path[0] == "*" else path
-            for item in obj:
-                deep_remove_from_path(remaining, item)
+            for index, item in enumerate(obj):
+                if path == ("*",):
+                    if item:
+                        obj[index] = SECRET_PLACEHOLDER
+                else:
+                    deep_remove_from_path(remaining, item)
             return
         if not isinstance(obj, dict):
             return
 
         key, *remaining_path = path
         if key == "*":
-            for value in obj.values():
-                deep_remove_from_path(tuple(remaining_path), value)
+            for name, value in obj.items():
+                if remaining_path:
+                    deep_remove_from_path(tuple(remaining_path), value)
+                elif value:
+                    obj[name] = SECRET_PLACEHOLDER
         elif key in obj:
             if remaining_path:
                 deep_remove_from_path(tuple(remaining_path), obj[key])

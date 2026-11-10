@@ -1718,6 +1718,8 @@ presets = ["context7"]
 copilot = "custom"
 [server]
 browser = "probe-browser"
+token_password = "probe-secret"
+token_password_file = "probe-password.txt"
 [file_browser]
 folders = [{ path = "/probe" }]
 [signing]
@@ -1764,6 +1766,8 @@ TRUST_PROBE_PATHS = (
     "mcp.presets",
     "completion.copilot",
     "server.browser",
+    "server.token_password",
+    "server.token_password_file",
     "file_browser.folders",
     "signing.private_key_path",
     "signing.trusted_signers",
@@ -1857,18 +1861,24 @@ def test_trust_boundary_matrix_snapshot(
             "xdg": [],
             "home": [],
             "workspace_cwd": [
+                "server.token_password",
+                "server.token_password_file",
                 "signing.private_key_path",
                 "signing.trusted_signers",
                 "cache.verification",
                 "cache.store",
             ],
             "workspace_parent": [
+                "server.token_password",
+                "server.token_password_file",
                 "signing.private_key_path",
                 "signing.trusted_signers",
                 "cache.verification",
                 "cache.store",
             ],
             "pyproject": [
+                "server.token_password",
+                "server.token_password_file",
                 "signing.private_key_path",
                 "signing.trusted_signers",
                 "cache.verification",
@@ -1878,6 +1888,8 @@ def test_trust_boundary_matrix_snapshot(
                 "mcp.presets",
                 "completion.copilot",
                 "server.browser",
+                "server.token_password",
+                "server.token_password_file",
                 "file_browser.folders",
                 "signing.private_key_path",
                 "signing.trusted_signers",

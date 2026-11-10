@@ -50,14 +50,16 @@ def _parse_value(raw: str, annotation: Any) -> Any:
         None,
     ):
         item_type = get_args(collection)[0]
-        if isinstance(item_type, type) and issubclass(
-            item_type, msgspec.Struct
-        ):
-            # Structured collections can also be supplied as a JSON value.
-            try:
-                return json.loads(raw)
-            except ValueError:
-                pass
+        try:
+            value = json.loads(raw)
+        except ValueError:
+            pass
+        else:
+            if isinstance(value, list) or (
+                isinstance(item_type, type)
+                and issubclass(item_type, msgspec.Struct)
+            ):
+                return value
         return [_parse_value(item, item_type) for item in shlex.split(raw)]
     # Validate structured values through MarimoConfig, which also normalizes MCP tags.
     return json.loads(raw)

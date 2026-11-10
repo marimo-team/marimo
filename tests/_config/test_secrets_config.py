@@ -29,6 +29,14 @@ class _SettingsConfig(Config, kw_only=True):
     providers: dict[str, _CredentialsConfig] | None = None
 
 
+class _ElementSettingsConfig(Config, kw_only=True):
+    tokens: dict[str, Annotated[str | None, Meta(extra={"sensitive": True})]]
+    entries: list[Annotated[str | None, Meta(extra={"sensitive": True})]]
+    nested: list[
+        dict[str, Annotated[str | None, Meta(extra={"sensitive": True})]]
+    ]
+
+
 def test_redact_typed_config() -> None:
     config = MarimoConfig.from_dict(
         {
@@ -430,4 +438,28 @@ def test_redaction_follows_schema_metadata(
         },
         "unknown": {"token": "preserved"},
     }
+    assert config == original
+
+
+def test_redact_sensitive_collection_elements(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        "marimo._config.secrets.MarimoConfig", _ElementSettingsConfig
+    )
+    config = {
+        "tokens": {"secret": "token", "empty": "", "null": None},
+        "entries": ["token", "", None],
+        "nested": [{"secret": "nested-token", "empty": ""}, {}],
+    }
+    original = copy.deepcopy(config)
+    expected = {
+        "tokens": {"secret": SECRET_PLACEHOLDER, "empty": "", "null": None},
+        "entries": [SECRET_PLACEHOLDER, "", None],
+        "nested": [{"secret": SECRET_PLACEHOLDER, "empty": ""}, {}],
+    }
+
+    redacted = redact_secrets_partial(config)
+    assert redacted == expected
+    assert _ElementSettingsConfig.from_dict(redacted).to_dict() == expected
     assert config == original

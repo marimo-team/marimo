@@ -202,8 +202,11 @@ def test_migrated_settings_from_user_file(
     )
 
 
-def test_session_secret_from_project_is_ignored(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+@pytest.mark.parametrize(
+    "key", ["session_secret", "token_password", "token_password_file"]
+)
+def test_server_credentials_from_project_are_ignored(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, key: str
 ) -> None:
     from marimo._config.manager import (
         MarimoConfigManager,
@@ -212,21 +215,44 @@ def test_session_secret_from_project_is_ignored(
     )
 
     user_path = tmp_path / "marimo.toml"
-    user_path.write_text('[server]\nsession_secret = "user-secret"\n')
+    user_path.write_text(f'[server]\n{key} = "user-secret"\n')
     user = UserConfigStore()
     monkeypatch.setattr(user, "get_config_path", lambda: str(user_path))
     monkeypatch.setattr(
         "marimo._config.manager.is_trusted_user_config_path", lambda _: True
     )
     (tmp_path / "pyproject.toml").write_text(
-        '[tool.marimo.server]\nsession_secret = "project-secret"\n'
+        f'[tool.marimo.server]\n{key} = "project-secret"\n'
     )
     manager = MarimoConfigManager(user, PyprojectConfigReader(str(tmp_path)))
     assert (
-        manager.get_config(hide_secrets=False).to_dict()["server"][
-            "session_secret"
-        ]
+        manager.get_config(hide_secrets=False).to_dict()["server"][key]
         == "user-secret"
+    )
+
+
+@pytest.mark.parametrize(
+    "key", ["session_secret", "token_password", "token_password_file"]
+)
+def test_server_credentials_from_workspace_are_ignored(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, key: str
+) -> None:
+    from marimo._config.manager import MarimoConfigManager, UserConfigStore
+
+    path = tmp_path / ".marimo.toml"
+    path.write_text(f'[server]\n{key} = "workspace-secret"\n')
+    user = UserConfigStore()
+    monkeypatch.setattr(user, "get_config_path", lambda: str(path))
+    monkeypatch.setattr(
+        "marimo._config.manager.is_trusted_user_config_path", lambda _: False
+    )
+
+    assert user.read() == {"server": {}}
+    assert (
+        MarimoConfigManager(user)
+        .get_config(hide_secrets=False)
+        .to_dict()["server"][key]
+        is None
     )
 
 

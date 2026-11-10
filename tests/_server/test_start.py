@@ -18,15 +18,19 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 
-@pytest.mark.parametrize("mode", [SessionMode.EDIT, SessionMode.RUN])
 @pytest.mark.parametrize(
-    ("sandbox", "inherited_backend", "expected_manager"),
+    ("mode", "sandbox", "inherited_backend", "expected_manager"),
     [
-        ("uv", None, "uv"),
-        ("pixi", None, "pixi"),
-        (None, "uv", "uv"),
-        (None, "pixi", "pixi"),
-        (None, None, "pip"),
+        (SessionMode.EDIT, "uv", None, "uv"),
+        (SessionMode.EDIT, "pixi", None, "pixi"),
+        (SessionMode.EDIT, None, "uv", "uv"),
+        (SessionMode.EDIT, None, "pixi", "pixi"),
+        (SessionMode.EDIT, None, None, "pip"),
+        (SessionMode.RUN, "uv", None, "pip"),
+        (SessionMode.RUN, "pixi", None, "pip"),
+        (SessionMode.RUN, None, "uv", "uv"),
+        (SessionMode.RUN, None, "pixi", "pixi"),
+        (SessionMode.RUN, None, None, "pip"),
     ],
 )
 def test_package_manager_follows_sandbox_backend(
@@ -73,8 +77,6 @@ def test_package_manager_follows_sandbox_backend(
         )
 
     app = server.call_args.args[0].app
-    if mode == SessionMode.RUN and inherited_backend is None:
-        expected_manager = "pip"
     assert (
         app.state.config_manager.get_config().package_management
         == PackageManagementConfig(manager=expected_manager)

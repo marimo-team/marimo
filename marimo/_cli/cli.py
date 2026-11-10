@@ -1270,7 +1270,7 @@ def tutorial(
         current_path=path.absolute_name, overrides={}
     )
     config_manager = config_manager.with_overrides(
-        {"server": {"redirect_console_to_browser": False}}
+        {"server": {"redirect_console_to_browser": False, "watch": False}}
     )
 
     start(

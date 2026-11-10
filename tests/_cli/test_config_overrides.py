@@ -85,6 +85,19 @@ def test_parse_config_overrides() -> None:
     ("assignment", "expected"),
     [
         (
+            'runtime.dotenv=[".env", ".env.local"]',
+            {"runtime": {"dotenv": [".env", ".env.local"]}},
+        ),
+        (
+            'runtime.pythonpath=["./shared libraries", "./src"]',
+            {"runtime": {"pythonpath": ["./shared libraries", "./src"]}},
+        ),
+        ("runtime.dotenv=[]", {"runtime": {"dotenv": []}}),
+        (
+            'runtime.default_auto_download=["html", "ipynb"]',
+            {"runtime": {"default_auto_download": ["html", "ipynb"]}},
+        ),
+        (
             'file_browser.folders=[{"path":"/data","name":"Data"}]',
             {"file_browser": {"folders": [{"path": "/data", "name": "Data"}]}},
         ),
@@ -119,6 +132,8 @@ def test_structured_overrides(
         ("runtime.default_auto_download=secret-value", "Invalid value"),
         ("runtime.pythonpath='secret-value", "Invalid value"),
         ("runtime.sql_default_limit=-1", "Invalid value"),
+        ("runtime.pythonpath=[1]", "Invalid value"),
+        ('runtime.default_auto_download=["secret-value"]', "Invalid value"),
         ("mcp.mcpServers=secret-value", "Invalid value"),
     ],
 )
@@ -136,8 +151,8 @@ def test_cli_metadata() -> None:
     spellings = [flag for names in flags.values() for flag in names]
     assert len(spellings) == len(set(spellings))
     docs = format_config_docs(ServerConfig)
-    assert "CLI: --port, -p" in docs
-    assert "CLI: --token, --no-token" in docs
+    assert "CLI flag: --port, -p" in docs
+    assert "CLI flag: --token, --no-token" in docs
 
 
 def test_cli_layer_is_ephemeral_and_wins_over_session_metadata(
@@ -414,3 +429,14 @@ def test_port_boundaries_are_accepted(command: str, port: int) -> None:
     with cli_command.make_context(command, args, parent=parent) as ctx:
         assert ctx.params["port"] == port
     assert parse(f"server.port={port}") == {"server": {"port": port}}
+
+
+def test_tutorial_disables_watch_and_console_redirection(
+    launch: Mock, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("MARIMO_SERVER_WATCH", "true")
+    monkeypatch.setenv("MARIMO_SERVER_REDIRECT_CONSOLE_TO_BROWSER", "true")
+    result = CliRunner().invoke(main, ["tutorial", "intro"])
+    assert result.exit_code == 0, result.output
+    server = launch.call_args.kwargs["config_manager"].get_config().server
+    assert (server.watch, server.redirect_console_to_browser) == (False, False)
