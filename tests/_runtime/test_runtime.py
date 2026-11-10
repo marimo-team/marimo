@@ -4738,7 +4738,7 @@ async def test_annotation_shadowed_by_parameter_reruns(
 
 @pytest.mark.skipif(
     sys.version_info >= (3, 14),
-    reason="Python 3.14 disallows assignment expressions in annotations",
+    reason="These cases require eagerly evaluated annotations",
 )
 @pytest.mark.parametrize(
     "signature",
@@ -4766,8 +4766,42 @@ async def test_annotation_walrus_defines_dependency(
 
 
 @pytest.mark.skipif(
+    sys.version_info < (3, 14),
+    reason="Annotations are deferred by default on Python 3.14+",
+)
+@pytest.mark.parametrize(
+    "annotation",
+    [
+        "[(y := int) for _ in (0,)]",
+        "[[(y := int) for _ in (0,)] for _ in (0,)]",
+    ],
+)
+async def test_deferred_annotation_walrus_defines_dependency(
+    k: Kernel, exec_req: ExecReqProvider, annotation: str
+) -> None:
+    code = f"def f(x: {annotation}): pass"
+    native_globals: dict[str, object] = {}
+    exec(compile(code, "<native>", "exec", dont_inherit=True), native_globals)
+    assert "y" not in native_globals
+    exec("f.__annotations__", native_globals)
+    assert native_globals["y"] is int
+
+    definition = exec_req.get(code + "\nf.__annotations__")
+    dependent = exec_req.get("result = y")
+    await k.run([dependent, definition])
+    assert not k.errors
+    assert k.globals["result"] is int
+    assert k.graph.cells[definition.cell_id].defs == {"f", "y"}
+    assert k.graph.cells[dependent.cell_id].refs == {"y"}
+    assert k.graph.parents[dependent.cell_id] == {definition.cell_id}
+    assert not k.graph.cells[dependent.cell_id].stale
+    k.graph.set_stale({definition.cell_id})
+    assert k.graph.cells[dependent.cell_id].stale
+
+
+@pytest.mark.skipif(
     sys.version_info >= (3, 14),
-    reason="Python 3.14 disallows assignment expressions in annotations",
+    reason="Python 3.14 disallows direct assignment expressions in annotations",
 )
 @pytest.mark.parametrize(
     "code",
