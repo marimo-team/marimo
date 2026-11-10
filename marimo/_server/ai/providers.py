@@ -175,6 +175,7 @@ class PydanticProvider(ABC, Generic[ProviderT_co]):
         extra_capabilities: Sequence[AbstractCapability[None]] | None = None,
         enable_capabilities: bool = True,
         system_prompt: str,
+        thinking: ThinkingLevel | None = None,
     ) -> Agent[None, DeferredToolRequests | str]:
         """Create a Pydantic AI agent."""
         from pydantic_ai import Agent
@@ -191,10 +192,15 @@ class PydanticProvider(ABC, Generic[ProviderT_co]):
             tools or [], toolsets
         )
 
+        settings = self._build_model_settings(model, max_tokens)
+        if thinking is not None:
+            settings = settings or {}
+            settings["thinking"] = thinking
+
         return Agent(
             model,
             name=name,
-            model_settings=self._build_model_settings(model, max_tokens),
+            model_settings=settings,
             toolsets=agent_toolsets,
             instructions=system_prompt,
             capabilities=capabilities,
@@ -357,6 +363,7 @@ class PydanticProvider(ABC, Generic[ProviderT_co]):
         additional_tools: list[ToolDefinition],
         stream_options: StreamOptions,
         enable_capabilities: bool = True,
+        thinking: ThinkingLevel | None = None,
     ) -> StreamingResponse:
         """Return a streaming response from the given messages. The response are AI SDK events."""
         tools = (self.config.tools or []) + additional_tools
@@ -367,6 +374,7 @@ class PydanticProvider(ABC, Generic[ProviderT_co]):
             tools=tools,
             system_prompt=system_prompt,
             enable_capabilities=enable_capabilities,
+            thinking=thinking,
         )
         stream_options.span_info.tool_count = len(tools) + len(
             agent.root_capability.capabilities
@@ -446,6 +454,7 @@ class PydanticProvider(ABC, Generic[ProviderT_co]):
         max_tokens: int | None,
         stream_options: StreamOptions,
         enable_capabilities: bool = False,
+        thinking: ThinkingLevel | None = None,
     ) -> StreamingResponse:
         """Return code-mode streaming responses"""
         from marimo._server.ai.tools.code_mode import (
@@ -460,6 +469,7 @@ class PydanticProvider(ABC, Generic[ProviderT_co]):
             toolsets=[build_execute_code_toolset(session, request)],
             extra_capabilities=references_capability(),
             enable_capabilities=enable_capabilities,
+            thinking=thinking,
             system_prompt=system_prompt,
         )
 
@@ -719,11 +729,13 @@ class OpenAIProvider(OpenAIClientMixin, PydanticProvider["PydanticOpenAI"]):
         # OpenAI-compatible third-party endpoints (custom base_url) may not
         # accept `reasoning_effort` even when the model name looks like a
         # reasoning model. Suppress the unified thinking flag in that case.
-        if (
-            self.config.base_url
-            and "api.openai.com" not in self.config.base_url
-        ):
-            return None
+        if self.config.base_url:
+            try:
+                hostname = urlparse(self.config.base_url).hostname
+            except ValueError:
+                return None
+            if hostname != "api.openai.com":
+                return None
         return super()._default_thinking(model)
 
 
@@ -1121,8 +1133,7 @@ class CustomProvider(OpenAIClientMixin, PydanticProvider["Provider"]):
 
     @override
     def _default_thinking(self, model: Model) -> ThinkingLevel | None:
-        # Custom OpenAI-compatible endpoints (Together, vLLM, LM Studio, ...)
-        # often don't honor `reasoning_effort`
+        # Custom OpenAI-compatible endpoints often don't honor automatic thinking.
         if self._is_openai_compatible():
             return None
         return super()._default_thinking(model)

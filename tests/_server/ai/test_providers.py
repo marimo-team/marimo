@@ -46,6 +46,8 @@ if TYPE_CHECKING:
     from collections.abc import AsyncIterator
     from pathlib import Path
 
+    from pydantic_ai.settings import ThinkingLevel
+
 
 @pytest.mark.parametrize(
     ("pydantic_reason", "vercel_reason"),
@@ -627,6 +629,20 @@ def test_anthropic_process_part_text_file() -> None:
             "https://litellm.proxy.com/api/v1",
             False,
             id="openai_gpt5_litellm_proxy",
+        ),
+        pytest.param(
+            "openai",
+            "gpt-5",
+            "https://api.openai.com.attacker.example/v1",
+            False,
+            id="openai_lookalike_host",
+        ),
+        pytest.param(
+            "openai",
+            "gpt-5",
+            "https://custom.example/api.openai.com",
+            False,
+            id="openai_hostname_in_path",
         ),
         # Azure: thinking is always suppressed (only custom Azure deployments
         # support reasoning_effort, which we don't expose yet).
@@ -1816,3 +1832,37 @@ def test_session_headers_do_not_affect_other_providers() -> None:
         config, "openai/gpt-4o", session_id="chat-1"
     )
     assert provider.config.extra_headers is None
+
+
+@pytest.mark.requires("pydantic_ai")
+@pytest.mark.parametrize(
+    ("model_id", "base_url", "thinking"),
+    [
+        ("openai/gpt-5.1", None, "high"),
+        ("openai/gpt-6.1-sol", None, "max"),
+        ("openai/gpt-5.1", "http://localhost:8080/v1", "high"),
+        ("custom-endpoint/gpt-5", "http://localhost:8080/v1", "xhigh"),
+        ("ollama/minimax-m3.1-flash", "http://localhost:8080/v1", "max"),
+        ("openrouter/openai/gpt-5", None, False),
+    ],
+)
+def test_agent_forwards_explicit_reasoning_effort(
+    model_id: str, base_url: str | None, thinking: ThinkingLevel
+) -> None:
+    provider = get_completion_provider(
+        AnyProviderConfig(api_key="test-key", base_url=base_url),
+        model=model_id,
+        session_id="test",
+    )
+    default_settings = (
+        provider._build_model_settings(provider.create_model(), max_tokens=512)
+        or {}
+    )
+    agent = provider.create_agent(
+        name="chat",
+        system_prompt="Help with the notebook.",
+        max_tokens=512,
+        enable_capabilities=False,
+        thinking=thinking,
+    )
+    assert agent.model_settings == {**default_settings, "thinking": thinking}

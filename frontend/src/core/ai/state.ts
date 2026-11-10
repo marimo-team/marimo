@@ -39,7 +39,9 @@ export const pendingAiPromptAtom = atom<PendingAiPrompt | null>(null);
 export const chatGenerationInProgressAtom = atom(false);
 
 const CHAT_OPTIONS_KEY = "marimo:ai:chatOptions";
-export const chatOptionsAtom = atomWithStorage<Required<ChatOptions>>(
+export const chatOptionsAtom = atomWithStorage<
+  ChatOptions & { webSearch: boolean }
+>(
   CHAT_OPTIONS_KEY,
   {
     webSearch: false,
