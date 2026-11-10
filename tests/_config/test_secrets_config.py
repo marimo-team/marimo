@@ -1,13 +1,32 @@
 from __future__ import annotations
 
+import copy
+from typing import TYPE_CHECKING, Annotated
+
+from msgspec import Meta
+
 from marimo._config.config import PartialMarimoConfig
 from marimo._config.config_schema import MarimoConfig
+from marimo._config.schema_utils import Config
 from marimo._config.secrets import (
     SECRET_PLACEHOLDER,
     redact_secrets,
     redact_secrets_partial,
     remove_secret_placeholders,
 )
+
+if TYPE_CHECKING:
+    import pytest
+
+
+class _CredentialsConfig(Config, kw_only=True):
+    token: Annotated[str | None, Meta(extra={"sensitive": True})] = None
+    label: str = ""
+
+
+class _SettingsConfig(Config, kw_only=True):
+    entries: list[_CredentialsConfig]
+    providers: dict[str, _CredentialsConfig] | None = None
 
 
 def test_redact_typed_config() -> None:
@@ -335,3 +354,80 @@ def test_mask_secrets_signing_private_key_path() -> None:
     assert "private_key_path" not in remove_secret_placeholders(masked).get(
         "signing", {}
     )
+
+
+def test_redact_schema_sensitive_collections() -> None:
+    config = MarimoConfig.from_dict(
+        {
+            "completion": {
+                "api_key": "legacy-secret",
+                "codeium_api_key": "secret",
+            },
+            "ai": {
+                "custom_providers": {
+                    "gateway": {
+                        "api_key": "secret",
+                        "extra_headers": {"Authorization": "Bearer secret"},
+                        "base_url": "https://example.com",
+                    }
+                }
+            },
+            "mcp": {
+                "mcpServers": {
+                    "local": {
+                        "command": "example",
+                        "env": {"TOKEN": "secret"},
+                    },
+                    "remote": {
+                        "url": "https://example.com/mcp",
+                        "headers": {"Authorization": "Bearer secret"},
+                        "env": {"TOKEN": "secret"},
+                    },
+                }
+            },
+        }
+    )
+    original = config.to_dict()
+    expected = config.to_dict()
+    expected["completion"]["api_key"] = SECRET_PLACEHOLDER
+    expected["completion"]["codeium_api_key"] = SECRET_PLACEHOLDER
+    gateway = expected["ai"]["custom_providers"]["gateway"]
+    gateway["api_key"] = SECRET_PLACEHOLDER
+    del gateway["extra_headers"]
+    del expected["mcp"]["mcpServers"]["local"]["env"]
+    del expected["mcp"]["mcpServers"]["remote"]["headers"]
+    del expected["mcp"]["mcpServers"]["remote"]["env"]
+
+    assert redact_secrets_partial(original) == expected
+    assert redact_secrets(config).to_dict() == expected
+    assert config.to_dict() == original
+
+
+def test_redaction_follows_schema_metadata(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr("marimo._config.secrets.MarimoConfig", _SettingsConfig)
+    config = {
+        "entries": [
+            {"token": "secret", "label": "first"},
+            {"token": "", "label": "empty"},
+            {"token": None},
+            {"label": "missing"},
+        ],
+        "providers": {"custom": {"token": "secret", "label": "provider"}},
+        "unknown": {"token": "preserved"},
+    }
+    original = copy.deepcopy(config)
+    assert redact_secrets_partial(config) == {
+        "entries": [
+            {"token": SECRET_PLACEHOLDER, "label": "first"},
+            {"token": "", "label": "empty"},
+            {"token": None},
+            {"label": "missing"},
+        ],
+        "providers": {
+            "custom": {"token": SECRET_PLACEHOLDER, "label": "provider"}
+        },
+        "unknown": {"token": "preserved"},
+    }
+    assert config == original

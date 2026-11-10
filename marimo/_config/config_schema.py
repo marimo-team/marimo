@@ -227,7 +227,8 @@ class RuntimeConfig(Config, kw_only=True):
     show_tracebacks: Annotated[
         bool,
         Meta(
-            description="if `True`, show detailed error tracebacks in run mode. When enabled, exceptions will display a clickable toast that opens a modal with the full traceback."
+            description="if `True`, show detailed error tracebacks in run mode. When enabled, exceptions will display a clickable toast that opens a modal with the full traceback.",
+            extra={"cli_flag": ["--show-tracebacks", "--no-show-tracebacks"]},
         ),
     ] = False
     execution_type: Annotated[
@@ -306,10 +307,114 @@ class FormattingConfig(Config, kw_only=True):
 class ServerConfig(Config, kw_only=True):
     """Configuration for the server."""
 
+    host: Annotated[
+        str,
+        Meta(description="Host to bind to.", extra={"cli_flag": ["--host"]}),
+    ] = "127.0.0.1"
+    port: Annotated[
+        Annotated[int, Meta(ge=0, le=65535)] | None,
+        Meta(
+            description="Port to bind to (0-65535). If unset or 0, find an available port.",
+            extra={"cli_flag": ["--port", "-p"]},
+        ),
+    ] = None
+    proxy: Annotated[
+        str | None,
+        Meta(
+            description="Address of the reverse proxy.",
+            extra={"cli_flag": ["--proxy"]},
+        ),
+    ] = None
+    base_url: Annotated[
+        str,
+        Meta(
+            description="Base URL for the server, starting with / and without a trailing slash.",
+            extra={"cli_flag": ["--base-url"]},
+        ),
+    ] = ""
+    allow_origins: Annotated[
+        list[str],
+        Meta(
+            description="Allowed origins for HTTP and WebSocket connections.",
+            extra={"cli_flag": ["--allow-origins"]},
+        ),
+    ] = field(default_factory=list)
+    headless: Annotated[
+        bool,
+        Meta(
+            description="Do not launch a browser.",
+            extra={"cli_flag": ["--headless"]},
+        ),
+    ] = False
+    watch: Annotated[
+        bool,
+        Meta(
+            description="Watch notebook files for changes; reload code in edit mode or the application in run mode.",
+            extra={"cli_flag": ["--watch"]},
+        ),
+    ] = False
+    skew_protection: Annotated[
+        bool,
+        Meta(
+            description="Enable protection against frontend and server version mismatches.",
+            extra={"cli_flag": ["--skew-protection", "--no-skew-protection"]},
+        ),
+    ] = True
+    timeout: Annotated[
+        float | None,
+        Meta(
+            description="Shut down after this many minutes without a connection.",
+            extra={"cli_flag": ["--timeout"]},
+        ),
+    ] = None
+    session_ttl: Annotated[
+        int | UnsetType | None,
+        Meta(
+            description="Seconds before closing a disconnected session. Defaults to unlimited in edit mode and 120 in run mode; null means unlimited.",
+            extra={"cli_flag": ["--session-ttl"]},
+        ),
+    ] = UNSET
+    token: Annotated[
+        bool | UnsetType,
+        Meta(
+            description="Enable token authentication. Defaults to true in edit mode and false in run mode.",
+            extra={"cli_flag": ["--token", "--no-token"]},
+        ),
+    ] = UNSET
+    token_password: Annotated[
+        str | None,
+        Meta(
+            description="Password used for token authentication. Mutually exclusive with token_password_file.",
+            extra={"cli_flag": ["--token-password"], "sensitive": True},
+        ),
+    ] = None
+    token_password_file: Annotated[
+        str | None,
+        Meta(
+            description="File containing the token password, or - to read from stdin. Mutually exclusive with token_password.",
+            extra={"cli_flag": ["--token-password-file"], "sensitive": True},
+        ),
+    ] = None
+    include_code: Annotated[
+        bool,
+        Meta(
+            description="Send notebook source code to clients in run mode. Edit mode always includes code.",
+            extra={"cli_flag": ["--include-code"]},
+        ),
+    ] = False
+    redirect_console_to_browser: Annotated[
+        bool | UnsetType,
+        Meta(
+            description="Redirect console output to the browser. Defaults to true in edit mode and false in run mode.",
+            extra={"cli_flag": ["--redirect-console-to-browser"]},
+        ),
+    ] = UNSET
+
     skip_update_check: Annotated[
         bool,
         Meta(
-            description="Skip checking for marimo updates when starting the editor."
+            description="Skip checking for marimo updates when starting the editor.",
+            extra={"cli_flag": ["--skip-update-check"]},
         ),
     ] = False
     session_cookie_secure: Annotated[

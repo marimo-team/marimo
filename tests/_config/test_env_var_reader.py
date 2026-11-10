@@ -182,14 +182,16 @@ def test_migrated_settings_from_user_file(
     manager = MarimoConfigManager(user)
     config = manager.get_config(hide_secrets=False).to_dict()
     assert config["runtime"]["sql_default_limit"] == 200
-    assert config["server"] == {
-        "disable_file_downloads": False,
-        "browser": "default",
-        "follow_symlink": False,
-        "skip_update_check": True,
-        "session_cookie_secure": True,
-        "session_secret": "private-secret",
-    }
+    from marimo._config.config_schema import ServerConfig
+
+    assert (
+        config["server"]
+        == ServerConfig(
+            skip_update_check=True,
+            session_cookie_secure=True,
+            session_secret="private-secret",
+        ).to_dict()
+    )
     assert manager.get_config().server.session_secret == "********"
     assert (
         create_starlette_app(
