@@ -55,6 +55,7 @@ import { classifyCloseEvent } from "../../transports/connection-state";
 import { createEditorBackend } from "../backend";
 import {
   fakeBackend,
+  fixtureEvents,
   fixtureMessages,
 } from "../../notebook/replica/__tests__/fixtures";
 import { useNotebookSession } from "../useNotebookSession";
@@ -367,6 +368,38 @@ it("waits for the stream's snapshot before marking the session connected", async
   expect(store.get(connectionAtom).state).toBe(ConnectionState.OPEN);
 });
 
+it("waits for another ready snapshot after the stream resets", async () => {
+  const store = createStore();
+  const fake = withTransport();
+  vi.mocked(useRuntimeManager).mockReturnValue(makeRuntimeManager());
+  renderConnectionHook(store);
+  await started();
+  const conn = connection(fake);
+  act(() => {
+    conn.open();
+    conn.ready();
+  });
+  expect(store.get(connectionAtom)).toEqual({ state: ConnectionState.OPEN });
+
+  act(() => conn.receive({ event: "reset", data: {} }));
+  expect(store.get(connectionAtom)).toEqual({
+    state: ConnectionState.CONNECTING,
+    phase: "reconnecting",
+  });
+
+  for (const message of fixtureMessages("notebook-events.sse")) {
+    act(() => conn.receive(message));
+    if (message.event === "ready") {
+      break;
+    }
+    expect(store.get(connectionAtom)).toEqual({
+      state: ConnectionState.CONNECTING,
+      phase: "reconnecting",
+    });
+  }
+  expect(store.get(connectionAtom)).toEqual({ state: ConnectionState.OPEN });
+});
+
 it("does not mark a static page connected", async () => {
   window.__MARIMO_STATIC__ = { files: {} };
   try {
@@ -547,6 +580,25 @@ describe("connection notice", () => {
     expect(
       screen.queryByRole("region", { name: "Notebook startup" }),
     ).not.toBeInTheDocument();
+
+    const notebook = fixtureEvents("notebook-events.sse").find(
+      (event) => event.event === "notebook",
+    );
+    if (!notebook) {
+      throw new Error("Missing notebook fixture");
+    }
+    act(() =>
+      conn.receive({
+        ...notebook,
+        data: {
+          notebook: { ...notebook.data.notebook, name: "Renamed notebook" },
+        },
+      }),
+    );
+    expect(store.get(startupProgressAtom)).toEqual({
+      phase: "starting-kernel",
+      logs: "Kernel startup output\n",
+    });
 
     // A new connection starts from the next session's authoritative snapshot.
     await act(async () => conn.drop());
