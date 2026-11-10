@@ -429,8 +429,9 @@ edit different parts of a document independently while detecting competing
 changes to the same part. For example, two clients can update different cells,
 but an edit based on an older version of the same cell fails its precondition.
 A save with a stale `If-Match` and a run that names a stale cell etag receive
-the same problem. A `409 conflict` means the current state does not allow the
-request, such as a file that already exists, so reading again does not help.
+the same problem. For a save, `index` is `0` and `cell` is null. A `409 conflict`
+means the current state does not allow the request, such as a file that already
+exists, so reading again does not help.
 
 An accepted edit answers with the version of each cell it touched and the
 document at the edit's revision or a later one. The client already has the
