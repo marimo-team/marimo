@@ -159,6 +159,16 @@ export const operations = {
     responses: { 200: Protocol.Input },
     problems: [400, 401, 403, 404, 405, 409, 500, 501],
   },
+  /** Interrupt the notebook's runtime. */
+  "runtime.interrupt": {
+    method: "POST",
+    path: "/notebooks/{notebook_id}/runtime/interrupt",
+    query: {},
+    headers: { "Idempotency-Key": true },
+    body: null,
+    responses: { 202: Protocol.Runtime },
+    problems: [400, 401, 403, 404, 405, 409, 500, 501],
+  },
   /** Cancel a run. */
   "runtime.cancel": {
     method: "DELETE",

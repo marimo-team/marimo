@@ -34,6 +34,7 @@ describe("operations", () => {
       | "runtime.run"
       | "runtime.execute"
       | "runtime.input"
+      | "runtime.interrupt"
       | "runtime.cancel"
     >();
   });
@@ -65,6 +66,9 @@ describe("operations", () => {
       "Idempotency-Key": true,
       "If-Match": false,
     });
+    expect(operations["runtime.interrupt"].path).toBe(
+      "/notebooks/{notebook_id}/runtime/interrupt",
+    );
     expect(operations["runtime.cancel"].path).toBe(
       "/notebooks/{notebook_id}/runtime/runs/{run_id}",
     );

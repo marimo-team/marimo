@@ -184,7 +184,7 @@ class Mutations:
         """Run `call` once per idempotency key, and answer retries with its reply."""
         capabilities = (
             {"runtime.run", "runtime.execute"}
-            if operation == "runtime.cancel"
+            if operation in {"runtime.interrupt", "runtime.cancel"}
             else {operation}
         )
         if not capabilities.intersection(self.host.operations):

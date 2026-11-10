@@ -300,9 +300,12 @@ async def test_worker_authorizes_cell_runs_and_scratch_execution_separately(
 async def test_the_runtime_runs_once_the_page_starts_the_kernel(bridge):
     events = await follow(bridge)
     notebook = latest(events, "notebook")
-    assert {"runtime.run", "runtime.execute", "runtime.cancel"} <= set(
-        notebook["operations"]
-    )
+    assert {
+        "runtime.run",
+        "runtime.execute",
+        "runtime.interrupt",
+        "runtime.cancel",
+    } <= set(notebook["operations"])
     assert latest(events, "runtime")["status"] == "starting"
     reply = await call(bridge, "runtime.execute", {"code": "1"})
     assert reply["status"] == 409
@@ -661,6 +664,30 @@ async def test_interrupting_before_submission_ends_the_run(bridge):
     assert queued(bridge) == []
     run = latest(events, "run")
     assert (run["status"], run["outcome"]) == ("completed", "interrupted")
+
+
+async def test_a_runtime_interrupt_call_answers_with_the_runtime(
+    bridge, monkeypatch: pytest.MonkeyPatch
+):
+    scheduler = FakeScheduler()
+    monkeypatch.setattr(worker, "_active_scheduler", lambda: scheduler)
+    bridge.session.instantiated = True
+    events = await started(bridge)
+    cell = latest(events, "cell")
+    reply = await call(bridge, "runtime.run", {"cells": [{"id": cell["id"]}]})
+    run_id = reply["body"]["id"]
+    await settle()
+    queued(bridge)
+    deliver(bridge, planned(cell["id"], run_id))
+
+    reply = await call(bridge, "runtime.interrupt", key="stop-1")
+    assert reply["status"] == 202
+    assert reply["body"] == latest(events, "runtime")
+    assert scheduler.cancelled == 1
+
+    # A retry is answered from the receipt and halts nothing more.
+    assert await call(bridge, "runtime.interrupt", key="stop-1") == reply
+    assert scheduler.cancelled == 1
 
 
 async def test_a_runtime_interrupt_ends_started_queued_and_preparing_runs(

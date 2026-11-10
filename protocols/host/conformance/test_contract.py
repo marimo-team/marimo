@@ -34,6 +34,7 @@ MODELS = {
     "run-cells-request.json": "RunRequest",
     "input-reply-request.json": "InputReplyRequest",
     "input-reply-response.json": "Input",
+    "interrupt-runtime-response.json": "Runtime",
 }
 
 

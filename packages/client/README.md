@@ -127,13 +127,18 @@ Both methods return a `Run` in `result.data` on success, without waiting for
 execution to finish. Runs wait their turn in a shared queue. Open the notebook
 stream before submitting work to receive its progress and results.
 
-## Cancel a run
+## Interrupt or cancel work
+
+`notebook.interrupt()` stops active runtime work, including work without a run
+record, and ends queued runs as interrupted. It takes no runtime or run id.
+An idle runtime accepts the request without affecting future work.
 
 `notebook.cancel({ runId })` cancels one queued or running run and leaves other
 runs untouched. Cancelling a completed run returns a conflict problem.
 
-The runtime stays alive. A successful result contains the `Run`. It
-acknowledges the request, so follow the notebook stream to observe completion.
+Both keep the runtime alive. Their successful results contain a `Runtime` and
+`Run`, respectively. These acknowledge the request; follow the notebook stream
+to observe completion.
 
 ## Follow changes
 

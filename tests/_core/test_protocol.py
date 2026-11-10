@@ -35,6 +35,7 @@ MODELS = {
     "run-cells-request.json": protocol.RunRequest,
     "input-reply-request.json": protocol.InputReplyRequest,
     "input-reply-response.json": protocol.Input,
+    "interrupt-runtime-response.json": protocol.Runtime,
 }
 
 
@@ -291,7 +292,9 @@ def test_catalog_capabilities_and_runtime_stop() -> None:
                 if {"runtime.run", "runtime.execute"}.intersection(
                     obj["operations"]
                 ):
-                    assert "runtime.cancel" in obj["operations"]
+                    assert {"runtime.interrupt", "runtime.cancel"} <= set(
+                        obj["operations"]
+                    )
             if kind == "notebook":
                 assert obj["project_id"] in state["project"]
             if kind in {"runtime", "attachment"}:

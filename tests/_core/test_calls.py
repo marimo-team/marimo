@@ -11,7 +11,9 @@ from marimo._core.backend import RequestInfo
 from marimo._core.calls import (
     CALLS,
     CancelCall,
+    InterruptCall,
     MutationHeaders,
+    NotebookParams,
     OperationCall,
     RunParams,
 )
@@ -35,6 +37,11 @@ def test_calls_decode_from_request_parts() -> None:
     ) == CancelCall(
         RunParams(NOTEBOOK, protocol.RunId("r1")), MutationHeaders("k")
     )
+    assert decode(
+        operation="runtime.interrupt",
+        params={"notebook_id": "n1"},
+        headers=headers,
+    ) == InterruptCall(NotebookParams(NOTEBOOK), MutationHeaders("k"))
     for invalid in (
         {"operation": "runtime.cancel", "params": {"notebook_id": "n1"}},
         {"operation": "notebook.missing", "params": {"notebook_id": "n1"}},

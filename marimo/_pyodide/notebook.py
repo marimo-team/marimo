@@ -75,6 +75,7 @@ _OPERATIONS = (
     "runtime.run",
     "runtime.input",
     "runtime.execute",
+    "runtime.interrupt",
     "runtime.cancel",
 )
 
