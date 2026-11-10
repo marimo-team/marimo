@@ -26,7 +26,7 @@ repos:
         exclude: ^marimo/_tutorials/.*\.md
 
   - repo: https://github.com/crate-ci/typos
-    rev: typos-dict-v0.14.5
+    rev: v1.52.0
     hooks:
       - id: typos
         pass_filenames: false
