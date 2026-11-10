@@ -1,7 +1,7 @@
 name: 📋 Pull Request Validation
 
 on:
-  pull_request:
+  pull_request_target:
     types: [labeled, unlabeled, opened, reopened, edited, synchronize]
 
 permissions:
