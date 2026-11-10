@@ -576,7 +576,7 @@ async def test_cancel_queued_run_leaves_other_runs_untouched(host, scratch):
             "Run",
         )
         assert queued["status"] == successor["status"] == "queued"
-        endpoint = path + "/runtime/runs/" + queued["id"]
+        endpoint = path + "/runtime/runs/" + quote(queued["id"], safe="")
         assert (
             accepted(await host.request("DELETE", endpoint), 202, "Run")["id"]
             == queued["id"]
@@ -602,7 +602,8 @@ async def test_cancel_queued_run_leaves_other_runs_untouched(host, scratch):
         problem(await host.request("DELETE", endpoint), 409, "conflict")
         accepted(
             await host.request(
-                "DELETE", path + "/runtime/runs/" + active["id"]
+                "DELETE",
+                path + "/runtime/runs/" + quote(active["id"], safe=""),
             ),
             202,
             "Run",
