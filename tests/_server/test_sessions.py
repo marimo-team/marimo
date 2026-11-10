@@ -10,6 +10,8 @@ import signal
 import sys
 import threading
 import time
+from functools import partial
+from multiprocessing import get_context
 from multiprocessing.queues import Queue as MPQueue
 from pathlib import Path
 from tempfile import NamedTemporaryFile
@@ -33,6 +35,7 @@ from marimo._messaging.notification import (
 )
 from marimo._messaging.serde import deserialize_kernel_message
 from marimo._messaging.types import KernelMessage
+from marimo._runtime import runtime
 from marimo._runtime.commands import (
     AppMetadata,
     CreateNotebookCommand,
@@ -297,7 +300,33 @@ async def test_kernel_manager_interrupt(
         kernel_manager.close_kernel()
 
 
-async def test_an_interrupt_during_startup_leaves_the_kernel_running() -> None:
+def _launch_kernel_before_handlers(
+    ready: Any, release: Any, *args: Any
+) -> None:
+    install = runtime._install_subprocess_handlers
+
+    def paused_install(*args: Any) -> None:
+        ready.set()
+        assert release.wait(10)
+        install(*args)
+
+    runtime._install_subprocess_handlers = paused_install
+    runtime.launch_kernel(*args)
+
+
+@pytest.mark.skipif(
+    sys.platform == "win32", reason="Windows queues interrupts"
+)
+async def test_an_interrupt_during_startup_leaves_the_kernel_running(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    context = get_context("spawn")
+    ready, release = context.Event(), context.Event()
+    monkeypatch.setattr(
+        runtime,
+        "launch_kernel",
+        partial(_launch_kernel_before_handlers, ready, release),
+    )
     queue_manager = QueueManagerImpl(use_multiprocessing=True)
     kernel_manager = KernelManagerImpl(
         queue_manager=queue_manager,
@@ -319,9 +348,9 @@ async def test_an_interrupt_during_startup_leaves_the_kernel_running() -> None:
                 return message
 
     try:
-        # The kernel has connected, but it may not have installed its
-        # interrupt handler yet.
+        assert await asyncio.to_thread(ready.wait, 10)
         kernel_manager.interrupt_kernel()
+        release.set()
         queue_manager.put_control_request(
             CreateNotebookCommand(
                 execution_requests=(
@@ -334,7 +363,9 @@ async def test_an_interrupt_during_startup_leaves_the_kernel_running() -> None:
                 auto_run=True,
             )
         )
-        completed = await asyncio.to_thread(completed_run)
+        completed = await asyncio.wait_for(
+            asyncio.to_thread(completed_run), timeout=10
+        )
         assert completed.outcome == "succeeded"
         assert kernel_manager.is_alive()
     finally:

@@ -35,6 +35,56 @@ HAS_DEPS = DependencyManager.has("zmq")
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+@pytest.mark.skipif(
+    sys.platform == "win32", reason="Windows queues interrupts"
+)
+def test_ipc_readiness_is_protected_until_runtime_handlers_are_installed():
+    from marimo._ipc import KernelArgs, QueueManager
+
+    queues, connection_info = QueueManager.create()
+    args = KernelArgs(
+        connection_info=connection_info,
+        log_level=GLOBAL_SETTINGS.LOG_LEVEL,
+        profile_path=None,
+        configs={},
+        user_config=DEFAULT_CONFIG.to_dict(),
+        app_metadata=AppMetadata(
+            query_params={}, cli_args={}, app_config=_AppConfig()
+        ),
+    )
+    script = """
+import signal
+from marimo._ipc.launch_kernel import main
+from marimo._runtime import runtime
+
+def interrupt_before_bootstrap(**kwargs):
+    assert signal.getsignal(signal.SIGINT) == signal.SIG_IGN
+    signal.raise_signal(signal.SIGINT)
+    runtime._bootstrap_subprocess(None, None, True)
+    assert signal.getsignal(signal.SIGINT) == signal.SIG_IGN
+    signal.raise_signal(signal.SIGINT)
+    print("STARTUP_INTERRUPTS_IGNORED", flush=True)
+
+runtime.launch_kernel = interrupt_before_bootstrap
+main()
+"""
+    try:
+        result = subprocess.run(
+            [sys.executable, "-c", script],
+            input=args.encode_json(),
+            capture_output=True,
+            timeout=15,
+        )
+        assert result.returncode == 0, result.stderr.decode()
+        lines = result.stdout.decode().splitlines()
+        assert lines[0] == "KERNEL_READY"
+        assert lines[1].startswith("KERNEL_INFO ")
+        assert lines[2:] == ["STARTUP_INTERRUPTS_IGNORED"]
+    finally:
+        queues.close_queues()
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
 @pytest.mark.skip(reason="TODO: fix this test. Currently flaky on CI.")
 def test_kernel_launch_and_execute_cells():
     """Test launching a kernel and executing cells with stdout/stderr."""
