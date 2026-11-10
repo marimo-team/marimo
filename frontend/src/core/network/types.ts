@@ -165,7 +165,6 @@ export interface EditRequests {
   sendCopy: (request: CopyNotebookRequest) => Promise<null>;
   sendStdin: (request: StdinRequest) => Promise<null>;
   sendRunScratchpad: (request: ExecuteScratchpadRequest) => Promise<null>;
-  sendInterrupt: () => Promise<null>;
   sendShutdown: () => Promise<null>;
   sendFormat: (request: FormatCellsRequest) => Promise<FormatResponse>;
   sendCodeCompletionRequest: (request: CodeCompletionRequest) => Promise<null>;

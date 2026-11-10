@@ -281,7 +281,7 @@ export class PyodideBridge implements RunRequests, EditRequests {
           this.interruptEveryRun();
         } else if (call.operation === "runtime.cancel") {
           if (this.isRunning(call.params.run_id)) {
-            void this.sendInterrupt();
+            this.raiseInterrupt();
           } else {
             this.pendingInterrupts.add(call.params.run_id);
           }
@@ -320,7 +320,7 @@ export class PyodideBridge implements RunRequests, EditRequests {
     }
     if (run.status === "running") {
       this.pendingInterrupts.delete(run.id);
-      void this.sendInterrupt();
+      this.raiseInterrupt();
     } else if (run.status === "completed") {
       this.pendingInterrupts.delete(run.id);
     }
@@ -331,7 +331,7 @@ export class PyodideBridge implements RunRequests, EditRequests {
    * the following host call consumes it before acknowledging the interrupt.
    */
   private interruptEveryRun(): void {
-    void this.sendInterrupt();
+    this.raiseInterrupt();
     const replica = store.get(activeNotebookReplicaAtom);
     if (replica === null) {
       return;
@@ -405,13 +405,12 @@ export class PyodideBridge implements RunRequests, EditRequests {
     });
     return null;
   };
-  public sendInterrupt: EditRequests["sendInterrupt"] = async () => {
+  private raiseInterrupt(): void {
     if (this.interruptBuffer !== undefined) {
       // 2 sends a SIGINT
       this.interruptBuffer[0] = 2;
     }
-    return null;
-  };
+  }
   public sendShutdown: EditRequests["sendShutdown"] = async () => {
     window.close();
     return null;

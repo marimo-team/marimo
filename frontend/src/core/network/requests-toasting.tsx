@@ -19,7 +19,6 @@ export function createErrorToastingRequests(
     sendRename: "Failed to rename",
     saveLayout: "", // The save reports it
     sendCopy: "Failed to copy",
-    sendInterrupt: "Failed to interrupt",
     sendShutdown: "Failed to shutdown",
     sendFormat: "Failed to format",
     sendCodeCompletionRequest: "Failed to complete code",
