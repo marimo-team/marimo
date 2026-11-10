@@ -87,6 +87,14 @@ it.each([
   expect(Schema.is(S.Timestamp)(text)).toBe(valid);
 });
 
+it.each([
+  [{}, false],
+  [{ name: "Forecasts" }, true],
+  [{ path: "forecasts.py" }, true],
+])("accepts %j as a notebook update: %s", (body, valid) => {
+  expect(Schema.is(S.UpdateNotebookRequest)(body)).toBe(valid);
+});
+
 it("retains nullable, omitted, arbitrary JSON, and forward-compatible field semantics", () => {
   const cell = Schema.decodeUnknownSync(S.Cell)(read("cell.json"));
   expect(

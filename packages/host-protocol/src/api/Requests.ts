@@ -36,10 +36,12 @@ export const UpdateNotebookRequest = Schema.Struct({
   name: Schema.optionalKey(
     Schema.String.annotateKey({ description: "The new label to show people." }),
   ),
-}).annotate({
-  description: "The fields to change. At least one is present.",
-  identifier: "UpdateNotebookRequest",
-});
+})
+  .check(Schema.isMinProperties(1))
+  .annotate({
+    description: "The fields to change. At least one is present.",
+    identifier: "UpdateNotebookRequest",
+  });
 
 export const OpenNotebookResponse = Schema.Struct({
   url: Schema.String.annotateKey({
