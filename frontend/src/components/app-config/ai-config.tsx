@@ -1,5 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
+import { dequal } from "dequal";
 import { useAtom, useAtomValue } from "jotai";
 import {
   BotIcon,
@@ -92,9 +93,10 @@ import {
   useConfigOverride,
 } from "./is-overridden";
 import { MCPConfig } from "./mcp-config";
-import { aiSettingsSubTabAtom, pendingConfigSavesAtom } from "./state";
+import { aiSettingsSubTabAtom } from "./state";
 
 interface AiConfigProps {
+  isSaving?: boolean;
   form: UseFormReturn<UserConfig>;
   config: UserConfig;
   onSubmit: (values: UserConfig) => void;
@@ -1534,6 +1536,7 @@ const ProviderTreeItem: React.FC<ProviderTreeItemProps> = ({
 };
 
 export const AiModelDisplayConfig: React.FC<AiConfigProps> = ({
+  isSaving = false,
   form,
   config,
   onSubmit,
@@ -1656,6 +1659,7 @@ export const AiModelDisplayConfig: React.FC<AiConfigProps> = ({
         </Tree>
       </div>
       <AddModelForm
+        isSaving={isSaving}
         form={form}
         config={config}
         customModels={customModels}
@@ -1667,12 +1671,20 @@ export const AiModelDisplayConfig: React.FC<AiConfigProps> = ({
 };
 
 export const AddModelForm: React.FC<{
+  isSaving?: boolean;
   form: UseFormReturn<UserConfig>;
   config: UserConfig;
   customModels: QualifiedModelId[];
   customProviderNames: string[];
   onSubmit: (values: UserConfig) => void;
-}> = ({ form, config, customModels, customProviderNames, onSubmit }) => {
+}> = ({
+  form,
+  config,
+  customModels,
+  customProviderNames,
+  onSubmit,
+  isSaving = false,
+}) => {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [modelAdded, setModelAdded] = useState(false);
   const [provider, setProvider] = useState<ProviderId | "custom" | null>(null);
@@ -1689,14 +1701,27 @@ export const AddModelForm: React.FC<{
     !!providerName &&
     (providerName === "openrouter" ||
       customProviderNames.includes(providerName));
-  const configurationPending = useAtomValue(pendingConfigSavesAtom) > 0;
-  const savedProviderConfig =
-    providerName === "openrouter"
-      ? config.ai?.openrouter
-      : providerName
-        ? config.ai?.custom_providers?.[providerName]
-        : undefined;
-  const configurationKey = JSON.stringify(savedProviderConfig ?? null);
+  const draftAi = useWatch({ control: form.control, name: "ai" });
+  const effectiveAi = useAtomValue(resolvedMarimoConfigAtom).ai;
+  const providerConfig = (ai: UserConfig["ai"]) => {
+    const selected =
+      providerName === "openrouter"
+        ? ai?.openrouter
+        : providerName
+          ? ai?.custom_providers?.[providerName]
+          : undefined;
+    return Objects.filter<string, unknown>(
+      selected ?? {},
+      (value) => value !== undefined,
+    );
+  };
+  const configurationPending =
+    isSaving || !dequal(providerConfig(config.ai), providerConfig(draftAi));
+  const discoveryKey = JSON.stringify([
+    providerName,
+    providerConfig(effectiveAi),
+    configurationPending,
+  ]);
   const hasValidValues = providerName?.trim() && modelName?.trim();
 
   const resetForm = () => {
@@ -1833,10 +1858,7 @@ export const AddModelForm: React.FC<{
 
   const modelInput = (
     <div
-      className={cn(
-        "flex items-center gap-2",
-        isCustomProvider && "self-start",
-      )}
+      className={cn("flex items-start gap-2", isCustomProvider && "self-start")}
     >
       <Label
         htmlFor={modelNameInputId}
@@ -1846,11 +1868,10 @@ export const AddModelForm: React.FC<{
       </Label>
       {canDiscoverModels && providerName ? (
         <ModelDiscovery
-          key={providerName}
+          key={discoveryKey}
           provider={providerName}
           label="Model"
-          configurationKey={configurationKey}
-          configurationPending={configurationPending}
+          disabled={configurationPending}
           inputId={modelNameInputId}
           inputClassName="text-xs mb-0"
           value={modelName}
@@ -1869,13 +1890,7 @@ export const AddModelForm: React.FC<{
   );
 
   const inputForm = (
-    <div
-      className={cn(
-        "flex items-center gap-3 p-3 border border-border rounded-md",
-        canDiscoverModels &&
-          "relative pb-12 [&_[data-testid^='model-discovery-']>button]:absolute [&_[data-testid^='model-discovery-']>button]:right-3 [&_[data-testid^='model-discovery-']>button]:bottom-3",
-      )}
-    >
+    <div className="flex flex-wrap items-start gap-3 p-3 border border-border rounded-md">
       {providerSelect}
       {modelInput}
       <div
@@ -1979,6 +1994,7 @@ const AiEnabledConfig: React.FC<AiConfigProps> = ({ form }) => {
 };
 
 export const AiConfig: React.FC<AiConfigProps> = ({
+  isSaving = false,
   form,
   config,
   onSubmit,
@@ -2037,6 +2053,7 @@ export const AiConfig: React.FC<AiConfigProps> = ({
           </TabsContent>
           <TabsContent value="ai-models">
             <AiModelDisplayConfig
+              isSaving={isSaving}
               form={form}
               config={config}
               onSubmit={onSubmit}

@@ -2,9 +2,9 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMediaQuery } from "@uidotdev/usehooks";
-import { atom, useAtom, useAtomValue, useSetAtom } from "jotai";
+import { atom, useAtom, useAtomValue, useSetAtom, useStore } from "jotai";
 import { AlertTriangleIcon, ArrowUpRightIcon } from "lucide-react";
-import React, { useId, useRef } from "react";
+import React, { useId, useRef, useState } from "react";
 import { useLocale } from "react-aria";
 import { useForm } from "react-hook-form";
 import type z from "zod";
@@ -26,7 +26,11 @@ import { NumberField } from "@/components/ui/number-field";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { KEYMAP_PRESETS } from "@/core/codemirror/keymaps/keymaps";
 import { capabilitiesAtom } from "@/core/config/capabilities";
-import { mergeConfig, useUserConfig } from "@/core/config/config";
+import {
+  mergeConfig,
+  userConfigAtom,
+  useUserConfig,
+} from "@/core/config/config";
 import {
   PackageManagerNames,
   TYPE_INFERENCE_MODES,
@@ -48,7 +52,7 @@ import { Badge } from "../ui/badge";
 import { ExternalLink } from "../ui/links";
 import { Tooltip } from "../ui/tooltip";
 import { AiConfig } from "./ai-config";
-import { pendingConfigSavesAtom } from "./state";
+import { updateFormDefaults } from "./update-form-defaults";
 import { formItemClasses, SettingGroup } from "./common";
 import { DataForm } from "./data-form";
 import { applyManualInjections, getDirtyValues } from "./get-dirty-values";
@@ -102,6 +106,9 @@ const LOCALE_SYSTEM_VALUE = "__system__";
 
 export const UserConfigForm: React.FC = () => {
   const [config, setConfig] = useUserConfig();
+  const configStore = useStore();
+  const saveInFlight = useRef(false);
+  const [isSaving, setIsSaving] = useState(false);
   const isWideLayout = useMediaQuery("(min-width: 640px)");
   const [acceptOnEnter, setAcceptOnEnter] = useAtom(
     acceptCompletionOnEnterAtom,
@@ -128,7 +135,6 @@ export const UserConfigForm: React.FC = () => {
   const marimoVersion = useAtomValue(marimoVersionAtom);
   const { locale } = useLocale();
   const { saveUserConfig } = useRequestClient();
-  const setPendingConfigSaves = useSetAtom(pendingConfigSavesAtom);
 
   // Create form
   const form = useForm({
@@ -164,9 +170,13 @@ export const UserConfigForm: React.FC = () => {
   };
 
   const onSubmitNotDebounced = async (values: UserConfig) => {
+    if (saveInFlight.current) {
+      return;
+    }
     // Only send values that were actually changed to avoid
     // overwriting backend values the form doesn't manage
-    const dirtyValues = getDirtyValues(values, form.formState.dirtyFields);
+    const fieldsBeingSaved = structuredClone(form.formState.dirtyFields);
+    const dirtyValues = getDirtyValues(values, fieldsBeingSaved);
     applyManualInjections({
       values,
       dirtyValues,
@@ -181,21 +191,24 @@ export const UserConfigForm: React.FC = () => {
       dirtyValues.ai = setAiModels(values.ai, dirtyValues.ai);
     }
 
-    await saveUserConfig({ config: dirtyValues });
-    // Only apply the changed keys; this avoids stale request responses
-    // overwriting newer config changes.
-    setConfig((prev) => mergeConfig(prev, dirtyValues));
+    saveInFlight.current = true;
+    setIsSaving(true);
+    try {
+      await saveUserConfig({ config: dirtyValues });
+      const savedConfig = mergeConfig<UserConfig>(
+        configStore.get(userConfigAtom),
+        dirtyValues,
+      );
+      setConfig(savedConfig);
+      if (updateFormDefaults(form, savedConfig, fieldsBeingSaved)) {
+        onSubmit(form.getValues());
+      }
+    } finally {
+      saveInFlight.current = false;
+      setIsSaving(false);
+    }
   };
-  const onSubmit = useDebouncedCallback((values: UserConfig) => {
-    const save = onSubmitNotDebounced(values);
-
-    setPendingConfigSaves((count) => count + 1);
-    void save
-      .finally(() => {
-        setPendingConfigSaves((count) => Math.max(0, count - 1));
-      })
-      .catch(() => undefined);
-  }, FORM_DEBOUNCE);
+  const onSubmit = useDebouncedCallback(onSubmitNotDebounced, FORM_DEBOUNCE);
 
   const isWasmRuntime = isWasm();
   const getOverride = useConfigOverride();
@@ -1234,7 +1247,14 @@ export const UserConfigForm: React.FC = () => {
           </SettingGroup>
         );
       case "ai":
-        return <AiConfig form={form} config={config} onSubmit={onSubmit} />;
+        return (
+          <AiConfig
+            form={form}
+            config={config}
+            onSubmit={onSubmit}
+            isSaving={isSaving}
+          />
+        );
       case "optionalDeps":
         return <OptionalFeatures />;
       case "labs":
