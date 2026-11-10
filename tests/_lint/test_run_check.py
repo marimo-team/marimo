@@ -12,6 +12,7 @@ from marimo._ast.type_inference import TypeInferenceMode
 from marimo._config.manager import UserConfigStore
 from marimo._lint import FileStatus, Linter, run_check
 from marimo._lint.diagnostic import Diagnostic, Severity
+from marimo._utils.files import expand_file_patterns
 
 
 @pytest.mark.parametrize(
@@ -158,6 +159,42 @@ def __():
         assert not md_result.failed
         assert md_result.skipped is True
         assert txt_result.skipped is True  # Not a notebook
+
+    @pytest.mark.parametrize(
+        ("pattern", "expected"),
+        [
+            ("*.py", ["top.py"]),
+            ("sub/*.py", ["sub/nested.py"]),
+            ("**/*.py", ["sub/deep/deeper.py", "sub/nested.py", "top.py"]),
+            ("sub/**/*.py", ["sub/deep/deeper.py", "sub/nested.py"]),
+            ("**/deep/*.py", ["sub/deep/deeper.py"]),
+            ("t?p.py", ["top.py"]),
+            ("*.py/", []),
+        ],
+    )
+    def test_run_check_glob_respects_directory_boundaries(
+        self, tmp_path: Path, pattern: str, expected: list[str]
+    ) -> None:
+        """`*` matches within one directory, and `**` matches zero or more."""
+        for name in ["top.py", "sub/nested.py", "sub/deep/deeper.py"]:
+            path = tmp_path / name
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text("# empty notebook")
+
+        glob_pattern = f"{tmp_path}/{pattern}"
+        result = run_check((glob_pattern,))
+
+        assert (
+            sorted(
+                Path(f.file).relative_to(tmp_path).as_posix()
+                for f in result.files
+            )
+            == expected
+        )
+        assert [
+            p.relative_to(tmp_path).as_posix()
+            for p in expand_file_patterns((glob_pattern,))
+        ] == expected
 
 
 class TestMarkdownRecognition:
