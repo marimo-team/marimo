@@ -1160,6 +1160,23 @@ def test_type_var_generic_class() -> None:
 
 
 @pytest.mark.skipif("sys.version_info < (3, 12)")
+def test_type_var_generic_class_bases_and_body() -> None:
+    # The type parameter is scoped to the class; using it in the bases,
+    # class keywords or the class body must not register it as a ref.
+    expr = cleandoc(
+        """
+    class A[T](Base[T], metaclass=Meta[T]):
+        item: T
+    """
+    )
+    v = visitor.ScopedVisitor()
+    mod = ast.parse(expr)
+    v.visit(mod)
+    assert v.defs == {"A"}
+    assert v.refs == {"Base", "Meta"}
+
+
+@pytest.mark.skipif("sys.version_info < (3, 12)")
 def test_type_var_generic_function() -> None:
     expr = cleandoc(
         """

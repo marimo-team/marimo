@@ -499,6 +499,16 @@ class ScopedVisitor(ast.NodeVisitor):
                 if isinstance(node, ast.ClassDef)
                 else LexicalScope.FUNCTION
             )
+            if sys.version_info >= (3, 12) and isinstance(node, ast.ClassDef):
+                # Visit generic type parameters before the class bases,
+                # keywords and body so type parameters don't get added as
+                # refs. eg, in
+                #
+                #   class Foo[T](Base[T]): ...
+                #
+                # `T` should not be a ref (mirrors FunctionDef handling).
+                for child in node.type_params:
+                    self.visit(child)
             super().generic_visit(node)
             self._pop_block()
         elif isinstance(node, (ast.AsyncFunctionDef, ast.FunctionDef)):
