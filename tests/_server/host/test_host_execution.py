@@ -44,6 +44,71 @@ async def live_host(
         yield host
 
 
+async def test_startup_previews_markdown_without_running_cells(
+    tmp_path: Path,
+) -> None:
+    source = """import marimo
+app = marimo.App()
+@app.cell
+def _():
+    import marimo as mo
+    return (mo,)
+@app.cell
+def _(mo):
+    mo.md("# Startup preview")
+    return
+@app.cell
+def _():
+    raise RuntimeError("Only an explicit run should execute this")
+    return
+"""
+    async with open_host(tmp_path, source) as (app, notebook_id, events):
+        await wait_for(
+            events,
+            lambda response: any(
+                "Startup preview"
+                in r.get("data", {})
+                .get("marimo", {})
+                .get("output", {})
+                .get("data", "")
+                for r in response.records
+                if r.get("data", {}).get("marimo", {}).get("output")
+            ),
+        )
+        assert not any(
+            r.get("event") in {"run", "execution"} for r in events.records
+        )
+        document = next(
+            r["data"]["document"]
+            for r in events.records
+            if r.get("event") == "document"
+        )
+        accepted = await finished(
+            app,
+            "POST",
+            f"/notebooks/{notebook_id}/runtime/runs",
+            headers=key("startup"),
+            body=json.dumps(
+                {"cells": [{"id": cell_id} for cell_id in document["order"]]}
+            ).encode(),
+        )
+        assert accepted.status == 202
+        run_id = accepted.json()["id"]
+        await wait_for(
+            events,
+            lambda response: any(
+                r.get("data", {}).get("run", {}).get("id") == run_id
+                and r["data"]["run"]["status"] == "completed"
+                for r in response.records
+            ),
+        )
+        assert any(
+            r.get("data", {}).get("execution", {}).get("outcome", {})
+            and r["data"]["execution"]["outcome"].get("kind") == "error"
+            for r in events.records
+        )
+
+
 async def test_move_preserves_the_running_notebook(
     live_host: tuple[Starlette, str, Response], tmp_path: Path
 ) -> None:

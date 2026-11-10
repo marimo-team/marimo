@@ -338,11 +338,6 @@ export class IslandsPyodideBridge implements RunRequests, EditRequests {
     return null;
   };
 
-  public sendInstantiate: RunRequests["sendInstantiate"] =
-    async (): Promise<null> => {
-      return null;
-    };
-
   public sendFunctionRequest: RunRequests["sendFunctionRequest"] = async (
     request,
   ): Promise<null> => {

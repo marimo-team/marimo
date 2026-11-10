@@ -205,6 +205,15 @@ def with_session(
 
                     data = receive_until("kernel-ready", websocket)
                     assert data
+                    if (
+                        get_session_manager(client).mode is SessionMode.EDIT
+                        and AppState.from_app(client.app).host_context
+                        is not None
+                    ):
+                        # The host prepares the notebook when the session
+                        # attaches. The test starts once that has finished,
+                        # so the kernel reports nothing it did not ask for.
+                        receive_until("completed-run", websocket)
                     if "temp_marimo_file" in func.__code__.co_varnames:
                         func(
                             client,

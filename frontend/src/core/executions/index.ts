@@ -24,6 +24,7 @@ export type { CellFreshness, CellFreshnessLookup } from "./freshness";
 export { replyInput } from "./input";
 export { interruptRuntime } from "./interrupt";
 export { runCells, syncEdits } from "./run";
+export { createNotebookAutorun, type NotebookAutorun } from "./autorun";
 export {
   useCellExecution,
   useCellFreshness,

@@ -7,7 +7,6 @@ import type { CellData } from "../cells/types";
 import { UI_ELEMENT_REGISTRY } from "../dom/uiregistry";
 import { deserializeLayoutState } from "../layout/layout";
 import type { LayoutData, LayoutState } from "../layout/state";
-import { getRequestClient } from "../network/requests";
 import { VirtualFileTracker } from "../static/virtual-file-tracker";
 import type {
   Capabilities,
@@ -41,23 +40,9 @@ export function buildLayoutState(
   return layoutState;
 }
 
-/**
- * Collect current UI element values from the registry.
- */
-function collectUIElementValues() {
-  const objectIds: UIElementId[] = [];
-  const values: unknown[] = [];
-  UI_ELEMENT_REGISTRY.entries.forEach((entry, objectId) => {
-    objectIds.push(objectId);
-    values.push(entry.value);
-  });
-  return { objectIds, values };
-}
-
 export function handleKernelReady(
   data: KernelReadyData,
   opts: {
-    autoInstantiate: boolean;
     /** The notebook's cells, as the host document provided them. */
     cells: CellData[];
     resetCellRuntimes: ReducerCellActions["resetCellRuntimes"];
@@ -66,17 +51,9 @@ export function handleKernelReady(
       data: LayoutData;
     }) => void;
     setCapabilities: (capabilities: Capabilities) => void;
-    onError: (error: Error) => void;
   },
 ): LayoutState {
-  const {
-    autoInstantiate,
-    cells,
-    resetCellRuntimes,
-    setLayoutData,
-    setCapabilities,
-    onError,
-  } = opts;
+  const { cells, resetCellRuntimes, setLayoutData, setCapabilities } = opts;
   const { resumed, ui_values, capabilities, auto_instantiated } = data;
 
   resetCellRuntimes();
@@ -100,21 +77,6 @@ export function handleKernelReady(
     return layoutState;
   }
 
-  // If we already have values for some objects, we should
-  // send them to the kernel. This may happen after re-connecting
-  // to the kernel after the computer wakes from sleep.
-  const { objectIds, values } = collectUIElementValues();
-
-  // Send instantiate request to kernel
-  void getRequestClient()
-    .sendInstantiate({
-      objectIds,
-      values,
-      autoRun: autoInstantiate,
-    })
-    .catch((error) => {
-      onError(new Error("Failed to instantiate", { cause: error }));
-    });
   return layoutState;
 }
 

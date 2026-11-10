@@ -222,12 +222,10 @@ function handleNotification(
 
       case "kernel-ready":
         handleKernelReady(msg, {
-          autoInstantiate: true,
           cells: notebookCells(store.get(notebookAtom)),
           resetCellRuntimes: actions.resetCellRuntimes,
           setLayoutData: Functions.NOOP,
           setCapabilities: Functions.NOOP,
-          onError: Logger.error,
         });
         if (!window.customElements?.get(ISLAND_TAG_NAMES.ISLAND)) {
           defineCustomElement(ISLAND_TAG_NAMES.ISLAND, MarimoIslandElement);

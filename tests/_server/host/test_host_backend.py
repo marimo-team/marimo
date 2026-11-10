@@ -32,6 +32,7 @@ from marimo._runtime.commands import (
 from marimo._runtime.scratch import SCRATCH_CELL_ID
 from marimo._server.host.backend import SessionBackend
 from marimo._server.scratchpad import scratchpad_request_metadata
+from marimo._session.requests import InstantiateNotebookRequest
 from marimo._session.types import KernelExitInfo, KernelState
 from marimo._types.encodable import Encodable
 from marimo._types.ids import CellId_t
@@ -81,6 +82,10 @@ async def test_start_joins_the_session_as_a_secondary_consumer(
         be.Starting(RT1, "Starting the kernel"),
         be.Running(RT1, __version__),
     ]
+    assert manager.next_session.instantiations == [
+        InstantiateNotebookRequest(object_ids=[], values=[], auto_run=False)
+    ]
+    assert manager.next_session.commands == []
 
 
 async def test_a_failed_start_reports_the_reason(
@@ -506,6 +511,7 @@ async def test_running_cells_instantiates_from_the_host_document(
     b.start(RT1)
     await observed.wait_for(be.Running)
     session = manager.next_session
+    session.instantiations.clear()
     document = Document(
         [
             DocumentCell(protocol.CellId("a"), "x = 1"),
@@ -574,6 +580,7 @@ async def test_cell_command_failure_ends_the_run(
     session = manager.next_session
     b.adopt(RT1, session)
     observed.messages.clear()
+    session.instantiations.clear()
     document = Document([DocumentCell(protocol.CellId("a"), "42")], {})
 
     b.run_cells(

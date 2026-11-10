@@ -536,10 +536,6 @@ export class PyodideBridge implements RunRequests, EditRequests {
     return null;
   };
 
-  public sendInstantiate: RunRequests["sendInstantiate"] = async () => {
-    return null;
-  };
-
   public sendFunctionRequest: RunRequests["sendFunctionRequest"] = async (
     request,
   ) => {
