@@ -40,7 +40,6 @@ import {
   viewStateAtom,
 } from "./core/mode";
 import { cleanupAuthQueryParams } from "./core/network/auth";
-import { connectionAtom } from "./core/network/connection";
 import { requestClientAtom } from "./core/network/requests";
 import { resolveRequestClient } from "./core/network/resolve";
 import {
@@ -64,7 +63,6 @@ import { maybeRegisterVSCodeBindings } from "./core/vscode/vscode-bindings";
 import type { FileStore } from "./core/wasm/store";
 import { notebookFileStore } from "./core/wasm/store";
 import { embeddedSnapshotAtom } from "./core/session/embedded";
-import { ConnectionState } from "./core/session/types";
 import {
   handleWidgetMessage,
   WIDGET_REGISTRY,
@@ -358,9 +356,6 @@ function initStore(options: unknown) {
       ...firstRuntimeConfig,
       serverToken: parsedOptions.data.serverToken,
     });
-    if (!isStaticNotebook()) {
-      store.set(connectionAtom, { state: ConnectionState.CONNECTING });
-    }
   } else {
     store.set(runtimeConfigAtom, {
       ...DEFAULT_RUNTIME_CONFIG,
