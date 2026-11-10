@@ -9,11 +9,8 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, TypeVar, cast
 
 from marimo import _loggers
-from marimo._config.config import (
-    MarimoConfig,
-    PartialMarimoConfig,
-    merge_config,
-)
+from marimo._config.config import PartialMarimoConfig, merge_config
+from marimo._config.config_schema import MarimoConfig
 from marimo._export.exporter import Exporter, export_markdown, export_script
 from marimo._export.requests import (
     HTMLExportRequest,
@@ -21,6 +18,7 @@ from marimo._export.requests import (
     ScriptExportRequest,
 )
 from marimo._export.serialization import serialize_notebook_snapshot
+from marimo._messaging.input import InputReply, deliver_reply
 from marimo._messaging.msgspec_encoder import encode_json_str
 from marimo._messaging.notebook import Transaction
 from marimo._messaging.notebook.reconcile import reconcile_transaction
@@ -121,7 +119,7 @@ class AsyncQueueManager:
 
         # Input messages for the user's Python code are sent through the
         # input queue
-        self.input_queue = asyncio.Queue[str](maxsize=1)
+        self.input_queue = asyncio.Queue[str | InputReply](maxsize=1)
 
     def close_queues(self) -> None:
         # kernel thread cleans up read/write conn and IOloop handler on
@@ -225,8 +223,8 @@ class PyodideSession:
     ) -> None:
         self._queue_manager.completion_queue.put_nowait(request)
 
-    def put_input(self, text: str) -> None:
-        self._queue_manager.input_queue.put_nowait(text)
+    def put_input(self, text: str | InputReply) -> None:
+        deliver_reply(self._queue_manager.input_queue, text)
 
     def find_packages(self, code: str) -> list[str]:
         """
@@ -335,7 +333,7 @@ class PyodideBridge:
         parsed = parse_command(request)
         self.session.put_control_request(parsed)
 
-    def put_input(self, text: str) -> None:
+    def put_input(self, text: str | InputReply) -> None:
         self.session.put_input(text)
 
     def code_complete(self, request: str) -> None:
@@ -375,7 +373,7 @@ class PyodideBridge:
         )
         self.session._initial_user_config = config
         self.session.put_control_request(
-            UpdateUserConfigCommand(config=config)
+            UpdateUserConfigCommand(config=config.to_dict())
         )
 
     def rename_file(self, filename: str) -> None:
@@ -394,7 +392,7 @@ class PyodideBridge:
     def file_roots(self) -> str:
         roots = resolve_file_roots(
             self.file_system.get_root(),
-            self.session._initial_user_config.get("file_browser"),
+            self.session._initial_user_config.file_browser,
         )
         return self._dump(FileRootsResponse(roots=roots))
 
@@ -513,7 +511,7 @@ class PyodideBridge:
                     drop_virtual_file_outputs=False,
                     include_model_notifications=True,
                 ),
-                display_config=self.session._initial_user_config["display"],
+                display_config=self.session._initial_user_config.display,
                 options=to_html_export_options(parsed),
                 layout=(
                     to_html_export_layout(
@@ -604,7 +602,7 @@ def _launch_pyodide_kernel(
     control_queue: asyncio.Queue[CommandMessage],
     set_ui_element_queue: asyncio.Queue[BatchableCommand],
     completion_queue: asyncio.Queue[OutOfBandCommand],
-    input_queue: asyncio.Queue[str],
+    input_queue: asyncio.Queue[str | InputReply],
     on_message: Callable[[KernelMessage], None],
     session_mode: SessionMode,
     configs: dict[CellId_t, CellConfig],

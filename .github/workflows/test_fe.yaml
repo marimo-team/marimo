@@ -173,7 +173,7 @@ jobs:
         id: test
         env:
           TURBO_TOKEN: ${{ steps.secrets.outputs.TURBO_TOKEN }}
-        run: pnpm turbo test:coverage
+        run: pnpm turbo test:coverage --log-order=stream
 
       - name: 🧪 Test llm-info
         working-directory: ${{ github.workspace }}

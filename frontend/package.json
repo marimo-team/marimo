@@ -101,7 +101,7 @@
     "date-fns": "^4.4.0",
     "dequal": "^2.0.3",
     "dnd-core": "^16.0.1",
-    "dompurify": "^3.4.16",
+    "dompurify": "^3.4.17",
     "htm": "^3.1.1",
     "html-react-parser": "^5.2.17",
     "html-to-image": "1.11.13",
@@ -225,7 +225,7 @@
     "stylelint-config-standard": "^36.0.1",
     "tailwindcss": "^4.3.3",
     "vega-typings": "^2.3.0",
-    "vite": "^8.3.4",
+    "vite": "^8.3.5",
     "vitest": "^5.0.3",
     "yaml": "^2.9.1"
   }

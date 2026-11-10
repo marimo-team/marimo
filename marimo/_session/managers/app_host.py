@@ -11,6 +11,7 @@ import queue
 from typing import TYPE_CHECKING, TypeVar
 
 from marimo._config.settings import GLOBAL_SETTINGS
+from marimo._messaging.input import InputReply
 from marimo._messaging.types import KernelMessage
 from marimo._runtime import commands
 from marimo._session.app_host.commands import Channel
@@ -93,7 +94,7 @@ class AppHostQueueManager(QueueManagerProto):
         self.completion_queue: QueueType[commands.OutOfBandCommand] = (
             _AppHostPushQueue(app_host, session_id, Channel.COMPLETION)
         )
-        self.input_queue: QueueType[str] = _AppHostPushQueue(
+        self.input_queue: QueueType[str | InputReply] = _AppHostPushQueue(
             app_host, session_id, Channel.INPUT
         )
         self.win32_interrupt_queue: None = None

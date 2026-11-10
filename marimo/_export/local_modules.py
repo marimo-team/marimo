@@ -131,7 +131,7 @@ def resolve_notebook_local_modules(
     config = get_default_config_manager(
         current_path=marimo_path.absolute_name
     ).get_config()
-    pythonpath = config["runtime"].get("pythonpath") or []
+    pythonpath = config.runtime.pythonpath
     roots = tuple(reversed([Path(path) for path in pythonpath]))
     return resolve_local_modules(
         marimo_path.path, roots=roots, exclude_names=exclude_names

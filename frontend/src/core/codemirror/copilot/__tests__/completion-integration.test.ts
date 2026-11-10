@@ -1,5 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
+import { defaultUserConfig } from "@/core/config/config-schema";
+
 import { EditorView } from "@codemirror/view";
 import {
   languageServerWithClient,
@@ -79,6 +81,7 @@ describe("Copilot editor integration", () => {
       extensions: [
         languageAdapterState,
         copilotBundle({
+          ...defaultUserConfig().completion,
           copilot: "custom",
           activate_on_typing: true,
           signature_hint_on_typing: false,
@@ -130,6 +133,7 @@ describe("Copilot editor integration", () => {
       doc: "pri",
       selection: { anchor: 3 },
       extensions: copilotBundle({
+        ...defaultUserConfig().completion,
         copilot: "github",
         activate_on_typing: true,
         signature_hint_on_typing: false,

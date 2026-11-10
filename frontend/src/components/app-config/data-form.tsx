@@ -51,9 +51,7 @@ export const DataForm = ({
                   data-testid="auto-discover-schemas-select"
                   onChange={onChange}
                   value={
-                    override.value === undefined
-                      ? "auto"
-                      : override.value.toString()
+                    override.value == null ? "auto" : override.value.toString()
                   }
                   disabled={field.disabled || override.isOverridden}
                   className="w-[100px]"

@@ -12,10 +12,12 @@ import time
 from abc import ABC, abstractmethod
 from functools import cached_property
 from pathlib import Path
-from typing import Any, Literal, cast
+from typing import Literal
+
+from msgspec import UNSET
 
 from marimo import _loggers
-from marimo._config.config import MarimoConfig
+from marimo._config.config_schema import LanguageServersConfig, MarimoConfig
 from marimo._config.manager import MarimoConfigManager
 from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._dependencies.dependencies import DependencyManager
@@ -850,14 +852,11 @@ class CompositeLspServer(LspServer):
 
     def _is_enabled(self, config: MarimoConfig, server_name: str) -> bool:
         if server_name == "copilot":
-            copilot = config["completion"]["copilot"]
+            copilot = config.completion.copilot
             return copilot is True or copilot == "github"
 
-        return cast(
-            bool,
-            cast(Any, config.get("language_servers", {}))
-            .get(server_name, {})
-            .get("enabled", False),
+        return _is_language_server_enabled(
+            config.language_servers, server_name
         )
 
     async def start(self) -> AlertNotification | None:
@@ -1002,12 +1001,27 @@ class CompositeLspServer(LspServer):
         )
 
 
+def _is_language_server_enabled(
+    config: LanguageServersConfig, server_name: str
+) -> bool:
+    if server_name == "pylsp":
+        return config.pylsp.enabled
+    if server_name == "basedpyright":
+        return (
+            config.basedpyright is not UNSET
+            and config.basedpyright.enabled is True
+        )
+    if server_name == "ty":
+        return config.ty is not UNSET and config.ty.enabled is True
+    if server_name == "pyrefly":
+        return config.pyrefly is not UNSET and config.pyrefly.enabled is True
+    return False
+
+
 def any_lsp_server_running(config: MarimoConfig) -> bool:
-    # Check if any language servers or copilot are enabled
-    copilot_enabled = config["completion"]["copilot"]
-    language_servers = config.get("language_servers", {})
+    copilot_enabled = config.completion.copilot
     language_servers_enabled = any(
-        cast(dict[str, Any], server).get("enabled", False)
-        for server in language_servers.values()
+        _is_language_server_enabled(config.language_servers, name)
+        for name in CompositeLspServer.LANGUAGE_SERVERS
     )
     return (copilot_enabled is not False) or language_servers_enabled

@@ -35,13 +35,11 @@ from marimo._ast.errors import ImportStarError, LazyImportError
 from marimo._ast.names import SETUP_CELL_NAME
 from marimo._ast.variables import BUILTINS, is_local
 from marimo._ast.visitor import ImportData, Name, VariableData
-from marimo._config.config import (
-    ExecutionType,
-    MarimoConfig,
-    OnCellChangeType,
-)
+from marimo._config.config_schema import MarimoConfig
 from marimo._config.provenance import ConfigPath
 from marimo._config.resolver import config_paths
+from marimo._config.schema_utils import default_if_unset
+from marimo._config.types import ExecutionType, OnCellChangeType
 from marimo._core.protocol import ExecutionId, Revision
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._entrypoints.registry import EntryPointRegistry
@@ -61,6 +59,7 @@ from marimo._messaging.errors import (
     MarimoSyntaxError,
     UnknownError,
 )
+from marimo._messaging.input import InputReply
 from marimo._messaging.notebook.changes import ReorderCells, Transaction
 from marimo._messaging.notification import (
     HumanReadableStatus,
@@ -600,7 +599,7 @@ class Kernel:
             cb.register(self.router)
 
         # Apply pythonpath from config at initialization
-        pythonpath = user_config["runtime"].get("pythonpath")
+        pythonpath = user_config.runtime.pythonpath
         if pythonpath:
             for path in pythonpath:
                 if path not in sys.path:
@@ -666,12 +665,12 @@ class Kernel:
         # Load runtime settings from user config
         self.user_config = user_config
         self.config_overrides = set(config_overrides)
-        self.reactive_execution_mode: OnCellChangeType = user_config[
-            "runtime"
-        ]["on_cell_change"]
-        self.execution_type: ExecutionType = user_config.get(
-            "experimental", {}
-        ).get("execution_type", "relaxed")
+        self.reactive_execution_mode: OnCellChangeType = (
+            user_config.runtime.on_cell_change
+        )
+        self.execution_type: ExecutionType = (
+            user_config.experimental.execution_type
+        )
         self._update_runtime_from_user_config(user_config)
 
         # initializers to override construction of ui elements
@@ -764,9 +763,9 @@ class Kernel:
         return self.enqueue_control_request(ExecuteStaleCellsCommand())
 
     def _update_runtime_from_user_config(self, config: MarimoConfig) -> None:
-        package_manager = config["package_management"]["manager"]
-        autoreload_mode = config["runtime"]["auto_reload"]
-        self.reactive_execution_mode = config["runtime"]["on_cell_change"]
+        package_manager = config.package_management.manager
+        autoreload_mode = config.runtime.auto_reload
+        self.reactive_execution_mode = config.runtime.on_cell_change
         self.user_config = config
 
         self.packages_callbacks.update_package_manager(package_manager)
@@ -2354,7 +2353,7 @@ class Kernel:
     @kernel_tracer.start_as_current_span("set_user_config")
     def set_user_config(self, request: UpdateUserConfigCommand) -> None:
         if request.edited_paths is not None:
-            config = deepcopy(self.user_config)
+            config = self.user_config.to_dict()
             for path in request.edited_paths:
                 if any(
                     path[: len(override)] == override
@@ -2371,19 +2370,24 @@ class Kernel:
                     target[path[-1]] = deepcopy(source[path[-1]])
                 else:
                     target.pop(path[-1], None)
-            self._update_runtime_from_user_config(config)
+            self._update_runtime_from_user_config(
+                MarimoConfig.from_dict(config)
+            )
             return
         # A settings update contains a full snapshot; only changed values are
         # new explicit overrides, not unchanged file/environment settings.
+        previous_config = self.user_config.to_dict()
         for path in config_paths(cast(dict[str, Any], request.config)):
-            before: Any = self.user_config
+            before: Any = previous_config
             after: Any = request.config
             for key in path:
                 before = before.get(key) if isinstance(before, dict) else None
                 after = after[key]
             if before != after:
                 self.config_overrides.add(path)
-        self._update_runtime_from_user_config(request.config)
+        self._update_runtime_from_user_config(
+            MarimoConfig.from_dict(request.config)
+        )
 
     @kernel_tracer.start_as_current_span("set_ui_element_value")
     async def set_ui_element_value(
@@ -2829,7 +2833,7 @@ class Kernel:
             del execution_requests[cell_id]
 
     def load_dotenv(self) -> None:
-        dotenvs = self.user_config["runtime"].get("dotenv", [])
+        dotenvs = default_if_unset(self.user_config.runtime.dotenv, [])
         if not isinstance(dotenvs, list):
             LOGGER.warning("dotenv configuration is not a list")
             return
@@ -2976,7 +2980,7 @@ def _maybe_profile(profile_path: str | None) -> Iterator[None]:
 def _create_streams(
     socket_addr: tuple[str, int] | None,
     stream_queue: QueueType[KernelMessage] | None,
-    input_queue: QueueType[str],
+    input_queue: QueueType[str | InputReply],
     is_edit_mode: bool,
     should_redirect_stdio: bool,
     use_fd_redirect: bool,
@@ -3084,7 +3088,7 @@ def launch_kernel(
     control_queue: QueueType[CommandMessage],
     set_ui_element_queue: QueueType[BatchableCommand],
     completion_queue: QueueType[OutOfBandCommand],
-    input_queue: QueueType[str],
+    input_queue: QueueType[str | InputReply],
     stream_queue: QueueType[KernelMessage] | None,
     socket_addr: tuple[str, int] | None,
     is_edit_mode: bool,

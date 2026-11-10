@@ -9,6 +9,7 @@ if TYPE_CHECKING:
 
 import pytest
 
+from marimo._config.config_schema import VenvConfig
 from marimo._session._venv import (
     check_python_version_compatibility,
     get_configured_venv_python,
@@ -20,14 +21,14 @@ from marimo._session._venv import (
 def test_get_configured_venv_python_returns_none_when_not_configured() -> None:
     """Test returns None when venv not in config."""
     config: dict[str, Any] = {}  # No venv configured
-    result = get_configured_venv_python(config)
+    result = get_configured_venv_python(VenvConfig.from_dict(config))
     assert result is None
 
 
 def test_get_configured_venv_python_returns_none_when_venv_empty() -> None:
     """Test returns None when venv is empty string."""
     config: dict[str, Any] = {"path": ""}
-    result = get_configured_venv_python(config)
+    result = get_configured_venv_python(VenvConfig.from_dict(config))
     assert result is None
 
 
@@ -49,7 +50,7 @@ def test_get_configured_venv_python_returns_path_when_valid(
     python_path.touch()
 
     config: dict[str, Any] = {"path": str(venv_dir)}
-    result = get_configured_venv_python(config)
+    result = get_configured_venv_python(VenvConfig.from_dict(config))
     assert result is not None
     assert result.endswith(python_name)
 
@@ -58,7 +59,7 @@ def test_get_configured_venv_python_raises_on_missing_venv() -> None:
     """Test raises ValueError when configured venv doesn't exist."""
     config: dict[str, Any] = {"path": "/nonexistent/venv/path"}
     with pytest.raises(ValueError, match="does not exist"):
-        get_configured_venv_python(config)
+        get_configured_venv_python(VenvConfig.from_dict(config))
 
 
 def test_get_configured_venv_python_raises_on_no_python(
@@ -70,7 +71,7 @@ def test_get_configured_venv_python_raises_on_no_python(
 
     config: dict[str, Any] = {"path": str(venv_dir)}
     with pytest.raises(ValueError, match="No Python interpreter"):
-        get_configured_venv_python(config)
+        get_configured_venv_python(VenvConfig.from_dict(config))
 
 
 def test_get_configured_venv_python_resolves_relative_path(
@@ -96,7 +97,9 @@ def test_get_configured_venv_python_resolves_relative_path(
 
     # Relative path from script location
     config: dict[str, Any] = {"path": "venvs/myenv"}
-    result = get_configured_venv_python(config, base_path=str(script_path))
+    result = get_configured_venv_python(
+        VenvConfig.from_dict(config), base_path=str(script_path)
+    )
     assert result is not None
     assert result.endswith(python_name)
 

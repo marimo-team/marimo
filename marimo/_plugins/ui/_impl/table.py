@@ -304,7 +304,7 @@ def get_default_table_page_size() -> int:
     except ContextNotInitializedError:
         return 10
     else:
-        return ctx.marimo_config["display"]["default_table_page_size"]
+        return ctx.marimo_config.display.default_table_page_size
 
 
 def get_default_table_max_columns() -> int:
@@ -314,7 +314,7 @@ def get_default_table_max_columns() -> int:
     except ContextNotInitializedError:
         return DEFAULT_MAX_COLUMNS
     else:
-        return ctx.marimo_config["display"]["default_table_max_columns"]
+        return ctx.marimo_config.display.default_table_max_columns
 
 
 _DATATYPE_TO_CATEGORY: dict[str, str] = {

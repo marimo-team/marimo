@@ -430,7 +430,7 @@ async def test_export_wasm(mode: str, expected_mode_in_content: str) -> None:
         _wasm_export_request(
             filename=file_manager.filename,
             app=file_manager.app,
-            display_config=DEFAULT_CONFIG["display"],
+            display_config=DEFAULT_CONFIG.display,
             mode=mode,
             code=file_manager.app.to_py(),
             show_code=True,
@@ -581,7 +581,7 @@ def test_export_as_html_code_inclusion(
             filename=file_manager.filename,
             app=file_manager.app,
             session_view=session_view,
-            display_config=DEFAULT_CONFIG["display"],
+            display_config=DEFAULT_CONFIG.display,
             request=request,
         )
     )
@@ -623,7 +623,7 @@ def test_export_as_html_omits_getpass_response(
             filename="getpass.py",
             app=internal_app,
             session_view=session_view,
-            display_config=DEFAULT_CONFIG["display"],
+            display_config=DEFAULT_CONFIG.display,
             request=ExportAsHTMLRequest(
                 download=False, files=[], include_code=True
             ),
@@ -711,7 +711,7 @@ def test_export_as_html_with_serialization(session_view: SessionView) -> None:
             filename=file_manager.filename,
             app=file_manager.app,
             session_view=session_view,
-            display_config=DEFAULT_CONFIG["display"],
+            display_config=DEFAULT_CONFIG.display,
             request=request,
         )
     )
@@ -758,7 +758,7 @@ def test_export_as_html_with_files(session_view: SessionView) -> None:
                 filename=file_manager.filename,
                 app=file_manager.app,
                 session_view=session_view,
-                display_config=DEFAULT_CONFIG["display"],
+                display_config=DEFAULT_CONFIG.display,
                 request=request,
             )
         )
@@ -811,7 +811,7 @@ def test_export_as_html_includes_composed_widget_esm(
                 filename=file_manager.filename,
                 app=file_manager.app,
                 session_view=session_view,
-                display_config=DEFAULT_CONFIG["display"],
+                display_config=DEFAULT_CONFIG.display,
                 request=ExportAsHTMLRequest(
                     download=True,
                     files=[],
@@ -861,7 +861,7 @@ def test_export_as_html_with_cell_configs(session_view: SessionView) -> None:
             filename=file_manager.filename,
             app=file_manager.app,
             session_view=session_view,
-            display_config=DEFAULT_CONFIG["display"],
+            display_config=DEFAULT_CONFIG.display,
             request=request,
         )
     )
@@ -919,7 +919,7 @@ def test_export_as_html_preserves_output_order(
             filename=file_manager.filename,
             app=file_manager.app,
             session_view=session_view,
-            display_config=DEFAULT_CONFIG["display"],
+            display_config=DEFAULT_CONFIG.display,
             request=request,
         )
     )
@@ -972,7 +972,7 @@ def test_export_as_html_with_error_outputs(session_view: SessionView) -> None:
             filename=file_manager.filename,
             app=file_manager.app,
             session_view=session_view,
-            display_config=DEFAULT_CONFIG["display"],
+            display_config=DEFAULT_CONFIG.display,
             request=request,
         )
     )
@@ -1132,7 +1132,7 @@ def test_export_as_html_code_hash_consistency(
         filename=file_manager.filename,
         app=file_manager.app,
         session_view=session_view,
-        display_config=DEFAULT_CONFIG["display"],
+        display_config=DEFAULT_CONFIG.display,
         request=ExportAsHTMLRequest(
             download=True,
             files=[],
@@ -1231,7 +1231,7 @@ def test_export_html_replaces_virtual_files_in_outputs(
                 filename=file_manager.filename,
                 app=file_manager.app,
                 session_view=session_view,
-                display_config=DEFAULT_CONFIG["display"],
+                display_config=DEFAULT_CONFIG.display,
                 request=request,
             )
         )
@@ -1359,7 +1359,7 @@ def test_export_html_replaces_multiple_virtual_files_complex(
                 filename=file_manager.filename,
                 app=file_manager.app,
                 session_view=session_view,
-                display_config=DEFAULT_CONFIG["display"],
+                display_config=DEFAULT_CONFIG.display,
                 request=request,
             )
         )
@@ -1429,7 +1429,7 @@ def test_export_html_replaces_audio_virtual_files(
                 filename=file_manager.filename,
                 app=file_manager.app,
                 session_view=session_view,
-                display_config=DEFAULT_CONFIG["display"],
+                display_config=DEFAULT_CONFIG.display,
                 request=request,
             )
         )
@@ -1505,7 +1505,7 @@ def test_export_html_inlines_public_folder_images(
             filename=str(notebook_path),
             app=file_manager.app,
             session_view=session_view,
-            display_config=DEFAULT_CONFIG["display"],
+            display_config=DEFAULT_CONFIG.display,
             request=request,
         )
     )
@@ -1564,7 +1564,7 @@ def test_export_html_does_not_touch_non_html_outputs(
             filename=str(notebook_path),
             app=file_manager.app,
             session_view=session_view,
-            display_config=DEFAULT_CONFIG["display"],
+            display_config=DEFAULT_CONFIG.display,
             request=request,
         )
     )
@@ -1618,7 +1618,7 @@ def test_export_html_public_folder_blocks_path_traversal(
             filename=str(notebook_path),
             app=file_manager.app,
             session_view=session_view,
-            display_config=DEFAULT_CONFIG["display"],
+            display_config=DEFAULT_CONFIG.display,
             request=request,
         )
     )
@@ -1686,7 +1686,7 @@ def test_export_html_skips_oversized_virtual_files(
                 filename=file_manager.filename,
                 app=file_manager.app,
                 session_view=session_view,
-                display_config=DEFAULT_CONFIG["display"],
+                display_config=DEFAULT_CONFIG.display,
                 request=request,
             )
         )

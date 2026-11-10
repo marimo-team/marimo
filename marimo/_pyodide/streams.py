@@ -4,11 +4,13 @@ from __future__ import annotations
 import asyncio
 import sys
 from typing import TYPE_CHECKING
+from uuid import uuid4
 
 import msgspec
 
 from marimo import _loggers
 from marimo._messaging.cell_output import CellOutput
+from marimo._messaging.input import InputReply, require_active_execution
 from marimo._messaging.mimetypes import ConsoleMimeType
 from marimo._messaging.notification import CellNotification
 from marimo._messaging.notification_utils import broadcast_notification
@@ -34,22 +36,25 @@ class PyodideStream(Stream):
     def __init__(
         self,
         pipe: Callable[[KernelMessage], None],
-        input_queue: asyncio.Queue[str],
+        input_queue: asyncio.Queue[str | InputReply],
         cell_id: CellId_t | None = None,
     ):
         self.pipe = pipe
         self.cell_id = cell_id
         self.input_queue = input_queue
+        self.input_lock = asyncio.Lock()
 
     def write(self, data: KernelMessage) -> None:
         self.pipe(data)
 
     def copy_for_thread(self) -> PyodideStream:
-        return PyodideStream(
+        stream = PyodideStream(
             pipe=self.pipe,
             input_queue=self.input_queue,
             cell_id=self.cell_id,
         )
+        stream.input_lock = self.input_lock
+        return stream
 
 
 class PyodideStdout(Stdout):
@@ -170,29 +175,48 @@ class PyodideStdin(Stdin):
         self, prompt: str = "", password: bool = False
     ) -> str:
         """Read input from the standard in stream, with an optional prompt."""
-        assert self.stream.cell_id is not None
-        if not isinstance(prompt, str):
-            raise TypeError(
-                f"prompt must be a str, not {type(prompt).__name__}"
-            )
-        max_bytes = std_stream_max_bytes()
-        if sys.getsizeof(prompt) > max_bytes:
-            prompt = (
-                "Warning: marimo truncated a very large console output.\n"
-                + prompt[: int(max_bytes)]
-                + " ... "
-            )
-
-        broadcast_notification(
-            CellNotification(
-                cell_id=self.stream.cell_id,
-                console=CellOutput.stdin(prompt, password=password),
-            ),
-            self.stream,
+        return asyncio.get_event_loop().run_until_complete(
+            self._read_input(prompt, password)
         )
 
-        return self._get_response()
+    async def _read_input(self, prompt: str, password: bool) -> str:
+        async with self.stream.input_lock:
+            require_active_execution()
+            assert self.stream.cell_id is not None
+            if not isinstance(prompt, str):
+                raise TypeError(
+                    f"prompt must be a str, not {type(prompt).__name__}"
+                )
+            max_bytes = std_stream_max_bytes()
+            if sys.getsizeof(prompt) > max_bytes:
+                prompt = (
+                    "Warning: marimo truncated a very large console output.\n"
+                    + prompt[: int(max_bytes)]
+                    + " ... "
+                )
 
-    def _get_response(self) -> str:
-        loop = asyncio.get_event_loop()
-        return loop.run_until_complete(self.stream.input_queue.get())
+            input_id = str(uuid4())
+            broadcast_notification(
+                CellNotification(
+                    cell_id=self.stream.cell_id,
+                    console=CellOutput.stdin(
+                        prompt, password=password, input_id=input_id
+                    ),
+                ),
+                self.stream,
+            )
+
+            while True:
+                require_active_execution()
+                try:
+                    reply = await asyncio.wait_for(
+                        self.stream.input_queue.get(), timeout=0.1
+                    )
+                except TimeoutError:
+                    continue
+                require_active_execution()
+                # TODO(MO-8506): Delete the unaddressed reply with the stdin endpoint.
+                if isinstance(reply, str):
+                    return reply
+                if reply.input_id == input_id:
+                    return reply.value

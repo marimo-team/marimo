@@ -31,14 +31,15 @@ export interface CellExecutionInputs {
   readonly executions: Executions;
   readonly results: Results;
   /**
-   * The execution each submitted cell had when its run was requested.
-   *
-   * A cell reads as queued until the host shows a newer execution for it.
+   * The cells of the confirmed document. A run can only reach a cell the
+   * document has, and the kernel sets aside one the document has disabled.
    */
-  readonly submissions: ReadonlyMap<
-    Protocol.CellId,
-    Protocol.ExecutionId | null
-  >;
+  readonly cells: ReadonlyMap<Protocol.CellId, Pick<Protocol.Cell, "config">>;
+  /**
+   * Cells this browser has asked to run, while the stream has not yet
+   * shown the run.
+   */
+  readonly requested: ReadonlySet<Protocol.CellId>;
   /** Cells the kernel reports as blocked by a disabled ancestor. */
   readonly blocked: ReadonlySet<Protocol.CellId>;
 }
@@ -66,14 +67,46 @@ function latestOf(
 }
 
 /**
- * The execution a submission is measured against: the cell's latest on the
- * stream, or its retained result once the stream has let that execution go.
+ * Whether a run can reach `id`, meaning the document has the cell and
+ * nothing keeps it from running.
  */
-export function latestExecutionId(
-  inputs: Pick<CellExecutionInputs, "executions" | "results">,
-  id: Protocol.CellId,
-): Protocol.ExecutionId | null {
-  return inputs.executions.latest.get(id) ?? inputs.results.get(id)?.id ?? null;
+function runnable(inputs: CellExecutionInputs, id: Protocol.CellId): boolean {
+  const cell = inputs.cells.get(id);
+  return cell !== undefined && !cell.config.disabled && !inputs.blocked.has(id);
+}
+
+/**
+ * Whether `id` is waiting on a run that has not planned an execution for
+ * it yet.
+ *
+ * When the host accepts a run it names the cells that were requested, and
+ * this happens before the kernel plans their executions. Until the cell's
+ * execution in that run appears, the run itself is what makes the cell
+ * queued. A request this browser has made works the same way until its
+ * run shows up on the stream. The host keeps one execution per cell, so
+ * the cell's latest execution, or its retained result once the stream has
+ * let that execution go, tells which run has already planned it.
+ */
+function awaited(inputs: CellExecutionInputs, id: Protocol.CellId): boolean {
+  if (!runnable(inputs, id)) {
+    return false;
+  }
+  if (inputs.requested.has(id)) {
+    return true;
+  }
+  const planned =
+    latestOf(inputs.executions, id)?.record.run_id ??
+    inputs.results.get(id)?.run_id;
+  for (const run of inputs.executions.runs.values()) {
+    if (
+      run.status !== "completed" &&
+      run.id !== planned &&
+      run.cells.includes(id)
+    ) {
+      return true;
+    }
+  }
+  return false;
 }
 
 export function cellExecutionView(
@@ -82,9 +115,6 @@ export function cellExecutionView(
 ): CellExecutionView {
   const latest = latestOf(inputs.executions, id);
   const result = inputs.results.get(id) ?? null;
-  const submitted =
-    inputs.submissions.has(id) &&
-    inputs.submissions.get(id) === latestExecutionId(inputs, id);
   let status: CellRunStatus = "idle";
   let startedAt = result === null ? null : millis(result.started_at);
   let rendered = false;
@@ -92,7 +122,7 @@ export function cellExecutionView(
     status = latest.record.status;
     startedAt = millis(latest.record.started_at) ?? startedAt;
     rendered = latest.record.outcome !== null;
-  } else if (submitted) {
+  } else if (awaited(inputs, id)) {
     status = "queued";
   }
   const settled = status === "idle";
@@ -126,7 +156,7 @@ export function anyRunning(executions: Executions): boolean {
   );
 }
 
-/** Cells and scratch work queued or running, plus submissions the host has not shown yet. */
+/** Cells and scratch work queued or running, plus cells awaiting a run the kernel has not planned. */
 export function queuedOrRunningCount(inputs: CellExecutionInputs): number {
   const pending = unfinished(inputs.executions);
   const shown = new Set(
@@ -134,12 +164,17 @@ export function queuedOrRunningCount(inputs: CellExecutionInputs): number {
       execution.record.cell_id === null ? [] : [execution.record.cell_id],
     ),
   );
+  const named = new Set<Protocol.CellId>(inputs.requested);
+  for (const run of inputs.executions.runs.values()) {
+    if (run.status !== "completed") {
+      for (const cellId of run.cells) {
+        named.add(cellId);
+      }
+    }
+  }
   let awaiting = 0;
-  for (const [cellId, executionId] of inputs.submissions) {
-    if (
-      !shown.has(cellId) &&
-      executionId === latestExecutionId(inputs, cellId)
-    ) {
+  for (const cellId of named) {
+    if (!shown.has(cellId) && awaited(inputs, cellId)) {
       awaiting += 1;
     }
   }

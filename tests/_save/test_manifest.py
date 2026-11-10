@@ -294,7 +294,7 @@ def _notebook_kernel(
     user_config = None
     if cache_cells:
         user_config = copy.deepcopy(DEFAULT_CONFIG)
-        user_config["runtime"]["cache_cells"] = True
+        user_config.runtime.cache_cells = True
     with mocked_kernel_session(
         app_metadata=default_app_metadata(filename=str(notebook)),
         user_config=user_config,

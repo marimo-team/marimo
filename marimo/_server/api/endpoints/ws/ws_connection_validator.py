@@ -73,7 +73,7 @@ def parse_connection_params(
 
     # Extract config-based parameters
     config = app_state.config_manager_at_file(file_key).get_config()
-    auto_instantiate = config["runtime"]["auto_instantiate"]
+    auto_instantiate = config.runtime.auto_instantiate
 
     return ConnectionParams(
         session_id=session_id,

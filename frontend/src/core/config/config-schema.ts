@@ -63,9 +63,9 @@ const AiConfigSchema = z
   .loose();
 
 const AiModelsSchema = z.object({
-  chat_model: z.string().nullish(),
-  edit_model: z.string().nullish(),
-  autocomplete_model: z.string().nullish(),
+  chat_model: z.string().nullish().prefault(null),
+  edit_model: z.string().nullish().prefault(null),
+  autocomplete_model: z.string().nullish().prefault(null),
   displayed_models: z.array(z.string()).default([]),
   custom_models: z.array(z.string()).default([]),
 });
@@ -137,6 +137,10 @@ export const UserConfigSchema = z
           .array(z.enum(AUTO_DOWNLOAD_FORMATS))
           .prefault([]),
         show_tracebacks: z.boolean().prefault(false),
+        pythonpath: z.array(z.string()).prefault([]),
+        cache_cells: z.boolean().prefault(false),
+        pin_modules: z.boolean().prefault(true),
+        serve_cached_sessions_in_apps: z.boolean().prefault(false),
       })
       .prefault({}),
     display: z
@@ -170,7 +174,7 @@ export const UserConfigSchema = z
       .looseObject({
         enabled: z.boolean().prefault(true),
         rules: z.string().prefault(""),
-        max_tokens: z.number().int().positive().nullable().optional(),
+        max_tokens: z.number().int().positive().nullable().prefault(null),
         mode: z
           .enum(COPILOT_MODES)
           .transform((mode) => (mode === "manual" ? "ask" : mode))
@@ -205,6 +209,10 @@ export const UserConfigSchema = z
     experimental: z
       .looseObject({
         markdown: z.boolean().optional(),
+        isolate_apps: z.boolean().prefault(false),
+        debugger: z.boolean().prefault(false),
+        line_timing: z.boolean().prefault(false),
+        execution_type: z.enum(["relaxed", "strict"]).prefault("relaxed"),
         // Add new experimental features here
       })
       // Pass through so that we don't remove any extra keys that the user has added.
@@ -213,15 +221,36 @@ export const UserConfigSchema = z
       .looseObject({
         skip_update_check: z.boolean().optional(),
         session_cookie_secure: z.boolean().optional(),
-        session_secret: z.string().optional(),
-        disable_file_downloads: z.boolean().optional(),
+        session_secret: z.string().nullish().prefault(null),
+        disable_file_downloads: z.boolean().prefault(false),
         transport: z.enum(["websocket", "sse"]).optional(),
       })
       .prefault(() => ({})),
+    language_servers: z
+      .looseObject({
+        pylsp: z
+          .looseObject({
+            enabled: z.boolean().prefault(false),
+            enable_mypy: z.boolean().prefault(true),
+            enable_ruff: z.boolean().prefault(true),
+            enable_flake8: z.boolean().prefault(false),
+            enable_pydocstyle: z.boolean().prefault(false),
+            enable_pylint: z.boolean().prefault(false),
+            enable_pyflakes: z.boolean().prefault(false),
+          })
+          .prefault({}),
+      })
+      .prefault({}),
+    snippets: z
+      .looseObject({
+        custom_paths: z.array(z.string()).prefault([]),
+        include_default_snippets: z.boolean().prefault(true),
+      })
+      .prefault({}),
     diagnostics: z
       .looseObject({
         enabled: z.boolean().optional(),
-        sql_linter: z.boolean().optional(),
+        sql_linter: z.boolean().prefault(true),
       })
       .prefault(() => ({})),
     file_browser: z
@@ -230,23 +259,63 @@ export const UserConfigSchema = z
           .array(
             z.object({
               path: z.string(),
-              name: z.string().optional(),
+              name: z.string().nullish().prefault(null),
             }),
           )
-          .optional(),
+          .prefault([]),
       })
-      .optional()
-      .prefault({}),
+      .nullish()
+      .prefault(null),
     sharing: z
       .looseObject({
         html: z.boolean().optional(),
         wasm: z.boolean().optional(),
         molab: z.boolean().optional(),
       })
-      .optional(),
+      .nullish()
+      .prefault(null),
+    lint: z
+      .looseObject({
+        select: z.array(z.string()).prefault([]),
+        ignore: z.array(z.string()).prefault([]),
+      })
+      .prefault({}),
+    datasources: z
+      .looseObject({
+        auto_discover_schemas: z
+          .union([z.boolean(), z.literal("auto")])
+          .optional(),
+        auto_discover_tables: z
+          .union([z.boolean(), z.literal("auto")])
+          .optional(),
+        auto_discover_columns: z
+          .union([z.boolean(), z.literal("auto")])
+          .optional(),
+      })
+      .prefault({}),
+    venv: z
+      .looseObject({
+        path: z.string().nullable().prefault(null),
+        writable: z.boolean().prefault(false),
+      })
+      .prefault({}),
+    cache: z
+      .looseObject({
+        verification: z.enum(["off", "on", "strict"]).prefault("off"),
+        store: z.unknown().prefault(null),
+        loader: z.string().prefault("lazy"),
+      })
+      .prefault({}),
+    signing: z
+      .looseObject({
+        trusted_signers: z.record(z.string(), z.string()).prefault({}),
+        private_key_path: z.string().nullable().prefault(null),
+      })
+      .prefault({}),
     mcp: z
       .looseObject({
-        presets: z.array(z.enum(["marimo", "context7"])).optional(),
+        presets: z.array(z.enum(["marimo", "context7"])).prefault([]),
+        mcpServers: z.record(z.string(), z.unknown()).prefault({}),
       })
       .optional()
       .prefault({}),
@@ -260,12 +329,20 @@ export const UserConfigSchema = z
     runtime: {},
     display: {},
     diagnostics: {},
-    file_browser: {},
+    language_servers: {},
+    snippets: {},
+    file_browser: null,
+    sharing: null,
     experimental: {},
     server: {},
     ai: {},
     package_management: {},
     mcp: {},
+    cache: {},
+    venv: {},
+    signing: {},
+    lint: {},
+    datasources: {},
   }));
 export type UserConfig = MarimoConfig;
 export type SaveConfig = UserConfig["save"];
@@ -369,12 +446,20 @@ export function defaultUserConfig(): UserConfig {
     runtime: {},
     display: {},
     diagnostics: {},
-    file_browser: {},
+    language_servers: {},
+    snippets: {},
+    file_browser: null,
+    sharing: null,
     experimental: {},
     server: {},
     ai: {},
     package_management: {},
     mcp: {},
+    cache: {},
+    venv: {},
+    signing: {},
+    lint: {},
+    datasources: {},
   };
   return UserConfigSchema.parse(defaultConfig) as UserConfig;
 }

@@ -10,9 +10,6 @@ import { Objects } from "@/utils/objects";
 
 /**
  * The `expand_output` config changes needed to expand or clamp every output.
- *
- * Both actions skip cells without output, so their source isn't annotated
- * with a config that has no effect.
  */
 export function outputExpansionConfigs(
   notebook: NotebookState,
@@ -27,7 +24,7 @@ export function outputExpansionConfigs(
     ) {
       continue;
     }
-    if (isOutputEmpty(notebook.cellRuntime[cellId]?.output)) {
+    if (expanded && isOutputEmpty(notebook.cellRuntime[cellId]?.output)) {
       continue;
     }
     configs[cellId] = { expand_output: expanded };

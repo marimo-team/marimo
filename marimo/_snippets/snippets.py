@@ -9,7 +9,7 @@ import msgspec
 
 from marimo import _loggers
 from marimo._ast.load import load_app
-from marimo._config.config import MarimoConfig
+from marimo._config.config_schema import MarimoConfig
 from marimo._utils.paths import marimo_package_path
 
 LOGGER = _loggers.marimo_logger()
@@ -106,10 +106,8 @@ def read_snippet_filenames_from_config(
     config: MarimoConfig,
 ) -> Generator[str, Any, None]:
     # Get custom snippets path from config if present
-    custom_paths = config.get("snippets", {}).get("custom_paths", [])
-    include_default_snippets = config.get("snippets", {}).get(
-        "include_default_snippets", True
-    )
+    custom_paths = config.snippets.custom_paths
+    include_default_snippets = config.snippets.include_default_snippets
     return read_snippet_filenames(include_default_snippets, custom_paths)
 
 

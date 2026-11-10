@@ -131,6 +131,7 @@ export type SerializedBridge = {
       persist: (contents: string, filename: string) => Promise<void>,
     ): void;
     set_package_loader(load: (code: string) => Promise<void>): void;
+    allow_input(allowed: boolean): void;
     destroy(): void;
   };
 };

@@ -5,7 +5,6 @@ import { createRPCRequestHandler } from "rpc-anywhere";
 import { toast } from "@/components/ui/use-toast";
 import { userConfigAtom } from "@/core/config/config";
 import { serializeBlob } from "@/utils/blob";
-import { Arrays } from "@/utils/arrays";
 import { Deferred } from "@/utils/Deferred";
 import { throwNotImplemented } from "@/utils/functions";
 import { Logger } from "@/utils/Logger";
@@ -341,22 +340,6 @@ export class PyodideBridge implements RunRequests, EditRequests {
     throwNotImplemented();
   };
 
-  public sendRun: EditRequests["sendRun"] = async (request) => {
-    await this.rpc.proxy.request.loadPackages(request.codes.join("\n"));
-
-    await this.putControlRequest({
-      type: "execute-cells",
-      request: request.request,
-      executionRequests: Arrays.zip(request.cellIds, request.codes).map(
-        ([cellId, code]) => ({
-          type: "execute-cell",
-          cellId,
-          code,
-        }),
-      ),
-    });
-    return null;
-  };
   public sendRunScratchpad: EditRequests["sendRunScratchpad"] = async (
     request,
   ) => {

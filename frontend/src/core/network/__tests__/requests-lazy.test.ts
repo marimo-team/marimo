@@ -1,7 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { cellId, requestId, uiElementId } from "@/__tests__/branded";
+import { requestId, uiElementId } from "@/__tests__/branded";
 import { waitForRuntimeRunning } from "../../executions";
 import type { RuntimeManager } from "../../runtime/runtime";
 import { waitForConnectionOpen } from "../connection";
@@ -49,7 +49,6 @@ describe("createLazyRequests", () => {
 
     // Mock delegate with some sample methods
     mockDelegate = {
-      sendRun: vi.fn().mockResolvedValue({ success: true }),
       sendInstantiate: vi.fn().mockResolvedValue({ instantiated: true }),
       sendFunctionRequest: vi.fn().mockResolvedValue({ result: "data" }),
       sendRestart: vi.fn().mockResolvedValue({ restarted: true }),
@@ -149,7 +148,7 @@ describe("createLazyRequests", () => {
       mockGetRuntimeManager,
     );
 
-    await lazyRequests.sendRun({ cellIds: [cellId("cell1")], codes: ["code"] });
+    await lazyRequests.sendRunScratchpad({ code: "code" });
 
     expect(mockInit).toHaveBeenCalledTimes(1);
   });
@@ -175,7 +174,7 @@ describe("createLazyRequests", () => {
       mockGetRuntimeManager,
     );
 
-    await lazyRequests.sendRun({ cellIds: [cellId("cell1")], codes: ["code"] });
+    await lazyRequests.sendRunScratchpad({ code: "code" });
     await lazyRequests.sendInstantiate({
       objectIds: [uiElementId("obj1")],
       values: [],
@@ -197,7 +196,7 @@ describe("createLazyRequests", () => {
       mockGetRuntimeManager,
     );
 
-    await lazyRequests.sendRun({ cellIds: [cellId("cell1")], codes: ["code"] });
+    await lazyRequests.sendRunScratchpad({ code: "code" });
 
     expect(waitForConnectionOpen).toHaveBeenCalled();
   });
@@ -208,10 +207,10 @@ describe("createLazyRequests", () => {
       mockGetRuntimeManager,
     );
 
-    const args = { cellIds: [cellId("cell1")], codes: ["code"] };
-    await lazyRequests.sendRun(args);
+    const args = { code: "code" };
+    await lazyRequests.sendRunScratchpad(args);
 
-    expect(mockDelegate.sendRun).toHaveBeenCalledWith(args);
+    expect(mockDelegate.sendRunScratchpad).toHaveBeenCalledWith(args);
   });
 
   it("should return the result from delegate method", async () => {
@@ -236,7 +235,7 @@ describe("createLazyRequests", () => {
       mockGetRuntimeManager,
     );
 
-    expect(lazyRequests.sendRun).toBeDefined();
+    expect(lazyRequests.sendRunScratchpad).toBeDefined();
     expect(lazyRequests.sendInstantiate).toBeDefined();
     expect(lazyRequests.sendFunctionRequest).toBeDefined();
   });
@@ -251,13 +250,13 @@ describe("createLazyRequests", () => {
     );
 
     await expect(
-      lazyRequests.sendRun({ cellIds: [cellId("cell1")], codes: ["code"] }),
+      lazyRequests.sendRunScratchpad({ code: "code" }),
     ).rejects.toThrow("Init failed");
   });
 
   it("should handle errors from delegate method", async () => {
     const error = new Error("Request failed");
-    mockDelegate.sendRun = vi.fn().mockRejectedValue(error);
+    mockDelegate.sendRunScratchpad = vi.fn().mockRejectedValue(error);
 
     const lazyRequests = createLazyRequests(
       mockDelegate,
@@ -265,7 +264,7 @@ describe("createLazyRequests", () => {
     );
 
     await expect(
-      lazyRequests.sendRun({ cellIds: [cellId("cell1")], codes: ["code"] }),
+      lazyRequests.sendRunScratchpad({ code: "code" }),
     ).rejects.toThrow("Request failed");
   });
 
@@ -277,10 +276,7 @@ describe("createLazyRequests", () => {
       );
 
       // First request with first runtime manager
-      await lazyRequests.sendRun({
-        cellIds: [cellId("cell1")],
-        codes: ["code"],
-      });
+      await lazyRequests.sendRunScratchpad({ code: "code" });
       expect(mockInit).toHaveBeenCalledTimes(1);
 
       // Create a new runtime manager
@@ -298,10 +294,7 @@ describe("createLazyRequests", () => {
       );
 
       // Second request with second runtime manager
-      await lazyRequests2.sendRun({
-        cellIds: [cellId("cell2")],
-        codes: ["code2"],
-      });
+      await lazyRequests2.sendRunScratchpad({ code: "code" });
 
       // Both inits should have been called
       expect(mockInit).toHaveBeenCalledTimes(1);
@@ -315,10 +308,7 @@ describe("createLazyRequests", () => {
       );
 
       // Multiple requests
-      await lazyRequests.sendRun({
-        cellIds: [cellId("cell1")],
-        codes: ["code"],
-      });
+      await lazyRequests.sendRunScratchpad({ code: "code" });
       await lazyRequests.sendInstantiate({
         objectIds: [uiElementId("obj1")],
         values: [],

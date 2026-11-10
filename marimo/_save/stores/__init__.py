@@ -1,11 +1,11 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-import copy
-from typing import Any, cast
-
 from marimo import _loggers
-from marimo._config.config import CacheStoreConfig, StoreKey
+from marimo._config.config_schema import (
+    CacheStoreConfig,
+)
+from marimo._config.types import StoreKey
 from marimo._entrypoints.registry import EntryPointRegistry
 from marimo._save.stores.file import FileStore
 from marimo._save.stores.redis import RedisStore
@@ -30,22 +30,11 @@ _STORE_REGISTRY = EntryPointRegistry[StoreType](
 )
 
 
-def _store_config(config: Any) -> CacheStoreConfig | None:
-    """Read the store config out of a (possibly partial) marimo config.
-
-    Shared by `get_store` and `cache_store_is_untrusted` so store selection and
-    the provenance check can never disagree about which key they read.
-    """
-    return cast(
-        "CacheStoreConfig | None", config.get("cache", {}).get("store")
-    )
-
-
 def get_store(current_path: str | None = None) -> Store:
     from marimo._config.manager import get_default_config_manager
 
     config = get_default_config_manager(current_path=current_path).get_config()
-    return _get_store_from_config(_store_config(config))
+    return _get_store_from_config(config.cache.store)
 
 
 def configured_cache_store(current_path: str | None = None) -> Store | None:
@@ -58,7 +47,7 @@ def configured_cache_store(current_path: str | None = None) -> Store | None:
     from marimo._config.manager import get_default_config_manager
 
     config = get_default_config_manager(current_path=current_path).get_config()
-    store_config = _store_config(config)
+    store_config = config.cache.store
     if store_config is None:
         return None
     return _get_store_from_config(store_config)
@@ -74,7 +63,7 @@ def cache_store_is_untrusted(current_path: str | None = None) -> bool:
     overrides = get_default_config_manager(
         current_path=current_path
     ).get_config_overrides()
-    return _store_config(overrides) is not None
+    return overrides.get("cache", {}).get("store") is not None
 
 
 def _get_store_from_config(
@@ -84,7 +73,9 @@ def _get_store_from_config(
     if config is None:
         return DEFAULT_STORE()
 
-    cache_stores = copy.copy(cast(dict[str, StoreType], CACHE_STORES))
+    cache_stores: dict[str, StoreType] = {
+        key: value for key, value in CACHE_STORES.items()
+    }
     cache_stores.update(
         {name: registry.get(name) for name in registry.names()}
     )
@@ -99,13 +90,13 @@ def _get_store_from_config(
             return sub_stores[0]
         return TieredStore(sub_stores)
     else:
-        store_type = cast(StoreKey, config.get("type", DEFAULT_STORE_KEY))
+        store_type = config.type
         if store_type not in cache_stores:
             LOGGER.error(f"Invalid store type: {store_type}")
             store_type = DEFAULT_STORE_KEY
 
         try:
-            store_args = config.get("args", {})
+            store_args = config.args
             return cache_stores[store_type](**store_args)
         except Exception as e:
             LOGGER.error(f"Error creating store: {e}")

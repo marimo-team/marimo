@@ -5,7 +5,7 @@ from contextlib import nullcontext
 from typing import TYPE_CHECKING, Any, cast
 
 from marimo import _loggers
-from marimo._config.config import SqlOutputType
+from marimo._config.types import SqlOutputType
 from marimo._data.models import DataType
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._runtime._wasm._duckdb import (

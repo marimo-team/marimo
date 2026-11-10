@@ -1,4 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
+
+import { defaultUserConfig } from "@/core/config/config-schema";
 // @vitest-environment jsdom
 
 import { EditorState } from "@codemirror/state";
@@ -39,18 +41,20 @@ function createState(content: string, selection?: { anchor: number }) {
       adaptiveLanguageConfiguration({
         cellId: "cell1" as CellId,
         completionConfig: {
+          ...defaultUserConfig().completion,
           copilot: false,
           activate_on_typing: true,
           signature_hint_on_typing: false,
           codeium_api_key: null,
         },
-        lspConfig: {},
+        lspConfig: { ...defaultUserConfig().language_servers },
         hotkeys: new OverridingHotkeyProvider({}),
         placeholderType: "marimo-import",
       }),
       cellConfigExtension({
         cellId: "cell1" as CellId,
         completionConfig: {
+          ...defaultUserConfig().completion,
           copilot: false,
           activate_on_typing: true,
           signature_hint_on_typing: false,
@@ -58,8 +62,8 @@ function createState(content: string, selection?: { anchor: number }) {
         },
         hotkeys: new OverridingHotkeyProvider({}),
         placeholderType: "marimo-import",
-        lspConfig: {},
-        diagnosticsConfig: {},
+        lspConfig: { ...defaultUserConfig().language_servers },
+        diagnosticsConfig: { ...defaultUserConfig().diagnostics },
       }),
     ],
     selection,
