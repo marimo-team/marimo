@@ -123,9 +123,7 @@ describe("NotebookClient", () => {
     "rejects the run id %j before sending",
     async (runId) => {
       const { notebook, fetch } = connect(() => json(202, {}));
-      await expect(notebook.cancel({ runId })).rejects.toThrow(
-        "valid run_id",
-      );
+      await expect(notebook.cancel({ runId })).rejects.toThrow("valid run_id");
       expect(fetch).not.toHaveBeenCalled();
     },
   );
