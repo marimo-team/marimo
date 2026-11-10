@@ -22,9 +22,10 @@
   ],
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
+    "openapi": "node scripts/openapi.ts",
     "test": "vitest run",
     "typecheck": "tsgo",
-    "lint": "oxlint -c ../../frontend/.oxlintrc.json src"
+    "lint": "oxlint -c ../../frontend/.oxlintrc.json src scripts"
   },
   "dependencies": {
     "effect": "4.1.0"
@@ -33,7 +34,6 @@
     "@types/node": "^24.13.6",
     "typescript": "^5.9.3",
     "vitest": "^4.1.11",
-    "yaml": "^2.9.1",
     "oxlint": "^1.88.0"
   }
 }

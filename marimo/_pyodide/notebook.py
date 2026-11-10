@@ -550,11 +550,12 @@ class PyodideNotebook:
     async def call(self, raw: str) -> str:
         """Serve an operation call and reply with its status and body."""
         self.mutations.expire()
+        status: int
         body: msgspec.Struct | None
         try:
             call = msgspec.json.decode(raw, type=OperationCall)
         except msgspec.DecodeError as e:
-            failure = problem(400, "invalid-request", str(e))
+            failure = problem("invalid-request", str(e))
             status, body = failure.status, failure
         else:
             status, body = await dispatch(

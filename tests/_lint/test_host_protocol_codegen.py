@@ -7,11 +7,11 @@ from datetime import datetime
 from pathlib import Path
 
 import msgspec
-import msgspec.yaml
 import pytest
 
 from marimo._core import protocol
 from protocols.host.generate import event_adapters, tuple_arrays
+from tests.utils import host_openapi
 
 
 @pytest.mark.parametrize(
@@ -56,9 +56,7 @@ def test_event_adapters_follow_schema_references(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Record access does not depend on names matching the wire tag."""
-    document = msgspec.yaml.decode(
-        Path("protocols/host/openapi.yaml").read_bytes()
-    )
+    document = host_openapi()
     schemas = document["components"]["schemas"]
     message = schemas.pop("ProjectMessage")
     message["properties"]["workspace"] = message["properties"].pop("project")
@@ -69,9 +67,10 @@ def test_event_adapters_follow_schema_references(
         "#/components/schemas/WorkspaceUpdate"
     )
     schemas["WorkspaceChanged"] = event
-    schemas["Event"]["discriminator"]["mapping"]["project"] = (
-        "#/components/schemas/WorkspaceChanged"
-    )
+    members = schemas["Event"]["anyOf"]
+    members[members.index({"$ref": "#/components/schemas/ProjectEvent"})] = {
+        "$ref": "#/components/schemas/WorkspaceChanged"
+    }
     update_type = msgspec.defstruct(
         "WorkspaceUpdate",
         [
@@ -111,9 +110,7 @@ def test_event_adapters_use_adjacent_models(
     package = tmp_path / "generated_protocol"
     package.mkdir()
     (package / "protocol.py").write_bytes(Path(protocol.__file__).read_bytes())
-    document = msgspec.yaml.decode(
-        Path("protocols/host/openapi.yaml").read_bytes()
-    )
+    document = host_openapi()
     (package / "protocol_events.py").write_text(
         event_adapters(document, relative_import=True), encoding="utf-8"
     )

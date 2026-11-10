@@ -18,7 +18,12 @@ export {
   type NotebookEventsOptions,
   type NotebookEvent,
 } from "./notebook/events.ts";
-export { idempotencyKey, type Result } from "./request.ts";
+export {
+  type ResultOf,
+  type ProblemOf,
+  idempotencyKey,
+  type Result,
+} from "./request.ts";
 export {
   type Frame,
   type Transport,

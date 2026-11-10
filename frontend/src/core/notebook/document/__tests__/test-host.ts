@@ -63,7 +63,10 @@ function rejected(
   status: number,
   kind: keyof typeof TITLES,
   detail: string,
-  stale?: Pick<Protocol.Problem, "index" | "cell" | "document">,
+  stale?: Pick<
+    Protocol.PreconditionFailedProblem,
+    "index" | "cell" | "document"
+  >,
 ): Outcome {
   return {
     result: {

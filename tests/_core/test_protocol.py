@@ -661,3 +661,25 @@ def test_cell_source_is_required_but_nullable_only_in_records() -> None:
         json.dumps({"id": cell["id"], "code": ""}), type=protocol.CellInput
     )
     assert value.code == ""
+
+
+@pytest.mark.parametrize(
+    "case",
+    json.loads(
+        (
+            FIXTURES.parent / "conformance/cases/execution-requests.json"
+        ).read_text()
+    ),
+    ids=lambda case: f"{case['schema']}: {case['name']}",
+)
+def test_execution_requests(case: dict[str, Any]) -> None:
+    body = msgspec.json.encode(case["body"])
+    schema = getattr(protocol, case["schema"])
+    if case["valid"]:
+        decoded = msgspec.json.decode(body, type=schema)
+        assert (
+            msgspec.json.decode(msgspec.json.encode(decoded)) == case["body"]
+        )
+    else:
+        with pytest.raises(msgspec.ValidationError):
+            msgspec.json.decode(body, type=schema)

@@ -206,3 +206,18 @@ def test_code_fingerprints_are_opaque():
     cell["code_fingerprint"] = ""
     with pytest.raises(ValidationError):
         validate("Cell", cell)
+
+
+@pytest.mark.parametrize(
+    "case",
+    json.loads(
+        (ROOT / "conformance/cases/execution-requests.json").read_text()
+    ),
+    ids=lambda case: f"{case['schema']}: {case['name']}",
+)
+def test_execution_requests(case):
+    if case["valid"]:
+        validate(case["schema"], case["body"])
+    else:
+        with pytest.raises(ValidationError):
+            validate(case["schema"], case["body"])

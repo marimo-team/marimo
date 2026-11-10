@@ -2,8 +2,8 @@
 
 [`Host.Api`](src/Host.ts) defines the [host protocol](../../protocols/host/spec.md)
 with Effect's `HttpApi`. The same definition gives server handler types, an
-Effect HTTP client, and the OpenAPI documents that the Python and TypeScript
-generators read.
+Effect HTTP client, and the [OpenAPI document](../../protocols/host/README.md#get-the-openapi-document)
+that the Python and TypeScript generators read.
 
 Start with [`Objects.ts`](src/Objects.ts), the table of objects a host
 publishes. The events come from that table, and an

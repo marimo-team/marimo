@@ -4,6 +4,7 @@ import { describe, expect, expectTypeOf, it, vi } from "vitest";
 import { z } from "zod";
 import { Client, NotebookClient } from "../index.ts";
 import type * as Protocol from "../protocol.ts";
+import type { ProblemOf } from "../request.ts";
 import { fixtureEvents } from "./fixtures.ts";
 
 const record = fixtureEvents("events.sse").find(
@@ -43,7 +44,7 @@ describe("Client", () => {
       | {
           readonly ok: false;
           readonly status: number;
-          readonly problem: Protocol.ProblemOutput;
+          readonly problem: ProblemOf<"notebook.create">;
         }
     >();
     expect(result).toEqual({ ok: true, status: 201, data: record });

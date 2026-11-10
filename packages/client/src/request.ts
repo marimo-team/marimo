@@ -23,13 +23,36 @@ export interface ClientOptions {
  * A request throws when the host cannot be reached or when its answer is not
  * one the protocol describes.
  */
-export type Result<T> =
+export type Result<
+  T,
+  P = Protocol.ProblemOutput | Protocol.UnknownProblemOutput,
+> =
   | { readonly ok: true; readonly status: number; readonly data: T }
-  | {
-      readonly ok: false;
-      readonly status: number;
-      readonly problem: Protocol.ProblemOutput;
-    };
+  | { readonly ok: false; readonly status: number; readonly problem: P };
+
+/**
+ * The problems an operation declares.
+ *
+ * A host on a later version can answer with a type this client does not
+ * define, which arrives as an `UnknownProblem`.
+ */
+export type ProblemOf<Id extends OperationId> =
+  | z.output<Declared<Id>[keyof Declared<Id>][number]>
+  | Protocol.UnknownProblemOutput;
+
+type Declared<Id extends OperationId> = {
+  readonly [
+    Status in keyof (typeof operations)[Id]["problems"]
+  ]: (typeof operations)[Id]["problems"][Status] extends readonly z.ZodType[]
+    ? (typeof operations)[Id]["problems"][Status]
+    : never;
+};
+
+/** What a request for one operation resolves to. */
+export type ResultOf<Id extends RequestOperationId> = Result<
+  Data<Id>,
+  ProblemOf<Id>
+>;
 
 /** Options for a request that changes state. */
 export interface MutationOptions {
@@ -101,6 +124,7 @@ interface Operation {
   readonly responses: Readonly<
     Record<number, z.ZodType | null | "text/event-stream">
   >;
+  readonly problems: Readonly<Record<number, readonly z.ZodType[]>>;
 }
 
 const table: Readonly<Record<OperationId, Operation>> = operations;
@@ -254,11 +278,11 @@ export async function request<
   target: Target<Prefix> | CallTarget<Prefix>,
   id: Id,
   { params = {}, body, headers = {}, options = {} }: Call<Id>,
-): Promise<Result<Data<Id>>> {
+): Promise<ResultOf<Id>> {
   const operation = table[id];
   const sent: Record<string, string> = {};
-  if ("Idempotency-Key" in operation.headers) {
-    sent["Idempotency-Key"] = options.idempotencyKey ?? idempotencyKey();
+  if ("idempotency-key" in operation.headers) {
+    sent["idempotency-key"] = options.idempotencyKey ?? idempotencyKey();
   }
   for (const [name, value] of Object.entries(headers)) {
     if (value !== undefined) {
@@ -306,8 +330,15 @@ export async function request<
     return { ok: true, status, data };
   }
   if ((status < 200 || status >= 300) && answer.problem) {
-    const problem = Protocol.Problem.parse(await answer.json());
-    return { ok: false, status, problem };
+    const body = await answer.json();
+    for (const schema of operation.problems[status] ?? []) {
+      const parsed = schema.safeParse(body);
+      if (parsed.success) {
+        // SAFETY: `schema` is one the table lists for this status of `id`.
+        return { ok: false, status, problem: parsed.data as ProblemOf<Id> };
+      }
+    }
+    return { ok: false, status, problem: Protocol.UnknownProblem.parse(body) };
   }
   throw new Error(`Unexpected ${status} response to ${id}`);
 }

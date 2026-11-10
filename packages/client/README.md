@@ -157,54 +157,28 @@ To follow events over a WebSocket or another connection, see the
 
 ## Contributing
 
-The [host protocol](../../protocols/host/spec.md) explains the model and
-behavior. [OpenAPI](../../protocols/host/openapi.yaml) defines the routes and
-payloads. `@marimo-team/client/protocol` exports the TypeScript types and Zod
-schemas generated from it.
+See [CONTRIBUTING.md](../../CONTRIBUTING.md#setup) for repository setup.
+Run package commands from the repository root:
 
-To install from a GitHub revision with pnpm, select this package's subdirectory:
+```sh
+pnpm --dir packages/client build
+pnpm --dir packages/client typecheck
+pnpm --dir packages/client test --run
+```
+
+Package imports resolve to `dist`; use `build --watch` while developing.
+Omit `--run` to watch tests.
+
+Protocol definitions live in [`packages/host-protocol`](../host-protocol/README.md).
+Follow the [contract workflow](../../protocols/host/README.md#change-a-contract)
+to regenerate OpenAPI and both language bindings. This client consumes
+generated TypeScript and Zod schemas without an Effect runtime dependency.
+
+To install this package from a pinned GitHub revision:
 
 ```sh
 pnpm add 'github:marimo-team/marimo#<commit>&path:/packages/client'
 ```
 
-The `prepare` script compiles the checked-in sources into `dist`. pnpm may
-require allowing the build for that Git revision in `allowBuilds`.
-
-Run these commands from the repository root. See
-[CONTRIBUTING.md](../../CONTRIBUTING.md) for setup.
-
-The package is consumed from `dist`. Build it once, or watch for changes
-while developing.
-
-```sh
-pnpm --dir packages/client build
-pnpm --dir packages/client build --watch
-```
-
-After changing OpenAPI, regenerate the protocol types, schemas, and
-operation definitions. `codegen:check` checks that generated files match
-the specification. Generation requires `uv` as well as the Node toolchain:
-both language generators use the same Python overlay composer. The checked-in
-client includes experimental features, including Analysis.
-
-```sh
-pnpm --dir packages/client codegen
-pnpm --dir packages/client codegen:check
-```
-
-The package commands opt into all experimental features so Turbo builds retain
-the APIs the handwritten client consumes. Use `codegen:stable` for stable-only
-bindings, using
-`--output-dir` to keep them separate from the client's checked-in bindings. Use
-`--include-experimental=analysis` to select a feature. This selects generated
-contracts; it does not create a separate stable build of the client package.
-See the [host protocol tooling](../../protocols/host/README.md) for details.
-
-Run the package's tests and typecheck. Omit `--run` to watch tests while
-developing.
-
-```sh
-pnpm --dir packages/client test --run
-pnpm --dir packages/client typecheck
-```
+The `prepare` script builds the checked-in sources. pnpm may require allowing
+that revision's build in `allowBuilds`.

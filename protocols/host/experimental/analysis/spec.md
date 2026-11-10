@@ -17,5 +17,5 @@ until replaced or the notebook is removed. Snapshots include the latest
 available analysis, which may be stale. Computation may finish after `ready`;
 receiving `ready` does not guarantee analysis of the current document.
 
-The [overlay](overlay.yaml) defines the message formats and diagnostics.
+The [Effect module](../../../../packages/host-protocol/src/experimental/Analysis.ts) defines the message formats and diagnostics.
 The [examples](fixtures/) show complete messages.

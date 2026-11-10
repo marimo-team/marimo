@@ -183,7 +183,7 @@ describe("host protocol bindings", () => {
       throw new Error("Expected an invalid cell");
     }
     expect(result.error.issues).toEqual([
-      expect.objectContaining({ path: ["code"], code: "invalid_type" }),
+      expect.objectContaining({ path: ["code"] }),
     ]);
   });
 
@@ -213,4 +213,30 @@ describe("host protocol bindings", () => {
       false,
     );
   });
+});
+
+const requestCases: {
+  name: string;
+  schema: "RunRequest" | "ExecuteRequest";
+  valid: boolean;
+  body: unknown;
+}[] = JSON.parse(
+  NodeFs.readFileSync(
+    new NodeUrl.URL("../conformance/cases/execution-requests.json", fixtures),
+    "utf8",
+  ),
+);
+it.each(requestCases)("validates $schema: $name", ({ schema, body, valid }) => {
+  expect(Protocol[schema].safeParse(body).success).toBe(valid);
+});
+
+it("separates cell runs from scratch execution", () => {
+  expectTypeOf<{
+    cells: Protocol.RequestedCell[];
+  }>().toExtend<Protocol.RunRequest>();
+  expectTypeOf<{ code: string }>().toExtend<Protocol.ExecuteRequest>();
+  expectTypeOf<{ code: string }>().not.toExtend<Protocol.RunRequest>();
+  expectTypeOf<{
+    cells: Protocol.RequestedCell[];
+  }>().not.toExtend<Protocol.ExecuteRequest>();
 });

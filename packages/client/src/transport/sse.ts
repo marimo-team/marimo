@@ -130,7 +130,7 @@ export function sse(url: StreamUrl, options: SseOptions = {}): Transport {
       });
       const { status } = response;
       if (status >= 400 && status < 500 && !RETRY_STATUSES.has(status)) {
-        const problem = Protocol.Problem.safeParse(
+        const problem = Protocol.Problem.or(Protocol.UnknownProblem).safeParse(
           await response.json().catch(() => undefined),
         );
         throw new StreamStopped(`The host refused the stream (${status})`, {
