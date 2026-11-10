@@ -14,6 +14,7 @@ from marimo._utils.platform import is_windows
 from tests._server.api.endpoints.ws_helpers import receive_notification
 from tests._server.mocks import (
     get_session_manager,
+    run_cells,
     token_header,
     with_read_session,
     with_session,
@@ -366,16 +367,13 @@ def test_rename_propagates(
     assert current_filename
     assert os.path.exists(current_filename)
 
-    initial_response = client.post(
-        "/api/kernel/run",
+    initial_response = run_cells(
+        client,
+        SESSION_ID,
+        {"cell-1": "b = __file__", "cell-2": "a = 'x' + __file__"},
         headers=HEADERS,
-        json={
-            "cellIds": ["cell-1", "cell-2"],
-            "codes": ["b = __file__", "a = 'x' + __file__"],
-        },
     )
-    assert initial_response.json() == {"success": True}
-    assert initial_response.status_code == 200, initial_response.text
+    assert initial_response.status_code == 202, initial_response.text
 
     variables = {}
     while len(variables) < 2:

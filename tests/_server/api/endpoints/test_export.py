@@ -17,13 +17,12 @@ import pytest
 
 from marimo import App, __version__
 from marimo._ast.app import InternalApp
-from marimo._ast.cell import CellConfig
 from marimo._convert.markdown.flavor.base import MarkdownFlavorName
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._export.requests import PDFExportRequest
 from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._messaging.notebook import Transaction
-from marimo._messaging.notebook.changes import CreateCell, SetCode
+from marimo._messaging.notebook.changes import SetCode
 from marimo._messaging.notification import CellNotification
 from marimo._output.utils import uri_encode_component
 from marimo._runtime.layout.layout import LayoutConfig
@@ -43,6 +42,7 @@ from marimo._utils.http import HTTPException
 from marimo._utils.platform import is_windows
 from tests._server.mocks import (
     get_session_manager,
+    run_cells,
     token_header,
     with_read_session,
     with_session,
@@ -1276,28 +1276,10 @@ def test_auto_export_ipynb_with_new_cell(
     session.app_file_manager.filename = temp_marimo_file
 
     # The editor creates the cell in the document, then runs it.
-    session.document.apply(
-        Transaction(
-            changes=(
-                CreateCell(
-                    cell_id=CellId_t("new_cell"),
-                    code="3.14",
-                    name="_",
-                    config=CellConfig(),
-                ),
-            ),
-            source="frontend",
-        )
+    create_cell_response = run_cells(
+        client, SESSION_ID, {"new_cell": "3.14"}, headers=HEADERS
     )
-    create_cell_response = client.post(
-        "/api/kernel/run",
-        headers=HEADERS,
-        json={
-            "cellIds": ["new_cell"],
-            "codes": ["3.14"],
-        },
-    )
-    assert create_cell_response.status_code == 200
+    assert create_cell_response.status_code == 202
 
     time.sleep(0.5)
 

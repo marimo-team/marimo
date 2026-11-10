@@ -11,6 +11,7 @@ from tests._server.api.endpoints.ws_helpers import (
     receive_until,
 )
 from tests._server.host.drive import socket_snapshot
+from tests._server.mocks import run_cells
 
 if TYPE_CHECKING:
     from starlette.testclient import TestClient
@@ -86,15 +87,14 @@ async def test_connect_kiosk_with_session(client: TestClient) -> None:
             data = receive_notification(other_websocket)
             assert data["op"] == "notebook-document-transaction"
 
-            # Send run single cell
-            response = client.post(
-                "/api/kernel/run",
+            # Run a single cell through the host
+            response = run_cells(
+                client,
+                "123",
+                {"cell-3": "print('Hello, cell-3')"},
                 headers=HEADERS,
-                json={
-                    "cellIds": ["cell-3"],
-                    "codes": ["print('Hello, cell-3')"],
-                },
             )
+            assert response.status_code == 202, response.text
 
             # Assert kiosk session received a focused cell notification
             data = receive_until("focus-cell", other_websocket)

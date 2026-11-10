@@ -5,6 +5,7 @@ import base64
 import contextlib
 import tempfile
 from typing import TYPE_CHECKING, Any, cast
+from uuid import uuid4
 
 from marimo._config.manager import (
     MarimoConfigManager,
@@ -20,16 +21,63 @@ from marimo._server.workspace import (
     SingleFileWorkspace,
 )
 from marimo._session.model import SessionMode
+from marimo._types.ids import CellId_t, SessionId
 from marimo._utils.marimo_path import MarimoPath
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterator
 
+    from httpx import Response
     from starlette.testclient import TestClient
 
 
 def get_session_manager(client: TestClient) -> SessionManager:
     return client.app.state.session_manager  # type: ignore
+
+
+def run_cells(
+    client: TestClient,
+    session_id: str,
+    cells: dict[str, str],
+    *,
+    headers: dict[str, str],
+) -> Response:
+    """Put `cells` in the session's document and run them through the host.
+
+    This is what the editor does: the document holds the code, and the run
+    names the cells. Cells already in the document are replaced.
+    """
+    session = get_session_manager(client).get_session(SessionId(session_id))
+    assert session is not None
+    bridge = client.app.state.host_context.bridge  # type: ignore[union-attr]
+    notebook = bridge.notebook_for_session(session)
+    assert notebook is not None
+    base = f"/api/marimo/v1/notebooks/{notebook.id}"
+
+    def etag(cell_id: str) -> str | None:
+        cell = notebook.document.cell(CellId_t(cell_id))
+        return None if cell is None else cell.etag
+
+    edited = client.post(
+        f"{base}/edits",
+        headers={**headers, "Idempotency-Key": uuid4().hex},
+        json={
+            "changes": [
+                {
+                    "kind": "put_cell",
+                    "base_etag": etag(cell_id),
+                    "cell": {"id": cell_id, "code": code},
+                }
+                for cell_id, code in cells.items()
+            ]
+        },
+    )
+    assert edited.status_code == 200, edited.text
+    return client.post(
+        f"{base}/runtime/runs",
+        headers={**headers, "Idempotency-Key": uuid4().hex},
+        json={"cells": [{"id": cell_id} for cell_id in cells]},
+    )
 
 
 def get_starlette_server_state_init(
