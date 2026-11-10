@@ -491,35 +491,52 @@ class ScopedVisitor(ast.NodeVisitor):
         (Calling visit on `node`'s children is fine.) In summary:
         call super().generic_visit on `node` and `visit()` on node's children.
         """
-        if isinstance(node, (ast.ClassDef, ast.Lambda)):
-            # These AST nodes introduce a new scope, but otherwise do not
-            # require special treatment.
-            self._push_block(
-                LexicalScope.CLASS
-                if isinstance(node, ast.ClassDef)
-                else LexicalScope.FUNCTION
-            )
-            if sys.version_info >= (3, 12) and isinstance(node, ast.ClassDef):
-                for child in node.type_params:
-                    self.visit(child)
-            super().generic_visit(node)
-            self._pop_block()
-        elif isinstance(node, (ast.AsyncFunctionDef, ast.FunctionDef)):
-            self._push_block(LexicalScope.FUNCTION)
+        if isinstance(node, ast.ClassDef):
+            self._push_block(LexicalScope.CLASS)
             if sys.version_info >= (3, 12):
-                # We need to visit generic type parameters before arguments
-                # to make sure type parameters don't get added as refs. eg, in
-                #
-                #   def foo[U](u: U) -> U: ...
-                #
-                # `U` should not be a ref
                 for child in node.type_params:
                     self.visit(child)
-
-            # This will revisit the type_params, but that's okay because
-            # visiting is idempotent
             super().generic_visit(node)
             self._pop_block()
+        elif isinstance(
+            node, (ast.AsyncFunctionDef, ast.FunctionDef, ast.Lambda)
+        ):
+            # Parameters are not in scope in decorators, defaults, or annotations.
+            if not isinstance(node, ast.Lambda):
+                for decorator in node.decorator_list:
+                    self.visit(decorator)
+            for default in (*node.args.defaults, *node.args.kw_defaults):
+                if default is not None:
+                    self.visit(default)
+
+            # Annotations can capture names defined later, including the
+            # function itself when annotations are deferred.
+            if not isinstance(node, ast.Lambda):
+                self._push_block(LexicalScope.ANNOTATION)
+                for type_param in getattr(node, "type_params", []):
+                    self.visit(type_param)
+            for arg in (
+                *node.args.posonlyargs,
+                *node.args.args,
+                node.args.vararg,
+                *node.args.kwonlyargs,
+                node.args.kwarg,
+            ):
+                if arg is not None and arg.annotation is not None:
+                    self.visit(arg.annotation)
+            if not isinstance(node, ast.Lambda) and node.returns is not None:
+                self.visit(node.returns)
+
+            self._push_block(LexicalScope.FUNCTION)
+            self.visit(node.args)
+            if isinstance(node, ast.Lambda):
+                self.visit(node.body)
+            else:
+                for statement in node.body:
+                    self.visit(statement)
+            self._pop_block()
+            if not isinstance(node, ast.Lambda):
+                self._pop_block()
         elif isinstance(node, (ast.ListComp, ast.SetComp, ast.GeneratorExp)):
             # In comprehensions, generators must be visited before elements
             # because generators define local targets that elements may use.
@@ -647,8 +664,9 @@ class ScopedVisitor(ast.NodeVisitor):
         # during execution.
         self.ref_stack[-1].update(refs)
 
-        # Prune type_params
-        if sys.version_info >= (3, 12):
+        # Prune class type parameters; function type parameters have their
+        # own scope, while defaults and decorators can refer to outer names.
+        if sys.version_info >= (3, 12) and isinstance(node, ast.ClassDef):
             type_params = getattr(node, "type_params", [])
             generics = {param.name for param in type_params}
             refs -= generics
@@ -873,22 +891,9 @@ class ScopedVisitor(ast.NodeVisitor):
     def visit_arg(self, node: ast.arg) -> ast.arg:
         node.arg = self._if_local_then_mangle(node.arg)
         self._define(node, node.arg, VariableData(kind="variable"))
-        if node.annotation is not None:
-            self.visit(node.annotation)
         return node
 
     def visit_arguments(self, node: ast.arguments) -> ast.arguments:
-        # process potential refs before defs, to handle patterns like
-        #
-        # def f(x=x):
-        #   ...
-        for v in node.kw_defaults:
-            if v is not None:
-                self.visit(v)
-        for v in node.defaults:
-            if v is not None:
-                self.visit(v)
-
         for arg in node.posonlyargs:
             self.visit(arg)
         for arg in node.args:

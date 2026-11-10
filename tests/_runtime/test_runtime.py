@@ -4622,6 +4622,120 @@ async def test_future_annotations_not_inherited(
     assert k.globals["A"] == k.globals["anno"]["return"]
 
 
+@pytest.mark.parametrize(
+    "future_import",
+    [
+        "from __future__ import annotations",
+        pytest.param(
+            "",
+            marks=pytest.mark.skipif(
+                sys.version_info < (3, 14),
+                reason="Annotations are deferred by default on Python 3.14+",
+            ),
+        ),
+    ],
+)
+async def test_self_referential_function_annotation(
+    any_kernel: Kernel, exec_req: ExecReqProvider, future_import: str
+) -> None:
+    k = any_kernel
+    await k.run(
+        [
+            exec_req.get(
+                f"""
+                {future_import}
+                def f(x: f) -> f:
+                    return x
+                result = f.__annotations__
+                """
+            )
+        ]
+    )
+    assert not k.errors
+    annotation = "f" if future_import else k.globals["f"]
+    assert k.globals["result"] == {"x": annotation, "return": annotation}
+
+
+@pytest.mark.parametrize("async_def", ["", "async "])
+async def test_decorator_shadowed_by_parameter_reruns(
+    k: Kernel, exec_req: ExecReqProvider, async_def: str
+) -> None:
+    await_expr = "await " if async_def else ""
+    decorator = exec_req.get(
+        f"""
+        def dec(func):
+            {async_def}def wrapped(*args):
+                return ({await_expr}func(*args)) + 1
+            return wrapped
+        """
+    )
+    await k.run(
+        [
+            decorator,
+            exec_req.get(
+                f"""
+                @dec
+                {async_def}def f(dec):
+                    return dec
+                result = {await_expr}f(10)
+                """
+            ),
+        ]
+    )
+    assert not k.errors
+    assert k.globals["result"] == 11
+
+    await k.run(
+        [
+            exec_req.get_with_id(
+                decorator.cell_id, decorator.code.replace("+ 1", "+ 2")
+            )
+        ]
+    )
+    assert not k.errors
+    assert k.globals["result"] == 12
+
+
+@pytest.mark.parametrize("async_def", ["", "async "])
+@pytest.mark.parametrize(
+    ("signature", "annotation_name"),
+    [
+        ("(x: x)", "x"),
+        ("(x: x, /)", "x"),
+        ("(*, x: x)", "x"),
+        ("(*x: x)", "x"),
+        ("(**x: x)", "x"),
+        ("(x) -> x", "return"),
+    ],
+)
+async def test_annotation_shadowed_by_parameter_reruns(
+    k: Kernel,
+    exec_req: ExecReqProvider,
+    async_def: str,
+    signature: str,
+    annotation_name: str,
+) -> None:
+    definition = exec_req.get("x = int")
+    await k.run(
+        [
+            definition,
+            exec_req.get(
+                f"""
+                {async_def}def f{signature}:
+                    pass
+                result = f.__annotations__
+                """
+            ),
+        ]
+    )
+    assert not k.errors
+    assert k.globals["result"] == {annotation_name: int}
+
+    await k.run([exec_req.get_with_id(definition.cell_id, "x = str")])
+    assert not k.errors
+    assert k.globals["result"] == {annotation_name: str}
+
+
 class TestMarkdownHandling:
     """Test markdown cell handling during kernel instantiation."""
 
