@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING, Any
 import msgspec
 import pytest
 from dirty_equals import IsStr
+from inline_snapshot import snapshot
 from starlette.websockets import WebSocketDisconnect
 
 from marimo._messaging.cell_output import CellChannel, CellOutput
@@ -69,6 +70,22 @@ def receive_notification(
         assert "op" not in event
         if event["event"] == "marimo" and event["data"]["marimo"]["op"] == op:
             return event["data"]["marimo"]
+
+
+def assert_reconnect_alert(websocket: WebSocketTestSession) -> None:
+    assert websocket.receive_json() == snapshot(
+        {
+            "event": "marimo",
+            "data": {
+                "marimo": {
+                    "op": "alert",
+                    "title": "Reconnected",
+                    "description": "You have reconnected to an existing session.",
+                    "variant": None,
+                }
+            },
+        }
+    )
 
 
 @pytest.mark.parametrize("types", [None, "marimo", "marimo,run"])
@@ -189,23 +206,18 @@ def test_reconnect_keeps_state_and_refresh_replays_it(
         receive_notification(websocket, "completed-run")
     with client.websocket_connect(url) as websocket:
         socket_snapshot(websocket)
-        while True:
-            event = websocket.receive_json()
-            assert event["event"] == "marimo"
-            notification = event["data"]["marimo"]
-            assert notification["op"] not in ("kernel-ready", "cell-op")
-            if notification["op"] == "reconnected":
-                break
-        assert (
-            receive_notification(websocket, "alert")["title"] == "Reconnected"
-        )
+        assert_reconnect_alert(websocket)
         cell = receive_notification(websocket, "cell-op")
         assert cell["cell_id"] == cell_id
         assert "retained output" in str(cell["console"])
     with client.websocket_connect(
         f"{socket_url(editor_host, 's2')}&types=marimo"
     ) as websocket:
-        ready = receive_notification(websocket, "kernel-ready")
+        socket_snapshot(websocket)
+        event = websocket.receive_json()
+        assert event["event"] == "marimo"
+        ready = event["data"]["marimo"]
+        assert ready["op"] == "kernel-ready"
         assert ready["resumed"] is True
         assert ready["kiosk"] is False
         cell = receive_notification(websocket, "cell-op")
@@ -259,7 +271,7 @@ def test_reconnect_recovers_offline_notifications(
         assert [event["event"] for event in opening] == (
             ["reset", "ready"] if replay == "reset" else ["ready"]
         )
-        receive_notification(socket, "reconnected")
+        assert_reconnect_alert(socket)
         client.portal.call(
             session.notify,
             AlertNotification(title="marker", description=""),
@@ -459,8 +471,7 @@ def test_editor_resumes_host_events_without_replaying_private_notifications(
             "type": "test.missed",
             "data": {"text": "replayed"},
         }
-        receive_notification(socket, "reconnected")
-        assert receive_notification(socket, "alert")["title"] == "Reconnected"
+        assert_reconnect_alert(socket)
 
 
 def test_an_empty_cursor_is_rejected_before_starting_a_session(
@@ -509,7 +520,7 @@ def test_untitled_editor_bootstraps_and_reconnects_with_host_events(
                 receive_notification(ws, "completed-run")
             with client.websocket_connect(url) as ws:
                 snapshot = socket_snapshot(ws)
-                receive_notification(ws, "reconnected")
+                assert_reconnect_alert(ws)
                 assert (
                     next(
                         e["data"]["notebook"]["id"]

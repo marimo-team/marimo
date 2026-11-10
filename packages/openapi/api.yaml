@@ -4481,7 +4481,6 @@ components:
       - $ref: '#/components/schemas/ModelLifecycleNotification'
       - $ref: '#/components/schemas/RemoveUIElementsNotification'
       - $ref: '#/components/schemas/ReloadNotification'
-      - $ref: '#/components/schemas/ReconnectedNotification'
       - $ref: '#/components/schemas/InterruptedNotification'
       - $ref: '#/components/schemas/CompletedRunNotification'
       - $ref: '#/components/schemas/KernelReadyNotification'
@@ -4548,7 +4547,6 @@ components:
           query-params-clear: '#/components/schemas/QueryParamsClearNotification'
           query-params-delete: '#/components/schemas/QueryParamsDeleteNotification'
           query-params-set: '#/components/schemas/QueryParamsSetNotification'
-          reconnected: '#/components/schemas/ReconnectedNotification'
           reload: '#/components/schemas/ReloadNotification'
           remove-ui-elements: '#/components/schemas/RemoveUIElementsNotification'
           secret-keys-result: '#/components/schemas/SecretKeysResultNotification'
@@ -5023,16 +5021,6 @@ components:
       required:
       - files
       title: RecentFilesResponse
-      type: object
-    ReconnectedNotification:
-      description: WebSocket reconnection confirmed.
-      properties:
-        op:
-          enum:
-          - reconnected
-      required:
-      - op
-      title: ReconnectedNotification
       type: object
     ReloadNotification:
       description: Instructs frontend to reload the page.

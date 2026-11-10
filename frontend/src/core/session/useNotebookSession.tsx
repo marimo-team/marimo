@@ -357,10 +357,6 @@ export function useNotebookSession(opts: {
         DownloadStorage.resolve(msg.data.request_id as RequestId, msg.data);
         return;
 
-      case "reconnected":
-        // The stream's snapshot says when the session is usable again.
-        return;
-
       case "focus-cell":
         focusAndScrollCellOutputIntoView(msg.data.cell_id);
         return;
