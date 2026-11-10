@@ -224,16 +224,10 @@ export const undoSplitCellAtom = atom(
   },
 );
 
-/**
- * Merge the cell below into a cell, keeping the cell's name and config.
- * The merge is in the history, so undo brings the cell below back. Returns
- * false when there is no cell below in the column, it is folded away, or the
- * two cannot be one cell, see `mergeCellCode`.
- */
+/** Merge the cell below into this cell; false when the two can't be merged. */
 export const mergeCellBelowAtom = atom(
   null,
   (get, set, { cellId }: { cellId: CellId }): boolean => {
-    // The setup cell runs apart from the others, so code stays out of it.
     if (cellId === SCRATCH_CELL_ID || cellId === SETUP_CELL_ID) {
       return false;
     }
@@ -509,10 +503,7 @@ export const deleteCellsAtom = atom(
   },
 );
 
-/**
- * Remove cells from the document, along with `edit` in the same transaction,
- * and return them as undo restores them, with the survivor to focus.
- */
+/** Remove cells, applying `edit` in the same transaction. */
 function removeCells(
   get: Getter,
   set: Setter,

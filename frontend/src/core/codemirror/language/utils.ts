@@ -58,11 +58,7 @@ export function splitEditor(editor: EditorView) {
   };
 }
 
-/**
- * Join two cells' code, the first above the second, keeping their language.
- * Null when they cannot be one cell: different languages or settings, or SQL,
- * which holds a single query.
- */
+/** Join two cells' code; null for mixed languages or settings, or SQL. */
 export function mergeCellCode(above: string, below: string): string | null {
   if (!below.trim()) {
     return above;
@@ -79,7 +75,6 @@ export function mergeCellCode(above: string, below: string): string | null {
   if (!dequal(metadata, belowMetadata)) {
     return null;
   }
-  // A single newline would run two markdown paragraphs together.
   const separator = adapter.type === "markdown" ? "\n\n" : "\n";
   return adapter.transformOut(
     `${aboveText}${separator}${belowText}`,

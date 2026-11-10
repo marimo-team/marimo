@@ -74,8 +74,7 @@ export interface UndoMoveEntry {
 }
 
 /**
- * History entry for undoing a merge: the cell takes its code back and the
- * cell merged into it returns.
+ * History entry for undoing a merge.
  */
 export interface UndoMergeEntry {
   type: "merge";
