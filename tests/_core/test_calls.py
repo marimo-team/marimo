@@ -43,6 +43,29 @@ def test_calls_decode_from_request_parts() -> None:
             decode(**invalid, headers=headers)
 
 
+@pytest.mark.parametrize(
+    ("operation", "body"),
+    [
+        ("runtime.run", {"code": "1"}),
+        ("runtime.run", {"cells": []}),
+        ("runtime.run", {"cells": [{"id": "c1"}], "code": "1"}),
+        ("runtime.execute", {"cells": [{"id": "c1"}]}),
+        ("runtime.execute", {"code": "1", "cells": [{"id": "c1"}]}),
+    ],
+)
+def test_execution_calls_reject_the_other_operations_payload(operation, body):
+    with pytest.raises(msgspec.ValidationError):
+        msgspec.convert(
+            {
+                "operation": operation,
+                "params": {"notebook_id": "n1"},
+                "headers": {"idempotency-key": "k"},
+                "body": body,
+            },
+            OperationCall,
+        )
+
+
 def test_calls_match_the_spec() -> None:
     document = compose()
 

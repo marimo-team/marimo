@@ -26,6 +26,7 @@ const records = {
   "edit-conflict-request.json": Protocol.EditRequest,
   "edit-response.json": Protocol.EditResponse,
   "execution-restored.json": Protocol.Execution,
+  "execute-request.json": Protocol.ExecuteRequest,
   "run-cells-request.json": Protocol.RunRequest,
   "input-reply-request.json": Protocol.InputReplyRequest,
   "input-reply-response.json": Protocol.Input,

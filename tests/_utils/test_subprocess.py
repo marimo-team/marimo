@@ -208,3 +208,23 @@ def test_exited_process_is_not_signalled(windows: bool) -> None:
         try_kill_process_and_group(cast(ProcessLike, process))
     taskkill.assert_not_called()
     getpgid.assert_not_called()
+
+
+def test_windows_process_cleanup_falls_back_when_taskkill_times_out() -> None:
+    process = Mock(pid=123)
+    process.poll.return_value = None
+    with (
+        patch("marimo._utils.subprocess.is_windows", return_value=True),
+        patch(
+            "marimo._utils.subprocess.subprocess.run",
+            side_effect=subprocess.TimeoutExpired("taskkill", 5),
+        ) as taskkill,
+    ):
+        try_kill_process_and_group(cast(ProcessLike, process))
+    taskkill.assert_called_once_with(
+        ["taskkill", "/T", "/F", "/PID", "123"],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        timeout=5,
+    )
+    process.terminate.assert_called_once_with()

@@ -37,7 +37,7 @@ async def test_input_replies_and_retries(
         accepted = await finished(
             app,
             "POST",
-            f"/notebooks/{notebook_id}/runtime/runs",
+            f"/notebooks/{notebook_id}/runtime/{'execute' if scratch else 'runs'}",
             headers={**key("run"), "Marimo-Session-Id": session_id},
             body=json.dumps(payload).encode(),
         )
@@ -143,7 +143,7 @@ async def test_interrupt_closes_prompt_and_rejects_late_reply(
         accepted = await finished(
             app,
             "POST",
-            runs,
+            f"/notebooks/{notebook_id}/runtime/execute",
             headers={**key("run"), "Marimo-Session-Id": session_id},
             body=b'{"code":"input()"}',
         )

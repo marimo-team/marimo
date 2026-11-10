@@ -1034,8 +1034,13 @@ async def test_interrupting_an_unstarted_run_after_shutdown(
 ) -> None:
     nid = await harness.running()
     runs = f"/notebooks/{nid}/runtime/runs"
+    execute = f"/notebooks/{nid}/runtime/execute"
     accepted = await finished(
-        harness.app, "POST", runs, headers=key("queued"), body=b'{"code":"1"}'
+        harness.app,
+        "POST",
+        execute,
+        headers=key("queued"),
+        body=b'{"code":"1"}',
     )
     assert accepted.status == 202
     run_id = accepted.json()["id"]
@@ -1064,23 +1069,77 @@ async def test_interrupting_an_unstarted_run_after_shutdown(
     assert expired.status == 404
 
 
+@pytest.mark.parametrize("allowed", ["runtime.run", "runtime.execute"])
+@pytest.mark.parametrize("scope", ["notebook", "host"])
+async def test_execution_permissions_are_independent(
+    harness: Harness, monkeypatch: pytest.MonkeyPatch, allowed: str, scope: str
+) -> None:
+    nid = await harness.running()
+    notebook = await harness.host.notebook(nid)
+    (cell,) = notebook.document
+    if scope == "notebook":
+        harness.host.update_notebook(
+            msgspec.structs.replace(
+                harness.host.notebooks[nid], operations=(allowed,)
+            )
+        )
+    else:
+        monkeypatch.setattr(
+            harness.host, "_host", protocol.Host(operations=(allowed,))
+        )
+    for operation, path, body in [
+        ("runtime.run", "/runtime/runs", {"cells": [{"id": cell.id}]}),
+        ("runtime.execute", "/runtime/execute", {"code": "1"}),
+        ("notebook.edit", "/edits", {"changes": []}),
+    ]:
+        calls_before = len(harness.backend().calls)
+        response = await finished(
+            harness.app,
+            "POST",
+            f"/notebooks/{nid}{path}",
+            headers=key(operation),
+            body=msgspec.json.encode(body),
+        )
+        if operation == allowed:
+            assert response.status == 202, response.body
+            interrupted = await finished(
+                harness.app,
+                "DELETE",
+                f"/notebooks/{nid}/runtime/runs/{response.json()['id']}",
+                headers=key("interrupt"),
+            )
+            assert interrupted.status == 202, interrupted.body
+        else:
+            assert response.status == (403 if scope == "notebook" else 501), (
+                response.body
+            )
+            assert len(harness.backend().calls) == calls_before
+
+
 async def test_scratch_runs_over_http(harness: Harness) -> None:
     app, nid = harness.app, harness.notebook_id
     runs = f"/notebooks/{nid}/runtime/runs"
+    execute = f"/notebooks/{nid}/runtime/execute"
     body = json.dumps({"code": "3 * 3"}).encode()
 
-    refused = await finished(app, "POST", runs, headers=key("r0"), body=body)
+    refused = await finished(
+        app, "POST", execute, headers=key("r0"), body=body
+    )
     assert refused.status == 409
     assert refused.json()["type"].endswith("/no-runtime")
 
     await harness.running()
-    accepted = await finished(app, "POST", runs, headers=key("r1"), body=body)
+    accepted = await finished(
+        app, "POST", execute, headers=key("r1"), body=body
+    )
     assert accepted.status == 202
     run_id = accepted.json()["id"]
     assert accepted.json()["status"] == "queued"
     assert harness.backend().calls[-1] == ("run", run_id, "3 * 3")
 
-    repeated = await finished(app, "POST", runs, headers=key("r1"), body=body)
+    repeated = await finished(
+        app, "POST", execute, headers=key("r1"), body=body
+    )
     assert repeated.status == 202
     assert repeated.body == accepted.body
     assert harness.backend().calls.count(("run", run_id, "3 * 3")) == 1
@@ -1089,18 +1148,20 @@ async def test_scratch_runs_over_http(harness: Harness) -> None:
         be.Planned(run_id, (be.PlannedExecution("e1", None, "hash", "3 * 3"),))
     )
     notebook.observe(be.Started("e1"))
-    running = await finished(app, "POST", runs, headers=key("r1"), body=body)
+    running = await finished(
+        app, "POST", execute, headers=key("r1"), body=body
+    )
     assert running.json()["status"] == "running"
     reused = await finished(
         app,
         "POST",
-        runs,
+        execute,
         headers=key("r1"),
         body=json.dumps({"code": "4"}).encode(),
     )
     assert reused.status == 409
 
-    queued = await finished(app, "POST", runs, headers=key("r2"), body=body)
+    queued = await finished(app, "POST", execute, headers=key("r2"), body=body)
     assert queued.status == 202
     assert queued.json()["status"] == "queued"
     assert queued.json()["id"] != run_id
@@ -1114,7 +1175,9 @@ async def test_scratch_runs_over_http(harness: Harness) -> None:
 
     notebook.observe(be.Completed("e1", protocol.InterruptedOutcome()))
     notebook.observe(be.Done(run_id, "interrupted"))
-    completed = await finished(app, "POST", runs, headers=key("r1"), body=body)
+    completed = await finished(
+        app, "POST", execute, headers=key("r1"), body=body
+    )
     assert completed.json()["status"] == "completed"
     assert completed.json()["outcome"] == "interrupted"
     assert completed.json()["completed_at"] is not None
@@ -1123,12 +1186,16 @@ async def test_scratch_runs_over_http(harness: Harness) -> None:
     missing = await finished(app, "DELETE", runs + "/zz", headers=key("i3"))
     assert missing.status == 404
 
-    invalid = await finished(app, "POST", runs, headers=key("r3"), body=b"{}")
+    invalid = await finished(
+        app, "POST", execute, headers=key("r3"), body=b"{}"
+    )
     assert invalid.status == 400
-    malformed = await finished(app, "POST", runs, headers=key("r4"), body=b"{")
+    malformed = await finished(
+        app, "POST", execute, headers=key("r4"), body=b"{"
+    )
     assert malformed.status == 400
     assert malformed.json()["type"].endswith("/invalid-request")
-    unkeyed = await finished(app, "POST", runs, headers=AUTH, body=body)
+    unkeyed = await finished(app, "POST", execute, headers=AUTH, body=body)
     assert unkeyed.status == 400
 
 
@@ -1140,7 +1207,7 @@ async def test_a_run_hands_its_request_to_the_backend(
     cell_run: bool,
 ) -> None:
     nid = await harness.running()
-    path = f"/notebooks/{nid}/runtime/runs"
+    path = f"/notebooks/{nid}/runtime/" + ("runs" if cell_run else "execute")
     headers = {**key("run"), "X-Trace": "abc", "Cookie": "session=s"}
     query = "debug=1"
     if editor_auth:
@@ -1196,10 +1263,10 @@ async def test_request_receipts_expire_independently_of_results(
 ) -> None:
     nid = await harness.running()
     notebook = await harness.host.notebook(nid)
-    path = f"/notebooks/{nid}/runtime/runs"
+    execute = f"/notebooks/{nid}/runtime/execute"
     body = b'{"code":"42"}'
     accepted = await finished(
-        harness.app, "POST", path, headers=key("run"), body=body
+        harness.app, "POST", execute, headers=key("run"), body=body
     )
     run_id = protocol.RunId(accepted.json()["id"])
     eid = protocol.ExecutionId("execution")
@@ -1209,7 +1276,7 @@ async def test_request_receipts_expire_independently_of_results(
     notebook.observe(be.Started(eid))
     harness.now = 100
     active = await finished(
-        harness.app, "POST", path, headers=key("run"), body=body
+        harness.app, "POST", execute, headers=key("run"), body=body
     )
     assert active.json()["id"] == run_id
     assert active.json()["status"] == "running"
@@ -1218,7 +1285,7 @@ async def test_request_receipts_expire_independently_of_results(
     harness.now = 129
     harness.host.expire()
     replayed = await finished(
-        harness.app, "POST", path, headers=key("run"), body=body
+        harness.app, "POST", execute, headers=key("run"), body=body
     )
     assert replayed.json()["id"] == run_id
     assert replayed.json()["status"] == "completed"
@@ -1231,13 +1298,13 @@ async def test_request_receipts_expire_independently_of_results(
         for event in harness.host.events(notebook_id=nid)
     ) == (cell_id is not None)
     conflicting = await finished(
-        harness.app, "POST", path, headers=key("run"), body=b'{"code":"43"}'
+        harness.app, "POST", execute, headers=key("run"), body=b'{"code":"43"}'
     )
     assert conflicting.status == 409
 
     harness.now = 130
     fresh = await finished(
-        harness.app, "POST", path, headers=key("run"), body=b'{"code":"43"}'
+        harness.app, "POST", execute, headers=key("run"), body=b'{"code":"43"}'
     )
     assert fresh.status == 202
     assert fresh.json()["id"] != run_id

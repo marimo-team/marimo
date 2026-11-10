@@ -74,6 +74,7 @@ _OPERATIONS = (
     "notebook.save",
     "runtime.run",
     "runtime.input",
+    "runtime.execute",
     "runtime.interrupt",
 )
 

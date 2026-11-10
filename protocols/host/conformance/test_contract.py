@@ -30,6 +30,7 @@ MODELS = {
     "edit-conflict-request.json": "EditRequest",
     "edit-response.json": "EditResponse",
     "execution-restored.json": "Execution",
+    "execute-request.json": "ExecuteRequest",
     "run-cells-request.json": "RunRequest",
     "input-reply-request.json": "InputReplyRequest",
     "input-reply-response.json": "Input",

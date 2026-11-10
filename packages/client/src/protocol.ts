@@ -2014,7 +2014,7 @@ export type SaveRequestOutput = zod.output<typeof SaveRequest>;
 export const RequestedCell = zod.object({
   id: CellId,
   etag: Etag.optional().describe(
-    "The cell's `etag` as last read. A cell whose source, name, or config differs is a `conflict`. Absent, the cell runs as it is.",
+    "The cell's `etag` when the client read it. If its code, name, or settings have changed, the host returns a `conflict`. Omit to run the cell as it is.",
   ),
 });
 
@@ -2023,19 +2023,27 @@ export type RequestedCellOutput = zod.output<typeof RequestedCell>;
 
 export const RunRequest = zod
   .object({
-    code: zod
-      .string()
-      .optional()
-      .describe("Python code to run as scratch code."),
     cells: zod
       .array(RequestedCell)
       .min(1)
-      .optional()
       .describe(
-        "Cells of the document to run, in no particular order. The runtime's execution configuration determines whether dependent cells run too.",
+        "Cells to run by id. The notebook's execution settings determine their order and whether dependent cells run too.",
       ),
   })
-  .describe("What to run, exactly one of `code` and `cells`.");
+  .describe("Notebook cells to run.");
 
 export type RunRequest = zod.input<typeof RunRequest>;
 export type RunRequestOutput = zod.output<typeof RunRequest>;
+
+export const ExecuteRequest = zod
+  .object({
+    code: zod
+      .string()
+      .describe(
+        "Python code that can read the notebook's current values.\nAssignments stay local to the call. Changes to shared objects persist.\n",
+      ),
+  })
+  .describe("Python code to execute with access to notebook values.");
+
+export type ExecuteRequest = zod.input<typeof ExecuteRequest>;
+export type ExecuteRequestOutput = zod.output<typeof ExecuteRequest>;

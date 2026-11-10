@@ -102,13 +102,30 @@ the notebook's URL.
 
 ## Run cells or execute code
 
+Run cells by id. The notebook's execution settings determine which dependent
+cells run too.
+
 ```ts
 await notebook.run({ cells: [{ id: "c1" }] });
-await notebook.execute({ code: "print('hi')" });
 ```
 
-On success, both return a `Run` in `result.data`. Follow the notebook stream
-for its progress and results.
+Use `execute` to work with values already defined in the notebook. For example,
+inspect a dataframe named `df`.
+
+```ts
+await notebook.execute({ code: "df.head()" });
+```
+
+Assignments in `execute` stay local to the call. Objects are shared with the
+notebook, so changing a list or dataframe can affect it.
+
+On marimo hosts, the internal `marimo._code_mode.get_context()` API provides
+access to notebook cells and captured outputs, along with methods for editing
+and running cells. The outputs are captured when execution begins.
+
+Both methods return a `Run` in `result.data` on success, without waiting for
+execution to finish. Runs wait their turn in a shared queue. Open the notebook
+stream before submitting work to receive its progress and results.
 
 ## Follow changes
 

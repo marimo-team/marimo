@@ -219,7 +219,7 @@ describe("NotebookClient", () => {
       const request = sent();
       expect(request.method).toBe("POST");
       expect(request.url).toBe(
-        "http://127.0.0.1:2718/api/marimo/v1/notebooks/n1/runtime/runs",
+        `http://127.0.0.1:2718/api/marimo/v1/notebooks/n1/runtime/${method === "run" ? "runs" : "execute"}`,
       );
       expect(request.headers.get("Idempotency-Key")).toBe("run-key");
       expect(await request.json()).toEqual(
@@ -259,6 +259,7 @@ describe("NotebookClient", () => {
       "runtime.stop": "stop",
       "runtime.restart": "restart",
       "runtime.run": "run",
+      "runtime.execute": "execute",
       "runtime.input": "input",
       "runtime.interrupt": "interrupt",
     } as const).toExtend<Record<NotebookOperationId, keyof NotebookClient>>();

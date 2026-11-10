@@ -15,7 +15,7 @@ from typing import TYPE_CHECKING, ClassVar, Literal
 import msgspec
 
 from marimo._core import protocol
-from marimo._core.errors import Conflict, HostError, Invalid, NotFound
+from marimo._core.errors import Conflict, HostError, NotFound
 from marimo._core.operations import Reply, problem_for
 
 if TYPE_CHECKING:
@@ -143,7 +143,7 @@ class RestartCall(_Call, frozen=True, tag="runtime.restart"):
 
 
 class RunCall(_Call, frozen=True, tag="runtime.run"):
-    """Run code or cells against the notebook's runtime."""
+    """Run notebook cells by id under the runtime's execution settings."""
 
     METHOD = "POST"
     PATH = "/notebooks/{notebook_id}/runtime/runs"
@@ -160,20 +160,38 @@ class RunCall(_Call, frozen=True, tag="runtime.run"):
         allow_input: bool = False,
     ) -> tuple[Literal[202], protocol.Run]:
         notebook = await bridge.host.notebook(self.params.notebook_id)
-        key = self.headers.idempotency_key
-        code, cells = self.body.code, self.body.cells
-        if isinstance(code, str) and cells is msgspec.UNSET:
-            return 202, notebook.run(
-                code, request_id=key, request=request, allow_input=allow_input
-            )
-        if code is msgspec.UNSET and isinstance(cells, tuple):
-            return 202, notebook.run(
-                cells=cells,
-                request_id=key,
-                request=request,
-                allow_input=allow_input,
-            )
-        raise Invalid("A run names code or cells, not both")
+        return 202, notebook.run(
+            cells=self.body.cells,
+            request_id=self.headers.idempotency_key,
+            request=request,
+            allow_input=allow_input,
+        )
+
+
+class ExecuteCall(_Call, frozen=True, tag="runtime.execute"):
+    """Execute Python with access to notebook values and the code-mode context."""
+
+    METHOD = "POST"
+    PATH = "/notebooks/{notebook_id}/runtime/execute"
+
+    params: NotebookParams
+    headers: MutationHeaders
+    body: protocol.ExecuteRequest
+
+    async def handle(
+        self,
+        bridge: NotebookBridge,
+        request: RequestInfo | None,
+        *,
+        allow_input: bool = False,
+    ) -> tuple[Literal[202], protocol.Run]:
+        notebook = await bridge.host.notebook(self.params.notebook_id)
+        return 202, notebook.run(
+            self.body.code,
+            request_id=self.headers.idempotency_key,
+            request=request,
+            allow_input=allow_input,
+        )
 
 
 class InterruptCall(_Call, frozen=True, tag="runtime.interrupt"):
@@ -237,6 +255,7 @@ OperationCall = (
     | StopCall
     | RestartCall
     | RunCall
+    | ExecuteCall
     | InterruptCall
     | InputCall
 )
@@ -251,6 +270,7 @@ CALLS: tuple[type[OperationCall], ...] = (
     StopCall,
     RestartCall,
     RunCall,
+    ExecuteCall,
     InterruptCall,
     InputCall,
 )
@@ -271,7 +291,7 @@ async def dispatch(
     """
 
     async def serve() -> Reply:
-        if isinstance(call, RunCall):
+        if isinstance(call, (RunCall, ExecuteCall)):
             return await call.handle(bridge, request, allow_input=allow_input)
         return await call.handle(bridge)
 

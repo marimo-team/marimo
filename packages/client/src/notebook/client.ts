@@ -120,24 +120,38 @@ class NotebookOperations {
     return this.#send("runtime.restart", { options });
   }
 
-  /** Run document cells in the notebook's runtime. */
+  /**
+   * Run notebook cells.
+   *
+   * The notebook's execution settings determine which dependent cells also run.
+   * Follow the notebook stream for progress and results.
+   */
   public run({
     cells,
     ...options
-  }: { readonly cells: Protocol.RequestedCell[] } & MutationOptions): Promise<
+  }: Protocol.RunRequest & MutationOptions): Promise<
     Result<Protocol.RunOutput>
   > {
     return this.#send("runtime.run", { body: { cells }, options });
   }
 
-  /** Execute scratch code in the notebook's runtime. */
+  /**
+   * Execute Python code.
+   *
+   * The code can use the notebook's current values. Assignments stay local to
+   * this call, but changes to shared objects persist.
+   *
+   * On marimo hosts, `marimo._code_mode.get_context()` provides access to
+   * cells, captured outputs, and notebook editing methods.
+   * Follow the notebook stream for progress and results.
+   */
   public execute({
     code,
     ...options
-  }: { readonly code: string } & MutationOptions): Promise<
+  }: Protocol.ExecuteRequest & MutationOptions): Promise<
     Result<Protocol.RunOutput>
   > {
-    return this.#send("runtime.run", { body: { code }, options });
+    return this.#send("runtime.execute", { body: { code }, options });
   }
 
   /** Answer one pending input. Acceptance does not imply execution resumed. */

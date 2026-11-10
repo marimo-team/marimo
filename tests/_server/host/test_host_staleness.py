@@ -68,7 +68,8 @@ class Client:
         accepted = await finished(
             self.app,
             "POST",
-            f"/notebooks/{self.notebook_id}/runtime/runs",
+            f"/notebooks/{self.notebook_id}/runtime/"
+            + ("execute" if code is not None else "runs"),
             headers=key(f"run-{next(self._keys)}"),
             body=json.dumps(body).encode(),
         )

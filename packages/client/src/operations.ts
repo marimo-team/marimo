@@ -129,13 +129,23 @@ export const operations = {
     responses: { 202: Protocol.Runtime },
     problems: [400, 401, 403, 404, 405, 409, 500, 501],
   },
-  /** Run code or cells against the notebook's runtime. */
+  /** Run notebook cells. */
   "runtime.run": {
     method: "POST",
     path: "/notebooks/{notebook_id}/runtime/runs",
     query: {},
     headers: { "Idempotency-Key": true },
     body: Protocol.RunRequest,
+    responses: { 202: Protocol.Run },
+    problems: [400, 401, 403, 404, 405, 409, 500, 501],
+  },
+  /** Execute Python with notebook values. */
+  "runtime.execute": {
+    method: "POST",
+    path: "/notebooks/{notebook_id}/runtime/execute",
+    query: {},
+    headers: { "Idempotency-Key": true },
+    body: Protocol.ExecuteRequest,
     responses: { 202: Protocol.Run },
     problems: [400, 401, 403, 404, 405, 409, 500, 501],
   },

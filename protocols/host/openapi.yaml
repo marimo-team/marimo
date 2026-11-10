@@ -497,41 +497,25 @@ paths:
   /notebooks/{notebook_id}/runtime/runs:
     post:
       operationId: runtime.run
-      summary: Run code or cells against the notebook's runtime
+      summary: Run notebook cells
       description: |
-        Runs `code` in a copy of the notebook runtime's namespace, or runs
-        `cells` of the document. Scratch code stays out of the graph and
-        its execution carries the submitted code. The runtime's execution
-        configuration determines whether dependent cells run too. Each cell
-        gets an execution with its `cell_id` and no code.
+        Runs the cells named in `cells` under the notebook's execution settings,
+        which determine whether dependent cells run too. Each execution names
+        its cell through `cell_id`.
 
-        The host assigns a run id independent of the request's
-        `Idempotency-Key` and answers `202` with the run `queued` or
-        `running`. The notebook stream carries the executions, their
-        console and display output, their input requests, and the variables
-        each cell execution bound. Each execution completes with a `value`,
-        `error`, `interrupted`, or `skipped` outcome, followed by the run's
-        completion.
-        Run and execution events carry this request's key. A client that
-        needs the full stream opens it before sending the request.
+        Include a cell's `etag` to run it only if it still matches what the
+        client read. A missing or changed cell is a `conflict` and nothing
+        runs. The problem's `edit` identifies the cell and its index in `cells`.
 
-        A running execution that requests input publishes a pending input
-        and waits for an answer or cancellation. Any client permitted
-        `runtime.input` may answer through the input's reply route.
+        Returns a `Run` with status `queued` or `running`. Cell runs and scratch
+        executions share one queue in acceptance order. Open the notebook
+        stream before submitting work to receive its progress and results.
+        Run and execution events carry the request's `Idempotency-Key` as
+        `request_id`.
 
-        A cell in `cells` that the document does not have, or whose
-        `etag` is not the one the request carries, is a `conflict`
-        whose `edit` names the cell and its index in `cells`, and nothing
-        runs. A client that read the cells from the stream sends their
-        `etag` so that an edit it did not see is a conflict rather
-        than a run of other code.
-
-        Runs execute one at a time in the order the host accepted them.
-        A run accepted while another is in progress is `queued` until the
-        earlier runs complete. The host answers `no-runtime` when the
-        notebook has no runtime. Within the host's retry window, repeating
-        the request returns its latest run record without executing again,
-        even if its outputs have expired.
+        A notebook without a runtime returns `no-runtime`. Within the host's
+        retry window, repeating the request returns its latest run record
+        without executing again, even if its outputs have expired.
       parameters:
         - $ref: '#/components/parameters/NotebookId'
         - $ref: '#/components/parameters/IdempotencyKey'
@@ -540,6 +524,52 @@ paths:
         content:
           application/json:
             schema: { $ref: '#/components/schemas/RunRequest' }
+      responses:
+        '202':
+          description: The run was accepted. Follow it on the notebook's stream.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Run' }
+        '400': { $ref: '#/components/responses/InvalidRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '405': { $ref: '#/components/responses/MethodNotAllowed' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '500': { $ref: '#/components/responses/Internal' }
+        '501': { $ref: '#/components/responses/UnsupportedOperation' }
+  /notebooks/{notebook_id}/runtime/execute:
+    post:
+      operationId: runtime.execute
+      summary: Execute Python with notebook values
+      description: |
+        Executes Python with access to the notebook's current values without
+        adding a cell. New variables and assignments stay within this call.
+        Objects are shared with the notebook, so changing a list or dataframe
+        can affect it.
+
+        On marimo hosts, the internal `marimo._code_mode.get_context()` API
+        provides access to notebook cells and captured outputs, along with
+        methods for editing and running cells. The outputs are captured when
+        execution begins.
+
+        Returns a `Run` with status `queued` or `running`. Scratch executions
+        and cell runs share one queue in acceptance order. Open the notebook
+        stream before submitting work to receive its progress and results.
+        The execution includes the submitted code. Run and execution events
+        carry the request's `Idempotency-Key` as `request_id`.
+
+        A notebook without a runtime returns `no-runtime`. Within the host's
+        retry window, repeating the request returns its latest run record
+        without executing again, even if its outputs have expired.
+      parameters:
+        - $ref: '#/components/parameters/NotebookId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ExecuteRequest' }
       responses:
         '202':
           description: The run was accepted. Follow it on the notebook's stream.
@@ -571,8 +601,8 @@ paths:
         even after the execution is removed, under the protocol's
         idempotency rules.
 
-        Hosts offering `runtime.run` implement this operation. See
-        [Answering input](spec.md#answering-input) for delivery semantics.
+        Hosts offering `runtime.run` or `runtime.execute` implement this
+        operation. See [Answering input](spec.md#answering-input) for delivery semantics.
       parameters:
         - $ref: '#/components/parameters/NotebookId'
         - $ref: '#/components/parameters/InputId'
@@ -607,7 +637,8 @@ paths:
         interruption has taken effect. Queued executions end `interrupted` and
         the running one is interrupted. A run that has not started completes
         `interrupted` without executing. Once the run is completed, the host
-        answers `conflict`. A host that lists `runtime.run` supports this route.
+        answers `conflict`. A host that lists `runtime.run` or `runtime.execute`
+        supports this route.
       parameters:
         - $ref: '#/components/parameters/NotebookId'
         - $ref: '#/components/parameters/RunId'
@@ -2188,16 +2219,26 @@ components:
           description: Answers to the questions in a `decision-required` problem, as for `runtime.start`.
     RunRequest:
       type: object
-      description: What to run, exactly one of `code` and `cells`.
+      description: Notebook cells to run.
+      additionalProperties: false
+      required: [cells]
       properties:
-        code:
-          type: string
-          description: Python code to run as scratch code.
         cells:
           type: array
           minItems: 1
           items: { $ref: '#/components/schemas/RequestedCell' }
-          description: Cells of the document to run, in no particular order. The runtime's execution configuration determines whether dependent cells run too.
+          description: Cells to run by id. The notebook's execution settings determine their order and whether dependent cells run too.
+    ExecuteRequest:
+      type: object
+      description: Python code to execute with access to notebook values.
+      additionalProperties: false
+      required: [code]
+      properties:
+        code:
+          type: string
+          description: |
+            Python code that can read the notebook's current values.
+            Assignments stay local to the call. Changes to shared objects persist.
     RequestedCell:
       type: object
       required: [id]
@@ -2205,4 +2246,4 @@ components:
         id: { $ref: '#/components/schemas/CellId' }
         etag:
           $ref: '#/components/schemas/Etag'
-          description: The cell's `etag` as last read. A cell whose source, name, or config differs is a `conflict`. Absent, the cell runs as it is.
+          description: The cell's `etag` when the client read it. If its code, name, or settings have changed, the host returns a `conflict`. Omit to run the cell as it is.
