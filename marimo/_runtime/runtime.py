@@ -2936,6 +2936,11 @@ def _bootstrap_subprocess(
         return None
 
     restore_signals()
+    # The server can interrupt the kernel as soon as it connects, and the
+    # default action for SIGINT would end the process. No user code runs
+    # until the interrupt handler is installed, so an early interrupt has
+    # nothing to stop and is ignored.
+    signal.signal(signal.SIGINT, signal.SIG_IGN)
 
     # Become the leader of a new session/process group before connecting
     # back to the parent, to avoid race conditions with the parent

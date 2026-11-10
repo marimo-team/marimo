@@ -297,6 +297,50 @@ async def test_kernel_manager_interrupt(
         kernel_manager.close_kernel()
 
 
+async def test_an_interrupt_during_startup_leaves_the_kernel_running() -> None:
+    queue_manager = QueueManagerImpl(use_multiprocessing=True)
+    kernel_manager = KernelManagerImpl(
+        queue_manager=queue_manager,
+        mode=SessionMode.EDIT,
+        configs={},
+        app_metadata=app_metadata,
+        config_manager=get_default_config_manager(current_path=None),
+        virtual_file_storage="shared_memory",
+        redirect_console_to_browser=False,
+    )
+    await kernel_manager.start_kernel()
+
+    def completed_run() -> CompletedRunNotification:
+        while True:
+            message = deserialize_kernel_message(
+                kernel_manager.kernel_connection.recv()
+            )
+            if isinstance(message, CompletedRunNotification):
+                return message
+
+    try:
+        # The kernel has connected, but it may not have installed its
+        # interrupt handler yet.
+        kernel_manager.interrupt_kernel()
+        queue_manager.put_control_request(
+            CreateNotebookCommand(
+                execution_requests=(
+                    ExecuteCellCommand(cell_id="1", code="x = 1"),
+                ),
+                cell_ids=("1",),
+                set_ui_element_value_request=UpdateUIElementCommand(
+                    object_ids=[], values=[]
+                ),
+                auto_run=True,
+            )
+        )
+        completed = await asyncio.to_thread(completed_run)
+        assert completed.outcome == "succeeded"
+        assert kernel_manager.is_alive()
+    finally:
+        kernel_manager.close_kernel()
+
+
 @pytest.mark.skipif(
     sys.platform == "win32",
     reason="interrupts don't reach subprocesses on Windows",
