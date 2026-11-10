@@ -416,7 +416,7 @@ def get_chat_system_prompt(
     context_rules = (
         "\n\nNotebook context is supplied as JSON updates in user messages. "
         "Use the latest sessionId with tools that require a session_id. "
-        "The cells field contains complete replacements for added or changed cells, keyed by id. "
+        "The cells field is an array of {id, code} objects containing complete replacements for added or changed cells. "
         "When cellIds is present it gives the complete current cell order; cells absent from it were deleted. "
         "Notebook updates are relative to the previous user-provided notebook snapshot. "
         "An empty cells list means no code changed since that snapshot. "

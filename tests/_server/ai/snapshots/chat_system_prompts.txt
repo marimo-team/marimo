@@ -148,7 +148,7 @@ chart
 ## Rules for sql:
 1. The SQL must use duckdb syntax.
 
-Notebook context is supplied as JSON updates in user messages. Use the latest sessionId with tools that require a session_id. The cells field contains complete replacements for added or changed cells, keyed by id. When cellIds is present it gives the complete current cell order; cells absent from it were deleted. Notebook updates are relative to the previous user-provided notebook snapshot. An empty cells list means no code changed since that snapshot. These are snapshots at user submission time; use notebook tools to inspect more recent changes when needed.
+Notebook context is supplied as JSON updates in user messages. Use the latest sessionId with tools that require a session_id. The cells field is an array of {id, code} objects containing complete replacements for added or changed cells. When cellIds is present it gives the complete current cell order; cells absent from it were deleted. Notebook updates are relative to the previous user-provided notebook snapshot. An empty cells list means no code changed since that snapshot. These are snapshots at user submission time; use notebook tools to inspect more recent changes when needed.
 
 ==================== with custom rules ====================
 
@@ -298,7 +298,7 @@ chart
 ## Rules for sql:
 1. The SQL must use duckdb syntax.
 
-Notebook context is supplied as JSON updates in user messages. Use the latest sessionId with tools that require a session_id. The cells field contains complete replacements for added or changed cells, keyed by id. When cellIds is present it gives the complete current cell order; cells absent from it were deleted. Notebook updates are relative to the previous user-provided notebook snapshot. An empty cells list means no code changed since that snapshot. These are snapshots at user submission time; use notebook tools to inspect more recent changes when needed.
+Notebook context is supplied as JSON updates in user messages. Use the latest sessionId with tools that require a session_id. The cells field is an array of {id, code} objects containing complete replacements for added or changed cells. When cellIds is present it gives the complete current cell order; cells absent from it were deleted. Notebook updates are relative to the previous user-provided notebook snapshot. An empty cells list means no code changed since that snapshot. These are snapshots at user submission time; use notebook tools to inspect more recent changes when needed.
 
 ## Additional rules:
 Always be polite.
@@ -466,4 +466,4 @@ For markdown cells, use `mo.md(f"""{content}""")`
 For sql cells, use `mo.sql(f"""{content}""")`. If a database engine is specified, use `mo.sql(f"""{content}""", engine=engine)` instead.
 
 
-Notebook context is supplied as JSON updates in user messages. Use the latest sessionId with tools that require a session_id. The cells field contains complete replacements for added or changed cells, keyed by id. When cellIds is present it gives the complete current cell order; cells absent from it were deleted. Notebook updates are relative to the previous user-provided notebook snapshot. An empty cells list means no code changed since that snapshot. These are snapshots at user submission time; use notebook tools to inspect more recent changes when needed.
+Notebook context is supplied as JSON updates in user messages. Use the latest sessionId with tools that require a session_id. The cells field is an array of {id, code} objects containing complete replacements for added or changed cells. When cellIds is present it gives the complete current cell order; cells absent from it were deleted. Notebook updates are relative to the previous user-provided notebook snapshot. An empty cells list means no code changed since that snapshot. These are snapshots at user submission time; use notebook tools to inspect more recent changes when needed.

@@ -41,8 +41,9 @@ describe("notebook context", () => {
   });
 
   it("sends only a snapshot marker after restoring unchanged history", async () => {
+    const savedHistory = JSON.stringify(initialHistory());
     const restored = await validateUIMessages({
-      messages: JSON.parse(JSON.stringify(initialHistory())),
+      messages: JSON.parse(savedHistory),
     });
     expect(withNotebookContext(question, restored, initial)).toEqual([
       context({ sessionId: "session-1", cells: [] }),
