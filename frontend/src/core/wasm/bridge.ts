@@ -292,24 +292,19 @@ export class PyodideBridge implements RunRequests, EditRequests {
   }
 
   /**
-   * Raise the buffer if the host reports a run as running, and leave an
-   * interrupt pending for each queued run in case it starts.
+   * Signal work outside runs too. Python ignores the signal while idle;
+   * the following host call consumes it before acknowledging the interrupt.
    */
   private interruptEveryRun(): void {
+    void this.sendInterrupt();
     const replica = store.get(activeNotebookReplicaAtom);
     if (replica === null) {
       return;
     }
-    let running = false;
     for (const run of store.get(replica.executionsAtom).runs.values()) {
-      if (run.status === "running") {
-        running = true;
-      } else if (run.status === "queued") {
+      if (run.status === "queued") {
         this.pendingInterrupts.add(run.id);
       }
-    }
-    if (running) {
-      void this.sendInterrupt();
     }
   }
 
