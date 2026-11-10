@@ -59,9 +59,8 @@ export function getConnectionTooltip(state: ConnectionState): string {
     case ConnectionState.CLOSING:
       return "App disconnecting...";
     case ConnectionState.OPEN:
-      return "";
     case ConnectionState.NOT_STARTED:
-      return "Click to connect to a runtime";
+      return "";
     default:
       return "";
   }

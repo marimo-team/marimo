@@ -45,6 +45,7 @@ import { requestClientAtom } from "./core/network/requests";
 import { resolveRequestClient } from "./core/network/resolve";
 import {
   DEFAULT_RUNTIME_CONFIG,
+  getRuntimeManager,
   runtimeConfigAtom,
 } from "./core/runtime/config";
 import {
@@ -282,8 +283,6 @@ const mountOptionsSchema = z.object({
     .array(
       z.looseObject({
         url: z.string(),
-        // Lazy by default, but can be overridden by the runtime config
-        lazy: z.boolean().default(true),
         authToken: z.string().nullish(),
       }),
     )
@@ -359,17 +358,17 @@ function initStore(options: unknown) {
       ...firstRuntimeConfig,
       serverToken: parsedOptions.data.serverToken,
     });
-    // If the remote runtime is not lazy, start it in CONNECTING
-    if (!firstRuntimeConfig.lazy && !isStaticNotebook()) {
+    if (!isStaticNotebook()) {
       store.set(connectionAtom, { state: ConnectionState.CONNECTING });
     }
   } else {
     store.set(runtimeConfigAtom, {
       ...DEFAULT_RUNTIME_CONFIG,
-      lazy: false,
       serverToken: parsedOptions.data.serverToken,
     });
   }
+  // The page's runtime is known from here on, so look for it now.
+  void getRuntimeManager().init();
 
   // The notebook the page was served with shows until the host answers.
   const { snapshot, cellRuntime } = readExport({
