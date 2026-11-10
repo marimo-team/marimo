@@ -27,7 +27,7 @@ from marimo._sql.error_utils import log_sql_error
 from marimo._utils.strings import standardize_annotation_quotes
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    from collections.abc import Callable, Iterator
 
 LOGGER = _loggers.marimo_logger()
 
@@ -373,9 +373,21 @@ class ScopedVisitor(ast.NodeVisitor):
             node.asname = self._if_local_then_mangle(node.asname)
             return node.asname
 
+    def _visible_blocks(self) -> Iterator[Block]:
+        """Yield scopes from inner to outer, skipping enclosing classes."""
+        class_visible = True
+        for block in reversed(self.block_stack):
+            if block.scope_kind is not LexicalScope.CLASS or class_visible:
+                yield block
+            # Annotation scopes can access an immediately enclosing class.
+            if block.scope_kind is not LexicalScope.ANNOTATION:
+                class_visible = False
+
     def _is_defined(self, identifier: str) -> bool:
-        """Check if `identifier` is defined in any block."""
-        return any(block.is_defined(identifier) for block in self.block_stack)
+        """Check if `identifier` is defined in a visible scope."""
+        return any(
+            block.is_defined(identifier) for block in self._visible_blocks()
+        )
 
     def _add_ref(
         self,
@@ -391,7 +403,7 @@ class ScopedVisitor(ast.NodeVisitor):
 
         # Register the ref if it doesn't already exist
         current_block = self.block_stack[-1]
-        parents = self.block_stack[:-1]
+        parents = list(self._visible_blocks())[1:]
         found_ref: RefData | None = None
 
         for ref in self._refs[name]:
@@ -492,12 +504,23 @@ class ScopedVisitor(ast.NodeVisitor):
         call super().generic_visit on `node` and `visit()` on node's children.
         """
         if isinstance(node, ast.ClassDef):
+            for decorator in node.decorator_list:
+                self.visit(decorator)
+            type_params = getattr(node, "type_params", [])
+            if type_params:
+                self._push_block(LexicalScope.ANNOTATION)
+                for type_param in type_params:
+                    self.visit(type_param)
+            for base in node.bases:
+                self.visit(base)
+            for keyword in node.keywords:
+                self.visit(keyword)
             self._push_block(LexicalScope.CLASS)
-            if sys.version_info >= (3, 12):
-                for child in node.type_params:
-                    self.visit(child)
-            super().generic_visit(node)
+            for statement in node.body:
+                self.visit(statement)
             self._pop_block()
+            if type_params:
+                self._pop_block()
         elif isinstance(
             node, (ast.AsyncFunctionDef, ast.FunctionDef, ast.Lambda)
         ):
@@ -537,22 +560,30 @@ class ScopedVisitor(ast.NodeVisitor):
             self._pop_block()
             if not isinstance(node, ast.Lambda):
                 self._pop_block()
-        elif isinstance(node, (ast.ListComp, ast.SetComp, ast.GeneratorExp)):
-            # In comprehensions, generators must be visited before elements
-            # because generators define local targets that elements may use.
+        elif isinstance(
+            node, (ast.ListComp, ast.SetComp, ast.GeneratorExp, ast.DictComp)
+        ):
+            # The first iterable can access the enclosing class namespace.
+            first = node.generators[0]
+            has_class_scope = any(
+                block.scope_kind is LexicalScope.CLASS
+                for block in self._visible_blocks()
+            )
+            if has_class_scope:
+                self.visit(first.iter)
             self._push_block(LexicalScope.COMPREHENSION)
-            for generator in node.generators:
+            if not has_class_scope:
+                self.visit(first.iter)
+            self.visit(first.target)
+            for condition in first.ifs:
+                self.visit(condition)
+            for generator in node.generators[1:]:
                 self.visit(generator)
-            self.visit(node.elt)
-            self._pop_block()
-        elif isinstance(node, ast.DictComp):
-            # Special-cased for the same reason that other comprehensions are
-            # special-cased.
-            self._push_block(LexicalScope.COMPREHENSION)
-            for generator in node.generators:
-                self.visit(generator)
-            self.visit(node.value)
-            self.visit(node.key)
+            if isinstance(node, ast.DictComp):
+                self.visit(node.value)
+                self.visit(node.key)
+            else:
+                self.visit(node.elt)
             self._pop_block()
         elif isinstance(node, (ast.Try, ast.TryStar)):
             # "Try" nodes have "handlers" that introduce exception context
@@ -631,6 +662,9 @@ class ScopedVisitor(ast.NodeVisitor):
                         # to it don't create unbounded refs
                         class_def.add(var)
             unbounded_refs |= mock_visitor.refs - ignore_refs
+            unbounded_refs -= {
+                param.name for param in getattr(node, "type_params", [])
+            }
 
         # Handle function/class refs that are evaluated in the outer scope
         # Remove the body, which keeps signature and non-scoped parts.
@@ -663,14 +697,6 @@ class ScopedVisitor(ast.NodeVisitor):
         # the variable `foo` needs to be aware that it may require the ref `x`
         # during execution.
         self.ref_stack[-1].update(refs)
-
-        # Prune class type parameters; function type parameters have their
-        # own scope, while defaults and decorators can refer to outer names.
-        if sys.version_info >= (3, 12) and isinstance(node, ast.ClassDef):
-            type_params = getattr(node, "type_params", [])
-            generics = {param.name for param in type_params}
-            refs -= generics
-            unbounded_refs -= generics
 
         # Return both sets of refs
         return refs, unbounded_refs
@@ -1070,7 +1096,7 @@ class ScopedVisitor(ast.NodeVisitor):
             mangled_name = self._if_local_then_mangle(
                 node.id, ignore_scope=True
             )
-            for block in reversed(self.block_stack):
+            for block in self._visible_blocks():
                 if block == self.block_stack[0]:
                     # A local (underscore-prefixed) reference resolves
                     # against the top-level block. Leave it raw only when
@@ -1108,10 +1134,12 @@ class ScopedVisitor(ast.NodeVisitor):
             and self._is_defined(node.id)
             and node.id not in self.ref_stack[-1]
             and (
-                # Check blocks[1:] - skip module block so module-level vars
+                # Skip the module block so module-level vars
                 # are still tracked as refs, but function params aren't
                 not any(
-                    node.id in block.defs for block in self.block_stack[1:]
+                    node.id in block.defs
+                    for block in self._visible_blocks()
+                    if block is not self.block_stack[0]
                 )
                 or len(self.block_stack) == 1
             )
