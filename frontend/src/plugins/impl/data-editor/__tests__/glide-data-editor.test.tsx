@@ -303,6 +303,41 @@ describe("GlideDataEditor portal", () => {
     fullscreenContainer.remove();
   });
 
+  it("moves the portal into a fullscreen element inside a shadow root", async () => {
+    const host = document.createElement("div");
+    host.append(document.createElement("div"));
+    const shadowRoot = host.attachShadow({ mode: "open" });
+    const target = document.createElement("div");
+    shadowRoot.append(target);
+    document.body.append(host);
+    Object.defineProperty(shadowRoot, "fullscreenElement", {
+      configurable: true,
+      get: () => target,
+    });
+
+    render(
+      <TooltipProvider>
+        <GlideDataEditor {...editorProps} />
+      </TooltipProvider>,
+    );
+
+    act(() => {
+      // The browser retargets document.fullscreenElement to the shadow host.
+      fullscreenElement = host;
+      document.dispatchEvent(new Event("fullscreenchange"));
+    });
+
+    await waitFor(() => {
+      const portal = target.querySelector(
+        "[data-testid='glide-data-editor-portal']",
+      );
+      expect(portal?.parentElement).toBe(target);
+    });
+    expect(host.children).toHaveLength(1);
+
+    host.remove();
+  });
+
   it("unmounts cleanly while fullscreen is active", async () => {
     const fullscreenContainer = document.createElement("div");
     document.body.appendChild(fullscreenContainer);

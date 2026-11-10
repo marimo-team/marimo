@@ -46,7 +46,7 @@ export function useFullScreenClass() {
  * Portalling into the host appends to its light DOM, which is not rendered and
  * which the host observes to rebuild its children.
  */
-function getFullScreenElement(): Element | null {
+export function getFullScreenElement(): Element | null {
   let element = document.fullscreenElement;
   while (element?.shadowRoot?.fullscreenElement) {
     element = element.shadowRoot.fullscreenElement;
