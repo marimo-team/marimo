@@ -735,7 +735,29 @@ importers:
         version: 24.19.2
       orval:
         specifier: 8.43.0
-        version: 8.43.0(msw@2.15.0(@types/node@24.19.2)(typescript@5.9.3))(swr@2.4.2(react@19.3.1))(typescript@5.9.3)(zod@4.6.7)
+        version: 8.43.0(effect@4.1.0)(msw@2.15.0(@types/node@24.19.2)(typescript@5.9.3))(swr@2.4.2(react@19.3.1))(typescript@5.9.3)(zod@4.6.7)
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: ^4.1.11
+        version: 4.1.11(@types/node@24.19.2)(@vitest/coverage-v8@4.1.11)(jsdom@24.1.3(supports-color@10.0.0))(msw@2.15.0(@types/node@24.19.2)(typescript@5.9.3))(vite@8.3.5(@types/node@24.19.2)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.44.1)(yaml@2.9.1))
+      yaml:
+        specifier: ^2.9.1
+        version: 2.9.1
+
+  packages/host-protocol:
+    dependencies:
+      effect:
+        specifier: 4.1.0
+        version: 4.1.0
+    devDependencies:
+      '@types/node':
+        specifier: ^24.13.6
+        version: 24.19.2
+      oxlint:
+        specifier: ^1.88.0
+        version: 1.88.0
       typescript:
         specifier: ^5.9.3
         version: 5.9.3
@@ -5905,6 +5927,9 @@ packages:
 
   ee-first@1.1.1:
     resolution: {integrity: sha512-WMwm9LhRUo+WUaRN+vRuETqG89IgZphVSNkdFgeb6sS/E4OrDIN7t48CAewSHXc6C8lefD8KKfr5vY61brQlow==}
+
+  effect@4.1.0:
+    resolution: {integrity: sha512-lGx2MJJyrXA8RZb2UpQ/0Nkb5Utaimby7oD92+18noBxLPE85IFOvptdzau8dvcxAOwfwHo9iqapbKeFzqQM/Q==}
 
   electron-to-chromium@1.5.397:
     resolution: {integrity: sha512-khGTy9U9x02KEtsKM8vx5A62BsRmcOsIgDpWr1ImE32Ax8GxHGPHZf+Eu9H8zOOyHJnB0jTbseyTHbq2XCT8yw==}
@@ -11449,9 +11474,11 @@ snapshots:
       jsesc: 3.1.0
       tinyglobby: 0.2.17
 
-  '@orval/effect@8.43.0':
+  '@orval/effect@8.43.0(effect@4.1.0)':
     dependencies:
       '@orval/core': 8.43.0
+    optionalDependencies:
+      effect: 4.1.0
     transitivePeerDependencies:
       - '@faker-js/faker'
       - '@modelcontextprotocol/server'
@@ -15042,6 +15069,8 @@ snapshots:
 
   ee-first@1.1.1: {}
 
+  effect@4.1.0: {}
+
   electron-to-chromium@1.5.397: {}
 
   elementary-circuits-directed-graph@1.3.1:
@@ -17176,13 +17205,13 @@ snapshots:
 
   orderedmap@2.1.1: {}
 
-  orval@8.43.0(msw@2.15.0(@types/node@24.19.2)(typescript@5.9.3))(swr@2.4.2(react@19.3.1))(typescript@5.9.3)(zod@4.6.7):
+  orval@8.43.0(effect@4.1.0)(msw@2.15.0(@types/node@24.19.2)(typescript@5.9.3))(swr@2.4.2(react@19.3.1))(typescript@5.9.3)(zod@4.6.7):
     dependencies:
       '@commander-js/extra-typings': 15.0.0(commander@15.0.0)
       '@orval/angular': 8.43.0
       '@orval/axios': 8.43.0
       '@orval/core': 8.43.0
-      '@orval/effect': 8.43.0
+      '@orval/effect': 8.43.0(effect@4.1.0)
       '@orval/fetch': 8.43.0
       '@orval/hono': 8.43.0(typescript@5.9.3)(zod@4.6.7)
       '@orval/mcp': 8.43.0(zod@4.6.7)
