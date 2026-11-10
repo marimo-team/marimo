@@ -1,5 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
+import { defaultUserConfig } from "@/core/config/config-schema";
+
 import { EditorState, type Extension } from "@codemirror/state";
 import { EditorView, keymap } from "@codemirror/view";
 import { describe, expect, test, vi } from "vitest";
@@ -49,6 +51,7 @@ function getOpts() {
       afterToggleSQL: namedFunction("afterToggleSQL"),
     } as unknown as CodemirrorCellActions,
     completionConfig: {
+      ...defaultUserConfig().completion,
       activate_on_typing: false,
       signature_hint_on_typing: false,
       copilot: false,
@@ -60,13 +63,12 @@ function getOpts() {
     },
     lspConfig: {
       pylsp: {
+        ...defaultUserConfig().language_servers.pylsp,
         enabled: false,
       },
-      diagnostics: {
-        enabled: false,
-      },
+      diagnostics: { ...defaultUserConfig().diagnostics, enabled: false },
     },
-    diagnosticsConfig: {},
+    diagnosticsConfig: { ...defaultUserConfig().diagnostics },
     hotkeys: new OverridingHotkeyProvider({}),
     theme: "light",
     displayConfig: { reference_highlighting: false, code_lens: true },

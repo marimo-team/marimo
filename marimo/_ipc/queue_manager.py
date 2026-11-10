@@ -10,6 +10,7 @@ import msgspec
 
 from marimo._ipc.connection import Connection
 from marimo._ipc.types import ConnectionInfo
+from marimo._messaging.input import InputReply
 from marimo._runtime.commands import StopKernelCommand
 
 if typing.TYPE_CHECKING:
@@ -65,7 +66,7 @@ class QueueManager:
         )
 
     @property
-    def input_queue(self) -> QueueType[str]:
+    def input_queue(self) -> QueueType[str | InputReply]:
         """Queue for user input responses."""
         return self.conn.input.queue
 

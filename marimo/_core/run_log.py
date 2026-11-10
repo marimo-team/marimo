@@ -96,6 +96,8 @@ class RunLog:
                 data=protocol.DisplayMessage(display=item)
             ):
                 self._record_output(event, item)
+            case protocol.InputEvent(data=protocol.InputMessage(input=item)):
+                self._record_output(event, item)
             case protocol.ExecutionRemovedEvent(
                 data=protocol.RemovedMessage(id=execution_id)
             ):
@@ -113,6 +115,16 @@ class RunLog:
             return None
         assert isinstance(entry.event.event, protocol.RunEvent)
         return entry.event.event.data.run
+
+    def input(self, input_id: str) -> protocol.Input | None:
+        for entry in self._runs.values():
+            for scratch in entry.scratch.values():
+                event = scratch.outputs.get(input_id)
+                if event is not None and isinstance(
+                    event.event, protocol.InputEvent
+                ):
+                    return event.event.data.input
+        return None
 
     def snapshot(self) -> list[RoutedEvent]:
         """Return the runs and scratch the log holds, parents first."""
@@ -155,7 +167,9 @@ class RunLog:
         return None if event.run_id is None else self._runs.get(event.run_id)
 
     def _record_output(
-        self, event: RoutedEvent, item: protocol.Console | protocol.Display
+        self,
+        event: RoutedEvent,
+        item: protocol.Console | protocol.Display | protocol.Input,
     ) -> None:
         entry = self._entry(event)
         if entry is None:
@@ -170,6 +184,8 @@ class RunLog:
         events: list[RoutedEvent] = []
         for execution_id, scratch in entry.scratch.items():
             for output in scratch.outputs.values():
+                if isinstance(output.event, protocol.InputEvent):
+                    continue  # Inputs leave with their execution.
                 assert isinstance(
                     output.event,
                     (protocol.ConsoleEvent, protocol.DisplayEvent),

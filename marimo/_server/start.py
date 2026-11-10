@@ -303,8 +303,8 @@ def start(
         )
 
     is_multi = workspace.get_unique_file_key() is None
-    isolate_apps = is_multi and config_reader.experimental.get(
-        "isolate_apps", False
+    isolate_apps = (
+        is_multi and config_reader.get_config().experimental.isolate_apps
     )
 
     # Apply CLI overrides for runtime config if explicitly set
@@ -357,7 +357,7 @@ def start(
     from marimo._server.main import create_starlette_app
 
     app = create_starlette_app(
-        server_config=config_reader.get_config(hide_secrets=False)["server"],
+        server_config=config_reader.get_config(hide_secrets=False).server,
         base_url=base_url,
         host=external_host,
         lifespan=Lifespans(lifespans_list),

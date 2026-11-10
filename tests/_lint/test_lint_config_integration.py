@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+from marimo._config.config_schema import LintConfig
 from marimo._lint.linter import Linter
 from marimo._lint.rule_engine import RuleEngine
 
@@ -15,17 +16,23 @@ class TestRuleEngineConfig:
         assert len(engine.rules) == len(DEFAULT_RULE_CODES)
 
     def test_create_default_with_select(self):
-        engine = RuleEngine.create_default(lint_config={"select": ["MB"]})
+        engine = RuleEngine.create_default(
+            lint_config=LintConfig.from_dict({"select": ["MB"]})
+        )
         assert all(r.code.startswith("MB") for r in engine.rules)
         assert len(engine.rules) == 5
 
     def test_create_default_with_ignore(self):
-        engine = RuleEngine.create_default(lint_config={"ignore": ["MF001"]})
+        engine = RuleEngine.create_default(
+            lint_config=LintConfig.from_dict({"ignore": ["MF001"]})
+        )
         codes = {r.code for r in engine.rules}
         assert "MF001" not in codes
 
     def test_create_default_empty_config(self):
-        engine = RuleEngine.create_default(lint_config={})
+        engine = RuleEngine.create_default(
+            lint_config=LintConfig.from_dict({})
+        )
         from marimo._lint.rules import DEFAULT_RULE_CODES
 
         assert len(engine.rules) == len(DEFAULT_RULE_CODES)
@@ -33,11 +40,11 @@ class TestRuleEngineConfig:
 
 class TestLinterConfig:
     def test_linter_with_lint_config(self):
-        linter = Linter(lint_config={"select": ["MB"]})
+        linter = Linter(lint_config=LintConfig.from_dict({"select": ["MB"]}))
         assert all(r.code.startswith("MB") for r in linter.rule_engine.rules)
 
     def test_linter_with_ignore(self):
-        linter = Linter(lint_config={"ignore": ["MF"]})
+        linter = Linter(lint_config=LintConfig.from_dict({"ignore": ["MF"]}))
         assert not any(
             r.code.startswith("MF") for r in linter.rule_engine.rules
         )
@@ -47,7 +54,10 @@ class TestLinterConfig:
         from marimo._lint.rules.breaking import UnparsableRule
 
         explicit = [UnparsableRule()]
-        linter = Linter(rules=explicit, lint_config={"select": ["MF"]})
+        linter = Linter(
+            rules=explicit,
+            lint_config=LintConfig.from_dict({"select": ["MF"]}),
+        )
         assert len(linter.rule_engine.rules) == 1
         assert linter.rule_engine.rules[0].code == "MB001"
 
@@ -87,7 +97,9 @@ class TestPep723LintConfig:
 
         from tests._lint.utils import lint_notebook
 
-        diagnostics = lint_notebook(notebook, lint_config=lint_config)
+        diagnostics = lint_notebook(
+            notebook, lint_config=LintConfig.from_dict(lint_config)
+        )
         codes = [d.code for d in diagnostics]
         assert "MF004" not in codes
 

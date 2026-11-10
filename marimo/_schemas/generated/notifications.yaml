@@ -215,6 +215,8 @@ components:
                 propertyName: type
             type: array
           - type: object
+        input_id:
+          type: string
         mimetype:
           enum:
           - application/json

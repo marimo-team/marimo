@@ -1,22 +1,25 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import Any, TypeVar, cast
+import copy
+from typing import Any, TypeVar
 
-from marimo._config.config import MarimoConfig, PartialMarimoConfig
-from marimo._config.utils import deep_copy
+from marimo._config.config import PartialMarimoConfig
+from marimo._config.config_schema import MarimoConfig
 
 SECRET_PLACEHOLDER = "********"
 
 
 def redact_secrets_partial(config: PartialMarimoConfig) -> PartialMarimoConfig:
     """Return a sparse configuration copy with sensitive values redacted."""
-    return cast(
-        PartialMarimoConfig, redact_secrets(cast(MarimoConfig, config))
-    )
+    return _redact_dict(config)
 
 
 def redact_secrets(config: MarimoConfig) -> MarimoConfig:
+    return MarimoConfig.from_dict(_redact_dict(config.to_dict()))
+
+
+def _redact_dict(config: PartialMarimoConfig) -> PartialMarimoConfig:
     """Return a configuration copy with sensitive values redacted."""
 
     def deep_remove_from_path(
@@ -60,12 +63,12 @@ def redact_secrets(config: MarimoConfig) -> MarimoConfig:
         ("signing", "private_key_path"),
     )
 
-    new_config = deep_copy(config)
+    new_config = copy.deepcopy(config)
 
     for secret in secrets:
         deep_remove_from_path(list(secret), new_config)
 
-    return cast(MarimoConfig, new_config)
+    return new_config
 
 
 T = TypeVar("T")
@@ -86,4 +89,4 @@ def remove_secret_placeholders(config: T) -> T:
             return None
         return obj
 
-    return deep_remove(deep_copy(config))  # type: ignore
+    return deep_remove(copy.deepcopy(config))  # type: ignore

@@ -91,7 +91,6 @@ export type SetBreakpointsRequest = schemas["SetBreakpointsRequest"];
 export type ReadCodeResponse = schemas["ReadCodeResponse"];
 export type RecentFilesResponse = schemas["RecentFilesResponse"];
 export type RenameNotebookRequest = schemas["RenameNotebookRequest"];
-export type ExecuteCellsRequest = schemas["ExecuteCellsRequest"];
 export type ExecuteScratchpadRequest = schemas["ExecuteScratchpadRequest"];
 export type SaveAppConfigurationRequest =
   schemas["SaveAppConfigurationRequest"];
@@ -165,7 +164,6 @@ export interface EditRequests {
   saveLayout: (request: SaveLayoutRequest) => Promise<null>;
   sendCopy: (request: CopyNotebookRequest) => Promise<null>;
   sendStdin: (request: StdinRequest) => Promise<null>;
-  sendRun: (request: ExecuteCellsRequest) => Promise<null>;
   sendRunScratchpad: (request: ExecuteScratchpadRequest) => Promise<null>;
   sendInterrupt: () => Promise<null>;
   sendShutdown: () => Promise<null>;

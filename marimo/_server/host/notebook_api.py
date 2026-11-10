@@ -17,6 +17,7 @@ from marimo._core.calls import CALLS, dispatch
 from marimo._core.errors import HostError
 from marimo._core.operations import Reply
 from marimo._runtime.commands import HTTPRequest
+from marimo._server.api.deps import AppState
 from marimo._server.host.auth import bearer_matches
 
 if TYPE_CHECKING:
@@ -130,11 +131,19 @@ def _endpoint(
         except msgspec.DecodeError as e:
             return problem(400, "invalid-request", str(e))
         context = _context(request)
+        session = AppState(request).get_current_session()
         status, body = await dispatch(
             context.mutations,
             context.bridge,
             call,
             request=_submitting_request(request),
+            allow_input=(
+                session is not None
+                and context.bridge.session_for_notebook(
+                    call.params.notebook_id
+                )
+                is session
+            ),
         )
         return _response(status, body)
 

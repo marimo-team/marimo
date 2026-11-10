@@ -371,6 +371,8 @@ export class StatefulOutputMessage implements OutputMessage {
   public readonly timestamp: OutputMessage["timestamp"];
   public readonly code: OutputMessage["code"];
   public readonly id: StringOutputMessage["id"];
+  /** The prompt this entry is, when it asks for input. A reply names it. */
+  public readonly input_id: OutputMessage["input_id"];
   private ansiReducer = new AnsiReducer();
   private _data: string;
 
@@ -388,6 +390,7 @@ export class StatefulOutputMessage implements OutputMessage {
       ansiReducer,
       code: message.code,
       id: message.id,
+      input_id: message.input_id,
     });
   }
 
@@ -398,6 +401,7 @@ export class StatefulOutputMessage implements OutputMessage {
     ansiReducer,
     code,
     id,
+    input_id,
   }: {
     mimetype: OutputMessage["mimetype"];
     channel: OutputMessage["channel"];
@@ -405,12 +409,14 @@ export class StatefulOutputMessage implements OutputMessage {
     ansiReducer: AnsiReducer;
     code: OutputMessage["code"];
     id: StringOutputMessage["id"];
+    input_id: OutputMessage["input_id"];
   }) {
     this.mimetype = mimetype;
     this.channel = channel;
     this.timestamp = timestamp;
     this.code = code;
     this.id = id;
+    this.input_id = input_id;
     this.ansiReducer = ansiReducer;
     this._data = this.ansiReducer.render();
   }
@@ -424,6 +430,7 @@ export class StatefulOutputMessage implements OutputMessage {
       ansiReducer: this.ansiReducer,
       code: this.code,
       id: this.id,
+      input_id: this.input_id,
     });
   }
 

@@ -36,10 +36,10 @@ def is_win11() -> bool:
 def get_experimental_flags() -> dict[str, str | bool | dict[str, Any]]:
     try:
         config = get_default_config_manager(current_path=None).get_config()
-        experimental_config = config.get("experimental", {})
+        experimental_config = config.experimental
         return {
             k: v
-            for k, v in experimental_config.items()
+            for k, v in experimental_config.to_dict().items()
             if isinstance(v, (str, bool, dict))
         }
     except Exception:

@@ -1,18 +1,18 @@
 """Tests for the LLM providers in marimo._server.ai.providers."""
 
+from __future__ import annotations
+
 import asyncio
 import hashlib
 import json
 import os
-from collections.abc import AsyncIterator
-from pathlib import Path
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from pydantic import ValidationError
 
-from marimo._config.config import AiConfig
+from marimo._config.config_schema import AiConfig
 from marimo._dependencies.dependencies import Dependency, DependencyManager
 from marimo._dependencies.errors import ManyModulesNotFoundError
 from marimo._server.ai.completion_output import (
@@ -41,6 +41,10 @@ from marimo._server.ai.providers import (
 )
 from marimo._server.ai.tools.types import ToolDefinition
 from marimo._server.ai.tracing import SpanInfo
+
+if TYPE_CHECKING:
+    from collections.abc import AsyncIterator
+    from pathlib import Path
 
 
 @pytest.mark.parametrize(
@@ -324,23 +328,25 @@ async def test_stream_structured_completion_reports_final_validation_error() -> 
 )
 def test_anyprovider_for_model(model_name: str, provider_name: str) -> None:
     """Test that the correct config is returned for a given model."""
-    ai_config = AiConfig(
-        open_ai={
-            "model": model_name,
-            "api_key": "openai-key",
-        },
-        anthropic={
-            "api_key": "anthropic-key",
-        },
-        google={
-            "api_key": "google-key",
-        },
-        bedrock={
-            "profile_name": "aws-profile",
-        },
-        openrouter={
-            "api_key": "openrouter-key",
-        },
+    ai_config = AiConfig.from_dict(
+        {
+            "open_ai": {
+                "model": model_name,
+                "api_key": "openai-key",
+            },
+            "anthropic": {
+                "api_key": "anthropic-key",
+            },
+            "google": {
+                "api_key": "google-key",
+            },
+            "bedrock": {
+                "profile_name": "aws-profile",
+            },
+            "openrouter": {
+                "api_key": "openrouter-key",
+            },
+        }
     )
     config = AnyProviderConfig.for_model(model_name, ai_config)
 

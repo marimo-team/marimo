@@ -509,6 +509,42 @@ describe("RuntimeManager", () => {
     });
   });
 
+  describe("start", () => {
+    it("starts once and lets later callers join the same attempt", async () => {
+      const runtime = new RuntimeManager(mockConfig, true);
+      const healthySpy = vi
+        .spyOn(runtime, "reconcileFromHealth")
+        .mockResolvedValue(true);
+
+      await Promise.all([runtime.start(), runtime.start()]);
+
+      expect(healthySpy).toHaveBeenCalledTimes(1);
+    });
+
+    it("tries again after an attempt gave up", async () => {
+      const runtime = new RuntimeManager(mockConfig, true);
+      const healthySpy = vi
+        .spyOn(runtime, "reconcileFromHealth")
+        .mockResolvedValue(false);
+      vi.spyOn(runtime, "init").mockImplementation(async () => {
+        await runtime.reconcileFromHealth();
+        throw new Error("Failed to connect after 25 retries");
+      });
+
+      await expect(runtime.start()).rejects.toThrow("Failed to connect");
+      healthySpy.mockResolvedValue(true);
+      vi.spyOn(runtime, "init").mockImplementation(async () => {
+        await runtime.reconcileFromHealth();
+        await runtime.waitForHealthy().catch(() => undefined);
+      });
+
+      // The second attempt is a new one, not the old failure replayed.
+      vi.spyOn(runtime, "waitForHealthy").mockResolvedValue(undefined);
+      await expect(runtime.start()).resolves.toBeUndefined();
+      expect(healthySpy).toHaveBeenCalledTimes(2);
+    });
+  });
+
   describe("headers", () => {
     it("should return headers with auth token", () => {
       const runtime = new RuntimeManager(mockConfig);

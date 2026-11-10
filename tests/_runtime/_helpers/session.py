@@ -31,7 +31,8 @@ if TYPE_CHECKING:
     from collections.abc import Iterator
 
     from marimo._ast.cell import CellConfig
-    from marimo._config.config import ExecutionType, MarimoConfig
+    from marimo._config.config_schema import MarimoConfig
+    from marimo._config.types import ExecutionType
     from marimo._runtime.commands import AppMetadata
     from marimo._runtime.context.kernel_context import KernelRuntimeContext
     from marimo._runtime.runtime import Kernel

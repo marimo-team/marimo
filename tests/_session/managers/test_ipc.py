@@ -364,6 +364,31 @@ class TestCloseKernel:
         manager.close_kernel()
         manager._process.wait.assert_not_called()
 
+    @pytest.mark.skipif(sys.platform == "win32", reason="POSIX process groups")
+    @pytest.mark.parametrize("kernel_pgid", [100, 200])
+    def test_close_before_kernel_creates_process_group(
+        self, monkeypatch: pytest.MonkeyPatch, kernel_pgid: int
+    ) -> None:
+        from marimo._session.managers import ipc
+
+        manager = self._closable_manager()
+        manager._kernel_pid = 123
+        manager.kernel_task = MagicMock()
+        killpg = MagicMock()
+        cleanup = MagicMock()
+        monkeypatch.setattr(os, "getpgrp", lambda: 100)
+        monkeypatch.setattr(os, "getpgid", lambda _pid: kernel_pgid)
+        monkeypatch.setattr(os, "killpg", killpg)
+        monkeypatch.setattr(ipc, "try_kill_process_and_group", cleanup)
+
+        manager.close_kernel()
+
+        if kernel_pgid == 100:
+            killpg.assert_not_called()
+        else:
+            killpg.assert_called_once_with(kernel_pgid, ipc.signal.SIGTERM)
+        cleanup.assert_called_once_with(manager.kernel_task)
+
     @pytest.mark.requires("zmq")
     @pytest.mark.parametrize("returncode", [None, 0])
     def test_close_without_kernel_receiver(
@@ -458,7 +483,7 @@ def test_launch_kernel_handshake_reports_identity() -> None:
         "from unittest.mock import patch, MagicMock\n"
         "import marimo._ipc.launch_kernel as lk\n"
         "with patch.object(\n"
-        "    lk.KernelArgs, 'decode_json', return_value=MagicMock()\n"
+        "    lk.KernelArgs, 'decode_json', return_value=MagicMock(user_config={})\n"
         "), patch.object(lk.QueueManager, 'connect', MagicMock()), \\\n"
         "        patch.object(lk.runtime, 'launch_kernel', MagicMock()):\n"
         "    lk.main()\n"

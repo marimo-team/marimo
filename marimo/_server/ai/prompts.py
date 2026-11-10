@@ -1,7 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-from marimo._config.config import CopilotMode
+from marimo._config.types import CopilotMode
 from marimo._server.ai.skills.utils import load_skill
 from marimo._server.models.completion import (
     AiCompletionContext,

@@ -1,10 +1,12 @@
 # Copyright 2026 Marimo. All rights reserved.
+from __future__ import annotations
+
 import asyncio
 from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from marimo._config.config import (
+from marimo._config.config_schema import (
     MCPConfig,
     MCPServerStdioConfig,
     MCPServerStreamableHttpConfig,
@@ -201,12 +203,23 @@ class TestMCPServerDefinition:
 
         # Verify transport-specific attributes are available from config
         if expected_transport == MCPTransportType.STDIO:
-            assert server_def.config["command"] == config_kwargs["command"]
-            assert server_def.config.get("args") == config_kwargs["args"]
-            assert server_def.config.get("env") == config_kwargs["env"]
+            assert (
+                server_def.config.to_dict()["command"]
+                == config_kwargs["command"]
+            )
+            assert (
+                server_def.config.to_dict().get("args")
+                == config_kwargs["args"]
+            )
+            assert (
+                server_def.config.to_dict().get("env") == config_kwargs["env"]
+            )
         elif expected_transport == MCPTransportType.STREAMABLE_HTTP:
-            assert server_def.config["url"] == config_kwargs["url"]
-            assert server_def.config.get("headers") == config_kwargs["headers"]
+            assert server_def.config.to_dict()["url"] == config_kwargs["url"]
+            assert (
+                server_def.config.to_dict().get("headers")
+                == config_kwargs["headers"]
+            )
             assert server_def.timeout == config_kwargs["timeout"]
 
 
@@ -218,7 +231,9 @@ class TestMCPConfigComparator:
         server1 = MCPServerDefinition(
             name="server1",
             transport=MCPTransportType.STDIO,
-            config=MCPServerStdioConfig(command="test", args=[], env={}),
+            config=MCPServerStdioConfig.from_dict(
+                {"command": "test", "args": [], "env": {}}
+            ),
             timeout=30.0,
         )
 
@@ -238,13 +253,17 @@ class TestMCPConfigComparator:
         server1 = MCPServerDefinition(
             name="server1",
             transport=MCPTransportType.STDIO,
-            config=MCPServerStdioConfig(command="test1", args=[], env={}),
+            config=MCPServerStdioConfig.from_dict(
+                {"command": "test1", "args": [], "env": {}}
+            ),
             timeout=30.0,
         )
         server2 = MCPServerDefinition(
             name="server2",
             transport=MCPTransportType.STDIO,
-            config=MCPServerStdioConfig(command="test2", args=[], env={}),
+            config=MCPServerStdioConfig.from_dict(
+                {"command": "test2", "args": [], "env": {}}
+            ),
             timeout=30.0,
         )
 
@@ -264,13 +283,17 @@ class TestMCPConfigComparator:
         server1 = MCPServerDefinition(
             name="server1",
             transport=MCPTransportType.STDIO,
-            config=MCPServerStdioConfig(command="test1", args=[], env={}),
+            config=MCPServerStdioConfig.from_dict(
+                {"command": "test1", "args": [], "env": {}}
+            ),
             timeout=30.0,
         )
         server2 = MCPServerDefinition(
             name="server2",
             transport=MCPTransportType.STDIO,
-            config=MCPServerStdioConfig(command="test2", args=[], env={}),
+            config=MCPServerStdioConfig.from_dict(
+                {"command": "test2", "args": [], "env": {}}
+            ),
             timeout=30.0,
         )
 
@@ -290,16 +313,16 @@ class TestMCPConfigComparator:
         server1_old = MCPServerDefinition(
             name="server1",
             transport=MCPTransportType.STDIO,
-            config=MCPServerStdioConfig(
-                command="test", args=["--old"], env={}
+            config=MCPServerStdioConfig.from_dict(
+                {"command": "test", "args": ["--old"], "env": {}}
             ),
             timeout=30.0,
         )
         server1_new = MCPServerDefinition(
             name="server1",
             transport=MCPTransportType.STDIO,
-            config=MCPServerStdioConfig(
-                command="test", args=["--new"], env={}
+            config=MCPServerStdioConfig.from_dict(
+                {"command": "test", "args": ["--new"], "env": {}}
             ),
             timeout=30.0,
         )
@@ -320,35 +343,41 @@ class TestMCPConfigComparator:
         server1 = MCPServerDefinition(
             name="unchanged",
             transport=MCPTransportType.STDIO,
-            config=MCPServerStdioConfig(command="test1", args=[], env={}),
+            config=MCPServerStdioConfig.from_dict(
+                {"command": "test1", "args": [], "env": {}}
+            ),
             timeout=30.0,
         )
         server2_old = MCPServerDefinition(
             name="updated",
             transport=MCPTransportType.STDIO,
-            config=MCPServerStdioConfig(
-                command="test2", args=["--old"], env={}
+            config=MCPServerStdioConfig.from_dict(
+                {"command": "test2", "args": ["--old"], "env": {}}
             ),
             timeout=30.0,
         )
         server2_new = MCPServerDefinition(
             name="updated",
             transport=MCPTransportType.STDIO,
-            config=MCPServerStdioConfig(
-                command="test2", args=["--new"], env={}
+            config=MCPServerStdioConfig.from_dict(
+                {"command": "test2", "args": ["--new"], "env": {}}
             ),
             timeout=30.0,
         )
         server3 = MCPServerDefinition(
             name="removed",
             transport=MCPTransportType.STDIO,
-            config=MCPServerStdioConfig(command="test3", args=[], env={}),
+            config=MCPServerStdioConfig.from_dict(
+                {"command": "test3", "args": [], "env": {}}
+            ),
             timeout=30.0,
         )
         server4 = MCPServerDefinition(
             name="added",
             transport=MCPTransportType.STDIO,
-            config=MCPServerStdioConfig(command="test4", args=[], env={}),
+            config=MCPServerStdioConfig.from_dict(
+                {"command": "test4", "args": [], "env": {}}
+            ),
             timeout=30.0,
         )
 
@@ -371,112 +400,141 @@ class TestMCPConfigComparator:
 class TestMCPPresets:
     """Test cases for MCP preset configuration system."""
 
+    def test_append_presets_preserves_unknown_config(self):
+        config = MCPConfig.from_dict(
+            {
+                "presets": ["marimo"],
+                "future": {"enabled": True},
+                "mcpServers": {
+                    "custom": {"command": "python", "future": {"value": 1}}
+                },
+            }
+        )
+        original = config.to_dict()
+        expected = config.to_dict()
+        expected["mcpServers"]["marimo"] = MCP_PRESETS["marimo"].to_dict()
+
+        result = append_presets(config)
+
+        assert result.to_dict() == expected
+        assert config.to_dict() == original
+
     def test_preset_definitions_exist(self):
         """Test that expected presets are defined."""
         assert "marimo" in MCP_PRESETS
         assert "context7" in MCP_PRESETS
 
         # Verify preset structure
-        assert "url" in MCP_PRESETS["marimo"]
-        assert "url" in MCP_PRESETS["context7"]
+        assert "url" in MCP_PRESETS["marimo"].to_dict()
+        assert "url" in MCP_PRESETS["context7"].to_dict()
 
     def test_append_presets_no_presets_list(self):
         """Test append_presets with config that has no presets list."""
-        config = MCPConfig(
-            mcpServers={
-                "custom": MCPServerStdioConfig(command="test", args=[])
+        config = MCPConfig.from_dict(
+            {
+                "mcpServers": {
+                    "custom": MCPServerStdioConfig(command="test", args=[])
+                }
             }
         )
 
         result = append_presets(config)
 
         # Should return config unchanged
-        assert "custom" in result["mcpServers"]
-        assert len(result["mcpServers"]) == 1
+        assert "custom" in result.mcpServers
+        assert len(result.mcpServers) == 1
 
     def test_append_presets_empty_presets_list(self):
         """Test append_presets with empty presets list."""
-        config = MCPConfig(mcpServers={}, presets=[])
+        config = MCPConfig.from_dict({"mcpServers": {}, "presets": []})
 
         result = append_presets(config)
 
-        assert len(result["mcpServers"]) == 0
+        assert len(result.mcpServers) == 0
 
     def test_append_presets_adds_marimo_preset(self):
         """Test that marimo preset is added when specified."""
-        config = MCPConfig(mcpServers={}, presets=["marimo"])
+        config = MCPConfig.from_dict({"mcpServers": {}, "presets": ["marimo"]})
 
         result = append_presets(config)
 
-        assert "marimo" in result["mcpServers"]
+        assert "marimo" in result.mcpServers
         assert (
-            result["mcpServers"]["marimo"]["url"]
-            == MCP_PRESETS["marimo"]["url"]
+            result.mcpServers["marimo"].to_dict()["url"]
+            == MCP_PRESETS["marimo"].to_dict()["url"]
         )
 
     def test_append_presets_adds_context7_preset(self):
         """Test that context7 preset is added when specified."""
-        config = MCPConfig(mcpServers={}, presets=["context7"])
+        config = MCPConfig.from_dict(
+            {"mcpServers": {}, "presets": ["context7"]}
+        )
 
         result = append_presets(config)
 
-        assert "context7" in result["mcpServers"]
+        assert "context7" in result.mcpServers
         assert (
-            result["mcpServers"]["context7"]["url"]
-            == MCP_PRESETS["context7"]["url"]
+            result.mcpServers["context7"].to_dict()["url"]
+            == MCP_PRESETS["context7"].to_dict()["url"]
         )
 
     def test_append_presets_adds_multiple_presets(self):
         """Test that multiple presets can be added."""
-        config = MCPConfig(mcpServers={}, presets=["marimo", "context7"])
-
-        result = append_presets(config)
-
-        assert "marimo" in result["mcpServers"]
-        assert "context7" in result["mcpServers"]
-        assert len(result["mcpServers"]) == 2
-
-    def test_append_presets_preserves_existing_servers(self):
-        """Test that existing servers are preserved when adding presets."""
-        config = MCPConfig(
-            mcpServers={
-                "custom": MCPServerStdioConfig(command="test", args=[])
-            },
-            presets=["marimo"],
+        config = MCPConfig.from_dict(
+            {"mcpServers": {}, "presets": ["marimo", "context7"]}
         )
 
         result = append_presets(config)
 
-        assert "custom" in result["mcpServers"]
-        assert "marimo" in result["mcpServers"]
-        assert len(result["mcpServers"]) == 2
+        assert "marimo" in result.mcpServers
+        assert "context7" in result.mcpServers
+        assert len(result.mcpServers) == 2
+
+    def test_append_presets_preserves_existing_servers(self):
+        """Test that existing servers are preserved when adding presets."""
+        config = MCPConfig.from_dict(
+            {
+                "mcpServers": {
+                    "custom": MCPServerStdioConfig(command="test", args=[])
+                },
+                "presets": ["marimo"],
+            }
+        )
+
+        result = append_presets(config)
+
+        assert "custom" in result.mcpServers
+        assert "marimo" in result.mcpServers
+        assert len(result.mcpServers) == 2
 
     def test_append_presets_does_not_override_existing(self):
         """Test that presets don't override existing servers with same name."""
         custom_url = "https://custom.marimo.app/mcp"
-        config = MCPConfig(
-            mcpServers={
-                "marimo": MCPServerStreamableHttpConfig(url=custom_url)
-            },
-            presets=["marimo"],
+        config = MCPConfig.from_dict(
+            {
+                "mcpServers": {
+                    "marimo": MCPServerStreamableHttpConfig(url=custom_url)
+                },
+                "presets": ["marimo"],
+            }
         )
 
         result = append_presets(config)
 
         # Original server should be preserved
-        assert result["mcpServers"]["marimo"]["url"] == custom_url
-        assert len(result["mcpServers"]) == 1
+        assert result.mcpServers["marimo"].to_dict()["url"] == custom_url
+        assert len(result.mcpServers) == 1
 
     def test_append_presets_does_not_mutate_original(self):
         """Test that append_presets doesn't mutate the original config."""
-        config = MCPConfig(mcpServers={}, presets=["marimo"])
+        config = MCPConfig.from_dict({"mcpServers": {}, "presets": ["marimo"]})
 
         result = append_presets(config)
 
         # Original config should be unchanged
-        assert "marimo" not in config["mcpServers"]
+        assert "marimo" not in config.mcpServers
         # Result should have the preset
-        assert "marimo" in result["mcpServers"]
+        assert "marimo" in result.mcpServers
 
 
 class TestMCPTransportConnectors:
@@ -506,8 +564,12 @@ class TestMCPTransportConnectors:
 
         # Create connector and test connection
         connector = StdioTransportConnector()
-        config = MCPServerStdioConfig(
-            command="python", args=["server.py"], env={"TEST_VAR": "value"}
+        config = MCPServerStdioConfig.from_dict(
+            {
+                "command": "python",
+                "args": ["server.py"],
+                "env": {"TEST_VAR": "value"},
+            }
         )
         server_def = MCPServerDefinition(
             name="test", transport=MCPTransportType.STDIO, config=config
@@ -550,10 +612,12 @@ class TestMCPTransportConnectors:
 
         # Create connector and test connection
         connector = StreamableHTTPTransportConnector()
-        config = MCPServerStreamableHttpConfig(
-            url="https://api.example.com/mcp",
-            headers={"Authorization": "Bearer token"},
-            timeout=30.0,
+        config = MCPServerStreamableHttpConfig.from_dict(
+            {
+                "url": "https://api.example.com/mcp",
+                "headers": {"Authorization": "Bearer token"},
+                "timeout": 30.0,
+            }
         )
         server_def = MCPServerDefinition(
             name="test",
@@ -599,10 +663,12 @@ class TestMCPClientConfiguration:
         [
             pytest.param(
                 {
-                    "stdio_server": MCPServerStdioConfig(
-                        command="python",
-                        args=["test.py"],
-                        env={"TEST": "value"},
+                    "stdio_server": MCPServerStdioConfig.from_dict(
+                        {
+                            "command": "python",
+                            "args": ["test.py"],
+                            "env": {"TEST": "value"},
+                        }
                     ),
                 },
                 ["stdio_server"],
@@ -610,9 +676,11 @@ class TestMCPClientConfiguration:
             ),
             pytest.param(
                 {
-                    "http_server": MCPServerStreamableHttpConfig(
-                        url="https://api.example.com/mcp",
-                        headers={"Auth": "Bearer token"},
+                    "http_server": MCPServerStreamableHttpConfig.from_dict(
+                        {
+                            "url": "https://api.example.com/mcp",
+                            "headers": {"Auth": "Bearer token"},
+                        }
                     ),
                 },
                 ["http_server"],
@@ -620,11 +688,11 @@ class TestMCPClientConfiguration:
             ),
             pytest.param(
                 {
-                    "stdio_server": MCPServerStdioConfig(
-                        command="python", args=["test.py"]
+                    "stdio_server": MCPServerStdioConfig.from_dict(
+                        {"command": "python", "args": ["test.py"]}
                     ),
-                    "http_server": MCPServerStreamableHttpConfig(
-                        url="https://api.example.com/mcp"
+                    "http_server": MCPServerStreamableHttpConfig.from_dict(
+                        {"url": "https://api.example.com/mcp"}
                     ),
                 },
                 ["stdio_server", "http_server"],
@@ -636,7 +704,7 @@ class TestMCPClientConfiguration:
         self, server_configs, expected_servers
     ):
         """Test parsing valid server configurations."""
-        config = MCPConfig(mcpServers=server_configs)
+        config = MCPConfig.from_dict({"mcpServers": server_configs})
         client = MCPClient()
 
         # Parse the config to populate servers
@@ -659,11 +727,13 @@ class TestMCPClientReconfiguration:
     async def test_configure_noop_when_no_changes(self, mock_session_setup):
         """Test that configure() does nothing when config hasn't changed."""
         del mock_session_setup
-        config = MCPConfig(
-            mcpServers={
-                "server1": MCPServerStdioConfig(
-                    command="test", args=[], env={}
-                )
+        config = MCPConfig.from_dict(
+            {
+                "mcpServers": {
+                    "server1": MCPServerStdioConfig(
+                        command="test", args=[], env={}
+                    )
+                }
             }
         )
         client = MCPClient()
@@ -690,25 +760,29 @@ class TestMCPClientReconfiguration:
     async def test_configure_adds_new_servers(self, mock_session_setup):
         """Test that configure() adds new servers."""
         del mock_session_setup
-        initial_config = MCPConfig(
-            mcpServers={
-                "server1": MCPServerStdioConfig(
-                    command="test1", args=[], env={}
-                )
+        initial_config = MCPConfig.from_dict(
+            {
+                "mcpServers": {
+                    "server1": MCPServerStdioConfig(
+                        command="test1", args=[], env={}
+                    )
+                }
             }
         )
         client = MCPClient()
         await client.configure(initial_config)
 
         # New config with additional server
-        new_config = MCPConfig(
-            mcpServers={
-                "server1": MCPServerStdioConfig(
-                    command="test1", args=[], env={}
-                ),
-                "server2": MCPServerStdioConfig(
-                    command="test2", args=[], env={}
-                ),
+        new_config = MCPConfig.from_dict(
+            {
+                "mcpServers": {
+                    "server1": MCPServerStdioConfig(
+                        command="test1", args=[], env={}
+                    ),
+                    "server2": MCPServerStdioConfig(
+                        command="test2", args=[], env={}
+                    ),
+                }
             }
         )
 
@@ -728,14 +802,16 @@ class TestMCPClientReconfiguration:
     async def test_configure_removes_old_servers(self, mock_session_setup):
         """Test that configure() removes servers not in new config."""
         del mock_session_setup
-        initial_config = MCPConfig(
-            mcpServers={
-                "server1": MCPServerStdioConfig(
-                    command="test1", args=[], env={}
-                ),
-                "server2": MCPServerStdioConfig(
-                    command="test2", args=[], env={}
-                ),
+        initial_config = MCPConfig.from_dict(
+            {
+                "mcpServers": {
+                    "server1": MCPServerStdioConfig(
+                        command="test1", args=[], env={}
+                    ),
+                    "server2": MCPServerStdioConfig(
+                        command="test2", args=[], env={}
+                    ),
+                }
             }
         )
         client = MCPClient()
@@ -750,11 +826,13 @@ class TestMCPClientReconfiguration:
         )
 
         # New config with only server1
-        new_config = MCPConfig(
-            mcpServers={
-                "server1": MCPServerStdioConfig(
-                    command="test1", args=[], env={}
-                )
+        new_config = MCPConfig.from_dict(
+            {
+                "mcpServers": {
+                    "server1": MCPServerStdioConfig(
+                        command="test1", args=[], env={}
+                    )
+                }
             }
         )
 
@@ -776,11 +854,13 @@ class TestMCPClientReconfiguration:
     ):
         """Test that configure() reconnects to servers with changed config."""
         del mock_session_setup
-        initial_config = MCPConfig(
-            mcpServers={
-                "server1": MCPServerStdioConfig(
-                    command="test1", args=["--old"], env={}
-                )
+        initial_config = MCPConfig.from_dict(
+            {
+                "mcpServers": {
+                    "server1": MCPServerStdioConfig(
+                        command="test1", args=["--old"], env={}
+                    )
+                }
             }
         )
         client = MCPClient()
@@ -792,11 +872,13 @@ class TestMCPClientReconfiguration:
         )
 
         # New config with modified server1
-        new_config = MCPConfig(
-            mcpServers={
-                "server1": MCPServerStdioConfig(
-                    command="test1", args=["--new"], env={}
-                )
+        new_config = MCPConfig.from_dict(
+            {
+                "mcpServers": {
+                    "server1": MCPServerStdioConfig(
+                        command="test1", args=["--new"], env={}
+                    )
+                }
             }
         )
 
@@ -814,22 +896,24 @@ class TestMCPClientReconfiguration:
         mock_connect.assert_called_once_with("server1")
 
         # Verify config was updated
-        assert client.servers["server1"].config["args"] == ["--new"]
+        assert client.servers["server1"].config.to_dict()["args"] == ["--new"]
 
     async def test_configure_mixed_changes(self, mock_session_setup):
         """Test configure() with add, remove, and update operations."""
         del mock_session_setup
-        initial_config = MCPConfig(
-            mcpServers={
-                "keep_unchanged": MCPServerStdioConfig(
-                    command="test1", args=[], env={}
-                ),
-                "to_update": MCPServerStdioConfig(
-                    command="test2", args=["--old"], env={}
-                ),
-                "to_remove": MCPServerStdioConfig(
-                    command="test3", args=[], env={}
-                ),
+        initial_config = MCPConfig.from_dict(
+            {
+                "mcpServers": {
+                    "keep_unchanged": MCPServerStdioConfig(
+                        command="test1", args=[], env={}
+                    ),
+                    "to_update": MCPServerStdioConfig(
+                        command="test2", args=["--old"], env={}
+                    ),
+                    "to_remove": MCPServerStdioConfig(
+                        command="test3", args=[], env={}
+                    ),
+                }
             }
         )
         client = MCPClient()
@@ -842,17 +926,19 @@ class TestMCPClientReconfiguration:
             )
 
         # New config
-        new_config = MCPConfig(
-            mcpServers={
-                "keep_unchanged": MCPServerStdioConfig(
-                    command="test1", args=[], env={}
-                ),
-                "to_update": MCPServerStdioConfig(
-                    command="test2", args=["--new"], env={}
-                ),
-                "to_add": MCPServerStdioConfig(
-                    command="test4", args=[], env={}
-                ),
+        new_config = MCPConfig.from_dict(
+            {
+                "mcpServers": {
+                    "keep_unchanged": MCPServerStdioConfig(
+                        command="test1", args=[], env={}
+                    ),
+                    "to_update": MCPServerStdioConfig(
+                        command="test2", args=["--new"], env={}
+                    ),
+                    "to_add": MCPServerStdioConfig(
+                        command="test4", args=[], env={}
+                    ),
+                }
             }
         )
 
@@ -891,15 +977,17 @@ class TestMCPClientReconfiguration:
     ):
         """Test that configure() handles connection failures gracefully."""
         del mock_session_setup
-        initial_config = MCPConfig(mcpServers={})
+        initial_config = MCPConfig.from_dict({"mcpServers": {}})
         client = MCPClient()
         await client.configure(initial_config)
 
-        new_config = MCPConfig(
-            mcpServers={
-                "server1": MCPServerStdioConfig(
-                    command="test1", args=[], env={}
-                )
+        new_config = MCPConfig.from_dict(
+            {
+                "mcpServers": {
+                    "server1": MCPServerStdioConfig(
+                        command="test1", args=[], env={}
+                    )
+                }
             }
         )
 
@@ -1188,7 +1276,10 @@ class TestMCPClientToolExecution:
 
             # Setup connection
             server_def = MCPServerDefinitionFactory.from_config(
-                "test_server", MCPServerStdioConfig(command="test", args=[])
+                "test_server",
+                MCPServerStdioConfig.from_dict(
+                    {"command": "test", "args": []}
+                ),
             )
             connection = MCPServerConnection(definition=server_def)
             connection.status = connection_setup["status"]
@@ -1519,11 +1610,13 @@ class TestMCPClientConnectionManagement:
             "marimo._server.ai.mcp.StdioTransportConnector.create",
             return_value=transport,
         ):
-            config = MCPConfig(
-                mcpServers={
-                    "test_server": MCPServerStdioConfig(
-                        command="python", args=["test.py"], env={}
-                    )
+            config = MCPConfig.from_dict(
+                {
+                    "mcpServers": {
+                        "test_server": MCPServerStdioConfig(
+                            command="python", args=["test.py"], env={}
+                        )
+                    }
                 }
             )
             client = MCPClient()
@@ -1646,10 +1739,10 @@ class TestMCPClientConnectionManagement:
         self, server_exists, already_connected, expected_result
     ):
         """Test server connection edge cases."""
-        config = MCPConfig(mcpServers={})
+        config = MCPConfig.from_dict({"mcpServers": {}})
         if server_exists:
-            config["mcpServers"]["test_server"] = MCPServerStdioConfig(
-                command="python", args=["test.py"]
+            config.mcpServers["test_server"] = MCPServerStdioConfig.from_dict(
+                {"command": "python", "args": ["test.py"]}
             )
 
         client = MCPClient()
@@ -1658,7 +1751,10 @@ class TestMCPClientConnectionManagement:
         if already_connected:
             # Setup existing connection
             server_def = MCPServerDefinitionFactory.from_config(
-                "test_server", MCPServerStdioConfig(command="test", args=[])
+                "test_server",
+                MCPServerStdioConfig.from_dict(
+                    {"command": "test", "args": []}
+                ),
             )
             connection = MCPServerConnection(definition=server_def)
             connection.status = MCPServerStatus.CONNECTED
@@ -1669,14 +1765,16 @@ class TestMCPClientConnectionManagement:
 
     async def test_connect_to_all_servers_mixed_results(self):
         """Test connecting to multiple servers with mixed success/failure."""
-        config = MCPConfig(
-            mcpServers={
-                "server1": MCPServerStdioConfig(
-                    command="python", args=["test1.py"]
-                ),
-                "server2": MCPServerStdioConfig(
-                    command="python", args=["test2.py"]
-                ),
+        config = MCPConfig.from_dict(
+            {
+                "mcpServers": {
+                    "server1": MCPServerStdioConfig(
+                        command="python", args=["test1.py"]
+                    ),
+                    "server2": MCPServerStdioConfig(
+                        command="python", args=["test2.py"]
+                    ),
+                }
             }
         )
         client = MCPClient()
@@ -1943,7 +2041,8 @@ class TestMCPClientHealthMonitoring:
 
         # Create connection with mock client
         server_def = MCPServerDefinitionFactory.from_config(
-            "test", MCPServerStdioConfig(command="test", args=[])
+            "test",
+            MCPServerStdioConfig.from_dict({"command": "test", "args": []}),
         )
         connection = MCPServerConnection(definition=server_def)
         connection.client = AsyncMock()
@@ -1984,7 +2083,8 @@ class TestMCPClientHealthMonitoring:
 
         # Create connection
         server_def = MCPServerDefinitionFactory.from_config(
-            "test", MCPServerStdioConfig(command="test", args=[])
+            "test",
+            MCPServerStdioConfig.from_dict({"command": "test", "args": []}),
         )
         connection = MCPServerConnection(definition=server_def)
         connection.client = client_setup
@@ -2009,7 +2109,8 @@ class TestMCPClientHealthMonitoring:
 
         # Create connection with a client that hangs
         server_def = MCPServerDefinitionFactory.from_config(
-            "test", MCPServerStdioConfig(command="test", args=[])
+            "test",
+            MCPServerStdioConfig.from_dict({"command": "test", "args": []}),
         )
         connection = MCPServerConnection(definition=server_def)
         connection.client = AsyncMock()
@@ -2079,17 +2180,25 @@ class TestMCPServerConnection:
         """Test creating a server connection with proper defaults."""
         server_def = MCPServerDefinitionFactory.from_config(
             "test_server",
-            MCPServerStdioConfig(
-                command="python", args=["test.py"], env={"TEST": "value"}
+            MCPServerStdioConfig.from_dict(
+                {
+                    "command": "python",
+                    "args": ["test.py"],
+                    "env": {"TEST": "value"},
+                }
             ),
         )
 
         connection = MCPServerConnection(definition=server_def)
 
         assert connection.definition.name == "test_server"
-        assert connection.definition.config["command"] == "python"
-        assert connection.definition.config.get("args") == ["test.py"]
-        assert connection.definition.config.get("env") == {"TEST": "value"}
+        assert connection.definition.config.to_dict()["command"] == "python"
+        assert connection.definition.config.to_dict().get("args") == [
+            "test.py"
+        ]
+        assert connection.definition.config.to_dict().get("env") == {
+            "TEST": "value"
+        }
         assert connection.status == MCPServerStatus.DISCONNECTED
         assert connection.client is None
         assert len(connection.tools) == 0
@@ -2120,11 +2229,13 @@ class TestMCPUtilities:
 
         client_module._mcp_client = None
 
-        custom_config = MCPConfig(
-            mcpServers={
-                "custom_server": MCPServerStdioConfig(
-                    command="custom", args=["--test"], env={}
-                )
+        custom_config = MCPConfig.from_dict(
+            {
+                "mcpServers": {
+                    "custom_server": MCPServerStdioConfig(
+                        command="custom", args=["--test"], env={}
+                    )
+                }
             }
         )
 

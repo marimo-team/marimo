@@ -10,6 +10,8 @@ from typing import TYPE_CHECKING, cast
 
 from marimo import _loggers
 from marimo._core import backend as be, protocol
+from marimo._core.errors import NoRuntime
+from marimo._messaging.input import InputReply
 from marimo._messaging.notification import (
     NotebookDocumentTransactionNotification,
     StartupProgressNotification,
@@ -94,7 +96,7 @@ class SessionBackend(SessionConsumer):
     def __init__(
         self,
         notebook_id: protocol.NotebookId,
-        file: Callable[[], str | None],
+        file_key: Callable[[], str],
         manager: SessionManager,
         observe: Observe,
         sink: Sink,
@@ -106,8 +108,8 @@ class SessionBackend(SessionConsumer):
         request_metadata: RequestMetadata | None = None,
     ) -> None:
         self._notebook_id = notebook_id
-        self._file = file
-        """Resolve the notebook's current path after file moves."""
+        self._file_key = file_key
+        """Resolve the key the notebook's sessions start under, after file moves."""
         self._cell_order = cell_order
         """The document's cell ids in order, for errors that name cells."""
         self._manager = manager
@@ -141,22 +143,22 @@ class SessionBackend(SessionConsumer):
         )
 
     async def _start(self, kernel: _Kernel, session_id: SessionId) -> None:
-        file = self._file()
-        if file is None:
-            self._fail(kernel, "The notebook has no file to run")
-            return
+        # An untitled notebook starts from no file, as it does for the
+        # editor, under the key the editor's tab rejoins it by. The host's
+        # document reaches the session once it attaches.
+        file_key = self._file_key()
         try:
             await self._manager.create_session(
                 session_id,
                 self,
                 {},
-                file,
+                file_key,
                 auto_instantiate=False,
                 main=False,
             )
         except Exception as e:
             LOGGER.warning(
-                "Kernel for %s failed to start", file, exc_info=True
+                "Kernel for %s failed to start", file_key, exc_info=True
             )
             self._fail(kernel, str(e) or type(e).__name__)
             return
@@ -190,6 +192,7 @@ class SessionBackend(SessionConsumer):
         code: str,
         *,
         request: be.RequestInfo | None,
+        allow_input: bool = False,
     ) -> None:
         session = self.session
         if session is None:
@@ -199,7 +202,10 @@ class SessionBackend(SessionConsumer):
         )
         # Server adapters pass HTTPRequest through the core's RequestInfo protocol.
         self._watch_run(
-            run, self._run_code(run, code, cast(HTTPRequest | None, request))
+            run,
+            self._run_code(
+                run, code, cast(HTTPRequest | None, request), allow_input
+            ),
         )
 
     def run_cells(
@@ -209,6 +215,7 @@ class SessionBackend(SessionConsumer):
         cell_ids: Sequence[protocol.CellId],
         *,
         request: be.RequestInfo | None,
+        allow_input: bool = False,
     ) -> None:
         session = self.session
         if session is None:
@@ -230,7 +237,7 @@ class SessionBackend(SessionConsumer):
                 execution_requests=[cells[cell_id] for cell_id in cell_ids],
                 request=cast(HTTPRequest | None, request),
                 run_id=run_id,
-                allow_stdin=False,
+                allow_stdin=allow_input,
             )
             if not run.turn.ready:
                 # A run ahead is still preparing, such as a scratch run
@@ -302,7 +309,11 @@ class SessionBackend(SessionConsumer):
         self._handover.finish(run.turn)
 
     async def _run_code(
-        self, run: _Run, code: str, request: HTTPRequest | None
+        self,
+        run: _Run,
+        code: str,
+        request: HTTPRequest | None,
+        allow_input: bool,
     ) -> None:
         await run.turn.wait()
         session = run.session
@@ -323,7 +334,7 @@ class SessionBackend(SessionConsumer):
                     notebook_cells=cells,
                     cell_outputs=outputs,
                     run_id=run.translator.run_id,
-                    allow_stdin=False,
+                    allow_stdin=allow_input,
                 ),
             )
             await run.done.wait()
@@ -386,6 +397,12 @@ class SessionBackend(SessionConsumer):
         if self.session is run.session:
             for message in run.translator.finish(error=error):
                 self._observe(message)
+
+    def reply_input(self, input_id: protocol.ItemId, value: str) -> None:
+        session = self.session
+        if session is None:
+            raise NoRuntime("The runtime waiting for input has ended")
+        session.reply_input(InputReply(input_id, value))
 
     def interrupt(self, run_id: protocol.RunId) -> None:
         run = self._runs.get(run_id)

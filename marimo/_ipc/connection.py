@@ -13,6 +13,7 @@ import msgspec
 from marimo import _loggers
 from marimo._ipc.queue_proxy import PushQueue, start_receiver_thread
 from marimo._ipc.types import ConnectionInfo
+from marimo._messaging.input import InputReply
 from marimo._messaging.types import KernelMessage
 from marimo._runtime.commands import (
     BatchableCommand,
@@ -120,7 +121,7 @@ class Connection:
     completion: Channel[OutOfBandCommand]
     win32_interrupt: Channel[bool] | None
 
-    input: Channel[str]
+    input: Channel[str | InputReply]
     stream: Channel[KernelMessage]
 
     def __post_init__(self) -> None:
@@ -200,7 +201,7 @@ class Connection:
             win32_interrupt=Channel.Pull(context, msg_type=bool)
             if connection_info.win32_interrupt
             else None,
-            input=Channel.Pull(context, msg_type=str, maxsize=1),
+            input=Channel.Pull(context, msg_type=str | InputReply, maxsize=1),
             stream=Channel.Push(context),
         )
 

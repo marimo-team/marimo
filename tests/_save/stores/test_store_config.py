@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from marimo._config.config_schema import MarimoConfig, StoreConfig
 from marimo._save.stores import (
     DEFAULT_STORE,
     FileStore,
@@ -29,7 +30,9 @@ class TestGetStoreFromConfig:
     def test_single_item_list(self) -> None:
         """Test that a list with a single valid item returns that item's store."""
         config = [{"type": "file", "args": {"save_path": "/tmp/test"}}]
-        store = _get_store_from_config(config)
+        store = _get_store_from_config(
+            [StoreConfig.from_dict(item) for item in config]
+        )
         assert isinstance(store, FileStore)
         assert store.save_path.as_posix() == "/tmp/test"
 
@@ -39,7 +42,9 @@ class TestGetStoreFromConfig:
             {"type": "file", "args": {"save_path": "/tmp/test1"}},
             {"type": "file", "args": {"save_path": "/tmp/test2"}},
         ]
-        store = _get_store_from_config(config)
+        store = _get_store_from_config(
+            [StoreConfig.from_dict(item) for item in config]
+        )
         assert isinstance(store, TieredStore)
         assert len(store.stores) == 2
         assert all(isinstance(s, FileStore) for s in store.stores)
@@ -49,26 +54,26 @@ class TestGetStoreFromConfig:
     def test_dict_config(self) -> None:
         """Test that a dict config returns the appropriate store."""
         config = {"type": "file", "args": {"save_path": "/tmp/test"}}
-        store = _get_store_from_config(config)
+        store = _get_store_from_config(StoreConfig.from_dict(config))
         assert isinstance(store, FileStore)
         assert store.save_path.as_posix() == "/tmp/test"
 
     def test_invalid_store_type(self) -> None:
         """Test that an invalid store type returns the default store."""
-        config = {"type": "invalid", "args": {}}
+        config = StoreConfig(type="invalid")
         store = _get_store_from_config(config)
         assert isinstance(store, DEFAULT_STORE)
 
     def test_store_creation_error(self) -> None:
         """Test that an error during store creation returns the default store."""
         config = {"type": "file", "args": {"invalid_arg": "value"}}
-        store = _get_store_from_config(config)
+        store = _get_store_from_config(StoreConfig.from_dict(config))
         assert isinstance(store, DEFAULT_STORE)
 
     def test_missing_store_type_uses_default(self) -> None:
         """Test that a missing store type uses the default store type."""
         config = {"args": {}}
-        store = _get_store_from_config(config)
+        store = _get_store_from_config(StoreConfig.from_dict(config))
         assert isinstance(store, DEFAULT_STORE)
 
 
@@ -80,7 +85,7 @@ class TestGetStore:
 
         class _Mgr:
             def get_config(self):
-                return config
+                return MarimoConfig.from_dict(config)
 
         monkeypatch.setattr(
             "marimo._config.manager.get_default_config_manager",
@@ -113,7 +118,7 @@ class TestConfiguredCacheStore:
 
         class _Mgr:
             def get_config(self):
-                return config
+                return MarimoConfig.from_dict(config)
 
         monkeypatch.setattr(
             "marimo._config.manager.get_default_config_manager",
