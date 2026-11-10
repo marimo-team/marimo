@@ -285,7 +285,7 @@ def test_config_describe_nested_and_optional_sections(
     assert "Enable live debugging with gutter breakpoints and pdb." in output
     assert "completion.model (Deprecated)\n" in output
     assert "completion.api_key (Deprecated, Sensitive)\n" in output
-    assert "completion.codeium_api_key (Sensitive)\n" in output
+    assert "completion.codeium_api_key (Deprecated, Sensitive)\n" in output
     assert "completion.activate_on_typing (Sensitive)" not in output
     assert "experimental.debugger (Experimental)\n" in output
     assert "[Deprecated]" not in output

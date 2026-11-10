@@ -976,16 +976,17 @@ components:
           anyOf:
           - type: string
           - type: 'null'
-          description: the Codeium API key
+          deprecated: true
+          description: Deprecated Codeium API key. Codeium completion is no longer
+            supported.
         copilot:
           anyOf:
           - type: boolean
           - enum:
-            - codeium
             - custom
             - github
           default: false
-          description: one of `"github"`, `"codeium"`, or `"custom"`
+          description: one of `"github"` or `"custom"`
         model:
           anyOf:
           - type: string
