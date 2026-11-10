@@ -55,6 +55,7 @@ import { classifyCloseEvent } from "../../transports/connection-state";
 import { createEditorBackend } from "../backend";
 import {
   fakeBackend,
+  fixtureEvents,
   fixtureMessages,
 } from "../../notebook/replica/__tests__/fixtures";
 import { useNotebookSession } from "../useNotebookSession";
@@ -114,6 +115,15 @@ function connection(fake: FakeTransport) {
     /** Deliver a notification as the session routes frame it. */
     send: (notification: unknown) =>
       current().receive({ event: "marimo", data: { marimo: notification } }),
+    /** Deliver a snapshot of the notebook, ending in the stream's `ready`. */
+    ready: () => {
+      for (const message of fixtureMessages("notebook-events.sse")) {
+        current().receive(message);
+        if (message.event === "ready") {
+          break;
+        }
+      }
+    },
     /** End the connection so the stream reconnects. */
     drop: () => current().drop(),
     /** Close the connection with a reason the editor treats as final. */
@@ -347,8 +357,83 @@ describe("useNotebookSession messages", () => {
   });
 });
 
+it("waits for the stream's snapshot before marking the session connected", async () => {
+  const store = createStore();
+  store.set(connectionAtom, { state: ConnectionState.CONNECTING });
+  const fake = withTransport();
+  vi.mocked(useRuntimeManager).mockReturnValue(makeRuntimeManager());
+  renderConnectionHook(store);
+  await started();
+  const conn = connection(fake);
+
+  await act(async () => conn.open());
+  expect(store.get(connectionAtom).state).toBe(ConnectionState.CONNECTING);
+
+  // A host that is not marimo never sends kernel-ready.
+  for (const message of fixtureMessages("notebook-events.sse")) {
+    act(() => conn.receive(message));
+    if (message.event === "ready") {
+      break;
+    }
+    expect(store.get(connectionAtom)).toEqual({
+      state: ConnectionState.CONNECTING,
+    });
+  }
+  expect(store.get(connectionAtom)).toEqual({ state: ConnectionState.OPEN });
+});
+
+it("waits for another ready snapshot after the stream resets", async () => {
+  const store = createStore();
+  const fake = withTransport();
+  vi.mocked(useRuntimeManager).mockReturnValue(makeRuntimeManager());
+  renderConnectionHook(store);
+  await started();
+  const conn = connection(fake);
+  act(() => {
+    conn.open();
+    conn.ready();
+  });
+  expect(store.get(connectionAtom)).toEqual({ state: ConnectionState.OPEN });
+
+  act(() => conn.receive({ event: "reset", data: {} }));
+  expect(store.get(connectionAtom)).toEqual({
+    state: ConnectionState.CONNECTING,
+    phase: "reconnecting",
+  });
+
+  for (const message of fixtureMessages("notebook-events.sse")) {
+    act(() => conn.receive(message));
+    if (message.event === "ready") {
+      break;
+    }
+    expect(store.get(connectionAtom)).toEqual({
+      state: ConnectionState.CONNECTING,
+      phase: "reconnecting",
+    });
+  }
+  expect(store.get(connectionAtom)).toEqual({ state: ConnectionState.OPEN });
+});
+
+it("does not mark a static page connected", async () => {
+  window.__MARIMO_STATIC__ = { files: {} };
+  try {
+    const store = createStore();
+    const fake = withTransport();
+    vi.mocked(useRuntimeManager).mockReturnValue(makeRuntimeManager());
+    renderConnectionHook(store);
+    await started();
+    const conn = connection(fake);
+
+    await act(async () => conn.open());
+    act(() => conn.ready());
+    expect(store.get(connectionAtom).state).not.toBe(ConnectionState.OPEN);
+  } finally {
+    delete window.__MARIMO_STATIC__;
+  }
+});
+
 it.each(["kernel-ready", "reconnected"])(
-  "waits for %s before marking the session connected",
+  "does not mark the session connected on %s alone",
   async (op) => {
     const store = createStore();
     store.set(connectionAtom, { state: ConnectionState.CONNECTING });
@@ -357,9 +442,7 @@ it.each(["kernel-ready", "reconnected"])(
     renderConnectionHook(store);
     await started();
     const conn = connection(fake);
-
     await act(async () => conn.open());
-    expect(store.get(connectionAtom).state).toBe(ConnectionState.CONNECTING);
 
     act(() =>
       conn.send({
@@ -374,7 +457,7 @@ it.each(["kernel-ready", "reconnected"])(
         consumer_capabilities: { edit: true, interact: true },
       }),
     );
-    expect(store.get(connectionAtom).state).toBe(ConnectionState.OPEN);
+    expect(store.get(connectionAtom).state).toBe(ConnectionState.CONNECTING);
   },
 );
 
@@ -452,7 +535,7 @@ describe("connection notice", () => {
       screen.getByRole("button", { name: "Starting kernel… Open Packages" }),
     ).toBeVisible();
     expect(screen.queryByText(/Elapsed/)).not.toBeInTheDocument();
-    send({ op: "reconnected" });
+    act(() => conn.ready());
     expect(
       screen.queryByRole("region", { name: "Notebook startup" }),
     ).not.toBeInTheDocument();
@@ -495,7 +578,7 @@ describe("connection notice", () => {
 
   it("restores completed startup output without putting a connected kernel back into startup", async () => {
     const { store, conn, send } = await renderNotice();
-    send({ op: "reconnected" });
+    act(() => conn.ready());
     send({
       op: "startup-progress",
       phase: "starting-kernel",
@@ -512,6 +595,25 @@ describe("connection notice", () => {
       screen.queryByRole("region", { name: "Notebook startup" }),
     ).not.toBeInTheDocument();
 
+    const notebook = fixtureEvents("notebook-events.sse").find(
+      (event) => event.event === "notebook",
+    );
+    if (!notebook) {
+      throw new Error("Missing notebook fixture");
+    }
+    act(() =>
+      conn.receive({
+        ...notebook,
+        data: {
+          notebook: { ...notebook.data.notebook, name: "Renamed notebook" },
+        },
+      }),
+    );
+    expect(store.get(startupProgressAtom)).toEqual({
+      phase: "starting-kernel",
+      logs: "Kernel startup output\n",
+    });
+
     // A new connection starts from the next session's authoritative snapshot.
     await act(async () => conn.drop());
     await act(async () => vi.advanceTimersByTime(2000));
@@ -520,7 +622,7 @@ describe("connection notice", () => {
   });
 
   it("does not flash a notice when startup finishes within the delay", async () => {
-    const { send } = await renderNotice();
+    const { conn, send } = await renderNotice();
     send({
       op: "startup-progress",
       phase: "preparing-environment",
@@ -538,7 +640,7 @@ describe("connection notice", () => {
     expect(
       screen.queryByRole("region", { name: "Notebook startup" }),
     ).not.toBeInTheDocument();
-    send({ op: "reconnected" });
+    act(() => conn.ready());
     act(() => vi.advanceTimersByTime(500));
     expect(
       screen.queryByRole("region", { name: "Notebook startup" }),

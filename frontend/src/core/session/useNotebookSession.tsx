@@ -1,7 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { invalidatePackageData } from "@/core/packages/package-data";
-import { useAtom, useAtomValue, useSetAtom, useStore } from "jotai";
+import { atom, useAtom, useAtomValue, useSetAtom, useStore } from "jotai";
 import { useEffect, useLayoutEffect, useMemo } from "react";
 import { useErrorBoundary } from "react-error-boundary";
 import { toast } from "@/components/ui/use-toast";
@@ -142,8 +142,6 @@ export function useNotebookSession(opts: {
         return;
       }
       case "kernel-ready": {
-        setKernelStartupError(null);
-        setConnection({ state: ConnectionState.OPEN });
         setInitialRunCompleted(
           Boolean(msg.data.resumed || msg.data.auto_instantiated),
         );
@@ -360,8 +358,7 @@ export function useNotebookSession(opts: {
         return;
 
       case "reconnected":
-        setKernelStartupError(null);
-        setConnection({ state: ConnectionState.OPEN });
+        // The stream's snapshot says when the session is usable again.
         return;
 
       case "focus-cell":
@@ -454,14 +451,25 @@ export function useNotebookSession(opts: {
 
   // Subscribe before passive connection setup: static/WASM transports can emit synchronously.
   useLayoutEffect(() => {
+    const readyAtom = atom((get) => get(replica.notebookAtom) !== null);
     const updateConnection = () => {
-      const status = store.get(replica.connectionAtom);
+      let status = store.get(replica.connectionAtom);
       if (status.state === ConnectionState.NOT_STARTED) {
         return;
       }
       if (status.state === ConnectionState.OPEN) {
         updateStartupProgress(null);
-        return; // kernel-ready, not the socket, establishes session readiness.
+        // The stream's snapshot, not the socket, establishes readiness. A
+        // static page has a snapshot but no host to be connected to.
+        if (isStaticNotebook()) {
+          return;
+        }
+        if (store.get(readyAtom)) {
+          setKernelStartupError(null);
+          setConnection({ state: ConnectionState.OPEN });
+          return;
+        }
+        status = { state: ConnectionState.CONNECTING };
       }
       if (status.state === ConnectionState.CONNECTING) {
         setKernelStartupError(null);
@@ -486,9 +494,12 @@ export function useNotebookSession(opts: {
         return status;
       });
     };
-    const unsubscribe = store.sub(replica.connectionAtom, updateConnection);
+    const unsubscribes = [
+      store.sub(replica.connectionAtom, updateConnection),
+      store.sub(readyAtom, updateConnection),
+    ];
     updateConnection();
-    return unsubscribe;
+    return () => unsubscribes.forEach((unsubscribe) => unsubscribe());
   }, [
     replica,
     store,
