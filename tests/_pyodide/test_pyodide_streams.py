@@ -25,14 +25,17 @@ cell_id = CellId_t("test-cell-id")
 
 def test_pyodide_console_io_without_cell_is_usage_error() -> None:
     stream = PyodideStream(Mock(), asyncio.Queue[str]())
-    for operation in (
-        partial(PyodideStdout(stream).write, "output"),
-        partial(PyodideStderr(stream).write, "output"),
-        PyodideStdin(stream).readline,
-    ):
-        with pytest.raises(RuntimeError, match="notebook cell") as exc_info:
-            operation()
-        assert exc_info.type is RuntimeError
+    with asyncio.Runner():
+        for operation in (
+            partial(PyodideStdout(stream).write, "output"),
+            partial(PyodideStderr(stream).write, "output"),
+            PyodideStdin(stream).readline,
+        ):
+            with pytest.raises(
+                RuntimeError, match="notebook cell"
+            ) as exc_info:
+                operation()
+            assert exc_info.type is RuntimeError
 
 
 @pytest.fixture
