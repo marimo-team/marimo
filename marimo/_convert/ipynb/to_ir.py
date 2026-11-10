@@ -556,6 +556,28 @@ def _normalize_git_url_package(package: str) -> str:
     return package
 
 
+# pip/uv options that consume a separate value argument; the value is not a
+# package name (e.g. `pip install -r requirements.txt` must not record
+# `requirements.txt` as a dependency, issue #11788).
+_PIP_OPTIONS_WITH_VALUE = frozenset(
+    {
+        "-r", "--requirement", "-c", "--constraint", "-e", "--editable",
+        "-t", "--target", "-i", "--index-url", "--extra-index-url",
+        "-f", "--find-links", "--platform", "--python-version", "--python",
+        "--implementation", "--abi", "--root", "--prefix", "--src",
+        "--proxy", "--retries", "--timeout", "--cert", "--client-cert",
+        "--trusted-host", "--keyring-provider", "--keyring",
+        "--progress-bar", "--log", "--report", "--group", "--extra",
+        "--config-settings", "--build-option", "--global-option",
+        "--upgrade-to", "--hash", "--use-feature", "--use-deprecated",
+        "--prefer-binary",
+        # uv-specific value-taking options
+        "--prerelease", "--resolution", "--index-strategy", "--link-mode",
+        "--cache-dir", "--overrides", "--build", "--constraints",
+    }
+)
+
+
 def _extract_pip_install(
     command_line: str, command_tokens: list[str], indent_level: int = 0
 ) -> ExclamationCommandResult:
@@ -570,9 +592,17 @@ def _extract_pip_install(
     # Collect packages and items for display, skipping flags
     packages = []  # Actual packages (no templates)
     templates = []  # Template placeholders
+    skip_next = False
     for token in command_tokens[install_idx + 1 :]:
-        # Skip flags (starting with -)
+        # The argument of a value-taking option is not a package.
+        if skip_next:
+            skip_next = False
+            continue
+        # Skip flags (starting with -); value-taking options also consume
+        # the following token.
         if token.startswith("-"):
+            if token in _PIP_OPTIONS_WITH_VALUE:
+                skip_next = True
             continue
         # Template placeholders stop package collection
         if token.startswith("{") and token.endswith("}"):

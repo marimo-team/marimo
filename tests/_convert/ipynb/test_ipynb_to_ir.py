@@ -301,6 +301,23 @@ def test_complex_exclamation_mark():
     assert result.needs_subprocess is False
 
 
+def test_transform_exclamation_mark_skips_pip_option_values():
+    # pip option values must not be recorded as packages (#11788)
+    result = transform_exclamation_mark(["!pip install -r requirements.txt numpy"])
+    assert result.pip_packages == ["numpy"]
+
+    result = transform_exclamation_mark(
+        ["!pip install --index-url https://x.org/simple foo"]
+    )
+    assert result.pip_packages == ["foo"]
+
+    # uv options that take a separate value are skipped with their value.
+    result = transform_exclamation_mark(
+        ["!uv pip install --prerelease allow --no-cache-dir bar"]
+    )
+    assert result.pip_packages == ["bar"]
+
+
 @pytest.mark.skipif(shutil.which("uv") is None, reason="requires uv")
 def test_exclamation_mark_pip_resolve_does_not_build(tmp_path: Path) -> None:
     """Resolving `!pip install` doesn't run setup"""
