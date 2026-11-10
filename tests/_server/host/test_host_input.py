@@ -26,9 +26,12 @@ if TYPE_CHECKING:
 def test_editor_input_replies_require_interact(
     client: TestClient, kiosk: bool
 ) -> None:
-    with client.websocket_connect(
-        "/ws?session_id=editor", headers=headers("editor")
-    ) as editor:
+    with (
+        client,
+        client.websocket_connect(
+            "/ws?session_id=editor", headers=headers("editor")
+        ) as editor,
+    ):
         snapshot = socket_snapshot(editor)
         notebook_id = next(
             event["data"]["notebook"]["id"]
@@ -52,6 +55,10 @@ def test_editor_input_replies_require_interact(
             assert accepted.status_code == 202, accepted.text
             while True:
                 event = editor.receive_json()
+                if event["event"] == "run":
+                    run = event["data"]["run"]
+                    if run["id"] == accepted.json()["id"]:
+                        assert run["status"] != "completed", run
                 if event["event"] == "input":
                     pending = event["data"]["input"]
                     break
