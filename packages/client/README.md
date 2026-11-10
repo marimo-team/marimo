@@ -127,6 +127,14 @@ Both methods return a `Run` in `result.data` on success, without waiting for
 execution to finish. Runs wait their turn in a shared queue. Open the notebook
 stream before submitting work to receive its progress and results.
 
+## Cancel a run
+
+`notebook.cancel({ runId })` cancels one queued or running run and leaves other
+runs untouched. Cancelling a completed run returns a conflict problem.
+
+The runtime stays alive. A successful result contains the `Run`. It
+acknowledges the request, so follow the notebook stream to observe completion.
+
 ## Follow changes
 
 Keep iterating after `ready` to follow changes. Streams reconnect and resume

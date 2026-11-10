@@ -1171,7 +1171,7 @@ async def test_scratch_runs_over_http(harness: Harness) -> None:
         app, "DELETE", f"{runs}/{run_id}", headers=key("i1")
     )
     assert interrupted.status == 202
-    assert harness.backend().calls[-1] == ("interrupt", run_id)
+    assert harness.backend().calls[-1] == ("cancel", run_id)
 
     notebook.observe(be.Completed("e1", protocol.InterruptedOutcome()))
     notebook.observe(be.Done(run_id, "interrupted"))

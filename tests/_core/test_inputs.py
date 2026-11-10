@@ -73,7 +73,7 @@ def test_pending_inputs_cancel_before_execution_ends(
 ) -> None:
     run, item = prompt(notebook)
     if ending == "interrupt":
-        notebook.interrupt(run.id, request_id="cancel")
+        notebook.cancel(run.id, request_id="cancel")
     elif ending == "stop":
         notebook.stop(request_id="cancel")
     elif ending == "restart":

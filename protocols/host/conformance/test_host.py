@@ -485,7 +485,7 @@ async def test_run_cells(host, scratch):
         assert conflict["cell"]["id"] == "check_a"
 
 
-async def test_runs_queue_behind_the_active_run_and_interrupt(host, scratch):
+async def test_runs_queue_behind_the_active_run_and_cancel(host, scratch):
     require(scratch, "runtime.start", "runtime.stop", "runtime.execute")
     path = notebook_path(scratch)
     async with host.watch(path + "/events") as watch:
@@ -530,3 +530,82 @@ async def test_runs_queue_behind_the_active_run_and_interrupt(host, scratch):
         problem(await host.request("DELETE", endpoint), 409, "conflict")
         # The interruption releases the runtime for the queued run.
         await finish_run(watch, queued, queued_key, "succeeded")
+
+
+async def test_cancel_queued_run_leaves_other_runs_untouched(host, scratch):
+    require(scratch, "runtime.start", "runtime.stop", "runtime.execute")
+    assert "runtime.cancel" in scratch["operations"]
+    path = notebook_path(scratch)
+    async with host.watch(path + "/events") as watch:
+        await watch.ready()
+        await start(host, path, watch)
+        active_key = uuid4().hex
+        active = accepted(
+            await host.request(
+                "POST",
+                path + "/runtime/execute",
+                key=active_key,
+                json={"code": "import time\ntime.sleep(60)"},
+            ),
+            202,
+            "Run",
+        )
+        await watch.until(
+            lambda f: (
+                f.event == "execution"
+                and f.message()["execution"]["run_id"] == active["id"]
+                and f.message()["execution"]["status"] == "running"
+            )
+        )
+        queued = accepted(
+            await host.request(
+                "POST", path + "/runtime/execute", json={"code": "pass"}
+            ),
+            202,
+            "Run",
+        )
+        next_key = uuid4().hex
+        successor = accepted(
+            await host.request(
+                "POST",
+                path + "/runtime/execute",
+                key=next_key,
+                json={"code": "pass"},
+            ),
+            202,
+            "Run",
+        )
+        assert queued["status"] == successor["status"] == "queued"
+        endpoint = path + "/runtime/runs/" + queued["id"]
+        assert (
+            accepted(await host.request("DELETE", endpoint), 202, "Run")["id"]
+            == queued["id"]
+        )
+        events = await watch.until(
+            lambda f: (
+                f.event == "run"
+                and f.message()["run"]["id"] == queued["id"]
+                and f.message()["run"]["status"] == "completed"
+            )
+        )
+        assert events[-1].message()["run"]["outcome"] == "interrupted"
+        # The queued run may leave an execution, but it never started.
+        assert not any(
+            e["run_id"] == queued["id"] and e["started_at"] is not None
+            for e in objects(events, "execution")
+        )
+        assert not any(
+            r["id"] in (active["id"], successor["id"])
+            and r["status"] == "completed"
+            for r in objects(events, "run")
+        )
+        problem(await host.request("DELETE", endpoint), 409, "conflict")
+        accepted(
+            await host.request(
+                "DELETE", path + "/runtime/runs/" + active["id"]
+            ),
+            202,
+            "Run",
+        )
+        await finish_run(watch, active, active_key, "interrupted")
+        await finish_run(watch, successor, next_key, "succeeded")

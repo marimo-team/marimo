@@ -159,8 +159,8 @@ export const operations = {
     responses: { 200: Protocol.Input },
     problems: [400, 401, 403, 404, 405, 409, 500, 501],
   },
-  /** Interrupt a run. */
-  "runtime.interrupt": {
+  /** Cancel a run. */
+  "runtime.cancel": {
     method: "DELETE",
     path: "/notebooks/{notebook_id}/runtime/runs/{run_id}",
     query: {},

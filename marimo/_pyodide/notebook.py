@@ -75,7 +75,7 @@ _OPERATIONS = (
     "runtime.run",
     "runtime.input",
     "runtime.execute",
-    "runtime.interrupt",
+    "runtime.cancel",
 )
 
 
@@ -243,7 +243,7 @@ class WorkerBackend:
         self._session.put_input(InputReply(input_id, value))
         self._session.session_view.add_stdin(value, input_id=input_id)
 
-    def interrupt(self, run_id: protocol.RunId) -> None:
+    def cancel(self, run_id: protocol.RunId) -> None:
         preparing = self._preparing.get(run_id)
         if preparing is not None:
             preparing.task.cancel()

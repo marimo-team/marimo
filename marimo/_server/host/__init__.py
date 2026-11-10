@@ -17,6 +17,7 @@ OPERATIONS = [
     "runtime.run",
     "runtime.input",
     "runtime.execute",
+    "runtime.cancel",
 ]
 """Supported operations advertised in the `host` object."""
 

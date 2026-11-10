@@ -404,7 +404,7 @@ class SessionBackend(SessionConsumer):
             raise NoRuntime("The runtime waiting for input has ended")
         session.reply_input(InputReply(input_id, value))
 
-    def interrupt(self, run_id: protocol.RunId) -> None:
+    def cancel(self, run_id: protocol.RunId) -> None:
         run = self._runs.get(run_id)
         if run is None:
             translator = self._translators.get(run_id)

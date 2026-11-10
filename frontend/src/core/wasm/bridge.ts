@@ -252,7 +252,7 @@ export class PyodideBridge implements RunRequests, EditRequests {
         }
       },
       call: (call) => {
-        if (call.operation === "runtime.interrupt") {
+        if (call.operation === "runtime.cancel") {
           // The worker cannot take the call while a cell runs; raise the
           // interrupt there first. A queued run is cancelled by the worker,
           // unless it starts before the call arrives: then it is raised

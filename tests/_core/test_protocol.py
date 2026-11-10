@@ -291,7 +291,7 @@ def test_catalog_capabilities_and_runtime_stop() -> None:
                 if {"runtime.run", "runtime.execute"}.intersection(
                     obj["operations"]
                 ):
-                    assert "runtime.interrupt" in obj["operations"]
+                    assert "runtime.cancel" in obj["operations"]
             if kind == "notebook":
                 assert obj["project_id"] in state["project"]
             if kind in {"runtime", "attachment"}:

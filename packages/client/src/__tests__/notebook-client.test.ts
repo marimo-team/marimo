@@ -99,7 +99,7 @@ describe("NotebookClient", () => {
       "http://localhost/api/marimo/v1/notebooks/n1/?session_id=s1",
     );
     await notebook.delete();
-    await notebook.interrupt("r/1");
+    await notebook.cancel({ runId: "r/1" });
     expect(fetch.mock.calls.map(([url]) => String(url))).toMatchInlineSnapshot(`
       [
         "http://localhost/api/marimo/v1/notebooks/n1?session_id=s1",
@@ -123,10 +123,36 @@ describe("NotebookClient", () => {
     "rejects the run id %j before sending",
     async (runId) => {
       const { notebook, fetch } = connect(() => json(202, {}));
-      await expect(notebook.interrupt(runId)).rejects.toThrow("valid run_id");
+      await expect(notebook.cancel({ runId })).rejects.toThrow(
+        "valid run_id",
+      );
       expect(fetch).not.toHaveBeenCalled();
     },
   );
+
+  it("cancels a run by id and returns its record", async () => {
+    const run: Protocol.Run = {
+      id: "r/1",
+      notebook_id: "n1",
+      runtime_id: "rt-1",
+      cells: [],
+      status: "running",
+      started_at: "2026-10-01T09:20:01Z",
+      completed_at: null,
+      outcome: null,
+    };
+    const { notebook, sent } = connect(() => json(202, run));
+    expect(
+      await notebook.cancel({ runId: run.id, idempotencyKey: "cancel-1" }),
+    ).toEqual({ ok: true, status: 202, data: run });
+    const request = sent();
+    expect(request.method).toBe("DELETE");
+    expect(request.url).toBe(
+      "http://127.0.0.1:2718/api/marimo/v1/notebooks/n1/runtime/runs/r%2F1",
+    );
+    expect(request.headers.get("Idempotency-Key")).toBe("cancel-1");
+    expect(request.body).toBeNull();
+  });
 
   it("keeps its URL when a caller changes the copy it reads", async () => {
     const { notebook, fetch } = connect(
@@ -261,7 +287,7 @@ describe("NotebookClient", () => {
       "runtime.run": "run",
       "runtime.execute": "execute",
       "runtime.input": "input",
-      "runtime.interrupt": "interrupt",
+      "runtime.cancel": "cancel",
     } as const).toExtend<Record<NotebookOperationId, keyof NotebookClient>>();
   });
 });
@@ -311,13 +337,15 @@ describe("NotebookClient.unstable_over", () => {
       status: 404,
     };
     const { notebook, send } = over(() => ({ status: 404, body: problem }));
-    expect(await notebook.interrupt("r1", { idempotencyKey: "k" })).toEqual({
-      ok: false,
-      status: 404,
-      problem,
-    });
+    expect(await notebook.cancel({ runId: "r1", idempotencyKey: "k" })).toEqual(
+      {
+        ok: false,
+        status: 404,
+        problem,
+      },
+    );
     expect(send).toHaveBeenCalledWith({
-      operation: "runtime.interrupt",
+      operation: "runtime.cancel",
       params: { notebook_id: "n1", run_id: "r1" },
       headers: { "idempotency-key": "k" },
       body: undefined,
@@ -354,11 +382,14 @@ describe("NotebookClient.unstable_over", () => {
       OperationsBelow<"/notebooks/{notebook_id}">
     >();
     expectTypeOf<
-      unstable_NotebookCall<"runtime.interrupt">["params"]
+      unstable_NotebookCall<"runtime.cancel">["params"]
     >().toEqualTypeOf<{
       readonly notebook_id: string;
       readonly run_id: string;
     }>();
+    expectTypeOf<
+      unstable_NotebookCall<"runtime.cancel">["body"]
+    >().toEqualTypeOf<undefined>();
     expectTypeOf<unstable_NotebookCall<"notebook.save">["headers"]>().toExtend<{
       readonly "idempotency-key": string;
       readonly "if-match"?: string;

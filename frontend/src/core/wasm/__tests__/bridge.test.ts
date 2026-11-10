@@ -262,7 +262,7 @@ it("cancels a pending notebook subscription before its RPC response", async () =
   }
 });
 
-it("raises the interrupt buffer for a running run before the worker takes the call", async () => {
+it("raises the interrupt buffer for a cancelled running run before the worker takes the call", async () => {
   vi.clearAllMocks();
   store.set(initialModeAtom, "read");
   rpcListeners.initialized();
@@ -294,7 +294,7 @@ it("raises the interrupt buffer for a running run before the worker takes the ca
     const notebook = backend.notebook("n1") as unknown as NotebookClient;
 
     store.set(activeNotebookReplicaAtom, replicaWith("running"));
-    expect((await notebook.interrupt("run-1")).ok).toBe(true);
+    expect((await notebook.cancel({ runId: "run-1" })).ok).toBe(true);
     expect(interrupt).toHaveBeenCalledOnce();
     expect(mockNotebookCall).toHaveBeenCalledOnce();
     expect(interrupt.mock.invocationCallOrder[0]).toBeLessThan(
@@ -302,7 +302,7 @@ it("raises the interrupt buffer for a running run before the worker takes the ca
     );
 
     store.set(activeNotebookReplicaAtom, replicaWith("queued"));
-    expect((await notebook.interrupt("run-1")).ok).toBe(true);
+    expect((await notebook.cancel({ runId: "run-1" })).ok).toBe(true);
     expect(interrupt).toHaveBeenCalledOnce();
     expect(mockNotebookCall).toHaveBeenCalledTimes(2);
   } finally {
@@ -312,7 +312,7 @@ it("raises the interrupt buffer for a running run before the worker takes the ca
   }
 });
 
-it("raises the interrupt buffer once a run interrupted while queued starts", async () => {
+it("raises the interrupt buffer once a run cancelled while queued starts", async () => {
   vi.clearAllMocks();
   store.set(initialModeAtom, "read");
   rpcListeners.initialized();
@@ -348,7 +348,7 @@ it("raises the interrupt buffer once a run interrupted while queued starts", asy
   try {
     const backend = await PyodideBridge.INSTANCE.createNotebookBackend();
     const notebook = backend.notebook("n1") as unknown as NotebookClient;
-    expect((await notebook.interrupt("run-1")).ok).toBe(true);
+    expect((await notebook.cancel({ runId: "run-1" })).ok).toBe(true);
     expect(interrupt).not.toHaveBeenCalled();
 
     // The worker took the run before the cancellation reached it.

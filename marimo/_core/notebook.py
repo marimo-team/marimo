@@ -528,10 +528,10 @@ class Notebook:
                 )
             return run
 
-    def interrupt(
+    def cancel(
         self, run_id: str, *, request_id: str | None = None
     ) -> protocol.Run:
-        """Request interruption of a run in progress."""
+        """Request cancellation of a run that has not finished."""
         self._require_open()
         run = self.executions.run(protocol.RunId(run_id))
         if run is None:
@@ -542,7 +542,7 @@ class Notebook:
             self._apply(
                 self.executions.cancel_inputs(run.id), request_id=request_id
             )
-            self.backend.interrupt(run.id)
+            self.backend.cancel(run.id)
         return run
 
     def reply_input(
