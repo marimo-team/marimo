@@ -17,6 +17,7 @@ import { Logger } from "@/utils/Logger";
 import { prettyError } from "../../../utils/errors";
 import { invariant } from "../../../utils/invariant";
 import { ReadonlyWasmController } from "./controller";
+import { followIsland } from "./follow";
 
 declare const self: Window & {
   pyodide: PyodideInterface;
@@ -74,8 +75,7 @@ async function startSession(
       filename: `app-${opts.appId}.py`,
     });
     const session = await self.controller.prepareSession(notebook);
-    // Follow before the session instantiates. Each subscription begins with
-    // its own kernel-ready and the session's retained notifications.
+    // Subscribe before starting the kernel so its first run is observed.
     try {
       const host = session.bridge.notebook;
       try {
@@ -84,7 +84,18 @@ async function startSession(
       } finally {
         host.destroy();
       }
-      await follow(session.bridge, opts.sessionGeneration);
+      await followIsland({
+        bridge: session.bridge,
+        sessionGeneration: opts.sessionGeneration,
+        signal: session.signal,
+        emit: (event) =>
+          rpc.send.notebookEvent({
+            event,
+            sessionGeneration: opts.sessionGeneration,
+          }),
+        onError: (error) =>
+          rpc.send.initializedError({ error: prettyError(error) }),
+      });
     } catch (error) {
       await session.stop();
       throw error;
@@ -133,20 +144,6 @@ async function stopActiveSession(): Promise<void> {
   // Stopping closes every session and its notebook subscriptions.
   await self.controller.stopSession();
   activeSession = undefined;
-}
-
-async function follow(
-  bridge: SerializedBridge,
-  sessionGeneration: number,
-): Promise<void> {
-  const notebook = bridge.notebook;
-  try {
-    await notebook.subscribe(`island-${sessionGeneration}`, null, (event) => {
-      rpc.send.notebookEvent({ event, sessionGeneration });
-    });
-  } finally {
-    notebook.destroy();
-  }
 }
 
 function enqueueSession<T>(operation: () => Promise<T>): Promise<T> {

@@ -334,18 +334,33 @@ import asyncio
 
 # Collect the notifications the session sends on its notebook stream
 messages = []
+host_events = []
+runtime_ready = asyncio.Event()
 
 def receive(raw):
     event = json.loads(raw)
     if event["event"] == "marimo":
         messages.append(event["data"]["marimo"])
+    else:
+        host_events.append(event)
+        if event["event"] == "runtime" and event["data"]["runtime"]["status"] == "running":
+            runtime_ready.set()
 
 # Import and create session
-from marimo._pyodide.bootstrap import create_session, instantiate
+from marimo._pyodide.bootstrap import create_session
 
-def init(auto_instantiate=True):
-    instantiate(session, auto_instantiate)
+async def init():
     asyncio.create_task(session.start())
+    await asyncio.wait_for(runtime_ready.wait(), timeout=30)
+    document = next(event["data"]["document"] for event in host_events if event["event"] == "document")
+    result = json.loads(await bridge.notebook.call(json.dumps({
+        "operation": "runtime.run",
+        "params": {"notebook_id": bridge.notebook.id},
+        "headers": {"idempotency-key": "acceptance-startup"},
+        "body": {"cells": [{"id": cell_id} for cell_id in document["order"]]},
+    })))
+    assert result["status"] == 202, result
+    return result["body"]["id"]
 
 session, bridge = create_session(
     filename="/home/pyodide/test_notebook.py",
@@ -357,7 +372,7 @@ bridge.notebook.allow_input()
 await bridge.notebook.subscribe("messages", None, receive)
 
 # Run the session
-init(session)
+initial_run_id = await init()
 
 # Verify session was created
 assert session is not None, "Session should not be None"
@@ -400,7 +415,7 @@ if missing_methods:
     raise AssertionError(f"Bridge missing methods: {missing_methods}")
 
 # Wait for the startup run to end, so the host stream below is quiet.
-while not any(msg["op"] == "completed-run" for msg in messages):
+while not any(event["event"] == "run" and event["data"]["run"]["id"] == initial_run_id and event["data"]["run"]["status"] == "completed" for event in host_events):
     await asyncio.sleep(0.1)
 message_ops = [msg["op"] for msg in messages]
 

@@ -2,6 +2,7 @@
 /* oxlint-disable typescript/no-explicit-any */
 
 import { NotebookClient, type NotebookTransport } from "@marimo-team/client";
+import { Event } from "@marimo-team/client/protocol";
 import { getWorkerRPC } from "@/core/wasm/rpc";
 import { Deferred } from "@/utils/Deferred";
 import { throwNotImplemented } from "@/utils/functions";
@@ -171,6 +172,26 @@ export class IslandsPyodideBridge implements RunRequests, EditRequests {
             this.notificationConsumer?.(frame.data.marimo, sessionGeneration);
           }
           return;
+        }
+        if (frame.event === "run" || frame.event === "document") {
+          const event = Event.safeParse(frame);
+          if (
+            event.success &&
+            ((event.data.event === "run" &&
+              event.data.data.run.cells.length > 0 &&
+              event.data.data.run.status === "completed") ||
+              (event.data.event === "document" &&
+                event.data.data.document.order.length === 0))
+          ) {
+            this.store.set(islandsPendingInitialRunsAtom, (pending) => {
+              if (!pending?.has(sessionGeneration)) {
+                return pending;
+              }
+              const next = new Set(pending);
+              next.delete(sessionGeneration);
+              return next;
+            });
+          }
         }
         // The replica follows the managed session's host document.
         if (sessionGeneration === this.session?.sessionGeneration) {

@@ -63,6 +63,8 @@ export interface WasmController {
 }
 
 export interface WasmSession {
+  /** Aborted before the session releases its bridge and subscriptions. */
+  readonly signal: AbortSignal;
   readonly bridge: SerializedBridge;
   /** Start once dependencies are ready. Repeated calls share the same start. */
   start(): Promise<void>;

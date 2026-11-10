@@ -128,9 +128,8 @@ export async function initializeIslands(
     }
   });
 
-  // Each notification names the session that sent it.
-  bridge.consumeNotifications((notification, sessionGeneration) => {
-    handleNotification(notification, actions, store, sessionGeneration);
+  bridge.consumeNotifications((notification) => {
+    handleNotification(notification, actions, store);
   });
 
   // The notebook's cells follow the managed session's host document.
@@ -171,7 +170,6 @@ function handleNotification(
   msg: NotificationMessage,
   actions: NotebookActions,
   store: Store,
-  sessionGeneration: number,
 ): void {
   try {
     Logger.debug("Islands received message:", msg.op);
@@ -202,22 +200,12 @@ function handleNotification(
       case "secret-keys-result":
       case "startup-logs":
       case "startup-progress":
+      case "completed-run":
       case "interrupted":
       case "cache-cleared":
       case "cache-info":
       case "kernel-startup-error":
       case "notebook-document-transaction":
-        return;
-
-      case "completed-run":
-        store.set(islandsPendingInitialRunsAtom, (pending) => {
-          if (!pending?.has(sessionGeneration)) {
-            return pending;
-          }
-          const next = new Set(pending);
-          next.delete(sessionGeneration);
-          return next;
-        });
         return;
 
       case "kernel-ready":

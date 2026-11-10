@@ -315,6 +315,11 @@ async def test_the_runtime_runs_once_the_page_starts_the_kernel(bridge):
     runtime = latest(events, "runtime")
     assert runtime["status"] == "running"
     assert runtime["marimo_version"]
+    [create] = queued(bridge)
+    assert isinstance(create, CreateNotebookCommand)
+    assert create.auto_run is False
+    assert bridge.session.instantiated
+    assert not any(event["event"] == "run" for event in events)
 
 
 async def test_a_run_for_no_editor_does_not_allow_input(bridge):
@@ -806,14 +811,15 @@ async def test_a_failed_launch_fails_the_runtime(
     assert (runtime["status"], runtime["message"]) == ("failed", "no kernel")
 
 
-async def test_the_first_host_run_registers_the_cells(bridge):
+async def test_a_host_run_uses_the_prepared_notebook(bridge):
     events = await started(bridge)
+    [create] = queued(bridge)
+    assert isinstance(create, CreateNotebookCommand)
+    assert create.auto_run is False
     cell = latest(events, "cell")
     await call(bridge, "runtime.run", {"cells": [{"id": cell["id"]}]})
     await settle()
-    create, execute = queued(bridge)
-    assert isinstance(create, CreateNotebookCommand)
-    assert create.auto_run is False
+    [execute] = queued(bridge)
     assert isinstance(execute, ExecuteCellsCommand)
     assert bridge.session.instantiated
 

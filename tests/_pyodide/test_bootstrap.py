@@ -1,7 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 import pytest
 
@@ -101,35 +101,3 @@ async def test_create_session_with_invalid_script_config(
         session._initial_user_config.display.theme
         == DEFAULT_CONFIG.display.theme
     )
-
-
-async def test_instantiate(
-    mock_app_file: Path,
-) -> None:
-    session, _ = create_session(
-        filename=str(mock_app_file),
-        query_params={},
-        user_config=DEFAULT_CONFIG,
-    )
-
-    # Mock the put_control_request method to capture the request
-    captured_request = None
-    original_put_control_request = session.put_control_request
-
-    def mock_put_control_request(request: Any) -> None:
-        nonlocal captured_request
-        captured_request = request
-        original_put_control_request(request)
-
-    session.put_control_request = mock_put_control_request
-
-    # Call instantiate
-    from marimo._pyodide.bootstrap import instantiate
-
-    instantiate(session)
-
-    # Verify the request was created correctly
-    assert captured_request is not None
-    assert len(captured_request.execution_requests) == 1
-    assert captured_request.execution_requests[0].code == '"Hello"'
-    assert captured_request.auto_run is True
