@@ -20,7 +20,6 @@ with app.setup:
 @app.cell
 def test_cell_uses_setup_fixture(setup_data):
     assert setup_data == [1, 2, 3]
-    return
 
 
 @app.function
