@@ -191,33 +191,6 @@ async def function_call(
     return await dispatch_control_request(request, InvokeFunctionRequest)
 
 
-@router.post("/interrupt")
-@requires("edit")
-async def interrupt(
-    *,
-    request: Request,
-) -> BaseResponse:
-    """
-    parameters:
-        - in: header
-          name: Marimo-Session-Id
-          schema:
-            type: string
-          required: true
-    responses:
-        200:
-            description: Interrupt the kernel's execution
-            content:
-                application/json:
-                    schema:
-                        $ref: "#/components/schemas/SuccessResponse"
-    """
-    app_state = AppState(request)
-    app_state.require_current_session().try_interrupt()
-
-    return SuccessResponse()
-
-
 @router.get("/status")
 @requires("edit")
 async def kernel_status(

@@ -188,10 +188,17 @@ class TestExecutionRoutes_EditMode:
     @staticmethod
     @with_session(SESSION_ID)
     def test_interrupt(client: TestClient) -> None:
-        response = client.post("/api/kernel/interrupt", headers=HEADERS)
-        assert response.status_code == 200, response.text
-        assert response.headers["content-type"] == "application/json"
-        assert "success" in response.json()
+        session = get_session_manager(client).get_session(SESSION_ID)
+        assert session is not None
+        bridge = client.app.state.host_context.bridge  # type: ignore[union-attr]
+        notebook = bridge.notebook_for_session(session)
+        assert notebook is not None
+        response = client.post(
+            f"/api/marimo/v1/notebooks/{notebook.id}/runtime/interrupt",
+            headers={**HEADERS, "Idempotency-Key": "interrupt"},
+        )
+        assert response.status_code == 202, response.text
+        assert response.json()["status"] == "running"
 
     @staticmethod
     @with_session(SESSION_ID)
@@ -695,8 +702,16 @@ class TestExecutionRoutes_RunMode:
     @staticmethod
     @with_read_session(SESSION_ID)
     def test_interrupt(client: TestClient) -> None:
-        response = client.post("/api/kernel/interrupt", headers=HEADERS)
-        assert response.status_code == 401, response.text
+        session = get_session_manager(client).get_session(SESSION_ID)
+        assert session is not None
+        bridge = client.app.state.host_context.bridge  # type: ignore[union-attr]
+        notebook = bridge.notebook_for_session(session)
+        assert notebook is not None
+        response = client.post(
+            f"/api/marimo/v1/notebooks/{notebook.id}/runtime/interrupt",
+            headers={**HEADERS, "Idempotency-Key": "read-interrupt"},
+        )
+        assert response.status_code == 403, response.text
 
     @staticmethod
     @with_read_session(SESSION_ID)

@@ -7759,21 +7759,6 @@ paths:
                 $ref: '#/components/schemas/SuccessResponse'
           description: Instantiate a component. Only allowed in edit mode; in run
             mode, instantiation happens server-side automatically.
-  /api/kernel/interrupt:
-    post:
-      parameters:
-      - in: header
-        name: Marimo-Session-Id
-        required: true
-        schema:
-          type: string
-      responses:
-        200:
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/SuccessResponse'
-          description: Interrupt the kernel's execution
   /api/kernel/pdb/breakpoints:
     post:
       parameters:
