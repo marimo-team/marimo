@@ -33,7 +33,6 @@ from marimo._server.host.translate import (
     variable_messages,
 )
 from marimo._server.scratchpad import snapshot_for_scratchpad
-from marimo._server.workspace import NEW_FILE
 from marimo._session.consumer import SessionConsumer
 from marimo._session.model import ConnectionState
 from marimo._session.requests import InstantiateNotebookRequest
@@ -97,7 +96,7 @@ class SessionBackend(SessionConsumer):
     def __init__(
         self,
         notebook_id: protocol.NotebookId,
-        file: Callable[[], str | None],
+        file_key: Callable[[], str],
         manager: SessionManager,
         observe: Observe,
         sink: Sink,
@@ -109,8 +108,8 @@ class SessionBackend(SessionConsumer):
         request_metadata: RequestMetadata | None = None,
     ) -> None:
         self._notebook_id = notebook_id
-        self._file = file
-        """Resolve the notebook's current path after file moves."""
+        self._file_key = file_key
+        """Resolve the key the notebook's sessions start under, after file moves."""
         self._cell_order = cell_order
         """The document's cell ids in order, for errors that name cells."""
         self._manager = manager
@@ -124,8 +123,6 @@ class SessionBackend(SessionConsumer):
         """Called with the session that detached, before its exit is reported."""
         self._request_metadata = request_metadata
         self._kernel: _Kernel | None = None
-        self._session_key: str | None = None
-        """The last session's key, which its editor reconnects with."""
         self._runs: dict[protocol.RunId, _Run] = {}
         """Runs this backend submitted that have not finished, by run id."""
         self._handover = Handover()
@@ -147,11 +144,9 @@ class SessionBackend(SessionConsumer):
 
     async def _start(self, kernel: _Kernel, session_id: SessionId) -> None:
         # An untitled notebook starts from no file, as it does for the
-        # editor, under the key the editor's tab rejoins it by; the host's
+        # editor, under the key the editor's tab rejoins it by. The host's
         # document reaches the session once it attaches.
-        file_key = (
-            self._file() or self._session_key or f"{NEW_FILE}{session_id}"
-        )
+        file_key = self._file_key()
         try:
             await self._manager.create_session(
                 session_id,
@@ -481,7 +476,6 @@ class SessionBackend(SessionConsumer):
 
     def on_attach(self, session: Session, event_bus: SessionEventBus) -> None:
         del event_bus
-        self._session_key = session.initialization_id
         kernel = self._kernel
         if kernel is None:
             return

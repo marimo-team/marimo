@@ -149,7 +149,10 @@ class FakeManager:
         if isinstance(self.next_session, Exception):
             raise self.next_session
         session: FakeSession = self.next_session
+        session.initialization_id = file_key
         self.sessions[session_id] = session
+        # The session manager announces a session before its starter attaches.
+        await self.event_bus.emit_session_created(session)  # type: ignore[arg-type]
         session.connect_consumer(session_consumer, main=main)
         return session
 

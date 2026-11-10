@@ -98,44 +98,6 @@ async def test_a_failed_start_reports_the_reason(
     assert observed.messages == [be.Exited(RT1, "KeyError")]
 
 
-async def test_a_notebook_without_a_file_starts_a_new_one(
-    manager: FakeManager, observed: Observed
-) -> None:
-    SessionBackend(
-        protocol.NotebookId("n1"),
-        lambda: None,
-        manager,  # type: ignore[arg-type]
-        observed,
-        Stream(),
-    ).start(RT1)
-    await observed.wait_for(be.Running)
-    assert [start["file_key"] for start in manager.starts] == [
-        "__new__host-rt1"
-    ]
-
-
-async def test_a_notebook_without_a_file_restarts_under_its_editor_key(
-    manager: FakeManager, observed: Observed
-) -> None:
-    b = SessionBackend(
-        protocol.NotebookId("n1"),
-        lambda: None,
-        manager,  # type: ignore[arg-type]
-        observed,
-        Stream(),
-    )
-    session = FakeSession(path=None)
-    b.adopt(RT1, session)  # type: ignore[arg-type]
-    await observed.wait_for(be.Running)
-    b.stop(RT1)
-    await observed.wait_for(be.Exited)
-    observed.messages.clear()
-
-    b.start(protocol.RuntimeId("rt2"))
-    await observed.wait_for(be.Running)
-    assert [start["file_key"] for start in manager.starts] == ["__new__editor"]
-
-
 async def test_stop_closes_the_session_and_reports_the_exit(
     manager: FakeManager, observed: Observed
 ) -> None:

@@ -16,7 +16,7 @@ from msgspec.structs import replace
 from marimo._core import protocol
 from marimo._core.ids import mint
 from marimo._server.host import OPERATIONS
-from marimo._server.workspace import flatten_files
+from marimo._server.workspace import NEW_FILE, flatten_files
 
 if TYPE_CHECKING:
     from marimo._core.host import Host, NotebookInitializer
@@ -43,6 +43,8 @@ class WorkspaceIndex:
         self._ids: dict[Path, protocol.NotebookId] = {}
         self._open_project_id: protocol.ProjectId | None = None
         self._open_files: dict[protocol.NotebookId, Path] = {}
+        self._untitled: dict[protocol.NotebookId, str] = {}
+        """The key that sessions start under for each notebook without a file."""
         self._names: dict[protocol.NotebookId, str] = {}
         """Client-selected names preserved across rescans."""
         self._refresh_lock = asyncio.Lock()
@@ -170,12 +172,16 @@ class WorkspaceIndex:
             self._host.add_notebook(record, self._initialize)
         return record
 
-    def untitled(self) -> protocol.Notebook:
-        """Register an editor document before it has a file.
+    def untitled(self, key: str) -> protocol.Notebook:
+        """Return the notebook without a file whose sessions start under `key`.
 
-        It can be edited and its runtime driven, but the operations that
-        need a file wait until it is saved under a path.
+        An editor document is registered before it has a file. It can be
+        edited and its runtime driven, but the operations that need a file
+        wait until it is saved under a path.
         """
+        for notebook_id, known in self._untitled.items():
+            if known == key:
+                return self._host.notebooks[notebook_id]
         record = protocol.Notebook(
             id=mint(protocol.NotebookId, "nb"),
             project_id=self.project_id,
@@ -188,6 +194,7 @@ class WorkspaceIndex:
             ),
             updated_at=None,
         )
+        self._untitled[record.id] = key
         self._host.add_notebook(record, self._initialize)
         return record
 
@@ -206,6 +213,7 @@ class WorkspaceIndex:
         for old, known in list(self._ids.items()):
             if known == notebook_id:
                 del self._ids[old]
+        self._untitled.pop(notebook_id, None)
         if relative is None:
             return self._publish_open_notebook(
                 notebook_id, Path(path).resolve(), request_id=request_id
@@ -248,6 +256,7 @@ class WorkspaceIndex:
                 del self._ids[path]
         self._names.pop(notebook_id, None)
         self._open_files.pop(notebook_id, None)
+        self._untitled.pop(notebook_id, None)
         self._host.remove_notebook(notebook_id, request_id=request_id)
 
     def notebook_for(self, path: str | None) -> protocol.Notebook | None:
@@ -270,6 +279,20 @@ class WorkspaceIndex:
         if record is None or record.path is None or self._root is None:
             return None
         return self._root / record.path
+
+    def file_key(self, notebook_id: protocol.NotebookId) -> str:
+        """Return the key the notebook's sessions start under.
+
+        A notebook with a file starts from its path. One without a file has
+        the key it was registered under, and a notebook that lost its file
+        is given one, so its next session is an untitled one.
+        """
+        file = self.file_of(notebook_id)
+        if file is not None:
+            return str(file)
+        return self._untitled.setdefault(
+            notebook_id, f"{NEW_FILE}{notebook_id}"
+        )
 
     def _publish(
         self,
