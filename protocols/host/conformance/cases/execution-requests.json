@@ -1,0 +1,178 @@
+[
+  {
+    "name": "scratch",
+    "valid": false,
+    "body": {
+      "code": "print(1)"
+    },
+    "schema": "RunRequest"
+  },
+  {
+    "name": "empty scratch",
+    "valid": false,
+    "body": {
+      "code": ""
+    },
+    "schema": "RunRequest"
+  },
+  {
+    "name": "document cells",
+    "valid": true,
+    "body": {
+      "cells": [
+        {
+          "id": "c"
+        }
+      ]
+    },
+    "schema": "RunRequest"
+  },
+  {
+    "name": "future field",
+    "valid": false,
+    "body": {
+      "code": "",
+      "future": true
+    },
+    "schema": "RunRequest"
+  },
+  {
+    "name": "missing cells",
+    "valid": false,
+    "body": {},
+    "schema": "RunRequest"
+  },
+  {
+    "name": "cells with code",
+    "valid": false,
+    "body": {
+      "code": "",
+      "cells": [
+        {
+          "id": "c"
+        }
+      ]
+    },
+    "schema": "RunRequest"
+  },
+  {
+    "name": "null code",
+    "valid": false,
+    "body": {
+      "code": null
+    },
+    "schema": "RunRequest"
+  },
+  {
+    "name": "null cells",
+    "valid": false,
+    "body": {
+      "cells": null
+    },
+    "schema": "RunRequest"
+  },
+  {
+    "name": "empty cells",
+    "valid": false,
+    "body": {
+      "cells": []
+    },
+    "schema": "RunRequest"
+  },
+  {
+    "name": "invalid cell",
+    "valid": false,
+    "body": {
+      "cells": [
+        {}
+      ]
+    },
+    "schema": "RunRequest"
+  },
+  {
+    "name": "code with null cells",
+    "valid": false,
+    "body": {
+      "code": "",
+      "cells": null
+    },
+    "schema": "RunRequest"
+  },
+  {
+    "name": "cells with null code",
+    "valid": false,
+    "body": {
+      "code": null,
+      "cells": [
+        {
+          "id": "c"
+        }
+      ]
+    },
+    "schema": "RunRequest"
+  },
+  {
+    "name": "scratch",
+    "schema": "ExecuteRequest",
+    "valid": true,
+    "body": {
+      "code": "print(1)"
+    }
+  },
+  {
+    "name": "empty scratch",
+    "schema": "ExecuteRequest",
+    "valid": true,
+    "body": {
+      "code": ""
+    }
+  },
+  {
+    "name": "missing code",
+    "schema": "ExecuteRequest",
+    "valid": false,
+    "body": {}
+  },
+  {
+    "name": "null code",
+    "schema": "ExecuteRequest",
+    "valid": false,
+    "body": {
+      "code": null
+    }
+  },
+  {
+    "name": "cells only",
+    "schema": "ExecuteRequest",
+    "valid": false,
+    "body": {
+      "cells": [
+        {
+          "id": "c"
+        }
+      ]
+    }
+  },
+  {
+    "name": "code with cells",
+    "schema": "ExecuteRequest",
+    "valid": false,
+    "body": {
+      "code": "",
+      "cells": [
+        {
+          "id": "c"
+        }
+      ]
+    }
+  },
+  {
+    "name": "future field",
+    "schema": "ExecuteRequest",
+    "valid": false,
+    "body": {
+      "code": "",
+      "future": true
+    }
+  }
+]

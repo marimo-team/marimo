@@ -1,0 +1,39 @@
+{
+  "name": "@marimo-team/host-protocol",
+  "version": "0.1.0",
+  "description": "The marimo host protocol, defined with Effect",
+  "private": true,
+  "sideEffects": false,
+  "type": "module",
+  "license": "Apache-2.0",
+  "exports": {
+    ".": "./dist/index.js",
+    "./Host": "./dist/Host.js",
+    "./Notebook": "./dist/Notebook.js",
+    "./Objects": "./dist/Objects.js",
+    "./OpenApi": "./dist/OpenApi.js",
+    "./Events": "./dist/Events.js",
+    "./Schemas": "./dist/Schemas.js",
+    "./Problems": "./dist/Problems.js",
+    "./experimental/Analysis": "./dist/experimental/Analysis.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "openapi": "node scripts/openapi.ts",
+    "test": "vitest run",
+    "typecheck": "tsgo",
+    "lint": "oxlint -c ../../frontend/.oxlintrc.json src scripts"
+  },
+  "dependencies": {
+    "effect": "4.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.13.6",
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.11",
+    "oxlint": "^1.88.0"
+  }
+}

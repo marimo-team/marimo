@@ -1,8 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 # AUTO-GENERATED FILE — DO NOT EDIT.
-# Generated from protocols/host/openapi.yaml.
-# Experimental features: analysis
-# Regenerate with `uv run --no-config --locked --script protocols/host/generate.py --include-experimental=analysis`.
+# Generated from packages/host-protocol.
+# Regenerate with `make host-protocol-codegen`.
 # ruff: noqa: TC003 - msgspec resolves annotations at runtime
 # ruff: noqa: RUF036 - the generator orders unions; the wire shape is the same
 
@@ -12,6 +11,26 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Annotated, Any, Literal, NewType, TypeAlias
 
 from msgspec import UNSET, Meta, Struct, UnsetType
+
+Identity: TypeAlias = Annotated[
+    str,
+    Meta(
+        description="The opaque client identity supplied by `Marimo-Attachment-Identity`.\nNull when none was supplied. Consumers can group attachments\nwith the same identity within a host. It does not identify an\nindividual connection or change its lifetime.\n",
+        max_length=128,
+        min_length=1,
+        pattern="^[!-~]+$",
+    ),
+]
+
+
+Name: TypeAlias = Annotated[
+    str,
+    Meta(
+        description="A label to show people, supplied by `Marimo-Attachment-Name`, such as the browser or editor's name. Null when the header is omitted or empty.",
+        max_length=256,
+    ),
+]
+
 
 if TYPE_CHECKING:
     AttachmentId = NewType("AttachmentId", str)
@@ -104,6 +123,15 @@ CodeFingerprint: TypeAlias = Annotated[
 ]
 
 
+class ConflictProblem(
+    Struct, frozen=True, tag_field="type", tag="urn:marimo:problem:conflict"
+):
+    status: Literal[409]
+    title: str
+    detail: str | UnsetType = UNSET
+    instance: str | UnsetType = UNSET
+
+
 class Custom(Struct, frozen=True):
     data: Annotated[
         Any,
@@ -141,7 +169,13 @@ class CustomMessage(Struct, frozen=True):
 
 class DecisionOption(Struct, frozen=True):
     id: Annotated[str, Meta(description="Identifies this answer.")]
-    label: Annotated[str, Meta(description="Text to show a person.")]
+    label: Annotated[
+        str,
+        Meta(
+            description="Text to show a person.",
+            examples=["Sandbox from the notebook's dependencies"],
+        ),
+    ]
 
 
 class DeleteCell(Struct, frozen=True, tag_field="kind", tag="delete_cell"):
@@ -161,7 +195,8 @@ class DisplayData(Struct, frozen=True):
     mimetype: Annotated[
         str,
         Meta(
-            description="The format of `data`, such as `text/html` or `image/png`."
+            description="The format of `data`, such as `text/html` or `image/png`.",
+            examples=["text/html"],
         ),
     ]
 
@@ -196,6 +231,15 @@ else:
             ),
         ],
     )
+
+
+class ForbiddenProblem(
+    Struct, frozen=True, tag_field="type", tag="urn:marimo:problem:forbidden"
+):
+    status: Literal[403]
+    title: str
+    detail: str | UnsetType = UNSET
+    instance: str | UnsetType = UNSET
 
 
 class Host(Struct, frozen=True):
@@ -246,10 +290,31 @@ InputStatus: TypeAlias = Annotated[
 ]
 
 
+class InternalProblem(
+    Struct, frozen=True, tag_field="type", tag="urn:marimo:problem:internal"
+):
+    status: Literal[500]
+    title: str
+    detail: str | UnsetType = UNSET
+    instance: str | UnsetType = UNSET
+
+
 class InterruptedOutcome(
     Struct, frozen=True, tag_field="kind", tag="interrupted"
 ):
     pass
+
+
+class InvalidRequestProblem(
+    Struct,
+    frozen=True,
+    tag_field="type",
+    tag="urn:marimo:problem:invalid-request",
+):
+    status: Literal[400]
+    title: str
+    detail: str | UnsetType = UNSET
+    instance: str | UnsetType = UNSET
 
 
 if TYPE_CHECKING:
@@ -273,6 +338,36 @@ Lifecycle: TypeAlias = Annotated[
         description="Where a run or execution is in its lifecycle. An execution is\n`queued` until it starts, `running` while code executes, and\n`completed` once it has ended. A run is `queued` until its first\nexecution starts, `running` until its cycle has settled or been cut\nshort, and `completed` once no more work can join it. How either\nended is its `outcome`.\n"
     ),
 ]
+
+
+class MethodNotAllowedProblem(
+    Struct,
+    frozen=True,
+    tag_field="type",
+    tag="urn:marimo:problem:method-not-allowed",
+):
+    status: Literal[405]
+    title: str
+    detail: str | UnsetType = UNSET
+    instance: str | UnsetType = UNSET
+
+
+class NoRuntimeProblem(
+    Struct, frozen=True, tag_field="type", tag="urn:marimo:problem:no-runtime"
+):
+    status: Literal[409]
+    title: str
+    detail: str | UnsetType = UNSET
+    instance: str | UnsetType = UNSET
+
+
+class NotFoundProblem(
+    Struct, frozen=True, tag_field="type", tag="urn:marimo:problem:not-found"
+):
+    status: Literal[404]
+    title: str
+    detail: str | UnsetType = UNSET
+    instance: str | UnsetType = UNSET
 
 
 if TYPE_CHECKING:
@@ -305,11 +400,11 @@ ObjectType: TypeAlias = Annotated[
         "display",
         "input",
         "variable",
-        "custom",
         "analysis",
+        "custom",
     ],
     Meta(
-        description="The kinds a stream carries, and the values `types` accepts. The\ncatalog stream carries host, project, notebook, runtime, and\nattachment. A notebook's stream carries notebook, document,\ncell, runtime, attachment, run, execution, console,\ndisplay, input, variable, and custom. Custom events describe occurrences\nrather than object state.\n"
+        description="The kinds a stream carries, and the values `types` accepts. The catalog stream carries host, project, notebook, runtime, and attachment. A notebook's stream carries notebook, document, cell, runtime, attachment, run, execution, console, display, input, variable, analysis, and custom. Custom events describe occurrences rather than object state."
     ),
 ]
 
@@ -408,7 +503,7 @@ class Range(Struct, frozen=True):
 
 
 class ReadyEvent(Struct, frozen=True, tag_field="event", tag="ready"):
-    data: Annotated[dict[str, Any], Meta(max_length=0)]
+    data: dict[str, Any]
     id: Annotated[
         str,
         Meta(
@@ -462,7 +557,7 @@ class RequestedCell(Struct, frozen=True):
         Annotated[
             Etag,
             Meta(
-                description="The cell's `etag` when the client read it. If its code, name, or settings have changed, the host returns `precondition-failed`. Omit to run the cell as it is."
+                description="The cell's `etag` as last read. A cell whose source, name, or config differs is `precondition-failed`. Absent, the cell runs as it is."
             ),
         ]
         | UnsetType
@@ -470,7 +565,7 @@ class RequestedCell(Struct, frozen=True):
 
 
 class ResetEvent(Struct, frozen=True, tag_field="event", tag="reset"):
-    data: Annotated[dict[str, Any], Meta(max_length=0)]
+    data: dict[str, Any]
     id: (
         Annotated[
             str,
@@ -638,11 +733,63 @@ class StartRuntimeRequest(Struct, frozen=True):
         Annotated[
             dict[str, str],
             Meta(
-                description="Answers to the questions in a `decision-required` problem.\nEach key is a decision's `id` and each value is the `id` of\nthe chosen option. A client that already knows its choices can\nsend them the first time.\n"
+                description="Answers to the questions in a `decision-required` problem.\nEach key is a decision's `id` and each value is the `id` of\nthe chosen option. A client that already knows its choices can\nsend them the first time.\n",
+                examples=[{"environment": "sandbox"}],
             ),
         ]
         | UnsetType
     ) = UNSET
+
+
+class UnauthorizedProblem(
+    Struct,
+    frozen=True,
+    tag_field="type",
+    tag="urn:marimo:problem:unauthorized",
+):
+    status: Literal[401]
+    title: str
+    detail: str | UnsetType = UNSET
+    instance: str | UnsetType = UNSET
+
+
+class UnknownProblem(Struct, frozen=True):
+    status: Annotated[
+        int,
+        Meta(
+            description="The HTTP status code of the response.", ge=400, le=599
+        ),
+    ]
+    title: Annotated[
+        str,
+        Meta(
+            description="A short, human-readable name for the kind of problem."
+        ),
+    ]
+    type: Annotated[
+        str, Meta(description="What kind of problem this is, as a URI.")
+    ]
+    detail: (
+        Annotated[
+            str,
+            Meta(
+                description="A human-readable explanation of what went wrong this time."
+            ),
+        ]
+        | UnsetType
+    ) = UNSET
+
+
+class UnsupportedOperationProblem(
+    Struct,
+    frozen=True,
+    tag_field="type",
+    tag="urn:marimo:problem:unsupported-operation",
+):
+    status: Literal[501]
+    title: str
+    detail: str | UnsetType = UNSET
+    instance: str | UnsetType = UNSET
 
 
 class UpdateNotebookRequest(Struct, frozen=True):
@@ -742,12 +889,9 @@ class Attachment(Struct, frozen=True):
     id: AttachmentId
     identity: (
         Annotated[
-            str,
+            Identity,
             Meta(
-                description="The opaque client identity supplied by `Marimo-Attachment-Identity`.\nNull when none was supplied. Consumers can group attachments\nwith the same identity within a host. It does not identify an\nindividual connection or change its lifetime.\n",
-                max_length=128,
-                min_length=1,
-                pattern="^[!-~]+$",
+                description="The opaque client identity supplied by `Marimo-Attachment-Identity`.\nNull when none was supplied. Consumers can group attachments\nwith the same identity within a host. It does not identify an\nindividual connection or change its lifetime.\n"
             ),
         ]
         | None
@@ -761,10 +905,9 @@ class Attachment(Struct, frozen=True):
     ]
     name: (
         Annotated[
-            str,
+            Name,
             Meta(
-                description="A label to show people, supplied by `Marimo-Attachment-Name`, such as the browser or editor's name. Null when the header is omitted or empty.",
-                max_length=256,
+                description="A label to show people, supplied by `Marimo-Attachment-Name`, such as the browser or editor's name. Null when the header is omitted or empty."
             ),
         ]
         | None
@@ -973,7 +1116,8 @@ class CreateNotebookRequest(Struct, frozen=True):
         Annotated[
             str,
             Meta(
-                description="Where to put the file, relative to the project root and written the way the host's operating system writes paths."
+                description="Where to put the file, relative to the project root and written the way the host's operating system writes paths.",
+                examples=["analysis.py"],
             ),
         ]
         | UnsetType
@@ -1005,8 +1149,30 @@ class Decision(Struct, frozen=True):
         tuple[DecisionOption, ...], Meta(description="The possible answers.")
     ]
     prompt: Annotated[
-        str, Meta(description="The question, worded for a person.")
+        str,
+        Meta(
+            description="The question, worded for a person.",
+            examples=["Where should forecasts.py run?"],
+        ),
     ]
+
+
+class DecisionRequiredProblem(
+    Struct,
+    frozen=True,
+    tag_field="type",
+    tag="urn:marimo:problem:decision-required",
+):
+    decisions: Annotated[
+        tuple[Decision, ...],
+        Meta(
+            description="The choices the client has to make before the host can carry out the request."
+        ),
+    ]
+    status: Literal[409]
+    title: str
+    detail: str | UnsetType = UNSET
+    instance: str | UnsetType = UNSET
 
 
 class Display(Struct, frozen=True):
@@ -1244,7 +1410,8 @@ class HostRecord(Struct, frozen=True):
     name: Annotated[
         str,
         Meta(
-            description="A label for the host to show people, such as `VS Code` or `marimo`. Two hosts can share a name; the filename is the identity."
+            description="A label for the host to show people, such as `VS Code` or `marimo`. Two hosts can share a name; the filename is the identity.",
+            examples=["marimo"],
         ),
     ]
     process: Process
@@ -1258,7 +1425,8 @@ class HostRecord(Struct, frozen=True):
     url: Annotated[
         str,
         Meta(
-            description="Where the host's API is. The scheme is `http`, and the host part is `127.0.0.1` or `[::1]`, written exactly that way."
+            description="Where the host's API is. The scheme is `http`, and the host part is `127.0.0.1` or `[::1]`, written exactly that way.",
+            examples=["http://127.0.0.1:2718/api/marimo/v1"],
         ),
     ]
     version: Annotated[
@@ -1399,72 +1567,53 @@ Outcome: TypeAlias = Annotated[
 ]
 
 
-class Problem(Struct, frozen=True):
-    status: Annotated[
-        int,
-        Meta(
-            description="The HTTP status code of the response.", ge=400, le=599
-        ),
-    ]
-    title: Annotated[
-        str,
-        Meta(
-            description="A short, human-readable name for the kind of problem."
-        ),
-    ]
-    type: Annotated[
-        str,
-        Meta(
-            description="What kind of problem this is, as a URI. The kinds this\nprotocol defines all start with `urn:marimo:problem:` and\nend with one of `invalid-request` (400), `unauthorized` (401),\n`forbidden` (403), `not-found` (404), `method-not-allowed`\n(405), `conflict` (409), `no-runtime` (409),\n`decision-required` (409), `precondition-failed` (412),\n`internal` (500), or `unsupported-operation` (501). A client\nthat sees a kind it does not recognize falls back to `status`.\n"
-        ),
-    ]
+class PreconditionFailedProblem(
+    Struct,
+    frozen=True,
+    tag_field="type",
+    tag="urn:marimo:problem:precondition-failed",
+):
     cell: (
         Annotated[
             Cell,
             Meta(
-                description="The cell that entry named, as it now is. Null when the document does not have it, or when the entry named the order or the whole document. Only present for `precondition-failed`."
+                description="The cell that entry named, as it now is. Null when the document does not have it, or when the entry named the order or the whole document."
             ),
         ]
         | None
-        | UnsetType
-    ) = UNSET
-    decisions: (
-        Annotated[
-            tuple[Decision, ...],
-            Meta(
-                description="The choices the client has to make before the host can carry out the request. Only present for `decision-required`."
-            ),
-        ]
-        | UnsetType
-    ) = UNSET
-    detail: (
-        Annotated[
-            str,
-            Meta(
-                description="A human-readable explanation of what went wrong this time."
-            ),
-        ]
-        | UnsetType
-    ) = UNSET
-    document: (
-        Annotated[
-            Document,
-            Meta(
-                description="The document as it now is. Only present for `precondition-failed`."
-            ),
-        ]
-        | UnsetType
-    ) = UNSET
-    index: (
-        Annotated[
-            int,
-            Meta(
-                description="The position of the first stale entry in the request, counted in an edit's `changes` or a run's `cells`. `0` for a save with a stale `If-Match`. Only present for `precondition-failed`.",
-                ge=0,
-            ),
-        ]
-        | UnsetType
-    ) = UNSET
+    )
+    document: Annotated[
+        Document, Meta(description="The document as it now is.")
+    ]
+    index: Annotated[
+        int,
+        Meta(
+            description="The position of the first stale entry in the request, counted in an edit's `changes` or a run's `cells`. `0` for a save with a stale `If-Match`.",
+            ge=0,
+        ),
+    ]
+    status: Literal[412]
+    title: str
+    detail: str | UnsetType = UNSET
+    instance: str | UnsetType = UNSET
+
+
+Problem: TypeAlias = Annotated[
+    InvalidRequestProblem
+    | UnauthorizedProblem
+    | ForbiddenProblem
+    | NotFoundProblem
+    | MethodNotAllowedProblem
+    | ConflictProblem
+    | NoRuntimeProblem
+    | DecisionRequiredProblem
+    | PreconditionFailedProblem
+    | InternalProblem
+    | UnsupportedOperationProblem,
+    Meta(
+        description="An error. Every error response is a problem, following RFC 9457, and is served as `application/problem+json`. `type` says which. A client ignores members it does not recognize. Hosts redact tokens from errors."
+    ),
+]
 
 
 class Project(Struct, frozen=True):
@@ -2021,6 +2170,7 @@ Event: TypeAlias = Annotated[
     | DisplayEvent
     | InputEvent
     | VariableEvent
+    | AnalysisEvent
     | CustomEvent
     | ProjectRemovedEvent
     | NotebookRemovedEvent
@@ -2033,9 +2183,8 @@ Event: TypeAlias = Annotated[
     | DisplayRemovedEvent
     | VariableRemovedEvent
     | ResetEvent
-    | ReadyEvent
-    | AnalysisEvent,
+    | ReadyEvent,
     Meta(
-        description="A record, removal, or control message from a host stream.\nThe data is decoded JSON. Snapshot records and reset events omit\nthe cursor; ready and live events carry it. Unknown event names\nbelong to later versions or host extensions.\n"
+        description="A record, removal, or control message from a host stream. The data is decoded JSON. Snapshot records and reset events omit the cursor, and ready and live events carry it. Unknown event names belong to later versions or host extensions."
     ),
 ]

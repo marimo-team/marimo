@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
-import msgspec.yaml
+from generate import openapi
 from jsonschema import Draft202012Validator, FormatChecker
 
 if TYPE_CHECKING:
@@ -21,7 +21,7 @@ if TYPE_CHECKING:
     import httpx
 
 ROOT = Path(__file__).resolve().parent.parent
-SPEC = msgspec.yaml.decode((ROOT / "openapi.yaml").read_bytes())
+SPEC = openapi()
 KINDS = (
     "host",
     "project",
@@ -37,11 +37,13 @@ KINDS = (
     "input",
     "variable",
 )
+SCHEMAS = SPEC["components"]["schemas"]
 REMOVAL_EVENTS = {
     name
-    for name in SPEC["components"]["schemas"]["Event"]["discriminator"][
-        "mapping"
-    ]
+    for member in SCHEMAS["Event"]["anyOf"]
+    for name in SCHEMAS[member["$ref"].rsplit("/", 1)[1]]["properties"][
+        "event"
+    ]["enum"]
     if name.endswith(".removed")
 }
 

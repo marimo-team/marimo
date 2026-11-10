@@ -1,6 +1,10 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { idempotencyKey, type Result } from "@marimo-team/client";
+import {
+  type ProblemOf,
+  idempotencyKey,
+  type ResultOf,
+} from "@marimo-team/client";
 import type * as Protocol from "@marimo-team/client/protocol";
 import { type Atom, atom, type createStore } from "jotai/vanilla";
 import type { Document, NotebookBackend } from "../replica";
@@ -18,7 +22,7 @@ export type DocumentSyncStatus =
   | {
       readonly status: "error";
       readonly error: Error;
-      readonly problem?: Protocol.Problem;
+      readonly problem?: ProblemOf<"notebook.edit">;
       readonly retryable: boolean;
     };
 
@@ -30,7 +34,7 @@ interface Submission {
   readonly startedAt: number;
   readonly controller: AbortController;
   response?: Protocol.Document;
-  problem?: Protocol.Problem;
+  problem?: ProblemOf<"notebook.edit">;
 }
 
 // The marimo host retains receipts for five minutes. Stop well before that,
@@ -167,7 +171,7 @@ export function createDocumentSync({
         () => controller.abort(new Error("The edit request timed out")),
         REQUEST_TIMEOUT_MS,
       );
-      let result: Result<Protocol.EditResponseOutput> | undefined;
+      let result: ResultOf<"notebook.edit"> | undefined;
       try {
         signal.throwIfAborted();
         request.controller.signal.throwIfAborted();
@@ -336,7 +340,10 @@ export function createDocumentSync({
     }
     if (active?.problem) {
       const current = store.get(source);
-      const rejectedAt = active.problem.document?.version;
+      const rejectedAt =
+        active.problem.type === "urn:marimo:problem:precondition-failed"
+          ? active.problem.document.version
+          : undefined;
       if (
         !current ||
         current.revision.notebook_id !== active.submission.notebookId ||

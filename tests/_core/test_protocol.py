@@ -166,6 +166,37 @@ def test_json_models(path: Path) -> None:
 
 
 @pytest.mark.parametrize(
+    ("name", "field"),
+    [
+        ("precondition-failed", "index"),
+        ("precondition-failed", "cell"),
+        ("precondition-failed", "document"),
+        ("decision-required", "decisions"),
+    ],
+)
+def test_problems_require_their_type_specific_fields(
+    name: str, field: str
+) -> None:
+    value = json.loads((FIXTURES / "problems" / f"{name}.json").read_text())
+    del value[field]
+    with pytest.raises(msgspec.ValidationError, match=field):
+        msgspec.json.decode(json.dumps(value), type=protocol.Problem)
+
+
+def test_precondition_problem_requires_412_and_allows_a_missing_cell() -> None:
+    value = json.loads(
+        (FIXTURES / "problems/precondition-failed.json").read_text()
+    )
+    value["cell"] = None
+    decoded = msgspec.json.decode(json.dumps(value), type=protocol.Problem)
+    assert isinstance(decoded, protocol.PreconditionFailedProblem)
+    assert json.loads(msgspec.json.encode(decoded)) == value
+    value["status"] = 409
+    with pytest.raises(msgspec.ValidationError, match="status"):
+        msgspec.json.decode(json.dumps(value), type=protocol.Problem)
+
+
+@pytest.mark.parametrize(
     "path",
     sorted([*FIXTURES.glob("*.sse"), *EXPERIMENTAL_FIXTURES.glob("*.sse")]),
     ids=lambda path: path.name,
@@ -661,3 +692,25 @@ def test_cell_source_is_required_but_nullable_only_in_records() -> None:
         json.dumps({"id": cell["id"], "code": ""}), type=protocol.CellInput
     )
     assert value.code == ""
+
+
+@pytest.mark.parametrize(
+    "case",
+    json.loads(
+        (
+            FIXTURES.parent / "conformance/cases/execution-requests.json"
+        ).read_text()
+    ),
+    ids=lambda case: f"{case['schema']}: {case['name']}",
+)
+def test_execution_requests(case: dict[str, Any]) -> None:
+    body = msgspec.json.encode(case["body"])
+    schema = getattr(protocol, case["schema"])
+    if case["valid"]:
+        decoded = msgspec.json.decode(body, type=schema)
+        assert (
+            msgspec.json.decode(msgspec.json.encode(decoded)) == case["body"]
+        )
+    else:
+        with pytest.raises(msgspec.ValidationError):
+            msgspec.json.decode(body, type=schema)

@@ -7,7 +7,7 @@ import asyncio
 import hashlib
 from dataclasses import dataclass
 from time import monotonic
-from typing import TYPE_CHECKING, Protocol
+from typing import TYPE_CHECKING, Literal, Protocol, assert_never
 
 import msgspec
 
@@ -55,35 +55,60 @@ class NotebookBridge(Protocol):
     ) -> protocol.EditResponse: ...
 
 
-_TITLES = {
-    "invalid-request": "Invalid request",
-    "unauthorized": "Unauthorized",
-    "forbidden": "Forbidden",
-    "not-found": "Not found",
-    "method-not-allowed": "Method not allowed",
-    "conflict": "Conflict",
-    "no-runtime": "No runtime",
-    "decision-required": "Decision required",
-    "precondition-failed": "Precondition failed",
-    "unsupported-operation": "Unsupported operation",
-    "internal": "Internal error",
-}
+PlainKind = Literal[
+    "invalid-request",
+    "unauthorized",
+    "forbidden",
+    "not-found",
+    "method-not-allowed",
+    "conflict",
+    "no-runtime",
+    "unsupported-operation",
+    "internal",
+]
+"""The problems that carry no members beyond the standard ones."""
 
 
-def problem(
-    status: int,
-    kind: str,
-    detail: str | None = None,
-    *,
-    decisions: tuple[protocol.Decision, ...] | None = None,
-) -> protocol.Problem:
-    return protocol.Problem(
-        type="urn:marimo:problem:" + kind,
-        title=_TITLES[kind],
-        status=status,
-        detail=msgspec.UNSET if detail is None else detail,
-        decisions=msgspec.UNSET if decisions is None else decisions,
-    )
+def problem(kind: PlainKind, detail: str | None = None) -> protocol.Problem:
+    text = msgspec.UNSET if detail is None else detail
+    match kind:
+        case "invalid-request":
+            return protocol.InvalidRequestProblem(
+                status=400, title="Invalid request", detail=text
+            )
+        case "unauthorized":
+            return protocol.UnauthorizedProblem(
+                status=401, title="Unauthorized", detail=text
+            )
+        case "forbidden":
+            return protocol.ForbiddenProblem(
+                status=403, title="Forbidden", detail=text
+            )
+        case "not-found":
+            return protocol.NotFoundProblem(
+                status=404, title="Not found", detail=text
+            )
+        case "method-not-allowed":
+            return protocol.MethodNotAllowedProblem(
+                status=405, title="Method not allowed", detail=text
+            )
+        case "conflict":
+            return protocol.ConflictProblem(
+                status=409, title="Conflict", detail=text
+            )
+        case "no-runtime":
+            return protocol.NoRuntimeProblem(
+                status=409, title="No runtime", detail=text
+            )
+        case "unsupported-operation":
+            return protocol.UnsupportedOperationProblem(
+                status=501, title="Unsupported operation", detail=text
+            )
+        case "internal":
+            return protocol.InternalProblem(
+                status=500, title="Internal error", detail=text
+            )
+    assert_never(kind)
 
 
 def problem_for(error: HostError) -> protocol.Problem:
@@ -91,29 +116,34 @@ def problem_for(error: HostError) -> protocol.Problem:
     detail = str(error)
     match error:
         case NoRuntime():
-            return problem(409, "no-runtime", detail)
+            return problem("no-runtime", detail)
         case DecisionRequired():
-            return problem(
-                409, "decision-required", detail, decisions=error.decisions
+            return protocol.DecisionRequiredProblem(
+                status=409,
+                title="Decision required",
+                detail=detail,
+                decisions=error.decisions,
             )
         case PreconditionFailed():
-            return msgspec.structs.replace(
-                problem(412, "precondition-failed", detail),
+            return protocol.PreconditionFailedProblem(
+                status=412,
+                title="Precondition failed",
+                detail=detail,
                 index=error.index,
                 cell=error.cell,
                 document=error.document,
             )
         case Conflict():
-            return problem(409, "conflict", detail)
+            return problem("conflict", detail)
         case Invalid():
-            return problem(400, "invalid-request", detail)
+            return problem("invalid-request", detail)
         case NotFound():
-            return problem(404, "not-found", detail)
+            return problem("not-found", detail)
         case Forbidden():
-            return problem(403, "forbidden", detail)
+            return problem("forbidden", detail)
         case Unsupported():
-            return problem(501, "unsupported-operation", detail)
-    return problem(500, "internal", "The host failed")
+            return problem("unsupported-operation", detail)
+    return problem("internal", "The host failed")
 
 
 @dataclass

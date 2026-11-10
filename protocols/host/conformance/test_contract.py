@@ -59,6 +59,33 @@ def test_json_examples(path):
 
 
 @pytest.mark.parametrize(
+    ("name", "field"),
+    [
+        ("precondition-failed", "index"),
+        ("precondition-failed", "cell"),
+        ("precondition-failed", "document"),
+        ("decision-required", "decisions"),
+    ],
+)
+def test_problem_variants_require_their_payload(name, field):
+    value = json.loads((FIXTURES / "problems" / f"{name}.json").read_text())
+    del value[field]
+    with pytest.raises(ValidationError):
+        validate("Problem", value)
+
+
+def test_precondition_problem_has_a_fixed_status_and_nullable_cell():
+    value = json.loads(
+        (FIXTURES / "problems/precondition-failed.json").read_text()
+    )
+    value["cell"] = None
+    validate("Problem", value)
+    value["status"] = 409
+    with pytest.raises(ValidationError):
+        validate("Problem", value)
+
+
+@pytest.mark.parametrize(
     "path", sorted(FIXTURES.glob("*.sse")), ids=lambda p: p.name
 )
 async def test_stream_examples(path):
@@ -206,3 +233,18 @@ def test_code_fingerprints_are_opaque():
     cell["code_fingerprint"] = ""
     with pytest.raises(ValidationError):
         validate("Cell", cell)
+
+
+@pytest.mark.parametrize(
+    "case",
+    json.loads(
+        (ROOT / "conformance/cases/execution-requests.json").read_text()
+    ),
+    ids=lambda case: f"{case['schema']}: {case['name']}",
+)
+def test_execution_requests(case):
+    if case["valid"]:
+        validate(case["schema"], case["body"])
+    else:
+        with pytest.raises(ValidationError):
+            validate(case["schema"], case["body"])

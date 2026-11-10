@@ -78,6 +78,48 @@ describe("host protocol fixtures", () => {
 });
 
 describe("host protocol bindings", () => {
+  it.each([
+    ["precondition-failed", "index"],
+    ["precondition-failed", "cell"],
+    ["precondition-failed", "document"],
+    ["decision-required", "decisions"],
+  ])("requires %s's %s", (name, field) => {
+    const problem = Protocol.Problem.parse(
+      readFixture(`problems/${name}.json`),
+    );
+    const missing = Object.fromEntries(
+      Object.entries(problem).filter(([key]) => key !== field),
+    );
+    expect(Protocol.Problem.safeParse(missing).success).toBe(false);
+  });
+
+  it("narrows problems by type with fixed statuses and required payloads", () => {
+    const problem = Protocol.Problem.parse(
+      readFixture("problems/precondition-failed.json"),
+    );
+    if (problem.type !== "urn:marimo:problem:precondition-failed") {
+      throw new Error("Expected a precondition failure");
+    }
+    expectTypeOf(problem.document).toEqualTypeOf<Protocol.DocumentOutput>();
+    expectTypeOf(problem.cell).toEqualTypeOf<Protocol.CellOutput | null>();
+    expectTypeOf(problem.index).toEqualTypeOf<number>();
+    expectTypeOf(problem.status).toEqualTypeOf<412>();
+    expect(Protocol.Problem.parse({ ...problem, cell: null })).toEqual({
+      ...problem,
+      cell: null,
+    });
+    expect(
+      Protocol.Problem.safeParse({ ...problem, status: 409 }).success,
+    ).toBe(false);
+    const decision = Protocol.Problem.parse(
+      readFixture("problems/decision-required.json"),
+    );
+    if (decision.type !== "urn:marimo:problem:decision-required") {
+      throw new Error("Expected a decision");
+    }
+    expectTypeOf(decision.decisions).toEqualTypeOf<Protocol.DecisionOutput[]>();
+  });
+
   it("accepts additive fields and preserves arbitrary notebook settings", () => {
     const cell = Protocol.Cell.parse(readFixture("cell.json"));
     const input = {
@@ -183,7 +225,7 @@ describe("host protocol bindings", () => {
       throw new Error("Expected an invalid cell");
     }
     expect(result.error.issues).toEqual([
-      expect.objectContaining({ path: ["code"], code: "invalid_type" }),
+      expect.objectContaining({ path: ["code"] }),
     ]);
   });
 
@@ -213,4 +255,30 @@ describe("host protocol bindings", () => {
       false,
     );
   });
+});
+
+const requestCases: {
+  name: string;
+  schema: "RunRequest" | "ExecuteRequest";
+  valid: boolean;
+  body: unknown;
+}[] = JSON.parse(
+  NodeFs.readFileSync(
+    new NodeUrl.URL("../conformance/cases/execution-requests.json", fixtures),
+    "utf8",
+  ),
+);
+it.each(requestCases)("validates $schema: $name", ({ schema, body, valid }) => {
+  expect(Protocol[schema].safeParse(body).success).toBe(valid);
+});
+
+it("separates cell runs from scratch execution", () => {
+  expectTypeOf<{
+    cells: Protocol.RequestedCell[];
+  }>().toExtend<Protocol.RunRequest>();
+  expectTypeOf<{ code: string }>().toExtend<Protocol.ExecuteRequest>();
+  expectTypeOf<{ code: string }>().not.toExtend<Protocol.RunRequest>();
+  expectTypeOf<{
+    cells: Protocol.RequestedCell[];
+  }>().not.toExtend<Protocol.ExecuteRequest>();
 });

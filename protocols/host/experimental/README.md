@@ -1,36 +1,25 @@
 # Experimental host protocol features
 
-Experimental features provide a way to develop and validate proposed host APIs
-before committing to a stable contract.
+Experiments add opt-in contracts without changing the stable protocol.
+They may change or be removed between releases, and stable clients keep
+working without them.
 
-Each feature lives in `experimental/<feature>/` with an OpenAPI overlay,
-specification, fixtures, and conformance tests. Consumers explicitly
-[select the features](../README.md#selecting-experimental-contracts) they support.
+[Analysis](analysis/spec.md) is the current example. Its
+[Effect module](../../../packages/host-protocol/src/experimental/Analysis.ts) appends
+an `analysis` row to the object table and builds its own API from that table.
+Effect consumers import `@marimo-team/host-protocol/experimental/Analysis`. Other
+consumers pass `--experimental` when they
+[print the OpenAPI document](../README.md#get-the-openapi-document).
 
-- Overlays **MUST NOT** change stable contracts. Review the composed
-  specification to verify this.
-- Stable clients **MUST** remain correct without opting in.
-- Tests **SHOULD** verify feature behavior and compatibility with stable clients.
-- Experimental contracts **MAY** change or be removed between releases.
+## Add a feature
 
-Run `make host-protocol-check` and `pnpm --dir packages/client test --run`
-to check generation, fixtures, and stable-client compatibility. Each feature
-must also generate a valid contract when selected on its own.
+Keep its Effect definitions under `packages/host-protocol/src/experimental/` and its
+specification, fixtures, and conformance tests under
+`protocols/host/experimental/<feature>/`. Register the public module in
+[`package.json`](../../../packages/host-protocol/package.json) and include its rows
+in the document that
+[`scripts/openapi.ts`](../../../packages/host-protocol/scripts/openapi.ts) prints
+with `--experimental`.
 
-Once implementation experience establishes a stable design, move its contract,
-documentation, fixtures, and tests into the core protocol.
-
-## Composing the schema
-
-Both language generators use `generate.py` to compose the contract. To inspect
-the OpenAPI schema with selected features as JSON:
-
-```sh
-uv run --no-config --locked --script protocols/host/generate.py --schema --include-experimental=analysis > /tmp/host-openapi.json
-```
-
-Separate multiple feature names with commas; unknown names fail.
-The composer applies Overlay 1.0 `update` actions in feature-name order.
-JSONPath targets must match an object or array: object updates merge
-recursively, and array updates append an entry. Root updates (`target: $`)
-can add paths and components together. Removal actions are not supported.
+An experiment only adds to the stable protocol. When promoting a feature, move its definitions, documentation, and tests into
+the stable protocol.

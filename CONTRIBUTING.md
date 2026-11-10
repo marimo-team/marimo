@@ -99,6 +99,12 @@ This will build the frontend, install Python dependencies in editable mode, and 
 
 `make help` lists every development command. The targets are defined in the [Makefile](Makefile).
 
+### Host protocol and clients
+
+For changes to host contracts, generated bindings, or client libraries, start
+with the [host protocol contributor guide](protocols/host/README.md#change-a-contract).
+It links the Effect definitions, generation commands, and conformance checks.
+
 ### `pre-commit` hooks
 
 You can optionally install [pre-commit](https://pre-commit.com/) hooks to automatically run the validation checks when making a commit:

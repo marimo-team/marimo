@@ -18,7 +18,7 @@ another application.
 ## Reading this specification
 
 This document describes the notebook model and the behavior expected of hosts
-and clients. [OpenAPI](openapi.yaml) defines the endpoints, message formats, and
+and clients. [OpenAPI](README.md#get-the-openapi-document) defines the endpoints, message formats, and
 operation requirements, and is the source for generated types. The
 [examples](fixtures/) show complete messages.
 

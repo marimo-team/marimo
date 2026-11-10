@@ -18,7 +18,7 @@ from marimo._core.calls import (
     RunParams,
 )
 from marimo._core.operations import NotebookBridge
-from protocols.host.generate import compose
+from tests.utils import host_openapi
 
 NOTEBOOK = protocol.NotebookId("n1")
 
@@ -74,7 +74,7 @@ def test_execution_calls_reject_the_other_operations_payload(operation, body):
 
 
 def test_calls_match_the_spec() -> None:
-    document = compose()
+    document = host_openapi()
 
     def resolve(value: dict[str, Any]) -> dict[str, Any]:
         if "$ref" not in value:

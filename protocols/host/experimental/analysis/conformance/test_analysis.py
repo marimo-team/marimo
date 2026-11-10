@@ -8,11 +8,11 @@ from typing import Any
 
 import pytest
 from contract import Frame, Watch, frames
-from generate import compose
+from generate import openapi
 from jsonschema import Draft202012Validator, FormatChecker, ValidationError
 
 FIXTURES = Path(__file__).resolve().parent.parent / "fixtures"
-SPEC = compose("analysis")
+SPEC = openapi(experimental=True)
 
 
 def validate(name: str, value: Any) -> None:

@@ -46,8 +46,9 @@ def serve(bridge):
 
 def kind(reply: Reply) -> str:
     _, body = reply
-    assert isinstance(body, protocol.Problem)
-    return body.type.rsplit(":", 1)[1]
+    assert body is not None
+    kind: str = msgspec.to_builtins(body)["type"]
+    return kind.rsplit(":", 1)[1]
 
 
 async def test_edit_retry_and_atomic_conflict(bridge, serve):
@@ -68,7 +69,7 @@ async def test_edit_retry_and_atomic_conflict(bridge, serve):
         )
     )
     assert conflict[0] == 412
-    assert isinstance(conflict[1], protocol.Problem)
+    assert isinstance(conflict[1], protocol.PreconditionFailedProblem)
     assert conflict[1].index == 1
     assert conflict[1].cell.code == "x = 2"
     assert len(events) == event_count

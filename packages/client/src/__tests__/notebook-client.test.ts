@@ -8,8 +8,8 @@ import {
   NotebookClient,
   type unstable_NotebookCall,
 } from "../notebook/client.ts";
-import type { OperationsBelow } from "../request.ts";
-import type * as Protocol from "../protocol.ts";
+import type { OperationsBelow, ProblemOf } from "../request.ts";
+import * as Protocol from "../protocol.ts";
 
 const fixtures = new NodeUrl.URL(
   "../../../../protocols/host/fixtures/",
@@ -52,6 +52,99 @@ afterEach(() => {
 });
 
 describe("NotebookClient", () => {
+  it("narrows a failed edit by its problem type", async () => {
+    const problem = readFixture("problems/precondition-failed.json");
+    const { notebook } = connect(() =>
+      json(412, problem, "application/problem+json"),
+    );
+    const result = await notebook.edit([]);
+    if (
+      result.ok ||
+      result.problem.type !== "urn:marimo:problem:precondition-failed"
+    ) {
+      throw new Error("Expected a failed precondition");
+    }
+    expectTypeOf(
+      result.problem.document,
+    ).toEqualTypeOf<Protocol.DocumentOutput>();
+    expectTypeOf(
+      result.problem.cell,
+    ).toEqualTypeOf<Protocol.CellOutput | null>();
+    expectTypeOf(result.problem.index).toEqualTypeOf<number>();
+    expectTypeOf(result.problem.status).toEqualTypeOf<412>();
+    expect(result.problem).toEqual(problem);
+    expectTypeOf<
+      Extract<
+        ProblemOf<"notebook.delete">,
+        { type: "urn:marimo:problem:precondition-failed" }
+      >
+    >().toEqualTypeOf<never>();
+  });
+
+  it.each(["index", "cell", "document"])(
+    "rejects a known problem missing %s",
+    async (field) => {
+      const problem = Protocol.PreconditionFailedProblem.parse(
+        readFixture("problems/precondition-failed.json"),
+      );
+      const incomplete = Object.fromEntries(
+        Object.entries(problem).filter(([key]) => key !== field),
+      );
+      const { notebook } = connect(() =>
+        json(412, incomplete, "application/problem+json"),
+      );
+      await expect(notebook.edit([])).rejects.toBeInstanceOf(z.ZodError);
+      await expect(
+        over(() => ({ status: 412, body: incomplete })).notebook.edit([]),
+      ).rejects.toBeInstanceOf(z.ZodError);
+    },
+  );
+
+  it("keeps future problem types separate from known variants", async () => {
+    const problem = {
+      type: "urn:example:quota",
+      status: 429,
+      title: "Quota exceeded",
+      detail: "Retry later",
+    };
+    const { notebook } = connect(() =>
+      json(429, problem, "application/problem+json"),
+    );
+    const expected = {
+      ok: false,
+      status: 429,
+      problem: {
+        type: "unknown",
+        uri: problem.type,
+        status: 429,
+        title: problem.title,
+        detail: problem.detail,
+      },
+    };
+    expect(await notebook.edit([])).toEqual(expected);
+    expect(
+      await over(() => ({ status: 429, body: problem })).notebook.edit([]),
+    ).toEqual(expected);
+  });
+
+  it("rejects a defined problem that the operation does not declare", async () => {
+    const problem = readFixture("problems/precondition-failed.json");
+    const { notebook } = connect(() =>
+      json(412, problem, "application/problem+json"),
+    );
+    await expect(notebook.delete()).rejects.toThrow("Unexpected problem");
+  });
+
+  it("rejects a problem whose status disagrees with the response", async () => {
+    const problem = readFixture("problems/precondition-failed.json");
+    const { notebook } = connect(() =>
+      json(409, problem, "application/problem+json"),
+    );
+    await expect(notebook.edit([])).rejects.toThrow(
+      "does not match HTTP status",
+    );
+  });
+
   it("sends an edit below the notebook's URL and returns the validated response", async () => {
     const response = readFixture("edit-response.json");
     const { notebook, sent } = connect(() => json(200, response));
