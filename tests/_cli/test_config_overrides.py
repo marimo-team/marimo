@@ -1,6 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 from unittest.mock import Mock
 
@@ -20,10 +21,10 @@ from marimo._config.manager import (
 )
 from marimo._config.schema_utils import config_cli_flags, config_leaf_types
 from marimo._config.utils import get_user_config_path
+from marimo._server.workspace import DirectoryWorkspace
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
-    from pathlib import Path
 
 
 pytestmark = pytest.mark.usefixtures("clean_config_environment")
@@ -475,3 +476,68 @@ def test_config_overrides_preserve_notebook_arguments(
     }
     assert kwargs["argv"] == notebook_args
     assert kwargs["config_manager"].get_config().display.theme == "dark"
+
+
+@pytest.mark.parametrize(
+    ("paths", "workspace_root"),
+    [
+        (["project/a.py", "project/b.py"], "project"),
+        (["project", "project/a.py"], "project"),
+        (["project/a.py", "other/b.py"], None),
+    ],
+)
+@pytest.mark.parametrize("override_theme", [False, True])
+def test_multi_file_run_uses_workspace_configuration(
+    paths: list[str],
+    workspace_root: str | None,
+    override_theme: bool,
+    launch: Mock,
+    config_directory: Path,
+) -> None:
+    (config_directory / "pyproject.toml").write_text(
+        '[tool.marimo.display]\ntheme = "light"\n'
+    )
+    for directory in ("project", "other"):
+        project = config_directory / directory
+        project.mkdir()
+        (project / "pyproject.toml").write_text(
+            '[tool.marimo.display]\ntheme = "dark"\n'
+        )
+        for name in ("a.py", "b.py"):
+            (project / name).write_text("import marimo\napp = marimo.App()\n")
+    options = ["--config", "display.theme=light"] if override_theme else []
+    result = CliRunner().invoke(
+        main, ["run", "--no-sandbox", *options, *paths]
+    )
+    assert result.exit_code == 0, result.output
+    kwargs = launch.call_args.kwargs
+    directory = kwargs["workspace"].directory
+    assert {
+        "workspace_root": str(Path(directory).resolve())
+        if directory
+        else None,
+        "theme": kwargs["config_manager"].get_config().display.theme,
+    } == {
+        "workspace_root": str((config_directory / workspace_root).resolve())
+        if workspace_root
+        else None,
+        "theme": "dark" if workspace_root and not override_theme else "light",
+    }
+
+
+def test_configured_directory_watch_does_not_scan_snapshot(
+    launch: Mock, config_directory: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    project = config_directory / "project"
+    project.mkdir()
+    (project / "pyproject.toml").write_text(
+        "[tool.marimo.server]\nwatch = true\n"
+    )
+    scan = Mock(
+        side_effect=AssertionError("Watch mode must discover notebooks lazily")
+    )
+    monkeypatch.setattr("marimo._cli.cli._collect_marimo_files", scan)
+    result = CliRunner().invoke(main, ["run", "--no-sandbox", "project"])
+    assert result.exit_code == 0, result.output
+    assert isinstance(launch.call_args.kwargs["workspace"], DirectoryWorkspace)
+    scan.assert_not_called()

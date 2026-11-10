@@ -1137,14 +1137,19 @@ def run(
             )
         )
 
-    config_manager = resolve_cli_config(
-        current_path=validated_paths[0] if len(validated_paths) == 1 else None,
-        overrides=config_overrides,
-    )
+    workspace: NotebookWorkspace | None = None
+    config_path: str | None = validated_paths[0]
+    if len(validated_paths) > 1:
+        workspace = _create_run_workspace(validated_paths, watch=False)
+        config_path = workspace.directory
 
-    workspace = _create_run_workspace(
-        validated_paths, watch=config_manager.get_config().server.watch
+    config_manager = resolve_cli_config(
+        current_path=config_path, overrides=config_overrides
     )
+    if workspace is None:
+        workspace = _create_run_workspace(
+            validated_paths, watch=config_manager.get_config().server.watch
+        )
 
     start(
         config_manager=config_manager,
