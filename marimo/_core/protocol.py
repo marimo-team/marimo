@@ -371,7 +371,7 @@ class PutCell(Struct, frozen=True, tag_field="kind", tag="put_cell"):
         Annotated[
             str,
             Meta(
-                description="The cell's etag as last read, `*` to skip the check, or null to create the cell. Null when the cell exists, or an etag when it does not, is a `conflict`."
+                description="The cell's etag as last read, `*` to skip the check, or null to create the cell. Null when the cell exists, or an etag when it does not, is `precondition-failed`."
             ),
         ]
         | None
@@ -462,7 +462,7 @@ class RequestedCell(Struct, frozen=True):
         Annotated[
             Etag,
             Meta(
-                description="The cell's `etag` when the client read it. If its code, name, or settings have changed, the host returns a `conflict`. Omit to run the cell as it is."
+                description="The cell's `etag` when the client read it. If its code, name, or settings have changed, the host returns `precondition-failed`. Omit to run the cell as it is."
             ),
         ]
         | UnsetType
@@ -1134,26 +1134,6 @@ class DocumentMessage(Struct, frozen=True):
     ) = UNSET
 
 
-class EditConflict(Struct, frozen=True):
-    cell: (
-        Annotated[
-            Cell,
-            Meta(
-                description="The cell the change named, as it now is. Null when the document does not have it, or when the change named the order."
-            ),
-        ]
-        | None
-    )
-    change: Annotated[
-        int,
-        Meta(
-            description="The index of the stale change in the request's `changes`, or of the stale cell in a run's `cells`. `0` for a save with a stale `If-Match`.",
-            ge=0,
-        ),
-    ]
-    document: Document
-
-
 class EditRequest(Struct, frozen=True):
     changes: Annotated[
         tuple[Change, ...],
@@ -1435,9 +1415,19 @@ class Problem(Struct, frozen=True):
     type: Annotated[
         str,
         Meta(
-            description="What kind of problem this is, as a URI. The kinds this\nprotocol defines all start with `tag:marimo.io,2026:host/` and\nend with one of `invalid-request` (400), `unauthorized` (401),\n`forbidden` (403), `not-found` (404), `method-not-allowed`\n(405), `not-acceptable` (406), `conflict` (409), `no-runtime`\n(409), `decision-required` (409), `internal` (500), or\n`unsupported-operation` (501). A client that sees a kind it\ndoes not recognize falls back to `status`.\n"
+            description="What kind of problem this is, as a URI. The kinds this\nprotocol defines all start with `urn:marimo:problem:` and\nend with one of `invalid-request` (400), `unauthorized` (401),\n`forbidden` (403), `not-found` (404), `method-not-allowed`\n(405), `conflict` (409), `no-runtime` (409),\n`decision-required` (409), `precondition-failed` (412),\n`internal` (500), or `unsupported-operation` (501). A client\nthat sees a kind it does not recognize falls back to `status`.\n"
         ),
     ]
+    cell: (
+        Annotated[
+            Cell,
+            Meta(
+                description="The cell that entry named, as it now is. Null when the document does not have it, or when the entry named the order or the whole document. Only present for `precondition-failed`."
+            ),
+        ]
+        | None
+        | UnsetType
+    ) = UNSET
     decisions: (
         Annotated[
             tuple[Decision, ...],
@@ -1456,11 +1446,21 @@ class Problem(Struct, frozen=True):
         ]
         | UnsetType
     ) = UNSET
-    edit: (
+    document: (
         Annotated[
-            EditConflict,
+            Document,
             Meta(
-                description="Which change was stale and what the host holds instead. Only present for a `conflict` answering an edit, a save, or a run of cells."
+                description="The document as it now is. Only present for `precondition-failed`."
+            ),
+        ]
+        | UnsetType
+    ) = UNSET
+    index: (
+        Annotated[
+            int,
+            Meta(
+                description="The position of the first stale entry in the request, counted in an edit's `changes` or a run's `cells`. `0` for a save with a stale `If-Match`. Only present for `precondition-failed`.",
+                ge=0,
             ),
         ]
         | UnsetType

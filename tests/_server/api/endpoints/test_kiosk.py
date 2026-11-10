@@ -126,7 +126,7 @@ def test_kiosk_connection_cannot_edit_or_run_through_the_host(
                     json={"changes": [new_cell("fresh")]},
                 )
                 assert edited.status_code == 403, edited.text
-                assert edited.json()["type"].endswith("/forbidden")
+                assert edited.json()["type"] == "urn:marimo:problem:forbidden"
                 ran = client.post(
                     f"{base}/runtime/runs",
                     headers={

@@ -380,6 +380,10 @@ transient state. For example, a notebook can permit execution while its runtime
 is stopped. A client uses the notebook's current state to determine what
 preparation is needed before calling an operation.
 
+A host answers `501 unsupported-operation` to an operation it does not offer,
+and `403 forbidden` to one the project or notebook does not permit for this
+client.
+
 Hosts MUST authorize `runtime.run`, `runtime.execute`, and `notebook.edit`
 independently. A notebook may permit rerunning its cells without permitting
 edits or scratch execution.
@@ -409,8 +413,10 @@ automatically, then submit the request with its choice and a new key.
 ### Editing and saving
 
 Edits describe a group of changes to the document. Hosts MUST apply each group
-atomically and reject the whole group if its preconditions are stale. Clients
-can inspect the conflicting state and decide how to revise their edit.
+atomically. If a precondition is stale, the host rejects the whole group with a
+`412 precondition-failed` problem that names the first stale change and carries
+the cell and the document as they now are. Clients can inspect that state and
+decide how to revise their edit.
 
 `put_cell` replaces the whole cell and MUST include string-valued source in
 `CellInput.code`. A client MUST NOT round-trip a withheld `code: null` as an
@@ -420,7 +426,11 @@ or deleting cells, do not require source but still require editing permission.
 Preconditions use **etags**, identifiers derived from content. They let clients
 edit different parts of a document independently while detecting competing
 changes to the same part. For example, two clients can update different cells,
-but an edit based on an older version of the same cell produces a conflict.
+but an edit based on an older version of the same cell fails its precondition.
+A save with a stale `If-Match` and a run that names a stale cell etag receive
+the same problem. A `409 conflict` means the current state does not allow the
+request, such as a file that already exists, so reading again does not help.
+
 An accepted edit answers with the version of each cell it touched and the
 document at the edit's revision or a later one. The client already has the
 content it sent, and the versions let it recognize the edit when its events

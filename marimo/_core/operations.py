@@ -15,12 +15,12 @@ from marimo._core import protocol
 from marimo._core.errors import (
     Conflict,
     DecisionRequired,
-    EditConflict,
     Forbidden,
     HostError,
     Invalid,
     NoRuntime,
     NotFound,
+    PreconditionFailed,
     Unsupported,
 )
 from marimo._core.host import Host
@@ -64,6 +64,7 @@ _TITLES = {
     "conflict": "Conflict",
     "no-runtime": "No runtime",
     "decision-required": "Decision required",
+    "precondition-failed": "Precondition failed",
     "unsupported-operation": "Unsupported operation",
     "internal": "Internal error",
 }
@@ -74,15 +75,13 @@ def problem(
     kind: str,
     detail: str | None = None,
     *,
-    edit: protocol.EditConflict | None = None,
     decisions: tuple[protocol.Decision, ...] | None = None,
 ) -> protocol.Problem:
     return protocol.Problem(
-        type="tag:marimo.io,2026:host/" + kind,
+        type="urn:marimo:problem:" + kind,
         title=_TITLES[kind],
         status=status,
         detail=msgspec.UNSET if detail is None else detail,
-        edit=msgspec.UNSET if edit is None else edit,
         decisions=msgspec.UNSET if decisions is None else decisions,
     )
 
@@ -97,16 +96,12 @@ def problem_for(error: HostError) -> protocol.Problem:
             return problem(
                 409, "decision-required", detail, decisions=error.decisions
             )
-        case EditConflict():
-            return problem(
-                409,
-                "conflict",
-                detail,
-                edit=protocol.EditConflict(
-                    change=error.change,
-                    cell=error.cell,
-                    document=error.document,
-                ),
+        case PreconditionFailed():
+            return msgspec.structs.replace(
+                problem(412, "precondition-failed", detail),
+                index=error.index,
+                cell=error.cell,
+                document=error.document,
             )
         case Conflict():
             return problem(409, "conflict", detail)

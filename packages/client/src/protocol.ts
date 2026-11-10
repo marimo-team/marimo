@@ -1719,39 +1719,17 @@ export const Decision = zod
 export type Decision = zod.input<typeof Decision>;
 export type DecisionOutput = zod.output<typeof Decision>;
 
-export const editConflictChangeMin = 0;
-
-export const EditConflict = zod
-  .object({
-    change: zod
-      .int()
-      .min(editConflictChangeMin)
-      .describe(
-        "The index of the stale change in the request's `changes`, or of the stale cell in a run's `cells`. `0` for a save with a stale `If-Match`.",
-      ),
-    cell: zod
-      .union([Cell, zod.null()])
-      .describe(
-        "The cell the change named, as it now is. Null when the document does not have it, or when the change named the order.",
-      ),
-    document: Document,
-  })
-  .describe(
-    "The first stale change of an edit or run, and the state the host holds.",
-  );
-
-export type EditConflict = zod.input<typeof EditConflict>;
-export type EditConflictOutput = zod.output<typeof EditConflict>;
-
 export const problemStatusMin = 400;
 export const problemStatusMax = 599;
+
+export const problemIndexMin = 0;
 
 export const Problem = zod
   .object({
     type: zod
       .string()
       .describe(
-        "What kind of problem this is, as a URI. The kinds this\nprotocol defines all start with `tag:marimo.io,2026:host/` and\nend with one of `invalid-request` (400), `unauthorized` (401),\n`forbidden` (403), `not-found` (404), `method-not-allowed`\n(405), `not-acceptable` (406), `conflict` (409), `no-runtime`\n(409), `decision-required` (409), `internal` (500), or\n`unsupported-operation` (501). A client that sees a kind it\ndoes not recognize falls back to `status`.\n",
+        "What kind of problem this is, as a URI. The kinds this\nprotocol defines all start with `urn:marimo:problem:` and\nend with one of `invalid-request` (400), `unauthorized` (401),\n`forbidden` (403), `not-found` (404), `method-not-allowed`\n(405), `conflict` (409), `no-runtime` (409),\n`decision-required` (409), `precondition-failed` (412),\n`internal` (500), or `unsupported-operation` (501). A client\nthat sees a kind it does not recognize falls back to `status`.\n",
       ),
     title: zod
       .string()
@@ -1771,12 +1749,25 @@ export const Problem = zod
       .describe(
         "The choices the client has to make before the host can carry out the request. Only present for `decision-required`.",
       ),
-    edit: EditConflict.optional().describe(
-      "Which change was stale and what the host holds instead. Only present for a `conflict` answering an edit, a save, or a run of cells.",
+    index: zod
+      .int()
+      .min(problemIndexMin)
+      .optional()
+      .describe(
+        "The position of the first stale entry in the request, counted in an edit's `changes` or a run's `cells`. `0` for a save with a stale `If-Match`. Only present for `precondition-failed`.",
+      ),
+    cell: zod
+      .union([Cell, zod.null()])
+      .optional()
+      .describe(
+        "The cell that entry named, as it now is. Null when the document does not have it, or when the entry named the order or the whole document. Only present for `precondition-failed`.",
+      ),
+    document: Document.optional().describe(
+      "The document as it now is. Only present for `precondition-failed`.",
     ),
   })
   .describe(
-    "An error. Every error response has this one shape, following RFC\n9457, and is served as `application/problem+json`. `status`\nrepeats the HTTP status, and `type` says more precisely what went\nwrong. `decisions` appears only when `type` is\n`tag:marimo.io,2026:host/decision-required`. A client ignores\nmembers it does not recognize. Hosts redact tokens from errors.\n",
+    "An error. Every error response has this one shape, following RFC\n9457, and is served as `application/problem+json`. `status`\nrepeats the HTTP status, and `type` says more precisely what went\nwrong. `decisions` appears only when `type` is\n`urn:marimo:problem:decision-required`, and `index`, `cell`, and\n`document` only when it is\n`urn:marimo:problem:precondition-failed`. A client ignores\nmembers it does not recognize. Hosts redact tokens from errors.\n",
   );
 
 export type Problem = zod.input<typeof Problem>;
@@ -1909,7 +1900,7 @@ export const PutCell = zod
       .string()
       .nullable()
       .describe(
-        "The cell's etag as last read, `*` to skip the check, or null to create the cell. Null when the cell exists, or an etag when it does not, is a `conflict`.",
+        "The cell's etag as last read, `*` to skip the check, or null to create the cell. Null when the cell exists, or an etag when it does not, is `precondition-failed`.",
       ),
     cell: CellInput,
     after: CellId.optional().describe(
@@ -2014,7 +2005,7 @@ export type SaveRequestOutput = zod.output<typeof SaveRequest>;
 export const RequestedCell = zod.object({
   id: CellId,
   etag: Etag.optional().describe(
-    "The cell's `etag` when the client read it. If its code, name, or settings have changed, the host returns a `conflict`. Omit to run the cell as it is.",
+    "The cell's `etag` when the client read it. If its code, name, or settings have changed, the host returns `precondition-failed`. Omit to run the cell as it is.",
   ),
 });
 

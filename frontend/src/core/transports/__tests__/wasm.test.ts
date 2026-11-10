@@ -118,7 +118,7 @@ describe("WASM notebook backend", () => {
         body: operation === "edit" ? { changes: [] } : {},
       });
       const problem = {
-        type: "tag:marimo.io,2026:host/forbidden",
+        type: "urn:marimo:problem:forbidden",
         title: "Forbidden",
         status: 403,
       };

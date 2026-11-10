@@ -23,7 +23,7 @@ const conflict = {
   ok: false as const,
   status: 409,
   problem: {
-    type: "tag:marimo.io,2026:host/conflict",
+    type: "urn:marimo:problem:conflict",
     title: "Conflict",
     status: 409,
     detail: "cell c1 has changed since it was read.",

@@ -84,7 +84,7 @@ def test_editor_input_replies_require_interact(
                     json={"value": "wrong answer"},
                 )
                 assert refused.status_code == 403, refused.text
-                assert refused.json()["type"].endswith("/forbidden")
+                assert refused.json()["type"] == "urn:marimo:problem:forbidden"
             session.room.add_consumer(
                 consumer,
                 main=False,

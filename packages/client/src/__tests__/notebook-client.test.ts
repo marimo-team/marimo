@@ -196,13 +196,13 @@ describe("NotebookClient", () => {
   });
 
   it("returns problems as values", async () => {
-    const problem = readFixture("problems/edit-conflict.json");
+    const problem = readFixture("problems/precondition-failed.json");
     const { notebook } = connect(() =>
-      json(409, problem, "application/problem+json"),
+      json(412, problem, "application/problem+json"),
     );
     expect(await notebook.edit([])).toEqual({
       ok: false,
-      status: 409,
+      status: 412,
       problem,
     });
   });
@@ -351,7 +351,7 @@ describe("NotebookClient.unstable_over", () => {
 
   it("names every path parameter and returns problems as values", async () => {
     const problem = {
-      type: "tag:marimo.io,2026:host/not-found",
+      type: "urn:marimo:problem:not-found",
       title: "Not found",
       status: 404,
     };

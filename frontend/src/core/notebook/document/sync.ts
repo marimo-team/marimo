@@ -336,7 +336,7 @@ export function createDocumentSync({
     }
     if (active?.problem) {
       const current = store.get(source);
-      const rejectedAt = active.problem.edit?.document.version;
+      const rejectedAt = active.problem.document?.version;
       if (
         !current ||
         current.revision.notebook_id !== active.submission.notebookId ||

@@ -24,16 +24,16 @@ it("matches the portable host examples for accepted and conflicting edits", () =
     notebookId: "n1",
     idempotencyKey: "rejected",
     changes: Protocol.EditRequest.parse(
-      protocolFixture("edit-conflict-request.json"),
+      protocolFixture("stale-edit-request.json"),
     ).changes,
   });
   const problem = Protocol.Problem.parse(
-    protocolFixture("problems/edit-conflict.json"),
+    protocolFixture("problems/precondition-failed.json"),
   );
   expect(rejected).toEqual({
     result: {
       ok: false,
-      status: 409,
+      status: 412,
       problem: { ...problem, detail: expect.any(String) },
     },
   });
@@ -48,7 +48,7 @@ it("rejects an entire batch when a later precondition is stale", () => {
     { kind: "delete_cell", id: "c3", base_etag: "stale" },
   ]);
   expect(result).toMatchObject({
-    result: { ok: false, status: 409, problem: { edit: { change: 1 } } },
+    result: { ok: false, status: 412, problem: { index: 1 } },
   });
   expect(host.document()).toEqual(initial);
   expect(result.update).toBeUndefined();
@@ -67,7 +67,7 @@ it("keeps successful and rejected receipts tied to their original payload and re
     notebookId: "n1",
     idempotencyKey: "stale",
     changes: Protocol.EditRequest.parse(
-      protocolFixture("edit-conflict-request.json"),
+      protocolFixture("stale-edit-request.json"),
     ).changes,
   };
   const rejected = host.process(stale);
@@ -86,7 +86,7 @@ it("keeps successful and rejected receipts tied to their original payload and re
   vi.advanceTimersByTime(300_000);
   expect(host.process(request).result).toMatchObject({
     ok: false,
-    status: 409,
+    status: 412,
   });
   expect(host.document()).toEqual(latest);
 });
