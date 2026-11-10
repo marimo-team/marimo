@@ -18,6 +18,7 @@ from multiprocessing import connection
 from typing import (
     TYPE_CHECKING,
     Any,
+    assert_never,
     cast,
 )
 from uuid import uuid4
@@ -825,8 +826,6 @@ class Kernel:
         The one place that maps an `OutOfBandCommand` to its handler; extend
         with a new branch when adding a member to the union.
         """
-        from marimo._utils.assert_never import assert_never
-
         if isinstance(command, SetBreakpointsCommand):
             self.set_breakpoints(command)
         elif isinstance(command, CodeCompletionCommand):
