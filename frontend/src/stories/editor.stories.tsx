@@ -1,5 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
+import { defaultUserConfig } from "@/core/config/config-schema";
+
 import { python } from "@codemirror/lang-python";
 import { EditorState, type Extension } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
@@ -62,6 +64,7 @@ const PrimaryEditor = ({ theme }: Pick<CodeMirrorSetupOpts, "theme">) => {
     () =>
       basicBundle({
         completionConfig: {
+          ...defaultUserConfig().completion,
           activate_on_typing: false,
           copilot: false,
           signature_hint_on_typing: false,
@@ -90,6 +93,7 @@ export const DefaultPython: Story = {
         extensions={[
           python(),
           copilotBundle({
+            ...defaultUserConfig().completion,
             activate_on_typing: true,
             signature_hint_on_typing: false,
             copilot: false,

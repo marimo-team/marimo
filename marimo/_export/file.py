@@ -12,7 +12,6 @@ from marimo import _loggers
 from marimo._ast.app import InternalApp
 from marimo._ast.errors import CycleError, MultipleDefinitionError
 from marimo._ast.load import load_app
-from marimo._config.config import RuntimeConfig
 from marimo._config.manager import (
     get_default_config_manager,
 )
@@ -263,11 +262,11 @@ async def export_wasm(
             WASMExportRequest(
                 filename=request.path.short_name,
                 app_config=app.config,
-                display_config=resolved["display"],
+                display_config=resolved.display,
                 code=code,
                 options=options,
                 layout=layout,
-                sharing_config=resolved.get("sharing"),
+                sharing_config=resolved.sharing,
             )
         )
         return ExportResult(
@@ -398,7 +397,7 @@ async def export_html(
 
     config = get_default_config_manager(current_path=file_manager.path)
     resolved = config.get_config()
-    display_config = resolved["display"]
+    display_config = resolved.display
     # Export the session as HTML
     html, filename = Exporter().export_as_html(
         HTMLExportRequest(
@@ -415,9 +414,7 @@ async def export_html(
             options=request.options,
             layout=layout,
             sharing_config=(
-                resolved.get("sharing")
-                if request.execution is not None
-                else None
+                resolved.sharing if request.execution is not None else None
             ),
         )
     )
@@ -507,7 +504,7 @@ async def _export_wasm_with_execution(
 
     config = get_default_config_manager(current_path=file_manager.path)
     resolved = config.get_config()
-    display_config = resolved["display"]
+    display_config = resolved.display
 
     from marimo._runtime.callbacks.cache import cache_cells_enabled
 
@@ -565,7 +562,7 @@ async def _export_wasm_with_execution(
             layout=layout,
             session_snapshot=snapshot.session,
             notebook_snapshot=snapshot.notebook,
-            sharing_config=resolved.get("sharing"),
+            sharing_config=resolved.sharing,
         )
     )
     return ExportResult(
@@ -676,10 +673,7 @@ async def run_notebook(
         runtime_overrides["cache_cells"] = True
     config_manager = get_default_config_manager(
         current_path=file_manager.path
-    ).with_overrides(
-        # We cast because we don't want to override the other config values.
-        {"runtime": cast(RuntimeConfig, runtime_overrides)}
-    )
+    ).with_overrides({"runtime": runtime_overrides})
 
     # Create a session
     session_consumer = RunUntilCompletionSessionConsumer()

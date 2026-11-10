@@ -4,8 +4,9 @@ from __future__ import annotations
 from typing import Any, cast
 
 from marimo import _loggers
-from marimo._config.config import DatasourcesConfig
+from marimo._config.config_schema import DatasourcesConfig
 from marimo._config.manager import get_default_config_manager
+from marimo._config.schema_utils import default_if_unset
 from marimo._data.models import Database, DataSourceConnection
 from marimo._runtime.context.types import (
     ContextNotInitializedError,
@@ -89,14 +90,17 @@ def engine_to_data_source_connection(
 
         config = get_datasources_config()
         databases = engine.get_databases(
-            include_schemas=config.get(
-                "auto_discover_schemas", inference_config.auto_discover_schemas
+            include_schemas=default_if_unset(
+                config.auto_discover_schemas,
+                inference_config.auto_discover_schemas,
             ),
-            include_tables=config.get(
-                "auto_discover_tables", inference_config.auto_discover_tables
+            include_tables=default_if_unset(
+                config.auto_discover_tables,
+                inference_config.auto_discover_tables,
             ),
-            include_table_details=config.get(
-                "auto_discover_columns", inference_config.auto_discover_columns
+            include_table_details=default_if_unset(
+                config.auto_discover_columns,
+                inference_config.auto_discover_columns,
             ),
         )
     except Exception as e:
@@ -121,7 +125,7 @@ def engine_to_data_source_connection(
 
 def get_datasources_config() -> DatasourcesConfig:
     try:
-        return get_context().marimo_config.get("datasources", {})
+        return get_context().marimo_config.datasources
     except ContextNotInitializedError:
         pass
     except Exception as e:
@@ -133,10 +137,10 @@ def get_datasources_config() -> DatasourcesConfig:
         return (
             get_default_config_manager(current_path=None)
             .get_config()
-            .get("datasources", {})
+            .datasources
         )
     except Exception as e:
         LOGGER.warning(
             f"Failed to get datasources config from default config: {e}. Returning empty config."
         )
-        return {}
+        return DatasourcesConfig()

@@ -160,8 +160,9 @@ async def install_export_requirements(
     """
     app_state = AppState(request)
     body = await parse_request(request, cls=InstallExportRequirementsRequest)
+    config = app_state.app_config_manager.get_config()
     command = InstallPackagesCommand(
-        manager=app_state.app_config_manager.package_manager,
+        manager=config.package_management.manager,
         versions={},
         source="server",
     )
@@ -255,10 +256,10 @@ async def export_as_html(
                 drop_virtual_file_outputs=False,
                 include_model_notifications=True,
             ),
-            display_config=resolved_config["display"],
+            display_config=resolved_config.display,
             options=to_html_export_options(body),
             layout=layout,
-            sharing_config=resolved_config.get("sharing"),
+            sharing_config=resolved_config.sharing,
         )
     )
 
@@ -340,7 +341,7 @@ async def auto_export_as_html(
                     drop_virtual_file_outputs=False,
                     include_model_notifications=True,
                 ),
-                display_config=session.config_manager.get_config()["display"],
+                display_config=session.config_manager.get_config().display,
                 options=to_html_export_options(body),
                 layout=layout,
             )

@@ -4,12 +4,32 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 from unittest.mock import Mock
 
+import msgspec
 import pytest
 
+from marimo._config.config import parse_config
+from marimo._config.config_schema import FileBrowserConfig
 from marimo._server.files.roots import resolve_file_roots
 
 if TYPE_CHECKING:
     from pathlib import Path
+
+
+def test_file_browser_recovers_invalid_folder_names(tmp_path: Path) -> None:
+    primary = tmp_path / "project"
+    shared = tmp_path / "shared"
+    primary.mkdir()
+    shared.mkdir()
+    config = parse_config(
+        {"file_browser": {"folders": [{"path": str(shared), "name": 123}]}}
+    )
+
+    roots = resolve_file_roots(str(primary), config.file_browser)
+
+    assert [(root.path, root.name) for root in roots] == [
+        (str(primary.resolve()), "project"),
+        (str(shared.resolve()), "shared"),
+    ]
 
 
 def test_resolve_file_roots_orders_and_names_roots(tmp_path: Path) -> None:
@@ -22,12 +42,14 @@ def test_resolve_file_roots_orders_and_names_roots(tmp_path: Path) -> None:
 
     roots = resolve_file_roots(
         str(primary),
-        {
-            "folders": [
-                {"path": str(shared), "name": "Shared data"},
-                {"path": str(unnamed)},
-            ]
-        },
+        FileBrowserConfig.from_dict(
+            {
+                "folders": [
+                    {"path": str(shared), "name": "Shared data"},
+                    {"path": str(unnamed)},
+                ]
+            }
+        ),
     )
 
     assert [(root.path, root.name, root.is_primary) for root in roots] == [
@@ -64,17 +86,19 @@ def test_resolve_file_roots_skips_invalid_and_duplicate_paths(
 
     roots = resolve_file_roots(
         str(primary),
-        {
-            "folders": [
-                {"path": "relative"},
-                {"path": str(tmp_path / "missing")},
-                {"path": str(file_path)},
-                {"path": str(inaccessible)},
-                {"path": str(primary)},
-                {"path": str(valid)},
-                {"path": str(valid / ".." / "valid")},
-            ]
-        },
+        FileBrowserConfig.from_dict(
+            {
+                "folders": [
+                    {"path": "relative"},
+                    {"path": str(tmp_path / "missing")},
+                    {"path": str(file_path)},
+                    {"path": str(inaccessible)},
+                    {"path": str(primary)},
+                    {"path": str(valid)},
+                    {"path": str(valid / ".." / "valid")},
+                ]
+            }
+        ),
     )
 
     assert [root.path for root in roots] == [
@@ -94,7 +118,9 @@ def test_resolve_file_roots_uses_basename_for_blank_name(
 
     roots = resolve_file_roots(
         str(primary),
-        {"folders": [{"path": str(shared), "name": "  "}]},
+        FileBrowserConfig.from_dict(
+            {"folders": [{"path": str(shared), "name": "  "}]}
+        ),
     )
 
     assert roots[1].name == "shared"
@@ -112,7 +138,7 @@ def test_resolve_file_roots_warns_when_folder_does_not_exist(
 
     roots = resolve_file_roots(
         str(primary),
-        {"folders": [{"path": str(missing)}]},
+        FileBrowserConfig.from_dict({"folders": [{"path": str(missing)}]}),
     )
 
     assert len(roots) == 1
@@ -130,14 +156,12 @@ def test_resolve_file_roots_warns_when_folder_does_not_exist(
         {"folders": ["not-a-table"]},
     ],
 )
-def test_resolve_file_roots_ignores_malformed_config(
+def test_file_browser_schema_rejects_malformed_config(
     tmp_path: Path,
     config: object,
 ) -> None:
     primary = tmp_path / "project"
     primary.mkdir()
 
-    roots = resolve_file_roots(str(primary), config)  # type: ignore[arg-type]
-
-    assert len(roots) == 1
-    assert roots[0].is_primary is True
+    with pytest.raises(msgspec.ValidationError):
+        FileBrowserConfig.from_dict(config)  # type: ignore[arg-type]

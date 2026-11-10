@@ -24,7 +24,7 @@ if TYPE_CHECKING:
     from starlette.responses import StreamingResponse
     from starlette.types import Message, Scope
 
-    from marimo._config.config import CopilotMode
+    from marimo._config.types import CopilotMode
 
 
 class _CollectingExporter:

@@ -129,6 +129,80 @@ async def test_sessions_present_and_created_are_adopted(
     bridge.close()
 
 
+async def untitled(
+    manager: FakeManager, bridge: SessionBridge
+) -> tuple[protocol.NotebookId, FakeSession]:
+    """Adopt an editor's session for a notebook that has no file yet."""
+    session = FakeSession(path=None)
+    manager.sessions["browser"] = session
+    await manager.event_bus.emit_session_created(session)  # type: ignore[arg-type]
+    (notebook_id,) = bridge.host.notebooks
+    return protocol.NotebookId(notebook_id), session
+
+
+async def running(bridge: SessionBridge, runtime: protocol.Runtime) -> None:
+    """Wait for a runtime that was just started to report it is running."""
+    reached = asyncio.Event()
+
+    def watch(event: RoutedEvent) -> None:
+        if (
+            isinstance(event.event, protocol.RuntimeEvent)
+            and event.event.data.runtime.id == runtime.id
+            and event.event.data.runtime.status == "running"
+        ):
+            reached.set()
+
+    unsubscribe = bridge.host.subscribe(watch, types={"runtime"})
+    try:
+        await asyncio.wait_for(reached.wait(), 5)
+    finally:
+        unsubscribe()
+
+
+async def test_restarting_an_untitled_notebook_keeps_one_notebook(
+    manager: FakeManager, tmp_path: Path
+) -> None:
+    prepare(manager, tmp_path)
+    bridge = SessionBridge(manager)  # type: ignore[arg-type]
+    await bridge.open()
+    notebook_id, session = await untitled(manager, bridge)
+    notebook = await bridge.host.notebook(notebook_id)
+
+    replacement = manager.next_session = FakeSession(path=None)
+    await running(bridge, notebook.restart())
+
+    assert list(bridge.host.notebooks) == [notebook_id]
+    assert bridge._backends[notebook_id].session is replacement
+    assert len(replacement.consumers) == 1
+    # The editor's tab rejoins the replacement by the key it already has.
+    assert manager.starts[-1]["file_key"] == session.initialization_id
+    bridge.close()
+
+
+async def test_an_editor_rejoins_its_untitled_notebook_by_session_key(
+    manager: FakeManager, tmp_path: Path
+) -> None:
+    prepare(manager, tmp_path)
+    bridge = SessionBridge(manager)  # type: ignore[arg-type]
+    await bridge.open()
+    notebook_id, session = await untitled(manager, bridge)
+    notebook = await bridge.host.notebook(notebook_id)
+    notebook.stop()
+    assert (session.closed, notebook.runtime) == (True, None)
+
+    rejoined = FakeSession(path=None)
+    await manager.event_bus.emit_session_created(rejoined)  # type: ignore[arg-type]
+    assert list(bridge.host.notebooks) == [notebook_id]
+    assert bridge._backends[notebook_id].session is rejoined
+
+    # Another tab's untitled notebook has a key of its own.
+    other = FakeSession(path=None)
+    other.initialization_id = "__new__other"
+    await manager.event_bus.emit_session_created(other)  # type: ignore[arg-type]
+    assert len(bridge.host.notebooks) == 2
+    bridge.close()
+
+
 async def test_delete_during_adoption_preserves_the_file_and_session(
     manager: FakeManager,
     tmp_path: Path,

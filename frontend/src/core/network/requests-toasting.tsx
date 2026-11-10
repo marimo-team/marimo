@@ -21,7 +21,6 @@ export function createErrorToastingRequests(
     sendInstantiate: "Failed to instantiate",
     sendFunctionRequest: "Failed to send function request",
     sendRestart: "Failed to restart",
-    sendRun: "Failed to run",
     sendRunScratchpad: "Failed to run scratchpad",
     sendRename: "Failed to rename",
     saveLayout: "", // The save reports it

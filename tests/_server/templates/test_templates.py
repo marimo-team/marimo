@@ -15,11 +15,8 @@ import pytest
 
 import marimo._templates as templates
 from marimo._ast.app_config import _AppConfig
-from marimo._config.config import (
-    MarimoConfig,
-    PartialMarimoConfig,
-    merge_default_config,
-)
+from marimo._config.config import PartialMarimoConfig, merge_default_config
+from marimo._config.config_schema import MarimoConfig, MCPConfig
 from marimo._schemas.notebook import (
     NotebookCell,
     NotebookCellConfig,
@@ -45,6 +42,7 @@ from tests.mocks import snapshotter
 
 snapshot = snapshotter(__file__)
 default_config = merge_default_config({})
+default_config.package_management.manager = "uv"
 
 
 def _assert_no_leftover_replacements(result: str) -> None:
@@ -90,18 +88,20 @@ def test_page_config_by_mode(
             },
         }
     )
-    config["mcp"] = {
-        "mcpServers": {
-            "local": {
-                "command": "example",
-                "env": {"TOKEN": "mcp-env-marker"},
-            },
-            "remote": {
-                "url": "https://example.com/mcp",
-                "headers": {"Authorization": "mcp-header-marker"},
-            },
+    config.mcp = MCPConfig.from_dict(
+        {
+            "mcpServers": {
+                "local": {
+                    "command": "example",
+                    "env": {"TOKEN": "mcp-env-marker"},
+                },
+                "remote": {
+                    "url": "https://example.com/mcp",
+                    "headers": {"Authorization": "mcp-header-marker"},
+                },
+            }
         }
-    }
+    )
     original_config = deepcopy(config)
     template = (Path(__file__).parent / "data" / "index.html").read_text()
     template += (
@@ -172,7 +172,7 @@ def test_page_config_by_mode(
     )
 
     mount_config = parse_mount_config(result)
-    expected = dict(original_config)
+    expected = original_config.to_dict()
     expected_overrides = dict(original_overrides)
     if mode == SessionMode.RUN:
         for key in ("ai", "completion", "mcp"):
@@ -208,7 +208,7 @@ def test_page_config_empty(
         template,
         filename=None,
         mode=mode,
-        user_config=MarimoConfig(),
+        user_config={},
         config_overrides={},
         server_token=SkewProtectionToken("token"),
         app_config=None,
@@ -491,7 +491,7 @@ class TestNotebookPageTemplate(unittest.TestCase):
 
         # Update config with custom CSS paths
         config = merge_default_config(self.user_config)
-        config["display"]["custom_css"] = ["custom1.css", "custom2.css"]
+        config.display.custom_css = ["custom1.css", "custom2.css"]
 
         result = templates.notebook_page_template(
             html=self.html,
@@ -517,7 +517,7 @@ class TestNotebookPageTemplate(unittest.TestCase):
 
         # Update config with absolute CSS path
         config = merge_default_config(self.user_config)
-        config["display"]["custom_css"] = [str(css_file)]
+        config.display.custom_css = [str(css_file)]
 
         result = templates.notebook_page_template(
             html=self.html,
@@ -564,7 +564,7 @@ class TestNotebookPageTemplate(unittest.TestCase):
     def test_notebook_page_template_with_nonexistent_custom_css(self) -> None:
         # Update config with nonexistent CSS path
         config = merge_default_config(self.user_config)
-        config["display"]["custom_css"] = ["nonexistent.css"]
+        config.display.custom_css = ["nonexistent.css"]
 
         result = templates.notebook_page_template(
             html=self.html,
@@ -770,7 +770,7 @@ class TestHomePageTemplate(unittest.TestCase):
 
         assert self.base_url not in result
         assert str(self.server_token) in result
-        assert json.dumps(self.user_config, sort_keys=True) in result
+        assert json.dumps(self.user_config.to_dict(), sort_keys=True) in result
         assert "marimo" in result
         assert json.dumps({}) in result
         assert "" in result
@@ -1069,7 +1069,7 @@ class TestStaticNotebookTemplate(unittest.TestCase):
 
         # Update config with custom CSS paths
         config = merge_default_config(self.user_config)
-        config["display"]["custom_css"] = ["custom1.css", "custom2.css"]
+        config.display.custom_css = ["custom1.css", "custom2.css"]
 
         # Create empty snapshots
         empty_session = NotebookSessionV1(
@@ -1113,7 +1113,7 @@ class TestStaticNotebookTemplate(unittest.TestCase):
 
         # Update config with absolute CSS path
         config = merge_default_config(self.user_config)
-        config["display"]["custom_css"] = [str(css_file)]
+        config.display.custom_css = [str(css_file)]
 
         # Create empty snapshots
         empty_session = NotebookSessionV1(
@@ -1150,7 +1150,7 @@ class TestStaticNotebookTemplate(unittest.TestCase):
     ) -> None:
         # Update config with nonexistent CSS path
         config = merge_default_config(self.user_config)
-        config["display"]["custom_css"] = ["nonexistent.css"]
+        config.display.custom_css = ["nonexistent.css"]
 
         # Create empty snapshots
         empty_session = NotebookSessionV1(
@@ -1385,7 +1385,7 @@ class TestWasmNotebookTemplate(unittest.TestCase):
         assert self.filename.name in result
         assert self.mode in result
         config = parse_mount_config(result)["config"]
-        assert config["display"] == self.user_config["display"]
+        assert config["display"] == self.user_config.display.to_dict()
         assert {"ai", "completion", "mcp"}.isdisjoint(config)
         assert '<marimo-wasm hidden="">' in result
         assert "__MARIMO_EXPORT_CONTEXT__" in result

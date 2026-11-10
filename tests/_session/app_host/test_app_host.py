@@ -28,7 +28,7 @@ class TestAppHostCommands:
             cli_args={},
             app_config={},  # type: ignore[arg-type]
         )
-        user_config = DEFAULT_CONFIG
+        user_config = DEFAULT_CONFIG.to_dict()
 
         # Test commands
         commands = [

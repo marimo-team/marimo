@@ -1,22 +1,17 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-import types
+import copy
 from typing import (
     TYPE_CHECKING,
     Any,
-    NotRequired,
-    Union,
-    get_args,
-    get_origin,
-    get_type_hints,
 )
 
 import msgspec
 import pytest
-from msgspec import UNSET, UnsetType
+from msgspec import UNSET
 
-from marimo._config import config as legacy_config, config_schema
+from marimo._config import config_schema
 from marimo._config.config import (
     DEFAULT_CONFIG,
     merge_config,
@@ -44,20 +39,18 @@ SCHEMA_CLASSES = [
 def test_schema_defaults_preserve_dictionary_api() -> None:
     defaults = MarimoConfig(
         runtime=config_schema.RuntimeConfig(
-            output_max_bytes=DEFAULT_CONFIG["runtime"]["output_max_bytes"],
-            std_stream_max_bytes=DEFAULT_CONFIG["runtime"][
-                "std_stream_max_bytes"
-            ],
+            output_max_bytes=DEFAULT_CONFIG.runtime.output_max_bytes,
+            std_stream_max_bytes=DEFAULT_CONFIG.runtime.std_stream_max_bytes,
         ),
         package_management=config_schema.PackageManagementConfig(
-            manager=DEFAULT_CONFIG["package_management"]["manager"]
+            manager=DEFAULT_CONFIG.package_management.manager
         ),
     )
-    assert defaults.to_dict() == DEFAULT_CONFIG
+    assert defaults == DEFAULT_CONFIG
     resolved = merge_default_config({"display": {"theme": "dark"}})
-    assert isinstance(resolved, dict)
-    assert resolved["display"] == {
-        **DEFAULT_CONFIG["display"],
+    assert isinstance(resolved, MarimoConfig)
+    assert resolved.display.to_dict() == {
+        **DEFAULT_CONFIG.display.to_dict(),
         "theme": "dark",
     }
 
@@ -68,7 +61,7 @@ def test_runtime_defaults_ignore_environment(
     monkeypatch.setenv("MARIMO_RUNTIME_OUTPUT_MAX_BYTES", "1234")
     monkeypatch.setenv("MARIMO_RUNTIME_STD_STREAM_MAX_BYTES", "5678")
     assert config_schema.RuntimeConfig().to_dict() == {
-        **DEFAULT_CONFIG["runtime"],
+        **DEFAULT_CONFIG.runtime.to_dict(),
         "output_max_bytes": 8_000_000,
         "std_stream_max_bytes": 1_000_000,
     }
@@ -83,52 +76,6 @@ def test_schema_fields_have_descriptions(cls: type[Config]) -> None:
     )
 
 
-def _normalize_type(annotation: Any) -> Any:
-    origin = get_origin(annotation)
-    args = get_args(annotation)
-    if origin is NotRequired:
-        return _normalize_type(args[0])
-    if origin in (Union, types.UnionType):
-        present = [
-            _normalize_type(arg) for arg in args if arg is not UnsetType
-        ]
-        return present[0] if len(present) == 1 else frozenset(present)
-    if origin is not None:
-        return (origin, tuple(_normalize_type(arg) for arg in args))
-    if isinstance(annotation, type) and (
-        issubclass(annotation, Config)
-        or hasattr(annotation, "__required_keys__")
-    ):
-        return annotation.__name__
-    return annotation
-
-
-@pytest.mark.parametrize("cls", SCHEMA_CLASSES, ids=lambda cls: cls.__name__)
-def test_schema_preserves_existing_field_types(cls: type[Config]) -> None:
-    legacy_cls = getattr(legacy_config, cls.__name__)
-    legacy_hints = get_type_hints(
-        legacy_cls,
-        localns={
-            "MCPServerConfig": legacy_config.MCPServerStdioConfig
-            | legacy_config.MCPServerStreamableHttpConfig
-        },
-        include_extras=True,
-    )
-    schema_hints = get_type_hints(cls)
-    for name, annotation in legacy_hints.items():
-        if cls is MarimoConfig and name == "experimental":
-            continue
-        # These scalars can be cleared with null by the settings UI.
-        if (cls is config_schema.AiConfig and name == "max_tokens") or (
-            cls is config_schema.AiModelConfig
-            and name in {"chat_model", "edit_model", "autocomplete_model"}
-        ):
-            annotation = Union[annotation, None]
-        assert _normalize_type(schema_hints[name]) == _normalize_type(
-            annotation
-        )
-
-
 def test_defaults_are_independent() -> None:
     first = MarimoConfig()
     second = MarimoConfig()
@@ -136,8 +83,38 @@ def test_defaults_are_independent() -> None:
     first.ai.models.displayed_models.append("custom-model")
     first.keymap.overrides["run"] = "Ctrl-Enter"
     first.mcp.presets.append("marimo")
+    first.runtime.pythonpath.append("/custom")
+    first.runtime.default_auto_download.append("html")
+    first.experimental.debugger = True
+    first.cache.loader = "json"
+    first.venv.writable = True
+    first.signing.trusted_signers["fingerprint"] = "label"
+    first.lint.ignore.append("MF001")
+    first.datasources.auto_discover_tables = False
 
     assert second.to_dict() == before
+
+
+def test_optional_sections_default_to_none() -> None:
+    config = MarimoConfig()
+    assert {
+        "sharing": config.sharing,
+        "file_browser": config.file_browser,
+    } == {
+        "sharing": None,
+        "file_browser": None,
+    }
+    assert (
+        MarimoConfig.from_dict(config.to_dict()).to_dict() == config.to_dict()
+    )
+
+
+@pytest.mark.parametrize("field", ["dotenv", "sql_default_limit"])
+def test_contextual_defaults_keep_omission_distinct(field: str) -> None:
+    assert field not in MarimoConfig().runtime.to_dict()
+    value = [] if field == "dotenv" else None
+    config = MarimoConfig.from_dict({"runtime": {field: value}})
+    assert config.runtime.to_dict()[field] == value
 
 
 @pytest.mark.parametrize(
@@ -166,8 +143,16 @@ def test_nested_conversion_preserves_presence() -> None:
     )
     assert config.to_dict() == {
         "enabled": True,
+        "rules": "",
+        "mode": "ask",
         "allow_provider_config": True,
-        "models": {"displayed_models": [], "custom_models": []},
+        "models": {
+            "chat_model": None,
+            "edit_model": None,
+            "autocomplete_model": None,
+            "displayed_models": [],
+            "custom_models": [],
+        },
         "max_tokens": None,
         "open_ai": {"api_key": "secret"},
         "custom_providers": {"gateway": {"base_url": "https://example.com"}},
@@ -180,7 +165,7 @@ def test_list_and_union_conversion() -> None:
         {"folders": [{"path": "/data"}]}
     )
     assert folders.folders == [config_schema.FolderConfig(path="/data")]
-    assert folders.to_dict() == {"folders": [{"path": "/data"}]}
+    assert folders.to_dict() == {"folders": [{"path": "/data", "name": None}]}
 
     mcp = config_schema.MCPConfig.from_dict(
         {
@@ -212,11 +197,14 @@ def test_unknown_fields_survive_resolution_and_merging() -> None:
     merged = merge_config(
         config.to_dict(), {"experimental": {"debugger": False}}
     )
-    serialized = merged
+    serialized = merged.to_dict()
 
     assert serialized["future_section"] == {"value": [1, 2]}
     assert serialized["runtime"]["future_setting"] is None
     assert serialized["experimental"] == {
+        "isolate_apps": False,
+        "line_timing": False,
+        "execution_type": "relaxed",
         "multi_column": True,
         "debugger": False,
     }
@@ -224,7 +212,13 @@ def test_unknown_fields_survive_resolution_and_merging() -> None:
         "gateway": {"future_option": "value"}
     }
     assert MarimoConfig.from_dict(serialized).to_dict() == serialized
-    assert config.to_dict()["experimental"] == {"multi_column": True}
+    assert config.to_dict()["experimental"] == {
+        "isolate_apps": False,
+        "debugger": False,
+        "line_timing": False,
+        "execution_type": "relaxed",
+        "multi_column": True,
+    }
 
 
 def test_unknown_fields_are_copied() -> None:
@@ -249,11 +243,17 @@ def test_saving_config_preserves_unknown_fields(
 
     saved = store.save_config({"experimental": {"debugger": False}})
 
-    assert saved["experimental"] == {
+    assert saved.to_dict()["experimental"] == {
+        "isolate_apps": False,
+        "line_timing": False,
+        "execution_type": "relaxed",
         "multi_column": True,
         "debugger": False,
     }
     assert store.read()["experimental"] == {
+        "isolate_apps": False,
+        "line_timing": False,
+        "execution_type": "relaxed",
         "multi_column": True,
         "debugger": False,
     }
@@ -321,8 +321,8 @@ def test_unknown_fields_in_lists_follow_their_objects() -> None:
     config.folders.reverse()
     assert config.to_dict() == {
         "folders": [
-            {"path": "/second", "label": "retained"},
-            {"path": "/first", "future": {"value": [1]}},
+            {"path": "/second", "name": None, "label": "retained"},
+            {"path": "/first", "name": None, "future": {"value": [1]}},
         ]
     }
     serialized = config.to_dict()
@@ -354,16 +354,24 @@ def test_metadata_describes_and_hides_secrets() -> None:
 def test_cache_loader_accepts_builtin_and_custom_names(loader: str) -> None:
     config = config_schema.CacheConfig.from_dict({"loader": loader})
     assert config.loader == loader
-    assert config.to_dict() == {"loader": loader}
+    assert config.to_dict() == {
+        "verification": "off",
+        "store": None,
+        "loader": loader,
+    }
 
 
 def test_cache_store_union_uses_struct_conversion() -> None:
     for store in (
         {"type": "file", "args": {"path": "/cache"}},
-        [{"type": "file"}, {"type": "redis"}],
+        [{"type": "file", "args": {}}, {"type": "redis", "args": {}}],
     ):
         config = config_schema.CacheConfig.from_dict({"store": store})
-        assert config.to_dict() == {"store": store}
+        assert config.to_dict() == {
+            "verification": "off",
+            "store": store,
+            "loader": "lazy",
+        }
         if isinstance(config.store, list):
             assert all(
                 isinstance(item, config_schema.StoreConfig)
@@ -400,3 +408,102 @@ def test_credential_mappings_are_hidden_from_representations(
     assert "credential-mapping-secret" not in repr(config.__rich_repr__())
     assert field_name not in dict(config.__rich_repr__())
     assert config.to_dict()[field_name] == credentials
+
+
+def test_deepcopy_isolates_schema_settings() -> None:
+    original = MarimoConfig.from_dict(
+        {
+            "runtime": {"pythonpath": ["/original"]},
+            "future": {"values": [1]},
+        }
+    )
+    before = original.to_dict()
+    copied = copy.deepcopy(original)
+    copied.keymap.overrides["run"] = "Ctrl-Enter"
+    paths = copied.runtime.pythonpath
+    assert paths is not UNSET
+    paths.append("/copy")
+    extra = copied._extra_fields["future"]
+    assert isinstance(extra, dict)
+    extra["values"].append(2)
+
+    assert original.to_dict() == before
+
+
+def test_manager_defaults_invalid_fields_without_losing_valid_settings(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    from marimo._config.manager import MarimoConfigManager
+
+    path = tmp_path / "marimo.toml"
+    path.write_text(
+        '[display]\ntheme = "invalid"\ncode_editor_font_size = 16\n'
+        '[runtime]\noutput_max_bytes = "invalid"\n'
+        '[future]\nvalue = "preserved"\n'
+    )
+    store = UserConfigStore()
+    monkeypatch.setattr(store, "get_config_path", lambda: str(path))
+    resolved = MarimoConfigManager(store).get_config()
+
+    expected = DEFAULT_CONFIG.to_dict()
+    expected["display"]["code_editor_font_size"] = 16
+    expected["future"] = {"value": "preserved"}
+    assert isinstance(resolved, MarimoConfig)
+    assert resolved.to_dict() == expected
+    assert str(path) in caplog.text
+
+
+def test_configuration_wire_round_trip_preserves_external_format() -> None:
+    from marimo._ast.app_config import _AppConfig
+    from marimo._ipc.types import ConnectionInfo, KernelArgs
+    from marimo._messaging.msgspec_encoder import encode_json_bytes
+    from marimo._runtime.commands import AppMetadata, UpdateUserConfigCommand
+
+    config = MarimoConfig.from_dict(
+        {
+            "mcp": {
+                "mcpServers": {"local": {"command": "python", "future": 1}}
+            },
+            "runtime": {"future": True},
+        }
+    )
+    payload = config.to_dict()
+    command = UpdateUserConfigCommand(config=payload)
+    decoded_command = msgspec.json.decode(
+        encode_json_bytes(command), type=UpdateUserConfigCommand
+    )
+    args = KernelArgs(
+        configs={},
+        app_metadata=AppMetadata(
+            query_params={}, cli_args={}, app_config=_AppConfig()
+        ),
+        user_config=payload,
+        log_level=0,
+        profile_path=None,
+        connection_info=ConnectionInfo(
+            control=1,
+            ui_element=2,
+            completion=3,
+            win32_interrupt=None,
+            input=4,
+            stream=5,
+        ),
+    )
+    decoded_args = KernelArgs.decode_json(args.encode_json())
+
+    assert decoded_command.config == payload
+    assert decoded_args.user_config == payload
+    assert (
+        MarimoConfig.from_dict(decoded_args.user_config).to_dict() == payload
+    )
+    assert "__marimo_transport__" not in payload["mcp"]["mcpServers"]["local"]
+
+
+@pytest.mark.parametrize(
+    "store", ["file", "redis", "rest", "tiered", "custom"]
+)
+def test_cache_store_accepts_builtin_and_custom_names(store: str) -> None:
+    config = config_schema.StoreConfig.from_dict({"type": store})
+    assert config.to_dict() == {"type": store, "args": {}}

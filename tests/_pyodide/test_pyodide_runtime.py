@@ -13,6 +13,8 @@ import marimo._pyodide.notebook as worker
 from marimo._ast.app_config import _AppConfig
 from marimo._config.config import DEFAULT_CONFIG
 from marimo._core.code import code_fingerprint
+from marimo._messaging.cell_output import CellOutput
+from marimo._messaging.input import InputReply
 from marimo._messaging.notification import (
     CellNotification,
     CompletedRunNotification,
@@ -63,6 +65,7 @@ def _():
         DEFAULT_CONFIG,
     )
     bridge = PyodideBridge(session)
+    bridge.notebook.allow_input()
     yield bridge
     bridge.close()
 
@@ -130,6 +133,88 @@ async def started(bridge: PyodideBridge) -> list[dict[str, Any]]:
     bridge.session.started.set()
     await settle()
     return events
+
+
+@pytest.mark.parametrize("password", [False, True])
+async def test_worker_input_reply_reaches_its_prompt(
+    bridge: PyodideBridge, password: bool
+):
+    events = await started(bridge)
+    cell_id = latest(events, "cell")["id"]
+    accepted = await call(bridge, "runtime.run", {"cells": [{"id": cell_id}]})
+    run_id = accepted["body"]["id"]
+    await settle()
+    deliver(bridge, planned(cell_id, run_id))
+    deliver(bridge, running(cell_id, run_id))
+    deliver(
+        bridge,
+        CellNotification(
+            cell_id=CellId_t(cell_id),
+            run_id=run_id,
+            execution_id="e1",
+            console=CellOutput.stdin(
+                "Prompt: ", password=password, input_id="prompt"
+            ),
+        ),
+    )
+    pending = latest(events, "input")
+    assert pending["status"] == "pending"
+    response = await call(
+        bridge,
+        "runtime.input",
+        {"value": "secret"},
+        input_id="prompt",
+        key="answer",
+    )
+    assert response == {
+        "status": 200,
+        "body": {**pending, "status": "answered"},
+    }
+    assert (
+        bridge.session._queue_manager.input_queue.get_nowait()
+        == InputReply("prompt", "secret")
+    )
+    assert "secret" not in json.dumps(
+        [event for event in events if event["event"] == "input"]
+    )
+
+    deliver(
+        bridge,
+        CellNotification(
+            cell_id=CellId_t(cell_id),
+            run_id=run_id,
+            execution_id="e1",
+            console=CellOutput.stdin("Next: ", input_id="next"),
+        ),
+    )
+    replay = []
+    await bridge.notebook.subscribe(
+        "reconnected", None, lambda raw: replay.append(json.loads(raw))
+    )
+    assert {
+        key: value["status"]
+        for key, value in latest_by_id(replay, "input").items()
+    } == {"prompt": "answered", "next": "pending"}
+    [console] = [
+        frame["data"]["marimo"]["console"]
+        for frame in replay
+        if frame["event"] == "marimo"
+        and frame["data"]["marimo"]["op"] == "cell-op"
+        and frame["data"]["marimo"]["cell_id"] == cell_id
+    ]
+    assert [
+        (entry["input_id"], entry["channel"], entry["data"])
+        for entry in console
+    ] == [
+        (
+            "prompt",
+            "stdout",
+            "Prompt: \n" if password else "Prompt:  secret\n",
+        ),
+        ("next", "stdin", "Next: "),
+    ]
+    if password:
+        assert "secret" not in json.dumps(replay)
 
 
 def queued(bridge: PyodideBridge) -> list[Any]:
@@ -201,6 +286,20 @@ async def test_the_runtime_runs_once_the_page_starts_the_kernel(bridge):
     runtime = latest(events, "runtime")
     assert runtime["status"] == "running"
     assert runtime["marimo_version"]
+
+
+async def test_a_run_for_no_editor_does_not_allow_input(bridge):
+    bridge.notebook.allow_input(False)
+    bridge.session.instantiated = True
+    events = await started(bridge)
+    cell = latest(events, "cell")
+
+    reply = await call(bridge, "runtime.run", {"cells": [{"id": cell["id"]}]})
+    assert reply["status"] == 202
+    await settle()
+    [command] = queued(bridge)
+    assert isinstance(command, ExecuteCellsCommand)
+    assert not command.allow_stdin
 
 
 async def test_running_a_cell_loads_its_imports_and_queues_the_command(

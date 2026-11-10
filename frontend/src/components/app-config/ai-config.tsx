@@ -1467,12 +1467,10 @@ export const AiAssistConfig: React.FC<AiConfigProps> = ({
                         onCheckedChange={(checked) => {
                           const isChecked = checked === true;
                           setMaxTokensEnabled(isChecked);
-                          // null signals delete to the server; cast because
-                          // UserConfig (OpenAPI-derived) types max_tokens as
-                          // `number | undefined`, but zod accepts `null`.
-                          const next = (
-                            isChecked ? (field.value ?? 32768) : null
-                          ) as number | undefined;
+                          // null signals delete to the server.
+                          const next = isChecked
+                            ? (field.value ?? 32768)
+                            : null;
                           // shouldDirty: true forces RHF to keep this in
                           // dirtyFields even when `next` happens to equal the
                           // form's defaultValue (e.g. untick → tick when disk

@@ -25,7 +25,7 @@ if TYPE_CHECKING:
 
     from starlette.applications import Starlette
 
-    from marimo._config.config import OnCellChangeType
+    from marimo._config.types import OnCellChangeType
     from tests._server.host.drive import Response
 
 TOKEN = "execution-test"
@@ -52,7 +52,7 @@ async def open_host(
     manager._config_manager = manager._config_manager.with_overrides(
         {
             "runtime": {
-                **DEFAULT_CONFIG["runtime"],
+                **DEFAULT_CONFIG.runtime.to_dict(),
                 "on_cell_change": on_cell_change,
             }
         }

@@ -13,6 +13,7 @@ from starlette.datastructures import Headers, QueryParams
 from starlette.requests import HTTPConnection
 
 from marimo._config.config import merge_default_config
+from marimo._config.config_schema import ServerConfig
 from marimo._config.manager import MarimoConfigManager, UserConfigStore
 from marimo._server.api.auth import (
     CookieSession,
@@ -196,7 +197,7 @@ def test_session_secret_env_override(variable: str):
         "from marimo._server.main import create_starlette_app;"
         "from marimo._server.api.auth import hash_access_token;"
         "config = get_default_config_manager(current_path=None).get_config(hide_secrets=False);"
-        "app = create_starlette_app(base_url='', server_config=config['server']);"
+        "app = create_starlette_app(base_url='', server_config=config.server);"
         "print(str(app.state.session_secret));"
         "print(hash_access_token('tok', secret=app.state.session_secret))"
     )
@@ -369,7 +370,7 @@ async def test_configured_session_secret_signs_and_validates_cookies() -> None:
             }
         }
     )
-    app = create_starlette_app(base_url="", server_config=config["server"])
+    app = create_starlette_app(base_url="", server_config=config.server)
     get_starlette_server_state_init().apply(app.state)
     middleware = next(
         item
@@ -396,7 +397,7 @@ async def test_configured_session_secret_signs_and_validates_cookies() -> None:
 def test_partial_server_config_defaults_to_insecure_local_cookie() -> None:
     app = create_starlette_app(
         base_url="",
-        server_config={"browser": "default", "follow_symlink": False},
+        server_config=ServerConfig(browser="default", follow_symlink=False),
     )
     middleware = next(
         item

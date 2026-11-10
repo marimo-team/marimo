@@ -6,6 +6,7 @@ from unittest.mock import patch
 
 import pytest
 
+from marimo._config.config_schema import PackageManagementConfig
 from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._environments.sandbox import Backend
 from marimo._server.start import start
@@ -75,6 +76,7 @@ def test_package_manager_follows_sandbox_backend(
         )
 
     app = server.call_args.args[0].app
-    assert app.state.config_manager.get_config()["package_management"] == {
-        "manager": expected_manager
-    }
+    assert (
+        app.state.config_manager.get_config().package_management
+        == PackageManagementConfig(manager=expected_manager)
+    )

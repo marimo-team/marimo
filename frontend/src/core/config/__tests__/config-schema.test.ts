@@ -56,12 +56,21 @@ test("default UserConfig - empty", () => {
         "custom_providers": {},
         "enabled": true,
         "inline_tooltip": false,
+        "max_tokens": null,
         "mode": "ask",
         "models": {
+          "autocomplete_model": null,
+          "chat_model": null,
           "custom_models": [],
           "displayed_models": [],
+          "edit_model": null,
         },
         "rules": "",
+      },
+      "cache": {
+        "loader": "lazy",
+        "store": null,
+        "verification": "off",
       },
       "completion": {
         "activate_on_typing": true,
@@ -69,7 +78,10 @@ test("default UserConfig - empty", () => {
         "copilot": false,
         "signature_hint_on_typing": false,
       },
-      "diagnostics": {},
+      "datasources": {},
+      "diagnostics": {
+        "sql_linter": true,
+      },
       "display": {
         "cell_output": "below",
         "code_editor_font_size": 14,
@@ -81,8 +93,13 @@ test("default UserConfig - empty", () => {
         "reference_highlighting": true,
         "theme": "light",
       },
-      "experimental": {},
-      "file_browser": {},
+      "experimental": {
+        "debugger": false,
+        "execution_type": "relaxed",
+        "isolate_apps": false,
+        "line_timing": false,
+      },
+      "file_browser": null,
       "formatting": {
         "infer_types": "off",
         "line_length": 79,
@@ -92,17 +109,39 @@ test("default UserConfig - empty", () => {
         "overrides": {},
         "preset": "default",
       },
-      "mcp": {},
+      "language_servers": {
+        "pylsp": {
+          "enable_flake8": false,
+          "enable_mypy": true,
+          "enable_pydocstyle": false,
+          "enable_pyflakes": false,
+          "enable_pylint": false,
+          "enable_ruff": true,
+          "enabled": false,
+        },
+      },
+      "lint": {
+        "ignore": [],
+        "select": [],
+      },
+      "mcp": {
+        "mcpServers": {},
+        "presets": [],
+      },
       "package_management": {
         "manager": "pip",
       },
       "runtime": {
         "auto_instantiate": true,
         "auto_reload": "off",
+        "cache_cells": false,
         "default_auto_download": [],
         "default_sql_output": "auto",
         "on_cell_change": "autorun",
+        "pin_modules": true,
+        "pythonpath": [],
         "reactive_tests": true,
+        "serve_cached_sessions_in_apps": false,
         "show_tracebacks": false,
         "watcher_on_save": "lazy",
       },
@@ -111,7 +150,23 @@ test("default UserConfig - empty", () => {
         "autosave_delay": 1000,
         "format_on_save": false,
       },
-      "server": {},
+      "server": {
+        "disable_file_downloads": false,
+        "session_secret": null,
+      },
+      "sharing": null,
+      "signing": {
+        "private_key_path": null,
+        "trusted_signers": {},
+      },
+      "snippets": {
+        "custom_paths": [],
+        "include_default_snippets": true,
+      },
+      "venv": {
+        "path": null,
+        "writable": false,
+      },
     }
   `);
 });
@@ -133,12 +188,21 @@ test("default UserConfig - one level", () => {
         "custom_providers": {},
         "enabled": true,
         "inline_tooltip": false,
+        "max_tokens": null,
         "mode": "ask",
         "models": {
+          "autocomplete_model": null,
+          "chat_model": null,
           "custom_models": [],
           "displayed_models": [],
+          "edit_model": null,
         },
         "rules": "",
+      },
+      "cache": {
+        "loader": "lazy",
+        "store": null,
+        "verification": "off",
       },
       "completion": {
         "activate_on_typing": true,
@@ -146,7 +210,10 @@ test("default UserConfig - one level", () => {
         "copilot": false,
         "signature_hint_on_typing": false,
       },
-      "diagnostics": {},
+      "datasources": {},
+      "diagnostics": {
+        "sql_linter": true,
+      },
       "display": {
         "cell_output": "below",
         "code_editor_font_size": 14,
@@ -158,8 +225,13 @@ test("default UserConfig - one level", () => {
         "reference_highlighting": true,
         "theme": "light",
       },
-      "experimental": {},
-      "file_browser": {},
+      "experimental": {
+        "debugger": false,
+        "execution_type": "relaxed",
+        "isolate_apps": false,
+        "line_timing": false,
+      },
+      "file_browser": null,
       "formatting": {
         "infer_types": "off",
         "line_length": 79,
@@ -169,17 +241,39 @@ test("default UserConfig - one level", () => {
         "overrides": {},
         "preset": "default",
       },
-      "mcp": {},
+      "language_servers": {
+        "pylsp": {
+          "enable_flake8": false,
+          "enable_mypy": true,
+          "enable_pydocstyle": false,
+          "enable_pyflakes": false,
+          "enable_pylint": false,
+          "enable_ruff": true,
+          "enabled": false,
+        },
+      },
+      "lint": {
+        "ignore": [],
+        "select": [],
+      },
+      "mcp": {
+        "mcpServers": {},
+        "presets": [],
+      },
       "package_management": {
         "manager": "pip",
       },
       "runtime": {
         "auto_instantiate": true,
         "auto_reload": "off",
+        "cache_cells": false,
         "default_auto_download": [],
         "default_sql_output": "auto",
         "on_cell_change": "autorun",
+        "pin_modules": true,
+        "pythonpath": [],
         "reactive_tests": true,
+        "serve_cached_sessions_in_apps": false,
         "show_tracebacks": false,
         "watcher_on_save": "lazy",
       },
@@ -188,7 +282,23 @@ test("default UserConfig - one level", () => {
         "autosave_delay": 1000,
         "format_on_save": false,
       },
-      "server": {},
+      "server": {
+        "disable_file_downloads": false,
+        "session_secret": null,
+      },
+      "sharing": null,
+      "signing": {
+        "private_key_path": null,
+        "trusted_signers": {},
+      },
+      "snippets": {
+        "custom_paths": [],
+        "include_default_snippets": true,
+      },
+      "venv": {
+        "path": null,
+        "writable": false,
+      },
     }
   `);
 
@@ -230,7 +340,7 @@ test("UserConfig with file browser folders", () => {
 
   expect(config.file_browser?.folders).toEqual([
     { path: "/data", name: "Data" },
-    { path: "/shared" },
+    { path: "/shared", name: null },
   ]);
 });
 

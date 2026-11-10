@@ -34,9 +34,10 @@ describe("outputExpansionConfigs", () => {
     });
   });
 
-  it("clamps expanded cells with output and skips cells without output", () => {
+  it("clamps all expanded cells, including those without current output", () => {
     expect(outputExpansionConfigs(notebook, false)).toEqual({
       [expanded]: { expand_output: false },
+      [expandedWithoutOutput]: { expand_output: false },
     });
   });
 });

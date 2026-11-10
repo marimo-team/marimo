@@ -8,8 +8,8 @@ from starlette.background import BackgroundTask
 from starlette.responses import JSONResponse
 
 from marimo import _loggers
-from marimo._config.config import MarimoConfig, PartialMarimoConfig
-from marimo._config.config_schema import MarimoConfig as MarimoConfigSchema
+from marimo._config.config import PartialMarimoConfig
+from marimo._config.config_schema import MarimoConfig
 from marimo._config.resolver import config_paths
 from marimo._config.schema_utils import config_leaf_types
 from marimo._dependencies.dependencies import DependencyManager
@@ -78,7 +78,7 @@ async def save_user_config(
     if session is not None:
         enforce_consumer_capability(
             app_state,
-            UpdateUserConfigCommand(cast(MarimoConfig, body.config)),
+            UpdateUserConfigCommand(body.config),
         )
 
     # TODO: we may want to validate deep-partial here, but validating with PartialMarimoConfig it too strict
@@ -100,7 +100,7 @@ async def save_user_config(
             await app_state.session_manager.start_lsp_server()
 
         # Reconfigure MCP servers if config changed
-        mcp_config = config.get("mcp")
+        mcp_config = config.mcp
 
         # Handle missing MCP dependencies
         if (
@@ -138,13 +138,11 @@ async def save_user_config(
     if session is not None:
         session.put_control_request(
             UpdateUserConfigCommand(
-                config,
+                config.to_dict(),
                 edited_paths=tuple(
                     config_paths(
                         body.config,
-                        leaf_paths=frozenset(
-                            config_leaf_types(MarimoConfigSchema)
-                        ),
+                        leaf_paths=frozenset(config_leaf_types(MarimoConfig)),
                     )
                 ),
             ),
