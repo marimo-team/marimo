@@ -1,5 +1,5 @@
 event: notebook
-data: {"notebook":{"id":"n1","project_id":"p1","path":"forecasts.py","name":"forecasts","operations":["notebook.update","notebook.delete","notebook.open","notebook.edit","notebook.save","runtime.start","runtime.stop","runtime.run","runtime.execute","runtime.interrupt"],"updated_at":"2026-10-01T09:00:00Z"}}
+data: {"notebook":{"id":"n1","project_id":"p1","path":"forecasts.py","name":"forecasts","operations":["notebook.update","notebook.delete","notebook.open","notebook.edit","notebook.save","runtime.start","runtime.stop","runtime.run","runtime.execute","runtime.cancel"],"updated_at":"2026-10-01T09:00:00Z"}}
 
 event: cell
 data: {"cell":{"id":"c1","notebook_id":"n1","code":"import marimo as mo","name":"_","config":{"column":null,"disabled":false,"hide_code":false,"expand_output":false},"etag":"48d6363150d6281c","code_fingerprint":"f649a0b56c5c1966","version":1}}

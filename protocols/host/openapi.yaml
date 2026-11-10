@@ -628,24 +628,28 @@ paths:
         '501': { $ref: '#/components/responses/UnsupportedOperation' }
   /notebooks/{notebook_id}/runtime/runs/{run_id}:
     delete:
-      operationId: runtime.interrupt
-      summary: Interrupt a run
+      operationId: runtime.cancel
+      summary: Cancel a run
       description: |
-        Stops a run that is in progress. The notebook's stream then
-        carries its executions with the outcome `interrupted` and the
-        run with status `completed` and outcome `interrupted` once the
-        interruption has taken effect. Queued executions end `interrupted` and
-        the running one is interrupted. A run that has not started completes
-        `interrupted` without executing. Once the run is completed, the host
-        answers `conflict`. A host that lists `runtime.run` or `runtime.execute`
-        supports this route.
+        Cancels one queued or running run, leaving other runs untouched.
+        A queued run is removed from the queue and completes interrupted
+        without executing. For a running run, the host interrupts only if
+        that run is still active; its remaining executions end interrupted.
+        The host must not interrupt a successor if the target finishes before
+        the cancellation takes effect. A completed run receives `conflict`.
+        Pending inputs belonging to cancelled work are cancelled.
+
+        The response acknowledges the request, not completion. The notebook
+        stream carries the run and execution outcomes once they settle.
+        The runtime stays alive. A host that lists `runtime.run` or
+        `runtime.execute` supports this operation.
       parameters:
         - $ref: '#/components/parameters/NotebookId'
         - $ref: '#/components/parameters/RunId'
         - $ref: '#/components/parameters/IdempotencyKey'
       responses:
         '202':
-          description: The run is being interrupted.
+          description: Cancellation was requested for the run.
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Run' }

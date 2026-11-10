@@ -194,8 +194,8 @@ class ExecuteCall(_Call, frozen=True, tag="runtime.execute"):
         )
 
 
-class InterruptCall(_Call, frozen=True, tag="runtime.interrupt"):
-    """Interrupt a run."""
+class CancelCall(_Call, frozen=True, tag="runtime.cancel"):
+    """Cancel a run."""
 
     METHOD = "DELETE"
     PATH = "/notebooks/{notebook_id}/runtime/runs/{run_id}"
@@ -209,7 +209,7 @@ class InterruptCall(_Call, frozen=True, tag="runtime.interrupt"):
         notebook_id, run_id = self.params.notebook_id, self.params.run_id
         notebook = await bridge.host.notebook(notebook_id)
         try:
-            return 202, notebook.interrupt(
+            return 202, notebook.cancel(
                 run_id, request_id=self.headers.idempotency_key
             )
         except NotFound:
@@ -256,7 +256,7 @@ OperationCall = (
     | RestartCall
     | RunCall
     | ExecuteCall
-    | InterruptCall
+    | CancelCall
     | InputCall
 )
 """A request for any notebook operation, tagged by its operation id."""
@@ -271,7 +271,7 @@ CALLS: tuple[type[OperationCall], ...] = (
     RestartCall,
     RunCall,
     ExecuteCall,
-    InterruptCall,
+    CancelCall,
     InputCall,
 )
 

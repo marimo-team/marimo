@@ -300,7 +300,7 @@ async def test_worker_authorizes_cell_runs_and_scratch_execution_separately(
 async def test_the_runtime_runs_once_the_page_starts_the_kernel(bridge):
     events = await follow(bridge)
     notebook = latest(events, "notebook")
-    assert {"runtime.run", "runtime.execute", "runtime.interrupt"} <= set(
+    assert {"runtime.run", "runtime.execute", "runtime.cancel"} <= set(
         notebook["operations"]
     )
     assert latest(events, "runtime")["status"] == "starting"
@@ -552,9 +552,7 @@ async def test_interrupting_a_queued_run_cancels_it_in_the_kernel(bridge):
     await settle()
     queued(bridge)
 
-    reply = await call(
-        bridge, "runtime.interrupt", key="stop-1", run_id=run_id
-    )
+    reply = await call(bridge, "runtime.cancel", key="stop-1", run_id=run_id)
     assert reply["status"] == 202
     [command] = queued(bridge)
     assert isinstance(command, CancelRunCommand)
@@ -588,7 +586,7 @@ async def test_an_interrupt_right_after_submission_asks_the_kernel(bridge):
 
     backend = bridge.notebook._backend
     assert backend is not None
-    backend.interrupt(run_id)
+    backend.cancel(run_id)
     [command] = queued(bridge)
     assert isinstance(command, CancelRunCommand)
     assert command.run_id == run_id
@@ -616,18 +614,14 @@ async def test_interrupting_a_started_run_halts_the_kernel_queue(
     queued(bridge)
     deliver(bridge, planned(cell["id"], run_id))
 
-    reply = await call(
-        bridge, "runtime.interrupt", key="stop-1", run_id=run_id
-    )
+    reply = await call(bridge, "runtime.cancel", key="stop-1", run_id=run_id)
     assert reply["status"] == 202
     assert queued(bridge) == []
     assert scheduler.cancelled == 1
 
     for notification in finished(cell["id"], run_id):
         deliver(bridge, notification)
-    reply = await call(
-        bridge, "runtime.interrupt", key="stop-2", run_id=run_id
-    )
+    reply = await call(bridge, "runtime.cancel", key="stop-2", run_id=run_id)
     assert reply["status"] == 409
     assert scheduler.cancelled == 1
 
@@ -641,9 +635,7 @@ async def test_interrupting_a_run_the_kernel_scheduled(
     events = await started(bridge)
     cell = latest(events, "cell")
     deliver(bridge, planned(cell["id"], "legacy", "e9"))
-    reply = await call(
-        bridge, "runtime.interrupt", key="stop-1", run_id="legacy"
-    )
+    reply = await call(bridge, "runtime.cancel", key="stop-1", run_id="legacy")
     assert reply["status"] == 202
     assert scheduler.cancelled == 1
 
@@ -662,7 +654,7 @@ async def test_interrupting_before_submission_ends_the_run(bridge):
     reply = await call(bridge, "runtime.run", {"cells": [{"id": cell["id"]}]})
     run_id = reply["body"]["id"]
     await settle()
-    await call(bridge, "runtime.interrupt", key="stop-1", run_id=run_id)
+    await call(bridge, "runtime.cancel", key="stop-1", run_id=run_id)
     await settle()
     gate.set()
     await settle()
@@ -768,7 +760,7 @@ async def test_a_later_run_proceeds_after_its_predecessor_is_interrupted(
     )
     await settle()
     reply = await call(
-        bridge, "runtime.interrupt", key="stop-1", run_id=first["body"]["id"]
+        bridge, "runtime.cancel", key="stop-1", run_id=first["body"]["id"]
     )
     assert reply["status"] == 202
     await settle()
@@ -821,9 +813,7 @@ async def test_a_late_cancellation_halts_the_run_once_it_starts(
     await settle()
     queued(bridge)
 
-    reply = await call(
-        bridge, "runtime.interrupt", key="stop-1", run_id=run_id
-    )
+    reply = await call(bridge, "runtime.cancel", key="stop-1", run_id=run_id)
     assert reply["status"] == 202
     [command] = queued(bridge)
     assert isinstance(command, CancelRunCommand)
@@ -852,9 +842,7 @@ async def test_an_interrupt_waits_for_the_kernel_to_expose_its_scheduler(
     queued(bridge)
     deliver(bridge, planned(cell["id"], run_id))
 
-    reply = await call(
-        bridge, "runtime.interrupt", key="stop-1", run_id=run_id
-    )
+    reply = await call(bridge, "runtime.cancel", key="stop-1", run_id=run_id)
     assert reply["status"] == 202
     assert queued(bridge) == []
 
@@ -913,9 +901,7 @@ async def test_cancelling_a_middle_run_keeps_the_order(bridge):
     await settle()
     assert queued(bridge) == []
 
-    reply = await call(
-        bridge, "runtime.interrupt", key="stop-1", run_id=second
-    )
+    reply = await call(bridge, "runtime.cancel", key="stop-1", run_id=second)
     assert reply["status"] == 202
     await settle()
     # The third still waits for the first, which is loading a package.
@@ -973,9 +959,7 @@ async def test_interrupting_a_scratch_run_waiting_for_the_scratchpad(bridge):
     await settle()
     assert [command.run_id for command in queued(bridge)] == [first]
 
-    reply = await call(
-        bridge, "runtime.interrupt", key="stop-1", run_id=second
-    )
+    reply = await call(bridge, "runtime.cancel", key="stop-1", run_id=second)
     assert reply["status"] == 202
     await settle()
     assert latest_by_id(events, "run")[second]["outcome"] == "interrupted"

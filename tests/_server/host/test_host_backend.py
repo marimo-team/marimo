@@ -196,7 +196,7 @@ async def test_interrupt_waits_for_the_kernel_result(
     )
     observed.messages.clear()
 
-    b.interrupt(protocol.RunId("run-1"))
+    b.cancel(protocol.RunId("run-1"))
     session.broadcast(
         CellNotification(
             cell_id=SCRATCH_CELL_ID, status="running", run_id="run-1"
@@ -265,7 +265,7 @@ async def test_interrupting_a_run_started_by_another_client(
             run_id="browser",
         )
     )
-    b.interrupt(protocol.RunId("browser"))
+    b.cancel(protocol.RunId("browser"))
     assert session.interrupts == 1
     session.broadcast(
         CompletedRunNotification(run_id="browser", outcome="interrupted")
@@ -273,7 +273,7 @@ async def test_interrupting_a_run_started_by_another_client(
     assert observed.messages[-1] == be.Done(
         protocol.RunId("browser"), "interrupted"
     )
-    b.interrupt(protocol.RunId("browser"))
+    b.cancel(protocol.RunId("browser"))
     assert session.interrupts == 1
 
 
@@ -339,7 +339,7 @@ async def test_canceling_a_queued_run_preserves_other_execution(
         b.run(protocol.RunId("canceled"), "must_not_execute()", request=None)
         if not before_start:
             await asyncio.wait_for(lock.entered.wait(), 5)
-        b.interrupt(protocol.RunId("canceled"))
+        b.cancel(protocol.RunId("canceled"))
         await observed.wait_for(be.Done)
         assert session.interrupts == 0
         [outcome] = [
@@ -792,7 +792,7 @@ async def test_interrupting_a_waiting_cell_run_preserves_submission_order(
             request=None,
         )
 
-    b.interrupt(protocol.RunId("run-3"))
+    b.cancel(protocol.RunId("run-3"))
     await observed.wait_for(be.Done)
     if accept_after_interrupt:
         b.run_cells(
@@ -828,7 +828,7 @@ async def test_interrupting_a_queued_cell_run_cancels_it_in_the_kernel(
     b.run_cells(
         protocol.RunId("run-1"), document, [protocol.CellId("a")], request=None
     )
-    b.interrupt(protocol.RunId("run-1"))
+    b.cancel(protocol.RunId("run-1"))
 
     assert session.interrupts == 0
     assert session.commands[-1] == CancelRunCommand(run_id="run-1")
@@ -854,7 +854,7 @@ async def test_a_cancelled_run_that_starts_anyway_is_interrupted(
     b.run_cells(
         protocol.RunId("run-1"), document, [protocol.CellId("a")], request=None
     )
-    b.interrupt(protocol.RunId("run-1"))
+    b.cancel(protocol.RunId("run-1"))
     assert session.interrupts == 0
 
     # The kernel dequeued the run before the cancellation reached it.
@@ -902,7 +902,7 @@ async def test_interrupting_a_started_cell_run_interrupts_the_kernel(
         )
     )
 
-    b.interrupt(protocol.RunId("run-1"))
+    b.cancel(protocol.RunId("run-1"))
 
     assert session.interrupts == 1
     assert not any(isinstance(c, CancelRunCommand) for c in session.commands)

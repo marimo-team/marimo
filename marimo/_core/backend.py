@@ -109,7 +109,7 @@ class Backend(Protocol):
         with its cell.
         """
 
-    def interrupt(self, run_id: protocol.RunId) -> None:
+    def cancel(self, run_id: protocol.RunId) -> None:
         """End a run and report its `interrupted` outcome.
 
         A run the kernel has not started completes without running. One

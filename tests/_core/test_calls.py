@@ -10,7 +10,7 @@ from marimo._core import calls, protocol
 from marimo._core.backend import RequestInfo
 from marimo._core.calls import (
     CALLS,
-    InterruptCall,
+    CancelCall,
     MutationHeaders,
     OperationCall,
     RunParams,
@@ -29,14 +29,14 @@ def test_calls_decode_from_request_parts() -> None:
 
     headers = {"idempotency-key": "k", "authorization": "Bearer t"}
     assert decode(
-        operation="runtime.interrupt",
+        operation="runtime.cancel",
         params={"notebook_id": "n1", "run_id": "r1"},
         headers=headers,
-    ) == InterruptCall(
+    ) == CancelCall(
         RunParams(NOTEBOOK, protocol.RunId("r1")), MutationHeaders("k")
     )
     for invalid in (
-        {"operation": "runtime.interrupt", "params": {"notebook_id": "n1"}},
+        {"operation": "runtime.cancel", "params": {"notebook_id": "n1"}},
         {"operation": "notebook.missing", "params": {"notebook_id": "n1"}},
     ):
         with pytest.raises(msgspec.ValidationError):

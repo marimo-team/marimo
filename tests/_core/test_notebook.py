@@ -887,7 +887,7 @@ class TestRunCompletion:
         assert log == []
 
 
-class TestInterrupt:
+class TestCancel:
     def test_asks_the_backend_while_in_progress(
         self, notebook: Notebook, backend: ScriptedBackend
     ) -> None:
@@ -895,21 +895,21 @@ class TestInterrupt:
         run = scratch(notebook)
         backend.calls.clear()
 
-        notebook.interrupt(run.id)
+        notebook.cancel(run.id)
 
-        assert backend.calls == [("interrupt", run.id)]
+        assert backend.calls == [("cancel", run.id)]
 
     def test_refuses_unknown_and_finished_runs(
         self, notebook: Notebook, backend: ScriptedBackend
     ) -> None:
         running(notebook, backend)
         with pytest.raises(NotFound):
-            notebook.interrupt("nope")
+            notebook.cancel("nope")
         run = scratch(notebook)
         notebook.observe(be.Completed(ExecutionId("e1"), value("9")))
         notebook.observe(be.Done(run.id, "succeeded"))
         with pytest.raises(NotFound):
-            notebook.interrupt(run.id)
+            notebook.cancel(run.id)
 
 
 class TestCellResults:
