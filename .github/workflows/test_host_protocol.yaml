@@ -5,6 +5,8 @@ on:
     paths:
       - "protocols/**"
       - "packages/host-protocol/**"
+      - "frontend/.oxlintrc.json"
+      - "frontend/lint/**"
       - "pnpm-lock.yaml"
       - "pnpm-workspace.yaml"
       - "package.json"

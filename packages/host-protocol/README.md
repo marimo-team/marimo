@@ -27,10 +27,16 @@ carry the host record's token.
 ## Connect with Effect
 
 ```ts
-const client = yield* HttpApiClient.make(Host.Api, { baseUrl });
-yield* client.Notebook.cancel({
-  params: { notebookId, runId },
-  headers: { idempotencyKey },
+import { Effect } from "effect";
+import { HttpApiClient } from "effect/http-api";
+import { Host } from "@marimo-team/host-protocol";
+
+const cancel = Effect.gen(function* () {
+  const client = yield* HttpApiClient.make(Host.Api, { baseUrl });
+  return yield* client.Notebook.cancel({
+    params: { notebookId, runId },
+    headers: { idempotencyKey },
+  });
 });
 ```
 

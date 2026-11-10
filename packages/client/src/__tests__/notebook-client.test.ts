@@ -288,16 +288,15 @@ describe("NotebookClient", () => {
     );
   });
 
-  it("returns problems as values", async () => {
-    const problem = readFixture("problems/precondition-failed.json");
+  it.each([
+    ["conflict", 409],
+    ["precondition-failed", 412],
+  ] as const)("returns a %s problem as a value", async (name, status) => {
+    const problem = readFixture(`problems/${name}.json`);
     const { notebook } = connect(() =>
-      json(412, problem, "application/problem+json"),
+      json(status, problem, "application/problem+json"),
     );
-    expect(await notebook.edit([])).toEqual({
-      ok: false,
-      status: 412,
-      problem,
-    });
+    expect(await notebook.edit([])).toEqual({ ok: false, status, problem });
   });
 
   it("sends preconditions, decisions, and the caller's idempotency key", async () => {

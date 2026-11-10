@@ -26,6 +26,7 @@ const records = {
   "execute-request.json": S.ExecuteRequest,
   "input-reply-request.json": S.InputReplyRequest,
   "input-reply-response.json": S.Input,
+  "interrupt-runtime-response.json": S.Runtime,
   "../experimental/analysis/fixtures/analysis.json": Analysis.Analysis,
   "../experimental/analysis/fixtures/diagnostic.json": S.Error,
 };

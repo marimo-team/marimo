@@ -1939,6 +1939,7 @@ async def test_save_writes_the_file_and_reports_the_saved_revision(
             body=b"{}",
         )
         assert stale.status == 412, stale.body
+        assert stale.json()["type"].endswith(":precondition-failed")
         assert stale.json()["index"] == 0
         assert stale.json()["document"]["etag"] == etag
 
