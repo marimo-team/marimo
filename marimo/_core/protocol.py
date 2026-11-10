@@ -114,13 +114,19 @@ class CellInput(Struct, frozen=True):
     ) = "_"
 
 
-CodeFingerprint: TypeAlias = Annotated[
-    str,
-    Meta(
-        description="Opaque code identity assigned by the host. Clients compare cell and execution fingerprints for freshness. Incompatible schemes MUST produce distinct fingerprints.",
-        min_length=1,
-    ),
-]
+if TYPE_CHECKING:
+    CodeFingerprint = NewType("CodeFingerprint", str)
+else:
+    CodeFingerprint = NewType(
+        "CodeFingerprint",
+        Annotated[
+            str,
+            Meta(
+                description="Opaque code identity assigned by the host. Clients compare cell and execution fingerprints for freshness. Incompatible schemes MUST produce distinct fingerprints.",
+                min_length=1,
+            ),
+        ],
+    )
 
 
 class ConflictProblem(
@@ -182,12 +188,18 @@ class DisplayData(Struct, frozen=True):
     ]
 
 
-Etag: TypeAlias = Annotated[
-    str,
-    Meta(
-        description="An identifier derived from content, so that every host, kernel,\nand store computes the same value for the same state. It is the\nfirst 16 hexadecimal characters, in lower case, of SHA-256 over\nthe UTF-8 encoding of a canonical text. Each etag says what its\ntext is; a text made of several values is those values joined by\nnewlines. Clients do not compute etags. They read them from the\nstream and from responses, and send them back as preconditions.\n"
-    ),
-]
+if TYPE_CHECKING:
+    Etag = NewType("Etag", str)
+else:
+    Etag = NewType(
+        "Etag",
+        Annotated[
+            str,
+            Meta(
+                description="An identifier derived from content, so that every host, kernel,\nand store computes the same value for the same state. It is the\nfirst 16 hexadecimal characters, in lower case, of SHA-256 over\nthe UTF-8 encoding of a canonical text. Each etag says what its\ntext is; a text made of several values is those values joined by\nnewlines. Clients do not compute etags. They read them from the\nstream and from responses, and send them back as preconditions.\n"
+            ),
+        ],
+    )
 
 
 class ExecuteRequest(Struct, frozen=True, forbid_unknown_fields=True):

@@ -200,7 +200,9 @@ def generate_models(document: dict[str, Any], output_path: Path) -> None:
             template_data[name]["base_class_kwargs"][
                 "forbid_unknown_fields"
             ] = "True"
-        if name.endswith("Id") and schema.get("type") == "string":
+        if schema.keys().isdisjoint({"enum", "format"}) and (
+            schema.get("type") == "string"
+        ):
             template_data[name]["newtype"] = True
 
     generate(
