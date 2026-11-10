@@ -4186,7 +4186,6 @@ export interface components {
     ChatRequest: {
       /** @default null */
       id?: string | null;
-      includeOtherCode: string;
       /** @default null */
       model?: string | null;
       options?: components["schemas"]["ChatOptions"];

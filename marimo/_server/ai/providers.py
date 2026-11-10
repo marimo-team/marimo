@@ -1155,7 +1155,11 @@ class AnthropicProvider(PydanticProvider["PydanticAnthropic"]):
             if max_tokens is not None
             else ANTHROPIC_DEFAULT_MAX_TOKENS,
         )
-        settings: AnthropicModelSettings = {"anthropic_cache": True}
+        settings: AnthropicModelSettings = {
+            "anthropic_cache": True,
+            "anthropic_cache_instructions": True,
+            "anthropic_cache_tool_definitions": True,
+        }
         if values.max_tokens is not None:
             settings["max_tokens"] = values.max_tokens
         if values.thinking is not None:

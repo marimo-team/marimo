@@ -750,8 +750,6 @@ components:
           - type: string
           - type: 'null'
           default: null
-        includeOtherCode:
-          type: string
         model:
           anyOf:
           - type: string
@@ -780,7 +778,6 @@ components:
           - type: 'null'
           default: null
       required:
-      - includeOtherCode
       - uiMessages
       title: ChatRequest
       type: object
