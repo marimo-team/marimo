@@ -312,6 +312,76 @@ it("raises the interrupt buffer for a cancelled running run before the worker ta
   }
 });
 
+it("raises the interrupt buffer for a runtime interrupt while a run is running or starts", async () => {
+  vi.clearAllMocks();
+  store.set(initialModeAtom, "read");
+  rpcListeners.initialized();
+  const run = {
+    id: "run-1",
+    notebook_id: "n1",
+    runtime_id: "r1",
+    cells: [],
+    status: "running",
+    outcome: null,
+    started_at: "2026-10-01T09:20:11Z",
+    completed_at: null,
+  };
+  const replicaWith = (status: string) =>
+    ({
+      executionsAtom: atom({
+        runs: new Map([["run-1", { ...run, status }]]),
+        executions: new Map(),
+        latest: new Map(),
+      }),
+    }) as unknown as NotebookReplica;
+  const interrupt = vi
+    .spyOn(PyodideBridge.INSTANCE, "sendInterrupt")
+    .mockResolvedValue(null);
+  mockNotebookCall.mockResolvedValue({
+    status: 202,
+    body: {
+      id: "r1",
+      notebook_id: "n1",
+      status: "running",
+      message: null,
+      marimo_version: null,
+      started_at: "2026-10-01T09:20:11Z",
+    },
+  });
+  try {
+    const backend = await PyodideBridge.INSTANCE.createNotebookBackend();
+    const notebook = backend.notebook("n1") as unknown as NotebookClient;
+
+    store.set(activeNotebookReplicaAtom, replicaWith("running"));
+    expect((await notebook.interrupt()).ok).toBe(true);
+    expect(interrupt).toHaveBeenCalledOnce();
+
+    // Nothing holds the worker, so it takes the call and ends queued runs.
+    store.set(activeNotebookReplicaAtom, replicaWith("queued"));
+    expect((await notebook.interrupt()).ok).toBe(true);
+    expect(interrupt).toHaveBeenCalledOnce();
+    expect(mockNotebookCall).toHaveBeenCalledTimes(2);
+
+    // The worker took the queued run before the interrupt reached it.
+    const deliver = (status: string) =>
+      rpcListeners.notebookEvent({
+        id: "sub",
+        event: JSON.stringify({
+          event: "run",
+          data: { run: { ...run, status } },
+        }),
+      });
+    deliver("running");
+    expect(interrupt).toHaveBeenCalledTimes(2);
+    deliver("completed");
+    expect(interrupt).toHaveBeenCalledTimes(2);
+  } finally {
+    interrupt.mockRestore();
+    store.set(activeNotebookReplicaAtom, null);
+    store.set(initialModeAtom, undefined);
+  }
+});
+
 it("raises the interrupt buffer once a run cancelled while queued starts", async () => {
   vi.clearAllMocks();
   store.set(initialModeAtom, "read");
