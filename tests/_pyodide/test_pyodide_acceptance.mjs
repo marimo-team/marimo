@@ -149,7 +149,7 @@ async function testHostInputs(notebook, notebookId, frames) {
     assert.equal(completed.data.run.outcome, "succeeded");
   };
 
-  const run = await call("runtime.run", "wasm-input-run", { code: [
+  const run = await call("runtime.execute", "wasm-input-run", { code: [
     "import getpass",
     "_secret = getpass.getpass('Password: ')",
     "_blank = input('Empty: ')",
@@ -164,7 +164,7 @@ async function testHostInputs(notebook, notebookId, frames) {
     /secret/,
   );
 
-  const concurrent = await call("runtime.run", "wasm-concurrent-input-run", { code: [
+  const concurrent = await call("runtime.execute", "wasm-concurrent-input-run", { code: [
     "import marimo as mo",
     "_answers = {}",
     "def _ask(_label):",
