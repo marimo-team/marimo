@@ -404,6 +404,17 @@ class SessionBackend(SessionConsumer):
             raise NoRuntime("The runtime waiting for input has ended")
         session.reply_input(InputReply(input_id, value))
 
+    def interrupt(self) -> None:
+        session = self.session
+        if session is None:
+            return
+        for run_id, run in list(self._runs.items()):
+            if not run.translator.started:
+                self.cancel(run_id)
+        # The kernel ignores the signal while idle, so it interrupts the
+        # work in flight, with or without a run, and nothing that follows.
+        session.try_interrupt()
+
     def cancel(self, run_id: protocol.RunId) -> None:
         run = self._runs.get(run_id)
         if run is None:

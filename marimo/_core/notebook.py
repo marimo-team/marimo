@@ -528,6 +528,25 @@ class Notebook:
                 )
             return run
 
+    def interrupt(self, *, request_id: str | None = None) -> protocol.Runtime:
+        """Request interruption of the runtime's active work and queued runs.
+
+        The runtime stays alive, and work outside a run is interrupted too.
+        Runs and executions report their outcomes once they settle.
+
+        Raises:
+            NoRuntime: If the notebook has no runtime.
+            Conflict: If the runtime is not running.
+        """
+        self._require_open()
+        runtime = self._require_runtime()
+        if runtime.status != "running":
+            raise Conflict(f"the runtime is {runtime.status}.")
+        with self.sink.deferred():
+            self._apply(self.executions.cancel_inputs(), request_id=request_id)
+            self.backend.interrupt()
+        return runtime
+
     def cancel(
         self, run_id: str, *, request_id: str | None = None
     ) -> protocol.Run:

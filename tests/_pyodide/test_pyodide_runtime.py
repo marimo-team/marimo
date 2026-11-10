@@ -663,6 +663,78 @@ async def test_interrupting_before_submission_ends_the_run(bridge):
     assert (run["status"], run["outcome"]) == ("completed", "interrupted")
 
 
+async def test_a_runtime_interrupt_ends_started_queued_and_preparing_runs(
+    bridge, monkeypatch: pytest.MonkeyPatch
+):
+    scheduler = FakeScheduler()
+    monkeypatch.setattr(worker, "_active_scheduler", lambda: scheduler)
+    bridge.session.instantiated = True
+    events = await started(bridge)
+    cell = latest(events, "cell")
+    body = {"cells": [{"id": cell["id"]}]}
+    first = (await call(bridge, "runtime.run", body))["body"]["id"]
+    second = (await call(bridge, "runtime.run", body, key="run-2"))["body"][
+        "id"
+    ]
+    await settle()
+    assert [command.run_id for command in queued(bridge)] == [first, second]
+    deliver(bridge, planned(cell["id"], first))
+    gate = asyncio.Event()
+
+    async def load(code: str) -> None:
+        del code
+        await gate.wait()
+
+    # The third run stays in preparation, so the kernel never has it.
+    bridge.notebook.set_package_loader(load)
+    third = (await call(bridge, "runtime.run", body, key="run-3"))["body"][
+        "id"
+    ]
+    await settle()
+
+    backend = bridge.notebook._backend
+    assert backend is not None
+    backend.interrupt()
+    await settle()
+
+    [command] = queued(bridge)
+    assert isinstance(command, CancelRunCommand)
+    assert command.run_id == second
+    assert scheduler.cancelled == 1
+    for run_id in (first, second):
+        deliver(
+            bridge,
+            CompletedRunNotification(run_id=run_id, outcome="interrupted"),
+        )
+    gate.set()
+    await settle()
+    assert queued(bridge) == []
+    assert {
+        run_id: run["outcome"]
+        for run_id, run in latest_by_id(events, "run").items()
+    } == dict.fromkeys((first, second, third), "interrupted")
+
+
+async def test_a_runtime_interrupt_halts_a_run_the_kernel_scheduled(
+    bridge, monkeypatch: pytest.MonkeyPatch
+):
+    scheduler = FakeScheduler()
+    monkeypatch.setattr(worker, "_active_scheduler", lambda: scheduler)
+    bridge.session.instantiated = True
+    events = await started(bridge)
+    backend = bridge.notebook._backend
+    assert backend is not None
+
+    # Nothing is in flight, so an idle kernel is left alone.
+    backend.interrupt()
+    assert scheduler.cancelled == 0
+
+    deliver(bridge, planned(latest(events, "cell")["id"], "legacy", "e9"))
+    backend.interrupt()
+    assert scheduler.cancelled == 1
+    assert queued(bridge) == []
+
+
 async def test_runs_the_kernel_schedules_appear_on_the_stream(bridge):
     bridge.session.instantiated = True
     events = await started(bridge)

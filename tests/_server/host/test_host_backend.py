@@ -908,6 +908,75 @@ async def test_interrupting_a_started_cell_run_interrupts_the_kernel(
     assert not any(isinstance(c, CancelRunCommand) for c in session.commands)
 
 
+async def test_a_runtime_interrupt_ends_every_run_and_signals_the_kernel_once(
+    manager: FakeManager, observed: Observed
+) -> None:
+    b = backend(manager, observed)
+    session = manager.next_session
+    b.adopt(RT1, session)
+    observed.messages.clear()
+    document = Document([DocumentCell(protocol.CellId("a"), "x = 1")], {})
+    cells = [protocol.CellId("a")]
+    # The kernel has started the first run and holds the next two queued.
+    # The last waits for the scratchpad, so the kernel does not have it.
+    b.run_cells(protocol.RunId("run-1"), document, cells, request=None)
+    session.broadcast(
+        ExecutionNotification(
+            cell_id=CellId_t("a"),
+            phase="planned",
+            execution_id="e1",
+            code="x = 1",
+            code_fingerprint=code_fingerprint("x = 1"),
+            run_id="run-1",
+        )
+    )
+    b.run_cells(protocol.RunId("run-2"), document, cells, request=None)
+    b.run(protocol.RunId("run-3"), "3", request=None)
+    b.run(protocol.RunId("run-4"), "4", request=None)
+    assert await submitted(session, 3) == ["run-1", "run-2", "run-3"]
+
+    b.interrupt()
+
+    assert session.interrupts == 1
+    assert session.commands[3:] == [
+        CancelRunCommand(run_id="run-2"),
+        CancelRunCommand(run_id="run-3"),
+    ]
+    await observed.wait_for(be.Done)
+    for run_id in ("run-1", "run-2", "run-3"):
+        session.broadcast(
+            CompletedRunNotification(run_id=run_id, outcome="interrupted")
+        )
+    await asyncio.gather(
+        *(run.task for run in b._runs.values() if run.task),
+        return_exceptions=True,
+    )
+
+    assert {
+        m.run_id: m.outcome
+        for m in observed.messages
+        if isinstance(m, be.Done)
+    } == {f"run-{n}": "interrupted" for n in (1, 2, 3, 4)}
+    assert b._runs == {}
+    assert session.interrupts == 1
+    assert len(session.commands) == 5
+
+
+async def test_a_runtime_interrupt_signals_a_kernel_with_no_host_run(
+    manager: FakeManager, observed: Observed
+) -> None:
+    b = backend(manager, observed)
+    session = manager.next_session
+    b.adopt(RT1, session)
+
+    # The kernel may be running work the host did not submit, and it
+    # ignores the signal while idle.
+    b.interrupt()
+
+    assert session.interrupts == 1
+    assert session.commands == []
+
+
 async def test_an_edit_reaches_the_kernel_at_once_when_nothing_is_ahead(
     manager: FakeManager, observed: Observed
 ) -> None:
