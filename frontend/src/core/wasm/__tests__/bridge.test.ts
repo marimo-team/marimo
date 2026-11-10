@@ -467,3 +467,57 @@ describe("getWasmWorkerName", () => {
     expect(getWasmWorkerName()).toBe("marimo");
   });
 });
+
+it("signals an interrupt once across pending, completed, and lost-reply retries", async () => {
+  vi.clearAllMocks();
+  store.set(initialModeAtom, "read");
+  rpcListeners.initialized();
+  const interrupt = vi
+    .spyOn(PyodideBridge.INSTANCE, "sendInterrupt")
+    .mockResolvedValue(null);
+  const clock = vi.spyOn(performance, "now").mockReturnValue(0);
+  const pending = new Deferred<unknown>();
+  const accepted = {
+    status: 202,
+    body: {
+      id: "r1",
+      notebook_id: "n1",
+      status: "running",
+      message: null,
+      marimo_version: null,
+      started_at: "2026-10-01T09:20:11Z",
+    },
+  };
+  mockNotebookCall.mockImplementation(() => pending.promise);
+  try {
+    const backend = await PyodideBridge.INSTANCE.createNotebookBackend();
+    const notebook = backend.notebook("n1") as unknown as NotebookClient;
+    const options = { idempotencyKey: "retry-interrupt" };
+    const first = notebook.interrupt(options);
+    const retry = notebook.interrupt(options);
+    expect(interrupt).toHaveBeenCalledOnce();
+    pending.resolve(accepted);
+    expect(await retry).toEqual(await first);
+    await notebook.interrupt(options);
+    expect(interrupt).toHaveBeenCalledOnce();
+    expect(mockNotebookCall).toHaveBeenCalledTimes(3);
+
+    mockNotebookCall.mockRejectedValueOnce(new Error("Lost reply"));
+    await expect(
+      notebook.interrupt({ idempotencyKey: "lost-interrupt" }),
+    ).rejects.toThrow("Lost reply");
+    await notebook.interrupt({ idempotencyKey: "lost-interrupt" });
+    expect(interrupt).toHaveBeenCalledTimes(2);
+
+    // A new user action still signals; settled receipts expire with the worker's.
+    await notebook.interrupt();
+    expect(interrupt).toHaveBeenCalledTimes(3);
+    clock.mockReturnValue(300_001);
+    await notebook.interrupt(options);
+    expect(interrupt).toHaveBeenCalledTimes(4);
+  } finally {
+    interrupt.mockRestore();
+    clock.mockRestore();
+    store.set(initialModeAtom, undefined);
+  }
+});

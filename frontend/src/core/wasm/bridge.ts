@@ -76,6 +76,9 @@ export class PyodideBridge implements RunRequests, EditRequests {
   /** Runs asked to stop before they ran; the buffer is raised once they do. */
   private pendingInterrupts = new Set<string>();
 
+  // Match the worker mutation receipt window, including requests still in flight.
+  private interruptReceipts = new Map<string, { expiresAt: number }>();
+
   public initialized = new Deferred<void>();
 
   private getSaveWorker(): SaveWorker {
@@ -251,7 +254,25 @@ export class PyodideBridge implements RunRequests, EditRequests {
           throw error;
         }
       },
-      call: (call) => {
+      call: async (call) => {
+        if (
+          call.operation !== "runtime.interrupt" &&
+          call.operation !== "runtime.cancel"
+        ) {
+          return this.rpc.proxy.request.notebookCall(call);
+        }
+        const now = performance.now();
+        for (const [key, receipt] of this.interruptReceipts) {
+          if (receipt.expiresAt <= now) {
+            this.interruptReceipts.delete(key);
+          }
+        }
+        const key = call.headers["idempotency-key"];
+        if (!key || this.interruptReceipts.has(key)) {
+          return this.rpc.proxy.request.notebookCall(call);
+        }
+        const receipt = { expiresAt: Infinity };
+        this.interruptReceipts.set(key, receipt);
         // The worker cannot take a call while a cell runs, so the interrupt
         // is raised on the shared buffer first and the call follows.
         // A queued run is ended by the worker, unless it starts before the
@@ -265,7 +286,21 @@ export class PyodideBridge implements RunRequests, EditRequests {
             this.pendingInterrupts.add(call.params.run_id);
           }
         }
-        return this.rpc.proxy.request.notebookCall(call);
+        try {
+          const reply = await this.rpc.proxy.request.notebookCall(call);
+          if (
+            typeof reply === "object" &&
+            reply !== null &&
+            "status" in reply &&
+            reply.status !== 202
+          ) {
+            this.interruptReceipts.delete(key);
+          }
+          return reply;
+        } finally {
+          // A lost reply may still have committed; retries must not signal new work.
+          receipt.expiresAt = performance.now() + 300_000;
+        }
       },
     });
   }
