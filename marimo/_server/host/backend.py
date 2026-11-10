@@ -96,7 +96,7 @@ class SessionBackend(SessionConsumer):
     def __init__(
         self,
         notebook_id: protocol.NotebookId,
-        file: Callable[[], str | None],
+        file_key: Callable[[], str],
         manager: SessionManager,
         observe: Observe,
         sink: Sink,
@@ -108,8 +108,8 @@ class SessionBackend(SessionConsumer):
         request_metadata: RequestMetadata | None = None,
     ) -> None:
         self._notebook_id = notebook_id
-        self._file = file
-        """Resolve the notebook's current path after file moves."""
+        self._file_key = file_key
+        """Resolve the key the notebook's sessions start under, after file moves."""
         self._cell_order = cell_order
         """The document's cell ids in order, for errors that name cells."""
         self._manager = manager
@@ -143,22 +143,22 @@ class SessionBackend(SessionConsumer):
         )
 
     async def _start(self, kernel: _Kernel, session_id: SessionId) -> None:
-        file = self._file()
-        if file is None:
-            self._fail(kernel, "The notebook has no file to run")
-            return
+        # An untitled notebook starts from no file, as it does for the
+        # editor, under the key the editor's tab rejoins it by. The host's
+        # document reaches the session once it attaches.
+        file_key = self._file_key()
         try:
             await self._manager.create_session(
                 session_id,
                 self,
                 {},
-                file,
+                file_key,
                 auto_instantiate=False,
                 main=False,
             )
         except Exception as e:
             LOGGER.warning(
-                "Kernel for %s failed to start", file, exc_info=True
+                "Kernel for %s failed to start", file_key, exc_info=True
             )
             self._fail(kernel, str(e) or type(e).__name__)
             return

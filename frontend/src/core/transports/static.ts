@@ -2,7 +2,6 @@
 
 /** A backend that serves a document snapshot without a host. */
 
-import type { NotebookClient } from "@marimo-team/client";
 import type * as Protocol from "@marimo-team/client/protocol";
 import type { NotebookBackend } from "../notebook/replica";
 
@@ -151,10 +150,10 @@ export function createStaticNotebookBackend(
         }
       }),
     notebook: () => {
-      const unsupported: NotebookClient["save"] = async (options) => {
+      const unsupported = async (options?: { signal?: AbortSignal }) => {
         options?.signal?.throwIfAborted();
         return {
-          ok: false,
+          ok: false as const,
           status: 501,
           problem: {
             type: "tag:marimo.io,2026:host/unsupported-operation",
@@ -167,6 +166,7 @@ export function createStaticNotebookBackend(
       return {
         edit: (_changes, options) => unsupported(options),
         save: unsupported,
+        run: unsupported,
       };
     },
   };
