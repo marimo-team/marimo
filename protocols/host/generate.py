@@ -131,8 +131,10 @@ def tuple_arrays(source: bytes) -> bytes:
             for child in ast.walk(annotation)
         ):
             continue
-        assert annotation.end_lineno is not None
-        assert annotation.end_col_offset is not None
+        if annotation.end_lineno is None:
+            raise RuntimeError("Annotation has no end line")
+        if annotation.end_col_offset is None:
+            raise RuntimeError("Annotation has no end column")
         start = (
             sum(map(len, lines[: annotation.lineno - 1]))
             + annotation.col_offset

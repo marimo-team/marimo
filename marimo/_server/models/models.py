@@ -269,9 +269,8 @@ class ExecuteCellsRequest(msgspec.Struct, rename="camel"):
 
     # Validate same length
     def __post_init__(self) -> None:
-        assert len(self.cell_ids) == len(self.codes), (
-            "Mismatched cell_ids and codes"
-        )
+        if len(self.cell_ids) != len(self.codes):
+            raise ValueError("Mismatched cell_ids and codes")
 
 
 class SaveLayoutRequest(msgspec.Struct, rename="camel"):

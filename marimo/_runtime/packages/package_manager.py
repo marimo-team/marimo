@@ -336,7 +336,8 @@ class CanonicalizingPackageManager(PackageManager):
         """Canonicalizes a module name to a package name on PyPI."""
         if self._module_name_to_repo_name is None:
             self._initialize_mappings()
-        assert self._module_name_to_repo_name is not None
+        if self._module_name_to_repo_name is None:
+            raise RuntimeError("Module-to-package mapping is not initialized")
 
         if module_name in self._module_name_to_repo_name:
             return self._module_name_to_repo_name[module_name]
@@ -350,8 +351,12 @@ class CanonicalizingPackageManager(PackageManager):
             or self._normalized_repo_name_to_module_name is None
         ):
             self._initialize_mappings()
-        assert self._repo_name_to_module_name is not None
-        assert self._normalized_repo_name_to_module_name is not None
+        if self._repo_name_to_module_name is None:
+            raise RuntimeError("Package-to-module mapping is not initialized")
+        if self._normalized_repo_name_to_module_name is None:
+            raise RuntimeError(
+                "Normalized package-to-module mapping is not initialized"
+            )
 
         # Exact match first, to preserve any casing in the known mapping.
         if package_name in self._repo_name_to_module_name:

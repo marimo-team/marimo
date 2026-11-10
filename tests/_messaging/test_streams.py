@@ -1,6 +1,7 @@
 import signal
 import sys
 import threading
+from functools import partial
 from queue import Queue
 from typing import Any
 from unittest.mock import Mock
@@ -9,12 +10,35 @@ import pytest
 
 from marimo._messaging.notification import InterruptedNotification
 from marimo._messaging.serde import serialize_kernel_message
-from marimo._messaging.streams import ThreadSafeStream
+from marimo._messaging.streams import (
+    ThreadSafeStderr,
+    ThreadSafeStdin,
+    ThreadSafeStdout,
+    ThreadSafeStream,
+)
 from marimo._messaging.types import KernelMessage
 from marimo._runtime.handlers import construct_interrupt_handler
 from marimo._runtime.runtime import Kernel
 from marimo._utils.signals import SigintHandler
 from tests.conftest import ExecReqProvider, MockedKernel
+
+
+def test_console_io_without_cell_is_usage_error() -> None:
+    stream = ThreadSafeStream(
+        pipe=Mock(), input_queue=Queue[str](), redirect_console=False
+    )
+    for operation in (
+        partial(
+            ThreadSafeStdout(stream, forward_os_streams=False).write, "output"
+        ),
+        partial(
+            ThreadSafeStderr(stream, forward_os_streams=False).write, "output"
+        ),
+        ThreadSafeStdin(stream).readline,
+    ):
+        with pytest.raises(RuntimeError, match="notebook cell") as exc_info:
+            operation()
+        assert exc_info.type is RuntimeError
 
 
 @pytest.mark.parametrize("custom_handler", [False, True])

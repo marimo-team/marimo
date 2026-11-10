@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, Any, Protocol
 
 from marimo._ast.cell import _is_coroutine
 from marimo._ast.variables import demangle_locals_in_text
+from marimo._core.errors import InternalError
 from marimo._runtime.exceptions import MarimoRuntimeException
 from marimo._types.globals import MutableGlobals
 
@@ -62,7 +63,8 @@ class DefaultExecutor:
     def execute_cell(self, cell: CellImpl, glbls: MutableGlobals) -> Any:
         if cell.body is None:
             return None
-        assert cell.last_expr is not None
+        if cell.last_expr is None:
+            raise InternalError("Compiled cell has no last expression")
         if _is_coroutine(cell.body) or _is_coroutine(cell.last_expr):
             raise RuntimeError(
                 "A coroutine cell cannot be run synchronously. Use "
@@ -85,7 +87,8 @@ class DefaultExecutor:
     ) -> Any:
         if cell.body is None:
             return None
-        assert cell.last_expr is not None
+        if cell.last_expr is None:
+            raise InternalError("Compiled cell has no last expression")
         try:
             if _is_coroutine(cell.body):
                 await eval(cell.body, glbls)

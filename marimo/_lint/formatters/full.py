@@ -26,8 +26,10 @@ class FullFormatter(DiagnosticFormatter):
         """Format the diagnostic for display with code context."""
 
         # Implementation error if this is raised.
-        assert diagnostic.name is not None, diagnostic
-        assert diagnostic.severity is not None, diagnostic
+        if diagnostic.name is None:
+            raise RuntimeError(diagnostic)
+        if diagnostic.severity is None:
+            raise RuntimeError(diagnostic)
 
         severity_color = {
             Severity.FORMATTING: yellow,

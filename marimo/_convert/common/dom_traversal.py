@@ -76,7 +76,8 @@ class _HTMLAttributeReplacer(HTMLParser):
         line, column = self.getpos()
         start = self._line_offsets[line - 1] + column
         original_tag = self.get_starttag_text()
-        assert original_tag is not None
+        if original_tag is None:
+            raise RuntimeError("HTML start tag text is not available")
         ending = " />" if original_tag.endswith("/>") else ">"
         self._output.extend(
             (
