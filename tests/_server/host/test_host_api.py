@@ -183,7 +183,7 @@ async def test_the_token_the_address_and_the_name_are_all_checked(
     app.state.host_context = None
     refused = await finished(app, "GET", "/events", headers=AUTH)
     assert refused.status == 404
-    assert refused.json()["type"].endswith("/not-found")
+    assert refused.json()["type"].endswith(":not-found")
 
 
 async def test_unknown_routes_are_problems(harness: Harness) -> None:
@@ -198,7 +198,7 @@ async def test_a_wrong_method_on_a_known_route_is_a_405_problem(
     response = await finished(harness.app, "GET", "/notebooks", headers=AUTH)
     assert response.status == 405
     assert response.headers["content-type"] == "application/problem+json"
-    assert response.json()["type"].endswith("/method-not-allowed")
+    assert response.json()["type"].endswith(":method-not-allowed")
     assert "POST" in response.headers["allow"]
 
 
@@ -334,7 +334,7 @@ async def test_an_empty_cursor_is_a_400_problem(harness: Harness) -> None:
         harness.app, "GET", "/events", headers={**AUTH, "Last-Event-ID": ""}
     )
     assert response.status == 400
-    assert response.json()["type"].endswith("/invalid-request")
+    assert response.json()["type"].endswith(":invalid-request")
 
 
 async def test_a_call_reads_only_its_own_parts(harness: Harness) -> None:
@@ -366,7 +366,7 @@ async def test_a_nul_byte_in_a_path_is_a_400_problem(harness: Harness) -> None:
         ).encode(),
     )
     assert response.status == 400
-    assert response.json()["type"].endswith("/invalid-request")
+    assert response.json()["type"].endswith(":invalid-request")
 
 
 async def test_a_401_names_the_bearer_scheme(harness: Harness) -> None:
@@ -400,7 +400,7 @@ async def test_an_empty_update_is_a_400_problem(harness: Harness) -> None:
         body=b"{}",
     )
     assert response.status == 400
-    assert response.json()["type"].endswith("/invalid-request")
+    assert response.json()["type"].endswith(":invalid-request")
 
 
 async def test_head_on_a_stream_is_a_405_and_attaches_nothing(
@@ -715,7 +715,7 @@ async def test_invalid_attachment_headers_are_rejected(
     )
     assert response.status == 400
     body = response.json()
-    assert body["type"].endswith("/invalid-request")
+    assert body["type"].endswith(":invalid-request")
     assert body["detail"] == f"{header} is invalid"
 
 
@@ -734,7 +734,7 @@ async def test_runtime_lifecycle_over_http(harness: Harness) -> None:
 
     restart = await finished(app, "POST", path + "/restart", headers=key("k3"))
     assert restart.status == 409
-    assert restart.json()["type"].endswith("/conflict")
+    assert restart.json()["type"].endswith(":conflict")
 
     (await harness.host.notebook(nid)).observe(
         be.Running(runtime_id_of(await harness.host.notebook(nid)), "0.25.0")
@@ -761,7 +761,7 @@ async def test_runtime_lifecycle_over_http(harness: Harness) -> None:
     )
     gone = await finished(app, "DELETE", path, headers=key("k6"))
     assert gone.status == 409
-    assert gone.json()["type"].endswith("/no-runtime")
+    assert gone.json()["type"].endswith(":no-runtime")
 
 
 async def test_slow_restart_keeps_its_receipt(harness: Harness) -> None:
@@ -1129,7 +1129,7 @@ async def test_runtime_interrupt_over_http(harness: Harness) -> None:
 
     refused = await finished(app, "POST", interrupt, headers=key("i0"))
     assert refused.status == 409
-    assert refused.json()["type"].endswith("/no-runtime")
+    assert refused.json()["type"].endswith(":no-runtime")
 
     await harness.running()
     notebook = await harness.host.notebook(nid)
@@ -1155,7 +1155,7 @@ async def test_scratch_runs_over_http(harness: Harness) -> None:
         app, "POST", execute, headers=key("r0"), body=body
     )
     assert refused.status == 409
-    assert refused.json()["type"].endswith("/no-runtime")
+    assert refused.json()["type"].endswith(":no-runtime")
 
     await harness.running()
     accepted = await finished(
@@ -1223,7 +1223,7 @@ async def test_scratch_runs_over_http(harness: Harness) -> None:
         app, "POST", execute, headers=key("r4"), body=b"{"
     )
     assert malformed.status == 400
-    assert malformed.json()["type"].endswith("/invalid-request")
+    assert malformed.json()["type"].endswith(":invalid-request")
     unkeyed = await finished(app, "POST", execute, headers=AUTH, body=body)
     assert unkeyed.status == 400
 
@@ -1578,7 +1578,7 @@ async def test_operations_the_host_does_not_offer_are_501(
         headers=key("x1"),
     )
     assert response.status == 501
-    assert response.json()["type"].endswith("/unsupported-operation")
+    assert response.json()["type"].endswith(":unsupported-operation")
 
 
 async def test_competing_moves_preserve_both_notebooks(
@@ -1853,7 +1853,7 @@ async def test_an_edit_reaches_the_stream_as_one_unit(
     disconnect()
 
 
-async def test_a_stale_etag_is_a_conflict_that_changes_nothing(
+async def test_a_stale_etag_fails_the_precondition_and_changes_nothing(
     harness: Harness,
 ) -> None:
     stream, disconnect = await opened(harness)
@@ -1879,12 +1879,12 @@ async def test_a_stale_etag_is_a_conflict_that_changes_nothing(
             },
         ),
     )
-    assert refused.status == 409
+    assert refused.status == 412
     problem = refused.json()
-    assert problem["type"].endswith("/conflict")
-    assert problem["edit"]["change"] == 1
-    assert problem["edit"]["cell"]["etag"] == cell["etag"]
-    assert problem["edit"]["document"]["etag"] == document["etag"]
+    assert problem["type"].endswith(":precondition-failed")
+    assert problem["index"] == 1
+    assert problem["cell"]["etag"] == cell["etag"]
+    assert problem["document"]["etag"] == document["etag"]
 
     invalid = await finished(
         harness.app,
@@ -1896,7 +1896,7 @@ async def test_a_stale_etag_is_a_conflict_that_changes_nothing(
         ),
     )
     assert invalid.status == 400
-    assert invalid.json()["type"].endswith("/invalid-request")
+    assert invalid.json()["type"].endswith(":invalid-request")
 
     again, disconnect = await opened(harness)
     disconnect()
@@ -1938,9 +1938,9 @@ async def test_save_writes_the_file_and_reports_the_saved_revision(
             headers={**key(f"save-{header}"), "If-Match": header},
             body=b"{}",
         )
-        assert stale.status == 409, stale.body
-        assert stale.json()["edit"]["change"] == 0
-        assert stale.json()["edit"]["document"]["etag"] == etag
+        assert stale.status == 412, stale.body
+        assert stale.json()["index"] == 0
+        assert stale.json()["document"]["etag"] == etag
 
     saved = await finished(
         harness.app,
@@ -2064,7 +2064,7 @@ async def test_a_file_changed_outside_marimo_needs_a_decision(
     asked = await save("save-1", b"{}")
     assert asked.status == 409, asked.body
     problem = asked.json()
-    assert problem["type"].endswith("/decision-required")
+    assert problem["type"].endswith(":decision-required")
     assert [d["id"] for d in problem["decisions"]] == ["file"]
     assert [o["id"] for o in problem["decisions"][0]["options"]] == [
         "overwrite",
@@ -2074,7 +2074,7 @@ async def test_a_file_changed_outside_marimo_needs_a_decision(
 
     unknown = await save("save-2", b'{"decisions": {"file": "merge"}}')
     assert unknown.status == 400, unknown.body
-    assert unknown.json()["type"].endswith("/invalid-request")
+    assert unknown.json()["type"].endswith(":invalid-request")
 
     reloaded = await save("save-3", b'{"decisions": {"file": "reload"}}')
     assert reloaded.status == 200, reloaded.body
@@ -2624,14 +2624,12 @@ async def test_cell_runs_over_http(harness: Harness) -> None:
     conflict = await finished(
         harness.app, "POST", runs, headers=key("r2"), body=stale.encode()
     )
-    assert conflict.status == 409
-    assert conflict.json()["type"].endswith("/conflict")
+    assert conflict.status == 412
+    assert conflict.json()["type"].endswith(":precondition-failed")
     assert "changed since it was read" in conflict.json()["detail"]
-    assert conflict.json()["edit"]["change"] == 0
-    assert conflict.json()["edit"]["cell"]["etag"] == cell.etag
-    assert (
-        conflict.json()["edit"]["document"]["etag"] == notebook.document.etag
-    )
+    assert conflict.json()["index"] == 0
+    assert conflict.json()["cell"]["etag"] == cell.etag
+    assert conflict.json()["document"]["etag"] == notebook.document.etag
     missing = await finished(
         harness.app,
         "POST",
@@ -2641,11 +2639,11 @@ async def test_cell_runs_over_http(harness: Harness) -> None:
             {"cells": [{"id": cell.id}, {"id": "ghost"}]}
         ).encode(),
     )
-    assert missing.status == 409
-    assert missing.json()["type"].endswith("/conflict")
-    assert missing.json()["edit"]["change"] == 1
-    assert missing.json()["edit"]["cell"] is None
-    assert missing.json()["edit"]["document"]["etag"] == notebook.document.etag
+    assert missing.status == 412
+    assert missing.json()["type"].endswith(":precondition-failed")
+    assert missing.json()["index"] == 1
+    assert missing.json()["cell"] is None
+    assert missing.json()["document"]["etag"] == notebook.document.etag
 
     both = json.dumps({"code": "1", "cells": [{"id": cell.id}]}).encode()
     invalid = await finished(

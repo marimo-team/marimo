@@ -47,7 +47,7 @@ def serve(bridge):
 def kind(reply: Reply) -> str:
     _, body = reply
     assert isinstance(body, protocol.Problem)
-    return body.type.rsplit("/", 1)[1]
+    return body.type.rsplit(":", 1)[1]
 
 
 async def test_edit_retry_and_atomic_conflict(bridge, serve):
@@ -67,10 +67,10 @@ async def test_edit_retry_and_atomic_conflict(bridge, serve):
             "conflict", put("new", "y = 1", None), put("c1", "x = 3", "stale")
         )
     )
-    assert conflict[0] == 409
+    assert conflict[0] == 412
     assert isinstance(conflict[1], protocol.Problem)
-    assert conflict[1].edit.change == 1
-    assert conflict[1].edit.cell.code == "x = 2"
+    assert conflict[1].index == 1
+    assert conflict[1].cell.code == "x = 2"
     assert len(events) == event_count
     notebook = await bridge.host.notebook(NOTEBOOK)
     assert [cell.id for cell in notebook.document] == ["c1"]
@@ -106,7 +106,7 @@ async def test_receipts_include_operation_and_preconditions(bridge, serve):
 
 async def test_rejected_calls_do_not_reserve_keys(serve):
     assert kind(await serve(edit("edit", put("c1", "x = 2", "stale")))) == (
-        "conflict"
+        "precondition-failed"
     )
     status, _ = await serve(edit("edit", put("c1", "x = 2", "*")))
     assert status == 200

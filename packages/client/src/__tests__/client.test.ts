@@ -85,7 +85,7 @@ describe("Client", () => {
 
   it("validates creation requests and returns host problems", async () => {
     const problem = {
-      type: "tag:marimo.io,2026:host/conflict",
+      type: "urn:marimo:problem:conflict",
       title: "Conflict",
       status: 409,
     };

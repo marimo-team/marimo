@@ -77,7 +77,7 @@ export const operations = {
     headers: { "Idempotency-Key": true },
     body: Protocol.EditRequest,
     responses: { 200: Protocol.EditResponse },
-    problems: [400, 401, 403, 404, 405, 409, 500, 501],
+    problems: [400, 401, 403, 404, 405, 409, 412, 500, 501],
   },
   /** Write the document to the host's store. */
   "notebook.save": {
@@ -87,7 +87,7 @@ export const operations = {
     headers: { "Idempotency-Key": true, "If-Match": false },
     body: Protocol.SaveRequest,
     responses: { 200: Protocol.EditResponse },
-    problems: [400, 401, 403, 404, 405, 409, 500, 501],
+    problems: [400, 401, 403, 404, 405, 409, 412, 500, 501],
   },
   /** Show a notebook in the host's own interface. */
   "notebook.open": {
@@ -137,7 +137,7 @@ export const operations = {
     headers: { "Idempotency-Key": true },
     body: Protocol.RunRequest,
     responses: { 202: Protocol.Run },
-    problems: [400, 401, 403, 404, 405, 409, 500, 501],
+    problems: [400, 401, 403, 404, 405, 409, 412, 500, 501],
   },
   /** Execute Python with notebook values. */
   "runtime.execute": {

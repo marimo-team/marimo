@@ -199,7 +199,7 @@ describe("static notebook backend", () => {
         ok: false,
         status: 501,
         problem: {
-          type: "tag:marimo.io,2026:host/unsupported-operation",
+          type: "urn:marimo:problem:unsupported-operation",
           title: "Unsupported operation",
           status: 501,
           detail: "Static notebooks do not support mutations",

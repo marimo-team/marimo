@@ -182,7 +182,7 @@ def problem(response: httpx.Response, status: int, kind: str) -> Any:
     value = response.json()
     validate("Problem", value)
     assert value["status"] == status
-    assert value["type"] == f"tag:marimo.io,2026:host/{kind}"
+    assert value["type"] == f"urn:marimo:problem:{kind}"
     return value
 
 

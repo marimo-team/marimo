@@ -80,10 +80,6 @@ paths:
                   data:
                     type: string
                     description: The message as JSON. Unknown event names do not require decoding this field.
-              x-effect-stream:
-                encoding: sse
-                errorSchema: { $ref: '#/components/schemas/Problem' }
-                failureEvent: effect/httpapi/stream/failure
               example: "event: host\ndata: {\"host\":{\"operations\":[\"runtime.start\"]}}\n\nid: 41\nevent: ready\ndata: {}\n\n"
         '400': { $ref: '#/components/responses/InvalidRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
@@ -253,10 +249,6 @@ paths:
                   data:
                     type: string
                     description: The message as JSON. Unknown event names do not require decoding this field.
-              x-effect-stream:
-                encoding: sse
-                errorSchema: { $ref: '#/components/schemas/Problem' }
-                failureEvent: effect/httpapi/stream/failure
               example: "event: notebook\ndata: {\"notebook\":{\"id\":\"n1\",\"project_id\":\"p1\",\"path\":\"forecasts.py\",\"name\":\"forecasts\",\"operations\":[],\"updated_at\":null}}\n\nid: 41\nevent: ready\ndata: {}\n\n"
         '400': { $ref: '#/components/responses/InvalidRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
@@ -282,10 +274,11 @@ paths:
         inserting at once both succeed.
 
         If any precondition is stale, nothing is applied and the host
-        answers `conflict` with `edit` naming the first stale change and
-        carrying the object as it now is. A change that could not apply to
-        any state, such as an order that leaves out a cell or names one
-        twice, is `invalid-request`.
+        answers `precondition-failed`. Its `index` names the first stale
+        change, and it carries the cell and the document as they now
+        are. A change that could not apply to any state, such as an
+        order that leaves out a cell or names one twice, is
+        `invalid-request`.
 
         On success the document has changed, and every attachment sees
         the effects on the notebook's stream with this request's key: the
@@ -315,6 +308,7 @@ paths:
         '404': { $ref: '#/components/responses/NotFound' }
         '405': { $ref: '#/components/responses/MethodNotAllowed' }
         '409': { $ref: '#/components/responses/Conflict' }
+        '412': { $ref: '#/components/responses/PreconditionFailed' }
         '500': { $ref: '#/components/responses/Internal' }
         '501': { $ref: '#/components/responses/UnsupportedOperation' }
   /notebooks/{notebook_id}/save:
@@ -333,11 +327,11 @@ paths:
         as it saves, for example to format it. Such changes reach the
         stream like any other and the response carries the new etags.
         `If-Match` makes the document etag the client last read a
-        precondition; the host answers `conflict` when the document has
-        moved on. If the store has changed since the host last read or
-        wrote it, the host answers `decision-required`, offering to
-        overwrite the store or to reload from it, and the client repeats
-        the request with its decision and a new key.
+        precondition, and the host answers `precondition-failed` when the
+        document has moved on. If the store has changed since the host
+        last read or wrote it, the host answers `decision-required`,
+        offering to overwrite the store or to reload from it, and the
+        client repeats the request with its decision and a new key.
       parameters:
         - $ref: '#/components/parameters/NotebookId'
         - $ref: '#/components/parameters/IdempotencyKey'
@@ -359,6 +353,7 @@ paths:
         '404': { $ref: '#/components/responses/NotFound' }
         '405': { $ref: '#/components/responses/MethodNotAllowed' }
         '409': { $ref: '#/components/responses/Conflict' }
+        '412': { $ref: '#/components/responses/PreconditionFailed' }
         '500': { $ref: '#/components/responses/Internal' }
         '501': { $ref: '#/components/responses/UnsupportedOperation' }
   /notebooks/{notebook_id}/open:
@@ -504,8 +499,9 @@ paths:
         its cell through `cell_id`.
 
         Include a cell's `etag` to run it only if it still matches what the
-        client read. A missing or changed cell is a `conflict` and nothing
-        runs. The problem's `edit` identifies the cell and its index in `cells`.
+        client read. A missing or changed cell is `precondition-failed` and
+        nothing runs. The problem's `index` is the position of that cell
+        in `cells`.
 
         Returns a `Run` with status `queued` or `running`. Cell runs and scratch
         executions share one queue in acceptance order. Open the notebook
@@ -536,6 +532,7 @@ paths:
         '404': { $ref: '#/components/responses/NotFound' }
         '405': { $ref: '#/components/responses/MethodNotAllowed' }
         '409': { $ref: '#/components/responses/Conflict' }
+        '412': { $ref: '#/components/responses/PreconditionFailed' }
         '500': { $ref: '#/components/responses/Internal' }
         '501': { $ref: '#/components/responses/UnsupportedOperation' }
   /notebooks/{notebook_id}/runtime/execute:
@@ -816,7 +813,7 @@ components:
       name: If-Match
       in: header
       required: false
-      description: The document etag the client last read, as a precondition. The host answers `conflict` when the document's etag differs.
+      description: The document etag the client last read, as a precondition. The host answers `precondition-failed` when the document's etag differs.
       schema: { type: string }
   responses:
     InvalidRequest:
@@ -830,7 +827,7 @@ components:
         application/problem+json:
           schema: { $ref: '#/components/schemas/Problem' }
     Forbidden:
-      description: The request did not come from this machine.
+      description: The request did not come from this machine, or the object's `operations` do not permit this client to call the operation.
       content:
         application/problem+json:
           schema: { $ref: '#/components/schemas/Problem' }
@@ -848,13 +845,13 @@ components:
       content:
         application/problem+json:
           schema: { $ref: '#/components/schemas/Problem' }
-    NotAcceptable:
-      description: No representation the host produces satisfies `Accept`.
+    Conflict:
+      description: The request conflicts with the current state (`conflict`), needs a runtime the notebook does not have (`no-runtime`), or needs a decision first (`decision-required`).
       content:
         application/problem+json:
           schema: { $ref: '#/components/schemas/Problem' }
-    Conflict:
-      description: The request conflicts with the current state (`conflict`), needs a runtime the notebook does not have (`no-runtime`), or needs a decision first (`decision-required`).
+    PreconditionFailed:
+      description: The request named a state the document no longer has. The problem carries the cell and the document as they now are.
       content:
         application/problem+json:
           schema: { $ref: '#/components/schemas/Problem' }
@@ -2003,7 +2000,9 @@ components:
         9457, and is served as `application/problem+json`. `status`
         repeats the HTTP status, and `type` says more precisely what went
         wrong. `decisions` appears only when `type` is
-        `tag:marimo.io,2026:host/decision-required`. A client ignores
+        `urn:marimo:problem:decision-required`, and `index`, `cell`, and
+        `document` only when it is
+        `urn:marimo:problem:precondition-failed`. A client ignores
         members it does not recognize. Hosts redact tokens from errors.
       required: [type, title, status]
       properties:
@@ -2011,14 +2010,14 @@ components:
           type: string
           description: |
             What kind of problem this is, as a URI. The kinds this
-            protocol defines all start with `tag:marimo.io,2026:host/` and
+            protocol defines all start with `urn:marimo:problem:` and
             end with one of `invalid-request` (400), `unauthorized` (401),
             `forbidden` (403), `not-found` (404), `method-not-allowed`
-            (405), `not-acceptable` (406), `conflict` (409), `no-runtime`
-            (409), `decision-required` (409), `internal` (500), or
-            `unsupported-operation` (501). A client that sees a kind it
-            does not recognize falls back to `status`.
-          example: tag:marimo.io,2026:host/not-found
+            (405), `conflict` (409), `no-runtime` (409),
+            `decision-required` (409), `precondition-failed` (412),
+            `internal` (500), or `unsupported-operation` (501). A client
+            that sees a kind it does not recognize falls back to `status`.
+          example: urn:marimo:problem:not-found
         title:
           type: string
           description: A short, human-readable name for the kind of problem.
@@ -2034,9 +2033,16 @@ components:
           type: array
           items: { $ref: '#/components/schemas/Decision' }
           description: The choices the client has to make before the host can carry out the request. Only present for `decision-required`.
-        edit:
-          $ref: '#/components/schemas/EditConflict'
-          description: Which change was stale and what the host holds instead. Only present for a `conflict` answering an edit, a save, or a run of cells.
+        index:
+          type: integer
+          minimum: 0
+          description: The position of the first stale entry in the request, counted in an edit's `changes` or a run's `cells`. `0` for a save with a stale `If-Match`. Only present for `precondition-failed`.
+        cell:
+          oneOf: [{ $ref: '#/components/schemas/Cell' }, { type: 'null' }]
+          description: The cell that entry named, as it now is. Null when the document does not have it, or when the entry named the order or the whole document. Only present for `precondition-failed`.
+        document:
+          $ref: '#/components/schemas/Document'
+          description: The document as it now is. Only present for `precondition-failed`.
     Decision:
       type: object
       description: |
@@ -2162,7 +2168,7 @@ components:
           enum: [put_cell]
         base_etag:
           type: [string, 'null']
-          description: The cell's etag as last read, `*` to skip the check, or null to create the cell. Null when the cell exists, or an etag when it does not, is a `conflict`.
+          description: The cell's etag as last read, `*` to skip the check, or null to create the cell. Null when the cell exists, or an etag when it does not, is `precondition-failed`.
         cell: { $ref: '#/components/schemas/CellInput' }
         after:
           $ref: '#/components/schemas/CellId'
@@ -2241,19 +2247,6 @@ components:
           additionalProperties:
             oneOf: [{ $ref: '#/components/schemas/CellVersion' }, { type: 'null' }]
           description: The version of each cell the request created or changed, by id, and null for each cell it deleted.
-    EditConflict:
-      type: object
-      description: The first stale change of an edit or run, and the state the host holds.
-      required: [change, cell, document]
-      properties:
-        change:
-          type: integer
-          minimum: 0
-          description: The index of the stale change in the request's `changes`, or of the stale cell in a run's `cells`. `0` for a save with a stale `If-Match`.
-        cell:
-          oneOf: [{ $ref: '#/components/schemas/Cell' }, { type: 'null' }]
-          description: The cell the change named, as it now is. Null when the document does not have it, or when the change named the order.
-        document: { $ref: '#/components/schemas/Document' }
     SaveRequest:
       type: object
       description: What a save needs from the client, which is nothing until the host asks a question. `{}` is the usual body.
@@ -2291,4 +2284,4 @@ components:
         id: { $ref: '#/components/schemas/CellId' }
         etag:
           $ref: '#/components/schemas/Etag'
-          description: The cell's `etag` when the client read it. If its code, name, or settings have changed, the host returns a `conflict`. Omit to run the cell as it is.
+          description: The cell's `etag` when the client read it. If its code, name, or settings have changed, the host returns `precondition-failed`. Omit to run the cell as it is.

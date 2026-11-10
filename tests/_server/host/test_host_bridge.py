@@ -13,7 +13,7 @@ from starlette.datastructures import State
 
 from marimo._core import protocol
 from marimo._core.code import code_fingerprint
-from marimo._core.errors import Conflict, DecisionRequired, EditConflict
+from marimo._core.errors import Conflict, DecisionRequired, PreconditionFailed
 from marimo._core.stream import RoutedEvent
 from marimo._messaging.notification import (
     CompletedRunNotification,
@@ -793,9 +793,9 @@ async def test_save_writes_the_cells_and_keeps_the_app_config(
     )
     assert edited.document.saved_etag != edited.document.etag
 
-    with pytest.raises(EditConflict) as stale:
+    with pytest.raises(PreconditionFailed) as stale:
         await bridge.save(record.id, if_match=["stale"], request_id="save-0")
-    assert stale.value.change == 0
+    assert stale.value.index == 0
     assert "x = 2" not in path.read_text()
 
     saved = await bridge.save(
@@ -1121,7 +1121,7 @@ async def test_reloading_refuses_to_drop_an_edit_made_while_reading(
     finally:
         release.set()
 
-    with pytest.raises(EditConflict) as conflict:
+    with pytest.raises(PreconditionFailed) as conflict:
         await asyncio.wait_for(reloading, 5)
     assert conflict.value.document == edited.document
     assert notebook.document.cell(cell.id).code == "x = 3"  # type: ignore[union-attr]

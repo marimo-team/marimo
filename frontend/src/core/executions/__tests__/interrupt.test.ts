@@ -86,7 +86,7 @@ describe("interruptRuntime", () => {
         ok: false,
         status,
         problem: {
-          type: `tag:marimo.io,2026:host/${type}`,
+          type: `urn:marimo:problem:${type}`,
           title: "The runtime has stopped",
           status,
         },
@@ -155,7 +155,7 @@ describe("interruptRuntime", () => {
         ok: false,
         status,
         problem: {
-          type: `tag:marimo.io,2026:host/${type}`,
+          type: `urn:marimo:problem:${type}`,
           title: "Interrupt refused",
           status,
         },

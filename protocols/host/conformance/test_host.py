@@ -224,9 +224,9 @@ async def test_edit_atomicity_and_conflicts(host, scratch):
     response = await edit(
         host, path, [put("check_b", "y = 2"), put("check_a", "x = 3", "stale")]
     )
-    conflict = problem(response, 409, "conflict")["edit"]
-    assert conflict["change"] == 1
-    assert conflict["cell"] == cells["check_a"]
+    stale = problem(response, 412, "precondition-failed")
+    assert stale["index"] == 1
+    assert stale["cell"] == cells["check_a"]
     after, after_cells = document_state(await host.snapshot(path + "/events"))
     assert (after, after_cells) == (before, cells)
     problem(
@@ -273,8 +273,8 @@ async def test_save(host, scratch):
         await host.request(
             "POST", path + "/save", json={}, headers={"If-Match": "stale"}
         ),
-        409,
-        "conflict",
+        412,
+        "precondition-failed",
     )
 
 
@@ -477,12 +477,10 @@ async def test_run_cells(host, scratch):
             path + "/runtime/runs",
             json={"cells": [{"id": "check_a", "etag": "stale"}]},
         )
-        conflict = problem(response, 409, "conflict")["edit"]
-        assert conflict["change"] == 0
-        assert conflict["cell"] is not None, (
-            "run lost the cell from the document"
-        )
-        assert conflict["cell"]["id"] == "check_a"
+        stale = problem(response, 412, "precondition-failed")
+        assert stale["index"] == 0
+        assert stale["cell"] is not None, "run lost the cell from the document"
+        assert stale["cell"]["id"] == "check_a"
 
 
 @pytest.mark.parametrize("operation", ["interrupt", "cancel"])

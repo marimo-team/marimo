@@ -52,22 +52,29 @@ function record(
   };
 }
 
+const TITLES = {
+  conflict: "Conflict",
+  "invalid-request": "Invalid request",
+  "not-found": "Not found",
+  "precondition-failed": "Precondition failed",
+};
+
 function rejected(
   status: number,
-  kind: string,
+  kind: keyof typeof TITLES,
   detail: string,
-  edit?: Protocol.Problem["edit"],
+  stale?: Pick<Protocol.Problem, "index" | "cell" | "document">,
 ): Outcome {
   return {
     result: {
       ok: false,
       status,
       problem: {
-        type: `tag:marimo.io,2026:host/${kind}`,
-        title: kind === "conflict" ? "Conflict" : "Invalid request",
+        type: `urn:marimo:problem:${kind}`,
+        title: TITLES[kind],
         detail,
         status,
-        ...(edit === undefined ? {} : { edit }),
+        ...stale,
       },
     },
   };
@@ -92,9 +99,9 @@ export function createTestHost(initial: Document) {
     const version = current.revision.version + 1;
     const matches = (id: Protocol.CellId, etag: string) =>
       etag === "*" || current.cells.get(id)?.etag === etag;
-    const conflict = (change: number, id?: Protocol.CellId) =>
-      rejected(409, "conflict", `Edit conflict at change ${change}`, {
-        change,
+    const conflict = (index: number, id?: Protocol.CellId) =>
+      rejected(412, "precondition-failed", `Edit conflict at change ${index}`, {
+        index,
         cell: id === undefined ? null : (current.cells.get(id) ?? null),
         document: current.revision,
       });

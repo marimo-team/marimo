@@ -16,10 +16,10 @@ from marimo._core import backend as be, protocol, protocol_events
 from marimo._core.document import Document, DocumentCell
 from marimo._core.errors import (
     Conflict,
-    EditConflict,
     Invalid,
     NoRuntime,
     NotFound,
+    PreconditionFailed,
 )
 from marimo._core.executions import CellExecution, Executions
 from marimo._core.host import Host
@@ -1549,7 +1549,7 @@ async def test_running_a_cell_whose_content_changed_is_a_conflict(
     notebook.replace([replacement], {})
     calls = len(notebook.backend.calls)  # type: ignore[attr-defined]
 
-    with pytest.raises(EditConflict, match="changed") as stale:
+    with pytest.raises(PreconditionFailed, match="changed") as stale:
         notebook.run(
             cells=[
                 protocol.RequestedCell(id=CellId("c1"), etag=original.etag)
@@ -1557,11 +1557,13 @@ async def test_running_a_cell_whose_content_changed_is_a_conflict(
             request_id="run-1",
             request=None,
         )
-    assert stale.value.change == 0
+    assert stale.value.index == 0
     assert stale.value.cell is not None
     assert stale.value.cell.etag == replacement.etag
     assert stale.value.document.etag == notebook.document.etag
-    with pytest.raises(EditConflict, match="not in the document") as missing:
+    with pytest.raises(
+        PreconditionFailed, match="not in the document"
+    ) as missing:
         notebook.run(
             cells=[
                 protocol.RequestedCell(id=CellId("c1")),
@@ -1570,7 +1572,7 @@ async def test_running_a_cell_whose_content_changed_is_a_conflict(
             request_id="run-2",
             request=None,
         )
-    assert missing.value.change == 1
+    assert missing.value.index == 1
     assert missing.value.cell is None
     assert missing.value.document.etag == notebook.document.etag
 

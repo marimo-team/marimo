@@ -27,7 +27,7 @@ MODELS = {
     "cell.json": "Cell",
     "cell-withheld.json": "Cell",
     "edit.json": "EditRequest",
-    "edit-conflict-request.json": "EditRequest",
+    "stale-edit-request.json": "EditRequest",
     "edit-response.json": "EditResponse",
     "execution-restored.json": "Execution",
     "execute-request.json": "ExecuteRequest",

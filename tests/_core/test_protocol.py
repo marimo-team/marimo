@@ -28,7 +28,7 @@ MODELS = {
     "analysis.json": protocol.Analysis,
     "diagnostic.json": protocol.Error,
     "edit.json": protocol.EditRequest,
-    "edit-conflict-request.json": protocol.EditRequest,
+    "stale-edit-request.json": protocol.EditRequest,
     "edit-response.json": protocol.EditResponse,
     "execution-restored.json": protocol.Execution,
     "execute-request.json": protocol.ExecuteRequest,
@@ -575,20 +575,22 @@ def test_edit_request_response_and_events() -> None:
     }
     assert messages("edits.sse", "cell.removed")[0]["id"] == "k7f2"
 
-    conflict_request = json.loads(
-        (FIXTURES / "edit-conflict-request.json").read_text(encoding="utf-8")
+    stale_request = json.loads(
+        (FIXTURES / "stale-edit-request.json").read_text(encoding="utf-8")
     )
-    conflict = json.loads(
-        (FIXTURES / "problems/edit-conflict.json").read_text(encoding="utf-8")
-    )["edit"]
-    assert len(conflict_request["changes"]) == 1
-    change = conflict_request["changes"][0]
+    failed = json.loads(
+        (FIXTURES / "problems/precondition-failed.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    assert len(stale_request["changes"]) == 1
+    change = stale_request["changes"][0]
     assert change["base_etag"] != cells[change["cell"]["id"]]["etag"]
-    assert conflict == {
-        "change": 0,
-        "cell": cells["c3"],
-        "document": response["document"],
-    }
+    assert (failed["index"], failed["cell"], failed["document"]) == (
+        0,
+        cells["c3"],
+        response["document"],
+    )
 
 
 def test_restored_result_matches_source() -> None:

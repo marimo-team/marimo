@@ -58,7 +58,7 @@ describe("replyInput", () => {
       ok: false,
       status: 409,
       problem: {
-        type: "tag:marimo.io,2026:host/conflict",
+        type: "urn:marimo:problem:conflict",
         title: "Conflict",
         status: 409,
         detail: "input prompt-1 has already ended.",

@@ -23,7 +23,7 @@ const records = {
   "../experimental/analysis/fixtures/analysis.json": Protocol.Analysis,
   "../experimental/analysis/fixtures/diagnostic.json": Protocol.Error,
   "edit.json": Protocol.EditRequest,
-  "edit-conflict-request.json": Protocol.EditRequest,
+  "stale-edit-request.json": Protocol.EditRequest,
   "edit-response.json": Protocol.EditResponse,
   "execution-restored.json": Protocol.Execution,
   "execute-request.json": Protocol.ExecuteRequest,

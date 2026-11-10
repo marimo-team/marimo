@@ -16,10 +16,10 @@ from marimo._core import backend as be, protocol
 from marimo._core.document import Stale
 from marimo._core.errors import (
     Conflict,
-    EditConflict,
     Invalid,
     NoRuntime,
     NotFound,
+    PreconditionFailed,
 )
 from marimo._core.executions import Executions, InputChanged, Released, Removed
 from marimo._core.ids import mint
@@ -118,13 +118,13 @@ class Notebook:
         """Check that the document is at one of `etags`.
 
         Raises:
-            EditConflict: If it is not, carrying the document as it is.
+            PreconditionFailed: If it is not, carrying the document as it is.
         """
         self._require_open()
         if self.document.etag not in etags:
-            raise EditConflict(
+            raise PreconditionFailed(
                 "The document has changed since it was read",
-                change=0,
+                index=0,
                 cell=None,
                 document=self._document_record,
             )
@@ -195,7 +195,7 @@ class Notebook:
         """Apply an edit as one unit and publish its effects.
 
         Raises:
-            EditConflict: If a precondition is stale. Nothing is applied.
+            PreconditionFailed: If a precondition is stale. Nothing is applied.
             Invalid: If a change could not apply to any state.
         """
         self._require_open()
@@ -206,10 +206,10 @@ class Notebook:
                 if result.cell_id is None
                 else self._document.cell(result.cell_id)
             )
-            raise EditConflict(
+            raise PreconditionFailed(
                 f"change {result.change} names a state the document no "
                 "longer has",
-                change=result.change,
+                index=result.change,
                 cell=None if cell is None else self._cell_record(cell),
                 document=self._document_record,
             )
@@ -480,7 +480,7 @@ class Notebook:
                 and cells, or selects an empty cell sequence.
             NoRuntime: If the notebook has no runtime.
             Conflict: If the runtime is not running.
-            EditConflict: If a requested cell is missing or has changed.
+            PreconditionFailed: If a requested cell is missing or has changed.
         """
         if (code is None) == (cells is None):
             raise Invalid("a run names code or cells, not both")
@@ -495,16 +495,16 @@ class Notebook:
             for index, requested in enumerate(cells or ()):
                 cell = self._document.cell(requested.id)
                 if cell is None:
-                    raise EditConflict(
+                    raise PreconditionFailed(
                         f"cell {requested.id} is not in the document.",
-                        change=index,
+                        index=index,
                         cell=None,
                         document=self._document_record,
                     )
                 if requested.etag is not UNSET and requested.etag != cell.etag:
-                    raise EditConflict(
+                    raise PreconditionFailed(
                         f"cell {requested.id} has changed since it was read.",
-                        change=index,
+                        index=index,
                         cell=self._cell_record(cell),
                         document=self._document_record,
                     )
