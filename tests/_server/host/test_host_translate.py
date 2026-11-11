@@ -310,6 +310,76 @@ def test_console_items_number_in_order_and_lose_highlighting() -> None:
     )
 
 
+def test_media_written_to_the_console_is_a_display_among_the_text() -> None:
+    # A figure shown with `plt.show()` arrives on the console, between
+    # whatever the cell printed before and after it.
+    t = RunTranslator(RunId("r1"), "3 * 3")
+    t.feed(attempt("planned"))
+    t.feed(attempt("running"))
+    out = t.feed(
+        scratch(
+            console=[
+                CellOutput.stdout("before"),
+                CellOutput(
+                    channel=CellChannel.MEDIA,
+                    mimetype="image/png",
+                    data="data:image/png;base64,AAAA",
+                ),
+                CellOutput.stdout("after"),
+            ]
+        )
+    )
+
+    items = [m.item for m in out if isinstance(m, Produced)]
+    assert [(type(item), item.seq) for item in items] == [
+        (Console, 0),
+        (protocol.Display, 1),
+        (Console, 2),
+    ]
+    assert len({item.id for item in items}) == 3
+    figure = items[1]
+    assert isinstance(figure, protocol.Display)
+    assert figure.content == protocol.DisplayData(
+        mimetype="image/png", data="data:image/png;base64,AAAA"
+    )
+
+
+def test_a_rendered_traceback_is_a_display_and_a_plain_one_is_text() -> None:
+    highlighted = '<span class="codehilite">Traceback</span>'
+    t = RunTranslator(RunId("r1"), "3 * 3")
+    t.feed(attempt("planned"))
+    t.feed(attempt("running"))
+    out = t.feed(
+        scratch(
+            console=[
+                CellOutput(
+                    channel=CellChannel.STDERR,
+                    mimetype="application/vnd.marimo+traceback",
+                    data=highlighted,
+                ),
+                # A scratch run's traceback is written as plain text.
+                CellOutput(
+                    channel=CellChannel.STDERR,
+                    mimetype="application/vnd.marimo+traceback",
+                    data="Traceback (most recent call last)",
+                ),
+            ]
+        )
+    )
+
+    rendered, text = (m.item for m in out if isinstance(m, Produced))
+    assert isinstance(rendered, protocol.Display)
+    assert rendered.content == protocol.DisplayData(
+        mimetype="application/vnd.marimo+traceback", data=highlighted
+    )
+    assert isinstance(text, Console)
+    assert (text.name, text.text) == (
+        "stderr",
+        "Traceback (most recent call last)",
+    )
+    assert (rendered.seq, text.seq) == (0, 1)
+
+
 def test_late_output_keeps_its_evaluation_when_a_cell_runs_again() -> None:
     translator = RunTranslator(RunId("r1"), None)
     ids = []
