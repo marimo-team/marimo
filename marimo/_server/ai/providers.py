@@ -20,7 +20,6 @@ from urllib.parse import parse_qs, urlparse
 from starlette.exceptions import HTTPException
 
 from marimo import _loggers
-from marimo._ai._convert import extract_text
 from marimo._ai._pydantic_ai_utils import (
     convert_to_pydantic_messages,
     form_toolsets,
@@ -82,7 +81,7 @@ if TYPE_CHECKING:
     from pydantic_ai.providers.openai import OpenAIProvider as PydanticOpenAI
     from pydantic_ai.settings import ModelSettings, ThinkingLevel
     from pydantic_ai.toolsets import AbstractToolset
-    from pydantic_ai.ui.vercel_ai.request_types import UIMessage, UIMessagePart
+    from pydantic_ai.ui.vercel_ai.request_types import UIMessage
     from pydantic_ai.ui.vercel_ai.response_types import (
         FinishReason as VercelFinishReason,
     )
@@ -1161,31 +1160,6 @@ class AnthropicProvider(PydanticProvider["PydanticAnthropic"]):
         if values.thinking is not None:
             settings["thinking"] = values.thinking
         return settings
-
-    @override
-    def convert_messages(
-        self, messages: list[ServerUIMessage]
-    ) -> list[UIMessage]:
-        return convert_to_pydantic_messages(messages, self.process_part)
-
-    def process_part(self, part: UIMessagePart) -> UIMessagePart:
-        """
-        Anthropic does not support binary content for text files, so we convert to text parts.
-        Ideally, we would use DocumentUrl parts with a url, but we only have the binary data from the frontend
-        Refer to: https://ai.pydantic.dev/input/#user-side-download-vs-direct-file-url
-        """
-        from pydantic_ai.ui.vercel_ai.request_types import (
-            FileUIPart,
-            TextUIPart,
-        )
-
-        if isinstance(part, FileUIPart) and part.media_type.startswith("text"):
-            return TextUIPart(
-                type="text",
-                text=extract_text(part.url),
-                provider_metadata=part.provider_metadata,
-            )
-        return part
 
 
 class BedrockProvider(PydanticProvider["PydanticBedrock"]):
