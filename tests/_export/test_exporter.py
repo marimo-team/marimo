@@ -1767,10 +1767,12 @@ class TestPDFExport:
             assert "for PDF export" in str(excinfo.value)
 
     @pytest.mark.asyncio
+    @pytest.mark.parametrize("webpdf", [False, True])
     async def test_export_pdf_reports_execute_raster_render(
         self,
         temp_marimo_file: str,
         session_view: SessionView,
+        webpdf: bool,
     ) -> None:
         events: list[PDFExportStatusEvent] = []
 
@@ -1783,6 +1785,7 @@ class TestPDFExport:
         async def fake_collect_pdf_png_fallbacks(
             request: Any,
         ) -> dict[str, str]:
+            assert request.webpdf is webpdf
             status_callback = request.status_callback
             assert status_callback is not None
             status_callback(
@@ -1836,7 +1839,7 @@ class TestPDFExport:
                 PDFFileExportRequest(
                     path=MarimoPath(temp_marimo_file),
                     options=PDFExportOptions(
-                        webpdf=True,
+                        webpdf=webpdf,
                         preset="document",
                         include_inputs=False,
                     ),

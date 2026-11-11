@@ -340,6 +340,7 @@ async def export_pdf(
                     filename=request.path.short_name,
                     filepath=request.path.absolute_name,
                     options=request.rasterization,
+                    webpdf=request.options.webpdf,
                     live_page_url=request.live_page_url,
                     status_callback=request.status_callback,
                 )
