@@ -6,6 +6,7 @@ from __future__ import annotations
 import asyncio
 import copy
 from dataclasses import dataclass
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from marimo import _loggers
@@ -26,6 +27,7 @@ from marimo._server.host.analysis import HostAnalyzer
 from marimo._server.host.backend import RequestMetadata, SessionBackend
 from marimo._server.host.events import notification_event
 from marimo._server.host.index import WorkspaceIndex
+from marimo._server.host.restore import restored_executions
 from marimo._server.host.sessions import AppSessionNotebooks
 from marimo._session.events import SessionEventListener
 from marimo._session.model import SessionMode
@@ -37,7 +39,6 @@ from marimo._utils.http import HTTPException, HTTPStatus
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Mapping, Sequence
-    from pathlib import Path
 
     from marimo._config.manager import MarimoConfigManager
     from marimo._core.backend import Message
@@ -174,10 +175,16 @@ class SessionBridge(SessionEventListener):
         session = self.app_sessions.session(record.id)
         cells, app_config = documents.from_session(session)
         document = Document(cells, app_config)
+        path = session.app_file_manager.path
+        executions = Executions()
+        if path is not None and self._serves_stored_results():
+            executions = await self._restore(Path(path), cells)
+            # The session may have closed while its file was read.
+            self.app_sessions.session(record.id)
         return Notebook(
             record.id,
             document,
-            Executions(),
+            executions,
             self._make_backend(record.id, sink),
             sink,
             saved_etag=document.etag,
@@ -219,12 +226,27 @@ class SessionBridge(SessionEventListener):
             return Notebook(
                 record.id,
                 document,
-                Executions(),
+                await self._restore(file, cells),
                 backend,
                 sink,
                 saved_etag=saved_etag,
                 analyzer=HostAnalyzer(),
             )
+
+    async def _restore(
+        self, file: Path | None, cells: Sequence[DocumentCell]
+    ) -> Executions:
+        """The results stored for the notebook's file, if they are its cells'."""
+        if file is None:
+            return Executions()
+        return await asyncio.to_thread(restored_executions, file, cells)
+
+    def _serves_stored_results(self) -> bool:
+        """Whether apps start from the results a session stored."""
+        return (
+            self._config_manager is not None
+            and self._config_manager.get_config().runtime.serve_cached_sessions_in_apps
+        )
 
     async def _load(self, file: Path) -> _FileContents | None:
         """Read a notebook file, or return `None` if it cannot be loaded."""

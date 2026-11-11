@@ -4,9 +4,11 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import threading
 from types import SimpleNamespace
 from typing import TYPE_CHECKING
+from unittest.mock import MagicMock
 
 import pytest
 from starlette.datastructures import State
@@ -28,6 +30,9 @@ from marimo._server.host.events import MarimoEvent, MarimoMessage
 from marimo._server.models.home import MarimoFile
 from marimo._server.workspace import FixedFilesWorkspace
 from marimo._session.model import SessionMode
+from marimo._session.state.serialize import get_session_cache_file
+from marimo._utils.code import hash_code
+from marimo._version import __version__
 from tests._core.conftest import names
 from tests._server.host.conftest import FakeManager, FakeSession
 
@@ -679,6 +684,109 @@ async def test_a_new_session_adopts_unsaved_host_edits(
     ]
     assert notebook.saved_etag != notebook.document.etag
     assert "unsaved" not in (tmp_path / "a.py").read_text()
+    bridge.close()
+
+
+async def test_stored_results_are_on_the_stream_without_a_runtime(
+    manager: FakeManager, tmp_path: Path
+) -> None:
+    prepare(manager, tmp_path, "a.py")
+    path = tmp_path / "a.py"
+    path.write_text(NOTEBOOK)
+    # An earlier session of this notebook left its outputs on disk.
+    cache = get_session_cache_file(path)
+    cache.parent.mkdir(parents=True)
+    cache.write_text(
+        json.dumps(
+            {
+                "version": "1",
+                "metadata": {
+                    "marimo_version": __version__,
+                    "script_metadata_hash": None,
+                },
+                "cells": [
+                    {
+                        "id": "earlier",
+                        "code_hash": hash_code("x = 1"),
+                        "outputs": [
+                            {"type": "data", "data": {"text/plain": "1"}}
+                        ],
+                        "console": [],
+                    }
+                ],
+            }
+        )
+    )
+    bridge = SessionBridge(manager)  # type: ignore[arg-type]
+    await bridge.open()
+    record = bridge.index.notebook_for(str(path))
+    assert record is not None
+
+    notebook = await bridge.host.notebook(record.id)
+
+    assert notebook.runtime is None
+    (cell,) = notebook.document
+    result = notebook.executions.current(cell.id)
+    assert result is not None
+    assert result.execution.outcome == protocol.ValueOutcome(
+        protocol.DisplayData(mimetype="text/plain", data="1")
+    )
+    assert names(bridge.host.events(notebook_id=record.id)) == [
+        "notebook",
+        "cell",
+        "document",
+        "execution",
+        "ready",
+    ]
+    bridge.close()
+
+
+@pytest.mark.parametrize("serve_stored", [True, False])
+async def test_an_app_starts_from_stored_results_only_when_configured(
+    manager: FakeManager, tmp_path: Path, serve_stored: bool
+) -> None:
+    from marimo._session.notebook import AppFileManager
+
+    path = tmp_path / "app.py"
+    path.write_text(NOTEBOOK)
+    cache = get_session_cache_file(path)
+    cache.parent.mkdir(parents=True)
+    cache.write_text(
+        json.dumps(
+            {
+                "version": "1",
+                "metadata": {
+                    "marimo_version": __version__,
+                    "script_metadata_hash": None,
+                },
+                "cells": [
+                    {
+                        "id": "earlier",
+                        "code_hash": hash_code("x = 1"),
+                        "outputs": [
+                            {"type": "data", "data": {"text/plain": "1"}}
+                        ],
+                        "console": [],
+                    }
+                ],
+            }
+        )
+    )
+    manager.mode = SessionMode.RUN
+    config = MagicMock()
+    config.get_config.return_value.runtime.serve_cached_sessions_in_apps = (
+        serve_stored
+    )
+    bridge = SessionBridge(manager, config)  # type: ignore[arg-type]
+    await bridge.open()
+    session = FakeSession(str(path))
+    session.document = AppFileManager(str(path)).app.cell_manager.document
+
+    notebook = await bridge.adopt(session)  # type: ignore[arg-type]
+
+    assert notebook is not None
+    (cell,) = notebook.document
+    assert (notebook.executions.current(cell.id) is not None) is serve_stored
     bridge.close()
 
 
