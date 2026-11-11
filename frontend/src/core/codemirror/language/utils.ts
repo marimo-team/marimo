@@ -88,8 +88,9 @@ export function unmergeCellCode(merged: string, below: string): string | null {
     return merged;
   }
   const adapter = languageAdapterFromCode(merged);
-  const [text, , metadata] = adapter.transformIn(merged);
-  const [belowText] = adapter.transformIn(below);
+  const [mergedText, , metadata] = adapter.transformIn(merged);
+  const text = mergedText.trimEnd();
+  const belowText = adapter.transformIn(below)[0].trimEnd();
   if (text === belowText) {
     return "";
   }

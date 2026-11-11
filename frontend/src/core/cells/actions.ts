@@ -246,22 +246,27 @@ export type MergeResult =
   | { merged: true; entry: UndoMergeEntry }
   | { merged: false; blocker: MergeBlocker };
 
-/** The visible cell below in the same column that a cell could merge with. */
-function mergeableCellBelow(get: Getter, cellId: CellId): CellId | null {
-  if (cellId === SCRATCH_CELL_ID || cellId === SETUP_CELL_ID) {
-    return null;
+/** Each cell's visible neighbour below in the same column, to merge with. */
+const mergeTargetsAtom = atom((get) => {
+  const targets = new Map<CellId, CellId>();
+  for (const { ids, visible } of get(layoutAtom).columns) {
+    const shown = new Set(visible);
+    for (const [index, id] of ids.entries()) {
+      const below = ids[index + 1];
+      if (
+        below !== undefined &&
+        shown.has(below) &&
+        ![id, below].some((c) => c === SETUP_CELL_ID || c === SCRATCH_CELL_ID)
+      ) {
+        targets.set(id, below);
+      }
+    }
   }
-  const column = get(layoutAtom).columns.find((c) => c.ids.includes(cellId));
-  const belowId = column?.ids[column.ids.indexOf(cellId) + 1];
-  return belowId === undefined ||
-    belowId === SETUP_CELL_ID ||
-    !column?.visible.includes(belowId)
-    ? null
-    : belowId;
-}
+  return targets;
+});
 
 export function hasMergeableCellBelowAtom(cellId: CellId) {
-  return atom((get) => mergeableCellBelow(get, cellId) !== null);
+  return atom((get) => get(mergeTargetsAtom).has(cellId));
 }
 
 const isBusy = (get: Getter, cellId: CellId) =>
@@ -275,11 +280,12 @@ export const mergeCellBelowAtom = atom(
       merged: false,
       blocker,
     });
-    const belowId = mergeableCellBelow(get, cellId);
+    const belowId = get(mergeTargetsAtom).get(cellId);
     const document = documentOf(get);
     const cell = document.cells.get(cellId);
-    const below = belowId === null ? undefined : document.cells.get(belowId);
-    if (belowId === null || cell === undefined || below === undefined) {
+    const below =
+      belowId === undefined ? undefined : document.cells.get(belowId);
+    if (belowId === undefined || cell === undefined || below === undefined) {
       return refuse("no-cell-below");
     }
     if (isBusy(get, belowId)) {

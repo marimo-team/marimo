@@ -389,6 +389,10 @@ describe("unmergeCellCode", () => {
     expect(unmergeCellCode("y = 2", "y = 2")).toBe("");
   });
 
+  it("ignores whitespace added at the end", () => {
+    expect(unmergeCellCode("x = 3\ny = 2\n\n", "y = 2")).toBe("x = 3");
+  });
+
   it("gives up when the code below was edited", () => {
     expect(unmergeCellCode("x = 1\ny = 4", "y = 2")).toBeNull();
   });
