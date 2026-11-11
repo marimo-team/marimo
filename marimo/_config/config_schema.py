@@ -403,12 +403,12 @@ class ServerConfig(Config, kw_only=True):
         ),
     ] = False
     redirect_console_to_browser: Annotated[
-        bool | UnsetType,
+        bool,
         Meta(
-            description="Redirect console output to the browser. Defaults to true in edit mode and false in run mode.",
+            description="Redirect console output to the browser. This option only applies to run mode. Edit mode always redirects output to the browser.",
             extra={"cli_flag": ["--redirect-console-to-browser"]},
         ),
-    ] = UNSET
+    ] = False
 
     skip_update_check: Annotated[
         bool,

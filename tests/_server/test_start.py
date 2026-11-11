@@ -162,6 +162,6 @@ def test_start_uses_resolved_server_config(
         "skew_protection": False,
         "include_code": mode == SessionMode.EDIT,
         "ttl_seconds": None,
-        "redirect_console_to_browser": False,
+        "redirect_console_to_browser": mode == SessionMode.EDIT,
         "token_enabled": False,
     }

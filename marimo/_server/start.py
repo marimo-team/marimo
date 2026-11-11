@@ -314,9 +314,8 @@ def start(
         cli_args=cli_args,
         argv=argv,
         auth_token=auth_token,
-        redirect_console_to_browser=default_if_unset(
-            server_config.redirect_console_to_browser, is_edit
-        ),
+        redirect_console_to_browser=is_edit
+        or server_config.redirect_console_to_browser,
         watch=watch,
         sandbox=sandbox is not None,
         isolate_apps=isolate_apps,
