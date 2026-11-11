@@ -78,6 +78,18 @@ identity in `notebook` and `notebookId`. It handles `notebook` and
 `notebook.removed` itself. Removing the notebook clears its record and
 resources. A `reset` also clears its identity.
 
+For notebook reconnections, call `reducer.resume(state)` when the connection
+starts reconnecting, including when opening a new stream with a saved cursor.
+It restarts an incomplete snapshot. Otherwise it retains the notebook and
+resources, including partial document updates, and sets the phase to `replay`.
+The next `ready` changes it to `live`. Handlers see `replay` while catching up:
+apply document revisions as they arrive, and reserve snapshot assembly for
+`snapshot`. A `ready` ending replay must still reject an incomplete revision.
+
+Keep connection status separate from `state.phase`: show presence only when
+the connection is open and the phase is `live`. Confirmed document state can
+remain visible while reconnecting.
+
 ## Follow changes in React
 
 To keep a notebook list updated in a UI, subscribe to the stream and pass

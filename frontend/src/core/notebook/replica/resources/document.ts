@@ -90,7 +90,7 @@ export const document: NotebookResource<DocumentState, "cell" | "document"> = {
       if (state.pending === null) {
         return state;
       }
-      if (phase === "live") {
+      if (phase !== "snapshot") {
         throw new Error("Stream ended with an incomplete document update");
       }
       return state.pending.revision === null
