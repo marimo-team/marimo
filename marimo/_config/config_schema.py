@@ -50,15 +50,6 @@ class CompletionConfig(Config, kw_only=True):
             description="if `False`, typing an opening bracket, parenthesis, or quote will not automatically insert the closing character"
         ),
     ] = True
-    # Retain old credentials so schema-driven redaction still protects them.
-    codeium_api_key: Annotated[
-        str | UnsetType | None,
-        Meta(
-            description="Deprecated Codeium API key. Codeium completion is no longer supported.",
-            extra={"sensitive": True, "deprecated": True},
-            extra_json_schema={"deprecated": True},
-        ),
-    ] = UNSET
     api_key: Annotated[
         str | UnsetType | None,
         Meta(

@@ -4222,11 +4222,6 @@ export interface components {
        */
       base_url?: string | null;
       /**
-       * @deprecated
-       * @description Deprecated Codeium API key. Codeium completion is no longer supported.
-       */
-      codeium_api_key?: string | null;
-      /**
        * @description one of `"github"` or `"custom"`
        * @default false
        */

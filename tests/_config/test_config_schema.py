@@ -522,8 +522,6 @@ def test_removed_codeium_provider_preserves_other_settings() -> None:
         }
     )
     assert config == MarimoConfig(
-        completion=config_schema.CompletionConfig(
-            codeium_api_key="legacy-secret", auto_close_pairs=False
-        ),
+        completion=config_schema.CompletionConfig(auto_close_pairs=False),
         display=config_schema.DisplayConfig(theme="dark"),
     )
