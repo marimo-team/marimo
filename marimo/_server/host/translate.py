@@ -331,7 +331,7 @@ class RunTranslator:
                         name="stdout"
                         if entry.channel == CellChannel.STDOUT
                         else "stderr",
-                        text=_plain(str(entry.data)),
+                        text=plain(str(entry.data)),
                     )
                 )
             )
@@ -457,7 +457,7 @@ def rendered_traceback(mimetype: str | None, data: object) -> bool:
     )
 
 
-def _plain(text: str) -> str:
+def plain(text: str) -> str:
     """Remove marimo's HTML syntax highlighting from console text."""
     if not is_code_highlighting(text):
         return text
