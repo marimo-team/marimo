@@ -35,9 +35,11 @@ const conflict = {
 
 function setup(edit: FakeEdit) {
   const store = createStore();
+  const source = atom(document());
   const model = createDocumentModel({
     store,
-    documentAtom: atom(document()),
+    documentAtom: source,
+    shownDocumentAtom: source,
     backendAtom: atom(fakeBackend({ edit })),
   });
   const controller = new AbortController();

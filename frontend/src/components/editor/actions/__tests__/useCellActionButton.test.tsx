@@ -34,6 +34,7 @@ function renderActions(cellId: CellId, name: string, edit?: Edit) {
     activeNotebookReplicaAtom,
     partial<NotebookReplica>({
       documentAtom,
+      shownDocumentAtom: documentAtom,
       notebookAtom: atom(
         partial<NotebookOutput>({ operations: ["notebook.edit"] }),
       ),

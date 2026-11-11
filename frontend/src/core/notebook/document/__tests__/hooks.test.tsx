@@ -35,6 +35,7 @@ function setup(
   const model = createDocumentModel({
     store,
     documentAtom: source,
+    shownDocumentAtom: source,
     backendAtom: atom(fakeBackend({ edit })),
   });
   const controller = new AbortController();
