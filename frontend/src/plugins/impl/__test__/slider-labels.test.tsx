@@ -134,3 +134,33 @@ describe("SliderPlugin accessible labels", () => {
     expect(screen.getByRole("tooltip")).toHaveTextContent("50");
   });
 });
+
+describe("SliderPlugin value formatting", () => {
+  test.each([
+    { step: 0.125, value: 0.125, expected: "0.125" },
+    { step: 0.025, value: 0.025, expected: "0.025" },
+    { step: 0.125, value: 0.5, expected: "0.5" },
+    { step: 0.025, value: 1, expected: "1" },
+    { step: 1 / 30, value: 1 / 30, expected: "0.03" },
+    { step: 1 / 30, value: 35.86666666666667, expected: "35.87" },
+    { step: 0.1, value: 0.30000000000000004, expected: "0.3" },
+  ])(
+    "formats $value with step $step consistently",
+    ({ step, value, expected }) => {
+      const initial = props("Value");
+      render(
+        plugin.render({
+          ...initial,
+          value,
+          data: { ...initial.data, step, stop: 60, showValue: true },
+        }),
+      );
+      expect(screen.getByText(expected)).toBeVisible();
+      const thumb = screen.getByRole("slider");
+      fireEvent.focus(thumb);
+      expect(screen.getByRole("tooltip")).toHaveTextContent(expected);
+      expect(thumb).toHaveAttribute("aria-valuenow", String(value));
+      expect(initial.setValue).not.toHaveBeenCalled();
+    },
+  );
+});
