@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, assert_never
 
 from msgspec.structs import replace as structs_replace
 
@@ -16,7 +16,6 @@ from marimo._messaging.notebook.changes import (
     SetConfig,
     SetName,
 )
-from marimo._utils.assert_never import assert_never
 
 LOGGER = _loggers.marimo_logger()
 

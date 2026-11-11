@@ -26,6 +26,24 @@ def test_read_toml_invalid_syntax(tmp_path: Path) -> None:
     assert result == fallback
 
 
+def test_read_toml_invalid_encoding(tmp_path: Path) -> None:
+    (tmp_path / "invalid_encoding.toml").write_bytes(b"\xbf\xbf\xbf")
+
+    reader = ConfigReader(tmp_path / "invalid_encoding.toml")
+    fallback = TestConfig(value="fallback")
+    result = reader.read_toml(TestConfig, fallback=fallback)
+    assert result == fallback
+
+
+def test_read_toml_invalid_types(tmp_path: Path) -> None:
+    (tmp_path / "invalid_type.toml").write_text("value = [1, 2, 3]")
+
+    reader = ConfigReader(tmp_path / "invalid_type.toml")
+    fallback = TestConfig(value="fallback")
+    result = reader.read_toml(TestConfig, fallback=fallback)
+    assert result == fallback
+
+
 def test_read_toml_valid(tmp_path: Path) -> None:
     (tmp_path / "valid.toml").write_text('value = "test"')
 

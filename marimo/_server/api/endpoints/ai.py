@@ -424,9 +424,7 @@ async def ai_chat(
         mode = "ask"
     system_prompt = get_chat_system_prompt(
         custom_rules=custom_rules,
-        include_other_code=body.include_other_code,
         mode=mode,
-        session_id=session_id,
     )
 
     max_tokens = get_max_tokens(config)

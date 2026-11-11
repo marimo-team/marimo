@@ -22,7 +22,7 @@ from marimo._data._external_storage.utils import (
     parse_page_offset,
 )
 from marimo._dependencies.dependencies import DependencyManager
-from marimo._utils.assert_never import log_never
+from marimo._utils.log_never import log_never
 from marimo._utils.mime import guess_mime_type
 from marimo._utils.typing import override
 

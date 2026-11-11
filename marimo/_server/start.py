@@ -337,10 +337,10 @@ def start(
     log_level = "info" if development_mode else "error"
 
     lifespans_list = [
+        lifespans.signal_handler,
         lifespans.lsp,
         lifespans.mcp,
         lifespans.etc,
-        lifespans.signal_handler,
         lifespans.logging,
         lifespans.open_browser,
         lifespans.tool_manager,

@@ -109,11 +109,20 @@ class Backend(Protocol):
         with its cell.
         """
 
-    def interrupt(self, run_id: protocol.RunId) -> None:
+    def cancel(self, run_id: protocol.RunId) -> None:
         """End a run and report its `interrupted` outcome.
 
         A run the kernel has not started completes without running. One
         the kernel could not stop at once is stopped as it progresses.
+        """
+
+    def interrupt(self) -> None:
+        """Interrupt the kernel's active work and end every unfinished run.
+
+        Work the kernel does outside a run is interrupted too. A run the
+        kernel has not started completes without running, and each run
+        reports its `interrupted` outcome. An idle kernel is left alone,
+        so nothing is held over for work that starts later.
         """
 
     def reply_input(self, input_id: protocol.ItemId, value: str) -> None:

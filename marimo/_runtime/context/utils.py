@@ -2,12 +2,11 @@
 from __future__ import annotations
 
 import os
-from typing import Literal
+from typing import Literal, assert_never
 
 from marimo._output.rich_help import mddoc
 from marimo._runtime.context import ContextNotInitializedError, get_context
 from marimo._session.model import SessionMode
-from marimo._utils.assert_never import assert_never
 
 RunMode = Literal["run", "edit", "script", "test"]
 

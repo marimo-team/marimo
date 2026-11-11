@@ -1,6 +1,12 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import React from "react";
+import {
+  CompactSelection,
+  type GridColumn,
+  type GridSelection,
+  type Rectangle,
+} from "@glideapps/glide-data-grid";
 import { act, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -13,8 +19,13 @@ interface MockDataEditorProps {
     value: { data: unknown; kind?: unknown },
   ) => void;
   onRowAppended?: () => void;
-  getCellContent?: (cell: [number, number]) => Record<string, unknown>;
+  getCellContent?: (cell: readonly [number, number]) => Record<string, unknown>;
   customRenderers?: unknown[];
+  columns?: readonly GridColumn[];
+  gridSelection?: GridSelection;
+  onGridSelectionChange?: (selection: GridSelection) => void;
+  onHeaderMenuClick?: (col: number, bounds: Rectangle) => void;
+  onColumnResize?: (column: GridColumn, newSize: number) => void;
 }
 
 const captureDataEditorProps = vi.hoisted(() =>
@@ -41,17 +52,21 @@ const capturedDataEditor = {
 
 vi.mock("@glideapps/glide-data-grid", async () => {
   const React = await import("react");
+  const { CompactSelection } = await vi.importActual<
+    typeof import("@glideapps/glide-data-grid")
+  >("@glideapps/glide-data-grid");
   return {
     default: React.forwardRef(function MockDataEditor(
       props: MockDataEditorProps,
       _ref: React.Ref<HTMLDivElement>,
     ) {
       captureDataEditorProps(props);
+      if (props.gridSelection?.current) {
+        props.getCellContent?.(props.gridSelection.current.cell);
+      }
       return <div data-testid="mock-data-editor" />;
     }),
-    CompactSelection: {
-      empty: () => ({}),
-    },
+    CompactSelection,
     GridCellKind: {
       Text: "text",
       Number: "number",
@@ -131,6 +146,111 @@ describe("GlideDataEditor portal", () => {
       { rowIdx: 0, columnId: "name", value: "bob" },
     ]);
   });
+
+  it("keeps the grid and selection when cell data changes with the same schema", () => {
+    const { rerender } = render(<GlideDataEditor {...editorProps} />);
+    const grid = screen.getByTestId("mock-data-editor");
+    const selection: GridSelection = {
+      columns: CompactSelection.empty(),
+      rows: CompactSelection.empty(),
+      current: {
+        cell: [0, 0],
+        range: { x: 0, y: 0, width: 1, height: 1 },
+        rangeStack: [],
+      },
+    };
+    act(() =>
+      captureDataEditorProps.mock.lastCall?.[0].onGridSelectionChange?.(
+        selection,
+      ),
+    );
+
+    rerender(
+      <GlideDataEditor
+        {...editorProps}
+        data={[{ name: "bob" }]}
+        columnFields={new Map(editorProps.columnFields)}
+      />,
+    );
+
+    expect(screen.getByTestId("mock-data-editor")).toBe(grid);
+    expect(captureDataEditorProps.mock.lastCall?.[0].gridSelection).toEqual(
+      selection,
+    );
+    expect(capturedDataEditor.getCellContent?.([0, 0])).toMatchObject({
+      data: "bob",
+    });
+  });
+
+  it.each([
+    { operation: "remove", names: ["name"] },
+    { operation: "rename", names: ["name", "weekday"] },
+    { operation: "insert", names: ["name", "day", "extra"] },
+    { operation: "reorder", names: ["day", "name"] },
+  ])(
+    "preserves widths and resets selection, menu, and grid on column $operation",
+    ({ names }) => {
+      const columnFields = new Map<string, "string">([
+        ["name", "string"],
+        ["day", "string"],
+      ]);
+      const props = {
+        ...editorProps,
+        columnFields,
+        data: [{ name: "alice", day: "Friday" }],
+      };
+      const { rerender } = render(<GlideDataEditor {...props} />);
+      const grid = screen.getByTestId("mock-data-editor");
+      act(() => {
+        captureDataEditorProps.mock.lastCall?.[0].onColumnResize?.(
+          { title: "name", width: 100 },
+          240,
+        );
+      });
+      expect(
+        captureDataEditorProps.mock.lastCall?.[0].columns?.[0],
+      ).toMatchObject({ width: 240 });
+      act(() => {
+        captureDataEditorProps.mock.lastCall?.[0].onGridSelectionChange?.({
+          columns: CompactSelection.fromSingleSelection(1),
+          rows: CompactSelection.fromSingleSelection(0),
+          current: {
+            cell: [1, 0],
+            range: { x: 1, y: 0, width: 1, height: 1 },
+            rangeStack: [],
+          },
+        });
+        captureDataEditorProps.mock.lastCall?.[0].onHeaderMenuClick?.(1, {
+          x: 0,
+          y: 0,
+          width: 100,
+          height: 30,
+        });
+      });
+      expect(screen.getByText("Copy column name")).toBeInTheDocument();
+      captureDataEditorProps.mockClear();
+
+      const nextFields = new Map<string, "string">(
+        names.map((name) => [name, "string"]),
+      );
+      rerender(<GlideDataEditor {...props} columnFields={nextFields} />);
+
+      expect(screen.getByTestId("mock-data-editor")).not.toBe(grid);
+      expect(screen.queryByText("Copy column name")).toBeNull();
+      for (const [rendered] of captureDataEditorProps.mock.calls) {
+        expect(rendered.gridSelection).toEqual({
+          columns: CompactSelection.empty(),
+          rows: CompactSelection.empty(),
+        });
+        expect(rendered.columns?.map((column) => column.title)).toEqual([
+          ...nextFields.keys(),
+        ]);
+        expect(
+          rendered.columns?.find((column) => column.title === "name"),
+        ).toMatchObject({ width: 240 });
+      }
+    },
+  );
 
   it("creates a restricted dropdown cell and registers only its renderer", () => {
     render(
@@ -301,6 +421,41 @@ describe("GlideDataEditor portal", () => {
     });
 
     fullscreenContainer.remove();
+  });
+
+  it("moves the portal into a fullscreen element inside a shadow root", async () => {
+    const host = document.createElement("div");
+    host.append(document.createElement("div"));
+    const shadowRoot = host.attachShadow({ mode: "open" });
+    const target = document.createElement("div");
+    shadowRoot.append(target);
+    document.body.append(host);
+    Object.defineProperty(shadowRoot, "fullscreenElement", {
+      configurable: true,
+      get: () => target,
+    });
+
+    render(
+      <TooltipProvider>
+        <GlideDataEditor {...editorProps} />
+      </TooltipProvider>,
+    );
+
+    act(() => {
+      // The browser retargets document.fullscreenElement to the shadow host.
+      fullscreenElement = host;
+      document.dispatchEvent(new Event("fullscreenchange"));
+    });
+
+    await waitFor(() => {
+      const portal = target.querySelector(
+        "[data-testid='glide-data-editor-portal']",
+      );
+      expect(portal?.parentElement).toBe(target);
+    });
+    expect(host.children).toHaveLength(1);
+
+    host.remove();
   });
 
   it("unmounts cleanly while fullscreen is active", async () => {

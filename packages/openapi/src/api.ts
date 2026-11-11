@@ -2176,43 +2176,6 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  "/api/kernel/interrupt": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    post: {
-      parameters: {
-        query?: never;
-        header: {
-          "Marimo-Session-Id": string;
-        };
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        /** @description Interrupt the kernel's execution */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": components["schemas"]["SuccessResponse"];
-          };
-        };
-      };
-    };
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
   "/api/kernel/pdb/breakpoints": {
     parameters: {
       query?: never;
@@ -2408,47 +2371,6 @@ export interface paths {
       requestBody?: never;
       responses: {
         /** @description Restart the current session without affecting other sessions. */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": components["schemas"]["SuccessResponse"];
-          };
-        };
-      };
-    };
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/kernel/run": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    post: {
-      parameters: {
-        query?: never;
-        header: {
-          "Marimo-Session-Id": string;
-        };
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: {
-        content: {
-          "application/json": components["schemas"]["ExecuteCellsRequest"];
-        };
-      };
-      responses: {
-        /** @description Run a cell. Updates cell code in the kernel if needed; registers new cells for unseen cell IDs. Only allowed in edit mode. */
         200: {
           headers: {
             [name: string]: unknown;
@@ -4225,7 +4147,6 @@ export interface components {
     ChatRequest: {
       /** @default null */
       id?: string | null;
-      includeOtherCode: string;
       /** @default null */
       model?: string | null;
       options?: components["schemas"]["ChatOptions"];
@@ -4980,13 +4901,6 @@ export interface components {
       timestamp?: number;
       /** @enum {unknown} */
       type: "execute-cells";
-    };
-    /** ExecuteCellsRequest */
-    ExecuteCellsRequest: {
-      cellIds: components["schemas"]["CellId"][];
-      codes: string[];
-      /** @default null */
-      request?: components["schemas"]["HTTPRequest"] | null;
     };
     /**
      * ExecuteScratchpadCommand
@@ -6418,7 +6332,6 @@ export interface components {
       | components["schemas"]["ModelLifecycleNotification"]
       | components["schemas"]["RemoveUIElementsNotification"]
       | components["schemas"]["ReloadNotification"]
-      | components["schemas"]["ReconnectedNotification"]
       | components["schemas"]["InterruptedNotification"]
       | components["schemas"]["CompletedRunNotification"]
       | components["schemas"]["KernelReadyNotification"]
@@ -6763,14 +6676,6 @@ export interface components {
     /** RecentFilesResponse */
     RecentFilesResponse: {
       files: components["schemas"]["MarimoFile"][];
-    };
-    /**
-     * ReconnectedNotification
-     * @description WebSocket reconnection confirmed.
-     */
-    ReconnectedNotification: {
-      /** @enum {unknown} */
-      op: "reconnected";
     };
     /**
      * ReloadNotification

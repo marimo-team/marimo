@@ -203,7 +203,6 @@ function handleNotification(
       case "startup-logs":
       case "startup-progress":
       case "interrupted":
-      case "reconnected":
       case "cache-cleared":
       case "cache-info":
       case "kernel-startup-error":

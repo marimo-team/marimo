@@ -43,8 +43,8 @@ from marimo._server.ai.tracing import (
     trace_stream,
 )
 from marimo._server.models.completion import UIMessage as ServerUIMessage
-from marimo._utils.assert_never import log_never
 from marimo._utils.http import HTTPStatus
+from marimo._utils.log_never import log_never
 from marimo._utils.typing import override
 from marimo._version import __version__
 
@@ -1155,7 +1155,11 @@ class AnthropicProvider(PydanticProvider["PydanticAnthropic"]):
             if max_tokens is not None
             else ANTHROPIC_DEFAULT_MAX_TOKENS,
         )
-        settings: AnthropicModelSettings = {"anthropic_cache": True}
+        settings: AnthropicModelSettings = {
+            "anthropic_cache": True,
+            "anthropic_cache_instructions": True,
+            "anthropic_cache_tool_definitions": True,
+        }
         if values.max_tokens is not None:
             settings["max_tokens"] = values.max_tokens
         if values.thinking is not None:

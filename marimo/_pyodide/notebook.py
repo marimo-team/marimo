@@ -74,7 +74,9 @@ _OPERATIONS = (
     "notebook.save",
     "runtime.run",
     "runtime.input",
+    "runtime.execute",
     "runtime.interrupt",
+    "runtime.cancel",
 )
 
 
@@ -242,7 +244,12 @@ class WorkerBackend:
         self._session.put_input(InputReply(input_id, value))
         self._session.session_view.add_stdin(value, input_id=input_id)
 
-    def interrupt(self, run_id: protocol.RunId) -> None:
+    def interrupt(self) -> None:
+        # The kernel's translators include the runs it scheduled itself.
+        for run_id in [*self._preparing, *self._translators]:
+            self.cancel(run_id)
+
+    def cancel(self, run_id: protocol.RunId) -> None:
         preparing = self._preparing.get(run_id)
         if preparing is not None:
             preparing.task.cancel()
@@ -543,11 +550,12 @@ class PyodideNotebook:
     async def call(self, raw: str) -> str:
         """Serve an operation call and reply with its status and body."""
         self.mutations.expire()
+        status: int
         body: msgspec.Struct | None
         try:
             call = msgspec.json.decode(raw, type=OperationCall)
         except msgspec.DecodeError as e:
-            failure = problem(400, "invalid-request", str(e))
+            failure = problem("invalid-request", str(e))
             status, body = failure.status, failure
         else:
             status, body = await dispatch(

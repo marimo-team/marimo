@@ -560,7 +560,7 @@ def test_host_problem_types_map_to_cli_errors(
         409,
         json.dumps(
             {
-                "type": f"tag:marimo.io,2026:host/{problem}",
+                "type": f"urn:marimo:problem:{problem}",
                 "detail": "host detail",
             }
         ).encode(),

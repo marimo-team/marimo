@@ -1514,16 +1514,6 @@ components:
       - value
       title: QueryParamsSetNotification
       type: object
-    ReconnectedNotification:
-      description: WebSocket reconnection confirmed.
-      properties:
-        op:
-          enum:
-          - reconnected
-      required:
-      - op
-      title: ReconnectedNotification
-      type: object
     ReloadNotification:
       description: Instructs frontend to reload the page.
       properties:

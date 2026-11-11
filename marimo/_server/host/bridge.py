@@ -282,7 +282,7 @@ class SessionBridge(SessionEventListener):
 
         Raises:
             Conflict: If the notebook has no file or the write fails.
-            EditConflict: If `if_match` does not name the document's etag,
+            PreconditionFailed: If `if_match` does not name the document's etag,
                 or the document changed while the file was being read
                 for a reload.
             DecisionRequired: If the file changed and `decisions` has no
@@ -413,7 +413,7 @@ class SessionBridge(SessionEventListener):
         stands after that, which is the one the client reads next.
 
         Raises:
-            EditConflict: If a precondition is stale.
+            PreconditionFailed: If a precondition is stale.
             Invalid: If a change could not apply to any state.
         """
         notebook = await self.host.notebook(notebook_id)

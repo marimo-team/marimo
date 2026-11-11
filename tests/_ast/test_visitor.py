@@ -1160,6 +1160,26 @@ def test_type_var_generic_class() -> None:
 
 
 @pytest.mark.skipif("sys.version_info < (3, 12)")
+@pytest.mark.parametrize(
+    ("code", "refs"),
+    [
+        ("class A[T](Base[T]): pass", {"Base"}),
+        ("class A[T](metaclass=Meta[T]): pass", {"Meta"}),
+        ("class A[*Ts](Base[*Ts]): pass", {"Base"}),
+        ("class A[**P](Base[P]): pass", {"Base"}),
+        ("class A[T]:\n    item: list[T]", {"list"}),
+    ],
+)
+def test_type_var_generic_class_bases_and_body(
+    code: str, refs: set[str]
+) -> None:
+    v = visitor.ScopedVisitor()
+    v.visit(ast.parse(code))
+    assert v.defs == {"A"}
+    assert v.refs == refs
+
+
+@pytest.mark.skipif("sys.version_info < (3, 12)")
 def test_type_var_generic_function() -> None:
     expr = cleandoc(
         """

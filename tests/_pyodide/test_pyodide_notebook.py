@@ -130,7 +130,9 @@ async def test_snapshot_edit_and_retry(bridge):
         "notebook.save",
         "runtime.run",
         "runtime.input",
+        "runtime.execute",
         "runtime.interrupt",
+        "runtime.cancel",
     ]
     request = edit(events)
     response = await send(bridge, request)
@@ -159,7 +161,7 @@ async def test_snapshot_edit_and_retry(bridge):
     ]
     assert len(events) == count
     conflict = await send(bridge, edit(events, "x = 3"))
-    assert conflict["body"]["type"].endswith("/conflict")
+    assert conflict["body"]["type"].endswith(":conflict")
     assert list(bridge.session.app_manager.app.cell_manager.codes()) == [
         "x = 2"
     ]
@@ -186,9 +188,9 @@ async def test_atomic_conflict_and_kernel_update(bridge):
         },
     )
     result = await send(bridge, request)
-    assert result["status"] == 409
-    assert result["body"]["edit"]["change"] == 1
-    assert result["body"]["edit"]["cell"]["code"] == "x = 2"
+    assert result["status"] == 412
+    assert result["body"]["index"] == 1
+    assert result["body"]["cell"]["code"] == "x = 2"
     assert list(bridge.session.app_manager.app.cell_manager.codes()) == [
         "x = 2"
     ]
@@ -258,7 +260,7 @@ async def test_invalid_calls(bridge):
     ):
         reply = await send(bridge, invalid)
         assert reply["status"] == 400
-        assert reply["body"]["type"].endswith("/invalid-request")
+        assert reply["body"]["type"].endswith(":invalid-request")
     assert json.loads(await bridge.notebook.call("{"))["status"] == 400
     other = {**request, "params": {"notebook_id": "elsewhere"}}
     assert (await send(bridge, other))["status"] == 404
@@ -469,7 +471,7 @@ async def test_save_serializes_writes_and_checks_revision_after_waiting(
     assert len(writes) == 1
     release.set()
     assert (await first)["status"] == 200
-    assert (await stale)["status"] == 409
+    assert (await stale)["status"] == 412
     assert (await second)["status"] == 200
     assert len(writes) == 2
     assert "x = 2" in writes[1]

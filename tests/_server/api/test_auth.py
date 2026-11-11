@@ -469,7 +469,7 @@ def test_partial_server_config_defaults_to_insecure_local_cookie() -> None:
         ),
         (
             "POST",
-            "/api/kernel/run",
+            "/api/marimo/v1/notebooks/nb-1/runtime/runs",
             "127.0.0.1",
             "localhost:1234",
             "local-secret",

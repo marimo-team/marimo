@@ -30,9 +30,6 @@ const toast = vi.fn();
 vi.mock("@/components/ui/use-toast", () => ({
   toast: (...args: unknown[]) => toast(...args),
 }));
-vi.mock("@/core/runtime/config", () => ({
-  startRuntimeIfLazy: async () => undefined,
-}));
 
 const C1 = cellId("c1");
 const C2 = cellId("c2");
@@ -268,7 +265,7 @@ describe("runCells", () => {
       ok: false,
       status: 409,
       problem: {
-        type: "tag:marimo.io,2026:host/conflict",
+        type: "urn:marimo:problem:conflict",
         title: "Conflict",
         status: 409,
         detail: "the runtime is starting.",
@@ -289,7 +286,7 @@ describe("runCells", () => {
       ok: false,
       status: 403,
       problem: {
-        type: "tag:marimo.io,2026:host/forbidden",
+        type: "urn:marimo:problem:forbidden",
         title: "Forbidden",
         status: 403,
       },
@@ -358,7 +355,7 @@ describe("runCells", () => {
               ok: false,
               status: 409,
               problem: {
-                type: "tag:marimo.io,2026:host/conflict",
+                type: "urn:marimo:problem:conflict",
                 title: "Conflict",
                 status: 409,
               },

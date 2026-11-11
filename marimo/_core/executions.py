@@ -510,7 +510,9 @@ class Executions:
                         if entry.cell_id is not None
                         else None,
                         code=entry.code,
-                        code_fingerprint=entry.code_fingerprint,
+                        code_fingerprint=protocol.CodeFingerprint(
+                            entry.code_fingerprint
+                        ),
                         depends_on={},
                         status="queued",
                         outcome=None,

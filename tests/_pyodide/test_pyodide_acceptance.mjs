@@ -149,7 +149,7 @@ async function testHostInputs(notebook, notebookId, frames) {
     assert.equal(completed.data.run.outcome, "succeeded");
   };
 
-  const run = await call("runtime.run", "wasm-input-run", { code: [
+  const run = await call("runtime.execute", "wasm-input-run", { code: [
     "import getpass",
     "_secret = getpass.getpass('Password: ')",
     "_blank = input('Empty: ')",
@@ -164,7 +164,7 @@ async function testHostInputs(notebook, notebookId, frames) {
     /secret/,
   );
 
-  const concurrent = await call("runtime.run", "wasm-concurrent-input-run", { code: [
+  const concurrent = await call("runtime.execute", "wasm-concurrent-input-run", { code: [
     "import marimo as mo",
     "_answers = {}",
     "def _ask(_label):",
@@ -197,6 +197,32 @@ async function testHostInputs(notebook, notebookId, frames) {
     }
   }
   await assertSucceeded(concurrent.body.id);
+}
+
+async function testIdleInterrupt(pyodide, notebook, notebookId, frames) {
+  const buffer = new Uint8Array(new SharedArrayBuffer(1));
+  pyodide.setInterruptBuffer(buffer);
+  const call = (operation, key, body) => notebook.call(JSON.stringify({
+    operation,
+    params: { notebook_id: notebookId },
+    headers: { "idempotency-key": key },
+    body,
+  }));
+  try {
+    buffer[0] = 2;
+    const receipt = JSON.parse(await call("runtime.interrupt", "idle-interrupt"));
+    assert.equal(receipt.status, 202);
+    assert.equal(buffer[0], 0, "The acknowledgement must not leave a pending signal");
+    const run = JSON.parse(await call("runtime.execute", "after-idle-interrupt", { code: "42" }));
+    assert.equal(run.status, 202);
+    const completed = await waitForFrame(frames, (frame) =>
+      frame.event === "run" && frame.data.run.id === run.body.id &&
+      frame.data.run.status === "completed",
+    );
+    assert.equal(completed.data.run.outcome, "succeeded");
+  } finally {
+    pyodide.setInterruptBuffer(undefined);
+  }
 }
 
 /**
@@ -408,6 +434,7 @@ json.dumps(result)
       });
       assert.equal(frames.at(-1).event, "ready");
       const cell = frames.find((frame) => frame.event === "cell").data.cell;
+      await testIdleInterrupt(pyodide, notebook, cell.notebook_id, frames);
       const call = JSON.stringify({
         operation: "notebook.edit",
         params: { notebook_id: cell.notebook_id },
