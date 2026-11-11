@@ -9,7 +9,7 @@ import type { Variables } from "@/core/variables/types";
 import { Objects } from "@/utils/objects";
 import { getEditorCodeAsPython } from "../language/utils";
 
-const notebookCellCodes = atom((get) => {
+export const notebookCellCodes = atom((get) => {
   const notebook = get(notebookAtom);
   const codes = Objects.fromEntries(
     notebook.cellIds.map((id) => {
