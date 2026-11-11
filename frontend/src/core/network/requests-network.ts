@@ -158,14 +158,6 @@ export function createNetworkRequests(): EditRequests & RunRequests {
         })
         .then(handleResponseReturnNull);
     },
-    sendStdin: (request) => {
-      return getClient()
-        .POST("/api/kernel/stdin", {
-          body: request,
-          params: getParams(),
-        })
-        .then(handleResponseReturnNull);
-    },
     sendInstallMissingPackages: (request) => {
       return getClient()
         .POST("/api/kernel/install_missing_packages", {

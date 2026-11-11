@@ -135,20 +135,6 @@ def test_install_missing_packages_server_source(client: TestClient) -> None:
 
 
 @with_session(SESSION_ID)
-def test_stdin(client: TestClient) -> None:
-    response = client.post(
-        "/api/kernel/stdin",
-        headers=HEADERS,
-        json={
-            "text": "user input",
-        },
-    )
-    assert response.status_code == 200, response.text
-    assert response.headers["content-type"] == "application/json"
-    assert "success" in response.json()
-
-
-@with_session(SESSION_ID)
 def test_focus_cell(client: TestClient) -> None:
     response = client.post(
         "/api/kernel/focus_cell",

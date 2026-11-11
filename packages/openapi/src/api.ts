@@ -2668,47 +2668,6 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  "/api/kernel/stdin": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    post: {
-      parameters: {
-        query?: never;
-        header: {
-          "Marimo-Session-Id": string;
-        };
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: {
-        content: {
-          "application/json": components["schemas"]["StdinRequest"];
-        };
-      };
-      responses: {
-        /** @description Send input to the stdin stream */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": components["schemas"]["SuccessResponse"];
-          };
-        };
-      };
-    };
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
   "/api/kernel/takeover": {
     parameters: {
       query?: never;
@@ -7227,10 +7186,6 @@ export interface components {
       op: "startup-progress";
       /** @enum {unknown} */
       phase: "preparing-environment" | "starting-kernel";
-    };
-    /** StdinRequest */
-    StdinRequest: {
-      text: string;
     };
     /**
      * StorageDownloadReadyNotification

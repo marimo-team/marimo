@@ -268,10 +268,6 @@ class SaveUserConfigurationRequest(msgspec.Struct, rename="camel"):
     config: dict[str, Any]
 
 
-class StdinRequest(msgspec.Struct, rename="camel"):
-    text: str
-
-
 class InvokeAiToolRequest(msgspec.Struct, rename="camel"):
     tool_name: str
     arguments: dict[str, Any]
