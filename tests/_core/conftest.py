@@ -64,8 +64,11 @@ class ScriptedBackend:
         )
         self.requests.append(request)
 
-    def interrupt(self, run_id: str) -> None:
-        self.calls.append(("interrupt", run_id))
+    def interrupt(self) -> None:
+        self.calls.append(("interrupt",))
+
+    def cancel(self, run_id: str) -> None:
+        self.calls.append(("cancel", run_id))
 
     def reply_input(self, input_id: str, value: str) -> None:
         self.calls.append(("reply_input", input_id, value))

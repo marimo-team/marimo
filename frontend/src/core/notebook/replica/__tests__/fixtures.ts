@@ -30,6 +30,11 @@ export type FakeInput = (
   ...args: Parameters<Commands["input"]>
 ) => ReturnType<Commands["input"]>;
 
+export type FakeInterrupt = (
+  notebookId: Protocol.NotebookId,
+  ...args: Parameters<Commands["interrupt"]>
+) => ReturnType<Commands["interrupt"]>;
+
 /** A backend over `transport` whose commands go to the given fakes. */
 export function fakeBackend({
   transport = async () => undefined,
@@ -37,6 +42,7 @@ export function fakeBackend({
   save = vi.fn<FakeSave>(),
   run = vi.fn<FakeRun>(),
   input = vi.fn<FakeInput>(),
+  interrupt = vi.fn<FakeInterrupt>(),
   checkHealth,
 }: {
   transport?: NotebookTransport;
@@ -44,6 +50,7 @@ export function fakeBackend({
   save?: FakeSave;
   run?: FakeRun;
   input?: FakeInput;
+  interrupt?: FakeInterrupt;
   checkHealth?: () => Promise<boolean>;
 } = {}): NotebookBackend {
   return {
@@ -53,6 +60,7 @@ export function fakeBackend({
       save: (...args) => save(notebookId, ...args),
       run: (...args) => run(notebookId, ...args),
       input: (...args) => input(notebookId, ...args),
+      interrupt: (...args) => interrupt(notebookId, ...args),
     }),
     checkHealth,
   };

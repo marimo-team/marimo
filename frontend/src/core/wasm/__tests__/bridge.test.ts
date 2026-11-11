@@ -16,6 +16,7 @@ const {
   rpcListeners,
   mockNotebookSubscribe,
   mockNotebookUnsubscribe,
+  workerState,
 } = vi.hoisted(() => ({
   mockBridge: vi.fn(),
   mockNotebookReadFile: vi.fn(),
@@ -36,10 +37,11 @@ const {
   >,
   mockNotebookSubscribe: vi.fn(),
   mockNotebookUnsubscribe: vi.fn(),
+  workerState: { interruptBuffer: undefined as Uint8Array | undefined },
 }));
 
 // Mock browser globals before any imports
-vi.stubGlobal("crossOriginIsolated", false);
+vi.stubGlobal("crossOriginIsolated", true);
 vi.stubGlobal(
   "Worker",
   // vitest 4 requires a `function` (not an arrow) for mocks called with `new`
@@ -74,6 +76,9 @@ vi.mock("@/core/wasm/rpc", () => ({
           notebookUnsubscribe: mockNotebookUnsubscribe,
           notebookCall: mockNotebookCall,
           setNotebookLayout: mockSetNotebookLayout,
+          setInterruptBuffer: (buffer: Uint8Array) => {
+            workerState.interruptBuffer = buffer;
+          },
         },
       },
       addMessageListener: (
@@ -102,7 +107,6 @@ vi.mock("@/core/wasm/store", () => ({
 // Import after all mocks are set up
 import { store } from "@/core/state/jotai";
 import { initialModeAtom } from "@/core/mode";
-import type { NotebookClient } from "@marimo-team/client";
 import type { NotebookReplica } from "@/core/notebook/replica";
 import { activeNotebookReplicaAtom } from "@/core/session/active-notebook";
 import { fallbackFileStore, notebookFileStore } from "../store";
@@ -262,7 +266,7 @@ it("cancels a pending notebook subscription before its RPC response", async () =
   }
 });
 
-it("raises the interrupt buffer for a running run before the worker takes the call", async () => {
+it("raises the interrupt buffer for a cancelled running run before the worker takes the call", async () => {
   vi.clearAllMocks();
   store.set(initialModeAtom, "read");
   rpcListeners.initialized();
@@ -284,35 +288,117 @@ it("raises the interrupt buffer for a running run before the worker takes the ca
         latest: new Map(),
       }),
     }) as unknown as NotebookReplica;
-  const interrupt = vi
-    .spyOn(PyodideBridge.INSTANCE, "sendInterrupt")
-    .mockResolvedValue(null);
+  const buffer = workerState.interruptBuffer!;
+  buffer[0] = 0;
   mockNotebookCall.mockResolvedValue({ status: 202, body: run });
+  mockNotebookCall.mockImplementationOnce(async () => {
+    expect(buffer[0]).toBe(2);
+    return { status: 202, body: run };
+  });
   try {
     const backend = await PyodideBridge.INSTANCE.createNotebookBackend();
-    // The backend narrows the client to editing until the editor runs through the host.
-    const notebook = backend.notebook("n1") as unknown as NotebookClient;
+    const notebook = backend.notebook("n1");
 
     store.set(activeNotebookReplicaAtom, replicaWith("running"));
-    expect((await notebook.interrupt("run-1")).ok).toBe(true);
-    expect(interrupt).toHaveBeenCalledOnce();
+    expect((await notebook.cancel({ runId: "run-1" })).ok).toBe(true);
+    expect(buffer[0]).toBe(2);
     expect(mockNotebookCall).toHaveBeenCalledOnce();
-    expect(interrupt.mock.invocationCallOrder[0]).toBeLessThan(
-      mockNotebookCall.mock.invocationCallOrder[0],
-    );
 
+    buffer[0] = 0;
     store.set(activeNotebookReplicaAtom, replicaWith("queued"));
-    expect((await notebook.interrupt("run-1")).ok).toBe(true);
-    expect(interrupt).toHaveBeenCalledOnce();
+    expect((await notebook.cancel({ runId: "run-1" })).ok).toBe(true);
+    expect(buffer[0]).toBe(0);
     expect(mockNotebookCall).toHaveBeenCalledTimes(2);
   } finally {
-    interrupt.mockRestore();
+    buffer[0] = 0;
     store.set(activeNotebookReplicaAtom, null);
     store.set(initialModeAtom, undefined);
   }
 });
 
-it("raises the interrupt buffer once a run interrupted while queued starts", async () => {
+it.each(["running", "completed", null])(
+  "signals runtime work before the RPC with recorded run status %s",
+  async (status) => {
+    vi.clearAllMocks();
+    store.set(initialModeAtom, "read");
+    rpcListeners.initialized();
+    const run = {
+      id: "run-1",
+      notebook_id: "n1",
+      runtime_id: "r1",
+      cells: [],
+      status: "running",
+      outcome: null,
+      started_at: "2026-10-01T09:20:11Z",
+      completed_at: null,
+    };
+    const replicaWith = (status: string) =>
+      ({
+        executionsAtom: atom({
+          runs: new Map([["run-1", { ...run, status }]]),
+          executions: new Map(),
+          latest: new Map(),
+        }),
+      }) as unknown as NotebookReplica;
+    const buffer = workerState.interruptBuffer!;
+    buffer[0] = 0;
+    const accepted = {
+      status: 202,
+      body: {
+        id: "r1",
+        notebook_id: "n1",
+        status: "running",
+        message: null,
+        marimo_version: null,
+        started_at: "2026-10-01T09:20:11Z",
+      },
+    };
+    mockNotebookCall.mockImplementation(async () => {
+      expect(buffer[0]).toBe(2);
+      return accepted;
+    });
+    try {
+      const backend = await PyodideBridge.INSTANCE.createNotebookBackend();
+      const notebook = backend.notebook("n1");
+
+      store.set(
+        activeNotebookReplicaAtom,
+        status === null ? null : replicaWith(status),
+      );
+      expect((await notebook.interrupt()).ok).toBe(true);
+      expect(buffer[0]).toBe(2);
+
+      // Nothing holds the worker, so it takes the call and ends queued runs.
+      buffer[0] = 0;
+      store.set(activeNotebookReplicaAtom, replicaWith("queued"));
+      expect((await notebook.interrupt()).ok).toBe(true);
+      expect(buffer[0]).toBe(2);
+      expect(mockNotebookCall).toHaveBeenCalledTimes(2);
+      buffer[0] = 0;
+
+      // The worker took the queued run before the interrupt reached it.
+      const deliver = (status: string) =>
+        rpcListeners.notebookEvent({
+          id: "sub",
+          event: JSON.stringify({
+            event: "run",
+            data: { run: { ...run, status } },
+          }),
+        });
+      deliver("running");
+      expect(buffer[0]).toBe(2);
+      buffer[0] = 0;
+      deliver("completed");
+      expect(buffer[0]).toBe(0);
+    } finally {
+      buffer[0] = 0;
+      store.set(activeNotebookReplicaAtom, null);
+      store.set(initialModeAtom, undefined);
+    }
+  },
+);
+
+it("raises the interrupt buffer once a run cancelled while queued starts", async () => {
   vi.clearAllMocks();
   store.set(initialModeAtom, "read");
   rpcListeners.initialized();
@@ -333,9 +419,8 @@ it("raises the interrupt buffer once a run interrupted while queued starts", asy
       latest: new Map(),
     }),
   } as unknown as NotebookReplica);
-  const interrupt = vi
-    .spyOn(PyodideBridge.INSTANCE, "sendInterrupt")
-    .mockResolvedValue(null);
+  const buffer = workerState.interruptBuffer!;
+  buffer[0] = 0;
   mockNotebookCall.mockResolvedValue({ status: 202, body: run });
   const deliver = (status: string) =>
     rpcListeners.notebookEvent({
@@ -347,18 +432,19 @@ it("raises the interrupt buffer once a run interrupted while queued starts", asy
     });
   try {
     const backend = await PyodideBridge.INSTANCE.createNotebookBackend();
-    const notebook = backend.notebook("n1") as unknown as NotebookClient;
-    expect((await notebook.interrupt("run-1")).ok).toBe(true);
-    expect(interrupt).not.toHaveBeenCalled();
+    const notebook = backend.notebook("n1");
+    expect((await notebook.cancel({ runId: "run-1" })).ok).toBe(true);
+    expect(buffer[0]).toBe(0);
 
     // The worker took the run before the cancellation reached it.
     deliver("running");
-    expect(interrupt).toHaveBeenCalledOnce();
+    expect(buffer[0]).toBe(2);
+    buffer[0] = 0;
     deliver("running");
     deliver("completed");
-    expect(interrupt).toHaveBeenCalledOnce();
+    expect(buffer[0]).toBe(0);
   } finally {
-    interrupt.mockRestore();
+    buffer[0] = 0;
     store.set(activeNotebookReplicaAtom, null);
     store.set(initialModeAtom, undefined);
   }
@@ -387,4 +473,62 @@ describe("getWasmWorkerName", () => {
     ).__MARIMO_HAS_WASM_CONTROLLER__ = "true";
     expect(getWasmWorkerName()).toBe("marimo");
   });
+});
+
+it("signals an interrupt once across pending, completed, and lost-reply retries", async () => {
+  vi.clearAllMocks();
+  store.set(initialModeAtom, "read");
+  rpcListeners.initialized();
+  const buffer = workerState.interruptBuffer!;
+  buffer[0] = 0;
+  const clock = vi.spyOn(performance, "now").mockReturnValue(0);
+  const pending = new Deferred<unknown>();
+  const accepted = {
+    status: 202,
+    body: {
+      id: "r1",
+      notebook_id: "n1",
+      status: "running",
+      message: null,
+      marimo_version: null,
+      started_at: "2026-10-01T09:20:11Z",
+    },
+  };
+  mockNotebookCall.mockImplementation(() => pending.promise);
+  try {
+    const backend = await PyodideBridge.INSTANCE.createNotebookBackend();
+    const notebook = backend.notebook("n1");
+    const options = { idempotencyKey: "retry-interrupt" };
+    const first = notebook.interrupt(options);
+    expect(buffer[0]).toBe(2);
+    buffer[0] = 0;
+    const retry = notebook.interrupt(options);
+    expect(buffer[0]).toBe(0);
+    pending.resolve(accepted);
+    expect(await retry).toEqual(await first);
+    await notebook.interrupt(options);
+    expect(buffer[0]).toBe(0);
+    expect(mockNotebookCall).toHaveBeenCalledTimes(3);
+
+    mockNotebookCall.mockRejectedValueOnce(new Error("Lost reply"));
+    await expect(
+      notebook.interrupt({ idempotencyKey: "lost-interrupt" }),
+    ).rejects.toThrow("Lost reply");
+    expect(buffer[0]).toBe(2);
+    buffer[0] = 0;
+    await notebook.interrupt({ idempotencyKey: "lost-interrupt" });
+    expect(buffer[0]).toBe(0);
+
+    // A new user action still signals; settled receipts expire with the worker's.
+    await notebook.interrupt();
+    expect(buffer[0]).toBe(2);
+    buffer[0] = 0;
+    clock.mockReturnValue(300_001);
+    await notebook.interrupt(options);
+    expect(buffer[0]).toBe(2);
+  } finally {
+    buffer[0] = 0;
+    clock.mockRestore();
+    store.set(initialModeAtom, undefined);
+  }
 });

@@ -8,7 +8,7 @@ from typing import Any, Generic, Literal, TypeVar, cast, get_args
 import msgspec
 
 from marimo._types.ids import VariableName
-from marimo._utils.assert_never import log_never
+from marimo._utils.log_never import log_never
 
 CLOUD_STORAGE_TYPES = Literal["s3", "gcs", "azure", "cloudflare", "coreweave"]
 KNOWN_STORAGE_TYPES = Literal[CLOUD_STORAGE_TYPES, "http", "file", "in-memory"]

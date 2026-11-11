@@ -644,7 +644,8 @@ def test_open_notebook_connects_and_reconnects_to_host(
             }
         )
         notebook = None
-        for notification in ("kernel-ready", "reconnected"):
+        # The second connection rejoins the session and is told so.
+        for notification in ("kernel-ready", "alert"):
             if transport == "ws":
                 with client.websocket_connect(f"/ws?{query}") as socket:
                     snapshot = socket_snapshot(socket)

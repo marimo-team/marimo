@@ -398,7 +398,9 @@ def try_kill_process_and_group(process: ProcessLike) -> None:
         try:
             completed = _subprocess.run(
                 ["taskkill", "/T", "/F", "/PID", str(pid)],
-                capture_output=True,
+                stdout=_subprocess.DEVNULL,
+                stderr=_subprocess.DEVNULL,
+                timeout=5,
             )
             if completed.returncode != 0:
                 process.terminate()

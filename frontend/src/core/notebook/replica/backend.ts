@@ -15,7 +15,7 @@ export interface NotebookBackend {
    */
   notebook(
     id: NotebookId,
-  ): Pick<NotebookClient, "edit" | "save" | "run" | "input">;
+  ): Pick<NotebookClient, "edit" | "save" | "run" | "input" | "interrupt">;
   /** Whether the host is reachable before an explicit reconnect. Absent means always. */
   checkHealth?(): Promise<boolean>;
 }

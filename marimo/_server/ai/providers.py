@@ -43,8 +43,8 @@ from marimo._server.ai.tracing import (
     trace_stream,
 )
 from marimo._server.models.completion import UIMessage as ServerUIMessage
-from marimo._utils.assert_never import log_never
 from marimo._utils.http import HTTPStatus
+from marimo._utils.log_never import log_never
 from marimo._utils.typing import override
 from marimo._version import __version__
 

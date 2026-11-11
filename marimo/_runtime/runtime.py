@@ -18,6 +18,7 @@ from multiprocessing import connection
 from typing import (
     TYPE_CHECKING,
     Any,
+    assert_never,
     cast,
 )
 from uuid import uuid4
@@ -825,8 +826,6 @@ class Kernel:
         The one place that maps an `OutOfBandCommand` to its handler; extend
         with a new branch when adding a member to the union.
         """
-        from marimo._utils.assert_never import assert_never
-
         if isinstance(command, SetBreakpointsCommand):
             self.set_breakpoints(command)
         elif isinstance(command, CodeCompletionCommand):
@@ -2935,7 +2934,11 @@ def _bootstrap_subprocess(
     if not is_subprocess:
         return None
 
-    restore_signals()
+    # The server can interrupt the kernel as soon as it connects, and the
+    # default action for SIGINT would end the process. No user code runs
+    # until the interrupt handler is installed, so an early interrupt has
+    # nothing to stop and is ignored.
+    restore_signals(sigint=signal.SIG_IGN)
 
     # Become the leader of a new session/process group before connecting
     # back to the parent, to avoid race conditions with the parent

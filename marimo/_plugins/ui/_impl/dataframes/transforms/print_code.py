@@ -1,7 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, assert_never
 
 from marimo._plugins.ui._impl.dataframes.transforms.types import (
     FilterCondition,
@@ -9,7 +9,6 @@ from marimo._plugins.ui._impl.dataframes.transforms.types import (
     Transform,
     TransformType,
 )
-from marimo._utils.assert_never import assert_never
 
 POLARS_EXPLICIT_EXPLODE_MIN_VERSION = "1.36.0"
 

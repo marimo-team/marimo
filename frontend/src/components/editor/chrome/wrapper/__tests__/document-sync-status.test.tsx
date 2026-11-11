@@ -20,15 +20,18 @@ afterEach(() => {
 });
 
 const conflict = {
-  ok: false as const,
-  status: 409,
+  ok: false,
+  status: 412,
   problem: {
-    type: "tag:marimo.io,2026:host/conflict",
-    title: "Conflict",
-    status: 409,
+    type: "urn:marimo:problem:precondition-failed",
+    title: "Precondition failed",
+    status: 412,
     detail: "cell c1 has changed since it was read.",
+    index: 0,
+    cell: document().cells.get("c1")!,
+    document: document().revision,
   },
-};
+} satisfies Awaited<ReturnType<FakeEdit>>;
 
 function setup(edit: FakeEdit) {
   const store = createStore();

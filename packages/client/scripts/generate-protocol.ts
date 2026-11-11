@@ -12,45 +12,16 @@ const root = NodeUrl.fileURLToPath(new URL("../../../", import.meta.url));
 const { values: args } = NodeUtil.parseArgs({
   options: {
     check: { type: "boolean", default: false },
-    "include-experimental": { type: "string" },
     "output-dir": { type: "string" },
   },
-  args: process.argv
-    .slice(2)
-    .map((arg) =>
-      arg === "--include-experimental" ? "--include-experimental=all" : arg,
-    ),
 });
 const source = args["output-dir"] ?? NodePath.join(root, "packages/client/src");
-const selection = args["include-experimental"];
-const spec: OpenApiDocument = JSON.parse(
-  NodeChildProcess.execFileSync(
-    "uv",
-    [
-      "run",
-      "--no-config",
-      "--locked",
-      "--script",
-      NodePath.join(root, "protocols/host/generate.py"),
-      "--schema",
-      ...(selection === undefined
-        ? []
-        : [`--include-experimental=${selection}`]),
-    ],
-    { encoding: "utf8", maxBuffer: 10 * 1024 * 1024 },
-  ),
-);
-const features = (spec["x-marimo-experimental"] ?? []) as string[];
-const regenerationCommand = features.length
-  ? `pnpm --dir packages/client codegen --include-experimental=${features.join(",")}`
-  : "pnpm --dir packages/client codegen:stable";
+// The host protocol package prints its OpenAPI document, piped in on stdin.
+const spec: OpenApiDocument = JSON.parse(NodeFs.readFileSync(0, "utf8"));
 const header = [
   "/* Copyright 2026 Marimo. All rights reserved. */",
-  "// Generated from protocols/host/openapi.yaml. Do not edit.",
-  ...(features.length
-    ? [`// Experimental features: ${features.join(", ")}`]
-    : []),
-  `// Regenerate with: ${regenerationCommand}`,
+  "// Generated from packages/host-protocol. Do not edit.",
+  "// Regenerate with: pnpm --dir packages/client codegen",
   "\n",
 ].join("\n");
 
@@ -61,18 +32,21 @@ interface Parameter {
 }
 
 interface Response {
-  content?: Record<string, { schema?: { $ref?: string } }>;
+  content?: Record<
+    string,
+    { schema?: { $ref?: string; anyOf?: { $ref: string }[] } }
+  >;
 }
 
 interface Operation {
   operationId: string;
   summary?: string;
-  parameters?: { $ref: string }[];
+  parameters?: Parameter[];
   requestBody?: {
     required?: boolean;
     content: Record<string, { schema: { $ref: string } }>;
   };
-  responses: Record<string, Response | { $ref: string }>;
+  responses: Record<string, Response>;
 }
 
 /** The last segment of a local `$ref`, such as `EditRequest`. */
@@ -87,14 +61,10 @@ function refName(ref: string | undefined): string {
 /**
  * Describe each operation as data for the client to call.
  *
- * Error responses share the `Problem` schema, so only their statuses are
- * listed. Shapes the client cannot call yet are rejected, so a change to the
+ * Shapes the client cannot call yet are rejected, so a change to the
  * spec fails here instead of producing a wrong table.
  */
 function operationsModule(spec: OpenApiDocument): string {
-  const parameters = spec.components?.parameters as
-    | Record<string, Parameter>
-    | undefined;
   const entries: string[] = [];
   for (const [path, item] of Object.entries(spec.paths ?? {})) {
     for (const [method, value] of Object.entries(item ?? {})) {
@@ -106,11 +76,7 @@ function operationsModule(spec: OpenApiDocument): string {
       const query: string[] = [];
       const headers: string[] = [];
       const pathNames: string[] = [];
-      for (const reference of operation.parameters ?? []) {
-        const parameter = parameters?.[refName(reference.$ref)];
-        if (parameter === undefined) {
-          throw new Error(`${id} names an unknown parameter`);
-        }
+      for (const parameter of operation.parameters ?? []) {
         const entry = `${JSON.stringify(parameter.name)}: ${parameter.required === true}`;
         if (parameter.in === "path") {
           pathNames.push(parameter.name);
@@ -135,12 +101,14 @@ function operationsModule(spec: OpenApiDocument): string {
       const responses: string[] = [];
       const problems: string[] = [];
       for (const [status, response] of Object.entries(operation.responses)) {
-        if ("$ref" in response) {
-          problems.push(status);
-          continue;
-        }
         const types = Object.keys(response.content ?? {});
-        if (types.length === 0) {
+        if (types.join() === "application/problem+json") {
+          const schema = response.content?.["application/problem+json"]?.schema;
+          const members = schema?.anyOf ?? [schema];
+          problems.push(
+            `${status}: [${members.map((member) => `Protocol.${refName(member?.$ref)}`).join(", ")}]`,
+          );
+        } else if (types.length === 0) {
           responses.push(`${status}: null`);
         } else if (types.join() === "text/event-stream") {
           responses.push(`${status}: "text/event-stream"`);
@@ -161,7 +129,7 @@ function operationsModule(spec: OpenApiDocument): string {
           `headers: { ${headers.join(", ")} },`,
           `body: ${body},`,
           `responses: { ${responses.join(", ")} },`,
-          `problems: [${problems.join(", ")}],`,
+          `problems: { ${problems.join(", ")} },`,
           "},",
         ].join("\n"),
       );
@@ -175,7 +143,7 @@ function operationsModule(spec: OpenApiDocument): string {
  * Path parameters are the placeholders in \`path\`. \`query\` and \`headers\`
  * map each parameter to whether it is required. \`responses\` maps each
  * success status to its schema, \`null\` for no content, or an event stream.
- * \`problems\` lists the statuses that answer with a \`Problem\`.
+ * \`problems\` maps each error status to the problems it can carry.
  */
 export const operations = {
 ${entries.join("\n")}
@@ -213,7 +181,23 @@ try {
       },
     },
   });
-  NodeFs.writeFileSync(output, header + NodeFs.readFileSync(output, "utf8"));
+  let generated = NodeFs.readFileSync(output, "utf8");
+  for (const [name, schema] of Object.entries(schemas)) {
+    if (
+      typeof schema === "object" &&
+      "additionalProperties" in schema &&
+      schema.additionalProperties === false
+    ) {
+      const declaration = new RegExp(
+        `(export const ${name} = zod\\s*\\.)object\\(`,
+      );
+      if (!declaration.test(generated)) {
+        throw new Error(`Expected an object schema for ${name}`);
+      }
+      generated = generated.replace(declaration, "$1strictObject(");
+    }
+  }
+  NodeFs.writeFileSync(output, header + generated);
   const table = NodePath.join(temporary, "operations-table.ts");
   NodeFs.writeFileSync(table, operationsModule(spec));
   NodeChildProcess.execFileSync(

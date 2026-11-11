@@ -54,7 +54,7 @@ class SigintHandler:
                 handler(signum, frame)
 
 
-def restore_signals() -> None:
+def restore_signals(*, sigint: signal.Handlers = signal.SIG_DFL) -> None:
     # Restore the system default signal handlers.
     #
     # The server process may register signal handlers (uvicorn does this),
@@ -65,7 +65,7 @@ def restore_signals() -> None:
     signal.set_wakeup_fd(-1)
 
     signal.signal(signal.SIGTERM, signal.SIG_DFL)
-    signal.signal(signal.SIGINT, signal.SIG_DFL)
+    signal.signal(signal.SIGINT, sigint)
 
 
 def get_signals() -> dict[int, Any]:

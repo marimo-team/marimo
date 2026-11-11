@@ -4,7 +4,7 @@ from __future__ import annotations
 import asyncio
 import subprocess
 import sys
-from typing import cast
+from typing import assert_never, cast
 
 from marimo import _loggers
 from marimo._cli.install_hints import (
@@ -20,7 +20,6 @@ from marimo._schemas.export_options import (
     ExportSetupRequirementName,
     ServerExportFormat,
 )
-from marimo._utils.assert_never import assert_never
 from marimo._utils.async_path import isfile
 from marimo._utils.asyncio_utils import run_on_proactor_loop
 

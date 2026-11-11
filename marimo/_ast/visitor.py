@@ -499,6 +499,9 @@ class ScopedVisitor(ast.NodeVisitor):
                 if isinstance(node, ast.ClassDef)
                 else LexicalScope.FUNCTION
             )
+            if sys.version_info >= (3, 12) and isinstance(node, ast.ClassDef):
+                for child in node.type_params:
+                    self.visit(child)
             super().generic_visit(node)
             self._pop_block()
         elif isinstance(node, (ast.AsyncFunctionDef, ast.FunctionDef)):

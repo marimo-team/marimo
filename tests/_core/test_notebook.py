@@ -14,7 +14,13 @@ from msgspec.structs import replace
 
 from marimo._core import backend as be, protocol, protocol_events
 from marimo._core.document import Document, DocumentCell
-from marimo._core.errors import Conflict, Invalid, NoRuntime, NotFound
+from marimo._core.errors import (
+    Conflict,
+    Invalid,
+    NoRuntime,
+    NotFound,
+    PreconditionFailed,
+)
 from marimo._core.executions import CellExecution, Executions
 from marimo._core.host import Host
 from marimo._core.notebook import Notebook
@@ -888,6 +894,39 @@ class TestRunCompletion:
 
 
 class TestInterrupt:
+    def test_asks_the_backend_and_returns_the_runtime(
+        self, notebook: Notebook, backend: ScriptedBackend
+    ) -> None:
+        runtime = running(notebook, backend)
+        scratch(notebook)
+        backend.calls.clear()
+
+        assert notebook.interrupt() == runtime
+
+        assert backend.calls == [("interrupt",)]
+        assert notebook.runtime == runtime
+
+    def test_an_idle_runtime_accepts_it(
+        self, notebook: Notebook, backend: ScriptedBackend
+    ) -> None:
+        runtime = running(notebook, backend)
+
+        assert notebook.interrupt() == runtime
+
+        assert backend.calls == [("interrupt",)]
+
+    def test_needs_a_running_runtime(
+        self, notebook: Notebook, backend: ScriptedBackend
+    ) -> None:
+        with pytest.raises(NoRuntime):
+            notebook.interrupt()
+        notebook.start()
+        with pytest.raises(Conflict, match="starting"):
+            notebook.interrupt()
+        assert ("interrupt",) not in backend.calls
+
+
+class TestCancel:
     def test_asks_the_backend_while_in_progress(
         self, notebook: Notebook, backend: ScriptedBackend
     ) -> None:
@@ -895,21 +934,21 @@ class TestInterrupt:
         run = scratch(notebook)
         backend.calls.clear()
 
-        notebook.interrupt(run.id)
+        notebook.cancel(run.id)
 
-        assert backend.calls == [("interrupt", run.id)]
+        assert backend.calls == [("cancel", run.id)]
 
     def test_refuses_unknown_and_finished_runs(
         self, notebook: Notebook, backend: ScriptedBackend
     ) -> None:
         running(notebook, backend)
         with pytest.raises(NotFound):
-            notebook.interrupt("nope")
+            notebook.cancel("nope")
         run = scratch(notebook)
         notebook.observe(be.Completed(ExecutionId("e1"), value("9")))
         notebook.observe(be.Done(run.id, "succeeded"))
         with pytest.raises(NotFound):
-            notebook.interrupt(run.id)
+            notebook.cancel(run.id)
 
 
 class TestCellResults:
@@ -1510,7 +1549,7 @@ async def test_running_a_cell_whose_content_changed_is_a_conflict(
     notebook.replace([replacement], {})
     calls = len(notebook.backend.calls)  # type: ignore[attr-defined]
 
-    with pytest.raises(Conflict, match="changed"):
+    with pytest.raises(PreconditionFailed, match="changed") as stale:
         notebook.run(
             cells=[
                 protocol.RequestedCell(id=CellId("c1"), etag=original.etag)
@@ -1518,12 +1557,24 @@ async def test_running_a_cell_whose_content_changed_is_a_conflict(
             request_id="run-1",
             request=None,
         )
-    with pytest.raises(Invalid, match="not in the document"):
+    assert stale.value.index == 0
+    assert stale.value.cell is not None
+    assert stale.value.cell.etag == replacement.etag
+    assert stale.value.document.etag == notebook.document.etag
+    with pytest.raises(
+        PreconditionFailed, match="not in the document"
+    ) as missing:
         notebook.run(
-            cells=[protocol.RequestedCell(id=CellId("ghost"))],
+            cells=[
+                protocol.RequestedCell(id=CellId("c1")),
+                protocol.RequestedCell(id=CellId("ghost")),
+            ],
             request_id="run-2",
             request=None,
         )
+    assert missing.value.index == 1
+    assert missing.value.cell is None
+    assert missing.value.document.etag == notebook.document.etag
 
     assert len(notebook.backend.calls) == calls  # type: ignore[attr-defined]
     assert notebook.executions.active() is None

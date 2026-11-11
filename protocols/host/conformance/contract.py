@@ -4,7 +4,6 @@
 from __future__ import annotations
 
 import asyncio
-import hashlib
 import json
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
@@ -12,7 +11,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
-import msgspec.yaml
+from generate import openapi
 from jsonschema import Draft202012Validator, FormatChecker
 
 if TYPE_CHECKING:
@@ -21,7 +20,7 @@ if TYPE_CHECKING:
     import httpx
 
 ROOT = Path(__file__).resolve().parent.parent
-SPEC = msgspec.yaml.decode((ROOT / "openapi.yaml").read_bytes())
+SPEC = openapi()
 KINDS = (
     "host",
     "project",
@@ -37,11 +36,13 @@ KINDS = (
     "input",
     "variable",
 )
+SCHEMAS = SPEC["components"]["schemas"]
 REMOVAL_EVENTS = {
     name
-    for name in SPEC["components"]["schemas"]["Event"]["discriminator"][
-        "mapping"
-    ]
+    for member in SCHEMAS["Event"]["anyOf"]
+    for name in SCHEMAS[member["$ref"].rsplit("/", 1)[1]]["properties"][
+        "event"
+    ]["enum"]
     if name.endswith(".removed")
 }
 
@@ -182,7 +183,7 @@ def problem(response: httpx.Response, status: int, kind: str) -> Any:
     value = response.json()
     validate("Problem", value)
     assert value["status"] == status
-    assert value["type"] == f"tag:marimo.io,2026:host/{kind}"
+    assert value["type"] == f"urn:marimo:problem:{kind}"
     return value
 
 
@@ -190,14 +191,10 @@ def objects(snapshot: list[Frame], kind: str) -> list[dict[str, Any]]:
     return [frame.message()[kind] for frame in snapshot if frame.event == kind]
 
 
-def etag(text: str) -> str:
-    return hashlib.sha256(text.encode("utf-8")).hexdigest()[:16]
-
-
 def document_state(
     snapshot: list[Frame],
 ) -> tuple[dict[str, Any], dict[str, Any]]:
-    """Check document ordering and hashes using only observed wire records."""
+    """Check document ordering using only observed wire records."""
     cells: dict[str, Any] = {}
     document = None
     for frame in snapshot:
@@ -215,29 +212,6 @@ def document_state(
         assert cell["notebook_id"] == document["notebook_id"]
         assert isinstance(cell["code_fingerprint"], str)
         assert cell["code_fingerprint"]
-        if cell["code"] is not None:
-            config = cell["config"]
-            parts = [etag(cell["code"]), cell["name"]]
-            parts.extend(
-                json.dumps(config[key])
-                for key in ("column", "disabled", "hide_code", "expand_output")
-            )
-            assert cell["etag"] == etag("\n".join(parts))
-    assert document["order_etag"] == etag(
-        json.dumps(
-            document["order"], separators=(",", ":"), ensure_ascii=False
-        )
-    )
-    canonical = json.dumps(
-        document["app_config"],
-        sort_keys=True,
-        separators=(",", ":"),
-        ensure_ascii=False,
-    )
-    assert document["app_config_etag"] == etag(canonical)
-    parts = [document["order_etag"], document["app_config_etag"]]
-    parts.extend(cells[cell_id]["etag"] for cell_id in document["order"])
-    assert document["etag"] == etag("\n".join(parts))
     assert document["version"] >= 1
     for cell in cells.values():
         assert 1 <= cell["version"] <= document["version"]

@@ -1,7 +1,7 @@
 name: 📋 Pull Request Validation
 
 on:
-  pull_request:
+  pull_request_target:
     types: [labeled, unlabeled, opened, reopened, edited, synchronize]
 
 permissions:
@@ -31,6 +31,11 @@ jobs:
         with:
           script: |
             const pr = context.payload.pull_request;
+            if (pr.user.type === "Bot") {
+              core.info("Bot accounts are exempt from template validation.");
+              return;
+            }
+
             const team = new Set(["OWNER", "MEMBER", "COLLABORATOR"]);
             if (team.has(pr.author_association)) {
               core.info("Internal team members are exempt from template validation.");
