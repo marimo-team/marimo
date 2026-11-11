@@ -16,6 +16,7 @@ import {
   focusCellAtom,
   mergeCellBelowAtom,
   moveToNextCellAtom,
+  setCellCodeAtom,
   showCellIfHiddenAtom,
   splitCellAtom,
   undoDeleteCellAtom,
@@ -219,6 +220,7 @@ describe("mergeCellBelowAtom", () => {
         type: "merge",
         cellId: c1,
         code: "x = 1",
+        merged: "x = 1\ny = 2",
         cells: [
           {
             cell: { id: c2, code: "y = 2", name: "_", config: CONFIG },
@@ -236,6 +238,18 @@ describe("mergeCellBelowAtom", () => {
     expect(cellIn(c2)?.code).toBe("y = 2");
     expect(view.state.doc.toString()).toBe("x = 1");
     expect(notebook().history).toEqual([]);
+  });
+
+  it("keeps edits made after the merge when undoing it", () => {
+    const { store, order, cellIn } = setup();
+    store.set(mergeCellBelowAtom, { cellId: c1 });
+    store.set(setCellCodeAtom, { cellId: c1, code: "x = 3\ny = 2" });
+
+    store.set(undoDeleteCellAtom);
+
+    expect(order()).toEqual([c1, c2]);
+    expect(cellIn(c1)?.code).toBe("x = 3\ny = 2");
+    expect(cellIn(c2)?.code).toBe("y = 2");
   });
 
   it("does nothing for the last cell of a column", () => {

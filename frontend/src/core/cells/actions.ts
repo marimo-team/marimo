@@ -263,7 +263,7 @@ export const mergeCellBelowAtom = atom(
       ...state,
       history: [
         ...state.history,
-        { type: "merge", cellId, code, cells: [removed.cells[0]] },
+        { type: "merge", cellId, code, merged, cells: [removed.cells[0]] },
       ],
       scrollKey: cellId,
     }));
@@ -623,8 +623,11 @@ export const undoDeleteCellAtom = atom(null, (get, set): void => {
   }
   const model = modelOf(get);
   const before = documentOf(get);
+  // Edits made since the merge win: the cell below returns, the code stays.
   const merge =
-    last.type === "merge" && before.cells.has(last.cellId) ? last : null;
+    last.type === "merge" && before.cells.get(last.cellId)?.code === last.merged
+      ? last
+      : null;
   if (merge) {
     showCode(get, merge.cellId, merge.code);
     clearOutput(set, merge.cellId);

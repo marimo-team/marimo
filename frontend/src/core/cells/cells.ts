@@ -80,6 +80,7 @@ export interface UndoMergeEntry {
   type: "merge";
   cellId: CellId;
   code: string;
+  merged: string;
   cells: [DeletedCell];
 }
 
