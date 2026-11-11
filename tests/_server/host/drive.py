@@ -161,11 +161,16 @@ def request(
 
 
 async def finished(
-    app: Starlette, method: str, path: str, **kwargs: Any
+    app: Starlette,
+    method: str,
+    path: str,
+    *,
+    timeout: float = 5,
+    **kwargs: Any,
 ) -> Response:
     """Await a complete response to a non-streaming request."""
     response, task, _ = request(app, method, path, **kwargs)
-    await asyncio.wait_for(task, 5)
+    await asyncio.wait_for(task, timeout)
     return response
 
 
