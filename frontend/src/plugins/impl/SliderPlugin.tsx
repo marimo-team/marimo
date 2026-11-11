@@ -166,11 +166,15 @@ const SliderComponent = ({
   );
 
   const stepsConfig = useMemo(() => computeStepsConfig(steps), [steps]);
+  const stepDigits = countFractionDigits(step ?? 0);
+  // Keep exact decimals; repeating fractions need only enough digits to distinguish steps.
+  const isDecimalStep =
+    step != null && roundToFractionDigits(step, stepDigits) === step;
   const fractionDigits =
     step != null && Number.isFinite(step) && step > 0 && !steps?.length
       ? Math.max(
           countFractionDigits(start),
-          Math.min(2, countFractionDigits(step)),
+          isDecimalStep ? stepDigits : 2,
           Math.ceil(-Math.log10(step)),
         )
       : fractionDigitsForSlider(step, steps, start, [valueMap(internalValue)]);
