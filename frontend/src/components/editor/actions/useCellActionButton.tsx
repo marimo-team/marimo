@@ -1,7 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import type { EditorView } from "@codemirror/view";
-import { useAtomValue, useSetAtom } from "jotai";
+import { atom, useAtomValue, useSetAtom } from "jotai";
 import {
   ChevronDownIcon,
   ChevronLeftIcon,
@@ -28,6 +28,7 @@ import {
   ZapIcon,
   ZapOffIcon,
 } from "lucide-react";
+import { useMemo } from "react";
 import { MultiIcon } from "@/components/icons/multi-icon";
 import { useImperativeModal } from "@/components/modal/ImperativeModal";
 import {
@@ -40,7 +41,10 @@ import { toast } from "@/components/ui/use-toast";
 import { aiCompletionCellAtom } from "@/core/ai/state";
 import { maybeAddMarimoImport } from "@/core/cells/add-missing-import";
 import { hasOnlyOneCellAtom } from "@/core/cells/cells";
-import { useCellActions } from "@/core/cells/actions";
+import {
+  hasMergeableCellBelowAtom,
+  useCellActions,
+} from "@/core/cells/actions";
 import { showHiddenCodeAtom } from "@/core/cells/editor";
 import { type CellId, SETUP_CELL_ID } from "@/core/cells/ids";
 import { useNotebookDocumentEdit } from "@/core/notebook/document";
@@ -104,6 +108,16 @@ export function useCellActionButtons({ cell, closePopover }: Props) {
   const edit = useNotebookDocumentEdit();
   const splitCell = useSplitCellCallback();
   const mergeCellBelow = useMergeCellBelowCallback();
+  const cellIdForMerge = cell?.cellId;
+  const canMergeBelow = useAtomValue(
+    useMemo(
+      () =>
+        cellIdForMerge === undefined
+          ? atom(false)
+          : hasMergeableCellBelowAtom(cellIdForMerge),
+      [cellIdForMerge],
+    ),
+  );
   const runCell = useRunCell(cell?.cellId);
   const hasOnlyOneCell = useAtomValue(hasOnlyOneCellAtom);
   const canDelete = !hasOnlyOneCell;
@@ -188,7 +202,7 @@ export function useCellActionButtons({ cell, closePopover }: Props) {
         icon: <FoldVerticalIcon size={13} strokeWidth={1.5} />,
         label: "Merge with cell below",
         hotkey: "cell.mergeCellBelow",
-        hidden: isSetupCell,
+        hidden: !canMergeBelow,
         handle: () => mergeCellBelow({ cellId }),
       },
       {

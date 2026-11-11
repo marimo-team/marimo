@@ -6,6 +6,7 @@ import { dequal } from "dequal";
 import { getCellCode } from "./cell-code";
 import { languageAdapterFromCode, languageAdapterState } from "./extension";
 import { languageMetadataField } from "./metadata";
+import type { LanguageAdapterType } from "./types";
 
 /**
  * Get the editor code as Python
@@ -75,9 +76,30 @@ export function mergeCellCode(above: string, below: string): string | null {
   if (!dequal(metadata, belowMetadata)) {
     return null;
   }
-  const separator = adapter.type === "markdown" ? "\n\n" : "\n";
   return adapter.transformOut(
-    `${aboveText}${separator}${belowText}`,
+    `${aboveText}${separatorFor(adapter.type)}${belowText}`,
     metadata,
   )[0];
 }
+
+/** The code above a merge, if `merged` still ends with the code below. */
+export function unmergeCellCode(merged: string, below: string): string | null {
+  if (!below.trim()) {
+    return merged;
+  }
+  const adapter = languageAdapterFromCode(merged);
+  const [text, , metadata] = adapter.transformIn(merged);
+  const [belowText] = adapter.transformIn(below);
+  if (text === belowText) {
+    return "";
+  }
+  const suffix = `${separatorFor(adapter.type)}${belowText}`;
+  if (!text.endsWith(suffix)) {
+    return null;
+  }
+  return adapter.transformOut(text.slice(0, -suffix.length), metadata)[0];
+}
+
+// Markdown needs a blank line, or the two paragraphs run together.
+const separatorFor = (type: LanguageAdapterType) =>
+  type === "markdown" ? "\n\n" : "\n";

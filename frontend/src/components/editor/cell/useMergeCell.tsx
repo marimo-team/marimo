@@ -3,20 +3,33 @@
 import useEvent from "react-use-event-hook";
 import { UndoButton } from "@/components/buttons/undo-button";
 import { toast } from "@/components/ui/use-toast";
-import { useCellActions } from "@/core/cells/actions";
+import {
+  type MergeBlocker,
+  type MergeResult,
+  useCellActions,
+} from "@/core/cells/actions";
 import type { CellId } from "@/core/cells/ids";
+
+const BLOCKED: Record<MergeBlocker, string> = {
+  "no-cell-below": "There is no visible cell below in this column.",
+  "different-language":
+    "Only cells of the same language merge, and SQL cells hold one query each.",
+  "different-disabled": "One cell is disabled and the other is not.",
+  running: "The cell below is running or queued.",
+  "both-named": "Both cells are named. Remove one name first.",
+};
 
 export function useMergeCellBelowCallback() {
   const { mergeCellBelow, undoDeleteCell } = useCellActions();
 
-  return useEvent((opts: { cellId: CellId }): boolean => {
-    if (!mergeCellBelow(opts)) {
+  return useEvent((opts: { cellId: CellId }): MergeResult => {
+    const result = mergeCellBelow(opts);
+    if (!result.merged) {
       toast({
-        title: "Nothing to merge",
-        description:
-          "Cells merge with a visible cell below them in the same column, in the same language.",
+        title: "Can't merge these cells",
+        description: BLOCKED[result.blocker],
       });
-      return false;
+      return result;
     }
 
     const { dismiss } = toast({
@@ -25,12 +38,17 @@ export function useMergeCellBelowCallback() {
         <UndoButton
           data-testid="undo-merge-button"
           onClick={() => {
-            undoDeleteCell();
             dismiss();
+            if (!undoDeleteCell({ only: result.entry })) {
+              toast({
+                title: "Can't undo this merge here",
+                description: "Undo the changes made after it first.",
+              });
+            }
           }}
         />
       ),
     });
-    return true;
+    return result;
   });
 }

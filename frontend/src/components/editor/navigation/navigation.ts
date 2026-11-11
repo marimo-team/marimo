@@ -509,7 +509,7 @@ export function useCellNavigationProps(
           });
           return true;
         }),
-        "cell.mergeCellBelow": (cellId) => mergeCellBelow({ cellId }),
+        "cell.mergeCellBelow": (cellId) => mergeCellBelow({ cellId }).merged,
         "cell.aiCompletion": (cellId) => {
           if (!aiFeaturesEnabled) {
             return false;

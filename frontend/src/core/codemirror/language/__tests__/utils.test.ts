@@ -14,7 +14,12 @@ import {
   languageAdapterState,
   switchLanguage,
 } from "../extension";
-import { getEditorCodeAsPython, mergeCellCode, splitEditor } from "../utils";
+import {
+  getEditorCodeAsPython,
+  mergeCellCode,
+  splitEditor,
+  unmergeCellCode,
+} from "../utils";
 
 const views: EditorView[] = [];
 
@@ -365,5 +370,26 @@ describe("mergeCellCode", () => {
     expect(mergeCellCode('mo.md("a")', 'mo.md(f"{b}")')).toBeNull();
     const sql = '_df = mo.sql(f"""SELECT 1""")';
     expect(mergeCellCode(sql, sql)).toBeNull();
+  });
+});
+
+describe("unmergeCellCode", () => {
+  it("takes the code below back off the end", () => {
+    expect(unmergeCellCode("x = 3\ny = 2", "y = 2")).toBe("x = 3");
+  });
+
+  it("splits merged markdown at its blank line", () => {
+    const merged = mergeCellCode('mo.md("# Title")', 'mo.md("Body")') ?? "";
+    const above = unmergeCellCode(merged, 'mo.md("Body")');
+    expect(above).toContain("# Title");
+    expect(above).not.toContain("Body");
+  });
+
+  it("leaves an empty cell above when only the code below remains", () => {
+    expect(unmergeCellCode("y = 2", "y = 2")).toBe("");
+  });
+
+  it("gives up when the code below was edited", () => {
+    expect(unmergeCellCode("x = 1\ny = 4", "y = 2")).toBeNull();
   });
 });

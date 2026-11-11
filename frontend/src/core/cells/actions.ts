@@ -6,12 +6,20 @@ import { historyField } from "@codemirror/commands";
 import { atom, type Getter, type Setter, useSetAtom } from "jotai";
 import { useMemo } from "react";
 import { scrollAndHighlightCell } from "@/components/editor/links/cell-link";
-import { cellExecutionInputsAtom, runningCellIds } from "@/core/executions";
+import {
+  cellExecutionInputsAtom,
+  cellExecutionView,
+  runningCellIds,
+} from "@/core/executions";
 import type { DocumentEdit, EditableDocument } from "@/core/notebook/document";
 import { Logger } from "@/utils/Logger";
 import { clamp } from "@/utils/math";
 import { prepareCellCodeUpdate } from "../codemirror/language/cell-code";
-import { mergeCellCode, splitEditor } from "../codemirror/language/utils";
+import {
+  mergeCellCode,
+  splitEditor,
+  unmergeCellCode,
+} from "../codemirror/language/utils";
 import type { SerializedEditorState } from "../codemirror/types";
 import { canCollapseOutline } from "../dom/outline";
 import type { CellConfig } from "../network/types";
@@ -34,6 +42,8 @@ import {
 } from "./arrange";
 import {
   type DeletedCell,
+  type HistoryEntry,
+  type UndoMergeEntry,
   notebookAtom,
   notebookReducer,
   releaseCellAtoms,
@@ -47,6 +57,7 @@ import {
   shownHiddenCodeAtom,
 } from "./editor";
 import { CellId, SCRATCH_CELL_ID, SETUP_CELL_ID } from "./ids";
+import { isInternalCellName } from "./names";
 import {
   type CellColumnId,
   collapsedAtom,
@@ -224,50 +235,93 @@ export const undoSplitCellAtom = atom(
   },
 );
 
-/** Merge the cell below into this cell; false when the two can't be merged. */
+export type MergeBlocker =
+  | "no-cell-below"
+  | "different-language"
+  | "different-disabled"
+  | "running"
+  | "both-named";
+
+export type MergeResult =
+  | { merged: true; entry: UndoMergeEntry }
+  | { merged: false; blocker: MergeBlocker };
+
+/** The visible cell below in the same column that a cell could merge with. */
+function mergeableCellBelow(get: Getter, cellId: CellId): CellId | null {
+  if (cellId === SCRATCH_CELL_ID || cellId === SETUP_CELL_ID) {
+    return null;
+  }
+  const column = get(layoutAtom).columns.find((c) => c.ids.includes(cellId));
+  const belowId = column?.ids[column.ids.indexOf(cellId) + 1];
+  return belowId === undefined ||
+    belowId === SETUP_CELL_ID ||
+    !column?.visible.includes(belowId)
+    ? null
+    : belowId;
+}
+
+export function hasMergeableCellBelowAtom(cellId: CellId) {
+  return atom((get) => mergeableCellBelow(get, cellId) !== null);
+}
+
+const isBusy = (get: Getter, cellId: CellId) =>
+  cellExecutionView(get(cellExecutionInputsAtom), cellId).status !== "idle";
+
+/** Merge the cell below into this cell. */
 export const mergeCellBelowAtom = atom(
   null,
-  (get, set, { cellId }: { cellId: CellId }): boolean => {
-    if (cellId === SCRATCH_CELL_ID || cellId === SETUP_CELL_ID) {
-      return false;
-    }
-    const { ids, visible } = columnOf(get(layoutAtom), cellId);
-    const belowId = ids[ids.indexOf(cellId) + 1];
-    if (
-      belowId === undefined ||
-      belowId === SETUP_CELL_ID ||
-      !visible.includes(belowId)
-    ) {
-      return false;
-    }
+  (get, set, { cellId }: { cellId: CellId }): MergeResult => {
+    const refuse = (blocker: MergeBlocker): MergeResult => ({
+      merged: false,
+      blocker,
+    });
+    const belowId = mergeableCellBelow(get, cellId);
     const document = documentOf(get);
     const cell = document.cells.get(cellId);
-    const below = document.cells.get(belowId);
-    if (cell === undefined || below === undefined) {
-      return false;
+    const below = belowId === null ? undefined : document.cells.get(belowId);
+    if (belowId === null || cell === undefined || below === undefined) {
+      return refuse("no-cell-below");
+    }
+    if (isBusy(get, belowId)) {
+      return refuse("running");
+    }
+    if (Boolean(cell.config.disabled) !== Boolean(below.config.disabled)) {
+      return refuse("different-disabled");
+    }
+    if (!isInternalCellName(cell.name) && !isInternalCellName(below.name)) {
+      return refuse("both-named");
     }
     const code = cell.code ?? "";
     const merged = mergeCellCode(code, below.code ?? "");
     if (merged === null) {
-      return false;
+      return refuse("different-language");
     }
-    const removed = removeCells(get, set, [belowId], (tx) =>
-      tx.setCode(cellId, merged),
-    );
+    const name = isInternalCellName(cell.name) ? below.name : cell.name;
+    const removed = removeCells(get, set, [belowId], (tx) => {
+      tx.setCode(cellId, merged);
+      if (name !== cell.name) {
+        tx.setName(cellId, name);
+      }
+    });
     if (removed === null) {
-      return false;
+      return refuse("no-cell-below");
     }
     showCode(get, cellId, merged);
     clearOutput(set, cellId);
+    const entry: UndoMergeEntry = {
+      type: "merge",
+      cellId,
+      code,
+      name: cell.name,
+      merged,
+      cells: [removed.cells[0]],
+    };
     set(notebookAtom, (state) => ({
       ...state,
-      history: [
-        ...state.history,
-        { type: "merge", cellId, code, merged, cells: [removed.cells[0]] },
-      ],
+      history: [...state.history, entry],
       scrollKey: cellId,
     }));
-    return true;
+    return { merged: true, entry };
   },
 );
 
@@ -606,12 +660,23 @@ function removeCells(
   return { cells, scrollKey };
 }
 
-/** Undo the last deletion, move, or merge. */
-export const undoDeleteCellAtom = atom(null, (get, set): void => {
-  const last = get(notebookAtom).history.at(-1);
-  if (last === undefined) {
-    return;
-  }
+/**
+ * Undo the last deletion, move, or merge. With `only`, undo just that entry,
+ * and only while it is still the last; false when nothing was undone.
+ */
+export const undoDeleteCellAtom = atom(
+  null,
+  (get, set, opts?: { only?: HistoryEntry }): boolean => {
+    const last = get(notebookAtom).history.at(-1);
+    if (last === undefined || (opts?.only && opts.only !== last)) {
+      return false;
+    }
+    undoEntry(get, set, last);
+    return true;
+  },
+);
+
+function undoEntry(get: Getter, set: Setter, last: HistoryEntry): void {
   if (last.type === "move") {
     set(notebookAtom, (state) => ({
       ...state,
@@ -623,18 +688,30 @@ export const undoDeleteCellAtom = atom(null, (get, set): void => {
   }
   const model = modelOf(get);
   const before = documentOf(get);
-  // Edits made since the merge win: the cell below returns, the code stays.
-  const merge =
-    last.type === "merge" && before.cells.get(last.cellId)?.code === last.merged
-      ? last
-      : null;
-  if (merge) {
-    showCode(get, merge.cellId, merge.code);
-    clearOutput(set, merge.cellId);
+  const mergedInto =
+    last.type === "merge" ? before.cells.get(last.cellId) : undefined;
+  // Edits made since the merge are kept; failing that, nothing is lost.
+  const restoredCode =
+    last.type !== "merge" || mergedInto === undefined
+      ? null
+      : mergedInto.code === last.merged
+        ? last.code
+        : unmergeCellCode(mergedInto.code ?? "", last.cells[0].cell.code);
+  if (last.type === "merge" && restoredCode !== null) {
+    showCode(get, last.cellId, restoredCode);
+    clearOutput(set, last.cellId);
   }
   set(model.editAtom, (tx) => {
-    if (merge) {
-      tx.setCode(merge.cellId, merge.code);
+    if (last.type === "merge" && mergedInto !== undefined) {
+      if (restoredCode !== null) {
+        tx.setCode(last.cellId, restoredCode);
+      }
+      if (
+        mergedInto.name !== last.name &&
+        mergedInto.name === last.cells[0].cell.name
+      ) {
+        tx.setName(last.cellId, last.name);
+      }
     }
     // Each cell anchors to the one before it, restored just before it. An
     // anchor another client has removed since falls back to the end.
@@ -664,7 +741,7 @@ export const undoDeleteCellAtom = atom(null, (get, set): void => {
     history: state.history.slice(0, -1),
     scrollKey: last.cells[0].cell.id as CellId,
   }));
-});
+}
 
 /**
  * Every notebook operation, for components. Stable for the store's lifetime.

@@ -43,6 +43,20 @@ vi.mock("../scrollCellIntoView", () => ({
   focusAndScrollCellIntoView: vi.fn(),
 }));
 
+const busyCells = vi.hoisted(() => new Set<string>());
+vi.mock("@/core/executions", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/core/executions")>();
+  return {
+    ...actual,
+    cellExecutionView: (
+      ...args: Parameters<typeof actual.cellExecutionView>
+    ) => {
+      const view = actual.cellExecutionView(...args);
+      return busyCells.has(args[1]) ? { ...view, status: "running" } : view;
+    },
+  };
+});
+
 const c1 = cellId("c1");
 const c2 = cellId("c2");
 const c3 = cellId("c3");
@@ -52,6 +66,7 @@ afterEach(() => {
   for (const stop of stops.splice(0)) {
     stop();
   }
+  busyCells.clear();
   vi.clearAllMocks();
 });
 
@@ -203,13 +218,20 @@ describe("splitCellAtom", () => {
 });
 
 describe("mergeCellBelowAtom", () => {
+  const merge = (store: ReturnType<typeof setup>["store"], id: CellId) =>
+    store.set(mergeCellBelowAtom, { cellId: id });
+  const blocker = (store: ReturnType<typeof setup>["store"], id: CellId) => {
+    const result = merge(store, id);
+    return result.merged ? null : result.blocker;
+  };
+
   it("joins the cell below into the cell and undoes it", () => {
     const { store, order, notebook, cellIn, mountEditor } = setup({
       c3: cell("c3", "z = 3"),
     });
     const view = mountEditor(c1);
 
-    expect(store.set(mergeCellBelowAtom, { cellId: c1 })).toBe(true);
+    expect(merge(store, c1).merged).toBe(true);
 
     expect(order()).toEqual([c1, c3]);
     expect(cellIn(c1)).toMatchObject({ code: "x = 1\ny = 2", name: "_" });
@@ -220,6 +242,7 @@ describe("mergeCellBelowAtom", () => {
         type: "merge",
         cellId: c1,
         code: "x = 1",
+        name: "_",
         merged: "x = 1\ny = 2",
         cells: [
           {
@@ -231,7 +254,7 @@ describe("mergeCellBelowAtom", () => {
       },
     ]);
 
-    store.set(undoDeleteCellAtom);
+    expect(store.set(undoDeleteCellAtom)).toBe(true);
 
     expect(order()).toEqual([c1, c2, c3]);
     expect(cellIn(c1)?.code).toBe("x = 1");
@@ -240,43 +263,99 @@ describe("mergeCellBelowAtom", () => {
     expect(notebook().history).toEqual([]);
   });
 
-  it("keeps edits made after the merge when undoing it", () => {
+  it("keeps edits to the merged code above when undoing", () => {
     const { store, order, cellIn } = setup();
-    store.set(mergeCellBelowAtom, { cellId: c1 });
+    merge(store, c1);
     store.set(setCellCodeAtom, { cellId: c1, code: "x = 3\ny = 2" });
 
     store.set(undoDeleteCellAtom);
 
     expect(order()).toEqual([c1, c2]);
-    expect(cellIn(c1)?.code).toBe("x = 3\ny = 2");
+    expect(cellIn(c1)?.code).toBe("x = 3");
     expect(cellIn(c2)?.code).toBe("y = 2");
   });
 
-  it("does nothing for the last cell of a column", () => {
-    const { store, order, notebook } = setup();
+  it("keeps the code when the merged-in part was edited too", () => {
+    const { store, order, cellIn } = setup();
+    merge(store, c1);
+    store.set(setCellCodeAtom, { cellId: c1, code: "x = 3\ny = 4" });
 
-    expect(store.set(mergeCellBelowAtom, { cellId: c2 })).toBe(false);
+    store.set(undoDeleteCellAtom);
 
     expect(order()).toEqual([c1, c2]);
+    expect(cellIn(c1)?.code).toBe("x = 3\ny = 4");
+    expect(cellIn(c2)?.code).toBe("y = 2");
+  });
+
+  it("undoes only its own merge when asked to", () => {
+    const { store, order } = setup({ c3: cell("c3", "z = 3") });
+    const result = merge(store, c1);
+    store.set(deleteCellsAtom, { cellIds: [c3] });
+
+    const only = result.merged ? result.entry : undefined;
+    expect(store.set(undoDeleteCellAtom, { only })).toBe(false);
+    expect(order()).toEqual([c1]);
+  });
+
+  it("takes the name of the cell below, and gives it back on undo", () => {
+    const { store, cellIn } = setup({
+      c2: cell("c2", "y = 2", { name: "load" }),
+    });
+
+    merge(store, c1);
+    expect(cellIn(c1)?.name).toBe("load");
+
+    store.set(undoDeleteCellAtom);
+    expect(cellIn(c1)?.name).toBe("_");
+    expect(cellIn(c2)?.name).toBe("load");
+  });
+
+  it("refuses when both cells are named", () => {
+    const { store, order } = setup({
+      c1: cell("c1", "x = 1", { name: "first" }),
+      c2: cell("c2", "y = 2", { name: "second" }),
+    });
+
+    expect(blocker(store, c1)).toBe("both-named");
+    expect(order()).toEqual([c1, c2]);
+  });
+
+  it("refuses when only one cell is disabled", () => {
+    const { store, order } = setup({
+      c2: cell("c2", "y = 2", { config: { ...CONFIG, disabled: true } }),
+    });
+
+    expect(blocker(store, c1)).toBe("different-disabled");
+    expect(order()).toEqual([c1, c2]);
+  });
+
+  it("refuses while the cell below is running", () => {
+    const { store, order } = setup();
+    busyCells.add(c2);
+
+    expect(blocker(store, c1)).toBe("running");
+    expect(order()).toEqual([c1, c2]);
+  });
+
+  it("refuses for the last cell of a column", () => {
+    const { store, notebook } = setup();
+
+    expect(blocker(store, c2)).toBe("no-cell-below");
     expect(notebook().history).toEqual([]);
   });
 
   it("does not reach into the next column", () => {
-    const { store, order } = setup({
+    const { store } = setup({
       c2: cell("c2", "y = 2", { config: { ...CONFIG, column: 1 } }),
     });
 
-    expect(store.set(mergeCellBelowAtom, { cellId: c1 })).toBe(false);
-    expect(order()).toEqual([c1, c2]);
+    expect(blocker(store, c1)).toBe("no-cell-below");
   });
 
-  it("does not merge across languages", () => {
-    const { store, order, cellIn } = setup({
-      c2: cell("c2", 'mo.md("# Title")'),
-    });
+  it("refuses across languages", () => {
+    const { store, cellIn } = setup({ c2: cell("c2", 'mo.md("# Title")') });
 
-    expect(store.set(mergeCellBelowAtom, { cellId: c1 })).toBe(false);
-    expect(order()).toEqual([c1, c2]);
+    expect(blocker(store, c1)).toBe("different-language");
     expect(cellIn(c1)?.code).toBe("x = 1");
   });
 
@@ -284,9 +363,7 @@ describe("mergeCellBelowAtom", () => {
     const { store, order } = setup();
     store.set(addSetupCellAtom, { code: "import marimo as mo" });
 
-    expect(store.set(mergeCellBelowAtom, { cellId: SETUP_CELL_ID })).toBe(
-      false,
-    );
+    expect(blocker(store, SETUP_CELL_ID)).toBe("no-cell-below");
     expect(order()).toEqual([SETUP_CELL_ID, c1, c2]);
   });
 });
