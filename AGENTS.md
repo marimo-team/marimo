@@ -35,6 +35,10 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed setup options.
 - You MUST mark your PRs as drafts
 - See [CONTRIBUTING.md](CONTRIBUTING.md) for other PR guidelines and CLA
 
+## Documentation changes
+
+- Before adding or modifying documentation, confirm the proposed changes with the user and wait for approval, unless the user explicitly requested those documentation changes.
+
 ## Conventions
 
 - Typesafety is important, leverage it. Avoid being lazy with types.
