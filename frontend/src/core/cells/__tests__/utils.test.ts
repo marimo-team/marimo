@@ -162,26 +162,47 @@ describe("cellNeedsRun", () => {
 
 describe("isUninstantiated", () => {
   it("should return true if the cell has not run", () => {
-    expect(isUninstantiated({ status: "idle", outcome: null })).toBe(true);
+    expect(
+      isUninstantiated({ status: "idle", outcome: null, live: true }),
+    ).toBe(true);
   });
 
   it("should return false if the cell has run", () => {
-    expect(isUninstantiated({ status: "idle", outcome: "value" })).toBe(false);
+    expect(
+      isUninstantiated({ status: "idle", outcome: "value", live: true }),
+    ).toBe(false);
+  });
+
+  it("should return true if another runtime produced the cell's result", () => {
+    // Restored from storage, or kept across a kernel restart: the output
+    // shows, and nothing the cell bound exists in this runtime.
+    expect(
+      isUninstantiated({ status: "idle", outcome: "value", live: false }),
+    ).toBe(true);
+    expect(
+      isUninstantiated({ status: "running", outcome: null, live: false }),
+    ).toBe(false);
   });
 
   it("should return false if the cell is currently queued or running", () => {
-    expect(isUninstantiated({ status: "queued", outcome: null })).toBe(false);
-    expect(isUninstantiated({ status: "running", outcome: null })).toBe(false);
+    expect(
+      isUninstantiated({ status: "queued", outcome: null, live: true }),
+    ).toBe(false);
+    expect(
+      isUninstantiated({ status: "running", outcome: null, live: true }),
+    ).toBe(false);
   });
 
   it("should return false if the cell ended without a value", () => {
-    expect(isUninstantiated({ status: "idle", outcome: "error" })).toBe(false);
-    expect(isUninstantiated({ status: "idle", outcome: "interrupted" })).toBe(
-      false,
-    );
-    expect(isUninstantiated({ status: "idle", outcome: "skipped" })).toBe(
-      false,
-    );
+    expect(
+      isUninstantiated({ status: "idle", outcome: "error", live: true }),
+    ).toBe(false);
+    expect(
+      isUninstantiated({ status: "idle", outcome: "interrupted", live: true }),
+    ).toBe(false);
+    expect(
+      isUninstantiated({ status: "idle", outcome: "skipped", live: true }),
+    ).toBe(false);
   });
 });
 

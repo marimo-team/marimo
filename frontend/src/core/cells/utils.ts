@@ -144,12 +144,18 @@ function inFlight(executions: Executions, cellId: CellId): boolean {
   return record !== undefined && record.status !== "completed";
 }
 
-/** Whether a cell has never run: no result to show and nothing in flight. */
+/**
+ * Whether a cell has not run in the notebook's runtime: it has no result,
+ * or only one that another runtime produced, and nothing is in flight.
+ */
 export function isUninstantiated({
   status,
   outcome,
-}: Pick<CellExecutionView, "status" | "outcome">) {
-  return outcome === null && status !== "queued" && status !== "running";
+  live,
+}: Pick<CellExecutionView, "status" | "outcome" | "live">) {
+  return (
+    (outcome === null || !live) && status !== "queued" && status !== "running"
+  );
 }
 
 /**

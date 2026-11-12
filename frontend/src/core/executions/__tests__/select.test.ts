@@ -67,6 +67,7 @@ function inputs({
   requested = new Set(),
   disabled = [],
   blocked = new Set(),
+  runtimeId = null,
 }: {
   executions?: Execution[];
   runs?: Protocol.Run[];
@@ -74,6 +75,7 @@ function inputs({
   requested?: ReadonlySet<string>;
   disabled?: readonly string[];
   blocked?: ReadonlySet<string>;
+  runtimeId?: string | null;
 }): CellExecutionInputs {
   const stream: Executions = {
     runs: new Map(runs.map((r) => [r.id, r])),
@@ -90,7 +92,7 @@ function inputs({
       { config: { ...CONFIG, disabled: disabled.includes(id) } },
     ]),
   );
-  return { executions: stream, results, cells, requested, blocked };
+  return { executions: stream, results, cells, requested, blocked, runtimeId };
 }
 
 describe("cellExecutionView", () => {
@@ -102,6 +104,7 @@ describe("cellExecutionView", () => {
       startedAt: null,
       duration: null,
       rendered: false,
+      live: true,
     });
   });
 
@@ -137,6 +140,7 @@ describe("cellExecutionView", () => {
       startedAt: Date.parse(T2),
       duration: null,
       rendered: false,
+      live: true,
     });
   });
 
@@ -152,6 +156,30 @@ describe("cellExecutionView", () => {
       ],
     });
     expect(cellExecutionView(showing, "c1").rendered).toBe(true);
+  });
+
+  it("says whether the notebook's runtime produced the cell's result", () => {
+    const result = record({ id: "e1" });
+    const produced = (runtimeId: string | null) =>
+      cellExecutionView(
+        inputs({ results: new Map([["c1", result]]), runtimeId }),
+        "c1",
+      ).live;
+    expect(produced("r1")).toBe(true);
+    // A restart replaces the runtime and keeps the results.
+    expect(produced("r2")).toBe(false);
+    // Nothing to compare against, as on a static page.
+    expect(produced(null)).toBe(true);
+    // A restored result names no runtime.
+    expect(
+      cellExecutionView(
+        inputs({
+          results: new Map([["c1", { ...result, runtime_id: null }]]),
+          runtimeId: "r1",
+        }),
+        "c1",
+      ).live,
+    ).toBe(false);
   });
 
   it("reports how the last completed execution ended, with its timing", () => {
@@ -171,6 +199,7 @@ describe("cellExecutionView", () => {
       startedAt: Date.parse(T0),
       duration: 1500,
       rendered: false,
+      live: true,
     });
     const error = (kind: string): Protocol.Outcome => ({
       kind: "error",
