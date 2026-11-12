@@ -377,7 +377,7 @@ class _OptionalValueOption(click.Option):
     is_flag=True,
     default=None,
     type=bool,
-    help="Run notebooks hosted remotely on the host machine; if --untrusted, runs marimo in a Docker container.",
+    help="Run notebooks hosted remotely on the host machine; if --untrusted, runs marimo in a container.",
 )
 @click.option("--profile-dir", default=None, type=str, hidden=True)
 @click.option(
@@ -1034,7 +1034,7 @@ Example:
     is_flag=True,
     default=None,
     type=bool,
-    help="Run notebooks hosted remotely on the host machine; if --untrusted, runs marimo in a Docker container.",
+    help="Run notebooks hosted remotely on the host machine; if --untrusted, runs marimo in a container.",
 )
 @click.option(
     "--server-startup-command",
