@@ -165,6 +165,10 @@ _VARIABLE_OPS = {
     "DELETE": ("DELETE_DEREF", "DELETE_FAST"),
 }
 _NULL_PREFIX = re.compile(r"^(NULL\|self|NULL) \+ ")
+# Before a call, an attribute of a name bound by a module-level `import` loads
+# as a plain attribute, and of any other name as a method. The standalone copy
+# has no import beside it, so it loads a method where the module did not.
+_METHOD_SUFFIX = re.compile(r" \+ NULL\|self$")
 
 
 def _bare_name(name: str) -> str:
@@ -236,10 +240,11 @@ def _instructions(code: types.CodeType) -> tuple[tuple[str, str], ...]:
     """
     kept: list[tuple[str, str, int, int | None]] = []
     for ins in dis.get_instructions(code):
-        op = ins.opname
+        # Python 3.11 spells a method load as its own opcode.
+        op = "LOAD_ATTR" if ins.opname == "LOAD_METHOD" else ins.opname
         if op in _PROLOGUE:
             continue
-        arg = _NULL_PREFIX.sub("", ins.argrepr)
+        arg = _METHOD_SUFFIX.sub("", _NULL_PREFIX.sub("", ins.argrepr))
         target: int | None = None
         if ins.opcode in dis.hasjrel or ins.opcode in dis.hasjabs:
             target, arg = int(ins.argval), ""

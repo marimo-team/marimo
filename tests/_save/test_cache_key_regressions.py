@@ -1495,3 +1495,25 @@ async def test_lambdas_over_private_globals_in_two_cells_key_apart() -> None:
             ]
         )
         assert k.globals.get("r") == (1, 2)
+
+
+def test_keys_are_stable_across_python_versions(tmp_path: Path) -> None:
+    # Not pinned to one Python: the same value, including a function whose
+    # module imports what it calls, keys the same on every supported version.
+    import hashlib
+    import importlib
+    import sys
+
+    (tmp_path / "stable_keys.py").write_text(
+        "import struct\n\ndef pack(n):\n    return struct.pack('!Q', n)\n"
+    )
+    sys.path.insert(0, str(tmp_path))
+    try:
+        pack = importlib.import_module("stable_keys").pack
+    finally:
+        sys.path.remove(str(tmp_path))
+    value = [1, "a", b"x", {"b", "c"}, (2.5, None), pack]
+    digest = hashlib.sha256(deterministic_dumps(value, "sha256")).hexdigest()
+    assert digest == (
+        "d1eed47f48ef0c6d7527c93f45fa7b6543f8da6223011d821bfff7e815850b28"
+    )
