@@ -626,6 +626,9 @@ describe("RuntimeManager", () => {
       expect(httpUrl.searchParams.get("custom_param")).toBe("value123");
       expect(httpUrl.searchParams.get("user_token")).toBe("abc");
       expect(httpUrl.searchParams.get("theme")).toBe("dark");
+      expect(
+        runtime.formatHttpURL({ path: "api/test" }).searchParams.has("theme"),
+      ).toBe(false);
 
       // Should also include session_id for WebSocket URLs
       expect(wsUrl.searchParams.get("session_id")).toBe("test");

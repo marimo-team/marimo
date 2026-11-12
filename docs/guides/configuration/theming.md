@@ -10,6 +10,29 @@ app = marimo.App(css_file="custom.css")
 
 CSS paths also support `~` for your home directory, e.g. `~/theme.css`.
 
+## Light and dark mode
+
+Set `display.theme` to `light`, `dark`, or `system` in your
+[user configuration](index.md). `system` follows the browser's preferred color
+scheme.
+
+To select a theme for a server process without changing configuration files,
+set `MARIMO_DISPLAY_THEME` in its environment before starting marimo:
+
+```bash
+MARIMO_DISPLAY_THEME=dark marimo edit notebook.py
+MARIMO_DISPLAY_THEME=light marimo run notebook.py
+```
+
+IDE integrations and other launchers that previously appended `?theme=dark` or
+`?theme=light` to the notebook URL should set this environment variable on the
+marimo server process instead. The `theme` query parameter no longer controls
+marimo's appearance. Environment configuration applies to the server process;
+changing it requires restarting the server. It overrides saved theme settings
+and cannot be changed through the editor's User settings menu.
+
+Embedded [marimo islands](../exporting/webassembly_html.md#embed-marimo-outputs-in-html-using-islands) follow their host page's theme.
+
 ## Theming at the project level
 
 You may also set the `custom_css` field in your project configuration to apply a custom CSS file. This theme won't be applied if the notebook is shared with someone else, but it will be applied to all notebooks open inside the project.
