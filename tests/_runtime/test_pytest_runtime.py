@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextvars
 import os
 import re
 import sys
@@ -12,6 +13,8 @@ import pytest
 from tests.mocks import snapshotter
 
 if TYPE_CHECKING:
+    from collections.abc import Awaitable
+
     from marimo._runtime.pytest import run_pytest as _run_pytest_type
     from tests._runtime.script_data.contains_tests import app as _app_type
 
@@ -445,15 +448,21 @@ def _():
         yield mo.notebook_dir()
         record(f"teardown in {mo.notebook_dir().name}")
 
-    @pytest.fixture
+    @pytest.fixture(scope="module")
     async def async_resource():
         await asyncio.sleep(0)
-        record("async setup")
+        record(f"async setup in {mo.notebook_dir().name}")
         yield
         await asyncio.sleep(0)
-        record("async teardown")
+        record(f"async teardown in {mo.notebook_dir().name}")
 
     class TestLifecycle:
+        @pytest.fixture
+        def method_resource(self):
+            record("method setup")
+            yield
+            record("method teardown")
+
         def test_a_passes(self, resource):
             assert resource == Path(__file__).parent
 
@@ -463,6 +472,9 @@ def _():
 
         async def test_c_async(self, async_resource):
             record("async test")
+
+        def test_d_method(self, method_resource):
+            record("method test")
 
 @app.cell
 def _():
@@ -507,6 +519,9 @@ def test_context_restored():
             "no:inline_snapshot",
             "-o",
             "asyncio_mode=auto",
+            # The module-scoped async fixture needs a module-scoped event loop.
+            "-o",
+            "asyncio_default_fixture_loop_scope=module",
         ],
         capture_output=True,
         text=True,
@@ -516,7 +531,7 @@ def test_context_restored():
     out = proc.stdout + proc.stderr
     outcomes = pytest.RunResult.parse_summary_nouns(out.splitlines())
     outcomes.pop("warnings", None)
-    assert outcomes == {"failed": 1, "passed": 4, "errors": 3}, out
+    assert outcomes == {"failed": 1, "passed": 5, "errors": 3}, out
     assert "RuntimeError: setup failed" in out
     assert "RuntimeError: teardown failed" in out
     assert "never_yields did not yield a value" in out
@@ -528,13 +543,16 @@ def test_context_restored():
         "setup",
         "failing test",
         "teardown in notebooks",
-        "async setup",
+        "async setup in notebooks",
         "async test",
-        "async teardown",
+        "method setup",
+        "method test",
+        "method teardown",
         "class teardown",
         "context restored",
+        "async teardown in notebooks",
         "module teardown",
-    ]
+    ], out
 
 
 def test_pytest_result_summary_omits_zero_xfail() -> None:
@@ -604,20 +622,31 @@ def test_generator_hook_enters_notebook_per_step(is_async: bool) -> None:
 
     gen = hook()
     if is_async:
-        # Each step runs as its own task, i.e. in a different context.
-        loop = asyncio.new_event_loop()
-        try:
-            assert loop.run_until_complete(anext(gen)) == "value"
-            assert NOTEBOOK_FILENAME.get() is None
-            with pytest.raises(StopAsyncIteration):
-                loop.run_until_complete(anext(gen))
-        finally:
-            loop.close()
+        # Teardown resumes in a different context, as with separate tasks.
+        setup_ctx, teardown_ctx = contextvars.Context(), contextvars.Context()
+        with asyncio.Runner() as runner:
+
+            def run_in(ctx: contextvars.Context, step: Awaitable[Any]) -> Any:
+                async def run() -> Any:
+                    return await step
+
+                return runner.run(run(), context=ctx)
+
+            try:
+                assert run_in(setup_ctx, anext(gen)) == "value"
+                assert setup_ctx.get(NOTEBOOK_FILENAME) is None
+                with pytest.raises(StopAsyncIteration):
+                    run_in(teardown_ctx, anext(gen))
+            finally:
+                run_in(setup_ctx, gen.aclose())
     else:
-        assert next(gen) == "value"
-        assert NOTEBOOK_FILENAME.get() is None
-        with pytest.raises(StopIteration):
-            next(gen)
+        try:
+            assert next(gen) == "value"
+            assert NOTEBOOK_FILENAME.get() is None
+            with pytest.raises(StopIteration):
+                next(gen)
+        finally:
+            gen.close()
     assert seen == [str(normalize_path(Path(__file__)))] * 2
 
 
@@ -634,8 +663,11 @@ def test_generator_hook_enters_notebook_per_step(is_async: bool) -> None:
         "def f():\n    async def g():\n        yield 1\n    return g",
         "def f():\n    return lambda: (yield)",
         "def f():\n    class C:\n        def g(self):\n            yield 1\n    return C",
-        # Decorators, defaults and bases belong to the enclosing scope.
+        # Decorators, defaults, bases and a comprehension's outermost
+        # iterable belong to the enclosing scope.
         "def f():\n    def g(a=(yield)):\n        pass",
+        "def f():\n    return lambda a=(yield): a",
+        "def f():\n    return [x for x in (yield)]",
         "def f():\n    @(yield)\n    def g():\n        pass",
         "def f():\n    class C((yield)):\n        pass",
         "def f():\n    def g():\n        def h(a=(yield)):\n            pass",
