@@ -88,7 +88,7 @@ def test_different_array_data_produces_different_hash() -> None:
 def test_plain_objects_pass_through() -> None:
     """Objects without data primitives should pickle normally."""
     obj = {"key": "value", "n": 42, "nested": [1, 2, 3]}
-    assert deterministic_dumps(obj, "sha256") == pickle.dumps(obj)
+    assert deterministic_dumps(obj, "sha256") == pickle.dumps(obj, protocol=4)
 
 
 def test_0d_array() -> None:

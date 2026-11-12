@@ -53,6 +53,10 @@ def type_sign(value: bytes | memoryview, label: str) -> bytes:
 
 _LENGTH = struct.Struct("!Q")
 
+# The default protocol is 4 through 3.13 and 5 from 3.14. The stream records
+# it, so without a pin every key would change on that upgrade.
+_PICKLE_PROTOCOL = 4
+
 
 def iterable_sign(value: Iterable[Any], label: str) -> bytes:
     # An item count alone cannot tell apart different ways to divide the same
@@ -348,5 +352,5 @@ def deterministic_dumps(
             return NotImplemented
 
     buf = io.BytesIO()
-    _ContentHashPickler(buf).dump(obj)
+    _ContentHashPickler(buf, protocol=_PICKLE_PROTOCOL).dump(obj)
     return buf.getvalue()
