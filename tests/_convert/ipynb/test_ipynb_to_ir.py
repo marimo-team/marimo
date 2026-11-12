@@ -541,6 +541,10 @@ def test_transform_exclamation_mark_pip_variants():
         "!pip install --upgrade --no-deps numpy",
         "!pip install --pre numpy",
         "!uv pip install --system numpy",
+        "!pip install --timeout 60 numpy",
+        "!pip install --report report.json numpy",
+        "!pip install -C key=value numpy",
+        "!pip install --config-settings key=value numpy",
     ],
 )
 def test_transform_exclamation_mark_pip_option_values(command: str) -> None:

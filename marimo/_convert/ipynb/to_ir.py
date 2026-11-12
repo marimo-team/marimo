@@ -83,6 +83,10 @@ _PIP_INSTALL_OPTIONS_WITH_VALUE = frozenset(
         "--resolution",
         "--index-strategy",
         "--overrides",
+        "--timeout",
+        "--report",
+        "-C",
+        "--config-settings",
     }
 )
 
