@@ -536,6 +536,11 @@ def test_transform_exclamation_mark_pip_variants():
         "!pip install --index-url=https://example.com/simple numpy",
         "!pip install numpy -t /tmp/target",
         "!uv pip install --prerelease allow numpy",
+        "!pip install -q numpy",
+        "!pip install -U numpy",
+        "!pip install --upgrade --no-deps numpy",
+        "!pip install --pre numpy",
+        "!uv pip install --system numpy",
     ],
 )
 def test_transform_exclamation_mark_pip_option_values(command: str) -> None:
