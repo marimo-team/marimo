@@ -5,7 +5,7 @@ import os
 import re
 import sys
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import pytest
 
@@ -403,6 +403,140 @@ def test_context_restored():
     assert "7 passed, 1 xfailed" in out
 
 
+def test_offline_yield_fixtures(tmp_path: Path) -> None:
+    import subprocess
+
+    notebook_dir = tmp_path / "notebooks"
+    notebook_dir.mkdir()
+    notebook = notebook_dir / "test_yield_fixtures.py"
+    notebook.write_text(
+        """
+import marimo
+app = marimo.App()
+
+with app.setup:
+    import asyncio
+    from pathlib import Path
+
+    import marimo as mo
+    import pytest
+
+    def record(event):
+        with Path(__file__).with_name("events.log").open("a") as f:
+            f.write(f"{event}\\n")
+
+@app.cell
+def _():
+    @pytest.fixture(scope="module")
+    def module_resource():
+        record("module setup")
+        yield
+        record("module teardown")
+
+    @pytest.fixture(scope="class")
+    def class_resource(module_resource):
+        record("class setup")
+        yield
+        record("class teardown")
+
+    @pytest.fixture
+    def resource(class_resource):
+        record("setup")
+        yield mo.notebook_dir()
+        record(f"teardown in {mo.notebook_dir().name}")
+
+    @pytest.fixture
+    async def async_resource():
+        await asyncio.sleep(0)
+        record("async setup")
+        yield
+        await asyncio.sleep(0)
+        record("async teardown")
+
+    class TestLifecycle:
+        def test_a_passes(self, resource):
+            assert resource == Path(__file__).parent
+
+        def test_b_fails(self, resource):
+            record("failing test")
+            raise AssertionError("expected failure")
+
+        async def test_c_async(self, async_resource):
+            record("async test")
+
+@app.cell
+def _():
+    @pytest.fixture
+    def broken_setup():
+        raise RuntimeError("setup failed")
+        yield
+
+    @pytest.fixture
+    def broken_teardown():
+        yield
+        raise RuntimeError("teardown failed")
+
+    @pytest.fixture
+    def never_yields():
+        if False:
+            yield
+
+    def test_setup_error(broken_setup):
+        pass
+
+    def test_teardown_error(broken_teardown):
+        pass
+
+    def test_never_yields(never_yields):
+        pass
+
+def test_context_restored():
+    record("context restored")
+    assert marimo.notebook_dir() == Path.cwd()
+"""
+    )
+    env = {k: v for k, v in os.environ.items() if k != "PYTEST_CURRENT_TEST"}
+    proc = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "pytest",
+            str(notebook),
+            "-q",
+            "-p",
+            "no:inline_snapshot",
+            "-o",
+            "asyncio_mode=auto",
+        ],
+        capture_output=True,
+        text=True,
+        cwd=tmp_path,
+        env=env,
+    )
+    out = proc.stdout + proc.stderr
+    outcomes = pytest.RunResult.parse_summary_nouns(out.splitlines())
+    outcomes.pop("warnings", None)
+    assert outcomes == {"failed": 1, "passed": 4, "errors": 3}, out
+    assert "RuntimeError: setup failed" in out
+    assert "RuntimeError: teardown failed" in out
+    assert "never_yields did not yield a value" in out
+    assert (notebook_dir / "events.log").read_text().splitlines() == [
+        "module setup",
+        "class setup",
+        "setup",
+        "teardown in notebooks",
+        "setup",
+        "failing test",
+        "teardown in notebooks",
+        "async setup",
+        "async test",
+        "async teardown",
+        "class teardown",
+        "context restored",
+        "module teardown",
+    ]
+
+
 def test_pytest_result_summary_omits_zero_xfail() -> None:
     from marimo._runtime.pytest import MarimoPytestResult
 
@@ -439,6 +573,88 @@ def test_sync_hook_closes_event_loop(monkeypatch, failure: str | None) -> None:
         assert loop.is_closed()
     finally:
         loop.close()
+
+
+@pytest.mark.parametrize("is_async", [False, True])
+def test_generator_hook_enters_notebook_per_step(is_async: bool) -> None:
+    from marimo._ast.pytest import _make_hook
+    from marimo._runtime.context.filename import NOTEBOOK_FILENAME
+    from marimo._utils.paths import normalize_path
+
+    seen = []
+
+    def fixture():
+        seen.append(NOTEBOOK_FILENAME.get())
+        yield "value"
+        seen.append(NOTEBOOK_FILENAME.get())
+
+    async def async_fixture():
+        seen.append(NOTEBOOK_FILENAME.get())
+        yield "value"
+        seen.append(NOTEBOOK_FILENAME.get())
+
+    target = async_fixture if is_async else fixture
+    hook = _make_hook(
+        "fixture",
+        lambda: (None, {"fixture": target}),
+        __file__,
+        is_async=is_async,
+        is_generator=True,
+    )
+
+    gen = hook()
+    if is_async:
+        # Each step runs as its own task, i.e. in a different context.
+        loop = asyncio.new_event_loop()
+        try:
+            assert loop.run_until_complete(anext(gen)) == "value"
+            assert NOTEBOOK_FILENAME.get() is None
+            with pytest.raises(StopAsyncIteration):
+                loop.run_until_complete(anext(gen))
+        finally:
+            loop.close()
+    else:
+        assert next(gen) == "value"
+        assert NOTEBOOK_FILENAME.get() is None
+        with pytest.raises(StopIteration):
+            next(gen)
+    assert seen == [str(normalize_path(Path(__file__)))] * 2
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        "def f():\n    yield 1",
+        "def f():\n    value = yield",
+        "def f():\n    yield from range(3)",
+        "async def f():\n    yield 1",
+        "def f():\n    with open('x') as fp:\n        if fp:\n            yield fp",
+        "def f():\n    return 1",
+        "def f():\n    def g():\n        yield 1\n    return g",
+        "def f():\n    async def g():\n        yield 1\n    return g",
+        "def f():\n    return lambda: (yield)",
+        "def f():\n    class C:\n        def g(self):\n            yield 1\n    return C",
+        # Decorators, defaults and bases belong to the enclosing scope.
+        "def f():\n    def g(a=(yield)):\n        pass",
+        "def f():\n    @(yield)\n    def g():\n        pass",
+        "def f():\n    class C((yield)):\n        pass",
+        "def f():\n    def g():\n        def h(a=(yield)):\n            pass",
+    ],
+)
+def test_is_generator_def_matches_python(source: str) -> None:
+    import ast
+    import inspect
+
+    from marimo._ast.pytest import is_generator_def
+
+    namespace: dict[str, Any] = {}
+    exec(source, namespace)
+    f = namespace["f"]
+    node = ast.parse(source).body[0]
+    assert isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+    assert is_generator_def(node) == (
+        inspect.isgeneratorfunction(f) or inspect.isasyncgenfunction(f)
+    )
 
 
 def test_rerun_keeps_lazily_imported_modules(tmp_path, monkeypatch) -> None:
