@@ -426,7 +426,6 @@ def generate_server_api_schema() -> dict[str, Any]:
         models.SaveAppConfigurationRequest,
         models.SaveLayoutRequest,
         models.SaveUserConfigurationRequest,
-        models.StdinRequest,
         models.SuccessResponse,
         models.FocusCellRequest,
         session_requests.UpdateUIElementValuesRequest,
