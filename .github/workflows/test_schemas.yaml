@@ -118,9 +118,11 @@ jobs:
           set -e
 
           if [ $EXIT_CODE -ne 0 ]; then
-            echo "breaking_changes<<EOF" >> $GITHUB_OUTPUT
-            echo "$OUTPUT" >> $GITHUB_OUTPUT
-            echo "EOF" >> $GITHUB_OUTPUT
+            {
+              echo "breaking_changes<<EOF"
+              echo "$OUTPUT"
+              echo "EOF"
+            } >> "$GITHUB_OUTPUT"
             echo "Breaking changes detected:"
             echo "$OUTPUT"
             if [ -n "$REGENERATION_COMMAND" ]; then
