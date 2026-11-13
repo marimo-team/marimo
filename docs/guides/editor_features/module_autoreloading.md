@@ -23,7 +23,7 @@ Autoreloading comes in two types:
 
 <figure>
 <video controls loop width="100%" height="100%" align="center" src="/_static/docs-module-reloading.mp4"> </video>
-<figcaption align="center">When set to autorun, marimo's reloader automatically run cells when you edit Python files.</figcaption>
+<figcaption align="center">When set to autorun, marimo's reloader automatically runs cells when you edit Python files.</figcaption>
 </figure>
 
 2. **lazy**: marks cells affected by module modifications as stale, letting you know which cells need to be re-run.
