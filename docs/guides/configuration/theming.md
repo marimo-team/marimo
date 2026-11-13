@@ -27,7 +27,10 @@ We support only a few CSS variables as part of the "public API" for theming. The
 --marimo-monospace-font
 --marimo-text-font
 --marimo-heading-font
+--notebook-cell-gap
 ```
+
+`--notebook-cell-gap` sets the vertical space between cells in the notebook editor (default `1.25rem`). It does not affect the app view, where cell outputs are laid out without a gap.
 
 !!! warning "Other CSS Variables"
 
