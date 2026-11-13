@@ -144,7 +144,8 @@ jobs:
     strategy:
       matrix:
         python-version: ["3.12"]
-        # PyTorch >=2.4 requires Apple Silicon on macOS.
+        # macos-latest selects Intel here, which has no PyTorch >=2.4 wheels.
+        # Use macos-26 to select Apple Silicon.
         os: [ubuntu-latest, macos-26, windows-latest]
 
     steps:
