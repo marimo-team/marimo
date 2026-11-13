@@ -2087,6 +2087,33 @@ def test_function_name_resolution_in_class_and_function_scopes() -> None:
     assert v.variable_data["outer"][0].required_refs == set()
 
 
+def test_class_variables_not_visible_in_nested_scopes() -> None:
+    code = cleandoc(
+        """
+        class C:
+            x = 1
+            items = [1, 2]
+
+            def method(self, default=x):
+                return x
+
+            later = lambda: y
+            doubled = [x for _ in items]
+            copied = [i for i in items]
+            y = 2
+        """
+    )
+    v = visitor.ScopedVisitor()
+    mod = ast.parse(code)
+    v.visit(mod)
+
+    # Bare names in method, lambda and comprehension bodies skip the class
+    # scope, whether the class variable is bound before or after them. The
+    # method default and the first comprehension iterable are evaluated in
+    # the class body, so `x` and `items` resolve there.
+    assert v.refs == {"x", "y"}
+
+
 def test_async_function_name_resolution_in_class_scope() -> None:
     code = cleandoc(
         """

@@ -189,6 +189,9 @@ class Block:
         default_factory=lambda: defaultdict(list)
     )
     scope_kind: LexicalScope = LexicalScope.MODULE
+    # False once visiting a function or comprehension body, which Python
+    # never resolves through an enclosing class namespace
+    sees_class_scope: bool = True
 
     def is_defined(self, name: str) -> bool:
         return name in self.defs
@@ -374,8 +377,15 @@ class ScopedVisitor(ast.NodeVisitor):
             return node.asname
 
     def _is_defined(self, identifier: str) -> bool:
-        """Check if `identifier` is defined in any block."""
-        return any(block.is_defined(identifier) for block in self.block_stack)
+        """Check if `identifier` is defined in a block visible from here."""
+        sees_class_scope = True
+        for block in reversed(self.block_stack):
+            if (
+                sees_class_scope or block.scope_kind is not LexicalScope.CLASS
+            ) and block.is_defined(identifier):
+                return True
+            sees_class_scope = sees_class_scope and block.sees_class_scope
+        return False
 
     def _add_ref(
         self,
@@ -446,7 +456,7 @@ class ScopedVisitor(ast.NodeVisitor):
         # x = 0
         # ```
         if (
-            variable_data.kind != "method"
+            block.scope_kind is not LexicalScope.CLASS
             and name in self._refs
             and any(block in ref.parent_blocks for ref in self._refs[name])
         ):
@@ -491,18 +501,26 @@ class ScopedVisitor(ast.NodeVisitor):
         (Calling visit on `node`'s children is fine.) In summary:
         call super().generic_visit on `node` and `visit()` on node's children.
         """
-        if isinstance(node, (ast.ClassDef, ast.Lambda)):
-            # These AST nodes introduce a new scope, but otherwise do not
-            # require special treatment.
-            self._push_block(
-                LexicalScope.CLASS
-                if isinstance(node, ast.ClassDef)
-                else LexicalScope.FUNCTION
+        if isinstance(node, ast.ClassDef):
+            # Type parameters live in a scope enclosing the class body, so
+            # that methods can see them.
+            type_params = (
+                node.type_params if sys.version_info >= (3, 12) else []
             )
-            if sys.version_info >= (3, 12) and isinstance(node, ast.ClassDef):
-                for child in node.type_params:
+            if type_params:
+                self._push_block(LexicalScope.ANNOTATION)
+                for child in type_params:
                     self.visit(child)
+            self._push_block(LexicalScope.CLASS)
             super().generic_visit(node)
+            self._pop_block()
+            if type_params:
+                self._pop_block()
+        elif isinstance(node, ast.Lambda):
+            self._push_block(LexicalScope.FUNCTION)
+            self.visit(node.args)
+            self.block_stack[-1].sees_class_scope = False
+            self.visit(node.body)
             self._pop_block()
         elif isinstance(node, (ast.AsyncFunctionDef, ast.FunctionDef)):
             self._push_block(LexicalScope.FUNCTION)
@@ -516,9 +534,14 @@ class ScopedVisitor(ast.NodeVisitor):
                 for child in node.type_params:
                     self.visit(child)
 
-            # This will revisit the type_params, but that's okay because
-            # visiting is idempotent
-            super().generic_visit(node)
+            self.visit(node.args)
+            for decorator in node.decorator_list:
+                self.visit(decorator)
+            if node.returns is not None:
+                self.visit(node.returns)
+            self.block_stack[-1].sees_class_scope = False
+            for stmt in node.body:
+                self.visit(stmt)
             self._pop_block()
         elif isinstance(node, (ast.ListComp, ast.SetComp, ast.GeneratorExp)):
             # In comprehensions, generators must be visited before elements
@@ -979,6 +1002,8 @@ class ScopedVisitor(ast.NodeVisitor):
         #
         # In defining scoping, Python parses iter first, then target, then ifs
         self.visit(node.iter)
+        # Only the first iterable is evaluated in the enclosing scope
+        self.block_stack[-1].sees_class_scope = False
         self.visit(node.target)
         for _if in node.ifs:
             self.visit(_if)
