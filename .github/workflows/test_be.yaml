@@ -110,8 +110,8 @@ jobs:
   # If there is a `test-all` label, we run the tests across unchanged files as well.
   #
   # Split by OS so that a failure on one runner does not cancel sibling jobs on
-  # other runners (each job has its own matrix and therefore its own fail-fast
-  # scope). Within a single OS, the default fail-fast behavior is preserved.
+  # other runners. Ubuntu shards finish independently so a failure on one
+  # Python version doesn't hide results from the remaining versions and shards.
   test_python_ubuntu:
     needs: changes
     if: ${{ needs.changes.outputs.backend == 'true' || (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'test-all')) }}
@@ -119,6 +119,7 @@ jobs:
     runs-on: "${{ vars.CI_RUNNER_SMALL || 'ubuntu-latest' }}"
     timeout-minutes: 25
     strategy:
+      fail-fast: false
       # Keep targets aligned with tool.uv.required-environments in pyproject.toml.
       matrix:
         python-version: ["3.11"]
