@@ -354,6 +354,134 @@ def test_map_csv_literal_names(name: str, fallback: bool) -> None:
     assert manager.collect().equals(source)
 
 
+@pytest.mark.requires("polars", "pyarrow")
+@pytest.mark.parametrize("root", ["struct", "list", "array"])
+@pytest.mark.parametrize("fallback", [False, True])
+@pytest.mark.parametrize("lazy", [False, True])
+def test_map_csv_root_containers(
+    root: str, fallback: bool, lazy: bool
+) -> None:
+    import polars as pl
+    import pyarrow as pa
+
+    if not hasattr(pl, "Map"):
+        pytest.skip("Map dtype requires Polars 2")
+    map_type = pa.map_(pa.int64(), pa.binary() if fallback else pa.int64())
+    entries = [
+        (42, b"abc" if fallback else 1),
+        (42, b"def" if fallback else 2),
+    ]
+    expected_entries = [
+        {"key": 42, "value": "abc" if fallback else 1},
+        {"key": 42, "value": "def" if fallback else 2},
+    ]
+    values: list[object]
+    expected: list[object]
+    if root == "struct":
+        dtype = pa.struct({"^inner$": map_type, "other": pa.string()})
+        values = [
+            {"^inner$": entries, "other": "abc"},
+            {"^inner$": [], "other": None},
+            None,
+        ]
+        expected = [
+            {"^inner$": expected_entries, "other": "abc"},
+            {"^inner$": [], "other": None},
+            None,
+        ]
+    elif root == "list":
+        dtype = pa.list_(map_type)
+        values = [[entries, [], None], [], None]
+        expected = [[expected_entries, [], None], [], None]
+    else:
+        dtype = pa.list_(map_type, 3)
+        values = [[entries, [], None], [[], None, []], None]
+        expected = [[expected_entries, [], None], [[], None, []], None]
+    source = pl.from_arrow(
+        pa.table({"^value$": pa.array(values, type=dtype), "id": [0, 1, 2]})
+    )
+    manager = PolarsTableManagerFactory.create()(
+        source.lazy() if lazy else source
+    )
+    rows = list(csv.DictReader(io.StringIO(manager.to_csv_str())))
+    assert [
+        json.loads(row["^value$"]) if row["^value$"] else None for row in rows
+    ] == expected
+    assert [row["id"] for row in rows] == ["0", "1", "2"]
+    assert manager.collect().equals(source)
+
+
+@pytest.mark.requires("polars", "pyarrow")
+@pytest.mark.parametrize(
+    "temporal", ["datetime", "datetime_tz", "duration", "time"]
+)
+@pytest.mark.parametrize("fallback", [False, True])
+def test_map_csv_nanosecond_precision(temporal: str, fallback: bool) -> None:
+    import polars as pl
+    import pyarrow as pa
+
+    if not hasattr(pl, "Map"):
+        pytest.skip("Map dtype requires Polars 2")
+    if temporal == "datetime":
+        dtype = pa.timestamp("ns")
+        expected = [
+            "1970-01-01T00:00:00.000000001",
+            "1970-01-01T00:00:00.000000002",
+        ]
+    elif temporal == "datetime_tz":
+        dtype = pa.timestamp("ns", tz="America/New_York")
+        expected = [
+            "1969-12-31T19:00:00.000000001-05:00",
+            "1969-12-31T19:00:00.000000002-05:00",
+        ]
+    elif temporal == "duration":
+        dtype = pa.duration("ns")
+        expected = ["-PT0.000000001S", "-PT0.000000002S"]
+    else:
+        dtype = pa.time64("ns")
+        expected = ["00:00:00.000000001", "00:00:00.000000002"]
+    value_type = (
+        pa.struct({"temporal": pa.list_(dtype), "binary": pa.binary()})
+        if fallback
+        else dtype
+    )
+    ticks = [-1, -2] if temporal == "duration" else [1, 2]
+    values = (
+        [{"temporal": [*ticks, None], "binary": b"abc"}] * 2
+        if fallback
+        else ticks
+    )
+    source = pl.from_arrow(
+        pa.table(
+            {
+                "value": pa.array(
+                    [[(ticks[0], values[0]), (ticks[1], values[1])], [], None],
+                    type=pa.map_(dtype, value_type),
+                ),
+                "id": [0, 1, 2],
+            }
+        )
+    )
+    manager = PolarsTableManagerFactory.create()(source)
+    rows = list(csv.DictReader(io.StringIO(manager.to_csv_str())))
+    expected_values = (
+        [{"temporal": [*expected, None], "binary": "abc"}] * 2
+        if fallback
+        else expected
+    )
+    assert [
+        json.loads(row["value"]) if row["value"] else None for row in rows
+    ] == [
+        [
+            {"key": key, "value": value}
+            for key, value in zip(expected, expected_values, strict=True)
+        ],
+        [],
+        None,
+    ]
+    assert manager.collect().equals(source)
+
+
 def assert_frame_equal(a: Any, b: Any) -> bool:
     import polars.testing
 

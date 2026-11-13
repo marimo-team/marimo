@@ -64,40 +64,6 @@ class PolarsTableManagerFactory(TableManagerFactory):
                 return any(contains_map(field.dtype) for field in dtype.fields)
             return False
 
-        def map_entries_expr(
-            expression: pl.Expr,
-            dtype: pl.DataType | pl.datatypes.DataTypeClass,
-        ) -> pl.Expr:
-            if not contains_map(dtype):
-                return expression
-            if map_dtype is not None and isinstance(dtype, map_dtype):
-                return map_entries_expr(
-                    expression.map.entries(),
-                    pl.List(
-                        pl.Struct({"key": dtype.key, "value": dtype.value})
-                    ),
-                )
-            if isinstance(dtype, (pl.List, pl.Array)):
-                inner = map_entries_expr(pl.element(), dtype.inner)
-                if isinstance(dtype, pl.List):
-                    return expression.list.eval(inner)
-                return expression.arr.eval(inner)
-            if isinstance(dtype, pl.Struct):
-                # Polars expands regex and wildcard field names as selectors.
-                expression = expression.struct.rename_fields(
-                    [str(index) for index in range(len(dtype.fields))]
-                )
-                return expression.struct.with_fields(
-                    [
-                        map_entries_expr(
-                            expression.struct[index], field.dtype
-                        ).alias(str(index))
-                        for index, field in enumerate(dtype.fields)
-                        if contains_map(field.dtype)
-                    ]
-                ).struct.rename_fields([field.name for field in dtype.fields])
-            return expression
-
         def supports_native_json(
             dtype: pl.DataType | pl.datatypes.DataTypeClass,
         ) -> bool:
@@ -113,6 +79,45 @@ class PolarsTableManagerFactory(TableManagerFactory):
                 or dtype.is_integer()
                 or dtype.is_float()
             )
+
+        def prepare_json_expr(
+            expression: pl.Expr,
+            dtype: pl.DataType | pl.datatypes.DataTypeClass,
+        ) -> pl.Expr:
+            if supports_native_json(dtype):
+                return expression
+            if dtype.is_temporal():
+                time_format = (
+                    "iso" if isinstance(dtype, pl.Duration) else "iso:strict"
+                )
+                return expression.dt.to_string(time_format)
+            if map_dtype is not None and isinstance(dtype, map_dtype):
+                return prepare_json_expr(
+                    expression.map.entries(),
+                    pl.List(
+                        pl.Struct({"key": dtype.key, "value": dtype.value})
+                    ),
+                )
+            if isinstance(dtype, (pl.List, pl.Array)):
+                inner = prepare_json_expr(pl.element(), dtype.inner)
+                if isinstance(dtype, pl.List):
+                    return expression.list.eval(inner)
+                return expression.arr.eval(inner)
+            if isinstance(dtype, pl.Struct):
+                # Polars expands regex and wildcard field names as selectors.
+                expression = expression.struct.rename_fields(
+                    [str(index) for index in range(len(dtype.fields))]
+                )
+                return expression.struct.with_fields(
+                    [
+                        prepare_json_expr(
+                            expression.struct[index], field.dtype
+                        ).alias(str(index))
+                        for index, field in enumerate(dtype.fields)
+                        if not supports_native_json(field.dtype)
+                    ]
+                ).struct.rename_fields([field.name for field in dtype.fields])
+            return expression
 
         class PolarsTableManager(
             NarwhalsTableManager[pl.DataFrame, pl.LazyFrame]
@@ -172,15 +177,13 @@ class PolarsTableManagerFactory(TableManagerFactory):
                     result = _data
                     for column in result.get_columns():
                         dtype = column.dtype
-                        if isinstance(dtype, pl.Struct):
+                        if contains_map(dtype):
+                            result = result.with_columns(
+                                self._nested_to_json(column)
+                            )
+                        elif isinstance(dtype, pl.Struct):
                             result = result.with_columns(
                                 column.struct.json_encode()
-                            )
-                        elif map_dtype is not None and isinstance(
-                            dtype, map_dtype
-                        ):
-                            result = result.with_columns(
-                                self._map_to_json(column)
                             )
                         elif isinstance(dtype, pl.List):
                             result = result.with_columns(
@@ -202,19 +205,30 @@ class PolarsTableManagerFactory(TableManagerFactory):
                             )
                     return result.write_csv(separator=resolved_separator)
 
-            def _map_to_json(self, column: pl.Series) -> pl.Series:
+            def _nested_to_json(self, column: pl.Series) -> pl.Series:
                 # Entry arrays preserve non-string and repeated keys.
-                entries = column.rename("map").map.entries()
-                if contains_map(entries.dtype):
-                    expression = map_entries_expr(
-                        pl.col(entries.name), entries.dtype
+                values = column.rename("value")
+                if map_dtype is not None and isinstance(
+                    values.dtype, map_dtype
+                ):
+                    values = values.map.entries()
+                if not supports_native_json(values.dtype):
+                    expression = prepare_json_expr(
+                        pl.col(values.name), values.dtype
                     )
-                    entries = entries.to_frame().select(expression).to_series()
-                if supports_native_json(entries.dtype):
-                    encoded = entries.list.eval(
-                        pl.element().struct.json_encode()
-                    ).list.join(",")
-                    return ("[" + encoded + "]").alias(column.name)
+                    values = values.to_frame().select(expression).to_series()
+                if supports_native_json(values.dtype):
+                    # Polars JSON encoding requires a Struct root.
+                    encoded = (
+                        values.to_frame()
+                        .to_struct("row")
+                        .struct.json_encode()
+                        .str.strip_prefix('{"value":')
+                        .str.strip_suffix("}")
+                    )
+                    return encoded.set(values.is_null(), None).alias(
+                        column.name
+                    )
 
                 return pl.Series(
                     column.name,
@@ -228,7 +242,7 @@ class PolarsTableManagerFactory(TableManagerFactory):
                         )
                         if value is not None
                         else None
-                        for value in entries.to_list()
+                        for value in values.to_list()
                     ],
                     dtype=pl.String,
                 )
