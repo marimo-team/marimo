@@ -7,6 +7,8 @@ import { useInternalStateWithSync } from "@/hooks/useInternalStateWithSync";
 import { cn } from "@/utils/cn";
 import { clamp } from "@/utils/math";
 import {
+  countFractionDigits,
+  fractionDigitsForSlider,
   maxFractionDigitsForSteps,
   prettyScientificNumber,
   roundToFractionDigits,
@@ -155,6 +157,7 @@ const SliderComponent = ({
   const id = useId();
   const labelId = useId();
   const { locale } = useLocale();
+  const isFullWidthHorizontal = fullWidth && orientation === "horizontal";
 
   // Hold internal value
   const [internalValue, setInternalValue] = useInternalStateWithSync(
@@ -163,6 +166,18 @@ const SliderComponent = ({
   );
 
   const stepsConfig = useMemo(() => computeStepsConfig(steps), [steps]);
+  const stepDigits = countFractionDigits(step ?? 0);
+  // Keep exact decimals; repeating fractions need only enough digits to distinguish steps.
+  const isDecimalStep =
+    step != null && roundToFractionDigits(step, stepDigits) === step;
+  const fractionDigits =
+    step != null && Number.isFinite(step) && step > 0 && !steps?.length
+      ? Math.max(
+          countFractionDigits(start),
+          isDecimalStep ? stepDigits : 2,
+          Math.ceil(-Math.log10(step)),
+        )
+      : fractionDigitsForSlider(step, steps, start, [valueMap(internalValue)]);
 
   const handleInputChange = (nextValue: number | null | undefined): void => {
     if (stepsConfig) {
@@ -232,6 +247,10 @@ const SliderComponent = ({
       <div
         className={cn(
           "flex items-center gap-2",
+          isFullWidthHorizontal && "grid w-full grid-cols-1 gap-y-1",
+          isFullWidthHorizontal &&
+            includeInput &&
+            "grid-cols-[minmax(0,1fr)_auto]",
           orientation === "vertical" &&
             "items-end inline-flex justify-center self-center mx-2",
         )}
@@ -264,18 +283,31 @@ const SliderComponent = ({
             }
           }}
           valueMap={valueMap} // Pass valueMap to Slider
+          maximumFractionDigits={fractionDigits}
           disabled={disabled}
         />
         {showValue && (
-          <div className="text-xs text-muted-foreground min-w-[16px]">
-            {prettyScientificNumber(valueMap(internalValue), { locale })}
+          <div
+            className={cn(
+              "text-xs text-muted-foreground min-w-[16px]",
+              isFullWidthHorizontal &&
+                "col-span-full row-start-2 min-w-0 max-w-full justify-self-end break-all",
+            )}
+          >
+            {prettyScientificNumber(valueMap(internalValue), {
+              locale,
+              maximumFractionDigits: fractionDigits,
+            })}
           </div>
         )}
         {includeInput && (
           <NumberField
             {...inputProps}
             onChange={handleInputChange}
-            className="w-24"
+            className={cn(
+              "w-24",
+              isFullWidthHorizontal && "col-start-2 row-start-1",
+            )}
             aria-label={`${label || "Slider"} value input`}
             isDisabled={disabled}
           />

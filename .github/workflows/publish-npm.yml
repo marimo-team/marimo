@@ -20,7 +20,7 @@ on:
 
 jobs:
   publish:
-    runs-on: ubuntu-latest
+    runs-on: "${{ vars.CI_RUNNER_SMALL || 'ubuntu-latest' }}"
     permissions:
       id-token: write  # Required for OIDC authentication and provenance
       contents: read
@@ -41,15 +41,18 @@ jobs:
         working-directory: ${{ inputs.working-directory }}
         env:
           NODE_AUTH_TOKEN: "" # Clear placeholder set by setup-node to enable OIDC
+          NPM_TAG: ${{ inputs.npm-tag }}
         run: |
-          TAG_FLAG=""
-          if [ -n "${{ inputs.npm-tag }}" ]; then
-            TAG_FLAG="--tag ${{ inputs.npm-tag }}"
+          TAG_FLAGS=()
+          if [ -n "$NPM_TAG" ]; then
+            TAG_FLAGS=(--tag "$NPM_TAG")
           fi
 
           for i in {1..3}; do
-            npm publish --access public --provenance $TAG_FLAG && break || {
-              echo "Publish attempt $i failed, retrying..."
-              sleep 10
-            }
+            if npm publish --access public --provenance "${TAG_FLAGS[@]}"; then
+              exit 0
+            fi
+            echo "Publish attempt $i failed, retrying..."
+            sleep 10
           done
+          exit 1

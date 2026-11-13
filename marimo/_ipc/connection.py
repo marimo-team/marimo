@@ -121,7 +121,7 @@ class Connection:
     completion: Channel[OutOfBandCommand]
     win32_interrupt: Channel[bool] | None
 
-    input: Channel[str | InputReply]
+    input: Channel[InputReply]
     stream: Channel[KernelMessage]
 
     def __post_init__(self) -> None:
@@ -201,7 +201,7 @@ class Connection:
             win32_interrupt=Channel.Pull(context, msg_type=bool)
             if connection_info.win32_interrupt
             else None,
-            input=Channel.Pull(context, msg_type=str | InputReply, maxsize=1),
+            input=Channel.Pull(context, msg_type=InputReply, maxsize=1),
             stream=Channel.Push(context),
         )
 

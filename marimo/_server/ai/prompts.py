@@ -9,7 +9,6 @@ from marimo._server.models.completion import (
     SchemaTable,
     VariableContext,
 )
-from marimo._types.ids import SessionId
 
 FIM_PREFIX_TAG = "<|fim_prefix|>"
 FIM_SUFFIX_TAG = "<|fim_suffix|>"
@@ -257,13 +256,6 @@ def _get_mode_intro_message(mode: CopilotMode) -> str:
         )
 
 
-def _get_session_info(session_id: SessionId) -> str:
-    return (
-        f"Current notebook session ID: {session_id}. "
-        "Use this session_id with tools that require it."
-    )
-
-
 def _single_cell_language_rules() -> str:
     """Per-language rules for chat modes that emit one cell at a time."""
     out = ""
@@ -289,14 +281,11 @@ def _multi_cell_language_rules() -> str:
 def _common_chat_sections(
     *,
     custom_rules: str | None,
-    include_other_code: str | None,
 ) -> str:
     """Trailing sections shared by every chat mode."""
     out = ""
     if custom_rules and custom_rules.strip():
         out += f"\n\n## Additional rules:\n{custom_rules}"
-    if include_other_code:
-        out += "\n\n" + _tag("code_from_other_cells", include_other_code)
     return out
 
 
@@ -422,10 +411,18 @@ chart
 def get_chat_system_prompt(
     *,
     custom_rules: str | None,
-    include_other_code: str,
     mode: CopilotMode,
-    session_id: SessionId,
 ) -> str:
+    context_rules = (
+        "\n\nNotebook context is supplied as JSON updates in user messages. "
+        "Use the latest sessionId with tools that require a session_id. "
+        "The cells field is an array of {id, code} objects containing complete replacements for added or changed cells. "
+        "When cellIds is present it gives the complete current cell order; cells absent from it were deleted. "
+        "Notebook updates are relative to the previous user-provided notebook snapshot. "
+        "An empty cells list means no code changed since that snapshot. "
+        "These are snapshots at user submission time; "
+        "use notebook tools to inspect more recent changes when needed."
+    )
     # Code mode runs against the live kernel, so it leans on the marimo-pair
     # skill instead of the static notebook guide.
     if mode == "code_mode":
@@ -438,15 +435,11 @@ def get_chat_system_prompt(
         system_prompt = f"{intro}\n\n{skill_section}"
         system_prompt += _common_chat_sections(
             custom_rules=custom_rules,
-            include_other_code=None,  # code mode can inspect code
         )
         system_prompt += "\nIf you are not aware of the current notebook code, inspect it first before answering any questions."
-        return system_prompt
+        return system_prompt + context_rules
 
-    system_prompt = (
-        f"\n{_get_mode_intro_message(mode)}\n{_get_session_info(session_id)}"
-        f"\n\n{_NOTEBOOK_GUIDE}"
-    )
+    system_prompt = f"\n{_get_mode_intro_message(mode)}\n\n{_NOTEBOOK_GUIDE}"
 
     if mode == "agent":
         # Agent mode can emit multiple cells, so it gets the multi-cell rules
@@ -458,9 +451,12 @@ def get_chat_system_prompt(
     else:
         system_prompt += _single_cell_language_rules()
 
-    return system_prompt + _common_chat_sections(
-        custom_rules=custom_rules,
-        include_other_code=include_other_code,
+    return (
+        system_prompt
+        + context_rules
+        + _common_chat_sections(
+            custom_rules=custom_rules,
+        )
     )
 
 

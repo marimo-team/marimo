@@ -75,6 +75,24 @@ WEBPDF_CODE_WRAP_CSS = """\
 """
 
 
+# Preserve common KaTeX commands in WebPDF.
+WEBPDF_TEMPLATE = """\
+{% extends 'index.html.j2' %}
+{% block html_head_js_mathjax %}
+<script type="text/x-mathjax-config">
+MathJax.Hub.Config({
+  "TeX": {
+    "Macros": {"bm": "\\\\boldsymbol"},
+    "extensions": ["mhchem.js", "cancel.js", "color.js"],
+    "mhchem": {"legacy": false}
+  }
+});
+</script>
+{{ super() }}
+{% endblock html_head_js_mathjax %}
+"""
+
+
 def _inline_code_wrap_css(nb: Any, resources: Any) -> tuple[Any, Any]:
     """Inline `WEBPDF_CODE_WRAP_CSS`, as an nbconvert preprocessor.
 
@@ -93,6 +111,7 @@ def _render_webpdf_html(
 
     html_exporter = HTMLExporter(  # type: ignore[no-untyped-call]
         template_name="webpdf",
+        raw_template=WEBPDF_TEMPLATE,
         config=_nbconvert_tag_remove_config(),
     )
     html_exporter.exclude_input = not include_inputs

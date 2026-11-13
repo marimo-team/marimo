@@ -750,8 +750,6 @@ components:
           - type: string
           - type: 'null'
           default: null
-        includeOtherCode:
-          type: string
         model:
           anyOf:
           - type: string
@@ -780,7 +778,6 @@ components:
           - type: 'null'
           default: null
       required:
-      - includeOtherCode
       - uiMessages
       title: ChatRequest
       type: object
@@ -5929,14 +5926,6 @@ components:
       - log_mode
       title: StartupProgressNotification
       type: object
-    StdinRequest:
-      properties:
-        text:
-          type: string
-      required:
-      - text
-      title: StdinRequest
-      type: object
     StorageDownloadReadyNotification:
       description: "Signals that a storage file download is ready.\n\nThe url may\
         \ be a signed cloud URL (preferred) or a virtual file URL\n(fallback for backends\
@@ -8002,26 +7991,6 @@ paths:
             means at least one cell is queued or running; `idle` means the kernel
             is alive but not executing; `stopped` means the kernel process is not
             running.
-  /api/kernel/stdin:
-    post:
-      parameters:
-      - in: header
-        name: Marimo-Session-Id
-        required: true
-        schema:
-          type: string
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/StdinRequest'
-      responses:
-        200:
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/SuccessResponse'
-          description: Send input to the stdin stream
   /api/kernel/takeover:
     post:
       parameters:

@@ -134,6 +134,7 @@ def launch(
             *_with_args(overlay.requirements),
             "--",
             "python",
+            "-P",
             *args,
         ),
         env=env,

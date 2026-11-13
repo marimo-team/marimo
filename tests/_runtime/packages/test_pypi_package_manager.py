@@ -92,7 +92,7 @@ def test_pip_is_manager_installed_primary_check_success(mock_run: MagicMock):
     assert mgr.is_manager_installed() is True
     mock_run.assert_called_once()
     call_args = mock_run.call_args[0][0]
-    assert call_args == [PY_EXE, "-m", "pip", "--version"]
+    assert call_args == [PY_EXE, "-P", "-m", "pip", "--version"]
 
 
 @patch("subprocess.run")
@@ -148,7 +148,7 @@ async def test_install(mock_run: MagicMock):
         )
 
     mock_run.assert_called_once_with(
-        [PY_EXE, "-m", "pip", "install", "package1", "package2"],
+        [PY_EXE, "-P", "-m", "pip", "install", "package1", "package2"],
         start_new_session=True,
     )
     assert result is True
@@ -175,6 +175,7 @@ async def test_uninstall(mock_run: MagicMock):
     mock_run.assert_called_once_with(
         [
             PY_EXE,
+            "-P",
             "-m",
             "pip",
             "uninstall",
@@ -201,7 +202,7 @@ def test_list_packages(mock_run: MagicMock):
         packages = manager.list_packages()
 
     mock_run.assert_called_once_with(
-        [PY_EXE, "-m", "pip", "list", "--format=json"],
+        [PY_EXE, "-P", "-m", "pip", "list", "--format=json"],
         capture_output=True,
         text=True,
         encoding="utf-8",

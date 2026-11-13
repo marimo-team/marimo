@@ -28,14 +28,14 @@ def pyodide_pipe() -> Mock:
 
 
 @pytest.fixture
-def pyodide_input_queue() -> asyncio.Queue[str | InputReply]:
+def pyodide_input_queue() -> asyncio.Queue[InputReply]:
     return asyncio.Queue()
 
 
 @pytest.fixture
 def pyodide_(
     pyodide_pipe: Mock,
-    pyodide_input_queue: asyncio.Queue[str | InputReply],
+    pyodide_input_queue: asyncio.Queue[InputReply],
 ) -> PyodideStream:
     return PyodideStream(pyodide_pipe, pyodide_input_queue, cell_id)
 
@@ -68,7 +68,7 @@ class TestPyodideStream:
         self,
         pyodide_: PyodideStream,
         pyodide_pipe: Mock,
-        pyodide_input_queue: asyncio.Queue[str | InputReply],
+        pyodide_input_queue: asyncio.Queue[InputReply],
     ) -> None:
         copied = pyodide_.copy_for_thread()
 
@@ -161,13 +161,26 @@ class TestPyodideStderr:
         assert pyodide_pipe.call_count == 3
 
 
+def answer_prompt(
+    pipe: Mock, replies: asyncio.Queue[InputReply], value: str
+) -> None:
+    def answer(message: KernelMessage) -> None:
+        notification = deserialize_kernel_message(message)
+        assert isinstance(notification, CellNotification)
+        assert isinstance(notification.console, CellOutput)
+        assert isinstance(notification.console.input_id, str)
+        replies.put_nowait(InputReply(notification.console.input_id, value))
+
+    pipe.side_effect = answer
+
+
 class TestPyodideStdin:
     @pytest.mark.parametrize("cancelled", [False, True])
     async def test_ended_reader_releases_next_prompt(
         self, cancelled: bool
     ) -> None:
         messages: asyncio.Queue[KernelMessage] = asyncio.Queue()
-        replies: asyncio.Queue[str | InputReply] = asyncio.Queue()
+        replies: asyncio.Queue[InputReply] = asyncio.Queue()
         stream = PyodideStream(messages.put_nowait, replies, cell_id)
         attempt = ExecutionAttempt(cell_id, "input()")
         with attempt.activate():
@@ -219,9 +232,9 @@ class TestPyodideStdin:
         self,
         pyodide_stdin: PyodideStdin,
         pyodide_pipe: Mock,
-        pyodide_input_queue: asyncio.Queue[str | InputReply],
+        pyodide_input_queue: asyncio.Queue[InputReply],
     ) -> None:
-        pyodide_input_queue.put_nowait("test input")
+        answer_prompt(pyodide_pipe, pyodide_input_queue, "test input")
         result = pyodide_stdin.readline()
         assert result == "test input\n"
         assert pyodide_pipe.call_count == 1
@@ -236,9 +249,9 @@ class TestPyodideStdin:
         self,
         pyodide_stdin: PyodideStdin,
         pyodide_pipe: Mock,
-        pyodide_input_queue: asyncio.Queue[str | InputReply],
+        pyodide_input_queue: asyncio.Queue[InputReply],
     ) -> None:
-        pyodide_input_queue.put_nowait("test input")
+        answer_prompt(pyodide_pipe, pyodide_input_queue, "test input")
         # The _readline_with_prompt primitive returns bare text; the "\n"
         # is only added by readline() for file-protocol consumers.
         result = pyodide_stdin._readline_with_prompt("Enter: ")
@@ -255,9 +268,9 @@ class TestPyodideStdin:
         self,
         pyodide_stdin: PyodideStdin,
         pyodide_pipe: Mock,
-        pyodide_input_queue: asyncio.Queue[str | InputReply],
+        pyodide_input_queue: asyncio.Queue[InputReply],
     ) -> None:
-        pyodide_input_queue.put_nowait("hello")
+        answer_prompt(pyodide_pipe, pyodide_input_queue, "hello")
         result = pyodide_stdin.readlines()
         assert result == ["hello\n"]
         assert pyodide_pipe.call_count == 1
@@ -271,8 +284,9 @@ class TestPyodideStdin:
     def test_readline_empty_submission(
         self,
         pyodide_stdin: PyodideStdin,
-        pyodide_input_queue: asyncio.Queue[str | InputReply],
+        pyodide_pipe: Mock,
+        pyodide_input_queue: asyncio.Queue[InputReply],
     ) -> None:
         # Empty submission must be a blank line ("\n"), not "" (= EOF).
-        pyodide_input_queue.put_nowait("")
+        answer_prompt(pyodide_pipe, pyodide_input_queue, "")
         assert pyodide_stdin.readline() == "\n"

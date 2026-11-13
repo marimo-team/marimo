@@ -119,7 +119,7 @@ class AsyncQueueManager:
 
         # Input messages for the user's Python code are sent through the
         # input queue
-        self.input_queue = asyncio.Queue[str | InputReply](maxsize=1)
+        self.input_queue = asyncio.Queue[InputReply](maxsize=1)
 
     def close_queues(self) -> None:
         # kernel thread cleans up read/write conn and IOloop handler on
@@ -223,8 +223,8 @@ class PyodideSession:
     ) -> None:
         self._queue_manager.completion_queue.put_nowait(request)
 
-    def put_input(self, text: str | InputReply) -> None:
-        deliver_reply(self._queue_manager.input_queue, text)
+    def reply_input(self, reply: InputReply) -> None:
+        deliver_reply(self._queue_manager.input_queue, reply)
 
     def find_packages(self, code: str) -> list[str]:
         """
@@ -332,9 +332,6 @@ class PyodideBridge:
     def put_control_request(self, request: str) -> None:
         parsed = parse_command(request)
         self.session.put_control_request(parsed)
-
-    def put_input(self, text: str | InputReply) -> None:
-        self.session.put_input(text)
 
     def code_complete(self, request: str) -> None:
         parsed = self._parse(request, commands.CodeCompletionCommand)
@@ -602,7 +599,7 @@ def _launch_pyodide_kernel(
     control_queue: asyncio.Queue[CommandMessage],
     set_ui_element_queue: asyncio.Queue[BatchableCommand],
     completion_queue: asyncio.Queue[OutOfBandCommand],
-    input_queue: asyncio.Queue[str | InputReply],
+    input_queue: asyncio.Queue[InputReply],
     on_message: Callable[[KernelMessage], None],
     session_mode: SessionMode,
     configs: dict[CellId_t, CellConfig],

@@ -117,7 +117,8 @@ export const SlideCellView = ({ cell }: { cell: RuntimeCell }) => {
         code={cell.code}
         editorViewRef={editorViewRef}
         currentLanguageAdapter={languageAdapter}
-        onAfterToggle={afterToggleLanguage}
+        onAfterToggleSQL={afterToggleLanguage}
+        onAfterToggleMarkdown={afterToggleLanguage}
         className="flex items-center gap-1"
       />
       <div className="flex items-center shadow-none gap-1">

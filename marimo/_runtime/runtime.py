@@ -2983,7 +2983,7 @@ def _maybe_profile(profile_path: str | None) -> Iterator[None]:
 def _create_streams(
     socket_addr: tuple[str, int] | None,
     stream_queue: QueueType[KernelMessage] | None,
-    input_queue: QueueType[str | InputReply],
+    input_queue: QueueType[InputReply],
     is_edit_mode: bool,
     should_redirect_stdio: bool,
     use_fd_redirect: bool,
@@ -3091,7 +3091,7 @@ def launch_kernel(
     control_queue: QueueType[CommandMessage],
     set_ui_element_queue: QueueType[BatchableCommand],
     completion_queue: QueueType[OutOfBandCommand],
-    input_queue: QueueType[str | InputReply],
+    input_queue: QueueType[InputReply],
     stream_queue: QueueType[KernelMessage] | None,
     socket_addr: tuple[str, int] | None,
     is_edit_mode: bool,

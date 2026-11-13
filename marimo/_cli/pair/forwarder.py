@@ -84,7 +84,7 @@ def start_forwarder(
 
     assert config.target.process is not None
     process = subprocess.Popen(
-        [sys.executable, "-m", "marimo._cli.pair.forwarder"],
+        [sys.executable, "-P", "-m", "marimo._cli.pair.forwarder"],
         stdin=subprocess.PIPE,
         stdout=subprocess.PIPE,
         stderr=subprocess.DEVNULL,

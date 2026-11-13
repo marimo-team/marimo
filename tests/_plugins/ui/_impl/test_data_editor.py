@@ -1270,6 +1270,209 @@ def test_apply_edits_dataframe():
     assert pd.DataFrame({"A": [1, 2, 3], "B": ["a", "x", "c"]}).equals(result)
 
 
+@pytest.fixture(
+    params=[
+        "integer",
+        "duplicate",
+        "range",
+        "nullable",
+        "datetime",
+        "timedelta",
+        "period",
+        "categorical",
+        "interval",
+        "multiindex",
+    ]
+)
+def pandas_editor_index(request):
+    import pandas as pd
+
+    indexes = {
+        "integer": pd.Index([10, 20], name="task_id"),
+        "duplicate": pd.Index(["a", "a"], name="task_id"),
+        "range": pd.RangeIndex(10, 14, 2, name="task_id"),
+        "nullable": pd.Index(pd.array([10, None], dtype="Int64")),
+        "datetime": pd.date_range(
+            "2026-01-01", periods=2, tz="Asia/Kuala_Lumpur", name="day"
+        ),
+        "timedelta": pd.timedelta_range("1 day", periods=2, name="elapsed"),
+        "period": pd.period_range(
+            "2026-01", periods=2, freq="M", name="month"
+        ),
+        "categorical": pd.CategoricalIndex(
+            ["b", "a"], categories=["a", "b", "c"], ordered=True, name="group"
+        ),
+        "interval": pd.interval_range(0, periods=2, name="bin"),
+        "multiindex": pd.MultiIndex.from_arrays(
+            [["a", "a"], [10, 20]], names=[None, "task_id"]
+        ),
+    }
+    return indexes[request.param]
+
+
+@pytest.mark.skipif(not HAS_PANDAS, reason="Pandas not installed")
+@pytest.mark.parametrize("configured", [False, True])
+def test_data_editor_cell_edits_preserve_pandas_index(
+    pandas_editor_index, configured
+):
+    import pandas as pd
+
+    source = pd.DataFrame(
+        {
+            "task": ["Review", "Ship"],
+            "done": ["yes", "no"],
+            "priority": ["01", "02"],
+        },
+        index=pandas_editor_index,
+    )
+    original = source.copy(deep=True)
+    editor = data_editor(
+        source,
+        column_types={"done": "boolean", "priority": ["01", "02", "10"]}
+        if configured
+        else None,
+    )
+    expected = source.copy()
+    if configured:
+        expected["done"] = [True, False]
+    pd.testing.assert_frame_equal(editor.value, expected)
+
+    edits: DataEdits = {
+        "edits": [
+            {"rowIdx": 0, "columnId": "task", "value": "Reviewed"},
+            {"rowIdx": 0, "columnId": "done", "value": False}
+            if configured
+            else {"rowIdx": 0, "columnId": "priority", "value": "10"},
+        ]
+    }
+    expected.iloc[0, 0] = "Reviewed"
+    if configured:
+        expected.iloc[0, 1] = False
+    else:
+        expected.iloc[0, 2] = "10"
+    pd.testing.assert_frame_equal(editor._convert_value(edits), expected)
+    pd.testing.assert_frame_equal(source, original)
+    pd.testing.assert_frame_equal(
+        editor._convert_value({"edits": []}),
+        source if not configured else source.assign(done=[True, False]),
+    )
+
+
+@pytest.mark.skipif(not HAS_PANDAS, reason="Pandas not installed")
+@pytest.mark.parametrize(
+    ("edits", "expected_columns"),
+    [
+        (
+            {
+                "edits": [
+                    {"columnIdx": 0, "type": "rename", "newName": "task_id"}
+                ]
+            },
+            {"task_id": [1, 2]},
+        ),
+        (
+            {"edits": [{"columnIdx": 0, "type": "insert", "newName": "B"}]},
+            {"B": [None, None], "A": [1, 2]},
+        ),
+        ({"edits": [{"columnIdx": 0, "type": "remove"}]}, {}),
+    ],
+)
+def test_apply_edits_column_operations_preserve_pandas_index(
+    edits: DataEdits, expected_columns
+):
+    import pandas as pd
+
+    index = pd.MultiIndex.from_arrays(
+        [["a", "a"], [10, 20]], names=["task_id", "task_id"]
+    )
+    source = pd.DataFrame({"A": [1, 2]}, index=index)
+    original = source.copy(deep=True)
+
+    pd.testing.assert_frame_equal(
+        apply_edits(source, edits), pd.DataFrame(expected_columns, index=index)
+    )
+    pd.testing.assert_frame_equal(source, original)
+
+
+@pytest.mark.skipif(not HAS_PANDAS, reason="Pandas not installed")
+@pytest.mark.parametrize(
+    ("edits", "values"),
+    [
+        ({"edits": [{"rowIdx": 0, "type": "remove"}]}, [2]),
+        (
+            {"edits": [{"rowIdx": 3, "columnId": "A", "value": "4"}]},
+            [1, 2, None, 4],
+        ),
+        (
+            {
+                "edits": [
+                    {"rowIdx": 0, "type": "remove"},
+                    {"rowIdx": 1, "columnId": "A", "value": "3"},
+                ]
+            },
+            [2, 3],
+        ),
+        (
+            {
+                "edits": [
+                    {"rowIdx": 0, "type": "remove"},
+                    {"rowIdx": 0, "type": "remove"},
+                ]
+            },
+            [],
+        ),
+    ],
+)
+def test_apply_edits_row_changes_reset_pandas_index(edits: DataEdits, values):
+    import pandas as pd
+
+    source = pd.DataFrame(
+        {"A": [1, 2]},
+        index=pd.MultiIndex.from_tuples(
+            [("a", 10), ("b", 20)], names=["group", "id"]
+        ),
+    )
+    original = source.copy(deep=True)
+
+    pd.testing.assert_frame_equal(
+        apply_edits(source, edits), pd.DataFrame({"A": values})
+    )
+    pd.testing.assert_frame_equal(source, original)
+
+
+@pytest.mark.skipif(not HAS_PANDAS, reason="Pandas not installed")
+def test_apply_edits_invalid_row_operations_preserve_pandas_index():
+    import pandas as pd
+
+    source = pd.DataFrame({"A": [1, 2]}, index=pd.Index([10, 20], name="id"))
+    edits: DataEdits = {
+        "edits": [
+            {"rowIdx": -1, "type": "remove"},
+            {"rowIdx": 2, "type": "remove"},
+            {"rowIdx": -1, "columnId": "A", "value": "3"},
+        ]
+    }
+
+    pd.testing.assert_frame_equal(apply_edits(source, edits), source)
+
+
+@pytest.mark.skipif(not HAS_PANDAS, reason="Pandas not installed")
+@pytest.mark.parametrize("row_count", [0, 2])
+def test_apply_edits_pandas_index_without_columns(row_count):
+    import pandas as pd
+
+    index = pd.Index([10, 20][:row_count], name="id")
+    source = pd.DataFrame(index=index)
+    edits: DataEdits = {
+        "edits": [{"columnIdx": 0, "type": "insert", "newName": "A"}]
+    }
+
+    pd.testing.assert_frame_equal(
+        apply_edits(source, edits),
+        pd.DataFrame({"A": [None] * row_count}, index=index),
+    )
+
+
 @pytest.mark.skipif(
     not DependencyManager.pandas.has(), reason="Pandas not installed"
 )

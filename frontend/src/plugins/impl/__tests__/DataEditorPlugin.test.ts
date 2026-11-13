@@ -4,14 +4,17 @@ import React, { Suspense } from "react";
 import { act, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { z } from "zod";
-import type { IPluginProps } from "../../types";
-import type { EditorRow, Edits } from "../data-editor/types";
+import type { IPluginProps, Setter } from "../../types";
+import type { GlideDataEditor } from "../data-editor/glide-data-editor";
+import type { ColumnType, EditorRow, Edits } from "../data-editor/types";
 import { DataEditorPlugin } from "../DataEditorPlugin";
 
 type PluginData = z.infer<typeof DataEditorPlugin.validator>;
 
 const mocks = vi.hoisted(() => ({
   loadData: vi.fn(),
+  renderEditor:
+    vi.fn<(props: React.ComponentProps<typeof GlideDataEditor>) => void>(),
 }));
 
 vi.mock("../vega/loader", () => ({
@@ -21,8 +24,9 @@ vi.mock("../vega/loader", () => ({
 vi.mock("../data-editor/glide-data-editor", async () => {
   const React = await import("react");
   return {
-    default: (props: { data: EditorRow[]; columnFields: unknown }) =>
-      React.createElement(
+    default: (props: React.ComponentProps<typeof GlideDataEditor>) => {
+      mocks.renderEditor(props);
+      return React.createElement(
         React.Fragment,
         null,
         React.createElement(
@@ -33,22 +37,23 @@ vi.mock("../data-editor/glide-data-editor", async () => {
         React.createElement(
           "pre",
           { "data-testid": "editor-fields" },
-          JSON.stringify(
-            props.columnFields instanceof Map
-              ? [...props.columnFields]
-              : props.columnFields,
-          ),
+          JSON.stringify([...props.columnFields]),
         ),
-      ),
+      );
+    },
   };
 });
 
-function renderPlugin(data: PluginData, value: Edits) {
+function renderPlugin(
+  data: PluginData,
+  value: Edits,
+  setValue: Setter<Edits> = vi.fn(),
+) {
   const props: IPluginProps<Edits, PluginData> = {
     host: document.createElement("div"),
     data,
     value,
-    setValue: vi.fn(),
+    setValue,
     functions: {},
   };
   return React.createElement(
@@ -61,6 +66,7 @@ function renderPlugin(data: PluginData, value: Edits) {
 describe("DataEditorPlugin", () => {
   beforeEach(() => {
     mocks.loadData.mockReset();
+    mocks.renderEditor.mockClear();
   });
 
   it("normalizes an unrecognized field type", () => {
@@ -212,6 +218,7 @@ describe("DataEditorPlugin", () => {
       );
     });
 
+    mocks.renderEditor.mockClear();
     result.rerender(
       renderPlugin(data, {
         edits: [{ rowIdx: 0, columnId: "name", value: "updated" }],
@@ -223,6 +230,90 @@ describe("DataEditorPlugin", () => {
         JSON.stringify([{ name: "updated" }]),
       );
     });
+    expect(mocks.renderEditor).toHaveBeenCalled();
+    for (const [props] of mocks.renderEditor.mock.calls) {
+      expect(props.data).toEqual([{ name: "updated" }]);
+    }
+  });
+
+  it("accumulates cell edits through the plugin value", async () => {
+    const data = DataEditorPlugin.validator.parse({
+      initialValue: { edits: [] },
+      label: null,
+      data: [{ name: "original" }],
+      editableColumns: "all",
+    });
+    const Editor = () => {
+      const [value, setValue] = React.useState<Edits>({ edits: [] });
+      return renderPlugin(data, value, setValue);
+    };
+    render(React.createElement(Editor));
+    await screen.findByTestId("editor-data");
+
+    act(() => {
+      const onAddEdits = mocks.renderEditor.mock.lastCall?.[0].onAddEdits;
+      onAddEdits?.([{ rowIdx: 0, columnId: "name", value: "updated" }]);
+      onAddEdits?.([{ rowIdx: 1, columnId: "name", value: "appended" }]);
+    });
+
+    expect(screen.getByTestId("editor-data").textContent).toBe(
+      JSON.stringify([{ name: "updated" }, { name: "appended" }]),
+    );
+  });
+
+  it("removes the previous editor while loading a replacement schema", async () => {
+    const original = DataEditorPlugin.validator.parse({
+      initialValue: { edits: [] },
+      label: null,
+      data: [{ name: "original", day: "2026-11-06" }],
+      editableColumns: "all",
+    });
+    const result = render(renderPlugin(original, { edits: [] }));
+    await screen.findByTestId("editor-data");
+    mocks.renderEditor.mockClear();
+
+    let resolveLoad: ((data: EditorRow[]) => void) | undefined;
+    mocks.loadData.mockImplementationOnce(
+      () =>
+        new Promise<EditorRow[]>((resolve) => {
+          resolveLoad = resolve;
+        }),
+    );
+    const replacement = DataEditorPlugin.validator.parse({
+      initialValue: { edits: [] },
+      label: null,
+      data: "replacement.csv",
+      columnNames: ["task", "done", "priority"],
+      columnTypes: { done: "boolean", priority: ["01", "02", "10"] },
+      editableColumns: ["task"],
+    });
+    result.rerender(
+      renderPlugin(replacement, {
+        edits: [{ rowIdx: 0, columnId: "task", value: "latest" }],
+      }),
+    );
+
+    expect(screen.queryByTestId("editor-data")).toBeNull();
+    expect(mocks.renderEditor).not.toHaveBeenCalled();
+    await act(async () => {
+      resolveLoad?.([{ task: "Review", done: "yes", priority: "01" }]);
+    });
+    await screen.findByTestId("editor-data");
+    expect(mocks.renderEditor).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        data: [{ task: "latest", done: true, priority: "01" }],
+        columnFields: new Map([
+          ["task", "string"],
+          ["done", "boolean"],
+          ["priority", "string"],
+        ]),
+        columnTypes: new Map<string, ColumnType>([
+          ["done", "boolean"],
+          ["priority", ["01", "02", "10"]],
+        ]),
+        editableColumns: ["task"],
+      }),
+    );
   });
 
   it("ignores a superseded async data load", async () => {

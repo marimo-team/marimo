@@ -1195,6 +1195,28 @@ def test_type_var_generic_function() -> None:
     assert v.refs == set()
 
 
+@pytest.mark.skipif("sys.version_info < (3, 12)")
+@pytest.mark.parametrize(
+    "code",
+    [
+        "def f[T](x: T = T): return x",
+        "@T\ndef f[T](x: T): return x",
+    ],
+)
+def test_generic_function_signature_uses_enclosing_scope(code: str) -> None:
+    v = visitor.ScopedVisitor()
+    v.visit(ast.parse(code))
+    assert v.defs == {"f"}
+    assert v.refs == {"T"}
+    assert v.variable_data == {
+        "f": [
+            VariableData(
+                kind="function", required_refs={"T"}, unbounded_refs={"T"}
+            )
+        ]
+    }
+
+
 def test_private_ref_requirement_caught() -> None:
     code = "x = 1\n_x = 1\ndef foo():\n  z = _x + x + X"
     v = visitor.ScopedVisitor()

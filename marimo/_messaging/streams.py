@@ -106,7 +106,7 @@ class ThreadSafeStream(Stream):
     def __init__(
         self,
         pipe: PipeProtocol,
-        input_queue: QueueType[str | InputReply],
+        input_queue: QueueType[InputReply],
         redirect_console: bool,
         cell_id: CellId_t | None = None,
     ):
@@ -502,9 +502,6 @@ class ThreadSafeStdin(Stdin):
                 reply = self._stream.input_queue.get(timeout=0.1)
             except queue.Empty:
                 continue
-            # TODO(MO-8506): Delete the unaddressed reply with the stdin endpoint.
-            if isinstance(reply, str):
-                return reply
             if reply.input_id == input_id:
                 return reply.value
 

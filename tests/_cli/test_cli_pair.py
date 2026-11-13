@@ -946,9 +946,10 @@ class TestPairDocs:
         result = _runner.invoke(cli_main, ["pair", "docs", "--help"])
 
         assert result.exit_code == 0
-        _, separator, topics = result.output.partition("Available topics:\n")
-        assert separator
-        assert topics == snapshot("""\
+        assert "Usage: main pair docs [OPTIONS] [TOPIC]" in result.output
+        assert "Read notebook guidance on demand." in result.output
+        assert "-h, --help  Show this message and exit." in result.output
+        assert result.output.partition("Available topics:\n")[2] == snapshot("""\
   gotchas                Gotchas
   notebook-improvements  Notebook Improvements
   rich-representations   Rich Representations

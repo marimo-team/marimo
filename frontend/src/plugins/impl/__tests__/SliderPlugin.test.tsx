@@ -134,6 +134,46 @@ describe("SliderPlugin", () => {
     });
   };
 
+  it.each([
+    { step: 1 / 30, value: 35.86666666666667, expected: "35.87" },
+    { step: 0.1, value: 0.30000000000000004, expected: "0.3" },
+    { step: 0.25, value: 1.25, expected: "1.25" },
+    { step: 0.001, value: 1.234, expected: "1.234" },
+    { step: 1e-7, value: 3e-7, expected: "3.0e-7" },
+    { step: 1e-15, value: 3e-15, expected: "3.0e-15" },
+    { step: 1, value: 1.0001, expected: "1.0001", start: 0.0001 },
+    { step: undefined, value: 0.1234, expected: "0.1234" },
+    { step: 1, value: 1, expected: "1.234", steps: [1, 1.234, 2] },
+  ])(
+    "formats the displayed value for step $step",
+    ({ step, value, expected, start = 0, steps = null }) => {
+      const plugin = new SliderPlugin();
+      const setValue = vi.fn();
+      const props = createProps({
+        debounce: false,
+        includeInput: false,
+        setValue,
+      });
+      const { getByText } = render(
+        plugin.render({
+          ...props,
+          value,
+          data: {
+            ...props.data,
+            step,
+            start,
+            steps,
+            stop: 60,
+            showValue: true,
+          },
+        }),
+      );
+
+      expect(getByText(expected)).toBeVisible();
+      expect(setValue).not.toHaveBeenCalled();
+    },
+  );
+
   it("slider triggers setValue immediately when debounce is false", () => {
     const plugin = new SliderPlugin();
     const setValue = vi.fn();

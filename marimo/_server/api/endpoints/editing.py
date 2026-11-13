@@ -21,7 +21,6 @@ from marimo._server.models.models import (
     FormatCellsRequest,
     FormatResponse,
     InstallPackagesRequest,
-    StdinRequest,
     SuccessResponse,
 )
 from marimo._server.router import APIRouter
@@ -135,36 +134,6 @@ async def format_cell(request: Request) -> FormatResponse:
         raise ModuleNotFoundError(
             "Server does not have a formatter. Please install ruff"
         ) from None
-
-
-@router.post("/stdin")
-@requires("edit")
-async def stdin(request: Request) -> BaseResponse:
-    """
-    parameters:
-        - in: header
-          name: Marimo-Session-Id
-          schema:
-            type: string
-          required: true
-    requestBody:
-        content:
-            application/json:
-                schema:
-                    $ref: "#/components/schemas/StdinRequest"
-    responses:
-        200:
-            description: Send input to the stdin stream
-            content:
-                application/json:
-                    schema:
-                        $ref: "#/components/schemas/SuccessResponse"
-    """
-    app_state = AppState(request)
-    body = await parse_request(request, cls=StdinRequest)
-    app_state.require_current_session().put_input(body.text)
-
-    return SuccessResponse()
 
 
 @router.post("/install_missing_packages")

@@ -20,7 +20,7 @@ from marimo._types.ids import CellId_t
 
 
 def test_late_reply_cannot_answer_a_new_prompt() -> None:
-    replies: Queue[str | InputReply] = Queue()
+    replies: Queue[InputReply] = Queue()
     messages: Queue[KernelMessage] = Queue()
     stream = ThreadSafeStream(
         Mock(send=messages.put), replies, True, CellId_t("cell")
@@ -64,7 +64,7 @@ def test_completed_execution_cannot_request_input() -> None:
 
 
 def test_a_reply_displaces_one_the_kernel_never_took() -> None:
-    replies: Queue[str | InputReply] = Queue(maxsize=1)
+    replies: Queue[InputReply] = Queue(maxsize=1)
     deliver_reply(replies, InputReply("gone", "stale"))
 
     deliver_reply(replies, InputReply("waiting", "fresh"))
@@ -74,8 +74,8 @@ def test_a_reply_displaces_one_the_kernel_never_took() -> None:
 
 
 async def test_a_worker_reply_displaces_one_the_kernel_never_took() -> None:
-    replies: asyncio.Queue[str | InputReply] = asyncio.Queue(maxsize=1)
-    deliver_reply(replies, "stale")
+    replies: asyncio.Queue[InputReply] = asyncio.Queue(maxsize=1)
+    deliver_reply(replies, InputReply("gone", "stale"))
 
     deliver_reply(replies, InputReply("waiting", "fresh"))
 

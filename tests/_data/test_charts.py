@@ -106,6 +106,14 @@ def test_charts_bad_characters():
     snapshot("charts_bad_characters.txt", "\n\n".join(outputs))
 
 
+@pytest.mark.parametrize("simple", [True, False])
+def test_date_chart_filter_is_plain_string(simple: bool):
+    code = get_chart_builder("date", False).altair_code(
+        "df", "{x}", simple=simple
+    )
+    assert 'transform_filter("datum.{x} != null")' in code
+
+
 def test_charts_altair_code_with_comment():
     builder = get_chart_builder("string", False)
     code = builder.altair_code_with_comment("df", "some_column", simple=True)
