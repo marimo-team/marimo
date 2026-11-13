@@ -412,6 +412,7 @@ class IPCKernelManagerImpl(KernelManager):
                 )
                 cmd: list[str] = [
                     venv_python,
+                    "-P",
                     "-m",
                     "marimo._ipc.launch_kernel",
                 ]

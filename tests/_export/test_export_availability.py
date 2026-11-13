@@ -88,7 +88,7 @@ async def test_install_export_setup_uses_server_python() -> None:
         await install_export_setup("playwright-chromium")
 
     run.assert_called_once_with(
-        [sys.executable, "-m", "playwright", "install", "chromium"],
+        [sys.executable, "-P", "-m", "playwright", "install", "chromium"],
         capture_output=True,
         text=True,
         timeout=ANY,

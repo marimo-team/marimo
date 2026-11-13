@@ -97,6 +97,25 @@ async def test_export_without_metadata_uses_current_interpreter(
     assert json.loads(output) == [sys.executable, payload]
 
 
+async def test_export_module_in_working_directory_does_not_shadow_marimo(
+    notebook_without_metadata: str,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import marimo
+
+    (tmp_path / "marimo.py").write_text("raise SystemExit('shadowed')\n")
+    monkeypatch.chdir(tmp_path)
+    output = await run_python_subprocess(
+        notebook_path=notebook_without_metadata,
+        backend="uv",
+        script="import marimo; print(marimo.__file__)",
+        payload={},
+        action="export",
+    )
+    assert output.strip() == marimo.__file__
+
+
 @pytest.mark.skipif(os.name == "nt", reason="POSIX process groups")
 async def test_export_fallback_cancellation_stops_descendants(
     notebook_without_metadata: str, tmp_path: Path

@@ -65,7 +65,7 @@ async def ruff(
     codes: CellCodes, *cmd: str, stdin_filename: str | None = None
 ) -> CellCodes:
     # Try with sys.executable first
-    ruff_cmd = [sys.executable, "-m", "ruff"]
+    ruff_cmd = [sys.executable, "-P", "-m", "ruff"]
     stdout, _stderr, returncode = await _run_subprocess_safe(
         *ruff_cmd, "--help"
     )

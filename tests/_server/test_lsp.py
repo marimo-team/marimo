@@ -277,6 +277,7 @@ async def test_pylsp_server():
     assert isinstance(server.validate_requirements(), (str, bool))
     assert server.get_command() == [
         sys.executable,
+        "-P",
         "-m",
         "marimo._server._pylsp",
         "--port",

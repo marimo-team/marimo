@@ -151,7 +151,7 @@ class PipPackageManager(PypiPackageManager):
         # a different Python's pip than self._python_exe
         try:
             proc = run_package_command(
-                [self._python_exe, "-m", "pip", "--version"],
+                [self._python_exe, "-P", "-m", "pip", "--version"],
                 capture_output=True,
                 text=True,
                 timeout=10,
@@ -177,6 +177,7 @@ class PipPackageManager(PypiPackageManager):
         del group
         return [
             self._python_exe,
+            "-P",
             "-m",
             "pip",
             "install",
@@ -191,6 +192,7 @@ class PipPackageManager(PypiPackageManager):
         return await self.run(
             [
                 self._python_exe,
+                "-P",
                 "-m",
                 "pip",
                 "uninstall",
@@ -203,6 +205,7 @@ class PipPackageManager(PypiPackageManager):
     def list_packages(self) -> list[PackageDescription]:
         cmd = [
             self._python_exe,
+            "-P",
             "-m",
             "pip",
             "list",
