@@ -46,7 +46,6 @@ _READ_COMMANDS: frozenset[type] = frozenset(
         commands.PreviewSQLTableCommand,
         commands.ListSQLTablesCommand,
         commands.ListSQLSchemasCommand,
-        commands.ValidateSQLCommand,
         commands.ListDataSourceConnectionCommand,
         commands.DiscoverDataSourcesCommand,
         commands.StorageListEntriesCommand,
@@ -74,6 +73,8 @@ _EDIT_COMMANDS: frozenset[type] = frozenset(
         commands.EditCellsCommand,
         commands.UpdateCellConfigCommand,
         commands.InstallPackagesCommand,
+        # Validation runs the query against the kernel's SQL connections.
+        commands.ValidateSQLCommand,
         commands.UpdateUserConfigCommand,
         commands.RefreshSecretsCommand,
         commands.ClearCacheCommand,
