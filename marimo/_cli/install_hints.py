@@ -20,6 +20,8 @@ class CommandRule:
 _INSTALL_COMMAND_RULES: Final[tuple[CommandRule, ...]] = (
     CommandRule("uv", "project", "uv add {packages}"),
     CommandRule("uv", "any", "uv pip install {packages}"),
+    # Pixi treats plain specs as Conda packages, which can't carry extras.
+    CommandRule("pixi", "pypi", "pixi add --pypi {packages}"),
     CommandRule("pixi", "any", "pixi add {packages}"),
     CommandRule("poetry", "any", "poetry add {packages}"),
     CommandRule("rye", "any", "rye add {packages}"),
@@ -83,13 +85,20 @@ def _normalize_command(command: str) -> str:
     return command.strip()
 
 
-def _resolve_manager_context() -> tuple[PackageManagerKind, str]:
-    """Infer package manager and whether uv should use project-local commands."""
+def _resolve_manager_context(
+    *, has_extras: bool = False
+) -> tuple[PackageManagerKind, str]:
+    """Infer the package manager and the context used to select a rule.
+
+    The context is `project` for uv project venvs, `pypi` for Pixi when a
+    package has extras, and `any` otherwise.
+    """
     manager = infer_package_manager()
-    context = (
-        "project" if manager == "uv" and _is_uv_project_context() else "any"
-    )
-    return manager, context
+    if manager == "uv" and _is_uv_project_context():
+        return manager, "project"
+    if manager == "pixi" and has_extras:
+        return manager, "pypi"
+    return manager, "any"
 
 
 def _resolve_template(
@@ -112,9 +121,10 @@ def _build_primary_and_fallback(
     *,
     rules: tuple[CommandRule, ...],
     format_args: dict[str, str],
+    has_extras: bool = False,
 ) -> list[str]:
     """Build primary and pip-fallback commands from declarative templates."""
-    manager, context = _resolve_manager_context()
+    manager, context = _resolve_manager_context(has_extras=has_extras)
     template = _resolve_template(rules, manager, context=context)
     fallback_template = _resolve_template(rules, "pip", context="any")
     assert fallback_template is not None
@@ -140,7 +150,18 @@ def get_install_commands(
     return _build_primary_and_fallback(
         rules=_INSTALL_COMMAND_RULES,
         format_args={"packages": package_text},
+        has_extras="[" in package_text,
     )
+
+
+def get_install_hint(packages: str | list[str] | tuple[str, ...]) -> str:
+    """Return a single install command for use in an error message.
+
+    Uses the inferred package manager (e.g. `uv add ...`), falling back to
+    `python -m pip install ...`.
+    """
+    commands = get_install_commands(packages)
+    return commands[0] if commands else ""
 
 
 def get_post_install_commands(

@@ -399,6 +399,10 @@ class TestOpenAI:
             _ = model._require_api_key
 
     @patch(
+        "marimo._cli.install_hints.infer_package_manager",
+        MagicMock(return_value="pip"),
+    )
+    @patch(
         "marimo._dependencies.dependencies.DependencyManager.openai.require"
     )
     def test_dependency_check(self, mock_require):
@@ -426,7 +430,7 @@ class TestOpenAI:
 
             # Verify dependency check was called
             mock_require.assert_called_once_with(
-                "chat model requires openai. `pip install openai`"
+                "chat model requires openai. `python -m pip install openai`"
             )
 
     def test_convert_to_openai_messages(self):
@@ -635,6 +639,10 @@ class TestGroq:
         with pytest.raises(ValueError, match="groq api key not provided"):
             _ = model._require_api_key
 
+    @patch(
+        "marimo._cli.install_hints.infer_package_manager",
+        MagicMock(return_value="pip"),
+    )
     @patch("marimo._dependencies.dependencies.DependencyManager.groq.require")
     def test_dependency_check(self, mock_require):
         """Test that the dependency check is performed."""
@@ -661,7 +669,7 @@ class TestGroq:
 
             # Verify dependency check was called
             mock_require.assert_called_once_with(
-                "chat model requires groq. `pip install groq`"
+                "chat model requires groq. `python -m pip install groq`"
             )
 
     def test_convert_to_groq_messages(self):
@@ -1490,6 +1498,10 @@ class TestPydanticAI:
         assert inspect.isasyncgen(result)
 
     @patch(
+        "marimo._cli.install_hints.infer_package_manager",
+        MagicMock(return_value="pip"),
+    )
+    @patch(
         "marimo._dependencies.dependencies.DependencyManager.pydantic_ai.require"
     )
     def test_dependency_check(self, mock_require):
@@ -1498,7 +1510,7 @@ class TestPydanticAI:
         pydantic_ai(mock_agent)
 
         mock_require.assert_called_once_with(
-            "pydantic-ai chat model requires pydantic-ai. `pip install pydantic-ai`"
+            "pydantic-ai chat model requires pydantic-ai. `python -m pip install pydantic-ai`"
         )
 
     def test_build_ui_messages_with_multiple_roles(self):

@@ -674,6 +674,10 @@ async def test_ty_server_availability(
     server = TyServer(port=8000)
     with (
         mock.patch(
+            "marimo._cli.install_hints.infer_package_manager",
+            return_value="pip",
+        ),
+        mock.patch(
             "marimo._server.lsp.DependencyManager.ty.has",
             return_value=installed,
         ),
@@ -692,7 +696,7 @@ async def test_ty_server_availability(
         if not (installed or on_path):
             assert (
                 validation
-                == "ty is missing. Install it with `pip install ty`."
+                == "ty is missing. Install it with `python -m pip install ty`."
             )
         elif not node_available:
             assert (

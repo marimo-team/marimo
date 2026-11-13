@@ -42,8 +42,17 @@ def test_engine_compatibility() -> None:
 
 def test_raise_df_import_error() -> None:
     """Test raise_df_import_error function."""
-    with pytest.raises(ImportError):
+    with (
+        patch(
+            "marimo._cli.install_hints.infer_package_manager",
+            return_value="poetry",
+        ),
+        pytest.raises(ModuleNotFoundError) as exc_info,
+    ):
         raise_df_import_error("test_pkg")
+    assert "poetry add pandas polars" in str(exc_info.value)
+    # `name` drives marimo's auto-install, independent of the hint text
+    assert exc_info.value.name == "test_pkg"
 
 
 @pytest.mark.requires("duckdb", "sqlalchemy")
