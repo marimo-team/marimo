@@ -457,6 +457,60 @@ describe("sqlCode", () => {
     });
   });
 
+  describe("names with braces and quotes", () => {
+    const named = (name: string): DataTable => ({ ...mockTable, name });
+
+    it("keeps quoted table, schema and column names as text", () => {
+      const result = sqlCode({
+        table: named('t{"a"}'),
+        columnName: "c}{",
+        sqlTableContext: {
+          engine: DUCKDB_ENGINE,
+          schema: "s{1}",
+          defaultSchema: "main",
+          defaultDatabase: "memory",
+          database: "memory",
+          dialect: "duckdb",
+        },
+      });
+      expect(result).toBe(
+        String.raw`_df = mo.sql(f"""
+SELECT "c}}{{" FROM "s{{1}}"."t{{""a""}}" LIMIT 100
+""")`,
+      );
+    });
+
+    it("escapes backslashes and triple quotes in unquoted names", () => {
+      const result = sqlCode({
+        table: named(String.raw`x\"""y"""`),
+        columnName: "*",
+        sqlTableContext: {
+          engine: "conn",
+          schema: "{s}",
+          defaultSchema: "main",
+          defaultDatabase: "db",
+          database: "db",
+          dialect: "sqlite",
+        },
+      });
+      expect(result).toBe(
+        String.raw`_df = mo.sql(f"""
+SELECT * FROM {{s}}.x\\\"\"\"y\"\"\" LIMIT 100
+""", engine=conn)`,
+      );
+    });
+
+    it("escapes names without a table context", () => {
+      const result = sqlCode({
+        table: named("t{1+1}\n"),
+        columnName: `it's"`,
+      });
+      expect(result).toBe(
+        String.raw`_df = mo.sql(f'SELECT "it\'s\"\"\" FROM t{{1+1}}\n LIMIT 100')`,
+      );
+    });
+  });
+
   describe("fallback behavior", () => {
     it("should use default formatter for unknown dialect", () => {
       const sqlTableContext: SQLTableContext = {

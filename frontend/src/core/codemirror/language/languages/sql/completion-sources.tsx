@@ -9,6 +9,7 @@ import type { EditorState } from "@codemirror/state";
 import { DefaultSqlTooltipRenders } from "@marimo-team/codemirror-sql";
 import { once } from "@/utils/once";
 import { languageMetadataField } from "../../metadata";
+import { HAS_BRACES } from "./completion-builder";
 import { SCHEMA_CACHE } from "./completion-store";
 import type { SQLLanguageAdapterMetadata } from "./sql";
 
@@ -35,6 +36,34 @@ export function tablesCompletionSource(): CompletionSource {
     }
 
     return completions;
+  };
+}
+
+/**
+ * In an f-string cell, a `{` or `}` in a database name starts a replacement
+ * field. Marked completions are inserted with their braces doubled.
+ */
+export function escapeFStringBraces(
+  source: CompletionSource,
+): CompletionSource {
+  return async (ctx) => {
+    const result = await source(ctx);
+    if (!result || !getSQLMetadata(ctx.state).quotePrefix.includes("f")) {
+      return result;
+    }
+    return {
+      ...result,
+      options: result.options.map((option) => {
+        const text = option.apply ?? option.label;
+        if (!(HAS_BRACES in option) || typeof text !== "string") {
+          return option;
+        }
+        return {
+          ...option,
+          apply: text.replaceAll("{", "{{").replaceAll("}", "}}"),
+        };
+      }),
+    };
   };
 }
 

@@ -2440,6 +2440,80 @@ describe("tablesCompletionSource", () => {
           expect(result?.options.length).toBeGreaterThan(0);
         });
 
+        it("inserts braces in table names as text in an f-string", async () => {
+          const name = "u{x}";
+          const connection: DataSourceConnection = {
+            name: TEST_ENGINE,
+            dialect: "postgres",
+            display_name: "postgres",
+            source: "postgres",
+            databases: [
+              {
+                name: "test_db",
+                dialect: "postgres",
+                schemas: [
+                  {
+                    name: "public",
+                    tables: [
+                      {
+                        name,
+                        source: "postgres",
+                        source_type: "local",
+                        type: "table",
+                        num_columns: 0,
+                        num_rows: 0,
+                        variable_name: null,
+                        columns: [
+                          {
+                            name: "c{y}",
+                            external_type: "string",
+                            type: "string",
+                            sample_values: [],
+                          },
+                        ],
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          };
+          store.set(dataSourceConnectionsAtom, {
+            connectionsMap: new Map([[TEST_ENGINE, connection]]),
+            latestEngineSelected: TEST_ENGINE,
+          });
+          const sources = getCompletionSources(
+            new SQLLanguageAdapter().getExtension(...TEST_EXTENSION_ARGS),
+          );
+          const applied = async (
+            doc: string,
+            quotePrefix: "f" | "",
+            label = name,
+          ) => {
+            const state = createEditorState(doc, {
+              engine: TEST_ENGINE,
+              quotePrefix,
+            });
+            const result = await sources![0](
+              createCompletionContext(state, doc.length),
+            );
+            const option = result?.options.find((o) => o.label.includes(label));
+            return option?.apply ?? option?.label;
+          };
+
+          const escaped = "u{{x}}";
+          expect(await applied("SELECT * FROM u", "f")).toBe(escaped);
+          expect(await applied('SELECT * FROM "u', "f")).toBe(`"${escaped}"`);
+          expect(await applied("SELECT * FROM u", "")).toBe(name);
+          // Aliases come from the query, which is already escaped.
+          expect(
+            await applied('SELECT * FROM t AS "a{{b}}" WHERE a', "f", "a{{b}}"),
+          ).toBe("a{{b}}");
+          expect(await applied("SELECT * FROM u WHERE c", "f", "c{")).toBe(
+            "c{{y}}",
+          );
+        });
+
         it("should include local datasets in completions", async () => {
           const mockConnection: DataSourceConnection = {
             name: TEST_ENGINE,

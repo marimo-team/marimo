@@ -17,6 +17,21 @@ import {
 } from "./renderers";
 
 /**
+ * Marks a completion for a database, schema, table, or column name that
+ * contains `{` or `}`. Names that come from the query text are already escaped
+ * for the f-string, so only marked completions are escaped when inserted.
+ */
+export const HAS_BRACES = Symbol("hasBraces");
+
+function markBraces(
+  completion: Completion,
+): Completion & { [HAS_BRACES]?: true } {
+  return /[{}]/.test(completion.label)
+    ? { ...completion, [HAS_BRACES]: true }
+    : completion;
+}
+
+/**
  * Simple builder for SQL completion schemas.
  */
 export class CompletionBuilder {
@@ -27,13 +42,17 @@ export class CompletionBuilder {
    */
   public addTable(path: string[], table: DataTable): this {
     const tableNamespace: SQLNamespace = {
-      self: tableToCompletion({
-        table: table,
-      }),
-      children: table.columns.map((col) =>
-        columnToCompletion({
-          column: col,
+      self: markBraces(
+        tableToCompletion({
+          table: table,
         }),
+      ),
+      children: table.columns.map((col) =>
+        markBraces(
+          columnToCompletion({
+            column: col,
+          }),
+        ),
       ),
     };
 
@@ -46,10 +65,12 @@ export class CompletionBuilder {
    */
   public addSchema(path: string[], schema: DatabaseSchema): this {
     const schemaObject: SQLNamespace = {
-      self: schemaToCompletion({
-        namespace: schema,
-        path: path,
-      }),
+      self: markBraces(
+        schemaToCompletion({
+          namespace: schema,
+          path: path,
+        }),
+      ),
       children: {},
     };
 
@@ -62,10 +83,12 @@ export class CompletionBuilder {
    */
   public addDatabase(path: string[], database: Database): this {
     const databaseObject: SQLNamespace = {
-      self: databaseToCompletion({
-        namespace: database,
-        path: path,
-      }),
+      self: markBraces(
+        databaseToCompletion({
+          namespace: database,
+          path: path,
+        }),
+      ),
       children: {},
     };
     this.setAt(path, databaseObject);

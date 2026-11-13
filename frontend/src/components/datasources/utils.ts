@@ -233,14 +233,35 @@ export function sqlCode({
       formattedTableName,
     );
 
+    const body = escapeFString(selectClause);
     if (engine === DUCKDB_ENGINE) {
-      return `_df = mo.sql(f"""\n${selectClause}\n""")`;
+      return `_df = mo.sql(f"""\n${body}\n""")`;
     }
 
-    return `_df = mo.sql(f"""\n${selectClause}\n""", engine=${engine})`;
+    return `_df = mo.sql(f"""\n${body}\n""", engine=${engine})`;
   }
 
-  return `_df = mo.sql(f'SELECT "${columnName}" FROM ${table.name} LIMIT 100')`;
+  const body = escapeFString(
+    `SELECT ${quoteIdentifier(columnName)} FROM ${table.name} LIMIT 100`,
+  )
+    .replaceAll("'", "\\'")
+    .replaceAll("\n", "\\n")
+    .replaceAll("\r", "\\r");
+  return `_df = mo.sql(f'${body}')`;
+}
+
+/**
+ * Escape text so that it stays literal inside a generated f-string.
+ * Double backslashes, `{`, and `}`. Escape a run of three or more quotes so
+ * that the quotes do not end the string. Leave a pair of quotes unchanged,
+ * because SQL uses `""` inside quoted names.
+ */
+function escapeFString(text: string): string {
+  return text
+    .replaceAll("\\", "\\\\")
+    .replaceAll("{", "{{")
+    .replaceAll("}", "}}")
+    .replaceAll(/"{3,}/g, (quotes) => quotes.replaceAll('"', '\\"'));
 }
 
 export function convertStatsName(stat: ColumnHeaderStatsKey, type: DataType) {
