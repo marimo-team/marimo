@@ -10,6 +10,7 @@ import type {
 } from "../../kernel/messages";
 import "../../../components/editor/documentation.css";
 import { getRequestClient } from "@/core/network/requests";
+import DOMPurify from "dompurify";
 
 function constructCompletionInfoNode(
   innerHtml?: string | null,
@@ -27,7 +28,11 @@ function constructCompletionInfoNode(
   container.style.display = "flex";
   container.style.flexDirection = "column";
   container.style.gap = ".8rem";
-  container.innerHTML = innerHtml;
+  // Keep marimo-tex so that math renders. Other marimo-* elements are
+  // removed because they mount as plugins inside the tooltip.
+  container.innerHTML = DOMPurify.sanitize(innerHtml, {
+    ADD_TAGS: ["marimo-tex"],
+  });
 
   if (showGoToDefinitionHint) {
     const instructionDiv = document.createElement("div");

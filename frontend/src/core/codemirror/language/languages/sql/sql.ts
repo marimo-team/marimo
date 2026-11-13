@@ -1,6 +1,10 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { acceptCompletion, autocompletion } from "@codemirror/autocomplete";
+import {
+  acceptCompletion,
+  autocompletion,
+  type Completion,
+} from "@codemirror/autocomplete";
 import { insertTab } from "@codemirror/commands";
 import { type SQLNamespace, sql } from "@codemirror/lang-sql";
 import type { EditorState, Extension } from "@codemirror/state";
@@ -14,7 +18,9 @@ import {
 import {
   aliasColumnCompletionSource,
   createCteCompletionSource,
+  DefaultSqlTooltipRenders,
   defaultSqlHoverTheme,
+  type NamespaceTooltipData,
   NodeSqlParser,
   type NodeSqlParserResult,
   QueryContextAnalyzer,
@@ -244,6 +250,11 @@ export class SQLLanguageAdapter implements LanguageAdapter<SQLLanguageAdapterMet
             enableColumns: true, // Show column information
             parser: analysis.parser,
             contextAnalyzer: analysis.contextAnalyzer,
+            tooltipRenderers: {
+              namespace: renderSchemaHover,
+              table: renderSchemaHover,
+              column: renderSchemaHover,
+            },
             theme: defaultSqlHoverTheme(theme),
           },
           enableNavigation: true,
@@ -516,6 +527,47 @@ export function updateSQLDialectFromConnection(
 
 function getSQLMetadata(state: EditorState): SQLLanguageAdapterMetadata {
   return state.field(languageMetadataField) as SQLLanguageAdapterMetadata;
+}
+
+/**
+ * Escapes schema names, such as dataframe column names, before the default
+ * hover renderer formats them, so that names that contain `<` or `&` appear
+ * as literal text.
+ */
+function renderSchemaHover({
+  item,
+  word,
+  aliasFor,
+}: NamespaceTooltipData): string {
+  const text = (value: string) => {
+    const span = document.createElement("span");
+    span.textContent = value;
+    return span.innerHTML;
+  };
+  const escapeCompletion = (completion: Completion): Completion => ({
+    ...completion,
+    label: text(completion.label),
+    detail: completion.detail && text(completion.detail),
+    info:
+      typeof completion.info === "string"
+        ? text(completion.info)
+        : completion.info,
+  });
+  const escaped = {
+    ...item,
+    value: item.value && text(item.value),
+    path: item.path.map(text),
+    completion: item.completion && escapeCompletion(item.completion),
+    namespace: Array.isArray(item.namespace)
+      ? item.namespace.map((col: Completion | string) =>
+          typeof col === "string" ? text(col) : escapeCompletion(col),
+        )
+      : item.namespace,
+  };
+  const alias = aliasFor
+    ? `<div class="sql-hover-alias"><code>${text(word.split(".")[0])}</code> is an alias for <code>${text(aliasFor)}</code></div>`
+    : "";
+  return alias + DefaultSqlTooltipRenders.namespace(escaped);
 }
 
 function getSchema(view: EditorView): SQLNamespace {
