@@ -17,7 +17,7 @@ env:
 jobs:
   publish_release:
     name: 📤 Build release
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-p-small
     permissions:
       contents: read
       id-token: write # required for Doppler OIDC

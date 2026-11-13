@@ -20,7 +20,7 @@ on:
 
 jobs:
   publish:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-p-small
     permissions:
       id-token: write  # Required for OIDC authentication and provenance
       contents: read

@@ -18,7 +18,7 @@ permissions:
 
 jobs:
   changes:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-p-small
     outputs:
       openapi: ${{ steps.filter.outputs.openapi }}
       session: ${{ steps.filter.outputs.session }}
@@ -49,7 +49,7 @@ jobs:
 
   check-schemas:
     needs: changes
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-p-small
     strategy:
       matrix:
         schema:
