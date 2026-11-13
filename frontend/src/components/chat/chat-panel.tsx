@@ -85,6 +85,7 @@ import {
   convertToFileUIPart,
   generateChatTitle,
   handleToolCall,
+  hasAssistantProgress,
   hasPendingToolCalls,
   hasUnresolvedToolCalls,
   PROVIDERS_THAT_SUPPORT_ATTACHMENTS,
@@ -863,10 +864,20 @@ const ChatPanelBody = () => {
     },
   );
 
-  const handleReload = () => {
+  const canContinue = hasAssistantProgress(messages);
+  const handleRecovery = () => {
+    if (canContinue) {
+      sendUserMessage([
+        {
+          type: "text",
+          text: "Your previous response was interrupted. Continue from the last recorded step.",
+        },
+      ]);
+      return;
+    }
     clearAbortState();
     turn.start();
-    regenerate();
+    void regenerate();
   };
 
   const handleNewThreadSubmit = useEvent(() => {
@@ -1024,8 +1035,8 @@ const ChatPanelBody = () => {
           {error && (
             <div className="flex items-center justify-center space-x-2 mb-4">
               <ErrorBanner error={error || new Error("Unknown error")} />
-              <Button variant="outline" size="sm" onClick={handleReload}>
-                Retry
+              <Button variant="outline" size="sm" onClick={handleRecovery}>
+                {canContinue ? "Continue" : "Retry"}
               </Button>
             </div>
           )}
