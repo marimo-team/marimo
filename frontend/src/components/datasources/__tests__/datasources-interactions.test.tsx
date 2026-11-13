@@ -8,10 +8,12 @@ import {
   waitFor,
 } from "@testing-library/react";
 import { createStore, Provider } from "jotai";
-import { beforeAll, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { MockRequestClient } from "@/__mocks__/requests";
+import { variableName } from "@/__tests__/branded";
 import { Command, CommandList } from "@/components/ui/command";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { setupNotebook } from "@/core/cells/__tests__/harness";
 import {
   dataSourceConnectionsAtom,
   type SQLTableContext,
@@ -178,4 +180,56 @@ it("activates a schema and a table with the same path independently using the ke
   fireEvent.keyDown(input, { key: "Enter" });
   expect(await screen.findByText("amount")).toBeInTheDocument();
   expect(screen.getByText("No tables found")).toBeInTheDocument();
+});
+
+const stops: Array<() => void> = [];
+afterEach(() => {
+  for (const stop of stops.splice(0)) {
+    stop();
+  }
+});
+
+it("adds a catalog table as a Python string literal", async () => {
+  const { store, notebook } = setupNotebook(stops);
+  store.set(requestClientAtom, MockRequestClient.create());
+  const name = String.raw`t "a" \b`;
+  const context: SQLTableContext = {
+    engine: "my_catalog",
+    database: "db",
+    schema: "s",
+    schemaPath: ["s"],
+    dialect: "iceberg",
+  };
+  render(
+    <Provider store={store}>
+      <TooltipProvider>
+        <Command shouldFilter={false}>
+          <CommandList>
+            <TableList
+              tables={[
+                {
+                  ...table,
+                  name,
+                  source_type: "catalog",
+                  engine: variableName("my_catalog"),
+                },
+              ]}
+              sqlTableContext={context}
+            />
+          </CommandList>
+        </Command>
+      </TooltipProvider>
+    </Provider>,
+  );
+
+  fireEvent.click(
+    await screen.findByRole("button", {
+      name: `Add table ${name} to notebook`,
+    }),
+  );
+  await waitFor(() => {
+    expect(
+      Object.values(notebook().cellData).map((cell) => cell.code),
+    ).toContain(String.raw`my_catalog.load_table("db.s.t \"a\" \\b")`);
+  });
 });

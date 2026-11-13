@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import ast
 from dataclasses import dataclass
 
 import pytest
@@ -658,3 +659,24 @@ def test_form_sample_query_internal_duckdb_with_defaults(
     )
 
     assert query == 'df = mo.sql(f"""SELECT * FROM mytable LIMIT 100""")'
+
+
+def test_form_sample_query_escapes_braces_and_quotes(
+    tool: GetDatabaseTables,
+):
+    table = 't{"a"}"""\\'
+    query = tool._form_sample_query(
+        database="mydb",
+        schema="{s}",
+        table=table,
+        default_database=True,
+        default_schema=False,
+        engine=INTERNAL_DUCKDB_ENGINE,
+    )
+
+    call = ast.parse(query).body[0].value
+    assert isinstance(call, ast.Call)
+    assert isinstance(call.args[0], ast.JoinedStr)
+    (part,) = call.args[0].values
+    assert isinstance(part, ast.Constant)
+    assert part.value == f"SELECT * FROM {{s}}.{table} LIMIT 100"
