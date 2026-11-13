@@ -20,7 +20,7 @@ env:
 jobs:
   publish_release:
     name: 📤 Publish release
-    runs-on: ubuntu-p-small
+    runs-on: "${{ vars.CI_RUNNER_SMALL || 'ubuntu-latest' }}"
     environment: pypi
     permissions:
       contents: read

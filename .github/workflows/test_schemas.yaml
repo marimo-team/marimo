@@ -18,7 +18,7 @@ permissions:
 
 jobs:
   changes:
-    runs-on: ubuntu-p-small
+    runs-on: "${{ vars.CI_RUNNER_SMALL || 'ubuntu-latest' }}"
     outputs:
       openapi: ${{ steps.filter.outputs.openapi }}
       session: ${{ steps.filter.outputs.session }}
@@ -49,7 +49,7 @@ jobs:
 
   check-schemas:
     needs: changes
-    runs-on: ubuntu-p-small
+    runs-on: "${{ vars.CI_RUNNER_SMALL || 'ubuntu-latest' }}"
     strategy:
       matrix:
         schema:

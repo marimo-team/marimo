@@ -18,7 +18,7 @@ env:
   UV_EXCLUDE_NEWER: "7 days"
 jobs:
   changes:
-    runs-on: ubuntu-p-small
+    runs-on: "${{ vars.CI_RUNNER_SMALL || 'ubuntu-latest' }}"
     outputs:
       cli: ${{ steps.filter.outputs.cli }}
     steps:
@@ -36,7 +36,7 @@ jobs:
     needs: changes
     if: ${{ needs.changes.outputs.cli == 'true' }}
     name: Build marimo wheel
-    runs-on: ubuntu-p-small
+    runs-on: "${{ vars.CI_RUNNER_SMALL || 'ubuntu-latest' }}"
     timeout-minutes: 8 # 2024-01-18
     permissions:
       contents: read
@@ -108,7 +108,7 @@ jobs:
     needs: [changes, build_wheel]
     if: ${{ needs.changes.outputs.cli == 'true' }}
     name: Test Pyodide
-    runs-on: ubuntu-p-small
+    runs-on: "${{ vars.CI_RUNNER_SMALL || 'ubuntu-latest' }}"
     timeout-minutes: 10
 
     steps:
@@ -139,7 +139,7 @@ jobs:
     needs: [changes, build_wheel]
     if: ${{ needs.changes.outputs.cli == 'true' }}
     name: Tests CLI on ${{ matrix.os }} ${{ matrix.python-version }}
-    runs-on: ${{ matrix.os }}
+    runs-on: "${{ matrix.os == 'windows-latest' && (vars.CI_RUNNER_WINDOWS || 'windows-latest') || (matrix.os) }}"
     timeout-minutes: 10 # 2024-01-18 avg: 2.5m max: 4.5m
     strategy:
       matrix:
@@ -184,7 +184,7 @@ jobs:
   test_examples:
     needs: [changes]
     name: Tests examples and smoke_tests
-    runs-on: ubuntu-p-small
+    runs-on: "${{ vars.CI_RUNNER_SMALL || 'ubuntu-latest' }}"
     timeout-minutes: 3 # 2024-01-18 avg: 0.3m max: 0.5m
 
     steps:

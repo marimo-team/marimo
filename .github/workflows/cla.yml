@@ -13,7 +13,7 @@ permissions: {}
 
 jobs:
   CLAAssistant:
-    runs-on: ubuntu-p-small
+    runs-on: "${{ vars.CI_RUNNER_SMALL || 'ubuntu-latest' }}"
     timeout-minutes: 10
     permissions:
       actions: write

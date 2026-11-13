@@ -14,7 +14,7 @@ permissions:
 
 jobs:
   stale:
-    runs-on: ubuntu-p-small
+    runs-on: "${{ vars.CI_RUNNER_SMALL || 'ubuntu-latest' }}"
     steps:
       # actions/stale can't filter by author, so we translate "team member's
       # draft" into a label that exempt-pr-labels understands. External drafts
