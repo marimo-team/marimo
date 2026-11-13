@@ -1,3 +1,14 @@
+# /// script
+# requires-python = ">=3.11"
+# dependencies = [
+#     "marimo",
+#     "numpy",
+#     "pandas",
+#     "polars>=2.0.0",
+#     "pyarrow",
+# ]
+# ///
+
 import marimo
 
 __generated_with = "0.23.1"
@@ -62,7 +73,9 @@ def _():
             ),
             # Objects
             "sets": pl.Series(
-                "sets", [set([1, 2]), set([3, 4]), set([5, 6])], dtype=pl.Object
+                "sets",
+                [set([1, 2]), set([3, 4]), set([5, 6])],
+                dtype=pl.Object,
             ),
             "dicts": pl.Series(
                 "dicts",
@@ -73,6 +86,14 @@ def _():
             "structs": pl.Series(
                 [{"a": 1, "b": 2}, {"c": 3, "d": 4}, {"e": 5, "f": 6}],
                 dtype=pl.Struct,
+            ),
+            "map_strings": pl.Series(
+                [{"greeting": "こんにちは", "quoted": 'a, "value"'}, {}, None],
+                dtype=pl.Map(pl.String, pl.String),
+            ),
+            "map_int_keys": pl.Series(
+                [{1: [1, 2], 2: None}, {}, None],
+                dtype=pl.Map(pl.Int64, pl.List(pl.Int64)),
             ),
             # Mixed
             "structs_with_list": pl.Series(
@@ -132,7 +153,9 @@ def _(mo, pd, pl):
             "large_floats": [[125339796295248046.9], [-12533979629524804.69]],
         }
     )
-    mo.vstack([mo.md("#### BigInts"), additional_types_pd, additional_types_pl])
+    mo.vstack(
+        [mo.md("#### BigInts"), additional_types_pd, additional_types_pl]
+    )
     return
 
 
