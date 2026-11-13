@@ -560,7 +560,7 @@ def python_print_polars(
             else ""
         )
         lambda_code = (
-            f'lambda col,replacements=replacements: f"{transform.value_column_ids[0]}_{{col.translate(replacements)}}_{transform.aggregation}"'
+            f'lambda col,replacements=replacements: {_as_literal(transform.value_column_ids[0])} + f"_{{col.translate(replacements)}}_{transform.aggregation}"'
             if len(transform.value_column_ids) == 1
             else f"lambda col, replacements=replacements: f'{{col.translate(replacements)}}_{transform.aggregation}'"
         ) + f" if col not in {index_column_ids} else col"
@@ -683,7 +683,7 @@ def python_print_ibis(
             for column_id in transform.column_ids:
                 name = f"{column_id}_{agg_func}"
                 agg_dict.append(
-                    f"'{name}' : {df_name}['{column_id}'].{agg_func}()"
+                    f"{_as_literal(name)} : {df_name}[{_as_literal(column_id)}].{agg_func}()"
                 )
         return f"{df_name}.agg(**{{{','.join(agg_dict)}}})"
 
@@ -695,7 +695,7 @@ def python_print_ibis(
         for column_id in aggregation_columns:
             agg_alias = f"{column_id}_{aggregation}"
             aggs.append(
-                f'"{agg_alias}" : {df_name}["{column_id}"].{aggregation}()'
+                f"{_as_literal(agg_alias)} : {df_name}[{_as_literal(column_id)}].{aggregation}()"
             )
         return f"{df_name}.group_by({_list_of_strings(column_ids)}).aggregate(**{{{','.join(aggs)}}})"
 
