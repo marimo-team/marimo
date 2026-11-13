@@ -80,6 +80,10 @@ class HTMLExportRequest:
     options: HTMLExportOptions
     layout: LayoutConfig | None = None
     sharing_config: SharingConfig | None = None
+    # Whether the exported page embeds pre-rendered `mo.ui.tabs` variants
+    # (see `marimo/_export/_tab_variants.py`); when True, the toggle
+    # script is included.
+    include_tab_variant_script: bool = False
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -125,6 +129,9 @@ class NotebookExecutionOptions:
 class RunNotebookRequest:
     file_manager: AppFileManager
     options: NotebookExecutionOptions
+    # UI element values to preset before running, mapping deterministic
+    # UI element object ids (`<cell_id>-<n>`) to their initial values.
+    ui_values: dict[str, str] | None = None
 
 
 @dataclass(frozen=True, kw_only=True)
