@@ -8,7 +8,7 @@ on:
   workflow_dispatch: {}
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.run_id }}
+  group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: false
 
 permissions:
@@ -20,10 +20,16 @@ env:
 
 jobs:
   deploy:
+    if: github.repository == 'marimo-team/marimo' && github.ref == 'refs/heads/main'
     runs-on: "${{ vars.CI_RUNNER_SMALL || 'ubuntu-latest' }}"
     timeout-minutes: 12
+    env:
+      VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
 
       - name: 🔐 Fetch Doppler secrets
         uses: dopplerhq/secrets-fetch-action@cd2efbf9a404504316435873eff298b82f7e0562 # v1.3.0
@@ -45,15 +51,11 @@ jobs:
 
       - name: ⬇️ Pull Vercel Environment Information
         env:
-          VERCEL_ORG_ID: ${{ steps.secrets.outputs.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ steps.secrets.outputs.VERCEL_PROJECT_ID }}
           VERCEL_TOKEN: ${{ steps.secrets.outputs.VERCEL_TOKEN }}
         run: vercel pull --yes --environment=production
 
       - name: 📚 Build docs
         env:
-          VERCEL_ORG_ID: ${{ steps.secrets.outputs.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ steps.secrets.outputs.VERCEL_PROJECT_ID }}
           VERCEL_TOKEN: ${{ steps.secrets.outputs.VERCEL_TOKEN }}
         run: vercel build --prod
 
@@ -88,12 +90,13 @@ jobs:
       # so an older run can't overwrite a newer deploy. The run still completes green.
       - name: 🔍 Check if still tip of main
         id: latest
+        shell: bash
         if: github.ref == 'refs/heads/main'
         env:
           GH_SHA: ${{ github.sha }}
           GH_REPO: ${{ github.repository }}
         run: |
-          LATEST_SHA=$(git ls-remote "https://github.com/${GH_REPO}.git" refs/heads/main | awk '{print $1}')
+          LATEST_SHA=$(git ls-remote --exit-code "https://github.com/${GH_REPO}.git" refs/heads/main | awk '{print $1}')
           if [ "$LATEST_SHA" = "$GH_SHA" ]; then
             echo "is_latest=true" >> "$GITHUB_OUTPUT"
           else
@@ -104,7 +107,5 @@ jobs:
       - name: 🚀 Deploy to Vercel
         if: github.ref == 'refs/heads/main' && steps.latest.outputs.is_latest == 'true'
         env:
-          VERCEL_ORG_ID: ${{ steps.secrets.outputs.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ steps.secrets.outputs.VERCEL_PROJECT_ID }}
           VERCEL_TOKEN: ${{ steps.secrets.outputs.VERCEL_TOKEN }}
         run: vercel deploy --prebuilt --prod
