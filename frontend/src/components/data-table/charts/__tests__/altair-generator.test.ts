@@ -447,12 +447,12 @@ describe("generateAltairChart", () => {
     `);
   });
 
-  it("should escape dots in field names", () => {
+  it("should keep escaped dots in field names", () => {
     const spec = createSpec({
       mark: "bar",
       encoding: {
-        x: { field: "name.field" },
-        y: { field: "value.data" },
+        x: { field: String.raw`name\.field` },
+        y: { field: String.raw`value\.data` },
       },
     });
     const datasource = "df";
@@ -463,18 +463,18 @@ describe("generateAltairChart", () => {
       "alt.Chart(df)
       .mark_bar()
       .encode(
-          x=alt.X(field='name\\.field'),
-          y=alt.Y(field='value\\.data')
+          x=alt.X(field='name\\\\.field'),
+          y=alt.Y(field='value\\\\.data')
       )"
     `);
   });
 
-  it("should escape brackets in field names", () => {
+  it("should keep escaped brackets in field names", () => {
     const spec = createSpec({
       mark: "bar",
       encoding: {
-        x: { field: "data[0]" },
-        y: { field: "values[key]" },
+        x: { field: String.raw`data\[0\]` },
+        y: { field: String.raw`values\[key\]` },
       },
     });
     const datasource = "df";
@@ -485,17 +485,17 @@ describe("generateAltairChart", () => {
       "alt.Chart(df)
       .mark_bar()
       .encode(
-          x=alt.X(field='data\\[0\\]'),
-          y=alt.Y(field='values\\[key\\]')
+          x=alt.X(field='data\\\\[0\\\\]'),
+          y=alt.Y(field='values\\\\[key\\\\]')
       )"
     `);
   });
 
-  it("should escape colons in field names", () => {
+  it("should keep escaped colons in field names", () => {
     const spec = createSpec({
       mark: "bar",
       encoding: {
-        x: { field: "time:stamp" },
+        x: { field: String.raw`time\:stamp` },
         y: { field: "value" },
       },
     });
@@ -507,17 +507,17 @@ describe("generateAltairChart", () => {
       "alt.Chart(df)
       .mark_bar()
       .encode(
-          x=alt.X(field='time\\:stamp'),
+          x=alt.X(field='time\\\\:stamp'),
           y=alt.Y(field='value')
       )"
     `);
   });
 
-  it("should escape multiple special characters in field names", () => {
+  it("should keep multiple escaped characters in field names", () => {
     const spec = createSpec({
       mark: "bar",
       encoding: {
-        x: { field: "data[0].name:value" },
+        x: { field: String.raw`data\[0\]\.name\:value` },
         y: { field: "result" },
       },
     });
@@ -529,19 +529,19 @@ describe("generateAltairChart", () => {
       "alt.Chart(df)
       .mark_bar()
       .encode(
-          x=alt.X(field='data\\[0\\]\\.name\\:value'),
+          x=alt.X(field='data\\\\[0\\\\]\\\\.name\\\\:value'),
           y=alt.Y(field='result')
       )"
     `);
   });
 
-  it("should escape special characters in color encoding", () => {
+  it("should keep escaped characters in color encoding", () => {
     const spec = createSpec({
       mark: "bar",
       encoding: {
         x: { field: "category" },
         y: { field: "value" },
-        color: { field: "group.name" },
+        color: { field: String.raw`group\.name` },
       },
     });
     const datasource = "df";
@@ -554,18 +554,18 @@ describe("generateAltairChart", () => {
       .encode(
           x=alt.X(field='category'),
           y=alt.Y(field='value'),
-          color=alt.Color(field='group\\.name')
+          color=alt.Color(field='group\\\\.name')
       )"
     `);
   });
 
-  it("should escape special characters in tooltip", () => {
+  it("should keep escaped characters in tooltip", () => {
     const spec = createSpec({
       mark: "bar",
       encoding: {
         x: { field: "category" },
         y: { field: "value" },
-        tooltip: { field: "info.details" },
+        tooltip: { field: String.raw`info\.details` },
       },
     });
     const datasource = "df";
@@ -578,19 +578,19 @@ describe("generateAltairChart", () => {
       .encode(
           x=alt.X(field='category'),
           y=alt.Y(field='value'),
-          tooltip=alt.Tooltip(field='info\\.details')
+          tooltip=alt.Tooltip(field='info\\\\.details')
       )"
     `);
   });
 
-  it("should escape special characters in facet encodings", () => {
+  it("should keep escaped characters in facet encodings", () => {
     const spec = createSpec({
       mark: "bar",
       encoding: {
         x: { field: "category" },
         y: { field: "value" },
-        row: { field: "row.label" },
-        column: { field: "col[0]" },
+        row: { field: String.raw`row\.label` },
+        column: { field: String.raw`col\[0\]` },
       },
     });
     const datasource = "df";
@@ -603,9 +603,24 @@ describe("generateAltairChart", () => {
       .encode(
           x=alt.X(field='category'),
           y=alt.Y(field='value'),
-          row=alt.Row(field='row\\.label'),
-          column=alt.Column(field='col\\[0\\]')
+          row=alt.Row(field='row\\\\.label'),
+          column=alt.Column(field='col\\\\[0\\\\]')
       )"
     `);
+  });
+
+  it("should emit column names as Python string literals", () => {
+    const field = "a'b\"c{d}\ne\\\u2028";
+    const spec = createSpec({
+      mark: "bar",
+      encoding: { x: { field } },
+      title: field,
+    });
+
+    const result = generateAltairChart(spec, "df").toCode();
+
+    const literal = String.raw`'a\'b"c{d}\ne\\\u2028'`;
+    expect(result).toContain(`x=alt.X(field=${literal})`);
+    expect(result).toContain(`title=${literal}`);
   });
 });
