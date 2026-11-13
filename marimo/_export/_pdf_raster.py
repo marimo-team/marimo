@@ -11,7 +11,6 @@ from typing import TYPE_CHECKING, Any, Literal, cast
 from marimo import _loggers
 from marimo._config.config_schema import DisplayConfig
 from marimo._config.manager import get_default_config_manager
-from marimo._convert.ipynb.from_ir import _convert_marimo_tex_to_latex
 from marimo._export._html_asset_server import HtmlAssetServer
 from marimo._export._raster_mime import (
     TEXT_HTML,
@@ -128,18 +127,13 @@ def _load_mimebundle(data: Any) -> dict[str, Any] | None:
     return None
 
 
-def _should_rasterize_output(
-    mimetype: str, data: Any, *, webpdf: bool = False
-) -> bool:
+def _should_rasterize_output(mimetype: str, data: Any) -> bool:
     """Return whether this output is eligible for PNG fallback capture."""
 
     if mimetype in VEGA_MIME_TYPES:
         return True
 
     if mimetype in {TEXT_HTML, TEXT_PLAIN, TEXT_MARKDOWN}:
-        # The LaTeX exporter cannot render HTML, even with native math.
-        if webpdf and mimetype == TEXT_HTML and isinstance(data, (str, list)):
-            data = _convert_marimo_tex_to_latex(data)
         return _contains_marker(data, MARIMO_COMPONENT_MARKERS)
 
     return False
@@ -148,8 +142,6 @@ def _should_rasterize_output(
 def _build_target_from_mimebundle(
     cell_id: CellId_t,
     mimebundle: dict[str, Any],
-    *,
-    webpdf: bool = False,
 ) -> _RasterTarget | None:
     """Build capture metadata for a cell emitting a MIME bundle output."""
 
@@ -157,7 +149,7 @@ def _build_target_from_mimebundle(
     expects: list[CaptureExpectation] = []
 
     for mimetype, content in mimebundle.items():
-        if _should_rasterize_output(mimetype, content, webpdf=webpdf):
+        if _should_rasterize_output(mimetype, content):
             should_capture = True
         if _contains_marker(content, ANYWIDGET_COMPONENT_MARKERS):
             expects.append("anywidget")
@@ -180,11 +172,10 @@ def _build_target_from_output(
     *,
     mimetype: str,
     data: Any,
-    webpdf: bool = False,
 ) -> _RasterTarget | None:
     """Build capture metadata for a non-mimebundle output."""
 
-    if not _should_rasterize_output(mimetype, data, webpdf=webpdf):
+    if not _should_rasterize_output(mimetype, data):
         return None
 
     expects: list[CaptureExpectation] = []
@@ -201,9 +192,7 @@ def _build_target_from_output(
     )
 
 
-def _collect_raster_targets(
-    session_view: SessionView, *, webpdf: bool = False
-) -> list[_RasterTarget]:
+def _collect_raster_targets(session_view: SessionView) -> list[_RasterTarget]:
     """Collect capture targets from the current executed session outputs."""
 
     targets: list[_RasterTarget] = []
@@ -217,9 +206,7 @@ def _collect_raster_targets(
             mimebundle = _load_mimebundle(output.data)
             if mimebundle is None:
                 continue
-            target = _build_target_from_mimebundle(
-                cell_id, mimebundle, webpdf=webpdf
-            )
+            target = _build_target_from_mimebundle(cell_id, mimebundle)
             if target is not None:
                 targets.append(target)
             continue
@@ -228,7 +215,6 @@ def _collect_raster_targets(
             cell_id,
             mimetype=output.mimetype,
             data=output.data,
-            webpdf=webpdf,
         )
         if target is not None:
             targets.append(target)
@@ -437,9 +423,7 @@ async def collect_pdf_png_fallbacks(
         LOGGER.debug("Raster capture disabled by options.")
         return {}
 
-    targets = _collect_raster_targets(
-        request.session_view, webpdf=request.webpdf
-    )
+    targets = _collect_raster_targets(request.session_view)
     if not targets:
         LOGGER.debug("Raster capture skipped: no eligible outputs found.")
         return {}

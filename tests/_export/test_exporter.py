@@ -1770,12 +1770,10 @@ class TestPDFExport:
             assert "for PDF export" in str(excinfo.value)
 
     @pytest.mark.asyncio
-    @pytest.mark.parametrize("webpdf", [False, True])
     async def test_export_pdf_reports_execute_raster_render(
         self,
         temp_marimo_file: str,
         session_view: SessionView,
-        webpdf: bool,
     ) -> None:
         events: list[PDFExportStatusEvent] = []
 
@@ -1788,7 +1786,6 @@ class TestPDFExport:
         async def fake_collect_pdf_png_fallbacks(
             request: Any,
         ) -> dict[str, str]:
-            assert request.webpdf is webpdf
             status_callback = request.status_callback
             assert status_callback is not None
             status_callback(
@@ -1842,7 +1839,7 @@ class TestPDFExport:
                 PDFFileExportRequest(
                     path=MarimoPath(temp_marimo_file),
                     options=PDFExportOptions(
-                        webpdf=webpdf,
+                        webpdf=True,
                         preset="document",
                         include_inputs=False,
                     ),
@@ -2021,42 +2018,6 @@ class TestPDFExport:
         assert ".jp-InputArea-editor .highlight pre" in html
         assert "white-space: pre-wrap !important" in html
         assert "overflow-wrap: anywhere !important" in html
-
-    @pytest.mark.skipif(
-        not HAS_NBFORMAT or not DependencyManager.nbconvert.has(),
-        reason="nbformat and nbconvert are required to render ipynb",
-    )
-    def test_webpdf_loads_mathjax_extensions(self) -> None:
-        import nbformat
-        from bs4 import BeautifulSoup
-
-        from marimo._export._nbconvert import _render_webpdf_html
-
-        html = _render_webpdf_html(
-            nbformat.v4.new_notebook(), include_inputs=False, filename=None
-        )
-        soup = BeautifulSoup(html, "html.parser")
-        configs = soup.find_all("script", type="text/x-mathjax-config")
-        config = configs[0].get_text().strip()
-        assert json.loads(
-            config.removeprefix("MathJax.Hub.Config(").removesuffix(");")
-        ) == {
-            "TeX": {
-                "Macros": {"bm": r"\boldsymbol"},
-                "extensions": ["mhchem.js", "cancel.js", "color.js"],
-                "mhchem": {"legacy": False},
-            }
-        }
-        assert len(configs) == 2
-        assert "MathJax.Hub.Queue" in configs[1].get_text()
-        assert (
-            len(
-                soup.find_all(
-                    "script", src=lambda src: src and "mathjax" in src
-                )
-            )
-            == 1
-        )
 
     @pytest.mark.asyncio
     async def test_export_pdf_ignores_status_callback_failures(

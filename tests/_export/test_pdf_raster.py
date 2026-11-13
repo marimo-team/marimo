@@ -8,80 +8,14 @@ from types import ModuleType
 from typing import Any
 from unittest.mock import AsyncMock, patch
 
-import pytest
-
-import marimo as mo
 from marimo._ast.app import App, InternalApp
-from marimo._convert.ipynb.from_ir import _convert_output_to_ipynb
 from marimo._export import _pdf_raster
-from marimo._export._nbconvert import _render_webpdf_html
-from marimo._export._nbformat_png_fallbacks import (
-    inject_png_fallbacks_into_notebook,
-)
 from marimo._export.requests import PDFRasterizationRequest
 from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._messaging.notification import CellNotification
 from marimo._schemas.export_options import PDFRasterizationOptions
 from marimo._session.state.session_view import SessionView
 from tests.mocks import fake_async_playwright
-
-
-@pytest.mark.parametrize("webpdf", [False, True])
-@pytest.mark.parametrize("mimebundle", [False, True])
-@pytest.mark.parametrize(
-    ("mimetype", "content", "needs_capture"),
-    [
-        (
-            "text/html",
-            "<div>Text <marimo-tex>||(x||)</marimo-tex></div>",
-            False,
-        ),
-        ("text/markdown", "<marimo-tex>||[x||]</marimo-tex>", True),
-        (
-            "text/html",
-            ["<div><marimo-", "tex>||(x||)</marimo-tex></div>"],
-            False,
-        ),
-        (
-            "text/html",
-            "<marimo-tex>||(x||)</marimo-tex><marimo-table></marimo-table>",
-            True,
-        ),
-        ("text/plain", "<marimo-tex>||(x||)</marimo-tex>", True),
-    ],
-)
-def test_math_rasterization_depends_on_backend(
-    webpdf: bool,
-    mimebundle: bool,
-    mimetype: str,
-    content: Any,
-    needs_capture: bool,
-) -> None:
-    view = SessionView()
-    view.cell_notifications["1"] = _cell_notification(
-        cell_id="1",
-        mimetype=(
-            "application/vnd.marimo+mimebundle" if mimebundle else mimetype
-        ),
-        data={mimetype: content} if mimebundle else content,
-    )
-    assert _pdf_raster._collect_raster_targets(view, webpdf=webpdf) == (
-        [_pdf_raster._RasterTarget(cell_id="1", expects=())]
-        if not webpdf or needs_capture
-        else []
-    )
-
-
-@pytest.mark.parametrize("webpdf", [False, True])
-def test_escaped_tex_markup_preserves_existing_raster_classification(
-    webpdf: bool,
-) -> None:
-    # Preserve classification without endorsing unescaping literal markup.
-    assert _pdf_raster._should_rasterize_output(
-        "text/html",
-        "&lt;marimo-tex&gt;||(x||)&lt;/marimo-tex&gt;",
-        webpdf=webpdf,
-    )
 
 
 def _cell_notification(
@@ -100,72 +34,6 @@ def _cell_notification(
         ),
         timestamp=0,
     )
-
-
-@pytest.mark.parametrize("webpdf", [False, True])
-def test_sympy_stack_uses_native_html_only_for_webpdf(webpdf: bool) -> None:
-    sympy = pytest.importorskip("sympy")
-    nbformat = pytest.importorskip("nbformat")
-    pytest.importorskip("nbconvert")
-    from bs4 import BeautifulSoup
-
-    a, b = sympy.symbols("a b")
-    stack = mo.vstack(
-        [mo.md("Markdown text"), mo.Html("<p>HTML text</p>"), sympy.Eq(a, b)]
-    )
-    view = SessionView()
-    notification = _cell_notification(
-        cell_id="1", mimetype="text/html", data=stack.text
-    )
-    view.cell_notifications["1"] = notification
-    png_payload = "ZmFrZQ=="
-    with patch.object(
-        _pdf_raster,
-        "_collect_static_captures",
-        new_callable=AsyncMock,
-        return_value={"1": f"data:image/png;base64,{png_payload}"},
-    ) as capture:
-        fallbacks = asyncio.run(
-            _pdf_raster.collect_pdf_png_fallbacks(
-                PDFRasterizationRequest(
-                    app=InternalApp(App()),
-                    session_view=view,
-                    filename=None,
-                    filepath=None,
-                    options=PDFRasterizationOptions(),
-                    webpdf=webpdf,
-                )
-            )
-        )
-
-    assert notification.output is not None
-    output = _convert_output_to_ipynb(notification.output)
-    notebook = nbformat.v4.new_notebook(
-        cells=[nbformat.v4.new_code_cell("", id="1", outputs=[output])]
-    )
-    inject_png_fallbacks_into_notebook(notebook, fallbacks)
-    if webpdf:
-        capture.assert_not_awaited()
-        html = _render_webpdf_html(notebook, False, None)
-        rendered = BeautifulSoup(html, "html.parser").select_one(
-            ".jp-OutputArea-output"
-        )
-        assert rendered is not None
-        assert {
-            "text": rendered.get_text(" ", strip=True),
-            "images": len(rendered.find_all("img")),
-            "tex_elements": len(rendered.find_all("marimo-tex")),
-        } == {
-            "text": "Markdown text HTML text $$\na = b\n$$",
-            "images": 0,
-            "tex_elements": 0,
-        }
-    else:
-        capture.assert_awaited_once()
-        assert capture.call_args.kwargs["static_targets"] == [
-            _pdf_raster._RasterTarget(cell_id="1", expects=())
-        ]
-        assert notebook.cells[0].outputs[0].data == {"image/png": png_payload}
 
 
 def test_collect_raster_targets_detects_html_vega_and_anywidget() -> None:
