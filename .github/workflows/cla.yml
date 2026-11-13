@@ -17,7 +17,7 @@ jobs:
     timeout-minutes: 10
     permissions:
       actions: write
-      contents: read # signatures are written to marimo-team/cla-signers with the PAT
+      contents: read # signatures are written to marimo-team/cla-signers with the App token
       pull-requests: write
       statuses: write
       id-token: write # required for Doppler OIDC
@@ -35,13 +35,24 @@ jobs:
           doppler-project: marimo-oss
           doppler-config: ci_cla
 
+      - name: Generate app token
+        if: (github.event.comment.body == 'recheck' || github.event.comment.body == 'I have read the CLA Document and I hereby sign the CLA') || github.event_name == 'pull_request_target'
+        id: app-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          client-id: Iv23lijHywlfGl8MbCLA # marimo-cla-bot (App ID 4346818)
+          private-key: ${{ steps.secrets.outputs.CLA_APP_PRIVATE_KEY }}
+          owner: marimo-team
+          repositories: cla-signers
+          permission-contents: write
+
       - name: "CLA Assistant"
         if: (github.event.comment.body == 'recheck' || github.event.comment.body == 'I have read the CLA Document and I hereby sign the CLA') || github.event_name == 'pull_request_target'
         # maintained fork of the archived contributor-assistant/github-action
         uses: iainmcgin/cla-github-action@0d27e5a16278d4adb6b0c4b92f08ad27b0a21dc8 # v3.2.0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PERSONAL_ACCESS_TOKEN: ${{ steps.secrets.outputs.PERSONAL_ACCESS_TOKEN }}
+          PERSONAL_ACCESS_TOKEN: ${{ steps.app-token.outputs.token }}
         with:
           path-to-signatures: "signatures/version1/cla.json"
           path-to-document: "https://marimo.io/cla" # e.g. a CLA or a DCO document
