@@ -64,7 +64,7 @@ class TestHash:
             from marimo._save.save import persistent_cache
             from tests._save.loaders.mocks import MockLoader
 
-            expected_hash = "Qjd-Of0rz70rXMuxdcVvFRvT96WFt-vVqJxDOQ5f5IU"
+            expected_hash = "UszlA_TOaB1yD0rnLeRL-9kPCWLhqHgxhzX_M0LhjUw"
 
             return expected_hash, persistent_cache, MockLoader
 
@@ -190,7 +190,7 @@ class TestHash:
             # Cannot be reused/ shared, because it will change the hash.
             assert (
                 _cache._cache.hash
-                == "r2_DqjuluzDmVs1wo1HZCNWz9wApoSSJlnXeYihOaNI"
+                == "INP2nw6Lb1r7vtxmW5SN1DTtZSjrk6bxwfCaDwJ-uPc"
             ), _cache._cache.hash
             assert _cache._cache.cache_type == "ContextExecutionPath"
             return
@@ -211,7 +211,7 @@ class TestHash:
             assert _X == 7
             assert (
                 _cache._cache.hash
-                == "r2_DqjuluzDmVs1wo1HZCNWz9wApoSSJlnXeYihOaNI"
+                == "INP2nw6Lb1r7vtxmW5SN1DTtZSjrk6bxwfCaDwJ-uPc"
             ), _cache._cache.hash
             assert _cache._cache.cache_type == "ContextExecutionPath"
             # and a post block difference
@@ -238,7 +238,7 @@ class TestHash:
             # Cannot be reused/ shared, because it will change the hash.
             assert (
                 _cache._cache.hash
-                == "r2_DqjuluzDmVs1wo1HZCNWz9wApoSSJlnXeYihOaNI"
+                == "INP2nw6Lb1r7vtxmW5SN1DTtZSjrk6bxwfCaDwJ-uPc"
             ), _cache._cache.hash
             assert _cache._cache.cache_type == "ContextExecutionPath"
             return
@@ -259,7 +259,7 @@ class TestHash:
             assert _X == 7
             assert (
                 _cache._cache.hash
-                == "r2_DqjuluzDmVs1wo1HZCNWz9wApoSSJlnXeYihOaNI"
+                == "INP2nw6Lb1r7vtxmW5SN1DTtZSjrk6bxwfCaDwJ-uPc"
             ), _cache._cache.hash
             assert _cache._cache.cache_type == "ContextExecutionPath"
             # and a post block difference
@@ -798,7 +798,7 @@ class TestDataHash:
             from marimo._save.save import persistent_cache
             from tests._save.loaders.mocks import MockLoader
 
-            expected_hash = "_ci06ALDK_jmGaPqiuCb27B7XKVYx9_ptO_uc0KM16k"
+            expected_hash = "TwaA3J4lWnXBt0eAcu5qhlwTTa5Xm8zJ4YGO6l2Gcrk"
             return MockLoader, persistent_cache, expected_hash, np
 
         @app.cell
@@ -851,7 +851,7 @@ class TestDataHash:
             from marimo._save.save import persistent_cache
             from tests._save.loaders.mocks import MockLoader
 
-            expected_hash = "cAXrntOIgirrLZhFtll7g0J8jZ8SbCi0eFUS8CX80xw"
+            expected_hash = "LgDhJZ9SoggG97wRqabzenjKnbb-qWogMvTA60lBETA"
             return MockLoader, persistent_cache, expected_hash, np
 
         @app.cell
@@ -904,7 +904,7 @@ class TestDataHash:
             from marimo._save.save import persistent_cache
             from tests._save.loaders.mocks import MockLoader
 
-            expected_hash = "FUTSSYa2_hOk6MeTTrrSJGtoPw0jNi_sl9_8mhl_e4s"
+            expected_hash = "w_CSK_Gc7yX2BV0q2XhS5xfL1xa75-DFk6HxVzH502I"
             return MockLoader, persistent_cache, expected_hash, torch
 
         @app.cell
@@ -964,7 +964,7 @@ class TestDataHash:
             from marimo._save.save import persistent_cache
             from tests._save.loaders.mocks import MockLoader
 
-            expected_hash = "xxzFiLDQpVGtV2GRcbXmsxSIkIWBaLZ3hHpEHxfJ1PA"
+            expected_hash = "800n2ixT9COdjtSbKIq970sSZEPojbKHPRZzMt9qaLs"
             return MockLoader, persistent_cache, expected_hash, torch
 
         @app.cell
@@ -1004,7 +1004,7 @@ class TestDataHash:
             from marimo._save.save import persistent_cache
             from tests._save.loaders.mocks import MockLoader
 
-            expected_hash = "Dmsvz-jhSXWM6KJmNSuGSQw3g7exOctsfRyyyaOnzaA"
+            expected_hash = "0nVI8lbeGLPRdF-saO7_pnqNi-2wzuGxaa7jE3e9dcA"
             return MockLoader, persistent_cache, expected_hash, DNA, copy
 
         @app.cell
@@ -1042,7 +1042,7 @@ class TestDataHash:
             from marimo._save.save import persistent_cache
             from tests._save.loaders.mocks import MockLoader
 
-            expected_hash = "4ERGkPoTZ4PHHjoLiQL8kKZMubtVOci2prJPtitADxo"
+            expected_hash = "pWUr4gwnOHCQLfFXLId5UouUvW5C6-Y_vtFnJeIOiTo"
             return MockLoader, persistent_cache, expected_hash, np, pd
 
         @app.cell
@@ -1106,7 +1106,7 @@ class TestDataHash:
             from marimo._save.save import persistent_cache
             from tests._save.loaders.mocks import MockLoader
 
-            expected_hash = "okFuWhbuYo5zTN4so_JJtRDgXjwcGJO_g9PwUrYsFq8"
+            expected_hash = "jC6k8yHeSERvOk9Q9fhd6TEkiJoQf5CjNOCCl61GQB0"
             return MockLoader, persistent_cache, expected_hash, np, pd
 
         @app.cell
@@ -1147,7 +1147,7 @@ class TestDataHash:
             from marimo._save.save import persistent_cache
             from tests._save.loaders.mocks import MockLoader
 
-            expected_hash = "3P7C_VVSy-3SUBLObosBMb254TpdkngpMNrttAyayrU"
+            expected_hash = "HrioJlRM1tWJwniZn0_mRnMgF0SwHspQmQkBvcSuLRU"
             return MockLoader, persistent_cache, expected_hash, pl
 
         @app.cell
@@ -1204,7 +1204,7 @@ class TestDataHash:
             from marimo._save.save import persistent_cache
             from tests._save.loaders.mocks import MockLoader
 
-            expected_hash = "-xemFqty19uKABGO0MxKG9-2rnPWNNnZNf1UDoNAD_I"
+            expected_hash = "SlDEce1H9ENwlFXHavumCn5YW1vM048MNgNdYgbePVI"
             return MockLoader, persistent_cache, expected_hash, pl
 
         @app.cell
@@ -2635,12 +2635,10 @@ class TestRemoveReturnsBytecode:
 
 
 class TestSetLiteralDeterminism:
-    """Set literals are constant-folded into frozensets in co_consts, whose
-    str()/iteration order is PYTHONHASHSEED-dependent (issue #9829)."""
+    """Set literal members reach the hash in a seed-independent order
+    (issue #9829)."""
 
     def test_set_literal_changes_hash(self) -> None:
-        """Changing set members must still change the hash."""
-
         def fn_a(x: object) -> bool:
             return x in {"A", "B", "C"}
 
@@ -2649,28 +2647,26 @@ class TestSetLiteralDeterminism:
 
         assert _hash_fn(fn_a) != _hash_fn(fn_b)
 
-    def test_hash_deterministic_across_hashseed(self) -> None:
-        """A set-literal function must hash identically across PYTHONHASHSEED.
+    def test_hash_deterministic_across_hashseed(self, tmp_path: Path) -> None:
+        # A file, not `-c`: the function hash reads the function's source.
+        program = tmp_path / "program.py"
+        program.write_text(
+            textwrap.dedent(
+                """
+                from marimo._save.hash import hash_wrapped_functions
 
-        The set literal is constant-folded into a frozenset in the function's
-        co_consts; `hash_module` is what previously serialized it with a
-        seed-dependent `str()`.
-        """
-        program = textwrap.dedent(
-            """
-            from marimo._save.hash import hash_module
+                def fn(x):
+                    return x in {"A", "B", "C", "D", "E", 1, 2.0, None}
 
-            def fn(x):
-                return x in {"A", "B", "C", "D", "E", 1, 2.0, None}
-
-            print(hash_module(fn.__code__).hex())
-            """
+                print(hash_wrapped_functions(fn).hex())
+                """
+            )
         )
         digests = set()
         for seed in ("0", "1", "2", "42", "12345"):
             env = {**os.environ, "PYTHONHASHSEED": seed}
             result = subprocess.run(
-                [sys.executable, "-c", program],
+                [sys.executable, str(program)],
                 capture_output=True,
                 text=True,
                 env=env,
@@ -2679,45 +2675,14 @@ class TestSetLiteralDeterminism:
             digests.add(result.stdout.strip())
         assert len(digests) == 1, f"non-deterministic across seeds: {digests}"
 
-    def test_singleton_set_unchanged(self) -> None:
-        """A singleton set literal stays on the str() path (len > 1 guard).
+    def test_singleton_set_distinguishes_member_types(self) -> None:
+        def number(x: object) -> bool:
+            return x in {1}  # noqa: FURB171
 
-        `str(frozenset({'A'}))` has only one possible order, so it was never
-        broken; its hash must equal the plain str()-based serialization so we
-        don't invalidate caches that already worked.
-        """
-        import hashlib
+        def string(x: object) -> bool:
+            return x in {"1"}  # noqa: FURB171
 
-        from marimo._save.hash import hash_module
-
-        def fn(x: object) -> bool:
-            # Keep the singleton set: this test inspects its frozenset constant.
-            return x in {"A"}  # noqa: FURB171
-
-        code = fn.__code__
-        singleton = next(c for c in code.co_consts if isinstance(c, frozenset))
-        assert len(singleton) == 1
-
-        expected = hashlib.new("sha256", usedforsecurity=False)
-        for const in code.co_consts:
-            expected.update(str(const).encode("utf8"))
-        expected.update(bytes("|".join(code.co_names), "utf8"))
-        expected.update(code.co_code)
-
-        assert hash_module(code) == expected.digest()
-
-    def test_exotic_const_types_dont_crash(self) -> None:
-        """Set literals can hold complex/bytes/bool/tuple — none may crash.
-
-        repr-based serialization handles these; the byte serializers
-        (primitive_to_bytes / common_container_to_bytes) reject complex.
-        """
-        from marimo._save.hash import hash_module
-
-        def fn(x: object) -> bool:
-            return x in {1j, 2j, b"x", True, (1, 2), "s"}
-
-        assert isinstance(hash_module(fn.__code__), bytes)
+        assert _hash_fn(number) != _hash_fn(string)
 
 
 def test_decorator_params_affect_hash() -> None:
@@ -2948,7 +2913,15 @@ def test_signed_stateful_bytes_bytearray_is_signed_bytes() -> None:
 def test_signed_stateful_bytes_unpicklable_raises() -> None:
     hasher = BlockHasher.__new__(BlockHasher)
     with pytest.raises(TypeError, match="neither"):
-        hasher._signed_stateful_bytes(lambda: None, "ui")
+        hasher._signed_stateful_bytes((_ for _ in ()), "ui")
+
+
+def test_signed_stateful_bytes_function_keyed_by_content() -> None:
+    # Functions are fingerprinted rather than pickled by reference.
+    hasher = BlockHasher.__new__(BlockHasher)
+    one = hasher._signed_stateful_bytes(lambda: 1, "ui")
+    assert one == hasher._signed_stateful_bytes(lambda: 1, "ui")
+    assert one != hasher._signed_stateful_bytes(lambda: 2, "ui")
 
 
 NOTEBOOK_WITH_SETUP = """import marimo

@@ -50,9 +50,12 @@ class Item(msgspec.Struct, omit_defaults=True):
     # `from typing import Optional` or `from os.path import join`. Stored
     # inline so trivial imported references never get their own blob on disk.
     import_ref: tuple[str, str] | None = None
-    # (code, filename, lineno, is_cached); is_cached marks an @mo.cache /
-    # @mo.persistent_cache wrapper (see `FunctionStub`).
-    function: tuple[str, str, int, bool] | None = None
+    # (code, filename, lineno, is_cached, future_flags, qualname,
+    # code_qualname); is_cached marks an @mo.cache / @mo.persistent_cache
+    # wrapper, future_flags are the `__future__` compiler flags the
+    # definition was compiled under, and the qualnames are the function's
+    # and its code object's (see `FunctionStub`).
+    function: tuple[str, str, int, bool, int, str, str] | None = None
     # (code, qualname) — cell-defined class source. Materialized into the
     # cell namespace (and __main__) before pickle blobs deserialize, so
     # __main__-qualified instances can resolve their type.
