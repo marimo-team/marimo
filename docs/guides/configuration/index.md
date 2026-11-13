@@ -124,6 +124,48 @@ cookie settings take effect when the server starts.
     also cannot set `cache.store`. See [project file security](../../security.md#project-files)
     and [cache signing and trust](../../api/caching.md#cache-signing-and-trust).
 
+## Cross-site session cookies
+
+When you embed marimo in an iframe on another site, authentication can fail inside
+the embed. For example, a notebook inside your docs or dashboard can lose access
+to its session cookie because the browser blocks cross-site cookies.
+
+Partitioned cookies ([CHIPS](https://developer.mozilla.org/en-US/docs/Web/Privacy/Guides/Third-party_cookies/Partitioned_cookies))
+let compatible browsers accept the cookie and store it separately for each
+embedding site.
+
+Enable partitioned cookies in your configuration:
+
+```toml
+[server]
+session_cookie_partitioned = true
+```
+
+Alternatively, set `MARIMO_SERVER_SESSION_COOKIE_PARTITIONED=true` before you
+start the server. The default is `false`, and the feature requires HTTPS.
+
+With partitioned cookies enabled, marimo sets and deletes the session cookie with
+`HttpOnly; SameSite=None; Secure; Partitioned`. Each embedding site gets its own
+session cookie. To authenticate in a separate kernel tab, open the URL with its
+access token. If a browser blocks all cookies, use a client that sends an explicit
+token with each request.
+
+Because these cookies support cross-site requests, marimo checks the origin of
+cookie-authenticated WebSocket connections and state-changing HTTP requests.
+With partitioned cookies enabled, these browser requests must come from the
+kernel's public HTTPS origin.
+
+If marimo runs behind a proxy or tunnel, configure it to expose that origin:
+
+- **TLS proxy:** pass through the public `Host` header, including the port. Forwarded host headers do not affect the cookie origin check.
+- **Tunnel:** set `--allow-origins` to the public kernel origin.
+
+Non-browser clients can omit `Origin` unless Fetch Metadata indicates a cross-origin
+request. Explicit tokens can authenticate HTTP requests independently of cookies.
+
+Browsers without CHIPS support can treat these cookies as ordinary cross-site
+cookies. The origin check still applies.
+
 ## Notebook settings
 
 Some notebook-specific settings, such as title, width, [custom CSS](theming.md),

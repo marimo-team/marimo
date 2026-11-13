@@ -318,6 +318,12 @@ class ServerConfig(Config, kw_only=True):
             description="Only send session cookies over HTTPS. Enable when serving behind TLS."
         ),
     ] = False
+    session_cookie_partitioned: Annotated[
+        bool,
+        Meta(
+            description="Use partitioned cookies for cross-site HTTPS embeds. Implies SameSite=None and Secure."
+        ),
+    ] = False
     session_secret: Annotated[
         str | None,
         Meta(

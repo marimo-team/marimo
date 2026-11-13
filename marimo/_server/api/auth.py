@@ -7,6 +7,7 @@ import hmac
 import secrets
 import typing
 from typing import TYPE_CHECKING, Any
+from urllib.parse import urlsplit
 
 import starlette
 from starlette import status
@@ -32,6 +33,72 @@ from marimo._server.host.auth import (
 
 LOGGER = _loggers.marimo_logger()
 TOKEN_QUERY_PARAM = "access_token"
+
+
+def _cookie_origin_allowed(conn: HTTPConnection) -> bool:
+    if not conn.scope.get("marimo_partitioned_session"):
+        return True
+    if conn.scope["type"] == "http" and conn.scope["method"] in (
+        "GET",
+        "HEAD",
+        "OPTIONS",
+    ):
+        return True
+
+    hosts = conn.headers.getlist("host")
+    if len(hosts) != 1:
+        return False
+    origins = conn.headers.getlist("origin")
+    if not origins:
+        # Non-browser clients can omit Origin. Fetch metadata must not
+        # contradict that; a sibling origin is not trusted either.
+        return conn.headers.get("sec-fetch-site") not in (
+            "cross-site",
+            "same-site",
+        )
+    if len(origins) != 1:
+        return False
+    origin, host = origins[0], hosts[0]
+    # URL parsers normalize whitespace and empty delimiters, which are invalid
+    # in an Origin header. Reject them before comparing authorities.
+    if any(
+        not value.isprintable()
+        or any(char.isspace() for char in value)
+        or any(char in value for char in "\\?#")
+        or value.endswith(":")
+        for value in (origin, host)
+    ):
+        return False
+    try:
+        source = urlsplit(origin)
+        # CHIPS requires HTTPS. Compare against the public Host, not the
+        # ASGI scheme: a TLS-terminating tunnel may speak HTTP to marimo.
+        target = urlsplit("https://" + host)
+        for parsed in (source, target):
+            if parsed.hostname is None:
+                return False
+            authority = parsed.hostname
+            if ":" in authority:
+                authority = f"[{authority}]"
+            if parsed.port is not None:
+                authority += ":" + parsed.netloc.rsplit(":", 1)[1]
+            if authority != parsed.netloc.lower():
+                return False
+        return (
+            source.scheme == "https"
+            and source.hostname is not None
+            and source.hostname == target.hostname
+            and (443 if source.port is None else source.port)
+            == (443 if target.port is None else target.port)
+            and source.username is None
+            and source.password is None
+            and not (source.path or source.query or source.fragment)
+            and target.username is None
+            and target.password is None
+            and not (target.path or target.query or target.fragment)
+        )
+    except ValueError:
+        return False
 
 
 # Validates auth
@@ -69,7 +136,7 @@ def validate_auth(
     if _matches(
         cookie_session.get_access_token(),
         hash_access_token(auth_token, secret=session_secret),
-    ):
+    ) and _cookie_origin_allowed(conn):
         return True  # Success
 
     # Check for access_token
@@ -231,8 +298,15 @@ class CustomSessionMiddleware(SessionMiddleware):
         same_site: typing.Literal["lax", "strict", "none"] = "lax",
         https_only: bool = False,
         domain: str | None = None,
+        *,
+        partitioned: bool = False,
     ) -> None:
         from packaging import version
+
+        self.partitioned = partitioned
+        if partitioned:
+            same_site = "none"
+            https_only = True
 
         # We can't update the cookie here since
         # we don't have access to the app state
@@ -263,6 +337,11 @@ class CustomSessionMiddleware(SessionMiddleware):
                 https_only,
             )
 
+        if partitioned:
+            # Use the same attributes for creation, refresh, and deletion,
+            # including on Python versions whose cookies lack CHIPS support.
+            self.security_flags += "; partitioned"
+
     async def __call__(
         self, scope: Scope, receive: Receive, send: Send
     ) -> None:
@@ -271,6 +350,7 @@ class CustomSessionMiddleware(SessionMiddleware):
             return
 
         state = AppState.from_app(scope["app"])
+        scope["marimo_partitioned_session"] = self.partitioned
 
         # We key the token cookie by port to avoid conflicts
         # with multiple marimo instances running on the same host

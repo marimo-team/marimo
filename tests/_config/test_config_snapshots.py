@@ -185,6 +185,7 @@ def test_default_configuration_snapshot(config_tree: Path) -> None:
             "server": {
                 "skip_update_check": False,
                 "session_cookie_secure": False,
+                "session_cookie_partitioned": False,
                 "session_secret": None,
                 "browser": "default",
                 "follow_symlink": False,
@@ -310,6 +311,7 @@ def test_layered_configuration_snapshot(
                 "server": {
                     "skip_update_check": False,
                     "follow_symlink": False,
+                    "session_cookie_partitioned": False,
                     "session_secret": None,
                     "browser": "default",
                     "session_cookie_secure": False,
@@ -422,6 +424,7 @@ def test_layered_configuration_snapshot(
                 "server": {
                     "skip_update_check": False,
                     "follow_symlink": False,
+                    "session_cookie_partitioned": False,
                     "session_secret": None,
                     "browser": "default",
                     "session_cookie_secure": False,
@@ -576,6 +579,7 @@ def test_layered_configuration_snapshot(
                 "server": {
                     "skip_update_check": False,
                     "session_cookie_secure": False,
+                    "session_cookie_partitioned": False,
                     "session_secret": None,
                     "browser": "default",
                     "follow_symlink": False,
@@ -864,6 +868,7 @@ format_on_save = false
 browser = "default"
 disable_file_downloads = false
 follow_symlink = false
+session_cookie_partitioned = false
 session_cookie_secure = false
 skip_update_check = false
 
