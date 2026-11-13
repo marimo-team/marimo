@@ -437,10 +437,6 @@ class SessionImpl(Session):
         deliver_reply(queue.queue_manager.input_queue, reply)
         self.session_view.add_stdin(reply.value, input_id=reply.input_id)
 
-    def put_input(self, text: str) -> None:
-        """Put an input() request in the input queue."""
-        self._event_bus.emit_received_stdin(self, text)
-
     def disconnect_consumer(self, session_consumer: SessionConsumer) -> None:
         """
         Stop the session consumer but keep the kernel running.

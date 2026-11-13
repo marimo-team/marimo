@@ -241,7 +241,7 @@ class WorkerBackend:
         )
 
     def reply_input(self, input_id: protocol.ItemId, value: str) -> None:
-        self._session.put_input(InputReply(input_id, value))
+        self._session.reply_input(InputReply(input_id, value))
         self._session.session_view.add_stdin(value, input_id=input_id)
 
     def interrupt(self) -> None:

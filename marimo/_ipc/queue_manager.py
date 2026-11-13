@@ -66,7 +66,7 @@ class QueueManager:
         )
 
     @property
-    def input_queue(self) -> QueueType[str | InputReply]:
+    def input_queue(self) -> QueueType[InputReply]:
         """Queue for user input responses."""
         return self.conn.input.queue
 

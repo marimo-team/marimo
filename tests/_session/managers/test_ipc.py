@@ -9,8 +9,10 @@ import time
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 
+import msgspec
 import pytest
 
+from marimo._messaging.input import InputReply
 from marimo._session.managers.ipc import construct_kernel_env
 
 
@@ -33,12 +35,17 @@ class TestIPCConnection:
         try:
             # Host sends input to kernel (what happens when user
             # responds to an input() prompt)
-            test_input = "user response"
+            test_input = InputReply("prompt", "user response")
             host_conn.input.queue.put(test_input)
 
             # Kernel receives input
             received = kernel_conn.input.queue.get(timeout=1.0)
             assert received == test_input
+            assert kernel_conn.input.decoder is not None
+            with pytest.raises(msgspec.ValidationError):
+                kernel_conn.input.decoder.decode(
+                    msgspec.msgpack.encode("unaddressed")
+                )
         finally:
             host_conn.close()
             kernel_conn.close()

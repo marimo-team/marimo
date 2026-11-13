@@ -370,7 +370,6 @@ print(f"Bridge created: {type(bridge).__name__}")
 # Verify bridge has expected methods
 expected_methods = [
     "put_control_request",
-    "put_input",
     "code_complete",
     "read_code",
     "read_snippets",
