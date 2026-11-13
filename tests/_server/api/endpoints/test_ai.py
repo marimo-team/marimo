@@ -24,6 +24,7 @@ from marimo._server.ai.prompts import (
 from marimo._server.ai.tools.types import ToolCallResult
 from marimo._server.ai.tracing import SpanInfo
 from marimo._server.api.endpoints.ai import (
+    _missing_mcp_dependencies_message,
     get_provider_config,
     resolve_completion_messages,
 )
@@ -1442,3 +1443,20 @@ def test_ai_endpoints_forward_conversation_id(
         assert factory.call_args.kwargs["session_id"] == expected_session_id
 
     check_endpoint(client, temp_marimo_file)
+
+
+def test_missing_mcp_dependencies_message() -> None:
+    with (
+        patch(
+            "marimo._cli.install_hints.infer_package_manager",
+            return_value="uv",
+        ),
+        patch(
+            "marimo._cli.install_hints._is_uv_project_context",
+            return_value=True,
+        ),
+        patch("marimo._cli.install_hints.is_windows", return_value=False),
+    ):
+        assert _missing_mcp_dependencies_message() == (
+            "Missing dependencies. Install with: uv add 'marimo[mcp]'"
+        )

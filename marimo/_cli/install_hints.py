@@ -143,6 +143,16 @@ def get_install_commands(
     )
 
 
+def get_install_hint(packages: str | list[str] | tuple[str, ...]) -> str:
+    """Return a single install command for use in an error message.
+
+    Uses the inferred package manager (e.g. `uv add ...`), falling back to
+    `python -m pip install ...`.
+    """
+    commands = get_install_commands(packages)
+    return commands[0] if commands else ""
+
+
 def get_post_install_commands(
     command: str, *, module_fallback: str | None = None
 ) -> list[str]:

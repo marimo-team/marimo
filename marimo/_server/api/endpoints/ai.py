@@ -13,6 +13,7 @@ from starlette.responses import (
 
 from marimo import _loggers
 from marimo._ai._pydantic_ai_utils import create_simple_prompt, generate_id
+from marimo._cli.install_hints import get_install_hint
 from marimo._config.config_schema import AiConfig, MarimoConfig
 from marimo._config.types import CopilotMode
 from marimo._secrets.secrets import get_secret_value
@@ -67,6 +68,13 @@ LOGGER = _loggers.marimo_logger()
 
 # Router for file ai
 router = APIRouter()
+
+
+def _missing_mcp_dependencies_message() -> str:
+    return (
+        "Missing dependencies. Install with: "
+        f"{get_install_hint('marimo[mcp]')}"
+    )
 
 
 def resolve_completion_messages(
@@ -511,7 +519,7 @@ async def mcp_status(
         return StructResponse(
             MCPStatusResponse(
                 status="error",
-                error="Missing dependencies. Install with: pip install marimo[mcp]",
+                error=_missing_mcp_dependencies_message(),
                 servers={},
             )
         )
@@ -605,7 +613,7 @@ async def mcp_refresh(
         return StructResponse(
             MCPRefreshResponse(
                 success=False,
-                error="Missing dependencies. Install with: pip install marimo[mcp]",
+                error=_missing_mcp_dependencies_message(),
                 servers={},
             )
         )

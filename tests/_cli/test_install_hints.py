@@ -5,6 +5,7 @@ from unittest.mock import patch
 
 from marimo._cli.install_hints import (
     get_install_commands,
+    get_install_hint,
     get_playwright_chromium_setup_commands,
     get_post_install_commands,
     get_upgrade_commands,
@@ -216,3 +217,33 @@ def test_install_commands_does_not_quote_extras_on_windows() -> None:
             "uv add marimo[sandbox] pyzmq",
             "python -m pip install marimo[sandbox] pyzmq",
         ]
+
+
+def test_install_hint_uses_inferred_manager() -> None:
+    with (
+        patch(
+            "marimo._cli.install_hints.infer_package_manager",
+            return_value="uv",
+        ),
+        patch(
+            "marimo._cli.install_hints._is_uv_project_context",
+            return_value=True,
+        ),
+        patch("marimo._cli.install_hints.is_windows", return_value=False),
+    ):
+        assert get_install_hint("marimo[mcp]") == "uv add 'marimo[mcp]'"
+
+
+def test_install_hint_for_pip() -> None:
+    with patch(
+        "marimo._cli.install_hints.infer_package_manager",
+        return_value="pip",
+    ):
+        assert (
+            get_install_hint(["pandas", "polars"])
+            == "python -m pip install pandas polars"
+        )
+
+
+def test_install_hint_empty() -> None:
+    assert get_install_hint([]) == ""
