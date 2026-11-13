@@ -424,6 +424,47 @@ def test_python_print_ibis(transformations: Transformations):
     assert df_name in result
 
 
+QUOTED_COLUMN = "a'b\"{c}"
+
+
+@pytest.mark.parametrize(
+    "printer", [python_print_pandas, python_print_polars, python_print_ibis]
+)
+@pytest.mark.parametrize(
+    "transform",
+    [
+        AggregateTransform(
+            type=TransformType.AGGREGATE,
+            column_ids=[QUOTED_COLUMN],
+            aggregations=["sum"],
+        ),
+        GroupByTransform(
+            type=TransformType.GROUP_BY,
+            column_ids=["g"],
+            drop_na=False,
+            aggregation="sum",
+            aggregation_column_ids=[QUOTED_COLUMN],
+        ),
+        PivotTransform(
+            type=TransformType.PIVOT,
+            column_ids=["g"],
+            index_column_ids=["i"],
+            value_column_ids=[QUOTED_COLUMN],
+            aggregation="sum",
+        ),
+    ],
+)
+def test_print_code_quoted_column_name_stays_a_string(
+    printer, transform: Transform
+) -> None:
+    code = printer("df", ["g", "i", QUOTED_COLUMN], transform)
+    tree = ast.parse(code)
+    assert not any(
+        isinstance(node, ast.Name) and node.id == "c"
+        for node in ast.walk(tree)
+    ), code
+
+
 @given(transformations=transformations_strategy)
 @settings(deadline=None)
 def test_python_print_transforms(transformations: Transformations):
