@@ -236,6 +236,12 @@ const DEFAULT_HOT_KEY = {
     group: "Editing",
     key: "Mod-Shift-'",
   },
+  "cell.mergeCellBelow": {
+    name: "Merge with cell below",
+    additionalKeywords: ["join", "combine"],
+    group: "Editing",
+    key: NOT_SET,
+  },
   "cell.toggleComment": {
     name: "Toggle comment",
     group: "Editing",

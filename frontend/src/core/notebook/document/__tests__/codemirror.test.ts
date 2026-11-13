@@ -99,6 +99,7 @@ function languages(id: CellId) {
       moveColumn: vi.fn(),
       splitCell: vi.fn(),
       undoSplitCell: vi.fn(),
+      mergeCellBelow: vi.fn(),
       onRun: vi.fn(),
       deleteCell: vi.fn(),
       afterToggleMarkdown: vi.fn(),

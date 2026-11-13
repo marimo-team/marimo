@@ -78,6 +78,10 @@ vi.mock("../../cell/useDeleteCell", () => ({
   useDeleteManyCellsCallback: vi.fn(),
 }));
 
+vi.mock("../../cell/useMergeCell", () => ({
+  useMergeCellBelowCallback: vi.fn(),
+}));
+
 vi.mock("../clipboard", () => ({
   useCellClipboard: vi.fn(),
 }));

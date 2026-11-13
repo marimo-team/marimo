@@ -50,6 +50,7 @@ import { useSaveNotebook } from "@/core/saving/save-component";
 import { Events } from "@/utils/events";
 import type { CellActionsDropdownHandle } from "../cell/cell-actions";
 import { useDeleteManyCellsCallback } from "../cell/useDeleteCell";
+import { useMergeCellBelowCallback } from "../cell/useMergeCell";
 import { useRunCells } from "../cell/useRunCells";
 import { useCellClipboard } from "./clipboard";
 import {
@@ -215,6 +216,7 @@ export function useCellNavigationProps(
   const isSelected = useIsCellSelected(cellId);
   const pendingDeleteService = usePendingDeleteService();
   const deleteCells = useDeleteManyCellsCallback();
+  const mergeCellBelow = useMergeCellBelowCallback();
   const userConfig = useAtomValue(userConfigAtom);
   const aiFeaturesEnabled = isAiFeatureEnabled(userConfig);
 
@@ -507,6 +509,7 @@ export function useCellNavigationProps(
           });
           return true;
         }),
+        "cell.mergeCellBelow": (cellId) => mergeCellBelow({ cellId }).merged,
         "cell.aiCompletion": (cellId) => {
           if (!aiFeaturesEnabled) {
             return false;

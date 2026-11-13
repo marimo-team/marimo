@@ -51,6 +51,7 @@ import {
   useCellEditorNavigationProps,
 } from "../../navigation/navigation";
 import { useDeleteCellCallback } from "../useDeleteCell";
+import { useMergeCellBelowCallback } from "../useMergeCell";
 import { useSplitCellCallback } from "../useSplitCell";
 import { CodePlaceholder } from "./code-placeholder";
 import { LanguageToggles } from "./language-toggle";
@@ -133,6 +134,7 @@ const CellEditorInternal = ({
   const loading = status === "running" || status === "queued";
   const cellActions = useCellActions();
   const splitCell = useSplitCellCallback();
+  const mergeCellBelow = useMergeCellBelowCallback();
 
   const isMarkdown = languageAdapter === "markdown";
 
@@ -222,6 +224,7 @@ const CellEditorInternal = ({
           }
         },
         splitCell,
+        mergeCellBelow,
         toggleHideCode,
         askAiAboutCell: () => {
           void askAiAboutCell(cellId);
@@ -315,6 +318,7 @@ const CellEditorInternal = ({
     showPlaceholder,
     cellActions,
     splitCell,
+    mergeCellBelow,
     toggleHideCode,
     handleDelete,
     handleRunCell,

@@ -16,7 +16,12 @@ import {
   languageAdapterState,
   switchLanguage,
 } from "../extension";
-import { getEditorCodeAsPython, splitEditor } from "../utils";
+import {
+  getEditorCodeAsPython,
+  mergeCellCode,
+  splitEditor,
+  unmergeCellCode,
+} from "../utils";
 
 const views: EditorView[] = [];
 
@@ -346,5 +351,54 @@ Hello,
     const result = splitEditor(mockEditor);
     expect(result.beforeCursorCode).toEqual('mo.md(f"""{a}""")');
     expect(result.afterCursorCode).toEqual('mo.md(f"""{b}!""")');
+  });
+});
+
+describe("mergeCellCode", () => {
+  it("joins python on a new line", () => {
+    expect(mergeCellCode("x = 1", "y = 2")).toBe("x = 1\ny = 2");
+  });
+
+  it("keeps markdown paragraphs apart", () => {
+    expect(mergeCellCode('mo.md("# Title")', 'mo.md("Body")')).toBe(
+      'mo.md("""\n# Title\n\nBody\n""")',
+    );
+  });
+
+  it("takes the other cell's code when one is empty", () => {
+    expect(mergeCellCode("", 'mo.md("Body")')).toBe('mo.md("Body")');
+    expect(mergeCellCode("x = 1", "  \n")).toBe("x = 1");
+  });
+
+  it("refuses different languages, markdown prefixes, and SQL", () => {
+    expect(mergeCellCode("x = 1", 'mo.md("Body")')).toBeNull();
+    expect(mergeCellCode('mo.md("a")', 'mo.md(f"{b}")')).toBeNull();
+    const sql = '_df = mo.sql(f"""SELECT 1""")';
+    expect(mergeCellCode(sql, sql)).toBeNull();
+  });
+});
+
+describe("unmergeCellCode", () => {
+  it("takes the code below back off the end", () => {
+    expect(unmergeCellCode("x = 3\ny = 2", "y = 2")).toBe("x = 3");
+  });
+
+  it("splits merged markdown at its blank line", () => {
+    const merged = mergeCellCode('mo.md("# Title")', 'mo.md("Body")') ?? "";
+    const above = unmergeCellCode(merged, 'mo.md("Body")');
+    expect(above).toContain("# Title");
+    expect(above).not.toContain("Body");
+  });
+
+  it("leaves an empty cell above when only the code below remains", () => {
+    expect(unmergeCellCode("y = 2", "y = 2")).toBe("");
+  });
+
+  it("ignores whitespace added at the end", () => {
+    expect(unmergeCellCode("x = 3\ny = 2\n\n", "y = 2")).toBe("x = 3");
+  });
+
+  it("gives up when the code below was edited", () => {
+    expect(unmergeCellCode("x = 1\ny = 4", "y = 2")).toBeNull();
   });
 });

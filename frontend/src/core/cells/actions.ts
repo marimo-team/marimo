@@ -6,12 +6,20 @@ import { historyField } from "@codemirror/commands";
 import { atom, type Getter, type Setter, useSetAtom } from "jotai";
 import { useMemo } from "react";
 import { scrollAndHighlightCell } from "@/components/editor/links/cell-link";
-import { cellExecutionInputsAtom, runningCellIds } from "@/core/executions";
-import type { EditableDocument } from "@/core/notebook/document";
+import {
+  cellExecutionInputsAtom,
+  cellExecutionView,
+  runningCellIds,
+} from "@/core/executions";
+import type { DocumentEdit, EditableDocument } from "@/core/notebook/document";
 import { Logger } from "@/utils/Logger";
 import { clamp } from "@/utils/math";
 import { prepareCellCodeUpdate } from "../codemirror/language/cell-code";
-import { splitEditor } from "../codemirror/language/utils";
+import {
+  mergeCellCode,
+  splitEditor,
+  unmergeCellCode,
+} from "../codemirror/language/utils";
 import type { SerializedEditorState } from "../codemirror/types";
 import { canCollapseOutline } from "../dom/outline";
 import type { CellConfig } from "../network/types";
@@ -34,6 +42,8 @@ import {
 } from "./arrange";
 import {
   type DeletedCell,
+  type HistoryEntry,
+  type UndoMergeEntry,
   notebookAtom,
   notebookReducer,
   releaseCellAtoms,
@@ -47,6 +57,7 @@ import {
   shownHiddenCodeAtom,
 } from "./editor";
 import { CellId, SCRATCH_CELL_ID, SETUP_CELL_ID } from "./ids";
+import { isInternalCellName } from "./names";
 import {
   type CellColumnId,
   collapsedAtom,
@@ -187,10 +198,7 @@ export const splitCellAtom = atom(
       return null;
     }
     const { beforeCursorCode, afterCursorCode } = splitEditor(view);
-    const update = prepareCellCodeUpdate(view.state, beforeCursorCode);
-    if (update) {
-      view.dispatch(update);
-    }
+    showCode(get, cellId, beforeCursorCode);
     const id = CellId.create();
     set(modelOf(get).editAtom, (tx) => {
       tx.setCode(cellId, beforeCursorCode);
@@ -214,11 +222,7 @@ export const undoSplitCellAtom = atom(
       snapshot,
     }: { cellId: CellId; newCellId: CellId; snapshot: string },
   ): void => {
-    const view = get(notebookAtom).cellHandles[cellId]?.current?.editorView;
-    const update = view && prepareCellCodeUpdate(view.state, snapshot);
-    if (view && update) {
-      view.dispatch(update);
-    }
+    showCode(get, cellId, snapshot);
     const document = documentOf(get);
     set(modelOf(get).editAtom, (tx) => {
       tx.setCode(cellId, snapshot);
@@ -230,6 +234,111 @@ export const undoSplitCellAtom = atom(
     clearOutput(set, cellId);
   },
 );
+
+export type MergeBlocker =
+  | "no-cell-below"
+  | "different-language"
+  | "different-disabled"
+  | "running"
+  | "both-named";
+
+export type MergeResult =
+  | { merged: true; entry: UndoMergeEntry }
+  | { merged: false; blocker: MergeBlocker };
+
+/** Each cell's visible neighbour below in the same column, to merge with. */
+const mergeTargetsAtom = atom((get) => {
+  const targets = new Map<CellId, CellId>();
+  for (const { ids, visible } of get(layoutAtom).columns) {
+    const shown = new Set(visible);
+    for (const [index, id] of ids.entries()) {
+      const below = ids[index + 1];
+      if (
+        below !== undefined &&
+        shown.has(below) &&
+        ![id, below].some((c) => c === SETUP_CELL_ID || c === SCRATCH_CELL_ID)
+      ) {
+        targets.set(id, below);
+      }
+    }
+  }
+  return targets;
+});
+
+export function hasMergeableCellBelowAtom(cellId: CellId) {
+  return atom((get) => get(mergeTargetsAtom).has(cellId));
+}
+
+const isBusy = (get: Getter, cellId: CellId) =>
+  cellExecutionView(get(cellExecutionInputsAtom), cellId).status !== "idle";
+
+/** Merge the cell below into this cell. */
+export const mergeCellBelowAtom = atom(
+  null,
+  (get, set, { cellId }: { cellId: CellId }): MergeResult => {
+    const refuse = (blocker: MergeBlocker): MergeResult => ({
+      merged: false,
+      blocker,
+    });
+    const belowId = get(mergeTargetsAtom).get(cellId);
+    const document = documentOf(get);
+    const cell = document.cells.get(cellId);
+    const below =
+      belowId === undefined ? undefined : document.cells.get(belowId);
+    if (belowId === undefined || cell === undefined || below === undefined) {
+      return refuse("no-cell-below");
+    }
+    if (isBusy(get, belowId)) {
+      return refuse("running");
+    }
+    if (Boolean(cell.config.disabled) !== Boolean(below.config.disabled)) {
+      return refuse("different-disabled");
+    }
+    if (!isInternalCellName(cell.name) && !isInternalCellName(below.name)) {
+      return refuse("both-named");
+    }
+    const code = cell.code ?? "";
+    const merged = mergeCellCode(code, below.code ?? "");
+    if (merged === null) {
+      return refuse("different-language");
+    }
+    const name = isInternalCellName(cell.name) ? below.name : cell.name;
+    const removed = removeCells(get, set, [belowId], (tx) => {
+      tx.setCode(cellId, merged);
+      if (name !== cell.name) {
+        tx.setName(cellId, name);
+      }
+    });
+    if (removed === null) {
+      return refuse("no-cell-below");
+    }
+    showCode(get, cellId, merged);
+    clearOutput(set, cellId);
+    const entry: UndoMergeEntry = {
+      type: "merge",
+      cellId,
+      code,
+      name: cell.name,
+      merged,
+      cells: [removed.cells[0]],
+    };
+    set(notebookAtom, (state) => ({
+      ...state,
+      history: [...state.history, entry],
+      scrollKey: cellId,
+    }));
+    return { merged: true, entry };
+  },
+);
+
+/** Show code in a mounted editor as a local edit, so its undo history has it. */
+function showCode(get: Getter, cellId: CellId, code: string): void {
+  const view = get(notebookAtom).cellHandles[cellId]?.current?.editorView;
+  const update = view && prepareCellCodeUpdate(view.state, code);
+  if (view && update) {
+    view.dispatch(update);
+  }
+}
 
 /** The output belonged to the code before the change; neither version has run. */
 function clearOutput(set: Setter, cellId: CellId): void {
@@ -441,113 +550,139 @@ export const addOrAppendSetupCellAtom = atom(
 export const deleteCellsAtom = atom(
   null,
   (get, set, { cellIds }: { cellIds: CellId[] }): boolean => {
-    const document = documentOf(get);
-    const notebook = get(notebookAtom);
-    const requested = new Set(cellIds);
-    for (const id of cellIds) {
-      if (!document.cells.has(id)) {
-        // Expected for kernel-only cells or a cell another client removed.
-        Logger.warn("Skipping delete for missing cellId", { cellId: id });
-      }
-    }
-    const order = document.order as CellId[];
-    const deleting = order.flatMap((id) => {
-      const cell = document.cells.get(id);
-      return cell !== undefined && requested.has(id) ? [cell] : [];
-    });
-    if (deleting.length === order.length) {
-      deleting.pop();
-    }
-    if (deleting.length === 0) {
+    const removed = removeCells(get, set, cellIds);
+    if (removed === null) {
       return false;
     }
-    const gone = new Set(deleting.map((cell) => cell.id as CellId));
-    const firstSurvivor = order.find((id) => !gone.has(id));
-
-    const cells: DeletedCell[] = deleting.map((cell) => {
-      const id = cell.id as CellId;
-      const index = order.indexOf(id);
-      const code = cell.code ?? notebook.cellData[id]?.code ?? "";
-      const editorView = notebook.cellHandles[id]?.current?.editorView;
-      const serializedEditorState: SerializedEditorState | null =
-        editorView?.state.toJSON({ history: historyField }) ?? null;
-      if (serializedEditorState) {
-        serializedEditorState.doc = code;
-      }
-      return {
-        cell: { id, code, name: cell.name, config: cell.config },
-        // Anchor to the cell before it, which undo restores first if it is
-        // also being deleted. The first cell anchors to the next survivor.
-        placement:
-          index > 0 ? { after: order[index - 1] } : { before: firstSurvivor },
-        serializedEditorState,
-      };
-    });
-
-    // Focus the nearest visible survivor in the column, looking up before down.
-    const first = deleting[0].id as CellId;
-    const column = columnOf(get(layoutAtom), first);
-    const ids = column.visible.includes(first) ? column.visible : column.ids;
-    const at = ids.indexOf(first);
-    const scrollKey =
-      ids.slice(0, at).findLast((id) => !gone.has(id)) ??
-      ids.slice(at + 1).find((id) => !gone.has(id)) ??
-      null;
-
-    const columns = resolveColumns(document);
-    set(modelOf(get).editAtom, (tx) => {
-      // A cell without a `column` config takes the column of the cell before
-      // it, so a survivor that followed a deleted cell names its own.
-      let previous: CellId | null = null;
-      let followsDeleted = false;
-      for (const id of order) {
-        if (gone.has(id)) {
-          followsDeleted = true;
-          continue;
-        }
-        const inherited = previous === null ? 0 : columns.get(previous);
-        if (
-          followsDeleted &&
-          document.cells.get(id)?.config.column == null &&
-          inherited !== columns.get(id)
-        ) {
-          tx.updateConfig(id, { column: columns.get(id) });
-        }
-        previous = id;
-        followsDeleted = false;
-      }
-      for (const id of gone) {
-        tx.deleteCell(id);
-      }
-    });
-    for (const id of gone) {
-      releaseCellAtoms(id);
-    }
-    set(shownHiddenCodeAtom, (cells) =>
-      cells.size === 0
-        ? cells
-        : new Set([...cells].filter((id) => !gone.has(id))),
-    );
-    set(restoredEditorStatesAtom, (states) =>
-      [...states.keys()].some((id) => gone.has(id))
-        ? new Map([...states].filter(([id]) => !gone.has(id)))
-        : states,
-    );
     set(notebookAtom, (state) => ({
       ...state,
-      history: [...state.history, { type: "delete", cells }],
-      scrollKey,
+      history: [...state.history, { type: "delete", cells: removed.cells }],
+      scrollKey: removed.scrollKey,
     }));
     return true;
   },
 );
 
-/** Undo the last deletion or move. */
-export const undoDeleteCellAtom = atom(null, (get, set): void => {
-  const last = get(notebookAtom).history.at(-1);
-  if (last === undefined) {
-    return;
+/** Remove cells, applying `edit` in the same transaction. */
+function removeCells(
+  get: Getter,
+  set: Setter,
+  cellIds: CellId[],
+  edit?: DocumentEdit,
+): { cells: DeletedCell[]; scrollKey: CellId | null } | null {
+  const document = documentOf(get);
+  const notebook = get(notebookAtom);
+  const requested = new Set(cellIds);
+  for (const id of cellIds) {
+    if (!document.cells.has(id)) {
+      // Expected for kernel-only cells or a cell another client removed.
+      Logger.warn("Skipping delete for missing cellId", { cellId: id });
+    }
   }
+  const order = document.order as CellId[];
+  const deleting = order.flatMap((id) => {
+    const cell = document.cells.get(id);
+    return cell !== undefined && requested.has(id) ? [cell] : [];
+  });
+  if (deleting.length === order.length) {
+    deleting.pop();
+  }
+  if (deleting.length === 0) {
+    return null;
+  }
+  const gone = new Set(deleting.map((cell) => cell.id as CellId));
+  const firstSurvivor = order.find((id) => !gone.has(id));
+
+  const cells: DeletedCell[] = deleting.map((cell) => {
+    const id = cell.id as CellId;
+    const index = order.indexOf(id);
+    const code = cell.code ?? notebook.cellData[id]?.code ?? "";
+    const editorView = notebook.cellHandles[id]?.current?.editorView;
+    const serializedEditorState: SerializedEditorState | null =
+      editorView?.state.toJSON({ history: historyField }) ?? null;
+    if (serializedEditorState) {
+      serializedEditorState.doc = code;
+    }
+    return {
+      cell: { id, code, name: cell.name, config: cell.config },
+      // Anchor to the cell before it, which undo restores first if it is
+      // also being deleted. The first cell anchors to the next survivor.
+      placement:
+        index > 0 ? { after: order[index - 1] } : { before: firstSurvivor },
+      serializedEditorState,
+    };
+  });
+
+  // Focus the nearest visible survivor in the column, looking up before down.
+  const first = deleting[0].id as CellId;
+  const column = columnOf(get(layoutAtom), first);
+  const ids = column.visible.includes(first) ? column.visible : column.ids;
+  const at = ids.indexOf(first);
+  const scrollKey =
+    ids.slice(0, at).findLast((id) => !gone.has(id)) ??
+    ids.slice(at + 1).find((id) => !gone.has(id)) ??
+    null;
+
+  const columns = resolveColumns(document);
+  set(modelOf(get).editAtom, (tx) => {
+    // A cell without a `column` config takes the column of the cell before
+    // it, so a survivor that followed a deleted cell names its own.
+    let previous: CellId | null = null;
+    let followsDeleted = false;
+    for (const id of order) {
+      if (gone.has(id)) {
+        followsDeleted = true;
+        continue;
+      }
+      const inherited = previous === null ? 0 : columns.get(previous);
+      if (
+        followsDeleted &&
+        document.cells.get(id)?.config.column == null &&
+        inherited !== columns.get(id)
+      ) {
+        tx.updateConfig(id, { column: columns.get(id) });
+      }
+      previous = id;
+      followsDeleted = false;
+    }
+    for (const id of gone) {
+      tx.deleteCell(id);
+    }
+    edit?.(tx);
+  });
+  for (const id of gone) {
+    releaseCellAtoms(id);
+  }
+  set(shownHiddenCodeAtom, (cells) =>
+    cells.size === 0
+      ? cells
+      : new Set([...cells].filter((id) => !gone.has(id))),
+  );
+  set(restoredEditorStatesAtom, (states) =>
+    [...states.keys()].some((id) => gone.has(id))
+      ? new Map([...states].filter(([id]) => !gone.has(id)))
+      : states,
+  );
+  return { cells, scrollKey };
+}
+
+/**
+ * Undo the last deletion, move, or merge. With `only`, undo just that entry,
+ * and only while it is still the last; false when nothing was undone.
+ */
+export const undoDeleteCellAtom = atom(
+  null,
+  (get, set, opts?: { only?: HistoryEntry }): boolean => {
+    const last = get(notebookAtom).history.at(-1);
+    if (last === undefined || (opts?.only && opts.only !== last)) {
+      return false;
+    }
+    undoEntry(get, set, last);
+    return true;
+  },
+);
+
+function undoEntry(get: Getter, set: Setter, last: HistoryEntry): void {
   if (last.type === "move") {
     set(notebookAtom, (state) => ({
       ...state,
@@ -559,7 +694,31 @@ export const undoDeleteCellAtom = atom(null, (get, set): void => {
   }
   const model = modelOf(get);
   const before = documentOf(get);
+  const mergedInto =
+    last.type === "merge" ? before.cells.get(last.cellId) : undefined;
+  // Edits made since the merge are kept; failing that, nothing is lost.
+  const restoredCode =
+    last.type !== "merge" || mergedInto === undefined
+      ? null
+      : mergedInto.code === last.merged
+        ? last.code
+        : unmergeCellCode(mergedInto.code ?? "", last.cells[0].cell.code);
+  if (last.type === "merge" && restoredCode !== null) {
+    showCode(get, last.cellId, restoredCode);
+    clearOutput(set, last.cellId);
+  }
   set(model.editAtom, (tx) => {
+    if (last.type === "merge" && mergedInto !== undefined) {
+      if (restoredCode !== null) {
+        tx.setCode(last.cellId, restoredCode);
+      }
+      if (
+        mergedInto.name !== last.name &&
+        mergedInto.name === last.cells[0].cell.name
+      ) {
+        tx.setName(last.cellId, last.name);
+      }
+    }
     // Each cell anchors to the one before it, restored just before it. An
     // anchor another client has removed since falls back to the end.
     const restored = new Set<string>();
@@ -588,7 +747,7 @@ export const undoDeleteCellAtom = atom(null, (get, set): void => {
     history: state.history.slice(0, -1),
     scrollKey: last.cells[0].cell.id as CellId,
   }));
-});
+}
 
 /**
  * Every notebook operation, for components. Stable for the store's lifetime.
@@ -636,12 +795,14 @@ export function useCellActions() {
   const setCellCode = useSetAtom(setCellCodeAtom);
   const splitCell = useSetAtom(splitCellAtom);
   const undoSplitCell = useSetAtom(undoSplitCellAtom);
+  const mergeCellBelow = useSetAtom(mergeCellBelowAtom);
   return useMemo(
     () => ({
       ...operations,
       setCellCode,
       splitCell,
       undoSplitCell,
+      mergeCellBelow,
       addColumn,
       addColumnBreakpoint,
       deleteColumn,

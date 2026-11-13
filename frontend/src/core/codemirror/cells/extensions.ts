@@ -313,6 +313,20 @@ function cellKeymaps({
     );
   }
 
+  // Unbound by default; an empty key must not reach the keymap.
+  const mergeKey = hotkeys.getHotkey("cell.mergeCellBelow").key;
+  if (mergeKey && cellId !== SCRATCH_CELL_ID) {
+    keybindings.push({
+      key: mergeKey,
+      preventDefault: true,
+      stopPropagation: true,
+      run: (ev) => {
+        ev.state.facet(cellActionsState).mergeCellBelow({ cellId });
+        return true;
+      },
+    });
+  }
+
   // Highest priority so that we can override the default keymap
   return [Prec.high(keymap.of(keybindings))];
 }
@@ -451,5 +465,6 @@ export function cellBundle({
 }
 
 export const exportedForTesting = {
+  cellKeymaps,
   shouldAutorunMarkdownUpdate,
 };
