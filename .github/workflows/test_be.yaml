@@ -32,6 +32,8 @@ jobs:
               - 'marimo/**'
               - 'tests/**'
               - 'pyproject.toml'
+              - 'scripts/check_python_safe_path.py'
+              - '.github/workflows/test_be.yaml'
             docs:
               - 'docs/**'
 
@@ -76,6 +78,9 @@ jobs:
       - name: 🧹 Lint
         id: lint
         run: uv run ruff check --fix --output-format=github
+
+      - name: Check Python helper safe paths
+        run: uv run python scripts/check_python_safe_path.py
 
       - name: 📋 Register mypy problem matcher
         run: echo "::add-matcher::.github/problemMatchers/mypy.json"
