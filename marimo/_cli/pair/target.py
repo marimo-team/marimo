@@ -1,13 +1,15 @@
 # Copyright 2026 Marimo. All rights reserved.
-"""Resolve a CLI target before submitting any code."""
+"""Resolve the notebook selected by a Pair command."""
 
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from urllib.parse import urlsplit
 
 from marimo._cli.pair.client import (
     AmbiguousNotebookError,
     NoNotebookError,
+    NotebookUnsupportedError,
     PairError,
     display_url,
     find_host,
@@ -16,6 +18,7 @@ from marimo._cli.pair.client import (
 )
 from marimo._cli.pair.discovery import list_running_notebooks
 from marimo._server.host import HOST_API_PATH
+from marimo._server.host.auth import is_loopback
 
 
 @dataclass(frozen=True)
@@ -26,12 +29,25 @@ class ExecutionTarget:
     notebook_id: str | None = None
 
 
+def resolve_inbox_target(selected: ExecutionTarget) -> ExecutionTarget:
+    """Use the matching local host credential after session selection."""
+    if find_host(selected.url) is None:
+        return selected
+    return resolve_target(
+        url=selected.url,
+        session_id=selected.notebook_id,
+        token=None,
+        require_notebook=True,
+    )
+
+
 def resolve_target(
     *,
     url: str | None,
     session_id: str | None,
     token: str | None,
     notebook_id: str | None = None,
+    require_notebook: bool = False,
 ) -> ExecutionTarget:
     selected_id = notebook_id if notebook_id is not None else session_id
     host = find_host(url) if url is not None and token is None else None
@@ -53,7 +69,11 @@ def resolve_target(
         # and URL can defer that lookup to the selected server.
         if not found and host is not None and session_id is not None:
             assert url is not None
-            return ExecutionTarget(url, session_id, host.token)
+            if not require_notebook:
+                return ExecutionTarget(url, session_id, host.token)
+            return _session_target(
+                url, session_id, None, host.token, require_notebook=True
+            )
         _require_one([n.id for n in found], url, selected_id)
         notebook = found[0]
         selected_host = (
@@ -66,6 +86,34 @@ def resolve_target(
             notebook.id,
         )
 
+    selected = _session_target(
+        url, session_id, notebook_id, token, require_notebook=require_notebook
+    )
+    if (
+        require_notebook
+        and token is None
+        and is_loopback(urlsplit(url).hostname or "")
+    ):
+        # A local frontend proxy can expose sessions at a different port.
+        # Match its verified notebook ID before using a discovered credential.
+        return resolve_target(
+            url=None,
+            session_id=selected.notebook_id,
+            token=None,
+            require_notebook=True,
+        )
+    return selected
+
+
+def _session_target(
+    url: str,
+    session_id: str | None,
+    notebook_id: str | None,
+    token: str | None,
+    *,
+    require_notebook: bool = False,
+) -> ExecutionTarget:
+    selected_id = notebook_id if notebook_id is not None else session_id
     sessions = list_sessions(url=url, token=token)
     candidates = {
         str(s["session_id"]): s
@@ -76,6 +124,10 @@ def resolve_target(
     }
     _require_one(list(candidates), url, selected_id)
     selected = next(iter(candidates.values()))
+    if require_notebook and selected.get("notebook_id") is None:
+        raise NotebookUnsupportedError(
+            "This server does not expose a host notebook ID. Upgrade marimo on the server."
+        )
     return ExecutionTarget(
         url, str(selected["session_id"]), token, selected.get("notebook_id")
     )

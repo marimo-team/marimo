@@ -20,17 +20,33 @@ import msgspec
 from marimo._cli.pair.artifacts import AgentMessageFiles, inbox_message
 from marimo._cli.pair.client import (
     EventStream,
+    InboxConnectionError,
     PairConnectionError,
     PairError,
+    PairInputError,
     SSEEvent,
     StaleNotebookError,
+    host_api_url,
     iter_sse,
     open_events,
     pump_events,
 )
-from marimo._cli.pair.connection import Connection, ConnectionStore
+from marimo._cli.pair.connection import (
+    Connection,
+    ConnectionStore,
+    connection_identity,
+)
 from marimo._cli.pair.delivery import DeliveryTarget, ProcessHandle
-from marimo._cli.pair.harnesses import harness_for
+from marimo._cli.pair.harnesses import (
+    detect_target,
+    harness_for,
+    try_detect_target,
+)
+from marimo._cli.pair.target import (
+    ExecutionTarget,
+    resolve_inbox_target,
+    resolve_target,
+)
 from marimo._messaging.messages import AGENT_MESSAGE_TYPE
 from marimo._utils.subprocess import kill_subprocess
 
@@ -54,6 +70,82 @@ class ForwarderConfig:
     identity: str
     token: str | None
     target: DeliveryTarget
+
+
+def ensure_connection(
+    selected: ExecutionTarget,
+    store: ConnectionStore,
+    *,
+    automatic: bool = False,
+    harness: str | None = None,
+    pid: int | None = None,
+) -> Connection | None:
+    import psutil
+
+    detected = (
+        try_detect_target(os.environ)
+        if automatic
+        else detect_target(os.environ, harness, pid, check_ready=False)
+    )
+    if detected is None:
+        return None
+    adapter, target = detected
+    owner = target.process
+    if owner is None or not owner.alive():
+        raise PairInputError("The inbox owner is not running.")
+    if selected.notebook_id is None:
+        selected = resolve_target(
+            url=selected.url,
+            session_id=selected.id,
+            token=selected.token,
+            require_notebook=True,
+        )
+    assert selected.notebook_id is not None
+    notebook = selected.notebook_id
+    identity = connection_identity(notebook, target.kind, target.address)
+    with store.locked(identity):
+        if automatic and store.attempted(identity, owner):
+            return None
+        store.mark_attempted(identity, owner)
+        previous = store.load(identity) if automatic else None
+        if automatic and previous is not None and previous.forwarder.alive():
+            previous_owner = ProcessHandle(
+                previous.harness_pid, previous.harness_start
+            )
+            if previous_owner == owner:
+                return previous
+            if previous_owner.alive():
+                raise PairInputError(
+                    "This conversation has a forwarder owned by another harness process."
+                )
+        selected = resolve_inbox_target(selected)
+        if selected.notebook_id != notebook:
+            raise PairInputError(
+                "The notebook changed during connection setup."
+            )
+        ready = adapter.detect(
+            os.environ, process=owner if pid is not None else None
+        )
+        if ready is None or (ready.kind, ready.address, ready.process) != (
+            target.kind,
+            target.address,
+            owner,
+        ):
+            raise PairInputError(
+                "The harness conversation changed during connection setup."
+            )
+        config = ForwarderConfig(
+            host_api_url(selected.url),
+            notebook,
+            identity,
+            selected.token,
+            ready,
+        )
+        try:
+            store.stop(identity)
+            return start_forwarder(config, store)
+        except (PairError, OSError, psutil.Error) as error:
+            raise InboxConnectionError(str(error)) from error
 
 
 class _Bootstrap(msgspec.Struct):
