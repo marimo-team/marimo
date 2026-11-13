@@ -2,7 +2,6 @@
 
 import { atom, useAtomValue } from "jotai";
 import { resolvedMarimoConfigAtom } from "@/core/config/config";
-import { KnownQueryParams } from "@/core/constants";
 import { isIslands } from "@/core/islands/utils";
 import { store } from "@/core/state/jotai";
 
@@ -10,16 +9,6 @@ export type Theme = "light" | "dark" | "system";
 export type ResolvedTheme = "light" | "dark";
 
 export const THEMES: Theme[] = ["light", "dark", "system"];
-
-function themeFromQueryParam(): Theme | undefined {
-  if (typeof window === "undefined") {
-    return undefined;
-  }
-  const value = new URLSearchParams(window.location.search).get(
-    KnownQueryParams.theme,
-  );
-  return THEMES.includes(value as Theme) ? (value as Theme) : undefined;
-}
 
 function getHostElements() {
   return [document.body, document.documentElement];
@@ -97,7 +86,7 @@ const themeAtom = atom((get) => {
   if (isIslands()) {
     return get(hostThemeAtom) ?? getHostTheme();
   }
-  return themeFromQueryParam() ?? get(resolvedMarimoConfigAtom).display.theme;
+  return get(resolvedMarimoConfigAtom).display.theme;
 });
 
 const prefersDarkModeAtom = atom(false);
@@ -163,7 +152,3 @@ export function useTheme(): { theme: ResolvedTheme } {
   const theme = useAtomValue(resolvedThemeAtom, { store });
   return { theme };
 }
-
-export const visibleForTesting = {
-  themeFromQueryParam,
-};

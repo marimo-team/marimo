@@ -36,7 +36,7 @@ jobs:
     needs: changes
     if: ${{ needs.changes.outputs.cli == 'true' }}
     name: Build marimo wheel
-    runs-on: "${{ vars.CI_RUNNER_SMALL || 'ubuntu-latest' }}"
+    runs-on: "${{ vars.CI_RUNNER_LARGE || 'ubuntu-latest' }}"
     timeout-minutes: 8 # 2024-01-18
     permissions:
       contents: read

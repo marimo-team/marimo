@@ -35,7 +35,7 @@ jobs:
     needs: changes
     if: ${{ needs.changes.outputs.playwright == 'true' }}
     timeout-minutes: 18 # 2024-01-18 avg: 5.0m max: 7.0m
-    runs-on: "${{ vars.CI_RUNNER_SMALL || 'ubuntu-latest' }}"
+    runs-on: "${{ vars.CI_RUNNER_LARGE || 'ubuntu-latest' }}"
     container:
       # Keep this tag in sync with EXPECTED_PLAYWRIGHT_VERSION below.
       image: mcr.microsoft.com/playwright:v1.64.0-noble
