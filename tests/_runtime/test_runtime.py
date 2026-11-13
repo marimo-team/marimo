@@ -142,6 +142,60 @@ class TestExecution:
         assert not k.errors
         assert k.globals["result"] == 10
 
+    @pytest.mark.parametrize(
+        ("scope", "call", "result"),
+        [
+            (
+                "class C:\n    _x = 0\n    def value(self):\n        return _x",
+                "C().value()",
+                20,
+            ),
+            ("def value():\n    return _x", "value()", 20),
+            ("value = lambda: _x", "value()", 20),
+            ("values = (_x for _ in (0,))", "next(values)", 20),
+            (
+                (
+                    "def value():\n    def inner():\n        return _x\n"
+                    "    global _x\n    return inner()"
+                ),
+                "value()",
+                10,
+            ),
+            ("class C:\n    value = _x\n    _x = 0", "C.value", 10),
+            (
+                "def value():\n    class C:\n        v = _x\n    return C.v",
+                "value()",
+                20,
+            ),
+            (
+                (
+                    "def value():\n    class C:\n        v = _x\n"
+                    "        try:\n            pass\n"
+                    "        except Exception as _x:\n            pass\n"
+                    "    return C.v"
+                ),
+                "value()",
+                10,
+            ),
+        ],
+    )
+    async def test_private_name_resolves_like_python(
+        self, k: Kernel, scope: str, call: str, result: int
+    ) -> None:
+        await k.run(
+            [
+                ExecuteCellCommand(
+                    cell_id="0",
+                    code="_x = 10\ndef outer():\n"
+                    + textwrap.indent(scope, "    ")
+                    + f"\n    _x = 20\n    return {call}\n"
+                    "result = outer()",
+                ),
+            ]
+        )
+        assert not k.errors
+        assert k.globals["result"] == result
+
     async def test_triangle(self, any_kernel: Kernel) -> None:
         k = any_kernel
         # x

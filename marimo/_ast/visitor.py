@@ -8,7 +8,7 @@ from copy import deepcopy
 from dataclasses import dataclass, field
 from enum import Enum
 from functools import lru_cache
-from typing import TYPE_CHECKING, Literal, Union
+from typing import TYPE_CHECKING, Literal, Union, get_args
 from uuid import uuid4
 
 from marimo import _loggers
@@ -189,6 +189,13 @@ class Block:
         default_factory=lambda: defaultdict(list)
     )
     scope_kind: LexicalScope = LexicalScope.MODULE
+    # Names made local by `except ... as` or `del`, which are not definitions
+    local_names: set[Name] = field(default_factory=set)
+    # Mangled loads in nested scopes that a later definition in this block
+    # captures, with the scopes between each load and this block.
+    forward_locals: dict[Name, list[tuple[ast.Name, list[Block]]]] = field(
+        default_factory=lambda: defaultdict(list), compare=False, repr=False
+    )
 
     def is_defined(self, name: str) -> bool:
         return name in self.defs
@@ -464,6 +471,23 @@ class ScopedVisitor(ast.NodeVisitor):
         ):
             # `name` was used as a capture, not a reference
             self._remove_ref(name, block)
+        if variable_data.kind in get_args(SQLKind):
+            # SQL definitions do not bind Python names.
+            return
+        for node, scopes in block.forward_locals.pop(name, []):
+            for scope in scopes:
+                # `global` applies to the whole function, wherever it appears.
+                if node.id in scope.global_names:
+                    break
+                # A class body that binds the name reads it from the class
+                # namespace or globals.
+                if scope.scope_kind is LexicalScope.CLASS and (
+                    scope.is_defined(name) or name in scope.local_names
+                ):
+                    break
+                if scope is block:
+                    node.id = name
+                    break
 
     def _define(
         self, node: NamedNode | None, name: Name, variable_data: VariableData
@@ -592,6 +616,8 @@ class ScopedVisitor(ast.NodeVisitor):
             for stmt in node.body:
                 self.visit(stmt)
             for handler in node.handlers:
+                if handler.name is not None:
+                    self.block_stack[-1].local_names.add(handler.name)
                 self._push_obscured_scope(obscured=handler.name)
                 self.visit(handler)
                 self._pop_obscured_scope()
@@ -1093,6 +1119,8 @@ class ScopedVisitor(ast.NodeVisitor):
         ):
             self._add_ref(node, node.id, deleted=True)
         elif self.is_local(node.id):
+            if isinstance(node.ctx, ast.Del):
+                self.block_stack[-1].local_names.add(node.id)
             mangled_name = self._if_local_then_mangle(
                 node.id, ignore_scope=True
             )
@@ -1114,6 +1142,25 @@ class ScopedVisitor(ast.NodeVisitor):
                     if block.is_defined(mangled_name) or not block.is_defined(
                         node.id
                     ):
+                        # A free name resolves to an enclosing function's
+                        # binding even when that binding comes later in the
+                        # source, so a later definition can still unmangle it.
+                        if self.block_stack[-1].scope_kind in (
+                            LexicalScope.FUNCTION,
+                            LexicalScope.COMPREHENSION,
+                            LexicalScope.CLASS,
+                        ):
+                            scopes = [
+                                scope
+                                for scope in self._visible_blocks()
+                                if scope.scope_kind
+                                in (LexicalScope.FUNCTION, LexicalScope.CLASS)
+                            ]
+                            for scope in scopes:
+                                if scope.scope_kind is LexicalScope.FUNCTION:
+                                    scope.forward_locals[node.id].append(
+                                        (node, scopes)
+                                    )
                         node.id = mangled_name
                 elif block.is_defined(node.id):
                     break
