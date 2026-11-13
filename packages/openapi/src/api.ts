@@ -6988,7 +6988,7 @@ export interface components {
        */
       session_cookie_secure: boolean;
       /**
-       * @description Secret used to sign session cookies. Set a stable value to preserve sessions across restarts or replicas; otherwise a random secret is generated per process.
+       * @description Secret used to sign session cookies and to derive the default `marimo run` auth token. Set a stable value to preserve sessions and tokens across restarts or replicas; otherwise a random secret is generated per process.
        * @default null
        */
       session_secret: string | null;
