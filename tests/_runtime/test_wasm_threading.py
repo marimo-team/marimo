@@ -2,12 +2,15 @@
 from __future__ import annotations
 
 import asyncio
+import dataclasses
+import gc
 import io
 import json
 import os
 import subprocess
 import sys
 import threading
+import weakref
 from contextlib import contextmanager
 from pathlib import Path
 from types import ModuleType, SimpleNamespace
@@ -184,6 +187,132 @@ def test_wasm_threading_local_dict_is_read_only() -> None:
             with pytest.raises(AttributeError, match=r"__dict__.*read-only"):
                 del local.__dict__
             assert local.__dict__ == {"value": 1}
+        finally:
+            unpatch()
+
+
+@pytest.mark.parametrize("unsafe_hash", [False, True])
+def test_wasm_threading_local_supports_dataclass_subclasses(
+    unsafe_hash: bool,
+) -> None:
+    with _mock_pyodide_with_run_sync():
+        unpatch = install_wasm_concurrency_shims()
+        try:
+
+            @dataclasses.dataclass(unsafe_hash=unsafe_hash)
+            class Local(threading.local):
+                value: int
+
+            local = Local(3)
+            local.value = 10
+            observed: list[int] = []
+
+            def target() -> None:
+                observed.append(local.value)
+                local.value = 20
+
+            thread = threading.Thread(target=target)
+            thread.start()
+            thread.join(timeout=1)
+
+            assert observed == [3]
+            assert local.value == 10
+        finally:
+            unpatch()
+
+
+def test_wasm_threading_equal_locals_each_release_finished_thread_values() -> (
+    None
+):
+    with _mock_pyodide_with_run_sync():
+        unpatch = install_wasm_concurrency_shims()
+        try:
+
+            class Local(threading.local):
+                def __eq__(self, other: object) -> bool:
+                    return isinstance(other, Local)
+
+                def __hash__(self) -> int:
+                    return 0
+
+            class Value:
+                pass
+
+            locals_ = [Local(), Local()]
+            refs: list[weakref.ref[Value]] = []
+
+            def target() -> None:
+                for local in locals_:
+                    value = Value()
+                    local.value = value
+                    refs.append(weakref.ref(value))
+
+            thread = threading.Thread(target=target)
+            thread.start()
+            thread.join(timeout=1)
+            gc.collect()
+
+            assert len(refs) == 2
+            assert [ref() for ref in refs] == [None, None]
+        finally:
+            unpatch()
+
+
+def test_wasm_threading_local_keeps_private_attributes_per_thread() -> None:
+    with _mock_pyodide_with_run_sync():
+        unpatch = install_wasm_concurrency_shims()
+        try:
+
+            class Local(threading.local):
+                def __init__(self) -> None:
+                    self._storage: list[int] = []
+
+            local = Local()
+            local._storage.append(1)
+            observed: list[list[int]] = []
+
+            def target() -> None:
+                observed.append(local._storage)
+
+            thread = threading.Thread(target=target)
+            thread.start()
+            thread.join(timeout=1)
+
+            assert observed == [[]]
+            assert local._storage == [1]
+        finally:
+            unpatch()
+
+
+def test_wasm_threading_local_discards_attributes_of_failed_init() -> None:
+    with _mock_pyodide_with_run_sync():
+        unpatch = install_wasm_concurrency_shims()
+        try:
+            calls: list[str] = []
+
+            class Local(threading.local):
+                def __init__(self) -> None:
+                    calls.append(threading.current_thread().name)
+                    if calls.count("worker") == 1:
+                        self.partial = 1
+                        raise ValueError("first init in worker")
+                    self.ready = True
+
+            local = Local()
+            observed: list[object] = []
+
+            def target() -> None:
+                with pytest.raises(ValueError, match="first init in worker"):
+                    _ = local.ready
+                observed.append(local.ready)
+                observed.append(hasattr(local, "partial"))
+
+            thread = threading.Thread(target=target, name="worker")
+            thread.start()
+            thread.join(timeout=1)
+
+            assert observed == [True, False]
+            assert calls.count("worker") == 2
         finally:
             unpatch()
 
