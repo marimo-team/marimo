@@ -51,3 +51,15 @@ The script needs Node and the package's one dependency, which
 To build on the stable protocol in another language, save the first output and
 point an OpenAPI generator at it. marimo's own bindings use the second, which
 adds every [experimental feature](experimental/README.md).
+
+## Changing the stable protocol
+
+CI compares the stable document with the base branch and fails when they
+differ. New work goes behind an [experimental feature](experimental/README.md),
+which the check leaves out. For a deliberate change, add the
+`stable-protocol-change` label to the pull request. To run the comparison
+locally:
+
+```sh
+protocols/host/check-stable.sh origin/main
+```
