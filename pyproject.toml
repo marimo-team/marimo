@@ -164,6 +164,7 @@ test = [
     "pytest-picked>=0.5.1",
     "pytest-sugar~=1.1.1",
     "pytest-xdist~=3.5",
+    "pytest-split~=0.11.0",
     # Comparison testing
     "inline-snapshot~=0.29.0",
     "hypothesis~=6.102.1",

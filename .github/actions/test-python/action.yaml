@@ -8,6 +8,12 @@ inputs:
   dependencies:
     description: Dependency group — "core", "core,optional", or "minimal".
     required: true
+  test-splits:
+    description: Number of shards for optional dependency tests.
+    default: "1"
+  test-group:
+    description: One-based shard index for optional dependency tests.
+    default: "1"
 
 runs:
   using: composite
@@ -80,6 +86,7 @@ runs:
         uv run --python ${{ inputs.python-version }} --group test-optional pytest tests/ \
           -v \
           ${{ !contains(github.event.pull_request.labels.*.name, 'test-serial') && '-n auto' || '-p no:xdist' }} \
+          --splits=${{ inputs.test-splits }} --group=${{ inputs.test-group }} \
           -k "not test_cli" \
           --durations=10 \
           -p packages.pytest_changed \

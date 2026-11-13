@@ -32,6 +32,7 @@ jobs:
               - 'marimo/**'
               - 'tests/**'
               - 'pyproject.toml'
+              - '.github/actions/test-python/**'
               - 'scripts/check_python_safe_path.py'
               - '.github/workflows/test_be.yaml'
             docs:
@@ -114,15 +115,21 @@ jobs:
   test_python_ubuntu:
     needs: changes
     if: ${{ needs.changes.outputs.backend == 'true' || (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'test-all')) }}
-    name: ubuntu-latest / Py ${{ matrix.python-version }} / ${{ matrix.dependencies }} deps
+    name: ubuntu-latest / Py ${{ matrix.python-version }} / ${{ matrix.dependencies }} deps${{ matrix.shard && format(' / shard {0}/2', matrix.shard) || '' }}
     runs-on: "${{ vars.CI_RUNNER_SMALL || 'ubuntu-latest' }}"
     timeout-minutes: 25
     strategy:
       # Keep targets aligned with tool.uv.required-environments in pyproject.toml.
       matrix:
         python-version: ["3.11"]
-        dependencies: ["core", "core,optional"]
+        dependencies: ["core"]
         include:
+          - python-version: "3.11"
+            dependencies: "core,optional"
+            shard: 1
+          - python-version: "3.11"
+            dependencies: "core,optional"
+            shard: 2
           - python-version: "3.11"
             dependencies: "minimal"
           - python-version: "3.12"
@@ -135,8 +142,16 @@ jobs:
             dependencies: "core"
           - python-version: "3.12"
             dependencies: "core,optional"
+            shard: 1
+          - python-version: "3.12"
+            dependencies: "core,optional"
+            shard: 2
           - python-version: "3.13"
             dependencies: "core,optional"
+            shard: 1
+          - python-version: "3.13"
+            dependencies: "core,optional"
+            shard: 2
           # TODO: Add in 3.14 and 3.15 optional once there is broader wheel support
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -146,6 +161,8 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
           dependencies: ${{ matrix.dependencies }}
+          test-splits: ${{ matrix.shard && 2 || 1 }}
+          test-group: ${{ matrix.shard || 1 }}
 
   test_python_macos:
     needs: changes
