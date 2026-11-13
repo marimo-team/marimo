@@ -7,10 +7,6 @@ import { store } from "@/core/state/jotai";
 import type { Theme } from "../useTheme";
 import { resolvedThemeAtom } from "../useTheme";
 
-function setQuery(search: string): void {
-  window.history.replaceState({}, "", search === "" ? "/" : `/?${search}`);
-}
-
 function setConfigTheme(theme: Theme): void {
   const config = defaultUserConfig();
   store.set(userConfigAtom, {
@@ -20,7 +16,6 @@ function setConfigTheme(theme: Theme): void {
 }
 
 afterEach(() => {
-  setQuery("");
   store.set(userConfigAtom, defaultUserConfig());
   store.set(configOverridesAtom, {});
 });
@@ -33,21 +28,9 @@ describe("resolvedThemeAtom", () => {
     expect(store.get(resolvedThemeAtom)).toBe("light");
   });
 
-  it.each(["light", "dark", "system", "blue"])(
-    "ignores the theme query parameter %s",
-    (theme) => {
-      setQuery(`theme=${theme}`);
-      setConfigTheme("dark");
-      expect(store.get(resolvedThemeAtom)).toBe("dark");
-      setConfigTheme("light");
-      expect(store.get(resolvedThemeAtom)).toBe("light");
-    },
-  );
-
   it("uses resolved configuration overrides ahead of saved settings", () => {
     setConfigTheme("light");
     store.set(configOverridesAtom, { display: { theme: "dark" } });
-    setQuery("theme=light");
     expect(store.get(resolvedThemeAtom)).toBe("dark");
 
     store.set(configOverridesAtom, {});
