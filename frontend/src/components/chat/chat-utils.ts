@@ -39,6 +39,24 @@ export function generateChatTitle(message: string): string {
   return message.length > 50 ? `${message.slice(0, 50)}...` : message;
 }
 
+export function hasAssistantProgress(messages: UIMessage[]): boolean {
+  const lastMessage = messages.at(-1);
+  return (
+    lastMessage?.role === "assistant" &&
+    lastMessage.parts.some((part) => {
+      switch (part.type) {
+        case "step-start":
+          return false;
+        case "text":
+        case "reasoning":
+          return part.text.trim().length > 0;
+        default:
+          return true;
+      }
+    })
+  );
+}
+
 export async function convertToFileUIPart(
   files: File[],
 ): Promise<FileUIPart[]> {

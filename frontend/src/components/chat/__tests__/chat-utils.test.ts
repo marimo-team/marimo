@@ -6,6 +6,7 @@ import { FRONTEND_TOOL_REGISTRY } from "@/core/ai/tools/registry";
 import { describe, expect, it, vi } from "vitest";
 import {
   handleToolCall,
+  hasAssistantProgress,
   hasPendingToolCalls,
   hasUnresolvedToolCalls,
   shouldFlushQueue,
@@ -34,6 +35,53 @@ const assistantToolMessage = (
   id,
   role: "assistant",
   parts,
+});
+
+describe("hasAssistantProgress", () => {
+  it("does not continue a previous turn when the latest user message failed", () => {
+    expect(
+      hasAssistantProgress([
+        assistantToolMessage([{ type: "text", text: "Previous answer" }]),
+        userMessage("next question"),
+      ]),
+    ).toBe(false);
+    expect(hasAssistantProgress([])).toBe(false);
+  });
+
+  it.each<UIMessage["parts"]>([
+    [],
+    [{ type: "step-start" }],
+    [{ type: "text", text: "", state: "streaming" }],
+    [{ type: "reasoning", text: "  ", state: "streaming" }],
+  ])("retries when only an empty response was received: %j", (...parts) => {
+    expect(hasAssistantProgress([assistantToolMessage(parts)])).toBe(false);
+  });
+
+  it.each<UIMessage["parts"]>([
+    [{ type: "text", text: "Partial answer", state: "streaming" }],
+    [{ type: "reasoning", text: "Work so far", state: "streaming" }],
+    [
+      {
+        type: "tool-run_query",
+        toolCallId: "call-1",
+        state: "output-available",
+        input: {},
+        output: 1,
+      },
+      { type: "step-start" },
+    ],
+    [
+      {
+        type: "dynamic-tool",
+        toolName: "edit_cell",
+        toolCallId: "call-1",
+        state: "input-available",
+        input: {},
+      },
+    ],
+  ])("continues when assistant progress was received: %j", (...parts) => {
+    expect(hasAssistantProgress([assistantToolMessage(parts)])).toBe(true);
+  });
 });
 
 describe("hasPendingToolCalls", () => {
