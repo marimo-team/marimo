@@ -529,6 +529,7 @@ _GEOMETRY_TYPES = {
 _UNKNOWN_TYPES = {
     "row",
     "inet",
+    "variant",
     # Null type (can occur when attaching databases or with unknown column types)
     "null",
     '"null"',
