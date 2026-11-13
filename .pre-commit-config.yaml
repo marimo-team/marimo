@@ -78,3 +78,9 @@ repos:
         language: system
         pass_filenames: false
         files: ^marimo/_core/.*\.py$
+      - id: python-safe-path
+        name: Check Python helper safe paths
+        entry: bash -c 'if command -v uv >/dev/null 2>&1; then uv run python scripts/check_python_safe_path.py; else python scripts/check_python_safe_path.py; fi'
+        language: system
+        pass_filenames: false
+        files: ^(marimo/.*\.py|scripts/check_python_safe_path\.py)$
