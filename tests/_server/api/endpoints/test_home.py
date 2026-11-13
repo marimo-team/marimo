@@ -376,6 +376,58 @@ def test_thumbnail_redirects_for_https_opengraph_image(
         )
 
 
+@pytest.mark.parametrize(
+    ("filename", "content", "served_media_type"),
+    [
+        ("thumb.png", b"\x89PNG\r\n\x1a\nnot-a-real-png", "image/png"),
+        ("thumb.html", b"<b>x</b>", None),
+        ("thumb.svg", b"<svg><rect/></svg>", None),
+    ],
+)
+def test_thumbnail_serves_only_raster_images_from_marimo_dir(
+    client: TestClient,
+    filename: str,
+    content: bytes,
+    served_media_type: str | None,
+) -> None:
+    session_manager = get_session_manager(client)
+    session_manager.mode = SessionMode.RUN
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        marimo_file = Path(temp_dir) / "notebook.py"
+        marimo_file.write_text(
+            textwrap.dedent(
+                f"""
+                # /// script
+                # [tool.marimo.opengraph]
+                # image = "__marimo__/{filename}"
+                # ///
+                import marimo
+                app = marimo.App()
+                """
+            ).lstrip()
+        )
+        (Path(temp_dir) / "__marimo__").mkdir()
+        (Path(temp_dir) / "__marimo__" / filename).write_bytes(content)
+
+        session_manager.workspace = DirectoryWorkspace(
+            temp_dir, include_markdown=False
+        )
+
+        response = client.get(
+            "/og/thumbnail?file=notebook.py", headers=HEADERS
+        )
+        assert response.status_code == 200
+        if served_media_type is None:
+            # Falls back to the generated placeholder.
+            assert response.content != content
+            assert response.headers["cache-control"] == "no-store"
+        else:
+            assert response.content == content
+            assert response.headers["content-type"] == served_media_type
+            assert response.headers["x-content-type-options"] == "nosniff"
+
+
 @with_session(SESSION_ID)
 def test_tutorial_file_accessible_after_open(client: TestClient) -> None:
     """Test that a tutorial file can be accessed after being opened.
