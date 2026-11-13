@@ -195,6 +195,7 @@ def test_default_configuration_snapshot(config_tree: Path) -> None:
                 "token_password": None,
                 "token_password_file": None,
                 "include_code": False,
+                "redirect_console_to_browser": False,
                 "skip_update_check": False,
                 "session_cookie_secure": False,
                 "session_secret": None,
@@ -332,6 +333,7 @@ def test_layered_configuration_snapshot(
                     "token_password": None,
                     "token_password_file": None,
                     "include_code": False,
+                    "redirect_console_to_browser": False,
                     "skip_update_check": False,
                     "follow_symlink": False,
                     "session_secret": None,
@@ -456,6 +458,7 @@ def test_layered_configuration_snapshot(
                     "token_password": None,
                     "token_password_file": None,
                     "include_code": False,
+                    "redirect_console_to_browser": False,
                     "skip_update_check": False,
                     "follow_symlink": False,
                     "session_secret": None,
@@ -622,6 +625,7 @@ def test_layered_configuration_snapshot(
                     "token_password": None,
                     "token_password_file": None,
                     "include_code": False,
+                    "redirect_console_to_browser": False,
                     "skip_update_check": False,
                     "session_cookie_secure": False,
                     "session_secret": None,
@@ -917,6 +921,7 @@ follow_symlink = false
 headless = false
 host = "127.0.0.1"
 include_code = false
+redirect_console_to_browser = false
 session_cookie_secure = false
 skew_protection = true
 skip_update_check = false
