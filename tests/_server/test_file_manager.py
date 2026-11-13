@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import sys
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 import pytest
@@ -19,7 +20,6 @@ from marimo._utils.http import HTTPException, HTTPStatus
 
 if TYPE_CHECKING:
     from collections.abc import Generator
-    from pathlib import Path
 
 
 @pytest.fixture
@@ -84,11 +84,21 @@ def test_successful_rename(app_file_manager: AppFileManager) -> None:
         os.remove(new_filename)
 
 
-def test_rename_exception(app_file_manager: AppFileManager) -> None:
-    new_filename = "/invalid/path/new_filename.py"
+def test_rename_exception(
+    app_file_manager: AppFileManager, tmp_path: Path
+) -> None:
+    initial_filename = app_file_manager.filename
+    assert initial_filename is not None
+    initial_contents = Path(initial_filename).read_text()
+    parent_file = tmp_path / "not_a_directory"
+    parent_file.touch()
+    new_filename = parent_file / "new_filename.py"
     with pytest.raises(HTTPException) as e:
         app_file_manager.rename(new_filename)
     assert e.value.status_code == HTTPStatus.SERVER_ERROR
+    assert isinstance(e.value.__cause__, OSError)
+    assert app_file_manager.filename == initial_filename
+    assert Path(initial_filename).read_text() == initial_contents
 
 
 def test_rename_create_new_file(app_file_manager: AppFileManager) -> None:
