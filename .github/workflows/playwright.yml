@@ -58,10 +58,12 @@ jobs:
 
       - name: Write TOML
         run: |
-          echo "[runtime]" > .marimo.toml
-          echo "auto_instantiate=true" >> .marimo.toml
-          echo "[experimental]" >> .marimo.toml
-          echo "layouts=true" >> .marimo.toml
+          {
+            echo "[runtime]"
+            echo "auto_instantiate=true"
+            echo "[experimental]"
+            echo "layouts=true"
+          } > .marimo.toml
 
       # Turn on automatic instantiation for playwright tests
       - name: Update pyproject.toml
@@ -99,7 +101,7 @@ jobs:
 
       - name: 🐍 Install marimo
         run: |
-          echo "MARIMO_VERSION=$(uv run marimo --version)" >> $GITHUB_ENV
+          echo "MARIMO_VERSION=$(uv run marimo --version)" >> "$GITHUB_ENV"
 
       - name: 🎭 Verify Playwright image version
         working-directory: ./frontend

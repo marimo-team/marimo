@@ -128,9 +128,9 @@ jobs:
       - name: 🧪 Run Pyodide acceptance test
         run: |
           # Get version from package.json
-          pyodide_version=$(cat frontend/package.json | jq -r '.dependencies["pyodide"]')
+          pyodide_version=$(jq -r '.dependencies["pyodide"]' frontend/package.json)
           echo "Pyodide version: $pyodide_version"
-          npm install --ignore-scripts pyodide@$pyodide_version
+          npm install --ignore-scripts "pyodide@$pyodide_version"
           wheel_file=$(ls dist/*.whl)
           echo "Testing wheel: $wheel_file"
           node --experimental-wasm-jspi tests/_pyodide/test_pyodide_acceptance.mjs "$wheel_file"

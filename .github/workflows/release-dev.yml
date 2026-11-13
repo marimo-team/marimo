@@ -60,15 +60,15 @@ jobs:
         run: |
           # Get the version number and increment patch
           # - assumes version is on a line of the form __version__ == "x.y.z"
-          incremented_version=`uv version --short | awk -F. '{printf "%d.%d.%d", $1, $2, $3+1}'`
+          incremented_version=$(uv version --short | awk -F. '{printf "%d.%d.%d", $1, $2, $3+1}')
           # Get the number of commits since last tag
-          n_commits=`git rev-list $(git describe --tags --abbrev=0)..HEAD --count`
+          n_commits=$(git rev-list "$(git describe --tags --abbrev=0)..HEAD" --count)
           # Form the new version, which is one patch ahead of the last version
           # so installing from Test PyPI does the right thing
           MARIMO_VERSION="${incremented_version}-dev${n_commits}"
           # Set the version in the environment for later steps
-          echo "MARIMO_VERSION=$MARIMO_VERSION" >> $GITHUB_ENV
-          echo "marimo_version=$MARIMO_VERSION" >> $GITHUB_OUTPUT
+          echo "MARIMO_VERSION=$MARIMO_VERSION" >> "$GITHUB_ENV"
+          echo "marimo_version=$MARIMO_VERSION" >> "$GITHUB_OUTPUT"
           uv version "$MARIMO_VERSION"
         env:
           NO_COLOR: 1
