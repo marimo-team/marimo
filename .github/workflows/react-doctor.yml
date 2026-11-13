@@ -20,7 +20,7 @@ concurrency:
 
 jobs:
   react-doctor:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-p-small
     steps:
       # Full history lets React Doctor compare PR changes with the merge base.
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5

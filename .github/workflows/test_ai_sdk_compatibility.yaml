@@ -18,7 +18,7 @@ env:
 
 jobs:
   changes:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-p-small
     outputs:
       chat: ${{ steps.filter.outputs.chat }}
     steps:
@@ -52,7 +52,7 @@ jobs:
     needs: changes
     if: needs.changes.outputs.chat == 'true'
     name: Chat protocol / ${{ matrix.resolution }} pydantic-ai
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-p-small
     timeout-minutes: 10
     strategy:
       fail-fast: false
@@ -83,7 +83,7 @@ jobs:
     name: AI SDK compatibility
     needs: [changes, compatibility]
     if: always()
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-p-small
     steps:
       - name: Require compatibility checks for relevant changes
         env:

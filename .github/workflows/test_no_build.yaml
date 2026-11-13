@@ -29,7 +29,7 @@ env:
 jobs:
   Test:
     name: Python ${{ matrix.python-version }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-p-small
     strategy:
       fail-fast: false
       matrix:

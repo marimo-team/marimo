@@ -11,7 +11,7 @@ jobs:
   enforce-label:
     needs: validate-template
     if: ${{ !cancelled() }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-p-small
     steps:
       - name: Require valid pull request template
         if: needs.validate-template.result != 'success'
@@ -24,7 +24,7 @@ jobs:
           REQUIRED_LABELS_ANY_DESCRIPTION: "🏷️ Select at least one label: ['enhancement','bug','documentation','internal','preview','dependencies','other']"
 
   validate-template:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-p-small
     steps:
       - name: Validate pull request template
         uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7

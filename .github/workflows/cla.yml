@@ -13,7 +13,7 @@ permissions: {}
 
 jobs:
   CLAAssistant:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-p-small
     timeout-minutes: 10
     permissions:
       actions: write
