@@ -17,7 +17,7 @@ env:
 jobs:
   publish_release:
     name: 📤 Build release
-    runs-on: "${{ vars.CI_RUNNER_SMALL || 'ubuntu-latest' }}"
+    runs-on: "${{ vars.CI_RUNNER_LARGE || 'ubuntu-latest' }}"
     permissions:
       contents: read
       id-token: write # required for Doppler OIDC

@@ -41,7 +41,7 @@ jobs:
     needs: changes
     if: ${{ needs.changes.outputs.docs == 'true' }}
     name: Test docs
-    runs-on: "${{ vars.CI_RUNNER_SMALL || 'ubuntu-latest' }}"
+    runs-on: "${{ vars.CI_RUNNER_LARGE || 'ubuntu-latest' }}"
     steps:
       - name: ⬇️ Checkout repo
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -115,7 +115,7 @@ jobs:
     needs: changes
     if: ${{ needs.changes.outputs.backend == 'true' || (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'test-all')) }}
     name: ubuntu-latest / Py ${{ matrix.python-version }} / ${{ matrix.dependencies }} deps
-    runs-on: "${{ vars.CI_RUNNER_SMALL || 'ubuntu-latest' }}"
+    runs-on: "${{ vars.CI_RUNNER_LARGE || 'ubuntu-latest' }}"
     timeout-minutes: 25
     strategy:
       # Keep targets aligned with tool.uv.required-environments in pyproject.toml.
@@ -192,7 +192,7 @@ jobs:
     needs: changes
     if: ${{ needs.changes.outputs.backend == 'true' && github.ref == 'refs/heads/main' && github.event_name == 'push' }}
     name: Test coverage
-    runs-on: "${{ vars.CI_RUNNER_SMALL || 'ubuntu-latest' }}"
+    runs-on: "${{ vars.CI_RUNNER_LARGE || 'ubuntu-latest' }}"
     timeout-minutes: 35
     permissions:
       contents: read
