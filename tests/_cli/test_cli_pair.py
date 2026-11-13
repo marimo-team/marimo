@@ -943,10 +943,31 @@ Options:
 
 class TestPairDocs:
     def test_docs_help_lists_bundled_topics(self) -> None:
+        from importlib.metadata import version
+
+        from packaging.version import Version
+
         result = _runner.invoke(cli_main, ["pair", "docs", "--help"])
 
         assert result.exit_code == 0
-        assert result.output == snapshot("""\
+        # Click 8.5.1 includes undocumented arguments in help output.
+        if Version(version("click")) >= Version("8.5.1"):
+            assert result.output == snapshot("""\
+Usage: main pair docs [OPTIONS] [TOPIC]
+
+  Read notebook guidance on demand.
+
+Options:
+  [TOPIC]
+  -h, --help  Show this message and exit.
+
+Available topics:
+  gotchas                Gotchas
+  notebook-improvements  Notebook Improvements
+  rich-representations   Rich Representations
+""")
+        else:
+            assert result.output == snapshot("""\
 Usage: main pair docs [OPTIONS] [TOPIC]
 
   Read notebook guidance on demand.
