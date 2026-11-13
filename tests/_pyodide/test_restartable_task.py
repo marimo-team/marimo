@@ -166,20 +166,13 @@ async def test_exception_in_coro_stops_task():
     task = RestartableTask(failing_coro)
     start_task = asyncio.create_task(task.start())
 
-    # Let it fail
-    await asyncio.sleep(0.05)
+    with pytest.raises(ValueError, match=r"^Test error$"):
+        await start_task
 
     # Should have tried once and then stopped due to exception
     assert counter == 1
     assert exception_occurred
     assert start_task.done()
-
-    # Cleanup
-    start_task.cancel()
-    try:
-        await start_task
-    except (asyncio.CancelledError, ValueError):
-        pass
 
 
 async def test_task_state_consistency():
