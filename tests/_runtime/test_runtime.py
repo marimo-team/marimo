@@ -4622,6 +4622,240 @@ async def test_future_annotations_not_inherited(
     assert k.globals["A"] == k.globals["anno"]["return"]
 
 
+@pytest.mark.parametrize(
+    "future_import",
+    [
+        "from __future__ import annotations",
+        pytest.param(
+            "",
+            marks=pytest.mark.skipif(
+                sys.version_info < (3, 14),
+                reason="Annotations are deferred by default on Python 3.14+",
+            ),
+        ),
+    ],
+)
+async def test_self_referential_function_annotation(
+    any_kernel: Kernel, exec_req: ExecReqProvider, future_import: str
+) -> None:
+    k = any_kernel
+    await k.run(
+        [
+            exec_req.get(
+                f"""
+                {future_import}
+                def f(x: f) -> f:
+                    return x
+                result = f.__annotations__
+                """
+            )
+        ]
+    )
+    assert not k.errors
+    annotation = "f" if future_import else k.globals["f"]
+    assert k.globals["result"] == {"x": annotation, "return": annotation}
+
+
+@pytest.mark.parametrize("async_def", ["", "async "])
+async def test_decorator_shadowed_by_parameter_reruns(
+    k: Kernel, exec_req: ExecReqProvider, async_def: str
+) -> None:
+    await_expr = "await " if async_def else ""
+    decorator = exec_req.get(
+        f"""
+        def dec(func):
+            {async_def}def wrapped(*args):
+                return ({await_expr}func(*args)) + 1
+            return wrapped
+        """
+    )
+    await k.run(
+        [
+            decorator,
+            exec_req.get(
+                f"""
+                @dec
+                {async_def}def f(dec):
+                    return dec
+                result = {await_expr}f(10)
+                """
+            ),
+        ]
+    )
+    assert not k.errors
+    assert k.globals["result"] == 11
+
+    await k.run(
+        [
+            exec_req.get_with_id(
+                decorator.cell_id, decorator.code.replace("+ 1", "+ 2")
+            )
+        ]
+    )
+    assert not k.errors
+    assert k.globals["result"] == 12
+
+
+@pytest.mark.parametrize("async_def", ["", "async "])
+@pytest.mark.parametrize(
+    ("signature", "annotation_name"),
+    [
+        ("(x: x)", "x"),
+        ("(x: x, /)", "x"),
+        ("(*, x: x)", "x"),
+        ("(*x: x)", "x"),
+        ("(**x: x)", "x"),
+        ("(x) -> x", "return"),
+    ],
+)
+async def test_annotation_shadowed_by_parameter_reruns(
+    k: Kernel,
+    exec_req: ExecReqProvider,
+    async_def: str,
+    signature: str,
+    annotation_name: str,
+) -> None:
+    definition = exec_req.get("x = int")
+    await k.run(
+        [
+            definition,
+            exec_req.get(
+                f"""
+                {async_def}def f{signature}:
+                    pass
+                result = f.__annotations__
+                """
+            ),
+        ]
+    )
+    assert not k.errors
+    assert k.globals["result"] == {annotation_name: int}
+
+    await k.run([exec_req.get_with_id(definition.cell_id, "x = str")])
+    assert not k.errors
+    assert k.globals["result"] == {annotation_name: str}
+
+
+@pytest.mark.skipif(
+    sys.version_info >= (3, 14),
+    reason="These cases require eagerly evaluated annotations",
+)
+@pytest.mark.parametrize(
+    "signature",
+    [
+        "(x: (y := int))",
+        "() -> (y := int)",
+        "(x: [(y := int) for _ in range(1)])",
+        "(x: (lambda z=(y := int): z)())",
+    ],
+)
+async def test_annotation_walrus_defines_dependency(
+    k: Kernel, exec_req: ExecReqProvider, signature: str
+) -> None:
+    definition = exec_req.get(f"def f{signature}: pass")
+    dependent = exec_req.get("result = y")
+    await k.run([dependent, definition])
+    assert not k.errors
+    assert k.globals["result"] is int
+    assert k.graph.cells[definition.cell_id].defs == {"f", "y"}
+    assert k.graph.cells[dependent.cell_id].refs == {"y"}
+    assert k.graph.parents[dependent.cell_id] == {definition.cell_id}
+    assert not k.graph.cells[dependent.cell_id].stale
+    k.graph.set_stale({definition.cell_id})
+    assert k.graph.cells[dependent.cell_id].stale
+
+
+@pytest.mark.skipif(
+    sys.version_info < (3, 14),
+    reason="Annotations are deferred by default on Python 3.14+",
+)
+@pytest.mark.parametrize(
+    "annotation",
+    [
+        "[(y := int) for _ in (0,)]",
+        "[[(y := int) for _ in (0,)] for _ in (0,)]",
+    ],
+)
+async def test_deferred_annotation_walrus_defines_dependency(
+    k: Kernel, exec_req: ExecReqProvider, annotation: str
+) -> None:
+    code = f"def f(x: {annotation}): pass"
+    native_globals: dict[str, object] = {}
+    exec(compile(code, "<native>", "exec", dont_inherit=True), native_globals)
+    assert "y" not in native_globals
+    exec("f.__annotations__", native_globals)
+    assert native_globals["y"] is int
+
+    definition = exec_req.get(code + "\nf.__annotations__")
+    dependent = exec_req.get("result = y")
+    await k.run([dependent, definition])
+    assert not k.errors
+    assert k.globals["result"] is int
+    assert k.graph.cells[definition.cell_id].defs == {"f", "y"}
+    assert k.graph.cells[dependent.cell_id].refs == {"y"}
+    assert k.graph.parents[dependent.cell_id] == {definition.cell_id}
+    assert not k.graph.cells[dependent.cell_id].stale
+    k.graph.set_stale({definition.cell_id})
+    assert k.graph.cells[dependent.cell_id].stale
+
+
+@pytest.mark.skipif(
+    sys.version_info >= (3, 14),
+    reason="Python 3.14 disallows direct assignment expressions in annotations",
+)
+@pytest.mark.parametrize(
+    "code",
+    [
+        "def f(x: (_y := int)): pass\nresult = _y",
+        (
+            "def outer():\n"
+            "    def f(x: (y := int)): pass\n"
+            "    return y\n"
+            "result = outer()"
+        ),
+        (
+            "class C:\n"
+            "    def f(self, x: (y := int)): pass\n"
+            "    seen = y\n"
+            "result = C.seen"
+        ),
+    ],
+    ids=["cell-local", "function", "class"],
+)
+async def test_annotation_walrus_respects_enclosing_scope(
+    k: Kernel, exec_req: ExecReqProvider, code: str
+) -> None:
+    native_globals: dict[str, object] = {}
+    exec(compile(code, "<native>", "exec", dont_inherit=True), native_globals)
+    definition = exec_req.get(code)
+    await k.run([definition])
+    assert not k.errors
+    assert k.globals["result"] is native_globals["result"] is int
+    assert k.graph.cells[definition.cell_id].refs == {"int"}
+
+
+async def test_annotation_walrus_in_lambda_stays_local(
+    k: Kernel, exec_req: ExecReqProvider
+) -> None:
+    definition = exec_req.get("y = int")
+    dependent = exec_req.get(
+        "def f(x: (lambda: (y := str))()): pass\n"
+        "annotation = f.__annotations__['x']\n"
+        "result = y"
+    )
+    await k.run([dependent, definition])
+    assert not k.errors
+    assert k.globals["result"] is int
+    assert k.globals["annotation"] is str
+    assert k.graph.cells[dependent.cell_id].defs == {
+        "f",
+        "annotation",
+        "result",
+    }
+    assert k.graph.cells[dependent.cell_id].refs == {"str", "y"}
+    assert k.graph.parents[dependent.cell_id] == {definition.cell_id}
+
+
 class TestMarkdownHandling:
     """Test markdown cell handling during kernel instantiation."""
 

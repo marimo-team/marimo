@@ -156,6 +156,8 @@ async def test_deleted_file_keeps_its_runtime_until_stopped(
     )
     assert notebook.runtime == runtime
     assert backend.calls == []
+    # Its next session starts untitled, and belongs to the same notebook.
+    assert index.untitled(index.file_key(record.id)).id == record.id
 
     notebook.stop()
     notebook.observe(be.Exited(runtime_id_of(notebook)))
@@ -250,6 +252,49 @@ def test_register_open_notebook_keeps_workspace_files_in_the_workspace(
     ] == [index.project_id]
 
 
+def test_untitled_notebooks_offer_editing_and_the_runtime(
+    tmp_path: Path,
+) -> None:
+    index = WorkspaceIndex(
+        Host(operations=[]),
+        DirectoryWorkspace(str(tmp_path), include_markdown=False),
+        make_notebook,
+    )
+    index.refresh()
+    assert set(index.untitled("__new__editor").operations) == {
+        "notebook.edit",
+        "runtime.start",
+        "runtime.stop",
+        "runtime.restart",
+        "runtime.run",
+        "runtime.execute",
+        "runtime.input",
+        "runtime.interrupt",
+        "runtime.cancel",
+    }
+
+
+def test_an_untitled_notebook_is_known_by_its_key_until_it_has_a_file(
+    tmp_path: Path,
+) -> None:
+    index = WorkspaceIndex(
+        Host(operations=[]),
+        DirectoryWorkspace(str(tmp_path), include_markdown=False),
+        make_notebook,
+    )
+    index.refresh()
+    record = index.untitled("__new__editor")
+    assert index.untitled("__new__editor") == record
+    assert index.untitled("__new__other").id != record.id
+    assert index.file_key(record.id) == "__new__editor"
+
+    saved = tmp_path / "saved.py"
+    saved.write_text("import marimo\n")
+    index.moved(record.id, str(saved))
+    assert index.file_key(record.id) == str(saved)
+    assert index.untitled("__new__editor").id != record.id
+
+
 @pytest.mark.parametrize("untitled", [False, True])
 def test_saving_outside_the_workspace_preserves_identity(
     tmp_path: Path, untitled: bool
@@ -266,7 +311,9 @@ def test_saving_outside_the_workspace_preserves_identity(
     )
     index.refresh()
     record = (
-        index.untitled() if untitled else index.notebook_for(str(original))
+        index.untitled("__new__editor")
+        if untitled
+        else index.notebook_for(str(original))
     )
     assert record is not None
     saved = tmp_path / "saved.py"

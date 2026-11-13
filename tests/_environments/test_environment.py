@@ -263,9 +263,31 @@ def test_launch_layers_over_the_activated_environment() -> None:
     assert "--active" in plan.argv
     assert ("--python", "/env/bin/python") in pairs
     assert ("--with", "marimo==1.0") in pairs
-    assert plan.argv[-3:] == ("python", "-m", "marimo")
+    assert plan.argv[-4:] == ("python", "-P", "-m", "marimo")
     assert plan.env["VIRTUAL_ENV"] == "/env"
     assert plan.start_new_session
+
+
+@pytest.mark.skipif(not SUPPORTS_SYNC, reason="uv >= 0.7.21 required")
+def test_launch_module_in_working_directory_does_not_shadow_marimo(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    import marimo
+    from marimo._environments.overlay import RuntimeOverlay
+
+    (tmp_path / "marimo.py").write_text("raise SystemExit('shadowed')\n")
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("UV_OFFLINE", "1")
+    plan = launch(
+        Environment(sys.executable, sys.prefix, "unchanged"),
+        ["-c", "import marimo; print(marimo.__file__)"],
+        overlay=RuntimeOverlay(runtime="marimo"),
+    )
+    result = subprocess.run(
+        list(plan.argv), env=plan.env, capture_output=True, text=True
+    )
+    assert result.returncode == 0, result.stderr
+    assert result.stdout.strip() == marimo.__file__
 
 
 @pytest.mark.network

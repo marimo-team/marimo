@@ -1,9 +1,8 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 /* oxlint-disable typescript/no-explicit-any */
 
-import type { NotebookTransport } from "@marimo-team/client";
+import { NotebookClient, type NotebookTransport } from "@marimo-team/client";
 import { getWorkerRPC } from "@/core/wasm/rpc";
-import { Arrays } from "@/utils/arrays";
 import { Deferred } from "@/utils/Deferred";
 import { throwNotImplemented } from "@/utils/functions";
 import { Logger } from "@/utils/Logger";
@@ -99,8 +98,21 @@ export class IslandsPyodideBridge implements RunRequests, EditRequests {
           { once: true },
         );
       }),
-    notebook: () => {
-      throw new Error("Islands do not edit notebooks");
+    notebook: (notebookId) => {
+      const session = this.session;
+      if (session === undefined) {
+        throw new Error("No island session is active");
+      }
+      const { appId, sessionGeneration } = session;
+      return NotebookClient.unstable_over(
+        (call) =>
+          this.rpc.proxy.request.notebookCall({
+            appId,
+            sessionGeneration,
+            call,
+          }),
+        { notebookId },
+      );
     },
   };
 
@@ -353,30 +365,6 @@ export class IslandsPyodideBridge implements RunRequests, EditRequests {
   // EditRequests Implementation
   // ============================================================================
 
-  public sendRun: EditRequests["sendRun"] = async (request): Promise<null> => {
-    const session = await this.getActiveSession();
-    await this.rpc.proxy.request.loadPackages({
-      appId: session.appId,
-      code: request.codes.join("\n"),
-      sessionGeneration: session.sessionGeneration,
-    });
-    await this.putControlRequest(
-      {
-        type: "execute-cells",
-        request: request.request,
-        executionRequests: Arrays.zip(request.cellIds, request.codes).map(
-          ([cellId, code]) => ({
-            type: "execute-cell",
-            cellId,
-            code,
-          }),
-        ),
-      },
-      session,
-    );
-    return null;
-  };
-
   // ============================================================================
   // Not Implemented (Read-Only Mode)
   // ============================================================================
@@ -387,8 +375,6 @@ export class IslandsPyodideBridge implements RunRequests, EditRequests {
   public saveLayout = throwNotImplemented;
   public sendCopy = throwNotImplemented;
   public sendRunScratchpad = throwNotImplemented;
-  public sendStdin = throwNotImplemented;
-  public sendInterrupt = throwNotImplemented;
   public sendShutdown = throwNotImplemented;
   public sendFormat = throwNotImplemented;
   public sendInstallMissingPackages = throwNotImplemented;

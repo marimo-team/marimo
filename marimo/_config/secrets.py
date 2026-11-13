@@ -94,6 +94,9 @@ def _redact_dict(config: PartialMarimoConfig) -> PartialMarimoConfig:
                     obj[key] = SECRET_PLACEHOLDER
 
     new_config = copy.deepcopy(config)
+    # Removed credentials can survive as unknown fields in saved configurations.
+    if isinstance(completion := new_config.get("completion"), dict):
+        completion.pop("codeium_api_key", None)
 
     for path in _sensitive_paths(MarimoConfig):
         deep_remove_from_path(path, new_config)

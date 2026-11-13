@@ -64,3 +64,17 @@ class TestRecentFilesManager(unittest.TestCase):
         self.config_reader.write_toml.assert_called_once_with(
             RecentFilesState(files=expected_files)
         )
+
+    def test_get_recents_with_decode_error(self) -> None:
+        self.config_reader.read_toml.side_effect = UnicodeDecodeError(
+            "utf-8", b"\xbf", 0, 1, "invalid start byte"
+        )
+        recents = self.rfm.get_recents()
+        assert recents == []
+
+    def test_rename_with_decode_error(self) -> None:
+        self.config_reader.read_toml.side_effect = UnicodeDecodeError(
+            "utf-8", b"\xbf", 0, 1, "invalid start byte"
+        )
+        # Should not raise exception
+        self.rfm.rename("old_file", "new_file")

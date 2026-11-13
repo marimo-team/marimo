@@ -16,12 +16,12 @@ from marimo._core import backend as be, protocol
 from marimo._core.document import Stale
 from marimo._core.errors import (
     Conflict,
-    EditConflict,
     Invalid,
     NoRuntime,
     NotFound,
+    PreconditionFailed,
 )
-from marimo._core.executions import Executions, Released, Removed
+from marimo._core.executions import Executions, InputChanged, Released, Removed
 from marimo._core.ids import mint
 from marimo._core.stream import RoutedEvent, snapshot_event, utcnow
 
@@ -118,13 +118,13 @@ class Notebook:
         """Check that the document is at one of `etags`.
 
         Raises:
-            EditConflict: If it is not, carrying the document as it is.
+            PreconditionFailed: If it is not, carrying the document as it is.
         """
         self._require_open()
         if self.document.etag not in etags:
-            raise EditConflict(
+            raise PreconditionFailed(
                 "The document has changed since it was read",
-                change=0,
+                index=0,
                 cell=None,
                 document=self._document_record,
             )
@@ -195,7 +195,7 @@ class Notebook:
         """Apply an edit as one unit and publish its effects.
 
         Raises:
-            EditConflict: If a precondition is stale. Nothing is applied.
+            PreconditionFailed: If a precondition is stale. Nothing is applied.
             Invalid: If a change could not apply to any state.
         """
         self._require_open()
@@ -206,10 +206,10 @@ class Notebook:
                 if result.cell_id is None
                 else self._document.cell(result.cell_id)
             )
-            raise EditConflict(
+            raise PreconditionFailed(
                 f"change {result.change} names a state the document no "
                 "longer has",
-                change=result.change,
+                index=result.change,
                 cell=None if cell is None else self._cell_record(cell),
                 document=self._document_record,
             )
@@ -247,14 +247,14 @@ class Notebook:
             name=cell.name,
             config=cell.config,
             etag=cell.etag,
-            code_fingerprint=cell.code_fingerprint,
+            code_fingerprint=protocol.CodeFingerprint(cell.code_fingerprint),
             version=self._cell_versions[cell.id],
         )
 
     def _cell_version(self, cell: DocumentCell) -> protocol.CellVersion:
         return protocol.CellVersion(
             etag=cell.etag,
-            code_fingerprint=cell.code_fingerprint,
+            code_fingerprint=protocol.CodeFingerprint(cell.code_fingerprint),
             version=self._cell_versions[cell.id],
         )
 
@@ -364,6 +364,7 @@ class Notebook:
                 return runtime
             terminating = replace(runtime, status="terminating")
             self._set_runtime(terminating)
+            self._apply(self.executions.cancel_inputs(), request_id=request_id)
             if runtime.status == "failed":
                 self._end_runtime()
             else:
@@ -387,6 +388,7 @@ class Notebook:
             self._replacement = replacement
             terminating = replace(runtime, status="terminating")
             self._set_runtime(terminating)
+            self._apply(self.executions.cancel_inputs(), request_id=request_id)
             self.backend.stop(runtime.id)
             return replacement
 
@@ -441,6 +443,7 @@ class Notebook:
         *,
         request_id: str,
         request: be.RequestInfo | None,
+        allow_input: bool = False,
     ) -> protocol.Run: ...
 
     @overload
@@ -450,6 +453,7 @@ class Notebook:
         cells: Sequence[protocol.RequestedCell],
         request_id: str,
         request: be.RequestInfo | None,
+        allow_input: bool = False,
     ) -> protocol.Run: ...
 
     def run(
@@ -459,6 +463,7 @@ class Notebook:
         cells: Sequence[protocol.RequestedCell] | None = None,
         request_id: str,
         request: be.RequestInfo | None,
+        allow_input: bool = False,
     ) -> protocol.Run:
         """Queue scratch code, or cells of the document, on the runtime.
 
@@ -467,14 +472,15 @@ class Notebook:
         requested cell must be in the document. One that names an `etag`
         the cell no longer has is a conflict, and nothing runs. The code
         reads `request`, the request that submitted the run, through
-        `mo.app_meta().request`.
+        `mo.app_meta().request`. `allow_input` permits interactive prompts;
+        unattended runs raise `EOFError` when code requests input.
 
         Raises:
-            Invalid: If the request names neither code nor cells, or both,
-                an empty cell sequence, or a cell the document does not have.
+            Invalid: If the request does not select exactly one of code
+                and cells, or selects an empty cell sequence.
             NoRuntime: If the notebook has no runtime.
-            Conflict: If the runtime is not running or a requested cell
-                has changed.
+            Conflict: If the runtime is not running.
+            PreconditionFailed: If a requested cell is missing or has changed.
         """
         if (code is None) == (cells is None):
             raise Invalid("a run names code or cells, not both")
@@ -486,15 +492,21 @@ class Notebook:
             if runtime.status != "running":
                 raise Conflict(f"the runtime is {runtime.status}.")
             targets: list[protocol.CellId] = []
-            for requested in cells or ():
+            for index, requested in enumerate(cells or ()):
                 cell = self._document.cell(requested.id)
                 if cell is None:
-                    raise Invalid(
-                        f"cell {requested.id} is not in the document."
+                    raise PreconditionFailed(
+                        f"cell {requested.id} is not in the document.",
+                        index=index,
+                        cell=None,
+                        document=self._document_record,
                     )
                 if requested.etag is not UNSET and requested.etag != cell.etag:
-                    raise Conflict(
-                        f"cell {requested.id} has changed since it was read."
+                    raise PreconditionFailed(
+                        f"cell {requested.id} has changed since it was read.",
+                        index=index,
+                        cell=self._cell_record(cell),
+                        document=self._document_record,
                     )
                 targets.append(cell.id)
             run = protocol.Run(
@@ -509,23 +521,71 @@ class Notebook:
             )
             self._apply(self.executions.begin(run, request_id))
             if code is not None:
-                self.backend.run(run.id, code, request=request)
+                self.backend.run(
+                    run.id, code, request=request, allow_input=allow_input
+                )
             else:
                 self.backend.run_cells(
-                    run.id, self._document, targets, request=request
+                    run.id,
+                    self._document,
+                    targets,
+                    request=request,
+                    allow_input=allow_input,
                 )
             return run
 
-    def interrupt(self, run_id: str) -> protocol.Run:
-        """Request interruption of a run in progress."""
+    def interrupt(self, *, request_id: str | None = None) -> protocol.Runtime:
+        """Request interruption of the runtime's active work and queued runs.
+
+        The runtime stays alive, and work outside a run is interrupted too.
+        Runs and executions report their outcomes once they settle.
+
+        Raises:
+            NoRuntime: If the notebook has no runtime.
+            Conflict: If the runtime is not running.
+        """
+        self._require_open()
+        runtime = self._require_runtime()
+        if runtime.status != "running":
+            raise Conflict(f"the runtime is {runtime.status}.")
+        with self.sink.deferred():
+            self._apply(self.executions.cancel_inputs(), request_id=request_id)
+            self.backend.interrupt()
+        return runtime
+
+    def cancel(
+        self, run_id: str, *, request_id: str | None = None
+    ) -> protocol.Run:
+        """Request cancellation of a run that has not finished."""
         self._require_open()
         run = self.executions.run(protocol.RunId(run_id))
         if run is None:
             raise NotFound(f"notebook {self.id} has no run {run_id}.")
         if run.status == "completed":
             raise Conflict(f"run {run_id} has already ended.")
-        self.backend.interrupt(run.id)
+        with self.sink.deferred():
+            self._apply(
+                self.executions.cancel_inputs(run.id), request_id=request_id
+            )
+            self.backend.cancel(run.id)
         return run
+
+    def reply_input(
+        self, input_id: protocol.ItemId, value: str, *, request_id: str
+    ) -> protocol.Input:
+        """Accept one answer and publish its status under the reply's key."""
+        self._require_open()
+        item = self.executions.pending_input(input_id)
+        with self.sink.deferred():
+            self.backend.reply_input(input_id, value)
+            answered = self.executions.answer(item)
+            self.sink.publish(
+                answered,
+                notebook_id=self.id,
+                run_id=self.executions.run_id_of(answered),
+                request_id=request_id,
+            )
+        return answered
 
     # ---- attachments ---------------------------------------------------
 
@@ -716,7 +776,9 @@ class Notebook:
             request_id=request_id,
         )
 
-    def _apply(self, changes: Sequence[Change]) -> None:
+    def _apply(
+        self, changes: Sequence[Change], *, request_id: str | None = None
+    ) -> None:
         """Publish changes and release completed runs."""
         executions = self.executions
         with self.sink.deferred():
@@ -726,19 +788,26 @@ class Notebook:
                     self.backend.forget(change.run_id)
                     continue
                 run_id = executions.run_id_of(change)
-                request_id = executions.request_id(run_id)
+                originating_request = (
+                    request_id
+                    if isinstance(change, (protocol.Input, InputChanged))
+                    and request_id is not None
+                    else executions.request_id(run_id)
+                )
                 if isinstance(change, Removed):
                     self.sink.remove(
                         change.record_type,
                         change.id,
                         notebook_id=self.id,
                         run_id=run_id,
-                        request_id=request_id,
+                        request_id=originating_request,
                     )
                 else:
                     self.sink.publish(
-                        change,
+                        change.input
+                        if isinstance(change, InputChanged)
+                        else change,
                         notebook_id=self.id,
                         run_id=run_id,
-                        request_id=request_id,
+                        request_id=originating_request,
                     )

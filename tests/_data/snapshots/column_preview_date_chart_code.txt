@@ -1,6 +1,6 @@
 _chart = (
     alt.Chart([]) # <-- replace with data
-    .transform_filter(f"datum.date_col != null")
+    .transform_filter("datum.date_col != null")
     .transform_timeunit(as_="_date_col", field="date_col", timeUnit="yearmonthdate")
     .mark_area()
     .encode(

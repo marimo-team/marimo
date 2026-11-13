@@ -10,9 +10,10 @@ import signal
 import sys
 import threading
 import time
+from functools import partial
+from multiprocessing import get_context
 from multiprocessing.queues import Queue as MPQueue
 from pathlib import Path
-from tempfile import NamedTemporaryFile
 from textwrap import dedent
 from typing import Any
 from unittest.mock import MagicMock
@@ -33,6 +34,7 @@ from marimo._messaging.notification import (
 )
 from marimo._messaging.serde import deserialize_kernel_message
 from marimo._messaging.types import KernelMessage
+from marimo._runtime import runtime
 from marimo._runtime.commands import (
     AppMetadata,
     CreateNotebookCommand,
@@ -293,6 +295,78 @@ async def test_kernel_manager_interrupt(
         assert await asyncio.wait_for(
             asyncio.to_thread(was_interrupted), timeout=5
         )
+    finally:
+        kernel_manager.close_kernel()
+
+
+def _launch_kernel_before_handlers(
+    ready: Any, release: Any, *args: Any
+) -> None:
+    install = runtime._install_subprocess_handlers
+
+    def paused_install(*args: Any) -> None:
+        ready.set()
+        assert release.wait(10)
+        install(*args)
+
+    runtime._install_subprocess_handlers = paused_install
+    runtime.launch_kernel(*args)
+
+
+@pytest.mark.skipif(
+    sys.platform == "win32", reason="Windows queues interrupts"
+)
+async def test_an_interrupt_during_startup_leaves_the_kernel_running(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    context = get_context("spawn")
+    ready, release = context.Event(), context.Event()
+    monkeypatch.setattr(
+        runtime,
+        "launch_kernel",
+        partial(_launch_kernel_before_handlers, ready, release),
+    )
+    queue_manager = QueueManagerImpl(use_multiprocessing=True)
+    kernel_manager = KernelManagerImpl(
+        queue_manager=queue_manager,
+        mode=SessionMode.EDIT,
+        configs={},
+        app_metadata=app_metadata,
+        config_manager=get_default_config_manager(current_path=None),
+        virtual_file_storage="shared_memory",
+        redirect_console_to_browser=False,
+    )
+    await kernel_manager.start_kernel()
+
+    def completed_run() -> CompletedRunNotification:
+        while True:
+            message = deserialize_kernel_message(
+                kernel_manager.kernel_connection.recv()
+            )
+            if isinstance(message, CompletedRunNotification):
+                return message
+
+    try:
+        assert await asyncio.to_thread(ready.wait, 10)
+        kernel_manager.interrupt_kernel()
+        release.set()
+        queue_manager.put_control_request(
+            CreateNotebookCommand(
+                execution_requests=(
+                    ExecuteCellCommand(cell_id="1", code="x = 1"),
+                ),
+                cell_ids=("1",),
+                set_ui_element_value_request=UpdateUIElementCommand(
+                    object_ids=[], values=[]
+                ),
+                auto_run=True,
+            )
+        )
+        completed = await asyncio.wait_for(
+            asyncio.to_thread(completed_run), timeout=10
+        )
+        assert completed.outcome == "succeeded"
+        assert kernel_manager.is_alive()
     finally:
         kernel_manager.close_kernel()
 
@@ -1015,23 +1089,18 @@ async def test_watch_mode_with_watcher_on_save_lazy(tmp_path: Path) -> None:
             await session_manager.shutdown()
 
 
-async def test_session_manager_file_rename() -> None:
+async def test_session_manager_file_rename(tmp_path: Path) -> None:
     """Test that file renaming works correctly with file watching."""
-    # Create two temporary files
-    with (
-        NamedTemporaryFile(delete=False, suffix=".py") as tmp_file1,
-    ):
-        tmp_path1 = Path(tmp_file1.name)
-        # Write initial notebook content
-        tmp_file1.write(
-            b"""import marimo
+    tmp_path1 = tmp_path / "notebook.py"
+    tmp_path1.write_text(
+        """import marimo
 app = marimo.App()
 
 @app.cell
 def __():
     1
 """
-        )
+    )
 
     new_path = tmp_path1.with_suffix(".1.py")
 
@@ -1071,9 +1140,10 @@ def __():
             main=True,
         )
 
-        # Try to rename to a non-existent file
+        parent_file = tmp_path / "not_a_directory"
+        parent_file.write_text("")
         success, error = await session_manager.rename_session(
-            session_id, "/nonexistent/file.py"
+            session_id, str(parent_file / "file.py")
         )
         assert not success
         assert error is not None

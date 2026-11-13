@@ -1,5 +1,5 @@
 {
-  "type": "tag:marimo.io,2026:host/decision-required",
+  "type": "urn:marimo:problem:decision-required",
   "title": "Decision required",
   "status": 409,
   "detail": "Where should forecasts.py run?",

@@ -7,7 +7,6 @@ const TooltipProvider = Tooltip.Provider;
 
 import { useAtomValue } from "jotai";
 import { lazy, useEffect } from "react";
-import { NotStartedConnectionAlert } from "@/components/editor/alerts/connecting-alert";
 import { Controls } from "@/components/editor/controls/Controls";
 import { SandboxController } from "@/components/editor/chrome/panels/sandbox-controller";
 import { ConnectionNotice } from "@/components/editor/alerts/connection-notice";
@@ -28,7 +27,8 @@ import { CellArray } from "../components/editor/renderers/cell-array";
 import { CellsRenderer } from "../components/editor/renderers/cells-renderer";
 import { useHotkey } from "../hooks/useHotkey";
 import { hasCellsAtom } from "./cells/cells";
-import { notebookIsRunningAtom } from "./executions";
+import { interruptRuntime, notebookIsRunningAtom } from "./executions";
+import { store } from "./state/jotai";
 import { numColumnsAtom } from "./cells/layout";
 import { useCellActions } from "./cells/actions";
 import type { AppConfig, UserConfig } from "./config/config-schema";
@@ -74,7 +74,7 @@ export const EditApp: React.FC<EditAppProps> = ({
   const viewState = useAtomValue(viewStateAtom);
   const numColumns = useAtomValue(numColumnsAtom);
   const filename = useFilename();
-  const { sendComponentValues, sendInterrupt } = useRequestClient();
+  const { sendComponentValues } = useRequestClient();
 
   const isEditing = viewState.mode === "edit";
   const isPresenting = viewState.mode === "present";
@@ -116,7 +116,7 @@ export const EditApp: React.FC<EditAppProps> = ({
     runStaleCells();
   });
   useHotkey("global.interrupt", () => {
-    sendInterrupt();
+    void interruptRuntime(store);
   });
   useHotkey("global.hideCode", () => {
     togglePresenting();
@@ -196,12 +196,8 @@ export const EditApp: React.FC<EditAppProps> = ({
           canOpenPackages={!hideControls}
         />
 
-        {/* Don't render until we have a single cell. NotStartedConnectionAlert
-            still covers the "no remote runtime started" prompt. */}
-        <ProgressiveBoundary
-          requires={hasCellsAtom}
-          fallback={<NotStartedConnectionAlert />}
-        >
+        {/* Don't render until we have a single cell. */}
+        <ProgressiveBoundary requires={hasCellsAtom}>
           <CellsRenderer appConfig={appConfig} mode={viewState.mode}>
             {editableCellsArray}
           </CellsRenderer>
@@ -213,7 +209,7 @@ export const EditApp: React.FC<EditAppProps> = ({
           <Controls
             presenting={isPresenting}
             onTogglePresenting={togglePresenting}
-            onInterrupt={sendInterrupt}
+            onInterrupt={() => interruptRuntime(store)}
             onRun={runStaleCells}
             connectionState={connection.state}
             running={isRunning}

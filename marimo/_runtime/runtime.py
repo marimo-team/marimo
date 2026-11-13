@@ -18,6 +18,7 @@ from multiprocessing import connection
 from typing import (
     TYPE_CHECKING,
     Any,
+    assert_never,
     cast,
 )
 from uuid import uuid4
@@ -59,6 +60,7 @@ from marimo._messaging.errors import (
     MarimoSyntaxError,
     UnknownError,
 )
+from marimo._messaging.input import InputReply
 from marimo._messaging.notebook.changes import ReorderCells, Transaction
 from marimo._messaging.notification import (
     HumanReadableStatus,
@@ -824,8 +826,6 @@ class Kernel:
         The one place that maps an `OutOfBandCommand` to its handler; extend
         with a new branch when adding a member to the union.
         """
-        from marimo._utils.assert_never import assert_never
-
         if isinstance(command, SetBreakpointsCommand):
             self.set_breakpoints(command)
         elif isinstance(command, CodeCompletionCommand):
@@ -2934,7 +2934,11 @@ def _bootstrap_subprocess(
     if not is_subprocess:
         return None
 
-    restore_signals()
+    # The server can interrupt the kernel as soon as it connects, and the
+    # default action for SIGINT would end the process. No user code runs
+    # until the interrupt handler is installed, so an early interrupt has
+    # nothing to stop and is ignored.
+    restore_signals(sigint=signal.SIG_IGN)
 
     # Become the leader of a new session/process group before connecting
     # back to the parent, to avoid race conditions with the parent
@@ -2979,7 +2983,7 @@ def _maybe_profile(profile_path: str | None) -> Iterator[None]:
 def _create_streams(
     socket_addr: tuple[str, int] | None,
     stream_queue: QueueType[KernelMessage] | None,
-    input_queue: QueueType[str],
+    input_queue: QueueType[InputReply],
     is_edit_mode: bool,
     should_redirect_stdio: bool,
     use_fd_redirect: bool,
@@ -3087,7 +3091,7 @@ def launch_kernel(
     control_queue: QueueType[CommandMessage],
     set_ui_element_queue: QueueType[BatchableCommand],
     completion_queue: QueueType[OutOfBandCommand],
-    input_queue: QueueType[str],
+    input_queue: QueueType[InputReply],
     stream_queue: QueueType[KernelMessage] | None,
     socket_addr: tuple[str, int] | None,
     is_edit_mode: bool,

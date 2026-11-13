@@ -22,6 +22,7 @@ from marimo import _loggers
 from marimo._config.manager import MarimoConfigManager
 from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._environments.overlay import runtime_overlay
+from marimo._messaging.input import InputReply
 from marimo._messaging.notification import (
     NotificationMessage,
     StartupProgressNotification,
@@ -151,7 +152,7 @@ class IPCQueueManagerImpl(QueueManager):
     @property
     def input_queue(  # type: ignore[override]
         self,
-    ) -> QueueType[str]:
+    ) -> QueueType[InputReply]:
         return self._ipc.input_queue
 
     @property
@@ -182,9 +183,6 @@ class IPCQueueManagerImpl(QueueManager):
             self.completion_queue,
             self.set_ui_element_queue,
         )
-
-    def put_input(self, text: str) -> None:
-        self.input_queue.put(text)
 
 
 def _decode_tail(tail: deque[bytes]) -> str:
@@ -414,6 +412,7 @@ class IPCKernelManagerImpl(KernelManager):
                 )
                 cmd: list[str] = [
                     venv_python,
+                    "-P",
                     "-m",
                     "marimo._ipc.launch_kernel",
                 ]

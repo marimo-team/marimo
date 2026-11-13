@@ -4,7 +4,7 @@
  * This script tests the built marimo wheel in Pyodide to verify basic functionality works.
  *
  * Usage:
- *   node tests/_pyodide/test_pyodide_acceptance.mjs ./dist/marimo-*.whl
+ *   node --experimental-wasm-jspi tests/_pyodide/test_pyodide_acceptance.mjs ./dist/marimo-*.whl
  *
  * Exit codes:
  *   0 - Success: session created, bridge verified
@@ -100,6 +100,128 @@ async function loadPyodideModule() {
       }
     }
     throw error;
+  }
+}
+
+async function waitForFrame(frames, predicate) {
+  const deadline = Date.now() + 10_000;
+  while (Date.now() < deadline) {
+    const frame = frames.find(predicate);
+    if (frame) {
+      return frame;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  }
+  throw new Error(`Timed out waiting for a host event: ${JSON.stringify(frames)}`);
+}
+
+async function testHostInputs(notebook, notebookId, frames) {
+  const call = async (operation, key, body, params = {}) =>
+    JSON.parse(await notebook.call(JSON.stringify({
+      operation,
+      params: { notebook_id: notebookId, ...params },
+      headers: { "idempotency-key": key },
+      body,
+    })));
+
+  const answer = async (prompt, value, password = false) => {
+    const { data: { input } } = await waitForFrame(frames, (frame) =>
+      frame.event === "input" && frame.data.input.prompt === prompt &&
+      frame.data.input.status === "pending",
+    );
+    assert.equal(input.password, password);
+    const reply = () => call(
+      "runtime.input", `answer-${input.id}`, { value }, { input_id: input.id },
+    );
+    const answered = await reply();
+    assert.deepEqual(answered, {
+      status: 200,
+      body: { ...input, status: "answered" },
+    });
+    assert.deepEqual(await reply(), answered);
+  };
+
+  const assertSucceeded = async (runId) => {
+    const completed = await waitForFrame(frames, (frame) =>
+      frame.event === "run" && frame.data.run.id === runId &&
+      frame.data.run.status === "completed",
+    );
+    assert.equal(completed.data.run.outcome, "succeeded");
+  };
+
+  const run = await call("runtime.execute", "wasm-input-run", { code: [
+    "import getpass",
+    "_secret = getpass.getpass('Password: ')",
+    "_blank = input('Empty: ')",
+    "assert _secret == 'secret' and _blank == ''",
+  ].join("\n") });
+  assert.equal(run.status, 202);
+  await answer("Password: ", "secret", true);
+  await answer("Empty: ", "");
+  await assertSucceeded(run.body.id);
+  assert.doesNotMatch(
+    JSON.stringify(frames.filter((frame) => frame.event === "input")),
+    /secret/,
+  );
+
+  const concurrent = await call("runtime.execute", "wasm-concurrent-input-run", { code: [
+    "import marimo as mo",
+    "_answers = {}",
+    "def _ask(_label):",
+    "    print(_label + ' reader started')",
+    "    _answers[_label] = input(_label)",
+    "_threads = [mo.Thread(target=_ask, args=(_label,)) for _label in ('first', 'second')]",
+    "for _thread in _threads:",
+    "    _thread.start()",
+    "for _thread in _threads:",
+    "    _thread.join()",
+    "assert _answers == {'first': 'one', 'second': 'two'}",
+  ].join("\n") });
+  assert.equal(concurrent.status, 202);
+  const values = { first: "one", second: "two" };
+  for (const prompt of Object.keys(values)) {
+    await waitForFrame(frames, (frame) =>
+      frame.event === "console" && frame.data.console.text.includes(`${prompt} reader started`),
+    );
+  }
+  const isConcurrentInput = (frame) => frame.event === "input" &&
+    frame.data.request_id === "wasm-concurrent-input-run";
+  const first = await waitForFrame(frames, isConcurrentInput);
+  assert.equal(frames.filter(isConcurrentInput).length, 1);
+  const firstPrompt = first.data.input.prompt;
+  assert.ok(Object.hasOwn(values, firstPrompt));
+  await answer(firstPrompt, values[firstPrompt]);
+  for (const [prompt, value] of Object.entries(values)) {
+    if (prompt !== firstPrompt) {
+      await answer(prompt, value);
+    }
+  }
+  await assertSucceeded(concurrent.body.id);
+}
+
+async function testIdleInterrupt(pyodide, notebook, notebookId, frames) {
+  const buffer = new Uint8Array(new SharedArrayBuffer(1));
+  pyodide.setInterruptBuffer(buffer);
+  const call = (operation, key, body) => notebook.call(JSON.stringify({
+    operation,
+    params: { notebook_id: notebookId },
+    headers: { "idempotency-key": key },
+    body,
+  }));
+  try {
+    buffer[0] = 2;
+    const receipt = JSON.parse(await call("runtime.interrupt", "idle-interrupt"));
+    assert.equal(receipt.status, 202);
+    assert.equal(buffer[0], 0, "The acknowledgement must not leave a pending signal");
+    const run = JSON.parse(await call("runtime.execute", "after-idle-interrupt", { code: "42" }));
+    assert.equal(run.status, 202);
+    const completed = await waitForFrame(frames, (frame) =>
+      frame.event === "run" && frame.data.run.id === run.body.id &&
+      frame.data.run.status === "completed",
+    );
+    assert.equal(completed.data.run.outcome, "succeeded");
+  } finally {
+    pyodide.setInterruptBuffer(undefined);
   }
 }
 
@@ -230,6 +352,8 @@ session, bridge = create_session(
     query_params={},
     user_config={},
 )
+# This script stands in for the editor's worker, whose user can answer a prompt.
+bridge.notebook.allow_input()
 await bridge.notebook.subscribe("messages", None, receive)
 
 # Run the session
@@ -246,7 +370,6 @@ print(f"Bridge created: {type(bridge).__name__}")
 # Verify bridge has expected methods
 expected_methods = [
     "put_control_request",
-    "put_input",
     "code_complete",
     "read_code",
     "read_snippets",
@@ -310,6 +433,7 @@ json.dumps(result)
       });
       assert.equal(frames.at(-1).event, "ready");
       const cell = frames.find((frame) => frame.event === "cell").data.cell;
+      await testIdleInterrupt(pyodide, notebook, cell.notebook_id, frames);
       const call = JSON.stringify({
         operation: "notebook.edit",
         params: { notebook_id: cell.notebook_id },
@@ -345,6 +469,8 @@ json.dumps(result)
         pyodide.FS.readFile("/home/pyodide/test_notebook.py", { encoding: "utf8" }),
         /x = 7/,
       );
+
+      await testHostInputs(notebook, cell.notebook_id, frames);
       notebook.unsubscribe("acceptance");
     } finally {
       notebook.destroy();

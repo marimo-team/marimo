@@ -18,13 +18,11 @@ vi.mock("@/utils/Logger", () => ({ Logger: Mocks.quietLogger() }));
 describe("RuntimeManager", () => {
   const mockConfig: RuntimeConfig = {
     url: "https://example.com",
-    lazy: true,
     authToken: "test-token",
   };
 
   const mockConfigWithoutToken: RuntimeConfig = {
     url: "http://localhost:8080",
-    lazy: true,
   };
 
   describe("constructor", () => {
@@ -45,7 +43,6 @@ describe("RuntimeManager", () => {
     it("should handle URLs without trailing slash", () => {
       const runtime = new RuntimeManager({
         url: "https://example.com/path",
-        lazy: true,
       });
       expect(runtime.httpURL.toString()).toBe("https://example.com/path");
     });
@@ -78,7 +75,6 @@ describe("RuntimeManager", () => {
     it("should preserve existing query params", () => {
       const runtime = new RuntimeManager({
         url: "http://example.com?foo=bar",
-        lazy: true,
       });
       const sessionId = "1234" as SessionId;
       const url = runtime.getWsURL(sessionId);
@@ -91,14 +87,10 @@ describe("RuntimeManager", () => {
   describe("cross-origin auth token in WS URLs", () => {
     it("should add access_token to WS URL when cross-origin with authToken", () => {
       // example.com is cross-origin relative to the test environment (localhost)
-      const runtime = new RuntimeManager(
-        {
-          url: "https://sandbox.example.com",
-          lazy: true,
-          authToken: "my-secret-token",
-        },
-        true,
-      );
+      const runtime = new RuntimeManager({
+        url: "https://sandbox.example.com",
+        authToken: "my-secret-token",
+      });
       const url = runtime.getWsURL("s_123" as SessionId);
 
       expect(url.searchParams.get("access_token")).toBe("my-secret-token");
@@ -106,41 +98,29 @@ describe("RuntimeManager", () => {
     });
 
     it("should not add access_token to WS URL when same-origin", () => {
-      const runtime = new RuntimeManager(
-        {
-          url: window.location.origin,
-          lazy: true,
-          authToken: "my-secret-token",
-        },
-        true,
-      );
+      const runtime = new RuntimeManager({
+        url: window.location.origin,
+        authToken: "my-secret-token",
+      });
       const url = runtime.getWsURL("s_123" as SessionId);
 
       expect(url.searchParams.get("access_token")).toBeNull();
     });
 
     it("should not add access_token when no authToken is configured", () => {
-      const runtime = new RuntimeManager(
-        {
-          url: "https://sandbox.example.com",
-          lazy: true,
-        },
-        true,
-      );
+      const runtime = new RuntimeManager({
+        url: "https://sandbox.example.com",
+      });
       const url = runtime.getWsURL("s_123" as SessionId);
 
       expect(url.searchParams.get("access_token")).toBeNull();
     });
 
     it("should add access_token to all WS URL types when cross-origin", () => {
-      const runtime = new RuntimeManager(
-        {
-          url: "https://sandbox.example.com",
-          lazy: true,
-          authToken: "my-secret-token",
-        },
-        true,
-      );
+      const runtime = new RuntimeManager({
+        url: "https://sandbox.example.com",
+        authToken: "my-secret-token",
+      });
 
       const wsUrl = runtime.getWsURL("s_123" as SessionId);
       const terminalUrl = runtime.getTerminalWsURL();
@@ -154,14 +134,10 @@ describe("RuntimeManager", () => {
 
   describe("formatNavigableHttpURL", () => {
     it("adds access_token when cross-origin with authToken", () => {
-      const runtime = new RuntimeManager(
-        {
-          url: "https://sandbox.example.com",
-          lazy: true,
-          authToken: "my-secret-token",
-        },
-        true,
-      );
+      const runtime = new RuntimeManager({
+        url: "https://sandbox.example.com",
+        authToken: "my-secret-token",
+      });
       const url = runtime.formatNavigableHttpURL(
         "api/files/download",
         new URLSearchParams({ path: "/tmp/data.csv" }),
@@ -173,14 +149,10 @@ describe("RuntimeManager", () => {
     });
 
     it("omits access_token when same-origin", () => {
-      const runtime = new RuntimeManager(
-        {
-          url: window.location.origin,
-          lazy: true,
-          authToken: "my-secret-token",
-        },
-        true,
-      );
+      const runtime = new RuntimeManager({
+        url: window.location.origin,
+        authToken: "my-secret-token",
+      });
       const url = runtime.formatNavigableHttpURL(
         "api/files/download",
         new URLSearchParams({ path: "/tmp/data.csv" }),
@@ -191,20 +163,16 @@ describe("RuntimeManager", () => {
     });
 
     it("omits access_token when no authToken configured", () => {
-      const runtime = new RuntimeManager(
-        { url: "https://sandbox.example.com", lazy: true },
-        true,
-      );
+      const runtime = new RuntimeManager({
+        url: "https://sandbox.example.com",
+      });
       const url = runtime.formatNavigableHttpURL("api/files/download");
 
       expect(url.searchParams.get("access_token")).toBeNull();
     });
 
     it("does not forward a page-inherited access_token when same-origin", () => {
-      const runtime = new RuntimeManager(
-        { url: window.location.origin, lazy: true },
-        true,
-      );
+      const runtime = new RuntimeManager({ url: window.location.origin });
       const original = window.location.href;
       window.history.replaceState({}, "", "/?access_token=page-token");
       try {
@@ -218,14 +186,10 @@ describe("RuntimeManager", () => {
 
   describe("getNotebookURL", () => {
     it("addresses the notebook below the host API without the auth token", () => {
-      const runtime = new RuntimeManager(
-        {
-          url: "https://sandbox.example.com/base",
-          lazy: true,
-          authToken: "my-secret-token",
-        },
-        true,
-      );
+      const runtime = new RuntimeManager({
+        url: "https://sandbox.example.com/base",
+        authToken: "my-secret-token",
+      });
       const url = runtime.getNotebookURL("n/1");
 
       expect(url.pathname).toBe("/base/api/marimo/v1/notebooks/n%2F1");
@@ -238,14 +202,10 @@ describe("RuntimeManager", () => {
       // SSE requests can send headers, so auth travels in the
       // Authorization header; a token in the URL would leak into
       // proxy and server logs.
-      const runtime = new RuntimeManager(
-        {
-          url: "https://sandbox.example.com",
-          lazy: true,
-          authToken: "my-secret-token",
-        },
-        true,
-      );
+      const runtime = new RuntimeManager({
+        url: "https://sandbox.example.com",
+        authToken: "my-secret-token",
+      });
       const url = runtime.getSseURL("s_123" as SessionId);
 
       expect(url.searchParams.get("access_token")).toBeNull();
@@ -303,7 +263,6 @@ describe("RuntimeManager", () => {
     it("should return copilot URL without non-auth query params", () => {
       const runtime = new RuntimeManager({
         url: "https://example.com?foo=bar&baz=qux",
-        lazy: true,
       });
       const url = runtime.getLSPURL("copilot");
 
@@ -314,14 +273,10 @@ describe("RuntimeManager", () => {
     });
 
     it("should preserve access_token on copilot URL when cross-origin", () => {
-      const runtime = new RuntimeManager(
-        {
-          url: "https://sandbox.example.com?foo=bar",
-          lazy: true,
-          authToken: "my-secret-token",
-        },
-        true,
-      );
+      const runtime = new RuntimeManager({
+        url: "https://sandbox.example.com?foo=bar",
+        authToken: "my-secret-token",
+      });
       const url = runtime.getLSPURL("copilot");
 
       expect(url.protocol).toBe("wss:");
@@ -332,14 +287,10 @@ describe("RuntimeManager", () => {
     });
 
     it("should not have access_token on copilot URL when same-origin", () => {
-      const runtime = new RuntimeManager(
-        {
-          url: window.location.origin,
-          lazy: true,
-          authToken: "my-secret-token",
-        },
-        true,
-      );
+      const runtime = new RuntimeManager({
+        url: window.location.origin,
+        authToken: "my-secret-token",
+      });
       const url = runtime.getLSPURL("copilot");
 
       expect(url.protocol).toBe("ws:");
@@ -431,13 +382,10 @@ describe("RuntimeManager", () => {
         url: "https://sandbox.example.com/health?some_value=abc123",
       });
 
-      const runtime = new RuntimeManager(
-        {
-          ...mockConfig,
-          url: "https://backend.example.com/lazy?some_value=abc123",
-        },
-        true,
-      );
+      const runtime = new RuntimeManager({
+        ...mockConfig,
+        url: "https://backend.example.com/lazy?some_value=abc123",
+      });
       const result = await runtime.probeHealth();
       expect(result).toBe(true);
       expect(runtime.httpURL.hostname).toBe("backend.example.com");
@@ -452,13 +400,10 @@ describe("RuntimeManager", () => {
         url: "https://sandbox.example.com/health?some_value=abc123",
       });
 
-      const runtime = new RuntimeManager(
-        {
-          ...mockConfig,
-          url: "https://backend.example.com/lazy?some_value=abc123",
-        },
-        true, // lazy — don't call init() in constructor
-      );
+      const runtime = new RuntimeManager({
+        ...mockConfig,
+        url: "https://backend.example.com/lazy?some_value=abc123",
+      });
       const result = await runtime.reconcileFromHealth();
 
       expect(result).toBe(true);
@@ -476,7 +421,7 @@ describe("RuntimeManager", () => {
 
   describe("waitForHealthy", () => {
     it("should resolve immediately if healthy", async () => {
-      const runtime = new RuntimeManager(mockConfig, true);
+      const runtime = new RuntimeManager(mockConfig);
 
       vi.spyOn(runtime, "reconcileFromHealth").mockResolvedValue(true);
       runtime.init();
@@ -485,7 +430,7 @@ describe("RuntimeManager", () => {
     });
 
     it("should retry and eventually succeed", async () => {
-      const runtime = new RuntimeManager(mockConfig, true);
+      const runtime = new RuntimeManager(mockConfig);
       const healthySpy = vi
         .spyOn(runtime, "reconcileFromHealth")
         .mockResolvedValueOnce(false)
@@ -499,7 +444,7 @@ describe("RuntimeManager", () => {
     });
 
     it("should throw after max retries", async () => {
-      const runtime = new RuntimeManager(mockConfig, true);
+      const runtime = new RuntimeManager(mockConfig);
       vi.spyOn(runtime, "reconcileFromHealth").mockResolvedValue(false);
       runtime.init({ disableRetryDelay: true });
 
@@ -610,7 +555,6 @@ describe("RuntimeManager", () => {
     it("should remove query params from base URI", async () => {
       const configWithQueryParams: RuntimeConfig = {
         url: "https://example.com/foo?param1=value1&param2=value2",
-        lazy: true,
         authToken: "test-token",
       };
 
@@ -634,7 +578,6 @@ describe("RuntimeManager", () => {
     it("should handle URLs with nested paths", () => {
       const runtime = new RuntimeManager({
         url: "https://example.com/nested/path/",
-        lazy: true,
       });
       const wsUrl = runtime.getWsURL("test" as SessionId);
       const aiUrl = runtime.getAiURL("completion");
@@ -649,14 +592,13 @@ describe("RuntimeManager", () => {
       Object.defineProperty(window, "location", {
         value: {
           ...originalLocation,
-          search: "?custom_param=value123&user_token=abc&theme=dark",
+          search: "?custom_param=value123&user_token=abc",
         },
         writable: true,
       });
 
       const runtime = new RuntimeManager({
         url: "https://example.com/path?base_param=existing",
-        lazy: true,
       });
 
       const wsUrl = runtime.getWsURL("test" as SessionId);
@@ -679,11 +621,9 @@ describe("RuntimeManager", () => {
         base_param: "existing",
         custom_param: "value123",
         user_token: "abc",
-        theme: "dark",
       });
       expect(httpUrl.searchParams.get("custom_param")).toBe("value123");
       expect(httpUrl.searchParams.get("user_token")).toBe("abc");
-      expect(httpUrl.searchParams.get("theme")).toBe("dark");
 
       // Should also include session_id for WebSocket URLs
       expect(wsUrl.searchParams.get("session_id")).toBe("test");
@@ -698,7 +638,6 @@ describe("RuntimeManager", () => {
     it("should handle URLs with query parameters and fragments", () => {
       const runtime = new RuntimeManager({
         url: "https://example.com/path?existing=param#fragment",
-        lazy: true,
       });
       const wsUrl = runtime.getWsURL("test" as SessionId);
 
@@ -710,18 +649,16 @@ describe("RuntimeManager", () => {
 
     it("should throw for invalid URLs", () => {
       expect(() => {
-        new RuntimeManager({ url: "not-a-url", lazy: true });
+        new RuntimeManager({ url: "not-a-url" });
       }).toThrow("Invalid runtime URL");
     });
 
     it("should handle http to ws conversion correctly", () => {
       const httpRuntime = new RuntimeManager({
         url: "http://localhost",
-        lazy: true,
       });
       const httpsRuntime = new RuntimeManager({
         url: "https://localhost",
-        lazy: true,
       });
 
       expect(httpRuntime.getWsURL("test" as SessionId).protocol).toBe("ws:");
@@ -731,7 +668,6 @@ describe("RuntimeManager", () => {
     it("should handle blob URLs", () => {
       const runtime = new RuntimeManager({
         url: "blob:https://example.com/12345678-1234-1234-1234-123456789abc",
-        lazy: true,
       });
 
       expect(runtime.httpURL.toString()).toBe(
@@ -742,7 +678,6 @@ describe("RuntimeManager", () => {
     it("warns when creating WebSocket URLs from blob URLs", () => {
       const runtime = new RuntimeManager({
         url: "blob:https://example.com/12345678-1234-1234-1234-123456789abc",
-        lazy: true,
       });
       const sessionId = "test" as SessionId;
 
@@ -755,7 +690,6 @@ describe("RuntimeManager", () => {
     it("should handle blob URLs in AI URLs", () => {
       const runtime = new RuntimeManager({
         url: "blob:https://example.com/12345678-1234-1234-1234-123456789abc",
-        lazy: true,
       });
       const aiUrl = runtime.getAiURL("completion");
 
@@ -768,7 +702,6 @@ describe("RuntimeManager", () => {
     it("should handle blob URLs in health check URLs", () => {
       const runtime = new RuntimeManager({
         url: "blob:https://example.com/12345678-1234-1234-1234-123456789abc",
-        lazy: true,
       });
       const healthUrl = runtime.healthURL();
 
@@ -781,7 +714,6 @@ describe("RuntimeManager", () => {
     it("should handle URLs with userinfo", () => {
       const runtime = new RuntimeManager({
         url: "https://user:pass@example.com",
-        lazy: true,
       });
       const wsUrl = runtime.getWsURL("test" as SessionId);
 
@@ -794,7 +726,6 @@ describe("RuntimeManager", () => {
     it("should handle IPv6 addresses", () => {
       const runtime = new RuntimeManager({
         url: "http://[::1]:8080",
-        lazy: true,
       });
       const wsUrl = runtime.getWsURL("test" as SessionId);
 
@@ -806,7 +737,6 @@ describe("RuntimeManager", () => {
     it("should handle URLs with encoded characters", () => {
       const runtime = new RuntimeManager({
         url: "https://example.com/path%20with%20spaces",
-        lazy: true,
       });
       const aiUrl = runtime.getAiURL("completion");
 
@@ -816,7 +746,6 @@ describe("RuntimeManager", () => {
     it("should handle URLs with multiple trailing slashes", () => {
       const runtime = new RuntimeManager({
         url: "https://example.com/path///",
-        lazy: true,
       });
       const aiUrl = runtime.getAiURL("completion");
 
@@ -826,7 +755,6 @@ describe("RuntimeManager", () => {
     it("should handle URLs with port numbers", () => {
       const runtime = new RuntimeManager({
         url: "https://example.com:9443/app",
-        lazy: true,
       });
       const wsUrl = runtime.getWsURL("test" as SessionId);
 
@@ -844,7 +772,7 @@ describe("RuntimeManager", () => {
       ];
 
       variants.forEach((url) => {
-        const runtime = new RuntimeManager({ url, lazy: true });
+        const runtime = new RuntimeManager({ url });
         const wsUrl = runtime.getWsURL("test" as SessionId);
         expect(wsUrl.protocol).toBe("ws:");
       });
@@ -853,7 +781,6 @@ describe("RuntimeManager", () => {
     it("should handle URLs with complex query parameters", () => {
       const runtime = new RuntimeManager({
         url: "https://example.com?param1=value1&param2=value%20encoded&empty=",
-        lazy: true,
       });
       const wsUrl = runtime.getWsURL("test" as SessionId);
 
@@ -866,7 +793,6 @@ describe("RuntimeManager", () => {
     it("should accept data URLs (valid URL format)", () => {
       const runtime = new RuntimeManager({
         url: "data:text/plain;base64,SGVsbG8gV29ybGQ=",
-        lazy: true,
       });
       expect(runtime.httpURL.protocol).toBe("data:");
     });
@@ -874,7 +800,6 @@ describe("RuntimeManager", () => {
     it("should accept file URLs (valid URL format)", () => {
       const runtime = new RuntimeManager({
         url: "file:///path/to/file",
-        lazy: true,
       });
       expect(runtime.httpURL.protocol).toBe("file:");
     });
@@ -882,14 +807,13 @@ describe("RuntimeManager", () => {
     it("should accept custom protocol URLs (valid URL format)", () => {
       const runtime = new RuntimeManager({
         url: "custom://example.com",
-        lazy: true,
       });
       expect(runtime.httpURL.protocol).toBe("custom:");
     });
 
     it("should handle empty string URL", () => {
       expect(() => {
-        new RuntimeManager({ url: "", lazy: true });
+        new RuntimeManager({ url: "" });
       }).toThrow("Invalid runtime URL");
     });
 
@@ -904,7 +828,7 @@ describe("RuntimeManager", () => {
 
       malformedUrls.forEach((url) => {
         expect(() => {
-          new RuntimeManager({ url, lazy: true });
+          new RuntimeManager({ url });
         }).toThrow("Invalid runtime URL");
       });
     });

@@ -18,7 +18,7 @@ permissions:
 jobs:
   sync-models:
     name: Sync models.dev catalog
-    runs-on: ubuntu-latest
+    runs-on: "${{ vars.CI_RUNNER_SMALL || 'ubuntu-latest' }}"
     timeout-minutes: 15
     env:
       BRANCH_NAME: automation/sync-llm-info-models

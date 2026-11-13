@@ -10,7 +10,6 @@ import {
   cellExecutionInputsAtom,
   cellExecutionView,
   cellFreshnessAtom,
-  withdrawCells,
 } from "@/core/executions";
 import type { CellColumnId } from "./layout";
 import { invariant } from "@/utils/invariant";
@@ -218,6 +217,7 @@ const {
           data: stdinOutput.data,
           timestamp: stdinOutput.timestamp,
           id: stdinOutput.id,
+          input_id: stdinOutput.input_id,
           // An empty response resolves the prompt without retaining the secret.
           response: stdinOutput.mimetype === "text/password" ? "" : response,
         };
@@ -550,7 +550,6 @@ export function releaseCellAtoms(cellId: CellId) {
   cellDataAtom.remove(cellId);
   cellRuntimeAtom.remove(cellId);
   cellHandleAtom.remove(cellId);
-  withdrawCells(store, [cellId]);
 }
 
 /** Subscribes to reactive updates of the cell's data. */

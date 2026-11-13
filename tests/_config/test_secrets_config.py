@@ -398,7 +398,7 @@ def test_redact_schema_sensitive_collections() -> None:
     original = config.to_dict()
     expected = config.to_dict()
     expected["completion"]["api_key"] = SECRET_PLACEHOLDER
-    expected["completion"]["codeium_api_key"] = SECRET_PLACEHOLDER
+    del expected["completion"]["codeium_api_key"]
     gateway = expected["ai"]["custom_providers"]["gateway"]
     gateway["api_key"] = SECRET_PLACEHOLDER
     del gateway["extra_headers"]
@@ -463,3 +463,29 @@ def test_redact_sensitive_collection_elements(
     assert redacted == expected
     assert _ElementSettingsConfig.from_dict(redacted).to_dict() == expected
     assert config == original
+
+
+def test_removed_codeium_credentials_are_not_exposed() -> None:
+    config = {
+        "completion": {
+            "codeium_api_key": "legacy-secret",
+            "auto_close_pairs": False,
+        }
+    }
+    assert redact_secrets_partial(config) == {
+        "completion": {"auto_close_pairs": False}
+    }
+    assert redact_secrets(
+        MarimoConfig.from_dict(config)
+    ).completion.to_dict() == {
+        "activate_on_typing": True,
+        "signature_hint_on_typing": False,
+        "copilot": False,
+        "auto_close_pairs": False,
+    }
+    assert config == {
+        "completion": {
+            "codeium_api_key": "legacy-secret",
+            "auto_close_pairs": False,
+        }
+    }

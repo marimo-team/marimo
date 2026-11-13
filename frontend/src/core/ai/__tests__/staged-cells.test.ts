@@ -47,7 +47,7 @@ vi.mock("@/components/editor/cell/useDeleteCell", () => ({
 }));
 
 vi.mock("@/core/network/requests", () => ({
-  getRequestClient: () => ({ sendRun: vi.fn() }),
+  getRequestClient: () => ({}),
 }));
 
 vi.mock("../../codemirror/language/cell-code", () => ({

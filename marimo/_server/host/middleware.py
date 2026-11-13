@@ -24,7 +24,7 @@ from marimo._server.host.auth import (
     host_header_ok,
     is_loopback,
 )
-from marimo._server.host.notebook_api import problem
+from marimo._server.host.notebook_api import problem, status_problem
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -59,10 +59,10 @@ class HostApiMiddleware:
         client = scope.get("client")
         context = getattr(request.app.state, "host_context", None)
         if context is None:
-            response = problem(404, "not-found", "This server is not a host")
+            response = problem("not-found", "This server is not a host")
         elif context.bridge.app_sessions is not None:
             response = problem(
-                404, "not-found", "App sessions do not expose a host catalog"
+                "not-found", "App sessions do not expose a host catalog"
             )
         elif self._for_editor(scope) and not bearer_matches(
             request.headers.get("Authorization"), context.token
@@ -72,18 +72,18 @@ class HostApiMiddleware:
             return
         elif client is None or not is_loopback(client[0]):
             response = problem(
-                403, "forbidden", "The host API answers only this machine"
+                "forbidden", "The host API answers only this machine"
             )
         elif not host_header_ok(request.headers.get("host"), context.port):
             # Reject remote domain names to prevent DNS rebinding attacks.
             response = problem(
-                403, "forbidden", "The host API answers only its own address"
+                "forbidden", "The host API answers only its own address"
             )
         elif not bearer_matches(
             request.headers.get("Authorization"), context.token
         ):
             response = problem(
-                401, "unauthorized", "Send the host record's token as a bearer"
+                "unauthorized", "Send the host record's token as a bearer"
             )
             response.headers["WWW-Authenticate"] = "Bearer"
         else:
@@ -114,7 +114,7 @@ class HostApiMiddleware:
                     # The server logs the failure once it ends the stream.
                     raise
                 LOGGER.exception("The host API failed on %s", scope["path"])
-                response = problem(500, "internal", "The host failed")
+                response = problem("internal", "The host failed")
                 await _respond(response, scope, receive, send)
             return
         await _respond(response, scope, receive, send)
@@ -152,7 +152,7 @@ async def _respond(
 def _router_problem(
     exc: HTTPException, scope: Scope, routes: Sequence[BaseRoute]
 ) -> Response:
-    response = problem(exc.status_code, detail=exc.detail)
+    response = status_problem(exc.status_code, exc.detail)
     if exc.status_code == 405:
         # The router names only the first route that matched the path, but
         # a path can be declared once per method.

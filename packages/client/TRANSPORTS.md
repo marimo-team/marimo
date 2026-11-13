@@ -10,18 +10,21 @@ snapshot. Otherwise, the transport sends the cursor to the host to resume
 after that position.
 
 Call `open()` when the connection is established. Call `message(event)` for
-each decoded protocol event, in order. Close the connection when the signal
-is aborted.
+each decoded envelope, in order, with `event`, `data`, and an optional `id`.
+The stream validates the protocol payload. Close the connection when the
+signal is aborted.
 
 Resolve when the connection ends and another attempt makes sense. Reject
 when the stream should stop. The stream's `closed` promise rejects with the
 same error. Use `StreamStopped` to describe the failure. Calls to `open()` or
 `message(event)` after the promise settles are ignored.
 
-The stream validates events, tracks the cursor, delivers events to
-subscribers, and reconnects. It delivers `reset` when an interrupted snapshot
-must be discarded. The host must also send `reset` when it cannot resume
-from the supplied cursor.
+The stream validates known events, tracks the cursor, delivers events to
+subscribers, and reconnects. Malformed known events stop the stream. Unknown
+event names retain their cursor and are ignored unless explicitly requested
+through `types`; requested extension events carry unvalidated data.
+It delivers `reset` when an interrupted snapshot must be discarded. The host
+must also send `reset` when it cannot resume from the supplied cursor.
 
 The transport sends any filters the host needs. The stream's `types` option
 filters delivered events locally. A notebook transport must apply `runId`
@@ -56,3 +59,27 @@ throws, the frame keeps its original text.
 
 See the [transport contract](src/transport/frame.ts) for the function and
 event types.
+
+## Editor session connections
+
+marimo's editor uses the `/ws` and `/sse` session routes, which establish
+an editor session before streaming events. These routes have session-specific
+connection options in addition to the host protocol's event behavior.
+See the [session endpoints](../../marimo/_server/api/endpoints/ws_endpoint.py)
+for their implementation.
+
+Pass connection options such as `session_id`, `types`, and `cursor` as
+top-level URL parameters. The host notebook event endpoint accepts `run_id`;
+the editor session routes reject that filter.
+
+Forward notebook page parameters inside the `query_params` parameter as an
+encoded query string. For example, a page query of
+`?types=scatter&tag=a&tag=b` becomes
+`query_params=types%3Dscatter%26tag%3Da%26tag%3Db` on the connection URL.
+It does not change the stream's `types` filter, and repeated values are
+preserved. Missing or empty `query_params` supplies no notebook parameters;
+top-level connection parameters are not forwarded as notebook parameters.
+
+The editor's native `marimo` extension event has an application-specific
+payload. A transport can request that event explicitly and decode its data
+in the frontend; it is not part of the stable host event union.

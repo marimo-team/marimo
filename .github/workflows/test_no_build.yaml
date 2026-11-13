@@ -29,7 +29,7 @@ env:
 jobs:
   Test:
     name: Python ${{ matrix.python-version }}
-    runs-on: ubuntu-latest
+    runs-on: "${{ vars.CI_RUNNER_SMALL || 'ubuntu-latest' }}"
     strategy:
       fail-fast: false
       matrix:

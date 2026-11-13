@@ -1,11 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
-import { atom, useAtom, useAtomValue } from "jotai";
-import useEvent from "react-use-event-hook";
-import { Logger } from "@/utils/Logger";
-import { connectionAtom } from "../network/connection";
+import { atom, useAtomValue } from "jotai";
 import { store } from "../state/jotai";
-import { isAppNotStarted } from "../session/connection-utils";
-import { ConnectionState } from "../session/types";
 import { RuntimeManager } from "./runtime";
 import type { RuntimeConfig } from "./types";
 
@@ -17,31 +12,16 @@ function getBaseURI(): string {
 }
 
 export const DEFAULT_RUNTIME_CONFIG: RuntimeConfig = {
-  lazy: true,
   url: getBaseURI(),
 };
 
 export const runtimeConfigAtom = atom<RuntimeConfig>(DEFAULT_RUNTIME_CONFIG);
-const runtimeManagerAtom = atom<RuntimeManager>((get) => {
-  const config = get(runtimeConfigAtom);
-  return new RuntimeManager(config, config.lazy);
-});
+const runtimeManagerAtom = atom<RuntimeManager>(
+  (get) => new RuntimeManager(get(runtimeConfigAtom)),
+);
 
 export function useRuntimeManager(): RuntimeManager {
   return useAtomValue(runtimeManagerAtom);
-}
-
-export function useConnectToRuntime(): () => Promise<void> {
-  const runtimeManager = useRuntimeManager();
-  const [connection, setConnection] = useAtom(connectionAtom);
-  return useEvent(async () => {
-    if (isAppNotStarted(connection.state)) {
-      setConnection({ state: ConnectionState.CONNECTING });
-      await runtimeManager.init();
-    } else {
-      Logger.log("Runtime already started or starting...");
-    }
-  });
 }
 
 /**

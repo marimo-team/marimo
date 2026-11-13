@@ -84,7 +84,12 @@ export const UserConfigSchema = z
         signature_hint_on_typing: z.boolean().prefault(false),
         auto_close_pairs: z.boolean().prefault(true),
         copilot: z
-          .union([z.boolean(), z.enum(["github", "codeium", "custom"])])
+          .union([
+            z.boolean(),
+            z.enum(["github", "custom"]),
+            // Disable legacy Codeium selections without resetting other settings.
+            z.literal("codeium").transform(() => false as const),
+          ])
           .prefault(false)
           .transform((copilot) => {
             if (copilot === true) {
@@ -92,7 +97,6 @@ export const UserConfigSchema = z
             }
             return copilot;
           }),
-        codeium_api_key: z.string().nullish(),
       })
       .prefault({}),
     save: z

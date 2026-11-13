@@ -612,6 +612,8 @@ components:
                 propertyName: type
             type: array
           - type: object
+        input_id:
+          type: string
         mimetype:
           enum:
           - application/json
@@ -748,8 +750,6 @@ components:
           - type: string
           - type: 'null'
           default: null
-        includeOtherCode:
-          type: string
         model:
           anyOf:
           - type: string
@@ -778,7 +778,6 @@ components:
           - type: 'null'
           default: null
       required:
-      - includeOtherCode
       - uiMessages
       title: ChatRequest
       type: object
@@ -970,20 +969,14 @@ components:
           deprecated: true
           description: Deprecated completion API endpoint. Use an AI provider configuration
             instead.
-        codeium_api_key:
-          anyOf:
-          - type: string
-          - type: 'null'
-          description: the Codeium API key
         copilot:
           anyOf:
           - type: boolean
           - enum:
-            - codeium
             - custom
             - github
           default: false
-          description: one of `"github"`, `"codeium"`, or `"custom"`
+          description: one of `"github"` or `"custom"`
         model:
           anyOf:
           - type: string
@@ -2036,26 +2029,6 @@ components:
       - type
       - executionRequests
       title: ExecuteCellsCommand
-      type: object
-    ExecuteCellsRequest:
-      properties:
-        cellIds:
-          items:
-            $ref: '#/components/schemas/CellId'
-          type: array
-        codes:
-          items:
-            type: string
-          type: array
-        request:
-          anyOf:
-          - $ref: '#/components/schemas/HTTPRequest'
-          - type: 'null'
-          default: null
-      required:
-      - cellIds
-      - codes
-      title: ExecuteCellsRequest
       type: object
     ExecuteScratchpadCommand:
       description: "Execute code in the scratchpad.\n\nThe scratchpad is a temporary\
@@ -4479,7 +4452,6 @@ components:
       - $ref: '#/components/schemas/ModelLifecycleNotification'
       - $ref: '#/components/schemas/RemoveUIElementsNotification'
       - $ref: '#/components/schemas/ReloadNotification'
-      - $ref: '#/components/schemas/ReconnectedNotification'
       - $ref: '#/components/schemas/InterruptedNotification'
       - $ref: '#/components/schemas/CompletedRunNotification'
       - $ref: '#/components/schemas/KernelReadyNotification'
@@ -4546,7 +4518,6 @@ components:
           query-params-clear: '#/components/schemas/QueryParamsClearNotification'
           query-params-delete: '#/components/schemas/QueryParamsDeleteNotification'
           query-params-set: '#/components/schemas/QueryParamsSetNotification'
-          reconnected: '#/components/schemas/ReconnectedNotification'
           reload: '#/components/schemas/ReloadNotification'
           remove-ui-elements: '#/components/schemas/RemoveUIElementsNotification'
           secret-keys-result: '#/components/schemas/SecretKeysResultNotification'
@@ -5021,16 +4992,6 @@ components:
       required:
       - files
       title: RecentFilesResponse
-      type: object
-    ReconnectedNotification:
-      description: WebSocket reconnection confirmed.
-      properties:
-        op:
-          enum:
-          - reconnected
-      required:
-      - op
-      title: ReconnectedNotification
       type: object
     ReloadNotification:
       description: Instructs frontend to reload the page.
@@ -6060,14 +6021,6 @@ components:
       - logs
       - log_mode
       title: StartupProgressNotification
-      type: object
-    StdinRequest:
-      properties:
-        text:
-          type: string
-      required:
-      - text
-      title: StdinRequest
       type: object
     StorageDownloadReadyNotification:
       description: "Signals that a storage file download is ready.\n\nThe url may\
@@ -7885,21 +7838,6 @@ paths:
                 $ref: '#/components/schemas/SuccessResponse'
           description: Instantiate a component. Only allowed in edit mode; in run
             mode, instantiation happens server-side automatically.
-  /api/kernel/interrupt:
-    post:
-      parameters:
-      - in: header
-        name: Marimo-Session-Id
-        required: true
-        schema:
-          type: string
-      responses:
-        200:
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/SuccessResponse'
-          description: Interrupt the kernel's execution
   /api/kernel/pdb/breakpoints:
     post:
       parameters:
@@ -7994,27 +7932,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/SuccessResponse'
           description: Restart the current session without affecting other sessions.
-  /api/kernel/run:
-    post:
-      parameters:
-      - in: header
-        name: Marimo-Session-Id
-        required: true
-        schema:
-          type: string
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ExecuteCellsRequest'
-      responses:
-        200:
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/SuccessResponse'
-          description: Run a cell. Updates cell code in the kernel if needed; registers
-            new cells for unseen cell IDs. Only allowed in edit mode.
   /api/kernel/save_app_config:
     post:
       parameters:
@@ -8170,26 +8087,6 @@ paths:
             means at least one cell is queued or running; `idle` means the kernel
             is alive but not executing; `stopped` means the kernel process is not
             running.
-  /api/kernel/stdin:
-    post:
-      parameters:
-      - in: header
-        name: Marimo-Session-Id
-        required: true
-        schema:
-          type: string
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/StdinRequest'
-      responses:
-        200:
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/SuccessResponse'
-          description: Send input to the stdin stream
   /api/kernel/takeover:
     post:
       parameters:

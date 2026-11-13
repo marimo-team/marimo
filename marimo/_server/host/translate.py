@@ -281,6 +281,26 @@ class RunTranslator:
         )
         out: list[be.Message] = []
         for entry in entries:
+            if entry is not None and entry.channel == CellChannel.STDIN:
+                if (
+                    not execution.ended
+                    and not self._finished
+                    and isinstance(entry.input_id, str)
+                ):
+                    out.append(
+                        be.Produced(
+                            protocol.Input(
+                                id=protocol.ItemId(entry.input_id),
+                                execution_id=execution.id,
+                                seq=execution.seq,
+                                prompt=str(entry.data),
+                                password=entry.mimetype == "text/password",
+                                status="pending",
+                            )
+                        )
+                    )
+                    execution.seq += 1
+                continue
             if entry is None or entry.channel not in (
                 CellChannel.STDOUT,
                 CellChannel.STDERR,

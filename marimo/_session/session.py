@@ -15,6 +15,7 @@ from uuid import uuid4
 from marimo import _loggers
 from marimo._config.manager import MarimoConfigManager, ScriptConfigReader
 from marimo._core.ids import mint
+from marimo._messaging.input import InputReply, deliver_reply
 from marimo._messaging.notebook.document import NotebookDocument
 from marimo._messaging.notification import (
     NotificationMessage,
@@ -429,9 +430,12 @@ class SessionImpl(Session):
             self.room.get_capabilities(consumer), type(request)
         )
 
-    def put_input(self, text: str) -> None:
-        """Put an input() request in the input queue."""
-        self._event_bus.emit_received_stdin(self, text)
+    def reply_input(self, reply: InputReply) -> None:
+        queue = self.extensions.get(QueueExtension)
+        if queue is None or self._closed:
+            raise RuntimeError("The session waiting for input has closed")
+        deliver_reply(queue.queue_manager.input_queue, reply)
+        self.session_view.add_stdin(reply.value, input_id=reply.input_id)
 
     def disconnect_consumer(self, session_consumer: SessionConsumer) -> None:
         """

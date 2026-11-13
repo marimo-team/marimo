@@ -38,7 +38,7 @@ _chart = (_pie + _text).properties(width="container")
 _chart
 
 # date
-_base = alt.Chart(df).transform_filter(f"datum.some_column != null")
+_base = alt.Chart(df).transform_filter("datum.some_column != null")
 
 # Explicit time binning, create a new field
 _transformed = _base.transform_timeunit(
@@ -109,7 +109,7 @@ _chart = alt.layer(_area, _points, _rule).properties(width="container").configur
 _chart
 
 # datetime
-_base = alt.Chart(df).transform_filter(f"datum.some_column != null")
+_base = alt.Chart(df).transform_filter("datum.some_column != null")
 
 # Explicit time binning, create a new field
 _transformed = _base.transform_timeunit(
@@ -180,7 +180,7 @@ _chart = alt.layer(_area, _points, _rule).properties(width="container").configur
 _chart
 
 # time
-_base = alt.Chart(df).transform_filter(f"datum.some_column != null")
+_base = alt.Chart(df).transform_filter("datum.some_column != null")
 
 # Explicit time binning, create a new field
 _transformed = _base.transform_timeunit(

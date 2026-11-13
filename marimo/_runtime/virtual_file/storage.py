@@ -164,7 +164,9 @@ class SharedMemoryStorage(VirtualFileStorage):
         try:
             shm = shared_memory.SharedMemory(name=key)
             view = shm.buf[start : start + byte_length]
-            for i in range(0, byte_length, chunk_size):
+            # The slice is shorter than `byte_length` if it reaches the end
+            # of the buffer.
+            for i in range(0, len(view), chunk_size):
                 yield bytes(view[i : i + chunk_size])
         except FileNotFoundError as err:
             raise KeyError(f"Virtual file not found: {key}") from err

@@ -17,8 +17,13 @@ it("generates a stable protocol that tolerates experimental stream events", () =
       "--output-dir",
       output,
     ];
-    NodeChildProcess.execFileSync("node", command, { stdio: "pipe" });
+    // The stable protocol, as the host protocol package prints it.
+    const input = NodeChildProcess.execFileSync("node", [
+      NodePath.join(root, "../host-protocol/scripts/openapi.ts"),
+    ]);
+    NodeChildProcess.execFileSync("node", command, { input, stdio: "pipe" });
     NodeChildProcess.execFileSync("node", [...command, "--check"], {
+      input,
       stdio: "pipe",
     });
     NodeFs.mkdirSync(NodePath.join(output, "transport"));

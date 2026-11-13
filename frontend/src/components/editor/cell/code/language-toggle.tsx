@@ -16,7 +16,8 @@ interface LanguageTogglesProps {
   editorViewRef: React.RefObject<EditorView | null>;
   code: string;
   currentLanguageAdapter: LanguageAdapter["type"] | undefined;
-  onAfterToggle: () => void;
+  onAfterToggleSQL: () => void;
+  onAfterToggleMarkdown: () => void;
   /**
    * Classes for the wrapper element. Defaults to the absolutely-positioned,
    * hover-revealed placement used inside the notebook cell editor.
@@ -28,7 +29,8 @@ export const LanguageToggles: React.FC<LanguageTogglesProps> = ({
   editorViewRef,
   code,
   currentLanguageAdapter,
-  onAfterToggle,
+  onAfterToggleSQL,
+  onAfterToggleMarkdown,
   className = "absolute right-3 top-2 z-20 flex hover-action gap-1",
 }) => {
   const canUseMarkdown = useMemo(
@@ -55,7 +57,7 @@ export const LanguageToggles: React.FC<LanguageTogglesProps> = ({
         }
         toType="sql"
         displayName="SQL"
-        onAfterToggle={onAfterToggle}
+        onAfterToggle={onAfterToggleSQL}
       />
       <LanguageToggle
         editorViewRef={editorViewRef}
@@ -72,7 +74,7 @@ export const LanguageToggles: React.FC<LanguageTogglesProps> = ({
         }
         toType="markdown"
         displayName="Markdown"
-        onAfterToggle={onAfterToggle}
+        onAfterToggle={onAfterToggleMarkdown}
       />
       <LanguageToggle
         editorViewRef={editorViewRef}

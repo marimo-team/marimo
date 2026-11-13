@@ -610,7 +610,7 @@ class PyLspServer(BaseLspServer):
 
         try:
             result = subprocess.run(
-                [sys.executable, "-m", "pylsp", "--version"],
+                [sys.executable, "-P", "-m", "pylsp", "--version"],
                 capture_output=True,
                 text=True,
                 timeout=5,
@@ -629,6 +629,7 @@ class PyLspServer(BaseLspServer):
 
         return [
             sys.executable,
+            "-P",
             "-m",
             "marimo._server._pylsp",
             "--port",

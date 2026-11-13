@@ -266,6 +266,13 @@ class Host:
             raise NotFound(f"no notebook {notebook_id}")
         return entry.log.run(run_id)
 
+    def input(self, notebook_id: str, input_id: str) -> protocol.Input | None:
+        """Find an input retained with a completed scratch execution."""
+        entry = self._entries.get(notebook_id)
+        if entry is None:
+            raise NotFound(f"no notebook {notebook_id}")
+        return entry.log.input(input_id)
+
     def _snapshot(
         self, notebook_id: protocol.NotebookId | None = None
     ) -> list[RoutedEvent]:

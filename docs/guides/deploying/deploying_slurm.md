@@ -22,7 +22,7 @@ Create a script (`run_marimo.sh`):
 
 # module load or otherwise set up environment
 
-python -m marimo edit notebook.py --headless --port 3000
+marimo edit notebook.py --headless --port 3000
 ```
 
 Submit it:
@@ -105,7 +105,7 @@ Add GPU resources to your SBATCH directives:
 
 # module load or otherwise set up environment
 
-python -m marimo edit notebook.py --headless --port 3000
+marimo edit notebook.py --headless --port 3000
 ```
 
 ///

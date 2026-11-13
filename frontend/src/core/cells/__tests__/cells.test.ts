@@ -18,11 +18,6 @@ import {
   vi,
 } from "vitest";
 import { MockExecutions } from "@/__mocks__/executions";
-import {
-  notebookQueuedOrRunningCountAtom,
-  submitCells,
-} from "@/core/executions";
-import { store } from "@/core/state/jotai";
 import { MockNotebook } from "@/__mocks__/notebook";
 import { cellId } from "@/__tests__/branded";
 import type { CellHandle } from "@/components/editor/notebook-cell";
@@ -94,7 +89,6 @@ function createEditor(content: string) {
           activate_on_typing: true,
           signature_hint_on_typing: false,
           copilot: false,
-          codeium_api_key: null,
         },
         hotkeys: new OverridingHotkeyProvider({}),
         placeholderType: "marimo-import",
@@ -1108,15 +1102,6 @@ describe("cell reducer", () => {
       expect(runtimeAtom2).toBe(runtimeAtom1);
       expect(handleAtom2).toBe(handleAtom1);
     });
-  });
-  it("withdraws the submission of a cell that leaves the document", () => {
-    MockExecutions.seed(store, []);
-    submitCells(store, [firstCellId]);
-    expect(store.get(notebookQueuedOrRunningCountAtom)).toBe(1);
-
-    actions.reconcileDocument({ order: [], cells: new Map() });
-
-    expect(store.get(notebookQueuedOrRunningCountAtom)).toBe(0);
   });
 });
 

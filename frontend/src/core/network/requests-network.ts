@@ -94,25 +94,9 @@ export function createNetworkRequests(): EditRequests & RunRequests {
         })
         .then(handleResponse);
     },
-    sendInterrupt: () => {
-      return getClient()
-        .POST("/api/kernel/interrupt", {
-          params: getParams(),
-        })
-        .then(handleResponseReturnNull);
-    },
     sendShutdown: () => {
       return getClient()
         .POST("/api/kernel/shutdown")
-        .then(handleResponseReturnNull);
-    },
-    sendRun: async (request) => {
-      await waitForConnectionOpen();
-      return getClient()
-        .POST("/api/kernel/run", {
-          body: request,
-          params: getParams(),
-        })
         .then(handleResponseReturnNull);
     },
     sendRunScratchpad: async (request) => {
@@ -169,14 +153,6 @@ export function createNetworkRequests(): EditRequests & RunRequests {
     sendFunctionRequest: (request) => {
       return getClient()
         .POST("/api/kernel/function_call", {
-          body: request,
-          params: getParams(),
-        })
-        .then(handleResponseReturnNull);
-    },
-    sendStdin: (request) => {
-      return getClient()
-        .POST("/api/kernel/stdin", {
           body: request,
           params: getParams(),
         })

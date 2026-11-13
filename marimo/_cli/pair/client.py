@@ -280,11 +280,11 @@ def _raise_for_status(response: HTTPResponse) -> None:
     if response.status == 404:
         raise StaleNotebookError(detail or "Unknown notebook.")
     if (
-        problem == "tag:marimo.io,2026:host/no-runtime"
+        problem == "urn:marimo:problem:no-runtime"
         or detail == "The notebook has no running session."
     ):
         raise NoRuntimeError(detail or "The notebook has no running kernel.")
-    if problem == "tag:marimo.io,2026:host/conflict":
+    if problem == "urn:marimo:problem:conflict":
         raise RunConflictError(detail or "The host refused the run.")
     if detail:
         raise PairError(detail)

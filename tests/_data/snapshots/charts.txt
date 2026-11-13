@@ -29,7 +29,7 @@ _chart
 # date
 _chart = (
     alt.Chart(df)
-    .transform_filter(f"datum.some_column != null")
+    .transform_filter("datum.some_column != null")
     .transform_timeunit(as_="_some_column", field="some_column", timeUnit="yearmonthdate")
     .mark_area()
     .encode(
@@ -46,7 +46,7 @@ _chart
 # datetime
 _chart = (
     alt.Chart(df)
-    .transform_filter(f"datum.some_column != null")
+    .transform_filter("datum.some_column != null")
     .transform_timeunit(as_="_some_column", field="some_column", timeUnit="yearmonthdate")
     .mark_area()
     .encode(
@@ -63,7 +63,7 @@ _chart
 # time
 _chart = (
     alt.Chart(df)
-    .transform_filter(f"datum.some_column != null")
+    .transform_filter("datum.some_column != null")
     .transform_timeunit(as_="_some_column", field="some_column", timeUnit="yearmonthdate")
     .mark_area()
     .encode(

@@ -15,11 +15,9 @@ const knownQueryParams = new Set(Object.values(KnownQueryParams));
 export class RuntimeManager {
   private initialHealthyCheck = new Deferred<void>();
   private config: RuntimeConfig;
-  private lazy: boolean;
 
-  public constructor(config: RuntimeConfig, lazy = false) {
+  public constructor(config: RuntimeConfig) {
     this.config = config;
-    this.lazy = lazy;
     // Validate the URL on construction
     try {
       new URL(this.config.url);
@@ -29,14 +27,6 @@ export class RuntimeManager {
         { cause: error },
       );
     }
-
-    if (!this.lazy) {
-      this.init();
-    }
-  }
-
-  public get isLazy(): boolean {
-    return this.lazy;
   }
 
   public get httpURL(): URL {
@@ -47,7 +37,7 @@ export class RuntimeManager {
     return this.httpURL.origin === window.location.origin;
   }
 
-  private get isServerless(): boolean {
+  public get isServerless(): boolean {
     return isWasm() || isIslands() || isStaticNotebook();
   }
 

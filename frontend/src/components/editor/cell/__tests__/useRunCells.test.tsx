@@ -1,169 +1,151 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
+import type * as Protocol from "@marimo-team/client/protocol";
 import { act, renderHook } from "@testing-library/react";
-import { Provider } from "jotai";
+import { atom, Provider } from "jotai";
 import type { ReactNode } from "react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { MockExecutions } from "@/__mocks__/executions";
 import { MockNotebook } from "@/__mocks__/notebook";
-import { MockRequestClient } from "@/__mocks__/requests";
 import { cellId } from "@/__tests__/branded";
 import { notebookAtom } from "@/core/cells/cells";
-import {
-  cellExecutionInputsAtom,
-  cellExecutionView,
-  notebookQueuedOrRunningCountAtom,
-} from "@/core/executions";
-import { requestClientAtom } from "@/core/network/requests";
 import type { DocumentModel } from "@/core/notebook/document";
 import {
   cell,
   document as documentOf,
   withCells,
 } from "@/core/notebook/document/__tests__/fixtures";
+import {
+  type FakeRun,
+  fakeBackend,
+} from "@/core/notebook/replica/__tests__/fixtures";
 import { activeDocumentModelAtom } from "@/core/session/active-notebook";
 import { store } from "@/core/state/jotai";
-import { runCells, useRunStaleCells } from "../useRunCells";
+import { useRunStaleCells } from "../useRunCells";
 
-const ENABLED = cellId("enabled");
-const DISABLED = cellId("disabled");
+const toast = vi.fn();
+vi.mock("@/components/ui/use-toast", () => ({
+  toast: (...args: unknown[]) => toast(...args),
+}));
 
-describe("runCells", () => {
-  it("sends a disabled cell to the kernel without reading it as queued", async () => {
-    MockExecutions.seed(store, []);
-    const notebook = MockNotebook.notebookState({
-      cellData: {
-        [ENABLED]: { code: "x = 1" },
-        [DISABLED]: { code: "y = 2", config: { disabled: true } },
-      },
-    });
-    const sendRun = vi.fn(async () => null);
+const C1 = cellId("c1");
+const C2 = cellId("c2");
 
-    await runCells({
-      cellIds: [ENABLED, DISABLED],
-      sendRun,
-      prepareForRun: vi.fn(),
-      notebook,
-    });
+const wrapper = ({ children }: { children: ReactNode }) => (
+  <Provider store={store}>{children}</Provider>
+);
 
-    expect(sendRun).toHaveBeenCalledWith({
-      cellIds: [ENABLED, DISABLED],
-      codes: ["x = 1", "y = 2"],
-    });
-    const inputs = store.get(cellExecutionInputsAtom);
-    expect(cellExecutionView(inputs, ENABLED).status).toBe("queued");
-    expect(cellExecutionView(inputs, DISABLED).status).toBe("idle");
-    expect(store.get(notebookQueuedOrRunningCountAtom)).toBe(1);
-  });
-});
+function accepted(cells: Protocol.CellId[]): Protocol.Run {
+  return {
+    id: "run-1",
+    notebook_id: "n1",
+    runtime_id: "r1",
+    cells,
+    status: "queued",
+    outcome: null,
+    started_at: null,
+    completed_at: null,
+  };
+}
 
 describe("useRunStaleCells", () => {
-  const C1 = cellId("c1");
-  const C2 = cellId("c2");
+  let run: ReturnType<typeof vi.fn<FakeRun>>;
+
+  beforeEach(() => {
+    toast.mockClear();
+    run = vi.fn<FakeRun>(async (_notebookId, request) => ({
+      ok: true,
+      status: 202,
+      data: accepted(request.cells?.map((cell) => cell.id) ?? []),
+    }));
+  });
 
   afterEach(() => {
     store.set(activeDocumentModelAtom, null);
   });
 
-  it("flushes pending edits before choosing the stale cells", async () => {
+  function seed(records: Protocol.Execution[]) {
     const document = documentOf();
     const replica = MockExecutions.seed(
       store,
-      [
-        MockExecutions.completed(C1, { code_fingerprint: "c1-hash" }),
-        MockExecutions.completed(C2, { code_fingerprint: "c2-hash" }),
-      ],
-      null,
+      records,
+      MockExecutions.runtime("running"),
       document,
     );
+    store.set(replica.backendAtom, fakeBackend({ run }));
+    return { replica, document };
+  }
+
+  function model(sync: () => Promise<Protocol.Document>) {
+    store.set(activeDocumentModelAtom, {
+      retry: sync,
+      documentAtom: atom(null),
+    } as unknown as DocumentModel);
+  }
+
+  it("syncs pending edits before choosing the stale cells", async () => {
+    const { replica, document } = seed([
+      MockExecutions.completed(C1, { code_fingerprint: "c1-hash" }),
+      MockExecutions.completed(C2, { code_fingerprint: "c2-hash" }),
+    ]);
     store.set(
       notebookAtom,
       MockNotebook.notebookState({
         cellData: { [C1]: { code: "x = 2" }, [C2]: { code: "y = 2" } },
       }),
     );
-    const client = MockRequestClient.create();
-    store.set(requestClientAtom, client);
-    // The edit to c1 is still in flight: the host confirms it on flush.
-    const flush = vi.fn(async () => {
+    // The edit to c1 is still in flight: the host confirms it on sync.
+    const sync = vi.fn(async () => {
       await new Promise((resolve) => setTimeout(resolve, 0));
-      store.set(
-        replica.documentAtom,
-        withCells(document, {
-          [C1]: cell(C1, "x = 2", { code_fingerprint: "c1-hash-2" }),
-        }),
-      );
+      const confirmed = withCells(document, {
+        [C1]: cell(C1, "x = 2", { code_fingerprint: "c1-hash-2" }),
+      });
+      store.set(replica.documentAtom, confirmed);
+      return confirmed.revision;
     });
-    store.set(activeDocumentModelAtom, { flush } as unknown as DocumentModel);
-    const wrapper = ({ children }: { children: ReactNode }) => (
-      <Provider store={store}>{children}</Provider>
-    );
+    model(sync);
     const { result } = renderHook(useRunStaleCells, { wrapper });
 
     await act(() => result.current());
 
-    expect(flush).toHaveBeenCalledOnce();
-    expect(client.sendRun).toHaveBeenCalledWith({
-      cellIds: [C1],
-      codes: ["x = 2"],
-    });
+    expect(sync).toHaveBeenCalled();
+    expect(run).toHaveBeenCalledWith("n1", { cells: [{ id: C1 }] });
   });
 
   it("does nothing when the notebook changed while the flush was pending", async () => {
-    MockExecutions.seed(
-      store,
-      [MockExecutions.completed(C1, { code_fingerprint: "stale" })],
-      null,
-      documentOf(),
-    );
+    seed([MockExecutions.completed(C1, { code_fingerprint: "stale" })]);
     store.set(
       notebookAtom,
       MockNotebook.notebookState({ cellData: { [C1]: { code: "x = 1" } } }),
     );
-    const client = MockRequestClient.create();
-    store.set(requestClientAtom, client);
-    const flush = vi.fn(async () => {
+    model(async () => {
       store.set(activeDocumentModelAtom, null);
       throw new Error("aborted");
     });
-    store.set(activeDocumentModelAtom, { flush } as unknown as DocumentModel);
-    const wrapper = ({ children }: { children: ReactNode }) => (
-      <Provider store={store}>{children}</Provider>
-    );
     const { result } = renderHook(useRunStaleCells, { wrapper });
 
     await act(() => result.current());
 
-    expect(client.sendRun).not.toHaveBeenCalled();
+    expect(run).not.toHaveBeenCalled();
+    expect(toast).not.toHaveBeenCalled();
   });
 
-  it("still runs what is stale when the flush fails", async () => {
-    MockExecutions.seed(
-      store,
-      [MockExecutions.completed(C1, { code_fingerprint: "stale" })],
-      null,
-      documentOf(),
-    );
+  it("runs nothing while edits cannot reach the host", async () => {
+    seed([MockExecutions.completed(C1, { code_fingerprint: "stale" })]);
     store.set(
       notebookAtom,
       MockNotebook.notebookState({ cellData: { [C1]: { code: "x = 1" } } }),
     );
-    const client = MockRequestClient.create();
-    store.set(requestClientAtom, client);
-    const flush = vi.fn(async () => {
+    model(async () => {
       throw new Error("offline");
     });
-    store.set(activeDocumentModelAtom, { flush } as unknown as DocumentModel);
-    const wrapper = ({ children }: { children: ReactNode }) => (
-      <Provider store={store}>{children}</Provider>
-    );
     const { result } = renderHook(useRunStaleCells, { wrapper });
 
     await act(() => result.current());
 
-    expect(client.sendRun).toHaveBeenCalledWith({
-      cellIds: [C1],
-      codes: ["x = 1"],
-    });
+    expect(run).not.toHaveBeenCalled();
+    expect(toast).toHaveBeenCalledWith(
+      expect.objectContaining({ title: "Edits not yet synced" }),
+    );
   });
 });
