@@ -45,12 +45,6 @@ const VISUAL_CASES = [
   },
 ] satisfies readonly VisualCase[];
 
-function getThemedUrl(app: ApplicationNames, theme: VisualTheme): string {
-  const url = new URL(getAppUrl(app));
-  url.searchParams.set("theme", theme);
-  return url.toString();
-}
-
 async function resolveColor(page: Page, value: string): Promise<string> {
   return page.evaluate((cssValue) => {
     const probe = document.createElement("span");
@@ -67,7 +61,8 @@ async function prepareVisualCase(
   visualCase: VisualCase,
 ): Promise<void> {
   await page.setViewportSize(DESKTOP_VIEWPORT);
-  await page.goto(getThemedUrl(visualCase.app, visualCase.theme));
+  await page.emulateMedia({ colorScheme: visualCase.theme });
+  await page.goto(getAppUrl(visualCase.app));
 
   await (visualCase.view === "edit"
     ? maybeRestartKernel(page)
