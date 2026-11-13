@@ -435,7 +435,7 @@ overlay_bin = os.path.dirname(sys.executable)
 os.environ["PATH"] = os.pathsep.join(dict.fromkeys([
     overlay_bin, *paths, *os.environ.get("PATH", "").split(os.pathsep)
 ]))
-os.execv(sys.executable, [sys.executable, *sys.argv[2:]])
+os.execv(sys.executable, [sys.executable, "-P", *sys.argv[2:]])
 """
 
 
@@ -492,6 +492,7 @@ def launch(
             *_with_args(overlay.requirements),
             "--",
             "python",
+            "-P",
             "-c",
             _ACTIVATE_NOTEBOOK,
             json.dumps(

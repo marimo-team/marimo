@@ -628,7 +628,8 @@ async def test_startup_owns_kernel_process_and_pipes(
             "marimo._session.managers.ipc.subprocess.Popen",
             lambda cmd, **kwargs: popen(
                 [sys.executable, "-c", code]
-                if cmd == [sys.executable, "-m", "marimo._ipc.launch_kernel"]
+                if cmd
+                == [sys.executable, "-P", "-m", "marimo._ipc.launch_kernel"]
                 else cmd,
                 **kwargs,
             ),
