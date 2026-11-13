@@ -17,7 +17,7 @@ jobs:
   notify-translators:
     # Only run this job when the PR is merged, not when it's closed without merging
     if: github.event.pull_request.merged == true
-    runs-on: ubuntu-p-small
+    runs-on: "${{ vars.CI_RUNNER_SMALL || 'ubuntu-latest' }}"
 
     steps:
       - name: Checkout repository

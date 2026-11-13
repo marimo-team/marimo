@@ -35,7 +35,7 @@ jobs:
     name: 📤 Publish to PyPI
     if: startsWith(github.ref, 'refs/tags/')
     needs: build_prod
-    runs-on: ubuntu-p-small
+    runs-on: "${{ vars.CI_RUNNER_SMALL || 'ubuntu-latest' }}"
     environment: pypi
     permissions:
       contents: read
@@ -81,7 +81,7 @@ jobs:
   check_dev_latest:
     name: 🔍 Still tip of main?
     if: github.ref == 'refs/heads/main'
-    runs-on: ubuntu-p-small
+    runs-on: "${{ vars.CI_RUNNER_SMALL || 'ubuntu-latest' }}"
     outputs:
       is_latest: ${{ steps.check.outputs.is_latest }}
     steps:
@@ -115,7 +115,7 @@ jobs:
     name: 🔍 Recheck still tip of main?
     needs: build_dev
     if: github.ref == 'refs/heads/main'
-    runs-on: ubuntu-p-small
+    runs-on: "${{ vars.CI_RUNNER_SMALL || 'ubuntu-latest' }}"
     outputs:
       is_latest: ${{ steps.check.outputs.is_latest }}
     steps:
@@ -136,7 +136,7 @@ jobs:
     name: 📤 Publish marimo to TestPyPI
     if: github.ref == 'refs/heads/main' && needs.recheck_dev_latest.outputs.is_latest == 'true'
     needs: [build_dev, recheck_dev_latest]
-    runs-on: ubuntu-p-small
+    runs-on: "${{ vars.CI_RUNNER_SMALL || 'ubuntu-latest' }}"
     environment: testpypi
     permissions:
       contents: read
@@ -157,7 +157,7 @@ jobs:
     name: 📤 Publish marimo-base to TestPyPI
     if: github.ref == 'refs/heads/main' && needs.recheck_dev_latest.outputs.is_latest == 'true'
     needs: [build_dev, recheck_dev_latest]
-    runs-on: ubuntu-p-small
+    runs-on: "${{ vars.CI_RUNNER_SMALL || 'ubuntu-latest' }}"
     environment: testpypi
     permissions:
       contents: read
@@ -178,7 +178,7 @@ jobs:
     name: 📝 Comment PR
     if: github.ref == 'refs/heads/main'
     needs: [build_dev, publish_dev_pypi_marimo, publish_dev_pypi_marimo_base]
-    runs-on: ubuntu-p-small
+    runs-on: "${{ vars.CI_RUNNER_SMALL || 'ubuntu-latest' }}"
     permissions:
       pull-requests: write
     steps:
