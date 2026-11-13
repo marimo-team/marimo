@@ -96,6 +96,106 @@ class TestExecution:
         assert not (expected_globals - set(k.globals.keys()))
         assert k.globals["success"] == 1
 
+    @pytest.mark.parametrize(
+        ("body", "result"),
+        [
+            ("x = 0\ndef value(self):\n    return x", "C().value()"),
+            ("def value(self):\n    return x\nx = 0", "C().value()"),
+            ("x = 0\nvalue = lambda self: x", "C().value()"),
+            ("x = 0\nvalues = [x for _ in (0,)]", "C.values[0]"),
+        ],
+    )
+    async def test_class_nested_scope_reacts_to_global(
+        self, k: Kernel, body: str, result: str
+    ) -> None:
+        await k.run(
+            [
+                ExecuteCellCommand(cell_id="0", code="x = 10"),
+                ExecuteCellCommand(
+                    cell_id="1",
+                    code="class C:\n"
+                    + textwrap.indent(body, "    ")
+                    + f"\nresult = {result}",
+                ),
+            ]
+        )
+        assert not k.errors
+        assert k.globals["result"] == 10
+
+        await k.run([ExecuteCellCommand(cell_id="0", code="x = 20")])
+        assert not k.errors
+        assert k.globals["result"] == 20
+
+    async def test_method_uses_cell_local_despite_class_attribute(
+        self, k: Kernel
+    ) -> None:
+        await k.run(
+            [
+                ExecuteCellCommand(
+                    cell_id="0",
+                    code="_x = 10\nclass C:\n    _x = 0\n"
+                    "    def value(self):\n        return _x",
+                ),
+                ExecuteCellCommand(cell_id="1", code="result = C().value()"),
+            ]
+        )
+        assert not k.errors
+        assert k.globals["result"] == 10
+
+    @pytest.mark.parametrize(
+        ("scope", "call", "result"),
+        [
+            (
+                "class C:\n    _x = 0\n    def value(self):\n        return _x",
+                "C().value()",
+                20,
+            ),
+            ("def value():\n    return _x", "value()", 20),
+            ("value = lambda: _x", "value()", 20),
+            ("values = (_x for _ in (0,))", "next(values)", 20),
+            (
+                (
+                    "def value():\n    def inner():\n        return _x\n"
+                    "    global _x\n    return inner()"
+                ),
+                "value()",
+                10,
+            ),
+            ("class C:\n    value = _x\n    _x = 0", "C.value", 10),
+            (
+                "def value():\n    class C:\n        v = _x\n    return C.v",
+                "value()",
+                20,
+            ),
+            (
+                (
+                    "def value():\n    class C:\n        v = _x\n"
+                    "        try:\n            pass\n"
+                    "        except Exception as _x:\n            pass\n"
+                    "    return C.v"
+                ),
+                "value()",
+                10,
+            ),
+        ],
+    )
+    async def test_private_name_resolves_like_python(
+        self, k: Kernel, scope: str, call: str, result: int
+    ) -> None:
+        await k.run(
+            [
+                ExecuteCellCommand(
+                    cell_id="0",
+                    code="_x = 10\ndef outer():\n"
+                    + textwrap.indent(scope, "    ")
+                    + f"\n    _x = 20\n    return {call}\n"
+                    "result = outer()",
+                ),
+            ]
+        )
+        assert not k.errors
+        assert k.globals["result"] == result
+
     async def test_triangle(self, any_kernel: Kernel) -> None:
         k = any_kernel
         # x
