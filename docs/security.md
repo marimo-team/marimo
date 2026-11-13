@@ -21,7 +21,7 @@ Being a responsible notebook user means running code from sources you trust, and
 
 ### Static loading
 
-Although marimo notebook are just python files, opening a notebook through `marimo edit` does not execute it as a module.
+Although marimo notebooks are just Python files, opening a notebook through `marimo edit` does not execute it as a module.
 marimo notebooks are statically loaded, meaning they are parsed but not executed as Python modules when opened.
 This prevents arbitrary code execution at load time.
 Code only runs when you explicitly execute cells.
