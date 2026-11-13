@@ -258,7 +258,9 @@ def _local_wheel_path(url: str, notebook_path: Path) -> Path | None:
         return None
     if not source_path.is_absolute():
         source_path = notebook_path.parent / source_path
-    return source_path.resolve()
+    resolved = source_path.resolve()
+    # A `.whl` path can be a symlink. Bundle it only if its target is a wheel.
+    return resolved if resolved.suffix == ".whl" else None
 
 
 def _direct_reference_wheel_dependency(
