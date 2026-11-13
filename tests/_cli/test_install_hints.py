@@ -57,6 +57,20 @@ def test_install_commands_for_pixi() -> None:
         ]
 
 
+def test_install_commands_for_pixi_with_extras_use_pypi() -> None:
+    with (
+        patch(
+            "marimo._cli.install_hints.infer_package_manager",
+            return_value="pixi",
+        ),
+        patch("marimo._cli.install_hints.is_windows", return_value=False),
+    ):
+        assert get_install_commands(["marimo[mcp]"]) == [
+            "pixi add --pypi 'marimo[mcp]'",
+            "python -m pip install 'marimo[mcp]'",
+        ]
+
+
 def test_install_commands_for_pip_only() -> None:
     with patch(
         "marimo._cli.install_hints.infer_package_manager",
