@@ -5,6 +5,7 @@ import os
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import TYPE_CHECKING, cast
+from unittest.mock import patch
 
 import pytest
 
@@ -446,14 +447,19 @@ def test_copy_directory(client: TestClient) -> None:
 
 
 def test_open_file(client: TestClient) -> None:
-    response = client.post(
-        "/api/files/open",
-        headers=HEADERS,
-        json={"path": test_file_path},
-    )
+    with patch(
+        "marimo._server.api.endpoints.file_explorer.file_system.open_in_editor",
+        return_value=True,
+    ) as open_in_editor:
+        response = client.post(
+            "/api/files/open",
+            headers=HEADERS,
+            json={"path": test_file_path},
+        )
     assert response.status_code == 200, response.text
     assert response.headers["content-type"] == "application/json"
-    assert "success" in response.json()
+    assert response.json()["success"] is True
+    open_in_editor.assert_called_once_with(test_file_path, None)
 
 
 def test_search_files_basic(client: TestClient, tmp_path: Path) -> None:
