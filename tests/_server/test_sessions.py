@@ -1090,7 +1090,7 @@ async def test_watch_mode_with_watcher_on_save_lazy(tmp_path: Path) -> None:
             await session_manager.shutdown()
 
 
-async def test_session_manager_file_rename() -> None:
+async def test_session_manager_file_rename(tmp_path: Path) -> None:
     """Test that file renaming works correctly with file watching."""
     # Create two temporary files
     with (
@@ -1146,13 +1146,18 @@ def __():
             main=True,
         )
 
-        # Try to rename to a non-existent file
+        parent_file = tmp_path / "not_a_directory"
+        parent_file.touch()
         success, error = await session_manager.rename_session(
-            session_id, "/nonexistent/file.py"
+            session_id, str(parent_file / "file.py")
         )
         assert not success
         assert error is not None
         assert "Failed to rename" in error
+        assert tmp_path1.exists()  # noqa: ASYNC240
+        session = session_manager.get_session(session_id)
+        assert session is not None
+        assert session.app_file_manager.path == str(tmp_path1)
 
         # Try to rename with an invalid session
         success, error = await session_manager.rename_session(
