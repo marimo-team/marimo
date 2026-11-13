@@ -1,0 +1,506 @@
+{
+  "version": 1,
+  "table": {
+    "columns": [
+      {
+        "column_id": "vehicle make",
+        "alias": "vehicle_make",
+        "data_type": "string"
+      },
+      {
+        "column_id": "active",
+        "alias": "active",
+        "data_type": "boolean"
+      },
+      {
+        "column_id": "quantity",
+        "alias": "quantity",
+        "data_type": "integer"
+      },
+      {
+        "column_id": "price",
+        "alias": "price",
+        "data_type": "number"
+      },
+      {
+        "column_id": "order date",
+        "alias": "order_date",
+        "data_type": "date"
+      },
+      {
+        "column_id": "created at",
+        "alias": "created_at",
+        "data_type": "datetime"
+      },
+      {
+        "column_id": "dispatch time",
+        "alias": "dispatch_time",
+        "data_type": "time"
+      }
+    ],
+    "rows": [
+      {
+        "row_id": "r0",
+        "values": {
+          "vehicle make": "chevrolet",
+          "active": true,
+          "quantity": 4,
+          "price": 1240.5,
+          "order date": "2026-09-10",
+          "created at": "2026-09-10T08:45:00",
+          "dispatch time": "09:15:00"
+        }
+      },
+      {
+        "row_id": "r1",
+        "values": {
+          "vehicle make": "ford",
+          "active": false,
+          "quantity": 2,
+          "price": 480,
+          "order date": "2026-09-11",
+          "created at": "2026-09-11T10:10:00",
+          "dispatch time": "14:00:00"
+        }
+      },
+      {
+        "row_id": "r2",
+        "values": {
+          "vehicle make": "chevy*deluxe",
+          "active": true,
+          "quantity": 6,
+          "price": 1860,
+          "order date": "2026-09-12",
+          "created at": "2026-09-12T14:20:00",
+          "dispatch time": "11:30:00"
+        }
+      },
+      {
+        "row_id": "r3",
+        "values": {
+          "vehicle make": "/chev/",
+          "active": false,
+          "quantity": 3,
+          "price": 1120,
+          "order date": "2026-09-12",
+          "created at": "2026-09-12T15:35:00",
+          "dispatch time": "08:30:00"
+        }
+      },
+      {
+        "row_id": "r4",
+        "values": {
+          "vehicle make": "null",
+          "active": true,
+          "quantity": 2,
+          "price": 650,
+          "order date": "2026-09-13",
+          "created at": "2026-09-13T09:05:00",
+          "dispatch time": "09:45:00"
+        }
+      },
+      {
+        "row_id": "r5",
+        "values": {
+          "vehicle make": "",
+          "active": false,
+          "quantity": 1,
+          "price": 125,
+          "order date": "2026-09-14",
+          "created at": "2026-09-14T11:50:00",
+          "dispatch time": null
+        }
+      },
+      {
+        "row_id": "r6",
+        "values": {
+          "vehicle make": null,
+          "active": true,
+          "quantity": 5,
+          "price": 1580,
+          "order date": "2026-09-14",
+          "created at": "2026-09-14T16:00:00",
+          "dispatch time": "10:20:00"
+        }
+      },
+      {
+        "row_id": "r7",
+        "values": {
+          "vehicle make": "chevrolet",
+          "active": null,
+          "quantity": null,
+          "price": null,
+          "order date": null,
+          "created at": null,
+          "dispatch time": null
+        }
+      }
+    ]
+  },
+  "cases": [
+    {
+      "id": "string_prefix",
+      "request": "Show vehicles whose make starts with chev.",
+      "fql": "vehicle_make:\"chev*\"",
+      "operation_ids": ["starts_with_text"],
+      "expected_filter": {
+        "type": "group",
+        "operator": "and",
+        "children": [
+          {
+            "type": "condition",
+            "column_id": "vehicle make",
+            "operator": "starts_with",
+            "value": "chev",
+            "negate": false
+          }
+        ],
+        "negate": false
+      },
+      "expected_row_ids": ["r0", "r2", "r7"]
+    },
+    {
+      "id": "boolean_true",
+      "request": "Show active vehicles.",
+      "fql": "active:true",
+      "operation_ids": ["boolean_true"],
+      "expected_filter": {
+        "type": "group",
+        "operator": "and",
+        "children": [
+          {
+            "type": "condition",
+            "column_id": "active",
+            "operator": "is_true",
+            "negate": false
+          }
+        ],
+        "negate": false
+      },
+      "expected_row_ids": ["r0", "r2", "r4", "r6"]
+    },
+    {
+      "id": "integer_bound",
+      "request": "Show vehicles with at least four items.",
+      "fql": "quantity>=4",
+      "operation_ids": ["greater_than_or_equal"],
+      "expected_filter": {
+        "type": "group",
+        "operator": "and",
+        "children": [
+          {
+            "type": "condition",
+            "column_id": "quantity",
+            "operator": ">=",
+            "value": 4,
+            "negate": false
+          }
+        ],
+        "negate": false
+      },
+      "expected_row_ids": ["r0", "r2", "r6"]
+    },
+    {
+      "id": "number_bound",
+      "request": "Show vehicles with a price below 500.",
+      "fql": "price<500",
+      "operation_ids": ["less_than"],
+      "expected_filter": {
+        "type": "group",
+        "operator": "and",
+        "children": [
+          {
+            "type": "condition",
+            "column_id": "price",
+            "operator": "<",
+            "value": 500,
+            "negate": false
+          }
+        ],
+        "negate": false
+      },
+      "expected_row_ids": ["r1", "r5"]
+    },
+    {
+      "id": "date_bound",
+      "request": "Show vehicles ordered on or after September 12, 2026.",
+      "fql": "order_date>=\"2026-09-12\"",
+      "operation_ids": ["greater_than_or_equal"],
+      "expected_filter": {
+        "type": "group",
+        "operator": "and",
+        "children": [
+          {
+            "type": "condition",
+            "column_id": "order date",
+            "operator": ">=",
+            "value": "2026-09-12",
+            "negate": false
+          }
+        ],
+        "negate": false
+      },
+      "expected_row_ids": ["r2", "r3", "r4", "r5", "r6"]
+    },
+    {
+      "id": "datetime_bound",
+      "request": "Show vehicles created after September 12, 2026 at 2:30 PM.",
+      "fql": "created_at>\"2026-09-12T14:30:00\"",
+      "operation_ids": ["greater_than"],
+      "expected_filter": {
+        "type": "group",
+        "operator": "and",
+        "children": [
+          {
+            "type": "condition",
+            "column_id": "created at",
+            "operator": ">",
+            "value": "2026-09-12T14:30:00",
+            "negate": false
+          }
+        ],
+        "negate": false
+      },
+      "expected_row_ids": ["r3", "r4", "r5", "r6"]
+    },
+    {
+      "id": "time_bound",
+      "request": "Show vehicles dispatched before 10 AM.",
+      "fql": "dispatch_time<\"10:00:00\"",
+      "operation_ids": ["less_than"],
+      "expected_filter": {
+        "type": "group",
+        "operator": "and",
+        "children": [
+          {
+            "type": "condition",
+            "column_id": "dispatch time",
+            "operator": "<",
+            "value": "10:00:00",
+            "negate": false
+          }
+        ],
+        "negate": false
+      },
+      "expected_row_ids": ["r0", "r3", "r4"]
+    },
+    {
+      "id": "missing_values",
+      "request": "Show vehicles with a missing make or dispatch time.",
+      "fql": "vehicle_make:null OR dispatch_time:null",
+      "operation_ids": ["is_null"],
+      "expected_filter": {
+        "type": "group",
+        "operator": "or",
+        "children": [
+          {
+            "type": "condition",
+            "column_id": "vehicle make",
+            "operator": "is_null",
+            "negate": false
+          },
+          {
+            "type": "condition",
+            "column_id": "dispatch time",
+            "operator": "is_null",
+            "negate": false
+          }
+        ],
+        "negate": false
+      },
+      "expected_row_ids": ["r5", "r6", "r7"]
+    },
+    {
+      "id": "literal_star",
+      "request": "Show the exact make chevy*deluxe.",
+      "fql": "vehicle_make=\"chevy*deluxe\"",
+      "operation_ids": ["exact_text"],
+      "expected_filter": {
+        "type": "group",
+        "operator": "and",
+        "children": [
+          {
+            "type": "condition",
+            "column_id": "vehicle make",
+            "operator": "equals",
+            "value": "chevy*deluxe",
+            "negate": false
+          }
+        ],
+        "negate": false
+      },
+      "expected_row_ids": ["r2"]
+    },
+    {
+      "id": "literal_slash_text",
+      "request": "Show the exact make /chev/.",
+      "fql": "vehicle_make=\"/chev/\"",
+      "operation_ids": ["exact_text"],
+      "expected_filter": {
+        "type": "group",
+        "operator": "and",
+        "children": [
+          {
+            "type": "condition",
+            "column_id": "vehicle make",
+            "operator": "equals",
+            "value": "/chev/",
+            "negate": false
+          }
+        ],
+        "negate": false
+      },
+      "expected_row_ids": ["r3"]
+    },
+    {
+      "id": "literal_null_text",
+      "request": "Show the exact text null, not missing values.",
+      "fql": "vehicle_make=\"null\"",
+      "operation_ids": ["exact_text"],
+      "expected_filter": {
+        "type": "group",
+        "operator": "and",
+        "children": [
+          {
+            "type": "condition",
+            "column_id": "vehicle make",
+            "operator": "equals",
+            "value": "null",
+            "negate": false
+          }
+        ],
+        "negate": false
+      },
+      "expected_row_ids": ["r4"]
+    },
+    {
+      "id": "empty_text",
+      "request": "Show vehicles with an empty make.",
+      "fql": "vehicle_make:\"\"",
+      "operation_ids": ["empty_text"],
+      "expected_filter": {
+        "type": "group",
+        "operator": "and",
+        "children": [
+          {
+            "type": "condition",
+            "column_id": "vehicle make",
+            "operator": "is_empty",
+            "negate": false
+          }
+        ],
+        "negate": false
+      },
+      "expected_row_ids": ["r5"]
+    },
+    {
+      "id": "contains_empty_text",
+      "request": "Show every vehicle with a present make.",
+      "fql": "vehicle_make:\"**\"",
+      "operation_ids": ["contains_empty_text"],
+      "expected_filter": {
+        "type": "group",
+        "operator": "and",
+        "children": [
+          {
+            "type": "condition",
+            "column_id": "vehicle make",
+            "operator": "is_not_null",
+            "negate": false
+          }
+        ],
+        "negate": false
+      },
+      "expected_row_ids": ["r0", "r1", "r2", "r3", "r4", "r5", "r7"]
+    },
+    {
+      "id": "exact_membership",
+      "request": "Show Chevrolet or Ford vehicles.",
+      "fql": "vehicle_make:(\"chevrolet\",\"ford\")",
+      "operation_ids": ["in_list"],
+      "expected_filter": {
+        "type": "group",
+        "operator": "and",
+        "children": [
+          {
+            "type": "condition",
+            "column_id": "vehicle make",
+            "operator": "in",
+            "value": ["chevrolet", "ford"],
+            "negate": false
+          }
+        ],
+        "negate": false
+      },
+      "expected_row_ids": ["r0", "r1", "r7"]
+    },
+    {
+      "id": "nullable_exclusion",
+      "request": "Exclude Ford, the text null, and missing makes.",
+      "fql": "NOT vehicle_make:(\"ford\",\"null\") AND NOT vehicle_make:null",
+      "operation_ids": ["not_in_list", "is_not_null"],
+      "expected_filter": {
+        "type": "group",
+        "operator": "and",
+        "children": [
+          {
+            "type": "condition",
+            "column_id": "vehicle make",
+            "operator": "not_in",
+            "value": ["ford", "null"],
+            "negate": false
+          },
+          {
+            "type": "condition",
+            "column_id": "vehicle make",
+            "operator": "is_not_null",
+            "negate": false
+          }
+        ],
+        "negate": false
+      },
+      "expected_row_ids": ["r0", "r2", "r3", "r5", "r7"]
+    },
+    {
+      "id": "nested_group",
+      "request": "Show active vehicles that are Chevrolet or cost more than 1500.",
+      "fql": "active:true AND (vehicle_make=\"chevrolet\" OR price>1500)",
+      "operation_ids": ["boolean_true", "exact_text", "greater_than"],
+      "expected_filter": {
+        "type": "group",
+        "operator": "and",
+        "children": [
+          {
+            "type": "condition",
+            "column_id": "active",
+            "operator": "is_true",
+            "negate": false
+          },
+          {
+            "type": "group",
+            "operator": "or",
+            "children": [
+              {
+                "type": "condition",
+                "column_id": "vehicle make",
+                "operator": "equals",
+                "value": "chevrolet",
+                "negate": false
+              },
+              {
+                "type": "condition",
+                "column_id": "price",
+                "operator": ">",
+                "value": 1500,
+                "negate": false
+              }
+            ],
+            "negate": false
+          }
+        ],
+        "negate": false
+      },
+      "expected_row_ids": ["r0", "r2", "r6"]
+    }
+  ]
+}
