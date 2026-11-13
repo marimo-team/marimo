@@ -69,13 +69,14 @@ WEBPDF_CODE_WRAP_CSS = """\
 """
 
 
-# Match the chemistry, cancellation, and color features used by KaTeX.
+# Preserve common KaTeX commands in WebPDF.
 WEBPDF_TEMPLATE = """\
 {% extends 'index.html.j2' %}
 {% block html_head_js_mathjax %}
 <script type="text/x-mathjax-config">
 MathJax.Hub.Config({
   "TeX": {
+    "Macros": {"bm": "\\\\boldsymbol"},
     "extensions": ["mhchem.js", "cancel.js", "color.js"],
     "mhchem": {"legacy": false}
   }

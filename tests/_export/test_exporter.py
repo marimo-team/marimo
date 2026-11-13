@@ -2039,6 +2039,7 @@ class TestPDFExport:
             config.removeprefix("MathJax.Hub.Config(").removesuffix(");")
         ) == {
             "TeX": {
+                "Macros": {"bm": r"\boldsymbol"},
                 "extensions": ["mhchem.js", "cancel.js", "color.js"],
                 "mhchem": {"legacy": False},
             }
