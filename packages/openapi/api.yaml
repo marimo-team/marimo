@@ -5564,6 +5564,17 @@ components:
     ServerConfig:
       description: Configuration for the server.
       properties:
+        allow_origins:
+          default: []
+          description: Allowed origins for HTTP and WebSocket connections.
+          items:
+            type: string
+          type: array
+        base_url:
+          default: ''
+          description: Base URL for the server, starting with / and without a trailing
+            slash.
+          type: string
         browser:
           anyOf:
           - enum:
@@ -5582,6 +5593,39 @@ components:
           description: if true, the server will follow symlinks it finds inside its
             static assets directory.
           type: boolean
+        headless:
+          default: false
+          description: Do not launch a browser.
+          type: boolean
+        host:
+          default: 127.0.0.1
+          description: Host to bind to.
+          type: string
+        include_code:
+          default: false
+          description: Send notebook source code to clients in run mode. Edit mode
+            always includes code.
+          type: boolean
+        port:
+          anyOf:
+          - maximum: 65535
+            minimum: 0
+            type: integer
+          - type: 'null'
+          default: null
+          description: Port to bind to (0-65535). If unset or 0, find an available
+            port.
+        proxy:
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
+          description: Address of the reverse proxy.
+        redirect_console_to_browser:
+          default: false
+          description: Redirect console output to the browser. This option only applies
+            to run mode. Edit mode always redirects output to the browser.
+          type: boolean
         session_cookie_secure:
           default: false
           description: Only send session cookies over HTTPS. Enable when serving behind
@@ -5595,10 +5639,44 @@ components:
           description: Secret used to sign session cookies. Set a stable value to
             preserve sessions across restarts or replicas; otherwise a random secret
             is generated per process.
+        session_ttl:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          description: Seconds before closing a disconnected session. Defaults to
+            unlimited in edit mode and 120 in run mode; null means unlimited.
+        skew_protection:
+          default: true
+          description: Enable protection against frontend and server version mismatches.
+          type: boolean
         skip_update_check:
           default: false
           description: Skip checking for marimo updates when starting the editor.
           type: boolean
+        timeout:
+          anyOf:
+          - type: number
+          - type: 'null'
+          default: null
+          description: Shut down after this many minutes without a connection.
+        token:
+          description: Enable token authentication. Defaults to true in edit mode
+            and false in run mode.
+          type: boolean
+        token_password:
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
+          description: Password used for token authentication. Mutually exclusive
+            with token_password_file.
+        token_password_file:
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
+          description: File containing the token password, or - to read from stdin.
+            Mutually exclusive with token_password.
         transport:
           description: experimental. The transport used to stream kernel messages
             to the frontend, typically set with the `MARIMO_SERVER_TRANSPORT` environment
@@ -5608,7 +5686,25 @@ components:
           enum:
           - sse
           - websocket
+        watch:
+          default: false
+          description: Watch notebook files for changes; reload code in edit mode
+            or the application in run mode.
+          type: boolean
       required:
+      - host
+      - port
+      - proxy
+      - base_url
+      - allow_origins
+      - headless
+      - watch
+      - skew_protection
+      - timeout
+      - token_password
+      - token_password_file
+      - include_code
+      - redirect_console_to_browser
       - skip_update_check
       - session_cookie_secure
       - session_secret

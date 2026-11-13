@@ -183,6 +183,19 @@ def test_default_configuration_snapshot(config_tree: Path) -> None:
                 "execution_type": "relaxed",
             },
             "server": {
+                "host": "127.0.0.1",
+                "port": None,
+                "proxy": None,
+                "base_url": "",
+                "allow_origins": [],
+                "headless": False,
+                "watch": False,
+                "skew_protection": True,
+                "timeout": None,
+                "token_password": None,
+                "token_password_file": None,
+                "include_code": False,
+                "redirect_console_to_browser": False,
                 "skip_update_check": False,
                 "session_cookie_secure": False,
                 "session_secret": None,
@@ -308,6 +321,19 @@ def test_layered_configuration_snapshot(
                     "pin_modules": True,
                 },
                 "server": {
+                    "host": "127.0.0.1",
+                    "port": None,
+                    "proxy": None,
+                    "base_url": "",
+                    "allow_origins": [],
+                    "headless": False,
+                    "watch": False,
+                    "skew_protection": True,
+                    "timeout": None,
+                    "token_password": None,
+                    "token_password_file": None,
+                    "include_code": False,
+                    "redirect_console_to_browser": False,
                     "skip_update_check": False,
                     "follow_symlink": False,
                     "session_secret": None,
@@ -420,6 +446,19 @@ def test_layered_configuration_snapshot(
                     "pin_modules": True,
                 },
                 "server": {
+                    "host": "127.0.0.1",
+                    "port": None,
+                    "proxy": None,
+                    "base_url": "",
+                    "allow_origins": [],
+                    "headless": False,
+                    "watch": False,
+                    "skew_protection": True,
+                    "timeout": None,
+                    "token_password": None,
+                    "token_password_file": None,
+                    "include_code": False,
+                    "redirect_console_to_browser": False,
                     "skip_update_check": False,
                     "follow_symlink": False,
                     "session_secret": None,
@@ -574,6 +613,19 @@ def test_layered_configuration_snapshot(
                 "file_browser": None,
                 "sharing": None,
                 "server": {
+                    "host": "127.0.0.1",
+                    "port": None,
+                    "proxy": None,
+                    "base_url": "",
+                    "allow_origins": [],
+                    "headless": False,
+                    "watch": False,
+                    "skew_protection": True,
+                    "timeout": None,
+                    "token_password": None,
+                    "token_password_file": None,
+                    "include_code": False,
+                    "redirect_console_to_browser": False,
                     "skip_update_check": False,
                     "session_cookie_secure": False,
                     "session_secret": None,
@@ -861,11 +913,19 @@ autosave_delay = 1000
 format_on_save = false
 
 [server]
+allow_origins = []
+base_url = ""
 browser = "default"
 disable_file_downloads = false
 follow_symlink = false
+headless = false
+host = "127.0.0.1"
+include_code = false
+redirect_console_to_browser = false
 session_cookie_secure = false
+skew_protection = true
 skip_update_check = false
+watch = false
 
 [signing.trusted_signers]
 
@@ -1663,6 +1723,8 @@ presets = ["context7"]
 copilot = "custom"
 [server]
 browser = "probe-browser"
+token_password = "probe-secret"
+token_password_file = "probe-password.txt"
 [file_browser]
 folders = [{ path = "/probe" }]
 [signing]
@@ -1709,6 +1771,8 @@ TRUST_PROBE_PATHS = (
     "mcp.presets",
     "completion.copilot",
     "server.browser",
+    "server.token_password",
+    "server.token_password_file",
     "file_browser.folders",
     "signing.private_key_path",
     "signing.trusted_signers",
@@ -1802,18 +1866,24 @@ def test_trust_boundary_matrix_snapshot(
             "xdg": [],
             "home": [],
             "workspace_cwd": [
+                "server.token_password",
+                "server.token_password_file",
                 "signing.private_key_path",
                 "signing.trusted_signers",
                 "cache.verification",
                 "cache.store",
             ],
             "workspace_parent": [
+                "server.token_password",
+                "server.token_password_file",
                 "signing.private_key_path",
                 "signing.trusted_signers",
                 "cache.verification",
                 "cache.store",
             ],
             "pyproject": [
+                "server.token_password",
+                "server.token_password_file",
                 "signing.private_key_path",
                 "signing.trusted_signers",
                 "cache.verification",
@@ -1823,6 +1893,8 @@ def test_trust_boundary_matrix_snapshot(
                 "mcp.presets",
                 "completion.copilot",
                 "server.browser",
+                "server.token_password",
+                "server.token_password_file",
                 "file_browser.folders",
                 "signing.private_key_path",
                 "signing.trusted_signers",

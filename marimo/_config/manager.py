@@ -756,6 +756,14 @@ class OverrideConfigReader(ConfigReader):
         return copy.deepcopy(self.override_config)
 
 
+class CLIConfigReader(OverrideConfigReader):
+    """Invocation-only settings supplied by CLI flags or --config."""
+
+    @property
+    def source(self) -> ConfigSource:
+        return "cli"
+
+
 def _contextual_defaults(reader: ConfigReader) -> PartialMarimoConfig:
     """Infer fallback dotenv paths; the runtime loads the selected files later."""
     if isinstance(reader, ScriptConfigReader):

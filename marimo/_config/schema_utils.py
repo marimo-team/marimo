@@ -190,3 +190,23 @@ def config_leaf_types(cls: type[Config]) -> dict[tuple[str, ...], Any]:
         else:
             leaves[(item.encode_name,)] = annotation
     return leaves
+
+
+@cache
+def config_cli_flags(
+    cls: type[Config],
+) -> dict[tuple[str, ...], tuple[str, ...]]:
+    """Map declared configuration paths to their CLI shortcuts."""
+    flags: dict[tuple[str, ...], tuple[str, ...]] = {}
+    for item in fields(cls):
+        annotation = item.type
+        if get_origin(annotation) is Annotated:
+            annotation, *extras = get_args(annotation)
+            for extra in extras:
+                if isinstance(extra, Meta) and extra.extra:
+                    if names := extra.extra.get("cli_flag"):
+                        flags[(item.encode_name,)] = tuple(names)
+        if isinstance(annotation, type) and issubclass(annotation, Config):
+            for path, names in config_cli_flags(annotation).items():
+                flags[(item.encode_name, *path)] = names
+    return flags
