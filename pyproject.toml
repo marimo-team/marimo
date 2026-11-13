@@ -335,6 +335,12 @@ exclude-newer-package = { agent-plugins = false, marimo-lens = false }
 
 [tool.uv.sources]
 marimo_docs = { path = "./docs", editable = true }
+torch = { index = "pytorch-cpu", marker = "sys_platform == 'linux'" }
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
 
 [tool.uv.build-backend]
 module-name = "marimo"
