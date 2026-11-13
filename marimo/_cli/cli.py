@@ -296,7 +296,7 @@ class _OptionalValueOption(click.Option):
     "-p",
     "--port",
     default=None,
-    type=int,
+    type=click.IntRange(0, 65535),
     help="Port to attach to.",
 )
 @click.option(
@@ -647,7 +647,7 @@ def edit(
     "-p",
     "--port",
     default=None,
-    type=int,
+    type=click.IntRange(0, 65535),
     help="Port to attach to.",
 )
 @click.option(
@@ -913,7 +913,7 @@ Example:
     "-p",
     "--port",
     default=None,
-    type=int,
+    type=click.IntRange(0, 65535),
     help="Port to attach to.",
 )
 @click.option(
@@ -1267,7 +1267,7 @@ Recommended sequence:
     "-p",
     "--port",
     default=None,
-    type=int,
+    type=click.IntRange(0, 65535),
     help="Port to attach to.",
 )
 @click.option(
