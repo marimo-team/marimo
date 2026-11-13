@@ -25,7 +25,7 @@ def _():
 
 @app.cell
 def _(a, mo):
-    md = mo.md(f"$a={a.value["a"][0]}$")
+    md = mo.md(f"$a={a.value['a'][0]}$")
     md
 
 
