@@ -481,7 +481,7 @@ class DateChartBuilder(ChartBuilder):
         return f"""
         _chart = (
             alt.Chart({data})
-            .transform_filter(f"datum.{column} != null")
+            .transform_filter("datum.{column} != null")
             .transform_timeunit(as_="{new_field}", field="{column}", timeUnit="{time_unit}")
             .mark_area()
             .encode(
@@ -503,7 +503,7 @@ class DateChartBuilder(ChartBuilder):
         new_field = f"_{column}"
 
         return f"""
-        _base = alt.Chart({data}).transform_filter(f"datum.{column} != null")
+        _base = alt.Chart({data}).transform_filter("datum.{column} != null")
 
         # Explicit time binning, create a new field
         _transformed = _base.transform_timeunit(
