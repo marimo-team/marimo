@@ -335,3 +335,29 @@ def test_mask_secrets_signing_private_key_path() -> None:
     assert "private_key_path" not in remove_secret_placeholders(masked).get(
         "signing", {}
     )
+
+
+def test_removed_codeium_credentials_are_not_exposed() -> None:
+    config = {
+        "completion": {
+            "codeium_api_key": "legacy-secret",
+            "auto_close_pairs": False,
+        }
+    }
+    assert redact_secrets_partial(config) == {
+        "completion": {"auto_close_pairs": False}
+    }
+    assert redact_secrets(
+        MarimoConfig.from_dict(config)
+    ).completion.to_dict() == {
+        "activate_on_typing": True,
+        "signature_hint_on_typing": False,
+        "copilot": False,
+        "auto_close_pairs": False,
+    }
+    assert config == {
+        "completion": {
+            "codeium_api_key": "legacy-secret",
+            "auto_close_pairs": False,
+        }
+    }

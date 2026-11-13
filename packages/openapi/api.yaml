@@ -969,20 +969,14 @@ components:
           deprecated: true
           description: Deprecated completion API endpoint. Use an AI provider configuration
             instead.
-        codeium_api_key:
-          anyOf:
-          - type: string
-          - type: 'null'
-          description: the Codeium API key
         copilot:
           anyOf:
           - type: boolean
           - enum:
-            - codeium
             - custom
             - github
           default: false
-          description: one of `"github"`, `"codeium"`, or `"custom"`
+          description: one of `"github"` or `"custom"`
         model:
           anyOf:
           - type: string

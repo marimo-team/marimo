@@ -59,7 +59,6 @@ function createEditor(content: string, cellId: CellId) {
           activate_on_typing: true,
           signature_hint_on_typing: false,
           copilot: false,
-          codeium_api_key: null,
         },
         hotkeys: new OverridingHotkeyProvider({}),
         placeholderType: "marimo-import",

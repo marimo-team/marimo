@@ -80,11 +80,8 @@ export default defineConfig({
     tsconfigPaths: true,
     dedupe: ["react", "react-dom"],
     alias: [
-      // Islands run read-only and never render the slide code editor, so
-      // swap `SlideCellView` for a no-op stub. This keeps CodeMirror, the
-      // Codeium adapter, and `@bufbuild/protobuf` out of the islands bundle
-      // (the latter contains a `process.env.BUF_BIGINT_DISABLE` literal
-      // that `islands/validate.sh` otherwise flags).
+      // Read-only islands never render the slide code editor. Keep its
+      // CodeMirror dependencies out of the islands bundle.
       {
         find: "@/components/slides/slide-cell-view",
         replacement: path.resolve(

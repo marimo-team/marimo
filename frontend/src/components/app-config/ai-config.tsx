@@ -415,27 +415,6 @@ const renderCopilotProvider = ({
     return null;
   }
 
-  if (copilot === "codeium") {
-    return (
-      <>
-        <p className="text-sm text-muted-secondary">
-          To get a Windsurf API key, follow{" "}
-          <ExternalLink href="https://docs.marimo.io/guides/editor_features/ai_completion.html#windsurf-copilot">
-            these instructions
-          </ExternalLink>
-          .
-        </p>
-        <ApiKey
-          form={form}
-          config={config}
-          name="completion.codeium_api_key"
-          placeholder="key"
-          testId="codeium-api-key-input"
-        />
-      </>
-    );
-  }
-
   if (copilot === "github") {
     return <CopilotConfig />;
   }
@@ -573,9 +552,9 @@ export const AiCodeCompletionConfig: React.FC<AiConfigProps> = ({
         form={form}
         config={config}
         name="completion.copilot"
-        options={["none", "github", "codeium", "custom"]}
+        options={["none", "github", "custom"]}
         testId="copilot-select"
-        description="Choose GitHub Copilot, Codeium, or a custom provider (such as Ollama) to enable AI-powered code completion."
+        description="Choose GitHub Copilot or a custom provider (such as Ollama) to enable AI-powered code completion."
       />
 
       {renderCopilotProvider({ form, config, onSubmit, copilot })}

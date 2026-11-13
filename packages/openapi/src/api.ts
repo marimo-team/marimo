@@ -4179,13 +4179,11 @@ export interface components {
        * @description Deprecated completion API endpoint. Use an AI provider configuration instead.
        */
       base_url?: string | null;
-      /** @description the Codeium API key */
-      codeium_api_key?: string | null;
       /**
-       * @description one of `"github"`, `"codeium"`, or `"custom"`
+       * @description one of `"github"` or `"custom"`
        * @default false
        */
-      copilot: boolean | ("codeium" | "custom" | "github");
+      copilot: boolean | ("custom" | "github");
       /**
        * @deprecated
        * @description Deprecated completion model. Use ai.models.autocomplete_model instead.

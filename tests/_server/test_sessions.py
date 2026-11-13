@@ -14,7 +14,6 @@ from functools import partial
 from multiprocessing import get_context
 from multiprocessing.queues import Queue as MPQueue
 from pathlib import Path
-from tempfile import NamedTemporaryFile
 from textwrap import dedent
 from typing import Any
 from unittest.mock import MagicMock
@@ -1090,23 +1089,18 @@ async def test_watch_mode_with_watcher_on_save_lazy(tmp_path: Path) -> None:
             await session_manager.shutdown()
 
 
-async def test_session_manager_file_rename() -> None:
+async def test_session_manager_file_rename(tmp_path: Path) -> None:
     """Test that file renaming works correctly with file watching."""
-    # Create two temporary files
-    with (
-        NamedTemporaryFile(delete=False, suffix=".py") as tmp_file1,
-    ):
-        tmp_path1 = Path(tmp_file1.name)
-        # Write initial notebook content
-        tmp_file1.write(
-            b"""import marimo
+    tmp_path1 = tmp_path / "notebook.py"
+    tmp_path1.write_text(
+        """import marimo
 app = marimo.App()
 
 @app.cell
 def __():
     1
 """
-        )
+    )
 
     new_path = tmp_path1.with_suffix(".1.py")
 
@@ -1146,9 +1140,10 @@ def __():
             main=True,
         )
 
-        # Try to rename to a non-existent file
+        parent_file = tmp_path / "not_a_directory"
+        parent_file.write_text("")
         success, error = await session_manager.rename_session(
-            session_id, "/nonexistent/file.py"
+            session_id, str(parent_file / "file.py")
         )
         assert not success
         assert error is not None

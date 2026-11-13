@@ -41,8 +41,8 @@ class CompletionConfig(Config, kw_only=True):
         ),
     ] = False
     copilot: Annotated[
-        bool | Literal["github", "codeium", "custom"],
-        Meta(description='one of `"github"`, `"codeium"`, or `"custom"`'),
+        bool | Literal["github", "custom"],
+        Meta(description='one of `"github"` or `"custom"`'),
     ] = False
     auto_close_pairs: Annotated[
         bool,
@@ -50,10 +50,6 @@ class CompletionConfig(Config, kw_only=True):
             description="if `False`, typing an opening bracket, parenthesis, or quote will not automatically insert the closing character"
         ),
     ] = True
-    codeium_api_key: Annotated[
-        str | UnsetType | None,
-        Meta(description="the Codeium API key", extra={"sensitive": True}),
-    ] = UNSET
     api_key: Annotated[
         str | UnsetType | None,
         Meta(
