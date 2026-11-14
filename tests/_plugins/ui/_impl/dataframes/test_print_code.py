@@ -276,7 +276,7 @@ def _assert_string_filter_matches_runtime(
     backend: str,
     strings: list[str | None],
     operator: Operator,
-    value: str,
+    value: str | list[str | None] | None,
     negate: bool,
     operation: Literal["keep_rows", "remove_rows"],
 ) -> None:
@@ -381,6 +381,40 @@ def test_print_code_string_filters_with_generated_nulls(
 ) -> None:
     _assert_string_filter_matches_runtime(
         backend, strings, operator, value, negate, operation
+    )
+
+
+@pytest.mark.parametrize(
+    "backend", ["pandas-object", "pandas-string", "polars", "ibis"]
+)
+@pytest.mark.parametrize(
+    ("operator", "value"),
+    [
+        ("in", ["abc"]),
+        ("in", ["abc", None]),
+        ("in", [None]),
+        ("not_in", ["abc"]),
+        ("not_in", ["abc", None]),
+        ("not_in", [None]),
+        ("is_empty", None),
+    ],
+)
+@pytest.mark.parametrize("negate", [False, True])
+@pytest.mark.parametrize("operation", ["keep_rows", "remove_rows"])
+def test_print_code_membership_and_empty_filters_with_nulls(
+    backend: str,
+    operator: Operator,
+    value: list[str | None] | None,
+    negate: bool,
+    operation: Literal["keep_rows", "remove_rows"],
+) -> None:
+    _assert_string_filter_matches_runtime(
+        backend,
+        [None, "", "abc", "a.c", "cba", "zzz"],
+        operator,
+        value,
+        negate,
+        operation,
     )
 
 
