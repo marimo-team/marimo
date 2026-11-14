@@ -36,7 +36,6 @@ from marimo._cli.cli import (
     _split_run_paths_and_args,
     main as cli_main,
 )
-from marimo._cli.run_docker import CONTAINER_ENGINES
 from marimo._config.manager import get_default_config_manager
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._server.workspace import (
@@ -1665,7 +1664,7 @@ def test_cli_edit_directory_sandbox() -> None:
     _check_contents(p, b'"serverToken": ', contents)
 
 
-@pytest.mark.skipif(is_windows(), reason="Windows will prompt for a container")
+@pytest.mark.skipif(is_windows(), reason="Windows will prompt for Docker")
 def test_cli_edit_by_url() -> None:
     port = _get_port()
     p = subprocess.Popen(
@@ -2180,17 +2179,11 @@ def test_shell_completion(
     assert bool(len(p.stderr)) == expect_stderr
 
 
-requires_no_container_engine = pytest.mark.skipif(
-    any(DependencyManager.which(engine) for engine in CONTAINER_ENGINES),
-    reason=(
-        "requires no container engine "
-        f"({', '.join(CONTAINER_ENGINES)}) installed"
-    ),
-)
+HAS_DOCKER = DependencyManager.which("docker")
 
 
 @pytest.mark.parametrize("backend", ["uv", "pixi"])
-def test_cli_edit_remote_sandbox_prompts_for_container_once(
+def test_cli_edit_remote_sandbox_prompts_for_docker_once(
     backend: str, temp_marimo_file: str, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     from marimo._config.settings import GLOBAL_SETTINGS
@@ -2254,7 +2247,9 @@ def test_cli_edit_remote_sandbox_prompts_for_container_once(
         assert start_server.call_args.kwargs["sandbox"] == backend
 
 
-@requires_no_container_engine
+@pytest.mark.skipif(
+    HAS_DOCKER, reason="docker is required to be not installed"
+)
 def test_cli_run_docker_remote_url():
     remote_url = "https://example.com/notebook.py"
     p = subprocess.Popen(
@@ -2268,11 +2263,11 @@ def test_cli_run_docker_remote_url():
         stderr=subprocess.PIPE,
     )
 
-    # Should fail with no container engine
+    # Should fail with missing docker
     stdout, stderr = p.communicate(timeout=5)
     assert p.returncode != 0
     output = stdout.decode() + stderr.decode()
-    assert "No usable container engine found" in output
+    assert "docker is not installed" in output
 
 
 def test_cli_edit_trusted(temp_marimo_file: str) -> None:
@@ -2294,25 +2289,25 @@ def test_cli_edit_trusted(temp_marimo_file: str) -> None:
     _check_contents(p, b'"mode": "edit"', contents)
 
 
-@requires_no_container_engine
 def test_cli_edit_no_trusted(temp_marimo_file: str) -> None:
-    # --untrusted should try to use a container engine, fail if none is found
+    # --untrusted should use the chosen container engine, fail if missing
     p = subprocess.Popen(
         [
             "marimo",
             "edit",
             temp_marimo_file,
             "--untrusted",
+            "--container-engine",
+            "missing-engine",
         ],
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
     )
 
-    # Should fail with no container engine
     stdout, stderr = p.communicate(timeout=5)
     assert p.returncode != 0
     output = stdout.decode() + stderr.decode()
-    assert "No usable container engine found" in output
+    assert "missing-engine is not installed" in output
 
 
 def test_cli_run_trusted(temp_marimo_file: str) -> None:
@@ -2333,25 +2328,25 @@ def test_cli_run_trusted(temp_marimo_file: str) -> None:
     _check_contents(p, b'"mode": "read"', contents)
 
 
-@requires_no_container_engine
 def test_cli_run_no_trusted(temp_marimo_file: str) -> None:
-    # --untrusted should try to use a container engine, fail if none is found
+    # --untrusted should use the chosen container engine, fail if missing
     p = subprocess.Popen(
         [
             "marimo",
             "run",
             temp_marimo_file,
             "--untrusted",
+            "--container-engine",
+            "missing-engine",
         ],
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
     )
 
-    # Should fail with no container engine
     stdout, stderr = p.communicate(timeout=5)
     assert p.returncode != 0
     output = stdout.decode() + stderr.decode()
-    assert "No usable container engine found" in output
+    assert "missing-engine is not installed" in output
 
 
 def test_cli_edit_with_convert(

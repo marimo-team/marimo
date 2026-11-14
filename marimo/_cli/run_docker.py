@@ -12,18 +12,13 @@ from marimo import _loggers
 from marimo._cli.errors import MarimoCLIRuntimeError
 from marimo._cli.print import green, muted, red
 from marimo._config.settings import GLOBAL_SETTINGS
-from marimo._dependencies.dependencies import DependencyManager
 from marimo._utils.url import is_url
 
 LOGGER = _loggers.marimo_logger()
 
-# Container engines whose CLI accepts the same commands as docker,
-# in order of preference.
-CONTAINER_ENGINES = ("docker", "podman")
-
 
 def prompt_run_in_docker_container(
-    name: str | None, trusted: bool | None = None
+    name: str | None, *, engine: str, trusted: bool | None = None
 ) -> bool:
     if GLOBAL_SETTINGS.IN_SECURE_ENVIRONMENT:
         return False
@@ -47,9 +42,7 @@ def prompt_run_in_docker_container(
     return click.confirm(
         "This notebook is hosted on a remote server.\n"
         + muted(
-            "Supported container engines: "
-            f"{', '.join(CONTAINER_ENGINES)} "
-            "(the first one installed and running is used)\n"
+            f"Container engine: {engine} (change with --container-engine)\n"
         )
         + green(
             "Would you like to run it in a secure container?",
@@ -59,37 +52,31 @@ def prompt_run_in_docker_container(
     )
 
 
-def _check_engine_running(engine: str) -> bool:
+def _check_container_installed(engine: str) -> bool:
+    try:
+        subprocess.run(
+            [engine, "--version"], check=True, capture_output=True, text=True
+        )
+        return True
+    except subprocess.CalledProcessError:
+        return False
+    except OSError:
+        return False
+
+
+def _check_container_running(engine: str) -> bool:
     try:
         subprocess.run(
             [engine, "info"],
             check=True,
             capture_output=True,
             text=True,
-            # An unreachable engine can hang; give up so we can try the next.
+            # An unreachable engine can hang instead of failing.
             timeout=10,
         )
         return True
     except (subprocess.CalledProcessError, subprocess.TimeoutExpired, OSError):
         return False
-
-
-def _find_container_engine() -> str:
-    problems: list[str] = []
-    for engine in CONTAINER_ENGINES:
-        if not DependencyManager.which(engine):
-            problems.append(f"{engine}: not found")
-        elif not _check_engine_running(engine):
-            problems.append(
-                f"{engine}: installed but not running or not responding"
-            )
-        else:
-            return engine
-    raise MarimoCLIRuntimeError(
-        "No usable container engine found:\n"
-        + "".join(f"  {problem}\n" for problem in problems)
-        + "Please install or start one of them and try again."
-    )
 
 
 def echo_red(text: str) -> None:
@@ -117,16 +104,29 @@ def run_in_docker(
     file_path: str | None,
     mode: Literal["edit", "run"],
     *,
+    engine: str,
     port: int | None,
     debug: bool = False,
     execute_opengraph_generators: bool = False,
 ) -> None:
-    engine = _find_container_engine()
-    echo(f"Starting {green('containerized')} marimo notebook (using {engine})")
+    echo(f"Starting {green('containerized')} marimo notebook")
 
     host = "0.0.0.0"
     if port is None:
         port = 8080
+
+    if not _check_container_installed(engine):
+        raise MarimoCLIRuntimeError(
+            f"{engine} is not installed. Please install {engine} and try "
+            "again, or choose another engine with --container-engine."
+        )
+
+    if not _check_container_running(engine):
+        raise MarimoCLIRuntimeError(
+            f"{engine} is not running or not responding. Please start "
+            f"{engine} and try again, or choose another engine with "
+            "--container-engine."
+        )
 
     # Check if the port is already in use
     existing_container = _check_port_in_use(engine, port)
