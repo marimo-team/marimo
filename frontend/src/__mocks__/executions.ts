@@ -209,6 +209,7 @@ export const MockExecutions = {
       ),
       requested: new Set(),
       blocked: new Set(),
+      runtimeId: null,
       ...extra,
     };
   },

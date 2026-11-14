@@ -159,6 +159,7 @@ export const cellExecutionInputsAtom = atom((get): CellExecutionInputs => {
     cells: document?.cells ?? NO_CELLS,
     requested: get(requestedCellsAtom),
     blocked: current(get(blockedCellsAtom), replica, notebookId, NO_BLOCKED),
+    runtimeId: replica === null ? null : (get(replica.runtimeAtom)?.id ?? null),
   };
 });
 
