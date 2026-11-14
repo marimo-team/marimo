@@ -58,8 +58,9 @@ def python_print_pandas(
         elif operator == "ends_with":
             result = f'{col}.fillna("").str.endswith({_as_literal(value)})'
         elif operator == "in" or operator == "not_in":
-            expr = f"{col}.isin({_list_of_strings(value)})"
-            result = expr if operator == "in" else f"~{expr}"
+            return _membership_clause(
+                where, col, isin="isin", is_null="isna", not_null="notna"
+            )
         elif operator == "is_null":
             result = f"{col}.isna()"
         elif operator == "is_not_null":
@@ -76,7 +77,9 @@ def python_print_pandas(
                     f"between requires RangeValue, got {type(value)}"
                 )
         elif operator == "is_empty":
-            result = f"({col} == '')"
+            return _is_empty_clause(
+                where, col, is_null="isna", not_null="notna"
+            )
         else:
             raise ValueError(f"Unknown operator: {operator}")
 
@@ -330,8 +333,13 @@ def python_print_polars(
         elif operator == "ends_with":
             result = f'{col}.fill_null("").str.ends_with({_as_literal(value)})'
         elif operator == "in" or operator == "not_in":
-            expr = f"{col}.is_in({_list_of_strings(value)})"
-            result = expr if operator == "in" else f"~{expr}"
+            return _membership_clause(
+                where,
+                col,
+                isin="is_in",
+                is_null="is_null",
+                not_null="is_not_null",
+            )
         elif operator == "is_null":
             result = f"{col}.is_null()"
         elif operator == "is_not_null":
@@ -348,7 +356,9 @@ def python_print_polars(
                     f"between requires RangeValue, got {type(value)}"
                 )
         elif operator == "is_empty":
-            result = f'({col} == "")'
+            return _is_empty_clause(
+                where, col, is_null="is_null", not_null="is_not_null"
+            )
         else:
             raise ValueError(f"Unknown operator: {operator}")
 
@@ -601,8 +611,10 @@ def python_print_ibis(
         elif operator == "ends_with":
             result = f'({col}.fill_null("").endswith({_as_literal(value)}))'
         elif operator == "in" or operator == "not_in":
-            expr = f"({col}.isin({_list_of_strings(value)}))"
-            result = expr if operator == "in" else f"~{expr}"
+            clause = _membership_clause(
+                where, col, isin="isin", is_null="isnull", not_null="notnull"
+            )
+            return f"({clause})"
         elif operator == "is_null":
             result = f"({col}.isnull())"
         elif operator == "is_not_null":
@@ -619,7 +631,10 @@ def python_print_ibis(
                     f"between requires RangeValue, got {type(value)}"
                 )
         elif operator == "is_empty":
-            result = f'({col} == "")'
+            clause = _is_empty_clause(
+                where, col, is_null="isnull", not_null="notnull"
+            )
+            return f"({clause})"
         else:
             raise ValueError(f"Unknown operator: {operator}")
 
@@ -769,6 +784,38 @@ def python_print_ibis(
         return f"{pivot_code}\n{rename_code}"
 
     assert_never(transform.type)
+
+
+def _membership_clause(
+    where: FilterCondition,
+    col: str,
+    *,
+    isin: str,
+    is_null: str,
+    not_null: str,
+) -> str:
+    # Backends disagree on whether `isin` matches nulls, so spell out the
+    # widget's rule: null rows match only when a null is among the values.
+    selected = where.value or ()
+    has_null = None in selected
+    non_null = tuple(v for v in selected if v is not None)
+    match = f"{col}.{isin}({_list_of_strings(non_null)})"
+    keep_matches = (where.operator == "in") != where.negate
+    if keep_matches:
+        return f"{match} | {col}.{is_null}()" if has_null else match
+    if has_null:
+        return f"~{match} & {col}.{not_null}()"
+    return f"~{match} | {col}.{is_null}()"
+
+
+def _is_empty_clause(
+    where: FilterCondition, col: str, *, is_null: str, not_null: str
+) -> str:
+    # A null is not empty: spelling that out keeps null rows when the
+    # condition is inverted, as the widget does.
+    if where.negate:
+        return f'({col} != "") | {col}.{is_null}()'
+    return f'({col} == "") & {col}.{not_null}()'
 
 
 def _as_literal(value: Any) -> str:
