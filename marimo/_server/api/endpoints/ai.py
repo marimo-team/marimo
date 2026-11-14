@@ -59,6 +59,9 @@ from marimo._server.router import APIRouter
 from marimo._utils.http import HTTPStatus
 
 if TYPE_CHECKING:
+    from http.client import HTTPMessage
+    from typing import IO
+
     from starlette.requests import Request
 
 # Taken from pydantic_ai.ui import SSE_CONTENT_TYPE
@@ -204,7 +207,13 @@ async def list_provider_models(*, request: Request) -> Response:
 
     class NoRedirect(HTTPRedirectHandler):
         def redirect_request(
-            self, req, fp, code, msg, headers, newurl
+            self,
+            req: URLRequest,
+            fp: IO[bytes],
+            code: int,
+            msg: str,
+            headers: HTTPMessage,
+            newurl: str,
         ) -> None:
             del req, fp, code, msg, headers, newurl
 
