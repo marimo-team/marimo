@@ -642,4 +642,7 @@ class SessionCacheManager:
         cached = deserialize_session(notebook_session, code_hash_to_cell_id)
         # Cached cell output must not replace this launch's environment state.
         self.session_view.cell_notifications = cached.cell_notifications
+        # The view now holds what the file does. Writing it back before a
+        # cell has run would drop the code hashes that tie outputs to cells.
+        self.session_view.mark_auto_export_session()
         return self.session_view
