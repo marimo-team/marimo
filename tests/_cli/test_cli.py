@@ -2267,7 +2267,7 @@ def test_cli_run_docker_remote_url():
     stdout, stderr = p.communicate(timeout=5)
     assert p.returncode != 0
     output = stdout.decode() + stderr.decode()
-    assert "Docker is not installed" in output
+    assert "docker is not installed" in output
 
 
 def test_cli_edit_trusted(temp_marimo_file: str) -> None:
@@ -2309,7 +2309,7 @@ def test_cli_edit_no_trusted(temp_marimo_file: str) -> None:
     stdout, stderr = p.communicate(timeout=5)
     assert p.returncode != 0
     output = stdout.decode() + stderr.decode()
-    assert "Docker is not installed" in output
+    assert "docker is not installed" in output
 
 
 def test_cli_run_trusted(temp_marimo_file: str) -> None:
@@ -2350,7 +2350,7 @@ def test_cli_run_no_trusted(temp_marimo_file: str) -> None:
     stdout, stderr = p.communicate(timeout=5)
     assert p.returncode != 0
     output = stdout.decode() + stderr.decode()
-    assert "Docker is not installed" in output
+    assert "docker is not installed" in output
 
 
 def test_cli_edit_with_convert(

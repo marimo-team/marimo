@@ -9,7 +9,11 @@ if TYPE_CHECKING:
 import click
 import pytest
 
-from marimo._cli.cli_validators import base_url, is_file_path
+from marimo._cli.cli_validators import (
+    base_url,
+    container_engine,
+    is_file_path,
+)
 
 
 class TestBaseUrl:
@@ -78,3 +82,15 @@ class TestIsFilePath:
         with pytest.raises(click.BadParameter) as excinfo:
             is_file_path(None, None, str(tmp_path))
         assert f"Not a file: {tmp_path}" in str(excinfo.value)
+
+
+class TestContainerEngine:
+    def test_container_engine_with_valid_input(self) -> None:
+        assert container_engine(None, None, "podman") == "podman"
+        assert container_engine(None, None, " podman ") == "podman"
+
+    @pytest.mark.parametrize("value", ["", "   "])
+    def test_container_engine_with_empty(self, value: str) -> None:
+        with pytest.raises(click.BadParameter) as excinfo:
+            container_engine(None, None, value)
+        assert "Must not be empty" in str(excinfo.value)
