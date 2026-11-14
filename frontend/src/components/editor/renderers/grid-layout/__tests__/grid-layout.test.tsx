@@ -23,16 +23,6 @@ function renderErroredCell(cells: GridLayout["cells"]) {
   MockExecutions.seed(store, [MockExecutions.errored(ERRORED)]);
   const notebook = MockNotebook.notebookState({
     cellData: { [ERRORED]: { code: "raise ValueError('boom')" } },
-    cellRuntime: {
-      [ERRORED]: {
-        output: {
-          channel: "marimo-error",
-          mimetype: "application/vnd.marimo+error",
-          data: [MockNotebook.errors.exception("boom")],
-          timestamp: 1,
-        },
-      },
-    },
   });
   render(
     <Provider store={store}>
@@ -48,7 +38,11 @@ function renderErroredCell(cells: GridLayout["cells"]) {
         }}
         setLayout={vi.fn()}
         cells={[
-          { ...notebook.cellData[ERRORED], ...notebook.cellRuntime[ERRORED] },
+          {
+            ...notebook.cellData[ERRORED],
+            ...notebook.cellRuntime[ERRORED],
+            output: null,
+          },
         ]}
       />
     </Provider>,

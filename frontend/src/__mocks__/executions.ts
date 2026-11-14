@@ -52,7 +52,7 @@ function completed(
   };
 }
 
-function mirror(records: Protocol.Execution[]): Executions {
+function mirror(records: readonly Protocol.Execution[]): Executions {
   const executions = new Map<Protocol.ExecutionId, Execution>();
   const latest = new Map<Protocol.CellId, Protocol.ExecutionId>();
   for (const record of records) {
@@ -73,7 +73,7 @@ function mirror(records: Protocol.Execution[]): Executions {
   return { runs: new Map(), executions, latest };
 }
 
-function results(records: Protocol.Execution[]): Results {
+function results(records: readonly Protocol.Execution[]): Results {
   const results = new Map<Protocol.CellId, Protocol.Execution>();
   for (const record of records) {
     if (record.cell_id !== null && record.status === "completed") {
@@ -95,7 +95,24 @@ export const MockExecutions = {
     });
   },
 
-  errored(cellId: string): Protocol.Execution {
+  /** A completed execution that showed `display`. */
+  shown(
+    cellId: string,
+    display: Protocol.DisplayData,
+    overrides: Partial<Protocol.Execution> = {},
+  ): Protocol.Execution {
+    return completed(cellId, {
+      outcome: { kind: "value", display },
+      ...overrides,
+    });
+  },
+
+  /** A completed execution that ended in `error`, a ValueError by default. */
+  failed(
+    cellId: string,
+    error: Partial<Protocol.Error> = {},
+    overrides: Partial<Protocol.Execution> = {},
+  ): Protocol.Execution {
     return completed(cellId, {
       outcome: {
         kind: "error",
@@ -108,9 +125,15 @@ export const MockExecutions = {
           severity: "error",
           range: null,
           related: [],
+          ...error,
         },
       },
+      ...overrides,
     });
+  },
+
+  errored(cellId: string): Protocol.Execution {
+    return MockExecutions.failed(cellId);
   },
 
   interrupted(cellId: string): Protocol.Execution {
@@ -173,7 +196,7 @@ export const MockExecutions = {
    * with nothing keeping it from running.
    */
   inputs(
-    records: Protocol.Execution[],
+    records: readonly Protocol.Execution[],
     extra: Partial<Pick<CellExecutionInputs, "requested" | "blocked">> = {},
   ): CellExecutionInputs {
     return {

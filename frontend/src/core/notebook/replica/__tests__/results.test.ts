@@ -83,6 +83,34 @@ describe("results resource", () => {
     expect(done.get("c1")).toBeNull();
   });
 
+  it("keeps a result when the attempt that replaced it was superseded", () => {
+    const done = replay(runCells, replay(snapshot));
+    const result = resource(done).get("c3")!;
+    const superseded = reducer.reduce(
+      replay(retire("e12", "e12-x"), done),
+      event({
+        event: "execution",
+        id: "113",
+        data: {
+          execution: {
+            ...result,
+            id: "e14",
+            run_id: "run-again",
+            started_at: null,
+            completed_at: time,
+            outcome: {
+              kind: "skipped",
+              reason: "superseded",
+              message: "Replaced by a newer execution",
+              related: [],
+            },
+          },
+        },
+      }),
+    );
+    expect(resource(superseded).get("c3")).toBe(result);
+  });
+
   it("keeps a result while the host replaces it", () => {
     const done = replay(runCells, replay(snapshot));
     const result = resource(done).get("c3")!;

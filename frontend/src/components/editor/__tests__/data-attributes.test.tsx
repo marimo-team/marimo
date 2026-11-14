@@ -109,12 +109,7 @@ describe("Cell data attributes", () => {
         },
       });
 
-      notebook.cellRuntime[cid] = createCellRuntimeState({
-        output: null,
-        consoleOutputs: [],
-        debuggerActive: false,
-        outline: null,
-      });
+      notebook.cellRuntime[cid] = createCellRuntimeState();
 
       store.set(notebookAtom, notebook);
 

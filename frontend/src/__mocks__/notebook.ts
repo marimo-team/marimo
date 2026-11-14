@@ -1,9 +1,11 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
+import type * as Protocol from "@marimo-team/client/protocol";
+import type { createStore } from "jotai";
 import { createRef } from "react";
 import { vi } from "vitest";
 import type { CellActions } from "@/core/cells/actions";
-import type { NotebookState } from "@/core/cells/cells";
+import { type NotebookState, notebookAtom } from "@/core/cells/cells";
 import { CellId } from "@/core/cells/ids";
 import {
   type CellData,
@@ -12,6 +14,7 @@ import {
 } from "@/core/cells/types";
 import type { MarimoError } from "@/core/kernel/messages";
 import { Objects } from "@/utils/objects";
+import { MockExecutions } from "./executions";
 
 export const MockNotebook = {
   *cellIds() {
@@ -134,57 +137,32 @@ export const MockNotebook = {
   },
 
   /**
-   * Create a notebook state with error outputs for testing ErrorContextProvider
+   * Set `store` to a notebook whose cells each ended in a host error.
+   *
+   * The host reports one error per execution, so each cell gets one.
    */
-  notebookStateWithErrors: (
+  withErrors: (
+    store: ReturnType<typeof createStore>,
     errors: {
       cellId: CellId;
       cellName: string;
-      errorData: MarimoError[];
+      code?: string;
+      error: Partial<Protocol.Error>;
     }[],
   ): NotebookState => {
     const cellData: Record<string, Partial<CellData>> = {};
-
-    for (const error of errors) {
-      cellData[error.cellId] = {
-        name: error.cellName,
+    for (const { cellId, cellName, code } of errors) {
+      cellData[cellId] = {
+        name: cellName,
+        ...(code === undefined ? {} : { code }),
       };
     }
-
     const notebookState = MockNotebook.notebookState({ cellData });
-
-    // Add error outputs to cell runtime
-    for (const error of errors) {
-      notebookState.cellRuntime[error.cellId] = {
-        ...createCellRuntimeState(),
-        output: {
-          channel: "marimo-error" as const,
-          data: error.errorData,
-          mimetype: "application/vnd.marimo+error" as const,
-          timestamp: Date.now(),
-        },
-      };
-    }
-
+    store.set(notebookAtom, notebookState);
+    MockExecutions.seed(
+      store,
+      errors.map(({ cellId, error }) => MockExecutions.failed(cellId, error)),
+    );
     return notebookState;
-  },
-
-  /**
-   * Create a single cell with errors for quick testing
-   */
-  cellWithErrors: (cellName: string, errorData: MarimoError[]) => {
-    const cellId = CellId.create();
-    return {
-      cellId,
-      cellName,
-      errorData,
-      notebookState: MockNotebook.notebookStateWithErrors([
-        {
-          cellId,
-          cellName,
-          errorData,
-        },
-      ]),
-    };
   },
 };

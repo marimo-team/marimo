@@ -2,9 +2,15 @@
 
 import { createStore } from "jotai";
 import { describe, expect, it } from "vitest";
+import { MockExecutions } from "@/__mocks__/executions";
 import { MockNotebook } from "@/__mocks__/notebook";
 import { cellId } from "@/__tests__/branded";
 import { notebookAtom } from "@/core/cells/cells";
+import {
+  cell,
+  document as documentOf,
+  withCells,
+} from "@/core/notebook/document/__tests__/fixtures";
 import {
   type CellErrorEntry,
   formatCellError,
@@ -32,33 +38,61 @@ describe("formatCellError", () => {
 });
 
 describe("getCellErrorEntries", () => {
-  it("pairs an error with the source that raised it, not a later edit", () => {
+  it("pairs an error with the source that raised it, not a later draft", () => {
     const id = cellId("c1");
     const store = createStore();
     store.set(
       notebookAtom,
       MockNotebook.notebookState({
         cellData: { [id]: { code: "print('fixed')" } },
-        cellRuntime: {
-          [id]: {
-            output: {
-              channel: "marimo-error",
-              mimetype: "application/vnd.marimo+error",
-              data: [
-                {
-                  type: "exception",
-                  exception_type: "ZeroDivisionError",
-                  msg: "division by zero",
-                },
-              ],
-              timestamp: 0,
-              code: "1 / 0",
-            },
-          },
-        },
       }),
+    );
+    MockExecutions.seed(
+      store,
+      [MockExecutions.failed(id, {}, { code_fingerprint: "ran" })],
+      null,
+      withCells(
+        documentOf(),
+        {
+          c1: null,
+          c2: null,
+          [id]: cell(id, "1 / 0", { code_fingerprint: "ran" }),
+        },
+        [id],
+      ),
     );
 
     expect(getCellErrorEntries(store)[0]?.cellCode).toBe("1 / 0");
+  });
+
+  it("falls back to the cell's current source once an edit is confirmed", () => {
+    const id = cellId("c1");
+    const store = createStore();
+    MockNotebook.withErrors(store, [
+      {
+        cellId: id,
+        cellName: "c1",
+        code: "1 / 0",
+        error: {
+          kind: "exception",
+          name: "ZeroDivisionError",
+          message: "division by zero",
+        },
+      },
+    ]);
+
+    expect(getCellErrorEntries(store)).toEqual([
+      expect.objectContaining({
+        cellId: id,
+        cellCode: "1 / 0",
+        errorData: [
+          expect.objectContaining({
+            type: "exception",
+            exception_type: "ZeroDivisionError",
+            msg: "division by zero",
+          }),
+        ],
+      }),
+    ]);
   });
 });

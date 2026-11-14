@@ -18,6 +18,7 @@ describe("SlideCellReadOnlyView", () => {
     const cell = {
       ...createCell({ id, name: "title", code: "x = 1" }),
       ...createCellRuntimeState(),
+      output: null,
     };
 
     const { container } = render(

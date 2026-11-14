@@ -8,7 +8,7 @@ import React, {
 } from "react";
 import { Responsive, WidthProvider } from "react-grid-layout";
 import { OutputArea } from "@/components/editor/Output";
-import type { CellRuntimeState } from "@/core/cells/types";
+import type { RuntimeCell } from "@/core/cells/types";
 import type { ICellRendererProps } from "../types";
 import type { GridLayout, GridLayoutCellSide } from "./types";
 
@@ -37,7 +37,11 @@ import { NumberField } from "@/components/ui/number-field";
 import { Switch } from "@/components/ui/switch";
 import { outputIsLoading, outputIsStale } from "@/core/cells/cell";
 import type { CellId } from "@/core/cells/ids";
-import { useCellExecution, useCellFreshness } from "@/core/executions";
+import {
+  useCellExecution,
+  useCellFreshness,
+  useCellOutput,
+} from "@/core/executions";
 import type { AppMode } from "@/core/mode";
 import { useIsDragging } from "@/hooks/useIsDragging";
 import { cn } from "@/utils/cn";
@@ -227,7 +231,6 @@ export const GridLayoutRenderer: React.FC<Props> = ({
               code={cell.code}
               mode={mode}
               cellId={cell.id}
-              output={cell.output}
               hideWithoutValue={true}
               isScrollable={isScrollable}
               side={side}
@@ -292,7 +295,6 @@ export const GridLayoutRenderer: React.FC<Props> = ({
                 code={cell.code}
                 mode={mode}
                 cellId={cell.id}
-                output={cell.output}
                 hideWithoutValue={false}
                 isScrollable={false}
               />
@@ -360,7 +362,6 @@ export const GridLayoutRenderer: React.FC<Props> = ({
                 className="select-none pointer-events-none"
                 mode={mode}
                 cellId={cell.id}
-                output={cell.output}
                 hideWithoutValue={false}
                 isScrollable={false}
               />
@@ -372,7 +373,7 @@ export const GridLayoutRenderer: React.FC<Props> = ({
   );
 };
 
-interface GridCellProps extends Pick<CellRuntimeState, "output"> {
+interface GridCellProps {
   className?: string;
   code: string;
   cellId: CellId;
@@ -385,7 +386,6 @@ interface GridCellProps extends Pick<CellRuntimeState, "output"> {
 
 const GridCell = memo(
   ({
-    output,
     cellId,
     mode,
     code,
@@ -394,6 +394,7 @@ const GridCell = memo(
     side,
     className,
   }: GridCellProps) => {
+    const output = useCellOutput(cellId);
     const execution = useCellExecution(cellId);
     const freshness = useCellFreshness(cellId);
     const loading = outputIsLoading(execution.status);
@@ -683,7 +684,7 @@ const GridHoverActions: React.FC<GridHoverActionsProps> = ({
   );
 };
 
-function isSidebarCell(cell: CellRuntimeState) {
+function isSidebarCell(cell: RuntimeCell) {
   // False-positives are ok here because we rendering these cells in a hidden div
   return (
     typeof cell.output?.data === "string" &&

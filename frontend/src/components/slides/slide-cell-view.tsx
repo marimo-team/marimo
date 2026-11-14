@@ -21,7 +21,7 @@ import {
   cellStatusClasses,
   isUninstantiated,
 } from "@/core/cells/utils";
-import type { CellData, CellRuntimeState } from "@/core/cells/types";
+import type { RuntimeCell } from "@/core/cells/types";
 import type { LanguageAdapterType } from "@/core/codemirror/language/types";
 import { useCellExecution, useCellFreshness } from "@/core/executions";
 import { connectionAtom } from "@/core/network/connection";
@@ -29,8 +29,6 @@ import { useTheme } from "@/theme/useTheme";
 import { cn } from "@/utils/cn";
 import { ReadonlyCode } from "../editor/code/readonly-python-code";
 import { getReadonlyCodeDisplay } from "@/core/cells/readonly-code-display";
-
-type RuntimeCell = CellRuntimeState & CellData;
 
 /**
  * Renders a single cell in the slides view as an editable CodeMirror editor
