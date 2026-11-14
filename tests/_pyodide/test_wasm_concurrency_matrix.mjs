@@ -325,7 +325,7 @@ import asyncio
 import os
 import js
 
-from marimo._pyodide.bootstrap import create_session, instantiate
+from marimo._pyodide.bootstrap import create_session
 
 WASM_CONCURRENCY_NOTEBOOK = """
 import marimo
@@ -354,7 +354,7 @@ async def create_wasm_concurrency_session(notebook_path, callback_name):
 
     def init(auto_instantiate=True):
         nonlocal session_task
-        instantiate(session, auto_instantiate)
+        session.instantiate(auto_run=auto_instantiate)
         session_task = asyncio.create_task(session.start())
 
     def stop_session():

@@ -51,7 +51,6 @@ import { ConnectionNotice } from "@/components/editor/alerts/connection-notice";
 import { kernelStartupErrorAtom } from "@/core/errors/state";
 import type { NotificationPayload } from "@/core/kernel/messages";
 import { useRuntimeManager } from "@/core/runtime/config";
-import { initialRunCompletedAtom } from "../../kernel/state";
 import { connectionAtom, startupProgressAtom } from "../../network/connection";
 import { generateSessionId } from "../../kernel/session";
 import { RuntimeManager } from "../../runtime/runtime";
@@ -334,35 +333,6 @@ describe("useNotebookSession document model", () => {
   });
 });
 
-describe("useNotebookSession messages", () => {
-  let store: ReturnType<typeof createStore>;
-  let fake: FakeTransport;
-
-  beforeEach(async () => {
-    store = createStore();
-    fake = withTransport();
-    vi.mocked(useRuntimeManager).mockReturnValue(makeRuntimeManager());
-    renderConnectionHook(store);
-    await started();
-  });
-
-  function receive(payload: unknown) {
-    act(() => connection(fake).receive(payload));
-  }
-
-  it("records completion of the initial run", () => {
-    const notification = {
-      op: "completed-run",
-      run_id: null,
-      outcome: "succeeded",
-      error: null,
-    } satisfies NotificationPayload["data"];
-    expect(store.get(initialRunCompletedAtom)).toBe(false);
-    receive({ id: "42", event: "marimo", data: { marimo: notification } });
-    expect(store.get(initialRunCompletedAtom)).toBe(true);
-  });
-});
-
 it("waits for the stream's snapshot before marking the session connected", async () => {
   const store = createStore();
   store.set(connectionAtom, { state: ConnectionState.CONNECTING });
@@ -559,7 +529,7 @@ it.each(["server", "wasm", "wasm-read", "static"])(
       expect(run).not.toHaveBeenCalled();
     }
     expect(run.mock.calls).toEqual(
-      owner === "server"
+      owner !== "static"
         ? [
             [
               "n1",

@@ -161,6 +161,9 @@ class WorkerBackend:
                 {started, stopped}, return_when=asyncio.FIRST_COMPLETED
             )
             if session.started.is_set():
+                if not session.instantiated:
+                    # Prepare Markdown previews without executing notebook cells.
+                    session.instantiate(auto_run=False)
                 self._observe(be.Running(runtime_id, __version__))
                 await stopped
             self._observe(be.Exited(runtime_id, session.exit_reason))
@@ -320,8 +323,7 @@ class WorkerBackend:
                 await self._scratchpad.acquire()
                 self._scratch_run = translator.run_id
             if not self._session.instantiated:
-                # The page registers the cells when it starts the kernel;
-                # a host run that comes first registers them itself.
+                # Register the graph lazily, without executing cells.
                 self._session.instantiate(auto_run=False)
             self._translators.add(translator)
             self._session.put_control_request(build())

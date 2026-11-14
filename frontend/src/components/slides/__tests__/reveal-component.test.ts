@@ -1,12 +1,30 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
+import type * as Protocol from "@marimo-team/client/protocol";
+import { createStore } from "jotai";
+import { MockExecutions } from "@/__mocks__/executions";
+import { userConfigAtom } from "@/core/config/config";
+import { createNotebookAutorun } from "@/core/executions/autorun";
+import { activeNotebookAutorunAtom } from "@/core/session/active-notebook";
+import {
+  fakeBackend,
+  type FakeRun,
+} from "@/core/notebook/replica/__tests__/fixtures";
+import { Deferred } from "@/utils/Deferred";
+import { document } from "@/core/notebook/document/__tests__/fixtures";
+import {
+  runtimeAdapterAtom,
+  wasmAdapter,
+  staticAdapter,
+} from "@/core/runtime/adapter";
 import { act, renderHook } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { cellId } from "@/__tests__/branded";
 import type { CellId } from "@/core/cells/ids";
 import type { RuntimeCell } from "@/core/cells/types";
 import type { SlideConfig } from "../../editor/renderers/slides-layout/types";
 import {
+  canResolveInitialSlideHashAtom,
   deckSlideType,
   parkedRendersSource,
   shouldShowCode,
@@ -24,6 +42,118 @@ const cells = (
 // The hook only reads `cell.id`, so a minimal stub is enough. Cast is confined
 // to this test helper (see `@/__tests__/branded` for the same rationale).
 const cell = (id: CellId): RuntimeCell => ({ id }) as RuntimeCell;
+
+describe("initial slide hash", () => {
+  function setup(autoRun = true, prepare?: () => Promise<boolean>) {
+    const store = createStore();
+    const replica = MockExecutions.seed(
+      store,
+      [],
+      MockExecutions.runtime("running"),
+      document(),
+    );
+    store.set(runtimeAdapterAtom, wasmAdapter);
+    store.set(replica.notebookAtom, {
+      ...MockExecutions.notebook(),
+      operations: ["runtime.run"],
+    });
+    const record: Protocol.Run = {
+      id: "run-1",
+      notebook_id: "n1",
+      runtime_id: "r1",
+      cells: ["c1", "c2"],
+      status: "queued",
+      outcome: null,
+      started_at: null,
+      completed_at: null,
+    };
+    const run = vi.fn<FakeRun>(async () => ({
+      ok: true,
+      status: 202,
+      data: record,
+    }));
+    store.set(replica.backendAtom, fakeBackend({ run }));
+    const autorun = createNotebookAutorun({ store, replica, prepare });
+    store.set(activeNotebookAutorunAtom, autorun);
+    const controller = new AbortController();
+    autorun.start({
+      autoRun,
+      signal: controller.signal,
+      onError: (error) => {
+        throw error;
+      },
+    });
+    onTestFinished(() => {
+      controller.abort();
+      store.set(replica.notebookAtom, null);
+    });
+    const observe = (run: Protocol.Run) =>
+      store.set(replica.executionsAtom, (state) => ({
+        ...state,
+        runs: new Map([[run.id, run]]),
+      }));
+    return { store, replica, run, record, observe };
+  }
+
+  it("waits through the edit flush, response/stream gap, and host execution", async () => {
+    const prepared = new Deferred<boolean>();
+    const { store, run, record, observe } = setup(true, () => prepared.promise);
+    expect(store.get(canResolveInitialSlideHashAtom)).toBe(false);
+    prepared.resolve(true);
+    await vi.waitFor(() => expect(run).toHaveResolved());
+    expect(store.get(canResolveInitialSlideHashAtom)).toBe(false);
+    observe(record);
+    await Promise.resolve();
+    expect(store.get(canResolveInitialSlideHashAtom)).toBe(false);
+    observe({ ...record, status: "completed", outcome: "succeeded" });
+    await vi.waitFor(() =>
+      expect(store.get(canResolveInitialSlideHashAtom)).toBe(true),
+    );
+  });
+
+  it("does not reinterpret an already-skipped autorun after a preference change", () => {
+    const { store, run } = setup(false);
+    store.set(userConfigAtom, (config) => ({
+      ...config,
+      runtime: { ...config.runtime, auto_instantiate: false },
+    }));
+    expect(store.get(canResolveInitialSlideHashAtom)).toBe(true);
+    store.set(userConfigAtom, (config) => ({
+      ...config,
+      runtime: { ...config.runtime, auto_instantiate: true },
+    }));
+    expect(store.get(canResolveInitialSlideHashAtom)).toBe(true);
+    expect(run).not.toHaveBeenCalled();
+  });
+
+  it("remains ready when reactive runs replace and prune the original run", async () => {
+    const { store, replica, run, record, observe } = setup();
+    await vi.waitFor(() => expect(run).toHaveResolved());
+    observe({ ...record, status: "completed", outcome: "succeeded" });
+    await vi.waitFor(() =>
+      expect(store.get(canResolveInitialSlideHashAtom)).toBe(true),
+    );
+    observe({
+      ...record,
+      id: "reactive",
+      cells: [],
+      status: "completed",
+      outcome: "succeeded",
+    });
+    expect(store.get(canResolveInitialSlideHashAtom)).toBe(true);
+    store.set(replica.executionsAtom, (state) => ({
+      ...state,
+      runs: new Map(),
+    }));
+    expect(store.get(canResolveInitialSlideHashAtom)).toBe(true);
+  });
+
+  it("does not wait for a static export", () => {
+    const { store } = setup();
+    store.set(runtimeAdapterAtom, staticAdapter);
+    expect(store.get(canResolveInitialSlideHashAtom)).toBe(true);
+  });
+});
 
 describe("syncCodeToggleKeyBinding", () => {
   it("tracks whether code is available after Reveal is ready", () => {

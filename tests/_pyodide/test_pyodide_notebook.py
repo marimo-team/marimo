@@ -25,7 +25,6 @@ from marimo._messaging.notification import (
     VariablesNotification,
 )
 from marimo._messaging.serde import serialize_kernel_message
-from marimo._pyodide.bootstrap import instantiate
 from marimo._pyodide.pyodide_session import PyodideBridge, PyodideSession
 from marimo._runtime.commands import (
     AppMetadata,
@@ -169,7 +168,7 @@ async def test_snapshot_edit_and_retry(bridge):
 
 async def test_atomic_conflict_and_kernel_update(bridge):
     events = await snapshot(bridge)
-    instantiate(bridge.session, auto_instantiate=False)
+    bridge.session.instantiate(auto_run=False)
     queue = bridge.session._queue_manager.control_queue
     assert isinstance(queue.get_nowait(), CreateNotebookCommand)
     await send(bridge, edit(events))
@@ -202,7 +201,7 @@ async def test_edit_before_instantiation(bridge):
     await send(bridge, edit(events))
     queue = bridge.session._queue_manager.control_queue
     assert queue.empty()
-    instantiate(bridge.session, auto_instantiate=False)
+    bridge.session.instantiate(auto_run=False)
     command = queue.get_nowait()
     assert isinstance(command, CreateNotebookCommand)
     assert [request.code for request in command.execution_requests] == [
@@ -382,7 +381,7 @@ def save_call(bridge, key="save-1", if_match=None):
 
 async def test_save_keeps_newer_edits_and_kernel_updates(bridge):
     events = await snapshot(bridge)
-    instantiate(bridge.session, auto_instantiate=False)
+    bridge.session.instantiate(auto_run=False)
     queue = bridge.session._queue_manager.control_queue
     queue.get_nowait()
     await send(bridge, edit(events))

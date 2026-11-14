@@ -1,10 +1,16 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
+import { createStore } from "jotai";
+import type * as Protocol from "@marimo-team/client/protocol";
 import type { components } from "@marimo-team/marimo-api";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { requestId, uiElementId, widgetModelId } from "@/__tests__/branded";
+import { document as hostDocument } from "@/core/notebook/document/__tests__/fixtures";
 import { notebookAtom } from "@/core/cells/cells";
-import { islandsPendingInitialRunsAtom } from "@/core/islands/state";
+import {
+  islandsHydratedAtom,
+  islandsPendingInitialRunsAtom,
+} from "@/core/islands/state";
 
 type Base64String = components["schemas"]["Base64String"];
 interface TestIslandApp {
@@ -193,6 +199,64 @@ describe("IslandsPyodideBridge", () => {
     mockSingleApp();
     await bridge.initializeApps();
   }
+
+  it("hydrates only after every active session has a completed host run", async () => {
+    const store = createStore();
+    bridge = new IslandsPyodideBridge({ store });
+    mockParseMarimoIslandApps.mockReturnValue([app("app-1"), app("app-2")]);
+    signalWorkerReady();
+    await bridge.initializeApps();
+
+    const run: Protocol.Run = {
+      id: "run-1",
+      notebook_id: "n1",
+      runtime_id: "r1",
+      cells: ["c1"],
+      status: "running",
+      outcome: null,
+      started_at: "2026-10-01T00:00:00Z",
+      completed_at: null,
+    };
+    sendNotebookEvent(1, { event: "run", data: { run } });
+    expect(store.get(islandsPendingInitialRunsAtom)).toEqual(new Set([1, 2]));
+
+    const completed: Protocol.RunEvent = {
+      event: "run",
+      data: {
+        run: {
+          ...run,
+          status: "completed",
+          outcome: "succeeded",
+          completed_at: "2026-10-01T00:00:01Z",
+        },
+      },
+    };
+    sendNotebookEvent(1, {
+      ...completed,
+      data: { run: { ...completed.data.run, cells: [] } },
+    });
+    expect(store.get(islandsPendingInitialRunsAtom)).toEqual(new Set([1, 2]));
+    sendNotebookEvent(1, completed);
+    sendNotebookEvent(1, completed);
+    sendNotebookEvent(0, completed);
+    expect(store.get(islandsPendingInitialRunsAtom)).toEqual(new Set([2]));
+    expect(store.get(islandsHydratedAtom)).toBe(false);
+
+    sendNotebookEvent(2, completed);
+    expect(store.get(islandsHydratedAtom)).toBe(true);
+  });
+
+  it("does not wait for a run when an island document is empty", async () => {
+    const store = createStore();
+    bridge = new IslandsPyodideBridge({ store });
+    mockSingleApp();
+    await bridge.initializeApps();
+    sendNotebookEvent(1, {
+      event: "document",
+      data: { document: { ...hostDocument().revision, order: [] } },
+    });
+    expect(store.get(islandsHydratedAtom)).toBe(true);
+  });
 
   describe("app initialization", () => {
     it("should prefer trusted export notebook code when there is exactly one reactive app", async () => {

@@ -67,9 +67,8 @@ import {
   observeCellMessage,
 } from "../executions";
 import { isWasm } from "../wasm/utils";
-import { initialRunCompletedAtom } from "../kernel/state";
 import { useLayoutActions } from "../layout/state";
-import { kioskModeAtom } from "../mode";
+import { initialModeAtom, kioskModeAtom } from "../mode";
 import { connectionAtom, startupProgressAtom } from "../network/connection";
 import { savedLayoutAtom } from "../saving/state";
 import type { RequestId } from "../network/DeferredRequestRegistry";
@@ -96,13 +95,13 @@ export function useNotebookSession(opts: {
   autoInstantiate: boolean;
 }) {
   const { autoInstantiate, sessionId } = opts;
+  const initialMode = useAtomValue(initialModeAtom);
   const store = useStore();
 
   const { handleCellMessage, reconcileDocument, resetCellRuntimes } =
     useReducerActions();
   const { reconcileStagedCells } = useStagedAICellsActions();
   const { addCellNotification } = useRunsActions();
-  const setInitialRunCompleted = useSetAtom(initialRunCompletedAtom);
   const { setVariables, setMetadata } = useVariablesActions();
   const { addColumnPreview } = useDatasetsActions();
   const { addDatasets, filterDatasetsFromVariables } = useDatasetsActions();
@@ -148,9 +147,6 @@ export function useNotebookSession(opts: {
         return;
       }
       case "kernel-ready": {
-        setInitialRunCompleted(
-          Boolean(msg.data.resumed || msg.data.auto_instantiated),
-        );
         const layout = handleKernelReady(msg.data, {
           cells: notebookCells(store.get(notebookAtom)),
           resetCellRuntimes,
@@ -178,8 +174,6 @@ export function useNotebookSession(opts: {
       }
 
       case "completed-run":
-        setInitialRunCompleted(true);
-        return;
       case "execution":
         return;
       case "interrupted":
@@ -465,14 +459,14 @@ export function useNotebookSession(opts: {
     [store, replica, documentModel],
   );
   useEffect(() => {
-    // WASM still owns execution in its worker; static exports have no runtime.
-    if (isStaticNotebook() || isWasm()) {
+    // Static exports have no runtime to execute.
+    if (isStaticNotebook()) {
       return;
     }
     const controller = new AbortController();
     store.set(activeNotebookAutorunAtom, autorun);
     autorun.start({
-      autoRun: autoInstantiate,
+      autoRun: autoInstantiate || (isWasm() && initialMode === "read"),
       signal: controller.signal,
       // The notebook is open and usable, and each cell can still be run.
       onError: (error) => {
@@ -490,7 +484,7 @@ export function useNotebookSession(opts: {
         store.set(activeNotebookAutorunAtom, null);
       }
     };
-  }, [autorun, autoInstantiate, store]);
+  }, [autorun, autoInstantiate, initialMode, store]);
 
   // Subscribe before passive connection setup: static/WASM transports can emit synchronously.
   useLayoutEffect(() => {

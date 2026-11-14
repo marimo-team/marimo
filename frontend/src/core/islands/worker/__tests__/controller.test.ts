@@ -72,6 +72,7 @@ describe("WASM controller session lifecycle", () => {
 
     const session = await prepareSession(controller, "current");
     await session.stop();
+    expect(session.signal.aborted).toBe(true);
     expect(init.destroy).toHaveBeenCalledOnce();
     await session.start();
     expect(init).not.toHaveBeenCalled();

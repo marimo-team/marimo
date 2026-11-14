@@ -203,17 +203,7 @@ export class PyodideBridge implements RunRequests, EditRequests {
       queryParameters: queryParameters,
       code: code || fallbackCode || "",
       filename,
-      userConfig: {
-        ...userConfig,
-        runtime: {
-          ...userConfig.runtime,
-          // Force auto_instantiate to true if the initial mode is read
-          auto_instantiate:
-            getInitialAppMode() === "read"
-              ? true
-              : userConfig.runtime.auto_instantiate,
-        },
-      },
+      userConfig,
     });
   }
 

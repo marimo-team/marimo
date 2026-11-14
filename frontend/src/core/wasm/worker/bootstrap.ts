@@ -152,7 +152,7 @@ export class DefaultWasmController implements WasmController {
       import asyncio
       import gc
       import js
-      from marimo._pyodide.bootstrap import create_session, instantiate
+      from marimo._pyodide.bootstrap import create_session
 
       assert js.query_params, "query_params is not defined"
 
@@ -164,9 +164,8 @@ export class DefaultWasmController implements WasmController {
         )
         session_task = None
 
-        def init(auto_instantiate=True):
+        def init():
           nonlocal session_task
-          instantiate(session, auto_instantiate)
           session_task = asyncio.create_task(session.start())
 
         async def stop():
@@ -219,12 +218,12 @@ export class DefaultWasmController implements WasmController {
     } finally {
       packagesProxy.destroy();
     }
-    let stopped = false;
+    const lifetime = new AbortController();
     let stopping: Promise<void> | undefined;
     const releaseInit = once(() => initSession.destroy());
     const isStopped = () =>
-      stopped || sessionGeneration !== this.sessionGeneration;
-    // Load in parallel with subscription setup; only start() executes cells.
+      lifetime.signal.aborted || sessionGeneration !== this.sessionGeneration;
+    // Load in parallel with subscription setup; start() only launches the kernel.
     const dependenciesReady = this.packageLoadQueue.then(() => {
       if (isStopped()) {
         return;
@@ -233,6 +232,7 @@ export class DefaultWasmController implements WasmController {
     });
     this.packageLoadQueue = dependenciesReady.catch(() => undefined);
     const session: WasmSession = {
+      signal: lifetime.signal,
       bridge: bridgeProxy as unknown as SerializedBridge,
       start: once(async () => {
         try {
@@ -241,7 +241,7 @@ export class DefaultWasmController implements WasmController {
           }
           await dependenciesReady;
           if (!isStopped()) {
-            initSession(userConfig.runtime.auto_instantiate);
+            initSession();
           }
         } catch (error) {
           if (!isStopped()) {
@@ -252,7 +252,7 @@ export class DefaultWasmController implements WasmController {
         }
       }),
       stop: () => {
-        stopped = true;
+        lifetime.abort();
         releaseInit();
         stopping ??= (async () => {
           await stopSession();

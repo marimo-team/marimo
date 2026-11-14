@@ -20,7 +20,11 @@ import { Button } from "@/components/ui/button";
 import { useFullScreenElement } from "@/components/ui/fullscreen";
 import { Tooltip } from "@/components/ui/tooltip";
 import { outputIsStale } from "@/core/cells/cell";
-import { useCellExecution, useCellFreshness } from "@/core/executions";
+import {
+  notebookQueuedOrRunningCountAtom,
+  useCellExecution,
+  useCellFreshness,
+} from "@/core/executions";
 import type { CellId } from "@/core/cells/ids";
 import type { RuntimeCell } from "@/core/cells/types";
 import type { RevealApi, RevealConfig } from "reveal.js";
@@ -57,17 +61,37 @@ import { SlideNotesEditor } from "./slide-notes-editor";
 import { buildSubslideNotes, NOTES_DIVIDER } from "./slide-notes";
 import { cn } from "@/utils/cn";
 import { isIslands } from "@/core/islands/utils";
-import { initialRunCompletedAtom } from "@/core/kernel/state";
+import {
+  activeNotebookAutorunAtom,
+  activeNotebookReplicaAtom,
+} from "@/core/session/active-notebook";
 import { useNotebookCodeAvailable } from "@/core/meta/code-visibility";
 import { type AppMode, kioskModeAtom } from "@/core/mode";
 import { runtimeAdapterAtom } from "@/core/runtime/adapter";
-import { useAtomValue } from "jotai";
+import { atom, useAtomValue } from "jotai";
 import RevealNotes from "reveal.js/plugin/notes";
 import {
   createSpeakerViewUrl,
   isSpeakerViewReceiver,
   supportsSpeakerView,
 } from "./speaker-view";
+
+// WASM slide topology changes as its first run produces outputs. Resolving a
+// numeric hash earlier would clamp it against an incomplete deck.
+export const canResolveInitialSlideHashAtom = atom((get) => {
+  if (get(runtimeAdapterAtom).kind !== "wasm") {
+    return true;
+  }
+  const replica = get(activeNotebookReplicaAtom);
+  const autorun = get(activeNotebookAutorunAtom);
+  return (
+    replica !== null &&
+    get(replica.notebookAtom) !== null &&
+    autorun !== null &&
+    !get(autorun.pendingAtom) &&
+    get(notebookQueuedOrRunningCountAtom) === 0
+  );
+});
 
 const ASPECT_RATIO = 16 / 9;
 const SLIDE_WIDTH = 1280;
@@ -512,8 +536,7 @@ const RevealSlidesComponent = ({
   // also omit the plugin because each receiver would start another runtime.
   const kioskMode = useAtomValue(kioskModeAtom);
   const runtimeKind = useAtomValue(runtimeAdapterAtom).kind;
-  const initialRunCompleted = useAtomValue(initialRunCompletedAtom);
-  const canResolveInitialHash = runtimeKind !== "wasm" || initialRunCompleted;
+  const canResolveInitialHash = useAtomValue(canResolveInitialSlideHashAtom);
   const deckPlugins = useMemo(
     () => (kioskMode || !supportsSpeakerView(runtimeKind) ? [] : [RevealNotes]),
     [kioskMode, runtimeKind],

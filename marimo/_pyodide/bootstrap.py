@@ -20,17 +20,6 @@ if TYPE_CHECKING:
     from marimo._pyodide.pyodide_session import PyodideBridge, PyodideSession
 
 
-def instantiate(
-    session: PyodideSession, auto_instantiate: bool = True
-) -> None:
-    """
-    Instantiate the marimo app in the session.
-
-    This function is called by the WebAssembly frontend.
-    """
-    session.instantiate(auto_run=auto_instantiate)
-
-
 def create_session(
     filename: str,
     query_params: SerializedQueryParams,
