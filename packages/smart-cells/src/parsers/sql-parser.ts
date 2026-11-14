@@ -353,7 +353,6 @@ function indentOneTab(code: string): string {
     .join("\n");
 }
 
-// Normalize raw literals to ordinary string source, leaving Python fields alone.
 function encodeRawSQL(
   source: string,
   node: SyntaxNode,

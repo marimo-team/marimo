@@ -44,7 +44,6 @@ export function escapeSQLQuoteRuns(source: string, fString = true): string {
   );
 }
 
-/** Positions of intentional Python fields, excluding doubled literal braces. */
 export function getSQLInterpolationRanges(
   source: string,
 ): Array<{ from: number; to: number }> {

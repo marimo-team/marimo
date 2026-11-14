@@ -168,7 +168,6 @@ class GetDatabaseTables(
             sample_query = f"SELECT * FROM {schema}.{table} LIMIT 100"
         if default_schema:
             sample_query = f"SELECT * FROM {table} LIMIT 100"
-        # Keep names from the database as text inside the f-string below.
         sample_query = (
             sample_query.replace("\\", "\\\\")
             .replace("\r", "\\r")

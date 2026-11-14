@@ -44,7 +44,6 @@ export function tablesCompletionSource(): CompletionSource {
   };
 }
 
-/** Keep completions literal without changing canonical schema or query labels. */
 export function literalSQLCompletions(
   source: CompletionSource,
   kind: "schema" | "query" = "schema",

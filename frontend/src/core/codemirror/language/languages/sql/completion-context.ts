@@ -38,7 +38,6 @@ const escapes: Record<string, string> = {
   v: "\v",
 };
 
-/** Analyze SQL identifiers as SQL text, while the editor retains Python source. */
 export function sqlCompletionContext(
   context: CompletionContext,
   fString: boolean,

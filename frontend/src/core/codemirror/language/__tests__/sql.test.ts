@@ -38,7 +38,6 @@ import {
 } from "../languages/sql/sql";
 import { languageMetadataField, updateLanguageMetadata } from "../metadata";
 
-// Schema snapshots describe public labels and hierarchy, rather than origin tags.
 expect.addSnapshotSerializer({
   test: (value) =>
     typeof value === "object" && value !== null && SQL_IDENTIFIER in value,
@@ -2526,7 +2525,6 @@ describe("tablesCompletionSource", () => {
           expect(await applied("SELECT * FROM u", "f")).toBe(`"${escaped}"`);
           expect(await applied('SELECT * FROM "u', "f")).toBe(`"${escaped}"`);
           expect(await applied("SELECT * FROM u", "")).toBe(`"${name}"`);
-          // Aliases come from the query, which is already escaped.
           expect(
             await applied('SELECT * FROM t AS "a{{b}}" WHERE a', "f", "a{b}"),
           ).toBe('"a{{b}}"');
