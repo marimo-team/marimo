@@ -8,10 +8,12 @@ import {
   waitFor,
 } from "@testing-library/react";
 import { createStore, Provider } from "jotai";
-import { beforeAll, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { MockRequestClient } from "@/__mocks__/requests";
+import { variableName } from "@/__tests__/branded";
 import { Command, CommandList } from "@/components/ui/command";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { setupNotebook } from "@/core/cells/__tests__/harness";
 import {
   dataSourceConnectionsAtom,
   type SQLTableContext,
@@ -20,6 +22,7 @@ import { DUCKDB_ENGINE } from "@/core/datasets/engines";
 import { datasetsAtom, exportedForTesting } from "@/core/datasets/state";
 import type { DataTable } from "@/core/kernel/messages";
 import { requestClientAtom } from "@/core/network/requests";
+import { sqlCode } from "../utils";
 import {
   DataSources,
   hideEmptyDatasourcesAtom,
@@ -179,3 +182,114 @@ it("activates a schema and a table with the same path independently using the ke
   expect(await screen.findByText("amount")).toBeInTheDocument();
   expect(screen.getByText("No tables found")).toBeInTheDocument();
 });
+
+const stops: Array<() => void> = [];
+afterEach(() => {
+  for (const stop of stops.splice(0)) {
+    stop();
+  }
+});
+
+it("adds a catalog table as a Python string literal", async () => {
+  const { store, notebook } = setupNotebook(stops);
+  store.set(requestClientAtom, MockRequestClient.create());
+  const name = String.raw`t "a" \b`;
+  const context: SQLTableContext = {
+    engine: "my_catalog",
+    database: "db",
+    schema: "s",
+    schemaPath: ["s"],
+    dialect: "iceberg",
+  };
+  render(
+    <Provider store={store}>
+      <TooltipProvider>
+        <Command shouldFilter={false}>
+          <CommandList>
+            <TableList
+              tables={[
+                {
+                  ...table,
+                  name,
+                  source_type: "catalog",
+                  engine: variableName("my_catalog"),
+                },
+              ]}
+              sqlTableContext={context}
+            />
+          </CommandList>
+        </Command>
+      </TooltipProvider>
+    </Provider>,
+  );
+
+  fireEvent.click(
+    await screen.findByRole("button", {
+      name: `Add table ${name} to notebook`,
+    }),
+  );
+  await waitFor(() => {
+    expect(
+      Object.values(notebook().cellData).map((cell) => cell.code),
+    ).toContain(String.raw`my_catalog.load_table("db.s.t \"a\" \\b")`);
+  });
+});
+
+it.each([
+  { name: "reports", columnName: "amount" },
+  { name: String.raw`t{1+1}\"""`, columnName: "c{2+2}" },
+])(
+  "adds table and column SQL cells for $name",
+  async ({ name, columnName }) => {
+    const { store, notebook } = setupNotebook(stops);
+    store.set(requestClientAtom, MockRequestClient.create());
+    const context: SQLTableContext = {
+      engine: "conn",
+      database: "db",
+      defaultDatabase: "db",
+      schema: "public",
+      defaultSchema: "public",
+      dialect: "postgres",
+    };
+    const dataTable: DataTable = {
+      ...table,
+      name,
+      source_type: "connection",
+      columns: [{ ...table.columns[0], name: columnName }],
+    };
+    render(
+      <Provider store={store}>
+        <TooltipProvider>
+          <Command shouldFilter={false}>
+            <CommandList>
+              <TableList tables={[dataTable]} sqlTableContext={context} />
+            </CommandList>
+          </Command>
+        </TooltipProvider>
+      </Provider>,
+    );
+    fireEvent.click(
+      await screen.findByRole("button", {
+        name: `Add table ${name} to notebook`,
+      }),
+    );
+    fireEvent.click(screen.getByText(name));
+    fireEvent.click(await screen.findByText(columnName));
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Add SQL cell" }),
+    );
+    await waitFor(() => {
+      const codes = Object.values(notebook().cellData).map((cell) => cell.code);
+      expect(codes).toEqual(
+        expect.arrayContaining([
+          sqlCode({
+            table: dataTable,
+            columnName: "*",
+            sqlTableContext: context,
+          }),
+          sqlCode({ table: dataTable, columnName, sqlTableContext: context }),
+        ]),
+      );
+    });
+  },
+);

@@ -14,7 +14,9 @@ import {
   parseArgsKwargs,
   parsePythonAST,
   safeDedent,
+  splitQuotePrefix,
 } from "../utils/index.js";
+import { escapeSQLQuoteRuns, escapeSQLString } from "../utils/sql-string.js";
 
 export interface SQLMetadata {
   dataframeName: string;
@@ -59,7 +61,8 @@ export class SQLParser implements LanguageParser<SQLMetadata> {
    * Create a SQL cell from a SQL query.
    */
   static fromQuery(query: string): string {
-    return `_df = mo.sql(f"""${query.trim()}""")`;
+    const parser = new SQLParser();
+    return parser.transformOut(query.trim(), parser.defaultMetadata).code;
   }
 
   transformIn(pythonCode: string): ParseResult<SQLMetadata> {
@@ -86,6 +89,7 @@ export class SQLParser implements LanguageParser<SQLMetadata> {
       metadata.dataframeName = sqlStatement.dfName;
       metadata.showOutput = sqlStatement.output ?? true;
       metadata.engine = sqlStatement.engine ?? DEFAULT_ENGINE;
+      metadata.quotePrefix = "f";
 
       return {
         code: dedent(`\n${sqlStatement.sqlString}\n`).trim(),
@@ -102,7 +106,7 @@ export class SQLParser implements LanguageParser<SQLMetadata> {
       metadata;
 
     const start = `${dataframeName} = mo.sql(\n    ${quotePrefix}"""\n`;
-    const escapedCode = code.replaceAll('"""', String.raw`\"""`);
+    const escapedCode = escapeSQLQuoteRuns(code, quotePrefix.includes("f"));
 
     const showOutputParam = showOutput ? "" : ",\n    output=False";
     const engineParam =
@@ -276,9 +280,20 @@ function parseSQLStatement(code: string): SQLParseInfo | null {
             // Parse positional args (SQL query)
             if (args.length === 1) {
               sqlString = getStringContent(args[0], code);
+              const [quotePrefix] = splitQuotePrefix(
+                code.slice(args[0].from, args[0].to),
+              );
               startPosition =
                 args[0].from +
                 getPrefixLength(code.slice(args[0].from, args[0].to));
+              if (sqlString !== null && quotePrefix.includes("r")) {
+                sqlString = encodeRawSQL(sqlString, args[0], startPosition);
+              }
+              if (sqlString !== null && !quotePrefix.includes("f")) {
+                sqlString = quotePrefix.includes("r")
+                  ? doubleBraces(sqlString)
+                  : encodePlainSQL(sqlString, args[0], startPosition);
+              }
             }
 
             // Parse kwargs (engine and output)
@@ -295,7 +310,13 @@ function parseSQLStatement(code: string): SQLParseInfo | null {
 
             // Check if sql string is empty
             if (sqlString === "") {
-              return { dfName, sqlString: "", engine, output, startPosition };
+              return {
+                dfName,
+                sqlString: "",
+                engine,
+                output,
+                startPosition,
+              };
             }
 
             break;
@@ -330,4 +351,73 @@ function indentOneTab(code: string): string {
     .split("\n")
     .map((line) => (line?.trim() ? `    ${line}` : line))
     .join("\n");
+}
+
+// Normalize raw literals to ordinary string source, leaving Python fields alone.
+function encodeRawSQL(
+  source: string,
+  node: SyntaxNode,
+  offset: number,
+): string {
+  let end = 0;
+  const parts: string[] = [];
+  for (const child of node.getChildren("FormatReplacement")) {
+    const from = child.from - offset;
+    const to = child.to - offset;
+    parts.push(
+      encodeRawSQLLiteral(source.slice(end, from)),
+      encodeRawField(source.slice(from, to), child),
+    );
+    end = to;
+  }
+  parts.push(encodeRawSQLLiteral(source.slice(end)));
+  return parts.join("");
+}
+
+function encodeRawSQLLiteral(source: string): string {
+  return source
+    .split("\n")
+    .map((line) => escapeSQLString(line ?? "", false))
+    .join("\n");
+}
+
+function encodeRawField(source: string, node: SyntaxNode): string {
+  const spec = node.getChild("FormatSpec");
+  if (!spec) {
+    return source;
+  }
+  const from = spec.from - node.from;
+  const to = spec.to - node.from;
+  return (
+    source.slice(0, from) +
+    encodeRawSQL(source.slice(from, to), spec, spec.from) +
+    source.slice(to)
+  );
+}
+
+function doubleBraces(source: string): string {
+  return source.replaceAll("{", "{{").replaceAll("}", "}}");
+}
+
+function encodePlainSQL(
+  source: string,
+  node: SyntaxNode,
+  offset: number,
+): string {
+  let end = 0;
+  const parts: string[] = [];
+  for (const escape of node.getChildren("Escape")) {
+    const from = escape.from - offset;
+    const to = escape.to - offset;
+    const escaped = source.slice(from, to);
+    parts.push(
+      doubleBraces(source.slice(end, from)),
+      escaped === "\\{" || escaped === "\\}"
+        ? escapeSQLString(escaped)
+        : escaped,
+    );
+    end = to;
+  }
+  parts.push(doubleBraces(source.slice(end)));
+  return parts.join("");
 }
