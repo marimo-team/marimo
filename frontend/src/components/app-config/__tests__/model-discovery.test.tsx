@@ -86,6 +86,28 @@ describe("ModelDiscovery", () => {
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 
+  it("keeps focus in the input when reopening after navigating an open catalog", async () => {
+    vi.mocked(listProviderModels).mockResolvedValue({
+      models: [{ id: "model-a", name: "Model A" }],
+    });
+    render(<Discovery />);
+    fireEvent.click(search());
+    const option = await screen.findByRole("button", {
+      name: "Model A — model-a",
+    });
+    const input = screen.getByLabelText("Model");
+    fireEvent.keyDown(input, { key: "ArrowDown" });
+    expect(option).toHaveFocus();
+    fireEvent.keyDown(input, { key: "Escape" });
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
+    );
+
+    act(() => input.focus());
+    await screen.findByRole("dialog");
+    await waitFor(() => expect(input).toHaveFocus());
+  });
+
   it("discards outstanding results when the saved configuration changes", async () => {
     const pending =
       Promise.withResolvers<Awaited<ReturnType<typeof listProviderModels>>>();

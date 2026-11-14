@@ -118,4 +118,43 @@ describe("user configuration saving", () => {
     );
     expect(screen.getByRole("status")).toHaveTextContent("Idle");
   });
+
+  it("sends queued edits even when the in-flight save fails", async () => {
+    const pending = Promise.withResolvers<null>();
+    saveUserConfig.mockReturnValueOnce(pending.promise);
+    const store = setup();
+    await changeUrl(updatedUrl);
+    const latestUrl = "https://latest.example.com/v1";
+    await changeUrl(latestUrl);
+    expect(saveUserConfig).toHaveBeenCalledOnce();
+
+    await act(async () => pending.reject(new Error("Save failed")));
+    await act(async () => vi.advanceTimersByTimeAsync(100));
+
+    expect(saveUserConfig).toHaveBeenCalledTimes(2);
+    expect(saveUserConfig).toHaveBeenLastCalledWith({
+      config: { ai: { openrouter: { base_url: latestUrl } } },
+    });
+    expect(store.get(userConfigAtom).ai?.openrouter?.base_url).toBe(latestUrl);
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("offers a retry when settings cannot be saved", async () => {
+    saveUserConfig.mockRejectedValueOnce(new Error("Save failed"));
+    const store = setup();
+    await changeUrl(updatedUrl);
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "Could not save settings.",
+    );
+    expect(store.get(userConfigAtom).ai?.openrouter?.base_url).toBe(
+      originalUrl,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Retry" }));
+    await act(async () => vi.advanceTimersByTimeAsync(100));
+
+    expect(saveUserConfig).toHaveBeenCalledTimes(2);
+    expect(store.get(userConfigAtom).ai?.openrouter?.base_url).toBe(updatedUrl);
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
 });

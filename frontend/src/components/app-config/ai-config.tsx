@@ -1704,12 +1704,10 @@ export const AddModelForm: React.FC<{
   const draftAi = useWatch({ control: form.control, name: "ai" });
   const effectiveAi = useAtomValue(resolvedMarimoConfigAtom).ai;
   const providerConfig = (ai: UserConfig["ai"]) => {
-    const selected =
-      providerName === "openrouter"
-        ? ai?.openrouter
-        : providerName
-          ? ai?.custom_providers?.[providerName]
-          : undefined;
+    const selected = providerName
+      ? (ai?.custom_providers?.[providerName] ??
+        (providerName === "openrouter" ? ai?.openrouter : undefined))
+      : undefined;
     return Objects.filter<string, unknown>(
       selected ?? {},
       (value) => value !== undefined,

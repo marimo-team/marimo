@@ -75,7 +75,7 @@ export function ModelDiscovery({
                 }
                 if (event.key === "ArrowDown" && data) {
                   event.preventDefault();
-                  focusOptionsOnOpen.current = true;
+                  focusOptionsOnOpen.current = !open;
                   setOpen(true);
                   optionsRef.current?.querySelector("button")?.focus();
                 }

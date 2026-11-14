@@ -108,7 +108,9 @@ export const UserConfigForm: React.FC = () => {
   const [config, setConfig] = useUserConfig();
   const configStore = useStore();
   const saveInFlight = useRef(false);
+  const saveQueued = useRef(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [saveFailed, setSaveFailed] = useState(false);
   const isWideLayout = useMediaQuery("(min-width: 640px)");
   const [acceptOnEnter, setAcceptOnEnter] = useAtom(
     acceptCompletionOnEnterAtom,
@@ -171,6 +173,7 @@ export const UserConfigForm: React.FC = () => {
 
   const onSubmitNotDebounced = async (values: UserConfig) => {
     if (saveInFlight.current) {
+      saveQueued.current = true;
       return;
     }
     // Only send values that were actually changed to avoid
@@ -183,6 +186,7 @@ export const UserConfigForm: React.FC = () => {
       touchedFields: form.formState.touchedFields,
     });
     if (Object.keys(dirtyValues).length === 0) {
+      setSaveFailed(false);
       return; // Nothing changed
     }
 
@@ -193,6 +197,7 @@ export const UserConfigForm: React.FC = () => {
 
     saveInFlight.current = true;
     setIsSaving(true);
+    setSaveFailed(false);
     try {
       await saveUserConfig({ config: dirtyValues });
       const savedConfig = mergeConfig<UserConfig>(
@@ -201,11 +206,17 @@ export const UserConfigForm: React.FC = () => {
       );
       setConfig(savedConfig);
       if (updateFormDefaults(form, savedConfig, fieldsBeingSaved)) {
-        onSubmit(form.getValues());
+        saveQueued.current = true;
       }
+    } catch {
+      setSaveFailed(true);
     } finally {
       saveInFlight.current = false;
       setIsSaving(false);
+      if (saveQueued.current) {
+        saveQueued.current = false;
+        onSubmit(form.getValues());
+      }
     }
   };
   const onSubmit = useDebouncedCallback(onSubmitNotDebounced, FORM_DEBOUNCE);
@@ -1372,7 +1383,24 @@ export const UserConfigForm: React.FC = () => {
             value={activeCategory}
             className="settings-content m-0 min-h-0 min-w-0 flex-1 overflow-auto p-5 sm:p-6"
           >
-            <div className="flex flex-col gap-6">{renderBody()}</div>
+            <div className="flex flex-col gap-6">
+              {saveFailed && (
+                <Banner kind="danger" role="alert">
+                  <div className="flex items-center justify-between gap-2">
+                    <span>Could not save settings.</span>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="xs"
+                      onClick={() => onSubmit(form.getValues())}
+                    >
+                      Retry
+                    </Button>
+                  </div>
+                </Banner>
+              )}
+              {renderBody()}
+            </div>
           </TabsContent>
         </Tabs>
       </form>
