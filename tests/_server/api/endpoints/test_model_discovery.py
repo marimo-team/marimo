@@ -342,3 +342,36 @@ def test_discovery_without_notebook_session(
         200,
         {"models": [{"id": "model-a", "name": "model-a"}]},
     )
+
+
+def test_discovery_keyless_custom_provider_named_openrouter(
+    client: TestClient,
+    mock_catalog: Callable[[Callable[[httpx.Request], httpx.Response]], None],
+) -> None:
+    config = MarimoConfig.from_dict(
+        {
+            "ai": {
+                "custom_providers": {
+                    "openrouter": {"base_url": "http://localhost:8000/v1"}
+                }
+            }
+        }
+    )
+    requests: list[httpx.Request] = []
+
+    def handle(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        return httpx.Response(200, json={"data": []})
+
+    mock_catalog(handle)
+    with patch.object(
+        get_user_config_manager(client), "get_config", return_value=config
+    ):
+        response = client.get(
+            "/api/ai/models/openrouter", headers=token_header("fake-token")
+        )
+    assert (response.status_code, response.json()) == (200, {"models": []})
+    assert [
+        (str(request.url), request.headers.get("Authorization"))
+        for request in requests
+    ] == [("http://localhost:8000/v1/models", None)]
