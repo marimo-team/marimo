@@ -516,6 +516,32 @@ describe("NotebookReplica attachments", () => {
     },
   );
 
+  it("keeps presence hidden across a second disconnect until an empty replay is ready", async () => {
+    vi.useFakeTimers();
+    const { client, store, attempt, opened } = await open();
+    fixtureMessages("notebook-events.sse").forEach(attempt.receive);
+    const confirmed = store.get(client.documentAtom);
+    attempt.drop();
+    await backoff();
+    const replay = await opened();
+    replay.receive({
+      event: "attachment.removed",
+      id: "98",
+      data: { id: browser.id },
+    });
+    expect(store.get(client.attachmentsAtom)).toEqual([]);
+    replay.drop();
+    await backoff();
+    const resumed = await opened();
+    expect(resumed.cursor).toBe("98");
+    expect(store.get(client.documentAtom)).toBe(confirmed);
+    expect(store.get(client.attachmentsAtom)).toEqual([]);
+    expect(store.get(client.notebookAtom)).toBeNull();
+    resumed.receive({ event: "ready", id: "98", data: {} });
+    expect(store.get(client.attachmentsAtom)).toEqual([agent]);
+    expect(store.get(client.notebookAtom)?.id).toBe("n1");
+  });
+
   it.each(["drop", "stop", "removed", "abort"])(
     "clears presence on %s and ignores messages after disposal",
     async (reason) => {

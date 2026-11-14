@@ -48,7 +48,7 @@ const revisions: NotebookResource<Revisions, "cell" | "document"> = {
     }),
     // A live revision completes a group. A snapshot's revision waits for ready.
     document: (state, _event, { phase }) =>
-      phase === "live" ? publish(state) : state,
+      phase === "snapshot" ? state : publish(state),
     ready: publish,
   },
 };

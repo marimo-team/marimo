@@ -56,6 +56,8 @@ export interface NotebookReducerState<States> {
 /** A pure reducer over the events of one notebook stream. */
 export interface NotebookReducer<States> {
   readonly initial: NotebookReducerState<States>;
+  /** Restart an incomplete snapshot, or retain state while replay catches up. */
+  resume(state: NotebookReducerState<States>): NotebookReducerState<States>;
   /**
    * Apply one event.
    *
@@ -144,6 +146,12 @@ export function createNotebookReducer<States extends object>(
 
   return {
     initial,
+    resume(state) {
+      if (state.phase === "snapshot") {
+        return initial;
+      }
+      return { ...state, phase: "replay" };
+    },
     reduce(state, event) {
       switch (event.event) {
         case "reset":
