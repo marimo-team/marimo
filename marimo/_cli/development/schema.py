@@ -408,6 +408,8 @@ def generate_server_api_schema() -> dict[str, Any]:
         session_requests.InstantiateNotebookRequest,
         models.InvokeAiToolRequest,
         models.InvokeAiToolResponse,
+        models.ProviderModel,
+        models.ProviderModelsResponse,
         models.InvokeFunctionRequest,
         models.KernelStatusResponse,
         models.ListDataSourceConnectionRequest,

@@ -284,6 +284,45 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/ai/models/{provider_name}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** @description List models for a supported provider without modifying configuration. */
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          /** @description Provider identifier, such as `openrouter` or a custom-provider name. */
+          provider_name: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description Available models for the provider. */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["ProviderModelsResponse"];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/cache/clear": {
     parameters: {
       query?: never;
@@ -6474,6 +6513,15 @@ export interface components {
       /** @default [] */
       schemaPath?: string[];
       tableName: string;
+    };
+    /** ProviderModel */
+    ProviderModel: {
+      id: string;
+      name: string;
+    };
+    /** ProviderModelsResponse */
+    ProviderModelsResponse: {
+      models: components["schemas"]["ProviderModel"][];
     };
     /**
      * PyreflyLanguageServerConfig
