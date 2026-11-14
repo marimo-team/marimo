@@ -151,6 +151,9 @@ class SessionManager:
             mode=mode,
             auth_token=auth_token,
             source_code=source_code,
+            session_secret=config_manager.get_config(
+                hide_secrets=False
+            ).server.session_secret,
         )
 
         # Initialize resume strategy

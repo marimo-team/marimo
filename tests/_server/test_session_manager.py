@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import asyncio
+import os
+import subprocess
 import sys
 from textwrap import dedent
 from typing import TYPE_CHECKING
@@ -413,6 +415,71 @@ def test_session_manager_auth_token_run_mode_without_provided_token(
     assert str(session_manager.skew_protection_token) == str(
         session_manager2.skew_protection_token
     )
+
+
+def test_session_manager_run_mode_token_keyed_by_session_secret(
+    tmp_path: Path,
+) -> None:
+    """Run-mode tokens match across processes only with a session secret."""
+    file_path = tmp_path / "notebook.py"
+    file_path.write_text(
+        "import marimo\napp = marimo.App()\n\n@app.cell\ndef _():\n    return\n"
+    )
+    script = dedent(
+        """\
+        import sys
+        from unittest.mock import MagicMock
+        from marimo._config.manager import get_default_config_manager
+        from marimo._server.lsp import LspServer
+        from marimo._server.session_manager import SessionManager
+        from marimo._server.workspace import infer_workspace
+        from marimo._session.model import SessionMode
+
+        path = sys.argv[1]
+        config_manager = get_default_config_manager(current_path=path)
+        for secret in (None, "shared", "other"):
+            manager = SessionManager(
+                workspace=infer_workspace(path),
+                mode=SessionMode.RUN,
+                quiet=True,
+                include_code=True,
+                lsp_server=MagicMock(spec=LspServer),
+                config_manager=config_manager.with_overrides(
+                    {"server": {"session_secret": secret}}
+                ),
+                cli_args={},
+                argv=None,
+                auth_token=None,
+                redirect_console_to_browser=False,
+                ttl_seconds=None,
+            )
+            print(manager.auth_token)
+        """
+    )
+    env = {
+        **os.environ,
+        "PYTHONHASHSEED": "0",
+        "HOME": str(tmp_path),
+        "XDG_CONFIG_HOME": str(tmp_path),
+    }
+    env.pop("MARIMO_SESSION_SECRET", None)
+
+    def start_server() -> list[str]:
+        return subprocess.check_output(
+            [sys.executable, "-c", script, str(file_path)],
+            cwd=tmp_path,
+            env=env,
+            text=True,
+        ).split()
+
+    first, second = start_server(), start_server()
+    # Without a secret, each server start gets a fresh token, even under a
+    # fixed hash seed.
+    assert first[0] != second[0]
+    # Servers with the same secret produce the same token, and a different
+    # secret produces a different token.
+    assert first[1] == second[1]
+    assert first[1] != first[2]
 
 
 def test_recents_listener_subscribed_to_event_bus(

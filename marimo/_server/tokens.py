@@ -1,7 +1,12 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import hashlib
+import hmac
 import secrets
+
+# Used for run-mode auth tokens when server.session_secret is unset.
+_RUN_TOKEN_SECRET = secrets.token_hex(32)
 
 
 # Adapted from starlette, to avoid a dependency when running without starlette.
@@ -29,8 +34,17 @@ class AuthToken:
         return AuthToken(secrets.token_urlsafe(16))
 
     @staticmethod
-    def from_code(code: str) -> AuthToken:
-        return AuthToken(str(hash("auth:" + code)))
+    def from_code(code: str, secret: str | None = None) -> AuthToken:
+        """Derive a run-mode auth token from `code` and `secret`."""
+        return AuthToken(
+            hmac.new(
+                (secret or _RUN_TOKEN_SECRET).encode(),
+                # The session cookie hash uses the same secret, so this
+                # prefix keeps the two inputs distinct.
+                ("auth:" + code).encode(),
+                hashlib.sha256,
+            ).hexdigest()
+        )
 
     @staticmethod
     def is_empty(token: AuthToken) -> bool:

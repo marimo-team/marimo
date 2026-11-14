@@ -19,6 +19,7 @@ class TokenManager:
         mode: SessionMode,
         auth_token: AuthToken | None = None,
         source_code: str | None = None,
+        session_secret: str | None = None,
     ) -> None:
         """Initialize token manager.
 
@@ -26,6 +27,8 @@ class TokenManager:
             mode: The session mode (edit or run)
             auth_token: Optional pre-configured auth token
             source_code: Source code for generating code-based tokens in run mode
+            session_secret: Secret for run-mode auth tokens. If unset,
+                a per-process secret is used.
         """
         self.mode = mode
 
@@ -37,13 +40,14 @@ class TokenManager:
             )
             self.skew_protection_token = SkewProtectionToken.random()
         else:
-            # In run mode, use code-based tokens for consistency across instances
+            # In run mode, derive the token from the code so that replicas
+            # with the same server.session_secret accept the same token
             if source_code is None:
                 raise ValueError(
                     "source_code is required for run mode token generation"
                 )
             self.auth_token = (
-                AuthToken.from_code(source_code)
+                AuthToken.from_code(source_code, session_secret)
                 if auth_token is None
                 else auth_token
             )
