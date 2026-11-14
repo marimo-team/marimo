@@ -4,7 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useMediaQuery } from "@uidotdev/usehooks";
 import { atom, useAtom, useAtomValue, useSetAtom, useStore } from "jotai";
 import { AlertTriangleIcon, ArrowUpRightIcon } from "lucide-react";
-import React, { useId, useRef, useState } from "react";
+import React, { useEffect, useId, useRef, useState } from "react";
 import { useLocale } from "react-aria";
 import { useForm } from "react-hook-form";
 import type z from "zod";
@@ -109,6 +109,7 @@ export const UserConfigForm: React.FC = () => {
   const configStore = useStore();
   const saveInFlight = useRef(false);
   const saveQueued = useRef(false);
+  const scheduleSaveRef = useRef<((values: UserConfig) => void) | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [saveFailed, setSaveFailed] = useState(false);
   const isWideLayout = useMediaQuery("(min-width: 640px)");
@@ -198,28 +199,33 @@ export const UserConfigForm: React.FC = () => {
     saveInFlight.current = true;
     setIsSaving(true);
     setSaveFailed(false);
-    try {
-      await saveUserConfig({ config: dirtyValues });
-      const savedConfig = mergeConfig<UserConfig>(
-        configStore.get(userConfigAtom),
-        dirtyValues,
-      );
-      setConfig(savedConfig);
-      if (updateFormDefaults(form, savedConfig, fieldsBeingSaved)) {
-        saveQueued.current = true;
-      }
-    } catch {
-      setSaveFailed(true);
-    } finally {
-      saveInFlight.current = false;
-      setIsSaving(false);
-      if (saveQueued.current) {
-        saveQueued.current = false;
-        onSubmit(form.getValues());
-      }
-    }
+    await saveUserConfig({ config: dirtyValues })
+      .then(() => {
+        const savedConfig = mergeConfig<UserConfig>(
+          configStore.get(userConfigAtom),
+          dirtyValues,
+        );
+        setConfig(savedConfig);
+        if (updateFormDefaults(form, savedConfig, fieldsBeingSaved)) {
+          saveQueued.current = true;
+        }
+      })
+      .catch(() => {
+        setSaveFailed(true);
+      })
+      .finally(() => {
+        saveInFlight.current = false;
+        setIsSaving(false);
+        if (saveQueued.current) {
+          saveQueued.current = false;
+          scheduleSaveRef.current?.(form.getValues());
+        }
+      });
   };
   const onSubmit = useDebouncedCallback(onSubmitNotDebounced, FORM_DEBOUNCE);
+  useEffect(() => {
+    scheduleSaveRef.current = onSubmit;
+  }, [onSubmit]);
 
   const isWasmRuntime = isWasm();
   const getOverride = useConfigOverride();
