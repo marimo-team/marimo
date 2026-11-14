@@ -2289,25 +2289,27 @@ def test_cli_edit_trusted(temp_marimo_file: str) -> None:
     _check_contents(p, b'"mode": "edit"', contents)
 
 
+@pytest.mark.skipif(
+    HAS_DOCKER, reason="docker is required to be not installed"
+)
 def test_cli_edit_no_trusted(temp_marimo_file: str) -> None:
-    # --untrusted should use the chosen container engine, fail if missing
+    # --untrusted should try to use Docker, fail if not installed
     p = subprocess.Popen(
         [
             "marimo",
             "edit",
             temp_marimo_file,
             "--untrusted",
-            "--container-engine",
-            "missing-engine",
         ],
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
     )
 
+    # Should fail with missing docker
     stdout, stderr = p.communicate(timeout=5)
     assert p.returncode != 0
     output = stdout.decode() + stderr.decode()
-    assert "missing-engine is not installed" in output
+    assert "docker is not installed" in output
 
 
 def test_cli_run_trusted(temp_marimo_file: str) -> None:
@@ -2328,25 +2330,27 @@ def test_cli_run_trusted(temp_marimo_file: str) -> None:
     _check_contents(p, b'"mode": "read"', contents)
 
 
+@pytest.mark.skipif(
+    HAS_DOCKER, reason="docker is required to be not installed"
+)
 def test_cli_run_no_trusted(temp_marimo_file: str) -> None:
-    # --untrusted should use the chosen container engine, fail if missing
+    # --untrusted should try to use Docker, fail if not installed
     p = subprocess.Popen(
         [
             "marimo",
             "run",
             temp_marimo_file,
             "--untrusted",
-            "--container-engine",
-            "missing-engine",
         ],
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
     )
 
+    # Should fail with missing docker
     stdout, stderr = p.communicate(timeout=5)
     assert p.returncode != 0
     output = stdout.decode() + stderr.decode()
-    assert "missing-engine is not installed" in output
+    assert "docker is not installed" in output
 
 
 def test_cli_edit_with_convert(
