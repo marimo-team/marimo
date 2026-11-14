@@ -187,6 +187,9 @@ describe("FeedbackModal issue reporting", () => {
     expect(
       screen.getByRole("checkbox", { name: "Include errors" }),
     ).toBeDisabled();
+    expect(
+      screen.getByRole("checkbox", { name: "Include errors" }),
+    ).not.toBeChecked();
   });
 
   it("prefills the GitHub issue link with the environment once loaded", async () => {

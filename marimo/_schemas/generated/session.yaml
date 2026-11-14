@@ -49,6 +49,8 @@ components:
           type: string
         evalue:
           type: string
+        is_internal:
+          type: boolean
         traceback:
           items:
             type: string

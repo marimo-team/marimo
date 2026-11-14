@@ -4468,15 +4468,30 @@ class TestErrorHandling:
                         console_output.data
                     ), "Traceback leaked to console in run mode"
 
+    @pytest.mark.parametrize(
+        ("exception_type", "is_internal"),
+        [("ValueError", False), ("InternalError", True)],
+    )
     async def test_error_handling_in_run_mode_with_show_tracebacks(
-        self, run_mode_kernel: MockedKernel, exec_req: ExecReqProvider
+        self,
+        run_mode_kernel: MockedKernel,
+        exec_req: ExecReqProvider,
+        exception_type: str,
+        is_internal: bool,
     ) -> None:
         """When show_tracebacks is enabled, exceptions should not be
         sanitized and should include a formatted traceback."""
         k = run_mode_kernel.k
         k.user_config = copy.deepcopy(k.user_config)
         k.user_config.runtime.show_tracebacks = True
-        await k.run([exec_req.get("raise ValueError('some secret error')")])
+        await k.run(
+            [
+                exec_req.get(
+                    "from marimo._core.errors import InternalError\n"
+                    f"raise {exception_type}('some secret error')"
+                )
+            ]
+        )
         cell_notifications = run_mode_kernel.stream.cell_notifications
         error_cell_notification = _filter_to_error_ops(cell_notifications)
         assert len(error_cell_notification) == 1
@@ -4485,9 +4500,10 @@ class TestErrorHandling:
         assert len(errors) == 1
         assert isinstance(errors[0], MarimoExceptionRaisedError)
         assert errors[0].msg == "some secret error"
-        assert errors[0].exception_type == "ValueError"
+        assert errors[0].exception_type == exception_type
+        assert errors[0].is_internal is is_internal
         assert errors[0].traceback is not None
-        assert "ValueError" in errors[0].traceback
+        assert exception_type in errors[0].traceback
 
     async def test_name_error_includes_suggestion(
         self, mocked_kernel: MockedKernel, exec_req: ExecReqProvider
@@ -5177,6 +5193,63 @@ def _filter_to_error_ops(
         if op.output is not None
         and op.output.channel == CellChannel.MARIMO_ERROR
     ]
+
+
+@pytest.mark.parametrize(
+    ("code", "is_internal"),
+    [
+        (
+            (
+                "from marimo._core.errors import InternalError\n"
+                "raise InternalError('broken invariant')"
+            ),
+            True,
+        ),
+        ("raise RuntimeError('broken invariant')", False),
+        (
+            (
+                "class InternalError(RuntimeError):\n    pass\n"
+                "raise InternalError('broken invariant')"
+            ),
+            False,
+        ),
+    ],
+)
+async def test_internal_error_classification(
+    mocked_kernel: MockedKernel,
+    exec_req: ExecReqProvider,
+    code: str,
+    is_internal: bool,
+) -> None:
+    await mocked_kernel.k.run([exec_req.get(code)])
+    errors = _parse_error_output(
+        _filter_to_error_ops(mocked_kernel.stream.cell_notifications)[0]
+    )
+    assert len(errors) == 1
+    error = errors[0]
+    assert isinstance(error, MarimoExceptionRaisedError)
+    assert error.is_internal is is_internal
+    assert error.msg == "broken invariant"
+    assert error.traceback is not None
+
+
+async def test_internal_error_redacted_in_run_mode(
+    run_mode_kernel: MockedKernel, exec_req: ExecReqProvider
+) -> None:
+    await run_mode_kernel.k.run(
+        [
+            exec_req.get(
+                "from marimo._core.errors import InternalError\n"
+                "raise InternalError('secret invariant details')"
+            )
+        ]
+    )
+    errors = _parse_error_output(
+        _filter_to_error_ops(run_mode_kernel.stream.cell_notifications)[0]
+    )
+    assert len(errors) == 1
+    assert isinstance(errors[0], MarimoInternalError)
+    assert "secret invariant details" not in errors[0].msg
 
 
 class TestLaunchKernelEventLoop:

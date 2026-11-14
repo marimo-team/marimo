@@ -9,6 +9,10 @@ if TYPE_CHECKING:
     from marimo._core import protocol
 
 
+class InternalError(RuntimeError):
+    """A broken marimo invariant, which we should report to users."""
+
+
 class HostError(Exception):
     """Base exception for host and notebook commands."""
 
