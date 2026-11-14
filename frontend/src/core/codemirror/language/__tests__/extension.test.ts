@@ -188,10 +188,10 @@ describe("switchLanguage", () => {
     expect(mockEditor.state.doc.toString()).toMatchInlineSnapshot(`
       "_df = mo.sql(
           f"""
-          mo.md(r\\"""
+          mo.md(r\\"\\"\\"
           print('Hello')
           print('Goodbye')
-          \\""")
+          \\"\\"\\")
           """
       )"
     `);

@@ -1,5 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
+import { escapeSQLString } from "@marimo-team/smart-cells";
 import { BigQueryDialect } from "@marimo-team/codemirror-sql/dialects";
 import { isKnownDialect } from "@/core/codemirror/language/languages/sql/utils";
 import type { SQLTableContext } from "@/core/datasets/data-source-connections";
@@ -149,6 +150,7 @@ function getFormatter(dialect: string): SqlCodeFormatter {
     case "postgres":
     case "postgresql":
     case "duckdb":
+    case "sqlite":
     case "dremio":
       // Quote column and table names to avoid raising errors on weird characters
       return {
@@ -160,7 +162,6 @@ function getFormatter(dialect: string): SqlCodeFormatter {
     case "db2":
     case "db2i":
     case "mysql":
-    case "sqlite":
     case "mariadb":
     case "cassandra":
     case "noql":
@@ -233,14 +234,18 @@ export function sqlCode({
       formattedTableName,
     );
 
+    const body = escapeSQLString(selectClause);
     if (engine === DUCKDB_ENGINE) {
-      return `_df = mo.sql(f"""\n${selectClause}\n""")`;
+      return `_df = mo.sql(f"""\n${body}\n""")`;
     }
 
-    return `_df = mo.sql(f"""\n${selectClause}\n""", engine=${engine})`;
+    return `_df = mo.sql(f"""\n${body}\n""", engine=${engine})`;
   }
 
-  return `_df = mo.sql(f'SELECT "${columnName}" FROM ${table.name} LIMIT 100')`;
+  const body = escapeSQLString(
+    `SELECT ${columnName === "*" ? "*" : quoteIdentifier(columnName)} FROM ${quoteIdentifier(table.name)} LIMIT 100`,
+  ).replaceAll("'", "\\'");
+  return `_df = mo.sql(f'${body}')`;
 }
 
 export function convertStatsName(stat: ColumnHeaderStatsKey, type: DataType) {

@@ -16,6 +16,15 @@ import {
   renderTableInfo,
 } from "./renderers";
 
+// Metadata origin must survive CodeMirror copying and quoting completions.
+export const SQL_IDENTIFIER = Symbol("sqlIdentifier");
+
+function markIdentifier(
+  completion: Completion,
+): Completion & { [SQL_IDENTIFIER]: string } {
+  return { ...completion, [SQL_IDENTIFIER]: completion.label };
+}
+
 /**
  * Simple builder for SQL completion schemas.
  */
@@ -27,13 +36,17 @@ export class CompletionBuilder {
    */
   public addTable(path: string[], table: DataTable): this {
     const tableNamespace: SQLNamespace = {
-      self: tableToCompletion({
-        table: table,
-      }),
-      children: table.columns.map((col) =>
-        columnToCompletion({
-          column: col,
+      self: markIdentifier(
+        tableToCompletion({
+          table: table,
         }),
+      ),
+      children: table.columns.map((col) =>
+        markIdentifier(
+          columnToCompletion({
+            column: col,
+          }),
+        ),
       ),
     };
 
@@ -46,10 +59,12 @@ export class CompletionBuilder {
    */
   public addSchema(path: string[], schema: DatabaseSchema): this {
     const schemaObject: SQLNamespace = {
-      self: schemaToCompletion({
-        namespace: schema,
-        path: path,
-      }),
+      self: markIdentifier(
+        schemaToCompletion({
+          namespace: schema,
+          path: path,
+        }),
+      ),
       children: {},
     };
 
@@ -62,10 +77,12 @@ export class CompletionBuilder {
    */
   public addDatabase(path: string[], database: Database): this {
     const databaseObject: SQLNamespace = {
-      self: databaseToCompletion({
-        namespace: database,
-        path: path,
-      }),
+      self: markIdentifier(
+        databaseToCompletion({
+          namespace: database,
+          path: path,
+        }),
+      ),
       children: {},
     };
     this.setAt(path, databaseObject);

@@ -168,6 +168,14 @@ class GetDatabaseTables(
             sample_query = f"SELECT * FROM {schema}.{table} LIMIT 100"
         if default_schema:
             sample_query = f"SELECT * FROM {table} LIMIT 100"
+        sample_query = (
+            sample_query.replace("\\", "\\\\")
+            .replace("\r", "\\r")
+            .replace("\n", "\\n")
+            .replace('"', '\\"')
+            .replace("{", "{{")
+            .replace("}", "}}")
+        )
         if engine != INTERNAL_DUCKDB_ENGINE:
             wrapped_query = (
                 f'df = mo.sql(f"""{sample_query}""", engine={engine})'

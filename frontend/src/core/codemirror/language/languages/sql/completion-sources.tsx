@@ -7,10 +7,16 @@ import {
 } from "@codemirror/lang-sql";
 import type { EditorState } from "@codemirror/state";
 import { DefaultSqlTooltipRenders } from "@marimo-team/codemirror-sql";
+import { escapeSQLString } from "@marimo-team/smart-cells";
 import { once } from "@/utils/once";
 import { languageMetadataField } from "../../metadata";
+import { SQL_IDENTIFIER } from "./completion-builder";
+import { sqlCompletionContext } from "./completion-context";
 import { SCHEMA_CACHE } from "./completion-store";
 import type { SQLLanguageAdapterMetadata } from "./sql";
+
+const IDENTIFIER_QUOTES = new Set(['"', "`", "["]);
+const BARE_IDENTIFIER = /^[a-zA-Z_][\w$]*$/;
 
 function getSQLMetadata(state: EditorState): SQLLanguageAdapterMetadata {
   return state.field(languageMetadataField) as SQLLanguageAdapterMetadata;
@@ -35,6 +41,109 @@ export function tablesCompletionSource(): CompletionSource {
     }
 
     return completions;
+  };
+}
+
+export function literalSQLCompletions(
+  source: CompletionSource,
+  kind: "schema" | "query" = "schema",
+): CompletionSource {
+  return async (ctx) => {
+    const metadata = getSQLMetadata(ctx.state);
+    const fString = metadata.quotePrefix.includes("f");
+    const {
+      context,
+      toSource,
+      literalPrefix,
+      encodeQuery,
+      displayQuery,
+      isQuotedQuery,
+      insideOpaque,
+    } = sqlCompletionContext(ctx, fString);
+    if (insideOpaque) {
+      return null;
+    }
+    const result = await source(context);
+    if (!result) {
+      return result;
+    }
+
+    const dialect = SCHEMA_CACHE.getDialect(metadata.engine);
+    const typedQuote = context.state.sliceDoc(result.from, result.from + 1);
+    const quoted = IDENTIFIER_QUOTES.has(typedQuote);
+    const quote = quoted
+      ? typedQuote
+      : (dialect.spec.identifierQuotes?.[0] ?? '"');
+    const closingQuote = quote === "[" ? "]" : quote;
+    const prefix = quoted ? "" : literalPrefix(result.from);
+    return {
+      ...result,
+      from: toSource(result.from),
+      to: result.to === undefined ? undefined : toSource(result.to),
+      options: result.options
+        .map((option): Completion | null => {
+          let text = option.apply ?? option.label;
+          if (typeof text !== "string") {
+            return null;
+          }
+          const metadataName =
+            SQL_IDENTIFIER in option ? option[SQL_IDENTIFIER] : undefined;
+          // lang-sql marks aliases taken from the query as constant completions.
+          const fromQuery =
+            typeof metadataName !== "string" &&
+            (kind === "query" || option.type === "constant");
+          if (typeof metadataName === "string") {
+            text =
+              quoted || !BARE_IDENTIFIER.test(metadataName)
+                ? quote +
+                  metadataName.replaceAll(
+                    closingQuote,
+                    closingQuote.repeat(2),
+                  ) +
+                  closingQuote
+                : metadataName;
+          }
+          const displayLabel = fromQuery
+            ? displayQuery(option.label)
+            : option.label;
+          const label = fromQuery
+            ? encodeQuery(option.label)
+            : prefix + escapeSQLString(option.label, fString);
+          if (
+            fromQuery &&
+            (!BARE_IDENTIFIER.test(text) || isQuotedQuery(text)) &&
+            !text.startsWith(quote)
+          ) {
+            text = quote + text + closingQuote;
+          }
+          const apply = fromQuery
+            ? encodeQuery(text)
+            : prefix + escapeSQLString(text, fString);
+          if (
+            !fromQuery &&
+            apply === (option.apply ?? option.label) &&
+            label === option.label
+          ) {
+            return option;
+          }
+          return {
+            ...option,
+            label,
+            displayLabel:
+              label === displayLabel ? option.displayLabel : displayLabel,
+            apply,
+            detail:
+              fromQuery && option.detail
+                ? displayQuery(option.detail)
+                : option.detail,
+            info:
+              fromQuery && typeof option.info === "string"
+                ? displayQuery(option.info)
+                : option.info,
+          };
+        })
+        .filter((option) => option !== null),
+    };
   };
 }
 

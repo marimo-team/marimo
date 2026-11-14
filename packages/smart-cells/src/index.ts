@@ -11,3 +11,7 @@ export type {
   ParseResult,
   QuotePrefixKind,
 } from "./types.js";
+export {
+  escapeSQLString,
+  getSQLInterpolationRanges,
+} from "./utils/sql-string.js";

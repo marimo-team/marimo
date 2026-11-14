@@ -870,7 +870,8 @@ const DatasetTableItem: React.FC<{
               table.name,
             ].join(".")
           : table.name;
-        return `${table.engine}.load_table("${identifier}")`;
+        // A JSON string is also a valid Python string literal.
+        return `${table.engine}.load_table(${JSON.stringify(identifier)})`;
       }
 
       if (sqlTableContext) {
