@@ -1,5 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
+import { dequal } from "dequal";
 import { useAtom, useAtomValue } from "jotai";
 import {
   BotIcon,
@@ -1689,14 +1690,27 @@ export const AddModelForm: React.FC<{
     !!providerName &&
     (providerName === "openrouter" ||
       customProviderNames.includes(providerName));
-  const configurationPending = useAtomValue(pendingConfigSavesAtom) > 0;
-  const savedProviderConfig =
-    providerName === "openrouter"
-      ? config.ai?.openrouter
-      : providerName
-        ? config.ai?.custom_providers?.[providerName]
-        : undefined;
-  const configurationKey = JSON.stringify(savedProviderConfig ?? null);
+  const draftAi = useWatch({ control: form.control, name: "ai" });
+  const effectiveAi = useAtomValue(resolvedMarimoConfigAtom).ai;
+  const providerConfig = (ai: UserConfig["ai"]) => {
+    const selected = providerName
+      ? (ai?.custom_providers?.[providerName] ??
+        (providerName === "openrouter" ? ai?.openrouter : undefined))
+      : undefined;
+    return Objects.filter<string, unknown>(
+      selected ?? {},
+      (value) => value !== undefined,
+    );
+  };
+  const draftProviderConfig = providerConfig(draftAi);
+  const configurationPending =
+    useAtomValue(pendingConfigSavesAtom) > 0 ||
+    !dequal(providerConfig(config.ai), draftProviderConfig);
+  const discoveryKey = JSON.stringify([
+    providerName,
+    providerConfig(effectiveAi),
+    draftProviderConfig,
+  ]);
   const hasValidValues = providerName?.trim() && modelName?.trim();
 
   const resetForm = () => {
@@ -1833,10 +1847,7 @@ export const AddModelForm: React.FC<{
 
   const modelInput = (
     <div
-      className={cn(
-        "flex items-center gap-2",
-        isCustomProvider && "self-start",
-      )}
+      className={cn("flex items-start gap-2", isCustomProvider && "self-start")}
     >
       <Label
         htmlFor={modelNameInputId}
@@ -1846,11 +1857,10 @@ export const AddModelForm: React.FC<{
       </Label>
       {canDiscoverModels && providerName ? (
         <ModelDiscovery
-          key={providerName}
+          key={discoveryKey}
           provider={providerName}
           label="Model"
-          configurationKey={configurationKey}
-          configurationPending={configurationPending}
+          disabled={configurationPending}
           inputId={modelNameInputId}
           inputClassName="text-xs mb-0"
           value={modelName}
@@ -1869,22 +1879,21 @@ export const AddModelForm: React.FC<{
   );
 
   const inputForm = (
-    <div
-      className={cn(
-        "flex items-center gap-3 p-3 border border-border rounded-md",
-        canDiscoverModels &&
-          "relative pb-12 [&_[data-testid^='model-discovery-']>button]:absolute [&_[data-testid^='model-discovery-']>button]:right-3 [&_[data-testid^='model-discovery-']>button]:bottom-3",
-      )}
-    >
+    <div className="flex flex-wrap items-start gap-3 p-3 border border-border rounded-md">
       {providerSelect}
       {modelInput}
       <div
         className={cn("flex gap-1.5 ml-auto", isCustomProvider && "self-end")}
       >
-        <Button onClick={handleAddModel} disabled={!hasValidValues} size="xs">
+        <Button
+          type="button"
+          onClick={handleAddModel}
+          disabled={!hasValidValues}
+          size="xs"
+        >
           Add
         </Button>
-        <Button variant="outline" onClick={resetForm} size="xs">
+        <Button type="button" variant="outline" onClick={resetForm} size="xs">
           Cancel
         </Button>
       </div>
