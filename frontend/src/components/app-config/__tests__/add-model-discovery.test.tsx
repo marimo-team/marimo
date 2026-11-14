@@ -16,15 +16,42 @@ import {
   type UserConfig,
 } from "@/core/config/config-schema";
 import { listProviderModels } from "@/core/network/ai";
+import type { EditRequests } from "@/core/network/types";
 import { AddModelForm } from "../ai-config";
-import { pendingConfigSavesAtom } from "../state";
+import { aiSettingsSubTabAtom, pendingConfigSavesAtom } from "../state";
+import {
+  activeUserConfigCategoryAtom,
+  UserConfigForm,
+} from "../user-config-form";
+
+const saveUserConfig = vi.hoisted(() =>
+  vi.fn<EditRequests["saveUserConfig"]>(),
+);
 
 vi.mock("@/core/network/ai", () => ({ listProviderModels: vi.fn() }));
+vi.mock("@/core/network/requests", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/core/network/requests")>()),
+  useRequestClient: () => ({ saveUserConfig }),
+}));
+vi.mock("@uidotdev/usehooks", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@uidotdev/usehooks")>()),
+  useMediaQuery: () => true,
+}));
 
 Element.prototype.scrollIntoView = vi.fn();
 
 const search = () =>
   screen.getByRole("button", { name: "Search available models" });
+
+async function openAddModel(providerName: string) {
+  fireEvent.click(screen.getByRole("button", { name: "Add model" }));
+  fireEvent.click(screen.getByRole("combobox"));
+  fireEvent.click(
+    await screen.findByRole("option", {
+      name: new RegExp(providerName, "i"),
+    }),
+  );
+}
 
 function ModelForm({
   providerName,
@@ -93,13 +120,7 @@ describe("AddModelForm discovery", () => {
           />
         </Provider>,
       );
-      fireEvent.click(screen.getByRole("button", { name: "Add model" }));
-      fireEvent.click(screen.getByRole("combobox"));
-      fireEvent.click(
-        await screen.findByRole("option", {
-          name: new RegExp(providerName, "i"),
-        }),
-      );
+      await openAddModel(providerName);
       expect(search()).toBeEnabled();
       fireEvent.click(search());
       fireEvent.click(
@@ -162,4 +183,73 @@ describe("AddModelForm discovery", () => {
       );
     },
   );
+
+  it("keeps model entry focused across settings saves and only adds models on Add", async () => {
+    const config = defaultUserConfig();
+    config.ai = {
+      ...config.ai,
+      custom_providers: {
+        gateway: { base_url: "https://gateway.example.com/v1" },
+      },
+    };
+    const store = createStore();
+    store.set(userConfigAtom, config);
+    store.set(activeUserConfigCategoryAtom, "ai");
+    store.set(aiSettingsSubTabAtom, "ai-models");
+    saveUserConfig.mockReset().mockResolvedValue(null);
+    vi.mocked(listProviderModels)
+      .mockReset()
+      .mockResolvedValue({
+        models: [{ id: "second-model", name: "Second model" }],
+      });
+    render(
+      <Provider store={store}>
+        <UserConfigForm />
+      </Provider>,
+    );
+
+    await openAddModel("gateway");
+    fireEvent.change(screen.getByLabelText("Model"), {
+      target: { value: "first-model" },
+    });
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 150));
+    });
+    fireEvent.click(screen.getByRole("button", { name: /^Add$/ }));
+    await waitFor(() => expect(saveUserConfig).toHaveBeenCalledOnce());
+    await waitFor(() => expect(store.get(pendingConfigSavesAtom)).toBe(0));
+
+    await openAddModel("gateway");
+    fireEvent.click(search());
+    await screen.findByRole("button", { name: "Second model — second-model" });
+    const pendingSave = Promise.withResolvers<null>();
+    saveUserConfig.mockReturnValueOnce(pendingSave.promise);
+    const input = screen.getByLabelText("Model");
+    act(() => input.focus());
+    fireEvent.change(input, { target: { value: "second" } });
+    await waitFor(() => expect(saveUserConfig).toHaveBeenCalledTimes(2));
+    expect(store.get(pendingConfigSavesAtom)).toBe(1);
+    expect(screen.getByLabelText("Model")).toBe(input);
+    expect(input).toHaveFocus();
+
+    await act(async () => pendingSave.resolve(null));
+    await screen.findByRole("button", { name: "Second model — second-model" });
+    expect(screen.getByLabelText("Model")).toBe(input);
+    expect(input).toHaveFocus();
+    expect(input).toHaveValue("second");
+    expect(store.get(userConfigAtom).ai?.models?.custom_models).toEqual([
+      "gateway/first-model",
+    ]);
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Second model — second-model" }),
+    );
+    fireEvent.click(screen.getByRole("button", { name: /^Add$/ }));
+    await waitFor(() =>
+      expect(store.get(userConfigAtom).ai?.models?.custom_models).toEqual([
+        "gateway/second-model",
+        "gateway/first-model",
+      ]),
+    );
+  });
 });

@@ -1702,13 +1702,14 @@ export const AddModelForm: React.FC<{
       (value) => value !== undefined,
     );
   };
+  const draftProviderConfig = providerConfig(draftAi);
   const configurationPending =
     useAtomValue(pendingConfigSavesAtom) > 0 ||
-    !dequal(providerConfig(config.ai), providerConfig(draftAi));
+    !dequal(providerConfig(config.ai), draftProviderConfig);
   const discoveryKey = JSON.stringify([
     providerName,
     providerConfig(effectiveAi),
-    configurationPending,
+    draftProviderConfig,
   ]);
   const hasValidValues = providerName?.trim() && modelName?.trim();
 
@@ -1884,10 +1885,15 @@ export const AddModelForm: React.FC<{
       <div
         className={cn("flex gap-1.5 ml-auto", isCustomProvider && "self-end")}
       >
-        <Button onClick={handleAddModel} disabled={!hasValidValues} size="xs">
+        <Button
+          type="button"
+          onClick={handleAddModel}
+          disabled={!hasValidValues}
+          size="xs"
+        >
           Add
         </Button>
-        <Button variant="outline" onClick={resetForm} size="xs">
+        <Button type="button" variant="outline" onClick={resetForm} size="xs">
           Cancel
         </Button>
       </div>
