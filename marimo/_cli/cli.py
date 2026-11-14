@@ -382,8 +382,9 @@ class _OptionalValueOption(click.Option):
 @click.option(
     "--container-engine",
     default="docker",
+    callback=validators.container_engine,
     type=str,
-    help="Container engine used for --untrusted. Any engine with docker-style commands works, e.g. docker, podman, nerdctl.",
+    help="Container engine used to run notebooks in a container. Any engine with docker-style commands works, e.g. docker, podman, nerdctl.",
 )
 @click.option("--profile-dir", default=None, type=str, hidden=True)
 @click.option(
@@ -1049,8 +1050,9 @@ Example:
 @click.option(
     "--container-engine",
     default="docker",
+    callback=validators.container_engine,
     type=str,
-    help="Container engine used for --untrusted. Any engine with docker-style commands works, e.g. docker, podman, nerdctl.",
+    help="Container engine used to run notebooks in a container. Any engine with docker-style commands works, e.g. docker, podman, nerdctl.",
 )
 @click.option(
     "--server-startup-command",
