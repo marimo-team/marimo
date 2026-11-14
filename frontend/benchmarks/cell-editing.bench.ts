@@ -1,7 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { type Atom, createStore } from "jotai";
-import { bench, describe, expect } from "vitest";
+import { describe, expect, test } from "vitest";
 import { MockNotebook } from "@/__mocks__/notebook";
 import { cellId } from "@/__tests__/branded";
 import {
@@ -126,7 +126,13 @@ for (const count of [10, 25, 100, 1000]) {
           unsubscribes.length = 0;
         }
 
-        bench("one edit", edit, { ...options, setup, teardown });
+        test("one edit", async ({ bench }) => {
+          await bench(
+            "one edit",
+            { beforeAll: setup, afterAll: teardown },
+            edit,
+          ).run(options);
+        });
       });
     }
   });
