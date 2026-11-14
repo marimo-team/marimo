@@ -2,6 +2,7 @@
 
 import {
   type Completion,
+  type CompletionSource,
   acceptCompletion,
   autocompletion,
   CompletionContext,
@@ -77,6 +78,45 @@ function state(doc: string, fString = true) {
 
 function completionLabel(option: Completion): string {
   return option.displayLabel ?? option.label;
+}
+
+async function acceptAtEnd({
+  doc,
+  source,
+  label,
+}: {
+  doc: string;
+  source: CompletionSource;
+  label: string;
+}): Promise<string> {
+  const view = new EditorView({
+    parent: document.body,
+    state: EditorState.create({
+      doc,
+      selection: { anchor: doc.length },
+      extensions: [
+        sql({ dialect: PostgreSQL }),
+        languageMetadataField.init(() => parser.defaultMetadata),
+        autocompletion({ override: [source], interactionDelay: 0 }),
+      ],
+    }),
+  });
+  try {
+    startCompletion(view);
+    await waitFor(() =>
+      expect(currentCompletions(view.state).map(completionLabel)).toContain(
+        label,
+      ),
+    );
+    const index = currentCompletions(view.state).findIndex(
+      (option) => completionLabel(option) === label,
+    );
+    view.dispatch({ effects: setSelectedCompletion(index) });
+    expect(acceptCompletion(view)).toBe(true);
+    return view.state.doc.toString();
+  } finally {
+    view.destroy();
+  }
 }
 
 function assertLiteral(code: string) {
@@ -191,6 +231,42 @@ describe("literal SQL completions", () => {
     ).toBe("q{variable}");
   });
 
+  it.each(["a{env}", "a{env}S"])(
+    "accepts an interpolated alias after %s without duplicating its prefix",
+    async (prefix) => {
+      const source = literalSQLCompletions(
+        schemaCompletionSource({
+          dialect: PostgreSQL,
+          schema: new CompletionBuilder()
+            .addTable([], table("reports"))
+            .build(),
+        }),
+      );
+      const result = await acceptAtEnd({
+        doc: `SELECT * FROM reports AS a{env}Suffix WHERE ${prefix}`,
+        source,
+        label: "a{env}Suffix",
+      });
+      expect(result).toBe(
+        "SELECT * FROM reports AS a{env}Suffix WHERE a{env}Suffix",
+      );
+    },
+  );
+
+  it.each(["q{env}", "q{env}S"])(
+    "accepts an interpolated CTE after %s without duplicating its prefix",
+    async (prefix) => {
+      const result = await acceptAtEnd({
+        doc: `WITH q{env}Suffix AS (SELECT 1 AS id) SELECT * FROM ${prefix}`,
+        source: literalSQLCompletions(createCteCompletionSource(), "query"),
+        label: "q{env}Suffix",
+      });
+      expect(result).toBe(
+        "WITH q{env}Suffix AS (SELECT 1 AS id) SELECT * FROM q{env}Suffix",
+      );
+    },
+  );
+
   it("preserves quoted CTE fields beyond the initial SQL parse viewport", async () => {
     const doc = `${"-- earlier statements\n".repeat(400)}WITH "q{variable}" AS (SELECT 1 AS id) SELECT * FROM q`;
     const source = literalSQLCompletions(createCteCompletionSource(), "query");
@@ -221,7 +297,7 @@ describe("literal SQL completions", () => {
       if (!result || !option) {
         throw new Error("Missing metadata completion next to a field");
       }
-      expect(result.from).toBe(doc.lastIndexOf("}") + 1);
+      expect(result.from).toBe("SELECT * FROM ".length);
       const apply = option.apply ?? option.label;
       if (typeof apply !== "string") {
         throw new Error("Expected a literal insertion");
@@ -289,43 +365,54 @@ describe("literal SQL completions", () => {
     }
   });
 
-  it("accepts metadata next to a field without replacing the field or query suffix", async () => {
-    const doc = "SELECT * FROM {prefix}us WHERE id = {value}";
-    const position = doc.indexOf(" WHERE");
-    const source = literalSQLCompletions(
-      schemaCompletionSource({
-        dialect: PostgreSQL,
-        schema: new CompletionBuilder().addTable([], table("users")).build(),
-      }),
-    );
-    const view = new EditorView({
-      parent: document.body,
-      state: EditorState.create({
-        doc,
-        selection: { anchor: position },
-        extensions: [
-          sql({ dialect: PostgreSQL }),
-          languageMetadataField.init(() => parser.defaultMetadata),
-          autocompletion({ override: [source], interactionDelay: 0 }),
-        ],
-      }),
-    });
-    try {
-      startCompletion(view);
-      await waitFor(() =>
-        expect(currentCompletions(view.state).map(completionLabel)).toContain(
-          "users",
-        ),
+  it.each([
+    { name: "users", insertion: "users" },
+    { name: "users{1+1}", insertion: '"users{{1+1}}"' },
+  ])(
+    "accepts $name next to a field without replacing the field or query suffix",
+    async ({ name, insertion }) => {
+      const doc = "SELECT * FROM {prefix}us WHERE id = {value}";
+      const position = doc.indexOf(" WHERE");
+      const source = literalSQLCompletions(
+        schemaCompletionSource({
+          dialect: PostgreSQL,
+          schema: new CompletionBuilder().addTable([], table(name)).build(),
+        }),
       );
-      expect(acceptCompletion(view)).toBe(true);
-      expect(view.state.doc.toString()).toBe(
-        "SELECT * FROM {prefix}users WHERE id = {value}",
-      );
-      expect(view.state.selection.main.head).toBe(position + 3);
-    } finally {
-      view.destroy();
-    }
-  });
+      const view = new EditorView({
+        parent: document.body,
+        state: EditorState.create({
+          doc,
+          selection: { anchor: position },
+          extensions: [
+            sql({ dialect: PostgreSQL }),
+            languageMetadataField.init(() => parser.defaultMetadata),
+            autocompletion({ override: [source], interactionDelay: 0 }),
+          ],
+        }),
+      });
+      try {
+        startCompletion(view);
+        await waitFor(() =>
+          expect(currentCompletions(view.state).map(completionLabel)).toContain(
+            name,
+          ),
+        );
+        expect(acceptCompletion(view)).toBe(true);
+        const expected = `SELECT * FROM {prefix}${insertion} WHERE id = {value}`;
+        expect(view.state.doc.toString()).toBe(expected);
+        expect(view.state.selection.main.head).toBe(expected.indexOf(" WHERE"));
+        expect(
+          pythonParser
+            .parse(parser.transformOut(expected, parser.defaultMetadata).code)
+            .toString()
+            .match(/FormatReplacement/g),
+        ).toHaveLength(2);
+      } finally {
+        view.destroy();
+      }
+    },
+  );
 
   it.each(["q{{x}}", "q{variable}", "q{variable}}}", String.raw`q\N{BULLET}`])(
     "preserves query-derived CTE %s",

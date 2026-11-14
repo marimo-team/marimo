@@ -54,7 +54,7 @@ export function literalSQLCompletions(
     const {
       context,
       toSource,
-      toSourceStart,
+      literalPrefix,
       encodeQuery,
       displayQuery,
       isQuotedQuery,
@@ -75,9 +75,10 @@ export function literalSQLCompletions(
       ? typedQuote
       : (dialect.spec.identifierQuotes?.[0] ?? '"');
     const closingQuote = quote === "[" ? "]" : quote;
+    const prefix = quoted ? "" : literalPrefix(result.from);
     return {
       ...result,
-      from: quoted ? toSource(result.from) : toSourceStart(result.from),
+      from: toSource(result.from),
       to: result.to === undefined ? undefined : toSource(result.to),
       options: result.options
         .map((option): Completion | null => {
@@ -107,7 +108,7 @@ export function literalSQLCompletions(
             : option.label;
           const label = fromQuery
             ? encodeQuery(option.label)
-            : escapeSQLString(option.label, fString);
+            : prefix + escapeSQLString(option.label, fString);
           if (
             fromQuery &&
             (!BARE_IDENTIFIER.test(text) || isQuotedQuery(text)) &&
@@ -117,7 +118,7 @@ export function literalSQLCompletions(
           }
           const apply = fromQuery
             ? encodeQuery(text)
-            : escapeSQLString(text, fString);
+            : prefix + escapeSQLString(text, fString);
           if (
             !fromQuery &&
             apply === (option.apply ?? option.label) &&

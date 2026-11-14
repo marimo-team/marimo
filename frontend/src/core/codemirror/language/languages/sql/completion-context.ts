@@ -182,14 +182,16 @@ export function sqlCompletionContext(
       : context,
     toSource: (position: number) =>
       projected.changes?.invertedDesc.mapPos(position) ?? position,
-    toSourceStart: (position: number) => {
-      let start = projected.changes?.invertedDesc.mapPos(position) ?? position;
+    literalPrefix: (position: number) => {
+      const start =
+        projected.changes?.invertedDesc.mapPos(position) ?? position;
+      let end = start;
       for (const { to } of projected.interpolations) {
         if (to <= context.pos) {
-          start = Math.max(start, to);
+          end = Math.max(end, to);
         }
       }
-      return start;
+      return context.state.sliceDoc(start, end);
     },
   };
 }
