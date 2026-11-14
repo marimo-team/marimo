@@ -26,6 +26,19 @@ async def test_image() -> None:
     assert result.text == "<img src='https://marimo.io/logo.png' />"
 
 
+async def test_image_alt_with_quotes() -> None:
+    result = image("https://marimo.io/logo.png", alt='Bob\'s "logo" & <b>')
+    assert result.text == (
+        "<img src='https://marimo.io/logo.png' "
+        "alt='Bob&#x27;s &quot;logo&quot; &amp; &lt;b&gt;' />"
+    )
+
+
+async def test_image_non_str_alt() -> None:
+    result = image("https://marimo.io/logo.png", alt=123)  # type: ignore[arg-type]
+    assert result.text == "<img src='https://marimo.io/logo.png' alt='123' />"
+
+
 async def test_image_filename(k: Kernel, exec_req: ExecReqProvider) -> None:
     await k.run(
         [

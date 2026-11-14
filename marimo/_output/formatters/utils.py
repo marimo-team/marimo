@@ -1,8 +1,6 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-import html
-
 import marimo._output.data.data as mo_data
 from marimo._runtime.context.types import (
     ContextNotInitializedError,
@@ -25,10 +23,10 @@ def src_or_src_doc(html_content: str) -> dict[str, str]:
         ctx = get_context()
     except ContextNotInitializedError:
         # If no context, return srcdoc
-        return {"srcdoc": html.escape(html_content)}
+        return {"srcdoc": html_content}
 
     if ctx.virtual_files_supported:
         html_file = mo_data.html(html_content)
         return {"src": html_file.url}
     else:
-        return {"srcdoc": html.escape(html_content)}
+        return {"srcdoc": html_content}
