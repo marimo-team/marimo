@@ -1,6 +1,12 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { createStore, Provider } from "jotai";
 import { Controller, useForm } from "react-hook-form";
 import { describe, expect, it, vi } from "vitest";
@@ -11,6 +17,7 @@ import {
 } from "@/core/config/config-schema";
 import { listProviderModels } from "@/core/network/ai";
 import { AddModelForm } from "../ai-config";
+import { pendingConfigSavesAtom } from "../state";
 
 vi.mock("@/core/network/ai", () => ({ listProviderModels: vi.fn() }));
 
@@ -23,10 +30,8 @@ function ModelForm({
   providerName,
   savedConfig,
   onSubmit,
-  isSaving = false,
 }: {
   providerName: string;
-  isSaving?: boolean;
   savedConfig: UserConfig;
   onSubmit: (config: UserConfig) => void;
 }) {
@@ -50,7 +55,6 @@ function ModelForm({
         Change URL
       </button>
       <AddModelForm
-        isSaving={isSaving}
         form={form}
         config={savedConfig}
         customModels={[]}
@@ -114,27 +118,21 @@ describe("AddModelForm discovery", () => {
           },
         },
       };
-      store.set(userConfigAtom, savedConfig);
+      act(() => {
+        store.set(pendingConfigSavesAtom, 1);
+        store.set(userConfigAtom, savedConfig);
+      });
       rerender(
         <Provider store={store}>
           <ModelForm
             providerName={providerName}
             savedConfig={savedConfig}
             onSubmit={onSubmit}
-            isSaving={true}
           />
         </Provider>,
       );
       expect(search()).toBeDisabled();
-      rerender(
-        <Provider store={store}>
-          <ModelForm
-            providerName={providerName}
-            savedConfig={savedConfig}
-            onSubmit={onSubmit}
-          />
-        </Provider>,
-      );
+      act(() => store.set(pendingConfigSavesAtom, 0));
       await waitFor(() => expect(search()).toBeEnabled());
       fireEvent.focus(screen.getByLabelText("Model"));
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument();

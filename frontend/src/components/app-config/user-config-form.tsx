@@ -2,9 +2,9 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMediaQuery } from "@uidotdev/usehooks";
-import { atom, useAtom, useAtomValue, useSetAtom, useStore } from "jotai";
+import { atom, useAtom, useAtomValue, useSetAtom } from "jotai";
 import { AlertTriangleIcon, ArrowUpRightIcon } from "lucide-react";
-import React, { useEffect, useId, useRef, useState } from "react";
+import React, { useId, useRef } from "react";
 import { useLocale } from "react-aria";
 import { useForm } from "react-hook-form";
 import type z from "zod";
@@ -26,11 +26,7 @@ import { NumberField } from "@/components/ui/number-field";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { KEYMAP_PRESETS } from "@/core/codemirror/keymaps/keymaps";
 import { capabilitiesAtom } from "@/core/config/capabilities";
-import {
-  mergeConfig,
-  userConfigAtom,
-  useUserConfig,
-} from "@/core/config/config";
+import { mergeConfig, useUserConfig } from "@/core/config/config";
 import {
   PackageManagerNames,
   TYPE_INFERENCE_MODES,
@@ -52,7 +48,7 @@ import { Badge } from "../ui/badge";
 import { ExternalLink } from "../ui/links";
 import { Tooltip } from "../ui/tooltip";
 import { AiConfig } from "./ai-config";
-import { updateFormDefaults } from "./update-form-defaults";
+import { pendingConfigSavesAtom } from "./state";
 import { formItemClasses, SettingGroup } from "./common";
 import { DataForm } from "./data-form";
 import { applyManualInjections, getDirtyValues } from "./get-dirty-values";
@@ -106,12 +102,6 @@ const LOCALE_SYSTEM_VALUE = "__system__";
 
 export const UserConfigForm: React.FC = () => {
   const [config, setConfig] = useUserConfig();
-  const configStore = useStore();
-  const saveInFlight = useRef(false);
-  const saveQueued = useRef(false);
-  const scheduleSaveRef = useRef<((values: UserConfig) => void) | null>(null);
-  const [isSaving, setIsSaving] = useState(false);
-  const [saveFailed, setSaveFailed] = useState(false);
   const isWideLayout = useMediaQuery("(min-width: 640px)");
   const [acceptOnEnter, setAcceptOnEnter] = useAtom(
     acceptCompletionOnEnterAtom,
@@ -138,6 +128,7 @@ export const UserConfigForm: React.FC = () => {
   const marimoVersion = useAtomValue(marimoVersionAtom);
   const { locale } = useLocale();
   const { saveUserConfig } = useRequestClient();
+  const setPendingConfigSaves = useSetAtom(pendingConfigSavesAtom);
 
   // Create form
   const form = useForm({
@@ -173,21 +164,15 @@ export const UserConfigForm: React.FC = () => {
   };
 
   const onSubmitNotDebounced = async (values: UserConfig) => {
-    if (saveInFlight.current) {
-      saveQueued.current = true;
-      return;
-    }
     // Only send values that were actually changed to avoid
     // overwriting backend values the form doesn't manage
-    const fieldsBeingSaved = structuredClone(form.formState.dirtyFields);
-    const dirtyValues = getDirtyValues(values, fieldsBeingSaved);
+    const dirtyValues = getDirtyValues(values, form.formState.dirtyFields);
     applyManualInjections({
       values,
       dirtyValues,
       touchedFields: form.formState.touchedFields,
     });
     if (Object.keys(dirtyValues).length === 0) {
-      setSaveFailed(false);
       return; // Nothing changed
     }
 
@@ -196,36 +181,21 @@ export const UserConfigForm: React.FC = () => {
       dirtyValues.ai = setAiModels(values.ai, dirtyValues.ai);
     }
 
-    saveInFlight.current = true;
-    setIsSaving(true);
-    setSaveFailed(false);
-    await saveUserConfig({ config: dirtyValues })
-      .then(() => {
-        const savedConfig = mergeConfig<UserConfig>(
-          configStore.get(userConfigAtom),
-          dirtyValues,
-        );
-        setConfig(savedConfig);
-        if (updateFormDefaults(form, savedConfig, fieldsBeingSaved)) {
-          saveQueued.current = true;
-        }
-      })
-      .catch(() => {
-        setSaveFailed(true);
-      })
-      .finally(() => {
-        saveInFlight.current = false;
-        setIsSaving(false);
-        if (saveQueued.current) {
-          saveQueued.current = false;
-          scheduleSaveRef.current?.(form.getValues());
-        }
-      });
+    await saveUserConfig({ config: dirtyValues });
+    // Only apply the changed keys; this avoids stale request responses
+    // overwriting newer config changes.
+    setConfig((prev) => mergeConfig(prev, dirtyValues));
   };
-  const onSubmit = useDebouncedCallback(onSubmitNotDebounced, FORM_DEBOUNCE);
-  useEffect(() => {
-    scheduleSaveRef.current = onSubmit;
-  }, [onSubmit]);
+  const onSubmit = useDebouncedCallback((values: UserConfig) => {
+    const save = onSubmitNotDebounced(values);
+
+    setPendingConfigSaves((count) => count + 1);
+    void save
+      .finally(() => {
+        setPendingConfigSaves((count) => Math.max(0, count - 1));
+      })
+      .catch(() => undefined);
+  }, FORM_DEBOUNCE);
 
   const isWasmRuntime = isWasm();
   const getOverride = useConfigOverride();
@@ -1264,14 +1234,7 @@ export const UserConfigForm: React.FC = () => {
           </SettingGroup>
         );
       case "ai":
-        return (
-          <AiConfig
-            form={form}
-            config={config}
-            onSubmit={onSubmit}
-            isSaving={isSaving}
-          />
-        );
+        return <AiConfig form={form} config={config} onSubmit={onSubmit} />;
       case "optionalDeps":
         return <OptionalFeatures />;
       case "labs":
@@ -1389,24 +1352,7 @@ export const UserConfigForm: React.FC = () => {
             value={activeCategory}
             className="settings-content m-0 min-h-0 min-w-0 flex-1 overflow-auto p-5 sm:p-6"
           >
-            <div className="flex flex-col gap-6">
-              {saveFailed && (
-                <Banner kind="danger" role="alert">
-                  <div className="flex items-center justify-between gap-2">
-                    <span>Could not save settings.</span>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="xs"
-                      onClick={() => onSubmit(form.getValues())}
-                    >
-                      Retry
-                    </Button>
-                  </div>
-                </Banner>
-              )}
-              {renderBody()}
-            </div>
+            <div className="flex flex-col gap-6">{renderBody()}</div>
           </TabsContent>
         </Tabs>
       </form>

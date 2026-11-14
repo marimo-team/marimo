@@ -93,10 +93,9 @@ import {
   useConfigOverride,
 } from "./is-overridden";
 import { MCPConfig } from "./mcp-config";
-import { aiSettingsSubTabAtom } from "./state";
+import { aiSettingsSubTabAtom, pendingConfigSavesAtom } from "./state";
 
 interface AiConfigProps {
-  isSaving?: boolean;
   form: UseFormReturn<UserConfig>;
   config: UserConfig;
   onSubmit: (values: UserConfig) => void;
@@ -1536,7 +1535,6 @@ const ProviderTreeItem: React.FC<ProviderTreeItemProps> = ({
 };
 
 export const AiModelDisplayConfig: React.FC<AiConfigProps> = ({
-  isSaving = false,
   form,
   config,
   onSubmit,
@@ -1659,7 +1657,6 @@ export const AiModelDisplayConfig: React.FC<AiConfigProps> = ({
         </Tree>
       </div>
       <AddModelForm
-        isSaving={isSaving}
         form={form}
         config={config}
         customModels={customModels}
@@ -1671,20 +1668,12 @@ export const AiModelDisplayConfig: React.FC<AiConfigProps> = ({
 };
 
 export const AddModelForm: React.FC<{
-  isSaving?: boolean;
   form: UseFormReturn<UserConfig>;
   config: UserConfig;
   customModels: QualifiedModelId[];
   customProviderNames: string[];
   onSubmit: (values: UserConfig) => void;
-}> = ({
-  form,
-  config,
-  customModels,
-  customProviderNames,
-  onSubmit,
-  isSaving = false,
-}) => {
+}> = ({ form, config, customModels, customProviderNames, onSubmit }) => {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [modelAdded, setModelAdded] = useState(false);
   const [provider, setProvider] = useState<ProviderId | "custom" | null>(null);
@@ -1714,7 +1703,8 @@ export const AddModelForm: React.FC<{
     );
   };
   const configurationPending =
-    isSaving || !dequal(providerConfig(config.ai), providerConfig(draftAi));
+    useAtomValue(pendingConfigSavesAtom) > 0 ||
+    !dequal(providerConfig(config.ai), providerConfig(draftAi));
   const discoveryKey = JSON.stringify([
     providerName,
     providerConfig(effectiveAi),
@@ -1992,7 +1982,6 @@ const AiEnabledConfig: React.FC<AiConfigProps> = ({ form }) => {
 };
 
 export const AiConfig: React.FC<AiConfigProps> = ({
-  isSaving = false,
   form,
   config,
   onSubmit,
@@ -2051,7 +2040,6 @@ export const AiConfig: React.FC<AiConfigProps> = ({
           </TabsContent>
           <TabsContent value="ai-models">
             <AiModelDisplayConfig
-              isSaving={isSaving}
               form={form}
               config={config}
               onSubmit={onSubmit}
