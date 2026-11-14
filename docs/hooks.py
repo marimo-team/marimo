@@ -5,6 +5,13 @@ from typing import Any
 
 def on_page_markdown(markdown: str, page: Any = None, **kwargs: Any) -> str:
     del kwargs
+    if page and page.file.src_uri == "api/configuration.md":
+        from docs.config_reference import render_config_reference
+
+        markdown = markdown.replace(
+            "<!-- configuration-reference -->", render_config_reference()
+        )
+
     static_dir = Path("docs/")
     if not static_dir.exists():
         return markdown

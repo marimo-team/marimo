@@ -3,6 +3,9 @@ marimo’s editor, runtime, and server can be configured through user settings, 
 
 ## Configuration options
 
+Browse the [configuration reference](../../api/configuration.md) for all options,
+including their types, defaults, and allowed values.
+
 For available options, descriptions, types, and defaults, run:
 
 ```bash
