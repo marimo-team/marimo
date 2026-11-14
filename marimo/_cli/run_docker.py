@@ -202,19 +202,18 @@ def run_in_docker(
             except KeyboardInterrupt:
                 echo("Received keyboard interrupt.")
     except subprocess.CalledProcessError as e:
-        message = f"Failed to start {engine} container: {e}"
-        if e.stderr:
-            message += f"\n{e.stderr.strip()}"
-        raise MarimoCLIRuntimeError(message) from e
+        raise MarimoCLIRuntimeError(
+            f"Failed to start {engine} container: {e}"
+        ) from e
     finally:
-        if container_id is not None:
-            echo("Stopping and removing container...")
-            try:
+        echo("Stopping and removing container...")
+        try:
+            if container_id is not None:
                 subprocess.run(
                     [engine, "stop", container_id],
                     check=True,
                     capture_output=True,
                 )
-                echo(muted("Container stopped and removed successfully"))
-            except subprocess.CalledProcessError:
-                echo_red("Failed to stop and remove container")
+            echo(muted("Container stopped and removed successfully"))
+        except subprocess.CalledProcessError:
+            echo_red("Failed to stop and remove container")

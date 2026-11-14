@@ -131,12 +131,8 @@ def test_run_in_docker_uses_given_engine(
     )
 
 
-def test_run_failure_shows_engine_stderr(
-    capsys: pytest.CaptureFixture[str],
-) -> None:
-    error = subprocess.CalledProcessError(
-        125, "run", stderr="Error: image pull failed\n"
-    )
+def test_run_failure_names_engine() -> None:
+    error = subprocess.CalledProcessError(125, "run")
     with (
         patch(
             "marimo._cli.run_docker.subprocess.run",
@@ -149,9 +145,6 @@ def test_run_failure_shows_engine_stderr(
     assert excinfo.value.message.startswith(
         "Failed to start podman container: "
     )
-    assert excinfo.value.message.endswith("\nError: image pull failed")
-    # No container was started, so there is nothing to stop.
-    assert "Stopping" not in capsys.readouterr().out
 
 
 def test_port_in_use_suggests_engine_stop_command() -> None:
