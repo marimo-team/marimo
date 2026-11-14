@@ -34,7 +34,7 @@ from marimo._server.host.translate import (
 )
 from marimo._server.scratchpad import snapshot_for_scratchpad
 from marimo._session.consumer import SessionConsumer
-from marimo._session.model import ConnectionState
+from marimo._session.model import ConnectionState, SessionMode
 from marimo._session.requests import InstantiateNotebookRequest
 from marimo._session.types import KernelState
 from marimo._types.ids import CellId_t, ConsumerId, SessionId
@@ -493,6 +493,14 @@ class SessionBackend(SessionConsumer):
         kernel.session = session
         if self._session_attached is not None:
             self._session_attached()
+        if self._manager.mode == SessionMode.EDIT:
+            # Prepare Markdown previews even when no client elects to autorun.
+            session.instantiate(
+                InstantiateNotebookRequest(
+                    object_ids=[], values=[], auto_run=False
+                ),
+                http_request=None,
+            )
         self._observe(be.Running(kernel.runtime_id, __version__))
 
     def on_detach(self) -> None:

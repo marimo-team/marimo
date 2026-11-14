@@ -1,6 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { atom } from "jotai";
+import type { NotebookAutorun } from "../executions/autorun";
 import type { DocumentModel } from "../notebook/document";
 import type { NotebookReplica } from "../notebook/replica";
 
@@ -9,6 +10,9 @@ export const activeNotebookReplicaAtom = atom<NotebookReplica | null>(null);
 
 /** The document model owned by the mounted notebook session. */
 export const activeDocumentModelAtom = atom<DocumentModel | null>(null);
+
+/** The autorun owner of the mounted session; its pending work is client intent. */
+export const activeNotebookAutorunAtom = atom<NotebookAutorun | null>(null);
 
 /** The backend of the connected notebook, or null while none is. */
 export const activeNotebookBackendAtom = atom((get) => {

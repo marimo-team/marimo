@@ -17,6 +17,7 @@ import {
   describe,
   expect,
   it,
+  onTestFinished,
   type Mock,
   vi,
 } from "vitest";
@@ -40,6 +41,10 @@ import { Deferred } from "@/utils/Deferred";
 import { cellId } from "@/__tests__/branded";
 import { alertAtom, getPackageAlert } from "@/core/alerts/state";
 import { stagedAICellsAtom } from "@/core/ai/staged-cells";
+import { requestRun, withdrawRequest } from "@/core/executions/atoms";
+import { activeNotebookAutorunAtom } from "../active-notebook";
+import type * as Protocol from "@marimo-team/client/protocol";
+import { initialModeAtom } from "@/core/mode";
 import { notebookAtom } from "@/core/cells/cells";
 import { AppConfigSchema } from "@/core/config/config-schema";
 import { ConnectionNotice } from "@/components/editor/alerts/connection-notice";
@@ -55,6 +60,7 @@ import { classifyCloseEvent } from "../../transports/connection-state";
 import { createEditorBackend } from "../backend";
 import {
   fakeBackend,
+  type FakeRun,
   fixtureEvents,
   fixtureMessages,
 } from "../../notebook/replica/__tests__/fixtures";
@@ -155,7 +161,7 @@ function makeRuntimeManager(
 
 function renderConnectionHook(
   store: ReturnType<typeof createStore>,
-  { reactStrictMode = false } = {},
+  { reactStrictMode = false, autoInstantiate = false } = {},
 ) {
   const wrapper: React.FC<React.PropsWithChildren> = ({ children }) => (
     <JotaiProvider store={store}>
@@ -166,7 +172,7 @@ function renderConnectionHook(
     () =>
       useNotebookSession({
         sessionId: SESSION_ID,
-        autoInstantiate: false,
+        autoInstantiate,
       }),
     { wrapper, reactStrictMode },
   );
@@ -381,6 +387,192 @@ it("waits for the stream's snapshot before marking the session connected", async
   }
   expect(store.get(connectionAtom)).toEqual({ state: ConnectionState.OPEN });
 });
+
+describe("editor autorun preparation", () => {
+  async function setup() {
+    const store = createStore();
+    const fake = makeTransport();
+    const run = vi.fn<FakeRun>();
+    vi.mocked(createEditorBackend).mockReturnValue(
+      fakeBackend({ transport: fake.transport, run }),
+    );
+    vi.mocked(useRuntimeManager).mockReturnValue(makeRuntimeManager());
+    const hook = renderConnectionHook(store, { autoInstantiate: true });
+    await started();
+    const conn = connection(fake);
+    const runtime = fixtureEvents("notebook-events.sse").find(
+      (event) => event.event === "runtime",
+    );
+    if (runtime?.event !== "runtime") {
+      throw new Error("Missing runtime fixture");
+    }
+    act(() => {
+      conn.open();
+      for (const event of fixtureEvents("notebook-events.sse")) {
+        if (["run", "execution", "console"].includes(event.event)) {
+          continue;
+        }
+        conn.receive(
+          event.event === "runtime"
+            ? {
+                ...event,
+                data: {
+                  runtime: { ...event.data.runtime, status: "starting" },
+                },
+              }
+            : event,
+        );
+        if (event.event === "ready") {
+          break;
+        }
+      }
+    });
+    const model = hook.result.current.documentModel;
+    const document = store.get(hook.result.current.replica.documentAtom);
+    if (document === null) {
+      throw new Error("Missing document fixture");
+    }
+    run.mockImplementation(async (notebookId, request) => ({
+      ok: true,
+      status: 202,
+      data: {
+        id: "startup",
+        notebook_id: notebookId,
+        runtime_id: runtime.data.runtime.id,
+        cells: request.cells.map(({ id }) => id),
+        status: "queued",
+        outcome: null,
+        started_at: null,
+        completed_at: null,
+      },
+    }));
+    const pending = () => {
+      const autorun = store.get(activeNotebookAutorunAtom);
+      return autorun !== null && store.get(autorun.pendingAtom);
+    };
+    return {
+      store,
+      model,
+      document,
+      run,
+      pending,
+      start: () => act(() => conn.receive(runtime)),
+    };
+  }
+
+  it.each(["before", "during", "none"])(
+    "flushes before autorun with manual request timing: %s",
+    async (manualRequest) => {
+      const { store, model, document, run, start, pending } = await setup();
+      const synced = new Deferred<Protocol.Document>();
+      const flush = vi.spyOn(model, "flush").mockReturnValue(synced.promise);
+      let request: ReturnType<typeof requestRun> = null;
+      if (manualRequest === "before") {
+        act(() => {
+          request = requestRun(store, ["c1"]);
+        });
+      }
+      start();
+      expect(flush).toHaveBeenCalledTimes(manualRequest === "before" ? 0 : 1);
+      expect(run).not.toHaveBeenCalled();
+      if (manualRequest === "during") {
+        act(() => {
+          request = requestRun(store, ["c1"]);
+        });
+      }
+      await act(async () => synced.resolve(document.revision));
+      expect(pending()).toBe(manualRequest === "none");
+      expect(request !== null).toBe(manualRequest !== "none");
+      act(() => {
+        if (request !== null) {
+          withdrawRequest(store, request);
+        }
+      });
+      expect(run.mock.calls).toEqual(
+        manualRequest === "none"
+          ? [
+              [
+                document.revision.notebook_id,
+                {
+                  cells: document.revision.order.map((id) => ({ id })),
+                  idempotencyKey: "startup:n1:r1",
+                },
+              ],
+            ]
+          : [],
+      );
+    },
+  );
+});
+
+it.each(["server", "wasm", "wasm-read", "static"])(
+  "starts an autorun notebook through its %s owner without marimo notifications",
+  async (owner) => {
+    if (owner.startsWith("wasm")) {
+      const element = document.createElement("marimo-wasm");
+      document.body.append(element);
+      onTestFinished(() => element.remove());
+    } else if (owner === "static") {
+      window.__MARIMO_STATIC__ = { files: {} };
+      onTestFinished(() => {
+        delete window.__MARIMO_STATIC__;
+      });
+    }
+    const store = createStore();
+    if (owner === "wasm-read") {
+      store.set(initialModeAtom, "read");
+    }
+    const fake = makeTransport();
+    const run = vi.fn<FakeRun>(async (notebookId, request) => ({
+      ok: true,
+      status: 202,
+      data: {
+        id: "startup",
+        notebook_id: notebookId,
+        runtime_id: "r1",
+        cells: request.cells.map(({ id }) => id),
+        status: "queued",
+        started_at: null,
+        completed_at: null,
+        outcome: null,
+      },
+    }));
+    vi.mocked(createEditorBackend).mockReturnValue(
+      fakeBackend({ transport: fake.transport, run }),
+    );
+    vi.mocked(useRuntimeManager).mockReturnValue(makeRuntimeManager());
+    renderConnectionHook(store, {
+      autoInstantiate: owner !== "wasm-read",
+      reactStrictMode: true,
+    });
+    await started();
+    const conn = connection(fake);
+    await act(async () => conn.open());
+    for (const message of fixtureMessages("notebook-events.sse")) {
+      if (["run", "execution", "console"].includes(message.event)) {
+        continue;
+      }
+      await act(async () => conn.receive(message));
+      if (message.event === "ready") {
+        break;
+      }
+      expect(run).not.toHaveBeenCalled();
+    }
+    expect(run.mock.calls).toEqual(
+      owner === "server"
+        ? [
+            [
+              "n1",
+              {
+                cells: [{ id: "c1" }, { id: "c3" }, { id: "k7f2" }],
+                idempotencyKey: "startup:n1:r1",
+              },
+            ],
+          ]
+        : [],
+    );
+  },
+);
 
 it("waits for another ready snapshot after the stream resets", async () => {
   const store = createStore();

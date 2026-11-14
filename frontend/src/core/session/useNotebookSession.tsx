@@ -3,7 +3,6 @@
 import { invalidatePackageData } from "@/core/packages/package-data";
 import { atom, useAtom, useAtomValue, useSetAtom, useStore } from "jotai";
 import { useEffect, useLayoutEffect, useMemo } from "react";
-import { useErrorBoundary } from "react-error-boundary";
 import { toast } from "@/components/ui/use-toast";
 import {
   getNotebook,
@@ -62,7 +61,12 @@ import {
   type StableSessionId,
   stableSessionIdAtom,
 } from "../kernel/session";
-import { observeCellMessage } from "../executions";
+import {
+  cellExecutionInputsAtom,
+  createNotebookAutorun,
+  observeCellMessage,
+} from "../executions";
+import { isWasm } from "../wasm/utils";
 import { initialRunCompletedAtom } from "../kernel/state";
 import { useLayoutActions } from "../layout/state";
 import { kioskModeAtom } from "../mode";
@@ -79,7 +83,10 @@ import {
 import { useStorageActions } from "../storage/state";
 import { useVariablesActions } from "../variables/state";
 import type { VariableName } from "../variables/types";
-import { activeDocumentModelAtom } from "./active-notebook";
+import {
+  activeDocumentModelAtom,
+  activeNotebookAutorunAtom,
+} from "./active-notebook";
 import { embeddedSnapshotAtom } from "./embedded";
 import { WebSocketClosedReason, ConnectionState } from "./types";
 
@@ -89,7 +96,6 @@ export function useNotebookSession(opts: {
   autoInstantiate: boolean;
 }) {
   const { autoInstantiate, sessionId } = opts;
-  const { showBoundary } = useErrorBoundary();
   const store = useStore();
 
   const { handleCellMessage, reconcileDocument, resetCellRuntimes } =
@@ -146,12 +152,10 @@ export function useNotebookSession(opts: {
           Boolean(msg.data.resumed || msg.data.auto_instantiated),
         );
         const layout = handleKernelReady(msg.data, {
-          autoInstantiate,
           cells: notebookCells(store.get(notebookAtom)),
           resetCellRuntimes,
           setLayoutData,
           setCapabilities,
-          onError: showBoundary,
         });
         store.set(savedLayoutAtom, layout);
         if (!msg.data.resumed) {
@@ -444,6 +448,49 @@ export function useNotebookSession(opts: {
       }
     };
   }, [documentModel, store, reconcileDocument, reconcileStagedCells]);
+
+  const autorun = useMemo(
+    () =>
+      createNotebookAutorun({
+        store,
+        replica,
+        prepare: async () => {
+          if (store.get(cellExecutionInputsAtom).requested.size > 0) {
+            return false;
+          }
+          await documentModel.flush();
+          return store.get(cellExecutionInputsAtom).requested.size === 0;
+        },
+      }),
+    [store, replica, documentModel],
+  );
+  useEffect(() => {
+    // WASM still owns execution in its worker; static exports have no runtime.
+    if (isStaticNotebook() || isWasm()) {
+      return;
+    }
+    const controller = new AbortController();
+    store.set(activeNotebookAutorunAtom, autorun);
+    autorun.start({
+      autoRun: autoInstantiate,
+      signal: controller.signal,
+      // The notebook is open and usable, and each cell can still be run.
+      onError: (error) => {
+        Logger.error(error);
+        toast({
+          title: "Failed to run the notebook on startup",
+          description: prettyError(error.cause ?? error),
+          variant: "danger",
+        });
+      },
+    });
+    return () => {
+      controller.abort();
+      if (store.get(activeNotebookAutorunAtom) === autorun) {
+        store.set(activeNotebookAutorunAtom, null);
+      }
+    };
+  }, [autorun, autoInstantiate, store]);
 
   // Subscribe before passive connection setup: static/WASM transports can emit synchronously.
   useLayoutEffect(() => {
