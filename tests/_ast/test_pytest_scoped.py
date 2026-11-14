@@ -61,6 +61,50 @@ def collection_of_tests():
 
 
 @app.cell
+def yield_fixtures():
+    @pytest.fixture
+    def temp_file():
+        import tempfile
+
+        with tempfile.NamedTemporaryFile() as f:
+            yield f
+
+    @pytest.fixture
+    async def async_items():
+        items = [1]
+        yield items
+        items.clear()
+
+    @pytest.fixture
+    def returns_generator():
+        def generator():
+            yield 2
+
+        return generator
+
+    def test_yield_fixture(temp_file):
+        temp_file.write(b"hello")
+        temp_file.seek(0)
+        assert temp_file.read() == b"hello"
+
+    async def test_async_yield_fixture(async_items):
+        assert async_items == [1]
+
+    def test_nested_yield_is_not_a_yield_fixture(returns_generator):
+        assert list(returns_generator()) == [2]
+
+    class TestYieldFixtureMethod:
+        @pytest.fixture
+        def method_items(self):
+            items = [3]
+            yield items
+            items.clear()
+
+        def test_uses_fixture(self, method_items):
+            assert method_items == [3]
+
+
+@app.cell
 def _():
     return
 
