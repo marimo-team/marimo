@@ -10,6 +10,7 @@ import { TailwindIndicator } from "@/components/debug/indicator";
 import { useFullScreenClass } from "@/components/ui/fullscreen";
 import { useAppConfig, useResolvedMarimoConfig } from "@/core/config/config";
 import { getInitialAppMode } from "@/core/mode";
+import { useAsyncData } from "@/hooks/useAsyncData";
 import { CssVariables } from "@/theme/ThemeProvider";
 import { reactLazyWithPreload } from "@/utils/lazy";
 import { ErrorBoundary } from "../components/editor/boundary/ErrorBoundary";
@@ -48,11 +49,26 @@ export function preloadPage(mode: string) {
       LazyGalleryPage.preload();
       break;
     case "read":
-      LazyRunPage.preload();
+      // The read-page loader reports import failures through the error boundary.
+      void LazyRunPage.preload().catch(() => {});
       break;
     default:
       LazyEditPage.preload();
   }
+}
+
+function PreloadedRunPage(
+  props: React.ComponentProps<
+    typeof import("@/components/pages/run-page").default
+  >,
+) {
+  // Keep the code split without suspending read mode's first render.
+  const result = useAsyncData(LazyRunPage.preload, []);
+  if (result.status === "error") {
+    throw result.error;
+  }
+  const RunPage = result.data?.default;
+  return RunPage ? <RunPage {...props} /> : null;
 }
 
 /**
@@ -73,7 +89,7 @@ export const MarimoApp: React.FC = memo(() => {
       return <LazyGalleryPage.Component />;
     }
     if (initialMode === "read") {
-      return <LazyRunPage.Component appConfig={appConfig} />;
+      return <PreloadedRunPage appConfig={appConfig} />;
     }
     return (
       <LazyEditPage.Component userConfig={userConfig} appConfig={appConfig} />
