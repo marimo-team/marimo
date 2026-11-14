@@ -35,13 +35,14 @@ export function escapeSQLQuoteRuns(source: string, fString = true): string {
       return parts.join("");
     }
   }
-  return source.replaceAll(
-    /(\\*)("{3,})/g,
-    (_, slashes: string, quotes: string) => {
-      const firstQuote = slashes.length % 2 === 0 ? '\\"' : '"';
-      return slashes + firstQuote + '\\"'.repeat(quotes.length - 1);
-    },
-  );
+  return source.replaceAll(/"{3,}/g, (quotes, offset: number) => {
+    let start = offset;
+    while (start > 0 && source[start - 1] === "\\") {
+      start--;
+    }
+    const firstQuote = (offset - start) % 2 === 0 ? '\\"' : '"';
+    return firstQuote + '\\"'.repeat(quotes.length - 1);
+  });
 }
 
 export function getSQLInterpolationRanges(

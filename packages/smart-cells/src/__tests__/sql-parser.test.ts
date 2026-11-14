@@ -348,6 +348,15 @@ describe("SQL string boundaries", () => {
       }
     }
   });
+
+  it("preserves long backslash runs separated from quote runs", () => {
+    const slashes = "\\".repeat(32_768);
+    const query = `SELECT '${slashes}x"""'`;
+    const output = parser.transformOut(query, parser.defaultMetadata).code;
+    expect(output).toContain(`${slashes}x${'\\"'.repeat(3)}`);
+    const parsed = parser.transformIn(output);
+    expect(parser.transformOut(parsed.code, parsed.metadata).code).toBe(output);
+  });
   it("preserves triple-quoted Python expressions inside intentional interpolation", () => {
     const query = `SELECT {"""hello""".upper()}, {value!r:>{width}}`;
     const output = parser.transformOut(query, parser.defaultMetadata).code;
