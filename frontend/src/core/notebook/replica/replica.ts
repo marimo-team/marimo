@@ -61,9 +61,10 @@ export interface NotebookReplica {
   /**
    * The most recently confirmed document.
    *
-   * Null until a snapshot is complete, after reset or removal, and on
-   * connections without host document events. A temporary disconnection
-   * retains the last document. Partial updates are not exposed.
+   * Null until a snapshot is complete, after removal, and on connections
+   * without host document events. A temporary disconnection retains the
+   * last document, and so does a reset, until the snapshot that follows
+   * it is complete. Partial updates are not exposed.
    */
   readonly documentAtom: Atom<Document | null>;
   /**
@@ -82,8 +83,8 @@ export interface NotebookReplica {
    *
    * Visible as events arrive, including during a snapshot, so a consumer
    * joins with `documentAtom`, which is null until the snapshot is ready.
-   * Kept across a temporary disconnection, like the document, and cleared
-   * on reset or removal.
+   * Kept across a temporary disconnection and through a reset, like the
+   * document, and cleared on removal.
    */
   readonly executionsAtom: Atom<Executions>;
   /** Each document cell's last completed execution record, kept while it runs again. */
@@ -217,11 +218,28 @@ export function createNotebookReplica(
     const { transport } = connected;
     let events: NotebookEvents<(typeof TYPES)[number]> | undefined;
     let checkingHealth = false;
+    /**
+     * The snapshot that follows a reset, built out of sight until it is
+     * ready.
+     *
+     * A host resets a stream it cannot resume, and a transport resets
+     * one whose session changed. Publishing the new snapshot as it
+     * arrives would empty every reader for as long as that takes. What
+     * was on show stays instead, as it does while disconnected: the
+     * document and results remain, and the notebook is not present until
+     * the replacement is complete.
+     */
+    let rebuilding: typeof reducer.initial | undefined;
 
     /** Mirror one stream into the atoms until it closes. */
     function follow(cursor?: string) {
+      rebuilding = undefined;
       if (cursor === undefined) {
-        store.set(streamAtom, reducer.initial);
+        if (store.get(streamAtom).phase === "snapshot") {
+          store.set(streamAtom, reducer.initial);
+        } else {
+          rebuilding = reducer.initial;
+        }
       }
       const current = new NotebookEvents(transport, {
         types: TYPES,
@@ -257,6 +275,7 @@ export function createNotebookReplica(
 
     function stopMalformed(source: NotebookEvents<string>) {
       source.close();
+      rebuilding = undefined;
       // The cursor can already include an event the replica rejected.
       clear(malformed);
     }
@@ -273,7 +292,19 @@ export function createNotebookReplica(
         return;
       }
       try {
-        store.set(streamAtom, reducer.reduce(store.get(streamAtom), event));
+        const shown = store.get(streamAtom);
+        if (rebuilding !== undefined) {
+          rebuilding = reducer.reduce(rebuilding, event);
+          if (rebuilding.phase !== "snapshot") {
+            store.set(streamAtom, rebuilding);
+            rebuilding = undefined;
+          }
+        } else if (event.event === "reset" && shown.phase !== "snapshot") {
+          rebuilding = reducer.reduce(shown, event);
+          store.set(streamAtom, reducer.resume(shown));
+        } else {
+          store.set(streamAtom, reducer.reduce(shown, event));
+        }
       } catch (error) {
         // An event the replica cannot apply, such as another notebook's.
         Logger.error("Failed to apply notebook event", error);
