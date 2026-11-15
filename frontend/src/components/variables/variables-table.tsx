@@ -110,15 +110,7 @@ const COLUMNS = [
   }),
   columnDefOf({
     id: ColumnIds.defs,
-    // Include declaredByNames and usedByNames for filtering
-    accessorFn: (v) =>
-      [
-        v.declaredBy,
-        v.usedBy,
-        v.name,
-        v.declaredByNames,
-        v.usedByNames,
-      ] as const,
+    accessorFn: (v) => [v.declaredBy, v.usedBy, v.name] as const,
     enableSorting: true,
     sortingFn: "basic",
     header: ({ column }) => (
@@ -191,6 +183,21 @@ const COLUMNS = [
     },
   }),
 ];
+
+/**
+ * Search the text the table shows. Cell IDs are internal, so they are left
+ * out; cells are searched by name instead.
+ */
+function matchesSearch(variable: ResolvedVariable, search: string): boolean {
+  const query = search.toLowerCase();
+  return [
+    variable.name,
+    variable.dataType,
+    variable.value,
+    ...variable.declaredByNames,
+    ...variable.usedByNames,
+  ].some((text) => text?.toLowerCase().includes(query));
+}
 
 /**
  * Sort the variables by the specified column sort
@@ -277,7 +284,8 @@ export const VariableTable: React.FC<Props> = memo(
         // Opt-out only
         return column.columnDef.enableGlobalFilter ?? true;
       },
-      globalFilterFn: "auto",
+      globalFilterFn: (row, _columnId, search: string) =>
+        matchesSearch(row.original, search),
       // sorting
       manualSorting: true,
       locale: locale,
