@@ -88,6 +88,7 @@ nav:
       - Running cells: guides/reactivity.md
       - Interactive elements: guides/interactivity.md
       - Visualize outputs: guides/outputs.md
+      - Logging: guides/logging.md
       - Working with data:
           - Working with data: guides/working_with_data/index.md
           - DataFrames: guides/working_with_data/dataframes.md
