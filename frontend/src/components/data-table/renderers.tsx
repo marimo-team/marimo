@@ -31,6 +31,22 @@ import { useCellRangeSelection } from "./range-focus/use-cell-range-selection";
 import { useScrollIntoViewOnFocus } from "./range-focus/use-scroll-into-view";
 import { AUTO_WIDTH_MAX_COLUMNS, TABLE_ROW_HEIGHT_PX } from "./types";
 
+/**
+ * Narrow tables render a filler column to take up leftover width.
+ * When it is shown, the last visible column should not draw a right border,
+ * otherwise the empty filler looks like an extra column. See #10787.
+ */
+function getBorderlessColumnId<TData>(table: Table<TData>): string | undefined {
+  if (table.options.columns.length > AUTO_WIDTH_MAX_COLUMNS) {
+    return undefined;
+  }
+  return [
+    ...table.getLeftVisibleLeafColumns(),
+    ...table.getCenterVisibleLeafColumns(),
+    ...table.getRightVisibleLeafColumns(),
+  ].at(-1)?.id;
+}
+
 export function renderTableHeader<TData>(
   table: Table<TData>,
   isSticky?: boolean,
@@ -38,6 +54,8 @@ export function renderTableHeader<TData>(
   if (!table.getRowModel().rows?.length) {
     return null;
   }
+
+  const borderlessColumnId = getBorderlessColumnId(table);
 
   const renderHeaderGroup = (headerGroups: HeaderGroup<TData>[]) => {
     return headerGroups.map((headerGroup) =>
@@ -48,6 +66,7 @@ export function renderTableHeader<TData>(
             key={header.id}
             className={cn(
               "h-auto min-h-10 whitespace-pre align-top border-r border-r-border/75",
+              header.column.id === borderlessColumnId && "border-r-0",
               className,
             )}
             style={style}
@@ -70,7 +89,7 @@ export function renderTableHeader<TData>(
         {renderHeaderGroup(table.getLeftHeaderGroups())}
         {renderHeaderGroup(table.getCenterHeaderGroups())}
         {renderHeaderGroup(table.getRightHeaderGroups())}
-        {table.getAllColumns().length <= AUTO_WIDTH_MAX_COLUMNS && (
+        {table.options.columns.length <= AUTO_WIDTH_MAX_COLUMNS && (
           <th className="w-full border-0" aria-hidden="true" />
         )}
       </TableRow>
@@ -135,6 +154,8 @@ export const DataTableBody = <TData,>({
 
   const hoverTooltip = useTableHoverTooltip({ table });
 
+  const borderlessColumnId = getBorderlessColumnId(table);
+
   const renderCells = (cells: Cell<TData, unknown>[]) => {
     return cells.map((cell) => {
       const { className, style: pinningstyle } = getPinningStyles(cell.column);
@@ -158,6 +179,7 @@ export const DataTableBody = <TData,>({
           key={cell.id}
           className={cn(
             "whitespace-pre truncate outline-hidden focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-ring border-r border-r-border/75",
+            cell.column.id === borderlessColumnId && "border-r-0",
             !fixedWidth && "max-w-[300px]",
             cell.column.getColumnWrapping &&
               cell.column.getColumnWrapping?.() === "wrap" &&
