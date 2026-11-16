@@ -131,7 +131,7 @@ export function ModelDiscovery({
     >
       <div className="relative min-w-0 flex-1">
         <Popover open={open && loaded} onOpenChange={setOpen}>
-          <PopoverPrimitive.Anchor asChild>
+          <PopoverPrimitive.Anchor asChild={true}>
             <div>
               <Input
                 ref={inputRef}
