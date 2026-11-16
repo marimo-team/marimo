@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import pytest
 
 from marimo._data.models import DataTable
@@ -27,6 +29,11 @@ from marimo._sql.engines.duckdb import INTERNAL_DUCKDB_ENGINE
 from marimo._sql.parse import SqlCatalogCheckResult, SqlParseResult
 from marimo._types.ids import CellId_t, RequestId, VariableName
 from tests.conftest import MockedKernel
+
+if TYPE_CHECKING:
+    from pathlib import Path
+
+    from tests._runtime._helpers.streams import MockStream
 
 HAS_SQL = DependencyManager.duckdb.has() and DependencyManager.polars.has()
 
@@ -552,6 +559,74 @@ class TestPreviewDatasourceConnection:
             if isinstance(op, DataSourceConnectionsNotification)
         ]
         assert len(preview_datasource_connection_results) == 2
+
+
+def _internal_duckdb_notifications(
+    stream: MockStream,
+) -> list[DataSourceConnectionsNotification]:
+    return [
+        op
+        for op in stream.operations
+        if isinstance(op, DataSourceConnectionsNotification)
+        and any(c.name == INTERNAL_DUCKDB_ENGINE for c in op.connections)
+    ]
+
+
+def _database_names(
+    notification: DataSourceConnectionsNotification,
+) -> set[str]:
+    (connection,) = notification.connections
+    return {db.name for db in connection.databases}
+
+
+@pytest.mark.skipif(not HAS_SQL, reason="SQL deps not available")
+class TestBroadcastInternalDuckDB:
+    async def test_attach_and_detach_through_function(
+        self, mocked_kernel: MockedKernel, tmp_path: Path
+    ) -> None:
+        k = mocked_kernel.k
+        stream = mocked_kernel.stream
+        db_path = tmp_path / "attached.duckdb"
+
+        await k.run(
+            [
+                ExecuteCellCommand(
+                    cell_id=CellId_t("0"),
+                    code=(
+                        "import duckdb\n"
+                        "def attach():\n"
+                        f"    duckdb.sql(\"ATTACH '{db_path}' AS fn_db\")\n"
+                        "def detach():\n"
+                        '    duckdb.sql("DETACH fn_db")'
+                    ),
+                ),
+                ExecuteCellCommand(cell_id=CellId_t("1"), code="attach()"),
+            ]
+        )
+        assert "fn_db" in _database_names(
+            _internal_duckdb_notifications(stream)[-1]
+        )
+
+        await k.run(
+            [ExecuteCellCommand(cell_id=CellId_t("2"), code="detach()")]
+        )
+        assert "fn_db" not in _database_names(
+            _internal_duckdb_notifications(stream)[-1]
+        )
+
+    async def test_no_broadcast_when_catalogs_unchanged(
+        self, mocked_kernel: MockedKernel
+    ) -> None:
+        k = mocked_kernel.k
+        stream = mocked_kernel.stream
+
+        await k.run(
+            [ExecuteCellCommand(cell_id=CellId_t("0"), code="import duckdb")]
+        )
+        baseline = len(_internal_duckdb_notifications(stream))
+
+        await k.run([ExecuteCellCommand(cell_id=CellId_t("1"), code="x = 1")])
+        assert len(_internal_duckdb_notifications(stream)) == baseline
 
 
 @pytest.mark.skipif(not HAS_SQL, reason="SQL deps not available")

@@ -187,7 +187,7 @@ def create_default_hooks() -> NotebookCellHooks:
     from marimo._runtime.runner.hooks_on_finish import ON_FINISH_HOOKS
     from marimo._runtime.runner.hooks_post_execution import (
         FINALIZATION_HOOKS,
-        POST_EXECUTION_HOOKS,
+        create_post_execution_hooks,
     )
     from marimo._runtime.runner.hooks_pre_execution import (
         PRE_EXECUTION_HOOKS,
@@ -200,7 +200,7 @@ def create_default_hooks() -> NotebookCellHooks:
     defaults: list[tuple[HookPhase, Sequence[Callable[..., None]]]] = [
         (HookPhase.PREPARATION, PREPARATION_HOOKS),
         (HookPhase.PRE_EXECUTION, PRE_EXECUTION_HOOKS),
-        (HookPhase.POST_EXECUTION, POST_EXECUTION_HOOKS),
+        (HookPhase.POST_EXECUTION, create_post_execution_hooks()),
         (HookPhase.ON_FINISH, ON_FINISH_HOOKS),
     ]
     for phase, hook_list in defaults:

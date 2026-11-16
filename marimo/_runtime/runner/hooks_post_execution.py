@@ -53,6 +53,7 @@ from marimo._runtime.side_effect import SideEffect
 from marimo._sql.engines.duckdb import (
     INTERNAL_DUCKDB_ENGINE,
     DuckDBEngine,
+    get_attached_duckdb_catalogs,
 )
 from marimo._sql.get_engines import (
     engine_to_data_source_connection,
@@ -174,41 +175,59 @@ def _broadcast_data_source_connection(
     )
 
 
-@kernel_tracer.start_as_current_span("broadcast_duckdb_datasource")
-def _broadcast_duckdb_datasource(
-    cell: CellImpl,
-    ctx: PostExecutionHookContext,
-    run_result: cell_runner.RunResult,
-) -> None:
-    if not ctx.should_broadcast_data:
-        return
+class _DuckDBDatasourceBroadcaster:
+    """Broadcasts the internal DuckDB connection when a cell changes it.
 
-    del run_result
-    if not DependencyManager.duckdb.has():
-        return
+    Scanning the cell's SQL strings misses changes made indirectly, e.g. an
+    `ATTACH` inside a function defined elsewhere, so we also compare the
+    attached catalogs against the last ones seen.
+    """
 
-    try:
-        sqls = cell.sqls
-        if not sqls:
+    def __init__(self) -> None:
+        self._last_catalogs: set[str] | None = None
+
+    def _catalogs_changed(self) -> bool:
+        # Only inspect DuckDB once user code has imported it.
+        if not DependencyManager.duckdb.imported():
+            return False
+        catalogs = get_attached_duckdb_catalogs()
+        changed = catalogs != self._last_catalogs
+        self._last_catalogs = catalogs
+        return changed
+
+    @kernel_tracer.start_as_current_span("broadcast_duckdb_datasource")
+    def __call__(
+        self,
+        cell: CellImpl,
+        ctx: PostExecutionHookContext,
+        run_result: cell_runner.RunResult,
+    ) -> None:
+        del run_result
+        if not ctx.should_broadcast_data:
             return
-        modifies_datasources = any(
-            has_updates_to_datasource(sql) for sql in sqls
-        )
-        if not modifies_datasources:
+        if not DependencyManager.duckdb.has():
             return
 
-        LOGGER.debug("Broadcasting internal duckdb datasource")
-        broadcast_notification(
-            DataSourceConnectionsNotification(
-                connections=[
-                    engine_to_data_source_connection(
-                        INTERNAL_DUCKDB_ENGINE, DuckDBEngine()
-                    )
-                ]
+        try:
+            catalogs_changed = self._catalogs_changed()
+            modifies_datasources = any(
+                has_updates_to_datasource(sql) for sql in cell.sqls
             )
-        )
-    except Exception:
-        return
+            if not (catalogs_changed or modifies_datasources):
+                return
+
+            LOGGER.debug("Broadcasting internal duckdb datasource")
+            broadcast_notification(
+                DataSourceConnectionsNotification(
+                    connections=[
+                        engine_to_data_source_connection(
+                            INTERNAL_DUCKDB_ENGINE, DuckDBEngine()
+                        )
+                    ]
+                )
+            )
+        except Exception:
+            return
 
 
 @kernel_tracer.start_as_current_span("broadcast_storage_backends")
@@ -531,20 +550,22 @@ def _flush_console(
     stream.flush_console()
 
 
-POST_EXECUTION_HOOKS: list[PostExecutionHook] = [
-    _set_imported_defs,
-    _set_run_result_status,
-    _store_reference_to_output,
-    _store_state_reference,
-    _issue_exception_side_effect,
-    _broadcast_datasets,
-    _broadcast_data_source_connection,
-    _broadcast_duckdb_datasource,
-    _broadcast_outputs,
-    _reset_matplotlib_context,
-    _delete_local_variables,
-    mount_lens,
-]
+def create_post_execution_hooks() -> list[PostExecutionHook]:
+    """Create post-execution hooks; stateful hooks are fresh per call."""
+    return [
+        _set_imported_defs,
+        _set_run_result_status,
+        _store_reference_to_output,
+        _store_state_reference,
+        _issue_exception_side_effect,
+        _broadcast_datasets,
+        _broadcast_data_source_connection,
+        _DuckDBDatasourceBroadcaster(),
+        _broadcast_outputs,
+        _reset_matplotlib_context,
+        _delete_local_variables,
+        mount_lens,
+    ]
 
 
 # These hooks may be retried after an interrupt, so they must be safe to repeat.

@@ -36,6 +36,19 @@ if TYPE_CHECKING:
 INTERNAL_DUCKDB_ENGINE = cast(VariableName, "__marimo_duckdb")
 
 
+def get_attached_duckdb_catalogs() -> set[str]:
+    """Fetch the names of all catalogs attached to the default DuckDB connection."""
+    import duckdb
+
+    try:
+        result = duckdb.sql("SELECT database_name FROM duckdb_databases()")
+        if result is None:
+            return set()
+        return {row[0].lower() for row in result.fetchall()}
+    except Exception:
+        return set()
+
+
 @dataclass(frozen=True)
 class _CatalogSchema:
     """DuckDB schema metadata with an OID and ordered path within a database."""
