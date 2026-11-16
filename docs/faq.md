@@ -241,6 +241,30 @@ Import `marimo` (as `mo`) in a notebook, and use the `mo.md` function.
 Learn more in the [outputs guide](guides/outputs.md#markdown)
 or by running `marimo tutorial markdown`.
 
+<a name="faq-logging"></a>
+
+### How do I use logging in marimo?
+
+Use Python's standard [`logging`](https://docs.python.org/3/library/logging.html)
+module. In the editor, messages written to standard output or standard error
+appear below the cell and in the **Logs** tab of the
+[developer panel](guides/editor_features/panels.md). Configure logger and handler
+levels in Python to choose which messages are emitted; the panel's **STDOUT**
+and **STDERR** labels identify streams, not Python log levels.
+
+To clear the console below a cell while retaining its messages in Logs, call
+[`mo.output.clear_console()`][marimo.output.clear_console] after logging in the
+same cell. This clears all of that cell's console output, including `print()`
+output, without changing its visual output or other cells' consoles. Messages
+can appear before the clear call, and later writes appear again: this does not
+provide a destination that sends messages exclusively to Logs.
+
+Toggle the developer panel with `Cmd/Ctrl-J` and select **Logs** to view messages.
+Its **Clear** button clears the panel's history without clearing cell consoles;
+hiding the panel does not stop logging. For apps served with `marimo run`,
+console output goes to the invoking terminal by default; pass
+`--redirect-console-to-browser` to send it to the browser instead.
+
 <a name="faq-plots"></a>
 
 ### How do I display plots?

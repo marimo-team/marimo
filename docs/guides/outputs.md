@@ -197,9 +197,6 @@ provides utility functions like
 Console outputs, such as print statements, show up below a cell in the console
 output area; they are not included in the output area or app view by default.
 
-For log levels, the Logs panel, and clearing console output below a cell while
-keeping its logs, see [Logging](logging.md).
-
 To include console outputs in the cell output area, use
 [`mo.redirect_stdout`][marimo.redirect_stdout] or
 [`mo.redirect_stderr`][marimo.redirect_stderr]:
