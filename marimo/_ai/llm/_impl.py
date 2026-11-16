@@ -31,6 +31,7 @@ from marimo._ai._types import (
     ChatModel,
     ChatModelConfig,
 )
+from marimo._cli.install_hints import get_install_hint
 from marimo._dependencies.dependencies import DependencyManager
 
 LOGGER = _loggers.marimo_logger()
@@ -171,7 +172,7 @@ class openai(ChatModel):
         self, messages: list[ChatMessage], config: ChatModelConfig
     ) -> object:
         DependencyManager.openai.require(
-            "chat model requires openai. `pip install openai`"
+            f"chat model requires openai. `{get_install_hint('openai')}`"
         )
         from urllib.parse import parse_qs, urlparse
 
@@ -312,7 +313,7 @@ class anthropic(ChatModel):
         self, messages: list[ChatMessage], config: ChatModelConfig
     ) -> object:
         DependencyManager.anthropic.require(
-            "chat model requires anthropic. `pip install anthropic`"
+            f"chat model requires anthropic. `{get_install_hint('anthropic')}`"
         )
         from anthropic import Anthropic
 
@@ -429,7 +430,7 @@ class google(ChatModel):
         self, messages: list[ChatMessage], config: ChatModelConfig
     ) -> object:
         DependencyManager.google_ai.require(
-            "chat model requires google. `pip install google-genai`"
+            f"chat model requires google. `{get_install_hint('google-genai')}`"
         )
         from google import genai  # type: ignore[import-not-found]
 
@@ -546,7 +547,7 @@ class groq(ChatModel):
         self, messages: list[ChatMessage], config: ChatModelConfig
     ) -> object:
         DependencyManager.groq.require(
-            "chat model requires groq. `pip install groq`"
+            f"chat model requires groq. `{get_install_hint('groq')}`"
         )
         from groq import Groq  # type: ignore[import-not-found]
 
@@ -621,7 +622,7 @@ class bedrock(ChatModel):
 
     def _create_client(self) -> Any:
         DependencyManager.boto3.require(
-            "bedrock chat model requires boto3. `pip install boto3`"
+            f"bedrock chat model requires boto3. `{get_install_hint('boto3')}`"
         )
         import boto3
 
@@ -746,7 +747,7 @@ class pydantic_ai(ChatModel):
 
     def __init__(self, agent: Agent[Any, Any]):
         DependencyManager.pydantic_ai.require(
-            "pydantic-ai chat model requires pydantic-ai. `pip install pydantic-ai`"
+            f"pydantic-ai chat model requires pydantic-ai. `{get_install_hint('pydantic-ai')}`"
         )
         self.agent = agent
 
