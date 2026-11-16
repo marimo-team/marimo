@@ -16,7 +16,6 @@ from pymdownx.superfences import RE_NESTED_FENCE_START  # type: ignore
 from marimo._ast.cell import CellConfig
 from marimo._ast.compiler import compile_cell
 from marimo._ast.names import DEFAULT_CELL_NAME
-from marimo._ast.transformers import RemoveImportTransformer
 from marimo._ast.variables import is_local
 from marimo._ast.visitor import Block, NamedNode, ScopedVisitor
 from marimo._convert.common.format import (
@@ -1010,8 +1009,12 @@ class Renamer:
     def __init__(self, cell_remappings: dict[int, dict[str, str]]) -> None:
         self.cell_remappings = cell_remappings
         self.made_changes = False
+        # Names that must keep their spelling in the cell being renamed.
+        self.pinned: frozenset[str] = frozenset()
 
     def _maybe_rename(self, cell: int, name: str, is_reference: bool) -> str:
+        if name in self.pinned:
+            return name
         latest_mapping: dict[str, str] = {}
         until = cell if is_reference else cell + 1
         for idx in range(until):
@@ -1046,6 +1049,14 @@ class Renamer:
             name = node.name
             new_name = self._maybe_rename(cell, name, is_reference)
             node.name = new_name
+        elif isinstance(node, ast.alias):
+            # `import a.b` binds `a`, which can't be renamed without
+            # changing what it refers to.
+            if node.asname is not None or "." not in node.name:
+                name = node.asname or node.name
+                new_name = self._maybe_rename(cell, name, is_reference)
+                if new_name != name:
+                    node.asname = new_name
 
         if isinstance(node, (ast.MatchAs, ast.MatchStar)):
             name = node.name
@@ -1078,6 +1089,8 @@ class PrivateRenamer(Renamer):
 
     def _maybe_rename(self, cell: int, name: str, is_reference: bool) -> str:
         del cell, is_reference
+        if name in self.pinned:
+            return name
         return self._mapping.get(name, name)
 
 
@@ -1092,6 +1105,15 @@ def _rename_in_scope(source: str, cell_idx: int, renamer: Renamer) -> str:
         tree = ast.parse(source)
     except SyntaxError:
         return source
+
+    # `import a.b` binds `a` and can't take an alias, so `a` stays as is.
+    renamer.pinned = frozenset(
+        alias.name.split(".")[0]
+        for stmt in tree.body
+        if isinstance(stmt, ast.Import)
+        for alias in stmt.names
+        if alias.asname is None and "." in alias.name
+    )
 
     def on_def(node: NamedNode, name: str, block_stack: list[Block]) -> None:
         # NB. a load that resolves to a definition also arrives here. Rename
@@ -1322,32 +1344,69 @@ def bind_cell_metadata(
     return cells
 
 
+ImportIdentity = tuple[str, int]
+
+
+def _imported_bindings(
+    node: ast.Import | ast.ImportFrom,
+) -> list[tuple[ast.alias, str, ImportIdentity]]:
+    """Each alias with the name it binds and the object it imports."""
+    if isinstance(node, ast.Import):
+        return [
+            (alias, alias.asname or alias.name.split(".")[0], (alias.name, 0))
+            for alias in node.names
+        ]
+    module = node.module or ""
+    return [
+        (
+            alias,
+            alias.asname or alias.name,
+            (f"{module}.{alias.name}", node.level),
+        )
+        for alias in node.names
+        if alias.name != "*"
+    ]
+
+
 def transform_remove_duplicate_imports(sources: list[str]) -> list[str]:
     """
     Remove duplicate imports appearing in any cell.
+
+    An import is a duplicate when the name it binds is already bound to the
+    same object, at that point in the notebook.
     """
-    imports: set[str] = set()
+    # Current binding per name: the import it came from, or None for any
+    # other statement.
+    bindings: dict[str, ImportIdentity | None] = {}
     new_sources: list[str] = []
     for source in sources:
         try:
-            cell = compile_cell(source, cell_id=CellId_t("temp"))
+            tree = ast.parse(source)
         except SyntaxError:
             new_sources.append(source)
             continue
-        scoped = set()
-        for var, instances in cell.variable_data.items():
-            for instance in instances:
-                if (
-                    var in imports or var in scoped
-                ) and instance.kind == "import":
-                    # If it's not in global imports, we keep one instance
-                    keep_one = var not in imports
-                    transformer = RemoveImportTransformer(
-                        var, keep_one=keep_one
-                    )
-                    source = transformer.strip_imports(source)
-                scoped.add(var)
-        imports.update(scoped)
+        removed_any = False
+        kept: list[ast.stmt] = []
+        for stmt in tree.body:
+            if not isinstance(stmt, (ast.Import, ast.ImportFrom)):
+                visitor = ScopedVisitor("", ignore_local=True)
+                visitor.visit(stmt)
+                bindings.update(dict.fromkeys(visitor.defs))
+                kept.append(stmt)
+                continue
+            kept_aliases: list[ast.alias] = []
+            for alias, name, identity in _imported_bindings(stmt):
+                if bindings.get(name) == identity:
+                    removed_any = True
+                    continue
+                bindings[name] = identity
+                kept_aliases.append(alias)
+            if kept_aliases:
+                stmt.names = kept_aliases
+                kept.append(stmt)
+        if removed_any:
+            tree.body = kept
+            source = ast.unparse(tree).strip()
         new_sources.append(source)
 
     return new_sources
