@@ -63,6 +63,38 @@ describe("clearCellOutputAtom", () => {
   });
 });
 
+describe("clearing a running cell", () => {
+  it("hides what it shows until it shows something new", () => {
+    const store = createStore();
+    store.set(
+      notebookAtom,
+      MockNotebook.notebookState({ cellData: { [A]: {} } }),
+    );
+    const running = MockExecutions.shown(
+      A,
+      { mimetype: "text/plain", data: "so far" },
+      { status: "running", completed_at: null },
+    );
+    const replica = MockExecutions.seed(store, [running]);
+    store.set(clearCellOutputAtom, { cellId: A });
+    expect(store.get(cellOutputAtom(A))).toBeNull();
+
+    store.set(
+      replica.executionsAtom,
+      MockExecutions.inputs([
+        {
+          ...running,
+          outcome: {
+            kind: "value",
+            display: { mimetype: "text/plain", data: "more" },
+          },
+        },
+      ]).executions,
+    );
+    expect(store.get(cellOutputAtom(A))?.data).toBe("more");
+  });
+});
+
 describe("clearAllCellOutputsAtom", () => {
   it("clears every cell", () => {
     const store = setup();

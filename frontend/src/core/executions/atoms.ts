@@ -21,7 +21,9 @@ import { type CellFreshnessInputs, freshnessOf } from "./freshness";
 import {
   type CellOutput,
   type CellOutputInputs,
+  type ClearedOutput,
   cellOutputsView,
+  shownExecution,
 } from "./output";
 import {
   anyRunning,
@@ -41,8 +43,7 @@ const NO_CELLS: ReadonlyMap<Protocol.CellId, Protocol.Cell> = new Map();
 const NO_REQUESTS: ReadonlySet<RunRequest> = new Set();
 const NO_REQUESTED: ReadonlySet<Protocol.CellId> = new Set();
 const NO_BLOCKED: ReadonlySet<Protocol.CellId> = new Set();
-const NO_CLEARED: ReadonlyMap<Protocol.CellId, Protocol.ExecutionId> =
-  new Map();
+const NO_CLEARED: ReadonlyMap<Protocol.CellId, ClearedOutput> = new Map();
 
 /** The notebook a replica is showing, which the editor's marks belong to. */
 interface ShownNotebook {
@@ -182,9 +183,9 @@ export const cellFreshnessAtom = atom((get) =>
   freshnessOf(get(cellFreshnessInputsAtom)),
 );
 
-/** Results this browser cleared, by execution id, until a newer one lands. */
+/** What each cell showed when this browser cleared it. */
 const clearedOutputsAtom =
-  atom<Marks<ReadonlyMap<Protocol.CellId, Protocol.ExecutionId>>>(null);
+  atom<Marks<ReadonlyMap<Protocol.CellId, ClearedOutput>>>(null);
 
 /** What every cell's output derives from. Pair with `cellOutputView`. */
 export const cellOutputInputsAtom = atom((get): CellOutputInputs => {
@@ -230,7 +231,7 @@ export function releaseCellOutputAtoms(cellId: CellId): void {
   cellOutlineAtom.remove(cellId);
 }
 
-/** Hide what `cellIds` show now, until each has a newer result. */
+/** Hide what `cellIds` show now, until each shows something new. */
 export function clearCellOutputs(
   store: Pick<Store, "get" | "set">,
   cellIds: readonly Protocol.CellId[],
@@ -238,9 +239,9 @@ export function clearCellOutputs(
   const inputs = store.get(cellOutputInputsAtom);
   const next = new Map(inputs.cleared);
   for (const cellId of cellIds) {
-    const result = inputs.results.get(cellId);
-    if (result !== null && result !== undefined) {
-      next.set(cellId, result.id);
+    const shown = shownExecution(inputs, cellId);
+    if (shown?.outcome != null) {
+      next.set(cellId, { execution: shown.id, outcome: shown.outcome });
     }
   }
   store.set(clearedOutputsAtom, mark(store, next));

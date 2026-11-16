@@ -34,11 +34,17 @@ export type CellOutput = Omit<OutputMessage, "data"> & {
 };
 
 /** What every cell's output derives from. */
+/** The execution a cell showed when it was cleared, and what it showed. */
+export interface ClearedOutput {
+  readonly execution: Protocol.ExecutionId;
+  readonly outcome: Protocol.Outcome;
+}
+
 export interface CellOutputInputs {
   readonly executions: Executions;
   readonly results: Results;
-  /** Results this browser cleared, by execution id, until a newer one lands. */
-  readonly cleared: ReadonlyMap<Protocol.CellId, Protocol.ExecutionId>;
+  /** What each cell showed when this browser cleared it. */
+  readonly cleared: ReadonlyMap<Protocol.CellId, ClearedOutput>;
   /** The confirmed document's cells, for the source an execution ran. */
   readonly cells: ReadonlyMap<Protocol.CellId, Protocol.Cell>;
 }
@@ -226,38 +232,74 @@ function outcomeDisplay(record: Protocol.Execution): CellOutput | null {
 }
 
 /**
- * What a cell shows: its running value so far, else its result's outcome.
+ * The execution whose outcome a cell shows: its running one once that has
+ * shown something, else its result.
  *
  * A running execution's outcome is null until it shows something, so the
  * result stays up until then. Once it has shown, an empty display means
  * the cell cleared its output, and nothing shows. A result that says the
  * cell did not run comes down as soon as it does run.
  */
-export function cellOutputView(
-  inputs: CellOutputInputs,
+export function shownExecution(
+  inputs: Pick<CellOutputInputs, "executions" | "results">,
   id: Protocol.CellId,
-): CellOutput | null {
+): Protocol.Execution | null {
   const latestId = inputs.executions.latest.get(id);
   const latest =
     latestId === undefined
       ? undefined
       : inputs.executions.executions.get(latestId)?.record;
-  if (latest !== undefined && latest.outcome !== null) {
-    if (latest.status !== "completed") {
-      return outcomeOutput(latest, inputs.cells);
-    }
+  if (
+    latest !== undefined &&
+    latest.outcome !== null &&
+    latest.status !== "completed"
+  ) {
+    return latest;
   }
-  const result = inputs.results.get(id);
-  if (result === null || result === undefined) {
+  const result = inputs.results.get(id) ?? null;
+  if (latest?.status === "running" && result?.outcome?.kind === "skipped") {
     return null;
   }
-  if (inputs.cleared.get(id) === result.id) {
+  return result;
+}
+
+/**
+ * Whether `record` still shows what was cleared.
+ *
+ * A running execution that shows something new after the clear comes back,
+ * and so does a newer execution.
+ */
+function stillCleared(
+  cleared: ClearedOutput | undefined,
+  record: Protocol.Execution,
+): boolean {
+  if (cleared === undefined || cleared.execution !== record.id) {
+    return false;
+  }
+  const before = cleared.outcome;
+  const now = record.outcome;
+  if (before.kind !== "value" || now?.kind !== "value") {
+    return before.kind === now?.kind;
+  }
+  return (
+    before.display === now.display ||
+    (before.display !== null &&
+      now.display !== null &&
+      before.display.mimetype === now.display.mimetype &&
+      before.display.data === now.display.data)
+  );
+}
+
+/** What a cell shows, unless this browser cleared it. */
+export function cellOutputView(
+  inputs: CellOutputInputs,
+  id: Protocol.CellId,
+): CellOutput | null {
+  const shown = shownExecution(inputs, id);
+  if (shown === null || stillCleared(inputs.cleared.get(id), shown)) {
     return null;
   }
-  if (latest?.status === "running" && result.outcome?.kind === "skipped") {
-    return null;
-  }
-  return outcomeOutput(result, inputs.cells);
+  return outcomeOutput(shown, inputs.cells);
 }
 
 /**
