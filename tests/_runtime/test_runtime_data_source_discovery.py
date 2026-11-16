@@ -2,16 +2,21 @@
 from __future__ import annotations
 
 import os
-from unittest.mock import patch
+from unittest.mock import MagicMock, call, patch
 
 import msgspec
 import pytest
 
+from marimo._data.data_source_discovery import discover_data_sources
+from marimo._data.data_source_discovery.plugins.duckdb import DUCKDB_PLUGIN
 from marimo._messaging.notification import (
     DataSourceDiscoveryResultNotification,
 )
-from marimo._runtime.commands import DiscoverDataSourcesCommand
-from marimo._types.ids import RequestId
+from marimo._runtime.commands import (
+    DiscoverDataSourcesCommand,
+    ExecuteCellCommand,
+)
+from marimo._types.ids import CellId_t, RequestId
 from tests.conftest import MockedKernel
 
 
@@ -90,3 +95,58 @@ async def test_discovery_reads_live_kernel_environment(
     for value in environment.values():
         assert value not in payload
     load_resolved_catalogs.assert_called_once_with(environment=environment)
+
+
+@pytest.mark.requires("duckdb")
+async def test_duckdb_suggestions_coexist_with_existing_imports(
+    mocked_kernel: MockedKernel,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import duckdb
+
+    environment = {
+        "MOTHERDUCK_DATABASE": "analytics",
+        "MOTHERDUCK_TOKEN": "motherduck-token",
+        "QUACK_DATABASE": "quack:localhost",
+        "QUACK_TOKEN": "quack-token",
+        "DUCKDB_PATH": ":memory:",
+    }
+    for key, value in environment.items():
+        monkeypatch.setenv(key, value)
+    sources = discover_data_sources(environment, plugins=(DUCKDB_PLUGIN,))
+    kernel = mocked_kernel.k
+    await kernel.run(
+        [
+            ExecuteCellCommand(
+                cell_id=CellId_t("existing"),
+                code="import os\nimport duckdb\ncon = object()",
+            )
+        ]
+    )
+    existing_con = kernel.globals["con"]
+    connections = [MagicMock(spec=["execute", "close"]) for _ in sources]
+    with (
+        patch.object(duckdb, "__version__", "2.0.0"),
+        patch.object(duckdb, "connect", side_effect=connections) as connect,
+    ):
+        for index, source in enumerate(sources):
+            await kernel.run(
+                [
+                    ExecuteCellCommand(
+                        cell_id=CellId_t(str(index)), code=source.code
+                    )
+                ]
+            )
+            assert kernel.errors == {}
+    assert connect.call_args_list == [
+        call("md:analytics", config={"motherduck_token": "motherduck-token"}),
+        call(":memory:"),
+        call(":memory:"),
+    ]
+    assert [
+        kernel.globals[name]
+        for name in ("motherduck_con", "quack_con", "duckdb_con")
+    ] == connections
+    assert kernel.globals["con"] is existing_con
+    assert kernel.globals["duckdb"] is duckdb
+    assert kernel.globals["os"] is os

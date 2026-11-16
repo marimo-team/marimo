@@ -94,7 +94,7 @@ def test_motherduck_routes_database_and_credentials(
     mocked_connect.assert_called_once_with(
         database, config={"motherduck_token": TOKEN}
     )
-    assert namespace["con"] is mocked_connect.return_value
+    assert namespace["motherduck_con"] is mocked_connect.return_value
     assert TOKEN not in source.code
 
 
@@ -250,7 +250,7 @@ def test_local_snippet_opens_file_read_only(
         environment,
         monkeypatch,
     )
-    con = namespace["con"]
+    con = namespace["duckdb_con"]
     assert isinstance(con, duckdb.DuckDBPyConnection)
     try:
         assert con.execute("SELECT * FROM calls").fetchall() == [(42,)]
@@ -356,7 +356,7 @@ def test_quack_snippet_authenticates_and_discovers_tables(
         ),
     ):
         namespace = _execute(source, environment, monkeypatch)
-    con = namespace["con"]
+    con = namespace["quack_con"]
     assert isinstance(con, duckdb.DuckDBPyConnection)
     try:
         assert con.execute(
