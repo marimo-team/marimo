@@ -7,6 +7,7 @@ import functools
 import inspect
 import itertools
 from collections.abc import Awaitable, Callable
+from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, NoReturn, TypeVar, cast
 
@@ -203,30 +204,47 @@ def has_fixture_decorator(node: ast.AST) -> bool:
     return is_pytest and attr == "fixture"
 
 
-_NESTED_SCOPES = (
-    ast.FunctionDef,
-    ast.AsyncFunctionDef,
-    ast.ClassDef,
-    ast.Lambda,
-)
+class _YieldVisitor(ast.NodeVisitor):
+    """Finds yields in the visited scope, like CPython's symtable.
+
+    Nested bodies are new scopes, but their decorators, defaults, annotations
+    and bases are evaluated in the enclosing scope.
+    """
+
+    def __init__(self) -> None:
+        self.found = False
+
+    def visit_Yield(self, node: ast.Yield | ast.YieldFrom) -> None:
+        del node
+        self.found = True
+
+    visit_YieldFrom = visit_Yield
+
+    def visit_FunctionDef(
+        self, node: ast.FunctionDef | ast.AsyncFunctionDef
+    ) -> None:
+        self._visit_all(*node.decorator_list, node.args, node.returns)
+
+    visit_AsyncFunctionDef = visit_FunctionDef
+
+    def visit_Lambda(self, node: ast.Lambda) -> None:
+        self.visit(node.args)
+
+    def visit_ClassDef(self, node: ast.ClassDef) -> None:
+        self._visit_all(*node.decorator_list, *node.bases, *node.keywords)
+
+    def _visit_all(self, *nodes: ast.AST | None) -> None:
+        for node in nodes:
+            if node is not None:
+                self.visit(node)
 
 
 def is_generator_def(node: ast.FunctionDef | ast.AsyncFunctionDef) -> bool:
     """Check if function yields in its own scope, i.e. is a generator."""
-    stack: list[ast.AST] = list(node.body)
-    while stack:
-        child = stack.pop()
-        if isinstance(child, (ast.Yield, ast.YieldFrom)):
-            return True
-        children = list(ast.iter_child_nodes(child))
-        if isinstance(child, _NESTED_SCOPES):
-            # Only the body is a new scope; e.g. defaults are evaluated here.
-            body = (
-                (child.body,) if isinstance(child, ast.Lambda) else child.body
-            )
-            children = [c for c in children if c not in body]
-        stack.extend(children)
-    return False
+    visitor = _YieldVisitor()
+    for stmt in node.body:
+        visitor.visit(stmt)
+    return visitor.found
 
 
 def _eval_fixture_decorator(
@@ -270,6 +288,48 @@ def _make_fails(var: str, e: Exception) -> Callable[..., NoReturn]:
     return fails
 
 
+@dataclass(frozen=True)
+class _CellTarget:
+    """A test or fixture defined by a cell, resolved by running the cell."""
+
+    var: str
+    run: Callable[
+        [],
+        tuple[Any, Mapping[str, Any]]
+        | Awaitable[tuple[Any, Mapping[str, Any]]],
+    ]
+    use_wrapped: bool
+
+    def _lookup(self, cell_defs: Mapping[str, Any]) -> Callable[..., Any]:
+        target = cell_defs[self.var]
+        return cast(
+            Callable[..., Any],
+            target.__wrapped__ if self.use_wrapped else target,
+        )
+
+    def resolve(self) -> Callable[..., Any]:
+        res = self.run()
+        if isinstance(res, Awaitable):
+            import asyncio
+
+            loop = asyncio.new_event_loop()
+            try:
+                _, cell_defs = loop.run_until_complete(res)
+            finally:
+                loop.close()
+        else:
+            _, cell_defs = res
+        return self._lookup(cell_defs)
+
+    async def resolve_async(self) -> Callable[..., Any]:
+        res = self.run()
+        if isinstance(res, Awaitable):
+            _, cell_defs = await res
+        else:
+            _, cell_defs = res
+        return self._lookup(cell_defs)
+
+
 def _make_hook(
     var: str,
     run: Callable[
@@ -282,55 +342,28 @@ def _make_hook(
     is_async: bool = False,
     is_generator: bool = False,
 ) -> Callable[..., Any]:
-    """Single hook factory - handles both fixtures and tests.
+    """Single hook factory - handles both fixtures and tests."""
+    target = _CellTarget(var, run, use_wrapped)
 
-    pytest inspects the hook to decide how to call it, so the hook must be the
-    same kind of function as its target (e.g. a generator for yield fixtures).
-    """
-
-    def resolve(cell_defs: Mapping[str, Any]) -> Callable[..., Any]:
-        target = cell_defs[var].__wrapped__ if use_wrapped else cell_defs[var]
-        return cast(Callable[..., Any], target)
-
-    def resolve_sync() -> Callable[..., Any]:
-        res = run()
-        if isinstance(res, Awaitable):
-            import asyncio
-
-            loop = asyncio.new_event_loop()
-            try:
-                _, cell_defs = loop.run_until_complete(res)
-            finally:
-                loop.close()
-        else:
-            _, cell_defs = res
-        return resolve(cell_defs)
-
-    async def resolve_async() -> Callable[..., Any]:
-        res = run()
-        if isinstance(res, Awaitable):
-            _, cell_defs = await res
-        else:
-            _, cell_defs = res
-        return resolve(cell_defs)
-
-    # Generator hooks enter the notebook context per step, not across the
-    # yield: other tests run while the fixture is suspended, and teardown may
-    # resume in another context (e.g. an asyncio task) that can't reset it.
     if is_async and is_generator:
-
+        # Enter the notebook context per step: async teardown may resume in a
+        # different contextvars.Context than setup.
         async def _async_gen_hook(
             *args: Any, **kwargs: Any
         ) -> AsyncIterator[Any]:
             with notebook_filename(file):
-                gen = (await resolve_async())(*args, **kwargs)
-            while True:
+                gen = (await target.resolve_async())(*args, **kwargs)
+            try:
+                while True:
+                    with notebook_filename(file):
+                        try:
+                            value = await anext(gen)
+                        except StopAsyncIteration:
+                            return
+                    yield value
+            finally:
                 with notebook_filename(file):
-                    try:
-                        value = await anext(gen)
-                    except StopAsyncIteration:
-                        return
-                yield value
+                    await gen.aclose()
 
         return _async_gen_hook
 
@@ -338,8 +371,8 @@ def _make_hook(
 
         async def _async_hook(*args: Any, **kwargs: Any) -> Any:
             with notebook_filename(file):
-                target = await resolve_async()
-                return await target(*args, **kwargs)
+                fn = await target.resolve_async()
+                return await fn(*args, **kwargs)
 
         return _async_hook
 
@@ -347,20 +380,24 @@ def _make_hook(
 
         def _gen_hook(*args: Any, **kwargs: Any) -> Iterator[Any]:
             with notebook_filename(file):
-                gen = resolve_sync()(*args, **kwargs)
-            while True:
+                gen = target.resolve()(*args, **kwargs)
+            try:
+                while True:
+                    with notebook_filename(file):
+                        try:
+                            value = next(gen)
+                        except StopIteration:
+                            return
+                    yield value
+            finally:
                 with notebook_filename(file):
-                    try:
-                        value = next(gen)
-                    except StopIteration:
-                        return
-                yield value
+                    gen.close()
 
         return _gen_hook
 
     def _hook(*args: Any, **kwargs: Any) -> Any:
         with notebook_filename(file):
-            return resolve_sync()(*args, **kwargs)
+            return target.resolve()(*args, **kwargs)
 
     return _hook
 

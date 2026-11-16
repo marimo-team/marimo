@@ -13,7 +13,7 @@ import pytest
 from tests.mocks import snapshotter
 
 if TYPE_CHECKING:
-    from collections.abc import Awaitable
+    from collections.abc import Awaitable, Callable
 
     from marimo._runtime.pytest import run_pytest as _run_pytest_type
     from tests._runtime.script_data.contains_tests import app as _app_type
@@ -593,9 +593,28 @@ def test_sync_hook_closes_event_loop(monkeypatch, failure: str | None) -> None:
         loop.close()
 
 
-@pytest.mark.parametrize("is_async", [False, True])
-def test_generator_hook_enters_notebook_per_step(is_async: bool) -> None:
+def _generator_hook(fixture: Callable[..., Any], *, is_async: bool) -> Any:
     from marimo._ast.pytest import _make_hook
+
+    return _make_hook(
+        "fixture",
+        lambda: (None, {"fixture": fixture}),
+        __file__,
+        is_async=is_async,
+        is_generator=True,
+    )
+
+
+def _run_in(
+    runner: asyncio.Runner, ctx: contextvars.Context, step: Awaitable[Any]
+) -> Any:
+    async def run() -> Any:
+        return await step
+
+    return runner.run(run(), context=ctx)
+
+
+def test_generator_hook_enters_notebook_per_step() -> None:
     from marimo._runtime.context.filename import NOTEBOOK_FILENAME
     from marimo._utils.paths import normalize_path
 
@@ -606,48 +625,87 @@ def test_generator_hook_enters_notebook_per_step(is_async: bool) -> None:
         yield "value"
         seen.append(NOTEBOOK_FILENAME.get())
 
-    async def async_fixture():
+    gen = _generator_hook(fixture, is_async=False)()
+    try:
+        assert next(gen) == "value"
+        assert NOTEBOOK_FILENAME.get() is None
+        with pytest.raises(StopIteration):
+            next(gen)
+    finally:
+        gen.close()
+    assert seen == [str(normalize_path(Path(__file__)))] * 2
+
+
+def test_async_generator_hook_enters_notebook_per_step() -> None:
+    from marimo._runtime.context.filename import NOTEBOOK_FILENAME
+    from marimo._utils.paths import normalize_path
+
+    seen = []
+
+    async def fixture():
         seen.append(NOTEBOOK_FILENAME.get())
         yield "value"
         seen.append(NOTEBOOK_FILENAME.get())
 
-    target = async_fixture if is_async else fixture
-    hook = _make_hook(
-        "fixture",
-        lambda: (None, {"fixture": target}),
-        __file__,
-        is_async=is_async,
-        is_generator=True,
-    )
-
-    gen = hook()
-    if is_async:
-        # Teardown resumes in a different context, as with separate tasks.
-        setup_ctx, teardown_ctx = contextvars.Context(), contextvars.Context()
-        with asyncio.Runner() as runner:
-
-            def run_in(ctx: contextvars.Context, step: Awaitable[Any]) -> Any:
-                async def run() -> Any:
-                    return await step
-
-                return runner.run(run(), context=ctx)
-
-            try:
-                assert run_in(setup_ctx, anext(gen)) == "value"
-                assert setup_ctx.get(NOTEBOOK_FILENAME) is None
-                with pytest.raises(StopAsyncIteration):
-                    run_in(teardown_ctx, anext(gen))
-            finally:
-                run_in(setup_ctx, gen.aclose())
-    else:
+    gen = _generator_hook(fixture, is_async=True)()
+    # Teardown resumes in a different context, as with separate tasks.
+    setup_ctx, teardown_ctx = contextvars.Context(), contextvars.Context()
+    with asyncio.Runner() as runner:
         try:
-            assert next(gen) == "value"
-            assert NOTEBOOK_FILENAME.get() is None
-            with pytest.raises(StopIteration):
-                next(gen)
+            assert _run_in(runner, setup_ctx, anext(gen)) == "value"
+            assert setup_ctx.get(NOTEBOOK_FILENAME) is None
+            with pytest.raises(StopAsyncIteration):
+                _run_in(runner, teardown_ctx, anext(gen))
         finally:
-            gen.close()
+            _run_in(runner, setup_ctx, gen.aclose())
     assert seen == [str(normalize_path(Path(__file__)))] * 2
+
+
+def test_generator_hook_close_cleans_up_fixture() -> None:
+    import marimo
+    from marimo._runtime.context.filename import NOTEBOOK_FILENAME
+    from marimo._utils.paths import normalize_path
+
+    cleanup_dirs = []
+
+    def fixture():
+        try:
+            yield "value"
+        finally:
+            cleanup_dirs.append(marimo.notebook_dir())
+            raise RuntimeError("cleanup failed")
+
+    gen = _generator_hook(fixture, is_async=False)()
+    assert next(gen) == "value"
+    with pytest.raises(RuntimeError, match="cleanup failed"):
+        gen.close()
+    assert cleanup_dirs == [normalize_path(Path(__file__)).parent]
+    assert NOTEBOOK_FILENAME.get() is None
+
+
+def test_async_generator_hook_close_cleans_up_fixture() -> None:
+    import marimo
+    from marimo._runtime.context.filename import NOTEBOOK_FILENAME
+    from marimo._utils.paths import normalize_path
+
+    cleanup_dirs = []
+
+    async def fixture():
+        try:
+            yield "value"
+        finally:
+            await asyncio.sleep(0)
+            cleanup_dirs.append(marimo.notebook_dir())
+            raise RuntimeError("cleanup failed")
+
+    gen = _generator_hook(fixture, is_async=True)()
+    ctx = contextvars.Context()
+    with asyncio.Runner() as runner:
+        assert _run_in(runner, ctx, anext(gen)) == "value"
+        with pytest.raises(RuntimeError, match="cleanup failed"):
+            _run_in(runner, ctx, gen.aclose())
+    assert cleanup_dirs == [normalize_path(Path(__file__)).parent]
+    assert ctx.get(NOTEBOOK_FILENAME) is None
 
 
 @pytest.mark.parametrize(
