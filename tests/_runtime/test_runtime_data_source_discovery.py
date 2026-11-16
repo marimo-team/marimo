@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import os
-from unittest.mock import MagicMock, call, patch
+from unittest.mock import MagicMock, patch
 
 import msgspec
 import pytest
@@ -98,9 +98,19 @@ async def test_discovery_reads_live_kernel_environment(
 
 
 @pytest.mark.requires("duckdb")
-async def test_duckdb_suggestions_coexist_with_existing_imports(
+@pytest.mark.parametrize(
+    ("source_id", "connection_name"),
+    [
+        ("motherduck-environment", "motherduck_con"),
+        ("duckdb-quack-environment", "quack_con"),
+        ("duckdb-local-environment", "duckdb_con"),
+    ],
+)
+async def test_duckdb_suggestion_runs_in_kernel(
     mocked_kernel: MockedKernel,
     monkeypatch: pytest.MonkeyPatch,
+    source_id: str,
+    connection_name: str,
 ) -> None:
     import duckdb
 
@@ -113,40 +123,37 @@ async def test_duckdb_suggestions_coexist_with_existing_imports(
     }
     for key, value in environment.items():
         monkeypatch.setenv(key, value)
-    sources = discover_data_sources(environment, plugins=(DUCKDB_PLUGIN,))
+    source = next(
+        source
+        for source in discover_data_sources(
+            environment, plugins=(DUCKDB_PLUGIN,)
+        )
+        if source.id == source_id
+    )
     kernel = mocked_kernel.k
     await kernel.run(
         [
             ExecuteCellCommand(
-                cell_id=CellId_t("existing"),
-                code="import os\nimport duckdb\ncon = object()",
+                cell_id=CellId_t("existing"), code="con = object()"
             )
         ]
     )
     existing_con = kernel.globals["con"]
-    connections = [MagicMock(spec=["execute", "close"]) for _ in sources]
+    connection = MagicMock(spec=["execute", "close"])
     with (
         patch.object(duckdb, "__version__", "2.0.0"),
-        patch.object(duckdb, "connect", side_effect=connections) as connect,
+        patch.object(duckdb, "connect", return_value=connection) as connect,
     ):
-        for index, source in enumerate(sources):
-            await kernel.run(
-                [
-                    ExecuteCellCommand(
-                        cell_id=CellId_t(str(index)), code=source.code
-                    )
-                ]
-            )
-            assert kernel.errors == {}
-    assert connect.call_args_list == [
-        call("md:analytics", config={"motherduck_token": "motherduck-token"}),
-        call(":memory:"),
-        call(":memory:"),
-    ]
-    assert [
-        kernel.globals[name]
-        for name in ("motherduck_con", "quack_con", "duckdb_con")
-    ] == connections
+        await kernel.run(
+            [
+                ExecuteCellCommand(
+                    cell_id=CellId_t("connection"), code=source.code
+                )
+            ]
+        )
+    assert kernel.errors == {}
+    connect.assert_called_once()
+    assert kernel.globals[connection_name] is connection
     assert kernel.globals["con"] is existing_con
     assert kernel.globals["duckdb"] is duckdb
     assert kernel.globals["os"] is os

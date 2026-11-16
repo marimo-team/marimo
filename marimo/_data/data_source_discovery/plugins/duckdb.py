@@ -54,14 +54,14 @@ def _discover_motherduck(
         configuration.append(
             environment_variable("Database", database_variable)
         )
-        database = f'_os.environ["{database_variable}"]'
+        database = f'os.environ["{database_variable}"]'
         if not environment[database_variable].startswith("md:"):
             database = f'"md:" + {database}'
     token_config = ""
     if token_variable is not None:
         configuration.append(environment_variable("Token", token_variable))
         token_config = (
-            f', config={{"motherduck_token": _os.environ["{token_variable}"]}}'
+            f', config={{"motherduck_token": os.environ["{token_variable}"]}}'
         )
 
     return DetectedDataSource(
@@ -74,8 +74,8 @@ def _discover_motherduck(
         configuration=tuple(configuration),
         hides_when=_NEVER_HIDE,
         code=(
-            "import os as _os\nimport duckdb as _duckdb\n\n"
-            f"motherduck_con = _duckdb.connect({database}{token_config})"
+            "import os\nimport duckdb\n\n"
+            f"motherduck_con = duckdb.connect({database}{token_config})"
         ),
     )
 
@@ -100,7 +100,7 @@ def _discover_quack(
     token = "None"
     if token_variable is not None:
         configuration.append(environment_variable("Token", token_variable))
-        token = f'_os.environ["{token_variable}"]'
+        token = f'os.environ["{token_variable}"]'
 
     return DetectedDataSource(
         id="duckdb-quack-environment",
@@ -112,19 +112,19 @@ def _discover_quack(
         configuration=tuple(configuration),
         hides_when=_NEVER_HIDE,
         code=dedent(f'''\
-            import os as _os
-            import duckdb as _duckdb
+            import os
+            import duckdb
 
-            if int(_duckdb.__version__.split(".")[0]) < 2:
+            if int(duckdb.__version__.split(".")[0]) < 2:
                 raise RuntimeError("Quack connections in marimo require DuckDB 2.0 or newer.")
 
-            _uri = _os.environ["{database_variable}"].replace("quack://", "quack:", 1)
+            _uri = os.environ["{database_variable}"].replace("quack://", "quack:", 1)
             _token = {token}
 
             def _quote_sql(value: str) -> str:
                 return "'" + value.replace("'", "''") + "'"
 
-            quack_con = _duckdb.connect(":memory:")
+            quack_con = duckdb.connect(":memory:")
             try:
                 quack_con.execute("INSTALL quack")
                 quack_con.execute("LOAD quack")
@@ -165,7 +165,7 @@ def _discover_local_duckdb(
             environment_variable("Read Only", "DUCKDB_READ_ONLY")
         )
         read_only = (
-            ', read_only=_os.environ["DUCKDB_READ_ONLY"].lower() '
+            ', read_only=os.environ["DUCKDB_READ_ONLY"].lower() '
             'in ("1", "true", "yes")'
         )
 
@@ -179,8 +179,8 @@ def _discover_local_duckdb(
         configuration=tuple(configuration),
         hides_when=_NEVER_HIDE,
         code=(
-            "import os as _os\nimport duckdb as _duckdb\n\n"
-            f'duckdb_con = _duckdb.connect(_os.environ["{database_variable}"]{read_only})'
+            "import os\nimport duckdb\n\n"
+            f'duckdb_con = duckdb.connect(os.environ["{database_variable}"]{read_only})'
         ),
     )
 
