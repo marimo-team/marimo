@@ -22,9 +22,11 @@ afterEach(() => {
 describe("flushDocument", () => {
   it("sends nothing while the document is unavailable", async () => {
     const edit = vi.fn<FakeEdit>();
+    const source = atom<Document | null>(null);
     const model = createDocumentModel({
       store,
-      documentAtom: atom<Document | null>(null),
+      documentAtom: source,
+      shownDocumentAtom: source,
       backendAtom: atom(fakeBackend({ edit })),
     });
     const controller = new AbortController();

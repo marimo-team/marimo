@@ -73,7 +73,7 @@ function makeStore({
   store.set(
     activeNotebookReplicaAtom,
     partial<NotebookReplica>(
-      { documentAtom: atom(document(codes)) },
+      { shownDocumentAtom: atom(document(codes)) },
       "replica",
     ),
   );

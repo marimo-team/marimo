@@ -198,6 +198,7 @@ export const MockExecutions = {
     document: Document | null = null,
   ) {
     const current = store.get(activeNotebookReplicaAtom);
+    const documentAtom = atom<Document | null>(document);
     const replica = {
       attachmentsAtom: atom([]),
       connect: () => () => undefined,
@@ -208,7 +209,8 @@ export const MockExecutions = {
       connectionAtom: atom<ConnectionStatus>({ state: ConnectionState.OPEN }),
       backendAtom: atom<NotebookBackend | null>(null),
       notebookAtom: atom<Protocol.Notebook | null>(MockExecutions.notebook()),
-      documentAtom: atom<Document | null>(document),
+      documentAtom,
+      shownDocumentAtom: documentAtom,
       runtimeAtom: atom(runtime),
       executionsAtom: atom(mirror(records)),
       resultsAtom: atom(results(records)),

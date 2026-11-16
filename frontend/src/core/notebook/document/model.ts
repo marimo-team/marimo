@@ -22,7 +22,7 @@ export type { DocumentSyncStatus } from "./sync";
 
 /** The editable document and its synchronization with the host. */
 export interface DocumentModel {
-  /** Confirmed host state with local drafts applied, null while unavailable or stopped. */
+  /** Shown host state with local drafts applied, null while unavailable or stopped. */
   readonly documentAtom: Atom<EditableDocument | null>;
   /** Ignored while stopped. */
   readonly editAtom: WritableAtom<null, [edit: DocumentEdit], void>;
@@ -47,11 +47,14 @@ interface Running {
 export function createDocumentModel({
   store,
   documentAtom: source,
+  shownDocumentAtom: shown,
   backendAtom,
 }: {
   store: ReturnType<typeof createStore>;
-  /** The document the host last confirmed. */
+  /** The document the host last confirmed, which edits submit against. */
   documentAtom: Atom<Document | null>;
+  /** The document on show, which outlasts `documentAtom` through a reset. */
+  shownDocumentAtom: Atom<Document | null>;
   /** The backend that confirmed it, whose commands reach its host. */
   backendAtom: Atom<NotebookBackend | null>;
 }): DocumentModel {
@@ -83,7 +86,7 @@ export function createDocumentModel({
       if (store.get(runningAtom)) {
         throw new Error("The document model is already started");
       }
-      const state = createDocumentState({ store, source, signal });
+      const state = createDocumentState({ store, source, shown, signal });
       const sync = createDocumentSync({
         store,
         documentAtom: source,

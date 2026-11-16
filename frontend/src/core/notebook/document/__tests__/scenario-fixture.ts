@@ -14,6 +14,7 @@ function createSession(initial: Document, controller: AbortController) {
   const model = createDocumentModel({
     store,
     documentAtom: notebook.documentAtom,
+    shownDocumentAtom: notebook.shownDocumentAtom,
     backendAtom: notebook.backendAtom,
   });
   model.start({ signal: controller.signal });
