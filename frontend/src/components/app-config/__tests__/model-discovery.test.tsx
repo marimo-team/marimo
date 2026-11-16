@@ -16,12 +16,16 @@ import { ModelDiscovery } from "../model-discovery";
 vi.mock("@/core/network/ai", () => ({ listProviderModels: vi.fn() }));
 vi.mock("@/core/wasm/utils", () => ({ isWasm: () => false }));
 
-function Discovery({ configuration = "saved", disabled = false }) {
+function Discovery({
+  configuration = "saved",
+  provider = "gateway",
+  disabled = false,
+}) {
   const [value, setValue] = useState("");
   return (
     <ModelDiscovery
-      key={configuration}
-      provider="gateway"
+      provider={provider}
+      configuration={{ base_url: `https://${configuration}.example.com/v1` }}
       label="Model"
       inputId="model"
       disabled={disabled}
@@ -115,8 +119,12 @@ describe("ModelDiscovery", () => {
     const { rerender } = render(<Discovery />);
     fireEvent.click(search());
     await waitFor(() => expect(listProviderModels).toHaveBeenCalledOnce());
+    const input = screen.getByLabelText("Model");
+    act(() => input.focus());
 
     rerender(<Discovery configuration="changed" disabled={true} />);
+    expect(screen.getByLabelText("Model")).toBe(input);
+    expect(input).toHaveFocus();
     expect(search()).toBeDisabled();
     await act(async () =>
       pending.resolve({ models: [{ id: "stale", name: "Stale model" }] }),
@@ -126,5 +134,50 @@ describe("ModelDiscovery", () => {
     rerender(<Discovery configuration="saved-again" />);
     expect(search()).toBeEnabled();
     expect(listProviderModels).toHaveBeenCalledOnce();
+  });
+
+  it("discards a loaded catalog when settings change without replacing the input", async () => {
+    vi.mocked(listProviderModels).mockResolvedValue({
+      models: [{ id: "old-model", name: "Old model" }],
+    });
+    const { rerender } = render(<Discovery />);
+    fireEvent.click(search());
+    await screen.findByRole("button", { name: "Old model — old-model" });
+    const input = screen.getByLabelText("Model");
+    act(() => input.focus());
+
+    rerender(<Discovery configuration="changed" />);
+    expect(screen.getByLabelText("Model")).toBe(input);
+    expect(input).toHaveFocus();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(listProviderModels).toHaveBeenCalledOnce();
+
+    const pending =
+      Promise.withResolvers<Awaited<ReturnType<typeof listProviderModels>>>();
+    vi.mocked(listProviderModels).mockReturnValueOnce(pending.promise);
+    fireEvent.click(search());
+    await waitFor(() => expect(listProviderModels).toHaveBeenCalledTimes(2));
+    expect(screen.queryByText("Old model — old-model")).not.toBeInTheDocument();
+
+    await act(async () =>
+      pending.resolve({ models: [{ id: "new-model", name: "New model" }] }),
+    );
+    await screen.findByRole("button", { name: "New model — new-model" });
+    expect(screen.queryByText("Old model — old-model")).not.toBeInTheDocument();
+    expect(listProviderModels).toHaveBeenCalledTimes(2);
+  });
+
+  it("requires a new search when the provider changes", async () => {
+    vi.mocked(listProviderModels).mockResolvedValue({ models: [] });
+    const { rerender } = render(<Discovery />);
+    fireEvent.click(search());
+    await screen.findByText("No models found");
+
+    rerender(<Discovery provider="another-provider" />);
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(listProviderModels).toHaveBeenCalledOnce();
+    fireEvent.click(search());
+    await screen.findByText("No models found");
+    expect(listProviderModels).toHaveBeenLastCalledWith("another-provider");
   });
 });

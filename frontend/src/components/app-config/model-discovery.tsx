@@ -5,13 +5,16 @@ import { useRef, useState } from "react";
 import { listProviderModels } from "@/core/network/ai";
 import { isWasm } from "@/core/wasm/utils";
 import { useAsyncData } from "@/hooks/useAsyncData";
+import { useDeepCompareMemoize } from "@/hooks/useDeepCompareMemoize";
 import { prettyError } from "@/utils/errors";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Popover, PopoverContent } from "../ui/popover";
+import type { ModelProviderConfig } from "./model-provider-config";
 
 interface ModelDiscoveryProps {
   provider: string;
+  configuration: ModelProviderConfig;
   label: string;
   disabled: boolean;
   value: string;
@@ -22,6 +25,7 @@ interface ModelDiscoveryProps {
 
 export function ModelDiscovery({
   provider,
+  configuration,
   label,
   disabled,
   value,
@@ -29,7 +33,11 @@ export function ModelDiscovery({
   inputId,
   inputClassName,
 }: ModelDiscoveryProps) {
-  const [requested, setRequested] = useState(false);
+  const query = useDeepCompareMemoize({ provider, configuration });
+  const [requestedQuery, setRequestedQuery] = useState<typeof query | null>(
+    null,
+  );
+  const requested = requestedQuery === query;
   const [open, setOpen] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const optionsRef = useRef<HTMLDivElement>(null);
@@ -38,18 +46,21 @@ export function ModelDiscovery({
     if (!requested || disabled) {
       return;
     }
-    return listProviderModels(provider);
-  }, [provider, requested, disabled]);
+    const catalog = await listProviderModels(provider);
+    return { query, ...catalog };
+  }, [query, requested, disabled]);
 
-  const loading = requested && isFetching;
+  const catalog = requested && data?.query === query ? data : undefined;
+  const catalogError = requested ? error : undefined;
+  const loading = requested && !disabled && isFetching;
   const search = value.trim().toLowerCase();
-  const filtered = data?.models.filter((model) =>
+  const filtered = catalog?.models.filter((model) =>
     `${model.name} ${model.id}`.toLowerCase().includes(search),
   );
 
   return (
     <div className="flex min-w-0 flex-col gap-2">
-      <Popover open={open && !!data && !disabled} onOpenChange={setOpen}>
+      <Popover open={open && !!catalog && !disabled} onOpenChange={setOpen}>
         <PopoverPrimitive.Anchor asChild={true}>
           <div>
             <Input
@@ -58,7 +69,7 @@ export function ModelDiscovery({
               className={inputClassName}
               aria-label={label}
               aria-haspopup="dialog"
-              aria-expanded={open && !!data && !disabled}
+              aria-expanded={open && !!catalog && !disabled}
               placeholder="Type a model ID or search…"
               value={value}
               onChange={(event) => {
@@ -73,7 +84,7 @@ export function ModelDiscovery({
                 if (event.key === "Enter") {
                   event.preventDefault();
                 }
-                if (event.key === "ArrowDown" && data) {
+                if (event.key === "ArrowDown" && catalog) {
                   event.preventDefault();
                   focusOptionsOnOpen.current = !open;
                   setOpen(true);
@@ -119,9 +130,9 @@ export function ModelDiscovery({
           ))}
         </PopoverContent>
       </Popover>
-      {error && (
+      {catalogError && (
         <p role="alert" className="text-sm text-destructive">
-          {prettyError(error)}
+          {prettyError(catalogError)}
         </p>
       )}
       <Button
@@ -135,7 +146,7 @@ export function ModelDiscovery({
           if (requested) {
             refetch();
           } else {
-            setRequested(true);
+            setRequestedQuery(query);
           }
         }}
       >

@@ -86,6 +86,7 @@ import { Tooltip } from "../ui/tooltip";
 import { formItemClasses, SettingSubtitle } from "./common";
 import { AWS_REGIONS } from "./constants";
 import { ModelDiscovery } from "./model-discovery";
+import { getModelProviderConfig } from "./model-provider-config";
 import { IncorrectModelId } from "./incorrect-model-id";
 import {
   IsOverridden,
@@ -1692,25 +1693,11 @@ export const AddModelForm: React.FC<{
       customProviderNames.includes(providerName));
   const draftAi = useWatch({ control: form.control, name: "ai" });
   const effectiveAi = useAtomValue(resolvedMarimoConfigAtom).ai;
-  const providerConfig = (ai: UserConfig["ai"]) => {
-    const selected = providerName
-      ? (ai?.custom_providers?.[providerName] ??
-        (providerName === "openrouter" ? ai?.openrouter : undefined))
-      : undefined;
-    return Objects.filter<string, unknown>(
-      selected ?? {},
-      (value) => value !== undefined,
-    );
-  };
-  const draftProviderConfig = providerConfig(draftAi);
-  const configurationPending =
-    useAtomValue(pendingConfigSavesAtom) > 0 ||
-    !dequal(providerConfig(config.ai), draftProviderConfig);
-  const discoveryKey = JSON.stringify([
-    providerName,
-    providerConfig(effectiveAi),
-    draftProviderConfig,
-  ]);
+  const savedProvider = getModelProviderConfig(config.ai, providerName);
+  const draftProvider = getModelProviderConfig(draftAi, providerName);
+  const effectiveProvider = getModelProviderConfig(effectiveAi, providerName);
+  const isSaving = useAtomValue(pendingConfigSavesAtom) > 0;
+  const hasUnsavedChanges = !dequal(savedProvider, draftProvider);
   const hasValidValues = providerName?.trim() && modelName?.trim();
 
   const resetForm = () => {
@@ -1857,10 +1844,10 @@ export const AddModelForm: React.FC<{
       </Label>
       {canDiscoverModels && providerName ? (
         <ModelDiscovery
-          key={discoveryKey}
           provider={providerName}
+          configuration={effectiveProvider}
           label="Model"
-          disabled={configurationPending}
+          disabled={isSaving || hasUnsavedChanges}
           inputId={modelNameInputId}
           inputClassName="text-xs mb-0"
           value={modelName}
