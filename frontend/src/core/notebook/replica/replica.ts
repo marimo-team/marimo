@@ -154,11 +154,10 @@ export function createNotebookReplica(
     results,
   });
   const streamAtom = atom(reducer.initial);
-  // A resumed stream is live, but presence waits for this connection's ready.
-  const readyAtom = atom(false);
   const presentAtom = atom(
     (get) =>
-      get(readyAtom) && get(connectionAtom).state === ConnectionState.OPEN,
+      get(streamAtom).phase === "live" &&
+      get(connectionAtom).state === ConnectionState.OPEN,
   );
   const notebookAtom = atom((get) =>
     get(presentAtom) ? get(streamAtom).notebook : null,
@@ -181,7 +180,9 @@ export function createNotebookReplica(
   let current: { end(): void; reconnect(): Promise<void> } | undefined;
 
   function setStatus(status: ConnectionStatus) {
-    store.set(readyAtom, false);
+    if (status.state === ConnectionState.CONNECTING) {
+      store.set(streamAtom, reducer.resume(store.get(streamAtom)));
+    }
     store.set(connectionAtom, status);
   }
 
@@ -216,15 +217,12 @@ export function createNotebookReplica(
     const { transport } = connected;
     let events: NotebookEvents<(typeof TYPES)[number]> | undefined;
     let checkingHealth = false;
-    // Whether the replica still holds the state the last cursor describes.
-    let resumable = true;
 
     /** Mirror one stream into the atoms until it closes. */
     function follow(cursor?: string) {
       if (cursor === undefined) {
         store.set(streamAtom, reducer.initial);
       }
-      resumable = true;
       const current = new NotebookEvents(transport, {
         types: TYPES,
         cursor,
@@ -260,7 +258,6 @@ export function createNotebookReplica(
     function stopMalformed(source: NotebookEvents<string>) {
       source.close();
       // The cursor can already include an event the replica rejected.
-      resumable = false;
       clear(malformed);
     }
 
@@ -283,9 +280,6 @@ export function createNotebookReplica(
         stopMalformed(source);
         return;
       }
-      if (event.event === "ready" || event.event === "reset") {
-        store.set(readyAtom, event.event === "ready");
-      }
     }
 
     const reconnect = async () => {
@@ -303,7 +297,11 @@ export function createNotebookReplica(
           setStatus(disconnected);
           return;
         }
-        follow(resumable ? (events.cursor ?? undefined) : undefined);
+        follow(
+          store.get(streamAtom).phase === "snapshot"
+            ? undefined
+            : (events.cursor ?? undefined),
+        );
       } catch (error) {
         if (!signal.aborted) {
           Logger.error("Notebook health check failed", error);
