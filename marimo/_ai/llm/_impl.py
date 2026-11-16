@@ -6,6 +6,8 @@ import os
 import re
 from typing import TYPE_CHECKING, Any, cast
 
+from msgspec import UNSET
+
 from marimo import _loggers
 from marimo._ai._pydantic_ai_utils import generate_id, sanitize_part
 from marimo._plugins.ui._impl.chat.chat import AI_SDK_VERSION, DONE_CHUNK
@@ -141,8 +143,9 @@ class openai(ChatModel):
         try:
             from marimo._runtime.context.types import get_context
 
-            api_key = get_context().marimo_config["ai"]["open_ai"]["api_key"]
-            if api_key:
+            provider = get_context().marimo_config.ai.open_ai
+            api_key = provider.api_key if provider is not UNSET else UNSET
+            if isinstance(api_key, str) and api_key:
                 return api_key
         except Exception:
             pass
@@ -277,8 +280,9 @@ class anthropic(ChatModel):
         try:
             from marimo._runtime.context.types import get_context
 
-            api_key = get_context().marimo_config["ai"]["anthropic"]["api_key"]
-            if api_key:
+            provider = get_context().marimo_config.ai.anthropic
+            api_key = provider.api_key if provider is not UNSET else UNSET
+            if isinstance(api_key, str) and api_key:
                 return api_key
         except Exception:
             pass
@@ -387,8 +391,9 @@ class google(ChatModel):
         try:
             from marimo._runtime.context.types import get_context
 
-            api_key = get_context().marimo_config["ai"]["google"]["api_key"]
-            if api_key:
+            provider = get_context().marimo_config.ai.google
+            api_key = provider.api_key if provider is not UNSET else UNSET
+            if isinstance(api_key, str) and api_key:
                 return api_key
         except Exception:
             pass

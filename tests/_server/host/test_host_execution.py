@@ -74,7 +74,7 @@ async def test_move_preserves_the_running_notebook(
     accepted = await finished(
         app,
         "POST",
-        f"/notebooks/{notebook_id}/runtime/runs",
+        f"/notebooks/{notebook_id}/runtime/execute",
         headers=key("after-move"),
         body=b'{"code":"6 * 7"}',
     )
@@ -126,7 +126,7 @@ async def test_scratch_outcomes_from_the_kernel(
     accepted = await finished(
         app,
         "POST",
-        f"/notebooks/{notebook_id}/runtime/runs",
+        f"/notebooks/{notebook_id}/runtime/execute",
         headers=key("run"),
         body=json.dumps({"code": code}).encode(),
     )
@@ -182,6 +182,7 @@ async def test_cell_runs_preserve_order_with_later_deletions(
     cell = next(iter(notebook.document))
     session = next(iter(app.state.session_manager.sessions.values()))
     runs = f"/notebooks/{notebook_id}/runtime/runs"
+    execute = f"/notebooks/{notebook_id}/runtime/execute"
     body = json.dumps({"cells": [{"id": cell.id, "etag": cell.etag}]}).encode()
 
     async def completed(response: Response) -> None:
@@ -220,7 +221,7 @@ async def test_cell_runs_preserve_order_with_later_deletions(
     checked = await finished(
         app,
         "POST",
-        runs,
+        execute,
         headers=key("check-graph"),
         body=json.dumps(
             {
@@ -336,6 +337,7 @@ async def test_interrupting_a_queued_run_cancels_it_before_it_starts(
     notebook = await app.state.host_context.bridge.host.notebook(notebook_id)
     slow, quick = notebook.document
     runs = f"/notebooks/{notebook_id}/runtime/runs"
+    execute = f"/notebooks/{notebook_id}/runtime/execute"
 
     first = await finished(
         app, "POST", runs, headers=key("first"), body=cell_target(slow)
@@ -374,7 +376,7 @@ async def test_interrupting_a_queued_run_cancels_it_before_it_starts(
     checked = await finished(
         app,
         "POST",
-        runs,
+        execute,
         headers=key("check"),
         body=json.dumps({"code": "assert 'quick' not in globals()"}).encode(),
     )
@@ -435,7 +437,7 @@ async def test_background_output_after_a_scratch_run_is_dropped(
     current execution to join and never reaches clients.
     """
     app, notebook_id, events = live_host
-    path = f"/notebooks/{notebook_id}/runtime/runs"
+    execute = f"/notebooks/{notebook_id}/runtime/execute"
     code = """import builtins
 import threading
 import marimo as mo
@@ -450,7 +452,7 @@ mo.Thread(target=worker).start()
     first = await finished(
         app,
         "POST",
-        path,
+        execute,
         headers=key("first"),
         body=json.dumps({"code": code}).encode(),
     )
@@ -466,7 +468,7 @@ mo.Thread(target=worker).start()
     second = await finished(
         app,
         "POST",
-        path,
+        execute,
         headers=key("second"),
         body=json.dumps(
             {
@@ -507,11 +509,12 @@ async def test_queued_cancellation_never_executes_the_code(
     session = next(iter(app.state.session_manager.sessions.values()))
     marker = tmp_path / "executed"
     runs = f"/notebooks/{notebook_id}/runtime/runs"
+    execute = f"/notebooks/{notebook_id}/runtime/execute"
     async with session.scratchpad_lock:
         accepted = await finished(
             app,
             "POST",
-            runs,
+            execute,
             headers=key("canceled"),
             body=json.dumps(
                 {
@@ -541,7 +544,7 @@ async def test_queued_cancellation_never_executes_the_code(
     ]
     assert outcome == {"kind": "interrupted"}
     following = await finished(
-        app, "POST", runs, headers=key("next"), body=b'{"code":"42"}'
+        app, "POST", execute, headers=key("next"), body=b'{"code":"42"}'
     )
     assert following.status == 202
     await wait_for(
@@ -561,7 +564,7 @@ async def test_run_retries_return_the_result_even_after_restart(
 ) -> None:
     app, notebook_id, events = live_host
     runtime = f"/notebooks/{notebook_id}/runtime"
-    runs = runtime + "/runs"
+    runs = runtime + "/execute"
     marker = tmp_path / "executions"
     body = json.dumps(
         {
@@ -701,7 +704,7 @@ async def test_scratch_run_includes_the_full_reactive_cycle(
     accepted = await finished(
         app,
         "POST",
-        f"/notebooks/{notebook_id}/runtime/runs",
+        f"/notebooks/{notebook_id}/runtime/execute",
         headers=key("cascade"),
         body=json.dumps({"code": f"counter.value = {value}"}).encode(),
     )
@@ -779,7 +782,7 @@ async def test_detached_reactivity_starts_a_new_run(
         accepted = await finished(
             app,
             "POST",
-            f"/notebooks/{notebook_id}/runtime/runs",
+            f"/notebooks/{notebook_id}/runtime/execute",
             headers=key(request_id),
             body=json.dumps({"code": code}).encode(),
         )
@@ -846,7 +849,7 @@ async def test_nested_evaluations_keep_the_scratch_result_and_skipped_child(
     accepted = await finished(
         app,
         "POST",
-        f"/notebooks/{notebook_id}/runtime/runs",
+        f"/notebooks/{notebook_id}/runtime/execute",
         headers=key("nested"),
         body=json.dumps({"code": code}).encode(),
     )
@@ -897,7 +900,7 @@ async def test_a_fixed_cell_replaces_its_failed_compilation(
     accepted = await finished(
         app,
         "POST",
-        f"/notebooks/{notebook_id}/runtime/runs",
+        f"/notebooks/{notebook_id}/runtime/execute",
         headers=key("retry"),
         body=json.dumps({"code": code}).encode(),
     )
@@ -951,7 +954,7 @@ async def test_nested_commands_can_run_a_cell_queued_by_the_outer_command(
     accepted = await finished(
         app,
         "POST",
-        f"/notebooks/{notebook_id}/runtime/runs",
+        f"/notebooks/{notebook_id}/runtime/execute",
         headers=key("nested-queue"),
         body=json.dumps({"code": code}).encode(),
     )
@@ -1007,7 +1010,7 @@ async def test_awaited_commands_join_the_enclosing_run(
     accepted = await finished(
         app,
         "POST",
-        f"/notebooks/{notebook_id}/runtime/runs",
+        f"/notebooks/{notebook_id}/runtime/execute",
         headers=key("awaited"),
         body=json.dumps({"code": code}).encode(),
     )
@@ -1090,7 +1093,7 @@ async def test_rename_reactivity_completes_its_run(
     accepted = await finished(
         app,
         "POST",
-        f"/notebooks/{notebook_id}/runtime/runs",
+        f"/notebooks/{notebook_id}/runtime/execute",
         headers=key("after-rename"),
         body=b'{"code":"42"}',
     )

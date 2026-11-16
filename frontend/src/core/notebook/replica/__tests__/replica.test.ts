@@ -196,7 +196,7 @@ describe("NotebookReplica lifetime", () => {
     }
     attempt.receive({
       event: "marimo",
-      data: { marimo: { op: "reconnected" } },
+      data: { marimo: { op: "interrupted" } },
     });
     await vi.waitFor(() =>
       expect(store.get(client.connectionAtom).state).toBe(
@@ -419,10 +419,10 @@ describe("NotebookReplica lifetime", () => {
     earlier.receive(kernelReady);
     current.receive({
       event: "marimo",
-      data: { marimo: { op: "reconnected" } },
+      data: { marimo: { op: "interrupted" } },
     });
     expect(onNotification).toHaveBeenCalledExactlyOnceWith({
-      data: { op: "reconnected" },
+      data: { op: "interrupted" },
     });
   });
 });

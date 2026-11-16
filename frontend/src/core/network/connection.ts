@@ -75,8 +75,3 @@ export const isClosedAtom = atom((get) => {
   const connection = get(connectionAtom);
   return connection.state === ConnectionState.CLOSED;
 });
-
-export const isNotStartedAtom = atom((get) => {
-  const connection = get(connectionAtom);
-  return connection.state === ConnectionState.NOT_STARTED;
-});

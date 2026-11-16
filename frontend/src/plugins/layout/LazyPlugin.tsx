@@ -2,7 +2,7 @@
 
 import { useIntersectionObserver } from "@uidotdev/usehooks";
 import { Loader2Icon } from "lucide-react";
-import type { JSX } from "react";
+import { type JSX, useEffect } from "react";
 import { z } from "zod";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import { createPlugin } from "@/plugins/core/builder";
@@ -63,9 +63,12 @@ const LazyComponent = ({
     rootMargin: "0px",
   });
 
-  if (entry?.isIntersecting && !value) {
-    setValue(true);
-  }
+  const isVisible = entry?.isIntersecting ?? false;
+  useEffect(() => {
+    if (isVisible && !value) {
+      setValue(true);
+    }
+  }, [isVisible, value, setValue]);
 
   // For each re-render, we have to make a waterfall request
   // We could improve performance if the BE was able to know if the same

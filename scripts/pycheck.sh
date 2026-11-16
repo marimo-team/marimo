@@ -8,6 +8,8 @@ echo "[check: lint]"
 uv run ruff check --fix
 echo "[check: core imports]"
 uv run python scripts/check_core_imports.py || exit $?
+echo "[check: Python helper safe paths]"
+uv run python scripts/check_python_safe_path.py || exit $?
 echo "[check: format]"
 uv run ruff format
 echo "[check: typecheck]"

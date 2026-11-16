@@ -1,6 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import type { Result } from "@marimo-team/client";
+import type { ResultOf } from "@marimo-team/client";
 import type * as Protocol from "@marimo-team/client/protocol";
 import { atom, createStore } from "jotai/vanilla";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -11,7 +11,7 @@ import { createDocumentModel } from "../model";
 import { type FakeEdit, fakeBackend } from "../../replica/__tests__/fixtures";
 import { cell, document, withCells } from "./fixtures";
 
-function response(confirmed: Document): Result<Protocol.EditResponseOutput> {
+function response(confirmed: Document): ResultOf<"notebook.edit"> {
   return {
     ok: true,
     status: 200,
@@ -41,9 +41,9 @@ function setup({ connected = true } = {}) {
   const source = atom<Document | null>(document());
   const unmounted = vi.fn();
   source.onMount = () => unmounted;
-  const replies: Deferred<Result<Protocol.EditResponseOutput>>[] = [];
+  const replies: Deferred<ResultOf<"notebook.edit">>[] = [];
   const sent = vi.fn((_edit: SentEdit) => {
-    const reply = new Deferred<Result<Protocol.EditResponseOutput>>();
+    const reply = new Deferred<ResultOf<"notebook.edit">>();
     replies.push(reply);
     return reply.promise;
   });

@@ -17,6 +17,12 @@ import { toast } from "@/components/ui/use-toast";
 import { chatStateAtom, pendingAiPromptAtom } from "@/core/ai/state";
 import { userConfigAtom } from "@/core/config/config";
 import ChatPanel from "../chat-panel";
+import * as notebookContext from "../notebook-context";
+
+const notebookContextPart = {
+  type: "data-marimo-notebook",
+  data: expect.objectContaining({ sessionId: expect.any(String), cells: [] }),
+};
 
 const { sendMessage, messages } = vi.hoisted(() => ({
   sendMessage: vi.fn(),
@@ -129,9 +135,7 @@ function setup() {
     ai: {
       ...config.ai,
       models: {
-        custom_models: [],
-        displayed_models: [],
-        ...config.ai?.models,
+        ...config.ai.models,
         chat_model: "openai/text-only",
       },
     },
@@ -208,6 +212,7 @@ describe("pending chat prompts", () => {
         expect(sendMessage).toHaveBeenCalledExactlyOnceWith({
           role: "user",
           parts: [
+            notebookContextPart,
             { type: "text", text: "read my file" },
             {
               type: "file",
@@ -222,6 +227,7 @@ describe("pending chat prompts", () => {
   );
 
   it("keeps rejected edits open and allows retrying after switching models", async () => {
+    const contextualize = vi.spyOn(notebookContext, "withNotebookContext");
     vi.mocked(resolveChatContext).mockResolvedValue({
       contextPart: null,
       attachments: [],
@@ -259,9 +265,7 @@ describe("pending chat prompts", () => {
         ai: {
           ...config.ai,
           models: {
-            custom_models: [],
-            displayed_models: [],
-            ...config.ai?.models,
+            ...config.ai.models,
             chat_model: "custom/vision",
           },
         },
@@ -273,6 +277,7 @@ describe("pending chat prompts", () => {
         role: "user",
         messageId: "image-message",
         parts: [
+          notebookContextPart,
           { type: "text", text: "edited text" },
           {
             type: "file",
@@ -284,6 +289,11 @@ describe("pending chat prompts", () => {
       }),
     );
     await waitFor(() => expect(edit).not.toBeInTheDocument());
+    expect(contextualize).toHaveBeenLastCalledWith(
+      expect.any(Array),
+      [],
+      expect.any(Object),
+    );
   });
 
   it.each(["new", "existing"])(
@@ -355,6 +365,7 @@ describe("pending chat prompts", () => {
         expect(sendMessage).toHaveBeenCalledExactlyOnceWith({
           role: "user",
           parts: [
+            notebookContextPart,
             { type: "text", text: "read my notes" },
             {
               type: "file",
@@ -424,7 +435,7 @@ describe("pending chat prompts", () => {
     await waitFor(() =>
       expect(sendMessage).toHaveBeenCalledExactlyOnceWith({
         role: "user",
-        parts: [{ type: "text", text: "hello" }],
+        parts: [notebookContextPart, { type: "text", text: "hello" }],
       }),
     );
     expect(store.get(chatStateAtom).activeChatId).toEqual(expect.any(String));
@@ -471,7 +482,7 @@ describe("pending chat prompts", () => {
     await screen.findByText("then explain it");
     expect(sendMessage).toHaveBeenCalledExactlyOnceWith({
       role: "user",
-      parts: [{ type: "text", text: "run my code" }],
+      parts: [notebookContextPart, { type: "text", text: "run my code" }],
     });
     expect(
       screen.queryByRole("button", { name: "Send" }),

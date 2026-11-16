@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import os
 import re
-from functools import partial
+from functools import cache, partial
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -21,6 +21,15 @@ _POSIX_VARIABLE = re.compile(
 LOGGER = _loggers.marimo_logger()
 
 
+@cache
+def _warn_missing_dotenv(path: Path) -> None:
+    LOGGER.warning(
+        "Dotenv file not found: %s",
+        path,
+        extra={"omit_log_prefix": True},
+    )
+
+
 class DotEnvReader:
     """Read environment variables from a selected dotenv file."""
 
@@ -32,11 +41,7 @@ class DotEnvReader:
     ) -> dict[str, str | None]:
         """Parse and interpolate values without modifying the environment."""
         if not Path(self.file).exists():
-            LOGGER.warning(
-                "Dotenv file not found: %s",
-                self.file,
-                extra={"omit_log_prefix": True},
-            )
+            _warn_missing_dotenv(Path(self.file).resolve())
             return {}
         return _interpolate_dotenv_values(
             _read_dotenv_bindings(self.file),

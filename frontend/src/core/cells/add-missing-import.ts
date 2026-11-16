@@ -1,6 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { getRequestClient } from "../network/requests";
+import { runCells } from "../executions";
 import { store } from "../state/jotai";
 import { variablesAtom } from "../variables/state";
 import { notebookAtom } from "./cells";
@@ -124,10 +124,7 @@ function addImport({
       });
       newCellId = created === null ? null : id;
       if (autoInstantiate && newCellId !== null) {
-        void getRequestClient().sendRun({
-          cellIds: [newCellId],
-          codes: [importStatement],
-        });
+        void runCells(store, [newCellId]);
       }
     },
   });

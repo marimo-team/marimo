@@ -596,11 +596,11 @@ def edit(
             "  - Use 'marimo run' instead if you only need to view notebooks"
         )
 
-    server_config = get_default_config_manager(current_path=name).get_config()[
-        "server"
-    ]
+    server_config = (
+        get_default_config_manager(current_path=name).get_config().server
+    )
     GLOBAL_SETTINGS.CHECK_STATUS_UPDATE = not (
-        skip_update_check or server_config["skip_update_check"]
+        skip_update_check or server_config.skip_update_check
     )
     if GLOBAL_SETTINGS.CHECK_STATUS_UPDATE:
         # Check for version updates after preflight checks pass.

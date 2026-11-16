@@ -143,8 +143,6 @@ def test_disconnect_and_reconnect(client: TestClient) -> None:
     # Connect by the same session id
     with client.websocket_connect(WS_URL) as websocket:
         data = receive_notification(websocket)
-        assert data == {"op": "reconnected", "data": {"op": "reconnected"}}
-        data = receive_notification(websocket)
         assert data["op"] == "alert"
 
 
@@ -158,14 +156,10 @@ def test_disconnect_then_reconnect_then_refresh(client: TestClient) -> None:
     # Connect by the same session id
     with client.websocket_connect(WS_URL) as websocket:
         data = receive_notification(websocket)
-        assert data == {"op": "reconnected", "data": {"op": "reconnected"}}
-        data = receive_notification(websocket)
         assert data["op"] == "alert"
         assert manager.sessions[SessionId("123")].stable_id == stable_id
     # New connection with a new browser ID (simulates refresh)
     with client.websocket_connect(OTHER_WS_URL) as websocket:
-        data = receive_notification(websocket)
-        assert data == {"op": "reconnected", "data": {"op": "reconnected"}}
         data = receive_notification(websocket)
         assert_kernel_ready_response(data, create_response({"resumed": True}))
         assert manager.sessions[SessionId("456")].stable_id == stable_id
@@ -199,7 +193,6 @@ def test_completed_startup_is_restored_on_reconnect_and_refresh(
 
     for url in (WS_URL, OTHER_WS_URL):
         with client.websocket_connect(url) as websocket:
-            assert receive_notification(websocket)["op"] == "reconnected"
             message = receive_notification(websocket)
             if url == OTHER_WS_URL:
                 assert_kernel_ready_response(
@@ -420,10 +413,7 @@ async def test_session_resumption(client: TestClient) -> None:
 
     # Resume with new session ID (simulates browser refresh)
     with client.websocket_connect(OTHER_WS_URL) as websocket:
-        # Should receive reconnected + resumed state
-        reconnect_msg = receive_notification(websocket)
-        assert reconnect_msg["op"] == "reconnected"
-
+        # Should receive the resumed state
         kernel_ready_msg = receive_notification(websocket)
         assert kernel_ready_msg["op"] == "kernel-ready"
 
@@ -459,8 +449,9 @@ async def test_reconnection_cancels_close_handle(client: TestClient) -> None:
         # Reconnect immediately (before TTL expires)
         with client.websocket_connect(WS_URL) as new_websocket:
             data = receive_notification(new_websocket)
-            # Should get reconnected message
-            assert data["op"] == "reconnected"
+            # The same connection rejoins its session and is told so.
+            assert data["op"] == "alert"
+            assert data["data"]["title"] == "Reconnected"
 
             # Session should still exist (TTL was canceled)
             session = session_manager.get_session("123")
@@ -521,8 +512,8 @@ async def test_ttl_close_does_not_kill_session_owned_by_new_consumer(
 
         with client.websocket_connect(WS_URL) as ws_b:
             data = receive_notification(ws_b)
-            assert data["op"] == "reconnected", (
-                f"Expected reconnected, got {data.get('op')}"
+            assert data["op"] == "alert", (
+                f"Expected the reconnect alert, got {data.get('op')}"
             )
 
             if disconnect_reconnected:
@@ -704,8 +695,6 @@ async def test_rapid_reconnection_cancels_ttl_cleanup(
 
     with client.websocket_connect(WS_URL) as websocket:
         data = receive_notification(websocket)
-        assert data["op"] == "reconnected"
-        data = receive_notification(websocket)
         assert data["op"] == "alert"
 
 
@@ -717,7 +706,7 @@ async def test_multiple_rapid_reconnections(client: TestClient) -> None:
             if i == 0:
                 assert_kernel_ready_response(data)
             else:
-                assert data["op"] == "reconnected"
+                assert data["op"] == "alert"
 
 
 async def test_websocket_message_queue_delivery(client: TestClient) -> None:

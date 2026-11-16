@@ -5,7 +5,6 @@ import { createRPCRequestHandler } from "rpc-anywhere";
 import { toast } from "@/components/ui/use-toast";
 import { userConfigAtom } from "@/core/config/config";
 import { serializeBlob } from "@/utils/blob";
-import { Arrays } from "@/utils/arrays";
 import { Deferred } from "@/utils/Deferred";
 import { throwNotImplemented } from "@/utils/functions";
 import { Logger } from "@/utils/Logger";
@@ -76,6 +75,9 @@ export class PyodideBridge implements RunRequests, EditRequests {
   private interruptBuffer?: Uint8Array;
   /** Runs asked to stop before they ran; the buffer is raised once they do. */
   private pendingInterrupts = new Set<string>();
+
+  // Match the worker mutation receipt window, including requests still in flight.
+  private interruptReceipts = new Map<string, { expiresAt: number }>();
 
   public initialized = new Deferred<void>();
 
@@ -252,19 +254,53 @@ export class PyodideBridge implements RunRequests, EditRequests {
           throw error;
         }
       },
-      call: (call) => {
+      call: async (call) => {
+        if (
+          call.operation !== "runtime.interrupt" &&
+          call.operation !== "runtime.cancel"
+        ) {
+          return this.rpc.proxy.request.notebookCall(call);
+        }
+        const now = performance.now();
+        for (const [key, receipt] of this.interruptReceipts) {
+          if (receipt.expiresAt <= now) {
+            this.interruptReceipts.delete(key);
+          }
+        }
+        const key = call.headers["idempotency-key"];
+        if (!key || this.interruptReceipts.has(key)) {
+          return this.rpc.proxy.request.notebookCall(call);
+        }
+        const receipt = { expiresAt: Infinity };
+        this.interruptReceipts.set(key, receipt);
+        // The worker cannot take a call while a cell runs, so the interrupt
+        // is raised on the shared buffer first and the call follows.
+        // A queued run is ended by the worker, unless it starts before the
+        // call arrives. Then it is raised once the run reports running.
         if (call.operation === "runtime.interrupt") {
-          // The worker cannot take the call while a cell runs; raise the
-          // interrupt there first. A queued run is cancelled by the worker,
-          // unless it starts before the call arrives: then it is raised
-          // when the run is reported running.
+          this.interruptEveryRun();
+        } else if (call.operation === "runtime.cancel") {
           if (this.isRunning(call.params.run_id)) {
-            void this.sendInterrupt();
+            this.raiseInterrupt();
           } else {
             this.pendingInterrupts.add(call.params.run_id);
           }
         }
-        return this.rpc.proxy.request.notebookCall(call);
+        try {
+          const reply = await this.rpc.proxy.request.notebookCall(call);
+          if (
+            typeof reply === "object" &&
+            reply !== null &&
+            "status" in reply &&
+            reply.status !== 202
+          ) {
+            this.interruptReceipts.delete(key);
+          }
+          return reply;
+        } finally {
+          // A lost reply may still have committed; retries must not signal new work.
+          receipt.expiresAt = performance.now() + 300_000;
+        }
       },
     });
   }
@@ -284,9 +320,26 @@ export class PyodideBridge implements RunRequests, EditRequests {
     }
     if (run.status === "running") {
       this.pendingInterrupts.delete(run.id);
-      void this.sendInterrupt();
+      this.raiseInterrupt();
     } else if (run.status === "completed") {
       this.pendingInterrupts.delete(run.id);
+    }
+  }
+
+  /**
+   * Signal work outside runs too. Python ignores the signal while idle;
+   * the following host call consumes it before acknowledging the interrupt.
+   */
+  private interruptEveryRun(): void {
+    this.raiseInterrupt();
+    const replica = store.get(activeNotebookReplicaAtom);
+    if (replica === null) {
+      return;
+    }
+    for (const run of store.get(replica.executionsAtom).runs.values()) {
+      if (run.status === "queued") {
+        this.pendingInterrupts.add(run.id);
+      }
     }
   }
 
@@ -325,14 +378,6 @@ export class PyodideBridge implements RunRequests, EditRequests {
     throwNotImplemented();
   };
 
-  public sendStdin: EditRequests["sendStdin"] = async (request) => {
-    await this.rpc.proxy.request.bridge({
-      functionName: "put_input",
-      payload: request.text,
-    });
-    return null;
-  };
-
   public sendPdb: EditRequests["sendPdb"] = async () => {
     throwNotImplemented();
   };
@@ -341,22 +386,6 @@ export class PyodideBridge implements RunRequests, EditRequests {
     throwNotImplemented();
   };
 
-  public sendRun: EditRequests["sendRun"] = async (request) => {
-    await this.rpc.proxy.request.loadPackages(request.codes.join("\n"));
-
-    await this.putControlRequest({
-      type: "execute-cells",
-      request: request.request,
-      executionRequests: Arrays.zip(request.cellIds, request.codes).map(
-        ([cellId, code]) => ({
-          type: "execute-cell",
-          cellId,
-          code,
-        }),
-      ),
-    });
-    return null;
-  };
   public sendRunScratchpad: EditRequests["sendRunScratchpad"] = async (
     request,
   ) => {
@@ -368,13 +397,12 @@ export class PyodideBridge implements RunRequests, EditRequests {
     });
     return null;
   };
-  public sendInterrupt: EditRequests["sendInterrupt"] = async () => {
+  private raiseInterrupt(): void {
     if (this.interruptBuffer !== undefined) {
       // 2 sends a SIGINT
       this.interruptBuffer[0] = 2;
     }
-    return null;
-  };
+  }
   public sendShutdown: EditRequests["sendShutdown"] = async () => {
     window.close();
     return null;

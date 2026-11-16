@@ -85,7 +85,7 @@ def test_workspace_marimo_toml_store_never_reaches_the_loader(
     config = MarimoConfigManager(UserConfigStore()).get_user_config(
         hide_secrets=False
     )
-    assert config.get("cache", {}).get("store") is None
+    assert config.to_dict().get("cache", {}).get("store") is None
 
     # Note it is *not* reachable as an "untrusted override" either, because the
     # user layer is not an override — which is exactly why stripping is needed.

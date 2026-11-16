@@ -84,6 +84,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import { Tooltip } from "../ui/tooltip";
 import { formItemClasses, SettingSubtitle } from "./common";
 import { AWS_REGIONS } from "./constants";
+import { ModelDiscovery } from "./model-discovery";
 import { IncorrectModelId } from "./incorrect-model-id";
 import {
   IsOverridden,
@@ -91,7 +92,7 @@ import {
   useConfigOverride,
 } from "./is-overridden";
 import { MCPConfig } from "./mcp-config";
-import { aiSettingsSubTabAtom } from "./state";
+import { aiSettingsSubTabAtom, pendingConfigSavesAtom } from "./state";
 
 interface AiConfigProps {
   form: UseFormReturn<UserConfig>;
@@ -415,27 +416,6 @@ const renderCopilotProvider = ({
     return null;
   }
 
-  if (copilot === "codeium") {
-    return (
-      <>
-        <p className="text-sm text-muted-secondary">
-          To get a Windsurf API key, follow{" "}
-          <ExternalLink href="https://docs.marimo.io/guides/editor_features/ai_completion.html#windsurf-copilot">
-            these instructions
-          </ExternalLink>
-          .
-        </p>
-        <ApiKey
-          form={form}
-          config={config}
-          name="completion.codeium_api_key"
-          placeholder="key"
-          testId="codeium-api-key-input"
-        />
-      </>
-    );
-  }
-
   if (copilot === "github") {
     return <CopilotConfig />;
   }
@@ -573,9 +553,9 @@ export const AiCodeCompletionConfig: React.FC<AiConfigProps> = ({
         form={form}
         config={config}
         name="completion.copilot"
-        options={["none", "github", "codeium", "custom"]}
+        options={["none", "github", "custom"]}
         testId="copilot-select"
-        description="Choose GitHub Copilot, Codeium, or a custom provider (such as Ollama) to enable AI-powered code completion."
+        description="Choose GitHub Copilot or a custom provider (such as Ollama) to enable AI-powered code completion."
       />
 
       {renderCopilotProvider({ form, config, onSubmit, copilot })}
@@ -1394,12 +1374,10 @@ export const AiAssistConfig: React.FC<AiConfigProps> = ({
                         onCheckedChange={(checked) => {
                           const isChecked = checked === true;
                           setMaxTokensEnabled(isChecked);
-                          // null signals delete to the server; cast because
-                          // UserConfig (OpenAPI-derived) types max_tokens as
-                          // `number | undefined`, but zod accepts `null`.
-                          const next = (
-                            isChecked ? (field.value ?? 32768) : null
-                          ) as number | undefined;
+                          // null signals delete to the server.
+                          const next = isChecked
+                            ? (field.value ?? 32768)
+                            : null;
                           // shouldDirty: true forces RHF to keep this in
                           // dirtyFields even when `next` happens to equal the
                           // form's defaultValue (e.g. untick → tick when disk
@@ -1557,6 +1535,7 @@ const ProviderTreeItem: React.FC<ProviderTreeItemProps> = ({
 
 export const AiModelDisplayConfig: React.FC<AiConfigProps> = ({
   form,
+  config,
   onSubmit,
 }) => {
   const resolvedAi = useAtomValue(resolvedMarimoConfigAtom).ai;
@@ -1678,6 +1657,7 @@ export const AiModelDisplayConfig: React.FC<AiConfigProps> = ({
       </div>
       <AddModelForm
         form={form}
+        config={config}
         customModels={customModels}
         customProviderNames={customProviderNames}
         onSubmit={onSubmit}
@@ -1688,10 +1668,11 @@ export const AiModelDisplayConfig: React.FC<AiConfigProps> = ({
 
 export const AddModelForm: React.FC<{
   form: UseFormReturn<UserConfig>;
+  config: UserConfig;
   customModels: QualifiedModelId[];
   customProviderNames: string[];
   onSubmit: (values: UserConfig) => void;
-}> = ({ form, customModels, customProviderNames, onSubmit }) => {
+}> = ({ form, config, customModels, customProviderNames, onSubmit }) => {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [modelAdded, setModelAdded] = useState(false);
   const [provider, setProvider] = useState<ProviderId | "custom" | null>(null);
@@ -1704,6 +1685,18 @@ export const AddModelForm: React.FC<{
 
   const isCustomProvider = provider === "custom";
   const providerName = isCustomProvider ? customProviderName : provider;
+  const canDiscoverModels =
+    !!providerName &&
+    (providerName === "openrouter" ||
+      customProviderNames.includes(providerName));
+  const configurationPending = useAtomValue(pendingConfigSavesAtom) > 0;
+  const savedProviderConfig =
+    providerName === "openrouter"
+      ? config.ai?.openrouter
+      : providerName
+        ? config.ai?.custom_providers?.[providerName]
+        : undefined;
+  const configurationKey = JSON.stringify(savedProviderConfig ?? null);
   const hasValidValues = providerName?.trim() && modelName?.trim();
 
   const resetForm = () => {
@@ -1751,7 +1744,10 @@ export const AddModelForm: React.FC<{
         </Label>
         <Select
           value={provider || ""}
-          onValueChange={(v) => setProvider(v as ProviderId | "custom")}
+          onValueChange={(v) => {
+            setProvider(v as ProviderId | "custom");
+            setModelName("");
+          }}
         >
           <SelectTrigger id={providerSelectId} className={providerClassName}>
             {provider ? (
@@ -1848,18 +1844,38 @@ export const AddModelForm: React.FC<{
       >
         Model
       </Label>
-      <Input
-        id={modelNameInputId}
-        value={modelName}
-        onChange={(e) => setModelName(e.target.value)}
-        placeholder="gpt-5.6-sol"
-        className="text-xs mb-0"
-      />
+      {canDiscoverModels && providerName ? (
+        <ModelDiscovery
+          key={providerName}
+          provider={providerName}
+          label="Model"
+          configurationKey={configurationKey}
+          configurationPending={configurationPending}
+          inputId={modelNameInputId}
+          inputClassName="text-xs mb-0"
+          value={modelName}
+          onValueChange={setModelName}
+        />
+      ) : (
+        <Input
+          id={modelNameInputId}
+          value={modelName}
+          onChange={(e) => setModelName(e.target.value)}
+          placeholder="gpt-5.6-sol"
+          className="text-xs mb-0"
+        />
+      )}
     </div>
   );
 
   const inputForm = (
-    <div className="flex items-center gap-3 p-3 border border-border rounded-md">
+    <div
+      className={cn(
+        "flex items-center gap-3 p-3 border border-border rounded-md",
+        canDiscoverModels &&
+          "relative pb-12 [&_[data-testid^='model-discovery-']>button]:absolute [&_[data-testid^='model-discovery-']>button]:right-3 [&_[data-testid^='model-discovery-']>button]:bottom-3",
+      )}
+    >
       {providerSelect}
       {modelInput}
       <div

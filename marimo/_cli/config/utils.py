@@ -1,6 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import copy
 import inspect
 import types
 from typing import (
@@ -19,6 +20,7 @@ from msgspec.structs import fields
 from marimo._cli.print import cyan, green, muted, orange, yellow
 from marimo._config.provenance import format_config_source
 from marimo._config.schema_utils import Config
+from marimo._config.utils import drop_none_values
 
 if TYPE_CHECKING:
     from tomlkit import TOMLDocument
@@ -45,7 +47,9 @@ def format_config_with_sources(resolved: ResolvedConfig) -> str:
     import tomlkit
     from tomlkit.items import AoT, Item, Table
 
-    document = tomlkit.parse(tomlkit.dumps(resolved.config, sort_keys=True))
+    values = copy.deepcopy(resolved.config)
+    drop_none_values(values)
+    document = tomlkit.parse(tomlkit.dumps(values, sort_keys=True))
 
     def annotate(table: TOMLDocument | Table, path: ConfigPath) -> None:
         for key in table:

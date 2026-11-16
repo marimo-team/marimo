@@ -52,17 +52,10 @@ def config_tree(
     monkeypatch.setattr(GLOBAL_SETTINGS, "RESTRICT_SHARING", False)
     # These defaults are inferred at module import, before fixture isolation.
     # Package-manager inference has its own suite in test_config_packages.py.
-    monkeypatch.setitem(
-        DEFAULT_CONFIG, "package_management", {"manager": "pip"}
-    )
-    monkeypatch.setitem(
-        DEFAULT_CONFIG,
-        "runtime",
-        {
-            **DEFAULT_CONFIG["runtime"],
-            "output_max_bytes": 8_000_000,
-            "std_stream_max_bytes": 1_000_000,
-        },
+    monkeypatch.setattr(DEFAULT_CONFIG.package_management, "manager", "pip")
+    monkeypatch.setattr(DEFAULT_CONFIG.runtime, "output_max_bytes", 8_000_000)
+    monkeypatch.setattr(
+        DEFAULT_CONFIG.runtime, "std_stream_max_bytes", 1_000_000
     )
     get_user_config_path.cache_clear()
     original_path = get_or_create_user_config_path
@@ -108,7 +101,7 @@ def write_script(path: Path, settings: str) -> None:
 def test_default_configuration_snapshot(config_tree: Path) -> None:
     manager = get_default_config_manager(current_path=None)
     assert normalized(
-        manager.get_config(hide_secrets=False), config_tree
+        (manager.get_config(hide_secrets=False)).to_dict(), config_tree
     ) == snapshot(
         {
             "display": {
@@ -129,16 +122,30 @@ def test_default_configuration_snapshot(config_tree: Path) -> None:
                 "default_csv_encoding": "utf-8",
                 "reactive_tests": True,
                 "auto_instantiate": False,
+                "serve_cached_sessions_in_apps": False,
                 "on_cell_change": "autorun",
+                "pythonpath": [],
                 "default_sql_output": "auto",
                 "output_max_bytes": 8000000,
+                "default_auto_download": [],
                 "std_stream_max_bytes": 1000000,
                 "show_tracebacks": False,
+                "cache_cells": False,
+                "pin_modules": True,
             },
             "ai": {
                 "enabled": True,
+                "rules": "",
+                "max_tokens": None,
+                "mode": "ask",
                 "allow_provider_config": True,
-                "models": {"displayed_models": [], "custom_models": []},
+                "models": {
+                    "chat_model": None,
+                    "edit_model": None,
+                    "autocomplete_model": None,
+                    "displayed_models": [],
+                    "custom_models": [],
+                },
                 "custom_providers": {},
             },
             "language_servers": {
@@ -168,13 +175,28 @@ def test_default_configuration_snapshot(config_tree: Path) -> None:
                 "autosave_delay": 1000,
                 "format_on_save": False,
             },
+            "lint": {"select": [], "ignore": []},
+            "experimental": {
+                "isolate_apps": False,
+                "debugger": False,
+                "line_timing": False,
+                "execution_type": "relaxed",
+            },
             "server": {
                 "skip_update_check": False,
                 "session_cookie_secure": False,
+                "session_secret": None,
                 "browser": "default",
                 "follow_symlink": False,
+                "disable_file_downloads": False,
             },
+            "datasources": {},
+            "file_browser": None,
+            "sharing": None,
             "diagnostics": {"sql_linter": True},
+            "venv": {"path": None, "writable": False},
+            "cache": {"verification": "off", "store": None, "loader": "lazy"},
+            "signing": {"trusted_signers": {}, "private_key_path": None},
         }
     )
     assert normalized(
@@ -229,9 +251,11 @@ def test_layered_configuration_snapshot(
     monkeypatch.setattr(GLOBAL_SETTINGS, "RESTRICT_SHARING", True)
     # Masked reads must not mutate the following unmasked reads.
     views = {
-        "resolved_masked": manager.get_config(),
-        "resolved_unmasked": manager.get_config(hide_secrets=False),
-        "user_masked": manager.get_user_config(),
+        "resolved_masked": (manager.get_config()).to_dict(),
+        "resolved_unmasked": (
+            manager.get_config(hide_secrets=False)
+        ).to_dict(),
+        "user_masked": (manager.get_user_config()).to_dict(),
         "overrides_unmasked": manager.get_config_overrides(hide_secrets=False),
         "script_unmasked": ScriptConfigReader(str(notebook)).read(),
     }
@@ -255,8 +279,16 @@ def test_layered_configuration_snapshot(
                     "copilot": False,
                     "auto_close_pairs": True,
                 },
-                "experimental": {},
-                "signing": {"private_key_path": "********"},
+                "experimental": {
+                    "isolate_apps": False,
+                    "debugger": False,
+                    "line_timing": False,
+                    "execution_type": "relaxed",
+                },
+                "signing": {
+                    "trusted_signers": {},
+                    "private_key_path": "********",
+                },
                 "mcp": {"mcpServers": {}, "presets": []},
                 "runtime": {
                     "watcher_on_save": "lazy",
@@ -265,17 +297,23 @@ def test_layered_configuration_snapshot(
                     "reactive_tests": True,
                     "auto_instantiate": True,
                     "on_cell_change": "autorun",
+                    "serve_cached_sessions_in_apps": False,
                     "pythonpath": ["<root>/home/project/src"],
                     "default_sql_output": "auto",
                     "output_max_bytes": 8000000,
+                    "default_auto_download": [],
                     "std_stream_max_bytes": 1000000,
                     "show_tracebacks": False,
+                    "cache_cells": False,
+                    "pin_modules": True,
                 },
                 "server": {
                     "skip_update_check": False,
                     "follow_symlink": False,
+                    "session_secret": None,
                     "browser": "default",
                     "session_cookie_secure": False,
+                    "disable_file_downloads": False,
                     "transport": "sse",
                 },
                 "snippets": {
@@ -289,6 +327,7 @@ def test_layered_configuration_snapshot(
                 },
                 "package_management": {"manager": "pip"},
                 "diagnostics": {"sql_linter": True},
+                "lint": {"select": [], "ignore": []},
                 "display": {
                     "dataframes": "rich",
                     "theme": "light",
@@ -302,17 +341,34 @@ def test_layered_configuration_snapshot(
                     "cell_output": "below",
                 },
                 "ai": {
-                    "models": {"displayed_models": [], "custom_models": []},
+                    "models": {
+                        "chat_model": None,
+                        "edit_model": None,
+                        "autocomplete_model": None,
+                        "displayed_models": [],
+                        "custom_models": [],
+                    },
+                    "rules": "",
+                    "max_tokens": None,
+                    "mode": "ask",
                     "enabled": True,
                     "custom_providers": {},
                     "open_ai": {"api_key": "********"},
                     "allow_provider_config": True,
                 },
+                "datasources": {},
+                "file_browser": None,
                 "sharing": {"molab": False, "html": False, "wasm": False},
                 "keymap": {
                     "overrides": {},
                     "vimrc": "<root>/home/project/editor.vim",
                     "preset": "default",
+                },
+                "venv": {"path": None, "writable": False},
+                "cache": {
+                    "verification": "off",
+                    "store": None,
+                    "loader": "lazy",
                 },
                 "formatting": {"infer_types": "off", "line_length": 130},
             },
@@ -334,8 +390,16 @@ def test_layered_configuration_snapshot(
                     "copilot": False,
                     "auto_close_pairs": True,
                 },
-                "experimental": {},
-                "signing": {"private_key_path": "user.key"},
+                "experimental": {
+                    "isolate_apps": False,
+                    "debugger": False,
+                    "line_timing": False,
+                    "execution_type": "relaxed",
+                },
+                "signing": {
+                    "trusted_signers": {},
+                    "private_key_path": "user.key",
+                },
                 "mcp": {"mcpServers": {}, "presets": []},
                 "runtime": {
                     "dotenv": ["<root>/home/project/script.env"],
@@ -344,18 +408,24 @@ def test_layered_configuration_snapshot(
                     "default_csv_encoding": "utf-8",
                     "reactive_tests": True,
                     "auto_instantiate": True,
+                    "serve_cached_sessions_in_apps": False,
                     "on_cell_change": "autorun",
                     "pythonpath": ["<root>/home/project/src"],
                     "default_sql_output": "auto",
                     "output_max_bytes": 8000000,
+                    "default_auto_download": [],
                     "std_stream_max_bytes": 1000000,
                     "show_tracebacks": False,
+                    "cache_cells": False,
+                    "pin_modules": True,
                 },
                 "server": {
                     "skip_update_check": False,
                     "follow_symlink": False,
+                    "session_secret": None,
                     "browser": "default",
                     "session_cookie_secure": False,
+                    "disable_file_downloads": False,
                     "transport": "sse",
                 },
                 "snippets": {
@@ -369,6 +439,7 @@ def test_layered_configuration_snapshot(
                 },
                 "package_management": {"manager": "pip"},
                 "diagnostics": {"sql_linter": True},
+                "lint": {"select": [], "ignore": []},
                 "display": {
                     "dataframes": "rich",
                     "theme": "light",
@@ -382,17 +453,34 @@ def test_layered_configuration_snapshot(
                     "cell_output": "below",
                 },
                 "ai": {
-                    "models": {"displayed_models": [], "custom_models": []},
+                    "models": {
+                        "chat_model": None,
+                        "edit_model": None,
+                        "autocomplete_model": None,
+                        "displayed_models": [],
+                        "custom_models": [],
+                    },
+                    "rules": "",
+                    "max_tokens": None,
+                    "mode": "ask",
                     "enabled": True,
                     "custom_providers": {},
                     "open_ai": {"api_key": "project-secret"},
                     "allow_provider_config": True,
                 },
+                "datasources": {},
+                "file_browser": None,
                 "sharing": {"molab": False, "html": False, "wasm": False},
                 "keymap": {
                     "overrides": {},
                     "vimrc": "<root>/home/project/editor.vim",
                     "preset": "default",
+                },
+                "venv": {"path": None, "writable": False},
+                "cache": {
+                    "verification": "off",
+                    "store": None,
+                    "loader": "lazy",
                 },
                 "formatting": {"infer_types": "off", "line_length": 130},
             },
@@ -410,7 +498,16 @@ def test_layered_configuration_snapshot(
                     "cell_output": "below",
                 },
                 "ai": {
-                    "models": {"displayed_models": [], "custom_models": []},
+                    "models": {
+                        "chat_model": None,
+                        "edit_model": None,
+                        "autocomplete_model": None,
+                        "displayed_models": [],
+                        "custom_models": [],
+                    },
+                    "rules": "",
+                    "max_tokens": None,
+                    "mode": "ask",
                     "open_ai": {"api_key": "********"},
                     "enabled": True,
                     "custom_providers": {},
@@ -427,7 +524,10 @@ def test_layered_configuration_snapshot(
                         "enable_pyflakes": False,
                     }
                 },
-                "signing": {"private_key_path": "********"},
+                "signing": {
+                    "trusted_signers": {},
+                    "private_key_path": "********",
+                },
                 "formatting": {"infer_types": "off", "line_length": 70},
                 "completion": {
                     "activate_on_typing": True,
@@ -448,21 +548,44 @@ def test_layered_configuration_snapshot(
                     "default_csv_encoding": "utf-8",
                     "reactive_tests": True,
                     "auto_instantiate": False,
+                    "serve_cached_sessions_in_apps": False,
                     "default_sql_output": "auto",
+                    "pythonpath": [],
                     "on_cell_change": "autorun",
+                    "default_auto_download": [],
                     "std_stream_max_bytes": 1000000,
                     "show_tracebacks": False,
+                    "cache_cells": False,
+                    "pin_modules": True,
+                },
+                "lint": {"select": [], "ignore": []},
+                "experimental": {
+                    "isolate_apps": False,
+                    "debugger": False,
+                    "line_timing": False,
+                    "execution_type": "relaxed",
                 },
                 "save": {
                     "autosave": "after_delay",
                     "autosave_delay": 1000,
                     "format_on_save": False,
                 },
+                "datasources": {},
+                "file_browser": None,
+                "sharing": None,
                 "server": {
                     "skip_update_check": False,
                     "session_cookie_secure": False,
+                    "session_secret": None,
                     "browser": "default",
                     "follow_symlink": False,
+                    "disable_file_downloads": False,
+                },
+                "venv": {"path": None, "writable": False},
+                "cache": {
+                    "verification": "off",
+                    "store": None,
+                    "loader": "lazy",
                 },
                 "diagnostics": {"sql_linter": True},
             },
@@ -508,10 +631,12 @@ def test_dotenv_fallbacks_snapshot(config_tree: Path) -> None:
         manager = get_default_config_manager(current_path=str(current_path))
         cases[name] = {
             "defaults": manager.get_config_defaults(hide_secrets=False),
-            "dotenv": manager.get_config(hide_secrets=False)["runtime"].get(
-                "dotenv"
-            ),
-            "masked_dotenv": manager.get_config()["runtime"].get("dotenv"),
+            "dotenv": (manager.get_config(hide_secrets=False))
+            .to_dict()["runtime"]
+            .get("dotenv"),
+            "masked_dotenv": (manager.get_config())
+            .to_dict()["runtime"]
+            .get("dotenv"),
             "overrides": manager.get_config_overrides(hide_secrets=False),
         }
     (project / "pyproject.toml").write_text(
@@ -532,9 +657,9 @@ def test_dotenv_fallbacks_snapshot(config_tree: Path) -> None:
         get_user_config_path.cache_clear()
         manager = get_default_config_manager(current_path=str(notebook))
         cases[name] = {
-            "dotenv": manager.get_config(hide_secrets=False)["runtime"].get(
-                "dotenv"
-            )
+            "dotenv": (manager.get_config(hide_secrets=False))
+            .to_dict()["runtime"]
+            .get("dotenv")
         }
     assert normalized(cases, config_tree) == snapshot(
         {
@@ -614,24 +739,33 @@ def test_persistence_snapshot(config_tree: Path) -> None:
     )
     manager = get_default_config_manager(current_path=None)
     # The endpoint accepts deep partial patches and null-as-delete values.
-    manager.save_config(
-        cast(
-            "PartialMarimoConfig",
-            {
-                "display": {"theme": "dark"},
-                "ai": {"open_ai": {"api_key": "********"}, "max_tokens": None},
-            },
+    (
+        manager.save_config(
+            cast(
+                "PartialMarimoConfig",
+                {
+                    "display": {"theme": "dark"},
+                    "ai": {
+                        "open_ai": {"api_key": "********"},
+                        "max_tokens": None,
+                    },
+                },
+            )
         )
-    )
+    ).to_dict()
     first_save = path.read_text(encoding="utf-8")
-    manager.save_config(
-        cast("PartialMarimoConfig", {"display": {"theme": "dark"}})
-    )
+    (
+        manager.save_config(
+            cast("PartialMarimoConfig", {"display": {"theme": "dark"}})
+        )
+    ).to_dict()
     assert path.read_text(encoding="utf-8") == first_save
     assert normalized(first_save, config_tree) == snapshot("""\
 [ai]
 allow_provider_config = true
 enabled = true
+mode = "ask"
+rules = ""
 
 [ai.custom_providers]
 
@@ -642,11 +776,17 @@ displayed_models = []
 [ai.open_ai]
 api_key = "keep-me"
 
+[cache]
+loader = "lazy"
+verification = "off"
+
 [completion]
 activate_on_typing = true
 auto_close_pairs = true
 copilot = false
 signature_hint_on_typing = false
+
+[datasources]
 
 [diagnostics]
 sql_linter = true
@@ -661,6 +801,12 @@ default_table_page_size = 10
 default_width = "medium"
 reference_highlighting = true
 theme = "dark"
+
+[experimental]
+debugger = false
+execution_type = "relaxed"
+isolate_apps = false
+line_timing = false
 
 [formatting]
 infer_types = "off"
@@ -680,6 +826,10 @@ enable_pylint = false
 enable_ruff = true
 enabled = false
 
+[lint]
+ignore = []
+select = []
+
 [mcp]
 presets = []
 
@@ -691,11 +841,16 @@ manager = "pip"
 [runtime]
 auto_instantiate = false
 auto_reload = "off"
+cache_cells = false
+default_auto_download = []
 default_csv_encoding = "utf-8"
 default_sql_output = "auto"
 on_cell_change = "autorun"
 output_max_bytes = 8000000
+pin_modules = true
+pythonpath = []
 reactive_tests = true
+serve_cached_sessions_in_apps = false
 show_tracebacks = false
 std_stream_max_bytes = 1000000
 watcher_on_save = "lazy"
@@ -707,19 +862,25 @@ format_on_save = false
 
 [server]
 browser = "default"
+disable_file_downloads = false
 follow_symlink = false
 session_cookie_secure = false
 skip_update_check = false
 
+[signing.trusted_signers]
+
 [snippets]
 custom_paths = []
 include_default_snippets = true
+
+[venv]
+writable = false
 """)
-    assert (
-        manager.get_config(hide_secrets=False)["ai"]["open_ai"]["api_key"]
-        == "keep-me"
-    )
-    assert "max_tokens" not in manager.get_config(hide_secrets=False)["ai"]
+    assert (manager.get_config(hide_secrets=False)).to_dict()["ai"]["open_ai"][
+        "api_key"
+    ] == "keep-me"
+    assert manager.get_config(hide_secrets=False).ai.max_tokens is None
+    assert "max_tokens" not in manager.user_config_mgr.read()["ai"]
 
 
 def test_invalid_and_missing_inputs_snapshot(config_tree: Path) -> None:
@@ -802,9 +963,11 @@ def test_trust_origins_snapshot(config_tree: Path) -> None:
     ]:
         path.write_text(settings, encoding="utf-8")
         get_user_config_path.cache_clear()
-        config = get_default_config_manager(current_path=None).get_config(
-            hide_secrets=False
-        )
+        config = (
+            get_default_config_manager(
+                current_path=None
+            ).get_config_with_sources(hide_secrets=False)
+        ).config
         cases[name] = {
             "signing": config.get("signing"),
             "cache": config.get("cache"),
@@ -821,9 +984,20 @@ def test_trust_origins_snapshot(config_tree: Path) -> None:
                     "private_key_path": "identity.key",
                     "trusted_signers": {"example": "owner"},
                 },
-                "cache": {"verification": "strict", "store": "disk"},
+                "cache": {
+                    "verification": "strict",
+                    "store": "disk",
+                    "loader": "lazy",
+                },
             },
-            "workspace": {"signing": None, "cache": {}},
+            "workspace": {
+                "signing": {"trusted_signers": {}, "private_key_path": None},
+                "cache": {
+                    "loader": "lazy",
+                    "store": None,
+                    "verification": "off",
+                },
+            },
             "pyproject": {
                 "display": {"theme": "dark"},
                 "cache": {"store": "disk"},
@@ -844,9 +1018,9 @@ def test_secret_roundtrip_snapshot(config_tree: Path) -> None:
         encoding="utf-8",
     )
     manager = get_default_config_manager(current_path=None)
-    masked = manager.get_user_config()
-    manager.save_config(masked)
-    unmasked = manager.get_user_config(hide_secrets=False)
+    masked = (manager.get_user_config()).to_dict()
+    (manager.save_config(masked)).to_dict()
+    unmasked = (manager.get_user_config(hide_secrets=False)).to_dict()
     assert {
         "masked": {
             key: masked.get(key) for key in ("ai", "runtime", "signing")
@@ -859,6 +1033,9 @@ def test_secret_roundtrip_snapshot(config_tree: Path) -> None:
             "masked": {
                 "ai": {
                     "enabled": True,
+                    "rules": "",
+                    "max_tokens": None,
+                    "mode": "ask",
                     "allow_provider_config": True,
                     "custom_providers": {"local": {"api_key": "********"}},
                     "open_ai": {"api_key": "********"},
@@ -866,7 +1043,13 @@ def test_secret_roundtrip_snapshot(config_tree: Path) -> None:
                         "aws_access_key_id": "********",
                         "aws_secret_access_key": "********",
                     },
-                    "models": {"displayed_models": [], "custom_models": []},
+                    "models": {
+                        "chat_model": None,
+                        "edit_model": None,
+                        "autocomplete_model": None,
+                        "displayed_models": [],
+                        "custom_models": [],
+                    },
                 },
                 "runtime": {
                     "reactive_tests": True,
@@ -875,19 +1058,36 @@ def test_secret_roundtrip_snapshot(config_tree: Path) -> None:
                     "output_max_bytes": 8000000,
                     "show_tracebacks": False,
                     "default_csv_encoding": "utf-8",
+                    "serve_cached_sessions_in_apps": False,
                     "auto_reload": "off",
+                    "pythonpath": [],
                     "std_stream_max_bytes": 1000000,
+                    "default_auto_download": [],
                     "on_cell_change": "autorun",
                     "watcher_on_save": "lazy",
+                    "cache_cells": False,
+                    "pin_modules": True,
                 },
-                "signing": {"private_key_path": "********"},
+                "signing": {
+                    "trusted_signers": {},
+                    "private_key_path": "********",
+                },
             },
             "roundtrip": {
                 "ai": {
                     "custom_providers": {
                         "local": {"api_key": "custom-secret"}
                     },
-                    "models": {"custom_models": [], "displayed_models": []},
+                    "rules": "",
+                    "max_tokens": None,
+                    "mode": "ask",
+                    "models": {
+                        "chat_model": None,
+                        "edit_model": None,
+                        "autocomplete_model": None,
+                        "custom_models": [],
+                        "displayed_models": [],
+                    },
                     "enabled": True,
                     "allow_provider_config": True,
                     "open_ai": {"api_key": "openai-secret"},
@@ -903,13 +1103,21 @@ def test_secret_roundtrip_snapshot(config_tree: Path) -> None:
                     "std_stream_max_bytes": 1000000,
                     "watcher_on_save": "lazy",
                     "reactive_tests": True,
+                    "serve_cached_sessions_in_apps": False,
                     "show_tracebacks": False,
+                    "pythonpath": [],
                     "output_max_bytes": 8000000,
                     "dotenv": ["secrets.env"],
+                    "default_auto_download": [],
                     "auto_reload": "off",
                     "on_cell_change": "autorun",
+                    "cache_cells": False,
+                    "pin_modules": True,
                 },
-                "signing": {"private_key_path": "identity.key"},
+                "signing": {
+                    "trusted_signers": {},
+                    "private_key_path": "identity.key",
+                },
             },
         }
     )
@@ -925,7 +1133,7 @@ def test_invalid_user_file_snapshot(config_tree: Path) -> None:
     ]:
         path.write_text(content, encoding="utf-8")
         manager = get_default_config_manager(current_path=None)
-        config = manager.get_user_config(hide_secrets=False)
+        config = (manager.get_user_config(hide_secrets=False)).to_dict()
         cases[name] = {
             "theme": config["display"]["theme"],
             "future": config.get("future"),
@@ -1000,11 +1208,11 @@ def test_dotenv_explicit_precedence_snapshot(config_tree: Path) -> None:
             manager = manager.with_overrides(
                 cast("PartialMarimoConfig", {"runtime": {"dotenv": overrides}})
             )
-        masked = manager.get_config()
+        masked = (manager.get_config()).to_dict()
         cases[name] = {
-            "resolved": manager.get_config(hide_secrets=False)["runtime"].get(
-                "dotenv"
-            ),
+            "resolved": (manager.get_config(hide_secrets=False))
+            .to_dict()["runtime"]
+            .get("dotenv"),
             "masked": masked["runtime"].get("dotenv"),
             "overrides": manager.get_config_overrides(hide_secrets=False).get(
                 "runtime"
@@ -1084,13 +1292,15 @@ def test_dotenv_workspace_session_snapshot(config_tree: Path) -> None:
             ScriptConfigReader(str(script) if script is not None else None)
         )
         cases[name] = {
-            "workspace": manager.get_config(hide_secrets=False)["runtime"].get(
-                "dotenv"
-            ),
-            "masked_session": session.get_config()["runtime"].get("dotenv"),
-            "session": session.get_config(hide_secrets=False)["runtime"].get(
-                "dotenv"
-            ),
+            "workspace": (manager.get_config(hide_secrets=False))
+            .to_dict()["runtime"]
+            .get("dotenv"),
+            "masked_session": (session.get_config())
+            .to_dict()["runtime"]
+            .get("dotenv"),
+            "session": (session.get_config(hide_secrets=False))
+            .to_dict()["runtime"]
+            .get("dotenv"),
             "overrides": session.get_config_overrides(hide_secrets=False),
         }
     assert normalized(cases, config_tree) == snapshot(
@@ -1131,9 +1341,9 @@ def test_dotenv_home_and_nested_project_snapshot(
     def capture(name: str, path: Path) -> None:
         manager = get_default_config_manager(current_path=str(path))
         cases[name] = {
-            "dotenv": manager.get_config(hide_secrets=False)["runtime"].get(
-                "dotenv"
-            ),
+            "dotenv": (manager.get_config(hide_secrets=False))
+            .to_dict()["runtime"]
+            .get("dotenv"),
             "defaults": manager.get_config_defaults(hide_secrets=False),
         }
 
@@ -1187,18 +1397,23 @@ def test_merge_semantics_snapshot() -> None:
 
     from marimo._config.config import merge_config, merge_default_config
 
-    base = merge_default_config(
-        cast(
-            "PartialMarimoConfig",
-            {
-                "keymap": {"overrides": {"old": "Ctrl-A"}},
-                "ai": {"custom_providers": {"old": {"api_key": "old"}}},
-                "signing": {"trusted_signers": {"old": "old-key"}},
-                "runtime": {"dotenv": ["old.env"], "auto_instantiate": True},
-                "display": {"theme": "dark", "default_width": "full"},
-            },
+    base = (
+        merge_default_config(
+            cast(
+                "PartialMarimoConfig",
+                {
+                    "keymap": {"overrides": {"old": "Ctrl-A"}},
+                    "ai": {"custom_providers": {"old": {"api_key": "old"}}},
+                    "signing": {"trusted_signers": {"old": "old-key"}},
+                    "runtime": {
+                        "dotenv": ["old.env"],
+                        "auto_instantiate": True,
+                    },
+                    "display": {"theme": "dark", "default_width": "full"},
+                },
+            )
         )
-    )
+    ).to_dict()
     original = deepcopy(base)
     cases: dict[str, Any] = {}
     for name, replacements in [
@@ -1226,7 +1441,7 @@ def test_merge_semantics_snapshot() -> None:
             },
         )
         original_patch = deepcopy(patch)
-        merged = merge_config(base, patch)
+        merged = (merge_config(base, patch)).to_dict()
         assert base == original
         assert patch == original_patch
         cases[name] = {
@@ -1238,10 +1453,14 @@ def test_merge_semantics_snapshot() -> None:
             "display": merged["display"],
         }
     for value in [False, True, "detect", "off", "lazy", "autorun"]:
-        merged = merge_config(
-            base,
-            cast("PartialMarimoConfig", {"runtime": {"auto_reload": value}}),
-        )
+        merged = (
+            merge_config(
+                base,
+                cast(
+                    "PartialMarimoConfig", {"runtime": {"auto_reload": value}}
+                ),
+            )
+        ).to_dict()
         cases[f"auto_reload_{value}"] = merged["runtime"]["auto_reload"]
     assert cases == snapshot(
         {
@@ -1251,7 +1470,10 @@ def test_merge_semantics_snapshot() -> None:
                     "preset": "default",
                 },
                 "custom_providers": {"new": {"api_key": "new"}},
-                "signing": {"trusted_signers": {"new": "new-key"}},
+                "signing": {
+                    "trusted_signers": {"new": "new-key"},
+                    "private_key_path": None,
+                },
                 "dotenv": ["new.env"],
                 "auto_instantiate": True,
                 "display": {
@@ -1269,7 +1491,7 @@ def test_merge_semantics_snapshot() -> None:
             "empty_records": {
                 "keymap": {"overrides": {}, "preset": "default"},
                 "custom_providers": {},
-                "signing": {"trusted_signers": {}},
+                "signing": {"trusted_signers": {}, "private_key_path": None},
                 "dotenv": [],
                 "auto_instantiate": True,
                 "display": {
@@ -1321,7 +1543,7 @@ def test_dotenv_loading_boundary_snapshot(
         encoding="utf-8",
     )
     manager = get_default_config_manager(current_path=str(project))
-    config = manager.get_config(hide_secrets=False)
+    config = manager.get_config_with_sources(hide_secrets=False).config
 
     def environment() -> dict[str, str | None]:
         return {
@@ -1377,29 +1599,31 @@ def test_save_scope_and_refresh_snapshot(config_tree: Path) -> None:
     )
 
     def capture() -> dict[str, Any]:
-        resolved = manager.get_config(hide_secrets=False)
-        user_config = manager.get_user_config(hide_secrets=False)
+        resolved = (manager.get_config(hide_secrets=False)).to_dict()
+        user_config = (manager.get_user_config(hide_secrets=False)).to_dict()
         return {
             "user_theme": user_config["display"]["theme"],
             "resolved_theme": resolved["display"]["theme"],
             "user_dotenv": user_config["runtime"].get("dotenv"),
             "resolved_dotenv": resolved["runtime"].get("dotenv"),
             "resolved_line_length": resolved["formatting"]["line_length"],
-            "overridden_line_length": overridden.get_config(
-                hide_secrets=False
-            )["formatting"]["line_length"],
+            "overridden_line_length": (
+                overridden.get_config(hide_secrets=False)
+            ).to_dict()["formatting"]["line_length"],
         }
 
     before = capture()
-    manager.save_config(
-        cast(
-            "PartialMarimoConfig",
-            {
-                "display": {"theme": "system"},
-                "runtime": {"dotenv": ["user.env"]},
-            },
+    (
+        manager.save_config(
+            cast(
+                "PartialMarimoConfig",
+                {
+                    "display": {"theme": "system"},
+                    "runtime": {"dotenv": ["user.env"]},
+                },
+            )
         )
-    )
+    ).to_dict()
     after = capture()
     assert pyproject.read_bytes() == original_project
     assert notebook.read_bytes() == original_script
@@ -1520,9 +1744,11 @@ def _get_path(config: Any, dotted: str) -> Any:
 
 def _resolve_for_trust(current_path: Path | None) -> Any:
     get_user_config_path.cache_clear()
-    return get_default_config_manager(
-        current_path=None if current_path is None else str(current_path)
-    ).get_config(hide_secrets=False)
+    return (
+        get_default_config_manager(
+            current_path=None if current_path is None else str(current_path)
+        ).get_config_with_sources(hide_secrets=False)
+    ).config
 
 
 def _dropped_probe_paths(config: Any, baseline: Any) -> list[str]:

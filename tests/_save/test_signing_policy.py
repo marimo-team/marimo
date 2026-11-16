@@ -6,6 +6,11 @@ from types import SimpleNamespace
 
 import pytest
 
+from marimo._config.config_schema import (
+    CacheConfig,
+    MarimoConfig,
+    SigningConfig,
+)
 from marimo._save.cache import CacheState
 from marimo._save.signing import (
     fingerprint,
@@ -50,7 +55,7 @@ def _alternate_spelling(fp: str) -> str:
 
 class TestSigningPolicyFromConfig:
     def test_empty_config_defaults(self) -> None:
-        policy = SigningPolicy.from_config({})
+        policy = SigningPolicy.from_config(MarimoConfig.from_dict({}))
         assert policy.verification == "off"
         assert policy.trusted_signers == frozenset()
         assert policy.signer is None
@@ -63,15 +68,15 @@ class TestSigningPolicyFromConfig:
 
     def test_verification_passthrough(self) -> None:
         assert SigningPolicy.from_config(
-            {"cache": {"verification": "strict"}}
+            MarimoConfig.from_dict({"cache": {"verification": "strict"}})
         ).verification == ("strict")
         assert SigningPolicy.from_config(
-            {"cache": {"verification": "off"}}
+            MarimoConfig.from_dict({"cache": {"verification": "off"}})
         ).verification == ("off")
 
     def test_invalid_verification_falls_back_to_on(self) -> None:
         policy = SigningPolicy.from_config(
-            {"cache": {"verification": "bogus"}}
+            MarimoConfig(cache=CacheConfig(verification="bogus"))  # type: ignore[arg-type]
         )
         assert policy.verification == "on"
 
@@ -79,32 +84,38 @@ class TestSigningPolicyFromConfig:
         _priv, _pub, fp = keypair
         # An urlsafe, padded variant must canonicalize to fingerprint() output.
         policy = SigningPolicy.from_config(
-            {
-                "signing": {
-                    "trusted_signers": {_alternate_spelling(fp): "alice"}
+            MarimoConfig.from_dict(
+                {
+                    "signing": {
+                        "trusted_signers": {_alternate_spelling(fp): "alice"}
+                    }
                 }
-            }
+            )
         )
         assert policy.trusted_signers == frozenset({fp})
 
     def test_malformed_fingerprints_dropped(self, keypair) -> None:
         _priv, _pub, fp = keypair
         policy = SigningPolicy.from_config(
-            {
-                "signing": {
-                    "trusted_signers": {
-                        fp: "good",
-                        "SHA256:not-valid-base64!!": "bad",
-                        "no-prefix": "bad",
+            MarimoConfig.from_dict(
+                {
+                    "signing": {
+                        "trusted_signers": {
+                            fp: "good",
+                            "SHA256:not-valid-base64!!": "bad",
+                            "no-prefix": "bad",
+                        }
                     }
                 }
-            }
+            )
         )
         assert policy.trusted_signers == frozenset({fp})
 
     def test_non_dict_trusted_signers_ignored(self) -> None:
         policy = SigningPolicy.from_config(
-            {"signing": {"trusted_signers": ["SHA256:whatever"]}}
+            MarimoConfig(
+                signing=SigningConfig(trusted_signers=["SHA256:whatever"])
+            )  # type: ignore[arg-type]
         )
         assert policy.trusted_signers == frozenset()
 
@@ -116,14 +127,22 @@ class TestSigningPolicyFromConfig:
         key_file.write_text(priv)
         # The concrete signer is resolved eagerly at freeze (not lazily).
         policy = SigningPolicy.from_config(
-            {"signing": {"private_key_path": str(key_file)}}
+            MarimoConfig.from_dict(
+                {"signing": {"private_key_path": str(key_file)}}
+            )
         )
         assert policy.signer is not None
         assert policy.signer.fingerprint() == fp
 
     def test_bad_private_key_path_degrades_to_none(self, tmp_path) -> None:
         policy = SigningPolicy.from_config(
-            {"signing": {"private_key_path": str(tmp_path / "missing.pem")}}
+            MarimoConfig.from_dict(
+                {
+                    "signing": {
+                        "private_key_path": str(tmp_path / "missing.pem")
+                    }
+                }
+            )
         )
         assert policy.signer is None
 
@@ -141,7 +160,7 @@ class TestSigningPolicyFromConfig:
             _read_key_file(str(big))
         # End-to-end, the read failure degrades to no signer, never a raise.
         policy = SigningPolicy.from_config(
-            {"signing": {"private_key_path": str(big)}}
+            MarimoConfig.from_dict({"signing": {"private_key_path": str(big)}})
         )
         assert policy.signer is None
 
@@ -149,7 +168,7 @@ class TestSigningPolicyFromConfig:
         # A wrong type in the TOML must follow the documented fallback, not
         # raise out of policy resolution and stop the session from starting.
         policy = SigningPolicy.from_config(
-            {"signing": {"private_key_path": 5}}
+            MarimoConfig(signing=SigningConfig(private_key_path=5))  # type: ignore[arg-type]
         )
         assert policy.signer is None
 
@@ -162,7 +181,9 @@ class TestSigningPolicyFromConfig:
         (tmp_path / "key.pem").write_text(priv)
         monkeypatch.chdir(tmp_path)
         policy = SigningPolicy.from_config(
-            {"signing": {"private_key_path": "key.pem"}}
+            MarimoConfig.from_dict(
+                {"signing": {"private_key_path": "key.pem"}}
+            )
         )
         assert policy.signer is None
 
@@ -196,7 +217,9 @@ class TestSigningPolicyFromConfig:
         key_file = tmp_path / "enc.pem"
         key_file.write_bytes(enc)
         policy = SigningPolicy.from_config(
-            {"signing": {"private_key_path": str(key_file)}}
+            MarimoConfig.from_dict(
+                {"signing": {"private_key_path": str(key_file)}}
+            )
         )
         assert policy.signer is None
 
@@ -207,7 +230,7 @@ class TestSigningPolicyFromConfig:
         # an implicitly-trusted own signer.
         _priv, pub, fp = keypair
         monkeypatch.setenv("MARIMO_CACHE_SIGNING_PUBLIC_KEY", pub)
-        policy = SigningPolicy.from_config({})
+        policy = SigningPolicy.from_config(MarimoConfig.from_dict({}))
         assert fp in policy.trusted_signers
         assert policy.signer is None
 
@@ -216,7 +239,7 @@ class TestSigningPolicyFromConfig:
     ) -> None:
         priv, _pub, fp = keypair
         monkeypatch.setenv("MARIMO_CACHE_SIGNING_PRIVATE_KEY", priv)
-        policy = SigningPolicy.from_config({})
+        policy = SigningPolicy.from_config(MarimoConfig.from_dict({}))
         assert policy.signer is not None
         assert policy.signer.fingerprint() == fp
 
@@ -341,7 +364,7 @@ class TestChildContextInheritsPolicy:
         )
         kernel = SimpleNamespace(
             app_metadata=SimpleNamespace(filename=None, app_config=None),
-            user_config={},
+            user_config=MarimoConfig(),
         )
         ctx = kernel_context.create_kernel_context(
             kernel=kernel,
@@ -414,7 +437,9 @@ class TestInvalidEntriesAreNotLogged:
         secret = "SHA256:" + "SUPERSECRETKEYMATERIAL" * 4
         with patch("marimo._save.signing_policy.LOGGER") as logger:
             policy = SigningPolicy.from_config(
-                {"signing": {"trusted_signers": {secret: "oops"}}}
+                MarimoConfig.from_dict(
+                    {"signing": {"trusted_signers": {secret: "oops"}}}
+                )
             )
 
         assert policy.trusted_signers == frozenset()

@@ -327,7 +327,7 @@ class TestRunModeTrace:
         k.app_metadata.filename = str(notebook_file)
 
         k.user_config = copy.deepcopy(k.user_config)
-        k.user_config["runtime"]["show_tracebacks"] = True
+        k.user_config.runtime.show_tracebacks = True
 
         cell_code = textwrap.dedent(
             """

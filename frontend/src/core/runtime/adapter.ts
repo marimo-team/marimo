@@ -82,17 +82,10 @@ const remoteStateAtom = atom<AdapterState>((get) => {
       return { kind: "connecting", progress: { label: "Connecting…" } };
     case ConnectionState.NOT_STARTED:
       return { kind: "connecting", progress: { label: "Not connected" } };
-    case ConnectionState.CLOSING:
     case ConnectionState.CLOSED:
       return {
         kind: "failed",
-        error: {
-          message:
-            conn.state === ConnectionState.CLOSED
-              ? conn.reason
-              : "Disconnecting",
-          errorKind: "runtime",
-        },
+        error: { message: conn.reason, errorKind: "runtime" },
       };
   }
 });

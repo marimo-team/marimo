@@ -95,7 +95,9 @@ import {
   useMessageQueue,
   validateChatAttachments,
 } from "./chat-utils";
-import { getCodes } from "@/core/codemirror/copilot/getCodes";
+import { notebookCellCodes } from "@/core/codemirror/copilot/getCodes";
+import { getSessionId } from "@/core/kernel/session";
+import { withNotebookContext } from "./notebook-context";
 import { focusInputAndMoveToEnd } from "@/core/codemirror/utils";
 import ScrollToBottomButton from "./acp/scroll-to-bottom-button";
 import { useChatControllerId } from "./use-chat-controller-id";
@@ -551,7 +553,6 @@ const ChatPanelBody = () => {
 
           const completionBody = {
             uiMessages: options.messages,
-            includeOtherCode: getCodes(""),
             options: store.get(chatOptionsAtom),
           };
 
@@ -638,6 +639,17 @@ const ChatPanelBody = () => {
     },
   });
 
+  const contextualize = useEvent(
+    (parts: ChatMessagePart[], history: UIMessage[]) =>
+      withNotebookContext(parts, history, {
+        sessionId: getSessionId(),
+        cells:
+          store.get(aiAtom)?.mode === "code_mode"
+            ? undefined
+            : store.get(notebookCellCodes),
+      }),
+  );
+
   const validateMessageAttachments = useEvent((parts: ChatMessagePart[]) => {
     const currentModel =
       store.get(aiAtom)?.models?.chat_model || DEFAULT_AI_MODEL;
@@ -648,10 +660,18 @@ const ChatPanelBody = () => {
   });
 
   const sendUserMessage = useEvent(
-    (parts: ChatMessagePart[], messageId?: string) => {
+    (
+      parts: ChatMessagePart[],
+      messageId?: string,
+      history: UIMessage[] = messages,
+    ) => {
       clearAbortState();
       turn.start();
-      sendMessage({ role: "user", parts, ...(messageId ? { messageId } : {}) });
+      sendMessage({
+        role: "user",
+        parts: contextualize(parts, history),
+        ...(messageId ? { messageId } : {}),
+      });
     },
   );
 
@@ -826,7 +846,7 @@ const ChatPanelBody = () => {
         return;
       }
       startNewChatState(initialMessage);
-      sendUserMessage(parts);
+      sendUserMessage(parts, undefined, []);
       clearFiles();
       setInput("");
     },
@@ -883,7 +903,7 @@ const ChatPanelBody = () => {
       if (!validateMessageAttachments(parts)) {
         return false;
       }
-      sendUserMessage(parts, editedMessage.id);
+      sendUserMessage(parts, editedMessage.id, messages.slice(0, index));
       return true;
     },
   );

@@ -210,6 +210,7 @@ def launch_isolated(
             *_with_args(requirements),
             "--",
             "python",
+            "-P",
             *args,
         ),
         env=env,
@@ -238,7 +239,7 @@ def launch_fallback(
     env.pop("UV_PROJECT_ENVIRONMENT", None)
     if sys.prefix != sys.base_prefix:
         env["VIRTUAL_ENV"] = sys.prefix
-    return ProcessPlan(argv=(sys.executable, *args), env=env)
+    return ProcessPlan(argv=(sys.executable, "-P", *args), env=env)
 
 
 class _ReportingBackendAdapter:

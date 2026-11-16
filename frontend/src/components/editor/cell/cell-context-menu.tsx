@@ -20,6 +20,7 @@ import {
 import { menuItemVariants } from "@/components/ui/menu-items";
 import { Tooltip } from "@/components/ui/tooltip";
 import { toast } from "@/components/ui/use-toast";
+import { useRestoreFocus } from "@/components/ui/use-restore-focus";
 import { useCellData, useCellRuntime } from "@/core/cells/cells";
 import { CellOutputId } from "@/core/cells/ids";
 import { isOutputEmpty } from "@/core/cells/outputs";
@@ -71,6 +72,8 @@ export const CellActionsContextMenu = ({
   const [imageRightClicked, setImageRightClicked] =
     React.useState<HTMLImageElement>();
   const suppressCloseAutoFocus = React.useRef(false);
+  const pendingAction = React.useRef<(() => void) | null>(null);
+  const restoreFocus = useRestoreFocus();
 
   const DEFAULT_CONTEXT_MENU_ITEMS: ActionButton[] = [
     {
@@ -194,7 +197,13 @@ export const CellActionsContextMenu = ({
     .filter((group) => group.length > 0);
 
   return (
-    <ContextMenu>
+    <ContextMenu
+      onOpenChange={(open) => {
+        if (open) {
+          restoreFocus.onOpenAutoFocus();
+        }
+      }}
+    >
       <ContextMenuTrigger
         disabled={disabled}
         onContextMenu={(evt) => {
@@ -212,6 +221,13 @@ export const CellActionsContextMenu = ({
         className="w-[300px]"
         scrollable={true}
         onCloseAutoFocus={(evt) => {
+          const action = pendingAction.current;
+          pendingAction.current = null;
+          if (action) {
+            restoreFocus.onCloseAutoFocus(evt);
+            evt.preventDefault();
+            action();
+          }
           if (suppressCloseAutoFocus.current) {
             evt.preventDefault();
             suppressCloseAutoFocus.current = false;
@@ -270,7 +286,7 @@ export const CellActionsContextMenu = ({
                           if (action.disableClick || action.disabled) {
                             return;
                           }
-                          action.handle(evt);
+                          pendingAction.current = () => action.handle(evt);
                         }}
                         variant={action.variant}
                       >

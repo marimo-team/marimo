@@ -1,6 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import copy
 import json
 import os
 import re
@@ -13,22 +14,15 @@ import msgspec
 from marimo import _loggers
 from marimo._config.config import (
     DEFAULT_CONFIG,
-    CompletionConfig,
-    ExperimentalConfigType,
-    ExportType,
-    LanguageServersConfig,
-    MarimoConfig,
     PartialMarimoConfig,
-    RuntimeConfig,
-    SharingConfig,
-    SqlOutputType,
-    Theme,
-    WidthType,
-    merge_config,
+    merge_config_dict,
     merge_default_config,
+    parse_config,
 )
-from marimo._config.config_schema import MarimoConfig as MarimoConfigSchema
-from marimo._config.packages import PackageManagerKind
+from marimo._config.config_schema import (
+    MarimoConfig,
+    SharingConfig,
+)
 from marimo._config.provenance import (
     DEPRECATED_ENV_VARS,
     ConfigLayer,
@@ -57,13 +51,12 @@ from marimo._config.resolver import (
 )
 from marimo._config.schema_utils import config_leaf_types
 from marimo._config.secrets import (
-    redact_secrets,
     redact_secrets_partial,
     remove_secret_placeholders,
 )
 from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._config.utils import (
-    deep_copy,
+    drop_none_values,
     get_or_create_user_config_path,
     get_user_config_path,
     is_trusted_user_config_path,
@@ -74,7 +67,7 @@ LOGGER = _loggers.marimo_logger()
 
 def _validate_config(resolved: ResolvedConfig) -> None:
     try:
-        MarimoConfigSchema.from_dict(cast(dict[str, object], resolved.config))
+        MarimoConfig.from_dict(cast(dict[str, object], resolved.config))
     except (
         msgspec.ValidationError,
         TypeError,
@@ -163,51 +156,18 @@ class MarimoConfigManager:
         return self.get_config()
 
     @property
-    def default_width(self) -> WidthType:
-        return self._config["display"]["default_width"]
-
-    @property
-    def default_auto_download(self) -> list[ExportType]:
-        return self._config["runtime"].get("default_auto_download", [])
-
-    @property
-    def default_sql_output(self) -> SqlOutputType:
-        return self._config["runtime"]["default_sql_output"]
-
-    @property
-    def theme(self) -> Theme:
-        return self._config["display"]["theme"]
-
-    @property
-    def package_manager(self) -> PackageManagerKind:
-        return self._config["package_management"]["manager"]
-
-    @property
-    def completion(self) -> CompletionConfig:
-        return self._config["completion"]
-
-    @property
-    def language_servers(self) -> LanguageServersConfig:
-        if "language_servers" in self._config:
-            return self._config["language_servers"]
-        return {}
-
-    @property
     def is_auto_save_enabled(self) -> bool:
-        return self._config["save"]["autosave"] == "after_delay"
-
-    @property
-    def experimental(self) -> ExperimentalConfigType:
-        if "experimental" in self._config:
-            return self._config["experimental"]
-        return {}
+        return self._config.save.autosave == "after_delay"
 
     def get_user_config(self, *, hide_secrets: bool = True) -> MarimoConfig:
         """Get the user configuration"""
         config = resolve_config(
-            DEFAULT_CONFIG, (self.user_config_mgr.read_layer().config,)
+            DEFAULT_CONFIG.to_dict(),
+            (self.user_config_mgr.read_layer().config,),
         )
-        return redact_secrets(config) if hide_secrets else config
+        return parse_config(
+            redact_secrets_partial(config) if hide_secrets else config
+        )
 
     def get_config_overrides(
         self, *, hide_secrets: bool = True
@@ -241,7 +201,9 @@ class MarimoConfigManager:
 
     def get_config(self, *, hide_secrets: bool = True) -> MarimoConfig:
         """Get the configuration, by merging the user configuration and the configuration overrides"""
-        return self.get_config_with_sources(hide_secrets=hide_secrets).config
+        return parse_config(
+            self.get_config_with_sources(hide_secrets=hide_secrets).config
+        )
 
     def get_config_with_sources(
         self, *, hide_secrets: bool = True
@@ -257,7 +219,7 @@ class MarimoConfigManager:
         ]
         layers.append(
             ConfigLayer(
-                cast(PartialMarimoConfig, DEFAULT_CONFIG),
+                DEFAULT_CONFIG.to_dict(),
                 "default",
             )
         )
@@ -265,9 +227,7 @@ class MarimoConfigManager:
             ConfigLayer(
                 {
                     "package_management": {
-                        "manager": DEFAULT_CONFIG["package_management"][
-                            "manager"
-                        ]
+                        "manager": DEFAULT_CONFIG.package_management.manager
                     }
                 },
                 "inferred",
@@ -284,7 +244,7 @@ class MarimoConfigManager:
         )
         _validate_config(resolved)
         if hide_secrets:
-            resolved.config = redact_secrets(resolved.config)
+            resolved.config = redact_secrets_partial(resolved.config)
         return resolved
 
     def save_config(
@@ -355,7 +315,7 @@ class PyprojectConfigReader(ConfigReader):
         return start_path if start_path.is_dir() else start_path.parent
 
     def read(self) -> PartialMarimoConfig:
-        return cast(PartialMarimoConfig, deep_copy(self._read_config()))
+        return copy.deepcopy(self._read_config())
 
     # Source changes are picked up after a server restart.
     @lru_cache(maxsize=2)  # noqa: B019
@@ -420,7 +380,7 @@ class PyprojectConfigReader(ConfigReader):
     def _resolve_dotenv(
         self, config: PartialMarimoConfig
     ) -> PartialMarimoConfig:
-        runtime = config.get("runtime", cast(RuntimeConfig, {}))
+        runtime = config.get("runtime", {})
         if "dotenv" not in runtime:
             # The manager supplies contextual defaults below explicit settings.
             return config
@@ -502,7 +462,7 @@ class EnvVarReader(ConfigReader):
     ) -> PartialMarimoConfig:
         """Read schema-declared leaves, skipping malformed environment values."""
         config: dict[str, Any] = {}
-        for path, annotation in config_leaf_types(MarimoConfigSchema).items():
+        for path, annotation in config_leaf_types(MarimoConfig).items():
             if paths is not None and path not in paths:
                 continue
             canonical = env_var_name(path)
@@ -554,7 +514,7 @@ class EnvVarReader(ConfigReader):
                     current = current.setdefault(component, {})
                 current[path[-1]] = value
                 # Validate just this override, including legacy MCP normalization.
-                MarimoConfigSchema.from_dict(partial)
+                MarimoConfig.from_dict(partial)
             except (ValueError, TypeError):
                 LOGGER.warning(
                     "Ignoring malformed configuration value from %s. "
@@ -619,7 +579,7 @@ class ScriptConfigReader(ConfigReader):
         return Path(self.filename) if self.filename is not None else "default"
 
     def read(self) -> PartialMarimoConfig:
-        return cast(PartialMarimoConfig, deep_copy(self._read_config()))
+        return copy.deepcopy(self._read_config())
 
     # Source changes are picked up after a server restart.
     @lru_cache(maxsize=2)  # noqa: B019
@@ -705,20 +665,32 @@ class UserConfigStore(ConfigReader):
             ) from e
         LOGGER.info("Saving user configuration to %s", config_path)
         # Remove the secret placeholders from the incoming config
-        config = remove_secret_placeholders(config)
+        config = remove_secret_placeholders(
+            config.to_dict() if isinstance(config, MarimoConfig) else config
+        )
         # Merge the current config with the new config
-        current_config = resolve_config(DEFAULT_CONFIG, (existing_config,))
-        merged = merge_config(current_config, config)
+        current_config = resolve_config(
+            DEFAULT_CONFIG.to_dict(), (existing_config,)
+        )
+        # Reject invalid edits without rejecting unrelated invalid disk values.
+        candidate = merge_config_dict(
+            parse_config(current_config).to_dict(), copy.deepcopy(config)
+        )
+        drop_none_values(candidate)
+        validated_config = merge_default_config(candidate)
+
+        merged = merge_config_dict(current_config, config)
         # None-as-delete: any key whose merged value is None (typically because
         # the incoming config explicitly sent null) is removed from disk. Lets
         # the UI clear optional scalars (e.g. ai.max_tokens) without a separate
         # delete primitive.
-        _drop_none_values(cast(dict[str, Any], merged))
+        drop_none_values(merged)
+        serialized = tomlkit.dumps(merged, sort_keys=True)
 
         with open(config_path, "w", encoding="utf-8") as f:
-            tomlkit.dump(merged, f, sort_keys=True)
+            f.write(serialized)
 
-        return merge_default_config(merged)
+        return validated_config
 
     def save_config_if_missing(self) -> None:
         try:
@@ -740,7 +712,7 @@ class UserConfigStore(ConfigReader):
 
         try:
             return cast(
-                PartialMarimoConfig, deep_copy(self._load_config(path))
+                PartialMarimoConfig, copy.deepcopy(self._load_config(path))
             )
         except Exception as e:
             LOGGER.error(
@@ -778,10 +750,10 @@ class OverrideConfigReader(ConfigReader):
     """Read the configuration, with overrides"""
 
     def __init__(self, override_config: PartialMarimoConfig) -> None:
-        self.override_config = deep_copy(override_config)
+        self.override_config = copy.deepcopy(override_config)
 
     def read(self) -> PartialMarimoConfig:
-        return cast(PartialMarimoConfig, deep_copy(self.override_config))
+        return copy.deepcopy(self.override_config)
 
 
 def _contextual_defaults(reader: ConfigReader) -> PartialMarimoConfig:
@@ -810,13 +782,3 @@ def _is_home_directory(path: Path) -> bool:
     if home == "~":
         return False
     return os.path.realpath(path) == os.path.realpath(home)
-
-
-def _drop_none_values(d: dict[str, Any]) -> None:
-    """Recursively remove keys whose value is None, in place."""
-    for key in list(d):
-        v = d[key]
-        if v is None:
-            del d[key]
-        elif isinstance(v, dict):
-            _drop_none_values(v)

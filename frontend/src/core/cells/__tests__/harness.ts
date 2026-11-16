@@ -1,5 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
+import { defaultUserConfig } from "@/core/config/config-schema";
+
 /** A store whose notebook follows a document model, as the session wires it. */
 
 import { history } from "@codemirror/commands";
@@ -68,14 +70,14 @@ export function setupNotebook(
             adaptiveLanguageConfiguration({
               cellId: id as CellId,
               completionConfig: {
+                ...defaultUserConfig().completion,
                 activate_on_typing: true,
                 signature_hint_on_typing: false,
                 copilot: false,
-                codeium_api_key: null,
               },
               hotkeys: new OverridingHotkeyProvider({}),
               placeholderType: "marimo-import",
-              lspConfig: {},
+              lspConfig: { ...defaultUserConfig().language_servers },
             }),
           ],
         }),

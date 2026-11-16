@@ -10,7 +10,6 @@ import {
   cellExecutionInputsAtom,
   cellExecutionView,
   cellFreshnessAtom,
-  withdrawCells,
 } from "@/core/executions";
 import type { CellColumnId } from "./layout";
 import { invariant } from "@/utils/invariant";
@@ -24,7 +23,6 @@ import type { SerializedEditorState } from "../codemirror/types";
 import { mergeOutlines } from "../dom/outline";
 import type { CellMessage } from "../kernel/messages";
 import { isErrorMime } from "../mime";
-import type { CellConfig } from "../network/types";
 import { createDeepEqualAtom, store } from "../state/jotai";
 import { isWasm } from "../wasm/utils";
 import { transitionCell } from "./cell";
@@ -219,13 +217,13 @@ const {
           data: stdinOutput.data,
           timestamp: stdinOutput.timestamp,
           id: stdinOutput.id,
+          input_id: stdinOutput.input_id,
           // An empty response resolves the prompt without retaining the secret.
           response: stdinOutput.mimetype === "text/password" ? "" : response,
         };
 
         return {
           ...cell,
-          interrupted: false,
           consoleOutputs,
         };
       },
@@ -357,14 +355,6 @@ function updateCellRuntimeState({
       [cellId]: cellReducer(state.cellRuntime[cellId]),
     },
   };
-}
-
-/** Each cell's config in order. The document's `column` configs are canonical. */
-export function getCellConfigs(state: NotebookState): CellConfig[] {
-  return state.cellIds.map((cellId) => ({
-    ...state.cellData[cellId].config,
-    column: state.cellData[cellId].config.column ?? null,
-  }));
 }
 
 export {
@@ -560,7 +550,6 @@ export function releaseCellAtoms(cellId: CellId) {
   cellDataAtom.remove(cellId);
   cellRuntimeAtom.remove(cellId);
   cellHandleAtom.remove(cellId);
-  withdrawCells(store, [cellId]);
 }
 
 /** Subscribes to reactive updates of the cell's data. */

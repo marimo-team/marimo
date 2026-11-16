@@ -5,7 +5,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any, Literal, TypeVar
 
-from marimo._config.config import CopilotMode
+from marimo._config.types import CopilotMode
 
 # Type aliases for tool system
 FunctionArgs = dict[str, Any]

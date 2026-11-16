@@ -184,6 +184,90 @@ function cellRecord(cellId: CellId, cell: NotebookCell): Protocol.Cell {
   };
 }
 
+/** The output a cell shows, preferring data to an error. */
+function primaryOutputOf(sessionCell: SessionCell | null | undefined) {
+  const outputs = sessionCell?.outputs ?? [];
+  return (
+    outputs.find((output) => output.type === "data") ??
+    outputs.find((output) => output.type === "error") ??
+    outputs[0]
+  );
+}
+
+function normalizeTraceback(lines: readonly string[]): string | null {
+  if (lines.length === 0) {
+    return null;
+  }
+  return lines
+    .map((line, index) =>
+      index < lines.length - 1 && !line.endsWith("\n") ? `${line}\n` : line,
+    )
+    .join("");
+}
+
+/**
+ * The cell's last result as a host would report it.
+ *
+ * A completed execution of the snapshot's own source, so it reads as
+ * current, with no runtime behind it.
+ */
+function resultRecord(
+  cell: Protocol.Cell,
+  sessionCell: SessionCell | null | undefined,
+): Protocol.Execution | null {
+  const primary = primaryOutputOf(sessionCell);
+  let outcome: Protocol.Outcome;
+  if (primary === undefined) {
+    return null;
+  } else if (primary.type === "error") {
+    const traceback = normalizeTraceback(primary.traceback);
+    outcome = {
+      kind: "error",
+      error: {
+        kind: "exception",
+        name: primary.ename,
+        message: primary.evalue,
+        source: "marimo",
+        severity: "error",
+        range: null,
+        traceback:
+          traceback === null
+            ? null
+            : { mimetype: "text/plain", data: traceback },
+        related: [],
+      },
+    };
+  } else if (primary.type === "data") {
+    const [mimetype, data] = Object.entries(primary.data)[0] ?? [];
+    outcome = {
+      kind: "value",
+      display:
+        mimetype === undefined
+          ? null
+          : {
+              mimetype,
+              data: typeof data === "string" ? data : JSON.stringify(data),
+            },
+    };
+  } else {
+    return null;
+  }
+  return {
+    id: `${EMBEDDED}:${cell.id}:result`,
+    run_id: `${EMBEDDED}:run`,
+    runtime_id: EMBEDDED,
+    caused_by: null,
+    cell_id: cell.id,
+    code: null,
+    code_fingerprint: cell.code_fingerprint,
+    depends_on: {},
+    status: "completed",
+    outcome,
+    started_at: null,
+    completed_at: null,
+  };
+}
+
 function createCellRuntimeFromSession(
   sessionCell: SessionCell | null | undefined,
 ): CellRuntimeState {
@@ -193,12 +277,7 @@ function createCellRuntimeFromSession(
     return runtimeState;
   }
 
-  // Handle outputs - prioritize by type and use first available
-  const outputs = sessionCell.outputs || [];
-  const primaryOutput =
-    outputs.find((output) => output.type === "data") ||
-    outputs.find((output) => output.type === "error") ||
-    outputs[0];
+  const primaryOutput = primaryOutputOf(sessionCell);
 
   if (primaryOutput) {
     if (primaryOutput.type === "error") {
@@ -210,16 +289,7 @@ function createCellRuntimeFromSession(
             exception_type: primaryOutput.ename,
             msg: primaryOutput.evalue,
             raising_cell: null,
-            traceback:
-              primaryOutput.traceback.length === 0
-                ? null
-                : primaryOutput.traceback
-                    .map((line, index, lines) =>
-                      index < lines.length - 1 && !line.endsWith("\n")
-                        ? `${line}\n`
-                        : line,
-                    )
-                    .join(""),
+            traceback: normalizeTraceback(primaryOutput.traceback),
           },
         ],
         mimetype: "application/vnd.marimo+error",
@@ -306,14 +376,18 @@ export function readExport({
   }
 
   const cells: Protocol.Cell[] = [];
+  const results: Protocol.Execution[] = [];
   const cellRuntime: Record<CellId, CellRuntimeState> = {};
   for (const cellId of cellIds) {
-    cells.push(
-      cellRecord(
-        cellId,
-        notebookCellData.get(cellId) ?? createEmptyNotebookCell(),
-      ),
+    const cell = cellRecord(
+      cellId,
+      notebookCellData.get(cellId) ?? createEmptyNotebookCell(),
     );
+    cells.push(cell);
+    const result = resultRecord(cell, sessionCellData.get(cellId));
+    if (result !== null) {
+      results.push(result);
+    }
     cellRuntime[cellId] = createCellRuntimeFromSession(
       sessionCellData.get(cellId),
     );
@@ -339,6 +413,7 @@ export function readExport({
         version: 1,
       },
       cells,
+      results,
     },
     cellRuntime,
   };

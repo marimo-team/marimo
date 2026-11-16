@@ -6,7 +6,8 @@ import json
 import pytest
 
 from marimo._ast.app_config import _AppConfig
-from marimo._config.config import MarimoConfig, PartialMarimoConfig
+from marimo._config.config import PartialMarimoConfig
+from marimo._config.config_schema import MarimoConfig
 from marimo._server.tokens import SkewProtectionToken
 from marimo._templates import (
     MOUNT_CONFIG_TEMPLATE,

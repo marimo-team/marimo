@@ -2,7 +2,7 @@
 
 import glideCss from "@glideapps/glide-data-grid/dist/index.css?inline";
 import glideCellsCss from "@glideapps/glide-data-grid-cells/dist/index.css?inline";
-import React, { useEffect, useState } from "react";
+import React, { useMemo } from "react";
 import { z } from "zod";
 import { inferFieldTypes } from "@/components/data-table/columns";
 import { LoadingTable } from "@/components/data-table/loading-table";
@@ -90,15 +90,23 @@ interface Props {
 }
 
 const LoadingDataEditor = (props: Props) => {
-  const [editorState, setEditorState] = useState<EditorState | null>(null);
+  const source = useMemo(
+    () => ({
+      data: props.data,
+      fieldTypes: props.fieldTypes,
+      columnNames: props.columnNames,
+      columnTypes: props.columnTypes,
+    }),
+    [props.data, props.fieldTypes, props.columnNames, props.columnTypes],
+  );
 
   const { data: loadedState, error } = useAsyncData(async () => {
-    const withoutExternalTypes = toFieldTypes(props.fieldTypes ?? []);
+    const withoutExternalTypes = toFieldTypes(source.fieldTypes ?? []);
 
-    const localData = Array.isArray(props.data)
-      ? props.data
+    const localData = Array.isArray(source.data)
+      ? source.data
       : await vegaLoadData<EditorRow>(
-          props.data,
+          source.data,
           {
             type: "csv",
             parse: getVegaFieldTypes(Object.fromEntries(withoutExternalTypes)),
@@ -106,9 +114,9 @@ const LoadingDataEditor = (props: Props) => {
           { handleBigIntAndNumberLike: true },
         );
 
-    const columnTypes = new Map(Object.entries(props.columnTypes));
+    const columnTypes = new Map(Object.entries(source.columnTypes));
     const inferredFields = toFieldTypes(
-      props.fieldTypes ?? inferFieldTypes(localData),
+      source.fieldTypes ?? inferFieldTypes(localData),
     );
     for (const [columnName, columnType] of columnTypes) {
       inferredFields.set(
@@ -118,17 +126,23 @@ const LoadingDataEditor = (props: Props) => {
     }
 
     return {
-      data: normalizeConfiguredColumns(localData, columnTypes),
-      columnFields: orderColumnFields(inferredFields, props.columnNames),
-      columnTypes,
-    } satisfies EditorState;
-  }, [props.fieldTypes, props.columnNames, props.columnTypes, props.data]);
+      source,
+      state: {
+        data: normalizeConfiguredColumns(localData, columnTypes),
+        columnFields: orderColumnFields(inferredFields, source.columnNames),
+        columnTypes,
+      } satisfies EditorState,
+    };
+  }, [source]);
 
-  useEffect(() => {
-    if (loadedState !== undefined) {
-      setEditorState(applyEditorEdits(loadedState, props.edits.edits));
-    }
-  }, [loadedState, props.edits.edits]);
+  // useAsyncData retains previous data while a replacement source loads.
+  const editorState = useMemo(
+    () =>
+      loadedState?.source === source
+        ? applyEditorEdits(loadedState.state, props.edits.edits)
+        : null,
+    [loadedState, source, props.edits.edits],
+  );
 
   if (error) {
     return (
@@ -156,9 +170,6 @@ const LoadingDataEditor = (props: Props) => {
       columnTypes={editorState.columnTypes}
       editableColumns={props.editableColumns}
       onAddEdits={(edits) => {
-        setEditorState((state) =>
-          state === null ? null : applyEditorEdits(state, edits),
-        );
         props.onEdits((v) => ({ ...v, edits: [...v.edits, ...edits] }));
       }}
     />

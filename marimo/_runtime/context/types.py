@@ -25,7 +25,7 @@ if TYPE_CHECKING:
         AppKernelRunnerRegistry,
         InternalApp,
     )
-    from marimo._config.config import MarimoConfig
+    from marimo._config.config_schema import MarimoConfig
     from marimo._config.provenance import ConfigPath
     from marimo._messaging.types import Stderr, Stdout, Stream
     from marimo._plugins.ui._core.registry import UIElementRegistry

@@ -1,4 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
+
+import { defaultUserConfig } from "@/core/config/config-schema";
 import { render } from "@testing-library/react";
 import { createStore, Provider } from "jotai";
 import { beforeAll, describe, expect, it } from "vitest";
@@ -46,7 +48,9 @@ describe("Cell data attributes", () => {
       const cellName = "test_cell";
 
       const userConfig: UserConfig = {
+        ...defaultUserConfig(),
         display: {
+          ...defaultUserConfig().display,
           cell_output: "below",
           code_editor_font_size: 14,
           dataframes: "rich",
@@ -56,8 +60,9 @@ describe("Cell data attributes", () => {
           theme: "light",
           reference_highlighting: false,
         },
-        keymap: { preset: "default" },
+        keymap: { ...defaultUserConfig().keymap, preset: "default" },
         completion: {
+          ...defaultUserConfig().completion,
           activate_on_typing: true,
           signature_hint_on_typing: false,
           copilot: false,
@@ -65,6 +70,7 @@ describe("Cell data attributes", () => {
         formatting: { line_length: 88, infer_types: "off" },
         package_management: { manager: "pip" },
         runtime: {
+          ...defaultUserConfig().runtime,
           auto_instantiate: false,
           default_sql_output: "native",
           auto_reload: "off",
@@ -77,6 +83,7 @@ describe("Cell data attributes", () => {
           dotenv: [".env"],
         },
         server: {
+          ...defaultUserConfig().server,
           browser: "default",
           follow_symlink: false,
         },
@@ -85,8 +92,8 @@ describe("Cell data attributes", () => {
           autosave_delay: 1000,
           format_on_save: false,
         },
-        ai: {},
-      } as UserConfig;
+        ai: defaultUserConfig().ai,
+      };
 
       const notebook = MockNotebook.notebookState({
         cellData: {

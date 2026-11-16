@@ -26,6 +26,22 @@ class Write(msgspec.Struct, tag="write"):
     payloads: list[Payload]
 
 
+def test_component_descriptions_are_independent_of_python_docstring_dedenting() -> (
+    None
+):
+    class Described(msgspec.Struct):
+        pass
+
+    Described.__doc__ = (
+        "Summary.\n\n    Details:\n        An indented example.\n    "
+    )
+    schemas = _generate_schema_components([], {"Described": Described})
+
+    assert schemas["Described"]["description"] == (
+        "Summary.\n\nDetails:\n    An indented example."
+    )
+
+
 def test_named_union_preserves_discriminator_and_transitive_brands() -> None:
     schemas = _generate_schema_components([], {"Action": Read | Write})
 
@@ -145,3 +161,38 @@ def test_openapi_known_unions_reference_named_exports() -> None:
         },
         "required": ["notification", "command", "error", "data_type"],
     }
+
+
+def test_config_schema_describes_resolved_settings_without_internal_tags() -> (
+    None
+):
+    import json
+
+    schemas = generate_server_api_schema()["components"]["schemas"]
+    assert schemas["MarimoConfig"]["required"] == [
+        "completion",
+        "display",
+        "formatting",
+        "keymap",
+        "runtime",
+        "save",
+        "server",
+        "package_management",
+        "ai",
+        "language_servers",
+        "diagnostics",
+        "lint",
+        "experimental",
+        "snippets",
+        "datasources",
+        "file_browser",
+        "sharing",
+        "mcp",
+        "venv",
+        "cache",
+        "signing",
+    ]
+    assert schemas["ExperimentalConfig"]["additionalProperties"] is True
+    assert schemas["MCPServerStdioConfig"]["required"] == ["command"]
+    assert schemas["MCPServerStreamableHttpConfig"]["required"] == ["url"]
+    assert "__marimo_transport__" not in json.dumps(schemas)

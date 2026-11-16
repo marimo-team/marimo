@@ -1,6 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import type { Result } from "@marimo-team/client";
+import type { ResultOf } from "@marimo-team/client";
 import type * as Protocol from "@marimo-team/client/protocol";
 import { atom, type createStore } from "jotai/vanilla";
 import { vi } from "vitest";
@@ -41,8 +41,8 @@ export function createTestNotebook(
       "The test host answers edits that carry a key and a signal",
     );
     signal.throwIfAborted();
-    const reply = new Deferred<Result<Protocol.EditResponseOutput>>();
-    let outcome: Result<Protocol.EditResponseOutput> | undefined;
+    const reply = new Deferred<ResultOf<"notebook.edit">>();
+    let outcome: ResultOf<"notebook.edit"> | undefined;
     const abort = () => reply.reject(signal.reason);
     const finish = () => signal.removeEventListener("abort", abort);
     signal.addEventListener("abort", abort, { once: true });
@@ -112,8 +112,9 @@ export function createTestNotebook(
             kind: "put_cell",
             base_etag: cell.etag,
             cell: {
-              ...cell,
+              id,
               code: cell.code,
+              name: cell.name,
               ...patch,
               config: { ...cell.config, ...patch.config },
             },

@@ -7,6 +7,7 @@ from typing import Any, cast
 
 from marimo import _loggers
 from marimo._config.config import PartialMarimoConfig
+from marimo._config.deprecations import warn_deprecated_fields
 from marimo._config.provenance import ConfigLayer, ConfigSource
 from marimo._utils.toml import toml_reader
 
@@ -30,7 +31,9 @@ class ConfigReader(ABC):
 
     def read_layer(self) -> ConfigLayer:
         """Read sparse settings and their sources, without validating inherited fields."""
-        return ConfigLayer(self.read(), self.source)
+        layer = ConfigLayer(self.read(), self.source)
+        warn_deprecated_fields(layer)
+        return layer
 
 
 def read_marimo_config(path: str) -> PartialMarimoConfig:

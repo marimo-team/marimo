@@ -48,6 +48,7 @@ import { Badge } from "../ui/badge";
 import { ExternalLink } from "../ui/links";
 import { Tooltip } from "../ui/tooltip";
 import { AiConfig } from "./ai-config";
+import { pendingConfigSavesAtom } from "./state";
 import { formItemClasses, SettingGroup } from "./common";
 import { DataForm } from "./data-form";
 import { applyManualInjections, getDirtyValues } from "./get-dirty-values";
@@ -127,6 +128,7 @@ export const UserConfigForm: React.FC = () => {
   const marimoVersion = useAtomValue(marimoVersionAtom);
   const { locale } = useLocale();
   const { saveUserConfig } = useRequestClient();
+  const setPendingConfigSaves = useSetAtom(pendingConfigSavesAtom);
 
   // Create form
   const form = useForm({
@@ -184,7 +186,16 @@ export const UserConfigForm: React.FC = () => {
     // overwriting newer config changes.
     setConfig((prev) => mergeConfig(prev, dirtyValues));
   };
-  const onSubmit = useDebouncedCallback(onSubmitNotDebounced, FORM_DEBOUNCE);
+  const onSubmit = useDebouncedCallback((values: UserConfig) => {
+    const save = onSubmitNotDebounced(values);
+
+    setPendingConfigSaves((count) => count + 1);
+    void save
+      .finally(() => {
+        setPendingConfigSaves((count) => Math.max(0, count - 1));
+      })
+      .catch(() => undefined);
+  }, FORM_DEBOUNCE);
 
   const isWasmRuntime = isWasm();
   const getOverride = useConfigOverride();

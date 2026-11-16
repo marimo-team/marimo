@@ -56,7 +56,7 @@ async def test_matplotlib_rc_ignores_dark_theme(
     plt.rcParams["font.family"] = ["monospace"]
 
     user_config = copy.deepcopy(DEFAULT_CONFIG)
-    user_config["display"]["theme"] = "dark"
+    user_config.display.theme = "dark"
 
     with mocked_kernel_session(user_config=user_config) as tk:
         register_formatters()

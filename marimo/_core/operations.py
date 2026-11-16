@@ -7,7 +7,7 @@ import asyncio
 import hashlib
 from dataclasses import dataclass
 from time import monotonic
-from typing import TYPE_CHECKING, Protocol
+from typing import TYPE_CHECKING, Literal, Protocol, assert_never
 
 import msgspec
 
@@ -15,12 +15,12 @@ from marimo._core import protocol
 from marimo._core.errors import (
     Conflict,
     DecisionRequired,
-    EditConflict,
     Forbidden,
     HostError,
     Invalid,
     NoRuntime,
     NotFound,
+    PreconditionFailed,
     Unsupported,
 )
 from marimo._core.host import Host
@@ -55,36 +55,42 @@ class NotebookBridge(Protocol):
     ) -> protocol.EditResponse: ...
 
 
-_TITLES = {
-    "invalid-request": "Invalid request",
-    "unauthorized": "Unauthorized",
-    "forbidden": "Forbidden",
-    "not-found": "Not found",
-    "method-not-allowed": "Method not allowed",
-    "conflict": "Conflict",
-    "no-runtime": "No runtime",
-    "decision-required": "Decision required",
-    "unsupported-operation": "Unsupported operation",
-    "internal": "Internal error",
-}
+PlainKind = Literal[
+    "invalid-request",
+    "unauthorized",
+    "forbidden",
+    "not-found",
+    "method-not-allowed",
+    "conflict",
+    "no-runtime",
+    "unsupported-operation",
+    "internal",
+]
+"""The problems that carry no members beyond the standard ones."""
 
 
-def problem(
-    status: int,
-    kind: str,
-    detail: str | None = None,
-    *,
-    edit: protocol.EditConflict | None = None,
-    decisions: tuple[protocol.Decision, ...] | None = None,
-) -> protocol.Problem:
-    return protocol.Problem(
-        type="tag:marimo.io,2026:host/" + kind,
-        title=_TITLES[kind],
-        status=status,
-        detail=msgspec.UNSET if detail is None else detail,
-        edit=msgspec.UNSET if edit is None else edit,
-        decisions=msgspec.UNSET if decisions is None else decisions,
-    )
+def problem(kind: PlainKind, detail: str | None = None) -> protocol.Problem:
+    text = msgspec.UNSET if detail is None else detail
+    match kind:
+        case "invalid-request":
+            return protocol.InvalidRequestProblem(detail=text)
+        case "unauthorized":
+            return protocol.UnauthorizedProblem(detail=text)
+        case "forbidden":
+            return protocol.ForbiddenProblem(detail=text)
+        case "not-found":
+            return protocol.NotFoundProblem(detail=text)
+        case "method-not-allowed":
+            return protocol.MethodNotAllowedProblem(detail=text)
+        case "conflict":
+            return protocol.ConflictProblem(detail=text)
+        case "no-runtime":
+            return protocol.NoRuntimeProblem(detail=text)
+        case "unsupported-operation":
+            return protocol.UnsupportedOperationProblem(detail=text)
+        case "internal":
+            return protocol.InternalProblem(detail=text)
+    assert_never(kind)
 
 
 def problem_for(error: HostError) -> protocol.Problem:
@@ -92,33 +98,30 @@ def problem_for(error: HostError) -> protocol.Problem:
     detail = str(error)
     match error:
         case NoRuntime():
-            return problem(409, "no-runtime", detail)
+            return problem("no-runtime", detail)
         case DecisionRequired():
-            return problem(
-                409, "decision-required", detail, decisions=error.decisions
+            return protocol.DecisionRequiredProblem(
+                detail=detail,
+                decisions=error.decisions,
             )
-        case EditConflict():
-            return problem(
-                409,
-                "conflict",
-                detail,
-                edit=protocol.EditConflict(
-                    change=error.change,
-                    cell=error.cell,
-                    document=error.document,
-                ),
+        case PreconditionFailed():
+            return protocol.PreconditionFailedProblem(
+                detail=detail,
+                index=error.index,
+                cell=error.cell,
+                document=error.document,
             )
         case Conflict():
-            return problem(409, "conflict", detail)
+            return problem("conflict", detail)
         case Invalid():
-            return problem(400, "invalid-request", detail)
+            return problem("invalid-request", detail)
         case NotFound():
-            return problem(404, "not-found", detail)
+            return problem("not-found", detail)
         case Forbidden():
-            return problem(403, "forbidden", detail)
+            return problem("forbidden", detail)
         case Unsupported():
-            return problem(501, "unsupported-operation", detail)
-    return problem(500, "internal", "The host failed")
+            return problem("unsupported-operation", detail)
+    return problem("internal", "The host failed")
 
 
 @dataclass
@@ -182,14 +185,18 @@ class Mutations:
         call: Callable[[], Awaitable[Reply]],
     ) -> Reply:
         """Run `call` once per idempotency key, and answer retries with its reply."""
-        capability = (
-            "runtime.run" if operation == "runtime.interrupt" else operation
+        capabilities = (
+            {"runtime.run", "runtime.execute"}
+            if operation in {"runtime.interrupt", "runtime.cancel"}
+            else {operation}
         )
-        if capability not in self.host.operations:
-            raise Unsupported(f"This host does not offer {capability}")
+        if not capabilities.intersection(self.host.operations):
+            raise Unsupported(f"This host does not offer {operation}")
         record = self.host.notebooks.get(notebook_id) if notebook_id else None
-        if record is not None and capability not in record.operations:
-            raise Forbidden(f"This notebook does not allow {capability}")
+        if record is not None and not capabilities.intersection(
+            record.operations
+        ):
+            raise Forbidden(f"This notebook does not allow {operation}")
         if not key:
             raise Invalid("Idempotency-Key is required")
         fingerprint = hashlib.sha256(
@@ -210,7 +217,7 @@ class Mutations:
         self.replies[key] = mutation
         unsubscribe: Callable[[], None] | None = None
         lifecycle_accepted: Callable[[Reply], None] | None = None
-        if operation == "runtime.run":
+        if operation in {"runtime.run", "runtime.execute"}:
             # Retain the latest run without retaining its output payloads.
             def updated(event: RoutedEvent) -> None:
                 if isinstance(event.event, protocol.RunEvent):

@@ -1,9 +1,5 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import type {
-  ArgmaxDef,
-  ArgminDef,
-} from "vega-lite/types_unstable/aggregate.d.ts";
 import type { isAggregateOp as isAggregateOpVega } from "vega-lite/types_unstable/aggregate.js";
 import type { AggregateOp } from "vega-typings";
 
@@ -56,7 +52,7 @@ type SupportedAggregateOp = (typeof SUPPORTED_AGGREGATE_OPS)[number];
 // We implement our own isAggregateOp because
 // The vega-lite types_unstable import path fails in Vite (module resolution issue)
 export const isAggregateOp: typeof isAggregateOpVega = (
-  a: string | ArgminDef | ArgmaxDef,
+  a: Parameters<typeof isAggregateOpVega>[0],
 ): a is AggregateOp => {
   if (typeof a !== "string") {
     return false;

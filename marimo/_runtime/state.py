@@ -42,8 +42,6 @@ class StateRegistry:
         # State registry is pruned based on the variable definitions in scope.
         self._states: dict[str, StateItem[Any]] = {}
         # id -> variable name for state
-        # NB. python reuses IDs, but an active pruning of the registry should
-        # help protect against this.
         self._inv_states: dict[Id, set[str]] = {}
 
     def register(
@@ -56,20 +54,10 @@ class StateRegistry:
             name = str(uuid4())
         name = contextualize_name(name, context)
 
-        if id(state) in self._inv_states:
-            ref = next(iter(self._inv_states[id(state)]))
-            # Check for duplicate state ids and clean up accordingly
-            if ref not in self._states or id(self._states[ref].ref()) != id(
-                state
-            ):
-                for ref in self._inv_states[id(state)]:
-                    self._states.pop(ref, None)
-                self._inv_states[id(state)].clear()
+        self.delete(name)
         state_item = StateItem(id(state), weakref.ref(state))
         self._states[name] = state_item
-        id_to_ref = self._inv_states.get(id(state), set())
-        id_to_ref.add(name)
-        self._inv_states[id(state)] = id_to_ref
+        self._inv_states.setdefault(state_item.id, set()).add(name)
         finalizer = weakref.finalize(state, self._delete, name, state_item)
         # No need to clean up the registry at program teardown
         finalizer.atexit = False
@@ -87,7 +75,14 @@ class StateRegistry:
                 self.register(lookup, variable)
 
     def _delete(self, name: str, state_item: StateItem[T]) -> None:
-        return self.delete(name, state_item.ref())
+        if self._states.get(name) is not state_item:
+            return
+        del self._states[name]
+        names = self._inv_states.get(state_item.id)
+        if names is not None:
+            names.discard(name)
+            if not names:
+                del self._inv_states[state_item.id]
 
     def delete(
         self,
@@ -96,35 +91,17 @@ class StateRegistry:
         context: str | None = None,
     ) -> None:
         name = contextualize_name(name, context)
-        saved_state = self._states.pop(name, None)
-        state_id = id(state)
-        if saved_state and state_id != saved_state.id:
-            self.delete(name, saved_state.ref())
-
-        if state and name in self._inv_states.get(state_id, set()):
-            del self._inv_states[state_id]
+        saved_state = self._states.get(name)
+        if saved_state is not None and (
+            state is None or saved_state.ref() is state
+        ):
+            self._delete(name, saved_state)
 
     def retain_active_states(self, active_variables: set[str]) -> None:
         """Retains only the active states in the registry."""
-        # Remove all non-active states by name
-        active_state_ids = set()
         for state_key in list(self._states.keys()):
             if extract_name(state_key) not in active_variables:
-                id_key = id(self._states[state_key])
-                lookup = self._inv_states.get(id_key, None)
-                if lookup is not None:
-                    if state_key in lookup:
-                        lookup.remove(state_key)
-                    if not lookup:
-                        del self._inv_states[id_key]
-                del self._states[state_key]
-            else:
-                active_state_ids.add(id(self._states[state_key]))
-
-        # Remove all non-active states by id
-        for state_id in list(self._inv_states.keys()):
-            if state_id not in active_state_ids:
-                del self._inv_states[state_id]
+                self.delete(state_key)
 
     def lookup(self, name: str, context: str | None = None) -> State[T] | None:
         name = contextualize_name(name, context)

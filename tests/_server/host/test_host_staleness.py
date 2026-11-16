@@ -26,7 +26,7 @@ if TYPE_CHECKING:
 
     from starlette.applications import Starlette
 
-    from marimo._config.config import OnCellChangeType
+    from marimo._config.types import OnCellChangeType
     from marimo._core.protocol import RunOutcome
     from marimo._core.stream import RoutedEvent
     from tests._server.host.drive import Response
@@ -68,7 +68,8 @@ class Client:
         accepted = await finished(
             self.app,
             "POST",
-            f"/notebooks/{self.notebook_id}/runtime/runs",
+            f"/notebooks/{self.notebook_id}/runtime/"
+            + ("execute" if code is not None else "runs"),
             headers=key(f"run-{next(self._keys)}"),
             body=json.dumps(body).encode(),
         )
