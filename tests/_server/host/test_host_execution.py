@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from marimo._core.code import code_fingerprint
+from marimo._ast.fingerprint import code_fingerprint
 from marimo._session.notebook import AppFileManager
 from marimo._session.requests import InstantiateNotebookRequest
 from tests._server.host.drive import finished, wait_for

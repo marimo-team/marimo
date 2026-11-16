@@ -9,8 +9,8 @@ from typing import TYPE_CHECKING
 import msgspec
 import pytest
 
+from marimo._ast.fingerprint import code_fingerprint
 from marimo._core import backend as be, protocol, protocol_events
-from marimo._core.code import code_fingerprint
 from marimo._core.document import Document, DocumentCell
 from marimo._core.executions import CellExecution, Executions
 from marimo._core.host import Host

@@ -8,6 +8,7 @@ import pytest
 from dirty_equals import IsStr
 from inline_snapshot import snapshot
 
+from marimo._ast.fingerprint import code_fingerprint
 from marimo._core import backend as be, protocol
 from marimo._core.backend import (
     Completed,
@@ -18,7 +19,6 @@ from marimo._core.backend import (
     Produced,
     Started,
 )
-from marimo._core.code import code_fingerprint
 from marimo._core.document import Document, DocumentCell
 from marimo._core.protocol import (
     CellId,

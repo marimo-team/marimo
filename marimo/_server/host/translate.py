@@ -9,8 +9,8 @@ import re
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
+from marimo._ast.fingerprint import code_fingerprint
 from marimo._core import backend as be, protocol
-from marimo._core.code import code_fingerprint
 from marimo._messaging.cell_output import CellChannel
 from marimo._messaging.errors import (
     ANCESTOR_RAISED,

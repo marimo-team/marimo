@@ -7,7 +7,9 @@ containers, arbitrary picklable objects) into canonical byte sequences.
 
 from __future__ import annotations
 
+import dataclasses
 import hashlib
+import inspect
 import io
 import itertools
 import numbers
@@ -50,6 +52,10 @@ def type_sign(value: bytes | memoryview, label: str) -> bytes:
 
 
 _LENGTH = struct.Struct("!Q")
+
+# The default protocol is 4 through 3.13 and 5 from 3.14. The stream records
+# it, so without a pin every key would change on that upgrade.
+_PICKLE_PROTOCOL = 4
 
 
 def iterable_sign(value: Iterable[Any], label: str) -> bytes:
@@ -235,14 +241,104 @@ def attempt_signed_bytes(value: bytes, label: str) -> bytes:
         return value
 
 
-def deterministic_dumps(obj: Any, hash_type: str) -> bytes:
+@dataclasses.dataclass
+class HashState:
+    """State shared by every pickler of one key computation."""
+
+    # By id, with the object kept alive beside its entry: a temporary from
+    # `__getstate__` can be freed and its id reused within one computation.
+    #
+    # A function's fingerprint, or None while it is being computed, so a
+    # closure over itself terminates and a revisit contributes the same bytes.
+    functions: dict[int, tuple[Any, bytes | None]] = dataclasses.field(
+        default_factory=dict
+    )
+    # Ordering key of a set member, computed once per key computation. A
+    # digest, so members sharing a large payload do not each retain a copy.
+    member_keys: dict[int, tuple[Any, bytes]] = dataclasses.field(
+        default_factory=dict
+    )
+    # Sets whose members are being ordered right now.
+    ordering: set[int] = dataclasses.field(default_factory=set)
+
+
+def deterministic_dumps(
+    obj: Any, hash_type: str, _seen: HashState | None = None
+) -> bytes:
     """`pickle.dumps` replacement that produces more deterministic bytes."""
+    from marimo._save.hash import cell_bindings, hash_wrapped_functions
     from marimo._save.stubs import maybe_get_custom_stub
 
+    state = HashState() if _seen is None else _seen
+
     class _ContentHashPickler(pickle.Pickler):
+        # Sets already encoded by this pickler, so a second reference to the
+        # same set is an alias and not a copy, as pickle's memo would record.
+        # The set is kept alive beside its index.
+        _sets: dict[int, tuple[Any, int]]
+
+        def persistent_id(self, obj: Any) -> Any:
+            # The pickler never asks `reducer_override` about a set, but it
+            # asks `persistent_id` about everything. Iteration order of a set
+            # follows hash randomization, so stand in an id that orders the
+            # members by their own encoding. The members themselves still go
+            # through this pickler, so aliases with the surrounding value
+            # survive. The output is hashed, never loaded, so the id need not
+            # resolve.
+            if type(obj) not in (set, frozenset):
+                return None
+            if id(obj) in state.ordering:
+                # Reached again while ordering its own members.
+                return ("set-cycle",)
+            sets = self.__dict__.setdefault("_sets", {})
+            if id(obj) in sets:
+                return ("set-alias", sets[id(obj)][1])
+            index = len(sets)
+            sets[id(obj)] = (obj, index)
+            state.ordering.add(id(obj))
+            try:
+                for item in obj:
+                    if id(item) not in state.member_keys:
+                        state.member_keys[id(item)] = (
+                            item,
+                            hashlib.sha256(
+                                deterministic_dumps(
+                                    item, hash_type, _seen=state
+                                )
+                            ).digest(),
+                        )
+            finally:
+                state.ordering.discard(id(obj))
+            members = sorted(
+                obj, key=lambda item: state.member_keys[id(item)][1]
+            )
+            return (type(obj).__name__, index, tuple(members))
+
         def reducer_override(self, obj: Any) -> Any:
             if stub := maybe_get_custom_stub(obj):
                 return (bytes, (stub.to_bytes(),))
+            if inspect.isfunction(obj):
+                # Pickle stores a function by reference, so an edit to a
+                # callback held inside a value would not change the key.
+                # Fingerprint it by content, and reduce to plain bytes: a
+                # function-valued reduce callable gets fingerprinted in turn.
+                try:
+                    fingerprint = hash_wrapped_functions(
+                        obj, hash_type, _seen=state
+                    )
+                except Exception:
+                    # By reference, as pickle would.
+                    return NotImplemented
+                if getattr(obj, "__module__", None) == "__main__":
+                    # A notebook function's globals are not in its
+                    # fingerprint, and inside a value no graph accounts for
+                    # them. Its mangled qualname and the cell-mangled names
+                    # it refers to carry the defining cell, as pickling by
+                    # reference did. A lambda has only the latter.
+                    fingerprint += primitive_to_bytes(
+                        (obj.__qualname__, cell_bindings(obj.__code__))
+                    )
+                return (bytes, (type_sign(fingerprint, "function"),))
             try:
                 if not is_primitive(obj) and is_data_primitive(obj):
                     h = hashlib.new(hash_type, usedforsecurity=False)
@@ -256,5 +352,5 @@ def deterministic_dumps(obj: Any, hash_type: str) -> bytes:
             return NotImplemented
 
     buf = io.BytesIO()
-    _ContentHashPickler(buf).dump(obj)
+    _ContentHashPickler(buf, protocol=_PICKLE_PROTOCOL).dump(obj)
     return buf.getvalue()

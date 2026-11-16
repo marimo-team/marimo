@@ -4,7 +4,10 @@ from __future__ import annotations
 
 import array
 import enum
+import os
 import pickle
+import subprocess
+import sys
 from decimal import Decimal
 from fractions import Fraction
 from typing import Any
@@ -85,7 +88,7 @@ def test_different_array_data_produces_different_hash() -> None:
 def test_plain_objects_pass_through() -> None:
     """Objects without data primitives should pickle normally."""
     obj = {"key": "value", "n": 42, "nested": [1, 2, 3]}
-    assert deterministic_dumps(obj, "sha256") == pickle.dumps(obj)
+    assert deterministic_dumps(obj, "sha256") == pickle.dumps(obj, protocol=4)
 
 
 def test_0d_array() -> None:
@@ -319,3 +322,24 @@ def test_set_encoding_is_order_independent() -> None:
     assert common_container_to_bytes({1, "a", (2,)}) == (
         common_container_to_bytes({(2,), "a", 1})
     )
+
+
+def test_set_dumps_are_seed_independent() -> None:
+    # Set iteration order follows PYTHONHASHSEED for str members. A value
+    # pickled through deterministic_dumps must not.
+    program = (
+        "from marimo._save.encode import deterministic_dumps\n"
+        "print(deterministic_dumps({'a', 'b', 'c', frozenset({'d', 'e'})},"
+        " 'sha256').hex())"
+    )
+    digests = {
+        subprocess.run(
+            [sys.executable, "-c", program],
+            capture_output=True,
+            text=True,
+            check=True,
+            env={**os.environ, "PYTHONHASHSEED": seed},
+        ).stdout.strip()
+        for seed in ("0", "1", "42")
+    }
+    assert len(digests) == 1

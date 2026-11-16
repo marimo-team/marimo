@@ -16,8 +16,8 @@ from typing import TYPE_CHECKING, Any
 
 from msgspec import UNSET
 
+from marimo._ast.fingerprint import code_fingerprint
 from marimo._core import protocol
-from marimo._core.code import code_fingerprint
 from marimo._core.errors import Invalid
 
 if TYPE_CHECKING:
