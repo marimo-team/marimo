@@ -4,6 +4,9 @@ from __future__ import annotations
 import os
 from unittest.mock import patch
 
+import msgspec
+import pytest
+
 from marimo._messaging.notification import (
     DataSourceDiscoveryResultNotification,
 )
@@ -12,8 +15,47 @@ from marimo._types.ids import RequestId
 from tests.conftest import MockedKernel
 
 
+@pytest.mark.parametrize(
+    ("environment", "integrations"),
+    [
+        (
+            {
+                "PGHOST": "secret-pg-host",
+                "PGUSER": "secret-pg-user",
+                "PGDATABASE": "secret-pg-database",
+            },
+            ["postgres"],
+        ),
+        (
+            {
+                "DUCKDB_DATABASE": "md:secret-production",
+                "MOTHERDUCK_TOKEN": "secret-token",
+            },
+            ["motherduck"],
+        ),
+        (
+            {
+                "DUCKDB_DATABASE": "quack://secret-host",
+                "QUACK_API_KEY": "secret-token",
+            },
+            ["duckdb"],
+        ),
+        ({"DUCKDB_PATH": "/secret/local.duckdb"}, ["duckdb"]),
+        (
+            {
+                "MOTHERDUCK_TOKEN": "secret-motherduck",
+                "DUCKDB_PATH": "/secret/local.duckdb",
+                "QUACK_DATABASE": "quack:secret-host",
+                "QUACK_TOKEN": "secret-quack",
+            },
+            ["motherduck", "duckdb", "duckdb"],
+        ),
+    ],
+)
 async def test_discovery_reads_live_kernel_environment(
     mocked_kernel: MockedKernel,
+    environment: dict[str, str],
+    integrations: list[str],
 ) -> None:
     kernel = mocked_kernel.k
     stream = mocked_kernel.stream
@@ -21,11 +63,7 @@ async def test_discovery_reads_live_kernel_environment(
     with (
         patch.dict(
             os.environ,
-            {
-                "PGHOST": "host",
-                "PGUSER": "user",
-                "PGDATABASE": "database",
-            },
+            environment,
             clear=True,
         ),
         patch(
@@ -45,13 +83,10 @@ async def test_discovery_reads_live_kernel_environment(
     ]
     assert len(results) == 1
     assert results[0].request_id == RequestId("discovery")
-    assert [source.integration for source in results[0].sources] == [
-        "postgres"
-    ]
-    load_resolved_catalogs.assert_called_once_with(
-        environment={
-            "PGHOST": "host",
-            "PGUSER": "user",
-            "PGDATABASE": "database",
-        }
-    )
+    assert [
+        source.integration for source in results[0].sources
+    ] == integrations
+    payload = msgspec.json.encode(results[0]).decode()
+    for value in environment.values():
+        assert value not in payload
+    load_resolved_catalogs.assert_called_once_with(environment=environment)

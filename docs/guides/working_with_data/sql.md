@@ -227,10 +227,23 @@ Click a suggestion to insert a ready-to-run cell.
 | MySQL | `MYSQL_HOST`, `MYSQL_USER`, `MYSQL_DATABASE`, and `MYSQL_PASSWORD`/`MYSQL_PWD` (plus `MYSQL_TCP_PORT`) |
 | Trino | `TRINO_HOST`, `TRINO_USER`, `TRINO_CATALOG` (plus `TRINO_PORT`, `TRINO_PASSWORD`, `TRINO_SCHEMA`) |
 | Databricks SQL warehouse | `DATABRICKS_SQL_WAREHOUSE_ID` (plus `DATABRICKS_CONFIG_PROFILE`) |
+| DuckDB | `DUCKDB_PATH` or a local `DUCKDB_DATABASE` (plus `DUCKDB_READ_ONLY`) |
+| MotherDuck | `MOTHERDUCK_DATABASE`, an `md:` URL in `DUCKDB_DATABASE`, or `MOTHERDUCK_TOKEN` / `DUCKDB_MOTHERDUCK_TOKEN` / `motherduck_token` |
+| Quack | A `quack:` URI in `QUACK_DATABASE` or `DUCKDB_DATABASE` (plus `QUACK_TOKEN` / `QUACK_API_KEY`) |
 | PySpark (Spark Connect) | `SPARK_REMOTE` |
 | PyIceberg catalogs | `PYICEBERG_CATALOG__<name>__*` environment variables, or catalogs resolved from a `.pyiceberg.yaml` file |
 
 Only the *names* of environment variables are shown in the UI — their values are never sent to the frontend.
+
+MotherDuck URLs are passed through without adding a second `md:` prefix. Local
+paths are suggested separately, even when MotherDuck credentials are configured.
+Quack suggestions require an endpoint; a token alone is insufficient. The Quack
+cell requires DuckDB 2.0 or newer and creates a dedicated in-memory connection
+with a temporary, URI-scoped token secret, then uses `ATTACH` and `USE remote`.
+Without a token variable, it uses existing DuckDB credentials. It does not use
+`CONNECT`, and `DUCKDB_READ_ONLY` applies only to local files, not remote servers.
+For Quack transport and authorization options, see the
+[official security documentation](https://duckdb.org/docs/2.0/quack/security).
 
 If you'd like to connect to a database that isn't supported by the UI, you can use the code method below, or submit a [feature request](https://github.com/marimo-team/marimo/issues/new?title=New%20database%20connection:&labels=enhancement&template=feature_request.yaml).
 
